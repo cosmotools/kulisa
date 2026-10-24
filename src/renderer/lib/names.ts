@@ -1,4 +1,4 @@
-// Name fields (data-name: projects, tasks, profiles) take only the characters names may have (shared/names.ts, which
+// Name fields (data-name: projects, profiles) take only the characters names may have (shared/names.ts, which
 // checks them again): others are left out as they are typed or pasted.
 import { nameChar } from '../../shared/names';
 

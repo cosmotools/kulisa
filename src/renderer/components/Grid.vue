@@ -9,13 +9,15 @@ import ProfileHeader from './grid/ProfileHeader.vue';
 import Terminals from './grid/Terminals.vue';
 import TerminalTabs from './grid/TerminalTabs.vue';
 import ClosedProfiles from './grid/ClosedProfiles.vue';
+import Resources from './Resources.vue';
+import ResourcesTab from './ResourcesTab.vue';
 import { gridMounted } from '../lib/grid';
 
 // dockview takes the gap between panels as a number: tokens.css's --gap, loaded before the window mounts (main.ts).
 const gap = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--gap'));
 const theme = { ...themeAbyssSpaced, name: 'kulisa', gap };
-const components = markRaw({ profile: ProfilePane, terminal: Terminals }) as unknown as IDockviewVueProps['components']; // dockview-vue types its components as option objects
-const tabComponents = markRaw({ profile: ProfileHeader, terminal: TerminalTabs }) as unknown as IDockviewVueProps['tabComponents'];
+const components = markRaw({ profile: ProfilePane, terminal: Terminals, resources: Resources }) as unknown as IDockviewVueProps['components']; // dockview-vue types its components as option objects
+const tabComponents = markRaw({ profile: ProfileHeader, terminal: TerminalTabs, resources: ResourcesTab }) as unknown as IDockviewVueProps['tabComponents'];
 </script>
 
 <template>
@@ -28,14 +30,12 @@ const tabComponents = markRaw({ profile: ProfileHeader, terminal: TerminalTabs }
 
 <style>
 #dock {
-  /* min-width: a row wider than the window (19 closed profiles over the terminal) stretched the window's column, the
-     terminal and the tasks' bar past its edge (2026-10-15) */
+  /* min-width: a row wider than the window (many closed profiles over the terminal) would stretch the window's column,
+     the terminal and the tasks' bar past its edge */
   display: flex; flex-direction: column; min-width: 0; margin-inline: var(--gap); transition: opacity .15s;
   #grid { flex: 1; min-height: 0; }
   .loading & { opacity: 0; transition: none; } /* until the grid is laid out (lib/grid.ts, reveal) */
   .noproject & { display: none; }
-  /* Under a new tab the task's grid stays laid out (its terminals' sizes, its pages' places), unseen (App.vue) */
-  [data-page="newtab"] & { visibility: hidden; }
   .dockview-theme-abyss-spaced {
     color-scheme: inherit; /* the theme's own is dark; Kulisa's is the root's (tokens.css: light-dark()) */
     --dv-group-view-background-color: var(--island);
@@ -56,8 +56,7 @@ const tabComponents = markRaw({ profile: ProfileHeader, terminal: TerminalTabs }
   :active-view-transition & { transition: none; } /* the next grid comes in sliding, not fading */
 }
 /* Switching (lib/grid.ts, grid:closing): the grid slides towards the next task's tab, as macOS desktops do (types
-   next and previous say which way; until 2026-10-14 only between projects, replaced at once between a project's own
-   tasks). Pictures, so the compositor moves them. */
+   next and previous say which way). Pictures, so the compositor moves them. */
 /* Longhands: Vite's CSS minifier (Lightning CSS) made the shorthand with no name `animation: none`, and nothing slid.
    Material's standard easing: an ease-out (.2, .8, .2, 1) crept over its last few percent, the grid going out lingering
    at the window's edge. */

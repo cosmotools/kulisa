@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// A profile's page in Settings (docs/profiles.md; the author, 2026-10-11): who it is, each field saved as it changes (on
+// A profile's page in Settings (docs/profiles.md): who it is, each field saved as it changes (on
 // Enter or leaving it). Sign In… opens its master's window (master.ts), to sign in once for every task. Settings'
 // tree makes and deletes profiles (ProjectEditor.vue); a project's page adds and removes them there.
 import { ref, watch } from 'vue';
@@ -14,7 +14,7 @@ import type { Result } from '../../../shared/result';
 import type { SettingsProfile } from '../../../shared/types';
 
 const props = defineProps<{ profile: SettingsProfile }>();
-// changed: the profiles as they are now, and its id (renamed: a new one).
+// changed: the profiles as they are now, and its id.
 const emit = defineEmits<{ changed: [r: { profiles: SettingsProfile[]; id?: string }] }>();
 const error = ref('');
 // The fields as typed, saved on Enter or leaving them (a name refused stays typed, with why under it).
@@ -58,7 +58,7 @@ async function signIn() { error.value = (await kulisa.invoke('profiles:master', 
         </PopoverPortal>
       </PopoverRoot></span></div>
     <div class="field"><label for="profilename">Name:</label><input id="profilename" v-model="name" data-name maxlength="64" spellcheck="false"
-      :title="`The agent calls it ${profile.id}`" @change="rename" @keydown.enter.prevent="rename"></div>
+       title="The agent calls it by this name: no other profile of its projects has it" @change="rename" @keydown.enter.prevent="rename"></div>
     <div class="field top"><label for="profileabout">About:</label><textarea id="profileabout" v-model="about" rows="2" maxlength="500"
       placeholder="e.g. seller in the Acme shop; can approve refunds" @change="describe" /></div>
     <p class="hint">The agent reads this to choose the profile for a task, and asks you when it is empty.</p>

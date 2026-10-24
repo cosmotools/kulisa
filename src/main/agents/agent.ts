@@ -36,23 +36,32 @@
 //   prompt(text)             the arguments that start it with a first message (the task handed to it: tasks.ts, handOver)
 //   conversation(transcript) its transcript read as the task's history (task_history; the entries: transcripts.ts): { entries,
 //                            plan, stopped, memory }; without, its runs give the history nothing but Kulisa's part
+//   title(conversation)      the agent's own auto-title for the conversation ({ transcript, sessionId }), from wherever it keeps one, or null (none
+//                            in its transcript's end, where it is read: not blocking, the whole may be hundreds of MB): the
+//                            conversation's and (while the task is unnamed) the task's shown name until one is given
+//                            explicitly (conversation_rename, task_rename); without, the tab stays the default
 //   forget(ctx)              a task's copy is deleted: everything the agent keeps of its folder goes (conversations,
 //                            the folder's trust, history); ctx { folder, saved (a conversation of it), project (the
 //                            project's folder, and a conversation of one of its tasks with a transcript) }
-//   config                   its accounts (accounts.ts): { env, home(), login(), status, email(out), logout }:
+//   config                   its accounts (accounts.ts): { env, home(), login(), status, email(out, dir), logout }:
 //                            the variable naming its config folder; the human's own folder (where it keeps its sign-in
 //                            without that variable); the arguments of its own sign-in (run in a terminal, it ends when
-//                            signed in), of its status (ends with 0 when signed in) and the email in what that says
-//                            (none: not known), and of signing out (accountEmail, signOut)
+//                            signed in), of its status (ends with 0 when signed in) and the email in what that says or
+//                            in the config folder dir (none: not known), and of signing out (accountEmail, signOut)
 //   voice                    dictation, when the agent has its own (the window's microphone button; none without):
 //                            key, repeat  what is typed into its terminal again and again while it records, every
 //                                  repeat ms, as a held key repeats (a terminal tells no key's release)
+//   recognizer               its dictation recognizing speech for agents without one (src/dictation, the hidden
+//                            session): available(dir), whether an account's sign-in gives it; args, its arguments for
+//                            that, its text posted to KULISA_URL's hooks/prompt (hookCommand) and blocked there; env(env)
+//                            the environment it runs in, from Kulisa's; key, repeat: its dictation's key, as voice's;
+//                            clear, submit: the keys that empty its input and submit it
 //   language                 its own language setting, which Kulisa's one language (☰ → Language) is written into,
 //                            in every account of it (app.ts, setLanguage; tasks.ts, at its start): languages, the
 //                            codes it takes; set(dir, code), into an account's config folder
 import type { Conversation } from '../kulisa-plugin/transcripts.ts';
 
-// Kulisa's MCP tools that keep the agent's own approval (the author, 2026-10-12; docs/profiles.md, The agent's tools):
+// Kulisa's MCP tools that keep the agent's own approval (docs/profiles.md, The agent's tools):
 // terminal_run runs any command in the human's shell, around the agent's approval of commands (and Codex's sandbox);
 // browser_file_upload sends a file of the disk to a site, what a prompt injection would use. Every other tool runs
 // without a question, a new one too unless it is added here: what acts on real accounts asks the human in Kulisa itself.
@@ -64,7 +73,8 @@ interface Saved { sessionId?: string; transcript?: string; started?: boolean; co
 // Where an agent's program is (findAgent).
 interface Found { path: string | null; onPath: boolean }
 // What a task tells its agent (tasks.ts): its environment, where Kulisa's packages for agents are.
-interface ArgsContext { env: Record<string, string | undefined>; packages: string; account?: string | null }
+// artifacts: every task's folder of what the agent's tools keep of its pages (a glob: TaskStore.artifacts).
+interface ArgsContext { env: Record<string, string | undefined>; packages: string; account?: string | null; artifacts: string }
 // Where an agent's config is: its account's folder, else found from a conversation's transcript (Claude's).
 interface Where { configDir?: string | null; transcript?: string }
 interface ForgetContext { folder: string; saved?: Saved; project?: { folder?: string; transcript?: string }; configDir?: string | null }
@@ -80,12 +90,14 @@ interface Agent {
   trust?: { has: (where: Where, folder: string) => boolean; set: (where: Where, folder: string) => boolean };
   forget?: (ctx: ForgetContext) => boolean;
   conversation?: (transcript: string) => Conversation;
+  title?: (c: { transcript: string; sessionId?: string }) => Promise<string | null>;
   hooks?: Hook[];
   lacks?: Partial<Record<Capability, string>>;
   prompt?: (text: string) => string[];
   skills?: string;
-  config?: { env: string; home: () => string; login: () => string[]; status: string[]; email: (out: string) => string | null; logout: string[] };
+  config?: { env: string; home: () => string; login: () => string[]; status: string[]; email: (out: string, dir: string) => string | null; logout: string[] };
   voice?: { key: string; repeat: number };
+  recognizer?: { available: (dir: string) => boolean; args: () => string[]; env: (env: NodeJS.ProcessEnv) => Record<string, string | undefined>; key: string; repeat: number; clear: string; submit: string };
   language?: { languages: string[]; set: (dir: string, code: string) => { error?: string } };
   shell?: { command: string; args?: string[] };
 }

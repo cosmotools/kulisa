@@ -3,26 +3,28 @@
 // grid and its terminals, its agents in some of them. Its project's window shows one task at a time; the others keep
 // running, those of the other open projects too. A task loads (profiles, terminals) the first time it is shown, so a
 // restart does not start every one at once.
-import { session } from 'electron';
+import { nativeImage, session } from 'electron';
 import fs from 'fs';
 import path from 'path';
 import { Profile, wipeSession } from './profiles.ts';
 import { ProjectProfiles } from './project-profiles.ts';
 import { installSigninPause } from './signin-pause.ts';
-import { startTerminal, stopTerminal, forgetTerminal, terminalTail, sendToPrompt } from './terminal.ts';
-import { copyProfile } from './store.ts';
+import { startTerminal, stopTerminal, forgetTerminal, terminalTail, sendToPrompt, typeIntoPrompt, eraseInPrompt, typeLine, interrupt } from '../terminal/main/index.ts';
+import { READ_MAX } from './kulisa-plugin/tools/terminal.ts';
+import { listArtifacts } from './kulisa-plugin/artifacts.ts';
+import { copyProfile, worktreesOf, ownWorktree, folderOf, branchOf, taskKey } from './store.ts';
 import { renameBranch } from './worktrees.ts';
 import { extendTrust } from './agents/index.ts';
-import { installSkill } from './agents/files.ts';
-import { nameError } from '../shared/names.ts';
+import { installSkill } from './agents/index.ts';
+import { labelError } from '../shared/names.ts';
 import { loginAllowed } from './local.ts';
 import { log } from './log.ts';
 import type { Tab } from './profiles.ts';
 import type { Entry, Hooks } from './project-profiles.ts';
 import type { Project } from './projects.ts';
 import type { AppWindow } from './window.ts';
-import type { Conversation, Copy, TaskEntry, TaskStore } from './store.ts';
-import type { Pty } from './terminal.ts';
+import type { Conversation, TaskEntry, TaskStore, Worktree } from './store.ts';
+import type { Pty } from '../terminal/main/index.ts';
 import type { GitError } from './worktrees.ts';
 import type { Shell, AgentChoice } from './shell.ts';
 import type * as Sent from '../shared/types.ts'; // what the window gets: its one definition
@@ -37,42 +39,42 @@ interface TaskTerminal {
   id: number; key: string; name: string; command: string; by: 'human' | 'agent'; pty?: Pty;
   agent?: AgentChoice; conversation?: number; state: AgentState; seen: boolean; error?: undefined;
   handedFrom?: number; // the conversation it was handed (handOver), its number from 1, while it reads it
-  newDirs?: { copy: Copy; removed?: true }[]; giving?: boolean; // copies added to the task or removed, told once its turn is over (giveDirs)
+  titleTimer?: NodeJS.Timeout; // its auto-title read again after a turn's end (followAutoTitle)
+  newDirs?: { copy: Worktree; removed?: true }[]; giving?: boolean; // copies added to the task or removed, told once its turn is over (giveDirs)
 }
 type Found = { profile: Profile; error?: undefined } | { error: string; closed?: boolean; profile?: undefined };
 
-const DICTATION_LIMIT = 5 * 60_000; // a recording left on (a click and no second one)
-const HOLD = 400; // the key down longer is held (records until let go), shorter is a press (until the next)
 // The message an agent handed the task starts with (handOver), as the human would type it: what to read, and that
 // it tells the human what it understood, who sees at once what it missed.
 const HANDOVER = (n: number, name: string) => `Go on with the work of conversation ${n} of this task ("${name}"). Read it ` +
   `whole with the kulisa task_history tool (conversation ${n}) before anything else. Then tell me in a few lines what ` +
   'is done and what is next, and go on with it.';
 
+// A screenshot's picture in its Resources row: twice the row's (Resources.vue), sharp on a Retina screen.
+const THUMB_WIDTH = 128;
+
 class Task {
-  shell: Shell; project: Project; entry: TaskEntry; n: number; key: string; folder: string; offset: number; store: TaskStore;
+  shell: Shell; project: Project; entry: TaskEntry; id: string; key: string; store: TaskStore;
   window: AppWindow | null; // the one whose tab it is (window.ts)
   loaded: boolean; terminalsLoaded: boolean;
   gitChecked: Promise<void>; // its project's repositories looked at as it loads (Project.checkGit), awaited by its agents
+  _copying: Promise<unknown>; // its copies made one at a time (copying)
   terminals: Map<number, TaskTerminal>; terminalSeq: number; list: ProjectProfiles;
   profiles: ProjectProfiles['profiles']; closed: ProjectProfiles['closed'];
   front: number | null; lastAgent: number | null; // the island's tab in front; the agent's tab in front last
-  resumedSession?: string | null; dictating?: { t: TaskTerminal; timer: NodeJS.Timeout } | null; held?: number;
-  // project: its project (projects.ts); entry: { n, name, branch, worktree, folder, base, offset, closed, closedAt }
-  // from its tasks.json; one without a worktree works in the project's folder. key: the task among all open ones
-  // ("<project id>/<n>"): the windows, the terminals, the CDP proxy and the MCP server's URLs know it by that.
+  resumedSession?: string | null;
+  // project: its project (projects.ts); entry: its record in its tasks.json (store.ts, TaskEntry); one without a
+  // worktree works in the project's folder. key: the task among all (store.ts, taskKey).
   // shell: the app (app.ts): store, proxy, mcp, sessionCookies, signin, uiZoom, bus, ask; the agents
   // (agentFor, findAgent, chooseAgent, plugin); and taskChanged(task, now, agentState), called after any change of its
   // profiles or its agent's state. Its window is the one whose tab it is (window.ts: add, drop; win, viewsHidden,
   // picking, send), none while it is closed; it changes when the task moves to another window (moveTo).
   constructor(shell: Shell, project: Project, entry: TaskEntry) {
     this.shell = shell; this.project = project; this.entry = entry; this.window = null;
-    this.n = entry.n;
-    this.key = `${project.id}/${this.n}`;
-    this.folder = entry.folder || project.folder; // its agent's: the copy of the default repository
-    this.offset = entry.offset || 0;
-    this.store = shell.store.taskOf(project, this.n);
-    this.loaded = false; this.terminalsLoaded = false; this.gitChecked = Promise.resolve();
+    this.id = entry.id;
+    this.key = taskKey(project, this.id);
+    this.store = shell.store.taskOf(project, this.id);
+    this.loaded = false; this.terminalsLoaded = false; this.gitChecked = Promise.resolve(); this._copying = Promise.resolve();
     this.terminals = new Map(); this.terminalSeq = 0; // its island's terminals, by id, in their tabs' order
     this.front = null; this.lastAgent = null;
     this.list = new ProjectProfiles(this.store, shell.profileStore, project.id, this._profileHooks());
@@ -83,34 +85,52 @@ class Task {
   // lays them out; its agents' output goes there (window: send).
   moveTo(w: AppWindow) { for (const p of this.profiles.values()) p.moveTo(w.win); }
   get name() { return this.entry.name; }
-  // Still its first name (projects.ts): neither its agent nor the human has named it.
-  get unnamed() { return this.entry.name === `task-${this.n}`; }
+  // The name shown in the bar: the one it was given (task_rename / Rename…), or, until then, its first agent
+  // conversation's name (the agent's own auto-title, noteAutoTitle), falling back to its stored name ("New Task").
+  // Not entry.name, which a branch's slug is made from.
+  get displayName() {
+    if (this.entry.named) return this.entry.name;
+    const first = this.agentTerminals()[0];
+    return (first && this.conversationName(first)) || this.entry.name;
+  }
+  // Where its agent works: its first resource, its own worktree once it has one (ensureWorktree), else the project's
+  // folder it opened in (the human's; a task without git stays there). It changes when the agent makes the worktree.
+  get folder() { return folderOf(this.entry, this.project.folder); }
+  get branch() { return branchOf(this.entry); }
+  get worktrees() { return worktreesOf(this.entry); }
+  // The task's own git worktree, made on demand (the agent's task_worktree), idempotent: created the first time (a
+  // branch of its own, so the agent's work does not touch the human's folder), the same one after. Its running agents
+  // are given the new folder (giveDirs), as an added repository is. name: the task's name when it is still unnamed, so
+  // the agent names it and makes the worktree in one call; the branch takes a slug of the name. Its { folder, branch }.
+  makeWorktree(name?: string) { return this.copying(() => this._makeWorktree(name)); }
+  async _makeWorktree(name?: string): Promise<Result<{ folder: string; branch: string }>> {
+    if (name && !this.entry.named) { const r = await this._rename(name); if (refused(r)) return r; }
+    const had = !!ownWorktree(this.entry);
+    const c = await this.project.ensureWorktree(this);
+    if (refused(c)) return c;
+    if (!had) {
+      for (const t of this.agentTerminals()) if (t.pty) { (t.newDirs ??= []).push({ copy: c }); void this.giveDirs(t); }
+      this.window?.sendProjects();
+    }
+    return { folder: c.folder, branch: c.branch };
+  }
   // A new name, the agent's (task_rename) or the human's (Rename… on its tab): the name in the bar and its branch
   // of each of its copies (git branch -m; -2, -3 when another branch has it). Its folders stay: its agent may be
-  // working there.
-  async rename(name: string | undefined): Promise<Result<{ name: string; branch: string | null }>> {
+  // working there. One of the copying (copying): a branch renamed while a copy is being made would miss it.
+  rename(name: string | undefined) { return this.copying(() => this._rename(name)); }
+  async _rename(name: string | undefined): Promise<Result<{ name: string; branch: string | null }>> {
     name = name?.trim();
-    const bad = nameError(name);
+    const bad = labelError(name);
     if (bad) return { error: bad };
-    const { entry } = this;
-    if (entry.copies?.length) {
-      try { entry.branch = await renameBranch(entry.copies, name!); } catch (e) { return { error: (e as GitError).stderr || (e as Error).message }; }
+    const { entry } = this, copies = worktreesOf(entry);
+    if (copies.length) {
+      try { await renameBranch(copies, name!); } catch (e) { return { error: (e as GitError).stderr || (e as Error).message }; }
     }
     entry.name = name!;
-    delete entry.about;
+    entry.named = true;
     this.project.save();
     this.window?.sendProjects();
-    return { name: name!, branch: entry.branch || null };
-  }
-
-  // An unnamed task's first prompt (its first line), shown with its name until it has one: what it is about when its
-  // agent did not name it.
-  noteAbout(prompt: string) {
-    const line = prompt.split('\n').map((l) => l.trim()).find(Boolean);
-    if (!this.unnamed || this.entry.about || !line) return;
-    this.entry.about = line.length > 120 ? `${line.slice(0, 119)}…` : line;
-    this.project.save();
-    this.window?.sendProjects();
+    return { name: name!, branch: this.branch };
   }
 
   // What it takes to run a profile of this task (project-profiles.ts).
@@ -128,11 +148,11 @@ class Task {
         installSigninPause(profile, shell.signin.isSigninUrl);
         return profile;
       },
-      start: async (profile, urls) => {
+      start: async (profile, tabs) => {
         await shell.sessionCookies.restore(profile); // before the first request of any tab
         // Real accounts: the master's non-local cookies, then kept in step with it and the other tasks (cookie-sync.ts).
-        await shell.cookieSync.attach(profile.folder, profile.session, this.project.entry.local || []);
-        await Promise.all(urls.map((u, i) => profile.newTab(u, { activate: i === 0 }).ready));
+        await shell.cookieSync.attach(profile.id, profile.session, this.project.entry.local || []);
+        await profile.openTabs(tabs);
         // The window opens even if the shell's connection fails; the agent's tools say so for this profile.
         if (!profile.signinMode) await profile.connect(profile.endpoint!).catch((e: Error) => console.error(`[kulisa] ${profile.id}: no Playwright connection: ${e.message.split('\n')[0]}`));
         shell.bus.emit('profile-added', profile);
@@ -144,20 +164,19 @@ class Task {
         if (pick?.profile === p) pick.cancel();
         shell.bus.emit('profile-unloading', `${this.key}/${p.id}`);
         await shell.sessionCookies.persist(p);
-        shell.cookieSync.detach(p.folder, p.session);
+        shell.cookieSync.detach(p.id, p.session);
         shell.proxy.removeProfile(p);
         await p.close();
       },
-      // Its first open in this task: a copy of its master (sign-ins included, caches left out: store.ts), its tabs those
-      // of the master moved to this task's ports. Masters are not worked in, so nothing is open in one to flush.
+      // Its first open in this task: a copy of its master (sign-ins included, caches left out: store.ts), with the
+      // master's tabs. Masters are not worked in, so nothing is open in one to flush.
       copy: async (e) => {
-        await shell.flushMaster(e.cfg.folder); // open to sign in to: what was done there is on disk
-        await copyProfile(shell.profileStore.masterDir(e.cfg.folder), e.cfg.dir);
-        e.urls = this.store.tabs(e.cfg.folder).filter((u) => u && u !== 'about:blank').map((u) => withOffset(u, this.offset));
-        this.store.saveTabs(e.cfg.folder, e.urls);
+        await shell.flushMaster(e.cfg.id); // open to sign in to: what was done there is on disk
+        await copyProfile(shell.profileStore.masterDir(e.cfg.id), e.cfg.dir);
+        e.tabs = this.store.tabs(e.cfg.id);
+        this.store.saveTabs(e.cfg.id, e.tabs);
       },
-      urlsOf: (p) => p.tabs.map((t) => this.urlOf(t)).filter((u) => u && u !== 'about:blank'),
-      renamed: (p, oldId) => { shell.proxy.renamed(p, oldId); p.endpoint = shell.proxy.endpoint(p); },
+      tabsOf: (p) => p.savedTabs((t) => this.urlOf(t)),
       remove: async ({ cfg, profile }: Entry) => {
         shell.sessionCookies.forget(cfg);
         if (!profile) { if (fs.existsSync(cfg.dir)) await wipeSession(session.fromPath(cfg.dir)); return; } // never opened here: no copy
@@ -177,23 +196,29 @@ class Task {
   // the repositories it may add (addable): the agent reads those in the project's folders, changing nothing there.
   dirs() {
     const addable = this.addable();
-    return [...new Set(this.project.repos().filter((r) => !addable.includes(r)).map((r) => this.entry.copies?.find((c) => c.repo === r)?.folder || r))]
+    return [...new Set(this.project.folders().filter((r) => !addable.includes(r)).map((r) => worktreesOf(this.entry).find((c) => c.repo === r)?.folder || r))]
       .filter((d) => d !== this.folder);
   }
-  // The project's repositories in git it has no copy of yet; none for a task without git (it works in a folder).
+  // The project's repositories in git it has no copy of yet; none while it works in a repository with no worktree of its
+  // own yet (beside which they go). One working in a folder without git has none to make: its copies go on a branch of
+  // their own (Project.addCopy).
   addable() {
-    const { copies } = this.entry;
-    return copies ? this.project.repos().filter((r) => this.project.gits.get(r) === 'ok' && !copies.some((c) => c.repo === r)) : [];
+    const copies = worktreesOf(this.entry);
+    if (this.inGit()) return [];
+    return this.project.folders().filter((r) => this.project.gits.get(r) === 'ok' && !copies.some((c) => c.repo === r));
   }
+  // Working in a folder of the project that is in git (one it can have a worktree of), not yet in its own worktree.
+  inGit() { return !ownWorktree(this.entry) && this.project.gits.get(this.folder) !== 'none'; }
   // Another of the project's repositories added to it, when its work turns out to need it (the human's Add Repository
-  // on its tab, the agent's task_add_repository once the human agreed; the author, 2026-10-13): a copy on its branch,
+  // on its tab, the agent's task_add_repository once the human agreed): a copy on its branch,
   // given to its running agents (giveDirs); at their next start they get it as the others (dirs). The copy's
   // { folder, branch }.
-  async addRepository(repo: string): Promise<Result<{ folder: string; branch: string }>> {
-    if (!this.entry.copies) return { error: "this task works in the project's folder (no git): it has no copies to add to" };
-    const found = this.project.repos().find((r) => r === repo || path.basename(r) === repo);
-    if (!found) return { error: `${repo} is not one of the project's repositories: ${this.project.repos().join(', ')}` };
-    if (this.entry.copies.some((c) => c.repo === found)) return { error: `the task has ${found} already` };
+  addRepository(repo: string) { return this.copying(() => this._addRepository(repo)); }
+  async _addRepository(repo: string): Promise<Result<{ folder: string; branch: string }>> {
+    if (this.inGit()) return { error: 'the task has no worktree of its own yet to add a copy beside: make it with task_worktree first' };
+    const found = this.project.folders().find((r) => r === repo || path.basename(r) === repo);
+    if (!found) return { error: `${repo} is not one of the project's folders: ${this.project.folders().join(', ')}` };
+    if (worktreesOf(this.entry).some((c) => c.repo === found)) return { error: `the task has ${found} already` };
     if (!this.addable().includes(found)) return { error: `${found} has no git commit to copy` };
     const c = await this.project.addCopy(this, found);
     if (refused(c)) return c;
@@ -201,13 +226,21 @@ class Task {
     this.window?.sendProjects();
     return { folder: c.folder, branch: c.branch };
   }
+  // Its copies made, and its branch renamed, one after another: two agents of the task calling task_worktree at once
+  // get the one worktree (the second finds it made), not one each; a repository added meanwhile goes beside it; a
+  // rename meanwhile renames the new copy's branch too.
+  copying<T>(make: () => Promise<T>): Promise<T> {
+    const done = this._copying.then(make);
+    this._copying = done.catch(() => {});
+    return done;
+  }
   // One of them taken out again (the human's Remove Repository, the agent's task_remove_repository once the human
-  // agreed; the author, 2026-10-13), by its repository's folder or name, or its copy's folder: asked first when it holds
+  // agreed), by its repository's folder or name, or its copy's folder: asked first when it holds
   // work not pushed (askRemoveCopy). Not its own folder, where its agents work: that goes with the task. Its running
   // agents told; one not told yet of it being added is told nothing. The copy's folder.
   async removeRepository(repo: string): Promise<Result<{ folder: string }>> {
-    const c = this.entry.copies?.find((x) => x.repo === repo || x.folder === repo || path.basename(x.repo) === repo);
-    if (!c) return { error: `the task has no copy of ${repo}; its copies: ${(this.entry.copies || []).map((x) => x.folder).join(', ') || 'none'}` };
+    const c = worktreesOf(this.entry).find((x) => x.repo === repo || x.folder === repo || path.basename(x.repo) === repo);
+    if (!c) return { error: `the task has no copy of ${repo}; its copies: ${worktreesOf(this.entry).map((x) => x.folder).join(', ') || 'none'}` };
     if (c.folder === this.folder) return { error: `${c.folder} is the task's own folder, where its agents work: it goes only with the task` };
     if (!await this.project.askRemoveCopy(this, c)) return { error: 'the human said no' };
     await this.project.removeCopy(this, c);
@@ -220,10 +253,10 @@ class Task {
     this.window?.sendProjects();
     return { folder: c.folder };
   }
-  // Copies added to the task, sent to a running agent by Kulisa as the human would type them (the author, 2026-10-13:
-  // the human sending a typed /add-dir was a step easily missed). Never while it waits for the human: Enter answered
-  // Claude Code's permission question with Yes, the pasted line lost (2.1.296). Claude Code's /add-dir goes into a
-  // turn too: it runs at once, its question over the turn, which goes on (2.1.296); others get a line saying so once
+  // Copies added to the task, sent to a running agent by Kulisa as the human would type them (a
+  // typed /add-dir is a step easily missed). Never while it waits for the human: Enter answered
+  // Claude Code's permission question with Yes, the pasted line lost. Claude Code's /add-dir goes into a
+  // turn too: it runs at once, its question over the turn, which goes on; others get a line saying so once
   // the turn is over (agents/, addDir). A copy removed: a line for every agent, once its turn is over (no agent has a
   // command to drop a folder). A draft the human is typing there then gets the line too.
   async giveDirs(t: TaskTerminal) {
@@ -304,13 +337,30 @@ class Task {
     return this.shownAgent() || (last?.agent ? last : null) || this.agentTerminals().at(-1) || null;
   }
   get pty() { return this.promptTarget()?.pty || null; }
-  // A tab's name: a shell's own; an agent's, the name it gave its conversation (nameConversation), else its agent's,
-  // numbered when another agent's tab has it too.
+  // Words for the human's next message to the agent (Pick's reference, a screenshot's path): typed without Enter into
+  // the agent's prompt, its tab brought to the front, the keyboard there, so the human writes the rest around them.
+  typeForAgent(text: string) {
+    const to = this.promptTarget();
+    if (!to?.pty) return false;
+    typeIntoPrompt(to.pty, text);
+    if (to.id !== this.front) this.show(to.id);
+    const w = this.window;
+    if (w && !w.win.isDestroyed()) { w.win.webContents.focus(); w.send('terminal:focus'); }
+    return true;
+  }
+  // An agent conversation's name: the one it was given (conversation_rename), else its own auto-title read from the
+  // transcript (noteAutoTitle); null when it has neither.
+  conversationName(t: TaskTerminal) {
+    const c = this.conversations()[t.conversation!];
+    return c?.title || c?.autoTitle || null;
+  }
+  // A tab's name: a shell's own; an agent's, its conversation's name, else its agent's, numbered when another agent's
+  // tab has it too.
   label(t: TaskTerminal) {
     if (!t.agent) return t.name;
-    const own = this.conversations()[t.conversation!]?.title;
+    const own = this.conversationName(t);
     if (own) return own;
-    const same = this.agentTerminals().filter((x) => !this.conversations()[x.conversation!]?.title && x.agent!.cli === t.agent!.cli);
+    const same = this.agentTerminals().filter((x) => !this.conversationName(x) && x.agent!.cli === t.agent!.cli);
     const n = same.indexOf(t) + 1;
     return n > 1 ? `${t.agent.cli} ${n}` : t.agent.cli;
   }
@@ -367,8 +417,8 @@ class Task {
     const env = this.env(t), dirs = this.dirs(), more: { args?: string[]; env?: Record<string, string> } = (dirs.length && a.dirs?.(dirs)) || {};
     // Each copy trusted as the human trusted the project's code, in its folder or another task's copy (extendTrust).
     const where = { configDir: a.configDir, transcript: (this.project.agentData() as { transcript?: string }).transcript };
-    const copies = this.shell.store.tasksOf(this.project.entry).list.flatMap((e) => e.copies || []);
-    for (const c of this.entry.copies || []) {
+    const copies = this.shell.store.tasksOf(this.project.entry).list.flatMap(worktreesOf);
+    for (const c of worktreesOf(this.entry)) {
       extendTrust(a, where, c.folder, [c.repo, ...copies.filter((o) => o.repo === c.repo && o.folder !== c.folder).map((o) => o.folder)]);
     }
     // Kulisa's profiles skill where the agent reads it, and Kulisa's language (☰ → Language: app.ts, setLanguage) in its
@@ -384,14 +434,14 @@ class Task {
     const command = found.onPath ? a.command : found.path;
     t.pty = await startTerminal((channel, data) => this.window?.send(channel, data), { command, shell: a.shell, cwd: this.folder,
       env: { ...env, ...more.env, ...a.env }, pinned: a.env, sizeOf: this.key,
-      args: [...(resume || []), ...(a.args?.({ env, packages: shell.packages, account: Object.keys(a.env).length ? a.configDir : null }) || []), ...(more.args || []), ...((!resume && first && a.prompt?.(first)) || [])] }, t.key);
+      args: [...(resume || []), ...(a.args?.({ env, packages: shell.packages, account: Object.keys(a.env).length ? a.configDir : null, artifacts: shell.store.artifactsGlob() }) || []), ...(more.args || []), ...((!resume && first && a.prompt?.(first)) || [])] }, t.key);
     if (this.terminals.get(t.id) !== t) { stopTerminal(t.pty); return { error: 'the terminal was closed' }; }
     // Its shell exited by itself (exit), not stopped by Kulisa (closing, quitting: the terminal is kept then).
     t.pty.onExit(() => { if (!t.pty!.stopped) this.dropTerminal(t); });
-    log.info(`[terminal] ${t.key} started ${a.id}${resume ? ' (resumed)' : ''}: ${command}`);
+    log.info(`[terminal] ${t.key} started ${shell.accounts.label(a.id)}${resume ? ' (resumed)' : ''}: ${command}`);
     this.changedTerminals(); // started
     this.updateConversation(conversation, { started: true });
-    this.sendVoice();
+    this.voiceShown();
     return { id: t.id };
   }
   // The same agent from nothing (New Conversation, or + with it): a new tab; the one before stays.
@@ -425,6 +475,34 @@ class Task {
     this.changedTerminals();
     return { name: words.join(' ') };
   }
+  // The agent's own auto-title for a conversation, read where its agent keeps it at session start and at a turn's end
+  // (agent-hooks.ts): shown on its tab, and on the task's tab while the task is unnamed, until a name is given
+  // explicitly. Best effort: never stored as the task's name, never a branch slug. True when it changed.
+  async noteAutoTitle(t: TaskTerminal) {
+    const n = t.conversation, c = n === undefined ? null : this.conversations()[n];
+    if (!t.agent?.title || !c || c.title || !c.transcript) return false; // an explicit name wins; nothing to read yet
+    let title: string | null = null;
+    try { title = await t.agent.title({ transcript: c.transcript, sessionId: c.sessionId }); } catch (e) { console.warn('[agents] title:', (e as Error).message); }
+    const now = this.conversations()[n!];
+    if (!title || !now || now.title || title === now.autoTitle) return false;
+    this.updateConversation(n!, { autoTitle: title });
+    this.changedTerminals();
+    this.window?.sendProjects();
+    return true;
+  }
+  // At a turn's end: its auto-title read then, and again a few times after until it changes, since an agent may name
+  // the session only once its turn is over (Codex: seconds after its Stop hook). Another turn's end starts over.
+  followAutoTitle(t: TaskTerminal) {
+    clearTimeout(t.titleTimer);
+    const at = [0, 5000, 15000, 30000];
+    const next = (i: number) => {
+      t.titleTimer = setTimeout(async () => {
+        if (this.terminals.get(t.id) !== t || await this.noteAutoTitle(t)) return;
+        if (i + 1 < at.length) next(i + 1);
+      }, at[i]! - (at[i - 1] ?? 0));
+    };
+    next(0);
+  }
 
   // The tab in front, chosen by the human, or a new one they opened.
   show(id: number): Result<{ id: number }> {
@@ -432,11 +510,10 @@ class Task {
     if (!t) return { error: `no terminal ${id}` };
     this.front = id;
     if (t.agent) this.lastAgent = id;
-    if (this.dictating && this.dictating.t !== t) this.dictate(false);
     this.saveTerminals();
     this.see();
     this.changedTerminals();
-    this.sendVoice();
+    this.voiceShown();
     return { id };
   }
   // The island's tabs changed (opened, closed, in front, named, an agent's state): the window draws them, the task's tab
@@ -465,7 +542,7 @@ class Task {
     this.terminals.set(id, t);
     if (front || this.front === null) this.show(id); else { this.saveTerminals(); this.changedTerminals(); }
     t.pty = await startTerminal((channel, data) => this.window?.send(channel, data),
-      { line: command, cwd: this.folder, env: this.env(), sizeOf: this.key, screen: true }, t.key);
+      { line: command, cwd: this.folder, env: this.env(), sizeOf: this.key, screen: READ_MAX }, t.key);
     if (this.terminals.get(id) !== t) { stopTerminal(t.pty); return { error: 'the terminal was closed' }; }
     t.pty.onExit(() => { if (!t.pty!.stopped) this.dropTerminal(t); });
     log.info(`[terminal] ${t.key} started: a shell${by === 'agent' ? " (the agent's)" : ''}`);
@@ -479,7 +556,7 @@ class Task {
     const t = this.terminal(name);
     if (refused(t)) return t.agent ? t : this.openTerminal({ name, command, by: 'agent' });
     t.command = command;
-    t.pty?.write(`${command}\r`);
+    if (t.pty) typeLine(t.pty, command);
     this.changedTerminals();
     return { id: t.id, name: t.name, again: true };
   }
@@ -487,7 +564,7 @@ class Task {
   interruptTerminal(which: number | string): Result<{ id: number }> {
     const t = this.terminal(which);
     if (refused(t)) return t;
-    t.pty?.write('\x03');
+    if (t.pty) interrupt(t.pty);
     return { id: t.id };
   }
   readTerminal(which: number | string, lines = 50): Result<{ text: string }> {
@@ -518,7 +595,6 @@ class Task {
     const order = [...this.terminals.keys()], i = order.indexOf(t.id);
     this.terminals.delete(t.id);
     log.info(`[terminal] ${t.key} gone`);
-    if (this.dictating?.t === t) this.dictate(false);
     if (t.pty) stopTerminal(t.pty);
     forgetTerminal(t.key);
     this.window?.send('terminals:gone', [t.key]);
@@ -531,7 +607,7 @@ class Task {
     }
     this.saveTerminals();
     this.changedTerminals();
-    this.sendVoice();
+    this.voiceShown();
   }
   // The island's tabs, for the window.
   terminalsInfo(): Sent.Terminals {
@@ -540,64 +616,36 @@ class Task {
       state: t.state === 'done' && t.seen ? null : t.state })) };
   }
 
-  // Dictation, where the agent shown has its own (agents/, voice): what the window's microphone button shows
-  // ({ recording }, or null: disabled), and recording. The human's only: the agent has no use for a microphone. Its
-  // language is Kulisa's one (app.ts, setLanguage).
-  voice() {
+  // The agent in front, told to the dictation (src/dictation), which records for it; the human's only: the agent has
+  // no use for a microphone. Its language is Kulisa's one (app.ts, setLanguage).
+  voiceShown() {
     const t = this.shownAgent();
-    return t?.agent!.voice ? { recording: this.dictating?.t === t } : null;
+    this.shell.dictation.shown(this.key, t ? { id: t.key, name: t.agent!.cli, voice: t.agent!.voice, input: t.pty || null,
+      type: (text) => { if (t.pty) typeIntoPrompt(t.pty, text); }, erase: (n) => { if (t.pty) eraseInPrompt(t.pty, n); } } : null);
   }
-  sendVoice() { this.window?.send('voice', { task: this.key, voice: this.voice() }); }
-  // The dictation key (keys.ts, voice.hold), as the microphone button: held, it records until let go; pressed once,
-  // until the next press, or a press while it records stops it. Pressed with a shell in front, the agent the prompt
-  // goes to comes to the front first: the key means "speak to the agent", wherever the keyboard is.
+  // The dictation key (keys.ts, voice.hold), as the microphone button. Pressed with a shell in front, the agent the
+  // prompt goes to comes to the front first: the key means "speak to the agent", wherever the keyboard is.
   holdKey(down: boolean) {
-    if (down) {
-      if (this.dictating && !this.held) this.dictate(false);
-      else {
-        const t = this.promptTarget();
-        if (t && this.front !== t.id) this.show(t.id);
-        this.held = Date.now();
-        this.dictate(true);
-      }
-    } else {
-      if (this.held && Date.now() - this.held > HOLD) this.dictate(false);
-      this.held = 0;
+    if (down && !this.shell.dictation.recording(this.key)) {
+      const t = this.promptTarget();
+      if (t && this.front !== t.id) this.show(t.id);
     }
-    this.sendVoice();
-  }
-  // The window lost the keyboard while the key is down: its release will never be seen, so the recording ends here.
-  letGo() { if (this.held) { this.held = 0; this.dictate(false); this.sendVoice(); } }
-  // Recording: the agent's key held, as a terminal shows a held key, its repeats. It stops when told, or after
-  // DICTATION_LIMIT, or when that agent is gone or no longer shown.
-  dictate(on: boolean): { recording: boolean } {
-    clearInterval(this.dictating?.timer);
-    this.dictating = null;
-    const t = this.shownAgent(), v = t?.agent!.voice, p = t?.pty;
-    if (on && v && p) {
-      const until = Date.now() + DICTATION_LIMIT;
-      this.dictating = { t, timer: setInterval(() => {
-        if (t.pty === p && Date.now() < until) return p.write(v.key);
-        this.dictate(false);
-        this.sendVoice();
-      }, v.repeat) };
-    }
-    return { recording: !!this.dictating };
+    this.shell.dictation.key(this.key, down);
   }
 
   // What its terminals get in their environment: where Kulisa's MCP server and hooks are for this task (the Kulisa
-  // plugin reads them, other agent CLIs can too), its name, and the offset for the ports of the app it runs. An agent's
-  // terminal has URLs of its own (t), so its hooks report its own state and it names its own tab.
+  // plugin reads them, other agent CLIs can too), and its name. An agent's terminal has URLs of its own (t), so its
+  // hooks report its own state and it names its own tab.
   env(t?: TaskTerminal) {
-    const base = `${this.shell.mcp.base}/task/${encodeURIComponent(this.project.id)}/${this.n}${t ? `/t/${t.id}` : ''}`;
-    return { KULISA_MCP_URL: `${base}/mcp`, KULISA_URL: base, KULISA_TASK: this.name, KULISA_PORT_OFFSET: String(this.offset) };
+    const base = `${this.shell.mcp.base}/task/${encodeURIComponent(this.project.id)}/${this.id}${t ? `/t/${t.id}` : ''}`;
+    return { KULISA_MCP_URL: `${base}/mcp`, KULISA_URL: base, KULISA_TASK: this.name };
   }
   // Its terminals stopped (kept for when it loads again), its profiles saved and closed (its project closes, or the task
   // is deleted). Its tabs are saved first, as they are: closing them one by one changes the profiles, and nothing is
   // saved then.
   async unload() {
     this.shell.chooseAgent.cancel?.(this);
-    this.dictate(false);
+    this.shell.dictation.gone(this.key);
     for (const t of this.terminals.values()) { if (t.pty) stopTerminal(t.pty); forgetTerminal(t.key); }
     this.terminals.clear();
     forgetTerminal(this.key);
@@ -635,22 +683,24 @@ class Task {
     return (['waiting', 'working', 'done'] as const).find((s) => states.includes(s)) ?? null;
   }
 
-  // Profiles and their tabs: the one core the human (the window, ipc/) and the agent (mcp-server.ts) both act on.
+  // Profiles and their tabs: the one core the human (the window, ipc/) and the agent (kulisa-plugin/tools/) both act on.
   // Each side only translates (CLAUDE.md, Architecture): the checks, the questions and what an action does are here
   // and in Profile, so both get the same. A refusal is { error } saying why. Closed profiles stay closed across
-  // restarts.
+  // restarts. A profile is its id here; the agent names it (named), and what is refused names it as the agent does.
   find(id: string): Found {
     const profile = this.profiles.get(id);
     if (profile) return { profile };
-    if (this.closed.has(id)) return { error: `Profile "${id}" is closed (it is still signed in): open it first.`, closed: true };
-    return { error: `No profile "${id}". Profiles: ${[...this.profiles.keys(), ...this.closed.keys()].join(', ') || 'none yet'}` };
+    const closed = this.closed.get(id);
+    if (closed) return { error: `Profile "${closed.cfg.name}" is closed (it is still signed in): open it first.`, closed: true };
+    return { error: `No profile "${id}"` };
   }
+  named(name: string) { return this.list.named(name); }
   // A tab of an open profile; no tabId: its active tab.
   findTab(id: string, tabId?: string | null): Result<{ profile: Profile; tab: Tab }> {
     const r = this.find(id);
     if (refused(r)) return r;
     const tab = r.profile.get(tabId);
-    return tab && (tab.discarded || !tab.wc.isDestroyed()) ? { profile: r.profile, tab } : { error: tabId ? `No tab ${tabId} in ${id}` : `Profile "${id}" has no tab` };
+    return tab && (tab.discarded || !tab.wc.isDestroyed()) ? { profile: r.profile, tab } : { error: tabId ? `No tab ${tabId} in ${r.profile.name}` : `Profile "${r.profile.name}" has no tab` };
   }
   createProfile(name: string, description?: string, avatar?: string) { return this.list.create(name, description, avatar); }
   renameProfile(id: string, name: string | undefined) { return this.list.rename(id, name); }
@@ -666,7 +716,7 @@ class Task {
     const p = this.profiles.get(id) || this.closed.get(id)?.cfg;
     if (!p) return { error: `No profile "${id}"` };
     if (!await this.project.askDropProfile(p, by)) return { error: 'the human said no' };
-    await this.project.dropProfile(p.folder);
+    await this.project.dropProfile(id);
     return { id };
   }
   // A caption over a profile's pane (ghost.ts, browser_highlight); sticky ones stay until the next caption.
@@ -684,7 +734,7 @@ class Task {
   loginFor(id: string, tabId: string | null | undefined, field: 'login' | 'password'): Result<{ profile: Profile; tab: Tab; value: string }> {
     const r = this.findTab(id, tabId);
     if (refused(r)) return r;
-    const pair = this.shell.profileStore.byFolder(r.profile.folder)?.login;
+    const pair = this.shell.profileStore.get(id)?.login;
     if (!pair?.user || (field === 'password' && !pair.secret)) {
       return { error: `${r.profile.name} has no test login${pair?.user ? ' password' : ''} saved: ask the human to set one (Settings → Profiles), or save the one you signed it up with (profile_set_login).` };
     }
@@ -699,46 +749,71 @@ class Task {
   openMaster(id: string) {
     const r = this.find(id);
     const p = r.profile || this.closed.get(id)?.cfg;
-    return p ? this.shell.openMaster(p.folder) : r;
-  }
-  // Refresh from Master…: the master's cookies (its sign-ins) brought to this task's copy, made before the master was
-  // signed in to; what was signed in only in this copy goes, so the human is asked first. Its open tabs reload.
-  async refreshProfile(id: string): Promise<Result<{ id: string; cookies: number }>> {
-    const r = this.find(id);
-    if (refused(r)) return r;
-    const p = r.profile;
-    if (!await this.shell.ask({ message: `Bring the sign-ins of ${p.name}'s master to this task?`, ok: 'Refresh',
-      detail: "This task's copy of the profile takes its master's cookies: what was signed in only here goes. Sign-ins kept in a site's storage (as Microsoft's are) are not brought: sign in here again for those." }, this.window)) {
-      return { error: 'the human said no' };
-    }
-    await this.shell.flushMaster(p.folder);
-    const master = { session: session.fromPath(this.shell.profileStore.masterDir(p.folder)), dir: this.shell.profileStore.masterDir(p.folder) };
-    const set = await this.shell.sessionCookies.copy(master, p);
-    for (const t of p.tabs) if (!t.wc.isDestroyed()) t.wc.reload();
-    return { id, cookies: set };
+    return p ? this.shell.openMaster(p.id) : r;
   }
   // A profile its project let go (projects.ts, dropProfile): its copy gone; a task not loaded loses it from its file.
-  async dropProfile(folder: string) { return this.loaded ? this.list.drop(folder) : this.store.dropProfile(folder); }
+  async dropProfile(id: string) { return this.loaded ? this.list.drop(id) : this.store.dropProfile(id); }
 
   info(): Sent.TaskInfo {
-    const { n, key, name, tabState: state, folder, offset } = this;
-    return { n, key, project: this.project.id, name, state, folder, offset, branch: this.entry.branch || null, closed: !!this.entry.closed, merged: !!this.entry.merged,
-      about: this.entry.about, repos: this.addable(),
-      copies: (this.entry.copies || []).map((c) => ({ name: path.basename(c.repo), folder: c.folder, branch: c.branch })) };
+    const { id, key, displayName: name, tabState: state, folder } = this;
+    return { id, key, project: this.project.id, name, state, folder, branch: this.branch, closed: !!this.entry.closed, merged: !!this.entry.merged,
+      repos: this.addable(), resources: this.resources() };
   }
-}
+  // Its resources as the Resources island (Resources.vue) shows them: the first, where it works, is not removed there
+  // (the main tree is the human's, its own worktree goes with the task); an added repository's worktree is
+  // (task_remove_repository).
+  resources(): Sent.TaskResource[] {
+    return (this.entry.resources || []).map((r, i): Sent.TaskResource => (r.kind === 'maintree'
+      ? { kind: r.kind, label: path.basename(r.folder), folder: r.folder, branch: null, removable: false }
+      : { kind: r.kind, label: path.basename(r.repo), folder: r.folder, branch: r.branch, removable: i > 0 }));
+  }
 
-// A URL of the app under test moved to another task's ports: a local address with a port moves by shift, the
-// difference of the two tasks' offsets (localhost:3000 → localhost:3100). Cookies do not depend on the port, so the profile stays signed in to the app.
-function withOffset(url: string, shift: number) {
-  if (!shift) return url;
-  try {
-    const u = new URL(url);
-    if (!u.port || !/^(localhost|127(\.\d+){3}|\[::1\])$|\.localhost$/.test(u.hostname)) return url;
-    u.port = String(Number(u.port) + shift);
-    return u.href;
-  } catch { return url; }
+  // The files the agent's tools kept of its pages (kulisa-plugin/artifacts.ts), as the Resources island lists them. A
+  // screenshot's small picture is made here once and kept while the task is loaded: the window never decodes the
+  // files themselves (a page's picture is megabytes once decoded, a hundred of them a lot of a window's memory).
+  private thumbs = new Map<string, string>(); // '' where none could be made
+  private makingThumbs = false;
+  async artifacts(): Promise<Sent.Artifact[]> {
+    const list = await listArtifacts(this.store.artifacts);
+    for (const file of this.thumbs.keys()) if (!list.some((a) => a.file === file)) this.thumbs.delete(file);
+    const missing = list.filter((a) => a.kind === 'screenshot' && !this.thumbs.has(a.file)).map((a) => a.file);
+    if (missing.length) void this.makeThumbs(missing);
+    return list.map((a) => ({ ...a, thumb: this.thumbs.get(a.file) || null }));
+  }
+  // One at a time, the main process free between them: a whole page's picture takes tens of milliseconds to decode,
+  // and a task shown with many would hold up everything else (its terminals starting). The list goes again with them.
+  private async makeThumbs(files: string[]) {
+    if (this.makingThumbs) return; // the list sent when those are done makes the rest
+    this.makingThumbs = true;
+    for (const file of files) {
+      await new Promise((r) => setImmediate(r));
+      const image = nativeImage.createFromPath(file);
+      this.thumbs.set(file, image.isEmpty() ? '' : `data:image/jpeg;base64,${image.resize({ width: THUMB_WIDTH }).toJPEG(80).toString('base64')}`);
+    }
+    this.makingThumbs = false;
+    this.artifactsChanged();
+  }
+  // One made (or more gone past the limit, or deleted): the window showing the task lists them again.
+  artifactsChanged() { void this.window?.sendArtifacts(this); }
+  // What its artifacts take, or those of its project's tasks or of every task, loaded or not (the activity monitor,
+  // src/activity-monitor): the Resources island's figure, task_artifacts. Each task with its name and its project's.
+  async artifactsUsage(scope: 'task' | 'project' | 'all' = 'task') {
+    const r = await this.shell.activity.query({ metrics: ['artifacts'], ...(scope === 'task' ? { tasks: [this.key] } : scope === 'project' ? { projects: [this.project.id] } : {}) });
+    const named = new Map(this.shell.store.allTasks().map((t) => [t.key, { name: this.shell.taskByKey(t.key)?.displayName ?? t.entry.name, project: t.project.name }]));
+    return { bytes: r.total.artifacts ?? 0, tasks: r.tasks.map((t) => ({ key: t.key, ...named.get(t.key)!, bytes: t.metrics.artifacts?.bytes ?? 0 })) };
+  }
+  // Delete in a row's menu, Delete All, task_artifacts_delete (files null: all): only files of the task's own folder,
+  // not any path the window or the agent names.
+  async deleteArtifacts(files: string[] | null): Promise<Result<{ deleted: number; bytes: number }>> {
+    const list = await listArtifacts(this.store.artifacts);
+    const chosen = files ? files.map((f) => list.find((a) => a.file === path.resolve(f))) : list;
+    const stranger = files?.find((_f, i) => !chosen[i]);
+    if (stranger !== undefined) return { error: `not an artifact of this task: ${stranger}` };
+    for (const a of chosen) await fs.promises.rm(a!.file, { force: true });
+    this.artifactsChanged();
+    return { deleted: chosen.length, bytes: chosen.reduce((sum, a) => sum + a!.bytes, 0) };
+  }
 }
 
 export type { TaskTerminal };
-export { Task, withOffset };
+export { Task };

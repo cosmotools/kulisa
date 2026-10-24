@@ -1,12 +1,12 @@
 // The windows' handles on the open tasks (docs/tasks.md; the core: open-tasks.ts): open, show, create, move, close and
-// delete them; a task's own actions (rename, its repositories, dictation).
+// delete them; a task's own actions (rename, its repositories).
 import { shell as electronShell } from 'electron';
 import path from 'path';
 import fs from 'fs';
 import { deleteClosedTask } from '../projects.ts';
 import type { AppWindow } from '../window.ts';
 import { refused } from '../../shared/result.ts';
-import { handle, on } from '../ipc.ts';
+import { handle } from '../ipc.ts';
 import type { Ipc } from '../ipc.ts';
 import type { ProjectEntry } from '../store.ts';
 import type { Task } from '../tasks.ts';
@@ -18,9 +18,9 @@ export function registerTasks(ipc: Ipc) {
   const sendProjects = () => shell.sendProjects();
   handle('projects:list', (e) => owner(e)?.info());
   // The switch runs on its own; the window hears about it through grid:closing, projects and state. No question
-  // where (the author, 2026-10-11): a tab in this window, which Move to New Window takes away.
-  const openLater = (p: ProjectEntry, w: AppWindow, n?: number) => {
-    setImmediate(() => serial(() => (shell.windows.includes(w) ? openProject(p, w, n) : null)).catch((err) => console.error('[project:open]', err)));
+  // where: a tab in this window, which Move to New Window takes away.
+  const openLater = (p: ProjectEntry, w: AppWindow, task?: string) => {
+    setImmediate(() => serial(() => (shell.windows.includes(w) ? openProject(p, w, task) : null)).catch((err) => console.error('[project:open]', err)));
     return w.info();
   };
   handle('project:open', (e, { id, folder, task }) => {
@@ -58,12 +58,12 @@ export function registerTasks(ipc: Ipc) {
   handle('task:close', (_e, key) => taskAt(key, closeTask));
   handle('task:delete', (_e, key) => taskAt(key, deleteTask));
   // 🗑 on a closed task's row (the bar's +): its project need not be loaded.
-  handle('task:delete-closed', (e, { project, n }) => serial(async () => {
-    const open = shell.open.get(project)?.tasks.get(n);
-    if (open) return open.entry.closed ? deleteTask(open) : { error: `task ${n} is open` };
+  handle('task:delete-closed', (e, { project, id }) => serial(async () => {
+    const open = shell.open.get(project)?.tasks.get(id);
+    if (open) return open.entry.closed ? deleteTask(open) : { error: `task ${id} is open` };
     const p = store.projects().find((x) => x.id === project);
     if (!p) return { error: 'no such project' };
-    const r = await deleteClosedTask(shell, p, n, at(e)!);
+    const r = await deleteClosedTask(shell, p, id, at(e)!);
     if (!refused(r)) sendProjects();
     return r;
   }));
@@ -71,12 +71,13 @@ export function registerTasks(ipc: Ipc) {
   handle('task:add-repo', (_e, { key, repo }) => taskAt(key, (task) => task.addRepository(repo)));
   handle('task:remove-repo', (_e, { key, repo }) => taskAt(key, (task) => task.removeRepository(repo)));
   handle('project:delete-merged', (e, { id }) => serial(() => { const p = shell.open.get(id); return p ? deleteMerged(p, at(e)) : { error: 'the project is not open' }; }));
-  // The dictation: its key held (holdKey, above in onKey) and the microphone (Dictation.vue; Task.voice, dictate).
-  // Esc typed into an agent's terminal (its key: "<task>#<id>"): Task.interrupted.
-  on('pty:in', (_e, { task, data }) => { if (data === '\x1b') shell.taskByKey(task.split('#')[0]!)?.interrupted(task); });
-  handle('voice:get', (_e, key) => shell.taskByKey(key)?.voice() ?? null);
-  handle('voice:record', (_e, { task, on }) => shell.taskByKey(task)?.dictate(on) ?? { recording: false });
   handle('task:show-folder', (_e, key) => { const task = shell.taskByKey(key); return task && electronShell.openPath(task.folder); });
+  handle('task:open-folder', (_e, { key, folder }) => {
+    const task = shell.taskByKey(key); // only a folder the task owns (a resource), not any path the renderer names
+    return task && task.resources().some((r) => r.folder === folder) ? electronShell.openPath(folder) : undefined;
+  });
+  handle('task:artifacts', (e, key) => { const w = at(e); return w?.task?.key === key ? w.sendArtifacts() : undefined; });
+  handle('task:artifacts-delete', (_e, { key, files }) => taskAt(key, (task) => task.deleteArtifacts(files)));
   handle('tasks:get', (e) => at(e)?.sendProjects());
 
 }

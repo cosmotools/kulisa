@@ -16,8 +16,8 @@ const AGENTS: Agent[] = [
 ];
 
 // A task's copy is the project's own code: the trust the human gave the project's folder, or another task's copy of it
-// (sources), holds for it too, so the agent asks once a project, whichever agent it is. Codex 0.160.1 and Claude Code
-// 2.1.296, asked in a worktree, keep the answer for the repository's root themselves (seen 2026-10-12); this holds the
+// (sources), holds for it too, so the agent asks once a project, whichever agent it is. Codex and Claude Code, asked in
+// a worktree, keep the answer for the repository's root themselves; this holds the
 // rule for an agent or a version that keeps it per folder. Only a yes is carried; a folder the human trusted nowhere
 // stays as it is, and the agent asks.
 function extendTrust(agent: Agent, where: Where, folder: string, sources: string[]) {
@@ -56,8 +56,8 @@ function agentVersion(found: Found | null): Promise<string | null> {
 
 // Run the maker's installer; its output goes to onData as it comes (without terminal colors). Resolves to the exit
 // code with the whole output: what the window shows once it is over, since the pieces sent while it ran and the
-// answer travel on different IPC channels, and Electron keeps no order between them (the last line came after the
-// answer on the CI, 2026-10-15).
+// answer travel on different IPC channels, and Electron keeps no order between them (the last line may come after the
+// answer).
 function installAgent(agent: Agent, onData: (data: string) => void): Promise<{ code: number; log: string }> {
   const line = installLine(agent);
   if (!line) return Promise.resolve({ code: 1, log: '' });
@@ -77,7 +77,7 @@ function accountEmail(agent: Agent, found: Found | null, dir: string): Promise<{
   if (!found?.path || !config?.status) return Promise.resolve(null);
   return new Promise((resolve) => {
     const p = execFile(found.path!, config.status, { timeout: 20000, windowsHide: true, env: { ...process.env, [config.env]: dir } },
-      (e, out) => resolve(e ? null : { email: config.email(String(out))?.toLowerCase() ?? null }));
+      (e, out) => resolve(e ? null : { email: config.email(String(out), dir)?.toLowerCase() ?? null }));
     p.stdin?.end();
   });
 }
@@ -95,5 +95,6 @@ function signOut(agent: Agent, found: Found | null, dir: string) {
 // The command line the window shows before installing.
 const installLine = (agent: Agent) => agent.install?.[process.platform === 'win32' ? 'win32' : 'posix'] || null;
 
-export type { Agent, Found };
+export type { Agent, Found, HookEvent } from './agent.ts';
+export { installSkill } from './files.ts';
 export { AGENTS, findAgent, agentVersion, accountEmail, signOut, installAgent, installLine, extendTrust };

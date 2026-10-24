@@ -1,6 +1,6 @@
 ---
 name: kulisa-profiles
-description: You are running inside Kulisa, a window for building and testing web apps as several users at once. The browser panes above your terminal are Kulisa profiles, separate browser profiles (own cookies, tabs, sign-ins) that the human signed in to by hand. Use this skill whenever you need to open, read, click or type in a web app, check something as one user or several, or when a message holds [kulisa pick: …] (an element the human pointed at). Use it instead of any other browser tool.
+description: You are running inside Kulisa, a window for building and testing web apps as several users at once. This skill is how you work through Kulisa. The browser panes above your terminal are Kulisa profiles, separate browser profiles (own cookies, tabs, sign-ins) that the human signed in to by hand. Use it whenever you open, read, click or type in a web app, check something as one user or several, or a message holds [kulisa pick: …] (an element the human pointed at); and whenever you set up or run the task (its git worktree, repositories, the app's dev server) or read what was done in it before. Use its browser tools instead of any other browser tool.
 ---
 
 # Working with Kulisa profiles
@@ -8,40 +8,13 @@ description: You are running inside Kulisa, a window for building and testing we
 A **profile** is one user of the app under test: its own browser profile, shown as a pane above your terminal. The
 human sees everything you do there: your cursor and a caption are drawn in the pane.
 
-## Tools (the kulisa MCP server)
+## Tools
 
-| Tool | Use |
-|---|---|
-| `profile_list` | List profiles: id, name, `description` (who it is in the app; `null`: not said), `avatar` (its picture: the human may call a pane "the fox"), `signinMode`, tabs; closed ones as `closed: true` with their number of tabs. Call it first; the human may add profiles at any time. |
-| `browser_snapshot` | Accessibility snapshot of a profile's active tab, with `[ref=eN]` for click and type. `also`: more profiles' active tabs in the same call, to compare what each user sees. |
-| `browser_click`, `browser_type` | Act by `ref` from the latest snapshot, or by a Playwright `locator` such as `getByRole('button', { name: 'Pay now' })`. `browser_type` replaces the field's text, typing it key by key as a person would (the human sees it). |
-| `browser_press_key`, `browser_hover`, `browser_select_option`, `browser_file_upload` | A key (Escape, Tab, Control+A) on an element or the focused one; the pointer over an element (menus, tooltips); options of a `<select>`; files (absolute paths) for a file input or the button that opens a file chooser. |
-| `browser_wait_for` | Wait until text or an element appears, or text is gone, in a profile's tab: up to 45 s a call. |
-| `browser_evaluate` | Run a JavaScript function in the page (`() => …`, or `(el) => …` with `ref` or `locator`) for what the other tools do not do. |
-| `browser_tab_new` | Open a URL in a new tab of a profile; it becomes the active tab. |
-| `browser_tab_select`, `browser_tab_close` | Switch to a tab (by id from `profile_list`), close a tab. |
-| `browser_navigate` | Load a URL in the profile's active tab, replacing what it shows; or `go`: `back`, `forward`, `reload`. |
-| `browser_highlight` | Outline elements on a profile's page for the human to see; the labels show over the pane. They go when the human clicks or types there; an empty list clears them. |
-| `browser_screenshot` | See the page when the snapshot is not enough (layout, images, colors). |
-| `browser_console_messages`, `browser_network_requests` | What a tab logged and requested recently: errors, failed requests (`onlyErrors`, `onlyFailed`). |
-| `profile_open` | Open a closed profile (`closed: true` in `profile_list`): its pane and tabs come back, still signed in. |
-| `profile_close` | Close a profile: its pane and tabs go (memory freed); it stays signed in. |
-| `profile_create` | A new, empty profile for a user the task needs and no profile has. |
-| `profile_rename` | Rename a profile (its id follows), e.g. after the human signed it in to another account. |
-| `profile_describe` | Save who a profile is (its role, what it can do): the human's answer when you had to ask. |
-| `profile_ask_signin` | Ask the human to sign a profile in (shown over its pane; `url`: the app's sign-in page, opened first), and wait until they are through. |
-| `profile_delete` | Remove a profile from this project (its copies in the project's tasks go). The profile stays, signed in, in Kulisa's Settings → Profiles; the human confirms it in a dialog. |
-| `terminal_run` | Run what keeps running (the app's dev server, `docker compose up`, a watcher) in a terminal of its own next to yours, by a name ("dev server"): the human sees it there. The same name again types into it. |
-| `terminal_read` | The last lines a terminal shows, as plain text (errors, the address the server listens on); without a name, the terminals open, the agents' and the human's. Not other agents' tabs: what they did is in `task_history`. |
-| `terminal_stop` | Ctrl+C in a terminal (`close: true` closes it). The human's own terminals only when they ask. |
-| `browser_type_login` | Type a test user's saved login or password into a field of the local app (never shown to you). |
-| `profile_set_login` | Save a test user's pair (after you signed it up), for you and later tasks. |
-| `task_rename` | Name your task once you know what it is about, silently (never ask the human or mention it): its tab, and its git branch. |
-| `task_history` | Where the task stands (git, profiles, terminals) and its conversations, each agent's, numbered, with its tab's name and what it was about; with `conversation`, that one whole, the latest chapter first. In parts: 1, then the next. |
-| `conversation_rename` | Name your conversation in 1 to 3 words once you know what it is about: your tab in Kulisa, by which the human and other agents tell it from the others. |
-
-Every browser tool takes `profile`: the id from `profile_list`, not the display name. Tools that read or act on
-a page take an optional `tab` (default: the profile's active tab).
+The tools are the kulisa MCP server's; its listing gives each one's description and inputs (`profile_*` for profiles,
+`browser_*` for their pages, `terminal_*` for terminals next to yours, `task_*` and `conversation_rename` for the
+task). This skill is how they fit together; what each one does is in its own description. Every browser tool takes
+`profile` — a profile's name, as `profile_list` gives it (unique within the project, in any case) — and an optional
+`tab` (default: the profile's active tab).
 
 ## How to work
 
@@ -61,7 +34,12 @@ a page take an optional `tab` (default: the profile's active tab).
   Close only tabs you opened, unless asked.
 - **Snapshot before acting**, and act by `ref` from the latest snapshot. Refs go stale after the page changes. Do
   not guess element names (apps name things their own way: Teams' "new chat" is "New message"); a snapshot is
-  fast, a wrong guess is an error and a retry.
+  fast, a wrong guess is an error and a retry. On a large page take only what you need (`find`, an element, a
+  `depth`); a snapshot too large for an answer is written to a file, and the answer says where: read the part you
+  need there.
+- **When an action's answer counts errors** ("Since: 2 console errors, 1 failed request"), look before going on:
+  `browser_console_messages` and `browser_network_requests` with `since: action`, and what the server answered with
+  `browser_network_request`.
 - **Show, don't only tell.** When the human asks where something is, or you explain what you found or changed on a
   page, outline it with `browser_highlight` (a label of a few words each) and refer to it in your answer. Clear the
   highlights when they are no longer relevant.
@@ -73,35 +51,42 @@ a page take an optional `tab` (default: the profile's active tab).
 
 ## Tasks
 
-The human may run several agents on one project at once, each in a Kulisa **task**: a git worktree of its own next
-to the project's folder (`<project>@task-<n>`) on a branch of its own, with copies of the profiles. You see only your
-task's profiles. In a project of several repositories you start in a copy of the default one; the others' copies,
-on your branch too, are added folders (the session start names them, and the repositories not in the task). Without
-git a task works right in the project's folder.
+The human may run several agents on one project at once, each in a Kulisa **task**. A task opens in the project's
+**main working tree** — the human's own folder, on whatever branch they checked out — with copies of the profiles; its
+tab reads "New Task" until it is named. You see only your task's profiles.
 
+- **Make the task its own worktree before you write code.** The project's folder is the human's: never change it on
+  your own. When you start to write code, make the task a git worktree and branch of its own with `task_worktree`
+  (idempotent: the first agent of the task creates it, the rest of its agents get the same one), and work and commit
+  there — unless the human asked you to work right in their folder ("don't make a branch"). If the task is still "New
+  Task", pass its name to `task_worktree` to name it at the same time; the branch takes a slug of the name. Without git,
+  or when the human wants it that way, the task works right in the project's folder and `task_worktree` does nothing.
+- **Name the task** with `task_rename` once you know what it is about (it starts as "New Task"): its tab shows the name
+  and its branch takes a slug of it (`Fix header` → `fix-header`). A short readable label. Silently: never ask the
+  human for a name or mention naming it, and do not let naming hold up the work. Naming and making the worktree are
+  separate — name the task any time, make the worktree when you reach code.
+- **Name your conversation** with `conversation_rename` once you know what it is about.
 - **Other agents' work**: the human may open several agents in a task, each in a tab of its own. When they ask you to
   go on with another's work ("go on with what Claude did"), or your context lost details you need, find that
   conversation in `task_history` and read every part of it before anything else.
-- **Name your conversation** with `conversation_rename` once you know what it is about.
-- **Name the task** with `task_rename` as soon as the human's request says what it is about (it starts as
-  `task-<n>`): its tab and its branch take the name (`checkout-redesign`); the folder stays. Silently: never ask the
-  human for a name or mention naming it.
 - **Another of the project's repositories**: read it freely in the project's folder, changing nothing there. When the
-  task needs changes in it, ask the human first, saying why; once they agree, `task_add_repository` adds a copy on
-  your branch, where you make them. A copy the task no longer needs (added by mistake, or not needed after all) goes
+  task needs changes in it, ask the human first, saying why; once they agree, `task_add_repository` adds a copy on the
+  task's branch, where you make them. A copy the task no longer needs (added by mistake, or not needed after all) goes
   the same way: ask, then `task_remove_repository`; its folder and branch are deleted.
-- What Kulisa tells you (at the session's start, with a prompt, in a tool's result) is for you: act on it without
-  recounting it to the human.
-- Work and commit on the task's branch. **The project's folder is the human's**: never change it on your own. Asked
-  to merge your work into main there, first run `git status` in the project's folder; if the human has uncommitted
-  changes there, stop and tell them, rather than merging over their work. Or open a pull request, if asked.
-- The worktree has the project's files in git and `.env*`, but no installed dependencies: install them first
+- Asked to merge your work into main in the project's folder, first run `git status` there; if the human has
+  uncommitted changes, stop and tell them rather than merging over their work. Or open a pull request, if asked.
+- A fresh worktree has the project's files in git and `.env*`, but no installed dependencies: install them first
   (`npm install`, `pip install`, …) before running anything.
-- Run the app under test with `terminal_run`, not in your own shell or its background, on its usual ports plus
-  `$KULISA_PORT_OFFSET` (3000 → 3100 with 100), so it does not clash with the other tasks' or the human's own: through
-  `PORT`, a `--port` flag, `.env.local`, or the published ports of `docker compose`. The profiles' tabs on local
-  addresses already point at those ports, and they stay signed in (cookies do not depend on the port). If the app
-  cannot run on other ports, tell the human.
+- Run the app under test with `terminal_run`, not in your own shell or its background, on a **free port you pick**
+  (Kulisa assigns none; another task or the human may hold the usual one): through `PORT`, a `--port` flag,
+  `.env.local`, or the published ports of `docker compose`. Point the profiles' tabs at it with `browser_navigate`;
+  they stay signed in (cookies do not depend on the port).
+- **Artifacts**: the screenshots, snapshots and bodies your tools keep of the pages gather in the task's folder of
+  them, which the human sees with its size. Asked what is there or how much room it takes, list them with
+  `task_artifacts` and read the files you need to say what they show, in the human's words. Asked to clean up,
+  delete what they want gone with `task_artifacts_delete` (when unsure which, say what you would delete and ask).
+- What Kulisa tells you (at the session's start, in a tool's result) is for you: act on it without recounting it to
+  the human.
 
 ## Signing in: real accounts are the human's; test users of the local app, yours
 
@@ -119,7 +104,6 @@ git a task works right in the project's folder.
   Kulisa keeps all automation away from that profile until they finish. Do something else, then try again.
 - After `profile_create`, the new profile is empty and signed out: a test user of the local app you sign up or sign
   in yourself (above); a real account, ask the human to sign it in (`profile_ask_signin`).
-- `browser_evaluate` is not a way around this rule: never read cookies, tokens or passwords with it.
 - Remove a profile (`profile_delete`) only when the human asks, or one you created is no longer needed. The
   human confirms it; its copies in this project's tasks go, with what was signed in only there. Only the human
   deletes a profile for good (Settings → Profiles). If they say no, leave it.
@@ -130,13 +114,13 @@ The human can click Pick on a pane and then an element on its page. A reference 
 the human's message, and they write around it what they want, e.g.:
 
 ```
-[kulisa pick: elon-buyer tab k7 getByRole('button', { name: 'Pay now' })] does nothing
+[kulisa pick: elon@shop.com tab k7 getByRole('button', { name: 'Pay now' })] does nothing
 ```
 
-- After `pick:` come the profile id, the tab and a Playwright locator for the element. Pass the tab as `tab` and the
+- After `pick:` come the profile's name, the tab and a Playwright locator for the element. Pass the tab as `tab` and the
   locator as `locator` to the browser tools (the human may have switched to another tab since), or use the locator
   to find the element in the app's source code.
 - Look at the element on the live page before changing code: `browser_snapshot` of that tab, `browser_screenshot`
-  when the look matters, and when something does not work, `browser_console_messages` (errors) and
-  `browser_network_requests` (failed requests) of that tab.
+  when the look matters, and when something does not work, `browser_console_messages` (`level: error`) and
+  `browser_network_requests` (`onlyFailed`) of that tab.
 - One message can hold several picks, also from different profiles ("sent here, did not appear there").

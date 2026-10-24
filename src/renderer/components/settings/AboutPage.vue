@@ -2,8 +2,7 @@
 // The About page of Settings (docs/window.md, Menus, About Kulisa; the guide, "Where Kulisa keeps things"): the versions,
 // and the folders Kulisa writes in as this computer has them (the OS and its variables decide where appData is: issue
 // #67), each opened in the file manager, its path there to copy. Asked of the main process each time the page is
-// shown, so a folder made since shows. A dialog until 2026-10-18 (About.vue): as Chrome's About, a page of the
-// settings, one place for what is about the app.
+// shown, so a folder made since shows. As Chrome's About, a page of the settings: one place for what is about the app.
 import { ref, watch } from 'vue';
 import Icon from '../Icon.vue';
 import type { AboutInfo, AboutFolder } from '../../../shared/types';

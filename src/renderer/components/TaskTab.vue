@@ -1,8 +1,7 @@
 <script setup lang="ts">
 // A task's tab in the bar (TaskBar.vue, which puts the project's id and color, dragging and the drop marks on it as
-// attributes; tasks.md, Projects): its project's icon, as a browser's tab shows its site's (the project had a label and
-// an island of its own until 2026-10-14), its agent's state, its name, ×. No profiles' button: the tab's right-click
-// menu has them, Settings edits them (the author, 2026-10-12).
+// attributes; tasks.md, Projects): its project's icon, as a browser's tab shows its site's, its agent's state, its name, ×. No profiles' button: the tab's right-click
+// menu has them, Settings edits them (the author's choice).
 //   active: the one on screen
 import { computed } from 'vue';
 import { TabsTrigger } from 'reka-ui';
@@ -13,7 +12,7 @@ import type { ProjectEntry, TaskInfo } from '../../shared/types';
 const props = defineProps<{ t: TaskInfo; p: Pick<ProjectEntry, 'name' | 'favicon'>; active: boolean }>();
 const STATES = { working: 'is working', waiting: 'waits for you', done: 'is done' };
 // The project's name is in the tooltip alone: the bar shows its icon (tasks.md, Projects).
-const title = computed(() => `${props.p.name}\n` + (props.t.about ? `“${props.t.about}”\n` : '') + (props.t.branch ? `branch ${props.t.branch} in ${props.t.folder}; the app's ports + ${props.t.offset}`
+const title = computed(() => `${props.p.name}\n` + (props.t.branch ? `branch ${props.t.branch} in ${props.t.folder}`
   : `in the project's folder ${props.t.folder} (no git: no copy of its own)`));
 
 </script>

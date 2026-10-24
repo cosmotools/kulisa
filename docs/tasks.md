@@ -13,22 +13,18 @@ default), its profiles (each a person in one store, [profiles.md](profiles.md)),
 repositories (git worktrees), so the project's folders stay the human's. Kulisa keeps its data in its own data folder
 (`projects/<id>/`), never in the project's folder, so sign-ins stay out of its git.
 
-- **A project is no thing to open; its tasks are** (the author, 2026-10-11: a project is what its tasks are made of:
-  profiles, agents, repositories). An open task is a **tab** of a window, of its own, as a browser's (the author,
-  2026-10-14; until then a project's open tasks were a **group**, its island in the bar as Chrome's tab group, with
-  a label and a menu of its own, one group per project per window: earlier commits and docs say so). There is no Open
+- **A project is no thing to open; its tasks are** (a project is what its tasks are made of:
+  profiles, agents, repositories). An open task is a **tab** of a window, of its own, as a browser's ("group" in earlier commits: CLAUDE.md, Terminology). There is no Open
   Project or Close Project, and no question where to open one: a task opens in the window it is asked for, at the end
   of its bar. In code a project is **loaded** (`Project` in `shell.open`) while a task of it is open in any window:
   its git, its agents' accounts; let go when its last open task closes (`unloadIdle` in `app.ts`).
 - **The tasks' bar**: a tab per open task, in the bar's order, tasks of any projects side by side: its project's
   icon (its site's favicon, or the app's curtain in the project's color, as a browser's tab shows its site's), its
   agent's state (below), its name, ×; the project's name in its tooltip. A click on any shows it; the
-  others keep running, their agents and pages. The bar is in the middle under the grid, where the hand goes for the
-  terminal anyway, or in the title bar after the logo, as a browser's tabs (☰ → Tasks bar: Top, Bottom; saved). The
-  tabs are Firefox's: rounded rectangles apart from the grid, the shown one filled, as big as a browser's
-  ([window.md](window.md), The tasks' bar).
+  others keep running, their agents and pages. Where the bar is and how its tabs look: [window.md](window.md), The
+  tasks' bar.
   - **Nothing in it moves** when another task is shown: every tab keeps its width (the room of its ×).
-    Tabs that moved under the mouse made the human miss (the author, 2026-10-08).
+    A tab that moves under the mouse makes the human miss.
   - **The middle button on a tab closes the task**, as a browser's tab.
   - **A tab's right-click menu**: the shown one's profiles, open (shown in the grid) and closed (opened in the
     task), and Manage Profiles… (Settings → Profiles); Add Repository, the project's repositories it has no copy of
@@ -37,91 +33,66 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
     task it shows and how many more it holds: "task-3 (+2)"); Close; Delete Task…; then **the project's submenu**,
     a row of its icon and name opening at its side (`{ submenu }`, [ui.md](ui.md), Menus; the project has no tab of
     its own to open a menu on): New Task, **Move All Tasks to New Window / to Window: …** (its open tasks of this
-    window, together), Project Settings… (what a task has not: the project's code, agents, profiles, local
+    window, together), Project Settings… (what a task has not: the project's folders, agents, profiles, local
     addresses), Show Data Folder, Delete Merged Tasks… (when a closed task's PR is merged: Tasks, below), **Close
     All Tasks** (its open tasks in every window, asked once when an agent works). The project's name is the
     projects' manager's alone to change.
-  - **No profiles' button on a task's tab** (the author, 2026-10-12: the bar is no place to edit profiles, Settings is
-    for that). A 👥 on the shown task's tab had their menu until then (before it, a Profiles ▾ button in the title
-    bar), and every tab a number of its open profiles until 2026-10-11 (profiles are the agent's hands: how many are
-    open says nothing).
-  - **The button after the tabs is +, a new tab**, as a browser's (Ctrl+Shift+A, again or Esc goes back; `NewTask.vue`;
-    the author, 2026-10-17): a tab "New Tab" at the end of the bar, chosen, and in the grid's place **the board**
-    (`newtab/`): every project a column (the author, 2026-10-17: all in sight, any task one click away), the one
-    worked in last first (an open task, else the one closed last). A column: its project's icon in its color, its
-    name, its **+** (a new task of it with its default agent: "Choosing the agent"); then its tasks, those open first,
-    marked "open" and not to choose (in this window's bar or another's), then those closed, the one closed last first,
-    each with its branch (when its name is another), when it was closed, "merged"; a click opens one again; its 🗑 (on
-    the row under the pointer or the keyboard) or Delete deletes it after Delete Task…'s question. A project without
-    tasks says so. New Project… after the columns. More tasks than a column holds scroll in it, more columns than the
-    window holds scroll sideways. The task chosen or made is shown in the new tab's place, a tab at the end of the
-    bar; the new tab closed (×, + again, Esc, a click on another tab) shows the task under it again, which ran on
-    meanwhile, its pages hidden (a native view would draw over the board). The grid stays laid out under it, unseen:
-    its terminals keep their size. A new tab is the window's alone: the main process does not know it, it is not
-    saved, and it moves to no other window. Until 2026-10-17 + was a menu of the projects with their closed tasks under
-    them (from 2026-10-11, one + for every project; each group had its own before), and it replaced Search Tasks (a
-    panel of every project's tasks with a search field, from the morning of 2026-10-11 until its evening).
+  - **A task's tab shows nothing of its profiles** (the bar is no place to edit profiles,
+    Settings is for that; profiles are the agent's hands: how many are open says nothing).
+  - **The button after the tabs is +** (`NewTask.vue`; Ctrl+Shift+A, Esc closes it): a dropdown menu for a new task
+    of any project, or a closed one opened again — nothing of the shown task is taken. Every project, the one worked
+    in last first (an open task, else the one closed last); one project shows its tasks at the top, several nest each
+    as a submenu under its icon and name. A project's tasks: the open ones (a click switches to one, marked "open"),
+    then the closed (a click opens one again); a click on the project itself makes it a new task. New Task of each,
+    then New Project… at the end. A task's row has its 🗑 (on the row under the pointer or the keyboard, or Delete)
+    that deletes it after Delete Task…'s question, open or closed.
   - **The window's pages** (`page` in `lib/store.ts`): what the window shows in the grid's place, one at a time: the
-    shown task's grid (`task`), a new tab over it (`newtab`), the board with no task open (`board`), the welcome
-    with no project at all (`welcome`). One switch, not a router: what is shown is the main process's (its current
-    task), and the grid under a new tab must stay as it is.
-- **Settings** (the button in the title bar, left of ☰; the author, 2026-10-11), as JetBrains' Settings (the author,
-  2026-10-11: the dialogs read as a web page's, not a desktop app's; docs/ui.md, Desktop, not a web page), a window of
-  its own since 2026-10-16, not modal (a dialog until then; how it opens and closes, and which window it acts for:
-  [window.md](window.md), Settings): a tree on the
+    shown task's grid (`task`), the board with no task open (`board`), the welcome with no project at all (`welcome`).
+    One switch, not a router: what is shown follows the main process's current task.
+- **Settings** (the button in the title bar, left of ☰), as JetBrains' Settings (a dialog reads as a web page's, not a desktop app's; docs/ui.md, Desktop, not a web page), a window of
+  its own, not modal (how it opens and closes, and which window it acts for: [window.md](window.md), Settings): a tree
+  on the
   left of three sections, each with its own under it: **Projects** (every project, its icon in its color, its name),
   **Agents** (each agent: "Choosing the agent") and **Profiles** (every profile, its picture: [profiles.md](profiles.md));
   on the right the chosen one's page under its path ("Projects › shop", "Profiles › ann") with **⋯** at its end. All
-  three alike (the author, 2026-10-12): a section only opens and closes, its **+** beside it makes one of its own
+  three alike (the author's choice): a section only opens and closes, its **+** beside it makes one of its own
   (Profiles: New Profile…, its name typed in place under the tree, Enter makes it and shows its
   page, Esc puts it away; Agents: a menu of the agents an account can be made of, New Account… on the agent's page,
-  as agents are installed, not made; Projects has none since 2026-10-16: Settings only sets things, a project is made
-  in a tasks' window, New Project…); a row's right-click has what its page's ⋯ has (a project's and a profile's
+  as agents are installed, not made; Projects has none: Settings only sets things, a project is made in a tasks'
+  window, New Project…); a row's right-click has what its page's ⋯ has (a project's and a profile's
   Delete…, asked first, as Delete on the chosen row; an agent's Install and New Account…), a section's what its +
   does. Project Settings… in a project's submenu (a task tab's menu) opens it at that project;
-  a task tab's Manage Profiles… and About this profile… at a profile. It was the projects' manager alone, under a
-  Projects button, until the agents' accounts needed a place outside projects; then tabs, Projects and Agents; then
-  the tree with Agents and Profiles as pages of their own, each with its list on its left and New Project's + over the
-  tree (2026-10-11), until the agents and the profiles went into the tree as the projects (2026-10-12). **A project's page** (the projects' manager, in earlier words): at its top
-  its path and **⋯** (Delete Project…; no New Task there since 2026-10-12, the author: tasks are made in the bar); then **Name:**, and a group each under a titled line (`.titled`): **Code**, **Agents**,
+  a task tab's Manage Profiles… and About this profile… at a profile. **A project's page** (the projects' manager, in
+  the code's words): at its top its path and **⋯** (Delete Project…; tasks are made in the bar); then **Name:**, and a group each under a titled line (`.titled`): **Folders**, **Agents**,
   **Profiles** (what its tasks are made of), each a list (`.list`) with a toolbar over it: **+** adds (a menu), **−**
-  removes the selected row (and Delete), **★** makes it the default (Code, Agents); a row's right-click has the same.
+  removes the selected row (and Delete), **★** makes it the default (Folders, Agents); a row's right-click has the same.
   Its Profiles are only which profiles its tasks have: + makes one in it or adds one of the others, − lets go of one
   (the profile stays); who a profile is, is Settings → Profiles'.
   What needs typing (a URL to clone, a new profile's name) opens a field in place, under the list (Esc puts it away).
-  Then **Local addresses:**. Explanations are in the empty lines and the tooltips, not in a paragraph per section (the
-  author, 2026-10-11: the page with cards, a paragraph each and four ways to add read as documentation, not settings).
-  **Everything is saved as it changes**: no Save and no
-  Cancel (the author, 2026-10-11: with code, agents and profiles saved at once and the look on Save, it was not plain
-  what Save and Cancel were for); the name on Enter or leaving its field, also when the manager closes or another
-  project is chosen with one typed. Decided with the author on 2026-10-10, when a project became the configuration its tasks are made
-  from: the menu and the Welcome screen (JetBrains' way, 2026-10-07) showed no project's configuration without opening
-  it. A dialog, not a window of the OS, no process more, until 2026-10-16: a window of its own then (the author: as a
-  desktop app's, the pages not hidden under it), its process only while it is open.
-- **New Project**, in three steps (the author, 2026-10-17: a newcomer went through five steps in three places, New
-  Project, Settings' agents and profiles, the bar's +, with nothing saying what came next): **Code**, **Agents**,
+  Then **Local addresses:**. Explanations are in the empty lines and the tooltips (a paragraph
+  per section reads as documentation, not settings).
+  **Everything is saved as it changes** (one rule, so nothing asks what a Save would cover);
+  the name on Enter or leaving its field, also when the manager closes or another project is chosen with one typed.
+- **New Project**, in three steps (a newcomer goes through everything a project needs in one
+  place, each step saying what comes next): **Code**, **Agents**,
   **Profiles**, then Create, which makes the project with them and opens its first task. Next checks a step as Create
   would, nothing made before Create (but an agent's account signed in to on the way: accounts live on their own); Back
   keeps what was typed. It is the welcome's with no project at all, in the grid's place (below), and else a dialog
-  (New Project… after the board's columns; Settings' + until 2026-10-16), the same steps (`newproject/`). The first step, as
-  JetBrains' New Project: on the left what its code comes from, on the right the form (**Name:**, **Location:**). **Its code first** (the author,
-  2026-10-11: a folder made in `~/Kulisa` first, git on, was in the way of code already on the disk or at a URL: with
-  a repository added after it, every task got a copy of the empty one too, or the empty folder stayed as a former one):
-  - **New folder**: a name and a location, `~/KulisaProjects` (every new project's place, as JetBrains' `~/PycharmProjects`; `~/Kulisa` until 2026-10-17, easily taken for Kulisa's data folder)
+  (New Project… after the board's columns), the same steps (`newproject/`). The first step, as
+  JetBrains' New Project: on the left what its code comes from, on the right the form (**Name:**, **Location:**). **Its code first** (code already on the disk or at a URL is the project's own, with no empty folder made beside it):
+  - **New folder**: a name and a location, `~/KulisaProjects` (every new project's place, as JetBrains' `~/PycharmProjects`; a name not to be taken for Kulisa's data folder)
     unless they type or browse to another; the step shows the folder it makes (`<location>/<name>`), so the human
     knows where the agent's files are. A folder there already is taken as it is, its files kept.
   - **Folders on disk**: one folder or several (a frontend and a backend: typed and Add, or + over the list, which
     browses; each a row with "git" or "no git", − leaves the selected one out), taken as they are, nothing made: their files and, for repositories, their history kept.
-    The first is the default repository and the project's folder (Open Folder… was until 2026-10-11, a command of its
-    own whose effect was not clear, the author; now a choice inside New Project). Create Git repository runs in those
-    without git. A folder that is not there, or a project's, is refused as it is added.
+    The first is the default. A folder that is not there, or a project's, is
+    refused as it is added.
   - **Clone from URL**: one URL or several, cloned with the user's own git (as Clone on a project's page). One is cloned
-    into `<location>/<name>`, and that clone is the project's folder; several into `<location>/<name>/<repo>` each, the
-    project's folder the one that holds them (no former folder: tasks never worked in it), the first the default.
-    Clone on its page puts the next one there too. Refused: a folder there with files. Create says Cloning…
+    into `<location>/<name>`; several into `<location>/<name>/<repo>` each, the first the default (the folder that holds
+    them is none of the project's). Clone on its page puts the next one there too. Refused: a folder there with files. Create says Cloning…
     meanwhile; a URL git cannot clone leaves nothing, the clones before it neither.
   - In the welcome, one folder or one URL, in a field (and Browse…) rather than a list, a line under it saying the other
-    is added later in Settings (the author, 2026-10-17: a first project made simply; several are the dialog's). Its
+    is added later in Settings (a first project made simply; several are the dialog's). Its
     name is asked only for a new folder (Project name:); code from the disk or a URL has one, the folder's or the
     repository's, said in the line under it ("The project shop takes … as it is"), its field shown only when it will
     not do (empty, a folder there already, a name Create refuses), to correct it; renamed later in Settings.
@@ -129,32 +100,26 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
   The name is the first folder's or repository's until the human types one. A folder or URL typed and not yet added
   counts when Next is pressed. The step says what will happen as it is typed ("… is there already", "… is a git repository", "The repository
   will be cloned into …"; refused: a file, or a folder a project has). Its color and icon are not asked
-  (below). Create Git repository is on by default, not shown for repositories or clones: `git init` and an empty
-  first commit ("Initial commit"; nothing of the folder is in it), as a worktree needs one, so the first task already
-  has a copy of its own. Without git's user name and email set there is no commit, and tasks work in the folder. More
-  repositories are added on its page (Code).
+  (below). Git is not asked of: a new folder, or one without git, is a plain folder, its tasks working in it ("Without
+  git", below); a developer who wants git asks the agent for it, and the tasks made once it has a commit have copies of
+  their own. More repositories are added on its page (Code).
   - **Agents**: the accounts there are first, ticked (one or several), one of them the default (★; the first ticked
     unless another is starred): a new task starts it, the others open beside it ("Choosing the agent"). The terminal
-    is no choice: every project has it, and a project with none ticked starts its tasks with it (the author,
-    2026-10-17). Under them **Add account**, one button per agent an account can be made of (Claude Code, Codex):
+    is no choice: every project has it, and a project with none ticked starts its tasks with it. Under them **Add account**, one button per agent an account can be made of (Claude Code, Codex):
     its sign-in, as New Account…, and the account ticked. An agent not on the computer is installed first, by itself,
-    with its maker's installer, the sign-in after it (the author, 2026-10-17: seamless); a line says it installs, and
+    with its maker's installer, the sign-in after it (seamless); a line says it installs, and
     Details shows the installer at work (`InstallProgress.vue`, as Settings → Agents).
   - **Profiles**: new ones, a name and who it is each (the agent chooses by it), and any of the human's other
     profiles, ticked; none: the agent makes those it needs. No signing in there: real accounts are signed in when the
     agent asks, or with Sign In… in Settings → Profiles.
   - **Create**: one call (`project:new`), the core making it all (`createProject` in `projects.ts`: its code, its
     agents in order, the default first, its profiles); what could not be added of the agents and profiles is logged,
-    the project being made. Then its first task opens in this window (`project:open`), its default agent in it. Until
-    2026-10-17 Create made no task and opened Settings on the project's page, where its agents and profiles were set;
-    now the first task opens where the project was made, nothing asked (the author, 2026-10-11: a question where to
-    open it, right after Create, came unasked).
+    the project being made. Then its first task opens in this window (`project:open`), its default agent in it,
+    nothing asked (a question where to open it, right after Create, comes unasked).
 - **Showing another task** slides the grid towards its tab, as macOS desktops do (a view transition on the compositor, the
   pages as pictures meanwhile; not with reduced motion); the window builds the other grid in place, so nothing jumps.
-  Out past the window's edge, with Material's standard easing: until 2026-10-15 the grid going out stopped at the
-  window's margin and crept over its last few percent, a strip of its page lingering at the edge.
-  (Until 2026-10-14 only another project's slid; a project's own tasks were swapped at once: one rule now, every
-  tab a tab.) When a task closes, the one next to it is shown, or the empty window when it was the last.
+  Out past the window's edge, with Material's standard easing, so no strip of its page lingers at the edge; every tab
+  slides alike. When a task closes, the one next to it is shown, or the empty window when it was the last.
 - **Move to New Window** (its tab's menu) puts the task into a window of its own, next to this one, e.g.
   to drag it to a second monitor; **Move to Window: …** (one row per other window) puts it
   into that window, as a browser moves a tab. It keeps running: its agents, its pages (the same ones, moved, not
@@ -163,11 +128,11 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
   same way, one after another. **Dragging a tab** does the same with the mouse: within the bar it changes the order
   (kept); let go on another window's bar, the task moves there, where it was let go; let go outside every Kulisa
   window, it opens in a new window there (the window appears when the mouse is let go, as in VS Code). Each window has
-  its bar and its + (the board; a task opens in the window whose + was pressed). The OS's × on a window closes
+  its bar and its + (the new-task menu; a task opens in the window whose + was pressed). The OS's × on a window closes
   its tasks, as × on each would, after one question ("Close the window?", naming them); on the last
   window it quits Kulisa, and the windows with their tasks come again at the next start, where they were: nothing
   is lost, so it asks only when that would stop a working agent ("Quit Kulisa?"). On macOS the last window's × hides
-  it, as Mac apps' windows (the author, 2026-10-17: simpler than closing the window with its agents going on, which can
+  it, as Mac apps' windows (simpler than closing the window with its agents going on, which can
   come later): its agents, terminals and pages go on, the Dock's icon shows it again as it was; ⌘Q (Kulisa → Quit
   Kulisa) quits, asking as above, the hidden window shown for the question. A window whose last tab is
   closed closes too, unless it is the only one: then it is the empty window.
@@ -175,11 +140,10 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
   the middle of the window (seen in the title bar and the gaps between the islands; only while a task is shown, a new
   tab over it too: it fades in with the first task, out with the last, and from one project's color to the next as
   another task is shown; a blot, never a circle: three soft spots, each its own size, drifting and stretching at its own pace, still with reduced
-  motion: the author, 2026-10-17; `App.vue`, its transform alone animated, five times a second: about 2 % of a core while a task is shown, 11 % at the screen's rate) and the title bar
+  motion: the author's choice; `App.vue`, its transform alone animated, five times a second: about 2 % of a core while a task is shown, 11 % at the screen's rate) and the title bar
   logo's curtain; the icon is on its tasks' tabs in the bar, in its color. **Both
-  are Kulisa's, nothing to choose** (the author, 2026-10-12: a project is made to work in, not to be set up; until then
-  a panel at its page's top chose among eight colors, Kulisa's ten icons and a picture file, and the colors did not
-  go with the favicons, a red mark on a green project):
+  are Kulisa's, nothing to choose** (a project is made to work in, not to be set up; a color
+  taken from its favicon goes with it):
   - **The icon: its site's favicon**, the curtain while it has none: `favicon.*` (svg, png, ico, webp, gif,
     jpg) anywhere in its code, `icon.*` only in an `app/` folder (Next's; elsewhere `icon.svg` is any component's).
     The files are those git lists in each of its repositories, the default first (new ones too, not those it ignores:
@@ -194,7 +158,7 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
     palette with each color's share, its filters of transparent, white and gray pixels): the hue of the largest
     colored part, near-black left out too (HSV calls a dark red saturated). Only the hue is the site's: its lightness
     and chroma are those of Kulisa's eight colors (OKLCH 0.61, 0.12), so it suits both themes as they do (a site's
-    navy was lost in the dark one, its yellow glared in the light one). A favicon with too little color (under a
+    own navy is lost in the dark one, its yellow glares in the light one). A favicon with too little color (under a
     tenth: a black or gray mark, an SVG in `currentColor`) has no hue, nor has a project without a favicon: then the
     color `projects.json` keeps, the next free one of Kulisa's eight given when it was made. Two sites of one hue are
     one color: their icons and names tell them apart. Nothing of it is stored: worked out again as the window gets
@@ -207,76 +171,84 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
   makes one of an agent, signed in right there; − lets go of the selected one at once (the account stays: Settings →
   Agents deletes it); the first is the default, marked "default" (**★**, or Make Default in a row's right-click, on another): a
   new task runs it; others in a task: the island's + ("Several agents in a task"). **★** on the default one (No Default
-  in its right-click) leaves none the default (`noDefaultAgent` in `projects.json`; the author, 2026-10-12): its new
+  in its right-click) leaves none the default (`noDefaultAgent` in `projects.json`): its new
   tasks start with nothing, the island's big buttons in the empty grid instead ([window.md](window.md), The terminal).
-  None: its tasks start with the terminal only; closed, the Terminal button alone (the author, 2026-10-12).
-- **Its code**: the repositories or folders its tasks work on, the default one first (marked when there are several,
+  None: its tasks start with the terminal only; closed, the Terminal button alone.
+- **Its folders**: the repositories or plain folders its tasks work on, the default one first (marked when there are several,
   **★** or Make Default in a row's right-click on another: new tasks get a copy of it, their agents start there; the others
   a task adds when it needs them: Tasks, below). Its **+**: **Add
   Folder…** adds one from the computer, **Clone from URL…** one from a URL with the user's own git (its credentials and keys; git asks for no password, so a
-  private repository it cannot reach fails with git's own words; cloned into the project's own folder when that has no
-  git, `~/KulisaProjects/<project>/<repo>`, else next to it, never inside a repository). A repository added is copied into no task: each adds it when it needs it. **−**
+  private repository it cannot reach fails with git's own words; cloned next to the default folder, never inside one of
+  the project's). A repository added is copied into no task: each adds it when it needs it. **−**
   (or Delete, or the right-click) removes the selected one from the project (its folder stays), only when no task has a copy of it or works in it: the refusal
-  names those tasks (deleting a copy would delete their work). A project whose own folder has no git keeps it until a
-  repository is added; then it is its **former folder**: new tasks no longer work in it, those that did go on there,
-  and the settings say so, with Show, while it exists (the human moves its files, or asks an agent).
+  names those tasks (deleting a copy would delete their work). The folders are all alike, in git or not: one without git
+  stays one of them, the default too, when repositories are added (`projects.json` keeps the one list), and a task
+  working in it adds them as any task does (Tasks, below).
+  Each repository's row has its **GitHub account**: the one its origin's remote is bound to, by what the remote points to
+  (`remotes.ts`, the same on every computer), else the first account that reaches it, bound then; under the list, a line
+  for one no account can reach, or whose account is signed out ([src/github](../src/github/README.md), A repository's
+  account).
 - **The empty window** (the term: CLAUDE.md) is what a window is with no task open: at the first start, and after
-  the last task is closed (×, Close All Tasks, deleting the project). The title bar, no tasks' bar (no tab, and its +
-  would show the board the window shows already: the author, 2026-10-17), and in the grid's place (`Empty.vue`) the
-  board, as a new tab shows it
-  (above); with no project at all, the **welcome** instead (`welcome/`), the first thing a new user meets (the author,
-  2026-10-17): what Kulisa does in three slides (its agent in your browsers; checking as every user; Pick), with Skip,
+  the last task is closed (×, Close All Tasks, deleting the project). The title bar, no tasks' bar, and in the grid's
+  place (`Empty.vue`) **the board** (`newtab/`): every project a column (all in sight, any task one click away), the
+  one worked in last first (an open task, else the one closed last). A column: its project's icon in its color, its
+  name, its **+** (a new task of it with its default agent: "Choosing the agent"); then its tasks, those open first,
+  marked "open" and not to choose (in this window's bar or another's), then the closed, the one closed last first,
+  each with its branch (when its name is another), when it was closed, "merged"; a click opens one again; its 🗑 (on
+  the row under the pointer or the keyboard) or Delete deletes it after Delete Task…'s question. A project without
+  tasks says so. New Project… after the columns. More tasks than a column holds scroll in it, more columns than the
+  window holds scroll sideways. With no project at all, the **welcome** instead (`welcome/`), the first thing a new user meets: what Kulisa does in three slides (its agent in your browsers; checking as every user; Pick), with Skip,
   then New Project's steps, a question each ("Where is the code?"), as a dialog without its backdrop, Kulisa's red glow
   behind them until the first task's project's color takes its place. Back on the first step goes back to the slides.
-  In a low window the slides' picture is smaller, and in one both narrow and low it is left out: the welcome fits the window's least size (640 × 400) without scrolling. New Project's own steps, not a second wizard: the dialog's, under another head (docs/ui.md, Clusters). Until then
-  (2026-10-17, the morning) the steps alone, as a dialog without its backdrop; before, an island with "No task is
-  open", New Task and New Project…, two clicks from anything to do. The steps are made each time they are shown, anew,
+  In a low window the slides' picture is smaller, and in one both narrow and low it is left out: the welcome fits the window's least size (640 × 400) without scrolling. New Project's own steps, not a second wizard: the dialog's, under another head (docs/ui.md, Clusters).
+  The steps are made each time they are shown, anew,
   and are not there otherwise (their fields' ids are the dialog's too). At the first start the keyboard is on Next
   (`shell.firstStart`).
-  It replaced the Welcome screen (the author, 2026-10-11: once the bar listed the tasks, it was not needed); the
-  board brought its list of tasks back (2026-10-17); the links and Kulisa's version are ☰'s. Later starts
+  The links and Kulisa's version are ☰'s. Later starts
   open the windows that were open, each with its tasks' tabs in their order, showing the one shown last (`windows` in
-  `settings.json`, the tasks by key); an open task no window names (a crash; windows saved before 2026-10-14 named
-  projects) goes into the first window's bar, so none is lost. `KULISA_PROJECT=<folder> npm start` shows a task of that
+  `settings.json`, the tasks by key); an open task no window names (a crash) goes into the first window's bar, so
+  none is lost. `KULISA_PROJECT=<folder> npm start` shows a task of that
   project in the first window: its first open one, else the one closed last, else a new one.
 - **An agent** of a task starts in the user's own shell, in the task's folder, as if the human typed
   it in a terminal there: the project's environment applies (direnv's `.envrc`, nvm, mise), not the one Kulisa was
   started with. When it exits, the shell stays. Its account's variable (`CLAUDE_CONFIG_DIR`, `CODEX_HOME`) is typed
   before the command (`CLAUDE_CONFIG_DIR=… claude …`), so the task's account wins over a project's `.envrc` that sets
-  it too (the author, 2026-10-12: one of them ran a task as another Claude account, silently).
+  it too (else the task runs as another Claude account, silently).
+  Each argument is quoted as that shell reads it ([src/terminal](../src/terminal/README.md)).
   direnv's state in Kulisa's own environment (started from a terminal in a folder direnv had loaded) is dropped at
-  start: a task's shell took it for that folder left and undid its `.envrc`, an account's `CLAUDE_CONFIG_DIR` with it.
+  start (`DIRENV_*`, `app.ts`): a task's shell takes it for that folder left and undoes its `.envrc`, an account's
+  `CLAUDE_CONFIG_DIR` with it.
   On Windows it starts directly, without a shell (ROADMAP, Open issues).
 
 ## Tasks
 
-A **task** (the term: CLAUDE.md; "workspace" until 2026-10-10) is one line of work in a project: its own copy of the
+A **task** (the term: CLAUDE.md) is one line of work in a project: its own copy of the
 code on a branch, browser profiles, a grid of panels and an agent in a terminal. Several tasks let several agents
 build several features of one project at once.
 
 - **Always a copy.** With git (and a first commit), every task is a git worktree of the project's default repository
-  on a branch of its own, the first task too: next to its repository when the project has one (`myshop@task-2`), else
-  in one folder of the task's (`~/KulisaProjects/<project>@task-<n>/<repo>/`, one place to see and delete), where the others'
+  on a branch of its own, the first task too: next to its repository when the project has one (`myshop@task-k3x9q2`), else
+  in one folder of the task's (`~/KulisaProjects/<project>@<branch>/<repo>/`, one place to see and delete), where the others'
   copies go too. Its agent starts there.
-- **Another repository when the work needs it** (the author, 2026-10-13: a task on the backend may turn out to need
-  the frontend, and copies of every repository in every task were made for nothing; the ones a task has are named at the end of its
+- **Another repository when the work needs it** (a task on the backend may turn out to need
+  the frontend, and a copy no task needs is made for nothing; the ones a task has are named at the end of its
   terminals' row: [window.md](window.md), The terminal). The project's other repositories
   in git are added to a task one at a time: by the human, Add Repository in its tab's right-click menu; by the agent,
   `task_add_repository`, once the human has agreed in the conversation (the profiles skill and the MCP server's
   instructions say so; no question of Kulisa's: the author's choice, the agent asks). A copy on the task's branch in
-  its folder of copies (`Task.addRepository`, `Project.addCopy`), given to its running agents by Kulisa, typed and
-  sent as the human would (`giveDirs`, `sendToPrompt`; the author, 2026-10-13: the human sending a typed `/add-dir`
-  was a step easily missed), never while the agent waits for the human: Enter there answered Claude Code's permission
-  question with Yes, and the pasted line was lost (2.1.296). Claude Code gets `/add-dir <folder>` at once, in its turn
+  its folder of copies (`Task.addRepository`, `Project.addCopy`; a task working in a folder without git has no
+  worktree of its own: its first copy takes a branch named as that worktree would be, the next ones that branch),
+  given to its running agents by Kulisa, typed and sent as the human would (`giveDirs`, `sendToPrompt`; a `/add-dir` for the human to type is
+  a step easily missed), never while the agent waits for the human: Enter there answers Claude Code's permission
+  question with Yes, and the pasted line is lost. Claude Code gets `/add-dir <folder>` at once, in its turn
   too: it runs then, its question (Add directory to workspace) over the turn, which goes on, answered with its first
-  choice, for this session. Others get a line saying so once their turn is over (Codex 0.160.1 has no way to add a
+  choice, for this session. Others get a line saying so once their turn is over (Codex has no way to add a
   folder in a session: its changes there ask for approval until its next start). A draft the human is typing in
   that terminal then gets the line too: Kulisa cannot see the prompt. At their next start they get it with the
   others: Claude Code and Codex as `--add-dir` (Claude Code reading their `CLAUDE.md` too:
   `CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD`), every agent in the MCP server's instructions and at its session's
   start (`agents/`, `dirs`). The repositories it has no copy of are named there too, to read in the project's folders
-  without asking, changing nothing. One added and no longer needed (added by mistake, or not needed after all; the
-  author, 2026-10-13) is taken out again: by the human, Remove Repository in its tab's menu or on its chip; by the
+  without asking, changing nothing. One added and not needed (added by mistake, or not needed after all) is taken out again: by the human, Remove Repository in its tab's menu or on its chip; by the
   agent, `task_remove_repository`, once the human agreed (`Task.removeRepository`, `Project.removeCopy`). Its folder
   and branch go as a deleted task's do, and what the agents keep of its folder (below, "Deleting a task"); asked first
   only when it holds commits not pushed or uncommitted files, named in the question (`askRemoveCopy`). Its running
@@ -289,43 +261,76 @@ build several features of one project at once.
   instructions), or to open a pull request.
 - **Without git** (or before a first commit) a task works right in the project's folder: there is nothing to copy it
   with. A second open task there is made only after a question ("two agents may get in each other's way").
-- **Its name** is `task-<n>` until its agent names it (`task_rename`) or the human does (Rename… in its tab's menu, or a double click on its tab):
-  the tab and the branch take the name (`git branch -m`, `-2` when the branch is taken); the folder stays
-  `<repo>@task-<n>`, not moved under a running agent. Until it is named, its agent is told to name it once the human's
-  request says what it is about, before anything else and silently (never asking the human or mentioning it: Kulisa
-  is to be invisible in the agent's answers, the author, 2026-10-12; one said "I'll name the task once it is clear"
-  to a "how are you"), at every prompt the human sends (the `prompt` hook's answer) and in
-  every Kulisa tool's result (for an agent whose hooks do not run: Codex's not trusted yet). `task_rename` and
-  `conversation_rename` load with Claude Code's session (`_meta` `anthropic/alwaysLoad`; other agents ignore it): behind
-  its tool search, as every MCP tool is, the agent skipped the extra step and did not name the task when its answer
-  was text only, though told at both prompts (2026-10-12). Told only at the
-  session's start, before the agent knew what the task was about, it was forgotten: 7 of the author's 8 tasks stayed
-  `task-<n>` (2026-10-12); and asking the human would stop them for a name (the author). Until then the human's first
-  prompt in it (its first line, from the same hook) is over its tab and its row among the closed tasks (their
-  tooltips), what it is about when its agent did not name it; a name puts it away.
+- **Its name** on its tab is the one it was given — by its agent (`task_rename`) or the human (Rename… in its tab's
+  menu, or a double click on its tab), a label a person reads ("Fix header": any one line with a letter or a digit,
+  `labelError` in `names.ts`; a project's or a profile's name keeps to the stricter rule, as it becomes a folder or an
+  id). The branch takes a slug of it (`fix-header`; `git branch -m`, `-2` when the branch is taken), while the folder
+  stays where the worktree was made (`<repo>@<its branch then>`), not moved under a running agent. Until it is named it is "New Task", and
+  the tab shows instead its first agent conversation's name when the agent keeps one of its own: the agent's auto-title
+  for the conversation, read where its agent keeps it at session start and after a turn's end (`Task.followAutoTitle`, the agent's
+  `title`; [transcripts.md](transcripts.md)): Claude Code's and Codex's. An agent without such a title leaves it "New
+  Task" until named.
+  The task is not nagged into a name: `task_rename` is a tool the agent uses when it wants to, mentioned once in the
+  profiles skill and the MCP server's instructions, never injected turn after turn. A name given explicitly wins over
+  the auto-title and is never a guess from the prompt: the auto-title is shown only, never written as the task's name
+  or made into a branch slug.
 
-Example: the project `~/IdeaProjects/myshop`, its second task, named "Checkout-redesign" by its agent:
+Example: the project `~/IdeaProjects/myshop`, a task of it (id `k3x9q2`), its worktree made while it was still "New
+Task", then named "Checkout redesign" by its agent:
 
 ```
-~/IdeaProjects/myshop/          the project's own folder: the human's
-~/IdeaProjects/myshop@task-2/   the task: a worktree on the branch checkout-redesign
+~/IdeaProjects/myshop/                the project's own folder: the human's
+~/IdeaProjects/myshop@task-k3x9q2/    the task: a worktree on the branch checkout-redesign
 ```
+
+### The Resources island
+
+Next to the terminal, an island of the task's **resources** — the things it has, uses or created — each a row with
+its own actions, for quick access to them (`Resources.vue`, a panel of the grid of its own: [window.md](window.md),
+The grid; `Task.resources`, sent in the task's info). What it shows now:
+
+- A **worktree** per repository the task has made its own (`task_worktree` for the default one, `task_add_repository`
+  for another of the project's): its name and branch; a click on the row opens its folder. A worktree made for an
+  added repository is removed with its 🗑 (`task_remove_repository`); the task's own worktree goes only with the task.
+- The **main working tree** until the task makes its own worktree for the default repository: the project's folder (the
+  human's) it opened in, its folder opened with a click, never removed (every task shares it). A task on a folder
+  without git stays here. It is kept as a resource, not worked out from the project: the project's default repository
+  may change while the task works there, and its terminal stays where it is.
+
+- Under them, **Artifacts**: the files the agent's tools kept of the task's pages (its `artifacts/`, What is on the
+  computer), the newest first: what each is (Screenshot, Snapshot, Request or Response body), the profile it came from
+  and when, all read from the file's name and time (`listArtifacts`, `kulisa-plugin/artifacts.ts`), no list kept beside
+  the files to go stale. A screenshot shows a small picture of itself, made by the main process once and kept in memory
+  while the task is loaded (`Task.artifacts`): the window never decodes the pictures themselves, megabytes each. They
+  are made in the background, one at a time (`makeThumbs`), the list sent again when they are: a whole page's takes
+  tens of milliseconds, and a task shown with many would hold up its terminals starting. The
+  list comes when the task is shown and again whenever the agent keeps one (`Task.artifactsChanged`, the window's
+  `artifacts`). A click opens the file in the OS's app for it; its right-click menu: Open, Show in Folder, Delete (at
+  once, no question: the agent's own copy of what a page showed, Kulisa's data, not the human's work). Their heading
+  says what they take, for the human to see a task gather them and ask its agent to clean up, or delete the task; its 🗑
+  deletes them all, as Delete does one. The figure is the activity monitor's ([src/activity-monitor](../src/activity-monitor/README.md);
+  `Task.artifactsUsage`), sent with the list. The agent has the same: `task_artifacts` lists them with their sizes (or
+  each task's total, of the project or of all), `task_artifacts_delete` deletes some or all, only of its own task: another
+  task's agent may be reading its own.
+
+The island shows the task's resources as `tasks.json` keeps them, the first where it works (store.ts, `Resource`): its
+folder, its branch and its folder of copies are worked out from them, never kept twice.
+
+More kinds grow over time (the app's URL, a pull request). Ownership decides the actions and the cleanup: the main
+working tree is the human's and is never removed; a worktree the task made is the task's and goes when the task is
+deleted.
 
 ## What the human does
 
 - **Its tab** in the tasks' bar: its project's icon, the agent's state as an icon
-  (working, waiting for you, done; from its hooks: "Choosing the agent"), its name. A click shows that task: the grid
-  slides towards its tab, the pages as pictures meanwhile, live again once the new grid is laid out (Projects,
+  (working, waiting for you, done; from its hooks: "Choosing the agent"), its name. A click shows that task (the slide: Projects,
   above). The one left keeps running.
-- **The bar's +** (a project's + in its column; Ctrl+Shift+N, or New Task in the project's submenu, for the shown task's or
-  that project) makes a task at once, no dialog,
+- **The bar's +** (a project's + in its column; Ctrl+Shift+N, New Task in the project's submenu, or a click on the
+  project itself in the bar's + menu — its tasks show on hover — for the shown task's or that project) makes a task at once, no dialog,
   from the project's configuration alone, nothing taken from the task on screen: the human describes the task to its
   agent in the terminal. It runs the project's default agent; with none, the terminal only, nothing asked ("Choosing the agent"). **No profile opens by itself**, the first task's
-  neither: all the project's are listed closed, and the agent opens one when it needs it (`profile_open`), the human
-  from a tile over the terminal while none is open ([window.md](window.md), The grid) or the task's tab's right-click
-  menu; each a copy of its master made then ([profiles.md](profiles.md)). Decided with the author on 2026-10-10:
-  a task opened those open in the task on screen before (the first one all), each a browser's processes and memory
-  whether the task needed it or not.
+  neither ([profiles.md](profiles.md), What a profile is): each is a browser's processes and
+  memory, whether the task needs it or not.
 - **×** on a task's tab closes it: its agent stops, its tabs close; its code, branch, profiles and conversation stay,
   and the bar's + lists it in its project's column. Opening it there shows it again and resumes its agent's
   conversation. It asks only when the agent is working (closing would stop it); nothing else is lost. The last open
@@ -333,13 +338,16 @@ Example: the project `~/IdeaProjects/myshop`, its second task, named "Checkout-r
 - **Delete Task…** in its tab's menu deletes it, after a question saying what goes for good: its folder, its branch,
   its profiles, its agent's conversations, and any work not in main and not pushed (commits of its own, uncommitted
   files). With git a task goes whole (worktree, branch, conversation); without, its files stay in the project's folder.
-  A closed task is deleted from its row in the bar's + (the board): its 🗑 (on the row under the pointer) or Delete, the same
-  question, its project loaded or not (the author,
-  2026-10-12: they piled up, and only an open one had Delete Task…). Closed tasks stay on disk until the human deletes them; Kulisa
+  Every task's row in the bar's + menu carries the same delete (on the row under the pointer or the keyboard, or Delete), open or closed.
+  A closed task is also deleted from its row in the empty window's board: its 🗑 (on the row under the pointer) or Delete, the same
+  question, its project loaded or not (closed tasks are not to pile up). Closed tasks stay on disk until the human deletes them; Kulisa
   offers it once a closed task's PR is merged: each of its copies has commits of its own, all in its remote's default
   branch (`origin/HEAD`, fetched as the project is shown and as a task is closed, in the background), and nothing
-  uncommitted, so deleting it loses nothing. Its row in the board says "merged", and the project's submenu has **Delete
-  Merged Tasks…**, one question naming them. A squash merge makes new commits, so it is not seen: Delete Task… as for any other.
+  uncommitted, so deleting it loses nothing. A squash or a rebase merge (GitHub's other two buttons) puts new commits
+  there: they count by their changes, git's patch ids (each of the branch's commits has its like there, or the branch's
+  whole change since it parted from that branch is one commit there), so a change made after the merge keeps the task
+  unmerged. Its row in the board says "merged", and the project's submenu has **Delete Merged Tasks…**, one question
+  naming them.
 - **The island's +** opens another of the project's agents in the task, a new conversation in a tab of its own, or a
   shell; **the agent's icon on its tab** hands the task to an agent of the project, which goes on with that
   conversation ("Several agents in a task").
@@ -351,7 +359,7 @@ to the human; the window's IPC (`ipc/`) and the MCP tools are handles on it:
 
 | Action | The human | The agent | The core |
 |---|---|---|---|
-| Open a task (its project loaded with it, when it was not) | the bar's + (the board: a closed one, or a new one) | none: it works inside one task | `openProject` (`open-tasks.ts`): the task opened again and shown, or a new one (`createTask`) |
+| Open a task (its project loaded with it, when it was not) | the bar's + menu, or the empty window's board (a closed one, or a new one) | none: it works inside one task | `openProject` (`open-tasks.ts`): the task opened again and shown, or a new one (`createTask`) |
 | Close a project's tasks | Close All Tasks in its submenu | none: it would stop itself | `closeTasks` (`open-tasks.ts`) in every window, asking once when an agent works |
 | Close a window, quit | the OS's ×, ☰ → Exit | none | `closeTasks` for the window's tabs; `quit` (`open-tasks.ts`), asking only when an agent works |
 | Move a task | Move to New Window, Move to Window, dragging its tab; Move All Tasks to … for a project's | none: where the human sees it is the human's | `moveTask`, `moveAll` (`open-tasks.ts`) |
@@ -363,12 +371,19 @@ to the human; the window's IPC (`ipc/`) and the MCP tools are handles on it:
 | Read what was said and done in the task before | its terminal, scrolled back | `task_history` ([transcripts.md](transcripts.md)) | `historyPart` (`history.ts`) |
 | Delete a task | Delete Task… in its tab's menu; a closed one's 🗑 in the bar's + | none: it deletes work and sign-ins, the human's to decide | `askDeleteTask`, `deleteTask`, `deleteClosedTask` (`projects.ts`) |
 | Show a task | a click on its tab, of any project | none: what the human looks at is theirs | `AppWindow.show` (`window.ts`) |
-| Add, clone, make the default, remove a repository | the projects' manager | none: what the project is made of is the human's | `addRepo`, `cloneRepo`, `defaultRepo`, `removeRepo` (`projects.ts`) |
+| Open a resource's folder | a click on its row in the Resources island | none: the agent opens folders through its own tools | `task:open-folder` (`ipc/tasks.ts`) |
+| Open an artifact, show it in its folder | a click on its row in the Resources island, its menu | none: the tools' answers give the agent its path | `file:open`, `file:show` (`file-links.ts`) |
+| See what the artifacts take | the Artifacts heading in the Resources island (the shown task's) | `task_artifacts`: its task's files, or each task's total | `Task.artifactsUsage` (src/activity-monitor) |
+| Delete artifacts | Delete in a row's menu; the heading's 🗑, all | `task_artifacts_delete`: some or all of its task's | `Task.deleteArtifacts` |
+| Make the task's worktree | none: its agent makes it before writing code | `task_worktree` | `Task.makeWorktree`, `Project.ensureWorktree` |
+| Add, clone, make the default, remove a project's folder | the projects' manager | none: what the project is made of is the human's | `addFolder`, `cloneRepo`, `defaultFolder`, `removeFolder` (`projects.ts`) |
 | Add a project's repository to a task | Add Repository in its tab's menu | `task_add_repository`, once the human agreed in the conversation | `Task.addRepository`, `Project.addCopy` |
 | Remove one added | Remove Repository in its tab's menu, or on its chip | `task_remove_repository`, once the human agreed | `Task.removeRepository`, `Project.askRemoveCopy`, `removeCopy` |
 | Add, make the default (or none the default), remove an agent of the project | the projects' manager | none: what the project is made of is the human's | `addAgent`, `defaultAgent`, `removeAgent` (`projects.ts`) |
 | Make an account of an agent | New Account… in Settings → Agents or a project's page | none: signing in is the human's (Rules) | `account:signin` (`app.ts`), `Accounts.prepare`, `create` |
 | Delete an account | − in Settings → Agents | none: it deletes a sign-in and conversations, the human's to decide | `deleteAccount` (`projects.ts`), `shell.dropAccount` |
+| Add a GitHub account, sign it in again, delete it | Settings → GitHub | none: signing in is the human's (Rules) | `GitHub.startFlow`, `addToken`, `deleteGitHub` (`projects.ts`; [src/github](../src/github/README.md)) |
+| Choose a repository's GitHub account | its row on the project's page | none: what the project is made of is the human's | `setGitHub` (`projects.ts`) |
 | Open an agent in the task, a new conversation | the island's +, New Conversation (a tab's menu), Ctrl+` on the folded island | none: which agents work is the human's | `Task.openAgent`, `newConversation` |
 | Hand the task to an agent, the work kept | the agent's icon on its tab, Change agent… (a tab's menu) | none: the human's choice | `Task.handOver` |
 | Close an agent's tab | × on it, Close in its menu (asked first) | none: it would stop another agent | `Task.closeTab` |
@@ -379,34 +394,30 @@ to the human; the window's IPC (`ipc/`) and the MCP tools are handles on it:
 A task's agents are the human's choice: its project's accounts of Claude Code (Anthropic) or Codex (OpenAI)
 (Accounts, below), any of them in a tab of its own ("Several agents in a task"), or the terminal only (the user's
 shell in the task's folder: an agent Kulisa does not know is run there by hand, `KULISA_MCP_URL` in its environment).
-Kulisa never assumes one is installed (it started `claude` without asking until 2026-10-06). A new task opens its
+Kulisa never assumes one is installed. A new task opens its
 project's default agent (the projects' manager), its own (`agent` in its `agent.json`); a project with no default
 (`agent: null` there) starts nothing, without asking: the island's buttons in the empty grid, and Ctrl+` gives them
-the keyboard (`Task.ownAgent`, `openOwn`); a project with no agents starts its tasks with the terminal only. An agent to open that is no longer there (an account let go, an
+the keyboard (`Task.ownAgent`, `openOwn`); a project with no agents starts its tasks with the terminal only. An agent to open that is not there (an account let go, an
 agent not on the computer) asks, in a dialog, among the project's accounts and the terminal only, with Install and
 Cancel (none opens). `KULISA_AGENT` forces one command everywhere, without asking. An agent CLI itself is installed in Settings → Agents (**Install**: Kulisa runs its maker's own
 installer, the command shown before, its output while it runs (streamed as it comes; once it is over, the answer
 brings the whole of it, since Electron keeps no order between the stream's channel and the answer's: the last line
-arrived after "Installed" on the CI, 2026-10-15), with no steps for the human to type, for people who
+may come after "Installed"), with no steps for the human to type, for people who
 are not programmers); its accounts are made there too, or in a project's page.
 
-- The installers are the makers' official native ones (no Node, no sudo, they update themselves; checked
-  2026-10-06): Claude Code `curl -fsSL https://claude.ai/install.sh | bash`, Codex
+- The installers are the makers' official native ones (no Node, no sudo, they update themselves): Claude Code `curl -fsSL https://claude.ai/install.sh | bash`, Codex
   `curl -fsSL https://chatgpt.com/codex/install.sh | sh` (`install.ps1` on Windows).
 - Each agent is one entry in `agents/`: how to find, install, start (Claude Code with the Kulisa plugin; Codex
   with the MCP server and its hooks as config overrides, `-c mcp_servers.kulisa.url=…`, `-c hooks=…`), resume
   (`claude --resume` and `codex resume` with the session the `SessionStart` hook reported; else `codex resume
   --last`) and forget a deleted task's folder.
-- **Dictation**, where the agent has its own (its entry's `voice`: its key and how often it is typed; Claude
-  Code's voice mode, which needs a Claude.ai account; Codex 0.160 has none, only a realtime voice conversation): a
-  key held anywhere in the window (the right Ctrl), and a microphone at the end of the terminals' row, for the agent in
-  front ([window.md](window.md), The terminal). The human needs to know neither the agent's command nor its key:
-  Kulisa turns it on for its own sessions (Claude Code: `--settings` with `voice: { enabled, mode: "hold",
-  autoSubmit: false }`, not the user's settings, checked with 2.1.294) and the button holds its key: space typed
-  again and again at a keyboard's repeat rate, as a terminal shows a held key (it tells no release), and Claude Code
-  records while they come, putting the text where the cursor is, after any text there. Its `tap` mode (a tap
-  starts, another stops) was tried first: it records only with the input empty, so a second sentence could not be
-  added (the author, 2026-10-08).
+- **Dictation** ([src/dictation](../src/dictation/README.md)): where the agent has its own (its entry's `voice`: its
+  key and how often it is typed; Claude Code's voice mode, which needs a Claude.ai account), Kulisa holds its key;
+  for one without (Codex has only a realtime voice conversation), another agent's dictation recognizes in a session no
+  one sees (its entry's `recognizer`: Claude Code's, in hold mode with `autoSubmit`, its text posted by its
+  `UserPromptSubmit` hook and blocked there). Kulisa turns it on for its own sessions (Claude Code: `--settings` with
+  `voice: { enabled, mode: "hold", autoSubmit: false }`, not the user's settings). Not its `tap` mode (a tap starts,
+  another stops): it records only with the input empty, so no second sentence can be added.
 - **Language**, where the agent has a setting of its own (its entry's `language`: the codes it takes, and how one is
   written into an account's folder): Kulisa's one language (☰ → Language, [window.md](window.md), Language) goes
   into every account of it. Claude Code's is its `language` setting, which it dictates and answers in (it has none for
@@ -414,21 +425,21 @@ are not programmers); its accounts are made there too, or in a project's page.
   the rest of the file kept, not written when it says so already, never into a file that is not JSON. Claude Code
   reads that file again when it changes and the language at each recording, so it holds at once in every session of
   the account. A settings file of one launch (`--settings`) would not do: it is read once.
-- **Settings → Agents** (`AgentPage.vue`; ☰ had an Agents… row to it until 2026-10-14: the author, agents are set up in Settings), as JetBrains' list of SDKs: the agents in
-  Settings' tree (not the terminal only: nothing of it to set up there; the author, 2026-10-11; "not installed" at a row's end),
+- **Settings → Agents** (`AgentPage.vue`), as JetBrains' list of SDKs: the agents in
+  Settings' tree (not the terminal only: nothing of it to set up there; "not installed" at a row's end),
   the chosen one's page on the right: its maker and website, what it needs, its status (its version, its `--version`, and its
   folder, marked when it is not on the user's `PATH`: Kulisa runs it from there; Install for the others, with the
   command it runs), and its **Accounts** (below), a list with + (New Account…) and − (delete the selected one, asked
   first; also Delete and the right-click). Installing there starts nothing; the agent is chosen
   for a task when one is made, or with the island's +. Kulisa does not remove or update agents: they are the
   user's programs, and the makers' installers update them themselves.
-- **The list comes at once** (the author, 2026-10-11), here and in choosing a task's agent: finding the agents runs
+- **The list comes at once**, here and in choosing a task's agent: finding the agents runs
   the user's login shell (`command -v`: Kulisa started from a menu has a shorter `PATH`) and each one's `--version`,
   tenths of a second or more with a heavy `.bashrc`. So the window first shows what the last look in that folder found,
   kept in the main process's memory (`agents:list`, `cached`; nothing on disk: it is the computer's state, which
   changes without Kulisa), and looks again behind it, its rows changed where it differs (an agent installed, updated or
   removed meanwhile). Only the first time after Kulisa starts does it wait for the look.
-- **Accounts** (`accounts.ts`; decided with the author 2026-10-11): an agent with a sign-in of its own, so one human
+- **Accounts** (`accounts.ts`): an agent with a sign-in of its own, so one human
   runs a work and a personal Claude side by side. Each is the agent with its own config folder, given to it by its
   variable (`CLAUDE_CONFIG_DIR`, `CODEX_HOME`: `config` in its entry (`agents/`)); the agents without one (the terminal
   only) have no accounts and are chosen as themselves. The human's own folder (`~/.claude`, `~/.codex`) is no account:
@@ -437,30 +448,27 @@ are not programmers); its accounts are made there too, or in a project's page.
   - **Made in Settings → Agents** (+ over its agent's accounts, or the + beside Agents in the tree: in no project yet) **or in a project** (its page,
     Agents' + → New Account, an agent: in that project): the agent's own sign-in starts at once, as
     its `/login` does (Claude Code `auth login`, Codex `login`), in a terminal there (`AccountSignIn.vue`),
-    and ends once signed in. The terminal is under Details, closed (the author, 2026-10-11: the address it prints, with
-    the browser open, only confused); it opens by itself when the sign-in fails, and is there for what the browser does
-    not show (the address, when no browser opened; a code the agent asks for). Its folder in Kulisa's data has a fixed id (`agents/claude-<n>/`, never a number used
-    before: a removed one's folder may wait for the next start), never renamed: Claude Code names its macOS Keychain
-    entry after a hash of the config folder's path (checked in 2.1.296), so a folder renamed after the sign-in would
+    and ends once signed in. The terminal is under Details, closed (the address it prints, with
+    the browser open, only confuses); it opens by itself when the sign-in fails, and is there for what the browser does
+    not show (the address, when no browser opened; a code the agent asks for). Its id is six random characters, as a project's, and its folder in Kulisa's data its agent's and its id, fixed (`agents/claude-k3x9ab/`, one
+    no account and no folder has: a removed one's folder may wait for the next start to go), never renamed: Claude Code names its macOS Keychain
+    entry after a hash of the config folder's path, so a folder renamed after the sign-in would
     lose it. The email it signed in to is read after it (`auth status`) and kept in `agents.json`: the account is
-    shown as "Claude Code · ann@shop.com"; Codex's status does not say it ("Logged in using ChatGPT"), so it is shown by its id.
+    shown as "Claude Code · ann@shop.com". Codex's status does not say it ("Logged in using ChatGPT"): its email is read
+    from its `auth.json`, the email of its ChatGPT id token (undocumented, so read with care: none there, as signed in
+    with an API key, and the account is shown by its id); only the email, never the token.
     An email the store has already is that account: the new folder is signed out and removed, the existing one added
     to the project (made in Settings → Agents: said so). Cancel, Settings closed, or a sign-in ended without an account
     keeps nothing.
     **The page opens in the user's own browser**, as the agent opens it without Kulisa (Kulisa sets no `BROWSER`); the
     agent's own server on `localhost` takes the answer, so the sign-in ends by itself. The page names the account it
     signs in to: a browser signed in to another account of the same maker may offer that one, and the human chooses
-    there. From 2026-10-11 to 2026-10-12 it opened in a clean browser of Kulisa's (an Electron window, presenting as
-    Chrome, its session in memory), so that none of the human's other sign-ins was there; Google refused to sign in
-    there ("This browser or app may not be secure"), and OpenAI and Anthropic send an account made with Google to it.
-    It was then moved to the system's browser, as desktop apps sign in (RFC 8252); found after: what Google refused was
-    a browser presenting as Chrome without being it, and it lets Electron's own Chromium in ([profiles.md](profiles.md),
-    "What sites see"). The system's browser was kept (the author, 2026-10-12): as desktop apps sign in, and less code.
-  - **One store** (`agents.json`), as the profiles': each account lists the projects it is in; the Agents' **+** of another
-    project takes it there too. The island's + and choosing an agent that is not there (Choose the Agent) list the project's accounts
+    there. The system's browser: as desktop apps sign in (RFC 8252), and less code.
+  - **One store** (`agents.json`), as the profiles': the projects list the accounts they have (`projects.json`'s
+    `agents`); the Agents' **+** of another project takes it there too. The island's + and choosing an agent that is not there (Choose the Agent) list the project's accounts
     and the agents themselves, never another project's: the project's page says who works in its tasks.
-  - **An account lives until the human deletes it** (the author, 2026-10-11: with every project deleted, every account
-    went, and the next project had none; a sign-in is made again only by signing in again). − on an account in a
+  - **An account lives until the human deletes it** (a sign-in is made again only by signing
+    in again, so deleting projects does not take it). − on an account in a
     project lets go of it at once, nothing asked, as of the terminal only: a task running it keeps it. Deleting a
     project lets go of its accounts the same way. In Settings → Agents each account says the projects it is in ("in no
     project"), and − deletes it: refused while any task of any project, open or closed, has it open in a tab (counted
@@ -468,8 +476,6 @@ are not programmers); its accounts are made there too, or in a project's page.
     naming the projects that let go of it): signed out with its agent's own command (`auth logout`: what it keeps
     outside its folder goes too, the Keychain's entry on macOS), then its folder, with its sign-in, settings and
     conversations.
-  The task's account wins over the project's own environment (a `.envrc` setting `CLAUDE_CONFIG_DIR`): its variable
-  is typed with the agent's command ("The agent", above).
 - The dialogs are part of the window, not windows of their own: no extra process. `AgentPicker.vue` (choosing) and
   Settings → Agents (`AgentPage.vue`, its state kept by Settings, so an install goes on behind a project's page and
   Settings stays open while it runs) share the state of one list of agents with Install (`lib/agents.ts`), each with
@@ -478,18 +484,16 @@ are not programmers); its accounts are made there too, or in a project's page.
   working, `waiting` for the human, `tool-done` working again after waiting, `stop` done, `interrupt` and
   `session-end` unknown (but a session ending after a done turn keeps it). No agent tells when the human answered a
   permission, so the first tool to finish after it (`PostToolUse`, both agents) is the sign it works again; until
-  then the tab still says waiting (found 2026-10-12: it said so for a whole turn). Which of an agent's hooks sends
+  then the tab still says waiting. Which of an agent's hooks sends
   which is the agent's, a table in its file (`agents/claude.ts`, `codex.ts`: `hooks`), each running one command
   (`hookCommand`, `agents/agent.ts`):
-  - Claude Code, in `--settings` with its plugin (checked with 2.1.293, 2026-10-08; with 2.1.296 that both are
-    taken): `UserPromptSubmit`, `Stop`, and
+  - Claude Code, in `--settings` with its plugin (both taken): `UserPromptSubmit`, `Stop`, and
     waiting when it asks for a permission or a question (`Notification` matched to `permission_prompt`,
     `elicitation_*`) or a turn ends with an API error (`StopFailure`: a limit, a sign-in); `PostToolUse`; `SessionEnd` (`/exit`,
     `/clear`). Not `idle_prompt`, sent a minute after an answer: the tab already says done. Esc ends a turn without
     any hook, so Kulisa itself takes an Esc typed into an agent's terminal for the interrupt: working or waiting
     become unknown (`Task.interrupted`; an Esc that only closed a menu does so too, until the next hook).
-  - Codex, its entry (`agents/codex.ts`) as a config override (`-c hooks=…`; checked in a session with 0.160.1,
-    2026-10-12): `UserPromptSubmit`, `PermissionRequest` waiting (its MCP tools' questions too), `PostToolUse`,
+  - Codex, its entry (`agents/codex.ts`) as a config override (`-c hooks=…`): `UserPromptSubmit`, `PermissionRequest` waiting (its MCP tools' questions too), `PostToolUse`,
     `Stop`, `Interrupt` (Esc), `SessionEnd` (also after 30 minutes idle), and `SessionStart`, which gives it the open
     profiles as Claude Code gets them and the session to resume. Codex runs a hook only once the human has trusted it
     (`/hooks`): its trust is kept per event under one key for every task (`/<session-flags>/config.toml:<event>`), so
@@ -504,7 +508,7 @@ are not programmers); its accounts are made there too, or in a project's page.
 
 ## What each agent can do
 
-The human gets the same Kulisa with every agent (the author, 2026-10-12). What Kulisa does with an agent is a field of
+The human gets the same Kulisa with every agent. What Kulisa does with an agent is a field of
 its entry (`agents/agent.ts`, `CAPABILITIES`), and an agent either has it or says why not (`lacks`, with the reason):
 a unit test fails for an agent that leaves one out silently, so a new agent comes with its gaps named.
 
@@ -516,31 +520,32 @@ a unit test fails for an agent that leaves one out silently, so a new agent come
 | `resume` | a closed task, or a restart, goes on with the conversation | `--resume` | `resume` |
 | `prompt` | handing the task over: the new agent starts with what to read | an argument | an argument |
 | `dirs` | a project's other repositories in a task | `--add-dir` | `--add-dir` |
-| `addDir` | a repository added to the task while the agent runs | `/add-dir`, sent at once (not while it waits for the human), its question answered | none in 0.160.1: a line saying so, sent after its turn |
+| `addDir` | a repository added to the task while the agent runs | `/add-dir`, sent at once (not while it waits for the human), its question answered | none: a line saying so, sent after its turn |
 | `trust` | the agent asks once a project whether it may work there | `.claude.json` | `config.toml` |
 | `localFiles` | the project's own settings of the agent in a task's copy | `.claude/settings.local.json` | `.codex/config.toml` |
 | `conversation` | its conversation read by the next agent (`task_history`) | its transcript | its transcript (summaries encrypted) |
 | `forget` | a deleted task leaves nothing of it in the agent's data | yes | yes |
-| `voice` | dictation by the key held, or the microphone | its voice mode | none in 0.160.1 |
-| `language` | ☰ → Language: the language it dictates and answers in | its `language` setting | none in 0.160.1 |
+| `voice` | dictation by the key held, or the microphone | its voice mode | none |
+| `language` | ☰ → Language: the language it dictates and answers in | its `language` setting | none |
 
 ## Several agents in a task
 
 A task may hold several agents at once, each in a tab of its island with a conversation of its own: Claude Code next to
-Codex, or two accounts of one, or the same agent twice (decided with the author 2026-10-12; [window.md](window.md),
+Codex, or two accounts of one, or the same agent twice ([window.md](window.md),
 The terminal, for the island). The human opens one with the island's **+** (the project's accounts, the default
-first): always a **new conversation**. Each sees the task's code and profiles, as the agent of a task always did.
+first): always a **new conversation**. Each sees the task's code and profiles.
 
 - **One kind of terminal.** A task's terminals are one list (`Task.terminals`): each the user's shell in the task's
   folder, an agent started in it or not. An agent's has its conversation (an index into the task's `agent.json`: its
   account, its session as its hooks report it, when, the name it gave it, the terminal it is open in); a shell has
   its name and the command typed in.
 - **Each agent reports for itself.** Its terminal has URLs of its own under the task's
-  (`/task/<project>/<n>/t/<id>/mcp`, `…/hooks/<event>`: `KULISA_MCP_URL`, `KULISA_URL` in its environment), so its
+  (`/task/<project>/<task id>/t/<id>/mcp`, `…/hooks/<event>`: `KULISA_MCP_URL`, `KULISA_URL` in its environment), so its
   hooks give its own state, shown on its tab, and its session goes to its own conversation. The task's tab in the
   tasks' bar shows the most urgent of its agents: waiting for the human, else working, else done and not seen.
-- **Each names its own tab**, in 1 to 3 words, with `conversation_rename` (as `task_rename` names the task); until then
-  its tab has its agent's name (`Claude Code`, `Claude Code 2` when two have it).
+- **Each names its own tab**, in 1 to 3 words, with `conversation_rename` (as `task_rename` names the task); without an
+  explicit name its tab shows the agent's own auto-title for the conversation when it keeps one (Claude Code's,
+  `Task.noteAutoTitle`), else its agent's name (`Claude Code`, `Claude Code 2` when two have it).
 - **No handoff by itself.** An agent opened with + is told nothing: a second agent is opened as often for a task of
   its own (check the layout on a phone) as to take over, and Kulisa cannot tell which. The human says it in their own
   words ("go on with what Claude did"), and the agent finds that conversation in `task_history`: where the task
@@ -561,6 +566,7 @@ first): always a **new conversation**. Each sees the task's code and profiles, a
   and what is next. Its first answer is the check: what it missed shows at once. The tab it came from stays: the
   human closes it (they may copy from it first). **New Conversation** (the same menus) opens the same agent anew,
   told nothing.
+- What does not work well in a handover, and whether several agents at once are worth it: issue #93.
 - **Closing an agent's tab asks first, always**, whatever it is doing; its conversation stays in the task's history.
   A shell closes without a question, as a terminal's tab does. The last one closed folds the island to its +.
 - **After a restart** each tab comes back where it was, the one in front too: an agent's conversation resumed
@@ -576,22 +582,19 @@ account (its MCP servers, skills). What runs in the task's shells (`terminal_run
 Whether an account has tokens is not asked first: no CLI says it to a program (`/usage`, `/status` are the human's).
 It shows at its first answer.
 
-Why so, and what was not chosen (2026-10-11, 2026-10-12):
+Why so, and what is not chosen:
 
-- **A dialog, not a menu** (the author, 2026-10-12; a menu of the accounts until then): the moment a task is handed
+- **A dialog, not a menu**: the moment a task is handed
   over is where Kulisa shows what no other tool keeps, the work around the agent (branch, signed-in profiles, running
-  terminals), and says what does not go. One click more than the menu. It waits for the reading itself (the
-  author's idea): the animation is the real handing over, not a show of 0.9 s; it never waits for an agent waiting for
+  terminals), and says what does not go. One click more than the menu. It waits for the reading itself: the animation is the real handing over, not a show of 0.9 s; it never waits for an agent waiting for
   the human (the timeout, the hooks, Show now).
 
-- **Several agents side by side, not one switched** (built so first, 2026-10-12, Change agent… stopping the agent and
-  starting the next one in its place): a side task needed a task of its own, and an agent was stopped to take another
-  over. Each in a tab, the human keeps both, closes one when done.
+- **Several agents side by side, not one switched in another's place**: a side task needs no task of its own, and no
+  agent is stopped for another to take over. Each in a tab, the human keeps both, closes one when done.
 - **The new agent reads the whole conversation**, lightly cut ([transcripts.md](transcripts.md)), and writes its own
   handoff. The old agent cannot write one: its limit is reached, and `/compact` is a request to its model too.
-- A conversation moved to another account of the same CLI and resumed there (built first: Claude Code's files moved
-  between config folders): with a new conversation for every agent opened, the conversation before is read, not
-  continued.
+- A conversation moved to another account of the same CLI and resumed there: with a new conversation for every agent
+  opened, the conversation before is read, not continued.
 - A mechanical summary alone: details that matter are spread through a long conversation, and rules lose them (the
   author).
 - A history Kulisa writes as the work goes, or notes the agent writes through a tool: the transcript is on disk
@@ -601,21 +604,29 @@ Why so, and what was not chosen (2026-10-11, 2026-10-12):
   when a limit is reached; and a transcript longer than the other model's window.
 - A small local model writing the handoff (LLMLingua-2, a model through llama.cpp): tens of minutes on a CPU for a long
   conversation, gigabytes of memory, and it misses what a coding agent would find.
-- A proxy giving the old CLI another vendor's model (`ANTHROPIC_BASE_URL` to a gateway such as LiteLLM; the author's
-  idea, the one truly seamless way): it needs that vendor's API key (a subscription's sign-in is the CLI's own, and
-  Kulisa reads no tokens), a gateway process of another's, and drops signed reasoning. A candidate for an extension.
-- Anthropic's Consumer Terms (read 2026-10-11): several accounts are not forbidden; "bypassing any of our systems or
+- A proxy giving the old CLI another vendor's model (`ANTHROPIC_BASE_URL` to a gateway such as LiteLLM; the one truly seamless way): it needs that vendor's API key (a subscription's sign-in is the CLI's own, and
+  Kulisa reads no tokens), a gateway process of another's, and drops signed reasoning.
+- Anthropic's Consumer Terms: several accounts are not forbidden; "bypassing any of our systems or
   protective measures" is. Going on with another vendor bypasses nothing; a second subscription of the same vendor
   to get around a limit may count as bypassing: the human's choice, so Kulisa never offers a switch on its own.
 
-## Creating a task, step by step
+## Making the task's worktree, step by step
 
-1. **Code** (`worktrees.ts`), a copy of each of the project's repositories with a commit; a folder without git is
-   used as it is (the task works right in it, and the next two steps skip it). Each branch starts as Claude Code's
-   `--worktree` starts one: from the remote's default branch after `git fetch` (`origin/main`), else from `HEAD`.
-   Uncommitted changes of the project's folders are not carried. The branch is `task-<n>`, one name free in every
-   repository (`-2`, `-3` if taken), the copies next to their repository with one, in `~/KulisaProjects/<project>@task-<n>/`
-   with several: `git worktree add --no-track -b <branch> <copy> <start>`. `--no-track`: pushing the task's branch
+Opening a task creates nothing: its terminal starts in the project's main working tree (the human's folder), its tab
+reads "New Task", its profiles are listed closed. The worktree below is made on demand, when the agent calls
+`task_worktree` (`Task.makeWorktree`, `Project.ensureWorktree`; idempotent, one worktree per task shared by its
+agents: the task makes its copies one at a time, so two agents calling it at once get the one worktree) — before it writes code, unless the human wants it to work right in the folder. The agent may pass the task's
+name to `task_worktree` to name it at the same time when it is still "New Task" (the branch then takes a slug of that
+name, naming and the worktree in one call). A task on a folder without git has no worktree and works right in the
+project's folder.
+
+1. **Code** (`worktrees.ts`), a copy of the repository with a commit. The branch starts as Claude Code's `--worktree`
+   starts one: from the remote's default branch after `git fetch` (`origin/main`), else from `HEAD`. Uncommitted
+   changes of the project's folder are not carried. The branch is a slug of the task's name (`fix-header`), or
+   `task-<task id>` until it is named, one name free in every repository (`-2`, `-3` if taken), the copy next to its
+   repository (or, with several repositories in the project, in `~/KulisaProjects/<project>@<branch>/`, where a
+   repository added later goes beside it; a repository is added only once the task has its own worktree):
+   `git worktree add --no-track -b <branch> <copy> <start>`. `--no-track`: pushing the task's branch
    never goes to the default branch.
 2. **Files outside git** are copied from the project's folder when git ignores them and they are untracked: `.env*`
    at the top, each agent's own local settings (its `localFiles`: Claude Code's `.claude/settings.local.json`), and
@@ -626,16 +637,15 @@ Why so, and what was not chosen (2026-10-11, 2026-10-12):
    and its agent would run with another account).
 4. **Profiles**: all the project's, closed; each is a copy of its master made when it is first opened, without
    Chromium's caches, its tabs the master's ([profiles.md](profiles.md)). The grid starts with the agent's terminal.
-5. **Ports.** A task with a worktree gets a port offset no other task of the project has: 100, 200, …; 0 stays the
-   project's folder's (the human's own dev server; a task without git works there). Copied tabs on local addresses
-   move by the difference (`localhost:3000/cart` → `localhost:3100/cart`); cookies do not depend on the port, so they
-   stay signed in. The agent gets the offset as `KULISA_PORT_OFFSET`.
+5. **Ports.** Kulisa assigns no port offset. The agent runs the app under test on a free port it picks itself (the
+   skill and the session's context say so) and points the profiles' tabs at it with `browser_navigate`; cookies do not
+   depend on the port, so the profiles stay signed in.
 6. **The agent.** A new conversation in the task's folder, with the project's default agent or the one chosen. Every
    agent asks once per folder whether it may work there, and keeps the answer in its config. When the human said yes
    for the project's folder or another task's copy of it, the task's copy is marked trusted too, so the agent asks
    once a project, whichever agent it is (`extendTrust` in `agents/`; each agent's `trust` reads and writes its
-   own config). Codex 0.160.1 and Claude Code 2.1.296, asked in a worktree, keep the answer for the repository's root
-   themselves (seen 2026-10-12); Kulisa's rule holds it for an agent or a version that keeps it per folder. Each
+   own config). Codex and Claude Code, asked in a worktree, keep the answer for the repository's root themselves;
+   Kulisa's rule holds it for an agent or a version that keeps it per folder. Each
    agent's trust is its own: a yes given to Codex does not reach Claude Code, which asks once too.
 7. The task is shown.
 
@@ -647,15 +657,30 @@ project's submenu (a task tab's right-click menu) opens its `projects/<id>` in t
 asks where it is or what takes the disk; nothing in it is for editing by hand, so it is no button in sight:
 
 ```
-projects.json                     the projects: id, name, folder, repos, color (the one it has while its favicon gives none), agents (accounts, the default first), noDefaultAgent
-profiles.json                     the profiles, one store: who each is, its projects, a test user's pair (profiles.md)
-profiles/Profile <k>/             a profile's master, where the human signs in once for every task
-agents.json                       the agents' accounts (accounts.ts): { next, list: [{ id, agent, email, folder, projects }] }
-agents/<agent>-<n>/               an account's config folder (CLAUDE_CONFIG_DIR, CODEX_HOME): its sign-in, settings,
+projects.json                     the projects, { list: [...] } (as profiles.json and agents.json: a field can sit beside
+                                  the list): id, name, folders (the default first), color (the one it has while its favicon gives none), agents (accounts, the default first), profiles (their ids, in order), noDefaultAgent,
+                                  github (its repositories' GitHub accounts by remote: src/github; one goes with its account, or its repository);
+                                  id: six random lowercase letters and digits (k3f9a2), made with the project and never
+                                  changed, so a rename leaves its data folder, its tasks' keys (k3f9a2/1) and their agents'
+                                  MCP address as they are; no name in it to go stale, and the log names the project
+                                  beside it (window.md, The log). An id of any other shape is read as it is
+profiles.json                     the profiles, one store (profiles.md): { list: [{ id, name, avatar, description,
+                                  login }] }; id: six random lowercase letters and digits (m2q7xd), made with the
+                                  profile and never changed; its name unique within each of its projects
+profiles/<id>/                    a profile's master, a Chromium profile, where the human signs in once for every task;
+                                  kept in no project too, gone when the human deletes the profile (Settings → Profiles)
+agents.json                       the agents' accounts (accounts.ts): { list: [{ id, agent, email }] }
+github.json                       the GitHub accounts (src/github): { list: [{ id, login, kind, secret }] }; secret: its
+                                  tokens encrypted with the OS keyring, none without one (kept in memory then) or when
+                                  signed out; an account goes when the human deletes it (Settings → GitHub)
+agents/<agent>-<id>/              an account's config folder (CLAUDE_CONFIG_DIR, CODEX_HOME): its sign-in, settings,
                                   conversations; Kulisa's profiles skill (skills/kulisa-profiles/) and Claude Code's
                                   settings for Kulisa (kulisa-settings.json), written at each start; gone, signed out first, when the human deletes it (Settings →
                                   Agents); one a sign-in left
                                   unfinished (Kulisa quit meanwhile) goes at the next start
+dictation/                        the folder the hidden session runs in (src/dictation: another agent's dictation
+                                  recognizing for one without), empty; it and what that session kept of it in its
+                                  account (its conversation, its trust) go when the session ends, or at the next start
 settings.json                     the Kulisa zoom, the theme, where the tasks' bar is, the language; the windows: each one's
                                   tasks by key (in the bar's order), the one shown, where it was
 logs/kulisa.log                   what happened and who asked (window.md, The log), for a bug report; at 1 MB it becomes
@@ -663,53 +688,55 @@ logs/kulisa.old.log               kulisa.old.log and a new one starts: 2 MB at m
 Crashpad/                         Electron's crash dumps (crashReporter, no server; window.md, The log), to ask a user for
                                   after a crash; Crashpad prunes them itself (90 days, 128 MB)
 deleted-folders.json              folders to remove at the next start (a session keeps its files open)
-projects/<project id>/
-  tasks.json                      { next, current, list: [{ n, name, branch, offset, folder (its agent's),
-                                  copies: [{ repo, worktree, branch, base, folder }], home (its folder of copies),
-                                  closed, closedAt, about }] }; base: the commit a copy started from; about: its first
-                                  prompt's first line, until it is named; no copies: it works in
-                                  a folder of the project
+projects/<project id>/            a project's data, by its id (projects.json), gone with the project
+  tasks.json                      { next, list: [{ n, name, named, resources, closed, closedAt, merged }] }; name "New
+                                  Task" and named unset until it is named; resources what it has, the first where it
+                                  works: { kind: "maintree", folder } (the project's folder it opened in) until its own
+                                  { kind: "worktree", repo, worktree, branch, base, folder } takes its place, then the
+                                  worktrees of repositories it added; base: the commit a worktree started from. Its
+                                  folder, branch and folder of copies are its resources' (store.ts)
   1/, 2/ …                        a task
-    profiles.json                 what it has of its project's profiles, in order: folder, id, sites' zoom, closed
+    profiles.json                 what it has of its project's profiles, in order: id, sites' zoom, closed
     layout.json                   its grid (dockview)
     agent.json                    { agent, conversations: [{ agent, sessionId, transcript, started, from, to, title,
                                   terminal }] }: the agent it was made with; every conversation an agent had in it
                                   (Several agents in a task), kept with the task
     terminals.json                { front, list: [{ id, name, by } | { id, conversation }] }: its island's tabs, opened
                                   again when it loads; one goes when closed; an empty list: the island folded
-    Profile 1/                    its copy of a master, made at its first open here: a Chromium profile
+    artifacts/                    what the agent's tools keep of its pages (profiles.md, What the agent does): a snapshot
+                                  or a body too large for an answer, a screenshot; <n>-<profile id>-<tab id>-<kind>, n in
+                                  the order made, never replaced; past 100 MB the oldest go; kept with the task
+    <id>/                         its copy of a master, named by the profile's id, made at its first open here: a Chromium profile
                                   (session.fromPath), with Kulisa's own files in it:
-      Kulisa Tabs.json              the URLs of its tabs
+      Kulisa Tabs.json              the URLs of its tabs and which is in front
       Kulisa Session Cookies.bin    its session cookies, encrypted with the OS keyring
-    Profile 2/ …
 ```
 
 Outside it:
 
 | What | Where | Made when |
 |---|---|---|
-| The task's copy | `<repo>@task-<n>/`, next to the repository (one repository) | creating a task |
-| The task's folder of copies | `~/KulisaProjects/<project>@task-<n>/<repo>/` (several repositories, or one added later) | creating a task; adding a repository |
+| The task's copy | `<repo>@<branch>/`, next to the repository (one repository) | its agent making its worktree |
+| The task's folder of copies | `~/KulisaProjects/<project>@<branch>/<repo>/` (several repositories, or one added later) | its agent making its worktree; adding a repository |
 | The task's branch | each repository (`git branch`) | creating a task; renamed with the task |
 | git's worktree record | `<repo>/.git/worktrees/<copy>/` | creating a task |
 | A cloned repository | `<location>/<name>/`, or `<location>/<name>/<repo>/` for several (New Project, Clone from URL); `~/KulisaProjects/<project>/<repo>/` or next to the project's folder (Clone on its page) | cloning; stays, as the human's (removing it from the project, or the project, leaves it) |
-| An empty first commit | the project's repository | New Project… with Create Git repository |
 | direnv's permission for the task's `.envrc` | direnv's data (`~/.local/share/direnv/allow/`) | creating a task, if the project's is allowed |
 | The agent's trust of the task's folder | Claude Code: `<CLAUDE_CONFIG_DIR>/.claude.json`, else `~/.claude.json`, `projects["<task folder>"]`; Codex: `<CODEX_HOME>/config.toml`, `[projects."<task folder>"]` | the task's agent starts, if the project's folder or another task's copy is trusted |
 | Claude Code's language, Kulisa's one | `<account folder>/settings.json`, `language` (as its `/config` sets it) | ☰ → Language, and an agent's start; goes with the account's folder |
-| An agent's conversation | the agent's own data (Claude: `<config dir>/projects/…/<session>.jsonl`; Codex: `<config dir>/sessions/`), in its account's folder (`agents/<agent>-<n>/`) | the agent runs |
+| An agent's conversation | the agent's own data (Claude: `<config dir>/projects/…/<session>.jsonl`; Codex: `<config dir>/sessions/`), in its account's folder (`agents/<agent>-<id>/`) | the agent runs |
 | The agent itself, when Kulisa installed it | its maker's place (`~/.local/bin/claude`, `~/.local/bin/codex`, …) | Install in Settings → Agents |
 | Kulisa itself, installed (Windows) | `%LocalAppData%\kulisa\`: `app-<version>\` (Squirrel keeps the one before too, removing older ones), `packages\` (the update downloaded), `Update.exe` | the installer; an update; gone when Kulisa is uninstalled (the data folder stays) |
 | Kulisa itself, installed (Linux) | `/usr/lib/kulisa/` (the app, `chrome-sandbox` setuid root), `/usr/bin/kulisa` (a link), `/usr/share/applications/kulisa.desktop`, its icon under `/usr/share/icons/`, `/usr/share/doc/kulisa/` (Forge's deb and rpm makers) | the package; gone with `apt remove` or `dnf remove` (the data folder stays: a package may not touch a home folder) |
 | Kulisa's apt repository (Linux, `.deb`) | `/etc/apt/sources.list.d/kulisa.sources`, `/etc/apt/keyrings/kulisa.asc` | the `.deb`'s `postinst`, written again at each update; gone with `apt purge`, kept by `apt remove` (as Chrome's) |
 | Kulisa itself, installed (macOS) | `/Applications/Kulisa.app` | the `.dmg` or `.zip`; the human drags it to the Trash (the data folder stays) |
-| The key the data folder's secrets are encrypted with | the OS keyring: "Kulisa Safe Storage" (Chromium's `safeStorage`; Linux's secret service, macOS's Keychain; Windows uses DPAPI, nothing stored) | the first secret saved; never removed by Kulisa: the human's, as Chrome's |
+| The key the data folder's secrets are encrypted with | the OS keyring: "kulisa Safe Storage" (Chromium's `safeStorage`; Linux's secret service, macOS's Keychain; Windows uses DPAPI, nothing stored) | the first secret saved; never removed by Kulisa: the human's, as Chrome's |
 | An update downloaded (macOS) | Squirrel.Mac's cache, `~/Library/Caches/app.kulisa.ShipIt/` (no update downloaded yet: no signed build) | the packaged app's update check; an update replaced by the next |
 | macOS's own for the app (packaged) | `~/Library/Preferences/app.kulisa.plist` (the system's defaults for it), `~/Library/Caches/app.kulisa/` and `~/Library/HTTPStorages/app.kulisa/` (the update check's requests), under its id (`appBundleId`, `forge.config.ts`) | the packaged app's first start; macOS's, as every app's: they stay when the app is moved to the Trash |
 
-Nothing is written into the project's own folder (but the first commit of a project Kulisa made).
+Nothing is written into the project's own folder.
 
-**Uninstalling removes the program only** (the author, 2026-10-16): the data folder, the tasks' copies and
+**Uninstalling removes the program only**: the data folder, the tasks' copies and
 branches, the agents Kulisa installed and the keyring key stay, so that installing Kulisa again brings everything back,
 as with Chrome or VS Code. No installer can ask whether to remove the data too: Debian's policy forbids a package to
 touch a home folder, macOS has no uninstaller, and Squirrel.Windows gives the `--squirrel-uninstall` hook 10 seconds
@@ -727,7 +754,7 @@ its agent and closes its profiles, then deletes:
   already pushed stays on the remote;
 - direnv's permission for its `.envrc`: the records in `<XDG data>/direnv/allow/` naming it (`worktrees.ts`; not
   `direnv deny`, which newer direnv records too);
-- its data folder `projects/<id>/<n>/`, profiles with their sign-ins (also listed in `deleted-folders.json`,
+- its data folder `projects/<project id>/<task id>/`, profiles with their sign-ins (also listed in `deleted-folders.json`,
   removed at the next start if a file was still open);
 - what its agent keeps of the task's folders (`agents/`, each agent's `forget`, `forgetFolder` in `projects.ts`;
   undocumented layouts, so what is not found is skipped): its own folder's conversations and records, and the other
@@ -749,7 +776,7 @@ What stays in any case: an agent Kulisa installed (it serves every project).
 ## Deleting a project
 
 **Delete Project…** in ⋯ at the top of a project's page in the projects' manager, open or not: there
-alone (the author, 2026-10-11: with everything else about a project; not in a tab's menu, the Welcome screen or
+alone (with everything else about a project; not in a tab's menu, the Welcome screen or
 a menu). One function (`deleteProject` in `app.ts`): Kulisa asks first, saying what goes and which tasks have
 work not in main and not pushed; closes its open tasks in every window; deletes each of its tasks as above; then removes it
 from `projects.json` with its data folder `projects/<id>/`. The project's own folder stays as it is, and so do its
@@ -758,20 +785,18 @@ agents' accounts, let go of (Settings → Agents deletes one: "Choosing the agen
 ## While Kulisa runs
 
 - **One Kulisa per data folder** (`app.requestSingleInstanceLock`, at the top of `start` in `app.ts`): a second one
-  started on the same data shows the first one's window and quits before it reads or writes anything. Until
-  2026-10-12 a second one ran beside the first, without its MCP server (the port taken), and the two wrote over each
-  other's saved tabs, session cookies and tasks. Electron's lock is the data folder's: Kulisa on another
+  started on the same data shows the first one's window and quits before it reads or writes anything: two would
+  write over each other's saved tabs, session cookies and tasks, and the second would have no MCP server (the port
+  taken). Electron's lock is the data folder's: Kulisa on another
   (`KULISA_DATA`) runs next to it, as the tests' apps do, each on its own.
 - Each window shows one of its tasks. The others keep running, the other windows' too: their
   pages and agent go on, their pages hidden.
 - A task loads (its profiles start, its agent starts) the first time it is shown, also after a restart.
-- A task is known among all open ones by its key, `<project id>/<n>` (the window, the terminals). Each has its own
-  MCP URL, `http://127.0.0.1:4450/task/<project id>/<n>/mcp`, and hooks under `/task/<project id>/<n>/hooks/` (each part
+- A task is known among all open ones by its key, `<project id>/<task id>` (the window, the terminals); a task's id is six random letters and digits, as a project's and a profile's (store.ts, `newId`). Each has its own
+  MCP URL, `http://127.0.0.1:4450/task/<project id>/<task id>/mcp`, and hooks under `/task/<project id>/<task id>/hooks/` (each part
   percent-encoded: ids have letters of any language); its agent gets them in its environment (`KULISA_MCP_URL`,
   `KULISA_URL`) and sees only its task's profiles. Profile ids repeat across tasks; inside Kulisa a profile
-  is `<project id>/<n>/<id>` (CDP proxy, highlights).
-- Closing a task stops its agent; opening it again resumes its agent where the agent can (Claude `--resume`,
-  Codex `resume`). Restarting brings back every window's tasks, in their order.
+  is `<project id>/<task id>/<id>` (CDP proxy, highlights).
 
 ## Removing everything by hand
 
@@ -779,64 +804,58 @@ Quit Kulisa first (it writes its data on quit). Then, for a project:
 
 ```sh
 cd ~/IdeaProjects/myshop
-git worktree list                         # the tasks: <repo>@task-<n>, each with its branch
-git worktree remove --force ../myshop@task-2
+git worktree list                         # the tasks: <repo>@<branch>, each with its branch
+git worktree remove --force ../myshop@task-k3x9q2
 git branch -D checkout-redesign
 rm -rf ~/.config/Kulisa/projects/myshop   # all its tasks with their profiles' copies (the masters stay)
 ```
 
 ## Why it is built this way
 
-Designed with the author on 2026-10-06 and 2026-10-07 (workspaces: a permanent main in the project's folder and
-temporary forks), and again on 2026-10-10 (tasks; ROADMAP, "Projects and tasks").
-
-- **Every task a copy, the project's folder the human's.** With a main in the folder, one agent worked where the
-  human works, and its unfinished edits were in the way of the human's own; now every agent has its worktree, and the
-  folder changes only when the human asks for a merge (the agent checking first for the human's uncommitted
-  changes). No task is special: any one is closed, opened again or deleted the same way.
-- **× closes, Delete deletes.** A fork's × deleted it, the one way out; a task is often put aside and taken up again
-  (waiting for a review, a question to the client), so × keeps everything and stops only what costs memory (its
-  agent, its tabs); deleting is a menu item with its question. Closed tasks stay until the human deletes them.
-- **The last task's × closes the group**, as Chrome's tab group goes with its last tab: a group with no open task
-  would show an empty grid with nothing to do there.
-- **Named by the agent.** A name asked for before the work starts is a guess; `task-<n>` until the agent (or the
+- **Every task a copy, the project's folder the human's.** An agent working where the human works would leave its
+  unfinished edits in the way of the human's own; every agent has its worktree, and the folder changes only when the
+  human asks for a merge (the agent checking first for the human's uncommitted changes). No task is special: any one
+  is closed, opened again or deleted the same way.
+- **× closes, Delete deletes.** A task is often put aside and taken up again (waiting for a review, a question to
+  the client), so × keeps everything and stops only what costs memory (its agent, its tabs); deleting is a menu item
+  with its question. Closed tasks stay until the human deletes them.
+- **Named by the agent.** A name asked for before the work starts is a guess; "New Task" until the agent (or the
   human) knows what the task is about. The branch follows the name; the folder does not, as an agent may be working
   in it.
-- **Code through git only.** The task's folder is next to the project (`myshop@task-2`): visible, and it opens in an
-  IDE; inside the project, IDEs and tools would see the code twice. A project without git has no copies; `git init`
-  runs only on the human's click (New Project…): run without asking, it could put secrets into history, or a huge
-  folder, or nest a repository. Its first commit is empty for the same reason.
+- **Code through git only.** The task's folder is next to the project (`myshop@task-k3x9q2`): visible, and it opens in an
+  IDE; inside the project, IDEs and tools would see the code twice. A project without git has no copies, and Kulisa
+  runs no `git init`: run without asking, it could put secrets into history, or a huge folder, or nest a repository;
+  the agent does it when the human asks.
 - **A new conversation for a task**, not a fork of another's (`--fork-session`): its code starts clean, and an agent
   remembering another task's unfinished edits would be misled. Started in the task's folder, it has no questions about
   access outside it.
 - **A master and a copy per task.** A task's profiles are copies of their masters, made at their first open, so
   each task's local app keeps its own sessions (each task runs its own dev server, and cookies do not depend on the
   port: shared, two tasks would sign each other out), while real accounts' cookies are kept in step between the
-  master and every copy, so the human signs in once ([profiles.md](profiles.md), "Sign-ins kept in step"). Copied
-  from task to task until 2026-10-10, with rotating tokens a copy signed the other out. `session.fromPath` keeps the
+  master and every copy, so the human signs in once ([profiles.md](profiles.md), "Sign-ins kept in step"); a copy of
+  another task's copy would sign that one out with rotating tokens. `session.fromPath` keeps the
   caches inside the profile (they cannot live elsewhere), so a copy skips them.
-- **Storage as Chrome lays it out**, so what is known about Chrome's storage applies. `Profile N` folders are fixed
-  at creation: a rename touches only `profiles.json`.
-- **One port offset per task** moves any number of services with one number. Cookies do not depend on the
-  port, so the copies stay signed in to the app (separate hostnames such as `checkout.localhost` would lose that).
-  The local database is the developer's matter (`docker compose` already names containers after the folder, so a
+- **Storage as Chrome lays it out**, so what is known about Chrome's storage applies. A profile's folders are named by
+  its id, fixed at creation: a rename touches only `profiles.json`.
+- **The agent picks the app's port**, a free one per task; Kulisa assigns no offset (give the agent tools, leave the
+  work's decisions to it: CLAUDE.md). Cookies do not depend on the port, so a profile stays signed in when the agent
+  points its tab at the chosen port (`browser_navigate`; separate hostnames such as `checkout.localhost` would lose
+  that). The local database is the developer's matter (`docker compose` already names containers after the folder, so a
   task gets its own; only published ports clash). An app that cannot change its port (hard-coded, OAuth bound to
-  `localhost:3000`) cannot run in a task's copy; the agent says so.
-- **Every task asks before it is deleted**, also one without changes (at first a fork without changes went without a
-  question, as with Claude Code's `--worktree`): its conversation and profile copies go too.
+  `localhost:3000`) cannot run beside another task's; the agent tells the human.
+- **Every task asks before it is deleted**, also one without changes (unlike Claude Code's `--worktree`): its
+  conversation and profile copies go too.
 - **A task loads when first shown**, not at the start: after a restart nothing works in the background anyway,
   and the agent starts at its terminal's real size. Its grid comes from what is saved, without waiting for a program
   to run or a site to answer: its open profiles are made at once and start behind it, together (their cookies, tabs,
-  automation: `ProjectProfiles.load`, `started`; until 2026-10-15 each in turn, the grid after them all, a second or
-  more), its terminals' tabs come starting, before their agents are found ([window.md](window.md), "A tab comes before
+  automation: `ProjectProfiles.load`, `started`), its terminals' tabs come starting, before their agents are found ([window.md](window.md), "A tab comes before
   its program"), and its project's repositories are looked at (git) meanwhile (`Task.gitChecked`). Its agents start
   after both: they find its profiles ready, and are told at their start what the task may add.
 - **Tasks in the background keep running**, their pages and agents. Memory: each agent is a
   process of its own (Claude Code about 200–400 MB) plus its profiles' tabs; those its agents stop using lose their
   process after a while and load again when the task is shown ([profiles.md](profiles.md), "Tabs unloaded").
-- **Another project's task opens beside the shown one** (a tab in the bar), as a browser opens a tab.
-  At first opening a project closed the shown one and stopped its agents; now the human closes a task (×, Close All
-  Tasks) when it is safe.
+- **Another project's task opens beside the shown one** (a tab in the bar), as a browser opens a tab, nothing
+  stopped: the human closes a task (×, Close All Tasks) when it is safe.
 - **Several windows are one Kulisa**, not a second instance: two cannot share the data folder. A task moves with
   its pages' native views (`Profile.moveTo`), not loaded again, and with what its terminals show (xterm's serialize
   addon, as VS Code keeps terminals), at their size, so its agent is never told a default one. A window is one more
@@ -855,19 +874,20 @@ temporary forks), and again on 2026-10-10 (tasks; ROADMAP, "Projects and tasks")
 | `src/main/ipc/tasks.ts`, `projects.ts`, `agents.ts` | the windows' handles on tasks, projects, agents and accounts |
 | `src/main/window.ts` | a window: its tabs (tasks), show one, the grid's state, its questions |
 | `src/main/projects.ts` | a loaded project: its tasks; making, closing, opening again, deleting one (with the question); making a project (`createProject`), deleting a project's data |
-| `src/main/tasks.ts` | a task: its profiles, its terminals and agents (open, hand over, close, environment), renaming, copies of its profiles for a new task, ports |
+| `src/main/tasks.ts` | a task: its profiles, its terminals and agents (open, hand over, close, environment), naming, its worktree on demand and resources, its artifacts (what they take, deleting them), copies of its profiles for a new task |
 | `src/main/worktrees.ts` | git: a task's worktree and branch, files outside git, direnv, changes, renaming the branch, removal |
 | `src/main/agents/` | the agents to choose from: find, install, start, resume; a folder's trust carried to a task's copy |
 | `src/main/store.ts` | the data folder above |
-| `src/main/terminal.ts` | the task's terminals' ptys (window.md, The terminal) |
-| `src/renderer/components/TaskBar.vue`, `NewTask.vue`, `Empty.vue`, `settings/ProjectEditor.vue` | the tasks' bar (a tab per open task, a new tab); its + (a new tab); the grid's place when no task's grid is shown (the window's pages); the projects' manager |
-| `src/renderer/components/newtab/` | the board, a new tab's and the empty window's: `Board.vue` (the columns, New Project…), `ProjectColumn.vue` (a project and its tasks) |
+| `src/terminal/` | the terminals: their ptys, buffers and the xterm shown ([README](../src/terminal/README.md)) |
+| `src/renderer/components/TaskBar.vue`, `NewTask.vue`, `Empty.vue`, `settings/ProjectEditor.vue` | the tasks' bar (a tab per open task); its + (the new-task menu); the grid's place when no task's grid is shown (the window's pages: the board, the welcome); the projects' manager |
+| `src/renderer/components/newtab/` | the board, the empty window's: `Board.vue` (the columns, New Project…), `ProjectColumn.vue` (a project and its tasks) |
 | `src/renderer/components/welcome/` | the first start's welcome: `Welcome.vue` (the slides, then New Project's steps under a question each), `Tour.vue` (the slides, their pictures drawn in HTML) |
 | `src/renderer/components/newproject/` | New Project's steps: `Wizard.vue` (the steps, the buttons; the welcome's and the dialog's), `wizard.ts` (their state and rules, one per wizard), `CodeStep.vue`, `AgentStep.vue`, `ProfilesStep.vue`, `NewProject.vue` (the dialog) |
 | `src/renderer/components/TaskTab.vue`, `TaskRename.vue` | a task's tab in the bar, its menu, the Rename Task dialog |
 | `src/renderer/components/AgentPicker.vue`, `settings/AgentPage.vue`, `AgentList.vue`, `InstallProgress.vue` | choosing an agent when the one to open is not there; an agent's page in Settings, its details and accounts; the radios of agents with Install that choosing shows; an install's line and its Details |
 | `src/main/favicons.ts` | a project's icon: its site's favicon in its code (Projects, "Each project has a color and an icon") |
-| `src/shared/names.ts` | the one rule for names (projects, tasks, profiles) and slugs |
+| `src/shared/names.ts` | the rules for names (projects and profiles; a task's, a label) and slugs |
 | `src/main/accounts.ts`, `src/renderer/components/AccountSignIn.vue` | the agents' accounts, one store; a new one's sign-in in Settings (a project's page, or Agents) |
+| `src/main/recognizer.ts` | which account recognizes speech for an agent without dictation of its own ([src/dictation](../src/dictation/README.md)), its session's folder |
 | `src/renderer/lib/grid.ts`, `components/Grid.vue` | building a task's grid; the slide (a view transition) |
 | `test/tasks.ts` | the tests; `test/restart-tasks.ts` after a restart; `test/unit/agents.test.ts` |

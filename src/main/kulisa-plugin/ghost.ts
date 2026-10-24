@@ -7,6 +7,7 @@
 // The agent's marks in the pages are in Kulisa's accent (tokens.css, --accent), the same in every profile: the pane says
 // whose page it is.
 const MARK = '#3574f0';
+import { takenByHuman } from '../../screenshots/main/index.ts';
 import type { Page } from 'playwright-core';
 import type { Shell } from '../shell.ts';
 import type { Command } from '../cdp-proxy.ts';
@@ -20,6 +21,8 @@ function installGhost(shell: Shell) {
   shell.bus.on('agent-command', (c: Command) => {
     // A test user's password being typed (browser_type_login): that something is typed, not what.
     const secret = shell.typingSecret?.has(`${c.task}/${c.profile}`) && /^Input\.(insertText|dispatchKeyEvent)$/.test(c.method);
+    // The human's screenshot goes through the same connection: not the agent's action.
+    if (c.method === 'Page.captureScreenshot' && takenByHuman(`${c.task}/${c.profile}`)) return;
     const a: Action | null = secret ? (c.method === 'Input.insertText' || c.params.type === 'keyDown' ? { caption: 'type ••••••' } : null) : describe(c);
     if (!a) return;
     send({ task: c.task, profile: c.profile, ...a });
@@ -29,8 +32,8 @@ function installGhost(shell: Shell) {
   const annotate = (profile: Profile) => {
     const ctx = profile.context; if (!ctx) return;
     // The agent's own pointer, moving from one action to the next, so the human sees where it acts (it stays at the
-    // last action point); the rest fades out after `duration`. Each action waits that long (measured 2026-10-09), so
-    // it is Playwright's default, 500 ms: 1200 cost every click 1.2 s.
+    // last action point); the rest fades out after `duration`. Each action waits that long, so
+    // it is Playwright's default, 500 ms: 1200 would cost every click 1.2 s.
     const on = (page: Page) => page.screencast.showActions({ duration: 500, position: 'bottom', cursor: 'pointer', style: {
       point: `width: 22px; height: 22px; border-radius: 50%; border: 3px solid ${MARK}; box-shadow: 0 0 0 3px #fff8`,
       highlight: `outline: 2px solid ${MARK}`,

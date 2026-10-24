@@ -14,9 +14,8 @@ export function registerProfiles(ipc: Ipc) {
   // in the store), then every loaded task shows it; made in no project; its master to sign in to; deleted after a
   // question (projects.ts, deleteProfile). Each answers with the list as it is then, or { error }.
   const profilesInfo = (): { profiles: Sent.SettingsProfile[] } => {
-    const names = new Map(store.projects().map((p) => [p.id, p.name]));
     return { profiles: shell.profileStore.all().map((g) => ({ id: g.id, name: g.name, avatar: g.avatar, description: g.description || '',
-      login: g.login?.user || '', hasPassword: !!g.login?.secret, projects: g.projects.map((p) => names.get(p)).filter((n) => n !== undefined) })) };
+      login: g.login?.user || '', hasPassword: !!g.login?.secret, projects: store.projectsWith('profiles', g.id).map((p) => p.name) })) };
   };
   const profileChange = (r: Result<{ id: string }>) => { if (refused(r)) return r; shell.profilesChanged(); return { ...profilesInfo(), id: r.id }; };
   handle('profiles:list', () => profilesInfo());
@@ -31,6 +30,6 @@ export function registerProfiles(ipc: Ipc) {
     const s = shell.loginSecret(password);
     return refused(s) ? s : profileChange(shell.profileStore.setLogin(profile, user, s.secret));
   });
-  handle('profiles:master', (_e, { profile }) => { const g = shell.profileStore.get(profile); return g ? shell.openMaster(g.folder) : { error: `no profile ${profile}` }; });
+  handle('profiles:master', (_e, { profile }) => shell.openMaster(profile));
   handle('profiles:delete', (e, { profile }) => serial(async () => { const r = await deleteProfile(shell, profile, asker(e)); return refused(r) ? r : profilesInfo(); }));
 }

@@ -1,14 +1,12 @@
 <script setup lang="ts">
 // The tasks' bar: a tab per open task, in the bar's order (tasks.md, Tasks in the bar; docs/window.md, The tasks'
-// bar). A tab stands for itself: its project is its icon (the author, 2026-10-14; until then an island per project,
-// its label and its tasks' tabs in it). Every tab keeps its width whichever task is shown, so showing one moves
-// none (the author, 2026-10-08: tabs that moved under the mouse made the human miss). Where a dragged tab is let
+// bar). A tab stands for itself: its project is its icon (the author's choice). Every tab keeps its width whichever task is shown, so showing one moves
+// none (tabs moving under the mouse make the human miss). Where a dragged tab is let
 // go outside every Kulisa window, the main process says (the page does not know where the pointer is then).
 // Under the grid, or in the title bar: App.vue puts it in one place or the other (☰ → Tasks bar).
 import { computed, ref, watch } from 'vue';
 import TaskTab from './TaskTab.vue';
-import { TabsList, TabsRoot, TabsTrigger } from 'reka-ui';
-import Icon from './Icon.vue';
+import { TabsList, TabsRoot } from 'reka-ui';
 import NewTask from './NewTask.vue';
 import RightClickMenu from './menu/RightClickMenu.vue';
 import { store } from '../lib/store';
@@ -27,21 +25,19 @@ const tabs = computed(() => {
   return store.projects.tabs.flatMap((t) => { const p = byId.get(t.project); return p ? [{ t, p }] : []; });
 });
 // More tabs than fit: the wheel scrolls them, the edges with tabs past them fade, the shown one stays in sight
-// (lib/strip.ts; found with thirty tasks, 2026-10-15).
-useStrip(strip, () => (store.newTab ? 'newtab' : store.current));
+// (lib/strip.ts).
+useStrip(strip, () => store.current);
 
 // A press on another tab makes it the chosen one at once, as Chrome's; its task is shown when the button is let go or
-// the tab starts being dragged (pointercancel), whichever comes first: the grid's slide that showing it starts made
-// Chromium drop the drag about to begin, so a tab not shown could not be dragged (2026-10-15); one begun goes on
+// the tab starts being dragged (pointercancel), whichever comes first: the grid's slide that showing it starts makes
+// Chromium drop the drag about to begin, so a tab not shown could not be dragged otherwise; one begun goes on
 // through the slide. Not on its ×, which closes it (TaskTab.vue), nor the keyboard's, shown at once.
-// The pressed tab stays lit until the window is told its task is shown (or it was refused): let go of, it went dark
-// while the main process took the pictures for the slide and lit again with the new state, the one left blinking
-// with it (the author, 2026-10-16).
+// The pressed tab stays lit until the window is told its task is shown (or it was refused): let go of, it would go dark
+// while the main process takes the pictures for the slide and light again with the new state, the tab blinking.
 const pressed = ref<string | null>(null);
 watch(() => store.current, (current) => { if (current === pressed.value) pressed.value = null; });
 function pointerdown(e: PointerEvent) {
   const at = e.button === 0 && !e.ctrlKey && e.pointerType === 'mouse' && !(e.target as Element).closest('button') && tabAt(e);
-  if (at && at.t.key === store.current) store.newTab = false; // back to it from a new tab
   if (!at || at.t.key === store.current) return;
   pressed.value = at.t.key;
   const done = new AbortController(), show = async () => {
@@ -52,17 +48,13 @@ function pointerdown(e: PointerEvent) {
   for (const type of ['pointerup', 'pointercancel']) addEventListener(type, show, { signal: done.signal });
 }
 const showTask = (key: string | number) => {
-  if (key === NEW) return;
-  if (key === store.current) store.newTab = false;
-  else if (key !== pressed.value) void kulisa.invoke('task:show', String(key));
+  if (key !== store.current && key !== pressed.value) void kulisa.invoke('task:show', String(key));
 };
-const NEW = 'newtab'; // the new tab's value among the tabs
 const manage = (id?: string) => openSettings('projects', id);
 
 // The task whose tab an event was on (TaskTab.vue handles a tab's own clicks).
 const tabAt = (e: Event) => { const el = (e.target as Element).closest<HTMLElement>('[data-task]'); return el && tabs.value.find(({ t }) => t.key === el.dataset.task) || null; };
-// The middle button on a tab closes the task, as a browser's tab (until 2026-10-14 on the group's label it closed the
-// group: Close All Tasks is in the menu). A new task is the bar's + (NewTask.vue), or New Task in the menu.
+// The middle button on a tab closes the task, as a browser's tab (Close All Tasks is in the menu). A new task is the bar's + (NewTask.vue), or New Task in the menu.
 function auxclick(e: MouseEvent) {
   const at = e.button === 1 && tabAt(e);
   if (at) void kulisa.invoke('task:close', at.t.key);
@@ -86,14 +78,14 @@ const moveRows = (to: (id: number | null) => unknown, { enabled = true } = {}): 
   { label: 'Move to New Window', enabled: enabled && store.projects.tabs.length > 1, run: () => to(null) },
   ...(store.projects.windows || []).map((w) => ({ label: `Move to Window: ${w.name}`, enabled, run: () => to(w.id) })),
 ];
-const taskMenu = ({ key, name, repos, copies, folder }: TaskInfo): MenuItem[] => [
+const taskMenu = ({ key, name, repos, resources }: TaskInfo): MenuItem[] => [
   ...(key === store.current ? [{ heading: 'Profiles' }, ...profilesMenu(), '-' as const] : []),
   // The project's repositories it has no copy of, one added when its work needs it (tasks.md, Tasks).
   ...(repos.length ? [{ heading: 'Add Repository' }, ...repos.map((r) => ({ label: r.split(/[\\/]/).pop()!, title: r,
     run: () => kulisa.invoke('task:add-repo', { key, repo: r }) })), '-' as const] : []),
-  // Those added, not its own folder: that goes with the task.
-  ...(copies.some((c) => c.folder !== folder) ? [{ heading: 'Remove Repository' }, ...copies.filter((c) => c.folder !== folder)
-    .map((c) => ({ label: c.name, title: c.folder, run: () => kulisa.invoke('task:remove-repo', { key, repo: c.folder }) })), '-' as const] : []),
+  // Those added (removable resources), not the task's own worktree or the main tree: those are not removed here.
+  ...(resources.some((r) => r.removable) ? [{ heading: 'Remove Repository' }, ...resources.filter((r) => r.removable)
+    .map((r) => ({ label: r.label, title: r.folder, run: () => kulisa.invoke('task:remove-repo', { key, repo: r.folder }) })), '-' as const] : []),
   { label: 'Rename…', run: () => rename(key, name) },
   { label: 'Show Folder', run: () => kulisa.invoke('task:show-folder', key) },
   '-', ...moveRows((to) => kulisa.invoke('task:move', { key, to, terminals: terminalsOf(key) })),
@@ -162,16 +154,12 @@ function dragend(e: DragEvent) {
 <template>
   <nav id="taskbar" aria-label="Open tasks">
     <!-- Every open task a tab (Reka's Tabs): the shown one chosen; a press on another shows it. -->
-    <RightClickMenu :items="menu"><TabsRoot as-child :model-value="store.newTab ? NEW : store.current ?? undefined" activation-mode="manual"
+    <RightClickMenu :items="menu"><TabsRoot as-child :model-value="store.current ?? undefined" activation-mode="manual"
       @update:model-value="showTask"><TabsList as-child :loop="false">
       <div id="projectTabs" ref="strip" class="tabstrip" @dblclick="dblclick" @auxclick="auxclick" @pointerdown="pointerdown"
         @dragstart="dragstart" @dragover="dragover" @dragleave="dragleave" @drop="drop" @dragend="dragend">
-        <TaskTab v-for="{ p, t } in tabs" :key="t.key" :t :p :active="t.key === (pressed ?? (store.newTab ? null : store.current))" :data-project="p.id" :style="{ '--color': projectColor(p) }"
+        <TaskTab v-for="{ p, t } in tabs" :key="t.key" :t :p :active="t.key === (pressed ?? store.current)" :data-project="p.id" :style="{ '--color': projectColor(p) }"
           draggable="true" :class="{ dragging: dragged === t.key, 'drop-before': mark?.key === t.key && mark.side === 'before', 'drop-after': mark?.key === t.key && mark.side === 'after' }" />
-        <TabsTrigger v-if="store.newTab" :value="NEW" as-child><div id="newtabtab" class="tasktab striptab active">
-          <Icon class="picon" name="i-plus" /><span class="name">New Tab</span>
-          <button class="close icon quiet small" aria-label="Close" title="Close: back to the task" @mousedown.prevent @click="store.newTab = false"><Icon name="i-close" /></button>
-        </div></TabsTrigger>
       </div>
     </TabsList></TabsRoot></RightClickMenu>
     <NewTask />
@@ -180,13 +168,12 @@ function dragend(e: DragEvent) {
 
 <style>
 /* The bar: the tabs as Firefox's, rounded rectangles on the window's background, the shown one filled in the panels'
-   color, apart from the grid (the author, 2026-10-14; until then islands merging into the grid's dark well with
-   curves). Nothing moves when another is shown: every tab keeps its width. */
+   color, apart from the grid (the author's choice). Nothing moves when another is shown: every tab keeps its width. */
 #taskbar {
   display: flex; align-items: center; gap: var(--gap); min-width: 0;
   /* Under the grid: a row of the window (App.vue), in the middle, --gap from the grid. In the title bar (#topbar):
      after the logo, where a browser's tabs are, in the middle of its height; the title bar keeps its 44 px and a tab
-     its 36 (the author, 2026-10-14: neither a taller bar nor a tab as low as its buttons), so 4 px are left above
+     its 36 (the author's choice: neither a taller bar nor a tab as low as its buttons), so 4 px are left above
      and below it, the grid right under them, as a browser's tabs sit over its content. The tabs are not a handle to
      drag the window by. */
   #app > & { justify-self: center; max-width: calc(100% - 2 * var(--gap)); margin-block-start: var(--gap); }
@@ -195,7 +182,7 @@ function dragend(e: DragEvent) {
   /* A tab: as tall as a browser's (Firefox's 36 px), wide enough to hit in passing, rounded as the panels' tabs are,
      --gap from the next. Its project's icon (the app's curtain, in its color): as a browser's tab shows its site's
      favicon. Where a dropped one would go, a line at its side. At its narrowest its name keeps about ten letters:
-     at 120 px every tab read "task…" (the author, 2026-10-15: wider, × kept on every tab). */
+     narrower, every tab reads "task…" (× kept on every tab). */
   .tasktab { --tab: var(--bartab); gap: 8px; min-width: 160px; max-width: 240px; padding-inline: 12px 6px; border-radius: var(--tab-radius);
     .picon { width: 20px; height: 20px; color: var(--color); } } /* as an agent's mark in a row (docs/ui.md): a tab's face */
   .dragging { opacity: .5; }

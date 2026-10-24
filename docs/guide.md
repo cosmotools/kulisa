@@ -20,6 +20,20 @@ computer. Everything stays on your computer.
   and a grid of panes. Several tasks of one project run at once, each building something else.
 - **Tab**: an open task in the tasks' bar (under the grid, or in the title bar), as a browser's tab; its project's icon is on it.
 
+## Systems
+
+Kulisa is made for Linux, Windows and macOS. Its installers are for 64-bit Intel and AMD processors (x64), not yet
+for ARM ones.
+
+- **Linux:** Ubuntu, Debian and Fedora, in the versions their makers still support. Kulisa is made on Ubuntu, and
+  tested there the most.
+- **Windows:** Windows 10 and later. Newer there, and less tried.
+- **macOS:** Ventura (13) and later. Tested by its developers, run from its code; no installer yet.
+
+Not as an AppImage, Snap or Flatpak, on purpose: on recent Ubuntu an AppImage runs only with the browser's protection
+of your signed-in pages turned off, and Snap and Flatpak would keep Kulisa from your terminal, git and agents, which it
+works with.
+
 ## Getting started
 
 Download Kulisa from its [latest release](https://github.com/cosmotools/kulisa/releases/latest):
@@ -36,9 +50,6 @@ Download Kulisa from its [latest release](https://github.com/cosmotools/kulisa/r
 
 Every installer is built by GitHub from Kulisa's published code, and GitHub keeps a signed record of it. To check a
 file you downloaded, with GitHub's command-line tool: `gh attestation verify <file> -R cosmotools/kulisa`.
-
-Kulisa is tested on Linux (Ubuntu) and on macOS (by its developers, there is no installer for it yet); on Windows it is
-newer and less tried.
 
 1. **Make a project.** At the first start Kulisa shows in three short slides what it does (**Skip** passes them),
    then New Project, in three steps (below): its code, its agents, the users of your app. **Create** makes it and
@@ -61,6 +72,12 @@ More tasks: **+** in the bar at the bottom, then **+** in your project's column.
 - **The grid**: the shown task's panes (one per open profile) and its terminals. Drag a pane by its header to move it,
   onto another pane to stack them as tabs; drag the gaps to resize. **☰ → Arrange panels** offers ready-made
   arrangements. Each task keeps its own grid.
+- **Resources**, next to the terminal (beside it, or under it when the terminal is on the right): what the task works in (its copy of the code, or your project's folder until
+  it has one), a click opens its folder; and under **Artifacts**, what the agent kept of the pages as it worked:
+  screenshots (with a small picture), snapshots of a page, the bodies of requests, the newest first, with whose page and
+  when. A click opens one; a right-click shows it in its folder or deletes it. The heading says how much room they take;
+  its 🗑 deletes them all. The agent sees the same: ask it what is there, or to clean them up. Past 100 MB a task's oldest
+  go by themselves. Drag the gap beside it to resize it, as any pane.
 - **The tasks' bar**, under the grid (or in the title bar, as a browser's tabs: **☰ → Tasks bar**): a tab per open task,
   of any project, with its project's icon and its agent's state, and **+** after them. When there are more tabs than
   fit, the mouse wheel over the bar scrolls them, and a faded edge shows that more are past it.
@@ -78,8 +95,9 @@ back with what you typed kept, and nothing is made before **Create**.
 
 **1. Code.** Where its code comes from, on the left:
 
-- **New folder**: a new, empty project. Kulisa makes the folder (in the KulisaProjects folder in your home folder unless you choose another place) and,
-  with Create Git repository on, a git repository in it, so tasks can have copies of their own.
+- **New folder**: a new, empty project. Kulisa makes the folder (in the KulisaProjects folder in your home folder unless you choose another place),
+  a plain folder: tasks work right in it. Want git? Ask the agent to set it up; the tasks you make after that each
+  get a copy of their own.
 - **Folders on disk**: code you already have, one folder or several (a frontend and a backend). Nothing in them is
   changed.
 - **Clone from URL**: one repository or several, cloned with your own git (its keys and credentials).
@@ -110,9 +128,12 @@ its page in Settings.
 Everything is saved as you change it; there is no Save button.
 
 - **Name**.
-- **Code**: its repositories or folders. **+** adds one (Add Folder…, Clone from URL…), **−** removes the selected
+- **Folders**: its repositories or plain folders, all alike, with git or without. **+** adds one (Add Folder…, Clone from URL…,
+  which clones next to the default folder), **−** removes the selected
   one from the project (its folder stays), **★** makes it the default: a new task gets a copy of it, and the agent
-  starts there; a task adds the others when it needs them (Tasks, below).
+  starts there; a task adds the others when it needs them (Tasks, below). Each repository on GitHub shows the GitHub
+  account it goes as (GitHub, below): Kulisa picks the first of yours that can reach it, and you can choose another
+  there. A line under the list says when none can, and why.
 - **Agents**: the accounts its tasks run. **★** makes one the default, the one a new task runs; **★** on the default
   one again leaves the project with no default: a new task then starts with nothing running, and big buttons in the
   middle let you open the agent you want, or a terminal. With no agents at all, a new task starts with a terminal.
@@ -143,31 +164,64 @@ over to it, then its tab opens and it tells you in a few lines where it stands. 
 sign-in), its tab opens at once; **Show now** does not wait. The old tab stays until you close it. Or simply tell an
 agent "go on with what Claude did": every agent of the task can read the others' conversations.
 
-**Dictation**, where the agent has its own (Claude Code with a Claude.ai account): hold the **right Ctrl** key (the
-right ⌘ on a Mac) while you speak, wherever you are in Kulisa, a page or the terminal, and let go; or press it once to
-start and once more to stop. The text goes into the agent's input for you to read and send. It hears the language
-chosen in **☰ → Language**. The microphone at the end of the terminals' row shows that the agent is listening, and
-works the same way by the mouse: hold it, or click to start and again to stop. With a terminal or an agent without
-dictation in front, the key brings the agent back in front; the microphone is greyed out then. Another key instead of
+**Dictation**: hold the **right Ctrl** key (the right ⌘ on a Mac) while you speak, wherever you are in Kulisa, a page
+or the terminal, and let go; or press it once to start and once more to stop. The text goes into the agent's input for
+you to read and send. It hears the language chosen in **☰ → Language**. The microphone at the end of the terminals' row
+shows that it is listening, and works the same way by the mouse: hold it, or click to start and again to stop. While
+you speak, a capsule at the top of the terminal shows your voice as a wave and how long you have spoken; when you let
+go it says it is transcribing, then that the text is in the agent's input. Claude
+Code listens itself; for Codex and any other agent without dictation of its own, Kulisa listens with Claude Code
+behind the scenes, so you need it installed and signed in with a Claude subscription (**Settings → Agents**); the
+words appear as you speak and are put right when you let go. The
+first time after a break, the capsule says **Getting ready…** for about a second (the microphone turns blue): speak once
+it shows the wave. With
+a terminal in front, the key brings the agent back in front. Greyed out, its tooltip says why. Another key instead of
 the right Ctrl: **☰ → Keyboard Shortcuts**, Change on its row, then press the key.
+
+## GitHub
+
+**Settings → GitHub** holds your GitHub accounts, as many as you have (work, personal). Kulisa keeps their sign-ins
+itself, encrypted with your computer's keyring; your agents never see them. **+** adds one, two ways:
+
+- **With GitHub…**: Kulisa shows a code and opens GitHub's page in your browser; enter the code there and allow
+  **Kulisa App**. Then install Kulisa App on the accounts or organizations whose repositories you work on
+  (github.com/apps/kulisa-app): it reaches only those, and only what it asks for (reading code, pull requests and
+  issues, checks). **Enter a code on GitHub only when Kulisa has just shown it to you**: a code someone else gives you
+  would sign them in as you.
+- **With a Token…**, for an organization that does not install Kulisa App: make a fine-grained personal access token
+  on GitHub (the link there fills in the permissions Kulisa needs), choose the organization as its resource owner and
+  its repositories, and paste it. A classic token is refused: it reaches all of your repositories.
+
+In an organization you are a member of, only its owner can install Kulisa App: GitHub lets you request it, and the
+owner decides. Ask them to install Kulisa App on the repositories you work on; or, if they will not, make a
+fine-grained token for the organization, which its owner may also have to approve (and, where the organization signs
+in through its company's single sign-on, authorize for it). A repository no account can reach says so on its row in
+the project, with a link to install Kulisa App.
+
+The list shows each account, where Kulisa App is installed, the projects using it and until when it is signed in. A
+sign-in with GitHub lasts six months from the last time Kulisa used it; a token, until it ends. When one ends, or
+GitHub turns it down, the account says **signed out**: **Sign in Again…** in its right-click menu. On a Linux computer
+without a keyring, Kulisa cannot keep a sign-in safely, so it keeps none: you sign in again after Kulisa restarts, and
+the page says so. **−** deletes an account after a question; Kulisa forgets its sign-in, which GitHub still knows until
+it ends: the question links the GitHub page where you revoke it at once.
 
 ## Tasks
 
-- **+ in the tasks' bar** (or Ctrl+Shift+A) opens a new tab, as in a browser: every project in a column, with its
-  tasks. The project you worked in last is first. Open tasks are marked "open"; closed ones show when you closed them,
-  and "merged" once their work is merged. Click a task to open it again, **+** in a column for a new task of that
-  project, or **New Project…** after the columns. Close the new tab (its ×, **+** again, or Esc) to go back to your
-  task, which kept running.
-- **A new task**: **+** in a project's column (or Ctrl+Shift+N for the shown project). It runs the
+- **+ in the tasks' bar** (or Ctrl+Shift+A) is the new-task menu: every project with its tasks — the one you worked
+  in last first — open ones to switch to, closed ones to open again (they show when you closed them, and "merged" once
+  their work is merged) — and New Task of each, then **New Project…**. Click a project to start a new task of it; a
+  task's trash can deletes it. With no task open at all, the window shows the same projects and tasks as a board of
+  columns instead.
+- **A new task**: click a project in the **+** menu, or **+** in a project's column (or Ctrl+Shift+N for the shown project). It runs the
   project's default agent with a new conversation; describe the task to it. With no default agent, you choose one
   with the buttons in the middle (Ctrl+` puts the keyboard on them). Its profiles are all closed: the agent
-  opens those it needs, or you do: while none is open, each has a tile over the terminal (click it), and the task's
-  tab lists them on a right-click. A project with no profiles has one tile there, **Add Profile…**.
+  opens those it needs, or you do: while none is open, each has a button over the terminal (click it), and the task's
+  tab lists them on a right-click. A project with no profiles has one button there, **Add Profile…**.
 - **Its own copy of the code.** In a project with git, every task works in a copy of its own (a git worktree) on a
   branch of its own, next to your project's folder (`myshop@task-2`). Your project's folder stays yours: the agent
   merges its work into it only when you ask (and checks first that you have no unsaved changes there), or opens a pull
   request. Files git ignores, such as `.env`, are copied into the task's copy too. Without git, tasks work right in
-  the project's folder.
+  the project's folder; such a task still adds the project's repositories (below), each copy on a branch of its own.
 - **Several repositories.** In a project of several repositories (a frontend and a backend), a new task gets a copy
   of the default one only. When the work needs another, add it: right-click the task's tab and choose it under **Add
   Repository**. The agent may ask you for one too, and adds it once you agree; to only read another repository it
@@ -188,8 +242,8 @@ the right Ctrl: **☰ → Keyboard Shortcuts**, Change on its row, then press th
   its code, branch, profiles and conversation stay. Open it again from **+** (in its project's column): the agent continues
   the conversation.
 - **Delete Task…** (its tab's right-click menu) deletes it for good: its copy of the code, its branch, its profiles'
-  copies, its conversation. The question says what would be lost (work not merged and not pushed). A closed task is
-  deleted from its row in **+**: the trash can at the row's end (or the Delete key). Once a closed
+  copies, its conversation. The question says what would be lost (work not merged and not pushed). A task is
+  deleted from its row in **+**: the trash can at the row's end (or the Delete key), open or closed. Once a closed
   task's work is merged, its row says "merged", and the project's submenu offers **Delete Merged Tasks…**.
 - **The project's submenu**, at the end of a tab's right-click menu under the project's name: New Task, Move All
   Tasks to New Window or to another window, Project Settings…, Show Data Folder, Delete Merged Tasks…, Close All
@@ -210,7 +264,8 @@ profile under Profiles to see its page.
 
 - The **+** beside Profiles makes one: type its name, Enter (or + → New Profile… on a project's page, to make it in
   that project).
-- **Name**: letters, digits and `@ . _ + -`, so it can be the account's email (`ann+test@shop.com`).
+- **Name**: letters, digits and `@ . _ + -`, so it can be the account's email (`ann+test@shop.com`). The agent calls
+  the profile by it, so two profiles of one project cannot have the same name (`Ann` and `ann` are the same).
 - **About**: who it is in your app and what it can do. The agent picks profiles by it; if it is empty, the agent
   asks you and saves your answer.
 - **Picture**: an animal, to tell the panes apart at a glance.
@@ -222,7 +277,6 @@ profile under Profiles to see its page.
   **Sign In to Master…** in its pane's right-click menu, opens it in a window of its own. Sign in there; every task gets
   that sign-in. A sign-in, or a sign-out, of a real account in any task reaches the others too.
 - Signing in to your app on `localhost` stays in that task: each task runs its own copy of your app.
-- **Refresh from Master…** (the pane's right-click menu) gives a task's profile the master's sign-ins again.
 - **Test users of your app**: a profile's **Test login** and **Test password** (Settings → Profiles), or saved by the
   agent after it signs a user up. The agent then signs in as that user itself; Kulisa types the password, the agent
   never sees it, and only on your local app, never on a real site or an account provider (Google, Microsoft …).
@@ -247,7 +301,26 @@ A pane is a small Chrome: a tab strip, an address bar, back, forward and reload.
 - Chrome's keys work in a page: Ctrl+T, Ctrl+W, Ctrl+Shift+T, Ctrl+L, Ctrl+Tab, Ctrl+1…9 (Keyboard shortcuts, below).
 - **Zoom** a site with Ctrl + / − / 0 in its page; it is kept for that site in that profile and shown in the address
   bar (a click resets it).
+- **Right-click in a page** for Chrome's menu: open a link in a new tab of the same profile or copy its address, copy
+  or open an image, cut, copy and paste in a field, back, forward and reload; Pick an element for the agent, a
+  screenshot of an element, and Inspect. Sites with a menu of their own (Teams, Google Docs) show theirs.
 - **DevTools** of a tab: the pane's ⋮ menu, or F12.
+- **Screenshots** of a tab: the pane's ⋮ menu → **Screenshot**:
+  - **Element**: click an element on the page (or press Ctrl+Shift+S in the page); Esc cancels;
+  - **Visible Part**: what the pane shows;
+  - **Full Page**: the whole page down to its end. A page that scrolls inside a box of its own (many mail and admin
+    apps) gives what is visible; take that box as an element instead. Pictures further down may still be empty if
+    the page loads them only when you scroll there.
+
+  The picture goes both to the clipboard (paste it into a message, or into the agent's input with Ctrl+V) and as a
+  file into your computer's own folder of screenshots: Pictures/Screenshots on Windows and Linux, on a Mac the folder
+  chosen for screenshots (the Desktop unless you changed it). The agent's marks are not in it. They are your files:
+  Kulisa does not delete them.
+
+  A **thumbnail** of the picture shows in the pane's corner for a few seconds, as on a Mac; it stays while the pointer
+  is over it. Click it to open the picture; drag it into a message, a mail or a folder; right-click it for **Show in
+  Folder**, **Copy**, **Send to Agent** (the picture into the agent's input), **Delete** and **Close**. The × in its
+  corner, shown while the pointer is over it, closes it at once.
 - A page's alert or confirm shows in its pane, as in Chrome. A page that does not load says why, as Chrome's error
   page does.
 - **Pages no one looks at are unloaded** after five minutes, as Chrome's Memory Saver does, to give the memory back:
@@ -287,6 +360,8 @@ A pane is a small Chrome: a tab strip, an address bar, back, forward and reload.
 - Copy and paste as in your OS's terminal: Ctrl+Shift+C / Ctrl+Shift+V on Linux, Ctrl+C / Ctrl+V on Windows, ⌘C / ⌘V
   on macOS.
 - Ctrl+click a link to open it: Kulisa asks where, in one of the task's profiles or in your own browser.
+- A file or folder named in the terminal (a screenshot the agent saved, a file it changed) is a link too: Ctrl+click it
+  to open it in its app or show it in its folder. A program or script is only shown in its folder, never run.
 - Right-click: Copy, Paste, Select all, Clear; in an agent's, Change agent… (the same as its icon) and New
   Conversation (the same agent, from nothing); Close.
 
@@ -308,11 +383,12 @@ A pane is a small Chrome: a tab strip, an address bar, back, forward and reload.
 |---|---|
 | Ctrl+` | The terminal in front, and back to the page |
 | Ctrl+Shift+` | A new terminal |
-| Ctrl+Shift+A | A new tab: every project with its tasks |
+| Ctrl+Shift+A | The new-task menu: every project with its tasks |
 | Ctrl+Shift+N | New task of the same project |
 | Ctrl+Shift+1…9 | The first to ninth tab |
 | Ctrl+Shift+PgDn / PgUp | The next or previous task |
 | Ctrl+Shift+C (in a page) | Pick an element for the agent |
+| Ctrl+Shift+S (in a page) | Screenshot of an element |
 | Ctrl+T, Ctrl+W, Ctrl+Shift+T (in a page) | New tab, close the tab, open the tab closed last |
 | Ctrl+L (in a page) | The address bar |
 
@@ -325,17 +401,18 @@ folders on your computer: the data folder, the projects' folder and the program'
 your file manager, its path there to copy. Look there rather than guess: where the folders are depends on your OS and
 its settings. Usually:
 
-- Your projects' folders hold only your code: Kulisa writes nothing there (except the first commit of a project it
-  made).
-- Tasks' copies of the code are next to the project's folder (`myshop@task-2`), or in the KulisaProjects folder in your
+- Your projects' folders hold only your code: Kulisa writes nothing there.
+- Tasks' copies of the code are next to the project's folder (`myshop@fix-header`, after the task's branch), or in the KulisaProjects folder in your
   home folder (`C:\Users\<you>\KulisaProjects` on Windows, `/Users/<you>/KulisaProjects` on macOS, `/home/<you>/KulisaProjects` on Linux) for a
-  project of several repositories, as `<project>@task-<n>`. They go when the task is deleted. New projects' folders
+  project of several repositories, as `<project>@<branch>`. They go when the task is deleted. New projects' folders
   are made there too.
 - Profiles, sign-ins, accounts and settings are in Kulisa's data folder: `~/.config/Kulisa` on Linux (or under
   `$XDG_CONFIG_HOME` when that is set), `~/Library/Application Support/Kulisa` on macOS, `%APPDATA%\Kulisa` on
-  Windows. Session cookies and test passwords
+  Windows. Session cookies, test passwords and GitHub sign-ins
   are encrypted with your OS's keyring. **Show Data Folder** in a task tab's right-click menu, under the project's name, opens that project's.
 - Deleting a task, a profile or a project removes what Kulisa made for it.
+- Screenshots you take are yours, in your computer's folder of screenshots (A profile's pane, above): Kulisa does
+  not remove them.
 - Kulisa keeps a log of what it did (the buttons and tools used, tasks opened and closed, errors), never what you
   typed or your passwords: the `logs` folder in the data folder, two files of 1 MB at most. Read it in **Settings →
   Log** (below, Reporting a problem).
@@ -370,7 +447,7 @@ out). Then uninstall the program and delete the data folder (above). What remain
 - Agents Kulisa installed for you (Claude Code, Codex): programs of your own, updated by their makers. Settings →
   Agents shows where each one is; remove them their way.
 - A project's repository that Kulisa cloned for you: your code.
-- Kulisa's key in your OS's keyring, "Kulisa Safe Storage": on Windows nothing to remove; on macOS in Keychain
+- Kulisa's key in your OS's keyring, "kulisa Safe Storage": on Windows nothing to remove; on macOS in Keychain
   Access; on Linux in your keyring app (Passwords and Keys). On Linux and macOS also direnv's permissions for
   tasks' folders, if you use direnv.
 

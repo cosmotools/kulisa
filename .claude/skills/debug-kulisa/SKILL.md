@@ -5,9 +5,8 @@ description: How to find the cause of a Kulisa bug that tests and screenshots do
 
 # Debugging Kulisa
 
-What worked on 2026-10-08, when panes stopped taking clicks after Teams (the cause: a page's drag region,
-ROADMAP "Workarounds of Electron bugs"): look inside the running app instead of guessing, make the bug happen on
-demand, then take away one difference at a time until it goes.
+Look inside the running app instead of guessing, make the bug happen on demand, then take away one difference at a
+time until it goes.
 
 ## 1. Look inside the author's running Kulisa, without restarting it
 
@@ -36,8 +35,8 @@ node .claude/skills/debug-kulisa/inspect.mjs 9229 'return require("electron").we
 .claude/skills/debug-kulisa/scratch.sh start <session scratch folder>   # its own data and ports; stop: scratch.sh stop
 ```
 
-- Profiles: `act('profile:new', { name })` in the window's page over CDP (9333). Pages: `wc.loadURL` from
-  inspect.mjs on 9230, or the MCP tools (`browser_navigate`) on port 4499.
+- Profiles and pages: the MCP tools on port 4499 (`profile_create`, `browser_navigate`), or `wc.loadURL` from
+  inspect.mjs on 9230. The window's page is on CDP 9333.
 - Change one thing in the running code from inspect.mjs, no edit in the repository, e.g.
   `Profile.prototype.setSigninMode = async function () {}` (no sign-in mode) or `Profile.prototype.connect` (no
   Playwright), before making the profile. Restart the scratch app between experiments: a broken state may stay.
@@ -54,8 +53,8 @@ Some bugs need the OS's own mouse; `sendInputEvent` goes around the OS.
 ```
 
 - It clicks only if exactly one visible window has that title and it is the active one after raising it. The mouse
-  is the author's: a click elsewhere lands in their windows. On 2026-10-08 a search by process id found the author's
-  window instead, and clicks went into their screen; never click by a window found another way.
+  is the author's: a click elsewhere lands in their windows. A search by process id can find the author's window
+  instead: never click by a window found another way.
 - The scratch window is "myshop — Kulisa"; the author's is "<project> — Kulisa": do not click theirs unless they
   ask. Tell the author before a series of clicks: their windows lose the focus for a few seconds.
 - A point in the window: the view's bounds (`view.getBounds()`, content coordinates) plus the frame's offset (the
@@ -91,5 +90,5 @@ the cause; that script is also the reproduction for an Electron issue.
 
 - The fix with a test that fails without it (CLAUDE.md); when real input is the only way to see the bug, test the
   mechanism instead and say so.
-- A workaround of an Electron or Chromium bug: in ROADMAP, "Workarounds of Electron bugs", with how to check it.
+- A workaround of an Electron or Chromium bug: in docs/testing.md, "Upgrading Electron", with how to check it.
 - Stop the scratch app, the inspector goes with a restart; delete the scratch folder's files.

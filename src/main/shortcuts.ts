@@ -21,16 +21,8 @@ export function installShortcuts(shell: Shell, { appDevTools }: { appDevTools: b
   let table = keymap(undefined, store.settings().keys);
   shell.keys = () => keyList(undefined, store.settings().keys);
   const ZOOM: Record<string, number> = { 'zoom.in': 1, 'zoom.out': -1, 'zoom.reset': 0, 'site.zoomIn': 1, 'site.zoomOut': -1, 'site.zoomReset': 0 };
-  // A profile's tab by its webContents, of a task shown in a window.
-  const tabOf = (wc: WebContents) => {
-    for (const w of shell.windows) for (const profile of w.profiles.values()) {
-      const tab = profile.tabs.find((t) => t.wc === wc);
-      if (tab) return { w, profile, tab };
-    }
-    return null;
-  };
   function onKey(wc: WebContents, e: Electron.Event, input: Electron.Input) {
-    const w = shell.windowOf(wc), t = !w && tabOf(wc);
+    const w = shell.windowOf(wc), t = !w && shell.tabOf(wc);
     if (!w && !t) return; // DevTools, a tab of a task not on screen
     const zone = w ? w.keyZone : 'page';
     // A key held alone (the dictation's): its press and its release, wherever the keyboard is but a dialog (the

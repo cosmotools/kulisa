@@ -1,25 +1,30 @@
 // Kulisa, the app: the shell every module gets (shell.ts) put together, its windows with their open tasks
 // (open-tasks.ts), the agents, the CDP proxy and the MCP server, the windows' handles (ipc/), quitting. start(options)
 // is used by the entry point (index.ts) and by the tests.
-import { app, crashReporter, nativeTheme, Menu, safeStorage } from 'electron';
+import { app, crashReporter, nativeTheme, Menu, net, safeStorage, shell as electronShell } from 'electron';
 import { EventEmitter } from 'events';
 import path from 'path';
 import fs from 'fs';
 import { CdpProxy } from './cdp-proxy.ts';
-import { Store } from './store.ts';
+import { Store, branchOf } from './store.ts';
 import { Accounts } from './accounts.ts';
 import { ProfileStore } from './profile-store.ts';
 import { CookieSync } from './cookie-sync.ts';
 import { signinPages } from './signin-pages.ts';
 import { SessionCookies } from './session-cookies.ts';
-import { pictureOf } from './projects.ts';
+import { pictureOf, githubUsers, deleteGitHub } from './projects.ts';
+import { GitHub, installGitHub } from '../github/main/index.ts';
+import { ActivityMonitor } from '../activity-monitor/main/index.ts';
+import { Dictation, installDictation } from '../dictation/main/index.ts';
+import { recognizer } from './recognizer.ts';
 import { COLORS } from './window.ts';
 import type { AppWindow } from './window.ts';
 import { findFavicon } from './favicons.ts';
 import { AGENTS, findAgent, signOut } from './agents/index.ts';
-import { stopTerminal } from './terminal.ts';
+import { onEscape, stopTerminal } from '../terminal/main/index.ts';
 import { startMcpServer } from './kulisa-plugin/mcp-server.ts';
 import { installPicker } from './picker.ts';
+import { installPageMenu } from './page-menu.ts';
 import { installGhost } from './kulisa-plugin/ghost.ts';
 import { startDiscarding } from './discard.ts';
 import { installMasters } from './master.ts';
@@ -72,12 +77,12 @@ const AGENT_PACKAGES = app.isPackaged ? process.resourcesPath : path.join(import
 //   signinHosts  extra sign-in hosts (sign-in pause, tab restore)
 function start(options: Options = {}) {
   // direnv's state from where Kulisa was started (a terminal in a folder direnv had loaded) is not Kulisa's: a task's
-  // shell took the task's folder for that folder left and undid its .envrc's changes, an agent's account variable
-  // with them (its CLAUDE_CONFIG_DIR gone: the agent ran with the user's own sign-in, 2026-10-11). Without it, direnv
+  // shell would take the task's folder for that folder left and undo its .envrc's changes, an agent's account variable
+  // with them (its CLAUDE_CONFIG_DIR gone: the agent runs with the user's own sign-in). Without it, direnv
   // in each terminal starts clean and loads the task's own .envrc; git and direnv run by Kulisa too.
   for (const k of Object.keys(process.env)) if (k.startsWith('DIRENV_')) delete process.env[k];
-  // What sites see (docs/profiles.md): Kulisa on Chromium, without Electron's word. Teams took a Mac's or Windows'
-  // Electron for its own retired desktop app and showed "Classic Teams is no longer available" (2026-10-16).
+  // What sites see (docs/profiles.md): Kulisa on Chromium, without Electron's word. Teams takes a Mac's or Windows'
+  // Electron for its own retired desktop app and shows "Classic Teams is no longer available".
   app.userAgentFallback = app.userAgentFallback.replace(/ Electron\/\S+/, '');
   const userData = options.userData || path.join(app.getPath('appData'), 'Kulisa');
   app.setPath('userData', userData);
@@ -87,8 +92,8 @@ function start(options: Options = {}) {
   // 90 days, 128 MB), to ask a user for. No server (docs/window.md, The log).
   crashReporter.start({ uploadToServer: false });
   // One Kulisa per data folder (Electron's lock is the userData's; KULISA_DATA for another): a second one on the same
-  // data ran beside the first, without its MCP server, and the two wrote over each other's saved tabs, cookies and
-  // tasks (2026-10-12). It shows the first one's window and goes, before anything is read or written.
+  // data would run beside the first, without its MCP server, and the two write over each other's saved tabs, cookies and
+  // tasks. It shows the first one's window and goes, before anything is read or written.
   if (!app.requestSingleInstanceLock()) {
     console.log(`[kulisa] already running with ${userData}: its window is shown`);
     app.quit();
@@ -112,15 +117,27 @@ function start(options: Options = {}) {
   app.on('activate', () => first()?.focus()); // macOS: the Dock clicked, the last window hidden by its × (open-tasks.ts)
   // The profiles and their masters (profile-store.ts); after who one is changed, or a project got or let go of one,
   // every loaded task shows it (project-profiles.ts, refresh), but the one it was changed in, which did.
-  shell.profileStore = new ProfileStore(userData, (dir) => store.markDeleted(dir));
+  shell.profileStore = new ProfileStore(store);
+  shell.profileStore.logAll();
   // Real accounts signed in once, in every task: non-local cookies kept in step between masters and copies.
   shell.cookieSync = new CookieSync({ masterDir: (f) => shell.profileStore.masterDir(f), restore: (p) => shell.sessionCookies.restore(p) });
   // Test users' passwords, encrypted with the OS keyring (tasks.ts, setLogin); never kept in the clear.
   shell.secrets = {
     available: () => safeStorage.isEncryptionAvailable(),
+    kept: () => safeStorage.isEncryptionAvailable() && (process.platform !== 'linux' || safeStorage.getSelectedStorageBackend() !== 'basic_text'),
     encrypt: (s: string) => safeStorage.encryptString(s).toString('base64'),
     decrypt: (b: string) => safeStorage.decryptString(Buffer.from(b, 'base64')),
   };
+  // The GitHub accounts (src/github): their tokens kept with the OS keyring, and only in memory without one. Its
+  // requests through Chromium's network (net.fetch), which keeps the system's proxy.
+  // Speaking to the agent (src/dictation); for an agent without dictation of its own, another agent's account
+  // recognizes (recognizer.ts).
+  const speech = recognizer(shell, userData);
+  shell.dictation = new Dictation((task, voice) => shell.taskByKey(task)?.window?.send('voice', { task, voice }), { recognizer: speech });
+  shell.github = new GitHub({ dir: userData, fetch: (url, init) => net.fetch(url, init), secrets: shell.secrets });
+  shell.github.accounts.logAll();
+  // What Kulisa takes on the computer (src/activity-monitor), told where every task's data is.
+  shell.activity = new ActivityMonitor({ list: () => store.allTasks().map(({ project, entry, key }) => ({ key, project: project.id, artifacts: store.artifactsOf(project, entry.id) })) });
   // A test user's password as it is kept: encrypted, or why not; none given: the one kept stays (profile-store.ts).
   shell.loginSecret = (password) => {
     if (!password) return {};
@@ -128,7 +145,7 @@ function start(options: Options = {}) {
     if (password.length > 500) return { error: 'a password is at most 500 characters' };
     return { secret: shell.secrets.encrypt(password) };
   };
-  // Profiles whose test password is being typed (mcp-server.ts, browser_type_login): ghost.ts shows no text for them.
+  // Profiles whose test password is being typed (kulisa-plugin/tools/browser.ts, browser_type_login): ghost.ts shows no text for them.
   shell.typingSecret = new Set<string>();
   // Settings too: not modal, it is open beside the windows where profiles are made and let go (settings-window.ts).
   shell.profilesChanged = (from) => {
@@ -137,7 +154,7 @@ function start(options: Options = {}) {
   };
   // Where new projects go, and the folders of copies of tasks with several repositories (projects.ts).
   // New projects' place, and the folders of copies of tasks of several repositories: KulisaProjects, as JetBrains'
-  // IdeaProjects (the author, 2026-10-17; ~/Kulisa until then, easily taken for Kulisa's data folder: %APPDATA%\Kulisa).
+  // IdeaProjects: a name not taken for Kulisa's data folder (%APPDATA%\Kulisa).
   shell.projectsHome = options.projectsHome || path.join(app.getPath('home'), 'KulisaProjects');
   Object.defineProperties(shell, {
     win: { get: () => first()?.win ?? null },
@@ -150,10 +167,18 @@ function start(options: Options = {}) {
   });
   // A task of an open project: by the project's id and its number (the MCP server's URLs), or by its key (the
   // windows', the CDP proxy's).
-  shell.taskOf = (id, n) => shell.open.get(id)?.tasks.get(n) || null;
+  shell.taskOf = (project, id) => shell.open.get(project)?.tasks.get(id) || null;
   shell.taskByKey = (key) => { for (const p of shell.open.values()) { const task = p.taskByKey(key); if (task) return task; } return null; };
   // The window a page's message comes from (IPC: event.sender).
   shell.windowOf = (sender) => shell.windows.find((w) => !w.win.isDestroyed() && w.win.webContents === sender) || null;
+  // A profile's tab by its page, of a task shown in a window (its keys, its right-click menu).
+  shell.tabOf = (wc) => {
+    for (const w of shell.windows) for (const profile of w.profiles.values()) {
+      const tab = profile.tabs.find((t) => t.wc === wc);
+      if (tab) return { w, profile, tab };
+    }
+    return null;
+  };
   const at = (e: IpcEvent) => shell.windowOf(e.sender);
   // The tasks' window a message is about: its own, or for Settings (settings-window.ts) the tasks' window last in front:
   // its shown task's project and folder. Where a question about it is asked: in the window it came from, Settings' too.
@@ -168,8 +193,8 @@ function start(options: Options = {}) {
   let quitting = false; // from before-quit on (below): closing a window asks nothing, tabs closing save nothing
   Object.defineProperty(shell, 'quitting', { get: () => quitting });
   // A task's profiles changed (now: right away), or its agent's state (tasks.ts): its window shows it. Not
-  // once quitting: the tabs are saved then, and each one closing as Kulisa quits saved its task's tabs again,
-  // fewer each time, at last none (one in the background at once: 2026-10-08, the author's tabs all about:blank).
+  // once quitting: the tabs are saved then, and each one closing as Kulisa quits would save its task's tabs again,
+  // fewer each time, at last none (one in the background at once).
   shell.taskChanged = (task, now, agentState) => quitting || task.window?.changed(task, now, agentState);
   // A project for a folder opened (KULISA_PROJECT, project:open with a folder).
   function projectOfFolder(folder: string) { return store.projectFor(folder); }
@@ -182,7 +207,7 @@ function start(options: Options = {}) {
   const lookForFavicon = async (p: ProjectEntry) => {
     looking.add(p.id);
     try {
-      const file = await findFavicon(p.repos?.length ? p.repos : [p.folder]);
+      const file = await findFavicon(p.folders);
       favicons.set(p.id, file);
       if (file) pictures.delete(file);
     } finally { looking.delete(p.id); }
@@ -198,7 +223,7 @@ function start(options: Options = {}) {
   };
   // And its tasks (the board lists them: newtab/): those open, as made, then the closed ones, the one closed last first.
   const tasksOf = (p: ProjectEntry) => {
-    const list = store.tasksOf(p).list.map(({ n, name, branch, closed, closedAt, merged, about }) => ({ n, name, branch, closed: !!closed, closedAt, merged: !!merged, about }));
+    const list = store.tasksOf(p).list.map((e) => ({ id: e.id, name: e.name, branch: branchOf(e), closed: !!e.closed, closedAt: e.closedAt, merged: !!e.merged }));
     return [...list.filter((t) => !t.closed), ...list.filter((t) => t.closed).sort((a, b) => (b.closedAt || 0) - (a.closedAt || 0))];
   };
   shell.projects = () => store.projects().map((p) => {
@@ -216,7 +241,7 @@ function start(options: Options = {}) {
 
   // The Kulisa zoom: the whole UI of every window (window.ts), and the profiles' pages, which follow it (profiles.ts).
   // The panes' boxes come in CSS pixels (window.ts, layout).
-  // At most 200% (the author, 2026-10-17): the window's minimum grows with it (window.ts), and at 300% passed a laptop's
+  // At most 200%: the window's minimum grows with it (window.ts), and at 300% passes a laptop's
   // screen; macOS's window buttons stop following it past 175%. The pages' own zoom goes on to 300%, as in Chrome.
   const UI_ZOOM_MAX = 2;
   shell.uiZoom = Math.min(store.settings().uiZoom || 1, UI_ZOOM_MAX);
@@ -242,8 +267,8 @@ function start(options: Options = {}) {
   nativeTheme.on('updated', () => { if (shell.theme === 'system') shell.setTheme(); });
   // The language the human speaks with the agents (☰ → Language; docs/window.md, Language): Kulisa's one, written into
   // each agent's own language setting (agents/, language) in every account of it, here and at an agent's start
-  // (tasks.ts), never into the human's own folder. Agents without one are not told it otherwise (the author,
-  // 2026-10-13: Kulisa gives the agents' own settings a place and keeps them in step, it adds no behavior).
+  // (tasks.ts), never into the human's own folder. Agents without one are not told it otherwise (Kulisa
+  // gives the agents' own settings a place and keeps them in step, it adds no behavior).
   // English by default, as the agents are without it.
   const agentKinds = () => shell.accounts.all().filter((a) => a.own).map((a) => a.agent);
   shell.language = store.settings().language || 'en';
@@ -281,22 +306,27 @@ function start(options: Options = {}) {
   // The windows' handles (ipc/): each message acts in the window it comes from.
   const ipc: Ipc = { shell, at, owner, asker, serial, tasks };
   registerTasks(ipc);
+  // Esc typed into an agent's terminal (its key: "<task>#<id>"): the agent's turn ended (Task.interrupted).
+  onEscape((key) => shell.taskByKey(key.split('#')[0]!)?.interrupted(key));
   registerProjects(ipc, { lookForFavicon });
   registerProfiles(ipc);
   registerAgents(ipc);
   registerPanes(ipc);
   registerWindow(ipc);
+  installGitHub(shell.github, { usedBy: (id) => githubUsers(shell, id), remove: (e, id) => deleteGitHub(shell, id, asker(e)),
+    open: (url) => { void electronShell.openExternal(url); } });
+  installDictation(shell.dictation);
   const ready = app.whenReady().then(async () => {
     // Whether the OS keeps Kulisa's key (session cookies, test passwords: profiles.md); on Linux which keyring, basic_text
     // being none (a fixed key: Electron's safe-storage.md). The classic Linux bug report, with nothing to read until now.
     const backend = process.platform === 'linux' ? safeStorage.getSelectedStorageBackend() : null;
     const encryption = `[kulisa] encryption ${safeStorage.isEncryptionAvailable() ? 'available' : 'not available'}${backend ? ` (${backend})` : ''}`;
-    if (safeStorage.isEncryptionAvailable() && backend !== 'basic_text') log.info(encryption); else log.warn(`${encryption}: no keyring found`);
+    if (shell.secrets.kept()) log.info(encryption); else log.warn(`${encryption}: no keyring found`);
     // macOS keeps a menu bar for the app: Electron's default one would reload Kulisa's own page with ⌘R. Its own
-    // menu: About Kulisa (Settings at its About page, not Electron's panel), Settings… (⌘,, where Mac apps have it: the author, 2026-10-16), Quit, Hide (the app's), Copy and Paste
+    // menu: About Kulisa (Settings at its About page, not Electron's panel), Settings… (⌘,, where Mac apps have it), Quit, Hide (the app's), Copy and Paste
     // (the Edit menu's roles: ⌘C, ⌘V in fields and the terminal), the windows. Kulisa's keys are taken before it
     // (onKey). Elsewhere the windows have no menu (window.ts). Its app menu as Electron's own, Settings… added
-    // (tutorial/application-menu.md, 44.5.1).
+    // (tutorial/application-menu.md).
     if (process.platform === 'darwin') {
       // At the project of the tasks' window last in front (shell.front), Settings' own in front too.
       const settings = () => shell.openSettings({ section: 'projects', id: null });
@@ -330,6 +360,7 @@ function start(options: Options = {}) {
     await windows[0]!.w.load(windows[0]!.shown);
     shell.mcp = await startMcpServer(shell, { port: options.mcpPort ?? 4450 });
     installPicker(shell);
+    installPageMenu(shell);
     installGhost(shell);
     installMasters(shell, { preload: path.join(import.meta.dirname, '..', 'preload', 'index.cjs'), colors: () => COLORS[shell.shade()] });
     installSettings(shell, { preload: path.join(import.meta.dirname, '..', 'preload', 'index.cjs'), appDevTools });
@@ -344,7 +375,7 @@ function start(options: Options = {}) {
     if (options.project) {
       const p = projectOfFolder(path.resolve(options.project)), project = loadProject(p), w = windows[0]!.w;
       const task = project.open()[0] || project.closedTasks()[0];
-      await serial(() => openProject(p, w, task?.n ?? null));
+      await serial(() => openProject(p, w, task?.id ?? null));
     }
     shell.firstStart(windows[0]!.w);
     shell.saveWindows();
@@ -371,6 +402,7 @@ function start(options: Options = {}) {
   shell.agentFiles = [...new Set(known.flatMap((a) => a.localFiles || []))];
   // The agents with their accounts (accounts.ts); an account is its agent with its config folder in its environment.
   shell.accounts = new Accounts(userData, known, (dir) => store.markDeleted(dir));
+  speech.clean();
   shell.accounts.clean();
   // An account the human deleted (projects.ts, deleteAccount): signed out with its agent's own command (what it keeps outside
   // its folder goes too: Claude Code's Keychain entry on macOS), then its folder.
@@ -414,6 +446,7 @@ function start(options: Options = {}) {
     shell.saveWindows();
     shell.stopAutosave?.();
     shell.discard?.stop();
+    shell.dictation.close();
     for (const folder of [...(shell.masters?.keys() || [])]) await shell.closeMaster(folder); // their tabs and sign-ins saved
     for (const m of shell.cookieSync.masters()) await shell.sessionCookies?.persist(m); // kept in step, not open in a window
     for (const p of allProfiles()) {

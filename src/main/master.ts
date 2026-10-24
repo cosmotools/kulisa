@@ -7,10 +7,8 @@
 // One window per master; asked again, it comes to the front. Closed, its tabs and sign-ins are saved.
 import { BrowserWindow } from 'electron';
 import { handle } from './ipc.ts';
-import fs from 'fs';
-import path from 'path';
 import { Profile, toUrl } from './profiles.ts';
-import { writeFileAtomic } from './store.ts';
+import { readTabs, writeTabs } from './store.ts';
 import { page } from './pages.ts';
 import type { Shell } from './shell.ts';
 
@@ -20,26 +18,26 @@ interface Master { win: BrowserWindow; profile: Profile; closing: Promise<void> 
 const BAR = 44; // keep in sync with #bar in Master.vue
 
 function installMasters(shell: Shell, { preload, colors }: { preload: string; colors: () => { window: string } }) {
-  shell.masters = new Map(); // folder -> { win, profile }
+  shell.masters = new Map(); // id -> { win, profile }
   // tasks.ts: before a copy is made of it, what the human did there is on disk.
-  shell.flushMaster = async (folder) => { const m = shell.masters.get(folder); if (m) await shell.sessionCookies.persist(m.profile); };
-  shell.closeMaster = async (folder) => { const m = shell.masters.get(folder); if (m) await close(m); };
-  shell.openMaster = async (folder) => {
-    const g = shell.profileStore.byFolder(folder);
-    if (!g) return { error: 'no such profile' };
-    const open = shell.masters.get(folder);
-    if (open) { open.win.focus(); return { folder }; }
+  shell.flushMaster = async (id) => { const m = shell.masters.get(id); if (m) await shell.sessionCookies.persist(m.profile); };
+  shell.closeMaster = async (id) => { const m = shell.masters.get(id); if (m) await close(m); };
+  shell.openMaster = async (id) => {
+    const g = shell.profileStore.get(id);
+    if (!g) return { error: `no profile ${id}` };
+    const open = shell.masters.get(id);
+    if (open) { open.win.focus(); return { id }; }
     const win = new BrowserWindow({ width: 1100, height: 800, title: `${g.name}: sign in once for every task — Kulisa`, backgroundColor: colors().window,
       autoHideMenuBar: true, webPreferences: { preload, sandbox: true } });
     win.removeMenu();
-    const dir = shell.profileStore.masterDir(folder);
-    const profile = new Profile(win, { id: g.id, name: g.name, avatar: g.avatar, folder, dir }, { task: `master/${folder}` });
+    const dir = shell.profileStore.masterDir(id);
+    const profile = new Profile(win, { id, name: g.name, avatar: g.avatar, dir }, { task: `master/${id}` });
     const m: Master = { win, profile, closing: null };
-    shell.masters.set(folder, m);
+    shell.masters.set(id, m);
     win.on('close', (e) => { if (!m.closed && !shell.quitting) { e.preventDefault(); void close(m); } });
     // Closed meanwhile (its page, or a slow sign-in page, still loading): nothing to lay out, the window is gone.
     await win.loadFile(page('master.html'), { query: { name: g.name, theme: shell.shade() } }).catch((e) => { if (!m.closing) throw e; });
-    if (m.closing) return { folder };
+    if (m.closing) return { id };
     const place = () => { const [width = 0, height = 0] = win.getContentSize(); profile.layout({ x: 0, y: BAR, width, height: Math.max(0, height - BAR) }); };
     const tell = () => { const t = profile.get(); if (!win.isDestroyed() && t && !t.wc.isDestroyed()) win.webContents.send('master:url', t.wc.getURL()); };
     profile.on('changed', () => { place(); tell(); });
@@ -47,22 +45,20 @@ function installMasters(shell: Shell, { preload, colors }: { preload: string; co
     // Its tabs open; the bar's controls wait for them (an address typed while a tab loads was overwritten).
     m.ready = (async () => {
       await shell.sessionCookies.restore(profile); // before the first request
-      const urls = readTabs(dir);
-      await Promise.all((urls.length ? urls : ['about:blank']).map((u, i) => profile.newTab(u, { activate: i === 0 }).ready));
+      await profile.openTabs(readTabs(dir));
     })();
     await m.ready;
-    if (m.closing) return { folder };
+    if (m.closing) return { id };
     place(); tell();
-    return { folder };
+    return { id };
   };
   async function close(m: Master): Promise<void> {
     if (m.closing) return m.closing;
     m.closing = (async () => {
-      const urls = m.profile.tabs.filter((t) => !t.wc.isDestroyed()).map((t) => t.wc.getURL()).filter((u) => u && u !== 'about:blank');
-      writeTabs(m.profile.dir, urls);
+      writeTabs(m.profile.dir, m.profile.savedTabs((t) => (t.wc.isDestroyed() ? '' : t.wc.getURL())));
       await shell.sessionCookies.persist(m.profile);
       await m.profile.close();
-      shell.masters.delete(m.profile.folder);
+      shell.masters.delete(m.profile.id);
       m.closed = true;
       if (!m.win.isDestroyed()) m.win.destroy();
     })();
@@ -79,11 +75,6 @@ function installMasters(shell: Shell, { preload, colors }: { preload: string; co
   handle('master:forward', async (e) => { const m = await of(e); if (m?.profile.get()!.wc.navigationHistory.canGoForward()) m.profile.forward(); });
   handle('master:reload', async (e) => (await of(e))?.profile.reload());
 }
-
-// A master's tabs, in its folder as a copy's are (store.ts, Kulisa Tabs.json): a task's copy starts with them.
-const TABS = 'Kulisa Tabs.json';
-function readTabs(dir: string): string[] { try { return JSON.parse(fs.readFileSync(path.join(dir, TABS), 'utf8')); } catch { return []; } }
-function writeTabs(dir: string, urls: string[]) { fs.mkdirSync(dir, { recursive: true }); writeFileAtomic(path.join(dir, TABS), JSON.stringify(urls)); }
 
 export type { Master };
 export { installMasters };

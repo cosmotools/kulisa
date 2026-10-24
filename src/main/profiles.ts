@@ -9,9 +9,12 @@ import type { Browser, BrowserContext, Page } from 'playwright-core';
 import type { BrowserWindow, Rectangle, Session, WebContents, WebContentsView as View } from 'electron';
 import fs from 'fs';
 import path from 'path';
+import type { SavedTabs } from './store.ts';
 import type * as Sent from '../shared/types.ts'; // what the window gets: its one definition
 import { allowFocus, guardFocus } from './page-focus.ts';
 import { bare, log } from './log.ts';
+import { capture } from '../screenshots/main/index.ts';
+import type { Shot } from '../screenshots/main/index.ts';
 // Taken from the module, not imported by name: unit tests load this in plain Node, where 'electron' is only a path
 // (docs/testing.md, Two layers).
 const { session, WebContentsView } = electron;
@@ -28,12 +31,12 @@ interface Tab {
   // the address it comes back to, while its page may still hold its unload; offScreenSince: since when no one sees it
   // (discard.ts).
   discarded?: boolean; discarding?: string; offScreenSince?: number;
-  // The agent's own action answers the dialogs it opens (mcp-server.ts).
+  // The agent's own action answers the dialogs it opens (kulisa-plugin/tools/handles.ts, answering).
   agentDialogs?: { asked: string[]; accept: boolean };
 }
 // Who a profile is and where its data is (project-profiles.ts; master.ts: a session of its own).
 interface ProfileConfig {
-  id: string; name: string; avatar: string; description?: string; login?: string; hasPassword?: boolean; folder: string;
+  id: string; name: string; avatar: string; description?: string; login?: string; hasPassword?: boolean;
   dir: string; session?: Session; zoom?: Record<string, number>;
 }
 type Bounds = Rectangle;
@@ -60,6 +63,7 @@ function toUrl(u: string) {
   return 'https://www.google.com/search?q=' + encodeURIComponent(u);
 }
 const CLOSED_KEPT = 10; // closed tabs' addresses kept to open again
+const LAYOUT_WAIT = 3000; // ms a screenshot waits for a pane just opened to be laid out
 let dialogs = 0; // pages' dialogs, numbered: the human's answer goes to the one they saw
 // What Electron gives a page's dialog (its internal -run-dialog event).
 interface DialogInfo { dialogType: 'alert' | 'confirm'; messageText: string; frame: { url: string; parent: unknown } }
@@ -67,20 +71,20 @@ const PAGE_RADIUS = 8; // a little less than the island's corners, which the pag
 
 class Profile extends EventEmitter {
   win: BrowserWindow; id: string; name: string; avatar: string; description: string; login: string; hasPassword: boolean;
-  folder: string; dir: string; task: string; baseZoom: number; siteZoom: Record<string, number>; session: Session;
+  dir: string; task: string; baseZoom: number; siteZoom: Record<string, number>; session: Session;
   tabs: Tab[]; active: string | null; closedUrls: string[]; bounds: Bounds;
   browser: Browser | null; context: BrowserContext | null; endpoint: string | null; signinMode: boolean; resuming?: boolean;
   hidden: boolean; shown: boolean; deleted: boolean;
   busyAt: number; // when automation last sent this profile a command (cdp-proxy.ts): its tabs are in use (discard.ts)
-  // cfg: { id, name, avatar, description, folder, dir, session }. The folder (cookies, storage; dir is its absolute path) is fixed at
-  // creation; a rename changes id and name only.
+  // cfg: { id, name, avatar, description, dir, session }. The id and the folder (cookies, storage; dir is its absolute
+  // path) are fixed at creation; a rename changes the name only.
   // win: the window it shows in (moveTo). task: its task's key (profiles of different tasks share ids).
   constructor(win: BrowserWindow, cfg: ProfileConfig, { task }: { task: string }) {
     super();
     this.win = win;
     this.id = cfg.id; this.name = cfg.name; this.avatar = cfg.avatar; this.description = cfg.description || '';
     this.login = cfg.login || ''; this.hasPassword = !!cfg.hasPassword; // a test user's pair (profile-store.ts): its login
-    this.folder = cfg.folder; this.dir = cfg.dir; this.task = task;
+    this.dir = cfg.dir; this.task = task;
     // Page zoom: pages follow the Kulisa zoom (baseZoom, set by the window); a site the human zoomed with Ctrl + / -
     // in a page keeps its own factor on top of it, per host, in this profile only (saved in profiles.json).
     this.baseZoom = 1;
@@ -100,7 +104,7 @@ class Profile extends EventEmitter {
     this.browser = await chromium.connectOverCDP(endpoint);
     this.context = this.browser.contexts()[0]!; // connectOverCDP's default context, always there
     // With no listener Playwright dismisses every dialog (alert, confirm), the human's too; with one they stay for
-    // the human. The agent's tools answer those its own actions open (mcp-server.ts).
+    // the human. The agent's tools answer those its own actions open (kulisa-plugin/tools/handles.ts, answering).
     this.context.on('dialog', () => {});
   }
   async disconnect() {
@@ -123,6 +127,34 @@ class Profile extends EventEmitter {
     throw new Error(`no Playwright page for tab ${id}`);
   }
 
+  // A picture of a tab, the human's or the agent's (src/screenshots/README.md). Not while the human signs in: the
+  // pause has Playwright detached.
+  async screenshot(tab: Tab, shot: Omit<Shot, 'human'> & { by: 'human' | 'agent' }): Promise<Buffer> {
+    if (this.signinMode) throw new Error(`${this.name} is signing in: no screenshot until the sign-in is done.`);
+    if (tab.dialog) throw new Error(`Tab ${tab.id} of ${this.id} shows a ${tab.dialog.type} ("${tab.dialog.message}") for the human to answer; until then its page does nothing.`);
+    if (!tab.discarded && (!tab.url || tab.url === 'about:blank')) throw new Error(`Tab ${tab.id} of ${this.id} is empty: nothing to take.`);
+    // A page's size is its pane's, and Chromium gives no picture of a page with none. A pane just opened gets its size
+    // a moment later (the window lays out its grid); a tab gets it when it comes to the front, as a hidden view passes
+    // no size to its page.
+    if (!this.bounds.width) {
+      await new Promise<void>((done) => {
+        const laid = () => { clearTimeout(t); done(); };
+        const t = setTimeout(() => { this.off('laid-out', laid); done(); }, LAYOUT_WAIT);
+        this.once('laid-out', laid);
+      });
+    }
+    if (!this.bounds.width) throw new Error(`${this.name}'s pane has not been on screen yet: its page has no size to take a picture of.`);
+    if (!tab.discarded && !tab.view.getBounds().width) throw new Error(`Tab ${tab.id} of ${this.name} has not been in front yet: its page has no size to take a picture of until it is.`);
+    // The page takes its pane's size on its next frame.
+    for (const end = Date.now() + LAYOUT_WAIT; !tab.discarded && Date.now() < end && !await tab.wc.executeJavaScript('innerWidth').catch(() => 0);) {
+      await new Promise((r) => setTimeout(r, 50));
+    }
+    const { by, ...rest } = shot;
+    const png = await capture(await this.page(tab.id), { ...rest, ...(by === 'human' && { human: `${this.task}/${this.id}` }) });
+    log.info(`[screenshot] ${this.id} ${shot.element ? 'element' : shot.fullPage ? 'whole page' : 'visible part'}, by the ${by}`);
+    return png;
+  }
+
   get(id?: string | null) { id = id || this.active; return this.tabs.find((t) => t.id === id || t.targetId === id); }
 
   newTab(url?: string | null, { activate = true } = {}) {
@@ -131,6 +163,22 @@ class Profile extends EventEmitter {
     const ready = this._open(tab, url && toUrl(url));
     if (activate) this.activate(tab.id);
     return Object.assign(tab, { ready }); // every tab it opens has one, unlike a page's popup
+  }
+  // Its tabs saved (urlOf: the address a tab comes back on, '' for none) and opened again: the one in front in front.
+  savedTabs(urlOf: (t: Tab) => string): SavedTabs {
+    const urls: string[] = []; let active = 0;
+    for (const t of this.tabs) {
+      const u = urlOf(t);
+      if (!u || u === 'about:blank') continue;
+      if (t.id === this.active) active = urls.length;
+      urls.push(u);
+    }
+    return { urls, active };
+  }
+  openTabs({ urls, active }: SavedTabs) {
+    if (!urls.length) urls = ['about:blank'];
+    if (!urls[active]) active = 0;
+    return Promise.all(urls.map((u, i) => this.newTab(u, { activate: i === active }).ready));
   }
 
   // A tab's page opened in its fresh webContents (newTab; load, a discarded tab's new one): its ready.
@@ -199,13 +247,13 @@ class Profile extends EventEmitter {
     // A page never moves the window, as in Chrome. Kulisa's window has no system title bar, and Electron takes
     // app-region: drag from its views too: Teams declares one, and it stays after the page has gone, taking every
     // click and wheel over the panes (docs/window.md). Each document gets no-drag everywhere, which also replaces a
-    // region left behind. A workaround of electron/electron#54743: remove when fixed (ROADMAP, "Workarounds of Electron bugs").
+    // region left behind. A workaround of electron/electron#54743: remove when fixed (docs/testing.md, "Upgrading Electron").
     wc.on('did-navigate', () => wc.insertCSS('html, html * { app-region: no-drag !important; }', { cssOrigin: 'user' }).catch(() => {}));
     // alert and confirm in the tab's pane, as Chrome shows them in the page, not Electron's message box in the middle of
     // the window, which did not say which page asked (Electron shows no prompt(): it throws in the page). Electron's
-    // handler is a listener of its internal event (lib/browser/api/web-contents.ts, Electron 44), replaced here: check
-    // it at every Electron upgrade (ROADMAP, "Workarounds of Electron bugs"). Answered by the human (answerDialog), by
-    // an action of the agent (tab.agentDialogs, mcp-server.ts), or by another client over CDP. Chromium holds a
+    // handler is a listener of its internal event (lib/browser/api/web-contents.ts), replaced here: check
+    // it at every Electron upgrade (docs/testing.md, "Upgrading Electron"). Answered by the human (answerDialog), by
+    // an action of the agent (tab.agentDialogs, kulisa-plugin/tools/handles.ts), or by another client over CDP. Chromium holds a
     // navigation while a dialog is open; as Chrome does, it is dismissed when one starts (the address bar, reload).
     const internal = wc as unknown as Internal;
     internal.removeAllListeners('-run-dialog');
@@ -237,7 +285,7 @@ class Profile extends EventEmitter {
     // tab takes its place, so the pane is never left without a page (its address and toolbar acting on nothing). Not
     // for a tab destroyed otherwise: Kulisa quitting (a new tab then crashes Electron), its profile closing. Not from
     // within this 'destroyed' event either: Chromium is still taking the old tab down, and a new one made meanwhile
-    // crashed the main process now and then (CHECK(!frame_tree_->IsBeingDestroyed()) in RenderFrameCreated, 2026-10-09).
+    // crashes the main process now and then (CHECK(!frame_tree_->IsBeingDestroyed()) in RenderFrameCreated).
     if (!this.tabs.length && !this.deleted && tab.closing) setImmediate(() => { if (!this.tabs.length && !this.deleted) this.newTab('about:blank'); });
   }
   // Out of the list (i: its place); the one before it active in its place.
@@ -386,12 +434,21 @@ class Profile extends EventEmitter {
     if (t.wc.isDevToolsOpened()) t.wc.closeDevTools();
     else t.wc.openDevTools({ mode: 'detach', title: `${this.name} · DevTools` });
   }
+  // The element at a point of the tab's page in its DevTools (the page's right-click menu, Inspect): opened first as
+  // toggleDevTools opens them, else inspectElement opens them in its own way.
+  inspect(id: string, x: number, y: number) {
+    const t = this.get(id);
+    if (!t || t.discarded) return;
+    if (!t.wc.isDevToolsOpened()) t.wc.openDevTools({ mode: 'detach', title: `${this.name} · DevTools` });
+    t.wc.inspectElement(x, y);
+  }
 
   // Where the window's grid puts the pane's page; { shown: false } when the pane is not on screen.
   layout({ shown = true, ...bounds }: Partial<Bounds> & { shown?: boolean }) {
     this.shown = shown;
     if (shown) { this.bounds = bounds as Bounds; const t = this.get(); if (t) t.view.setBounds(this.bounds); }
     this._show();
+    if (this.bounds.width) this.emit('laid-out');
   }
   // On a discarded tab: loaded again at the address (navigate, reload); its history is gone with its process (back,
   // forward: nothing), as a closed tab's is.
@@ -447,8 +504,7 @@ class Profile extends EventEmitter {
   }
 
   info(): Sent.Profile {
-    // key: stable across renames (the folder), for the UI to keep the same pane.
-    return { key: this.folder, id: this.id, name: this.name, avatar: this.avatar, description: this.description, login: this.login, hasPassword: this.hasPassword, active: this.active,
+    return { id: this.id, name: this.name, avatar: this.avatar, description: this.description, login: this.login, hasPassword: this.hasPassword, active: this.active,
       signinMode: this.signinMode,
       tabs: this.tabs.map((t) => ({ id: t.id, title: t.title, url: t.url, favicon: t.favicon, loading: t.loading, canBack: t.canBack, canFwd: t.canFwd,
         zoom: this.pageZoom(t), dialog: t.dialog && { id: t.dialog.id, type: t.dialog.type, message: t.dialog.message, from: t.dialog.from, picture: t.dialog.picture } })) };

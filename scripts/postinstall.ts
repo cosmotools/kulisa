@@ -1,8 +1,8 @@
 // npm install's postinstall: node-pty built for Electron (README, Run). Not on macOS: there node-pty's own prebuilt
 // binary is loaded (N-API, for any Electron; the packaged build does the same: forge.config.ts), and building it needs a
-// working compiler a Mac may not have (the author's Command Line Tools, 2026-10-16: npm install failed on it).
-// Its prebuilt spawn-helper (the program it starts a shell with) comes without its exec bit in node-pty 1.1.0's
-// package: made executable, else every terminal fails (posix_spawnp failed: GitHub's macOS runner, 2026-10-16), and
+// working compiler a Mac may not have (its Command Line Tools).
+// Its prebuilt spawn-helper (the program it starts a shell with) may come without its exec bit in node-pty's
+// package: made executable, else every terminal fails (posix_spawnp failed), and
 // the packaged app (which takes it from node_modules) the same.
 import { spawnSync } from 'child_process';
 import fs from 'fs';

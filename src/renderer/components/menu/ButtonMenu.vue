@@ -3,14 +3,15 @@
 // press, a drag to a row and the release there chooses it (Reka's trigger opens on the click, after the release); the
 // click that follows is the press's, not another toggle.
 //   <ButtonMenu :items="() => […]" end> <button …> </ButtonMenu>   end: its end edge at the button's (at a bar's end)
-import { shallowRef } from 'vue';
+import { provide, shallowRef } from 'vue';
 import { DropdownMenuContent, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger } from 'reka-ui';
 import MenuRows from './MenuRows.vue';
 import { covered } from '../../lib/cover';
-import { focusBack, type MenuItem } from '../../lib/menu';
+import { closeMenu, focusBack, type MenuItem } from '../../lib/menu';
 
 const props = defineProps<{ items: () => MenuItem[]; end?: boolean }>();
 const { open, ready } = covered('pictures');
+provide(closeMenu, () => toggle(false));
 const rows = shallowRef<MenuItem[]>([]);
 let focused: Element | null = null;
 function toggle(v: boolean) { if (v) { rows.value = props.items(); focused = document.activeElement; } open.value = v; }

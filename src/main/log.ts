@@ -21,6 +21,14 @@ export function summary(v: unknown, max = 200): string {
     : SECRET_TEXT.test(x) ? '[…]' : bare(x).length > 80 ? `${bare(x).slice(0, 80)}…` : bare(x)));
   return s === undefined ? '' : s.length > max ? `${s.slice(0, max)}…` : s;
 }
+// An email as the log keeps it: enough of the name to tell one's accounts apart (three letters, at most half of it), not
+// all of it, for a log sent with a bug report.
+export const shortEmail = (email: string) => {
+  const at = email.lastIndexOf('@'), name = email.slice(0, Math.max(at, 0));
+  return at < 1 ? '…' : `${name.slice(0, Math.min(3, Math.ceil(name.length / 2)))}…${email.slice(at)}`;
+};
+// A folder with the home folder as ~: a user's log shared holds their name less often.
+export const tilde = (p: string, home = os.homedir()) => (p === home || p.startsWith(home + path.sep) ? `~${p.slice(home.length)}` : p);
 
 export const log = elog;
 let file = '', packaged = false;
@@ -44,11 +52,19 @@ export function startLog(userData: string, isPackaged: boolean) {
   elog.hooks.push((m, _t, name) => { if (name === 'file') pending(); return m; });
   elog.transports.console.format = '{text}'; // stdout as it was (the tests' output): the time is the file's
   Object.assign(console, elog.functions); // what the code says on stdout goes to the file too
+  // A console nobody reads any more (`npm start | head`, a terminal closed, a parent gone): its first failed write (EPIPE)
+  // is an uncaught exception, which app.ts logs, to the console again, and so on, each round a nextTick that lets nothing
+  // else run: Kulisa stops answering the OS. So the console's transport is turned off at its first failed write.
+  for (const s of [process.stdout, process.stderr]) s.on('error', () => { elog.transports.console.level = false; });
   // Electron's own events, named one by one: electron-log's defaults listen on every webContents, the profiles' pages
   // too, and would log their failed loads and certificate errors with their addresses, and their console. The line is
   // ours (electronEvent): electron-log's own appends the page's address in full to every webContents event.
   elog.eventLogger.startLogging({ events: { app: { 'child-process-gone': true, 'render-process-gone': true }, webContents: { unresponsive: true, 'preload-error': true } },
     format: electronEvent });
+  // Node prints every process warning through console.error, into the file too, and Electron warns of each failed load
+  // of any page with its address in full (electron_api_web_contents.cc: "Failed to load URL: …"): [profile] logs it bare.
+  process.removeAllListeners('warning');
+  process.on('warning', (w) => { if (!w.message.startsWith('Failed to load URL: ')) console.warn(`[warning] ${w.name}: ${w.message}`); });
   return { previousRunQuit };
 }
 

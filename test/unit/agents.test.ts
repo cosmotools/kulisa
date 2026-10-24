@@ -7,9 +7,12 @@ import path from 'path';
 import os from 'os';
 import { extendTrust, AGENTS, findAgent } from '../../src/main/agents/index.ts';
 import { claudeConfigOf } from '../../src/main/agents/claude.ts';
+import { codex } from '../../src/main/agents/codex.ts';
 import { CAPABILITIES } from '../../src/main/agents/agent.ts';
 import { installSkill } from '../../src/main/agents/files.ts';
 import { Accounts } from '../../src/main/accounts.ts';
+import { shortEmail } from '../../src/main/log.ts';
+import { drawing } from './drawing.ts';
 import type { Agent } from '../../src/main/agents/index.ts';
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'kulisa-unit-'));
 after(() => fs.rmSync(root, { recursive: true, force: true }));
@@ -80,18 +83,18 @@ test("tasks: a task's copy is trusted as the human trusted the project's code, i
   assert.equal(extendTrust(codex, at, '/q@task-1', ['/q']), false, 'trusted nowhere: nothing');
   assert.equal(extendTrust(codex, { configDir: path.join(root, 'codex-none') }, '/p@task-2', ['/p']), false, 'no config yet: nothing');
 });
-test("agents: Claude Code's dictation is on in its sessions only, Kulisa's tools allowed there but two; its language read and set in its settings, the rest kept", async () => {
+test("agents: Claude Code's dictation is on in its sessions only, Kulisa's tools allowed there but two, and reading what Kulisa keeps of its pages; its language read and set in its settings, the rest kept", async () => {
   const claude = AGENTS.find((a) => a.id === 'claude');
-  const args = claude.args({ packages: '/k', env: {} });
+  const args = claude.args({ packages: '/k', env: {}, artifacts: '/data/projects/*/*/artifacts' });
   assert.deepEqual(args.slice(0, 3), ['--plugin-dir', path.join('/k', 'claude-plugin'), '--settings']);
   const { hooks, ...given } = JSON.parse(args[3]); // its hooks: below
   // With an account, the same settings as a file in its folder: the command typed into the terminal stays short.
-  const account = path.join(root, 'claude-account'), withAccount = claude.args({ packages: '/k', env: {}, account });
+  const account = path.join(root, 'claude-account'), withAccount = claude.args({ packages: '/k', env: {}, account, artifacts: '/data/projects/*/*/artifacts' });
   assert.equal(withAccount[3], path.join(account, 'kulisa-settings.json'));
   assert.deepEqual(JSON.parse(fs.readFileSync(withAccount[3], 'utf8')), JSON.parse(args[3]));
   assert.ok(hooks);
   assert.deepEqual(given, { voiceEnabled: true, voice: { enabled: true, mode: 'hold', autoSubmit: false }, permissions: {
-    allow: ['mcp__plugin_kulisa_kulisa'], ask: ['mcp__plugin_kulisa_kulisa__terminal_run', 'mcp__plugin_kulisa_kulisa__browser_file_upload'] } });
+    allow: ['mcp__plugin_kulisa_kulisa', 'Read(//data/projects/*/*/artifacts/**)'], ask: ['mcp__plugin_kulisa_kulisa__terminal_run', 'mcp__plugin_kulisa_kulisa__browser_file_upload'] } });
   // Its language setting in an account's folder, as its /config writes it; the rest of the file kept.
   const dir = path.join(root, 'claude-language'), settings = path.join(dir, 'settings.json');
   assert.deepEqual(claude.language.set(dir, 'de'), {});
@@ -144,7 +147,7 @@ test("tasks: a deleted task leaves nothing in Claude Code's and Codex's data; th
   // trust its hooks once). Claude Code: waiting only for what needs the human, not idle_prompt (a minute after an
   // answer); a turn ended by an API error waits for them too.
   const sends = (h: { hooks: { command: string }[] }[]) => h[0].hooks[0].command.match(/hooks\/([\w-]+)/)[1];
-  const claudeArgs = (url: string) => agent('claude').args({ env: { KULISA_MCP_URL: url }, packages: '/k' });
+  const claudeArgs = (url: string) => agent('claude').args({ env: { KULISA_MCP_URL: url }, packages: '/k', artifacts: '/p' });
   const claudeHooks = JSON.parse(claudeArgs('http://x')[3]).hooks;
   assert.deepEqual(claudeArgs('http://x').slice(0, 2), ['--plugin-dir', path.join('/k', 'claude-plugin')]);
   assert.deepEqual(Object.fromEntries(Object.entries(claudeHooks as Record<string, Parameters<typeof sends>[0]>).map(([e, h]) => [e, sends(h)])), { SessionStart: 'session-start',
@@ -153,7 +156,7 @@ test("tasks: a deleted task leaves nothing in Claude Code's and Codex's data; th
   assert.deepEqual(['permission_prompt', 'elicitation_dialog', 'idle_prompt', 'auth_success'].map((t) => needsYou.test(t)), [true, true, false, false]);
   assert.equal(claudeHooks.Stop[0].hooks[0].command, 'curl -sf --max-time 3 --data-binary @- "$KULISA_URL/hooks/stop" || true');
   // Codex: its hooks as a config override; resuming the session its SessionStart reported.
-  const codexArgs = (url: string) => agent('codex').args({ env: { KULISA_MCP_URL: url }, packages: '/k' });
+  const codexArgs = (url: string) => agent('codex').args({ env: { KULISA_MCP_URL: url }, packages: '/k', artifacts: '/p' });
   const hooks = codexArgs('http://127.0.0.1:1/task/a/1/mcp')[3];
   // Kulisa's tools approved, but the two that keep its own approval.
   assert.deepEqual(codexArgs('http://x').slice(4), ['-c', 'mcp_servers.kulisa.default_tools_approval_mode="approve"',
@@ -197,7 +200,17 @@ test("agents: one not installed is not found, so the window offers to install it
   for (const a of AGENTS.filter((x) => x.command)) assert.equal(await findAgent({ ...a, command: 'kulisa-no-such-agent' }, root), null, a.name);
 });
 
-test("accounts: one store, each listing its projects, kept in none until deleted; its folder a fixed id, never a number used before, the email kept; an agent with accounts is no account itself", () => {
+test("Codex: the email is its auth.json id token's; none without one", () => {
+  const dir = fs.mkdtempSync(path.join(root, 'codex-auth-')), email = codex.config.email;
+  const jwt = (claims: object) => ['e30', Buffer.from(JSON.stringify(claims)).toString('base64url'), 'sig'].join('.');
+  assert.equal(email('Logged in using ChatGPT', dir), null, 'no auth.json');
+  fs.writeFileSync(path.join(dir, 'auth.json'), JSON.stringify({ auth_mode: 'chatgpt', tokens: { id_token: jwt({ email: 'ann@shop.com' }) } }));
+  assert.equal(email('Logged in using ChatGPT', dir), 'ann@shop.com');
+  fs.writeFileSync(path.join(dir, 'auth.json'), JSON.stringify({ auth_mode: 'apikey', OPENAI_API_KEY: 'k' }));
+  assert.equal(email('Logged in using an API key', dir), null, 'an API key: no email');
+});
+
+test("accounts: one store, kept until deleted; its folder a fixed id, random, the email kept; an agent with accounts is no account itself", () => {
   const data = path.join(root, 'accounts-data');
   const defs = [{ id: 'claude', name: 'Claude Code', config: { env: 'CLAUDE_CONFIG_DIR', home: () => '/nowhere', login: (): string[] => [] } }, { id: 'shell', name: 'Terminal only' }] as Agent[];
   const marked: string[] = [];
@@ -205,30 +218,71 @@ test("accounts: one store, each listing its projects, kept in none until deleted
   assert.deepEqual(accounts.all().map((a) => [a.id, a.own, a.choosable]), [['claude', true, false], ['shell', true, true]], "the human's own ~/.claude is no account");
   assert.deepEqual(accounts.choosable().map((a) => a.id), ['shell']);
   const r = accounts.prepare('claude') as { id: string; dir: string };
-  assert.deepEqual(r, { id: 'claude-1', dir: path.join(data, 'agents', 'claude-1') });
+  assert.match(r.id, /^[a-z0-9]{6}$/);
+  assert.equal(r.dir, path.join(data, 'agents', `claude-${r.id}`), 'its folder its agent and its id');
   assert.ok(fs.existsSync(r.dir), 'its folder made before the sign-in');
   assert.match(accounts.prepare('shell').error, /has no accounts/);
-  const ann = accounts.create('shop', r.id, 'claude', 'ann@shop.com');
-  assert.deepEqual([ann.id, ann.name, ann.dir, ann.own, ann.choosable, ann.projects], ['claude-1', 'Claude Code · ann@shop.com', r.dir, false, true, ['shop']]);
-  assert.equal(accounts.byEmail('claude', 'ann@shop.com').id, 'claude-1', 'an email it has already: that account');
+  const ann = accounts.create(r.id, 'claude', 'ann@shop.com');
+  assert.deepEqual([ann.id, ann.name, ann.dir, ann.own, ann.choosable], [r.id, 'Claude Code · ann@shop.com', r.dir, false, true]);
+  assert.equal(accounts.byEmail('claude', 'ann@shop.com').id, r.id, 'an email it has already: that account');
   assert.equal(accounts.byEmail('claude', null), null);
-  accounts.addTo('claude-1', 'blog');
-  assert.deepEqual(new Accounts(data, defs).all().map((a) => [a.id, a.projects]), [['claude', undefined], ['claude-1', ['shop', 'blog']], ['shell', undefined]], 'kept');
-  // Let go by its last project, it stays (a sign-in is made again only by signing in again); deleted, it goes.
-  accounts.removeFrom('claude-1', 'shop');
-  accounts.removeFrom('claude-1', 'blog');
-  assert.deepEqual(accounts.find('claude-1').projects, [], 'in no project, kept');
-  assert.deepEqual(accounts.create(null, (accounts.prepare('claude') as { id: string }).id, 'claude', 'cy@shop.com').projects, [], 'made in Settings → Agents: in no project');
-  accounts.drop('claude-1');
-  accounts.drop('claude-2');
-  assert.equal(accounts.find('claude-1'), null);
+  assert.deepEqual(new Accounts(data, defs).all().map((a) => a.id), ['claude', r.id, 'shell'], 'kept');
+  const cy = accounts.create((accounts.prepare('claude') as { id: string }).id, 'claude', 'cy@shop.com');
+  assert.notEqual(cy.id, r.id);
+  assert.deepEqual(JSON.parse(fs.readFileSync(path.join(data, 'agents.json'), 'utf8')).list, [{ id: r.id, agent: 'claude', email: 'ann@shop.com' }, { id: cy.id, agent: 'claude', email: 'cy@shop.com' }]);
+  // Deleted, it goes (a sign-in is made again only by signing in again).
+  accounts.drop(r.id);
+  accounts.drop(cy.id);
+  assert.equal(accounts.find(r.id), null);
   accounts.remove(r.dir);
   assert.ok(!fs.existsSync(r.dir) && marked.includes(r.dir), 'its folder gone');
-  assert.equal((accounts.prepare('claude') as { id: string }).id, 'claude-3', 'never a number used before: a removed folder may wait for the next start');
+  // Drawn again while an agent or an account has the id or its folder is there (a removed one's may wait for the next
+  // start).
+  accounts.create('aaaaaa', 'claude', 'dee@shop.com');
+  fs.mkdirSync(path.join(data, 'agents', 'claude-bbbbbb'));
+  const undraw = drawing('claude', 'aaaaaa', 'bbbbbb', 'cccccc');
+  try { assert.equal((accounts.prepare('claude') as { id: string }).id, 'cccccc'); } finally { undraw(); }
+  accounts.drop('aaaaaa');
   // At start: a sign-in that did not end, and the format before (accounts.json), go.
   fs.writeFileSync(path.join(data, 'accounts.json'), '[]');
-  const bob = accounts.create('shop', (accounts.prepare('claude') as { id: string }).id, 'claude', 'bob@shop.com');
+  const bob = accounts.create((accounts.prepare('claude') as { id: string }).id, 'claude', 'bob@shop.com');
   new Accounts(data, defs, (d) => { marked.push(d); }).clean();
-  assert.deepEqual(fs.readdirSync(path.join(data, 'agents')), [bob.id]);
+  assert.deepEqual(fs.readdirSync(path.join(data, 'agents')), [`claude-${bob.id}`]);
   assert.ok(!fs.existsSync(path.join(data, 'accounts.json')));
+});
+
+test('accounts: the log names an id by its agent and its email, shortened', () => {
+  assert.equal(shortEmail('myqoop@gmail.com'), 'myq…@gmail.com');
+  assert.equal(shortEmail('al@shop.com'), 'a…@shop.com', 'at most half of a short name');
+  assert.equal(shortEmail('nobody'), '…');
+  const accounts = new Accounts(path.join(root, 'labels-data'), [{ id: 'claude', name: 'Claude Code', config: { env: 'CLAUDE_CONFIG_DIR', home: () => '/nowhere', login: (): string[] => [] } }] as Agent[]);
+  const ann = accounts.create((accounts.prepare('claude') as { id: string }).id, 'claude', 'ann@shop.com'), bob = accounts.create((accounts.prepare('claude') as { id: string }).id, 'claude', null);
+  assert.equal(accounts.label(ann.id), `${ann.id} (Claude Code, an…@shop.com)`);
+  assert.equal(accounts.label(bob.id), `${bob.id} (Claude Code)`);
+  assert.equal(accounts.label('claude'), 'Claude Code', 'an agent itself');
+  assert.equal(accounts.label('gone12'), 'gone12');
+});
+test("agents: Claude Code's dictation recognizes for an agent without one only with a Claude.ai sign-in, in hold mode with autoSubmit, its text posted by its hook, no plugins' servers, none of a parent session's variables; what it keeps of its folder goes by its account's folder", () => {
+  const claude = AGENTS.find((a) => a.id === 'claude'), r = claude.recognizer;
+  const dir = path.join(root, 'claude-recognizer'), folder = path.join(root, 'kulisa-data', 'dictation');
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, '.claude.json'), JSON.stringify({ projects: {} }));
+  assert.equal(r.available(dir), false, 'an API key: its voice mode is not offered');
+  fs.writeFileSync(path.join(dir, '.claude.json'), JSON.stringify({ oauthAccount: { emailAddress: 'a@b.c' }, projects: {} }));
+  assert.equal(r.available(dir), true);
+  const args = r.args();
+  assert.equal(args.at(-1), '--strict-mcp-config');
+  const settings = JSON.parse(args[args.indexOf('--settings') + 1]);
+  assert.deepEqual(settings.voice, { enabled: true, mode: 'hold', autoSubmit: true });
+  assert.match(settings.hooks.UserPromptSubmit[0].hooks[0].command, /\$KULISA_URL\/hooks\/prompt/);
+  assert.deepEqual(r.env({ CLAUDECODE: '1', CLAUDE_CODE_ENTRYPOINT: 'cli', HOME: '/h' }), { HOME: '/h' });
+  assert.deepEqual({ key: r.key, clear: r.clear, submit: r.submit }, { key: ' ', clear: '\x05\x15', submit: '\r' });
+  // Its session in Kulisa's folder: trusted, then forgotten by the account's folder (no conversation reported).
+  assert.ok(claude.trust.set({ configDir: dir }, folder));
+  const conv = path.join(dir, 'projects', folder.replace(/[^a-zA-Z0-9]/g, '-'));
+  fs.mkdirSync(conv, { recursive: true });
+  fs.writeFileSync(path.join(conv, 's.jsonl'), `${JSON.stringify({ type: 'system', cwd: folder, content: 'Original prompt: what was said' })}\n`);
+  assert.equal(claude.forget({ folder, configDir: dir }), true);
+  assert.ok(!fs.existsSync(conv), 'its conversation, holding what was said');
+  assert.deepEqual(JSON.parse(fs.readFileSync(path.join(dir, '.claude.json'), 'utf8')).projects, {}, 'its trust');
 });

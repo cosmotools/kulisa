@@ -31,7 +31,7 @@ export function updates() {
 }
 
 // A new version ready while Kulisa runs: downloaded by the updater (Windows, macOS), or installed on disk by the
-// package manager (Linux: apt replaces the files under the running Kulisa, which goes on from the old ones; seen on
+// package manager (Linux: apt replaces the files under the running Kulisa, which goes on from the old ones; tested on
 // the app archive, renamed over as dpkg and rpm do: installed.ts). Asked once per version, in the tasks' window in
 // front, shown when hidden (macOS): Restart quits as ☰ → Exit does (everything saved, the windows and tasks back:
 // shell.restart) into the new version; Later leaves it to the next start, which is the new version anyway.

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // The first start, no project at all (docs/window.md, The window's pages): what Kulisa does (Tour.vue), then New
 // Project's own steps (newproject/), a question each, the window's glow behind them (App.vue). The first thing a new
-// user meets (the author, 2026-10-17); a tasks' window's New Project stays a plain dialog.
+// user meets; a tasks' window's New Project stays a plain dialog.
 import { nextTick, ref } from 'vue';
 import Tour from './Tour.vue';
 import Wizard from '../newproject/Wizard.vue';

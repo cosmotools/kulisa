@@ -1,18 +1,17 @@
 <script setup lang="ts">
 // The island's row of tabs, its panel's header in the grid (docs/window.md, The terminal; Terminals.vue its terminals):
-// each terminal's tab, then +; at its end the task's repositories and the dictation's microphone (Dictation.vue).
-import { ref } from 'vue';
+// each terminal's tab, then +; at its end the dictation's microphone (src/dictation).
+import { computed, ref } from 'vue';
 import { TabsList, TabsRoot, TabsTrigger } from 'reka-ui';
 import Icon from '../Icon.vue';
-import TaskRepos from './TaskRepos.vue';
-import Dictation from './Dictation.vue';
+import { Dictation } from '../../../dictation/renderer';
 import ButtonMenu from '../menu/ButtonMenu.vue';
 import RightClickMenu from '../menu/RightClickMenu.vue';
 import { act, store } from '../../lib/store';
 import { agentMark } from '../../lib/agents';
-import { newTerminalItems, tabItems } from '../../lib/terminals';
+import { newTerminalItems, shownTerm, tabItems } from '../../lib/terminals';
 import { dialog } from '../../lib/dialogs';
-import { withKeys } from '../../lib/common';
+import { keyText, withKeys } from '../../lib/common';
 import { useStrip } from '../../lib/strip';
 import type { Terminal } from '../../../shared/types';
 
@@ -24,6 +23,7 @@ const show = (id: string | number) => act('terminal:show', { id: Number(id) });
 // More tabs than fit scroll (lib/strip.ts): they were cut off at the island's edge, its + and microphone with them.
 const strip = ref<HTMLElement>();
 useStrip(strip, () => store.terminals.front);
+const language = computed(() => (store.language ? new Intl.DisplayNames(['en'], { type: 'language' }).of(store.language.language) ?? '' : ''));
 </script>
 
 <template>
@@ -33,36 +33,38 @@ useStrip(strip, () => store.terminals.front);
       activation-mode="manual" @update:model-value="(v) => v !== undefined && show(v)"><TabsList as-child :loop="false">
       <nav ref="strip" class="tabstrip" aria-label="Terminals" @dragstart.prevent>
         <TabsTrigger v-for="t in store.terminals.list" :key="t.id" :value="String(t.id)" as-child>
-          <div class="termtab striptab" :class="{ active: t.id === store.terminals.front }" :data-id="t.id" :title="title(t)">
+          <div class="termtab tab" :class="{ active: t.id === store.terminals.front }" :data-id="t.id" :title="title(t)">
             <button v-if="t.agent" class="handover icon quiet small" :aria-label="`${t.agent.name}: change agent…`"
               title="Change agent: hand the task to another agent, or this one afresh; it goes on with this conversation" @mousedown.stop
               @click.stop="dialog('handover').then((d) => d.open(t))"><Icon :name="agentMark(t.agent.cli)!" /></button>
             <Icon v-else class="shellmark" name="i-agent-shell" />
-            <span class="name">{{ t.name }}</span>
+            <span class="title">{{ t.name }}</span>
             <span class="state" :data-state="t.state || ''"><Icon :name="`i-${t.state || 'done'}`" /></span>
-            <button class="close icon quiet small" aria-label="Close" :title="t.agent ? 'Close: the agent stops (asked first); its conversation stays in the task\'s history' : 'Close: what runs there stops'"
-              @mousedown.prevent.stop @click="act('terminal:close', { id: t.id })"><Icon name="i-close" /></button>
+            <!-- Not a press on the tab: it is not chosen first. -->
+            <span class="x icon small" :title="t.agent ? 'Close: the agent stops (asked first); its conversation stays in the task\'s history' : 'Close: what runs there stops'"
+              @mousedown.prevent @click="act('terminal:close', { id: t.id })"><Icon name="i-close" /></span>
           </div>
         </TabsTrigger>
       </nav>
     </TabsList></TabsRoot></RightClickMenu>
     <ButtonMenu :items="newTerminalItems"><button id="termAdd" class="add icon quiet small" :title="withKeys('New conversation of an agent, or a terminal', 'terminal.new')"
       aria-label="New terminal" @dragstart.prevent><Icon name="i-plus" /></button></ButtonMenu>
-    <TaskRepos />
-    <Dictation />
+    <Dictation :task="store.current" :key-name="keyText('voice.hold')" :language="language" @done="shownTerm()?.focus()"><Icon name="i-mic" /></Dictation>
   </div>
 </template>
 
 <style>
-/* The row over the terminal shown, apart from it as a browser's tabs: the row in the toolbar's color, the tab in front
-   in the terminal's (.striptab.active), as if part of it. */
-.termtabs { display: flex; align-items: center; gap: 4px; height: 100%; min-width: 0; padding-inline: calc(var(--gap) - 2px);
+/* The row over the terminal shown, as a pane's tabs (.tab): the row in the island's color, the tab in front in the
+   terminal's, joined to it. The tabs stand on the row's foot: the header's margin above them, none below. */
+.termtabs { display: flex; align-items: center; gap: 4px; height: 100%; min-width: 0; padding: 4px calc(var(--gap) - 2px) 0;
   &[hidden] { display: none; }
-  nav { display: flex; align-items: center; gap: 2px; min-width: 0; } /* .tabstrip: more tabs than fit scroll */
-  .termtab { flex: none; padding-inline-start: 4px; max-width: 220px; } /* its name whole, the row scrolls: shrunk to 64 px, 36 tabs showed no name (the author, 2026-10-15, for the tasks' bar too) */
+  nav { display: flex; align-items: end; align-self: stretch; min-width: 0; } /* .tabstrip: more tabs than fit scroll */
+  /* its name whole, the row scrolls: shrunk, the tabs would show no name and look alike (an agent's mark is mostly the
+     same), so not shrunk as a pane's, nor as wide: as its name, up to a pane's tab's width */
+  .termtab { flex: none; width: auto; max-width: 220px; container-type: normal; padding-inline-start: 4px; }
   .shellmark { margin-inline: 6px; color: var(--text-dim); } }
-#dock .dv-groupview:has(.termtabs) .dv-tabs-and-actions-container { background: var(--toolbar); }
-/* The row is as wide as the island, not as its tabs: dockview's tab grows to its content (min-width: auto), and the row
-   of 36 terminals ran past the island, cut off there, its + and microphone with it (2026-10-15). */
-#dock .dv-tab:has(.termtabs) { min-width: 0; flex-shrink: 1; }
+/* The row is as wide as the island, not as its tabs: dockview's tab grows to its content (min-width: auto), and a row
+   of many terminals would run past the island, cut off there, its + and microphone with it. No margin above and
+   below: the row's own padding places the tabs, at its foot. */
+#dock .dv-tab:has(.termtabs) { min-width: 0; flex-shrink: 1; margin-block: 0; }
 </style>

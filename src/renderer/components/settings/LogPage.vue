@@ -12,8 +12,8 @@ import type { MenuItem } from '../../lib/menu';
 
 const props = defineProps<{ shown: boolean }>(); // the page chosen in the tree
 
-// A line as the file has it: [date T time offset] [level] [tag …] the rest (log.ts, stamp; until 2026-10-18 electron-log's
-// local time, read too); a line not of that shape (an object's lines under an [electron] event) belongs to the one
+// A line as the file has it: [date T time offset] [level] [tag …] the rest (log.ts, stamp; a local time
+// with a space and no offset, electron-log's, read too); a line not of that shape (an object's lines under an [electron] event) belongs to the one
 // before it. The tag's group is the chip that shows it.
 type Group = 'agent' | 'human' | 'tasks';
 type Chip = 'all' | 'errors' | Group;
