@@ -106,12 +106,12 @@ const groupOf = (id: string) => api!.getPanel(id)!.group.api;
 
 // The terminal's share of the grid, beside the pages: the pages are what is looked at, the terminal mostly waits.
 const TERMINAL_SHARE = 0.35;
-const RESOURCES_WIDTH = 220, RESOURCES_SHARE = 1 / 3; // beside the terminal; under it, of the grid's height
+const RESOURCES_SHARE = { width: 1 / 4, height: 1 / 3 }; // of the grid: beside the terminal; under it
 // The terminal and Resources under the pages, their sizes in a grid of w × h.
 const underPages = () => {
   addTerminal({ direction: 'below' });
   addResources('right');
-  return (_w: number, h: number) => { groupOf('resources').setSize({ width: RESOURCES_WIDTH }); groupOf('terminal').setSize({ height: Math.round(h * TERMINAL_SHARE) }); };
+  return (w: number, h: number) => { groupOf('resources').setSize({ width: Math.round(w * RESOURCES_SHARE.width) }); groupOf('terminal').setSize({ height: Math.round(h * TERMINAL_SHARE) }); };
 };
 // Ready-made arrangements (☰); after one, panels move freely again. Each gives what sizes its islands, once the grid
 // has one.
@@ -126,7 +126,7 @@ const presets: Record<'columns' | 'grid' | 'focus', (s: Profile[]) => (w: number
         : { referencePanel: panelId(s[i - 2]!.id), direction: 'below' }));
     addTerminal({ direction: 'right' });
     addResources('below');
-    return (w, h) => { groupOf('terminal').setSize({ width: Math.round(w * TERMINAL_SHARE) }); groupOf('resources').setSize({ height: Math.round(h * RESOURCES_SHARE) }); };
+    return (w, h) => { groupOf('terminal').setSize({ width: Math.round(w * TERMINAL_SHARE) }); groupOf('resources').setSize({ height: Math.round(h * RESOURCES_SHARE.height) }); };
   },
   focus(s) {
     s.forEach((p, i) => addProfilePanel(p, i ? { referencePanel: panelId(s[0]!.id), direction: 'within' } : undefined, { inactive: i > 0 }));

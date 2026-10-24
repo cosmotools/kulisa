@@ -86,7 +86,7 @@ The island is one panel however many terminals it holds ("The terminal").
 
 **The Resources island** (`Resources.vue`, its header `ResourcesTab.vue`; what it lists: [tasks.md](tasks.md), The
 Resources island) is a panel of the grid next to the terminal (`addResources`, `lib/grid.ts`; the author's choice): right
-of it in its row, 220 px wide, when the terminal is under the pages; under it in its column, a third of the grid's
+of it in its row, a quarter of the grid's width, when the terminal is under the pages; under it in its column, a third of the grid's
 height, when the terminal is on the right. Its gap resizes it as any panel's, its size is saved with the grid, and a
 window made smaller or larger changes it in its share as the others. It is as low as its header (`minimumHeight`), so
 the terminal's row folds with the terminal to its +, Resources with it; under the terminal, it takes the room the
