@@ -100,10 +100,10 @@ A pane's header (its profile's picture, name and ×) shrinks with the pane: a na
 with …, the whole of it and the profile's description in its tooltip, and the × stays, as on every tab
 (`ProfileHeader.vue`).
 
-**No profile open, a terminal open**: the profiles' room is folded to a row of tiles over the grid, where the first
-one opens (`ClosedProfiles.vue`, `#closedprofiles`; where it is seen). A `.launcher.small` per closed profile, from the left: its
-picture over its name, who it is under it; a click opens it, its pane over the terminal, and the row goes. A project
-with no profiles has one tile, Add Profile…, its page in Settings. The tiles are outside dockview: the grid's room is
+**No profile open, a terminal open**: the profiles' room is folded to a row of buttons over the grid, where the first
+one opens (`ClosedProfiles.vue`, `#closedprofiles`; where it is seen). An `.opener` per closed profile, from the left: its
+picture, its name and a + (who it is in its tooltip); a click opens it, its pane over the terminal, and the row goes. A
+project with no profiles has one button, Add Profile…, its page in Settings. The buttons are outside dockview: the grid's room is
 what is left under them (`room()`, `lib/grid.ts`). More than fit scroll, as a strip of tabs does (`.tabstrip`,
 [ui.md](ui.md); `#dock` keeps `min-width: 0`, or many profiles stretch the window's column, the terminal and the
 tasks' bar past its edge). With

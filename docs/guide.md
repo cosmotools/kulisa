@@ -212,8 +212,8 @@ it ends: the question links the GitHub page where you revoke it at once.
 - **A new task**: click a project in the **+** menu, or **+** in a project's column (or Ctrl+Shift+N for the shown project). It runs the
   project's default agent with a new conversation; describe the task to it. With no default agent, you choose one
   with the buttons in the middle (Ctrl+` puts the keyboard on them). Its profiles are all closed: the agent
-  opens those it needs, or you do: while none is open, each has a tile over the terminal (click it), and the task's
-  tab lists them on a right-click. A project with no profiles has one tile there, **Add Profile…**.
+  opens those it needs, or you do: while none is open, each has a button over the terminal (click it), and the task's
+  tab lists them on a right-click. A project with no profiles has one button there, **Add Profile…**.
 - **Its own copy of the code.** In a project with git, every task works in a copy of its own (a git worktree) on a
   branch of its own, next to your project's folder (`myshop@task-2`). Your project's folder stays yours: the agent
   merges its work into it only when you ask (and checks first that you have no unsaved changes there), or opens a pull
