@@ -187,7 +187,7 @@ Everything happens inside Kulisa; no external Chrome windows.
     store of what the main process sends, the grid, the terminals' xterms, the pages under menus and dialogs, the
     questions, the keys), is a TypeScript module in `src/renderer/lib/` with a small interface (`covered('hide')`,
     `ask(q)`, `dialog('projects')`). State the main process sends lives in `lib/store.ts` (Vue's `reactive`) and
-    components draw from it; no DOM built by hand where a template does it. `types.ts`: the shapes the main process sends.
+    components draw from it; no DOM built by hand where a template does it. The shapes it sends: `src/shared/types.ts`.
   - **A cluster is a folder** (against spaghetti): a part of several files with a state of its
     own (New Project's steps, Settings) is a folder of `components/`, its state in a module there (provided to its
     files, not in `lib/store.ts`), reached from outside only through its entries; `npm run deps` refuses another import
@@ -241,7 +241,7 @@ Everything happens inside Kulisa; no external Chrome windows.
   test. **Read `docs/testing.md` before writing one**: the two layers (unit tests in plain Node, e2e in the real
   app), the groups of e2e files, and how a test is written (wait for a state, never for time).
   - Fix a bug by first reproducing it as a failing test, then making it pass.
-  - **The full suite (`npm test`, about a minute) runs once, when the author says the work is done** ("всё ок",
+  - **The full suite (`npm test`, minutes) runs once, when the author says the work is done** ("всё ок",
     "commit"), before the commit; fix what fails and run it again. Not for a change to documentation alone (`docs/`,
     `CLAUDE.md`, `README.md`): the pull request's CI runs it anyway. `npm run knip` once a step, when its code is
     written, before it is shown to the author (not after every change). While building: `npm run test:unit` (a second),
@@ -336,9 +336,9 @@ The npm scripts, what each does, and what to install first (Node 24.12+, npm 11 
 - **Sandbox and native module.** On Linux Electron needs `--no-sandbox` (`chrome-sandbox` in `node_modules` is
   not setuid); `npm start` (`scripts/electron.ts`) and `npm test` pass it there only. `npm install` rebuilds `node-pty` for Electron (postinstall, `scripts/postinstall.ts`; not on macOS, where its prebuilt binary is loaded).
 - **Starting the app from a Claude Code session.** The app's terminal starts `claude`, which would inherit the
-  parent session's `CLAUDE_*` variables, take itself for a child session and not save its history. Unset them all
-  except `CLAUDE_CONFIG_DIR`, and run it in the background:
-  `env $(env | grep -o '^CLAUDE[A-Z_]*' | grep -v '^CLAUDE_CONFIG_DIR$' | sed 's/^/-u /') npm start`.
+  parent session's `CLAUDE_*` variables, take itself for a child session and not save its history. The `run-kulisa`
+  skill's `kulisa.sh start` starts it without them (all but `CLAUDE_CONFIG_DIR`), in a session of its own: started in
+  the background of Claude's terminal, the terminal's SIGHUP would end it unsaved.
 - **Code intelligence.** Claude Code's `LSP` tool (the `kulisa-dev` plugin; docs/testing.md, Claude Code's checks):
   references, definitions and types through the language server, `.ts` and `.vue` together. For a symbol — who
   defines it, who uses it, its type, what it calls or calls it — the `LSP` tool, never grep: it reads the types, so it
@@ -368,7 +368,7 @@ The npm scripts, what each does, and what to install first (Node 24.12+, npm 11 
   - Tests use their own temp folder (`/tmp/kulisa-test-<checkout>-<hash>`, one per checkout: `test/start.ts`).
   - To restart the author's running app, or give them a fresh start: the `run-kulisa` skill
     (`.claude/skills/run-kulisa/`): SIGINT to the main `electron … .` process, so session cookies and tabs get
-    saved; then `npm start` in the background.
+    saved; then `kulisa.sh start`.
 - **`src/main/signin-pause.ts` is a deliberately temporary implementation** (the author's decision: `docs/profiles.md`, Sign-in pause).
   Keep it isolated; the author will replace it. Hiding the agent from bot detection (Kasada) is not researched or
   built.

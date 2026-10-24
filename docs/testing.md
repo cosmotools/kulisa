@@ -31,7 +31,7 @@ e2e files in parallel (`GROUPS` in `start.ts`):
   run its site. A group that does not start from nothing starts from a fixture file (`setup.ts`: the profiles and
   the agent's session the first group makes on its way).
 - **A new file** goes into the group whose state it needs; a new group when a file would make a group much longer
-  than the others (the run takes as long as the longest group: today about a minute). Give it a `setup` fixture
+  than the others (the run takes as long as the longest group). Give it a `setup` fixture
   rather than a dependency on another group.
 - One group: `npm test -- tasks`. Its folder is removed when it passes, kept to look at when it fails.
 

@@ -191,7 +191,9 @@ function browserTools(server: McpServer, h: Handles) {
   // As the human's address bar (Profile.navigate), but through Playwright, as everything the agent does in a page: the
   // human sees it (ghost.ts), and the sign-in pause holds (CLAUDE.md, Architecture).
   server.registerTool('browser_navigate', {
-    description: "Navigate the profile's active tab to a URL, or go back, forward, or reload it.",
+    description: "Navigate the profile's active tab to a URL, or go back, forward, or reload it. The address is taken as the address bar takes it: " +
+      'a bare host gets https:// (localhost and 127.* get http://), other text becomes a Google search. It replaces the page in the active tab, ' +
+      "which may be the human's: to keep it, open a new tab with browser_tab_new.",
     inputSchema: { profile: profileArg, url: z.string().optional(), go: z.enum(['back', 'forward', 'reload']).optional().describe('Instead of url'), dialog: dialogArg },
   }, async ({ profile, url, go, dialog }) => {
     if (!url === !go) throw new Error('pass url or go');
