@@ -12,6 +12,9 @@ import type { Agent, Hook, Where, ForgetContext } from './agent.ts';
 
 const CLAUDE_KULISA = 'mcp__plugin_kulisa_kulisa'; // the plugin's server, as Claude Code names its tools
 
+// Its dictation's key held: space at a keyboard's repeat rate; Claude Code takes it for held after a few, and let go
+// after a pause.
+const CLAUDE_VOICE = { key: ' ', repeat: 33 };
 // The languages Claude Code's dictation understands.
 const CLAUDE_LANGUAGES = ['en', 'es', 'fr', 'ja', 'de', 'pt', 'it', 'ko', 'hi', 'id', 'ru', 'pl', 'tr', 'nl', 'uk', 'el', 'cs', 'da', 'sv', 'no'];
 
@@ -87,12 +90,28 @@ const claude: Agent = {
   // (its repeats coming) records, the text put where the cursor is, also after text already there, and left in the
   // input for the human to send. Not its tap mode (a tap starts, another stops): it records only with the input
   // empty (its code), so a second sentence cannot be added.
-  voice: { key: ' ', repeat: 33 }, // a keyboard's repeat rate; Claude Code takes it for held after a few, and let go after a pause
+  voice: CLAUDE_VOICE,
   // Its `language` setting: the language it dictates in and answers in (and may write comments in: the project's
   // CLAUDE.md decides that). Read again at each recording, and the settings file is read again when it changes, so a
   // language set holds at once in every session of the account. Kulisa's instruction to answer
   // in another language loses to it: one setting for both.
   language: { languages: CLAUDE_LANGUAGES, set: (dir, code) => setClaudeLanguage(path.join(dir, 'settings.json'), code) },
+  // Its dictation recognizing for an agent without one (src/dictation's hidden session): an account signed in with
+  // Claude.ai (its voice mode is offered with no other sign-in), in its hold mode with autoSubmit, so the text let go
+  // is submitted, and its UserPromptSubmit hook posts it to Kulisa, whose answer blocks it: the model never gets it.
+  // No plugins' MCP servers (--strict-mcp-config): a session that only listens needs none of their memory. Its
+  // variables of a Claude Code session Kulisa may run in are left out: the session would take itself for a child.
+  recognizer: {
+    available: (dir) => !!readJSON(claudeConfigFile(dir))?.oauthAccount,
+    args: () => ['--settings', JSON.stringify({ voiceEnabled: true, voice: { enabled: true, mode: 'hold', autoSubmit: true },
+      hooks: { UserPromptSubmit: [{ hooks: [{ type: 'command', command: hookCommand('prompt'), timeout: hookSeconds('prompt') + 1 }] }] } }),
+    '--strict-mcp-config'],
+    env: (env) => Object.fromEntries(Object.entries(env).filter(([k]) => !k.startsWith('CLAUDE'))),
+    ...CLAUDE_VOICE,
+    // Its input: a blocked prompt is put back there, the cursor at its start, so Ctrl+E (to the end) then Ctrl+U
+    // (deletes back to the line's start) empties it; Enter submits (autoSubmit submits from three words only).
+    clear: '\x05\x15', submit: '\r',
+  },
 };
 
 // Claude Code's own name for the conversation, the one its /status shows: an "ai-title" line in the transcript, which
@@ -155,10 +174,11 @@ function claudeTrust(file: string, folder: string) {
 //   history.jsonl                                 the prompts typed, a line each with "project": <folder>
 //   .claude.json (claudeConfigOf)                 projects[<folder>]: its trust and settings
 // Never the project's folder.
-function forgetClaude({ folder, saved = {}, project = {} }: ForgetContext) {
+// Its config dir is the one a transcript is in, else the account's (configDir: a folder no conversation reported).
+function forgetClaude({ folder, saved = {}, project = {}, configDir }: ForgetContext) {
   const transcript = saved.transcript || project.transcript;
-  if (!folder || !path.isAbsolute(folder) || folder === project.folder || !transcript) return false;
-  const projects = path.dirname(path.dirname(transcript));
+  if (!folder || !path.isAbsolute(folder) || folder === project.folder || (!transcript && !configDir)) return false;
+  const projects = transcript ? path.dirname(path.dirname(transcript)) : path.join(configDir!, 'projects');
   if (path.basename(projects) !== 'projects') return false;
   const dir = path.dirname(projects);
   const conversations = path.join(projects, folder.replace(/[^a-zA-Z0-9]/g, '-'));
@@ -175,7 +195,7 @@ function forgetClaude({ folder, saved = {}, project = {} }: ForgetContext) {
     for (const f of fs.existsSync(todos) ? fs.readdirSync(todos) : []) if (f.startsWith(`${id}-`)) fs.rmSync(path.join(todos, f), { force: true });
   }
   rewriteLines(path.join(dir, 'history.jsonl'), (line) => JSON.parse(line).project !== folder);
-  const config = claudeConfigOf(transcript);
+  const config = transcript ? claudeConfigOf(transcript) : claudeConfigFile(dir);
   try {
     const json = JSON.parse(fs.readFileSync(config, 'utf8'));
     if (json.projects?.[folder]) {

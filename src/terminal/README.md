@@ -27,7 +27,8 @@ nothing of them: a terminal is a key, `<task key>#<id>` for a task's, any string
   redraws in place (a progress, a container's state) is read as it became, not as every frame it went through. About 1 MB a shell at 200 columns; an agent's terminal keeps none
   (`terminal_read` does not read it). `terminalTail` gives its last lines.
 - **Typing to an agent.** `typeIntoPrompt` pastes text into its prompt (bracketed: nothing in it is taken as a key),
-  not sent; `sendToPrompt` sends a line as the human would, once its command was typed, and answers the question the
+  not sent; `eraseInPrompt` deletes the last characters before the cursor, as Backspace (the dictation's words
+  corrected as they are heard); `sendToPrompt` sends a line as the human would, once its command was typed, and answers the question the
   agent asks then (Claude Code's `/add-dir`).
 - **Typing to a shell.** `typeLine` types a command line and runs it; `interrupt` is Ctrl+C, as the human presses it
   (what runs stops, the shell stays).

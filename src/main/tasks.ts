@@ -9,7 +9,7 @@ import path from 'path';
 import { Profile, wipeSession } from './profiles.ts';
 import { ProjectProfiles } from './project-profiles.ts';
 import { installSigninPause } from './signin-pause.ts';
-import { startTerminal, stopTerminal, forgetTerminal, terminalTail, sendToPrompt, typeIntoPrompt, typeLine, interrupt } from '../terminal/main/index.ts';
+import { startTerminal, stopTerminal, forgetTerminal, terminalTail, sendToPrompt, typeIntoPrompt, eraseInPrompt, typeLine, interrupt } from '../terminal/main/index.ts';
 import { READ_MAX } from './kulisa-plugin/tools/terminal.ts';
 import { listArtifacts } from './kulisa-plugin/artifacts.ts';
 import { copyProfile, worktreesOf, ownWorktree, folderOf, branchOf, taskKey } from './store.ts';
@@ -44,8 +44,6 @@ interface TaskTerminal {
 }
 type Found = { profile: Profile; error?: undefined } | { error: string; closed?: boolean; profile?: undefined };
 
-const DICTATION_LIMIT = 5 * 60_000; // a recording left on (a click and no second one)
-const HOLD = 400; // the key down longer is held (records until let go), shorter is a press (until the next)
 // The message an agent handed the task starts with (handOver), as the human would type it: what to read, and that
 // it tells the human what it understood, who sees at once what it missed.
 const HANDOVER = (n: number, name: string) => `Go on with the work of conversation ${n} of this task ("${name}"). Read it ` +
@@ -64,7 +62,7 @@ class Task {
   terminals: Map<number, TaskTerminal>; terminalSeq: number; list: ProjectProfiles;
   profiles: ProjectProfiles['profiles']; closed: ProjectProfiles['closed'];
   front: number | null; lastAgent: number | null; // the island's tab in front; the agent's tab in front last
-  resumedSession?: string | null; dictating?: { t: TaskTerminal; timer: NodeJS.Timeout } | null; held?: number;
+  resumedSession?: string | null;
   // project: its project (projects.ts); entry: its record in its tasks.json (store.ts, TaskEntry); one without a
   // worktree works in the project's folder. key: the task among all (store.ts, taskKey).
   // shell: the app (app.ts): store, proxy, mcp, sessionCookies, signin, uiZoom, bus, ask; the agents
@@ -443,7 +441,7 @@ class Task {
     log.info(`[terminal] ${t.key} started ${shell.accounts.label(a.id)}${resume ? ' (resumed)' : ''}: ${command}`);
     this.changedTerminals(); // started
     this.updateConversation(conversation, { started: true });
-    this.sendVoice();
+    this.voiceShown();
     return { id: t.id };
   }
   // The same agent from nothing (New Conversation, or + with it): a new tab; the one before stays.
@@ -512,11 +510,10 @@ class Task {
     if (!t) return { error: `no terminal ${id}` };
     this.front = id;
     if (t.agent) this.lastAgent = id;
-    if (this.dictating && this.dictating.t !== t) this.dictate(false);
     this.saveTerminals();
     this.see();
     this.changedTerminals();
-    this.sendVoice();
+    this.voiceShown();
     return { id };
   }
   // The island's tabs changed (opened, closed, in front, named, an agent's state): the window draws them, the task's tab
@@ -598,7 +595,6 @@ class Task {
     const order = [...this.terminals.keys()], i = order.indexOf(t.id);
     this.terminals.delete(t.id);
     log.info(`[terminal] ${t.key} gone`);
-    if (this.dictating?.t === t) this.dictate(false);
     if (t.pty) stopTerminal(t.pty);
     forgetTerminal(t.key);
     this.window?.send('terminals:gone', [t.key]);
@@ -611,7 +607,7 @@ class Task {
     }
     this.saveTerminals();
     this.changedTerminals();
-    this.sendVoice();
+    this.voiceShown();
   }
   // The island's tabs, for the window.
   terminalsInfo(): Sent.Terminals {
@@ -620,49 +616,21 @@ class Task {
       state: t.state === 'done' && t.seen ? null : t.state })) };
   }
 
-  // Dictation, where the agent shown has its own (agents/, voice): what the window's microphone button shows
-  // ({ recording }, or null: disabled), and recording. The human's only: the agent has no use for a microphone. Its
-  // language is Kulisa's one (app.ts, setLanguage).
-  voice() {
+  // The agent in front, told to the dictation (src/dictation), which records for it; the human's only: the agent has
+  // no use for a microphone. Its language is Kulisa's one (app.ts, setLanguage).
+  voiceShown() {
     const t = this.shownAgent();
-    return t?.agent!.voice ? { recording: this.dictating?.t === t } : null;
+    this.shell.dictation.shown(this.key, t ? { id: t.key, name: t.agent!.name, voice: t.agent!.voice, input: t.pty || null,
+      type: (text) => { if (t.pty) typeIntoPrompt(t.pty, text); }, erase: (n) => { if (t.pty) eraseInPrompt(t.pty, n); } } : null);
   }
-  sendVoice() { this.window?.send('voice', { task: this.key, voice: this.voice() }); }
-  // The dictation key (keys.ts, voice.hold), as the microphone button: held, it records until let go; pressed once,
-  // until the next press, or a press while it records stops it. Pressed with a shell in front, the agent the prompt
-  // goes to comes to the front first: the key means "speak to the agent", wherever the keyboard is.
+  // The dictation key (keys.ts, voice.hold), as the microphone button. Pressed with a shell in front, the agent the
+  // prompt goes to comes to the front first: the key means "speak to the agent", wherever the keyboard is.
   holdKey(down: boolean) {
-    if (down) {
-      if (this.dictating && !this.held) this.dictate(false);
-      else {
-        const t = this.promptTarget();
-        if (t && this.front !== t.id) this.show(t.id);
-        this.held = Date.now();
-        this.dictate(true);
-      }
-    } else {
-      if (this.held && Date.now() - this.held > HOLD) this.dictate(false);
-      this.held = 0;
+    if (down && !this.shell.dictation.recording(this.key)) {
+      const t = this.promptTarget();
+      if (t && this.front !== t.id) this.show(t.id);
     }
-    this.sendVoice();
-  }
-  // The window lost the keyboard while the key is down: its release will never be seen, so the recording ends here.
-  letGo() { if (this.held) { this.held = 0; this.dictate(false); this.sendVoice(); } }
-  // Recording: the agent's key held, as a terminal shows a held key, its repeats. It stops when told, or after
-  // DICTATION_LIMIT, or when that agent is gone or no longer shown.
-  dictate(on: boolean): { recording: boolean } {
-    clearInterval(this.dictating?.timer);
-    this.dictating = null;
-    const t = this.shownAgent(), v = t?.agent!.voice, p = t?.pty;
-    if (on && v && p) {
-      const until = Date.now() + DICTATION_LIMIT;
-      this.dictating = { t, timer: setInterval(() => {
-        if (t.pty === p && Date.now() < until) return p.write(v.key);
-        this.dictate(false);
-        this.sendVoice();
-      }, v.repeat) };
-    }
-    return { recording: !!this.dictating };
+    this.shell.dictation.key(this.key, down);
   }
 
   // What its terminals get in their environment: where Kulisa's MCP server and hooks are for this task (the Kulisa
@@ -677,7 +645,7 @@ class Task {
   // saved then.
   async unload() {
     this.shell.chooseAgent.cancel?.(this);
-    this.dictate(false);
+    this.shell.dictation.gone(this.key);
     for (const t of this.terminals.values()) { if (t.pty) stopTerminal(t.pty); forgetTerminal(t.key); }
     this.terminals.clear();
     forgetTerminal(this.key);

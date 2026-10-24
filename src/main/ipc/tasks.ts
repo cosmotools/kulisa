@@ -1,5 +1,5 @@
 // The windows' handles on the open tasks (docs/tasks.md; the core: open-tasks.ts): open, show, create, move, close and
-// delete them; a task's own actions (rename, its repositories, dictation).
+// delete them; a task's own actions (rename, its repositories).
 import { shell as electronShell } from 'electron';
 import path from 'path';
 import fs from 'fs';
@@ -71,9 +71,6 @@ export function registerTasks(ipc: Ipc) {
   handle('task:add-repo', (_e, { key, repo }) => taskAt(key, (task) => task.addRepository(repo)));
   handle('task:remove-repo', (_e, { key, repo }) => taskAt(key, (task) => task.removeRepository(repo)));
   handle('project:delete-merged', (e, { id }) => serial(() => { const p = shell.open.get(id); return p ? deleteMerged(p, at(e)) : { error: 'the project is not open' }; }));
-  // The dictation: its key held (holdKey, above in onKey) and the microphone (Dictation.vue; Task.voice, dictate).
-  handle('voice:get', (_e, key) => shell.taskByKey(key)?.voice() ?? null);
-  handle('voice:record', (_e, { task, on }) => shell.taskByKey(task)?.dictate(on) ?? { recording: false });
   handle('task:show-folder', (_e, key) => { const task = shell.taskByKey(key); return task && electronShell.openPath(task.folder); });
   handle('task:open-folder', (_e, { key, folder }) => {
     const task = shell.taskByKey(key); // only a folder the task owns (a resource), not any path the renderer names

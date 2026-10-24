@@ -31,7 +31,7 @@ before it is built.
 Code that is *about* the thing but knows the rest stays outside, using the package: for the terminal, the island
 (`Terminals.vue`, `TerminalTabs.vue`, `lib/terminals.ts`: its agents' buttons, the closed profiles' tiles, Change
 agent…, the project's accounts in its +), the agents in terminals (`tasks.ts`: conversations, handing over, the
-agent's state, dictation) and the agent's tools (`terminal_run`, `terminal_read`, `terminal_stop` in `kulisa-plugin/tools/terminal.ts`:
+agent's state) and the agent's tools (`terminal_run`, `terminal_read`, `terminal_stop` in `kulisa-plugin/tools/terminal.ts`:
 what the agent sees lives in the Kulisa plugin, CLAUDE.md, Architecture). Drawn so, the island would have pulled half
 of `src/renderer/lib` into the folder, and the boundary would have meant nothing.
 
@@ -133,5 +133,6 @@ them does not take it (a check that silently skips it is the danger), fix the co
 |---|---|---|
 | `src/terminal/` | a terminal: its pty in the user's shell, its buffers and the xterm a place shows ([README](../src/terminal/README.md)) | `ipc.ts`, `log.ts` |
 | `src/screenshots/` | a picture of a page (an element, the visible part, the whole page), kept as the human's, its thumbnail ([README](../src/screenshots/README.md)) | `ipc.ts`, `log.ts` |
+| `src/dictation/` | speaking to the agent: what each task's microphone shows, and recording ([README](../src/dictation/README.md)) | `ipc.ts`, `log.ts` |
 | `src/github/` | the GitHub accounts: Kulisa App's device flow or a fine-grained token, their tokens kept with the keyring, a repository's account ([README](../src/github/README.md)) | `ipc.ts`, `log.ts`, `store.ts` (`newId`, `writeFileAtomic`) |
 | `src/activity-monitor/` | what Kulisa takes on the computer: the tasks' artifacts on the disk, every task's or some ([README](../src/activity-monitor/README.md)) | nothing |

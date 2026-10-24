@@ -262,3 +262,27 @@ test('accounts: the log names an id by its agent and its email, shortened', () =
   assert.equal(accounts.label('claude'), 'Claude Code', 'an agent itself');
   assert.equal(accounts.label('gone12'), 'gone12');
 });
+test("agents: Claude Code's dictation recognizes for an agent without one only with a Claude.ai sign-in, in hold mode with autoSubmit, its text posted by its hook, no plugins' servers, none of a parent session's variables; what it keeps of its folder goes by its account's folder", () => {
+  const claude = AGENTS.find((a) => a.id === 'claude'), r = claude.recognizer;
+  const dir = path.join(root, 'claude-recognizer'), folder = path.join(root, 'kulisa-data', 'dictation');
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, '.claude.json'), JSON.stringify({ projects: {} }));
+  assert.equal(r.available(dir), false, 'an API key: its voice mode is not offered');
+  fs.writeFileSync(path.join(dir, '.claude.json'), JSON.stringify({ oauthAccount: { emailAddress: 'a@b.c' }, projects: {} }));
+  assert.equal(r.available(dir), true);
+  const args = r.args();
+  assert.equal(args.at(-1), '--strict-mcp-config');
+  const settings = JSON.parse(args[args.indexOf('--settings') + 1]);
+  assert.deepEqual(settings.voice, { enabled: true, mode: 'hold', autoSubmit: true });
+  assert.match(settings.hooks.UserPromptSubmit[0].hooks[0].command, /\$KULISA_URL\/hooks\/prompt/);
+  assert.deepEqual(r.env({ CLAUDECODE: '1', CLAUDE_CODE_ENTRYPOINT: 'cli', HOME: '/h' }), { HOME: '/h' });
+  assert.deepEqual({ key: r.key, clear: r.clear, submit: r.submit }, { key: ' ', clear: '\x05\x15', submit: '\r' });
+  // Its session in Kulisa's folder: trusted, then forgotten by the account's folder (no conversation reported).
+  assert.ok(claude.trust.set({ configDir: dir }, folder));
+  const conv = path.join(dir, 'projects', folder.replace(/[^a-zA-Z0-9]/g, '-'));
+  fs.mkdirSync(conv, { recursive: true });
+  fs.writeFileSync(path.join(conv, 's.jsonl'), `${JSON.stringify({ type: 'system', cwd: folder, content: 'Original prompt: what was said' })}\n`);
+  assert.equal(claude.forget({ folder, configDir: dir }), true);
+  assert.ok(!fs.existsSync(conv), 'its conversation, holding what was said');
+  assert.deepEqual(JSON.parse(fs.readFileSync(path.join(dir, '.claude.json'), 'utf8')).projects, {}, 'its trust');
+});

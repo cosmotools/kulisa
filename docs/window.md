@@ -347,9 +347,8 @@ agent runs its command again. ×, the menu's Close, `terminal_stop` with close, 
 
 **Dictation**, where the agent in front has its own ([tasks.md](tasks.md), "Choosing the agent"), is a key held:
 the **right Ctrl** (the right ⌘ on macOS: Apple keyboards have no right Ctrl), anywhere in the window: in a profile's
-page, its address bar, the terminal, the bar. Held, the agent records until it is let go; pressed once, it records
-until the next press (or 5 minutes, a recording left on; another tab brought to the front, or the window losing the
-keyboard with the key down, stops it too). Why a key and not a button: speaking to the agent
+page, its address bar, the terminal, the bar: held, it records until let go, pressed once, until the next press (how
+it records, and the microphone: [src/dictation](../src/dictation/README.md)). Why a key and not a button: speaking to the agent
 happens hundreds of times a day, and nobody aims at a button that often; why one key held alone and no chord: users
 are not pianists; why that one: a modifier alone types nothing and does nothing in any page or terminal, so it is
 taken from no one and left to the page (its chords still work), and it sits at the right hand's edge, where
@@ -360,15 +359,8 @@ window told (`keys:set`, `shell.keys()`; `Shortcuts.vue`). With a shell in front
 goes to in front first (`Task.holdKey`, `promptTarget`), so it always means "speak to the agent".
 
 The key's indicator, and the way by the mouse, is the round microphone at the end of the terminals' row of tabs
-(`Dictation.vue`): its tooltip names the key and the language it hears (Language,
-above); while the agent records it is red and breathes with a ring (`mic-breathe`; not with reduced motion), so the
-eye catches from across the window that the agent is listening. It works as a voice message's button too: held, or
-a click to start and another to stop. With a shell in front, or an agent without dictation, it is disabled, its
-tooltip saying why (a button that came and went would move the row). The text goes where the cursor is in the agent's
-input, after what is there, so several sentences can be dictated one after another, and is left there to read and
-send (recognition makes mistakes, and a task misheard costs more than a key). Kulisa only holds the agent's key
-(`Task.dictate`); the agent records and recognizes. The agent hears through its own program (Claude Code: its audio
-module, or `arecord`/SoX on Linux); on macOS the system asks for the microphone on Kulisa's behalf
+([src/dictation](../src/dictation/README.md), The microphone). The agent hears through its own program (Claude Code:
+its audio module, or `arecord`/SoX on Linux); on macOS the system asks for the microphone on Kulisa's behalf
 (`NSMicrophoneUsageDescription`, `forge.config.ts`).
 
 Links in the terminal open with Ctrl+click (⌘ on macOS; which links: [src/terminal](../src/terminal/README.md)), and

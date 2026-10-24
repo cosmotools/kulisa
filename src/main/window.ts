@@ -104,7 +104,7 @@ class AppWindow {
     win.on('close', (e) => { this.place = this.where(); shell.windowClosing(this, e); });
     win.on('closed', () => this.unanswered());
     win.on('focus', () => this.seen());
-    win.on('blur', () => { this.task?.letGo(); this.send('window:blur'); });
+    win.on('blur', () => { if (this.task) this.shell.dictation.letGo(this.task.key); this.send('window:blur'); });
   }
   get task() { return this.current; }
   get profiles(): Map<string, Profile> { return this.task?.profiles || NONE; }

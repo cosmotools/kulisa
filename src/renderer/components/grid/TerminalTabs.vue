@@ -1,17 +1,17 @@
 <script setup lang="ts">
 // The island's row of tabs, its panel's header in the grid (docs/window.md, The terminal; Terminals.vue its terminals):
-// each terminal's tab, then +; at its end the dictation's microphone (Dictation.vue).
-import { ref } from 'vue';
+// each terminal's tab, then +; at its end the dictation's microphone (src/dictation).
+import { computed, ref } from 'vue';
 import { TabsList, TabsRoot, TabsTrigger } from 'reka-ui';
 import Icon from '../Icon.vue';
-import Dictation from './Dictation.vue';
+import { Dictation } from '../../../dictation/renderer';
 import ButtonMenu from '../menu/ButtonMenu.vue';
 import RightClickMenu from '../menu/RightClickMenu.vue';
 import { act, store } from '../../lib/store';
 import { agentMark } from '../../lib/agents';
-import { newTerminalItems, tabItems } from '../../lib/terminals';
+import { newTerminalItems, shownTerm, tabItems } from '../../lib/terminals';
 import { dialog } from '../../lib/dialogs';
-import { withKeys } from '../../lib/common';
+import { keyText, withKeys } from '../../lib/common';
 import { useStrip } from '../../lib/strip';
 import type { Terminal } from '../../../shared/types';
 
@@ -23,6 +23,7 @@ const show = (id: string | number) => act('terminal:show', { id: Number(id) });
 // More tabs than fit scroll (lib/strip.ts): they were cut off at the island's edge, its + and microphone with them.
 const strip = ref<HTMLElement>();
 useStrip(strip, () => store.terminals.front);
+const language = computed(() => (store.language ? new Intl.DisplayNames(['en'], { type: 'language' }).of(store.language.language) ?? '' : ''));
 </script>
 
 <template>
@@ -48,7 +49,7 @@ useStrip(strip, () => store.terminals.front);
     </TabsList></TabsRoot></RightClickMenu>
     <ButtonMenu :items="newTerminalItems"><button id="termAdd" class="add icon quiet small" :title="withKeys('New conversation of an agent, or a terminal', 'terminal.new')"
       aria-label="New terminal" @dragstart.prevent><Icon name="i-plus" /></button></ButtonMenu>
-    <Dictation />
+    <Dictation :task="store.current" :key-name="keyText('voice.hold')" :language="language" @done="shownTerm()?.focus()"><Icon name="i-mic" /></Dictation>
   </div>
 </template>
 
