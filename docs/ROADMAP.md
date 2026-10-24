@@ -11,8 +11,7 @@ moves there over time: what has an issue is removed from here, the issue being t
 ## Next
 
 - **Projects and tasks, rest** (how they work: [tasks.md](tasks.md), [profiles.md](profiles.md)).
-  - **Open, for the author to decide:** a script the agent runs in a page (`browser_evaluate`) could read a test password back from its field
-    (only the skill forbids it: close it or not). For the author's real accounts, not testable by Claude:
+  - **Open, for the author to check:** for the author's real accounts, not testable by Claude:
     device-bound cookies (DBSC, Google) and MSAL's sign-ins kept in step.
   - **Left of the steps:**
     - A repository added to a task ([tasks.md](tasks.md), Tasks), to try in a real task: whether Claude
@@ -23,16 +22,9 @@ moves there over time: what has an issue is removed from here, the issue being t
     - "Sign in with Google" on a local app: the human signs in once to a test Google account in the profile's
       master, and the agent goes the whole way itself (account chooser, consent) with no sign-in pause on that path,
       never typing a Google password. The pause part goes into the author's replacement of `signin-pause.ts`.
-    - Agents' accounts: Codex's is shown by its id: `codex
-      login status` does not say the email (it is in `auth.json`'s token, which Kulisa does not read).
   - **Put off**: ongoing tasks ("watch the feedback for a month") with Kulisa kept in the tray (none in GNOME by
-    default); rights on profiles, when real accounts come (one flag, "view only": reading allowed, clicks and typing
-    refused; today the agent's own modes cover test users).
+    default).
 
-- **Kulisa plugin: more the agent can do in the browsers** (tools in `kulisa-plugin/tools/`, each described in its
-  `registerTool`; what is built: [profiles.md](profiles.md), "What the agent does"). What else an agent needs comes from using it
-  ([src/main/kulisa-plugin/CLAUDE.md](../src/main/kulisa-plugin/CLAUDE.md), "A missing tool shows itself"). Thought of, not built: a button over the
-  pane for the human to say they signed in, for sign-ins that keep the address.
 - **Phone, tablet and desktop views of a site** (to discuss with the author before
   building). Responsive layouts are checked today only by resizing the pane.
   - A device view **per tab**, as Chrome DevTools' device mode, written once in the core (the tab), with both handles:
@@ -119,7 +111,8 @@ moves there over time: what has an issue is removed from here, the issue being t
 - **Discuss security for the end user** (with the author, before a public release). Kulisa holds signed-in work
   accounts and lets an agent act in them. Topics, each to decide or document for users:
   - **What the agent can do in signed-in accounts:** read private data (it saw passwords in a Teams chat), send
-    messages, delete things. Confirmation for risky actions? Per-profile read-only mode?
+    messages, delete things. Kulisa does not restrict the agent (its own permission modes are its maker's): what to
+    tell users about it.
   - **Prompt injection from pages:** text on a page the agent reads (snapshots, console messages) can carry
     instructions to the agent.
   - **Local access:** any local process can drive the profiles through the MCP server or the CDP proxy (issue #90,
@@ -188,9 +181,6 @@ moves there over time: what has an issue is removed from here, the issue being t
     downloads the whole app each time); winget.
 - **Timeline.** One feed of DOM (rrweb-like), network, console and agent actions, recorded in step across all profiles;
   scrub back to the moment a bug happened, pick an element in the past, tell the agent to fix it.
-- **Profile mail.** A local mail catcher (Mailpit-like) with a mailbox per profile, shown next to the panes and readable
-  by the agent.
-- **Run to test.** A multi-profile run the agent did by hand, saved as a Playwright test.
 
 ## Deferred ideas
 

@@ -352,7 +352,7 @@ function browserTools(server: McpServer, h: Handles) {
 
   server.registerTool('browser_evaluate', {
     description: "Run a JavaScript function in a profile's tab and get its result as JSON: () => document.title, or (el) => el.value with ref or locator. " +
-      'For what the other tools do not do; never to read cookies, tokens or passwords.',
+      'For what the other tools do not do.',
     inputSchema: { profile: profileArg, tab: onTab, function: z.string(), ...element },
   }, async ({ profile, tab, function: fn, ref, locator }) => {
     const page = await pageOf(profile, tab);

@@ -104,7 +104,6 @@ tab reads "New Task" until it is named. You see only your task's profiles.
   Kulisa keeps all automation away from that profile until they finish. Do something else, then try again.
 - After `profile_create`, the new profile is empty and signed out: a test user of the local app you sign up or sign
   in yourself (above); a real account, ask the human to sign it in (`profile_ask_signin`).
-- `browser_evaluate` is not a way around this rule: never read cookies, tokens or passwords with it.
 - Remove a profile (`profile_delete`) only when the human asks, or one you created is no longer needed. The
   human confirms it; its copies in this project's tasks go, with what was signed in only there. Only the human
   deletes a profile for good (Settings → Profiles). If they say no, leave it.
