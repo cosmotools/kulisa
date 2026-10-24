@@ -75,13 +75,22 @@ drag one by its header to another place, onto another panel to stack them as tab
 panel stacked behind another hides its page until it is chosen (and after a while unloads it: [profiles.md](profiles.md),
 "Tabs unloaded"). **☰ → Arrange panels** offers ready-made
 arrangements, each drawn as a small picture of itself, as Windows' snap layouts (the words in its tooltip):
-profiles in columns with the terminal below, two by two with the terminal on the right, one profile at a time.
+profiles in columns with the terminal below, two by two with the terminal on the right, one profile at a time; the
+Resources island beside the terminal, or under it when the terminal is on the right.
 Each fits the window with nothing cut off, the terminal taking a third of it (`TERMINAL_SHARE`, `lib/grid.ts`): the
 pages are what is looked at. The first profile opened over the terminal alone keeps that share too (dockview's own
 would halve the room, a terminal as tall as the pages and mostly empty). The grid is saved per task (`layout.json`) and restored: 300 ms after
 its last change, and at once when the task is left, so a change just before is kept (a saved grid naming a profile
 deleted since is not restored at all, and the default arrangement takes its place).
 The island is one panel however many terminals it holds ("The terminal").
+
+**The Resources island** (`Resources.vue`, its header `ResourcesTab.vue`; what it lists: [tasks.md](tasks.md), The
+Resources island) is a panel of the grid next to the terminal (`addResources`, `lib/grid.ts`; the author's choice): right
+of it in its row, 220 px wide, when the terminal is under the pages; under it in its column, a third of the grid's
+height, when the terminal is on the right. Its gap resizes it as any panel's, its size is saved with the grid, and a
+window made smaller or larger changes it in its share as the others. It is as low as its header (`minimumHeight`), so
+the terminal's row folds with the terminal to its +, Resources with it; under the terminal, it takes the room the
+terminal folding leaves.
 
 A window made narrower or wider changes every panel in its share, as VS Code's and JetBrains' do (dockview's
 `proportionalLayout`, on by default; it needs dockview-vue 8.6.0 or later:
@@ -294,7 +303,7 @@ name, its state (an agent's: working, waiting for you, done), ×; each its name 
 scroll, as a strip of tabs does (`.tabstrip`, [ui.md](ui.md); dockview's tab keeps `min-width: 0`, or it grows to its
 content and the tabs run past the island, + and the microphone with them). After the tabs, the island's own **+**, whatever
 tab is in front (a menu of the project's accounts, the default first, each a new conversation; then Terminal, a
-shell). What repositories the task works in and where is in the Resources island beside the terminal (`Resources.vue`;
+shell). What repositories the task works in and where is in the Resources island next to the terminal (`Resources.vue`;
 tasks.md), not in this row. Last in the row, the dictation's microphone
 (Dictation, below). The agent's icon opens **Change Agent**, a dialog
 (the project's accounts: the one chosen opens in a new tab, told to go on with this conversation; [tasks.md](tasks.md),
@@ -650,7 +659,8 @@ shortcuts carry (`com.squirrel.kulisa.kulisa`), or Windows would not pin it to t
 | `src/terminal/` | the terminal, a Kulisa package: its pty, its buffers, the xterm shown ([README](../src/terminal/README.md)) |
 | `src/main/file-links.ts` | the paths a terminal names: which exist, opening one or showing it in its folder (The terminal) |
 | `src/renderer/components/Grid.vue`, `grid/*.vue`, `lib/grid.ts` | the grid (dockview), the panes and their headers, the island of terminals (`Terminals.vue`, its row of tabs `TerminalTabs.vue`), the closed profiles' tiles over it (`ClosedProfiles.vue`), Arrange panels |
-| `src/renderer/components/Resources.vue` | the Resources island beside the terminal: the shown task's resources (its worktree(s) or the main working tree), each with its actions (tasks.md) |
+| `src/renderer/components/Resources.vue` | the Resources island next to the terminal: the shown task's resources (its worktree(s) or the main working tree) and its artifacts, each with its actions (tasks.md) |
+| `src/renderer/components/ResourcesTab.vue` | the Resources island's header |
 | `src/renderer/components/TopBar.vue`, `menu/*.vue` | the title bar, ☰ and its own rows |
 | `src/renderer/components/menu/*.vue`, `Modal.vue`, `Ask.vue`, `lib/menu.ts`, `cover.ts`, `views.ts`, `ask.ts`, `terminals.ts`, `voice.ts` | the menus, the dialogs and questions (Reka UI's: `cover.ts`), the pages under them in a tasks' window (`views.ts`), a tasks' window's island (`terminals.ts`), dictation |
 | `src/renderer/lib/keys.ts`, `components/Shortcuts.vue` | where the keyboard is, the commands the keys run; Keyboard Shortcuts |

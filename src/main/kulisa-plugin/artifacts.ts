@@ -30,4 +30,15 @@ async function prune(dir: string, limit: number, keep: string) {
   }
 }
 
-export { saveArtifact };
+// The folder's files, the newest first: whose and what each is from its name (saveArtifact's
+// <n>-<profile>-<tab>-<kind>.<ext>), when from its time.
+async function listArtifacts(dir: string) {
+  const files = await fs.promises.readdir(dir).catch((): string[] => []);
+  const all = await Promise.all(files.map(async (f) => {
+    const m = /^\d+-([^-]+)-[^-]+-(\w+)\.\w+$/.exec(f), s = await fs.promises.stat(path.join(dir, f)).catch((): null => null);
+    return m && s ? { file: path.join(dir, f), profile: m[1]!, kind: m[2]!, time: s.mtimeMs } : null;
+  }));
+  return all.filter((a) => a !== null).sort((a, b) => numberOf(path.basename(b.file)) - numberOf(path.basename(a.file)));
+}
+
+export { saveArtifact, listArtifacts };

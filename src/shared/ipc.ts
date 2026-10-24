@@ -7,7 +7,7 @@ import type { FileLink, TerminalContents, TerminalEvents, TerminalSend } from '.
 import type { ThumbnailEvents, ThumbnailInvoke, ThumbnailSend } from '../screenshots/ipc.ts';
 import type { GitHubInvoke } from '../github/ipc.ts';
 import type {
-  AboutFolder, AboutInfo, AccountsInfo, AgentInfo, ClosedProfile, LanguageInfo, LogInfo, NewProjectSetup, Profile, ProjectAgent, ProjectChoices, ProjectGitHub, ProjectProfile, ProjectRepo,
+  AboutFolder, AboutInfo, Artifact, AccountsInfo, AgentInfo, ClosedProfile, LanguageInfo, LogInfo, NewProjectSetup, Profile, ProjectAgent, ProjectChoices, ProjectGitHub, ProjectProfile, ProjectRepo,
   ProjectSettings, ProjectsInfo, Question, SettingsProfile, Shortcut, SignedIn, Terminals, Voice,
 } from './types.ts';
 
@@ -84,6 +84,8 @@ export interface Invoke extends ThumbnailInvoke, GitHubInvoke {
   'task:remove-repo': I<[{ key: string; repo: string }]>;
   'task:show-folder': I<[key: string]>;
   'task:open-folder': I<[{ key: string; folder: string }]>; // a resource's folder (Resources.vue), checked to be the task's
+  'task:artifacts': I<[string]>; // the task's artifacts sent again (Resources.vue: the task shown)
+  'task:artifact-delete': I<[{ key: string; file: string }], Result>;
   'app:quit': I<[]>;
   'voice:get': I<[key: string], Voice | null>;
   'voice:record': I<[{ task: string; on: boolean }], Voice>;
@@ -161,6 +163,7 @@ export interface Events extends TerminalEvents, ThumbnailEvents {
   'state': Profile[];
   'closed-profiles': ClosedProfile[];
   'terminals': Terminals;
+  'artifacts': { task: string; list: Artifact[] };
   'terminal:focus': void;
   'grid:closing': { dir: number; task?: string; pics: Record<string, string> | null };
   'tasks:closed': string[];

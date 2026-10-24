@@ -4,7 +4,7 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import url from 'url';
-import { MAC, CMD, shot, assert, root, userData, project, pid, tkey, pfile, idOf, SITE, sleep, waitFor, who, menuRows, choose, MENU, SUBMENU, menuOpen, rightClick, box, pageBox, viewOn, dock, press, projectTabs, projectTab, showProject, closeProject, savedWindows, closeMenu, plusMenu, plusRows, closeBoard, focusWindow, isNth, taskAt, tid } from './helpers.ts';
+import { MAC, CMD, shot, assert, root, userData, project, pid, tkey, idOf, SITE, sleep, waitFor, who, menuRows, choose, MENU, SUBMENU, menuOpen, rightClick, box, pageBox, viewOn, resourcesHeight, savedResourcesHeight, dock, press, projectTabs, projectTab, showProject, closeProject, savedWindows, closeMenu, plusMenu, plusRows, closeBoard, focusWindow, isNth, taskAt, tid } from './helpers.ts';
 import type { Test } from './run.ts';
 import type { UI } from './helpers.ts';
 
@@ -441,6 +441,8 @@ export default (test: Test) => {
     await fits();
     let b = await at();
     assert.ok(b.sam.x < b.elon.x && b.sam.y === b.elon.y && b.term.y > b.sam.y + b.sam.height - 1, 'profiles side by side, terminal below');
+    const side = await box(ui, '#resources');
+    assert.ok(side.x > b.term.x + b.term.width - 1 && side.y > b.sam.y + b.sam.height - 1, 'Resources right of the terminal, in its row');
     // A narrower window takes from every panel in its share, not from the last one alone; wider gives back the same way.
     const size = shell.win.getSize(), both = (x: typeof b) => x.sam.width + x.elon.width, share = (x: typeof b) => x.sam.width / both(x);
     const was = share(b), wide = both(b);
@@ -461,7 +463,11 @@ export default (test: Test) => {
     await fits();
     b = await at();
     assert.ok(b.sam.x < b.elon.x && b.term.x > b.elon.x + b.elon.width - 1, 'profiles in a row of two, terminal on the right');
-    await waitFor(() => fs.existsSync(pfile('layout.json')));
+    // Resources under the terminal, in its column; made taller, as its gap does: kept with the grid (restart-tasks.ts).
+    const res = await box(ui, '#resources'), term = await box(ui, '.termtabs');
+    assert.ok(res.y > term.y && Math.abs(res.x - term.x) < 20, 'Resources under the terminal');
+    await ui(`__dock.getPanel('resources').group.api.setSize({ height: 300 })`);
+    await waitFor(async () => { const h = await resourcesHeight(ui); return h > 280 && savedResourcesHeight() === h; });
   });
 
   test('a menu opens even when a page gives no picture (a page that draws no frames: covered, the monitor off, busy)', async ({ shell, ui }) => {

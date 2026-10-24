@@ -1,6 +1,6 @@
 // The window's state, as the main process sends it (window.ts), for the components to draw.
 import { computed, reactive, watch } from 'vue';
-import type { ClosedProfile, LanguageInfo, Profile, ProjectsInfo, Terminals } from '../../shared/types';
+import type { Artifact, ClosedProfile, LanguageInfo, Profile, ProjectsInfo, Terminals } from '../../shared/types';
 import type { Invoke, OnTask } from '../../shared/ipc';
 import { initialProjects } from './common';
 import { projectColor } from './project-color';
@@ -16,6 +16,8 @@ export const store = reactive({
   profiles: [] as Profile[],
   closedProfiles: [] as ClosedProfile[],
   terminals: { front: null, list: [] } as Terminals,
+  // The files the agent's tools kept of a task's pages, the newest first (Resources.vue), of the task named.
+  artifacts: { task: '', list: [] as Artifact[] },
   zoom: 1, // the Kulisa zoom
   theme: root.dataset.theme || 'dark', // Dark, Light or System (index.html sets it from the URL before the first paint)
   bar: root.dataset.bar || 'bottom', // where the tasks' bar is
@@ -52,6 +54,7 @@ kulisa.on('projects', (info) => {
 // then New Project's steps). Its own switch, not a router's: what is shown is the main process's (current).
 export const page = computed(() => (store.current === null ? (store.projects.projects.length ? 'board' : 'welcome') : 'task'));
 kulisa.on('closed-profiles', (list) => { store.closedProfiles = list; });
+kulisa.on('artifacts', (a) => { store.artifacts = a; });
 kulisa.on('zoom', (z) => { store.zoom = z; });
 void kulisa.invoke('zoom:get').then((z) => { store.zoom = z; });
 kulisa.on('theme', (theme) => { store.theme = theme; });

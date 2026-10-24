@@ -72,6 +72,11 @@ More tasks: **+** in the bar at the bottom, then **+** in your project's column.
 - **The grid**: the shown task's panes (one per open profile) and its terminals. Drag a pane by its header to move it,
   onto another pane to stack them as tabs; drag the gaps to resize. **☰ → Arrange panels** offers ready-made
   arrangements. Each task keeps its own grid.
+- **Resources**, next to the terminal (beside it, or under it when the terminal is on the right): what the task works in (its copy of the code, or your project's folder until
+  it has one), a click opens its folder; and under **Artifacts**, what the agent kept of the pages as it worked:
+  screenshots (with a small picture), snapshots of a page, the bodies of requests, the newest first, with whose page and
+  when. A click opens one; a right-click shows it in its folder or deletes it. Drag the gap beside it to resize it, as any
+  pane.
 - **The tasks' bar**, under the grid (or in the title bar, as a browser's tabs: **☰ → Tasks bar**): a tab per open task,
   of any project, with its project's icon and its agent's state, and **+** after them. When there are more tabs than
   fit, the mouse wheel over the bar scrolls them, and a faded edge shows that more are past it.

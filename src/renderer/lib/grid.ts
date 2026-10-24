@@ -98,27 +98,39 @@ const addProfilePanel = (p: Profile, position?: AddPanelPositionOptions, extra: 
   api!.addPanel({ id: panelId(p.id), component: 'profile', tabComponent: 'profile', title: p.name, position, ...extra });
 const addTerminal = (position: AddPanelPositionOptions) =>
   api!.addPanel({ id: 'terminal', component: 'terminal', tabComponent: 'terminal', title: 'Terminal', renderer: 'always', position });
+// The Resources island (Resources.vue), next to the terminal: right of it in its row, or under it in its column. As low
+// as its header, so the row folds with the terminal (Terminals.vue, fold) when that lies under or over the pages.
+const addResources = (direction: 'right' | 'below') => api!.addPanel({ id: 'resources', component: 'resources', tabComponent: 'resources',
+  title: 'Resources', position: { referencePanel: 'terminal', direction }, minimumHeight: 36 });
+const groupOf = (id: string) => api!.getPanel(id)!.group.api;
 
 // The terminal's share of the grid, beside the pages: the pages are what is looked at, the terminal mostly waits.
 const TERMINAL_SHARE = 0.35;
-// Ready-made arrangements (☰); after one, panels move freely again. Each says the terminal's share of the window.
-const presets: Record<'columns' | 'grid' | 'focus', (s: Profile[]) => { height?: number; width?: number }> = {
+const RESOURCES_WIDTH = 220, RESOURCES_SHARE = 1 / 3; // beside the terminal; under it, of the grid's height
+// The terminal and Resources under the pages, their sizes in a grid of w × h.
+const underPages = () => {
+  addTerminal({ direction: 'below' });
+  addResources('right');
+  return (_w: number, h: number) => { groupOf('resources').setSize({ width: RESOURCES_WIDTH }); groupOf('terminal').setSize({ height: Math.round(h * TERMINAL_SHARE) }); };
+};
+// Ready-made arrangements (☰); after one, panels move freely again. Each gives what sizes its islands, once the grid
+// has one.
+const presets: Record<'columns' | 'grid' | 'focus', (s: Profile[]) => (w: number, h: number) => void> = {
   columns(s) {
     s.forEach((p, i) => addProfilePanel(p, i ? { referencePanel: panelId(s[i - 1]!.id), direction: 'right' } : undefined));
-    addTerminal({ direction: 'below' });
-    return { height: TERMINAL_SHARE };
+    return underPages();
   },
   grid(s) {
     s.forEach((p, i) => addProfilePanel(p, i === 0 ? undefined
       : i === 1 ? { referencePanel: panelId(s[0]!.id), direction: 'right' }
         : { referencePanel: panelId(s[i - 2]!.id), direction: 'below' }));
     addTerminal({ direction: 'right' });
-    return { width: TERMINAL_SHARE };
+    addResources('below');
+    return (w, h) => { groupOf('terminal').setSize({ width: Math.round(w * TERMINAL_SHARE) }); groupOf('resources').setSize({ height: Math.round(h * RESOURCES_SHARE) }); };
   },
   focus(s) {
     s.forEach((p, i) => addProfilePanel(p, i ? { referencePanel: panelId(s[0]!.id), direction: 'within' } : undefined, { inactive: i > 0 }));
-    addTerminal({ direction: 'below' });
-    return { height: TERMINAL_SHARE };
+    return underPages();
   },
 };
 // The grid's room: dockview's own element, under the closed profiles' tiles when they show (ClosedProfiles.vue).
@@ -129,8 +141,8 @@ function room() {
 export function applyPreset(name: keyof typeof presets) {
   const a = api!;
   a.clear();
-  const share = presets[name](store.profiles);
-  // The terminal's share of the window, once the grid has a size (at first start the window may have none yet). Its
+  const sizes = presets[name](store.profiles);
+  // The islands' sizes, once the grid has a size (at first start the window may have none yet). Its
   // room (room()), not #dock's: laid out to a box larger than its room, the right and bottom were cut off until the
   // window was resized.
   const dock = document.getElementById('dock')!;
@@ -138,7 +150,7 @@ export function applyPreset(name: keyof typeof presets) {
     const { w, h } = room();
     if (h < 100) return false;
     a.layout(w, h);
-    a.getPanel('terminal')!.group.api.setSize(share.height ? { height: Math.round(h * share.height) } : { width: Math.round(w * share.width!) });
+    sizes(w, h);
     return true;
   };
   if (!size()) { const ro = new ResizeObserver(() => size() && ro.disconnect()); ro.observe(dock); }
@@ -193,29 +205,31 @@ async function restoreGrid() {
   const a = await apiReady;
   const saved = await act('layout:load') as { panels?: Record<string, unknown> } | null | undefined; // as the window saved it
   // A saved grid may name profiles deleted since; dockview needs a component for every panel in it.
-  const known = (id: string) => id === 'terminal' || store.profiles.some((p) => panelId(p.id) === id);
-  if (saved && Object.keys(saved.panels || {}).every(known)) {
+  const known = (id: string) => id === 'terminal' || id === 'resources' || store.profiles.some((p) => panelId(p.id) === id);
+  // One without the Resources island is not a grid this window makes: the default arrangement instead.
+  if (saved && Object.keys(saved.panels || {}).every(known) && saved.panels?.resources) {
     try { a.fromJSON(saved as Parameters<DockviewApi['fromJSON']>[0]); } catch (e) { console.warn('[layout] saved grid not restored:', (e as Error).message); a.clear(); }
   }
   if (!a.getPanel('terminal')) applyPreset('columns');
 }
 
-// Panels follow the profiles: a new profile goes next to the last profile pane (or above the terminal), a deleted one
+// Panels follow the profiles: a new profile goes next to the last profile pane (or above the terminal's row), a deleted one
 // goes away.
 function syncGrid() {
   const a = api!;
   for (const panel of a.panels.filter((x) => x.id.startsWith('profile:') && !store.profiles.some((p) => panelId(p.id) === x.id))) a.removePanel(panel);
   for (const p of store.profiles) {
     if (a.getPanel(panelId(p.id))) continue;
-    const last = a.panels.filter((x) => x.id !== 'terminal').at(-1);
-    addProfilePanel(p, last ? { referencePanel: last.id, direction: 'right' } : { referencePanel: 'terminal', direction: 'above' });
+    const last = a.panels.filter((x) => x.id.startsWith('profile:')).at(-1);
+    // The first over the whole grid's width: the terminal's row, Resources in it too, under it.
+    addProfilePanel(p, last ? { referencePanel: last.id, direction: 'right' } : { direction: 'above' });
     // The first page over the terminal alone: dockview halves the room; the terminal keeps its share, as in the
     // arrangements (a terminal as tall as the pages was mostly empty). Once the closed profiles' tiles have gone: the
     // room they leave went to the terminal (dockview resizing after its share was set), 45% of the grid.
     if (!last) void nextTick(() => {
       const { w, h } = room();
       a.layout(w, h);
-      a.getPanel('terminal')?.group.api.setSize({ height: Math.round(h * TERMINAL_SHARE) });
+      groupOf('terminal').setSize({ height: Math.round(h * TERMINAL_SHARE) });
     });
   }
 }

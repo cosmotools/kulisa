@@ -1,6 +1,6 @@
 // Profiles and the agent: the editor, the MCP server and the plugin, tabs, isolation, the Chrome identity, the
 // sign-in pause, the agent's cursor, point and tell, @playwright/mcp.
-import { app, nativeImage } from 'electron';
+import electron, { app, nativeImage } from 'electron';
 import { spawnSync, spawn } from 'child_process';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
@@ -10,7 +10,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import http from 'http';
 import WebSocket from 'ws';
-import { focusWindow, shot, assert, root, project, pid, tkey, pfile, idOf, panel, SITE, sleep, waitFor, who, menuRows, choose, manageProfiles, closeSettings, chooseProfile, setProfileField, closeMenu, taskMenu, box, pageBox, click, PORT } from './helpers.ts';
+import { focusWindow, shot, assert, root, project, pid, tkey, pfile, idOf, panel, SITE, sleep, waitFor, who, menuRows, choose, manageProfiles, closeSettings, chooseProfile, setProfileField, closeMenu, taskMenu, box, pageBox, click, rightClick, PORT } from './helpers.ts';
 import { AGENT_PACKAGES } from '../src/main/app.ts';
 const CLAUDE_PLUGIN = path.join(AGENT_PACKAGES, 'claude-plugin');
 import { MARK } from '../src/main/kulisa-plugin/ghost.ts';
@@ -850,6 +850,32 @@ export default (test: Test) => {
     assert.match(fs.readFileSync(html, 'utf8'), /Item 1499/);
     await call('browser_tab_close', { profile: 'Elon.buyer', tab });
     await waitFor(() => elon.active === before);
+  });
+
+  test("Resources: the agent's artifacts listed as it makes them, the newest first, a screenshot with its picture; a click opens one, Delete removes it and its row", async ({ shell, ui, call }) => {
+    const dir = shell.task.store.artifacts, number = (f: string) => Number(path.basename(f).split('-')[0]);
+    const rows = () => ui(`[...document.querySelectorAll('#resources .artifact')].map((r) => [r.dataset.file, r.querySelector('.label').textContent, !!r.querySelector('.thumb')])`) as Promise<[string, string, boolean][]>;
+    const saved = () => fs.readdirSync(dir).map((f) => path.join(dir, f)).sort((a, b) => number(b) - number(a));
+    const shot = (await call('browser_screenshot', { profile: 'Elon.buyer' })).text.match(/^Saved as (.+\.jpg)$/)[1];
+    await waitFor(async () => JSON.stringify((await rows()).map((r) => r[0])) === JSON.stringify(saved()));
+    const all = await rows();
+    assert.deepEqual(all[0], [shot, 'Screenshot', true], 'the one just made first, with its picture');
+    assert.deepEqual(all.find((r) => r[0].endsWith('-snapshot.yml')).slice(1), ['Snapshot', false]);
+    assert.deepEqual(all.find((r) => r[0].endsWith('-response.txt')).slice(1), ['Response body', false]);
+    assert.match(await ui(`document.querySelector('#resources .artifact small').textContent`), /^Elon\.buyer · /, 'whose, and when');
+    const openPath = electron.shell.openPath, opened: string[] = [];
+    electron.shell.openPath = async (file) => { opened.push(file); return ''; };
+    try {
+      await ui(`document.querySelector('#resources .artifact').click()`);
+      await waitFor(() => opened.length === 1);
+      assert.deepEqual(opened, [shot]);
+    } finally { electron.shell.openPath = openPath; }
+    await rightClick(ui, '#resources .artifact'); // the screenshot, first
+    assert.deepEqual(await menuRows(ui), ['Open', 'Show in Folder', '-', 'Delete']);
+    await choose(ui, 'Delete');
+    await waitFor(async () => !fs.existsSync(shot) && !(await rows()).some((r) => r[0] === shot));
+    assert.match((await ui(`kulisa.invoke('task:artifact-delete', { key: ${JSON.stringify(shell.task.key)}, file: ${JSON.stringify(path.join(root, 'package.json'))} })`)).error,
+      /not an artifact/, 'only a file of the task\'s own folder');
   });
 
   test('agent: a request with no answer yet is listed as pending at once', async ({ shell, call }) => {

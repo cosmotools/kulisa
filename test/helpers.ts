@@ -234,6 +234,14 @@ const viewOn = async (shell: Shell, ui: UI, name: string) => {
   return !!b && t.view.getVisible() && JSON.stringify(t.view.getBounds()) === JSON.stringify(scaled);
 };
 const dock = (ui: UI, js: string) => ui(`(() => { const api = window.__dock; ${js} })()`);
+// The Resources island's height (its group in the grid: lib/grid.ts), on screen and as the task's grid is saved
+// (dockview keeps a panel's size along its column: under the terminal in the preset "grid").
+const resourcesHeight = (ui: UI) => ui(`Math.round(document.getElementById('resources').closest('.dv-groupview').getBoundingClientRect().height)`);
+type GridNode = { type: string; size: number; data: { views: string[] } & GridNode[] };
+const savedResourcesHeight = () => {
+  const leaf = (n: GridNode): GridNode | undefined => (n.type === 'leaf' ? (n.data.views.includes('resources') ? n : undefined) : n.data.map(leaf).find(Boolean));
+  return leaf(JSON.parse(fs.readFileSync(pfile('layout.json'), 'utf8')).grid.root)?.size;
+};
 
 // A key with modifiers ('control', 'shift', 'alt') into a webContents, as the keyboard sends it there; Ctrl + a key
 // with the keyboard put there first (zoom keys).
@@ -248,6 +256,6 @@ const near = (a: number, b: number) => Math.abs(a - b) < 1e-6;
 const noNode = async (wc: WebContents) => await wc.executeJavaScriptInIsolatedWorld(999, [{ code: 'typeof process' }]) === 'undefined';
 
 export type { UI };
-export { MAC, CMD, canShoot, NO_SHOT, shot, tid, taskAt, isNth, focusWindow, MENU, SUBMENU, noNode, hooksOf, plusMenu, plusRows, closeBoard, assert, root, userData, project, pid, tkey, named, pfile, idOf, savedTabs, savedActive, savedWindows, panel, SITE, PORT, sleep, waitFor, who, menuRows, choose, projectTabs, projectTab, showProject, closeProject, manageProfiles, closeSettings, settingsClosed, chooseProfile, setProfileField, menuOpen, closeMenu, rightClick, taskMenu,
+export { resourcesHeight, savedResourcesHeight, MAC, CMD, canShoot, NO_SHOT, shot, tid, taskAt, isNth, focusWindow, MENU, SUBMENU, noNode, hooksOf, plusMenu, plusRows, closeBoard, assert, root, userData, project, pid, tkey, named, pfile, idOf, savedTabs, savedActive, savedWindows, panel, SITE, PORT, sleep, waitFor, who, menuRows, choose, projectTabs, projectTab, showProject, closeProject, manageProfiles, closeSettings, settingsClosed, chooseProfile, setProfileField, menuOpen, closeMenu, rightClick, taskMenu,
   click,
   box, pageBox, viewOn, dock, press, ctrl, near };

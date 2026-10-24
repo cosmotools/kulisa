@@ -780,7 +780,7 @@ export default (test: Test) => {
     await ui(`document.querySelector('.termtab .close').click()`);
     await waitFor(() => task.terminals.size === 0);
     ctx.asked.length = 0;
-    // Alone in the grid (no profile open): the +'s rows as big buttons in its middle, whatever the arrangement.
+    // No profile open: the +'s rows as big buttons in its middle, whatever the arrangement.
     await waitFor(folded);
     assert.deepEqual(saved(), { front: null, list: [] });
     assert.equal(conversations()[0].terminal, undefined);
@@ -790,8 +790,12 @@ export default (test: Test) => {
       return { x: Math.round(b.x + b.width / 2 - (r.x + r.width / 2)), middle: Math.round(b.y + b.height / 2 - (r.y + r.height / 2)) }; })()`);
     const middle = async () => { const p = await plus(); return Math.abs(p.x) <= 1 && Math.abs(p.middle) <= 1; };
     const PROFILES = ['Sam.admin', 'Elon.buyer', 'Dora']; // the project's, all closed
-    // The island alone fills the grid: dockview's room, the closed profiles' tiles no longer over it.
-    const room = () => ui(`(() => { const r = document.getElementById('grid').getBoundingClientRect(); return { width: Math.round(r.width), height: Math.round(r.height) }; })()`);
+    // The island and the Resources island beside or under it fill the grid: dockview's room, the closed profiles' tiles no
+    // longer over it.
+    const fills = () => ui(`(() => { const g = document.getElementById('grid').getBoundingClientRect(), b = (e) => e.closest('.dv-groupview').getBoundingClientRect();
+      const t = b(document.querySelector('.termtabs')), r = b(document.getElementById('resources')), near = (a, c) => Math.abs(a - c) <= 1;
+      return near(Math.min(t.left, r.left), g.left) && near(Math.max(t.right, r.right), g.right) && near(Math.min(t.top, r.top), g.top)
+        && near(Math.max(t.bottom, r.bottom), g.bottom) && (r.left > t.right || r.top > t.bottom); })()`);
     const launch = () => ui(`(() => { const l = document.querySelector('.terminals .launch'), r = document.querySelector('.terminals').getBoundingClientRect();
       if (!l) return null; const b = l.getBoundingClientRect(), ys = [...l.querySelectorAll('.agents .launcher')].map((x) => Math.round(x.getBoundingClientRect().y));
       return { labels: [...l.querySelectorAll('.agents .name')].map((x) => x.textContent), oneLine: new Set(ys).size === 1,
@@ -800,7 +804,7 @@ export default (test: Test) => {
         empty: getComputedStyle(document.querySelector('.termtabs').closest('.dv-groupview').querySelector('.dv-content-container')).backgroundColor }; })()`);
     for (const preset of ['grid', 'focus', 'columns']) {
       await ui(`window.__layoutPreset('${preset}')`);
-      await waitFor(async () => JSON.stringify(await island()) === JSON.stringify(await room()) && (await launch())?.middle, 3000);
+      await waitFor(async () => (await fills()) && (await launch())?.middle, 3000);
       assert.deepEqual(await launch(), { labels: ['Terminal'], oneLine: true, profiles: PROFILES, middle: true, strip: false, empty: 'rgba(0, 0, 0, 0)' });
     }
     // One opens what its row in + does: a terminal; closed, the buttons are back.
@@ -839,7 +843,7 @@ export default (test: Test) => {
     // island is under the grid); kept so.
     await ui(`document.querySelector('.launch .profiles [data-profile="${idOf('Sam.admin')}"]').click()`);
     await waitFor(async () => (await island()).height <= 40 && (await middle()));
-    assert.equal((await island()).width, before.width);
+    assert.ok(Math.abs((await island()).width - before.width) <= 5, 'as wide as before (Resources beside it takes its share as the grid changes)');
     // Its + opens a terminal: the island unfolds.
     await ui(`document.getElementById('termUnfold').click()`);
     assert.deepEqual(await menuRows(ui), ['Terminal']);
@@ -849,10 +853,19 @@ export default (test: Test) => {
     await ui(`document.querySelector('.termtab .close').click()`);
     await waitFor(async () => task.terminals.size === 0 && (await folded()) && (await island()).height <= 40);
     assert.equal(ctx.asked.length, 0);
-    // At a side (the preset "grid" puts it right of the profiles): folded along the grid's width instead, a strip of its
-    // + as tall as the grid; its + unfolds it to a width of its own, and the last terminal closed folds it again.
+    // The preset "grid": right of the profiles, Resources under it in its column: folded along its height, a strip of its
+    // + over Resources.
     await ui(`window.__layoutPreset('grid')`);
-    await waitFor(async () => { const r = await island(); return r.width <= 40 && r.height > 100 && (await middle()); });
+    const resources = () => ui(`document.getElementById('resources').closest('.dv-groupview').getBoundingClientRect().height`);
+    await waitFor(async () => (await island()).height <= 40 && (await middle()) && (await resources()) > 300);
+    await ui(`document.getElementById('termUnfold').click()`);
+    await choose(ui, 'Terminal');
+    await waitFor(async () => task.terminals.size === 1 && !(await folded()) && (await island()).height >= 150);
+    // As tall as the grid (Resources moved under the pages): folded along the grid's width instead, a strip of its + as
+    // tall as the grid; its + unfolds it to a width of its own, and the last terminal closed folds it again.
+    await ui(`__dock.getPanel('resources').api.moveTo({ group: __dock.getPanel('profile:${idOf('Sam.admin')}').group, position: 'bottom' })`);
+    await ui(`document.querySelector('.termtab .close').click()`);
+    await waitFor(async () => { const r = await island(); return task.terminals.size === 0 && r.width <= 40 && r.height > 100 && (await middle()); });
     await ui(`document.getElementById('termUnfold').click()`);
     await choose(ui, 'Terminal');
     await waitFor(async () => task.terminals.size === 1 && !(await folded()) && (await island()).width >= 200);

@@ -2,7 +2,7 @@
 // the grid, the terminals.
 import fs from 'fs';
 import path from 'path';
-import { assert, userData, project, pid, tkey, SITE, sleep, waitFor, who, viewOn, projectTabs, showProject, click, idOf, isNth, taskAt, tid } from './helpers.ts';
+import { assert, userData, project, pid, tkey, SITE, sleep, waitFor, who, viewOn, resourcesHeight, savedResourcesHeight, projectTabs, showProject, click, idOf, isNth, taskAt, tid } from './helpers.ts';
 import type { Test } from './run.ts';
 import type { TaskTerminal } from '../src/main/tasks.ts';
 
@@ -46,6 +46,7 @@ export default (test: Test) => {
   });
   test('after a restart: the grid is as it was left (preset "grid")', async ({ ui }) => {
     const box = (sel: string) => ui(`(() => { const r = document.querySelector(${JSON.stringify(sel)})?.getBoundingClientRect(); return r ? { x: r.x, width: r.width } : { x: -1, width: 0 }; })()`);
+    const saved = savedResourcesHeight(); // before anything here changes the grid
     // Once the grid is laid out: the test before may end while the second's panes (the same profile ids) are still going.
     const columns = async () => {
       if (!(await ui(`document.querySelectorAll('.pane[data-profile="${idOf('Sam.admin')}"], .pane[data-profile="${idOf('Elon.buyer')}"]').length === 2`))) return false;
@@ -54,6 +55,7 @@ export default (test: Test) => {
       return sam.width > 0 && sam.x < elon.x && term.x > elon.x + elon.width - 1;
     };
     await waitFor(columns, 10000); // as long as the next test's after a restart: a loaded machine takes over 3 s
+    assert.ok(Math.abs((await resourcesHeight(ui)) - saved) <= 3, 'the Resources island as tall as it was left (dockview rounds its panels as it restores them)');
   });
   test("after a restart: a task's terminals come back in their tabs when it loads, the one in front too: its agent's conversation resumed, a shell with nothing running", async ({ shell, ui, call }) => {
     await showProject(ui, 'other');

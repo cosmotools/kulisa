@@ -38,6 +38,14 @@ export interface TaskResource {
   removable: boolean; // an added repository's worktree (task_remove_repository); not the task's own or the main tree
 }
 // A task, for its tab (Task.info).
+// A file the agent's tools kept of a page (kulisa-plugin/artifacts.ts), as the Resources island lists it.
+export interface Artifact {
+  file: string;
+  profile: string; // the id of the profile it came from
+  kind: string; // screenshot, snapshot, request or response (a body)
+  time: number;
+  thumb: string | null; // a screenshot's small picture, a data: URL
+}
 export interface TaskInfo {
   id: string; key: string; project: string; name: string; state: AgentState; folder: string; branch: string | null;
   closed: boolean; merged: boolean;
