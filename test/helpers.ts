@@ -17,12 +17,12 @@ const root = process.env.KULISA_TEST_ROOT || path.join(os.tmpdir(), 'kulisa-test
 const userData = path.join(root, 'data');
 const project = path.join(root, 'project');
 
-// A project's id is random (store.ts): a test names a project by its folder's name ('project', 'other'). pid('other')
-// is its id; tkey('other', 1) its first task's key; named(key) a key, or an id, back by the folder's name (and its task's place), to compare.
-const projectsSaved = (): { id: string; folder: string }[] => JSON.parse(fs.readFileSync(path.join(userData, 'projects.json'), 'utf8')).list;
-const folderName = (p: { folder: string }) => path.basename(p.folder).toLowerCase();
+// A project's id is random (store.ts): a test names a project by the name of a folder of it, the one it was made from
+// ('project', 'other'): the first, or another once a folder added before it is made the default. pid('other') is its id; tkey('other', 1) its first task's key; named(key) a key, or an id, back by the folder's name (and its task's place), to compare.
+const projectsSaved = (): { id: string; folders: string[] }[] => JSON.parse(fs.readFileSync(path.join(userData, 'projects.json'), 'utf8')).list;
+const folderName = (p: { folders: string[] }) => path.basename(p.folders[0]).toLowerCase();
 const pid = (folder: string) => {
-  const found = projectsSaved().filter((p) => folderName(p) === folder);
+  const found = projectsSaved().filter((p) => p.folders.some((r) => path.basename(r).toLowerCase() === folder));
   assert.equal(found.length, 1, `one project in a folder named ${folder}`);
   return found[0].id;
 };

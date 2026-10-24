@@ -22,7 +22,7 @@ import { focusAfterMenu, type MenuItem } from '../../lib/menu';
 import { agentList, agentMark, type Agent } from '../../lib/agents';
 import { refused } from '../../../shared/result';
 import type { Result } from '../../../shared/result';
-import type { Account, AccountsInfo, ProjectAgent, ProjectChoices, ProjectEntry, ProjectGitHub, ProjectProfile, ProjectRepo, SettingsProfile, SignedIn } from '../../../shared/types';
+import type { Account, AccountsInfo, ProjectAgent, ProjectChoices, ProjectEntry, ProjectGitHub, ProjectProfile, ProjectFolder, SettingsProfile, SignedIn } from '../../../shared/types';
 
 // The page shown, of the tree's section (the log and About are pages of their own, under them); the agents' list lives here, so an
 // install goes on while a project is shown, and the window stays open while it runs (close).
@@ -43,7 +43,7 @@ const projects = ref<ProjectEntry[]>([]);
 const editing = ref<string | null>(null);
 const name = ref(''), local = ref(''), error = ref('');
 const choices = ref<ProjectChoices>({ agents: [], clis: [] });
-const repos = ref<ProjectRepo[]>([]), former = ref<string | null>(null), cloneUrl = ref(''), codeError = ref(''), cloning = ref(false);
+const folders = ref<ProjectFolder[]>([]), cloneUrl = ref(''), foldersError = ref(''), cloning = ref(false);
 // Its repositories' GitHub accounts (src/github), asked of GitHub after the page is shown: null until they come.
 const github = ref<ProjectGitHub | null>(null);
 const mine = ref<ProjectAgent[]>([]), agentError = ref('');
@@ -51,7 +51,7 @@ const signing = ref<{ id: string; name: string } | null>(null); // New Account�
 const profiles = ref<ProjectProfile[]>([]), others = ref<ProjectProfile[]>([]), newName = ref(''), profileError = ref('');
 // The selected row of each list: what −, ★, Delete and its right-click act on. The default repository and agent are
 // the first ones: the main process keeps them in that order.
-const repoSel = ref<string>(), agentSel = ref<string>(), profileSel = ref<string>();
+const folderSel = ref<string>(), agentSel = ref<string>(), profileSel = ref<string>();
 const base = (f: string) => f.split(/[\\/]/).pop()!;
 
 // Every profile and every account, as Settings → Profiles and → Agents show them (who each is, its projects).
@@ -102,13 +102,13 @@ async function edit(id: string) {
   if (refused(c)) { editing.value = null; return showList(); }
   editing.value = id;
   name.value = c.name; error.value = '';
-  codeError.value = ''; agentError.value = ''; profileError.value = ''; signing.value = null; adding.value = '';
+  foldersError.value = ''; agentError.value = ''; profileError.value = ''; signing.value = null; adding.value = '';
   cloneUrl.value = ''; newName.value = '';
-  repoSel.value = agentSel.value = profileSel.value = undefined;
+  folderSel.value = agentSel.value = profileSel.value = undefined;
   choices.value = c;
   local.value = (c.local || []).join(' ');
   saved = lookNow();
-  repos.value = c.repos; former.value = c.former || null;
+  folders.value = c.folders;
   github.value = null; void githubNow();
   mine.value = c.projectAgents;
   profiles.value = c.profiles; others.value = c.others;
@@ -238,12 +238,12 @@ function deleteChosen() {
 // A list's row a right-click was on: selected, and its actions.
 const rowAt = (e: MouseEvent, attr: string) => (e.target as Element).closest<HTMLElement>(`[${attr}]`)?.getAttribute(attr) ?? null;
 
-// A change to its code, what the manager answers (main/ipc/projects.ts, project:repo-*).
-async function code(answer: Promise<Result<{ repos?: ProjectRepo[]; former?: string | null }>>) {
-  codeError.value = '';
+// A change to its folders, what the manager answers (main/ipc/projects.ts, project:folder-*).
+async function changeFolders(answer: Promise<Result<{ folders?: ProjectFolder[] }>>) {
+  foldersError.value = '';
   const r = await answer;
-  if (refused(r)) codeError.value = r.error;
-  else if (r.repos) { repos.value = r.repos; if ('former' in r) former.value = r.former || null; void githubNow(); }
+  if (refused(r)) foldersError.value = r.error;
+  else if (r.folders) { folders.value = r.folders; void githubNow(); }
   return r;
 }
 // The repositories' GitHub accounts as they are now (accounts added or signed out in Settings → GitHub meanwhile); one
@@ -253,30 +253,30 @@ async function githubNow(answer?: Promise<Result<ProjectGitHub>>) {
   if (!id) return;
   const r = await (answer ?? kulisa.invoke('project:github-get', { id }));
   if (editing.value !== id) return;
-  if (refused(r)) codeError.value = r.error; else github.value = r;
+  if (refused(r)) foldersError.value = r.error; else github.value = r;
 }
 const githubOf = (folder: string) => github.value?.repos.find((g) => g.folder === folder);
 const bindGitHub = (remote: string, account: string) => githubNow(kulisa.invoke('project:github-set', { id: id(), remote, account }));
 const id = () => editing.value!; // the project shown: every change is made on its page
 // The selection goes with its row, not when the row stays (refused, or a no to the question).
-const removeRepo = (folder = repoSel.value) => folder && code(kulisa.invoke('project:repo-remove', { id: id(), folder }))
-  .then(() => { if (!repos.value.some((r) => r.folder === repoSel.value)) repoSel.value = undefined; });
-const defaultRepo = (folder = repoSel.value) => folder && code(kulisa.invoke('project:repo-default', { id: id(), folder }));
-const repoMenu = (e: MouseEvent): MenuItem[] | null => {
+const removeFolder = (folder = folderSel.value) => folder && changeFolders(kulisa.invoke('project:folder-remove', { id: id(), folder }))
+  .then(() => { if (!folders.value.some((r) => r.folder === folderSel.value)) folderSel.value = undefined; });
+const defaultFolder = (folder = folderSel.value) => folder && changeFolders(kulisa.invoke('project:folder-default', { id: id(), folder }));
+const folderMenu = (e: MouseEvent): MenuItem[] | null => {
   const f = rowAt(e, 'data-folder');
   if (!f) return null;
-  repoSel.value = f;
-  return [{ label: 'Make Default', enabled: repos.value[0]?.folder !== f, run: () => defaultRepo(f) },
-    { label: 'Remove from the Project', run: () => removeRepo(f) }];
+  folderSel.value = f;
+  return [{ label: 'Make Default', enabled: folders.value[0]?.folder !== f, run: () => defaultFolder(f) },
+    { label: 'Remove from the Project', run: () => removeFolder(f) }];
 };
 // Cloning takes a while (the repository comes over the network): the button says so meanwhile.
 async function clone() {
   if (!cloneUrl.value.trim()) return url.value!.focus();
   cloning.value = true;
-  if (!(await code(kulisa.invoke('project:repo-clone', { id: id(), url: cloneUrl.value })))?.error) { cloneUrl.value = ''; adding.value = ''; }
+  if (!(await changeFolders(kulisa.invoke('project:folder-clone', { id: id(), url: cloneUrl.value })))?.error) { cloneUrl.value = ''; adding.value = ''; }
   cloning.value = false;
 }
-const codeMenu = (): MenuItem[] => [{ label: 'Add Folder…', run: () => code(kulisa.invoke('project:repo-add', { id: id() })) },
+const addMenu = (): MenuItem[] => [{ label: 'Add Folder…', run: () => changeFolders(kulisa.invoke('project:folder-add', { id: id() })) },
   { label: 'Clone from URL…', run: () => startAdding('clone') }];
 
 // Its agents (the agents and their accounts: main/accounts.ts), the default first: + runs it.
@@ -382,20 +382,20 @@ const stopAdding = () => { adding.value = ''; newName.value = ''; cloneUrl.value
           <input id="pjname" v-model="name" data-name maxlength="64" spellcheck="false" @input="error = ''" @change="saveLook" @keydown.enter.prevent="saveLook"></div>
         <p id="pjerror" class="error">{{ error }}</p>
 
-        <section id="npreposrow" class="group">
-          <h3 class="titled">Code</h3>
-          <RightClickMenu :items="repoMenu">
+        <section id="npfoldersrow" class="group">
+          <h3 class="titled">Folders</h3>
+          <RightClickMenu :items="folderMenu">
             <div class="list">
               <div class="tools">
-                <ButtonMenu :items="codeMenu"><button id="npreposadd" class="icon small" type="button" title="Add a repository or folder" aria-label="Add code"><Icon name="i-plus" /></button></ButtonMenu>
-                <button id="nprepodel" class="icon small" type="button" title="Remove from the project (its folder stays)" aria-label="Remove from the project" :disabled="!repoSel" @click="removeRepo()"><Icon name="i-minus" /></button>
-                <button id="nprepodefault" class="icon small" type="button" title="Make Default: new tasks' agents start in its copy" aria-label="Make Default"
-                  :disabled="!repoSel || repoSel === repos[0]?.folder" @click="defaultRepo()"><Icon name="i-star" /></button>
+                <ButtonMenu :items="addMenu"><button id="npfoldersadd" class="icon small" type="button" title="Add a folder or a repository" aria-label="Add a folder"><Icon name="i-plus" /></button></ButtonMenu>
+                <button id="npfolderdel" class="icon small" type="button" title="Remove from the project (its folder stays)" aria-label="Remove from the project" :disabled="!folderSel" @click="removeFolder()"><Icon name="i-minus" /></button>
+                <button id="npfolderdefault" class="icon small" type="button" title="Make Default: new tasks' agents start in its copy" aria-label="Make Default"
+                  :disabled="!folderSel || folderSel === folders[0]?.folder" @click="defaultFolder()"><Icon name="i-star" /></button>
               </div>
-              <div v-if="repos.length" class="head" aria-hidden="true"><span>Name</span><span>Folder</span><span>GitHub</span><span /></div>
-              <ListboxRoot selection-behavior="replace" v-if="repos.length" id="nprepos" v-model="repoSel" aria-label="Code" @keydown.delete="removeRepo()">
+              <div v-if="folders.length" class="head" aria-hidden="true"><span>Name</span><span>Folder</span><span>GitHub</span><span /></div>
+              <ListboxRoot selection-behavior="replace" v-if="folders.length" id="npfolders" v-model="folderSel" aria-label="Folders" @keydown.delete="removeFolder()">
                 <ListboxContent>
-                  <ListboxItem v-for="(r, i) in repos" :key="r.folder" :value="r.folder" class="item" :data-folder="r.folder">
+                  <ListboxItem v-for="(r, i) in folders" :key="r.folder" :value="r.folder" class="item" :data-folder="r.folder">
                     <span class="cell label" :title="base(r.folder)">{{ base(r.folder) }}</span><small class="cell" :title="r.folder">{{ r.folder }}</small>
                     <span class="cell github"><template v-if="githubOf(r.folder)?.remote">
                       <small v-if="githubOf(r.folder)!.state === 'not-github'" class="notgithub" title="Its origin is not on github.com (or an SSH name ssh cannot tell)">not a GitHub address</small>
@@ -403,11 +403,10 @@ const stopAdding = () => { adding.value = ''; newName.value = ''; cloneUrl.value
                       <RepoAccount v-else :repo="githubOf(r.folder)!" :accounts="github!.accounts" @choose="(a) => bindGitHub(githubOf(r.folder)!.remote!, a)" />
                     </template></span>
                     <span class="cell end"><kbd v-if="r.git !== 'ok'" class="warn">{{ r.git === 'none' ? 'no git' : 'no commit yet' }}</kbd>
-                      <kbd v-if="!i && repos.length > 1" class="default" title="New tasks' agents start in its copy">default</kbd></span>
+                      <kbd v-if="!i && folders.length > 1" class="default" title="New tasks' agents start in its copy">default</kbd></span>
                   </ListboxItem>
                 </ListboxContent>
               </ListboxRoot>
-              <p v-if="!repos.length" class="empty">No code yet: its tasks work in an empty folder.</p>
             </div>
           </RightClickMenu>
           <!-- Enter in the URL clones; Esc puts it away -->
@@ -422,9 +421,7 @@ const stopAdding = () => { adding.value = ''; newName.value = ''; cloneUrl.value
             <p v-for="g in github.repos.filter((g) => g.why)" :key="g.folder" class="hint" :data-folder="g.folder">{{ base(g.folder) }}: {{ g.why }}
               <a v-if="g.install" :href="g.install" target="_blank">Install it on {{ g.owner }}</a><template v-if="g.install"> (or ask its owner to)</template></p>
           </div>
-          <p id="npformer" class="hint" :hidden="!former"><span>{{ former ? `Former folder ${former}: new tasks work in the repositories; move its files into one.` : '' }}</span>
-            <button id="npshowformer" type="button" @click="kulisa.invoke('project:show-former', { id: editing })">Show</button></p>
-          <p id="npcodeerror" class="error">{{ codeError }}</p>
+          <p id="npfolderserror" class="error">{{ foldersError }}</p>
         </section>
 
         <section id="npagentsrow" class="group">
@@ -565,11 +562,10 @@ const stopAdding = () => { adding.value = ''; newName.value = ''; cloneUrl.value
   .list [role="listbox"] { max-height: calc(6 * var(--row)); overflow: auto; }
   /* The columns: the name as wide as it needs (at most about half), what it is in the rest, its state at the end */
   #npagentsrow .list { --cols: fit-content(45%) minmax(0, 1fr) auto; }
-  #npreposrow .list { --cols: fit-content(30%) minmax(0, 1fr) fit-content(30%) auto; } /* its name, folder, GitHub account, state */
+  #npfoldersrow .list { --cols: fit-content(30%) minmax(0, 1fr) fit-content(30%) auto; } /* its name, folder, GitHub account, state */
   .github { display: flex; align-items: center; min-width: 0; .select { height: calc(var(--control) - 6px); max-width: 100%; } small { color: var(--text-muted); } }
   #npgithub .hint { margin: 0; .hint + & { margin-top: 2px; } }
   #npprofilesrow .list { --cols: fit-content(45%) minmax(0, 1fr) fit-content(30%); }
-  #npformer button { margin-inline-start: var(--gap); }
   .none { display: flex; flex-direction: column; align-items: start; gap: var(--gap); padding-top: var(--pad); .empty { margin: 0; } }
 }
 </style>

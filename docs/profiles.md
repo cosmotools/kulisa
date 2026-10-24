@@ -57,11 +57,9 @@ A profile is an Electron session on a folder of its own (`session.fromPath`), la
   its place, the tab before comes back when it closes),
   its session cookies kept, and nothing automated attached to it (no CDP proxy, so no agent's
   tool, Playwright or picker reaches it, and no sign-in pause is needed). Closed, its tabs and sign-ins are saved;
-  its cookies reach every task's copy of the profile (below, "Sign-ins kept in step"). **Refresh from Master…** (the
-  same menu, asked first) replaces a copy's cookies with all of the master's (cookies only, not the sites' storage), a local app's included, and reloads its
-  tabs. Sign-ins a site keeps in its storage (Microsoft's MSAL, in localStorage) are not brought: sign in again in that
-  copy. Signing in to a real account in a task's pane reaches the master and the other tasks too; to a local app, that
-  task only. Only the human signs in: Kulisa never types
+  its cookies reach every task's copy of the profile (below, "Sign-ins kept in step"). Signing in to a real account in a
+  task's pane reaches the master and the other tasks too; to a local app, that task only (each task runs its own copy
+  of the app): a task's copy made before its master signed in to a local app is signed in there in its own pane. Only the human signs in: Kulisa never types
   passwords or automates a sign-in, and never prints or logs cookies or tokens (CLAUDE.md, Rules).
 - **Rename**: Settings → Profiles, its Name. Only the name changes; the id, the folders (sign-ins), tabs and place stay.
 - **Who it is** (the description): a few words on who the profile is in the app under test, its role, what it can do
@@ -234,7 +232,6 @@ methods; who a profile is changes and is checked in the store (`ProfileStore.ren
 | Sign in | by hand, in its master (Sign In to Master…) or a task's pane | never (Rules); asks with `profile_ask_signin` | `master.ts`; the sign-in pause |
 | Save a test user's pair | Settings → Profiles' Test login and Test password | `profile_set_login` | `ProfileStore.setLogin`, `Task.setLogin` (encrypted: `shell.loginSecret`) |
 | Sign in as a test user | types it | `browser_type_login` (never sees the password) | `Task.loginFor`, `local.ts` |
-| Bring the master's sign-ins to a task's copy | Refresh from Master… | none: it replaces sign-ins, the human's to decide | `Task.refreshProfile`, `SessionCookies.copy` |
 | Open a shell in the task's island, run in it | the island's + → Terminal, then types | `terminal_run` (a name and a command; never in another agent's tab) | `Task.openTerminal`, `runInTerminal` |
 | Read a terminal, stop what runs there | looks at it, Ctrl+C | `terminal_read`, `terminal_stop` | `Task.readTerminal`, `interruptTerminal` |
 | Close a terminal | ×, Close in its menu, `exit` | `terminal_stop` with `close` | `Task.closeTerminal`; a shell's exit too |

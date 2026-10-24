@@ -87,14 +87,14 @@ function taskContext(task: Task) {
     'silently: never ask the human for a name or mention it. These notes are for you: act on them without recounting them to the human.';
   const shared = task.dirs().filter((d) => !copies.some((c) => c.folder === d));
   const others = [...copies.filter((c) => c.folder !== task.folder).map((c) => `${c.folder} (a worktree of ${c.repo}, branch ${c.branch})`),
-    ...shared.map((d) => `${d} (the project's own folder: no git, no copy)`)];
+    ...shared.map((d) => `${d} (a folder of the project as it is, no copy)`)];
   const addable = task.addable();
   const removable = copies.some((c) => c.folder !== task.folder) ? ' A copy the task no longer needs goes with task_remove_repository, once the human agreed.' : '';
   const more = (others.length ? ` The task's other folders: ${others.join('; ')}.${removable}` : '') + (addable.length ? ` The project's other ` +
     `repositories, not in this task: ${addable.join(', ')}. Read them there freely; to change one, first ask the human, saying ` +
     'why the task needs it, and once they agree add it with task_add_repository: a copy on your branch, where you change it.' : '');
-  if (!copies.length) {
-    if (task.project.git === 'ok') {
+  if (!copies.some((c) => c.folder === task.folder)) {
+    if (task.inGit()) {
       return `This is the Kulisa task "${task.name}". Your terminal is in the project's folder ${task.folder}, which is ` +
         'the human\'s: do not change it on your own. Before you start writing code, make the task its own git worktree ' +
         'with task_worktree (a branch of its own, so your work does not touch the human\'s folder; pass its name to name ' +

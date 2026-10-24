@@ -29,7 +29,7 @@ export function openTasks(shell: Shell, { appDevTools }: { appDevTools: boolean 
   // Loaded, the log names it beside its id: the lines after it name it by its id alone.
   const loadProject = (p: ProjectEntry) => {
     if (shell.open.has(p.id)) return shell.open.get(p.id)!;
-    log.info(`[project] ${p.id} loaded: ${p.name} (${tilde(p.folder)})`);
+    log.info(`[project] ${p.id} loaded: ${p.name} (${tilde(p.folders[0]!)})`);
     return shell.open.set(p.id, new Project(shell, p)).get(p.id)!;
   };
   // A project with no open task left is let go: nothing of it runs.

@@ -26,10 +26,10 @@ test('projects: at first start none is opened; each gets its own color', async (
   assert.deepEqual(store.windows(), []);
   const shop = store.projectFor('/work/shop'), blog = store.projectFor('/work/blog');
   assert.notEqual(shop.color, blog.color);
-  // The project a folder is: its own, or one of its repositories (New Project… refuses a folder a project has).
-  store.updateProject(shop.id, { repos: ['/work/shop-api'] });
+  // The project a folder is one of (New Project… refuses a folder a project has).
+  store.updateProject(shop.id, { folders: ['/work/shop', '/work/shop-api'] });
   assert.deepEqual([store.projectOf('/work/shop/')?.id, store.projectOf('/work/shop-api')?.id, store.projectOf('/work/other')], [shop.id, shop.id, null]);
-  store.updateProject(shop.id, { repos: null });
+  store.updateProject(shop.id, { folders: ['/work/shop'] });
   const bounds = { x: 10, y: 20, width: 900, height: 700 };
   store.saveWindows([{ tabs: [`${blog.id}/1`, `${shop.id}/2`], shown: `${shop.id}/2`, bounds }, { tabs: ['gone/1'], shown: 'gone/1' }]);
   const later = new Store(path.join(root, 'fresh-data'));
@@ -44,13 +44,13 @@ test('projects: at first start none is opened; each gets its own color', async (
   later.saveWindows([]);
   assert.deepEqual(later.settings(), { uiZoom: 1, windows: [] }, 'the other settings kept');
 });
-test('projects: made with the next free color and a first agent; settings change them, never the id or folder', async () => {
+test('projects: made with the next free color and a first agent; settings change them, never the id', async () => {
   const store = new Store(path.join(root, 'look-data'));
   const p = store.projectFor('/work/app', 'app', { agent: 'codex' }), id = p.id;
-  assert.deepEqual(p, { id, name: 'app', folder: '/work/app', color: PROJECT_COLORS[0], agents: ['codex'] });
+  assert.deepEqual(p, { id, name: 'app', folders: ['/work/app'], color: PROJECT_COLORS[0], agents: ['codex'] });
   assert.equal(store.nextColor(), PROJECT_COLORS[1], 'the next new one: the first color no project has');
-  const changed = store.updateProject(id, { name: 'App-2', agents: null, id, folder: '/work/app' });
-  assert.deepEqual(changed, { id, name: 'App-2', folder: '/work/app', color: PROJECT_COLORS[0] });
+  const changed = store.updateProject(id, { name: 'App-2', agents: null, id });
+  assert.deepEqual(changed, { id, name: 'App-2', folders: ['/work/app'], color: PROJECT_COLORS[0] });
   assert.deepEqual(new Store(path.join(root, 'look-data')).projects(), [changed]);
   assert.equal(store.updateProject('gone', { name: 'x' }), null);
 });
@@ -64,7 +64,7 @@ test("projects: an id is six random letters and digits, none a project's name, u
   store.updateProject(first.id, { name: 'Renamed' });
   assert.equal(store.projectOf('/work/app-0').id, first.id, 'kept when the project is renamed');
   // A project of an earlier format, its id made from its name: an opaque string as any other.
-  fs.writeFileSync(store.projectsFile, JSON.stringify({ list: [...store.projects(), { id: 'd', name: 'ddd', folder: '/work/d', color: PROJECT_COLORS[0] }] }));
+  fs.writeFileSync(store.projectsFile, JSON.stringify({ list: [...store.projects(), { id: 'd', name: 'ddd', folders: ['/work/d'], color: PROJECT_COLORS[0] }] }));
   assert.equal(store.projectFor('/work/d').id, 'd');
   assert.equal(store.updateProject('d', { name: 'eee' }).id, 'd');
   assert.deepEqual(store.taskOf({ id: 'd' }, 'k3x9ab').dir, path.join(dir, 'projects', 'd', 'k3x9ab'));

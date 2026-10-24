@@ -53,7 +53,7 @@ export interface TaskInfo {
   repos: string[]; // the project's repositories it may add (Add Repository)
   resources: TaskResource[]; // what the task has/created (Resources.vue)
 }
-export interface ProjectEntry { id: string; name: string; folder: string; color: string; favicon?: string; tasks: ProjectTask[] }
+export interface ProjectEntry { id: string; name: string; folders: string[]; color: string; favicon?: string; tasks: ProjectTask[] }
 // A task of a project, open or not (app.ts, shell.projects): the bar's + lists the closed ones (NewTask.vue).
 export interface ProjectTask { id: string; name: string; branch?: string | null; closed: boolean; closedAt?: number; merged: boolean }
 // The window's tasks' bar (AppWindow.info): every project, the window's tabs in the bar's order, the shown task (its
@@ -68,7 +68,7 @@ export interface ProjectsInfo {
   // Anything for Settings to show: a project, an account or a profile. None at the first start: no gear (TopBar.vue).
   settings: boolean;
 }
-// The projects' manager (main/ipc/projects.ts): what a project may be, its code, its profiles, its configuration.
+// The projects' manager (main/ipc/projects.ts): what a project may be, its folders, its profiles, its configuration.
 // agents: every account (main/accounts.ts); clis: the agents a new account can be made of.
 // An agent's account (Settings → Agents: main/app.ts, accounts:list), with the names of the projects it is in.
 // A profile in Settings → Profiles (main/ipc/profiles.ts): who it is, its test login (never its password), its projects.
@@ -82,7 +82,7 @@ export interface SignedIn extends Partial<AccountsInfo> { agents?: ProjectAgent[
 // A new project's agents (accounts, the default first) and profiles (made in it, or taken from the others): New Project's steps.
 export interface NewProjectSetup { agents?: string[]; profiles?: ({ id: string } | { name: string; description?: string })[] }
 export interface ProjectChoices { agents: { id: string; name: string }[]; clis: { id: string; name: string }[] }
-export interface ProjectRepo { folder: string; git: 'ok' | 'none' | 'no-commit' }
+export interface ProjectFolder { folder: string; git: 'ok' | 'none' | 'no-commit' }
 // Its repositories' GitHub accounts (projects.ts, githubOf: src/github): each one's remote by its key (null: no git or
 // no origin), what it is to the accounts; the accounts to choose from.
 export interface ProjectGitHub {
@@ -91,7 +91,7 @@ export interface ProjectGitHub {
 }
 export interface ProjectProfile { id: string; name: string; avatar: string; description?: string; also: string[] }
 export interface ProjectSettings extends ProjectChoices {
-  name: string; folder: string; local?: string[]; repos: ProjectRepo[]; former?: string | null;
+  name: string; local?: string[]; folders: ProjectFolder[];
   projectAgents: ProjectAgent[]; profiles: ProjectProfile[]; others: ProjectProfile[];
 }
 // Kulisa's keyboard shortcuts (main/keys.ts), as this OS shows them.

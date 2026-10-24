@@ -201,11 +201,11 @@ export default (test: Test) => {
     await shot(shell, path.join(root, 'task.png'));
   });
 
-  test("profiles: Sign In to Master… opens its master in a window of its own, nothing automated on it; Refresh from Master… brings its sign-ins to this task's copy", async (ctx) => {
-    const { shell, ui, call } = ctx;
+  test("profiles: Sign In to Master… opens its master in a window of its own, nothing automated on it; a task's copy made before keeps its own sign-in to a local app", async (ctx) => {
+    const { shell, ui } = ctx;
     await rightClick(ui, `.ptab[data-panel="${panel('Sam.admin')}"] b`);
     const rows = await menuRows(ui);
-    assert.ok(rows.includes('Sign In to Master…') && rows.includes('Refresh from Master…'));
+    assert.ok(rows.includes('Sign In to Master…'));
     await choose(ui, 'Sign In to Master…');
     await waitFor(() => shell.masters.size === 1 && shell.masters.values().next().value.profile.get());
     const m = shell.masters.values().next().value;
@@ -219,14 +219,8 @@ export default (test: Test) => {
     m.win.close();
     await waitFor(() => !shell.masters.size);
     assert.deepEqual(JSON.parse(fs.readFileSync(path.join(m.profile.dir, 'Kulisa Tabs.json'), 'utf8')), { urls: [`${SITE}/app`], active: 0 }, 'its tabs kept');
-    // This task's copy was made before: still its own sign-in, until Refresh from Master… (asked first).
+    // A local app's sign-ins are each task's own (profiles.md, "Sign-ins kept in step"): this task's copy, made before, keeps its.
     assert.equal(await who(ctx, 'Sam.admin'), 'Signed in as sam');
-    await ui(`act('profile:refresh', { profile: '${idOf('Sam.admin')}' })`);
-    assert.match(ctx.asked.pop().message, /^Bring the sign-ins of Sam.admin's master to this task\?/);
-    // Its tabs reload with them: once that is over (a navigation now would be cut by the reload).
-    await waitFor(() => !shell.task.profiles.get(idOf('Sam.admin')).get().wc.isLoading());
-    await call('browser_navigate', { profile: 'Sam.admin', url: `${SITE}/app` });
-    assert.equal(await who(ctx, 'Sam.admin'), 'Signed in as master');
   });
 
   test("profiles: About this profile… opens Settings' window at it (one, not modal: the task's window takes input and comes in front of it, its pages on screen); its Sign In… opens the same master window, once", async (ctx) => {
@@ -359,9 +353,9 @@ export default (test: Test) => {
     await waitFor(async () => !(await shell.task.profiles.get(idOf('Sam.admin')).session.cookies.get({ domain: 'shop.example' })).length);
     await call('browser_navigate', { profile: 'Sam.admin', url: `${shop}/app` });
     assert.equal(await who(ctx, 'Sam.admin'), 'Signed out');
-    // A local app (127.0.0.1): each task's own sign-in, as before.
-    await call('browser_navigate', { profile: 'Sam.admin', url: `${SITE}/app` });
-    assert.equal(await who(ctx, 'Sam.admin'), 'Signed in as master');
+    // A local app (127.0.0.1): each task's own sign-in.
+    await call('browser_navigate', { profile: 'Sam.admin', url: `${SITE}/app/login?name=second` });
+    assert.equal(await who(ctx, 'Sam.admin'), 'Signed in as second');
     await call('browser_navigate', { profile: 'Sam.admin', url: `${SITE}/app` }, first);
     assert.equal(await who(inFirst, 'Sam.admin'), 'Signed in as sam');
   });
@@ -1425,11 +1419,11 @@ export default (test: Test) => {
     // The manager lists every project, this one chosen.
     assert.ok(await sui(`document.querySelector('#pjlist [data-project="${pid('site')}"]').ariaSelected === 'true'`));
     assert.equal(await sui(`document.querySelector('#pjlist [data-project="${pid('site')}"] .picon').matches('.favicon')`), true);
-    assert.equal(await sui(`document.querySelector('#nprepos [data-folder] small').textContent`), site, 'its folder, as its code');
+    assert.equal(await sui(`document.querySelector('#npfolders [data-folder] small').textContent`), site, 'its folder, as its code');
     assert.equal(await sui(`!!document.getElementById('nplocationrow')`), false);
     // A page: its top (New Task, ⋯), each part saved as it changes; the dialog stays open.
     assert.equal(await sui(`[...document.querySelectorAll('#pjconfig .titled, #pjconfig .field > label')].map((h) => h.textContent).join(', ')`),
-      'Name:, Code, Agents, Profiles, Local addresses:');
+      'Name:, Folders, Agents, Profiles, Local addresses:');
     const entryOf = () => shell.store.projects().find((p) => p.id === pid('site'));
     // Its favicon changed: read again as its settings open. Mostly blue with a red dot: the hue of the most (264°).
     const favicon = (svg: string) => fs.writeFileSync(path.join(site, 'public', 'favicon.svg'), `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">${svg}</svg>`);
@@ -1454,7 +1448,7 @@ export default (test: Test) => {
     await settingsClosed(ctx);
     await waitFor(() => entryOf().name === 'Site-2');
     const entry = entryOf();
-    assert.deepEqual([entry.name, entry.folder], ['Site-2', site]);
+    assert.deepEqual([entry.name, entry.folders], ['Site-2', [site]]);
     // Said in the log once, though the page saves every field at each change (store.ts, updateProject).
     const renames = fs.readFileSync(path.join(userData, 'logs', 'kulisa.log'), 'utf8').match(new RegExp(`\\[project\\] ${entry.id} renamed: .*`, 'g'));
     assert.deepEqual(renames, [`[project] ${entry.id} renamed: Site-2`]);
@@ -1632,10 +1626,10 @@ export default (test: Test) => {
     await waitFor(async () => (await rows())[0]?.[1] === `branch ${b1}`);
     assert.deepEqual(await rows(), [['api', `branch ${b1}`, false]]);
     assert.deepEqual(first.addable(), []);
-    // A second repository added to the project (Project Settings…, project:repo-add): the task may add it, not copied
+    // A second repository added to the project (Project Settings…, project:folder-add): the task may add it, not copied
     // yet; its agent told it is there to read, to ask before changing it.
-    const added = await ui(`kulisa.invoke('project:repo-add', { id: '${pid('api')}', folder: ${JSON.stringify(web)} })`);
-    assert.deepEqual(added.repos.map((r: { folder: string }) => r.folder), [api, web]);
+    const added = await ui(`kulisa.invoke('project:folder-add', { id: '${pid('api')}', folder: ${JSON.stringify(web)} })`);
+    assert.deepEqual(added.folders.map((r: { folder: string }) => r.folder), [api, web]);
     assert.deepEqual([first.dirs(), first.addable()], [[], [web]]);
     // Its agent is told of the other repository live, at a session's start (the MCP server's instructions are frozen at
     // open, before the project had it): to read it there and ask before changing it.
@@ -1687,10 +1681,10 @@ export default (test: Test) => {
     for (const r of ['api', 'web']) assert.equal(git(path.join(home, r), 'rev-parse', '--abbrev-ref', 'HEAD'), 'checkout');
     // Project Settings… shows them, the default first; × on one tasks have a worktree of is refused, naming them.
     await projectMenu(ui, 'Project Settings…', `#projectTabs [data-project="${pid('api')}"] .name`);
-    await waitFor(() => sui(`document.querySelectorAll('#nprepos .item').length === 2`));
-    assert.deepEqual(await sui(`[...document.querySelectorAll('#nprepos .item')].map((r) => r.querySelector('.label').textContent + ' ' + !!r.querySelector('.default'))`), ['api true', 'web false']);
-    await onRow(sui, `#nprepos [data-folder="${web}"]`, 'nprepodel');
-    await waitFor(async () => /Tasks work in it: New Task, Checkout/.test(await sui(`document.getElementById('npcodeerror').textContent`)));
+    await waitFor(() => sui(`document.querySelectorAll('#npfolders .item').length === 2`));
+    assert.deepEqual(await sui(`[...document.querySelectorAll('#npfolders .item')].map((r) => r.querySelector('.label').textContent + ' ' + !!r.querySelector('.default'))`), ['api true', 'web false']);
+    await onRow(sui, `#npfolders [data-folder="${web}"]`, 'npfolderdel');
+    await waitFor(async () => /Tasks work in it: New Task, Checkout/.test(await sui(`document.getElementById('npfolderserror').textContent`)));
     await closeSettings(ctx);
     // Removed again by its agent once the human agreed: nothing of its own in it, so not asked; its folder and branch
     // gone, the agent told once its turn is over. Its own folder is refused.
@@ -1719,11 +1713,11 @@ export default (test: Test) => {
     // Cloned from a URL (a local one here) next to the project's folder, offered to task-1; made the default.
     const bare = path.join(root, 'docs.git');
     git(root, 'clone', '-q', '--bare', web, bare);
-    const cloned = await ui(`kulisa.invoke('project:repo-clone', { id: '${pid('api')}', url: ${JSON.stringify(bare)} })`);
-    assert.deepEqual(cloned.repos.map((r: { folder: string }) => r.folder), [api, web, path.join(root, 'docs')]);
+    const cloned = await ui(`kulisa.invoke('project:folder-clone', { id: '${pid('api')}', url: ${JSON.stringify(bare)} })`);
+    assert.deepEqual(cloned.folders.map((r: { folder: string }) => r.folder), [api, web, path.join(root, 'docs')]);
     assert.deepEqual(first.addable(), [web, path.join(root, 'docs')], 'web is addable again, and the clone');
     const inMain = await newTask(ctx); // in the main tree, api's, when web becomes the default: it stays there
-    assert.equal((await ui(`kulisa.invoke('project:repo-default', { id: '${pid('api')}', folder: ${JSON.stringify(web)} })`)).repos[0].folder, web);
+    assert.equal((await ui(`kulisa.invoke('project:folder-default', { id: '${pid('api')}', folder: ${JSON.stringify(web)} })`)).folders[0].folder, web);
     assert.equal(inMain.folder, api, 'where it opened, though the default is web now');
     // The human adds web back on its tab, then removes it with a file not committed there: asked first, told what goes.
     await rightClick(ui, `#projectTabs .tasktab[data-task="${first.key}"] .name`);
@@ -1750,10 +1744,25 @@ export default (test: Test) => {
     await ui(`kulisa.invoke('project:close-tasks', { id: '${pid('api')}' })`);
     await waitFor(() => !shell.open.has(pid('api')));
     ctx.asked.length = 0;
-    // A project without git (Site-2, closed) getting a repository: its folder is a former one, shown in its settings.
-    await ui(`kulisa.invoke('project:repo-add', { id: '${pid('site')}', folder: ${JSON.stringify(path.join(root, 'docs'))} })`);
-    const site = await ui(`kulisa.invoke('project:settings-get', { id: '${pid('site')}' })`);
-    assert.deepEqual([site.repos.map((r: { folder: string }) => r.folder), site.former], [[path.join(root, 'docs')], path.join(root, 'site')]);
+    // A project without git (Site-2, closed) getting repositories: its folder stays one of its folders, the default; a
+    // clone goes next to it, not inside it.
+    const siteDir = path.join(root, 'site'), docs = path.join(root, 'docs'), notes = path.join(root, 'notes');
+    await ui(`kulisa.invoke('project:folder-add', { id: '${pid('site')}', folder: ${JSON.stringify(docs)} })`);
+    git(root, 'clone', '-q', '--bare', web, `${notes}.git`);
+    const site = await ui(`kulisa.invoke('project:folder-clone', { id: '${pid('site')}', url: ${JSON.stringify(`${notes}.git`)} })`);
+    assert.deepEqual(site.folders.map((r: { folder: string; git: string }) => `${r.folder} ${r.git}`), [`${siteDir} none`, `${docs} ok`, `${notes} ok`]);
+    // Its task, working in that folder, adds a repository: a copy on a branch of its own, the task staying where it works.
+    await ui(`kulisa.invoke('project:open', { folder: ${JSON.stringify(siteDir)} })`);
+    await waitFor(() => shell.current?.id === pid('site') && shell.task?.loaded);
+    const inSite = shell.task;
+    assert.equal(inSite.folder, siteDir);
+    assert.deepEqual(inSite.addable(), [docs, notes]);
+    assert.match((await call('task_add_repository', { repository: 'docs' })).text, new RegExp(`Added: .*site-2@task-\\w+/docs, on branch task-\\w+`));
+    assert.deepEqual([inSite.folder, inSite.worktrees.map((c) => c.repo), inSite.addable()], [siteDir, [docs], [notes]]);
+    assert.ok(git(docs, 'branch', '--list', inSite.worktrees[0].branch), 'its branch in docs');
+    await ui(`kulisa.invoke('project:close-tasks', { id: '${pid('site')}' })`);
+    await waitFor(() => !shell.open.has(pid('site')));
+    ctx.asked.length = 0;
   });
 
   test("projects: the title bar's gear opens Settings' window at the shown project; another one, not open, is configured there too, asked there; what is done in the task's window meanwhile is asked there; no New Project in it", async (ctx) => {
@@ -1786,15 +1795,16 @@ export default (test: Test) => {
     await waitFor(() => sui(`!document.querySelector('#npprofiles [data-profile="${closedOne}"]')`));
     assert.equal(await sui(`document.getElementById('npprofileerror').textContent`), '');
     await shot(shell, path.join(root, 'projects.png'));
-    // Done in the task's window with Settings in front, that window minimized (Refresh from Master…; on macOS the OS's ×
+    // Done in the task's window with Settings in front, that window minimized (a pane's Remove from Project…; on macOS the OS's ×
     // of a window behind): asked in the task's window, not in Settings', and that window comes back to the front with it.
     shell.win.minimize();
     await waitFor(() => shell.win.isMinimized());
     shell.settings.win.focus();
     await waitFor(() => shell.settings.win.isFocused());
     ctx.answer = false;
-    const said = await ui(`kulisa.invoke('profile:refresh', { task: ${JSON.stringify(shell.task.key)}, profile: '${idOf('Sam.admin')}' })`);
-    assert.deepEqual([said, ctx.asked.pop().message], [{ error: 'the human said no' }, "Bring the sign-ins of Sam.admin's master to this task?"]);
+    const said = await ui(`kulisa.invoke('profile:delete', { task: ${JSON.stringify(shell.task.key)}, profile: '${idOf('Sam.admin')}' })`);
+    assert.deepEqual(said, { error: 'the human said no' });
+    assert.match(ctx.asked.pop().message, /^Remove the profile Sam\.admin from /);
     assert.equal(await sui(`!!document.getElementById('ask')`), false, "not in Settings' window");
     // Waited for: macOS restores a minimized window with its animation, and makes it key at its end.
     await waitFor(() => !shell.win.isMinimized() && shell.win.isFocused()); // the task's window in front with its question
@@ -1945,7 +1955,7 @@ export default (test: Test) => {
   test("projects: Delete Project… (the projects' manager alone) asks, closes the project when open, deletes its data and its tasks' copies, never its folder; New Project takes its code from folders on the disk or clones it from URLs, one or several, making no other folder", async (ctx) => {
     // About 3 s: git's work (a worktree, a clone) and closing an open project.
     const { shell, ui, sui } = ctx;
-    const projects = () => shell.store.projects().map((p) => path.basename(p.folder)); // each by its folder's name (pid)
+    const projects = () => shell.store.projects().map((p) => path.basename(p.folders[0])); // each by its folder's name (pid)
     // A project that is not open, with a task that has a commit of its own, as Kulisa lays them out.
     const spare = path.join(root, 'spare');
     fs.mkdirSync(spare);
@@ -2073,7 +2083,7 @@ export default (test: Test) => {
       === `${gone} git true,${back} no git false`);
     await create('gone');
     const both = shell.store.projects().find((x) => x.id === pid('gone'));
-    assert.deepEqual([both.folder, both.repos], [gone, [gone, back]]);
+    assert.deepEqual(both.folders, [gone, back]);
     assert.ok(!fs.existsSync(path.join(back, '.git')), 'the one without git left so');
     assert.equal(git(gone, 'log', '--format=%s'), 'mine', 'the repository as it was');
     await removeRow('gone');
@@ -2098,24 +2108,23 @@ export default (test: Test) => {
     await fill('npname', 'cloned');
     await create('cloned');
     const cloned = shell.store.projects().find((x) => x.id === pid('cloned'));
-    assert.equal(cloned.folder, into);
+    assert.deepEqual(cloned.folders, [into]);
     assert.equal(git(into, 'log', '--format=%s'), 'mine', 'its history');
     await removeRow('cloned');
     await waitFor(() => !projects().includes('cloned'));
-    // Several: one folder of the project's, each repository cloned into it, the first the default; that folder is
-    // no former one (it holds them). A URL typed and not yet added counts.
+    // Several: each repository cloned into a folder named after the project, the first the default; that folder is
+    // none of the project's. A URL typed and not yet added counts.
     await newProject('clone');
     await fill('npsource', bare);
     await ui(`document.getElementById('npaddsource').click()`);
     await fill('npname', 'fullstack');
     await fill('npsource', backBare);
     const stack = path.join(shell.projectsHome, 'fullstack');
-    await create('fullstack');
-    const full = shell.store.projects().find((x) => x.id === pid('fullstack'));
-    assert.deepEqual([full.folder, full.repos], [stack, [path.join(stack, 'cloned'), path.join(stack, 'back')]]);
-    assert.equal((await ui(`kulisa.invoke('project:settings-get', { id: '${pid('fullstack')}' })`)).former, null, 'it holds them: no former folder');
-    await removeRow('fullstack');
-    await waitFor(() => !projects().includes('fullstack'));
+    await create('cloned'); // named by its first folder (helpers.ts, pid)
+    const full = shell.store.projects().find((x) => x.id === pid('cloned'));
+    assert.deepEqual([full.name, full.folders], ['fullstack', [path.join(stack, 'cloned'), path.join(stack, 'back')]]);
+    await removeRow('cloned');
+    await waitFor(() => !projects().includes('cloned'));
     if (shell.settings) await closeSettings(ctx);
     ctx.asked.length = 0;
     // A URL git cannot clone: git's own words, nothing left behind, the clones before it neither.

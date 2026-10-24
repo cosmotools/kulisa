@@ -23,7 +23,6 @@ function menu(): MenuItem[] | null {
     { label: 'New tab', keys: keyText('tab.new'), run: () => panes.get(key)?.newTab() },
     { label: 'About this profile…', run: () => openSettings('profiles', p.id) },
     { label: 'Sign In to Master…', run: () => act('profile:master', { profile: p.id }) },
-    { label: 'Refresh from Master…', run: () => act('profile:refresh', { profile: p.id }) },
     { label: 'Close profile', run: () => act('profile:close', { profile: p.id }) },
     '-',
     { label: 'Remove from Project…', run: () => deleteProfile(p.id) },

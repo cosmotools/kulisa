@@ -2,9 +2,9 @@
 // profile), so what is known about Chrome's storage applies:
 //   settings.json            the Kulisa zoom, the theme, where the tasks' bar is; the windows: the projects open
 //                            in each (its tabs, in order), the one shown, where it was on screen
-//   projects.json            the projects: { list: [{ id, name, folder, repos, color, agents, profiles }] }; id: six random
-//                            characters, made once (projectFor); a project is a folder (a repository, or one
-//                            Kulisa made), and the repositories or folders added to it (repos, the default first);
+//   projects.json            the projects: { list: [{ id, name, folders, color, agents, profiles }] }; id: six random
+//                            characters, made once (projectFor); folders: its folders, repositories or not, the
+//                            default first;
 //                            color: the one it has while its favicon gives none (docs/tasks.md, Projects); agents:
 //                            the agents' accounts its tasks run, the default (+'s) first; profiles: its profiles by
 //                            their ids, in order; github: its repositories' GitHub accounts, by remote (remotes.ts:
@@ -51,9 +51,10 @@ const CACHES = new Set(['Cache', 'Code Cache', 'GPUCache', 'DawnGraphiteCache', 
 
 // A profile's tabs as saved: their URLs, in the strip's order, and the place of the one in front.
 interface SavedTabs { urls: string[]; active: number }
-// A project in projects.json.
+// A project in projects.json. folders: its folders (Project Settings' Folders), repositories or not, the default first: new
+// tasks start in it.
 interface ProjectEntry {
-  id: string; name: string; folder: string; color: string; agents?: string[]; repos?: string[];
+  id: string; name: string; folders: string[]; color: string; agents?: string[];
   profiles?: string[]; local?: string[]; noDefaultAgent?: boolean; github?: Record<string, string>;
 }
 // A task's copy of one repository (worktrees.ts, createWorktree).
@@ -114,8 +115,8 @@ class Store {
 
   projects(): ProjectEntry[] { return readJSON(this.projectsFile)?.list || []; }
   dirOf(p: { id: string }) { const d = path.join(this.dir, 'projects', p.id); fs.mkdirSync(d, { recursive: true }); return d; }
-  // The project a folder is (its own or one of its repositories), or null.
-  projectOf(folder: string): ProjectEntry | null { return this.projects().find((p) => [p.folder, ...(p.repos || [])].some((f) => samePath(f, folder))) || null; }
+  // The project a folder is one of, or null.
+  projectOf(folder: string): ProjectEntry | null { return this.projects().find((p) => p.folders.some((f) => samePath(f, folder))) || null; }
   // The project of a folder; a new one if no project has it, with the next free color (and its first agent, given).
   // Its id is random and kept for good: its data folder, its tasks' keys and their agents' MCP address stand on it, and
   // one made from the name would mislead once the project is renamed (docs/tasks.md, What is on the computer).
@@ -124,14 +125,14 @@ class Store {
     if (found) return found;
     const list = this.projects();
     const id = newId((id) => list.some((p) => p.id === id) || fs.existsSync(path.join(this.dir, 'projects', id)));
-    const p: ProjectEntry = { id, name, folder, color: this.nextColor(), ...(agent && { agents: [agent] }) };
+    const p: ProjectEntry = { id, name, folders: [folder], color: this.nextColor(), ...(agent && { agents: [agent] }) };
     writeJSON(this.projectsFile, { list: [...list, p] });
     return p;
   }
   nextColor() { return nextColor(this.projects()); }
   // The projects that have an agent's account or a profile (by its id).
   projectsWith(list: 'agents' | 'profiles', item: string) { return this.projects().filter((p) => p[list]?.includes(item)); }
-  // A project's name, agents or repositories changed (the projects' manager); its id and folder stay.
+  // A project's name, agents or repositories changed (the projects' manager); its id stays.
   // null fields go.
   updateProject(id: string, fields: { [K in keyof ProjectEntry]?: ProjectEntry[K] | null }): ProjectEntry | null {
     const list = this.projects(), i = list.findIndex((p) => p.id === id);

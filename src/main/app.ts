@@ -201,7 +201,7 @@ function start(options: Options = {}) {
   const lookForFavicon = async (p: ProjectEntry) => {
     looking.add(p.id);
     try {
-      const file = await findFavicon(p.repos?.length ? p.repos : [p.folder]);
+      const file = await findFavicon(p.folders);
       favicons.set(p.id, file);
       if (file) pictures.delete(file);
     } finally { looking.delete(p.id); }

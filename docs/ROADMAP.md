@@ -11,14 +11,10 @@ moves there over time: what has an issue is removed from here, the issue being t
 ## Next
 
 - **Projects and tasks, rest** (how they work: [tasks.md](tasks.md), [profiles.md](profiles.md)).
-  - **Open, for the author to decide:** Refresh from Master… matters only for a local app's cookies (keep or
-    drop); a script the agent runs in a page (`browser_evaluate`) could read a test password back from its field
+  - **Open, for the author to decide:** a script the agent runs in a page (`browser_evaluate`) could read a test password back from its field
     (only the skill forbids it: close it or not). For the author's real accounts, not testable by Claude:
     device-bound cookies (DBSC, Google) and MSAL's sign-ins kept in step.
   - **Left of the steps:**
-    - Tasks: a squash merge is not seen as merged (Kulisa offers to delete a closed task only once its commits are
-      in the remote's default branch).
-    - Projects: a task in the former folder (no git) is not moved when a repository comes.
     - A repository added to a task ([tasks.md](tasks.md), Tasks), to try in a real task: whether Claude
       Code reads the project's other repositories without asking; `/add-dir` sent in a turn and held while it waits
       for the human (checked with Claude Code alone, not through Kulisa's hooks); Codex given a line in its turn.

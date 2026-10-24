@@ -26,7 +26,7 @@ export default (test: Test) => {
     assert.equal(second.folder, `${project}@feature-x`); // named Feature-X, its worktree made in the tasks group
     assert.deepEqual([...shell.profiles.keys()], [idOf('Sam.admin'), idOf('Elon.buyer')]);
     await ctx.call('browser_navigate', { profile: 'Sam.admin', url: `${SITE}/app` });
-    assert.equal(await who(ctx, 'Sam.admin'), 'Signed in as master'); // its master's, brought by Refresh from Master…
+    assert.equal(await who(ctx, 'Sam.admin'), 'Signed in as second'); // its own sign-in to the local app (tasks.ts)
     await click(ui, `document.querySelector('#projectTabs .tasktab[data-task="${tkey('project', 1)}"]')`);
     await waitFor(() => isNth(shell.task, 1));
     await waitFor(async () => (await viewOn(shell, ui, 'Sam.admin')) && viewOn(shell, ui, 'Elon.buyer'));

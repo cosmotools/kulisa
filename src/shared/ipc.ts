@@ -7,7 +7,7 @@ import type { FileLink, TerminalContents, TerminalEvents, TerminalSend } from '.
 import type { ThumbnailEvents, ThumbnailInvoke, ThumbnailSend } from '../screenshots/ipc.ts';
 import type { GitHubInvoke } from '../github/ipc.ts';
 import type {
-  AboutFolder, AboutInfo, Artifact, AccountsInfo, AgentInfo, ClosedProfile, LanguageInfo, LogInfo, NewProjectSetup, Profile, ProjectAgent, ProjectChoices, ProjectGitHub, ProjectProfile, ProjectRepo,
+  AboutFolder, AboutInfo, Artifact, AccountsInfo, AgentInfo, ClosedProfile, LanguageInfo, LogInfo, NewProjectSetup, Profile, ProjectAgent, ProjectChoices, ProjectGitHub, ProjectProfile, ProjectFolder,
   ProjectSettings, ProjectsInfo, Question, SettingsProfile, Shortcut, SignedIn, Terminals, Voice,
 } from './types.ts';
 
@@ -22,8 +22,8 @@ export type Bar = 'top' | 'bottom';
 // Where Settings opens (its window: main/settings-window.ts): a project's page (none: the shown task's), a profile's, the
 // log (☰ → Report a Problem…), About (☰ → About Kulisa; macOS's app menu).
 export type SettingsAt = { section: 'projects' | 'profiles' | 'log' | 'about'; id?: string | null };
-// A project's code as its manager shows it (projects.ts, reposInfo).
-type Repos = { repos: ProjectRepo[]; former?: string | null };
+// A project's folders as its manager shows them (projects.ts, foldersInfo).
+type Folders = { folders: ProjectFolder[] };
 type ProjectAgents = { agents: ProjectAgent[] };
 type ProjectProfiles = { profiles: ProjectProfile[]; others: ProjectProfile[] };
 type Profiles = { profiles: SettingsProfile[] };
@@ -43,11 +43,10 @@ export interface Invoke extends ThumbnailInvoke, GitHubInvoke {
   'project:profile-new': I<[{ id: string; name?: string }], Result<ProjectProfiles>>;
   'project:profile-add': I<[{ id: string; profile: string }], Result<ProjectProfiles>>;
   'project:profile-remove': I<[{ id: string; profile: string }], Result<ProjectProfiles>>;
-  'project:repo-add': I<[{ id: string; folder?: string }], Result<Partial<Repos>>>;
-  'project:repo-clone': I<[{ id: string; url: string }], Result<Repos>>;
-  'project:repo-default': I<[{ id: string; folder: string }], Result<Repos>>;
-  'project:repo-remove': I<[{ id: string; folder: string }], Result<Repos>>;
-  'project:show-former': I<[{ id: string }]>;
+  'project:folder-add': I<[{ id: string; folder?: string }], Result<Partial<Folders>>>;
+  'project:folder-clone': I<[{ id: string; url: string }], Result<Folders>>;
+  'project:folder-default': I<[{ id: string; folder: string }], Result<Folders>>;
+  'project:folder-remove': I<[{ id: string; folder: string }], Result<Folders>>;
   'project:agent-add': I<[{ id: string; agent: string }], Result<ProjectAgents>>;
   'project:agent-default': I<[{ id: string; agent: string | null }], Result<ProjectAgents>>;
   'project:agent-remove': I<[{ id: string; agent: string }], Result<ProjectAgents>>;
@@ -95,7 +94,6 @@ export interface Invoke extends ThumbnailInvoke, GitHubInvoke {
   'profile:open': I<[OnProfile]>;
   'profile:delete': I<[OnProfile]>;
   'profile:master': I<[OnProfile]>;
-  'profile:refresh': I<[OnProfile]>;
   'views:hidden': I<[hidden: boolean, opts?: { snapshots?: boolean }], Record<string, string> | undefined>;
   'layout:load': I<[OnTask], unknown>; // the grid as the window saved it (layout:save)
   'terminal:open': I<[OnTask & { agent?: string; own?: boolean }], Result<{ id: number } | { none: true }>>;
