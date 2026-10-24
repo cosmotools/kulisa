@@ -13,7 +13,7 @@ const emit = defineEmits<{ done: [r: SignedIn]; close: [] }>();
 let n = 0, shown = ''; // kept after its sign-in ends: a failure's Details show what the agent said
 const host = ref<HTMLElement>();
 const running = ref(''), error = ref(''), details = ref(false); // running: the sign-in terminal's key
-const view = new View();
+const view = new View({ background: '--island' }); // the dialog's
 
 async function start() {
   error.value = '';

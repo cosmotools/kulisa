@@ -3,7 +3,7 @@
 // grid and its terminals, its agents in some of them. Its project's window shows one task at a time; the others keep
 // running, those of the other open projects too. A task loads (profiles, terminals) the first time it is shown, so a
 // restart does not start every one at once.
-import { session } from 'electron';
+import { nativeImage, session } from 'electron';
 import fs from 'fs';
 import path from 'path';
 import { Profile, wipeSession } from './profiles.ts';
@@ -11,6 +11,7 @@ import { ProjectProfiles } from './project-profiles.ts';
 import { installSigninPause } from './signin-pause.ts';
 import { startTerminal, stopTerminal, forgetTerminal, terminalTail, sendToPrompt, typeIntoPrompt, typeLine, interrupt } from '../terminal/main/index.ts';
 import { READ_MAX } from './kulisa-plugin/tools/terminal.ts';
+import { listArtifacts } from './kulisa-plugin/artifacts.ts';
 import { copyProfile, worktreesOf, ownWorktree, folderOf, branchOf } from './store.ts';
 import { renameBranch } from './worktrees.ts';
 import { extendTrust } from './agents/index.ts';
@@ -50,6 +51,9 @@ const HOLD = 400; // the key down longer is held (records until let go), shorter
 const HANDOVER = (n: number, name: string) => `Go on with the work of conversation ${n} of this task ("${name}"). Read it ` +
   `whole with the kulisa task_history tool (conversation ${n}) before anything else. Then tell me in a few lines what ` +
   'is done and what is next, and go on with it.';
+
+// A screenshot's picture in its Resources row: twice the row's (Resources.vue), sharp on a Retina screen.
+const THUMB_WIDTH = 128;
 
 class Task {
   shell: Shell; project: Project; entry: TaskEntry; id: string; key: string; store: TaskStore;
@@ -809,6 +813,41 @@ class Task {
     return (this.entry.resources || []).map((r, i): Sent.TaskResource => (r.kind === 'maintree'
       ? { kind: r.kind, label: path.basename(r.folder), folder: r.folder, branch: null, removable: false }
       : { kind: r.kind, label: path.basename(r.repo), folder: r.folder, branch: r.branch, removable: i > 0 }));
+  }
+
+  // The files the agent's tools kept of its pages (kulisa-plugin/artifacts.ts), as the Resources island lists them. A
+  // screenshot's small picture is made here once and kept while the task is loaded: the window never decodes the
+  // files themselves (a page's picture is megabytes once decoded, a hundred of them a lot of a window's memory).
+  private thumbs = new Map<string, string>(); // '' where none could be made
+  private makingThumbs = false;
+  async artifacts(): Promise<Sent.Artifact[]> {
+    const list = await listArtifacts(this.store.artifacts);
+    for (const file of this.thumbs.keys()) if (!list.some((a) => a.file === file)) this.thumbs.delete(file);
+    const missing = list.filter((a) => a.kind === 'screenshot' && !this.thumbs.has(a.file)).map((a) => a.file);
+    if (missing.length) void this.makeThumbs(missing);
+    return list.map((a) => ({ ...a, thumb: this.thumbs.get(a.file) || null }));
+  }
+  // One at a time, the main process free between them: a whole page's picture takes tens of milliseconds to decode,
+  // and a task shown with many would hold up everything else (its terminals starting). The list goes again with them.
+  private async makeThumbs(files: string[]) {
+    if (this.makingThumbs) return; // the list sent when those are done makes the rest
+    this.makingThumbs = true;
+    for (const file of files) {
+      await new Promise((r) => setImmediate(r));
+      const image = nativeImage.createFromPath(file);
+      this.thumbs.set(file, image.isEmpty() ? '' : `data:image/jpeg;base64,${image.resize({ width: THUMB_WIDTH }).toJPEG(80).toString('base64')}`);
+    }
+    this.makingThumbs = false;
+    this.artifactsChanged();
+  }
+  // One made (or more gone past the limit): the window showing the task lists them again.
+  artifactsChanged() { void this.window?.sendArtifacts(this); }
+  // Delete in its menu: only a file of the task's own folder, not any path the window names.
+  async deleteArtifact(file: string): Promise<Result> {
+    if (!(await listArtifacts(this.store.artifacts)).some((a) => a.file === file)) return { error: 'not an artifact of this task' };
+    await fs.promises.rm(file, { force: true });
+    this.artifactsChanged();
+    return {};
   }
 }
 

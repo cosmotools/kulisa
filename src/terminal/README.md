@@ -63,8 +63,9 @@ encoding off sets the default one, so those off go first (`serialized`). A task 
 terminals' buffers the same way (`terminals:restore`), at the same size.
 
 Set up as VS Code's: Unicode 11 widths (Claude Code draws ✅ ⏵ ✻; with Unicode 6 the cursor drifts a cell after each),
-a bundled font (JetBrains Mono, at the window's `--font`), the WebGL renderer, the panels' colors (the programs' own
-stay xterm's, readable on either background by its `minimumContrastRatio`). The rows that fit sit in the middle of
+a bundled font (JetBrains Mono, at the window's `--font`), the WebGL renderer, the colors of the place it is in (its
+background a token the place gives `View`, so the terminal is of a piece with it; the programs' own colors stay
+xterm's, readable on either background by its `minimumContrastRatio`). The rows that fit sit in the middle of
 the xterm, what is left under a whole row shared above and below them, so two tasks whose grids differ by a pixel do
 not show a row's height under the agent's status line in one and nothing in the other.
 

@@ -167,6 +167,12 @@ class AppWindow {
       ({ id: cfg.id, name: cfg.name, avatar: cfg.avatar, description: cfg.description ?? '', tabs: tabs.urls.length })));
     task.list.saveTabs();
   }
+  // The shown task's artifacts (Resources.vue): when it is shown, and when its agent makes one.
+  async sendArtifacts(task = this.task) {
+    if (!task || task !== this.task) return;
+    const list = await task.artifacts();
+    if (task === this.task) this.send('artifacts', { task: task.key, list });
+  }
   sendTerminals() { if (this.task && !this.switching) this.send('terminals', { task: this.task.key, ...this.task.terminalsInfo() }); }
   scheduleState() { clearTimeout(this.stateTimer); this.stateTimer = setTimeout(() => this.pushState(), 30); }
   // A task of its tabs changed: its profiles (now: right away), or its agent's state (shown on its tab).

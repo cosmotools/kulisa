@@ -9,13 +9,15 @@ import ProfileHeader from './grid/ProfileHeader.vue';
 import Terminals from './grid/Terminals.vue';
 import TerminalTabs from './grid/TerminalTabs.vue';
 import ClosedProfiles from './grid/ClosedProfiles.vue';
+import Resources from './Resources.vue';
+import ResourcesTab from './ResourcesTab.vue';
 import { gridMounted } from '../lib/grid';
 
 // dockview takes the gap between panels as a number: tokens.css's --gap, loaded before the window mounts (main.ts).
 const gap = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--gap'));
 const theme = { ...themeAbyssSpaced, name: 'kulisa', gap };
-const components = markRaw({ profile: ProfilePane, terminal: Terminals }) as unknown as IDockviewVueProps['components']; // dockview-vue types its components as option objects
-const tabComponents = markRaw({ profile: ProfileHeader, terminal: TerminalTabs }) as unknown as IDockviewVueProps['tabComponents'];
+const components = markRaw({ profile: ProfilePane, terminal: Terminals, resources: Resources }) as unknown as IDockviewVueProps['components']; // dockview-vue types its components as option objects
+const tabComponents = markRaw({ profile: ProfileHeader, terminal: TerminalTabs, resources: ResourcesTab }) as unknown as IDockviewVueProps['tabComponents'];
 </script>
 
 <template>

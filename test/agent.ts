@@ -1,6 +1,6 @@
 // Profiles and the agent: the editor, the MCP server and the plugin, tabs, isolation, the Chrome identity, the
 // sign-in pause, the agent's cursor, point and tell, @playwright/mcp.
-import { app, nativeImage } from 'electron';
+import electron, { app, nativeImage } from 'electron';
 import { spawnSync, spawn } from 'child_process';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
@@ -10,7 +10,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import http from 'http';
 import WebSocket from 'ws';
-import { focusWindow, shot, assert, root, project, pid, tkey, pfile, idOf, panel, SITE, sleep, waitFor, who, menuRows, choose, manageProfiles, closeSettings, chooseProfile, setProfileField, closeMenu, taskMenu, box, pageBox, click, PORT } from './helpers.ts';
+import { focusWindow, shot, assert, root, project, pid, tkey, pfile, idOf, panel, SITE, sleep, waitFor, who, menuRows, choose, manageProfiles, closeSettings, chooseProfile, setProfileField, closeMenu, taskMenu, box, pageBox, click, rightClick, PORT } from './helpers.ts';
 import { AGENT_PACKAGES } from '../src/main/app.ts';
 const CLAUDE_PLUGIN = path.join(AGENT_PACKAGES, 'claude-plugin');
 import { MARK } from '../src/main/kulisa-plugin/ghost.ts';
@@ -495,10 +495,10 @@ export default (test: Test) => {
     await ui(`window.__firstTab = ${strip}.querySelector('.tab[data-tab="${first}"]')`);
     await ui(`${strip}.querySelector('.add').click()`);
     await waitFor(() => elon.tabs.length === n + 1 && elon.active !== first);
-    // The strip keeps its tabs' elements; the new one grows in (.opening, until its animation ends), as Chrome's.
+    // The strip keeps its tabs' elements; the new one grows in (data-opening, until its animation ends), as Chrome's.
     await waitFor(() => ui(`!!${strip}.querySelector('.tab[data-tab="${elon.active}"]')`));
     assert.equal(await ui(`${strip}.querySelector('.tab[data-tab="${first}"]') === window.__firstTab`), true, 'the first tab\'s element stays');
-    await waitFor(() => ui(`!${strip}.querySelector('.tab.opening')`));
+    await waitFor(() => ui(`!${strip}.querySelector('.tab[data-opening]')`));
     await waitFor(() => ui(`(() => { const a = document.querySelector('.pane[data-profile="${idOf('Elon.buyer')}"] .addr'); return document.activeElement === a && a.value === ''; })()`));
     // The keys go there, not to the new tab's page (a native view that would take the focus as it loads). Where the
     // keys go inside the window; when another app on the desktop is active (it may take the focus while the tests
@@ -519,7 +519,7 @@ export default (test: Test) => {
     await ui(`${strip}.querySelector('.tab:last-of-type .x').click()`);
     await waitFor(() => elon.tabs.length === n);
     // With reduced motion (the OS's setting, emulated) it does not grow, and is not left growing: no animation ends
-    // there, and the tab would stay .opening.
+    // there, and the tab would stay opening.
     const dbg = shell.win.webContents.debugger;
     dbg.attach();
     try {
@@ -528,7 +528,7 @@ export default (test: Test) => {
       await waitFor(() => elon.tabs.length === n + 1);
       await waitFor(() => ui(`!!${strip}.querySelector('.tab[data-tab="${elon.active}"]')`));
       await sleep(300); // nothing to wait for: that it is not left growing
-      assert.equal(await ui(`!!${strip}.querySelector('.tab.opening')`), false);
+      assert.equal(await ui(`!!${strip}.querySelector('.tab[data-opening]')`), false);
       elon.closeTab(elon.active);
       await waitFor(() => elon.tabs.length === n);
     } finally { dbg.detach(); }
@@ -541,7 +541,7 @@ export default (test: Test) => {
     assert.equal(await ui(`Math.round(document.querySelector('.pane[data-profile="${idOf('Sam.seller')}"] .tabs .tab').getBoundingClientRect().width)`), 220);
     for (let i = 0; i < 24; i++) await ui(`act('tab:new', { profile: '${idOf('Elon.buyer')}' })`);
     await waitFor(async () => (await ui(`document.querySelectorAll('${pane} .tabs .tab').length`)) === n + 24);
-    await waitFor(() => ui(`!document.querySelector('${pane} .tabs .tab.opening')`)); // grown in
+    await waitFor(() => ui(`!document.querySelector('${pane} .tabs .tab[data-opening]')`)); // grown in
     const fit = await ui(`(() => { const p = document.querySelector('${pane}'), r = (q) => p.querySelector(q).getBoundingClientRect(), pr = p.getBoundingClientRect();
       return { pane: p.scrollWidth <= p.clientWidth, tabs: r('.tabs').right <= pr.right, add: r('.tabs .add').right <= pr.right, more: r('.more').right <= pr.right,
         group: p.closest('.dv-groupview').scrollWidth <= p.closest('.dv-groupview').clientWidth }; })()`);
@@ -850,6 +850,33 @@ export default (test: Test) => {
     assert.match(fs.readFileSync(html, 'utf8'), /Item 1499/);
     await call('browser_tab_close', { profile: 'Elon.buyer', tab });
     await waitFor(() => elon.active === before);
+  });
+
+  test("Resources: the agent's artifacts listed as it makes them, the newest first, a screenshot with its picture; a click opens one, Delete removes it and its row", async ({ shell, ui, call }) => {
+    const dir = shell.task.store.artifacts, number = (f: string) => Number(path.basename(f).split('-')[0]);
+    const rows = () => ui(`[...document.querySelectorAll('#resources .artifact')].map((r) => [r.dataset.file, r.querySelector('.label').textContent, !!r.querySelector('.thumb')])`) as Promise<[string, string, boolean][]>;
+    const saved = () => fs.readdirSync(dir).map((f) => path.join(dir, f)).sort((a, b) => number(b) - number(a));
+    const shot = (await call('browser_screenshot', { profile: 'Elon.buyer' })).text.match(/^Saved as (.+\.jpg)$/)[1];
+    // Its picture comes a moment later (made in the background: Task.makeThumbs).
+    await waitFor(async () => { const r = await rows(); return JSON.stringify(r.map((x) => x[0])) === JSON.stringify(saved()) && r[0][2]; });
+    const all = await rows();
+    assert.deepEqual(all[0], [shot, 'Screenshot', true], 'the one just made first, with its picture');
+    assert.deepEqual(all.find((r) => r[0].endsWith('-snapshot.yml')).slice(1), ['Snapshot', false]);
+    assert.deepEqual(all.find((r) => r[0].endsWith('-response.txt')).slice(1), ['Response body', false]);
+    assert.match(await ui(`document.querySelector('#resources .artifact small').textContent`), /^Elon\.buyer · /, 'whose, and when');
+    const openPath = electron.shell.openPath, opened: string[] = [];
+    electron.shell.openPath = async (file) => { opened.push(file); return ''; };
+    try {
+      await ui(`document.querySelector('#resources .artifact').click()`);
+      await waitFor(() => opened.length === 1);
+      assert.deepEqual(opened, [shot]);
+    } finally { electron.shell.openPath = openPath; }
+    await rightClick(ui, '#resources .artifact'); // the screenshot, first
+    assert.deepEqual(await menuRows(ui), ['Open', 'Show in Folder', '-', 'Delete']);
+    await choose(ui, 'Delete');
+    await waitFor(async () => !fs.existsSync(shot) && !(await rows()).some((r) => r[0] === shot));
+    assert.match((await ui(`kulisa.invoke('task:artifact-delete', { key: ${JSON.stringify(shell.task.key)}, file: ${JSON.stringify(path.join(root, 'package.json'))} })`)).error,
+      /not an artifact/, 'only a file of the task\'s own folder');
   });
 
   test('agent: a request with no answer yet is listed as pending at once', async ({ shell, call }) => {

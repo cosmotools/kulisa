@@ -285,9 +285,9 @@ Task", then named "Checkout redesign" by its agent:
 
 ### The Resources island
 
-Beside the terminal, at the island's height, a list of the task's **resources** — the things it has, uses or created —
-each a row with its own actions (`Resources.vue`, in the terminal island `Terminals.vue`; `Task.resources`, sent in the
-task's info). What it shows now:
+Next to the terminal, an island of the task's **resources** — the things it has, uses or created — each a row with
+its own actions, for quick access to them (`Resources.vue`, a panel of the grid of its own: [window.md](window.md),
+The grid; `Task.resources`, sent in the task's info). What it shows now:
 
 - A **worktree** per repository the task has made its own (`task_worktree` for the default one, `task_add_repository`
   for another of the project's): its name and branch; a click on the row opens its folder. A worktree made for an
@@ -296,6 +296,17 @@ task's info). What it shows now:
   human's) it opened in, its folder opened with a click, never removed (every task shares it). A task on a folder
   without git stays here. It is kept as a resource, not worked out from the project: the project's default repository
   may change while the task works there, and its terminal stays where it is.
+
+- Under them, **Artifacts**: the files the agent's tools kept of the task's pages (its `artifacts/`, What is on the
+  computer), the newest first: what each is (Screenshot, Snapshot, Request or Response body), the profile it came from
+  and when, all read from the file's name and time (`listArtifacts`, `kulisa-plugin/artifacts.ts`), no list kept beside
+  the files to go stale. A screenshot shows a small picture of itself, made by the main process once and kept in memory
+  while the task is loaded (`Task.artifacts`): the window never decodes the pictures themselves, megabytes each. They
+  are made in the background, one at a time (`makeThumbs`), the list sent again when they are: a whole page's takes
+  tens of milliseconds, and a task shown with many would hold up its terminals starting. The
+  list comes when the task is shown and again whenever the agent keeps one (`Task.artifactsChanged`, the window's
+  `artifacts`). A click opens the file in the OS's app for it; its right-click menu: Open, Show in Folder, Delete (at
+  once, no question: the agent's own copy of what a page showed, Kulisa's data, not the human's work).
 
 The island shows the task's resources as `tasks.json` keeps them, the first where it works (store.ts, `Resource`): its
 folder, its branch and its folder of copies are worked out from them, never kept twice.
@@ -353,6 +364,8 @@ to the human; the window's IPC (`ipc/`) and the MCP tools are handles on it:
 | Delete a task | Delete Task… in its tab's menu; a closed one's 🗑 in the bar's + | none: it deletes work and sign-ins, the human's to decide | `askDeleteTask`, `deleteTask`, `deleteClosedTask` (`projects.ts`) |
 | Show a task | a click on its tab, of any project | none: what the human looks at is theirs | `AppWindow.show` (`window.ts`) |
 | Open a resource's folder | a click on its row in the Resources island | none: the agent opens folders through its own tools | `task:open-folder` (`ipc/tasks.ts`) |
+| Open an artifact, show it in its folder | a click on its row in the Resources island, its menu | none: the tools' answers give the agent its path | `file:open`, `file:show` (`file-links.ts`) |
+| Delete an artifact | Delete in its row's menu | none: the oldest go by themselves past the limit | `Task.deleteArtifact` |
 | Make the task's worktree | none: its agent makes it before writing code | `task_worktree` | `Task.makeWorktree`, `Project.ensureWorktree` |
 | Add, clone, make the default, remove a repository | the projects' manager | none: what the project is made of is the human's | `addRepo`, `cloneRepo`, `defaultRepo`, `removeRepo` (`projects.ts`) |
 | Add a project's repository to a task | Add Repository in its tab's menu | `task_add_repository`, once the human agreed in the conversation | `Task.addRepository`, `Project.addCopy` |

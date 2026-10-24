@@ -79,6 +79,8 @@ export function registerTasks(ipc: Ipc) {
     const task = shell.taskByKey(key); // only a folder the task owns (a resource), not any path the renderer names
     return task && task.resources().some((r) => r.folder === folder) ? electronShell.openPath(folder) : undefined;
   });
+  handle('task:artifacts', (e, key) => { const w = at(e); return w?.task?.key === key ? w.sendArtifacts() : undefined; });
+  handle('task:artifact-delete', (_e, { key, file }) => taskAt(key, (task) => task.deleteArtifact(file)));
   handle('tasks:get', (e) => at(e)?.sendProjects());
 
 }

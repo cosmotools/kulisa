@@ -55,7 +55,7 @@ export default (test: Test) => {
     await waitFor(async () => (await termText()).includes('shell-marker'));
     await waitFor(() => ui(`window.__term.buffer.active.viewportY === 5`));
     assert.deepEqual(await modes(), set, 'the modes are back');
-    await ui(`document.querySelector('.termtab[data-id="${sh.id}"] .close').click()`);
+    await ui(`document.querySelector('.termtab[data-id="${sh.id}"] .x').click()`);
     await waitFor(() => shell.task.terminals.size === 1);
   });
   test("terminal: dictation where the agent has its own: the right Ctrl held anywhere records, let go stops, pressed once it records until the next; the microphone at the end of the terminals' row shows it and does the same by the mouse; with a shell in front the agent comes to the front; the key is the human's to change in Keyboard Shortcuts", async ({ shell, ui, termText }) => {
@@ -129,11 +129,11 @@ export default (test: Test) => {
     n = await keys();
     ctrl(page, 'keyDown'); ctrl(page, 'keyUp');
     await recording(n);
-    assert.equal(await ui(`document.querySelector('.termtab.active .name').textContent`), 'bash');
+    assert.equal(await ui(`document.querySelector('.termtab.active .title').textContent`), 'bash');
     ctrl(page, 'keyDown'); ctrl(page, 'keyUp');
     await stopped('shell in front');
     const human = shell.task.terminal('Terminal') as TaskTerminal;
-    await ui(`document.querySelector('.termtab[data-id="${human.id}"] .close').click()`);
+    await ui(`document.querySelector('.termtab[data-id="${human.id}"] .x').click()`);
     await waitFor(() => shell.task.terminals.size === 1);
     // The human's own key instead (Keyboard Shortcuts: Change, then the key): one that types is refused, saying so; the
     // row, the tooltip and settings.json have the new one, which works at once; the old one is the usual key again.
@@ -167,20 +167,26 @@ export default (test: Test) => {
   });
   test("the island: its terminals in tabs over them, one shown, the row apart; + opens the human's shell in front; the agent runs what keeps running in a shell of its own, behind, reads it, stops it, closes it, never in an agent's tab; × and a shell's exit close one", async ({ shell, ui, call, instructions }) => {
     const task = shell.task;
-    const tabs = () => ui(`[...document.querySelectorAll('.termtab')].map((t) => t.querySelector('.name').textContent + (t.classList.contains('active') ? ' *' : ''))`);
+    const tabs = () => ui(`[...document.querySelectorAll('.termtab')].map((t) => t.querySelector('.title').textContent + (t.classList.contains('active') ? ' *' : ''))`);
     const shown = () => ui(`[...document.querySelectorAll('.terminals .term')].filter((t) => !t.hidden).length`);
     const color = (sel: string) => ui(`getComputedStyle(document.querySelector(${JSON.stringify(sel)})).backgroundColor`);
     assert.match(await instructions(), /terminal_run, not in your own shell.*This is the Kulisa task "task-1", working right in the project's folder .* \(no git, so no worktree of its own\)\. Run the app under test on a free port you pick \(Kulisa assigns none\).*Name the task with task_rename once you know what it is about, silently: never ask the human for a name or mention it\. These notes are for you/s);
     assert.deepEqual(await tabs(), ['bash *'], "the agent's tab, named after its agent");
-    // The row is apart from the terminal: its own color, the tab in front in the terminal's.
+    // The row is apart from the terminal, as a pane's tabs from its toolbar: the row in a pane's tabs' color, the tab in
+    // front in the terminal's, as a pane's active tab in its toolbar's.
     const row = '.dv-groupview:has(.termtabs) .dv-tabs-and-actions-container';
-    assert.notEqual(await color(row), await color('.dv-groupview:has(.termtabs) .dv-content-container'));
-    assert.equal(await color('.termtab.active'), await color('.dv-groupview:has(.termtabs) .dv-content-container'));
+    assert.notEqual(await color(row), await color('.terminals'));
+    assert.equal(await color('.termtab.active'), await color('.terminals'));
+    assert.deepEqual([await color(row), await color('.termtab.active')], [await color('.pane .tabs'), await color('.pane .tab.active')]);
     // + is the island's, not a tab's: its menu has the project's agents (none here) and Terminal.
+    await ui(`window.__grew = []; new MutationObserver((m) => window.__grew.push(...m.map((x) => x.target.dataset.id)))
+      .observe(document.querySelector('.termtabs nav'), { subtree: true, attributeFilter: ['data-opening'] })`);
     await ui(`document.getElementById('termAdd').click()`);
     assert.deepEqual(await menuRows(ui), ['Terminal']);
     await choose(ui, 'Terminal');
     await waitFor(async () => JSON.stringify(await tabs()) === '["bash","Terminal *"]');
+    // The new tab grows in, as a pane's (lib/strip.ts), and is left grown.
+    await waitFor(() => ui(`window.__grew.length === 2 && !document.querySelector('.termtab[data-opening]')`));
     const human = task.terminal('Terminal') as TaskTerminal;
     assert.equal(human.by, 'human');
     // A shell in front: no dictation (it is the shown agent's), the bar kept, its microphone disabled saying why; a pick
@@ -236,7 +242,7 @@ export default (test: Test) => {
     // A shell that exits closes its terminal; × closes the human's.
     await call('terminal_run', { name: 'once', command: 'exit' });
     await waitFor(() => !!task.terminal('once').error && task.terminals.size === 2);
-    await ui(`document.querySelector('.termtab[data-id="${human.id}"] .close').click()`);
+    await ui(`document.querySelector('.termtab[data-id="${human.id}"] .x').click()`);
     await waitFor(async () => task.terminals.size === 1 && JSON.stringify(await tabs()) === '["bash *"]');
     assert.equal(task.promptTarget().pty, shell.pty, "the agent's in front again, still running");
     await waitFor(() => ui(`!document.querySelector('.dictation .mic').disabled`));
@@ -355,8 +361,8 @@ export default (test: Test) => {
     await waitFor(() => ui(`!document.getElementById('shortcuts')`));
   });
   test('theme: Dark by default, Light or System in ☰; the window, the terminal and the OS buttons follow, the pages keep the OS\'s; saved', async ({ shell, ui }) => {
-    // What is shown: a panel's color, the terminal's; the controls' own scheme (color-scheme).
-    const DARK = 'rgb(30, 31, 34)', LIGHT = 'rgb(255, 255, 255)';
+    // What is shown: a panel's color, the terminal's (a pane's toolbar's); the controls' own scheme (color-scheme).
+    const DARK = 'rgb(30, 31, 34)', LIGHT = 'rgb(255, 255, 255)', TERM = { dark: 'rgb(47, 49, 53)', light: 'rgb(242, 243, 245)' };
     const look = () => ui(`(() => { const panel = getComputedStyle(document.querySelector('.dv-groupview')).backgroundColor;
       return { shade: panel === '${DARK}' ? 'dark' : panel === '${LIGHT}' ? 'light' : panel, term: window.__term.options.theme.background,
         scheme: getComputedStyle(document.querySelector('.omnibox input, input')).colorScheme,
@@ -369,15 +375,15 @@ export default (test: Test) => {
     const settings = () => JSON.parse(fs.readFileSync(path.join(userData, 'settings.json'), 'utf8')).theme;
     await ui(`document.getElementById('windowMenu').click()`);
     assert.deepEqual((await menuRows(ui)).slice(0, 3), ['zoom', 'theme', 'bar']);
-    assert.deepEqual(await look(), { shade: 'dark', term: DARK, scheme: 'dark', chosen: ['dark'], onAccent: LIGHT });
+    assert.deepEqual(await look(), { shade: 'dark', term: TERM.dark, scheme: 'dark', chosen: ['dark'], onAccent: LIGHT });
     const choose = async (t: string, shade: string) => {
       await ui(`document.querySelector('.menu[data-state="open"] .themerow [data-theme="${t}"]').click()`);
-      await waitFor(async () => { const l = await look(); return l.shade === shade && l.term === (shade === 'dark' ? DARK : LIGHT) && l.chosen[0] === t; });
+      await waitFor(async () => { const l = await look(); return l.shade === shade && l.term === TERM[shade as 'dark' | 'light'] && l.chosen[0] === t; });
       assert.equal(await menuOpen(ui), true, 'the menu stays open: the next one can be tried');
       assert.equal(settings(), t, 'saved');
     };
     await choose('light', 'light');
-    assert.deepEqual(await look(), { shade: 'light', term: LIGHT, scheme: 'light', chosen: ['light'], onAccent: LIGHT });
+    assert.deepEqual(await look(), { shade: 'light', term: TERM.light, scheme: 'light', chosen: ['light'], onAccent: LIGHT });
     assert.equal(await pageDark(), osDark, "a site under test keeps the OS's scheme");
     await shot(shell, path.join(root, 'light.png'));
     await choose('system', nativeTheme.shouldUseDarkColors ? 'dark' : 'light'); // the OS's, as the pages'

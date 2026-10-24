@@ -104,6 +104,7 @@ Each icon is drawn once, as a `<symbol id="i-…">` in the sprite (`Sprite.vue`,
 | `i-down` | what opens below it: a `.select`'s choices, an agent's details (`AgentList.vue`) |
 | `i-trash` | a closed task's row in a menu: delete it (`remove`; Lucide's trash-2) |
 | `i-minus`, `i-star` | a list's toolbar (`.list`, after its `i-plus`): remove the selected row, make it the default (Lucide's star) |
+| `i-file` | an artifact that is not a picture in the Resources island: a snapshot, a body (Lucide's file-text) |
 | `i-folder-plus`, `i-folder`, `i-git` | New Project's code: New Folder, Folders on Disk, Clone from URL (Lucide's folder-plus, folder, git-branch) |
 | `i-agent-claude`, `i-agent-codex`, `i-agent-shell` | an agent's row and its accounts' (`AgentList.vue`, `i-agent-<id>`, 20 px; `agentMark` in `lib/agents.ts`), a terminal's tab (`TerminalTabs.vue`), the island's + menu and its big buttons in an empty grid: the makers' own marks in their own colors (claude.ai's and developers.openai.com's favicons; not under the GPL: `docs/LICENSING.md`), and Lucide's square-terminal for the terminal only and a shell's tab; `i-agent` for an agent without a mark of its own |
 
@@ -201,13 +202,18 @@ The window's controls are Reka UI's, in this look (CLAUDE.md, Window UI):
   installer's output, an agent's sign-in's terminal).
 - `.avatar`: a profile's picture (`<img>`, `avatarSrc(name)` in `lib/common.ts`; `settings/Avatars.vue` the ones to choose from), 16 px; `--avatar` where a place needs
   another size (22 px in a profile's row, `ProfileRow.vue`).
-- `.striptab`: a tab of a strip on an island, as a browser's: the agent's `.state`, `.name`, × at the end
-  (`button.close.icon.quiet.small`), on every tab, always, as
-  Chrome's. A
+- `.tab`: a panel's tab, as Chrome's: a pane's (`ProfilePane.vue`: the page's icon, its title, ×) and a terminal's
+  (`TerminalTabs.vue`: the agent's icon, its name, its `.state`, ×). The row in the island's color, the active tab in
+  `--toolbar`, rounded at its top only (`--tab-radius`) and joined to what is under the row: a pane's toolbar, the
+  terminal (in `--toolbar` too: the island's `View` is given that background). A short line between two tabs that
+  are not lit; × is `span.x.icon.small`, on every tab, always. A tab opened grows in from the left (`data-opening`,
+  set by `useStrip`). A pane's tabs are 220 px and shrink as Chrome's, to their icon and × (64 px), then scroll; a
+  terminal's is as wide as its name, up to 220 px, and never shrinks (the agents' marks look alike, so a tab without
+  its name could not be told from another): more than fit scroll.
+- `.striptab`: a tab of a strip with nothing to join (the tasks' bar, `TaskTab.vue`), as a browser's: the agent's
+  `.state`, `.name`, × at the end (`button.close.icon.quiet.small`), on every tab, always, as Chrome's. A
   step taller than a button (`--tab`, `--control` + 4 px) and at least 64 px wide: a target for a quick throw of the mouse.
-  Lit under the pointer; `.active`: the shown one, in the panels' color (`--island`) on the dark island. A
-  task's tab (`TaskTab.vue`); a terminal's (`TerminalTabs.vue`: the agent's icon before its name, its row in
-  `--toolbar` over the terminal, the shown one in the terminal's color, as if part of it).
+  Lit under the pointer; `.active`: the shown one, in the panels' color (`--island`) on the dark island.
 - `.state`: an agent's state by `data-state` (from its hooks), an icon each so that color is not the only sign (some
   people do not tell yellow from green): working (sparkles in `--accent`, twinkling; not with reduced motion), waiting
   for you (a bell in `--note`), done (a check in `--done`: come and see, until the human sees that task); nothing otherwise, as nothing asks for

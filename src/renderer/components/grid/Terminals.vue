@@ -1,16 +1,15 @@
 <script setup lang="ts">
 // The island of the task's terminals (docs/window.md, The terminal), a panel of the grid: the terminal in front, its
 // tabs in the header (TerminalTabs.vue). The xterms live as long as their terminals (lib/terminals.ts); the panel holds
-// the shown task's. With none, the island is folded to its + (by its height under or over the grid, by its width at a
-// side), and unfolds to the size it had when one opens. Alone in the grid (no profile open) its group fills the grid
-// whatever is asked of it, so there the group is not drawn and the +'s rows are big buttons in its middle instead
+// the shown task's. With none, the island is folded to its + (by its height with a panel over or under it, by its width
+// when it is as tall as the grid), and unfolds to the size it had when one opens. With no profile open it is the
+// grid's room for them, so there the group is not drawn and the +'s rows are big buttons in its middle instead
 // (docs/window.md, The terminal), the closed profiles' under them.
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import type { DockviewApi, DockviewPanelApi } from 'dockview-vue';
 import Icon from '../Icon.vue';
 import ButtonMenu from '../menu/ButtonMenu.vue';
 import RightClickMenu from '../menu/RightClickMenu.vue';
-import Resources from '../Resources.vue';
 import { store } from '../../lib/store';
 import { profileLaunchers } from '../../lib/profiles';
 import { island, launchers, newTerminalItems, tabItems, terminalMenu } from '../../lib/terminals';
@@ -22,7 +21,7 @@ const root = ref<HTMLElement>();
 const keyOf = (id: number) => `${store.terminals.task}#${id}`;
 const folded = computed(() => !store.terminals.list.length);
 const grid = props.params.containerApi, alone = ref(true);
-const count = () => { alone.value = grid.panels.length < 2; };
+const count = () => { alone.value = !grid.panels.some((p) => p.id.startsWith('profile:')); };
 const subs = [grid.onDidAddPanel(count), grid.onDidRemovePanel(count)];
 
 // The window's one xterm in the panel, showing the terminal in front.
@@ -44,7 +43,7 @@ function fold(on: boolean) {
   if (on) {
     if (before) return;
     const box = group.api.boundingBox, dock = document.querySelector('#dock .dv-dockview')?.getBoundingClientRect();
-    const across = !box || !dock || box.width >= dock.width - 1; // under or over the grid: folded by its height
+    const across = !box || !dock || box.height < dock.height - 1; // a panel over or under it: folded by its height
     before = across ? { height: group.api.height } : { width: group.api.width };
     const size = across ? { minimumHeight: STRIP, maximumHeight: STRIP } : { minimumWidth: STRIP, maximumWidth: STRIP };
     group.api.setConstraints(size);
@@ -105,23 +104,23 @@ const menu = (e: MouseEvent) => {
     <div v-else-if="folded" class="strip"><ButtonMenu :items="newTerminalItems"><button id="termUnfold" class="add icon quiet"
       :title="withKeys('New conversation of an agent, or a terminal', 'terminal.new')" aria-label="New terminal"><Icon name="i-plus" /></button></ButtonMenu></div>
     <RightClickMenu :items="menu"><div ref="root" class="termpanel" :hidden="folded" /></RightClickMenu>
-    <Resources v-if="!folded" />
     <p v-if="starting" class="starting"><span class="state" data-state="working"><Icon name="i-working" /></span>Starting {{ starting.name }}…</p>
   </div>
 </template>
 
 <style>
+/* The terminal in the toolbar's color, as a pane's toolbar under its tabs: the tab in front joins it (TerminalTabs.vue) */
 .terminals { height: 100%; position: relative;
-  &:not(.folded) { display: flex; } /* the terminal in front, Resources beside it at the island's height */
+  &:not(.folded) { background: var(--toolbar); border-radius: 0 0 var(--island-radius) var(--island-radius); }
   .starting { position: absolute; inset: 0; margin: 0; display: flex; align-items: center; justify-content: center; gap: 6px;
-    background: var(--island); color: var(--text-muted); }
+    border-radius: inherit; background: var(--toolbar); color: var(--text-muted); }
   &.folded { display: flex; flex-direction: column; justify-content: center; }
   .strip { display: grid; place-items: center; height: 100%; }
   .launch { display: flex; flex-direction: column; gap: calc(var(--gap) * 2); padding: var(--gap);
     nav { display: flex; flex-wrap: wrap; justify-content: center; gap: calc(var(--gap) * 2); } }
 }
 #dock .termalone { --dv-group-view-background-color: transparent; --dv-tabs-and-actions-container-background-color: transparent; }
-.termpanel { height: 100%; flex: 1; min-width: 0; &[hidden] { display: none; } }
+.termpanel { height: 100%; &[hidden] { display: none; } }
 .term { height: 100%; padding: 2px 4px 2px 8px; &[hidden] { display: none; } }
 /* The rows that fit, in the middle: what is left under a whole row (the panel's height is any) shared above and
    below, so no edge gets a row's height of it and a pixel more or less never costs a row. */

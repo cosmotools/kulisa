@@ -91,6 +91,25 @@ button.danger { background: var(--danger); border-color: var(--danger); color: v
 .tabstrip { overflow-x: auto; scrollbar-width: none; scroll-padding-inline: var(--fade);
   mask-image: linear-gradient(to right, transparent, #000 var(--fade-start, 0px), #000 calc(100% - var(--fade-end, 0px)), transparent);
   &.past-start { --fade-start: var(--fade); } &.past-end { --fade-end: var(--fade); } }
+/* A panel's tab, as Chrome's (a pane's, ProfilePane.vue; a terminal's, TerminalTabs.vue): on a row in the island's
+   color, the active one in the toolbar's and open at its foot, joined to the surface under the row. Many shrink as
+   Chrome's, to their icon and × (64 px): every tab keeps its ×, not the active one alone as Chrome's (the author's
+   choice, as in the tasks' bar); past that the strip scrolls (.tabstrip). */
+.tab { position: relative; display: flex; align-items: center; gap: 6px; width: 220px; flex: 0 1 auto; min-width: 64px; /* a width, not a basis: size containment leaves it no other */ height: var(--tab); padding: 0 8px 0 12px;
+  container-type: inline-size;
+  border-radius: var(--tab-radius) var(--tab-radius) 0 0; color: var(--text-dim);
+  &:hover:not(.active) { background: color-mix(in srgb, var(--toolbar) 50%, var(--island)); }
+  &.active { background: var(--toolbar); color: var(--text-strong); }
+  /* a short line between two tabs, as Chrome's, where neither is lit */
+  &:not(.active, :hover) + &:not(.active, :hover)::before { content: ''; position: absolute; inset-inline-start: 0; inset-block: 9px;
+    border-inline-start: 1px solid var(--line); }
+  /* opened: it grows in from the left, as Chrome's (lib/strip.ts) */
+  &[data-opening] { overflow: hidden; animation: tab-open .2s cubic-bezier(.2, .8, .2, 1);
+    @media (prefers-reduced-motion: reduce) { animation: none; } }
+  .title { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+}
+@keyframes tab-open { from { width: 0; min-width: 0; padding-inline: 0; } }
+@container (max-width: 80px) { .tab .title { display: none; } }
 /* A tab of a strip on an island, as a browser's (TaskTab.vue): the agent's .state, the .name, × at the end
    (button.close.icon.quiet.small), always shown, as Chrome's (the author's choice). A
    step taller than a button and never narrow: a target for a quick throw of the mouse. Lit under the pointer;

@@ -4,7 +4,7 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import url from 'url';
-import { MAC, CMD, shot, assert, root, userData, project, pid, tkey, pfile, idOf, SITE, sleep, waitFor, who, menuRows, choose, MENU, SUBMENU, menuOpen, rightClick, box, pageBox, viewOn, dock, press, projectTabs, projectTab, showProject, closeProject, savedWindows, closeMenu, plusMenu, plusRows, closeBoard, focusWindow, isNth, taskAt, tid } from './helpers.ts';
+import { MAC, CMD, shot, assert, root, userData, project, pid, tkey, idOf, SITE, sleep, waitFor, who, menuRows, choose, MENU, SUBMENU, menuOpen, rightClick, box, pageBox, viewOn, resourcesHeight, savedResourcesHeight, dock, press, projectTabs, projectTab, showProject, closeProject, savedWindows, closeMenu, plusMenu, plusRows, closeBoard, focusWindow, isNth, taskAt, tid } from './helpers.ts';
 import type { Test } from './run.ts';
 import type { UI } from './helpers.ts';
 
@@ -441,12 +441,22 @@ export default (test: Test) => {
     await fits();
     let b = await at();
     assert.ok(b.sam.x < b.elon.x && b.sam.y === b.elon.y && b.term.y > b.sam.y + b.sam.height - 1, 'profiles side by side, terminal below');
+    // Resources right of the terminal, in its row, a quarter of the grid (laid out maybe a frame after the pages).
+    const resources = () => box(ui, '#resources');
+    const placed = async () => { const r = await resources(), t = await box(ui, '.term:not([hidden])');
+      return r.x > t.x + t.width - 1 && r.y > b.sam.y + b.sam.height - 1 && Math.abs(r.width / (await ui(`__dock.width`)) - 0.25) < 0.02; };
+    await waitFor(placed, 3000).catch(async () => assert.ok(await placed(), 'Resources right of the terminal, a quarter of the grid'));
+    const side = await resources();
+    b = await at();
     // A narrower window takes from every panel in its share, not from the last one alone; wider gives back the same way.
     const size = shell.win.getSize(), both = (x: typeof b) => x.sam.width + x.elon.width, share = (x: typeof b) => x.sam.width / both(x);
-    const was = share(b), wide = both(b);
+    const was = share(b), wide = both(b), row = side.width / b.term.width;
     shell.win.setSize(size[0] - 300, size[1]);
     await waitFor(async () => { b = await at(); return b.sam && b.elon && both(b) < wide - 200; });
     assert.ok(Math.abs(share(b) - was) < 0.02, `shares kept: ${share(b)} vs ${was}`);
+    // The terminal's row too, laid out a frame later perhaps: Resources and the terminal keep theirs.
+    const kept = async () => { const r = await resources(), t = await box(ui, '.term:not([hidden])'); return r.width < side.width && Math.abs(r.width / t.width - row) < 0.02; };
+    await waitFor(kept, 3000).catch(async () => assert.ok(await kept(), 'the terminal and Resources keep their shares'));
     shell.win.setSize(size[0], size[1]);
     await waitFor(async () => { b = await at(); return b.sam && b.elon && Math.abs(share(b) - was) < 0.02 && viewOn(shell, ui, 'Elon.buyer'); });
     await ui(`window.__layoutPreset('focus')`);
@@ -461,7 +471,11 @@ export default (test: Test) => {
     await fits();
     b = await at();
     assert.ok(b.sam.x < b.elon.x && b.term.x > b.elon.x + b.elon.width - 1, 'profiles in a row of two, terminal on the right');
-    await waitFor(() => fs.existsSync(pfile('layout.json')));
+    // Resources under the terminal, in its column; made taller, as its gap does: kept with the grid (restart-tasks.ts).
+    const res = await box(ui, '#resources'), term = await box(ui, '.termtabs');
+    assert.ok(res.y > term.y && Math.abs(res.x - term.x) < 20, 'Resources under the terminal');
+    await ui(`__dock.getPanel('resources').group.api.setSize({ height: 300 })`);
+    await waitFor(async () => { const h = await resourcesHeight(ui); return h > 280 && savedResourcesHeight() === h; });
   });
 
   test('a menu opens even when a page gives no picture (a page that draws no frames: covered, the monitor off, busy)', async ({ shell, ui }) => {
