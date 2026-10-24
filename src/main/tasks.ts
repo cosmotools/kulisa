@@ -818,20 +818,27 @@ class Task {
   // The files the agent's tools kept of its pages (kulisa-plugin/artifacts.ts), as the Resources island lists them. A
   // screenshot's small picture is made here once and kept while the task is loaded: the window never decodes the
   // files themselves (a page's picture is megabytes once decoded, a hundred of them a lot of a window's memory).
-  private thumbs = new Map<string, string>();
+  private thumbs = new Map<string, string>(); // '' where none could be made
+  private makingThumbs = false;
   async artifacts(): Promise<Sent.Artifact[]> {
     const list = await listArtifacts(this.store.artifacts);
     for (const file of this.thumbs.keys()) if (!list.some((a) => a.file === file)) this.thumbs.delete(file);
-    return list.map((a) => ({ ...a, thumb: a.kind === 'screenshot' ? this.thumbOf(a.file) : null }));
+    const missing = list.filter((a) => a.kind === 'screenshot' && !this.thumbs.has(a.file)).map((a) => a.file);
+    if (missing.length) void this.makeThumbs(missing);
+    return list.map((a) => ({ ...a, thumb: this.thumbs.get(a.file) || null }));
   }
-  private thumbOf(file: string) {
-    let thumb = this.thumbs.get(file);
-    if (thumb === undefined) {
+  // One at a time, the main process free between them: a whole page's picture takes tens of milliseconds to decode,
+  // and a task shown with many would hold up everything else (its terminals starting). The list goes again with them.
+  private async makeThumbs(files: string[]) {
+    if (this.makingThumbs) return; // the list sent when those are done makes the rest
+    this.makingThumbs = true;
+    for (const file of files) {
+      await new Promise((r) => setImmediate(r));
       const image = nativeImage.createFromPath(file);
-      thumb = image.isEmpty() ? '' : `data:image/jpeg;base64,${image.resize({ width: THUMB_WIDTH }).toJPEG(80).toString('base64')}`;
-      this.thumbs.set(file, thumb);
+      this.thumbs.set(file, image.isEmpty() ? '' : `data:image/jpeg;base64,${image.resize({ width: THUMB_WIDTH }).toJPEG(80).toString('base64')}`);
     }
-    return thumb || null;
+    this.makingThumbs = false;
+    this.artifactsChanged();
   }
   // One made (or more gone past the limit): the window showing the task lists them again.
   artifactsChanged() { void this.window?.sendArtifacts(this); }

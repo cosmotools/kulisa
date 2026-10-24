@@ -301,7 +301,9 @@ The grid; `Task.resources`, sent in the task's info). What it shows now:
   computer), the newest first: what each is (Screenshot, Snapshot, Request or Response body), the profile it came from
   and when, all read from the file's name and time (`listArtifacts`, `kulisa-plugin/artifacts.ts`), no list kept beside
   the files to go stale. A screenshot shows a small picture of itself, made by the main process once and kept in memory
-  while the task is loaded (`Task.artifacts`): the window never decodes the pictures themselves, megabytes each. The
+  while the task is loaded (`Task.artifacts`): the window never decodes the pictures themselves, megabytes each. They
+  are made in the background, one at a time (`makeThumbs`), the list sent again when they are: a whole page's takes
+  tens of milliseconds, and a task shown with many would hold up its terminals starting. The
   list comes when the task is shown and again whenever the agent keeps one (`Task.artifactsChanged`, the window's
   `artifacts`). A click opens the file in the OS's app for it; its right-click menu: Open, Show in Folder, Delete (at
   once, no question: the agent's own copy of what a page showed, Kulisa's data, not the human's work).

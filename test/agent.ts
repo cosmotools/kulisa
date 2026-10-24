@@ -857,7 +857,8 @@ export default (test: Test) => {
     const rows = () => ui(`[...document.querySelectorAll('#resources .artifact')].map((r) => [r.dataset.file, r.querySelector('.label').textContent, !!r.querySelector('.thumb')])`) as Promise<[string, string, boolean][]>;
     const saved = () => fs.readdirSync(dir).map((f) => path.join(dir, f)).sort((a, b) => number(b) - number(a));
     const shot = (await call('browser_screenshot', { profile: 'Elon.buyer' })).text.match(/^Saved as (.+\.jpg)$/)[1];
-    await waitFor(async () => JSON.stringify((await rows()).map((r) => r[0])) === JSON.stringify(saved()));
+    // Its picture comes a moment later (made in the background: Task.makeThumbs).
+    await waitFor(async () => { const r = await rows(); return JSON.stringify(r.map((x) => x[0])) === JSON.stringify(saved()) && r[0][2]; });
     const all = await rows();
     assert.deepEqual(all[0], [shot, 'Screenshot', true], 'the one just made first, with its picture');
     assert.deepEqual(all.find((r) => r[0].endsWith('-snapshot.yml')).slice(1), ['Snapshot', false]);
