@@ -144,9 +144,9 @@ What the tools are for, beyond acting as one user:
   calls (10 minutes). A sign-in on the same address (a dialog in the page) is not seen: the human then tells the
   agent.
 - **`browser_evaluate`** runs a function the agent writes in the page: made there from its source (no eval in the
-  main process; CDP's evaluation is not held to the page's CSP) and called with the element, if one is given. The
-  skill forbids reading cookies or tokens with it; the profile's CDP proxy is open to local processes anyway (issue
-  #90). `@playwright/mcp` works too, through the profile's CDP proxy (below).
+  main process; CDP's evaluation is not held to the page's CSP) and called with the element, if one is given. It may
+  read anything the page holds, as any script of it: Kulisa does not restrict the agent, and the profile's CDP proxy
+  is open to local processes anyway (issue #90). `@playwright/mcp` works too, through the profile's CDP proxy (below).
 - **Reading a page without filling the agent's context** ([the tools' design](../src/main/kulisa-plugin/CLAUDE.md),
   "Saving the agent's context"). `browser_snapshot` takes a part: an element (ref or locator, its subtree:
   `locator.ariaSnapshot()`), a depth, or `find`, the lines that match under their ancestors. One larger than about
@@ -266,7 +266,7 @@ agent's, so it can sign up, sign in and sign out as many users as the tests need
 - **The agent never gets the password.** `browser_type_login` (a field, `login` or `password`) has Kulisa type it into
   the page; `profile_list` shows the login and whether a password is kept, not the password; the pane's caption
   says `type ••••••` (`ghost.ts`, `shell.typingSecret`). So it is in no transcript, log or screen share. (A script the
-  agent runs in the page could read a field back; the skill forbids reading secrets, as it forbids cookies.)
+  agent runs in the page can read a field back: left open, as Kulisa does not restrict the agent.)
 - **Only on a local page** (`local.ts`, `Task.loginFor`): `localhost`, `*.localhost`, `*.test`, `*.local`, loopback,
   private and link-local addresses, IPv4's and IPv6's (ipaddr.js's ranges), and the project's own list (its page in Settings → Projects, Local addresses: a tunnel, dev
   domains, each with its subdomains); or a page the same tab reached from one (an Auth0 dev tenant, a local Keycloak on another name).

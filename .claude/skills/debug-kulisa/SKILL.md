@@ -35,8 +35,8 @@ node .claude/skills/debug-kulisa/inspect.mjs 9229 'return require("electron").we
 .claude/skills/debug-kulisa/scratch.sh start <session scratch folder>   # its own data and ports; stop: scratch.sh stop
 ```
 
-- Profiles: `act('profile:new', { name })` in the window's page over CDP (9333). Pages: `wc.loadURL` from
-  inspect.mjs on 9230, or the MCP tools (`browser_navigate`) on port 4499.
+- Profiles and pages: the MCP tools on port 4499 (`profile_create`, `browser_navigate`), or `wc.loadURL` from
+  inspect.mjs on 9230. The window's page is on CDP 9333.
 - Change one thing in the running code from inspect.mjs, no edit in the repository, e.g.
   `Profile.prototype.setSigninMode = async function () {}` (no sign-in mode) or `Profile.prototype.connect` (no
   Playwright), before making the profile. Restart the scratch app between experiments: a broken state may stay.

@@ -22,8 +22,9 @@ why. How each part works: `docs/profiles.md` (What the agent does; Actions) and 
    failed requests to /api"), not by the library call under it. Its parameters let the agent narrow what it gets (a
    filter, a part, a period); the defaults are what most calls need.
 6. **The human sees, and stays in charge.** What the agent does shows in the page; the human's tabs stay as they
-   were; the sign-in pause holds (automation reaches pages only through the CDP proxy); passwords, cookies and tokens
-   never reach the agent.
+   were; the sign-in pause holds (automation reaches pages only through the CDP proxy); Kulisa never hands the agent a
+   password (`browser_type_login` types it) or a cookie or token (`browser_network_request` hides them). What a script
+   of the agent reads in a page is the agent's: Kulisa does not restrict it (`docs/profiles.md`).
 7. **A missing tool shows itself.** The agent going around the tools (a Playwright script of its own, `curl`, asking
    the human to click) names a tool to build; so do the users' Ideas for Kulisa (issue #84).
 
