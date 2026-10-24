@@ -22,6 +22,7 @@ import type { Result } from '../shared/result.ts';
 import type { Discarder } from './discard.ts';
 import type { GitHub } from '../github/main/index.ts';
 import type { ActivityMonitor } from '../activity-monitor/main/index.ts';
+import type { Dictation } from '../dictation/main/index.ts';
 
 
 // An agent or account a task runs (shell.agentFor): its agent's entry, with the account's id, name and folder; cli:
@@ -36,6 +37,7 @@ interface Shell {
   profileStore: ProfileStore; cookieSync: CookieSync; sessionCookies: SessionCookies; accounts: Accounts;
   github: GitHub; // the GitHub accounts (src/github)
   activity: ActivityMonitor; // what Kulisa takes on the computer (src/activity-monitor)
+  dictation: Dictation; // every task's dictation (src/dictation)
   // available: encryption works; kept: by a keyring (not Linux's basic_text, Electron's fixed key: as good as plain text)
   secrets: { available(): boolean; kept(): boolean; encrypt(s: string): string; decrypt(b: string): string };
   loginSecret(password?: string): Result<{ secret?: string }>;

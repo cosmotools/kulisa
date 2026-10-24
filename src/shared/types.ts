@@ -109,5 +109,3 @@ export type AboutFolder = 'data' | 'projects' | 'program';
 export interface AboutInfo { version: string; electron: string; chrome: string; folders: { id: AboutFolder; path: string; exists: boolean }[] }
 // The log as the Log page reads it (main/log.ts, readLog): the file's text and size, its limit, when the old one is from.
 export interface LogInfo { text: string; size: number; max: number; old: string | null }
-// A task's dictation (Task.voice): its agent has one, and whether it records; null: none.
-export interface Voice { recording: boolean }

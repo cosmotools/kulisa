@@ -6,9 +6,10 @@ import type { Result } from './result.ts';
 import type { FileLink, TerminalContents, TerminalEvents, TerminalSend } from '../terminal/ipc.ts';
 import type { ThumbnailEvents, ThumbnailInvoke, ThumbnailSend } from '../screenshots/ipc.ts';
 import type { GitHubInvoke } from '../github/ipc.ts';
+import type { DictationEvents, DictationInvoke } from '../dictation/ipc.ts';
 import type {
   AboutFolder, AboutInfo, Artifact, AccountsInfo, AgentInfo, ClosedProfile, LanguageInfo, LogInfo, NewProjectSetup, Profile, ProjectAgent, ProjectChoices, ProjectGitHub, ProjectProfile, ProjectFolder,
-  ProjectSettings, ProjectsInfo, Question, SettingsProfile, Shortcut, SignedIn, Terminals, Voice,
+  ProjectSettings, ProjectsInfo, Question, SettingsProfile, Shortcut, SignedIn, Terminals,
 } from './types.ts';
 
 // What a message about the shown task's profiles and tabs names (renderer's act: refused when that task is no longer
@@ -30,7 +31,7 @@ type Profiles = { profiles: SettingsProfile[] };
 
 // ipcRenderer.invoke / ipcMain.handle: args, the answer.
 type I<A extends unknown[], R = void> = { args: A; result: R };
-export interface Invoke extends ThumbnailInvoke, GitHubInvoke {
+export interface Invoke extends ThumbnailInvoke, GitHubInvoke, DictationInvoke {
   'projects:list': I<[], ProjectsInfo | undefined>;
   'tasks:get': I<[]>;
   'project:open': I<[{ id?: string; folder?: string; task?: string }]>;
@@ -86,8 +87,6 @@ export interface Invoke extends ThumbnailInvoke, GitHubInvoke {
   'task:artifacts': I<[string]>; // the task's artifacts sent again (Resources.vue: the task shown)
   'task:artifacts-delete': I<[{ key: string; files: string[] | null }], Result>; // null: all
   'app:quit': I<[]>;
-  'voice:get': I<[key: string], Voice | null>;
-  'voice:record': I<[{ task: string; on: boolean }], Voice>;
   'agents:list': I<[{ check?: boolean; details?: boolean; cached?: boolean }?], { list: AgentInfo[]; home: string } | { list: null }>; // null: not looked for yet (cached)
   'agents:install': I<[{ id: string }], Result<{ code: number; installed: boolean; log: string }>>; // log: the whole output (the pieces streamed may still be on their way)
   'profile:close': I<[OnProfile]>;
@@ -156,7 +155,7 @@ export interface Send extends TerminalSend, ThumbnailSend {
 }
 
 // webContents.send (AppWindow.send) / the window's kulisa.on: what the main process tells a window.
-export interface Events extends TerminalEvents, ThumbnailEvents {
+export interface Events extends TerminalEvents, ThumbnailEvents, DictationEvents {
   'projects': ProjectsInfo;
   'state': Profile[];
   'closed-profiles': ClosedProfile[];
@@ -176,7 +175,6 @@ export interface Events extends TerminalEvents, ThumbnailEvents {
   'agent:choose': { task: string; selected: string | null };
   'agents:install-log': string;
   'handover:read': { task: string; id: number; part: number; parts: number };
-  'voice': { task: string; voice: Voice | null };
   'project:new': void;
   'master:url': string;
   'settings:show': SettingsAt;

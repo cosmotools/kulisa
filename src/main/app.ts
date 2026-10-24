@@ -15,6 +15,7 @@ import { SessionCookies } from './session-cookies.ts';
 import { pictureOf, githubUsers, deleteGitHub } from './projects.ts';
 import { GitHub, installGitHub } from '../github/main/index.ts';
 import { ActivityMonitor } from '../activity-monitor/main/index.ts';
+import { Dictation, installDictation } from '../dictation/main/index.ts';
 import { COLORS } from './window.ts';
 import type { AppWindow } from './window.ts';
 import { findFavicon } from './favicons.ts';
@@ -128,6 +129,7 @@ function start(options: Options = {}) {
   };
   // The GitHub accounts (src/github): their tokens kept with the OS keyring, and only in memory without one. Its
   // requests through Chromium's network (net.fetch), which keeps the system's proxy.
+  shell.dictation = new Dictation((task, voice) => shell.taskByKey(task)?.window?.send('voice', { task, voice }));
   shell.github = new GitHub({ dir: userData, fetch: (url, init) => net.fetch(url, init), secrets: shell.secrets });
   shell.github.accounts.logAll();
   // What Kulisa takes on the computer (src/activity-monitor), told where every task's data is.
@@ -309,6 +311,7 @@ function start(options: Options = {}) {
   registerWindow(ipc);
   installGitHub(shell.github, { usedBy: (id) => githubUsers(shell, id), remove: (e, id) => deleteGitHub(shell, id, asker(e)),
     open: (url) => { void electronShell.openExternal(url); } });
+  installDictation(shell.dictation);
   const ready = app.whenReady().then(async () => {
     // Whether the OS keeps Kulisa's key (session cookies, test passwords: profiles.md); on Linux which keyring, basic_text
     // being none (a fixed key: Electron's safe-storage.md). The classic Linux bug report, with nothing to read until now.
