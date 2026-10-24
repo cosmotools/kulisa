@@ -285,6 +285,8 @@ moves there over time: what has an issue is removed from here, the issue being t
     hardened runtime, the packaged app also needs the `com.apple.security.device.audio-input` entitlement. Windows: the microphone privacy setting for
     desktop apps; the right Ctrl of a keyboard with AltGr (it sends a Ctrl before AltGr on Windows: check that a typed
     AltGr character does not start a recording).
+    For an agent without its own (Codex: src/dictation's hidden Claude Code session): untested on macOS and Windows;
+    on Windows, whether ConPTY puts a `conhost`/`OpenConsole` between Kulisa and the hidden `claude`.
   - A packaged app's later starts and an agent started in a task of it: untested packaged on Linux and Windows. Its
     update check fails while there is no release for its OS ("The server sent an invalid response" on macOS) and is
     only logged.
