@@ -55,7 +55,9 @@ export default (test: Test) => {
       return sam.width > 0 && sam.x < elon.x && term.x > elon.x + elon.width - 1;
     };
     await waitFor(columns, 10000); // as long as the next test's after a restart: a loaded machine takes over 3 s
-    assert.ok(Math.abs((await resourcesHeight(ui)) - saved) <= 3, 'the Resources island as tall as it was left (dockview rounds its panels as it restores them)');
+    // The Resources island as tall as it was left (dockview rounds its panels as it restores them), once its sizes settle
+    // after the columns.
+    await waitFor(async () => Math.abs((await resourcesHeight(ui)) - saved) <= 3, 5000, async () => ({ saved, now: await resourcesHeight(ui) }));
   });
   test("after a restart: a task's terminals come back in their tabs when it loads, the one in front too: its agent's conversation resumed, a shell with nothing running", async ({ shell, ui, call }) => {
     await showProject(ui, 'other');
