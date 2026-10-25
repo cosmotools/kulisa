@@ -20,7 +20,7 @@ How Kulisa's tests are built, how to write one and when to run which. **Read thi
 | Layer | Where | Runs in | For |
 |---|---|---|---|
 | Unit | `test/unit/*.test.ts`, a Kulisa package's in its folder (`src/<package>/*.test.ts`) (`node:test`) | plain Node, about a second: `npm run test:unit` | logic that needs no window: names, the data folder, a task's profiles in order, the agents' files |
-| End to end | `test/*.ts` (`run.ts`) | the real app, against the local test site (`fixtures/site.ts`) | everything the human or the agent does: the window, profiles' pages, MCP tools, restarts |
+| End to end | `test/e2e/*.spec.ts` (Playwright Test); `test/*.ts` (`run.ts`), the groups, moving there file by file | the real app, against the local test site (`fixtures/site.ts`) | everything the human or the agent does: the window, profiles' pages, MCP tools, restarts |
 
 A check goes into the cheapest layer that can show the behavior: a rule about names is a unit test; that the name
 field leaves characters out as they are typed is end to end. A module a unit test needs must load in plain Node (no
@@ -31,7 +31,7 @@ electron from 'electron'; const { session } = electron;`): an ES module importin
 ## End to end: groups
 
 `npm test` runs the unit tests, knip (Dead code, below), ESLint (Lint, below), actionlint (Workflows, below), builds the window (`npm run build`: its types checked, then Vite), then the groups of
-e2e files in parallel (`GROUPS` in `start.ts`):
+e2e files in parallel (`GROUPS` in `start.ts`), then the files on Playwright Test (below):
 
 - **A group is one app, its files in order**: later files build on what earlier ones left (profiles, sign-ins,
   projects), as the human's day does. Then the app is restarted in the same folder and the group's restart file
@@ -151,6 +151,47 @@ Claude Code, the part's code); what is left: ROADMAP, "Windows and macOS have ga
 - **The packaged app** (`npm run package`, not installed: Squirrel's would use the real data folder): a task's
   terminal, a later start on the same data, `KULISA_QUIT`. Its first start after a build may wait for Windows'
   scan of the new files.
+
+## End to end on Playwright Test
+
+The e2e tests move to Playwright Test (`@playwright/test`, its `_electron`) file by file from the groups; a file moved
+is gone from `GROUPS`. `npm test` runs them after the groups; `npm test -- e2e` or `npm run test:e2e` them alone,
+`npx playwright test keys -g "…"` some (after `npm run build`). Its parts: `playwright.config.ts`, and in `test/e2e/`
+`fixtures.ts` (what a test gets), `app.ts` (Kulisa as the tests start it: the fake agent, the test's folder),
+`driver.ts` (what a test reaches in the main process), `global-setup.ts` (the test site, `npm test`'s or its own).
+
+- **A file is one Kulisa, its tests independent**: each test makes what it needs (`ensureProfile`) and runs alone
+  (`-g`) as in the file, in any order; a failed test's worker is replaced, and the file's next tests get a new
+  Kulisa. Its folder: `/tmp/kulisa-e2e-<checkout>-<hash>/<file>-<random>`, removed when it closes.
+- **What a test gets**: `ui`, the window's page, driven by Playwright's locators and web-first assertions
+  (`await expect(locator).toBeFocused()`, which wait); `core(fn, arg)`, a function run in the main process with the
+  driver (`k.shell`, `k.profile(name)`, `k.press(wc, key, …modifiers)`): only data crosses, so what it needs comes
+  by `arg`, never by a closure. A state of the core is waited for with `expect.poll(() => core(…))`.
+- **Profiles' pages are driven through the core, the proxy and MCP**, never by Playwright attached to them: they
+  are the agent's, behind the sign-in pause (Playwright's own attachment would also keep them visible: CLAUDE.md,
+  Hard-won facts). Keys go into a page as input events (`k.press`), where the human's keyboard puts them, which
+  Kulisa's keys see first.
+- **Kulisa as the human runs it**: Electron started by its path, without Playwright's loader, which would give it a
+  test browser's switches (no throttling of background and covered windows); the window's page gets the OS's focus
+  back (Playwright makes every page it attaches to think it has the focus). Playwright starts it with a debugging
+  port, on 127.0.0.1, the test's alone: the one place Kulisa runs with one (`docs/profiles.md`, How automation
+  reaches the pages).
+- **On Linux each worker has a screen of its own**: Xvfb with openbox, its display chosen by Xvfb, X11's even from
+  a Wayland desktop. `KULISA_VISIBLE=1` (`npm run test:visible`) puts the windows on the human's screen. One worker
+  (`playwright.config.ts`): on macOS and Windows the Kulisas share one screen.
+- **An uncaught error fails the test it came in**: the window's (`pageerror`) and the main process's.
+- **A failed test leaves** the window as the screen shows it (profiles' pages included: `desktopCapturer`; a
+  Playwright screenshot has the window's page alone), Playwright's trace of its steps (`npx playwright show-trace`),
+  and Kulisa's log, as its attachments: `test-results/`, the HTML report (`npx playwright show-report`), the CI's
+  artifact.
+
+### Flaky tests
+
+On the CI a failed test runs once more (`retries`): passing then, it is reported flaky (the report, the run's
+annotations) and the job stays green; failing again, it fails the job. A flaky test is a bug, of the test or of
+Kulisa, and is fixed, never left to the retry. A fix counts once the failure is reproduced (on the runner's conditions:
+Running them, below) and the test then passes a series in a row: `npx playwright test <file> --repeat-each=20`, and
+the test alone (`-g`), its file's earlier tests not run before it.
 
 ## Writing an e2e test
 
@@ -312,7 +353,8 @@ every push to `develop` (CLAUDE.md, Releases; into `main` its `version` job chec
 `dependencies` job, on pull requests, refuses a new dependency with a known vulnerability or a license not on its list:
 `docs/LICENSING.md`), on Ubuntu (with Xvfb
 and openbox), Windows and macOS (on the runner's own screen), git given a name (tasks
-commit). A failed run keeps the groups' folders (their screenshots) as an artifact per OS for a week. All three
+commit). A failed run keeps the groups' folders (their screenshots) as an artifact per OS for a week; every run keeps
+Playwright Test's report (`playwright-report`, `test-results/junit.xml`) for a week, a run that passed for its flaky tests. All three
 pass ("On macOS", "On Windows", above). Flaky, on a loaded machine or the runner (each one fixed is in its
 test's comment). Slow but not flaky: deleting a task (git's work, up to 11 s), a
 site that never answers (10 s, by design).
@@ -341,6 +383,7 @@ env -i PATH=$(dirname $(which node)):/usr/bin:/bin HOME=$H TMPDIR=$H XDG_CURRENT
 | `.github/workflows/test.yml` | the same on GitHub Actions at every pull request into `develop` or `main` and push to `develop`, on Linux, Windows and macOS |
 | `test/start.ts` | `npm test`: the unit tests, knip, the window built, the groups in parallel, each on its own screen, then after a restart |
 | `test/run.ts` | one app: starts Kulisa (`app.start`) with a fake agent (`cat`), runs the files it is given |
+| `playwright.config.ts`, `test/e2e/` | the e2e files on Playwright Test, their fixtures, the Kulisa they start (End to end on Playwright Test) |
 | `test/helpers.ts` | the group's folder, waiting, driving the window like the human |
 | `test/setup.ts` | the fixture of a group that does not start with `agent.ts` |
 | `test/fixtures/site.ts` | the local test site (sign-in by cookie, dialogs, a board shared by profiles, a site that never answers, a fake GitHub) |

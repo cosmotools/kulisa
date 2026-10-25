@@ -98,3 +98,14 @@ jobs:
           name: test-folders-${{ matrix.os }}
           path: ${{ runner.temp }}/kulisa-test-*
           retention-days: 7
+      # Playwright Test's report (its HTML with a failed test's trace, picture and log; test-results/junit.xml): also from
+      # a run that passed, where it shows the flaky tests a retry passed (docs/testing.md, Flaky tests).
+      - if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-report-${{ matrix.os }}
+          path: |
+            playwright-report
+            test-results/junit.xml
+          if-no-files-found: ignore
+          retention-days: 7

@@ -13,7 +13,7 @@ export default tseslint.config(
       parserOptions: {
         parser: tseslint.parser, // a .vue file's script
         extraFileExtensions: ['.vue'],
-        projectService: { allowDefaultProject: ['eslint.config.ts', 'vite.config.mts'] },
+        projectService: { allowDefaultProject: ['eslint.config.ts', 'vite.config.mts', 'playwright.config.ts'] },
         tsconfigRootDir: import.meta.dirname,
       },
     },

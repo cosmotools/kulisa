@@ -3,6 +3,10 @@ node_modules
 out/
 dist/
 
+# Playwright Test's results and report (npm test, test:e2e; the CI keeps them as artifacts)
+test-results/
+playwright-report/
+
 # The developer's own: their environment (direnv), their IDE's settings (JetBrains)
 .envrc
 .idea/

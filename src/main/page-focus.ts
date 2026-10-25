@@ -13,9 +13,13 @@ const allowed = new WeakSet<WebContents>();
 // Per window (its page's webContents), where the human left the keyboard: its page, or a profile's page.
 const held = new WeakMap<WebContents, WebContents>();
 const watched = new WeakSet<WebContents>();
+// Per profile's page, its focuses and Kulisa's gifts of it, counted: a focus the page took by itself is given back only
+// if nothing came after it, not over a later one given for the human.
+const turns = new WeakMap<WebContents, number>();
+const turn = (wc: WebContents) => { const n = (turns.get(wc) ?? 0) + 1; turns.set(wc, n); return n; };
 
 // Kulisa gives a page the keyboard for the human: its next focus is theirs.
-export function allowFocus(wc: WebContents) { allowed.add(wc); }
+export function allowFocus(wc: WebContents) { allowed.add(wc); turn(wc); }
 
 // Kulisa gives the window's own page the keyboard for the human (the address of a tab they open, ProfilePane.vue): a
 // page taking it next gives it back there, not to the page the human was in (Ctrl+T from it, Linux).
@@ -31,10 +35,11 @@ export function guardFocus(wc: WebContents, win: () => BrowserWindow) {
   wc.on('focus', () => {
     const page = own();
     if (!page) return;
+    const n = turn(wc);
     if (allowed.delete(wc)) { held.set(page, wc); return; }
     const at = Date.now();
     setTimeout(() => {
-      if (wc.isDestroyed() || page.isDestroyed() || input >= at - GRACE || !wc.isFocused()) return; // the human's, or gone on
+      if (wc.isDestroyed() || page.isDestroyed() || turns.get(wc) !== n || input >= at - GRACE || !wc.isFocused()) return; // the human's, or gone on
       const back = held.get(page);
       const to = back && !back.isDestroyed() && back !== wc ? back : page;
       if (to !== page) allowed.add(to);

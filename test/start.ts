@@ -1,11 +1,13 @@
 // `npm test`: the unit tests (test/unit and the parts' own, plain Node, a second), knip (npm run knip: no file, export or dependency
 // nothing uses; docs/testing.md, Dead code), ESLint (npm run lint; docs/testing.md, Lint), actionlint on the CI's workflows when installed, the window built (npm run build: its types checked,
-// then Vite), then the groups of e2e files, in parallel where each has a screen of its own (below). Each group
+// then Vite), then the groups of e2e files, in parallel where each has a screen of its own (below), then the e2e files
+// on Playwright Test (test/e2e, playwright.config.ts; docs/testing.md, End to end on Playwright Test). Each group
 // runs in an app of its own (run.ts), in its own folder, its files in order (later ones build on earlier ones), then
 // again after a restart. On Linux, with Xvfb and openbox installed, each on a screen of its own: the tests' windows
 // never take the human's focus or clipboard (`npm run test:visible`: on the human's screen, to watch them; one group
 // after another, as they would fight for the focus there).
 //   npm test -- tasks    one group only
+//   npm test -- e2e      Playwright Test's files only (npx playwright test … for some of them)
 import { spawn, spawnSync } from 'child_process';
 import crypto from 'crypto';
 import fs from 'fs';
@@ -20,7 +22,7 @@ import type { ChildProcess } from 'child_process';
 // A group starts from nothing, or from setup.ts (the profiles the first group makes on its way).
 const GROUPS: Record<string, { files: string[]; restart: string[] }> = {
   profiles: { files: ['agent', 'profiles', 'discard', 'zoom-and-closing', 'github'], restart: ['restart-profiles'] },
-  tasks: { files: ['setup', 'window', 'keys', 'grid', 'tasks'], restart: ['restart-tasks'] },
+  tasks: { files: ['setup', 'window', 'grid', 'tasks'], restart: ['restart-tasks'] },
 };
 
 const visible = process.argv.includes('--visible');
@@ -101,8 +103,8 @@ void (async () => {
   } else console.log('The CI\'s workflows are not checked: install actionlint (docs/testing.md, Workflows)');
   const build = spawnSync('npm', ['run', 'build'], { cwd: path.join(import.meta.dirname, '..'), stdio: 'inherit', shell: process.platform === 'win32' });
   if (build.status !== 0) process.exit(build.status ?? 1);
-  const names = process.argv.slice(2).filter((a) => GROUPS[a]);
-  const chosen = names.length ? names : Object.keys(GROUPS);
+  const names = process.argv.slice(2).filter((a) => GROUPS[a]), e2e = process.argv.includes('e2e');
+  const chosen = names.length || e2e ? names : Object.keys(GROUPS);
   site = await ensureSite(await freePort()); // one for every group: a group's own would go with it while others still use it
   const codes = [];
   // In parallel only on screens of their own: on one screen (macOS, Windows, --visible) the groups' windows would take each
@@ -113,6 +115,11 @@ void (async () => {
     // keyring, and the one whose key the keyring does not keep lose its session cookies at its restart.
     await app('keyring', [], path.join(import.meta.dirname, 'keyring.ts'));
     codes.push(...await Promise.all(chosen.map(group)));
+  }
+  // After the groups, not beside them: their windows would take each other's focus where they share a screen.
+  if (e2e || !names.length) {
+    const env = { ...process.env, KULISA_TEST_SITE: site.url, ...(process.platform === 'linux' && !hidden ? { KULISA_VISIBLE: '1' } : {}) };
+    codes.push(spawnSync('npx', ['playwright', 'test'], { cwd: path.join(import.meta.dirname, '..'), env, stdio: 'inherit', shell: process.platform === 'win32' }).status ?? 1);
   }
   site.child?.kill();
   try { fs.rmdirSync(base); } catch {} // empty once every group passed

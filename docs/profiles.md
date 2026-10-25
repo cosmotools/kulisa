@@ -373,7 +373,8 @@ pause.
 
 Only through the CDP proxy (`cdp-proxy.ts`): a fake CDP "browser" endpoint per profile,
 `http://127.0.0.1:<port>/<project>/<task>/<profile>` (each part percent-encoded), over each tab's `webContents.debugger`. There is no
-`--remote-debugging-port`, so Kulisa's own window is never exposed. Clients: the shell's own playwright-core
+`--remote-debugging-port`, so Kulisa's own window is never exposed (the e2e tests alone start it with one, a port of
+their own on 127.0.0.1: docs/testing.md, End to end on Playwright Test). Clients: the shell's own playwright-core
 connection (the MCP tools, the picker, the annotations) and `@playwright/mcp`. The proxy reports Chrome's real target
 ids (Playwright needs them) and fans out a tab's events to all clients. Playwright's first command to a page,
 `Emulation.setFocusEmulationEnabled`, is a capture to Chromium: the page stays visible, unthrottled and unfrozen

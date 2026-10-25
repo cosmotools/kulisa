@@ -392,7 +392,8 @@ by a key, Ctrl+`, their dialog answered, Pick, an address from its pane's bar). 
 loading does (a tab the agent opened, a redirect: on macOS every one does, and the next keys typed to the agent would
 go to the site), gives it back to where it was in its window (`page-focus.ts`). A real click's own order on macOS is the
 page's focus, then the click 2 ms later: a page's focus is the human's when their input in it comes within 150 ms of
-it, before or after.
+it, before or after. A focus given back 150 ms later is not given back over Kulisa's gift of it since (Ctrl+` at once
+after a page loaded).
 
 - **In a profile's page, or its pane** (its address bar, its toolbar): Chrome's keys, for that pane, as the hands know
   them: Ctrl+T a new tab with the address to type in, Ctrl+W, Ctrl+Shift+T (the tab closed last: its address, kept in

@@ -23,7 +23,8 @@
   // direnv: the user's own, which tasks use when it is installed (worktrees.ts); the tests check it the same way.
   // actionlint: the developer's own, npm test runs it when installed (docs/testing.md, Workflows).
   // where.exe: Windows' own, finding a shell the quoting test runs.
-  "ignoreBinaries": ["direnv", "actionlint", "where.exe"],
+  // Xvfb, openbox: the e2e tests' screen on Linux, the system's (docs/testing.md).
+  "ignoreBinaries": ["direnv", "actionlint", "where.exe", "Xvfb", "openbox"],
   // Forge's makers, publisher and plugins, named by strings in forge.config.ts. The language server and its Vue plugin,
   // run by Claude Code's kulisa-dev plugin (.claude/dev-plugins; README, Developing with Claude Code).
   "ignoreDependencies": ["@electron-forge/maker-.*", "@electron-forge/publisher-github", "@electron-forge/plugin-auto-unpack-natives",
