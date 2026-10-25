@@ -63,7 +63,8 @@ function app(group: string, args: string[], script = run) {
     let out = '';
     child.stdout.on('data', (d) => (out += d));
     child.stderr.on('data', (d) => (out += d));
-    child.on('close', (code) => resolve({ code: code ?? 1, out }));
+    // How it ended, said when it failed: its tests may all have passed and the app not ended cleanly.
+    child.on('close', (code, signal) => resolve({ code: code ?? 1, out: code === 0 ? out : `${out}\nthe app ended with ${code ?? signal}\n` }));
   });
 }
 

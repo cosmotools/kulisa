@@ -67,7 +67,7 @@ Serializing leaves out the cursor's visibility (`?25`) and the mouse's encoding 
 Code's fullscreen clicks), so each buffer follows them (`registerCsiHandler`, not taking them) and they are written
 after it, every one with its value: `reset()` leaves a hidden cursor hidden in the next terminal shown, and turning an
 encoding off sets the default one, so those off go first (`serialized`). A task moving to another window takes its
-terminals' buffers the same way (`terminals:restore`), at the same size.
+terminals' buffers the same way (`terminals:restore`), at the same size, also when its page showed the task first.
 
 Set up as VS Code's: Unicode 11 widths (Claude Code draws ✅ ⏵ ✻; with Unicode 6 the cursor drifts a cell after each),
 a bundled font (JetBrains Mono, at the window's `--font`), the WebGL renderer, the colors of the place it is in (its
