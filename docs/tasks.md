@@ -406,7 +406,9 @@ may come after "Installed"), with no steps for the human to type, for people who
 are not programmers); its accounts are made there too, or in a project's page.
 
 - The installers are the makers' official native ones (no Node, no sudo, they update themselves): Claude Code `curl -fsSL https://claude.ai/install.sh | bash`, Codex
-  `curl -fsSL https://chatgpt.com/codex/install.sh | sh` (`install.ps1` on Windows).
+  `curl -fsSL https://chatgpt.com/codex/install.sh | sh` (`install.ps1` on Windows). On Windows an installer gets the
+  system's own programs first in its `PATH`: they call `tar` by name, and Kulisa started from Git Bash has Git's GNU
+  tar first, which reads `C:\…` as a remote host.
 - Each agent is one entry in `agents/`: how to find, install, start (Claude Code with the Kulisa plugin; Codex
   with the MCP server and its hooks as config overrides, `-c mcp_servers.kulisa.url=…`, `-c hooks=…`), resume
   (`claude --resume` and `codex resume` with the session the `SessionStart` hook reported; else `codex resume
@@ -789,7 +791,11 @@ agents' accounts, let go of (Settings → Agents deletes one: "Choosing the agen
   started on the same data shows the first one's window and quits before it reads or writes anything: two would
   write over each other's saved tabs, session cookies and tasks, and the second would have no MCP server (the port
   taken). Electron's lock is the data folder's: Kulisa on another
-  (`KULISA_DATA`) runs next to it, as the tests' apps do, each on its own.
+  (`KULISA_DATA`) runs next to it, as the tests' apps do, each on its own. A second one started with `KULISA_QUIT`
+  asks the first, through the same lock, to quit as SIGINT has it do (saved, asking nothing), and goes without
+  writing to the log (`askToQuit`): Windows has no signal for it. A console's Ctrl+C reaches `npm start`'s Node there,
+  not Electron (a GUI program, without a console), and a signal sent to a child ends it at once, so
+  `scripts/electron.ts` stops Kulisa by such a start.
 - Each window shows one of its tasks. The others keep running, the other windows' too: their
   pages and agent go on, their pages hidden.
 - A task loads (its profiles start, its agent starts) the first time it is shown, also after a restart.

@@ -20,14 +20,15 @@ After each change, restart it without asking, so the author sees it (the author 
 `npm test` runs only when they say the work is done, CLAUDE.md):
 
 1. `.claude/skills/run-kulisa/kulisa.sh stop`: SIGINT to the main Electron process, so session cookies and tabs are
-   saved. Never `kill -9`, never `pkill -f` (it matches the shell running it).
+   saved; on Windows, which has no signal for it, a second start asking it to quit (`KULISA_QUIT`, README). Never
+   `kill -9`, `taskkill /F` or `Stop-Process`, never `pkill -f` (it matches the shell running it).
 2. `.claude/skills/run-kulisa/kulisa.sh start`. It runs without the parent Claude session's `CLAUDE_*` variables
    (except `CLAUDE_CONFIG_DIR`), or the `claude` inside would take itself for a child session.
    In the foreground, on every OS. The app is its own, not the terminal's: a Claude session's terminal closed takes no
    Kulisa with it (its SIGHUP would end it unsaved). Linux: in a session of its own (`setsid`). macOS: through
    LaunchServices (`open`), so the screen recording permission, `KULISA_SHOT`, is its own too (`docs/testing.md`, "On
    macOS"), and without the terminal's variables either (`TERM_PROGRAM` makes zsh in its terminals load Terminal.app's
-   own startup). It returns once `[kulisa] MCP server: …` is in the app's output, `dist/kulisa.log` of the checkout.
+   own startup). Windows (in Git for Windows' bash): by `Start-Process`, in a hidden console of its own, with the PATH the Start menu gives, not Git Bash's (its GNU `tar` first breaks the agents' installers). It returns once `[kulisa] MCP server: …` is in the app's output, `dist/kulisa.log` of the checkout.
 
 Do not start a second one while one runs: stop first. `kulisa.sh start` refuses then and names the checkout it runs
 from (Kulisa itself lets one run per data folder: a second one shows the first one's window and quits); another

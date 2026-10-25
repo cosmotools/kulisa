@@ -210,6 +210,17 @@ moves there over time: what has an issue is removed from here, the issue being t
 
 ## Open issues
 
+- **The tasks group flaky on Windows**, not reproduced alone: the fake agent's sign-in terminal ending at once with
+  no exit code (node-pty's for a process killed), every account test after it failing; the test app not exiting after
+  `[kulisa] quitting`, its terminals ended, the run waiting for it with no limit (`test/start.ts`).
+
+- **Kulisa's main process left running after quitting, on Windows**, not reproduced: closed by the window's ×
+  with a real Claude Code at work and Settings open, everything saved (`[kulisa] quitting`, the agent's terminal
+  exited, `[settings] closed`), the windows and their processes gone, the main process staying, idle, until ended by
+  hand; the next start refused (one Kulisa per data folder). Node's inspector cannot be turned on in a running Kulisa
+  on Windows, so the next time: start it with `--inspect` and log the app's quit events (`will-quit`, `quit`, the
+  process's `exit`) to see the step it stops at.
+
 - **The grid in a small window** (not decided; the window's own minimum is built: window.md, "The window's size"). When the panes do not fit,
   dockview overflows and cuts them, the profiles' native views get boxes near 0, and the terminal may get 0 columns
   (`pty.resize` is in a `try` in `src/terminal/main/index.ts`, but the agent's CLI draws garbage at a tiny size). Ways to weigh:
@@ -235,20 +246,16 @@ moves there over time: what has an issue is removed from here, the issue being t
     `--no-sandbox` to try it. Other Linux formats (AppImage, rpm, snap) are not set up.
   - Starting the agent (`src/terminal/main/`; on Linux and macOS typed into the user's shell: [tasks.md](tasks.md),
     Projects, "An agent"):
-    - Windows (typed into PowerShell): SIGINT and SIGTERM work differently there (quit handling in `app.ts`); a real
-      agent, closing a task and opening it again (`claude --resume`) and the project folder dialog (New Project…'s
-      Browse…): untested by hand.
-  - `safeStorage` (DPAPI) for session cookies on Windows: untested.
-  - Claude Code reading the large pages' files without asking on Windows (its rule's path in POSIX form,
-    `//c/…`: `agents/claude.ts`): untested.
-  - Paths in the terminal as links on Windows (`C:\…`, `\\server\share\…`; what runs, by its extension:
-    `file-links.ts`): untested.
-  - The OS buttons' see-through strip ([window.md](window.md), The title bar) on Windows: no strip of the theme's
-    color behind them, their hover still shown, the strip dimmed under a dialog (the test checks it on Linux).
-  - Screenshots ([src/screenshots](../src/screenshots/README.md)), tested on Linux (X11) only: the folder of
-    screenshots on macOS (the one ⇧⌘5 chose, read by `defaults`) and Windows (`Pictures\Screenshots`); the image on the
-    clipboard and the thumbnail's file dragged out on Wayland, macOS and Windows; the thumbnail's view at a Retina
-    screen's density; Send to Agent and Ctrl+V of an image in Codex.
+    - Windows (typed into PowerShell): a real agent, closing a task and opening it again (`claude --resume`) and the
+      project folder dialog (New Project…'s Browse…): untested by hand.
+  - Windows logging off or shutting down with Kulisa open: Electron tells each window (`session-end`, nothing listens)
+    and Windows then ends the process, likely before the session cookies and tabs are saved as at quitting: untested.
+  - The OS buttons' hover on Windows, over their see-through strip ([window.md](window.md), The title bar).
+  - Screenshots ([src/screenshots](../src/screenshots/README.md)), tested on Linux (X11), partly on Windows
+    ([testing.md](testing.md), On Windows): the folder of screenshots on macOS (the one ⇧⌘5 chose, read by
+    `defaults`) and Windows moved elsewhere (read by `reg`); the image on the clipboard on Wayland and macOS; the
+    thumbnail's file dragged out on Wayland, macOS and Windows; the thumbnail's view at a Retina screen's density;
+    Send to Agent and Ctrl+V of an image in Codex.
   - One xterm a place ([window.md](window.md), The terminal): the RAM it saves where the GPU's memory is the RAM (a
     Mac's, a laptop's integrated GPU): not measured there.
   - Dictation (the right ⌘ held, or the terminals' microphone): the agent records itself. macOS: signed with the
@@ -259,7 +266,8 @@ moves there over time: what has an issue is removed from here, the issue being t
     on Windows, whether ConPTY puts a `conhost`/`OpenConsole` between Kulisa and the hidden `claude`.
     The pill's wave (the window reading the microphone, `getUserMedia`): untested on macOS and Windows, whether the
     system asks for the microphone for Kulisa's window as for the agent, and the wave is flat until it is allowed.
-  - A packaged app's later starts and an agent started in a task of it: untested packaged on Linux and Windows. Its
+  - A packaged app's later starts and an agent started in a task of it: untested packaged on Linux; on Windows, the
+    agent ([testing.md](testing.md), On Windows), and Squirrel's installed app with its updates. Its
     update check fails while there is no release for its OS ("The server sent an invalid response" on macOS) and is
     only logged.
   - The one-row title bar (`titleBarStyle: 'hidden'` + `titleBarOverlay`, Window Controls Overlay): the window

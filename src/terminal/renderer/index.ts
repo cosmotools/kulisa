@@ -203,10 +203,13 @@ export class View {
   // Measured in a frame about to be drawn, never between: a task's slide (a view transition) builds the next grid while
   // nothing is drawn, and its room then is passing (954 px for 293), while no ResizeObserver tells of the room it ends
   // with, the same as before: the agent would keep 52 rows in a panel of 16.
+  // A hidden page draws no frames, and no transition runs in it: measured at once then. Windows hides a window that
+  // others cover, as one opening behind them, which would otherwise start its agents only once someone looks at it.
   private fitTimer = 0;
   private fitSoon(tries = 50) {
     clearTimeout(this.fitTimer);
-    this.fitTimer = window.setTimeout(() => requestAnimationFrame(() => {
+    const inFrame = (f: () => void) => (document.hidden ? f() : requestAnimationFrame(f));
+    this.fitTimer = window.setTimeout(() => inFrame(() => {
       const key = this.key;
       if (!key || this.pending || !this.opened || !this.el.offsetWidth) return; // not on screen: fitted when it comes
       const size = this.size();

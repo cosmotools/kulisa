@@ -110,8 +110,9 @@ Run from a terminal, as anywhere, with Git for Windows installed (its `bash` in 
 
 - **The user's shell is PowerShell** (pwsh when installed, else Windows PowerShell: `src/terminal/`): the tests of the
   terminals type its commands (`WIN` in `helpers.ts`). The quoting test runs each one installed (`shell-quote.test.ts`).
-- **ConPTY redraws the screen**: it sends a line again as it repaints it, the paste's marks in the middle of its echo.
-  A test reads what the terminal shows (`termText`), not the output, when it looks for what was typed.
+- **ConPTY redraws the screen**: it sends a line again as it repaints it, the paste's marks in the middle of its echo,
+  and after a resize a line padded with spaces to the width. A test reads what the terminal shows (`termText`: wrapped
+  rows joined, each line's trailing spaces dropped), not the output, when it looks for what was typed or printed.
 - **A right-click's menu opens on the release** (on the press elsewhere), and the terminal copies and pastes with
   Ctrl+C / Ctrl+V, Ctrl+C interrupting without a selection: `WIN` in `helpers.ts`.
 - **A folder a process is in is not removed**, nor a file a process holds: a test removing a folder Kulisa looked into
@@ -124,6 +125,21 @@ Run from a terminal, as anywhere, with Git for Windows installed (its `bash` in 
 - GitHub's runner has 1024×768, as macOS's: the CI sets 1920×1080 (`Set-DisplayResolution`, Windows Server's).
 - node-pty's helper prints `AttachConsole failed` when a terminal closes as its shell exits: its own race, harmless.
 
+What the tests cannot do there is checked by hand, again when something it depends on changes (Windows, an Electron,
+Claude Code, the part's code); what is left: ROADMAP, "Windows and macOS have gaps left".
+
+- **Quitting**: `KULISA_QUIT` and `npm start`'s Ctrl+C (sent to its console: `GenerateConsoleCtrlEvent`) quit as
+  SIGINT does elsewhere, the log saying so; `run-kulisa`'s `kulisa.sh` starts and stops Kulisa.
+- **Claude Code's rule for the large pages' files** (`//c/…`, `agents/claude.ts`): with it `claude -p` reads a file
+  outside its folder without asking, without it the read is refused.
+- **The terminal's links**: a UNC path (`\\localhost\C$\…`) is found as a file; `C:\…` and what runs by its
+  extension are the e2e test's.
+- **The OS buttons' strip**: no strip of another color behind them; a dialog's backdrop dims it with the window.
+- **A screenshot on the clipboard** (written as `keep` does) is an image to other apps (PNG and a DIB).
+- **The packaged app** (`npm run package`, not installed: Squirrel's would use the real data folder): a task's
+  terminal, a later start on the same data, `KULISA_QUIT`. Its first start after a build may wait for Windows'
+  scan of the new files.
+
 ## Writing an e2e test
 
 - **The window draws with Vue**, after the change that causes it (a microtask later, before the next frame): wait
@@ -135,7 +151,10 @@ Run from a terminal, as anywhere, with Git for Windows installed (its `bash` in 
   what another test already covers, as `setup.ts` does.
 - **Wait for a state, never for time.** `waitFor(() => condition)` (5 s by default); `sleep` only where nothing can
   be waited for (that something did *not* happen, a double click's gap), and short. A screen without a GPU is
-  slower than the author's: a test that passes only on a fast one is a race.
+  slower than the author's: a test that passes only on a fast one is a race. A wait that may fail on CI says what
+  there was instead (`waitFor`'s third argument; `ctx.termShows(text)` and `ctx.termDump`: the xterm's size, its
+  cursor and its last lines, a wrapped one marked `~`): the log is all
+  there is to read then.
 - **Before a click, wait until the window is ready for it**: a project or task being shown
   (`!shell.windows[0].switching`, no `loading` class on the root), the panel there (`getPanel(...)?.`), the
   element drawn. A click while the window builds another grid is lost.

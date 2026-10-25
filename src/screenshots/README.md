@@ -45,7 +45,9 @@ the screen's density (`scale: 'device'`), sharp on a Retina screen. The window's
 
 **Both to the clipboard and to a file** (`keep`, `main/folder.ts`), as Windows 11's
 Win+Shift+S does: the clipboard for a message or the agent's prompt (Ctrl+V: Claude Code takes an image so); the file
-in the OS's own folder of screenshots, as ⇧⌘4 saves one: Windows' `Pictures\Screenshots` (Win+PrtScn's), Linux's
+in the OS's own folder of screenshots, as ⇧⌘4 saves one: Windows' Screenshots known folder (Win+PrtScn's),
+`Pictures\Screenshots` unless moved in its Properties (where to, the registry's User Shell Folders keeps:
+`reg query`; Electron does not know it), Linux's
 `~/Pictures/Screenshots` (GNOME's, KDE's), on macOS the folder chosen in ⇧⌘5's options (`defaults read
 com.apple.screencapture location`; Electron does not know it), the Desktop by default. Made when missing, as the OSes
 do. `KULISA_SCREENSHOTS` names another folder (the tests' own, in their temp folder). The file is named as the OSes

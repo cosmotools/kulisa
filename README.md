@@ -97,6 +97,7 @@ computer).
 | `KULISA_SIGNIN_HOSTS` | More sign-in hosts for the automatic sign-in pause, comma-separated |
 | `KULISA_DATA` | Data folder instead of the one above (e.g. to try a build next to your real one: one Kulisa runs per data folder, a second on the same one shows the first's window) |
 | `KULISA_MCP_PORT` | MCP server port (default 4450; `0` picks a free one) |
+| `KULISA_QUIT` | Only ask the Kulisa running on the same data folder to quit, its tabs and sign-ins saved as at SIGINT, which Windows does not have (`npm start`'s Ctrl+C there; `run-kulisa`'s `kulisa.sh stop`) |
 | `KULISA_SCREENSHOTS` | The folder the human's screenshots go to, instead of the OS's own folder of screenshots (the tests' own) |
 | `KULISA_GITHUB` | GitHub's address instead of github.com, its API under `/api` (the tests' own: their fake GitHub; src/github) |
 | `KULISA_SHOT` | Save a screenshot of the whole window to this PNG file ~4 s after start (`KULISA_SHOT_DELAY`, ms) |
