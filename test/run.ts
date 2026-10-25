@@ -179,10 +179,12 @@ async function setup(shell: Shell) {
     return Array.from({ length: b.length }, (_, i) => b.getLine(i)).map((l, i) => (i && !l.isWrapped ? '\\n' : '') + l.translateToString(true)).join(''); })()`);
   // The terminal in the window showing text; when it does not, its xterm as it is: its size, where its cursor is,
   // and its last lines, each with its number and a ~ when it continues the one before (wrapped).
-  const termDump = () => ui(`(() => { const t = window.__term, b = t?.buffer.active; if (!b) return 'no terminal shown';
+  const termDump = async () => ({ pty: shell.pty && [shell.pty.cols, shell.pty.rows], ...await ui(`(() => { const t = window.__term, b = t?.buffer.active; if (!b) return { shown: 'no terminal' };
     const lines = Array.from({ length: b.length }, (_, i) => b.getLine(i)).map((l, i) => i + (l.isWrapped ? '~' : ' ') + '|' + l.translateToString(true));
-    return { cols: t.cols, rows: t.rows, length: b.length, cursor: [b.cursorX, b.cursorY], baseY: b.baseY, lines: lines.slice(-12) }; })()`);
-  const termShows = (text: string) => waitFor(async () => (await termText()).includes(text), 5000, termDump);
+    const box = document.querySelector('#dock .term')?.getBoundingClientRect().toJSON();
+    return { cols: t.cols, rows: t.rows, length: b.length, cursor: [b.cursorX, b.cursorY], baseY: b.baseY, box, sizes: window.__ptySizes.slice(-4),
+      lines: lines.filter((l, i) => i <= b.baseY + b.cursorY + 2 || l.length > 4).slice(0, 40) }; })()`) });
+  const termShows = (text: string) => waitFor(async () => (await termText()).includes(text), 5000, async () => ({ expected: text, ...await termDump() }));
   await termShows('agent: rc of'); // the agent runs
   // Questions (deleting a profile, a task…) are answered in the window's dialog, as the human would: ctx.answer
   // true clicks the button that does it, false Cancel; null leaves the dialog to the test. ctx.asked: what was asked.
