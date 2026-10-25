@@ -44,6 +44,8 @@ on('pty:resize', (_e, { task, cols, rows }) => {
   t.size = island.size = { cols, rows }; t.sized(); island.sized();
   try { t.pty?.resize(cols, rows); t.pty?.screen?.resize(cols, rows); } catch {}
 });
+// Every terminal's process until it has exited (stopAllTerminals).
+const running = new Map<Pty, Promise<void>>();
 // Esc typed by the human into a terminal (its key): what it means is the caller's (an agent's turn ended: tasks.ts).
 const escapes: ((key: string) => void)[] = [];
 const onEscape = (fn: (key: string) => void) => { escapes.push(fn); };
@@ -101,6 +103,7 @@ async function startTerminal(send: Send, cfg: TerminalConfig, key: string): Prom
   const out = (data: string) => { p.screen?.write(data); if (t.pty === p) send('pty:out', { task: key, data }); };
   p.onData(out);
   p.onExit(({ exitCode }) => { log.info(`[terminal] ${key} exited ${exitCode}`); out(`\r\n[process exited ${exitCode}]\r\n`); });
+  running.set(p, new Promise((r) => p.onExit(() => { running.delete(p); r(); })));
   t.pty = p;
   return p;
 }
@@ -130,6 +133,14 @@ function stopTerminal(p: Pty) {
   if (t?.pty === p) t.pty = null;
   try { p.kill(); } catch {}
   p.screen?.dispose(); p.screen = undefined;
+}
+
+// Every terminal stopped, as Kulisa quits, and their processes waited for, 3 s at most: on Windows node-pty ends a
+// ConPTY on threads and a helper process of its own, and an app exiting before they are done may end with an uncaught
+// C++ exception.
+async function stopAllTerminals() {
+  const exits = [...running].map(([p, exited]) => { stopTerminal(p); return exited; });
+  await Promise.race([Promise.all(exits), new Promise((r) => setTimeout(r, 3000))]);
 }
 
 // A terminal closed, or its task gone (its project closed, a task deleted): its size too. Opened again, the window
@@ -188,4 +199,4 @@ async function sendToPrompt(p: Pty, text: string, confirm?: string) {
 }
 
 export type { Pty };
-export { startTerminal, stopTerminal, forgetTerminal, terminalTail, typeIntoPrompt, eraseInPrompt, sendToPrompt, interrupt, typeLine, onEscape };
+export { startTerminal, stopTerminal, stopAllTerminals, forgetTerminal, terminalTail, typeIntoPrompt, eraseInPrompt, sendToPrompt, interrupt, typeLine, onEscape };

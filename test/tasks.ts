@@ -399,7 +399,7 @@ export default (test: Test) => {
     await waitFor(async () => (await viewOn(shell, ui, 'Sam.admin')) && viewOn(shell, ui, 'Elon.buyer'));
     assert.equal(sam.get().view.getVisible(), false, "the second task's pages are hidden");
     assert.ok(sam.tabs.every((t) => !t.wc.isDestroyed()) && second.pty, 'and alive, its agent too');
-    await waitFor(async () => (await ctx.termText()).includes(`agent: rc of ${project}\n`), 3000);
+    await waitFor(async () => (await ctx.termText()).includes(`agent: rc of ${project}\n`));
     assert.equal(savedWindows()[0].shown, 'project/1', 'the shown task kept for the next start');
     // What the second task's agent does reaches its tab (Claude Code's hooks); its captions do not show on the first's panes.
     const post = (event: string, input = {}) => new Promise((r) => http.request(`${hooksOf(second)}/${event}`, { method: 'POST' },

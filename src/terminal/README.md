@@ -41,6 +41,8 @@ nothing of them: a terminal is a key, `<task key>#<id>` for a task's, any string
 - **Esc typed by the human** reaches whoever asked (`onEscape`, with the terminal's key): what it means is theirs (an
   agent's turn ended: `Task.interrupted`, docs/tasks.md). Nothing outside listens to `pty:in` itself.
 - `stopTerminal` ends it (its output reaches no window after); `forgetTerminal` drops its size once it is gone.
+  `stopAllTerminals`, as Kulisa quits: every one, their processes waited for (3 s at most; on Windows node-pty ends a
+  ConPTY on threads of its own, and an app exiting before may end with an uncaught C++ exception).
 
 ## The window (`renderer/`)
 
