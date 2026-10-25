@@ -21,7 +21,8 @@ nothing of them: a terminal is a key, `<task key>#<id>` for a task's, any string
   agent's account: else the task would run as the account the `.envrc` names). PowerShell gets a line of its own: the
   variables set first (`$env:VAR=…`), then the command run by `&`, in a script block that sets PowerShell 7's passing
   of arguments to Windows PowerShell 5.1's (`Legacy`), so one quoting serves both: each argument as a Windows
-  program's runtime reads its command line back, around what 5.1 does to quotes and spaces on its own. A program is
+  program's runtime reads its command line back, one with a space in quotes of its own (left to PowerShell, 5.1 and 7
+  differ on the backslashes before the quote they add); the command in PowerShell's `'…'` alone. A program is
   found by name as Windows' shells find it (`PATHEXT`: `claude` may be a `.cmd`), which node-pty does not do.
 - **At its real size.** It starts only once the window has sent its size (`pty:resize`), or its island's (`sizeOf`: a
   terminal behind another tab has none of its own), however long that takes: an agent draws its prompt for the size

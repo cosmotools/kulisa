@@ -1,7 +1,8 @@
 // An argument of a command typed into the user's shell (index.ts), quoted as that shell reads it.
 import path from 'path';
 
-const shellName = (shell: string) => path.basename(shell).toLowerCase().replace(/\.exe$/, '');
+// win32's basename: it splits at / and \ both, so a Windows path is read on every OS.
+const shellName = (shell: string) => path.win32.basename(shell).toLowerCase().replace(/\.exe$/, '');
 
 // sh's quoting (bash, zsh): nothing is special inside '…', a ' ends it. fish reads `\\` and `\'` there: quoted the sh
 // way, a backslash is lost, and `\'` leaves the quote open, the line waiting and the agent not started. PowerShell:
@@ -15,27 +16,27 @@ const shellQuote = (shell: string, a: string) => {
 };
 
 // What a program on Windows reads back as the argument a (its C runtime's rules: a " escaped by a backslash, the
-// backslashes before one doubled), as Windows PowerShell 5.1 passes it on: it puts an argument with a space in "…"
-// itself, unless the space is inside quotes by its own count, which takes an escaped \" for a quote too (a JSON with
-// a space would be cut there). So such an argument is quoted here whole, its quotes doubled (inside "…" the runtime
-// reads "" as one "), which keeps that count even. PowerShell 7 does the same with its passing set to Legacy
-// (shellLine): one rule for both.
+// backslashes before one doubled), as PowerShell passes it on (Legacy in 7: shellLine). An argument with a space is
+// quoted here whole, not left to PowerShell: it puts its own "…" around one unless the space is inside quotes by its
+// count, which takes an escaped \" for a quote too (a JSON with a space would be cut there), and Windows PowerShell and
+// PowerShell 7 differ on the backslashes before that closing quote. Inside "…" the runtime reads "" as one ", which
+// keeps the count even.
 function psArgument(a: string) {
   if (a === '') return '""'; // else dropped
-  const space = /\s/.test(a);
-  if (space && a.includes('"')) return `"${a.replace(/(\\*)("|$)/g, (_, b: string, q: string) => b + b + (q ? '""' : ''))}"`;
-  const escaped = a.replace(/(\\*)"/g, '$1$1\\"');
-  return space ? escaped.replace(/(\\+)$/, '$1$1') : escaped; // PowerShell's "…" around it: its last backslashes doubled
+  if (/\s/.test(a)) return `"${a.replace(/(\\*)("|$)/g, (_, b: string, q: string) => b + b + (q ? '""' : ''))}"`;
+  return a.replace(/(\\*)"/g, '$1$1\\"');
 }
 
 // A command with its arguments and the variables pinned before it (`VAR=… cmd`), as a line for that shell.
 // PowerShell: the variables set first ($env:), the command run by &, its passing of arguments Legacy in 7 (5.1's), in a
-// script block of its own, so the setting stays there.
+// script block of its own, so the setting stays there. The command is PowerShell's to find, not on a command line: in
+// its '…' alone (a folder with a space, C:\Program Files\…).
 function shellLine(shell: string, command: string, args: string[], pinned: Record<string, string> = {}) {
   const quote = (a: string) => shellQuote(shell, a), name = shellName(shell);
   if (name === 'pwsh' || name === 'powershell') {
-    const vars = Object.entries(pinned).map(([k, v]) => `$env:${k}='${v.replace(/'/g, "''")}'; `).join('');
-    return `& { $PSNativeCommandArgumentPassing='Legacy'; ${vars}& ${[command, ...args].map(quote).join(' ')} }`;
+    const ps = (v: string) => `'${v.replace(/'/g, "''")}'`;
+    const vars = Object.entries(pinned).map(([k, v]) => `$env:${k}=${ps(v)}; `).join('');
+    return `& { $PSNativeCommandArgumentPassing='Legacy'; ${vars}& ${[ps(command), ...args.map(quote)].join(' ')} }`;
   }
   return [...Object.entries(pinned).map(([k, v]) => `${k}=${quote(v)}`), ...[command, ...args].map(quote)].join(' ');
 }
