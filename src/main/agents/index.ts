@@ -75,8 +75,14 @@ function agentVersion(found: Found | null): Promise<string | null> {
 function installAgent(agent: Agent, onData: (data: string) => void): Promise<{ code: number; log: string }> {
   const line = installLine(agent);
   if (!line) return Promise.resolve({ code: 1, log: '' });
+  // Windows: the system's own programs first, as a start from the Start menu has them: the makers' scripts call `tar`
+  // by name, and Kulisa started from Git Bash (npm start) has Git's GNU tar first, which reads C:\… as a remote host.
+  // The variable's name as it came (Path, or PATH from Git Bash): a second spelling would be a second variable.
+  const pathKey = Object.keys(process.env).find((k) => k.toUpperCase() === 'PATH') ?? 'Path';
+  const system32 = path.join(process.env.SystemRoot || 'C:\\Windows', 'System32');
   const p = process.platform === 'win32'
-    ? spawn('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', line], { windowsHide: true })
+    ? spawn('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', line],
+      { windowsHide: true, env: { ...process.env, [pathKey]: `${system32};${process.env[pathKey] ?? ''}` } })
     : spawn('/bin/sh', ['-c', line]);
   let log = '';
   const out = (d: unknown) => { const s = stripVTControlCharacters(String(d)); log += s; onData(s); };

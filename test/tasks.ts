@@ -757,7 +757,9 @@ export default (test: Test) => {
     await waitFor(async () => (await sui(agentRow('fake', '.status') + '.textContent')) === 'Installed', 10000);
     assert.match(await sui(`document.querySelector('#agentpage .progress').textContent`), /^Fake agent is installed\. Make an account of it below/);
     assert.equal(await sui(`document.querySelector('#agentpage .details .disclose').dataset.state`), 'closed', "the installer's own output only under Details");
-    assert.match(await sui(`document.querySelector('#agentpage pre').textContent`), /installing the fake agent\s+done/);
+    assert.match(await sui(`document.querySelector('#agentpage pre').textContent`), /installing the fake agent\s+(tar: .*\s+)?done/);
+    if (process.platform === 'win32') assert.equal((await sui(`document.querySelector('#agentpage pre').textContent`)).match(/tar: (.*)/)[1].trim().toLowerCase(),
+      path.join(process.env.SystemRoot, 'System32', 'tar.exe').toLowerCase(), "Windows' own tar, not Git's: GNU tar reads C:\\… as a host");
     assert.doesNotMatch(await sui(`document.querySelector('#agentpage pre').textContent`), /\x1b/, 'no terminal codes: colors, links');
     assert.equal(await sui(`document.querySelector('#agentpage [data-accounts="fake"] .accountnew').disabled`), false);
     await closeSettings(ctx);

@@ -228,6 +228,13 @@ moves there over time: what has an issue is removed from here, the issue being t
   no exit code (node-pty's for a process killed), every account test after it failing; the test app not exiting after
   `[kulisa] quitting`, its terminals ended, the run waiting for it with no limit (`test/start.ts`).
 
+- **Kulisa's main process left running after quitting, on Windows**, not reproduced: closed by the window's ×
+  with a real Claude Code at work and Settings open, everything saved (`[kulisa] quitting`, the agent's terminal
+  exited, `[settings] closed`), the windows and their processes gone, the main process staying, idle, until ended by
+  hand; the next start refused (one Kulisa per data folder). Node's inspector cannot be turned on in a running Kulisa
+  on Windows, so the next time: start it with `--inspect` and log the app's quit events (`will-quit`, `quit`, the
+  process's `exit`) to see the step it stops at.
+
 - **The grid in a small window** (not decided; the window's own minimum is built: window.md, "The window's size"). When the panes do not fit,
   dockview overflows and cuts them, the profiles' native views get boxes near 0, and the terminal may get 0 columns
   (`pty.resize` is in a `try` in `src/terminal/main/index.ts`, but the agent's CLI draws garbage at a tiny size). Ways to weigh:

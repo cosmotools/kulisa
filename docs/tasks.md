@@ -406,7 +406,9 @@ may come after "Installed"), with no steps for the human to type, for people who
 are not programmers); its accounts are made there too, or in a project's page.
 
 - The installers are the makers' official native ones (no Node, no sudo, they update themselves): Claude Code `curl -fsSL https://claude.ai/install.sh | bash`, Codex
-  `curl -fsSL https://chatgpt.com/codex/install.sh | sh` (`install.ps1` on Windows).
+  `curl -fsSL https://chatgpt.com/codex/install.sh | sh` (`install.ps1` on Windows). On Windows an installer gets the
+  system's own programs first in its `PATH`: they call `tar` by name, and Kulisa started from Git Bash has Git's GNU
+  tar first, which reads `C:\…` as a remote host.
 - Each agent is one entry in `agents/`: how to find, install, start (Claude Code with the Kulisa plugin; Codex
   with the MCP server and its hooks as config overrides, `-c mcp_servers.kulisa.url=…`, `-c hooks=…`), resume
   (`claude --resume` and `codex resume` with the session the `SessionStart` hook reported; else `codex resume
