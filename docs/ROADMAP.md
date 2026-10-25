@@ -249,9 +249,10 @@ moves there over time: what has an issue is removed from here, the issue being t
     `--no-sandbox` to try it. Other Linux formats (AppImage, rpm, snap) are not set up.
   - Starting the agent (`src/terminal/main/`; on Linux and macOS typed into the user's shell: [tasks.md](tasks.md),
     Projects, "An agent"):
-    - Windows (typed into PowerShell): SIGINT and SIGTERM work differently there (quit handling in `app.ts`); a real
-      agent, closing a task and opening it again (`claude --resume`) and the project folder dialog (New Project…'s
-      Browse…): untested by hand.
+    - Windows (typed into PowerShell): a real agent, closing a task and opening it again (`claude --resume`) and the
+      project folder dialog (New Project…'s Browse…): untested by hand.
+  - Windows logging off or shutting down with Kulisa open: Electron tells each window (`session-end`, nothing listens)
+    and Windows then ends the process, likely before the session cookies and tabs are saved as at quitting: untested.
   - `safeStorage` (DPAPI) for session cookies on Windows: untested.
   - Claude Code reading the large pages' files without asking on Windows (its rule's path in POSIX form,
     `//c/…`: `agents/claude.ts`): untested.

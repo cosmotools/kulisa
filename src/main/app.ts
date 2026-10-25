@@ -46,7 +46,7 @@ import type { ProjectEntry } from './store.ts';
 
 // What start takes (below).
 interface Options {
-  userData?: string; project?: string; projectsHome?: string; mcpPort?: number; signinHosts?: string[];
+  userData?: string; project?: string; projectsHome?: string; mcpPort?: number; signinHosts?: string[]; quit?: boolean;
   appDevTools?: boolean; agents?: Agent[]; installed?: string;
   agent?: { name?: string; command: string; args?: string[]; resume?: (sessionId: string) => string[]; shell?: Agent['shell']; voice?: Agent['voice']; conversation?: Agent['conversation'] };
 }
@@ -75,6 +75,7 @@ const AGENT_PACKAGES = app.isPackaged ? process.resourcesPath : path.join(import
 //              Kulisa's own on Linux, none otherwise (tests)
 //   mcpPort    port of the MCP server (default 4450)
 //   signinHosts  extra sign-in hosts (sign-in pause, tab restore)
+//   quit       only ask the Kulisa running on userData to quit (KULISA_QUIT: askToQuit), and go
 function start(options: Options = {}) {
   // direnv's state from where Kulisa was started (a terminal in a folder direnv had loaded) is not Kulisa's: a task's
   // shell would take the task's folder for that folder left and undo its .envrc's changes, an agent's account variable
@@ -86,6 +87,7 @@ function start(options: Options = {}) {
   app.userAgentFallback = app.userAgentFallback.replace(/ Electron\/\S+/, '');
   const userData = options.userData || path.join(app.getPath('appData'), 'Kulisa');
   app.setPath('userData', userData);
+  if (options.quit) return askToQuit(userData);
   const { previousRunQuit } = startLog(userData, app.isPackaged);
   log.info(`[kulisa] start ${environment()}, data ${userData}`);
   // A crash of the main process writes no line: Crashpad keeps its minidump in crashDumps (Crashpad prunes them itself:
@@ -113,7 +115,11 @@ function start(options: Options = {}) {
   // task's project, that task, its open and closed profiles by id, its agent a pick goes to (Task.promptTarget).
   const shell = { bus, store, proxy: null, mcp: null, open: new Map(), windows: [], signin: signinPages(options.signinHosts || []) } as unknown as Shell;
   const first = () => shell.windows[0] ?? null;
-  app.on('second-instance', () => first()?.focus());
+  app.on('second-instance', (_e, _argv, _cwd, data) => {
+    if (!(data as { quit?: boolean } | null)?.quit) return first()?.focus();
+    log.info('[kulisa] asked to quit by another start (KULISA_QUIT)');
+    app.quit();
+  });
   app.on('activate', () => first()?.focus()); // macOS: the Dock clicked, the last window hidden by its × (open-tasks.ts)
   // The profiles and their masters (profile-store.ts); after who one is changed, or a project got or let go of one,
   // every loaded task shows it (project-profiles.ts, refresh), but the one it was changed in, which did.
@@ -459,6 +465,16 @@ function start(options: Options = {}) {
   process.on('SIGTERM', () => app.quit());
   app.on('window-all-closed', () => app.quit());
   return ready;
+}
+
+// The Kulisa running on this data quits as at SIGINT, its tabs and sign-ins saved: Windows has no signal for it (a
+// console's Ctrl+C reaches npm start's node, not Electron, a GUI program: scripts/electron.ts). Through Electron's lock,
+// and before the log is started, so that this short run leaves no start in it (log.ts, quitSaid).
+function askToQuit(userData: string) {
+  const running = !app.requestSingleInstanceLock({ quit: true });
+  console.log(running ? `[kulisa] asked the one running with ${userData} to quit` : `[kulisa] none running with ${userData}`);
+  app.quit();
+  return new Promise<never>(() => {});
 }
 
 export { start, AGENT_PACKAGES };

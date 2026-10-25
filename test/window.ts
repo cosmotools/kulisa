@@ -271,6 +271,32 @@ export default (test: Test) => {
     assert.match(out, /already running with .*: its window is shown/);
     await waitFor(() => !win.isMinimized());
   });
+  test('KULISA_QUIT: a second start asks the Kulisa running on the same data to quit, saved as at SIGINT, and leaves no start in its log', async () => {
+    const data = path.join(root, 'quit');
+    removeTree(data);
+    const run = (env: Record<string, string>) => {
+      const p = spawn(process.execPath, [...(process.platform === 'linux' ? ['--no-sandbox'] : []), path.join(import.meta.dirname, '..', 'src', 'main', 'index.ts')],
+        { env: { ...process.env, KULISA_DATA: data, KULISA_MCP_PORT: '0', ...env }, stdio: ['ignore', 'pipe', 'pipe'] });
+      let out = '';
+      p.stdout.on('data', (d) => (out += d));
+      return { p, out: () => out, code: new Promise((r) => p.on('close', r)) };
+    };
+    const first = run({});
+    const timer = setTimeout(() => first.p.kill('SIGINT'), 30000); // one that stays is stopped, not left behind
+    await waitFor(() => first.out().includes('MCP server'), 20000);
+    const quit = run({ KULISA_QUIT: '1' });
+    assert.equal(await quit.code, 0);
+    assert.match(quit.out(), /asked the one running with .* to quit/);
+    assert.equal(await first.code, 0);
+    clearTimeout(timer);
+    const none = run({ KULISA_QUIT: '1' });
+    assert.equal(await none.code, 0);
+    assert.match(none.out(), /none running with/);
+    const log = fs.readFileSync(path.join(data, 'logs', 'kulisa.log'), 'utf8');
+    assert.match(log, /asked to quit by another start[^\n]*\n[^\n]*\[kulisa\] quitting/);
+    assert.ok(log.lastIndexOf('[kulisa] start') < log.lastIndexOf('[kulisa] quitting'), 'the next start does not take it for a crash');
+    removeTree(data);
+  });
   test('icons: each from the sprite (docs/ui.md), drawn there once and in lines of the text\'s color; icon buttons have a name', async ({ ui }) => {
     const r = await ui(`(() => {
       const every = (q) => [...document.querySelectorAll(q), ...[...document.querySelectorAll('template')].flatMap((t) => [...t.content.querySelectorAll(q)])];

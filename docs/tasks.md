@@ -789,7 +789,11 @@ agents' accounts, let go of (Settings → Agents deletes one: "Choosing the agen
   started on the same data shows the first one's window and quits before it reads or writes anything: two would
   write over each other's saved tabs, session cookies and tasks, and the second would have no MCP server (the port
   taken). Electron's lock is the data folder's: Kulisa on another
-  (`KULISA_DATA`) runs next to it, as the tests' apps do, each on its own.
+  (`KULISA_DATA`) runs next to it, as the tests' apps do, each on its own. A second one started with `KULISA_QUIT`
+  asks the first, through the same lock, to quit as SIGINT has it do (saved, asking nothing), and goes without
+  writing to the log (`askToQuit`): Windows has no signal for it. A console's Ctrl+C reaches `npm start`'s Node there,
+  not Electron (a GUI program, without a console), and a signal sent to a child ends it at once, so
+  `scripts/electron.ts` stops Kulisa by such a start.
 - Each window shows one of its tasks. The others keep running, the other windows' too: their
   pages and agent go on, their pages hidden.
 - A task loads (its profiles start, its agent starts) the first time it is shown, also after a restart.
