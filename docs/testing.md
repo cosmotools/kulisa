@@ -121,6 +121,7 @@ Run from a terminal, as anywhere, with Git for Windows installed (its `bash` in 
   junctions.
 - **Chromium is told a connection is refused after about 2 s**, a bare Electron's page too (Node at once): "at once"
   allows for it.
+- GitHub's runner has 1024×768, as macOS's: the CI sets 1920×1080 (`Set-DisplayResolution`, Windows Server's).
 - node-pty's helper prints `AttachConsole failed` when a terminal closes as its shell exits: its own race, harmless.
 
 ## Writing an e2e test
