@@ -9,7 +9,8 @@
 #                      terminal's: a Claude session's terminal closed takes no Kulisa with it, unsaved (its SIGHUP).
 #                      Linux: in a session of its own (setsid). macOS: through LaunchServices (`open`), so the screen
 #                      recording permission is its own too (docs/testing.md, "On macOS"), without the terminal's
-#                      variables either. Windows: by Start-Process, in a hidden console of its own. It returns once the
+#                      variables either. Windows: by Start-Process, in a hidden console of its own, the PATH the Start
+#                      menu gives (not Git Bash's, its GNU tools first). It returns once the
 #                      app is up, its output in dist/kulisa.log (the checkout's, ignored by git, gone with a worktree;
 #                      rewritten at each start).
 set -u
@@ -93,7 +94,8 @@ case "${1:-}" in
       env $(env | grep -oE '^(CLAUDE[A-Z_]*|TERM_PROGRAM[A-Z_]*|TERM_SESSION_ID)' | grep -v '^CLAUDE_CONFIG_DIR$' | sed 's/^/-u /') \
         open -n -a "$repo/node_modules/electron/dist/Electron.app" --stdout "$log" --stderr "$log" --args "$repo"
     elif $win; then
-      env $unclaude powershell -NoProfile -Command "Start-Process cmd -WindowStyle Hidden -WorkingDirectory '$(cygpath -w "$repo")' \
+      # PATH as the Start menu gives it (the registry's), not Git Bash's, whose GNU tools come first.
+      env $unclaude powershell -NoProfile -Command "\$env:Path = [Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' + [Environment]::GetEnvironmentVariable('Path', 'User'); Start-Process cmd -WindowStyle Hidden -WorkingDirectory '$(cygpath -w "$repo")' \
         -ArgumentList '/c', 'node \"$(cygpath -w "$repo/scripts/electron.ts")\" . > \"$(cygpath -w "$log")\" 2>&1'"
     else
       env $unclaude setsid -f node scripts/electron.ts . >"$log" 2>&1 </dev/null

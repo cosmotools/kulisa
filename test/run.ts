@@ -80,8 +80,9 @@ const agents: Agent[] = [
     config: { env: 'FAKE_CONFIG_DIR', home: () => path.join(root, 'fake-config'), login: () => ['auth', 'login'],
       status: ['auth', 'status'], email: (out) => JSON.parse(out).email, logout: ['auth', 'logout'] },
     install: { posix: `echo "installing the fake agent"; mkdir -p '${bin}' && cp '${fakeAgent}' '${bin}/kulisa-fake-agent' && chmod +x '${bin}/kulisa-fake-agent' && printf '\\033[32mdone\\033]8;;https://kulisa.app\\007\\033]8;;\\007\\033[0m\\n'`, // colored, a link: as installers print
-      // Windows: the script and a .cmd running it with bash, as npm puts a package's program there.
-      win32: `echo 'installing the fake agent'; New-Item -ItemType Directory -Force '${bin}' > $null; Copy-Item '${fakeAgent}' '${bin}\\kulisa-fake-agent'; Set-Content -Encoding ascii '${bin}\\kulisa-fake-agent.cmd' '@bash "%~dp0kulisa-fake-agent" %*'; $e = [char]27; $b = [char]7; echo "$e[32mdone$e]8;;https://kulisa.app$b$e]8;;$b$e[0m"` },
+      // Windows: the script and a .cmd running it with bash, as npm puts a package's program there; the tar it would
+      // unpack with, as Codex's installer does.
+      win32: `echo 'installing the fake agent'; echo "tar: $((Get-Command tar).Source)"; New-Item -ItemType Directory -Force '${bin}' > $null; Copy-Item '${fakeAgent}' '${bin}\\kulisa-fake-agent'; Set-Content -Encoding ascii '${bin}\\kulisa-fake-agent.cmd' '@bash "%~dp0kulisa-fake-agent" %*'; $e = [char]27; $b = [char]7; echo "$e[32mdone$e]8;;https://kulisa.app$b$e]8;;$b$e[0m"` },
     args: () => [], shell: agent.shell, ...claudeLike(),
     // Recognizing for an agent without dictation of its own (src/dictation's hidden session) when signed in, as
     // Claude Code's dictation does: fixtures/fake-recognizer.mjs.

@@ -28,7 +28,7 @@ After each change, restart it without asking, so the author sees it (the author 
    Kulisa with it (its SIGHUP would end it unsaved). Linux: in a session of its own (`setsid`). macOS: through
    LaunchServices (`open`), so the screen recording permission, `KULISA_SHOT`, is its own too (`docs/testing.md`, "On
    macOS"), and without the terminal's variables either (`TERM_PROGRAM` makes zsh in its terminals load Terminal.app's
-   own startup). Windows (in Git for Windows' bash): by `Start-Process`, in a hidden console of its own. It returns once `[kulisa] MCP server: …` is in the app's output, `dist/kulisa.log` of the checkout.
+   own startup). Windows (in Git for Windows' bash): by `Start-Process`, in a hidden console of its own, with the PATH the Start menu gives, not Git Bash's (its GNU `tar` first breaks the agents' installers). It returns once `[kulisa] MCP server: …` is in the app's output, `dist/kulisa.log` of the checkout.
 
 Do not start a second one while one runs: stop first. `kulisa.sh start` refuses then and names the checkout it runs
 from (Kulisa itself lets one run per data folder: a second one shows the first one's window and quits); another

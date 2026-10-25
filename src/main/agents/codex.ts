@@ -30,6 +30,8 @@ const codex: Agent = {
   id: 'codex', name: 'Codex', maker: 'OpenAI', command: 'codex', site: 'https://developers.openai.com/codex',
   needs: 'A ChatGPT plan (Plus, Pro, Business, Enterprise) or an OpenAI API key',
   install: { posix: 'curl -fsSL https://chatgpt.com/codex/install.sh | sh', win32: 'irm https://chatgpt.com/codex/install.ps1 | iex' },
+  // install.ps1's folder on Windows, added to the user's PATH for later sessions only.
+  ...(process.platform === 'win32' && { installDirs: [path.join(process.env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local'), 'Programs', 'OpenAI', 'Codex', 'bin')] }),
   // Kulisa's MCP server and hooks as config overrides (TOML values), not written into the user's ~/.codex/config.toml;
   // its tools approved but KULISA_ASKS (its MCP docs: `approve` runs a tool without a question).
   args: ({ env }) => ['-c', `mcp_servers.kulisa.url="${env.KULISA_MCP_URL}"`, '-c', `hooks=${codexHooks()}`,
