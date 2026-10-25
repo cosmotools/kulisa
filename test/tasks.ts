@@ -399,7 +399,7 @@ export default (test: Test) => {
     await waitFor(async () => (await viewOn(shell, ui, 'Sam.admin')) && viewOn(shell, ui, 'Elon.buyer'));
     assert.equal(sam.get().view.getVisible(), false, "the second task's pages are hidden");
     assert.ok(sam.tabs.every((t) => !t.wc.isDestroyed()) && second.pty, 'and alive, its agent too');
-    await waitFor(async () => (await ctx.termText()).includes(`agent: rc of ${project}\n`));
+    await ctx.termShows(`agent: rc of ${project}\n`);
     assert.equal(savedWindows()[0].shown, 'project/1', 'the shown task kept for the next start');
     // What the second task's agent does reaches its tab (Claude Code's hooks); its captions do not show on the first's panes.
     const post = (event: string, input = {}) => new Promise((r) => http.request(`${hooksOf(second)}/${event}`, { method: 'POST' },
@@ -1024,7 +1024,7 @@ export default (test: Test) => {
     const task = await newTask(ctx);
     await waitFor(() => task.promptTarget()?.agent.id === work, 20000); // the project's default: its one account
     ctx.watchPty(task.pty);
-    await waitFor(async () => (await ctx.termText()).includes(`config [${dir}]`));
+    await ctx.termShows(`config [${dir}]`);
     // Its shell gets none of direnv's state from where Kulisa was started: else the user's direnv hook takes the task's
     // folder for a folder left, undoes that .envrc's changes and with them the account's variable, and the agent runs
     // with the user's own sign-in (Kulisa started from the repository's folder).
@@ -1733,7 +1733,7 @@ export default (test: Test) => {
     assert.deepEqual([fs.existsSync(path.join(home, 'web')), git(web, 'branch', '--list', 'checkout'), task.dirs(), task.addable()], [false, '', [], [web]]);
     assert.ok(!(await ctx.termText()).includes('Kulisa removed'), 'not while it works');
     task.setState(agent, 'done');
-    await waitFor(async () => (await ctx.termText()).split(`Kulisa removed ${path.join(home, 'web')}`).length === 3);
+    await waitFor(async () => (await ctx.termText()).split(`Kulisa removed ${path.join(home, 'web')}`).length === 3, 5000, async () => (await ctx.termText()).trimEnd().slice(-600));
     // Deleting the task: both copies, both branches and its folder go.
     await ui(`kulisa.invoke('task:delete', '${task.key}')`);
     await waitFor(() => !fs.existsSync(home));

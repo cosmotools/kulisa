@@ -132,7 +132,10 @@ async function plusMenu(ui: UI, project?: string, task?: string) {
   if (sub) await waitFor(async () => { await ui(`(${trigger})?.click()`); return (await ui(`document.querySelectorAll('.menu[data-state="open"]').length`)) >= 2; });
   const scope = sub ? `[...document.querySelectorAll('.menu[data-state="open"]')].at(-1)` : `document.querySelector('.menu[data-state="open"]')`;
   const label = task ?? 'New Task';
-  await ui(`[...(${scope}).querySelectorAll('[role="menuitem"]')].find((r) => r.querySelector('.label')?.textContent === ${JSON.stringify(label)}).click()`);
+  // Its row once there: a project just opened again lists its tasks a moment after its menu opens.
+  const row = `[...(${scope}).querySelectorAll('[role="menuitem"]')].find((r) => r.querySelector('.label')?.textContent === ${JSON.stringify(label)})`;
+  await waitFor(() => ui(`!!(${row})`), 5000, () => labelsIn(ui, scope));
+  await ui(`(${row}).click()`);
 }
 // The + menu's rows for one project (its tasks, then New Task): the submenu when several projects are open, the top
 // menu's own rows when only one. Opens the menu, reads the rows and closes it again.
@@ -212,9 +215,10 @@ const focusWindow = async (win: { focus(): void; webContents: { focus(): void } 
   await waitFor(async () => { if (await ui(`document.hasFocus()`)) return true; win.webContents.focus(); return false; });
 };
 
-async function waitFor(cond: () => unknown, ms = 5000) {
+// shown: what there was instead, said when it times out (a flaky wait on CI is read from its log alone).
+async function waitFor(cond: () => unknown, ms = 5000, shown?: () => unknown) {
   for (const end = Date.now() + ms; Date.now() < end; await sleep(50)) if (await cond()) return;
-  throw new Error(`waitFor timed out: ${cond}`);
+  throw new Error(`waitFor timed out: ${cond}${shown ? `\n      shown: ${JSON.stringify(await shown())}` : ''}`);
 }
 
 const who = async (ctx: Pick<Ctx, 'call'>, profile: string) => (await ctx.call('browser_snapshot', { profile })).text.match(/Signed (in as \w+|out)/)?.[0];
