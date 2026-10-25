@@ -52,20 +52,6 @@ moves there over time: what has an issue is removed from here, the issue being t
   - Next to it, small: `browser_emulate_media` (dark or light, print, reduced motion; Playwright's
     `page.emulateMedia`): the profiles' pages follow the OS's theme, so the agent cannot check the site's other one.
   - Estimate: code +200 (the core ~80, the pane ~60, MCP ~60), tests +90, docs +40.
-- **Kulisa plugin: running the app, rest** (the terminals it runs in: [window.md](window.md), "The terminal"). Any agent is told its task's ports in the MCP server's
-  instructions and runs the app with `terminal_run`, where the human sees it.
-  - Claude Code and Codex do it (they read the task's ports, run the app on its port with `terminal_run` and open it
-    in a profile). To try: a project with docker compose.
-  - Possibly tools: the app's address for this task, opening its profiles there once the server answers.
-  - Besides the port, worktrees share the local database (migrations of different branches), Redis and queues,
-    OAuth redirect URLs registered for one address. Common practice: a database per branch, docker compose per
-    worktree (it names containers after the folder already), or one dev server at a time. The developer's matter;
-    perhaps recipes in the skill. A project that cannot run twice: one shared dev server, the panes show whose
-    branch it is.
-- **Shells: ▶ after a restart**. Today a task's shells come back after a restart with
-  nothing running (the agent runs its command again). Then: the command they ran is kept too, and ▶ on its tab runs
-  it again (starting by itself could run what the human did not expect,
-  e.g. migrations).
 - **Sign-in: whoever holds the password signs in** (the best idea so far,
   not final: to think over again before building). Today the sign-in pause is tied to the page's address (a list of
   hosts), so the agent cannot test the developer's own sign-in, sign-up and password reset through Auth0 and the like
