@@ -174,11 +174,15 @@ async function setup(shell: Shell) {
   const watchPty = (p: IPty) => p.onData((d) => (pty += d)); // again for the agent of another project
   await waitFor(() => shell.pty, 10000); // the agent starts once the window has laid out its terminal
   watchPty(shell.pty);
-  // What the terminal in the window shows; lines wrapped at its width joined again.
-  const termText = () => ui(`(() => { const b = window.__term.buffer.active;
+  // What the terminal in the window shows ('' while none is shown yet); lines wrapped at its width joined again.
+  const termText = () => ui(`(() => { const b = window.__term?.buffer.active; if (!b) return '';
     return Array.from({ length: b.length }, (_, i) => b.getLine(i)).map((l, i) => (i && !l.isWrapped ? '\\n' : '') + l.translateToString(true)).join(''); })()`);
-  // The terminal in the window showing text, its last lines told when it does not.
-  const termShows = (text: string) => waitFor(async () => (await termText()).includes(text), 5000, async () => (await termText()).trimEnd().slice(-600));
+  // The terminal in the window showing text; when it does not, its xterm as it is: its size, where its cursor is,
+  // and its last lines, each with its number and a ~ when it continues the one before (wrapped).
+  const termDump = () => ui(`(() => { const t = window.__term, b = t?.buffer.active; if (!b) return 'no terminal shown';
+    const lines = Array.from({ length: b.length }, (_, i) => b.getLine(i)).map((l, i) => i + (l.isWrapped ? '~' : ' ') + '|' + l.translateToString(true));
+    return { cols: t.cols, rows: t.rows, length: b.length, cursor: [b.cursorX, b.cursorY], baseY: b.baseY, lines: lines.slice(-12) }; })()`);
+  const termShows = (text: string) => waitFor(async () => (await termText()).includes(text), 5000, termDump);
   await termShows('agent: rc of'); // the agent runs
   // Questions (deleting a profile, a task…) are answered in the window's dialog, as the human would: ctx.answer
   // true clicks the button that does it, false Cancel; null leaves the dialog to the test. ctx.asked: what was asked.
@@ -187,7 +191,7 @@ async function setup(shell: Shell) {
   const instructions = async (task: Task = shell.task) => (await mcpOf(task.env().KULISA_MCP_URL)).getInstructions();
   // The tools the MCP server lists to the agent of task task, as its client gets them.
   const tools = async (task: Task = shell.task) => (await (await mcpOf(task.env().KULISA_MCP_URL)).listTools()).tools;
-  const ctx = { shell, call, instructions, tools, ui, sui, ptyOutput: () => pty, watchPty, termText, termShows, asked, openedExternally, answer: true as boolean | 'other' | null, get step() { return step; } };
+  const ctx = { shell, call, instructions, tools, ui, sui, ptyOutput: () => pty, watchPty, termText, termDump, termShows, asked, openedExternally, answer: true as boolean | 'other' | null, get step() { return step; } };
   const ask = shell.askWhich;
   // Asked where w is (a tasks' window, Settings': app.ts, askWhich), the first window when none is named; shell.ask
   // asks through it.

@@ -151,7 +151,8 @@ Claude Code, the part's code); what is left: ROADMAP, "Windows and macOS have ga
 - **Wait for a state, never for time.** `waitFor(() => condition)` (5 s by default); `sleep` only where nothing can
   be waited for (that something did *not* happen, a double click's gap), and short. A screen without a GPU is
   slower than the author's: a test that passes only on a fast one is a race. A wait that may fail on CI says what
-  there was instead (`waitFor`'s third argument; `ctx.termShows(text)`, the terminal's last lines): the log is all
+  there was instead (`waitFor`'s third argument; `ctx.termShows(text)` and `ctx.termDump`: the xterm's size, its
+  cursor and its last lines, a wrapped one marked `~`): the log is all
   there is to read then.
 - **Before a click, wait until the window is ready for it**: a project or task being shown
   (`!shell.windows[0].switching`, no `loading` class on the root), the panel there (`getPanel(...)?.`), the
