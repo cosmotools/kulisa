@@ -15,7 +15,7 @@ function terminalTools(server: McpServer, { task, text, done }: Handles) {
   const nameArg = z.string().describe('The terminal\'s name, e.g. "dev server"');
   server.registerTool('terminal_run', {
     description: "Run a command that keeps running (the app's dev server, docker compose up, a watcher) in a terminal of its own next to yours, where the human sees it: the user's shell in the task's folder, with your environment. A terminal of that name already open gets the command typed in: stop what runs there first (terminal_stop). Then read its output with terminal_read.",
-    inputSchema: { name: nameArg, command: z.string().describe('A shell command line, e.g. "npm run dev -- --port 3100"') },
+    inputSchema: { name: nameArg, command: z.string().describe('A command line for the user\'s shell (PowerShell on Windows), e.g. "npm run dev -- --port 3100"') },
   }, async ({ name, command }) => {
     const r = done(await task.runInTerminal(name, command));
     return text(`${r.again ? 'Typed into' : 'Started in'} terminal "${r.name}": ${command}. Read its output with terminal_read.`);

@@ -3,6 +3,7 @@
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
+import { removeTree } from '../remove.ts';
 import { writeFileAtomic } from '../store.ts';
 import { cut, ownTool, lines, tailLines } from '../kulisa-plugin/transcripts.ts';
 import type { Conversation, Entry } from '../kulisa-plugin/transcripts.ts';
@@ -186,11 +187,11 @@ function forgetClaude({ folder, saved = {}, project = {}, configDir }: ForgetCon
     .filter((f) => f.endsWith('.jsonl') && cwdOf(path.join(conversations, f)) === folder).map((f) => f.slice(0, -'.jsonl'.length))].filter(Boolean));
   for (const id of sessions) {
     fs.rmSync(path.join(conversations, `${id}.jsonl`), { force: true });
-    fs.rmSync(path.join(conversations, id!), { recursive: true, force: true });
+    removeTree(path.join(conversations, id!));
   }
   try { fs.rmdirSync(conversations); } catch {} // when nothing of another folder is left in it
   for (const id of sessions) {
-    for (const f of [['file-history', id!], ['session-env', id!], ['debug', `${id}.txt`]]) fs.rmSync(path.join(dir, ...f), { recursive: true, force: true });
+    for (const f of [['file-history', id!], ['session-env', id!], ['debug', `${id}.txt`]]) removeTree(path.join(dir, ...f));
     const todos = path.join(dir, 'todos');
     for (const f of fs.existsSync(todos) ? fs.readdirSync(todos) : []) if (f.startsWith(`${id}-`)) fs.rmSync(path.join(todos, f), { force: true });
   }

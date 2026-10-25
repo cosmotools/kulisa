@@ -51,9 +51,6 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
-    # Windows is not passing yet (ROADMAP, "Windows is untested; macOS has gaps left"): its runs report, but do not mark main red.
-    # It comes off this once its first run passes.
-    continue-on-error: ${{ matrix.os == 'windows-latest' }}
     timeout-minutes: 30
     defaults:
       run:

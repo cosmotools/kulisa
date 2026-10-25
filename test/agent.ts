@@ -673,7 +673,7 @@ export default (test: Test) => {
     assert.ok(click && click.x > 0 && click.y > 0, JSON.stringify(actions));
   });
 
-  test('point and tell: a pick puts a reference into the agent\'s prompt, not sent', async ({ shell, ui, ptyOutput }) => {
+  test('point and tell: a pick puts a reference into the agent\'s prompt, not sent', async ({ shell, ui, termText }) => {
     const elon = shell.profiles.get(idOf('Elon.buyer'));
     const page = await elon.page();
     await page.goto(`${SITE}/errors`);
@@ -700,11 +700,13 @@ export default (test: Test) => {
     assert.equal(pick.tab, elon.active);
     assert.ok(!fs.existsSync(path.join(project, '.kulisa')), 'nothing is written into the project');
     const ref = `[kulisa pick: Elon.buyer tab ${pick.tab} getByRole('button', { name: 'Pay now' })]`;
-    await waitFor(() => ptyOutput().includes(ref));
+    await waitFor(async () => (await termText()).includes(ref));
     await sleep(300); // nothing to wait for: that it is not sent (cat would print it again)
     // The agent here is `cat`: the terminal echoes typed input, and cat prints it again only after Enter. Once
-    // means it waits in the prompt for the human to write about it.
-    assert.equal(ptyOutput().split(ref).length - 1, 1, ptyOutput());
+    // means it waits in the prompt for the human to write about it. The screen's text, not the output: Windows' ConPTY
+    // sends a line again as it redraws it, and the paste's marks in the middle of its echo.
+    const text = await termText();
+    assert.equal(text.split(ref).length - 1, 1, text);
     assert.equal(await ui(`document.activeElement.classList.contains('xterm-helper-textarea')`), true, 'the terminal has focus');
     shell.pty.write('\x15'); // Ctrl+U: clear the line for the next tests
   });

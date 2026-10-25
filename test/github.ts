@@ -3,7 +3,7 @@
 import fs from 'fs';
 import path from 'path';
 import { execFileSync } from 'child_process';
-import { assert, root, userData, SITE, waitFor, click, choose, menuRows, rightClick, closeSettings } from './helpers.ts';
+import { assert, attr, root, userData, SITE, waitFor, click, choose, menuRows, rightClick, closeSettings } from './helpers.ts';
 import { removeFolder } from '../src/main/projects.ts';
 import type { Ctx, Test } from './run.ts';
 
@@ -96,10 +96,10 @@ export default (test: Test) => {
     shell.openSettings({ section: 'projects', id: p.id });
     const account = (remote: string) => sui(`document.querySelector('.ghaccount[data-remote="${remote}"]')?.textContent.trim() ?? null`);
     await waitFor(async () => (await account('github.com/acme/shop')) === 'bob (token)' && (await account('github.com/ann/site')) === 'ann');
-    assert.equal(await sui(`document.querySelector('[data-folder="${lab}"] .notgithub').textContent`), 'not a GitHub address');
-    assert.equal(await sui(`document.querySelector('#npgithub [data-folder="${beta}"]').textContent.replace(/\\s+/g, ' ').trim()`),
+    assert.equal(await sui(`document.querySelector(${JSON.stringify(`${attr('data-folder', lab)} .notgithub`)}).textContent`), 'not a GitHub address');
+    assert.equal(await sui(`document.querySelector(${JSON.stringify(`#npgithub ${attr('data-folder', beta)}`)}).textContent.replace(/\\s+/g, ' ').trim()`),
       'beta: Kulisa App is not installed on beta. Install it on beta (or ask its owner to)');
-    assert.equal(await sui(`document.querySelector('#npgithub [data-folder="${beta}"] a').href`), 'https://github.com/apps/kulisa-app/installations/new');
+    assert.equal(await sui(`document.querySelector(${JSON.stringify(`#npgithub ${attr('data-folder', beta)} a`)}).href`), 'https://github.com/apps/kulisa-app/installations/new');
     const bob = idOfLogin('bob', 'pat'), ann = idOfLogin('ann');
     assert.deepEqual(shell.store.projects().find((x) => x.id === p.id).github, { 'github.com/acme/shop': bob, 'github.com/ann/site': ann },
       'bound by remote: the token in its address dropped');

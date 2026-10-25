@@ -32,9 +32,10 @@ if (process.platform === 'linux' && !hidden && !visible) {
 const run = path.join(import.meta.dirname, 'run.ts');
 // The run's folder and test site are its checkout's own: runs from several worktrees at once (CLAUDE.md, Worktrees)
 // removed each other's folders, and tested against another one's site on the shared port 4417. The folder is the same
-// for every run of a checkout, so a failed run's, kept to look at, is replaced by the next run's.
+// for every run of a checkout, so a failed run's, kept to look at, is replaced by the next run's. The temporary folder by
+// its real name: Windows may give it by a short one (C:\Users\COSMOT~1), and git and Chromium answer with the long one.
 const repo = path.join(import.meta.dirname, '..');
-const base = path.join(os.tmpdir(), `kulisa-test-${path.basename(repo)}-${crypto.createHash('sha1').update(repo).digest('hex').slice(0, 6)}`);
+const base = path.join(fs.realpathSync.native(os.tmpdir()),`kulisa-test-${path.basename(repo)}-${crypto.createHash('sha1').update(repo).digest('hex').slice(0, 6)}`);
 const folder = (group: string) => path.join(base, group);
 const freePort = () => new Promise<number>((resolve) => {
   const s = net.createServer().listen(0, '127.0.0.1', () => { const { port } = s.address() as AddressInfo; s.close(() => resolve(port)); });

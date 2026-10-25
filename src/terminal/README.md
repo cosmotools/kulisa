@@ -10,15 +10,19 @@ nothing of them: a terminal is a key, `<task key>#<id>` for a task's, any string
 ## The main process (`main/`)
 
 - **In the user's shell.** `startTerminal` starts the user's shell (a login shell on macOS, as Terminal and VS Code
-  do; `SHELL`, else the account's: an app started from the Dock may have none) in the folder given, and types the
+  do; `SHELL`, else the account's: an app started from the Dock may have none; on Windows PowerShell, as Windows
+  Terminal opens it: `pwsh` when installed, else the system's `powershell.exe`) in the folder given, and types the
   command into it once the shell reads its input line (it turns bracketed paste on; else after a quiet moment), with a
   leading space, which keeps it out of the shell's history. The shell's startup sets the project's environment
   (direnv's `.envrc`, nvm, mise), which Kulisa's own is not, and the shell stays when the command exits. Each argument
   is quoted as that shell reads it (`shell-quote.ts`): the sh way for bash and zsh, fish's own for fish, which reads
   `\\` and `\'` inside `'…'` (a prompt with `\'` quoted the sh way leaves the quote open, and the agent does not start).
   `pinned` variables are typed before the command (`VAR=… cmd`), so a project's `.envrc` cannot change them (an
-  agent's account: else the task would run as the account the `.envrc` names). On Windows the command starts directly,
-  without a shell (ROADMAP).
+  agent's account: else the task would run as the account the `.envrc` names). PowerShell gets a line of its own: the
+  variables set first (`$env:VAR=…`), then the command run by `&`, in a script block that sets PowerShell 7's passing
+  of arguments to Windows PowerShell 5.1's (`Legacy`), so one quoting serves both: each argument as a Windows
+  program's runtime reads its command line back, around what 5.1 does to quotes and spaces on its own. A program is
+  found by name as Windows' shells find it (`PATHEXT`: `claude` may be a `.cmd`), which node-pty does not do.
 - **At its real size.** It starts only once the window has sent its size (`pty:resize`), or its island's (`sizeOf`: a
   terminal behind another tab has none of its own), however long that takes: an agent draws its prompt for the size
   it starts with and does not fully redraw on the first resize.
@@ -31,7 +35,8 @@ nothing of them: a terminal is a key, `<task key>#<id>` for a task's, any string
   corrected as they are heard); `sendToPrompt` sends a line as the human would, once its command was typed, and answers the question the
   agent asks then (Claude Code's `/add-dir`).
 - **Typing to a shell.** `typeLine` types a command line and runs it; `interrupt` is Ctrl+C, as the human presses it
-  (what runs stops, the shell stays).
+  (what runs stops, the shell stays). A line typed after a Ctrl+C waits until the shell reads its line again (as the
+  agent's command waits at the start): Windows' console drops the input that comes before.
 - **Esc typed by the human** reaches whoever asked (`onEscape`, with the terminal's key): what it means is theirs (an
   agent's turn ended: `Task.interrupted`, docs/tasks.md). Nothing outside listens to `pty:in` itself.
 - `stopTerminal` ends it (its output reaches no window after); `forgetTerminal` drops its size once it is gone.

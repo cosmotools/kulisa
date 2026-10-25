@@ -10,6 +10,7 @@ import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/
 import path from 'path';
 import fs from 'fs';
 import { start } from '../src/main/app.ts';
+import { removeTree } from '../src/main/remove.ts';
 import { claudeConversation } from '../src/main/agents/claude.ts';
 import { AGENTS } from '../src/main/agents/index.ts';
 import { ensureSite } from './fixtures/site.ts';
@@ -34,13 +35,19 @@ const restart = process.argv.includes('--restart');
 process.env.XDG_DATA_HOME = path.join(root, 'xdg-data');
 const FILES = (process.argv.find((a) => a.startsWith('--files=')) || '').slice(8).split(',').filter(Boolean);
 if (!FILES.length) { console.error('which test files: --files=agent,profiles (npm test runs them all)'); process.exit(2); }
-if (!restart) fs.rmSync(root, { recursive: true, force: true });
+// Refused (on Windows a file a process of an earlier run still holds), the run ends saying why: an error at load
+// leaves Electron's dialog waiting for a click.
+try {
+  if (!restart) removeTree(root);
+} catch (e) { console.error(`the test folder cannot be emptied (a process of an earlier run still in it?): ${(e as Error).message}`); process.exit(2); }
 fs.mkdirSync(project, { recursive: true });
 // The agent: cat, typed into a bash started as a terminal would start the user's shell, in the project's folder;
 // its startup file sets an environment of the project, as direnv's .envrc does, an agent's config folder too (a
 // project's .envrc with CLAUDE_CONFIG_DIR), which the task's account overrides.
 const bashrc = path.join(root, 'bashrc');
-fs.writeFileSync(bashrc, `PS1='$ '\nexport FROM_RC="rc of $PWD"\nexport FAKE_CONFIG_DIR="the project's"\n`);
+// On Windows the folder as Windows writes it, as the tests do (Git's bash says /c/…).
+const pwd = process.platform === 'win32' ? '$(cygpath -w "$PWD")' : '$PWD';
+fs.writeFileSync(bashrc, `PS1='$ '\nexport FROM_RC="rc of ${pwd}"\nexport FAKE_CONFIG_DIR="the project's"\n`);
 // Its dictation (agents/, voice): cat shows the key the microphone holds (repeated). Its transcripts read as Claude
 // Code's (task_history): a test writes one in that format.
 const agent = { command: 'bash', args: ['-c', 'echo "agent: $FROM_RC"; exec cat -v'], resume: (): string[] => [], shell: { command: 'bash', args: ['--rcfile', bashrc, '-i'] }, conversation: claudeConversation,
@@ -51,7 +58,7 @@ function claudeLike() {
   const { resume, conversation, prompt, forget, trust, localFiles, skills, language } = AGENTS.find((a) => a.id === 'claude');
   return { resume, conversation, prompt, forget, trust, localFiles, skills, language };
 }
-const bin = path.join(root, 'bin');
+const bin = path.join(root, 'bin'), fakeAgent = path.join(import.meta.dirname, 'fixtures', 'fake-agent.sh');
 process.env.FAKE_LOGOUTS = path.join(root, 'logouts'); // the accounts the fake agent signed out of
 process.env.FAKE_RECOGNIZER = path.join(import.meta.dirname, 'fixtures', 'fake-recognizer.mjs');
 // Kulisa started from a folder direnv had loaded, as from a terminal in the repository: its state in the environment.
@@ -72,7 +79,9 @@ const agents: Agent[] = [
   { id: 'fake', name: 'Fake agent', maker: 'Kulisa tests', needs: 'Nothing', command: 'kulisa-fake-agent', installDirs: [bin],
     config: { env: 'FAKE_CONFIG_DIR', home: () => path.join(root, 'fake-config'), login: () => ['auth', 'login'],
       status: ['auth', 'status'], email: (out) => JSON.parse(out).email, logout: ['auth', 'logout'] },
-    install: { posix: `echo "installing the fake agent"; mkdir -p '${bin}' && cp '${path.join(import.meta.dirname, 'fixtures', 'fake-agent.sh')}' '${bin}/kulisa-fake-agent' && chmod +x '${bin}/kulisa-fake-agent' && printf '\\033[32mdone\\033]8;;https://kulisa.app\\007\\033]8;;\\007\\033[0m\\n'` }, // colored, a link: as installers print
+    install: { posix: `echo "installing the fake agent"; mkdir -p '${bin}' && cp '${fakeAgent}' '${bin}/kulisa-fake-agent' && chmod +x '${bin}/kulisa-fake-agent' && printf '\\033[32mdone\\033]8;;https://kulisa.app\\007\\033]8;;\\007\\033[0m\\n'`, // colored, a link: as installers print
+      // Windows: the script and a .cmd running it with bash, as npm puts a package's program there.
+      win32: `echo 'installing the fake agent'; New-Item -ItemType Directory -Force '${bin}' > $null; Copy-Item '${fakeAgent}' '${bin}\\kulisa-fake-agent'; Set-Content -Encoding ascii '${bin}\\kulisa-fake-agent.cmd' '@bash "%~dp0kulisa-fake-agent" %*'; $e = [char]27; $b = [char]7; echo "$e[32mdone$e]8;;https://kulisa.app$b$e]8;;$b$e[0m"` },
     args: () => [], shell: agent.shell, ...claudeLike(),
     // Recognizing for an agent without dictation of its own (src/dictation's hidden session) when signed in, as
     // Claude Code's dictation does: fixtures/fake-recognizer.mjs.

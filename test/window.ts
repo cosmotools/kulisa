@@ -2,8 +2,9 @@
 import electron, { Menu, nativeTheme } from 'electron';
 import { spawn } from 'child_process';
 import fs from 'fs';
+import { removeTree } from '../src/main/remove.ts';
 import path from 'path';
-import { closeSettings, canShoot, NO_SHOT, shot, assert, root, userData, sleep, waitFor, menuRows, choose, menuOpen, rightClick, box, viewOn, closeMenu, click, noNode, press } from './helpers.ts';
+import { WIN, closeSettings, canShoot, NO_SHOT, shot, assert, root, userData, sleep, waitFor, menuRows, choose, menuOpen, rightClick, box, viewOn, closeMenu, click, noNode, press } from './helpers.ts';
 import { createPackage } from '@electron/asar';
 import forge from '../forge.config.ts';
 import type { Test } from './run.ts';
@@ -41,7 +42,7 @@ export default (test: Test) => {
     const sh = shell.task.terminal('Terminal') as TaskTerminal;
     assert.equal(await ui(`document.querySelectorAll('.xterm').length`), 1, 'one xterm for both terminals');
     // The mouse in SGR and the cursor hidden, as Claude Code's fullscreen has them: serializing leaves both out.
-    const cmd = "printf '%s-%s\\n' shell marker; seq 300; printf '\\033[?1000h\\033[?1006h\\033[?25l'\r";
+    const cmd = `node '${path.join(import.meta.dirname, 'fixtures', 'modes.mjs')}'\r`;
     await ui(`kulisa.send('pty:in', ${JSON.stringify({ task: sh.key, data: cmd })})`);
     const modes = () => ui(`(() => { const t = window.__term, c = t._core;
       return { mouse: t.modes.mouseTrackingMode, encoding: c.coreMouseService.activeEncoding, hidden: c.coreService.isCursorHidden }; })()`);
@@ -197,7 +198,8 @@ export default (test: Test) => {
     await waitFor(async () => (await shown()) === 1 && ui(`window.__term === window.__term && document.activeElement.closest('.term') !== null`));
 
     // The agent's: its environment (KULISA_TASK), behind (the human watches what is in front), read back as plain text.
-    assert.match((await call('terminal_run', { name: 'dev server', command: 'echo "ready in $KULISA_TASK"; sleep 30' })).text, /^Started in terminal "dev server"/);
+    const ready = WIN ? 'echo "ready in $env:KULISA_TASK"; sleep 30' : 'echo "ready in $KULISA_TASK"; sleep 30';
+    assert.match((await call('terminal_run', { name: 'dev server', command: ready })).text, /^Started in terminal "dev server"/);
     const dev = task.terminal('dev server') as TaskTerminal;
     await waitFor(async () => (await call('terminal_read', { name: 'dev server' })).text.includes('ready in task-1'));
     assert.deepEqual(await tabs(), ['bash', 'Terminal *', 'dev server'], 'behind');
@@ -206,7 +208,7 @@ export default (test: Test) => {
     // its tab into view) had moved the grid up by a window's height.
     await ui(`document.querySelector('#projectTabs > *').scrollIntoView()`);
     assert.deepEqual(await ui(`[document.documentElement.scrollTop, document.documentElement.scrollHeight <= innerHeight]`), [0, true]);
-    assert.equal((await call('terminal_read', {})).text, `"Terminal" (the human's)\n"dev server" (an agent's): echo "ready in $KULISA_TASK"; sleep 30`);
+    assert.equal((await call('terminal_read', {})).text, `"Terminal" (the human's)\n"dev server" (an agent's): ${ready}`);
     await assert.rejects(call('terminal_stop', { name: 'nope' }), /no terminal "nope"; open now: "Terminal", "dev server"/);
     // An agent's tab is no terminal to run in, read or stop: a command there would be a message to that agent.
     for (const [tool, args] of [['terminal_run', { command: 'hi' }], ['terminal_read', {}], ['terminal_stop', { close: true }]] as const) {
@@ -221,14 +223,16 @@ export default (test: Test) => {
       return [n.scrollWidth > n.clientWidth, [...n.querySelectorAll('.name')].every((x) => x.scrollWidth <= x.clientWidth), r('#termAdd').right <= island.right, r('.termtabs .dictation').right <= island.right]; })()`),
       [true, true, true, true]);
     await ui(`document.querySelectorAll('.termtabs .termtab').forEach((t, i) => { if (i >= 3) t.remove(); })`);
-    // Stopped: Ctrl+C, the shell stays; the same name again types into it.
+    // Stopped: Ctrl+C, the shell stays; the same name again types into it (PowerShell shows no ^C: its answer at once,
+    // not after the sleep, says the command stopped).
     await call('terminal_stop', { name: 'dev server' });
-    await waitFor(async () => (await call('terminal_read', { name: 'dev server', lines: 3 })).text.includes('^C'));
+    if (!WIN) await waitFor(async () => (await call('terminal_read', { name: 'dev server', lines: 3 })).text.includes('^C'));
     assert.match((await call('terminal_run', { name: 'Dev Server', command: 'echo again' })).text, /^Typed into terminal "dev server"/);
     await waitFor(async () => /^again$/m.test((await call('terminal_read', { name: 'dev server' })).text));
     // Read as the screen shows it: lines a program redraws in place (a progress, a container's state) are what they
     // became. Read from the output with its codes left out, every frame was there, and filled the lines asked for.
-    await call('terminal_run', { name: 'dev server', command: String.raw`printf 'bundle 30%%\nwrite\n\033[2A\033[2Kbundle done\n\033[2Kwritten\n'` });
+    await call('terminal_run', { name: 'dev server', command: WIN ? 'Write-Host "bundle 30%`nwrite`n$([char]27)[2A$([char]27)[2Kbundle done`n$([char]27)[2Kwritten"'
+      : String.raw`printf 'bundle 30%%\nwrite\n\033[2A\033[2Kbundle done\n\033[2Kwritten\n'` });
     await waitFor(async () => /^written$/m.test((await call('terminal_read', { name: 'dev server' })).text));
     assert.doesNotMatch((await call('terminal_read', { name: 'dev server' })).text, /^(bundle 30%|write)$/m);
     // A click on a tab brings it to the front.
@@ -560,7 +564,7 @@ export default (test: Test) => {
       assert.equal(ctx.asked.pop().message, 'Kulisa 9.9.10 is ready');
     } finally {
       shell.restart = restart; ctx.answer = true;
-      fs.rmSync(src, { recursive: true, force: true });
+      removeTree(src);
     }
   });
 };

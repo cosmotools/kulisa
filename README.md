@@ -53,13 +53,15 @@ actors, the panes the stage, and the developer watches from the audience and sto
 ## Run
 
 Requirements: Node 24.12+ and npm 11 (the code runs from source by Node's type stripping); git. On Linux, for the
-tests on a screen of their own, `sudo apt install xvfb openbox`; for the `.rpm`, `rpm`. `npm install` builds `node-pty`
-for Electron, which needs a compiler (on macOS it loads node-pty's prebuilt binary instead). npm 11 runs a dependency's
+tests on a screen of their own, `sudo apt install xvfb openbox`; for the `.rpm`, `rpm`. On Windows, the Microsoft
+Visual C++ Redistributable (`winget install Microsoft.VCRedist.2015+.x64`): Electron's download and knip load native
+modules built against it. `npm install` builds `node-pty` for Electron on Linux, which needs a compiler (on macOS and
+Windows it loads node-pty's prebuilt binary instead). npm 11 runs a dependency's
 install script only when it is listed in `allowScripts` in package.json (`npm install-scripts approve <pkg>`);
 approving `node-pty` builds it for Node, not Electron: run `npm run postinstall` after that.
 
 ```sh
-npm install           # the dependencies; node-pty built for Electron (scripts/postinstall.ts)
+npm install           # the dependencies; node-pty built for Electron on Linux (scripts/postinstall.ts)
 npm start             # builds the window, then opens the windows and tasks open last; at first start the welcome, then New Project
 npm run build         # type checks (tsc, vue-tsc), then the window built by Vite into dist/renderer
 npm run watch         # the window built again on every change; reload it (Ctrl+R in its DevTools) or restart
@@ -77,8 +79,9 @@ npm run icons         # after changing assets/icon.svg: icon.png, .ico, .icns ne
 npm version <patch|minor> --no-git-tag-version   # a release's version (CLAUDE.md, Releases); the plugin manifest's follows (scripts/version.ts)
 ```
 
-Kulisa targets macOS, Windows and Linux. Its tests pass on Ubuntu and macOS at every pull request; macOS is for
-development so far (run from source, or built on one's own Mac, unsigned); Windows is less tried (docs/ROADMAP.md).
+Kulisa targets macOS, Windows and Linux. Its tests pass on Ubuntu, Windows and macOS at every pull request; macOS
+is for development so far (run from source, or built on one's own Mac, unsigned); Windows is less tried by hand
+(docs/ROADMAP.md).
 Installers are built with [Electron Forge](https://www.electronforge.io/) (`forge.config.ts`), each on its own
 platform. On Linux `npm start` and `npm test` run Electron with `--no-sandbox` (`chrome-sandbox` in `node_modules` is
 not setuid); the `.deb` installs it setuid, so the installed app runs sandboxed.

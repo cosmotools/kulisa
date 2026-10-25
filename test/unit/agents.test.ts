@@ -5,7 +5,7 @@ import assert from 'assert/strict';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { extendTrust, AGENTS, findAgent } from '../../src/main/agents/index.ts';
+import { extendTrust, AGENTS, findAgent, agentVersion, accountEmail, signOut } from '../../src/main/agents/index.ts';
 import { claudeConfigOf } from '../../src/main/agents/claude.ts';
 import { codex } from '../../src/main/agents/codex.ts';
 import { CAPABILITIES } from '../../src/main/agents/agent.ts';
@@ -198,6 +198,35 @@ test("agents: a task's other folders go to Claude Code and Codex as --add-dir (C
 
 test("agents: one not installed is not found, so the window offers to install it", async () => {
   for (const a of AGENTS.filter((x) => x.command)) assert.equal(await findAgent({ ...a, command: 'kulisa-no-such-agent' }, root), null, a.name);
+});
+
+test("agents: one installed by npm on Windows is its .cmd, which runs: its version, its account's sign-in and sign-out", { skip: process.platform !== 'win32' ? "a .cmd is Windows' own" : false }, async (t) => {
+  // npm puts three next to each other: a script for sh (no extension, which where.exe lists first), .cmd and .ps1.
+  // Another install later in PATH is not the one the shell runs.
+  const bin = path.join(fs.realpathSync.native(root), 'npm bin'), older = path.join(root, 'older bin'), log = path.join(root, 'npm-agent.log');
+  fs.mkdirSync(bin); fs.mkdirSync(older);
+  fs.writeFileSync(path.join(older, 'kulisa-npm-agent.bat'), '@echo kulisa-npm-agent 1.0.0\r\n');
+  fs.writeFileSync(path.join(bin, 'kulisa-npm-agent'), '#!/bin/sh\necho sh\n');
+  fs.writeFileSync(path.join(bin, 'kulisa-npm-agent.ps1'), 'echo ps1\n');
+  fs.writeFileSync(path.join(bin, 'kulisa-npm-agent.cmd'), [
+    '@echo off', `echo %*>>"${log}"`, 'if "%1"=="--version" echo kulisa-npm-agent 4.5.6',
+    'if "%2"=="status" echo {"email":"Ann@Example.test"}', ''].join('\r\n'));
+  const PATH = process.env.PATH;
+  process.env.PATH = `${bin};${older};${PATH}`;
+  t.after(() => { process.env.PATH = PATH; });
+  const agent: Agent = { id: 'npm', name: 'npm agent', maker: '', needs: '', command: 'kulisa-npm-agent',
+    config: { env: 'NPM_AGENT_DIR', home: () => root, login: () => [], status: ['auth', 'status'], email: (out) => JSON.parse(out).email, logout: ['auth', 'logout'] } };
+  const found = await findAgent(agent, root);
+  assert.deepEqual(found, { path: path.join(bin, 'kulisa-npm-agent.cmd'), onPath: true });
+  assert.equal(await agentVersion(found), '4.5.6');
+  assert.deepEqual(await accountEmail(agent, found, root), { email: 'ann@example.test' });
+  await signOut(agent, found, root);
+  assert.deepEqual(fs.readFileSync(log, 'utf8').split(/\r?\n/).filter(Boolean), ['--version', 'auth status', 'auth logout']);
+  // One in the project's folder, not in PATH, is not the agent: a repository's own file is not run as it.
+  const repo = path.join(root, 'repo');
+  fs.mkdirSync(repo);
+  fs.writeFileSync(path.join(repo, 'kulisa-repo-agent.cmd'), '@echo 6.6.6\r\n');
+  assert.equal(await findAgent({ ...agent, command: 'kulisa-repo-agent' }, repo), null);
 });
 
 test("Codex: the email is its auth.json id token's; none without one", () => {

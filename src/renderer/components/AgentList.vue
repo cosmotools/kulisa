@@ -9,12 +9,11 @@
 import { RadioGroupIndicator, RadioGroupItem, RadioGroupRoot } from 'reka-ui';
 import Icon from './Icon.vue';
 import InstallProgress from './InstallProgress.vue';
-import { agentMark, type Agent, type AgentList } from '../lib/agents';
+import { agentMark, shortPath, type Agent, type AgentList } from '../lib/agents';
 
 const props = defineProps<{ list: AgentList }>();
 const s = props.list.state;
-// ~ for the home folder, as a terminal shows it.
-const short = (p: string) => (s.home && p.startsWith(s.home + '/') ? '~' + p.slice(s.home.length) : p);
+const short = (p: string) => shortPath(p, s.home);
 const needs = (a: Agent) => (a.account ? '' : a.needs || '');
 const where = (a: Agent) => (!props.list.details ? '' : a.account ? `its own sign-in, in ${short(a.account)}`
   : a.path ? [a.version, short(a.path), a.onPath === false && 'not on your PATH: Kulisa runs it from here'].filter(Boolean).join(' · ') : '');

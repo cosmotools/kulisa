@@ -10,7 +10,7 @@ import AccountSignIn from '../AccountSignIn.vue';
 import InstallProgress from '../InstallProgress.vue';
 import RightClickMenu from '../menu/RightClickMenu.vue';
 import type { MenuItem } from '../../lib/menu';
-import type { Agent, AgentList as List } from '../../lib/agents';
+import { shortPath, type Agent, type AgentList as List } from '../../lib/agents';
 import type { Account, AccountsInfo, SignedIn } from '../../../shared/types';
 import { refused } from '../../../shared/result';
 
@@ -22,8 +22,7 @@ const signing = ref<{ id: string; name: string } | null>(null); // New Accountâ€
 const accountSel = ref<string>();
 watch(() => props.chosen, () => { accountSel.value = undefined; error.value = ''; });
 
-// ~ for the home folder, as a terminal shows it.
-const short = (p: string) => (s.home && p.startsWith(s.home + '/') ? '~' + p.slice(s.home.length) : p);
+const short = (p: string) => shortPath(p, s.home);
 const where = (a: Agent) => (a.path ? [a.version, short(a.path), a.onPath === false && 'not on your PATH: Kulisa runs it from here'].filter(Boolean).join(' Â· ') : '');
 const installLine = (a: Agent) => (a.install && !a.installed ? `Install runs ${a.maker || 'its maker'}'s installer: ${a.install}` : '');
 const status = (a: Agent) => (a.installed ? 'Installed' : 'Not installed');

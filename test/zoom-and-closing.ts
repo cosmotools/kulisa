@@ -2,7 +2,7 @@
 import { session } from 'electron';
 import fs from 'fs';
 import path from 'path';
-import { assert, userData, pfile, savedTabs, savedActive, panel, SITE, waitFor, who, menuRows, choose, manageProfiles, closeSettings, chooseProfile, setProfileField, menuOpen, taskMenu, viewOn, ctrl, near, closeMenu, plusMenu, closeBoard, PORT, MAC, sleep, idOf } from './helpers.ts';
+import { assert, userData, pfile, savedTabs, savedActive, panel, SITE, waitFor, who, menuRows, choose, manageProfiles, closeSettings, chooseProfile, setProfileField, menuOpen, taskMenu, viewOn, ctrl, near, closeMenu, plusMenu, closeBoard, PORT, MAC, WIN, sleep, idOf } from './helpers.ts';
 import type { Test } from './run.ts';
 import { SESSION_COOKIES_FILE } from '../src/main/store.ts';
 
@@ -223,14 +223,16 @@ export default (test: Test) => {
   });
   test('a tab on a site that refuses to connect (its dev server not started, as in a new task) opens at once, and so does its profile', async ({ shell, call }) => {
     await call('profile_create', { name: 'Down' });
+    // At once: what Chromium takes to be told the connection is refused, about 2 s on Windows (a bare Electron's page too).
+    const soon = WIN ? 3500 : 2000;
     let started = Date.now();
     await call('browser_tab_new', { profile: 'Down', url: 'http://127.0.0.1:4419/app' }); // nothing listens there
-    assert.ok(Date.now() - started < 2000, `tab opened in ${Date.now() - started} ms`);
+    assert.ok(Date.now() - started < soon, `tab opened in ${Date.now() - started} ms`);
     await shell.task.closeProfile(idOf('Down'));
     await waitFor(() => savedTabs('Down').some((u) => u.includes(':4419/')));
     started = Date.now();
     await shell.task.openProfile(idOf('Down'));
-    assert.ok(Date.now() - started < 2000, `profile opened in ${Date.now() - started} ms`);
+    assert.ok(Date.now() - started < soon, `profile opened in ${Date.now() - started} ms`);
     await shell.task.deleteProfile(idOf('Down'));
   });
   test('closing the last tab of a profile leaves an empty tab, not a pane without a page (the window and the agent)', async (ctx) => {

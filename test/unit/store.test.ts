@@ -254,7 +254,7 @@ test("a task's folder, branch and folder of copies are its resources': the first
   assert.equal(folderOf({ id: 't2', name: 'x' }, '/src/web'), '/src/web');
   // Beside its repository (<repo>@<branch>): no folder of copies, even for a repository in a subfolder of its git.
   const beside: TaskEntry = { id: 't3', name: 'Fix', resources: [wt('/src/api', '/src/api@fix')] };
-  assert.deepEqual([folderOf(beside, ''), branchOf(beside), homeOf(beside)], ['/src/api@fix', 'fix', null]);
+  assert.deepEqual([folderOf(beside, ''), branchOf(beside), homeOf(beside)], [path.join('/src/api@fix'), 'fix', null]);
   assert.equal(homeOf({ id: 't4', name: 'Fix', resources: [wt('/src/mono', '/src/mono@fix', 'app')] }), null, 'never /src');
   // In a folder of copies, its own and one added; an added one beside a worktree made beside its repository.
   const home: TaskEntry = { id: 't5', name: 'Fix', resources: [wt('/src/api', '/home/K/shop@fix/api'), wt('/src/web', '/home/K/shop@fix/web')] };

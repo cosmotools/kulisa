@@ -37,7 +37,8 @@ test('the installed version is read from the app archive on disk; none when ther
 
 test('a new version installed is found once, as the archive changes; the running one, or the same again, is not', async () => {
   const found: string[] = [];
-  const { check } = watchInstalled(asar, '0.1.4', (v) => found.push(v));
+  const { check, close } = watchInstalled(asar, '0.1.4', (v) => found.push(v));
+  after(close);
   await pack('0.1.4');
   check();
   assert.deepEqual(found, [], 'the version running');

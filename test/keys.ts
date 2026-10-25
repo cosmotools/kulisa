@@ -1,7 +1,7 @@
 // Keyboard shortcuts (main/keys.ts, docs/window.md "Keys"): Chrome's keys in a profile's page act on its pane, the
 // terminal keeps the agent's keys, Kulisa's own work everywhere, Keyboard Shortcuts lists them. Keys are sent as input
 // events into the page or the window, where the human's keyboard would put them.
-import { assert, SITE, sleep, waitFor, menuRows, choose, press, MAC, CMD, idOf } from './helpers.ts';
+import { assert, SITE, sleep, waitFor, menuRows, choose, press, MAC, CMD, WIN, idOf } from './helpers.ts';
 import type { Test } from './run.ts';
 
 export default (test: Test) => {
@@ -46,8 +46,10 @@ export default (test: Test) => {
     await ui(`window.__term.focus()`);
     await waitFor(() => w.keyZone === 'terminal');
     press(win, 'T', 'control');
-    // The fake agent (cat -v) shows what it got; on macOS the terminal's own line discipline takes Ctrl+T first (BSD's
-    // status key, SIGINFO) and prints the load: it reached the terminal all the same.
+    press(win, 'Enter');
+    // The fake agent (cat -v) shows what it got once its line is sent (Windows' console echoes a control key as it is,
+    // which draws nothing); on macOS the terminal's own line discipline takes Ctrl+T first (BSD's status key, SIGINFO)
+    // and prints the load: it reached the terminal all the same.
     await waitFor(async () => (await termText()).includes(MAC ? 'load: ' : '^T'), 3000);
     assert.equal(sam.tabs.length, 1, 'no tab opened');
     // Ctrl+`: to the page used last (Sam's, in the test before), and from there back to the terminal.
@@ -64,7 +66,7 @@ export default (test: Test) => {
       return [...dt.nextElementSibling.querySelectorAll('kbd')].map((k) => k.textContent); })()`);
     assert.deepEqual(await row('New tab'), [MAC ? '⌘T' : 'Ctrl+T']);
     assert.deepEqual(await row('Tab 1 to 8'), [MAC ? '⌘1…8' : 'Ctrl+1…8']);
-    assert.deepEqual(await row('Copy'), [MAC ? '⌘C' : 'Ctrl+Shift+C']);
+    assert.deepEqual(await row('Copy'), [MAC ? '⌘C' : WIN ? 'Ctrl+C' : 'Ctrl+Shift+C']);
     // In a dialog the keys are the dialog's: Ctrl+Shift+N makes no task.
     await waitFor(() => w.keyZone === 'dialog');
     press(win, 'N', CMD, 'shift');

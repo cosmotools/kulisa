@@ -13,6 +13,7 @@
 //   profiles/<id>/        its master
 import fs from 'fs';
 import path from 'path';
+import { removeTree } from './remove.ts';
 import { nameError } from '../shared/names.ts';
 import { newId, writeFileAtomic } from './store.ts';
 import { log } from './log.ts';
@@ -155,7 +156,7 @@ class ProfileStore {
     this.save(list.filter((x) => x !== p));
     const dir = this.masterDir(id);
     this.store.markDeleted(dir);
-    try { fs.rmSync(dir, { recursive: true, force: true }); } catch (e) { console.warn('[profiles]', (e as Error).message); }
+    try { removeTree(dir); } catch (e) { console.warn('[profiles]', (e as Error).message); }
     return { profile: p };
   }
 }

@@ -102,6 +102,27 @@ the part's code):
 - Screenshots of a Kulisa started by `open` need the permission on Electron.app itself: macOS takes it back when
   Electron is upgraded (ad hoc signed, a new binary is a new app to it), and it is granted again.
 
+### On Windows
+
+Run from a terminal, as anywhere, with Git for Windows installed (its `bash` in `PATH`: the test agent is
+`bash -c '… exec cat -v'` with a `bashrc`, and the fake agent installed is a `.cmd` running its script with `bash`:
+`test/run.ts`) and the Microsoft Visual C++ Redistributable (README, Run). What differs there:
+
+- **The user's shell is PowerShell** (pwsh when installed, else Windows PowerShell: `src/terminal/`): the tests of the
+  terminals type its commands (`WIN` in `helpers.ts`). The quoting test runs each one installed (`shell-quote.test.ts`).
+- **ConPTY redraws the screen**: it sends a line again as it repaints it, the paste's marks in the middle of its echo.
+  A test reads what the terminal shows (`termText`), not the output, when it looks for what was typed.
+- **A right-click's menu opens on the release** (on the press elsewhere), and the terminal copies and pastes with
+  Ctrl+C / Ctrl+V, Ctrl+C interrupting without a selection: `WIN` in `helpers.ts`.
+- **A folder a process is in is not removed**, nor a file a process holds: a test removing a folder Kulisa looked into
+  (a `git` it ran there) or a task's shell was in waits until it can; a deleted task's profiles go at the next start
+  (their sessions hold their files: `deleted-folders.json`). Every folder is removed with `removeTree`
+  (`src/main/remove.ts`), the tests' too: Electron's own `rmSync` refuses git's read-only files there and follows
+  junctions.
+- **Chromium is told a connection is refused after about 2 s**, a bare Electron's page too (Node at once): "at once"
+  allows for it.
+- node-pty's helper prints `AttachConsole failed` when a terminal closes as its shell exits: its own race, harmless.
+
 ## Writing an e2e test
 
 - **The window draws with Vue**, after the change that causes it (a microtask later, before the next frame): wait
@@ -201,7 +222,7 @@ Kulisa works around two Electron bugs. At every upgrade, check whether each is s
   `app-region: no-drag` in every profile page (`profiles.ts`, `_add`). Electron issue: [electron/electron#54743](https://github.com/electron/electron/issues/54743).
   Check: remove the workaround, open Teams (or a page with `app-region: drag`, then another page) in a pane, and
   click the page with a real mouse (`debug-kulisa` skill). Linux only so far; macOS and Windows draw frameless
-  windows their own way (ROADMAP, "Windows is untested; macOS has gaps left").
+  windows their own way (ROADMAP, "Windows and macOS have gaps left").
 - A page's alert and confirm in its pane ([profiles.md](profiles.md), "Dialogs"): Electron has no API for them, so Kulisa replaces
   the listener of its internal `-run-dialog` event (`lib/browser/api/web-contents.ts`; `-cancel-dialogs`
   too). Check: that file at the new version's tag; the test of dialogs in `test/agent.ts` fails when the event is
@@ -253,9 +274,8 @@ every push to `develop` (CLAUDE.md, Releases; into `main` its `version` job chec
 `dependencies` job, on pull requests, refuses a new dependency with a known vulnerability or a license not on its list:
 `docs/LICENSING.md`), on Ubuntu (with Xvfb
 and openbox), Windows and macOS (on the runner's own screen), git given a name (tasks
-commit). A failed run keeps the groups' folders (their screenshots) as an artifact per OS for a week. Ubuntu and macOS
-pass ("On macOS", above); Windows does not yet (ROADMAP, "Windows is untested; macOS has gaps left"): its runs report
-but do not fail the workflow (`continue-on-error`). Flaky, on a loaded machine or the runner (each one fixed is in its
+commit). A failed run keeps the groups' folders (their screenshots) as an artifact per OS for a week. All three
+pass ("On macOS", "On Windows", above). Flaky, on a loaded machine or the runner (each one fixed is in its
 test's comment). Slow but not flaky: deleting a task (git's work, up to 11 s), a
 site that never answers (10 s, by design).
 

@@ -1,6 +1,7 @@
 // Renaming and deleting profiles; DevTools.
 import electron from 'electron';
 import fs from 'fs';
+import { removeTree } from '../src/main/remove.ts';
 import path from 'path';
 import { assert, userData, pfile, SITE, sleep, waitFor, who, menuRows, choose, manageProfiles, closeSettings, chooseProfile, setProfileField, rightClick, menuOpen, closeMenu, press, CMD, MENU, SUBMENU, panel, idOf } from './helpers.ts';
 import type { Test } from './run.ts';
@@ -172,7 +173,7 @@ export default (test: Test) => {
   // here: KULISA_SCREENSHOTS), at the screen's density, an element chosen as Pick chooses; not the agent's action.
   test("a pane's ⋮ → Screenshot takes an element, the visible part or the whole page, to the clipboard and the folder of screenshots", async ({ shell, ui }) => {
     const dir = process.env.KULISA_SCREENSHOTS, admin = shell.profiles.get(idOf('Sam.admin')), wc = () => admin.get().wc;
-    fs.rmSync(dir, { recursive: true, force: true });
+    removeTree(dir);
     const files = () => (fs.existsSync(dir) ? fs.readdirSync(dir).sort() : []);
     const page = await admin.page(), was = page.url();
     await page.goto(`${SITE}/tall`);
@@ -235,12 +236,12 @@ export default (test: Test) => {
     await closeMenu(ui);
     admin.closeTab(blank);
     await page.goto(was); // as later files expect it
-    fs.rmSync(dir, { recursive: true, force: true });
+    removeTree(dir);
   });
 
   // The thumbnail (src/screenshots, The thumbnail): what the OS would do with the file is stubbed (a file manager, an
   // app, the trash: outside the tests' folder).
-  test('a screenshot shows its thumbnail in its pane\'s corner: a click opens it, it drags out, its menu shows, copies, sends it to the agent, deletes; its × closes it; it fades in and out; it goes by itself unless the pointer is over it', async ({ shell, ui, ptyOutput }) => {
+  test('a screenshot shows its thumbnail in its pane\'s corner: a click opens it, it drags out, its menu shows, copies, sends it to the agent, deletes; its × closes it; it fades in and out; it goes by itself unless the pointer is over it', async ({ shell, ui, termText }) => {
     const dir = process.env.KULISA_SCREENSHOTS, admin = shell.profiles.get(idOf('Sam.admin')), w = shell.windows[0];
     const page = await admin.page(), was = page.url();
     await page.goto(`${SITE}/tall`);
@@ -280,7 +281,8 @@ export default (test: Test) => {
       await menu('Copy');
       await waitFor(async () => (await electron.clipboard.read())[0]?.types.includes('image/png'));
       await menu('Send to Agent');
-      await waitFor(() => ptyOutput().includes(`'${file}' `));
+      // The screen's text, not the output: Windows' ConPTY sends a line again as it redraws it (agent.ts, point and tell).
+      await waitFor(async () => (await termText()).includes(`'${file}'`));
       shell.pty.write('\x15'); // Ctrl+U: clear the line for the next tests
       await menu('Delete');
       await waitFor(() => did.includes(`trash ${file}`) && !w.thumbnails.file && wc.isDestroyed());
@@ -302,7 +304,7 @@ export default (test: Test) => {
     } finally {
       Object.assign(os, real);
       await page.goto(was); // as later files expect it
-      fs.rmSync(dir, { recursive: true, force: true });
+      removeTree(dir);
     }
   });
 };
