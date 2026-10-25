@@ -124,24 +124,36 @@ const labelsIn = (ui: UI, scope: string) => ui(`[...(${scope})?.querySelectorAll
 async function plusMenu(ui: UI, project?: string, task?: string) {
   if (!(await ui(`!!document.querySelector('.menu[data-state="open"]')`))) await ui(`document.getElementById('newTask').click()`);
   await waitFor(() => ui(`!!document.querySelector('.menu[data-state="open"]')`));
-  if (project === undefined) return labelsIn(ui, `document.querySelector('.menu[data-state="open"]')`);
+  const top = `document.querySelector('.menu[data-state="open"]')`;
+  if (project === undefined) return labelsIn(ui, top);
   // Several projects: the project is a submenu to open first (its subtrigger opens on the pointer, so click until it
-  // does, as the tab's project submenu); one project: its tasks and New Task are the top menu's own.
-  const trigger = `[...document.querySelectorAll('.menu[data-state="open"] [role="menuitem"]')].find((r) => r.querySelector('.label')?.textContent === ${JSON.stringify(project)} && r.getAttribute('aria-haspopup'))`;
-  const sub = await ui(`!!(${trigger})`);
-  if (sub) await waitFor(async () => { await ui(`(${trigger})?.click()`); return (await ui(`document.querySelectorAll('.menu[data-state="open"]').length`)) >= 2; });
-  const scope = sub ? `[...document.querySelectorAll('.menu[data-state="open"]')].at(-1)` : `document.querySelector('.menu[data-state="open"]')`;
+  // does, as the tab's project submenu); one project: its tasks and New Task are the top menu's own. Which it is
+  // can be told only once the menu's rows are drawn: it is open a moment before they are.
+  const trigger = `[...(${top})?.querySelectorAll('[role="menuitem"]') ?? []].find((r) => r.querySelector('.label')?.textContent === ${JSON.stringify(project)} && r.getAttribute('aria-haspopup'))`;
   const label = task ?? 'New Task';
-  // Its row once there: a project just opened again lists its tasks a moment after its menu opens.
-  const row = `[...(${scope}).querySelectorAll('[role="menuitem"]')].find((r) => r.querySelector('.label')?.textContent === ${JSON.stringify(label)})`;
-  await waitFor(() => ui(`!!(${row})`), 5000, () => labelsIn(ui, scope));
+  const rowIn = (scope: string) => `[...(${scope})?.querySelectorAll('[role="menuitem"]') ?? []].find((r) => r.querySelector('.label')?.textContent === ${JSON.stringify(label)})`;
+  await waitFor(() => ui(`!!(${trigger}) || !!(${rowIn(top)})`), 5000, () => labelsIn(ui, top));
+  const sub = await ui(`!!(${trigger})`);
+  const open = () => ui(`document.querySelectorAll('.menu[data-state="open"]').length`);
+  if (sub) await waitFor(async () => { await ui(`(${trigger})?.click()`); return (await open()) >= 2; });
+  const scope = sub ? `[...document.querySelectorAll('.menu[data-state="open"]')].at(-1)` : top;
+  // Its row once there: a project just opened again lists its tasks a moment after its menu opens. The menu's rows
+  // are the projects by when they were last worked on (NewTask.vue): a project just shown moves to the top as its
+  // state comes, the rows are drawn again, and the submenu open under the pointer's stand-in closes: opened again.
+  const row = rowIn(scope);
+  await waitFor(async () => {
+    if (sub && (await open()) < 2) { await ui(`(${trigger})?.click()`); return false; }
+    return ui(`!!(${row})`);
+  }, 5000, () => labelsIn(ui, scope));
   await ui(`(${row}).click()`);
 }
 // The + menu's rows for one project (its tasks, then New Task): the submenu when several projects are open, the top
 // menu's own rows when only one. Opens the menu, reads the rows and closes it again.
 async function plusRows(ui: UI, project: string) {
   await plusMenu(ui);
-  const sub = `[...document.querySelectorAll('.menu[data-state="open"] [role="menuitem"]')].find((r) => r.querySelector('.label')?.textContent === ${JSON.stringify(project)} && r.getAttribute('aria-haspopup'))`;
+  const top = `document.querySelector('.menu[data-state="open"]')`;
+  await waitFor(async () => (await labelsIn(ui, top)).length > 0); // its rows drawn, a moment after it opens
+  const sub = `[...(${top})?.querySelectorAll('[role="menuitem"]') ?? []].find((r) => r.querySelector('.label')?.textContent === ${JSON.stringify(project)} && r.getAttribute('aria-haspopup'))`;
   const multi = await ui(`!!(${sub})`);
   // Several projects: the project is a submenu to open; its subtrigger opens on the pointer, so click until it does.
   if (multi) await waitFor(async () => { await ui(`(${sub})?.click()`); return (await ui(`document.querySelectorAll('.menu[data-state="open"]').length`)) >= 2; });
