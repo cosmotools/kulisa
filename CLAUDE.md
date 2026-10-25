@@ -254,7 +254,9 @@ Everything happens inside Kulisa; no external Chrome windows.
 - Ask before anything outward-facing: pushing, publishing, registering domains.
 - Commit only when asked. The repo is public on GitHub (`origin`, github.com/cosmotools/kulisa); push only when
   asked (a commit the author asks for goes up as a pull request: below), and never print the remote URL (`git remote
-  -v`): it carries the author's token.
+  -v`): it carries the author's token. The one exception: an experiment's branch, pushed to run it on the CI (a
+  workflow of its own on that branch, run by its push: `workflow_dispatch` runs only workflows on the default branch),
+  is pushed without asking, never merged, and deleted here and on GitHub once its runs are read.
 - **Each piece of work in a worktree of its own** (several Claude sessions work on Kulisa
   at once, and one switching or editing a shared folder pulls the files out from under the others):
   - Before the first change: `git worktree add .claude/worktrees/<name> -b <name> develop` (from the local
@@ -292,7 +294,7 @@ Everything happens inside Kulisa; no external Chrome windows.
   the branch, `base`, `body`); its checks: `GET /repos/cosmotools/kulisa/commits/<sha>/check-runs`; whether it is
   merged: `GET …/pulls/<n>`; a branch removed: `DELETE /repos/cosmotools/kulisa/git/refs/heads/<branch>`; a job's
   log: `GET …/actions/jobs/<id>/logs` answers with a redirect to a signed address, fetched without the token. The
-  token cannot re-run a workflow (no Actions write): the author does it on the run's page.
+  token runs and re-runs workflows (Actions write).
 
 ## Releases
 
