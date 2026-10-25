@@ -127,7 +127,9 @@ start({ userData, project: restart ? undefined : project, projectsHome: path.joi
       } catch (e) {
         failed++;
         const err = e as Error & { code?: string };
-        console.log(`  ✗ ${t.name}\n      ${(err.code === 'ERR_ASSERTION' ? err.message : String(err.stack || err).split('\n').slice(0, 4).join('\n')).replace(/\n/g, '\n      ')}`);
+        // Its message whole (a wait's condition over several lines, then what was shown instead), then where it was.
+        const where = err.code === 'ERR_ASSERTION' || !err.stack ? [] : err.stack.slice(String(err).length).split('\n').filter(Boolean).slice(0, 3);
+        console.log(`  ✗ ${t.name}\n      ${[err.code === 'ERR_ASSERTION' ? err.message : String(err), ...where].join('\n').replace(/\n/g, '\n      ')}`);
       }
     }
     console.log(`${failed ? `\n${failed} of ${tests.length} failed` : `\nall ${tests.length - held} passed`}${held ? ` (${held} held)` : ''}`);

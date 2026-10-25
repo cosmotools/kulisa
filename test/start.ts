@@ -46,7 +46,7 @@ let site: { url: string; child?: ChildProcess };
 // their lines).
 function app(group: string, args: string[], script = run) {
   // The human's screenshots go into the group's folder, never the user's own (src/screenshots, KULISA_SCREENSHOTS).
-  const env = { ...process.env, KULISA_TEST_ROOT: folder(group), KULISA_TEST_SITE: site.url, KULISA_SCREENSHOTS: path.join(folder(group), 'screenshots') };
+  const env: NodeJS.ProcessEnv = { ...process.env, KULISA_TEST_ROOT: folder(group), KULISA_TEST_SITE: site.url, KULISA_SCREENSHOTS: path.join(folder(group), 'screenshots') };
   // In plain Node the electron package is the path of Electron's binary.
   // Linux only: chrome-sandbox in node_modules is not setuid there (README, Run).
   const sandbox = process.platform === 'linux' ? ['--no-sandbox'] : [];
@@ -57,6 +57,9 @@ function app(group: string, args: string[], script = run) {
     // No GPU there: WebGL on Chromium's software renderer, as the terminal uses it on a real one.
     const line = [cmd, ...sandbox, '--ignore-gpu-blocklist', script, ...args].map((a) => `'${a}'`).join(' ');
     cmd = 'xvfb-run'; argv = ['-a', '-s', '-screen 0 1920x1080x24', 'sh', '-c', `openbox >/dev/null 2>&1 & sleep 0.5; exec ${line}`];
+    // Started from a Wayland desktop, Electron and GTK would open on it, the human's screen, not on Xvfb's X11.
+    delete env.WAYLAND_DISPLAY;
+    env.XDG_SESSION_TYPE = 'x11';
   }
   return new Promise<{ code: number; out: string }>((resolve) => {
     const child = spawn(cmd, argv, { env, stdio: ['ignore', 'pipe', 'pipe'] });
