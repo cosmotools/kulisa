@@ -253,17 +253,12 @@ moves there over time: what has an issue is removed from here, the issue being t
       project folder dialog (New Project…'s Browse…): untested by hand.
   - Windows logging off or shutting down with Kulisa open: Electron tells each window (`session-end`, nothing listens)
     and Windows then ends the process, likely before the session cookies and tabs are saved as at quitting: untested.
-  - `safeStorage` (DPAPI) for session cookies on Windows: untested.
-  - Claude Code reading the large pages' files without asking on Windows (its rule's path in POSIX form,
-    `//c/…`: `agents/claude.ts`): untested.
-  - Paths in the terminal as links on Windows (`C:\…`, `\\server\share\…`; what runs, by its extension:
-    `file-links.ts`): untested.
-  - The OS buttons' see-through strip ([window.md](window.md), The title bar) on Windows: no strip of the theme's
-    color behind them, their hover still shown, the strip dimmed under a dialog (the test checks it on Linux).
-  - Screenshots ([src/screenshots](../src/screenshots/README.md)), tested on Linux (X11) only: the folder of
-    screenshots on macOS (the one ⇧⌘5 chose, read by `defaults`) and Windows (`Pictures\Screenshots`); the image on the
-    clipboard and the thumbnail's file dragged out on Wayland, macOS and Windows; the thumbnail's view at a Retina
-    screen's density; Send to Agent and Ctrl+V of an image in Codex.
+  - The OS buttons' hover on Windows, over their see-through strip ([window.md](window.md), The title bar).
+  - Screenshots ([src/screenshots](../src/screenshots/README.md)), tested on Linux (X11), partly on Windows
+    ([testing.md](testing.md), On Windows): the folder of screenshots on macOS (the one ⇧⌘5 chose, read by
+    `defaults`) and Windows moved elsewhere (read by `reg`); the image on the clipboard on Wayland and macOS; the
+    thumbnail's file dragged out on Wayland, macOS and Windows; the thumbnail's view at a Retina screen's density;
+    Send to Agent and Ctrl+V of an image in Codex.
   - One xterm a place ([window.md](window.md), The terminal): the RAM it saves where the GPU's memory is the RAM (a
     Mac's, a laptop's integrated GPU): not measured there.
   - Dictation (the right ⌘ held, or the terminals' microphone): the agent records itself. macOS: signed with the
@@ -274,7 +269,8 @@ moves there over time: what has an issue is removed from here, the issue being t
     on Windows, whether ConPTY puts a `conhost`/`OpenConsole` between Kulisa and the hidden `claude`.
     The pill's wave (the window reading the microphone, `getUserMedia`): untested on macOS and Windows, whether the
     system asks for the microphone for Kulisa's window as for the agent, and the wave is flat until it is allowed.
-  - A packaged app's later starts and an agent started in a task of it: untested packaged on Linux and Windows. Its
+  - A packaged app's later starts and an agent started in a task of it: untested packaged on Linux; on Windows, the
+    agent ([testing.md](testing.md), On Windows), and Squirrel's installed app with its updates. Its
     update check fails while there is no release for its OS ("The server sent an invalid response" on macOS) and is
     only logged.
   - The one-row title bar (`titleBarStyle: 'hidden'` + `titleBarOverlay`, Window Controls Overlay): the window
