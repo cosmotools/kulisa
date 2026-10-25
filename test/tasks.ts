@@ -7,7 +7,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import http from 'http';
-import { MAC, CMD, WIN, attr, shot, assert, root, userData, project, pid, tkey, named, pfile, idOf, panel, SITE, sleep, waitFor, who, menuRows, choose, rightClick, viewOn, press, projectTabs, projectTab, showProject, savedWindows, closeMenu, click, plusMenu, plusRows, PORT, hooksOf, MENU, SUBMENU, menuOpen, noNode, focusWindow, chooseProfile, closeSettings, settingsClosed, isNth, taskAt, tid } from './helpers.ts';
+import { MAC, CMD, WIN, attr, shot, assert, root, userData, project, pid, tkey, named, pfile, idOf, panel, SITE, sleep, waitFor, who, menuRows, choose, rightClick, viewOn, press, projectTabs, projectTab, showProject, savedWindows, closeMenu, click, plusMenu, plusRows, PORT, hooksOf, MENU, SUBMENU, menuOpen, noNode, focusWindow, chooseProfile, closeSettings, settingsClosed, isNth, taskAt, tid, renamed } from './helpers.ts';
 import { createWorktree } from '../src/main/worktrees.ts';
 import { removeTree } from '../src/main/remove.ts';
 import { sessionStart } from '../src/main/kulisa-plugin/agent-hooks.ts';
@@ -399,7 +399,7 @@ export default (test: Test) => {
     await waitFor(async () => (await viewOn(shell, ui, 'Sam.admin')) && viewOn(shell, ui, 'Elon.buyer'));
     assert.equal(sam.get().view.getVisible(), false, "the second task's pages are hidden");
     assert.ok(sam.tabs.every((t) => !t.wc.isDestroyed()) && second.pty, 'and alive, its agent too');
-    await waitFor(async () => (await ctx.termText()).includes(`agent: rc of ${project}\n`));
+    await ctx.termShows(`agent: rc of ${project}\n`);
     assert.equal(savedWindows()[0].shown, 'project/1', 'the shown task kept for the next start');
     // What the second task's agent does reaches its tab (Claude Code's hooks); its captions do not show on the first's panes.
     const post = (event: string, input = {}) => new Promise((r) => http.request(`${hooksOf(second)}/${event}`, { method: 'POST' },
@@ -914,7 +914,7 @@ export default (test: Test) => {
     const bin = fakeBin, away = `${bin}.away`;
     const fake = (cached: boolean) => ui(`kulisa.invoke('agents:list', { details: true, cached: ${cached} }).then((r) => r.list?.find((a) => a.id === 'fake'))`);
     assert.equal((await fake(true)).version, '1.2.3', "the last look's, nothing run");
-    fs.renameSync(bin, away);
+    await renamed(bin, away); // the Agents window just closed looked again: its run of the .cmd may still hold it
     try {
       assert.equal((await fake(true)).installed, true, 'not looked for again yet');
       await openAgents(ctx);
@@ -922,7 +922,7 @@ export default (test: Test) => {
       assert.equal((await fake(true)).installed, false, 'what the window looked for again is kept');
       await closeSettings(ctx);
     } finally {
-      fs.renameSync(away, bin);
+      await renamed(away, bin);
       await fake(false);
     }
   });
@@ -1024,7 +1024,7 @@ export default (test: Test) => {
     const task = await newTask(ctx);
     await waitFor(() => task.promptTarget()?.agent.id === work, 20000); // the project's default: its one account
     ctx.watchPty(task.pty);
-    await waitFor(async () => (await ctx.termText()).includes(`config [${dir}]`));
+    await ctx.termShows(`config [${dir}]`);
     // Its shell gets none of direnv's state from where Kulisa was started: else the user's direnv hook takes the task's
     // folder for a folder left, undoes that .envrc's changes and with them the account's variable, and the agent runs
     // with the user's own sign-in (Kulisa started from the repository's folder).
@@ -1733,7 +1733,7 @@ export default (test: Test) => {
     assert.deepEqual([fs.existsSync(path.join(home, 'web')), git(web, 'branch', '--list', 'checkout'), task.dirs(), task.addable()], [false, '', [], [web]]);
     assert.ok(!(await ctx.termText()).includes('Kulisa removed'), 'not while it works');
     task.setState(agent, 'done');
-    await waitFor(async () => (await ctx.termText()).split(`Kulisa removed ${path.join(home, 'web')}`).length === 3);
+    await waitFor(async () => (await ctx.termText()).split(`Kulisa removed ${path.join(home, 'web')}`).length === 3, 5000, ctx.termDump);
     // Deleting the task: both copies, both branches and its folder go.
     await ui(`kulisa.invoke('task:delete', '${task.key}')`);
     await waitFor(() => !fs.existsSync(home));
@@ -2347,14 +2347,14 @@ export default (test: Test) => {
     assert.deepEqual(conversations().map((c: { agent: string }) => c.agent), ['custom', a.id, b.id, b.id, b.id, 'custom']);
     // Its program not found: its tab came at once, starting, and the human is asked for another; none chosen, it goes.
     const bin = fakeBin;
-    fs.renameSync(bin, `${bin}.away`);
+    await renamed(bin, `${bin}.away`);
     try {
       await ui(`void act('terminal:open', { agent: '${a.id}' })`); // it answers once the human has chosen
       await waitFor(() => ui(`document.querySelector('.terminals .starting')?.textContent === 'Starting Fake agent 2…'`)); // numbered: a's other tab is open
       await waitFor(() => ui(`!!document.getElementById('agentcancel')?.checkVisibility()`));
       await ui(`document.getElementById('agentcancel').click()`);
       await waitFor(async () => JSON.stringify(await tabs()) === '["bash","Pay with cards","Fake agent","bash 2 *"]' && !(await ui(`!!document.querySelector('.terminals .starting')`)));
-    } finally { fs.renameSync(`${bin}.away`, bin); }
+    } finally { await renamed(`${bin}.away`, bin); }
 
     // All closed, no profile open: the big buttons, an account's email under its agent's name, no keys; the first has
     // the keyboard, Tab moves to the next, Enter opens it.

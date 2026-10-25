@@ -174,10 +174,22 @@ async function setup(shell: Shell) {
   const watchPty = (p: IPty) => p.onData((d) => (pty += d)); // again for the agent of another project
   await waitFor(() => shell.pty, 10000); // the agent starts once the window has laid out its terminal
   watchPty(shell.pty);
-  // What the terminal in the window shows; lines wrapped at its width joined again.
-  const termText = () => ui(`(() => { const b = window.__term.buffer.active;
-    return Array.from({ length: b.length }, (_, i) => b.getLine(i)).map((l, i) => (i && !l.isWrapped ? '\\n' : '') + l.translateToString(true)).join(''); })()`);
-  await waitFor(async () => (await termText()).includes('agent: rc of')); // the agent runs
+  // What the terminal in the window shows ('' while none is shown yet), as the screen reads: lines wrapped at its
+  // width joined again, and each line's trailing spaces dropped. ConPTY repaints a line padded with spaces to the
+  // width when the terminal is resized (written cells, which xterm keeps: it trims only cells never written), and a
+  // test looking for a line's end would miss it.
+  const termText = () => ui(`(() => { const b = window.__term?.buffer.active; if (!b) return '';
+    return Array.from({ length: b.length }, (_, i) => b.getLine(i)).map((l, i) => (i && !l.isWrapped ? '\\n' : '') + l.translateToString(true)).join('')
+      .split('\\n').map((l) => l.replace(/ +$/, '')).join('\\n'); })()`);
+  // The terminal in the window showing text; when it does not, its xterm as it is: its size, where its cursor is,
+  // and its lines up to the cursor and every one with text, each with its number and a ~ when it continues the one
+  // before (wrapped).
+  const termDump = () => ui(`(() => { const t = window.__term, b = t?.buffer.active; if (!b) return 'no terminal shown';
+    const lines = Array.from({ length: b.length }, (_, i) => b.getLine(i)).map((l, i) => i + (l.isWrapped ? '~' : ' ') + '|' + l.translateToString(true));
+    return { cols: t.cols, rows: t.rows, length: b.length, cursor: [b.cursorX, b.cursorY], baseY: b.baseY,
+      lines: lines.filter((l, i) => i <= b.baseY + b.cursorY + 2 || l.length > 4).slice(0, 40) }; })()`);
+  const termShows = (text: string) => waitFor(async () => (await termText()).includes(text), 5000, async () => ({ expected: text, ...await termDump() }));
+  await termShows('agent: rc of'); // the agent runs
   // Questions (deleting a profile, a task…) are answered in the window's dialog, as the human would: ctx.answer
   // true clicks the button that does it, false Cancel; null leaves the dialog to the test. ctx.asked: what was asked.
   const asked: Question[] = [];
@@ -185,7 +197,7 @@ async function setup(shell: Shell) {
   const instructions = async (task: Task = shell.task) => (await mcpOf(task.env().KULISA_MCP_URL)).getInstructions();
   // The tools the MCP server lists to the agent of task task, as its client gets them.
   const tools = async (task: Task = shell.task) => (await (await mcpOf(task.env().KULISA_MCP_URL)).listTools()).tools;
-  const ctx = { shell, call, instructions, tools, ui, sui, ptyOutput: () => pty, watchPty, termText, asked, openedExternally, answer: true as boolean | 'other' | null, get step() { return step; } };
+  const ctx = { shell, call, instructions, tools, ui, sui, ptyOutput: () => pty, watchPty, termText, termDump, termShows, asked, openedExternally, answer: true as boolean | 'other' | null, get step() { return step; } };
   const ask = shell.askWhich;
   // Asked where w is (a tasks' window, Settings': app.ts, askWhich), the first window when none is named; shell.ask
   // asks through it.
