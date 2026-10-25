@@ -96,7 +96,7 @@ export default (test: Test) => {
     await ui(`kulisa.invoke('project:open', { folder: ${JSON.stringify(other)} })`);
     await waitFor(() => shell.current?.folder === other && shell.pty && shell.pty !== firstPty);
     ctx.watchPty(shell.pty);
-    await waitFor(async () => (await ctx.termText()).includes(`agent: rc of ${other}`)); // started by the shell, in the project
+    await ctx.termShows(`agent: rc of ${other}`); // started by the shell, in the project
     assert.equal((await ctx.termText()).split('exec cat -v').length - 1, 1, 'the command that starts the agent shows once');
     assert.equal(shell.profiles.size, 0);
     assert.ok(sam.tabs.every((t) => !t.wc.isDestroyed()) && !sam.get().view.getVisible(), "the first project's pages keep running, hidden");
@@ -196,7 +196,7 @@ export default (test: Test) => {
     await waitFor(() => shell.current?.folder === project && shell.profiles.has(idOf('Elon.buyer')) && shell.pty);
     await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
     ctx.watchPty(shell.pty);
-    await waitFor(async () => (await ctx.termText()).includes(`agent: rc of ${project}\n`));
+    await ctx.termShows(`agent: rc of ${project}\n`);
     assert.deepEqual([...shell.profiles.keys()], [idOf('Sam.admin'), idOf('Elon.buyer')]);
     assert.equal(shell.resumedSession, 'session-1', "the agent continues the project's conversation");
     assert.equal(await who(ctx, 'Sam.admin'), 'Signed in as sam');
@@ -219,12 +219,12 @@ export default (test: Test) => {
     await waitFor(() => shell.current?.id === pid('other') && shell.task.loaded && shell.pty);
     await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
     const task = shell.task, moved = task, pty = task.pty, seller = task.profiles.get(idOf('Sam.seller'));
-    await waitFor(async () => (await ctx.termText()).includes(`agent: rc of ${other}`));
+    await ctx.termShows(`agent: rc of ${other}`);
     const first = shell.windows[0];
     // A line as wide as an agent's prompt box (Claude Code's), and the size the agent has.
     const LINE = '='.repeat(150);
     pty.write(`${LINE}\r`);
-    await waitFor(async () => (await ctx.termText()).includes(LINE));
+    await ctx.termShows(LINE);
     const size = { cols: pty.cols, rows: pty.rows };
     assert.ok(size.cols > 150, 'the terminal is wide enough for it');
     const sizes: number[][] = [], resize = pty.resize; // every size the agent gets from here on

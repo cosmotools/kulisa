@@ -224,11 +224,9 @@ moves there over time: what has an issue is removed from here, the issue being t
 
 ## Open issues
 
-- **The tasks group flaky on Windows**, not reproduced alone: the first task's terminal not showing its agent's line
-  in 5 s after switching back to it (`tasks.ts`, "switching shows the other grid"); the fake agent's sign-in terminal
-  ending at once with no exit code (node-pty's for a process killed), every account test after it failing; the test
-  app not exiting after `[kulisa] quitting`, its terminals ended, the run waiting for it with no limit
-  (`test/start.ts`).
+- **The tasks group flaky on Windows**, not reproduced alone: the fake agent's sign-in terminal ending at once with
+  no exit code (node-pty's for a process killed), every account test after it failing; the test app not exiting after
+  `[kulisa] quitting`, its terminals ended, the run waiting for it with no limit (`test/start.ts`).
 
 - **Kulisa's main process left running after quitting, on Windows**, not reproduced: closed by the window's ×
   with a real Claude Code at work and Settings open, everything saved (`[kulisa] quitting`, the agent's terminal
