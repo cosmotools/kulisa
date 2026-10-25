@@ -7,7 +7,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import http from 'http';
-import { MAC, CMD, WIN, attr, shot, assert, root, userData, project, pid, tkey, named, pfile, idOf, panel, SITE, sleep, waitFor, who, menuRows, choose, rightClick, viewOn, press, projectTabs, projectTab, showProject, savedWindows, closeMenu, click, plusMenu, plusRows, PORT, hooksOf, MENU, SUBMENU, menuOpen, noNode, focusWindow, chooseProfile, closeSettings, settingsClosed, isNth, taskAt, tid } from './helpers.ts';
+import { MAC, CMD, WIN, attr, shot, assert, root, userData, project, pid, tkey, named, pfile, idOf, panel, SITE, sleep, waitFor, who, menuRows, choose, rightClick, viewOn, press, projectTabs, projectTab, showProject, savedWindows, closeMenu, click, plusMenu, plusRows, PORT, hooksOf, MENU, SUBMENU, menuOpen, noNode, focusWindow, chooseProfile, closeSettings, settingsClosed, isNth, taskAt, tid, renamed } from './helpers.ts';
 import { createWorktree } from '../src/main/worktrees.ts';
 import { removeTree } from '../src/main/remove.ts';
 import { sessionStart } from '../src/main/kulisa-plugin/agent-hooks.ts';
@@ -914,7 +914,7 @@ export default (test: Test) => {
     const bin = fakeBin, away = `${bin}.away`;
     const fake = (cached: boolean) => ui(`kulisa.invoke('agents:list', { details: true, cached: ${cached} }).then((r) => r.list?.find((a) => a.id === 'fake'))`);
     assert.equal((await fake(true)).version, '1.2.3', "the last look's, nothing run");
-    fs.renameSync(bin, away);
+    await renamed(bin, away); // the Agents window just closed looked again: its run of the .cmd may still hold it
     try {
       assert.equal((await fake(true)).installed, true, 'not looked for again yet');
       await openAgents(ctx);
@@ -922,7 +922,7 @@ export default (test: Test) => {
       assert.equal((await fake(true)).installed, false, 'what the window looked for again is kept');
       await closeSettings(ctx);
     } finally {
-      fs.renameSync(away, bin);
+      await renamed(away, bin);
       await fake(false);
     }
   });
@@ -2347,14 +2347,14 @@ export default (test: Test) => {
     assert.deepEqual(conversations().map((c: { agent: string }) => c.agent), ['custom', a.id, b.id, b.id, b.id, 'custom']);
     // Its program not found: its tab came at once, starting, and the human is asked for another; none chosen, it goes.
     const bin = fakeBin;
-    fs.renameSync(bin, `${bin}.away`);
+    await renamed(bin, `${bin}.away`);
     try {
       await ui(`void act('terminal:open', { agent: '${a.id}' })`); // it answers once the human has chosen
       await waitFor(() => ui(`document.querySelector('.terminals .starting')?.textContent === 'Starting Fake agent 2…'`)); // numbered: a's other tab is open
       await waitFor(() => ui(`!!document.getElementById('agentcancel')?.checkVisibility()`));
       await ui(`document.getElementById('agentcancel').click()`);
       await waitFor(async () => JSON.stringify(await tabs()) === '["bash","Pay with cards","Fake agent","bash 2 *"]' && !(await ui(`!!document.querySelector('.terminals .starting')`)));
-    } finally { fs.renameSync(`${bin}.away`, bin); }
+    } finally { await renamed(`${bin}.away`, bin); }
 
     // All closed, no profile open: the big buttons, an account's email under its agent's name, no keys; the first has
     // the keyboard, Tab moves to the next, Enter opens it.

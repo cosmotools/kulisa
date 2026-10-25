@@ -220,6 +220,14 @@ async function waitFor(cond: () => unknown, ms = 5000, shown?: () => unknown) {
   for (const end = Date.now() + ms; Date.now() < end; await sleep(50)) if (await cond()) return;
   throw new Error(`waitFor timed out: ${cond}${shown ? `\n      shown: ${JSON.stringify(await shown())}` : ''}`);
 }
+// A file renamed once nothing holds it: Windows refuses (EBUSY, EPERM) while a process runs it, as an agent's .cmd
+// that a look at the agents' versions runs a moment longer (docs/testing.md, On Windows).
+const renamed = (from: string, to: string) => waitFor(() => {
+  try { fs.renameSync(from, to); return true; } catch (e) {
+    if ((e as NodeJS.ErrnoException).code === 'EBUSY' || (e as NodeJS.ErrnoException).code === 'EPERM') return false;
+    throw e;
+  }
+});
 
 const who = async (ctx: Pick<Ctx, 'call'>, profile: string) => (await ctx.call('browser_snapshot', { profile })).text.match(/Signed (in as \w+|out)/)?.[0];
 
@@ -265,6 +273,6 @@ const near = (a: number, b: number) => Math.abs(a - b) < 1e-6;
 const noNode = async (wc: WebContents) => await wc.executeJavaScriptInIsolatedWorld(999, [{ code: 'typeof process' }]) === 'undefined';
 
 export type { UI };
-export { resourcesHeight, savedResourcesHeight, MAC, CMD, WIN, attr, canShoot, NO_SHOT, shot, tid, taskAt, isNth, focusWindow, MENU, SUBMENU, noNode, hooksOf, plusMenu, plusRows, closeBoard, assert, root, userData, project, pid, tkey, named, pfile, idOf, savedTabs, savedActive, savedWindows, panel, SITE, PORT, sleep, waitFor, who, menuRows, choose, projectTabs, projectTab, showProject, closeProject, manageProfiles, closeSettings, settingsClosed, chooseProfile, setProfileField, menuOpen, closeMenu, rightClick, taskMenu,
+export { resourcesHeight, savedResourcesHeight, MAC, CMD, WIN, attr, canShoot, NO_SHOT, shot, tid, taskAt, isNth, focusWindow, MENU, SUBMENU, noNode, hooksOf, plusMenu, plusRows, closeBoard, assert, root, userData, project, pid, tkey, named, pfile, idOf, savedTabs, savedActive, savedWindows, panel, SITE, PORT, sleep, waitFor, renamed, who, menuRows, choose, projectTabs, projectTab, showProject, closeProject, manageProfiles, closeSettings, settingsClosed, chooseProfile, setProfileField, menuOpen, closeMenu, rightClick, taskMenu,
   click,
   box, pageBox, viewOn, dock, press, ctrl, near };
