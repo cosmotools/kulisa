@@ -224,6 +224,12 @@ moves there over time: what has an issue is removed from here, the issue being t
 
 ## Open issues
 
+- **The tasks group flaky on Windows**, not reproduced alone: the first task's terminal not showing its agent's line
+  in 5 s after switching back to it (`tasks.ts`, "switching shows the other grid"); the fake agent's sign-in terminal
+  ending at once with no exit code (node-pty's for a process killed), every account test after it failing; the test
+  app not exiting after `[kulisa] quitting`, its terminals ended, the run waiting for it with no limit
+  (`test/start.ts`).
+
 - **The grid in a small window** (not decided; the window's own minimum is built: window.md, "The window's size"). When the panes do not fit,
   dockview overflows and cuts them, the profiles' native views get boxes near 0, and the terminal may get 0 columns
   (`pty.resize` is in a `try` in `src/terminal/main/index.ts`, but the agent's CLI draws garbage at a tiny size). Ways to weigh:

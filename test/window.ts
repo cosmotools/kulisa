@@ -4,7 +4,7 @@ import { spawn } from 'child_process';
 import fs from 'fs';
 import { removeTree } from '../src/main/remove.ts';
 import path from 'path';
-import { WIN, closeSettings, canShoot, NO_SHOT, shot, assert, root, userData, sleep, waitFor, menuRows, choose, menuOpen, rightClick, box, viewOn, closeMenu, click, noNode, press } from './helpers.ts';
+import { WIN, closeSettings, focusWindow, canShoot, NO_SHOT, shot, assert, root, userData, sleep, waitFor, menuRows, choose, menuOpen, rightClick, box, viewOn, closeMenu, click, noNode, press } from './helpers.ts';
 import { createPackage } from '@electron/asar';
 import forge from '../forge.config.ts';
 import type { Test } from './run.ts';
@@ -271,7 +271,7 @@ export default (test: Test) => {
     assert.match(out, /already running with .*: its window is shown/);
     await waitFor(() => !win.isMinimized());
   });
-  test('KULISA_QUIT: a second start asks the Kulisa running on the same data to quit, saved as at SIGINT, and leaves no start in its log', async () => {
+  test('KULISA_QUIT: a second start asks the Kulisa running on the same data to quit, saved as at SIGINT, and leaves no start in its log', async ({ shell, ui }) => {
     const data = path.join(root, 'quit');
     removeTree(data);
     const run = (env: Record<string, string>) => {
@@ -296,6 +296,7 @@ export default (test: Test) => {
     assert.match(log, /asked to quit by another start[^\n]*\n[^\n]*\[kulisa\] quitting/);
     assert.ok(log.lastIndexOf('[kulisa] start') < log.lastIndexOf('[kulisa] quitting'), 'the next start does not take it for a crash');
     removeTree(data);
+    await focusWindow(shell.win, ui); // the other Kulisa's window took it (macOS: the front app's), as a click would give it back
   });
   test('icons: each from the sprite (docs/ui.md), drawn there once and in lines of the text\'s color; icon buttons have a name', async ({ ui }) => {
     const r = await ui(`(() => {
