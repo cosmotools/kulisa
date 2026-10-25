@@ -59,6 +59,20 @@ export default (test: Test) => {
     await ui(`document.querySelector('.termtab[data-id="${sh.id}"] .x').click()`);
     await waitFor(() => shell.task.terminals.size === 1);
   });
+  test('terminal: one opened in a hidden window starts at once, at its room: a hidden page draws no frames (Windows hides a window others cover)', async ({ shell, ui }) => {
+    shell.win.minimize(); // hidden as covered: shown again, Windows would leave a hidden window behind the others
+    try {
+      await waitFor(() => ui(`document.hidden`));
+      await ui(`act('terminal:open')`);
+      await waitFor(() => (shell.task.terminal('Terminal') as TaskTerminal)?.pty);
+      const sh = shell.task.terminal('Terminal') as TaskTerminal;
+      assert.deepEqual([sh.pty.cols, sh.pty.rows], await ui(`[window.__term.cols, window.__term.rows]`));
+      await ui(`document.querySelector('.termtab[data-id="${sh.id}"] .x').click()`);
+      await waitFor(() => shell.task.terminals.size === 1);
+    } finally { shell.win.restore(); }
+    await waitFor(() => ui(`!document.hidden`));
+    await focusWindow(shell.win, ui);
+  });
   test("terminal: dictation where the agent has its own: the right Ctrl held anywhere records, let go stops, pressed once it records until the next; the microphone at the end of the terminals' row shows it and does the same by the mouse; with a shell in front the agent comes to the front; the key is the human's to change in Keyboard Shortcuts", async ({ shell, ui, termText }) => {
     await waitFor(() => ui(`!document.querySelector('.dictation .mic').disabled`));
     // At the row's end, after + and the task's repositories, inside the row: no row of its own.
