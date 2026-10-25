@@ -5,14 +5,23 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 
-// Windows' Win+PrtScn and GNOME's, KDE's tools save into Pictures/Screenshots; macOS into the folder chosen in ⇧⌘5's
-// options, the Desktop by default, which Electron does not know: `defaults` tells it.
+// GNOME's and KDE's tools save into Pictures/Screenshots; Windows' Win+PrtScn into its Screenshots known folder,
+// Pictures\Screenshots unless moved (its Properties → Location); macOS into the folder chosen in ⇧⌘5's options, the
+// Desktop by default. Electron knows neither of the last two: the registry and `defaults` tell them.
 async function screenshotsFolder(): Promise<string> {
   if (process.env.KULISA_SCREENSHOTS) return process.env.KULISA_SCREENSHOTS;
   const { app } = electron;
+  const read = (cmd: string, args: string[]) => new Promise<string>((ok) => execFile(cmd, args, (e, out) => ok(e ? '' : out)));
+  if (process.platform === 'win32') return movedTo(await read('reg', SCREENSHOTS_KEY), process.env) ?? path.join(app.getPath('pictures'), 'Screenshots');
   if (process.platform !== 'darwin') return path.join(app.getPath('pictures'), 'Screenshots');
-  const chosen = await new Promise<string>((ok) => execFile('defaults', ['read', 'com.apple.screencapture', 'location'], (e, out) => ok(e ? '' : out.trim())));
+  const chosen = (await read('defaults', ['read', 'com.apple.screencapture', 'location'])).trim();
   return chosen ? chosen.replace(/^~(?=$|\/)/, os.homedir()) : app.getPath('desktop');
+}
+// Where the Screenshots known folder (FOLDERID_Screenshots) was moved, as `reg query` prints it; none until it is.
+const SCREENSHOTS_KEY = ['query', String.raw`HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders`, '/v', '{B7BEDE81-DF94-4682-A7D8-57A52620B86F}'];
+function movedTo(query: string, env: NodeJS.ProcessEnv): string | null {
+  const value = /REG_(?:EXPAND_)?SZ[ \t]+(.+?)\s*$/m.exec(query)?.[1];
+  return value ? value.replace(/%(\w+)%/g, (all, name: string) => env[name] ?? all) : null;
 }
 
 // "Kulisa <profile> 2026-10-19 14.32.05.png", as the OSes name theirs: by the time, sorted so, with the profile's name;
@@ -50,4 +59,4 @@ async function keep(png: Buffer, profile: string): Promise<string> {
 // Its file on the clipboard again (the thumbnail's Copy): the clipboard may hold something else since.
 const copyFile = (file: string) => copy(fs.readFileSync(file));
 
-export { copyFile, fileName, keep };
+export { copyFile, fileName, keep, movedTo };

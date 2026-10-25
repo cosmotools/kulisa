@@ -366,8 +366,8 @@ The npm scripts, what each does, and what to install first (Node 24.12+, npm 11 
   - Never delete or overwrite it.
   - Tests use their own temp folder (`/tmp/kulisa-test-<checkout>-<hash>`, one per checkout: `test/start.ts`).
   - To restart the author's running app, or give them a fresh start: the `run-kulisa` skill
-    (`.claude/skills/run-kulisa/`): SIGINT to the main `electron … .` process, so session cookies and tabs get
-    saved; then `kulisa.sh start`.
+    (`.claude/skills/run-kulisa/`): SIGINT to the main `electron … .` process (Windows: a second start with
+    `KULISA_QUIT`), so session cookies and tabs get saved; then `kulisa.sh start`.
 - **`src/main/signin-pause.ts` is a deliberately temporary implementation** (the author's decision: `docs/profiles.md`, Sign-in pause).
   Keep it isolated; the author will replace it. Hiding the agent from bot detection (Kasada) is not researched or
   built.

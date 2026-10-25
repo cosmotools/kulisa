@@ -4,7 +4,7 @@ import { spawn } from 'child_process';
 import fs from 'fs';
 import { removeTree } from '../src/main/remove.ts';
 import path from 'path';
-import { WIN, closeSettings, canShoot, NO_SHOT, shot, assert, root, userData, sleep, waitFor, menuRows, choose, menuOpen, rightClick, box, viewOn, closeMenu, click, noNode, press } from './helpers.ts';
+import { WIN, closeSettings, focusWindow, canShoot, NO_SHOT, shot, assert, root, userData, sleep, waitFor, menuRows, choose, menuOpen, rightClick, box, viewOn, closeMenu, click, noNode, press } from './helpers.ts';
 import { createPackage } from '@electron/asar';
 import forge from '../forge.config.ts';
 import type { Test } from './run.ts';
@@ -58,6 +58,20 @@ export default (test: Test) => {
     assert.deepEqual(await modes(), set, 'the modes are back');
     await ui(`document.querySelector('.termtab[data-id="${sh.id}"] .x').click()`);
     await waitFor(() => shell.task.terminals.size === 1);
+  });
+  test('terminal: one opened in a hidden window starts at once, at its room: a hidden page draws no frames (Windows hides a window others cover)', async ({ shell, ui }) => {
+    shell.win.minimize(); // hidden as covered: shown again, Windows would leave a hidden window behind the others
+    try {
+      await waitFor(() => ui(`document.hidden`));
+      await ui(`act('terminal:open')`);
+      await waitFor(() => (shell.task.terminal('Terminal') as TaskTerminal)?.pty);
+      const sh = shell.task.terminal('Terminal') as TaskTerminal;
+      assert.deepEqual([sh.pty.cols, sh.pty.rows], await ui(`[window.__term.cols, window.__term.rows]`));
+      await ui(`document.querySelector('.termtab[data-id="${sh.id}"] .x').click()`);
+      await waitFor(() => shell.task.terminals.size === 1);
+    } finally { shell.win.restore(); }
+    await waitFor(() => ui(`!document.hidden`));
+    await focusWindow(shell.win, ui);
   });
   test("terminal: dictation where the agent has its own: the right Ctrl held anywhere records, let go stops, pressed once it records until the next; the microphone at the end of the terminals' row shows it and does the same by the mouse; with a shell in front the agent comes to the front; the key is the human's to change in Keyboard Shortcuts", async ({ shell, ui, termText }) => {
     await waitFor(() => ui(`!document.querySelector('.dictation .mic').disabled`));
@@ -270,6 +284,33 @@ export default (test: Test) => {
     assert.equal(code, 0);
     assert.match(out, /already running with .*: its window is shown/);
     await waitFor(() => !win.isMinimized());
+  });
+  test('KULISA_QUIT: a second start asks the Kulisa running on the same data to quit, saved as at SIGINT, and leaves no start in its log', async ({ shell, ui }) => {
+    const data = path.join(root, 'quit');
+    removeTree(data);
+    const run = (env: Record<string, string>) => {
+      const p = spawn(process.execPath, [...(process.platform === 'linux' ? ['--no-sandbox'] : []), path.join(import.meta.dirname, '..', 'src', 'main', 'index.ts')],
+        { env: { ...process.env, KULISA_DATA: data, KULISA_MCP_PORT: '0', ...env }, stdio: ['ignore', 'pipe', 'pipe'] });
+      let out = '';
+      p.stdout.on('data', (d) => (out += d));
+      return { p, out: () => out, code: new Promise((r) => p.on('close', r)) };
+    };
+    const first = run({});
+    const timer = setTimeout(() => first.p.kill('SIGINT'), 30000); // one that stays is stopped, not left behind
+    await waitFor(() => first.out().includes('MCP server'), 20000);
+    const quit = run({ KULISA_QUIT: '1' });
+    assert.equal(await quit.code, 0);
+    assert.match(quit.out(), /asked the one running with .* to quit/);
+    assert.equal(await first.code, 0);
+    clearTimeout(timer);
+    const none = run({ KULISA_QUIT: '1' });
+    assert.equal(await none.code, 0);
+    assert.match(none.out(), /none running with/);
+    const log = fs.readFileSync(path.join(data, 'logs', 'kulisa.log'), 'utf8');
+    assert.match(log, /asked to quit by another start[^\n]*\n[^\n]*\[kulisa\] quitting/);
+    assert.ok(log.lastIndexOf('[kulisa] start') < log.lastIndexOf('[kulisa] quitting'), 'the next start does not take it for a crash');
+    removeTree(data);
+    await focusWindow(shell.win, ui); // the other Kulisa's window took it (macOS: the front app's), as a click would give it back
   });
   test('icons: each from the sprite (docs/ui.md), drawn there once and in lines of the text\'s color; icon buttons have a name', async ({ ui }) => {
     const r = await ui(`(() => {

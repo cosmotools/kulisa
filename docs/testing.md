@@ -124,6 +124,21 @@ Run from a terminal, as anywhere, with Git for Windows installed (its `bash` in 
 - GitHub's runner has 1024×768, as macOS's: the CI sets 1920×1080 (`Set-DisplayResolution`, Windows Server's).
 - node-pty's helper prints `AttachConsole failed` when a terminal closes as its shell exits: its own race, harmless.
 
+What the tests cannot do there is checked by hand, again when something it depends on changes (Windows, an Electron,
+Claude Code, the part's code); what is left: ROADMAP, "Windows and macOS have gaps left".
+
+- **Quitting**: `KULISA_QUIT` and `npm start`'s Ctrl+C (sent to its console: `GenerateConsoleCtrlEvent`) quit as
+  SIGINT does elsewhere, the log saying so; `run-kulisa`'s `kulisa.sh` starts and stops Kulisa.
+- **Claude Code's rule for the large pages' files** (`//c/…`, `agents/claude.ts`): with it `claude -p` reads a file
+  outside its folder without asking, without it the read is refused.
+- **The terminal's links**: a UNC path (`\\localhost\C$\…`) is found as a file; `C:\…` and what runs by its
+  extension are the e2e test's.
+- **The OS buttons' strip**: no strip of another color behind them; a dialog's backdrop dims it with the window.
+- **A screenshot on the clipboard** (written as `keep` does) is an image to other apps (PNG and a DIB).
+- **The packaged app** (`npm run package`, not installed: Squirrel's would use the real data folder): a task's
+  terminal, a later start on the same data, `KULISA_QUIT`. Its first start after a build may wait for Windows'
+  scan of the new files.
+
 ## Writing an e2e test
 
 - **The window draws with Vue**, after the change that causes it (a microtask later, before the next frame): wait

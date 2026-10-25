@@ -56,7 +56,9 @@ in waits after it (`pending`). A terminal is put in at its buffer's size, and th
 laid out only from the fit, measured in a frame about to be drawn (`requestAnimationFrame`): measured between frames,
 during a task's slide (a view transition, which builds the next grid while nothing is drawn), the room is passing
 (954 px for 293) and no ResizeObserver tells of the room it ends with, so the agent would keep 52 rows in a panel of
-16; and fitted at once in a window just opened, its grid not laid out, the buffer would be wrapped at 9 columns. Why
+16; and fitted at once in a window just opened, its grid not laid out, the buffer would be wrapped at 9 columns. A
+hidden page draws no frames and runs no transition, so there it is measured at once: Windows hides a window other
+windows cover (one opening behind them too), whose agents would otherwise start only once someone looks at it. Why
 one: an xterm shown has its renderer, a WebGL context and its glyph atlas, and Chromium keeps 16 contexts a page: with
 an xterm a terminal, the 17th would take the oldest terminal's, often the first task's agent, which would draw with
 the DOM renderer from then on, silently. With 20 terminals on a discrete GPU,
