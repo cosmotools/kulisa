@@ -54,6 +54,12 @@ class CookieSync {
     g.copies.set(copy, local);
     this._listen(copy, id);
   }
+  // A copy just made (store.ts, copyProfile): every cookie of the master, local sites' too: the copy starts as the
+  // master is.
+  async copy(id: string, to: Session) {
+    const g = await this._group(id);
+    for (const c of await g.master.cookies.get({})) await to.cookies.set(details(c)).catch((e: Error) => console.warn('[cookie-sync] not copied:', c.domain, c.name, e.message));
+  }
   detach(id: string, copy: Session) { this.groups.get(id)?.copies.delete(copy); }
   async _group(id: string) {
     let g = this.groups.get(id);

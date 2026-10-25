@@ -6,6 +6,7 @@
 import { app, nativeImage } from 'electron';
 import fs from 'fs';
 import path from 'path';
+import { removeTree } from './remove.ts';
 import { Task } from './tasks.ts';
 import { freeBranch, createWorktree, removeWorktree, merged, repoOf, changes, clone } from './worktrees.ts';
 import { originKey } from './remotes.ts';
@@ -254,11 +255,11 @@ async function deleteTask(shell: Shell, p: ProjectEntry, entry: TaskEntry) {
   const data = store.taskOf(p, entry.id);
   const copies = worktreesOf(entry), home = homeOf(entry);
   for (const c of copies) await removeWorktree(c);
-  if (home) fs.rmSync(home, { recursive: true, force: true });
+  if (home) removeTree(home);
   for (const c of copies) forgetFolder(shell, p, entry, c.folder);
   // Its profiles' sessions stay open in Electron until Kulisa quits: whatever cannot go now goes at the next start.
   store.markDeleted(data.dir);
-  try { fs.rmSync(data.dir, { recursive: true, force: true }); } catch (e) { console.warn('[tasks]', (e as Error).message); }
+  try { removeTree(data.dir); } catch (e) { console.warn('[tasks]', (e as Error).message); }
 }
 
 // A project's folders (Project Settings…), repositories or not, whether it is open or not: added, cloned, made the
@@ -291,7 +292,7 @@ async function cloneRepo(shell: Shell, id: string, url: string): Promise<Result<
   if (!name) return { error: 'not a repository URL' };
   const into = path.join(path.dirname(p.folders[0]!), name);
   if (fs.existsSync(into)) return { error: `${into} is already there` };
-  try { await clone(url.trim(), into); } catch (e) { fs.rmSync(into, { recursive: true, force: true }); return { error: (e as GitError).stderr || (e as Error).message }; }
+  try { await clone(url.trim(), into); } catch (e) { removeTree(into); return { error: (e as GitError).stderr || (e as Error).message }; }
   return addFolder(shell, id, into);
 }
 // Made the default (new tasks' agents start in its copy), or removed: only when no task has a copy of it or works in
@@ -426,8 +427,8 @@ async function createProject(shell: Shell, { from = 'new', name, location, folde
         try { await clone(u, intos[i]!); } catch (e) {
           const err = e as GitError;
           // None of it kept: a project with half its code would look made.
-          for (const f of intos.slice(0, i + 1)) if (f !== folder || there.state === 'new') fs.rmSync(f, { recursive: true, force: true });
-          if (there.state === 'new') fs.rmSync(folder, { recursive: true, force: true });
+          for (const f of intos.slice(0, i + 1)) if (f !== folder || there.state === 'new') removeTree(f);
+          if (there.state === 'new') removeTree(folder);
           return { error: `${u}: ${err.stderr || err.message}` };
         }
       }

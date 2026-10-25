@@ -7,8 +7,9 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import http from 'http';
-import { MAC, CMD, shot, assert, root, userData, project, pid, tkey, named, pfile, idOf, panel, SITE, sleep, waitFor, who, menuRows, choose, rightClick, viewOn, press, projectTabs, projectTab, showProject, savedWindows, closeMenu, click, plusMenu, plusRows, PORT, hooksOf, MENU, SUBMENU, menuOpen, noNode, focusWindow, chooseProfile, closeSettings, settingsClosed, isNth, taskAt, tid } from './helpers.ts';
+import { MAC, CMD, WIN, attr, shot, assert, root, userData, project, pid, tkey, named, pfile, idOf, panel, SITE, sleep, waitFor, who, menuRows, choose, rightClick, viewOn, press, projectTabs, projectTab, showProject, savedWindows, closeMenu, click, plusMenu, plusRows, PORT, hooksOf, MENU, SUBMENU, menuOpen, noNode, focusWindow, chooseProfile, closeSettings, settingsClosed, isNth, taskAt, tid } from './helpers.ts';
 import { createWorktree } from '../src/main/worktrees.ts';
+import { removeTree } from '../src/main/remove.ts';
 import { sessionStart } from '../src/main/kulisa-plugin/agent-hooks.ts';
 import { refused } from '../src/shared/result.ts';
 import type { Test, Ctx } from './run.ts';
@@ -28,6 +29,8 @@ const tabs = (ui: UI) => ui(`[...document.querySelectorAll('#projectTabs .taskta
 // A task's tab in the bar.
 const taskTab = (t: { key: string }) => `document.querySelector('#projectTabs .tasktab[data-task="${t.key}"]')`;
 const tasksFile = (): TasksFile => JSON.parse(fs.readFileSync(path.join(userData, 'projects', pid('project'), 'tasks.json'), 'utf8'));
+// The fake agent's program once installed (run.ts): on Windows its .cmd, which Kulisa finds and runs.
+const fakeBin = path.join(root, 'bin', WIN ? 'kulisa-fake-agent.cmd' : 'kulisa-fake-agent');
 // The bar's +, the shown project in its menu; resolves once the new task is shown, its agent started. Names it for the
 // tests to refer to it by (the default is "New Task"): task-<its place among its project's tasks>, or the name given, or none with null (to test the
 // default and the agent naming it).
@@ -180,7 +183,11 @@ export default (test: Test) => {
     assert.deepEqual(await resources(), ['projectmain working tree']);
     // Two of its agents at once (each a call) get the one worktree, not one each.
     const wt = `${project}@feature-x`, trees = () => git(project, 'worktree', 'list').split('\n').length, before = trees();
-    const both = await Promise.all([call('task_worktree', { name: 'Feature-X' }), call('task_worktree', {})]);
+    // The second sent once the first is at work (named: making the worktree): the first to arrive makes the folder, named
+    // after the task as it is then, and the two calls' order over HTTP is the OS's.
+    const named = call('task_worktree', { name: 'Feature-X' });
+    await waitFor(() => task.entry.named);
+    const both = await Promise.all([named, call('task_worktree', {})]);
     for (const r of both) assert.match(r.text, /works in its own worktree .*project@feature-x, on branch feature-x/);
     assert.equal(trees(), before + 1, 'one worktree');
     await waitFor(async () => JSON.stringify(await resources()) === '["projectbranch feature-x"]');
@@ -213,7 +220,7 @@ export default (test: Test) => {
     assert.ok(![...shell.proxy.profiles.keys()].some((k) => k.startsWith('master/')), 'no CDP proxy for it: nothing automated reaches it');
     assert.equal(await noNode(m.win.webContents), true, 'its page sandboxed, as the window\'s');
     // The human signs in there, by hand (here: its bar's address).
-    await m.win.webContents.executeJavaScript(`kulisa.invoke('master:go', '${SITE}/app/login?name=master')`);
+    await m.win.webContents.executeJavaScript(`kulisa.invoke('master:go', '${SITE}/app/login?name=master&kept')`);
     await waitFor(() => m.profile.get().wc.getURL().endsWith('/app'));
     await waitFor(async () => (await m.win.webContents.executeJavaScript(`document.getElementById('address').value`)).endsWith('/app'), 3000);
     m.win.close();
@@ -392,7 +399,7 @@ export default (test: Test) => {
     await waitFor(async () => (await viewOn(shell, ui, 'Sam.admin')) && viewOn(shell, ui, 'Elon.buyer'));
     assert.equal(sam.get().view.getVisible(), false, "the second task's pages are hidden");
     assert.ok(sam.tabs.every((t) => !t.wc.isDestroyed()) && second.pty, 'and alive, its agent too');
-    await waitFor(async () => (await ctx.termText()).includes(`agent: rc of ${project}\n`), 3000);
+    await waitFor(async () => (await ctx.termText()).includes(`agent: rc of ${project}\n`));
     assert.equal(savedWindows()[0].shown, 'project/1', 'the shown task kept for the next start');
     // What the second task's agent does reaches its tab (Claude Code's hooks); its captions do not show on the first's panes.
     const post = (event: string, input = {}) => new Promise((r) => http.request(`${hooksOf(second)}/${event}`, { method: 'POST' },
@@ -608,6 +615,7 @@ export default (test: Test) => {
     // A copy of the master made after it was signed in to: signed in.
     await call('browser_navigate', { profile: 'Sam.admin', url: `${SITE}/app` });
     assert.equal(await who(ctx, 'Sam.admin'), 'Signed in as master');
+    assert.deepEqual((await sam.session.cookies.get({ name: 'kept' })).map((c) => c.value), ['master'], "its lasting cookie too (Windows keeps the master's cookie database locked)");
     assert.ok(await sam.session.getCacheSize() > 0, 'pages were cached');
     // What the agent's tools keep of its pages (a screenshot), in the task's data: kept while the task is closed, gone
     // when it is deleted (below).
@@ -657,7 +665,11 @@ export default (test: Test) => {
     assert.equal(asked.message, 'Delete the task task-3?', 'asked also without changes');
     assert.ok(asked.detail.startsWith('Deleted for good:') && asked.detail.includes(`${project}@task-3`) && asked.detail.includes('its branch task-3'));
     assert.ok(!asked.detail.includes('not in main'));
-    await waitFor(() => !fs.existsSync(`${project}@task-3`) && !fs.existsSync(dir));
+    // Its data marked for the next start too: its profiles' sessions keep files open until Kulisa quits, which Windows
+    // does not delete (Linux does).
+    const deleted = path.join(userData, 'deleted-folders.json');
+    const marked = () => fs.existsSync(deleted) && JSON.parse(fs.readFileSync(deleted, 'utf8')).includes(dir);
+    await waitFor(() => !fs.existsSync(`${project}@task-3`) && marked() && (WIN || !fs.existsSync(dir)));
     // direnv's permission for its .envrc: no record of the task's folder left.
     const allow = path.join(process.env.XDG_DATA_HOME, 'direnv', 'allow');
     if (hasDirenv) assert.ok(!(fs.existsSync(allow) ? fs.readdirSync(allow) : []).some((f) => fs.readFileSync(path.join(allow, f), 'utf8').includes(`${project}@task-3`)));
@@ -739,7 +751,7 @@ export default (test: Test) => {
     assert.equal(await sui(`document.querySelector('#agentpage [data-accounts="fake"] .accountnew').disabled`), true, 'not installed: no account yet');
     assert.equal(await sui(agentRow('fake', '.status') + '.textContent'), 'Not installed');
     assert.equal(await sui(agentRow('fake', '.install') + '.hidden'), false);
-    assert.match(await sui(agentRow('fake', '.install-line') + '.textContent'), /^Install runs Kulisa tests's installer: echo "installing the fake agent"/);
+    assert.match(await sui(agentRow('fake', '.install-line') + '.textContent'), /^Install runs Kulisa tests's installer: echo ["']installing the fake agent["']/);
     // Installed with its maker's installer; what it said only under Details.
     await sui(agentRow('fake', '.install') + '.click()');
     await waitFor(async () => (await sui(agentRow('fake', '.status') + '.textContent')) === 'Installed', 10000);
@@ -886,7 +898,7 @@ export default (test: Test) => {
     assert.equal(await sui(agentRow('fake', '.status') + '.textContent'), 'Installed');
     assert.equal(await sui(agentRow('fake', '.install') + '.hidden'), true);
     // Shown as the human's home folder shortened to ~, as a test folder inside it is (the CI's runner.temp).
-    const bin = path.join(root, 'bin', 'kulisa-fake-agent'), home = os.homedir() + path.sep;
+    const bin = fakeBin, home = os.homedir() + path.sep;
     assert.equal(await sui(agentRow('fake', '.where') + '.textContent'),
       `1.2.3 · ${bin.startsWith(home) ? '~' + bin.slice(home.length - 1) : bin} · not on your PATH: Kulisa runs it from here`);
     assert.equal(await sui(agentRow('fake', '.install-line') + '.textContent'), '');
@@ -899,7 +911,7 @@ export default (test: Test) => {
   });
   test('agents: the list comes at once with what the last look found, then looks again: an agent removed meanwhile shows so', async (ctx) => {
     const { ui, sui } = ctx;
-    const bin = path.join(root, 'bin', 'kulisa-fake-agent'), away = `${bin}.away`;
+    const bin = fakeBin, away = `${bin}.away`;
     const fake = (cached: boolean) => ui(`kulisa.invoke('agents:list', { details: true, cached: ${cached} }).then((r) => r.list?.find((a) => a.id === 'fake'))`);
     assert.equal((await fake(true)).version, '1.2.3', "the last look's, nothing run");
     fs.renameSync(bin, away);
@@ -1307,7 +1319,8 @@ export default (test: Test) => {
       assert.match(await ui(`document.getElementById('npwhere').textContent`), /is there already: choose another name or location/);
       await kind('new');
       assert.equal(await ui(`!!document.getElementById('npname')`), true);
-      fs.rmSync(path.join(shell.projectsHome, 'taken'), { recursive: true });
+      // Once the git that looked at it (whether it is a repository) has left it: Windows does not remove a process's folder.
+      await waitFor(() => { try { removeTree(path.join(shell.projectsHome, 'taken')); return true; } catch { return false; } });
       // Back on the first step: the slides again, on the one left.
       await ui(`document.getElementById('npback').click()`);
       await waitFor(async () => (await ui(`document.querySelector('#tour h1')?.textContent`)) === 'It checks the result as every user');
@@ -1646,7 +1659,7 @@ export default (test: Test) => {
     assert.deepEqual(first.addable(), [], 'no copies yet: nothing to add');
     // The agent makes its worktree: the row becomes the worktree on its branch; still one repository, nothing to tell.
     const b1 = `task-${first.id}`, own = `${api}@${b1}`; // its branch while it is unnamed: task-<its id>
-    assert.match((await call('task_worktree', {})).text, new RegExp(`works in its own worktree ${own}, on branch ${b1}`));
+    assert.match((await call('task_worktree', {})).text, new RegExp(`works in its own worktree ${RegExp.escape(own)}, on branch ${b1}`));
     assert.equal(first.folder, own);
     assert.equal(first.worktrees.length, 1);
     await waitFor(async () => (await rows())[0]?.[1] === `branch ${b1}`);
@@ -1659,7 +1672,7 @@ export default (test: Test) => {
     assert.deepEqual([first.dirs(), first.addable()], [[], [web]]);
     // Its agent is told of the other repository live, at a session's start (the MCP server's instructions are frozen at
     // open, before the project had it): to read it there and ask before changing it.
-    assert.match(sessionStart(first, null, null).hookSpecificOutput.additionalContext, new RegExp(`repositories, not in this task: ${web}\\. Read them there freely.*first ask the human.*task_add_repository`));
+    assert.match(sessionStart(first, null, null).hookSpecificOutput.additionalContext, new RegExp(`repositories, not in this task: ${RegExp.escape(web)}\\. Read them there freely.*first ask the human.*task_add_repository`));
     assert.deepEqual(await rows(), [['api', `branch ${b1}`, false]], 'still only its own worktree until it adds one');
     // Add Repository on its tab: a copy on its branch, into the task's folder of copies; its agent given it (an agent
     // without /add-dir: a line saying so, sent; Claude Code's question after /add-dir: checked by hand), not while it
@@ -1690,13 +1703,13 @@ export default (test: Test) => {
     const home = path.join(shell.projectsHome, 'api@task-2');
     assert.equal(task.folder, path.join(home, 'api'));
     assert.deepEqual([task.dirs(), fs.existsSync(path.join(home, 'web'))], [[], false]);
-    assert.match(sessionStart(task, null, null).hookSpecificOutput.additionalContext, new RegExp(`repositories, not in this task: ${web}\\. Read them there freely.*first ask the human.*task_add_repository`));
+    assert.match(sessionStart(task, null, null).hookSpecificOutput.additionalContext, new RegExp(`repositories, not in this task: ${RegExp.escape(web)}\\. Read them there freely.*first ask the human.*task_add_repository`));
     // The agent adds it in its turn, once the human agreed: a copy on its branch, given to it in the turn by an agent's
     // own command (Claude Code's /add-dir: it runs at once); the same refused again.
     const agent = task.agentTerminals()[0];
     agent.agent.addDir = { command: (f: string) => `/add-dir ${f}` };
     task.setState(agent, 'working');
-    assert.match((await call('task_add_repository', { repository: 'web' })).text, /Added: .*api@task-2\/web, on branch task-2/);
+    assert.match((await call('task_add_repository', { repository: 'web' })).text, /Added: .*api@task-2[\\/]web, on branch task-2/);
     assert.deepEqual(task.dirs(), [path.join(home, 'web')]);
     await waitFor(async () => (await ctx.termText()).split(`/add-dir ${path.join(home, 'web')}`).length === 3);
     delete agent.agent.addDir;
@@ -1709,14 +1722,14 @@ export default (test: Test) => {
     await projectMenu(ui, 'Project Settings…', `#projectTabs [data-project="${pid('api')}"] .name`);
     await waitFor(() => sui(`document.querySelectorAll('#npfolders .item').length === 2`));
     assert.deepEqual(await sui(`[...document.querySelectorAll('#npfolders .item')].map((r) => r.querySelector('.label').textContent + ' ' + !!r.querySelector('.default'))`), ['api true', 'web false']);
-    await onRow(sui, `#npfolders [data-folder="${web}"]`, 'npfolderdel');
+    await onRow(sui, `#npfolders ${attr('data-folder', web)}`, 'npfolderdel');
     await waitFor(async () => /Tasks work in it: New Task, Checkout/.test(await sui(`document.getElementById('npfolderserror').textContent`)));
     await closeSettings(ctx);
     // Removed again by its agent once the human agreed: nothing of its own in it, so not asked; its folder and branch
     // gone, the agent told once its turn is over. Its own folder is refused.
     await assert.rejects(call('task_remove_repository', { repository: 'api' }), /task's own folder/);
     task.setState(agent, 'working');
-    assert.match((await call('task_remove_repository', { repository: 'web' })).text, new RegExp(`Removed: ${path.join(home, 'web')}`));
+    assert.match((await call('task_remove_repository', { repository: 'web' })).text, new RegExp(`Removed: ${RegExp.escape(path.join(home, 'web'))}`));
     assert.deepEqual([fs.existsSync(path.join(home, 'web')), git(web, 'branch', '--list', 'checkout'), task.dirs(), task.addable()], [false, '', [], [web]]);
     assert.ok(!(await ctx.termText()).includes('Kulisa removed'), 'not while it works');
     task.setState(agent, 'done');
@@ -1762,7 +1775,7 @@ export default (test: Test) => {
     ctx.answer = false;
     const q = await removeWeb();
     assert.equal(q.message, 'Remove web from the task New Task?');
-    assert.match(q.detail, new RegExp(`its folder ${webCopy2}, its branch ${b1}.*1 uncommitted file`, 's'));
+    assert.match(q.detail, new RegExp(`its folder ${RegExp.escape(webCopy2)}, its branch ${b1}.*1 uncommitted file`, 's'));
     assert.ok(fs.existsSync(webCopy2), 'kept when the human says no');
     ctx.answer = true;
     await removeWeb();
@@ -1783,7 +1796,7 @@ export default (test: Test) => {
     const inSite = shell.task;
     assert.equal(inSite.folder, siteDir);
     assert.deepEqual(inSite.addable(), [docs, notes]);
-    assert.match((await call('task_add_repository', { repository: 'docs' })).text, new RegExp(`Added: .*site-2@task-\\w+/docs, on branch task-\\w+`));
+    assert.match((await call('task_add_repository', { repository: 'docs' })).text, new RegExp(`Added: .*site-2@task-\\w+[\\\\/]docs, on branch task-\\w+`));
     assert.deepEqual([inSite.folder, inSite.worktrees.map((c) => c.repo), inSite.addable()], [siteDir, [docs], [notes]]);
     assert.ok(git(docs, 'branch', '--list', inSite.worktrees[0].branch), 'its branch in docs');
     await ui(`kulisa.invoke('project:close-tasks', { id: '${pid('site')}' })`);
@@ -1971,7 +1984,8 @@ export default (test: Test) => {
     ctx.answer = true;
     await ui(`kulisa.invoke('project:delete', { id: ${JSON.stringify(made.id)} })`);
     await waitFor(() => !shell.open.has(made.id));
-    fs.rmSync(plus2, { recursive: true, force: true });
+    // Once its task's shell has left it: Windows does not remove a process's folder.
+    await waitFor(() => { try { removeTree(plus2); return true; } catch { return false; } });
     await waitFor(() => shell.current?.id === pid('project') && shell.task?.loaded);
     await click(ui, taskTab(taskAt(shell.current, 1)));
     await waitFor(() => isNth(shell.task, 1) && !shell.windows[0].switching);
@@ -2332,7 +2346,7 @@ export default (test: Test) => {
     await waitFor(async () => JSON.stringify(await tabs()) === '["bash","Pay with cards","Fake agent","bash 2 *"]' && newest().pty, 20000);
     assert.deepEqual(conversations().map((c: { agent: string }) => c.agent), ['custom', a.id, b.id, b.id, b.id, 'custom']);
     // Its program not found: its tab came at once, starting, and the human is asked for another; none chosen, it goes.
-    const bin = path.join(root, 'bin', 'kulisa-fake-agent');
+    const bin = fakeBin;
     fs.renameSync(bin, `${bin}.away`);
     try {
       await ui(`void act('terminal:open', { agent: '${a.id}' })`); // it answers once the human has chosen
@@ -2365,7 +2379,7 @@ export default (test: Test) => {
     ctx.asked.length = 0;
     for (const x of [a, b]) {
       await ui(`kulisa.invoke('project:agent-remove', { id: '${pid('project')}', agent: '${x.id}' })`);
-      shell.accounts.drop(x.id); fs.rmSync(x.dir, { recursive: true, force: true });
+      shell.accounts.drop(x.id); removeTree(x.dir);
     }
     await waitFor(() => !shell.windows[0].switching && ui(`!document.documentElement.classList.contains('loading')`));
     await click(ui, `document.querySelector('#projectTabs .tasktab[data-task="${shown.key}"]')`);

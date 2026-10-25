@@ -250,12 +250,17 @@ const press = (wc: WebContents, keyCode: string, ...modifiers: ('control' | 'shi
 // everywhere, and in the terminal Ctrl is the agent's.
 const MAC = process.platform === 'darwin';
 const CMD = MAC ? 'meta' : 'control';
+// What Windows does its own way: the user's shell is PowerShell (src/terminal), a right-click's menu opens on the
+// release, the terminal copies and pastes with Ctrl+C / V.
+const WIN = process.platform === 'win32';
+// An attribute's value in a selector, as a CSS string: a Windows path's backslashes are CSS escapes.
+const attr = (name: string, value: string) => `[${name}=${JSON.stringify(value)}]`;
 const ctrl = (wc: WebContents, keyCode: string) => { wc.focus(); press(wc, keyCode, CMD); };
 const near = (a: number, b: number) => Math.abs(a - b) < 1e-6;
 // A sandboxed page: its preload's world (999, contextIsolation's) has no Node's process (Electron's tutorial/sandbox.md).
 const noNode = async (wc: WebContents) => await wc.executeJavaScriptInIsolatedWorld(999, [{ code: 'typeof process' }]) === 'undefined';
 
 export type { UI };
-export { resourcesHeight, savedResourcesHeight, MAC, CMD, canShoot, NO_SHOT, shot, tid, taskAt, isNth, focusWindow, MENU, SUBMENU, noNode, hooksOf, plusMenu, plusRows, closeBoard, assert, root, userData, project, pid, tkey, named, pfile, idOf, savedTabs, savedActive, savedWindows, panel, SITE, PORT, sleep, waitFor, who, menuRows, choose, projectTabs, projectTab, showProject, closeProject, manageProfiles, closeSettings, settingsClosed, chooseProfile, setProfileField, menuOpen, closeMenu, rightClick, taskMenu,
+export { resourcesHeight, savedResourcesHeight, MAC, CMD, WIN, attr, canShoot, NO_SHOT, shot, tid, taskAt, isNth, focusWindow, MENU, SUBMENU, noNode, hooksOf, plusMenu, plusRows, closeBoard, assert, root, userData, project, pid, tkey, named, pfile, idOf, savedTabs, savedActive, savedWindows, panel, SITE, PORT, sleep, waitFor, who, menuRows, choose, projectTabs, projectTab, showProject, closeProject, manageProfiles, closeSettings, settingsClosed, chooseProfile, setProfileField, menuOpen, closeMenu, rightClick, taskMenu,
   click,
   box, pageBox, viewOn, dock, press, ctrl, near };

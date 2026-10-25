@@ -398,7 +398,8 @@ The folder is the profile's id, the same for the master and every copy; a new pr
 master and no folder waiting in `deleted-folders.json` has (a task's copy of a deleted one may still be on disk, its
 session open, and would pass for the new one's copy). A deleted profile's data is wiped at once; its folder is removed at the next start
 (`deleted-folders.json`), because the session keeps its files open while Kulisa runs. Copying a master (a profile's first open in a task)
-leaves the caches out (Cache, Code Cache, GPUCache, Dawn*).
+leaves the caches out (Cache, Code Cache, GPUCache, Dawn*) and its cookie database: the copy takes every cookie of the
+master through its session (`cookie-sync.ts`, `copy`), local sites' too, as Windows keeps an open session's database locked.
 
 Memory: each tab is a Chromium process (`ps` shows each); closing a profile frees its tabs, and a tab no one looks at
 frees its own after a while ("Tabs unloaded").

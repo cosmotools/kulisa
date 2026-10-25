@@ -1,10 +1,11 @@
 // The grid of panels, projects, layouts, menus.
 import electron, { clipboard } from 'electron';
 import fs from 'fs';
+import { removeTree } from '../src/main/remove.ts';
 import os from 'os';
 import path from 'path';
 import url from 'url';
-import { MAC, CMD, shot, assert, root, userData, project, pid, tkey, idOf, SITE, sleep, waitFor, who, menuRows, choose, MENU, SUBMENU, menuOpen, rightClick, box, pageBox, viewOn, resourcesHeight, savedResourcesHeight, dock, press, projectTabs, projectTab, showProject, closeProject, savedWindows, closeMenu, plusMenu, plusRows, closeBoard, focusWindow, isNth, taskAt, tid } from './helpers.ts';
+import { MAC, CMD, WIN, shot, assert, root, userData, project, pid, tkey, idOf, SITE, sleep, waitFor, who, menuRows, choose, MENU, SUBMENU, menuOpen, rightClick, box, pageBox, viewOn, resourcesHeight, savedResourcesHeight, dock, press, projectTabs, projectTab, showProject, closeProject, savedWindows, closeMenu, plusMenu, plusRows, closeBoard, focusWindow, isNth, taskAt, tid } from './helpers.ts';
 import type { Test } from './run.ts';
 import type { UI } from './helpers.ts';
 
@@ -529,12 +530,13 @@ export default (test: Test) => {
 
     await ui(`window.__term.clearSelection()`);
     // A real right-click (press, release): the menu stays after the button is released. On Linux it opens on the
-    // press, just below the pointer, so the release is outside it.
+    // press, just below the pointer, so the release is outside it; on Windows on the release.
     const t = await box(ui, '.term:not([hidden])'), z = shell.win.webContents.getZoomFactor();
     const x = Math.round((t.x + t.width / 2) * z), y = Math.round((t.y + t.height / 2) * z);
     shell.win.webContents.sendInputEvent({ type: 'mouseDown', x, y, button: 'right', clickCount: 1 });
+    if (WIN) shell.win.webContents.sendInputEvent({ type: 'mouseUp', x, y, button: 'right', clickCount: 1 });
     await waitFor(() => menuOpen(ui)); // once the pages' pictures are there (menuCover): slower under load
-    shell.win.webContents.sendInputEvent({ type: 'mouseUp', x, y, button: 'right', clickCount: 1 });
+    if (!WIN) shell.win.webContents.sendInputEvent({ type: 'mouseUp', x, y, button: 'right', clickCount: 1 });
     await sleep(300); // nothing to wait for: that the release does not close it
     assert.equal(await menuOpen(ui), true, 'open after the release');
     shell.win.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Escape' }); shell.win.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Escape' });
@@ -553,8 +555,9 @@ export default (test: Test) => {
     await choose(ui, 'Select all');
     await waitFor(() => ui(`window.__term.hasSelection()`));
     await ui(`window.__term.clearSelection()`);
-    // Copy and paste as the OS's own terminal: here Linux's Ctrl+Shift+C / V; a paste lands once (Chromium's own
-    // paste and Kulisa's both pasted it); Ctrl+V and Ctrl+C go to the agent. Windows' and macOS' keys, and the menu's.
+    // Copy and paste as the OS's own terminal: Linux's Ctrl+Shift+C / V, Windows' Ctrl+C / V (Windows Terminal's); a
+    // paste lands once (Chromium's own paste and Kulisa's both pasted it); on Linux Ctrl+V and Ctrl+C go to the agent.
+    // Every OS's keys, and the menu's.
     const keys = (keyCode: string, modifiers: Parameters<typeof press>[2][]) => press(shell.win.webContents, keyCode, ...modifiers);
     // macOS: ⌘V and ⌘C are the Edit menu's (its roles' keys, app.ts), which a key sent into the page does not reach.
     // The system runs those roles itself (Electron's MenuItem.click does not there): its row is there, and what it does
@@ -563,7 +566,8 @@ export default (test: Test) => {
       assert.ok(electron.Menu.getApplicationMenu().items.flatMap((i) => i.submenu?.items ?? []).some((i) => i.role === role), `the Edit menu's ${role}`);
       shell.win.webContents[role]();
     };
-    const paste = () => (MAC ? edit('paste') : keys('V', ['control', 'shift'])), copy = () => (MAC ? edit('copy') : keys('C', ['control', 'shift']));
+    const copyKeys: Parameters<typeof press>[2][] = WIN ? ['control'] : ['control', 'shift'];
+    const paste = () => (MAC ? edit('paste') : keys('V', copyKeys)), copy = () => (MAC ? edit('copy') : keys('C', copyKeys));
     await clipboard.writeText('kulisa-paste');
     const before = ctx.ptyOutput().length;
     // Pressed again while nothing is pasted: the page reads the clipboard only while it has the focus, and on a loaded
@@ -580,9 +584,11 @@ export default (test: Test) => {
     copy();
     await waitFor(async () => (await clipboard.readText()).includes('kulisa-paste'));
     await ui(`window.__term.clearSelection()`);
-    copy();
-    await sleep(300); // nothing to wait for: that the clipboard is not emptied
-    assert.ok((await clipboard.readText()).includes('kulisa-paste'), 'nothing selected: the clipboard is kept');
+    if (!WIN) { // Windows' Ctrl+C with nothing selected interrupts the agent (clipboardKey, below)
+      copy();
+      await sleep(300); // nothing to wait for: that the clipboard is not emptied
+      assert.ok((await clipboard.readText()).includes('kulisa-paste'), 'nothing selected: the clipboard is kept');
+    }
     keys('U', ['control']); // the agent's line emptied
     const key = (code: string, mods = {}) => JSON.stringify({ code, ctrlKey: true, ...mods });
     assert.deepEqual(await ui(`[
@@ -591,7 +597,7 @@ export default (test: Test) => {
       ['darwin', ${key('KeyV')}], ['darwin', ${key('KeyV', { ctrlKey: false, metaKey: true })}],
       ['linux', ${JSON.stringify({ code: '', keyCode: 86, ctrlKey: true, shiftKey: true })}]].map(([os, e, selected]) => clipboardKey(e, os, selected))`),
     ['paste', 'copy', null, null, 'paste', 'copy', null, 'paste', null, null, 'paste'], 'the keys of each OS; by keyCode when code is left out (ibus, Cyrillic)');
-    assert.deepEqual(await ui(`[keyText('terminal.copy'), keyText('terminal.paste')]`), MAC ? ['⌘C', '⌘V'] : ['Ctrl+Shift+C', 'Ctrl+Shift+V'], "the menu's keys for this OS (main/keys.ts)");
+    assert.deepEqual(await ui(`[keyText('terminal.copy'), keyText('terminal.paste')]`), MAC ? ['⌘C', '⌘V'] : WIN ? ['Ctrl+C', 'Ctrl+V'] : ['Ctrl+Shift+C', 'Ctrl+Shift+V'], "the menu's keys for this OS (main/keys.ts)");
 
     // Links in the terminal, marked by the agent (OSC 8) or in plain text: Ctrl+click asks where, at the pointer: a tab of
     // one of the open profiles, or the user's browser. A plain click, or an address that is not http(s), does nothing.
@@ -686,7 +692,7 @@ export default (test: Test) => {
       assert.deepEqual(files, [`open ${a}`, `show ${run}`, `show ${dir}`, `show ${path.join(dir, long)}`, `show ${a}`, `show ${a}`, `show ${a}`]);
     } finally {
       Object.assign(electron.shell, { openPath, showItemInFolder });
-      fs.rmSync(dir, { recursive: true });
+      removeTree(dir);
     }
 
     await ui(`document.getElementById('windowMenu').click()`);
@@ -777,15 +783,20 @@ export default (test: Test) => {
     await waitFor(async () => !(await anyMenu()));
     assert.equal(await ui(`document.activeElement.id`), 'windowMenu');
 
-    // A right-click in the terminal: on Linux the menu opens on the press, and letting go over a row chooses nothing.
-    // Esc closes it, and the keyboard is back in the terminal.
+    // A right-click in the terminal: on Linux the menu opens on the press, and letting go over a row chooses nothing; on
+    // Windows it opens on the release, which chooses nothing either. Esc closes it, and the keyboard is back in the
+    // terminal.
     await ui(`window.__term.focus()`);
     const at = await mid('.term:not([hidden]) .xterm-screen');
     mouse('mouseDown', at, 'right');
+    if (WIN) mouse('mouseUp', at, 'right');
     await waitFor(() => menuOpen(ui));
-    const paste = await rowAt('Paste'), before = ctx.ptyOutput().length;
-    mouse('mouseMove', paste, 'right', ['rightbuttondown']);
-    mouse('mouseUp', paste, 'right');
+    const before = ctx.ptyOutput().length;
+    if (!WIN) {
+      const paste = await rowAt('Paste');
+      mouse('mouseMove', paste, 'right', ['rightbuttondown']);
+      mouse('mouseUp', paste, 'right');
+    }
     await sleep(300); // nothing to wait for: that nothing is chosen
     assert.equal(await anyMenu(), true, 'still open');
     assert.equal(ctx.ptyOutput().length, before, 'nothing pasted');

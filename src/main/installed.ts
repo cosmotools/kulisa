@@ -28,17 +28,18 @@ export function installedVersion(asar: string): string | null {
 
 // Watches the archive's folder for the package manager's work (a file is written beside and renamed over, so the
 // folder's events; a second after the last one, as a package is many files) and calls found with the version there
-// once it differs from the one running, once per version. check: now, not waiting for an event (the tests).
+// once it differs from the one running, once per version. check: now, not waiting for an event (the tests); close:
+// the watching ended (the tests: on Windows a folder removed while watched keeps Node from exiting).
 // Nothing keeps Kulisa alive for it (unref); no folder (not installed): nothing watched.
 export function watchInstalled(asar: string, running: string, found: (version: string) => void) {
-  let last = running, timer: NodeJS.Timeout | null = null;
+  let last = running, timer: NodeJS.Timeout | null = null, w: fs.FSWatcher | null = null;
   const check = () => {
     const version = installedVersion(asar);
     if (version && version !== last) { last = version; found(version); }
   };
   try {
-    const w = fs.watch(path.dirname(asar), () => { if (timer) clearTimeout(timer); timer = setTimeout(check, 1000).unref(); });
+    w = fs.watch(path.dirname(asar), () => { if (timer) clearTimeout(timer); timer = setTimeout(check, 1000).unref(); });
     w.unref(); w.on('error', () => {});
   } catch { /* not installed there */ }
-  return { check };
+  return { check, close: () => { w?.close(); if (timer) clearTimeout(timer); } };
 }

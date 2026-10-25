@@ -101,8 +101,6 @@ moves there over time: what has an issue is removed from here, the issue being t
     calls and terminal output (working while they come, idle after a quiet while). After a permission answered, both
     show waiting until a tool finishes (no hook says it was answered): a long command run after it shows waiting.
   - Other tools that, like direnv, want a folder allowed before they apply (mise's `trust`): not handled yet.
-  - Windows: copying an open profile (locked files are skipped and logged), removing a deleted task's profile
-    folders while their sessions are open (left for the next start): untested there.
   - A task's start point is the remote's default branch: local commits not pushed yet are not in it (as with Claude
     Code's `--worktree`). If that surprises, an option as Claude's `worktree.baseRef: "head"`.
   - The agent making tasks itself (an MCP tool on `Project.createTask`), e.g. to hand parallel parts of a task to
@@ -173,8 +171,8 @@ moves there over time: what has an issue is removed from here, the issue being t
     and arm64. The author has no Apple Developer account yet: an Individual one ($99 a year), then a Developer ID
     Application certificate (its CSR made with `openssl`, no Mac needed) and an App Store Connect API key for
     notarization, as CI secrets; `osxSign`, `osxNotarize` in `forge.config.ts`, on only when those are set. Not before
-    there are users of macOS (alone, on their own Macs, an unsigned build does; "macOS and
-    Windows are untested", below).
+    there are users of macOS (alone, on their own Macs, an unsigned build does; "Windows and
+    macOS have gaps left", below).
   - **Later, each discussed apart:** a size limit on the release's files in `release.yml`, to tell when the package
     grows again (its size: [window.md](window.md), "The app icon, installers and updates"); a dnf repository for the `.rpm`, as the apt one; "Restart to update" in ☰ once
     Later was chosen (through Kulisa's own quit, asking when an agent works); a switch to turn the checks off; delta updates (Squirrel
@@ -232,8 +230,9 @@ moves there over time: what has an issue is removed from here, the issue being t
   panes shrink to a `minimumWidth` per panel (dockview) and views too small to use are hidden, or a narrow grid
   turns into tabs.
 
-- **Windows is untested; macOS has gaps left** (Linux is where Kulisa is developed; it targets all three: CLAUDE.md,
-  Conventions). **The macOS support** in two:
+- **Windows and macOS have gaps left** (Linux is where Kulisa is developed; it targets all three: CLAUDE.md,
+  Conventions). Windows: its tests pass (On Windows in [testing.md](testing.md)) and are a required check of `develop`
+  and `main`; what only a human can check there is not checked yet (marked Windows below). **The macOS support** in two:
   1. **For development**: Kulisa works on a Mac from source and from a build made there, unsigned (one's own machines
      need no Apple Developer account; a build made on the Mac is not quarantined, so Gatekeeper lets it run), its tests
      pass and are a required check of `develop` and `main` (CLAUDE.md, Releases); what was checked by hand: [testing.md](testing.md), "On macOS". Left, marked macOS below.
@@ -250,14 +249,9 @@ moves there over time: what has an issue is removed from here, the issue being t
     `--no-sandbox` to try it. Other Linux formats (AppImage, rpm, snap) are not set up.
   - Starting the agent (`src/terminal/main/`; on Linux and macOS typed into the user's shell: [tasks.md](tasks.md),
     Projects, "An agent"):
-    - Windows: the agent starts directly, without a shell, so no project environment; `claude` from npm is a
-      `.cmd` that node-pty may not find. Proposed: type it into PowerShell (`pwsh -NoExit`, falling back to
-      `powershell.exe`) in the project's folder, as on the other systems: the PowerShell profile applies, `.cmd`
-      resolves, the shell stays after the agent exits. Without an agent command the terminal falls back to
-      `COMSPEC` (untested). SIGINT and SIGTERM work differently there (quit handling in `app.ts`). The other
-      terminals (`terminal_run`, +) type their command into `COMSPEC` there: untested; PowerShell as above would
-      serve them too, and `terminal_stop`'s Ctrl+C in cmd asks "Terminate batch job?". Closing a task and opening it
-      again (`claude --resume`) and the project folder dialog (New Project…'s Browse…): untested.
+    - Windows (typed into PowerShell): SIGINT and SIGTERM work differently there (quit handling in `app.ts`); a real
+      agent, closing a task and opening it again (`claude --resume`) and the project folder dialog (New Project…'s
+      Browse…): untested by hand.
   - `safeStorage` (DPAPI) for session cookies on Windows: untested.
   - Claude Code reading the large pages' files without asking on Windows (its rule's path in POSIX form,
     `//c/…`: `agents/claude.ts`): untested.
@@ -305,10 +299,3 @@ moves there over time: what has an issue is removed from here, the issue being t
   - The theme (☰ → Theme): the OS buttons' strip recolored (`setTitleBarOverlay`) and System following the OS
     (`nativeTheme.shouldUseDarkColors`, `updated`; on Linux through GTK or the desktop portal): on Linux/X11 (GNOME)
     checked by the tests only, not by changing the OS's setting by hand; Windows untested.
-  - Tests on Windows ([testing.md](testing.md), CI): its job hangs and is cancelled at its timeout every run
-    (`continue-on-error`, so it marks nothing red); the author adapts Kulisa to Windows next.
-    The test bench is adapted on each OS where it can be run (the author's choice). Known for Windows:
-    - Windows: the agent is `bash -c '… exec cat -v'` with a `bashrc` (`test/run.ts`), the fake agent's installer is
-      `sh` only (`printf`, `chmod`; the real agents have a `win32` one), the hooks' test runs commands with `bash`
-      (`test/agent.ts`). A Node script as the agent would run everywhere.
-    - What one OS alone has: skipped with the reason, not left to fail.

@@ -68,9 +68,9 @@ const config: ForgeConfig = {
   },
   // node-pty is native: keep its .node files outside the asar archive so they can be loaded.
   plugins: [{ name: '@electron-forge/plugin-auto-unpack-natives', config: {} }],
-  // macOS: node-pty's own prebuilt binary (N-API, for any Electron; npm start loads it too), not built again: building
-  // needs a working compiler, and a Mac's Command Line Tools may have none.
-  rebuildConfig: process.platform === 'darwin' ? { ignoreModules: ['node-pty'] } : {},
+  // macOS and Windows: node-pty's own prebuilt binary (N-API, for any Electron; npm start loads it too), not built
+  // again: building needs a compiler (a Mac's Command Line Tools, Visual Studio's C++ tools), which may be missing.
+  rebuildConfig: process.platform === 'linux' ? {} : { ignoreModules: ['node-pty'] },
 };
 
 export default config;

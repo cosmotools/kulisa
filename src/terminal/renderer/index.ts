@@ -178,6 +178,13 @@ export class View {
       this.fitSoon();
     });
   }
+  // Its terminal's buffer given another size (restoreTerminal): at it too, then fitted to its room as after show.
+  // While the buffer is being put in, show's own resize takes it.
+  sized(key: string, cols: number, rows: number) {
+    if (key !== this.key || this.pending) return;
+    this.term.resize(cols, rows);
+    this.fitSoon();
+  }
   write(key: string, data: string) {
     if (key !== this.key) return;
     if (this.pending) this.pending.push(data);
@@ -213,12 +220,17 @@ export class View {
   }
 }
 
-// A terminal coming from another window: its buffer at the size it had there, and its contents (serialized()).
+// A terminal coming from another window: its buffer at the size it had there, and its contents (serialized()). Also
+// when the window showed it first (its page may draw the task before this comes): made then at the room of a grid
+// not laid out yet, it would wrap the contents at 8 columns.
 export function restoreTerminal(key: string, { data, cols, rows }: { data: string; cols: number; rows: number }) {
-  output(key, data, { cols, rows });
+  const b = bufferOf(key, { cols, rows });
+  if (b.term.cols !== cols || b.term.rows !== rows) b.term.resize(cols, rows);
+  for (const v of views) v.sized(key, cols, rows);
+  output(key, data);
 }
-function output(key: string, data: string, size?: { cols: number; rows: number }) {
-  bufferOf(key, size).term.write(data);
+function output(key: string, data: string) {
+  bufferOf(key).term.write(data);
   for (const v of views) v.write(key, data);
 }
 // Terminals gone: of tasks gone (their project closed or moved, a task deleted: their keys), or closed (a terminal's

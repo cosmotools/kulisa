@@ -173,6 +173,7 @@ class Task {
       copy: async (e) => {
         await shell.flushMaster(e.cfg.id); // open to sign in to: what was done there is on disk
         await copyProfile(shell.profileStore.masterDir(e.cfg.id), e.cfg.dir);
+        await shell.cookieSync.copy(e.cfg.id, session.fromPath(e.cfg.dir));
         e.tabs = this.store.tabs(e.cfg.id);
         this.store.saveTabs(e.cfg.id, e.tabs);
       },

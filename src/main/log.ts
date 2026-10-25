@@ -7,6 +7,7 @@ import os from 'os';
 import path from 'path';
 import elog from 'electron-log/main';
 import pkg from '../../package.json' with { type: 'json' };
+import { tilde as homeAsTilde } from '../shared/paths.ts';
 
 const SECRET_KEY = /pass|secret|token|cookie|credential/i;
 const TYPED_KEY = /^(text|values)$/; // what the agent types into a page (browser_type, browser_fill_form)
@@ -27,8 +28,7 @@ export const shortEmail = (email: string) => {
   const at = email.lastIndexOf('@'), name = email.slice(0, Math.max(at, 0));
   return at < 1 ? '…' : `${name.slice(0, Math.min(3, Math.ceil(name.length / 2)))}…${email.slice(at)}`;
 };
-// A folder with the home folder as ~: a user's log shared holds their name less often.
-export const tilde = (p: string, home = os.homedir()) => (p === home || p.startsWith(home + path.sep) ? `~${p.slice(home.length)}` : p);
+export const tilde = (p: string, home = os.homedir()) => homeAsTilde(p, home, path.sep);
 
 export const log = elog;
 let file = '', packaged = false;

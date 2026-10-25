@@ -6,12 +6,16 @@
 //   list.load(selected, show) the agents, then await show() (opens the dialog); reload(); chosen; state.installing …
 import { computed, nextTick, reactive } from 'vue';
 import { refused } from '../../shared/result';
+import { tilde } from '../../shared/paths';
 import type { AgentInfo } from '../../shared/types';
 
 export type Agent = AgentInfo;
 
 // An agent's mark in the sprite, by its id (cli); an agent new to Kulisa may have none: the generic one, or none.
 export const agentMark = (cli: string, fallback: string | null = 'i-agent') => (document.getElementById(`i-agent-${cli}`) ? `i-agent-${cli}` : fallback);
+
+// A folder with the home folder as ~ (home: the main process's, state.home).
+export const shortPath = (p: string, home: string | null) => (home ? tilde(p, home, kulisa.platform === 'win32' ? '\\' : '/') : p);
 
 // The installer's output goes to the list that runs it.
 let logTo: ((data: string) => void) | null = null;

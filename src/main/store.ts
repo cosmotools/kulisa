@@ -26,6 +26,7 @@
 // Nothing goes into the project's own folder: sign-ins must not end up in its git.
 import fs from 'fs';
 import path from 'path';
+import { removeTree } from './remove.ts';
 import { randomInt } from 'crypto';
 import { log } from './log.ts';
 
@@ -47,7 +48,8 @@ const ARTIFACTS = 'artifacts';
 const taskKey = (p: { id: string }, id: string) => `${p.id}/${id}`;
 const SESSION_COOKIES_FILE = 'Kulisa Session Cookies.bin';
 // Chromium's caches inside a profile: rebuilt by themselves, so a copy of a profile goes without them.
-const CACHES = new Set(['Cache', 'Code Cache', 'GPUCache', 'DawnGraphiteCache', 'DawnWebGPUCache', 'GrShaderCache', 'ShaderCache']);
+const CACHES = ['Cache', 'Code Cache', 'GPUCache', 'DawnGraphiteCache', 'DawnWebGPUCache', 'GrShaderCache', 'ShaderCache'];
+const NOT_COPIED = new Set([...CACHES, 'Network/Cookies', 'Network/Cookies-journal']);
 
 // A profile's tabs as saved: their URLs, in the strip's order, and the place of the one in front.
 interface SavedTabs { urls: string[]; active: number }
@@ -78,7 +80,7 @@ const branchOf = (e: TaskEntry) => ownWorktree(e)?.branch ?? null;
 // Its folder of copies (<projects' home>/<project>@<branch>/, projects.ts), or null: the folder holding a copy that is
 // not beside its repository (<repo>@<branch>). Its repository's top: the copy's folder is the same subfolder of both.
 const homeOf = (e: TaskEntry) => {
-  const inHome = worktreesOf(e).find((c) => path.dirname(c.worktree) !== path.dirname(path.resolve(c.repo, path.relative(c.folder, c.worktree))));
+  const inHome = worktreesOf(e).find((c) => path.dirname(path.resolve(c.worktree)) !== path.dirname(path.resolve(c.repo, path.relative(c.folder, c.worktree))));
   return inHome ? path.dirname(inHome.worktree) : null;
 };
 interface TasksFile { list: TaskEntry[] }
@@ -170,7 +172,7 @@ class Store {
     this.saveWindows(this.windows().map((w) => ({ ...w, tabs: w.tabs.filter((key) => !its(key)), shown: w.shown && !its(w.shown) ? w.shown : null })));
     const dir = path.join(this.dir, 'projects', p.id);
     this.markDeleted(dir);
-    try { fs.rmSync(dir, { recursive: true, force: true }); } catch (e) { console.warn('[store]', (e as Error).message); }
+    try { removeTree(dir); } catch (e) { console.warn('[store]', (e as Error).message); }
   }
 
   // Folders to remove at the next start, before any session opens them; only inside the data folder.
@@ -179,7 +181,7 @@ class Store {
   purgeDeleted() {
     for (const d of this.deleted()) {
       const rel = path.relative(this.dir, d);
-      if (rel && !rel.startsWith('..') && !path.isAbsolute(rel)) fs.rmSync(d, { recursive: true, force: true });
+      if (rel && !rel.startsWith('..') && !path.isAbsolute(rel)) removeTree(d);
     }
     fs.rmSync(this.deletedFile, { force: true });
   }
@@ -218,7 +220,7 @@ class TaskStore {
     if (saved) this.saveProfiles(saved.filter((x) => x.id !== id));
     if (!fs.existsSync(this.profileDir(id))) return;
     this.markDeleted(id);
-    fs.rmSync(this.profileDir(id), { recursive: true, force: true });
+    removeTree(this.profileDir(id));
   }
   // The window's grid as dockview serializes it (the renderer's lib/grid.ts).
   layout(): unknown { return readJSON(this.file('layout.json')); }
@@ -230,21 +232,22 @@ class TaskStore {
   saveTerminals(t: TerminalsFile) { writeJSON(this.file('terminals.json'), t); }
 }
 
-// Copy a profile's folder without its caches. An open profile can be copied once its data is flushed
+// Copy a profile's folder without its caches and its cookies: those come through its session (cookie-sync.ts, copy),
+// as Windows keeps an open session's cookie database locked. An open profile can be copied once its data is flushed
 // (tasks.ts); a file that cannot be read (locked on Windows) is left out and logged.
 async function copyProfile(from: string, to: string) {
-  const walk = async (src: string, dst: string, top: boolean) => {
+  const walk = async (src: string, dst: string, rel: string) => {
     await fs.promises.mkdir(dst, { recursive: true });
     for (const e of await fs.promises.readdir(src, { withFileTypes: true })) {
-      if (top && CACHES.has(e.name)) continue;
+      if (NOT_COPIED.has(rel + e.name)) continue;
       const s = path.join(src, e.name), d = path.join(dst, e.name);
       try {
-        if (e.isDirectory()) await walk(s, d, false);
+        if (e.isDirectory()) await walk(s, d, `${rel}${e.name}/`);
         else if (e.isFile()) await fs.promises.copyFile(s, d);
       } catch (err) { console.error('[store] not copied:', s, (err as NodeJS.ErrnoException).code || (err as Error).message); }
     }
   };
-  await walk(from, to, true);
+  await walk(from, to, '');
 }
 
 const nextColor = (list: ProjectEntry[]) => PROJECT_COLORS.find((c) => !list.some((p) => p.color === c)) || PROJECT_COLORS[list.length % PROJECT_COLORS.length]!;

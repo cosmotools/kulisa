@@ -562,9 +562,9 @@ Installers are made with Electron Forge (`npm run make`, `forge.config.ts`), eac
 Linux (the `.deb` checked: it installs `chrome-sandbox` setuid root, a menu entry and the icon, and the app starts;
 99 MB, about 280 of its 320 MB installed being Electron itself, as VS Code's or Slack's),
 Squirrel `.exe` on Windows, `.dmg` and `.zip` on macOS (signed and notarized when the Apple secrets are set; without
-them unsigned, which runs on the Mac it was built on: ROADMAP, "Windows is untested; macOS has gaps left"). On macOS node-pty is
+them unsigned, which runs on the Mac it was built on: ROADMAP, "Windows and macOS have gaps left"). On macOS and Windows node-pty is
 not built again: its own prebuilt binary is packaged (N-API, the one `npm start` loads), so no compiler is needed, and
-its `spawn-helper`, the program it starts a shell with, is kept outside the archive, where it runs it from (in it, a
+on macOS its `spawn-helper`, the program it starts a shell with, is kept outside the archive, where it runs it from (in it, a
 packaged Kulisa's terminal fails). **What the package holds** is what the main process runs: its `dependencies`, the
 window's build (`dist/renderer`, 2 MB) and the agents' packages. The window's libraries (Vue, Reka UI, dockview, xterm
 and its addons, the fonts: about 40 MB) are `devDependencies`, which Forge leaves out, since Vite bundles them into

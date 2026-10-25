@@ -21,7 +21,7 @@ import { COLORS } from './window.ts';
 import type { AppWindow } from './window.ts';
 import { findFavicon } from './favicons.ts';
 import { AGENTS, findAgent, signOut } from './agents/index.ts';
-import { onEscape, stopTerminal } from '../terminal/main/index.ts';
+import { onEscape, stopAllTerminals } from '../terminal/main/index.ts';
 import { startMcpServer } from './kulisa-plugin/mcp-server.ts';
 import { installPicker } from './picker.ts';
 import { installPageMenu } from './page-menu.ts';
@@ -453,7 +453,7 @@ function start(options: Options = {}) {
       await shell.sessionCookies?.persist(p);
       await p.disconnect();
     }
-    for (const task of allTasks()) for (const t of task.terminals.values()) if (t.pty) stopTerminal(t.pty);
+    await stopAllTerminals(); // the dictation's and the sign-ins' too
   }
   process.on('SIGINT', () => app.quit());
   process.on('SIGTERM', () => app.quit());

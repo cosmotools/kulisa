@@ -12,6 +12,7 @@
 //   agents/<agent>-<id>/ an account's config folder
 import fs from 'fs';
 import path from 'path';
+import { removeTree } from './remove.ts';
 import { newId, writeFileAtomic } from './store.ts';
 import { log, shortEmail } from './log.ts';
 import type { Agent } from './agents/index.ts';
@@ -82,7 +83,7 @@ class Accounts {
   // Its folder gone: its sign-in (its agent signed out of it first: app.ts), settings and conversations.
   remove(dir: string) {
     this.markDeleted(dir);
-    try { fs.rmSync(dir, { recursive: true, force: true }); } catch (e) { console.warn('[accounts]', (e as Error).message); }
+    try { removeTree(dir); } catch (e) { console.warn('[accounts]', (e as Error).message); }
   }
   // At start: what no account stores goes: a folder of a sign-in that did not end (Kulisa quit meanwhile), and the
   // accounts of the format before (accounts.json, named by hand; no migration: old data is deleted).

@@ -218,7 +218,7 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
   direnv's state in Kulisa's own environment (started from a terminal in a folder direnv had loaded) is dropped at
   start (`DIRENV_*`, `app.ts`): a task's shell takes it for that folder left and undoes its `.envrc`, an account's
   `CLAUDE_CONFIG_DIR` with it.
-  On Windows it starts directly, without a shell (ROADMAP, Open issues).
+  On Windows the shell is PowerShell (its profile applies), the account's variable set first (`$env:CLAUDE_CONFIG_DIR=…`).
 
 ## Tasks
 
@@ -434,7 +434,8 @@ are not programmers); its accounts are made there too, or in a project's page.
   for a task when one is made, or with the island's +. Kulisa does not remove or update agents: they are the
   user's programs, and the makers' installers update them themselves.
 - **The list comes at once**, here and in choosing a task's agent: finding the agents runs
-  the user's login shell (`command -v`: Kulisa started from a menu has a shorter `PATH`) and each one's `--version`,
+  the user's login shell (`command -v`: Kulisa started from a menu has a shorter `PATH`; on Windows `where.exe`, the
+  first match Windows runs: an agent installed by npm is a `.cmd`, run through `cmd.exe`) and each one's `--version`,
   tenths of a second or more with a heavy `.bashrc`. So the window first shows what the last look in that folder found,
   kept in the main process's memory (`agents:list`, `cached`; nothing on disk: it is the computer's state, which
   changes without Kulisa), and looks again behind it, its rows changed where it differs (an agent installed, updated or
