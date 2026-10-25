@@ -110,8 +110,9 @@ Run from a terminal, as anywhere, with Git for Windows installed (its `bash` in 
 
 - **The user's shell is PowerShell** (pwsh when installed, else Windows PowerShell: `src/terminal/`): the tests of the
   terminals type its commands (`WIN` in `helpers.ts`). The quoting test runs each one installed (`shell-quote.test.ts`).
-- **ConPTY redraws the screen**: it sends a line again as it repaints it, the paste's marks in the middle of its echo.
-  A test reads what the terminal shows (`termText`), not the output, when it looks for what was typed.
+- **ConPTY redraws the screen**: it sends a line again as it repaints it, the paste's marks in the middle of its echo,
+  and after a resize a line padded with spaces to the width. A test reads what the terminal shows (`termText`: wrapped
+  rows joined, each line's trailing spaces dropped), not the output, when it looks for what was typed or printed.
 - **A right-click's menu opens on the release** (on the press elsewhere), and the terminal copies and pastes with
   Ctrl+C / Ctrl+V, Ctrl+C interrupting without a selection: `WIN` in `helpers.ts`.
 - **A folder a process is in is not removed**, nor a file a process holds: a test removing a folder Kulisa looked into
