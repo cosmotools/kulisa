@@ -25,12 +25,14 @@ export const shortPath = (p: string) => (now.home ? tilde(p, now.home, kulisa.pl
 
 // The agents (not the terminal only). cached: as the last look found them, at once ({ list: null } before the first);
 // else looked for again (the user's shell, each one's --version: tenths of a second or more), saying so while there
-// is no list yet. A look again that ends while an install runs is dropped: the install marks its own row.
+// is no list yet. A look again that ends while an install runs is dropped: the install marks its own row. Whether a
+// list came.
 export async function loadAgents(cached: boolean) {
   if (!cached && !now.list.length) set({ looking: true });
   const r = await kulisa.invoke('agents:list', { details: true, cached });
   if (r.list && (cached || !now.install?.running)) set({ list: r.list, home: r.home });
   if (!cached) set({ looking: false });
+  return !!r.list;
 }
 export const installing = () => !!now.install?.running;
 

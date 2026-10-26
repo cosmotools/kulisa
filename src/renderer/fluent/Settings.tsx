@@ -63,7 +63,9 @@ export function Settings() {
   useEffect(() => { onAsked = async ({ section: on, id }) => {
     await save.current();
     const { list, profiles: all } = await lists();
-    const agentsShown = loadAgents(true); // as last found; looked for again behind them
+    // As last found, looked for again behind them; never looked for yet (nothing in the window has asked), the first
+    // look is waited for: a window shown with its agents coming after jumps.
+    const cached = loadAgents(true), agentsShown = cached.then((got) => got || loadAgents(false));
     void loadAccounts();
     const at = (on === 'profiles' ? 'profiles' : on === 'log' || on === 'about' ? on : 'projects') as Section;
     const project = at === 'projects' ? (id ?? list.project ?? list.projects[0]?.id ?? null) : (list.project ?? list.projects[0]?.id ?? null);
@@ -72,7 +74,7 @@ export function Settings() {
     setEditing(project); setShown((n) => n + 1);
     setProfileAt(at === 'profiles' && id ? id : all[0]?.id);
     await Promise.all([agentsShown, pageShown]);
-    void loadAgents(false);
+    if (await cached) void loadAgents(false);
     await document.fonts.ready;
     kulisa.send('settings:ready');
   }; if (asked) onAsked(asked); }, []);

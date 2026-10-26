@@ -56,7 +56,7 @@ test("projects: the projects' manager (Project Settings…) changes its name and
   const shown = async (hue: number | string) => {
     const color = typeof hue === 'string' ? hue : new RegExp(`^oklch\\(0\\.61 0\\.12 (${Array.from({ length: 9 }, (_, i) => hue - 4 + i).join('|')})\\)$`);
     await expect(ui.locator(':root')).toHaveCSS('--project', color);
-    await expect(ui.locator(tab).first()).toHaveCSS('--color', color);
+    await expect(ui.locator(tab).first(), "its tabs' marker").toHaveCSS('--colorCompoundBrandStroke', color);
   };
   await shown(29);
   // Its settings: its favicon in the list, the folder shown and not changed.
