@@ -1,0 +1,21 @@
+# Dependabot's updates: into develop, where work goes (CLAUDE.md, Releases), never straight into main. Once a week,
+# minor and patch updates in one pull request per ecosystem; a major one a pull request of its own (it may need code).
+# Security updates go into the repository's default branch, develop.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    target-branch: develop
+    schedule:
+      interval: weekly
+    groups:
+      npm:
+        update-types: [minor, patch]
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: develop
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        update-types: [minor, patch]

@@ -73,8 +73,9 @@ By hand: issue #194.
 
 ### Flaky tests
 
-The CI retries a failure once; passing then, it is reported flaky. A flaky test is a bug (the test's or Kulisa's),
-fixed, never left to the retry. Fixed = reproduced (on the runner's conditions, CI below), then `--repeat-each=20`
+The CI retries a failure once; passing then, it is reported flaky. On a pull request the run stays green (one test's
+flakiness does not hold up unrelated work); on develop it is red, so that it is seen, and gets a `bug` issue. A flaky
+test is a bug (the test's or Kulisa's), fixed, never left to the retry. Fixed = reproduced (on the runner's conditions, CI below), then `--repeat-each=20`
 passes, alone and with its file.
 
 ## Writing an e2e test
