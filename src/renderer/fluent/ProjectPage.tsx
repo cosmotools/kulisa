@@ -1,26 +1,17 @@
 // A project's page in Settings (docs/tasks.md, Projects): its name, its Folders, Agents and Profiles (a card each, a
 // list with its toolbar), its local addresses; saved as they change. The probe: a new account's sign-in is not here.
-import { useCallback, useEffect, useRef, useState, type ReactElement, type ReactNode } from 'react';
-import { Avatar, Badge, Button, Card, CardHeader, Dropdown, Field, Input, Link, Option, Text, Toolbar, ToolbarButton, Tooltip } from '@fluentui/react-components';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Avatar, Badge, Button, Dropdown, Field, Input, Link, Option, Text } from '@fluentui/react-components';
 import { MinusIcon, PlusIcon, StarIcon } from 'lucide-react';
 import { ButtonMenu, RightClickMenu, type Item } from './Menus';
 import { List } from './List';
+import { Group, Tool } from './Group';
 import { avatarSrc } from './avatar';
 import { refused, type Result } from '../../shared/result';
 import type { ProjectAgent, ProjectFolder, ProjectGitHub, ProjectProfile, ProjectSettings } from '../../shared/types';
 
 const base = (f: string) => f.split(/[\\/]/).pop()!;
 const rowAt = (e: MouseEvent, attr: string) => (e.target as Element).closest<HTMLElement>(`[data-${attr}]`)?.getAttribute(`data-${attr}`) ?? null;
-
-// A card of the page: its title, a line under it, its toolbar at its end.
-function Group({ title, hint, tools, children }: { title: string; hint: string; tools: ReactNode; children: ReactNode }) {
-  return <Card appearance="outline" size="small">
-    <CardHeader header={<Text weight="semibold">{title}</Text>} description={<Text size={200}>{hint}</Text>} action={<Toolbar size="small">{tools}</Toolbar>} />
-    {children}
-  </Card>;
-}
-const Tool = ({ label, icon, ...rest }: { label: string; icon: ReactElement; disabled?: boolean; onClick?: () => void }) =>
-  <Tooltip content={label} relationship="label"><ToolbarButton icon={icon} {...rest} /></Tooltip>;
 
 export function ProjectPage({ id, onSaved, saveRef }: { id: string; onSaved: () => void; saveRef: { current: () => Promise<void> } }) {
   const [s, setS] = useState<ProjectSettings | null>(null);
@@ -139,6 +130,8 @@ export function ProjectPage({ id, onSaved, saveRef }: { id: string; onSaved: () 
               return <Dropdown size="small" style={{ minWidth: 0 }} aria-label={`GitHub account of ${g.repo}`} placeholder="Choose…"
                 value={github!.accounts.find((a) => a.id === g.account) ? accountName(github!.accounts.find((a) => a.id === g.account)!) : ''}
                 selectedOptions={g.account ? [g.account] : []}
+                // its keys are its own (Delete and the arrows would act on the list's row), but Esc, which closes Settings
+                onKeyDown={(e) => { if (e.key !== 'Escape') e.stopPropagation(); }}
                 onOptionSelect={(_, d) => d.optionValue && void githubNow(kulisa.invoke('project:github-set', { id, remote: g.remote!, account: d.optionValue }))}>
                 {github!.accounts.map((a) => <Option key={a.id} value={a.id}>{accountName(a)}</Option>)}
               </Dropdown>; } },

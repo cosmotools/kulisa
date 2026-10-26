@@ -26,6 +26,9 @@ function useClosedOnBlur(open: boolean, close: () => void) {
   useEffect(() => { if (!open) return; closers.add(close); return () => { closers.delete(close); }; }, [open, close]);
 }
 
+// A button disabled but focusable (Group.tsx, Tool) opens nothing.
+const off = (t: EventTarget | null) => t instanceof Element && !!t.closest('[aria-disabled="true"]');
+
 // A button's menu. children: the button, given the press that opens it; items: built as it opens.
 export function ButtonMenu({ items, children, end }: { items: () => Item[]; children: ReactElement; end?: boolean }) {
   const [open, setOpen] = useState(false), [rows, setRows] = useState<Item[]>([]);
@@ -45,11 +48,11 @@ export function ButtonMenu({ items, children, end }: { items: () => Item[]; chil
     return () => removeEventListener('pointerup', up, true);
   }, [open]);
   return <Menu open={open} positioning={end ? 'below-end' : 'below-start'}
-    onOpenChange={(_, d) => { if (!d.open) setOpen(false); else if (!pressed.current) { setRows(items()); setOpen(true); } }}>
+    onOpenChange={(e, d) => { if (!d.open) setOpen(false); else if (!pressed.current && !off(e.target)) { setRows(items()); setOpen(true); } }}>
     {/* open on the press, not on the click (Enter, Space and ↓ open it as Fluent's trigger does) */}
     <MenuTrigger disableButtonEnhancement>{cloneElement(children as ReactElement<HTMLAttributes<HTMLElement>>, {
       onPointerDown: (e: PointerEvent<HTMLElement>) => {
-        if (e.button !== 0) return;
+        if (e.button !== 0 || off(e.currentTarget)) return;
         e.preventDefault();
         if (open) { setOpen(false); return; }
         pressed.current = true; setRows(items()); setOpen(true);

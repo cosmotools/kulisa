@@ -88,7 +88,7 @@ project's entry in `projects.json`, `github: { "github.com/acme/shop": "<account
 it is the same on every computer and survives the folder moving; it goes with its account, and with the repository
 leaving the project unless another of its repositories has the same remote (`removeRepo`). With none bound, the
 first account that reaches it (`GET /repos/{owner}/{repo}` as the account answers 200) is suggested and bound, so the account a repository's work goes
-as stays the same whatever accounts come later, until the human chooses another on its row (Reka's Select). The row
+as stays the same whatever accounts come later, until the human chooses another on its row. The row
 says why none can: not a GitHub address (another host, or an SSH alias ssh cannot name); Kulisa App is not installed
 on its owner, linking where it is installed or requested; a token that does not reach it; signed out; GitHub not
 reached. The words are the core's (`why`), so the window and the agent say the same. The core of it is `GitHub.repo`
@@ -96,13 +96,14 @@ reached. The words are the core's (`why`), so the window and the agent say the s
 
 ## The window
 
-**Settings → GitHub** (`settings/GitHubPage.vue`, a page of Settings' tree after Agents), built as an agent's accounts
-are: a `.list` of the accounts, a column each for its login, where Kulisa App is installed (`GET /user/installations`,
-asked as the page is shown), the projects using it and when its sign-in ends (a refresh token's, a token's own), or
-signed out. **+** adds one, With GitHub… or With a Token…; **−** and Delete delete the selected one, after the
-question; its right-click: Sign in Again…, Delete…. A repository's row on a project's page has its account
-(`settings/RepoAccount.vue`) and, under the list, a line for each that needs the human. Both are the window's (the
-settings cluster): they use its components (menus, lists, the question), which a package's window half may not.
+**Settings → GitHub** (`fluent/GitHubPage.tsx`, a page of Settings' nav after Agents): a card of the accounts, a list
+with a column each for its login, where Kulisa App is installed (`GET /user/installations`, asked as the page is
+shown), the projects using it and when its sign-in ends (a refresh token's, a token's own), or signed out. **+** adds
+one, With GitHub… or With a Token…, either replacing one under way; **−** and Delete delete the selected one, after the
+question; its right-click: Sign in Again…, Delete…. Leaving the page while its code is shown cancels the sign-in: a code
+no longer on screen is not to be entered. A repository's row on a project's page has its account (a Dropdown in
+`fluent/ProjectPage.tsx`) and, under the list, a line for each that needs the human. Both are Settings' window's: they
+use its parts (menus, lists, the question), which a package's window half may not.
 
 ## Its channels (`ipc.ts`)
 
@@ -126,6 +127,6 @@ repositories' accounts are the window's channels, about a project: `project:gith
 Outside it, each because it knows the rest: `src/main/remotes.ts` (a remote's key: the base, for #127's import too),
 `projects.ts` (`githubOf`, `setGitHub`, `githubUsers`, `deleteGitHub`: the bindings in `projects.json`), `app.ts`
 (making it: the keyring, `net.fetch`, `openExternal`), `ipc/projects.ts` (the project's channels),
-`settings/GitHubPage.vue` and `RepoAccount.vue`, `ProjectEditor.vue` (the tree's node, the rows), `Ask.vue` (a
-question's link). Its e2e tests are in `test/e2e/github.spec.ts`, against the test site's fake GitHub
+`fluent/GitHubPage.tsx`, `ProjectPage.tsx` (the rows), `Settings.tsx` (the nav's item), `Ask.tsx` (a question's
+link). Its e2e tests are in `test/e2e/github.spec.ts`, against the test site's fake GitHub
 (`test/fixtures/site.ts`, `/github`), a sign-in kept with the keyring after a restart too.

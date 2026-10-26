@@ -11,6 +11,7 @@ import { Ask } from './Ask';
 import { ProjectPage } from './ProjectPage';
 import { ProfilePage } from './ProfilePage';
 import { AboutPage } from './AboutPage';
+import { GitHubPage } from './GitHubPage';
 import { avatarSrc } from './avatar';
 import { refused } from '../../shared/result';
 import type { AgentInfo, ProjectEntry, SettingsProfile } from '../../shared/types';
@@ -68,7 +69,8 @@ export function Settings() {
   useEffect(() => {
     kulisa.on('settings:closing', () => void close());
     let layered = false;
-    const before = () => { layered = !!document.querySelector('[role="menu"], [role="dialog"], [role="alertdialog"], [role="listbox"]'); };
+    // shown ones only: a focused Dropdown keeps its listbox, hidden
+    const before = () => { layered = [...document.querySelectorAll('[role="menu"], [role="dialog"], [role="alertdialog"], [role="listbox"]')].some((l) => l.checkVisibility()); };
     const esc = (e: KeyboardEvent) => { if (e.key === 'Escape' && !layered && !e.defaultPrevented) void close(); };
     addEventListener('keydown', before, true); addEventListener('keydown', esc);
     return () => { removeEventListener('keydown', before, true); removeEventListener('keydown', esc); };
@@ -140,8 +142,9 @@ export function Settings() {
       {section === 'projects' && (editing ? <ProjectPage key={editing} id={editing} saveRef={save} onSaved={() => void lists()} /> : <Text>No projects yet.</Text>)}
       {section === 'profiles' && (shownProfile ? <ProfilePage profile={shownProfile} onChanged={(r) => { setProfiles(r.profiles); if (r.id) setProfileAt(r.id); }} />
         : <Text>No profiles yet.</Text>)}
+      {section === 'github' && <GitHubPage />}
       {section === 'about' && <AboutPage />}
-      {(section === 'agents' || section === 'github' || section === 'log') && <MessageBar><MessageBarBody>This page is not in the probe: Settings on Fluent UI has a project's, a profile's and About.</MessageBarBody></MessageBar>}
+      {(section === 'agents' || section === 'log') && <MessageBar><MessageBarBody>This page is not in the probe: Settings on Fluent UI has a project's, a profile's and About.</MessageBarBody></MessageBar>}
     </main>
     <Ask />
   </FluentProvider>;

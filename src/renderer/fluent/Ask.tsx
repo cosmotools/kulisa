@@ -30,10 +30,10 @@ export function Ask() {
     return () => removeEventListener('keydown', esc, true);
   }, [a]);
   return <Dialog modalType="alert" open={!!a} onOpenChange={(_, d) => { if (!d.open) answer(''); }}>
-    <DialogSurface style={{ maxWidth: 480 }}>
+    <DialogSurface aria-describedby="askdetail" style={{ maxWidth: 480 }}>
       <DialogBody>
         <DialogTitle>{q?.message}</DialogTitle>
-        <DialogContent style={{ whiteSpace: 'pre-line', overflowWrap: 'anywhere', userSelect: 'text' }}>
+        <DialogContent id="askdetail" style={{ whiteSpace: 'pre-line', overflowWrap: 'anywhere', userSelect: 'text' }}>
           {q?.detail}
           {q?.link && <div style={{ marginTop: 8 }}><Link href={q.link.url} target="_blank">{q.link.label}</Link></div>}
         </DialogContent>

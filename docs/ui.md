@@ -23,7 +23,7 @@ that it is off screen) to the main process after every grid change (docs/window.
 
 | Where | What |
 |---|---|
-| `src/renderer/components/*.vue` | the window's parts, each its markup, behavior and own look (`<style>`, rooted at its id or class): `App.vue` puts a tasks' window together; `grid/` the grid's panels and headers, `menu/` the menus (`ButtonMenu`, `RightClickMenu`, `PointMenu`, `MenuRows`) and ☰'s own rows; `Modal.vue` the dialogs; the clusters (below): `settings/` Settings' window (`Settings.vue`, its pages `ProjectEditor.vue`, `AgentPage.vue`, `ProfilePage.vue`, `GitHubPage.vue`), `newproject/` New Project's steps |
+| `src/renderer/components/*.vue` | the window's parts, each its markup, behavior and own look (`<style>`, rooted at its id or class): `App.vue` puts a tasks' window together; `grid/` the grid's panels and headers, `menu/` the menus (`ButtonMenu`, `RightClickMenu`, `PointMenu`, `MenuRows`) and ☰'s own rows; `Modal.vue` the dialogs; the clusters (below): `newproject/` New Project's steps. Settings' window is React and Fluent UI: `src/renderer/fluent/` (`Settings.tsx`, its pages; `Group.tsx` a page's card and its toolbar's buttons) |
 | `src/renderer/lib/*.ts` | what parts share or what outlives a component: `store.ts` (what the main process sends, `act`), `grid.ts`, `terminals.ts` (a tasks' window's island; the terminal itself is `src/terminal/`), `menu.ts` (what a menu holds), `agents.ts` (the agents' list of a dialog, and an install under way), `ask.ts`, `dialogs.ts`, `keys.ts`, `cover.ts` (`covered()` for every menu and dialog: one menu at a time, all closed at once), `views.ts` (a tasks' window's profiles' pages under them: hidden, or pictures), `profiles.ts` (the profiles' menu), `names.ts` (name fields), `strip.ts` (a strip of tabs that scrolls), `common.ts`, `test-hooks.ts` (what the tests reach by name) |
 | `src/shared/types.ts`, `ipc.ts`; `env.d.ts` | the shapes the main process sends, the channels they come by (docs/window.md, IPC); the bridge to it (`src/preload`) typed by them, and Vite's types |
 | `src/renderer/tokens.css` | every color and size (`:root`); no literal color anywhere else |
@@ -191,8 +191,7 @@ The window's controls are Reka UI's, in this look:
   (New Project's code: a list on the dialog's left, Reka's Listbox, as JetBrains' New Project).
 - `.checkbox`: a checkbox (Reka's `CheckboxRoot`, its `CheckboxIndicator` the check, `i-done`): New Project's agents and profiles, the log's Follow.
 - `.select`: a button that opens what to choose from below it (Reka's `Popover`), as a field: the chosen one and
-  `i-down` (a profile's picture); or Reka's `Select`, where the choices are rows of words, in a menu's look (`.menu`, its
-  rows `.item`, the chosen one checked: `i-done`): a repository's GitHub account (`settings/RepoAccount.vue`).
+  `i-down` (a profile's picture).
 - `.choices`: icon buttons (`.icon`) to choose one of, the chosen one ringed in `--accent`: a profile's pictures
   (Reka's `ToggleGroup`, one always chosen).
 - `.chips`: a row of `.chip`s to choose one of (Reka's `ToggleGroup`, one always chosen), the chosen one in `--chosen`

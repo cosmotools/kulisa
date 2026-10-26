@@ -94,13 +94,13 @@ export async function otherPage(ui: Page, sel?: string) {
   return found;
 }
 
-// Kulisa's question in page's dialog (Ask.vue), answered as the human answers it: true its button that does it (the
+// Kulisa's question in page's dialog (Ask.vue; Settings' Ask.tsx), answered as the human answers it: true its button that does it (the
 // last), false the one that does not (Cancel, Later), or a button by its name. What it asked.
 export async function answer(page: Page, yes: boolean | string = true) {
   const d = page.getByRole('alertdialog');
   await expect(d).toBeVisible();
   const asked = { message: await d.getByRole('heading').textContent(), detail: await page.locator(`#${await d.getAttribute('aria-describedby')}`).textContent() };
-  const buttons = d.locator('footer button');
+  const buttons = d.getByRole('button');
   await (typeof yes === 'string' ? d.getByRole('button', { name: yes, exact: true }) : yes ? buttons.last() : buttons.first()).click();
   await expect(d).toBeHidden();
   return asked;
