@@ -53,12 +53,15 @@ test("About this profile… opens Settings' window at it (one, not modal: the ta
   expect([win.title, win.parent, win.enabled]).toEqual(['Settings — Kulisa', null, true]);
   // Never full screen: macOS made it a full-screen window of its own when opened from one (settings-window.ts).
   expect(win.fullScreenable).toBe(false);
+  // In front once its page is filled (settings:ready); the human turns back to the task's window only after: one
+  // coming in front later takes the keyboard from it and closes its menu (Windows).
+  await expect.poll(() => core((k) => k.shell.settings.win.isVisible() && k.shell.settings.win.isFocused()), 'Settings in front').toBe(true);
   await focusWindow(core, ui);
   expect(await core((k, id) => k.shell.settings?.win.id === id && !k.shell.settings.win.isFocused(), win.id), 'Settings stays open behind it').toBe(true);
   expect(await core((k, id) => k.shell.task.profiles.get(id).get().view.getVisible(), sam), 'pages on screen').toBe(true);
-  // Asked again (another profile's About…, as its menu sends it; the menu is the first one's above): the same window,
-  // at that page.
-  await ui.evaluate((id) => (window as any).kulisa.send('settings:open', { section: 'profiles', id }), elon);
+  // Asked again, from another profile's menu: the same window, at that page.
+  await rightClick(ui, `[data-panel="profile:${elon}"] b`);
+  await choose(ui, 'About this profile…');
   await expect(s.locator('#profilename')).toHaveValue('Elon.buyer');
   expect(await core((k) => k.shell.settings.win.id)).toBe(win.id);
   await chooseProfile(s, files, 'Sam.admin');
