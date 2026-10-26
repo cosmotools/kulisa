@@ -124,8 +124,5 @@ const menu = (e: MouseEvent) => {
 }
 #dock [data-termalone] { --dv-group-view-background-color: transparent; --dv-tabs-and-actions-container-background-color: transparent; }
 .termpanel { height: 100%; &[hidden] { display: none; } }
-.term { height: 100%; padding: 2px 4px 2px 8px; &[hidden] { display: none; } }
-/* The rows that fit, in the middle: what is left under a whole row (the panel's height is any) shared above and
-   below, so no edge gets a row's height of it and a pixel more or less never costs a row. */
-.xterm-host { height: 100%; display: flex; flex-direction: column; justify-content: center; }
+.term { padding: 2px 4px 2px 8px; &[hidden] { display: none; } }
 </style>

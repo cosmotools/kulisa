@@ -110,15 +110,19 @@ export function serialized(key: string) {
   return { data: b.serialize.serialize() + modes, cols: b.term.cols, rows: b.term.rows };
 }
 
-// The xterm a place shows its terminal in. show(key) puts that terminal's buffer into it. background: the token of the
-// place's color (tokens.css), so the terminal is of a piece with it.
+// The xterm a place shows its terminal in, filling the element it is put in (xterm fits its rows to its host's height,
+// and would keep its 24 rows over what is under it). show(key) puts that terminal's buffer into it. background: the
+// token of the place's color (tokens.css), so the terminal is of a piece with it.
 export class View {
   term: Terminal;
   background: string;
-  el = Object.assign(document.createElement('div'), { className: 'term' });
+  el = Object.assign(document.createElement('div'), { className: 'term', style: 'height: 100%' });
   key: string | null = null;
   renderer?: 'dom' | 'webgl';
-  private host = Object.assign(document.createElement('div'), { className: 'xterm-host' });
+  // The rows that fit, in the middle: what is left under a whole row (the place's height is any) shared above and below,
+  // so no edge gets a row's height of it and a pixel more or less never costs a row.
+  private host = Object.assign(document.createElement('div'), { className: 'xterm-host',
+    style: 'height: 100%; display: flex; flex-direction: column; justify-content: center' });
   private fit = new FitAddon();
   private opened = false;
   private seen = new ResizeObserver(() => this.fitSoon());

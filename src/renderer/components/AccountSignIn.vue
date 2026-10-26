@@ -58,8 +58,5 @@ onBeforeUnmount(() => { void stop(); forgetTerminals([shown]); view.dispose(); }
 #npsignin {
   .hint { margin-block: 0 var(--inset); }
   #npsigninterm { height: 160px; margin-block-start: 6px; border: 1px solid var(--line); border-radius: var(--radius); }
-  /* Its terminal fits the frame, as the island's does (Terminals.vue, not in Settings' window): xterm fits its rows to
-     the host's height, and would keep its 24 over the buttons */
-  #npsigninterm :is(.term, .xterm-host) { height: 100%; }
 }
 </style>
