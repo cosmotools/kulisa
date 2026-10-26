@@ -3,9 +3,9 @@
 // shown task's. With none, the panel folds to its + (by its height with a panel over or under it, by its width when it
 // is as tall as the grid), and unfolds to the size it had when one opens. With no profile open it is the grid's room for
 // them: the +'s rows are big buttons in its middle instead, the closed profiles' under them.
-import { useCallback, useContext, useEffect, useRef, useSyncExternalStore, type ReactNode } from 'react';
+import { useCallback, useContext, useEffect, useRef, useSyncExternalStore } from 'react';
 import { Avatar, Button, Spinner, Tab, TabList, Text, tokens } from '@fluentui/react-components';
-import { CheckIcon, MessageCircleQuestionIcon, MicIcon, PlusIcon, SparklesIcon, XIcon } from 'lucide-react';
+import { CheckIcon, MessageCircleQuestionIcon, PlusIcon, SparklesIcon, XIcon } from 'lucide-react';
 import type { IDockviewPanelHeaderProps, IDockviewPanelProps } from 'dockview-react';
 import { ButtonMenu, RightClickMenu } from '../Menus';
 import { agentMark } from '../AgentMark';
@@ -18,10 +18,9 @@ import { avatarSrc, keyText, withKeys } from '../../lib/common';
 import { useStrip } from '../../lib/strip';
 import { dialogsShown } from '../../lib/cover';
 import { termFocus } from '../../../terminal/renderer';
+import { Dictation, Pill } from '../../../dictation/renderer';
 import type { Terminal } from '../../../shared/types';
 
-function Dictation(_: { task: string | null; keyName: string; language: string; onDone: () => void; children: ReactNode }) { return null; }
-function Pill(_: { task: string | null; children: ReactNode }) { return null; }
 
 const NEW_TITLE = 'New conversation of an agent, or a terminal';
 // The header's height (Grid.tsx): the folded panel is one button of it.
@@ -203,6 +202,6 @@ export function TerminalsHeader({ api }: IDockviewPanelHeaderProps) {
     </RightClickMenu>
     <ButtonMenu items={newTerminalItems}><Button appearance="subtle" size="small" icon={<PlusIcon />} aria-label="New terminal"
       title={withKeys(NEW_TITLE, 'terminal.new')} onDragStart={noDrag} /></ButtonMenu>
-    <Dictation task={task} keyName={keyText('voice.hold')} language={lang ? language.of(lang) ?? '' : ''} onDone={() => shownTerm()?.focus()}><MicIcon /></Dictation>
+    <Dictation task={task} keyName={keyText('voice.hold')} language={lang ? language.of(lang) ?? '' : ''} onDone={() => shownTerm()?.focus()} />
   </div>;
 }

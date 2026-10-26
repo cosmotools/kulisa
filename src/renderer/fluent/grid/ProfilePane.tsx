@@ -139,7 +139,7 @@ export function ProfilePane({ api }: IDockviewPanelProps) {
   }
 
   // ⋮ at the end of the bar, as Chrome's: what a pane does less often; and the buttons a narrow pane hides. Screenshot's
-  // kinds are rows under its heading: Menus.tsx draws no submenus.
+  // kinds are rows under its heading, one click away.
   const hidden = (what: string) => !bar.current?.querySelector<HTMLElement>(`[data-hides="${what}"]`)?.checkVisibility();
   const more = (): MenuItem[] => {
     const t = store.getState().profiles.find((p) => p.id === id)?.tabs.find((x) => x.id === tab()), off = blank(t?.url);

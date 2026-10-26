@@ -62,7 +62,7 @@ test("+ opens any of the project's accounts, a new conversation in a tab of its 
   expect(JSON.parse(fs.readFileSync(path.join(a.dir, '.claude.json'), 'utf8')).projects[copy]?.hasTrustDialogAccepted).toBe(true);
   expect(fs.existsSync(path.join(a.dir, 'skills', 'kulisa-profiles', 'SKILL.md')), "Kulisa's skill in the account's folder").toBe(true);
   const fake = (await newest()).id;
-  await expect(ui.locator(`nav[aria-label="Terminals"] [data-id="${fake}"] [role="button"] svg`), 'an agent without a mark of its own: the generic one').toHaveClass(/\blucide-bot\b/);
+  await expect(ui.locator(`nav[aria-label="Terminals"] [data-id="${fake}"] [role="button"] svg`), 'an agent without a mark of its own: the generic one').toHaveAttribute('data-mark', 'generic');
   expect(conversations().map((c: { agent: string; terminal: number }) => [c.agent, c.terminal])).toEqual([['custom', bash], [a.id, fake]]);
   expect(await target(), 'a pick goes to the agent shown').toBe(fake);
 
