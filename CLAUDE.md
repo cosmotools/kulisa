@@ -66,6 +66,10 @@ prompt; the human writes the rest of the message around it.
   the docs' (`docs/`) and the code's own; a file's header is a line saying what it is, and the doc to read. Types are
   TypeScript's, not a comment's. When a term or a part is renamed, look for the old word in the code's comments too,
   not only in the docs.
+- **Docs without redundancy**: each rule once, its reason in a clause; no connecting prose, no retelling of the code,
+  a tool's docs or another doc. A sentence whose removal would not change what an agent does goes. A doc section the
+  change edits is tightened in the same change; a whole doc's rewrite is a commit of its own. Not `docs/guide.md`
+  (the users').
 - **Docs and comments say how it is, not how it came to be.** They describe the last state
   only; how it was before and what replaced what is git's: the commit message, the pull request's text. No "was",
   "until", "no longer", "replaced", nor a negation that only makes sense against the old shape ("lists no projects").
@@ -174,7 +178,7 @@ prompt; the human writes the rest of the message around it.
     while its work is shown, from the repository's folder (`develop`) once it is merged.
   - Once its pull request is merged (or the author drops it), the repository's folder follows `develop` (above),
     and the worktree goes (`git worktree remove`), its branch here (`git branch -D`: merged by GitHub's merge commit,
-    git here may not know it) and on GitHub (the API, below), and its test folder (`/tmp/kulisa-test-<worktree>-…`).
+    git here may not know it) and on GitHub (the API, below).
 - **Sessions on different OSes share a pull request**. A session fixes what it can reproduce
   and test on its own OS, shared code too: what decides is where the bug can be checked, not which OS the code is for.
   What only another OS shows, or what it cannot check there, it does not fix blind: it writes it in a comment on the

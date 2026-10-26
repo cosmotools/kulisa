@@ -15,13 +15,13 @@ const chosen = () => props.accounts.find((a) => a.id === props.repo.account);
 
 <template>
   <SelectRoot v-model:open="open" :model-value="repo.account ?? undefined" @update:model-value="(v) => v && emit('choose', String(v))">
-    <!-- Its keys are its own: Delete and the arrows would act on the list's row -->
+    <!-- Its keys are its own (Delete and the arrows would act on the list's row), but Esc, which closes Settings -->
     <SelectTrigger class="select ghaccount" :data-remote="repo.remote" :aria-label="`GitHub account of ${repo.repo}`"
-      :title="repo.suggested ? `${chosen()?.login} reaches ${repo.repo}: suggested` : `The GitHub account ${repo.repo} goes as`" @keydown.stop>
+      :title="repo.suggested ? `${chosen()?.login} reaches ${repo.repo}: suggested` : `The GitHub account ${repo.repo} goes as`" @keydown="(e: KeyboardEvent) => e.key !== 'Escape' && e.stopPropagation()">
       <SelectValue placeholder="Choose…">{{ chosen() ? name(chosen()!) : 'Choose…' }}</SelectValue><Icon name="i-down" />
     </SelectTrigger>
     <SelectPortal>
-      <SelectContent class="menu" :class="{ ready }" position="popper" align="start" :side-offset="4" :collision-padding="4">
+      <SelectContent class="menu" :data-ready="ready || undefined" position="popper" align="start" :side-offset="4" :collision-padding="4">
         <SelectViewport>
           <SelectItem v-for="a in accounts" :key="a.id" :value="a.id" class="item" :data-account="a.id">
             <span class="text"><SelectItemText class="label">{{ name(a) }}</SelectItemText></span>

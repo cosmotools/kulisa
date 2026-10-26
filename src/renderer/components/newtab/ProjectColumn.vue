@@ -17,12 +17,12 @@ const remove = (t: ProjectTask) => kulisa.invoke('task:delete-closed', { project
 </script>
 
 <template>
-  <section class="column" :data-project="p.id" :style="{ '--color': projectColor(p) }">
+  <section class="column" :data-project="p.id" :aria-label="p.name" :style="{ '--color': projectColor(p) }">
     <header><ProjectIcon :p /><span class="name" :title="p.folders[0]">{{ p.name }}</span>
       <button class="icon small" type="button" :title="`New Task of ${p.name}`" aria-label="New Task" @click="newTask"><Icon name="i-plus" /></button></header>
     <ul>
       <!-- A row is no <button>: its 🗑 is one, and a button holds no other -->
-      <li v-for="t in tasks" :key="t.id"><div class="item" :class="{ open: !t.closed }" :data-task="`${p.id}/${t.id}`" role="button"
+      <li v-for="t in tasks" :key="t.id"><div class="item" :data-task="`${p.id}/${t.id}`" role="button" :aria-label="t.name"
         :tabindex="t.closed ? 0 : -1" :aria-disabled="!t.closed" :title="t.name"
         @click="open(t)" @keydown.enter.space.prevent="open(t)" @keydown.delete="t.closed && remove(t)">
         <span class="text"><span class="label">{{ t.name }}</span><small>{{ taskLine(t) }}</small></span>
@@ -40,7 +40,7 @@ const remove = (t: ProjectTask) => kulisa.invoke('task:delete-closed', { project
   header { display: flex; align-items: center; gap: var(--inset); padding: var(--inset); border-bottom: 1px solid var(--island-hi);
     .picon { width: 20px; height: 20px; color: var(--color); } .name { flex: 1; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } }
   ul { margin: 0; padding: 4px; list-style: none; overflow: auto; }
-  .item { border-radius: var(--radius); &.open { opacity: .6; &:hover { background: none; } } }
+  .item { border-radius: var(--radius); &[aria-disabled="true"] { opacity: .6; &:hover { background: none; } } }
   .empty { padding: var(--inset); color: var(--text-dim); }
 }
 </style>

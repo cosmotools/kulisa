@@ -6,11 +6,11 @@ import { store } from '../../lib/store';
 </script>
 
 <template>
-  <div class="zoomrow">
+  <div class="zoomrow" data-testid="zoom-row">
     <Icon name="i-zoom" /><span>Zoom</span>
-    <DropdownMenuItem class="out" title="Zoom out (Ctrl −)" text-value="Zoom out" @select.prevent="kulisa.invoke('zoom:ui', -1)">−</DropdownMenuItem>
+    <DropdownMenuItem class="out" title="Zoom out (Ctrl −)" aria-label="Zoom out" text-value="Zoom out" @select.prevent="kulisa.invoke('zoom:ui', -1)">−</DropdownMenuItem>
     <output>{{ Math.round(store.zoom * 100) }}%</output>
-    <DropdownMenuItem class="in" title="Zoom in (Ctrl +)" text-value="Zoom in" @select.prevent="kulisa.invoke('zoom:ui', 1)">+</DropdownMenuItem>
+    <DropdownMenuItem class="in" title="Zoom in (Ctrl +)" aria-label="Zoom in" text-value="Zoom in" @select.prevent="kulisa.invoke('zoom:ui', 1)">+</DropdownMenuItem>
   </div>
 </template>
 

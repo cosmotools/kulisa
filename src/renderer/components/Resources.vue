@@ -36,7 +36,7 @@ const menu = (e: MouseEvent): MenuItem[] | null => {
   <aside id="resources" aria-label="The task's resources">
     <ul>
       <!-- A row is no <button>: its 🗑 is one, and a button holds no other -->
-      <li v-for="r in task?.resources" :key="r.folder"><div class="item resource" role="button" tabindex="0" :title="`Open Folder: ${r.folder}`"
+      <li v-for="r in task?.resources" :key="r.folder"><div class="item resource" role="button" tabindex="0" :aria-label="r.label" :title="`Open Folder: ${r.folder}`"
         @click="open(r.folder)" @keydown.enter.space.self.prevent="open(r.folder)">
         <Icon class="ico" :name="r.kind === 'maintree' ? 'i-folder' : 'i-git'" />
         <span class="text"><span class="label">{{ r.label }}</span><small>{{ r.branch ? `branch ${r.branch}` : 'main working tree' }}</small></span>
@@ -45,11 +45,11 @@ const menu = (e: MouseEvent): MenuItem[] | null => {
       </div></li>
     </ul>
     <template v-if="artifacts.length">
-      <h3 class="titled">Artifacts<span class="size">{{ sizeText(store.artifacts.bytes) }}</span>
+      <h3 class="titled">Artifacts<span class="size" data-testid="artifacts-size">{{ sizeText(store.artifacts.bytes) }}</span>
         <button type="button" class="delete-all icon quiet small" aria-label="Delete All Artifacts" title="Delete All Artifacts"
           @click="deleteArtifacts(null)"><Icon name="i-trash" /></button></h3>
       <RightClickMenu :items="menu"><ul>
-        <li v-for="a in artifacts" :key="a.file"><button type="button" class="item artifact" :data-file="a.file" :title="`Open: ${a.file} (${sizeText(a.bytes)})`"
+        <li v-for="a in artifacts" :key="a.file"><button type="button" class="item artifact" :data-file="a.file" :aria-label="kindOf(a.kind)" :title="`Open: ${a.file} (${sizeText(a.bytes)})`"
           @click="openFile(a.file)">
           <img v-if="a.thumb" class="thumb" :src="a.thumb" alt=""><Icon v-else class="ico" name="i-file" />
           <span class="text"><span class="label">{{ kindOf(a.kind) }}</span><small>{{ [profileName(a.profile), when(a.time)].filter(Boolean).join(' · ') }}</small></span>

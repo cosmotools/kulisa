@@ -55,9 +55,9 @@ defineExpose({ newAccount, busy });
     <section v-for="a in s.agents" v-show="a.id === chosen" :key="a.id" class="agentdetail" :data-agent="a.id">
       <div class="field"><span>Maker:</span><span>{{ a.maker || '—' }}<template v-if="a.site"> · <a class="site" target="_blank" :href="a.site">Website</a></template></span></div>
       <div v-if="a.needs" class="field"><span>Needs:</span><span class="needs">{{ a.needs }}</span></div>
-      <div class="field"><span>Status:</span><span class="installed"><span class="status">{{ status(a) }}</span><small class="where">{{ where(a) }}</small>
+      <div class="field"><span>Status:</span><span class="installed"><span class="status" role="status">{{ status(a) }}</span><small class="where" data-testid="agent-where">{{ where(a) }}</small>
         <button type="button" class="install" :hidden="a.installed || !a.install" :disabled="s.installing" @click="list.install(a.id)">Install</button></span></div>
-      <p class="install-line hint">{{ installLine(a) }}</p>
+      <p class="install-line hint" data-testid="install-line">{{ installLine(a) }}</p>
 
       <template v-if="canSign(a)">
         <h3 class="titled">Accounts</h3>
@@ -72,7 +72,7 @@ defineExpose({ newAccount, busy });
           <RightClickMenu :items="accountMenu">
             <ListboxRoot selection-behavior="replace" v-if="of(a).length" v-model="accountSel" aria-label="Accounts" @keydown.delete="remove()">
               <ListboxContent>
-                <ListboxItem v-for="x in of(a)" :key="x.id" :value="x.id" class="item" :data-account="x.id">
+                <ListboxItem v-for="x in of(a)" :key="x.id" :value="x.id" class="item" :data-account="x.id" :aria-label="x.email || x.id">
                   <span class="cell label" :title="x.email || x.id">{{ x.email || x.id }}</span><small class="cell" :title="projectsOf(x)">{{ projectsOf(x) }}</small>
                 </ListboxItem>
               </ListboxContent>

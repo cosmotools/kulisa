@@ -17,7 +17,7 @@ const at = computed(() => ({ getBoundingClientRect: () => DOMRect.fromRect({ x: 
 <template>
   <DropdownMenuRoot v-model:open="open" :modal="false">
     <DropdownMenuPortal>
-      <DropdownMenuContent class="menu" :class="{ ready }" :reference="at" align="start" :collision-padding="4" @close-auto-focus="focusBack($event, focused)" @focus-outside.prevent>
+      <DropdownMenuContent class="menu" :data-ready="ready || undefined" :reference="at" align="start" :collision-padding="4" @close-auto-focus="focusBack($event, focused)" @focus-outside.prevent>
         <MenuRows :items="pointMenu?.items || []" />
       </DropdownMenuContent>
     </DropdownMenuPortal>

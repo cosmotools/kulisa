@@ -47,7 +47,7 @@ function change(id: string) {
           </dd>
         </template>
       </dl>
-      <p v-if="group === 'global' && message" class="hint error">{{ message }}</p>
+      <p v-if="group === 'global' && message" class="hint error" role="alert">{{ message }}</p>
     </section>
     <template #footer><DialogClose class="primary">Close</DialogClose></template>
   </Modal>

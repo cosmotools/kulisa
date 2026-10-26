@@ -72,7 +72,7 @@ function reveal() {
     setLoading(false);
     store.pictures = pictures.get(store.current!) || {};
     built(); // the transition's new state: it slides in
-    void transition.finished.then(() => { sendLayout(); void livePages(); });
+    void transition.finished.catch(() => {}).then(() => { sendLayout(); void livePages(); }); // skipped or given up: the pages still come
     return;
   }
   requestAnimationFrame(() => requestAnimationFrame(() => { // after sendLayout's frame
@@ -182,6 +182,9 @@ kulisa.on('grid:closing', ({ dir, task, pics }) => {
     Object.assign(store, { profiles: [], pictures: {}, captions: {}, picking: {}, terminals: { front: null, list: [] } });
     gridReady = null;
   };
+  // A slide still waiting for its grid ends now: Chromium draws no frame until its update is done, and would wait for it
+  // until its own timeout.
+  sliding?.built();
   sliding = null;
   if (!dir || reducedMotion.matches || !gridReady) { takeDown(); leaving = null; return; }
   store.pictures = pics || {};
@@ -191,6 +194,8 @@ kulisa.on('grid:closing', ({ dir, task, pics }) => {
   // While the next grid is built (the callback), Chromium shows the picture of this one and draws no frames: the
   // building must not wait for one (reveal).
   const transition = document.startViewTransition({ update: () => { takeDown(); cleared(); return next; }, types: [dir > 0 ? 'next' : 'previous'] });
+  // Skipped (another switch began, the window hidden) or given up, a slide is no error: the next grid comes all the same.
+  transition.ready.catch(() => {});
   sliding = { transition, built };
 });
 

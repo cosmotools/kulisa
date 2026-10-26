@@ -298,10 +298,10 @@ Saving often means a moment with no tabs, saved, loses them all: the profiles co
 moments are kept from being saved:
 
 1. **A profile still opening** (its session cookies restored before its tabs open) is saved as what it opens, not as
-   the none it has yet (`ProjectProfiles.saveTabs`; test in `grid.ts`).
+   the none it has yet (`ProjectProfiles.saveTabs`; test in `grid.spec.ts`).
 2. **Tabs closing as Kulisa quits**: the tabs are saved first, and each one destroyed after would save its task again,
    one fewer each time, none at last; so nothing is saved from then on (`quitting` in `shell.taskChanged`, `app.ts`;
-   test in `restart-tasks.ts`: the task left loaded in the background keeps its tabs).
+   test in `tasks-restart.spec.ts`: the task left loaded in the background keeps its tabs).
 
 When profiles come back on `about:blank`, look for a third such moment first: which file's `urls` went empty, and
 when (log a stack where `TaskStore.saveTabs` gets none).
@@ -373,7 +373,8 @@ pause.
 
 Only through the CDP proxy (`cdp-proxy.ts`): a fake CDP "browser" endpoint per profile,
 `http://127.0.0.1:<port>/<project>/<task>/<profile>` (each part percent-encoded), over each tab's `webContents.debugger`. There is no
-`--remote-debugging-port`, so Kulisa's own window is never exposed. Clients: the shell's own playwright-core
+`--remote-debugging-port`, so Kulisa's own window is never exposed (the e2e tests alone start it with one, a port of
+their own on 127.0.0.1: docs/testing.md, End to end). Clients: the shell's own playwright-core
 connection (the MCP tools, the picker, the annotations) and `@playwright/mcp`. The proxy reports Chrome's real target
 ids (Playwright needs them) and fans out a tab's events to all clients. Playwright's first command to a page,
 `Emulation.setFocusEmulationEnabled`, is a capture to Chromium: the page stays visible, unthrottled and unfrozen
@@ -435,4 +436,4 @@ space (issue #113, a task manager).
 | `src/main/kulisa-plugin/ghost.ts`; `src/main/picker.ts` | the agent's actions shown in the page; point and tell |
 | `src/agent/skills/profiles/SKILL.md`, `src/agent/claude-plugin/` | the profiles skill, every agent's; Claude Code's plugin (`.mcp.json`: the task's MCP URL) |
 | `src/renderer/components/grid/ProfilePane.vue`, `ProfileHeader.vue`, `lib/profiles.ts`; `settings/ProfilePage.vue`, `settings/Avatars.vue` | the panes and the profiles' menu (a task tab's right-click); a profile's page in Settings and its pictures |
-| `test/agent.ts`, `profiles.ts`, `discard.ts`, `zoom-and-closing.ts`, `restart-profiles.ts`, `unit/store.test.ts`, `unit/discard.test.ts` | the tests |
+| `test/e2e/agent-*.spec.ts`, `profiles.spec.ts`, `discard.spec.ts`, `zoom-and-closing.spec.ts`, `test/unit/store.test.ts`, `unit/discard.test.ts` | the tests |

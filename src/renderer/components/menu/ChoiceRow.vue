@@ -9,7 +9,7 @@ defineProps<{ kind: string; icon: string; label: string; choices: { value: strin
 </script>
 
 <template>
-  <DropdownMenuRadioGroup :class="`${kind}row`" :model-value="chosen()" @update:model-value="(v) => choose(String(v))">
+  <DropdownMenuRadioGroup :class="`${kind}row`" :data-testid="`${kind}-row`" :model-value="chosen()" @update:model-value="(v) => choose(String(v))">
     <Icon :name="icon" /><span>{{ label }}</span>
     <DropdownMenuRadioItem v-for="c in choices" :key="c.value" :value="c.value" v-bind="{ [`data-${kind}`]: c.value }" :title="c.title"
       @select.prevent>{{ c.label }}</DropdownMenuRadioItem>

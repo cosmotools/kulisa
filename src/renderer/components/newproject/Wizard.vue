@@ -25,7 +25,7 @@ defineExpose({ focus, saving: w.saving });
   <form v-if="w.ready.value" id="npform" class="wizard" :class="{ single }" @submit.prevent="next">
     <slot name="head" :step="w.step.value" :count="STEPS.length">
       <ol class="steps" aria-label="Steps">
-        <li v-for="(s, i) in STEPS" :key="s" :class="{ now: i === w.step.value, done: i < w.step.value }" :aria-current="i === w.step.value ? 'step' : undefined">
+        <li v-for="(s, i) in STEPS" :key="s" :data-done="i < w.step.value || undefined" :aria-current="i === w.step.value ? 'step' : undefined">
           <span class="n">{{ i + 1 }}</span>{{ s }}</li>
       </ol>
     </slot>
@@ -49,8 +49,8 @@ defineExpose({ focus, saving: w.saving });
     border-bottom: 1px solid var(--island-hi); color: var(--text-muted);
     li { display: flex; align-items: center; gap: 6px; }
     .n { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; border: 1px solid var(--line); font-size: var(--font-small); }
-    .now { color: var(--text-strong); .n { border-color: var(--accent); background: var(--accent); color: var(--on-accent); } }
-    .done .n { border-color: var(--accent); color: var(--accent); } }
+    [aria-current="step"] { color: var(--text-strong); .n { border-color: var(--accent); background: var(--accent); color: var(--on-accent); } }
+    [data-done] .n { border-color: var(--accent); color: var(--accent); } }
   .npstep { flex: 1; min-width: 0; padding: var(--pad); overflow: auto; > .hint:first-child { margin-top: 0; } .titled { margin-block: var(--pad) var(--inset); } }
   #nperror { margin: 0 var(--pad) var(--inset); &:empty { display: none; } }
 }

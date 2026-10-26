@@ -8,4 +8,4 @@ why: `README.md`; keep it current with the code, as the docs in `docs/`. What is
 - It knows of tasks only what the caller gives it (`Tasks`: `app.ts`, from the store). What a figure means to the
   human or the agent, and deleting, are the callers': `Task.artifactsUsage`, `Task.deleteArtifacts`, the Resources
   island, `task_artifacts`.
-- Its unit tests are here (`monitor.test.ts`, `npm run test:unit`); its e2e test in `test/agent.ts`.
+- Its unit tests are here (`monitor.test.ts`, `npm run test:unit`); its e2e test in `test/e2e/agent-reports.spec.ts`.

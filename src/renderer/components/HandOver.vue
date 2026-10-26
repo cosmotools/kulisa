@@ -99,12 +99,12 @@ const progress = computed(() => {
     </div>
     <RadioGroupRoot v-model="chosen" class="choose" aria-label="Agent" :disabled="going">
       <label v-for="a in agents" :key="a.id" class="item" :data-agent="a.id">
-        <RadioGroupItem class="radio" :value="a.id"><RadioGroupIndicator /></RadioGroupItem>
+        <RadioGroupItem class="radio" :value="a.id" :aria-label="a.name"><RadioGroupIndicator /></RadioGroupItem>
         <Icon :name="agentMark(a.cli)!" /><span class="label">{{ a.name }}</span>
         <small v-if="a.id === from?.agent?.account">this one, afresh</small>
       </label>
     </RadioGroupRoot>
-    <p class="progress" :hidden="!going">{{ progress }}</p>
+    <p class="progress" role="status" :hidden="!going">{{ progress }}</p>
     <p class="error">{{ error }}</p>
     <p class="hint" :hidden="going">It reads this conversation first, then tells you in a few lines what is done and what is next. Its own
       hidden reasoning, permissions given and its account's settings stay behind. This tab stays until you close it.</p>

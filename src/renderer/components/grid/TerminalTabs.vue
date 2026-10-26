@@ -28,12 +28,12 @@ const language = computed(() => (store.language ? new Intl.DisplayNames(['en'], 
 
 <template>
   <!-- The panel is not dragged by its tabs and buttons, only by the row's empty end. -->
-  <div class="termtabs" :hidden="!store.terminals.list.length">
+  <div class="termtabs" data-testid="terminal-tabs" :hidden="!store.terminals.list.length">
     <RightClickMenu :items="menu"><TabsRoot as-child :model-value="store.terminals.front === null ? undefined : String(store.terminals.front)"
       activation-mode="manual" @update:model-value="(v) => v !== undefined && show(v)"><TabsList as-child :loop="false">
       <nav ref="strip" class="tabstrip" aria-label="Terminals" @dragstart.prevent>
         <TabsTrigger v-for="t in store.terminals.list" :key="t.id" :value="String(t.id)" as-child>
-          <div class="termtab tab" :class="{ active: t.id === store.terminals.front }" :data-id="t.id" :title="title(t)">
+          <div class="termtab tab" :data-id="t.id" :aria-label="t.name" :title="title(t)">
             <button v-if="t.agent" class="handover icon quiet small" :aria-label="`${t.agent.name}: change agent…`"
               title="Change agent: hand the task to another agent, or this one afresh; it goes on with this conversation" @mousedown.stop
               @click.stop="dialog('handover').then((d) => d.open(t))"><Icon :name="agentMark(t.agent.cli)!" /></button>

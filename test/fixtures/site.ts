@@ -12,7 +12,7 @@
 //   /headers  echoes the User-Agent and Sec-CH-UA* request headers as JSON
 //   /draft    a page that holds its unload (beforeunload), as a form with unsaved changes does: never discarded
 //   /menu     a link, a field, an empty place and a block with its own right-click menu (as Teams has)
-//   /github   a fake GitHub (KULISA_GITHUB, run.ts), as Kulisa asks it: the device flow, a refresh, who a token is, a
+//   /github   a fake GitHub (KULISA_GITHUB, test/e2e/app.ts), as Kulisa asks it: the device flow, a refresh, who a token is, a
 //             repository reached, Kulisa App's installations (github, below)
 // It runs in its own process: inside Electron's main process it can deadlock, because a synchronous Electron call
 // waits for a renderer that waits for a response from this (then blocked) server.

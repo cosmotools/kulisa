@@ -126,6 +126,6 @@ Outside, using it: `Profile.screenshot` (`src/main/profiles.ts`), `browser_scree
 (`src/main/ipc/panes.ts`), `chooseElement` (`picker.ts`), the key (`keys.ts`), ⋮ → Screenshot (`ProfilePane.vue`) and
 `screenshot` (`src/renderer/lib/store.ts`); the window's `thumbnails` (`window.ts`: made, placed, hidden, closed),
 `<Thumbnail />` and `thumbnailMenu(menuAtPoint)` (`App.vue`), `Task.typeForAgent` (Send to Agent, as Pick), the page's
-shell `src/renderer/thumbnail.html` (`vite.config.mts`). Its e2e tests, on the test site's `/tall`: `test/agent.ts` ("agent:
-screenshots of an element, …"), `test/profiles.ts` ("a pane's ⋮ → Screenshot …", "a screenshot shows its
+shell `src/renderer/thumbnail.html` (`vite.config.mts`). Its e2e tests, on the test site's `/tall`: `test/e2e/agent-tools.spec.ts` ("agent:
+screenshots of an element, …"), `profiles.spec.ts` ("a pane's ⋮ → Screenshot …", "a screenshot shows its
 thumbnail …").

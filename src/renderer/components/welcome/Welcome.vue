@@ -21,7 +21,7 @@ kulisa.on('project:new', () => void focus()); // the first start: the keyboard h
       <Wizard ref="wizard" leavable single @leave="show(false)">
         <template #head="{ step, count }">
           <header class="question">
-            <ol class="dots" aria-label="Steps"><li v-for="n in count" :key="n" :class="{ on: n <= step + 1 }" /></ol>
+            <ol class="dots" aria-label="Steps"><li v-for="n in count" :key="n" :data-on="n <= step + 1 || undefined" /></ol>
             <h1>{{ QUESTIONS[step] }}</h1>
           </header>
         </template>

@@ -11,5 +11,5 @@ why: `README.md`; keep it current with the code, as the docs in `docs/`. The spe
   accounts are `projects.ts`'s; a remote's key is the base's (`src/main/remotes.ts`); the pages are the settings
   cluster's (`GitHubPage.vue`, `RepoAccount.vue`).
 - Never a token, a code or an address with a token in the log, an error or the window.
-- Its unit tests are here (`*.test.ts`, `npm run test:unit`, a fake fetch); its e2e tests in `test/github.ts`, against
+- Its unit tests are here (`*.test.ts`, `npm run test:unit`, a fake fetch); its e2e tests in `test/e2e/github.spec.ts`, against
   the test site's fake GitHub (`KULISA_GITHUB`), never the real one.

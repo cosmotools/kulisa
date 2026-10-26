@@ -132,5 +132,5 @@ Outside it, each because it knows the rest: `src/main/remotes.ts` (a remote's ke
 `projects.ts` (`githubOf`, `setGitHub`, `githubUsers`, `deleteGitHub`: the bindings in `projects.json`), `app.ts`
 (making it: the keyring, `net.fetch`, `openExternal`), `ipc/projects.ts` (the project's channels),
 `settings/GitHubPage.vue` and `RepoAccount.vue`, `ProjectEditor.vue` (the tree's node, the rows), `Ask.vue` (a
-question's link). Its e2e tests are in `test/github.ts` (the profiles group), against the test site's fake GitHub
-(`test/fixtures/site.ts`, `/github`), and `restart-profiles.ts` (a sign-in kept with the keyring).
+question's link). Its e2e tests are in `test/e2e/github.spec.ts`, against the test site's fake GitHub
+(`test/fixtures/site.ts`, `/github`), a sign-in kept with the keyring after a restart too.

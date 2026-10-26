@@ -210,9 +210,9 @@ moves there over time: what has an issue is removed from here, the issue being t
 
 ## Open issues
 
-- **The tasks group flaky on Windows**, not reproduced alone: the fake agent's sign-in terminal ending at once with
-  no exit code (node-pty's for a process killed), every account test after it failing; the test app not exiting after
-  `[kulisa] quitting`, its terminals ended, the run waiting for it with no limit (`test/start.ts`).
+- **The agents' accounts tests flaky on Windows** (`test/e2e/agents.spec.ts`), not reproduced alone: the fake agent's
+  sign-in terminal ending at once with no exit code (node-pty's for a process killed); the test app not exiting after
+  `[kulisa] quitting`, its terminals ended (the tests fail then: `quit` in `fixtures.ts`).
 
 - **Kulisa's main process left running after quitting, on Windows**, not reproduced: closed by the window's ×
   with a real Claude Code at work and Settings open, everything saved (`[kulisa] quitting`, the agent's terminal
@@ -232,7 +232,7 @@ moves there over time: what has an issue is removed from here, the issue being t
   and `main`; what only a human can check there is not checked yet (marked Windows below). **The macOS support** in two:
   1. **For development**: Kulisa works on a Mac from source and from a build made there, unsigned (one's own machines
      need no Apple Developer account; a build made on the Mac is not quarantined, so Gatekeeper lets it run), its tests
-     pass and are a required check of `develop` and `main` (CLAUDE.md, Releases); what was checked by hand: [testing.md](testing.md), "On macOS". Left, marked macOS below.
+     pass and are a required check of `develop` and `main` (CLAUDE.md, Releases); what is checked by hand: issue #193. Left, marked macOS below.
   2. **For users**, later, once there are some: signed and notarized, `.dmg` and `.zip`, updates ("Releases and
      auto-update", macOS), with the Apple Developer account. Until then an unsigned build downloaded on another Mac
      is refused by Gatekeeper and does not update, and kulisa.app says "coming soon" for macOS.
@@ -252,7 +252,7 @@ moves there over time: what has an issue is removed from here, the issue being t
     and Windows then ends the process, likely before the session cookies and tabs are saved as at quitting: untested.
   - The OS buttons' hover on Windows, over their see-through strip ([window.md](window.md), The title bar).
   - Screenshots ([src/screenshots](../src/screenshots/README.md)), tested on Linux (X11), partly on Windows
-    ([testing.md](testing.md), On Windows): the folder of screenshots on macOS (the one ⇧⌘5 chose, read by
+    (issue #194): the folder of screenshots on macOS (the one ⇧⌘5 chose, read by
     `defaults`) and Windows moved elsewhere (read by `reg`); the image on the clipboard on Wayland and macOS; the
     thumbnail's file dragged out on Wayland, macOS and Windows; the thumbnail's view at a Retina screen's density;
     Send to Agent and Ctrl+V of an image in Codex.
@@ -267,7 +267,7 @@ moves there over time: what has an issue is removed from here, the issue being t
     The pill's wave (the window reading the microphone, `getUserMedia`): untested on macOS and Windows, whether the
     system asks for the microphone for Kulisa's window as for the agent, and the wave is flat until it is allowed.
   - A packaged app's later starts and an agent started in a task of it: untested packaged on Linux; on Windows, the
-    agent ([testing.md](testing.md), On Windows), and Squirrel's installed app with its updates. Its
+    agent (issue #194), and Squirrel's installed app with its updates. Its
     update check fails while there is no release for its OS ("The server sent an invalid response" on macOS) and is
     only logged.
   - The one-row title bar (`titleBarStyle: 'hidden'` + `titleBarOverlay`, Window Controls Overlay): the window

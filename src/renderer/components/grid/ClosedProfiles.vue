@@ -16,7 +16,7 @@ useStrip(row, () => null); // no button is the active one
 
 <template>
   <nav v-if="shown" id="closedprofiles" ref="row" class="tabstrip" aria-label="Open a profile">
-    <button v-for="p in profileLaunchers()" :key="p.id" class="opener" :data-profile="p.id" :title="p.title" @click="p.run()">
+    <button v-for="p in profileLaunchers()" :key="p.id" class="opener" :data-profile="p.id" :aria-label="p.name" :title="p.title" @click="p.run()">
       <img v-if="p.avatar" class="avatar" :src="avatarSrc(p.avatar)" alt="">
       <span class="name">{{ p.name }}</span><Icon name="i-plus" />
     </button>

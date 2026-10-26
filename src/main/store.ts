@@ -275,4 +275,4 @@ function writeFileAtomic(file: string, data: string | Uint8Array, options?: { mo
 }
 
 export { Store, newId, copyProfile, writeFileAtomic, readTabs, writeTabs, SESSION_COOKIES_FILE, PROJECT_COLORS, worktreesOf, ownWorktree, folderOf, branchOf, homeOf, taskKey };
-export type { SavedTabs, TaskStore, ProjectEntry, TaskEntry, Copy, Worktree, TaskProfile, TasksFile, Conversation };
+export type { SavedTabs, TaskStore, ProjectEntry, TaskEntry, Copy, Worktree, TaskProfile, Conversation };

@@ -18,7 +18,7 @@ const removeKey = (e: KeyboardEvent) => { if (props.it.remove) { removing = true
 </script>
 
 <template>
-  <component :is="value === undefined ? DropdownMenuItem : DropdownMenuRadioItem" :class="['item', { inset: it.inset }]" v-bind="value === undefined ? {} : { value }" :disabled="it.enabled === false" :text-value="it.label" :title="it.title"
+  <component :is="value === undefined ? DropdownMenuItem : DropdownMenuRadioItem" class="item" :data-inset="it.inset || undefined" :aria-label="it.label" v-bind="value === undefined ? {} : { value }" :disabled="it.enabled === false" :text-value="it.label" :title="it.title"
     @select="select" @pointerup="leftOnly" @pointerdown="removing = false" @keydown.delete="removeKey">
     <Icon v-if="it.icon" class="ico" :name="it.icon" /><span v-if="it.color" class="dot" :style="{ '--color': it.color }" />
     <ProjectIcon v-if="it.project" :p="it.project" :style="{ '--color': projectColor(it.project) }" />

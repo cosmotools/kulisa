@@ -12,7 +12,7 @@ const state = list.state;
 
 <template>
   <div class="installprogress">
-    <p class="progress hint">{{ state.progress }}</p>
+    <p class="progress hint" role="status">{{ state.progress }}</p>
     <CollapsibleRoot :open="state.detailsOpen" @update:open="list.openDetails" class="details" :hidden="!state.showDetails" :unmount-on-hide="false">
       <CollapsibleTrigger class="disclose"><Icon name="i-down" />Details</CollapsibleTrigger><CollapsibleContent><pre>{{ state.log }}</pre></CollapsibleContent>
     </CollapsibleRoot>

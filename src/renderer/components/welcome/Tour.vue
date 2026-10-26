@@ -32,9 +32,9 @@ defineExpose({ focus: () => next.value?.focus() });
         <div class="term">
           <div><Icon name="i-agent-claude" /> claude</div>
           <div class="said">&gt; does the checkout work for every user?</div>
-          <div :class="{ on: slide >= 1 }" class="step">⏺ Checking as Admin…</div>
-          <div :class="{ on: slide >= 1 }" class="step">⏺ Checking as Customer…</div>
-          <div :class="{ on: slide >= 1 }" class="step ok">✓ Fixed: works for both</div>
+          <div :data-on="slide >= 1 || undefined" class="step">⏺ Checking as Admin…</div>
+          <div :data-on="slide >= 1 || undefined" class="step">⏺ Checking as Customer…</div>
+          <div :data-on="slide >= 1 || undefined" class="step ok">✓ Fixed: works for both</div>
         </div>
         <div v-for="(p, i) in PANES" :key="p.name" class="pane" :class="{ checked: slide === 1 }">
           <div class="head"><img :src="avatarSrc(p.avatar)" alt="">{{ p.name }}</div>
@@ -45,7 +45,7 @@ defineExpose({ focus: () => next.value?.focus() });
     </div>
     <footer>
       <ol class="dots" aria-label="Slides">
-        <li v-for="(s, i) in SLIDES" :key="s.title" :class="{ on: i <= slide }" :aria-current="i === slide ? 'step' : undefined"><span class="sr">{{ s.title }}</span></li>
+        <li v-for="(s, i) in SLIDES" :key="s.title" :data-on="i <= slide || undefined" :aria-current="i === slide ? 'step' : undefined"><span class="sr">{{ s.title }}</span></li>
       </ol>
       <button id="tourskip" type="button" @click="emit('done')">Skip</button>
       <button v-if="slide" id="tourback" type="button" @click="slide--">Back</button>
@@ -69,7 +69,7 @@ defineExpose({ focus: () => next.value?.focus() });
     font: var(--font-small) / 1.4 ui-monospace, monospace; color: var(--text-dim);
     svg { width: 12px; height: 12px; vertical-align: -1px; }
     .said { color: var(--text-strong); }
-    .step { opacity: 0; transition: opacity .4s ease; &.on { opacity: 1; } &:nth-child(4) { transition-delay: .3s; } &:nth-child(5) { transition-delay: .6s; } }
+    .step { opacity: 0; transition: opacity .4s ease; &[data-on] { opacity: 1; } &:nth-child(4) { transition-delay: .3s; } &:nth-child(5) { transition-delay: .6s; } }
     .ok { color: var(--done); } }
   .pane { display: grid; grid-template-rows: auto 1fr; border-radius: 6px; overflow: hidden; background: var(--page); min-width: 0;
     outline: 2px solid transparent; outline-offset: -2px; transition: outline-color .4s ease;

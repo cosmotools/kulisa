@@ -87,7 +87,7 @@ const rowMenu = (e: MouseEvent): MenuItem[] | null => {
         <div v-if="accounts.length" class="head" aria-hidden="true"><span>Account</span><span>Kulisa App on</span><span>Projects</span><span>Signed in</span></div>
         <ListboxRoot v-if="accounts.length" v-model="sel" selection-behavior="replace" aria-label="GitHub accounts" @keydown.delete="remove()">
           <ListboxContent>
-            <ListboxItem v-for="a in accounts" :key="a.id" :value="a.id" class="item" :data-github="a.id">
+            <ListboxItem v-for="a in accounts" :key="a.id" :value="a.id" class="item" :data-github="a.id" :aria-label="a.login">
               <span class="cell label" :title="a.login">{{ a.login }}</span>
               <small class="cell installed" :title="installedText(a)">{{ installedText(a) }}</small>
               <small class="cell projects" :title="projectsText(a)">{{ projectsText(a) }}</small>

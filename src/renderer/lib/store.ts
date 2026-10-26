@@ -31,8 +31,8 @@ export const store = reactive({
   pictures: {} as Record<string, string>,
 });
 
-// The grid laid out or not (grid.ts): the root's class at once, as the view transition and the pages' views go by it.
-export function setLoading(on: boolean) { store.loading = on; root.classList.toggle('loading', on); }
+// The grid laid out or not (grid.ts): the grid's region busy (Grid.vue).
+export function setLoading(on: boolean) { store.loading = on; }
 
 // The window's actions on the shown task's profiles and tabs name it, as the grid's layout does: one sent just as the
 // human switches tasks is refused, not done in the other one (main/ipc/panes.ts, onScreen).
@@ -66,7 +66,7 @@ void kulisa.invoke('language:get').then((info) => { store.language = info; });
 // over the grid or under it. The shown task's project's color for the whole window (--project); none: Kulisa's own colors.
 watch(() => store.theme, (t) => { root.dataset.theme = t; });
 watch(() => store.bar, (b) => { root.dataset.bar = b; });
-watch(() => store.current === null, (none) => root.classList.toggle('noproject', none), { immediate: true });
+watch(() => store.current === null, (none) => root.toggleAttribute('data-noproject', none), { immediate: true });
 watch(page, (p) => { root.dataset.page = p; }, { immediate: true });
 watch(() => { const p = shownProject(); return p && projectColor(p); }, (color) => {
   if (color) root.style.setProperty('--project', color); else root.style.removeProperty('--project');

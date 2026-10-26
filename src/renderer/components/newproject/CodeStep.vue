@@ -43,7 +43,7 @@ defineExpose({ focus: () => nameField.value?.focus() });
             <div v-if="rows.length" class="head" aria-hidden="true"><span>{{ c.from === 'folder' ? 'Folder' : 'URL' }}</span><span /></div>
             <ListboxRoot selection-behavior="replace" v-if="rows.length" v-model="chosen" :aria-label="c.from === 'folder' ? 'Folders' : 'URLs'" @keydown.delete="remove">
               <ListboxContent>
-                <ListboxItem v-for="(x, i) in rows" :key="x.folder" :value="x.folder" class="item" :data-source="x.folder">
+                <ListboxItem v-for="(x, i) in rows" :key="x.folder" :value="x.folder" class="item" :data-source="x.folder" :aria-label="x.folder">
                   <span class="cell label" :title="x.folder">{{ x.folder }}</span>
                   <span class="cell end"><kbd v-if="x.state">{{ sourceLine(x) }}</kbd><kbd v-if="!i && rows.length > 1" class="default">default</kbd></span>
                 </ListboxItem>

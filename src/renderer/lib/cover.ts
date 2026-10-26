@@ -44,4 +44,5 @@ export const closeLayers = () => { closeMenus(); for (const close of [...dialogs
 // (macOS), a menu gone under the human's hand; nothing else takes it while a menu is open (the pages under it are
 // pictures). Settings' window has nothing under it: its page's blur is the window's.
 addEventListener('blur', () => { if (!under) closeMenus(); });
-kulisa.on('window:blur', closeMenus);
+// Its message comes after the blur: a window that has the keyboard again by then (a menu just opened in it) keeps it.
+kulisa.on('window:blur', () => { if (!document.hasFocus()) closeMenus(); });

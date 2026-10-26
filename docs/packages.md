@@ -74,8 +74,7 @@ listens to a package's channel. A channel of a pane or a task that only calls th
 Node's ES modules resolve no folder to its `index` (`ERR_UNSUPPORTED_DIR_IMPORT`). The window's side goes through Vite,
 which does (`'../../terminal/renderer'`).
 
-A half it does not have is left out. Its e2e tests stay in `test/`, in the group whose state they need (a group is one
-app: [testing.md](testing.md)); its README names which files.
+A half it does not have is left out. Its e2e tests stay in `test/e2e/` with the others ([testing.md](testing.md)); its README names which files.
 
 ## Its rules, and what checks them
 
