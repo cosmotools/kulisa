@@ -5,17 +5,20 @@ import { cloneElement, useCallback, useEffect, useState, type HTMLAttributes, ty
   type ReactNode } from 'react';
 import { Avatar, Menu, MenuDivider, MenuGroupHeader, MenuItem, MenuList, MenuPopover, MenuTrigger } from '@fluentui/react-components';
 import { avatarSrc } from './avatar';
+import type { MenuItem as Item } from '../lib/menu';
 
-type Row = { label: string; sub?: string; avatar?: string; enabled?: boolean; run: () => unknown };
-export type Item = '-' | { heading: string } | Row;
+export type { Item };
 
 function Rows({ items, close }: { items: Item[]; close: () => void }) {
   return <MenuList>{items.map((it, i) => {
     if (it === '-') return <MenuDivider key={i} />;
     if ('heading' in it) return <MenuGroupHeader key={i}>{it.heading}</MenuGroupHeader>;
-    return <MenuItem key={i} disabled={it.enabled === false} secondaryContent={it.sub}
-      icon={it.avatar ? <Avatar size={16} image={{ src: avatarSrc(it.avatar) }} /> : undefined}
-      onClick={() => { close(); void it.run(); }}>{it.label}</MenuItem>;
+    if ('component' in it) { const Row = it.component; return <Row key={i} close={close} />; }
+    if ('submenu' in it) return null; // fluent/Menus.tsx: submenus to come with the title bar's menus
+    const Icon = it.icon;
+    return <MenuItem key={i} disabled={it.enabled === false || !it.run} title={it.title} secondaryContent={it.keys || it.sub}
+      icon={it.avatar ? <Avatar size={16} image={{ src: avatarSrc(it.avatar) }} /> : Icon ? <Icon /> : undefined}
+      onClick={() => { close(); void it.run?.(); }}>{it.label}</MenuItem>;
   })}</MenuList>;
 }
 

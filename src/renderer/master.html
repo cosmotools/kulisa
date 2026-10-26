@@ -1,12 +1,13 @@
 <!doctype html>
-<!-- The window of a profile's master (main/master.ts, components/Master.vue): a bar over its page, where the human signs
+<!-- The window of a profile's master (main/master.ts, fluent/Master.tsx): a bar over its page, where the human signs
      in once for every task. The page itself is a native view under the bar. -->
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'">
+  <!-- Styles inline too: Fluent UI's (Griffel) are style elements it makes as it renders -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'">
   <title>Sign in</title>
-  <script type="module" src="./master.ts"></script>
+  <script type="module" src="./master.tsx"></script>
 </head>
 <body>
   <div id="app"></div>

@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactElement, type ReactNode } from 'react';
 import { Avatar, Breadcrumb, BreadcrumbButton, BreadcrumbDivider, BreadcrumbItem, Button, FluentProvider, Image, Input,
   NavDrawer, NavDrawerBody, NavItem, NavSectionHeader, Text, Tooltip } from '@fluentui/react-components';
-import { BotIcon, EllipsisIcon, GitBranchIcon, InfoIcon, PlusIcon, ScrollTextIcon } from 'lucide-react';
+import { EllipsisIcon, GitBranchIcon, InfoIcon, PlusIcon, ScrollTextIcon } from 'lucide-react';
 import { dark, light, shade, ThemeShown } from './theme';
 import { ButtonMenu, RightClickMenu, type Item } from './Menus';
 import { Ask } from './Ask';
@@ -16,6 +16,7 @@ import { LogPage } from './LogPage';
 import { AgentPage } from './AgentPage';
 import { install, installing, loadAccounts, loadAgents, useAgents } from './agents';
 import { avatarSrc } from './avatar';
+import { agentMark } from './AgentMark';
 import { refused } from '../../shared/result';
 import type { ProjectEntry, SettingsProfile } from '../../shared/types';
 import type { SettingsAt } from '../../shared/ipc';
@@ -139,7 +140,7 @@ export function Settings() {
           {projects.map((p) => item(`p:${p.id}`, p.name, p.favicon ? <Image data-testid="project-icon" src={p.favicon} alt="" width={16} height={16} />
             : <span data-testid="project-icon" style={{ width: 12, height: 12, borderRadius: 3, background: p.color }} />))}
           {head('Agents', <ButtonMenu items={newAccount}><Button appearance="subtle" size="small" icon={<PlusIcon />} aria-label="New Account" disabled={!clis.length} /></ButtonMenu>)}
-          {agents.map((a) => item(`a:${a.id}`, a.name, <BotIcon />, !a.installed && <Text size={100}>not installed</Text>))}
+          {agents.map((a) => { const Mark = agentMark(a.id); return item(`a:${a.id}`, a.name, <Mark />, !a.installed && <Text size={100}>not installed</Text>); })}
           {item('github', 'GitHub', <GitBranchIcon />)}
           {head('Profiles', <Tooltip content="New Profile…" relationship="label"><Button appearance="subtle" size="small" icon={<PlusIcon />} onClick={() => setNewProfile('')} /></Tooltip>)}
           {profiles.map((p) => item(`f:${p.id}`, p.name, <Avatar size={16} image={{ src: avatarSrc(p.avatar) }} />))}

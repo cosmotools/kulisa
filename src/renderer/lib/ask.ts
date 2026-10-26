@@ -1,14 +1,15 @@
-// A question before something that cannot be undone, before closing, or with two ways to go (Ask.vue), the same look
+// A question before something that cannot be undone, before closing, or with two ways to go (fluent/Ask.tsx), the same look
 // on every OS. Questions asked while one is open wait their turn.
 //   ask({ message, detail, ok, other, danger })   resolves 'ok' or 'other' (the button clicked); '' for Cancel, Esc, ×,
 //                                                 a click outside, or the dialog closed by the window
-import { shallowRef } from 'vue';
+import { createStore, useStore } from 'zustand';
 import type { Question } from '../../shared/types';
 
-export const asking = shallowRef<{ q: Question; answer: (value: string) => void } | null>(null);
+const asking = createStore<{ q: Question; answer: (value: string) => void } | null>()(() => null);
+export const useAsking = () => useStore(asking);
 let turn: Promise<string> = Promise.resolve('');
 export function ask(q: Question): Promise<string> {
-  const answer = turn.then(() => new Promise<string>((resolve) => { asking.value = { q, answer: resolve }; }));
+  const answer = turn.then(() => new Promise<string>((resolve) => asking.setState({ q, answer: (v) => { asking.setState(null, true); resolve(v); } }, true)));
   turn = answer;
   return answer;
 }

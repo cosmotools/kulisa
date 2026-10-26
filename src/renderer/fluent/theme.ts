@@ -2,6 +2,7 @@
 // Inter, softer corners. Only tokens: the components are Fluent's as they ship.
 import { createContext } from 'react';
 import { createDarkTheme, createLightTheme, type BrandVariants, type Theme } from '@fluentui/react-components';
+import type { TermStyle } from '../../terminal/renderer';
 
 // A neutral ramp in place of Microsoft's blue: the main button and what is chosen in the text's own color.
 const neutral: BrandVariants = {
@@ -39,9 +40,16 @@ export const light: Theme = {
   colorNeutralForeground2BrandSelected: '#09090b',
 };
 
-// Settings' theme: the page's data-theme (its URL, then the main process's 'theme'), System as the OS's.
+// A window's theme: the page's data-theme (its URL, then the main process's 'theme'), System as the OS's.
 export const shade = (theme: string | undefined) => (theme === 'light' || (theme === 'system' && !matchMedia('(prefers-color-scheme: dark)').matches) ? 'light' : 'dark');
 
 // The theme shown, for what draws in its colors outside Fluent's components (a terminal: Terminal.tsx); the one given
 // to FluentProvider.
 export const ThemeShown = createContext<Theme>(dark);
+
+// A terminal's colors and font in a theme: the place's background (a Fluent color token), its text, its font size.
+export type ColorToken = Extract<keyof Theme, `color${string}`>;
+export const termStyle = (t: Theme, background: ColorToken): TermStyle => ({
+  colors: { background: t[background], foreground: t.colorNeutralForeground1, selection: t.colorNeutralStroke1 },
+  fontSize: parseFloat(t.fontSizeBase300),
+});

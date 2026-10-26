@@ -3,17 +3,17 @@
 // while a panel is dragged or a menu is open, so the HTML can be on top. The menus and dialogs themselves: cover.ts.
 import { store } from './store';
 import { scheduleLayout } from './grid';
-import { coverUnder, dialogsOpen } from './cover';
+import { coverUnder, dialogsShown } from './cover';
 
 // A menu or a drag too (frozen): the pages stay pictures until it ends (unfreeze); a task's slide ending under a menu
 // showed them over it.
-const viewsCovered = () => dialogsOpen.value > 0 || store.loading || !!frozen;
+const viewsCovered = () => dialogsShown() > 0 || store.getState().loading || !!frozen;
 export const showViews = () => kulisa.invoke('views:hidden', viewsCovered());
 
 // Pictures of the pages for a menu or a drag; live again after.
 let frozen: Promise<void> | null = null;
 export function freeze() {
-  return (frozen ??= kulisa.invoke('views:hidden', true, { snapshots: true }).then((pics) => { store.pictures = pics || {}; }));
+  return (frozen ??= kulisa.invoke('views:hidden', true, { snapshots: true }).then((pics) => store.setState({ pictures: pics || {} })));
 }
 export async function unfreeze() {
   if (!frozen) return;
@@ -25,7 +25,7 @@ export async function unfreeze() {
 // The pages live again in place of their pictures, unless a menu or a drag has them (it does so when it ends).
 export async function livePages() {
   if (frozen) return;
-  store.pictures = {};
+  store.setState({ pictures: {} });
   await showViews();
   scheduleLayout();
 }

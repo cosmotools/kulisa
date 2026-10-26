@@ -6,5 +6,5 @@ import { clipboardKey, termLinks } from '../../terminal/renderer';
 import { keyText } from './common';
 
 Object.assign(window, { act, clipboardKey, termLinks, keyText });
-Object.defineProperty(window, 'state', { get: () => store.profiles });
-Object.defineProperty(window, 'tasks', { value: { get current() { return store.current; } } });
+Object.defineProperty(window, 'state', { get: () => store.getState().profiles });
+Object.defineProperty(window, 'tasks', { value: { get current() { return store.getState().current; } } });
