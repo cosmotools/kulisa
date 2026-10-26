@@ -2,7 +2,7 @@
 // terminal keeps the agent's keys, Kulisa's own work everywhere, Keyboard Shortcuts lists them. Keys are sent as input
 // events into the page or the window, where the human's keyboard would put them.
 import { test, expect } from './fixtures.ts';
-import { SITE, MAC, WIN, termText, ipcSettled } from './helpers.ts';
+import { SITE, MAC, WIN, termText, ipcSettled, item } from './helpers.ts';
 
 test("keys in a profile's page are Chrome's, for its pane: Ctrl+T a tab with the address to type in, Ctrl+W, Ctrl+Shift+T, Ctrl+1 and Ctrl+Tab; the site never gets them", async ({ core, ui }) => {
   // What the site sees: keys with Ctrl (⌘ on macOS).
@@ -16,7 +16,7 @@ test("keys in a profile's page are Chrome's, for its pane: Ctrl+T a tab with the
   const tabs = () => core((k) => k.profile('Sam').tabs.length);
   await expect.poll(tabs).toBe(2);
   await expect.poll(() => core((k) => k.shell.windows[0].keyZone)).toBe(`pane:${id}`);
-  await expect(ui.locator(`.pane[data-profile="${id}"] .addr`)).toBeFocused();
+  await expect(ui.locator(`[role="region"][data-profile="${id}"] [aria-label="Address"]`)).toBeFocused();
   const siteGotKeys = () => core((k) => k.profile('Sam').tabs[0].wc.executeJavaScript('__ctrlKeys'));
   expect(await siteGotKeys(), 'the site did not get Ctrl+T').toBe(0);
   // From the address bar: Ctrl+W closes the new tab (empty: nothing to open again).
@@ -46,7 +46,7 @@ test("keys in the terminal are the agent's, but Kulisa's own: Ctrl+T reaches the
   // Sam's pane used last (its address bar: the window knows only its own focus): Ctrl+` goes back to its page.
   const id = await core(async (k, url) => (await k.ensureProfile('Sam', url)).id, `${SITE}/app`);
   await core((k) => k.shell.win.webContents.focus());
-  await ui.locator(`.pane[data-profile="${id}"] .addr`).focus();
+  await ui.locator(`[role="region"][data-profile="${id}"] [aria-label="Address"]`).focus();
   await expect.poll(() => core((k) => k.shell.windows[0].keyZone)).toBe(`pane:${id}`);
   const tabsBefore = await core((k) => k.profile('Sam').tabs.length);
   await ui.evaluate(() => (window as any).__term.focus());
@@ -81,16 +81,16 @@ test("keys in the terminal are the agent's, but Kulisa's own: Ctrl+T reaches the
   await ipcSettled(ui); await ipcSettled(ui);
   expect(await core((k, i) => k.logged.slice(i).filter((l) => /\[key\]|task:new/.test(l)), from), 'nothing is made').toEqual([]);
   expect(await core((k) => k.shell.current.tasks.size)).toBe(1);
-  await shortcuts.locator('.x').click();
+  await shortcuts.locator('header').getByRole('button', { name: 'Close' }).click();
   await ui.locator('#windowMenu').click();
-  const row = ui.locator('.menu[data-state="open"].ready .item').filter({ has: ui.locator('.label', { hasText: /^Keyboard Shortcuts$/ }) });
+  const row = item(ui, 'Keyboard Shortcuts');
   await expect(row.locator('kbd')).toHaveText(MAC ? '⇧⌘/' : 'Ctrl+Shift+/');
   await row.click();
   await expect(shortcuts).toHaveAttribute('data-state', 'open');
-  await shortcuts.locator('.x').click();
+  await shortcuts.locator('header').getByRole('button', { name: 'Close' }).click();
   // The buttons say their keys, as Chrome's toolbar does; the menus too.
-  await expect(ui.locator(`.pane[data-profile="${id}"] .reload`)).toHaveAttribute('title', MAC ? 'Reload (⌘R)' : 'Reload (Ctrl+R)');
-  await expect(ui.locator(`.pane[data-profile="${id}"] .pick`)).toHaveAttribute('title', MAC ? /\(⇧⌘C\)$/ : /\(Ctrl\+Shift\+C\)$/);
+  await expect(ui.locator(`[role="region"][data-profile="${id}"] [aria-label="Reload"]`)).toHaveAttribute('title', MAC ? 'Reload (⌘R)' : 'Reload (Ctrl+R)');
+  await expect(ui.locator(`[role="region"][data-profile="${id}"] [aria-label="Pick an element"]`)).toHaveAttribute('title', MAC ? /\(⇧⌘C\)$/ : /\(Ctrl\+Shift\+C\)$/);
 });
 
 test('a page that took the keyboard by itself, then given it for the human within the moment it would give it back, keeps it', async ({ core }) => {

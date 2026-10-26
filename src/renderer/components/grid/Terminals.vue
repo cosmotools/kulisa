@@ -5,7 +5,7 @@
 // when it is as tall as the grid), and unfolds to the size it had when one opens. With no profile open it is the
 // grid's room for them, so there the group is not drawn and the +'s rows are big buttons in its middle instead
 // (docs/window.md, The terminal), the closed profiles' under them.
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, useId, watch } from 'vue';
 import type { DockviewApi, DockviewPanelApi } from 'dockview-vue';
 import Icon from '../Icon.vue';
 import ButtonMenu from '../menu/ButtonMenu.vue';
@@ -19,6 +19,7 @@ import { avatarSrc, withKeys } from '../../lib/common';
 
 const props = defineProps<{ params: { api: DockviewPanelApi; containerApi: DockviewApi } }>();
 const root = ref<HTMLElement>();
+const uid = useId(); // a launcher's name is its name, not its line under it
 const keyOf = (id: number) => `${store.terminals.task}#${id}`;
 const folded = computed(() => !store.terminals.list.length);
 const grid = props.params.containerApi, alone = ref(true);
@@ -40,7 +41,7 @@ function fold(on: boolean) {
   const group = props.params.api.group;
   if (!group) return;
   group.header.hidden = folded.value;
-  group.element.classList.toggle('termalone', folded.value && alone.value);
+  group.element.toggleAttribute('data-termalone', folded.value && alone.value);
   if (on) {
     if (before) return;
     const box = group.api.boundingBox, dock = document.querySelector('#dock .dv-dockview')?.getBoundingClientRect();
@@ -88,11 +89,11 @@ const menu = (e: MouseEvent) => {
 </script>
 
 <template>
-  <div class="terminals" :class="{ folded, alone: folded && alone }">
-    <div v-if="folded && alone" ref="launch" class="launch">
+  <div class="terminals" data-testid="terminals" :data-folded="folded || undefined">
+    <div v-if="folded && alone" ref="launch" class="launch" data-testid="launchers">
       <nav class="agents" aria-label="New terminal">
-        <button v-for="l in launchers()" :key="l.id" class="launcher" :title="l.title" @click="l.run()">
-          <Icon :name="l.icon" /><span class="name">{{ l.name }}</span><small v-if="l.sub">{{ l.sub }}</small>
+        <button v-for="l in launchers()" :key="l.id" class="launcher" :aria-labelledby="`${uid}-${l.id}`" :title="l.title" @click="l.run()">
+          <Icon :name="l.icon" /><span :id="`${uid}-${l.id}`" class="name">{{ l.name }}</span><small v-if="l.sub">{{ l.sub }}</small>
         </button>
       </nav>
       <nav class="profiles" aria-label="Open a profile">
@@ -104,24 +105,24 @@ const menu = (e: MouseEvent) => {
     </div>
     <div v-else-if="folded" class="strip"><ButtonMenu :items="newTerminalItems"><button id="termUnfold" class="add icon quiet"
       :title="withKeys('New conversation of an agent, or a terminal', 'terminal.new')" aria-label="New terminal"><Icon name="i-plus" /></button></ButtonMenu></div>
-    <RightClickMenu :items="menu"><div ref="root" class="termpanel" :hidden="folded" /></RightClickMenu>
+    <RightClickMenu :items="menu"><div ref="root" class="termpanel" data-testid="terminal" :hidden="folded" /></RightClickMenu>
     <Pill v-if="!folded" :task="store.current"><Icon name="i-done" /></Pill>
-    <p v-if="starting" class="starting"><span class="state" data-state="working"><Icon name="i-working" /></span>Starting {{ starting.name }}…</p>
+    <p v-if="starting" class="starting" role="status"><span class="state" data-state="working"><Icon name="i-working" /></span>Starting {{ starting.name }}…</p>
   </div>
 </template>
 
 <style>
 /* The terminal in the toolbar's color, as a pane's toolbar under its tabs: the tab in front joins it (TerminalTabs.vue) */
 .terminals { height: 100%; position: relative;
-  &:not(.folded) { background: var(--toolbar); border-radius: 0 0 var(--island-radius) var(--island-radius); }
+  &:not([data-folded]) { background: var(--toolbar); border-radius: 0 0 var(--island-radius) var(--island-radius); }
   .starting { position: absolute; inset: 0; margin: 0; display: flex; align-items: center; justify-content: center; gap: 6px;
     border-radius: inherit; background: var(--toolbar); color: var(--text-muted); }
-  &.folded { display: flex; flex-direction: column; justify-content: center; }
+  &[data-folded] { display: flex; flex-direction: column; justify-content: center; }
   .strip { display: grid; place-items: center; height: 100%; }
   .launch { display: flex; flex-direction: column; gap: calc(var(--gap) * 2); padding: var(--gap);
     nav { display: flex; flex-wrap: wrap; justify-content: center; gap: calc(var(--gap) * 2); } }
 }
-#dock .termalone { --dv-group-view-background-color: transparent; --dv-tabs-and-actions-container-background-color: transparent; }
+#dock [data-termalone] { --dv-group-view-background-color: transparent; --dv-tabs-and-actions-container-background-color: transparent; }
 .termpanel { height: 100%; &[hidden] { display: none; } }
 .term { height: 100%; padding: 2px 4px 2px 8px; &[hidden] { display: none; } }
 /* The rows that fit, in the middle: what is left under a whole row (the panel's height is any) shared above and

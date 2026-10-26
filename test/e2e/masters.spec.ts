@@ -19,7 +19,7 @@ const whoIn = async (call: Call, profile: string, where: Where) => (await call('
 
 test("Sign In to Master… opens its master in a window of its own, nothing automated on it; a task's copy made before keeps its own sign-in to a local app", async ({ core, ui, call, files }) => {
   const { sam } = await begin(core, ui, files);
-  await rightClick(ui, `.ptab[data-panel="profile:${sam}"] b`);
+  await rightClick(ui, `[data-panel="profile:${sam}"] b`);
   expect(await menuRows(ui)).toContain('Sign In to Master…');
   await choose(ui, 'Sign In to Master…');
   await oneMaster(core);
@@ -44,13 +44,13 @@ test("Sign In to Master… opens its master in a window of its own, nothing auto
 
 test("About this profile… opens Settings' window at it (one, not modal: the task's window takes input and comes in front of it, its pages on screen); its Sign In… opens the same master window, once", async ({ core, ui, sui, files }) => {
   const { sam, elon } = await begin(core, ui, files);
-  await rightClick(ui, `.ptab[data-panel="profile:${sam}"] b`);
+  await rightClick(ui, `[data-panel="profile:${sam}"] b`);
   await menuRows(ui);
   await choose(ui, 'About this profile…');
   const s = await sui();
   await expect(s.locator(`#pjlist [data-profile="${sam}"]`)).toHaveAttribute('aria-selected', 'true');
   await expect(s.locator('#profilename')).toHaveValue('Sam.admin');
-  await expect(s.locator(`#pjlist [data-profile="${sam}"] .label`), "the tree's narrow column cuts a name: the whole in its tooltip").toHaveAttribute('title', 'Sam.admin');
+  await expect(s.locator(`#pjlist [data-profile="${sam}"] [title]`), "the tree's narrow column cuts a name: the whole in its tooltip").toHaveAttribute('title', 'Sam.admin');
   // A window of its own, not a child of the task's (on macOS a child stays above its parent), which goes on taking input
   // and comes in front of it, Settings left as it is; the task's pages stay on screen.
   const win = await core((k) => { const w = k.shell.settings.win; return { id: w.id, title: w.getTitle(), parent: w.getParentWindow(), enabled: k.shell.win.isEnabled(), fullScreenable: w.isFullScreenable() }; });

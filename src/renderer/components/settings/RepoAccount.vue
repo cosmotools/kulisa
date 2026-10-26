@@ -21,7 +21,7 @@ const chosen = () => props.accounts.find((a) => a.id === props.repo.account);
       <SelectValue placeholder="Choose…">{{ chosen() ? name(chosen()!) : 'Choose…' }}</SelectValue><Icon name="i-down" />
     </SelectTrigger>
     <SelectPortal>
-      <SelectContent class="menu" :class="{ ready }" position="popper" align="start" :side-offset="4" :collision-padding="4">
+      <SelectContent class="menu" :data-ready="ready || undefined" position="popper" align="start" :side-offset="4" :collision-padding="4">
         <SelectViewport>
           <SelectItem v-for="a in accounts" :key="a.id" :value="a.id" class="item" :data-account="a.id">
             <span class="text"><SelectItemText class="label">{{ name(a) }}</SelectItemText></span>

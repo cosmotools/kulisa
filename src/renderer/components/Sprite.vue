@@ -4,7 +4,7 @@
 </script>
 
 <template>
-  <svg class="sprite" aria-hidden="true">
+  <svg id="sprite" class="sprite" aria-hidden="true">
     <symbol id="i-close" viewBox="0 0 16 16"><path d="M3.5 3.5l9 9M12.5 3.5l-9 9"/></symbol>
     <symbol id="i-plus" viewBox="0 0 16 16"><path d="M8 3v10M3 8h10"/></symbol>
     <symbol id="i-menu" viewBox="0 0 16 16"><path d="M2 4h12M2 8h12M2 12h12"/></symbol>

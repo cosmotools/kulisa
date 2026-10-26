@@ -37,8 +37,8 @@ const windowMenu = (): MenuItem[] => [
 <template>
   <header id="topbar">
     <slot /><!-- the tasks' bar, when it is here (App.vue) -->
-    <Icon v-if="!mac" class="logo" name="i-logo" />
-    <span class="drag" />
+    <Icon v-if="!mac" class="logo" data-testid="title-logo" name="i-logo" />
+    <span class="drag" data-testid="drag-area" />
     <button id="zoomReset" :hidden="store.zoom === 1" title="Kulisa's zoom. Click to reset (Ctrl 0)" @click="kulisa.invoke('zoom:ui', 0)">{{ Math.round(store.zoom * 100) }}%</button>
     <button id="manageProjects" class="icon" :hidden="!store.projects.settings" title="Settings: projects, agents" aria-label="Settings"
       @click="openSettings()"><Icon name="i-settings" /></button>

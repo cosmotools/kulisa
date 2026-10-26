@@ -28,7 +28,7 @@ function click(e: MouseEvent) { if (pressed) { pressed = false; e.preventDefault
   <DropdownMenuRoot :open :modal="false" @update:open="toggle">
     <DropdownMenuTrigger as-child @pointerdown="press" @click.capture="click"><slot /></DropdownMenuTrigger>
     <DropdownMenuPortal>
-      <DropdownMenuContent class="menu" :class="{ ready }" :align="end ? 'end' : 'start'" :side-offset="4" :collision-padding="4" @close-auto-focus="focusBack($event, focused)" @focus-outside.prevent>
+      <DropdownMenuContent class="menu" :data-ready="ready || undefined" :align="end ? 'end' : 'start'" :side-offset="4" :collision-padding="4" @close-auto-focus="focusBack($event, focused)" @focus-outside.prevent>
         <MenuRows :items="rows" />
       </DropdownMenuContent>
     </DropdownMenuPortal>

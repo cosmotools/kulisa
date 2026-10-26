@@ -110,27 +110,27 @@ test('Settings → Agents (not the terminal only): what is installed, installs t
   const s = await openAgents(ui, sui);
   await expect(s.locator('#pjlist [data-agent="fake"] kbd')).toHaveText('not installed');
   await showAgent(s, 'fake');
-  await expect(s.locator('#agconfig .crumbs b')).toHaveText('Fake agent');
+  await expect(s.locator('#agconfig [aria-current="page"]')).toHaveText('Fake agent');
   expect(await core((k) => k.shell.settings.win.getTitle())).toBe('Settings — Kulisa');
   await expect(s.locator('#pjconfig'), "a project's page behind it").toBeHidden();
   // The agents' marks (the terminal only's shown in choosing a task's agent).
-  for (const mark of ['shell', 'claude', 'codex']) await expect(s.locator(`.sprite #i-agent-${mark}`)).toBeAttached();
+  for (const mark of ['shell', 'claude', 'codex']) await expect(s.locator(`#i-agent-${mark}`)).toBeAttached();
   await expect(agentRow(s, 'shell', ''), 'not the terminal only: nothing of it to set up').toHaveCount(0);
-  await expect(s.locator('#agentpage [data-accounts="fake"] .empty')).toHaveText('No accounts yet.');
-  await expect(s.locator('#agentpage [data-accounts="fake"] .accountnew'), 'not installed: no account yet').toBeDisabled();
-  await expect(agentRow(s, 'fake', '.status')).toHaveText('Not installed');
-  await expect(agentRow(s, 'fake', '.install')).not.toHaveAttribute('hidden');
-  await expect(agentRow(s, 'fake', '.install-line')).toHaveText(/^Install runs Kulisa tests's installer: echo ["']installing the fake agent["']/);
+  await expect(s.locator('#agentpage [data-accounts="fake"]').getByText('No accounts yet.', { exact: true })).toBeVisible();
+  await expect(s.locator('#agentpage [data-accounts="fake"]').getByRole('button', { name: 'New Account' }), 'not installed: no account yet').toBeDisabled();
+  await expect(agentRow(s, 'fake', '[role="status"]')).toHaveText('Not installed');
+  await expect(agentRow(s, 'fake', 'button:text-is("Install")')).not.toHaveAttribute('hidden');
+  await expect(agentRow(s, 'fake', '[data-testid="install-line"]')).toHaveText(/^Install runs Kulisa tests's installer: echo ["']installing the fake agent["']/);
   // Installed with its maker's installer; what it said only under Details.
-  await agentRow(s, 'fake', '.install').click();
-  await expect(agentRow(s, 'fake', '.status')).toHaveText('Installed', { timeout: 10000 });
-  await expect(s.locator('#agentpage .progress')).toHaveText(/^Fake agent is installed\. Make an account of it below/);
-  await expect(s.locator('#agentpage .details .disclose'), "the installer's own output only under Details").toHaveAttribute('data-state', 'closed');
+  await agentRow(s, 'fake', 'button:text-is("Install")').click();
+  await expect(agentRow(s, 'fake', '[role="status"]')).toHaveText('Installed', { timeout: 10000 });
+  await expect(s.locator('#agentpage').getByRole('status').filter({ hasText: /^Fake agent is installed/ })).toHaveText(/^Fake agent is installed\. Make an account of it below/);
+  await expect(s.locator('#agentpage').getByRole('button', { name: 'Details' }), "the installer's own output only under Details").toHaveAttribute('data-state', 'closed');
   const said = await s.locator('#agentpage pre').textContent();
   expect(said).toMatch(/installing the fake agent\s+(tar: .*\s+)?done/);
   if (WIN) expect(said.match(/tar: (.*)/)[1].trim().toLowerCase(), "Windows' own tar, not Git's: GNU tar reads C:\\… as a host").toBe(path.join(process.env.SystemRoot, 'System32', 'tar.exe').toLowerCase());
   expect(said, 'no terminal codes: colors, links').not.toMatch(/\x1b/);
-  await expect(s.locator('#agentpage [data-accounts="fake"] .accountnew')).toBeEnabled();
+  await expect(s.locator('#agentpage [data-accounts="fake"]').getByRole('button', { name: 'New Account' })).toBeEnabled();
   await closeSettings(core, ui, sui);
   expect(await core((k) => k.shell.task.pty.pid), 'the agent goes on').toBe(pty);
 });
@@ -138,12 +138,12 @@ test('Settings → Agents (not the terminal only): what is installed, installs t
 test('once installed, the Agents window shows its version and where it is', async ({ core, ui, sui, files }) => {
   await fakeAgent(ui, files);
   const s = await openAgents(ui, sui);
-  await expect(agentRow(s, 'fake', '.status')).toHaveText('Installed');
-  await expect(agentRow(s, 'fake', '.install')).toHaveAttribute('hidden');
+  await expect(agentRow(s, 'fake', '[role="status"]')).toHaveText('Installed');
+  await expect(agentRow(s, 'fake', 'button:text-is("Install")')).toHaveAttribute('hidden');
   // Shown as the human's home folder shortened to ~, as a test folder inside it is (the CI's runner.temp).
   const bin = fakeBin(files), home = os.homedir() + path.sep;
-  await expect(agentRow(s, 'fake', '.where')).toHaveText(`1.2.3 · ${bin.startsWith(home) ? '~' + bin.slice(home.length - 1) : bin} · not on your PATH: Kulisa runs it from here`);
-  await expect(agentRow(s, 'fake', '.install-line')).toHaveText('');
+  await expect(agentRow(s, 'fake', '[data-testid="agent-where"]')).toHaveText(`1.2.3 · ${bin.startsWith(home) ? '~' + bin.slice(home.length - 1) : bin} · not on your PATH: Kulisa runs it from here`);
+  await expect(agentRow(s, 'fake', '[data-testid="install-line"]')).toHaveText('');
   await showAgent(s, 'fake');
   // A click on the row already shown keeps it chosen: Reka's Tree toggles it off, its page still shown.
   await showAgent(s, 'fake');
@@ -162,7 +162,7 @@ test('the list comes at once with what the last look found, then looks again: an
   try {
     expect((await fake(true)).installed, 'not looked for again yet').toBe(true);
     const s = await openAgents(ui, sui);
-    await expect(agentRow(s, 'fake', '.status')).toHaveText('Not installed');
+    await expect(agentRow(s, 'fake', '[role="status"]')).toHaveText('Not installed');
     expect((await fake(true)).installed, 'what the window looked for again is kept').toBe(false);
     await closeSettings(core, ui, sui);
   } finally {
@@ -187,7 +187,7 @@ test("a new account is made in the project's settings: the agent's own sign-in a
   await expect(s.locator(`#npagents [data-agent="${work}"]`)).toHaveCount(1);
   await expect(s.locator('#npsignin')).toHaveCount(0);
   // Its agent and its email, each in its column (a table).
-  expect((await s.locator(`#npagents [data-agent="${work}"] .cell`).allTextContents()).slice(0, 2).map((c) => c.trim())).toEqual(['Fake agent', 'work@shop.com']);
+  expect((await s.locator(`#npagents [data-agent="${work}"] > *`).allTextContents()).slice(0, 2).map((c) => c.trim())).toEqual(['Fake agent', 'work@shop.com']);
   expect(JSON.parse(fs.readFileSync(path.join(files.userData, 'agents.json'), 'utf8'))).toEqual({ list: [{ id: work, agent: 'fake', email: 'work@shop.com' }] });
   expect(await core((k, a) => k.shell.store.projects().find((x) => x.id === a.pid).agents.includes(a.work), { pid: files.pid('project'), work }), 'the project lists it').toBe(true);
   // Signed in to an email it has already: that account, the new folder signed out and gone.
@@ -231,11 +231,11 @@ test("a new account is made in the project's settings: the agent's own sign-in a
     expect(fs.readFileSync(`/proc/${pid}/environ`, 'utf8').split('\0').filter((v) => v.startsWith('DIRENV_'))).toEqual([]);
   }
   // Change agent… (the terminal's menu) hands the task to one of the project's accounts.
-  await rightClick(ui, '.term:not([hidden])');
+  await rightClick(ui, '[data-testid="terminal"]');
   await menuRows(ui);
   await choose(ui, 'Change agent…');
-  await expect(ui.locator('#handover .choose .label')).toHaveText(['Fake agent · work@shop.com']);
-  await ui.locator('#handover .x').click();
+  expect(await ui.locator('#handover').getByRole('radio').evaluateAll((rs) => rs.map((r) => document.getElementById(r.getAttribute('aria-labelledby')).textContent))).toEqual(['Fake agent · work@shop.com']);
+  await ui.locator('#handover').locator('header').getByRole('button', { name: 'Close' }).click();
   await expect(ui.locator('#handover')).toHaveCount(0);
 });
 
@@ -247,11 +247,11 @@ test("language: one for every agent (☰ → Language): written into the agents'
   await focusWindow(core, ui); // the keyboard chooses below
   await ui.locator('#windowMenu').click();
   expect(await menuRows(ui)).toContain('Language');
-  const row = menu(ui).locator('.languagerow');
-  await expect(row.locator('.value')).toHaveText('English');
+  const row = menu(ui).getByTestId('language-row');
+  await expect(row).toHaveAccessibleDescription('English');
   await expect(row).toHaveAttribute('title', /^The language you speak with the agents\. Fake agent dictates and answers in it, and may write code comments in it too: your project's CLAUDE\.md or AGENTS\.md decides that\./);
   await row.click();
-  const languages = ui.locator('.menu.languages[data-state="open"]');
+  const languages = ui.locator('[role="menu"][aria-label="Languages"][data-state="open"]');
   await expect(languages).toBeVisible();
   const system = await ui.evaluate(() => navigator.language.split('-')[0]);
   await expect(languages.locator('[data-language]').first(), "the system's first").toHaveAttribute('data-language', system);
@@ -275,7 +275,7 @@ test("language: one for every agent (☰ → Language): written into the agents'
 
 test("dictation: an agent without its own is recognized for by another agent's dictation in a hidden session (fixtures/fake-recognizer.mjs): the pill at once, then recording; let go, the text it heard goes into that agent's input, the pill saying so; ended, nothing of it is left", async ({ core, ui, files }) => {
   const { task } = await workAccount(core, ui, files);
-  const mic = ui.locator('.dictation .mic'), pill = ui.locator('.dictation-pill');
+  const mic = ui.getByRole('button', { name: 'Speak to the agent' }), pill = ui.getByRole('status', { name: 'Dictation' });
   await core((k) => k.watchPty(k.shell.task.pty));
   await expect(mic).toBeEnabled();
   await expect(mic).toHaveAttribute('title', /^Speak to the agent in English: hold/);
@@ -289,7 +289,7 @@ test("dictation: an agent without its own is recognized for by another agent's d
   await expect.poll(() => termText(ui)).toContain('Heard by the fake recognizer.');
   await expect(mic).toHaveAttribute('data-state', 'ready');
   await expect(pill).toHaveAttribute('data-state', 'done');
-  await expect(pill.locator('.label')).toHaveText("In Fake agent's input");
+  await expect(pill).toHaveText("In Fake agent's input");
   await expect(pill).toHaveCount(0);
   const folder = path.join(files.userData, 'dictation');
   expect(fs.existsSync(folder), "its session runs in a folder of Kulisa's").toBe(true);
@@ -302,7 +302,7 @@ test("an account lives until deleted in Settings → Agents: let go by its proje
   const dir = accountDir(files, work), pid = files.pid('project');
   const row = (s: Page, id: string) => s.locator(`#agentpage [data-account="${id}"]`);
   // An account deleted: its row selected, then − over its list.
-  const deleteAccount = (s: Page, id: string) => onRow(s, `#agentpage [data-account="${id}"]`, `#agentpage .list:has([data-account="${id}"]) .accountdel`);
+  const deleteAccount = (s: Page, id: string) => onRow(s, `#agentpage [data-account="${id}"]`, `#agentpage [data-accounts]:has([data-account="${id}"]) [aria-label="Delete the account"]`);
   const asked = () => core((k) => k.asked.length);
   const inProjects = (id: string) => core((k, a) => k.shell.store.projectsWith('agents', a).map((p) => p.id), id);
   // × in the project lets go of it at once, nothing asked; the account stays, and the task running it keeps it.
@@ -352,7 +352,7 @@ test("an account lives until deleted in Settings → Agents: let go by its proje
   await typeSignIn(core, 'home@shop.com\r'); // kept by the pty until the agent reads it
   await expect(row(s, home)).toBeVisible();
   await expect(s.locator('#npsignin')).toHaveCount(0);
-  await expect(row(s, home).locator('.label')).toHaveText('home@shop.com');
+  await expect(row(s, home)).toHaveAccessibleName('home@shop.com');
   expect(await inProjects(home)).toEqual([]);
   await s.locator(`#pjlist [data-project="${pid}"]`).click();
   await expect(s.locator('#pjconfig')).toBeVisible();

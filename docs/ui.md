@@ -178,7 +178,7 @@ the browser's own `until-found` apart): a component's `display` beats the browse
   draw the eye (as high as 1¾ rows), a profile's `.avatar` (as the tiles'), its `.name`, the action's icon (20 px, muted) at the end; up to 18em wide, the name cut with … so that one long
   name does not crowd out the rest, the whole in its tooltip. The closed profiles over the terminal
   (`ClosedProfiles.vue`; Add Profile… with no picture).
-- `.dots`: where one is in a few slides or steps, a short bar each, lit up to the one shown (an `ol`, `li.on`): the
+- `.dots`: where one is in a few slides or steps, a short bar each, lit up to the one shown (an `ol`, `li[data-on]`): the
   welcome's slides and its steps.
 - `.chip`: a thing named in a pill, its icon first (14 px, muted), `--font-small`: what goes along to another agent
   (Change Agent). A name the human gave (a folder, a branch) goes in a `.name` inside it: cut with … past 14em, the
@@ -211,9 +211,9 @@ The window's controls are Reka UI's, in this look:
 - A strip of tabs that do not all fit (the tasks' bar, a pane's tabs, the closed profiles' tiles, the terminals' tabs) is `.tabstrip` (`components.css`) with
   `useStrip` (`lib/strip.ts`), one for every strip, so all scroll one way:
   no scrollbar; a mouse's wheel scrolls it sideways (Shift and a touchpad's swipe are the browser's: with Shift both
-  would scroll, twice as far); an edge with tabs past it fades (`--fade`; two classes from the scroll: CSS's
+  would scroll, twice as far); an edge with tabs past it fades (`--fade`; `data-past-start`, `data-past-end` from the scroll: CSS's
   scroll-driven animations leave an edge faded when little is out of sight); the active tab is brought into sight,
-  clear of the fade, when another is chosen, a tab grows in or the strip is resized, and only then, so an update
+  clear of the fade, when another is chosen (`aria-selected`, Reka's), a tab grows in or the strip is resized, and only then, so an update
   (a title, a page loading, an agent's state) leaves the strip where the human scrolled it.
 - `Toggle`: a button that stays on (Pick, `[data-state="on"]`).
 - `Collapsible`: something shown on demand (a profile's pictures to choose from; Details: `button.disclose` its trigger, an
@@ -231,7 +231,8 @@ The window's controls are Reka UI's, in this look:
 - `.striptab`: a tab of a strip with nothing to join (the tasks' bar, `TaskTab.vue`), as a browser's: the agent's
   `.state`, `.name`, × at the end (`button.close.icon.quiet.small`), on every tab, always, as Chrome's. A
   step taller than a button (`--tab`, `--control` + 4 px) and at least 64 px wide: a target for a quick throw of the mouse.
-  Lit under the pointer; `.active`: the shown one, in the panels' color (`--island`) on the dark island.
+  Lit under the pointer; chosen (`aria-selected`): the shown one, or the one pressed until it is shown, in the panels'
+  color (`--island`) on the dark island.
 - `.state`: an agent's state by `data-state` (from its hooks), an icon each so that color is not the only sign (some
   people do not tell yellow from green): working (sparkles in `--accent`, twinkling; not with reduced motion), waiting
   for you (a bell in `--note`), done (a check in `--done`: come and see, until the human sees that task); nothing otherwise, as nothing asks for

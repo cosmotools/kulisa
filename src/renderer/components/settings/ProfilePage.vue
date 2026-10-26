@@ -53,7 +53,7 @@ async function signIn() { error.value = (await kulisa.invoke('profiles:master', 
         <PopoverTrigger as-child><button id="profilepic" class="select" type="button" title="Its picture" aria-label="Picture">
           <img class="avatar" alt="" :src="avatarSrc(profile.avatar)"><Icon name="i-down" /></button></PopoverTrigger>
         <PopoverPortal>
-          <PopoverContent class="menu profilepics" :class="{ ready: pickReady }" align="start" :side-offset="4" :collision-padding="4"
+          <PopoverContent class="menu profilepics" :data-ready="pickReady || undefined" aria-label="Pictures" align="start" :side-offset="4" :collision-padding="4"
             @close-auto-focus="focusBack($event, pickFocused)"><Avatars :current="profile.avatar" @choose="pick" /></PopoverContent>
         </PopoverPortal>
       </PopoverRoot></span></div>

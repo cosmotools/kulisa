@@ -2,7 +2,7 @@
 // A profile's pane, as a Chrome window (docs/profiles.md; docs/window.md, The grid). The page itself is a native view
 // the main process lays over .content (lib/grid.ts tells it where); while a panel is dragged or a menu is open, a
 // picture of the page stands in for it.
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, useId, watch } from 'vue';
 import type { DockviewPanelApi } from 'dockview-vue';
 import { DialogContent, DialogDescription, DialogRoot, DialogTitle, TabsList, TabsRoot, TabsTrigger, Toggle } from 'reka-ui';
 import Icon from '../Icon.vue';
@@ -19,6 +19,7 @@ const key = props.params.api.id.slice('profile:'.length);
 const profile = computed(() => store.profiles.find((p) => p.id === key));
 const active = computed(() => profile.value?.tabs.find((t) => t.id === profile.value!.active));
 const content = ref<HTMLElement>(), addr = ref<HTMLInputElement>(), strip = ref<HTMLElement>();
+const uid = useId(); // a tab's name is its title, not its ×'s
 const id = () => profile.value!.id;
 const tab = () => profile.value!.active;
 
@@ -114,14 +115,14 @@ onBeforeUnmount(() => { observer.disconnect(); if (panes.get(key) === handle) pa
 </script>
 
 <template>
-  <div v-if="profile" class="pane" :data-profile="profile.id">
+  <div v-if="profile" class="pane" role="region" :aria-label="profile.name" :data-profile="profile.id">
     <!-- The tabs scroll in .strip; + is next to it, never over a tab, as in Chrome -->
-    <TabsRoot as-child :model-value="profile.active ?? undefined" activation-mode="manual" @update:model-value="activate"><nav class="tabs">
+    <TabsRoot as-child :model-value="profile.active ?? undefined" activation-mode="manual" @update:model-value="activate"><nav class="tabs" aria-label="Tabs">
       <RightClickMenu :items="tabMenu"><TabsList as-child :loop="false"><div ref="strip" class="strip tabstrip">
         <TabsTrigger v-for="t in profile.tabs" :key="t.id" :value="t.id" as-child>
-          <div class="tab" :class="{ active: t.id === profile.active }" :data-tab="t.id" :title="t.url">
+          <div class="tab" :data-tab="t.id" :aria-labelledby="`${uid}-${t.id}`" :title="t.url">
             <img alt="" :hidden="!t.favicon" :src="t.favicon || undefined"><Icon class="globe" name="i-globe" />
-            <span class="title">{{ t.title || t.url || 'New tab' }}</span>
+            <span :id="`${uid}-${t.id}`" class="title">{{ t.title || t.url || 'New tab' }}</span>
             <!-- Not a press on the tab: it is not chosen first. -->
             <span class="x icon small" title="Close tab" @mousedown.prevent @click="act('tab:close', { profile: profile.id, tab: t.id })"><Icon name="i-close" /></span>
           </div>
@@ -129,13 +130,13 @@ onBeforeUnmount(() => { observer.disconnect(); if (panes.get(key) === handle) pa
       </div></TabsList></RightClickMenu>
       <button class="add icon" :title="withKeys('New tab', 'tab.new')" aria-label="New tab" @click="newTab"><Icon name="i-plus" /></button>
     </nav></TabsRoot>
-    <div ref="bar" class="bar">
+    <div ref="bar" class="bar" role="toolbar" aria-label="Page">
       <button class="back icon" :title="withKeys('Back', 'tab.back')" aria-label="Back" :disabled="!active?.canBack"
         @click="act('tab:back', { profile: id(), tab: tab() })"><Icon name="i-back" /></button>
       <button class="fwd icon" :title="withKeys('Forward', 'tab.forward')" aria-label="Forward" :disabled="!active?.canFwd"
         @click="act('tab:forward', { profile: id(), tab: tab() })"><Icon name="i-forward" /></button>
       <button class="reload icon" :title="withKeys('Reload', 'tab.reload')" aria-label="Reload" @click="act('tab:reload', { profile: id(), tab: tab() })"><Icon name="i-reload" /></button>
-      <input ref="addr" class="addr" spellcheck="false" @keydown.enter="go" @focus="addrFocus" @blur="addrBlur" @mousedown="addrDown" @mouseup="addrUp">
+      <input ref="addr" class="addr" aria-label="Address" spellcheck="false" @keydown.enter="go" @focus="addrFocus" @blur="addrBlur" @mousedown="addrDown" @mouseup="addrUp">
       <!-- The site's own zoom in this profile, when it differs from the Kulisa zoom; a click resets it. -->
       <button class="zoom tool" :hidden="!active || active.zoom === 1" title="This site's zoom in this profile (Ctrl + / − / 0 in the page). Click to reset."
         @click="act('tab:zoom', { profile: id(), tab: tab(), dir: 0 })">{{ active ? Math.round(active.zoom * 100) : 100 }}%</button>
@@ -144,7 +145,7 @@ onBeforeUnmount(() => { observer.disconnect(); if (panes.get(key) === handle) pa
         aria-label="Pick an element" :disabled="!picking && (!active?.url || active.url === 'about:blank')" @update:model-value="togglePick(profile.id)"><Icon name="i-pick" /></Toggle>
       <ButtonMenu :items="more" end><button class="more icon" title="More: DevTools" aria-label="More"><Icon name="i-more" /></button></ButtonMenu>
     </div>
-    <div ref="content" class="content" :style="{ '--picture': shownDialog?.picture ? `url(${JSON.stringify(shownDialog.picture)})` : 'none' }">
+    <div ref="content" class="content" data-testid="page" :style="{ '--picture': shownDialog?.picture ? `url(${JSON.stringify(shownDialog.picture)})` : 'none' }">
       <DialogRoot :open="!!shownDialog" :modal="false" @update:open="(o) => o || answer(false)">
         <DialogContent class="pagedialog dialog" @interact-outside.prevent @open-auto-focus="focusOk">
           <header><DialogTitle>{{ shownDialog?.from }}</DialogTitle></header>
@@ -152,7 +153,7 @@ onBeforeUnmount(() => { observer.disconnect(); if (panes.get(key) === handle) pa
           <footer><button v-if="shownDialog?.type === 'confirm'" class="cancel" @click="answer(false)">Cancel</button><button class="primary" @click="answer(true)">OK</button></footer>
         </DialogContent>
       </DialogRoot>
-      <img v-if="store.pictures[profile.id]" class="snapshot" alt="" :src="store.pictures[profile.id]">
+      <img v-if="store.pictures[profile.id]" class="snapshot" data-testid="snapshot" alt="" :src="store.pictures[profile.id]">
     </div>
   </div>
 </template>

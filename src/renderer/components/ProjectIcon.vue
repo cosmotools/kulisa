@@ -8,5 +8,5 @@ defineProps<{ p: Pick<ProjectEntry, 'favicon'> }>();
 </script>
 
 <template>
-  <img v-if="p.favicon" class="picon favicon" alt="" :src="p.favicon"><Icon v-else class="picon" name="i-logo" />
+  <img v-if="p.favicon" class="picon favicon" data-testid="project-icon" alt="" :src="p.favicon"><Icon v-else class="picon" data-testid="project-icon" name="i-logo" />
 </template>

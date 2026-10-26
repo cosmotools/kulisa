@@ -31,7 +31,7 @@ test('projects: several repositories: a task works in the main tree until it mak
   const of = (key: string) => core((k, t) => { const x = k.shell.taskByKey(t); return { folder: x.folder, worktrees: x.worktrees.map((c) => ({ repo: c.repo, folder: c.folder, branch: c.branch })), addable: x.addable(), dirs: x.dirs() }; }, key);
   // The Resources island (Resources.vue): each row its label, its branch line (or 'main working tree'), and whether it
   // can be removed (an added repository's worktree can; the main tree and the task's own worktree cannot).
-  const rows = () => ui.locator('#resources .resource').evaluateAll((rs) => rs.map((r) => [r.querySelector('.label').textContent, r.querySelector('small').textContent, !!r.querySelector('.remove')]));
+  const rows = () => ui.locator('#resources li > [role="button"]').evaluateAll((rs) => rs.map((r) => [document.getElementById(r.getAttribute('aria-labelledby')).textContent, r.querySelector('small').textContent, !!r.querySelector('[aria-label="Remove Repository"]')]));
   const copyOf = async (name: string) => (await of(first)).worktrees.find((c) => path.basename(c.repo) === name).folder;
   // At open: the project's main working tree (the human's folder), no worktree of its own yet (worktree-on-demand).
   let f = await of(first);
@@ -62,7 +62,7 @@ test('projects: several repositories: a task works in the main tree until it mak
   // without /add-dir: a line saying so, sent; Claude Code's question after /add-dir: checked by hand), not while it
   // waits for the human (Enter would answer the question), once it no longer does.
   await setState(core, first, 'waiting');
-  await rightClick(ui, `#projectTabs .tasktab[data-task="${first}"] .name`);
+  await rightClick(ui, `#projectTabs [data-task="${first}"]`);
   const menu = await menuRows(ui) as string[];
   expect(menu.slice(menu.indexOf('# Add Repository'), menu.indexOf('Rename…'))).toEqual(['# Add Repository', 'web', '-']);
   await choose(ui, 'web');
@@ -103,11 +103,11 @@ test('projects: several repositories: a task works in the main tree until it mak
   await call('task_rename', { name: 'Checkout' });
   for (const r of ['api', 'web']) expect(git(path.join(home, r), 'rev-parse', '--abbrev-ref', 'HEAD')).toBe('checkout');
   // Project Settings… shows them, the default first; × on one tasks have a worktree of is refused, naming them.
-  await projectMenu(ui, 'Project Settings…', `#projectTabs [data-project="${pid}"] .name`);
+  await projectMenu(ui, 'Project Settings…', `#projectTabs [data-project="${pid}"]`);
   const s = await sui();
   await pageOf(s, 'api');
-  await expect(s.locator('#npfolders .item')).toHaveCount(2);
-  expect(await s.locator('#npfolders .item').evaluateAll((rs) => rs.map((r) => `${r.querySelector('.label').textContent} ${!!r.querySelector('.default')}`))).toEqual(['api true', 'web false']);
+  await expect(s.locator('#npfolders [role="option"]')).toHaveCount(2);
+  expect(await s.locator('#npfolders [role="option"]').evaluateAll((rs) => rs.map((r) => `${document.getElementById(r.getAttribute('aria-labelledby')).textContent} ${[...r.querySelectorAll('kbd')].some((k) => k.textContent === 'default')}`))).toEqual(['api true', 'web false']);
   await onRow(s, `#npfolders ${attr('data-folder', web)}`, '#npfolderdel');
   await expect(s.locator('#npfolderserror')).toContainText(/Tasks work in it: New Task, Checkout/);
   await closeSettings(core, ui, sui);
@@ -130,9 +130,9 @@ test('projects: several repositories: a task works in the main tree until it mak
   // it: not asked); its own worktree's row has no Remove.
   await showTask(core, ui, first);
   await expect.poll(async () => (await rows()).length).toBe(2);
-  const webRow = ui.locator('#resources .resource').filter({ has: ui.locator('.label', { hasText: /^web$/ }) });
+  const webRow = ui.locator('#resources').getByRole('button', { name: 'web', exact: true });
   await webRow.hover(); // its 🗑 shows on the row under the pointer
-  await webRow.locator('.remove').click();
+  await webRow.getByRole('button', { name: 'Remove Repository' }).click();
   await expect.poll(() => fs.existsSync(webCopy)).toBe(false);
   await expect.poll(rows).toEqual([['api', `branch ${b1}`, false]]);
   expect(await core((k) => k.asked.length), 'nothing of its own: not asked').toBe(0);
@@ -146,14 +146,14 @@ test('projects: several repositories: a task works in the main tree until it mak
   expect((await invoke(ui, 'project:folder-default', { id: pid, folder: web })).folders[0].folder).toBe(web);
   expect((await of(inMain)).folder, 'where it opened, though the default is web now').toBe(api);
   // The human adds web back on its tab, then removes it with a file not committed there: asked first, told what goes.
-  await rightClick(ui, `#projectTabs .tasktab[data-task="${first}"] .name`);
+  await rightClick(ui, `#projectTabs [data-task="${first}"]`);
   await menuRows(ui);
   await choose(ui, 'web');
   await expect.poll(async () => (await of(first)).worktrees.length).toBe(2);
   const webCopy2 = await copyOf('web');
   fs.writeFileSync(path.join(webCopy2, 'b.txt'), 'work');
   const removeWeb = async () => {
-    await rightClick(ui, `#projectTabs .tasktab[data-task="${first}"] .name`);
+    await rightClick(ui, `#projectTabs [data-task="${first}"]`);
     const rows = await menuRows(ui) as string[];
     expect(rows.slice(rows.indexOf('# Remove Repository'), rows.indexOf('Rename…'))).toEqual(['# Remove Repository', 'web', '-']);
     await choose(ui, 'web');

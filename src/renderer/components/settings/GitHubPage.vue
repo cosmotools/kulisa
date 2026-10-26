@@ -2,7 +2,7 @@
 // Settings → GitHub (src/github/README.md, The window): the GitHub accounts, a .list as an agent's accounts are; Add
 // Account with Kulisa App (the device flow: Kulisa shows GitHub's code itself) or with a fine-grained token; Sign in
 // Again; Delete. Read when shown, not as Settings opens: where Kulisa App is installed is asked of GitHub.
-import { computed, nextTick, ref, watch } from 'vue';
+import { computed, nextTick, ref, useId, watch } from 'vue';
 import { ListboxContent, ListboxItem, ListboxRoot } from 'reka-ui';
 import Icon from '../Icon.vue';
 import ButtonMenu from '../menu/ButtonMenu.vue';
@@ -71,6 +71,7 @@ const rowMenu = (e: MouseEvent): MenuItem[] | null => {
   sel.value = a.id;
   return [{ label: 'Sign in Again…', enabled: !busy.value, run: () => again(a) }, { label: 'Delete…', run: () => remove(a.id) }];
 };
+const uid = useId(); // a row's name is its login
 </script>
 
 <template>
@@ -87,8 +88,8 @@ const rowMenu = (e: MouseEvent): MenuItem[] | null => {
         <div v-if="accounts.length" class="head" aria-hidden="true"><span>Account</span><span>Kulisa App on</span><span>Projects</span><span>Signed in</span></div>
         <ListboxRoot v-if="accounts.length" v-model="sel" selection-behavior="replace" aria-label="GitHub accounts" @keydown.delete="remove()">
           <ListboxContent>
-            <ListboxItem v-for="a in accounts" :key="a.id" :value="a.id" class="item" :data-github="a.id">
-              <span class="cell label" :title="a.login">{{ a.login }}</span>
+            <ListboxItem v-for="a in accounts" :key="a.id" :value="a.id" class="item" :data-github="a.id" :aria-labelledby="`${uid}-${a.id}`">
+              <span :id="`${uid}-${a.id}`" class="cell label" :title="a.login">{{ a.login }}</span>
               <small class="cell installed" :title="installedText(a)">{{ installedText(a) }}</small>
               <small class="cell projects" :title="projectsText(a)">{{ projectsText(a) }}</small>
               <span class="cell end"><kbd v-if="!a.signedIn" class="warn" title="Sign in Again: its right-click">signed out</kbd><small v-else class="ends">{{ endText(a) }}</small></span>

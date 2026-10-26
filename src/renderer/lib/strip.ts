@@ -1,26 +1,25 @@
 // A strip of tabs that scrolls sideways when they do not fit (docs/ui.md, Controls): the tasks' bar, a pane's tabs, the
 // closed profiles over the terminal, the terminals' tabs.
 // The element has .tabstrip (components.css: no scrollbar, its edges faded); this module scrolls it by the wheel,
-// says which edges have tabs past them, keeps its .active tab in sight, and grows a panel's tab (.tab) in as it opens.
+// says which edges have tabs past them, keeps its chosen tab (aria-selected) in sight, and grows a panel's tab (.tab) in as it opens.
 import { nextTick, onUnmounted, watch } from 'vue';
 import type { Ref } from 'vue';
 import { reducedMotion } from './common';
 
 // strip: the element; active: what changes when another tab is chosen (its key).
 export function useStrip(strip: Ref<HTMLElement | undefined>, active: () => unknown) {
-  // Which edges have tabs past them, faded (.past-start, .past-end). Classes set here, not bound in the template:
-  // the element has no :class of its own for Vue to write over them.
+  // Which edges have tabs past them, faded (data-past-start, data-past-end).
   const edges = () => {
     const s = strip.value;
     if (!s) return;
-    s.classList.toggle('past-start', s.scrollLeft > 1);
-    s.classList.toggle('past-end', s.scrollLeft < s.scrollWidth - s.clientWidth - 1);
+    s.toggleAttribute('data-past-start', s.scrollLeft > 1);
+    s.toggleAttribute('data-past-end', s.scrollLeft < s.scrollWidth - s.clientWidth - 1);
   };
   // The active tab in sight, clear of the fades (scroll-padding), the strip alone scrolled (scrollIntoView moved the
   // window's grid once, docs/window.md). Only when another is chosen, a tab grows in or the strip is resized: on
   // every update (a title, a page loading, an agent's state) it took the strip back from where the human scrolled it.
   const reveal = () => {
-    const s = strip.value, a = s?.querySelector('.active')?.getBoundingClientRect();
+    const s = strip.value, a = s?.querySelector('[aria-selected="true"]')?.getBoundingClientRect();
     if (!s || !a) return;
     const b = s.getBoundingClientRect(), pad = parseFloat(getComputedStyle(s).scrollPaddingInlineStart) || 0;
     if (a.left < b.left + pad) s.scrollLeft -= b.left + pad - a.left;

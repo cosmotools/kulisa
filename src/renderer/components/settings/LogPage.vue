@@ -85,15 +85,15 @@ const report = (): MenuItem[] => [{ label: 'On GitHub…', sub: 'a public issue,
       <label class="check"><CheckboxRoot id="logfollow" class="checkbox" :model-value="follow" @update:model-value="setFollow">
         <CheckboxIndicator as-child><Icon name="i-done" /></CheckboxIndicator></CheckboxRoot> Follow</label>
     </div>
-    <div ref="box" class="lines" @scroll.passive="scrolled">
-      <div v-for="(l, i) in visible" :key="i" class="line" :class="[l.group, { bad: bad(l) }]" :title="`${l.date} ${l.offset}`.trim()" :data-tag="l.tag || undefined">
+    <div ref="box" class="lines" role="log" aria-label="Log" @scroll.passive="scrolled">
+      <div v-for="(l, i) in visible" :key="i" class="line" :data-group="l.group" :data-bad="bad(l) || undefined" :title="`${l.date} ${l.offset}`.trim()" :data-tag="l.tag || undefined">
         <time>{{ l.time }}</time><b>{{ l.tag ? `[${l.tag}]` : '' }}</b><span>{{ l.text }}</span>
       </div>
       <p v-if="loaded && !visible.length" class="empty">Nothing matches.</p>
     </div>
     <p class="hint about">{{ about }} Never here: what you typed, passwords, tokens, cookies, the pages' queries.</p>
     <div class="actions">
-      <span class="note">{{ note }}</span><span class="error">{{ error }}</span>
+      <span class="note" role="status">{{ note }}</span><span class="error">{{ error }}</span>
       <button id="logcopy" type="button" title="The whole log, to paste anywhere" @click="copy">Copy All</button>
       <button id="logsave" type="button" title="The log as a file, to attach to a message or an issue" @click="save">Save As…</button>
       <button id="logfolder" type="button" title="Its folder in your file manager" @click="kulisa.invoke('log:show-folder')">Open Folder</button>
@@ -111,8 +111,8 @@ const report = (): MenuItem[] => [{ label: 'On GitHub…', sub: 'a public issue,
     .empty { margin: 0; color: var(--text-muted); font: var(--font) var(--sans); } }
   .line { display: grid; grid-template-columns: auto auto 1fr; gap: 0 var(--gap); white-space: pre-wrap; overflow-wrap: anywhere;
     time { color: var(--text-muted); font-variant-numeric: tabular-nums; } b { font-weight: 600; color: var(--text-dim); }
-    &.agent b { color: var(--log-agent); } &.human b { color: var(--log-human); } &.tasks b { color: var(--log-tasks); }
-    &.bad { color: var(--error); b { color: var(--error); } } }
+    &[data-group="agent"] b { color: var(--log-agent); } &[data-group="human"] b { color: var(--log-human); } &[data-group="tasks"] b { color: var(--log-tasks); }
+    &[data-bad] { color: var(--error); b { color: var(--error); } } }
   .about { margin: 0; }
   .actions { display: flex; align-items: center; gap: var(--gap); justify-content: end;
     .note { color: var(--text-muted); } .error { margin: 0; } :is(.note, .error) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

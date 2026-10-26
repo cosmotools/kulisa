@@ -153,13 +153,14 @@ function dragend(e: DragEvent) {
 
 <template>
   <nav id="taskbar" aria-label="Open tasks">
-    <!-- Every open task a tab (Reka's Tabs): the shown one chosen; a press on another shows it. -->
-    <RightClickMenu :items="menu"><TabsRoot as-child :model-value="store.current ?? undefined" activation-mode="manual"
+    <!-- Every open task a tab (Reka's Tabs): the shown one chosen, or the one pressed until it is shown; a press on
+         another shows it. -->
+    <RightClickMenu :items="menu"><TabsRoot as-child :model-value="(pressed ?? store.current) ?? undefined" activation-mode="manual"
       @update:model-value="showTask"><TabsList as-child :loop="false">
       <div id="projectTabs" ref="strip" class="tabstrip" @dblclick="dblclick" @auxclick="auxclick" @pointerdown="pointerdown"
         @dragstart="dragstart" @dragover="dragover" @dragleave="dragleave" @drop="drop" @dragend="dragend">
-        <TaskTab v-for="{ p, t } in tabs" :key="t.key" :t :p :active="t.key === (pressed ?? store.current)" :data-project="p.id" :style="{ '--color': projectColor(p) }"
-          draggable="true" :class="{ dragging: dragged === t.key, 'drop-before': mark?.key === t.key && mark.side === 'before', 'drop-after': mark?.key === t.key && mark.side === 'after' }" />
+        <TaskTab v-for="{ p, t } in tabs" :key="t.key" :t :p :data-project="p.id" :style="{ '--color': projectColor(p) }"
+          draggable="true" :data-dragging="dragged === t.key || undefined" :data-drop="mark?.key === t.key ? mark.side : undefined" />
       </div>
     </TabsList></TabsRoot></RightClickMenu>
     <NewTask />
@@ -185,8 +186,8 @@ function dragend(e: DragEvent) {
      narrower, every tab reads "task…" (× kept on every tab). */
   .tasktab { --tab: var(--bartab); gap: 8px; min-width: 160px; max-width: 240px; padding-inline: 12px 6px; border-radius: var(--tab-radius);
     .picon { width: 20px; height: 20px; color: var(--color); } } /* as an agent's mark in a row (docs/ui.md): a tab's face */
-  .dragging { opacity: .5; }
-  .drop-before { box-shadow: inset 2px 0 var(--accent); }
-  .drop-after { box-shadow: inset -2px 0 var(--accent); }
+  [data-dragging] { opacity: .5; }
+  [data-drop="before"] { box-shadow: inset 2px 0 var(--accent); }
+  [data-drop="after"] { box-shadow: inset -2px 0 var(--accent); }
 }
 </style>

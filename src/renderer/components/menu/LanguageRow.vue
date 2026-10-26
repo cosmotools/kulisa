@@ -29,12 +29,12 @@ async function choose(code: string) {
 
 <template>
   <DropdownMenuSub v-if="info?.languages.length">
-    <DropdownMenuSubTrigger class="item languagerow" :title>
-      <Icon class="ico" name="i-language" /><span class="text"><span class="label">Language</span></span>
-      <span class="value">{{ name(info.language, 'en') }}</span><Icon class="more" name="i-chevron" />
+    <DropdownMenuSubTrigger class="item languagerow" data-testid="language-row" :title aria-labelledby="language-label" aria-describedby="language-value">
+      <Icon class="ico" name="i-language" /><span class="text"><span id="language-label" class="label">Language</span></span>
+      <span id="language-value" class="value">{{ name(info.language, 'en') }}</span><Icon class="more" name="i-chevron" />
     </DropdownMenuSubTrigger>
     <DropdownMenuPortal>
-      <DropdownMenuSubContent class="menu ready languages" :side-offset="4" :collision-padding="4">
+      <DropdownMenuSubContent class="menu languages" data-ready aria-label="Languages" :side-offset="4" :collision-padding="4">
         <DropdownMenuRadioGroup :model-value="info.language" @update:model-value="(v) => choose(String(v))">
           <MenuButton v-for="code in order" :key="code" :value="code" :data-language="code"
             :it="{ label: name(code), sub: name(code, 'en') === name(code) ? '' : name(code, 'en') }" />

@@ -6,7 +6,7 @@ import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
 import type { data } from './data.ts';
-import { menuRows, choose, closeMenu, rightClick, projectTabs, projectTab, showProject, plusMenu, focusWindow, closeSettings, settingsClosed, invoke, act, typeIn, asked, notLoading, projectMenu, otherPage, pageOf, onRow } from './helpers.ts';
+import { anyMenu, item, termTabs, menuRows, choose, closeMenu, rightClick, projectTabs, projectTab, showProject, plusMenu, focusWindow, closeSettings, settingsClosed, invoke, act, typeIn, asked, notLoading, projectMenu, otherPage, pageOf, onRow } from './helpers.ts';
 import { SAM, git, committed, begin, bothOn, newTask, taskShown, openFolder, projectShown, taskTabs } from './tasks-helpers.ts';
 import { fakeAgent } from './agent-helpers.ts';
 import { createWorktree } from '../../src/main/worktrees.ts';
@@ -45,15 +45,15 @@ test("projects: the projects' manager (Project Settings…) changes its name and
   fs.mkdirSync(path.join(site, 'public'), { recursive: true });
   fs.writeFileSync(path.join(site, 'public', 'favicon.svg'), '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><circle cx="8" cy="8" r="8" fill="red"/></svg>');
   await openFolder(core, ui, site);
-  const id = files.pid('site'), tab = `#projectTabs [data-project="${id}"] .name`;
-  await expect(projectTab(ui, files, 'site').locator('.favicon')).toHaveAttribute('src', /^data:image\/svg\+xml;base64,/);
+  const id = files.pid('site'), tab = `#projectTabs [data-project="${id}"]`;
+  await expect(projectTab(ui, files, 'site').getByTestId('project-icon')).toHaveAttribute('src', /^data:image\/svg\+xml;base64,/);
   // Its color: its favicon's hue (red: 29°; a few degrees off where its edges blend) in the lightness and chroma of
   // Kulisa's own colors; the window's and its island's. What projects.json keeps (the next free color) is for a
   // project with none.
   const shown = (hue: number | string) => ui.evaluate(([hue, sel]) => {
     const c = document.documentElement.style.getPropertyValue('--project'), h = /^oklch\(0\.61 0\.12 (\d+)\)$/.exec(c)?.[1];
     return document.querySelector<HTMLElement>(sel).style.getPropertyValue('--color') === c && (typeof hue === 'number' ? Math.abs(Number(h) - hue) <= 4 : c === hue);
-  }, [hue, `#projectTabs .tasktab[data-project="${id}"]`] as const);
+  }, [hue, `#projectTabs [data-project="${id}"]`] as const);
   await expect.poll(() => shown(29)).toBe(true);
   // Its settings: its favicon in the list, the folder shown and not changed.
   await projectMenu(ui, 'Project Settings…', tab);
@@ -61,11 +61,11 @@ test("projects: the projects' manager (Project Settings…) changes its name and
   await pageOf(s, 'site');
   // The manager lists every project, this one chosen.
   await expect(s.locator(`#pjlist [data-project="${id}"]`)).toHaveAttribute('aria-selected', 'true');
-  await expect(s.locator(`#pjlist [data-project="${id}"] .picon`)).toHaveClass(/\bfavicon\b/);
+  await expect(s.locator(`#pjlist [data-project="${id}"] [data-testid="project-icon"]`), 'its favicon, a picture').toHaveJSProperty('tagName', 'IMG');
   await expect(s.locator('#npfolders [data-folder] small'), 'its folder, as its code').toHaveText(site);
   await expect(s.locator('#nplocationrow')).toHaveCount(0);
   // A page: its top (New Task, ⋯), each part saved as it changes; the dialog stays open.
-  expect(await s.evaluate(() => [...document.querySelectorAll('#pjconfig .titled, #pjconfig .field > label')].map((h) => h.textContent).join(', ')))
+  expect(await s.evaluate(() => [...document.querySelectorAll('#pjconfig :is(h3, label[for])')].map((h) => h.textContent).join(', ')))
     .toBe('Name:, Folders, Agents, Profiles, Local addresses:');
   const entryOf = () => core((k, i) => k.shell.store.projects().find((p) => p.id === i), id);
   // Its favicon changed: read again as its settings open. Mostly blue with a red dot: the hue of the most (264°).
@@ -103,7 +103,7 @@ test("projects: the projects' manager (Project Settings…) changes its name and
   await projectMenu(ui, 'Project Settings…', tab);
   s = await sui();
   await expect(s.locator('#npprofilesrow')).toBeVisible();
-  await expect(s.locator('#npprofiles .item')).toHaveCount(0);
+  await expect(s.locator('#npprofiles [role="option"]')).toHaveCount(0);
   await newProfileHere(s, 'Site-user');
   await expect.poll(() => { try { return !!files.idOf('Site-user'); } catch { return false; } }).toBe(true);
   const siteUser = files.idOf('Site-user'), samId = files.idOf(SAM);
@@ -111,7 +111,7 @@ test("projects: the projects' manager (Project Settings…) changes its name and
   await s.locator('#npprofileadd').click();
   expect((await menuRows(s)).join('|')).toContain('# Other Profiles|Sam.admin');
   await choose(s, 'Sam.admin');
-  await expect(s.locator(`#npprofiles [data-profile="${samId}"] .cell`)).toHaveText(['Sam.admin', 'seller in the test shop', 'project']);
+  await expect(s.locator(`#npprofiles [data-profile="${samId}"] > *`)).toHaveText(['Sam.admin', 'seller in the test shop', 'project']);
   await expect.poll(() => core((k, a) => k.shell.closed.has(a.sam) && k.shell.closed.has(a.user), { sam: samId, user: siteUser })).toBe(true); // its task lists them, closed
   await onRow(s, `#npprofiles [data-profile="${siteUser}"]`, '#npprofiledel');
   expect((await asked(core)).message).toBe('Remove the profile Site-user from Site-2?');
@@ -137,7 +137,7 @@ test("projects: the projects' manager (Project Settings…) changes its name and
   await s.locator('#npagentadd').click();
   expect(await menuRows(s), 'an agent with accounts: one of its accounts').not.toContain('Fake agent');
   await closeMenu(s);
-  const titles = () => s.locator('#npagents .item').evaluateAll((rs) => rs.map((r) => (r as HTMLElement).title));
+  const titles = () => s.locator('#npagents [role="option"]').evaluateAll((rs) => rs.map((r) => (r as HTMLElement).title));
   for (const name of ['Terminal only', 'Fake agent · ann@shop.com']) {
     await s.locator('#npagentadd').click();
     await menuRows(s);
@@ -145,14 +145,14 @@ test("projects: the projects' manager (Project Settings…) changes its name and
     await expect.poll(titles).toContain(name);
   }
   // The default marked, Make Default on the others.
-  const agentRows = () => s.locator('#npagents .item').evaluateAll((rs) => rs.map((r) => `${(r as HTMLElement).title} ${!!r.querySelector('.default')}`));
+  const agentRows = () => s.locator('#npagents [role="option"]').evaluateAll((rs) => rs.map((r) => `${(r as HTMLElement).title} ${[...r.querySelectorAll('kbd')].some((k) => k.textContent === 'default')}`));
   expect(await agentRows(), 'the first added, the default').toEqual(['Terminal only true', 'Fake agent · ann@shop.com false']);
   // A table: each value in its column, under its name, the columns at the same places in every row (values
   // one after another, each row in its own rhythm, read as chaos).
   expect(await s.evaluate(() => {
-    const list = document.querySelector('#npagentsrow .list'), x = (e: Element) => Math.round(e.getBoundingClientRect().left);
-    const rows = [list.querySelector('.head'), ...list.querySelectorAll('.item')].map((r) => [...r.children].map(x).join());
-    return [[...list.querySelector('.head').children].map((h) => h.textContent), rows.every((r) => r === rows[0])];
+    const head = document.querySelector('#npagentsrow div[aria-hidden="true"]'), x = (e: Element) => Math.round(e.getBoundingClientRect().left);
+    const rows = [head, ...document.querySelectorAll('#npagentsrow [role="option"]')].map((r) => [...r.children].map(x).join());
+    return [[...head.children].map((h) => h.textContent), rows.every((r) => r === rows[0])];
   })).toEqual([['Agent', 'Account', ''], true]);
   expect((await entryOf()).agents).toEqual(['shell', ann]);
   expect(await core((k, a) => k.shell.store.projectsWith('agents', a).map((p) => p.id), ann), 'the projects list their agents').toEqual([id]);
@@ -161,12 +161,12 @@ test("projects: the projects' manager (Project Settings…) changes its name and
   // Its right-click has the same: Make Default.
   // The row not chosen yet: Reka's list takes the keyboard to it just after the menu opens, which would close the
   // menu (RightClickMenu.vue).
-  await rightClick(s, '#npagents [data-agent="shell"] .label');
+  await rightClick(s, '#npagents [data-agent="shell"]');
   expect(await menuRows(s)).toEqual(['Make Default', 'Remove from the Project']);
   await choose(s, 'Make Default');
   await expect.poll(agentRows).toEqual(['Terminal only true', 'Fake agent · ann@shop.com false']);
   // None the default: No Default on the default one's right-click, or its ★; ★ on it again makes it the default.
-  await rightClick(s, '#npagents [data-agent="shell"] .label');
+  await rightClick(s, '#npagents [data-agent="shell"]');
   expect(await menuRows(s)).toEqual(['No Default', 'Remove from the Project']);
   await choose(s, 'No Default');
   await expect.poll(agentRows).toEqual(['Terminal only false', 'Fake agent · ann@shop.com false']);
@@ -197,10 +197,12 @@ test("projects: the projects' manager (Project Settings…) changes its name and
   await expect.poll(() => core((k, a) => k.shell.task.key !== a && k.shell.task.loaded && !k.shell.windows[0].switching, annTask)).toBe(true);
   await notLoading(ui);
   const bare = await core((k) => { k.asked.length = 0; return k.shell.task.key; });
-  await expect(ui.locator('.launch .agents .name')).toHaveText(['Fake agent', 'Terminal']);
+  await expect.poll(() => ui.getByRole('navigation', { name: 'New terminal' }).getByRole('button').evaluateAll((bs) => bs.map((b) => document.getElementById(b.getAttribute('aria-labelledby')).textContent)))
+    .toEqual(['Fake agent', 'Terminal']);
   // A project with no profiles: one tile, Add Profile…, its page in Settings.
-  await expect(ui.locator('.launch .profiles .name')).toHaveText(['Add Profile…']);
-  await ui.locator('.launch .profiles .launcher').click();
+  const launchProfiles = ui.locator('#dock').getByRole('navigation', { name: 'Open a profile' });
+  await expect(launchProfiles.getByRole('button')).toHaveText(['Add Profile…']);
+  await launchProfiles.getByRole('button').click();
   s = await sui();
   await expect(s.locator(`#pjlist [data-project="${id}"]`)).toHaveAttribute('aria-selected', 'true');
   await closeSettings(core, ui, sui);
@@ -211,7 +213,7 @@ test("projects: the projects' manager (Project Settings…) changes its name and
   await focusWindow(core, ui);
   // Once more until the launcher has it: on a loaded machine the + menu, closed just before, may give the keyboard
   // back where it was after Ctrl+` had given it to the launcher. Opens nothing: no agent.
-  const onLauncher = () => ui.evaluate(() => document.activeElement === document.querySelector('.launcher'));
+  const onLauncher = () => ui.evaluate(() => document.activeElement === document.querySelector('nav[aria-label="New terminal"] button'));
   await expect(async () => {
     if (!(await onLauncher())) await core((k) => k.press(k.shell.win.webContents, '`', 'control'));
     await expect.poll(onLauncher, { timeout: 1500 }).toBe(true);
@@ -220,7 +222,7 @@ test("projects: the projects' manager (Project Settings…) changes its name and
   // With a profile open, the island is a strip: Ctrl+` opens its +.
   await call('profile_create', { name: 'Bo.bare' }, { task: bare });
   await expect(ui.locator('#termUnfold')).toHaveCount(1);
-  await expect(ui.locator('.launch')).toHaveCount(0);
+  await expect(ui.getByRole('navigation', { name: 'New terminal' })).toHaveCount(0);
   await focusWindow(core, ui);
   await core((k) => k.press(k.shell.win.webContents, '`', 'control'));
   expect(await menuRows(ui)).toEqual(['Fake agent · ann@shop.com', '-', 'Terminal']);
@@ -388,7 +390,7 @@ test("projects: Delete Project… (the projects' manager alone) asks, closes the
     // A task shown: New Project… in the bar's + dropdown; the empty window: the board's own button.
     if (await ui.locator('#newTask').count()) {
       await plusMenu(ui);
-      await ui.locator('.menu[data-state="open"] [role="menuitem"]').filter({ has: ui.locator('.label', { hasText: /^New Project…$/ }) }).click();
+      await item(ui, 'New Project…', anyMenu(ui)).click();
     } else await ui.locator('#boardnewproject').click();
     await ui.locator(`#newproject #npfrom [data-value="${from}"]`).click();
     await expect(ui.locator(`#npfrom [data-value="${from}"]`)).toHaveAttribute('aria-selected', 'true');
@@ -398,7 +400,7 @@ test("projects: Delete Project… (the projects' manager alone) asks, closes the
   const create = async (folder: string) => {
     for (const step of ['Agents', 'Profiles']) {
       await submit();
-      await expect.poll(() => ui.evaluate(() => document.querySelector('#newproject .steps [aria-current="step"]')?.textContent.slice(1))).toBe(step);
+      await expect.poll(() => ui.evaluate(() => document.querySelector('#newproject [aria-current="step"]')?.textContent.slice(1))).toBe(step);
     }
     await submit();
     await expect.poll(async () => {
@@ -412,7 +414,7 @@ test("projects: Delete Project… (the projects' manager alone) asks, closes the
   const add = async (v: string) => { await typeIn(ui, '#npsource', v); await ui.locator('#npaddsource').click(); };
   await add(path.join(root, 'nowhere'));
   await expect(ui.locator('#nperror')).toHaveText(`${path.join(root, 'nowhere')} is not there`);
-  await expect(ui.locator('#npsources .item'), 'not in the list').toHaveCount(0);
+  await expect(ui.locator('#npsources [role="option"]'), 'not in the list').toHaveCount(0);
   expect(fs.existsSync(path.join(root, 'nowhere')), 'not made').toBe(false);
   await core((k, f) => {
     const d = k.electron.dialog;
@@ -425,7 +427,7 @@ test("projects: Delete Project… (the projects' manager alone) asks, closes the
     await ui.locator('#npbrowsesource').click();
     await expect(ui.locator('#npname')).toHaveValue('gone');
   } finally { await core((k) => { k.electron.dialog.showOpenDialog = k.stash.open; }); }
-  await expect(ui.locator('#npsources .item kbd')).toHaveText('git');
+  await expect(ui.locator('#npsources [role="option"] kbd')).toHaveText('git');
   await core((k) => { k.asked.length = 0; });
   await create('gone');
   expect(await core((k) => k.shell.current.folder)).toBe(goneDir);
@@ -451,7 +453,7 @@ test("projects: Delete Project… (the projects' manager alone) asks, closes the
   await newProject('folder');
   await add(goneDir);
   await add(back);
-  await expect.poll(() => ui.locator('#npsources .item').evaluateAll((rs) => rs.map((r) => `${(r as HTMLElement).dataset.source} ${r.querySelector('kbd').textContent} ${!!r.querySelector('.default')}`).join()))
+  await expect.poll(() => ui.locator('#npsources [role="option"]').evaluateAll((rs) => rs.map((r) => `${(r as HTMLElement).dataset.source} ${r.querySelector('kbd').textContent} ${[...r.querySelectorAll('kbd')].some((k) => k.textContent === 'default')}`).join()))
     .toBe(`${goneDir} git true,${back} no git false`);
   await create('gone');
   expect(await core((k, i) => k.shell.store.projects().find((x) => x.id === i).folders, files.pid('gone'))).toEqual([goneDir, back]);
@@ -503,10 +505,10 @@ test("projects: Delete Project… (the projects' manager alone) asks, closes the
 
   // Close All Tasks in its submenu: the last tasks, so the empty window; its tasks closed.
   await notLoading(ui);
-  await projectMenu(ui, 'Close All Tasks', `#projectTabs [data-project="${files.pid('project')}"] .name`);
+  await projectMenu(ui, 'Close All Tasks', `#projectTabs [data-project="${files.pid('project')}"]`);
   await expect.poll(() => core((k) => k.shell.task === null && k.shell.open.size === 0)).toBe(true);
   await core((k) => { k.asked.length = 0; });
-  await expect(ui.locator('html')).toHaveClass(/\bnoproject\b/);
+  await expect(ui.locator('html')).toHaveAttribute('data-noproject');
   expect(await core((k, i) => k.shell.store.tasksOf({ id: i }).list.every((e) => e.closed), files.pid('project')), 'its tasks closed').toBe(true);
 
   // A closed task opened again from the board (the empty window), a tab at the end; another from the bar's + after.
@@ -517,12 +519,12 @@ test("projects: Delete Project… (the projects' manager alone) asks, closes the
   await notLoading(ui);
   await plusMenu(ui, 'project', 'Feature-X');
   await expect.poll(() => core((k) => k.shell.task?.name === 'Feature-X' && !!k.shell.task.loaded && !!k.shell.pty && !k.shell.windows[0].switching)).toBe(true);
-  await ui.locator(`#projectTabs .tasktab[data-task="${first}"]`).click();
+  await ui.locator(`#projectTabs [data-task="${first}"]`).click();
   await taskShown(core, first);
   expect(await projectTabs(ui, files), 'a tab each').toEqual(['project *', 'project']);
   expect(await taskTabs(ui)).toEqual(['task-1 *', 'Feature-X']);
   await core((k) => k.watchPty(k.shell.pty));
-  await expect(ui.locator('html')).not.toHaveClass(/\bnoproject\b/);
+  await expect(ui.locator('html')).not.toHaveAttribute('data-noproject');
   await notLoading(ui);
   await bothOn(core, ui, files);
   await core((k, a) => { const acc = k.shell.accounts; acc.drop(a.account); acc.remove(a.dir); }, { account: made.account, dir: made.accountDir });
@@ -545,7 +547,7 @@ test("projects: another tab left in the background, with a terminal its agent ra
   const key = await core((k) => k.shell.task.key);
   const terminals = () => core((k, t) => k.shell.taskByKey(t).terminalsInfo().list.map(({ name, by, command, agent }) => ({ name, by, command, agent: agent?.account ?? null })), key);
   await expect.poll(terminals, { timeout: 10000 }).toEqual([{ name: 'bash', by: 'human', command: '', agent: 'custom' }, { name: 'dev server', by: 'agent', command: '', agent: null }]);
-  await expect.poll(() => ui2.locator('.termtab').evaluateAll((ts) => ts.map((t) => t.querySelector('.title').textContent + (t.classList.contains('active') ? ' *' : ''))))
+  await expect.poll(() => termTabs(ui2))
     .toEqual(['bash *', 'dev server']);
   await expect.poll(() => core((k, t) => { const task = k.shell.taskByKey(t), dev = task.terminal('dev server') as { pty?: unknown }; return !!dev.pty && !!task.promptTarget()?.pty; }, key)).toBe(true);
   expect(await core((k, t) => (k.shell.taskByKey(t).terminal('dev server') as { by: string }).by, key)).toBe('agent');
@@ -574,7 +576,7 @@ test('projects: one left in a window of its own comes back after a restart where
   expect(await core((k) => { const { width, height } = k.shell.windows[1].win.getNormalBounds(); return { width, height }; })).toEqual({ width: 640, height: 400 });
   expect(await core((k) => k.shell.windows[1].win.getMinimumSize())).toEqual([640, 400]);
   // Its page: the second window's (ui is the first's).
-  const second = await otherPage(ui2, `#projectTabs .tasktab[data-task="${key}"]`);
+  const second = await otherPage(ui2, `#projectTabs [data-task="${key}"]`);
   await expect.poll(() => projectTabs(second, files)).toEqual(['third *']);
 });
 

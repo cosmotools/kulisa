@@ -7,20 +7,20 @@ import { MAC, frames, ipcSettled, menu, menuRows, choose, closeMenu, rightClick,
 import { committed, rand, keyAt, isNth, nthShown, taskTab, hook, begin } from './tasks-helpers.ts';
 import { removeTree } from '../../src/main/remove.ts';
 
-const chosen = (ui: Page) => ui.evaluate(() => document.querySelector<HTMLElement>('#projectTabs .tasktab.active')?.dataset.task ?? '');
+const chosen = (ui: Page) => ui.evaluate(() => document.querySelector<HTMLElement>('#projectTabs [role="tab"][aria-selected="true"]')?.dataset.task ?? '');
 
 test("tasks: switching shows the other grid and terminal; the one left keeps running; the agent's state shows on its tab", async ({ core, ui, files, call }) => {
   await begin(core, ui, files, { only: true, columns: true, featureX: call, shown: 2 });
   const first = await keyAt(core, 1), second = await keyAt(core, 2), SAM = files.idOf('Sam.admin');
   // No profiles' button on a task's tab, its right-click menu has them; the × on every tab, as Chrome's, not only
   // the shown one's (the author's choice).
-  expect(await ui.evaluate(() => [...document.querySelectorAll('#projectTabs .tasktab')].map((t) => [...t.querySelectorAll('button')].map((b) => `${b.ariaLabel} ${getComputedStyle(b).visibility}`))))
+  expect(await ui.evaluate(() => [...document.querySelectorAll('#projectTabs [role="tab"]')].map((t) => [...t.querySelectorAll('button')].map((b) => `${b.ariaLabel} ${getComputedStyle(b).visibility}`))))
     .toEqual([['Close visible'], ['Close visible']]);
-  const widths = () => ui.evaluate(() => [...document.querySelectorAll('#projectTabs .tasktab')].map((t) => t.getBoundingClientRect().width));
+  const widths = () => ui.evaluate(() => [...document.querySelectorAll('#projectTabs [role="tab"]')].map((t) => t.getBoundingClientRect().width));
   const before = await widths();
   // A tab's right-click menu: the shown one's has its profiles; then renaming, its folder, moving to another window,
   // closing, deleting, and its project's submenu. Show Folder opens the task's worktree in the file manager.
-  await rightClick(ui, taskTab(ui, first).locator('.name'));
+  await rightClick(ui, taskTab(ui, first));
   expect(await menuRows(ui)).toEqual(['Rename…', 'Show Folder', '-', 'Move to New Window', '-', 'Close', 'Delete Task…', '-', 'project']);
   await closeMenu(ui);
   await core((k) => {
@@ -29,7 +29,7 @@ test("tasks: switching shows the other grid and terminal; the one left keeps run
     k.electron.shell.openPath = async (dir: string) => { g.shown.push(dir); return ''; };
   });
   try {
-    await rightClick(ui, taskTab(ui, second).locator('.name'));
+    await rightClick(ui, taskTab(ui, second));
     const rows = await menuRows(ui) as string[];
     expect([rows[0], ...rows.slice(-12)]).toEqual(['# Profiles', '-', 'Manage Profiles…', '-', 'Rename…', 'Show Folder', '-', 'Move to New Window', '-', 'Close', 'Delete Task…', '-', 'project']);
     expect(rows.slice(1, -12).toSorted(), 'its open and closed profiles').toEqual(['Dora', 'Elon.buyer', 'Sam.admin']);
@@ -51,7 +51,7 @@ test("tasks: switching shows the other grid and terminal; the one left keeps run
   await expect.poll(() => files.savedWindows()[0].shown, 'the shown task kept for the next start').toBe('project/1');
   // What the second task's agent does reaches its tab (Claude Code's hooks); its captions do not show on the first's panes.
   const post = (event: string) => hook(core, second, event);
-  const state = () => taskTab(ui, second).locator('.state').evaluate((s: HTMLElement) => `${s.dataset.state} ${s.querySelector('use').getAttribute('href')} ${s.checkVisibility()}`);
+  const state = () => taskTab(ui, second).locator('[data-state]').evaluate((s: HTMLElement) => `${s.dataset.state} ${s.querySelector('use').getAttribute('href')} ${s.checkVisibility()}`);
   expect(await state(), 'unknown: no icon').toBe(' #i-done false');
   await post('prompt');
   await expect.poll(state).toBe('working #i-working true');
@@ -60,7 +60,7 @@ test("tasks: switching shows the other grid and terminal; the one left keeps run
   // A permission the agent asks for: waiting.
   await post('waiting');
   await expect.poll(state).toBe('waiting #i-waiting true');
-  await expect(taskTab(ui, second).locator('.state')).toHaveAttribute('title', 'The agent waits for you');
+  await expect(taskTab(ui, second).locator('[data-state]')).toHaveAttribute('title', 'The agent waits for you');
   // Interrupted by the human (Codex's Interrupt), or its session ended: unknown again; but a session ending after a
   // done turn (Codex: 30 minutes idle) leaves "come and see".
   await post('prompt');
@@ -91,7 +91,7 @@ test("tasks: switching shows the other grid and terminal; the one left keeps run
   expect(await state(), 'the session ending after a done turn: it stays').toBe('done #i-done true');
   await core((k, a) => k.shell.taskByKey(a.second).caption(a.SAM, 'from the second task'), { second, SAM });
   await ipcSettled(ui);
-  expect(await ui.locator(`.ptab[data-panel="profile:${SAM}"] .caption`).textContent(), 'not on the first task\'s pane').toBe('');
+  expect(await ui.locator(`[data-panel="profile:${SAM}"] [role="status"]`).textContent(), 'not on the first task\'s pane').toBe('');
   // Done says "come and see" until the human sees that task.
   await post('stop');
   await expect.poll(state).toBe('done #i-done true');
@@ -126,7 +126,7 @@ test('tasks: switching slides the grid towards the other tab (a view transition)
     await (window as any).kulisa.invoke('task:show', key);
     return seen;
   }, key);
-  const live = async () => (await ui.locator('img.snapshot').count()) === 0 && viewOn(core, ui, files, 'Sam.admin');
+  const live = async () => (await ui.locator('[data-testid="snapshot"]').count()) === 0 && viewOn(core, ui, files, 'Sam.admin');
   let seen = await swap(second);
   expect(seen.types).toEqual(['next']);
   expect(seen.animations, 'it slides').toEqual(['grid-from-right calc(100% + 8px) cubic-bezier(0.4, 0, 0.2, 1)', 'grid-to-left calc(-100% - 8px) cubic-bezier(0.4, 0, 0.2, 1)']);
@@ -174,7 +174,7 @@ test('tasks: switching slides the grid towards the other tab (a view transition)
 
 test('tasks: Ctrl+Shift+2 shows the second, Ctrl+Shift+PgUp and PgDn the one before and after, from the terminal too', async ({ core, ui, files, call }) => {
   await begin(core, ui, files, { only: true, columns: true, featureX: call });
-  const shown = (n: number) => expect.poll(async () => (await isNth(core, n)) && (await core((k) => !k.shell.windows[0].switching)) && !(await ui.evaluate(() => document.documentElement.classList.contains('loading')))).toBe(true);
+  const shown = (n: number) => expect.poll(async () => (await isNth(core, n)) && (await core((k) => !k.shell.windows[0].switching)) && !(await ui.evaluate(() => document.documentElement.hasAttribute('aria-busy')))).toBe(true);
   await focusWindow(core, ui);
   // The terminal shown before it takes the keyboard: the grid's slide hides it (dockview's overlay) until it is over.
   await expect.poll(() => ui.evaluate(() => !!(window as any).__term?.textarea?.checkVisibility({ visibilityProperty: true }))).toBe(true);
@@ -195,8 +195,8 @@ test("tasks: more tabs than the bar holds: each keeps its name readable, a mouse
   await begin(core, ui, files, { only: true, columns: true, featureX: call });
   // Two tabs, the bar narrowed to less than they take: as thirty tabs in a window.
   const bar = () => ui.evaluate(() => {
-    const s = document.querySelector('#projectTabs'), a = s.querySelector('.active').getBoundingClientRect(), b = s.getBoundingClientRect();
-    return { left: Math.round(s.scrollLeft), max: s.scrollWidth - s.clientWidth, fade: ['past-start', 'past-end'].filter((e) => s.classList.contains(e)).join(' '), inSight: a.left >= b.left && a.right <= b.right };
+    const s = document.querySelector('#projectTabs'), a = s.querySelector('[aria-selected="true"]').getBoundingClientRect(), b = s.getBoundingClientRect();
+    return { left: Math.round(s.scrollLeft), max: s.scrollWidth - s.clientWidth, fade: ['past-start', 'past-end'].filter((e) => s.hasAttribute(`data-${e}`)).join(' '), inSight: a.left >= b.left && a.right <= b.right };
   });
   const frame = () => ui.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
   expect((await bar()).fade, 'all fit: no edge fades').toBe('');
@@ -205,7 +205,7 @@ test("tasks: more tabs than the bar holds: each keeps its name readable, a mouse
   try {
     await ui.evaluate(() => { document.querySelector<HTMLElement>('#taskbar').style.maxWidth = '300px'; });
     await expect.poll(async () => { const b = await bar(); return b.max > 0 && b.inSight; }).toBe(true);
-    expect(await ui.evaluate(() => [...document.querySelectorAll('#projectTabs .tasktab')].map((t) => { const n = t.querySelector('.name'); return [t.getBoundingClientRect().width, n.scrollWidth <= n.clientWidth]; })),
+    expect(await ui.evaluate(() => [...document.querySelectorAll('#projectTabs [role="tab"]')].map((t) => { const n = document.getElementById(t.getAttribute('aria-labelledby')); return [t.getBoundingClientRect().width, n.scrollWidth <= n.clientWidth]; })),
       'at their narrowest, the names whole').toEqual([[160, true], [160, true]]);
     const now = await bar();
     expect([now.left, now.fade], 'brought into view when the bar narrowed; only the edge with a tab past it fades').toEqual([now.max, 'past-start']);
@@ -225,19 +225,19 @@ test("tasks: more tabs than the bar holds: each keeps its name readable, a mouse
     // real drag of the window is the OS's, out of a test's reach).
     await invoke(ui, 'bar:set', 'top');
     await expect(ui.locator('#topbar #projectTabs')).toHaveCount(1);
-    await ui.evaluate(() => document.querySelectorAll<HTMLElement>('#projectTabs .tasktab').forEach((t) => { t.style.minWidth = t.style.maxWidth = '1000px'; })); // the bar drawn anew: tabs as wide as many
+    await ui.evaluate(() => document.querySelectorAll<HTMLElement>('#projectTabs [role="tab"]').forEach((t) => { t.style.minWidth = t.style.maxWidth = '1000px'; })); // the bar drawn anew: tabs as wide as many
     await frame();
     expect(await ui.evaluate(() => {
       const q = (s: string) => document.querySelector(s), r = (s: string) => q(s).getBoundingClientRect(), s = q('#projectTabs');
       const after = (x: string) => !!(q('#taskbar').compareDocumentPosition(q(x)) & Node.DOCUMENT_POSITION_FOLLOWING) && (getComputedStyle(q(x)) as any).appRegion;
-      return [s.scrollWidth > s.clientWidth, r('#topbar .drag').width >= 40, r('#manageProjects').left - r('#newTask').right >= 40, q('#topbar .logo') ? after('#topbar .logo') : 'drag', after('#topbar .drag'), !q('.logo') || r('.logo').right <= r('#taskbar').left];
+      return [s.scrollWidth > s.clientWidth, r('[data-testid="drag-area"]').width >= 40, r('#manageProjects').left - r('#newTask').right >= 40, q('[data-testid="title-logo"]') ? after('[data-testid="title-logo"]') : 'drag', after('[data-testid="drag-area"]'), !q('[data-testid="title-logo"]') || r('[data-testid="title-logo"]').right <= r('#taskbar').left];
     }), 'the tabs overflow, 40 px left to drag by; it and the logo (none on macOS) after the bar in the page, the logo before it on screen').toEqual([true, true, true, 'drag', 'drag', true]);
     expect((await bar()).inSight, 'the shown one in sight, the bar drawn anew there').toBe(true);
   } finally {
     await invoke(ui, 'bar:set', 'bottom');
     await ui.evaluate(() => {
       document.querySelector<HTMLElement>('#taskbar').style.maxWidth = '';
-      document.querySelectorAll<HTMLElement>('#projectTabs .tasktab').forEach((t) => { t.style.minWidth = t.style.maxWidth = ''; });
+      document.querySelectorAll<HTMLElement>('#projectTabs [role="tab"]').forEach((t) => { t.style.minWidth = t.style.maxWidth = ''; });
     });
   }
   await expect(ui.locator('#topbar #projectTabs')).toHaveCount(0);
@@ -249,7 +249,7 @@ test("tasks: more tabs than the bar holds: each keeps its name readable, a mouse
 test("tasks: a press on a tab not shown chooses it at once, as Chrome's; its task is shown when the button is let go or the tab starts being dragged, so it can be dragged", async ({ core, ui, files, call }) => {
   await begin(core, ui, files, { only: true, columns: true, featureX: call });
   const first = await keyAt(core, 1), second = await keyAt(core, 2);
-  const nameOf = (key: string) => mid(core, ui, `#projectTabs .tasktab[data-task="${key}"] .name`); // where the hand presses a tab
+  const nameOf = (key: string) => mid(core, ui, `#projectTabs [data-task="${key}"]`); // where the hand presses a tab
   // The slide that showing a task starts makes Chromium drop a drag about to begin: a tab not shown would not be
   // dragged, its press only showing it. One begun goes on through the slide.
   await noSlide(ui); // the slide's pictures over the window take every event
@@ -264,7 +264,7 @@ test("tasks: a press on a tab not shown chooses it at once, as Chrome's; its tas
   // Lit on the press, it stays lit: let go of, it would go dark while the main process takes the pictures for the slide
   // and light again with the new state, the tab blinking.
   await ui.evaluate(() => {
-    const w = window as any, lit = () => document.querySelector<HTMLElement>('#projectTabs .tasktab.active')?.dataset.task ?? '';
+    const w = window as any, lit = () => document.querySelector<HTMLElement>('#projectTabs [role="tab"][aria-selected="true"]')?.dataset.task ?? '';
     w.__lit = [lit()];
     w.__litObs = new MutationObserver(() => w.__lit.push(lit()));
     w.__litObs.observe(document.getElementById('projectTabs'), { attributes: true, attributeFilter: ['class'], subtree: true });
@@ -284,7 +284,7 @@ test("tasks: a press on a tab not shown chooses it at once, as Chrome's; its tas
 
 test("tasks: a double click on a task's tab is its Rename…", async ({ core, ui, files, call }) => {
   await begin(core, ui, files, { only: true, columns: true, featureX: call });
-  const tab = ui.locator('#projectTabs .tasktab:not(.active) .name');
+  const tab = ui.locator('#projectTabs [role="tab"]:not([aria-selected="true"])');
   const name = await tab.textContent();
   await tab.dispatchEvent('dblclick');
   await expect(ui.locator('#taskrename')).toHaveAttribute('data-state', 'open');
@@ -298,7 +298,7 @@ test('menus: one longer than the window has stays in it and scrolls', async ({ u
   // above. Any menu: ☰'s here.
   await ui.locator('#windowMenu').click();
   await menuRows(ui);
-  await menu(ui).evaluate((m) => { const row = m.querySelector('.item'); for (let i = 0; i < 60; i++) m.append(row.cloneNode(true)); }); // as many rows as thirty closed tasks and more
+  await menu(ui).evaluate((m) => { const row = m.querySelector('[role="menuitem"]'); for (let i = 0; i < 60; i++) m.append(row.cloneNode(true)); }); // as many rows as thirty closed tasks and more
   expect(await menu(ui).evaluate((m) => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => {
     const b = m.getBoundingClientRect();
     r([b.top >= 0, b.bottom <= innerHeight, m.scrollHeight > m.clientHeight]);
@@ -319,8 +319,8 @@ test("tasks: the bar's + with several projects — a click on a project makes it
   await expect.poll(async () => (await on()) && core((k) => !!k.shell.pty), { timeout: 10000 }).toBe(true);
   await notLoading(ui);
   const tasks2 = () => core((k, id) => k.shell.store.tasksOf(k.shell.store.projects().find((x) => x.id === id)).list.length, made.id);
-  const open = ui.locator('.menu[data-state="open"]');
-  const trigger = (name: string) => open.first().locator('[role="menuitem"][aria-haspopup]').filter({ has: ui.locator('.label', { hasText: new RegExp(`^${RegExp.escape(name)}$`) }) });
+  const open = ui.locator('[role="menu"][data-state="open"]');
+  const trigger = (name: string) => open.first().getByRole('menuitem', { name, exact: true }).and(ui.locator('[aria-haspopup]'));
 
   // A left release on the project row itself makes a new task of it and closes the menu (its tasks still open on hover).
   await plusMenu(ui);
@@ -332,14 +332,14 @@ test("tasks: the bar's + with several projects — a click on a project makes it
   // Each task row carries a 🗑 that deletes the task after the Delete Task… question (Cancel keeps it).
   await core((k) => { k.answer = false; });
   await plusMenu(ui);
-  const fx = () => open.last().locator('[role="menuitem"]').filter({ has: ui.locator('.label', { hasText: /^Feature-X$/ }) });
+  const fx = () => open.last().getByRole('menuitem', { name: 'Feature-X', exact: true });
   await expect(async () => {
     if ((await open.count()) < 2) { await ui.mouse.move(0, 0); await trigger('project').hover(); }
     await expect(fx()).toBeVisible({ timeout: 500 });
   }).toPass({ timeout: 5000 });
-  await expect(fx().locator('.remove'), 'a task row has a 🗑').toHaveCount(1);
+  await expect(fx().locator('[aria-label="Delete Task…"]'), 'a task row has a 🗑').toHaveCount(1);
   await fx().hover();
-  await fx().locator('.remove').click();
+  await fx().locator('[aria-label="Delete Task…"]').click();
   expect((await asked(core)).message).toBe('Delete the task Feature-X?');
   await expect(ui.locator('#ask[data-state="open"]')).toHaveCount(0);
 

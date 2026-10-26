@@ -5,7 +5,7 @@ import path from 'path';
 import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
 import type { data } from './data.ts';
-import { SITE, PORT, MAC, WIN, near, who, menu, menuRows, choose, closeMenu, taskMenu, manageProfiles, closeSettings, setProfileField, plusMenu, closeBoard, viewOn, invoke } from './helpers.ts';
+import { SITE, PORT, MAC, WIN, near, who, menu, anyMenu, item, menuRows, choose, closeMenu, taskMenu, manageProfiles, closeSettings, setProfileField, plusMenu, closeBoard, viewOn, invoke } from './helpers.ts';
 import { profileId, deleteProfile } from './tasks-helpers.ts';
 
 type Files = ReturnType<typeof data>;
@@ -43,10 +43,10 @@ test('Kulisa zoom: Ctrl+= outside the pages scales the whole UI, pages follow, p
   await expect(ui.locator('#zoomReset')).toBeVisible();
   await ui.locator('#windowMenu').click();
   expect((await menuRows(ui)).slice(0, 6)).toEqual(['zoom', 'theme', 'bar', 'Language', '-', '# Arrange panels']);
-  await expect(menu(ui).locator('.zoomrow output')).toHaveText('110%');
-  await menu(ui).locator('.zoomrow .in').click(); // − 110% + in the menu, as in Chrome
+  await expect(menu(ui).getByTestId('zoom-row').locator('output')).toHaveText('110%');
+  await menu(ui).getByRole('menuitem', { name: 'Zoom in' }).click(); // − 110% + in the menu, as in Chrome
   await expect.poll(async () => near(await uiZoom(core), 1.25)).toBe(true);
-  await expect(menu(ui).locator('.zoomrow output')).toHaveText('125%');
+  await expect(menu(ui).getByTestId('zoom-row').locator('output')).toHaveText('125%');
   await expect(menu(ui), 'the menu stays open for more clicks').toBeVisible();
   await closeMenu(ui);
   await expect.poll(() => viewOn(core, ui, files, 'Sam.admin')).toBe(true);
@@ -89,7 +89,7 @@ test('the window\'s minimum follows the Kulisa zoom; a window at the minimum gro
   // A task shown: New Project… in the bar's + dropdown; the empty window: the board's own button.
   if (await ui.locator('#newTask').count()) {
     await plusMenu(ui);
-    await ui.locator('.menu[data-state="open"] [role="menuitem"]').filter({ has: ui.locator('.label', { hasText: /^New Project…$/ }) }).click();
+    await item(ui, 'New Project…', anyMenu(ui)).click();
   } else await ui.locator('#boardnewproject').click();
   await expect(ui.locator('#newproject')).toHaveAttribute('data-state', 'open');
   await expect(ui.locator('#npname')).toHaveCount(1);
@@ -108,7 +108,7 @@ test('the window\'s minimum follows the Kulisa zoom; a window at the minimum gro
     });
     expect(fits, from).toEqual({ create: true, browse: from === 'folder' ? null : true });
   }
-  await ui.locator('#newproject .x').click();
+  await ui.locator('#newproject').locator('header').getByRole('button', { name: 'Close' }).click();
   await expect(ui.locator('#newproject[data-state="open"]')).toHaveCount(0);
   await closeBoard(ui);
   await core((k, s) => k.shell.win.setSize(s[0], s[1]), size);
@@ -128,7 +128,7 @@ test('page zoom: Ctrl+= in a page zooms that site in that profile only, shows on
   await expect.poll(async () => near(await core((k, id) => k.profile('Sam.admin').get(id).wc.getZoomFactor(), other), 1.25 * 1.1), { timeout: 3000 }).toBe(true);
   await core((k, id) => k.profile('Sam.admin').get(id).wc.close(), other);
   for (const z of await core((k) => k.profile('Elon.buyer').tabs.map((t) => t.wc.getZoomFactor()))) expect(near(z, 1.25), 'other profiles keep the Kulisa zoom').toBe(true);
-  const shown = ui.locator(`.pane[data-profile="${sam}"] .zoom`);
+  const shown = ui.locator(`[role="region"][data-profile="${sam}"]`).getByTitle(/^This site's zoom/);
   await expect(shown).toHaveText('110%');
   const saved = JSON.parse(fs.readFileSync(files.pfile('profiles.json'), 'utf8')).find((p: { id: string }) => p.id === sam);
   expect(saved.zoom).toEqual({ [`127.0.0.1:${PORT}`]: 1.1 });
@@ -169,20 +169,20 @@ test('close a profile (its × or the agent) and open it again (👥 or the agent
   const saved = (f: string): { id: string; closed?: boolean }[] => JSON.parse(fs.readFileSync(files.pfile(f), 'utf8'));
   await call('profile_create', { name: 'Cleo' });
   const cleo = await profileId(core, 'Cleo');
-  const header = ui.locator(`.ptab[data-panel="profile:${cleo}"]`);
+  const header = ui.locator(`[data-panel="profile:${cleo}"]`);
   const { dir: cleoDir, cookies: cookiesFile, avatar } = await core((k) => { const p = k.profile('Cleo'); return { dir: p.dir, cookies: k.shell.sessionCookies.file(p), avatar: p.avatar }; });
   await call('browser_navigate', { profile: 'Cleo', url: `${SITE}/app/login?name=cleo` }); // a session cookie
   await call('browser_tab_new', { profile: 'Cleo', url: `${SITE}/app?second` });
   // Its tabs' pages kept to look at once they are gone.
   await core((k) => { k.stash.cleoTabs = k.profile('Cleo').tabs.map((t) => t.wc); });
-  await expect(header.locator('.close')).toHaveCount(1);
+  await expect(header.getByRole('button', { name: 'Close profile' })).toHaveCount(1);
   const cacheSize = () => core((k, d) => k.electron.session.fromPath(d).getCacheSize(), cleoDir);
 
   expect(await cacheSize(), 'pages were cached').toBeGreaterThan(0);
   // A site's Cache API (its service worker's copies of its bundles) was the largest part of a closed copy: 200 MB for Teams.
   await core((k) => k.stash.cleoTabs[1].executeJavaScript(`caches.open('bundles').then((c) => c.put('/bundle.js', new Response('x'.repeat(100000))))`));
   await expect.poll(() => cacheStorageFiles(cleoDir)).toBeGreaterThan(0);
-  await header.locator('.close').click();
+  await header.getByRole('button', { name: 'Close profile' }).click();
   await expect.poll(() => core((k, id) => !k.shell.profiles.has(id) && k.stash.cleoTabs.every((wc: Electron.WebContents) => wc.isDestroyed()), cleo)).toBe(true);
   await expect.poll(cacheSize).toBe(0); // a closed profile keeps no cache
   await expect.poll(() => cacheStorageFiles(cleoDir)).toBe(0);
@@ -196,7 +196,7 @@ test('close a profile (its × or the agent) and open it again (👥 or the agent
   expect((await ui.evaluate((id) => (window as any).act('tab:new', { profile: id }), cleo)).error).toMatch(/Profile "Cleo" is closed/);
 
   // Open again from the task's tab's menu: a closed one says so.
-  const cleoRow = () => menu(ui).locator('.item').filter({ has: ui.locator('.label', { hasText: /^Cleo$/ }) });
+  const cleoRow = () => item(ui, 'Cleo');
   await taskMenu(ui);
   await expect(cleoRow().locator('small')).toHaveText('closed · click to open');
   await choose(ui, 'Cleo');
@@ -288,12 +288,12 @@ test('closing the last tab of a profile leaves an empty tab, not a pane without 
   await deleteProfile(core, ui, 'Solo');
   await call('profile_create', { name: 'Solo' });
   const solo = await profileId(core, 'Solo');
-  const tabs = ui.locator(`.pane[data-profile="${solo}"] .tabs .tab`);
+  const tabs = ui.locator(`[role="region"][data-profile="${solo}"] [role="tab"]`);
   for (const by of ['window', 'agent'] as const) {
     const only = await core((k) => k.profile('Solo').tabs[0].id);
     await call('browser_navigate', { profile: 'Solo', url: `${SITE}/app` });
-    await expect(tabs.locator('.x')).toHaveCount(1);
-    if (by === 'window') await tabs.locator('.x').click();
+    await expect(tabs.getByTitle('Close tab')).toHaveCount(1);
+    if (by === 'window') await tabs.getByTitle('Close tab').click();
     else await call('browser_tab_close', { profile: 'Solo', tab: await core((k) => k.profile('Solo').active) });
     await expect.poll(() => core((k, was) => { const p = k.profile('Solo'); return p.tabs.length === 1 && p.tabs[0].id !== was && p.active === p.tabs[0].id; }, only)).toBe(true);
     expect(await core((k) => k.profile('Solo').get().view.getVisible()), 'its page is shown').toBe(true);

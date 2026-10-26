@@ -20,7 +20,7 @@ test("the empty window: Close All Tasks in the project's submenu; links in ☰ o
 
   expect((await projectMenu(ui, 'Close All Tasks')).slice(-2)).toEqual(['-', 'Close All Tasks']);
   await expect.poll(() => core((k) => k.shell.task === null && !k.shell.current)).toBe(true);
-  await expect(ui.locator('html')).toHaveClass(/\bnoproject\b/);
+  await expect(ui.locator('html')).toHaveAttribute('data-noproject');
   await ui.locator('#windowMenu').click();
   const links = await menuRows(ui) as string[];
   expect(links.slice(links.indexOf('Documentation'), links.indexOf('Documentation') + 3)).toEqual(['Documentation', 'GitHub', 'Report a Problem…']);
@@ -78,9 +78,9 @@ test("the empty window: Close All Tasks in the project's submenu; links in ☰ o
     await core((k, s) => k.shell.win.setContentSize(s[0], s[1]), size);
     await ui.locator('#tourskip').click();
     await expect(ui.locator('#npname')).toBeFocused();
-    expect(await ui.evaluate(() => [document.querySelector('#welcome h1').textContent, document.querySelectorAll('#welcome .dots .on').length,
-      !!document.querySelector('#welcome .steps')]), "a question, not the steps' names").toEqual(['Where is the code?', 1, false]);
-    expect(await ui.evaluate(() => document.getElementById('npcreate').textContent === 'Next' && getComputedStyle(document.querySelector('#welcome .box')).backgroundColor === (() => {
+    expect(await ui.evaluate(() => [document.querySelector('#welcome h1').textContent, document.querySelectorAll('#welcome [data-on]').length,
+      !!document.querySelector('#welcome [aria-current="step"]')]), "a question, not the steps' names").toEqual(['Where is the code?', 1, false]);
+    expect(await ui.evaluate(() => document.getElementById('npcreate').textContent === 'Next' && getComputedStyle(document.getElementById('npform').parentElement).backgroundColor === (() => {
       const i = document.body.appendChild(document.createElement('i')); i.style.background = 'var(--island)'; const c = getComputedStyle(i).backgroundColor; i.remove(); return c;
     })()), "an island's, as a dialog's").toBe(true);
     // Code from the disk or a URL: one folder or one URL, in a field, not a list (the others later, in Settings); its
@@ -144,7 +144,7 @@ test("the empty window: Close All Tasks in the project's submenu; links in ☰ o
     await ui.locator('#npbrowse').click();
     await expect(ui.locator('#nplocation')).toHaveValue(made);
   } finally { await core((k) => { k.electron.dialog.showOpenDialog = k.stash.open; }); }
-  const step = () => ui.evaluate(() => document.querySelector('#newproject .steps [aria-current="step"]')?.textContent.slice(1));
+  const step = () => ui.evaluate(() => document.querySelector('#newproject [aria-current="step"]')?.textContent.slice(1));
   // A folder there already would be taken as it is (the form says so as it is typed); a file is refused at Next.
   await typeIn(ui, '#npname', 'Taken');
   await expect(ui.locator('#npwhere')).toHaveText(`${path.join(made, 'Taken')} is there already: the project takes it as it is, its files kept`);
@@ -179,8 +179,8 @@ test("the empty window: Close All Tasks in the project's submenu; links in ☰ o
   await expect.poll(step).toBe('Profiles');
   await expect(ui.locator('#npcreate')).toHaveText('Create');
   await ui.locator('#npprofileadd').click();
-  await ui.locator('.npprofile input').nth(0).fill('Shop-buyer');
-  await ui.locator('.npprofile input').nth(1).fill('buys things');
+  await ui.locator('#npprofilestep').getByRole('textbox', { name: 'Name' }).fill('Shop-buyer');
+  await ui.locator('#npprofilestep').getByRole('textbox', { name: 'Who it is' }).fill('buys things');
   await core((k) => { k.asked.length = 0; });
   await ui.evaluate(() => (document.getElementById('npform') as HTMLFormElement).requestSubmit());
   const shopDir = path.join(made, 'Shop');
@@ -203,7 +203,7 @@ test("the empty window: Close All Tasks in the project's submenu; links in ☰ o
   expect(logged, 'what is typed into a terminal is never logged').not.toMatch(/pty:in/);
   expect(await core((k, id) => { const p = k.shell.store.projects().find((x) => x.id === id); return [p.color, p.agents ?? null]; }, shopId)).toEqual([color, null]);
   // No favicon in its code: the curtain, in the next free color, the window's too.
-  await expect(projectTab(ui, files, 'shop').locator('.picon use')).toHaveAttribute('href', '#i-logo');
+  await expect(projectTab(ui, files, 'shop').locator('[data-testid="project-icon"] use')).toHaveAttribute('href', '#i-logo');
   expect(await ui.evaluate(() => document.documentElement.style.getPropertyValue('--project'))).toBe(color);
   // Its glow comes softly, in its color, a blot changing its shape (three soft spots, each its own pace: App.vue).
   await expect.poll(() => ui.evaluate(() => getComputedStyle(document.getElementById('glow')).opacity)).toBe('1');
@@ -215,7 +215,7 @@ test("the empty window: Close All Tasks in the project's submenu; links in ☰ o
   await plusMenu(ui, 'project', 'task-1'); // a closed task in the bar's +: its group opens again on it
   await expect.poll(() => core((k, f) => k.shell.current?.folder === f && k.shell.task?.name === 'task-1' && !!k.shell.task.loaded && !!k.shell.pty, files.project)).toBe(true);
   await core((k) => k.watchPty(k.shell.pty));
-  await expect(ui.locator('html')).not.toHaveClass(/\bnoproject\b/);
+  await expect(ui.locator('html')).not.toHaveAttribute('data-noproject');
   await notLoading(ui);
   await bothOn(core, ui, files);
   // Feature-X, closed with the others, opened again from the +.
@@ -227,14 +227,14 @@ test("the empty window: Close All Tasks in the project's submenu; links in ☰ o
   expect(await projectTabs(ui, files)).toEqual(['shop', 'project *', 'project']);
   // Another project's task: a click shows it.
   const shopTask = files.tkey('shop', 1);
-  await ui.locator(`#projectTabs .tasktab[data-task="${shopTask}"]`).click();
+  await ui.locator(`#projectTabs [data-task="${shopTask}"]`).click();
   await expect.poll(() => core((k, a) => k.shell.current?.id === a.id && k.shell.task?.key === a.task && !!k.shell.task.loaded && !k.shell.windows[0].switching, { id: shopId, task: shopTask })).toBe(true);
   await notLoading(ui);
   expect(await projectTabs(ui, files)).toEqual(['shop *', 'project', 'project']);
   await showProject(ui, files, 'project');
   await expect.poll(() => core((k, id) => k.shell.current?.id === id && !!k.shell.task.loaded, files.pid('project'))).toBe(true);
   // A tab in the background has its × too: the last one of its project lets the project go.
-  await ui.locator(`#projectTabs .tasktab[data-task="${shopTask}"] .close`).click();
+  await ui.locator(`#projectTabs [data-task="${shopTask}"] [aria-label="Close"]`).click();
   await expect.poll(() => core((k, id) => !k.shell.open.has(id), shopId)).toBe(true);
   expect(await core((k) => k.shell.current?.id), 'the shown project stays').toBe(files.pid('project'));
 

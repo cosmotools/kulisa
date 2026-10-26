@@ -180,7 +180,7 @@ test('agent: keys, hover, select, files, waiting, evaluate, back and forward; di
   const del = { ...p, locator: "getByRole('button', { name: 'Delete' })" };
   // The agent's action answers its own dialog: none is shown.
   const view = () => core((k) => k.profile('Sam.seller').get().view.getVisible());
-  const pane = ui.locator(`.pane[data-profile="${sam}"]`), paneDialog = pane.locator('.pagedialog');
+  const pane = ui.locator(`[role="region"][data-profile="${sam}"]`), paneDialog = pane.getByRole('dialog');
   const dialogOpen = () => paneDialog.evaluateAll((ds) => ds.some((d) => (d as HTMLElement).dataset.state === 'open'));
   expect((await call('browser_click', del)).text).toMatch(/asked: confirm "Delete the draft\?"; dismissed/);
   expect(await out()).toBe('kept');
@@ -195,27 +195,27 @@ test('agent: keys, hover, select, files, waiting, evaluate, back and forward; di
   };
   await ask("confirm('Yours?\\nReally.')");
   await expect(paneDialog.locator('h2')).toHaveText(`127.0.0.1:${PORT} says`);
-  await expect(paneDialog.locator('.message')).toHaveText('Yours?\nReally.');
-  await expect(paneDialog.locator('.cancel')).toHaveCount(1); // a confirm has Cancel
+  await expect(paneDialog.getByText(/^Yours\?/)).toHaveText('Yours?\nReally.');
+  await expect(paneDialog.getByRole('button', { name: 'Cancel' })).toHaveCount(1); // a confirm has Cancel
   expect(await view(), 'the page drawn as a picture under its dialog').toBe(false);
   // The page does nothing until it is answered: the agent's tools say so at once rather than wait.
   await expect(call('browser_snapshot', p)).rejects.toThrow(/shows a confirm \("Yours\?\nReally\."\) for the human to answer/);
-  expect(await pane.locator('.content').evaluate((c: HTMLElement) => c.style.getPropertyValue('--picture'))).toMatch(/^url\("data:image\/jpeg/);
+  expect(await pane.getByTestId('page').evaluate((c: HTMLElement) => c.style.getPropertyValue('--picture'))).toMatch(/^url\("data:image\/jpeg/);
   // Gone from the pane, and the answer in the main process (it goes there after the pane has closed it).
   const closed = () => expect.poll(async () => !(await dialogOpen()) && await core((k) => !k.profile('Sam.seller').get().dialog)).toBe(true);
-  await paneDialog.locator('.primary').click();
+  await paneDialog.getByRole('button', { name: 'OK' }).click();
   await closed();
   expect(await out()).toBe('true');
   expect(await view()).toBe(true);
   await ask("confirm('No?')");
-  await paneDialog.locator('.cancel').click();
+  await paneDialog.getByRole('button', { name: 'Cancel' }).click();
   await closed();
   expect(await out()).toBe('false');
   // An alert has OK only. Reloading while a dialog is open dismisses it, as in Chrome (Chromium holds the
   // navigation until then).
   await ask("alert('Saved')");
-  await expect(paneDialog.locator('.cancel')).toHaveCount(0);
-  await pane.locator('.reload').click();
+  await expect(paneDialog.getByRole('button', { name: 'Cancel' })).toHaveCount(0);
+  await pane.locator('[aria-label="Reload"]').click();
   await closed();
   await expect.poll(out).toBe('nothing yet');
   expect(await view()).toBe(true);

@@ -13,7 +13,7 @@ import type { Question } from '../../src/shared/types.ts';
 import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
 import type { Kulisa } from './driver.ts';
-import { SITE, CHECKOUT, MAC, WIN, echoed, holdPointer, ipcSettled, menu, menuRows, choose, closeMenu, rightClick, box, viewOn, focusWindow, closeSettings, termText, invoke } from './helpers.ts';
+import { termTabs, SITE, CHECKOUT, MAC, WIN, echoed, holdPointer, ipcSettled, menu, menuRows, choose, closeMenu, rightClick, box, viewOn, focusWindow, closeSettings, termText, invoke } from './helpers.ts';
 
 const NO_SHOT = 'macOS: the app that started the tests (the terminal) may not record the screen';
 
@@ -69,7 +69,7 @@ test('terminal: Unicode 11 widths (cursor stays put after emoji), bundled font, 
   expect(font.renderer).toBe('webgl');
   // What is left under a whole row is shared above and below the rows.
   const { above, below } = await ui.evaluate(() => {
-    const h = document.querySelector('.term:not([hidden]) .xterm-host').getBoundingClientRect(), r = document.querySelector('.term:not([hidden]) .xterm-screen').getBoundingClientRect();
+    const h = document.querySelector('[data-testid="terminal"] .xterm-host').getBoundingClientRect(), r = document.querySelector('[data-testid="terminal"] .xterm-screen').getBoundingClientRect();
     return { above: r.top - h.top, below: h.bottom - r.bottom };
   });
   expect(Math.abs(above - below) <= 1, `the rows in the middle: ${above} above, ${below} below`).toBe(true);
@@ -101,7 +101,7 @@ test('terminal: one xterm shows the terminal in front; another shown and back ke
   await expect.poll(() => termText(ui)).toContain('shell-marker');
   await expect.poll(() => ui.evaluate(() => (window as any).__term.buffer.active.viewportY)).toBe(5);
   expect(await modes(), 'the modes are back').toEqual(set);
-  await ui.locator(`.termtab[data-id="${sh.id}"] .x`).click();
+  await ui.locator(`nav[aria-label="Terminals"] [data-id="${sh.id}"] [title^="Close"]`).click();
   await expect.poll(() => terminals(core)).toBe(1);
 });
 
@@ -113,7 +113,7 @@ test('terminal: one opened in a hidden window starts at once, at its room: a hid
     const sh = await terminal(core, 'Terminal');
     expect(await core((k) => { const p = (k.shell.task.terminal('Terminal') as TaskTerminal).pty; return { cols: p.cols, rows: p.rows }; })).toEqual(await term(ui));
     // A DOM click: Playwright's waits for frames, which a hidden page does not draw.
-    await ui.evaluate((id) => document.querySelector<HTMLElement>(`.termtab[data-id="${id}"] .x`).click(), sh.id);
+    await ui.evaluate((id) => document.querySelector<HTMLElement>(`nav[aria-label="Terminals"] [data-id="${id}"] [title^="Close"]`).click(), sh.id);
     await expect.poll(() => terminals(core)).toBe(1);
   } finally { await core((k) => k.shell.win.restore()); }
   await expect.poll(() => ui.evaluate(() => document.hidden)).toBe(false);
@@ -124,12 +124,12 @@ test("terminal: dictation where the agent has its own: the right Ctrl held anywh
   await sam(core);
   // The key as Kulisa ships it, whatever an earlier run of this test changed it to.
   await invoke(ui, 'keys:set', { id: 'voice.hold', code: MAC ? 'MetaRight' : 'ControlRight' });
-  const mic = ui.locator('.dictation .mic');
+  const mic = ui.locator('[aria-label="Speak to the agent"]');
   await expect(mic).toBeEnabled();
   // At the row's end, after + and the task's repositories, inside the row: no row of its own.
   const { row, add, m } = await ui.evaluate(() => {
     const r = (s: string) => document.querySelector(s).getBoundingClientRect().toJSON();
-    return { row: r('.termtabs'), add: r('#termAdd'), m: r('.dictation .mic') };
+    return { row: r('[data-testid="terminal-tabs"]'), add: r('#termAdd'), m: r('[aria-label="Speak to the agent"]') };
   });
   expect(m.left > add.right && row.right - m.right <= 12, `at the row's end: ${JSON.stringify({ row, add, m })}`).toBe(true);
   expect(m.top >= row.top && m.bottom <= row.bottom, 'in the row').toBe(true);
@@ -185,7 +185,7 @@ test("terminal: dictation where the agent has its own: the right Ctrl held anywh
   await tap('page');
   await stopped('tap in the page');
   // In the window too (the terminal has the keyboard); the window losing the keyboard lets go.
-  await ui.evaluate(() => document.querySelector<HTMLElement>('.term:not([hidden]) .xterm-helper-textarea').focus());
+  await ui.evaluate(() => document.querySelector<HTMLElement>('[data-testid="terminal"] .xterm-helper-textarea').focus());
   n = await keys();
   await ctrl('win', 'keyDown');
   await recording(n);
@@ -212,11 +212,11 @@ test("terminal: dictation where the agent has its own: the right Ctrl held anywh
   n = await keys();
   await tap('page');
   await recording(n);
-  await expect(ui.locator('.termtab.active .title')).toHaveText('bash');
+  await expect(ui.locator('nav[aria-label="Terminals"] [role="tab"][aria-selected="true"]')).toHaveText('bash');
   await tap('page');
   await stopped('shell in front');
   const human = await terminal(core, 'Terminal');
-  await ui.locator(`.termtab[data-id="${human.id}"] .x`).click();
+  await ui.locator(`nav[aria-label="Terminals"] [data-id="${human.id}"] [title^="Close"]`).click();
   await expect.poll(() => terminals(core)).toBe(1);
   // The human's own key instead (Keyboard Shortcuts: Change, then the key): one that types is refused, saying so; the
   // row, the tooltip and settings.json have the new one, which works at once; the old one is the usual key again.
@@ -226,16 +226,16 @@ test("terminal: dictation where the agent has its own: the right Ctrl held anywh
   await expect(shortcuts).toHaveAttribute('data-state', 'open');
   const hold = shortcuts.locator('dt', { hasText: /^Speak to the agent: hold, or press once and again$/ }).locator('+ dd');
   await expect(hold.locator('kbd')).toHaveText([name]);
-  await hold.locator('.change').click();
+  await hold.getByRole('button', { name: 'Change' }).click();
   await expect(hold.locator('kbd')).toHaveText(['Press a key…']);
   await core((k) => k.press(k.shell.win.webContents, 'A'));
-  await expect(shortcuts.locator('.error')).toHaveText(/^Press a key that types nothing/);
+  await expect(shortcuts.getByRole('alert')).toHaveText(/^Press a key that types nothing/);
   await expect(hold.locator('kbd')).toHaveText([name]);
-  await hold.locator('.change').click();
+  await hold.getByRole('button', { name: 'Change' }).click();
   await core((k) => k.press(k.shell.win.webContents, 'F9'));
   await expect(hold.locator('kbd')).toHaveText(['F9']);
   expect(JSON.parse(fs.readFileSync(path.join(files.userData, 'settings.json'), 'utf8')).keys).toEqual({ 'voice.hold': 'F9' });
-  await shortcuts.locator('.x').click();
+  await shortcuts.locator('header').getByRole('button', { name: 'Close' }).click();
   await expect(mic).toHaveAttribute('title', /hold F9 anywhere/);
   n = await keys();
   await core((k) => { const sam = k.profile('Sam'); sam.focusTab(sam.get()); });
@@ -252,38 +252,38 @@ test("the island: its terminals in tabs over them, one shown, the row apart; + o
   // Named for the instructions to say it, before the agent first connects (the instructions come at its start).
   await core((k) => k.shell.task.rename('task-1'));
   await sam(core);
-  const tabs = () => ui.locator('.termtab').evaluateAll((ts) => ts.map((t) => t.querySelector('.title').textContent + (t.classList.contains('active') ? ' *' : '')));
-  const shown = () => ui.evaluate(() => [...document.querySelectorAll<HTMLElement>('.terminals .term')].filter((t) => !t.hidden).length);
+  const tabs = () => termTabs(ui);
+  const shown = () => ui.evaluate(() => [...document.querySelectorAll<HTMLElement>('[data-testid="terminal"] .xterm')].filter((t) => t.checkVisibility()).length);
   const color = (sel: string) => ui.evaluate((s) => getComputedStyle(document.querySelector(s)).backgroundColor, sel);
   expect((await mcp()).getInstructions()).toMatch(/terminal_run, not in your own shell.*This is the Kulisa task "task-1", working right in the project's folder .* \(no git, so no worktree of its own\)\. Run the app under test on a free port you pick \(Kulisa assigns none\).*Name the task with task_rename once you know what it is about, silently: never ask the human for a name or mention it\. These notes are for you/s);
   expect(await tabs(), "the agent's tab, named after its agent").toEqual(['bash *']);
   // The row is apart from the terminal, as a pane's tabs from its toolbar: the row in a pane's tabs' color, the tab in
   // front in the terminal's, as a pane's active tab in its toolbar's.
-  const row = '.dv-groupview:has(.termtabs) .dv-tabs-and-actions-container';
-  expect(await color(row)).not.toBe(await color('.terminals'));
-  expect(await color('.termtab.active')).toBe(await color('.terminals'));
-  expect([await color(row), await color('.termtab.active')]).toEqual([await color('.pane .tabs'), await color('.pane .tab.active')]);
+  const row = '.dv-groupview:has([data-testid="terminal-tabs"]) .dv-tabs-and-actions-container';
+  expect(await color(row)).not.toBe(await color('[data-testid="terminals"]'));
+  expect(await color('nav[aria-label="Terminals"] [role="tab"][aria-selected="true"]')).toBe(await color('[data-testid="terminals"]'));
+  expect([await color(row), await color('nav[aria-label="Terminals"] [role="tab"][aria-selected="true"]')]).toEqual([await color('[role="region"][data-profile] nav[aria-label="Tabs"]'), await color('[role="region"][data-profile] [role="tab"][aria-selected="true"]')]);
   // + is the island's, not a tab's: its menu has the project's agents (none here) and Terminal.
   await ui.evaluate(() => {
     (window as any).__grew = [];
     new MutationObserver((m) => (window as any).__grew.push(...m.map((x) => (x.target as HTMLElement).dataset.id)))
-      .observe(document.querySelector('.termtabs nav'), { subtree: true, attributeFilter: ['data-opening'] });
+      .observe(document.querySelector('nav[aria-label="Terminals"]'), { subtree: true, attributeFilter: ['data-opening'] });
   });
   await ui.locator('#termAdd').click();
   expect(await menuRows(ui)).toEqual(['Terminal']);
   await choose(ui, 'Terminal');
   await expect.poll(tabs).toEqual(['bash', 'Terminal *']);
   // The new tab grows in, as a pane's (lib/strip.ts), and is left grown.
-  await expect.poll(() => ui.evaluate(() => (window as any).__grew.length === 2 && !document.querySelector('.termtab[data-opening]'))).toBe(true);
+  await expect.poll(() => ui.evaluate(() => (window as any).__grew.length === 2 && !document.querySelector('[role="tab"][data-opening]'))).toBe(true);
   const human = await terminal(core, 'Terminal');
   expect(await core((k) => (k.shell.task.terminal('Terminal') as TaskTerminal).by)).toBe('human');
   // A shell in front: no dictation (it is the shown agent's), the bar kept, its microphone disabled saying why; a pick
   // still goes to the agent shown last.
-  const mic = ui.locator('.dictation .mic');
+  const mic = ui.locator('[aria-label="Speak to the agent"]');
   await expect(mic).toBeDisabled();
   expect(await mic.getAttribute('title')).toBe("Dictation is the agent's: a shell is in front");
   expect(await core((k) => k.shell.task.promptTarget().agent.cli)).toBe('bash');
-  await expect.poll(async () => (await shown()) === 1 && ui.evaluate(() => document.activeElement.closest('.term') !== null)).toBe(true);
+  await expect.poll(async () => (await shown()) === 1 && ui.evaluate(() => document.activeElement.closest('.xterm') !== null)).toBe(true);
 
   // The agent's: its environment (KULISA_TASK), behind (the human watches what is in front), read back as plain text.
   const ready = WIN ? 'echo "ready in $env:KULISA_TASK"; sleep 30' : 'echo "ready in $KULISA_TASK"; sleep 30';
@@ -305,13 +305,13 @@ test("the island: its terminals in tabs over them, one shown, the row apart; + o
   expect(await tabs()).toEqual(['bash', 'Terminal *', 'dev server']);
   // More than fit (36 terminals): the row scrolls, its end faded; each tab its name whole; + and the microphone at its
   // end stay in the island, not cut off past it; its tabs do not shrink to no name.
-  await ui.evaluate(() => { const n = document.querySelector('.termtabs nav'); for (let i = 0; i < 40; i++) n.append(n.querySelector('.termtab').cloneNode(true)); });
-  await expect(ui.locator('.termtabs nav')).toHaveClass(/past-start|past-end/);
+  await ui.evaluate(() => { const n = document.querySelector('nav[aria-label="Terminals"]'); for (let i = 0; i < 40; i++) n.append(n.querySelector('[role="tab"]').cloneNode(true)); });
+  await expect(ui.locator('nav[aria-label="Terminals"][data-past-start], nav[aria-label="Terminals"][data-past-end]')).toHaveCount(1);
   expect(await ui.evaluate(() => {
-    const n = document.querySelector('.termtabs nav'), island = n.closest('.dv-groupview').getBoundingClientRect(), r = (q: string) => document.querySelector(q).getBoundingClientRect();
-    return [n.scrollWidth > n.clientWidth, [...n.querySelectorAll('.name')].every((x) => x.scrollWidth <= x.clientWidth), r('#termAdd').right <= island.right, r('.termtabs .dictation').right <= island.right];
+    const n = document.querySelector('nav[aria-label="Terminals"]'), island = n.closest('.dv-groupview').getBoundingClientRect(), r = (q: string) => document.querySelector(q).getBoundingClientRect();
+    return [n.scrollWidth > n.clientWidth, [...n.querySelectorAll('[role="tab"] [id]')].every((x) => x.scrollWidth <= x.clientWidth), r('#termAdd').right <= island.right, r('[aria-label="Speak to the agent"]').right <= island.right];
   })).toEqual([true, true, true, true]);
-  await ui.evaluate(() => document.querySelectorAll('.termtabs .termtab').forEach((t, i) => { if (i >= 3) t.remove(); }));
+  await ui.evaluate(() => document.querySelectorAll('nav[aria-label="Terminals"] [role="tab"]').forEach((t, i) => { if (i >= 3) t.remove(); }));
   // Stopped: Ctrl+C, the shell stays; the same name again types into it (PowerShell shows no ^C: its answer at once,
   // not after the sleep, says the command stopped).
   await call('terminal_stop', { name: 'dev server' });
@@ -325,7 +325,7 @@ test("the island: its terminals in tabs over them, one shown, the row apart; + o
   await expect.poll(async () => (await call('terminal_read', { name: 'dev server' })).text).toMatch(/^written$/m);
   expect((await call('terminal_read', { name: 'dev server' })).text).not.toMatch(/^(bundle 30%|write)$/m);
   // A click on a tab brings it to the front.
-  await ui.locator(`.termtab[data-id="${dev.id}"]`).click();
+  await ui.locator(`nav[aria-label="Terminals"] [data-id="${dev.id}"]`).click();
   await expect.poll(tabs).toEqual(['bash', 'Terminal', 'dev server *']);
   // Closed by the agent: its tab and its process go; the tab next to it comes to the front.
   const pid = await core((k) => (k.shell.task.terminal('dev server') as TaskTerminal).pty.pid);
@@ -335,7 +335,7 @@ test("the island: its terminals in tabs over them, one shown, the row apart; + o
   // A shell that exits closes its terminal; × closes the human's.
   await call('terminal_run', { name: 'once', command: 'exit' });
   await expect.poll(() => core((k) => !!(k.shell.task.terminal('once') as TaskTerminal).error && k.shell.task.terminals.size === 2)).toBe(true);
-  await ui.locator(`.termtab[data-id="${human.id}"] .x`).click();
+  await ui.locator(`nav[aria-label="Terminals"] [data-id="${human.id}"] [title^="Close"]`).click();
   await expect.poll(() => terminals(core)).toBe(1);
   await expect.poll(tabs).toEqual(['bash *']);
   expect(await core((k) => k.shell.task.promptTarget().pty === k.shell.pty), "the agent's in front again, still running").toBe(true);
@@ -387,21 +387,21 @@ test("icons: each from the sprite (docs/ui.md), drawn there once and in lines of
   await sam(core);
   const r = await ui.evaluate(() => {
     const every = (q: string) => [...document.querySelectorAll(q), ...[...document.querySelectorAll('template')].flatMap((t) => [...t.content.querySelectorAll(q)])];
-    const ids = [...document.querySelectorAll('svg.sprite > symbol')].map((s) => s.id);
-    const icons = every('svg').filter((s) => !s.closest('svg.sprite, .arrange')); // pictures, not icons
-    const add = document.querySelector('.pane .add svg');
+    const ids = [...document.querySelectorAll('#sprite > symbol')].map((s) => s.id);
+    const icons = every('svg').filter((s) => !s.closest('#sprite, [data-testid="arrange-row"]')); // pictures, not icons
+    const add = document.querySelector('[aria-label="New tab"] svg');
     return { ids: ids.length === new Set(ids).size, drawnInPlace: icons.filter((s) => !s.querySelector(':scope > use')).length,
       unknown: icons.map((s) => s.querySelector('use')?.getAttribute('href')).filter((h) => h && !ids.includes(h.slice(1))),
-      unnamed: every('.icon').filter((b) => !b.getAttribute('aria-label') && !(b as HTMLElement).title).map((b) => b.className),
+      unnamed: every('button, [role="button"]').filter((b) => !b.textContent.trim() && !b.getAttribute('aria-label') && !b.getAttribute('aria-labelledby') && !(b as HTMLElement).title).map((b) => b.outerHTML.slice(0, 80)),
       lines: [getComputedStyle(add).fill, getComputedStyle(add).stroke === getComputedStyle(add.closest('button')).color],
-      sprite: document.querySelector('svg.sprite').getBoundingClientRect().height }; // takes no room
+      sprite: document.getElementById('sprite').getBoundingClientRect().height }; // takes no room
   });
   expect(r).toEqual({ ids: true, drawnInPlace: 0, unknown: [], unnamed: [], lines: ['none', true], sprite: 0 });
 });
 
 test("the app icon: in the top bar (not on macOS: the Dock's), and every file the window and the installers use", async ({ ui }) => {
   const img = await ui.evaluate(() => {
-    const i = document.querySelector('#topbar svg.logo'), r = i?.getBoundingClientRect();
+    const i = document.querySelector('[data-testid="title-logo"]'), r = i?.getBoundingClientRect();
     return i && { w: r.width, h: r.height, drawn: !!i.querySelector('use[href="#i-logo"]'), drape: getComputedStyle(i).color, project: getComputedStyle(document.documentElement).getPropertyValue('--project') };
   });
   if (MAC) expect(img, 'macOS apps show their icon in the Dock, not by the window buttons').toBeNull();
@@ -448,11 +448,11 @@ test('UI text is not selectable by dragging, as in a desktop app; fields are; th
   await sam(core);
   const sel = await ui.evaluate(() => {
     const us = (q: string) => getComputedStyle(document.querySelector(q)).userSelect;
-    return { button: us('#newTask'), name: us('.tasktab .name'), tab: us('.tab .title'), header: us('.ptab'), field: us('.addr') };
+    return { button: us('#newTask'), name: us('#projectTabs [role="tab"] [id]'), tab: us('[data-tab] [id]'), header: us('[data-panel^="profile:"]'), field: us('[aria-label="Address"]') };
   });
   expect(sel).toEqual({ button: 'none', name: 'none', tab: 'none', header: 'none', field: 'text' });
   // The arrow over buttons and tabs, as in Chrome, not a web page's hand.
-  expect(await ui.evaluate(() => ['#newTask', '.tasktab', '.tab', '.tabs .add', '.bar .back', '.ptab .close', '#windowMenu'].map((q) => getComputedStyle(document.querySelector(q)).cursor)))
+  expect(await ui.evaluate(() => ['#newTask', '#projectTabs [role="tab"]', '[data-tab]', '[aria-label="New tab"]', '[aria-label="Back"]', '[aria-label="Close profile"]', '#windowMenu'].map((q) => getComputedStyle(document.querySelector(q)).cursor)))
     .toEqual(['default', 'default', 'default', 'default', 'default', 'default', 'default']);
 });
 
@@ -487,7 +487,7 @@ test("the OS buttons' strip shows the top bar under it: dimmed with it under a d
   let dimmed = plain; // the screen catches up with the page a frame later
   await expect.poll(async () => { dimmed = await pixels('buttons-dialog.png'); return dimmed.bar[0] < plain.bar[0]; }).toBe(true);
   expect(near(dimmed), `dimmed as the bar: ${JSON.stringify(dimmed)}`).toBe(true);
-  await ui.locator('#shortcuts .x').click();
+  await ui.locator('#shortcuts').locator('header').getByRole('button', { name: 'Close' }).click();
   await expect(ui.locator('#shortcuts')).toHaveCount(0);
 });
 
@@ -497,12 +497,14 @@ test("theme: Dark by default, Light or System in ☰; the window, the terminal a
   const DARK = 'rgb(30, 31, 34)', LIGHT = 'rgb(255, 255, 255)', TERM = { dark: 'rgb(47, 49, 53)', light: 'rgb(242, 243, 245)' };
   const look = () => ui.evaluate(([dark, light]) => {
     const panel = getComputedStyle(document.querySelector('.dv-groupview')).backgroundColor;
-    // A main button, as a dialog has (none in the page while closed).
-    const b = document.body.appendChild(Object.assign(document.createElement('button'), { className: 'primary' })), onAccent = getComputedStyle(b).color;
+    // A main button's text, as a dialog has (none in the page while closed).
+    const b = document.body.appendChild(document.createElement('i'));
+    b.style.color = 'var(--on-accent)';
+    const onAccent = getComputedStyle(b).color;
     b.remove();
     return { shade: panel === dark ? 'dark' : panel === light ? 'light' : panel, term: (window as any).__term.options.theme.background as string,
-      scheme: getComputedStyle(document.querySelector('.omnibox input, input')).colorScheme,
-      chosen: [...document.querySelectorAll<HTMLElement>('.menu[data-state="open"] .themerow [data-state="checked"]')].map((x) => x.dataset.theme), onAccent };
+      scheme: getComputedStyle(document.querySelector('input')).colorScheme,
+      chosen: [...document.querySelectorAll<HTMLElement>('[role="menu"][data-state="open"] [data-testid="theme-row"] [data-state="checked"]')].map((x) => x.dataset.theme), onAccent };
   }, [DARK, LIGHT]);
   const pageDark = () => core((k) => k.profile('Sam').get().wc.executeJavaScript(`matchMedia('(prefers-color-scheme: dark)').matches`) as Promise<boolean>);
   const osDark = await pageDark();
@@ -516,7 +518,7 @@ test("theme: Dark by default, Light or System in ☰; the window, the terminal a
   expect((await menuRows(ui)).slice(0, 3)).toEqual(['zoom', 'theme', 'bar']);
   expect(await look()).toEqual({ shade: 'dark', term: TERM.dark, scheme: 'dark', chosen: ['dark'], onAccent: LIGHT });
   const pick = async (t: string, shade: 'dark' | 'light') => {
-    await ui.locator(`.menu[data-state="open"] .themerow [data-theme="${t}"]`).click();
+    await ui.locator(`[role="menu"][data-state="open"] [data-theme="${t}"]`).click();
     await expect.poll(async () => { const l = await look(); return { shade: l.shade, term: l.term, chosen: l.chosen[0] }; }).toEqual({ shade, term: TERM[shade], chosen: t });
     await expect(menu(ui), 'the menu stays open: the next one can be tried').toBeVisible();
     expect(saved(), 'saved').toBe(t);
@@ -538,27 +540,27 @@ test("the tasks' bar: under the grid by default; in the title bar, after the log
   // Where the bar is: in the title bar's row between the logo and Settings (top), or under the grid (bottom).
   const where = () => ui.evaluate(() => {
     const r = (q: string) => document.querySelector(q).getBoundingClientRect(), bar = r('#taskbar'), grid = r('#dock'), top = r('#topbar');
-    const inTitle = bar.top >= top.top && bar.bottom <= top.bottom && bar.left >= (document.querySelector('#topbar .logo') ? r('#topbar .logo').right : top.left) && bar.right <= r('#manageProjects').left;
+    const inTitle = bar.top >= top.top && bar.bottom <= top.bottom && bar.left >= (document.querySelector('[data-testid="title-logo"]') ? r('[data-testid="title-logo"]').right : top.left) && bar.right <= r('#manageProjects').left;
     const area = (navigator as any).windowControlsOverlay.getTitlebarAreaRect();
-    return { bar: inTitle ? 'top' : bar.top >= grid.bottom ? 'bottom' : 'elsewhere', drag: (getComputedStyle(document.querySelector('#taskbar .tasktab')) as any).appRegion,
-      above: Math.round(r('.dv-groupview').top - (inTitle ? r('#taskbar .tasktab') : r('#manageProjects')).bottom), // from the title bar's buttons to the panels; from a tab in it, what the bar's 44 px leave under a 36 px tab
+    return { bar: inTitle ? 'top' : bar.top >= grid.bottom ? 'bottom' : 'elsewhere', drag: (getComputedStyle(document.querySelector('#projectTabs [role="tab"]')) as any).appRegion,
+      above: Math.round(r('.dv-groupview').top - (inTitle ? r('#projectTabs [role="tab"]') : r('#manageProjects')).bottom), // from the title bar's buttons to the panels; from a tab in it, what the bar's 44 px leave under a 36 px tab
       edge: Math.round(grid.top - top.bottom), // the grid starts at the title bar's edge: it holds the gap itself
-      over: inTitle ? Math.round(r('#taskbar .tasktab').top - top.top) : 8, // from the window's top to a tab: as under it
+      over: inTitle ? Math.round(r('#projectTabs [role="tab"]').top - top.top) : 8, // from the window's top to a tab: as under it
       // ☰ a gap from the title bar area's end (the OS buttons, or the window's edge on macOS, where the area starts after them)
       end: Math.round(area.x + area.width - r('#windowMenu').right),
-      title: Math.round(top.height), tall: Math.round(r('#taskbar .tasktab').height), // the title bar keeps its height, a tab its own
+      title: Math.round(top.height), tall: Math.round(r('#projectTabs [role="tab"]').height), // the title bar keeps its height, a tab its own
       below: Math.round(innerHeight - (inTitle ? grid : bar).bottom), between: inTitle ? 8 : Math.round(bar.top - grid.bottom), // the window's rows --gap apart (App.vue)
       rows: getComputedStyle(document.body).gridTemplateRows.split(' ').map((px, i) => (i === 1 ? 'grid' : Math.round(parseFloat(px)))), // no row but the title bar, the grid and the bar (a tab and its gap from the grid)
       // The logo, the buttons and the tabs in the middle of its height
-      level: !inTitle || !document.querySelector('#topbar .logo') || Math.abs((r('#topbar .logo').top + r('#topbar .logo').bottom) - (r('#taskbar .tasktab').top + r('#taskbar .tasktab').bottom)) < 2,
-      chosen: [...document.querySelectorAll<HTMLElement>('.menu[data-state="open"] .barrow [data-state="checked"]')].map((b) => b.dataset.bar) };
+      level: !inTitle || !document.querySelector('[data-testid="title-logo"]') || Math.abs((r('[data-testid="title-logo"]').top + r('[data-testid="title-logo"]').bottom) - (r('#projectTabs [role="tab"]').top + r('#projectTabs [role="tab"]').bottom)) < 2,
+      chosen: [...document.querySelectorAll<HTMLElement>('[role="menu"][data-state="open"] [data-testid="bar-row"] [data-state="checked"]')].map((b) => b.dataset.bar) };
   });
   const saved = () => JSON.parse(fs.readFileSync(path.join(files.userData, 'settings.json'), 'utf8')).bar;
   expect((await where()).bar).toBe('bottom');
   for (const bar of ['top', 'bottom']) {
     await ui.locator('#windowMenu').click();
     await menuRows(ui);
-    await ui.locator(`.menu[data-state="open"] .barrow [data-bar="${bar}"]`).click();
+    await ui.locator(`[role="menu"][data-state="open"] [data-bar="${bar}"]`).click();
     await expect.poll(async () => (await where()).bar === bar && saved() === bar).toBe(true);
     expect(await where(), 'one gap: over what is in the title bar and from it to the panels, from the grid to the bar and under it; in the title bar the tabs do not drag the window')
       .toEqual({ bar, drag: bar === 'top' ? 'no-drag' : 'none', above: bar === 'top' ? 4 : 8, over: bar === 'top' ? 4 : 8, end: 8, title: 44, below: 8, between: 8, edge: 0, rows: bar === 'top' ? [44, 'grid', 0] : [44, 'grid', 36 + 8], level: true, tall: 36, chosen: [bar] });
@@ -578,22 +580,23 @@ test('dialogs: one look (title and ×, content, buttons at the bottom right, the
     await choose(ui, row);
   };
   const openers = {
-    taskrename: () => fromMenu('Rename…', '#projectTabs .tasktab .name'),
+    taskrename: () => fromMenu('Rename…', '#projectTabs [role="tab"]'),
     agentpick: () => core((k) => { void k.shell.chooseAgent(k.shell.task, null); }), // asked when a task's agent is not there
     shortcuts: () => fromMenu('Keyboard Shortcuts'),
   };
 
-  await expect(ui.locator('.dialog'), 'none in the page while closed').toHaveCount(0);
+  await expect(ui.locator('[role="dialog"], [role="alertdialog"]'), 'none in the page while closed').toHaveCount(0);
   for (const [id, open] of Object.entries(openers)) {
     await open();
     await expect(dialog(id)).toHaveAttribute('data-state', 'open', { timeout: 20000 });
-    const l = await dialog(id).evaluate((d, i) => ({ id: i, title: !!d.querySelector('header h2'), body: !!d.querySelector('.body'), footer: !!d.querySelector('footer'),
-      last: d.querySelector('footer > button:last-child')?.className }), id);
-    expect(l.title && l.body && /primary|ok/.test(l.last), JSON.stringify(l)).toBe(true);
-    await ui.locator(id === 'agentpick' ? '#agentcancel' : `#${id} .x`).click(); // the agent's choice: Cancel, no ×
+    const l = await dialog(id).evaluate((d, i) => ({ id: i, title: !!d.querySelector('header h2'), body: !!d.querySelector(':scope > header ~ :not(footer)'), footer: !!d.querySelector('footer'),
+      last: (() => { const b = d.querySelector('footer > button:last-child'), i = d.appendChild(document.createElement('i')); i.style.color = 'var(--accent)';
+        const accent = getComputedStyle(i).color; i.remove(); return !!b && getComputedStyle(b).backgroundColor === accent; })() }), id);
+    expect(l.title && l.body && l.last, `the main button last, in the accent: ${JSON.stringify(l)}`).toBe(true);
+    await (id === 'agentpick' ? ui.locator('#agentcancel') : ui.locator(`#${id}`).locator('header').getByRole('button', { name: 'Close' })).click(); // the agent's choice: Cancel, no ×
     await expect(ui.locator(`#${id}[data-state="open"]`)).toHaveCount(0);
   }
-  await expect(ui.locator('.dialog')).toHaveCount(0);
+  await expect(ui.locator('[role="dialog"], [role="alertdialog"]')).toHaveCount(0);
 
   // A question before deleting: the title, what goes line by line, Cancel (focused) and a red Delete at the right.
   await core((k) => { k.answer = null; }); // the test answers
@@ -605,16 +608,16 @@ test('dialogs: one look (title and ×, content, buttons at the bottom right, the
   await asking({ message: 'Delete the thing?', ok: 'Delete', danger: true, detail: 'Deleted for good:\n• a\n• b' });
   await expect(ask).toHaveAttribute('data-state', 'open');
   const q = await ask.evaluate((d) => {
-    const r = (s: string) => d.querySelector(s).getBoundingClientRect(), ok = d.querySelector('.ok');
-    return { title: d.querySelector('h2').textContent, lines: d.querySelector<HTMLElement>('.detail').innerText.split('\n').length, ok: ok.textContent,
-      order: r('header').bottom <= r('.body').top && r('.body').bottom <= r('footer').top, right: Math.round(r('footer').right - ok.getBoundingClientRect().right),
+    const r = (s: string) => d.querySelector(s).getBoundingClientRect(), ok = d.querySelector('footer > button:last-child'), body = document.getElementById(d.getAttribute('aria-describedby'));
+    return { title: d.querySelector('h2').textContent, lines: body.innerText.split('\n').length, ok: ok.textContent,
+      order: r('header').bottom <= body.parentElement.getBoundingClientRect().top && body.parentElement.getBoundingClientRect().bottom <= r('footer').top, right: Math.round(r('footer').right - ok.getBoundingClientRect().right),
       focused: document.activeElement.textContent };
   });
   expect(q).toEqual({ title: 'Delete the thing?', lines: 3, ok: 'Delete', order: true, right: 16, focused: 'Cancel' });
-  await expect(ask.locator('.ok'), 'red').toHaveCSS('background-color', 'rgb(201, 79, 79)');
+  await expect(ask.locator('footer > button:last-child'), 'red').toHaveCSS('background-color', 'rgb(201, 79, 79)');
   // Its buttons answer the hand: lit under the pointer, another color while pressed (still, they look dead).
   const bg = (sel: string) => ui.locator(sel).evaluate((e) => getComputedStyle(e).backgroundColor);
-  for (const sel of ['#ask footer button:not(.ok)', '#ask .ok']) {
+  for (const sel of ['#ask footer > button:first-child', '#ask footer > button:last-child']) {
     const b = await box(ui, sel), at = { x: b.x + b.width / 2, y: b.y + b.height / 2 };
     const still = await bg(sel);
     await ui.mouse.move(at.x, at.y);
@@ -637,12 +640,12 @@ test('dialogs: one look (title and ×, content, buttons at the bottom right, the
   await core((k) => { k.stash.second = k.shell.ask({ message: 'Delete the other?', ok: 'Delete', danger: true }); });
   await expect(ask).toHaveAttribute('data-state', 'open');
   await expect(ask.locator('h2')).toHaveText('Initialize it?');
-  await expect(ask.locator('.ok'), 'blue').toHaveCSS('background-color', 'rgb(53, 116, 240)');
-  await ask.locator('.ok').click();
+  await expect(ask.locator('footer > button:last-child'), 'blue').toHaveCSS('background-color', 'rgb(53, 116, 240)');
+  await ask.locator('footer > button:last-child').click();
   expect(await answer()).toBe(true);
   await expect(ask).toHaveAttribute('data-state', 'open');
   await expect(ask.locator('h2')).toHaveText('Delete the other?');
-  await ask.locator('.cancel').click();
+  await ask.getByRole('button', { name: 'Cancel' }).click();
   expect(await core((k) => k.stash.second as Promise<boolean | 'other'>), 'Cancel says no').toBe(false);
 });
 
@@ -660,13 +663,13 @@ test("About Kulisa (☰; on macOS the app menu's) is a page of Settings: the ver
     const s = await sui();
     await expect(s.locator('#pjlist [data-page="about"]')).toHaveAttribute('aria-selected', 'true');
     await expect(s.locator('#abconfig')).toBeVisible();
-    await expect(s.locator('#aboutpage .who')).toBeAttached();
+    await expect(s.locator('#aboutpage h3').first()).toBeAttached();
     return s;
   };
   const s = await shown();
   expect(await core((k) => k.shell.settings.win.getTitle()), "a page of Settings, as Chrome's About").toBe('Settings — Kulisa');
-  const a = await s.locator('#aboutpage').evaluate((d) => ({ title: d.querySelector('.who h3').textContent, line: [...d.querySelectorAll('.who .hint')].map((p) => p.textContent).join(' / '),
-    folders: [...d.querySelectorAll<HTMLElement>('.paths dd')].map((dd) => ({ id: dd.dataset.folder, path: dd.querySelector('.path').textContent, missing: dd.classList.contains('missing'), disabled: dd.querySelector<HTMLButtonElement>('.show').disabled })) }));
+  const a = await s.locator('#aboutpage').evaluate((d) => ({ title: d.querySelector('h3').textContent, line: [...d.querySelector('h3').parentElement.querySelectorAll('p')].map((p) => p.textContent).join(' / '),
+    folders: [...d.querySelectorAll<HTMLElement>('dd[data-folder]')].map((dd) => ({ id: dd.dataset.folder, path: dd.firstElementChild.textContent, missing: dd.hasAttribute('data-missing'), disabled: dd.querySelector<HTMLButtonElement>('[aria-label="Show"]').disabled })) }));
   expect(a.title).toBe(`Kulisa ${pkg.version}`);
   const versions = await core(() => ({ electron: process.versions.electron, chrome: process.versions.chrome }));
   expect(a.line).toBe(`Electron ${versions.electron} · Chromium ${versions.chrome} / kulisa.app · GPL-3.0-or-later`);
@@ -680,7 +683,7 @@ test("About Kulisa (☰; on macOS the app menu's) is a page of Settings: the ver
     e.shell.openPath = async (dir: string) => { g.shownDirs.push(dir); return ''; };
   });
   try {
-    await s.locator('#aboutpage dd[data-folder="data"] .show').click();
+    await s.locator('#aboutpage dd[data-folder="data"]').getByRole('button', { name: 'Show' }).click();
     await expect.poll(() => core((k) => k.stash.shownDirs.length)).toBe(1);
   } finally { await main(kulisa, (e, k) => { e.shell.openPath = k.stash.openPath; }); }
   expect(await core((k) => k.stash.shownDirs)).toEqual([files.userData]);

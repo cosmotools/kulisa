@@ -3,7 +3,7 @@
 // two, and flies over to the new one while it reads the conversation (task_history: handover:read, its real progress);
 // its tab, in front under the dialog, is shown once it has read it all, or at once when it needs the human or stops
 // reading: a dialog that never waits for an agent waiting for the human. Show now any time.
-import { computed, ref, watch } from 'vue';
+import { computed, ref, useId, watch } from 'vue';
 import { DialogClose, RadioGroupIndicator, RadioGroupItem, RadioGroupRoot } from 'reka-ui';
 import Modal from './Modal.vue';
 import Icon from './Icon.vue';
@@ -69,6 +69,7 @@ const progress = computed(() => {
   const who = parts(to.value.name).agent;
   return read.value ? `${who} is reading “${from.value?.name}”: part ${read.value.part} of ${read.value.parts}` : `${who} is starting…`;
 });
+const uid = useId(); // a choice's name is its agent's, not the line beside it
 </script>
 
 <template>
@@ -99,12 +100,12 @@ const progress = computed(() => {
     </div>
     <RadioGroupRoot v-model="chosen" class="choose" aria-label="Agent" :disabled="going">
       <label v-for="a in agents" :key="a.id" class="item" :data-agent="a.id">
-        <RadioGroupItem class="radio" :value="a.id"><RadioGroupIndicator /></RadioGroupItem>
-        <Icon :name="agentMark(a.cli)!" /><span class="label">{{ a.name }}</span>
+        <RadioGroupItem class="radio" :value="a.id" :aria-labelledby="`${uid}-${a.id}`"><RadioGroupIndicator /></RadioGroupItem>
+        <Icon :name="agentMark(a.cli)!" /><span :id="`${uid}-${a.id}`" class="label">{{ a.name }}</span>
         <small v-if="a.id === from?.agent?.account">this one, afresh</small>
       </label>
     </RadioGroupRoot>
-    <p class="progress" :hidden="!going">{{ progress }}</p>
+    <p class="progress" role="status" :hidden="!going">{{ progress }}</p>
     <p class="error">{{ error }}</p>
     <p class="hint" :hidden="going">It reads this conversation first, then tells you in a few lines what is done and what is next. Its own
       hidden reasoning, permissions given and its account's settings stay behind. This tab stays until you close it.</p>

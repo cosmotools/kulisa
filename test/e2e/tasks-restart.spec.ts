@@ -31,7 +31,7 @@ test('after a restart: the other task waits in the bar with its tabs, loads when
   await notLoading(ui);
 
   const ui2 = await restart();
-  await expect.poll(() => ui2.locator(`#projectTabs .tasktab[data-project="${pid}"] .name`).allTextContents()).toEqual(['task-1', 'Feature-X']);
+  await expect.poll(() => ui2.locator(`#projectTabs [data-project="${pid}"]`).allTextContents()).toEqual(['task-1', 'Feature-X']);
   expect(await core((k, id) => [...k.shell.taskByKey(id).project.tasks.values()][2].entry.closed, first)).toBe(true);
   expect(await core((k, key) => k.shell.taskByKey(key).loaded, second)).toBe(false);
   // Left loaded in the background: its tabs saved as Kulisa quit, not again as they closed (none left at last).
@@ -42,13 +42,13 @@ test('after a restart: the other task waits in the bar with its tabs, loads when
   // Once the first has loaded: a click while the window still builds it is not taken.
   await expect.poll(() => core((k) => !!k.shell.task?.loaded && !k.shell.windows[0].switching)).toBe(true);
   await notLoading(ui2);
-  await ui2.locator(`#projectTabs .tasktab[data-task="${second}"]`).click();
+  await ui2.locator(`#projectTabs [data-task="${second}"]`).click();
   await expect.poll(() => core((k, key) => k.shell.task?.key === key && k.shell.task.loaded && !!k.shell.task.pty, second)).toBe(true);
   expect(await core((k) => k.shell.task.folder)).toBe(`${project}@feature-x`);
   expect(await core((k) => [...k.shell.profiles.keys()])).toEqual([samId, elonId]);
   await call('browser_navigate', { profile: SAM, url: `${SITE}/app` });
   expect(await who(call, SAM), 'its own sign-in to the local app').toBe('Signed in as second');
-  await ui2.locator(`#projectTabs .tasktab[data-task="${first}"]`).click();
+  await ui2.locator(`#projectTabs [data-task="${first}"]`).click();
   await expect.poll(() => core((k, key) => k.shell.task?.key === key, first)).toBe(true);
   await bothOn(core, ui2, files);
 });
@@ -65,11 +65,11 @@ test('after a restart: the grid is as it was left (preset "grid")', async ({ cor
   const ui2 = await restart();
   const saved = files.savedResourcesHeight(); // before anything here changes the grid
   const box = (sel: string) => ui2.evaluate((s) => { const r = document.querySelector(s)?.getBoundingClientRect(); return r ? { x: r.x, width: r.width } : { x: -1, width: 0 }; }, sel);
-  const sam = `.pane[data-profile="${files.idOf(SAM)}"]`, elon = `.pane[data-profile="${files.idOf(ELON)}"]`;
+  const sam = `[role="region"][data-profile="${files.idOf(SAM)}"]`, elon = `[role="region"][data-profile="${files.idOf(ELON)}"]`;
   // Once the grid is laid out: Sam's column, Elon's, the terminal right of them.
   await expect.poll(async () => {
     if (await ui2.locator(`${sam}, ${elon}`).count() !== 2) return false;
-    const s = await box(`${sam} .content`), e = await box(`${elon} .content`), term = await box('.term:not([hidden])');
+    const s = await box(`${sam} [data-testid="page"]`), e = await box(`${elon} [data-testid="page"]`), term = await box('[data-testid="terminal"]');
     return s.width > 0 && s.x < e.x && term.x > e.x + e.width - 1;
   }, { timeout: 10000 }).toBe(true); // a loaded machine takes over 3 s
   expect(Math.abs((await resourcesHeight(ui2)) - saved), 'the Resources island as tall as it was left (dockview rounds its panels as it restores them)').toBeLessThanOrEqual(3);

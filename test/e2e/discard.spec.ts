@@ -30,7 +30,7 @@ test('a tab no one looks at loses its process after the time; the strip and the 
   const board = await newTab(core, `${SITE}/board`), form = await newTab(core, `${SITE}/form`); // form in front, on screen
   await expect.poll(() => core((k, id) => { const t = k.profile('Sam').tabs.find((x) => x.id === id); return t.title === 'board' && !t.loading && !t.pendingUrl; }, board)).toBe(true); // a page still loading is kept
   await idle(core);
-  const strip = ui.locator(`.pane[data-profile="${sam}"] .tabs .tab .title`);
+  const strip = ui.locator(`[role="region"][data-profile="${sam}"] [role="tab"]`);
   const n = await core((k) => k.webContents());
   // The sweep dates what is off screen; nothing goes before the time.
   expect(await sweep(core)).toBe(0);
@@ -54,7 +54,7 @@ test('a tab no one looks at loses its process after the time; the strip and the 
   await age(core, board);
   expect(await sweep(core)).toBe(1);
   await expect.poll(async () => (await tab(core, board)).discarded).toBe(true);
-  await ui.locator(`.pane[data-profile="${sam}"] .tabs .tab[data-tab="${board}"]`).click();
+  await ui.locator(`[role="region"][data-profile="${sam}"] [data-tab="${board}"]`).click();
   await expect.poll(() => core((k) => k.profile('Sam').active)).toBe(board);
   await expect.poll(() => tab(core, board)).toMatchObject({ discarded: false, destroyed: false, url: `${SITE}/board`, loading: false });
   await expect.poll(() => viewOn(core, ui, files, 'Sam')).toBe(true);

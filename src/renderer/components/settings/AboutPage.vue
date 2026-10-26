@@ -32,7 +32,7 @@ watch(() => props.shown, async (s) => { if (s) info.value = await kulisa.invoke(
       <dl class="paths">
         <template v-for="f in info.folders" :key="f.id">
           <dt>{{ FOLDERS[f.id].label }}</dt>
-          <dd :class="{ missing: !f.exists }" :data-folder="f.id">
+          <dd :data-missing="!f.exists || undefined" :data-folder="f.id">
             <span class="path">{{ f.path }}</span>
             <button class="icon show" :disabled="!f.exists" :title="f.exists ? 'Show in your file manager' : 'Not made yet'" aria-label="Show"
               @click="kulisa.invoke('about:show-folder', f.id)"><Icon name="i-folder" /></button>
@@ -56,6 +56,6 @@ watch(() => props.shown, async (s) => { if (s) info.value = await kulisa.invoke(
     dd { display: grid; grid-template-columns: 1fr auto; align-items: center; margin: 0; padding: 4px 0; border-bottom: 1px solid var(--island-hi);
       .path { color: var(--text-strong); overflow-wrap: anywhere; user-select: text; cursor: text; }
       .hint { grid-column: 1 / -1; margin: 0 0 2px; } }
-    .missing .path { color: var(--text-muted); } }
+    [data-missing] .path { color: var(--text-muted); } }
 }
 </style>

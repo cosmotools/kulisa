@@ -13,7 +13,7 @@ const pngSize = (file: string) => { const b = fs.readFileSync(file); return { wi
 // taking it closes a menu just opened: lib/views.ts), as a human opens it again.
 async function openMore(ui: Page, id: string) {
   await expect(async () => {
-    if (!(await menu(ui).isVisible())) await ui.locator(`.pane[data-profile="${id}"] .more`).click();
+    if (!(await menu(ui).isVisible())) await ui.locator(`[role="region"][data-profile="${id}"] [aria-label="More"]`).click();
     await expect(menu(ui)).toBeVisible({ timeout: 1500 });
   }).toPass({ timeout: 10000 });
 }
@@ -21,8 +21,8 @@ async function openMore(ui: Page, id: string) {
 // pointer passing where the submenu is still being placed closes it).
 async function openSub(ui: Page) {
   await expect(async () => {
-    if ((await ui.locator('.menu[data-state="open"]').count()) < 2) await menu(ui).locator('.item[aria-haspopup]').hover();
-    await expect(ui.locator('.menu[data-state="open"]')).toHaveCount(2, { timeout: 1000 });
+    if ((await ui.locator('[role="menu"][data-state="open"]').count()) < 2) await menu(ui).locator('[role="menuitem"][aria-haspopup]').hover();
+    await expect(ui.locator('[role="menu"][data-state="open"]')).toHaveCount(2, { timeout: 1000 });
   }).toPass({ timeout: 10000 });
 }
 
@@ -35,12 +35,12 @@ test('rename keeps the profile, its id, pane and sign-in', async ({ core, ui, ca
   expect(r.id).toBe(id);
   expect(await profileId(core, 'Ren.admin'), 'only its name changed').toBe(id);
   expect(await core((k, p) => k.shell.profiles.get(p).dir, id), 'its copy too').toBe(dir);
-  await expect(ui.locator(`.pane[data-profile="${id}"]`), 'its pane too').toHaveCount(1);
+  await expect(ui.locator(`[role="region"][data-profile="${id}"]`), 'its pane too').toHaveCount(1);
   // Its id beside its new name, so the lines before and after it go together.
   await expect.poll(() => files.log()).toMatch(new RegExp(`\\[profiles\\] ${id} renamed: Ren\\.admin$`, 'm'));
   expect(await who(call, 'Ren.admin')).toBe('Signed in as sam');
-  await expect(ui.locator('.pname', { hasText: /^Ren\.admin$/ })).toHaveCount(1);
-  await expect(ui.locator('.pname', { hasText: /^Ren\.seller$/ })).toHaveCount(0);
+  await expect(ui.getByTestId('profile-name').filter({ hasText: /^Ren\.admin$/ })).toHaveCount(1);
+  await expect(ui.getByTestId('profile-name').filter({ hasText: /^Ren\.seller$/ })).toHaveCount(0);
   await deleteProfile(core, ui, 'Ren.admin');
 });
 
@@ -101,7 +101,7 @@ test("delete a profile in Settings (its page's ⋯, its row's right-click): sign
   await ipcSettled(s);
   expect(await core((k, p) => k.shell.profiles.has(p), tempId), 'nothing is deleted without the confirmation').toBe(true);
   await core((k) => { k.answer = true; });
-  await rightClick(s, `#pjlist [data-profile="${tempId}"] .label`);
+  await rightClick(s, `#pjlist [data-profile="${tempId}"]`);
   await menuRows(s);
   await choose(s, 'Delete Profile…');
   await expect.poll(() => core((k, p) => !k.shell.profiles.has(p) && !k.shell.profileStore.get(p), tempId)).toBe(true);
@@ -122,7 +122,7 @@ test("delete a profile in Settings (its page's ⋯, its row's right-click): sign
   const marked = JSON.parse(fs.readFileSync(path.join(files.userData, 'deleted-folders.json'), 'utf8'));
   expect(marked.slice(-2)).toEqual([files.pfile(tempId), path.join(files.userData, 'profiles', tempId)]);
   await expect(call('browser_snapshot', { profile: 'Temp' })).rejects.toThrow(/No profile "Temp"/);
-  await expect(ui.locator(`.pane[data-profile="${tempId}"]`)).toHaveCount(0);
+  await expect(ui.locator(`[role="region"][data-profile="${tempId}"]`)).toHaveCount(0);
 
   // Same name again: a new id and folder (the old one goes at the next start), signed out.
   const again = await core(async (k) => { const r = await k.shell.task.createProfile('Temp'); if ('error' in r) throw new Error(r.error); return r.id; });
@@ -144,8 +144,8 @@ test('rename in Settings → Profiles: typed, and Enter or leaving the field sav
     for (const type of ['keyDown', 'char', 'keyUp'] as const) wc.sendInputEvent({ type, keyCode: type === 'char' ? '\r' : 'Enter' });
   });
   await expect.poll(() => core((k, p) => k.shell.profiles.get(p).name, elon)).toBe('Elon.shopper');
-  await expect(ui.locator('.pname', { hasText: /^Elon\.shopper$/ })).toHaveCount(1);
-  await expect(ui.locator('.pname', { hasText: /^Elon\.buyer$/ })).toHaveCount(0);
+  await expect(ui.getByTestId('profile-name').filter({ hasText: /^Elon\.shopper$/ })).toHaveCount(1);
+  await expect(ui.getByTestId('profile-name').filter({ hasText: /^Elon\.buyer$/ })).toHaveCount(0);
   await setProfileField(s, 'profilename', 'Elon.buyer');
   await expect.poll(() => core((k, p) => k.shell.profiles.get(p).name, elon)).toBe('Elon.buyer');
   await closeSettings(core, ui, sui);
@@ -172,32 +172,32 @@ test("F12 opens and closes DevTools: a tab's, or Kulisa's own outside the pages"
 
 test("DevTools in a pane's ⋮ menu opens and closes the DevTools of its active tab", async ({ core, ui }) => {
   const id = await core(async (k, url) => (await k.ensureProfile('Sam.admin', url)).id, `${SITE}/app`);
-  const pane = ui.locator(`.pane[data-profile="${id}"]`);
+  const pane = ui.locator(`[role="region"][data-profile="${id}"]`);
   const opened = () => core((k) => k.profile('Sam.admin').get().wc.isDevToolsOpened());
   // ⋮ as tall as the bar's other buttons, its dots upright, its menu open or not: the Details' trigger's rule must
   // not take its height or turn its dots.
-  const looks = () => pane.locator('.bar .icon').evaluateAll((bs) => bs.map((b) => [Math.round(b.getBoundingClientRect().height), getComputedStyle(b.querySelector('svg')).rotate]));
+  const looks = () => pane.locator('[role="toolbar"] button:not([hidden])').evaluateAll((bs) => bs.map((b) => [Math.round(b.getBoundingClientRect().height), getComputedStyle(b.querySelector('svg')).rotate]));
   const closed = await looks();
   expect(closed, 'its menu closed').toEqual(closed.map(() => [closed[0][0], 'none']));
   const click = async () => {
     await openMore(ui, id);
     expect(await menuRows(ui)).toEqual(['Screenshot', 'DevTools']);
     // As Chrome's ⋮: under the button, its right edge at the button's, so it stays over its own pane.
-    const m = await menu(ui).boundingBox(), b = await pane.locator('.more').boundingBox();
+    const m = await menu(ui).boundingBox(), b = await pane.locator('[aria-label="More"]').boundingBox();
     expect(Math.abs(m.x + m.width - (b.x + b.width)) < 1 && m.y >= b.y + b.height, JSON.stringify({ m, b })).toBe(true);
     // Back, forward, reload, Pick and ⋮ are icon buttons, as Chrome's: no border, no text, a name for screen readers.
-    expect(await pane.locator('.bar .icon').evaluateAll((bs) => bs.map((b) => [b.className, b.textContent.trim(), !!b.querySelector('svg'), !!b.ariaLabel, getComputedStyle(b).borderTopWidth])))
-      .toEqual(['back', 'fwd', 'reload', 'pick', 'more'].map((c) => [`${c} icon`, '', true, true, '0px']));
+    expect(await pane.locator('[role="toolbar"] button:not([hidden])').evaluateAll((bs) => bs.map((b) => [b.ariaLabel, b.textContent.trim(), !!b.querySelector('svg'), getComputedStyle(b).borderTopWidth])))
+      .toEqual(['Back', 'Forward', 'Reload', 'Pick an element', 'More'].map((c) => [c, '', true, '0px']));
     expect(await looks(), 'its menu open').toEqual(closed);
     // The same inset from the island's edges for the controls in it; the page reaches its edges (the author's choice).
     const inset = await pane.evaluate((p) => {
       const group = p.closest('.dv-groupview'), island = group.getBoundingClientRect();
-      const header = document.querySelector(`.ptab[data-panel="${group.querySelector<HTMLElement>('.ptab').dataset.panel}"]`);
+      const header = document.querySelector(`[data-panel="${group.querySelector<HTMLElement>('[data-panel]').dataset.panel}"]`);
       const r = (e: Element) => e.getBoundingClientRect();
       const left = (e: Element) => Math.round(r(e).left - island.left), right = (e: Element) => Math.round(island.right - r(e).right);
-      return { avatar: left(header.querySelector('.avatar')), tab: left(p.querySelector('.tab')), back: left(p.querySelector('.back')),
-        page: left(p.querySelector('.content')), close: right(header.querySelector('.close')), more: right(p.querySelector('.more')),
-        pageRight: right(p.querySelector('.content')), pageBottom: Math.round(island.bottom - r(p.querySelector('.content')).bottom) };
+      return { avatar: left(header.querySelector('img')), tab: left(p.querySelector('[role="tab"]')), back: left(p.querySelector('[aria-label="Back"]')),
+        page: left(p.querySelector('[data-testid="page"]')), close: right(header.querySelector('[aria-label="Close profile"]')), more: right(p.querySelector('[aria-label="More"]')),
+        pageRight: right(p.querySelector('[data-testid="page"]')), pageBottom: Math.round(island.bottom - r(p.querySelector('[data-testid="page"]')).bottom) };
     });
     expect(inset).toEqual({ avatar: 8, tab: 8, back: 8, page: 0, close: 8, more: 8, pageRight: 0, pageBottom: 0 });
     await choose(ui, 'DevTools');
@@ -248,7 +248,7 @@ test("a pane's ⋮ → Screenshot takes an element, the visible part or the whol
   expect(fullSize.height > 3000 * dpr - 1, `the whole page (${fullSize.height})`).toBe(true);
   const types = await core(async (k) => (await k.electron.clipboard.read())[0]?.types ?? []);
   expect(types, 'on the clipboard too').toContain('image/png');
-  await expect(ui.locator(`.ptab[data-panel="profile:${id}"] .caption`)).toHaveText('Screenshot copied and saved');
+  await expect(ui.locator(`[data-panel="profile:${id}"] [role="status"]`)).toHaveText('Screenshot copied and saved');
   // The element: its key, then a click on it in the page, as Pick (which reaches the page a moment after it starts:
   // clicked again until it comes, as in Pick's test).
   await core((k) => k.press(k.profile('Sam.admin').get().wc, 'S', k.CMD, 'shift'));
@@ -280,7 +280,7 @@ test("a pane's ⋮ → Screenshot takes an element, the visible part or the whol
   expect(actions, 'not captioned as the agent\'s').not.toContain('screenshot');
   // An empty tab: nothing to take, its rows off.
   const blank = await core((k) => k.profile('Sam.admin').newTab('about:blank').id);
-  await expect(ui.locator(`.pane[data-profile="${id}"] .pick`)).toBeDisabled(); // the window knows it: Pick off too
+  await expect(ui.locator(`[role="region"][data-profile="${id}"] [aria-label="Pick an element"]`)).toBeDisabled(); // the window knows it: Pick off too
   expect(await core((k) => { const p = k.profile('Sam.admin'); return p.screenshot(p.get(), { scale: 'device', type: 'png', by: 'human' }).then(() => 'taken', (e: Error) => e.message); })).toMatch(/is empty/);
   await openMore(ui, id);
   await openSub(ui);
@@ -320,7 +320,7 @@ test('a screenshot shows its thumbnail in its pane\'s corner: a click opens it, 
     // In the pane's bottom right corner, the picture shown in its page, and drawn by the window too.
     const p = await core((k) => k.profile('Sam.admin').bounds), b = t.bounds;
     expect(b.x > p.x && b.y > p.y && b.x + b.width < p.x + p.width && b.y + b.height < p.y + p.height && p.x + p.width - (b.x + b.width) < 40 && p.y + p.height - (b.y + b.height) < 40, JSON.stringify({ p, b })).toBe(true);
-    await expect.poll(() => thumb(`document.querySelector('img').src.startsWith('data:image/png') && document.body.classList.contains('in')`)).toBe(true);
+    await expect.poll(() => thumb(`document.querySelector('img').src.startsWith('data:image/png') && document.body.dataset.state === 'in'`)).toBe(true);
     await expect(shown).toHaveCount(1);
     await thumb(`document.querySelector('img').click()`);
     await expect.poll(did).toContain(`open ${file}`);
@@ -332,7 +332,7 @@ test('a screenshot shows its thumbnail in its pane\'s corner: a click opens it, 
       await thumb(`document.dispatchEvent(new MouseEvent('contextmenu', { clientX: 20, clientY: 10, bubbles: true, cancelable: true })); 0`);
       expect(await menuRows(ui)).toEqual(['Show in Folder', 'Copy', 'Send to Agent', '-', 'Delete', 'Close']);
       await choose(ui, label);
-      await expect(ui.locator('.menu[data-state="open"]')).toHaveCount(0);
+      await expect(ui.locator('[role="menu"][data-state="open"]')).toHaveCount(0);
     };
     await thumbMenu('Show in Folder');
     await expect.poll(did).toContain(`show ${file}`);
@@ -348,9 +348,9 @@ test('a screenshot shows its thumbnail in its pane\'s corner: a click opens it, 
     await expect(shown).toHaveCount(0);
     // Its ×: it fades out first, then goes.
     await take();
-    await expect.poll(() => thumb(`document.body.classList.contains('in')`)).toBe(true);
+    await expect.poll(() => thumb(`document.body.dataset.state === 'in'`)).toBe(true);
     await thumb(`document.querySelector('button').click()`);
-    await expect.poll(async () => await thumbGone() || await thumb(`document.body.classList.contains('out')`)).toBe(true);
+    await expect.poll(async () => await thumbGone() || await thumb(`document.body.dataset.state === 'out'`)).toBe(true);
     await expect.poll(async () => await core((k) => !k.shell.windows[0].thumbnails.file) && await thumbGone()).toBe(true);
     // It goes by itself after 5 s (the time macOS gives one), fading out first, and stays while the pointer is over it:
     // the main process's clock moved on by the test for its timers of those lengths (driver.ts, clock).

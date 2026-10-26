@@ -33,9 +33,9 @@ function menu(): MenuItem[] | null {
 <template>
   <RightClickMenu :items="menu"><div class="ptab" :data-panel="params.api.id">
     <template v-if="profile">
-      <img class="avatar" alt="" :src="avatarSrc(profile.avatar)"><b class="pname"
+      <img class="avatar" alt="" :src="avatarSrc(profile.avatar)"><b class="pname" data-testid="profile-name"
         :title="[profile.name, profile.description].filter(Boolean).join('\n')">{{ profile.name }}</b>
-      <span class="caption">{{ caption }}</span>
+      <span class="caption" role="status">{{ caption }}</span>
       <button class="close icon quiet" title="Close profile: its tabs go, its sign-ins stay (open it again in Profiles)" aria-label="Close profile"
         @click="act('profile:close', { profile: profile.id })"><Icon name="i-close" /></button>
     </template>

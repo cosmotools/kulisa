@@ -97,7 +97,7 @@ const label = computed(() => ({
 
 <template>
   <Transition name="pill">
-    <div v-if="look" class="dictation-pill" :data-state="look" role="status">
+    <div v-if="look" class="dictation-pill" :data-state="look" role="status" aria-label="Dictation">
       <span class="lead"><span v-if="look === 'done'" class="mark"><slot /></span><span v-else class="dot" /></span>
       <span ref="wave" class="wave" aria-hidden="true"><i v-for="n in BARS" :key="n" :style="{ '--i': n }" /></span>
       <span class="label">{{ label }}</span>

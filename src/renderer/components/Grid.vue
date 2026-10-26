@@ -34,8 +34,8 @@ const tabComponents = markRaw({ profile: ProfileHeader, terminal: TerminalTabs, 
      the terminal and the tasks' bar past its edge */
   display: flex; flex-direction: column; min-width: 0; margin-inline: var(--gap); transition: opacity .15s;
   #grid { flex: 1; min-height: 0; }
-  .loading & { opacity: 0; transition: none; } /* until the grid is laid out (lib/grid.ts, reveal) */
-  .noproject & { display: none; }
+  [aria-busy] & { opacity: 0; transition: none; } /* until the grid is laid out (lib/grid.ts, reveal) */
+  [data-noproject] & { display: none; }
   .dockview-theme-abyss-spaced {
     color-scheme: inherit; /* the theme's own is dark; Kulisa's is the root's (tokens.css: light-dark()) */
     --dv-group-view-background-color: var(--island);

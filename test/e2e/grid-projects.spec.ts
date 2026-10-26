@@ -19,7 +19,7 @@ async function makeOther(core: Core, ui: Page, files: Files) {
   if (hasOther(files)) return;
   await openFolder(core, ui, otherFolder(files));
   await core((k) => k.shell.task.createProfile('Sam.seller'));
-  await expect(ui.locator('.pane')).toHaveCount(1);
+  await expect(ui.locator('[role="region"][data-profile]')).toHaveCount(1);
   await closeProject(ui, files, 'other');
   await expect.poll(() => core((k, a) => !k.shell.open.has(a.other) && k.shell.current?.id === a.project && !k.shell.windows[0].switching,
     { other: files.pid('other'), project: files.pid('project') })).toBe(true);
@@ -33,7 +33,7 @@ async function forgetOther(core: Core, ui: Page, files: Files) {
   await core((k) => { k.asked.length = 0; });
 }
 // A project's tab in the bar, as a selector for a script in the page.
-const tabSel = (files: Files, folder: string) => `#projectTabs .tasktab[data-project="${files.pid(folder)}"]`;
+const tabSel = (files: Files, folder: string) => `#projectTabs [data-project="${files.pid(folder)}"]`;
 
 test('projects: another folder opens in a tab of its own, with its own profiles and agent; the first keeps running', async ({ core, ui, call, files }) => {
   await begin(core, ui, files, { columns: true });
@@ -61,19 +61,19 @@ test('projects: another folder opens in a tab of its own, with its own profiles 
       agent: [...k.shell.open.get(project).tasks.values()][0].pty === g.firstPty, title: k.shell.win.getTitle(), resumed: k.shell.resumedSession };
   }, ids.project)).toEqual({ profiles: 0, kept: true, agent: true, title: 'New Task · other — Kulisa', resumed: null }); // the first project's pages keep running, hidden, and its agent; a new project has no conversation to resume
   await expect.poll(async () => JSON.stringify(await projectTabs(ui, files)) === '["project","other *"]' && ui.evaluate(() => !!(window as any).__dock.getPanel('terminal'))).toBe(true);
-  await expect(ui.locator('.pane')).toHaveCount(0);
+  await expect(ui.locator('[role="region"][data-profile]')).toHaveCount(0);
   // A tab per task, its project's icon on it, its name in its tooltip.
-  expect(await ui.locator('#projectTabs .tasktab').evaluateAll((ts) => ts.map((g) => [g.querySelector('.picon use')?.getAttribute('href'), g.querySelector('.name').textContent, (g as HTMLElement).title.split('\n')[0]])))
+  expect(await ui.locator('#projectTabs [role="tab"]').evaluateAll((ts) => ts.map((g) => [g.querySelector('[data-testid="project-icon"] use')?.getAttribute('href'), g.textContent, (g as HTMLElement).title.split('\n')[0]])))
     .toEqual([['#i-logo', 'task-1', 'project'], ['#i-logo', 'New Task', 'other']]);
   // Every island keeps its place and width whichever task is shown, also while it switches: nothing jumps.
-  const islands = () => ui.locator('#projectTabs .tasktab').evaluateAll((ts) => ts.map((t) => { const r = t.getBoundingClientRect(); return [r.x, r.width]; }));
+  const islands = () => ui.locator('#projectTabs [role="tab"]').evaluateAll((ts) => ts.map((t) => { const r = t.getBoundingClientRect(); return [r.x, r.width]; }));
   const before = await islands();
   await ui.evaluate(() => {
     const w = window as any;
     w.__islands = new Set();
     const tick = () => {
       if (!w.__islands) return;
-      w.__islands.add(JSON.stringify([...document.querySelectorAll('#projectTabs .tasktab')].map((t) => { const r = t.getBoundingClientRect(); return [r.x, r.width]; })));
+      w.__islands.add(JSON.stringify([...document.querySelectorAll('#projectTabs [role="tab"]')].map((t) => { const r = t.getBoundingClientRect(); return [r.x, r.width]; })));
       requestAnimationFrame(tick);
     };
     tick();
@@ -92,7 +92,7 @@ test('projects: another folder opens in a tab of its own, with its own profiles 
   expect([...await plusMenu(ui) as string[]].sort()).toEqual(['New Project…', 'other', 'project']);
   expect(await plusRows(ui, 'project')).toEqual(['task-1', 'New Task']);
   // Ctrl+Shift+A opens the + menu from anywhere; again closes it.
-  const anyMenu = ui.locator('.menu[data-state="open"]');
+  const anyMenu = ui.locator('[role="menu"][data-state="open"]');
   await core((k) => k.press(k.shell.win.webContents, 'A', k.CMD, 'shift'));
   await expect(anyMenu.first()).toBeVisible();
   await core((k) => k.press(k.shell.win.webContents, 'A', k.CMD, 'shift'));
@@ -102,7 +102,7 @@ test('projects: another folder opens in a tab of its own, with its own profiles 
   await expect.poll(() => core((k, f) => k.shell.current?.folder === f && !k.shell.windows[0].switching, other)).toBe(true);
   // The tab's right-click: the task's rows, then its project's in a submenu of its name (the project has no tab of
   // its own).
-  await rightClick(ui, `${tabSel(files, 'other')} .name`);
+  await rightClick(ui, `${tabSel(files, 'other')}`);
   expect(await menuRows(ui)).toEqual(['# Profiles', 'Sam.seller', '-', 'Manage Profiles…', '-', 'Rename…', 'Show Folder', '-', 'Move to New Window', '-', 'Close', 'Delete Task…', '-', 'other']);
   await choose(ui, 'other');
   await expect(anyMenu).toHaveCount(2);
@@ -200,7 +200,7 @@ test('tasks: Move to New Window puts a task in a window of its own, still runnin
     g.sizes = []; g.resize = pty.resize;
     pty.resize = (cols: number, rows: number) => { g.sizes.push([cols, rows]); return g.resize.call(pty, cols, rows); };
   });
-  await rightClick(ui, `${tabSel(files, 'other')} .name`);
+  await rightClick(ui, `${tabSel(files, 'other')}`);
   await menuRows(ui);
   await choose(ui, 'Move to New Window');
   await expect.poll(() => core((k) => k.shell.windows.length === 2 && k.shell.windows[1].current === k.stash.grid.moved && !k.shell.windows[1].switching)).toBe(true);
@@ -218,7 +218,7 @@ test('tasks: Move to New Window puts a task in a window of its own, still runnin
       page: g.second.win.contentView.children.includes(view) && !g.first.win.contentView.children.includes(view) };
   }, ids.seller)).toEqual({ window: true, title: 'New Task · other — Kulisa', agent: true, profile: true, page: true }); // the same agent, the same profile, its page moved
   await expect.poll(async () => {
-    const b = await ui2.evaluate((id) => { const r = document.querySelector(`.pane[data-profile="${id}"] .content`)?.getBoundingClientRect(); return r?.width ? { width: r.width } : null; }, ids.seller);
+    const b = await ui2.evaluate((id) => { const r = document.querySelector(`[role="region"][data-profile="${id}"] [data-testid="page"]`)?.getBoundingClientRect(); return r?.width ? { width: r.width } : null; }, ids.seller);
     return !!b && core((k, w) => { const g = k.stash.grid, view = g.seller.get().view; return view.getVisible() && Math.abs(view.getBounds().width - Math.round(w * g.second.win.webContents.getZoomFactor())) <= 1; }, b.width);
   }).toBe(true);
   await expect.poll(() => termText(ui2)).toContain(`agent: rc of ${other}`);
@@ -256,11 +256,11 @@ test('tasks: Move to New Window puts a task in a window of its own, still runnin
 
   // Back into the first window (Move to Window, as a browser moves a tab; the other window named by its shown
   // task): the only tab of the second, so it closes.
-  await rightClick(ui2, `${tabSel(files, 'other')} .name`);
+  await rightClick(ui2, `${tabSel(files, 'other')}`);
   expect(await menuRows(ui2)).toEqual(['# Profiles', 'Sam.seller', '-', 'Manage Profiles…', '-', 'Rename…', 'Show Folder', '-', 'Move to New Window (off)', 'Move to Window: task-1', '-', 'Close', 'Delete Task…', '-', 'other']);
   // Chosen once the script has answered: the choice closes this window, and a script still running in a window that
   // goes never answers.
-  await ui2.evaluate(() => { setTimeout(() => [...document.querySelector('.menu[data-state="open"]').querySelectorAll<HTMLElement>('.item')].find((b) => b.querySelector('.label').textContent === 'Move to Window: task-1').click()); });
+  await ui2.evaluate(() => { setTimeout(() => [...document.querySelector('[role="menu"][data-state="open"]').querySelectorAll<HTMLElement>('[role="menuitem"]')].find((b) => document.getElementById(b.getAttribute('aria-labelledby')).textContent === 'Move to Window: task-1').click()); });
   await expect.poll(() => core((k) => { const g = k.stash.grid; return k.shell.windows.length === 1 && k.shell.task === g.moved && !g.first.switching; })).toBe(true);
   expect(await core((k) => {
     const g = k.stash.grid;
@@ -278,7 +278,7 @@ test('tasks: Move to New Window puts a task in a window of its own, still runnin
   await expect.poll(() => core((k, id) => k.shell.current?.id === id && [...k.shell.current.tasks.values()][0] === k.shell.task && !!k.shell.task.pty && !k.shell.windows[0].switching, ids.other)).toBe(true);
   expect(await core((k) => k.asked.length), 'no question where').toBe(0);
   expect(await projectTabs(ui, files)).toEqual(['project', 'other *']);
-  await rightClick(ui, `${tabSel(files, 'other')} .name`);
+  await rightClick(ui, `${tabSel(files, 'other')}`);
   await menuRows(ui);
   await choose(ui, 'Move to New Window');
   await expect.poll(() => core((k, id) => k.shell.windows.length === 2 && k.shell.windows[1].current?.project.id === id && !k.shell.windows[1].switching, ids.other)).toBe(true);
@@ -354,7 +354,7 @@ test('tasks: a tab dragged changes the order, goes out into a new window and bac
     const o = { bubbles: true, cancelable: true, dataTransfer: dt, clientX: r.x + (s === 'before' ? 3 : r.width - 3), clientY: r.y + r.height / 2 };
     t.dispatchEvent(new DragEvent('dragover', o));
     await new Promise(requestAnimationFrame);
-    const shown = t.classList.contains(`drop-${s}`);
+    const shown = t.getAttribute('data-drop') === s;
     t.dispatchEvent(new DragEvent('drop', o));
     return shown;
   }, [tabSel(files, folder), side, DRAG, carried]);
@@ -367,7 +367,7 @@ test('tasks: a tab dragged changes the order, goes out into a new window and bac
   // Within the tabs: another order, kept.
   let carried = await dragStart(ui, 'other');
   expect(JSON.parse(carried).key).toBe(files.tkey('other', 1));
-  await expect(ui.locator(tabSel(files, 'other'))).toHaveClass(/\bdragging\b/);
+  await expect(ui.locator(tabSel(files, 'other'))).toHaveAttribute('data-dragging');
   expect(await dropOn(ui, 'project', 'before', carried), 'where it would go is marked').toBe(true);
   await dragEnd(ui, 'other', 'move');
   await expect.poll(() => projectTabs(ui, files)).toEqual(['other *', 'project']);

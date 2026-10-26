@@ -9,38 +9,38 @@ test("☰ → Report a Problem… opens Settings at the Log page: the log so far
   await menuRows(ui);
   await choose(ui, 'Report a Problem…');
   const s = await sui();
-  const line = s.locator('#logpage .line'), lines = () => line.allTextContents();
+  const line = s.locator('#logpage [role="log"] > div'), lines = () => line.allTextContents();
   await expect(s.locator('#pjlist [data-page="log"]')).toHaveAttribute('aria-selected', 'true');
   await expect(s.locator('#lgconfig')).toBeVisible();
   await expect(line.first()).toBeVisible();
   expect(await line.first().textContent(), 'the time and the tag, the date in the tooltip').toMatch(/^\d\d:\d\d:\d\d\.\d{3}\[kulisa\]start \d+\.\d+\.\d+, electron /);
   await expect(line.first(), 'the date and the time zone').toHaveAttribute('title', /^\d{4}-\d\d-\d\d [+-]\d\d:\d\d$/);
-  await expect(s.locator('#logpage .line[data-tag="kulisa"]').first(), "the tag in its group's color").toHaveClass(/\btasks\b/);
+  await expect(s.locator('#logpage [role="log"] > div[data-tag="kulisa"]').first(), "the tag in its group's color").toHaveAttribute('data-group', 'tasks');
   // Live: what is logged now comes at the end, Follow keeping it in view.
   const theme = await core((k) => k.electron.nativeTheme.themeSource);
   await invoke(ui, 'theme:set', 'dark');
   await expect.poll(async () => (await lines()).at(-1)).toContain('[ipc]theme:set wc=');
-  await expect.poll(() => s.locator('#logpage .lines').evaluate((b) => b.scrollHeight - b.scrollTop - b.clientHeight < 4), 'the end in view').toBe(true);
+  await expect.poll(() => s.locator('#logpage [role="log"]').evaluate((b) => b.scrollHeight - b.scrollTop - b.clientHeight < 4), 'the end in view').toBe(true);
   // Errors: a page's error is a warning line, in red; the chip shows those alone.
   await ui.evaluate(() => console.error('boom-for-the-log'));
   await expect.poll(async () => (await lines()).some((l) => l.includes('boom-for-the-log'))).toBe(true);
   const chip = (id: string) => s.locator(`#logchips [data-chip="${id}"]`).click();
   const typeFilter = (text: string) => s.locator('#logfilter').fill(text);
   await chip('errors');
-  await expect.poll(async () => (await lines()).some((x) => x.includes('boom-for-the-log')) && await line.evaluateAll((ls) => ls.every((l) => l.classList.contains('bad')))).toBe(true);
-  await expect(s.locator('#logpage .line[data-tag="page"]').first(), 'in red').toHaveClass(/\bbad\b/);
+  await expect.poll(async () => (await lines()).some((x) => x.includes('boom-for-the-log')) && await line.evaluateAll((ls) => ls.every((l) => l.hasAttribute('data-bad')))).toBe(true);
+  await expect(s.locator('#logpage [role="log"] > div[data-tag="page"]').first(), 'in red').toHaveAttribute('data-bad');
   // A chip and the text filter on top of it; nothing left says so.
   await chip('tasks');
   await typeFilter('[kulisa] start');
   // Two at most: a second Kulisa's start, told it is running already.
   await expect.poll(async () => { const l = await lines(); return l.length > 0 && l.length < 5 && l.every((x) => x.includes('[kulisa]start')); }).toBe(true);
   await typeFilter('nothing-like-this');
-  await expect(s.locator('#logpage .empty')).toHaveText('Nothing matches.');
+  await expect(s.locator('#logpage').getByText('Nothing matches.', { exact: true })).toBeVisible();
   await typeFilter('');
   await chip('all');
   await expect.poll(async () => (await lines()).length).toBeGreaterThan(10);
   // Under it: the file's size, and what is never in it.
-  await expect(s.locator('#logpage .about')).toHaveText(/^kulisa\.log, \d+ KB of 1 MB\. Never here: what you typed, passwords, tokens, cookies, the pages' queries\.$/);
+  await expect(s.locator('#logpage').getByText(/^kulisa\.log, /)).toHaveText(/^kulisa\.log, \d+ KB of 1 MB\. Never here: what you typed, passwords, tokens, cookies, the pages' queries\.$/);
   // Save As…: where the human says, the file as it is.
   const saved = path.join(files.root, 'saved.log'), log = path.join(files.userData, 'logs', 'kulisa.log');
   await core((k, f) => {
@@ -53,7 +53,7 @@ test("☰ → Report a Problem… opens Settings at the Log page: the log so far
     await expect.poll(() => fs.existsSync(saved)).toBe(true);
   } finally { await core((k) => { k.electron.dialog.showSaveDialog = k.stash.showSaveDialog; }); }
   expect(fs.readFileSync(saved, 'utf8').split('\n')[0]).toBe(fs.readFileSync(log, 'utf8').split('\n')[0]);
-  await expect(s.locator('#logpage .note')).toHaveText(/^Saved as /);
+  await expect(s.locator('#logpage [role="status"]')).toHaveText(/^Saved as /);
   fs.rmSync(saved);
   // Open Folder: the file picked out in the file manager.
   await core((k) => {

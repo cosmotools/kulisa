@@ -37,9 +37,9 @@ export const exact = (s: string) => new RegExp(`^${RegExp.escape(s)}$`);
 // refused).
 export const invoke = (page: Page, channel: string, arg?: unknown) => page.evaluate(([c, a]) => (window as any).kulisa.invoke(c, a), [channel, arg] as const);
 export const act = (page: Page, channel: string, arg: unknown) => page.evaluate(([c, a]) => (window as any).act(c, a), [channel, arg] as const);
-// The window done building what it shows (a project, a task: the root's loading class), and its grid done sliding to
-// another task (a view transition: a key or a click meanwhile goes to the grid being left).
-export const notLoading = (page: Page) => expect(page.locator('html')).not.toHaveClass(/\bloading\b/);
+// The window done building what it shows (a project, a task: the root busy), and its grid done sliding to another task
+// (a view transition: a key or a click meanwhile goes to the grid being left).
+export const notLoading = (page: Page) => expect(page.locator('html')).not.toHaveAttribute('aria-busy');
 export const noSlide = (page: Page) => expect.poll(() => page.evaluate(() => document.documentElement.matches(':active-view-transition'))).toBe(false);
 // That nothing happened is checked once what would have made it is done (docs/testing.md, Writing an e2e test): each
 // of these waits for a proof of that, never for a time.
@@ -111,27 +111,31 @@ export const mid = async (core: Core, ui: Page, sel: string) => {
 
 // Kulisa's menus (Reka's, docs/ui.md, Menus): the open one once it is shown (the pages under it are pictures), the
 // submenu open (the last one).
-export const menu = (ui: Page) => ui.locator('.menu[data-state="open"].ready').first();
-export const submenu = (ui: Page) => ui.locator('.menu[data-state="open"]').last();
+export const menu = (ui: Page) => ui.locator('[role="menu"][data-state="open"][data-ready]').first();
+export const submenu = (ui: Page) => ui.locator('[role="menu"][data-state="open"]').last();
 // The open menu's rows, each as its words: '-' a line, '# …' a heading, '~ …' a note, 'zoom' the zoom row; an item its
 // label, '(off)' when disabled, '  ' before it when it is set in under the row above.
 export async function menuRows(ui: Page, which: Locator = menu(ui)): Promise<(string | string[])[]> {
   await expect(menu(ui)).toBeVisible();
   return which.evaluate((m) => {
-    const row = (r: Element): string | string[] => (r.matches('[role="separator"]') ? '-' : r.matches('.heading') ? `# ${r.textContent}`
-      : r.matches('.zoomrow') ? 'zoom' : r.matches('.themerow') ? 'theme' : r.matches('.barrow') ? 'bar' : r.matches('.arrange') ? `arrange: ${[...r.querySelectorAll('span')].map((s) => s.textContent).join(', ')}`
+    const is = (r: Element, id: string) => r.matches(`[data-testid="${id}"]`);
+    // An item's words: its name, its label alone (MenuButton.vue, aria-labelledby).
+    const item = (r: Element) => (r.matches('[role^="menuitem"]') ? r : r.querySelector('[role^="menuitem"]'));
+    const label = (i: Element) => document.getElementById(i.getAttribute('aria-labelledby')).textContent;
+    const row = (r: Element): string | string[] => (r.matches('[role="separator"]') ? '-' : is(r, 'menu-heading') ? `# ${r.textContent}`
+      : is(r, 'zoom-row') ? 'zoom' : is(r, 'theme-row') ? 'theme' : is(r, 'bar-row') ? 'bar' : is(r, 'arrange-row') ? `arrange: ${[...r.querySelectorAll('span')].map((s) => s.textContent).join(', ')}`
         : r.matches('[role="group"]') ? [...r.children].map(row) as string[]
-          : (r.matches('.inset') ? '  ' : '') + r.querySelector('.label').textContent + ((r.matches('.item') ? r : r.querySelector('.item')).matches('[data-disabled]') ? ' (off)' : ''));
+          : (r.matches('[data-inset]') ? '  ' : '') + label(item(r)) + (item(r).matches('[data-disabled]') ? ' (off)' : ''));
     return [...m.children].flatMap(row);
   });
 }
 // An item of the open menu (or of which) by its label, whole.
-export const item = (ui: Page, label: string, which: Locator = menu(ui)) => which.locator('.item').filter({ has: ui.locator('.label', { hasText: exact(label) }) });
+export const item = (ui: Page, label: string, which: Locator = menu(ui)) => which.getByRole('menuitem', { name: label, exact: true }).or(which.getByRole('menuitemradio', { name: label, exact: true }));
 export const choose = (ui: Page, label: string, which?: Locator) => item(ui, label, which).click();
 // The open menu closed as Esc does; no menu or list open after.
 export async function closeMenu(ui: Page) {
   await ui.keyboard.press('Escape');
-  await expect(ui.locator('[data-state="open"]:is(.menu, [role="listbox"])')).toHaveCount(0);
+  await expect(ui.locator('[data-state="open"]:is([role="menu"], [role="listbox"])')).toHaveCount(0);
 }
 // A right-click as the mouse makes it, at an element's middle (its press closes a menu open elsewhere; on Windows the
 // menu opens on the release).
@@ -146,21 +150,23 @@ export async function focusWindow(core: Core, ui: Page) {
 }
 
 // The tasks' bar's tabs (one per open task): each its project, by its folder's name, the shown one with ' *'.
-export const projectTabs = async (ui: Page, files: Files) => (await ui.locator('#projectTabs .tasktab').evaluateAll((ts) => ts.map((t) => (t as HTMLElement).dataset.project + (t.classList.contains('active') ? ' *' : '')))).map(files.named);
+export const projectTabs = async (ui: Page, files: Files) => (await ui.locator('#projectTabs [role="tab"]').evaluateAll((ts) => ts.map((t) => (t as HTMLElement).dataset.project + (t.ariaSelected === 'true' ? ' *' : '')))).map(files.named);
+// The island's terminals' tabs: each its name, the one in front with ' *'.
+export const termTabs = (ui: Page) => ui.locator('nav[aria-label="Terminals"] [role="tab"]').evaluateAll((ts) => ts.map((t) => t.textContent.trim() + (t.ariaSelected === 'true' ? ' *' : '')));
 // A project's first tab in the bar; the project shown again as the human does it, a click on it; its open tasks
 // closed with the middle button on each tab.
-export const projectTab = (ui: Page, files: Files, folder: string) => ui.locator(`#projectTabs .tasktab[data-project="${files.pid(folder)}"]`).first();
+export const projectTab = (ui: Page, files: Files, folder: string) => ui.locator(`#projectTabs [data-project="${files.pid(folder)}"]`).first();
 export const showProject = (ui: Page, files: Files, folder: string) => projectTab(ui, files, folder).click();
-export const closeProject = (ui: Page, files: Files, folder: string) => ui.locator(`#projectTabs .tasktab[data-project="${files.pid(folder)}"]`).evaluateAll((ts) => { for (const t of ts) t.dispatchEvent(new MouseEvent('auxclick', { button: 1, bubbles: true })); });
+export const closeProject = (ui: Page, files: Files, folder: string) => ui.locator(`#projectTabs [data-project="${files.pid(folder)}"]`).evaluateAll((ts) => { for (const t of ts) t.dispatchEvent(new MouseEvent('auxclick', { button: 1, bubbles: true })); });
 
 // The bar's + (NewTask.vue): a menu of every project with its tasks; one project shows its tasks inline, several nest
 // each project as a submenu. plusMenu(ui) opens it and gives its top rows' labels; plusMenu(ui, project) makes a new
 // task of that project (its New Task row); plusMenu(ui, project, task) opens that task again (a closed one) or shows it.
 // Every open menu, a submenu too (menu waits for the first to be shown).
-export const anyMenu = (ui: Page) => ui.locator('.menu[data-state="open"]');
-const topLabels = (m: Locator) => m.locator(':scope > [role="menuitem"] .label').allTextContents();
-const rowIn = (ui: Page, m: Locator, label: string) => m.locator('[role="menuitem"]').filter({ has: ui.locator('.label', { hasText: exact(label) }) });
-const projectRow = (ui: Page, project: string) => anyMenu(ui).first().locator('[role="menuitem"][aria-haspopup]').filter({ has: ui.locator('.label', { hasText: exact(project) }) });
+export const anyMenu = (ui: Page) => ui.locator('[role="menu"][data-state="open"]');
+const topLabels = (m: Locator) => m.locator(':scope > [role="menuitem"]').evaluateAll((items) => items.map((i) => document.getElementById(i.getAttribute('aria-labelledby')).textContent));
+const rowIn = (_ui: Page, m: Locator, label: string) => m.getByRole('menuitem', { name: label, exact: true });
+const projectRow = (ui: Page, project: string) => anyMenu(ui).first().getByRole('menuitem', { name: project, exact: true }).and(ui.locator('[aria-haspopup]'));
 // A project's submenu, with several projects, opened as the hand does it: hovering its row (a release on the row makes
 // the project a new task: MenuRows.vue, runSub). The rows are drawn again as a project just shown moves to the top, and
 // the submenu under the pointer closes: hovered again until `until` holds in it.
@@ -202,11 +208,11 @@ export async function closeBoard(ui: Page) {
 // A project's submenu (a tab's right-click, then the row of the project's name, the one row opening a menu): its rows,
 // a row of it chosen. Right-clicked again until its menu and submenu are open: right after Settings or another menu
 // closed, the menu may open none, or open and close at once, as the window's focus comes back late (a blur closes a menu).
-export async function projectMenu(ui: Page, label?: string, tab = '#projectTabs .tasktab.active .name') {
+export async function projectMenu(ui: Page, label?: string, tab = '#projectTabs [aria-selected="true"]') {
   await expect(async () => {
     if (!(await anyMenu(ui).count())) await rightClick(ui, tab);
     await expect(menu(ui)).toBeVisible({ timeout: 1000 });
-    if ((await anyMenu(ui).count()) < 2) await menu(ui).locator('.item[aria-haspopup]').click({ timeout: 1000 });
+    if ((await anyMenu(ui).count()) < 2) await menu(ui).locator('[role="menuitem"][aria-haspopup]').click({ timeout: 1000 });
     await expect(anyMenu(ui)).toHaveCount(2, { timeout: 1000 });
   }).toPass({ timeout: 10000 });
   const rows = await menuRows(ui, submenu(ui));
@@ -216,7 +222,7 @@ export async function projectMenu(ui: Page, label?: string, tab = '#projectTabs 
 }
 // The shown task's tab's right-click menu, where its profiles are: its rows.
 export async function taskMenu(ui: Page) {
-  await rightClick(ui, '#taskbar .tasktab.active .name');
+  await rightClick(ui, '#projectTabs [aria-selected="true"]');
   return menuRows(ui);
 }
 
@@ -278,7 +284,7 @@ export const box = (ui: Page, sel: string) => ui.evaluate((s) => {
   const r = e.getBoundingClientRect();
   return { x: Math.round(r.x), y: Math.round(r.y), width: Math.round(r.width), height: Math.round(r.height) };
 }, sel);
-export const pageBox = (ui: Page, files: Files, name: string) => box(ui, `.pane[data-profile="${files.idOf(name)}"] .content`);
+export const pageBox = (ui: Page, files: Files, name: string) => box(ui, `[role="region"][data-profile="${files.idOf(name)}"] [data-testid="page"]`);
 export const viewOn = async (core: Core, ui: Page, files: Files, name: string) => core((k, a) => k.viewOn(a.name, a.box), { name, box: await pageBox(ui, files, name) });
 // dockview's API, as the window keeps it for the tests (window.__dock), given to fn with an argument.
 export const dock = <A, R>(ui: Page, fn: (api: any, arg: A) => R, arg?: A) => ui.evaluate(([src, a]) => (0, eval)(`(${src})`)((window as any).__dock, a), [fn.toString(), arg] as const) as Promise<R>;

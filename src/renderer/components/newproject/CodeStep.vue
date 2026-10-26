@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // New Project's first step: what its code comes from, as JetBrains' New Project: the kinds on the left, the form on the
 // right (wizard.ts has the rules).
-import { computed, ref } from 'vue';
+import { computed, ref, useId } from 'vue';
 import { ListboxContent, ListboxItem, ListboxRoot } from 'reka-ui';
 import Icon from '../Icon.vue';
 import { useWizard } from './wizard';
@@ -18,6 +18,7 @@ const plus = () => (c.from === 'folder' ? w.browse(true) : sourceField.value?.fo
 // −, or Delete in the list: the selected one left out.
 const remove = () => { w.removeSource(chosen.value); chosen.value = undefined; };
 defineExpose({ focus: () => nameField.value?.focus() });
+const uid = useId(); // a row's name is its folder or URL
 </script>
 
 <template>
@@ -43,8 +44,8 @@ defineExpose({ focus: () => nameField.value?.focus() });
             <div v-if="rows.length" class="head" aria-hidden="true"><span>{{ c.from === 'folder' ? 'Folder' : 'URL' }}</span><span /></div>
             <ListboxRoot selection-behavior="replace" v-if="rows.length" v-model="chosen" :aria-label="c.from === 'folder' ? 'Folders' : 'URLs'" @keydown.delete="remove">
               <ListboxContent>
-                <ListboxItem v-for="(x, i) in rows" :key="x.folder" :value="x.folder" class="item" :data-source="x.folder">
-                  <span class="cell label" :title="x.folder">{{ x.folder }}</span>
+                <ListboxItem v-for="(x, i) in rows" :key="x.folder" :value="x.folder" class="item" :data-source="x.folder" :aria-labelledby="`${uid}-${i}`">
+                  <span :id="`${uid}-${i}`" class="cell label" :title="x.folder">{{ x.folder }}</span>
                   <span class="cell end"><kbd v-if="x.state">{{ sourceLine(x) }}</kbd><kbd v-if="!i && rows.length > 1" class="default">default</kbd></span>
                 </ListboxItem>
               </ListboxContent>

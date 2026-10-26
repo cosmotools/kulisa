@@ -1,7 +1,7 @@
 // Profiles, the human's and the agent's: made in Settings and by profile_create, who each is, renamed, signed in by the
 // human when the agent asks; isolated, presenting as what they are, the sign-in pause (docs/profiles.md).
 import { test, expect } from './fixtures.ts';
-import { SITE, who, menuRows, choose, closeMenu, manageProfiles, closeSettings, chooseProfile, setProfileField, taskMenu, act, invoke } from './helpers.ts';
+import { SITE, who, menu, menuRows, choose, closeMenu, manageProfiles, closeSettings, chooseProfile, setProfileField, taskMenu, act, invoke } from './helpers.ts';
 import { profiles, signIn } from './agent-helpers.ts';
 
 test('profiles are made in Settings (Profiles\' + in its tree), each with its own picture and, if the human says, who it is; added to the project on its page, opened in its task; the pages stay on screen under Settings\' window', async ({ core, ui, sui, files }) => {
@@ -9,7 +9,7 @@ test('profiles are made in Settings (Profiles\' + in its tree), each with its ow
   for (const id of await core((k) => k.shell.profileStore.all().map((p) => p.id))) await invoke(ui, 'profiles:delete', { profile: id });
   await expect.poll(() => core((k) => k.shell.profileStore.all().length)).toBe(0);
   const s = await manageProfiles(ui, sui);
-  await expect(s.locator('#prconfig .empty')).toHaveText('No profiles yet.');
+  await expect(s.locator('#prconfig').getByText('No profiles yet.', { exact: true })).toBeVisible();
   // + beside Profiles: its name typed in place under the tree, Enter; then it is chosen, its page shown (the picture:
   // the next free one, unless the human picks another).
   const make = async (name: string) => {
@@ -19,7 +19,7 @@ test('profiles are made in Settings (Profiles\' + in its tree), each with its ow
     await s.locator('#profilenewname').press('Enter');
     await expect(s.locator('#profilename')).toHaveValue(name);
     await expect(s.locator('#profilenewname')).toHaveCount(0);
-    await expect(s.locator('#pjlist [aria-selected="true"] .label')).toHaveText(name);
+    await expect(s.locator('#pjlist [aria-selected="true"]')).toHaveAccessibleName(name);
   };
   const stored = (name: string) => core((k, id) => k.shell.profileStore.get(id), files.idOf(name));
   await make('Sam.seller');
@@ -33,16 +33,16 @@ test('profiles are made in Settings (Profiles\' + in its tree), each with its ow
     f.style.background = 'var(--field)'; const field = getComputedStyle(f).backgroundColor; f.remove(); return [b.display, b.backgroundColor === field];
   })).toEqual(['flex', true]);
   await s.locator('#profilepic').click();
-  await expect(s.locator('.profilepics.ready')).toBeVisible();
-  await expect(s.locator('.profilepics [data-avatar]'), 'all of them to choose from, at once').toHaveCount(16);
-  await s.locator('.profilepics [data-avatar="penguin"]').click();
+  await expect(s.locator('[role="dialog"][aria-label="Pictures"][data-ready]')).toBeVisible();
+  await expect(s.locator('[role="dialog"][aria-label="Pictures"] [data-avatar]'), 'all of them to choose from, at once').toHaveCount(16);
+  await s.locator('[role="dialog"][aria-label="Pictures"] [data-avatar="penguin"]').click();
   await expect.poll(async () => (await stored('Elon.buyer')).avatar).toBe('penguin');
   // Who they are: in the store of profiles (profile-store.ts), the same in every task; in no project yet.
   expect(await core((k) => k.shell.profileStore.all().map((g: { id: string; avatar: string; description?: string; color?: string }) => ({ id: g.id, avatar: g.avatar, description: g.description, projects: k.shell.profileStore.projectsOf(g as never), color: g.color }))),
     'pictures, not colors; who it is when said').toEqual([
     { id: files.idOf('Sam.seller'), avatar: 'fox', description: 'seller in the test shop', projects: [], color: undefined },
     { id: files.idOf('Elon.buyer'), avatar: 'penguin', description: undefined, projects: [], color: undefined }]);
-  await expect(s.locator('#profilepage .projects')).toHaveText("none: add it on a project's page");
+  await expect(s.locator('#profilepage').getByText("none: add it on a project's page", { exact: true })).toBeVisible();
   // Added on the project's page (+ → its other profiles), closed in its task; opened there (👥).
   const project = await core((k) => k.shell.current.id);
   await s.locator(`#pjlist [data-project="${project}"]`).click(); // the projects come as it opens
@@ -55,7 +55,7 @@ test('profiles are made in Settings (Profiles\' + in its tree), each with its ow
       expect(has).toBe(true);
     }).toPass();
     await choose(s, name);
-    const row = s.locator('#npprofiles .item').filter({ has: s.locator('.label', { hasText: new RegExp(`^${RegExp.escape(name)}$`) }) });
+    const row = s.locator('#npprofiles').getByRole('option', { name, exact: true });
     await expect(row).toHaveCount(1);
     // A row cuts its name and description: the whole in its tooltip.
     expect((await row.getAttribute('title')).split('\n')[0]).toBe(name);
@@ -69,7 +69,7 @@ test('profiles are made in Settings (Profiles\' + in its tree), each with its ow
   // tab comes after it is opened.
   await expect.poll(() => core((k, id) => !!k.shell.profiles.get(id).get()?.view.getVisible(), elon)).toBe(true);
   await closeSettings(core, ui, sui);
-  await expect(ui.locator('.pane')).toHaveCount(2);
+  await expect(ui.locator('[role="region"][data-profile]')).toHaveCount(2);
   // The first page over the terminal alone took half the grid (dockview's split); the terminal keeps its share.
   const share = await ui.evaluate(() => (window as any).__dock.getPanel('terminal').group.api.height / (window as any).__dock.height);
   expect(Math.abs(share - 0.35), `the terminal's share: ${share}`).toBeLessThan(0.03);
@@ -85,7 +85,7 @@ test('agent: create a profile with profile_create; removed from the project, it 
   expect(list.map((p) => p.name), 'by name: the agent never sees an id').toEqual(['Sam.seller', 'Elon.buyer', 'Ann.admin']);
   expect(list.every((p) => !('id' in p))).toBe(true);
   expect(list.map((p) => [p.avatar, p.description])).toEqual([['fox', 'seller in the test shop'], ['penguin', null], ['frog', 'the shop\'s admin']]);
-  await expect(ui.locator('.pane')).toHaveCount(3);
+  await expect(ui.locator('[role="region"][data-profile]')).toHaveCount(3);
   await act(ui, 'profile:delete', { profile: ann }); // Remove from Project… in its pane's menu
   expect(await core((k) => k.asked.at(-1).message)).toMatch(/^Remove the profile Ann\.admin from /);
   await expect.poll(() => core((k, id) => k.shell.profiles.has(id), ann)).toBe(false);
@@ -104,11 +104,11 @@ test('who a profile is: the agent is told to choose by it and to ask; it saves t
   await expect(call('profile_describe', { profile: 'Elon.buyer', description: 'x'.repeat(501) })).rejects.toThrow(/at most 500/);
   // The editor shows it and the human changes it there; the pane's name tells it on hover (under the whole name, which a
   // narrow pane cuts), the task's tab's menu under the name.
-  const header = ui.locator('.ptab').filter({ has: ui.locator('.pname', { hasText: /^Elon\.buyer$/ }) });
-  await expect(header.locator('.pname')).toHaveAttribute('title', /^Elon\.buyer\nbuyer; pays by card/);
-  await expect.poll(() => header.locator('.avatar').evaluate((i: HTMLImageElement) => i.complete && i.naturalWidth > 0)).toBe(true); // the picture is drawn
+  const header = ui.locator('[data-panel^="profile:"]').filter({ has: ui.getByTestId('profile-name').getByText('Elon.buyer', { exact: true }) });
+  await expect(header.getByTestId('profile-name')).toHaveAttribute('title', /^Elon\.buyer\nbuyer; pays by card/);
+  await expect.poll(() => header.locator('img').evaluate((i: HTMLImageElement) => i.complete && i.naturalWidth > 0)).toBe(true); // the picture is drawn
   await taskMenu(ui);
-  expect(await ui.locator('.menu[data-state="open"] .item').evaluateAll((items) => items.slice(0, 2).map((b) => [b.querySelector('small').textContent, b.querySelector('.avatar').getAttribute('src')])))
+  expect(await menu(ui).locator('[role^="menuitem"]').evaluateAll((items) => items.slice(0, 2).map((b) => [b.querySelector('small').textContent, b.querySelector('img').getAttribute('src')])))
     .toEqual([['seller in the test shop', 'avatars/fox.svg'], ['buyer; pays by card', 'avatars/penguin.svg']]);
   await closeMenu(ui);
   // Settings → Profiles shows it and the human changes it there.
@@ -121,11 +121,11 @@ test('who a profile is: the agent is told to choose by it and to ask; it saves t
   await expect.poll(description).toBe('');
   // The picture: a panel of them from the button beside it; one chosen, it goes.
   await s.locator('#profilepic').click();
-  await expect(s.locator('.profilepics.ready')).toBeVisible();
-  await s.locator('.profilepics [data-avatar="owl"]').click();
+  await expect(s.locator('[role="dialog"][aria-label="Pictures"][data-ready]')).toBeVisible();
+  await s.locator('[role="dialog"][aria-label="Pictures"] [data-avatar="owl"]').click();
   await expect.poll(() => core((k) => k.profile('Elon.buyer').avatar)).toBe('owl');
-  await expect(s.locator('.profilepics')).toHaveCount(0);
-  await expect(s.locator('#profilepic .avatar')).toHaveAttribute('src', 'avatars/owl.svg');
+  await expect(s.locator('[role="dialog"][aria-label="Pictures"]')).toHaveCount(0);
+  await expect(s.locator('#profilepic img')).toHaveAttribute('src', 'avatars/owl.svg');
   expect((await invoke(s, 'profiles:avatar', { profile: elon, avatar: 'dragon' })).error).toMatch(/no picture/);
   await closeSettings(core, ui, sui);
 });
@@ -141,7 +141,7 @@ test('agent: rename a profile; ask the human to sign one in and wait until they 
   await call('profile_rename', { profile: 'elon.payer', name: 'Elon.buyer' });
   const back = await core((k) => k.profile('Elon.buyer').get().wc.getURL());
   const asking = call('profile_ask_signin', { profile: 'Elon.buyer', url: `${SITE}/form`, why: 'as Elon' });
-  const caption = ui.locator(`.ptab[data-panel="profile:${elon}"] .caption`);
+  const caption = ui.locator(`[data-panel="profile:${elon}"] [role="status"]`);
   await expect(caption).toContainText('sign in, please: as Elon');
   expect(await core((k) => k.profile('Elon.buyer').get().wc.getURL()), 'the sign-in page opened').toMatch(/\/form$/);
   await core((k, url) => { void k.profile('Elon.buyer').get().wc.loadURL(url); }, back); // the human signs in and lands elsewhere

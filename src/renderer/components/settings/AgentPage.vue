@@ -3,7 +3,7 @@
 // Install, and its accounts, a .list. The list's state (lib/agents.ts) lives with Settings, so an install goes on while
 // a project is shown. Every agent's details are in the page, the chosen one's shown: a few agents, and an install's
 // row keeps its state as another is looked at.
-import { computed, ref, watch } from 'vue';
+import { computed, ref, useId, watch } from 'vue';
 import { ListboxContent, ListboxItem, ListboxRoot } from 'reka-ui';
 import Icon from '../Icon.vue';
 import AccountSignIn from '../AccountSignIn.vue';
@@ -48,6 +48,7 @@ const newAccount = (a: Agent) => { error.value = ''; signing.value = a; };
 function signedIn(r: SignedIn) { signing.value = null; emit('accounts', r); }
 const busy = computed(() => !!signing.value);
 defineExpose({ newAccount, busy });
+const uid = useId(); // an account's row is named by its email
 </script>
 
 <template>
@@ -55,9 +56,9 @@ defineExpose({ newAccount, busy });
     <section v-for="a in s.agents" v-show="a.id === chosen" :key="a.id" class="agentdetail" :data-agent="a.id">
       <div class="field"><span>Maker:</span><span>{{ a.maker || '—' }}<template v-if="a.site"> · <a class="site" target="_blank" :href="a.site">Website</a></template></span></div>
       <div v-if="a.needs" class="field"><span>Needs:</span><span class="needs">{{ a.needs }}</span></div>
-      <div class="field"><span>Status:</span><span class="installed"><span class="status">{{ status(a) }}</span><small class="where">{{ where(a) }}</small>
+      <div class="field"><span>Status:</span><span class="installed"><span class="status" role="status">{{ status(a) }}</span><small class="where" data-testid="agent-where">{{ where(a) }}</small>
         <button type="button" class="install" :hidden="a.installed || !a.install" :disabled="s.installing" @click="list.install(a.id)">Install</button></span></div>
-      <p class="install-line hint">{{ installLine(a) }}</p>
+      <p class="install-line hint" data-testid="install-line">{{ installLine(a) }}</p>
 
       <template v-if="canSign(a)">
         <h3 class="titled">Accounts</h3>
@@ -72,8 +73,8 @@ defineExpose({ newAccount, busy });
           <RightClickMenu :items="accountMenu">
             <ListboxRoot selection-behavior="replace" v-if="of(a).length" v-model="accountSel" aria-label="Accounts" @keydown.delete="remove()">
               <ListboxContent>
-                <ListboxItem v-for="x in of(a)" :key="x.id" :value="x.id" class="item" :data-account="x.id">
-                  <span class="cell label" :title="x.email || x.id">{{ x.email || x.id }}</span><small class="cell" :title="projectsOf(x)">{{ projectsOf(x) }}</small>
+                <ListboxItem v-for="x in of(a)" :key="x.id" :value="x.id" class="item" :data-account="x.id" :aria-labelledby="`${uid}-${x.id}`">
+                  <span :id="`${uid}-${x.id}`" class="cell label" :title="x.email || x.id">{{ x.email || x.id }}</span><small class="cell" :title="projectsOf(x)">{{ projectsOf(x) }}</small>
                 </ListboxItem>
               </ListboxContent>
             </ListboxRoot>

@@ -27,7 +27,7 @@ function opening(e: MouseEvent) {
     <ContextMenuPortal>
       <!-- Not closed when the keyboard leaves it: a list's row right-clicked takes the keyboard just after the menu opens
            (Reka's Listbox, on the press), which closed it at once; a press outside, Esc or the window left close it -->
-      <ContextMenuContent class="menu" :class="{ ready }" :collision-padding="4" @close-auto-focus="focusBack($event, focused)" @focus-outside.prevent>
+      <ContextMenuContent class="menu" :data-ready="ready || undefined" :collision-padding="4" @close-auto-focus="focusBack($event, focused)" @focus-outside.prevent>
         <MenuRows :items="rows" />
       </ContextMenuContent>
     </ContextMenuPortal>

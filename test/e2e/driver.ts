@@ -161,7 +161,7 @@ export function driver(shell: Shell, openedExternally: string[]) {
     const until = Date.now() + 5000;
     const click = async () => {
       if (page.isDestroyed()) return;
-      if (await there(shown)) return there(`document.querySelector('#ask ${yes === 'other' ? '.other' : yes ? '.ok' : '.cancel'}').click()`);
+      if (await there(shown)) return there(`[...document.querySelectorAll('#ask footer button')].find((b) => b.textContent === ${JSON.stringify(yes === 'other' ? q.other : yes ? q.ok || 'OK' : q.cancel || 'Cancel')}).click()`);
       if (Date.now() < until) setTimeout(() => void click(), 50);
     };
     void click();

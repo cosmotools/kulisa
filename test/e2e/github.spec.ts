@@ -29,7 +29,7 @@ async function settings(core: Core, sui: () => Promise<Page>, at: SettingsAt = {
   return sui();
 }
 // The accounts' rows as Settings → GitHub shows them: each its cells' words.
-const rows = (s: Page) => s.locator('#ghaccounts [data-github]').evaluateAll((rs) => rs.map((r) => [...r.querySelectorAll('.cell')].map((c) => c.textContent.trim())));
+const rows = (s: Page) => s.locator('#ghaccounts [data-github]').evaluateAll((rs) => rs.map((r) => [...r.children].map((c) => c.textContent.trim())));
 async function githubPage(core: Core, sui: () => Promise<Page>) {
   const s = await settings(core, sui);
   await s.locator('#pjlist [data-page="github"]').click();
@@ -91,7 +91,7 @@ const bind = (s: Page, a: { id: string; remote: string; account: string }) => in
 test('GitHub: signing in with Kulisa App, Kulisa shows the code itself and opens GitHub\'s page; the account comes once it is entered there, no token on disk or in the log', async ({ core, ui, sui, files }) => {
   await clean(core);
   const s = await githubPage(core, sui);
-  await expect(s.locator('#ghaccounts .empty')).toHaveText('No accounts yet.');
+  await expect(s.locator('#ghaccounts').getByText('No accounts yet.', { exact: true })).toBeVisible();
   await addAccount(s, 'With GitHub…');
   const code = await shownCode(s);
   await expect(s.locator('#ghsignin')).toContainText(/only when Kulisa has just shown it/);
@@ -151,10 +151,10 @@ test("GitHub: a repository's row: the account that reaches its remote suggested 
   const { id, folders } = await ghProject(core, files);
   try {
     const s = await settings(core, sui, { section: 'projects', id });
-    const account = (remote: string) => s.locator(`.ghaccount[data-remote="${remote}"]`);
+    const account = (remote: string) => s.locator(`[data-remote="${remote}"]`);
     await expect(account('github.com/acme/shop')).toHaveText('bob (token)');
     await expect(account('github.com/ann/site')).toHaveText('ann');
-    await expect(s.locator(`${attr('data-folder', folders.lab)} .notgithub`)).toHaveText('not a GitHub address');
+    await expect(s.locator(attr('data-folder', folders.lab)).getByText('not a GitHub address', { exact: true })).toBeVisible();
     expect((await s.locator(`#npgithub ${attr('data-folder', folders.beta)}`).textContent()).replace(/\s+/g, ' ').trim())
       .toBe('beta: Kulisa App is not installed on beta. Install it on beta (or ask its owner to)');
     await expect(s.locator(`#npgithub ${attr('data-folder', folders.beta)} a`)).toHaveAttribute('href', 'https://github.com/apps/kulisa-app/installations/new');
@@ -162,7 +162,7 @@ test("GitHub: a repository's row: the account that reaches its remote suggested 
     expect(logText(files)).not.toContain('ghp_leaked');
     // Another chosen on its row (Reka's Select): bound to it, even as it cannot reach it, which its line says.
     await account('github.com/acme/shop').click();
-    await s.locator(`.menu[data-state="open"].ready [data-account="${ann}"]`).click();
+    await s.locator(`[role="listbox"][data-state="open"][data-ready] [data-account="${ann}"]`).click();
     await expect(account('github.com/acme/shop')).toHaveText('ann');
     await expect(s.locator('#npgithub')).toContainText(/shop: Kulisa App is not installed on acme\./);
     expect((await github(core, id))['github.com/acme/shop']).toBe(ann);
@@ -188,7 +188,7 @@ test('GitHub: signed out (a refresh refused): said on the account and on its rep
     await expect(s.locator('#npgithub')).toContainText(/shop: bob is signed out: Sign in Again in Settings → GitHub\./);
     s = await githubPage(core, sui); // read again as it is shown
     await expect.poll(async () => (await rows(s)).some((r) => r[0] === 'bob' && r[3] === 'signed out')).toBe(true);
-    await rightClick(s, `#ghaccounts [data-github="${bob}"] .label`);
+    await rightClick(s, `#ghaccounts [data-github="${bob}"]`);
     expect(await menuRows(s)).toEqual(['Sign in Again…', 'Delete…']);
     await choose(s, 'Sign in Again…');
     await typeToken(s, 'github_pat_bob_acme');
@@ -209,7 +209,7 @@ test('GitHub: deleting an account asks first, linking where to revoke it on GitH
     expect((await bind(page, { id, remote: 'github.com/ann/site', account: ann })).error).toBeUndefined();
     const s = await githubPage(core, sui);
     await expect.poll(async () => (await rows(s)).some((r) => r[0] === 'ann' && r[2] === 'in ghproject')).toBe(true);
-    await rightClick(s, `#ghaccounts [data-github="${ann}"] .label`);
+    await rightClick(s, `#ghaccounts [data-github="${ann}"]`);
     await menuRows(s);
     await choose(s, 'Delete…');
     await expect.poll(async () => (await rows(s)).length).toBe(1);
@@ -230,7 +230,7 @@ test('Esc closes Settings with the keyboard on a repository\'s account (its Sele
   const { id } = await ghProject(core, files);
   try {
     const s = await settings(core, sui, { section: 'projects', id });
-    await s.locator('.ghaccount[data-remote="github.com/acme/shop"]').focus();
+    await s.locator('[data-remote="github.com/acme/shop"]').focus();
     await closeSettings(core, ui, sui);
   } finally { await removeProject(core, id); }
 });
