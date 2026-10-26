@@ -3,7 +3,7 @@
 // each, Back on the first step leaves for the slides before it).
 import { useEffect, useRef, useState, type ReactElement, type ReactNode } from 'react';
 import { Avatar, Badge, Button, Checkbox, Dialog, DialogSurface, DialogTitle, Field, Input, List,
-  ListItem, Tab, TabList, Text, ToggleButton, Toolbar, ToolbarButton, Tooltip } from '@fluentui/react-components';
+  ListItem, Tab, TabList, Text, ToggleButton, Tooltip } from '@fluentui/react-components';
 import { FolderIcon, FolderPlusIcon, GitBranchIcon, MinusIcon, PlusIcon, StarIcon, XIcon } from 'lucide-react';
 import { useShallow } from 'zustand/react/shallow';
 import { SignIn } from './SignIn';
@@ -17,6 +17,8 @@ import { registerDialog } from '../lib/dialogs';
 
 const red = { color: 'var(--colorPaletteRedForeground1)', userSelect: 'text' } as const; // an error: text to copy and search for
 const hint = { color: 'var(--colorNeutralForeground3)' };
+// A one-line field's label beside it: every kind's form fits the smallest window (640×400) unscrolled, Browse… in sight.
+const LABEL_BESIDE = { gridTemplateColumns: '96px minmax(0, 1fr)' };
 const KINDS: { value: From; label: string; icon: ReactElement }[] = [{ value: 'new', label: 'New Folder', icon: <FolderPlusIcon /> },
   { value: 'folder', label: 'Folders on Disk', icon: <FolderIcon /> }, { value: 'clone', label: 'Clone from URL', icon: <GitBranchIcon /> }];
 
@@ -33,7 +35,7 @@ function CodeStep({ w, nameRef }: { w: W; nameRef: React.RefObject<HTMLInputElem
       style={{ flex: 'none', width: 180, padding: 8, borderInlineEnd: '1px solid var(--colorNeutralStroke2)' }}>
       {KINDS.map((k) => <Tab key={k.value} value={k.value} icon={k.icon}>{k.label}</Tab>)}
     </TabList>
-    <div style={{ flex: 1, minWidth: 0, padding: 16, overflow: 'auto', display: 'flex', flexDirection: 'column', gap: 12 }}>
+    <div style={{ flex: 1, minWidth: 0, padding: 16, overflow: 'auto', display: 'flex', flexDirection: 'column', gap: 8 }}>
       {/* One folder or URL (the welcome's): taken as it is left, or at Next */}
       {s.from !== 'new' && w.single && <Field label={folder ? 'Folder' : 'URL'}>
         <div style={{ display: 'flex', gap: 8 }}>
@@ -43,42 +45,39 @@ function CodeStep({ w, nameRef }: { w: W; nameRef: React.RefObject<HTMLInputElem
           {folder && <Button onClick={() => void w.browse(true)}>Browse…</Button>}
         </div>
       </Field>}
-      {/* Folders or URLs, one or several (a frontend and a backend): Enter or Add puts the one typed in the list */}
-      {/* Its label is for the field (htmlFor): Field otherwise names the field by it over the field's own aria-label */}
+      {/* Folders or URLs, one or several (a frontend and a backend): Enter or Add puts the one typed in the list, under
+          it once there is one. Its label is for the field (htmlFor): Field otherwise names the field by it over the
+          field's own aria-label. */}
       {s.from !== 'new' && !w.single && <Field label={{ children: folder ? 'Folders' : 'URLs', htmlFor: 'npsource' }}>
         <div role="group" aria-label={folder ? 'Folders' : 'URLs'} style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0 }}>
-          <div style={{ border: '1px solid var(--colorNeutralStroke1)', borderRadius: 'var(--borderRadiusMedium)' }}>
-            <Toolbar size="small">
-              <Tooltip content={folder ? 'Add Folder…' : 'Add a URL'} relationship="label">
-                <ToolbarButton icon={<PlusIcon />} onClick={() => (folder ? void w.browse(true) : document.getElementById('npsource')?.focus())} /></Tooltip>
-              <Tooltip content="Leave Out" relationship="label"><ToolbarButton icon={<MinusIcon />} disabledFocusable={!chosen} onClick={remove} /></Tooltip>
-            </Toolbar>
-            {rows.length ? <List aria-label={folder ? 'Folders' : 'URLs'} navigationMode="items" selectionMode="single"
-              selectedItems={chosen ? [chosen] : []} onSelectionChange={(_, d) => setChosen(d.selectedItems[0] as string | undefined)}
-              onKeyDown={(e) => { if (e.key === 'Delete') remove(); }} style={{ maxHeight: 160, overflow: 'auto' }}>
-              {rows.map((x, i) => <ListItem key={x.folder} value={x.folder} data-source={x.folder} aria-label={x.folder} checkmark={null}
-                style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 8px' }}>
-                <Text truncate wrap={false} title={x.folder} style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>{x.folder}</Text>
-                {x.state && <Badge appearance="outline" size="small">{x.state === 'repo' ? 'git' : 'no git'}</Badge>}
-                {!i && rows.length > 1 && <Badge appearance="outline" size="small">default</Badge>}
-              </ListItem>)}
-            </List> : <Text style={{ ...hint, display: 'block', padding: 8 }}>{folder ? 'No folders yet' : 'No URLs yet'}</Text>}
-          </div>
           <div style={{ display: 'flex', gap: 8 }}>
-            <Input id="npsource" value={s.typed} spellCheck={false} aria-label={folder ? 'A folder' : 'A repository URL'} style={{ flex: 1 }}
+            <Input id="npsource" value={s.typed} spellCheck={false} aria-label={folder ? 'A folder' : 'A repository URL'} style={{ flex: 1, minWidth: 0 }}
               placeholder={folder ? '~/IdeaProjects/shop' : 'git@github.com:me/shop.git'} onChange={(_, d) => w.set({ typed: d.value, error: '' })}
               onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void w.addSource(); } }} />
             <Button onClick={() => void w.addSource()}>Add</Button>
+            {folder && <Tooltip content="Add Folder…" relationship="label"><Button icon={<PlusIcon />} onClick={() => void w.browse(true)} /></Tooltip>}
+            <Tooltip content="Leave Out" relationship="label"><Button icon={<MinusIcon />} disabledFocusable={!chosen} onClick={remove} /></Tooltip>
           </div>
+          {rows.length > 0 && <List aria-label={folder ? 'Folders' : 'URLs'} navigationMode="items" selectionMode="single"
+            selectedItems={chosen ? [chosen] : []} onSelectionChange={(_, d) => setChosen(d.selectedItems[0] as string | undefined)}
+            onKeyDown={(e) => { if (e.key === 'Delete') remove(); }}
+            style={{ maxHeight: 160, overflow: 'auto', border: '1px solid var(--colorNeutralStroke1)', borderRadius: 'var(--borderRadiusMedium)' }}>
+            {rows.map((x, i) => <ListItem key={x.folder} value={x.folder} data-source={x.folder} aria-label={x.folder} checkmark={null}
+              style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 8px' }}>
+              <Text truncate wrap={false} title={x.folder} style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>{x.folder}</Text>
+              {x.state && <Badge appearance="outline" size="small">{x.state === 'repo' ? 'git' : 'no git'}</Badge>}
+              {!i && rows.length > 1 && <Badge appearance="outline" size="small">default</Badge>}
+            </ListItem>)}
+          </List>}
         </div>
       </Field>}
-      {askName(s, w.single) && <Field label={w.single ? 'Project name' : 'Name'}>
+      {askName(s, w.single) && <Field orientation="horizontal" style={LABEL_BESIDE} label={w.single ? 'Project name' : 'Name'}>
         <Input input={{ ref: nameRef }} value={s.name} maxLength={64} placeholder="e.g. tenant-audit" spellCheck={false}
           onChange={(_, d) => w.change({ name: d.value })} />
       </Field>}
-      {!folder && <Field label="Location">
+      {!folder && <Field orientation="horizontal" style={LABEL_BESIDE} label="Location">
         <div style={{ display: 'flex', gap: 8 }}>
-          <Input value={s.place} spellCheck={false} style={{ flex: 1 }} onChange={(_, d) => w.change({ place: d.value })} />
+          <Input value={s.place} spellCheck={false} style={{ flex: 1, minWidth: 0 }} onChange={(_, d) => w.change({ place: d.value })} />
           <Button onClick={() => void w.browse()}>Browse…</Button>
         </div>
       </Field>}
@@ -94,7 +93,7 @@ function AgentStep({ w }: { w: W }) {
   const agents = useAgentList(w.installs, (s) => s.agents), installing = useAgentList(w.installs, (s) => s.installing);
   const addable = agents.filter((a) => clis.includes(a.id));
   const st = { chosen, main } as Parameters<typeof isDefault>[0];
-  return <div style={{ flex: 1, minWidth: 0, padding: 16, overflow: 'auto', display: 'flex', flexDirection: 'column', gap: 12 }}>
+  return <div style={{ flex: 1, minWidth: 0, padding: 16, overflow: 'auto', display: 'flex', flexDirection: 'column', gap: 8 }}>
     <Text style={hint}>Who works in its tasks: agents signed in to your accounts, one or several (a new task starts the default one; the others
       open beside it). Change it any time in Settings.</Text>
     <div role="group" aria-label="Accounts" style={{ display: 'flex', flexDirection: 'column' }}>
