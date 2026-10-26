@@ -52,13 +52,12 @@ actors, the panes the stage, and the developer watches from the audience and sto
 
 ## Run
 
-Requirements: Node 24.12+ and npm 11 (the code runs from source by Node's type stripping); git. On Linux, for the
-tests on a screen of their own, `sudo apt install xvfb openbox`; for the `.rpm`, `rpm`. On Windows, the Microsoft
-Visual C++ Redistributable (`winget install Microsoft.VCRedist.2015+.x64`): Electron's download and knip load native
-modules built against it. `npm install` builds `node-pty` for Electron on Linux, which needs a compiler (on macOS and
-Windows it loads node-pty's prebuilt binary instead). npm 11 runs a dependency's
-install script only when it is listed in `allowScripts` in package.json (`npm install-scripts approve <pkg>`);
-approving `node-pty` builds it for Node, not Electron: run `npm run postinstall` after that.
+Requirements: Node 24.12+ (the code runs from source by its type stripping), npm 11, git. Linux: a compiler
+(`npm install` builds `node-pty` for Electron; macOS and Windows load its prebuilt binary), `sudo apt install xvfb
+openbox` for the tests on a screen of their own, `rpm` for the `.rpm`. Windows: the Microsoft Visual C++
+Redistributable (`winget install Microsoft.VCRedist.2015+.x64`), which Electron's download and knip load. npm 11 runs
+a dependency's install script only when `allowScripts` in package.json lists it (`npm install-scripts approve <pkg>`);
+approving `node-pty` builds it for Node: `npm run postinstall` after that builds it for Electron.
 
 ```sh
 npm install           # the dependencies; node-pty built for Electron on Linux (scripts/postinstall.ts)
@@ -79,12 +78,11 @@ npm run icons         # after changing assets/icon.svg: icon.png, .ico, .icns ne
 npm version <patch|minor> --no-git-tag-version   # a release's version (CLAUDE.md, Releases); the plugin manifest's follows (scripts/version.ts)
 ```
 
-Kulisa targets macOS, Windows and Linux. Its tests pass on Ubuntu, Windows and macOS at every pull request; macOS
-is for development so far (run from source, or built on one's own Mac, unsigned); Windows is less tried by hand
-(docs/ROADMAP.md).
-Installers are built with [Electron Forge](https://www.electronforge.io/) (`forge.config.ts`), each on its own
-platform. On Linux `npm start` and `npm test` run Electron with `--no-sandbox` (`chrome-sandbox` in `node_modules` is
-not setuid); the `.deb` installs it setuid, so the installed app runs sandboxed.
+Kulisa's tests run on Ubuntu, Windows and macOS at every pull request; macOS is for development so far (from source,
+or built unsigned on one's own Mac); Windows is less tried by hand (docs/ROADMAP.md). Installers are built by
+[Electron Forge](https://www.electronforge.io/) (`forge.config.ts`), each on its own platform. On Linux `npm start`
+and `npm test` run Electron with `--no-sandbox` (`chrome-sandbox` in `node_modules` is not setuid); the `.deb` installs
+it setuid, so the installed app is sandboxed.
 
 Kulisa keeps its data (projects, profiles with their sign-ins, settings) in `~/.config/Kulisa` on Linux,
 `~/Library/Application Support/Kulisa` on macOS, `%APPDATA%\Kulisa` on Windows (docs/tasks.md, What is on the
@@ -93,7 +91,7 @@ computer).
 | Variable | Effect |
 |---|---|
 | `KULISA_PROJECT` | The project in this folder (added if new): its task shown last opened, or a new one |
-| `KULISA_AGENT` | One agent command for every task, without asking (e.g. a CLI Kulisa does not know). It gets no Claude Code plugin; its task's MCP URL is in its environment as `KULISA_MCP_URL`, with `KULISA_PORT_OFFSET` and `KULISA_TASK` |
+| `KULISA_AGENT` | One agent command for every task, without asking (e.g. a CLI Kulisa does not know). It gets no Claude Code plugin; its environment has its task's MCP URL as `KULISA_MCP_URL`, with `KULISA_URL` and `KULISA_TASK` |
 | `KULISA_SIGNIN_HOSTS` | More sign-in hosts for the automatic sign-in pause, comma-separated |
 | `KULISA_DATA` | Data folder instead of the one above (e.g. to try a build next to your real one: one Kulisa runs per data folder, a second on the same one shows the first's window) |
 | `KULISA_MCP_PORT` | MCP server port (default 4450; `0` picks a free one) |
@@ -104,11 +102,10 @@ computer).
 
 ### Developing with Claude Code
 
-The repository is set up for Claude Code sessions working on Kulisa itself (CLAUDE.md is their guide); nothing to do
-by hand. A language server for TypeScript and Vue (the `kulisa-dev` plugin, in `.claude/dev-plugins/`) shows Claude
-its type errors as it makes them; a session without it installs it itself and asks you for `/reload-plugins`. A Stop
-hook runs ESLint and the unit tests before a session ends its turn. How both work and why: docs/testing.md, Claude
-Code's checks.
+Set up for Claude Code sessions on Kulisa itself (CLAUDE.md is their guide), nothing to do by hand: a language server
+for TypeScript and Vue (the `kulisa-dev` plugin, `.claude/dev-plugins/`; a session without it installs it and asks you
+for `/reload-plugins`) and a Stop hook running ESLint and the unit tests before a session ends its turn
+(docs/testing.md, Claude Code's checks).
 
 ## Code
 
@@ -122,6 +119,8 @@ Code's checks.
 | `src/terminal/` | the terminal, a Kulisa package: both its halves, its channels, its doc (docs/packages.md) |
 | `src/github/` | the GitHub accounts, a Kulisa package (docs/packages.md) |
 | `src/activity-monitor/` | what Kulisa takes on the computer, a Kulisa package (docs/packages.md) |
+| `src/dictation/` | speaking to the agent instead of typing, a Kulisa package (docs/packages.md) |
+| `src/screenshots/` | a picture of a profile's page, a Kulisa package (docs/packages.md) |
 | `test/` | unit tests, the e2e tests (`test/e2e/`), the test site (docs/testing.md) |
 | `scripts/` | `electron.ts` (npm start: Electron, `--no-sandbox` on Linux only), `postinstall.ts` (node-pty for Electron), `icons.ts` (npm run icons), `version.ts` (Claude Code's plugin manifest's version from package.json's, at npm version) |
 | `assets/` | the app icon: `icon.svg` and what each OS needs, rendered from it |
@@ -130,10 +129,10 @@ Code's checks.
 | `.github/workflows/` | the CI: the tests at every pull request, the release on a merge into main |
 
 At the root, the tools' configs: `forge.config.ts` (packaging), `vite.config.mts`, `tsconfig.json`,
-`eslint.config.ts`, `knip.jsonc`, `.dependency-cruiser.ts` (the layers). Each part's files, with what each does, are
-in its document, next to how the part works: in "The code", its last section, of docs/profiles.md, docs/tasks.md,
-docs/window.md and docs/transcripts.md; the UI's at the top of docs/ui.md, the tests' in docs/testing.md. The
-experiments behind the design (E1–E8) are in git history at commit `9fe8661`.
+`eslint.config.ts`, `knip.jsonc`, `.dependency-cruiser.ts` (the layers). Each part's files are in its doc: "The code",
+its last section, of docs/profiles.md, docs/tasks.md, docs/window.md and docs/transcripts.md; the UI's at the top of
+docs/ui.md, the tests' in docs/testing.md, a Kulisa package's in its `README.md`. The experiments behind the design
+(E1–E8): git, commit `9fe8661`.
 
 ## License
 

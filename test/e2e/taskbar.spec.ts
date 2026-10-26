@@ -338,15 +338,21 @@ test("tasks: a press on a tab not shown chooses it at once, as Chrome's; its tas
   await taskTab(ui, first).blur(); // a real press leaves the keyboard on the tab (Reka's); a later dialog takes it from nothing
 });
 
-test("tasks: a double click on a task's tab is its Rename…", async ({ core, ui, files, call }) => {
-  await begin(core, ui, files, { only: true, columns: true, featureX: call });
-  const tab = chosen(ui);
-  const name = await tab.textContent();
-  await tab.dblclick();
-  await expect(ui.locator('#taskrename')).toHaveAttribute('data-state', 'open');
-  await expect(ui.locator('#taskname')).toHaveValue(name);
-  await ui.keyboard.press('Escape');
-  await expect(ui.locator('#taskrename[data-state="open"]')).toHaveCount(0);
+test("tasks: a double click on a task's tab is its Rename…, the shown one's and another's (its first press shows it)", async ({ core, ui, files, call }) => {
+  await begin(core, ui, files, { only: true, columns: true, featureX: call, shown: 2 });
+  const first = await keyAt(core, 1), second = await keyAt(core, 2);
+  for (const key of [second, first]) {
+    const tab = taskTab(ui, key);
+    const name = await tab.textContent();
+    await tab.dblclick();
+    await expect(tab).toHaveAttribute('aria-selected', 'true');
+    await expect(ui.locator('#taskrename')).toHaveAttribute('data-state', 'open');
+    await expect(ui.locator('#taskname')).toHaveValue(name);
+    await noSlide(ui);
+    await expect(ui.locator('#taskrename'), 'still open once the grid is shown').toHaveAttribute('data-state', 'open');
+    await ui.keyboard.press('Escape');
+    await expect(ui.locator('#taskrename[data-state="open"]')).toHaveCount(0);
+  }
 });
 
 test('menus: one longer than the window has stays in it and scrolls', async ({ core, ui }) => {

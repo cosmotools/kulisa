@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// What Kulisa does, in three slides, before the first project's steps (Welcome.vue; docs/window.md, The window's pages).
+// What Kulisa does, in three slides, before the first project's steps (Welcome.vue; docs/tasks.md, The window's pages).
 // The pictures are a task's window drawn small in HTML: no pictures to ship, the window's own colors in either theme.
 import { computed, ref } from 'vue';
 import Icon from '../Icon.vue';

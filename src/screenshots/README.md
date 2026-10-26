@@ -1,10 +1,9 @@
 # Screenshots
 
 A Kulisa package ([packages.md](../../docs/packages.md)): a picture of a page, one element, its visible part, or the
-whole page down to its end. The OS's tools take pixels of the screen only; Chrome has element and full-page pictures
-hidden in DevTools, Firefox in its own Take Screenshot. The human takes one to send it to someone or to show the
-agent; the agent to check its work. Decided in issue #102; what is left: masking (issue
-#106), a native thumbnail (issue #107).
+whole page down to its end (the OS's tools take pixels of the screen only). The human takes one to send it to someone
+or to show the agent; the agent to check its work. Decided in issue #102; what is left: masking (issue #106), a native
+thumbnail (issue #107).
 
 It knows nothing of profiles, tasks or agents: it is given a Playwright page. The core's action is
 `Profile.screenshot` (`src/main/profiles.ts`): its checks, then the tab's page passed here, and a line in the log;
@@ -43,12 +42,10 @@ the screen's density (`scale: 'device'`), sharp on a Retina screen. The window's
 
 ### Where it goes
 
-**Both to the clipboard and to a file** (`keep`, `main/folder.ts`), as Windows 11's
-Win+Shift+S does: the clipboard for a message or the agent's prompt (Ctrl+V: Claude Code takes an image so); the file
+**Both to the clipboard and to a file** (`keep`, `main/folder.ts`), as Windows 11's Win+Shift+S does: the clipboard for a message or the agent's prompt (Ctrl+V: Claude Code takes an image so); the file
 in the OS's own folder of screenshots, as ⇧⌘4 saves one: Windows' Screenshots known folder (Win+PrtScn's),
 `Pictures\Screenshots` unless moved in its Properties (where to, the registry's User Shell Folders keeps:
-`reg query`; Electron does not know it), Linux's
-`~/Pictures/Screenshots` (GNOME's, KDE's), on macOS the folder chosen in ⇧⌘5's options (`defaults read
+`reg query`; Electron does not know it), Linux's `~/Pictures/Screenshots` (GNOME's, KDE's), on macOS the folder chosen in ⇧⌘5's options (`defaults read
 com.apple.screencapture location`; Electron does not know it), the Desktop by default. Made when missing, as the OSes
 do. `KULISA_SCREENSHOTS` names another folder (the tests' own, in their temp folder). The file is named as the OSes
 name theirs, `Kulisa <profile> 2026-10-19 14.32.05.png` (` (2)` for a second in the same second), with no character a
@@ -62,10 +59,9 @@ Electron's clipboard is the W3C Clipboard API's (`clipboard.write([new Clipboard
 
 ### The thumbnail
 
-As macOS shows one in the screen's corner: the picture just taken, in the bottom right corner
-of its pane, 20 CSS pixels from its edges, at most 240 × 180 (a taller picture, as a whole page, its top only), framed
-by a thin ring and a shadow so that it stands out of the page under it, for about 5 s; the
-pointer over it, or its menu open, holds it. One a window (`Thumbnails`, `main/thumbnail.ts`): the next takes its
+As macOS shows one in the screen's corner: the picture just taken, in the bottom right corner of its pane, 20 CSS
+pixels from its edges, at most 240 × 180 (a taller picture, as a whole page, its top only), framed by a thin ring and a
+shadow so that it stands out of the page under it, for about 5 s; the pointer over it, or its menu open, holds it. One a window (`Thumbnails`, `main/thumbnail.ts`): the next takes its
 place. The window makes it and tells it three things: where its panes are after every change of the grid (`place`,
 with `AppWindow.paneBox`), that its pages are covered (`setHidden`), and that a task goes (`close`); it goes when its
 pane is off screen.
@@ -81,9 +77,9 @@ pane is off screen.
   types it into the prompt of the task's agent as Pick's reference: `Task.typeForAgent`; Claude Code takes an image by
   its path), Delete (to the trash, `shell.trashItem`), Close.
 
-**How it is drawn.** The pages are native views above the window's HTML (docs/ui.md):
-HTML over a pane is under its page. So the thumbnail is a `WebContentsView` of its own page (`renderer/thumbnail.ts`;
-its `src/renderer/thumbnail.html` only loads it: Vite builds no page outside its root), made when it shows and destroyed when it goes: one more process for those seconds,
+**How it is drawn.** The pages are native views above the window's HTML (docs/ui.md), so the thumbnail is a
+`WebContentsView` of its own page (`renderer/thumbnail.ts`; its `src/renderer/thumbnail.html` only loads it: Vite
+builds no page outside its root), made when it shows and destroyed when it goes: one more process for those seconds,
 about 21 MB (PSS; 10 MB of it its own; 94 MB RSS, Chromium's shared libraries mostly), next
 to a window's 116 MB and a page's 57 MB. Weighed and not chosen: a window of its own over Kulisa's (Wayland does not let
 a window be placed); the pages turned into pictures for its seconds (the human could not use the page meanwhile);
@@ -126,6 +122,6 @@ Outside, using it: `Profile.screenshot` (`src/main/profiles.ts`), `browser_scree
 (`src/main/ipc/panes.ts`), `chooseElement` (`picker.ts`), the key (`keys.ts`), ⋮ → Screenshot (`ProfilePane.vue`) and
 `screenshot` (`src/renderer/lib/store.ts`); the window's `thumbnails` (`window.ts`: made, placed, hidden, closed),
 `<Thumbnail />` and `thumbnailMenu(menuAtPoint)` (`App.vue`), `Task.typeForAgent` (Send to Agent, as Pick), the page's
-shell `src/renderer/thumbnail.html` (`vite.config.mts`). Its e2e tests, on the test site's `/tall`: `test/e2e/agent-tools.spec.ts` ("agent:
-screenshots of an element, …"), `profiles.spec.ts` ("a pane's ⋮ → Screenshot …", "a screenshot shows its
+shell `src/renderer/thumbnail.html` (`vite.config.mts`). Its e2e tests, on the test site's `/tall`:
+`test/e2e/agent-tools.spec.ts` ("agent: screenshots of an element, …"), `profiles.spec.ts` ("a pane's ⋮ → Screenshot …", "a screenshot shows its
 thumbnail …").

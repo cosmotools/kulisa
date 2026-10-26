@@ -2,15 +2,14 @@
 
 How an agent reads what was said and done in its task, by itself or by other agents (`task_history`), and how Kulisa
 reads each agent CLI's transcript for it: for handing a task from one agent to another
-([tasks.md](tasks.md), "Several agents in a task"). Keep this file current when a reader changes, and check it when an agent CLI is updated:
-the transcripts' formats are the agents' own and undocumented.
+([tasks.md](tasks.md), "Several agents in a task"). The formats are the agents' own and undocumented.
 
 ## What the agent gets
 
 **`task_history(conversation, part)`**, a tool of Kulisa's MCP server (`tools/task.ts`, `history.ts`), gives a text
 in parts of about 40,000 characters (10,000 tokens: under what agents take from one tool's result). Part 1 says how
-many there are; the agent calls the next ones in turn. The whole text is made at part 1 and kept (in memory, with the
-task) for the next parts, so they stay the same while the agent reads them: its own transcript grows meanwhile.
+many there are. The whole text is made at part 1 and kept in memory with the task, so the next parts stay the same
+while the agent's own transcript grows.
 
 - **Without a conversation**: **where the task stands** (Kulisa's part, what no transcript says): the task, its
   folder and branch; for each copy of the code, its commits since the task started, the files not committed and
@@ -19,7 +18,6 @@ task) for the next parts, so they stay the same while the agent reads them: its 
   "Several agents in a task"): its tab's name (the one its agent gave it), its agent and account, open in its tab or
   closed, from when to when, the human's first and last request in it (200 characters at most), and how its last turn
   ended (a tool call with no result: cut off, by a limit or the human; or the human's last message with no answer).
-  The agent finds there the conversation the human points it to ("what Claude did", "the checkout").
 - **With a conversation's number**: that conversation whole, the latest chapter first. It is cut into **chapters**
   at its agent's compaction summaries: a chapter is a summary and what follows it up to the next, given from the
   latest back. At the end of its last chapter: how its last turn ended, the agent's last plan (`TodoWrite`) and what
@@ -27,21 +25,18 @@ task) for the next parts, so they stay the same while the agent reads them: its 
 
 Why so:
 
-- **Nothing kept by Kulisa.** The agent's transcript is on disk already, written by the agent; the history is read
-  from it at the call. Not a copy kept as the work goes (after each turn), nor notes the agent writes through a tool:
-  a copy adds code and no record, and notes cost tokens and depend on the model remembering to write them.
+- **Nothing kept by Kulisa.** The history is read from the agent's own transcript at the call. A copy kept after
+  each turn adds code and no record; notes the agent writes through a tool cost tokens and depend on the model
+  remembering them.
 - **A tool, not a file.** The task's data folder holds its profiles' cookies, so no agent gets it; a file in the
   worktree is in the human's code; and every CLI reads a tool's result, Codex in its sandbox too.
-- **The whole conversation, lightly cut**, not a summary of it (details that matter are
-  spread through a long conversation, and a summary loses them). The next agent, a model of the same class, finds
-  what matters better than rules do; the rules only take away what is of no use to anyone.
-- **The latest chapter first.** A compaction summary is the agent's own handoff to itself, written while it had
-  budget and the details before it (what was asked, the decisions, the technical findings, the files), and after a
-  compaction the agent works from that summary and what follows alone. So the latest chapter is the state the
-  agent was in when it stopped; the earlier ones are where a summary's omission is found, and the agent is told to
-  read every part.
-- **A list first, then one conversation**: with several agents in a task, the one asked for is
-  read, not all of them.
+- **The whole conversation, lightly cut**, not a summary: a summary loses the details spread through it, and the
+  next agent, a model of the same class, finds what matters better than rules do. The rules only take away what is
+  of no use to anyone.
+- **The latest chapter first.** A compaction summary is the agent's own handoff to itself, and after it the agent
+  works from that summary and what follows alone: the latest chapter is the state it was in when it stopped. The
+  earlier ones are where a summary's omission is found; the agent is told to read every part.
+- **A list first, then one conversation**: with several agents in a task, only the one asked for is read.
 - **Useful beyond a handoff**: an agent whose context was compacted reads the details again.
 
 The agent learns of it from the MCP server's instructions (every agent) and the Kulisa plugin's skill (Claude Code).
@@ -59,14 +54,14 @@ record:
 | Record | Known by | Text from | Kept as |
 |---|---|---|---|
 | the human's message | `type: "user"`, `message.content` a string (or `text` blocks), neither `isMeta` nor `isCompactSummary` | `message.content` | whole |
-| the human's message typed while the agent worked (queued, sent at its next step) | `type: "attachment"`, `attachment.type: "queued_command"`, `attachment.origin.kind: "human"` | `attachment.prompt` (a string, or text blocks) | whole: dropping attachments wholesale would lose them (21 in the session checked) |
-| a background task's notice | `queued_command` with `origin.kind: "task-notification"` | | left out (97 there) |
+| the human's message typed while the agent worked (queued, sent at its next step) | `type: "attachment"`, `attachment.type: "queued_command"`, `attachment.origin.kind: "human"` | `attachment.prompt` (a string, or text blocks) | whole: dropping attachments wholesale would lose them |
+| a background task's notice | `queued_command` with `origin.kind: "task-notification"` | | left out |
 | a hook's or skill's text, not the human's | `type: "user"`, `isMeta: true` | | left out |
 | a compaction summary ("This session is being continued from a previous conversation…") | `type: "user"`, `isCompactSummary: true` | `message.content` | whole; a chapter starts there |
 | the agent's answer | `type: "assistant"`, block `type: "text"` | `.text` | whole |
 | a tool call | `type: "assistant"`, block `type: "tool_use"`: `name`, `input` | `Bash`: `input.command`; `Edit`: `file_path`, `old_string`, `new_string`; `Write`: `file_path`, `content`; `Read`: `file_path` alone; any other (Kulisa's `mcp__kulisa__*` too): `name` and `input` as JSON | whole: the command run, the file edited and how |
 | a tool's result | `type: "user"`, block `type: "tool_result"`: `tool_use_id`, `is_error`, `content` (a string, or `text` blocks); beside it `toolUseResult` (Bash: `stdout`, `stderr`, `interrupted`), not read | `content` | its first and last 2 KB (`CUT`), `… [N characters cut] …` between; whole when `is_error`; a `Read`'s left out (its path is in the call: the file is in the task's folder, and may have changed) |
-| the agent's plan | a `tool_use` named `TodoWrite`, `input.todos` (`content`, `status`) | the last one | at its conversation's end (the session checked had none: not a sure source) |
+| the agent's plan | a `tool_use` named `TodoWrite`, `input.todos` (`content`, `status`) | the last one | at its conversation's end (not a sure source: a session may have none) |
 | `task_history`'s own calls and results | a `tool_use` named `mcp__kulisa__task_history`, its result | | left out: the conversations it gave are read from their own transcripts |
 | reasoning | block `type: "thinking"` (`thinking`, `signature`: signed, another model cannot take it; empty in most records) | | left out |
 | an image | block `type: "image"` (`source.data`) | | left out |
@@ -74,23 +69,19 @@ record:
 | the CLI's own records | `type: "attachment"` of any other `attachment.type` (`total_tokens_reminder`, `deferred_tools_record`, `environment`, `edited_text_file`, `file`, …); `type` of `system`, `mode`, `permission-mode`, `last-prompt`, `atis-latch`, `ai-title`, `queue-operation`, `file-history-snapshot`, `file-history-delta`, `cost-state`, `continued-in` | | left out |
 
 A record of a kind the reader does not know is skipped, and a line that is not JSON too, so a new kind in a new
-version loses nothing else; the unit test, on a transcript in this format made by the test, catches a renamed one.
+version loses nothing else; the unit test, on a transcript in this format, catches a renamed one. The cut's size is one
+constant, to be tuned on real handoffs.
 
-The cut's size is one constant, to be tuned on real handoffs.
-
-**The conversation's name**: apart from the history, Claude Code's own auto-title is read by the entry's `title`
-(`claudeTitle`): the last non-empty `aiTitle` of the `ai-title` records in the transcript's last MB, read without
-blocking (it writes one again every few records as the conversation goes, and a transcript runs to hundreds of MB,
-too much to read whole at every turn's end; none there keeps the title read before). It is read at a session's start
+**The conversation's name**: Claude Code's own auto-title, read by the entry's `title` (`claudeTitle`): the last
+non-empty `aiTitle` of the `ai-title` records in the transcript's last MB, read without blocking (it writes one again
+every few records, and a transcript runs to hundreds of MB; none there keeps the title read before). It is read at a session's start
 and at a turn's end, then again 5, 15 and 30 s later until it changes (`Task.followAutoTitle`): an agent may name the
 session only once its turn is over. It names the conversation's tab, and the task's while the task is unnamed, until a name is given
 explicitly (`conversation_rename`, `task_rename`; [tasks.md](tasks.md)). A name derived from the folder (Claude Code's
-sessions file, `nameSource: "derived"`) is not a title and is not read. A unit test on a transcript made here catches
-the field being renamed in a new version.
+sessions file, `nameSource: "derived"`) is not a title and is not read. A unit test catches the field being renamed.
 
-**What it remembered**: Claude Code's memory of a folder is next to its transcripts, `projects/<folder>/memory/`
-(`MEMORY.md`, its index, and a file per fact), written by the model while it had budget; the reader gives it, the
-index first.
+**What it remembered**: Claude Code's memory of a folder, `projects/<folder>/memory/` (`MEMORY.md`, its index, and a
+file per fact); the reader gives it, the index first.
 
 ## Codex's transcript
 

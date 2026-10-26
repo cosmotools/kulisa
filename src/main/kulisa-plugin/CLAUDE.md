@@ -1,31 +1,26 @@
 # The agent's tools: how they are designed
 
-The Kulisa plugin's MCP tools are how any agent works in the profiles, the tasks and the terminals. They are in
-`tools/`, a file a group (`profile.ts`, `browser.ts`, `task.ts`, `terminal.ts`; what they share, `handles.ts`), a new
-tool in its group's file; the server that gathers them is `mcp-server.ts`. This file says what makes a tool right, and
-why. How each part works: `docs/profiles.md` (What the agent does; Actions) and the profiles skill
-(`src/agent/skills/profiles/SKILL.md`).
+The Kulisa plugin's MCP tools, how any agent works in the profiles, the tasks and the terminals: `tools/`, a file a
+group (`profile.ts`, `browser.ts`, `task.ts`, `terminal.ts`; what they share, `handles.ts`), a new tool in its group's
+file; the server, `mcp-server.ts`. How each part works: `docs/profiles.md` (What the agent does; Actions) and the
+profiles skill (`src/agent/skills/profiles/SKILL.md`).
 
 ## Principles
 
 1. **The reader is the agent.** A tool's `registerTool` description is its documentation and the one source: what it
    does, when to use it, what it costs. The skill says how the tools fit together (the order, the rules, when to use
    which) and never lists them.
-2. **The same tools for every agent.** A capability is an MCP tool, so Claude Code, Codex and any other CLI get it;
-   what only one agent has (its permissions, its hooks) is an extra in its file in `agents/`.
-3. **One core, a thin handle.** The action, its checks and its rules are the core's (`Task`, `Profile`); the tool
-   finds what to act on, calls it and translates the answer. The human gets the same action in the window (the root
-   `CLAUDE.md`, Architecture).
-4. **Tools, not the work's logic.** A tool gives a capability; the steps of the work are the agent's. A tool that
-   cannot act says what is missing rather than doing something else (the root `CLAUDE.md`, Architecture).
-5. **An action with a meaning, not an API's wrapper.** A tool is named and shaped by what the agent wants ("the
+2. **As the root `CLAUDE.md` holds for all of Kulisa**: the same tools for every agent (what only one has is an extra
+   in its file in `agents/`); one core, a thin handle (the action, its checks and rules are `Task`'s or `Profile`'s;
+   the human gets it in the window too); tools, not the work's logic (a tool that cannot act says what is missing).
+3. **An action with a meaning, not an API's wrapper.** A tool is named and shaped by what the agent wants ("the
    failed requests to /api"), not by the library call under it. Its parameters let the agent narrow what it gets (a
    filter, a part, a period); the defaults are what most calls need.
-6. **The human sees, and stays in charge.** What the agent does shows in the page; the human's tabs stay as they
+4. **The human sees, and stays in charge.** What the agent does shows in the page; the human's tabs stay as they
    were; the sign-in pause holds (automation reaches pages only through the CDP proxy); Kulisa never hands the agent a
    password (`browser_type_login` types it) or a cookie or token (`browser_network_request` hides them). What a script
    of the agent reads in a page is the agent's: Kulisa does not restrict it (`docs/profiles.md`).
-7. **A missing tool shows itself.** The agent going around the tools (a Playwright script of its own, `curl`, asking
+5. **A missing tool shows itself.** The agent going around the tools (a Playwright script of its own, `curl`, asking
    the human to click) names a tool to build; so do the users' Ideas for Kulisa (issue #84).
 
 ## What a tool must be
@@ -49,13 +44,12 @@ A new tool, or a change to one, meets all of these:
 
 ## Saving the agent's context
 
-The context is the agent's working memory, shared with the code and its reasoning: every token a tool puts there is
-one less for thinking.
+The agent's context holds the code and its reasoning too: every token a tool puts there is one less for thinking.
 
 1. **Narrow, don't dump.** Where playwright-core gives a lot (a page's requests, its console, its snapshot), the tool
    wraps it with filters, so the agent takes only what it needs: requests by address and without static files, the
-   console by level, a snapshot of one element or to a depth. How other tools do it (Playwright MCP, Chrome DevTools
-   MCP) is worth a look; what to take is decided on its merits.
+   console by level, a snapshot of one element or to a depth. Playwright MCP's and Chrome DevTools MCP's ways
+   are worth a look, taken on their merits.
 2. **A part, not the whole.** A screenshot of an element or a region, not of the page; a snapshot of a subtree, not
    of the document.
 3. **Large goes to disk.** A snapshot or a response's body over a limit is written to a file in the task's artifacts

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Change Agent: the task handed to another agent (docs/tasks.md, Agents in a task). What goes along is drawn between the
+// Change Agent: the task handed to another agent (docs/tasks.md, Several agents in a task). What goes along is drawn between the
 // two, and flies over to the new one while it reads the conversation (task_history: handover:read, its real progress);
 // its tab, in front under the dialog, is shown once it has read it all, or at once when it needs the human or stops
 // reading: a dialog that never waits for an agent waiting for the human. Show now any time.

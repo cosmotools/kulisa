@@ -1,7 +1,6 @@
 # Licensing
 
-What Kulisa's license covers, and what it does not. The license itself: [LICENSE](../LICENSE) (GPL-3.0); in short:
-[README](../README.md#license).
+What Kulisa's license covers, and what it does not. The license itself: [LICENSE](../LICENSE).
 
 ## Kulisa: GPL-3.0-or-later
 
@@ -36,18 +35,19 @@ The agents' marks in `Sprite.vue` (`i-agent-claude`: Claude's, Anthropic's; `i-a
 makers' trademarks, not licensed under the GPL: they name the agent a row is of, as an IDE shows them, and nothing
 else.
 
-Its dependencies keep their own licenses (`update-electron-app` MIT, `electron-squirrel-startup` Apache-2.0 …), all of which allow being part of a GPL-3.0 program: MIT, ISC, BSD,
-Apache-2.0 (npm packages), ISC (icons from Lucide, copied into `Sprite.vue`), Apache-2.0 (the profiles' pictures from
-Google's Noto Emoji, in `src/renderer/public/avatars/` with their license), the SIL Open Font License (Inter, the window's font; JetBrains Mono, the terminal's) and Chromium's licenses
-(in Electron; packaged builds carry `LICENSE` and `LICENSES.chromium.html`). A new dependency must have a license
-compatible with GPL-3.0. The CI checks it (`dependencies` in `.github/workflows/test.yml`, GitHub's dependency
-review): a pull request whose lockfile brings a package under a license not on its list fails the check.
-The list is what is in the tree and the GPL's own family: GPL-3.0, GPL-2.0-or-later, LGPL-2.1 and 3.0 (or later),
-MIT, ISC, 0BSD, BSD-2-Clause, BSD-3-Clause, Apache-2.0, MPL-2.0, Blue Oak 1.0.0, Unlicense, CC0-1.0, Zlib, Boost,
-Python-2.0 and the SIL Open Font License (fonts). A license not on it is not refused for good: it is a conversation
-with the author, and if it is compatible (the FSF's list), it is added to the workflow and here. One the dependency
-graph cannot read (a package whose `license` is not an SPDX expression) is reported, not refused. The check reads only
-what the pull request changes: what is already in the tree was looked over by hand.
+Its dependencies keep their own licenses, all of which allow being part of a GPL-3.0 program: npm packages (MIT,
+ISC, BSD, Apache-2.0), Lucide's icons copied into `Sprite.vue` (ISC), the profiles' pictures from Google's Noto Emoji
+in `src/renderer/public/avatars/` with their license (Apache-2.0), the fonts Inter and JetBrains Mono (SIL Open Font
+License) and Chromium's licenses (in Electron; packaged builds carry `LICENSE` and `LICENSES.chromium.html`).
+
+A new dependency must have a license compatible with GPL-3.0. The CI checks it (`dependencies` in
+`.github/workflows/test.yml`, GitHub's dependency review): a pull request whose lockfile brings a package under a
+license not on this list fails. The list: GPL-3.0, GPL-2.0-or-later, LGPL-2.1 and 3.0 (or later), MIT, ISC, 0BSD,
+BSD-2-Clause, BSD-3-Clause, Apache-2.0, MPL-2.0, Blue Oak 1.0.0, Unlicense, CC0-1.0, Zlib, Boost, Python-2.0 and the
+SIL Open Font License. A license not on it is a conversation with the author: if compatible (the FSF's list), it is
+added to the workflow and here. One the dependency graph cannot read (a `license` that is not an SPDX expression) is
+reported, not refused. The check reads only what the pull request changes; what is already in the tree was looked
+over by hand.
 
 ## Contributions
 

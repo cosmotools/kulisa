@@ -1,32 +1,28 @@
 # Roadmap
 
-What is planned: ideas and the details of features still to build, deferred ideas, open issues. When a feature is built, it is documented in `docs/` (how it works and why:
-[profiles.md](profiles.md), [tasks.md](tasks.md), [window.md](window.md), [ui.md](ui.md)) and removed from
-here; what is left of it stays.
-
-**Planned features go to GitHub issues** (`enhancement`), and what is here
-moves there over time: what has an issue is removed from here, the issue being the one source (CLAUDE.md,
-`docs/ROADMAP.md`). Before building something, look in both.
+What is planned and not in a GitHub issue yet: features still to build, deferred ideas, open issues. New ones go to
+issues (`enhancement`); an item given an issue leaves here, the issue its one source. Before building something, look
+in both. A feature built is documented in its doc ([profiles.md](profiles.md), [tasks.md](tasks.md),
+[window.md](window.md), [ui.md](ui.md)) and leaves here; what is left of it stays.
 
 ## Next
 
 - **Projects and tasks, rest** (how they work: [tasks.md](tasks.md), [profiles.md](profiles.md)).
-  - **Open, for the author to check:** for the author's real accounts, not testable by Claude:
-    device-bound cookies (DBSC, Google) and MSAL's sign-ins kept in step.
   - **Left of the steps:**
     - A repository added to a task ([tasks.md](tasks.md), Tasks), to try in a real task: whether Claude
       Code reads the project's other repositories without asking; `/add-dir` sent in a turn and held while it waits
       for the human (checked with Claude Code alone, not through Kulisa's hooks); Codex given a line in its turn.
-    - Sign-ins kept in step: device-bound session cookies (DBSC) to check with a real Google account in this
-      Electron; sign-ins in a site's storage (MSAL) are not kept in step.
+    - Sign-ins kept in step, for the author to check with real accounts (Claude cannot): device-bound session
+      cookies (DBSC) with a real Google account in this Electron; sign-ins in a site's storage (MSAL) are not kept in
+      step.
     - "Sign in with Google" on a local app: the human signs in once to a test Google account in the profile's
       master, and the agent goes the whole way itself (account chooser, consent) with no sign-in pause on that path,
       never typing a Google password. The pause part goes into the author's replacement of `signin-pause.ts`.
   - **Put off**: ongoing tasks ("watch the feedback for a month") with Kulisa kept in the tray (none in GNOME by
     default).
 
-- **Phone, tablet and desktop views of a site** (to discuss with the author before
-  building). Responsive layouts are checked today only by resizing the pane.
+- **Phone, tablet and desktop views of a site** (to discuss with the author before building). Responsive layouts are
+  checked only by resizing the pane.
   - A device view **per tab**, as Chrome DevTools' device mode, written once in the core (the tab), with both handles:
     the agent's `browser_device` (`phone`, `tablet`, `desktop`, or a width and height) and `device` on
     `browser_tab_new`, so the agent opens a tab of its own as a phone and leaves the human's tab as it was; the
@@ -52,10 +48,10 @@ moves there over time: what has an issue is removed from here, the issue being t
   - Next to it, small: `browser_emulate_media` (dark or light, print, reduced motion; Playwright's
     `page.emulateMedia`): the profiles' pages follow the OS's theme, so the agent cannot check the site's other one.
   - Estimate: code +200 (the core ~80, the pane ~60, MCP ~60), tests +90, docs +40.
-- **Sign-in: whoever holds the password signs in** (the best idea so far,
-  not final: to think over again before building). Today the sign-in pause is tied to the page's address (a list of
-  hosts), so the agent cannot test the developer's own sign-in, sign-up and password reset through Auth0 and the like
-  until they work: it stops and asks the human every time.
+- **Sign-in: whoever holds the password signs in** (the best idea so far, not final: to think over again before
+  building). The sign-in pause is tied to the page's address (a list of hosts), so the agent cannot test the
+  developer's own sign-in, sign-up and password reset through Auth0 and the like: it stops and asks the human every
+  time.
   - The idea: the pause belongs to the human's sign-in, not to an address. The agent signs in itself where it holds
     the password (test users from the project, accounts it signed up itself, or what the human gave it). For the
     human's own accounts it hands the profile over (`profile_ask_signin`, or a button over the pane when the human
@@ -78,22 +74,22 @@ moves there over time: what has an issue is removed from here, the issue being t
     profile first and reloads, as `profile_ask_signin` does); telling the human's keys from the agent's (Electron's
     `before-input-event`, or the proxy knowing its own `Input.*`).
 - **Choosing the agent, rest** (how it works: [tasks.md](tasks.md), "Choosing the agent").
-  - Codex: untested with the sign-in pause, a project without git, Windows (the
-    hooks' command is sh's: `commandWindows` for PowerShell).
+  - Codex: untested with the sign-in pause, a project without git, Windows (the hooks' command is sh's:
+    `commandWindows` for PowerShell).
   - More agents (Gemini CLI, …): an entry each in `agents/`.
   - Windows: the installers run in PowerShell, untested. macOS: Claude Code's installer untested.
 - **Tasks, rest** (how they work now, and why: [tasks.md](tasks.md)).
   - The agent's state on the task tab for CLIs without hooks (Claude Code's and Codex's report it), e.g. from MCP
     calls and terminal output (working while they come, idle after a quiet while). After a permission answered, both
     show waiting until a tool finishes (no hook says it was answered): a long command run after it shows waiting.
-  - Other tools that, like direnv, want a folder allowed before they apply (mise's `trust`): not handled yet.
+  - Other tools that, like direnv, want a folder allowed before they apply (mise's `trust`): not handled.
   - A task's start point is the remote's default branch: local commits not pushed yet are not in it (as with Claude
     Code's `--worktree`). If that surprises, an option as Claude's `worktree.baseRef: "head"`.
   - The agent making tasks itself (an MCP tool on `Project.createTask`), e.g. to hand parallel parts of a task to
     agents of their own, as Conductor does: a gap in the table of actions ([tasks.md](tasks.md), "Actions"). To
     discuss with Ensemble (#49); deleting stays the human's.
-- **Discuss security for the end user** (with the author, before a public release). Kulisa holds signed-in work
-  accounts and lets an agent act in them. Topics, each to decide or document for users:
+- **Discuss security for the end user** (with the author, before a public release): Kulisa holds signed-in work
+  accounts and lets an agent act in them. Each topic to decide or document for users:
   - **What the agent can do in signed-in accounts:** read private data (it saw passwords in a Teams chat), send
     messages, delete things. Kulisa does not restrict the agent (its own permission modes are its maker's): what to
     tell users about it.
@@ -108,12 +104,10 @@ moves there over time: what has an issue is removed from here, the issue being t
   - **Distribution:** code signing (Windows a certificate, macOS notarization: "Releases and auto-update") and the
     `.deb`'s setuid `chrome-sandbox`. Built: the update channel ("Releases and auto-update") and each release file's
     signed provenance ([window.md](window.md), "The app icon, installers and updates").
-- **Accessibility** (a11y; before a public release, as security). Kulisa should work for people who see poorly, do
-  not use a mouse, or use a screen reader, as the big IDEs do; for software bought by public bodies and large companies
-  it is also a requirement (Section 508 in the US, EN 301 549 in the EU, both on WCAG). Start from Electron's guide
-  (electronjs.org/docs/latest/tutorial/accessibility): Electron turns Chromium's accessibility tree on by itself when
-  assistive technology runs (JAWS, NVDA, VoiceOver, Orca); `app.setAccessibilitySupportEnabled()` turns it on by hand,
-  and on macOS other apps can ask for it (`AXManualAccessibility`); the OS's setting always wins.
+- **Accessibility** (a11y; before a public release, as security): for people who see poorly, do not use a mouse, or
+  use a screen reader, as the big IDEs do; a requirement for software bought by public bodies and large companies
+  (Section 508 in the US, EN 301 549 in the EU, both on WCAG). Start from Electron's guide
+  (electronjs.org/docs/latest/tutorial/accessibility).
   - The roles, states, keyboard and focus Reka UI gives the menus, dialogs and controls ([ui.md](ui.md)) are its
     promise, not checked yet (Checking, below).
   - Seeing: high contrast, the OS's setting (`nativeTheme.shouldUseHighContrastColors`; CSS `forced-colors` on
@@ -138,14 +132,11 @@ moves there over time: what has an issue is removed from here, the issue being t
   - Remapping: the keys in `settings.json` over the table's (VS Code's `keybindings.json`).
   - A closed tab comes back with its address only, not its history (Chrome's keeps it): how it could be kept,
     "Tabs unloaded, rest" (Deferred ideas).
-- **A desktop app's ways, not only buttons**. A web page
-  puts a button on every action; a desktop app gives an action several ways in: a visible one for a newcomer, quick
-  ones for daily use (keys above, a right-click, dragging). Kulisa has some, here and there (the menus of a task's
-  tab, its project's submenu and a pane; a middle click closes a task; tabs and
-  panels are dragged). To build:
+- **A desktop app's ways, not only buttons**: an action has a visible way in for a newcomer and quick ones for daily
+  use (keys above, a right-click, dragging). To build:
   - **The system's notifications: first** (small: Electron's `Notification`, `app.setBadgeCount`, `win.flashFrame`).
-    The human is in their browser or IDE while agents work; today only the icon on a task's tab says one waits
-    or is done, seen only while looking at Kulisa. A notification ("checkout: the agent waits for you"; a click shows
+    The human is in their browser or IDE while agents work, and only the icon on a task's tab says one waits or is
+    done. A notification ("checkout: the agent waits for you"; a click shows
     that task), the number of waiting agents on the app's icon in the dock or taskbar, the window flashing there.
   - **Undo rather than "are you sure?"** for what can be undone: closing a profile, a task's tab, a project shows
     "Closed · Undo" for a few seconds, and Ctrl+Z brings it back. Deleting (a task, a profile with its sign-ins) is
@@ -157,8 +148,7 @@ moves there over time: what has an issue is removed from here, the issue being t
     and arm64. The author has no Apple Developer account yet: an Individual one ($99 a year), then a Developer ID
     Application certificate (its CSR made with `openssl`, no Mac needed) and an App Store Connect API key for
     notarization, as CI secrets; `osxSign`, `osxNotarize` in `forge.config.ts`, on only when those are set. Not before
-    there are users of macOS (alone, on their own Macs, an unsigned build does; "Windows and
-    macOS have gaps left", below).
+    there are users of macOS (for development an unsigned build does: "Windows and macOS have gaps left", below).
   - **Later, each discussed apart:** a size limit on the release's files in `release.yml`, to tell when the package
     grows again (its size: [window.md](window.md), "The app icon, installers and updates"); a dnf repository for the `.rpm`, as the apt one; "Restart to update" in ☰ once
     Later was chosen (through Kulisa's own quit, asking when an agent works); a switch to turn the checks off; delta updates (Squirrel
@@ -214,12 +204,12 @@ moves there over time: what has an issue is removed from here, the issue being t
   sign-in terminal ending at once with no exit code (node-pty's for a process killed); the test app not exiting after
   `[kulisa] quitting`, its terminals ended (the tests fail then: `quit` in `fixtures.ts`).
 
-- **Kulisa's main process left running after quitting, on Windows**, not reproduced: closed by the window's ×
-  with a real Claude Code at work and Settings open, everything saved (`[kulisa] quitting`, the agent's terminal
-  exited, `[settings] closed`), the windows and their processes gone, the main process staying, idle, until ended by
-  hand; the next start refused (one Kulisa per data folder). Node's inspector cannot be turned on in a running Kulisa
-  on Windows, so the next time: start it with `--inspect` and log the app's quit events (`will-quit`, `quit`, the
-  process's `exit`) to see the step it stops at.
+- **Kulisa's main process left running after quitting, on Windows**, not reproduced: closed by the window's × with a
+  real Claude Code at work and Settings open, everything saved (`[kulisa] quitting`, the agent's terminal exited,
+  `[settings] closed`) and the windows gone, the main process stays idle until ended by hand; the next start is
+  refused (one Kulisa per data folder). Node's inspector cannot be turned on in a running Kulisa on Windows: start it
+  with `--inspect` and log the app's quit events (`will-quit`, `quit`, the process's `exit`) to see the step it stops
+  at.
 
 - **The grid in a small window** (not decided; the window's own minimum is built: window.md, "The window's size"). When the panes do not fit,
   dockview overflows and cuts them, the profiles' native views get boxes near 0, and the terminal may get 0 columns
@@ -227,12 +217,11 @@ moves there over time: what has an issue is removed from here, the issue being t
   panes shrink to a `minimumWidth` per panel (dockview) and views too small to use are hidden, or a narrow grid
   turns into tabs.
 
-- **Windows and macOS have gaps left** (Linux is where Kulisa is developed; it targets all three: CLAUDE.md,
-  Conventions). Windows: its tests pass (On Windows in [testing.md](testing.md)) and are a required check of `develop`
-  and `main`; what only a human can check there is not checked yet (marked Windows below). **The macOS support** in two:
-  1. **For development**: Kulisa works on a Mac from source and from a build made there, unsigned (one's own machines
-     need no Apple Developer account; a build made on the Mac is not quarantined, so Gatekeeper lets it run), its tests
-     pass and are a required check of `develop` and `main` (CLAUDE.md, Releases); what is checked by hand: issue #193. Left, marked macOS below.
+- **Windows and macOS have gaps left** (Linux is where Kulisa is developed). Windows: its tests are a required check;
+  what only a human can check there is marked Windows below. **The macOS support** in two:
+  1. **For development**: Kulisa works on a Mac from source and from a build made there, unsigned (a build made on the
+     Mac is not quarantined, so Gatekeeper lets it run); its tests are a required check; checked by hand: issue #193.
+     Left, marked macOS below.
   2. **For users**, later, once there are some: signed and notarized, `.dmg` and `.zip`, updates ("Releases and
      auto-update", macOS), with the Apple Developer account. Until then an unsigned build downloaded on another Mac
      is refused by Gatekeeper and does not update, and kulisa.app says "coming soon" for macOS.
