@@ -69,7 +69,7 @@ export function ProjectPage({ id, onSaved, onLoaded, saveRef }: { id: string; on
     setError(r?.error || '');
     if (r?.error) saved.current = ''; else onSaved();
   }
-  saveRef.current = save;
+  useEffect(() => { saveRef.current = save; });
 
   async function changeFolders(answer: Promise<Result<{ folders?: ProjectFolder[] }>>) {
     setErrors((e) => ({ ...e, folders: '' }));

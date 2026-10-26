@@ -1,7 +1,7 @@
 // Menus on Fluent UI's Menu, with the window's desktop rules on top (docs/ui.md, Menus): a button's menu opens on the
 // press, and a press, a drag to a row and the release there chooses it; rows are chosen with the left button only;
 // leaving the window closes it. An area's right-click menu builds its rows for what was right-clicked.
-import { cloneElement, useEffect, useRef, useState, type HTMLAttributes, type MouseEvent, type PointerEvent, type ReactElement,
+import { cloneElement, useCallback, useEffect, useState, type HTMLAttributes, type MouseEvent, type PointerEvent, type ReactElement,
   type ReactNode } from 'react';
 import { Avatar, Menu, MenuDivider, MenuGroupHeader, MenuItem, MenuList, MenuPopover, MenuTrigger } from '@fluentui/react-components';
 import { avatarSrc } from './avatar';
@@ -32,33 +32,32 @@ const off = (t: EventTarget | null) => t instanceof Element && !!t.closest('[ari
 // A button's menu. children: the button, given the press that opens it; items: built as it opens.
 export function ButtonMenu({ items, children, end }: { items: () => Item[]; children: ReactElement; end?: boolean }) {
   const [open, setOpen] = useState(false), [rows, setRows] = useState<Item[]>([]);
-  const pressed = useRef(false);
-  const close = useRef(() => setOpen(false)).current;
+  const [pressed, setPressed] = useState(false); // opened by a press whose release is still to come
+  const close = useCallback(() => setOpen(false), []);
   useClosedOnBlur(open, close);
   // The release after the press that opened it: on a row, that row is chosen (press, drag, release).
   useEffect(() => {
     if (!open) return;
     const up = (e: globalThis.PointerEvent) => {
-      if (!pressed.current || e.button !== 0) return;
-      pressed.current = false;
+      if (!pressed || e.button !== 0) return;
+      setPressed(false);
       const row = (e.target as Element).closest<HTMLElement>('[role="menuitem"]');
       if (row && row.getAttribute('aria-disabled') !== 'true') row.click();
     };
     addEventListener('pointerup', up, true);
     return () => removeEventListener('pointerup', up, true);
-  }, [open]);
+  }, [open, pressed]);
+  const onPointerDown = (e: PointerEvent<HTMLElement>) => {
+    if (e.button !== 0 || off(e.currentTarget)) return;
+    e.preventDefault();
+    if (open) { setOpen(false); return; }
+    setPressed(true); setRows(items()); setOpen(true);
+  };
+  const onClickCapture = (e: MouseEvent<HTMLElement>) => { if (e.detail > 0) e.stopPropagation(); };
   return <Menu open={open} positioning={end ? 'below-end' : 'below-start'}
-    onOpenChange={(e, d) => { if (!d.open) setOpen(false); else if (!pressed.current && !off(e.target)) { setRows(items()); setOpen(true); } }}>
+    onOpenChange={(e, d) => { if (!d.open) setOpen(false); else if (!pressed && !off(e.target)) { setRows(items()); setOpen(true); } }}>
     {/* open on the press, not on the click (Enter, Space and ↓ open it as Fluent's trigger does) */}
-    <MenuTrigger disableButtonEnhancement>{cloneElement(children as ReactElement<HTMLAttributes<HTMLElement>>, {
-      onPointerDown: (e: PointerEvent<HTMLElement>) => {
-        if (e.button !== 0 || off(e.currentTarget)) return;
-        e.preventDefault();
-        if (open) { setOpen(false); return; }
-        pressed.current = true; setRows(items()); setOpen(true);
-      },
-      onClickCapture: (e: MouseEvent<HTMLElement>) => { if (e.detail > 0) e.stopPropagation(); },
-    })}</MenuTrigger>
+    <MenuTrigger disableButtonEnhancement>{cloneElement(children as ReactElement<HTMLAttributes<HTMLElement>>, { onPointerDown, onClickCapture })}</MenuTrigger>
     <MenuPopover><Rows items={rows} close={close} /></MenuPopover>
   </Menu>;
 }
@@ -66,7 +65,7 @@ export function ButtonMenu({ items, children, end }: { items: () => Item[]; chil
 // An area's right-click menu at the pointer: items(e) the rows for what was right-clicked, or null: none.
 export function RightClickMenu({ items, children }: { items: (e: globalThis.MouseEvent) => Item[] | null; children: ReactNode }) {
   const [open, setOpen] = useState(false), [rows, setRows] = useState<Item[]>([]);
-  const close = useRef(() => setOpen(false)).current;
+  const close = useCallback(() => setOpen(false), []);
   useClosedOnBlur(open, close);
   return <Menu openOnContext open={open} onOpenChange={(e, d) => {
     if (!d.open) return setOpen(false);

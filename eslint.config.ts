@@ -65,10 +65,13 @@ export default tseslint.config(
       'no-restricted-syntax': ['error', EXPORT_ALL],
     },
   },
-  // A hook called conditionally, or an effect or memo missing what it reads: types cannot see either. Not the preset:
-  // its other rules are the React Compiler's analysis, and the window is not compiled by it.
-  { files: ['src/renderer/**/*.tsx'], plugins: { 'react-hooks': reactHooks },
-    rules: { 'react-hooks/rules-of-hooks': 'error', 'react-hooks/exhaustive-deps': 'error' } },
+  // React's rules that types cannot see: a hook called conditionally, an effect or memo missing what it reads; a ref
+  // read or written while rendering, a render that is not pure, props or state changed in place, a component made
+  // inside another, state set while rendering or copied in an effect (what breaks once React renders concurrently). Not
+  // the preset's memoization rules: the window is not compiled by the React Compiler.
+  { files: ['src/renderer/**/*.tsx', 'src/renderer/fluent/**'], plugins: { 'react-hooks': reactHooks },
+    rules: Object.fromEntries(['rules-of-hooks', 'exhaustive-deps', 'refs', 'purity', 'immutability', 'globals', 'static-components',
+      'set-state-in-render', 'set-state-in-effect'].map((r) => [`react-hooks/${r}`, 'error'])) },
   // An e2e test waits for a proof, never for a time: a pause long enough here is too short on a loaded machine, and
   // proves nothing when it is long enough (docs/testing.md, Writing an e2e test). A wait with an end is upTo (helpers.ts).
   { files: ['test/e2e/**'], plugins: { kulisa: { rules: { 'no-kulisa-classes': noKulisaClasses } } },

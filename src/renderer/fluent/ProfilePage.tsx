@@ -1,6 +1,6 @@
 // A profile's page in Settings (docs/profiles.md): who it is, each field saved on Enter or leaving it; Sign In… opens its
 // master's window. Its picture: a panel of them beside it.
-import { useEffect, useState, type KeyboardEvent } from 'react';
+import { useState, type KeyboardEvent } from 'react';
 import { Avatar, Button, Field, Input, Popover, PopoverSurface, PopoverTrigger, Text, Textarea, ToggleButton } from '@fluentui/react-components';
 import { ChevronDownIcon } from 'lucide-react';
 import { avatarSrc } from './avatar';
@@ -11,7 +11,6 @@ import type { SettingsProfile } from '../../shared/types';
 export function ProfilePage({ profile: p, onChanged }: { profile: SettingsProfile; onChanged: (r: { profiles: SettingsProfile[]; id?: string }) => void }) {
   const [name, setName] = useState(p.name), [about, setAbout] = useState(p.description), [login, setLogin] = useState(p.login);
   const [password, setPassword] = useState(''), [error, setError] = useState(''), [picking, setPicking] = useState(false);
-  useEffect(() => { setName(p.name); setAbout(p.description); setLogin(p.login); setPassword(''); setError(''); }, [p]);
   async function change(answer: Promise<Result<{ profiles: SettingsProfile[]; id: string }>>) {
     const r = await answer;
     setError(refused(r) ? r.error : '');

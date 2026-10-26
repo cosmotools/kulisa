@@ -19,7 +19,6 @@ export function AgentPage({ agent: a, signing, onSigning }: { agent: AgentInfo; 
   const { accounts, clis, install: inst } = useAgents();
   const [selected, setSelected] = useState<string>(), [error, setError] = useState('');
   useEffect(() => { void loadAccounts(); }, []); // as now: made in a project, or let go by one, meanwhile
-  useEffect(() => { setSelected(undefined); setError(''); }, [a.id]);
 
   const mine = accounts.filter((x) => x.agent === a.id);
   const where = a.path ? [a.version, shortPath(a.path), a.onPath === false && 'not on your PATH: Kulisa runs it from here'].filter(Boolean).join(' · ') : '';

@@ -1,7 +1,7 @@
 // Settings' window on React and Fluent UI (the probe; docs/window.md, Settings): a nav on the left (Projects, Agents,
 // Profiles, each with its own under it; GitHub, Log, About), the chosen one's page on the right under its path. Saved as
 // it changes. Esc closes it unless a layer was open; the OS's × asks the page first (settings:closing).
-import { useEffect, useRef, useState, type ReactElement, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactElement, type ReactNode } from 'react';
 import { Avatar, Breadcrumb, BreadcrumbButton, BreadcrumbDivider, BreadcrumbItem, Button, FluentProvider, Image, Input,
   NavDrawer, NavDrawerBody, NavItem, NavSectionHeader, Text, Tooltip } from '@fluentui/react-components';
 import { BotIcon, EllipsisIcon, GitBranchIcon, InfoIcon, PlusIcon, ScrollTextIcon } from 'lucide-react';
@@ -37,12 +37,13 @@ export function Settings() {
   const [section, setSection] = useState<Section>('projects');
   const [projects, setProjects] = useState<ProjectEntry[]>([]), [editing, setEditing] = useState<string | null>(null);
   const { list: agents, clis, looking, install: inst } = useAgents();
-  const [agentAt, setAgentAt] = useState<string>(), [signing, setSigning] = useState<string | null>(null); // signing: the agent a new account is signed in to on its page
-  const [profiles, setProfiles] = useState<SettingsProfile[]>([]), [profileAt, setProfileAt] = useState<string>();
+  const [agentPick, setAgentAt] = useState<string>(), [signing, setSigning] = useState<string | null>(null); // signing: the agent a new account is signed in to on its page
+  const [profiles, setProfiles] = useState<SettingsProfile[]>([]), [profilePick, setProfileAt] = useState<string>();
   const [newProfile, setNewProfile] = useState<string | null>(null), [profilesError, setProfilesError] = useState('');
   const save = useRef(async () => {});
   // The project's page read again each time Settings is asked for a page (shown), and when it is there (loaded).
   const [shown, setShown] = useState(0), loaded = useRef(() => {});
+  const pageLoaded = useCallback(() => loaded.current(), []);
 
   const lists = async () => {
     const [list, p] = await Promise.all([kulisa.invoke('projects:list'), kulisa.invoke('profiles:list')]);
@@ -75,9 +76,9 @@ export function Settings() {
     kulisa.send('settings:ready');
   }; if (asked) onAsked(asked); }, []);
   useEffect(() => { kulisa.on('settings:changed', () => { void lists(); }); }, []);
-  useEffect(() => { if (!agents.some((a) => a.id === agentAt)) setAgentAt(agents[0]?.id); }, [agents, agentAt]);
-  // A profile gone (deleted here or elsewhere): the first one shown instead.
-  useEffect(() => { if (!profiles.some((p) => p.id === profileAt)) setProfileAt(profiles[0]?.id); }, [profiles, profileAt]);
+  // The one chosen, or the first while none is (or the chosen one is gone: deleted here or elsewhere).
+  const agentAt = agents.some((a) => a.id === agentPick) ? agentPick : agents[0]?.id;
+  const profileAt = profiles.some((p) => p.id === profilePick) ? profilePick : profiles[0]?.id;
 
   // While an agent installs, it stays.
   const close = async () => { if (installing()) return; await save.current(); kulisa.send('settings:close'); };
@@ -158,15 +159,15 @@ export function Settings() {
         <Breadcrumb aria-label="Path">{path.filter(Boolean).flatMap((p, i, all) => [
           <BreadcrumbItem key={i}><BreadcrumbButton current={i === all.length - 1}>{p}</BreadcrumbButton></BreadcrumbItem>,
           ...(i < all.length - 1 ? [<BreadcrumbDivider key={`d${i}`} />] : [])])}</Breadcrumb>
-        {chosen && actions(chosen).length > 0 && <ButtonMenu end items={() => actions(chosen)}><Button appearance="subtle" icon={<EllipsisIcon />} aria-label="More" /></ButtonMenu>}
+        {chosen && section !== 'github' && section !== 'log' && section !== 'about' && <ButtonMenu end items={() => actions(chosen)}><Button appearance="subtle" icon={<EllipsisIcon />} aria-label="More" /></ButtonMenu>}
       </div>
-      {section === 'projects' && (editing ? <ProjectPage key={`${editing}:${shown}`} id={editing} saveRef={save} onSaved={() => void lists()} onLoaded={() => loaded.current()} /> : <Text>No projects yet.</Text>)}
-      {section === 'profiles' && (shownProfile ? <ProfilePage profile={shownProfile} onChanged={(r) => { setProfiles(r.profiles); if (r.id) setProfileAt(r.id); }} />
+      {section === 'projects' && (editing ? <ProjectPage key={`${editing}:${shown}`} id={editing} saveRef={save} onSaved={() => void lists()} onLoaded={pageLoaded} /> : <Text>No projects yet.</Text>)}
+      {section === 'profiles' && (shownProfile ? <ProfilePage key={JSON.stringify(shownProfile)} profile={shownProfile} onChanged={(r) => { setProfiles(r.profiles); if (r.id) setProfileAt(r.id); }} />
         : <Text>No profiles yet.</Text>)}
       {section === 'github' && <GitHubPage />}
       {section === 'about' && <AboutPage />}
       {section === 'log' && <LogPage />}
-      {section === 'agents' && (shownAgent ? <AgentPage agent={shownAgent} signing={signing === shownAgent.id} onSigning={(on) => setSigning(on ? shownAgent.id : null)} />
+      {section === 'agents' && (shownAgent ? <AgentPage key={shownAgent.id} agent={shownAgent} signing={signing === shownAgent.id} onSigning={(on) => setSigning(on ? shownAgent.id : null)} />
         : <Text>{looking ? 'Looking for agents on this computer…' : 'No agents.'}</Text>)}
     </main>
     <Ask />
