@@ -38,9 +38,9 @@ const start = async (core: Core, data: string, env: Record<string, string> = {})
 
 test("the agent starts at the terminal's real size, not a default one", async ({ core, ui }) => {
   // Claude Code draws its prompt for the size it starts with and does not fully redraw on the first resize.
-  const first = await ui.evaluate(() => (window as any).__ptySizes[0]);
-  expect(await core((k) => k.shell.pty.spawnSize)).toEqual(first);
-  expect(first.rows >= 10 && first.cols >= 80, `a real size: ${JSON.stringify(first)}`).toBe(true);
+  const shown = await ui.evaluate(() => { const t = (window as any).__term; return { cols: t.cols, rows: t.rows }; });
+  expect(await core((k) => k.shell.pty.spawnSize)).toEqual(shown);
+  expect(shown.rows >= 10 && shown.cols >= 80, `a real size: ${JSON.stringify(shown)}`).toBe(true);
 });
 
 test('terminal: Unicode 11 widths (cursor stays put after emoji), bundled font, GPU renderer, the rows in the middle', async ({ ui }) => {

@@ -41,14 +41,13 @@ matchMedia('(prefers-color-scheme: dark)').addEventListener('change', themeTermi
 
 // What a window adds: where a link opens (a tasks' window asks: one of its profiles or the browser), which paths a
 // terminal names exist and what is done with one (files, openFile: the window knows the folder and the disk; without
-// them a path is no link), and a terminal fitted to a size (the tests read the shown one's). By default a link opens
+// them a path is no link). By default a link opens
 // in the user's browser on Ctrl+click (⌘ on macOS), http and https only, its address shown on hover; one to a file is
 // a path's.
 export const termHooks: {
   open: (e: MouseEvent, uri: string) => void;
   files?: (key: string, paths: string[]) => Promise<(FileLink | null)[]>;
   openFile?: (e: MouseEvent, path: string) => void;
-  fitted?: (key: string, size: { cols: number; rows: number }) => void;
 } = {
   open: (_e, uri) => { window.open(uri); },
 };
@@ -221,7 +220,6 @@ export class View {
       try { this.fit.fit(); } catch { return; }
       const b = bufferOf(key, size);
       if (b.term.cols !== size.cols || b.term.rows !== size.rows) b.term.resize(size.cols, size.rows);
-      termHooks.fitted?.(key, size);
       kulisa.send('pty:resize', { task: key, ...size });
     }), 100);
   }

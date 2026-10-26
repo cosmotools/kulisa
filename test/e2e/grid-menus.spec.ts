@@ -7,7 +7,7 @@ import url from 'url';
 import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
-import { SITE, MAC, WIN, frames, seen, echoed, uiZoom, menu, anyMenu, menuRows, choose, closeMenu, rightClick, focusWindow, pageBox, viewOn, answered, mouse, scaled, mid, removed } from './helpers.ts';
+import { SITE, MAC, WIN, frames, seen, ipcSettled, echoed, uiZoom, menu, anyMenu, menuRows, choose, closeMenu, rightClick, focusWindow, pageBox, viewOn, answered, mouse, scaled, mid, removed } from './helpers.ts';
 import type { Mods } from './helpers.ts';
 import { SAM, ELON, begin } from './tasks-helpers.ts';
 
@@ -175,7 +175,8 @@ test('context menus: a pane\'s header, a tab, the terminal; pages are pictures w
   for (const f of ['a.txt', long]) fs.writeFileSync(path.join(dir, f), '');
   const run = path.join(dir, process.platform === 'win32' ? 'run.cmd' : 'run.sh'); // Windows: by its extension
   fs.writeFileSync(run, '#!/bin/sh\n', { mode: 0o755 });
-  const lines = ['see kl-links/a.txt:12.', run, 'kl-links/missing.txt', `${dir} here`, `kl-links/${long}`];
+  // A path that does not exist beside one that does: one answer for the line's paths (a link, shown on hover, says it came).
+  const lines = ['see kl-links/a.txt:12.', run, 'kl-links/missing.txt or kl-links/a.txt', `${dir} here`, `kl-links/${long}`];
   await write(`\r\n${lines.join('\r\n')}\r\n`);
   // Where a text starts on the screen (in a line as written, its wrapped rows joined; at the cell's middle, a row
   // lower with below), and a press there with Ctrl (⌘).
@@ -192,25 +193,23 @@ test('context menus: a pane\'s header, a tab, the terminal; pages are pictures w
   }, [text, below] as const);
   const mods: Mods = [MAC ? 'meta' : 'control'];
   const z = await uiZoom(core);
-  // A path is a link once the main process says it exists (termHooks.files, asked as the pointer comes over its line):
-  // its answers counted, as they reach the terminal. An agent's link (OSC 8) is one at once: its address shown on hover.
-  await ui.evaluate(() => {
-    const w = window as any, h = w.termHooks, files = h.files;
-    w.__answers = 0; w.__files = files;
-    h.files = (...a: unknown[]) => files(...a).then((r: unknown) => { setTimeout(() => { w.__answers++; }); return r; });
-  });
-  const answers = () => ui.evaluate(() => (window as any).__answers as number);
+  // A path is a link once the main process says it exists (asked as the pointer comes over its line): its full path
+  // shown on hover. An agent's link (OSC 8) is one at once: its address shown.
   const hovered = () => ui.evaluate(() => [...document.querySelectorAll<HTMLElement>('[data-testid="terminal"] [title]')].map((e) => e.title).find(Boolean) ?? '');
-  // Ctrl+click on a text once its link is known: osc, the agent's link's address.
-  const pressAt = async (text: string, below = 0, osc?: string) => {
-    const p = scaled(z, await spot(text, below)), n = await answers();
+  const hoverAt = async (text: string, below: number, shown: string) => {
+    const p = scaled(z, await spot(text, below));
     await mouse(core, 'mouseMove', p, 'left', mods);
-    if (osc) await expect.poll(hovered).toBe(osc);
-    else await expect.poll(answers).toBeGreaterThan(n);
+    await expect.poll(hovered).toBe(shown);
+    return p;
+  };
+  // Ctrl+click on a text once its link shows what it is.
+  const pressAt = async (text: string, shown: string, below = 0) => {
+    const p = await hoverAt(text, below, shown);
     await frames(ui);
     await mouse(core, 'mouseDown', p, 'left', mods);
     await mouse(core, 'mouseUp', p, 'left', mods);
   };
+  const a = path.join(dir, 'a.txt');
   await core((k) => {
     const e = k.electron, g: any = k.stash.links = { openPath: e.shell.openPath, showItemInFolder: e.shell.showItemInFolder, files: [] };
     e.shell.openPath = async (p: string) => { g.files.push(`open ${p}`); return ''; };
@@ -220,16 +219,16 @@ test('context menus: a pane\'s header, a tab, the terminal; pages are pictures w
   try {
     // The menu has no heading: the path is in the terminal. Which file a link is, by what the OS is handed.
     const chooseFile = async (row: string) => { const n0 = (await handed()).length; await choose(ui, row); await expect.poll(async () => (await handed()).length).toBe(n0 + 1); };
-    await pressAt('kl-links/a.txt');
+    await pressAt('a.txt:12', a);
     expect(await menuRows(ui), 'relative, with :line').toEqual(['Open', 'Show in Folder']);
     await chooseFile('Open');
-    await pressAt(run);
+    await pressAt(run, run);
     expect(await menuRows(ui), 'it would run: shown only').toEqual(['Show in Folder']);
     await chooseFile('Show in Folder');
-    await pressAt(`${dir} here`);
+    await pressAt(`${dir} here`, dir);
     expect(await menuRows(ui), 'a folder').toEqual(['Open', 'Show in Folder']);
     await chooseFile('Show in Folder');
-    await pressAt(`kl-links/${long.slice(0, 10)}`, 1);
+    await pressAt(`kl-links/${long.slice(0, 10)}`, path.join(dir, long), 1);
     expect(await menuRows(ui), 'wrapped over two rows: one link').toEqual(['Open', 'Show in Folder']);
     await chooseFile('Show in Folder');
     // A file an agent marks as a link (OSC 8): Claude Code gives its path as it is, others a file:// address, with no
@@ -237,21 +236,30 @@ test('context menus: a pane\'s header, a tab, the terminal; pages are pictures w
     const fileUrl = (host: string) => `file://${host}${url.pathToFileURL(path.join(dir, 'a.txt')).pathname}`;
     for (const uri of [path.join(dir, 'a.txt'), fileUrl(''), fileUrl(os.hostname())]) {
       await write(`\x1b]8;;${uri}\x07marked-file\x1b]8;;\x07\r\n`);
-      await pressAt('marked-file', 0, uri);
+      await pressAt('marked-file', uri);
       expect(await menuRows(ui), uri).toEqual(['Open', 'Show in Folder']);
       await chooseFile('Show in Folder');
     }
-    await pressAt('kl-links/missing.txt');
+    await hoverAt('kl-links/a.txt', 0, a); // its line's answer in (the lowest a.txt on the screen)
+    const missing = scaled(z, await spot('kl-links/missing.txt'));
+    await mouse(core, 'mouseMove', missing, 'left', mods);
+    await frames(ui);
+    expect(await hovered(), 'a path that does not exist is no link').toBe('');
+    await mouse(core, 'mouseDown', missing, 'left', mods); await mouse(core, 'mouseUp', missing, 'left', mods);
     await frames(ui); // a menu the press opened would be drawn by now
     expect(await anyMenu(ui).count(), 'a path that does not exist is no link').toBe(0);
     await write(`\x1b]8;;${fileUrl('elsewhere.example')}\x07other-host\x1b]8;;\x07\r\n`);
-    await pressAt('other-host', 0, fileUrl('elsewhere.example'));
+    const other = await hoverAt('other-host', 0, fileUrl('elsewhere.example'));
+    await frames(ui);
+    await mouse(core, 'mouseDown', other, 'left', mods);
+    // The click asks the main process, which answers another host's file at once (no disk read): a question after
+    // it is answered after it.
+    await seen(ui, 'mouseup', () => mouse(core, 'mouseUp', other, 'left', mods));
+    await ipcSettled(ui);
     await frames(ui);
     expect(await anyMenu(ui).count(), "another computer's file is not opened here").toBe(0);
-    const a = path.join(dir, 'a.txt');
     expect(await handed()).toEqual([`open ${a}`, `show ${run}`, `show ${dir}`, `show ${path.join(dir, long)}`, `show ${a}`, `show ${a}`, `show ${a}`]);
   } finally {
-    await ui.evaluate(() => { const w = window as any; w.termHooks.files = w.__files; });
     await core((k) => { const g = k.stash.links; Object.assign(k.electron.shell, { openPath: g.openPath, showItemInFolder: g.showItemInFolder }); });
     await removed(dir);
   }

@@ -98,7 +98,6 @@ test('tasks: + opens a task in the project\'s main working tree ("New Task", no 
   // 5 s, which a loaded machine reaches. The island hidden while the main process's clock goes 6 s on after the agent
   // is found (driver.ts, clock: its timers of a second or more).
   await ui.evaluate(() => document.head.append(Object.assign(document.createElement('style'), { id: 'lateIsland', textContent: '[data-testid="terminal"] { display: none !important; }' })));
-  const sent = await ui.evaluate(() => (window as any).__ptySizes.length);
   await core((k) => k.clock.hold(1000));
   const late = (async () => {
     await expect.poll(() => ui.evaluate(() => (window as any).__starting)).toBeTruthy();
@@ -110,8 +109,8 @@ test('tasks: + opens a task in the project\'s main working tree ("New Task", no 
   const task = await newTask(core, ui, null); // left "New Task": this test names it with task_worktree below
   await late;
   await core((k) => { k.clock.release(); Object.assign(k.shell, { findAgent: k.stash.find }); });
-  await expect.poll(() => ui.evaluate(() => (window as any).__ptySizes.length)).toBeGreaterThan(sent);
-  expect(await core((k, key) => k.shell.taskByKey(key).pty.spawnSize, task), 'at its real size').toEqual(await ui.evaluate((n) => (window as any).__ptySizes[n], sent));
+  const shown = () => ui.evaluate(() => { const t = (window as any).__term; return t && { cols: t.cols, rows: t.rows }; });
+  await expect.poll(async () => JSON.stringify(await core((k, key) => k.shell.taskByKey(key).pty?.spawnSize, task)) === JSON.stringify(await shown()), 'at its real size').toBe(true);
   expect(await ui.evaluate(() => (window as any).__launch), "no island's buttons while its agent starts").toBe(false);
   expect(await ui.evaluate(() => (window as any).__starting), 'its tab, starting').toMatch(/^Starting .+…$/);
   await expect(ui.getByRole('status').filter({ hasText: /^Starting / })).toHaveCount(0); // then its terminal

@@ -15,11 +15,8 @@ const frontKey = () => (store.current && store.terminals.front !== null ? `${sto
 // The island's xterm, one for the window: Terminals.vue puts it in whichever grid is shown.
 export const island = new View({ background: '--toolbar' }); // a pane's toolbar's, under the tab in front
 export const shownTerm = () => (island.key && island.key === frontKey() ? island.term : null);
-const sizes: { cols: number; rows: number }[] = [];
 Object.defineProperty(window, '__term', { get: shownTerm }); // for tests
 Object.defineProperty(window, '__termRenderer', { get: () => shownTerm() && island.renderer }); // for tests
-Object.assign(window, { __ptySizes: sizes }); // for tests: the sizes sent for the shown task's terminals
-termHooks.fitted = (key, size) => { if (key === frontKey()) sizes.push(size); };
 
 // Links in the terminal: those an agent marks (OSC 8, as Claude Code does) and addresses in plain text (the web-links
 // addon). Ctrl+click (⌘ on macOS) asks where, in a menu at the pointer: a tab of one of the shown task's open
