@@ -207,13 +207,9 @@ test("projects: the projects' manager (Project Settings…) changes its name and
   expect(agentOf(bare)).toBe(null);
   await ui.evaluate(() => (document.activeElement as HTMLElement)?.blur());
   await focusWindow(core, ui);
-  // Once more until the launcher has it: on a loaded machine the + menu, closed just before, may give the keyboard
-  // back where it was after Ctrl+` had given it to the launcher. Opens nothing: no agent.
-  const onLauncher = () => ui.evaluate(() => document.activeElement === document.querySelector('nav[aria-label="New terminal"] button'));
-  await expect(async () => {
-    if (!(await onLauncher())) await core((k) => k.press(k.shell.win.webContents, '`', 'control'));
-    await expect.poll(onLauncher, { timeout: 1500 }).toBe(true);
-  }, 'Ctrl+` gives the launcher the keyboard').toPass({ timeout: 6000 });
+  // Ctrl+` gives the launcher the keyboard. Opens nothing: no agent.
+  await core((k) => k.press(k.shell.win.webContents, '`', 'control'));
+  await expect.poll(() => ui.evaluate(() => document.activeElement === document.querySelector('nav[aria-label="New terminal"] button'))).toBe(true);
   expect(await terminals(), 'nothing opened').toBe(0);
   // With a profile open, the island is a strip: Ctrl+` opens its +.
   await call('profile_create', { name: 'Bo.bare' }, { task: bare });
