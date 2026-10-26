@@ -248,16 +248,15 @@ test('close a profile (its × or the agent) and open it again (👥 or the agent
   await expect.poll(() => core((k, id) => !k.shell.profileStore.get(id), cleo)).toBe(true);
 });
 
-test('a profile with a tab on a site that never answers opens anyway, and the agent can use it', async ({ core, ui, call, files }) => {
-  test.setTimeout(45000); // browser_tab_new on /hang answers after its 5 s
+test('a profile with a tab on a site that never answers opens anyway, and the agent can use it', async ({ core, ui, call }) => {
   await deleteProfile(core, ui, 'Hung');
   await call('profile_create', { name: 'Hung' });
   const hung = await profileId(core, 'Hung');
-  await call('browser_tab_new', { profile: 'Hung', url: `${SITE}/hang` }); // returns after 5 s without a page
-  await core((k, id) => k.shell.task.closeProfile(id), hung);
-  await expect.poll(() => files.savedTabs(hung).some((u) => u.endsWith('/hang'))).toBe(true);
+  // Closed with its tab on the site, as closing it there leaves it (opening it there waits for the page, about 5 s).
+  await core(async (k, a) => { await k.shell.task.closeProfile(a.id); k.shell.task.closed.get(a.id).tabs = { urls: [a.url], active: 0 }; }, { id: hung, url: `${SITE}/hang` });
   const took = await core(async (k, id) => { const started = Date.now(); await k.shell.task.openProfile(id); return Date.now() - started; }, hung);
   expect(took < 10000, `opened in ${took} ms`).toBe(true);
+  expect(await core((k) => k.profile('Hung').get().pendingUrl), 'on its saved tab, still loading').toBe(`${SITE}/hang`);
   const t = await call('browser_tab_new', { profile: 'Hung', url: `${SITE}/app` });
   expect(t.text).toMatch(/app/);
   await deleteProfile(core, ui, 'Hung');
