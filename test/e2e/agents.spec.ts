@@ -8,7 +8,7 @@ import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
 import type { Files } from './data.ts';
-import { SITE, WIN, holdPointer, focusWindow, menu, menuRows, choose, closeMenu, rightClick, closeSettings, item, renamed, termText, termShows, invoke, projectMenu, onRow } from './helpers.ts';
+import { SITE, WIN, holdPointer, focusWindow, menuRows, choose, closeMenu, rightClick, closeSettings, item, renamed, termText, termShows, invoke, projectMenu, onRow } from './helpers.ts';
 import { newTask } from './tasks-helpers.ts';
 import { fakeAgent, fakeBin } from './agent-helpers.ts';
 
@@ -245,7 +245,7 @@ test("language: one for every agent (☰ → Language): written into the agents'
   await focusWindow(core, ui); // the keyboard chooses below
   await ui.locator('#windowMenu').click();
   expect(await menuRows(ui)).toContain('Language');
-  const row = menu(ui).getByTestId('language-row');
+  const row = item(ui, 'Language');
   await expect(row).toHaveAccessibleDescription('English');
   await expect(row).toHaveAttribute('title', /^The language you speak with the agents\. Fake agent dictates and answers in it, and may write code comments in it too: your project's CLAUDE\.md or AGENTS\.md decides that\./);
   await row.click();
