@@ -47,8 +47,8 @@ const tabComponents = markRaw({ profile: ProfileHeader, terminal: TerminalTabs, 
     --dv-activegroup-hiddenpanel-tab-color: var(--text-muted); --dv-inactivegroup-hiddenpanel-tab-color: var(--text-muted);
     --dv-activegroup-visiblepanel-tab-color: var(--text-strong); --dv-inactivegroup-visiblepanel-tab-color: var(--text);
     --dv-tab-divider-color: transparent; --dv-separator-border: transparent;
-    --dv-border-radius: var(--island-radius); --dv-tab-border-radius: var(--radius); --dv-tab-margin: 4px 2px; --dv-spacing-padding: 0px;
-    --dv-active-sash-color: var(--accent); --dv-drag-over-background-color: color-mix(in srgb, var(--accent) 25%, transparent);
+    --dv-border-radius: var(--island-radius); --dv-tab-border-radius: var(--corner); --dv-tab-margin: 4px 2px; --dv-spacing-padding: 0px;
+    --dv-active-sash-color: var(--blue); --dv-drag-over-background-color: color-mix(in srgb, var(--blue) 25%, transparent);
   }
   :is(.dockview-theme-abyss-spaced, .dv-dockview) { background: transparent; }
   .dv-tabs-container:has(.dv-tab + .dv-tab) .dv-active-tab { background: var(--island-hi); }

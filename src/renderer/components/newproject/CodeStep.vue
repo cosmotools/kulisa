@@ -68,7 +68,7 @@ defineExpose({ focus: () => nameField.value?.focus() });
 <style>
 .npsplit { flex: 1; display: flex; min-width: 0; min-height: 0;
   .npkinds { flex: none; width: 200px; padding: var(--gap); border-inline-end: 1px solid var(--island-hi); background: var(--window); outline: none;
-    .item { border-radius: var(--radius); } }
+    .item { border-radius: var(--corner); } }
   .npform { flex: 1; min-width: 0; padding: var(--pad); overflow: auto; > .field:first-child { margin-top: 0; } }
   .field.top { align-items: start; > span { line-height: var(--control); } }
   .npsourcelist { display: flex; flex-direction: column; gap: var(--gap); min-width: 0;

@@ -14,7 +14,8 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
     "noUncheckedIndexedAccess": true,
-    "noImplicitOverride": true
+    "noImplicitOverride": true,
+    "paths": { "@/*": ["./*"] }
   },
   "include": ["**/*.ts", "**/*.vue", "../*/renderer", "../*/ipc.ts"],
   "exclude": ["public", "../main"]

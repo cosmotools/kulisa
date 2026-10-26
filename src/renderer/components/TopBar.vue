@@ -70,9 +70,9 @@ const windowMenu = (): MenuItem[] => [
 }
 /* The rows of ☰'s own (menu/*.vue) as the menu's .item: as high, the icon at the start */
 .menu {
-  :is(.zoomrow, .themerow, .barrow, .arrange) [role^="menuitem"] { border-radius: var(--radius);
+  :is(.zoomrow, .choicerow, .arrange) [role^="menuitem"] { border-radius: var(--corner);
     &[data-highlighted] { background: var(--island-hi); outline: none; } }
-  :is(.zoomrow, .themerow, .barrow) { min-height: var(--row); padding-inline: var(--inset) 4px;
+  :is(.zoomrow, .choicerow) { min-height: var(--row); padding-inline: var(--inset) 4px;
     > svg { margin-inline-end: calc(var(--inset) - 2px); } }
 }
 </style>

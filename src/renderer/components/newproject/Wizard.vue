@@ -49,8 +49,8 @@ defineExpose({ focus, saving: w.saving });
     border-bottom: 1px solid var(--island-hi); color: var(--text-muted);
     li { display: flex; align-items: center; gap: 6px; }
     .n { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; border: 1px solid var(--line); font-size: var(--font-small); }
-    [aria-current="step"] { color: var(--text-strong); .n { border-color: var(--accent); background: var(--accent); color: var(--on-accent); } }
-    [data-done] .n { border-color: var(--accent); color: var(--accent); } }
+    [aria-current="step"] { color: var(--text-strong); .n { border-color: var(--blue); background: var(--blue); color: var(--on-accent); } }
+    [data-done] .n { border-color: var(--blue); color: var(--blue); } }
   .npstep { flex: 1; min-width: 0; padding: var(--pad); overflow: auto; > .hint:first-child { margin-top: 0; } .titled { margin-block: var(--pad) var(--inset); } }
   #nperror { margin: 0 var(--pad) var(--inset); &:empty { display: none; } }
 }

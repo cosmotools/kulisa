@@ -537,7 +537,7 @@ const stopAdding = () => { adding.value = ''; newName.value = ''; cloneUrl.value
     background: var(--window);
     #profilenewname { margin-inline-start: 26px; } .error { margin: 0 0 0 26px; &:empty { display: none; } } }
   #pjlist { margin: 0; padding: 0; outline: none;
-    .item { min-height: var(--row); padding: 0 4px 0 8px; gap: var(--gap); border-radius: var(--radius); padding-inline-start: calc(8px + (var(--level, 1) - 1) * 18px); }
+    .item { min-height: var(--row); padding: 0 4px 0 8px; gap: var(--gap); border-radius: var(--corner); padding-inline-start: calc(8px + (var(--level, 1) - 1) * 18px); }
     [aria-level="2"] { --level: 2; }
     :is([data-section], [data-page="github"], [data-page="log"]):not(:first-child) { margin-top: var(--inset); } /* the pages together, under the sections */
     .twist { width: 12px; height: 12px; color: var(--text-dim); } [aria-expanded="false"] .twist { rotate: -90deg; }

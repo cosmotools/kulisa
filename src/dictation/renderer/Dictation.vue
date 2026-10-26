@@ -59,7 +59,7 @@ const title = computed(() => {
 .dictation { display: grid; place-items: center; flex: none; margin-inline-start: auto;
   .mic.round[aria-pressed="true"] { color: var(--on-accent); background: var(--danger); animation: mic-breathe 1.2s ease-in-out infinite; }
   /* Getting ready (~1 s, the hidden session starting): lit, not red yet, so nobody speaks before it hears. */
-  .mic.round[data-state="starting"] { background: var(--accent); animation: none; } }
+  .mic.round[data-state="starting"] { background: var(--blue); animation: none; } }
 .taskrepos + .dictation { margin-inline-start: 0; }
 @keyframes mic-breathe {
   0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 color-mix(in srgb, var(--danger) 55%, transparent); }

@@ -1,11 +1,13 @@
 <!doctype html>
 <!-- Settings' window (main/settings-window.ts, components/settings/Settings.vue). Its theme comes in the URL, set before the first
-     paint. -->
+     paint (lib/theme.ts). -->
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <title>Settings — Kulisa</title>
-  <script>document.documentElement.dataset.theme = new URLSearchParams(location.search).get('theme') || 'dark';</script>
+  <script>{ const t = new URLSearchParams(location.search).get('theme') || 'dark', root = document.documentElement;
+    root.dataset.theme = t;
+    root.classList.toggle('dark', t === 'dark' || (t === 'system' && matchMedia('(prefers-color-scheme: dark)').matches)); }</script>
   <script type="module" src="./settings.ts"></script>
 </head>
 <body>

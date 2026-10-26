@@ -38,14 +38,14 @@ titles, framed cards, a paragraph each, pills and rows that show their buttons u
 web page's and are hard to read). The one pill: the closed profiles' buttons over the terminal (`.opener`), the one
 place where a button is there to draw the eye, seen only while no profile is open. So:
 
-- **JetBrains' UI font and size**: Inter at 14 px (a step above their UI Guidelines' 13, Typography: 13 reads small), bundled
-  (`@fontsource-variable/inter`, `main.ts`), so the window looks the same on every OS (the OS's own, on Linux Noto
+- **JetBrains' UI font and size**: Geist (shadcn-vue's) at 14 px (a step above their UI Guidelines' 13, Typography: 13 reads small), bundled
+  (`@fontsource-variable/geist`, `app.css`), so the window looks the same on every OS (the OS's own, on Linux Noto
   Sans, is wide and reads as a web page's). The terminal keeps JetBrains Mono.
 - **Two text sizes** (`--font`, `--font-small` for group titles and a dialog's title), two weights; nothing bigger.
   Weight and color carry what matters, not size. The one exception, the welcome (`welcome/`), the one place the window
   speaks to a new user rather than being worked in: its questions and slides' titles `--font-hero`, the words under
   them `--font-lead`.
-- **Dense**: rows and controls `--control` high (`--row` the same), toolbar buttons 24 px, corners `--radius` (4 px)
+- **Dense**: rows and controls `--control` high (`--row` the same), toolbar buttons 24 px, corners `--corner` (4 px)
   on controls and `--island-radius` on windows and dialogs.
 - **One scrollbar everywhere** (`components.css`, `--scrollbar`): a rounded thumb on no track, no arrows, as JetBrains'
   (not the OS's, with arrows). Chromium's `::-webkit-scrollbar`: the standard `scrollbar-color` and
@@ -69,15 +69,15 @@ place where a button is there to draw the eye, seen only while no profile is ope
   both values. JS reads a color as shown through an element that uses it (`src/terminal/renderer/`), not the token's text.
   JetBrains' themes: `--window` (the title bar, under the grid and the tasks' bar), `--island` (panels, dialogs, menus), `--island-hi`
   (a lit row, a divider), `--toolbar` (a pane's toolbar and active tab), `--field`, `--button`, `--line` (borders);
-  text `--text`, `--text-strong`, `--text-dim`, `--text-muted`; `--accent` (main button, focus), `--danger`,
+  text `--text`, `--text-strong`, `--text-dim`, `--text-muted`; `--blue` (main button, focus), `--danger`,
   `--error`, `--note` (what waits for the human), `--agent` (the agent's caption on a pane, in the accent's hue, not
-  `--note`'s, the color of "waiting for you"), `--done`; `--on-accent` (text on `--accent` and `--danger`),
+  `--note`'s, the color of "waiting for you"), `--done`; `--on-accent` (text on `--blue` and `--danger`),
   `--selection` (the terminal's); `--chosen`, `--chosen-idle` (a list's selected row, while the list has the keyboard
   and when it has not: JetBrains'); `--page-button`, `--on-page-button`, `--page-pad` (Chrome's blue and room, a page's
   dialog: `.pagedialog`); `--page`, `--backdrop`, `--shadow`; `--hover` (under the
   pointer, on any background); `--project` (the shown task's project's color, set by `lib/store.ts`), `--glow` (the window's glow, the same color, kept as the last task closes so the glow fades in it; registered as a color, `@property`, so it changes softly: `App.vue`).
-- Sizes: `--sans` (the window's font, Inter), `--font` (all text, the terminal too), `--font-small` (a group's title, a dialog's title), `--font-hero` and `--font-lead` (the welcome's alone, above), `--control` (the
-  height of buttons and fields), `--tab` (a tab's: a step taller), `--radius`,
+- Sizes: `--sans` (the window's font, Geist), `--font` (all text, the terminal too), `--font-small` (a group's title, a dialog's title), `--font-hero` and `--font-lead` (the welcome's alone, above), `--control` (the
+  height of buttons and fields), `--tab` (a tab's: a step taller), `--corner`,
   `--tab-radius` (a pane's tab's and a task's), `--island-radius`, `--gap` (the space between and inside islands, between the
   window's rows, between the tasks' tabs; also dockview's `gap` in `Grid.vue`), `--bartab` (a task's tab's height), `--title` (the title bar's: `--gap`,
   `--control`, `--gap`; the OS buttons' strip is as tall, `window.ts`); room as Chrome's menus and dialogs have it: `--row` (a row of a menu or a list), `--inset` (inside
@@ -137,7 +137,7 @@ the browser's own `until-found` apart): a component's `display` beats the browse
 - `<button>`: a framed button with text, `--control` high. `.primary` (blue, the main action of a dialog, last in its
   footer), `.danger` (red, when it deletes). Lit under the pointer and darker while pressed, so it answers the hand;
   a button of its own kind (`.icon`, a tab) keeps its own (the rule is as weak as `button`'s). Disabled: faded.
-- `.icon`: an icon alone, square with `--radius` corners as a toolbar's, no frame, lit under the pointer (`--hover`);
+- `.icon`: an icon alone, square with `--corner` corners as a toolbar's, no frame, lit under the pointer (`--hover`);
   always with `aria-label` (or `title`).
   - `.quiet`: muted until pointed at, for × and removing.
   - `.small`: 24 px, inside a row or a list's toolbar (a tab's ×, a task's ×, `.list`'s + − ★).
@@ -193,7 +193,7 @@ The window's controls are Reka UI's, in this look:
 - `.select`: a button that opens what to choose from below it (Reka's `Popover`), as a field: the chosen one and
   `i-down` (a profile's picture); or Reka's `Select`, where the choices are rows of words, in a menu's look (`.menu`, its
   rows `.item`, the chosen one checked: `i-done`): a repository's GitHub account (`settings/RepoAccount.vue`).
-- `.choices`: icon buttons (`.icon`) to choose one of, the chosen one ringed in `--accent`: a profile's pictures
+- `.choices`: icon buttons (`.icon`) to choose one of, the chosen one ringed in `--blue`: a profile's pictures
   (Reka's `ToggleGroup`, one always chosen).
 - `.chips`: a row of `.chip`s to choose one of (Reka's `ToggleGroup`, one always chosen), the chosen one in `--chosen`
   with the accent's edge: the log's preset filters (`settings/LogPage.vue`).
@@ -231,7 +231,7 @@ The window's controls are Reka UI's, in this look:
   Lit under the pointer; chosen (`aria-selected`): the shown one, or the one pressed until it is shown, in the panels'
   color (`--island`) on the dark island.
 - `.state`: an agent's state by `data-state` (from its hooks), an icon each so that color is not the only sign (some
-  people do not tell yellow from green): working (sparkles in `--accent`, twinkling; not with reduced motion), waiting
+  people do not tell yellow from green): working (sparkles in `--blue`, twinkling; not with reduced motion), waiting
   for you (a bell in `--note`), done (a check in `--done`: come and see, until the human sees that task); nothing otherwise, as nothing asks for
   the human then. On a task's tab (`TaskTab.vue`), with its tooltip.
 

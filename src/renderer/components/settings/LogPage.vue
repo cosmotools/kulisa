@@ -106,7 +106,7 @@ const report = (): MenuItem[] => [{ label: 'On GitHub…', sub: 'a public issue,
 #logpage { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: var(--gap);
   .tools { display: flex; align-items: center; gap: var(--gap); flex-wrap: wrap;
     #logfilter { flex: 1; min-width: 140px; max-width: 260px; } .check { margin: 0 0 0 auto; } }
-  .lines { flex: 1; min-height: 0; overflow: auto; padding: 6px 8px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--field);
+  .lines { flex: 1; min-height: 0; overflow: auto; padding: 6px 8px; border: 1px solid var(--line); border-radius: var(--corner); background: var(--field);
     font: var(--font-small) / 1.5 "JetBrains Mono", monospace; color: var(--text); user-select: text; cursor: text;
     .empty { margin: 0; color: var(--text-muted); font: var(--font) var(--sans); } }
   .line { display: grid; grid-template-columns: auto auto 1fr; gap: 0 var(--gap); white-space: pre-wrap; overflow-wrap: anywhere;

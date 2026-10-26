@@ -62,7 +62,7 @@ const menu = (e: MouseEvent): MenuItem[] | null => {
 <style>
 #resources { height: 100%; overflow-y: auto; padding: 0 var(--gap) var(--gap);
   ul { margin: 0; padding: 0; list-style: none; }
-  .item { border-radius: var(--radius); }
+  .item { border-radius: var(--corner); }
   .label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .titled { margin-block: var(--gap) 4px;
     /* After its line, at the end */

@@ -119,7 +119,7 @@ const progress = computed(() => {
 <style>
 #handover { width: 640px;
   .relay { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: var(--gap); margin-bottom: var(--pad);
-    padding: var(--pad) var(--inset); border-radius: var(--radius); background: var(--toolbar); }
+    padding: var(--pad) var(--inset); border-radius: var(--corner); background: var(--toolbar); }
   .side { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 0; text-align: center;
     .mark { --icon: 40px; width: var(--icon); height: var(--icon); margin-bottom: 6px; transition: scale .3s, opacity .3s; }
     b { color: var(--text-strong); }

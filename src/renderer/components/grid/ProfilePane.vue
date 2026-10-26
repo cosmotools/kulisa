@@ -176,12 +176,12 @@ onBeforeUnmount(() => { observer.disconnect(); if (panes.get(key) === handle) pa
   /* the site's zoom, when not 100% */
   .tool { padding: 0 8px; background: none; color: var(--text-dim); &:hover { background: var(--hover); } }
   .more svg { stroke-width: 2.5; }
-  .pick[data-state="on"] { background: var(--accent); color: var(--on-accent); }
+  .pick[data-state="on"] { background: var(--blue); color: var(--on-accent); }
   /* the omnibox: a pill a step darker than the toolbar; focused, an accent ring */
   .addr { flex: 1; min-width: 0; margin-inline: 4px; padding: 0 14px; border: none; border-radius: calc(var(--control) / 2);
     background: var(--island); color: var(--text); transition: background-color .15s; /* a hover fades in, as Chrome's */
     &:hover { background: color-mix(in srgb, var(--island) 80%, var(--text)); }
-    &:focus { outline: 2px solid var(--accent); outline-offset: -2px; background: var(--island); color: var(--text-strong); } }
+    &:focus { outline: 2px solid var(--blue); outline-offset: -2px; background: var(--island); color: var(--text-strong); } }
   @container bar (width < 244px) { .back, .fwd { display: none; } }
   @container bar (width < 184px) { .reload { display: none; } }
   @container bar (width < 100px) { .addr { padding-inline: 6px; } } /* dockview's narrowest (a group of 100 px) */

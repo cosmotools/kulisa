@@ -79,7 +79,7 @@ defineExpose({ focus: () => next.value?.focus() });
     .page { display: grid; align-content: start; gap: 6px; padding: var(--gap);
       i { height: 6px; border-radius: 3px; background: color-mix(in srgb, var(--text-muted) 25%, var(--page)); }
       .short { width: 70%; } .shorter { width: 45%; }
-      .button { width: 55%; height: 14px; background: var(--accent); outline: 2px solid transparent; outline-offset: 2px; transition: outline-color .3s ease; }
+      .button { width: 55%; height: 14px; background: var(--blue); outline: 2px solid transparent; outline-offset: 2px; transition: outline-color .3s ease; }
       .picked { outline-color: var(--note); } } }
   .pointer { position: absolute; right: 18%; top: 44%; width: 22px; height: 22px; color: var(--note); }
   footer { display: flex; align-items: center; gap: var(--gap); button { min-width: 80px; } .dots { margin-inline-end: auto; } }

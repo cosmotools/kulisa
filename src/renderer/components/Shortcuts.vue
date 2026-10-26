@@ -61,7 +61,7 @@ function change(id: string) {
   dl { display: grid; grid-template-columns: 1fr auto; margin: 0; }
   :is(dt, dd) { display: flex; align-items: center; min-height: var(--row); border-bottom: 1px solid var(--island-hi); }
   dd { justify-content: end; gap: 6px; margin: 0; }
-  kbd { padding: 1px 6px; border: 1px solid var(--line); border-radius: var(--radius); color: var(--text); white-space: nowrap; }
+  kbd { padding: 1px 6px; border: 1px solid var(--line); border-radius: var(--corner); color: var(--text); white-space: nowrap; }
   kbd.listening { color: var(--text-muted); border-style: dashed; }
   .change { height: 24px; padding: 0 8px; font-size: var(--font-small); }
 }

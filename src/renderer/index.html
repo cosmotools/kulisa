@@ -3,10 +3,11 @@
 <head>
   <meta charset="utf-8">
   <title>Kulisa</title>
-  <!-- The theme (dark, light, system: tokens.css) and where the tasks' bar is (top, bottom) come in the URL, set
+  <!-- The theme (dark, light, system: lib/theme.ts) and where the tasks' bar is (top, bottom) come in the URL, set
        before the first paint (window.ts, load) -->
-  <script>{ const q = new URLSearchParams(location.search), root = document.documentElement;
-    root.dataset.theme = q.get('theme') || 'dark'; root.dataset.bar = q.get('bar') || 'bottom'; }</script>
+  <script>{ const q = new URLSearchParams(location.search), root = document.documentElement, t = q.get('theme') || 'dark';
+    root.dataset.theme = t; root.dataset.bar = q.get('bar') || 'bottom';
+    root.classList.toggle('dark', t === 'dark' || (t === 'system' && matchMedia('(prefers-color-scheme: dark)').matches)); }</script>
   <script type="module" src="./main.ts"></script>
 </head>
 <body>

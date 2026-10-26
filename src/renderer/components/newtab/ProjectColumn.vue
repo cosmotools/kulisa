@@ -40,7 +40,7 @@ const remove = (t: ProjectTask) => kulisa.invoke('task:delete-closed', { project
   header { display: flex; align-items: center; gap: var(--inset); padding: var(--inset); border-bottom: 1px solid var(--island-hi);
     .picon { width: 20px; height: 20px; color: var(--color); } .name { flex: 1; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } }
   ul { margin: 0; padding: 4px; list-style: none; overflow: auto; }
-  .item { border-radius: var(--radius); &[aria-disabled="true"] { opacity: .6; &:hover { background: none; } } }
+  .item { border-radius: var(--corner); &[aria-disabled="true"] { opacity: .6; &:hover { background: none; } } }
   .empty { padding: var(--inset); color: var(--text-dim); }
 }
 </style>

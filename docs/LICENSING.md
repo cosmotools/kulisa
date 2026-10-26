@@ -37,8 +37,8 @@ else.
 
 Its dependencies keep their own licenses, all of which allow being part of a GPL-3.0 program: npm packages (MIT,
 ISC, BSD, Apache-2.0), Lucide's icons copied into `Sprite.vue` (ISC), the profiles' pictures from Google's Noto Emoji
-in `src/renderer/public/avatars/` with their license (Apache-2.0), the fonts Inter and JetBrains Mono (SIL Open Font
-License) and Chromium's licenses (in Electron; packaged builds carry `LICENSE` and `LICENSES.chromium.html`).
+in `src/renderer/public/avatars/` with their license (Apache-2.0), the fonts Geist (the window's) and JetBrains Mono
+(the terminal's; SIL Open Font License) and Chromium's licenses (in Electron; packaged builds carry `LICENSE` and `LICENSES.chromium.html`).
 
 A new dependency must have a license compatible with GPL-3.0. The CI checks it (`dependencies` in
 `.github/workflows/test.yml`, GitHub's dependency review): a pull request whose lockfile brings a package under a

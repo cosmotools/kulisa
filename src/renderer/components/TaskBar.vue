@@ -192,7 +192,7 @@ function dragend(e: DragEvent) {
   .tasktab { --tab: var(--bartab); gap: 8px; min-width: 160px; max-width: 240px; padding-inline: 12px 6px; border-radius: var(--tab-radius);
     .picon { width: 20px; height: 20px; color: var(--color); } } /* as an agent's mark in a row (docs/ui.md): a tab's face */
   [data-dragging] { opacity: .5; }
-  [data-drop="before"] { box-shadow: inset 2px 0 var(--accent); }
-  [data-drop="after"] { box-shadow: inset -2px 0 var(--accent); }
+  [data-drop="before"] { box-shadow: inset 2px 0 var(--blue); }
+  [data-drop="after"] { box-shadow: inset -2px 0 var(--blue); }
 }
 </style>

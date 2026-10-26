@@ -25,7 +25,7 @@ const state = list.state;
   .progress { margin: 10px 0 0; }
   :is(.progress, .error):empty { display: none; }
   .details { margin-top: 6px; &[hidden] { display: none; } }
-  pre { max-height: 180px; overflow: auto; margin: 6px 0 0; padding: 8px; border-radius: var(--radius); background: var(--window);
+  pre { max-height: 180px; overflow: auto; margin: 6px 0 0; padding: 8px; border-radius: var(--corner); background: var(--window);
     font: var(--font) "JetBrains Mono", monospace; white-space: pre-wrap; user-select: text; }
 }
 </style>

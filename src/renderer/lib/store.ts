@@ -4,6 +4,7 @@ import type { Artifact, ClosedProfile, LanguageInfo, Profile, ProjectsInfo, Term
 import type { Invoke, OnTask } from '../../shared/ipc';
 import { initialProjects } from './common';
 import { projectColor } from './project-color';
+import { setTheme } from './theme';
 import { refused } from '../../shared/result';
 
 const root = document.documentElement;
@@ -62,9 +63,9 @@ kulisa.on('bar', (bar) => { store.bar = bar; });
 kulisa.on('language', (info) => { store.language = info; });
 void kulisa.invoke('language:get').then((info) => { store.language = info; });
 
-// The theme of Kulisa's own UI (app.ts): CSS does the rest (tokens.css: color-scheme, light-dark()). The tasks' bar
+// The theme of Kulisa's own UI (app.ts; lib/theme.ts). The tasks' bar
 // over the grid or under it. The shown task's project's color for the whole window (--project); none: Kulisa's own colors.
-watch(() => store.theme, (t) => { root.dataset.theme = t; });
+watch(() => store.theme, setTheme);
 watch(() => store.bar, (b) => { root.dataset.bar = b; });
 watch(() => store.current === null, (none) => root.toggleAttribute('data-noproject', none), { immediate: true });
 watch(page, (p) => { root.dataset.page = p; }, { immediate: true });

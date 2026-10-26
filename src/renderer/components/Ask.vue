@@ -39,5 +39,5 @@ watch(open, (o) => {
 <style>
 #ask { width: 480px;
   .detail { margin: 0; white-space: pre-line; overflow-wrap: anywhere; user-select: text; &:empty { display: none; } }
-  .link { display: block; margin-top: var(--inset); color: var(--accent); } }
+  .link { display: block; margin-top: var(--inset); color: var(--blue); } }
 </style>

@@ -57,6 +57,6 @@ onBeforeUnmount(() => { void stop(); forgetTerminals([shown]); view.dispose(); }
 /* Its terminal, a few rows high, framed as a field */
 #npsignin {
   .hint { margin-block: 0 var(--inset); }
-  #npsigninterm { height: 160px; margin-block-start: 6px; border: 1px solid var(--line); border-radius: var(--radius); }
+  #npsigninterm { height: 160px; margin-block-start: 6px; border: 1px solid var(--line); border-radius: var(--corner); }
 }
 </style>

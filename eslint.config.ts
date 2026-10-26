@@ -2,6 +2,7 @@
 // JSON and IPC and the templates' formatting, about 2400 places and no bug.
 import tseslint from 'typescript-eslint';
 import vue from 'eslint-plugin-vue';
+import tailwind from 'eslint-plugin-better-tailwindcss';
 import type { Rule } from 'eslint';
 
 const EXPORT_ALL = { selector: 'ExportAllDeclaration', message: 'Re-export by name, not export *.' };
@@ -71,4 +72,13 @@ export default tseslint.config(
   // Not in the window: it took `{} as Record<…>` inside reactive({ … }) for needless, where only the `as` gives the
   // store's field its type (vue-tsc failed once they were removed); and it reads a .vue file's script without Vue's plugin.
   { files: ['src/renderer/**'], rules: { '@typescript-eslint/no-unnecessary-type-assertion': 'off' } },
+  // Tailwind's classes in the window's templates and in cn()/cva() (docs/ui.md): unknown, conflicting, duplicate or
+  // deprecated ones, and one order. Errors, as a warning nobody reads keeps nothing out.
+  { files: ['src/**/*.vue', 'src/renderer/**/*.ts'], ...tailwind.configs['recommended-error'],
+    settings: { 'better-tailwindcss': { entryPoint: 'src/renderer/app.css' } },
+    rules: { ...tailwind.configs['recommended-error'].rules,
+      // A formatter's: it breaks a class string inside a long line (class="↵ name↵ "), not the line; no formatter here.
+      'better-tailwindcss/enforce-consistent-line-wrapping': 'off',
+      // The window's own CSS classes (components.css, the parts' <style>) until each part is in Tailwind's.
+      'better-tailwindcss/no-unknown-classes': 'off' } },
 );
