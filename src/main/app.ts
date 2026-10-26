@@ -83,7 +83,8 @@ function start(options: Options = {}) {
   // in each terminal starts clean and loads the task's own .envrc; git and direnv run by Kulisa too.
   for (const k of Object.keys(process.env)) if (k.startsWith('DIRENV_')) delete process.env[k];
   // What sites see (docs/profiles.md): Kulisa on Chromium, without Electron's word. Teams takes a Mac's or Windows'
-  // Electron for its own retired desktop app and shows "Classic Teams is no longer available".
+  // Electron for its own retired desktop app and shows "Classic Teams is no longer available". Never as Google Chrome:
+  // Google refuses to sign in a profile that presents as Chrome ("This browser or app may not be secure").
   app.userAgentFallback = app.userAgentFallback.replace(/ Electron\/\S+/, '');
   const userData = options.userData || path.join(app.getPath('appData'), 'Kulisa');
   app.setPath('userData', userData);

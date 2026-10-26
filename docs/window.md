@@ -116,7 +116,8 @@ The window itself never scrolls, also not from a script (`overflow` on `html` an
 behind another is kept laid out below the grid (dockview), which makes the page taller than the window, and the
 tasks' bar bringing its tab into view (`scrollIntoView`) would move the whole grid up by a window's height.
 
-The profiles' pages are native views above the window's HTML (CLAUDE.md, "What must hold in the window"). While a
+The profiles' pages are native views above the window's HTML ([ui.md](ui.md)), and belong to their project's window
+(moving a project moves them: `Profile.moveTo`). While a
 panel is dragged, a menu is open or a dialog is shown, the pages are pictures of themselves (or hidden), so the
 HTML can be on top; they are live again after, once nothing covers them: a task's slide ending under a menu leaves
 them pictures until the menu closes (`livePages`). A page that gives no
@@ -541,7 +542,8 @@ main process's messages to a page. Each channel is declared once, in `src/shared
 answers (`Invoke`, `Send`, `Events`); `npm run build` checks both ends against it. The main process's end goes through
 `handle` and `on` (`src/main/ipc.ts`), in a file a domain (`src/main/ipc/`), and `AppWindow.send`; the page's through the bridge's types (`env.d.ts`) and
 `act`, which adds the task shown (a message about the shown task's profiles and tabs is refused once another is shown).
-A new channel is declared there first, then its two ends.
+A new channel is declared there first, then its two ends. A message acts in the window it comes from (`event.sender`);
+one change to the open tasks after another (`serial`).
 
 - An answer the page does not read is `void`: the main process may answer anything there (the tests read some).
 - An answer that may be a refusal is a `Result` (`src/shared/result.ts`), read with `refused()`, so the types keep a

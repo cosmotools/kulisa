@@ -5,7 +5,7 @@
 #                      which has no signal for it, a second start asking it to quit (KULISA_QUIT: src/main/app.ts)
 #   kulisa.sh check    what a fresh start would find: no Kulisa running, its data, tasks' copies, worktrees, branches, ports
 #   kulisa.sh start    start it (refused while one runs, saying from which checkout), without the parent Claude session's
-#                      CLAUDE_* variables except CLAUDE_CONFIG_DIR (CLAUDE.md, Commands), as an app of its own, not the
+#                      CLAUDE_* variables except CLAUDE_CONFIG_DIR (SKILL.md), as an app of its own, not the
 #                      terminal's: a Claude session's terminal closed takes no Kulisa with it, unsaved (its SIGHUP).
 #                      Linux: in a session of its own (setsid). macOS: through LaunchServices (`open`), so the screen
 #                      recording permission is its own too (docs/testing.md, "On macOS"), without the terminal's

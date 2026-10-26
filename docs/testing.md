@@ -1,7 +1,19 @@
 # Testing
 
-How Kulisa's tests are built and how to write one. **Read this before writing a test.** What can break comes with
-a test (CLAUDE.md: not a removal or a cosmetic change); a bug is first reproduced by a failing test, then fixed.
+How Kulisa's tests are built, how to write one and when to run which. **Read this before writing or running a test.**
+
+## What gets a test, and when to run what
+
+- **What can break comes with a test**: a behavior, its logic, a bug fixed. Not a removal (what is removed simply is
+  not there, as a feature never built), nor a cosmetic change (a symbol, a label, a color): ask what regression a test
+  would catch; none, no test.
+- **A bug is first reproduced by a failing test**, then fixed.
+- **While building**: `npm run test:unit` (a second), one group (`npm test -- <group>`), a screenshot (`KULISA_SHOT`,
+  Running them) or the author's running Kulisa, restarted with the change (the `run-kulisa` skill). `npm run knip`
+  once a step, when its code is written, before it is shown to the author, not after every change.
+- **The full suite (`npm test`, minutes) runs once, when the author says the work is done** ("всё ок", "commit"),
+  before the commit; fix what fails and run it again. Not for a change to documentation alone (`docs/`, `CLAUDE.md`,
+  `README.md`): the pull request's CI runs it anyway.
 
 ## Two layers
 
@@ -142,6 +154,7 @@ Claude Code, the part's code); what is left: ROADMAP, "Windows and macOS have ga
 
 ## Writing an e2e test
 
+- **Elements are found by their ids and classes**: keep them when a part changes, or change the test with it.
 - **The window draws with Vue**, after the change that causes it (a microtask later, before the next frame): wait
   for what it shows rather than reading it in the same script as the event (`await new Promise(requestAnimationFrame)`).
   What the tests reach by name in the window (`act`, `state`, `tasks.current`, `window.__dock` …): `lib/test-hooks.ts`
@@ -280,14 +293,19 @@ itself: a session without the `LSP` tool installs it, once per `CLAUDE_CONFIG_DI
 **A Stop hook** (`.claude/hooks/stop.ts`; how it works, in its comments) runs `npm run lint` and `npm run test:unit`
 (about 14 s) before a session ends its turn, when `.ts`, `.mts` or `.vue` files have changes not committed, and sends
 the session back with what failed. Not `npm run build` and the e2e groups: the language server shows type errors as
-they are made, and the whole suite runs when the work is done (CLAUDE.md, Conventions).
+they are made, and the whole suite runs when the work is done (above).
 
 ## Running them
 
-When to run what: CLAUDE.md, Conventions ("What can break comes with a test"). A whole run stops by itself after 5 minutes (`run.ts`), a test
+When to run what: above. A whole run stops by itself after 5 minutes (`run.ts`), a test
 after 30 s, naming the call or script it began last (`ctx.step`): a step that hangs has no stack to read, and a
 script run in a window that closes before its result is back never answers (Electron drops the reply), so a test
 closes a window without waiting for the script that closes it (`closeSettings`).
+
+**Looking at the window.** `KULISA_SHOT=/tmp/kulisa.png npm start` saves a screenshot of the whole window, profile
+views included, about 4 s after start (`KULISA_SHOT_DELAY` in ms); in a test, `shell.screenshot(file)`. Then read the
+PNG: it is how a UI change is checked. On macOS the screen recording permission is the app's that started Kulisa (the
+terminal running Claude Code): "On macOS".
 
 **CI** (`.github/workflows/test.yml`): `npm test` on GitHub Actions at every pull request into `develop` or `main` and
 every push to `develop` (CLAUDE.md, Releases; into `main` its `version` job checks the version raised; its

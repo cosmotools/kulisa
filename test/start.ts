@@ -30,7 +30,7 @@ if (process.platform === 'linux' && !hidden && !visible) {
   console.log('The tests run on your screen and take its focus; to run them on a screen of their own: sudo apt install xvfb openbox');
 }
 const run = path.join(import.meta.dirname, 'run.ts');
-// The run's folder and test site are its checkout's own: runs from several worktrees at once (CLAUDE.md, Worktrees)
+// The run's folder and test site are its checkout's own: runs from several worktrees at once (CLAUDE.md, "Each piece of work in a worktree of its own")
 // removed each other's folders, and tested against another one's site on the shared port 4417. The folder is the same
 // for every run of a checkout, so a failed run's, kept to look at, is replaced by the next run's. The temporary folder by
 // its real name: Windows may give it by a short one (C:\Users\COSMOT~1), and git and Chromium answer with the long one.

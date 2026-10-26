@@ -1,4 +1,4 @@
-// The profiles' pages are native views above the window's HTML (CLAUDE.md, "What must hold in the window"): they stay
+// The profiles' pages are native views above the window's HTML (docs/ui.md): they stay
 // hidden while a dialog is open or the grid is not laid out yet (store.loading), and become pictures of themselves
 // while a panel is dragged or a menu is open, so the HTML can be on top. The menus and dialogs themselves: cover.ts.
 import { store } from './store';

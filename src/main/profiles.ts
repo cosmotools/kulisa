@@ -549,7 +549,7 @@ async function wipeSession(sess: Session) {
   await sess.clearAuthCache();
 }
 
-// Attach the tab's debugger once and learn its real Chrome target id (the proxy reports it: CLAUDE.md, Hard-won facts).
+// Attach the tab's debugger once and learn its real Chrome target id (the proxy reports it: cdp-proxy.ts).
 async function ensureTarget(tab: Tab): Promise<string> {
   if (tab.targetId) return tab.targetId;
   if (!tab.wc.debugger.isAttached()) tab.wc.debugger.attach('1.3');

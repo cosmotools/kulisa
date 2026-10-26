@@ -8,20 +8,9 @@ coding agent the human chooses (Claude Code, Codex: the unchanged CLI) runs in t
 profiles through Kulisa's MCP server. Tasks run several agents on one project at once. Point-and-tell (Pick, then click an element) puts a reference with a Playwright locator into the agent's
 prompt; the human writes the rest of the message around it.
 
-The author's framing: Kulisa is made first for developers, as an IDE is (like JetBrains or VS Code), and is good for
-any work in web apps (several clients' tenants, admin and support work). Not a bot, and not a tool for farms of
-accounts or getting past bot detection (the author despises those): the human's own accounts, signed in by hand.
-Everything happens inside Kulisa; no external Chrome windows.
-
-- Before changing sign-in, identity or persistence code, read in `docs/profiles.md`: Sign-in pause (what it is and is
-  not), Sign-ins that last, What sites see.
-- `docs/ROADMAP.md`: only what is planned: ideas and details of features to build, deferred ideas, open issues.
-  **Planned features go to GitHub issues** (`enhancement`; the author's choice), and the ROADMAP
-  moves there over time: what has an issue is removed from the ROADMAP, the issue being the one source (its text
-  written in full there, not in a comment; nothing of it kept in the repository). When a feature is built, document it in the docs below (how it works,
-  and why it is built so) and remove it from the ROADMAP and close its issue, keeping only what is left of it. **Before
-  building something, look for it in both** (the open issues: `GET /repos/cosmotools/kulisa/issues?state=open`,
-  GitHub's API below; the ROADMAP's Deferred ideas and Open issues): it may have been put off, with the reason.
+- **Ideas and bugs go to GitHub issues** (`enhancement`, `bug`; GitHub's API below), not into the repository
+  (`docs/ROADMAP.md` is what is not moved there yet). Before building something, look for its issue: it may have been
+  put off, with the reason. Once built, close it.
 - `docs/profiles.md`, `docs/tasks.md`, `docs/window.md`: how profiles, projects with their tasks, and the
   window work now: what the human and the agent do, what Kulisa creates on the computer and removes, why it is built
   so, the code. Read the one for the part you change; keep it current.
@@ -31,7 +20,7 @@ Everything happens inside Kulisa; no external Chrome windows.
   one, how one is laid out and checked, and moving code into one step by step. Read it before making one or moving
   code into one; a package's own `README.md` and `CLAUDE.md` are its docs.
 - `docs/ui.md`: what the window's UI is built of: tokens, icons, components (buttons, rows, dialogs, menus). Look
-  there before making a button, an icon, a row or a dialog; keep it current.
+  there before making a button, an icon, a row, a dialog, a control or a part of several files (a cluster); keep it current.
 - `docs/guide.md`: the user guide, for everyone who uses Kulisa, not only developers: what they do and see, in their
   words (no file, function or protocol names). kulisa.app builds its documentation page from it (`kulisa-site`), so
   pictures only from `docs/images/` by a relative path, and no links to the other docs. Keep it current: a change to
@@ -39,25 +28,24 @@ Everything happens inside Kulisa; no external Chrome windows.
 - `README.md`: how to run, environment variables, the top-level folders. Not a list of files: those are in each
   part's doc ("The code"; `docs/ui.md` at its top), kept with what they do (a map of every
   file goes out of date, and does not scale).
-- `docs/testing.md`: how the tests are built and written. Read it before writing a test.
+- `docs/testing.md`: what gets a test, when to run which, how the tests are built and written. Read it before
+  writing or running a test.
 - `docs/LICENSING.md`: Kulisa is GPL-3.0-or-later, the author's; what the license covers and what it does not.
 
 ## Working with the author
 
-- **A peer developer, not an assistant who pleases.** Where the author is wrong, or a request has a cost (much work,
-  more RAM, against a rule here), say so before building it, with the reason, and propose a way with a
+- **A peer developer, not an assistant who pleases.** Where the author is wrong, or a request has a cost (more RAM,
+  against a rule here), say so before building it, with the reason, and propose a way with a
   recommendation ("I would do X, because …"), not a list of options. Then do what the author decides: it is their
-  product, the last word is theirs, and a settled question is not raised again. Take part in the design: point out
-  what the author did not ask about but should know.
+  product, the last word is theirs, and a settled question is not raised again. The exception is a rule of this file
+  or one the author states: it is a decision, not proof it is right. Where one goes against a design or coding
+  standard or plain sense (a second source of truth, a leaky boundary, needless duplication), say so, why, and what
+  the standard holds instead, rather than follow it silently; the author decides on the merits, having heard the case.
+  Take part in the design: point out what the author did not ask about but should know.
 - **Do it right, never a compromise.** Build the correct shape, not one bent around code that is already there:
   existing code is no reason to keep a wrong shape. Where a change meets code that is wrong (a leaky boundary, a
-  shortcut, a workaround without a reason), be intolerant of it: fix it as part of the change, not around it. Say what
-  the right way is and do it, rather than settle for what is expedient.
-- **A convention here is not beyond challenge.** A rule in this file is the author's decision, not proof it is right.
-  Where one — or any the author states — goes against a design or coding standard, or against plain sense (a second
-  source of truth, a leaky boundary, needless duplication), say so plainly: that it is wrong, why, and what the
-  standard holds instead. Do not follow it silently because it is written down. This is the one settled question that
-  is reopened; the author still has the last word, but decides on the merits, having heard the case.
+  shortcut, a workaround without a reason), be intolerant of it: name it in the plan, and fix it as part of the
+  change, not around it.
 - **The time to rewrite is not an argument** (with AI a rewrite costs nothing). When
   weighing a tool or a library, or replacing one with another, the better one is chosen on its merits (what it does,
   RAM, how well it is maintained, its license, how it fits); the time a move takes, the agent's to write it and the
@@ -65,11 +53,6 @@ Everything happens inside Kulisa; no external Chrome windows.
   (the workarounds in Hard-won facts and the docs, behavior no test covers) is not a reason against it either, but
   a part of the plan: named, and kept with tests first. Not about when a feature is built: what is put off for its
   turn ("later") stays put off.
-- **How the author wants it built:** a step at a time, a plan first, then the code with its tests and docs, a commit
-  per step, the author's Kulisa restarted after it; only what was discussed and written down as decided, no open
-  questions built over and no ideas of one's own added unasked. No data migrations (the author's choice, while 0.x and
-  before Kulisa has real users: one data format only, old data deleted, never read or migrated) — revisit once there
-  are users whose data must survive a format change.
 - **What a change cost, at its commit.** When code becomes part of the project (a feature, a fix; not experiments),
   say in one line how many lines were added and removed, apart for code, tests and docs (not `package-lock.json` or
   pictures): `code +203 −95 · tests +52 −13 · docs +23 −8`. When it is more than the task should take, say why in a
@@ -90,7 +73,7 @@ Everything happens inside Kulisa; no external Chrome windows.
   dates and no "the author" beside a reason: the reason shows the decision is meant; only a choice of taste with no
   reason to give is marked "(the author's choice)": not argued again on the merits as it stands, yet not frozen — a
   taste decision goes stale too (a better option appears, the context shifts), and then it is raised again, as any
-  convention here (Working with the author, "A convention here is not beyond challenge"). What they keep of a
+  convention here (Working with the author, "A peer developer"). What they keep of a
   failure is the constraint today's code keeps to, next to that code; a story of an attempt is git's: it goes stale unseen, and the next session believes it. Nor where
   or when something was seen, nor the versions it was checked with: they go stale at once, and the tests hold what
   must stay true (a version Kulisa requires, `>=`, is a constraint, not a record). The one
@@ -98,19 +81,14 @@ Everything happens inside Kulisa; no external Chrome windows.
 - **Terminology: "profile"**, the word Chrome uses, for one embedded browser identity (cookies, storage, tabs) and
   its pane. Not "persona", "user" or "account" (an account is what a profile signs in to). Early commits and
   experiments said "persona".
-- **Terminology: "Kulisa plugin"** for the layer between the agent and the profiles (Architecture, layer 3): the
-  MCP server with the browser tools (agent-agnostic, where new abilities go), the profiles skill (one text for every
-  agent, `src/agent/skills/profiles/`) and the hooks (each agent's table in `agents/`), brought to each agent its own
-  way (for Claude Code also a plugin with the MCP config, `src/agent/claude-plugin/`).
-  Giving the agent more it can do is one of Kulisa's features: how a tool is designed, `src/main/kulisa-plugin/CLAUDE.md`.
+- **Terminology: "Kulisa plugin"** for the layer between the agent and the profiles (Architecture, layer 3). Earlier
+  commits say "agent bridge".
 - **Terminology: "plugin"**: always an agent's (Claude Code's, Codex's), the Kulisa plugin being one.
 - **Terminology: "Kulisa package"** (after "Kulisa plugin": an npm package's idea in Kulisa's
   own context) for a part of Kulisa that does one thing and knows nothing of the core (other Kulisa packages only by
   their entries), all of it in one folder `src/<package>/`, reached only through its entries: the terminal first (`docs/packages.md`). Always the two words: a bare "package" is an npm
   package (a dependency) or the app's package (Forge's build, the installers). Not a cluster (a folder of the
   window's components, `docs/ui.md`).
-- **The agent is the human's choice, per task** (`agents/`): never assume `claude` is installed. Kulisa
-  installs a missing agent itself with its maker's installer when the human asks, without steps for them to type.
 - **Terminology: "tab"**: an open task in a window's tasks' bar, as a browser's tab (`docs/tasks.md`). A project is
   no thing to open (it is what its tasks are made of); not "open project" or "Close Project". In code a project is
   loaded (`Project` in `shell.open`) while a task of it is open in any window. Earlier commits say **group** (Close
@@ -128,36 +106,15 @@ Everything happens inside Kulisa; no external Chrome windows.
   screen" (JetBrains' name) for a list of projects, not this.
 - **Terminology: "task"** for one line of work inside a project: its agents, a branch of the code, profiles and a
   grid, each in a git worktree of its own next to the project (`myshop@task-2`). Earlier commits say "workspace" (the
-  word of tools for parallel agents, e.g. Conductor). How they work and why: `docs/tasks.md`; what is left: ROADMAP.
+  word of tools for parallel agents, e.g. Conductor). How they work and why: `docs/tasks.md`; what is left: issues.
 - **Not tied to one agent or LLM vendor.** The user chooses the agent CLI (Claude Code, Codex, others); Kulisa must
-  not require Claude Code or any one model provider. When planning a feature, design it for any agent CLI:
+  not require Claude Code or any one model provider, and never assumes `claude` is installed. When planning a
+  feature, design it for any agent CLI:
   - The core of a feature works through what every agent has: a terminal, the MCP server, files, git. Kulisa's
     own data and conventions (e.g. its own folders), not one agent's (`.claude/…`).
   - What only some agents can do (Claude Code's `--resume`, `--fork-session`, plugin, hooks) is an optional extra
     per agent, kept in one place per agent, and the feature still works without it.
   - Claude Code is the default and the best supported today; that is fine as long as the others are not locked out.
-- **TypeScript everywhere, as ES modules**: the main process, the tests and the scripts run as
-  they are by Node's type stripping (Electron's own Node 24, or Node 24.12+), so erasable syntax
-  only (no `enum`, `namespace`, parameter properties) and imports with their `.ts`. `tsc` only checks: `tsconfig.json`
-  (strict, an element read by index may be missing: `noUncheckedIndexedAccess`), `test/tsconfig.json` (the same without null checks: a test counts on what it checks being there). What
-  the main process sends the window is typed once, in `src/shared/`: `types.ts` the data, `ipc.ts` the channels
-  (docs/window.md, IPC); the app every module gets, `Shell`
-  (`src/main/shell.ts`); an action's `{ error }` answer, `Result` and `refused()` (`src/shared/result.ts`). One way of
-  writing code. The one exception,
-  the windows' preload (`src/preload/index.cjs`, a few lines of plain JavaScript): the windows
-  are sandboxed (no Node in their pages: about 15 MB less each, PSS), and Electron runs a sandboxed preload without Node,
-  so no type stripping and no `require` of Kulisa's modules. What the window shares with the main process (the rule
-  for names, the profiles' pictures) it imports itself. No build of the main
-  process (Vite, esbuild): it runs from source, packaged and from the asar.
-- **A folder's `index.ts` is its public API.** Where a folder stands for one thing with an entry file (a Kulisa
-  package's `main/`, `renderer/`; a window cluster; `src/main/agents/`), code outside imports from that entry alone,
-  never from the folder's other files, so its inside is free to change behind it. A rule in `.dependency-cruiser.ts`
-  (`npm run deps`) refuses the rest; it sees run-time imports only, so a contract's `import type` from inside the
-  folder crosses freely and needs no entry. Inside the folder, each file imports its siblings directly, never the
-  folder's own `index.ts`: a barrel a module of the folder imports is a cycle, and it runs the other modules' top-level
-  code before its own. Keep module load free of side effects (define and export; do not act), the more so for anything
-  an `index.ts` re-exports. Re-export the names used outside, as named exports (`export`, `export type` for types),
-  not `export *`: the surface is then what is written, not whatever a file happens to hold.
 - **Keep the amount of own code minimal, so the project stays under control.** Prefer maintained open-source
   libraries to writing our own.
   - Before writing browser or CDP code, check whether playwright-core already does it: picker
@@ -165,58 +122,16 @@ Everything happens inside Kulisa; no external Chrome windows.
     highlights (`locator.highlight`), recent console messages and requests (`page.consoleMessages`, `requests`).
     Check `@playwright/mcp` and the MCP SDK the same way. Read the API of the installed version, not what you
     remember: its newest APIs are younger than your training. Its documentation is in
-    `node_modules/playwright-core/types/types.d.ts`; name what you read in the plan.
-  - Window layout (panels, splits, drag and drop, tabs of panels, saving the grid) is dockview's; use its API
-    before adding layout code.
+    `node_modules/playwright-core/types/types.d.ts`.
   - Before building anything that touches Electron, look it up in Electron's documentation for the installed version
     instead of building from memory (Electron ships every 8 weeks; knowledge from training is older). The guides,
     their index and what changed between versions are in the repository's docs at the version's tag
     (`https://raw.githubusercontent.com/electron/electron/v<version>/docs/`: `README.md`, `tutorial/…`, `api/…`,
-    `breaking-changes.md`); the API is in `node_modules/electron/electron.d.ts`. Name what you read in the plan.
-  - The same for Vue: before using a part of Vue new to the window, read its page in Vue's own documentation for
-    agents (`https://vuejs.org/llms.txt`, each page as `.md`; it describes 3.5, the installed version), and name it in
-    the plan. Official sources only, no community skills or MCP servers (the author's choice).
+    `breaking-changes.md`); the API is in `node_modules/electron/electron.d.ts`.
   - Hand-written protocol code is the exception: today only `cdp-proxy.ts`, because nothing existing exposes
     `webContents.debugger` over CDP.
   - When adding a dependency, prefer one that is widely used and maintained, and say why in the commit message. Its
     license must allow being part of a GPL-3.0 program (MIT, ISC, BSD, Apache-2.0 do; `docs/LICENSING.md`).
-- **Window UI: Vue 3 components in TypeScript, built by Vite** (`src/renderer`, `vite.config.mts`;
-  `docs/ui.md`). Electron ships a recent Chromium; use what it has instead of code or workarounds:
-  - A part of the window is one `.vue` file in `src/renderer/components/`: its markup, its behavior and its own look
-    (`<style>`, rooted at its id or class) together. What several parts share, or what outlives a component (the
-    store of what the main process sends, the grid, the terminals' xterms, the pages under menus and dialogs, the
-    questions, the keys), is a TypeScript module in `src/renderer/lib/` with a small interface (`covered('hide')`,
-    `ask(q)`, `dialog('projects')`). State the main process sends lives in `lib/store.ts` (Vue's `reactive`) and
-    components draw from it; no DOM built by hand where a template does it. The shapes it sends: `src/shared/types.ts`.
-  - **A cluster is a folder** (against spaghetti): a part of several files with a state of its
-    own (New Project's steps, Settings) is a folder of `components/`, its state in a module there (provided to its
-    files, not in `lib/store.ts`), reached from outside only through its entries; `npm run deps` refuses another import
-    (`clusters` in `.dependency-cruiser.ts`; `docs/ui.md`, Clusters). Its actions are the core's, over IPC, as the
-    other handles': a cluster is one more view, not a second core.
-  - **Generic UI is Reka UI's** (`reka-ui`, the author's choice): menus, dialogs, and the controls Reka
-    has (choices, radios, selects, checkboxes, lists, tabs …), in Kulisa's look (Reka has no look of its own); nothing
-    of our own where Reka has it, and every new part built on it. Its documentation for agents:
-    `https://reka-ui.com/llms.txt` (each page as `.md`); its API: the installed version's `node_modules/reka-ui/dist/`
-    (`.d.ts`); name what you read in the plan. Not Reka's: what is not generic (the grid is dockview's, the terminal
-    xterm's) and tooltips (the native `title`: drawn above the profiles' pages, an HTML one would be under them).
-  - Semantic elements (`header`, `main`, `nav`), `hidden`, form submit.
-  - **One set of components** (`docs/ui.md`): the window is built of them, each defined once. Icons are the
-    sprite's (`Sprite.vue`, used as `<Icon name="i-…">`), never drawn in place; icon buttons are `.icon`; rows
-    `.item`; menus are `ButtonMenu.vue`, `RightClickMenu.vue` (`components/menu/`); every dialog is `Modal.vue`
-    (Reka's Dialog; questions `Ask.vue`, its AlertDialog): `header` (title, × when it may be closed), `.body`,
-    `footer` with the buttons at the right end, the main one last (`.primary`, `.danger` when it deletes). Global CSS
-    only in `tokens.css` (colors, sizes) and `components.css` (the shared components); a part's own CSS places
-    components, never restyles them into new ones. Something new that more than one place could use goes into
-    `components.css` (or a component of its own) and `docs/ui.md` first.
-  - CSS: nesting, custom properties for every color and size (`tokens.css`; no literal colors elsewhere; each color
-    `light-dark()` for both themes),
-    `:is()`, `:has()`, `color-mix()`, logical properties. Before overriding dockview, check that its own variables
-    or rules don't already do it.
-  - No wrapper elements or rules without an effect; when touching a part, remove what it no longer needs.
-  - The e2e tests find elements by their ids and classes: keep them when a part changes, or change the test with it.
-  - `npm run build` type checks (tsc, vue-tsc) and builds into `dist/renderer`, which the main process loads from disk
-    (`src/main/pages.ts`); `npm start` and `npm test` build first. No dev server: no page of the app may load from an
-    HTTP server of its own (Hard-won facts).
 - **RAM matters.** Kulisa is Electron plus a Chromium process per tab, for several profiles at once, next to the
   user's own browser and IDE. When choosing how to build something, weigh how much memory it keeps and prefer the
   cheaper way. If a feature would noticeably raise RAM use (a process per tab or profile, keeping hidden things
@@ -229,32 +144,16 @@ Everything happens inside Kulisa; no external Chrome windows.
   - Temporary files are removed when done, also after an error; pictures and the like stay in memory.
   - A new kind of file or folder is listed in "What is on the computer" (`docs/tasks.md`, `profiles.md`) with
     when it goes, and its removal is tested.
-  - The same in development: tests write only in their temp folder; screenshots, logs and scripts made while working
-    go into the session's scratch folder and are deleted when the task is done.
 - **Every action of the core is logged** (`src/main/log.ts`; docs/window.md, The log): a window's
   channel (`handle()`, `on()`), an agent's tool (`registerTool`), a key, a hook, a task or a window made or closed, a
   terminal started: through those, by itself. A line elsewhere (`log.info('[part] what')`) says what happened and who
   asked, never what was typed or a secret (`summary`). The log is where a user's bug is read (by the user too: Settings →
   Log, with the ways to send it): when a new kind of thing can happen, make sure it leaves a line.
-- **What can break comes with a test**: a behavior, its logic, a bug fixed. Not every change: no test that something removed is gone (what is removed simply is not there, as a feature never
-  built), nor of a cosmetic change (a symbol, a label, a color). Ask what regression a test would catch; none, no
-  test. **Read `docs/testing.md` before writing one**: the two layers (unit tests in plain Node, e2e in the real
-  app), the groups of e2e files, and how a test is written (wait for a state, never for time).
-  - Fix a bug by first reproducing it as a failing test, then making it pass.
-  - **The full suite (`npm test`, minutes) runs once, when the author says the work is done** ("всё ок",
-    "commit"), before the commit; fix what fails and run it again. Not for a change to documentation alone (`docs/`,
-    `CLAUDE.md`, `README.md`): the pull request's CI runs it anyway. `npm run knip` once a step, when its code is
-    written, before it is shown to the author (not after every change). While building: `npm run test:unit` (a second),
-    one group (`npm test -- <group>`), a screenshot (`KULISA_SHOT`) or the author's running Kulisa, restarted with
-    the change. On Linux the tests run on a screen of their own (Xvfb, openbox): they never take the author's
-    focus.
 - **Kulisa runs on macOS, Windows and Linux.** Write code for all three: no shell commands, Unix-only paths or
   signals, or Linux-only flags without a branch for the others. Keep platform branches few and in one place per
-  concern (e.g. the shell fallback in `src/terminal/main/`). What is untested on a platform goes into ROADMAP.
-- Ask before anything outward-facing: pushing, publishing, registering domains.
-- Commit only when asked. The repo is public on GitHub (`origin`, github.com/cosmotools/kulisa); push only when
-  asked (a commit the author asks for goes up as a pull request: below), and never print the remote URL (`git remote
-  -v`): it carries the author's token.
+  concern (e.g. the shell fallback in `src/terminal/main/`). What is untested on a platform goes into an issue.
+- The repo is public on GitHub (`origin`, github.com/cosmotools/kulisa). Never print the remote URL (`git remote -v`):
+  it carries the author's token.
 - **Each piece of work in a worktree of its own** (several Claude sessions work on Kulisa
   at once, and one switching or editing a shared folder pulls the files out from under the others):
   - Before the first change: `git worktree add .claude/worktrees/<name> -b <name> develop` (from the local
@@ -267,13 +166,11 @@ Everything happens inside Kulisa; no external Chrome windows.
   - `node_modules` is a link to the repository's (`ln -s ../../../node_modules node_modules`) while the work does
     not change the dependencies; work that does gets its own (`npm install`, then `npm run postinstall`).
   - Commits go to the worktree's branch; no worktree has `develop` checked out. **Into `develop` only by a pull
-    request, merged by the author** (Claude Code's auto mode refuses a local merge too, "Merge Without
-    Review"): when the author asks for the commit, push the branch (`git push -u origin <name>`) and open its pull
-    request into `develop` (GitHub's API, below), its body what the change does and its cost line (Working with the
-    author). `develop` is protected as `main` is (Releases), its required checks `test (ubuntu-latest)`,
-    `test (macos-latest)`, `test (windows-latest)` and `dependencies`: tell the author when it is green. Never merge into `develop` or `main` here, nor push them.
-  - `npm test` runs from several worktrees at once: each checkout has its own test folder and test site
-    (`test/start.ts`). The author's Kulisa runs one checkout at a time: the `run-kulisa` skill, from the worktree
+    request, merged by the author**: when the author asks for the commit, push the branch (`git push -u origin
+    <name>`) and open its pull request into `develop` (GitHub's API, below), its body what the change does and its
+    cost line (Working with the author). Its required checks are `main`'s but `version` (Releases): tell the author
+    when they are green. Never merge into `develop` or `main` here, nor push them.
+  - The author's Kulisa runs one checkout at a time: the `run-kulisa` skill, from the worktree
     while its work is shown, from the repository's folder (`develop`) once it is merged.
   - Once its pull request is merged (or the author drops it), the repository's folder follows `develop` (above),
     and the worktree goes (`git worktree remove`), its branch here (`git branch -D`: merged by GitHub's merge commit,
@@ -308,15 +205,9 @@ Everything happens inside Kulisa; no external Chrome windows.
   request into `main` raises it (the `version` check refuses one that does not, unless no release of that number
   exists yet). `npm version <patch|minor> --no-git-tag-version`: no tag by hand,
   the CI makes it. While 0.x: `patch` by default, `minor` when the author says so or for a large change (say which).
-- **A merge into `main` is published by itself** (no users yet, no manual step):
-  `.github/workflows/release.yml` makes a draft `v<version>` at that commit, its notes the pull request's text;
-  builds the installers on Ubuntu (`.deb`, `.rpm`) and Windows (Squirrel's `.exe`) into it, each with its signed
-  provenance (`actions/attest`; docs/window.md); installs the `.deb` and
-  starts it; then publishes it, the tag made then. update.electronjs.org serves it and installed copies update
-  (docs/window.md, "The app icon, installers and updates"); kulisa.app is built again, its download buttons and
-  its guide then the release's (`SITE_DEPLOY_TOKEN`, a secret: a token that may only run `kulisa-site`'s workflows;
-  a site not built does not fail the release). A failed build or start leaves the draft unpublished:
-  fixed by the next release, its version raised again; the failed draft deleted (`DELETE …/releases/<id>`).
+- **A merge into `main` is published by itself** (`.github/workflows/release.yml`; docs/window.md, "The app icon,
+  installers and updates"). A failed build or start leaves the draft unpublished: fixed by the next release, its
+  version raised again; the failed draft deleted (`DELETE …/releases/<id>`).
 - **When the author says to release** (that is the ask to open the two pull requests, nothing more):
   1. In a worktree from `develop`: raise the version, commit (`Kulisa <version>`), and open its pull request into
      `develop` as any work's; the author merges it.
@@ -330,14 +221,8 @@ Everything happens inside Kulisa; no external Chrome windows.
 ## Commands
 
 The npm scripts, what each does, and what to install first (Node 24.12+, npm 11 and its `allowScripts`): README, Run
-(one list, kept there). When to run which: Conventions, "What can break comes with a test".
+(one list, kept there). When to run which: `docs/testing.md`.
 
-- **Sandbox and native module.** On Linux Electron needs `--no-sandbox` (`chrome-sandbox` in `node_modules` is
-  not setuid); `npm start` (`scripts/electron.ts`) and `npm test` pass it there only. `npm install` rebuilds `node-pty` for Electron (postinstall, `scripts/postinstall.ts`; not on macOS, where its prebuilt binary is loaded).
-- **Starting the app from a Claude Code session.** The app's terminal starts `claude`, which would inherit the
-  parent session's `CLAUDE_*` variables, take itself for a child session and not save its history. The `run-kulisa`
-  skill's `kulisa.sh start` starts it without them (all but `CLAUDE_CONFIG_DIR`), in a session of its own: started in
-  the background of Claude's terminal, the terminal's SIGHUP would end it unsaved.
 - **Code intelligence.** Claude Code's `LSP` tool (the `kulisa-dev` plugin; docs/testing.md, Claude Code's checks):
   references, definitions and types through the language server, `.ts` and `.vue` together. For a symbol — who
   defines it, who uses it, its type, what it calls or calls it — the `LSP` tool, never grep: it reads the types, so it
@@ -345,15 +230,6 @@ The npm scripts, what each does, and what to install first (Node 24.12+, npm 11 
   for those too). grep is for text that is not a symbol (a string, a config key, a path). No `LSP` tool in the session: the
   plugin is not installed in this `CLAUDE_CONFIG_DIR`; say so, install it (`claude plugin install
   kulisa-dev@kulisa-dev --scope project`) and ask the human for `/reload-plugins`.
-- **The Stop hook** (docs/testing.md, Claude Code's checks) runs `npm run lint` and `npm run test:unit` on uncommitted
-  code before a turn ends; when it sends you back, fix what it reports, or tell the human why it cannot be fixed now.
-- **Looking at the window.** `KULISA_SHOT=/tmp/kulisa.png npm start` saves a screenshot of the whole window,
-  profile views included, about 4 s after start (`KULISA_SHOT_DELAY` in ms). In tests: `shell.screenshot(file)`.
-  Then read the PNG. Use it to check any UI change. On macOS the screen recording permission is the app's that started
-  Kulisa (the terminal running Claude Code): `docs/testing.md`, "On macOS".
-- **A bug the tests and screenshots do not show** (input going nowhere, a native view misbehaving): the
-  `debug-kulisa` skill (`.claude/skills/debug-kulisa/`): look inside the running app, a scratch Kulisa, real clicks,
-  bare Electron. Read it before guessing at causes.
 
 ## Rules
 
@@ -363,11 +239,8 @@ The npm scripts, what each does, and what to install first (Node 24.12+, npm 11 
   keeps encrypted and types itself (`browser_type_login`), only on a local address (`local.ts`) or a page the tab
   reached from one, never on an account provider's; the agent never sees the password.
 - **The author's data is in `~/.config/Kulisa`**: profiles with real sign-ins to work tenants.
-  - Never delete or overwrite it.
-  - Tests use their own temp folder (`/tmp/kulisa-test-<checkout>-<hash>`, one per checkout: `test/start.ts`).
-  - To restart the author's running app, or give them a fresh start: the `run-kulisa` skill
-    (`.claude/skills/run-kulisa/`): SIGINT to the main `electron … .` process (Windows: a second start with
-    `KULISA_QUIT`), so session cookies and tabs get saved; then `kulisa.sh start`.
+  Never delete or overwrite it. Stop or restart the author's running app only with the `run-kulisa` skill: it lets
+  session cookies and tabs be saved.
 - **`src/main/signin-pause.ts` is a deliberately temporary implementation** (the author's decision: `docs/profiles.md`, Sign-in pause).
   Keep it isolated; the author will replace it. Hiding the agent from bot detection (Kasada) is not researched or
   built.
@@ -382,38 +255,30 @@ The npm scripts, what each does, and what to install first (Node 24.12+, npm 11 
 
 ## Architecture
 
-How the parts work, in detail: `docs/profiles.md` (profiles, sign-ins, the CDP proxy, the agent's tools, point and
-tell), `docs/tasks.md` (projects, tasks, agents, windows, what is on the computer) and `docs/window.md`
-(the title bar, the grid, zoom, menus, dialogs, the terminal). Read the one for the part you
-change; keep it current. Here: the layers, where a kind of code goes, and what must hold.
+How the parts work, in detail: the docs listed at the top. Here: the layers, where a kind of code goes, and what must
+hold.
 
-Layers, each using only the ones below it (`npm run deps`, in `npm run lint`, refuses an import against them:
-`.dependency-cruiser.ts`; docs/testing.md, Layers). Under them all, `worktrees.ts`, `remotes.ts` and `local.ts`; `src/shared/`
-what the main process and the window both import (the rule for names, the profiles' pictures, `Result`).
+Layers, each using only the ones below it. Which file is in which layer is `.dependency-cruiser.ts`'s (the one list;
+`npm run deps`, in `npm run lint`, refuses an import against them; docs/testing.md, Layers). Under them all, a base of
+git and what is local; `src/shared/` what the main process and the window both import (the rule for names, the
+profiles' pictures, `Result`).
 
-1. **Profiles** (`profiles.ts`, `project-profiles.ts`, `profile-store.ts`, `store.ts`, `session-cookies.ts`,
-   `cookie-sync.ts`, `signin-*.ts`): browser profiles, their tabs and storage. Knows nothing about agents, MCP or the window UI.
+1. **Profiles**: browser profiles, their tabs and storage. Knows nothing about agents, MCP or the window UI.
 2. **Automation access** (`cdp-proxy.ts`, `local-only.ts`): the only way anything automated reaches a profile's pages, and where
    sign-in mode is enforced.
-3. **Kulisa plugin** (its code one folder, `src/main/kulisa-plugin/`; earlier commits say "agent bridge"):
+3. **Kulisa plugin** (its code one folder, `src/main/kulisa-plugin/`):
    everything that lets an unchanged agent CLI understand and use profiles: tools, knowledge (skill) and hooks, the
    same for every agent.
    - The MCP server is the functional part and is agent-agnostic: any capability for the agent is an MCP tool
      (`tools/`, a file a group; the server `mcp-server.ts`), so Codex and other CLIs get it too. One URL per task
      (`/task/<project>/<task>/mcp`). How a tool is designed: `src/main/kulisa-plugin/CLAUDE.md`.
-   - The profiles skill, `src/agent/skills/profiles/SKILL.md` (change it when a tool or a rule changes), is one text
-     for every agent, written as `kulisa-profiles` into each account's folder where its agent reads skills
-     (`installSkill`, an entry's `skills`). Claude Code's package is `src/agent/claude-plugin/` (`claude
-     --plugin-dir`): `.mcp.json` (`KULISA_MCP_URL`). Packaged, both sit outside the asar (`extraResource`).
-   - Each agent's hooks are a table in its file (`agents/claude.ts`, `codex.ts`: which of its events sends which of
-     Kulisa's), given at its start (Claude Code in `--settings`, Codex as `-c`), never written into its config; every
-     hook runs one command (`hookCommand`: `curl` to `$KULISA_URL/hooks/<event>`, answered by `agent-hooks.ts`).
-   - The task's history for its agent (`history.ts`, `transcripts.ts`) and the agent's actions drawn in the pages
-     (`ghost.ts`) are here too.
+   - The profiles skill, `src/agent/skills/profiles/SKILL.md`, is one text for every agent: change it when a tool or
+     a rule changes.
+   - Each agent's hooks are a table in its file (`agents/claude.ts`, `codex.ts`), given at its start, never written
+     into its config.
    - Do not add agent-facing behavior elsewhere (e.g. in `profiles.ts` or the renderer); what the agent sees of
      Kulisa lives in `src/agent/` (the skill, Claude Code's plugin: packaged as resources), its code in this folder.
-4. **Window** (`app.ts`, `open-tasks.ts`, `ipc/`, `window.ts`, `keys.ts`, `projects.ts`, `tasks.ts`, `agents/`, `renderer/`, `picker.ts`,
-   every other file of `src/main`): what the human sees and does.
+4. **Window** (every other file of `src/main`, and `src/renderer/`): what the human sees and does.
 
 **One core, with handles for the human and for the agent.** The human (the window) and the agent (the Kulisa
 plugin) do the same things to profiles, tabs and tasks: open a tab, go to an address, close or delete a profile.
@@ -439,44 +304,16 @@ asking, where a fix goes) are the agent's: Kulisa gives it the tools and says in
 that cannot act says back what is missing instead of doing it itself. Not against One core: a core action still keeps
 its own checks and rules; what Kulisa does not do is decide the agent's way through the work.
 
-**Kulisa packages** (code smeared over `src/` is hard to keep in hand). A part that does one
-thing and knows nothing of the core (other Kulisa packages only by their entries) is a folder `src/<package>/` holding all of it: both its halves (`main/`, `renderer/`), its IPC
-channels, its unit tests, its doc (`README.md`) and a `CLAUDE.md` on working in it, reached from outside only through
-its entries; `npm run deps` checks it. What uses it stays outside and goes through its API. Kulisa moves to this
-gradually: a part at a time, when it is worked on and found self-contained; no big move. What makes code one, the
-layout, the rules and moving code into one: `docs/packages.md`. The first: `src/terminal/`.
-
 Modules: each part's doc lists its files ("The code", its last section; `docs/ui.md` at its top; a Kulisa package's own
 `README.md`); the code's own names (LSP, grep) find the rest. Where a kind of code goes:
 
 - Agent-specific code goes into its agent's file in `agents/` (`claude.ts`, `codex.ts`: everything Kulisa knows of
   that agent, its transcript's reader too), nowhere else; a new agent is a new file there.
-- A new keyboard shortcut goes into the table in `keys.ts` (`docs/window.md`, Keys).
-- The windows' IPC (`ipc/`, a file a domain; the channels: `src/shared/ipc.ts`) acts in the window a message comes from (`event.sender`); one on profiles or tabs
-  names its task too, refused when that window shows another by then (`act` in the renderer's `lib/store.ts`). One
-  change to the open tasks after another (`serial`). `shell.win`, `shell.task`, `shell.profiles`, `shell.closed`,
-  `shell.pty` are the first window's (the tests').
 - Git for tasks is the user's git, never a shell (`worktrees.ts`); an agent is typed into the user's shell in its
   folder, so the project's own environment applies (direnv, nvm, mise; `src/terminal/`).
 
-What must hold in the window:
-
-- **Profile views are native and draw above the window's HTML.** They belong to their project's window (moving a
-  project moves them: `Profile.moveTo`). The renderer sends each pane's `.content` box (or
-  that it is off screen) to the main process after every grid change. Anything HTML over the panes must hide them
-  (`views:hidden`): dialogs; while a panel is dragged or a menu is open, pictures of the pages stand in for them.
-  Every menu and dialog opens through `covered()` (`lib/cover.ts`; a tasks' window's pages under it: `lib/views.ts`),
-  which puts the pages back however it closes.
-- **Sizes and zoom.** UI text and controls use `--font` and `--control` (tokens.css), not their own sizes. The Kulisa
-  zoom is Chromium's zoom of every window's page (`setUiZoom` in app.ts); the renderer's boxes are CSS pixels and
-  `window.ts` scales them for the native views. Pages get the Kulisa zoom times their site's own zoom.
-- Kulisa's own DevTools exist only when running from source (`appDevTools`, off when `app.isPackaged`). End users
-  get DevTools for profiles' tabs only.
-
 ## Hard-won facts (details in the doc of the part)
 
-- **`setWindowOpenHandler` → `createWindow`:** pass `options.webContents` into the new `WebContentsView`.
-  A fresh one freezes the main process.
 - **Never make a `webContents` inside another's `'destroyed'` event.** Chromium is still taking the old one down;
   the new one crashes the main process now and then with SIGTRAP (`CHECK(!frame_tree_->IsBeingDestroyed())`). The
   empty tab after the last one closes is made on the next turn (`Profile._removed`).
@@ -484,34 +321,14 @@ What must hold in the window:
   proxy and MCP. `app.ts` logs instead; keep it that way.
 - **No HTTP server in the Electron main process that the app's own pages load from.** A sync Electron call
   waiting on a renderer that waits on that server deadlocks. The test site runs in a child process.
-- **The proxy must report real Chrome target ids** (`Target.getTargetInfo`). Playwright assumes
-  main frame id == target id. One debugger session per tab is shared by all clients; events fan out.
-- **A brand-new `webContents` has no renderer, and CDP commands wait for one.** Tabs go
-  `about:blank` → real URL; clients attach only after `tab.ready`.
-- **Chromium holds CDP commands to a tab until its navigation commits.** A site that never answers would hang
-  `connectOverCDP` and with it opening the task; the proxy shows a tab only once its site has answered
-  (`tab.answered`, test `/hang`).
-- **Do not present profiles as Google Chrome.** Google refuses to sign in a profile that does ("This browser or app
-  may not be secure") and lets Electron's own Chromium in; GoDaddy's Kasada does not need it either
-  (`docs/profiles.md`, What sites see).
-- **Electron drops session cookies on exit.** Entra and federated sign-ins depend on them, hence
-  `session-cookies.ts`. Tests must quit with `app.quit()`, not `app.exit()`, so `before-quit` runs.
 - **Pages with Trusted Types (Microsoft 365, Google) refuse HTML strings**, so Playwright's
   `screencast.showOverlay(html)` draws nothing there. `locator.highlight()` and `screencast.showActions()` work;
   use those (test page `/strict`).
-- **GoDaddy SSO uses Kasada.** Sign-in passes in an embedded profile when no automation is attached during
-  sign-in (the sign-in pause).
 - **With the monitor off or the screen locked**, Chromium renders at 1–2 fps, and anything waiting for frames
   crawls. Don't trust timings taken then (`xset q` shows "Monitor is Off").
-- **A right-click on a drag region freezes the whole Ubuntu desktop** (GNOME on X11): GNOME's window menu opens at a
-  NaN place, invisible, holding the pointer and keyboard grab until the overview opens. The window cancels
-  `system-context-menu` on Linux (`window.ts`; `docs/window.md`, The title bar).
 - **Profiles coming back on `about:blank`** (their saved tabs `[]`) have two known paths, both handled: a profile
   still opening, and tabs closing as Kulisa quits. Read `docs/profiles.md`, "Tabs that come back", before looking for
   another.
-- **A test run starts a test site of its own on a free port** (`KULISA_TEST_SITE`): on a fixed port, a stale server
-  from an earlier run, or another worktree's run, answers and the tests lie. Tests take the address from
-  `SITE`/`PORT` in `helpers.ts`, never a literal port.
 - **Playwright keeps every page it attaches to "visible".** Its first command to a page,
   `Emulation.setFocusEmulationEnabled`, is a capture to Chromium: the page stays visible, unthrottled and unfreezable
   behind other tabs and in a hidden window. Electron's `setVisible(false)` does hide a page (issue #52, tabs
