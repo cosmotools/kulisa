@@ -13,9 +13,8 @@ import type { Question } from '../../src/shared/types.ts';
 import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
 import type { Kulisa } from './driver.ts';
-import { SITE, MAC, WIN, sleep, menu, menuRows, choose, closeMenu, rightClick, box, viewOn, focusWindow, closeSettings, termText } from './helpers.ts';
+import { SITE, CHECKOUT, MAC, WIN, sleep, menu, menuRows, choose, closeMenu, rightClick, box, viewOn, focusWindow, closeSettings, termText, invoke } from './helpers.ts';
 
-const repo = path.join(import.meta.dirname, '..', '..');
 const NO_SHOT = 'macOS: the app that started the tests (the terminal) may not record the screen';
 
 // A function run in Kulisa's main process with Electron's module first (k.electron): Menu, nativeTheme, nativeImage,
@@ -41,7 +40,7 @@ const term = (ui: Page) => ui.evaluate(() => {
 // A second Kulisa (src/main/index.ts) started on a data folder, in the environment of the test's (its screen).
 const start = async (core: Core, data: string, env: Record<string, string> = {}) => {
   const base = await core(() => ({ ...process.env }));
-  const p = spawn(electronPath as unknown as string, [...(process.platform === 'linux' ? ['--no-sandbox'] : []), path.join(repo, 'src', 'main', 'index.ts')],
+  const p = spawn(electronPath as unknown as string, [...(process.platform === 'linux' ? ['--no-sandbox'] : []), path.join(CHECKOUT, 'src', 'main', 'index.ts')],
     { env: { ...base, KULISA_DATA: data, KULISA_MCP_PORT: '0', ...env }, stdio: ['ignore', 'pipe', 'pipe'] });
   let out = '';
   p.stdout.on('data', (d) => (out += d));
@@ -86,7 +85,7 @@ test('terminal: one xterm shows the terminal in front; another shown and back ke
   const sh = await terminal(core, 'Terminal');
   await expect(ui.locator('.xterm'), 'one xterm for both terminals').toHaveCount(1);
   // The mouse in SGR and the cursor hidden, as Claude Code's fullscreen has them: serializing leaves both out.
-  const cmd = `node '${path.join(repo, 'test', 'fixtures', 'modes.mjs')}'\r`;
+  const cmd = `node '${path.join(CHECKOUT, 'test', 'fixtures', 'modes.mjs')}'\r`;
   await ui.evaluate((a) => (window as any).kulisa.send('pty:in', a), { task: sh.key, data: cmd });
   const modes = () => ui.evaluate(() => {
     const t = (window as any).__term, c = t._core;
@@ -124,7 +123,7 @@ test('terminal: one opened in a hidden window starts at once, at its room: a hid
 test("terminal: dictation where the agent has its own: the right Ctrl held anywhere records, let go stops, pressed once it records until the next; the microphone at the end of the terminals' row shows it and does the same by the mouse; with a shell in front the agent comes to the front; the key is the human's to change in Keyboard Shortcuts", async ({ core, ui, files }) => {
   await sam(core);
   // The key as Kulisa ships it, whatever an earlier run of this test changed it to.
-  await ui.evaluate((code) => (window as any).kulisa.invoke('keys:set', { id: 'voice.hold', code }), MAC ? 'MetaRight' : 'ControlRight');
+  await invoke(ui, 'keys:set', { id: 'voice.hold', code: MAC ? 'MetaRight' : 'ControlRight' });
   const mic = ui.locator('.dictation .mic');
   await expect(mic).toBeEnabled();
   // At the row's end, after + and the task's repositories, inside the row: no row of its own.
@@ -410,7 +409,7 @@ test("the app icon: in the top bar (not on macOS: the Dock's), and every file th
   }
   const icons = [forge.packagerConfig.icon + '.png', forge.packagerConfig.icon + '.ico', forge.packagerConfig.icon + '.icns',
     ...(forge.makers as { config?: { setupIcon?: string; icon?: string; options?: { icon?: string } } }[]).flatMap((m) => [m.config?.setupIcon, m.config?.icon, m.config?.options?.icon]).filter(Boolean)];
-  for (const f of icons) expect(fs.statSync(path.join(repo, f)).size > 1000, f).toBe(true);
+  for (const f of icons) expect(fs.statSync(path.join(CHECKOUT, f)).size > 1000, f).toBe(true);
   expect(icons).toHaveLength(7); // the .rpm's too
 });
 
@@ -599,8 +598,8 @@ test('dialogs: one look (title and ×, content, buttons at the bottom right, the
   const view = () => core((k) => k.profile('Sam').get().view.getVisible());
   const ask = ui.locator('#ask');
   // The question's answer kept in the main process, to be read once given.
-  const asking = (q: Question) => core((k, a) => { (globalThis as any).__answer = k.shell.ask(a); }, q);
-  const answer = () => core(() => (globalThis as any).__answer as Promise<boolean | 'other'>);
+  const asking = (q: Question) => core((k, a) => { k.stash.answer = k.shell.ask(a); }, q);
+  const answer = () => core((k) => k.stash.answer as Promise<boolean | 'other'>);
   await asking({ message: 'Delete the thing?', ok: 'Delete', danger: true, detail: 'Deleted for good:\n• a\n• b' });
   await expect(ask).toHaveAttribute('data-state', 'open');
   const q = await ask.evaluate((d) => {
@@ -633,7 +632,7 @@ test('dialogs: one look (title and ×, content, buttons at the bottom right, the
 
   // Two at once: the second waits for the first. Not deleting: the main button is blue.
   await asking({ message: 'Initialize it?', ok: 'Initialize' });
-  await core((k) => { (globalThis as any).__second = k.shell.ask({ message: 'Delete the other?', ok: 'Delete', danger: true }); });
+  await core((k) => { k.stash.second = k.shell.ask({ message: 'Delete the other?', ok: 'Delete', danger: true }); });
   await expect(ask).toHaveAttribute('data-state', 'open');
   await expect(ask.locator('h2')).toHaveText('Initialize it?');
   await expect(ask.locator('.ok'), 'blue').toHaveCSS('background-color', 'rgb(53, 116, 240)');
@@ -642,11 +641,11 @@ test('dialogs: one look (title and ×, content, buttons at the bottom right, the
   await expect(ask).toHaveAttribute('data-state', 'open');
   await expect(ask.locator('h2')).toHaveText('Delete the other?');
   await ask.locator('.cancel').click();
-  expect(await core(() => (globalThis as any).__second as Promise<boolean | 'other'>), 'Cancel says no').toBe(false);
+  expect(await core((k) => k.stash.second as Promise<boolean | 'other'>), 'Cancel says no').toBe(false);
 });
 
 test("About Kulisa (☰; on macOS the app menu's) is a page of Settings: the versions, and the folders Kulisa writes in on this computer, each shown in the file manager, one not made yet told so", async ({ kulisa, core, ui, sui, files }) => {
-  const pkg = JSON.parse(fs.readFileSync(path.join(repo, 'package.json'), 'utf8'));
+  const pkg = JSON.parse(fs.readFileSync(path.join(CHECKOUT, 'package.json'), 'utf8'));
   if (MAC) {
     expect(await main(kulisa, (e) => e.Menu.getApplicationMenu().items[0].submenu.items[0].label), 'first in the app menu, where Mac apps have it').toBe('About Kulisa');
     await main(kulisa, (e, k) => e.Menu.getApplicationMenu().items[0].submenu.items[0].click(undefined, k.shell.win, undefined));
@@ -671,18 +670,18 @@ test("About Kulisa (☰; on macOS the app menu's) is a page of Settings: the ver
   expect(a.line).toBe(`Electron ${versions.electron} · Chromium ${versions.chrome} / kulisa.app · GPL-3.0-or-later`);
   const projectsHome = path.join(files.root, 'KulisaProjects'), made = fs.existsSync(projectsHome);
   expect(a.folders).toEqual([{ id: 'data', path: files.userData, missing: false, disabled: false }, { id: 'projects', path: projectsHome, missing: !made, disabled: !made },
-    { id: 'program', path: repo, missing: false, disabled: false }]);
+    { id: 'program', path: CHECKOUT, missing: false, disabled: false }]);
   // Show: the folder in the file manager, by its id (the window names no path).
-  await main(kulisa, (e) => {
-    const g = globalThis as any;
-    g.__openPath = e.shell.openPath; g.__shownDirs = [];
-    e.shell.openPath = async (dir: string) => { g.__shownDirs.push(dir); return ''; };
+  await main(kulisa, (e, k) => {
+    const g = k.stash;
+    g.openPath = e.shell.openPath; g.shownDirs = [];
+    e.shell.openPath = async (dir: string) => { g.shownDirs.push(dir); return ''; };
   });
   try {
     await s.locator('#aboutpage dd[data-folder="data"] .show').click();
-    await expect.poll(() => core(() => (globalThis as any).__shownDirs.length)).toBe(1);
-  } finally { await main(kulisa, (e) => { e.shell.openPath = (globalThis as any).__openPath; }); }
-  expect(await core(() => (globalThis as any).__shownDirs)).toEqual([files.userData]);
+    await expect.poll(() => core((k) => k.stash.shownDirs.length)).toBe(1);
+  } finally { await main(kulisa, (e, k) => { e.shell.openPath = k.stash.openPath; }); }
+  expect(await core((k) => k.stash.shownDirs)).toEqual([files.userData]);
   await closeSettings(core, ui, sui);
   // The main process opens it too (macOS's menu, whichever OS): the same window at that page.
   await core((k) => k.shell.openSettings({ section: 'about', id: null }));
@@ -700,12 +699,12 @@ test('a new version installed while Kulisa runs is offered once, in its own dial
     await createPackage(src, `${asar}.dpkg-new`);
     fs.renameSync(`${asar}.dpkg-new`, asar);
   };
-  const restarted = () => core(() => (globalThis as any).__restarted as string | null);
+  const restarted = () => core((k) => k.stash.restarted as string | null);
   // The test's Kulisa stays: its restart a stub that notes how it would restart.
   await core((k) => {
-    const g = globalThis as any;
-    g.__restart = k.shell.restart; g.__restarted = null;
-    k.shell.restart = async (apply) => { g.__restarted = apply ? 'squirrel' : 'relaunch'; };
+    const g = k.stash;
+    g.restart = k.shell.restart; g.restarted = null;
+    k.shell.restart = async (apply) => { g.restarted = apply ? 'squirrel' : 'relaunch'; };
   });
   try {
     await core((k) => { k.answer = false; }); // Later
@@ -723,7 +722,7 @@ test('a new version installed while Kulisa runs is offered once, in its own dial
     expect(await restarted()).toBe('relaunch');
     expect((await core((k) => k.asked.pop())).message).toBe('Kulisa 9.9.10 is ready');
   } finally {
-    await core((k) => { k.shell.restart = (globalThis as any).__restart; k.answer = true; });
+    await core((k) => { k.shell.restart = k.stash.restart; k.answer = true; });
     removeTree(src);
   }
 });

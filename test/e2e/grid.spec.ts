@@ -1,41 +1,10 @@
 // The grid of panels: panes and their pages, presets, a menu over pages that give no picture (docs/window.md, The grid).
-import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
-import type { Core } from './fixtures.ts';
-import type { data } from './data.ts';
-import { SITE, menu, menuRows, closeMenu, rightClick, box, pageBox, viewOn, resourcesHeight } from './helpers.ts';
-
-type Files = ReturnType<typeof data>;
-
-const SAM = 'Sam.admin', ELON = 'Elon.buyer';
-
-// dockview's API with an argument (helpers.ts' dock takes none).
-const dockDo = <A, R>(ui: Page, fn: (api: any, arg: A) => R, arg: A) => ui.evaluate(([src, a]) => (0, eval)(`(${src})`)((window as any).__dock, a), [fn.toString(), arg] as const) as Promise<R>;
-const notLoading = (page: Page) => expect(page.locator('html')).not.toHaveClass(/\bloading\b/);
-const bothOn = (core: Core, ui: Page, files: Files) => expect.poll(async () => (await viewOn(core, ui, files, SAM)) && viewOn(core, ui, files, ELON)).toBe(true);
-
-// The task shown as the tasks' tests know it: named task-1, Sam signed in and Elon signed out side by side (Columns),
-// the agent's output watched. Made through the core (test/setup.ts's state; making and signing in are tested elsewhere).
-async function begin(core: Core, ui: Page, files: Files) {
-  await core(async (k) => {
-    const task = k.shell.task, has = (n: string) => [...k.shell.profiles.values()].some((p) => p.name === n);
-    if (task.name !== 'task-1') await task.rename('task-1');
-    if (!has('Sam.admin')) await task.createProfile('Sam.admin', 'seller in the test shop', 'fox');
-    if (!has('Elon.buyer')) await task.createProfile('Elon.buyer', '', 'owl');
-    k.watchPty(k.shell.pty);
-  });
-  await expect(ui.locator('.ptab[data-panel^="profile:"]')).toHaveCount(2); // a pane stacked behind another has no .pane drawn
-  await notLoading(ui);
-  await ui.evaluate(() => (window as any).__layoutPreset('columns'));
-  await core(async (k, site) => {
-    await k.ensureProfile('Sam.admin', `${site}/app/login?name=sam`);
-    await k.ensureProfile('Elon.buyer', `${site}/app`);
-  }, SITE);
-  await bothOn(core, ui, files);
-}
+import { menu, menuRows, closeMenu, rightClick, box, pageBox, viewOn, resourcesHeight, dock } from './helpers.ts';
+import { SAM, ELON, begin, bothOn } from './tasks-helpers.ts';
 
 test("tasks' bar: a tab is a rounded rectangle apart from the grid, as Firefox's, the shown one filled; its project's icon first", async ({ core, ui, files }) => {
-  await begin(core, ui, files);
+  await begin(core, ui, files, { columns: true });
   const [grid, tab, icon, look] = await ui.evaluate(() => {
     const t = document.querySelector('#projectTabs .tasktab.active'), c = (q: string) => getComputedStyle(document.querySelector(q));
     const island = (() => { const i = document.body.appendChild(document.createElement('i')); i.style.background = 'var(--island)'; const v = getComputedStyle(i).backgroundColor; i.remove(); return v; })();
@@ -56,7 +25,7 @@ test("tasks' bar: a tab is a rounded rectangle apart from the grid, as Firefox's
 });
 
 test("grid: a pane narrower than its profile's name: the name cut with …, its × in the pane, no list of hidden tabs", async ({ core, ui, files }) => {
-  await begin(core, ui, files);
+  await begin(core, ui, files, { columns: true });
   const panel = files.panel(SAM);
   // A name longer than any pane is wide (names have no spaces to wrap at), put in place of Sam's.
   const was = await ui.evaluate((p) => {
@@ -75,8 +44,8 @@ test("grid: a pane narrower than its profile's name: the name cut with …, its 
 });
 
 test('grid: a pane moved next to the terminal takes its page along', async ({ core, ui, files }) => {
-  await begin(core, ui, files);
-  await dockDo(ui, (api, p) => api.getPanel(p).api.moveTo({ group: api.getPanel('terminal').group, position: 'right' }), files.panel(SAM));
+  await begin(core, ui, files, { columns: true });
+  await dock(ui, (api, p) => api.getPanel(p).api.moveTo({ group: api.getPanel('terminal').group, position: 'right' }), files.panel(SAM));
   await expect.poll(() => viewOn(core, ui, files, SAM)).toBe(true);
   await expect.poll(() => viewOn(core, ui, files, ELON)).toBe(true);
   const sam = await pageBox(ui, files, SAM), term = await box(ui, '.term:not([hidden])');
@@ -84,9 +53,9 @@ test('grid: a pane moved next to the terminal takes its page along', async ({ co
 });
 
 test("grid: a narrow pane's bar gives up Back and Forward, then Reload, into ⋮; Pick and ⋮ stay in it down to dockview's narrowest", async ({ core, ui, files }) => {
-  await begin(core, ui, files);
+  await begin(core, ui, files, { columns: true });
   const panel = files.panel(SAM), pane = `.pane[data-profile="${files.idOf(SAM)}"]`;
-  const width = await dockDo(ui, (api, p) => api.getPanel(p).group.api.width, panel);
+  const width = await dock(ui, (api, p) => api.getPanel(p).group.api.width, panel);
   const bar = () => ui.evaluate((sel) => {
     const p = document.querySelector(sel).getBoundingClientRect();
     return [...document.querySelectorAll(`${sel} .bar > :is(button, input):not([hidden])`)].filter((e) => e.checkVisibility()).map((e) => {
@@ -101,7 +70,7 @@ test("grid: a narrow pane's bar gives up Back and Forward, then Reload, into ⋮
     return rows;
   };
   const at = async (w: number, shown: string[]) => {
-    await dockDo(ui, (api, a) => api.getPanel(a.panel).group.api.setSize({ width: a.w }), { panel, w });
+    await dock(ui, (api, a) => api.getPanel(a.panel).group.api.setSize({ width: a.w }), { panel, w });
     await expect.poll(bar, { timeout: 3000, message: `${w} px` }).toEqual(shown);
   };
   await at(400, ['back', 'fwd', 'reload', 'addr', 'pick', 'more']);
@@ -109,21 +78,21 @@ test("grid: a narrow pane's bar gives up Back and Forward, then Reload, into ⋮
   await at(240, ['reload', 'addr', 'pick', 'more']);
   await at(100, ['addr', 'pick', 'more']);
   expect((await more()).map((r) => (r as string).replace(' (off)', ''))).toEqual(['Back', 'Forward', 'Reload', '-', 'Screenshot', 'DevTools']);
-  await dockDo(ui, (api, a) => api.getPanel(a.panel).group.api.setSize({ width: a.width }), { panel, width });
+  await dock(ui, (api, a) => api.getPanel(a.panel).group.api.setSize({ width: a.width }), { panel, width });
 });
 
 test('grid: a pane stacked behind another as a tab hides its page until chosen', async ({ core, ui, files }) => {
-  await begin(core, ui, files);
-  await dockDo(ui, (api, a) => api.getPanel(a.sam).api.moveTo({ group: api.getPanel(a.elon).group, position: 'center' }), { sam: files.panel(SAM), elon: files.panel(ELON) });
+  await begin(core, ui, files, { columns: true });
+  await dock(ui, (api, a) => api.getPanel(a.sam).api.moveTo({ group: api.getPanel(a.elon).group, position: 'center' }), { sam: files.panel(SAM), elon: files.panel(ELON) });
   await expect.poll(() => viewOn(core, ui, files, SAM)).toBe(true);
   expect(await core((k) => k.profile('Elon.buyer').get().view.getVisible())).toBe(false);
-  await dockDo(ui, (api, p) => api.getPanel(p).api.setActive(), files.panel(ELON));
+  await dock(ui, (api, p) => api.getPanel(p).api.setActive(), files.panel(ELON));
   await expect.poll(() => viewOn(core, ui, files, ELON)).toBe(true);
   expect(await core((k) => k.profile('Sam.admin').get().view.getVisible())).toBe(false);
 });
 
 test('grid: while a pane is dragged, pages are pictures (drop targets are HTML), live again after the drop', async ({ core, ui, files }) => {
-  await begin(core, ui, files);
+  await begin(core, ui, files, { columns: true });
   const tab = ui.locator(`.ptab[data-panel="${files.panel(ELON)}"]`);
   await tab.evaluate((t) => t.dispatchEvent(new DragEvent('dragstart', { bubbles: true, dataTransfer: new DataTransfer() })));
   await expect.poll(() => core((k) => [...k.shell.profiles.values()].every((p) => !p.get().view.getVisible()))).toBe(true);
@@ -134,7 +103,7 @@ test('grid: while a pane is dragged, pages are pictures (drop targets are HTML),
 });
 
 test('grid presets: columns, grid, focus; each fits the window, nothing cut off', async ({ core, ui, files }) => {
-  await begin(core, ui, files);
+  await begin(core, ui, files, { columns: true });
   const at = async () => ({ sam: await pageBox(ui, files, SAM), elon: await pageBox(ui, files, ELON), term: await box(ui, '.term:not([hidden])') });
   // Every panel inside the grid's room (#dock less its padding): none cut off at the right or the bottom.
   const fits = async () => expect(await ui.evaluate(() => {
@@ -188,7 +157,7 @@ test('grid presets: columns, grid, focus; each fits the window, nothing cut off'
 });
 
 test('a menu opens even when a page gives no picture (a page that draws no frames: covered, the monitor off, busy)', async ({ core, ui, files }) => {
-  await begin(core, ui, files);
+  await begin(core, ui, files, { columns: true });
   await core((k) => { k.profile('Elon.buyer').get().wc.capturePage = () => new Promise(() => {}); }); // never
   try {
     await rightClick(ui, `.ptab[data-panel="${files.panel(ELON)}"]`);

@@ -1,141 +1,16 @@
 // The tasks' bar: a tab per open task, switching between them (by a click, a press, the keys), the slide, more tabs than
 // it holds, the agent's state on a tab, its + with several projects (docs/tasks.md, docs/window.md).
-import { execFileSync } from 'child_process';
-import crypto from 'crypto';
-import fs from 'fs';
 import path from 'path';
 import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
-import type { Core, Call } from './fixtures.ts';
-import type { data } from './data.ts';
-import { SITE, MAC, sleep, menu, menuRows, choose, closeMenu, rightClick, plusMenu, focusWindow, viewOn, termShows } from './helpers.ts';
+import { MAC, sleep, menu, menuRows, choose, closeMenu, rightClick, plusMenu, focusWindow, viewOn, termShows, invoke, notLoading, noSlide, asked, mouse, mid } from './helpers.ts';
+import { committed, rand, keyAt, isNth, nthShown, taskTab, hook, begin } from './tasks-helpers.ts';
 import { removeTree } from '../../src/main/remove.ts';
 
-type Files = ReturnType<typeof data>;
-
-const hasDirenv = (() => { try { execFileSync('direnv', ['version']); return true; } catch { return false; } })();
-const git = (cwd: string, ...args: string[]) => execFileSync('git', ['-c', 'user.name=Kulisa test', '-c', 'user.email=test@example.invalid', ...args], { cwd, encoding: 'utf8' }).trim();
-const rand = () => crypto.randomBytes(3).toString('hex');
-const invoke = (ui: Page, channel: string, arg?: unknown) => ui.evaluate(([c, a]) => (window as any).kulisa.invoke(c, a), [channel, arg] as const);
-const notLoading = (ui: Page) => expect(ui.locator('html')).not.toHaveClass(/\bloading\b/);
-const noSlide = (ui: Page) => expect.poll(() => ui.evaluate(() => document.documentElement.matches(':active-view-transition'))).toBe(false);
-// The last question Kulisa asked (answered in its dialog: driver.ts), once it is asked.
-async function asked(core: Core) {
-  await expect.poll(() => core((k) => k.asked.length)).toBeGreaterThan(0);
-  return core((k) => k.asked.pop());
-}
-// A task's tab in the bar by its key.
-const taskTab = (ui: Page, key: string) => ui.locator(`#projectTabs .tasktab[data-task="${key}"]`);
-// The shown project's task by its place (from 1), as made; whether the shown task is that one, the window done showing it.
-const keyAt = (core: Core, n: number) => core((k, i) => [...k.shell.current.tasks.values()][i - 1]?.key, n);
-const isNth = (core: Core, n: number) => core((k, i) => { const t = k.shell.task; return !!t && [...t.project.tasks.values()][i - 1] === t; }, n);
-const nthShown = (core: Core, n: number, timeout = 5000) => expect.poll(async () => (await isNth(core, n)) && core((k) => !k.shell.windows[0].switching), { timeout }).toBe(true);
-// One of the agent's hooks, as its plugin sends it (agent-hooks.ts); its answer.
-async function hook(core: Core, task: string, event: string, input = {}) {
-  const url = await core((k, key) => k.hooksOf(k.shell.taskByKey(key)), task);
-  const text = await (await fetch(`${url}/${event}`, { method: 'POST', body: JSON.stringify(input) })).text();
-  return JSON.parse(text || '{}');
-}
-// A new task of the shown project (its + in the bar: task:new; the menu itself is tested elsewhere), shown once its agent
-// started; named task-<its place among its project's tasks> for the test to refer to it by, unless name is null (left
-// "New Task"). Its key.
-async function newTask(core: Core, ui: Page, name?: string | null) {
-  const before = await core((k) => k.shell.task?.key ?? null);
-  await invoke(ui, 'task:new', { project: await core((k) => k.shell.current.id) });
-  await expect.poll(() => core((k, b) => { const t = k.shell.task; return !!t && t.key !== b && t.loaded && [...t.terminals.values()].some((x) => !!x.pty) && !k.shell.windows[0].switching; }, before), { timeout: 20000 }).toBe(true);
-  return core(async (k, n) => {
-    const t = k.shell.task;
-    if (n !== null) await t.rename(n ?? `task-${[...t.project.tasks.values()].indexOf(t) + 1}`);
-    if (k.shell.pty) k.watchPty(k.shell.pty);
-    k.asked.length = 0;
-    return t.key;
-  }, name);
-}
-
-// The project made a git repository as the human sets it up: committed, with what a task's copy takes along or not (an
-// .env, an .envrc direnv allowed, a file .worktreeinclude names, an agent's local settings, a file not committed).
-function gitProject(project: string) {
-  git(project, 'init', '-q');
-  fs.writeFileSync(path.join(project, '.gitignore'), '.env*\nconfig/local.json\ntranscript.jsonl\n.claude/settings.local.json\n');
-  fs.writeFileSync(path.join(project, '.worktreeinclude'), 'config/local.json\n');
-  fs.writeFileSync(path.join(project, 'README.md'), '# shop\n');
-  git(project, 'add', '-A');
-  git(project, 'commit', '-qm', 'first');
-  fs.writeFileSync(path.join(project, '.env'), 'SECRET=1\n');
-  fs.writeFileSync(path.join(project, '.envrc'), 'export FROM_ENVRC="envrc of $PWD"\n');
-  if (hasDirenv) execFileSync('direnv', ['allow', project]);
-  fs.mkdirSync(path.join(project, 'config'), { recursive: true });
-  fs.writeFileSync(path.join(project, 'config', 'local.json'), '{"db":"local"}');
-  fs.mkdirSync(path.join(project, '.claude'), { recursive: true });
-  fs.writeFileSync(path.join(project, '.claude', 'settings.local.json'), '{"model":"x"}');
-  fs.writeFileSync(path.join(project, 'wip.txt'), 'not committed');
-}
-
-// The project as the tasks' tests know it: a git repository (gitProject), the only project open; its task-1 with
-// Sam.admin signed in and Elon.buyer signed out side by side (Columns), Dora closed; Feature-X (its second task) open in
-// a worktree of its own, Sam and Elon open there too, unless alone (task-1 its only task then); task `shown` shown. Made
-// through the core and the window's channels (each tested elsewhere); a task another test left is deleted.
-async function begin(core: Core, ui: Page, files: Files, call: Call, { alone = false, shown = 1 } = {}) {
-  const pid = files.pid('project');
-  if (!fs.existsSync(path.join(files.project, '.git'))) gitProject(files.project);
-  for (const id of await core((k, p) => [...k.shell.open.keys()].filter((x) => x !== p), pid)) await invoke(ui, 'project:close-tasks', { id });
-  const ready = (key?: string) => expect.poll(() => core((k, a) => k.shell.current?.id === a.pid && !!k.shell.task?.loaded && (!a.key || k.shell.task.key === a.key) && !k.shell.windows[0].switching, { pid, key }), { timeout: 20000 }).toBe(true);
-  if (await core((k, p) => k.shell.current?.id !== p || !k.shell.task, pid)) await invoke(ui, 'project:open', { id: pid, task: files.tid('project', 1) });
-  await ready();
-  for (const key of await core((k, a) => {
-    const all = [...k.shell.current.tasks.values()], fx = all.slice(1).find((t) => t.name === 'Feature-X');
-    return all.slice(1).filter((t) => a || t !== fx).map((t) => t.key);
-  }, alone)) await invoke(ui, 'task:delete', key);
-  const first = await keyAt(core, 1);
-  if (await core((k, key) => !!k.shell.taskByKey(key).entry.closed, first)) await invoke(ui, 'project:open', { id: pid, task: first.split('/')[1] });
-  else if (await core((k, key) => k.shell.task?.key !== key, first)) await invoke(ui, 'task:show', first);
-  await ready(first);
-  await core(async (k) => {
-    const task = k.shell.task, closed = (n: string) => [...task.closed.values()].find((c) => c.cfg.name === n);
-    if (task.name !== 'task-1') await task.rename('task-1');
-    for (const [name, description, avatar] of [['Sam.admin', 'seller in the test shop', 'fox'], ['Elon.buyer', '', 'owl'], ['Dora', '', undefined]]) {
-      if (closed(name)) { if (name !== 'Dora') await task.openProfile(closed(name).cfg.id); } else if (![...k.shell.profiles.values()].some((p) => p.name === name)) await task.createProfile(name, description, avatar);
-    }
-    const dora = [...k.shell.profiles.values()].find((p) => p.name === 'Dora');
-    if (dora) await task.closeProfile(dora.id);
-    k.watchPty(k.shell.pty);
-  });
-  await expect(ui.locator('.ptab[data-panel^="profile:"]')).toHaveCount(2);
-  await notLoading(ui);
-  await ui.evaluate(() => (window as any).__layoutPreset('columns'));
-  await core(async (k, site) => {
-    await k.ensureProfile('Sam.admin', `${site}/app/login?name=sam`);
-    await k.ensureProfile('Elon.buyer', `${site}/app`);
-  }, SITE);
-  if (!alone) {
-    let fx = await core((k) => [...k.shell.current.tasks.values()].find((t) => t.name === 'Feature-X')?.key);
-    if (!fx) {
-      fx = await newTask(core, ui, null);
-      await call('task_worktree', { name: 'Feature-X' }, { task: fx });
-    } else if (await core((k, key) => !!k.shell.taskByKey(key).entry.closed, fx)) await invoke(ui, 'project:open', { id: pid, task: fx.split('/')[1] });
-    for (const profile of ['Sam.admin', 'Elon.buyer']) {
-      if (await core((k, a) => [...k.shell.taskByKey(a.fx).closed.values()].some((c) => c.cfg.name === a.profile), { fx, profile })) await call('profile_open', { profile }, { task: fx });
-    }
-    await invoke(ui, 'task:show', shown === 1 ? first : fx);
-    await ready(shown === 1 ? first : fx);
-  }
-  await notLoading(ui);
-  await noSlide(ui);
-  await core((k) => { k.asked.length = 0; });
-}
-
-// A whole mouse button's press or release on a task's tab, as the hand makes it (an input event into the window).
-async function mouse(core: Core, ui: Page, type: 'mouseDown' | 'mouseUp', key: string) {
-  const b = await taskTab(ui, key).locator('.name').evaluate((n) => n.getBoundingClientRect().toJSON());
-  await core((k, a) => {
-    const wc = k.shell.win.webContents, z = wc.getZoomFactor();
-    wc.sendInputEvent({ type: a.type, x: Math.round((a.b.x + a.b.width / 2) * z), y: Math.round((a.b.y + a.b.height / 2) * z), button: 'left', clickCount: 1 });
-  }, { type, b });
-}
 const chosen = (ui: Page) => ui.evaluate(() => document.querySelector<HTMLElement>('#projectTabs .tasktab.active')?.dataset.task ?? '');
 
 test("tasks: switching shows the other grid and terminal; the one left keeps running; the agent's state shows on its tab", async ({ core, ui, files, call }) => {
-  await begin(core, ui, files, call, { shown: 2 });
+  await begin(core, ui, files, { only: true, columns: true, featureX: call, shown: 2 });
   const first = await keyAt(core, 1), second = await keyAt(core, 2), SAM = files.idOf('Sam.admin');
   // No profiles' button on a task's tab, its right-click menu has them; the × on every tab, as Chrome's, not only
   // the shown one's (the author's choice).
@@ -149,9 +24,9 @@ test("tasks: switching shows the other grid and terminal; the one left keeps run
   expect(await menuRows(ui)).toEqual(['Rename…', 'Show Folder', '-', 'Move to New Window', '-', 'Close', 'Delete Task…', '-', 'project']);
   await closeMenu(ui);
   await core((k) => {
-    const g = globalThis as any;
-    g.__openPath = k.electron.shell.openPath; g.__shown = [];
-    k.electron.shell.openPath = async (dir: string) => { g.__shown.push(dir); return ''; };
+    const g = k.stash;
+    g.openPath = k.electron.shell.openPath; g.shown = [];
+    k.electron.shell.openPath = async (dir: string) => { g.shown.push(dir); return ''; };
   });
   try {
     await rightClick(ui, taskTab(ui, second).locator('.name'));
@@ -159,9 +34,9 @@ test("tasks: switching shows the other grid and terminal; the one left keeps run
     expect([rows[0], ...rows.slice(-12)]).toEqual(['# Profiles', '-', 'Manage Profiles…', '-', 'Rename…', 'Show Folder', '-', 'Move to New Window', '-', 'Close', 'Delete Task…', '-', 'project']);
     expect(rows.slice(1, -12).toSorted(), 'its open and closed profiles').toEqual(['Dora', 'Elon.buyer', 'Sam.admin']);
     await choose(ui, 'Show Folder');
-    await expect.poll(() => core(() => (globalThis as any).__shown.length)).toBe(1);
-  } finally { await core((k) => { k.electron.shell.openPath = (globalThis as any).__openPath; }); }
-  const [shown, folder] = await core((k, key) => [(globalThis as any).__shown[0], k.shell.taskByKey(key).folder], second);
+    await expect.poll(() => core((k) => k.stash.shown.length)).toBe(1);
+  } finally { await core((k) => { k.electron.shell.openPath = k.stash.openPath; }); }
+  const [shown, folder] = await core((k, key) => [k.stash.shown[0], k.shell.taskByKey(key).folder], second);
   expect(shown).toBe(folder);
   expect(folder, "the task's own, not the project's").not.toBe(files.project);
   await taskTab(ui, first).click();
@@ -228,7 +103,7 @@ test("tasks: switching shows the other grid and terminal; the one left keeps run
 });
 
 test('tasks: switching slides the grid towards the other tab (a view transition); then the pages are live again', async ({ core, ui, files, call }) => {
-  await begin(core, ui, files, call);
+  await begin(core, ui, files, { only: true, columns: true, featureX: call });
   const first = await keyAt(core, 1), second = await keyAt(core, 2), SAM = files.idOf('Sam.admin'), ELON = files.idOf('Elon.buyer');
   // The transition's types (which way), and the grid's own slide as it runs: an animation of 0 s, as a CSS minifier may
   // make it, leaves the two grids' pictures one over the other; out past the window's margin, not lingering at its edge
@@ -294,7 +169,7 @@ test('tasks: switching slides the grid towards the other tab (a view transition)
 });
 
 test('tasks: Ctrl+Shift+2 shows the second, Ctrl+Shift+PgUp and PgDn the one before and after, from the terminal too', async ({ core, ui, files, call }) => {
-  await begin(core, ui, files, call);
+  await begin(core, ui, files, { only: true, columns: true, featureX: call });
   const shown = (n: number) => expect.poll(async () => (await isNth(core, n)) && (await core((k) => !k.shell.windows[0].switching)) && !(await ui.evaluate(() => document.documentElement.classList.contains('loading')))).toBe(true);
   await focusWindow(core, ui);
   // The terminal shown before it takes the keyboard: the grid's slide hides it (dockview's overlay) until it is over.
@@ -313,7 +188,7 @@ test('tasks: Ctrl+Shift+2 shows the second, Ctrl+Shift+PgUp and PgDn the one bef
 });
 
 test("tasks: more tabs than the bar holds: each keeps its name readable, a mouse's wheel scrolls them, a faded edge says some are past it, the shown one stays in sight; in the title bar the window is still dragged after +", async ({ core, ui, files, call }) => {
-  await begin(core, ui, files, call);
+  await begin(core, ui, files, { only: true, columns: true, featureX: call });
   // Two tabs, the bar narrowed to less than they take: as thirty tabs in a window.
   const bar = () => ui.evaluate(() => {
     const s = document.querySelector('#projectTabs'), a = s.querySelector('.active').getBoundingClientRect(), b = s.getBoundingClientRect();
@@ -368,12 +243,13 @@ test("tasks: more tabs than the bar holds: each keeps its name readable, a mouse
 });
 
 test("tasks: a press on a tab not shown chooses it at once, as Chrome's; its task is shown when the button is let go or the tab starts being dragged, so it can be dragged", async ({ core, ui, files, call }) => {
-  await begin(core, ui, files, call);
+  await begin(core, ui, files, { only: true, columns: true, featureX: call });
   const first = await keyAt(core, 1), second = await keyAt(core, 2);
+  const nameOf = (key: string) => mid(core, ui, `#projectTabs .tasktab[data-task="${key}"] .name`); // where the hand presses a tab
   // The slide that showing a task starts makes Chromium drop a drag about to begin: a tab not shown would not be
   // dragged, its press only showing it. One begun goes on through the slide.
   await noSlide(ui); // the slide's pictures over the window take every event
-  await mouse(core, ui, 'mouseDown', second);
+  await mouse(core, 'mouseDown', await nameOf(second));
   await expect.poll(() => chosen(ui)).toBe(second);
   await sleep(200); // nothing to wait for: that it is not shown yet
   expect(await isNth(core, 1), 'not shown while the button is down').toBe(true);
@@ -385,21 +261,21 @@ test("tasks: a press on a tab not shown chooses it at once, as Chrome's; its tas
     w.__litObs = new MutationObserver(() => w.__lit.push(lit()));
     w.__litObs.observe(document.getElementById('projectTabs'), { attributes: true, attributeFilter: ['class'], subtree: true });
   });
-  await mouse(core, ui, 'mouseUp', second);
+  await mouse(core, 'mouseUp', await nameOf(second));
   await nthShown(core, 2);
   await noSlide(ui);
   expect([...new Set(await ui.evaluate(() => { const w = window as any; w.__litObs.disconnect(); return w.__lit as string[]; }))], 'the tab lit from the press to the task shown, no other').toEqual([second]);
   // A drag begins: Chromium cancels the pointer (a real drag of a tab is the OS's, out of a test's reach).
-  await mouse(core, ui, 'mouseDown', first);
+  await mouse(core, 'mouseDown', await nameOf(first));
   await expect.poll(() => chosen(ui)).toBe(first);
   await ui.evaluate(() => dispatchEvent(new PointerEvent('pointercancel', { pointerType: 'mouse' })));
   await nthShown(core, 1);
-  await mouse(core, ui, 'mouseUp', first);
+  await mouse(core, 'mouseUp', await nameOf(first));
   await ui.evaluate(() => (document.activeElement as HTMLElement).blur()); // a real press leaves the keyboard on the tab (Reka's); a later dialog takes it from nothing
 });
 
 test("tasks: a double click on a task's tab is its Rename…", async ({ core, ui, files, call }) => {
-  await begin(core, ui, files, call);
+  await begin(core, ui, files, { only: true, columns: true, featureX: call });
   const tab = ui.locator('#projectTabs .tasktab:not(.active) .name');
   const name = await tab.textContent();
   await tab.dispatchEvent('dblclick');
@@ -424,10 +300,10 @@ test('menus: one longer than the window has stays in it and scrolls', async ({ u
 
 test("tasks: the bar's + with several projects — a click on a project makes it a new task, and a task's 🗑 deletes it after the question", async ({ core, ui, files, call }) => {
   // About 1 s: git's work (a second project made and deleted).
-  await begin(core, ui, files, call);
+  await begin(core, ui, files, { only: true, columns: true, featureX: call });
   // A second project, open, so the + nests each project as a submenu (one project shows its tasks inline).
   const plus2 = path.join(files.root, `plus2-${rand()}`);
-  fs.mkdirSync(plus2); git(plus2, 'init', '-q'); fs.writeFileSync(path.join(plus2, 'a.txt'), 'a'); git(plus2, 'add', '-A'); git(plus2, 'commit', '-qm', 'mine');
+  committed(plus2, 'a.txt', 'a', 'mine');
   const made = await invoke(ui, 'project:new', { from: 'folder', folders: [plus2], name: 'Plus2' });
   expect(made.id, 'the second project is made').toBeTruthy();
   await invoke(ui, 'project:open', { id: made.id });

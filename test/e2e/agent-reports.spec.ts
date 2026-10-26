@@ -4,8 +4,8 @@ import fs from 'fs';
 import path from 'path';
 import { test, expect } from './fixtures.ts';
 import type { Call } from './fixtures.ts';
-import { SITE, PORT, sleep, menuRows, choose, rightClick } from './helpers.ts';
-import { profiles, invoke, opened } from './agent-helpers.ts';
+import { SITE, PORT, sleep, menuRows, choose, rightClick, invoke } from './helpers.ts';
+import { profiles, opened } from './agent-helpers.ts';
 
 // A snapshot and a response body too large for an answer, each a file of the task's, as an agent leaves them; the tab
 // they came from closed.
@@ -158,17 +158,17 @@ test("Resources: the agent's artifacts listed as it makes them, the newest first
   // What the OS would open it with: noted, not opened.
   await core((k) => {
     const { shell } = k.electron;
-    const g = globalThis as unknown as { __openPath: typeof shell.openPath; __opened: string[] };
-    g.__openPath = shell.openPath; g.__opened = [];
-    shell.openPath = async (file: string) => { g.__opened.push(file); return ''; };
+    const g = k.stash;
+    g.openPath = shell.openPath; g.opened = [];
+    shell.openPath = async (file: string) => { g.opened.push(file); return ''; };
   });
   try {
     await ui.locator('#resources .artifact').first().click();
-    await expect.poll(() => core(() => (globalThis as unknown as { __opened: string[] }).__opened)).toEqual([shot]);
+    await expect.poll(() => core((k) => k.stash.opened)).toEqual([shot]);
   } finally {
     await core((k) => {
       const { shell } = k.electron;
-      shell.openPath = (globalThis as unknown as { __openPath: typeof shell.openPath }).__openPath;
+      shell.openPath = k.stash.openPath;
     });
   }
   await rightClick(ui, '#resources .artifact'); // the screenshot, first

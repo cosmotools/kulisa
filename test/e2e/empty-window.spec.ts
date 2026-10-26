@@ -3,13 +3,13 @@
 import fs from 'fs';
 import path from 'path';
 import { test, expect } from './fixtures.ts';
-import { sleep, menuRows, choose, projectTabs, projectTab, showProject, viewOn } from './helpers.ts';
-import { SAM, ELON, begin, invoke, typeIn, notLoading, projectMenu, plusOpen } from './project-helpers.ts';
+import { sleep, menuRows, choose, projectTabs, projectTab, showProject, invoke, typeIn, notLoading, projectMenu, plusMenu } from './helpers.ts';
+import { begin, bothOn, taskShown, taskTab } from './tasks-helpers.ts';
 import { removeTree } from '../../src/main/remove.ts';
 
 test("the empty window: Close All Tasks in the project's submenu; links in ☰ open in the browser; at the first start the manager on New Project; New Project… asks where its folder goes", async ({ core, ui, files }) => {
   test.slow(); // the welcome's slides, New Project's steps, and three tasks opened again
-  await begin(core, ui, files);
+  await begin(core, ui, files, { featureX: true });
   // A key taken and something typed into the terminal, for the log below.
   await core((k) => { const sam = k.profile('Sam.admin'); sam.focusTab(sam.get()); k.press(sam.get().wc, 'T', k.CMD); });
   await expect.poll(() => core((k) => k.profile('Sam.admin').tabs.length)).toBe(2);
@@ -40,7 +40,7 @@ test("the empty window: Close All Tasks in the project's submenu; links in ☰ o
   expect(await gear()).toBe(true);
   await core((k) => {
     const s = k.shell;
-    (globalThis as any).__empty = { projects: s.store.projects, sent: s.projects, accounts: s.accounts.all, profiles: s.profileStore.all };
+    k.stash.empty = { projects: s.store.projects, sent: s.projects, accounts: s.accounts.all, profiles: s.profileStore.all };
     s.store.projects = () => []; s.projects = () => [];
   });
   try {
@@ -51,7 +51,7 @@ test("the empty window: Close All Tasks in the project's submenu; links in ☰ o
     // at the first start.
     expect(await gear(), 'accounts and profiles there').toBe(true);
     await core((k) => {
-      const s = k.shell, saved = (globalThis as any).__empty;
+      const s = k.shell, saved = k.stash.empty;
       s.accounts.all = () => saved.accounts.call(s.accounts).filter((a: { own?: boolean }) => a.own); s.profileStore.all = () => [];
       s.sendProjects();
     });
@@ -116,7 +116,7 @@ test("the empty window: Close All Tasks in the project's submenu; links in ☰ o
     await expect(ui.locator('#tour h1')).toHaveText('It checks the result as every user');
   } finally {
     await core((k) => {
-      const s = k.shell, saved = (globalThis as any).__empty;
+      const s = k.shell, saved = k.stash.empty;
       s.store.projects = saved.projects; s.projects = saved.sent; s.accounts.all = saved.accounts; s.profileStore.all = saved.profiles;
       s.sendProjects();
     });
@@ -137,13 +137,13 @@ test("the empty window: Close All Tasks in the project's submenu; links in ☰ o
   fs.writeFileSync(path.join(made, 'Taken', 'notes.txt'), '');
   await core((k, f) => {
     const d = k.electron.dialog;
-    (globalThis as any).__open = d.showOpenDialog;
+    k.stash.open = d.showOpenDialog;
     d.showOpenDialog = (async () => ({ canceled: false, filePaths: [f] }));
   }, made);
   try {
     await ui.locator('#npbrowse').click();
     await expect(ui.locator('#nplocation')).toHaveValue(made);
-  } finally { await core((k) => { k.electron.dialog.showOpenDialog = (globalThis as any).__open; }); }
+  } finally { await core((k) => { k.electron.dialog.showOpenDialog = k.stash.open; }); }
   const step = () => ui.evaluate(() => document.querySelector('#newproject .steps [aria-current="step"]')?.textContent.slice(1));
   // A folder there already would be taken as it is (the form says so as it is typed); a file is refused at Next.
   await typeIn(ui, '#npname', 'Taken');
@@ -191,7 +191,7 @@ test("the empty window: Close All Tasks in the project's submenu; links in ☰ o
   expect(fs.existsSync(path.join(shopDir, '.git')), 'a plain folder: Kulisa makes no repository').toBe(false);
   // The log (window.md, The log): the start, the task and the channel that made it, a key taken; nothing typed into a
   // terminal.
-  const logged = fs.readFileSync(path.join(files.userData, 'logs', 'kulisa.log'), 'utf8');
+  const logged = files.log();
   expect(logged, 'the time as ISO 8601 with its offset').toMatch(/^\[\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}[+-]\d\d:\d\d\] \[info\] \[kulisa\] start \d+\.\d+\.\d+, electron \d+\./m);
   expect(logged).toMatch(/\[kulisa\] encryption (available|not available)/);
   expect(logged, 'the run before quit as asked (the tests quit with app.quit)').not.toMatch(/did not quit by itself/);
@@ -212,17 +212,17 @@ test("the empty window: Close All Tasks in the project's submenu; links in ☰ o
   expect(await core((k) => k.shell.task.folder), 'its first task works in it').toBe(shopDir);
   expect(await core((k) => k.shell.settings)).toBe(null);
   await notLoading(ui);
-  await plusOpen(ui, 'project', 'task-1'); // a closed task in the bar's +: its group opens again on it
+  await plusMenu(ui, 'project', 'task-1'); // a closed task in the bar's +: its group opens again on it
   await expect.poll(() => core((k, f) => k.shell.current?.folder === f && k.shell.task?.name === 'task-1' && !!k.shell.task.loaded && !!k.shell.pty, files.project)).toBe(true);
   await core((k) => k.watchPty(k.shell.pty));
   await expect(ui.locator('html')).not.toHaveClass(/\bnoproject\b/);
   await notLoading(ui);
-  await expect.poll(async () => (await viewOn(core, ui, files, SAM)) && viewOn(core, ui, files, ELON)).toBe(true);
+  await bothOn(core, ui, files);
   // Feature-X, closed with the others, opened again from the +.
-  await plusOpen(ui, 'project', 'Feature-X');
-  await expect.poll(() => core((k) => k.shell.task?.name === 'Feature-X' && !!k.shell.task.loaded && !k.shell.windows[0].switching)).toBe(true);
-  await ui.locator(`#projectTabs .tasktab[data-task="${files.tkey('project', 1)}"]`).click();
-  await expect.poll(() => core((k) => k.shell.task?.name === 'task-1' && !!k.shell.task.loaded && !k.shell.windows[0].switching)).toBe(true);
+  await plusMenu(ui, 'project', 'Feature-X');
+  await taskShown(core, files.tkey('project', 2));
+  await taskTab(ui, files.tkey('project', 1)).click();
+  await taskShown(core, files.tkey('project', 1));
   await notLoading(ui);
   expect(await projectTabs(ui, files)).toEqual(['shop', 'project *', 'project']);
   // Another project's task: a click shows it.

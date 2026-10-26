@@ -3,25 +3,10 @@ import fs from 'fs';
 import path from 'path';
 import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
-import type { Core } from './fixtures.ts';
 import { removeTree } from '../../src/main/remove.ts';
-import { SITE, PORT, sleep, who, menu, submenu, item, menuRows, choose, closeMenu, rightClick, manageProfiles, closeSettings, chooseProfile, setProfileField, termText } from './helpers.ts';
+import { SITE, PORT, sleep, who, menu, submenu, item, menuRows, choose, closeMenu, rightClick, manageProfiles, closeSettings, chooseProfile, setProfileField, termText, invoke } from './helpers.ts';
+import { profileId, deleteProfile } from './tasks-helpers.ts';
 
-// A profile's id by its name, open or closed (the core's; profiles.json may keep several of one name once a project let
-// go of one), or null.
-const idOf = (core: Core, name: string) => core((k, n) => {
-  const all = [...k.shell.profiles.values(), ...[...k.shell.closed.values()].map((c) => c.cfg)];
-  return all.find((p) => p.name.toLowerCase() === n.toLowerCase())?.id ?? null;
-}, name);
-// A profile deleted for good (Settings → Profiles' Delete, as the window sends it), when there is one of that name:
-// what a test made goes, and the file's other tests (and its own next run) find it gone.
-async function remove(core: Core, ui: Page, name: string) {
-  const id = await idOf(core, name);
-  if (!id) return;
-  await ui.evaluate((p) => (window as any).kulisa.invoke('profiles:delete', { profile: p }), id);
-  await expect.poll(() => core((k, p) => !k.shell.profileStore.get(p), id)).toBe(true);
-}
-const log = (root: string) => fs.readFileSync(path.join(root, 'data', 'logs', 'kulisa.log'), 'utf8');
 // A PNG's size in pixels, from its header.
 const pngSize = (file: string) => { const b = fs.readFileSync(file); return { width: b.readUInt32BE(16), height: b.readUInt32BE(20) }; };
 // A pane's ⋮ opened as the human clicks it: again when Kulisa's window lost the focus meanwhile (a DevTools window
@@ -42,21 +27,21 @@ async function openSub(ui: Page) {
 }
 
 test('rename keeps the profile, its id, pane and sign-in', async ({ core, ui, call, files }) => {
-  await remove(core, ui, 'Ren.admin');
+  await deleteProfile(core, ui, 'Ren.admin');
   const id = await core(async (k, url) => (await k.ensureProfile('Ren.seller', url)).id, `${SITE}/app`);
   await call('browser_navigate', { profile: 'Ren.seller', url: `${SITE}/app/login?name=sam` });
   const dir = await core((k, p) => k.shell.profiles.get(p).dir, id);
-  const r = await ui.evaluate((p) => (window as any).kulisa.invoke('profiles:rename', { profile: p, name: 'Ren.admin' }), id);
+  const r = await invoke(ui, 'profiles:rename', { profile: id, name: 'Ren.admin' });
   expect(r.id).toBe(id);
-  expect(await idOf(core, 'Ren.admin'), 'only its name changed').toBe(id);
+  expect(await profileId(core, 'Ren.admin'), 'only its name changed').toBe(id);
   expect(await core((k, p) => k.shell.profiles.get(p).dir, id), 'its copy too').toBe(dir);
   await expect(ui.locator(`.pane[data-profile="${id}"]`), 'its pane too').toHaveCount(1);
   // Its id beside its new name, so the lines before and after it go together.
-  await expect.poll(() => log(files.root)).toMatch(new RegExp(`\\[profiles\\] ${id} renamed: Ren\\.admin$`, 'm'));
+  await expect.poll(() => files.log()).toMatch(new RegExp(`\\[profiles\\] ${id} renamed: Ren\\.admin$`, 'm'));
   expect(await who(call, 'Ren.admin')).toBe('Signed in as sam');
   await expect(ui.locator('.pname', { hasText: /^Ren\.admin$/ })).toHaveCount(1);
   await expect(ui.locator('.pname', { hasText: /^Ren\.seller$/ })).toHaveCount(0);
-  await remove(core, ui, 'Ren.admin');
+  await deleteProfile(core, ui, 'Ren.admin');
 });
 
 test('names: typed, pasted, from the agent, checked where they are made (the rule itself: unit/names.test.ts)', async ({ core, ui, sui, call }) => {
@@ -75,16 +60,16 @@ test('names: typed, pasted, from the agent, checked where they are made (the rul
   // Checked again where names are made: the agent, a rename, a project, a task.
   await expect(call('profile_create', { name: 'Ann admin' })).rejects.toThrow(/letters, digits and @ \. _ \+ - only/);
   await expect(call('profile_create', { name: '@' })).rejects.toThrow(/starting with a letter or a digit/);
-  const invoke = (channel: string, arg: Record<string, unknown>) => ui.evaluate(([c, a]) => (window as any).kulisa.invoke(c, a.key === 'current' ? { ...a, key: (window as any).tasks.current } : a), [channel, arg] as const);
-  expect((await invoke('profiles:rename', { profile: id, name: 'Sam admin' })).error).toMatch(/only/);
-  expect((await invoke('project:new', { name: '..' })).error).toMatch(/starting with a letter or a digit/);
-  expect((await invoke('task:rename', { key: 'current', name: '@' })).error).toMatch(/a letter or a digit/);
-  expect((await invoke('task:rename', { key: 'current', name: 'a\nb' })).error).toMatch(/one line/);
+  const current = await ui.evaluate(() => (window as any).tasks.current);
+  expect((await invoke(ui, 'profiles:rename', { profile: id, name: 'Sam admin' })).error).toMatch(/only/);
+  expect((await invoke(ui, 'project:new', { name: '..' })).error).toMatch(/starting with a letter or a digit/);
+  expect((await invoke(ui, 'task:rename', { key: current, name: '@' })).error).toMatch(/a letter or a digit/);
+  expect((await invoke(ui, 'task:rename', { key: current, name: 'a\nb' })).error).toMatch(/one line/);
   expect(await names(), 'none made').toEqual(before);
 });
 
 test("delete a profile in Settings (its page's ⋯, its row's right-click): sign-ins and data gone, everywhere; a new one of the same name starts clean", async ({ core, ui, sui, call, files }) => {
-  await remove(core, ui, 'Temp');
+  await deleteProfile(core, ui, 'Temp');
   await core(async (k, url) => { await k.ensureProfile('Sam.admin', url); }, `${SITE}/app`); // the one chosen once Temp goes
   // In the project, open in its task (the agent's profile_create; Settings: tested above).
   const tempId = await core(async (k) => { const r = await k.shell.task.createProfile('Temp'); if ('error' in r) throw new Error(r.error); return r.id; });
@@ -94,7 +79,7 @@ test("delete a profile in Settings (its page's ⋯, its row's right-click): sign
   // The profile kept to look at after it is gone.
   const cookiesFile = await core(async (k) => {
     const temp = k.profile('Temp');
-    (globalThis as any).__temp = temp;
+    k.stash.temp = temp;
     await k.shell.sessionCookies.save(temp);
     return k.shell.sessionCookies.file(temp);
   });
@@ -122,9 +107,8 @@ test("delete a profile in Settings (its page's ⋯, its row's right-click): sign
   await closeSettings(core, ui, sui);
 
   expect(await core((k) => [...k.shell.profiles.keys()])).toEqual(others);
-  expect(await core(async () => {
-    const temp = (globalThis as any).__temp;
-    delete (globalThis as any).__temp;
+  expect(await core(async (k) => {
+    const temp = k.stash.temp;
     return { tabs: temp.tabs.length, cookies: await temp.session.cookies.get({}) };
   })).toEqual({ tabs: 0, cookies: [] });
   expect(fs.existsSync(cookiesFile)).toBe(false);
@@ -142,7 +126,7 @@ test("delete a profile in Settings (its page's ⋯, its row's right-click): sign
   expect(again).not.toBe(tempId);
   await call('browser_navigate', { profile: 'Temp', url: `${SITE}/app` });
   expect(await who(call, 'Temp')).toBe('Signed out');
-  await remove(core, ui, 'Temp');
+  await deleteProfile(core, ui, 'Temp');
 });
 
 test('rename in Settings → Profiles: typed, and Enter or leaving the field saves it; the panes follow', async ({ core, ui, sui, files }) => {
@@ -236,10 +220,10 @@ test("a pane's ⋮ → Screenshot takes an element, the visible part or the whol
     const page = await k.profile('Sam.admin').page(), was = page.url();
     await page.goto(url);
     // What the agent's actions caption, watched: the human's screenshot is none of them.
-    const g = globalThis as any;
-    g.__actions = [];
-    g.__watch = (a: { caption: string }) => { g.__actions.push(a.caption); };
-    k.shell.bus.on('agent-action', g.__watch);
+    const g = k.stash;
+    g.actions = [];
+    g.watch = (a: { caption: string }) => { g.actions.push(a.caption); };
+    k.shell.bus.on('agent-action', g.watch);
     return { was, dpr: await page.evaluate(() => devicePixelRatio), tall: k.profile('Sam.admin').active };
   }, `${SITE}/tall`);
   const picking = () => core((k, p) => k.shell.windows[0].picking.has(p), id);
@@ -289,7 +273,7 @@ test("a pane's ⋮ → Screenshot takes an element, the visible part or the whol
   await expect.poll(picking).toBe(false);
   await fromMenu('Visible Part');
   await expect.poll(() => shots().length).toBe(3);
-  const actions = await core((k) => { const g = globalThis as any; k.shell.bus.off('agent-action', g.__watch); return g.__actions as string[]; });
+  const actions = await core((k) => { const g = k.stash; k.shell.bus.off('agent-action', g.watch); return g.actions as string[]; });
   expect(actions, 'not captioned as the agent\'s').not.toContain('screenshot');
   // An empty tab: nothing to take, its rows off.
   const blank = await core((k) => k.profile('Sam.admin').newTab('about:blank').id);
@@ -312,23 +296,23 @@ test('a screenshot shows its thumbnail in its pane\'s corner: a click opens it, 
   const dir = path.join(files.root, 'screenshots');
   const was = await core(async (k, url) => { const page = await k.profile('Sam.admin').page(), w = page.url(); await page.goto(url); return w; }, `${SITE}/tall`);
   await core((k) => {
-    const g = globalThis as any, shell = k.electron.shell, fs = process.getBuiltinModule('fs');
-    g.__did = [];
-    g.__real = { openPath: shell.openPath, showItemInFolder: shell.showItemInFolder, trashItem: shell.trashItem };
-    shell.openPath = async (f) => { g.__did.push(`open ${f}`); return ''; };
-    shell.showItemInFolder = (f) => { g.__did.push(`show ${f}`); };
-    shell.trashItem = async (f) => { g.__did.push(`trash ${f}`); fs.rmSync(f); };
+    const g = k.stash, shell = k.electron.shell, fs = process.getBuiltinModule('fs');
+    g.did = [];
+    g.real = { openPath: shell.openPath, showItemInFolder: shell.showItemInFolder, trashItem: shell.trashItem };
+    shell.openPath = async (f) => { g.did.push(`open ${f}`); return ''; };
+    shell.showItemInFolder = (f) => { g.did.push(`show ${f}`); };
+    shell.trashItem = async (f) => { g.did.push(`trash ${f}`); fs.rmSync(f); };
   });
-  const did = () => core(() => (globalThis as any).__did as string[]);
+  const did = () => core((k) => k.stash.did as string[]);
   // The thumbnail's page, by the view of the screenshot taken last.
-  const thumb = <R>(js: string) => core((_k, s) => (globalThis as any).__thumbWc.executeJavaScript(s) as Promise<R>, js);
-  const thumbGone = () => core(() => (globalThis as any).__thumbWc.isDestroyed());
+  const thumb = <R>(js: string) => core((k, s) => k.stash.thumbWc.executeJavaScript(s) as Promise<R>, js);
+  const thumbGone = () => core((k) => k.stash.thumbWc.isDestroyed());
   const shown = ui.locator('#shotthumb');
   try {
     const take = async () => {
       expect((await ui.evaluate((p) => (window as any).act('tab:screenshot', { profile: p, kind: 'visible' }), id)).error).toBeUndefined();
       await expect.poll(() => core((k) => !!k.shell.windows[0].thumbnails.bounds)).toBe(true);
-      return core((k) => { const t = k.shell.windows[0].thumbnails; Object.assign(globalThis, { __thumb: t.view, __thumbWc: t.view.webContents }); return { file: t.file, bounds: t.bounds }; });
+      return core((k) => { const t = k.shell.windows[0].thumbnails; Object.assign(k.stash, { thumb: t.view, thumbWc: t.view.webContents }); return { file: t.file, bounds: t.bounds }; });
     };
     const t = await take(), file = t.file;
     // In the pane's bottom right corner, the picture shown in its page, and drawn by the window too.
@@ -338,9 +322,9 @@ test('a screenshot shows its thumbnail in its pane\'s corner: a click opens it, 
     await expect(shown).toHaveCount(1);
     await thumb(`document.querySelector('img').click()`);
     await expect.poll(did).toContain(`open ${file}`);
-    await core(() => { const wc = (globalThis as any).__thumbWc; wc.startDrag = (item: { file: string }) => { (globalThis as any).__dragged = item.file; }; });
+    await core((k) => { const wc = k.stash.thumbWc; wc.startDrag = (item: { file: string }) => { k.stash.dragged = item.file; }; });
     await thumb(`document.querySelector('img').dispatchEvent(new DragEvent('dragstart', { bubbles: true, cancelable: true })); 0`);
-    await expect.poll(() => core(() => (globalThis as any).__dragged)).toBe(file);
+    await expect.poll(() => core((k) => k.stash.dragged)).toBe(file);
     // Its menu, the window's, where it was right-clicked; the thumbnail stays while it is open.
     const thumbMenu = async (label: string) => {
       await thumb(`document.dispatchEvent(new MouseEvent('contextmenu', { clientX: 20, clientY: 10, bubbles: true, cancelable: true })); 0`);
@@ -371,12 +355,12 @@ test('a screenshot shows its thumbnail in its pane\'s corner: a click opens it, 
     await take();
     await thumb(`document.documentElement.dispatchEvent(new MouseEvent('mouseenter')); 0`);
     await sleep(5500);
-    expect(await core((k) => k.shell.windows[0].thumbnails.view === (globalThis as any).__thumb), 'held while the pointer is over it').toBe(true);
+    expect(await core((k) => k.shell.windows[0].thumbnails.view === k.stash.thumb), 'held while the pointer is over it').toBe(true);
     await thumb(`document.documentElement.dispatchEvent(new MouseEvent('mouseleave')); 0`);
     await expect.poll(() => core((k) => !k.shell.windows[0].thumbnails.file), { timeout: 7000 }).toBe(true);
   } finally {
-    await core((k) => { Object.assign(k.electron.shell, (globalThis as any).__real); });
-    await core(async (k, url) => { delete (globalThis as any).__thumb; delete (globalThis as any).__thumbWc; delete (globalThis as any).__dragged; await (await k.profile('Sam.admin').page()).goto(url); }, was);
+    await core((k) => { Object.assign(k.electron.shell, k.stash.real); });
+    await core(async (k, url) => { await (await k.profile('Sam.admin').page()).goto(url); }, was);
     removeTree(dir);
   }
 });
@@ -385,7 +369,7 @@ test('a screenshot shows its thumbnail in its pane\'s corner: a click opens it, 
 // front; a deleted one's folders gone at the next start.
 test('after a restart: profiles, sign-ins and tabs are back, the one in front in front', async ({ core, ui, call, restart, files }) => {
   test.setTimeout(60000); // a restart
-  await remove(core, ui, 'Rhea.admin'); await remove(core, ui, 'Rob.buyer'); await remove(core, ui, 'Gone');
+  await deleteProfile(core, ui, 'Rhea.admin'); await deleteProfile(core, ui, 'Rob.buyer'); await deleteProfile(core, ui, 'Gone');
   await core(async (k) => {
     await k.shell.task.createProfile('Rhea.admin', 'seller in the test shop', 'fox');
     await k.shell.task.createProfile('Rob.buyer', '', 'owl');
@@ -406,7 +390,7 @@ test('after a restart: profiles, sign-ins and tabs are back, the one in front in
   await expect.poll(() => files.savedActive('Rob.buyer')).toBe(1);
   // One deleted: its copy and master go at the next start.
   await core(async (k) => { await k.shell.task.createProfile('Gone'); });
-  await remove(core, ui, 'Gone');
+  await deleteProfile(core, ui, 'Gone');
   expect(fs.existsSync(path.join(files.userData, 'deleted-folders.json'))).toBe(true);
   const profiles = () => core((k) => [...k.shell.profiles.values()].map((p) => [p.id, p.avatar, p.description]));
   const before = await profiles();
@@ -428,11 +412,11 @@ test('after a restart: profiles, sign-ins and tabs are back, the one in front in
 
 test('after a restart: a closed profile is still closed, and opens signed in', async ({ core, ui, call, restart }) => {
   test.setTimeout(60000); // a restart
-  await remove(core, ui, 'Dora');
+  await deleteProfile(core, ui, 'Dora');
   await call('profile_create', { name: 'Dora' });
   await call('browser_navigate', { profile: 'Dora', url: `${SITE}/app/login?name=dora` });
   await call('profile_close', { profile: 'Dora' });
-  const dora = await idOf(core, 'Dora');
+  const dora = await profileId(core, 'Dora');
   await restart();
   expect(await core((k, p) => k.shell.closed.has(p) && !k.shell.profiles.has(p), dora)).toBe(true);
   await call('profile_open', { profile: 'Dora' });

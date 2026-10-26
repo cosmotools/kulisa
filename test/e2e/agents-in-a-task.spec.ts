@@ -1,79 +1,24 @@
 // Several agents in a task (tasks.ts; docs/tasks.md, "Several agents"): a tab and a conversation each; the task handed
 // from one to another. The test agent (custom) and the fake one (two accounts) are two CLIs, their transcripts both in
 // Claude Code's format (app.ts).
-import { execFileSync } from 'child_process';
 import fs from 'fs';
 import http from 'http';
 import path from 'path';
-import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
-import type { Core, Call } from './fixtures.ts';
-import type { data } from './data.ts';
-import { WIN, menuRows, choose, rightClick, focusWindow, renamed } from './helpers.ts';
-
-type Files = ReturnType<typeof data>;
-
-const git = (cwd: string, ...args: string[]) => execFileSync('git', ['-c', 'user.name=Kulisa test', '-c', 'user.email=test@example.invalid', ...args], { cwd, encoding: 'utf8' }).trim();
-const invoke = (page: Page, channel: string, arg?: unknown) => page.evaluate(([c, a]) => (window as any).kulisa.invoke(c, a), [channel, arg] as const);
-const act = (page: Page, channel: string, arg: unknown) => page.evaluate(([c, a]) => (window as any).act(c, a), [channel, arg] as const);
-// The fake agent's program once installed (app.ts): on Windows its .cmd, which Kulisa finds and runs.
-const fakeBin = (files: Files) => path.join(files.root, 'bin', WIN ? 'kulisa-fake-agent.cmd' : 'kulisa-fake-agent');
-// The fake agent installed, as its installer leaves it (app.ts; installing is tested in agents.spec.ts), and looked
-// for again.
-async function installFake(ui: Page, files: Files) {
-  const bin = path.join(files.root, 'bin'), program = path.join(bin, 'kulisa-fake-agent');
-  if (!fs.existsSync(fakeBin(files))) {
-    fs.mkdirSync(bin, { recursive: true });
-    fs.copyFileSync(path.join(import.meta.dirname, '..', 'fixtures', 'fake-agent.sh'), program);
-    fs.chmodSync(program, 0o755);
-    if (WIN) fs.writeFileSync(`${program}.cmd`, '@bash "%~dp0kulisa-fake-agent" %*');
-  }
-  await invoke(ui, 'agents:list', { details: true, cached: false });
-}
-// A new task of the project (its + : task:new; the menu is tested elsewhere), shown once its agent started; its key.
-// Named task-<its place among its project's tasks> when named, for its branch and what goes along with it.
-async function newTask(core: Core, ui: Page, files: Files, named = false) {
-  const before = await core((k) => k.shell.task.key);
-  await invoke(ui, 'task:new', { project: files.pid('project') });
-  await expect.poll(() => core((k, b) => { const t = k.shell.task; return t.key !== b && t.loaded && [...t.terminals.values()].some((x) => !!x.pty) && !k.shell.windows[0].switching; }, before), { timeout: 20000 }).toBe(true);
-  return core(async (k, n) => {
-    const t = k.shell.task;
-    if (n) await t.rename(`task-${[...t.project.tasks.values()].indexOf(t) + 1}`);
-    k.watchPty(k.shell.pty); k.asked.length = 0;
-    return t.key;
-  }, named);
-}
-// The project as the tasks' tests leave it: in git, its profiles Sam.admin, Elon.buyer and Dora, and a task with a
-// worktree of its own (Feature-X) beside its first: made through the core, git and the agent's tools where it is not
-// (they are tested elsewhere).
-async function begin(core: Core, ui: Page, call: Call, files: Files) {
-  if (!fs.existsSync(path.join(files.project, '.git'))) {
-    git(files.project, 'init', '-q');
-    fs.writeFileSync(path.join(files.project, 'README.md'), '# shop\n');
-    git(files.project, 'add', '-A');
-    git(files.project, 'commit', '-qm', 'first');
-  }
-  await core(async (k) => {
-    const t = k.shell.task;
-    for (const name of ['Sam.admin', 'Elon.buyer', 'Dora']) {
-      if (![...k.shell.profiles.values(), ...[...t.closed.values()].map((c) => c.cfg)].some((p) => p.name === name)) await t.createProfile(name);
-    }
-  });
-  if (!(await core(async (k) => {
-    const { worktreesOf } = await k.import('src/main/store.ts');
-    return k.shell.store.tasksOf(k.shell.current.entry).list.some((e: any) => worktreesOf(e).length);
-  }))) {
-    const key = await newTask(core, ui, files);
-    await call('task_worktree', { name: 'Feature-X' }, { task: key }); // as its agent makes it
-    await invoke(ui, 'task:show', files.tkey('project', 1));
-    await expect.poll(() => core((k, t) => k.shell.task?.key === t && !k.shell.windows[0].switching, files.tkey('project', 1))).toBe(true);
-  }
-}
+import { menuRows, choose, rightClick, focusWindow, renamed, invoke, act } from './helpers.ts';
+import { begin, newTask } from './tasks-helpers.ts';
+import { fakeAgent, fakeBin } from './agent-helpers.ts';
 
 test("+ opens any of the project's accounts, a new conversation in a tab of its own; each reports its own state, the task's tab the most urgent, and names its own tab; the task handed to another agent by its icon or Change agent…: a new tab told to go on with that conversation, the old one stays; New Conversation; deleting the task forgets every conversation", async ({ core, ui, call, files }) => {
-  await installFake(ui, files);
-  await begin(core, ui, call, files);
-  const key = await newTask(core, ui, files, true), taskId = key.split('/')[1], where = (terminal?: number) => ({ task: key, terminal });
+  await fakeAgent(ui, files);
+  // The project as the tasks' tests leave it: in git, Feature-X in a worktree of its own beside its first task; its
+  // profiles Sam.admin, Elon.buyer and Dora.
+  await begin(core, ui, files, { featureX: call });
+  await core(async (k) => {
+    const t = k.shell.task;
+    if (![...k.shell.profiles.values(), ...[...t.closed.values()].map((c) => c.cfg)].some((p) => p.name === 'Dora')) await t.createProfile('Dora');
+  });
+  const key = await newTask(core, ui, undefined, files.pid('project')), taskId = key.split('/')[1], where = (terminal?: number) => ({ task: key, terminal });
   await call('task_worktree', {}, where()); // its own worktree (copies), for the cross-copy trust below
   const [a, b] = await core((k) => ['a', 'b'].map((x) => {
     const r = k.shell.accounts.prepare('fake') as { id: string; dir: string; error?: string };
@@ -94,11 +39,10 @@ test("+ opens any of the project's accounts, a new conversation in a tab of its 
   const bash = await target();
   // The human trusted the project's code in another task's copy (a's config, as Claude Code keeps it): an agent of
   // that account opened here finds this copy trusted too, and does not ask (agents/, extendTrust).
-  const { copy, other } = await core(async (k, t) => {
-    const { worktreesOf } = await k.import('src/main/store.ts');
+  const { copy, other } = await core((k, t) => {
     const task = k.shell.taskByKey(t);
-    const e = k.shell.store.tasksOf(task.project.entry).list.find((x: any) => x.id !== task.id && worktreesOf(x).length);
-    return { copy: task.worktrees[0].folder, other: worktreesOf(e)[0].folder as string };
+    const e = k.shell.store.tasksOf(task.project.entry).list.find((x) => x.id !== task.id && k.worktreesOf(x).length);
+    return { copy: task.worktrees[0].folder, other: k.worktreesOf(e)[0].folder };
   }, key);
   fs.writeFileSync(path.join(a.dir, '.claude.json'), JSON.stringify({ projects: { [other]: { hasTrustDialogAccepted: true } } }));
 
@@ -235,8 +179,7 @@ test("+ opens any of the project's accounts, a new conversation in a tab of its 
   expect(fs.existsSync(file), "the fake agent's, in its account").toBe(false);
   for (const x of [a, b]) await invoke(ui, 'project:agent-remove', { id: files.pid('project'), agent: x.id });
   await core(async (k, ids) => {
-    const { removeTree } = await k.import('src/main/remove.ts');
-    for (const x of ids) { k.shell.accounts.drop(x.id); removeTree(x.dir); }
+    for (const x of ids) { k.shell.accounts.drop(x.id); k.removeTree(x.dir); }
     k.asked.length = 0;
   }, [a, b]);
 });

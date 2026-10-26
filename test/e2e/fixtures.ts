@@ -1,4 +1,4 @@
-// The e2e tests' fixtures (docs/testing.md, End to end on Playwright Test): a screen of its own per worker on Linux, one
+// The e2e tests' fixtures (docs/testing.md, End to end): a screen of its own per worker on Linux, one
 // Kulisa per test file in a folder of its own, its core (core), its window's page (ui), Settings' (sui), the agent's MCP
 // tools (call), a restart in the same folder, and what a failed test leaves to read: the window's picture, Playwright's
 // trace, Kulisa's log. Kulisa's uncaught errors fail the test.
@@ -17,6 +17,7 @@ import electronPath from 'electron';
 import { removeTree } from '../../src/main/remove.ts';
 import type { Kulisa } from './driver.ts';
 import { data } from './data.ts';
+import { CHECKOUT } from './helpers.ts';
 
 // A function run in Kulisa's main process with its driver and one argument; only data crosses (Playwright serializes
 // both ways), so it names what it needs by the argument, never by a closure.
@@ -28,8 +29,7 @@ type Call = (name: string, args?: Record<string, unknown>, where?: Where) => Pro
 type Running = { file: string; automation: boolean; restarted?: boolean; child: ChildProcess; exited: Promise<void>; output: () => string; browser: Browser; context: BrowserContext; root: string; core: Core; ui: Page; errors: string[]; clients: Map<string, Client> };
 
 // The checkout's own folder for the tests' Kulisas: worktrees run their tests at once (CLAUDE.md, Worktrees).
-const repo = path.join(import.meta.dirname, '..', '..');
-const base_ = path.join(fs.realpathSync.native(os.tmpdir()), `kulisa-e2e-${path.basename(repo)}-${crypto.createHash('sha1').update(repo).digest('hex').slice(0, 6)}`);
+const base_ = path.join(fs.realpathSync.native(os.tmpdir()), `kulisa-e2e-${path.basename(CHECKOUT)}-${crypto.createHash('sha1').update(CHECKOUT).digest('hex').slice(0, 6)}`);
 const hidden = process.platform === 'linux' && !process.env.KULISA_VISIBLE;
 const own = (p: Page) => p.url().startsWith('file:'); // Kulisa's own pages (dist/renderer), not a profile's
 
@@ -130,14 +130,17 @@ async function leave(k: Running, info: TestInfo) {
   await info.attach('electron output', { body: k.output(), contentType: 'text/plain' });
 }
 
-// Quit as the human does (app.quit: before-quit saves the session cookies), killed if it does not end in 30 s. Playwright's
-// connection goes with it (its own close waits on a browser it did not start).
+// Quit as the human does (app.quit: before-quit saves the session cookies). One that does not end in 30 s is killed and
+// fails the run: a Kulisa left running after quitting is a bug (ROADMAP, Open issues). Playwright's connection goes
+// with it (its own close waits on a browser it did not start).
 async function quit(k: Running) {
   for (const c of k.clients.values()) await c.close().catch(() => {});
   await k.core((d) => { setImmediate(() => d.electron.app.quit()); }).catch(() => {});
-  const timer = setTimeout(() => k.child.kill(), 30000);
+  let hung = false;
+  const timer = setTimeout(() => { hung = true; k.child.kill(); }, 30000);
   await k.exited;
   clearTimeout(timer);
+  if (hung) throw new Error(`Kulisa did not end in 30 s after quitting; its output:\n${k.output().slice(-4000)}`);
 }
 async function close(k: Running) {
   await quit(k);

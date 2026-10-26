@@ -1,141 +1,19 @@
 // Tasks: each with its own copy of the code (a git worktree on a branch of its own; without git, the project's folder),
 // copies of the profiles, its own agent; closing, opening again, renaming and deleting them (docs/tasks.md).
 import { execFileSync } from 'child_process';
-import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
 import type { Core, Call } from './fixtures.ts';
 import type { data } from './data.ts';
-import { SITE, WIN, sleep, menu, submenu, menuRows, choose, closeMenu, rightClick, plusMenu, plusRows, focusWindow, viewOn, who } from './helpers.ts';
+import { SITE, WIN, sleep, menuRows, choose, rightClick, plusMenu, plusRows, focusWindow, viewOn, who, invoke, notLoading, noSlide, asked, projectMenu } from './helpers.ts';
+import { git, rand, hasDirenv, keyAt, isNth, nthShown, taskTab, taskTabs, hook, reportSession, newTask, openFolder, projectShown, begin } from './tasks-helpers.ts';
 import { removeTree } from '../../src/main/remove.ts';
 
 type Files = ReturnType<typeof data>;
 
-const hasDirenv = (() => { try { execFileSync('direnv', ['version']); return true; } catch { return false; } })();
-const git = (cwd: string, ...args: string[]) => execFileSync('git', ['-c', 'user.name=Kulisa test', '-c', 'user.email=test@example.invalid', ...args], { cwd, encoding: 'utf8' }).trim();
-const rand = () => crypto.randomBytes(3).toString('hex');
-const invoke = (ui: Page, channel: string, arg?: unknown) => ui.evaluate(([c, a]) => (window as any).kulisa.invoke(c, a), [channel, arg] as const);
-const notLoading = (ui: Page) => expect(ui.locator('html')).not.toHaveClass(/\bloading\b/);
-const noSlide = (ui: Page) => expect.poll(() => ui.evaluate(() => document.documentElement.matches(':active-view-transition'))).toBe(false);
-// The last question Kulisa asked (answered in its dialog: driver.ts), once it is asked.
-async function asked(core: Core) {
-  await expect.poll(() => core((k) => k.asked.length)).toBeGreaterThan(0);
-  return core((k) => k.asked.pop());
-}
-// The shown task's project's tabs in the bar, each its task's name, the shown one with ' *'; a task's tab by its key.
-const tabs = (ui: Page) => ui.evaluate(() => {
-  const project = document.querySelector<HTMLElement>('#projectTabs .tasktab.active').dataset.project;
-  return [...document.querySelectorAll(`#projectTabs .tasktab[data-project="${project}"]`)].map((t) => t.querySelector('.name').textContent + (t.classList.contains('active') ? ' *' : ''));
-});
-const taskTab = (ui: Page, key: string) => ui.locator(`#projectTabs .tasktab[data-task="${key}"]`);
-// The shown project's task by its place (from 1), as made; whether the shown task is that one, the window done showing it.
-const keyAt = (core: Core, n: number) => core((k, i) => [...k.shell.current.tasks.values()][i - 1]?.key, n);
-const isNth = (core: Core, n: number) => core((k, i) => { const t = k.shell.task; return !!t && [...t.project.tasks.values()][i - 1] === t; }, n);
-const nthShown = (core: Core, n: number, timeout = 5000) => expect.poll(async () => (await isNth(core, n)) && core((k) => !k.shell.windows[0].switching), { timeout }).toBe(true);
 const tasksFile = (files: Files): { list: { id: string; name: string; named?: boolean; closed?: boolean; closedAt?: number }[] } => JSON.parse(fs.readFileSync(path.join(files.userData, 'projects', files.pid('project'), 'tasks.json'), 'utf8'));
-// One of the agent's hooks, as its plugin sends it (agent-hooks.ts); its answer.
-async function hook(core: Core, task: string, event: string, input = {}) {
-  const url = await core((k, key) => k.hooksOf(k.shell.taskByKey(key)), task);
-  const text = await (await fetch(`${url}/${event}`, { method: 'POST', body: JSON.stringify(input) })).text();
-  return JSON.parse(text || '{}');
-}
-// The session an agent reports at its start (its SessionStart hook, as Claude Code sends it): Kulisa resumes it.
-const reportSession = (core: Core, task: string, id: string, transcript: string) => hook(core, task, 'session-start', { hook_event_name: 'SessionStart', session_id: id, transcript_path: transcript, source: 'startup' });
-
-// A new task of the shown project (its + in the bar: task:new; the menu itself is tested elsewhere), shown once its agent
-// started; named task-<its place among its project's tasks> for the test to refer to it by, unless name is null (left
-// "New Task"). Its key.
-async function newTask(core: Core, ui: Page, name?: string | null) {
-  const before = await core((k) => k.shell.task?.key ?? null);
-  await invoke(ui, 'task:new', { project: await core((k) => k.shell.current.id) });
-  await expect.poll(() => core((k, b) => { const t = k.shell.task; return !!t && t.key !== b && t.loaded && [...t.terminals.values()].some((x) => !!x.pty) && !k.shell.windows[0].switching; }, before), { timeout: 20000 }).toBe(true);
-  return core(async (k, n) => {
-    const t = k.shell.task;
-    if (n !== null) await t.rename(n ?? `task-${[...t.project.tasks.values()].indexOf(t) + 1}`);
-    if (k.shell.pty) k.watchPty(k.shell.pty);
-    k.asked.length = 0;
-    return t.key;
-  }, name);
-}
-
-// The project made a git repository as the human sets it up: committed, with what a task's copy takes along or not (an
-// .env, an .envrc direnv allowed, a file .worktreeinclude names, an agent's local settings, a file not committed).
-function gitProject(project: string) {
-  git(project, 'init', '-q');
-  fs.writeFileSync(path.join(project, '.gitignore'), '.env*\nconfig/local.json\ntranscript.jsonl\n.claude/settings.local.json\n');
-  fs.writeFileSync(path.join(project, '.worktreeinclude'), 'config/local.json\n');
-  fs.writeFileSync(path.join(project, 'README.md'), '# shop\n');
-  git(project, 'add', '-A');
-  git(project, 'commit', '-qm', 'first');
-  fs.writeFileSync(path.join(project, '.env'), 'SECRET=1\n');
-  fs.writeFileSync(path.join(project, '.envrc'), 'export FROM_ENVRC="envrc of $PWD"\n');
-  if (hasDirenv) execFileSync('direnv', ['allow', project]);
-  fs.mkdirSync(path.join(project, 'config'), { recursive: true });
-  fs.writeFileSync(path.join(project, 'config', 'local.json'), '{"db":"local"}');
-  fs.mkdirSync(path.join(project, '.claude'), { recursive: true });
-  fs.writeFileSync(path.join(project, '.claude', 'settings.local.json'), '{"model":"x"}');
-  fs.writeFileSync(path.join(project, 'wip.txt'), 'not committed');
-}
-
-// The + menu's rows for one project (helpers.ts, plusRows), without New Project…, which the menu itself ends with when
-// it shows one project's tasks inline.
-const projectRows = async (ui: Page, project: string) => (await plusRows(ui, project)).filter((r) => r !== 'New Project…');
-
-// The project as the tasks' tests know it: a git repository (gitProject), the only project open; its task-1 with
-// Sam.admin signed in and Elon.buyer signed out side by side (Columns), Dora closed; Feature-X (its second task) open in
-// a worktree of its own, Sam and Elon open there too, unless alone (task-1 its only task then); task `shown` shown. Made
-// through the core and the window's channels (each tested elsewhere); a task another test left is deleted.
-async function begin(core: Core, ui: Page, files: Files, call: Call, { alone = false, shown = 1 } = {}) {
-  const pid = files.pid('project');
-  if (!fs.existsSync(path.join(files.project, '.git'))) gitProject(files.project);
-  for (const id of await core((k, p) => [...k.shell.open.keys()].filter((x) => x !== p), pid)) await invoke(ui, 'project:close-tasks', { id });
-  const ready = (key?: string) => expect.poll(() => core((k, a) => k.shell.current?.id === a.pid && !!k.shell.task?.loaded && (!a.key || k.shell.task.key === a.key) && !k.shell.windows[0].switching, { pid, key }), { timeout: 20000 }).toBe(true);
-  if (await core((k, p) => k.shell.current?.id !== p || !k.shell.task, pid)) await invoke(ui, 'project:open', { id: pid, task: files.tid('project', 1) });
-  await ready();
-  for (const key of await core((k, a) => {
-    const all = [...k.shell.current.tasks.values()], fx = all.slice(1).find((t) => t.name === 'Feature-X');
-    return all.slice(1).filter((t) => a || t !== fx).map((t) => t.key);
-  }, alone)) await invoke(ui, 'task:delete', key);
-  const first = await keyAt(core, 1);
-  if (await core((k, key) => !!k.shell.taskByKey(key).entry.closed, first)) await invoke(ui, 'project:open', { id: pid, task: first.split('/')[1] });
-  else if (await core((k, key) => k.shell.task?.key !== key, first)) await invoke(ui, 'task:show', first);
-  await ready(first);
-  await core(async (k) => {
-    const task = k.shell.task, closed = (n: string) => [...task.closed.values()].find((c) => c.cfg.name === n);
-    if (task.name !== 'task-1') await task.rename('task-1');
-    for (const [name, description, avatar] of [['Sam.admin', 'seller in the test shop', 'fox'], ['Elon.buyer', '', 'owl'], ['Dora', '', undefined]]) {
-      if (closed(name)) { if (name !== 'Dora') await task.openProfile(closed(name).cfg.id); } else if (![...k.shell.profiles.values()].some((p) => p.name === name)) await task.createProfile(name, description, avatar);
-    }
-    const dora = [...k.shell.profiles.values()].find((p) => p.name === 'Dora');
-    if (dora) await task.closeProfile(dora.id);
-    k.watchPty(k.shell.pty);
-  });
-  await expect(ui.locator('.ptab[data-panel^="profile:"]')).toHaveCount(2);
-  await notLoading(ui);
-  await ui.evaluate(() => (window as any).__layoutPreset('columns'));
-  await core(async (k, site) => {
-    await k.ensureProfile('Sam.admin', `${site}/app/login?name=sam`);
-    await k.ensureProfile('Elon.buyer', `${site}/app`);
-  }, SITE);
-  if (!alone) {
-    let fx = await core((k) => [...k.shell.current.tasks.values()].find((t) => t.name === 'Feature-X')?.key);
-    if (!fx) {
-      fx = await newTask(core, ui, null);
-      await call('task_worktree', { name: 'Feature-X' }, { task: fx });
-    } else if (await core((k, key) => !!k.shell.taskByKey(key).entry.closed, fx)) await invoke(ui, 'project:open', { id: pid, task: fx.split('/')[1] });
-    for (const profile of ['Sam.admin', 'Elon.buyer']) {
-      if (await core((k, a) => [...k.shell.taskByKey(a.fx).closed.values()].some((c) => c.cfg.name === a.profile), { fx, profile })) await call('profile_open', { profile }, { task: fx });
-    }
-    await invoke(ui, 'task:show', shown === 1 ? first : fx);
-    await ready(shown === 1 ? first : fx);
-  }
-  await notLoading(ui);
-  await noSlide(ui);
-  await core((k) => { k.asked.length = 0; });
-}
-
 // Sam.admin's master signed in (as master, a lasting cookie too) or out in its own window, as the human does it there
 // (tested in the profiles' tests); closed after.
 async function master(core: Core, files: Files, signedIn: boolean) {
@@ -151,23 +29,6 @@ async function master(core: Core, files: Files, signedIn: boolean) {
   await expect.poll(() => core((k) => k.shell.masters.size)).toBe(0);
 }
 
-// A project's submenu (a tab's right-click, then the row of the project's name, the one row opening a menu): its rows,
-// a row of it chosen. Right-clicked again until its menu and submenu are open: right after another menu closed, the menu
-// may open none, or open and close at once, as the window's focus comes back late (a blur closes a menu).
-async function projectMenu(ui: Page, label?: string, tab = '#projectTabs .tasktab.active .name') {
-  const open = ui.locator('.menu[data-state="open"]');
-  await expect(async () => {
-    if (!(await open.count())) await rightClick(ui, tab);
-    await expect(menu(ui)).toBeVisible({ timeout: 1000 });
-    if ((await open.count()) < 2) await menu(ui).locator('.item[aria-haspopup]').click({ timeout: 1000 });
-    await expect(open).toHaveCount(2, { timeout: 1000 });
-  }).toPass({ timeout: 10000 });
-  const rows = await menuRows(ui, submenu(ui));
-  if (label) await choose(ui, label, submenu(ui));
-  else await closeMenu(ui);
-  return rows;
-}
-
 // A repository with a remote, as a clone of one is, opened as a project (its folder named name-<random>); its first
 // task in a worktree of its own named task-1, then a second one, task-2, in its own (task_worktree). Their keys.
 async function remoteProject(core: Core, ui: Page, files: Files, call: Call, name: string) {
@@ -176,11 +37,8 @@ async function remoteProject(core: Core, ui: Page, files: Files, call: Call, nam
   fs.mkdirSync(dir); git(dir, 'init', '-q', '-b', 'main'); fs.writeFileSync(path.join(dir, 'a.txt'), 'a');
   git(dir, 'add', '-A'); git(dir, 'commit', '-qm', 'a'); git(dir, 'remote', 'add', 'origin', origin);
   git(dir, 'push', '-q', 'origin', 'main'); git(dir, 'remote', 'set-head', 'origin', 'main');
-  await invoke(ui, 'project:open', { folder: dir });
+  await openFolder(core, ui, dir);
   const id = files.pid(path.basename(dir));
-  await expect.poll(() => core((k, p) => k.shell.current?.id === p && !!k.shell.task?.loaded && !!k.shell.pty && !k.shell.windows[0].switching, id), { timeout: 10000 }).toBe(true);
-  await core((k) => k.watchPty(k.shell.pty));
-  await notLoading(ui);
   const first = await core((k) => k.shell.task.key);
   await call('task_worktree', { name: 'task-1' }, { task: first }); // its own worktree and branch to push and merge
   const second = await newTask(core, ui);
@@ -203,9 +61,9 @@ test("tasks: without git a task works in the project's folder, and a second one 
   const made = await invoke(ui, 'project:new', { from: 'folder', folders: [dir], name: 'nogit' });
   expect(made.id, JSON.stringify(made)).toBeTruthy();
   await invoke(ui, 'project:open', { id: made.id });
-  await expect.poll(() => core((k, p) => k.shell.current?.id === p && !!k.shell.task?.loaded && !k.shell.windows[0].switching, made.id), { timeout: 20000 }).toBe(true);
+  await projectShown(core, made.id);
   const key = await core(async (k) => { await k.shell.task.rename('task-1'); return k.shell.task.key; }); // named for the test to refer to it by
-  await expect.poll(() => tabs(ui)).toEqual(['task-1 *']);
+  await expect.poll(() => taskTabs(ui)).toEqual(['task-1 *']);
   expect(await core((k) => [k.shell.task.folder, (k.shell.task.entry as { worktree?: string }).worktree ?? null])).toEqual([dir, null]);
   await expect(taskTab(ui, key)).toHaveAttribute('title', /in the project's folder .*no git/);
   await core((k) => { k.answer = false; });
@@ -220,7 +78,7 @@ test("tasks: without git a task works in the project's folder, and a second one 
 
 test('tasks: + opens a task in the project\'s main working tree ("New Task", no worktree, no port offset); its profiles closed until opened (each a copy of its master); the agent makes its worktree and names it with task_worktree', async ({ core, ui, files, call, mcp }) => {
   test.slow(); // the island held back 6 s by design, then git's work
-  await begin(core, ui, files, call, { alone: true });
+  await begin(core, ui, files, { only: true, columns: true });
   await master(core, files, false);
   const project = files.project, SAM = files.idOf('Sam.admin'), ELON = files.idOf('Elon.buyer'), DORA = files.idOf('Dora');
   const first = await core((k) => k.shell.task.key);
@@ -235,9 +93,9 @@ test('tasks: + opens a task in the project\'s main working tree ("New Task", no 
   });
   // Looking for it takes the user's login shell, slower on the human's computer than here.
   await core((k) => {
-    const g = globalThis as any, find = k.shell.findAgent;
-    g.__find = find; g.__found = false;
-    Object.assign(k.shell, { findAgent: async (...a: Parameters<typeof find>) => { await new Promise((r) => setTimeout(r, 1000)); const r = await find(...a); g.__found = true; return r; } });
+    const g = k.stash, find = k.shell.findAgent;
+    g.find = find; g.found = false;
+    Object.assign(k.shell, { findAgent: async (...a: Parameters<typeof find>) => { await new Promise((r) => setTimeout(r, 1000)); const r = await find(...a); g.found = true; return r; } });
   });
   // Its agent waits for its terminal's size however late the window lays the island out: not at a default one after
   // 5 s, which a loaded machine reaches. The island hidden for 6 s after the agent is found: what is tested is that it
@@ -245,13 +103,13 @@ test('tasks: + opens a task in the project\'s main working tree ("New Task", no 
   await ui.evaluate(() => document.head.append(Object.assign(document.createElement('style'), { id: 'lateIsland', textContent: '.term { display: none !important; }' })));
   const sent = await ui.evaluate(() => (window as any).__ptySizes.length);
   const late = (async () => {
-    await expect.poll(() => core(() => (globalThis as any).__found), { timeout: 10000 }).toBe(true);
+    await expect.poll(() => core((k) => k.stash.found), { timeout: 10000 }).toBe(true);
     await sleep(6000);
     await ui.evaluate(() => document.getElementById('lateIsland').remove());
   })();
   const task = await newTask(core, ui, null); // left "New Task": this test names it with task_worktree below
   await late;
-  await core((k) => { Object.assign(k.shell, { findAgent: (globalThis as any).__find }); });
+  await core((k) => { Object.assign(k.shell, { findAgent: k.stash.find }); });
   await expect.poll(() => ui.evaluate(() => (window as any).__ptySizes.length)).toBeGreaterThan(sent);
   expect(await core((k, key) => k.shell.taskByKey(key).pty.spawnSize, task), 'at its real size').toEqual(await ui.evaluate((n) => (window as any).__ptySizes[n], sent));
   expect(await ui.evaluate(() => (window as any).__launch), "no island's buttons while its agent starts").toBe(false);
@@ -344,7 +202,7 @@ test('tasks: + opens a task in the project\'s main working tree ("New Task", no 
 });
 
 test("tasks: × closes a task: its agent stops and its tabs close, all else stays; asked first only while its agent works; its group's menu opens it again, its conversation resumed", async ({ core, ui, files, call }) => {
-  await begin(core, ui, files, call);
+  await begin(core, ui, files, { only: true, columns: true, featureX: call });
   await master(core, files, true);
   const SAM = files.idOf('Sam.admin');
   const task = await newTask(core, ui);
@@ -354,8 +212,8 @@ test("tasks: × closes a task: its agent stops and its tabs close, all else stay
   fs.writeFileSync(transcript, '');
   await reportSession(core, task, 's-3', transcript);
   expect(await core(async (k, a) => {
-    const { sessionStart } = await k.import('src/main/kulisa-plugin/agent-hooks.ts'), t = k.shell.taskByKey(a.task);
-    return sessionStart(t, t.promptTarget(), { session_id: 's-3', transcript_path: a.transcript }).hookSpecificOutput.additionalContext;
+    const t = k.shell.taskByKey(a.task);
+    return k.agentHooks.sessionStart(t, t.promptTarget(), { session_id: 's-3', transcript_path: a.transcript }).hookSpecificOutput.additionalContext;
   }, { task, transcript }), 'where it works, at the session start too').toMatch(/task "task-3": a git worktree of its own, .*project@task-3, on branch task-3.*free port you pick/s);
   // Working: the human is asked, and may keep it.
   const state = () => core((k, key) => k.shell.taskByKey(key).promptTarget()?.state, task);
@@ -369,13 +227,13 @@ test("tasks: × closes a task: its agent stops and its tabs close, all else stay
   await hook(core, task, 'stop'); // its turn over: closing asks nothing
   await expect.poll(state).toBe('done');
   await call('profile_open', { profile: 'Sam.admin' }, { task }); // a new task opens none by itself
-  await core((k, a) => { (globalThis as any).__sam = k.shell.taskByKey(a.task).profiles.get(a.SAM); }, { task, SAM });
+  await core((k, a) => { k.stash.sam = k.shell.taskByKey(a.task).profiles.get(a.SAM); }, { task, SAM });
   // A copy of the master made after it was signed in to: signed in.
   await call('browser_navigate', { profile: 'Sam.admin', url: `${SITE}/app` }, { task });
   expect(await who((n, a) => call(n, a, { task }), 'Sam.admin')).toBe('Signed in as master');
-  expect(await core(async () => (await (globalThis as any).__sam.session.cookies.get({ name: 'kept' })).map((c: { value: string }) => c.value)),
+  expect(await core(async (k) => (await k.stash.sam.session.cookies.get({ name: 'kept' })).map((c: { value: string }) => c.value)),
     "its lasting cookie too (Windows keeps the master's cookie database locked)").toEqual(['master']);
-  expect(await core(() => (globalThis as any).__sam.session.getCacheSize()), 'pages were cached').toBeGreaterThan(0);
+  expect(await core((k) => k.stash.sam.session.getCacheSize()), 'pages were cached').toBeGreaterThan(0);
   // What the agent's tools keep of its pages (a screenshot), in the task's data: kept while the task is closed, gone
   // when it is deleted.
   await call('browser_screenshot', { profile: 'Sam.admin' }, { task });
@@ -383,42 +241,42 @@ test("tasks: × closes a task: its agent stops and its tabs close, all else stay
   expect(fs.readdirSync(artifacts)).toHaveLength(1);
   await taskTab(ui, task).locator('.close').click();
   // Its agent and tabs gone.
-  await expect.poll(async () => (await core((k, key) => { const t = k.shell.taskByKey(key); return !!t.entry.closed && !t.pty && (globalThis as any).__sam.tabs.every((x: { wc: { isDestroyed(): boolean } }) => x.wc.isDestroyed()); }, task)) && isNth(core, 2)).toBe(true);
+  await expect.poll(async () => (await core((k, key) => { const t = k.shell.taskByKey(key); return !!t.entry.closed && !t.pty && k.stash.sam.tabs.every((x: { wc: { isDestroyed(): boolean } }) => x.wc.isDestroyed()); }, task)) && isNth(core, 2)).toBe(true);
   // Its profiles' caches cleared, as a profile closed alone (zoom-and-closing): kept, they stayed until it was deleted.
-  await expect.poll(() => core(() => (globalThis as any).__sam.session.getCacheSize())).toBe(0);
+  await expect.poll(() => core((k) => k.stash.sam.session.getCacheSize())).toBe(0);
   expect(fs.readdirSync(artifacts), "the agent's screenshot kept").toHaveLength(1);
   expect(await core((k) => k.asked.length), 'not asked: nothing is lost').toBe(0);
   const { folder, id } = await core((k, key) => { const t = k.shell.taskByKey(key); return { folder: t.folder, id: t.id }; }, task);
   expect(fs.existsSync(folder) && !!git(files.project, 'branch', '--list', 'task-3') && fs.existsSync(path.join(files.userData, 'projects', files.pid('project'), id)), 'its code and data stay').toBe(true);
   expect(tasksFile(files).list.find((e) => e.id === id).closed).toBe(true);
-  await expect.poll(() => tabs(ui)).toEqual(['task-1', 'Feature-X *']);
+  await expect.poll(() => taskTabs(ui)).toEqual(['task-1', 'Feature-X *']);
   // The bar's + (a new tab) lists it in its project's column, after the open ones; opening it shows it again, its
   // agent resuming the conversation.
-  expect(await projectRows(ui, 'project')).toEqual(['task-1', 'Feature-X', 'task-3', 'New Task']);
+  expect(await plusRows(ui, 'project')).toEqual(['task-1', 'Feature-X', 'task-3', 'New Task']);
   // Its grid comes before its profiles have started (their cookies, tabs, automation: a site's answer away), its agent
   // after them, as it finds them ready; the window does not wait for them all.
   await core((k) => {
-    const g = globalThis as any, s = k.shell.sessionCookies, restore = s.restore;
-    g.__restore = restore; g.__started = false;
-    s.restore = async (p) => { await new Promise((r) => setTimeout(r, 1500)); const n = await restore.call(s, p); g.__started = true; return n; };
+    const g = k.stash, s = k.shell.sessionCookies, restore = s.restore;
+    g.restore = restore; g.started = false;
+    s.restore = async (p) => { await new Promise((r) => setTimeout(r, 1500)); const n = await restore.call(s, p); g.started = true; return n; };
   });
   try {
     await plusMenu(ui, 'project', 'task-3');
     await expect.poll(() => core((k, key) => k.shell.task?.key === key && !k.shell.windows[0].switching, task)).toBe(true); // its state sent to the window
-    expect(await core(() => (globalThis as any).__started), 'the grid before its profiles started').toBe(false);
+    expect(await core((k) => k.stash.started), 'the grid before its profiles started').toBe(false);
     await expect(ui.locator(`.pane[data-profile="${SAM}"]`)).toHaveCount(1);
     await notLoading(ui);
     await expect.poll(() => core((k, key) => k.shell.taskByKey(key).loaded && !!k.shell.pty, task), { timeout: 10000 }).toBe(true);
-    expect(await core(() => (globalThis as any).__started), 'its agent after them').toBe(true);
-  } finally { await core((k) => { k.shell.sessionCookies.restore = (globalThis as any).__restore; }); }
+    expect(await core((k) => k.stash.started), 'its agent after them').toBe(true);
+  } finally { await core((k) => { k.shell.sessionCookies.restore = k.stash.restore; }); }
   await core((k) => k.watchPty(k.shell.pty));
   expect(await core((k) => k.shell.resumedSession)).toBe('s-3');
-  await expect.poll(() => tabs(ui)).toEqual(['task-1', 'Feature-X', 'task-3 *']);
+  await expect.poll(() => taskTabs(ui)).toEqual(['task-1', 'Feature-X', 'task-3 *']);
   expect(tasksFile(files).list.find((e) => e.id === id).closed).toBe(undefined);
 });
 
 test('tasks: Delete Task… asks first, saying what goes and any work not in main and not pushed; it goes with its branch, folder and profiles', async ({ core, ui, files, call }) => {
-  await begin(core, ui, files, call);
+  await begin(core, ui, files, { only: true, columns: true, featureX: call });
   const project = files.project;
   // A task with its own worktree and its agent's session (a transcript of its own), nothing changed in it.
   const empty = await newTask(core, ui);
@@ -445,7 +303,7 @@ test('tasks: Delete Task… asks first, saying what goes and any work not in mai
   if (hasDirenv) expect((fs.existsSync(allow) ? fs.readdirSync(allow) : []).some((f) => fs.readFileSync(path.join(allow, f), 'utf8').includes(`${project}@task-3`))).toBe(false);
   expect(fs.existsSync(transcript), "the test's own agent: Kulisa knows only Claude Code's conversations (agents/)").toBe(true);
   expect(git(project, 'branch', '--list', 'task-3')).toBe('');
-  await expect.poll(() => tabs(ui)).toEqual(['task-1', 'Feature-X *']);
+  await expect.poll(() => taskTabs(ui)).toEqual(['task-1', 'Feature-X *']);
 
   // Renamed by the human (Rename… in its tab's menu), with a commit of its own and a file not committed.
   const spike = await newTask(core, ui), was = await core((k, key) => k.shell.taskByKey(key).name, spike);
@@ -496,7 +354,7 @@ test('tasks: Delete Task… asks first, saying what goes and any work not in mai
 });
 
 test("tasks: an agent's tab closes after a question, always (Cancel keeps it); the last terminal closed folds the island to its +, which opens one again; Ctrl+` there opens the task's agent, a new conversation", async ({ core, ui, files, call }) => {
-  await begin(core, ui, files, call);
+  await begin(core, ui, files, { only: true, columns: true, featureX: call });
   const SAM = files.idOf('Sam.admin');
   const task = await newTask(core, ui), agent = await core((k, key) => k.shell.taskByKey(key).promptTarget().id, task);
   const terminals = () => core((k, key) => k.shell.taskByKey(key).terminals.size, task);
@@ -637,24 +495,24 @@ test("tasks: an agent's tab closes after a question, always (Cancel keeps it); t
 });
 
 test('tasks: × on the last open task of a project lets the project go, nothing asked: the empty window; a task of it opens it again', async ({ core, ui, files, call }) => {
-  await begin(core, ui, files, call);
+  await begin(core, ui, files, { only: true, columns: true, featureX: call });
   // A third task, closed (the board lists it with the others).
   const third = await newTask(core, ui);
   await invoke(ui, 'task:close', third);
   await expect.poll(() => core((k, key) => !!k.shell.taskByKey(key).entry.closed, third)).toBe(true);
   const pid = files.pid('project'), first = await keyAt(core, 1), second = await keyAt(core, 2);
-  await expect.poll(() => tabs(ui)).toEqual(['task-1', 'Feature-X *']);
+  await expect.poll(() => taskTabs(ui)).toEqual(['task-1', 'Feature-X *']);
   await taskTab(ui, first).locator('.close').click();
   await expect.poll(() => core((k, a) => { const f = k.shell.taskByKey(a.first); return !!f.entry.closed && !f.loaded && k.shell.task?.key === a.second; }, { first, second })).toBe(true);
-  await expect.poll(() => tabs(ui)).toEqual(['Feature-X *']);
+  await expect.poll(() => taskTabs(ui)).toEqual(['Feature-X *']);
   expect(await core((k) => k.asked.length)).toBe(0);
-  await core((k, key) => { (globalThis as any).__second = k.shell.taskByKey(key); }, second);
+  await core((k, key) => { k.stash.second = k.shell.taskByKey(key); }, second);
   await taskTab(ui, second).locator('.close').click();
   // The project goes once its task is unloaded: its agent stopped, each profile's sign-ins written out and its
   // tabs closed. On a loaded machine, with another project running beside it, that takes over 5 s now and then.
   await expect.poll(() => core((k, p) => k.shell.task === null && !k.shell.current && !k.shell.open.has(p), pid), { timeout: 15000 }).toBe(true);
   expect(await core((k) => k.asked.length), 'no agent works: nothing asked').toBe(0);
-  expect(await core(() => { const s = (globalThis as any).__second; return s.profiles.size === 0 && !s.pty; }), 'every task of the project stopped').toBe(true);
+  expect(await core((k) => { const s = k.stash.second; return s.profiles.size === 0 && !s.pty; }), 'every task of the project stopped').toBe(true);
   expect(tasksFile(files).list.map((e) => [e.name, !!e.closed])).toEqual([['task-1', true], ['Feature-X', true], ['task-3', true]]);
   await expect(ui.locator('html')).toHaveClass(/\bnoproject\b/);
   // The empty window, projects there: every project with its tasks, a column each, as a new tab shows them; no tasks' bar.
@@ -690,19 +548,19 @@ test('tasks: × on the last open task of a project lets the project go, nothing 
   await core((k) => k.watchPty(k.shell.pty));
   await expect(ui.locator('html')).not.toHaveClass(/\bnoproject\b/);
   await notLoading(ui);
-  await expect.poll(() => tabs(ui)).toEqual(['Feature-X *']);
+  await expect.poll(() => taskTabs(ui)).toEqual(['Feature-X *']);
   // Now a task is shown: the bar's + lists the project's tasks (the open one to switch to, the closed ones to reopen), then New Task.
-  expect(await projectRows(ui, 'project')).toEqual(['Feature-X', 'task-1', 'task-3', 'New Task']);
+  expect(await plusRows(ui, 'project')).toEqual(['Feature-X', 'task-1', 'task-3', 'New Task']);
   await plusMenu(ui, 'project', 'task-1');
   await expect.poll(() => core((k, key) => k.shell.task?.key === key && k.shell.task.loaded && !!k.shell.pty, first)).toBe(true);
   await core((k) => k.watchPty(k.shell.pty));
-  await expect.poll(() => tabs(ui)).toEqual(['Feature-X', 'task-1 *']); // a tab opens at the end
+  await expect.poll(() => taskTabs(ui)).toEqual(['Feature-X', 'task-1 *']); // a tab opens at the end
   expect(await core((k, key) => k.shell.taskByKey(key).loaded, second), 'the other open one stays loaded').toBe(true);
   await expect.poll(async () => (await viewOn(core, ui, files, 'Sam.admin')) && viewOn(core, ui, files, 'Elon.buyer')).toBe(true);
 });
 
 test("tasks: a closed task whose PR is merged on the remote is marked in its group's menu; Delete Merged Tasks… deletes it after one question", async ({ core, ui, files, call }) => {
-  await begin(core, ui, files, call);
+  await begin(core, ui, files, { only: true, columns: true, featureX: call });
   const { id, dir, origin, first, second } = await remoteProject(core, ui, files, call, 'merge');
   const folders = await core((k, keys) => keys.map((key) => { const t = k.shell.taskByKey(key); return { folder: t.folder, branch: t.branch }; }), [first, second]);
   // task-1's work pushed, and merged into main on the remote; task-2 has a commit not merged.
@@ -725,7 +583,7 @@ test("tasks: a closed task whose PR is merged on the remote is marked in its gro
 
 test("tasks: a closed task is deleted from its row, 🗑 or Delete, in the board (the bar's +), its project loaded or not, after the question Delete Task… asks", async ({ core, ui, files, call }) => {
   // About 2 s: git's work (worktrees made and removed).
-  await begin(core, ui, files, call);
+  await begin(core, ui, files, { only: true, columns: true, featureX: call });
   // A project not loaded, its one task closed, with a commit not merged.
   const { id, dir, origin, first, second } = await remoteProject(core, ui, files, call, 'gone');
   await invoke(ui, 'task:delete', first);
@@ -774,7 +632,7 @@ test("tasks: a closed task is deleted from its row, 🗑 or Delete, in the board
 });
 
 test('the CDP proxy takes ids in any letters (percent-encoded in its URLs); the grid changed just before its task is left is saved so', async ({ core, ui, files, call }) => {
-  await begin(core, ui, files, call);
+  await begin(core, ui, files, { only: true, columns: true, featureX: call });
   const id = await core(async (k) => (await k.shell.task.createProfile('Анна') as { id: string }).id);
   await expect.poll(() => core((k, p) => !!k.shell.profiles.get(p).browser, id)).toBe(true);
   expect(await core((k, p) => k.shell.profiles.get(p).endpoint.endsWith(`/${k.shell.task.key}/${encodeURIComponent(p)}`), id)).toBe(true);

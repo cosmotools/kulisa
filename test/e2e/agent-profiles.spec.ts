@@ -1,8 +1,8 @@
 // Profiles, the human's and the agent's: made in Settings and by profile_create, who each is, renamed, signed in by the
 // human when the agent asks; isolated, presenting as what they are, the sign-in pause (docs/profiles.md).
 import { test, expect } from './fixtures.ts';
-import { SITE, who, menuRows, choose, closeMenu, manageProfiles, closeSettings, chooseProfile, setProfileField, taskMenu } from './helpers.ts';
-import { profiles, signIn, act, invoke } from './agent-helpers.ts';
+import { SITE, who, menuRows, choose, closeMenu, manageProfiles, closeSettings, chooseProfile, setProfileField, taskMenu, act, invoke } from './helpers.ts';
+import { profiles, signIn } from './agent-helpers.ts';
 
 test('profiles are made in Settings (Profiles\' + in its tree), each with its own picture and, if the human says, who it is; added to the project on its page, opened in its task; the pages stay on screen under Settings\' window', async ({ core, ui, sui, files }) => {
   // None yet, as in a new Kulisa: the profiles a test before left deleted as the human deletes them.
@@ -126,7 +126,7 @@ test('who a profile is: the agent is told to choose by it and to ask; it saves t
   await expect.poll(() => core((k) => k.profile('Elon.buyer').avatar)).toBe('owl');
   await expect(s.locator('.profilepics')).toHaveCount(0);
   await expect(s.locator('#profilepic .avatar')).toHaveAttribute('src', 'avatars/owl.svg');
-  expect((await s.evaluate((id) => (window as any).kulisa.invoke('profiles:avatar', { profile: id, avatar: 'dragon' }), elon)).error).toMatch(/no picture/);
+  expect((await invoke(s, 'profiles:avatar', { profile: elon, avatar: 'dragon' })).error).toMatch(/no picture/);
   await closeSettings(core, ui, sui);
 });
 

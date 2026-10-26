@@ -2,7 +2,7 @@
 import fs from 'fs';
 import path from 'path';
 import { test, expect } from './fixtures.ts';
-import { menuRows, choose, closeSettings } from './helpers.ts';
+import { CHECKOUT, menuRows, choose, closeSettings, invoke } from './helpers.ts';
 
 test("☰ → Report a Problem… opens Settings at the Log page: the log so far and live, each line with its time and tag; chips and a text filter; Copy All, Save As… (a file), Open Folder; Report… → On GitHub… opens a new issue with the environment filled in", async ({ core, ui, sui, files }) => {
   await ui.locator('#windowMenu').click();
@@ -18,7 +18,7 @@ test("☰ → Report a Problem… opens Settings at the Log page: the log so far
   await expect(s.locator('#logpage .line[data-tag="kulisa"]').first(), "the tag in its group's color").toHaveClass(/\btasks\b/);
   // Live: what is logged now comes at the end, Follow keeping it in view.
   const theme = await core((k) => k.electron.nativeTheme.themeSource);
-  await ui.evaluate(() => (window as any).kulisa.invoke('theme:set', 'dark'));
+  await invoke(ui, 'theme:set', 'dark');
   await expect.poll(async () => (await lines()).at(-1)).toContain('[ipc]theme:set wc=');
   await expect.poll(() => s.locator('#logpage .lines').evaluate((b) => b.scrollHeight - b.scrollTop - b.clientHeight < 4), 'the end in view').toBe(true);
   // Errors: a page's error is a warning line, in red; the chip shows those alone.
@@ -44,29 +44,29 @@ test("☰ → Report a Problem… opens Settings at the Log page: the log so far
   // Save As…: where the human says, the file as it is.
   const saved = path.join(files.root, 'saved.log'), log = path.join(files.userData, 'logs', 'kulisa.log');
   await core((k, f) => {
-    const g = globalThis as any;
-    g.__showSaveDialog = k.electron.dialog.showSaveDialog;
+    const g = k.stash;
+    g.showSaveDialog = k.electron.dialog.showSaveDialog;
     k.electron.dialog.showSaveDialog = (async () => ({ canceled: false, filePath: f }));
   }, saved);
   try {
     await s.locator('#logsave').click();
     await expect.poll(() => fs.existsSync(saved)).toBe(true);
-  } finally { await core((k) => { k.electron.dialog.showSaveDialog = (globalThis as any).__showSaveDialog; }); }
+  } finally { await core((k) => { k.electron.dialog.showSaveDialog = k.stash.showSaveDialog; }); }
   expect(fs.readFileSync(saved, 'utf8').split('\n')[0]).toBe(fs.readFileSync(log, 'utf8').split('\n')[0]);
   await expect(s.locator('#logpage .note')).toHaveText(/^Saved as /);
   fs.rmSync(saved);
   // Open Folder: the file picked out in the file manager.
   await core((k) => {
-    const g = globalThis as any;
-    g.__showItemInFolder = k.electron.shell.showItemInFolder;
-    g.__shownItems = [];
-    k.electron.shell.showItemInFolder = (p: string) => { g.__shownItems.push(p); };
+    const g = k.stash;
+    g.showItemInFolder = k.electron.shell.showItemInFolder;
+    g.shownItems = [];
+    k.electron.shell.showItemInFolder = (p: string) => { g.shownItems.push(p); };
   });
   try {
     await s.locator('#logfolder').click();
-    await expect.poll(() => core(() => (globalThis as any).__shownItems as string[])).toHaveLength(1);
-  } finally { await core((k) => { k.electron.shell.showItemInFolder = (globalThis as any).__showItemInFolder; }); }
-  expect((await core(() => (globalThis as any).__shownItems as string[]))[0]).toBe(log);
+    await expect.poll(() => core((k) => k.stash.shownItems as string[])).toHaveLength(1);
+  } finally { await core((k) => { k.electron.shell.showItemInFolder = k.stash.showItemInFolder; }); }
+  expect((await core((k) => k.stash.shownItems as string[]))[0]).toBe(log);
   // Report… → On GitHub…: a new issue from the template in the user's browser, the environment filled in (the start
   // line's facts). The pages Kulisa opens in the user's browser are noted, not opened (app.ts).
   const opened = await core((k) => k.openedExternally.length);
@@ -78,7 +78,7 @@ test("☰ → Report a Problem… opens Settings at the Log page: the log so far
   expect(u.origin + u.pathname).toBe('https://github.com/cosmotools/kulisa/issues/new');
   expect(u.searchParams.get('template')).toBe('bug.yml');
   expect(u.searchParams.get('environment')).toMatch(/^Kulisa \d+\.\d+\.\d+, electron \d+\.\d+\.\d+, \w+ \S+.*, from source$/);
-  expect(fs.readFileSync(path.join(import.meta.dirname, '..', '..', '.github', 'ISSUE_TEMPLATE', 'bug.yml'), 'utf8'), 'the template with that field').toMatch(/id: environment/);
+  expect(fs.readFileSync(path.join(CHECKOUT, '.github', 'ISSUE_TEMPLATE', 'bug.yml'), 'utf8'), 'the template with that field').toMatch(/id: environment/);
   await closeSettings(core, ui, sui);
-  await ui.evaluate((t) => (window as any).kulisa.invoke('theme:set', t), theme);
+  await invoke(ui, 'theme:set', theme);
 });

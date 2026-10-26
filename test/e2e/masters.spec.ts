@@ -2,26 +2,11 @@
 // across the tasks and the master (docs/profiles.md, "One store, a master and copies", "Sign-ins kept in step").
 import fs from 'fs';
 import path from 'path';
-import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
 import type { Core, Call, Where } from './fixtures.ts';
-import { SITE, PORT, who, menuRows, choose, rightClick, focusWindow, closeSettings, chooseProfile } from './helpers.ts';
+import { SITE, PORT, who, menuRows, choose, rightClick, focusWindow, closeSettings, chooseProfile, invoke } from './helpers.ts';
+import { begin, newTask } from './tasks-helpers.ts';
 
-const invoke = (page: Page, channel: string, arg?: unknown) => page.evaluate(([c, a]) => (window as any).kulisa.invoke(c, a), [channel, arg] as const);
-
-// Sam.admin (signed in to the test site as sam) and Elon.buyer open in the shown task, laid out: test/setup.ts's state,
-// made through the core (making profiles and signing in are tested elsewhere). Their ids.
-const begin = (core: Core) => core(async (k, site) => {
-  const t = k.shell.task;
-  for (const name of ['Sam.admin', 'Elon.buyer']) {
-    const closed = [...t.closed.values()].find((c) => c.cfg.name === name);
-    if (closed) await t.openProfile(closed.cfg.id);
-    else if (![...k.shell.profiles.values()].some((p) => p.name === name)) await t.createProfile(name);
-  }
-  await k.ensureProfile('Sam.admin', `${site}/app/login?name=sam`);
-  await k.ensureProfile('Elon.buyer', `${site}/app`);
-  return { sam: k.profile('Sam.admin').id, elon: k.profile('Elon.buyer').id };
-}, SITE);
 // The one master window open, once its page is there.
 const oneMaster = (core: Core) => expect.poll(() => core((k) => k.shell.masters.size === 1 && !!k.shell.masters.values().next().value.profile.get())).toBe(true);
 // It closed as the human closes it (the OS's ×), gone.
@@ -33,7 +18,7 @@ async function closeMaster(core: Core) {
 const whoIn = async (call: Call, profile: string, where: Where) => (await call('browser_snapshot', { profile }, where)).text.match(/Signed (in as \w+|out)/)?.[0];
 
 test("Sign In to Master… opens its master in a window of its own, nothing automated on it; a task's copy made before keeps its own sign-in to a local app", async ({ core, ui, call, files }) => {
-  const { sam } = await begin(core);
+  const { sam } = await begin(core, ui, files);
   await rightClick(ui, `.ptab[data-panel="profile:${sam}"] b`);
   expect(await menuRows(ui)).toContain('Sign In to Master…');
   await choose(ui, 'Sign In to Master…');
@@ -58,7 +43,7 @@ test("Sign In to Master… opens its master in a window of its own, nothing auto
 });
 
 test("About this profile… opens Settings' window at it (one, not modal: the task's window takes input and comes in front of it, its pages on screen); its Sign In… opens the same master window, once", async ({ core, ui, sui, files }) => {
-  const { sam, elon } = await begin(core);
+  const { sam, elon } = await begin(core, ui, files);
   await rightClick(ui, `.ptab[data-panel="profile:${sam}"] b`);
   await menuRows(ui);
   await choose(ui, 'About this profile…');
@@ -80,7 +65,7 @@ test("About this profile… opens Settings' window at it (one, not modal: the ta
   await expect(s.locator('#profilename')).toHaveValue('Elon.buyer');
   expect(await core((k) => k.shell.settings.win.id)).toBe(win.id);
   await chooseProfile(s, files, 'Sam.admin');
-  const asks = () => fs.readFileSync(path.join(files.userData, 'logs', 'kulisa.log'), 'utf8').split('\n').filter((l) => l.includes('[ipc] profiles:master ')).length, before = asks();
+  const asks = () => files.log().split('\n').filter((l) => l.includes('[ipc] profiles:master ')).length, before = asks();
   await s.locator('#profilesignin').click();
   await oneMaster(core);
   // Again, Settings brought in front of the master's window first, as the human's click there does: a page behind
@@ -97,7 +82,7 @@ test("About this profile… opens Settings' window at it (one, not modal: the ta
 
 // About 5 s: its tab waits for a site that never answers, by design (profiles.ts).
 test("a master's window closed while its page still loads (a slow sign-in) goes cleanly, Sign In… answering without an error", async ({ core, ui, files }) => {
-  const { sam } = await begin(core);
+  const { sam } = await begin(core, ui, files);
   const tabs = path.join(files.userData, 'profiles', sam, 'Kulisa Tabs.json'), before = fs.existsSync(tabs) ? fs.readFileSync(tabs, 'utf8') : null;
   fs.writeFileSync(tabs, JSON.stringify({ urls: [`${SITE}/hang`], active: 0 }));
   try {
@@ -112,18 +97,16 @@ test("a master's window closed while its page still loads (a slow sign-in) goes 
 });
 
 test("a real account's sign-in kept in step: signed in to a site (not local) in one task, it is in the others and the master; signed out, out everywhere; a local app's stays each task's", async ({ core, ui, call, files }) => {
-  const { sam } = await begin(core);
+  const { sam } = await begin(core, ui, files);
   const first = await core((k) => k.shell.task.key), shop = `http://shop.example:${PORT}`;
   // A second task of the project, Sam open in it (a copy of its master), shown. The project has no git: it works in
   // the project's folder too, after a question (answered yes).
-  await invoke(ui, 'task:new', { project: files.pid('project') });
-  await expect.poll(() => core((k, f) => { const t = k.shell.task; return t.key !== f && t.loaded && [...t.terminals.values()].some((x) => !!x.pty) && !k.shell.windows[0].switching; }, first), { timeout: 20000 }).toBe(true);
-  const second = await core(async (k, a) => {
+  const second = await newTask(core, ui, null, files.pid('project'));
+  await core(async (k, a) => {
     const t = k.shell.task;
     if (t.closed.has(a.sam)) await t.openProfile(a.sam);
     await k.ensureProfile('Sam.admin', `${a.site}/app`);
     k.asked.length = 0;
-    return t.key;
   }, { sam, site: SITE });
   const inFirst = { task: first };
   const shopCookie = (task: string) => core(async (k, a) => (await k.shell.taskByKey(a.task).profiles.get(a.sam).session.cookies.get({ domain: 'shop.example' })).map((c) => c.value), { task, sam });

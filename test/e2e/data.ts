@@ -48,6 +48,8 @@ export function data(root: string) {
   type GridNode = { type: string; size: number; data: { views: string[] } & GridNode[] };
   return {
     root, userData, project, pid, tid, tkey, named, pfile, idOf, savedWindows,
+    // Kulisa's log as it is now.
+    log: () => fs.readFileSync(path.join(userData, 'logs', 'kulisa.log'), 'utf8'),
     // The tabs saved for a profile (in its folder), and the place of the one saved in front.
     savedTabs: (name: string, task = 1): string[] => savedFile(name, task).urls,
     savedActive: (name: string, task = 1): number => savedFile(name, task).active,

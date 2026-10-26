@@ -8,26 +8,12 @@ import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
 import type { data } from './data.ts';
-import { SITE, WIN, sleep, focusWindow, menu, menuRows, choose, closeMenu, rightClick, closeSettings, renamed, termText, termShows } from './helpers.ts';
+import { SITE, WIN, sleep, focusWindow, menu, menuRows, choose, closeMenu, rightClick, closeSettings, renamed, termText, termShows, invoke, projectMenu, onRow } from './helpers.ts';
+import { newTask } from './tasks-helpers.ts';
+import { fakeAgent, fakeBin } from './agent-helpers.ts';
 
 type Files = ReturnType<typeof data>;
 
-const invoke = (page: Page, channel: string, arg?: unknown) => page.evaluate(([c, a]) => (window as any).kulisa.invoke(c, a), [channel, arg] as const);
-// The fake agent's program once installed (app.ts): on Windows its .cmd, which Kulisa finds and runs.
-const fakeBin = (files: Files) => path.join(files.root, 'bin', WIN ? 'kulisa-fake-agent.cmd' : 'kulisa-fake-agent');
-// The fake agent installed or not, as its installer leaves it (app.ts; installing is tested in Settings → Agents), and
-// looked for again.
-async function installed(ui: Page, files: Files, yes: boolean) {
-  const bin = path.join(files.root, 'bin'), program = path.join(bin, 'kulisa-fake-agent');
-  if (yes && !fs.existsSync(fakeBin(files))) {
-    fs.mkdirSync(bin, { recursive: true });
-    fs.copyFileSync(path.join(import.meta.dirname, '..', 'fixtures', 'fake-agent.sh'), program);
-    fs.chmodSync(program, 0o755);
-    if (WIN) fs.writeFileSync(`${program}.cmd`, '@bash "%~dp0kulisa-fake-agent" %*');
-  }
-  if (!yes) for (const f of [program, `${program}.cmd`]) fs.rmSync(f, { force: true });
-  await invoke(ui, 'agents:list', { details: true, cached: false });
-}
 // The project with its first task alone, shown, and no account: the tasks and accounts the file's other tests made go
 // (deleting a task asks: answered yes).
 async function fresh(core: Core, ui: Page, files: Files) {
@@ -36,23 +22,14 @@ async function fresh(core: Core, ui: Page, files: Files) {
   await expect.poll(() => core((k, f) => k.shell.current.tasks.size === 1 && k.shell.task?.key === f && k.shell.task.loaded && !k.shell.windows[0].switching, first), { timeout: 20000 }).toBe(true);
   for (const id of await core((k) => k.shell.accounts.stored().map((a) => a.id))) await invoke(ui, 'project:agent-remove', { id: pid, agent: id });
   await core(async (k) => {
-    const { removeTree } = await k.import('src/main/remove.ts');
-    for (const a of k.shell.accounts.stored()) { k.shell.accounts.drop(a.id); removeTree(k.shell.accounts.folderOf(a)); }
+    for (const a of k.shell.accounts.stored()) { k.shell.accounts.drop(a.id); k.removeTree(k.shell.accounts.folderOf(a)); }
     k.asked.length = 0;
   });
-}
-// A new task of the project (its + : task:new; the menu is tested elsewhere), shown once its agent started; its key.
-// The project has no git: a second task works in its folder too, after a question (answered yes).
-async function newTask(core: Core, ui: Page, files: Files) {
-  const before = await core((k) => k.shell.task.key);
-  await invoke(ui, 'task:new', { project: files.pid('project') });
-  await expect.poll(() => core((k, b) => { const t = k.shell.task; return t.key !== b && t.loaded && [...t.terminals.values()].some((x) => !!x.pty) && !k.shell.windows[0].switching; }, before), { timeout: 20000 }).toBe(true);
-  return core((k) => { k.watchPty(k.shell.pty); k.asked.length = 0; return k.shell.task.key; });
 }
 // The account the new account test makes (Fake agent · work@shop.com, the project's one account), signed in, and a task
 // running it shown: made through the core where it is not (making it is tested below). Its id and the task's key.
 async function workAccount(core: Core, ui: Page, files: Files) {
-  await installed(ui, files, true);
+  await fakeAgent(ui, files);
   const has = await core((k) => {
     const a = k.shell.accounts.stored().find((x) => x.email === 'work@shop.com');
     return a && k.shell.accounts.stored().length === 1 && k.shell.task.promptTarget()?.agent.id === a.id ? { work: a.id, task: k.shell.task.key } : null;
@@ -67,7 +44,7 @@ async function workAccount(core: Core, ui: Page, files: Files) {
   });
   fs.writeFileSync(path.join(accountDir(files, work), 'account'), 'work@shop.com'); // signed in, as its own sign-in leaves it (fixtures/fake-agent.sh)
   await invoke(ui, 'project:agent-add', { id: files.pid('project'), agent: work });
-  const task = await newTask(core, ui, files);
+  const task = await newTask(core, ui, null, files.pid('project'));
   await expect.poll(() => core((k) => k.shell.task.promptTarget()?.agent.id), { timeout: 20000 }).toBe(work); // the project's default: its one account
   return { work, task };
 }
@@ -91,34 +68,18 @@ async function showAgent(s: Page, id: string) {
   await expect(s.locator('#agconfig')).toBeVisible();
 }
 const agentRow = (s: Page, id: string, q: string) => s.locator(`#agentpage [data-agent="${id}"] ${q}`);
-// The project's settings (Project Settings… in its submenu: a tab's right-click, then the row of the project's name),
-// with its agents. Right-clicked again until its menu and submenu are open: right after Settings or another menu
-// closed, the menu may open none, or open and close at once, as the window's focus comes back late (a blur closes a menu).
+// The project's settings (Project Settings… in its submenu: helpers.ts, projectMenu), with its agents.
 async function projectSettings(ui: Page, sui: () => Promise<Page>) {
-  const open = ui.locator('.menu[data-state="open"]');
-  await expect(async () => {
-    if (!(await open.count())) await rightClick(ui, '#projectTabs .tasktab.active .name');
-    await expect(menu(ui)).toBeVisible({ timeout: 1000 });
-    if ((await open.count()) < 2) await menu(ui).locator('.item[aria-haspopup]').click({ timeout: 1000 });
-    await expect(open).toHaveCount(2, { timeout: 1000 });
-  }).toPass({ timeout: 10000 });
-  await choose(ui, 'Project Settings…', open.last());
+  await projectMenu(ui, 'Project Settings…');
   const s = await sui();
   await expect(s.locator('#npagentsrow')).toBeAttached();
   return s;
-}
-// A list's row selected (a click), then a button of its toolbar acting on it (− removes).
-async function onRow(s: Page, row: string, button: string) {
-  await s.locator(row).click();
-  await expect(s.locator(row)).toHaveAttribute('aria-selected', 'true');
-  await expect(s.locator(button)).toBeEnabled();
-  await s.locator(button).click();
 }
 const accountDir = (files: Files, id: string) => path.join(files.userData, 'agents', `fake-${id}`);
 const accountOf = (dir: string) => path.basename(dir).replace(/^fake-/, '');
 const lines = (f: string) => { try { return fs.readFileSync(f, 'utf8').trim().split('\n'); } catch { return []; } };
 // The pages the fake agent's sign-in opened in the user's browser (app.ts' BROWSER); the accounts it signed out of.
-const opened = (files: Files) => lines(path.join(files.root, 'opened'));
+const browserOpened = (files: Files) => lines(path.join(files.root, 'opened'));
 const logouts = (files: Files) => lines(path.join(files.root, 'logouts'));
 // The folder a sign-in under way was given (its id random: accounts.ts), the one no account stores yet.
 async function signingIn(core: Core, files: Files) {
@@ -131,20 +92,20 @@ async function signingIn(core: Core, files: Files) {
 const typeSignIn = (core: Core, text: string) => core((k, t) => { [...k.shell.signins.values()][0].write(t); }, text);
 // New Account… of the fake agent on a project's page: its own sign-in starts at once; resolves once its page is open
 // in the user's browser (the sign-in waiting for the human).
-async function signIn(core: Core, s: Page, files: Files) {
+async function newAccount(core: Core, s: Page, files: Files) {
   await core((k) => k.shell.signins.clear());
-  const before = opened(files).length;
+  const before = browserOpened(files).length;
   await s.locator('#npagentadd').click();
   expect((await menuRows(s)).slice(-2), 'the agents that have accounts, after the ones to add').toEqual(['# New Account', 'Fake agent…']);
   await choose(s, 'Fake agent…');
   await expect.poll(() => core((k) => k.shell.signins.size)).toBeGreaterThan(0);
-  await expect.poll(() => opened(files).length).toBe(before + 1);
-  expect(opened(files).at(-1)).toBe(`${SITE}/app?signin`);
+  await expect.poll(() => browserOpened(files).length).toBe(before + 1);
+  expect(browserOpened(files).at(-1)).toBe(`${SITE}/app?signin`);
 }
 
 test('Settings → Agents (not the terminal only): what is installed, installs the others; nothing is chosen or started', async ({ core, ui, sui, files }) => {
   await fresh(core, ui, files);
-  await installed(ui, files, false);
+  await fakeAgent(ui, files, false);
   const pty = await core((k) => k.shell.task.pty.pid);
   const s = await openAgents(ui, sui);
   await expect(s.locator('#pjlist [data-agent="fake"] kbd')).toHaveText('not installed');
@@ -175,7 +136,7 @@ test('Settings → Agents (not the terminal only): what is installed, installs t
 });
 
 test('once installed, the Agents window shows its version and where it is', async ({ core, ui, sui, files }) => {
-  await installed(ui, files, true);
+  await fakeAgent(ui, files);
   const s = await openAgents(ui, sui);
   await expect(agentRow(s, 'fake', '.status')).toHaveText('Installed');
   await expect(agentRow(s, 'fake', '.install')).toHaveAttribute('hidden');
@@ -193,9 +154,9 @@ test('once installed, the Agents window shows its version and where it is', asyn
 });
 
 test('the list comes at once with what the last look found, then looks again: an agent removed meanwhile shows so', async ({ core, ui, sui, files }) => {
-  await installed(ui, files, true);
+  await fakeAgent(ui, files);
   const bin = fakeBin(files), away = `${bin}.away`;
-  const fake = (cached: boolean) => ui.evaluate((c) => (window as any).kulisa.invoke('agents:list', { details: true, cached: c }).then((r: any) => r.list?.find((a: any) => a.id === 'fake')), cached);
+  const fake = (cached: boolean) => invoke(ui, 'agents:list', { details: true, cached }).then((r: any) => r.list?.find((a: any) => a.id === 'fake'));
   expect((await fake(true)).version, "the last look's, nothing run").toBe('1.2.3');
   await renamed(bin, away); // the look just made may still run its .cmd, holding it
   try {
@@ -212,10 +173,10 @@ test('the list comes at once with what the last look found, then looks again: an
 
 test("a new account is made in the project's settings: the agent's own sign-in at once, in a terminal there (under Details), its page in the user's own browser (Google refuses an embedded one); named by the email it signed in to; a task runs it with its folder, over a folder the project's environment sets", async ({ core, ui, sui, files }) => {
   await fresh(core, ui, files);
-  await installed(ui, files, true);
+  await fakeAgent(ui, files);
   const s = await projectSettings(ui, sui);
   const windows = await core((k) => k.electron.BrowserWindow.getAllWindows().length);
-  await signIn(core, s, files);
+  await newAccount(core, s, files);
   const dir = await signingIn(core, files), work = accountOf(dir);
   expect(work, 'its folder its agent and a fixed id: never renamed').toMatch(/^[a-z0-9]{6}$/);
   await expect(s.locator('#npsigninterm .xterm'), 'the sign-in in a terminal of the dialog, under Details: what it says the window shows').toHaveCount(1);
@@ -230,7 +191,7 @@ test("a new account is made in the project's settings: the agent's own sign-in a
   expect(JSON.parse(fs.readFileSync(path.join(files.userData, 'agents.json'), 'utf8'))).toEqual({ list: [{ id: work, agent: 'fake', email: 'work@shop.com' }] });
   expect(await core((k, a) => k.shell.store.projects().find((x) => x.id === a.pid).agents.includes(a.work), { pid: files.pid('project'), work }), 'the project lists it').toBe(true);
   // Signed in to an email it has already: that account, the new folder signed out and gone.
-  await signIn(core, s, files);
+  await newAccount(core, s, files);
   let again = await signingIn(core, files);
   await typeSignIn(core, 'work@shop.com\r');
   await expect(s.locator('#npsigninerror')).toHaveText(/is in the project already/);
@@ -238,7 +199,7 @@ test("a new account is made in the project's settings: the agent's own sign-in a
   await s.locator('#npsignincancel').click();
   await expect(s.locator('#npsignin')).toHaveCount(0);
   // Cancelled: nothing kept; + adds again (not while a sign-in is shown).
-  await signIn(core, s, files);
+  await newAccount(core, s, files);
   again = await signingIn(core, files);
   await expect(s.locator('#npagentadd')).toBeDisabled();
   await s.locator('#npsignincancel').click();
@@ -246,7 +207,7 @@ test("a new account is made in the project's settings: the agent's own sign-in a
   await expect(s.locator('#npsignin')).toHaveCount(0);
   await expect(s.locator('#npagentadd')).toBeEnabled();
   // Not signed in (the agent's sign-in ended without it): said so, Try Again.
-  await signIn(core, s, files);
+  await newAccount(core, s, files);
   again = await signingIn(core, files);
   await typeSignIn(core, '\r');
   await expect(s.locator('#npsigninerror')).toHaveText(/Not signed in/);
@@ -258,7 +219,7 @@ test("a new account is made in the project's settings: the agent's own sign-in a
   await closeSettings(core, ui, sui);
   // A task runs it: the agent with its folder in its variable, though the project's environment set it to another
   // (app.ts: its shell's startup, as a project's .envrc). Choosing a task's agent lists the project's accounts.
-  await newTask(core, ui, files);
+  await newTask(core, ui, null, files.pid('project'));
   await expect.poll(() => core((k) => k.shell.task.promptTarget()?.agent.id), { timeout: 20000 }).toBe(work); // the project's default: its one account
   await core((k) => k.watchPty(k.shell.task.pty));
   await termShows(ui, `config [${dir}]`);

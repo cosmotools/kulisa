@@ -4,11 +4,10 @@ import fs from 'fs';
 import path from 'path';
 import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
-import { SITE, PORT } from './helpers.ts';
+import { SITE, PORT, CHECKOUT, act } from './helpers.ts';
 import { MARK } from '../../src/main/kulisa-plugin/ghost.ts';
-import { profiles, signIn, act, opened } from './agent-helpers.ts';
+import { profiles, signIn, opened } from './agent-helpers.ts';
 
-const ROOT = path.join(import.meta.dirname, '..', '..'); // the checkout: a file of its own to upload
 
 // A picture the agent got, as Electron reads it: its size, and the color of one pixel ([b, g, r, a]).
 const image = (core: Core, data: string, at?: { x: number; y: number }) => core((k, a) => {
@@ -59,7 +58,7 @@ test('agent: highlight elements for the human (also on Trusted Types pages), the
 test('highlights go away when the human clicks or types in the page', async ({ core, call, files }) => {
   const { sam } = await profiles(core);
   const key = `${files.tkey('project', 1)}/${sam}`;
-  const highlighted = () => core(async (k, a) => (await k.import('src/main/kulisa-plugin/tools/browser.ts')).highlights.has(a) as boolean, key);
+  const highlighted = () => core((k, a) => k.browserTools.highlights.has(a), key);
   await call('browser_navigate', { profile: 'Sam.seller', url: `${SITE}/app` });
   for (const input of [[{ type: 'mouseDown', x: 300, y: 300, button: 'left', clickCount: 1 }, { type: 'mouseUp', x: 300, y: 300, button: 'left', clickCount: 1 }],
     [{ type: 'keyDown', keyCode: 'Shift' }, { type: 'keyUp', keyCode: 'Shift' }]] as (Electron.MouseInputEvent | Electron.KeyboardInputEvent)[][]) {
@@ -227,7 +226,7 @@ test('agent: keys, hover, select, files, waiting, evaluate, back and forward; di
   await call('browser_select_option', { ...p, locator: "getByLabel('Size')", values: ['L'] });
   expect(await out()).toBe('size L');
   expect(JSON.parse((await call('browser_evaluate', { ...p, locator: "getByLabel('Size')", function: '(el) => el.value' })).text)).toBe('L');
-  await call('browser_file_upload', { ...p, locator: "getByLabel('Attachment')", paths: [path.join(ROOT, 'package.json')] });
+  await call('browser_file_upload', { ...p, locator: "getByLabel('Attachment')", paths: [path.join(CHECKOUT, 'package.json')] });
   expect(await out()).toBe('file package.json');
   await call('browser_hover', { ...p, locator: "getByText('Help')" });
   await call('browser_wait_for', { ...p, text: 'Hint shown', seconds: 2 });

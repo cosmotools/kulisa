@@ -3,14 +3,19 @@
 // hand would (keys as input events). Loaded by app.ts; the tests import only its type.
 import electron from 'electron';
 import fs from 'fs';
-import path from 'path';
-import url from 'url';
 import type { WebContents } from 'electron';
 import type { IPty } from 'node-pty';
 import type { Shell } from '../../src/main/shell.ts';
 import type { AppWindow } from '../../src/main/window.ts';
 import type { SettingsWindow } from '../../src/main/settings-window.ts';
 import type { Question } from '../../src/shared/types.ts';
+// The app's own instances (app.ts loads the same files): what a test reaches beyond the shell, imported here so that
+// core's functions, which are eval'd and cannot import, get them by k.
+import * as pageMenu from '../../src/main/page-menu.ts';
+import * as agentHooks from '../../src/main/kulisa-plugin/agent-hooks.ts';
+import * as browserTools from '../../src/main/kulisa-plugin/tools/browser.ts';
+import { removeTree } from '../../src/main/remove.ts';
+import { worktreesOf } from '../../src/main/store.ts';
 
 type Modifier = 'control' | 'shift' | 'alt' | 'meta';
 // Kulisa's keys that are ⌘ on macOS and Ctrl elsewhere (CommandOrControl in keys.ts); Ctrl+` and Ctrl+Tab are Ctrl's
@@ -19,7 +24,7 @@ const CMD: Modifier = process.platform === 'darwin' ? 'meta' : 'control';
 
 // A key pressed where the human's keyboard would put it: an input event into that page, which Kulisa's own keys see
 // first (keys.ts, before-input-event). Into a profile's page too, which the tests never drive through Playwright
-// (docs/testing.md, End to end on Playwright Test).
+// (docs/testing.md, End to end).
 const press = (wc: WebContents, keyCode: string, ...modifiers: Modifier[]) => {
   for (const type of ['keyDown', 'keyUp'] as const) wc.sendInputEvent({ type, keyCode, modifiers });
 };
@@ -38,7 +43,7 @@ export function driver(shell: Shell, openedExternally: string[]) {
   const watchPty = (p: IPty) => { if (!watched.has(p)) { watched.add(p); p.onData((d) => (pty += d)); } };
   const k = {
     // Electron's module, for what a test does in the main process beyond Kulisa's own (its menus, the theme, the app).
-    electron, shell, CMD, press, profile, watchPty, openedExternally,
+    electron, shell, CMD, press, profile, watchPty, openedExternally, pageMenu, agentHooks, browserTools, removeTree, worktreesOf,
     ptyOutput: () => pty,
     // Kulisa's uncaught errors (app.ts): fixtures.ts fails the test they came in.
     errors: [] as string[],
@@ -46,8 +51,11 @@ export function driver(shell: Shell, openedExternally: string[]) {
     // that does it, false Cancel, 'other' the other one; null leaves the dialog to the test. asked: what was asked.
     answer: true as boolean | 'other' | null,
     asked: [] as Question[],
-    // A test begins with Kulisa's questions answered yes, none asked yet, no output read (fixtures.ts).
-    reset() { k.errors.length = 0; k.asked.length = 0; k.answer = true; pty = ''; },
+    // What a test keeps in the main process between its core() calls (a stubbed function's original, an object it
+    // watches): only data crosses back, so it stays here, by name. Empty as each test begins.
+    stash: {} as Record<string, any>,
+    // A test begins with Kulisa's questions answered yes, none asked yet, no output read, nothing stashed (fixtures.ts).
+    reset() { k.errors.length = 0; k.asked.length = 0; k.answer = true; pty = ''; k.stash = {}; },
     // A profile of the task shown, made if it is not there yet, its pane laid out in the grid and its tab in front on
     // url once loaded: what a test that needs a profile starts from, through the core (making profiles is tested in
     // Settings' tests). A page not laid out yet takes no focus.
@@ -59,9 +67,6 @@ export function driver(shell: Shell, openedExternally: string[]) {
       if (tab.wc.getURL() !== url) { p.navigate(tab.id, url); await new Promise<void>((r) => tab.wc.once('did-finish-load', () => r())); }
       return p;
     },
-    // A module of Kulisa's main process by its path from the checkout ('src/main/page-menu.ts'): the app's own instance,
-    // for state the driver does not give (core's function cannot import: it is eval'd).
-    import: (file: string) => import(url.pathToFileURL(path.join(import.meta.dirname, '..', '..', file)).href),
     // How many webContents there are (a page's process gone with its own).
     webContents: () => electron.webContents.getAllWebContents().length,
     // A window given the keyboard, as the human's click gives it (helpers.ts, focusWindow waits until its page has it).

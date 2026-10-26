@@ -1,8 +1,13 @@
-// What the agent's e2e files (agent-*.spec.ts) share: the two profiles they act on, made through the core, and the
-// window's actions as its page sends them.
+// What the agent's e2e files share: the two profiles the agent's tools act on (agent-*.spec.ts), made through the core;
+// the fake agent CLI as its installer leaves it (app.ts).
+import fs from 'fs';
+import path from 'path';
 import type { Page } from '@playwright/test';
 import type { Core, Call } from './fixtures.ts';
-import { SITE } from './helpers.ts';
+import type { data } from './data.ts';
+import { SITE, WIN, invoke } from './helpers.ts';
+
+type Files = ReturnType<typeof data>;
 
 // Sam.seller (the fox, "seller in the test shop") and Elon.buyer (the penguin, who it is not said), open in the shown
 // task, laid out, each its one tab in front on the app's page: what the agent's tests start from (making profiles is
@@ -27,10 +32,21 @@ export const profiles = (core: Core) => core(async (k, url) => {
 // Signed in to the test site, as the agent does it (its sign-in page sets the cookie).
 export const signIn = (call: Call, profile: string, name: string) => call('browser_navigate', { profile, url: `${SITE}/app/login?name=${name}` });
 
-// An action of the window as its page sends it (lib/store.ts, act: for the task shown), and a channel invoked as is.
-// What they answer ({ error } when refused).
-export const act = (ui: Page, channel: string, args: Record<string, unknown>) => ui.evaluate(([c, a]) => (window as any).act(c, a), [channel, args] as const);
-export const invoke = (ui: Page, channel: string, args: Record<string, unknown>) => ui.evaluate(([c, a]) => (window as any).kulisa.invoke(c, a), [channel, args] as const);
-
 // The tab a tool opened, by its answer.
 export const opened = (r: { text: string }) => r.text.match(/Opened tab (\w+)/)[1];
+
+// The fake agent's program once installed (app.ts): on Windows its .cmd, which Kulisa finds and runs.
+export const fakeBin = (files: Files) => path.join(files.root, 'bin', WIN ? 'kulisa-fake-agent.cmd' : 'kulisa-fake-agent');
+// The fake agent installed (or not), as its installer leaves it: the program in the test's bin, on Windows a .cmd running
+// it with bash (installing is tested in Settings → Agents); looked for again.
+export async function fakeAgent(ui: Page, files: Files, installed = true) {
+  const bin = path.join(files.root, 'bin'), program = path.join(bin, 'kulisa-fake-agent');
+  if (installed && !fs.existsSync(fakeBin(files))) {
+    fs.mkdirSync(bin, { recursive: true });
+    fs.copyFileSync(path.join(import.meta.dirname, '..', 'fixtures', 'fake-agent.sh'), program);
+    fs.chmodSync(program, 0o755);
+    if (WIN) fs.writeFileSync(`${program}.cmd`, '@bash "%~dp0kulisa-fake-agent" %*');
+  }
+  if (!installed) for (const f of [program, `${program}.cmd`]) fs.rmSync(f, { force: true });
+  await invoke(ui, 'agents:list', { details: true, cached: false });
+}

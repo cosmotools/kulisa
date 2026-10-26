@@ -2,11 +2,11 @@
 // profiles, test users' sign-ins (docs/profiles.md).
 import fs from 'fs';
 import path from 'path';
-import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
 import type { data } from './data.ts';
-import { SITE, PORT, MAC, WIN, near, sleep, who, menu, menuRows, choose, closeMenu, taskMenu, manageProfiles, closeSettings, setProfileField, plusMenu, closeBoard, viewOn } from './helpers.ts';
+import { SITE, PORT, MAC, WIN, near, sleep, who, menu, menuRows, choose, closeMenu, taskMenu, manageProfiles, closeSettings, setProfileField, plusMenu, closeBoard, viewOn, invoke } from './helpers.ts';
+import { profileId, deleteProfile } from './tasks-helpers.ts';
 
 type Files = ReturnType<typeof data>;
 
@@ -16,22 +16,8 @@ const cacheStorageFiles = (dir: string) => {
   try { return fs.readdirSync(dir, { recursive: true, withFileTypes: true }).filter((f) => f.isFile() && f.parentPath.includes('CacheStorage')).length; }
   catch (e) { if ((e as NodeJS.ErrnoException).code === 'ENOENT') return NaN; throw e; }
 };
-// A profile's id by its name, open or closed (the core's: profiles.json keeps a profile its project let go, and the
-// tests here make one of a name again), or null.
-const idOf = (core: Core, name: string) => core((k, n) => {
-  const all = [...k.shell.profiles.values(), ...[...k.shell.closed.values()].map((c) => c.cfg)];
-  return all.find((p) => p.name.toLowerCase() === n.toLowerCase())?.id ?? null;
-}, name);
-// A profile deleted for good (Settings → Profiles' Delete, as the window sends it), when there is one of that name.
-async function remove(core: Core, ui: Page, name: string) {
-  const id = await idOf(core, name);
-  if (!id) return;
-  await ui.evaluate((p) => (window as any).kulisa.invoke('profiles:delete', { profile: p }), id);
-  await expect.poll(() => core((k, p) => !k.shell.profileStore.get(p), id)).toBe(true);
-}
-// The tabs saved for a profile of the first task, by its id.
+// The tabs saved for a profile of the first task, by its id (a name may be made again here).
 const savedTabs = (files: Files, id: string): string[] => JSON.parse(fs.readFileSync(files.pfile(path.join(id, 'Kulisa Tabs.json')), 'utf8')).urls;
-const log = (files: Files) => fs.readFileSync(path.join(files.userData, 'logs', 'kulisa.log'), 'utf8');
 // Ctrl+ a key (⌘ on macOS) where the keyboard is put first: Kulisa's window, or a profile's tab (its active one).
 const ctrl = (core: Core, where: string | null, key: string) => core((k, a) => {
   const wc = a.where === null ? k.shell.win.webContents : k.profile(a.where).get().wc;
@@ -180,26 +166,25 @@ test('tabs on sign-in pages are saved as where the sign-in started', async ({ co
 });
 
 test('close a profile (its × or the agent) and open it again (👥 or the agent): signed in, same tabs; the agent removes it from the project only when the human confirms', async ({ core, ui, call, files }) => {
-  await remove(core, ui, 'Cleo');
+  await deleteProfile(core, ui, 'Cleo');
   const saved = (f: string): { id: string; closed?: boolean }[] => JSON.parse(fs.readFileSync(files.pfile(f), 'utf8'));
   await call('profile_create', { name: 'Cleo' });
-  const cleo = await idOf(core, 'Cleo');
+  const cleo = await profileId(core, 'Cleo');
   const header = ui.locator(`.ptab[data-panel="profile:${cleo}"]`);
   const { dir: cleoDir, cookies: cookiesFile, avatar } = await core((k) => { const p = k.profile('Cleo'); return { dir: p.dir, cookies: k.shell.sessionCookies.file(p), avatar: p.avatar }; });
   await call('browser_navigate', { profile: 'Cleo', url: `${SITE}/app/login?name=cleo` }); // a session cookie
   await call('browser_tab_new', { profile: 'Cleo', url: `${SITE}/app?second` });
   // Its tabs' pages kept to look at once they are gone.
-  await core((k) => { (globalThis as any).__cleoTabs = k.profile('Cleo').tabs.map((t) => t.wc); });
+  await core((k) => { k.stash.cleoTabs = k.profile('Cleo').tabs.map((t) => t.wc); });
   await expect(header.locator('.close')).toHaveCount(1);
   const cacheSize = () => core((k, d) => k.electron.session.fromPath(d).getCacheSize(), cleoDir);
 
   expect(await cacheSize(), 'pages were cached').toBeGreaterThan(0);
   // A site's Cache API (its service worker's copies of its bundles) was the largest part of a closed copy: 200 MB for Teams.
-  await core(() => (globalThis as any).__cleoTabs[1].executeJavaScript(`caches.open('bundles').then((c) => c.put('/bundle.js', new Response('x'.repeat(100000))))`));
+  await core((k) => k.stash.cleoTabs[1].executeJavaScript(`caches.open('bundles').then((c) => c.put('/bundle.js', new Response('x'.repeat(100000))))`));
   await expect.poll(() => cacheStorageFiles(cleoDir)).toBeGreaterThan(0);
   await header.locator('.close').click();
-  await expect.poll(() => core((k, id) => !k.shell.profiles.has(id) && (globalThis as any).__cleoTabs.every((wc: Electron.WebContents) => wc.isDestroyed()), cleo)).toBe(true);
-  await core(() => { delete (globalThis as any).__cleoTabs; });
+  await expect.poll(() => core((k, id) => !k.shell.profiles.has(id) && k.stash.cleoTabs.every((wc: Electron.WebContents) => wc.isDestroyed()), cleo)).toBe(true);
   await expect.poll(cacheSize).toBe(0); // a closed profile keeps no cache
   await expect.poll(() => cacheStorageFiles(cleoDir)).toBe(0);
   await expect(header).toHaveCount(0);
@@ -248,7 +233,7 @@ test('close a profile (its × or the agent) and open it again (👥 or the agent
   fs.writeFileSync(cookiesFile, 'not what safeStorage wrote');
   await call('profile_open', { profile: 'Cleo' });
   expect(await who(call, 'Cleo')).toBe('Signed in as cleo');
-  expect(log(files)).toMatch(/\[session-cookies\] .*: the saved session cookies cannot be read \(saved with another keyring key\?\): not put back/);
+  expect(files.log()).toMatch(/\[session-cookies\] .*: the saved session cookies cannot be read \(saved with another keyring key\?\): not put back/);
 
   // The agent removes it from the project: the human is asked; no keeps it, yes removes it (closed ones too); the
   // profile stays in Settings → Profiles.
@@ -265,15 +250,15 @@ test('close a profile (its × or the agent) and open it again (👥 or the agent
   expect(JSON.parse(fs.readFileSync(path.join(files.userData, 'deleted-folders.json'), 'utf8'))).toContain(cleoDir);
   expect(await core((k, id) => k.shell.profileStore.projectsOf(k.shell.profileStore.get(id)), cleo), 'kept, in no project').toEqual([]);
   // Deleted for good, as Settings does: the file's next runs make a Cleo again.
-  await ui.evaluate((id) => (window as any).kulisa.invoke('profiles:delete', { profile: id }), cleo);
+  await invoke(ui, 'profiles:delete', { profile: cleo });
   await expect.poll(() => core((k, id) => !k.shell.profileStore.get(id), cleo)).toBe(true);
 });
 
 test('a profile with a tab on a site that never answers opens anyway, and the agent can use it', async ({ core, ui, call, files }) => {
   test.setTimeout(45000); // browser_tab_new on /hang answers after its 5 s
-  await remove(core, ui, 'Hung');
+  await deleteProfile(core, ui, 'Hung');
   await call('profile_create', { name: 'Hung' });
-  const hung = await idOf(core, 'Hung');
+  const hung = await profileId(core, 'Hung');
   await call('browser_tab_new', { profile: 'Hung', url: `${SITE}/hang` }); // returns after 5 s without a page
   await core((k, id) => k.shell.task.closeProfile(id), hung);
   await expect.poll(() => savedTabs(files, hung).some((u) => u.endsWith('/hang'))).toBe(true);
@@ -281,13 +266,13 @@ test('a profile with a tab on a site that never answers opens anyway, and the ag
   expect(took < 10000, `opened in ${took} ms`).toBe(true);
   const t = await call('browser_tab_new', { profile: 'Hung', url: `${SITE}/app` });
   expect(t.text).toMatch(/app/);
-  await remove(core, ui, 'Hung');
+  await deleteProfile(core, ui, 'Hung');
 });
 
 test('a tab on a site that refuses to connect (its dev server not started, as in a new task) opens at once, and so does its profile', async ({ core, ui, call, files }) => {
-  await remove(core, ui, 'Down');
+  await deleteProfile(core, ui, 'Down');
   await call('profile_create', { name: 'Down' });
-  const down = await idOf(core, 'Down');
+  const down = await profileId(core, 'Down');
   // At once: what Chromium takes to be told the connection is refused, about 2 s on Windows (a bare Electron's page too).
   const soon = WIN ? 3500 : 2000;
   const started = Date.now();
@@ -297,13 +282,13 @@ test('a tab on a site that refuses to connect (its dev server not started, as in
   await expect.poll(() => savedTabs(files, down).some((u) => u.includes(':4419/'))).toBe(true);
   const took = await core(async (k, id) => { const at = Date.now(); await k.shell.task.openProfile(id); return Date.now() - at; }, down);
   expect(took < soon, `profile opened in ${took} ms`).toBe(true);
-  await remove(core, ui, 'Down');
+  await deleteProfile(core, ui, 'Down');
 });
 
 test('closing the last tab of a profile leaves an empty tab, not a pane without a page (the window and the agent)', async ({ core, ui, call }) => {
-  await remove(core, ui, 'Solo');
+  await deleteProfile(core, ui, 'Solo');
   await call('profile_create', { name: 'Solo' });
-  const solo = await idOf(core, 'Solo');
+  const solo = await profileId(core, 'Solo');
   const tabs = ui.locator(`.pane[data-profile="${solo}"] .tabs .tab`);
   for (const by of ['window', 'agent'] as const) {
     const only = await core((k) => k.profile('Solo').tabs[0].id);
@@ -317,19 +302,19 @@ test('closing the last tab of a profile leaves an empty tab, not a pane without 
   }
   await ui.evaluate((id) => (window as any).act('profile:delete', { profile: id }), solo);
   await expect.poll(() => core((k, id) => k.shell.profiles.has(id), solo)).toBe(false);
-  await remove(core, ui, 'Solo');
+  await deleteProfile(core, ui, 'Solo');
 });
 
 test("test users' sign-ins: the agent saves a pair and signs in with it on a local page, never seeing the password; refused elsewhere; the human sets one in the editor", async ({ core, ui, sui, call, files }) => {
-  await remove(core, ui, 'Tess');
+  await deleteProfile(core, ui, 'Tess');
   await call('profile_create', { name: 'Tess' });
-  const tess = await idOf(core, 'Tess');
-  await core(() => {
-    const g = globalThis as any;
-    g.__actions = [];
-    g.__watch = (a: { caption: string }) => { g.__actions.push(a.caption); };
+  const tess = await profileId(core, 'Tess');
+  await core((k) => {
+    const g = k.stash;
+    g.actions = [];
+    g.watch = (a: { caption: string }) => { g.actions.push(a.caption); };
   });
-  await core((k) => k.shell.bus.on('agent-action', (globalThis as any).__watch));
+  await core((k) => k.shell.bus.on('agent-action', k.stash.watch));
   try {
     expect((await call('profile_set_login', { profile: 'Tess', login: 'tester', password: 'secret-tester' })).text).toMatch(/kept encrypted/);
     const listed = JSON.parse((await call('profile_list', {})).text).find((p: { name: string }) => p.name === 'Tess');
@@ -339,9 +324,9 @@ test("test users' sign-ins: the agent saves a pair and signs in with it on a loc
     await call('browser_type_login', { profile: 'Tess', locator: "locator('#user')", field: 'login' });
     expect((await call('browser_type_login', { profile: 'Tess', locator: "locator('#pass')", field: 'password', submit: true })).text).toMatch(/^Typed Tess's password/);
     expect(await who(call, 'Tess')).toBe('Signed in as tester');
-    const actions = await core(() => (globalThis as any).__actions as string[]);
+    const actions = await core((k) => k.stash.actions as string[]);
     expect(!actions.some((c) => /secret/.test(c || '')) && actions.includes('type ••••••'), 'the pane shows dots, not the password').toBe(true);
-  } finally { await core((k) => k.shell.bus.off('agent-action', (globalThis as any).__watch)); }
+  } finally { await core((k) => k.shell.bus.off('agent-action', k.stash.watch)); }
   // Not a local page: refused, nothing typed.
   await call('browser_navigate', { profile: 'Tess', url: 'data:text/html,<input id="x">' });
   await expect(call('browser_type_login', { profile: 'Tess', locator: "locator('#x')", field: 'password' })).rejects.toThrow(/not the app under test on this computer/);
@@ -363,7 +348,7 @@ test("test users' sign-ins: the agent saves a pair and signs in with it on a loc
   await call('browser_type_login', { profile: 'Tess', locator: "locator('#pass')", field: 'password', submit: true });
   expect(await who(call, 'Tess'), "the human's pair").toBe('Signed in as tess');
   // The log (window.md, The log): the agent's tool and the human's field are there, their passwords not.
-  const logged = log(files);
+  const logged = files.log();
   expect(logged, 'the tool call, its password left out').toMatch(/\[mcp\] profile_set_login \S+\/[a-z0-9]{6} \{"profile":"Tess","login":"tester","password":"…"\}/);
   expect(logged, "the human's field, the same").toMatch(new RegExp(`\\[ipc\\] profiles:login wc=\\d+ \\{"profile":"${tess}","user":"tester","password":"…"\\}`));
   expect(logged, 'no password in the log').not.toMatch(/secret-tes/);
@@ -373,13 +358,13 @@ test("test users' sign-ins: the agent saves a pair and signs in with it on a loc
   await call('browser_navigate', { profile: 'Tess', url: 'http://nowhere.invalid/x?code=abc' }).catch(() => {});
   // But that it would not load, the address bare (the page says so after the tool has answered; Electron's own warning
   // of it, with the address in full, comes just before).
-  await expect.poll(() => log(files)).toMatch(new RegExp(`\\[warn\\] \\[profile\\] ${tess} page failed to load http://nowhere\\.invalid/x\\?…: ERR_NAME_NOT_RESOLVED \\(-105\\)`));
-  const later = log(files);
+  await expect.poll(() => files.log()).toMatch(new RegExp(`\\[warn\\] \\[profile\\] ${tess} page failed to load http://nowhere\\.invalid/x\\?…: ERR_NAME_NOT_RESOLVED \\(-105\\)`));
+  const later = files.log();
   expect(later).toMatch(/\[mcp\] browser_type \S+\/[a-z0-9]{6} \{"profile":"Tess","locator":"locator\('body'\)","text":"…"\}/);
   expect(later).toMatch(/\[mcp\] browser_navigate \S+\/[a-z0-9]{6} \{"profile":"Tess","url":"http:\/\/nowhere\.invalid\/x\?…"\}/);
   expect(later, "nothing of the page's address or the typed text").not.toMatch(/typed-by-agent|code=abc|did-fail|certificate-error/);
   await call('profile_delete', { profile: 'Tess' });
-  await ui.evaluate((id) => (window as any).kulisa.invoke('profiles:delete', { profile: id }), tess);
+  await invoke(ui, 'profiles:delete', { profile: tess });
   await expect.poll(() => core((k, id) => !k.shell.profileStore.get(id), tess)).toBe(true);
 });
 

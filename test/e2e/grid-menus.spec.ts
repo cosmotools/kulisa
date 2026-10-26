@@ -7,50 +7,16 @@ import url from 'url';
 import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
-import type { data } from './data.ts';
 import { removeTree } from '../../src/main/remove.ts';
-import { SITE, MAC, WIN, sleep, menu, menuRows, choose, closeMenu, rightClick, focusWindow, box, pageBox, viewOn } from './helpers.ts';
-
-type Files = ReturnType<typeof data>;
-type Point = { x: number; y: number };
-type Mods = ('control' | 'shift' | 'alt' | 'meta' | 'leftbuttondown' | 'rightbuttondown')[];
-
-const SAM = 'Sam.admin', ELON = 'Elon.buyer';
+import { SITE, MAC, WIN, sleep, menu, anyMenu, menuRows, choose, closeMenu, rightClick, focusWindow, pageBox, viewOn, answered, mouse, scaled, mid } from './helpers.ts';
+import type { Mods } from './helpers.ts';
+import { SAM, ELON, begin } from './tasks-helpers.ts';
 
 const menuOpen = (ui: Page) => menu(ui).isVisible();
-const anyMenu = (ui: Page) => ui.locator('.menu[data-state="open"]');
-// A question asked, and answered in its dialog (driver.ts, answer).
-const answered = (core: Core, page: Page) => expect.poll(async () => (await core((k) => k.asked.length)) > 0
-  && page.evaluate(() => document.getElementById('ask')?.dataset.state !== 'open')).toBe(true);
-// Mouse input into the window's page as the hand sends it (window pixels: the page's CSS pixels times the Kulisa zoom).
-const mouse = (core: Core, type: 'mouseDown' | 'mouseUp' | 'mouseMove', at: Point, button: 'left' | 'right' = 'left', modifiers: Mods = []) =>
-  core((k, a) => k.shell.win.webContents.sendInputEvent({ type: a.type, x: a.at.x, y: a.at.y, button: a.button, clickCount: 1, modifiers: a.modifiers }), { type, at, button, modifiers });
 const zoom = (core: Core) => core((k) => k.shell.win.webContents.getZoomFactor());
-const scaled = (z: number, { x, y }: Point) => ({ x: Math.round(x * z), y: Math.round(y * z) });
-const mid = async (core: Core, ui: Page, sel: string) => { const b = await box(ui, sel); return scaled(await zoom(core), { x: b.x + b.width / 2, y: b.y + b.height / 2 }); };
-
-// The task shown as the tasks' tests know it: named task-1, Sam signed in and Elon signed out side by side (Columns),
-// the agent's output watched. Made through the core (test/setup.ts's state; making and signing in are tested elsewhere).
-async function begin(core: Core, ui: Page, files: Files) {
-  await core(async (k) => {
-    const task = k.shell.task, has = (n: string) => [...k.shell.profiles.values()].some((p) => p.name === n);
-    if (task.name !== 'task-1') await task.rename('task-1');
-    if (!has('Sam.admin')) await task.createProfile('Sam.admin', 'seller in the test shop', 'fox');
-    if (!has('Elon.buyer')) await task.createProfile('Elon.buyer', '', 'owl');
-    k.watchPty(k.shell.pty);
-  });
-  await expect(ui.locator('.ptab[data-panel^="profile:"]')).toHaveCount(2); // a pane stacked behind another has no .pane drawn
-  await expect(ui.locator('html')).not.toHaveClass(/\bloading\b/);
-  await ui.evaluate(() => (window as any).__layoutPreset('columns'));
-  await core(async (k, site) => {
-    await k.ensureProfile('Sam.admin', `${site}/app/login?name=sam`);
-    await k.ensureProfile('Elon.buyer', `${site}/app`);
-  }, SITE);
-  await expect.poll(async () => (await viewOn(core, ui, files, SAM)) && viewOn(core, ui, files, ELON)).toBe(true);
-}
 
 test('context menus: a pane\'s header, a tab, the terminal; pages are pictures while a menu is open; Arrange panels in ☰; Exit', async ({ core, ui, files }) => {
-  await begin(core, ui, files);
+  await begin(core, ui, files, { columns: true });
   const elonId = files.idOf(ELON), header = `.ptab[data-panel="${files.panel(ELON)}"]`;
   const elonVisible = () => core((k) => k.profile('Elon.buyer').get().view.getVisible());
   await rightClick(ui, header);
@@ -87,10 +53,9 @@ test('context menus: a pane\'s header, a tab, the terminal; pages are pictures w
     await expect(menu(ui)).toBeVisible({ timeout: 1500 });
   }).toPass({ timeout: 5000 });
   expect(await menuRows(ui)).toEqual(['Reload', 'Duplicate', '-', 'Close tab', 'Close other tabs']);
-  await core((k) => { (globalThis as any).__firstTab = k.profile('Elon.buyer').tabs[0]; });
+  await core((k) => { k.stash.firstTab = k.profile('Elon.buyer').tabs[0]; });
   await choose(ui, 'Close other tabs');
-  await expect.poll(() => core((k) => { const e = k.profile('Elon.buyer'); return e.tabs.length === 1 && e.tabs[0] === (globalThis as any).__firstTab; })).toBe(true);
-  await core(() => { delete (globalThis as any).__firstTab; });
+  await expect.poll(() => core((k) => { const e = k.profile('Elon.buyer'); return e.tabs.length === 1 && e.tabs[0] === k.stash.firstTab; })).toBe(true);
 
   await ui.evaluate(() => (window as any).__term.clearSelection());
   // A real right-click (press, release): the menu stays after the button is released. On Linux it opens on the
@@ -231,11 +196,11 @@ test('context menus: a pane\'s header, a tab, the terminal; pages are pictures w
     await mouse(core, 'mouseUp', p, 'left', mods);
   };
   await core((k) => {
-    const e = k.electron, g: any = (globalThis as any).__links = { openPath: e.shell.openPath, showItemInFolder: e.shell.showItemInFolder, files: [] };
+    const e = k.electron, g: any = k.stash.links = { openPath: e.shell.openPath, showItemInFolder: e.shell.showItemInFolder, files: [] };
     e.shell.openPath = async (p: string) => { g.files.push(`open ${p}`); return ''; };
     e.shell.showItemInFolder = (p: string) => { g.files.push(`show ${p}`); };
   });
-  const handed = () => core((): string[] => (globalThis as any).__links.files);
+  const handed = () => core((k): string[] => k.stash.links.files);
   try {
     // The menu has no heading: the path is in the terminal. Which file a link is, by what the OS is handed.
     const chooseFile = async (row: string) => { const n0 = (await handed()).length; await choose(ui, row); await expect.poll(async () => (await handed()).length).toBe(n0 + 1); };
@@ -270,7 +235,7 @@ test('context menus: a pane\'s header, a tab, the terminal; pages are pictures w
     const a = path.join(dir, 'a.txt');
     expect(await handed()).toEqual([`open ${a}`, `show ${run}`, `show ${dir}`, `show ${path.join(dir, long)}`, `show ${a}`, `show ${a}`, `show ${a}`]);
   } finally {
-    await core((k) => { const g = (globalThis as any).__links; Object.assign(k.electron.shell, { openPath: g.openPath, showItemInFolder: g.showItemInFolder }); delete (globalThis as any).__links; });
+    await core((k) => { const g = k.stash.links; Object.assign(k.electron.shell, { openPath: g.openPath, showItemInFolder: g.showItemInFolder }); });
     removeTree(dir);
   }
 
@@ -316,7 +281,7 @@ test('context menus: a pane\'s header, a tab, the terminal; pages are pictures w
 });
 
 test("menus with the mouse and the keyboard, as the OS's: a press on ☰, a drag to a row and the release there chooses it; a click opens, the next closes; a right-click's release over a row chooses nothing; Enter and the arrows; the keyboard back where it was; leaving the window closes it", async ({ core, ui, files }) => {
-  await begin(core, ui, files);
+  await begin(core, ui, files, { columns: true });
   const z = await zoom(core);
   const rowAt = async (label: string) => scaled(z, await ui.evaluate((l) => {
     const r = [...document.querySelectorAll('.menu[data-state="open"] .item')].find((e) => e.querySelector('.label').textContent === l).getBoundingClientRect();
@@ -398,13 +363,13 @@ test("menus with the mouse and the keyboard, as the OS's: a press on ☰, a drag
   await expect(menu(ui)).toBeVisible();
   try {
     await core((k) => {
-      const e = k.electron, other = (globalThis as any).__otherWindow = new e.BrowserWindow({ width: 300, height: 200, show: false });
+      const e = k.electron, other = k.stash.otherWindow = new e.BrowserWindow({ width: 300, height: 200, show: false });
       // macOS makes a window key only in the active app, and the tests run while another one (the terminal) may be.
       if (process.platform === 'darwin') e.app.focus({ steal: true });
       other.show(); other.focus();
     });
     await expect(anyMenu(ui)).toHaveCount(0);
-  } finally { await core(() => { (globalThis as any).__otherWindow?.destroy(); delete (globalThis as any).__otherWindow; }); }
+  } finally { await core((k) => { k.stash.otherWindow?.destroy(); }); }
   // The window has the keyboard again before the tests after: a menu opened while it has not closes at once. The
   // OS's focus waited for too: the page had it at once and the window manager's came later, its blur closing the
   // menu the next test opens (on a loaded machine).

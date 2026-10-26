@@ -1,22 +1,16 @@
 // A project of several repositories (docs/tasks.md, Several repositories): a task's worktree made on demand, another
 // repository added to a task and removed from it, by the human and by the agent, and the project's folders.
 import fs from 'fs';
-import http from 'http';
 import path from 'path';
 import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
-import { attr, menuRows, choose, rightClick, closeSettings, termText, termDump } from './helpers.ts';
-import { git, invoke, asked, notLoading, projectMenu, newTask, pageOf, onRow } from './project-helpers.ts';
+import { attr, menuRows, choose, rightClick, closeSettings, termText, termDump, invoke, asked, projectMenu, pageOf, onRow } from './helpers.ts';
+import { git, committed, hook, newTask, showTask, openFolder, projectShown } from './tasks-helpers.ts';
 import { removeTree } from '../../src/main/remove.ts';
 
 // What the agent is told at a session's start (its SessionStart hook, as its plugin sends it: agent-hooks.ts).
-const sessionContext = async (core: Core, task: string) => {
-  const url = await core((k, key) => k.hooksOf(k.shell.taskByKey(key)), task);
-  const answer = await new Promise<string>((resolve) => http.request(`${url}/session-start`, { method: 'POST' },
-    (res) => { let body = ''; res.on('data', (d) => (body += d)); res.on('end', () => resolve(body)); }).end('{}'));
-  return JSON.parse(answer).hookSpecificOutput.additionalContext as string;
-};
+const sessionContext = async (core: Core, task: string) => (await hook(core, task, 'session-start')).hookSpecificOutput.additionalContext as string;
 // The task's agent's state, as its hooks report it.
 const setState = (core: Core, task: string, state: string) => core((k, a) => { const t = k.shell.taskByKey(a.task); t.setState(t.agentTerminals()[0], a.state as never); }, { task, state });
 // The terminal shows text n times (typed, then echoed by the agent: cat).
@@ -30,16 +24,9 @@ test('projects: several repositories: a task works in the main tree until it mak
   test.slow(); // git's work: worktrees made and removed, two clones
   const root = files.root;
   for (const d of ['api', 'web', 'docs', 'notes', 'docs.git', 'notes.git', 'plain']) if (fs.existsSync(path.join(root, d))) removeTree(path.join(root, d));
-  const repo = (name: string) => {
-    const d = path.join(root, name);
-    fs.mkdirSync(d); git(d, 'init', '-q'); fs.writeFileSync(path.join(d, 'a.txt'), name); git(d, 'add', '-A'); git(d, 'commit', '-qm', name);
-    return d;
-  };
+  const repo = (name: string) => committed(path.join(root, name), 'a.txt', name, name);
   const api = repo('api'), web = repo('web');
-  await invoke(ui, 'project:open', { folder: api });
-  await expect.poll(() => core((k, f) => k.shell.current?.folder === f && !!k.shell.task?.loaded && !!k.shell.pty && !k.shell.windows[0].switching, api)).toBe(true);
-  await core((k) => k.watchPty(k.shell.pty));
-  await notLoading(ui);
+  await openFolder(core, ui, api);
   const pid = files.pid('api'), first = await core((k) => k.shell.task.key), firstId = first.split('/')[1];
   const of = (key: string) => core((k, t) => { const x = k.shell.taskByKey(t); return { folder: x.folder, worktrees: x.worktrees.map((c) => ({ repo: c.repo, folder: c.folder, branch: c.branch })), addable: x.addable(), dirs: x.dirs() }; }, key);
   // The Resources island (Resources.vue): each row its label, its branch line (or 'main working tree'), and whether it
@@ -92,7 +79,7 @@ test('projects: several repositories: a task works in the main tree until it mak
   await shownTimes(ui, `Kulisa added ${webCopy} to this task`, 2);
   // A new task: the main working tree again (no copy); once it makes its own worktree it is told of the other
   // repository, to read it there and ask before adding it.
-  const second = await newTask(core, ui, pid);
+  const second = await newTask(core, ui, undefined, pid);
   let t = await of(second);
   expect(t.folder, 'a new task opens in the main working tree too').toBe(api);
   expect([t.worktrees, t.addable]).toEqual([[], []]);
@@ -121,7 +108,7 @@ test('projects: several repositories: a task works in the main tree until it mak
   await pageOf(s, 'api');
   await expect(s.locator('#npfolders .item')).toHaveCount(2);
   expect(await s.locator('#npfolders .item').evaluateAll((rs) => rs.map((r) => `${r.querySelector('.label').textContent} ${!!r.querySelector('.default')}`))).toEqual(['api true', 'web false']);
-  await onRow(s, `#npfolders ${attr('data-folder', web)}`, 'npfolderdel');
+  await onRow(s, `#npfolders ${attr('data-folder', web)}`, '#npfolderdel');
   await expect(s.locator('#npfolderserror')).toContainText(/Tasks work in it: New Task, Checkout/);
   await closeSettings(core, ui, sui);
   // Removed again by its agent once the human agreed: nothing of its own in it, so not asked; its folder and branch
@@ -141,8 +128,7 @@ test('projects: several repositories: a task works in the main tree until it mak
   await core((k) => { k.asked.length = 0; });
   // Back on the first, shown again: the human removes its web by the Resources island's 🗑 (nothing uncommitted in
   // it: not asked); its own worktree's row has no Remove.
-  await invoke(ui, 'task:show', first);
-  await expect.poll(() => core((k, key) => k.shell.task?.key === key && !k.shell.windows[0].switching, first)).toBe(true);
+  await showTask(core, ui, first);
   await expect.poll(async () => (await rows()).length).toBe(2);
   const webRow = ui.locator('#resources .resource').filter({ has: ui.locator('.label', { hasText: /^web$/ }) });
   await webRow.hover(); // its 🗑 shows on the row under the pointer
@@ -156,7 +142,7 @@ test('projects: several repositories: a task works in the main tree until it mak
   const cloned = await invoke(ui, 'project:folder-clone', { id: pid, url: bare });
   expect(cloned.folders.map((r: { folder: string }) => r.folder)).toEqual([api, web, path.join(root, 'docs')]);
   expect((await of(first)).addable, 'web is addable again, and the clone').toEqual([web, path.join(root, 'docs')]);
-  const inMain = await newTask(core, ui, pid); // in the main tree, api's, when web becomes the default: it stays there
+  const inMain = await newTask(core, ui, undefined, pid); // in the main tree, api's, when web becomes the default: it stays there
   expect((await invoke(ui, 'project:folder-default', { id: pid, folder: web })).folders[0].folder).toBe(web);
   expect((await of(inMain)).folder, 'where it opened, though the default is web now').toBe(api);
   // The human adds web back on its tab, then removes it with a file not committed there: asked first, told what goes.
@@ -195,7 +181,7 @@ test('projects: several repositories: a task works in the main tree until it mak
   expect(site.folders.map((r: { folder: string; git: string }) => `${r.folder} ${r.git}`)).toEqual([`${plain} none`, `${docs} ok`, `${notes} ok`]);
   // Its task, working in that folder, adds a repository: a copy on a branch of its own, the task staying where it works.
   await invoke(ui, 'project:open', { folder: plain });
-  await expect.poll(() => core((k, i) => k.shell.current?.id === i && !!k.shell.task?.loaded && !k.shell.windows[0].switching, plainId)).toBe(true);
+  await projectShown(core, plainId);
   const inPlain = await core((k) => k.shell.task.key);
   expect((await of(inPlain)).folder).toBe(plain);
   expect((await of(inPlain)).addable).toEqual([docs, notes]);

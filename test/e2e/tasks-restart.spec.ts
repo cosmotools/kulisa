@@ -3,25 +3,19 @@
 import fs from 'fs';
 import path from 'path';
 import { test, expect } from './fixtures.ts';
-import { SITE, who, viewOn, resourcesHeight } from './helpers.ts';
-import { SAM, ELON, git, begin, invoke, notLoading, newTask } from './project-helpers.ts';
+import { SITE, who, resourcesHeight, invoke, notLoading } from './helpers.ts';
+import { SAM, ELON, committed, begin, bothOn, newTask, showTask } from './tasks-helpers.ts';
 
 test('after a restart: the other task waits in the bar with its tabs, loads when shown, still signed in; a closed one stays closed', async ({ core, ui, call, files, restart }) => {
   test.slow(); // a worktree made, a task opened and closed, Kulisa started again
   const project = files.project;
-  if (!fs.existsSync(path.join(project, '.git'))) {
-    git(project, 'init', '-q');
-    fs.writeFileSync(path.join(project, 'README.md'), '# shop\n');
-    git(project, 'add', '-A');
-    git(project, 'commit', '-qm', 'first');
-  }
-  await begin(core, ui, files);
+  if (!fs.existsSync(path.join(project, '.git'))) committed(project, 'README.md', '# shop\n', 'first');
+  await begin(core, ui, files, { featureX: true });
   const pid = files.pid('project'), first = files.tkey('project', 1), second = files.tkey('project', 2);
   const samId = files.idOf(SAM), elonId = files.idOf(ELON);
   // Feature-X in a worktree of its own (named so by its agent), Sam signed in there as another user than in task-1,
   // its tabs loaded in the background as Kulisa quits.
-  await invoke(ui, 'task:show', second);
-  await expect.poll(() => core((k, key) => k.shell.task?.key === key && !!k.shell.task.loaded && !k.shell.windows[0].switching, second)).toBe(true);
+  await showTask(core, ui, second);
   await notLoading(ui);
   await call('task_worktree', { name: 'Feature-X' });
   expect(await core((k) => k.shell.task.folder)).toBe(`${project}@feature-x`);
@@ -30,11 +24,10 @@ test('after a restart: the other task waits in the bar with its tabs, loads when
   await call('browser_navigate', { profile: SAM, url: `${SITE}/app/login?name=second` });
   expect(await who(call, SAM)).toBe('Signed in as second');
   // A third task, closed.
-  const third = await newTask(core, ui, pid);
+  const third = await newTask(core, ui, undefined, pid);
   await invoke(ui, 'task:close', third);
   await expect.poll(() => core((k, key) => !!k.shell.store.tasksOf({ id: key.split('/')[0] }).list.find((e) => key.endsWith(`/${e.id}`))?.closed, third)).toBe(true);
-  await invoke(ui, 'task:show', first);
-  await expect.poll(() => core((k, key) => k.shell.task?.key === key && !!k.shell.task.loaded && !k.shell.windows[0].switching, first)).toBe(true);
+  await showTask(core, ui, first);
   await notLoading(ui);
 
   const ui2 = await restart();
@@ -57,11 +50,11 @@ test('after a restart: the other task waits in the bar with its tabs, loads when
   expect(await who(call, SAM), 'its own sign-in to the local app').toBe('Signed in as second');
   await ui2.locator(`#projectTabs .tasktab[data-task="${first}"]`).click();
   await expect.poll(() => core((k, key) => k.shell.task?.key === key, first)).toBe(true);
-  await expect.poll(async () => (await viewOn(core, ui2, files, SAM)) && viewOn(core, ui2, files, ELON)).toBe(true);
+  await bothOn(core, ui2, files);
 });
 
 test('after a restart: the grid is as it was left (preset "grid")', async ({ core, ui, files, restart }) => {
-  await begin(core, ui, files);
+  await begin(core, ui, files, { featureX: true });
   await ui.evaluate(() => (window as any).__layoutPreset('grid'));
   // Saved as laid out (the task's layout.json, 300 ms after the grid's last change: lib/grid.ts), before the restart.
   await expect.poll(async () => {

@@ -10,9 +10,9 @@ import { fileURLToPath } from 'url';
 import http from 'http';
 import WebSocket from 'ws';
 import { test, expect } from './fixtures.ts';
-import { SITE } from './helpers.ts';
+import { SITE, act, invoke } from './helpers.ts';
 import { hookCommand } from '../../src/main/agents/agent.ts';
-import { profiles, signIn, act, invoke, opened } from './agent-helpers.ts';
+import { profiles, signIn, opened } from './agent-helpers.ts';
 
 // What the agent's ghost shows of an action (ghost.ts).
 type Action = { caption: string; x?: number; y?: number };
@@ -117,18 +117,18 @@ test('agent bridge: at session start the plugin hook tells the agent which profi
 test('ghost cursor: agent clicks are seen with coordinates', async ({ core, call }) => {
   await profiles(core);
   await core((k) => {
-    const g = globalThis as unknown as { __actions: Action[]; __onAction: (a: Action) => void };
-    g.__actions = [];
-    g.__onAction = (a) => { g.__actions.push(a); };
-    k.shell.bus.on('agent-action', g.__onAction);
+    const g = k.stash as { actions: Action[]; onAction: (a: Action) => void };
+    g.actions = [];
+    g.onAction = (a) => { g.actions.push(a); };
+    k.shell.bus.on('agent-action', g.onAction);
   });
   try {
     await call('browser_click', { profile: 'Sam.seller', locator: "getByRole('button', { name: /Checkout|Checked/ })" });
   } finally {
     const actions = await core((k) => {
-      const g = globalThis as unknown as { __actions: Action[]; __onAction: (a: Action) => void };
-      k.shell.bus.off('agent-action', g.__onAction);
-      return g.__actions;
+      const g = k.stash as { actions: Action[]; onAction: (a: Action) => void };
+      k.shell.bus.off('agent-action', g.onAction);
+      return g.actions;
     });
     const click = actions.find((a) => a.caption === 'click');
     expect(click && click.x > 0 && click.y > 0, JSON.stringify(actions)).toBe(true);

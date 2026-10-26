@@ -6,36 +6,28 @@ import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
 import type { data } from './data.ts';
-import { menuRows, choose, closeMenu, rightClick, projectTabs, projectTab, showProject, plusMenu, focusWindow, closeSettings, settingsClosed, sleep, viewOn } from './helpers.ts';
-import { SAM, ELON, git, begin, invoke, act, typeIn, asked, notLoading, projectMenu, plusOpen, newTask, taskTabs, otherPage, installFakeAgent, pageOf, newProfileHere, onRow } from './project-helpers.ts';
+import { menuRows, choose, closeMenu, rightClick, projectTabs, projectTab, showProject, plusMenu, focusWindow, closeSettings, settingsClosed, sleep, invoke, act, typeIn, asked, notLoading, projectMenu, otherPage, pageOf, onRow } from './helpers.ts';
+import { SAM, git, committed, begin, bothOn, newTask, taskShown, openFolder, projectShown, taskTabs } from './tasks-helpers.ts';
+import { fakeAgent } from './agent-helpers.ts';
 import { createWorktree } from '../../src/main/worktrees.ts';
 import { removeTree } from '../../src/main/remove.ts';
 
 type Files = ReturnType<typeof data>;
 
 const gone = (...dirs: string[]) => { for (const d of dirs) if (fs.existsSync(d)) removeTree(d); };
-// A project opened from its folder (Open Folder…, project:open), its first task shown once its agent started.
-async function openFolder(core: Core, ui: Page, folder: string) {
-  fs.mkdirSync(folder, { recursive: true });
-  await invoke(ui, 'project:open', { folder });
-  await expect.poll(() => core((k, f) => k.shell.current?.folder === f && !!k.shell.task?.loaded && !!k.shell.pty && !k.shell.windows[0].switching, folder)).toBe(true);
-  await core((k) => k.watchPty(k.shell.pty));
-  await notLoading(ui);
-}
 // A project the window has no task of shown again as the human does it (its tab), once it is.
 async function backTo(core: Core, ui: Page, files: Files, folder: string) {
   await showProject(ui, files, folder);
-  await expect.poll(() => core((k, id) => k.shell.current?.id === id && !!k.shell.task?.loaded && !k.shell.windows[0].switching, files.pid(folder))).toBe(true);
+  await projectShown(core, files.pid(folder));
   await notLoading(ui);
 }
-// The tasks' window's page that shows sel, of those the Kulisa of page has.
-async function pageWith(page: Page, sel: string) {
-  let found: Page;
-  await expect.poll(async () => {
-    for (const p of page.context().pages()) if (!p.isClosed() && p.url().includes('/index.html') && await p.locator(sel).count()) { found = p; return true; }
-    return false;
-  }).toBe(true);
-  return found;
+// A new profile on a project's page: + → New Profile…, its name typed in place, Create.
+async function newProfileHere(s: Page, name: string) {
+  await s.locator('#npprofileadd').click();
+  await choose(s, 'New Profile…');
+  await expect(s.locator('#npnewprofile')).toBeFocused();
+  await s.locator('#npnewprofile').fill(name);
+  await s.locator('#npprofilenew').click();
 }
 // A project deleted as Settings does (its data and tasks' copies; Delete Project… is tested below), its folder too.
 async function forget(core: Core, ui: Page, files: Files, folder: string, dir = path.join(files.root, folder)) {
@@ -47,8 +39,8 @@ async function forget(core: Core, ui: Page, files: Files, folder: string, dir = 
 
 test("projects: the projects' manager (Project Settings…) changes its name and agents, the default one + runs, none the default: a new task starts nothing, the island's buttons instead; a folder with a favicon gets it as its icon, and its hue as its color", async ({ core, ui, sui, call, files }) => {
   test.slow(); // three tasks started, Settings opened six times
-  installFakeAgent(files);
-  await begin(core, ui, files);
+  await fakeAgent(ui, files);
+  await begin(core, ui, files, { featureX: true });
   const site = path.join(files.root, 'site');
   fs.mkdirSync(path.join(site, 'public'), { recursive: true });
   fs.writeFileSync(path.join(site, 'public', 'favicon.svg'), '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><circle cx="8" cy="8" r="8" fill="red"/></svg>');
@@ -121,7 +113,7 @@ test("projects: the projects' manager (Project Settings…) changes its name and
   await choose(s, 'Sam.admin');
   await expect(s.locator(`#npprofiles [data-profile="${samId}"] .cell`)).toHaveText(['Sam.admin', 'seller in the test shop', 'project']);
   await expect.poll(() => core((k, a) => k.shell.closed.has(a.sam) && k.shell.closed.has(a.user), { sam: samId, user: siteUser })).toBe(true); // its task lists them, closed
-  await onRow(s, `#npprofiles [data-profile="${siteUser}"]`, 'npprofiledel');
+  await onRow(s, `#npprofiles [data-profile="${siteUser}"]`, '#npprofiledel');
   expect((await asked(core)).message).toBe('Remove the profile Site-user from Site-2?');
   await expect.poll(() => core((k, u) => !k.shell.closed.has(u), siteUser)).toBe(true);
   expect(await core((k, u) => k.shell.profileStore.projectsOf(k.shell.profileStore.get(u)), siteUser), 'in no other project: kept all the same, until deleted in Settings → Profiles').toEqual([]);
@@ -164,7 +156,7 @@ test("projects: the projects' manager (Project Settings…) changes its name and
   })).toEqual([['Agent', 'Account', ''], true]);
   expect((await entryOf()).agents).toEqual(['shell', ann]);
   expect(await core((k, a) => k.shell.store.projectsWith('agents', a).map((p) => p.id), ann), 'the projects list their agents').toEqual([id]);
-  await onRow(s, `#npagents [data-agent="${ann}"]`, 'npagentdefault');
+  await onRow(s, `#npagents [data-agent="${ann}"]`, '#npagentdefault');
   await expect.poll(agentRows).toEqual(['Fake agent · ann@shop.com true', 'Terminal only false']);
   // Its right-click has the same: Make Default.
   // The row not chosen yet: Reka's list takes the keyboard to it just after the menu opens, which would close the
@@ -179,12 +171,12 @@ test("projects: the projects' manager (Project Settings…) changes its name and
   await choose(s, 'No Default');
   await expect.poll(agentRows).toEqual(['Terminal only false', 'Fake agent · ann@shop.com false']);
   expect((await entryOf()).noDefaultAgent).toBe(true);
-  await onRow(s, '#npagents [data-agent="shell"]', 'npagentdefault');
+  await onRow(s, '#npagents [data-agent="shell"]', '#npagentdefault');
   await expect.poll(agentRows).toEqual(['Terminal only true', 'Fake agent · ann@shop.com false']);
   expect((await entryOf()).noDefaultAgent).toBeUndefined();
-  await onRow(s, '#npagents [data-agent="shell"]', 'npagentdefault');
+  await onRow(s, '#npagents [data-agent="shell"]', '#npagentdefault');
   await expect.poll(agentRows).toEqual(['Terminal only false', 'Fake agent · ann@shop.com false']);
-  await onRow(s, '#npagents [data-agent="shell"]', 'npagentdefault');
+  await onRow(s, '#npagents [data-agent="shell"]', '#npagentdefault');
   await expect.poll(agentRows).toEqual(['Terminal only true', 'Fake agent · ann@shop.com false']);
   await closeSettings(core, ui, sui);
   // + makes a task with the default one (the first kept the one it started with). No git: a second task in the folder,
@@ -253,22 +245,22 @@ test("projects: the projects' manager (Project Settings…) changes its name and
 });
 
 test("projects: the title bar's gear opens Settings' window at the shown project; another one, not open, is configured there too, asked there; what is done in the task's window meanwhile is asked there; no New Project in it", async ({ core, ui, sui, files }) => {
-  await begin(core, ui, files);
+  await begin(core, ui, files, { featureX: true });
   // A project with no task open.
   const closed = path.join(files.root, 'closed');
   fs.mkdirSync(closed, { recursive: true });
   const closedId = await core((k, f) => { const p = k.shell.store.projectFor(f); k.shell.sendProjects(); return p.id; }, closed);
   // Shown once it is filled (its tree's three sections, the agents found, the project's page): as it came, it jumped.
   await core((k) => {
-    const g = globalThis as any;
-    g.__filled = null;
+    const g = k.stash;
+    g.filled = null;
     k.electron.app.once('browser-window-created', (_e, w) => w.once('show', () => {
       void w.webContents.executeJavaScript(`[document.querySelectorAll('#pjlist [data-agent]').length > 0, document.querySelectorAll('#pjlist [data-profile]').length > 0, !!document.getElementById('pjhead')]`)
-        .then((r) => { g.__filled = r; });
+        .then((r) => { g.filled = r; });
     }));
   });
   await ui.locator('#manageProjects').click();
-  await expect.poll(() => core(() => (globalThis as any).__filled)).toEqual([true, true, true]);
+  await expect.poll(() => core((k) => k.stash.filled)).toEqual([true, true, true]);
   const s = await sui();
   await pageOf(s, 'project');
   await expect(s.locator('#pjlist [aria-selected="true"]')).toHaveAttribute('data-project', files.pid('project'));
@@ -283,7 +275,7 @@ test("projects: the title bar's gear opens Settings' window at the shown project
   await expect.poll(() => { try { return !!files.idOf('Closed-one'); } catch { return false; } }).toBe(true);
   const closedOne = files.idOf('Closed-one');
   await expect(s.locator(`#npprofiles [data-profile="${closedOne}"]`)).toBeVisible();
-  await onRow(s, `#npprofiles [data-profile="${closedOne}"]`, 'npprofiledel');
+  await onRow(s, `#npprofiles [data-profile="${closedOne}"]`, '#npprofiledel');
   await expect.poll(() => core((k, p) => k.asked.length > 0 && !k.shell.store.projectsWith('profiles', p).length, closedOne)).toBe(true);
   expect((await asked(core)).message).toBe('Remove the profile Closed-one from closed?');
   await expect(ui.locator('#ask'), "not in the task's window").toHaveCount(0);
@@ -327,12 +319,11 @@ test("projects: Delete Project… (the projects' manager alone) asks, closes the
   test.slow(); // git's work (worktrees, clones), five projects made and deleted, the project's tasks closed and opened again
   const root = files.root, home = await core((k) => k.shell.projectsHome);
   gone(...['spare', 'gone', 'back', 'cloned.git', 'back.git', 'bad'].map((d) => path.join(root, d)), path.join(home, 'cloned'), path.join(home, 'fullstack'));
-  await begin(core, ui, files);
+  await begin(core, ui, files, { featureX: true });
   const projects = async () => (await core((k) => k.shell.store.projects().map((p) => p.folders[0]))).map((f) => path.basename(f)); // each by its folder's name (pid)
   // A project that is not open, with a task that has a commit of its own, as Kulisa lays them out.
   const spare = path.join(root, 'spare');
-  fs.mkdirSync(spare);
-  git(spare, 'init', '-q'); fs.writeFileSync(path.join(spare, 'a.txt'), 'a'); git(spare, 'add', '-A'); git(spare, 'commit', '-qm', 'a');
+  committed(spare);
   const wt = await createWorktree(spare, 'idea', null, []);
   fs.writeFileSync(path.join(wt.folder, 'b.txt'), 'b'); git(wt.folder, 'add', '-A'); git(wt.folder, 'commit', '-qm', 'b');
   // A profile of its own (in no other project): its master goes with it. An agent's account in no other project: it
@@ -390,7 +381,7 @@ test("projects: Delete Project… (the projects' manager alone) asks, closes the
   // as it is, its files and its history kept, no git init, nothing made; named after its folder; Create opens its
   // first task, as for any new project.
   const goneDir = path.join(root, 'gone');
-  fs.mkdirSync(goneDir); git(goneDir, 'init', '-q'); fs.writeFileSync(path.join(goneDir, 'a.txt'), 'a'); git(goneDir, 'add', '-A'); git(goneDir, 'commit', '-qm', 'mine');
+  committed(goneDir, 'a.txt', 'a', 'mine');
   // In a tasks' window (the bar's +, a dialog), Settings closed first.
   const newProject = async (from: string) => {
     if (await core((k) => !!k.shell.settings)) await closeSettings(core, ui, sui);
@@ -425,7 +416,7 @@ test("projects: Delete Project… (the projects' manager alone) asks, closes the
   expect(fs.existsSync(path.join(root, 'nowhere')), 'not made').toBe(false);
   await core((k, f) => {
     const d = k.electron.dialog;
-    (globalThis as any).__open = d.showOpenDialog;
+    k.stash.open = d.showOpenDialog;
     d.showOpenDialog = (async () => ({ canceled: false, filePaths: [f] }));
   }, goneDir);
   try {
@@ -433,7 +424,7 @@ test("projects: Delete Project… (the projects' manager alone) asks, closes the
     await typeIn(ui, '#npname', ''); // typed by the human: kept; emptied, it follows the first folder again
     await ui.locator('#npbrowsesource').click();
     await expect(ui.locator('#npname')).toHaveValue('gone');
-  } finally { await core((k) => { k.electron.dialog.showOpenDialog = (globalThis as any).__open; }); }
+  } finally { await core((k) => { k.electron.dialog.showOpenDialog = k.stash.open; }); }
   await expect(ui.locator('#npsources .item kbd')).toHaveText('git');
   await core((k) => { k.asked.length = 0; });
   await create('gone');
@@ -521,24 +512,24 @@ test("projects: Delete Project… (the projects' manager alone) asks, closes the
   // A closed task opened again from the board (the empty window), a tab at the end; another from the bar's + after.
   const first = files.tkey('project', 1);
   await ui.locator(`#board [data-task="${first}"]`).click();
-  await expect.poll(() => core((k, key) => k.shell.task?.key === key && !!k.shell.task.loaded && !!k.shell.pty && !k.shell.windows[0].switching, first)).toBe(true);
+  await taskShown(core, first);
   expect(await core((k) => !k.shell.task.entry.closed), 'open again').toBe(true);
   await notLoading(ui);
-  await plusOpen(ui, 'project', 'Feature-X');
+  await plusMenu(ui, 'project', 'Feature-X');
   await expect.poll(() => core((k) => k.shell.task?.name === 'Feature-X' && !!k.shell.task.loaded && !!k.shell.pty && !k.shell.windows[0].switching)).toBe(true);
   await ui.locator(`#projectTabs .tasktab[data-task="${first}"]`).click();
-  await expect.poll(() => core((k, key) => k.shell.task?.key === key && !!k.shell.task.loaded && !k.shell.windows[0].switching, first)).toBe(true);
+  await taskShown(core, first);
   expect(await projectTabs(ui, files), 'a tab each').toEqual(['project *', 'project']);
   expect(await taskTabs(ui)).toEqual(['task-1 *', 'Feature-X']);
   await core((k) => k.watchPty(k.shell.pty));
   await expect(ui.locator('html')).not.toHaveClass(/\bnoproject\b/);
   await notLoading(ui);
-  await expect.poll(async () => (await viewOn(core, ui, files, SAM)) && viewOn(core, ui, files, ELON)).toBe(true);
+  await bothOn(core, ui, files);
   await core((k, a) => { const acc = k.shell.accounts; acc.drop(a.account); acc.remove(a.dir); }, { account: made.account, dir: made.accountDir });
 });
 
 test("projects: another tab left in the background, with a terminal its agent ran something in: after a restart the open tasks are as they were left, the one in the background loads when shown, its terminals back in their tabs (its agent's conversation resumed, a shell with nothing running)", async ({ core, ui, call, files, restart }) => {
-  await begin(core, ui, files);
+  await begin(core, ui, files, { featureX: true });
   const other = path.join(files.root, 'other');
   await openFolder(core, ui, other);
   await call('terminal_run', { name: 'dev server', command: 'echo "served before"; sleep 60' });
@@ -563,7 +554,7 @@ test("projects: another tab left in the background, with a terminal its agent ra
 });
 
 test('projects: one left in a window of its own comes back after a restart where it was, with its project shown; saved smaller than the minimum, at the minimum', async ({ core, ui, files, restart }) => {
-  await begin(core, ui, files);
+  await begin(core, ui, files, { featureX: true });
   const third = path.join(files.root, 'third');
   await openFolder(core, ui, third);
   const key = files.tkey('third', 1);
@@ -580,12 +571,12 @@ test('projects: one left in a window of its own comes back after a restart where
   expect(await core((k) => { const { width, height } = k.shell.windows[1].win.getNormalBounds(); return { width, height }; })).toEqual({ width: 640, height: 400 });
   expect(await core((k) => k.shell.windows[1].win.getMinimumSize())).toEqual([640, 400]);
   // Its page: the second window's (ui is the first's).
-  const second = await pageWith(ui2, `#projectTabs .tasktab[data-task="${key}"]`);
+  const second = await otherPage(ui2, `#projectTabs .tasktab[data-task="${key}"]`);
   await expect.poll(() => projectTabs(second, files)).toEqual(['third *']);
 });
 
 test("projects: Settings, not modal, acts for the tasks' window last in front; its lists follow the profiles the agent makes and lets go meanwhile", async ({ core, ui, sui, call, files }) => {
-  await begin(core, ui, files);
+  await begin(core, ui, files, { featureX: true });
   // A second tasks' window, with a project of its own.
   const fourth = path.join(files.root, 'fourth');
   await openFolder(core, ui, fourth);

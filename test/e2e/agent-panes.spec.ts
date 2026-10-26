@@ -4,8 +4,8 @@ import fs from 'fs';
 import path from 'path';
 import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
-import { SITE, sleep, focusWindow, box, pageBox, termText, termShows } from './helpers.ts';
-import { profiles, act, invoke, opened } from './agent-helpers.ts';
+import { SITE, sleep, focusWindow, box, pageBox, termText, termShows, act, invoke } from './helpers.ts';
+import { profiles, opened } from './agent-helpers.ts';
 
 test('the keyboard stays where the human put it: a tab the agent opens, its page loading, does not take it', async ({ core, ui, call }) => {
   await profiles(core);
@@ -165,7 +165,7 @@ test('the address as in Chrome: shown without http(s)://, a click shows all of i
 // tab's webContents; only data crosses.
 type Menus = { shownMenu: () => { rows: object[]; menu: Electron.Menu } | null };
 const inMenus = <A, R>(core: Core, fn: (m: Menus, page: any, wc: Electron.WebContents, k: any, a: A) => R | Promise<R>, arg?: A) => core(async (k, x) => {
-  const m = await k.import('src/main/page-menu.ts');
+  const m = k.pageMenu;
   const elon = k.profile('Elon.buyer');
   return (0, eval)(`(${x.src})`)(m, await elon.page(), elon.get().wc, k, x.arg);
 }, { src: fn.toString(), arg }) as Promise<R>;
