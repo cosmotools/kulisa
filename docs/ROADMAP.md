@@ -72,10 +72,8 @@ in both. A feature built is documented in its doc ([profiles.md](profiles.md), [
     profile first and reloads, as `profile_ask_signin` does); telling the human's keys from the agent's (Electron's
     `before-input-event`, or the proxy knowing its own `Input.*`).
 - **Choosing the agent, rest** (how it works: [tasks.md](tasks.md), "Choosing the agent").
-  - Codex: untested with the sign-in pause, a project without git, Windows (the hooks' command is sh's:
-    `commandWindows` for PowerShell).
+  - Codex: untested with the sign-in pause, a project without git (Windows and macOS: #194, #193).
   - More agents (Gemini CLI, …): an entry each in `agents/`.
-  - Windows: the installers run in PowerShell, untested. macOS: Claude Code's installer untested.
 - **Tasks, rest** (how they work now, and why: [tasks.md](tasks.md)).
   - The agent's state on the task tab for CLIs without hooks (Claude Code's and Codex's report it), e.g. from MCP
     calls and terminal output (working while they come, idle after a quiet while). After a permission answered, both
@@ -96,7 +94,7 @@ in both. A feature built is documented in its doc ([profiles.md](profiles.md), [
     cookies (`safeStorage`; what if the OS keyring is unavailable).
   - **Electron hardening:** the windows are sandboxed with a preload that forwards any IPC
     channel; profile pages are sandboxed and have no preload. Check against Electron's security checklist.
-  - **Distribution:** code signing (Windows a certificate, macOS notarization: "Releases and auto-update") and the
+  - **Distribution:** code signing (Windows a certificate, macOS notarization: #206) and the
     `.deb`'s setuid `chrome-sandbox`.
 - **Accessibility** (a11y; before a public release, as security): for people who see poorly, do not use a mouse, or
   use a screen reader, as the big IDEs do; a requirement for software bought by public bodies and large companies
@@ -137,16 +135,6 @@ in both. A feature built is documented in its doc ([profiles.md](profiles.md), [
     for good and keeps its question.
   - **Dragging from the system**: a folder from the file manager onto Kulisa opens it as a project; a link onto a
     profile's pane opens it in a tab there.
-- **Releases and auto-update, rest** (built: [window.md](window.md), "The app icon, installers and updates").
-  - **macOS** only once signed and notarized (Squirrel.Mac does not update an unsigned app): `.dmg` and `.zip`, x64
-    and arm64. The author has no Apple Developer account yet: an Individual one ($99 a year), then a Developer ID
-    Application certificate (its CSR made with `openssl`, no Mac needed) and an App Store Connect API key for
-    notarization, as CI secrets; `osxSign`, `osxNotarize` in `forge.config.ts`, on only when those are set. Not before
-    there are users of macOS (for development an unsigned build does: "Windows and macOS have gaps left", below).
-  - **Later, each discussed apart:** a size limit on the release's files in `release.yml`, to tell when the package
-    grows again (its size: [window.md](window.md), "The app icon, installers and updates"); a dnf repository for the `.rpm`, as the apt one; "Restart to update" in ☰ once
-    Later was chosen (through Kulisa's own quit, asking when an agent works); a switch to turn the checks off; delta updates (Squirrel
-    downloads the whole app each time); winget.
 - **Timeline.** One feed of DOM (rrweb-like), network, console and agent actions, recorded in step across all profiles;
   scrub back to the moment a bug happened, pick an element in the past, tell the agent to fix it.
 
@@ -191,71 +179,3 @@ in both. A feature built is documented in its doc ([profiles.md](profiles.md), [
   - Considered and not chosen for now (a workaround, not native): an "Open in Chrome" button that starts Chrome
     (`chrome-launcher`) on its own folder per Kulisa profile and copies cookies and tabs over a short CDP
     connection. Copies only; `localStorage` tokens and Kasada-protected sessions may not carry over.
-
-## Open issues
-
-- **Windows and macOS have gaps left** (Linux is where Kulisa is developed). Windows: its tests are a required check;
-  what only a human can check there is marked Windows below. **The macOS support** in two:
-  1. **For development**: Kulisa works on a Mac from source and from a build made there, unsigned (a build made on the
-     Mac is not quarantined, so Gatekeeper lets it run); its tests are a required check; checked by hand: issue #193.
-     Left, marked macOS below.
-  2. **For users**, later, once there are some: signed and notarized, `.dmg` and `.zip`, updates ("Releases and
-     auto-update", macOS), with the Apple Developer account. Until then an unsigned build downloaded on another Mac
-     is refused by Gatekeeper and does not update, and kulisa.app says "coming soon" for macOS.
-
-  Known gaps:
-  - Drag regions left by a page ([testing.md](testing.md), Upgrading Electron) on Windows: open Teams in a pane and
-    click its page.
-  - Signing in to Google, GoDaddy (Kasada) and Microsoft with the User-Agent without `Electron/<version>`
-    ([profiles.md](profiles.md), What sites see): check on Linux and Windows.
-  - The sandbox on Linux, packaged: the `.deb` installs `chrome-sandbox` setuid root; the unpacked `out/` folder needs
-    `--no-sandbox` to try it. Other Linux formats (AppImage, rpm, snap) are not set up.
-  - Starting the agent (`src/terminal/main/`; on Linux and macOS typed into the user's shell: [tasks.md](tasks.md),
-    Projects, "An agent"):
-    - Windows (typed into PowerShell): a real agent, closing a task and opening it again (`claude --resume`) and the
-      project folder dialog (New Project…'s Browse…): untested by hand.
-  - Windows logging off or shutting down with Kulisa open: Electron tells each window (`session-end`, nothing listens)
-    and Windows then ends the process, likely before the session cookies and tabs are saved as at quitting: untested.
-  - The OS buttons' hover on Windows, over their see-through strip ([window.md](window.md), The title bar).
-  - Screenshots ([src/screenshots](../src/screenshots/README.md)), tested on Linux (X11), partly on Windows
-    (issue #194): the folder of screenshots on macOS (the one ⇧⌘5 chose, read by
-    `defaults`) and Windows moved elsewhere (read by `reg`); the image on the clipboard on Wayland and macOS; the
-    thumbnail's file dragged out on Wayland, macOS and Windows; the thumbnail's view at a Retina screen's density;
-    Send to Agent and Ctrl+V of an image in Codex.
-  - One xterm a place ([window.md](window.md), The terminal): the RAM it saves where the GPU's memory is the RAM (a
-    Mac's, a laptop's integrated GPU): not measured there.
-  - Dictation (the right ⌘ held, or the terminals' microphone): the agent records itself. macOS: signed with the
-    hardened runtime, the packaged app also needs the `com.apple.security.device.audio-input` entitlement. Windows: the microphone privacy setting for
-    desktop apps; the right Ctrl of a keyboard with AltGr (it sends a Ctrl before AltGr on Windows: check that a typed
-    AltGr character does not start a recording).
-    For an agent without its own (Codex: src/dictation's hidden Claude Code session): untested on macOS and Windows;
-    on Windows, whether ConPTY puts a `conhost`/`OpenConsole` between Kulisa and the hidden `claude`.
-    The pill's wave (the window reading the microphone, `getUserMedia`): untested on macOS and Windows, whether the
-    system asks for the microphone for Kulisa's window as for the agent, and the wave is flat until it is allowed.
-  - A packaged app's later starts and an agent started in a task of it: untested packaged on Linux; on Windows, the
-    agent (issue #194), and Squirrel's installed app with its updates. Its
-    update check fails while there is no release for its OS ("The server sent an invalid response" on macOS) and is
-    only logged.
-  - The one-row title bar (`titleBarStyle: 'hidden'` + `titleBarOverlay`, Window Controls Overlay): the window
-    buttons, dragging and double-click to maximize on Windows and Wayland (Electron runs natively there by default;
-    on GNOME, "Ubuntu on Wayland" at the login screen). Ask
-    Electron for `setTitleBarOverlay` on macOS: with it the traffic lights would follow any zoom ([window.md](window.md),
-    The title bar).
-  - Windows at a display scale of 125% or 150%: the profiles' native views placed from the window's CSS boxes
-    (`window.ts` scales them): check that no page is a pixel off its pane or leaves a gap at its edge, and that the
-    scrollbars follow the dark theme (`color-scheme`).
-  - Keyboard shortcuts ([window.md](window.md), Keys) on Windows: Alt+D and F6 to the address bar, Ctrl+F4; the keys
-    with AltGr layouts (Polish, German), where AltGr is Ctrl+Alt.
-  - The window's menus and dialogs (Reka UI, [ui.md](ui.md), Menus and Dialogs) on Windows, where a right-click menu
-    opens on the release: that it opens at the pointer and the release does not choose a row (`MenuButton.vue` takes
-    the left button only); press, drag and let go on a row; a window's blur closing a menu. On every OS: Esc in a
-    field edited in place (a profile's name) not closing its dialog; Select's list over a dialog.
-  - Copy and paste in the terminal (`clipboardKey` in `src/terminal/renderer/`) on Windows: Ctrl+V pastes once, Ctrl+C copies a
-    selection and interrupts without one.
-  - Several windows (Move to New Window): a profile's native views moved from one window to another, and a window's
-    place restored (`getNormalBounds`, maximized); checked on Linux/X11 only. Dragging a task's tab out of its window: tested
-    with synthetic events only, not yet by hand; a tab let go outside the windows is told from a cancelled drag by where the
-    pointer is (`screen.getCursorScreenPoint`), which Wayland may not report.
-  - The theme (☰ → Theme): the OS buttons' strip recolored (`setTitleBarOverlay`) and System following the OS
-    (`nativeTheme.shouldUseDarkColors`, `updated`; on Linux through GTK or the desktop portal): on Linux/X11 (GNOME)
-    checked by the tests only, not by changing the OS's setting by hand; Windows untested.

@@ -79,7 +79,7 @@ npm version <patch|minor> --no-git-tag-version   # a release's version (CLAUDE.m
 ```
 
 Kulisa's tests run on Ubuntu, Windows and macOS at every pull request; macOS is for development so far (from source,
-or built unsigned on one's own Mac); Windows is less tried by hand (docs/ROADMAP.md). Installers are built by
+or built unsigned on one's own Mac); Windows is less tried by hand (#194). Installers are built by
 [Electron Forge](https://www.electronforge.io/) (`forge.config.ts`), each on its own platform. On Linux `npm start`
 and `npm test` run Electron with `--no-sandbox` (`chrome-sandbox` in `node_modules` is not setuid); the `.deb` installs
 it setuid, so the installed app is sandboxed.

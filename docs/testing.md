@@ -43,7 +43,7 @@ Setup and what a test gets: `test/e2e/fixtures.ts`. What must not be undone:
   visible). Keys as input events (`k.press`). The keyboard to a page by `profile.focusTab(tab)`, never
   `webContents.focus()` (the focus guard gives it back: [window.md](window.md), Keys).
 - **Linux**: a Kulisa per Xvfb with openbox (without a window manager no window list, other focus); never the human's
-  focus or clipboard. `npm run test:visible`: on the human's screen.
+  focus or clipboard. `npm run test:visible`: on the human's screen. By hand (Wayland, packaged): issue #205.
 - **A failure leaves** the window's picture (pages included), the trace, Kulisa's log and Electron's output; a Kulisa
   that never got ready says why.
 

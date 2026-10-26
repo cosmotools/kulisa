@@ -537,7 +537,7 @@ Installers are made with Electron Forge (`npm run make`, `forge.config.ts`), eac
 Linux (the `.deb` checked: it installs `chrome-sandbox` setuid root, a menu entry and the icon, and the app starts;
 99 MB, about 280 of its 320 MB installed being Electron itself, as VS Code's or Slack's), Squirrel `.exe` on Windows,
 `.dmg` and `.zip` on macOS (signed and notarized when the Apple secrets are set; without them unsigned, which runs on
-the Mac it was built on: ROADMAP, "Windows and macOS have gaps left"). On macOS and Windows node-pty is not built again:
+the Mac it was built on; for users: #206). On macOS and Windows node-pty is not built again:
 its own prebuilt binary is packaged (N-API, the one `npm start` loads), so no compiler is needed; on macOS its
 `spawn-helper`, the program it starts a shell with, is kept outside the archive, where it runs it from (in it, a
 packaged Kulisa's terminal fails). **What the package holds** is what the main process runs: its `dependencies`, the
@@ -562,7 +562,7 @@ packaged would reach every installed copy, one failing at start never able to up
 published, the tag made at that commit. Before that, and when a step fails, it is a draft nobody is served. A version
 released before stops it. Once published, kulisa.app is built again (`kulisa-site`'s deploy, the secret
 `SITE_DEPLOY_TOKEN`): its download buttons lead to this release's files. What is left of releases and updates:
-ROADMAP's "Releases and auto-update".
+#206 (macOS), #207.
 
 **Not made, and why** (the guide, Systems, says it to users): AppImage (on Ubuntu 24.04 and later Electron in an
 AppImage starts only with `--no-sandbox`: its FUSE mount is `nosuid` and AppArmor restricts unprivileged user
