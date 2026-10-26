@@ -205,12 +205,6 @@ in both. A feature built is documented in its doc ([profiles.md](profiles.md), [
   with `--inspect` and log the app's quit events (`will-quit`, `quit`, the process's `exit`) to see the step it stops
   at.
 
-- **The grid in a small window** (not decided; the window's own minimum is built: window.md, "The window's size"). When the panes do not fit,
-  dockview overflows and cuts them, the profiles' native views get boxes near 0, and the terminal may get 0 columns
-  (`pty.resize` is in a `try` in `src/terminal/main/index.ts`, but the agent's CLI draws garbage at a tiny size). Ways to weigh:
-  panes shrink to a `minimumWidth` per panel (dockview) and views too small to use are hidden, or a narrow grid
-  turns into tabs.
-
 - **Windows and macOS have gaps left** (Linux is where Kulisa is developed). Windows: its tests are a required check;
   what only a human can check there is marked Windows below. **The macOS support** in two:
   1. **For development**: Kulisa works on a Mac from source and from a build made there, unsigned (a build made on the

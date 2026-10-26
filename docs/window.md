@@ -117,7 +117,7 @@ the address's hover fades in. Not with reduced motion.
 The window has a minimum, as VS Code's: 640×400 (DIP) times the Kulisa zoom (`MIN_SIZE` in `window.ts`), the smallest
 at which the top bar (the OS buttons, ☰, a task's tab) and something under it fit; half of a 1366 px laptop screen holds
 it. Fixed, not the sum of the panels' minimums (dockview's `minimumWidth`), which would keep a window with five profiles
-in a row from half a screen next to the human's IDE. What the grid does when its panes do not fit is open (ROADMAP).
+in a row from half a screen next to the human's IDE. What the grid does when its panes do not fit: #202.
 
 The OS keeps the minimum only while the human drags the window's edge (`minWidth`/`minHeight`, `setMinimumSize`; on
 Linux a hint to the window manager). The constructor's bounds and `setSize` pass below it, so Kulisa raises a window to
