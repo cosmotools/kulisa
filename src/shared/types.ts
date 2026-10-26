@@ -104,7 +104,7 @@ export interface AgentInfo {
   id: string; name: string; maker?: string; needs?: string; site?: string; install?: string | null; installed?: boolean;
   account?: string | null; agent?: string; path?: string | null; onPath?: boolean | null; version?: string | null;
 }
-// About Kulisa (settings/AboutPage.vue): the versions and the folders Kulisa writes in, each with whether it is there yet.
+// About Kulisa (fluent/AboutPage.tsx): the versions and the folders Kulisa writes in, each with whether it is there yet.
 export type AboutFolder = 'data' | 'projects' | 'program';
 export interface AboutInfo { version: string; electron: string; chrome: string; folders: { id: AboutFolder; path: string; exists: boolean }[] }
 // The log as the Log page reads it (main/log.ts, readLog): the file's text and size, its limit, when the old one is from.

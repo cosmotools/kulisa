@@ -9,7 +9,7 @@
     // The master window's, Settings' and a screenshot's thumbnail's pages, vite.config.mts's other inputs: knip finds
     // them there on Linux, not on Windows. On Linux knip hints they are redundant: keep them, Windows needs them.
     "src/renderer/master.ts",
-    "src/renderer/settings.ts",
+    "src/renderer/settings.tsx",
     "src/screenshots/renderer/thumbnail.ts",
     // The debug-kulisa skill's script, run by its path; Claude Code's hooks (.claude/settings.json).
     ".claude/skills/debug-kulisa/*.mjs",
