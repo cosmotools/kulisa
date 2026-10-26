@@ -89,7 +89,7 @@ whole page's megabytes. A view draws nothing outside its bounds, so its view is 
 picture, transparent there, for the shadow (`PAD`): that band takes the page's clicks while it shows.
 
 While a menu or a dialog covers the pages, they are pictures and the native views hidden, the thumbnail's too; the
-window draws it in HTML over the pictures meanwhile (`renderer/Thumbnail.vue`, `#shotthumb`, from `thumbnail:place`),
+window draws it in HTML over the pictures meanwhile (`renderer/Thumbnail.tsx`, `#shotthumb`, from `thumbnail:place`),
 so it does not vanish under its own menu. Its menu's rows are the package's (`thumbnailMenu`, `renderer/index.ts`), the
 menu itself the window's (`menuAtPoint`, `lib/menu.ts`: the window's menus are its own components, and a menu would
 not fit in the small view); its rows come back as `thumbnail:act`. All its channels are in `ipc.ts`, handled here.
@@ -112,7 +112,7 @@ same connection, are not captioned: `ghost.ts` asks `takenByHuman`.
 | `main/folder.ts` | the human's picture to the clipboard and the OS's folder of screenshots; its file's name |
 | `main/thumbnail.ts` | a window's thumbnail: its view, place, time, channels, what is done with its file |
 | `renderer/index.ts` | the window half's entry: the thumbnail as the window draws it, its menu's rows |
-| `renderer/Thumbnail.vue` | the thumbnail drawn in the window while the pages are pictures |
+| `renderer/Thumbnail.tsx` | the thumbnail drawn in the window while the pages are pictures |
 | `renderer/thumbnail.ts` | the thumbnail's own page: the picture, a click, a drag, a right-click, the pointer |
 | `ipc.ts` | its channels |
 | `folder.test.ts` | the files' names |
@@ -121,7 +121,7 @@ Outside, using it: `Profile.screenshot` (`src/main/profiles.ts`), `browser_scree
 (`src/main/kulisa-plugin/tools/browser.ts`), `takenByHuman` in `ghost.ts`; the human's `tab:screenshot`
 (`src/main/ipc/panes.ts`), `chooseElement` (`picker.ts`), the key (`keys.ts`), ⋮ → Screenshot (`ProfilePane.vue`) and
 `screenshot` (`src/renderer/lib/store.ts`); the window's `thumbnails` (`window.ts`: made, placed, hidden, closed),
-`<Thumbnail />` and `thumbnailMenu(menuAtPoint)` (`App.vue`), `Task.typeForAgent` (Send to Agent, as Pick), the page's
+`<Thumbnail />` and `thumbnailMenu(menuAtPoint)` (`fluent/App.tsx`), `Task.typeForAgent` (Send to Agent, as Pick), the page's
 shell `src/renderer/thumbnail.html` (`vite.config.mts`). Its e2e tests, on the test site's `/tall`:
 `test/e2e/agent-tools.spec.ts` ("agent: screenshots of an element, …"), `profiles.spec.ts` ("a pane's ⋮ → Screenshot …", "a screenshot shows its
 thumbnail …").

@@ -75,13 +75,13 @@ gets its text, knowing no agent by name.
 
 ## The microphone
 
-`Dictation.vue`, at the end of the terminals' row of tabs (`TerminalTabs.vue` places it): the key's indicator, and the
+`Dictation.tsx`, at the end of the terminals' row of tabs (the terminals' pane places it): the key's indicator, and the
 way by the mouse. Its tooltip names the key and the language the agent hears (Kulisa's one, ☰ → Language); getting
-ready (once slow, below) it is blue, while it records red and breathes with a ring (`mic-breathe`; not with reduced
+ready (once slow, below) it is blue, while it records red and breathes with a ring (not with reduced
 motion), so the eye catches from across the window that the agent is listening. It works as a voice message's button too: held, or a click to start and another to
-stop; let go, the keyboard goes back to the terminal (`done`). Disabled when the task's dictation is none, its tooltip
+stop; let go, the keyboard goes back to the terminal (`onDone`). Disabled when the task's dictation is none, its tooltip
 saying why: a button that came and went would resize the terminal, and Claude Code redraws badly after one. The window
-gives it the task shown, the key's name, the language and its icon (the window's sprite, as its slot).
+gives it the task shown, the key's name and the language.
 
 Starting is drawn as such (the microphone blue, the pill's Getting ready…) only once it has lasted 300 ms
 (`renderer/voice.ts`, `slow`): the hidden session mostly listens in a fifth of a second, and a flash of it before every
@@ -89,22 +89,22 @@ recording reads as a glitch; until then it is drawn as recording.
 
 ## The pill
 
-`Pill.vue`, over the top of the terminal, in its middle (`Terminals.vue` places it): what the dictation does, so it is
+`Pill.tsx`, over the top of the terminal, in its middle (the terminals' pane places it): what the dictation does, so it is
 seen where the eye is, not only at the row's end. Over the terminal, not above it: the terminal keeps its size (Claude
 Code redraws badly after a resize), and the pointer goes through it. It springs in as a recording starts and grows or
 shrinks to what it says:
 
-- **Getting ready…** (starting, once slow): a spinner, the agent's blue.
+- **Getting ready…** (starting, once slow): a spinner.
 - **Listening** (recording): a beating red dot, the voice as a live wave, the time spoken. The wave is the window's own
   reading of the microphone (`getUserMedia`, its level only, nothing kept or sent), while it records: the agent hears
   through its own program, which shows nothing outside its terminal. No microphone to read, the wave stays flat; the
   dictation goes on.
-- **Transcribing…** (transcribing): a wave running through the bars, the label shimmering.
+- **Transcribing…** (transcribing): a wave running through the bars.
 - **In <agent>'s input**: transcribing ended with the task's agent unchanged; a check, the done green, for 1.6 s, then
   it goes.
 
 With reduced motion, no spring, beat or wave running; the heard wave stays, being what is heard. Its check icon is the
-slot's (the window's sprite).
+caller's (`children`).
 
 ## Its channels
 
@@ -119,9 +119,9 @@ press), `voice` (a task's microphone changed).
 | `main/dictation.ts` | every task's dictation: its state, the key, recording by the first way there is |
 | `main/hidden.ts` | the hidden session recognizing for an agent without dictation |
 | `renderer/index.ts` | the window half's entry: `Dictation` (the microphone), `Pill` |
-| `renderer/Dictation.vue` | the microphone |
-| `renderer/Pill.vue` | the pill |
-| `renderer/voice.ts` | each task's microphone as the main process tells it, starting once slow |
+| `renderer/Dictation.tsx` | the microphone |
+| `renderer/Pill.tsx` | the pill |
+| `renderer/voice.ts` | each task's microphone as the main process tells it, starting once slow, the text just put in |
 | `ipc.ts` | its channels |
 | `dictation.test.ts` | unit tests: the hidden session against a fake recognizer and program |
 

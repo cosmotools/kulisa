@@ -55,9 +55,9 @@ src/<package>/
   main/index.ts      the main process's half: its entry
   main/…             its other files
   renderer/index.ts  the window's half: its entry
-  renderer/…         its other files (.ts; .vue when it has parts of the window of its own; a page of its own,
-                     as the screenshots' thumbnail: its script here, its .html a shell in src/renderer that only
-                     loads it, as Vite builds no page outside its root)
+  renderer/…         its other files (.ts; .tsx for parts of the window of its own; a page of its own, as the
+                     screenshots' thumbnail: its script here, its .html a shell in src/renderer that only loads
+                     it, as Vite builds no page outside its root)
   renderer/tsconfig.json   extends src/renderer's; ESLint finds the half's types by it
   *.test.ts          its unit tests, plain Node (docs/testing.md)
 ```

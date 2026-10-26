@@ -15,6 +15,10 @@ import { TaskRename } from './TaskRename';
 import { Shortcuts } from './Shortcuts';
 import { PointMenu } from './PointMenu';
 import { HandOver } from './HandOver';
+import { Thumbnail, thumbnailMenu } from '../../screenshots/renderer';
+import { menuAtPoint } from '../lib/menu';
+
+thumbnailMenu(menuAtPoint);
 
 const osDark = matchMedia('(prefers-color-scheme: dark)');
 const useOsDark = () => useSyncExternalStore((l) => { osDark.addEventListener('change', l); return () => osDark.removeEventListener('change', l); }, () => osDark.matches);
@@ -42,6 +46,7 @@ export function App() {
       <HandOver />
       <Shortcuts />
       <Ask />
+      <Thumbnail />
       <PointMenu />
     </ThemeShown.Provider>
   </FluentProvider>;
