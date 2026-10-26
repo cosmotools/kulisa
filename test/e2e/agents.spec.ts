@@ -57,7 +57,7 @@ async function openAgents(ui: Page, sui: () => Promise<Page>, rows = 2) {
   const s = await sui();
   await expect(s.locator('#pjlist [data-agent]')).toHaveCount(rows, { timeout: 20000 });
   await s.locator('#pjlist [data-agent]').first().click();
-  await expect(s.locator('#pjlist [data-agent][aria-selected="true"]')).toHaveCount(1);
+  await expect(s.locator('#pjlist [data-agent][aria-current="page"]')).toHaveCount(1);
   await expect(s.locator('#agconfig')).toBeVisible();
   return s;
 }
@@ -65,7 +65,7 @@ async function openAgents(ui: Page, sui: () => Promise<Page>, rows = 2) {
 async function showAgent(s: Page, id: string) {
   const row = s.locator(`#pjlist [data-agent="${id}"]`);
   await row.click();
-  await expect(row).toHaveAttribute('aria-selected', 'true');
+  await expect(row).toHaveAttribute('aria-current', 'page');
   await expect(s.locator('#agconfig')).toBeVisible();
 }
 const agentRow = (s: Page, id: string, q: string) => s.locator(`#agentpage [data-agent="${id}"] ${q}`);
@@ -115,7 +115,7 @@ test('Settings → Agents (not the terminal only): what is installed, installs t
   await fakeAgent(ui, files, false);
   const pty = await core((k) => k.shell.task.pty.pid);
   const s = await openAgents(ui, sui);
-  await expect(s.locator('#pjlist [data-agent="fake"] kbd')).toHaveText('not installed');
+  await expect(s.locator('#pjlist [data-agent="fake"] + [data-sidebar="menu-badge"]')).toHaveText('not installed');
   await showAgent(s, 'fake');
   await expect(s.locator('#agconfig [aria-current="page"]')).toHaveText('Fake agent');
   expect(await core((k) => k.shell.settings.win.getTitle())).toBe('Settings — Kulisa');
@@ -191,8 +191,8 @@ test("a new account is made in the project's settings: the agent's own sign-in a
   await typeSignIn(core, 'Work@Shop.com\r');
   await expect(s.locator(`#npagents [data-agent="${work}"]`)).toHaveCount(1);
   await expect(s.locator('#npsignin')).toHaveCount(0);
-  // Its agent and its email, each in its column (a table).
-  expect((await s.locator(`#npagents [data-agent="${work}"] > *`).allTextContents()).slice(0, 2).map((c) => c.trim())).toEqual(['Fake agent', 'work@shop.com']);
+  // Its agent, and its email under it.
+  expect(await s.locator(`#npagents [data-agent="${work}"] :is([data-slot="item-title"], [data-slot="item-description"])`).allTextContents()).toEqual(['Fake agent', 'work@shop.com']);
   expect(files.json('agents.json')).toEqual({ list: [{ id: work, agent: 'fake', email: 'work@shop.com' }] });
   expect(await core((k, a) => k.shell.store.projects().find((x) => x.id === a.pid).agents.includes(a.work), { pid: files.pid('project'), work }), 'the project lists it').toBe(true);
   // Signed in to an email it has already: that account, the new folder signed out and gone.
@@ -324,7 +324,7 @@ test("an account lives until deleted in Settings → Agents: let go by its proje
   expect(fs.existsSync(dir)).toBe(true);
   // Its agent's page: the account in no project; Delete refused while a task runs it.
   await showAgent(s, 'fake');
-  await expect(row(s, work).locator('small')).toHaveText('in no project');
+  await expect(row(s, work).locator('[data-slot="item-description"]')).toHaveText('in no project');
   await deleteAccount(s, work);
   const name = await core((k, key) => k.shell.taskByKey(key).entry.name, task);
   await expect(s.locator('#agentpageerror')).toHaveText(new RegExp(`^Tasks run it: ${RegExp.escape(name)} \\(project\\)`));
@@ -354,7 +354,7 @@ test("an account lives until deleted in Settings → Agents: let go by its proje
   await s.locator('#pjlist [data-agent]:not([data-agent="fake"])').click(); // another agent's page shown first
   await s.locator('#agentnew').click();
   await choose(s, 'Fake agent…');
-  await expect(s.locator('#pjlist [data-agent="fake"]')).toHaveAttribute('aria-selected', 'true');
+  await expect(s.locator('#pjlist [data-agent="fake"]')).toHaveAttribute('aria-current', 'page');
   await expect.poll(() => core((k) => k.shell.signins.size)).toBeGreaterThan(0);
   const home = accountOf(await signingIn(core, files));
   await typeSignIn(core, 'home@shop.com\r'); // kept by the pty until the agent reads it

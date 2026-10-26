@@ -16,7 +16,7 @@ defineProps<{ items: MenuItem[] }>();
     <DropdownMenuLabel v-else-if="'heading' in it" class="flex items-center gap-1.5" data-testid="menu-heading"><component :is="it.icon" v-if="it.icon" class="size-4" /><span class="truncate">{{ it.heading }}</span></DropdownMenuLabel>
     <DropdownMenuSub v-else-if="'submenu' in it">
       <DropdownMenuSubTrigger :text-value="it.submenu" :aria-label="it.submenu">
-        <ProjectIcon v-if="it.project" class="size-4 shrink-0 text-(--color)" :p="it.project" :style="{ '--color': projectColor(it.project) }" />
+        <ProjectIcon v-if="it.project" :p="it.project" :style="{ '--color': projectColor(it.project) }" />
         <span class="truncate">{{ it.submenu }}</span>
       </DropdownMenuSubTrigger>
       <DropdownMenuPortal>

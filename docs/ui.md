@@ -52,19 +52,17 @@ the one place where a button is there to draw the eye, seen only while no profil
   (not the OS's, with arrows, in menus, Settings and dialogs). Chromium's `::-webkit-scrollbar`:
   the standard `scrollbar-color` and `scrollbar-width: thin` left the arrows. A tabs' strip has none
   (`scrollbar-width: none`): it scrolls by the wheel.
-- **Forms are "Label: field"**, the labels in one column (`.field`); a comment under a field only when needed.
-- **Groups under a titled line** (`.titled`), not framed cards: no frame in a frame.
-- **A list has a toolbar over it** (`.list`: + adds, − removes the selected row, ★ makes it the default), and
-  its actions act on the selected row (also Delete, and its right-click). It is a table: the names of its columns,
-  then rows of facts, each in its column (what it is, its path or email muted, a state at its end in words: "default",
-  "no commit yet"), the columns at the same places in every row (values one after another read
-  as chaos); no buttons that show under the pointer, no pills.
+- **A form is shadcn-vue's `Field`s**, the label over its field; a comment under a field only when needed.
+- **A page of Settings is a column of `Card`s**, a group each (a project's Folders, Agents, Profiles).
+- **A list has a toolbar** (its card's `CardAction`: + adds, − removes the selected row, ★ makes it the default), and
+  its actions act on the selected row (also Delete, and its right-click): Rows, below.
 - **Every object has a right-click menu with all its actions** (a profile's pane, a task's tab, the terminal), so the
   window shows one or two buttons and the rest is in menus. Not swipes (a phone's gesture; on a laptop's touchpad a
   sideways swipe is the OS's and the pages' back and forward), nor a double-click as the only way to anything (nobody
   sees it; only a shortcut to a menu's item).
 - **A dialog asks one thing and ends with its buttons** (`Modal.vue`); what is browsed (Settings, a window of its own:
-  [window.md](window.md), Settings) is a tree on the left and a page on the right, under its path. No search field over the tree (the author's choice).
+  [window.md](window.md), Settings) is a nav on the left (shadcn-vue's `Sidebar`) and a page on the right, under its path
+  (`Breadcrumb`, `settings/PageHead.vue`). No search field over the nav (the author's choice).
 
 ## Tokens (`tokens.css`)
 
@@ -108,70 +106,39 @@ the browser's own `until-found` apart): a component's `display` beats the browse
 
 ### Buttons
 
-- `<button>`: a framed button with text, `--control` high (not shadcn-vue's: theirs carry `data-slot`, and these
-  rules leave them alone). `.primary` (blue, the main action of a dialog, last in its
-  footer), `.danger` (red, when it deletes). Lit under the pointer and darker while pressed, so it answers the hand;
-  a button of its own kind (`.icon`, a tab) keeps its own (the rule is as weak as `button`'s). Disabled: faded.
-- `.icon`: an icon alone, square with `--corner` corners as a toolbar's, no frame, lit under the pointer (`--hover`);
-  always with `aria-label` (or `title`).
-  - `.quiet`: muted until pointed at, for × and removing.
-  - `.small`: 24 px, inside a row or a list's toolbar (a tab's ×, a task's ×, `.list`'s + − ★).
-  - `.round`: a circle filled `--island-hi`, an 18 px icon: a button that stands out in a row (the dictation's microphone).
-  - `--icon`: the icon's size, when a place needs another (☰ is 18 px).
-  - A `<span class="icon">` where a button cannot be (a tab's ×, inside the tab).
-- In the title bar, a button is still one of these. shadcn-vue's `Button` (`components/ui/button`) where a part is
-  already in Tailwind (a menu row's 🗑); the element rules of `components.css` are in `@layer base`, so its utilities
-  win.
+- shadcn-vue's `Button` (`components/ui/button`): the main action of a form `default`, last; the others `outline`; an
+  icon alone `ghost` with `size="icon-sm"`, always with `aria-label` (or `title`). Inside a form, a button that does not
+  submit is `type="button"`.
+- A Kulisa package's own buttons are not in Tailwind yet (`components.css`): `<button>`, framed, `--control` high; `.icon`
+  an icon alone, `.round` a circle that stands out in a row (the dictation's microphone).
 - `:title="withKeys('Reload', 'tab.reload')"` (a command of `src/main/keys.ts`; `lib/common.ts`): its key at the end
   of its tooltip, "Reload (Ctrl+R)", as Chrome's toolbar says it.
 
 ### Rows
 
-- `.item`: a row of a list (Settings' rows), `--row` high: an optional icon (`.ico`), `.dot`
-  (a project's color, `--color`), `ProjectIcon.vue` (a project's icon in its color: its favicon, one of Kulisa's set or
-  the curtain; `.picon`) or `.avatar` (a profile's picture), `.text` with `.label` and a `small` line under it, a `kbd` key at the end. Lit under the
-  pointer and on keyboard focus. Named by its label alone (`aria-label`), not its icon, its `small` line or its key.
-- `.list`: a list a dialog edits (a project's Code, Agents and Profiles; New Project's folders; an agent's accounts),
-  or chooses from (Settings → Agents' agents, no toolbar), as JetBrains': framed,
-  `.tools` over it (`.icon.small` buttons: + adds, often a `ButtonMenu`; − removes the selected row; ★ makes it the
-  default), then `.head` (its columns' names, small and dim; shown with rows), then its rows, Reka's Listbox items
-  (`.item`, a `.cell` a value: the `.label` first with its icon or picture, its facts in `small.cell`, muted; a state in
-  the last, `.cell.end`, `kbd`: "default" (`.default`), `.warn` in `--note` when it needs the human), each cut with …
-  and whole in its title. The list sets its columns, `--cols` (e.g. `fit-content(45%) minmax(0, 1fr) auto`: the name as
-  wide as it needs up to about half, what it is in the rest, the state); the head and the rows take them by `subgrid`,
-  so they line up. The selected row in `--chosen` (`--chosen-idle` when the list has not the keyboard). Delete removes
-  the selected one; a `RightClickMenu` around the whole `.list` has the row's actions (it selects the row): around the
-  Listbox, which is there only with rows, its menu did not open on a row added after. `.empty` in it when it has none.
-- `.titled`: a group's title, its name and a line to the end (JetBrains' titled separator), over a `.list` or fields.
-- `.item[aria-selected="true"]`: the chosen row of a list (Reka's Listbox, Tree), lit.
-- `.dot`: a 10 px circle in `--color`, a project's.
-- `.dots`: where one is in a few slides or steps, a short bar each, lit up to the one shown (an `ol`, `li[data-on]`): the
-  welcome's slides and its steps.
-- `.chip`: a thing named in a pill, its icon first (14 px, muted), `--font-small`: what goes along to another agent
-  (Change Agent). A name the human gave (a folder, a branch) goes in a `.name` inside it: cut with … past 14em, the
-  whole in the chip's tooltip; a row of chips gives way before what is beside it (the terminals' tabs).
+- A row: shadcn-vue's `Item` (`size="xs"`): `ItemMedia` (an icon, `ProjectIcon.vue`, an `Avatar`), `ItemContent`
+  (`ItemTitle`, its facts in `ItemDescription`), `ItemActions` (a state as a `Badge`: "default", "no git"; a `Select`).
+  Named by its title alone (`aria-label`).
+- A list to choose a row of and act on (a project's Folders, Agents and Profiles, an agent's accounts, the GitHub
+  accounts, New Project's folders): Reka's `Listbox` around the `Item`s (`ListboxItem as-child`), the selected one
+  `bg-muted`. Delete removes the selected one; a `RightClickMenu` around its card's content has the row's actions (it
+  selects the row). `Empty` when it has none.
+- `ProjectIcon.vue`: a project's icon in its color (`--color`): its favicon or the curtain.
 
 ### Controls
 
 The window's controls are Reka UI's, in this look:
 
-- `.radio`: a radio (Reka's `RadioGroupItem`, its `RadioGroupIndicator` the dot), in a `RadioGroupRoot`: at a row's
-  start (the row a `<label>`), exactly one of a list: the agent to start (`AgentList.vue`). The arrows move between
-  them. Not for a list's default, whose rows are what the list is about: a radio there reads as choosing the row; that is "default" at the row's end and ★. Not for a few big choices either
-  (New Project's code: a list on the dialog's left, Reka's Listbox, as JetBrains' New Project).
-- `.checkbox`: a checkbox (Reka's `CheckboxRoot`, its `CheckboxIndicator` the check, `CheckIcon`): New Project's agents and profiles, the log's Follow.
-- `.select`: a button that opens what to choose from below it (Reka's `Popover`), as a field: the chosen one and
-  `ChevronDownIcon` (a profile's picture); or Reka's `Select`, where the choices are rows of words, in a menu's look (`.menu`, its
-  rows `.item`, the chosen one checked: `CheckIcon`): a repository's GitHub account (`settings/RepoAccount.vue`).
-- `.choices`: icon buttons (`.icon`) to choose one of, the chosen one ringed in `--blue`: a profile's pictures
-  (Reka's `ToggleGroup`, one always chosen).
-- `.chips`: a row of `.chip`s to choose one of (Reka's `ToggleGroup`, one always chosen), the chosen one in `--chosen`
-  with the accent's edge: the log's preset filters (`settings/LogPage.vue`).
-- `.editable`: a value edited in place (Reka's `Editable`: a profile's name, who it is, its test login): text in a
-  field's box (`.preview`), a click or Tab edits it; Enter or leaving saves, Shift+Enter is a new line where it has
-  lines, Esc puts it back (and leaves the dialog open).
-- Fields in a dialog: shadcn-vue's `Field`, `FieldLabel`, `Input`, `FieldDescription`, `FieldError`; choosing one of a
-  few, its `RadioGroup` (the agents to choose from, `AgentList.vue`: its choice cards).
+- Fields: shadcn-vue's `Field`, `FieldLabel`, `Input`, `Textarea`, `FieldDescription`, `FieldError` (its text
+  selectable, to copy and search for: `app.css`); `Checkbox` (New Project's agents and profiles, the log's Follow);
+  choosing one of a few, its `RadioGroup` (the agents to choose from, `AgentList.vue`: its choice cards). Not for a
+  list's default, whose rows are what the list is about: "default" at the row's end and ★.
+- `Select`: one of a few words (a repository's GitHub account, `settings/RepoAccount.vue`); `Popover` with a
+  `ToggleGroup`: one of a few pictures (a profile's, `settings/Avatars.vue`); `ToggleGroup` of words: the log's preset
+  filters (`settings/LogPage.vue`), one always chosen.
+- `Tabs` with `orientation="vertical"`: a few big choices on a dialog's left (New Project's code, as JetBrains' New
+  Project).
+- `Stepper`: New Project's steps; the welcome's a `Progress` and its question instead, as its slides' (`welcome/`).
 - Tabs: a pane's tabs are Reka's `Tabs`, the tasks' tabs shadcn-vue's (`activationMode` manual): chosen on the press, as a
   browser's (not on their ×), one Tab stop for the strip, the arrows move and Enter chooses. A task's is shown on
   the release, or as its drag begins ([window.md](window.md), The tasks' bar).
@@ -184,10 +151,9 @@ The window's controls are Reka UI's, in this look:
   clear of the fade, when another is chosen (`aria-selected`, Reka's) or the strip is resized, and only then, so an update
   (a title, a page loading, an agent's state) leaves the strip where the human scrolled it.
 - `Toggle` (shadcn-vue's): a button that stays on (Pick).
-- `Collapsible`: something shown on demand (a profile's pictures to choose from; Details: `button.disclose` its trigger, an
-  installer's output, an agent's sign-in's terminal).
-- `.avatar`: a profile's picture (`<img>`, `avatarSrc(name)` in `lib/common.ts`; `settings/Avatars.vue` the ones to choose from), 16 px; `--avatar` where a place needs
-  another size (22 px in a profile's row, `ProfileRow.vue`).
+- `Collapsible`: something shown on demand (Details, a link `Button` its trigger: an installer's output, an agent's
+  sign-in's terminal).
+- A profile's picture: `Avatar` with `AvatarImage` (`avatarSrc(name)` in `lib/common.ts`).
 - A panel's tabs, a pane's (`ProfilePane.vue`: the page's icon, its title, ×) and a terminal's (`TerminalTabs.vue`: the
   agent's icon, its name, its state, ×), are shadcn-vue's `Tabs`, as the tasks' bar's; × on every tab, always; more
   than fit scroll.
@@ -219,24 +185,16 @@ Every dialog is `Modal.vue`, shadcn-vue's `Dialog` (`components/ui/`): its title
 - It fades and zooms in and out (shadcn-vue's, 100 ms). Fading out it is closed (`data-state="closed"`) yet holds the
   keyboard: what gives the keyboard somewhere takes it as nowhere, and the dialog, gone, gives it back only when nothing
   took it meanwhile (`closing`, `keepTaken`, `lib/cover.ts`).
-- What Settings' window (`.page`) and New Project's steps (`.wizard`) hold: `.hint` (what it is about, muted), `.field` (a
-  label, "Name:", and its input, the labels in one column; `.pick` in it: the input with its button, Location and
-  Browse…), `.row` (a line of controls: a field with its buttons, a URL to clone, a new profile's name), `.check` (a
-  `.checkbox` in the fields' column), `.error` (hidden while empty; its text selectable, to copy and search for); a
-  field's `.hint` under it (its `FieldDescription`). New Project's buttons are its `footer`, the main one last, `.start`
-  at the left end. What is saved as it changes (Settings' window) has none: Esc or × closes it.
-- A part of what it edits: a `.titled` line, then its `.list` or fields, a `.row` under the list for what is being
-  added in place (a URL to clone, a new profile's name). Not framed cards or sections with a + in their heading
-  (a frame in a dialog in a split is a frame in a frame in a frame, and reads as a web page).
-- `.empty`: a list's line when it has none ("No accounts yet."), dim.
-- What is browsed (Settings' window, `settings/ProjectEditor.vue`) is a tree on the left (Reka's `Tree`, `#pjlist`: its rows
-  `.item`, `data-section`, `data-project`, `data-agent` or `data-profile`; a section opens and closes, it is not
-  chosen, and makes one of its own with the `.icon` + at its end (Agents, Profiles; a project is made in a tasks' window); a row's right-click has its page's ⋯) and the chosen
-  page on the right under its path (`.crumbs`: "Projects › shop", its ⋯ at the end). Each thing is a row of the tree
-  with a page of its own, not a list inside a page. A row the column cuts (…) has its whole name in its tooltip, and
-  so has a list's row in a page (a project's profiles: the name, its description); not a wider or resizable column,
-  as names past any width still come (two profiles alike to their 20th letter). A dialog of a few big choices and a form (New
-  Project) has the choices as a list on its left (Reka's Listbox), the form on its right.
+- New Project's steps (`newproject/Wizard.vue`) end with their buttons, the main one last, Back at the left end. What is
+  saved as it changes (Settings' window) has none: Esc or × closes it.
+- What is added in place under a list (a URL to clone, a new profile's name): an `Input` with its buttons in a row.
+- What is browsed (Settings' window, `settings/ProjectEditor.vue`): the nav on the left (`#pjlist`: a `SidebarGroup`
+  each section, its rows `SidebarMenuButton`s with `data-project`, `data-agent`, `data-profile` or `data-page`, the
+  shown one `aria-current="page"`; a section is no page, and makes one of its own with its `SidebarGroupAction` +
+  (Agents, Profiles; a project is made in a tasks' window); a row's right-click has its page's ⋯), the chosen page on
+  the right under its path ("Projects › shop", its ⋯ at the end). Each thing is a row of the nav with a page of its
+  own, not a list inside a page. A name the nav cuts (…) is whole in its tooltip, and so is a list's row in a page;
+  not a wider or resizable nav, as names past any width still come (two profiles alike to their 20th letter).
 - Its ref: `await open()` (shown, the keyboard in its `[autofocus]` field or on it; the profiles' pages hidden while it
   is open: `covered('hide')`, `lib/cover.ts`, `views.ts`), `close()`, `isOpen()`. Its content is in the page only while it is open
   (Reka's default; kept closed, the dialogs' parts would take about 2.5 MB of the window's memory), so it opens first and
@@ -293,11 +251,8 @@ Items (`lib/menu.ts`, laid out by `menu/MenuRows.vue`):
 
 ### Panels
 
-A panel is a menu's look with fields in it, where a menu cannot hold them (its rows take the keys typed and the
-focus under the pointer): Reka UI's Popover, `.menu` with its rows `.item` (buttons) under a top of its own, the pages
-pictures meanwhile (`covered('pictures')`), closed as a menu is (Esc, a press outside, a row chosen, the window left);
-a row's action runs once it has closed. One today: a profile's picture
-(`.profilepics` in `settings/ProfilePage.vue`, from its picture at its page's top: `.choices`).
+A panel is a `Popover` with what a menu cannot hold (its rows take the keys typed and the focus under the pointer), the
+pages pictures meanwhile (`covered('pictures')`): a profile's pictures (`settings/ProfilePage.vue`).
 
 A menu's row that opens a field (New Profile…) gives it the keyboard with `focusAfterMenu(el)` (`lib/menu.ts`): the
 menu, closing, would give it back to its button.
@@ -313,21 +268,20 @@ every handle's (CLAUDE.md, "One core"). A single component is no cluster.
 
 | Folder | Its entries | What |
 |---|---|---|
-| `settings/` | `Settings.vue` | Settings' window: the tree, a project's, an agent's and a profile's page, GitHub's |
+| `settings/` | `Settings.vue` | Settings' window: the nav, a project's, an agent's and a profile's page, GitHub's |
 | `newproject/` | `Wizard.vue`, `NewProject.vue` | New Project's steps (Code, Agents, Profiles; `wizard.ts` their state): the welcome's and the dialog |
 | `welcome/` | `Welcome.vue` | the first start, no project at all: what Kulisa does in three slides (`Tour.vue`), then New Project's steps (`Wizard.vue`, its head a question each); the empty window's (`Empty.vue`) |
 
-New Project's steps (`.wizard`) are a form: the steps over it (`.steps`, the one shown `aria-current`; the welcome puts
-its own head there, the `head` slot), one step at a time, its buttons in a dialog's `footer` (Back at the start, Cancel
-in the dialog, Next, Create last); the fields' look is a dialog's (`components.css`, what a dialog holds). A view of
+New Project's steps (`Wizard.vue`) are a form: the steps over it (a `Stepper`; the welcome puts its own head there, the
+`head` slot), one step at a time, its buttons at its end (Back at the start, Cancel in the dialog, Next, Create last).
+A step done is gone back to from the `Stepper`; the next one only by Next, which checks this one. A view of
 them is one more cluster taking `Wizard.vue`, never a copy of the steps: the welcome is the dialog's steps under its
 questions, `leavable` (Back on the first step goes back to its slides).
 
 ## Adding something
 
 - A new icon: Lucide's, imported where used; one of ours only for what Lucide has not (Icons).
-- A new kind of control or row: in `components.css` with a comment saying what it is and its variants (or a component
-  of its own when it has behavior), and a section here. A part used by one place only (a pane's tab strip, the omnibox,
+- A new kind of control or row: shadcn-vue's, added by its CLI (`npx shadcn-vue add …`), and a line here. A part used by one place only (a pane's tab strip, the omnibox,
   the projects' islands) keeps its look in its own `.vue` file.
 - A new dialog: a component with `Modal.vue`, in `App.vue`, registered in `lib/dialogs.ts`; its content shadcn-vue's
   parts placed with Tailwind's utilities.

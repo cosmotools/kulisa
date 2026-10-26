@@ -1,24 +1,28 @@
 <script setup lang="ts">
 // The Log page of Settings (docs/window.md, The log): the log read whole and followed as it grows, a line each with its
-// time and tag, the tag in its group's color, warnings and errors in red; preset filters (chips) and a text filter;
+// time and tag, the tag in its group's color, warnings and errors in red; preset filters and a text filter;
 // Copy All, Save As… (a file to attach anywhere), Open Folder, Report… (On GitHub…). Read when first shown, not as
 // Settings opens: a megabyte for nothing otherwise.
 import { computed, nextTick, ref, watch } from 'vue';
-import { CheckboxIndicator, CheckboxRoot, ToggleGroupItem, ToggleGroupRoot } from 'reka-ui';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Field, FieldLabel } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import ButtonMenu from '../menu/ButtonMenu.vue';
 import { refused } from '../../../shared/result';
 import type { MenuItem } from '../../lib/menu';
-import { CheckIcon } from '@lucide/vue';
 
 const props = defineProps<{ shown: boolean }>(); // the page chosen in the tree
 
 // A line as the file has it: [date T time offset] [level] [tag …] the rest (log.ts, stamp; a local time
 // with a space and no offset, electron-log's, read too); a line not of that shape (an object's lines under an [electron] event) belongs to the one
-// before it. The tag's group is the chip that shows it.
+// before it. The tag's group is the filter that shows it.
 type Group = 'agent' | 'human' | 'tasks';
 type Chip = 'all' | 'errors' | Group;
 type Line = { date: string; time: string; offset: string; level: string; tag: string; text: string; raw: string; group: Group | null };
 const GROUPS: Record<string, Group> = { mcp: 'agent', hook: 'agent', terminal: 'agent', ipc: 'human', key: 'human', settings: 'human', task: 'tasks', window: 'tasks', kulisa: 'tasks' };
+const TAGS: Record<Group, string> = { agent: 'text-blue-500', human: 'text-violet-500', tasks: 'text-amber-600' };
 const CHIPS: { id: Chip; label: string; title: string }[] = [
   { id: 'all', label: 'All', title: 'Every line' },
   { id: 'errors', label: 'Errors', title: 'Warnings and errors: a page\'s, Electron\'s, an action refused or failed' },
@@ -76,46 +80,31 @@ const report = (): MenuItem[] => [{ label: 'On GitHub…', sub: 'a public issue,
 </script>
 
 <template>
-  <div id="logpage">
-    <div class="tools">
-      <input id="logfilter" v-model="filter" type="search" placeholder="Filter: a task, wc=1, [mcp]…" aria-label="Filter" spellcheck="false">
-      <ToggleGroupRoot id="logchips" class="chips" type="single" aria-label="Show" :model-value="chip" @update:model-value="(v) => { if (v) chip = v as Chip; }">
-        <ToggleGroupItem v-for="c in CHIPS" :key="c.id" :value="c.id" class="chip" :title="c.title" :data-chip="c.id">{{ c.label }}</ToggleGroupItem>
-      </ToggleGroupRoot>
-      <label class="check"><CheckboxRoot id="logfollow" class="checkbox" :model-value="follow" @update:model-value="setFollow">
-        <CheckboxIndicator as-child><CheckIcon /></CheckboxIndicator></CheckboxRoot> Follow</label>
+  <div id="logpage" class="flex min-h-0 flex-1 flex-col gap-3">
+    <div class="flex flex-wrap items-center gap-2">
+      <Input id="logfilter" v-model="filter" type="search" class="w-64" placeholder="Filter: a task, wc=1, [mcp]…" aria-label="Filter" spellcheck="false" />
+      <ToggleGroup id="logchips" type="single" variant="outline" size="sm" aria-label="Show" :model-value="chip" @update:model-value="(v) => { if (v) chip = v as Chip; }">
+        <ToggleGroupItem v-for="c in CHIPS" :key="c.id" :value="c.id" :title="c.title" :data-chip="c.id">{{ c.label }}</ToggleGroupItem>
+      </ToggleGroup>
+      <Field orientation="horizontal" class="ml-auto w-auto">
+        <Checkbox id="logfollow" :model-value="follow" @update:model-value="setFollow" />
+        <FieldLabel for="logfollow">Follow</FieldLabel>
+      </Field>
     </div>
-    <div ref="box" class="lines" role="log" aria-label="Log" @scroll.passive="scrolled">
-      <div v-for="(l, i) in visible" :key="i" class="line" :data-group="l.group" :data-bad="bad(l) || undefined" :title="`${l.date} ${l.offset}`.trim()" :data-tag="l.tag || undefined">
-        <time>{{ l.time }}</time><b>{{ l.tag ? `[${l.tag}]` : '' }}</b><span>{{ l.text }}</span>
+    <div ref="box" class="min-h-0 flex-1 cursor-text overflow-auto rounded-lg border bg-muted/30 px-2 py-1.5 font-mono text-xs/relaxed select-text" role="log" aria-label="Log" @scroll.passive="scrolled">
+      <div v-for="(l, i) in visible" :key="i" class="grid grid-cols-[auto_auto_1fr] gap-x-2 wrap-anywhere whitespace-pre-wrap data-bad:text-destructive" :data-group="l.group" :data-bad="bad(l) || undefined"
+        :title="`${l.date} ${l.offset}`.trim()" :data-tag="l.tag || undefined">
+        <time class="text-muted-foreground tabular-nums">{{ l.time }}</time><b class="font-semibold" :class="bad(l) ? 'text-destructive' : l.group ? TAGS[l.group] : 'text-muted-foreground'">{{ l.tag ? `[${l.tag}]` : '' }}</b><span>{{ l.text }}</span>
       </div>
-      <p v-if="loaded && !visible.length" class="empty">Nothing matches.</p>
+      <p v-if="loaded && !visible.length" class="font-sans text-sm text-muted-foreground">Nothing matches.</p>
     </div>
-    <p class="hint about">{{ about }} Never here: what you typed, passwords, tokens, cookies, the pages' queries.</p>
-    <div class="actions">
-      <span class="note" role="status">{{ note }}</span><span class="error">{{ error }}</span>
-      <button id="logcopy" type="button" title="The whole log, to paste anywhere" @click="copy">Copy All</button>
-      <button id="logsave" type="button" title="The log as a file, to attach to a message or an issue" @click="save">Save As…</button>
-      <button id="logfolder" type="button" title="Its folder in your file manager" @click="kulisa.invoke('log:show-folder')">Open Folder</button>
-      <ButtonMenu :items="report" end><button id="logreport" type="button" class="primary">Report…</button></ButtonMenu>
+    <p class="text-muted-foreground" data-testid="about">{{ about }} Never here: what you typed, passwords, tokens, cookies, the pages' queries.</p>
+    <div class="flex items-center justify-end gap-2">
+      <span class="mr-auto truncate text-muted-foreground empty:hidden" role="status">{{ note }}</span><span class="mr-auto truncate text-destructive empty:hidden">{{ error }}</span>
+      <Button id="logcopy" variant="outline" title="The whole log, to paste anywhere" @click="copy">Copy All</Button>
+      <Button id="logsave" variant="outline" title="The log as a file, to attach to a message or an issue" @click="save">Save As…</Button>
+      <Button id="logfolder" variant="outline" title="Its folder in your file manager" @click="kulisa.invoke('log:show-folder')">Open Folder</Button>
+      <ButtonMenu :items="report" end><Button id="logreport">Report…</Button></ButtonMenu>
     </div>
   </div>
 </template>
-
-<style>
-#logpage { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: var(--gap);
-  .tools { display: flex; align-items: center; gap: var(--gap); flex-wrap: wrap;
-    #logfilter { flex: 1; min-width: 140px; max-width: 260px; } .check { margin: 0 0 0 auto; } }
-  .lines { flex: 1; min-height: 0; overflow: auto; padding: 6px 8px; border: 1px solid var(--line); border-radius: var(--corner); background: var(--field);
-    font: var(--font-small) / 1.5 "JetBrains Mono", monospace; color: var(--text); user-select: text; cursor: text;
-    .empty { margin: 0; color: var(--text-muted); font: var(--font) var(--sans); } }
-  .line { display: grid; grid-template-columns: auto auto 1fr; gap: 0 var(--gap); white-space: pre-wrap; overflow-wrap: anywhere;
-    time { color: var(--text-muted); font-variant-numeric: tabular-nums; } b { font-weight: 600; color: var(--text-dim); }
-    &[data-group="agent"] b { color: var(--log-agent); } &[data-group="human"] b { color: var(--log-human); } &[data-group="tasks"] b { color: var(--log-tasks); }
-    &[data-bad] { color: var(--error); b { color: var(--error); } } }
-  .about { margin: 0; }
-  .actions { display: flex; align-items: center; gap: var(--gap); justify-content: end;
-    .note { color: var(--text-muted); } .error { margin: 0; } :is(.note, .error) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .note:not(:empty), .error:not(:empty) { margin-inline-end: auto; } }
-}
-</style>

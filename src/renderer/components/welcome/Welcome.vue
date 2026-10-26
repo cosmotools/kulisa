@@ -3,6 +3,8 @@
 // Project's own steps (newproject/), a question each. The first thing a new
 // user meets; a tasks' window's New Project stays a plain dialog.
 import { nextTick, ref } from 'vue';
+import { Card, CardContent, CardTitle } from '@/components/ui/card';
+import { Progress } from '@/components/ui/progress';
 import Tour from './Tour.vue';
 import Wizard from '../newproject/Wizard.vue';
 
@@ -15,27 +17,20 @@ kulisa.on('project:new', () => void focus()); // the first start: the keyboard h
 </script>
 
 <template>
-  <div id="welcome">
+  <div id="welcome" class="grid min-h-full w-full place-items-center-safe p-8">
     <Tour v-if="!steps" ref="tour" v-model="slide" @done="show(true)" />
-    <div v-else class="box">
-      <Wizard ref="wizard" leavable single @leave="show(false)">
-        <template #head="{ step, count }">
-          <header class="question">
-            <ol class="dots" aria-label="Steps"><li v-for="n in count" :key="n" :data-on="n <= step + 1 || undefined" /></ol>
-            <h1>{{ QUESTIONS[step] }}</h1>
-          </header>
-        </template>
-      </Wizard>
-    </div>
+    <!-- New Project's steps: a dialog's look, no backdrop: nothing else is in the window to cover -->
+    <Card v-else class="min-h-[min(32rem,100%)] w-full max-w-3xl">
+      <CardContent class="flex flex-1 flex-col">
+        <Wizard ref="wizard" leavable single @leave="show(false)">
+          <template #head="{ step, count }">
+            <header class="flex flex-col gap-4">
+              <Progress :model-value="((step + 1) / count) * 100" aria-label="Steps" />
+              <CardTitle><h1 class="text-2xl">{{ QUESTIONS[step] }}</h1></CardTitle>
+            </header>
+          </template>
+        </Wizard>
+      </CardContent>
+    </Card>
   </div>
 </template>
-
-<style>
-#welcome { display: grid; place-items: safe center; width: 100%; min-height: 100%; padding: calc(var(--pad) * 2); box-sizing: border-box;
-  /* New Project's steps: a dialog's look, no backdrop: nothing else is in the window to cover */
-  .box { display: flex; flex-direction: column; width: min(760px, 100%); min-height: min(520px, 100%); border-radius: var(--island-radius);
-    background: var(--island); border: 1px solid var(--line); box-shadow: 0 12px 40px var(--shadow); overflow: hidden; }
-  .question { display: grid; gap: var(--inset); padding: calc(var(--pad) * 1.5) var(--pad) var(--inset);
-    h1 { margin: 0; font-size: var(--font-hero); line-height: 1.15; font-weight: 600; letter-spacing: -.02em; color: var(--text-strong); } }
-}
-</style>

@@ -89,9 +89,9 @@ More tasks: **+** in the bar at the bottom, or **+** by a project in the sidebar
 ### New Project
 
 At the first start, with no project yet, the window is New Project after three slides of what Kulisa does (**Back**
-on the first step shows them again); later, **New Project…** after the projects'
-columns (the bar's **+**, or a window with no task open). Three steps; **Next** goes on, **Back** goes
-back with what you typed kept, and nothing is made before **Create**.
+on the first step shows them again); later, **New Project…** at the foot of the sidebar of
+projects. Three steps, shown at the top; **Next** goes on, **Back** (or a step done, at the top) goes back with what
+you typed kept, and nothing is made before **Create**.
 
 **1. Code.** Where its code comes from, on the left:
 
@@ -240,7 +240,7 @@ it ends: the question links the GitHub page where you revoke it at once.
   check, until you look at the task).
 - **Switch** by clicking a tab, of any project. The other tasks keep running: their agents and pages go on.
 - **× closes a task** (or the middle button on its tab, or **Close** in its menu): its agent stops and its tabs close;
-  its code, branch, profiles and conversation stay. Open it again from **+** (in its project's column): the agent continues
+  its code, branch, profiles and conversation stay. Open it again from its row in the sidebar: the agent continues
   the conversation.
 - **Delete Task…** (its tab's right-click menu) deletes it for good: its copy of the code, its branch, its profiles'
   copies, its conversation. The question says what would be lost (work not merged and not pushed). A task is

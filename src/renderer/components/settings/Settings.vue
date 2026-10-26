@@ -20,14 +20,3 @@ addEventListener('keydown', (e) => { if (e.key === 'Escape' && !layered && !e.de
   <ProjectEditor ref="editor" />
   <Ask />
 </template>
-
-<style>
-/* The window is its page, the tree and the chosen page each scrolling on their own (ProjectEditor.vue) */
-html { height: 100%; overflow: hidden; }
-body {
-  margin: 0; height: 100%; display: flex; overflow: clip;
-  font: var(--font) var(--sans); color: var(--text); background: var(--island);
-  user-select: none; cursor: default; /* a desktop app: labels and buttons are not text to select; fields are */
-}
-#app { display: contents; }
-</style>

@@ -1,10 +1,15 @@
 <script setup lang="ts">
 // An agent's page in Settings (tasks.md, "Choosing the agent", Accounts), as JetBrains' SDKs: who makes it, where it is,
-// Install, and its accounts, a .list. The list's state (lib/agents.ts) lives with Settings, so an install goes on while
+// Install, and its accounts. The list's state (lib/agents.ts) lives with Settings, so an install goes on while
 // a project is shown. Every agent's details are in the page, the chosen one's shown: a few agents, and an install's
 // row keeps its state as another is looked at.
 import { computed, ref, watch } from 'vue';
 import { ListboxContent, ListboxItem, ListboxRoot } from 'reka-ui';
+import { Button } from '@/components/ui/button';
+import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Empty, EmptyTitle } from '@/components/ui/empty';
+import { FieldError } from '@/components/ui/field';
+import { Item, ItemContent, ItemDescription, ItemGroup, ItemTitle } from '@/components/ui/item';
 import AccountSignIn from '../AccountSignIn.vue';
 import InstallProgress from '../InstallProgress.vue';
 import RightClickMenu from '../menu/RightClickMenu.vue';
@@ -51,53 +56,56 @@ defineExpose({ newAccount, busy });
 </script>
 
 <template>
-  <div :ref="(el) => { s.el = el as HTMLElement | null; }" id="agentpage">
-    <section v-for="a in s.agents" v-show="a.id === chosen" :key="a.id" class="agentdetail" :data-agent="a.id">
-      <div class="field"><span>Maker:</span><span>{{ a.maker || '—' }}<template v-if="a.site"> · <a class="site" target="_blank" :href="a.site">Website</a></template></span></div>
-      <div v-if="a.needs" class="field"><span>Needs:</span><span class="needs">{{ a.needs }}</span></div>
-      <div class="field"><span>Status:</span><span class="installed"><span class="status" role="status">{{ status(a) }}</span><small class="where" data-testid="agent-where">{{ where(a) }}</small>
-        <button type="button" class="install" :hidden="a.installed || !a.install" :disabled="s.installing" @click="list.install(a.id)">Install</button></span></div>
-      <p class="install-line hint" data-testid="install-line">{{ installLine(a) }}</p>
+  <div :ref="(el) => { s.el = el as HTMLElement | null; }" id="agentpage" class="flex flex-col gap-4">
+    <section v-for="a in s.agents" v-show="a.id === chosen" :key="a.id" class="flex flex-col gap-4" :data-agent="a.id">
+      <Card>
+        <CardHeader>
+          <CardTitle role="status" data-testid="agent-status">{{ status(a) }}</CardTitle>
+          <CardDescription class="font-mono break-all empty:hidden" data-testid="agent-where">{{ where(a) }}</CardDescription>
+          <CardAction><Button :hidden="a.installed || !a.install" data-testid="install" :disabled="s.installing" @click="list.install(a.id)">Install</Button></CardAction>
+        </CardHeader>
+        <CardContent class="flex flex-col gap-1 text-muted-foreground">
+          <p>Maker: <span class="text-foreground">{{ a.maker || '—' }}</span><template v-if="a.site"> · <a target="_blank" :href="a.site" data-testid="site">Website</a></template></p>
+          <p v-if="a.needs">Needs: <span class="text-foreground" data-testid="needs">{{ a.needs }}</span></p>
+          <p class="font-mono text-xs break-all empty:hidden" data-testid="install-line">{{ installLine(a) }}</p>
+        </CardContent>
+      </Card>
 
-      <template v-if="canSign(a)">
-        <h3 class="titled">Accounts</h3>
-        <div class="list" :data-accounts="a.id">
-          <div class="tools">
-            <button class="accountnew icon small" type="button" title="New Account…: signed in with its own sign-in" aria-label="New Account"
-              :disabled="!a.installed || busy" @click="newAccount(a)"><PlusIcon /></button>
-            <button class="accountdel icon small" type="button" title="Delete the account (asks first)" aria-label="Delete the account"
-              :disabled="!accountSel || !of(a).some((x) => x.id === accountSel)" @click="remove()"><MinusIcon /></button>
-          </div>
-          <div v-if="of(a).length" class="head" aria-hidden="true"><span>Account</span><span>Projects</span></div>
-          <RightClickMenu :items="accountMenu">
-            <ListboxRoot selection-behavior="replace" v-if="of(a).length" v-model="accountSel" aria-label="Accounts" @keydown.delete="remove()">
-              <ListboxContent>
-                <ListboxItem v-for="x in of(a)" :key="x.id" :value="x.id" class="item" :data-account="x.id" :aria-label="x.email || x.id">
-                  <span class="cell label" :title="x.email || x.id">{{ x.email || x.id }}</span><small class="cell" :title="projectsOf(x)">{{ projectsOf(x) }}</small>
-                </ListboxItem>
+      <Card v-if="canSign(a)" :data-accounts="a.id">
+        <CardHeader>
+          <CardTitle>Accounts</CardTitle>
+          <CardAction>
+            <Button variant="ghost" size="icon-sm" data-testid="accountnew" title="New Account…: signed in with its own sign-in" aria-label="New Account"
+                    :disabled="!a.installed || busy" @click="newAccount(a)"><PlusIcon /></Button>
+            <Button variant="ghost" size="icon-sm" data-testid="accountdel" title="Delete the account (asks first)" aria-label="Delete the account"
+                    :disabled="!accountSel || !of(a).some((x) => x.id === accountSel)" @click="remove()"><MinusIcon /></Button>
+          </CardAction>
+        </CardHeader>
+        <!-- The menu around all of it: the list is there only with rows, and a row added later would get none -->
+        <RightClickMenu :items="accountMenu">
+          <CardContent class="flex flex-col gap-3">
+            <ListboxRoot v-if="of(a).length" v-model="accountSel" selection-behavior="replace" aria-label="Accounts" @keydown.delete="remove()">
+              <ListboxContent as-child>
+                <ItemGroup>
+                  <ListboxItem v-for="x in of(a)" :key="x.id" :value="x.id" as-child>
+                    <Item size="xs" class="data-[state=checked]:bg-muted" :data-account="x.id" :aria-label="x.email || x.id">
+                      <ItemContent class="min-w-0">
+                        <ItemTitle class="max-w-full truncate" :title="x.email || x.id">{{ x.email || x.id }}</ItemTitle>
+                        <ItemDescription class="truncate" :title="projectsOf(x)">{{ projectsOf(x) }}</ItemDescription>
+                      </ItemContent>
+                    </Item>
+                  </ListboxItem>
+                </ItemGroup>
               </ListboxContent>
             </ListboxRoot>
-          </RightClickMenu>
-          <p v-if="!of(a).length" class="empty">No accounts yet.</p>
-        </div>
-        <AccountSignIn v-if="signing?.id === a.id" :agent="signing" @done="signedIn" @close="signing = null" />
-      </template>
+            <Empty v-if="!of(a).length" class="p-4"><EmptyTitle class="text-sm font-normal text-muted-foreground">No accounts yet.</EmptyTitle></Empty>
+            <AccountSignIn v-if="signing?.id === a.id" :agent="signing" @done="signedIn" @close="signing = null" />
+          </CardContent>
+        </RightClickMenu>
+      </Card>
     </section>
-    <p v-if="s.looking" class="empty">Looking for agents on this computer…</p>
+    <p v-if="s.looking" class="text-muted-foreground">Looking for agents on this computer…</p>
     <InstallProgress :list />
-    <p id="agentpageerror" class="error">{{ error }}</p>
+    <FieldError id="agentpageerror" class="empty:hidden">{{ error }}</FieldError>
   </div>
 </template>
-
-<style>
-#agentpage { display: flex; flex-direction: column; gap: var(--gap);
-  .agentdetail { display: flex; flex-direction: column; gap: var(--gap);
-    .field { margin: 0; min-height: var(--control); } .titled { margin-top: var(--gap); }
-    .installed { display: flex; align-items: center; gap: var(--gap); flex-wrap: wrap; small { color: var(--text-muted); } }
-    .where { font-family: "JetBrains Mono", monospace; overflow-wrap: anywhere; &:empty { display: none; } }
-    .install-line { margin: 0 0 0 calc(var(--label) + var(--inset)); font-family: "JetBrains Mono", monospace; overflow-wrap: anywhere; &:empty { display: none; } }
-    .site { color: var(--text-muted); &:hover { color: var(--text); } }
-    .list { --cols: fit-content(50%) minmax(0, 1fr); } } /* an account's email, its projects */
-  :is(.progress, .error) { margin: 0; }
-}
-</style>

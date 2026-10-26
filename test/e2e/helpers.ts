@@ -212,7 +212,7 @@ export async function manageProfiles(ui: Page, sui: () => Promise<Page>) {
 export async function chooseProfile(s: Page, files: Files, name: string) {
   const row = s.locator(`#pjlist [data-profile="${files.idOf(name)}"]`);
   await row.click();
-  await expect(row).toHaveAttribute('aria-selected', 'true');
+  await expect(row).toHaveAttribute('aria-current', 'page');
   await expect(s.locator('#profilepage')).toBeVisible();
 }
 // Settings closed as the human does it with Esc, what was typed saved; its window gone, the keyboard back in the task's
@@ -231,7 +231,7 @@ export async function typeIn(page: Page, sel: string, value: string, leave = fal
 // Settings' project page shown: its name in place at its top.
 export async function pageOf(s: Page, name: string) {
   await expect(s.locator('#pjname')).toHaveValue(name);
-  await expect(s.locator('#pjhead')).toBeVisible();
+  await expect(s.locator('#pjtitle')).toBeVisible();
 }
 // A list's row selected (a click), then a button of its toolbar acting on it (− removes, ★ makes it the default).
 export async function onRow(s: Page, row: string, button: string) {

@@ -175,7 +175,8 @@
 @keyframes grid-to-right { to { translate: 100% 0; } }
 @keyframes grid-from-left { from { translate: -100% 0; } }
 
-/* As a desktop app: the window's text is not selected by a drag (index.html's body), a field's is. */
+/* As a desktop app: the window's text is not selected by a drag (index.html's body), a field's is, and an error's: text
+   to copy and search for. */
 @layer base {
-  input, textarea { @apply select-text; }
+  input, textarea, [data-slot="field-error"] { @apply select-text; }
 }

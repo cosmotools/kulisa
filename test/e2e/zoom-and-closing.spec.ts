@@ -89,7 +89,8 @@ test('the window\'s minimum follows the Kulisa zoom; a window at the minimum gro
   await ctrl(core, null, '-');
   await expect.poll(async () => near(await uiZoom(core), 1.25)).toBe(true);
   expect(await sizes(), 'not made smaller').toEqual({ min: [800, 500], size: [960, 600] });
-  // The smallest window has 640×400 for the UI at any zoom: New Project keeps its buttons and Browse… in it, each kind.
+  // The smallest window has 640×400 for the UI at any zoom: New Project keeps its buttons in it, each kind, and Browse…
+  // within reach (its step scrolls).
   await core((k) => k.shell.win.setSize(800, 500));
   await expect.poll(() => ui.evaluate(() => innerHeight)).toBe(400);
   // New Project… at the sidebar's foot.
@@ -103,6 +104,7 @@ test('the window\'s minimum follows the Kulisa zoom; a window at the minimum gro
     const d = await ui.locator('#newproject').boundingBox(), height = await ui.evaluate(() => innerHeight);
     const inside = async (id: string) => {
       if (!(await ui.locator(`#${id}`).count())) return null;
+      await ui.locator(`#${id}`).scrollIntoViewIfNeeded();
       const r = await ui.locator(`#${id}`).boundingBox();
       return r.x + r.width <= d.x + d.width && r.y + r.height <= d.y + d.height && d.y + d.height <= height;
     };
@@ -343,7 +345,7 @@ test("test users' sign-ins: the agent saves a pair and signs in with it on a loc
   const s = await manageProfiles(ui, sui);
   const row = s.locator(`#pjlist [data-profile="${tess}"]`);
   await row.click();
-  await expect(row).toHaveAttribute('aria-selected', 'true');
+  await expect(row).toHaveAttribute('aria-current', 'page');
   await expect(s.locator('#profilepage')).toBeVisible();
   await expect(s.locator('#profilelogin')).toHaveValue('tester');
   await expect(s.locator('#profilepassword')).toHaveAttribute('placeholder', 'Kept (type to change it)');

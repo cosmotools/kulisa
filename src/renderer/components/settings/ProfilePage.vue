@@ -3,7 +3,12 @@
 // Enter or leaving it). Sign In… opens its master's window (master.ts), to sign in once for every task. Settings'
 // tree makes and deletes profiles (ProjectEditor.vue); a project's page adds and removes them there.
 import { ref, watch } from 'vue';
-import { PopoverContent, PopoverPortal, PopoverRoot, PopoverTrigger } from 'reka-ui';
+import { Avatar, AvatarImage } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
+import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Textarea } from '@/components/ui/textarea';
 import Avatars from './Avatars.vue';
 import { avatarSrc } from '../../lib/common';
 import { covered } from '../../lib/cover';
@@ -38,7 +43,7 @@ const saveLogin = () => { if (login.value.trim() !== p().login) void change(kuli
 async function savePassword() {
   if (password.value && (await change(kulisa.invoke('profiles:login', { profile: pid(), user: login.value, password: password.value })))) password.value = '';
 }
-// Its picture: a panel of them from the button beside it (a menu's look, the pages pictures meanwhile).
+// Its picture: a panel of them from the button beside it (the pages pictures meanwhile).
 const { open: picking, ready: pickReady } = covered('pictures');
 let pickFocused: Element | null = null;
 const togglePick = (v: boolean) => { if (v) pickFocused = document.activeElement; picking.value = v; };
@@ -47,42 +52,48 @@ async function signIn() { error.value = (await kulisa.invoke('profiles:master', 
 </script>
 
 <template>
-  <div id="profilepage">
-    <div class="field"><span>Picture:</span><span>
-      <PopoverRoot :open="picking" @update:open="togglePick">
-        <PopoverTrigger as-child><button id="profilepic" class="select" type="button" title="Its picture" aria-label="Picture">
-          <img class="avatar" alt="" :src="avatarSrc(profile.avatar)"><ChevronDownIcon /></button></PopoverTrigger>
-        <PopoverPortal>
-          <PopoverContent class="menu profilepics" :data-ready="pickReady || undefined" aria-label="Pictures" align="start" :side-offset="4" :collision-padding="4"
-            @close-auto-focus="focusBack($event, pickFocused)"><Avatars :current="profile.avatar" @choose="pick" /></PopoverContent>
-        </PopoverPortal>
-      </PopoverRoot></span></div>
-    <div class="field"><label for="profilename">Name:</label><input id="profilename" v-model="name" data-name maxlength="64" spellcheck="false"
-       title="The agent calls it by this name: no other profile of its projects has it" @change="rename" @keydown.enter.prevent="rename"></div>
-    <div class="field top"><label for="profileabout">About:</label><textarea id="profileabout" v-model="about" rows="2" maxlength="500"
-      placeholder="e.g. seller in the Acme shop; can approve refunds" @change="describe" /></div>
-    <p class="hint">The agent reads this to choose the profile for a task, and asks you when it is empty.</p>
-    <div class="field"><label for="profilelogin">Test login:</label><input id="profilelogin" v-model="login" maxlength="200" spellcheck="false" autocomplete="off"
-      placeholder="A test user of your local app (optional)" @change="saveLogin" @keydown.enter.prevent="saveLogin"></div>
-    <div class="field"><label for="profilepassword">Test password:</label><input id="profilepassword" v-model="password" type="password" maxlength="500"
-      autocomplete="new-password" :disabled="!profile.login" :placeholder="profile.hasPassword ? 'Kept (type to change it)' : 'Test password'"
-      @change="savePassword" @keydown.enter.prevent="savePassword"></div>
-    <p class="hint">Kulisa types them itself, on local addresses only; the agent never sees the password.</p>
-    <div class="field"><span>Sign-ins:</span><span><button id="profilesignin" type="button" @click="signIn">Sign In…</button></span></div>
-    <p class="hint">In a window of its own, once for every task of its projects.</p>
-    <div class="field"><span>Projects:</span><span class="projects">{{ profile.projects.join(', ') || 'none: add it on a project\'s page' }}</span></div>
-    <p id="profileerror" class="error">{{ error }}</p>
-  </div>
+  <FieldGroup id="profilepage" class="max-w-xl">
+    <Field>
+      <FieldLabel for="profilepic">Picture</FieldLabel>
+      <!-- In a box of its own: a field's parts are as wide as the field -->
+      <div><Popover :open="picking" @update:open="togglePick">
+        <PopoverTrigger as-child><Button id="profilepic" variant="outline" title="Its picture" aria-label="Picture">
+          <Avatar class="size-5"><AvatarImage :src="avatarSrc(profile.avatar)" alt="" /></Avatar><ChevronDownIcon /></Button></PopoverTrigger>
+        <PopoverContent :data-ready="pickReady || undefined" aria-label="Pictures" align="start" class="w-80 not-data-ready:opacity-0" @close-auto-focus="focusBack($event, pickFocused)">
+          <Avatars :current="profile.avatar" @choose="pick" />
+        </PopoverContent>
+      </Popover></div>
+    </Field>
+    <Field>
+      <FieldLabel for="profilename">Name</FieldLabel>
+      <Input id="profilename" v-model="name" data-name maxlength="64" spellcheck="false"
+        title="The agent calls it by this name: no other profile of its projects has it" @change="rename" @keydown.enter.prevent="rename" />
+    </Field>
+    <Field>
+      <FieldLabel for="profileabout">About</FieldLabel>
+      <Textarea id="profileabout" v-model="about" rows="2" maxlength="500" placeholder="e.g. seller in the Acme shop; can approve refunds" @change="describe" />
+      <FieldDescription>The agent reads this to choose the profile for a task, and asks you when it is empty.</FieldDescription>
+    </Field>
+    <Field>
+      <FieldLabel for="profilelogin">Test login</FieldLabel>
+      <Input id="profilelogin" v-model="login" maxlength="200" spellcheck="false" autocomplete="off"
+        placeholder="A test user of your local app (optional)" @change="saveLogin" @keydown.enter.prevent="saveLogin" />
+    </Field>
+    <Field>
+      <FieldLabel for="profilepassword">Test password</FieldLabel>
+      <Input id="profilepassword" v-model="password" type="password" maxlength="500" autocomplete="new-password" :disabled="!profile.login"
+        :placeholder="profile.hasPassword ? 'Kept (type to change it)' : 'Test password'" @change="savePassword" @keydown.enter.prevent="savePassword" />
+      <FieldDescription>Kulisa types them itself, on local addresses only; the agent never sees the password.</FieldDescription>
+    </Field>
+    <Field>
+      <FieldLabel for="profilesignin">Sign-ins</FieldLabel>
+      <div><Button id="profilesignin" variant="outline" @click="signIn">Sign In…</Button></div>
+      <FieldDescription>In a window of its own, once for every task of its projects.</FieldDescription>
+    </Field>
+    <Field>
+      <FieldLabel>Projects</FieldLabel>
+      <p class="text-muted-foreground" data-testid="projects">{{ profile.projects.join(', ') || 'none: add it on a project\'s page' }}</p>
+    </Field>
+    <FieldError id="profileerror" class="empty:hidden">{{ error }}</FieldError>
+  </FieldGroup>
 </template>
-
-<style>
-#profilepage { display: flex; flex-direction: column; gap: var(--gap);
-  .field { margin: 0; } .field.top { align-items: start; > label { line-height: var(--control); } }
-  .hint { margin: -4px 0 0 calc(var(--label) + var(--inset)); }
-  textarea { width: 100%; }
-  #profilepic { width: auto; gap: 4px; padding: 0 6px; .avatar { --avatar: 18px; } }
-  .projects { color: var(--text-dim); }
-  .error:empty { display: none; }
-}
-.profilepics { min-width: 0; padding: var(--gap); .choices { max-width: 320px; } }
-</style>

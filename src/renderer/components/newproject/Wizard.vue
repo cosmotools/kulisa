@@ -1,11 +1,15 @@
 <script setup lang="ts">
 // New Project, step by step (docs/tasks.md, Projects): the steps, the buttons; their state in wizard.ts. At the first
 // start under a question each (welcome/: its head, and Back on the first step leaves for the slides before it),
-// elsewhere a dialog (NewProject.vue, cancelable).
+// elsewhere a dialog (NewProject.vue, cancelable). A step done is gone back to from the steps; the next one only by Next,
+// which checks this one.
 import CodeStep from './CodeStep.vue';
 import AgentStep from './AgentStep.vue';
 import ProfilesStep from './ProfilesStep.vue';
-import { DialogClose } from 'reka-ui';
+import { Button } from '@/components/ui/button';
+import { DialogClose } from '@/components/ui/dialog';
+import { FieldError } from '@/components/ui/field';
+import { Stepper, StepperIndicator, StepperItem, StepperSeparator, StepperTitle, StepperTrigger } from '@/components/ui/stepper';
 import { nextTick, ref } from 'vue';
 import { STEPS, provideWizard } from './wizard';
 
@@ -16,42 +20,34 @@ const loaded = w.reset(); // anew each time it is shown: its component is made t
 const code = ref<InstanceType<typeof CodeStep>>();
 const next = async () => { if (await w.next()) emit('done'); };
 const back = () => { if (w.step.value) w.back(); else emit('leave'); };
+const toStep = (n: number) => { while (w.step.value > n - 1) w.back(); };
 // The keyboard in its name.
 const focus = async () => { await loaded; await nextTick(); code.value?.focus(); }; // drawn the tick after its defaults came
 defineExpose({ focus, saving: w.saving });
 </script>
 
 <template>
-  <form v-if="w.ready.value" id="npform" class="wizard" :class="{ single }" @submit.prevent="next">
+  <form v-if="w.ready.value" id="npform" class="flex min-h-0 flex-1 flex-col gap-4" @submit.prevent="next">
     <slot name="head" :step="w.step.value" :count="STEPS.length">
-      <ol class="steps" aria-label="Steps">
-        <li v-for="(s, i) in STEPS" :key="s" :data-done="i < w.step.value || undefined" :aria-current="i === w.step.value ? 'step' : undefined">
-          <span class="n">{{ i + 1 }}</span>{{ s }}</li>
-      </ol>
+      <Stepper :model-value="w.step.value + 1" aria-label="Steps" class="items-center" @update:model-value="(n) => n && toStep(n)">
+        <StepperItem v-for="(s, i) in STEPS" :key="s" :step="i + 1" :completed="i < w.step.value" :disabled="i > w.step.value">
+          <StepperTrigger class="flex-row gap-2" type="button">
+            <StepperIndicator>{{ i + 1 }}</StepperIndicator>
+            <StepperTitle>{{ s }}</StepperTitle>
+          </StepperTrigger>
+          <StepperSeparator v-if="i < STEPS.length - 1" class="h-px w-8" />
+        </StepperItem>
+      </Stepper>
     </slot>
     <CodeStep v-show="w.step.value === 0" ref="code" />
     <AgentStep v-show="w.step.value === 1" />
     <ProfilesStep v-show="w.step.value === 2" />
-    <p id="nperror" class="error">{{ w.error.value }}</p>
-    <footer>
-      <button v-if="w.step.value || leavable" id="npback" type="button" class="start" @click="back">Back</button>
-      <DialogClose v-if="cancelable" type="button">Cancel</DialogClose>
-      <button id="npcreate" class="primary" :disabled="w.saving.value">{{ w.saving.value ? (w.code.from === 'clone' ? 'Cloning…' : 'Creating…') : w.last.value ? 'Create' : 'Next' }}</button>
+    <FieldError id="nperror" class="empty:hidden">{{ w.error.value }}</FieldError>
+    <footer class="mt-auto flex justify-end gap-2">
+      <Button v-if="w.step.value || leavable" id="npback" type="button" variant="outline" class="mr-auto" @click="back">Back</Button>
+      <DialogClose v-if="cancelable" as-child><Button type="button" variant="outline">Cancel</Button></DialogClose>
+      <Button id="npcreate" type="submit" :disabled="w.saving.value">
+        {{ w.saving.value ? (w.code.from === 'clone' ? 'Cloning…' : 'Creating…') : w.last.value ? 'Create' : 'Next' }}</Button>
     </footer>
   </form>
 </template>
-
-<style>
-.wizard { flex: 1; display: flex; flex-direction: column; min-height: 0;
-  --label: 72px; /* its labels are short (Location: the longest) */
-  &.single { --label: 100px; } /* the welcome's: Project name: */
-  .steps { display: flex; gap: calc(var(--gap) * 3); margin: 0; padding: var(--inset) var(--pad); list-style: none;
-    border-bottom: 1px solid var(--island-hi); color: var(--text-muted);
-    li { display: flex; align-items: center; gap: 6px; }
-    .n { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; border: 1px solid var(--line); font-size: var(--font-small); }
-    [aria-current="step"] { color: var(--text-strong); .n { border-color: var(--blue); background: var(--blue); color: var(--on-accent); } }
-    [data-done] .n { border-color: var(--blue); color: var(--blue); } }
-  .npstep { flex: 1; min-width: 0; padding: var(--pad); overflow: auto; > .hint:first-child { margin-top: 0; } .titled { margin-block: var(--pad) var(--inset); } }
-  #nperror { margin: 0 var(--pad) var(--inset); &:empty { display: none; } }
-}
-</style>

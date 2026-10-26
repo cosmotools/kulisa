@@ -7,14 +7,6 @@ import type { Page } from '@playwright/test';
 import { ipcSettled, menu, choose, projectTabs, projectTab, showProject, invoke, typeIn, notLoading, projectMenu, fromSidebar, removed, answer, termKeys } from './helpers.ts';
 import { begin, bothOn, taskShown, taskTab, deleteProfile } from './tasks-helpers.ts';
 
-// A color token as the page resolves it (Playwright reads a style only to compare it with one given).
-const token = (ui: Page, name: string) => ui.evaluate((n) => {
-  const i = document.body.appendChild(document.createElement('i'));
-  i.style.background = `var(${n})`;
-  const c = getComputedStyle(i).backgroundColor;
-  i.remove();
-  return c;
-}, name);
 // The keyboard taken from whatever has it.
 const blur = async (ui: Page) => { if (await ui.locator(':focus').count()) await ui.locator(':focus').blur(); };
 
@@ -103,15 +95,15 @@ test("the empty window: Close All Tasks in the project's submenu; links in ☰ o
     await core((k, s) => k.shell.win.setContentSize(s[0], s[1]), size);
     await ui.locator('#tourskip').click();
     await expect(ui.locator('#npname')).toBeFocused();
-    // A question, not the steps' names.
+    // A question, not the steps' names: how far, a bar.
     await expect(ui.locator('#welcome h1')).toHaveText('Where is the code?');
-    await expect(ui.locator('#welcome [data-on]')).toHaveCount(1);
-    await expect(ui.locator('#welcome [aria-current="step"]')).toHaveCount(0);
+    await expect(ui.locator('#welcome [role="progressbar"]')).toHaveCount(1);
+    await expect(ui.locator('#welcome [aria-current="true"]')).toHaveCount(0);
     await expect(ui.locator('#npcreate')).toHaveText('Next');
-    await expect(ui.locator('#npform').locator('..'), "an island's, as a dialog's").toHaveCSS('background-color', await token(ui, '--island'));
+    await expect(ui.locator('#welcome [data-slot="card"] #npform'), 'in a card, as in a dialog').toHaveCount(1);
     // Code from the disk or a URL: one folder or one URL, in a field, not a list (the others later, in Settings); its
     // name the folder's or the repository's, no field for it unless it will not do. A new folder's is asked.
-    await expect(ui.locator('label[for="npname"]')).toHaveText('Project name:');
+    await expect(ui.locator('label[for="npname"]')).toHaveText('Project name');
     const kind = async (from: string) => {
       await ui.locator(`#npfrom [data-value="${from}"]`).click();
       await expect(ui.locator(`#npfrom [data-value="${from}"]`)).toHaveAttribute('aria-selected', 'true');
@@ -120,13 +112,13 @@ test("the empty window: Close All Tasks in the project's submenu; links in ☰ o
     fs.mkdirSync(single, { recursive: true });
     await kind('folder');
     await expect(ui.locator('#npsources')).toHaveCount(0);
-    await expect(ui.locator('#npsingle label')).toHaveText('Folder:');
+    await expect(ui.locator('#npsingle label')).toHaveText('Folder');
     await expect(ui.locator('#npmore')).toHaveCount(1);
     await typeIn(ui, '#npsource', single, true);
     await expect(ui.locator('#npwhere')).toHaveText(`The project Shop takes ${single} as it is`);
     await expect(ui.locator('#npname'), "its name: the folder's").toHaveCount(0);
     await kind('clone');
-    await expect(ui.locator('#npsingle label')).toHaveText('URL:');
+    await expect(ui.locator('#npsingle label')).toHaveText('URL');
     // A clone whose folder is there already, with files: its name to change, in its field.
     const home = await core((k) => k.shell.projectsHome), taken = path.join(home, 'taken');
     fs.mkdirSync(taken, { recursive: true });
@@ -172,7 +164,7 @@ test("the empty window: Close All Tasks in the project's submenu; links in ☰ o
     await expect(ui.locator('#nplocation')).toHaveValue(made);
   } finally { await core((k) => { k.electron.dialog.showOpenDialog = k.stash.open; }); }
   // The step shown (its number, then its name); Next as the human goes on.
-  const step = (name: string) => expect(ui.locator('#newproject [aria-current="step"]')).toHaveText(new RegExp(`^.${name}$`));
+  const step = (name: string) => expect(ui.locator('#newproject [aria-current="true"]')).toHaveText(new RegExp(`^.${name}$`));
   const next = () => ui.locator('#npcreate').click();
   // A folder there already would be taken as it is (the form says so as it is typed); a file is refused at Next.
   await typeIn(ui, '#npname', 'Taken');

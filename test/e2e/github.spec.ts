@@ -27,7 +27,8 @@ async function settings(core: Core, sui: () => Promise<Page>, at: SettingsAt = {
 }
 // The accounts' rows as Settings → GitHub shows them (one by its id), and a row's cells.
 const rows = (s: Page, id?: string) => s.locator(id ? `#ghaccounts [data-github="${id}"]` : '#ghaccounts [data-github]');
-const cells = (row: Locator) => row.locator(':scope > *');
+// Its login, where Kulisa App is, its projects, its end.
+const cells = (row: Locator) => row.locator(':is([data-slot="item-title"], [data-testid="installed"], [data-testid="projects"], [data-slot="item-actions"])');
 async function githubPage(core: Core, sui: () => Promise<Page>) {
   const s = await settings(core, sui);
   await s.locator('#pjlist [data-page="github"]').click();

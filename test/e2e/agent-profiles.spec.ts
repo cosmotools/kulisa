@@ -23,7 +23,7 @@ test('profiles are made in Settings (Profiles\' + in its tree), each with its ow
     await s.locator('#profilenewname').press('Enter');
     await expect(s.locator('#profilename')).toHaveValue(name);
     await expect(s.locator('#profilenewname')).toHaveCount(0);
-    await expect(s.locator('#pjlist [aria-selected="true"]')).toHaveAccessibleName(name);
+    await expect(s.locator('#pjlist [aria-current="page"]')).toHaveAccessibleName(name);
   };
   const stored = (name: string) => core((k, id) => k.shell.profileStore.get(id), files.idOf(name));
   await make('Sam.seller');
@@ -31,11 +31,8 @@ test('profiles are made in Settings (Profiles\' + in its tree), each with its ow
   await expect.poll(async () => (await stored('Sam.seller'))?.description).toBe('seller in the test shop');
   await make('Elon.buyer');
   expect((await stored('Elon.buyer')).avatar, 'the next picture free').toBe('frog');
-  // Its picture's button looks as a field to choose from (.select): the chosen one, a chevron, the fields' background
-  // (the token's color as the page resolves it: Playwright reads a style only to compare it with one given).
-  const field = await s.evaluate(() => { const f = document.body.appendChild(document.createElement('i')); f.style.background = 'var(--field)'; const c = getComputedStyle(f).backgroundColor; f.remove(); return c; });
-  await expect(s.locator('#profilepic')).toHaveCSS('display', 'flex');
-  await expect(s.locator('#profilepic')).toHaveCSS('background-color', field);
+  // Its picture's button shows the chosen one.
+  await expect(s.locator('#profilepic img')).toHaveAttribute('src', 'avatars/frog.svg');
   await s.locator('#profilepic').click();
   await expect(s.locator('[role="dialog"][aria-label="Pictures"][data-ready]')).toBeVisible();
   await expect(s.locator('[role="dialog"][aria-label="Pictures"] [data-avatar]'), 'all of them to choose from, at once').toHaveCount(16);

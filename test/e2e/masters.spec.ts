@@ -44,7 +44,7 @@ test("About this profile… opens Settings' window at it (one, not modal: the ta
   await rightClick(ui, `[data-panel="profile:${sam}"] b`);
   await choose(ui, 'About this profile…');
   const s = await sui();
-  await expect(s.locator(`#pjlist [data-profile="${sam}"]`)).toHaveAttribute('aria-selected', 'true');
+  await expect(s.locator(`#pjlist [data-profile="${sam}"]`)).toHaveAttribute('aria-current', 'page');
   await expect(s.locator('#profilename')).toHaveValue('Sam.admin');
   await expect(s.locator(`#pjlist [data-profile="${sam}"] [title]`), "the tree's narrow column cuts a name: the whole in its tooltip").toHaveAttribute('title', 'Sam.admin');
   // A window of its own, not a child of the task's (on macOS a child stays above its parent), which goes on taking input

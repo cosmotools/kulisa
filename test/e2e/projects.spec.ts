@@ -58,12 +58,12 @@ test("projects: the projects' manager (Project Settings…) changes its name and
   let s = await sui();
   await pageOf(s, 'site');
   // The manager lists every project, this one chosen.
-  await expect(s.locator(`#pjlist [data-project="${id}"]`)).toHaveAttribute('aria-selected', 'true');
+  await expect(s.locator(`#pjlist [data-project="${id}"]`)).toHaveAttribute('aria-current', 'page');
   await expect(s.locator(`#pjlist [data-project="${id}"] [data-testid="project-icon"]`), 'its favicon, a picture').toHaveJSProperty('tagName', 'IMG');
-  await expect(s.locator('#npfolders [data-folder] small'), 'its folder, as its code').toHaveText(site);
+  await expect(s.locator('#npfolders [data-folder] [data-slot="item-description"]'), 'its folder, as its code').toHaveText(site);
   await expect(s.locator('#nplocationrow')).toHaveCount(0);
   // A page: its top (New Task, ⋯), each part saved as it changes; the dialog stays open.
-  await expect(s.locator('#pjconfig :is(h3, label[for])')).toHaveText(['Name:', 'Folders', 'Agents', 'Profiles', 'Local addresses:']);
+  await expect(s.locator('#pjconfig :is([data-slot="card-title"], [data-slot="field-label"])')).toHaveText(['Name', 'Folders', 'Agents', 'Profiles', 'Local addresses']);
   const entryOf = () => core((k, i) => k.shell.store.projects().find((p) => p.id === i), id);
   // Its favicon changed: read again as its settings open. Mostly blue with a red dot: the hue of the most (264°).
   const favicon = (svg: string) => fs.writeFileSync(path.join(site, 'public', 'favicon.svg'), `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">${svg}</svg>`);
@@ -112,7 +112,7 @@ test("projects: the projects' manager (Project Settings…) changes its name and
     - menuitem "Sam.admin"
   `);
   await choose(s, 'Sam.admin');
-  await expect(s.locator(`#npprofiles [data-profile="${samId}"] > *`)).toHaveText(['Sam.admin', 'seller in the test shop', 'project']);
+  await expect(s.locator(`#npprofiles [data-profile="${samId}"] :is([data-slot="item-title"], [data-slot="item-description"], [data-testid="also"])`)).toHaveText(['Sam.admin', 'seller in the test shop', 'also in project']);
   await expect.poll(() => core((k, a) => k.shell.closed.has(a.sam) && k.shell.closed.has(a.user), { sam: samId, user: siteUser })).toBe(true); // its task lists them, closed
   await onRow(s, `#npprofiles [data-profile="${siteUser}"]`, '#npprofiledel');
   expect((await answer(s)).message).toBe('Remove the profile Site-user from Site-2?');
@@ -151,19 +151,10 @@ test("projects: the projects' manager (Project Settings…) changes its name and
     await expect(options).toHaveCount(rows.length);
     for (const [i, [title, isDefault]] of rows.entries()) {
       await expect(options.nth(i)).toHaveAttribute('title', title);
-      await expect(options.nth(i).locator('kbd').getByText('default', { exact: true })).toHaveCount(isDefault ? 1 : 0);
+      await expect(options.nth(i).locator('[data-slot="badge"]').getByText('default', { exact: true })).toHaveCount(isDefault ? 1 : 0);
     }
   };
   await agentRows([['Terminal only', true], ['Fake agent · ann@shop.com', false]]); // the first added, the default
-  // A table: each value in its column, under its name, the columns at the same places in every row (values
-  // one after another, each row in its own rhythm, read as chaos).
-  await expect(s.locator('#npagentsrow div[aria-hidden="true"] > *')).toHaveText(['Agent', 'Account', '']);
-  // Every cell's left edge in every row at once (boundingBox reads one element at a time).
-  expect(await s.locator('#npagentsrow').evaluate((t) => {
-    const x = (e: Element) => Math.round(e.getBoundingClientRect().left);
-    const rows = [t.querySelector('div[aria-hidden="true"]'), ...t.querySelectorAll('[role="option"]')].map((r) => [...r.children].map(x).join());
-    return rows.every((r) => r === rows[0]);
-  }), 'the columns in line').toBe(true);
   expect((await entryOf()).agents).toEqual(['shell', ann]);
   expect(await core((k, a) => k.shell.store.projectsWith('agents', a).map((p) => p.id), ann), 'the projects list their agents').toEqual([id]);
   await onRow(s, `#npagents [data-agent="${ann}"]`, '#npagentdefault');
@@ -225,7 +216,7 @@ test("projects: the projects' manager (Project Settings…) changes its name and
   await expect(launchProfiles.getByRole('button')).toHaveText(['Add Profile…']);
   await launchProfiles.getByRole('button').click();
   s = await sui();
-  await expect(s.locator(`#pjlist [data-project="${id}"]`)).toHaveAttribute('aria-selected', 'true');
+  await expect(s.locator(`#pjlist [data-project="${id}"]`)).toHaveAttribute('aria-current', 'page');
   await closeSettings(core, ui, sui);
   const terminals = () => core((k, key) => k.shell.taskByKey(key).terminals.size, bare);
   expect(await terminals()).toBe(0);
@@ -280,7 +271,7 @@ test("projects: the title bar's gear opens Settings' window at the shown project
     const g = k.stash;
     g.filled = null;
     k.electron.app.once('browser-window-created', (_e, w) => w.once('show', () => {
-      void w.webContents.executeJavaScript(`[document.querySelectorAll('#pjlist [data-agent]').length > 0, document.querySelectorAll('#pjlist [data-profile]').length > 0, !!document.getElementById('pjhead')]`)
+      void w.webContents.executeJavaScript(`[document.querySelectorAll('#pjlist [data-agent]').length > 0, document.querySelectorAll('#pjlist [data-profile]').length > 0, !!document.getElementById('pjtitle')]`)
         .then((r) => { g.filled = r; });
     }));
   });
@@ -288,7 +279,7 @@ test("projects: the title bar's gear opens Settings' window at the shown project
   await expect.poll(() => core((k) => k.stash.filled)).toEqual([true, true, true]);
   const s = await sui();
   await pageOf(s, 'project');
-  await expect(s.locator('#pjlist [aria-selected="true"]')).toHaveAttribute('data-project', files.pid('project'));
+  await expect(s.locator('#pjlist [aria-current="page"]')).toHaveAttribute('data-project', files.pid('project'));
   // Pages on screen under Settings' window (once live again after the last menu's pictures: on a loaded machine later).
   await expect.poll(() => core((k) => k.profile('Sam.admin').get().view.getVisible())).toBe(true);
   // The other project is closed: its configuration all the same; a profile made and let go there (asked first, in

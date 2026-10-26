@@ -660,15 +660,15 @@ test("About Kulisa (☰; on macOS the app menu's) is a page of Settings: the ver
   }
   const shown = async () => {
     const s = await sui();
-    await expect(s.locator('#pjlist [data-page="about"]')).toHaveAttribute('aria-selected', 'true');
+    await expect(s.locator('#pjlist [data-page="about"]')).toHaveAttribute('aria-current', 'page');
     await expect(s.locator('#abconfig')).toBeVisible();
-    await expect(s.locator('#aboutpage h3').first()).toBeAttached();
+    await expect(s.locator('#aboutpage [data-slot="card-title"]').first()).toBeAttached();
     return s;
   };
   const s = await shown();
   expect(await core((k) => k.shell.settings.win.getTitle()), "a page of Settings, as Chrome's About").toBe('Settings — Kulisa');
-  const a = await s.locator('#aboutpage').evaluate((d) => ({ title: d.querySelector('h3').textContent, line: [...d.querySelector('h3').parentElement.querySelectorAll('p')].map((p) => p.textContent).join(' / '),
-    folders: [...d.querySelectorAll<HTMLElement>('dd[data-folder]')].map((dd) => ({ id: dd.dataset.folder, path: dd.firstElementChild.textContent, missing: dd.hasAttribute('data-missing'), disabled: dd.querySelector<HTMLButtonElement>('[aria-label="Show"]').disabled })) }));
+  const a = await s.locator('#aboutpage').evaluate((d) => ({ title: d.querySelector('[data-slot="card-title"]').textContent, line: d.querySelector<HTMLElement>('[data-slot="card-description"]').innerText.replace('\n', ' / '),
+    folders: [...d.querySelectorAll<HTMLElement>('[data-folder]')].map((f) => ({ id: f.dataset.folder, path: f.querySelector('[data-testid="path"]').textContent, missing: f.hasAttribute('data-missing'), disabled: f.querySelector<HTMLButtonElement>('[aria-label="Show"]').disabled })) }));
   expect(a.title).toBe(`Kulisa ${pkg.version}`);
   const versions = await core(() => ({ electron: process.versions.electron, chrome: process.versions.chrome }));
   expect(a.line).toBe(`Electron ${versions.electron} · Chromium ${versions.chrome} / kulisa.app · GPL-3.0-or-later`);
@@ -682,7 +682,7 @@ test("About Kulisa (☰; on macOS the app menu's) is a page of Settings: the ver
     k.electron.shell.openPath = async (dir: string) => { g.shownDirs.push(dir); return ''; };
   });
   try {
-    await s.locator('#aboutpage dd[data-folder="data"]').getByRole('button', { name: 'Show' }).click();
+    await s.locator('#aboutpage [data-folder="data"]').getByRole('button', { name: 'Show' }).click();
     await expect.poll(() => core((k) => k.stash.shownDirs.length)).toBe(1);
   } finally { await core((k) => { k.electron.shell.openPath = k.stash.openPath; }); }
   expect(await core((k) => k.stash.shownDirs)).toEqual([files.userData]);

@@ -85,7 +85,7 @@ test("projects: Delete Project… (the projects' manager alone) asks, closes the
   const create = async (folder: string) => {
     for (const step of ['Agents', 'Profiles']) {
       await submit();
-      await expect(ui.locator('#newproject [aria-current="step"]')).toHaveText(new RegExp(`^.${step}$`));
+      await expect(ui.locator('#newproject [aria-current="true"]')).toHaveText(new RegExp(`^.${step}$`));
     }
     await submit();
     await expect.poll(async () => {
@@ -112,7 +112,7 @@ test("projects: Delete Project… (the projects' manager alone) asks, closes the
     await ui.locator('#npbrowsesource').click();
     await expect(ui.locator('#npname')).toHaveValue('gone');
   } finally { await core((k) => { k.electron.dialog.showOpenDialog = k.stash.open; }); }
-  await expect(ui.locator('#npsources [role="option"] kbd')).toHaveText('git');
+  await expect(ui.locator('#npsources [role="option"] [data-slot="badge"]')).toHaveText('git');
   await create('gone');
   expect(await core((k) => k.shell.current.folder)).toBe(goneDir);
   expect(git(goneDir, 'log', '--format=%s'), 'its history as it was').toBe('mine');
@@ -139,9 +139,9 @@ test("projects: Delete Project… (the projects' manager alone) asks, closes the
   const sources = ui.locator('#npsources [role="option"]');
   await expect(sources).toHaveCount(2);
   await expect(sources.nth(0)).toHaveAttribute('data-source', goneDir);
-  await expect(sources.nth(0).locator('kbd')).toHaveText(['git', 'default']);
+  await expect(sources.nth(0).locator('[data-slot="badge"]')).toHaveText(['git', 'default']);
   await expect(sources.nth(1)).toHaveAttribute('data-source', back);
-  await expect(sources.nth(1).locator('kbd')).toHaveText(['no git']);
+  await expect(sources.nth(1).locator('[data-slot="badge"]')).toHaveText(['no git']);
   await create('gone');
   expect(await core((k, i) => k.shell.store.projects().find((x) => x.id === i).folders, files.pid('gone'))).toEqual([goneDir, back]);
   expect(fs.existsSync(path.join(back, '.git')), 'the one without git left so').toBe(false);

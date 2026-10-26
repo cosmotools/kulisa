@@ -5,6 +5,9 @@
 // shown, so a folder made since shows. As Chrome's About, a page of the settings: one place for what is about the app.
 import { ref, watch } from 'vue';
 import type { AboutInfo, AboutFolder } from '../../../shared/types';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemTitle } from '@/components/ui/item';
 import { FolderIcon } from '@lucide/vue';
 import LogoMark from '../marks/LogoMark.vue';
 
@@ -19,44 +22,33 @@ watch(() => props.shown, async (s) => { if (s) info.value = await kulisa.invoke(
 </script>
 
 <template>
-  <div id="aboutpage">
+  <div id="aboutpage" class="flex max-w-2xl flex-col gap-4">
     <template v-if="info">
-      <div class="who">
-        <LogoMark />
-        <div>
-          <h3>Kulisa <span class="version">{{ info.version }}</span></h3>
-          <p class="hint">Electron {{ info.electron }} · Chromium {{ info.chrome }}</p>
-          <p class="hint"><a href="https://kulisa.app">kulisa.app</a> · GPL-3.0-or-later</p>
-        </div>
-      </div>
-      <h3 class="titled">Where Kulisa keeps things</h3>
-      <dl class="paths">
-        <template v-for="f in info.folders" :key="f.id">
-          <dt>{{ FOLDERS[f.id].label }}</dt>
-          <dd :data-missing="!f.exists || undefined" :data-folder="f.id">
-            <span class="path">{{ f.path }}</span>
-            <button class="icon show" :disabled="!f.exists" :title="f.exists ? 'Show in your file manager' : 'Not made yet'" aria-label="Show"
-              @click="kulisa.invoke('about:show-folder', f.id)"><FolderIcon /></button>
-            <span class="hint">{{ FOLDERS[f.id].hint }}</span>
-          </dd>
-        </template>
-      </dl>
+      <Card>
+        <CardHeader class="grid-cols-[auto_1fr] gap-x-4">
+          <LogoMark class="row-span-2 size-12 text-primary" />
+          <CardTitle class="text-lg">Kulisa <span class="font-normal text-muted-foreground" data-testid="version">{{ info.version }}</span></CardTitle>
+          <CardDescription>Electron {{ info.electron }} · Chromium {{ info.chrome }}<br><a href="https://kulisa.app">kulisa.app</a> · GPL-3.0-or-later</CardDescription>
+        </CardHeader>
+      </Card>
+      <Card>
+        <CardHeader><CardTitle>Where Kulisa keeps things</CardTitle></CardHeader>
+        <CardContent>
+          <ItemGroup>
+            <Item v-for="f in info.folders" :key="f.id" size="xs" :data-folder="f.id" :data-missing="!f.exists || undefined">
+              <ItemContent class="min-w-0">
+                <ItemTitle>{{ FOLDERS[f.id].label }}</ItemTitle>
+                <p class="cursor-text font-mono text-xs wrap-anywhere select-text" :class="f.exists ? 'text-foreground' : 'text-muted-foreground'" data-testid="path">{{ f.path }}</p>
+                <ItemDescription>{{ FOLDERS[f.id].hint }}</ItemDescription>
+              </ItemContent>
+              <ItemActions>
+                <Button variant="ghost" size="icon-sm" :disabled="!f.exists" :title="f.exists ? 'Show in your file manager' : 'Not made yet'" aria-label="Show"
+                  @click="kulisa.invoke('about:show-folder', f.id)"><FolderIcon /></Button>
+              </ItemActions>
+            </Item>
+          </ItemGroup>
+        </CardContent>
+      </Card>
     </template>
   </div>
 </template>
-
-<style>
-#aboutpage { max-width: 640px;
-  .who { display: flex; align-items: center; gap: var(--gap); margin-bottom: calc(var(--gap) * 2);
-    > svg { width: 48px; height: 48px; flex: none; color: var(--project); }
-    h3 { margin: 0 0 2px; font-size: var(--font-lead); font-weight: 600; color: var(--text-strong); }
-    .version { font-weight: normal; color: var(--text-dim); }
-    .hint { margin: 0; } }
-  .paths { display: grid; grid-template-columns: auto 1fr; gap: 0 var(--gap); margin: var(--inset) 0 0;
-    dt { padding-top: 8px; color: var(--text-dim); }
-    dd { display: grid; grid-template-columns: 1fr auto; align-items: center; margin: 0; padding: 4px 0; border-bottom: 1px solid var(--island-hi);
-      .path { color: var(--text-strong); overflow-wrap: anywhere; user-select: text; cursor: text; }
-      .hint { grid-column: 1 / -1; margin: 0 0 2px; } }
-    [data-missing] .path { color: var(--text-muted); } }
-}
-</style>

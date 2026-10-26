@@ -10,7 +10,7 @@ test("☰ → Report a Problem… opens Settings at the Log page: the log so far
   await choose(ui, 'Report a Problem…');
   const s = await sui();
   const line = s.locator('#logpage [role="log"] > div'), lines = () => line.allTextContents();
-  await expect(s.locator('#pjlist [data-page="log"]')).toHaveAttribute('aria-selected', 'true');
+  await expect(s.locator('#pjlist [data-page="log"]')).toHaveAttribute('aria-current', 'page');
   await expect(s.locator('#lgconfig')).toBeVisible();
   await expect(line.first()).toBeVisible();
   expect(await line.first().textContent(), 'the time and the tag, the date in the tooltip').toMatch(/^\d\d:\d\d:\d\d\.\d{3}\[kulisa\]start \d+\.\d+\.\d+, electron /);

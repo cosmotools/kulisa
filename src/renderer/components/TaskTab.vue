@@ -22,7 +22,7 @@ const title = computed(() => `${props.p.name}\n` + (props.t.branch ? `branch ${p
   <!-- Never narrow, a target for a quick throw of the mouse; its name keeps about ten letters (× kept on every tab) -->
   <TabsTrigger :value="t.key" as-child class="max-w-60 min-w-40 flex-[0_1_auto] justify-start pr-0.5 pl-2 data-dragging:opacity-50 data-[drop=after]:border-r-primary data-[drop=before]:border-l-primary">
     <div :data-task="t.key" :aria-label="t.name" :title @click.stop>
-      <ProjectIcon :p class="size-4 shrink-0 text-(--color)" />
+      <ProjectIcon :p />
       <AgentState :state="t.state" :title="t.state ? `The agent ${STATES[t.state]}` : ''" />
       <span class="flex-1 truncate text-left">{{ t.name }}</span>
       <Button variant="ghost" size="icon-xs" aria-label="Close" title="Close the task: its agent stops, all else stays (open it again from the sidebar)"

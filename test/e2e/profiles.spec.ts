@@ -82,7 +82,7 @@ test("delete a profile in Settings (its page's ⋯, its row's right-click): sign
   await answer(s);
   await expect.poll(() => core((k, p) => !k.shell.profiles.has(p) && !k.shell.profileStore.get(p), tempId)).toBe(true);
   await expect(s.locator(`#pjlist [data-profile="${tempId}"]`)).toHaveCount(0);
-  await expect(s.locator('#pjlist [data-profile][aria-selected="true"]')).toHaveCount(1);
+  await expect(s.locator('#pjlist [data-profile][aria-current="page"]')).toHaveCount(1);
   await closeSettings(core, ui, sui);
 
   expect(await core((k) => [...k.shell.profiles.keys()])).toEqual(others);

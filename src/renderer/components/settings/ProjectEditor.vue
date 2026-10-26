@@ -4,7 +4,18 @@
 // Agents), the chosen one's page on the right under its path. Saved as it changes (no OK, no Cancel). Settings only: a project is made in a
 // tasks' window (New Project…), which then opens it here.
 import { computed, nextTick, ref, watch } from 'vue';
-import { ListboxContent, ListboxItem, ListboxRoot, TreeItem, TreeRoot } from 'reka-ui';
+import { ListboxContent, ListboxItem, ListboxRoot } from 'reka-ui';
+import { Avatar, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Empty, EmptyContent, EmptyTitle } from '@/components/ui/empty';
+import { Field, FieldDescription, FieldError, FieldLabel } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
+import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemMedia, ItemTitle } from '@/components/ui/item';
+import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupAction, SidebarGroupLabel, SidebarMenu, SidebarMenuBadge, SidebarMenuButton,
+  SidebarMenuItem, SidebarProvider } from '@/components/ui/sidebar';
+import PageHead from './PageHead.vue';
 import ButtonMenu from '../menu/ButtonMenu.vue';
 import RightClickMenu from '../menu/RightClickMenu.vue';
 import AccountSignIn from '../AccountSignIn.vue';
@@ -24,7 +35,7 @@ import type { Result } from '../../../shared/result';
 import type { Account, AccountsInfo, ProjectAgent, ProjectChoices, ProjectEntry, ProjectGitHub, ProjectProfile, ProjectFolder, SettingsProfile, SignedIn } from '../../../shared/types';
 import LogoMark from '../marks/LogoMark.vue';
 import GitHubMark from '../marks/GitHubMark.vue';
-import { BookOpenIcon, ChevronDownIcon, EllipsisVerticalIcon, MinusIcon, PlusIcon, StarIcon } from '@lucide/vue';
+import { BookOpenIcon, EllipsisIcon, MinusIcon, PlusIcon, StarIcon } from '@lucide/vue';
 
 // The page shown, of the tree's section (the log and About are pages of their own, under them); the agents' list lives here, so an
 // install goes on while a project is shown, and the window stays open while it runs (close).
@@ -34,12 +45,13 @@ const tab = ref<Section>('projects');
 const agentAt = ref<string>(), profileAt = ref<string>(); // the agent, the profile shown
 const agentPage = ref<InstanceType<typeof AgentPage>>();
 const agentsList = agentList({ details: true, installed: (a) => `${a.name} is installed. Make an account of it below: + under Accounts.` });
-const newProfile = ref<HTMLInputElement>(), url = ref<HTMLInputElement>();
+type InputRef = { $el: HTMLInputElement }; // shadcn-vue's Input, its element the field
+const newProfile = ref<InputRef>(), url = ref<InputRef>();
 const adding = ref<'' | 'clone' | 'profile'>('');
 async function startAdding(what: 'clone' | 'profile') {
   adding.value = what;
   await nextTick();
-  focusAfterMenu((what === 'clone' ? url : newProfile).value);
+  focusAfterMenu((what === 'clone' ? url : newProfile).value?.$el);
 }
 const projects = ref<ProjectEntry[]>([]);
 const editing = ref<string | null>(null);
@@ -65,8 +77,8 @@ async function lists() {
   allProfiles.value = p.profiles; showAccounts(a);
 }
 
-// The tree: the three sections, each with its own under it (a section only opens and closes), GitHub's page after Agents,
-// then the Log and About pages.
+// The nav: the three sections, each a group of its own (a section is no page), GitHub's page after Agents, then the Log
+// and About pages.
 type Node = { key: string; label: string; section?: Section; page?: Page; project?: ProjectEntry; agent?: Agent; profile?: SettingsProfile; children?: Node[] };
 const tree = computed<Node[]>(() => [
   { key: 'projects', label: 'Projects', section: 'projects', children: projects.value.map((p) => ({ key: `p:${p.id}`, label: p.name, project: p })) },
@@ -74,7 +86,6 @@ const tree = computed<Node[]>(() => [
   { key: 'github', label: 'GitHub', page: 'github' },
   { key: 'profiles', label: 'Profiles', section: 'profiles', children: allProfiles.value.map((p) => ({ key: `f:${p.id}`, label: p.name, profile: p })) },
   { key: 'log', label: 'Log', page: 'log' }, { key: 'about', label: 'About', page: 'about' }]);
-const expanded = ref<string[]>(['projects', 'agents', 'profiles']);
 const chosenKey = computed(() => ({ projects: editing.value && `p:${editing.value}`, agents: agentAt.value && `a:${agentAt.value}`, profiles: profileAt.value && `f:${profileAt.value}`, github: 'github', log: 'log', about: 'about' })[tab.value]);
 const chosenNode = computed(() => tree.value.flatMap((n) => [n, ...(n.children ?? [])]).find((n) => n.key === chosenKey.value));
 const shownAgent = computed(() => agentsList.state.agents.find((a) => a.id === agentAt.value));
@@ -88,11 +99,14 @@ function show(n: Node) {
   else if (n.profile) { tab.value = 'profiles'; profileAt.value = n.profile.id; }
   else if (n.page) tab.value = n.page;
 }
-function choose(e: { detail: { value?: Node }; preventDefault(): void }) {
-  const n = e.detail.value;
-  if (!n || n.section) return e.preventDefault();
-  show(n);
-}
+// The nav's groups: a section with its own, pages one after another together.
+const groups = computed(() => tree.value.reduce<{ section?: Node; rows: Node[] }[]>((g, n) => {
+  if (n.section) g.push({ section: n, rows: n.children ?? [] });
+  else if (g.at(-1)?.section || !g.length) g.push({ rows: [n] });
+  else g.at(-1)!.rows.push(n);
+  return g;
+}, []));
+const pageIcon = (n: Node) => ({ github: GitHubMark, log: BookOpenIcon, about: LogoMark })[n.page!];
 const mark = (a: Agent) => agentMark(a.agent || a.id, null);
 
 async function showList() {
@@ -123,7 +137,6 @@ async function edit(id: string) {
 async function openProjects(id?: string, on: Section = 'projects', at?: string) {
   tab.value = on;
   if (on === 'profiles') profileAt.value = at ?? profileAt.value;
-  if (on !== 'log' && on !== 'about' && on !== 'github' && !expanded.value.includes(on)) expanded.value = [...expanded.value, on];
   // The agents as last found (or, the first time, after a moment saying so), then looked for again behind them.
   const agentsShown = new Promise<void>((shown) => { void agentsList.load(undefined, async () => shown()); });
   await lists(); // a profile gone: the first one shown instead (watch, above)
@@ -176,16 +189,15 @@ async function deleteProject(id: string) {
 
 // Profiles' +: its name typed in place under the tree, Enter makes it (in no project; a project's page adds it there)
 // and shows it. Delete Profile…: asked first, deleted everywhere (its copies in every task, its master).
-const newProfileName = ref(''), newProfileField = ref<HTMLInputElement>(), makingProfile = ref(false), profilesError = ref('');
+const newProfileName = ref(''), newProfileField = ref<InputRef>(), makingProfile = ref(false), profilesError = ref('');
 async function startNewProfile() {
   makingProfile.value = true; newProfileName.value = ''; profilesError.value = '';
-  if (!expanded.value.includes('profiles')) expanded.value = [...expanded.value, 'profiles'];
   await nextTick();
-  focusAfterMenu(newProfileField.value);
+  focusAfterMenu(newProfileField.value?.$el);
 }
 function stopNewProfile() { makingProfile.value = false; newProfileName.value = ''; profilesError.value = ''; }
 async function createProfile() {
-  if (!newProfileName.value.trim()) return newProfileField.value!.focus();
+  if (!newProfileName.value.trim()) return newProfileField.value!.$el.focus();
   const r = await kulisa.invoke('profiles:new', { name: newProfileName.value });
   if (refused(r)) { profilesError.value = r.error; return; }
   allProfiles.value = r.profiles;
@@ -273,7 +285,7 @@ const folderMenu = (e: MouseEvent): MenuItem[] | null => {
 };
 // Cloning takes a while (the repository comes over the network): the button says so meanwhile.
 async function clone() {
-  if (!cloneUrl.value.trim()) return url.value!.focus();
+  if (!cloneUrl.value.trim()) return url.value!.$el.focus();
   cloning.value = true;
   if (!(await changeFolders(kulisa.invoke('project:folder-clone', { id: id(), url: cloneUrl.value })))?.error) { cloneUrl.value = ''; adding.value = ''; }
   cloning.value = false;
@@ -334,7 +346,7 @@ const profileRowMenu = (e: MouseEvent): MenuItem[] | null => {
   return [{ label: 'Remove from the Project…', run: () => removeProfile(p) }];
 };
 async function addProfile() {
-  if (!newName.value.trim()) return newProfile.value!.focus();
+  if (!newName.value.trim()) return newProfile.value!.$el.focus();
   if (!(await profileChange(kulisa.invoke('project:profile-new', { id: id(), name: newName.value })))?.error) { newName.value = ''; adding.value = ''; }
 }
 const profileMenu = (): MenuItem[] => [{ label: 'New Profile…', run: () => startAdding('profile') },
@@ -343,231 +355,232 @@ const profileMenu = (): MenuItem[] => [{ label: 'New Profile…', run: () => sta
 const stopAdding = () => { adding.value = ''; newName.value = ''; cloneUrl.value = ''; };
 </script>
 
+
 <template>
-  <main id="projects" class="page">
-    <nav id="pjnav" aria-label="Settings">
+  <!-- The nav on the left, the chosen page on the right, each scrolling on its own -->
+  <SidebarProvider id="projects" class="min-h-0 flex-1">
+    <Sidebar id="pjnav" collapsible="none" class="border-r" aria-label="Settings">
       <RightClickMenu :items="nodeMenu">
-        <!-- selection-behavior replace: Reka's toggle un-chose the row shown when clicked again, its page still there -->
-        <TreeRoot id="pjlist" v-slot="{ flattenItems }" v-model:expanded="expanded" :items="tree" :get-key="(n: Node) => n.key" :model-value="chosenNode"
-          selection-behavior="replace"
-          aria-label="Settings" @keydown.delete="deleteChosen">
-          <TreeItem v-for="it in flattenItems" :key="it._id" v-bind="it.bind" class="item" :aria-label="it.value.label" :data-key="it.value.key" :data-section="it.value.section" :data-page="it.value.page"
-            :data-project="it.value.project?.id" :data-agent="it.value.agent?.id" :data-profile="it.value.profile?.id"
-            :style="{ '--color': it.value.project && projectColor(it.value.project) }" @select="choose">
-            <ChevronDownIcon v-if="it.value.section" class="twist" /><component :is="{ github: GitHubMark, log: BookOpenIcon, about: LogoMark }[it.value.page]" v-else-if="it.value.page" class="twist" /><ProjectIcon v-if="it.value.project" :p="it.value.project" />
-            <template v-if="it.value.agent"><component :is="mark(it.value.agent)!" v-if="mark(it.value.agent)" class="logo" /></template>
-            <img v-if="it.value.profile" class="avatar" alt="" :src="avatarSrc(it.value.profile.avatar)">
-            <span class="text"><span class="label" :title="it.value.section ? undefined : it.value.label">{{ it.value.label }}</span></span>
-            <kbd v-if="it.value.agent && !it.value.agent.installed">not installed</kbd>
-            <!-- The same as the section's right-click, which the keyboard has -->
-            <ButtonMenu v-if="it.value.section === 'agents'" :items="newAccountMenu"><button id="agentnew" class="icon small add" type="button" tabindex="-1"
-              title="New Account…: of an agent, signed in with its own sign-in" aria-label="New Account" :disabled="!clis.length" @click.stop><PlusIcon /></button></ButtonMenu>
-            <button v-else-if="it.value.section === 'profiles'" id="profilenew" class="icon small add" type="button" tabindex="-1" title="New Profile…" aria-label="New Profile"
-              @click.stop="startNewProfile"><PlusIcon /></button>
-          </TreeItem>
-        </TreeRoot>
+        <SidebarContent id="pjlist" @keydown.delete="deleteChosen">
+          <SidebarGroup v-for="g in groups" :key="g.section?.key ?? g.rows[0]!.key">
+            <template v-if="g.section">
+              <SidebarGroupLabel :data-key="g.section.key" :data-section="g.section.section">{{ g.section.label }}</SidebarGroupLabel>
+              <!-- The same as the section's right-click, which the keyboard has -->
+              <ButtonMenu v-if="g.section.section === 'agents'" :items="newAccountMenu"><SidebarGroupAction id="agentnew" as="button" type="button" title="New Account…: of an agent, signed in with its own sign-in"
+                                                                                                            aria-label="New Account" :disabled="!clis.length"><PlusIcon /></SidebarGroupAction></ButtonMenu>
+              <SidebarGroupAction v-else-if="g.section.section === 'profiles'" id="profilenew" as="button" type="button" title="New Profile…" aria-label="New Profile" @click="startNewProfile"><PlusIcon /></SidebarGroupAction>
+            </template>
+            <SidebarMenu>
+              <SidebarMenuItem v-for="n in g.rows" :key="n.key">
+                <SidebarMenuButton :is-active="n.key === chosenKey" :aria-current="n.key === chosenKey ? 'page' : undefined" :aria-label="n.label" :data-key="n.key" :data-page="n.page"
+                                   :data-project="n.project?.id" :data-agent="n.agent?.id" :data-profile="n.profile?.id" :style="{ '--color': n.project && projectColor(n.project) }" @click="show(n)">
+                  <component :is="pageIcon(n)" v-if="n.page" />
+                  <ProjectIcon v-if="n.project" :p="n.project" />
+                  <template v-if="n.agent"><component :is="mark(n.agent)!" v-if="mark(n.agent)" /></template>
+                  <Avatar v-if="n.profile" class="size-4"><AvatarImage :src="avatarSrc(n.profile.avatar)" alt="" /></Avatar>
+                  <span :title="n.label">{{ n.label }}</span>
+                </SidebarMenuButton>
+                <SidebarMenuBadge v-if="n.agent && !n.agent.installed">not installed</SidebarMenuBadge>
+              </SidebarMenuItem>
+              <!-- Enter makes it; Esc puts it away -->
+              <SidebarMenuItem v-if="g.section?.section === 'profiles' && makingProfile">
+                <!-- In the groups' v-for: a function ref, one field not a list of them -->
+                <Input id="profilenewname" :ref="(c) => (newProfileField = c as unknown as InputRef)" v-model="newProfileName" data-name maxlength="64" placeholder="Its name, e.g. ann@shop.com" class="h-8"
+                       spellcheck="false" aria-label="New profile" @input="profilesError = ''" @keydown.enter.prevent="createProfile" @keydown.esc.stop.prevent="stopNewProfile" />
+                <FieldError id="profileserror" class="px-2 pt-1 empty:hidden">{{ profilesError }}</FieldError>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroup>
+        </SidebarContent>
       </RightClickMenu>
-      <!-- Enter makes it; Esc puts it away -->
-      <input v-if="makingProfile" id="profilenewname" ref="newProfileField" v-model="newProfileName" data-name maxlength="64" placeholder="Its name, e.g. ann@shop.com"
-        spellcheck="false" aria-label="New profile" @input="profilesError = ''" @keydown.enter.prevent="createProfile" @keydown.esc.stop.prevent="stopNewProfile">
-      <p id="profileserror" class="error">{{ profilesError }}</p>
-    </nav>
+    </Sidebar>
 
-    <div v-show="tab === 'projects'" id="pjconfig">
+    <div v-show="tab === 'projects'" id="pjconfig" class="flex min-w-0 flex-1 flex-col gap-4 overflow-y-auto px-6 pb-6">
       <template v-if="editing">
-        <div id="pjhead" class="crumbs">
-          <span>Projects</span><span aria-hidden="true">›</span><b id="pjtitle">{{ projects.find((p) => p.id === editing)?.name }}</b>
-          <ButtonMenu :items="more" end><button id="pjmore" class="icon small" type="button" title="More" aria-label="More"><EllipsisVerticalIcon /></button></ButtonMenu>
-        </div>
+        <PageHead id="pjtitle" section="Projects" :title="projects.find((p) => p.id === editing)?.name ?? ''">
+          <ButtonMenu :items="more" end><Button id="pjmore" variant="ghost" size="icon-sm" title="More" aria-label="More"><EllipsisIcon /></Button></ButtonMenu>
+        </PageHead>
         <!-- Enter saves it, not a form -->
-        <div class="field"><label for="pjname">Name:</label>
-          <input id="pjname" v-model="name" data-name maxlength="64" spellcheck="false" @input="error = ''" @change="saveLook" @keydown.enter.prevent="saveLook"></div>
-        <p id="pjerror" class="error">{{ error }}</p>
+        <Field :data-invalid="!!error || undefined">
+          <FieldLabel for="pjname">Name</FieldLabel>
+          <Input id="pjname" v-model="name" data-name maxlength="64" spellcheck="false" @input="error = ''" @change="saveLook" @keydown.enter.prevent="saveLook" />
+          <FieldError id="pjerror" class="empty:hidden">{{ error }}</FieldError>
+        </Field>
 
-        <section id="npfoldersrow" class="group">
-          <h3 class="titled">Folders</h3>
+        <Card id="npfoldersrow">
+          <CardHeader>
+            <CardTitle>Folders</CardTitle>
+            <CardDescription>Its code: a folder or a repository each, and a copy of each in every task.</CardDescription>
+            <CardAction>
+              <ButtonMenu :items="addMenu"><Button id="npfoldersadd" variant="ghost" size="icon-sm" title="Add a folder or a repository" aria-label="Add a folder"><PlusIcon /></Button></ButtonMenu>
+              <Button id="npfolderdel" variant="ghost" size="icon-sm" title="Remove from the project (its folder stays)" aria-label="Remove from the project" :disabled="!folderSel" @click="removeFolder()"><MinusIcon /></Button>
+              <Button id="npfolderdefault" variant="ghost" size="icon-sm" title="Make Default: new tasks' agents start in its copy" aria-label="Make Default"
+                      :disabled="!folderSel || folderSel === folders[0]?.folder" @click="defaultFolder()"><StarIcon /></Button>
+            </CardAction>
+          </CardHeader>
+          <!-- The menu around all of it: the list is there only with rows, and a row added later would get none -->
           <RightClickMenu :items="folderMenu">
-            <div class="list">
-              <div class="tools">
-                <ButtonMenu :items="addMenu"><button id="npfoldersadd" class="icon small" type="button" title="Add a folder or a repository" aria-label="Add a folder"><PlusIcon /></button></ButtonMenu>
-                <button id="npfolderdel" class="icon small" type="button" title="Remove from the project (its folder stays)" aria-label="Remove from the project" :disabled="!folderSel" @click="removeFolder()"><MinusIcon /></button>
-                <button id="npfolderdefault" class="icon small" type="button" title="Make Default: new tasks' agents start in its copy" aria-label="Make Default"
-                  :disabled="!folderSel || folderSel === folders[0]?.folder" @click="defaultFolder()"><StarIcon /></button>
-              </div>
-              <div v-if="folders.length" class="head" aria-hidden="true"><span>Name</span><span>Folder</span><span>GitHub</span><span /></div>
-              <ListboxRoot selection-behavior="replace" v-if="folders.length" id="npfolders" v-model="folderSel" aria-label="Folders" @keydown.delete="removeFolder()">
-                <ListboxContent>
-                  <ListboxItem v-for="(r, i) in folders" :key="r.folder" :value="r.folder" class="item" :data-folder="r.folder" :aria-label="base(r.folder)">
-                    <span class="cell label" :title="base(r.folder)">{{ base(r.folder) }}</span><small class="cell" :title="r.folder">{{ r.folder }}</small>
-                    <span class="cell github"><template v-if="githubOf(r.folder)?.remote">
-                      <small v-if="githubOf(r.folder)!.state === 'not-github'" class="notgithub" title="Its origin is not on github.com (or an SSH name ssh cannot tell)">not a GitHub address</small>
-                      <small v-else-if="!github!.accounts.length" title="Add an account in Settings → GitHub">no account</small>
-                      <RepoAccount v-else :repo="githubOf(r.folder)!" :accounts="github!.accounts" @choose="(a) => bindGitHub(githubOf(r.folder)!.remote!, a)" />
-                    </template></span>
-                    <span class="cell end"><kbd v-if="r.git !== 'ok'" class="warn">{{ r.git === 'none' ? 'no git' : 'no commit yet' }}</kbd>
-                      <kbd v-if="!i && folders.length > 1" class="default" title="New tasks' agents start in its copy">default</kbd></span>
-                  </ListboxItem>
+            <CardContent class="flex flex-col gap-3">
+              <ListboxRoot v-if="folders.length" id="npfolders" v-model="folderSel" selection-behavior="replace" aria-label="Folders" @keydown.delete="removeFolder()">
+                <ListboxContent as-child>
+                  <ItemGroup class="max-h-80 overflow-y-auto">
+                    <ListboxItem v-for="(r, i) in folders" :key="r.folder" :value="r.folder" as-child>
+                      <Item size="xs" class="data-[state=checked]:bg-muted" :data-folder="r.folder" :aria-label="base(r.folder)">
+                        <ItemContent class="min-w-0">
+                          <ItemTitle class="max-w-full truncate">{{ base(r.folder) }}</ItemTitle>
+                          <ItemDescription class="truncate" :title="r.folder">{{ r.folder }}</ItemDescription>
+                        </ItemContent>
+                        <ItemActions>
+                          <template v-if="githubOf(r.folder)?.remote">
+                            <Badge v-if="githubOf(r.folder)!.state === 'not-github'" variant="outline" data-testid="notgithub" title="Its origin is not on github.com (or an SSH name ssh cannot tell)">not a GitHub address</Badge>
+                            <Badge v-else-if="!github!.accounts.length" variant="outline" title="Add an account in Settings → GitHub">no account</Badge>
+                            <RepoAccount v-else :repo="githubOf(r.folder)!" :accounts="github!.accounts" @choose="(a) => bindGitHub(githubOf(r.folder)!.remote!, a)" />
+                          </template>
+                          <Badge v-if="r.git !== 'ok'" variant="destructive">{{ r.git === 'none' ? 'no git' : 'no commit yet' }}</Badge>
+                          <Badge v-if="!i && folders.length > 1" variant="secondary" title="New tasks' agents start in its copy">default</Badge>
+                        </ItemActions>
+                      </Item>
+                    </ListboxItem>
+                  </ItemGroup>
                 </ListboxContent>
               </ListboxRoot>
-            </div>
+              <!-- Enter in the URL clones; Esc puts it away -->
+              <div v-if="adding === 'clone'" id="npcloneline" class="flex gap-2">
+                <Input id="npurl" ref="url" v-model="cloneUrl" placeholder="git@github.com:me/shop.git" aria-label="Repository URL" spellcheck="false"
+                       @keydown.enter.prevent="clone" @keydown.esc.stop.prevent="stopAdding" />
+                <Button variant="outline" @click="stopAdding">Cancel</Button>
+                <Button id="npclone" :disabled="cloning" @click="clone">{{ cloning ? 'Cloning…' : 'Clone' }}</Button>
+              </div>
+              <!-- Why a repository's account cannot reach it, a line each -->
+              <div v-if="github?.repos.some((g) => g.why)" id="npgithub" class="flex flex-col gap-1">
+                <FieldDescription v-for="g in github.repos.filter((g) => g.why)" :key="g.folder" :data-folder="g.folder">{{ base(g.folder) }}: {{ g.why }}
+                  <a v-if="g.install" :href="g.install" target="_blank">Install it on {{ g.owner }}</a><template v-if="g.install"> (or ask its owner to)</template></FieldDescription>
+              </div>
+              <FieldError id="npfolderserror" class="empty:hidden">{{ foldersError }}</FieldError>
+            </CardContent>
           </RightClickMenu>
-          <!-- Enter in the URL clones; Esc puts it away -->
-          <div v-if="adding === 'clone'" id="npcloneline" class="row">
-            <input id="npurl" ref="url" v-model="cloneUrl" placeholder="git@github.com:me/shop.git" aria-label="Repository URL" spellcheck="false"
-              @keydown.enter.prevent="clone" @keydown.esc.stop.prevent="stopAdding">
-            <button type="button" @click="stopAdding">Cancel</button>
-            <button id="npclone" class="primary" type="button" :disabled="cloning" @click="clone">{{ cloning ? 'Cloning…' : 'Clone' }}</button>
-          </div>
-          <!-- Why a repository's account cannot reach it, a line each -->
-          <div v-if="github?.repos.some((g) => g.why)" id="npgithub">
-            <p v-for="g in github.repos.filter((g) => g.why)" :key="g.folder" class="hint" :data-folder="g.folder">{{ base(g.folder) }}: {{ g.why }}
-              <a v-if="g.install" :href="g.install" target="_blank">Install it on {{ g.owner }}</a><template v-if="g.install"> (or ask its owner to)</template></p>
-          </div>
-          <p id="npfolderserror" class="error">{{ foldersError }}</p>
-        </section>
+        </Card>
 
-        <section id="npagentsrow" class="group">
-          <h3 class="titled">Agents</h3>
+        <Card id="npagentsrow">
+          <CardHeader>
+            <CardTitle>Agents</CardTitle>
+            <CardDescription>Who works in its tasks: + makes a task with the default.</CardDescription>
+            <CardAction>
+              <ButtonMenu :items="agentMenu"><Button id="npagentadd" variant="ghost" size="icon-sm" title="Add an agent" aria-label="Add an agent"
+                                                     :disabled="!!signing || (!addable.length && !choices.clis.length)"><PlusIcon /></Button></ButtonMenu>
+              <Button id="npagentdel" variant="ghost" size="icon-sm" title="Remove from the project (its tasks keep it)" aria-label="Remove from the project" :disabled="!agentSel" @click="removeAgent()"><MinusIcon /></Button>
+              <Button id="npagentdefault" variant="ghost" size="icon-sm" :disabled="!agentSel" :title="isDefault(agentSel) ? 'No Default: a new task starts with no agent, you choose one there' : 'Make Default: + makes a task with it'"
+                      :aria-label="isDefault(agentSel) ? 'No Default' : 'Make Default'" @click="starAgent()"><StarIcon /></Button>
+            </CardAction>
+          </CardHeader>
+          <!-- The menu around all of it: the list is there only with rows, and a row added later would get none -->
           <RightClickMenu :items="agentRowMenu">
-            <div class="list">
-              <div class="tools">
-                <ButtonMenu :items="agentMenu"><button id="npagentadd" class="icon small" type="button" title="Add an agent" aria-label="Add an agent"
-                  :disabled="!!signing || (!addable.length && !choices.clis.length)"><PlusIcon /></button></ButtonMenu>
-                <button id="npagentdel" class="icon small" type="button" title="Remove from the project (its tasks keep it)" aria-label="Remove from the project" :disabled="!agentSel" @click="removeAgent()"><MinusIcon /></button>
-                <button id="npagentdefault" class="icon small" type="button" :disabled="!agentSel" @click="starAgent()"
-                  :title="isDefault(agentSel) ? 'No Default: a new task starts with no agent, you choose one there' : 'Make Default: + makes a task with it'"
-                  :aria-label="isDefault(agentSel) ? 'No Default' : 'Make Default'"><StarIcon /></button>
-              </div>
-              <div v-if="mine.length" class="head" aria-hidden="true"><span>Agent</span><span>Account</span><span /></div>
-              <ListboxRoot selection-behavior="replace" v-if="mine.length" id="npagents" v-model="agentSel" aria-label="Agents" @keydown.delete="removeAgent()">
-                <ListboxContent>
-                  <ListboxItem v-for="a in mine" :key="a.id" :value="a.id" class="item" :data-agent="a.id" :title="a.name" :aria-label="a.agent">
-                    <span class="cell label"><component :is="agentMark(a.cli, null)!" v-if="agentMark(a.cli, null)" />{{ a.agent }}</span>
-                    <small class="cell account">{{ a.email ?? '—' }}</small>
-                    <span class="cell end"><kbd v-if="a.default" class="default" title="+ makes a task with it; the others are in +'s right-click menu">default</kbd></span>
-                  </ListboxItem>
+            <CardContent class="flex flex-col gap-3">
+              <ListboxRoot v-if="mine.length" id="npagents" v-model="agentSel" selection-behavior="replace" aria-label="Agents" @keydown.delete="removeAgent()">
+                <ListboxContent as-child>
+                  <ItemGroup class="max-h-80 overflow-y-auto">
+                    <ListboxItem v-for="a in mine" :key="a.id" :value="a.id" as-child>
+                      <Item size="xs" class="data-[state=checked]:bg-muted" :data-agent="a.id" :title="a.name" :aria-label="a.agent">
+                        <ItemMedia v-if="agentMark(a.cli, null)"><component :is="agentMark(a.cli, null)!" /></ItemMedia>
+                        <ItemContent class="min-w-0">
+                          <ItemTitle>{{ a.agent }}</ItemTitle>
+                          <ItemDescription class="truncate" data-testid="account">{{ a.email ?? '—' }}</ItemDescription>
+                        </ItemContent>
+                        <ItemActions><Badge v-if="a.default" variant="secondary" title="+ makes a task with it; the others are in +'s right-click menu">default</Badge></ItemActions>
+                      </Item>
+                    </ListboxItem>
+                  </ItemGroup>
                 </ListboxContent>
               </ListboxRoot>
-              <p v-if="!mine.length && !signing" class="empty">No agents yet: its tasks get the terminal only.</p>
-            </div>
+              <Empty v-if="!mine.length && !signing" class="p-4"><EmptyTitle class="text-sm font-normal text-muted-foreground">No agents yet: its tasks get the terminal only.</EmptyTitle></Empty>
+              <AccountSignIn v-if="signing && editing" :project="editing" :agent="signing" @done="signedIn" @close="signing = null" />
+              <FieldError id="npagenterror" class="empty:hidden">{{ agentError }}</FieldError>
+            </CardContent>
           </RightClickMenu>
-          <AccountSignIn v-if="signing && editing" :project="editing" :agent="signing" @done="signedIn" @close="signing = null" />
-          <p id="npagenterror" class="error">{{ agentError }}</p>
-        </section>
+        </Card>
 
-        <section id="npprofilesrow" class="group">
-          <h3 class="titled">Profiles</h3>
+        <Card id="npprofilesrow">
+          <CardHeader>
+            <CardTitle>Profiles</CardTitle>
+            <CardDescription>The browser profiles its tasks test as, each task with its own copy.</CardDescription>
+            <CardAction>
+              <ButtonMenu :items="profileMenu"><Button id="npprofileadd" variant="ghost" size="icon-sm" title="Add a profile" aria-label="Add a profile"><PlusIcon /></Button></ButtonMenu>
+              <Button id="npprofiledel" variant="ghost" size="icon-sm" title="Remove from the project (asks first)" aria-label="Remove from the project" :disabled="!profileSel" @click="removeProfile()"><MinusIcon /></Button>
+            </CardAction>
+          </CardHeader>
+          <!-- The menu around all of it: the list is there only with rows, and a row added later would get none -->
           <RightClickMenu :items="profileRowMenu">
-            <div class="list">
-              <div class="tools">
-                <ButtonMenu :items="profileMenu"><button id="npprofileadd" class="icon small" type="button"
-                  title="Add a profile: the browser profiles its tasks test as, each task with its own copy" aria-label="Add a profile"><PlusIcon /></button></ButtonMenu>
-                <button id="npprofiledel" class="icon small" type="button" title="Remove from the project (asks first)" aria-label="Remove from the project" :disabled="!profileSel" @click="removeProfile()"><MinusIcon /></button>
-              </div>
-              <div v-if="profiles.length" class="head" aria-hidden="true"><span>Name</span><span>About</span><span>Also in</span></div>
-              <ListboxRoot selection-behavior="replace" v-if="profiles.length" id="npprofiles" v-model="profileSel" aria-label="Profiles" @keydown.delete="removeProfile()">
-                <ListboxContent>
-                  <ListboxItem v-for="p in profiles" :key="p.id" :value="p.id" class="item" :data-profile="p.id" :aria-label="p.name"
-                    :title="[p.name, p.description, p.also.length && `also in ${p.also.join(', ')}`].filter(Boolean).join('\n')">
-                    <span class="cell label"><img class="avatar" alt="" :src="avatarSrc(p.avatar)">{{ p.name }}</span>
-                    <small class="cell about">{{ p.description }}</small><small class="cell also">{{ p.also.join(', ') }}</small>
-                  </ListboxItem>
+            <CardContent class="flex flex-col gap-3">
+              <ListboxRoot v-if="profiles.length" id="npprofiles" v-model="profileSel" selection-behavior="replace" aria-label="Profiles" @keydown.delete="removeProfile()">
+                <ListboxContent as-child>
+                  <ItemGroup class="max-h-80 overflow-y-auto">
+                    <ListboxItem v-for="p in profiles" :key="p.id" :value="p.id" as-child>
+                      <Item size="xs" class="data-[state=checked]:bg-muted" :data-profile="p.id" :aria-label="p.name"
+                            :title="[p.name, p.description, p.also.length && `also in ${p.also.join(', ')}`].filter(Boolean).join('\n')">
+                        <ItemMedia><Avatar class="size-6"><AvatarImage :src="avatarSrc(p.avatar)" alt="" /></Avatar></ItemMedia>
+                        <ItemContent class="min-w-0">
+                          <ItemTitle>{{ p.name }}</ItemTitle>
+                          <ItemDescription v-if="p.description" class="truncate" data-testid="about">{{ p.description }}</ItemDescription>
+                        </ItemContent>
+                        <ItemActions v-if="p.also.length" data-testid="also" class="max-w-1/3 truncate text-xs text-muted-foreground">also in {{ p.also.join(', ') }}</ItemActions>
+                      </Item>
+                    </ListboxItem>
+                  </ItemGroup>
                 </ListboxContent>
               </ListboxRoot>
-              <p v-if="!profiles.length && adding !== 'profile'" class="empty">No profiles yet: the browser profiles its tasks test as, signed in once.</p>
-            </div>
+              <Empty v-if="!profiles.length && adding !== 'profile'" class="p-4"><EmptyTitle class="text-sm font-normal text-muted-foreground">No profiles yet: the browser profiles its tasks test as, signed in once.</EmptyTitle></Empty>
+              <!-- Enter makes it; Esc puts it away -->
+              <div v-if="adding === 'profile'" id="npprofilesadd" class="flex gap-2">
+                <Input id="npnewprofile" ref="newProfile" v-model="newName" data-name maxlength="64" placeholder="Its name, e.g. ann@shop.com" spellcheck="false"
+                       aria-label="New profile" @keydown.enter.prevent="addProfile" @keydown.esc.stop.prevent="stopAdding" />
+                <Button variant="outline" @click="stopAdding">Cancel</Button>
+                <Button id="npprofilenew" @click="addProfile">Create</Button>
+              </div>
+              <FieldError id="npprofileerror" class="empty:hidden">{{ profileError }}</FieldError>
+            </CardContent>
           </RightClickMenu>
-          <!-- Enter makes it; Esc puts it away -->
-          <div v-if="adding === 'profile'" id="npprofilesadd" class="row">
-            <input id="npnewprofile" ref="newProfile" v-model="newName" data-name maxlength="64" placeholder="Its name, e.g. ann@shop.com" spellcheck="false"
-              aria-label="New profile" @keydown.enter.prevent="addProfile" @keydown.esc.stop.prevent="stopAdding">
-            <button type="button" @click="stopAdding">Cancel</button>
-            <button id="npprofilenew" class="primary" type="button" @click="addProfile">Create</button>
-          </div>
-          <p id="npprofileerror" class="error">{{ profileError }}</p>
-        </section>
+        </Card>
 
-        <section id="nplocalrow" class="group">
-          <div class="field"><label for="nplocal">Local addresses:</label><input id="nplocal" v-model="local" spellcheck="false" placeholder="abc.ngrok.app shop.dev"
-            @input="error = ''" @change="saveLook"></div>
-          <p class="hint">Where Kulisa may type saved test users' passwords besides localhost and your network: a tunnel, dev domains.</p>
-        </section>
+        <Card id="nplocalrow">
+          <CardHeader>
+            <CardTitle><label for="nplocal">Local addresses</label></CardTitle>
+            <CardDescription>Where Kulisa may type saved test users' passwords besides localhost and your network: a tunnel, dev domains.</CardDescription>
+          </CardHeader>
+          <CardContent><Input id="nplocal" v-model="local" spellcheck="false" placeholder="abc.ngrok.app shop.dev" @input="error = ''" @change="saveLook" /></CardContent>
+        </Card>
       </template>
-      <div v-else id="pjnone" class="none">
-        <p class="empty">No projects yet.</p>
-      </div>
+      <Empty v-else id="pjnone"><EmptyTitle>No projects yet.</EmptyTitle></Empty>
     </div>
-    <div v-show="tab === 'profiles'" id="prconfig">
+    <div v-show="tab === 'profiles'" id="prconfig" class="flex min-w-0 flex-1 flex-col gap-4 overflow-y-auto px-6 pb-6">
       <template v-if="shownProfile">
-        <div class="crumbs">
-          <span>Profiles</span><span aria-hidden="true">›</span><b>{{ shownProfile.name }}</b>
-          <ButtonMenu :items="more" end><button id="profilemore" class="icon small" type="button" title="More" aria-label="More"><EllipsisVerticalIcon /></button></ButtonMenu>
-        </div>
+        <PageHead section="Profiles" :title="shownProfile.name">
+          <ButtonMenu :items="more" end><Button id="profilemore" variant="ghost" size="icon-sm" title="More" aria-label="More"><EllipsisIcon /></Button></ButtonMenu>
+        </PageHead>
         <ProfilePage :profile="shownProfile" @changed="profileChanged" />
       </template>
-      <div v-else class="none">
-        <p class="empty">No profiles yet.</p>
-        <button type="button" @click="startNewProfile">New Profile…</button>
-      </div>
+      <Empty v-else>
+        <EmptyTitle>No profiles yet.</EmptyTitle>
+        <EmptyContent><Button variant="outline" @click="startNewProfile">New Profile…</Button></EmptyContent>
+      </Empty>
     </div>
-    <div v-show="tab === 'agents'" id="agconfig">
-      <div v-if="shownAgent" class="crumbs">
-        <span>Agents</span><span aria-hidden="true">›</span><b aria-current="page">{{ shownAgent.name }}</b>
-        <ButtonMenu :items="more" end><button id="agentmore" class="icon small" type="button" title="More" aria-label="More"><EllipsisVerticalIcon /></button></ButtonMenu>
-      </div>
+    <div v-show="tab === 'agents'" id="agconfig" class="flex min-w-0 flex-1 flex-col gap-4 overflow-y-auto px-6 pb-6">
+      <PageHead v-if="shownAgent" section="Agents" :title="shownAgent.name">
+        <ButtonMenu :items="more" end><Button id="agentmore" variant="ghost" size="icon-sm" title="More" aria-label="More"><EllipsisIcon /></Button></ButtonMenu>
+      </PageHead>
       <AgentPage ref="agentPage" :list="agentsList" :chosen="agentAt" :accounts :clis @accounts="showAccounts" />
     </div>
-    <div v-show="tab === 'github'" id="ghconfig">
-      <div class="crumbs"><b>GitHub</b></div>
+    <div v-show="tab === 'github'" id="ghconfig" class="flex min-w-0 flex-1 flex-col gap-4 overflow-y-auto px-6 pb-6">
+      <PageHead title="GitHub" />
       <GitHubPage :shown="tab === 'github'" />
     </div>
-    <div v-show="tab === 'log'" id="lgconfig">
-      <div class="crumbs"><b>Log</b></div>
+    <!-- The log scrolls inside its box, the page not at all: its tools and buttons stay in sight -->
+    <div v-show="tab === 'log'" id="lgconfig" class="flex min-w-0 flex-1 flex-col gap-4 overflow-hidden px-6 pb-6">
+      <PageHead title="Log" />
       <LogPage :shown="tab === 'log'" />
     </div>
-    <div v-show="tab === 'about'" id="abconfig">
-      <div class="crumbs"><b>About</b></div>
+    <div v-show="tab === 'about'" id="abconfig" class="flex min-w-0 flex-1 flex-col gap-4 overflow-y-auto px-6 pb-6">
+      <PageHead title="About" />
       <AboutPage :shown="tab === 'about'" />
     </div>
-  </main>
+  </SidebarProvider>
 </template>
-
-<style>
-/* The tree on the left, the chosen page on the right, each scrolling on its own (JetBrains' Settings) */
-#projects { flex: 1; min-width: 0; min-height: 0; display: flex; background: var(--island);
-  #pjnav { flex: none; width: 230px; display: flex; flex-direction: column; gap: 4px; overflow: hidden auto; padding: 4px; border-inline-end: 1px solid var(--island-hi);
-    background: var(--window);
-    #profilenewname { margin-inline-start: 26px; } .error { margin: 0 0 0 26px; &:empty { display: none; } } }
-  #pjlist { margin: 0; padding: 0; outline: none;
-    .item { min-height: var(--row); padding: 0 4px 0 8px; gap: var(--gap); border-radius: var(--corner); padding-inline-start: calc(8px + (var(--level, 1) - 1) * 18px); }
-    [aria-level="2"] { --level: 2; }
-    :is([data-section], [data-page="github"], [data-page="log"]):not(:first-child) { margin-top: var(--inset); } /* the pages together, under the sections */
-    .twist { width: 12px; height: 12px; color: var(--text-dim); } [aria-expanded="false"] .twist { rotate: -90deg; }
-    .picon, .logo { flex: none; width: 16px; height: 16px; } .picon { color: var(--color); } .avatar { --avatar: 16px; }
-    .label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } kbd { flex: none; }
-    [aria-selected="true"] { background: var(--chosen-idle); color: var(--text-strong); }
-    &:focus-within [aria-selected="true"] { background: var(--chosen); } }
-  /* More room than a dialog's, as JetBrains' Settings: along the sides, and between the groups, so a list does not run
-     into the next one's title */
-  :is(#pjconfig, #agconfig, #prconfig, #ghconfig, #lgconfig, #abconfig) { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--inset); overflow: hidden auto;
-    padding: 0 calc(1.5 * var(--pad)) var(--pad);
-    > * { flex: none; } }
-  /* The log scrolls inside its box, the page not at all: its tools and buttons stay in sight */
-  #lgconfig { overflow: hidden; > #logpage { flex: 1; min-height: 0; } }
-  /* Where the page is in the tree, and what acts on it at its end */
-  .crumbs { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; gap: var(--gap); min-height: calc(var(--control) + 12px);
-    background: var(--island); color: var(--text-muted);
-    b { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; color: var(--text-strong); } }
-  .field { margin-top: 0; }
-  .group { display: flex; flex-direction: column; gap: var(--gap); margin-top: var(--pad);
-    > .error, > .hint { margin: 0; } > .hint:not([hidden]) { margin-inline-start: calc(var(--label) + var(--inset)); } }
-  .list [role="listbox"] { max-height: calc(6 * var(--row)); overflow: auto; }
-  /* The columns: the name as wide as it needs (at most about half), what it is in the rest, its state at the end */
-  #npagentsrow .list { --cols: fit-content(45%) minmax(0, 1fr) auto; }
-  #npfoldersrow .list { --cols: fit-content(30%) minmax(0, 1fr) fit-content(30%) auto; } /* its name, folder, GitHub account, state */
-  .github { display: flex; align-items: center; min-width: 0; .select { height: calc(var(--control) - 6px); max-width: 100%; } small { color: var(--text-muted); } }
-  #npgithub .hint { margin: 0; .hint + & { margin-top: 2px; } }
-  #npprofilesrow .list { --cols: fit-content(45%) minmax(0, 1fr) fit-content(30%); }
-  .none { display: flex; flex-direction: column; align-items: start; gap: var(--gap); padding-top: var(--pad); .empty { margin: 0; } }
-}
-</style>

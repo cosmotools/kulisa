@@ -123,7 +123,7 @@ test('projects: several repositories: a task works in the main tree until it mak
   for (const [i, [label, isDefault]] of ([['api', true], ['web', false]] as const).entries()) {
     const option = s.locator('#npfolders [role="option"]').nth(i);
     await expect(option).toHaveAttribute('aria-label', label);
-    await expect(option.locator('kbd').getByText('default', { exact: true })).toHaveCount(isDefault ? 1 : 0);
+    await expect(option.locator('[data-slot="badge"]').getByText('default', { exact: true })).toHaveCount(isDefault ? 1 : 0);
   }
   await onRow(s, `#npfolders ${attr('data-folder', web)}`, '#npfolderdel');
   await expect(s.locator('#npfolderserror')).toContainText(/Tasks work in it: New Task, Checkout/);

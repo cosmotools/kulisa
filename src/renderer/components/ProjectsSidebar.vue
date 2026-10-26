@@ -32,7 +32,7 @@ const newProject = () => { emit('chosen'); void dialog('newproject').then((d) =>
 <template>
   <SidebarContent id="projects">
     <SidebarGroup v-for="p in projects" :key="p.id" :data-project="p.id" role="group" :aria-label="p.name" :style="{ '--color': projectColor(p) }">
-      <SidebarGroupLabel :title="p.folders[0]"><ProjectIcon :p class="mr-2 size-4 shrink-0 text-(--color)" /><span class="truncate">{{ p.name }}</span></SidebarGroupLabel>
+      <SidebarGroupLabel :title="p.folders[0]"><ProjectIcon :p class="mr-2" /><span class="truncate">{{ p.name }}</span></SidebarGroupLabel>
       <SidebarGroupAction as="button" type="button" :title="`New Task of ${p.name}`" aria-label="New Task" @click="open(p)"><PlusIcon /></SidebarGroupAction>
       <SidebarGroupContent>
         <SidebarMenu>

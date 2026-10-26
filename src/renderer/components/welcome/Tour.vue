@@ -1,7 +1,12 @@
 <script setup lang="ts">
 // What Kulisa does, in three slides, before the first project's steps (Welcome.vue; docs/tasks.md, The window's pages).
-// The pictures are a task's window drawn small in HTML: no pictures to ship, the window's own colors in either theme.
+// The pictures are a task's window drawn small of the window's own parts: no pictures to ship, its colors in either theme.
 import { computed, ref } from 'vue';
+import { Avatar, AvatarImage } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Progress } from '@/components/ui/progress';
+import { Skeleton } from '@/components/ui/skeleton';
 import { avatarSrc } from '../../lib/common';
 import { SquareMousePointerIcon } from '@lucide/vue';
 import ClaudeMark from '../marks/ClaudeMark.vue';
@@ -16,78 +21,44 @@ const SLIDES = [
 const now = computed(() => SLIDES[slide.value]!);
 const last = computed(() => slide.value === SLIDES.length - 1);
 const PANES = [{ name: 'Admin', avatar: 'owl' }, { name: 'Customer', avatar: 'fox' }];
-const next = ref<HTMLButtonElement>();
+const next = ref<{ $el: HTMLButtonElement }>(); // shadcn-vue's Button
 const forward = () => { if (last.value) emit('done'); else slide.value++; };
-defineExpose({ focus: () => next.value?.focus() });
+defineExpose({ focus: () => next.value?.$el.focus() });
 </script>
 
 <template>
-  <div id="tour" :data-slide="slide">
-    <div class="slide">
-      <div class="words">
-        <h1>{{ now.title }}</h1>
-        <p class="lead">{{ now.text }}</p>
+  <div id="tour" class="flex w-full max-w-5xl flex-col gap-12" :data-slide="slide">
+    <!-- Narrow: the picture under the words; narrow and low as well: the words alone, the picture would not fit -->
+    <div class="grid items-center gap-12 md:grid-cols-[1fr_1.15fr]">
+      <div class="flex flex-col gap-4">
+        <h1 class="text-4xl font-semibold tracking-tight text-balance">{{ now.title }}</h1>
+        <p class="max-w-prose text-lg text-muted-foreground">{{ now.text }}</p>
       </div>
-      <!-- A task: its agent's terminal, two profiles' panes -->
-      <div class="picture" aria-hidden="true">
-        <div class="term">
-          <div><ClaudeMark /> claude</div>
-          <div class="said">&gt; does the checkout work for every user?</div>
-          <div :data-on="slide >= 1 || undefined" class="step">⏺ Checking as Admin…</div>
-          <div :data-on="slide >= 1 || undefined" class="step">⏺ Checking as Customer…</div>
-          <div :data-on="slide >= 1 || undefined" class="step ok">✓ Fixed: works for both</div>
-        </div>
-        <div v-for="(p, i) in PANES" :key="p.name" class="pane" :class="{ checked: slide === 1 }">
-          <div class="head"><img :src="avatarSrc(p.avatar)" alt="">{{ p.name }}</div>
-          <div class="page"><i /><i class="short" /><i class="button" :class="{ picked: slide === 2 && i === 1 }" /><i class="shorter" /></div>
-        </div>
-        <SquareMousePointerIcon v-if="slide === 2" class="pointer" />
+      <!-- A task: its agent's terminal, two profiles' panes; no taller than the window leaves it -->
+      <div class="relative grid aspect-16/10 w-[min(100%,(100vh-200px)*1.6)] grid-cols-[1.1fr_1fr_1fr] gap-2 justify-self-center rounded-xl border bg-muted p-2 shadow-lg
+        max-md:[@media(max-height:40rem)]:hidden" aria-hidden="true">
+        <Card size="sm" class="gap-1 px-3 font-mono text-xs text-muted-foreground">
+          <div class="flex items-center gap-1"><ClaudeMark class="size-3" /> claude</div>
+          <div class="text-foreground">&gt; does the checkout work for every user?</div>
+          <div v-for="(line, i) in ['⏺ Checking as Admin…', '⏺ Checking as Customer…', '✓ Fixed: works for both']" :key="line" :data-on="slide >= 1 || undefined"
+            class="opacity-0 transition-opacity duration-500 last:text-green-500 data-on:opacity-100 motion-reduce:transition-none" :class="['delay-0', 'delay-300', 'delay-600'][i]">{{ line }}</div>
+        </Card>
+        <Card v-for="(p, i) in PANES" :key="p.name" size="sm" class="gap-2 transition-shadow duration-500" :class="{ 'ring-2 ring-primary': slide === 1 }">
+          <CardHeader class="flex items-center gap-1.5"><Avatar class="size-4"><AvatarImage :src="avatarSrc(p.avatar)" alt="" /></Avatar><CardTitle class="text-xs">{{ p.name }}</CardTitle></CardHeader>
+          <CardContent class="flex flex-col gap-2">
+            <Skeleton class="h-2 animate-none" /><Skeleton class="h-2 w-2/3 animate-none" />
+            <Button as="span" size="xs" class="w-1/2" :class="{ 'ring-2 ring-amber-500 ring-offset-2 ring-offset-card': slide === 2 && i === 1 }" />
+            <Skeleton class="h-2 w-1/2 animate-none" />
+          </CardContent>
+        </Card>
+        <SquareMousePointerIcon v-if="slide === 2" class="absolute top-[44%] right-[18%] size-6 text-amber-500" />
       </div>
     </div>
-    <footer>
-      <ol class="dots" aria-label="Slides">
-        <li v-for="(s, i) in SLIDES" :key="s.title" :data-on="i <= slide || undefined" :aria-current="i === slide ? 'step' : undefined"><span class="sr">{{ s.title }}</span></li>
-      </ol>
-      <button id="tourskip" type="button" @click="emit('done')">Skip</button>
-      <button v-if="slide" id="tourback" type="button" @click="slide--">Back</button>
-      <button id="tournext" ref="next" type="button" class="primary" @click="forward">{{ last ? 'Set Up a Project' : 'Next' }}</button>
+    <footer class="flex items-center gap-2">
+      <Progress :model-value="((slide + 1) / SLIDES.length) * 100" aria-label="Slides" class="mr-auto w-24" />
+      <Button id="tourskip" variant="ghost" @click="emit('done')">Skip</Button>
+      <Button v-if="slide" id="tourback" variant="outline" @click="slide--">Back</Button>
+      <Button id="tournext" ref="next" @click="forward">{{ last ? 'Set Up a Project' : 'Next' }}</Button>
     </footer>
   </div>
 </template>
-
-<style>
-#tour { display: flex; flex-direction: column; gap: calc(var(--pad) * 2); width: min(960px, 100%);
-  .slide { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: calc(var(--pad) * 2); align-items: center; }
-  .words { display: grid; gap: var(--pad); min-width: 0; }
-  h1 { margin: 0; font-size: var(--font-hero); line-height: 1.15; font-weight: 600; letter-spacing: -.02em; color: var(--text-strong); text-wrap: balance; }
-  .lead { margin: 0; font-size: var(--font-lead); line-height: 1.5; color: var(--text-dim); max-width: 42ch; }
-  .picture { position: relative; display: grid; grid-template-columns: 1.1fr 1fr 1fr; gap: 6px; aspect-ratio: 16 / 10; padding: 6px;
-    border-radius: var(--island-radius); background: var(--window); border: 1px solid var(--line); box-shadow: 0 12px 40px var(--shadow); min-width: 0;
-    /* no taller than the window leaves it (its title bar, the welcome's padding, the buttons): in a low window the
-       slide fits, smaller, rather than scrolls */
-    justify-self: center; width: min(100%, (100vh - 200px) * 1.6); }
-  .term { display: grid; align-content: start; gap: 4px; padding: var(--gap); border-radius: 6px; background: var(--island); min-width: 0; overflow: hidden;
-    font: var(--font-small) / 1.4 ui-monospace, monospace; color: var(--text-dim);
-    svg { width: 12px; height: 12px; vertical-align: -1px; }
-    .said { color: var(--text-strong); }
-    .step { opacity: 0; transition: opacity .4s ease; &[data-on] { opacity: 1; } &:nth-child(4) { transition-delay: .3s; } &:nth-child(5) { transition-delay: .6s; } }
-    .ok { color: var(--done); } }
-  .pane { display: grid; grid-template-rows: auto 1fr; border-radius: 6px; overflow: hidden; background: var(--page); min-width: 0;
-    outline: 2px solid transparent; outline-offset: -2px; transition: outline-color .4s ease;
-    &.checked { outline-color: var(--agent); }
-    .head { display: flex; align-items: center; gap: 4px; padding: 3px 6px; background: var(--island-hi); color: var(--text); font-size: var(--font-small);
-      img { width: 14px; height: 14px; } }
-    .page { display: grid; align-content: start; gap: 6px; padding: var(--gap);
-      i { height: 6px; border-radius: 3px; background: color-mix(in srgb, var(--text-muted) 25%, var(--page)); }
-      .short { width: 70%; } .shorter { width: 45%; }
-      .button { width: 55%; height: 14px; background: var(--blue); outline: 2px solid transparent; outline-offset: 2px; transition: outline-color .3s ease; }
-      .picked { outline-color: var(--note); } } }
-  .pointer { position: absolute; right: 18%; top: 44%; width: 22px; height: 22px; color: var(--note); }
-  footer { display: flex; align-items: center; gap: var(--gap); button { min-width: 80px; } .dots { margin-inline-end: auto; } }
-  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
-  /* Narrow: the picture under the words; narrow and low as well: the words alone, the picture would not fit */
-  @media (max-width: 720px) { .slide { grid-template-columns: minmax(0, 1fr); } }
-  @media (max-width: 720px) and (max-height: 640px) { .picture { display: none; } }
-  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
-}
-</style>
