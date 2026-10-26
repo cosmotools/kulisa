@@ -2,6 +2,7 @@
 // On the CI a failed test runs once more: passing then, it is reported flaky, not hidden, and the job stays green.
 import os from 'os';
 import { defineConfig } from '@playwright/test';
+import { shardFiles } from './test/e2e/shards.ts';
 
 const ci = !!process.env.CI;
 // Several Kulisas at once on Linux, each on a screen of its own: as many as half the cores and the free memory allow
@@ -12,6 +13,8 @@ const workers = process.platform !== 'linux' || process.env.KULISA_VISIBLE ? 1
   : Math.max(1, Math.min(4, Math.floor(os.availableParallelism() / 2), Math.floor(os.freemem() / 2 ** 20 / KULISA_MB)));
 export default defineConfig({
   testDir: 'test/e2e',
+  // A CI shard's files, split by their times (test/e2e/shards.ts).
+  ...(process.env.KULISA_SHARD ? { testMatch: shardFiles(process.env.KULISA_SHARD) } : {}),
   globalSetup: './test/e2e/global-setup.ts',
   timeout: 30000,
   // A whole run stops by itself: nothing runs on unseen.

@@ -107,10 +107,20 @@ jobs:
           path: ${{ runner.temp }}/electron
           key: electron-${{ runner.os }}-${{ env.ELECTRON_VERSION }}
       # gnome-keyring and D-Bus: a keyring, as a desktop has, or safeStorage encrypts nothing and Kulisa keeps no
-      # session cookies and no test password (they are never written in the clear). Installed each time: a cache of the
-      # packages (cache-apt-pkgs-action) does not bring gnome-keyring-daemon back.
+      # session cookies and no test password (they are never written in the clear). Installed by apt each time (a cache
+      # of the installed packages, cache-apt-pkgs-action, does not bring gnome-keyring-daemon back), from .deb files
+      # kept between runs: the Ubuntu mirror is at times slow (minutes for these 37 MB), the cache is not.
       - if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y xvfb openbox gnome-keyring dbus-x11 libsecret-1-0
+        uses: actions/cache@v6
+        with:
+          path: ${{ runner.temp }}/apt
+          key: apt-${{ runner.os }}-xvfb-openbox-gnome-keyring-dbus-x11-libsecret
+      - if: runner.os == 'Linux'
+        run: |
+          mkdir -p "$RUNNER_TEMP/apt/partial"
+          sudo apt-get update
+          sudo apt-get install -y -o Dir::Cache::Archives="$RUNNER_TEMP/apt" xvfb openbox gnome-keyring dbus-x11 libsecret-1-0
+          sudo chown -R "$(id -u)" "$RUNNER_TEMP/apt"
       - run: npm ci
       # The macOS runner's screen is 1024×768, smaller than a laptop's: the tests' windows do not fit as they lay them
       # out. Its virtual screen has 1920×1080, as Linux's Xvfb (displayplacer, MIT: the runner's only).
@@ -128,14 +138,14 @@ jobs:
       # The window built (its types are the checks'), then this shard's share of the files.
       - run: npx vite build --logLevel warn
       - if: runner.os != 'Linux'
-        run: npx playwright test --shard=${{ matrix.shard }}/3
+        run: KULISA_SHARD=${{ matrix.shard }}/3 npx playwright test
       # On Linux in a D-Bus session with a keyring made and unlocked: its password is any but empty (an empty one makes
       # none, and libsecret then waits on a prompt nobody answers); the runner is thrown away after. Chromium takes
       # the keyring by the desktop's name, and a desktop it does not know gets none (basic_text: nothing encrypted).
       - if: runner.os == 'Linux'
         env:
           XDG_CURRENT_DESKTOP: GNOME
-        run: dbus-run-session -- sh -c 'echo ci | gnome-keyring-daemon --unlock --components=secrets >/dev/null && npx playwright test --shard=${{ matrix.shard }}/3'
+        run: dbus-run-session -- sh -c 'echo ci | gnome-keyring-daemon --unlock --components=secrets >/dev/null && KULISA_SHARD=${{ matrix.shard }}/3 npx playwright test'
       - if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v7
         with:
