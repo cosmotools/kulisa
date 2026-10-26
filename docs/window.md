@@ -1,12 +1,13 @@
 # The window
 
-How a Kulisa window works for the human: the title bar, the grid of panels, the tasks' bar, the zoom, the menus
+How a Kulisa window works for the human: the title bar, the grid of panels, the tasks' bar, the sidebar, the zoom, the menus
 and dialogs, the terminal, the keys, and why they are built so. Projects and their tasks, several windows:
 [tasks.md](tasks.md); profiles' panes and tabs: [profiles.md](profiles.md); the components: [ui.md](ui.md).
 
 ## The title bar
 
-One row: the app's logo (the shown task's project's color on its curtain), Settings (a window of its own: below), ☰,
+One row, 44 px (`TITLE_BAR_HEIGHT` in window.ts; `h-11`): the app's logo (the shown task's project's color on its
+curtain), the sidebar's button while a task is shown (The sidebar, below), Settings (a window of its own: below), ☰,
 and the OS's window buttons over its right end (`titleBarStyle: 'hidden'` with `titleBarOverlay`); no menu bar. Their
 strip is see-through (`CLEAR` in `window.ts`), as macOS's traffic lights: a dialog's backdrop dims it with the rest of
 the window (a strip in the theme's color would stay bright); their symbols are the theme's and stay as they are under a
@@ -32,23 +33,19 @@ window, mouse moves still passing, so the pages look frozen (in an unmaximized w
 
 ## The tasks' bar
 
-Under the grid, in the middle: a tab per open task (its project's icon, its agent's state, its name, ×:
-[tasks.md](tasks.md), Projects), then +, the new-task menu (every project's tasks, where one is made or opened again).
-☰ → **Tasks bar: Top, Bottom** puts it in the title bar after the logo instead, as a browser's tabs (`settings.json`:
-`bar`; in the page's URL, so it is drawn in place at once; `App.vue` puts `TaskBar.vue` in `TopBar.vue`'s slot or
-under the grid). Bottom is the default, on macOS too: the hand is at the terminal under the grid all the time, and a
-bar on top sits right over the grid's panels' tabs. The tabs are Firefox's: rounded rectangles on the window's
-background, the shown one filled in the panels' color, the others plain, lit under the pointer, a gap between them and
-the grid (the author's choice). A tab is a browser's size, a target for a quick throw of the mouse: 36 px tall, at
-least 160 px wide (about ten letters of its name), × on every tab as Chrome's, 8 px apart. In the title bar (44 px) a
-tab keeps its 36 px, 4 px above and below, the grid right under. The window is a grid of rows (App.vue: the title bar,
-the grid, the bar when below) with one gap, 8 px: the title bar holds it above and below its content (`--title` = 8 +
-28 + 8, tokens.css; the OS buttons' strip as tall, `TITLE_BAR_HEIGHT` in window.ts), the grid keeps it from the sides,
-the bar from the grid, the window's bottom edge from the last row; nothing else adds to it (the author's choice). In
-the title bar the tabs are no drag handle (`app-region: no-drag`). Nothing in the bar moves when another task is shown.
+Under the grid, a row as high as the title bar: a tab per open task (its project's icon, its agent's state, its name,
+×: [tasks.md](tasks.md), Projects; shadcn-vue's Tabs), then +, a new task of the shown task's project at once (as
+Ctrl+Shift+N; another project's: the sidebar). ☰ → **Tasks bar: Top, Bottom** puts it in the title bar after the logo
+instead, as a browser's tabs (`settings.json`: `bar`; in the page's URL, so it is drawn in place at once; `App.vue`
+puts `TaskBar.vue` in `TopBar.vue`'s slot or under the grid). Bottom is the default, on macOS too: width is what the
+grid lacks (pages side by side and the terminal), the bar costs a row of height and keeps every open task's agent in
+sight, and the hand is at the terminal under the grid all the time; a bar on top sits right over the grid's panels'
+tabs. A tab is at least 160 px wide (about ten letters of its name), × on every tab as Chrome's: a target for a quick
+throw of the mouse. In the title bar the tabs are no drag handle (`app-region: no-drag`). Nothing in the bar moves
+when another task is shown.
 
-More tabs than the bar holds scroll ([ui.md](ui.md), Controls: `.tabstrip`). In the title bar the tabs give way before
-at least 40 px after + (`--drag`), where the window is dragged however many tabs there are, as Chrome's space after
+More tabs than the bar holds scroll (`lib/strip.ts`: the wheel scrolls them, the shown one kept in sight), their edges
+faded where tabs are past them (`scroll-fade-x`). In the title bar the tabs give way before at least 40 px after +, where the window is dragged however many tabs there are, as Chrome's space after
 its +; by the logo too. Chromium takes the tabs scrolled past the bar's edges as no-drag over both (it does not clip
 them to the bar: `overflow`, `contain` or `clip-path` alike) and the page's regions in order, the last one winning: so
 the logo and that space come after the bar in the page (TopBar.vue), the logo put back first by `order`.
@@ -58,10 +55,26 @@ being dragged, whichever is first: showing a task starts the grid's slide (a vie
 drag about to begin when one starts (one begun goes on). The pressed tab stays lit from the press until the task is
 shown, through the slide's pictures, so the tab left is not lit again meanwhile.
 
+## The sidebar
+
+Every project with its tasks in one place (`ProjectsSidebar.vue`, shadcn-vue's Sidebar; [tasks.md](tasks.md),
+Projects): the project worked in last first; its tasks open first, then closed, the one closed last first, each with
+its branch or when it was closed, a merged one marked; the shown task marked, an open one's agent state as on its tab.
+A click on a task shows it wherever it is open, or opens a closed one again as a tab here; + by a project makes a new
+task of it; a task's 🗑 (on the row under the pointer or the keyboard) or Delete deletes it after Delete Task…'s
+question; New Project… at its foot.
+
+- **In the empty window** it is docked in the grid's place (`Empty.vue`): the window has nothing else to show.
+- **Over a task's grid** it comes from the title bar's button or Ctrl+Shift+A, a sheet over the grid as shadcn-vue's
+  Sidebar is on a narrow screen (`TopBar.vue`): the grid keeps its width, and the sidebar is wanted for a moment, not
+  to stay. The profiles' pages are hidden while it is open, as under a dialog. A choice, Esc or a click outside closes
+  it.
+
 ## The grid
 
-A task's profiles' panes and its island of terminals are peer panels in a grid (dockview), in JetBrains' Islands look:
-dragged by the header to another place or onto another panel (stacked as tabs), resized by the gaps. A panel stacked
+A task's profiles' panes and its island of terminals are peer panels in a grid (dockview), flat, split by hairlines
+(dockview's dark theme in the theme's colors, `app.css`): dragged by the header to another place or onto another panel
+(stacked as tabs), resized by the lines. A panel stacked
 behind another hides its page until chosen (and later unloads it: [profiles.md](profiles.md), "Tabs unloaded").
 **☰ → Arrange panels** offers ready-made arrangements, each drawn as a small picture of itself, as Windows' snap layouts
 (the words in its tooltip): profiles in columns with the terminal below, two by two with the terminal on the right, one
@@ -83,15 +96,16 @@ A window made narrower or wider changes every panel in its share, as VS Code's a
 `proportionalLayout`; it needs dockview-vue 8.6.0 or later:
 [1691](https://github.com/dockview/dockview/issues/1691), [1692](https://github.com/dockview/dockview/issues/1692)).
 
-A pane's header (its profile's picture, name and ×) shrinks with the pane: a longer name is cut with …, the whole and
-the profile's description in its tooltip, and the × stays (`ProfileHeader.vue`).
+A pane's header: its profile's picture and name, the agent's caption, ⋯ (the profile's menu, as the header's
+right-click) and × (`ProfileHeader.vue`). It shrinks with the pane: a longer name is cut with …, the whole and the
+profile's description in its tooltip, and ⋯ and × stay (dockview's tab keeps `min-width: 0`, `app.css`).
 
 **No profile open, a terminal open**: the profiles' room folds to a row of buttons over the grid (`ClosedProfiles.vue`,
-`#closedprofiles`): an `.opener` per closed profile, its picture, name and a + (who it is in its tooltip); a click
+`#closedprofiles`): a button per closed profile, its picture, name and a + (who it is in its tooltip); a click
 opens it over the terminal, and the row goes. A project with no profiles has one, Add Profile… (its page in Settings).
 The row is outside dockview: the grid's room is what is left under it (`room()`, `lib/grid.ts`). More than fit scroll
-(`.tabstrip`, [ui.md](ui.md); `#dock` keeps `min-width: 0`, or many profiles stretch the window's column, the terminal
-and the tasks' bar past its edge). With no terminal either, they are the second row of the big buttons (The terminal).
+(`useStrip`, `lib/strip.ts`; `#dock` keeps `min-width: 0`, or many profiles stretch the window's column, the terminal
+and the tasks' bar past its edge). With no terminal either, they are the second row of the buttons in the grid's middle (The terminal).
 Nothing opens by itself: the agent opens a profile when it needs it (`profile_open`). Not on the task's tab (no place
 for profiles), nor in the terminals' row (it folds with the island).
 
@@ -107,10 +121,6 @@ pane empty meanwhile: waiting would hold the menu, every one after it, and a tas
 pace: once the first has answered, the rest get three times as long, a tenth of a second at least (a live page answers
 in a few milliseconds on a fast machine, over a hundred on a slow one); none answering, half a second
 (`AppWindow.pictures`).
-
-A pane's tab strip and toolbar move as Chrome's, the terminals' tabs too: a tab opened grows in from the left
-(`data-opening`, `useStrip` in `lib/strip.ts`; the strip keeps its tabs' elements by id, so only a new one animates),
-the address's hover fades in. Not with reduced motion.
 
 ## The window's size
 
@@ -128,7 +138,7 @@ smaller again when it goes down).
 
 - **The Kulisa zoom**: Ctrl + / − / 0 outside the pages, or the zoom row in ☰. It scales the whole UI of every window,
   the terminal and the pages together (Chromium's zoom of the window's page; `setUiZoom` in `app.ts`); all text and
-  controls take their size from `--font` and `--control` (tokens.css). From 50% to 200%: the window's minimum grows
+  controls are sized in Tailwind's `rem`, so one zoom scales them all. From 50% to 200%: the window's minimum grows
   with it, and at 300% it is past a laptop's screen; the OS's own magnification is there for more.
 - **A site's zoom**: the same keys in a page zoom that site in that profile on top of the Kulisa zoom, as in Chrome, to
   300%; shown in the address bar (a click resets it).
@@ -143,10 +153,10 @@ it when it changes). Saved (`settings.json`), the same in every window.
 - Only Kulisa's own UI changes: the profiles' pages keep the OS's light or dark (`prefers-color-scheme`), so a site
   under test looks as its users see it. So Kulisa does not set `nativeTheme.themeSource` (it would change every page's
   scheme); System reads `nativeTheme.shouldUseDarkColors` and its `updated` event.
-- CSS does it: each color token is `light-dark(light, dark)` (tokens.css), and the choice is `data-theme` on the
-  page's root, which sets `color-scheme`: `dark`, `light`, or `light dark` for System. The browser's own controls
-  (fields, scrollbars) follow. The choice comes in the page's URL, set before the first paint, so a light window never
-  flashes dark. dockview's theme sets `color-scheme: dark` on the grid; `Grid.vue` gives it back the root's.
+- CSS does it: the choice is `data-theme` on the page's root and its shade shadcn-vue's class `dark` (`lib/theme.ts`),
+  System following the page's own `prefers-color-scheme` (the OS's); `color-scheme` follows the class, so the browser's
+  own controls (fields, scrollbars) do too. The choice comes in the page's URL, set before the first paint, so a light
+  window never flashes dark. dockview's theme sets `color-scheme: dark` on the grid; `app.css` gives it back the root's.
 - What CSS does not paint follows from the main process: the window's background and the OS buttons' strip
   (`window.ts`).
 
@@ -224,13 +234,13 @@ deleting button or lay out what goes. The OS's own dialogs stay for choosing a f
 
 ## Settings
 
-Settings (a tree of Projects, Agents and Profiles: [tasks.md](tasks.md), Projects; GitHub's page after Agents:
+Settings (a nav of Projects, Agents and Profiles: [tasks.md](tasks.md), Projects; GitHub's page after Agents:
 [src/github](../src/github/README.md), The window; then the Log page, The log below, and About, Menus above) is a
 window of its own, as a desktop app's settings (JetBrains', macOS apps'): the OS's title bar ("Settings — Kulisa"), its
 own size and place, kept (`settings.json`: `settingsWindow`), at least 640 × 420 times the Kulisa zoom.
 
 - **One for the whole app.** The gear (on macOS also Kulisa → Settings…, ⌘,, under About Kulisa), a task tab's Manage
-  Profiles… and Project Settings…, a pane's About this profile… and a project's Add Profile… tile open it at that page
+  Profiles… and Project Settings…, a pane's About this profile… and a project's Add Profile… button open it at that page
   (a project's: none named, the shown task's); open already, it comes to the front at that page. No gear while Settings
   would be empty (no project, no account, no profile, as at the first start, where the welcome makes them); it comes
   with the first account signed in to. An account or a profile left after the last project is deleted keeps it:
@@ -248,7 +258,7 @@ own size and place, kept (`settings.json`: `settingsWindow`), at least 640 × 42
   window closed, the next one; the last one closed, Kulisa quits, Settings with it. Closed, Settings gives the keyboard
   back to that window. A new account's sign-in and an installer answer the page that asked.
 - **Its lists follow** what changes elsewhere while it is open: the profiles made and let go in a tasks' window or by
-  the agent (`settings:changed`, sent on `profilesChanged`), its tree's and the shown project's; nothing typed on its
+  the agent (`settings:changed`, sent on `profilesChanged`), its nav's and the shown project's; nothing typed on its
   page is touched.
 - **Never full screen** (`fullscreenable: false`), as Mac apps' settings: opened from a task's window in full screen,
   macOS would make it a full-screen window in a Space of its own; so it opens at its size over that window, in its
@@ -259,7 +269,7 @@ own size and place, kept (`settings.json`: `settingsWindow`), at least 640 × 42
 - **Settings only**: a project is made in a tasks' window (New Project: the empty window with no project, New Project…
   on the board), which opens its first task: one way to open each.
 - **Shown once its page is filled** (the projects, the profiles, the agents as last found, its fonts: `settings:ready`),
-  as Electron's docs advise (`show: false`), so its tree and page do not jump as they come; a page that never says so is
+  as Electron's docs advise (`show: false`), so its nav and page do not jump as they come; a page that never says so is
   shown after 2 s all the same.
 - Its page is the app's third (`settings.html`, `settings/Settings.vue`): nothing of a tasks' window (no grid, no
   profiles' views, no keys of its own). Its process lives while it is open: about 40 MB of its own (PSS).
@@ -268,13 +278,12 @@ own size and place, kept (`settings.json`: `settingsWindow`), at least 640 × 42
 
 ## The terminal
 
-A task's terminals are an **island** of the grid, one panel: the terminal in front, a **row of tabs** over it, apart
-from it as a pane's tabs from its toolbar (`.tab`, [ui.md](ui.md): the row in the island's color, the tab in front in
-the terminal's, `--toolbar`, joined to it; `TerminalTabs.vue`, `Terminals.vue`). One terminal is shown at a time, none
+A task's terminals are an **island** of the grid, one panel: the terminal in front, a **row of tabs** over it, as a
+pane's tabs (`TerminalTabs.vue`, `Terminals.vue`). One terminal is shown at a time, none
 split off into a panel of its own. Each is the user's shell in the task's folder (`src/terminal/`), an agent the human
 chose started in it ([tasks.md](tasks.md), "Several agents in a task") or not. Each tab: the agent's icon (a shell's,
 for a shell), its name whole, its state (an agent's: working, waiting for you, done), ×; more than fit scroll
-(`.tabstrip`, [ui.md](ui.md); dockview's tab keeps `min-width: 0`, or it grows to its content and the tabs run past the
+(`useStrip`; dockview's tab keeps `min-width: 0`, or it grows to its content and the tabs run past the
 island, + and the microphone with them). After the tabs, the island's own **+** (a menu of the project's accounts, the
 default first, each a new conversation; then Terminal, a shell); last, the dictation's microphone (Dictation, below).
 The task's repositories are in the Resources island, not in this row. The agent's icon opens **Change Agent**, a dialog
@@ -283,20 +292,20 @@ The task's repositories are in the Resources island, not in this row. The agent'
 
 **The last terminal closed folds the island** to a strip of one button, + in its middle, as JetBrains' tool windows go
 but with their button kept in place (the author's choice): by its height under or over the grid, by its width at a side
-(dockview's constraints hold it there; the row goes). Alone in the grid (no profile open), the +'s rows are big buttons
-in a line in the grid's middle, whatever the arrangement (its group fills the grid there, so it is not drawn): `.launch`,
-a `.launcher` each, the agent's icon over its name, an account's email under it, no keys (Ctrl+` opens the task's agent,
+(dockview's constraints hold it there; the row goes). Alone in the grid (no profile open), the +'s rows are buttons in
+the grid's middle under "Nothing open" (shadcn-vue's `Empty`), whatever the arrangement (its group fills the grid there,
+its header hidden): a button each, the agent's icon, its name, an account's email, no keys (Ctrl+` opens the task's agent,
 which the window does not show: a key on one of them would read as a mistake). Each is a Tab stop, Enter opens it; the
 first, the project's default agent, gets the keyboard when they come, unless the keyboard is in something else (a
-field, a dialog). Under them, a second row: the task's closed profiles, a `.launcher` each, its picture over its name
+field, a dialog). Under them, a second row: the task's closed profiles, a button each, its picture and its name
 (The grid: No profile open). A terminal opened unfolds it to the size it had. Ctrl+` there opens a new conversation of
 the task's agent; a task with none (its project had no default agent: [tasks.md](tasks.md), "Choosing the agent")
 gives the keyboard to the buttons, or opens the +. A task that never had a terminal opens its agent, or nothing (the
 buttons).
 
 **A tab comes before its program.** An agent's tab is there at once, before its program is looked for (the user's
-login shell, its `--version`: a second or so): until it starts, `.starting` over its terminal, the agent's working
-`.state` and "Starting Claude Code…" (`starting` in `Sent.Terminals`, the tab without its `pty`). Its terminal stays
+login shell, its `--version`: a second or so): until it starts, over its terminal the agent's working state
+(`AgentState.vue`) and "Starting Claude Code…" (`starting` in `Sent.Terminals`, the tab without its `pty`). Its terminal stays
 laid out under it, so the program starts at its size. Not found and none chosen in its place (Choose the Agent,
 Cancel), the tab goes. A task opening sends its tabs with its first state, each starting (`Window.showLoaded`, then
 `Task.loadTerminals`), so the folded island's buttons do not show while the agents are looked for. A pick or a
@@ -375,7 +384,7 @@ line in the log (`[focus]`): given back, or left and why.
 - **Everywhere, the terminal too**: Ctrl+` to the terminal in front and back to the page used last (on the folded
   island, a new conversation of the task's agent), Ctrl+Shift+` a new terminal, Ctrl+Shift+1…9 the bar's first to
   ninth tab, Ctrl+Shift+PgDn / PgUp the next or previous one (in the bar's order), Ctrl+Shift+N a new task of the shown
-  task's project, Ctrl+Shift+A the bar's + (the new-task menu; again, back), Ctrl+Shift+/ the list; the right Ctrl
+  task's project, Ctrl+Shift+A the sidebar, Ctrl+Shift+/ the list; the right Ctrl
   (right ⌘ on macOS) held alone, speak to the agent (The terminal, Dictation: the one key the human may change).
   Ctrl+Shift+… and Ctrl+` are what agents and sites leave alone; Alt+letters are Claude Code's (Alt+V, Alt+P, Alt+T),
   Ctrl+Alt+arrows GNOME's, Ctrl+Shift+U and E ibus's, so Kulisa takes none of them.
@@ -488,11 +497,11 @@ where the human reads it and passes it on, by any means: not everyone has a GitH
   read from the file at the end of the same tick and sent, a burst of lines as one (`readLog` in `log.ts`; the last page
   that read is the one followed). The file turned over under it (shorter than what was read): the page reads it again.
   Nothing of this is logged: a line of its own would send it again.
-- A line each with its time (the date in its tooltip) and its tag, the tag in the color of who acted (`--log-agent`,
-  `--log-human`, `--log-tasks`), warnings and errors in red; what is not a line of that shape (an object's lines under
+- A line each with its time (the date in its tooltip) and its tag, the tag in the color of who acted (blue the agent,
+  violet the human, amber tasks and windows), warnings and errors in red; what is not a line of that shape (an object's lines under
   an `[electron]` event) hangs under the line before it. **Follow** keeps the end in view, as a terminal does, lets go
   when the log is scrolled up, and goes back to the end when checked again.
-- The chips (`.chips`, [ui.md](ui.md)), one always chosen, and a text filter on top of the chosen one (a task's key,
+- The filters (a `ToggleGroup`, [ui.md](ui.md)), one always chosen, and a text filter on top of the chosen one (a task's key,
   `wc=1`, a tag): **All**; **Errors** (warn and error lines, `[page]`, `[electron]`, an action refused or failed);
   **Agent** (`[mcp]`, `[hook]`, `[terminal]`); **Human** (`[ipc]`, `[key]`, `[settings]`); **Tasks** (`[task]`,
   `[window]`, `[kulisa]`). Nothing left says so.
@@ -626,7 +635,7 @@ shortcuts carry (`com.squirrel.kulisa.kulisa`), or Windows would not pin it to t
 | `src/main/updates.ts`, `installed.ts`, `forge.config.ts` | updates, Squirrel's events, a new version ready while Kulisa runs (the version installed on disk); the installers and the release |
 | `src/terminal/` | the terminal, a Kulisa package: its pty, its buffers, the xterm shown ([README](../src/terminal/README.md)) |
 | `src/main/file-links.ts` | the paths a terminal names: which exist, opening one or showing it in its folder (The terminal) |
-| `src/renderer/components/Grid.vue`, `grid/*.vue`, `lib/grid.ts` | the grid (dockview), the panes and their headers, the island of terminals (`Terminals.vue`, its row of tabs `TerminalTabs.vue`), the closed profiles' tiles over it (`ClosedProfiles.vue`), Arrange panels |
+| `src/renderer/components/Grid.vue`, `grid/*.vue`, `lib/grid.ts` | the grid (dockview), the panes and their headers, the island of terminals (`Terminals.vue`, its row of tabs `TerminalTabs.vue`), the closed profiles' buttons over it (`ClosedProfiles.vue`), Arrange panels |
 | `src/renderer/components/Resources.vue` | the Resources island next to the terminal: the shown task's resources (its worktree(s) or the main working tree) and its artifacts, each with its actions (tasks.md) |
 | `src/renderer/components/ResourcesTab.vue` | the Resources island's header |
 | `src/renderer/components/TopBar.vue`, `menu/*.vue` | the title bar, ☰ and its own rows |
