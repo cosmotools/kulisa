@@ -124,8 +124,8 @@ export const submenu = (ui: Page) => ui.locator('[role="menu"][data-state="open"
 export async function menuRows(ui: Page, which: Locator = menu(ui)): Promise<(string | string[])[]> {
   await expect(menu(ui)).toBeVisible();
   return which.evaluate((m) => {
-    // An item's words: its accessible name's label alone (MenuButton.vue, aria-labelledby).
-    const label = (i: Element) => document.getElementById(i.getAttribute('aria-labelledby')).textContent;
+    // An item's words: its name, its label alone (MenuButton.vue).
+    const label = (i: Element) => i.getAttribute('aria-label');
     const row = (r: Element): string | string[] => {
       if (r.matches('[role="separator"]')) return '-';
       const id = r.getAttribute('data-testid') ?? '';
@@ -177,7 +177,7 @@ export const closeProject = (ui: Page, files: Files, folder: string) => ui.locat
 // task of that project (its New Task row); plusMenu(ui, project, task) opens that task again (a closed one) or shows it.
 // Every open menu, a submenu too (menu waits for the first to be shown).
 export const anyMenu = (ui: Page) => ui.locator('[role="menu"][data-state="open"]');
-const topLabels = (m: Locator) => m.locator(':scope > [role="menuitem"]').evaluateAll((items) => items.map((i) => document.getElementById(i.getAttribute('aria-labelledby')).textContent));
+const topLabels = (m: Locator) => m.locator(':scope > [role="menuitem"]').evaluateAll((items) => items.map((i) => i.getAttribute('aria-label')));
 const projectRow = (ui: Page, project: string) => anyMenu(ui).first().getByRole('menuitem', { name: project, exact: true }).and(ui.locator('[aria-haspopup]'));
 // A project's submenu, with several projects, opened as the hand does it: hovering its row (a release on the row makes
 // the project a new task: MenuRows.vue, runSub). The rows are drawn again as a project just shown moves to the top, and

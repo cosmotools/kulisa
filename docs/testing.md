@@ -101,7 +101,7 @@ runner's conditions: CI, below) and the test passes `--repeat-each=20`, alone an
   class (ESLint's `kulisa/no-kulisa-classes`; dockview's `dv-…` and xterm's `xterm…` are theirs). A state is an
   attribute that the CSS and the test both read: ARIA's where it has a meaning (`aria-selected`, `aria-current`,
   `aria-busy`, `aria-disabled`), `data-*` otherwise. A row with more than its name in it is named by its label
-  (`aria-labelledby`).
+  (`aria-label`, read by `getByRole(…, { name })`).
 - **Wait for a state, never for time**: a web-first assertion, `expect.poll(() => core(…))`, `toPass()`. ESLint refuses
   a fixed pause in `test/e2e`; a wait with an end is `upTo(promise, ms)`. A screen without a GPU is slower: a test
   that passes only on a fast one is a race. An assertion that may fail on the CI says what there was instead

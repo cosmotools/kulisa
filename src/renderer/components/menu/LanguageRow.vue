@@ -30,8 +30,8 @@ async function choose(code: string) {
 
 <template>
   <DropdownMenuSub v-if="info?.languages.length">
-    <DropdownMenuSubTrigger class="item languagerow" data-testid="language-row" :title :aria-labelledby="`${uid}-label`" :aria-describedby="`${uid}-value`">
-      <Icon class="ico" name="i-language" /><span class="text"><span :id="`${uid}-label`" class="label">Language</span></span>
+    <DropdownMenuSubTrigger class="item languagerow" data-testid="language-row" :title aria-label="Language" :aria-describedby="`${uid}-value`">
+      <Icon class="ico" name="i-language" /><span class="text"><span class="label">Language</span></span>
       <span :id="`${uid}-value`" class="value">{{ name(info.language, 'en') }}</span><Icon class="more" name="i-chevron" />
     </DropdownMenuSubTrigger>
     <DropdownMenuPortal>

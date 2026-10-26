@@ -232,7 +232,7 @@ test("a new account is made in the project's settings: the agent's own sign-in a
   await rightClick(ui, '[data-testid="terminal"]');
   await menuRows(ui);
   await choose(ui, 'Change agent…');
-  expect(await ui.locator('#handover').getByRole('radio').evaluateAll((rs) => rs.map((r) => document.getElementById(r.getAttribute('aria-labelledby')).textContent))).toEqual(['Fake agent · work@shop.com']);
+  expect(await ui.locator('#handover').getByRole('radio').evaluateAll((rs) => rs.map((r) => r.getAttribute('aria-label')))).toEqual(['Fake agent · work@shop.com']);
   await ui.locator('#handover').locator('header').getByRole('button', { name: 'Close' }).click();
   await expect(ui.locator('#handover')).toHaveCount(0);
 });

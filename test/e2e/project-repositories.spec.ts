@@ -30,7 +30,7 @@ test('projects: several repositories: a task works in the main tree until it mak
   const of = (key: string) => core((k, t) => { const x = k.shell.taskByKey(t); return { folder: x.folder, worktrees: x.worktrees.map((c) => ({ repo: c.repo, folder: c.folder, branch: c.branch })), addable: x.addable(), dirs: x.dirs() }; }, key);
   // The Resources island (Resources.vue): each row its label, its branch line (or 'main working tree'), and whether it
   // can be removed (an added repository's worktree can; the main tree and the task's own worktree cannot).
-  const rows = () => ui.locator('#resources li > [role="button"]').evaluateAll((rs) => rs.map((r) => [document.getElementById(r.getAttribute('aria-labelledby')).textContent, r.querySelector('small').textContent, !!r.querySelector('[aria-label="Remove Repository"]')]));
+  const rows = () => ui.locator('#resources li > [role="button"]').evaluateAll((rs) => rs.map((r) => [r.getAttribute('aria-label'), r.querySelector('small').textContent, !!r.querySelector('[aria-label="Remove Repository"]')]));
   const copyOf = async (name: string) => (await of(first)).worktrees.find((c) => path.basename(c.repo) === name).folder;
   // At open: the project's main working tree (the human's folder), no worktree of its own yet (worktree-on-demand).
   let f = await of(first);
@@ -106,7 +106,7 @@ test('projects: several repositories: a task works in the main tree until it mak
   const s = await sui();
   await pageOf(s, 'api');
   await expect(s.locator('#npfolders [role="option"]')).toHaveCount(2);
-  expect(await s.locator('#npfolders [role="option"]').evaluateAll((rs) => rs.map((r) => `${document.getElementById(r.getAttribute('aria-labelledby')).textContent} ${[...r.querySelectorAll('kbd')].some((k) => k.textContent === 'default')}`))).toEqual(['api true', 'web false']);
+  expect(await s.locator('#npfolders [role="option"]').evaluateAll((rs) => rs.map((r) => `${r.getAttribute('aria-label')} ${[...r.querySelectorAll('kbd')].some((k) => k.textContent === 'default')}`))).toEqual(['api true', 'web false']);
   await onRow(s, `#npfolders ${attr('data-folder', web)}`, '#npfolderdel');
   await expect(s.locator('#npfolderserror')).toContainText(/Tasks work in it: New Task, Checkout/);
   await closeSettings(core, ui, sui);

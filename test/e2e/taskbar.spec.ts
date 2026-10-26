@@ -203,7 +203,7 @@ test("tasks: more tabs than the bar holds: each keeps its name readable, a mouse
   try {
     await ui.evaluate(() => { document.querySelector<HTMLElement>('#taskbar').style.maxWidth = '300px'; });
     await expect.poll(async () => { const b = await bar(); return b.max > 0 && b.inSight; }).toBe(true);
-    expect(await ui.evaluate(() => [...document.querySelectorAll('#projectTabs [role="tab"]')].map((t) => { const n = document.getElementById(t.getAttribute('aria-labelledby')); return [t.getBoundingClientRect().width, n.scrollWidth <= n.clientWidth]; })),
+    expect(await ui.evaluate(() => [...document.querySelectorAll('#projectTabs [role="tab"]')].map((t) => { const n = [...t.querySelectorAll('span')].find((e) => e.textContent === t.getAttribute('aria-label')); return [t.getBoundingClientRect().width, n.scrollWidth <= n.clientWidth]; })),
       'at their narrowest, the names whole').toEqual([[160, true], [160, true]]);
     const now = await bar();
     expect([now.left, now.fade], 'brought into view when the bar narrowed; only the edge with a tab past it fades').toEqual([now.max, 'past-start']);

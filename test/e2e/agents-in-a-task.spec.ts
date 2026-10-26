@@ -103,7 +103,7 @@ test("+ opens any of the project's accounts, a new conversation in a tab of its 
   const dialog = ui.locator('#handover'), progress = ui.locator('#handover').getByRole('status');
   await ui.locator(`nav[aria-label="Terminals"] [data-id="${fake}"]`).getByRole('button', { name: /change agent/ }).click();
   await expect(ui.locator('#handover').getByRole('radio').first()).toBeAttached();
-  expect(await ui.locator('#handover').getByRole('radio').evaluateAll((rs) => rs.map((r) => document.getElementById(r.getAttribute('aria-labelledby')).textContent))).toEqual(rows.slice(0, -2));
+  expect(await ui.locator('#handover').getByRole('radio').evaluateAll((rs) => rs.map((r) => r.getAttribute('aria-label')))).toEqual(rows.slice(0, -2));
   await expect(ui.locator('#handover').getByRole('list', { name: 'Goes along' })).toHaveText(/^task-\d+.*the whole conversation$/s);
   await ui.locator(`#handover [data-agent="${b.id}"] [role="radio"]`).click();
   await ui.locator('#handoverstart').click();
@@ -162,7 +162,7 @@ test("+ opens any of the project's accounts, a new conversation in a tab of its 
   for (const t of await terms()) await act(ui, 'terminal:close', { id: t.id });
   const launchers = ui.getByRole('navigation', { name: 'New terminal' }).getByRole('button');
   await expect(launchers).toHaveCount(3);
-  expect(await launchers.evaluateAll((ls) => ls.map((l) => [document.getElementById(l.getAttribute('aria-labelledby')).textContent, l.querySelector('small')?.textContent ?? '', (l as HTMLElement).title]))).toEqual(
+  expect(await launchers.evaluateAll((ls) => ls.map((l) => [l.getAttribute('aria-label'), l.querySelector('small')?.textContent ?? '', (l as HTMLElement).title]))).toEqual(
     [['Fake agent', 'a@switch.test', 'Fake agent · a@switch.test'], ['Fake agent', 'b@switch.test', 'Fake agent · b@switch.test'], ['Terminal', '', 'Terminal']]);
   // Under them the project's profiles, a tile each.
   expect(await ui.locator('#dock').getByRole('navigation', { name: 'Open a profile' }).getByRole('button').allTextContents()).toEqual(['Sam.admin', 'Elon.buyer', 'Dora']);

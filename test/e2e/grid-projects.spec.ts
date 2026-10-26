@@ -254,7 +254,7 @@ test('tasks: Move to New Window puts a task in a window of its own, still runnin
   expect(await menuRows(ui2)).toEqual(['# Profiles', 'Sam.seller', '-', 'Manage Profiles…', '-', 'Rename…', 'Show Folder', '-', 'Move to New Window (off)', 'Move to Window: task-1', '-', 'Close', 'Delete Task…', '-', 'other']);
   // Chosen once the script has answered: the choice closes this window, and a script still running in a window that
   // goes never answers.
-  await ui2.evaluate(() => { setTimeout(() => [...document.querySelector('[role="menu"][data-state="open"]').querySelectorAll<HTMLElement>('[role="menuitem"]')].find((b) => document.getElementById(b.getAttribute('aria-labelledby')).textContent === 'Move to Window: task-1').click()); });
+  await ui2.evaluate(() => { setTimeout(() => [...document.querySelector('[role="menu"][data-state="open"]').querySelectorAll<HTMLElement>('[role="menuitem"]')].find((b) => b.getAttribute('aria-label') === 'Move to Window: task-1').click()); });
   await expect.poll(() => core((k) => { const g = k.stash.grid; return k.shell.windows.length === 1 && k.shell.task === g.moved && !g.first.switching; })).toBe(true);
   expect(await core((k) => {
     const g = k.stash.grid;

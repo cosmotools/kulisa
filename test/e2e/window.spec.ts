@@ -298,7 +298,7 @@ test("the island: its terminals in tabs over them, one shown, the row apart; + o
   await expect(ui.locator('nav[aria-label="Terminals"][data-past-start], nav[aria-label="Terminals"][data-past-end]')).toHaveCount(1);
   expect(await ui.evaluate(() => {
     const n = document.querySelector('nav[aria-label="Terminals"]'), island = n.closest('.dv-groupview').getBoundingClientRect(), r = (q: string) => document.querySelector(q).getBoundingClientRect();
-    return [n.scrollWidth > n.clientWidth, [...n.querySelectorAll('[role="tab"] [id]')].every((x) => x.scrollWidth <= x.clientWidth), r('#termAdd').right <= island.right, r('[aria-label="Speak to the agent"]').right <= island.right];
+    return [n.scrollWidth > n.clientWidth, [...n.querySelectorAll('[role="tab"]')].map((t) => [...t.querySelectorAll('span')].find((e) => e.textContent === t.getAttribute('aria-label'))).every((x) => x && x.scrollWidth <= x.clientWidth), r('#termAdd').right <= island.right, r('[aria-label="Speak to the agent"]').right <= island.right];
   })).toEqual([true, true, true, true]);
   await ui.evaluate(() => document.querySelectorAll('nav[aria-label="Terminals"] [role="tab"]').forEach((t, i) => { if (i >= 3) t.remove(); }));
   // Stopped: Ctrl+C, the shell stays; the same name again types into it (PowerShell shows no ^C: its answer at once,
@@ -378,7 +378,7 @@ test("icons: each from the sprite (docs/ui.md), drawn there once and in lines of
     const every = (q: string) => [...document.querySelectorAll(q), ...[...document.querySelectorAll('template')].flatMap((t) => [...t.content.querySelectorAll(q)])];
     const ids = [...document.querySelectorAll('#sprite > symbol')].map((s) => s.id);
     const icons = every('svg').filter((s) => !s.closest('#sprite, [data-testid="arrange-row"]')); // pictures, not icons
-    const add = document.querySelector('[aria-label="New tab"] svg');
+    const add = document.querySelector('button[aria-label="New tab"] svg');
     return { ids: ids.length === new Set(ids).size, drawnInPlace: icons.filter((s) => !s.querySelector(':scope > use')).length,
       unknown: icons.map((s) => s.querySelector('use')?.getAttribute('href')).filter((h) => h && !ids.includes(h.slice(1))),
       unnamed: every('button, [role="button"]').filter((b) => !b.textContent.trim() && !b.getAttribute('aria-label') && !b.getAttribute('aria-labelledby') && !(b as HTMLElement).title).map((b) => b.outerHTML.slice(0, 80)),
@@ -437,11 +437,11 @@ test('UI text is not selectable by dragging, as in a desktop app; fields are; th
   await sam(core);
   const sel = await ui.evaluate(() => {
     const us = (q: string) => getComputedStyle(document.querySelector(q)).userSelect;
-    return { button: us('#newTask'), name: us('#projectTabs [role="tab"] [id]'), tab: us('[data-tab] [id]'), header: us('[data-panel^="profile:"]'), field: us('[aria-label="Address"]') };
+    return { button: us('#newTask'), name: us('#projectTabs [role="tab"] span'), tab: us('[data-tab] span'), header: us('[data-panel^="profile:"]'), field: us('[aria-label="Address"]') };
   });
   expect(sel).toEqual({ button: 'none', name: 'none', tab: 'none', header: 'none', field: 'text' });
   // The arrow over buttons and tabs, as in Chrome, not a web page's hand.
-  expect(await ui.evaluate(() => ['#newTask', '#projectTabs [role="tab"]', '[data-tab]', '[aria-label="New tab"]', '[aria-label="Back"]', '[aria-label="Close profile"]', '#windowMenu'].map((q) => getComputedStyle(document.querySelector(q)).cursor)))
+  expect(await ui.evaluate(() => ['#newTask', '#projectTabs [role="tab"]', '[data-tab]', 'button[aria-label="New tab"]', '[aria-label="Back"]', '[aria-label="Close profile"]', '#windowMenu'].map((q) => getComputedStyle(document.querySelector(q)).cursor)))
     .toEqual(['default', 'default', 'default', 'default', 'default', 'default', 'default']);
 });
 

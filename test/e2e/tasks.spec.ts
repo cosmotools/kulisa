@@ -401,7 +401,7 @@ test("tasks: an agent's tab closes after a question, always (Cancel keeps it); t
     const l = document.querySelector('[data-testid="launchers"]'), r = document.querySelector('[data-testid="terminals"]').getBoundingClientRect();
     if (!l) return null;
     const b = l.getBoundingClientRect(), ys = [...l.querySelectorAll('nav[aria-label="New terminal"] button')].map((x) => Math.round(x.getBoundingClientRect().y));
-    return { labels: [...l.querySelectorAll('nav[aria-label="New terminal"] button')].map((x) => document.getElementById(x.getAttribute('aria-labelledby')).textContent), oneLine: new Set(ys).size === 1,
+    return { labels: [...l.querySelectorAll('nav[aria-label="New terminal"] button')].map((x) => x.getAttribute('aria-label')), oneLine: new Set(ys).size === 1,
       profiles: [...l.querySelectorAll('nav[aria-label="Open a profile"] button')].map((x) => x.textContent),
       middle: Math.abs(b.y + b.height / 2 - (r.y + r.height / 2)) <= 1, strip: !!document.getElementById('termUnfold'),
       empty: getComputedStyle(document.querySelector('[data-testid="terminal-tabs"]').closest('.dv-groupview').querySelector('.dv-content-container')).backgroundColor };
@@ -418,14 +418,14 @@ test("tasks: an agent's tab closes after a question, always (Cancel keeps it); t
   // the row goes.
   const tiles = () => ui.evaluate(() => {
     const s = document.getElementById('closedprofiles');
-    return s && { names: [...s.querySelectorAll('button')].map((x) => document.getElementById(x.getAttribute('aria-labelledby')).textContent),
+    return s && { names: [...s.querySelectorAll('button')].map((x) => x.getAttribute('aria-label')),
       above: s.getBoundingClientRect().bottom <= document.querySelector('[data-testid="terminals"]').getBoundingClientRect().top };
   });
   await expect.poll(tiles).toEqual({ names: PROFILES, above: true });
   // A button: the profile's picture, its name and the +; a long name cut with … in one row, the button no wider than
   // before and the + still inside it; who it is only in the tooltip.
   expect(await ui.evaluate(() => {
-    const t = document.querySelector('#closedprofiles button'), n = document.getElementById(t.getAttribute('aria-labelledby')), was = n.textContent;
+    const t = document.querySelector('#closedprofiles button'), n = [...t.querySelectorAll('span')].find((e) => e.textContent === t.getAttribute('aria-label')), was = n.textContent;
     const w = t.getBoundingClientRect().width;
     n.textContent = 'orudzhali.very.long.name@insvgna.org';
     const s = getComputedStyle(n), r = t.getBoundingClientRect(), plus = t.querySelector('svg').getBoundingClientRect(),
@@ -531,7 +531,7 @@ test('tasks: × on the last open task of a project lets the project go, nothing 
   // project worked in last first.
   const byClosing = files.tasksOf(files.pid('project')).filter((e) => e.closed).sort((a, b) => (b.closedAt ?? 0) - (a.closedAt ?? 0)).map((e) => e.name);
   await expect(ui.locator('#board section').first(), 'worked in last').toHaveAccessibleName('project');
-  expect(await ui.locator(`#board section[data-project="${pid}"] [data-task]`).evaluateAll((xs) => xs.map((x) => document.getElementById(x.getAttribute('aria-labelledby')).textContent))).toEqual(byClosing);
+  expect(await ui.locator(`#board section[data-project="${pid}"] [data-task]`).evaluateAll((xs) => xs.map((x) => x.getAttribute('aria-label')))).toEqual(byClosing);
   expect(byClosing[0]).toBe('Feature-X');
   const icons = await ui.evaluate(() => [...document.querySelectorAll('#board section [data-testid="project-icon"]')].map((i) => [i.closest<HTMLElement>('section').dataset.project, i.querySelector('use')?.getAttribute('href') ?? null]));
   expect(icons, 'its favicon, else the curtain').toEqual(await core((k, ids) => ids.map((id) => [id, k.shell.projects().find((p) => p.id === id).favicon ? null : '#i-logo']), icons.map(([id]) => id)));

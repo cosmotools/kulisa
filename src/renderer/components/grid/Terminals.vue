@@ -5,7 +5,7 @@
 // when it is as tall as the grid), and unfolds to the size it had when one opens. With no profile open it is the
 // grid's room for them, so there the group is not drawn and the +'s rows are big buttons in its middle instead
 // (docs/window.md, The terminal), the closed profiles' under them.
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, useId, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import type { DockviewApi, DockviewPanelApi } from 'dockview-vue';
 import Icon from '../Icon.vue';
 import ButtonMenu from '../menu/ButtonMenu.vue';
@@ -19,7 +19,6 @@ import { avatarSrc, withKeys } from '../../lib/common';
 
 const props = defineProps<{ params: { api: DockviewPanelApi; containerApi: DockviewApi } }>();
 const root = ref<HTMLElement>();
-const uid = useId(); // a launcher's name is its name, not its line under it
 const keyOf = (id: number) => `${store.terminals.task}#${id}`;
 const folded = computed(() => !store.terminals.list.length);
 const grid = props.params.containerApi, alone = ref(true);
@@ -92,8 +91,8 @@ const menu = (e: MouseEvent) => {
   <div class="terminals" data-testid="terminals" :data-folded="folded || undefined">
     <div v-if="folded && alone" ref="launch" class="launch" data-testid="launchers">
       <nav class="agents" aria-label="New terminal">
-        <button v-for="l in launchers()" :key="l.id" class="launcher" :aria-labelledby="`${uid}-${l.id}`" :title="l.title" @click="l.run()">
-          <Icon :name="l.icon" /><span :id="`${uid}-${l.id}`" class="name">{{ l.name }}</span><small v-if="l.sub">{{ l.sub }}</small>
+        <button v-for="l in launchers()" :key="l.id" class="launcher" :aria-label="l.name" :title="l.title" @click="l.run()">
+          <Icon :name="l.icon" /><span class="name">{{ l.name }}</span><small v-if="l.sub">{{ l.sub }}</small>
         </button>
       </nav>
       <nav class="profiles" aria-label="Open a profile">

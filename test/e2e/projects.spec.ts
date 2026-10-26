@@ -193,7 +193,7 @@ test("projects: the projects' manager (Project Settings…) changes its name and
   await expect.poll(() => core((k, a) => k.shell.task.key !== a && k.settled(), annTask)).toBe(true);
   await notLoading(ui);
   const bare = await core((k) => { k.asked.length = 0; return k.shell.task.key; });
-  await expect.poll(() => ui.getByRole('navigation', { name: 'New terminal' }).getByRole('button').evaluateAll((bs) => bs.map((b) => document.getElementById(b.getAttribute('aria-labelledby')).textContent)))
+  await expect.poll(() => ui.getByRole('navigation', { name: 'New terminal' }).getByRole('button').evaluateAll((bs) => bs.map((b) => b.getAttribute('aria-label'))))
     .toEqual(['Fake agent', 'Terminal']);
   // A project with no profiles: one tile, Add Profile…, its page in Settings.
   const launchProfiles = ui.locator('#dock').getByRole('navigation', { name: 'Open a profile' });

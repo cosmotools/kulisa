@@ -100,7 +100,7 @@ test('many tabs: they shrink as in Chrome; the strip, the toolbar and the page s
   await expect(ui.locator(`${pane} [role="tab"][data-opening]`)).toHaveCount(0); // grown in
   const fit = await ui.locator(pane).evaluate((p) => {
     const r = (q: string) => p.querySelector(q).getBoundingClientRect(), pr = p.getBoundingClientRect(), g = p.closest('.dv-groupview');
-    return { pane: p.scrollWidth <= p.clientWidth, tabs: r('nav[aria-label="Tabs"]').right <= pr.right, add: r('[aria-label="New tab"]').right <= pr.right, more: r('[aria-label="More"]').right <= pr.right,
+    return { pane: p.scrollWidth <= p.clientWidth, tabs: r('nav[aria-label="Tabs"]').right <= pr.right, add: r('button[aria-label="New tab"]').right <= pr.right, more: r('[aria-label="More"]').right <= pr.right,
       group: g.scrollWidth <= g.clientWidth };
   });
   expect(fit).toEqual({ pane: true, tabs: true, add: true, more: true, group: true });
@@ -109,14 +109,14 @@ test('many tabs: they shrink as in Chrome; the strip, the toolbar and the page s
   const strip = await ui.locator(`${pane} nav[aria-label="Tabs"]`).evaluate((s) => {
     const r = s.getBoundingClientRect(), a = s.querySelector('[role="tab"][aria-selected="true"]').getBoundingClientRect();
     const other = s.querySelector('[role="tab"]:not([aria-selected="true"])'), shown = (e: Element) => getComputedStyle(e).display !== 'none';
-    return { activeInSight: a.left >= r.left && a.right <= s.querySelector('[aria-label="New tab"]').getBoundingClientRect().left,
-      nothingUnderAdd: s.querySelector('[role="tablist"]').getBoundingClientRect().right <= s.querySelector('[aria-label="New tab"]').getBoundingClientRect().left,
+    return { activeInSight: a.left >= r.left && a.right <= s.querySelector('button[aria-label="New tab"]').getBoundingClientRect().left,
+      nothingUnderAdd: s.querySelector('[role="tablist"]').getBoundingClientRect().right <= s.querySelector('button[aria-label="New tab"]').getBoundingClientRect().left,
       activeX: shown(s.querySelector('[role="tab"][aria-selected="true"] [title="Close tab"]')), otherIcon: shown(other.querySelector(':scope > svg')) || shown(other.querySelector('img')),
-      otherTitle: shown(document.getElementById(other.getAttribute('aria-labelledby'))),
+      otherTitle: shown([...other.querySelectorAll('span')].find((e) => e.textContent === other.getAttribute('aria-label'))),
       otherX: shown(other.querySelector('[title="Close tab"]')) };
   });
   // + and a tab's × are the same icon size.
-  expect(await ui.locator(`${pane} nav[aria-label="Tabs"]`).evaluate((s) => ['[role="tab"][aria-selected="true"] [title="Close tab"] svg', '[aria-label="New tab"] svg'].map((q) => s.querySelector(q).getBoundingClientRect().width))).toEqual([14, 14]);
+  expect(await ui.locator(`${pane} nav[aria-label="Tabs"]`).evaluate((s) => ['[role="tab"][aria-selected="true"] [title="Close tab"] svg', 'button[aria-label="New tab"] svg'].map((q) => s.querySelector(q).getBoundingClientRect().width))).toEqual([14, 14]);
   expect(strip).toEqual({ activeInSight: true, nothingUnderAdd: true, activeX: true, otherIcon: true, otherTitle: false, otherX: true });
   expect(await pageBox(ui, files, 'Elon.buyer'), 'the page keeps its place and size').toEqual(before);
   // Past that the strip scrolls (lib/strip.ts): the edge with tabs past it fades; a mouse's wheel scrolls it; a tab

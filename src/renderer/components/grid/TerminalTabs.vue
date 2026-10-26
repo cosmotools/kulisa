@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // The island's row of tabs, its panel's header in the grid (docs/window.md, The terminal; Terminals.vue its terminals):
 // each terminal's tab, then +; at its end the dictation's microphone (src/dictation).
-import { computed, ref, useId } from 'vue';
+import { computed, ref } from 'vue';
 import { TabsList, TabsRoot, TabsTrigger } from 'reka-ui';
 import Icon from '../Icon.vue';
 import { Dictation } from '../../../dictation/renderer';
@@ -21,7 +21,7 @@ const menu = (e: MouseEvent) => { const t = tabOf(e); return t ? tabItems(t) : n
 const title = (t: Terminal) => (t.agent ? `${t.agent.name}${t.state ? `: it ${STATES[t.state]}` : ''}` : t.command || 'Your shell in the task\'s folder');
 const show = (id: string | number) => act('terminal:show', { id: Number(id) });
 // More tabs than fit scroll (lib/strip.ts): they were cut off at the island's edge, its + and microphone with them.
-const strip = ref<HTMLElement>(), uid = useId(); // a tab's name is its title, not its buttons'
+const strip = ref<HTMLElement>();
 useStrip(strip, () => store.terminals.front);
 const language = computed(() => (store.language ? new Intl.DisplayNames(['en'], { type: 'language' }).of(store.language.language) ?? '' : ''));
 </script>
@@ -33,12 +33,12 @@ const language = computed(() => (store.language ? new Intl.DisplayNames(['en'], 
       activation-mode="manual" @update:model-value="(v) => v !== undefined && show(v)"><TabsList as-child :loop="false">
       <nav ref="strip" class="tabstrip" aria-label="Terminals" @dragstart.prevent>
         <TabsTrigger v-for="t in store.terminals.list" :key="t.id" :value="String(t.id)" as-child>
-          <div class="termtab tab" :data-id="t.id" :aria-labelledby="`${uid}-${t.id}`" :title="title(t)">
+          <div class="termtab tab" :data-id="t.id" :aria-label="t.name" :title="title(t)">
             <button v-if="t.agent" class="handover icon quiet small" :aria-label="`${t.agent.name}: change agent…`"
               title="Change agent: hand the task to another agent, or this one afresh; it goes on with this conversation" @mousedown.stop
               @click.stop="dialog('handover').then((d) => d.open(t))"><Icon :name="agentMark(t.agent.cli)!" /></button>
             <Icon v-else class="shellmark" name="i-agent-shell" />
-            <span :id="`${uid}-${t.id}`" class="title">{{ t.name }}</span>
+            <span class="title">{{ t.name }}</span>
             <span class="state" :data-state="t.state || ''"><Icon :name="`i-${t.state || 'done'}`" /></span>
             <!-- Not a press on the tab: it is not chosen first. -->
             <span class="x icon small" :title="t.agent ? 'Close: the agent stops (asked first); its conversation stays in the task\'s history' : 'Close: what runs there stops'"

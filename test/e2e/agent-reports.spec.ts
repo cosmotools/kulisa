@@ -145,7 +145,7 @@ test("Resources: the agent's artifacts listed as it makes them, the newest first
   await profiles(core);
   await largeFiles(call);
   const dir = await core((k) => k.shell.task.store.artifacts), number = (f: string) => Number(path.basename(f).split('-')[0]);
-  const rows = () => ui.locator('#resources [data-file]').evaluateAll((rs) => rs.map((r) => [(r as HTMLElement).dataset.file, document.getElementById(r.getAttribute('aria-labelledby')).textContent, !!r.querySelector('img')] as [string, string, boolean]));
+  const rows = () => ui.locator('#resources [data-file]').evaluateAll((rs) => rs.map((r) => [(r as HTMLElement).dataset.file, r.getAttribute('aria-label'), !!r.querySelector('img')] as [string, string, boolean]));
   const saved = () => fs.readdirSync(dir).map((f) => path.join(dir, f)).sort((a, b) => number(b) - number(a));
   const shot = (await call('browser_screenshot', { profile: 'Elon.buyer' })).text.match(/^Saved as (.+\.jpg)$/)[1];
   // Its picture comes a moment later (made in the background: Task.makeThumbs).

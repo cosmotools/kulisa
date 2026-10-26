@@ -78,7 +78,7 @@ test('context menus: a pane\'s header, a tab, the terminal; pages are pictures w
   await rightClick(ui, '[data-testid="terminal"] .xterm-screen');
   expect(await menuRows(ui), 'nothing selected to copy').toEqual(['Copy (off)', 'Paste', 'Select all', '-', 'Clear', '-', 'Change agent…', 'New Conversation', '-', 'Close']);
   await anyMenu(ui).first().evaluate((m) => m.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true })));
-  expect(await ui.evaluate(() => document.getElementById(document.activeElement.getAttribute('aria-labelledby'))?.textContent), 'arrows move over the enabled rows').toBe('Paste');
+  expect(await ui.evaluate(() => document.activeElement.getAttribute('aria-label')), 'arrows move over the enabled rows').toBe('Paste');
   await choose(ui, 'Select all');
   await expect.poll(() => ui.evaluate(() => (window as any).__term.hasSelection())).toBe(true);
   await ui.evaluate(() => (window as any).__term.clearSelection());
@@ -304,7 +304,7 @@ test("menus with the mouse and the keyboard, as the OS's: a press on ☰, a drag
   await begin(core, ui, files, { columns: true });
   const z = await uiZoom(core);
   const rowAt = async (label: string) => scaled(z, await ui.evaluate((l) => {
-    const r = [...document.querySelectorAll('[role="menu"][data-state="open"] [role^="menuitem"]')].find((e) => document.getElementById(e.getAttribute('aria-labelledby'))?.textContent === l).getBoundingClientRect();
+    const r = [...document.querySelectorAll('[role="menu"][data-state="open"] [role^="menuitem"]')].find((e) => e.getAttribute('aria-label') === l).getBoundingClientRect();
     return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
   }, label));
   const shortcuts = ui.locator('#shortcuts');

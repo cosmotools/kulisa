@@ -3,7 +3,7 @@
 // left (Projects, Agents, Profiles, each with its own under it, Agents and Profiles with a + beside them; GitHub's page after
 // Agents), the chosen one's page on the right under its path. Saved as it changes (no OK, no Cancel). Settings only: a project is made in a
 // tasks' window (New Project…), which then opens it here.
-import { computed, nextTick, ref, useId, watch } from 'vue';
+import { computed, nextTick, ref, watch } from 'vue';
 import { ListboxContent, ListboxItem, ListboxRoot, TreeItem, TreeRoot } from 'reka-ui';
 import Icon from '../Icon.vue';
 import ButtonMenu from '../menu/ButtonMenu.vue';
@@ -339,8 +339,6 @@ const profileMenu = (): MenuItem[] => [{ label: 'New Profile…', run: () => sta
   ...(others.value.length ? ['-' as const, { heading: 'Other Profiles' }, ...others.value.map((p) => ({ label: p.name, sub: p.also.join(', ') || 'in no project',
     avatar: p.avatar, run: () => profileChange(kulisa.invoke('project:profile-add', { id: id(), profile: p.id })) }))] : [])];
 const stopAdding = () => { adding.value = ''; newName.value = ''; cloneUrl.value = ''; };
-// A row's name is its label, not its icons' and buttons' (aria-labelledby).
-const uid = useId();
 </script>
 
 <template>
@@ -351,13 +349,13 @@ const uid = useId();
         <TreeRoot id="pjlist" v-slot="{ flattenItems }" v-model:expanded="expanded" :items="tree" :get-key="(n: Node) => n.key" :model-value="chosenNode"
           selection-behavior="replace"
           aria-label="Settings" @keydown.delete="deleteChosen">
-          <TreeItem v-for="it in flattenItems" :key="it._id" v-bind="it.bind" class="item" :aria-labelledby="`${uid}-${it.value.key}`" :data-key="it.value.key" :data-section="it.value.section" :data-page="it.value.page"
+          <TreeItem v-for="it in flattenItems" :key="it._id" v-bind="it.bind" class="item" :aria-label="it.value.label" :data-key="it.value.key" :data-section="it.value.section" :data-page="it.value.page"
             :data-project="it.value.project?.id" :data-agent="it.value.agent?.id" :data-profile="it.value.profile?.id"
             :style="{ '--color': it.value.project && projectColor(it.value.project) }" @select="choose">
             <Icon v-if="it.value.section" class="twist" name="i-down" /><Icon v-else-if="it.value.page" class="twist" :name="({ github: 'i-github', log: 'i-docs', about: 'i-logo' } as const)[it.value.page]" /><ProjectIcon v-if="it.value.project" :p="it.value.project" />
             <template v-if="it.value.agent"><Icon v-if="mark(it.value.agent)" class="logo" :name="mark(it.value.agent)!" /></template>
             <img v-if="it.value.profile" class="avatar" alt="" :src="avatarSrc(it.value.profile.avatar)">
-            <span class="text"><span :id="`${uid}-${it.value.key}`" class="label" :title="it.value.section ? undefined : it.value.label">{{ it.value.label }}</span></span>
+            <span class="text"><span class="label" :title="it.value.section ? undefined : it.value.label">{{ it.value.label }}</span></span>
             <kbd v-if="it.value.agent && !it.value.agent.installed">not installed</kbd>
             <!-- The same as the section's right-click, which the keyboard has -->
             <ButtonMenu v-if="it.value.section === 'agents'" :items="newAccountMenu"><button id="agentnew" class="icon small add" type="button" tabindex="-1"
@@ -397,8 +395,8 @@ const uid = useId();
               <div v-if="folders.length" class="head" aria-hidden="true"><span>Name</span><span>Folder</span><span>GitHub</span><span /></div>
               <ListboxRoot selection-behavior="replace" v-if="folders.length" id="npfolders" v-model="folderSel" aria-label="Folders" @keydown.delete="removeFolder()">
                 <ListboxContent>
-                  <ListboxItem v-for="(r, i) in folders" :key="r.folder" :value="r.folder" class="item" :data-folder="r.folder" :aria-labelledby="`${uid}-f${i}`">
-                    <span :id="`${uid}-f${i}`" class="cell label" :title="base(r.folder)">{{ base(r.folder) }}</span><small class="cell" :title="r.folder">{{ r.folder }}</small>
+                  <ListboxItem v-for="(r, i) in folders" :key="r.folder" :value="r.folder" class="item" :data-folder="r.folder" :aria-label="base(r.folder)">
+                    <span class="cell label" :title="base(r.folder)">{{ base(r.folder) }}</span><small class="cell" :title="r.folder">{{ r.folder }}</small>
                     <span class="cell github"><template v-if="githubOf(r.folder)?.remote">
                       <small v-if="githubOf(r.folder)!.state === 'not-github'" class="notgithub" title="Its origin is not on github.com (or an SSH name ssh cannot tell)">not a GitHub address</small>
                       <small v-else-if="!github!.accounts.length" title="Add an account in Settings → GitHub">no account</small>
@@ -441,8 +439,8 @@ const uid = useId();
               <div v-if="mine.length" class="head" aria-hidden="true"><span>Agent</span><span>Account</span><span /></div>
               <ListboxRoot selection-behavior="replace" v-if="mine.length" id="npagents" v-model="agentSel" aria-label="Agents" @keydown.delete="removeAgent()">
                 <ListboxContent>
-                  <ListboxItem v-for="a in mine" :key="a.id" :value="a.id" class="item" :data-agent="a.id" :title="a.name" :aria-labelledby="`${uid}-a${a.id}`">
-                    <span :id="`${uid}-a${a.id}`" class="cell label"><Icon v-if="agentMark(a.cli, null)" :name="agentMark(a.cli, null)!" />{{ a.agent }}</span>
+                  <ListboxItem v-for="a in mine" :key="a.id" :value="a.id" class="item" :data-agent="a.id" :title="a.name" :aria-label="a.agent">
+                    <span class="cell label"><Icon v-if="agentMark(a.cli, null)" :name="agentMark(a.cli, null)!" />{{ a.agent }}</span>
                     <small class="cell account">{{ a.email ?? '—' }}</small>
                     <span class="cell end"><kbd v-if="a.default" class="default" title="+ makes a task with it; the others are in +'s right-click menu">default</kbd></span>
                   </ListboxItem>
@@ -467,9 +465,9 @@ const uid = useId();
               <div v-if="profiles.length" class="head" aria-hidden="true"><span>Name</span><span>About</span><span>Also in</span></div>
               <ListboxRoot selection-behavior="replace" v-if="profiles.length" id="npprofiles" v-model="profileSel" aria-label="Profiles" @keydown.delete="removeProfile()">
                 <ListboxContent>
-                  <ListboxItem v-for="p in profiles" :key="p.id" :value="p.id" class="item" :data-profile="p.id" :aria-labelledby="`${uid}-p${p.id}`"
+                  <ListboxItem v-for="p in profiles" :key="p.id" :value="p.id" class="item" :data-profile="p.id" :aria-label="p.name"
                     :title="[p.name, p.description, p.also.length && `also in ${p.also.join(', ')}`].filter(Boolean).join('\n')">
-                    <span :id="`${uid}-p${p.id}`" class="cell label"><img class="avatar" alt="" :src="avatarSrc(p.avatar)">{{ p.name }}</span>
+                    <span class="cell label"><img class="avatar" alt="" :src="avatarSrc(p.avatar)">{{ p.name }}</span>
                     <small class="cell about">{{ p.description }}</small><small class="cell also">{{ p.also.join(', ') }}</small>
                   </ListboxItem>
                 </ListboxContent>

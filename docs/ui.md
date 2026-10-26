@@ -156,7 +156,8 @@ the browser's own `until-found` apart): a component's `display` beats the browse
 - `.item`: a row of a menu or a list (`MenuButton.vue`, the projects' manager's rows), `--row` high: an optional icon (`.ico`), `.dot`
   (a project's color, `--color`), `ProjectIcon.vue` (a project's icon in its color: its favicon, one of Kulisa's set or
   the curtain; `.picon`, also on a task's tab in the tasks' bar, 20 px there) or `.avatar` (a profile's picture), `.text` with `.label` and a `small` line under it, a `kbd` key at the end. Lit under the
-  pointer and on keyboard focus.
+  pointer and on keyboard focus. Named by its label alone (`aria-label`), not its icon, its `small` line or its key; a value beside
+  the label (☰'s Language) is its description (`aria-describedby`).
 - `.list`: a list a dialog edits (a project's Code, Agents and Profiles; New Project's folders; an agent's accounts),
   or chooses from (Settings → Agents' agents, no toolbar), as JetBrains': framed,
   `.tools` over it (`.icon.small` buttons: + adds, often a `ButtonMenu`; − removes the selected row; ★ makes it the

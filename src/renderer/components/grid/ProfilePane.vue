@@ -2,7 +2,7 @@
 // A profile's pane, as a Chrome window (docs/profiles.md; docs/window.md, The grid). The page itself is a native view
 // the main process lays over .content (lib/grid.ts tells it where); while a panel is dragged or a menu is open, a
 // picture of the page stands in for it.
-import { computed, onBeforeUnmount, onMounted, ref, useId, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import type { DockviewPanelApi } from 'dockview-vue';
 import { DialogContent, DialogDescription, DialogRoot, DialogTitle, TabsList, TabsRoot, TabsTrigger, Toggle } from 'reka-ui';
 import Icon from '../Icon.vue';
@@ -19,7 +19,6 @@ const key = props.params.api.id.slice('profile:'.length);
 const profile = computed(() => store.profiles.find((p) => p.id === key));
 const active = computed(() => profile.value?.tabs.find((t) => t.id === profile.value!.active));
 const content = ref<HTMLElement>(), addr = ref<HTMLInputElement>(), strip = ref<HTMLElement>();
-const uid = useId(); // a tab's name is its title, not its ×'s
 const id = () => profile.value!.id;
 const tab = () => profile.value!.active;
 
@@ -120,9 +119,9 @@ onBeforeUnmount(() => { observer.disconnect(); if (panes.get(key) === handle) pa
     <TabsRoot as-child :model-value="profile.active ?? undefined" activation-mode="manual" @update:model-value="activate"><nav class="tabs" aria-label="Tabs">
       <RightClickMenu :items="tabMenu"><TabsList as-child :loop="false"><div ref="strip" class="strip tabstrip">
         <TabsTrigger v-for="t in profile.tabs" :key="t.id" :value="t.id" as-child>
-          <div class="tab" :data-tab="t.id" :aria-labelledby="`${uid}-${t.id}`" :title="t.url">
+          <div class="tab" :data-tab="t.id" :aria-label="t.title || t.url || 'New tab'" :title="t.url">
             <img alt="" :hidden="!t.favicon" :src="t.favicon || undefined"><Icon class="globe" name="i-globe" />
-            <span :id="`${uid}-${t.id}`" class="title">{{ t.title || t.url || 'New tab' }}</span>
+            <span class="title">{{ t.title || t.url || 'New tab' }}</span>
             <!-- Not a press on the tab: it is not chosen first. -->
             <span class="x icon small" title="Close tab" @mousedown.prevent @click="act('tab:close', { profile: profile.id, tab: t.id })"><Icon name="i-close" /></span>
           </div>
