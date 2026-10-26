@@ -9,13 +9,14 @@
 // Kulisa's main process is not bundled (node-pty is native; playwright-core and the MCP SDK read their own files).
 import { defineConfig } from 'vite';
 import vue from '@vitejs/plugin-vue';
+import react from '@vitejs/plugin-react';
 import { resolve } from 'node:path';
 
 const renderer = resolve(import.meta.dirname, 'src/renderer');
 export default defineConfig({
   root: renderer,
   base: './', // loaded from file://
-  plugins: [vue()],
+  plugins: [vue(), react()],
   build: {
     outDir: resolve(import.meta.dirname, 'dist/renderer'),
     emptyOutDir: true,
