@@ -3,6 +3,8 @@
 // hand would (keys as input events). Loaded by app.ts; the tests import only its type.
 import electron from 'electron';
 import fs from 'fs';
+import path from 'path';
+import url from 'url';
 import type { WebContents } from 'electron';
 import type { IPty } from 'node-pty';
 import type { Shell } from '../../src/main/shell.ts';
@@ -57,6 +59,9 @@ export function driver(shell: Shell, openedExternally: string[]) {
       if (tab.wc.getURL() !== url) { p.navigate(tab.id, url); await new Promise<void>((r) => tab.wc.once('did-finish-load', () => r())); }
       return p;
     },
+    // A module of Kulisa's main process by its path from the checkout ('src/main/page-menu.ts'): the app's own instance,
+    // for state the driver does not give (core's function cannot import: it is eval'd).
+    import: (file: string) => import(url.pathToFileURL(path.join(import.meta.dirname, '..', '..', file)).href),
     // How many webContents there are (a page's process gone with its own).
     webContents: () => electron.webContents.getAllWebContents().length,
     // A window given the keyboard, as the human's click gives it (helpers.ts, focusWindow waits until its page has it).

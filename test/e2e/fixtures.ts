@@ -25,7 +25,7 @@ type Core = <A, R>(fn: (k: Kulisa, arg: A) => R | Promise<R>, arg?: A) => Promis
 type Where = { task?: string; terminal?: number };
 type CallResult = { content: { type: string; text?: string; data?: string; mimeType?: string }[]; text: string; isError?: boolean; structuredContent?: unknown };
 type Call = (name: string, args?: Record<string, unknown>, where?: Where) => Promise<CallResult>;
-type Running = { file: string; child: ChildProcess; exited: Promise<void>; output: () => string; browser: Browser; context: BrowserContext; root: string; core: Core; ui: Page; errors: string[]; clients: Map<string, Client> };
+type Running = { file: string; automation: boolean; child: ChildProcess; exited: Promise<void>; output: () => string; browser: Browser; context: BrowserContext; root: string; core: Core; ui: Page; errors: string[]; clients: Map<string, Client> };
 
 // The checkout's own folder for the tests' Kulisas: worktrees run their tests at once (CLAUDE.md, Worktrees).
 const repo = path.join(import.meta.dirname, '..', '..');
@@ -48,58 +48,68 @@ async function screen(): Promise<{ display: string; stop: () => void }> {
 }
 
 // restart: the folder of the Kulisa quit, started again in it (KULISA_RESTART, app.ts).
-async function launch(file: string, display: string | null, restart?: string): Promise<Running> {
+// automation false: no debugging port and no Playwright in the pages (only core() and the agent's tools), for what an open
+// port changes in them (navigator.webdriver: docs/profiles.md, What sites see).
+async function launch(file: string, display: string | null, automation: boolean, restart?: string): Promise<Running> {
   const root = restart ?? path.join(base_, `${path.basename(file, '.spec.ts')}-${crypto.randomBytes(3).toString('hex')}`);
   fs.mkdirSync(root, { recursive: true });
   const env: Record<string, string> = { ...process.env as Record<string, string>, KULISA_TEST_ROOT: root, KULISA_SCREENSHOTS: path.join(root, 'screenshots') };
   if (restart) env.KULISA_RESTART = '1';
   // On Xvfb, X11's: Electron takes Wayland wherever WAYLAND_DISPLAY is set, and would open on the human's screen.
   if (display) { env.DISPLAY = display; delete env.WAYLAND_DISPLAY; env.XDG_SESSION_TYPE = 'x11'; }
-  // Started as the human starts it, with a debugging port of its own (127.0.0.1, a free one) and an IPC channel for
-  // core(), not by Playwright's _electron: that one makes every page it attaches to think it has the focus (which keeps
+  // Started as the human starts it, with a debugging port of its own (127.0.0.1, a free one) and core() over its stdin
+  // and stdout (app.ts), not by Playwright's _electron: that one makes every page it attaches to think it has the focus (which keeps
   // it visible, a minimized window's too: CLAUDE.md, Hard-won facts) and light, and has no way to leave them as they
   // are; connected over CDP with noDefaults, Playwright changes nothing in the pages. Linux: no setuid sandbox in
   // node_modules (CLAUDE.md, Commands). No GPU on Xvfb: WebGL on Chromium's software renderer, as the terminal uses it
   // on a real one.
-  const args = [...(process.platform === 'linux' ? ['--no-sandbox'] : []), '--remote-debugging-port=0', ...(display ? ['--ignore-gpu-blocklist'] : []), path.join(import.meta.dirname, 'app.ts')];
-  const child = spawn(electronPath as unknown as string, args, { env, stdio: ['ignore', 'pipe', 'pipe', 'ipc'] }); // JSON: Electron's V8 is not the test's
-  // What Electron printed, the last of it, for a failed test (leave).
+  const args = [...(process.platform === 'linux' ? ['--no-sandbox'] : []), ...(automation ? ['--remote-debugging-port=0'] : []), ...(display ? ['--ignore-gpu-blocklist'] : []), path.join(import.meta.dirname, 'app.ts')];
+  const marker = `\u0001core-${crypto.randomBytes(6).toString('hex')} `;
+  env.KULISA_CORE_MARKER = marker;
+  const child = spawn(electronPath as unknown as string, args, { env, stdio: ['pipe', 'pipe', 'pipe'] });
+  // What Electron printed, the last of it, for a failed test (leave); core()'s replies apart.
   let output = '';
-  const keep = (d: Buffer) => { output = (output + d.toString()).slice(-200_000); };
-  child.stdout.on('data', keep); child.stderr.on('data', keep);
-  const exited = new Promise<void>((r) => child.once('exit', () => r()));
-  const endpoint = await new Promise<string>((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error(`Electron gave no debugging port in 60 s:\n${output}`)), 60000);
-    readline.createInterface({ input: child.stderr }).on('line', (l) => { const m = /DevTools listening on (ws:\/\/\S+)/.exec(l); if (m) { clearTimeout(timer); resolve(m[1]); } });
-    child.once('exit', (code) => { clearTimeout(timer); reject(new Error(`Electron ended with ${code}:\n${output}`)); });
-  });
+  const keep = (d: string) => { output = (output + d).slice(-200_000); };
+  child.stderr.on('data', (d: Buffer) => keep(d.toString()));
   let seq = 0;
   const pending = new Map<number, { resolve: (v: unknown) => void; reject: (e: Error) => void }>();
-  child.on('message', ({ id, value, error }: { id: number; value?: unknown; error?: string }) => {
+  readline.createInterface({ input: child.stdout }).on('line', (l) => {
+    if (!l.startsWith(marker)) return keep(`${l}\n`);
+    const { id, value, error } = JSON.parse(l.slice(marker.length)) as { id: number; value?: unknown; error?: string };
     const p = pending.get(id);
     pending.delete(id);
     if (error !== undefined) p?.reject(new Error(`in Kulisa's main process: ${error}`)); else p?.resolve(value);
+  });
+  const exited = new Promise<void>((r) => child.once('exit', () => r()));
+  const endpoint = !automation ? null : await new Promise<string>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`Electron gave no debugging port in 60 s:\n${output}`)), 60000);
+    readline.createInterface({ input: child.stderr }).on('line', (l) => { const m = /DevTools listening on (ws:\/\/\S+)/.exec(l); if (m) { clearTimeout(timer); resolve(m[1]); } });
+    child.once('exit', (code) => { clearTimeout(timer); reject(new Error(`Electron ended with ${code}:\n${output}`)); });
   });
   void exited.then(() => { for (const p of pending.values()) p.reject(new Error('Kulisa ended')); pending.clear(); });
   const core: Core = (fn, arg) => new Promise((resolve, reject) => {
     if (child.exitCode !== null) return reject(new Error('Kulisa ended'));
     const id = ++seq;
     pending.set(id, { resolve: resolve as (v: unknown) => void, reject });
-    child.send({ id, src: fn.toString(), arg });
+    child.stdin.write(`${JSON.stringify({ id, src: fn.toString(), arg })}\n`);
   });
-  const browser = await chromium.connectOverCDP(endpoint, { noDefaults: true });
-  const context = browser.contexts()[0];
-  const errors: string[] = [];
-  // Kulisa's own pages' uncaught errors fail the test (a site's are the site's).
-  const attach = (p: Page) => { if (own(p)) p.on('pageerror', (e) => errors.push(`${path.basename(new URL(p.url()).pathname)}: ${e.stack ?? e.message}`)); };
-  context.on('page', attach);
-  context.pages().forEach(attach);
   await expect.poll(() => core((k) => !!k?.shell.task?.loaded && !!k.shell.pty), { timeout: 30000 }).toBe(true);
   await core((k) => k.watchPty(k.shell.pty));
+  const errors: string[] = [];
+  if (!endpoint) return { file, automation, child, exited, output: () => output, browser: null, context: null, root, core, ui: null, errors, clients: new Map() };
+  const browser = await chromium.connectOverCDP(endpoint, { noDefaults: true });
+  const context = browser.contexts()[0];
+  // Kulisa's own pages' uncaught errors fail the test (a site's are the site's); a DOMException's stack is ''.
+  const attach = (p: Page) => { if (own(p)) p.on('pageerror', (e) => errors.push(`${path.basename(new URL(p.url()).pathname)}: ${e.stack || `${e.name}: ${e.message}`}`)); };
+  context.on('page', attach);
+  context.pages().forEach(attach);
+  // A page's dialog (alert, confirm, beforeunload) left to Kulisa, which shows it in its pane: Playwright dismisses one
+  // nobody listens to.
+  context.on('dialog', () => {});
   const isUi = (p: Page) => p.url().includes('/index.html');
   const ui = context.pages().find(isUi) ?? await context.waitForEvent('page', isUi);
   await context.tracing.start({ screenshots: true, snapshots: true });
-  return { file, child, exited, output: () => output, browser, context, root, core, ui, errors, clients: new Map() };
+  return { file, automation, child, exited, output: () => output, browser, context, root, core, ui, errors, clients: new Map() };
 }
 
 // What a failed test leaves, as its attachments (the HTML report, the CI's artifact): the window as the screen shows it,
@@ -108,7 +118,7 @@ async function leave(k: Running, info: TestInfo) {
   const png = info.outputPath('window.png');
   await k.core((d, f) => d.shot(f), png).then(() => info.attach('window', { path: png, contentType: 'image/png' }), () => {});
   const trace = info.outputPath('trace.zip');
-  await k.context.tracing.stopChunk({ path: trace }).then(() => info.attach('trace', { path: trace, contentType: 'application/zip' }), () => {});
+  if (k.context) await k.context.tracing.stopChunk({ path: trace }).then(() => info.attach('trace', { path: trace, contentType: 'application/zip' }), () => {});
   const log = path.join(k.root, 'data', 'logs', 'kulisa.log');
   if (fs.existsSync(log)) await info.attach('kulisa.log', { path: log, contentType: 'text/plain' });
   await info.attach('electron output', { body: k.output(), contentType: 'text/plain' });
@@ -129,6 +139,8 @@ async function close(k: Running) {
 }
 
 type Fixtures = {
+  // Kulisa started without a debugging port (test.use({ automation: false })): ui, sui and the trace are not there.
+  automation: boolean;
   kulisa: Running; core: Core; ui: Page; call: Call;
   // Settings' window's page, once it is open and loaded (settings-window.ts).
   sui: () => Promise<Page>;
@@ -142,6 +154,7 @@ type Fixtures = {
 };
 
 export const test = base.extend<Fixtures, { display: string | null; running: { current: Running | null } }>({
+  automation: [true, { option: true }],
   display: [async ({}, use) => {
     if (!hidden) return use(null);
     const s = await screen();
@@ -156,20 +169,20 @@ export const test = base.extend<Fixtures, { display: string | null; running: { c
     if (holder.current) await close(holder.current);
     try { fs.rmdirSync(base_); } catch {} // empty once every file's folder is gone
   }, { scope: 'worker' }],
-  kulisa: [async ({ display, running }, use, info) => {
-    if (running.current?.file !== info.file) {
+  kulisa: [async ({ display, running, automation }, use, info) => {
+    if (running.current?.file !== info.file || running.current.automation !== automation) {
       if (running.current) await close(running.current);
-      running.current = await launch(info.file, display);
+      running.current = await launch(info.file, display, automation);
     }
     const k = running.current;
-    await k.context.tracing.startChunk({ title: info.title });
+    await k.context?.tracing.startChunk({ title: info.title });
     k.errors.length = 0;
     await k.core((d) => d.reset());
     await use(k);
     const now = running.current; // a restart's Kulisa
     const errors = [...now.errors, ...await now.core((d) => d.errors).catch(() => [] as string[])];
     if (info.status !== info.expectedStatus || errors.length) await leave(now, info);
-    else await now.context.tracing.stopChunk().catch(() => {});
+    else await now.context?.tracing.stopChunk().catch(() => {});
     // Started again (restart), it is not as a file's tests begin: the next test gets a new one.
     if (now !== k) { await close(now); running.current = null; }
     expect(errors, 'uncaught errors in Kulisa while the test ran').toEqual([]);
@@ -215,10 +228,10 @@ export const test = base.extend<Fixtures, { display: string | null; running: { c
     void kulisa;
     await use(async () => {
       const old = running.current;
-      await old.context.tracing.stopChunk().catch(() => {});
+      await old.context?.tracing.stopChunk().catch(() => {});
       await quit(old);
-      running.current = await launch(old.file, display, old.root);
-      await running.current.context.tracing.startChunk({ title: `${info.title} (after the restart)` });
+      running.current = await launch(old.file, display, old.automation, old.root);
+      await running.current.context?.tracing.startChunk({ title: `${info.title} (after the restart)` });
       await running.current.core((d) => d.reset());
       return running.current.ui;
     });

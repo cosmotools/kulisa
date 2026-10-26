@@ -10,7 +10,7 @@ type Files = ReturnType<typeof data>;
 
 // The run's test site (global-setup.ts), on a free port: never a literal port (CLAUDE.md, Hard-won facts).
 export const SITE = process.env.KULISA_TEST_SITE;
-export const PORT = new URL(SITE).port;
+export const PORT = SITE && new URL(SITE).port; // none while Playwright only lists the tests (no global setup)
 export const MAC = process.platform === 'darwin';
 // What Windows does its own way: the user's shell is PowerShell (src/terminal), a right-click's menu opens on the
 // release, the terminal copies and pastes with Ctrl+C / V.
@@ -67,36 +67,41 @@ export const closeProject = (ui: Page, files: Files, folder: string) => ui.locat
 // The bar's + (NewTask.vue): a menu of every project with its tasks; one project shows its tasks inline, several nest
 // each project as a submenu. plusMenu(ui) opens it and gives its top rows' labels; plusMenu(ui, project) makes a new
 // task of that project (its New Task row); plusMenu(ui, project, task) opens that task again (a closed one) or shows it.
-const topLabels = (m: Locator) => m.locator(':scope > [role="menuitem"] .label').allTextContents();
+const exact = (s: string) => new RegExp(`^${RegExp.escape(s)}$`);
 const anyMenu = (ui: Page) => ui.locator('.menu[data-state="open"]');
+const topLabels = (m: Locator) => m.locator(':scope > [role="menuitem"] .label').allTextContents();
+const rowIn = (ui: Page, m: Locator, label: string) => m.locator('[role="menuitem"]').filter({ has: ui.locator('.label', { hasText: exact(label) }) });
+const projectRow = (ui: Page, project: string) => anyMenu(ui).first().locator('[role="menuitem"][aria-haspopup]').filter({ has: ui.locator('.label', { hasText: exact(project) }) });
+// A project's submenu, with several projects, opened as the hand does it: hovering its row (a release on the row makes
+// the project a new task: MenuRows.vue, runSub). The rows are drawn again as a project just shown moves to the top, and
+// the submenu under the pointer closes: hovered again until `until` holds in it.
+async function projectSub(ui: Page, project: string, until: (sub: Locator) => Promise<void>) {
+  const trigger = projectRow(ui, project);
+  await expect(trigger).toBeVisible();
+  await expect(async () => {
+    if ((await anyMenu(ui).count()) < 2) { await ui.mouse.move(0, 0); await trigger.hover(); }
+    await until(anyMenu(ui).last());
+  }).toPass({ timeout: 5000 });
+  return anyMenu(ui).last();
+}
 export async function plusMenu(ui: Page, project?: string, task?: string) {
   if (!(await anyMenu(ui).count())) await ui.locator('#newTask').click();
   const top = anyMenu(ui).first();
-  await expect(top).toBeVisible();
+  await expect(top.locator(':scope > [role="menuitem"]').first()).toBeVisible(); // its rows drawn, a moment after it opens
   if (project === undefined) return topLabels(top);
-  // Several projects: the project is a submenu to open first (its subtrigger opens on the pointer); one project: its
-  // tasks and New Task are the top menu's own. The rows are drawn a moment after the menu opens, and drawn again as a
-  // project just shown moves to the top (the submenu under the pointer then closes): opened again until its row is there.
   const label = task ?? 'New Task';
-  const trigger = top.locator('[role="menuitem"][aria-haspopup]').filter({ has: ui.locator('.label', { hasText: new RegExp(`^${RegExp.escape(project)}$`) }) });
-  const rowIn = (m: Locator) => m.locator('[role="menuitem"]').filter({ has: ui.locator('.label', { hasText: new RegExp(`^${RegExp.escape(label)}$`) }) });
-  await expect(trigger.or(rowIn(top)).first()).toBeVisible();
-  if (!(await trigger.count())) return rowIn(top).first().click();
-  await expect(async () => {
-    if ((await anyMenu(ui).count()) < 2) await trigger.click();
-    await expect(rowIn(anyMenu(ui).last())).toBeVisible({ timeout: 500 });
-  }).toPass({ timeout: 5000 });
-  await rowIn(anyMenu(ui).last()).first().click();
+  await expect(projectRow(ui, project).or(rowIn(ui, top, label)).first()).toBeVisible();
+  if (!(await projectRow(ui, project).count())) return rowIn(ui, top, label).first().click();
+  const sub = await projectSub(ui, project, (m) => expect(rowIn(ui, m, label).first()).toBeVisible({ timeout: 500 }));
+  await rowIn(ui, sub, label).first().click();
 }
 // The + menu's rows for one project (its tasks, then New Task); the menu opened, read and closed again.
 export async function plusRows(ui: Page, project: string) {
   await plusMenu(ui);
-  const top = anyMenu(ui).first();
-  await expect(top.locator(':scope > [role="menuitem"]').first()).toBeVisible();
-  const trigger = top.locator('[role="menuitem"][aria-haspopup]').filter({ has: ui.locator('.label', { hasText: new RegExp(`^${RegExp.escape(project)}$`) }) });
-  const multi = await trigger.count() > 0;
-  if (multi) await expect(async () => { await trigger.click(); await expect(anyMenu(ui)).toHaveCount(2, { timeout: 500 }); }).toPass({ timeout: 5000 });
-  const rows = await topLabels(multi ? anyMenu(ui).last() : top);
+  const multi = await projectRow(ui, project).count() > 0;
+  const m = !multi ? anyMenu(ui).first()
+    : await projectSub(ui, project, (sub) => expect(anyMenu(ui)).toHaveCount(2, { timeout: 500 }).then(() => expect(sub.locator(':scope > [role="menuitem"]').first()).toBeVisible({ timeout: 500 })));
+  const rows = await topLabels(m);
   await closeBoard(ui);
   return rows;
 }
