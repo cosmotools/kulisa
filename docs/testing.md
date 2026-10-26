@@ -182,10 +182,30 @@ the test alone (`-g`).
   as the renderer sends it), the MCP tools (`call`). Reach into the core (`k.shell.task.createProfile`,
   `k.ensureProfile`) only to set up what another test already covers.
 - **Wait for a state, never for time.** A web-first assertion, `expect.poll(() => …)`, or `expect(…).toPass()` for a
-  block retried as a whole; `sleep` only where nothing can be waited for (that something did *not* happen, a double
-  click's gap), short, with a comment saying so. A screen without a GPU is slower than the author's: a test that
-  passes only on a fast one is a race. An assertion that may fail on the CI says what there was instead (its message;
-  `termShows(ui, text)` and `termDump(ui)`: the xterm's size, its cursor and its last lines, a wrapped one marked `~`).
+  block retried as a whole. A screen without a GPU is slower than the author's: a test that passes only on a fast one
+  is a race. An assertion that may fail on the CI says what there was instead (its message; `termShows(ui, text)` and
+  `termDump(ui)`: the xterm's size, its cursor and its last lines, a wrapped one marked `~`). No fixed pause: ESLint
+  refuses `sleep(…)`, `waitForTimeout` and `new Promise((r) => setTimeout(r, ms))` in `test/e2e`; a wait with an end
+  (an action repeated until it takes, a call that must answer in time) is `upTo(promise, ms)`.
+- **That something did not happen** is checked once what would have made it is done, by a proof of that
+  (`helpers.ts`, `driver.ts`):
+  - a key or a mouse event sent through the main process (`k.press`, `sendInputEvent`) is decided there as it is sent:
+    the `core()` call that sent it has seen Kulisa's keys and its hold key act or not;
+  - what the main process tells the window, or the window sends it, is handled on the other side once the window's
+    channel has gone there and back (`ipcSettled(page)`); what the window draws after, two frames on (`frames(page)`);
+  - an input event in the window's page has run all its handlers once the page has it (`seen(page, type, act)`);
+  - what is typed into the agent's terminal has come once a mark typed after it is echoed (`echoed(core)`);
+  - every action of the core leaves a log line, read as it is written (`k.logged`): a line not there is an action
+    not taken;
+  - the focus guard's give-backs are done once a timer of its length set after theirs has run (`k.focusGrace()`);
+  - a later action of the same kind that does show (a human's right-click after a site's own menu, a window made by
+    the next drag), counted: Chromium and Kulisa handle them in order.
+- **A time Kulisa waits is the test's to move, not to wait for.** In the main process, `k.clock.hold(ms)` holds its
+  timers of at least that long, `k.clock.advance(ms)` runs those due by then, `release()` gives the rest back to the
+  real time (also as each test begins): Node's timers are one global, so only the long ones are held. A time Kulisa
+  reads instead of setting a timer is dated back (a key's press, `dictation.of(task).held`); a press in the window,
+  as CDP's input with its time (`holdPointer`); a slow mock waits for the test to let it go (a promise), not for a
+  time.
 - **Before a click, wait until the window is ready for it**: a project or task being shown
   (`!shell.windows[0].switching`, no `loading` class on the root), the panel there, the grid's slide over. A click
   while the window builds another grid is lost, and keys sent while the slide runs go nowhere (dockview hides its

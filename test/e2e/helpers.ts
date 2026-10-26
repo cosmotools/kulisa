@@ -26,7 +26,9 @@ export const WIN = process.platform === 'win32';
 // An attribute's value in a selector, as a CSS string: a Windows path's backslashes are CSS escapes.
 export const attr = (name: string, value: string) => `[${name}=${JSON.stringify(value)}]`;
 export const near = (a: number, b: number) => Math.abs(a - b) < 1e-6;
-export const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+// A promise's answer, or null when it has none within ms: a wait with an end, not a pause (an action repeated until it
+// takes, a call that must answer in time).
+export const upTo = <T>(p: Promise<T>, ms: number) => Promise.race([p, new Promise<null>((r) => { setTimeout(() => r(null), ms); })]);
 // A text whole, as a pattern (a label, a name).
 export const exact = (s: string) => new RegExp(`^${RegExp.escape(s)}$`);
 
@@ -39,6 +41,41 @@ export const act = (page: Page, channel: string, arg: unknown) => page.evaluate(
 // another task (a view transition: a key or a click meanwhile goes to the grid being left).
 export const notLoading = (page: Page) => expect(page.locator('html')).not.toHaveClass(/\bloading\b/);
 export const noSlide = (page: Page) => expect.poll(() => page.evaluate(() => document.documentElement.matches(':active-view-transition'))).toBe(false);
+// That nothing happened is checked once what would have made it is done (docs/testing.md, Writing an e2e test): each
+// of these waits for a proof of that, never for a time.
+// The page drew what its last changes made: Vue's updates, a ResizeObserver's, what waits for a frame.
+export const frames = (page: Page) => page.evaluate(() => new Promise<void>((r) => { requestAnimationFrame(() => requestAnimationFrame(() => r())); }));
+// Every message the page sent the main process before now is handled there, and every one the main process sent the
+// page before it handled is handled in the page: a channel's round trip, on the one pipe that keeps their order.
+export const ipcSettled = async (page: Page) => { await page.evaluate(() => (window as any).kulisa.invoke('zoom:get')); };
+// act sends the page an input event of type (as the hand does, through the main process): once the page has it, every
+// handler of it has run (they run in its one dispatch), and what they changed is drawn.
+export async function seen(page: Page, type: string, act: () => Promise<unknown>) {
+  await page.evaluate((t) => { const w = window as any; w.__seen = false; addEventListener(t, () => { w.__seen = true; }, { capture: true, once: true }); }, type);
+  await act();
+  await expect.poll(() => page.evaluate(() => (window as any).__seen), { message: `the page got no ${type}` }).toBe(true);
+  await frames(page);
+}
+// Everything written into the shown task's agent's terminal before now has come back (the terminal echoes its input in
+// the order it came): a mark typed, waited for in its output (or on the screen, by shows), then rubbed out.
+export async function echoed(core: Core, shows: () => Promise<string> = () => core((k) => k.ptyOutput())) {
+  const mark = `kl${Math.random().toString(36).slice(2, 8)}`;
+  await core((k, m) => k.shell.pty.write(m), mark);
+  await expect.poll(shows, { message: 'the terminal does not echo' }).toContain(mark);
+  await core((k, n) => k.shell.pty.write('\x7f'.repeat(n)), mark.length);
+  return mark;
+}
+
+// A press on an element as the hand makes it (CDP's input), dated a second back, and its release when called: the
+// page's events carry the time, so a hold is told from a click without waiting for one.
+export async function holdPointer(page: Page, target: Locator) {
+  const b = await target.boundingBox(), x = b.x + b.width / 2, y = b.y + b.height / 2;
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y });
+  await cdp.send('Input.dispatchMouseEvent', { type: 'mousePressed', x, y, button: 'left', clickCount: 1, timestamp: Date.now() / 1000 - 1 });
+  return async () => { await cdp.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x, y, button: 'left', clickCount: 1 }); await cdp.detach(); };
+}
+
 // Another tasks' window's page than ui (the one showing sel, when named), once Playwright has it.
 export async function otherPage(ui: Page, sel?: string) {
   let found: Page | undefined;

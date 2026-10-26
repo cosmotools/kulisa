@@ -13,7 +13,7 @@ import type { Question } from '../../src/shared/types.ts';
 import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
 import type { Kulisa } from './driver.ts';
-import { SITE, CHECKOUT, MAC, WIN, sleep, menu, menuRows, choose, closeMenu, rightClick, box, viewOn, focusWindow, closeSettings, termText, invoke } from './helpers.ts';
+import { SITE, CHECKOUT, MAC, WIN, echoed, holdPointer, ipcSettled, menu, menuRows, choose, closeMenu, rightClick, box, viewOn, focusWindow, closeSettings, termText, invoke } from './helpers.ts';
 
 const NO_SHOT = 'macOS: the app that started the tests (the terminal) may not record the screen';
 
@@ -138,13 +138,18 @@ test("terminal: dictation where the agent has its own: the right Ctrl held anywh
     .toBe(`Speak to the agent in English: hold ${name} anywhere, or press it once and again; or this button the same way`);
   const keys = async () => ((await termText(ui)).match(/<v>/g) || []).length;
   const lit = () => mic.getAttribute('aria-pressed');
-  const still = async () => { const n = await keys(); await sleep(300); return n === await keys(); }; // that no more come
+  // Whether the shown task records (src/dictation): its key decided as it is pressed or let go (the main process sees
+  // a key as it is sent).
+  const recordingNow = () => core((k) => k.shell.dictation.recording(k.shell.task.key));
   const recording = async (n: number, what = '') => { // repeated while it records
     await expect.poll(keys, { message: `not recording: ${what}` }).toBeGreaterThanOrEqual(n + 5);
     expect(await lit(), what).toBe('true');
   };
-  const stopped = async (what = '') => { // the keys sent before still echo a moment
-    await expect.poll(still, { message: `not stopped: ${what}`, timeout: 3000 }).toBe(true);
+  // Stopped: no more keys typed, those typed before all on the screen (echoed in order), the microphone told.
+  const stopped = async (what = '') => {
+    await expect.poll(recordingNow, { message: `not stopped: ${what}` }).toBe(false);
+    await echoed(core, () => termText(ui));
+    await ipcSettled(ui);
     expect(await lit(), what).toBe('false');
   };
   // The modifier pressed or let go in Sam's page or the window, as the keyboard sends it: its side, a repeat while held.
@@ -163,7 +168,9 @@ test("terminal: dictation where the agent has its own: the right Ctrl held anywh
   await ctrl('page', 'keyDown');
   await recording(n);
   await ctrl('page', 'keyDown', 'right', true);
-  await sleep(600); // held longer than a press (400 ms, HOLD in tasks.ts): that is what makes it a hold
+  // Held longer than a press (HOLD, src/dictation/main/dictation.ts) is what makes it a hold: its press dated back a
+  // minute, as a clock moved on.
+  await core((k) => { k.shell.dictation.of(k.shell.task.key).held -= 60_000; });
   expect(await lit()).toBe('true');
   await ctrl('page', 'keyUp');
   await stopped('held in the page');
@@ -171,12 +178,10 @@ test("terminal: dictation where the agent has its own: the right Ctrl held anywh
   // Pressed once: until the next press. The left Ctrl is the usual Ctrl.
   n = await keys();
   await tap('page', 'left');
-  await sleep(200); // that nothing records: nothing to wait for
-  expect(await keys()).toBe(n);
+  expect(await recordingNow(), 'the left one records nothing').toBe(false);
   await tap('page');
   await recording(n);
-  await sleep(500);
-  expect(await lit(), 'still on').toBe('true');
+  expect(await recordingNow(), 'a press records until the next: still on once let go').toBe(true);
   await tap('page');
   await stopped('tap in the page');
   // In the window too (the terminal has the keyboard); the window losing the keyboard lets go.
@@ -194,11 +199,9 @@ test("terminal: dictation where the agent has its own: the right Ctrl held anywh
   await mic.click({ force: true }); // it pulses while it records: never still
   await stopped('click');
   n = await keys();
-  await mic.hover();
-  await ui.mouse.down();
-  await sleep(600); // held longer than a press
-  expect(await keys(), 'repeated while held').toBeGreaterThanOrEqual(n + 5);
-  await ui.mouse.up();
+  const letGo = await holdPointer(ui, mic); // pressed longer ago than a press lasts
+  await recording(n, 'repeated while held');
+  await letGo();
   await stopped('button held');
   expect(await ui.evaluate(() => document.activeElement.closest('.xterm') !== null), 'the keyboard back in the terminal, to send it').toBe(true);
   // With a shell in front (the button disabled: the dictation is the agent's), the key brings the agent the prompt
@@ -242,8 +245,7 @@ test("terminal: dictation where the agent has its own: the right Ctrl held anywh
   await core((k) => k.press(k.profile('Sam').get().wc, 'F9'));
   await stopped('F9');
   await tap('page');
-  await sleep(200); // that it does not record: nothing to wait for
-  expect(await lit(), `the ${name} is a modifier again`).toBe('false');
+  expect(await recordingNow(), `the ${name} is a modifier again`).toBe(false);
 });
 
 test("the island: its terminals in tabs over them, one shown, the row apart; + opens the human's shell in front; the agent runs what keeps running in a shell of its own, behind, reads it, stops it, closes it, never in an agent's tab; × and a shell's exit close one", async ({ core, ui, call, mcp }) => {

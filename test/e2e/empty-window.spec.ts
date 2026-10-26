@@ -3,7 +3,7 @@
 import fs from 'fs';
 import path from 'path';
 import { test, expect } from './fixtures.ts';
-import { sleep, menuRows, choose, projectTabs, projectTab, showProject, invoke, typeIn, notLoading, projectMenu, plusMenu } from './helpers.ts';
+import { ipcSettled, menuRows, choose, projectTabs, projectTab, showProject, invoke, typeIn, notLoading, projectMenu, plusMenu } from './helpers.ts';
 import { begin, bothOn, taskShown, taskTab } from './tasks-helpers.ts';
 import { removeTree } from '../../src/main/remove.ts';
 
@@ -34,7 +34,7 @@ test("the empty window: Close All Tasks in the project's submenu; links in ☰ o
   // island as a dialog. With projects, the board, and nothing happens.
   await ui.evaluate(() => (document.activeElement as HTMLElement)?.blur());
   await core((k) => k.shell.firstStart(k.shell.windows[0]));
-  await sleep(100); // that nothing happens
+  await ipcSettled(ui); // what it told the window is there
   await expect(ui.locator('html'), 'projects there: nothing').toHaveAttribute('data-page', 'board');
   const gear = () => ui.evaluate(() => document.getElementById('manageProjects').checkVisibility());
   expect(await gear()).toBe(true);

@@ -3,7 +3,7 @@
 import path from 'path';
 import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
-import { MAC, sleep, menu, menuRows, choose, closeMenu, rightClick, plusMenu, focusWindow, viewOn, termShows, invoke, notLoading, noSlide, asked, mouse, mid } from './helpers.ts';
+import { MAC, frames, ipcSettled, menu, menuRows, choose, closeMenu, rightClick, plusMenu, focusWindow, viewOn, termShows, invoke, notLoading, noSlide, asked, mouse, mid } from './helpers.ts';
 import { committed, rand, keyAt, isNth, nthShown, taskTab, hook, begin } from './tasks-helpers.ts';
 import { removeTree } from '../../src/main/remove.ts';
 
@@ -76,20 +76,22 @@ test("tasks: switching shows the other grid and terminal; the one left keeps run
     await esc();
     await expect.poll(state).toBe(' #i-done false');
   }
+  // The hooks answer once handled, and the main process tells the window as it handles a hook, an Esc or a caption: all
+  // of it is in the window once its channel has gone there and back.
   await post('stop');
   await esc();
-  await sleep(300); // nothing to wait for: that it stays
-  expect(await state()).toBe('done #i-done true');
+  await ipcSettled(ui);
+  expect(await state(), 'Esc after a done turn: it stays').toBe('done #i-done true');
   await post('prompt');
   await post('session-end');
   await expect.poll(state).toBe(' #i-done false');
   await post('stop');
   await post('session-end');
-  await sleep(300); // nothing to wait for: that it stays
-  expect(await state()).toBe('done #i-done true');
+  await ipcSettled(ui);
+  expect(await state(), 'the session ending after a done turn: it stays').toBe('done #i-done true');
   await core((k, a) => k.shell.taskByKey(a.second).caption(a.SAM, 'from the second task'), { second, SAM });
-  await sleep(200); // nothing to wait for: that it does not show
-  await expect(ui.locator(`.ptab[data-panel="profile:${SAM}"] .caption`)).toHaveText('');
+  await ipcSettled(ui);
+  expect(await ui.locator(`.ptab[data-panel="profile:${SAM}"] .caption`).textContent(), 'not on the first task\'s pane').toBe('');
   // Done says "come and see" until the human sees that task.
   await post('stop');
   await expect.poll(state).toBe('done #i-done true');
@@ -108,21 +110,20 @@ test('tasks: switching slides the grid towards the other tab (a view transition)
   // The transition's types (which way), and the grid's own slide as it runs: an animation of 0 s, as a CSS minifier may
   // make it, leaves the two grids' pictures one over the other; out past the window's margin, not lingering at its edge
   // (Grid.vue).
+  // Read as the slide starts (its ready), the transition the window's own again after.
   const swap = (key: string) => ui.evaluate(async (key) => {
     const d = document as any, start = d.startViewTransition.bind(document);
-    let seen: { types: string[]; animations: string[] };
-    d.startViewTransition = (o: unknown) => {
-      const t = start(o);
-      t.ready.then(() => {
-        seen = { types: [...t.types],
+    const seen = new Promise<{ types: string[]; animations: string[] }>((resolve) => {
+      d.startViewTransition = (o: unknown) => {
+        const t = start(o);
+        delete d.startViewTransition;
+        t.ready.then(() => resolve({ types: [...t.types],
           animations: document.getAnimations().filter((a) => ['::view-transition-old(grid)', '::view-transition-new(grid)'].includes((a.effect as KeyframeEffect)?.pseudoElement) && Number(a.effect.getTiming().duration) > 0)
-            .map((a) => { const [from, to] = (a.effect as KeyframeEffect).getKeyframes(); return [(a as CSSAnimation).animationName, from.translate === 'none' ? to.translate : from.translate, from.easing].join(' '); }).sort() };
-      });
-      return t;
-    };
+            .map((a) => { const [from, to] = (a.effect as KeyframeEffect).getKeyframes(); return [(a as CSSAnimation).animationName, from.translate === 'none' ? to.translate : from.translate, from.easing].join(' '); }).sort() }));
+        return t;
+      };
+    });
     await (window as any).kulisa.invoke('task:show', key);
-    await new Promise((r) => setTimeout(r, 800));
-    delete d.startViewTransition; // the document's own again
     return seen;
   }, key);
   const live = async () => (await ui.locator('img.snapshot').count()) === 0 && viewOn(core, ui, files, 'Sam.admin');
@@ -160,7 +161,10 @@ test('tasks: switching slides the grid towards the other tab (a view transition)
   await expect.poll(sliding).toBe(true);
   await expect(menu(ui)).toBeVisible();
   await expect.poll(sliding).toBe(false);
-  await sleep(100); // what the slide's end did, which must not show them
+  // What the slide's end does (lib/grid.ts: the pages live again, unless a menu holds them) asks the main process: done
+  // once the window has drawn its frames and its channel gone there and back.
+  await frames(ui);
+  await ipcSettled(ui);
   expect(await core((k) => [...k.shell.profiles.values()].every((p) => !p.get().view.getVisible())), 'the pages stay under the menu').toBe(true);
   await closeMenu(ui);
   await expect.poll(live).toBe(true);
@@ -249,9 +253,13 @@ test("tasks: a press on a tab not shown chooses it at once, as Chrome's; its tas
   // The slide that showing a task starts makes Chromium drop a drag about to begin: a tab not shown would not be
   // dragged, its press only showing it. One begun goes on through the slide.
   await noSlide(ui); // the slide's pictures over the window take every event
+  const from = await core((k) => k.logged.length);
   await mouse(core, 'mouseDown', await nameOf(second));
   await expect.poll(() => chosen(ui)).toBe(second);
-  await sleep(200); // nothing to wait for: that it is not shown yet
+  // Shown, the window would have asked for it (task:show, logged as it comes) by the time its channel has gone there
+  // and back.
+  await ipcSettled(ui);
+  expect(await core((k, i) => k.logged.slice(i).filter((l) => l.includes('task:show')), from), 'not asked for while the button is down').toEqual([]);
   expect(await isNth(core, 1), 'not shown while the button is down').toBe(true);
   // Lit on the press, it stays lit: let go of, it would go dark while the main process takes the pictures for the slide
   // and light again with the new state, the tab blinking.

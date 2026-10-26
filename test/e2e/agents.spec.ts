@@ -8,7 +8,7 @@ import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
 import type { data } from './data.ts';
-import { SITE, WIN, sleep, focusWindow, menu, menuRows, choose, closeMenu, rightClick, closeSettings, renamed, termText, termShows, invoke, projectMenu, onRow } from './helpers.ts';
+import { SITE, WIN, holdPointer, focusWindow, menu, menuRows, choose, closeMenu, rightClick, closeSettings, renamed, termText, termShows, invoke, projectMenu, onRow } from './helpers.ts';
 import { newTask } from './tasks-helpers.ts';
 import { fakeAgent, fakeBin } from './agent-helpers.ts';
 
@@ -279,15 +279,13 @@ test("dictation: an agent without its own is recognized for by another agent's d
   await core((k) => k.watchPty(k.shell.task.pty));
   await expect(mic).toBeEnabled();
   await expect(mic).toHaveAttribute('title', /^Speak to the agent in English: hold/);
-  // The microphone held (the key's way is the window tests'), let go once it records.
-  const mouse = (type: string) => mic.evaluate((m, t) => m.dispatchEvent(new PointerEvent(t, { bubbles: true, button: 0, pointerId: 1 })), type);
-  await mouse('pointerdown');
+  // The microphone held (the key's way is the window tests'), let go once it records: pressed longer ago than a click.
+  const letGo = await holdPointer(ui, mic);
   await expect(pill).toBeAttached(); // getting ready (when slow) or listening: as the key goes down
   // Drawn as recording while it gets ready, unless that lasts (src/dictation/renderer/voice.ts): it listens first.
   await expect.poll(() => core((k, key) => k.shell.dictation.state(key).state, task), { timeout: 15000 }).toBe('recording');
   expect(`${await mic.getAttribute('data-state')} ${await pill.getAttribute('data-state')}`).toBe('recording listening');
-  await sleep(500); // held a moment, as a human speaks: nothing to wait for
-  await mouse('pointerup');
+  await letGo();
   await expect.poll(() => termText(ui)).toContain('Heard by the fake recognizer.');
   await expect(mic).toHaveAttribute('data-state', 'ready');
   await expect(pill).toHaveAttribute('data-state', 'done');

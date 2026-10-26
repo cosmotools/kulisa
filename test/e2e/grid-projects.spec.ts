@@ -6,7 +6,7 @@ import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
 import type { data } from './data.ts';
-import { SITE, MAC, sleep, submenu, menuRows, choose, rightClick, projectTabs, showProject, closeProject, plusMenu, plusRows, closeBoard, viewOn, who, termText, invoke, notLoading, otherPage, answered } from './helpers.ts';
+import { SITE, MAC, ipcSettled, submenu, menuRows, choose, rightClick, projectTabs, showProject, closeProject, plusMenu, plusRows, closeBoard, viewOn, who, termText, invoke, notLoading, otherPage, answered } from './helpers.ts';
 import { SAM, ELON, begin, bothOn, openFolder, reportSession } from './tasks-helpers.ts';
 
 type Files = ReturnType<typeof data>;
@@ -374,10 +374,11 @@ test('tasks: a tab dragged changes the order, goes out into a new window and bac
   expect(files.savedWindows()).toEqual([{ tabs: ['other/1', 'project/1'], shown: 'other/1' }]);
 
   // Let go outside every window: a new window there. Inside one (or cancelled): nothing.
+  // Inside: the window asks (task:drag-out), and the main process reads where the pointer is as it handles that, before
+  // the pointer is put elsewhere below. Whether a window came is told after the next one, outside: one window more.
   await dragStart(ui, 'other');
   await dragEnd(ui, 'other', 'none');
-  await sleep(300); // nothing to wait for: that no window comes
-  expect(await core((k) => k.shell.windows.length)).toBe(1);
+  await ipcSettled(ui);
   // Let go beside the window, on the side with more room on the screen: where the window manager put the test's
   // window varies, and a point off the screen gives a window the OS pulls back next to the first one. A window as
   // wide as the screen (a laptop's) is made narrower meanwhile, or no point is beside it.
@@ -391,7 +392,8 @@ test('tasks: a tab dragged changes the order, goes out into a new window and bac
   await pointAt({ x: right ? Math.min(nw.x + nw.width + 300, area.x + area.width - 10) : Math.max(nw.x - 300, area.x + 10), y: nw.y + 200 });
   await dragStart(ui, 'other');
   await dragEnd(ui, 'other', 'none');
-  await expect.poll(() => core((k) => k.shell.windows.length === 2 && k.shell.windows[1].current === k.stash.grid.moved && !k.shell.windows[1].switching)).toBe(true);
+  await expect.poll(() => core((k) => k.shell.windows.length > 1 && k.shell.windows.at(-1).current === k.stash.grid.moved && !k.shell.windows.at(-1).switching)).toBe(true);
+  expect(await core((k) => k.shell.windows.length), 'one new window: none for the drop inside').toBe(2);
   await pointAt(null);
   if (narrowed) await core((k, a) => k.shell.win.setBounds(a), b);
   const ui2 = await otherPage(ui);

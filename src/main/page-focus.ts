@@ -7,8 +7,8 @@ import type { BrowserWindow, WebContents } from 'electron';
 // A real click's order on macOS: the page's focus, then its mouseDown
 // 2 ms later (input sent to a page, as the tests do, comes before). So the human's input in that page within this
 // long of its focus, before or after, makes the focus theirs; else it is given back after it. On a loaded machine the
-// gap can be longer.
-const GRACE = 150;
+// gap can be longer. The tests wait for a give-back by it (test/e2e/driver.ts, focusGrace).
+export const GRACE = 150;
 const allowed = new WeakSet<WebContents>();
 // Per window (its page's webContents), where the human left the keyboard: its page, or a profile's page.
 const held = new WeakMap<WebContents, WebContents>();

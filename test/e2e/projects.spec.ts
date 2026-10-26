@@ -6,7 +6,7 @@ import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
 import type { data } from './data.ts';
-import { menuRows, choose, closeMenu, rightClick, projectTabs, projectTab, showProject, plusMenu, focusWindow, closeSettings, settingsClosed, sleep, invoke, act, typeIn, asked, notLoading, projectMenu, otherPage, pageOf, onRow } from './helpers.ts';
+import { menuRows, choose, closeMenu, rightClick, projectTabs, projectTab, showProject, plusMenu, focusWindow, closeSettings, settingsClosed, invoke, act, typeIn, asked, notLoading, projectMenu, otherPage, pageOf, onRow } from './helpers.ts';
 import { SAM, git, committed, begin, bothOn, newTask, taskShown, openFolder, projectShown, taskTabs } from './tasks-helpers.ts';
 import { fakeAgent } from './agent-helpers.ts';
 import { createWorktree } from '../../src/main/worktrees.ts';
@@ -549,7 +549,10 @@ test("projects: another tab left in the background, with a terminal its agent ra
     .toEqual(['bash *', 'dev server']);
   await expect.poll(() => core((k, t) => { const task = k.shell.taskByKey(t), dev = task.terminal('dev server') as { pty?: unknown }; return !!dev.pty && !!task.promptTarget()?.pty; }, key)).toBe(true);
   expect(await core((k, t) => (k.shell.taskByKey(t).terminal('dev server') as { by: string }).by, key)).toBe('agent');
-  await sleep(500); // nothing to wait for: that nothing runs
+  // A command typed into its shell runs after anything typed there before it: what it prints says the shell got
+  // nothing else first (the one before it, sleeping a minute, would hold it).
+  await core((k, t) => (k.shell.taskByKey(t).terminal('dev server') as { pty: { write(s: string): void } }).pty.write('echo kl-shell-free\r'), key);
+  await expect.poll(async () => (await call('terminal_read', { name: 'dev server' })).text).toMatch(/^kl-shell-free$/m);
   expect((await call('terminal_read', { name: 'dev server' })).text, 'nothing runs there').not.toContain('served before');
 });
 

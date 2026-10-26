@@ -8,11 +8,20 @@ import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
 import { removeTree } from '../../src/main/remove.ts';
-import { SITE, MAC, WIN, sleep, menu, anyMenu, menuRows, choose, closeMenu, rightClick, focusWindow, pageBox, viewOn, answered, mouse, scaled, mid } from './helpers.ts';
+import { SITE, MAC, WIN, frames, seen, menu, anyMenu, menuRows, choose, closeMenu, rightClick, focusWindow, pageBox, viewOn, answered, mouse, scaled, mid } from './helpers.ts';
 import type { Mods } from './helpers.ts';
 import { SAM, ELON, begin } from './tasks-helpers.ts';
 
 const menuOpen = (ui: Page) => menu(ui).isVisible();
+// Everything the window would have sent its agent's terminal by now is there, echoed: a paste reads the clipboard first
+// (navigator.clipboard: answered in order), so a mark sent after a read of it comes after anything a paste sent; the
+// mark then rubbed out.
+async function sentAll(core: Core, ui: Page) {
+  const mark = `kl${Math.random().toString(36).slice(2, 8)}`, task = await core((k) => k.shell.task.promptTarget().key);
+  await ui.evaluate(async ([t, m]) => { await navigator.clipboard.readText().catch(() => ''); (window as any).kulisa.send('pty:in', { task: t, data: m }); }, [task, mark]);
+  await expect.poll(() => core((k) => k.ptyOutput())).toContain(mark);
+  await core((k, n) => k.shell.pty.write('\x7f'.repeat(n)), mark.length);
+}
 const zoom = (core: Core) => core((k) => k.shell.win.webContents.getZoomFactor());
 
 test('context menus: a pane\'s header, a tab, the terminal; pages are pictures while a menu is open; Arrange panels in ☰; Exit', async ({ core, ui, files }) => {
@@ -64,8 +73,7 @@ test('context menus: a pane\'s header, a tab, the terminal; pages are pictures w
   await mouse(core, 'mouseDown', term, 'right');
   if (WIN) await mouse(core, 'mouseUp', term, 'right');
   await expect(menu(ui)).toBeVisible(); // once the pages' pictures are there (menuCover): slower under load
-  if (!WIN) await mouse(core, 'mouseUp', term, 'right');
-  await sleep(300); // nothing to wait for: that the release does not close it
+  if (!WIN) await seen(ui, 'mouseup', () => mouse(core, 'mouseUp', term, 'right'));
   expect(await menuOpen(ui), 'open after the release').toBe(true);
   await core((k) => k.press(k.shell.win.webContents, 'Escape'));
   await expect(menu(ui)).toHaveCount(0);
@@ -111,7 +119,7 @@ test('context menus: a pane\'s header, a tab, the terminal; pages are pictures w
     await paste();
     try { await expect.poll(async () => (await output()).slice(before).includes('kulisa-paste'), { timeout: 2000 }).toBe(true); break; } catch (e) { if (i === 4) throw e; }
   }
-  await sleep(300); // nothing to wait for: that it is not pasted twice
+  await sentAll(core, ui);
   expect((await output()).slice(before).split('kulisa-paste').length - 1, 'pasted once').toBe(1);
   await clipboard.write('');
   await ui.evaluate(() => (window as any).__term.selectAll());
@@ -119,9 +127,9 @@ test('context menus: a pane\'s header, a tab, the terminal; pages are pictures w
   await expect.poll(clipboard.read).toContain('kulisa-paste');
   await ui.evaluate(() => (window as any).__term.clearSelection());
   if (!WIN) { // Windows' Ctrl+C with nothing selected interrupts the agent (clipboardKey, below)
-    await copy();
-    await sleep(300); // nothing to wait for: that the clipboard is not emptied
-    expect(await clipboard.read(), 'nothing selected: the clipboard is kept').toContain('kulisa-paste');
+    // The key handled (macOS: the Edit menu's role, a copy event), and read where the page would write (one pipe).
+    await seen(ui, MAC ? 'copy' : 'keydown', copy);
+    expect(await ui.evaluate(() => navigator.clipboard.readText()), 'nothing selected: the clipboard is kept').toContain('kulisa-paste');
   }
   await keys('U', ['control']); // the agent's line emptied
   const key = (code: string, mods = {}) => ({ code, ctrlKey: true, ...mods });
@@ -143,14 +151,14 @@ test('context menus: a pane\'s header, a tab, the terminal; pages are pictures w
   const ctrlKey = MAC ? { metaKey: true } : { ctrlKey: true }; // ⌘+click on macOS
   await click(`${SITE}/app`, {});
   await click('javascript:alert(1)', ctrlKey);
-  await sleep(200); // nothing to wait for: that no menu opens
-  expect(await menuOpen(ui), 'a plain click, or not http(s): nothing').toBe(false);
+  await frames(ui); // activate decides as it is called; a menu it opened would be drawn by now
+  expect(await anyMenu(ui).count(), 'a plain click, or not http(s): nothing').toBe(0);
   const names: string[] = await ui.evaluate(() => (window as any).state.map((p: { name: string }) => p.name));
   await click(`${SITE}/app`, ctrlKey);
   expect(await menuRows(ui)).toEqual([`# ${SITE}/app`, ...names.map((x) => `Open in ${x}`), '-', 'Open in your browser']);
   // The keyboard moving within the window (its page getting it back puts it on the terminal) leaves the menu open.
   await ui.evaluate(() => (window as any).__term.focus());
-  await sleep(200); // nothing to wait for: that it stays open
+  await frames(ui); // the focus's events handled as it moved; a menu closing would be gone by now
   expect(await menuOpen(ui), 'the keyboard moved within the window: the menu stays').toBe(true);
   const linked: string = await ui.evaluate(() => (window as any).state[0].id);
   const had = await core((k, id) => k.shell.profiles.get(id).tabs.length, linked);
@@ -188,10 +196,22 @@ test('context menus: a pane\'s header, a tab, the terminal; pages are pictures w
   }, [text, below] as const);
   const mods: Mods = [MAC ? 'meta' : 'control'];
   const z = await zoom(core);
-  const pressAt = async (text: string, below = 0) => {
-    const p = scaled(z, await spot(text, below));
+  // A path is a link once the main process says it exists (termHooks.files, asked as the pointer comes over its line):
+  // its answers counted, as they reach the terminal. An agent's link (OSC 8) is one at once: its address shown on hover.
+  await ui.evaluate(() => {
+    const w = window as any, h = w.termHooks, files = h.files;
+    w.__answers = 0; w.__files = files;
+    h.files = (...a: unknown[]) => files(...a).then((r: unknown) => { setTimeout(() => { w.__answers++; }); return r; });
+  });
+  const answers = () => ui.evaluate(() => (window as any).__answers as number);
+  const hovered = () => ui.evaluate(() => [...document.querySelectorAll<HTMLElement>('.term:not([hidden]) [title]')].map((e) => e.title).find(Boolean) ?? '');
+  // Ctrl+click on a text once its link is known: osc, the agent's link's address.
+  const pressAt = async (text: string, below = 0, osc?: string) => {
+    const p = scaled(z, await spot(text, below)), n = await answers();
     await mouse(core, 'mouseMove', p, 'left', mods);
-    await sleep(300); // nothing to wait for: the link is found as the pointer stops over it (the main process asked)
+    if (osc) await expect.poll(hovered).toBe(osc);
+    else await expect.poll(answers).toBeGreaterThan(n);
+    await frames(ui);
     await mouse(core, 'mouseDown', p, 'left', mods);
     await mouse(core, 'mouseUp', p, 'left', mods);
   };
@@ -221,20 +241,21 @@ test('context menus: a pane\'s header, a tab, the terminal; pages are pictures w
     const fileUrl = (host: string) => `file://${host}${url.pathToFileURL(path.join(dir, 'a.txt')).pathname}`;
     for (const uri of [path.join(dir, 'a.txt'), fileUrl(''), fileUrl(os.hostname())]) {
       await write(`\x1b]8;;${uri}\x07marked-file\x1b]8;;\x07\r\n`);
-      await pressAt('marked-file');
+      await pressAt('marked-file', 0, uri);
       expect(await menuRows(ui), uri).toEqual(['Open', 'Show in Folder']);
       await chooseFile('Show in Folder');
     }
     await pressAt('kl-links/missing.txt');
-    await sleep(200); // nothing to wait for: that no menu opens
-    expect(await menuOpen(ui), 'a path that does not exist is no link').toBe(false);
+    await frames(ui); // a menu the press opened would be drawn by now
+    expect(await anyMenu(ui).count(), 'a path that does not exist is no link').toBe(0);
     await write(`\x1b]8;;${fileUrl('elsewhere.example')}\x07other-host\x1b]8;;\x07\r\n`);
-    await pressAt('other-host');
-    await sleep(200); // nothing to wait for: that no menu opens
-    expect(await menuOpen(ui), "another computer's file is not opened here").toBe(false);
+    await pressAt('other-host', 0, fileUrl('elsewhere.example'));
+    await frames(ui);
+    expect(await anyMenu(ui).count(), "another computer's file is not opened here").toBe(0);
     const a = path.join(dir, 'a.txt');
     expect(await handed()).toEqual([`open ${a}`, `show ${run}`, `show ${dir}`, `show ${path.join(dir, long)}`, `show ${a}`, `show ${a}`, `show ${a}`]);
   } finally {
+    await ui.evaluate(() => { const w = window as any; w.termHooks.files = w.__files; });
     await core((k) => { const g = k.stash.links; Object.assign(k.electron.shell, { openPath: g.openPath, showItemInFolder: g.showItemInFolder }); });
     removeTree(dir);
   }
@@ -303,9 +324,8 @@ test("menus with the mouse and the keyboard, as the OS's: a press on ☰, a drag
   await expect(ui.locator('#shortcuts[data-state="open"]')).toHaveCount(0);
 
   // A click opens it (the click after the press is not a second toggle); a click on the same button closes it.
-  await mouse(core, 'mouseDown', menuButton); await mouse(core, 'mouseUp', menuButton);
+  await seen(ui, 'mouseup', async () => { await mouse(core, 'mouseDown', menuButton); await mouse(core, 'mouseUp', menuButton); });
   await expect(menu(ui)).toBeVisible();
-  await sleep(200); // nothing to wait for: that it stays open
   expect(await anyMenu(ui).count(), 'open after the click').toBeGreaterThan(0);
   await mouse(core, 'mouseDown', menuButton); await mouse(core, 'mouseUp', menuButton);
   await expect(anyMenu(ui)).toHaveCount(0);
@@ -326,6 +346,7 @@ test("menus with the mouse and the keyboard, as the OS's: a press on ☰, a drag
   // Windows it opens on the release, which chooses nothing either. Esc closes it, and the keyboard is back in the
   // terminal.
   await ui.evaluate(() => (window as any).__term.focus());
+  await core((k) => k.electron.clipboard.writeText('kl-not-pasted'));
   const at = await mid(core, ui, '.term:not([hidden]) .xterm-screen');
   await mouse(core, 'mouseDown', at, 'right');
   if (WIN) await mouse(core, 'mouseUp', at, 'right');
@@ -334,11 +355,11 @@ test("menus with the mouse and the keyboard, as the OS's: a press on ☰, a drag
   if (!WIN) {
     const paste = await rowAt('Paste');
     await mouse(core, 'mouseMove', paste, 'right', ['rightbuttondown']);
-    await mouse(core, 'mouseUp', paste, 'right');
+    await seen(ui, 'mouseup', () => mouse(core, 'mouseUp', paste, 'right'));
   }
-  await sleep(300); // nothing to wait for: that nothing is chosen
   expect(await anyMenu(ui).count(), 'still open').toBeGreaterThan(0);
-  expect((await output()).length, 'nothing pasted').toBe(before);
+  await sentAll(core, ui);
+  expect((await output()).slice(before), 'nothing pasted').not.toContain('kl-not-pasted');
   await press('Escape');
   await expect(anyMenu(ui)).toHaveCount(0);
   expect(await ui.evaluate(() => !!document.activeElement.closest('.term:not([hidden])')), 'the keyboard back in the terminal').toBe(true);
@@ -353,7 +374,8 @@ test("menus with the mouse and the keyboard, as the OS's: a press on ☰, a drag
   await ui.evaluate(() => { const w = window as any; w.__blurred = false; addEventListener('blur', () => { w.__blurred = true; }, { once: true }); });
   await core((k) => k.shell.profiles.values().next().value.get().wc.focus());
   await expect.poll(() => ui.evaluate(() => (window as any).__blurred)).toBe(true);
-  await sleep(300); // nothing to wait for: that it stays open
+  await core((k) => k.focusGrace()); // the keyboard given back to the window (page-focus.ts)
+  await frames(ui);
   expect(await menuOpen(ui), "the menu stays: the window's keyboard went to a page of its own").toBe(true);
   await closeMenu(ui);
   await focusWindow(core, ui);

@@ -16,6 +16,8 @@ import * as agentHooks from '../../src/main/kulisa-plugin/agent-hooks.ts';
 import * as browserTools from '../../src/main/kulisa-plugin/tools/browser.ts';
 import { removeTree } from '../../src/main/remove.ts';
 import { worktreesOf } from '../../src/main/store.ts';
+import { log } from '../../src/main/log.ts';
+import { GRACE } from '../../src/main/page-focus.ts';
 
 type Modifier = 'control' | 'shift' | 'alt' | 'meta';
 // Kulisa's keys that are ⌘ on macOS and Ctrl elsewhere (CommandOrControl in keys.ts); Ctrl+` and Ctrl+Tab are Ctrl's
@@ -29,6 +31,48 @@ const press = (wc: WebContents, keyCode: string, ...modifiers: Modifier[]) => {
   for (const type of ['keyDown', 'keyUp'] as const) wc.sendInputEvent({ type, keyCode, modifiers });
 };
 
+// A clock the test moves for the main process's timers of at least `from` ms: held instead of run, until advance()
+// says that much time went by, then run in their order; at release the ones left run at their real time. Node's timers
+// are one global (a part's own cannot be faked alone), so only the long ones are held: the rest of Kulisa (Electron's,
+// Playwright's, node-pty's short waits) keeps the real time meanwhile.
+type Held = { at: number; ms: number; fn: () => void; cleared: boolean };
+function clock() {
+  const real = { set: globalThis.setTimeout, clear: globalThis.clearTimeout };
+  let held: Held[] | null = null, now = 0;
+  const handle = (t: Held) => Object.assign(t, { ref: () => t, unref: () => t, hasRef: () => true, refresh: () => { t.at = now + t.ms; return t; } });
+  const c = {
+    hold(from: number) {
+      c.release();
+      held = []; now = 0;
+      globalThis.setTimeout = ((fn: (...a: unknown[]) => void, ms = 0, ...args: unknown[]) => {
+        if (!held || typeof fn !== 'function' || ms < from) return real.set(fn, ms, ...args);
+        const t = handle({ at: now + ms, ms, fn: () => fn(...args), cleared: false });
+        held.push(t);
+        return t;
+      }) as typeof setTimeout;
+      globalThis.clearTimeout = ((t: unknown) => { if (held?.includes(t as Held)) (t as Held).cleared = true; else real.clear(t as NodeJS.Timeout); });
+    },
+    // The held timers due within ms run, each as its time comes (one may set another).
+    advance(ms: number) {
+      const end = now + ms;
+      for (;;) {
+        const due = held?.filter((t) => !t.cleared && t.at <= end).sort((a, b) => a.at - b.at)[0];
+        if (!due) break;
+        due.cleared = true; now = due.at;
+        due.fn();
+      }
+      now = end;
+    },
+    release() {
+      if (!held) return;
+      Object.assign(globalThis, { setTimeout: real.set, clearTimeout: real.clear });
+      for (const t of held) if (!t.cleared) real.set(t.fn, t.at - now);
+      held = null;
+    },
+  };
+  return c;
+}
+
 export function driver(shell: Shell, openedExternally: string[]) {
   // An open profile by its name, as the tests name them (any case, as the agent does).
   const profile = (name: string) => {
@@ -41,10 +85,19 @@ export function driver(shell: Shell, openedExternally: string[]) {
   let pty = '';
   const watched = new WeakSet<IPty>();
   const watchPty = (p: IPty) => { if (!watched.has(p)) { watched.add(p); p.onData((d) => (pty += d)); } };
+  // Kulisa's log lines since the test began, as the file has them (log.ts): every action of the core leaves one, so a
+  // line that is not there says what was not done.
+  const logged: string[] = [];
+  log.hooks.push((m, _t, name) => { if (name === 'file') logged.push(m.data.map(String).join(' ')); return m; });
   const k = {
     // Electron's module, for what a test does in the main process beyond Kulisa's own (its menus, the theme, the app).
     electron, shell, CMD, press, profile, watchPty, openedExternally, pageMenu, agentHooks, browserTools, removeTree, worktreesOf,
+    logged, clock: clock(),
     ptyOutput: () => pty,
+    // Every give-back of the keyboard that the focus guard has waiting is done (page-focus.ts): its timers are all of one
+    // length, and Node runs those in the order they were set. A timer set after theirs, not a pause.
+    // eslint-disable-next-line no-restricted-syntax
+    focusGrace: () => new Promise((r) => setTimeout(r, GRACE)),
     // Kulisa's uncaught errors (app.ts): fixtures.ts fails the test they came in.
     errors: [] as string[],
     // Questions (deleting a profile, a task…) answered in the window's dialog as the human would: true clicks the button
@@ -54,8 +107,9 @@ export function driver(shell: Shell, openedExternally: string[]) {
     // What a test keeps in the main process between its core() calls (a stubbed function's original, an object it
     // watches): only data crosses back, so it stays here, by name. Empty as each test begins.
     stash: {} as Record<string, any>,
-    // A test begins with Kulisa's questions answered yes, none asked yet, no output read, nothing stashed (fixtures.ts).
-    reset() { k.errors.length = 0; k.asked.length = 0; k.answer = true; pty = ''; k.stash = {}; },
+    // A test begins with Kulisa's questions answered yes, none asked yet, no output or log read, nothing stashed, the
+    // real clock (fixtures.ts).
+    reset() { k.errors.length = 0; k.asked.length = 0; k.answer = true; pty = ''; logged.length = 0; k.stash = {}; k.clock.release(); },
     // A profile of the task shown, made if it is not there yet, its pane laid out in the grid and its tab in front on
     // url once loaded: what a test that needs a profile starts from, through the core (making profiles is tested in
     // Settings' tests). A page not laid out yet takes no focus.

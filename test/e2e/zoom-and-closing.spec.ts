@@ -5,7 +5,7 @@ import path from 'path';
 import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
 import type { data } from './data.ts';
-import { SITE, PORT, MAC, WIN, near, sleep, who, menu, menuRows, choose, closeMenu, taskMenu, manageProfiles, closeSettings, setProfileField, plusMenu, closeBoard, viewOn, invoke } from './helpers.ts';
+import { SITE, PORT, MAC, WIN, near, who, menu, menuRows, choose, closeMenu, taskMenu, manageProfiles, closeSettings, setProfileField, plusMenu, closeBoard, viewOn, invoke } from './helpers.ts';
 import { profileId, deleteProfile } from './tasks-helpers.ts';
 
 type Files = ReturnType<typeof data>;
@@ -61,8 +61,7 @@ test('Kulisa zoom: Ctrl+= outside the pages scales the whole UI, pages follow, p
   }
   // At most 200% (docs/window.md, Zoom): the window's minimum grows with it, and at 300% passed a laptop's screen.
   await core((k) => k.shell.setUiZoom(2));
-  await ctrl(core, null, '=');
-  await sleep(300); // nothing to wait for: that it stays
+  await ctrl(core, null, '='); // taken and done as it is sent (shortcuts.ts)
   expect(await core((k) => [k.shell.win.webContents.getZoomFactor(), k.shell.uiZoom]), 'Ctrl+= at 200% leaves it there').toEqual([2, 2]);
   await core((k) => k.shell.setUiZoom(3));
   expect(await core((k) => k.shell.uiZoom), 'nor anything else takes it further').toBe(2);

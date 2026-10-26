@@ -4,7 +4,7 @@ import path from 'path';
 import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
 import { removeTree } from '../../src/main/remove.ts';
-import { SITE, PORT, sleep, who, menu, submenu, item, menuRows, choose, closeMenu, rightClick, manageProfiles, closeSettings, chooseProfile, setProfileField, termText, invoke } from './helpers.ts';
+import { SITE, PORT, ipcSettled, who, menu, submenu, item, menuRows, choose, closeMenu, rightClick, manageProfiles, closeSettings, chooseProfile, setProfileField, termText, invoke } from './helpers.ts';
 import { profileId, deleteProfile } from './tasks-helpers.ts';
 
 // A PNG's size in pixels, from its header.
@@ -95,7 +95,10 @@ test("delete a profile in Settings (its page's ⋯, its row's right-click): sign
   const q = await core((k) => k.asked.pop());
   expect(q.message).toBe('Delete the profile Temp?');
   expect(q.detail).toMatch(/removed for good, here and in every task\. The projects .* let go of it\./);
-  await sleep(100); // nothing to wait for: that nothing happens
+  // Cancel clicked (driver.ts), its dialog gone; the answer reaches the main process before anything Settings sends
+  // after it, and the deleting would go on as it comes.
+  await expect.poll(() => s.evaluate(() => document.getElementById('ask')?.dataset.state !== 'open')).toBe(true);
+  await ipcSettled(s);
   expect(await core((k, p) => k.shell.profiles.has(p), tempId), 'nothing is deleted without the confirmation').toBe(true);
   await core((k) => { k.answer = true; });
   await rightClick(s, `#pjlist [data-profile="${tempId}"] .label`);
@@ -291,7 +294,6 @@ test("a pane's ⋮ → Screenshot takes an element, the visible part or the whol
 // The thumbnail (src/screenshots, The thumbnail): what the OS would do with the file is stubbed (a file manager, an
 // app, the trash: outside the tests' folder).
 test('a screenshot shows its thumbnail in its pane\'s corner: a click opens it, it drags out, its menu shows, copies, sends it to the agent, deletes; its × closes it; it fades in and out; it goes by itself unless the pointer is over it', async ({ core, ui, files }) => {
-  test.setTimeout(60000); // it waits for the thumbnail to go by itself, twice its 5 s
   const id = await core(async (k, url) => (await k.ensureProfile('Sam.admin', url)).id, `${SITE}/app`);
   const dir = path.join(files.root, 'screenshots');
   const was = await core(async (k, url) => { const page = await k.profile('Sam.admin').page(), w = page.url(); await page.goto(url); return w; }, `${SITE}/tall`);
@@ -350,14 +352,21 @@ test('a screenshot shows its thumbnail in its pane\'s corner: a click opens it, 
     await thumb(`document.querySelector('button').click()`);
     await expect.poll(async () => await thumbGone() || await thumb(`document.body.classList.contains('out')`)).toBe(true);
     await expect.poll(async () => await core((k) => !k.shell.windows[0].thumbnails.file) && await thumbGone()).toBe(true);
-    // It goes by itself after 5 s (the time macOS gives one), and stays while the pointer is over it: the test waits
-    // that long, twice.
+    // It goes by itself after 5 s (the time macOS gives one), fading out first, and stays while the pointer is over it:
+    // the main process's clock moved on by the test for its timers of those lengths (driver.ts, clock).
+    const STAYS = 5000, FADE = 200; // src/screenshots/main/thumbnail.ts
+    await core((k, ms) => k.clock.hold(ms), FADE);
     await take();
+    const from = await core((k) => k.logged.length);
     await thumb(`document.documentElement.dispatchEvent(new MouseEvent('mouseenter')); 0`);
-    await sleep(5500);
+    await expect.poll(() => core((k, i) => k.logged.slice(i).some((l) => l.includes('thumbnail:hover')), from)).toBe(true); // heard
+    await core((k, ms) => k.clock.advance(ms), STAYS + FADE);
     expect(await core((k) => k.shell.windows[0].thumbnails.view === k.stash.thumb), 'held while the pointer is over it').toBe(true);
     await thumb(`document.documentElement.dispatchEvent(new MouseEvent('mouseleave')); 0`);
-    await expect.poll(() => core((k) => !k.shell.windows[0].thumbnails.file), { timeout: 7000 }).toBe(true);
+    await expect.poll(() => core((k, i) => k.logged.slice(i).filter((l) => l.includes('thumbnail:hover')).length, from)).toBe(2);
+    await core((k, ms) => k.clock.advance(ms), STAYS + FADE);
+    expect(await core((k) => !k.shell.windows[0].thumbnails.file), 'gone once its time is over').toBe(true);
+    await core((k) => k.clock.release());
   } finally {
     await core((k) => { Object.assign(k.electron.shell, k.stash.real); });
     await core(async (k, url) => { await (await k.profile('Sam.admin').page()).goto(url); }, was);
@@ -428,8 +437,8 @@ test("a packaged build (appDevTools off): no DevTools for Kulisa's own UI, a tab
   test.setTimeout(60000); // a restart
   await core(async (k, url) => { await k.ensureProfile('Sam.admin', url); }, `${SITE}/app`);
   await restart(); // started again as a packaged build would as to DevTools
+  // Both refused as they are asked (keys.ts sees the key as it is sent; the window was made without DevTools).
   await core((k) => { const wc = k.shell.win.webContents; wc.focus(); k.press(wc, 'F12'); wc.openDevTools({ mode: 'detach' }); });
-  await sleep(500); // nothing to wait for: that they do not open
   expect(await core((k) => k.shell.win.webContents.isDevToolsOpened())).toBe(false);
   await expect.poll(() => core((k) => !![...k.shell.profiles.values()].find((p) => p.name === 'Sam.admin')?.get())).toBe(true);
   await core(async (k) => { await k.profile('Sam.admin').get().ready; });

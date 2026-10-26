@@ -3,6 +3,15 @@
 import tseslint from 'typescript-eslint';
 import vue from 'eslint-plugin-vue';
 
+const EXPORT_ALL = { selector: 'ExportAllDeclaration', message: 'Re-export by name, not export *.' };
+const PAUSE = 'A fixed pause proves nothing: wait for what shows it is done (docs/testing.md, Writing an e2e test).';
+const PAUSES = [
+  { selector: "CallExpression[callee.name='sleep']", message: PAUSE },
+  { selector: "CallExpression[callee.property.name='waitForTimeout']", message: PAUSE },
+  // new Promise((r) => setTimeout(r, ms)): a timer that only resolves.
+  { selector: "NewExpression[callee.name='Promise'] > :function CallExpression[callee.name='setTimeout'][arguments.0.type='Identifier']", message: PAUSE },
+];
+
 export default tseslint.config(
   { ignores: ['dist', 'out', '.claude/*', '!.claude/hooks', 'src/preload'] },
   ...vue.configs['flat/essential'],
@@ -28,9 +37,12 @@ export default tseslint.config(
       '@typescript-eslint/no-unnecessary-type-assertion': 'error',
       'vue/multi-word-component-names': 'off',
       // A folder's index.ts re-exports by name: its surface is what is written, not whatever a file happens to hold.
-      'no-restricted-syntax': ['error', { selector: 'ExportAllDeclaration', message: 'Re-export by name, not export *.' }],
+      'no-restricted-syntax': ['error', EXPORT_ALL],
     },
   },
+  // An e2e test waits for a proof, never for a time: a pause long enough here is too short on a loaded machine, and
+  // proves nothing when it is long enough (docs/testing.md, Writing an e2e test). A wait with an end is upTo (helpers.ts).
+  { files: ['test/e2e/**'], rules: { 'no-restricted-syntax': ['error', EXPORT_ALL, ...PAUSES] } },
   // Not in the window: it took `{} as Record<…>` inside reactive({ … }) for needless, where only the `as` gives the
   // store's field its type (vue-tsc failed once they were removed); and it reads a .vue file's script without Vue's plugin.
   { files: ['src/renderer/**'], rules: { '@typescript-eslint/no-unnecessary-type-assertion': 'off' } },

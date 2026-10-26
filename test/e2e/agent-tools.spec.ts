@@ -125,11 +125,12 @@ test('agent: screenshots of an element, the visible part and the whole page, at 
 
 test("agent: a screenshot waits for a pane just opened to be laid out; a pane never on screen, or a tab never in front, says so (no size to take)", async ({ core, call }) => {
   await profiles(core);
-  // As a pane just opened, before the window lays it out: laid out a moment after the screenshot is asked for.
+  // As a pane just opened, before the window lays it out: laid out once the screenshot waits for it.
   const bounds = await core((k) => {
     const sam = k.profile('Sam.seller'), b = sam.bounds;
     sam.bounds = { ...b, width: 0 };
-    setTimeout(() => sam.layout(b), 300);
+    const laid = (e: string | symbol) => { if (e === 'laid-out') { sam.off('newListener', laid); setImmediate(() => sam.layout(b)); } };
+    sam.on('newListener', laid);
     return b;
   });
   try {

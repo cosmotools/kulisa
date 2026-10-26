@@ -4,7 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
-import { SITE, sleep, focusWindow, box, pageBox, termText, termShows, act, invoke } from './helpers.ts';
+import { SITE, upTo, frames, echoed, focusWindow, box, pageBox, termText, termShows, act, invoke } from './helpers.ts';
 import { profiles, opened } from './agent-helpers.ts';
 
 test('the keyboard stays where the human put it: a tab the agent opens, its page loading, does not take it', async ({ core, ui, call }) => {
@@ -16,7 +16,7 @@ test('the keyboard stays where the human put it: a tab the agent opens, its page
   await expect.poll(() => core((k) => k.shell.windows[0].keyZone)).toBe('terminal');
   const id = opened(await call('browser_tab_new', { profile: 'Elon.buyer', url: 'data:text/html,<input autofocus>' }));
   await core((k, t) => k.profile('Elon.buyer').get(t).ready, id);
-  await sleep(500); // nothing to wait for: that the keyboard is not taken (page-focus.ts gives it back after 150 ms)
+  await core((k) => k.focusGrace()); // the keyboard the loading page took is given back by now (page-focus.ts)
   expect(await ui.evaluate(() => [document.hasFocus(), !!document.activeElement.closest('.term')]), 'still in the terminal').toEqual([true, true]);
   await call('browser_tab_close', { profile: 'Elon.buyer', tab: id });
   await expect.poll(() => core((k) => k.profile('Elon.buyer').tabs.length)).toBe(1);
@@ -45,7 +45,7 @@ test('tab strip: + opens a tab with the focus in its empty address, a click on a
     return !win.isFocused() ? 'another app' : win.webContents.isFocused() ? 'window' : page.isFocused() ? 'page' : 'none';
   }, added);
   await core((k, id) => k.profile('Elon.buyer').get(id).ready, added);
-  await sleep(500); // nothing to wait for: that the page does not take them
+  await core((k) => k.focusGrace()); // the keyboard the loading page took is given back by now (page-focus.ts)
   expect(['window', 'another app'], 'the window has the focus, not the page').toContain(await keys());
   // A click into the page gives it the keys, and they stay there.
   await core((k, id) => {
@@ -53,7 +53,7 @@ test('tab strip: + opens a tab with the focus in its empty address, a click on a
     page.sendInputEvent({ type: 'mouseDown', x: 20, y: 20, button: 'left', clickCount: 1 }); page.sendInputEvent({ type: 'mouseUp', x: 20, y: 20, button: 'left', clickCount: 1 });
     page.focus();
   }, added);
-  await sleep(300); // nothing to wait for: that they stay
+  await core((k) => k.focusGrace()); // a give-back would be done by now: the click makes the focus the human's
   expect(['page', 'another app'], 'the page keeps the focus once clicked').toContain(await keys());
   await ui.evaluate(() => (document.activeElement as HTMLElement).blur());
   await expect(strip.locator('.tab')).toHaveCount(n + 1);
@@ -68,8 +68,9 @@ test('tab strip: + opens a tab with the focus in its empty address, a click on a
     await strip.locator('.add').click();
     await expect.poll(async () => (await state()).tabs).toBe(n + 1);
     await expect(strip.locator(`.tab[data-tab="${(await state()).active}"]`)).toHaveCount(1);
-    await sleep(300); // nothing to wait for: that it is not left growing
-    await expect(strip.locator('.tab[data-opening]')).toHaveCount(0);
+    // Marked growing as it is added (lib/strip.ts: a MutationObserver's, before anything else runs), unmarked when an
+    // animation ends: none ends here.
+    expect(await strip.locator('.tab[data-opening]').count(), 'not growing').toBe(0);
     await core((k) => { const e = k.profile('Elon.buyer'); e.closeTab(e.active); });
     await expect.poll(async () => (await state()).tabs).toBe(n);
   } finally { await ui.emulateMedia({ reducedMotion: null }); }
@@ -120,7 +121,7 @@ test('many tabs: they shrink as in Chrome; the strip, the toolbar and the page s
   await expect.poll(async () => (await at())[2]).toBe('past-end');
   const changed = await core((k, a) => { const e = k.profile('Elon.buyer'), id = e.tabs[a.n].id; e.navigate(id, a.url); return id; }, { n, url: `${SITE}/app?n=strip` });
   await expect(s.locator(`.tab[data-tab="${changed}"]`)).toHaveAttribute('title', /n=strip/);
-  await sleep(200); // nothing to wait for: that it stays
+  await frames(ui); // what a change brings it into sight by (a resize's observer, the next update) has run
   expect((await at())[0], 'stays where the wheel took it').toBe(0);
   await core((k, from) => { const e = k.profile('Elon.buyer'); for (const t of e.tabs.slice(from)) e.closeTab(t.id); }, n);
   await expect.poll(() => core((k) => k.profile('Elon.buyer').tabs.length)).toBe(n);
@@ -154,8 +155,7 @@ test('the address as in Chrome: shown without http(s)://, a click shows all of i
   await click();
   await expect.poll(async () => { const [focused, start, end, n] = await sel(); return focused && start === 0 && end === n && n > 0; }).toBe(true);
   await expect(addr).toHaveValue(full);
-  await sleep(400); // not a double-click
-  await click();
+  await click(); // a click of its own, not the second of a double-click: Playwright's clicks each say clickCount 1
   await expect.poll(async () => { const [focused, start, end] = await sel(); return focused && start === end; }).toBe(true);
   await addr.blur();
   await expect(addr).toHaveValue(full.replace('http://', ''));
@@ -182,7 +182,7 @@ test("a right-click in a page shows Chrome's menu for what is under it; a site's
   }, sel);
   const shown = () => inMenus(core, (m) => !!m.shownMenu());
   // On macOS a menu asked for while the last one is still closing is not shown: right-clicked again until one is.
-  const menuAt = (sel: string) => expect(async () => { await rightClick(sel); await sleep(250); expect(await shown()).toBe(true); }).toPass();
+  const menuAt = (sel: string) => expect(async () => { await rightClick(sel); await expect.poll(shown, { timeout: 1000 }).toBe(true); }).toPass();
   const rows = () => inMenus(core, (m) => m.shownMenu().rows.map((r) => ('id' in r ? r.id : 'role' in r ? r.role : '-')));
   const close = async () => { await inMenus(core, (m, _p, _wc, k) => m.shownMenu().menu.closePopup(k.shell.win)); await expect.poll(shown).toBe(false); };
   const choose = (label: string) => inMenus(core, (m, _p, _wc, _k, l) => { m.shownMenu().menu.items.find((i) => i.label === l).click(); }, label);
@@ -212,17 +212,38 @@ test("a right-click in a page shows Chrome's menu for what is under it; a site's
     expect(await inMenus(core, (m) => m.shownMenu().menu.items.slice(0, 2).map((i) => i.enabled)), 'Back after a page, no Forward').toEqual([true, false]);
     await close();
 
-    // A site with a menu of its own (Teams, Google Docs) keeps it: Chromium asks for none.
+    // A site with a menu of its own (Teams, Google Docs) keeps it: Chromium asks for none. What the page asked for
+    // (context-menu, heard after Kulisa's own listener) is known once a right-click after it has asked: the page
+    // handles its input in order.
+    await core((k) => {
+      const g = k.stash, Menu = k.electron.Menu.prototype;
+      g.asked = []; g.popups = 0; g.popup = Menu.popup;
+      Menu.popup = function (this: Electron.Menu, ...a: unknown[]) { g.popups++; return g.popup.apply(this, a); };
+      k.profile('Elon.buyer').get().wc.on('context-menu', g.heard = (_e: unknown, p: { linkURL: string }) => { g.asked.push(p.linkURL); });
+    });
+    const asked = () => core((k): string[] => k.stash.asked);
     await rightClick('#own');
     await expect.poll(() => inMenus(core, (_m, page) => page.locator('#own').textContent())).toBe('its own menu');
-    await sleep(300); // nothing to wait for: that no menu comes
-    expect(await shown(), 'none over a site\'s own menu').toBe(false);
+    await menuAt('#link');
+    expect(await asked(), "none over a site's own menu: every one asked is the link's").toEqual(expect.arrayContaining([`${SITE}/app`]));
+    expect((await asked()).every((u) => u === `${SITE}/app`), JSON.stringify(await asked())).toBe(true);
+    await close();
 
-    // The agent's right-click (Playwright, as its own scripts may do) opens nothing that would hold the human's pointer.
+    // The agent's right-click (Playwright, as its own scripts may do) opens nothing that would hold the human's pointer:
+    // its menu asked for, Kulisa decides in its listener, before the test's hears it.
+    await core((k) => { k.stash.asked = []; k.stash.popups = 0; });
     await inMenus(core, (_m, page) => page.locator('#link').click({ button: 'right' }));
-    await sleep(300); // nothing to wait for: that no menu comes
-    expect(await shown(), 'none for the agent').toBe(false);
-  } finally { await inMenus(core, (m, _p, _wc, k) => m.shownMenu()?.menu.closePopup(k.shell.win)); }
+    await expect.poll(async () => (await asked()).length).toBe(1);
+    expect(await core((k) => k.stash.popups), 'none for the agent').toBe(0);
+    expect(await shown()).toBe(false);
+  } finally {
+    await inMenus(core, (m, _p, _wc, k) => m.shownMenu()?.menu.closePopup(k.shell.win));
+    await core((k) => {
+      const g = k.stash;
+      if (g.popup) k.electron.Menu.prototype.popup = g.popup;
+      if (g.heard) k.profile('Elon.buyer').get().wc.off('context-menu', g.heard);
+    });
+  }
 });
 
 test('point and tell: a pick puts a reference into the agent\'s prompt, not sent', async ({ core, ui, files }) => {
@@ -250,7 +271,7 @@ test('point and tell: a pick puts a reference into the agent\'s prompt, not sent
       wc.sendInputEvent({ type: 'mouseDown', x, y, button: 'left', clickCount: 1 });
       wc.sendInputEvent({ type: 'mouseUp', x, y, button: 'left', clickCount: 1 });
     }, at);
-    await Promise.race([pending, sleep(500)]);
+    await upTo(pending, 500);
   }
   expect(pick, 'picked').toBeTruthy();
   expect(pick.locator).toBe("getByRole('button', { name: 'Pay now' })");
@@ -258,11 +279,16 @@ test('point and tell: a pick puts a reference into the agent\'s prompt, not sent
   expect(fs.existsSync(path.join(files.project, '.kulisa')), 'nothing is written into the project').toBe(false);
   const ref = `[kulisa pick: Elon.buyer tab ${pick.tab} getByRole('button', { name: 'Pay now' })]`;
   await termShows(ui, ref);
-  await sleep(300); // nothing to wait for: that it is not sent (cat would print it again)
   // The agent here is `cat`: the terminal echoes typed input, and cat prints it again only after Enter. Once
-  // means it waits in the prompt for the human to write about it. The screen's text, not the output: Windows' ConPTY
-  // sends a line again as it redraws it, and the paste's marks in the middle of its echo.
+  // means it waits in the prompt for the human to write about it. Not sent: a mark typed after it is echoed on its line
+  // (the terminal echoes in the order it is typed, an Enter too). The screen's text, not the
+  // output: Windows' ConPTY sends a line again as it redraws it, and the paste's marks in the middle of its echo.
+  const mark = 'klmark';
+  await core((k, m) => k.shell.pty.write(m), mark);
+  await termShows(ui, mark);
   const text = await termText(ui);
+  const after = text.slice(text.lastIndexOf(ref)).trimEnd(); // the paste's end mark (^[[201~) between
+  expect(!after.includes('\n') && after.endsWith(mark), text).toBe(true);
   expect(text.split(ref).length - 1, text).toBe(1);
   expect(await ui.evaluate(() => document.activeElement.classList.contains('xterm-helper-textarea')), 'the terminal has focus').toBe(true);
   await core((k) => k.shell.pty.write('\x15')); // Ctrl+U: the line cleared, nothing sent
@@ -283,7 +309,9 @@ test('point and tell: Pick again or Esc in the page cancels it; nothing goes to 
     await expect.poll(picking).toBe(false);
     await expect(ui.locator(`.ptab[data-panel="profile:${elon}"] .caption`), cancel).toHaveText('');
   }
-  await sleep(300); // nothing to wait for: that nothing comes
+  // A pick types its reference as it ends (picker.ts), before Kulisa says it no longer picks: echoed before what is
+  // typed after.
+  await echoed(core);
   expect((await core((k) => k.ptyOutput())).slice(before).includes('kulisa pick')).toBe(false);
 });
 

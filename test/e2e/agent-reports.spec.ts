@@ -4,7 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import { test, expect } from './fixtures.ts';
 import type { Call } from './fixtures.ts';
-import { SITE, PORT, sleep, menuRows, choose, rightClick, invoke } from './helpers.ts';
+import { SITE, PORT, upTo, menuRows, choose, rightClick, invoke } from './helpers.ts';
 import { profiles, opened } from './agent-helpers.ts';
 
 // A snapshot and a response body too large for an answer, each a file of the task's, as an agent leaves them; the tab
@@ -213,7 +213,7 @@ test('agent: a request with no answer yet is listed as pending at once', async (
     await call('browser_navigate', { profile: 'Elon.buyer', tab, url: `${SITE}/pending` });
     // The request to /hang never gets an answer: listing it must not wait for one (it held the agent's turn for minutes).
     await expect.poll(async () => {
-      const r = await Promise.race([call('browser_network_requests', { profile: 'Elon.buyer', tab }), sleep(5000).then((): null => null)]);
+      const r = await upTo(call('browser_network_requests', { profile: 'Elon.buyer', tab }), 5000);
       expect(r, 'answered within 5 s').toBeTruthy();
       return /GET .*\/hang → pending/.test(r.text);
     }).toBe(true);

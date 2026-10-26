@@ -2,7 +2,7 @@
 // terminal keeps the agent's keys, Kulisa's own work everywhere, Keyboard Shortcuts lists them. Keys are sent as input
 // events into the page or the window, where the human's keyboard would put them.
 import { test, expect } from './fixtures.ts';
-import { SITE, MAC, WIN, termText } from './helpers.ts';
+import { SITE, MAC, WIN, termText, ipcSettled } from './helpers.ts';
 
 test("keys in a profile's page are Chrome's, for its pane: Ctrl+T a tab with the address to type in, Ctrl+W, Ctrl+Shift+T, Ctrl+1 and Ctrl+Tab; the site never gets them", async ({ core, ui }) => {
   // What the site sees: keys with Ctrl (⌘ on macOS).
@@ -74,8 +74,12 @@ test("keys in the terminal are the agent's, but Kulisa's own: Ctrl+T reaches the
   await expect(keysOf('Copy')).toHaveText([MAC ? '⌘C' : WIN ? 'Ctrl+C' : 'Ctrl+Shift+C']);
   // In a dialog the keys are the dialog's: Ctrl+Shift+N makes no task.
   await expect.poll(() => core((k) => k.shell.windows[0].keyZone)).toBe('dialog');
+  const from = await core((k) => k.logged.length);
   await core((k) => k.press(k.shell.win.webContents, 'N', k.CMD, 'shift'));
-  await new Promise((r) => setTimeout(r, 200)); // that nothing is made: nothing to wait for
+  // Taken, the key is logged as it is pressed ([key]), and the window then asks for the task (task:new): both done once
+  // the window's channel has gone there and back twice (the key's command to it, its ask back).
+  await ipcSettled(ui); await ipcSettled(ui);
+  expect(await core((k, i) => k.logged.slice(i).filter((l) => /\[key\]|task:new/.test(l)), from), 'nothing is made').toEqual([]);
   expect(await core((k) => k.shell.current.tasks.size)).toBe(1);
   await shortcuts.locator('.x').click();
   await ui.locator('#windowMenu').click();
@@ -98,6 +102,6 @@ test('a page that took the keyboard by itself, then given it for the human withi
     t.wc.focus(); // the page's own
     sam.focusTab(t); // Kulisa's, for the human
   }, `${SITE}/app`);
-  await new Promise((r) => setTimeout(r, 400)); // that the keyboard is not taken back (after 150 ms): nothing to wait for
+  await core((k) => k.focusGrace()); // a give-back of the page's own focus would be done by now
   expect(await core((k) => k.profile('Sam').get().wc.isFocused())).toBe(true);
 });

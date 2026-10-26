@@ -7,7 +7,7 @@ import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
 import type { Core, Call } from './fixtures.ts';
 import type { data } from './data.ts';
-import { SITE, WIN, sleep, menuRows, choose, rightClick, plusMenu, plusRows, focusWindow, viewOn, who, invoke, notLoading, noSlide, asked, projectMenu } from './helpers.ts';
+import { SITE, WIN, menuRows, choose, rightClick, plusMenu, plusRows, focusWindow, viewOn, who, invoke, notLoading, noSlide, asked, projectMenu } from './helpers.ts';
 import { git, rand, hasDirenv, keyAt, isNth, nthShown, taskTab, taskTabs, hook, reportSession, newTask, openFolder, projectShown, begin } from './tasks-helpers.ts';
 import { removeTree } from '../../src/main/remove.ts';
 
@@ -91,25 +91,29 @@ test('tasks: + opens a task in the project\'s main working tree ("New Task", no 
     new MutationObserver(() => { w.__launch ||= !!document.querySelector('#dock .launch'); w.__starting ||= document.querySelector('#dock .starting')?.textContent; })
       .observe(document.body, { childList: true, subtree: true });
   });
-  // Looking for it takes the user's login shell, slower on the human's computer than here.
+  // Looking for it takes the user's login shell, slower on the human's computer than here: it waits until the test has
+  // seen it starting.
   await core((k) => {
     const g = k.stash, find = k.shell.findAgent;
     g.find = find; g.found = false;
-    Object.assign(k.shell, { findAgent: async (...a: Parameters<typeof find>) => { await new Promise((r) => setTimeout(r, 1000)); const r = await find(...a); g.found = true; return r; } });
+    Object.assign(k.shell, { findAgent: async (...a: Parameters<typeof find>) => { await new Promise((r) => { g.look = r; }); const r = await find(...a); g.found = true; return r; } });
   });
   // Its agent waits for its terminal's size however late the window lays the island out: not at a default one after
-  // 5 s, which a loaded machine reaches. The island hidden for 6 s after the agent is found: what is tested is that it
-  // waits longer than that, which only time shows.
+  // 5 s, which a loaded machine reaches. The island hidden while the main process's clock goes 6 s on after the agent
+  // is found (driver.ts, clock: its timers of a second or more).
   await ui.evaluate(() => document.head.append(Object.assign(document.createElement('style'), { id: 'lateIsland', textContent: '.term { display: none !important; }' })));
   const sent = await ui.evaluate(() => (window as any).__ptySizes.length);
+  await core((k) => k.clock.hold(1000));
   const late = (async () => {
+    await expect.poll(() => ui.evaluate(() => (window as any).__starting)).toBeTruthy();
+    await core((k) => k.stash.look());
     await expect.poll(() => core((k) => k.stash.found), { timeout: 10000 }).toBe(true);
-    await sleep(6000);
+    await core((k) => k.clock.advance(6000));
     await ui.evaluate(() => document.getElementById('lateIsland').remove());
   })();
   const task = await newTask(core, ui, null); // left "New Task": this test names it with task_worktree below
   await late;
-  await core((k) => { Object.assign(k.shell, { findAgent: k.stash.find }); });
+  await core((k) => { k.clock.release(); Object.assign(k.shell, { findAgent: k.stash.find }); });
   await expect.poll(() => ui.evaluate(() => (window as any).__ptySizes.length)).toBeGreaterThan(sent);
   expect(await core((k, key) => k.shell.taskByKey(key).pty.spawnSize, task), 'at its real size').toEqual(await ui.evaluate((n) => (window as any).__ptySizes[n], sent));
   expect(await ui.evaluate(() => (window as any).__launch), "no island's buttons while its agent starts").toBe(false);
@@ -254,11 +258,12 @@ test("tasks: × closes a task: its agent stops and its tabs close, all else stay
   // agent resuming the conversation.
   expect(await plusRows(ui, 'project')).toEqual(['task-1', 'Feature-X', 'task-3', 'New Task']);
   // Its grid comes before its profiles have started (their cookies, tabs, automation: a site's answer away), its agent
-  // after them, as it finds them ready; the window does not wait for them all.
+  // after them, as it finds them ready; the window does not wait for them all. They start once the test has seen the grid.
   await core((k) => {
     const g = k.stash, s = k.shell.sessionCookies, restore = s.restore;
     g.restore = restore; g.started = false;
-    s.restore = async (p) => { await new Promise((r) => setTimeout(r, 1500)); const n = await restore.call(s, p); g.started = true; return n; };
+    const answered = new Promise((r) => { g.answer = r; });
+    s.restore = async (p) => { await answered; const n = await restore.call(s, p); g.started = true; return n; };
   });
   try {
     await plusMenu(ui, 'project', 'task-3');
@@ -266,9 +271,10 @@ test("tasks: × closes a task: its agent stops and its tabs close, all else stay
     expect(await core((k) => k.stash.started), 'the grid before its profiles started').toBe(false);
     await expect(ui.locator(`.pane[data-profile="${SAM}"]`)).toHaveCount(1);
     await notLoading(ui);
+    await core((k) => k.stash.answer());
     await expect.poll(() => core((k, key) => k.shell.taskByKey(key).loaded && !!k.shell.pty, task), { timeout: 10000 }).toBe(true);
     expect(await core((k) => k.stash.started), 'its agent after them').toBe(true);
-  } finally { await core((k) => { k.shell.sessionCookies.restore = k.stash.restore; }); }
+  } finally { await core((k) => { k.stash.answer(); k.shell.sessionCookies.restore = k.stash.restore; }); }
   await core((k) => k.watchPty(k.shell.pty));
   expect(await core((k) => k.shell.resumedSession)).toBe('s-3');
   await expect.poll(() => taskTabs(ui)).toEqual(['task-1', 'Feature-X', 'task-3 *']);
