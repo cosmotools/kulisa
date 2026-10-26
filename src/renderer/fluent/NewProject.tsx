@@ -44,7 +44,8 @@ function CodeStep({ w, nameRef }: { w: W; nameRef: React.RefObject<HTMLInputElem
         </div>
       </Field>}
       {/* Folders or URLs, one or several (a frontend and a backend): Enter or Add puts the one typed in the list */}
-      {s.from !== 'new' && !w.single && <Field label={folder ? 'Folders' : 'URLs'}>
+      {/* Its label is for the field (htmlFor): Field otherwise names the field by it over the field's own aria-label */}
+      {s.from !== 'new' && !w.single && <Field label={{ children: folder ? 'Folders' : 'URLs', htmlFor: 'npsource' }}>
         <div role="group" aria-label={folder ? 'Folders' : 'URLs'} style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0 }}>
           <div style={{ border: '1px solid var(--colorNeutralStroke1)', borderRadius: 'var(--borderRadiusMedium)' }}>
             <Toolbar size="small">
