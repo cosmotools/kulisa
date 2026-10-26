@@ -3,7 +3,6 @@
 // to the shard with the least time so far (timings.json: seconds per file, the slowest OS's; a file not in it counts
 // as the mean, so a new one runs too, in some shard).
 import fs from 'fs';
-import path from 'path';
 import timings from './timings.json' with { type: 'json' };
 
 export function shardFiles(shard: string): string[] {
@@ -18,5 +17,6 @@ export function shardFiles(shard: string): string[] {
     s.time += time(f);
     s.files.push(f);
   }
-  return shards[i - 1].files.map((f) => path.join(import.meta.dirname, f));
+  // Globs, not paths: a Windows path's backslashes are a glob's escapes, and match nothing.
+  return shards[i - 1].files.map((f) => `**/${f}`);
 }
