@@ -206,13 +206,21 @@ the test alone (`-g`).
   reads instead of setting a timer is dated back (a key's press, `dictation.of(task).held`); a press in the window,
   as CDP's input with its time (`holdPointer`); a slow mock waits for the test to let it go (a promise), not for a
   time.
+- **Find an element as the human does**: by its role and name (`getByRole`), its label, its text, an id or a `data-*`
+  the code already has (`data-profile`, `data-task`, `data-state`), a `data-testid` only where nothing of these tells
+  it; never by a Kulisa CSS class (ESLint's `kulisa/no-kulisa-classes` refuses one in a selector, `toHaveClass` and
+  `classList` in `test/e2e`; dockview's `dv-…` and xterm's `xterm…` are theirs). A class is how a part looks, renamed
+  with its look. A state is an attribute that the CSS and the test both read: ARIA's where it has a meaning
+  (`aria-selected`, `aria-current`, `aria-busy`, `aria-disabled`), `data-*` otherwise (`data-dragging`,
+  `data-past-end`, `data-noproject`). A row, a tab or a launcher with more than its name in it is named by its label
+  (`aria-labelledby`), so `getByRole(…, { name })` finds it.
 - **Before a click, wait until the window is ready for it**: a project or task being shown
-  (`!shell.windows[0].switching`, no `loading` class on the root), the panel there, the grid's slide over. A click
+  (`!shell.windows[0].switching`, the root not `aria-busy`), the panel there, the grid's slide over. A click
   while the window builds another grid is lost, and keys sent while the slide runs go nowhere (dockview hides its
   overlay meanwhile).
 - **Menus and dialogs are Reka UI's**: `menuRows`, `choose`, `closeMenu`, `rightClick`, the tasks' bar's `plusMenu`
-  (`helpers.ts`) read and drive the open menu (`.menu[data-state="open"]`, shown once it is `.ready`: the pages under
-  it are pictures); a dialog is open when its `data-state` is `open`, and closed with its ×. The window has the
+  (`helpers.ts`) read and drive the open menu (`[role="menu"][data-state="open"]`, shown once it is `[data-ready]`: the
+  pages under it are pictures); a dialog is open when its `data-state` is `open`, and closed with its ×. The window has the
   keyboard first (`focusWindow(core, ui)`, which waits until its page has it: a key sent before goes to no page), or
   focus events do not come. A project's row in the + menu opens its submenu on hover; a click on it makes a task.
 - **A question Kulisa asks** (`shell.askWhich`) is answered by the driver as `k.answer` says (true by default, each
