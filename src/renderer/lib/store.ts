@@ -49,7 +49,7 @@ kulisa.on('projects', (info) => {
   store.current = info.current;
 });
 
-// What the window shows in the grid's place, one page at a time (docs/window.md, The window's pages): the shown task's
+// What the window shows in the grid's place, one page at a time (docs/tasks.md, The window's pages): the shown task's
 // grid; with no task open, every project's tasks (the board); with no project at all, the welcome (what Kulisa does,
 // then New Project's steps). Its own switch, not a router's: what is shown is the main process's (current).
 export const page = computed(() => (store.current === null ? (store.projects.projects.length ? 'board' : 'welcome') : 'task'));
