@@ -174,7 +174,7 @@ prompt; the human writes the rest of the message around it.
     while its work is shown, from the repository's folder (`develop`) once it is merged.
   - Once its pull request is merged (or the author drops it), the repository's folder follows `develop` (above),
     and the worktree goes (`git worktree remove`), its branch here (`git branch -D`: merged by GitHub's merge commit,
-    git here may not know it) and on GitHub (the API, below), and its test folder (`/tmp/kulisa-test-<worktree>-…`).
+    git here may not know it) and on GitHub (the API, below).
 - **Sessions on different OSes share a pull request**. A session fixes what it can reproduce
   and test on its own OS, shared code too: what decides is where the bug can be checked, not which OS the code is for.
   What only another OS shows, or what it cannot check there, it does not fix blind: it writes it in a comment on the

@@ -1,6 +1,8 @@
 // What the e2e files share: the test site, the OS, and driving the window as the human does (its menus, the tasks' bar,
 // its dialogs, Settings, the terminal). Locators and web-first assertions, which wait (docs/testing.md, End to end).
+import crypto from 'crypto';
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
 import { expect } from '@playwright/test';
 import type { Locator, Page } from '@playwright/test';
@@ -14,6 +16,9 @@ export const SITE = process.env.KULISA_TEST_SITE;
 export const PORT = SITE && new URL(SITE).port; // none while Playwright only lists the tests (no global setup)
 // The checkout the tests run from.
 export const CHECKOUT = path.join(import.meta.dirname, '..', '..');
+// The checkout's own folder for the tests' Kulisas, a folder each named with its worker's pid: worktrees run their tests
+// at once (CLAUDE.md, Worktrees). The temporary folder by its real name: Windows may give it by a short one (C:\Users\COSMOT~1).
+export const BASE = path.join(fs.realpathSync.native(os.tmpdir()), `kulisa-e2e-${path.basename(CHECKOUT)}-${crypto.createHash('sha1').update(CHECKOUT).digest('hex').slice(0, 6)}`);
 export const MAC = process.platform === 'darwin';
 // What Windows does its own way: the user's shell is PowerShell (src/terminal), a right-click's menu opens on the
 // release, the terminal copies and pastes with Ctrl+C / V.

@@ -10,14 +10,13 @@ import { spawn } from 'child_process';
 import type { ChildProcess } from 'child_process';
 import crypto from 'crypto';
 import fs from 'fs';
-import os from 'os';
 import path from 'path';
 import readline from 'readline';
 import electronPath from 'electron';
 import { removeTree } from '../../src/main/remove.ts';
 import type { Kulisa } from './driver.ts';
 import { data } from './data.ts';
-import { CHECKOUT } from './helpers.ts';
+import { BASE } from './helpers.ts';
 
 // A function run in Kulisa's main process with its driver and one argument; only data crosses (Playwright serializes
 // both ways), so it names what it needs by the argument, never by a closure.
@@ -28,8 +27,6 @@ type CallResult = { content: { type: string; text?: string; data?: string; mimeT
 type Call = (name: string, args?: Record<string, unknown>, where?: Where) => Promise<CallResult>;
 type Running = { file: string; automation: boolean; restarted?: boolean; child: ChildProcess; exited: Promise<void>; output: () => string; browser: Browser; context: BrowserContext; root: string; core: Core; ui: Page; errors: string[]; clients: Map<string, Client> };
 
-// The checkout's own folder for the tests' Kulisas: worktrees run their tests at once (CLAUDE.md, Worktrees).
-const base_ = path.join(fs.realpathSync.native(os.tmpdir()), `kulisa-e2e-${path.basename(CHECKOUT)}-${crypto.createHash('sha1').update(CHECKOUT).digest('hex').slice(0, 6)}`);
 const hidden = process.platform === 'linux' && !process.env.KULISA_VISIBLE;
 const own = (p: Page) => p.url().startsWith('file:'); // Kulisa's own pages (dist/renderer), not a profile's
 
@@ -51,7 +48,7 @@ async function screen(): Promise<{ display: string; stop: () => void }> {
 // automation false: no debugging port and no Playwright in the pages (only core() and the agent's tools), for what an open
 // port changes in them (navigator.webdriver: docs/profiles.md, What sites see).
 async function launch(file: string, display: string | null, automation: boolean, restart?: string): Promise<Running> {
-  const root = restart ?? path.join(base_, `${path.basename(file, '.spec.ts')}-${crypto.randomBytes(3).toString('hex')}`);
+  const root = restart ?? path.join(BASE, `${path.basename(file, '.spec.ts')}-${process.pid}-${crypto.randomBytes(3).toString('hex')}`);
   fs.mkdirSync(root, { recursive: true });
   const env: Record<string, string> = { ...process.env as Record<string, string>, KULISA_TEST_ROOT: root, KULISA_SCREENSHOTS: path.join(root, 'screenshots') };
   if (restart) env.KULISA_RESTART = '1';
@@ -176,7 +173,7 @@ export const test = base.extend<Fixtures, { display: string | null; running: { c
     const holder: { current: Running | null } = { current: null };
     await use(holder);
     if (holder.current) await close(holder.current);
-    try { fs.rmdirSync(base_); } catch {} // empty once every file's folder is gone
+    try { fs.rmdirSync(BASE); } catch {} // empty once every file's folder is gone
   }, { scope: 'worker' }],
   kulisa: [async ({ display, running, automation }, use, info) => {
     if (running.current?.file !== info.file || running.current.automation !== automation) {
