@@ -32,17 +32,11 @@ electron from 'electron'; const { session } = electron;`): an ES module importin
 
 `npm test` runs the unit tests, knip (Dead code, below), ESLint (Lint, below), actionlint (Workflows, below), builds
 the window (`npm run build`: its types checked, then Vite), then the e2e tests. `npm test -- e2e` or `npm run
-test:e2e` builds and runs them alone; `npx playwright test keys -g "…"` some, after `npm run build`. Its parts:
-`playwright.config.ts`, and in `test/e2e/` `fixtures.ts` (what a test gets), `app.ts` (Kulisa as the tests start it:
-the fake agents, the test's folder, the switches), `driver.ts` (what a test reaches in the main process), `helpers.ts`
-(the window driven as the human does: menus, the tasks' bar, Settings, the grid), `data.ts` (what Kulisa saved, read
-from its files), `global-setup.ts` (the test site).
+test:e2e` builds and runs them alone; `npx playwright test keys -g "…"` some, after `npm run build`.
 
 - **A file is one Kulisa, its tests independent**: each test makes what it needs and passes alone (`-g`) and in any
-  order with its file's others; a failed test's worker is replaced, and the file's next tests get a new Kulisa. Its
-  folder: `/tmp/kulisa-e2e-<checkout>-<hash>/<file>-<random>`, removed when it closes; each checkout's own, so runs
-  from several worktrees go at once (CLAUDE.md, Conventions). The test site is the run's own, on a free port
-  (`$KULISA_TEST_SITE`; in a test `SITE` and `PORT` from `helpers.ts`, never a literal port). Two runs in one checkout
+  order with its file's others. Runs from several worktrees go at once. The test site is the run's own, on a free port
+  (in a test `SITE` and `PORT` from `helpers.ts`, never a literal port). Two runs in one checkout
   each take an `--output` of their own: they share `test-results/`, which a run empties as it starts.
 - **What a test gets** (`fixtures.ts`): `ui`, the first window's page, and `sui()`, Settings', driven by Playwright's
   locators and web-first assertions (`await expect(locator).toBeFocused()`, which wait); `core(fn, arg)`, a function
@@ -68,11 +62,8 @@ from its files), `global-setup.ts` (the test site).
 - **On Linux each Kulisa has a screen of its own**: Xvfb with the openbox window manager (without one, windows are
   not listed for screenshots and focus differs from a desktop), its display chosen by Xvfb, X11's even from a Wayland
   desktop; the tests never take the human's focus or clipboard. `npm run test:visible` (`KULISA_VISIBLE=1`) puts the
-  windows on the human's screen, as `npm test` does without Xvfb and openbox installed. One worker
-  (`playwright.config.ts`): on macOS and Windows the Kulisas share one screen. No GPU on Xvfb:
-  `--ignore-gpu-blocklist` lets WebGL run on Chromium's software renderer.
-- **An uncaught error fails the test it came in**: the window's (`pageerror`), the main process's, and a Kulisa page's
-  in any window.
+  windows on the human's screen, as `npm test` does without Xvfb and openbox installed. One worker: on macOS and
+  Windows the Kulisas share one screen.
 - **A failed test leaves** the window as the screen shows it (profiles' pages included: `desktopCapturer`; a
   Playwright screenshot has the window's page alone), Playwright's trace of its steps (`npx playwright show-trace`),
   Kulisa's log and Electron's output, as its attachments: `test-results/`, the HTML report (`npx playwright
@@ -92,13 +83,8 @@ Run from a terminal, as anywhere; what differs there:
 - **No screenshots without the screen recording permission**, which macOS checks on the app that started the run
   (the terminal), not on Electron: a failed test's picture is then the window's page alone (`k.shot`); the tests of
   screenshots themselves are skipped with the reason. Granted to the terminal, they are taken.
-- **Its temporary folders are named through a symlink** (`/var` is `/private/var`), where git answers with the real
-  path, which `repoOf` (`worktrees.ts`) handles.
 - A laptop's screen is narrower than Xvfb's 1920 px: a test needing room beside the window makes it narrower. GitHub's
   runner has 1024×768, too small for the tests' windows: the CI sets its virtual screen to 1920×1080 (displayplacer).
-- **Motion is on whatever the OS says** (`force-prefers-no-reduced-motion` in `app.ts`): GitHub's macOS runner reduces
-  motion, and the tests of a tab growing in and the grid's slide would wait for what never moves there. Reduced motion is
-  checked where Kulisa does something else for it, emulated (`Emulation.setEmulatedMedia`).
 
 What the tests cannot do there is checked by hand, again when something it depends on changes (an OS, an Electron,
 the part's code):
@@ -187,7 +173,6 @@ the test alone (`-g`).
 
 ## Writing an e2e test
 
-- **Elements are found by their ids and classes**: keep them when a part changes, or change the test with it.
 - **The window draws with Vue**, after the change that causes it (a microtask later, before the next frame): assert
   on what it shows with a web-first assertion (`expect(locator).toHaveText(…)`), which waits, rather than reading it
   once. What the tests reach by name in the window (`act`, `state`, `tasks.current`, `window.__dock` …):
@@ -223,12 +208,8 @@ the test alone (`-g`).
 
 ## Dead code
 
-`npm run knip` ([knip](https://knip.dev), under a second) fails on a file nothing loads, an export no other file
-imports, or a dependency nothing uses (and one used but not in `package.json`); `npm test` runs it after the unit
-tests. Inside a file, TypeScript does the same for names and parameters (`noUnusedLocals`, `noUnusedParameters` in
-`tsconfig.json`, `test/tsconfig.json` and `src/renderer/tsconfig.json`, checked by `npm run build`). It runs once a step, when its
-code is written and before it is shown to the author, not after every change: midway, what is not called yet is
-dead.
+`npm run knip` ([knip](https://knip.dev)): a file nothing loads, an export no other file imports, a dependency nothing
+uses. Midway through a step, what is not called yet is dead: hence once a step (above).
 
 - What it finds goes: the file, or the `export` of what only its own file uses. A function made for the next step
   waits for that step.
@@ -245,19 +226,9 @@ runs it after ESLint) fails on an import against the layers (CLAUDE.md, Architec
 (docs/ui.md, Clusters), or a cycle. The rules are
 `.dependency-cruiser.ts`, each with why.
 
-- Runtime imports only: an `import type` crosses the layers freely, as it is gone once the types are stripped.
-- Layers 1 and 2 are lists of `src/main`'s files, layer 3 its folder `kulisa-plugin/`; a file in none of them is the window's
-  (layer 4), which may import anything. Below layer 1, the base (`worktrees.ts`, `remotes.ts`, `local.ts`): used by every layer, using
-  none of them. `src/shared/` is what the main process and the window both import (`names.ts`, `avatars.ts`,
-  `result.ts`); it imports nothing else of `src/`. The window's page never imports `src/main`.
-- A Kulisa package (`src/terminal/`; [packages.md](packages.md)) is reached only through its entries
-  (`main/index.ts`, `renderer/index.ts`, `ipc.ts`); its `main/` uses of `src/main` only what its line in `packages`
-  allows, its `renderer/` nothing of the window; the window takes its `renderer/`, the main process its `main/`.
 - A new file of a lower layer goes into its list. An import the rules refuse is moved, not allowed: what the lower
   file needs belongs below (the tab's target id went into `profiles.ts`), or the core says it on `shell.bus` and the
   handle listens (a profile unloaded: the MCP server clears its highlights).
-- No cycles, but one: `src/renderer/lib/grid.ts` and `views.ts` call each other's functions only after both have
-  loaded.
 
 ## Lint
 
@@ -266,15 +237,8 @@ runs it after ESLint) fails on an import against the layers (CLAUDE.md, Architec
 `npm test` runs it after knip. A few rules, chosen one at a time (`eslint.config.ts`), not the presets: those flag
 every `any` from JSON and IPC and the templates' formatting, thousands of places and no bug.
 
-- **A promise is awaited, or `void` says it is not** (`no-floating-promises`): a forgotten `await` in a test makes a
-  test that passes without checking. `void` is for what is meant to run on its own: an IPC message the window does
-  not wait for, a dialog answered while the test goes on.
-- `await` only on a promise (`await-thenable`); no `if (promise)` (`no-misused-promises`, not its void-return part:
-  an async callback nobody waits for is fine, its rejection is logged in `app.ts`).
-- A `switch` over a union names every case or has a `default` (`switch-exhaustiveness-check`).
-- No `as` or `!` TypeScript does not need (`no-unnecessary-type-assertion`; `npx eslint . --fix` removes them). Not in
-  the window: it takes `{} as Record<…>` inside `reactive({ … })` for needless, the only type of a store's field.
-- Vue's `essential` rules for the templates, without multi-word component names (Kulisa's are one word: `Modal`).
+- **A promise is awaited, or `void` says it is not** (`no-floating-promises`). `void` is for what is meant to run on
+  its own: an IPC message the window does not wait for, a dialog answered while the test goes on.
 
 ## Upgrading Electron
 
@@ -327,7 +291,7 @@ they are made, and the whole suite runs when the work is done (above).
 
 ## Running them
 
-When to run what: above. A whole run stops by itself after 20 minutes, a test after 30 s (`playwright.config.ts`), its trace showing the step it hung on. A script run in a window
+A script run in a window
 that closes before its result is back never answers (Electron drops the reply), so a test closes a window without
 waiting for the script that closes it (`closeSettings`).
 
@@ -339,11 +303,8 @@ terminal running Claude Code): "On macOS".
 **CI** (`.github/workflows/test.yml`): `npm test` on GitHub Actions at every pull request into `develop` or `main` and
 every push to `develop` (CLAUDE.md, Releases; into `main` its `version` job checks the version raised; its
 `dependencies` job, on pull requests, refuses a new dependency with a known vulnerability or a license not on its list:
-`docs/LICENSING.md`), on Ubuntu (with Xvfb
-and openbox), Windows and macOS (on the runner's own screen), git given a name (tasks
-commit). Every run keeps Playwright Test's report (`playwright-report`, `test-results/junit.xml`) for a week, a run that passed for its flaky tests. All three
-pass ("On macOS", "On Windows", above). Flaky, on a loaded machine or the runner (each one fixed is in its
-test's comment). Slow but not flaky: deleting a task (git's work, up to 11 s), a
+`docs/LICENSING.md`), on Ubuntu, Windows and macOS. Every run keeps Playwright Test's report (`playwright-report`,
+`test-results/junit.xml`) for a week, a run that passed for its flaky tests. Slow but not flaky: deleting a task (git's work, up to 11 s), a
 site that never answers (10 s, by design).
 
 On Linux the runner has no desktop: `npm test` runs in a D-Bus session with gnome-keyring made and unlocked, and
@@ -364,10 +325,3 @@ H=$(mktemp -d /tmp/kh.XXXX); printf '[user]\n\tname = t\n\temail = t@t\n' > $H/.
 printf '#!/bin/sh\necho ci | gnome-keyring-daemon --unlock --components=secrets >/dev/null\ncd %s && exec npm test\n' "$PWD" > $H/run.sh; chmod +x $H/run.sh
 env -i PATH=$(dirname $(which node)):/usr/bin:/bin HOME=$H TMPDIR=$H XDG_CURRENT_DESKTOP=GNOME taskset -c 0-3 dbus-run-session -- $H/run.sh
 ```
-
-| File | What |
-|---|---|
-| `.github/workflows/test.yml` | the same on GitHub Actions at every pull request into `develop` or `main` and push to `develop`, on Linux, Windows and macOS |
-| `test/start.ts` | `npm test`: the unit tests, knip, ESLint, actionlint, the window built, then the e2e tests |
-| `playwright.config.ts`, `test/e2e/` | the e2e tests, their fixtures, the Kulisa they start (End to end) |
-| `test/fixtures/site.ts` | the local test site (sign-in by cookie, dialogs, a board shared by profiles, a site that never answers, a fake GitHub) |
