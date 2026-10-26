@@ -248,13 +248,12 @@ test("projects: the projects' manager (Project Settings…) changes its name and
   expect(await terminals(), 'nothing opened').toBe(0);
   // With a profile open, the island is a strip: Ctrl+` opens its +.
   await call('profile_create', { name: 'Bo.bare' }, { task: bare });
-  await expect(ui.locator('#termUnfold')).toHaveCount(1);
+  await expect(ui.getByTestId('terminals').locator('[data-unfold]')).toHaveCount(1);
   await expect(ui.getByRole('navigation', { name: 'New terminal' })).toHaveCount(0);
   await focusWindow(core, ui);
   await core((k) => k.press(k.shell.win.webContents, '`', 'control'));
   await expect(menu(ui)).toMatchAriaSnapshot(`
     - menuitem "Fake agent · ann@shop.com"
-    - separator
     - menuitem "Terminal"
   `);
   await closeMenu(ui);
