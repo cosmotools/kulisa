@@ -86,7 +86,7 @@ jobs:
         shard: [1, 2, 3]
     name: e2e (${{ matrix.os }}, ${{ matrix.shard }}/3)
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 30
+    timeout-minutes: 15
     defaults:
       run:
         shell: bash
@@ -115,11 +115,18 @@ jobs:
         with:
           path: ${{ runner.temp }}/apt
           key: apt-${{ runner.os }}-xvfb-openbox-gnome-keyring-dbus-x11-libsecret
+      # The image's package lists first: with the cached .debs nothing is downloaded. Updated only when they no longer
+      # name those versions; a mirror that stops answering fails the step in minutes, not the job's 30.
       - if: runner.os == 'Linux'
+        timeout-minutes: 8
         run: |
           mkdir -p "$RUNNER_TEMP/apt/partial"
-          sudo apt-get update
-          sudo apt-get install -y -o Dir::Cache::Archives="$RUNNER_TEMP/apt" xvfb openbox gnome-keyring dbus-x11 libsecret-1-0
+          apt=(-y -o Dir::Cache::Archives="$RUNNER_TEMP/apt" -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30)
+          pkgs=(xvfb openbox gnome-keyring dbus-x11 libsecret-1-0)
+          if ! sudo apt-get install "${apt[@]}" "${pkgs[@]}"; then
+            sudo apt-get update -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30
+            sudo apt-get install "${apt[@]}" "${pkgs[@]}"
+          fi
           sudo chown -R "$(id -u)" "$RUNNER_TEMP/apt"
       - run: npm ci
       # The macOS runner's screen is 1024×768, smaller than a laptop's: the tests' windows do not fit as they lay them
