@@ -9,7 +9,7 @@ let asking: { q: Question; answer: (value: string) => void } | null = null;
 const listeners = new Set<() => void>();
 const set = (a: typeof asking) => { asking = a; for (const l of listeners) l(); };
 let turn: Promise<string> = Promise.resolve('');
-export function ask(q: Question): Promise<string> {
+function ask(q: Question): Promise<string> {
   const answer = turn.then(() => new Promise<string>((resolve) => set({ q, answer: resolve })));
   turn = answer;
   return answer;

@@ -6,7 +6,7 @@ import { cloneElement, useCallback, useEffect, useState, type HTMLAttributes, ty
 import { Avatar, Menu, MenuDivider, MenuGroupHeader, MenuItem, MenuList, MenuPopover, MenuTrigger } from '@fluentui/react-components';
 import { avatarSrc } from './avatar';
 
-export type Row = { label: string; sub?: string; avatar?: string; enabled?: boolean; run: () => unknown };
+type Row = { label: string; sub?: string; avatar?: string; enabled?: boolean; run: () => unknown };
 export type Item = '-' | { heading: string } | Row;
 
 function Rows({ items, close }: { items: Item[]; close: () => void }) {
