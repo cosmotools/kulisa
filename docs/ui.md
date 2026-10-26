@@ -176,8 +176,8 @@ The window's controls are Reka UI's, in this look:
 - `.editable`: a value edited in place (Reka's `Editable`: a profile's name, who it is, its test login): text in a
   field's box (`.preview`), a click or Tab edits it; Enter or leaving saves, Shift+Enter is a new line where it has
   lines, Esc puts it back (and leaves the dialog open).
-- Fields (Reka's `FieldRoot`, `FieldLabel`, `FieldControl`, `FieldDescription`, `FieldError`) in `.field`; a
-  dialog's form is its `FormRoot` (`Modal.vue`, `errors`: the main process's refusal at its field).
+- Fields in a dialog: shadcn-vue's `Field`, `FieldLabel`, `Input`, `FieldDescription`, `FieldError`; choosing one of a
+  few, its `RadioGroup` (the agents to choose from, `AgentList.vue`: its choice cards).
 - Tabs: a pane's tabs and the tasks' tabs are Reka's `Tabs` (`activationMode` manual): chosen on the press, as a
   browser's (not on their ×), one Tab stop for the strip, the arrows move and Enter chooses. A task's is shown on
   the release, or as its drag begins ([window.md](window.md), The tasks' bar).
@@ -213,28 +213,30 @@ The window's controls are Reka UI's, in this look:
 
 ### Dialogs
 
-Every dialog is `Modal.vue`, Reka UI's Dialog (`reka-ui`) with the same parts:
+Every dialog is `Modal.vue`, shadcn-vue's `Dialog` (`components/ui/`): its title, the content, the buttons.
 
 ```html
-<Modal id="…" title="Title" form form-id="…" @submit="save">
-  …the content…
-  <template #footer><DialogClose>Cancel</DialogClose><button class="primary">Create</button></template>
+<Modal id="…" title="Title" class="sm:max-w-xl">
+  …the content: shadcn-vue's parts (Field, Input, RadioGroup …)…
+  <template #footer><DialogClose as-child><Button variant="outline">Cancel</Button></DialogClose><Button>Create</Button></template>
 </Modal>
 ```
 
-- `header`: a title strip, as a window's: the title small in the middle (`--font-small`), × at its end when it may be
-  closed (`closable`; Esc and a click outside close it too; `stay`: not while something runs, an agent's install).
-  Over a dimmed backdrop (`.backdrop`), in the middle of the window (`.dialog`; its corners clip what is in it, a side
-  panel's color). A question (`.dialog.question`, `Ask.vue`) has no strip: its question is the first words, bold.
-  At most 85% of the window's height, the `.body` scrolling: a dialog that keeps one height (New Project's) sets it on
-  itself, `min(…, 85vh)`, never on its body, or its footer goes out of a short window (640×400, or any at 200%).
-- `.body`: (in Settings' window, `.page`, the same) `.hint` (what it is about, muted), `.field` (a label, "Name:", and its input, the labels in one column; `.pick` in
-  it: the input with its button, Location and Browse…), `.row` (a line of controls: a field with its buttons,
-  a URL to clone, a new profile's name), `.check` (a `.checkbox` in the fields' column), `.error` (hidden while empty; its text
-  selectable, to copy and search for, as a question's detail is); a field's
-  `.hint` under it (its `FieldDescription`).
-- `footer`: the buttons at the right end, the main one last; `.start` puts a button at the left end. A button that
-  only closes is Reka's `DialogClose`. What is saved as it changes (Settings' window) has none: Esc or × closes it.
+- × at the title's end when it may be closed (`closable`; Esc and a click outside close it too; `stay`: not while
+  something runs, an agent's install). The main button last (`Button`'s default variant).
+- No taller than the window: the content scrolls, the title and the buttons stay. A dialog that keeps one height (New
+  Project's) sets it on itself, `min(…, 85vh)`; a part that scrolls on its own (New Project's step) fills the content.
+- A form is the content's own `<form id>`, its submit button in the footer by `form="…"`: Enter submits. The main
+  process's refusal is the field's `FieldError` (`TaskRename.vue`).
+- It fades and zooms in and out (shadcn-vue's, 100 ms). Fading out it is closed (`data-state="closed"`) yet holds the
+  keyboard: what gives the keyboard somewhere takes it as nowhere, and the dialog, gone, gives it back only when nothing
+  took it meanwhile (`closing`, `keepTaken`, `lib/cover.ts`).
+- What Settings' window (`.page`) and New Project's steps (`.wizard`) hold: `.hint` (what it is about, muted), `.field` (a
+  label, "Name:", and its input, the labels in one column; `.pick` in it: the input with its button, Location and
+  Browse…), `.row` (a line of controls: a field with its buttons, a URL to clone, a new profile's name), `.check` (a
+  `.checkbox` in the fields' column), `.error` (hidden while empty; its text selectable, to copy and search for); a
+  field's `.hint` under it (its `FieldDescription`). New Project's buttons are its `footer`, the main one last, `.start`
+  at the left end. What is saved as it changes (Settings' window) has none: Esc or × closes it.
 - A part of what it edits: a `.titled` line, then its `.list` or fields, a `.row` under the list for what is being
   added in place (a URL to clone, a new profile's name). Not framed cards or sections with a + in their heading
   (a frame in a dialog in a split is a frame in a frame in a frame, and reads as a web page).
@@ -247,7 +249,6 @@ Every dialog is `Modal.vue`, Reka UI's Dialog (`reka-ui`) with the same parts:
   so has a list's row in a page (a project's profiles: the name, its description); not a wider or resizable column,
   as names past any width still come (two profiles alike to their 20th letter). A dialog of a few big choices and a form (New
   Project) has the choices as a list on its left (Reka's Listbox), the form on its right.
-- With `form` the content and the buttons are a form: Enter submits.
 - Its ref: `await open()` (shown, the keyboard in its `[autofocus]` field or on it; the profiles' pages hidden while it
   is open: `covered('hide')`, `lib/cover.ts`, `views.ts`), `close()`, `isOpen()`. Its content is in the page only while it is open
   (Reka's default; kept closed, the dialogs' parts would take about 2.5 MB of the window's memory), so it opens first and
@@ -259,12 +260,12 @@ Every dialog is `Modal.vue`, Reka UI's Dialog (`reka-ui`) with the same parts:
 - A page's alert or confirm (`.pagedialog`, in `ProfilePane.vue`) is not a `Modal`: a Dialog that is not modal (the
   other panes go on), in its pane right under the address bar, over a picture of the page, in Chrome's size, shape and
   blue: the page's, not Kulisa's. Esc is Cancel; a click outside does nothing; OK has the keyboard.
-- Change Agent (`HandOver.vue`, `#handover`): the two agents with what goes along between them (`.baton`: pills on a
-  dashed line, a profile's `.avatar`s in one), which fly to the new one, again and again, while it reads (`handed`,
-  `received`; none with reduced motion), its progress under them; the accounts under them as `.radio` rows.
+- Change Agent (`HandOver.vue`, `#handover`): the two agents with what goes along between them (`Badge`s on a dashed
+  line, the profiles' `AvatarGroup` in one), which fly to the new one, again and again, while it reads (`handed`,
+  `received`; none with reduced motion), its progress under them; the accounts under them as a `RadioGroup`.
 - Questions before something that cannot be undone, before closing, or between two ways to go (a second button,
-  `other`), are not new dialogs: `shell.ask` (main process) or `ask(q)` (`lib/ask.ts`) → `Ask.vue`, Reka's AlertDialog
-  in the same look: Cancel (named by the question when the word is another: Later) has the keyboard, Esc is Cancel, a
+  `other`), are not new dialogs: `shell.ask` (main process) or `ask(q)` (`lib/ask.ts`) → `Ask.vue`, shadcn-vue's
+  `AlertDialog`: the main button red when it deletes (`danger`); Cancel (named by the question when the word is another: Later) has the keyboard, Esc is Cancel, a
   click outside does nothing (it waits for an answer);
   `other` adds the second way's button before the main one; `link`, a page the answer may need, under the detail
   (where to revoke a GitHub sign-in), opened in the user's browser.
@@ -285,6 +286,8 @@ one at a point (`menuAt(e, items)` in `lib/menu.ts`, `PointMenu.vue`: a link in 
   Settings' window, with no pages in it, goes by its page's (`lib/cover.ts`). The keyboard moving within the window
   does not close one (Reka's focus outside, prevented): the window's page getting the keyboard back after a menu
   opened puts it on what had it before, the terminal.
+- It fades out as it closes (shadcn-vue's, 100 ms): reopened meanwhile, it takes no keyboard, and its rows keep the
+  keyboard where it went (`leaveClosing`: Reka's row the pointer leaves gives it to its menu).
 - While one is open, the pages are pictures of themselves (`covered('pictures')`); it shows once they are
   (`data-ready`). It is no part of the title bar's drag area (`-webkit-app-region: no-drag`).
 
@@ -343,8 +346,8 @@ questions, `leavable` (Back on the first step goes back to its slides).
 - A new kind of control or row: in `components.css` with a comment saying what it is and its variants (or a component
   of its own when it has behavior), and a section here. A part used by one place only (a pane's tab strip, the omnibox,
   the projects' islands) keeps its look in its own `.vue` file.
-- A new dialog: a component with `Modal.vue`, in `App.vue`, registered in `lib/dialogs.ts`; its own contents' look in
-  its `<style>` under its id.
+- A new dialog: a component with `Modal.vue`, in `App.vue`, registered in `lib/dialogs.ts`; its content shadcn-vue's
+  parts placed with Tailwind's utilities.
 - Something generic (a menu, a dialog, a choice, a field): Reka UI's part, in Kulisa's look; never our own where Reka
   has one (above).
 - A part's own CSS places the components, never restyles them into new ones. Before overriding dockview, check that

@@ -15,6 +15,7 @@ import { island, launchers, newTerminalItems, tabItems, terminalMenu } from '../
 import { termFocus } from '../../../terminal/renderer';
 import { Pill } from '../../../dictation/renderer';
 import { avatarSrc, withKeys } from '../../lib/common';
+import { closing } from '../../lib/cover';
 import { CheckIcon, PlusIcon, SparklesIcon } from '@lucide/vue';
 
 const props = defineProps<{ params: { api: DockviewPanelApi; containerApi: DockviewApi } }>();
@@ -77,7 +78,7 @@ watch(() => folded.value && alone.value, async (on) => {
   if (!on) return;
   await nextTick();
   const a = document.activeElement;
-  if (a && a !== document.body && !root.value?.contains(a) && !launch.value?.contains(a)) return;
+  if (a && a !== document.body && !closing(a) && !root.value?.contains(a) && !launch.value?.contains(a)) return;
   launch.value?.querySelector<HTMLElement>('.launcher')?.focus();
 }, { immediate: true, flush: 'post' });
 

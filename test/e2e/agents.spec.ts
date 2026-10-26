@@ -8,7 +8,7 @@ import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
 import type { Files } from './data.ts';
-import { SITE, WIN, holdPointer, focusWindow, menu, choose, closeMenu, rightClick, closeSettings, item, renamed, termText, termShows, invoke, ipcSettled, answer, projectMenu, onRow } from './helpers.ts';
+import { SITE, WIN, holdPointer, focusWindow, menu, choose, closeMenu, rightClick, closeSettings, item, renamed, termText, termShows, invoke, ipcSettled, answer, closeX, projectMenu, onRow } from './helpers.ts';
 import { newTask } from './tasks-helpers.ts';
 import { fakeAgent, fakeBin } from './agent-helpers.ts';
 
@@ -240,7 +240,7 @@ test("a new account is made in the project's settings: the agent's own sign-in a
   await choose(ui, 'Change agent…');
   await expect(ui.locator('#handover').getByRole('radio')).toHaveCount(1);
   await expect(ui.locator('#handover').getByRole('radio')).toHaveAccessibleName('Fake agent · work@shop.com');
-  await ui.locator('#handover').locator('header').getByRole('button', { name: 'Close' }).click();
+  await closeX(ui.locator('#handover')).click();
   await expect(ui.locator('#handover')).toHaveCount(0);
 });
 

@@ -7,7 +7,7 @@ import url from 'url';
 import type { Locator, Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
-import { SITE, MAC, WIN, frames, seen, ipcSettled, echoed, menu, anyMenu, item, choose, closeMenu, rightClick, focusWindow, pageBox, viewOn, answer, removed, termKeys } from './helpers.ts';
+import { closeX, SITE, MAC, WIN, frames, seen, ipcSettled, echoed, menu, anyMenu, item, choose, closeMenu, rightClick, focusWindow, pageBox, viewOn, answer, removed, termKeys } from './helpers.ts';
 import { SAM, ELON, begin } from './tasks-helpers.ts';
 
 const menuOpen = (ui: Page) => menu(ui).isVisible();
@@ -387,8 +387,8 @@ test("menus with the mouse and the keyboard, as the OS's: a press on ☰, a drag
   await ui.mouse.move(to.x, to.y);
   await ui.mouse.up();
   await expect(shortcuts).toHaveAttribute('data-state', 'open');
-  await shortcuts.locator('header').getByRole('button', { name: 'Close' }).click();
-  await expect(ui.locator('#shortcuts[data-state="open"]')).toHaveCount(0);
+  await closeX(shortcuts).click();
+  await expect(shortcuts, 'gone: fading out, it still takes the pointer').toHaveCount(0);
 
   // A click opens it (the click after the press is not a second toggle); a click on the same button closes it.
   await seen(ui, 'mouseup', clickMenuButton);

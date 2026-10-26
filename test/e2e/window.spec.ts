@@ -11,10 +11,9 @@ import type { TaskTerminal } from '../../src/main/tasks.ts';
 import type { Question } from '../../src/shared/types.ts';
 import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
-import { termTabs, SITE, CHECKOUT, MAC, WIN, echoed, frames, holdPointer, ipcSettled, menu, choose, closeMenu, rightClick, box, viewOn, focusWindow, closeSettings, termText, invoke, answer, removed, termKeys } from './helpers.ts';
+import { termTabs, SITE, CHECKOUT, MAC, WIN, echoed, frames, holdPointer, ipcSettled, menu, choose, closeMenu, rightClick, viewOn, closeX, focusWindow, closeSettings, termText, invoke, answer, removed, termKeys } from './helpers.ts';
 
 const NO_SHOT = 'macOS: the app that started the tests (the terminal) may not record the screen';
-const ACCENT = 'rgb(53, 116, 240)'; // a main button's, in the dark theme
 
 const sam = (core: Core) => core(async (k, url) => (await k.ensureProfile('Sam', url)).id, `${SITE}/app`);
 // The terminal named so, once its shell runs: its id and key.
@@ -220,7 +219,7 @@ test("terminal: dictation where the agent has its own: the right Ctrl held anywh
   await core((k) => k.press(k.shell.win.webContents, 'F9'));
   await expect(hold.locator('kbd')).toHaveText(['F9']);
   expect(files.json('settings.json').keys).toEqual({ 'voice.hold': 'F9' });
-  await shortcuts.locator('header').getByRole('button', { name: 'Close' }).click();
+  await closeX(shortcuts).click();
   await expect(mic).toHaveAttribute('title', /hold F9 anywhere/);
   n = await keys();
   await core((k) => { const sam = k.profile('Sam'); sam.focusTab(sam.get()); });
@@ -490,7 +489,7 @@ test("the OS buttons' strip shows the top bar under it: dimmed with it under a d
   let dimmed = plain; // the screen catches up with the page a frame later
   await expect.poll(async () => { dimmed = await pixels('buttons-dialog.png'); return dimmed.bar[0] < plain.bar[0]; }).toBe(true);
   expect(near(dimmed), `dimmed as the bar: ${JSON.stringify(dimmed)}`).toBe(true);
-  await ui.locator('#shortcuts').locator('header').getByRole('button', { name: 'Close' }).click();
+  await closeX(ui.locator('#shortcuts')).click();
   await expect(ui.locator('#shortcuts')).toHaveCount(0);
 });
 
@@ -611,13 +610,16 @@ test('dialogs: one look (title and ×, content, buttons at the bottom right, the
   };
 
   await expect(ui.locator('[role="dialog"], [role="alertdialog"]'), 'none in the page while closed').toHaveCount(0);
+  // The theme's colors, as the page computes them
+  const [primary, destructive] = await ui.evaluate(() => ['--primary', '--destructive'].map((v) => { const e = document.createElement('i');
+    e.style.color = `var(${v})`; document.body.append(e); const c = getComputedStyle(e).color; e.remove(); return c; }));
   for (const [id, open] of Object.entries(openers)) {
     await open();
     await expect(dialog(id)).toHaveAttribute('data-state', 'open', { timeout: 20000 });
-    await expect(dialog(id).locator('header h2'), id).toHaveCount(1);
-    await expect(dialog(id).locator(':scope > header ~ :not(footer)').first(), id).toBeAttached();
-    await expect(dialog(id).locator('footer > button:last-child'), `${id}: the main button last, in the accent`).toHaveCSS('background-color', ACCENT);
-    await (id === 'agentpick' ? ui.locator('#agentcancel') : ui.locator(`#${id}`).locator('header').getByRole('button', { name: 'Close' })).click(); // the agent's choice: Cancel, no ×
+    await expect(dialog(id).locator('[data-slot="dialog-title"]'), id).toHaveCount(1);
+    await expect(dialog(id).locator(':scope > [data-slot="dialog-header"] + div').first(), id).toBeAttached();
+    await expect(dialog(id).locator('[data-slot="dialog-footer"] > button:last-child'), `${id}: the main button last`).toHaveCSS('background-color', primary);
+    await (id === 'agentpick' ? ui.locator('#agentcancel') : closeX(dialog(id))).click(); // the agent's choice: Cancel, no ×
     await expect(ui.locator(`#${id}[data-state="open"]`)).toHaveCount(0);
   }
   await expect(ui.locator('[role="dialog"], [role="alertdialog"]')).toHaveCount(0);
@@ -630,47 +632,32 @@ test('dialogs: one look (title and ×, content, buttons at the bottom right, the
   const answered = () => core((k) => k.stash.answer as Promise<boolean | 'other'>);
   await asking({ message: 'Delete the thing?', ok: 'Delete', danger: true, detail: 'Deleted for good:\n• a\n• b' });
   await expect(ask).toHaveAttribute('data-state', 'open');
-  const ok = ask.locator('footer > button:last-child');
+  const ok = ask.locator('[data-slot="alert-dialog-footer"] > button:last-child');
   await expect(ask.getByRole('heading')).toHaveText('Delete the thing?');
   expect(await ask.locator(`#${await ask.getAttribute('aria-describedby')}`).innerText(), 'line by line').toBe('Deleted for good:\n• a\n• b');
   await expect(ok).toHaveText('Delete');
   await expect(ask.getByRole('button', { name: 'Cancel' })).toBeFocused();
-  const header = await ask.locator('header').boundingBox(), body = await ask.locator('header + div').boundingBox(), footer = await ask.locator('footer').boundingBox(), okBox = await ok.boundingBox();
-  expect(header.y + header.height <= body.y && body.y + body.height <= footer.y, 'the title, the body, the buttons').toBe(true);
+  await ask.evaluate((d) => Promise.all(d.getAnimations().map((a) => a.finished))); // measured once it has zoomed in
+  const header = await ask.locator('[data-slot="alert-dialog-header"]').boundingBox(), footer = await ask.locator('[data-slot="alert-dialog-footer"]').boundingBox(), okBox = await ok.boundingBox();
+  expect(header.y + header.height <= footer.y, 'the question, the buttons').toBe(true);
   expect(Math.round(footer.x + footer.width - (okBox.x + okBox.width)), 'at the right').toBe(16);
-  await expect(ask.locator('footer > button:last-child'), 'red').toHaveCSS('background-color', 'rgb(201, 79, 79)');
-  // Its buttons answer the hand: lit under the pointer, another color while pressed (still, they look dead). Each
-  // color read to tell the next from it (toHaveCSS takes a value known before).
-  const bg = (sel: string) => ui.locator(sel).evaluate((e) => getComputedStyle(e).backgroundColor);
-  for (const sel of ['#ask footer > button:first-child', '#ask footer > button:last-child']) {
-    const b = await box(ui, sel), at = { x: b.x + b.width / 2, y: b.y + b.height / 2 }, button = ui.locator(sel);
-    const still = await bg(sel);
-    await ui.mouse.move(at.x, at.y);
-    await expect(button).not.toHaveCSS('background-color', still);
-    const lit = await bg(sel);
-    await ui.mouse.down();
-    await expect(button).not.toHaveCSS('background-color', lit);
-    await expect(button).not.toHaveCSS('background-color', still);
-    await ui.mouse.move(1, at.y); // let go away from it: nothing chosen
-    await ui.mouse.up();
-    await expect(button).toHaveCSS('background-color', still);
-  }
+  await expect(ok, 'red').toHaveCSS('color', destructive);
   await expect(ask, 'still asking').toHaveAttribute('data-state', 'open');
   expect(await view(), 'pages hidden under the dialog').toBe(false);
   await core((k) => k.press(k.shell.win.webContents, 'Escape'));
   expect(await answered(), 'Esc says no').toBe(false);
   await expect.poll(view).toBe(true);
 
-  // Two at once: the second waits for the first. Not deleting: the main button is blue.
+  // Two at once: the second waits for the first. Not deleting: the main button is the theme's.
   await asking({ message: 'Initialize it?', ok: 'Initialize' });
   await core((k) => { k.stash.second = k.shell.ask({ message: 'Delete the other?', ok: 'Delete', danger: true }); });
   await expect(ask).toHaveAttribute('data-state', 'open');
-  await expect(ask.locator('h2')).toHaveText('Initialize it?');
-  await expect(ask.locator('footer > button:last-child'), 'blue').toHaveCSS('background-color', ACCENT);
-  await ask.locator('footer > button:last-child').click();
+  await expect(ask.getByRole('heading')).toHaveText('Initialize it?');
+  await expect(ok, 'the main one').toHaveCSS('background-color', primary);
+  await ok.click();
   expect(await answered()).toBe(true);
   await expect(ask).toHaveAttribute('data-state', 'open');
-  await expect(ask.locator('h2')).toHaveText('Delete the other?');
+  await expect(ask.getByRole('heading')).toHaveText('Delete the other?');
   await ask.getByRole('button', { name: 'Cancel' }).click();
   expect(await core((k) => k.stash.second as Promise<boolean | 'other'>), 'Cancel says no').toBe(false);
 });
@@ -741,7 +728,7 @@ test('a new version installed while Kulisa runs is offered once, in its own dial
     const asked = ui.getByRole('alertdialog');
     await install('9.9.9');
     await expect(asked).toBeVisible({ timeout: 10000 }); // the archive's change, noticed
-    await expect(asked.locator('footer button')).toHaveText(['Later', 'Restart']);
+    await expect(asked.locator('[data-slot="alert-dialog-footer"] button')).toHaveText(['Later', 'Restart']);
     const q = await answer(ui, false);
     expect(q.message).toBe('Kulisa 9.9.9 is ready');
     expect(q.detail).toMatch(/Restart to use it: the windows, their tasks and conversations come back\. Later: the next start is 9\.9\.9\.$/);

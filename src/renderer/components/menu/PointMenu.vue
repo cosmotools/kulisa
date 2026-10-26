@@ -5,7 +5,7 @@ import { computed, watch } from 'vue';
 import { DropdownMenu, DropdownMenuContent } from '@/components/ui/dropdown-menu';
 import MenuRows from './MenuRows.vue';
 import { covered } from '../../lib/cover';
-import { focusBack, pointMenu } from '../../lib/menu';
+import { focusBack, leaveClosing, pointMenu } from '../../lib/menu';
 
 const { open, ready } = covered('pictures');
 let focused: Element | null = null;
@@ -17,7 +17,7 @@ const at = computed(() => ({ getBoundingClientRect: () => DOMRect.fromRect({ x: 
 <template>
   <DropdownMenu v-model:open="open" :modal="false">
     <DropdownMenuContent class="w-auto max-w-md min-w-64 [-webkit-app-region:no-drag] not-data-ready:opacity-0" :data-ready="ready || undefined" :reference="at" :collision-padding="4"
-      @close-auto-focus="focusBack($event, focused)" @focus-outside.prevent>
+      @close-auto-focus="focusBack($event, focused)" @focus-outside.prevent @pointerleave.capture="leaveClosing">
       <MenuRows :items="pointMenu?.items || []" />
     </DropdownMenuContent>
   </DropdownMenu>

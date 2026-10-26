@@ -197,35 +197,16 @@ button.danger { background: var(--danger); border-color: var(--danger); color: v
 /* An error is text to copy (to search for it), unlike the rest of the window's words: in a dialog */
 .error { margin: var(--inset) 0 0; color: var(--error); user-select: text; cursor: text; &:empty { display: none; } }
 
-/* Dialogs, one look for all (Modal.vue on Reka's Dialog; Ask.vue on its AlertDialog), as in JetBrains: a title strip
-   (its title small in the middle, × at the end, as a window's), the content, and a strip of buttons at the bottom, the
-   main one last (blue; red when it deletes). A question (.question: Ask.vue) has no strip: its question is the first
-   words of its content. In the middle of the window over a dimmed backdrop; a menu opened from one is above it. */
-.backdrop { position: fixed; inset: 0; z-index: 20; background: var(--backdrop); }
-.dialog { position: fixed; inset: 0; z-index: 20; margin: auto; display: flex; flex-direction: column; width: 560px; max-width: calc(100vw - 2 * var(--pad));
-  height: fit-content; max-height: 85vh; background: var(--island); color: var(--text);
-  border: 1px solid var(--line); border-radius: var(--island-radius); box-shadow: 0 12px 40px var(--shadow); outline: none;
-  overflow: hidden; /* a side panel's color (Settings' tree) inside its rounded corners */
-  > form { display: contents; }
-  header { position: relative; display: flex; align-items: center; justify-content: center; flex: none; min-height: calc(var(--control) + 8px);
-    padding: 0 calc(var(--control) + 8px); border-bottom: 1px solid var(--island-hi);
-    h2 { margin: 0; font-size: var(--font-small); font-weight: normal; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .x { position: absolute; inset-inline-end: 4px; } }
-  &.question .body { padding-block-start: 8px; }
-  &.question header { justify-content: flex-start; min-height: 0; padding: var(--pad) var(--pad) 0; border-bottom: none;
-    h2 { font-size: var(--font); font-weight: 600; color: var(--text-strong); white-space: normal; } }
-  .body { flex: 1; min-height: 0; overflow: auto; padding: var(--pad); }
-}
-/* A dialog's buttons, and New Project's (its steps: newproject/Wizard.vue, in a dialog or the empty window) */
-:is(.dialog, .wizard) footer { display: flex; justify-content: flex-end; gap: var(--gap); padding: 10px var(--pad); border-top: 1px solid var(--island-hi);
+/* New Project's buttons (its steps: newproject/Wizard.vue, in a dialog or the empty window) */
+.wizard footer { display: flex; justify-content: flex-end; gap: var(--gap); padding: 10px var(--pad); border-top: 1px solid var(--island-hi);
   .start { margin-inline-end: auto; } /* it and the buttons before it at the left end */
   button { min-width: 80px; } }
 /* Where one is in a few slides or steps: a short bar each, lit up to the one shown (the welcome's, welcome/) */
 .dots { display: flex; gap: 6px; margin: 0; padding: 0; list-style: none;
   li { width: 28px; height: 4px; border-radius: 2px; background: var(--island-hi); transition: background .3s ease; &[data-on] { background: var(--blue); } } }
-/* What a dialog, Settings' window (.page: Settings.vue) and New Project's steps (.wizard) hold: hints, fields with their labels in one column, checks,
+/* What Settings' window (.page: Settings.vue) and New Project's steps (.wizard) hold: hints, fields with their labels in one column, checks,
    a field with its button, a list's empty line. */
-:is(.dialog, .page, .wizard) {
+:is(.page, .wizard) {
   .hint { margin: 0 0 var(--inset); color: var(--text-muted); line-height: 1.45; }
   /* A field and its button in one row (adding a profile, a project) */
   .row { display: flex; gap: var(--gap); margin-top: var(--inset); input { flex: 1; } }

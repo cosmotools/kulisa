@@ -15,15 +15,8 @@ registerDialog('newproject', { open });
 </script>
 
 <template>
-  <Modal id="newproject" ref="modal" title="New Project" :stay="!!wizard?.saving">
+  <!-- Its height the dialog's, not the step's: the same for every step while the window has room -->
+  <Modal id="newproject" ref="modal" title="New Project" :stay="!!wizard?.saving" class="min-h-[min(30rem,85vh)] sm:max-w-3xl">
     <Wizard ref="wizard" cancelable @done="modal?.close()" />
   </Modal>
 </template>
-
-<style>
-/* Its height the dialog's, not the body's: the same for every step while the window has room; in a shorter one the
-   step scrolls and the buttons stay (a body's 320px would push them out of a 640×400 window). */
-#newproject { width: min(760px, 92vw); min-height: min(480px, 85vh);
-  .body { display: flex; padding: 0; }
-}
-</style>

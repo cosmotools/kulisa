@@ -4,7 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
-import { SITE, PORT, MAC, WIN, near, uiZoom, who, menu, anyMenu, item, choose, closeMenu, taskMenu, answer, manageProfiles, closeSettings, plusMenu, closeBoard, viewOn, invoke , typeIn } from './helpers.ts';
+import { closeX, SITE, PORT, MAC, WIN, near, uiZoom, who, menu, anyMenu, item, choose, closeMenu, taskMenu, answer, manageProfiles, closeSettings, plusMenu, closeBoard, viewOn, invoke , typeIn } from './helpers.ts';
 import { profileId, deleteProfile } from './tasks-helpers.ts';
 
 // Files of the sites' Cache API in a profile's folder, wherever Chromium's layout puts them (`WebStorage/<bucket>/CacheStorage/`).
@@ -111,7 +111,7 @@ test('the window\'s minimum follows the Kulisa zoom; a window at the minimum gro
     const fits = { create: await inside('npcreate'), browse: await inside('npbrowse') };
     expect(fits, from).toEqual({ create: true, browse: from === 'folder' ? null : true });
   }
-  await ui.locator('#newproject').locator('header').getByRole('button', { name: 'Close' }).click();
+  await closeX(ui.locator('#newproject')).click();
   await expect(ui.locator('#newproject[data-state="open"]')).toHaveCount(0);
   await closeBoard(ui);
   await core((k, s) => k.shell.win.setSize(s[0], s[1]), size);

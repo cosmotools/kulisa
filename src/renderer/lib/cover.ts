@@ -1,7 +1,7 @@
 // Menus and dialogs over a page: one menu at a time, as the OS's; every layer closed at once (a grid taken down, the
 // window left). What lies under them is the page's own: in a tasks' window the profiles' native views, which draw
 // above its HTML (views.ts plugs them in: under); Settings' window has none (docs/ui.md, Menus and dialogs).
-//   covered('hide')       a dialog's open state (v-model:open of Reka's Dialog)
+//   covered('hide')       a dialog's open state (its v-model:open)
 //   covered('pictures')   a menu's; ready once what is under it allows it to show (pictures of the pages)
 import { computed, shallowRef } from 'vue';
 
@@ -37,6 +37,10 @@ export function covered(how: 'hide' | 'pictures') {
   });
   return { open: model, ready };
 }
+// A dialog fading out as it closes keeps the keyboard until it is gone: what gives the keyboard somewhere takes it as
+// nowhere (closing), and the dialog, gone, gives it back only when nothing took it meanwhile (its close-auto-focus).
+export const closing = (el: Element) => !!el.closest(':is([role="dialog"], [role="alertdialog"])[data-state="closed"]');
+export const keepTaken = (e: Event) => { if (document.activeElement && document.activeElement !== document.body) e.preventDefault(); };
 const closeMenus = () => { for (const close of [...menus]) close(); };
 export const closeLayers = () => { closeMenus(); for (const close of [...dialogs]) close(); };
 // Leaving the window closes a menu, as the OS's own menus close. A tasks' window (with what is under: views.ts) says so

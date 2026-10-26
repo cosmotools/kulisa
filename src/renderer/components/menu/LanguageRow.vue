@@ -6,6 +6,7 @@ import { DropdownMenuPortal, DropdownMenuRadioGroup, DropdownMenuSub, DropdownMe
 import MenuButton from '../MenuButton.vue';
 import { store } from '../../lib/store';
 import { ask } from '../../lib/ask';
+import { leaveClosing } from '../../lib/menu';
 import { LanguagesIcon } from '@lucide/vue';
 
 const name = (code: string, inLanguage = code) => new Intl.DisplayNames([inLanguage], { type: 'language' }).of(code)!;
@@ -35,7 +36,7 @@ async function choose(code: string) {
     </DropdownMenuSubTrigger>
     <DropdownMenuPortal>
       <!-- no taller than about 18 rows -->
-      <DropdownMenuSubContent class="max-h-[min(60vh,var(--reka-dropdown-menu-content-available-height))] min-w-48 overflow-y-auto [-webkit-app-region:no-drag]" data-ready aria-label="Languages" :side-offset="4" :collision-padding="4">
+      <DropdownMenuSubContent class="max-h-[min(60vh,var(--reka-dropdown-menu-content-available-height))] min-w-48 overflow-y-auto [-webkit-app-region:no-drag]" data-ready aria-label="Languages" :side-offset="4" :collision-padding="4" @pointerleave.capture="leaveClosing">
         <DropdownMenuRadioGroup :model-value="info.language" @update:model-value="(v) => choose(String(v))">
           <MenuButton v-for="code in order" :key="code" :value="code" :data-language="code"
             :it="{ label: name(code), sub: name(code, 'en') === name(code) ? '' : name(code, 'en') }" />

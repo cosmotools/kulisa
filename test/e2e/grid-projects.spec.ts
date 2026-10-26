@@ -351,7 +351,7 @@ test('tasks: Move to New Window puts a task in a window of its own, still runnin
   await core((k) => { k.stash.grid.third.win.close(); });
   // Yes, its button's click not waited for: the window closes under it.
   await expect(ui3.getByRole('alertdialog')).toBeVisible();
-  void ui3.getByRole('alertdialog').locator('footer button').last().click().catch(() => {});
+  void ui3.getByRole('alertdialog').locator('[data-slot="alert-dialog-footer"] button').last().click().catch(() => {});
   await expect.poll(() => core((k, id) => k.shell.windows.length === 1 && !k.shell.open.has(id), ids.other)).toBe(true);
   expect(await core((k) => {
     const g = k.stash.grid;

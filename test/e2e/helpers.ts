@@ -100,11 +100,14 @@ export async function answer(page: Page, yes: boolean | string = true) {
   const d = page.getByRole('alertdialog');
   await expect(d).toBeVisible();
   const asked = { message: await d.getByRole('heading').textContent(), detail: await page.locator(`#${await d.getAttribute('aria-describedby')}`).textContent() };
-  const buttons = d.locator('footer button');
+  const buttons = d.locator('[data-slot="alert-dialog-footer"] button');
   await (typeof yes === 'string' ? d.getByRole('button', { name: yes, exact: true }) : yes ? buttons.last() : buttons.first()).click();
   await expect(d).toBeHidden();
   return asked;
 }
+
+// A dialog's × (shadcn-vue's: the content's own close, not one in its buttons).
+export const closeX = (dialog: Locator) => dialog.locator(':scope > [data-slot="dialog-close"]');
 
 // Kulisa's menus (Reka's, docs/ui.md, Menus): the open one once it is shown (the pages under it are pictures), the
 // submenu open (the last one).

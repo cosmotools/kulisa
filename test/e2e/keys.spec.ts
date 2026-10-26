@@ -2,7 +2,7 @@
 // terminal keeps the agent's keys, Kulisa's own work everywhere, Keyboard Shortcuts lists them. Keys are sent as input
 // events into the page or the window, where the human's keyboard would put them.
 import { test, expect } from './fixtures.ts';
-import { SITE, MAC, WIN, termText, ipcSettled, item, termKeys } from './helpers.ts';
+import { closeX, SITE, MAC, WIN, termText, ipcSettled, item, termKeys } from './helpers.ts';
 
 test("keys in a profile's page are Chrome's, for its pane: Ctrl+T a tab with the address to type in, Ctrl+W, Ctrl+Shift+T, Ctrl+1 and Ctrl+Tab; the site never gets them", async ({ core, ui }) => {
   // What the site sees: keys with Ctrl (⌘ on macOS).
@@ -81,13 +81,13 @@ test("keys in the terminal are the agent's, but Kulisa's own: Ctrl+T reaches the
   await ipcSettled(ui); await ipcSettled(ui);
   expect(await core((k, i) => k.logged.slice(i).filter((l) => /\[key\]|task:new/.test(l)), from), 'nothing is made').toEqual([]);
   expect(await core((k) => k.shell.current.tasks.size)).toBe(1);
-  await shortcuts.locator('header').getByRole('button', { name: 'Close' }).click();
+  await closeX(shortcuts).click();
   await ui.locator('#windowMenu').click();
   const row = item(ui, 'Keyboard Shortcuts');
   await expect(row.getByText(MAC ? '⇧⌘/' : 'Ctrl+Shift+/', { exact: true })).toBeVisible();
   await row.click();
   await expect(shortcuts).toHaveAttribute('data-state', 'open');
-  await shortcuts.locator('header').getByRole('button', { name: 'Close' }).click();
+  await closeX(shortcuts).click();
   // The buttons say their keys, as Chrome's toolbar does; the menus too.
   await expect(ui.locator(`[role="region"][data-profile="${id}"] [aria-label="Reload"]`)).toHaveAttribute('title', MAC ? 'Reload (⌘R)' : 'Reload (Ctrl+R)');
   await expect(ui.locator(`[role="region"][data-profile="${id}"] [aria-label="Pick an element"]`)).toHaveAttribute('title', MAC ? /\(⇧⌘C\)$/ : /\(Ctrl\+Shift\+C\)$/);

@@ -6,7 +6,7 @@ import { inject } from 'vue';
 import MenuButton from '../MenuButton.vue';
 import ProjectIcon from '../ProjectIcon.vue';
 import { projectColor } from '../../lib/project-color';
-import { closeMenu, type MenuItem } from '../../lib/menu';
+import { closeMenu, leaveClosing, type MenuItem } from '../../lib/menu';
 
 defineProps<{ items: MenuItem[] }>();
 const close = inject(closeMenu, () => {});
@@ -25,7 +25,7 @@ const runSub = (e: PointerEvent, run?: () => unknown) => { if (run && e.button =
         <span class="truncate">{{ it.submenu }}</span>
       </DropdownMenuSubTrigger>
       <DropdownMenuPortal>
-        <DropdownMenuSubContent class="max-h-(--reka-dropdown-menu-content-available-height) max-w-md min-w-64 overflow-y-auto [-webkit-app-region:no-drag]" data-ready :side-offset="4" :collision-padding="4">
+        <DropdownMenuSubContent class="max-h-(--reka-dropdown-menu-content-available-height) max-w-md min-w-64 overflow-y-auto [-webkit-app-region:no-drag]" data-ready :side-offset="4" :collision-padding="4" @pointerleave.capture="leaveClosing">
           <MenuRows :items="it.items" />
         </DropdownMenuSubContent>
       </DropdownMenuPortal>

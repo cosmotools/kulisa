@@ -1,7 +1,10 @@
 <script setup lang="ts">
 // Rename… a task (tasks.md, Tasks). The main process's refusal is shown at the field until the name is changed.
 import { computed, ref } from 'vue';
-import { DialogClose, FieldControl, FieldError, FieldLabel, FieldRoot } from 'reka-ui';
+import { Button } from '@/components/ui/button';
+import { DialogClose } from '@/components/ui/dialog';
+import { Field, FieldDescription, FieldError, FieldLabel } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
 import Modal from './Modal.vue';
 import { registerDialog } from '../lib/dialogs';
 
@@ -25,13 +28,20 @@ async function save() {
 </script>
 
 <template>
-  <Modal id="taskrename" ref="modal" title="Rename Task" form form-id="taskform" :errors="error ? { name: error } : undefined" @submit="save">
-    <FieldRoot class="field" name="name"><FieldLabel>Name:</FieldLabel><FieldControl id="taskname" ref="field" maxlength="64"
-      placeholder="e.g. Fix header" spellcheck="false" /><FieldError class="error" /></FieldRoot>
-    <p class="hint">What the task is about. Its git branch takes it too (fix-header); its folder stays. The agent names it as well,
-      once it knows.</p>
+  <Modal id="taskrename" ref="modal" title="Rename Task">
+    <form id="taskform" @submit.prevent="save">
+      <Field :data-invalid="!!error || undefined">
+        <FieldLabel for="taskname">Name</FieldLabel>
+        <Input id="taskname" ref="field" maxlength="64" placeholder="e.g. Fix header" spellcheck="false" :aria-invalid="!!error || undefined"
+          @input="error = ''" />
+        <FieldError v-if="error" class="select-text">{{ error }}</FieldError>
+        <FieldDescription>What the task is about. Its git branch takes it too (fix-header); its folder stays. The agent names it as
+          well, once it knows.</FieldDescription>
+      </Field>
+    </form>
     <template #footer>
-      <DialogClose>Cancel</DialogClose><button id="taskrenamed" class="primary">Rename</button>
+      <DialogClose as-child><Button variant="outline">Cancel</Button></DialogClose>
+      <Button id="taskrenamed" type="submit" form="taskform">Rename</Button>
     </template>
   </Modal>
 </template>

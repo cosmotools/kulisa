@@ -52,4 +52,8 @@ export function focusBack(e: Event, el: Element | null) {
   if (at && at !== document.body && !at.closest(POPUP)) return;
   if (!document.querySelector(`${POPUP} > [data-state="open"]`) && el instanceof HTMLElement && el.isConnected) el.focus();
 }
+// A menu fading out as it closes (shadcn-vue's animation) gives the keyboard nowhere: Reka's row the pointer leaves
+// (the menu shrinking under it) gives it to its menu, taking it from what had it since (the welcome's Next). Its
+// content's pointerleave on the capture, kept from the row (not cancelable).
+export const leaveClosing = (e: PointerEvent) => { if ((e.target as Element).closest('[role="menu"]')?.matches('[data-state="closed"]')) e.stopPropagation(); };
 // The bar's + menu (NewTask.vue) opened or closed as a click on it does: Ctrl+Shift+A, the empty window's New Task.

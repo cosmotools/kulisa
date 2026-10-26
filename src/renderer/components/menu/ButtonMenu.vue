@@ -7,7 +7,7 @@ import { computed, provide } from 'vue';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import MenuRows from './MenuRows.vue';
 import { covered } from '../../lib/cover';
-import { closeMenu, focusBack, type MenuItem } from '../../lib/menu';
+import { closeMenu, focusBack, leaveClosing, type MenuItem } from '../../lib/menu';
 
 const props = defineProps<{ items: () => MenuItem[]; end?: boolean }>();
 const { open, ready } = covered('pictures');
@@ -32,7 +32,7 @@ function click(e: MouseEvent) { if (pressed) { pressed = false; e.preventDefault
     <DropdownMenuTrigger as-child @pointerdown="press" @click.capture="click"><slot /></DropdownMenuTrigger>
     <!-- Shown once the pages under it are pictures (lib/cover.ts); over the title bar, not a part of what drags the window -->
     <DropdownMenuContent class="w-auto max-w-md min-w-64 [-webkit-app-region:no-drag] not-data-ready:opacity-0" :data-ready="ready || undefined" :align="end ? 'end' : 'start'" :collision-padding="4"
-      @close-auto-focus="focusBack($event, focused)" @focus-outside.prevent>
+      @close-auto-focus="focusBack($event, focused)" @focus-outside.prevent @pointerleave.capture="leaveClosing">
       <MenuRows :items="rows" />
     </DropdownMenuContent>
   </DropdownMenu>

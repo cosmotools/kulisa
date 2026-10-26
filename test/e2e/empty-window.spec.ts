@@ -187,7 +187,7 @@ test("the empty window: Close All Tasks in the project's submenu; links in ☰ o
   // An error is text to copy and search for: it can be selected (the window's other words cannot). What is selected
   // read in the page: Playwright has no getter of the selection.
   await expect(ui.locator('#nperror')).toHaveCSS('user-select', 'text');
-  await expect(ui.locator('#newproject header h2')).toHaveCSS('user-select', 'none');
+  await expect(ui.locator('#newproject [data-slot="dialog-title"]')).toHaveCSS('user-select', 'none');
   await ui.locator('#nperror').selectText();
   expect(await ui.evaluate(() => getSelection().toString())).toBe(await ui.locator('#nperror').textContent());
   await typeIn(ui, '#npname', 'Shop');
