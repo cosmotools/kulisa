@@ -79,7 +79,7 @@ async function launch(file: string, display: string | null, automation: boolean,
   });
   const exited = new Promise<void>((r) => child.once('exit', () => r()));
   const endpoint = !automation ? null : await new Promise<string>((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error(`Electron gave no debugging port in 60 s:\n${output}`)), 60000);
+    const timer = setTimeout(() => { child.kill(); reject(new Error(`Electron gave no debugging port in 60 s:\n${output}`)); }, 60000);
     readline.createInterface({ input: child.stderr }).on('line', (l) => { const m = /DevTools listening on (ws:\/\/\S+)/.exec(l); if (m) { clearTimeout(timer); resolve(m[1]); } });
     child.once('exit', (code) => { clearTimeout(timer); reject(new Error(`Electron ended with ${code}:\n${output}`)); });
   });
@@ -90,10 +90,22 @@ async function launch(file: string, display: string | null, automation: boolean,
     pending.set(id, { resolve: resolve as (v: unknown) => void, reject });
     child.stdin.write(`${JSON.stringify({ id, src: fn.toString(), arg })}\n`);
   });
-  await expect.poll(() => core((k) => !!k?.shell.task?.loaded && !!k.shell.pty), { timeout: 30000 }).toBe(true);
-  await core((k) => k.watchPty(k.shell.pty));
+  // A Kulisa that never gets ready is stopped, not left running, and says why: its log and what Electron printed (a
+  // fixture's failure leaves no attachments).
+  try {
+    return await ready({ file, automation, child, exited, output: () => output, root, core }, endpoint);
+  } catch (e) {
+    child.kill();
+    const log = path.join(root, 'data', 'logs', 'kulisa.log');
+    throw new Error(`${(e as Error).message}\nKulisa's log:\n${fs.existsSync(log) ? fs.readFileSync(log, 'utf8').slice(-8000) : '(none)'}\nElectron's output:\n${output.slice(-8000)}`);
+  }
+}
+async function ready(k: Pick<Running, 'file' | 'automation' | 'child' | 'exited' | 'output' | 'root' | 'core'>, endpoint: string | null): Promise<Running> {
+  const { core } = k;
+  await expect.poll(() => core((d) => !!d?.shell.task?.loaded && !!d.shell.pty), { timeout: 30000 }).toBe(true);
+  await core((d) => d.watchPty(d.shell.pty));
   const errors: string[] = [];
-  if (!endpoint) return { file, automation, child, exited, output: () => output, browser: null, context: null, root, core, ui: null, errors, clients: new Map() };
+  if (!endpoint) return { ...k, browser: null, context: null, ui: null, errors, clients: new Map() };
   const browser = await chromium.connectOverCDP(endpoint, { noDefaults: true });
   const context = browser.contexts()[0];
   // Kulisa's own pages' uncaught errors fail the test (a site's are the site's); a DOMException's stack is ''.
@@ -112,7 +124,7 @@ async function launch(file: string, display: string | null, automation: boolean,
   let ui: Page | undefined;
   await expect.poll(async () => { for (const p of context.pages()) if (await first(p).catch(() => false)) ui = p; return !!ui; }, { timeout: 30000 }).toBe(true);
   await context.tracing.start({ screenshots: true, snapshots: true });
-  return { file, automation, child, exited, output: () => output, browser, context, root, core, ui, errors, clients: new Map() };
+  return { ...k, browser, context, ui, errors, clients: new Map() };
 }
 
 // What a failed test leaves, as its attachments (the HTML report, the CI's artifact): the window as the screen shows it,
