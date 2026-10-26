@@ -7,6 +7,5 @@ contextBridge.exposeInMainWorld('kulisa', {
   platform: process.platform, // ☰ has Exit where the OS has no menu bar with Quit (TopBar.vue)
   invoke: (ch, ...args) => ipcRenderer.invoke(ch, ...args),
   send: (ch, arg) => ipcRenderer.send(ch, arg),
-  // A listener's result stays in the page: an object it gives back (a reactive one) cannot cross the bridge.
-  on: (ch, fn) => ipcRenderer.on(ch, (_e, arg) => { fn(arg); }),
+  on: (ch, fn) => ipcRenderer.on(ch, (_e, arg) => fn(arg)),
 });
