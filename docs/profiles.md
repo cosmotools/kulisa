@@ -1,7 +1,7 @@
 # Profiles
 
 How profiles work today: what the human and the agent do with them, what is on the computer, how sign-ins are kept,
-how automation reaches the pages, and where the code is. What is next: [ROADMAP.md](ROADMAP.md).
+how automation reaches the pages, and where the code is. What is next: GitHub issues.
 
 ## What a profile is
 

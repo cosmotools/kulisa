@@ -69,7 +69,7 @@ function menu(e: MouseEvent): MenuItem[] | null {
   return at && [...taskMenu(at.t), '-', { submenu: at.p.name, project: at.p, items: projectItems(at.p) }];
 }
 const rename = async (key: string, name: string) => (await dialog('taskrename')).rename(key, name);
-// A double click on a task's tab: its Rename…, as a shortcut to the menu's item (ROADMAP: never the only way). On a
+// A double click on a task's tab: its Rename…, as a shortcut to the menu's item (never the only way: ui.md). On a
 // tab not shown, after its first press has shown it: the grid that goes closes the dialogs open over it.
 async function dblclick(e: MouseEvent) {
   const at = !(e.target as Element).closest('button') && tabAt(e);

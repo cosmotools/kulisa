@@ -99,7 +99,7 @@ silently skips one is fixed in the config for every package, not for that one.
 - **Outside the package, only what a reader outside needs, never a retelling**: the guide (`docs/guide.md`: for the
   user, and it may not link to other docs), the lists that hold all of a kind with a word and a link each (the table
   of actions in `profiles.md`, the keys in `window.md`, the environment variables in the README, "The code" tables,
-  the ROADMAP's platform gaps), and a sentence where a doc's topic leads into the package. How it works and why is
+  the manual checks' issues, #193, #194, #205), and a sentence where a doc's topic leads into the package. How it works and why is
   only in its README.
 - `CLAUDE.md`, short: that it is a Kulisa package (and this doc), its entries and what its halves may use, what stays
   outside and so where a rule about that belongs, where its tests are (Claude Code reads it with the folder's files;

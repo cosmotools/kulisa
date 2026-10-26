@@ -1,7 +1,7 @@
 # Projects and tasks
 
 What projects and their tasks are, what the human does, what Kulisa creates on the computer and removes, why, and the
-code. What is left: [ROADMAP.md](ROADMAP.md). Profiles: [profiles.md](profiles.md); the window: [window.md](window.md).
+code. What is left: GitHub issues. Profiles: [profiles.md](profiles.md); the window: [window.md](window.md).
 
 ## Projects
 
@@ -310,7 +310,7 @@ to the human; the window's IPC (`ipc/`) and the MCP tools are handles on it:
 | Move a task | Move to New Window, Move to Window, dragging its tab; Move All Tasks to … for a project's | none: where the human sees it is the human's | `moveTask`, `moveAll` (`open-tasks.ts`) |
 | Make a project, with its agents and profiles | New Project (the empty window with no project; New Project… on the board) | none: what a project is made of is the human's | `createProject` (`projects.ts`); its first task: `openProject` |
 | Delete a project | Delete Project… on its page in Settings | none: it deletes sign-ins, the human's to decide | `deleteProject` (`open-tasks.ts`), `askDeleteProject`, `deleteProjectData` (`projects.ts`) |
-| Make a task | the bar's +, Ctrl+Shift+N, New Task in its project's submenu | not yet (ROADMAP, "Tasks, rest") | `Project.createTask` |
+| Make a task | the bar's +, Ctrl+Shift+N, New Task in its project's submenu | none: parallel parts of a task are the agent's own subagents' (#49) | `Project.createTask` |
 | Close a task, open it again | ×, the middle button on its tab, Close in its menu; the bar's + | none: what runs is the human's to stop | `closeTask` (`open-tasks.ts`), `Project.closeTask`, `reopen` |
 | Rename a task | Rename… in its tab's menu, or a double click on its tab | `task_rename` | `Task.rename` |
 | Read what was said and done in the task before | its terminal, scrolled back | `task_history` ([transcripts.md](transcripts.md)) | `historyPart` (`history.ts`) |
@@ -440,7 +440,7 @@ never assumes one is installed.
 
   Done means "come and see": once the human sees that agent's tab (in front in the shown task, Kulisa's window in
   focus; at once when it was on screen) its tab and its task's show nothing (`seen`, `Task.tabState`), the agent still
-  done for the rest of Kulisa. Other agents show no state yet (ROADMAP).
+  done for the rest of Kulisa. Other agents show no state yet (#212).
 
 ## What each agent can do
 
@@ -667,8 +667,7 @@ Nothing is written into the project's own folder.
 **Uninstalling removes the program only**: the data folder, the tasks' copies and branches, the agents Kulisa
 installed and the keyring key stay, so installing Kulisa again brings everything back, as with Chrome or VS Code. No
 installer can ask whether to remove the data too: Debian's policy forbids a package to touch a home folder, macOS has
-no uninstaller, and Squirrel.Windows gives the `--squirrel-uninstall` hook 10 seconds (ROADMAP, Deferred ideas,
-"Delete all data"). The guide says what stays and how to remove it ("Reinstalling and removing Kulisa").
+no uninstaller, and Squirrel.Windows gives the `--squirrel-uninstall` hook 10 seconds. The guide says what stays and how to remove it ("Reinstalling and removing Kulisa").
 
 ## Deleting a task: what goes
 

@@ -536,7 +536,7 @@ function showError(wc: WebContents, desc: string, url: string) {
 // A closed profile's caches gone: HTTP, compiled code, shaders, and the sites' Cache API (their service workers' copies
 // of their own bundles: Chromium counts it as storage, and it was the largest part of a copy, 200 MB for Teams). Sign-ins
 // and the sites' other storage stay. Chromium sets the HTTP cache's limit itself from the free disk space; profiles set
-// aside should not keep theirs (ROADMAP, "Profiles' caches").
+// aside should not keep theirs.
 async function clearCaches(sess: Session) {
   await sess.clearCache();
   await sess.clearCodeCaches({});
