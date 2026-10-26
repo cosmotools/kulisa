@@ -25,16 +25,19 @@ const useOsDark = () => useSyncExternalStore((l) => { osDark.addEventListener('c
 
 // The window never scrolls, also not from a script (scrollIntoView): the page clips what reaches past it, such as a
 // panel kept behind another (dockview keeps it laid out below the grid). As a desktop app, labels and buttons are not
-// text to select; fields are.
+// text to select; fields are; the arrow over buttons, tabs and menus' rows, as in Chrome, not a web page's hand
+// (Fluent's own: !important over its classes).
 document.head.insertAdjacentHTML('beforeend', `<style>html, body, #app { height: 100%; margin: 0; overflow: clip; }
 body { user-select: none; cursor: default; } input, textarea { user-select: text; }
+button, [role="tab"], [role^="menuitem"] { cursor: default !important; }
 .lucide { width: 1em; height: 1em; flex: none; } /* Lucide in a Fluent icon slot: the slot sizes it */</style>`);
 
 export function App() {
   useOsDark(); // System follows the OS
-  const theme = shade(useWindow((s) => s.theme)) === 'dark' ? dark : light;
+  const chosen = useWindow((s) => s.theme), theme = shade(chosen) === 'dark' ? dark : light;
   const bar = useWindow((s) => s.bar), open = useWindow((s) => s.current !== null);
-  return <FluentProvider theme={theme} style={{ height: '100%', display: 'grid', gridTemplateRows: 'auto minmax(0, 1fr) auto', background: theme.colorNeutralBackground2 }}>
+  return <FluentProvider theme={theme} style={{ height: '100%', display: 'grid', gridTemplateRows: 'auto minmax(0, 1fr) auto', background: theme.colorNeutralBackground2,
+    colorScheme: chosen === 'system' ? 'light dark' : shade(chosen) }}>
     <ThemeShown.Provider value={theme}>
       {/* The tasks' bar in the title bar, as a browser's tabs, or under the grid (☰ → Tasks bar); none with no task open */}
       <TopBar>{bar === 'top' && open && <TaskBar />}</TopBar>

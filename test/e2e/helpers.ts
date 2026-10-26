@@ -106,17 +106,29 @@ export async function answer(page: Page, yes: boolean | string = true) {
   return asked;
 }
 
-// Kulisa's menus (Reka's, docs/ui.md, Menus): the open one once it is shown (the pages under it are pictures), the
-// submenu open (the last one).
-export const menu = (ui: Page) => ui.locator('[role="menu"][data-state="open"][data-ready]').first();
-export const submenu = (ui: Page) => ui.locator('[role="menu"][data-state="open"]').last();
+// Kulisa's menus (Fluent's, docs/ui.md, Menus; fluent/Menus.tsx): the open one once it is shown (its list
+// [data-ready]: the pages under it are pictures), the submenu open (the last one).
+export const menu = (ui: Page) => ui.locator('[role="menu"][data-ready]').first();
+export const submenu = (ui: Page) => ui.locator('[role="menu"][data-ready]').last();
 // An item of the open menu (or of which) by its label, whole.
 export const item = (ui: Page, label: string, which: Locator = menu(ui)) => which.getByRole('menuitem', { name: label, exact: true }).or(which.getByRole('menuitemradio', { name: label, exact: true }));
 export const choose = (ui: Page, label: string, which?: Locator) => item(ui, label, which).click();
-// The open menu closed as Esc does; no menu or list open after.
+// The open menu closed as Esc does; no menu open after.
 export async function closeMenu(ui: Page) {
   await ui.keyboard.press('Escape');
-  await expect(ui.locator('[data-state="open"]:is([role="menu"], [role="listbox"])')).toHaveCount(0);
+  await expect(ui.getByRole('menu')).toHaveCount(0);
+}
+// Keyboard Shortcuts (fluent/Shortcuts.tsx), and the keys a row of it shows by its label (or what it says while it
+// waits for the key).
+export const shortcutsDialog = (ui: Page) => ui.getByRole('dialog', { name: 'Keyboard Shortcuts' });
+export const shortcutKeys = (ui: Page, label: string) => shortcutsDialog(ui).getByRole('row').filter({ has: ui.getByRole('cell', { name: label, exact: true }) }).locator('[data-key]');
+// A row of ☰ that opens a menu beside it (Theme, Tasks bar, Language), opened; that menu.
+export async function windowSubmenu(ui: Page, row: string) {
+  if (!(await menu(ui).count())) await ui.locator('#windowMenu').click();
+  await item(ui, row).click();
+  const sub = ui.getByRole('menu', { name: row, exact: true });
+  await expect(sub).toBeVisible();
+  return sub;
 }
 // A right-click as the mouse makes it, at an element's middle (its press closes a menu open elsewhere; on Windows the
 // menu opens on the release).
@@ -150,7 +162,7 @@ export async function closeProject(ui: Page, files: Files, folder: string) {
 // each project as a submenu. plusMenu(ui) opens it and gives it; plusMenu(ui, project) makes a new task of that project
 // (its New Task row); plusMenu(ui, project, task) opens that task again (a closed one) or shows it.
 // Every open menu, a submenu too (menu waits for the first to be shown).
-export const anyMenu = (ui: Page) => ui.locator('[role="menu"][data-state="open"]');
+export const anyMenu = (ui: Page) => ui.getByRole('menu');
 const projectRow = (ui: Page, project: string) => anyMenu(ui).first().getByRole('menuitem', { name: project, exact: true }).and(ui.locator('[aria-haspopup]'));
 // A project's submenu, with several projects, opened as the hand does it: hovering its row (a release on the row makes
 // the project a new task: MenuRows.vue, runSub). The rows are drawn again as a project just shown moves to the top, and

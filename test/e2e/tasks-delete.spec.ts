@@ -68,14 +68,15 @@ test('tasks: Delete Task… asks first, saying what goes and any work not in mai
   await call('task_worktree', {}, { task: spike }); // its own worktree, to commit in and to delete with it
   await rightClick(ui, taskTab(ui, spike));
   await choose(ui, 'Rename…');
-  await expect(ui.locator('#taskrename')).toHaveAttribute('data-state', 'open');
-  await expect(ui.locator('#taskname')).toHaveValue(was);
-  await expect(ui.locator('#taskname')).toBeFocused();
+  const renaming = ui.getByRole('dialog', { name: 'Rename Task' }), field = renaming.getByRole('textbox', { name: 'Name' });
+  await expect(renaming).toBeVisible();
+  await expect(field).toHaveValue(was);
+  await expect(field).toBeFocused();
   // Typed, and Enter (with its character, as a keyboard sends it: the form is sent on it): the dialog's form is sent.
-  await ui.locator('#taskname').fill('Spike');
-  await ui.locator('#taskname').press('Enter');
+  await field.fill('Spike');
+  await field.press('Enter');
   await expect.poll(() => core((k, key) => k.shell.taskByKey(key).name, spike)).toBe('Spike');
-  await expect(ui.locator('#taskrename[data-state="open"]')).toHaveCount(0);
+  await expect(renaming).toHaveCount(0);
   const { branch, folder } = await core((k, key) => { const t = k.shell.taskByKey(key); return { branch: t.branch, folder: t.folder }; }, spike);
   expect(branch).toBe('spike');
   expect(folder, 'the folder stays').toBe(`${project}@${was}`);

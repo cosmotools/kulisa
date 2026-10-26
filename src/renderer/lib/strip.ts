@@ -1,16 +1,19 @@
 // A strip of tabs that scrolls sideways when they do not fit (docs/ui.md, Controls): the tasks' bar, a pane's tabs, the
 // closed profiles over the terminal, the terminals' tabs.
-// The element has .tabstrip (components.css: no scrollbar, its edges faded); this module scrolls it by the wheel,
-// says which edges have tabs past them, keeps its chosen tab (aria-selected) in sight, and grows a panel's tab (.tab) in as it opens.
+// The element scrolls sideways with no scrollbar (its own style); this module scrolls it by the wheel, fades the edges
+// with tabs past them, keeps its chosen tab (aria-selected) in sight, and grows a panel's tab (.tab) in as it opens.
 import { useEffect, useRef, type RefObject } from 'react';
 import { reducedMotion } from './common';
 
+const FADE = 24; // px: as wide as the strip's scroll-padding, so the tab in sight is clear of it
 // What a strip element does, until dispose().
 function strip(s: HTMLElement) {
-  // Which edges have tabs past them, faded (data-past-start, data-past-end).
+  // Which edges have tabs past them (data-past-start, data-past-end), faded.
   const edges = () => {
-    s.toggleAttribute('data-past-start', s.scrollLeft > 1);
-    s.toggleAttribute('data-past-end', s.scrollLeft < s.scrollWidth - s.clientWidth - 1);
+    const start = s.scrollLeft > 1, end = s.scrollLeft < s.scrollWidth - s.clientWidth - 1;
+    s.toggleAttribute('data-past-start', start);
+    s.toggleAttribute('data-past-end', end);
+    s.style.maskImage = start || end ? `linear-gradient(to right, transparent, #000 ${start ? FADE : 0}px, #000 calc(100% - ${end ? FADE : 0}px), transparent)` : '';
   };
   // The active tab in sight, clear of the fades (scroll-padding), the strip alone scrolled (scrollIntoView moved the
   // window's grid once, docs/window.md). Only when another is chosen, a tab grows in or the strip is resized: on

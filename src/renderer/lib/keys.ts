@@ -42,7 +42,7 @@ interface Command { n?: number; page?: boolean; p?: Profile; tab?: string }
 const run: Record<string, (c: Command) => unknown> = {
   'terminal.focus': () => (!store.getState().terminals.list.length ? openOwn() : zone === 'terminal' && lastPane ? focusPage(lastPane) : shownTerm()?.focus()),
   'terminal.new': () => act('terminal:open'),
-  'task.n': ({ n }) => showTask(document.querySelectorAll('#projectTabs .tasktab')[n! - 1]),
+  'task.n': ({ n }) => showTask(document.querySelectorAll('#projectTabs [role="tab"]')[n! - 1]),
   'task.next': () => stepTask(1),
   'task.previous': () => stepTask(-1),
   'task.new': () => kulisa.invoke('task:new'),
@@ -66,7 +66,7 @@ const run: Record<string, (c: Command) => unknown> = {
 };
 // The bar's tasks, in its order.
 function stepTask(dir: number) {
-  const all = [...document.querySelectorAll<HTMLElement>('#projectTabs .tasktab')];
+  const all = [...document.querySelectorAll<HTMLElement>('#projectTabs [role="tab"]')];
   const i = all.findIndex((t) => t.dataset.task === store.getState().current);
   if (all.length > 1) showTask(all[(i + dir + all.length) % all.length]);
 }

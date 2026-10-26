@@ -35,7 +35,7 @@ window, mouse moves still passing, so the pages look frozen (in an unmaximized w
 Under the grid, in the middle: a tab per open task (its project's icon, its agent's state, its name, ×:
 [tasks.md](tasks.md), Projects), then +, the new-task menu (every project's tasks, where one is made or opened again).
 ☰ → **Tasks bar: Top, Bottom** puts it in the title bar after the logo instead, as a browser's tabs (`settings.json`:
-`bar`; in the page's URL, so it is drawn in place at once; `App.vue` puts `TaskBar.vue` in `TopBar.vue`'s slot or
+`bar`; in the page's URL, so it is drawn in place at once; `App.tsx` puts `TaskBar.tsx` in `TopBar.tsx`'s children or
 under the grid). Bottom is the default, on macOS too: the hand is at the terminal under the grid all the time, and a
 bar on top sits right over the grid's panels' tabs. The tabs are Firefox's: rounded rectangles on the window's
 background, the shown one filled in the panels' color, the others plain, lit under the pointer, a gap between them and
@@ -51,7 +51,7 @@ More tabs than the bar holds scroll ([ui.md](ui.md), Controls: `.tabstrip`). In 
 at least 40 px after + (`--drag`), where the window is dragged however many tabs there are, as Chrome's space after
 its +; by the logo too. Chromium takes the tabs scrolled past the bar's edges as no-drag over both (it does not clip
 them to the bar: `overflow`, `contain` or `clip-path` alike) and the page's regions in order, the last one winning: so
-the logo and that space come after the bar in the page (TopBar.vue), the logo put back first by `order`.
+the logo and that space come after the bar in the page (`TopBar.tsx`), the logo put back first by `order`.
 
 A press on a tab not shown chooses it at once, as Chrome's; its task is shown on the release or when the tab starts
 being dragged, whichever is first: showing a task starts the grid's slide (a view transition), and Chromium drops a
@@ -154,7 +154,7 @@ it when it changes). Saved (`settings.json`), the same in every window.
 
 **☰ → Language**: the language the human speaks with the agents, one for all of them (one setting, so what the agents
 do because of it is plain). A row with the language chosen at its end, opening a menu beside it (Reka's submenu): the
-languages the agents' own settings take, the system's first, then by name in each language itself (`LanguageRow.vue`).
+languages the agents' own settings take, the system's first, then by name in each language itself (`TopBar.tsx`, `LanguageRow`).
 English by default, as the agents are without it. Saved (`settings.json`), the same in every window.
 
 - Kulisa keeps the agents' own language settings in step and tells the agents nothing itself. An agent with one (its
@@ -168,7 +168,7 @@ English by default, as the agents are without it. Saved (`settings.json`), the s
 
 ## Menus
 
-Kulisa draws its menus in HTML, as Chrome does (Reka UI's menus: `components/menu/`; how they open, close and are
+Kulisa draws its menus in HTML, as Chrome does (Fluent UI's menus: `fluent/Menus.tsx`; how they open, close and are
 built: [ui.md](ui.md), Menus):
 
 - a task tab's right-click menu ([tasks.md](tasks.md), Projects, "A tab's right-click menu"), ☰ (as Chrome's ⋮, each
@@ -327,7 +327,7 @@ and does nothing in any page or terminal, so it is taken from no one (the page k
 right hand's edge, where push-to-talk keys go; the space bar, Claude Code's own key, is the page's in a page. The human
 may hold another key instead: Keyboard Shortcuts, Change on its row, then the key pressed (a modifier by its side, an F
 key not Kulisa's, Insert, Pause or Scroll Lock; a key that types is refused, saying so); kept in `settings.json`
-(`keys`), every window told (`keys:set`, `shell.keys()`; `Shortcuts.vue`). With a shell in front, the key brings the
+(`keys`), every window told (`keys:set`, `shell.keys()`; `Shortcuts.tsx`). With a shell in front, the key brings the
 agent the prompt goes to in front first (`Task.holdKey`, `promptTarget`): it always means "speak to the agent".
 
 The key's indicator, and the way by the mouse, is the round microphone at the end of the terminals' row of tabs
@@ -355,7 +355,7 @@ gist.github.com/egmontkob/eb114294efbcd5adb1944c9f3cb5feda).
 
 Kulisa's keyboard shortcuts, as an IDE has them, are one table (`src/main/keys.ts`): the keys, the command each does,
 and where; the window's menus, the buttons' tooltips ("Reload (Ctrl+R)", `withKeys`) and **Keyboard Shortcuts** (☰, or
-Ctrl+Shift+/: `Shortcuts.vue`) show them from it, as this OS writes them (⇧⌘T on macOS).
+Ctrl+Shift+/: `Shortcuts.tsx`) show them from it, as this OS writes them (⇧⌘T on macOS).
 
 Who gets a key depends on where the keyboard is, and **the keyboard stays where the human put it**: a profile's page
 takes it only from the human (a click or a key in it), or from Kulisa for them (a tab chosen by a key, Ctrl+`, their
@@ -631,7 +631,7 @@ shortcuts carry (`com.squirrel.kulisa.kulisa`), or Windows would not pin it to t
 | `src/renderer/components/Grid.vue`, `grid/*.vue`, `lib/grid.ts` | the grid (dockview), the panes and their headers, the island of terminals (`Terminals.vue`, its row of tabs `TerminalTabs.vue`), the closed profiles' tiles over it (`ClosedProfiles.vue`), Arrange panels |
 | `src/renderer/components/Resources.vue` | the Resources island next to the terminal: the shown task's resources (its worktree(s) or the main working tree) and its artifacts, each with its actions (tasks.md) |
 | `src/renderer/components/ResourcesTab.vue` | the Resources island's header |
-| `src/renderer/components/TopBar.vue`, `menu/*.vue` | the title bar, ☰ and its own rows |
-| `src/renderer/components/menu/*.vue`, `Modal.vue`, `Ask.vue`, `lib/menu.ts`, `cover.ts`, `views.ts`, `ask.ts`, `terminals.ts`, `voice.ts` | the menus, the dialogs and questions (Reka UI's: `cover.ts`), the pages under them in a tasks' window (`views.ts`), a tasks' window's island (`terminals.ts`), dictation |
-| `src/renderer/lib/keys.ts`, `components/Shortcuts.vue` | where the keyboard is, the commands the keys run; Keyboard Shortcuts |
+| `src/renderer/fluent/TopBar.tsx`, `ProjectIcon.tsx` | the title bar, ☰ and its own rows; the logo, a project's icon |
+| `src/renderer/fluent/Menus.tsx`, `PointMenu.tsx`, `Ask.tsx`, `lib/menu.ts`, `cover.ts`, `views.ts`, `ask.ts`, `terminals.ts`, `voice.ts` | the menus, the dialogs and questions (Fluent UI's: `cover.ts`), the pages under them in a tasks' window (`views.ts`), a tasks' window's island (`terminals.ts`), dictation |
+| `src/renderer/lib/keys.ts`, `fluent/Shortcuts.tsx` | where the keyboard is, the commands the keys run; Keyboard Shortcuts |
 | `test/e2e/window.spec.ts`, `grid*.spec.ts`, `keys.spec.ts`, `log.spec.ts`, `zoom-and-closing.spec.ts`, `test/unit/keys.test.ts` | the tests |

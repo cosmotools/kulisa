@@ -305,7 +305,7 @@ ${names.map((x) => `      - menuitem ${JSON.stringify(`Open in ${x}`)}`).join('\
 
   await ui.locator('#windowMenu').click();
   // The arrangements as pictures, a short name under each, the full words in the tooltip.
-  // No Exit on macOS: ⌘Q and the app menu's Quit there (TopBar.vue).
+  // No Exit on macOS: ⌘Q and the app menu's Quit there (fluent/TopBar.tsx).
   await expect(menu(ui)).toMatchAriaSnapshot(`
     - menu:
       - text: Zoom

@@ -40,19 +40,16 @@ test('Kulisa zoom: Ctrl+= outside the pages scales the whole UI, pages follow, p
   await expect(menu(ui)).toMatchAriaSnapshot(`
     - menu:
       - /children: contain
-      - text: Zoom
-      - group:
-        - text: Theme
-      - group:
-        - text: Tasks bar
+      - group "Zoom"
+      - menuitem "Theme"
+      - menuitem "Tasks bar"
       - menuitem "Language"
-      - separator
       - text: Arrange panels
   `);
-  await expect(menu(ui).getByTestId('zoom-row').locator('output')).toHaveText('110%');
+  await expect(menu(ui).getByTestId('zoom-row')).toContainText('110%');
   await menu(ui).getByRole('menuitem', { name: 'Zoom in' }).click(); // − 110% + in the menu, as in Chrome
   await expect.poll(async () => near(await uiZoom(core), 1.25)).toBe(true);
-  await expect(menu(ui).getByTestId('zoom-row').locator('output')).toHaveText('125%');
+  await expect(menu(ui).getByTestId('zoom-row')).toContainText('125%');
   await expect(menu(ui), 'the menu stays open for more clicks').toBeVisible();
   await closeMenu(ui);
   await expect.poll(() => viewOn(core, ui, files, 'Sam.admin')).toBe(true);
@@ -201,7 +198,7 @@ test('close a profile (its × or the agent) and open it again (👥 or the agent
   // Open again from the task's tab's menu: a closed one says so.
   const cleoRow = () => item(ui, 'Cleo');
   await taskMenu(ui);
-  await expect(cleoRow().locator('small')).toHaveText('closed · click to open');
+  await expect(cleoRow()).toContainText('closed · click to open');
   await choose(ui, 'Cleo');
   // Its tabs open, and the agent's connection comes, after it is in the task.
   await expect.poll(() => core((k, id) => { const p = k.shell.profiles.get(id); return p?.tabs.length === 2 && !!p.context; }, cleo)).toBe(true);
@@ -219,10 +216,9 @@ test('close a profile (its × or the agent) and open it again (👥 or the agent
       - /children: contain
       - text: Profiles
       ${[...names, 'Cleo'].map((n) => `- menuitem ${JSON.stringify(n)}`).join('\n      ')}
-      - separator
       - menuitem "Manage Profiles…"
   `);
-  await expect(cleoRow().locator('small')).toHaveText('closed · click to open');
+  await expect(cleoRow()).toContainText('closed · click to open');
   await choose(ui, 'Cleo');
   await expect.poll(() => core((k, id) => k.shell.profiles.has(id), cleo)).toBe(true);
   // Closed right as it opens: it opens, then closes; nothing breaks.

@@ -31,12 +31,7 @@ repositories (git worktrees), so the project's folders stay the human's. Its dat
     window), Project Settings…, Show Data Folder, Delete Merged Tasks… (Tasks, below), **Close All Tasks** (its open
     tasks in every window, asked once when an agent works). The project's name is changed in Settings only.
   - **A task's tab shows nothing of its profiles**: Settings edits them, and how many are open says nothing.
-  - **The + after the tabs** (`NewTask.vue`; Ctrl+Shift+A, Esc closes it): a menu for a new task of any project, or a
-    closed one opened again; nothing of the shown task is taken. Every project, the one worked in last first (an open
-    task, else the one closed last); one project shows its tasks at the top, several nest each as a submenu under its
-    icon and name. A project's tasks: the open ones (a click switches, marked "open"), then the closed (a click opens
-    one); a click on the project makes a new task. New Project… at the end. A task's row has its 🗑 (on the row under
-    the pointer or the keyboard, or Delete): Delete Task…'s question, open or closed.
+  - **The + after the tabs** (`TaskBar.tsx`): a new task of the shown task's project, in one click.
   - **The window's pages** (`page` in `lib/store.ts`), one at a time in the grid's place: the shown task's grid
     (`task`), the board with no task open (`board`), the welcome with no project (`welcome`). One switch, not a
     router: it follows the main process's current task.
@@ -797,11 +792,11 @@ rm -rf ~/.config/Kulisa/projects/<project id>   # all its tasks with their profi
 | `src/main/agents/` | the agents to choose from: find, install, start, resume; a folder's trust carried to a task's copy |
 | `src/main/store.ts` | the data folder above |
 | `src/terminal/` | the terminals: their ptys, buffers and the xterm shown ([README](../src/terminal/README.md)) |
-| `src/renderer/components/TaskBar.vue`, `NewTask.vue`, `Empty.vue`, `fluent/ProjectPage.tsx` | the tasks' bar (a tab per open task); its + (the new-task menu); the grid's place when no task's grid is shown (the window's pages: the board, the welcome); a project's page in Settings |
+| `src/renderer/fluent/TaskBar.tsx`, `Empty.vue`, `fluent/ProjectPage.tsx` | the tasks' bar (a tab per open task, its menu); its + (a new task); the grid's place when no task's grid is shown (the window's pages: the board, the welcome); a project's page in Settings |
 | `src/renderer/components/newtab/` | the board, the empty window's: `Board.vue` (the columns, New Project…), `ProjectColumn.vue` (a project and its tasks) |
 | `src/renderer/components/welcome/` | the first start's welcome: `Welcome.vue` (the slides, then New Project's steps under a question each), `Tour.vue` (the slides, their pictures drawn in HTML) |
 | `src/renderer/components/newproject/` | New Project's steps: `Wizard.vue` (the steps, the buttons; the welcome's and the dialog's), `wizard.ts` (their state and rules, one per wizard), `CodeStep.vue`, `AgentStep.vue`, `ProfilesStep.vue`, `NewProject.vue` (the dialog) |
-| `src/renderer/components/TaskTab.vue`, `TaskRename.vue` | a task's tab in the bar, its menu, the Rename Task dialog |
+| `src/renderer/fluent/TaskRename.tsx` | the Rename Task dialog |
 | `src/renderer/components/AgentPicker.vue`, `AgentList.vue`, `InstallProgress.vue` | choosing an agent when the one to open is not there; the radios of agents with Install that choosing shows; an install's line and its Details |
 | `src/renderer/fluent/AgentPage.tsx`, `agents.ts` | an agent's page in Settings, its details, Install and accounts; Settings' agents, accounts and the install under way |
 | `src/main/favicons.ts` | a project's icon: its site's favicon in its code (Projects, "Each project has a color and an icon") |

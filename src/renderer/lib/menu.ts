@@ -8,7 +8,7 @@ export interface MenuRow {
   icon?: ComponentType; // at the row's start (Lucide's, an agent's mark)
   color?: string; // a project's dot
   avatar?: string; // a profile's picture
-  project?: { favicon?: string; color: string }; // a project's icon, in its color (fluent/ProjectIcon.tsx)
+  project?: { favicon?: string; color: string }; // a project's icon, in its color shown (fluent/ProjectIcon.tsx; projectColor)
   inset?: boolean; // set in under the row above, as its own (a project's closed task under it)
   enabled?: boolean;
   run?: () => unknown; // none: shown only
@@ -31,12 +31,3 @@ export const menuAtPoint = (x: number, y: number, items: MenuItem[]) => new Prom
   pointMenu.setState({ x, y, items }, true);
   const stop = pointMenu.subscribe((m) => { if (m?.items !== items) { stop(); closed(); } });
 });
-// A menu closed: the keyboard back where it was before it opened (the terminal, a field, its button), unless it went
-// somewhere meanwhile (a key gave it to the launcher as the menu closed) or another menu has opened (the focus leaving
-// that one would close it). The closed menu's own focus falls to the body as it goes.
-export function focusBack(e: Event, el: Element | null) {
-  e.preventDefault();
-  const at = document.activeElement;
-  if (at && at !== document.body && !at.closest('.menu')) return;
-  if (!document.querySelector('.menu[data-state="open"]') && el instanceof HTMLElement && el.isConnected) el.focus();
-}

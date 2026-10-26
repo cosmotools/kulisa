@@ -6,7 +6,7 @@ import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
 import type { Files } from './data.ts';
-import { SITE, MAC, projectTabSel, ipcSettled, menu, submenu, choose, rightClick, projectTabs, showProject, closeProject, plusMenu, plusRows, closeBoard, viewOn, who, termText, invoke, act, box, notLoading, otherPage, answer } from './helpers.ts';
+import { SITE, MAC, projectTabSel, ipcSettled, menu, submenu, choose, rightClick, projectTabs, showProject, closeProject, plusMenu, viewOn, who, termText, invoke, act, box, notLoading, otherPage, answer } from './helpers.ts';
 import { SAM, ELON, begin, bothOn, openFolder, reportSession, deleteProfile } from './tasks-helpers.ts';
 
 // The second project, a folder 'other' with a task 1 that has Sam.seller: made if there is none, closed.
@@ -64,7 +64,7 @@ test('projects: another folder opens in a tab of its own, with its own profiles 
   const tabs = ui.locator('#projectTabs [role="tab"]');
   await expect(tabs).toHaveText(['task-1', 'New Task']);
   for (const [i, project] of ['project', 'other'].entries()) {
-    await expect(tabs.nth(i).getByTestId('project-icon').locator('use')).toHaveAttribute('href', '#i-logo');
+    await expect(tabs.nth(i).getByTestId('project-icon'), "Kulisa's logo in its color: no favicon").toHaveAttribute('data-logo', '');
     await expect(tabs.nth(i)).toHaveAttribute('title', new RegExp(`^${project}(\n|$)`));
   }
   // Every island keeps its place and width whichever task is shown, also while it switches: nothing jumps. Read at
@@ -90,27 +90,7 @@ test('projects: another folder opens in a tab of its own, with its own profiles 
   await call('browser_navigate', { profile: 'Sam.seller', url: `${SITE}/app` });
   expect(await who(call, 'Sam.seller'), "the first project's sign-ins stay there").toBe('Signed out');
 
-  // The bar's + (NewTask.vue): a dropdown menu — every project (a submenu each when several are open), New Project…
-  // last; a project's submenu lists its tasks (an open one shown, not to choose) and New Task.
-  await expect(await plusMenu(ui)).toMatchAriaSnapshot(`
-    - menuitem "project"
-    - menuitem "other"
-    - separator
-    - menuitem "New Project…"
-  `);
-  await expect(await plusRows(ui, 'project')).toMatchAriaSnapshot(`
-    - menu "project":
-      - menuitem "task-1"
-      - separator
-      - menuitem "New Task"
-  `);
-  await closeBoard(ui);
-  // Ctrl+Shift+A opens the + menu from anywhere; again closes it.
-  const anyMenu = ui.locator('[role="menu"][data-state="open"]');
-  await core((k) => k.press(k.shell.win.webContents, 'A', k.CMD, 'shift'));
-  await expect(anyMenu.first()).toBeVisible();
-  await core((k) => k.press(k.shell.win.webContents, 'A', k.CMD, 'shift'));
-  await expect(anyMenu).toHaveCount(0);
+  const anyMenu = ui.getByRole('menu');
   await ui.evaluate(() => (window as any).__islands.clear()); // a new tab is a tab more in the bar, as a task's: watched from here on
   await showProject(ui, files, 'other');
   await expect.poll(() => core((k, f) => k.shell.current?.folder === f && k.settled(), other)).toBe(true);
@@ -120,29 +100,21 @@ test('projects: another folder opens in a tab of its own, with its own profiles 
   await expect(menu(ui)).toMatchAriaSnapshot(`
     - text: Profiles
     - menuitem "Sam.seller"
-    - separator
     - menuitem "Manage Profiles…"
-    - separator
     - menuitem "Rename…"
     - menuitem "Show Folder"
-    - separator
     - menuitem "Move to New Window"
-    - separator
     - menuitem "Close"
     - menuitem "Delete Task…"
-    - separator
     - menuitem "other"
   `);
   await choose(ui, 'other');
   await expect(anyMenu).toHaveCount(2);
   await expect(submenu(ui)).toMatchAriaSnapshot(`
     - menuitem "New Task"
-    - separator
     - menuitem "Move All Tasks to New Window"
-    - separator
     - menuitem "Project Settings…"
     - menuitem "Show Data Folder"
-    - separator
     - menuitem "Close All Tasks"
   `);
   // Show Data Folder: Kulisa's folder of that project, in the file manager.
@@ -283,10 +255,6 @@ test('tasks: Move to New Window puts a task in a window of its own, still runnin
   await info.attach('second-window', { path: png, contentType: 'image/png' });
   await call('browser_navigate', { profile: 'Sam.seller', url: `${SITE}/app?moved` }, { task: files.tkey('other', 1) });
   expect(await core((k) => k.stash.grid.seller.get().wc.getURL())).toMatch(/\?moved$/);
-  // The bar's + in either window: every project.
-  const plus = await plusMenu(ui2);
-  for (const name of [...await core((k) => k.shell.store.projects().map((p) => p.name)), 'New Project…']) await expect(plus.getByRole('menuitem', { name, exact: true })).toHaveCount(1);
-  await closeBoard(ui2);
   // Questions about its project are asked in its window.
   const dropping = act(ui2, 'profile:delete', { profile: ids.seller });
   await expect(ui.getByRole('alertdialog')).toHaveCount(0);
@@ -301,18 +269,13 @@ test('tasks: Move to New Window puts a task in a window of its own, still runnin
   await expect(menu(ui2)).toMatchAriaSnapshot(`
     - text: Profiles
     - menuitem "Sam.seller"
-    - separator
     - menuitem "Manage Profiles…"
-    - separator
     - menuitem "Rename…"
     - menuitem "Show Folder"
-    - separator
     - menuitem "Move to New Window" [disabled]
     - 'menuitem "Move to Window: task-1"'
-    - separator
     - menuitem "Close"
     - menuitem "Delete Task…"
-    - separator
     - menuitem "other"
   `);
   // The click not waited for: the choice closes this window under it.
