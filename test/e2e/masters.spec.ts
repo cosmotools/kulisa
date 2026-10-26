@@ -56,9 +56,9 @@ test("About this profile… opens Settings' window at it (one, not modal: the ta
   await focusWindow(core, ui);
   expect(await core((k, id) => k.shell.settings?.win.id === id && !k.shell.settings.win.isFocused(), win.id), 'Settings stays open behind it').toBe(true);
   expect(await core((k, id) => k.shell.task.profiles.get(id).get().view.getVisible(), sam), 'pages on screen').toBe(true);
-  // Asked again (another profile's About…): the same window, at that page.
-  await rightClick(ui, `[data-panel="profile:${elon}"] b`);
-  await choose(ui, 'About this profile…');
+  // Asked again (another profile's About…, as its menu sends it; the menu is the first one's above): the same window,
+  // at that page.
+  await ui.evaluate((id) => (window as any).kulisa.send('settings:open', { section: 'profiles', id }), elon);
   await expect(s.locator('#profilename')).toHaveValue('Elon.buyer');
   expect(await core((k) => k.shell.settings.win.id)).toBe(win.id);
   await chooseProfile(s, files, 'Sam.admin');
