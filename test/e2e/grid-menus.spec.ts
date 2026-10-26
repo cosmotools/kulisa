@@ -51,12 +51,7 @@ test('context menus: a pane\'s header, a tab, the terminal; pages are pictures w
 
   const tabs = ui.locator(`[role="region"][data-profile="${elonId}"] [role="tab"]`);
   await expect(tabs).toHaveCount(n + 1);
-  // Once more until it opens: on a loaded machine this right-click, right after the menu before closed, may open
-  // nothing.
-  await expect(async () => {
-    if (!(await menuOpen(ui))) await rightClick(ui, tabs);
-    await expect(menu(ui)).toBeVisible({ timeout: 1500 });
-  }).toPass({ timeout: 5000 });
+  await rightClick(ui, tabs);
   expect(await menuRows(ui)).toEqual(['Reload', 'Duplicate', '-', 'Close tab', 'Close other tabs']);
   await core((k) => { k.stash.firstTab = k.profile('Elon.buyer').tabs[0]; });
   await choose(ui, 'Close other tabs');

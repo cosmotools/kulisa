@@ -218,15 +218,11 @@ export async function closeBoard(ui: Page) {
   await expect(anyMenu(ui)).toHaveCount(0);
 }
 // A project's submenu (a tab's right-click, then the row of the project's name, the one row opening a menu): its rows,
-// a row of it chosen. Right-clicked again until its menu and submenu are open: right after Settings or another menu
-// closed, the menu may open none, or open and close at once, as the window's focus comes back late (a blur closes a menu).
+// a row of it chosen.
 export async function projectMenu(ui: Page, label?: string, tab = '#projectTabs [aria-selected="true"]') {
-  await expect(async () => {
-    if (!(await anyMenu(ui).count())) await rightClick(ui, tab);
-    await expect(menu(ui)).toBeVisible({ timeout: 1000 });
-    if ((await anyMenu(ui).count()) < 2) await menu(ui).locator('[role="menuitem"][aria-haspopup]').click({ timeout: 1000 });
-    await expect(anyMenu(ui)).toHaveCount(2, { timeout: 1000 });
-  }).toPass({ timeout: 10000 });
+  await rightClick(ui, tab);
+  await menu(ui).locator('[role="menuitem"][aria-haspopup]').click();
+  await expect(anyMenu(ui)).toHaveCount(2);
   const rows = await menuRows(ui, submenu(ui));
   if (label) await choose(ui, label, submenu(ui));
   else await closeMenu(ui);
