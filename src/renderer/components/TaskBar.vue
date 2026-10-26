@@ -35,6 +35,8 @@ useStrip(strip, () => store.current);
 // The pressed tab stays lit until the window is told its task is shown (or it was refused): let go of, it would go dark
 // while the main process takes the pictures for the slide and light again with the new state, the tab blinking.
 const pressed = ref<string | null>(null);
+// The last press's switch: done once the window has taken its grid down (grid:closing comes before the answer).
+let showing: Promise<unknown> = Promise.resolve();
 watch(() => store.current, (current) => { if (current === pressed.value) pressed.value = null; });
 function pointerdown(e: PointerEvent) {
   const at = e.button === 0 && !e.ctrlKey && e.pointerType === 'mouse' && !(e.target as Element).closest('button') && tabAt(e);
@@ -42,7 +44,7 @@ function pointerdown(e: PointerEvent) {
   pressed.value = at.t.key;
   const done = new AbortController(), show = async () => {
     done.abort();
-    const r = await kulisa.invoke('task:show', at.t.key);
+    const r = await (showing = kulisa.invoke('task:show', at.t.key));
     if (r?.error && pressed.value === at.t.key) pressed.value = null;
   };
   for (const type of ['pointerup', 'pointercancel']) addEventListener(type, show, { signal: done.signal });
@@ -67,10 +69,13 @@ function menu(e: MouseEvent): MenuItem[] | null {
   return at && [...taskMenu(at.t), '-', { submenu: at.p.name, project: at.p, items: projectItems(at.p) }];
 }
 const rename = async (key: string, name: string) => (await dialog('taskrename')).rename(key, name);
-// A double click on a task's tab: its Rename…, as a shortcut to the menu's item (ROADMAP: never the only way).
-function dblclick(e: MouseEvent) {
+// A double click on a task's tab: its Rename…, as a shortcut to the menu's item (ROADMAP: never the only way). On a
+// tab not shown, after its first press has shown it: the grid that goes closes the dialogs open over it.
+async function dblclick(e: MouseEvent) {
   const at = !(e.target as Element).closest('button') && tabAt(e);
-  if (at) void rename(at.t.key, at.t.name);
+  if (!at) return;
+  await showing.catch(() => {});
+  void rename(at.t.key, at.t.name);
 }
 // Move to New Window, Move to Window: … (one row per other window, named as it names itself: window.ts, label):
 // to(null) for a new one. The only tab stays: a new window would be the same as this one.
