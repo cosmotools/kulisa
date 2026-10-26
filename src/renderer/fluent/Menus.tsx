@@ -67,7 +67,7 @@ export function RightClickMenu({ items, children }: { items: (e: globalThis.Mous
   useClosedOnBlur(open, close);
   return <Menu openOnContext open={open} onOpenChange={(e, d) => {
     if (!d.open) return setOpen(false);
-    const r = 'nativeEvent' in e && 'clientX' in e ? items(e.nativeEvent as globalThis.MouseEvent) : null;
+    const r = 'nativeEvent' in e && 'clientX' in e ? items(e.nativeEvent) : null;
     if (r?.length) { setRows(r); setOpen(true); }
   }}>
     <MenuTrigger disableButtonEnhancement><div>{children}</div></MenuTrigger>
