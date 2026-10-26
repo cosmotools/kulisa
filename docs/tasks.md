@@ -897,4 +897,4 @@ rm -rf ~/.config/Kulisa/projects/myshop   # all its tasks with their profiles' c
 | `src/main/accounts.ts`, `src/renderer/components/AccountSignIn.vue` | the agents' accounts, one store; a new one's sign-in in Settings (a project's page, or Agents) |
 | `src/main/recognizer.ts` | which account recognizes speech for an agent without dictation of its own ([src/dictation](../src/dictation/README.md)), its session's folder |
 | `src/renderer/lib/grid.ts`, `components/Grid.vue` | building a task's grid; the slide (a view transition) |
-| `test/tasks.ts` | the tests; `test/restart-tasks.ts` after a restart; `test/unit/agents.test.ts` |
+| `test/e2e/tasks.spec.ts`, `taskbar.spec.ts`, `projects.spec.ts`, `project-repositories.spec.ts`, `empty-window.spec.ts`, `agents*.spec.ts`, `masters.spec.ts`, `tasks-restart.spec.ts` (after a restart); `test/unit/agents.test.ts` | the tests |

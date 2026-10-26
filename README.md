@@ -65,8 +65,8 @@ npm install           # the dependencies; node-pty built for Electron on Linux (
 npm start             # builds the window, then opens the windows and tasks open last; at first start the welcome, then New Project
 npm run build         # type checks (tsc, vue-tsc), then the window built by Vite into dist/renderer
 npm run watch         # the window built again on every change; reload it (Ctrl+R in its DevTools) or restart
-npm test              # unit tests, knip, ESLint, actionlint (when installed), then the e2e groups in parallel, each the
-                      # real app against a local test site (docs/testing.md)
+npm test              # unit tests, knip, ESLint, actionlint (when installed), then the e2e tests on Playwright Test,
+                      # the real app against a local test site (docs/testing.md)
 npm run test:unit     # the unit tests alone, plain Node, a few seconds
 npm run test:visible  # the e2e tests on your screen, to watch them
 npm run lint          # ESLint (docs/testing.md, Lint), then npm run deps
@@ -122,7 +122,7 @@ Code's checks.
 | `src/terminal/` | the terminal, a Kulisa package: both its halves, its channels, its doc (docs/packages.md) |
 | `src/github/` | the GitHub accounts, a Kulisa package (docs/packages.md) |
 | `src/activity-monitor/` | what Kulisa takes on the computer, a Kulisa package (docs/packages.md) |
-| `test/` | unit tests and the e2e groups, the test site (docs/testing.md) |
+| `test/` | unit tests, the e2e tests (`test/e2e/`), the test site (docs/testing.md) |
 | `scripts/` | `electron.ts` (npm start: Electron, `--no-sandbox` on Linux only), `postinstall.ts` (node-pty for Electron), `icons.ts` (npm run icons), `version.ts` (Claude Code's plugin manifest's version from package.json's, at npm version) |
 | `assets/` | the app icon: `icon.svg` and what each OS needs, rendered from it |
 | `docs/` | how it works and why (Documentation, above) |

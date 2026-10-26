@@ -661,4 +661,4 @@ shortcuts carry (`com.squirrel.kulisa.kulisa`), or Windows would not pin it to t
 | `src/renderer/components/TopBar.vue`, `menu/*.vue` | the title bar, ☰ and its own rows |
 | `src/renderer/components/menu/*.vue`, `Modal.vue`, `Ask.vue`, `lib/menu.ts`, `cover.ts`, `views.ts`, `ask.ts`, `terminals.ts`, `voice.ts` | the menus, the dialogs and questions (Reka UI's: `cover.ts`), the pages under them in a tasks' window (`views.ts`), a tasks' window's island (`terminals.ts`), dictation |
 | `src/renderer/lib/keys.ts`, `components/Shortcuts.vue` | where the keyboard is, the commands the keys run; Keyboard Shortcuts |
-| `test/window.ts`, `grid.ts`, `keys.ts`, `zoom-and-closing.ts`, `unit/keys.test.ts` | the tests |
+| `test/e2e/window.spec.ts`, `grid*.spec.ts`, `keys.spec.ts`, `log.spec.ts`, `zoom-and-closing.spec.ts`, `test/unit/keys.test.ts` | the tests |

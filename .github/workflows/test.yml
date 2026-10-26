@@ -91,13 +91,6 @@ jobs:
         env:
           XDG_CURRENT_DESKTOP: GNOME
         run: dbus-run-session -- sh -c 'echo ci | gnome-keyring-daemon --unlock --components=secrets >/dev/null && npm test'
-      # A failed group keeps its folder, its screenshots in it (docs/testing.md); a week, then GitHub removes it.
-      - if: failure()
-        uses: actions/upload-artifact@v7
-        with:
-          name: test-folders-${{ matrix.os }}
-          path: ${{ runner.temp }}/kulisa-test-*
-          retention-days: 7
       # Playwright Test's report (its HTML with a failed test's trace, picture and log; test-results/junit.xml): also from
       # a run that passed, where it shows the flaky tests a retry passed (docs/testing.md, Flaky tests).
       - if: ${{ !cancelled() }}

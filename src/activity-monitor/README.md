@@ -39,4 +39,4 @@ is a metric of its own way of measuring.
 | `main/monitor.ts` | the query over the tasks |
 | `monitor.test.ts` | its unit tests |
 
-Its e2e test is in `test/agent.ts` ("artifacts: what they take …").
+Its e2e test is in `test/e2e/agent-reports.spec.ts` ("artifacts: what they take …").

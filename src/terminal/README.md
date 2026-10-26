@@ -128,5 +128,5 @@ hover. A file an agent marks as a link (OSC 8) goes to `openFile` too: Claude Co
 | `shell-quote.test.ts` | quoting, in each shell installed (`npm run test:unit`) |
 | `paths.test.ts` | the paths found in a line and their cells (in `@xterm/headless`), what is no path, an agent's link to a file |
 
-Its e2e tests are in `test/` with the others (a group is one app): `window.ts` (the xterm's set-up; one xterm for the
-island, switching), `grid.ts` (copy and paste, links, moving to another window), `tasks.ts` (the island, shells).
+Its e2e tests are in `test/e2e/` with the others: `window.spec.ts` (the xterm's set-up; one xterm for the
+island, switching), `grid*.spec.ts` (copy and paste, links, moving to another window), `tasks.spec.ts` (the island, shells).

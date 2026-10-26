@@ -127,7 +127,7 @@ An icon is 16 px; × and + are 14 px, as in Chrome (`.icon`), and so is an agent
 their lines thickened to match; take a new one from there rather than drawing it. The sprite takes no room but is not
 `display: none`, so the logo's gradient and clip path reach its `<use>`s. Pictures are not icons: the arrangements in ☰
 are drawn in place; the profiles' pictures are files of their own
-(`src/renderer/public/avatars/`, Noto Emoji, in their own colors). The test `icons: …` in `test/window.ts` checks that
+(`src/renderer/public/avatars/`, Noto Emoji, in their own colors). The test `icons: …` in `test/e2e/window.spec.ts` checks that
 every other `<svg>` uses the sprite.
 
 ## Components (`components.css`)

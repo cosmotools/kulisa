@@ -1,4 +1,4 @@
-// The fake agent's dictation recognizing for another agent (run.ts; src/dictation's hidden session), as Claude Code's
+// The fake agent's dictation recognizing for another agent (test/e2e/app.ts; src/dictation's hidden session), as Claude Code's
 // does: its prompt, "listening…" while its key comes, and once it stops, what it heard posted to its hook
 // (KULISA_URL's hooks/prompt) as Claude Code's UserPromptSubmit hook posts it; the answer printed (a block).
 // Plain JavaScript: run by the node on PATH, outside Kulisa.

@@ -478,4 +478,4 @@ function askToQuit(userData: string) {
   return new Promise<never>(() => {});
 }
 
-export { start, AGENT_PACKAGES };
+export { start };

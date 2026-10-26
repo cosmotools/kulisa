@@ -1,4 +1,4 @@
-// The e2e tests on Playwright Test (docs/testing.md, End to end on Playwright Test): Kulisa started by test/e2e/fixtures.ts.
+// The e2e tests on Playwright Test (docs/testing.md, End to end): Kulisa started by test/e2e/fixtures.ts.
 // On the CI a failed test runs once more: passing then, it is reported flaky, not hidden, and the job stays green.
 import { defineConfig } from '@playwright/test';
 

@@ -11,9 +11,6 @@
     "src/renderer/master.ts",
     "src/renderer/settings.ts",
     "src/screenshots/renderer/thumbnail.ts",
-    // The e2e groups, which run.js requires by name (start.js → run.js --files=…).
-    "test/*.ts",
-    "!test/helpers.ts",
     // The debug-kulisa skill's script, run by its path; Claude Code's hooks (.claude/settings.json).
     ".claude/skills/debug-kulisa/*.mjs",
     ".claude/hooks/*.ts",

@@ -125,7 +125,7 @@ press), `voice` (a task's microphone changed).
 | `ipc.ts` | its channels |
 | `dictation.test.ts` | unit tests: the hidden session against a fake recognizer and program |
 
-Its e2e tests: `test/tasks.ts` ("dictation: an agent without its own …": the hidden session with the fake agent's
-recognizer, `test/fixtures/fake-recognizer.mjs`, by the microphone) and `test/window.ts` ("terminal: dictation …"): the key held in a page and in the window, pressed once,
+Its e2e tests: `test/e2e/agents.spec.ts` ("dictation: an agent without its own …": the hidden session with the fake agent's
+recognizer, `test/fixtures/fake-recognizer.mjs`, by the microphone) and `test/e2e/window.spec.ts` ("terminal: dictation …"): the key held in a page and in the window, pressed once,
 the window losing the keyboard, the microphone by the mouse, a shell in front, the key changed; the fake agent shows
-the key typed (`test/run.ts`).
+the key typed (`test/e2e/app.ts`).

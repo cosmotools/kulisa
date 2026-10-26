@@ -133,4 +133,4 @@ by the session id its SessionStart hook reported (none without its hooks: then n
 | `src/main/agents/claude.ts`, `codex.ts` | each agent's reader (`claudeConversation`, `codexConversation`), its entry's `conversation` |
 | `src/main/worktrees.ts` | `progress`: a copy's commits, files not committed, `diff --stat` |
 | `src/main/kulisa-plugin/tools/task.ts`, `mcp-server.ts` | the `task_history` tool; a sentence of the instructions |
-| `test/unit/transcripts.test.ts`, `test/agent.ts` | the tests: the reader record by record; the tool's order and parts |
+| `test/unit/transcripts.test.ts`, `test/e2e/agent-mcp.spec.ts` | the tests: the reader record by record; the tool's order and parts |
