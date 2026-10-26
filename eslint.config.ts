@@ -27,6 +27,8 @@ export default tseslint.config(
       '@typescript-eslint/switch-exhaustiveness-check': ['error', { considerDefaultExhaustiveForUnions: true }],
       '@typescript-eslint/no-unnecessary-type-assertion': 'error',
       'vue/multi-word-component-names': 'off',
+      // A folder's index.ts re-exports by name: its surface is what is written, not whatever a file happens to hold.
+      'no-restricted-syntax': ['error', { selector: 'ExportAllDeclaration', message: 'Re-export by name, not export *.' }],
     },
   },
   // Not in the window: it took `{} as Record<…>` inside reactive({ … }) for needless, where only the `as` gives the

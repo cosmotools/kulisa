@@ -4,9 +4,23 @@ What the window is built of: the tokens, the icons, and the components, each def
 and list looks and behaves the same. **Before making a button, an icon, a row or a dialog, look here:** use the
 component, or add one here (and in `components.css`) when nothing fits. Keep this file current.
 
-Vue 3 components in TypeScript, built by Vite (CLAUDE.md, Window UI; `vite.config.mts`, into `dist/renderer`). The
-generic parts (menus, dialogs) are Reka UI's (`reka-ui`: behavior, keyboard and accessibility, no look of its own), in
-the look below:
+Vue 3 components in TypeScript, built by Vite (`vite.config.mts`, into `dist/renderer`). Before using a part of Vue
+new to the window, read its page in Vue's own documentation for agents (`https://vuejs.org/llms.txt`, each page as
+`.md`; it describes 3.5, the installed version); official sources only, no community skills or MCP servers (the
+author's choice). The
+generic parts are Reka UI's (`reka-ui`, the author's choice: behavior, keyboard and accessibility, no look of its own),
+in the look below: menus, dialogs and the controls Reka has (choices, radios, selects, checkboxes, lists, tabs …);
+nothing of our own where Reka has it. Its documentation for agents: `https://reka-ui.com/llms.txt` (each page as
+`.md`); its API: the installed version's `node_modules/reka-ui/dist/` (`.d.ts`). Not Reka's: what is not generic (the
+grid is dockview's: panels, splits, drag and drop, tabs of panels, saving the grid, its API before layout code of our
+own; the terminal xterm's) and tooltips: the native `title`, drawn above the profiles' pages (an HTML one would be
+under them).
+
+**The profiles' pages are native views, drawn above the window's HTML**: HTML over a pane is under its page. So
+whatever HTML covers the panes hides the pages or puts pictures of them in their place: every menu and dialog opens
+through `covered()` (`lib/cover.ts`; a tasks' window's pages under it: `lib/views.ts`), which puts the pages back
+however it closes; while a panel is dragged, pictures stand in too. The renderer sends each pane's `.content` box (or
+that it is off screen) to the main process after every grid change (docs/window.md).
 
 | Where | What |
 |---|---|
@@ -172,7 +186,7 @@ the browser's own `until-found` apart): a component's `display` beats the browse
 
 ### Controls
 
-The window's controls are Reka UI's, in this look (CLAUDE.md, Window UI):
+The window's controls are Reka UI's, in this look:
 
 - `.radio`: a radio (Reka's `RadioGroupItem`, its `RadioGroupIndicator` the dot), in a `RadioGroupRoot`: at a row's
   start (the row a `<label>`), exactly one of a list: the agent to start (`AgentList.vue`). The arrows move between
@@ -351,4 +365,6 @@ questions, `leavable` (Back on the first step goes back to its slides).
 - A new dialog: a component with `Modal.vue`, in `App.vue`, registered in `lib/dialogs.ts`; its own contents' look in
   its `<style>` under its id.
 - Something generic (a menu, a dialog, a choice, a field): Reka UI's part, in Kulisa's look; never our own where Reka
-  has one (CLAUDE.md, Window UI).
+  has one (above).
+- A part's own CSS places the components, never restyles them into new ones. Before overriding dockview, check that
+  its own variables or rules don't already do it.

@@ -81,7 +81,7 @@ pane is off screen.
   types it into the prompt of the task's agent as Pick's reference: `Task.typeForAgent`; Claude Code takes an image by
   its path), Delete (to the trash, `shell.trashItem`), Close.
 
-**How it is drawn.** The pages are native views above the window's HTML (CLAUDE.md, "What must hold in the window"):
+**How it is drawn.** The pages are native views above the window's HTML (docs/ui.md):
 HTML over a pane is under its page. So the thumbnail is a `WebContentsView` of its own page (`renderer/thumbnail.ts`;
 its `src/renderer/thumbnail.html` only loads it: Vite builds no page outside its root), made when it shows and destroyed when it goes: one more process for those seconds,
 about 21 MB (PSS; 10 MB of it its own; 94 MB RSS, Chromium's shared libraries mostly), next

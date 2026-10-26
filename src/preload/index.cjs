@@ -1,5 +1,5 @@
 // The windows' preload (window.ts, master.ts): what the window's page may call of the main process. Plain JavaScript,
-// the one file that is not TypeScript (CLAUDE.md): the windows are sandboxed, and Electron runs a sandboxed preload
+// the one file that is not TypeScript: the windows are sandboxed, and Electron runs a sandboxed preload
 // without Node, so no type stripping, and `require` gives only `electron` (Electron's tutorial/sandbox.md). Its types
 // are the window's: src/renderer/env.d.ts.
 const { contextBridge, ipcRenderer } = require('electron');
