@@ -1,13 +1,12 @@
 <script setup lang="ts">
-// The items of a menu (lib/menu.ts) as Reka's menu parts (the Menu primitives DropdownMenu and ContextMenu share: one
-// set of rows for both). A submenu's rows are its own MenuRows.
-import { DropdownMenuLabel, DropdownMenuPortal, DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger } from 'reka-ui';
+// The items of a menu (lib/menu.ts) as shadcn-vue's menu parts (Reka's Menu primitives, which DropdownMenu and
+// ContextMenu share: one set of rows for both). A submenu's rows are its own MenuRows.
+import { DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuPortal } from '@/components/ui/dropdown-menu';
 import { inject } from 'vue';
 import MenuButton from '../MenuButton.vue';
 import ProjectIcon from '../ProjectIcon.vue';
 import { projectColor } from '../../lib/project-color';
 import { closeMenu, type MenuItem } from '../../lib/menu';
-import { ChevronRightIcon } from '@lucide/vue';
 
 defineProps<{ items: MenuItem[] }>();
 const close = inject(closeMenu, () => {});
@@ -19,13 +18,17 @@ const runSub = (e: PointerEvent, run?: () => unknown) => { if (run && e.button =
 <template>
   <template v-for="(it, i) in items" :key="i">
     <DropdownMenuSeparator v-if="it === '-'" />
-    <DropdownMenuLabel v-else-if="'heading' in it" class="heading" data-testid="menu-heading"><component :is="it.icon" v-if="it.icon" class="ico" />{{ it.heading }}</DropdownMenuLabel>
+    <DropdownMenuLabel v-else-if="'heading' in it" class="flex items-center gap-1.5" data-testid="menu-heading"><component :is="it.icon" v-if="it.icon" class="size-4" /><span class="truncate">{{ it.heading }}</span></DropdownMenuLabel>
     <DropdownMenuSub v-else-if="'submenu' in it">
-      <DropdownMenuSubTrigger class="item" :text-value="it.submenu" :aria-label="it.submenu" @pointerup="runSub($event, it.run)">
-        <ProjectIcon v-if="it.project" :p="it.project" :style="{ '--color': projectColor(it.project) }" />
-        <span class="text"><span class="label">{{ it.submenu }}</span></span><ChevronRightIcon class="chevron" />
+      <DropdownMenuSubTrigger :text-value="it.submenu" :aria-label="it.submenu" @pointerup="runSub($event, it.run)">
+        <ProjectIcon v-if="it.project" class="size-4 shrink-0 text-(--color)" :p="it.project" :style="{ '--color': projectColor(it.project) }" />
+        <span class="truncate">{{ it.submenu }}</span>
       </DropdownMenuSubTrigger>
-      <DropdownMenuPortal><DropdownMenuSubContent class="menu" data-ready :side-offset="4" :collision-padding="4"><MenuRows :items="it.items" /></DropdownMenuSubContent></DropdownMenuPortal>
+      <DropdownMenuPortal>
+        <DropdownMenuSubContent class="max-h-(--reka-dropdown-menu-content-available-height) max-w-md min-w-64 overflow-y-auto [-webkit-app-region:no-drag]" data-ready :side-offset="4" :collision-padding="4">
+          <MenuRows :items="it.items" />
+        </DropdownMenuSubContent>
+      </DropdownMenuPortal>
     </DropdownMenuSub>
     <component :is="it.component" v-else-if="'component' in it" v-bind="it.props" />
     <MenuButton v-else :it />

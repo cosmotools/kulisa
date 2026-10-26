@@ -41,13 +41,15 @@ export function focusAfterMenu(el: HTMLElement | null | undefined) {
 }
 // A menu closed: the keyboard back where it was before it opened (the terminal, a field, its button), unless it went
 // somewhere meanwhile (a key gave it to the launcher as the menu closed) or another menu has opened (the focus leaving
-// that one would close it). The closed menu's own focus falls to the body as it goes.
+// that one would close it). The closed menu's own focus falls to the body as it goes. A menu here is any of Reka's
+// popups (a popover too): its wrapper.
+const POPUP = '[data-reka-popper-content-wrapper]';
 export function focusBack(e: Event, el: Element | null) {
   e.preventDefault();
   if (given?.isConnected) { given.focus(); given = null; return; }
   given = null;
   const at = document.activeElement;
-  if (at && at !== document.body && !at.closest('.menu')) return;
-  if (!document.querySelector('.menu[data-state="open"]') && el instanceof HTMLElement && el.isConnected) el.focus();
+  if (at && at !== document.body && !at.closest(POPUP)) return;
+  if (!document.querySelector(`${POPUP} > [data-state="open"]`) && el instanceof HTMLElement && el.isConnected) el.focus();
 }
 // The bar's + menu (NewTask.vue) opened or closed as a click on it does: Ctrl+Shift+A, the empty window's New Task.

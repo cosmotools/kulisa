@@ -78,7 +78,8 @@ const config: IConfiguration = {
     { name: 'no-circular', severity: 'error', comment: 'A cycle at run time: one of its modules is loaded half done.',
       // grid.ts and views.ts call each other's functions only after both have loaded (the pages live again, then
       // the grid's boxes sent): a cycle without that danger, and passing one of them in would be code for the tool.
-      from: { pathNot: '^src/renderer/lib/(grid|views)\\.ts$' }, to: { circular: true } },
+      // shadcn-vue's parts as its CLI writes them: a component and its index, whose variants it reads only as it draws.
+      from: { pathNot: '^src/renderer/(lib/(grid|views)\\.ts|components/ui/)' }, to: { circular: true } },
   ],
   options: {
     doNotFollow: { path: 'node_modules' },

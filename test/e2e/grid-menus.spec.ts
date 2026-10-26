@@ -337,7 +337,7 @@ ${names.map((x) => `      - menuitem ${JSON.stringify(`Open in ${x}`)}`).join('\
       - separator
       - menuitem "Exit"`}`);
   expect(await anyMenu(ui).locator('svg:is(.lucide, [data-icon]):not([hidden])').evaluateAll((ss) => ss.map((s) => s.getAttribute('data-icon') ?? /lucide-[\w-]+/.exec(s.getAttribute('class'))[0])), 'each row with its icon (Lucide names it in its class)')
-    .toEqual(['lucide-zoom-in', 'lucide-sun-moon', 'lucide-folder-open', 'lucide-languages', 'lucide-chevron-right', 'lucide-layout-panel-left', 'lucide-keyboard', 'lucide-book-open', 'github', 'lucide-bug', 'logo', ...(MAC ? [] : ['lucide-log-out'])]);
+    .toEqual(['lucide-zoom-in', 'lucide-minus', 'lucide-plus', 'lucide-sun-moon', 'lucide-folder-open', 'lucide-languages', 'lucide-chevron-right', 'lucide-layout-panel-left', 'lucide-keyboard', 'lucide-book-open', 'github', 'lucide-bug', 'logo', ...(MAC ? [] : ['lucide-log-out'])]);
   const pics = await anyMenu(ui).getByTestId('arrange-row').getByRole('menuitem').evaluateAll((bs) => bs.map((b) => ({ title: (b as HTMLElement).title,
     panes: b.querySelectorAll('svg [data-shape="page"]').length, term: b.querySelectorAll('svg [data-shape="term"]').length, w: b.querySelector('svg').getBoundingClientRect().width })));
   expect(pics.map((p) => [p.panes, p.term])).toEqual([[3, 1], [4, 1], [1, 1]]);
@@ -395,16 +395,17 @@ test("menus with the mouse and the keyboard, as the OS's: a press on ☰, a drag
   await expect(menu(ui)).toBeVisible();
   expect(await anyMenu(ui).count(), 'open after the click').toBeGreaterThan(0);
   await clickMenuButton();
-  await expect(anyMenu(ui)).toHaveCount(0);
+  // gone, not only closing: one opened again while it fades out is the same menu, and takes no keyboard
+  await expect(ui.locator('[role="menu"]')).toHaveCount(0);
 
   // The keyboard: Enter on ☰ opens it on its first row, ↓ goes to the next, Esc closes it, ☰ has the keyboard again.
   await ui.locator('#windowMenu').focus();
   await press('Enter');
   await expect(menu(ui)).toBeVisible();
   await expect(ui.locator('[role="menu"][data-state="open"]:focus-within')).toHaveCount(1);
-  const first = await ui.locator(':focus').textContent();
+  const first = await ui.locator(':focus').getAttribute('aria-label');
   await press('Down');
-  await expect(ui.locator(':focus')).not.toHaveText(first);
+  await expect(ui.locator(':focus')).not.toHaveAccessibleName(first);
   await press('Escape');
   await expect(anyMenu(ui)).toHaveCount(0);
   await expect(ui.locator('#windowMenu')).toBeFocused();

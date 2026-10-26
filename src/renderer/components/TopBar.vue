@@ -69,11 +69,4 @@ const windowMenu = (): MenuItem[] => [
   #manageProjects { --icon: 18px; }
   #windowMenu { --icon: 18px; margin-inline-end: var(--gap); }
 }
-/* The rows of ☰'s own (menu/*.vue) as the menu's .item: as high, the icon at the start */
-.menu {
-  :is(.zoomrow, .choicerow, .arrange) [role^="menuitem"] { border-radius: var(--corner);
-    &[data-highlighted] { background: var(--island-hi); outline: none; } }
-  :is(.zoomrow, .choicerow) { min-height: var(--row); padding-inline: var(--inset) 4px;
-    > svg { margin-inline-end: calc(var(--inset) - 2px); } }
-}
 </style>

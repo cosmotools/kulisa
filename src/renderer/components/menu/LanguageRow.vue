@@ -2,11 +2,11 @@
 // ☰'s Language (docs/window.md, Language): a row opening a menu of its own beside it, as there are too many to show
 // in the row, Theme's way. The system's language first, then by name in each language itself.
 import { computed, useId } from 'vue';
-import { DropdownMenuPortal, DropdownMenuRadioGroup, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger } from 'reka-ui';
+import { DropdownMenuPortal, DropdownMenuRadioGroup, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger } from '@/components/ui/dropdown-menu';
 import MenuButton from '../MenuButton.vue';
 import { store } from '../../lib/store';
 import { ask } from '../../lib/ask';
-import { ChevronRightIcon, LanguagesIcon } from '@lucide/vue';
+import { LanguagesIcon } from '@lucide/vue';
 
 const name = (code: string, inLanguage = code) => new Intl.DisplayNames([inLanguage], { type: 'language' }).of(code)!;
 const info = computed(() => store.language);
@@ -30,12 +30,12 @@ async function choose(code: string) {
 
 <template>
   <DropdownMenuSub v-if="info?.languages.length">
-    <DropdownMenuSubTrigger class="item languagerow" :title aria-label="Language" :aria-describedby="`${uid}-value`">
-      <LanguagesIcon class="ico" /><span class="text"><span class="label">Language</span></span>
-      <span :id="`${uid}-value`" class="value">{{ name(info.language, 'en') }}</span><ChevronRightIcon class="more" />
+    <DropdownMenuSubTrigger :title aria-label="Language" :aria-describedby="`${uid}-value`">
+      <LanguagesIcon /><span class="flex-1">Language</span><span :id="`${uid}-value`" class="text-muted-foreground">{{ name(info.language, 'en') }}</span>
     </DropdownMenuSubTrigger>
     <DropdownMenuPortal>
-      <DropdownMenuSubContent class="menu languages" data-ready aria-label="Languages" :side-offset="4" :collision-padding="4">
+      <!-- no taller than about 18 rows -->
+      <DropdownMenuSubContent class="max-h-[min(60vh,var(--reka-dropdown-menu-content-available-height))] min-w-48 overflow-y-auto [-webkit-app-region:no-drag]" data-ready aria-label="Languages" :side-offset="4" :collision-padding="4">
         <DropdownMenuRadioGroup :model-value="info.language" @update:model-value="(v) => choose(String(v))">
           <MenuButton v-for="code in order" :key="code" :value="code" :data-language="code"
             :it="{ label: name(code), sub: name(code, 'en') === name(code) ? '' : name(code, 'en') }" />
@@ -44,9 +44,3 @@ async function choose(code: string) {
     </DropdownMenuPortal>
   </DropdownMenuSub>
 </template>
-
-<style>
-/* The language chosen at the row's end, as a select shows it; the menu beside it no taller than about 18 rows. */
-.menu .languagerow { .value { color: var(--text-dim); } .more { --icon: 14px; color: var(--text-dim); } }
-.menu.languages { max-height: min(60vh, 520px, var(--reka-popper-available-height)); }
-</style>

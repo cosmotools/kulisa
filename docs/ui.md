@@ -1,13 +1,14 @@
 # The window's UI
 
-The window's tokens, icons and components, each defined once, so every dialog, button and list looks and behaves the
-same. **Before making a button, an icon, a row or a dialog, look here:** use the component, or add one here (and in
-`components.css`) when nothing fits.
+What the window is built of: the tokens, the icons, and the components, each defined once, so every dialog, button
+and list looks and behaves the same. **Before making a button, an icon, a row or a dialog, look here:** use the
+component, or add one here (and in `components.css`) when nothing fits. Keep this file current.
 
 Vue 3 components in TypeScript, built by Vite (`vite.config.mts`, into `dist/renderer`). Before using a part of Vue
 new to the window, read its page in Vue's own documentation for agents (`https://vuejs.org/llms.txt`, each page as
 `.md`; it describes 3.5, the installed version); official sources only, no community skills or MCP servers (the
-author's choice). The generic parts are Reka UI's (`reka-ui`, the author's choice: behavior, keyboard and accessibility, no look of its own),
+author's choice). The
+generic parts are Reka UI's (`reka-ui`, the author's choice: behavior, keyboard and accessibility, no look of its own),
 in the look below: menus, dialogs and the controls Reka has (choices, radios, selects, checkboxes, lists, tabs …);
 nothing of our own where Reka has it. Its documentation for agents: `https://reka-ui.com/llms.txt` (each page as
 `.md`); its API: the installed version's `node_modules/reka-ui/dist/` (`.d.ts`). Not Reka's: what is not generic (the
@@ -15,8 +16,8 @@ grid is dockview's: panels, splits, drag and drop, tabs of panels, saving the gr
 own; the terminal xterm's) and tooltips: the native `title`, drawn above the profiles' pages (an HTML one would be
 under them).
 
-**The profiles' pages are native views, drawn above the window's HTML**, so whatever HTML covers the panes hides the
-pages or puts pictures of them in their place: every menu and dialog opens
+**The profiles' pages are native views, drawn above the window's HTML**: HTML over a pane is under its page. So
+whatever HTML covers the panes hides the pages or puts pictures of them in their place: every menu and dialog opens
 through `covered()` (`lib/cover.ts`; a tasks' window's pages under it: `lib/views.ts`), which puts the pages back
 however it closes; while a panel is dragged, pictures stand in too. The renderer sends each pane's `.content` box (or
 that it is off screen) to the main process after every grid change (docs/window.md).
@@ -48,14 +49,16 @@ place where a button is there to draw the eye, seen only while no profile is ope
 - **Dense**: rows and controls `--control` high (`--row` the same), toolbar buttons 24 px, corners `--corner` (4 px)
   on controls and `--island-radius` on windows and dialogs.
 - **One scrollbar everywhere** (`components.css`, `--scrollbar`): a rounded thumb on no track, no arrows, as JetBrains'
-  (not the OS's, with arrows). Chromium's `::-webkit-scrollbar`: the standard `scrollbar-color` and
-  `scrollbar-width: thin` keep the arrows. A tabs' strip has none
+  (not the OS's, with arrows, in menus, Settings and dialogs). Chromium's `::-webkit-scrollbar`:
+  the standard `scrollbar-color` and `scrollbar-width: thin` left the arrows. A tabs' strip has none
   (`scrollbar-width: none`): it scrolls by the wheel.
 - **Forms are "Label: field"**, the labels in one column (`.field`); a comment under a field only when needed.
 - **Groups under a titled line** (`.titled`), not framed cards: no frame in a frame.
-- **A list is a table with a toolbar over it** (`.list`, below): its actions act on the selected row; its facts each
-  in a column at the same place in every row (values one after another read as chaos), a state at its end in words
-  ("default", "no commit yet"); no buttons that show under the pointer, no pills.
+- **A list has a toolbar over it** (`.list`: + adds, − removes the selected row, ★ makes it the default), and
+  its actions act on the selected row (also Delete, and its right-click). It is a table: the names of its columns,
+  then rows of facts, each in its column (what it is, its path or email muted, a state at its end in words: "default",
+  "no commit yet"), the columns at the same places in every row (values one after another read
+  as chaos); no buttons that show under the pointer, no pills.
 - **Every object has a right-click menu with all its actions** (a profile's pane, a task's tab, the terminal), so the
   window shows one or two buttons and the rest is in menus. Not swipes (a phone's gesture; on a laptop's touchpad a
   sideways swipe is the OS's and the pages' back and forward), nor a double-click as the only way to anything (nobody
@@ -115,17 +118,18 @@ the browser's own `until-found` apart): a component's `display` beats the browse
   - `.round`: a circle filled `--island-hi`, an 18 px icon: a button that stands out in a row (the dictation's microphone).
   - `--icon`: the icon's size, when a place needs another (☰ is 18 px).
   - A `<span class="icon">` where a button cannot be (a tab's ×, inside the tab).
-- In a menu or the title bar, a button is still one of these.
+- In the title bar, a button is still one of these. shadcn-vue's `Button` (`components/ui/button`) where a part is
+  already in Tailwind (a menu row's 🗑); the element rules of `components.css` are in `@layer base`, so its utilities
+  win.
 - `:title="withKeys('Reload', 'tab.reload')"` (a command of `src/main/keys.ts`; `lib/common.ts`): its key at the end
   of its tooltip, "Reload (Ctrl+R)", as Chrome's toolbar says it.
 
 ### Rows
 
-- `.item`: a row of a menu (`MenuButton.vue`) or a list, `--row` high: an optional icon (`.ico`), `.dot`
+- `.item`: a row of a list (Settings' rows, the board's tasks), `--row` high: an optional icon (`.ico`), `.dot`
   (a project's color, `--color`), `ProjectIcon.vue` (a project's icon in its color: its favicon, one of Kulisa's set or
   the curtain; `.picon`, also on a task's tab in the tasks' bar, 20 px there) or `.avatar` (a profile's picture), `.text` with `.label` and a `small` line under it, a `kbd` key at the end. Lit under the
-  pointer and on keyboard focus. Named by its label alone (`aria-label`), not its icon, its `small` line or its key; a value beside
-  the label (☰'s Language) is its description (`aria-describedby`).
+  pointer and on keyboard focus. Named by its label alone (`aria-label`), not its icon, its `small` line or its key.
 - `.list`: a list a dialog edits (a project's Code, Agents and Profiles; New Project's folders; an agent's accounts),
   or chooses from (Settings → Agents' agents, no toolbar), as JetBrains': framed,
   `.tools` over it (`.icon.small` buttons: + adds, often a `ButtonMenu`; − removes the selected row; ★ makes it the
@@ -136,8 +140,9 @@ the browser's own `until-found` apart): a component's `display` beats the browse
   wide as it needs up to about half, what it is in the rest, the state); the head and the rows take them by `subgrid`,
   so they line up. The selected row in `--chosen` (`--chosen-idle` when the list has not the keyboard). Delete removes
   the selected one; a `RightClickMenu` around the whole `.list` has the row's actions (it selects the row): around the
-  Listbox, which is there only with rows, it would not open on a row added later. `.empty` in it when it has none.
+  Listbox, which is there only with rows, its menu did not open on a row added after. `.empty` in it when it has none.
 - `.titled`: a group's title, its name and a line to the end (JetBrains' titled separator), over a `.list` or fields.
+- `.item[aria-selected="true"]`: the chosen row of a list (Reka's Listbox, Tree), lit.
 - `.dot`: a 10 px circle in `--color`, a project's.
 - `.launcher`: a tile, big, for the hand to find at once where nothing else is: an icon or a profile's picture as
   large as two rows, its `.name`, a `small` line under it (an account's email; none under a profile's: who it is is in its tooltip, as under the name the tile's edge would cut it), on an island's color,
@@ -266,31 +271,38 @@ Every dialog is `Modal.vue`, Reka UI's Dialog (`reka-ui`) with the same parts:
 
 ### Menus
 
-Reka UI's menus, the rows built as one opens: a button's (`ButtonMenu.vue`: ☰, ⋮, a project's ⋯
-…; `end`: its end edge at the button's, at a bar's end), an area's right-click menu at the pointer
-(`RightClickMenu.vue`: `items(e)` builds the rows for what was right-clicked, or `null`: none), one at a point
-(`menuAt(e, items)` in `lib/menu.ts`, `PointMenu.vue`: a link in the terminal). `ButtonMenu` opens on the press, so a
-press, a drag to a row and the release there chooses it, as the OS's menus; Enter, Space or ↓ on the button open it.
-Rows are chosen with the left button only (on Linux a right-click menu opens on the press, and the release must not
-choose a row). A menu taller than the window has scrolls, reaching as far as its edge (Reka's room for it,
-`--reka-popper-available-height`). One menu at a time; Esc, a press outside, the same button, a chosen row or leaving the window closes
-it, and the keyboard goes back where it was. Leaving is the window's blur (`window:blur`, from the main process), not
-its page's: a profile's page in the window taking the keyboard as it loads (macOS) would close a menu under the hand; Settings' window, with no pages in it, goes by its page's (`lib/cover.ts`). Nor does the keyboard moving
-within the window close one (Reka's focus outside, prevented): the window's page getting the keyboard back after a
-menu opened puts it on what had it before, the terminal. While one is open, the pages are pictures of themselves
-(`covered('pictures')`); it shows once they are.
+shadcn-vue's `DropdownMenu` and `ContextMenu` (`components/ui/`), the rows built as one opens: a button's
+(`ButtonMenu.vue`: ☰, ⋮, a project's ⋯ …; `end`: its end edge at the button's, at a bar's end), an area's right-click
+menu at the pointer (`RightClickMenu.vue`: `items(e)` builds the rows for what was right-clicked, or `null`: none),
+one at a point (`menuAt(e, items)` in `lib/menu.ts`, `PointMenu.vue`: a link in the terminal).
 
-Items (`lib/menu.ts`, laid out by `menu/MenuRows.vue`) are `{ label, sub, keys, title, icon, color, avatar, project, inset,
-enabled, run, remove }` (`MenuButton.vue`; `keys`: the row's key at its end, from the keys' table: `keyText(id)`, `lib/common.ts`), `'-'` (a divider), `{ heading, icon }`, `{ note }` (small dim words
-under the rows, not one of them: ☰'s version, so nothing looks clickable that is not), `{ submenu, items, project, run }` (a row with a chevron at its end
-opening a menu of its own at its side, Reka's Sub parts, its rows the same items: a task tab's menu holds its project's
-rows so, under the project's icon and name; `run` makes a click on the row itself act and close the menu, hover still
-opening the submenu — a project in the bar's +: click makes a new task of it, hover shows its tasks) or `{ component, props }` (a row
-of its own: ☰'s zoom, theme, tasks' bar, language (a menu beside it: Reka's submenu, its rows `MenuButton`s, the
-chosen one checked) and arrangements, `components/menu/`, built of Reka's menu items; − and + and the choices leave the menu open);
-`title` its tooltip (the native one, as every tooltip); `icon` a component (Lucide's or a mark), at the row's start; `project` a project's icon in its color there (`ProjectIcon.vue`,
-`.picon`); `remove` puts a 🗑 at the row's end (`.remove`, on the row the pointer or the keyboard is on, `:focus-visible` too; Delete too) that runs it instead of `run`, the menu closing as for any row (a task's, deleted); `inset` sets a row in under the one above, its text under that one's; rows are `.item`, lit as Reka highlights them
-(`[data-highlighted]`); a list's chosen row (Reka's Listbox, Tree) is `[aria-selected="true"]`.
+- `ButtonMenu` opens on the press, so a press, a drag to a row and the release there chooses it, as the OS's menus;
+  Enter, Space or ↓ on the button open it. Rows are chosen with the left button only (on Linux a right-click menu
+  opens on the press, and the release must not choose a row).
+- One menu at a time; Esc, a press outside, the same button, a chosen row or leaving the window closes it, and the
+  keyboard goes back where it was (`focusBack`). Leaving is the window's blur (`window:blur`, from the main process),
+  not its page's: a profile's page taking the keyboard as it loads (macOS) would close a menu under the hand;
+  Settings' window, with no pages in it, goes by its page's (`lib/cover.ts`). The keyboard moving within the window
+  does not close one (Reka's focus outside, prevented): the window's page getting the keyboard back after a menu
+  opened puts it on what had it before, the terminal.
+- While one is open, the pages are pictures of themselves (`covered('pictures')`); it shows once they are
+  (`data-ready`). It is no part of the title bar's drag area (`-webkit-app-region: no-drag`).
+
+Items (`lib/menu.ts`, laid out by `menu/MenuRows.vue`):
+
+- `{ label, sub, keys, title, icon, color, avatar, project, inset, enabled, run, remove }`: a row (`MenuButton.vue`).
+  `keys` the row's key at its end (`keyText(id)`, `lib/common.ts`); `title` its tooltip; `icon` a component (Lucide's
+  or a mark); `project` a project's icon in its color (`ProjectIcon.vue`); `remove` a 🗑 at its end, on the row the
+  pointer or the keyboard is on, and Delete, running it instead of `run` (a closed task's); `inset` sets the row in
+  under the one above (`data-inset`). Named by its label alone (`aria-label`).
+- `'-'` a divider; `{ heading, icon }` a label over rows.
+- `{ submenu, items, project, run }`: a row opening a menu of its own at its side, its rows the same items (a task
+  tab's menu holds its project's rows so). `run` makes a click on the row itself act and close the menu, hover still
+  opening the submenu (a project in the bar's +: a click makes a new task of it).
+- `{ component, props }`: a row of its own, ☰'s (`components/menu/`): zoom (− and + leave the menu open), theme and
+  tasks' bar (`ChoiceRow.vue`: its choices side by side as shadcn-vue's Tabs show theirs, as no menu part does; they
+  leave it open), language (a submenu of radio rows, its value at the row's end as its description,
+  `aria-describedby`) and the arrangements, pictures of themselves.
 
 ### Panels
 

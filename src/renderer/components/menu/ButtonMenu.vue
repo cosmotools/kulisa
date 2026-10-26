@@ -1,10 +1,10 @@
 <script setup lang="ts">
-// A button with its menu (Reka's DropdownMenu; docs/ui.md, Menus). It opens on the press, as the OS's menus do, so a
-// press, a drag to a row and the release there chooses it (Reka's trigger opens on the click, after the release); the
-// click that follows is the press's, not another toggle.
+// A button with its menu (shadcn-vue's DropdownMenu; docs/ui.md, Menus). It opens on the press, as the OS's menus do,
+// so a press, a drag to a row and the release there chooses it (Reka's trigger opens on the click, after the release);
+// the click that follows is the press's, not another toggle.
 //   <ButtonMenu :items="() => […]" end> <button …> </ButtonMenu>   end: its end edge at the button's (at a bar's end)
 import { computed, provide } from 'vue';
-import { DropdownMenuContent, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger } from 'reka-ui';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import MenuRows from './MenuRows.vue';
 import { covered } from '../../lib/cover';
 import { closeMenu, focusBack, type MenuItem } from '../../lib/menu';
@@ -28,12 +28,12 @@ function click(e: MouseEvent) { if (pressed) { pressed = false; e.preventDefault
 </script>
 
 <template>
-  <DropdownMenuRoot :open :modal="false" @update:open="toggle">
+  <DropdownMenu :open :modal="false" @update:open="toggle">
     <DropdownMenuTrigger as-child @pointerdown="press" @click.capture="click"><slot /></DropdownMenuTrigger>
-    <DropdownMenuPortal>
-      <DropdownMenuContent class="menu" :data-ready="ready || undefined" :align="end ? 'end' : 'start'" :side-offset="4" :collision-padding="4" @close-auto-focus="focusBack($event, focused)" @focus-outside.prevent>
-        <MenuRows :items="rows" />
-      </DropdownMenuContent>
-    </DropdownMenuPortal>
-  </DropdownMenuRoot>
+    <!-- Shown once the pages under it are pictures (lib/cover.ts); over the title bar, not a part of what drags the window -->
+    <DropdownMenuContent class="w-auto max-w-md min-w-64 [-webkit-app-region:no-drag] not-data-ready:opacity-0" :data-ready="ready || undefined" :align="end ? 'end' : 'start'" :collision-padding="4"
+      @close-auto-focus="focusBack($event, focused)" @focus-outside.prevent>
+      <MenuRows :items="rows" />
+    </DropdownMenuContent>
+  </DropdownMenu>
 </template>

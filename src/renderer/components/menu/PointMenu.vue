@@ -1,8 +1,8 @@
 <script setup lang="ts">
-// The menu at a point (lib/menu.ts, menuAt): Reka's DropdownMenu with no button, placed at the point. Closed as any
-// menu is; afterwards the keyboard is back where it was (the terminal).
+// The menu at a point (lib/menu.ts, menuAt): shadcn-vue's DropdownMenu with no button, placed at the point. Closed as
+// any menu is; afterwards the keyboard is back where it was (the terminal).
 import { computed, watch } from 'vue';
-import { DropdownMenuContent, DropdownMenuPortal, DropdownMenuRoot } from 'reka-ui';
+import { DropdownMenu, DropdownMenuContent } from '@/components/ui/dropdown-menu';
 import MenuRows from './MenuRows.vue';
 import { covered } from '../../lib/cover';
 import { focusBack, pointMenu } from '../../lib/menu';
@@ -15,11 +15,10 @@ const at = computed(() => ({ getBoundingClientRect: () => DOMRect.fromRect({ x: 
 </script>
 
 <template>
-  <DropdownMenuRoot v-model:open="open" :modal="false">
-    <DropdownMenuPortal>
-      <DropdownMenuContent class="menu" :data-ready="ready || undefined" :reference="at" align="start" :collision-padding="4" @close-auto-focus="focusBack($event, focused)" @focus-outside.prevent>
-        <MenuRows :items="pointMenu?.items || []" />
-      </DropdownMenuContent>
-    </DropdownMenuPortal>
-  </DropdownMenuRoot>
+  <DropdownMenu v-model:open="open" :modal="false">
+    <DropdownMenuContent class="w-auto max-w-md min-w-64 [-webkit-app-region:no-drag] not-data-ready:opacity-0" :data-ready="ready || undefined" :reference="at" :collision-padding="4"
+      @close-auto-focus="focusBack($event, focused)" @focus-outside.prevent>
+      <MenuRows :items="pointMenu?.items || []" />
+    </DropdownMenuContent>
+  </DropdownMenu>
 </template>

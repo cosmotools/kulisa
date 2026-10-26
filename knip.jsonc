@@ -17,6 +17,8 @@
     // dependency-cruiser's rules, which it finds by their name (npm run deps).
     ".dependency-cruiser.ts"
   ],
+  // shadcn-vue's parts as its CLI writes them (components.json): a component's index exports all its parts, used or not.
+  "ignoreIssues": { "src/renderer/components/ui/**": ["exports", "types"] },
   // direnv: the user's own, which tasks use when it is installed (worktrees.ts); the tests check it the same way.
   // actionlint: the developer's own, npm test runs it when installed (docs/testing.md, Workflows).
   // where.exe: Windows' own, finding a shell the quoting test runs.

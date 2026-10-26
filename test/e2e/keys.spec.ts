@@ -84,7 +84,7 @@ test("keys in the terminal are the agent's, but Kulisa's own: Ctrl+T reaches the
   await shortcuts.locator('header').getByRole('button', { name: 'Close' }).click();
   await ui.locator('#windowMenu').click();
   const row = item(ui, 'Keyboard Shortcuts');
-  await expect(row.locator('kbd')).toHaveText(MAC ? '⇧⌘/' : 'Ctrl+Shift+/');
+  await expect(row.getByText(MAC ? '⇧⌘/' : 'Ctrl+Shift+/', { exact: true })).toBeVisible();
   await row.click();
   await expect(shortcuts).toHaveAttribute('data-state', 'open');
   await shortcuts.locator('header').getByRole('button', { name: 'Close' }).click();
