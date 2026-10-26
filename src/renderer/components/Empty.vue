@@ -11,7 +11,7 @@ import { page } from '../lib/store';
 <template>
   <!-- safe: what is taller than the window starts at its top, where scrolling reaches it -->
   <section v-if="page === 'welcome'" id="empty" class="col-start-1 row-start-2 grid place-items-center-safe overflow-auto"><Welcome /></section>
-  <SidebarProvider v-else-if="page === 'projects'" id="empty" class="col-start-1 row-start-2 min-h-0">
+  <SidebarProvider v-else-if="page === 'projects'" id="empty" class="col-start-1 row-start-2 min-h-0 border-t">
     <Sidebar collapsible="none" class="h-full border-r"><ProjectsSidebar /></Sidebar>
     <div class="flex flex-1 flex-col items-center justify-center gap-1 p-4 text-center text-muted-foreground">
       <p class="font-medium text-foreground">No task open</p>

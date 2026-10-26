@@ -159,7 +159,7 @@ test('tasks: + opens a task in the project\'s main working tree ("New Task", no 
   // It makes its own worktree, naming the task in the same call (task_worktree's name, since it is still "New Task"):
   // the tab and the branch take the name, the folder becomes the worktree; the project's folder stays the human's.
   // The Resources island: the main working tree until it has its own worktree, then the worktree on its branch.
-  const resources = ui.locator('#resources li > [role="button"]');
+  const resources = ui.locator('#resources [data-slot="item"][role="button"]');
   await expect(resources).toHaveText([`${path.basename(project)}main working tree`]);
   // Two of its agents at once (each a call) get the one worktree, not one each.
   const wt = `${project}@feature-x`, trees = () => git(project, 'worktree', 'list').split('\n').length, before = trees();
@@ -310,19 +310,27 @@ test("tasks: an agent's tab closes after a question, always (Cancel keeps it); t
   const fills = async () => {
     const g = await ui.locator('#grid').boundingBox(), t = await group.boundingBox(), r = await resources.boundingBox(), near = (x: number, y: number) => Math.abs(x - y) <= 1;
     return near(Math.min(t.x, r.x), g.x) && near(Math.max(t.x + t.width, r.x + r.width), g.x + g.width) && near(Math.min(t.y, r.y), g.y)
-      && near(Math.max(t.y + t.height, r.y + r.height), g.y + g.height) && (r.x > t.x + t.width || r.y > t.y + t.height);
+      && near(Math.max(t.y + t.height, r.y + r.height), g.y + g.height) && (r.x >= t.x + t.width || r.y >= t.y + t.height);
   };
   const launchers = ui.getByTestId('launchers'), newTerminal = launchers.getByRole('navigation', { name: 'New terminal' }).getByRole('button');
   for (const preset of ['grid', 'focus', 'columns'] as const) {
     await arrange(ui, preset);
     await expect.poll(async () => (await launchers.count()) > 0 && (await fills()) && centred(launchers, island), { timeout: 3000 }).toBe(true);
     await expect(launchers).toMatchAriaSnapshot(`
+      - text: Nothing open
+      - paragraph: Start an agent or a shell, or open a profile.
       - navigation "New terminal":
         - button "Terminal"
       - navigation "Open a profile":
-        - button "Sam.admin"
-        - button "Elon.buyer"
-        - button "Dora"
+        - button "Sam.admin":
+          - img
+          - text: Sam.admin
+        - button "Elon.buyer":
+          - img
+          - text: Elon.buyer
+        - button "Dora":
+          - img
+          - text: Dora
     `);
     const ys = new Set(await Promise.all((await newTerminal.all()).map(async (x) => Math.round((await x.boundingBox()).y))));
     expect(ys.size, 'in one line').toBe(1);

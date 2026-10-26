@@ -75,49 +75,6 @@ button.danger { background: var(--danger); border-color: var(--danger); color: v
 .chips { display: flex; flex-wrap: wrap; gap: 4px; outline: none;
   .chip { height: 24px; padding: 0 10px; background: var(--button); color: var(--text);
     &[data-state="on"] { background: var(--chosen); border-color: var(--blue); color: var(--text-strong); } } }
-/* A tile: big, for the hand to find at once where nothing else is (an empty grid's agents and profiles), its icon or
-   a profile's picture as large as two rows, a .name, a small line under it */
-.launcher { --icon: calc(var(--row) * 1.25); display: flex; flex-direction: column; align-items: center; justify-content: start;
-  gap: 4px; width: calc(var(--control) * 5); height: calc(var(--control) * 4.5); padding: calc(var(--inset) * 1.5) var(--inset) var(--inset);
-  border-radius: var(--island-radius); background: var(--island);
-  &:hover { background: var(--island-hi); }
-  &:active { background: color-mix(in srgb, var(--island-hi) 85%, var(--text)); }
-  &:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
-  :is(svg, .avatar) { width: var(--icon); height: var(--icon); flex: none; margin-block-end: 4px; }
-  :is(.name, small) { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  small { color: var(--text-muted); font-size: var(--font-small); } }
-/* A button that names a thing it opens, in one row beside what is looked at (the closed profiles over the terminal):
-   its picture, its .name cut with … so that one long name does not crowd out the rest, the action's icon at the end */
-.opener { display: flex; align-items: center; gap: 10px; flex: none; max-width: 18em; height: calc(var(--row) * 1.75);
-  padding: 0 18px 0 8px; border-radius: 999px; color: var(--text-strong); font-weight: 600;
-  > .avatar { width: calc(var(--row) * 1.25); height: calc(var(--row) * 1.25); flex: none; }
-  > .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  > svg { --icon: 20px; width: var(--icon); height: var(--icon); flex: none; margin-inline-start: auto; color: var(--text-dim); } }
-/* A strip of tabs that scrolls when they do not fit (lib/strip.ts: the wheel, the edges, the active one in sight): no
-   scrollbar; an edge with tabs past it fades out (data-past-start, data-past-end; a mask takes alpha alone, hence the literal
-   color), and a tab brought into view clears the fade. */
-.tabstrip { overflow-x: auto; scrollbar-width: none; scroll-padding-inline: var(--fade);
-  mask-image: linear-gradient(to right, transparent, #000 var(--fade-start, 0px), #000 calc(100% - var(--fade-end, 0px)), transparent);
-  &[data-past-start] { --fade-start: var(--fade); } &[data-past-end] { --fade-end: var(--fade); } }
-/* A panel's tab, as Chrome's (a pane's, ProfilePane.vue; a terminal's, TerminalTabs.vue): on a row in the island's
-   color, the active one in the toolbar's and open at its foot, joined to the surface under the row. Many shrink as
-   Chrome's, to their icon and × (64 px): every tab keeps its ×, not the active one alone as Chrome's (the author's
-   choice, as in the tasks' bar); past that the strip scrolls (.tabstrip). */
-.tab { position: relative; display: flex; align-items: center; gap: 6px; width: 220px; flex: 0 1 auto; min-width: 64px; /* a width, not a basis: size containment leaves it no other */ height: var(--tab); padding: 0 8px 0 12px;
-  container-type: inline-size;
-  border-radius: var(--tab-radius) var(--tab-radius) 0 0; color: var(--text-dim);
-  &:hover:not([aria-selected="true"]) { background: color-mix(in srgb, var(--toolbar) 50%, var(--island)); }
-  &[aria-selected="true"] { background: var(--toolbar); color: var(--text-strong); }
-  /* a short line between two tabs, as Chrome's, where neither is lit */
-  &:not([aria-selected="true"], :hover) + &:not([aria-selected="true"], :hover)::before { content: ''; position: absolute; inset-inline-start: 0; inset-block: 9px;
-    border-inline-start: 1px solid var(--line); }
-  /* opened: it grows in from the left, as Chrome's (lib/strip.ts) */
-  &[data-opening] { overflow: hidden; animation: tab-open .2s cubic-bezier(.2, .8, .2, 1);
-    @media (prefers-reduced-motion: reduce) { animation: none; } }
-  .title { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-}
-@keyframes tab-open { from { width: 0; min-width: 0; padding-inline: 0; } }
-@container (max-width: 80px) { .tab .title { display: none; } }
 /* Icons (Lucide's; components/marks/ ours): 16 px where a place sets no size. In a layer: utilities size them. */
 @layer base { svg:is(.lucide, [data-icon]) { width: 16px; height: 16px; flex: none; } }
 /* An icon button: the icon alone, square with rounded corners as JetBrains' toolbars, lit under the pointer. --icon:

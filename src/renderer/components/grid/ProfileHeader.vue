@@ -1,7 +1,11 @@
 <script setup lang="ts">
-// A profile's panel's header in the grid (docs/profiles.md).
+// A profile's panel's header in the grid (docs/profiles.md): its picture, name, the agent's caption, the profile's menu
+// (⋯, as its right-click), ×.
 import { computed } from 'vue';
 import type { DockviewPanelApi } from 'dockview-vue';
+import { Avatar, AvatarImage } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
+import ButtonMenu from '../menu/ButtonMenu.vue';
 import RightClickMenu from '../menu/RightClickMenu.vue';
 import { act, store } from '../../lib/store';
 import { avatarSrc, keyText } from '../../lib/common';
@@ -9,7 +13,7 @@ import type { MenuItem } from '../../lib/menu';
 import { panes } from '../../lib/grid';
 import { openSettings } from '../../lib/dialogs';
 import { deleteProfile } from '../../lib/profiles';
-import { XIcon } from '@lucide/vue';
+import { EllipsisIcon, XIcon } from '@lucide/vue';
 
 const props = defineProps<{ params: { api: DockviewPanelApi } }>();
 const key = props.params.api.id.slice('profile:'.length);
@@ -31,21 +35,14 @@ function menu(): MenuItem[] | null {
 </script>
 
 <template>
-  <RightClickMenu :items="menu"><div class="ptab" :data-panel="params.api.id">
+  <RightClickMenu :items="menu"><div class="flex h-full min-w-0 items-center gap-1.5 px-2" :data-panel="params.api.id">
     <template v-if="profile">
-      <img class="avatar" alt="" :src="avatarSrc(profile.avatar)"><b class="pname" data-testid="profile-name"
+      <Avatar size="sm"><AvatarImage :src="avatarSrc(profile.avatar)" alt="" /></Avatar><b class="min-w-0 truncate font-medium" data-testid="profile-name"
         :title="[profile.name, profile.description].filter(Boolean).join('\n')">{{ profile.name }}</b>
-      <span class="caption" role="status">{{ caption }}</span>
-      <button class="close icon quiet" title="Close profile: its tabs go, its sign-ins stay (open it again in Profiles)" aria-label="Close profile"
-        @click="act('profile:close', { profile: profile.id })"><XIcon /></button>
+      <span class="min-w-0 flex-1 truncate text-muted-foreground" role="status">{{ caption }}</span>
+      <ButtonMenu :items="() => menu() ?? []" end><Button variant="ghost" size="icon-xs" title="The profile's menu" aria-label="Profile menu"><EllipsisIcon /></Button></ButtonMenu>
+      <Button variant="ghost" size="icon-xs" title="Close profile: its tabs go, its sign-ins stay (open it again in Profiles)" aria-label="Close profile"
+        @click="act('profile:close', { profile: profile.id })"><XIcon /></Button>
     </template>
   </div></RightClickMenu>
 </template>
-
-<style>
-/* A pane narrower than its name: the header shrinks with it (else it ran past the pane, its × out of sight and
-   dockview's list of hidden tabs shown for it), the name cut with …, the × kept. */
-#dock .dv-tab:has(.ptab) { min-width: 0; flex-shrink: 1; }
-.pname { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.caption { flex: 1 1 0; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--agent); font-weight: normal; }
-</style>

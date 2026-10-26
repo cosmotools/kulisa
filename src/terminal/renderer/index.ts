@@ -115,7 +115,7 @@ export function serialized(key: string) {
 export class View {
   term: Terminal;
   background: string;
-  el = Object.assign(document.createElement('div'), { className: 'term', style: 'height: 100%' });
+  el = Object.assign(document.createElement('div'), { className: 'h-full py-0.5 pr-1 pl-2' });
   key: string | null = null;
   renderer?: 'dom' | 'webgl';
   // The rows that fit, in the middle: what is left under a whole row (the place's height is any) shared above and below,

@@ -3,9 +3,5 @@
 </script>
 
 <template>
-  <div class="ptab"><span class="rtitle">Resources</span></div>
+  <div class="flex h-full min-w-0 items-center px-2"><span class="truncate text-muted-foreground">Resources</span></div>
 </template>
-
-<style>
-.rtitle { color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-</style>

@@ -19,7 +19,7 @@ under them).
 **The profiles' pages are native views, drawn above the window's HTML**: HTML over a pane is under its page. So
 whatever HTML covers the panes hides the pages or puts pictures of them in their place: every menu and dialog opens
 through `covered()` (`lib/cover.ts`; a tasks' window's pages under it: `lib/views.ts`), which puts the pages back
-however it closes; while a panel is dragged, pictures stand in too. The renderer sends each pane's `.content` box (or
+however it closes; while a panel is dragged, pictures stand in too. The renderer sends each pane's page box (`data-testid="page"`; or
 that it is off screen) to the main process after every grid change (docs/window.md).
 
 | Where | What |
@@ -36,8 +36,8 @@ that it is off screen) to the main process after every grid change (docs/window.
 
 Kulisa is a desktop app, an IDE: its window looks like one, JetBrains' Settings its model (not big
 titles, framed cards, a paragraph each, pills and rows that show their buttons under the pointer: those read as a
-web page's and are hard to read). The one pill: the closed profiles' buttons over the terminal (`.opener`), the one
-place where a button is there to draw the eye, seen only while no profile is open. So:
+web page's and are hard to read). The one pill: the closed profiles' buttons over the terminal (`ClosedProfiles.vue`),
+the one place where a button is there to draw the eye, seen only while no profile is open. So:
 
 - **JetBrains' UI font and size**: Geist (shadcn-vue's) at 14 px (a step above their UI Guidelines' 13, Typography: 13 reads small), bundled
   (`@fontsource-variable/geist`, `app.css`), so the window looks the same on every OS (the OS's own, on Linux Noto
@@ -145,13 +145,6 @@ the browser's own `until-found` apart): a component's `display` beats the browse
 - `.titled`: a group's title, its name and a line to the end (JetBrains' titled separator), over a `.list` or fields.
 - `.item[aria-selected="true"]`: the chosen row of a list (Reka's Listbox, Tree), lit.
 - `.dot`: a 10 px circle in `--color`, a project's.
-- `.launcher`: a tile, big, for the hand to find at once where nothing else is: an icon or a profile's picture as
-  large as two rows, its `.name`, a `small` line under it (an account's email; none under a profile's: who it is is in its tooltip, as under the name the tile's edge would cut it), on an island's color,
-  lit under the pointer. The empty grid's agents and profiles (`Terminals.vue`).
-- `.opener`: a button that names a thing it opens, in one row beside what is looked at: a pill, large and bold to
-  draw the eye (as high as 1¾ rows), a profile's `.avatar` (as the tiles'), its `.name`, the action's icon (20 px, muted) at the end; up to 18em wide, the name cut with … so that one long
-  name does not crowd out the rest, the whole in its tooltip. The closed profiles over the terminal
-  (`ClosedProfiles.vue`; Add Profile… with no picture).
 - `.dots`: where one is in a few slides or steps, a short bar each, lit up to the one shown (an `ol`, `li[data-on]`): the
   welcome's slides and its steps.
 - `.chip`: a thing named in a pill, its icon first (14 px, muted), `--font-small`: what goes along to another agent
@@ -182,27 +175,22 @@ The window's controls are Reka UI's, in this look:
 - Tabs: a pane's tabs are Reka's `Tabs`, the tasks' tabs shadcn-vue's (`activationMode` manual): chosen on the press, as a
   browser's (not on their ×), one Tab stop for the strip, the arrows move and Enter chooses. A task's is shown on
   the release, or as its drag begins ([window.md](window.md), The tasks' bar).
-- A strip of tabs that do not all fit (the tasks' bar, a pane's tabs, the closed profiles' tiles, the terminals' tabs) is `.tabstrip` (`components.css`;
-  the tasks' bar: `no-scrollbar`, `scroll-fade-x`, `scroll-px-10`) with
+- A strip of tabs that do not all fit (the tasks' bar, a pane's tabs, the closed profiles' buttons, the terminals' tabs) is
+  `no-scrollbar scroll-fade-x scroll-px-10 overflow-x-auto` with
   `useStrip` (`lib/strip.ts`), one for every strip, so all scroll one way:
   no scrollbar; a mouse's wheel scrolls it sideways (Shift and a touchpad's swipe are the browser's: with Shift both
-  would scroll, twice as far); an edge with tabs past it fades (`--fade`; `data-past-start`, `data-past-end` from the scroll: CSS's
-  scroll-driven animations leave an edge faded when little is out of sight); the active tab is brought into sight,
-  clear of the fade, when another is chosen (`aria-selected`, Reka's), a tab grows in or the strip is resized, and only then, so an update
+  would scroll, twice as far); an edge with tabs past it fades (`scroll-fade-x`; `data-past-start`, `data-past-end` say
+  which); the active tab is brought into sight,
+  clear of the fade, when another is chosen (`aria-selected`, Reka's) or the strip is resized, and only then, so an update
   (a title, a page loading, an agent's state) leaves the strip where the human scrolled it.
-- `Toggle`: a button that stays on (Pick, `[data-state="on"]`).
+- `Toggle` (shadcn-vue's): a button that stays on (Pick).
 - `Collapsible`: something shown on demand (a profile's pictures to choose from; Details: `button.disclose` its trigger, an
   installer's output, an agent's sign-in's terminal).
 - `.avatar`: a profile's picture (`<img>`, `avatarSrc(name)` in `lib/common.ts`; `settings/Avatars.vue` the ones to choose from), 16 px; `--avatar` where a place needs
   another size (22 px in a profile's row, `ProfileRow.vue`).
-- `.tab`: a panel's tab, as Chrome's: a pane's (`ProfilePane.vue`: the page's icon, its title, ×) and a terminal's
-  (`TerminalTabs.vue`: the agent's icon, its name, its state (`AgentState.vue`), ×). The row in the island's color, the active tab in
-  `--toolbar`, rounded at its top only (`--tab-radius`) and joined to what is under the row: a pane's toolbar, the
-  terminal (in `--toolbar` too: the island's `View` is given that background). A short line between two tabs that
-  are not lit; × is `span.x.icon.small`, on every tab, always. A tab opened grows in from the left (`data-opening`,
-  set by `useStrip`). A pane's tabs are 220 px and shrink as Chrome's, to their icon and × (64 px), then scroll; a
-  terminal's is as wide as its name, up to 220 px, and never shrinks (the agents' marks look alike, so a tab without
-  its name could not be told from another): more than fit scroll.
+- A panel's tabs, a pane's (`ProfilePane.vue`: the page's icon, its title, ×) and a terminal's (`TerminalTabs.vue`: the
+  agent's icon, its name, its state, ×), are shadcn-vue's `Tabs`, as the tasks' bar's; × on every tab, always; more
+  than fit scroll.
 - `AgentState.vue`: an agent's state by `data-state` (from its hooks), an icon each so that color is not the only sign
   (some people do not tell yellow from green): working (sparkles, pulsing; not with reduced motion), waiting for you
   (a bell), done (a check: come and see, until the human sees that task), in Tailwind's blue, amber and green; nothing
@@ -257,9 +245,8 @@ Every dialog is `Modal.vue`, shadcn-vue's `Dialog` (`components/ui/`): its title
 - Every dialog is in `App.vue` from the start and registers what it does (`registerDialog`); anything opens one by
   name: `(await dialog('newproject')).open()` (`lib/dialogs.ts`). Settings is no dialog: `openSettings(section, id)`
   there opens its window.
-- A page's alert or confirm (`.pagedialog`, in `ProfilePane.vue`) is not a `Modal`: a Dialog that is not modal (the
-  other panes go on), in its pane right under the address bar, over a picture of the page, in Chrome's size, shape and
-  blue: the page's, not Kulisa's. Esc is Cancel; a click outside does nothing; OK has the keyboard.
+- A page's alert or confirm (in `ProfilePane.vue`) is not a `Modal`: a Dialog that is not modal (the other panes go
+  on), in its pane right under the address bar, over a dimmed picture of the page, as Chrome shows it. Esc is Cancel; a click outside does nothing; OK has the keyboard.
 - Change Agent (`HandOver.vue`, `#handover`): the two agents with what goes along between them (`Badge`s on a dashed
   line, the profiles' `AvatarGroup` in one), which fly to the new one, again and again, while it reads (`handed`,
   `received`; none with reduced motion), its progress under them; the accounts under them as a `RadioGroup`.

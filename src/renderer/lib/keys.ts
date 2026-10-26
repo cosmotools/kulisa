@@ -16,7 +16,7 @@ const zoneOf = (el: Element | null) => {
   if (dialogsOpen.value) return 'dialog'; // its keys are its own, wherever its focus is
   if (!el || el === document.body) return 'window';
   if (el.closest('.xterm')) return 'terminal';
-  const pane = el.closest<HTMLElement>('.pane');
+  const pane = el.closest<HTMLElement>('[role="region"][data-profile]');
   return pane ? `pane:${pane.dataset.profile}` : 'window';
 };
 const report = () => {
@@ -33,7 +33,7 @@ watch(dialogsOpen, report); // a dialog opened or closed
 const openOwn = async () => {
   const r = await act('terminal:open', { own: true });
   if (refused(r) || !('none' in r)) return;
-  const first = document.querySelector<HTMLElement>('.launch .launcher');
+  const first = document.querySelector<HTMLElement>('[data-testid="launchers"] button');
   if (first) first.focus(); else document.getElementById('termUnfold')?.click();
 };
 // A task's tab in the tasks' bar shown, as a click on it does (TaskTab.vue).
@@ -62,7 +62,7 @@ const run: Record<string, (c: Command) => unknown> = {
   'tab.n': (c) => toTab(c, (_i, n) => (c.n! <= n ? c.n! - 1 : -1)),
   'tab.last': (c) => toTab(c, (_i, n) => n - 1),
   // As a click on Pick: off on an empty tab; again cancels.
-  pick: ({ p }) => document.querySelector<HTMLButtonElement>(`.pane[data-profile="${CSS.escape(p!.id)}"] .pick`)?.click(),
+  pick: ({ p }) => document.querySelector<HTMLButtonElement>(`[role="region"][data-profile="${CSS.escape(p!.id)}"] [aria-label="Pick an element"]`)?.click(),
   screenshot: ({ p }) => screenshot(p!.id, 'element'),
 };
 // The bar's tasks, in its order.

@@ -168,7 +168,7 @@ test('tasks: switching slides the grid towards the other tab (a view transition)
   const live = async () => (await ui.locator('[data-testid="snapshot"]').count()) === 0 && viewOn(core, ui, files, 'Sam.admin');
   let seen = await swap(second);
   expect(seen.types).toEqual(['next']);
-  expect(seen.animations, 'it slides').toEqual(['grid-from-right calc(100% + 8px) cubic-bezier(0.4, 0, 0.2, 1)', 'grid-to-left calc(-100% - 8px) cubic-bezier(0.4, 0, 0.2, 1)']);
+  expect(seen.animations, 'it slides').toEqual(['grid-from-right 100% cubic-bezier(0.4, 0, 0.2, 1)', 'grid-to-left -100% cubic-bezier(0.4, 0, 0.2, 1)']);
   await expect.poll(live).toBe(true);
   // A page that draws no frame (busy, covered) holds the slide's start no longer than three times what the others
   // take (a tenth of a second at least), its pane then empty: half a second is felt after each click.
@@ -186,7 +186,7 @@ test('tasks: switching slides the grid towards the other tab (a view transition)
   expect(!pics.sam && pics.elon, 'the others taken').toBe(true);
   seen = await swap(first);
   expect(seen.types).toEqual(['previous']);
-  expect(seen.animations).toEqual(['grid-from-left calc(-100% - 8px) cubic-bezier(0.4, 0, 0.2, 1)', 'grid-to-right calc(100% + 8px) cubic-bezier(0.4, 0, 0.2, 1)']);
+  expect(seen.animations).toEqual(['grid-from-left -100% cubic-bezier(0.4, 0, 0.2, 1)', 'grid-to-right 100% cubic-bezier(0.4, 0, 0.2, 1)']);
   await expect.poll(live).toBe(true);
   // A menu opened while the grid still slides keeps the pages under it pictures, not shown over it at the slide's end.
   // Opened as soon as the slide starts, before the grid left is taken down (the transition's update, a frame later,

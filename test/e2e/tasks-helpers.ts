@@ -149,7 +149,7 @@ export async function begin(core: Core, ui: Page, files: Files, { columns = fals
     }
     k.watchPty(k.shell.pty);
   }, only);
-  if (columns) await expect(ui.locator('[data-panel^="profile:"]')).toHaveCount(2); // a pane stacked behind another has no .pane drawn
+  if (columns) await expect(ui.locator('[data-panel^="profile:"]')).toHaveCount(2); // a pane stacked behind another has no pane drawn
   await notLoading(ui);
   // Columns first: a page stacked behind another's tab is never laid out, and ensureProfile waits for that.
   if (columns) await arrange(ui, 'columns');

@@ -180,7 +180,7 @@ test("DevTools in a pane's ⋮ menu opens and closes the DevTools of its active 
     // As Chrome's ⋮: under the button, its right edge at the button's, so it stays over its own pane.
     const m = await menu(ui).boundingBox(), b = await pane.locator('[aria-label="More"]').boundingBox();
     expect(Math.abs(m.x + m.width - (b.x + b.width)) < 1 && m.y >= b.y + b.height, JSON.stringify({ m, b })).toBe(true);
-    // Back, forward, reload, Pick and ⋮ are icon buttons, as Chrome's: no border, no text, a name for screen readers.
+    // Back, forward, reload, Pick and ⋮ are icon buttons, as Chrome's: no border to see, no text, a name for screen readers.
     const names = ['Back', 'Forward', 'Reload', 'Pick an element', 'More'];
     await expect(buttons).toHaveCount(names.length);
     for (const [i, name] of names.entries()) {
@@ -188,7 +188,7 @@ test("DevTools in a pane's ⋮ menu opens and closes the DevTools of its active 
       await expect(b).toHaveAccessibleName(name);
       await expect(b).toHaveText('');
       await expect(b.locator('svg')).toHaveCount(1);
-      await expect(b).toHaveCSS('border-top-width', '0px');
+      expect(await b.evaluate((e) => { const s = getComputedStyle(e); return s.borderTopWidth === '0px' || s.borderTopColor === 'rgba(0, 0, 0, 0)'; }), name).toBe(true);
     }
     expect(await looks('its menu open'), 'its menu open').toEqual(closed);
     // The same inset from the island's edges for the controls in it; the page reaches its edges (the author's choice).
@@ -197,10 +197,10 @@ test("DevTools in a pane's ⋮ menu opens and closes the DevTools of its active 
     const left = async (l: Locator) => Math.round((await l.boundingBox()).x - island.x);
     const right = async (l: Locator) => { const r = await l.boundingBox(); return Math.round(island.x + island.width - (r.x + r.width)); };
     const page = pane.getByTestId('page'), pageBox = await page.boundingBox();
-    const inset = { avatar: await left(header.locator('img')), tab: await left(pane.getByRole('tab').first()), back: await left(pane.locator('[aria-label="Back"]')),
+    const inset = { avatar: await left(header.locator('img')), tabs: await left(pane.getByRole('tablist')), back: await left(pane.locator('[aria-label="Back"]')),
       page: await left(page), close: await right(header.locator('[aria-label="Close profile"]')), more: await right(pane.locator('[aria-label="More"]')),
       pageRight: await right(page), pageBottom: Math.round(island.y + island.height - (pageBox.y + pageBox.height)) };
-    expect(inset).toEqual({ avatar: 8, tab: 8, back: 8, page: 0, close: 8, more: 8, pageRight: 0, pageBottom: 0 });
+    expect(inset).toEqual({ avatar: 8, tabs: 8, back: 8, page: 0, close: 8, more: 8, pageRight: 0, pageBottom: 0 });
     await choose(ui, 'DevTools');
   };
   await click();

@@ -200,7 +200,7 @@ test('agent: keys, hover, select, files, waiting, evaluate, back and forward; di
     await expect(openDialog).toHaveCount(1);
   };
   await ask("confirm('Yours?\\nReally.')");
-  await expect(paneDialog.locator('h2')).toHaveText(`127.0.0.1:${PORT} says`);
+  await expect(paneDialog).toHaveAccessibleName(`127.0.0.1:${PORT} says`);
   await expect(paneDialog.getByText(/^Yours\?/)).toHaveText('Yours?\nReally.');
   await expect(paneDialog.getByRole('button', { name: 'Cancel' })).toHaveCount(1); // a confirm has Cancel
   expect(await view(), 'the page drawn as a picture under its dialog').toBe(false);

@@ -69,15 +69,15 @@ More tasks: **+** in the bar at the bottom, or **+** by a project in the sidebar
 - **Settings** (on a Mac also ⌘, or Kulisa → Settings… in the menu bar) opens in a window of its own, as in other desktop apps: set what you need and close it (**Esc** or its
   ×; what you typed is saved as you go). You can also leave it open and go on working in your task windows: it stays
   open beside them, and shows the project of the task window you were in last.
-- **The grid**: the shown task's panes (one per open profile) and its terminals. Drag a pane by its header to move it,
-  onto another pane to stack them as tabs; drag the gaps to resize. **☰ → Arrange panels** offers ready-made
+- **The grid**: the shown task's panes (one per open profile) and its terminals, side by side, a thin line between
+  them. Drag a pane by its header to move it, onto another pane to stack them as tabs; drag the lines to resize. **☰ → Arrange panels** offers ready-made
   arrangements. Each task keeps its own grid.
 - **Resources**, next to the terminal (beside it, or under it when the terminal is on the right): what the task works in (its copy of the code, or your project's folder until
   it has one), a click opens its folder; and under **Artifacts**, what the agent kept of the pages as it worked:
   screenshots (with a small picture), snapshots of a page, the bodies of requests, the newest first, with whose page and
   when. A click opens one; a right-click shows it in its folder or deletes it. The heading says how much room they take;
   its 🗑 deletes them all. The agent sees the same: ask it what is there, or to clean them up. Past 100 MB a task's oldest
-  go by themselves. Drag the gap beside it to resize it, as any pane.
+  go by themselves. Drag the line beside it to resize it, as any pane.
 - **The tasks' bar**, under the grid (or in the title bar, as a browser's tabs: **☰ → Tasks bar**): a tab per open task,
   of any project, with its project's icon and its agent's state, and **+** after them (a new task of the shown one's project). When there are more tabs than
   fit, the mouse wheel over the bar scrolls them, and a faded edge shows that more are past it.
@@ -135,7 +135,7 @@ Everything is saved as you change it; there is no Save button.
   account it goes as (GitHub, below): Kulisa picks the first of yours that can reach it, and you can choose another
   there. A line under the list says when none can, and why.
 - **Agents**: the accounts its tasks run. **★** makes one the default, the one a new task runs; **★** on the default
-  one again leaves the project with no default: a new task then starts with nothing running, and big buttons in the
+  one again leaves the project with no default: a new task then starts with nothing running, and buttons in the
   middle let you open the agent you want, or a terminal. With no agents at all, a new task starts with a terminal.
 - **Profiles**: which profiles its tasks have. **+** makes a new one or adds one you have; **−** lets go of one (the
   profile stays in Settings → Profiles).
@@ -275,7 +275,7 @@ profile under Profiles to see its page.
 ### Signing in
 
 - **You sign in once, for every task.** Each profile has a master copy: **Sign In…** in Settings → Profiles, or
-  **Sign In to Master…** in its pane's right-click menu, opens it in a window of its own. Sign in there; every task gets
+  **Sign In to Master…** in its pane's **⋯** menu (in the pane's header, or a right-click on it), opens it in a window of its own. Sign in there; every task gets
   that sign-in. A sign-in, or a sign-out, of a real account in any task reaches the others too.
 - Signing in to your app on `localhost` stays in that task: each task runs its own copy of your app.
 - **Test users of your app**: a profile's **Test login** and **Test password** (Settings → Profiles), or saved by the
@@ -286,14 +286,16 @@ profile under Profiles to see its page.
 
 ### Open, close, remove
 
-- **×** on a pane closes the profile: its tabs go and free their memory; it stays signed in. Open it again from the
+- **×** in a pane's header closes the profile: its tabs go and free their memory; it stays signed in. Open it again from the
   task tab's right-click menu, with the same tabs.
-- **Remove from Project…** (the pane's right-click menu) takes the profile out of this project; it stays in Settings →
+- **Remove from Project…** (the pane's **⋯** menu) takes the profile out of this project; it stays in Settings →
   Profiles.
 
 ## A profile's pane
 
-A pane is a small Chrome: a tab strip, an address bar, back, forward and reload.
+A pane is a small Chrome: a tab strip, an address bar, back, forward and reload. Its header shows the profile's
+picture and name, what the agent is doing there, **⋯** (the profile's menu: New tab, About this profile…, Sign In to
+Master…, Close profile, Remove from Project…) and **×**.
 
 - `target=_blank` links and pop-ups open as tabs of the same profile. Right-click a tab: Reload, Duplicate, Close tab,
   Close other tabs.
@@ -353,9 +355,9 @@ A pane is a small Chrome: a tab strip, an address bar, back, forward and reload.
 - **+** at the row's end opens one of the project's agents, a new conversation, or **Terminal**, a shell. Closing an
   agent's tab (**×**) asks first; its conversation stays in the task's history. A shell closes at once, or with `exit`.
 - Close the last one and the island folds to a thin strip with **+** in its middle, which opens one again (Ctrl+`
-  opens the task's agent). With no profile open either, big buttons in the middle of the window do what **+** does:
+  opens the task's agent). With no profile open either, buttons in the middle of the window do what **+** does:
   one for each of the project's agents, then **Terminal**. Tab moves between them and Enter opens one. Under them, a
-  tile for each of the project's profiles opens it.
+  button for each of the project's profiles opens it.
 - Terminals come back after a restart in their tabs: an agent continues its conversation, a shell starts fresh. An
   agent's tab shows "Starting…" for a moment while its agent starts.
 - Copy and paste as in your OS's terminal: Ctrl+Shift+C / Ctrl+Shift+V on Linux, Ctrl+C / Ctrl+V on Windows, ⌘C / ⌘V

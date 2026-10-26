@@ -14,7 +14,7 @@ import type { Terminal as TerminalInfo } from '../../shared/types';
 // The terminal in front of the shown task's island: where the keyboard goes (Ctrl+`), what the tests read.
 const frontKey = () => (store.current && store.terminals.front !== null ? `${store.current}#${store.terminals.front}` : null);
 // The island's xterm, one for the window: Terminals.vue puts it in whichever grid is shown.
-export const island = new View({ background: '--toolbar' }); // a pane's toolbar's, under the tab in front
+export const island = new View({ background: '--background' }); // the panes' own
 export const shownTerm = () => (island.key && island.key === frontKey() ? island.term : null);
 Object.defineProperty(window, '__term', { get: shownTerm }); // for tests
 Object.defineProperty(window, '__termRenderer', { get: () => shownTerm() && island.renderer }); // for tests

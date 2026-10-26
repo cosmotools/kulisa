@@ -3,10 +3,13 @@
 // tabs in the header (TerminalTabs.vue). The xterms live as long as their terminals (lib/terminals.ts); the panel holds
 // the shown task's. With none, the island is folded to its + (by its height with a panel over or under it, by its width
 // when it is as tall as the grid), and unfolds to the size it had when one opens. With no profile open it is the
-// grid's room for them, so there the group is not drawn and the +'s rows are big buttons in its middle instead
-// (docs/window.md, The terminal), the closed profiles' under them.
+// grid's room for them, so there the +'s rows are big buttons in its middle instead (docs/window.md, The terminal), the
+// closed profiles' under them.
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import type { DockviewApi, DockviewPanelApi } from 'dockview-vue';
+import { Avatar, AvatarImage } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
+import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty';
 import ButtonMenu from '../menu/ButtonMenu.vue';
 import RightClickMenu from '../menu/RightClickMenu.vue';
 import { store } from '../../lib/store';
@@ -36,13 +39,12 @@ function place() {
 
 // Folding: the island's group held at one button's size along the grid's axis it lies across (dockview's constraints),
 // its header gone; its size before, given back when it unfolds.
-const STRIP = 36; // the header's height (Grid.vue): one button with the island's margins
+const STRIP = 36; // the header's height (app.css, --dv-tabs-and-actions-container-height)
 let before: { width?: number; height?: number } | null = null;
 function fold(on: boolean) {
   const group = props.params.api.group;
   if (!group) return;
   group.header.hidden = folded.value;
-  group.element.toggleAttribute('data-termalone', folded.value && alone.value);
   if (on) {
     if (before) return;
     const box = group.api.boundingBox, dock = document.querySelector('#dock .dv-dockview')?.getBoundingClientRect();
@@ -74,56 +76,42 @@ onBeforeUnmount(() => { for (const s of subs) s.dispose(); if (island.el.parentE
 // The buttons in an empty grid, each a Tab stop (Tab to the next, Enter opens it): the first,
 // the project's default agent, gets the keyboard when the keyboard was in the terminal just closed or nowhere (not
 // taken from a field or a dialog). No keys on them: Ctrl+` opens the task's agent, which the window does not show.
-const launch = ref<HTMLElement>();
+const launch = ref<{ $el: HTMLElement }>();
 watch(() => folded.value && alone.value, async (on) => {
   if (!on) return;
   await nextTick();
   const a = document.activeElement;
-  if (a && a !== document.body && !closing(a) && !root.value?.contains(a) && !launch.value?.contains(a)) return;
-  launch.value?.querySelector<HTMLElement>('.launcher')?.focus();
+  if (a && a !== document.body && !closing(a) && !root.value?.contains(a) && !launch.value?.$el.contains(a)) return;
+  launch.value?.$el.querySelector<HTMLElement>('button')?.focus();
 }, { immediate: true, flush: 'post' });
 
 const menu = (e: MouseEvent) => {
-  const t = (e.target as Element).closest('.term') && store.terminals.list.find((x) => x.id === store.terminals.front);
+  const t = (e.target as Element).closest('.xterm') && store.terminals.list.find((x) => x.id === store.terminals.front);
   return t ? terminalMenu(keyOf(t.id), tabItems(t)) : null;
 };
 </script>
 
 <template>
-  <div class="terminals" data-testid="terminals" :data-folded="folded || undefined">
-    <div v-if="folded && alone" ref="launch" class="launch" data-testid="launchers">
-      <nav class="agents" aria-label="New terminal">
-        <button v-for="l in launchers()" :key="l.id" class="launcher" :aria-label="l.name" :title="l.title" @click="l.run()">
-          <component :is="l.icon" /><span class="name">{{ l.name }}</span><small v-if="l.sub">{{ l.sub }}</small>
-        </button>
-      </nav>
-      <nav class="profiles" aria-label="Open a profile">
-        <button v-for="p in profileLaunchers()" :key="p.id" class="launcher" :data-profile="p.id" :title="p.title" @click="p.run()">
-          <img v-if="p.avatar" class="avatar" :src="avatarSrc(p.avatar)" alt=""><PlusIcon v-else />
-          <span class="name">{{ p.name }}</span>
-        </button>
-      </nav>
-    </div>
-    <div v-else-if="folded" class="strip"><ButtonMenu :items="newTerminalItems"><button id="termUnfold" class="add icon quiet"
-      :title="withKeys('New conversation of an agent, or a terminal', 'terminal.new')" aria-label="New terminal"><PlusIcon /></button></ButtonMenu></div>
-    <RightClickMenu :items="menu"><div ref="root" class="termpanel" data-testid="terminal" :hidden="folded" /></RightClickMenu>
+  <div class="relative h-full data-folded:grid data-folded:place-items-center" data-testid="terminals" :data-folded="folded || undefined">
+    <Empty v-if="folded && alone" ref="launch" data-testid="launchers">
+      <EmptyHeader><EmptyTitle>Nothing open</EmptyTitle><EmptyDescription>Start an agent or a shell, or open a profile.</EmptyDescription></EmptyHeader>
+      <EmptyContent>
+        <nav class="flex flex-wrap justify-center gap-2" aria-label="New terminal">
+          <Button v-for="l in launchers()" :key="l.id" variant="outline" :aria-label="l.name" :title="l.title" @click="l.run()">
+            <component :is="l.icon" />{{ l.name }}<small v-if="l.sub" class="text-muted-foreground">{{ l.sub }}</small>
+          </Button>
+        </nav>
+        <nav class="flex flex-wrap justify-center gap-2" aria-label="Open a profile">
+          <Button v-for="p in profileLaunchers()" :key="p.id" variant="ghost" :data-profile="p.id" :title="p.title" @click="p.run()">
+            <Avatar v-if="p.avatar" size="sm"><AvatarImage :src="avatarSrc(p.avatar)" alt="" /></Avatar><PlusIcon v-else />{{ p.name }}
+          </Button>
+        </nav>
+      </EmptyContent>
+    </Empty>
+    <div v-else-if="folded"><ButtonMenu :items="newTerminalItems"><Button id="termUnfold" variant="ghost" size="icon-sm"
+      :title="withKeys('New conversation of an agent, or a terminal', 'terminal.new')" aria-label="New terminal"><PlusIcon /></Button></ButtonMenu></div>
+    <RightClickMenu :items="menu"><div ref="root" class="h-full" data-testid="terminal" :hidden="folded" /></RightClickMenu>
     <Pill v-if="!folded" :task="store.current"><CheckIcon /></Pill>
-    <p v-if="starting" class="starting" role="status"><AgentState state="working" />Starting {{ starting.name }}…</p>
+    <p v-if="starting" class="absolute inset-0 flex items-center justify-center gap-1.5 bg-background text-muted-foreground" role="status"><AgentState state="working" />Starting {{ starting.name }}…</p>
   </div>
 </template>
-
-<style>
-/* The terminal in the toolbar's color, as a pane's toolbar under its tabs: the tab in front joins it (TerminalTabs.vue) */
-.terminals { height: 100%; position: relative;
-  &:not([data-folded]) { background: var(--toolbar); border-radius: 0 0 var(--island-radius) var(--island-radius); }
-  .starting { position: absolute; inset: 0; margin: 0; display: flex; align-items: center; justify-content: center; gap: 6px;
-    border-radius: inherit; background: var(--toolbar); color: var(--text-muted); }
-  &[data-folded] { display: flex; flex-direction: column; justify-content: center; }
-  .strip { display: grid; place-items: center; height: 100%; }
-  .launch { display: flex; flex-direction: column; gap: calc(var(--gap) * 2); padding: var(--gap);
-    nav { display: flex; flex-wrap: wrap; justify-content: center; gap: calc(var(--gap) * 2); } }
-}
-#dock [data-termalone] { --dv-group-view-background-color: transparent; --dv-tabs-and-actions-container-background-color: transparent; }
-.termpanel { height: 100%; &[hidden] { display: none; } }
-.term { padding: 2px 4px 2px 8px; &[hidden] { display: none; } }
-</style>

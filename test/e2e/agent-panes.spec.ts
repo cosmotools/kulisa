@@ -41,11 +41,10 @@ test('tab strip: + opens a tab with the focus in its empty address, a click on a
   await strip.locator(`[data-tab="${first}"]`).evaluate((t) => { (window as any).__firstTab = t; });
   await strip.getByRole('button', { name: 'New tab' }).click();
   await expect.poll(async () => { const s = await state(); return s.tabs === n + 1 && s.active !== first; }).toBe(true);
-  // The strip keeps its tabs' elements; the new one grows in (data-opening, until its animation ends), as Chrome's.
+  // The strip keeps its tabs' elements.
   const added = (await state()).active;
   await expect(strip.locator(`[data-tab="${added}"]`)).toHaveCount(1);
   expect(await strip.locator(`[data-tab="${first}"]`).evaluate((t) => t === (window as any).__firstTab), 'the first tab\'s element stays').toBe(true);
-  await expect(strip.locator('[role="tab"][data-opening]')).toHaveCount(0);
   await expect(pane.locator('[aria-label="Address"]')).toBeFocused();
   await expect(pane.locator('[aria-label="Address"]')).toHaveValue('');
   // The keys go there, not to the new tab's page (a native view that would take the focus as it loads). Where the
@@ -78,50 +77,28 @@ test('tab strip: + opens a tab with the focus in its empty address, a click on a
   await expect.poll(async () => (await state()).active).toBe(first);
   await strip.getByRole('tab').last().getByTitle('Close tab').click();
   await expect.poll(async () => (await state()).tabs).toBe(n);
-  // With reduced motion (the OS's setting, emulated) it does not grow, and is not left growing: no animation ends
-  // there, and the tab would stay opening.
-  await ui.emulateMedia({ reducedMotion: 'reduce' });
-  try {
-    await strip.getByRole('button', { name: 'New tab' }).click();
-    await expect.poll(async () => (await state()).tabs).toBe(n + 1);
-    await expect(strip.locator(`[data-tab="${(await state()).active}"]`)).toHaveCount(1);
-    // Marked growing as it is added (lib/strip.ts: a MutationObserver's, before anything else runs), unmarked when an
-    // animation ends: none ends here.
-    expect(await strip.locator('[role="tab"][data-opening]').count(), 'not growing').toBe(0);
-    await core((k) => { const e = k.profile('Elon.buyer'); e.closeTab(e.active); });
-    await expect.poll(async () => (await state()).tabs).toBe(n);
-  } finally { await ui.emulateMedia({ reducedMotion: null }); }
 });
 
-test('many tabs: they shrink as in Chrome; the strip, the toolbar and the page stay inside the pane', async ({ core, ui, files }) => {
-  const { sam, elon } = await profiles(core);
+test('many tabs: the strip scrolls; it, the toolbar and the page stay inside the pane', async ({ core, ui, files }) => {
+  const { elon } = await profiles(core);
   const n = await core((k) => k.profile('Elon.buyer').tabs.length);
   const pane = `[role="region"][data-profile="${elon}"]`;
   const before = await pageBox(ui, files, 'Elon.buyer');
-  // A lone tab has its full width (220px, as Chrome's), not shrunk while there is room.
-  expect(Math.round((await ui.locator(`[role="region"][data-profile="${sam}"] [role="tab"]`).boundingBox()).width)).toBe(220);
   for (let i = 0; i < 24; i++) await act(ui, 'tab:new', { profile: elon });
   await expect(ui.locator(`${pane} [role="tab"]`)).toHaveCount(n + 24);
-  await expect(ui.locator(`${pane} [role="tab"][data-opening]`)).toHaveCount(0); // grown in
   // Nothing past the pane's right edge, nor scrolling it or its group (Playwright reads no scroll).
   const right = async (l: Locator) => { const r = await l.boundingBox(); return r.x + r.width; };
   const edge = await right(ui.locator(pane)), nav = ui.locator(`${pane} nav[aria-label="Tabs"]`), add = nav.getByRole('button', { name: 'New tab' });
   for (const l of [nav, add, ui.locator(`${pane} [aria-label="More"]`)]) expect(await right(l)).toBeLessThanOrEqual(edge);
   expect(await ui.locator(pane).evaluate((p) => [p.scrollWidth <= p.clientWidth, p.closest('.dv-groupview').scrollWidth <= p.closest('.dv-groupview').clientWidth])).toEqual([true, true]);
-  // The active one (the last opened) in sight; every one its icon and × (not the active one alone, as Chrome's: the
+  // The active one (the last opened) in sight, its × too; every one its × (not the active one alone, as Chrome's: the
   // author's choice).
   const active = nav.locator('[role="tab"][aria-selected="true"]'), other = nav.locator('[role="tab"]:not([aria-selected="true"])').first();
   const a = await active.boundingBox(), r = await nav.boundingBox(), plus = await add.boundingBox();
   expect(a.x >= r.x && a.x + a.width <= plus.x, 'the active one in sight').toBe(true);
   expect(await right(nav.getByRole('tablist')), 'nothing under +').toBeLessThanOrEqual(plus.x);
   await expect(active.getByTitle('Close tab')).toBeVisible();
-  await expect(other.locator(':scope > svg, img').filter({ visible: true }), 'its icon').not.toHaveCount(0);
-  const title = other.getByText(await other.getAttribute('aria-label'), { exact: true });
-  await expect(title).toHaveCount(1);
-  await expect(title, 'no title').toBeHidden();
-  await expect(other.getByTitle('Close tab')).toBeVisible();
-  // + and a tab's × are the same icon size.
-  expect([(await active.getByTitle('Close tab').locator('svg').boundingBox()).width, (await add.locator('svg').boundingBox()).width]).toEqual([14, 14]);
+  await expect(other.getByTitle('Close tab')).toHaveCount(1);
   expect(await pageBox(ui, files, 'Elon.buyer'), 'the page keeps its place and size').toEqual(before);
   // Past that the strip scrolls (lib/strip.ts): the edge with tabs past it fades; a mouse's wheel scrolls it; a tab
   // not shown that changes (its page loads, its title) leaves it where the human scrolled it, not back at the active

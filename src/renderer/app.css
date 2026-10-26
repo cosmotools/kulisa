@@ -129,3 +129,53 @@
     @apply bg-background text-foreground font-sans;
   }
 }
+
+/* Kulisa's own: what utilities cannot reach (docs/ui.md). */
+
+/* The grid (Grid.vue): dockview's markup, themed by its variables. Flat panes split by hairlines, in the theme's
+   colors; dockview's dark theme is the base for the variables it does not take from here. */
+#dock .dockview-theme-dark {
+  color-scheme: inherit;
+  --dv-group-view-background-color: var(--background);
+  --dv-tabs-and-actions-container-background-color: var(--background);
+  --dv-tabs-and-actions-container-height: --spacing(9);
+  --dv-tabs-and-actions-container-font-size: var(--text-sm);
+  --dv-activegroup-visiblepanel-tab-background-color: transparent; --dv-inactivegroup-visiblepanel-tab-background-color: transparent;
+  --dv-activegroup-hiddenpanel-tab-background-color: transparent; --dv-inactivegroup-hiddenpanel-tab-background-color: transparent;
+  --dv-activegroup-visiblepanel-tab-color: var(--foreground); --dv-inactivegroup-visiblepanel-tab-color: var(--foreground);
+  --dv-activegroup-hiddenpanel-tab-color: var(--muted-foreground); --dv-inactivegroup-hiddenpanel-tab-color: var(--muted-foreground);
+  --dv-tab-divider-color: transparent;
+  --dv-separator-border: var(--border);
+  --dv-active-sash-color: var(--ring);
+  --dv-drag-over-background-color: color-mix(in oklab, var(--ring) 25%, transparent);
+  background: var(--background);
+  /* stacked panels: the chosen one's header lit */
+  .dv-tabs-container:has(.dv-tab + .dv-tab) .dv-active-tab { background: var(--muted); }
+  /* A header shrinks with a pane narrower than it (its name cut, its × kept), rather than run past the pane and bring
+     dockview's list of hidden tabs. */
+  .dv-tab { min-width: 0; flex-shrink: 1; }
+}
+
+/* Switching tasks (lib/grid.ts, grid:closing): the grid slides towards the next task's tab, as macOS desktops do (types
+   next and previous say which way). Pictures, so the compositor moves them. Longhands: Vite's CSS minifier (Lightning
+   CSS) makes the shorthand with no name `animation: none`. Material's standard easing: an ease-out (.2, .8, .2, 1)
+   creeps over its last few percent, the grid going out lingering at the window's edge. */
+#dock { view-transition-name: grid; }
+:active-view-transition #dock { transition: none; } /* the next grid comes in sliding, not fading */
+::view-transition-old(grid), ::view-transition-new(grid) {
+  animation-duration: .3s; animation-timing-function: cubic-bezier(.4, 0, .2, 1); animation-fill-mode: both; mix-blend-mode: normal; }
+:active-view-transition-type(next) {
+  &::view-transition-old(grid) { animation-name: grid-to-left; }
+  &::view-transition-new(grid) { animation-name: grid-from-right; } }
+:active-view-transition-type(previous) {
+  &::view-transition-old(grid) { animation-name: grid-to-right; }
+  &::view-transition-new(grid) { animation-name: grid-from-left; } }
+@keyframes grid-to-left { to { translate: -100% 0; } }
+@keyframes grid-from-right { from { translate: 100% 0; } }
+@keyframes grid-to-right { to { translate: 100% 0; } }
+@keyframes grid-from-left { from { translate: -100% 0; } }
+
+/* As a desktop app: the window's text is not selected by a drag (index.html's body), a field's is. */
+@layer base {
+  input, textarea { @apply select-text; }
+}

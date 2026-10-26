@@ -67,7 +67,6 @@ const LAYOUT_WAIT = 3000; // ms a screenshot waits for a pane just opened to be 
 let dialogs = 0; // pages' dialogs, numbered: the human's answer goes to the one they saw
 // What Electron gives a page's dialog (its internal -run-dialog event).
 interface DialogInfo { dialogType: 'alert' | 'confirm'; messageText: string; frame: { url: string; parent: unknown } }
-const PAGE_RADIUS = 8; // a little less than the island's corners, which the page reaches (the renderer's ProfilePane.vue, .content)
 
 class Profile extends EventEmitter {
   win: BrowserWindow; id: string; name: string; avatar: string; description: string; login: string; hasPassword: boolean;
@@ -224,8 +223,7 @@ class Profile extends EventEmitter {
 
   // The tab's webContents as Kulisa watches it: a new tab's, or the new one of a discarded tab (load).
   _bind(tab: Tab) {
-    const { view, wc } = tab;
-    view.setBorderRadius(PAGE_RADIUS);
+    const { wc } = tab;
     // The keyboard stays where the human put it in the window: the page takes it only from them (page-focus.ts).
     guardFocus(wc, () => this.win);
     const update = () => {

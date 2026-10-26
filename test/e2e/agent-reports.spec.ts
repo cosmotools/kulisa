@@ -160,7 +160,7 @@ test("Resources: the agent's artifacts listed as it makes them, the newest first
     await expect(r).toHaveAttribute('aria-label', label);
     await expect(r.locator('img')).toHaveCount(0);
   }
-  await expect(ui.locator('#resources [data-file] small').first(), 'whose, and when').toHaveText(/^Elon\.buyer · /);
+  await expect(ui.locator('#resources [data-file] [data-slot="item-description"]').first(), 'whose, and when').toHaveText(/^Elon\.buyer · /);
   // What the OS would open it with: noted, not opened.
   await core((k) => {
     const { shell } = k.electron;

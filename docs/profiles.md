@@ -24,7 +24,7 @@ is said in the project alone: one place to read it and to change it. Its **maste
 that task (not all at once: a closed one costs nothing), its tabs the master's moved to the task's ports. What a task
 has of a profile is its own: its copy (what is signed in there stays there), its tabs, open or closed, its sites'
 zoom. A new task opens none of them (the first one neither): the agent opens one when it needs it (`profile_open`),
-the human from a tile over the terminal while none is open, or the task tab's right-click menu ([tasks.md](tasks.md),
+the human from a button over the terminal while none is open, or the task tab's right-click menu ([tasks.md](tasks.md),
 What the human does).
 **A profile lives until the human deletes it** (Settings → Profiles; as the agents' accounts):
 a profile in no project is kept, with its master and sign-ins. A project gets a profile when one is made in it
@@ -78,13 +78,14 @@ A profile is an Electron session on a folder of its own (`session.fromPath`), la
   (above); the profile stays. **Delete** in Settings (its page's ⋯ → Delete Profile…, its row's right-click, Delete), after a
   confirmation: its copies in every project's tasks and its master, with its sign-ins, storage and tabs, go for good
   (`projects.ts`, `deleteProfile`).
-- **Tabs**: a tab strip and an address bar per pane, drawn as Chrome's (the active tab of a piece with the toolbar;
-  back, forward, reload as Chrome's icons; the address without `https://` and `www.` until it is clicked, then all
-  of it, selected; a tab opened with + gets the focus in its empty address; many tabs shrink to their icon and × (each keeps its ×), then the
-  strip scrolls: [ui.md](ui.md), `.tabstrip`); `target=_blank` and `window.open` open tabs of the same
-  profile. Right-click a tab: reload, duplicate, close, close others. DevTools of a tab: the pane's ⋮ menu (where more of a pane's actions will go, as in Chrome) or F12.
-  A narrow pane gives up back and forward (under 260 px), then reload (under 200), into ⋮, their keys staying; never
-  Pick or ⋮ (`.bar`'s container queries).
+- **Tabs**: a tab strip and an address bar per pane, as Chrome's (back, forward, reload as Chrome's icons; the
+  address without `https://` and `www.` until it is clicked, then all of it, selected; a tab opened with + gets the
+  focus in its empty address; each tab keeps its ×; more than fit scroll:
+  `useStrip`, `lib/strip.ts`); `target=_blank` and `window.open` open tabs of the same profile. Right-click a tab:
+  reload, duplicate, close, close others. DevTools of a tab: the pane's ⋮ menu (where more of a pane's actions will go,
+  as in Chrome) or F12. A narrow pane gives up back and forward (its toolbar under 244 px), then reload (under 184),
+  into ⋮, their keys staying; never Pick or ⋮ (the toolbar's container queries). The profile's own menu is the
+  header's ⋯ (window.md, The grid).
   Chrome's keys work in a page for its pane: Ctrl+T, Ctrl+W, Ctrl+Shift+T, Ctrl+L, Ctrl+Tab, Ctrl+1…9 and the rest
   ([window.md](window.md), Keys).
 - **Zoom**: Ctrl + / − / 0 in a page zooms that site in that profile, on top of the Kulisa zoom (saved per profile,
@@ -210,7 +211,7 @@ methods; who a profile is changes and is checked in the store (`ProfileStore.ren
 | Rename a profile | Settings → Profiles | `profile_rename` | `ProfileStore.rename`; `Task.renameProfile`; its name one none of its projects has (`nameTaken`) |
 | Say who a profile is | Settings → Profiles | `profile_describe`, `profile_create` (the human's words only) | `ProfileStore.describe`; `Task.describeProfile` |
 | Change its picture | Settings → Profiles | none: how the human tells panes apart | `ProfileStore.setAvatar` |
-| Close, open a profile | ×; a tile while none is open, a task tab's menu | `profile_close`, `profile_open` | `Task.closeProfile`, `openProfile` |
+| Close, open a profile | ×; a button while none is open, a task tab's menu | `profile_close`, `profile_open` | `Task.closeProfile`, `openProfile` |
 | Remove a profile from the project | Remove from Project…, − on its page | `profile_delete` | `Task.deleteProfile(id, by)`: asks the human either way |
 | Delete a profile | Settings → Profiles | none: its sign-ins are the human's | `deleteProfile` (`projects.ts`) |
 | Open a tab | +, Duplicate, New tab | `browser_tab_new` | `Profile.newTab` (the address read by `toUrl`) |

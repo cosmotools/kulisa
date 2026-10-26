@@ -232,7 +232,7 @@ test("terminal: dictation where the agent has its own: the right Ctrl held anywh
   expect(await recordingNow(), `the ${name} is a modifier again`).toBe(false);
 });
 
-test("the island: its terminals in tabs over them, one shown, the row apart; + opens the human's shell in front; the agent runs what keeps running in a shell of its own, behind, reads it, stops it, closes it, never in an agent's tab; × and a shell's exit close one", async ({ core, ui, call, mcp }) => {
+test("the island: its terminals in tabs over them, as a pane's, one shown; + opens the human's shell in front; the agent runs what keeps running in a shell of its own, behind, reads it, stops it, closes it, never in an agent's tab; × and a shell's exit close one", async ({ core, ui, call, mcp }) => {
   // Named for the instructions to say it, before the agent first connects (the instructions come at its start).
   await core((k) => k.shell.task.rename('task-1'));
   await sam(core);
@@ -242,28 +242,16 @@ test("the island: its terminals in tabs over them, one shown, the row apart; + o
   const color = (sel: string) => ui.locator(sel).first().evaluate((e) => getComputedStyle(e).backgroundColor);
   expect((await mcp()).getInstructions()).toMatch(/terminal_run, not in your own shell.*This is the Kulisa task "task-1", working right in the project's folder .* \(no git, so no worktree of its own\)\. Run the app under test on a free port you pick \(Kulisa assigns none\).*Name the task with task_rename once you know what it is about, silently: never ask the human for a name or mention it\. These notes are for you/s);
   expect(await tabs(), "the agent's tab, named after its agent").toEqual(['bash *']);
-  // The row is apart from the terminal, as a pane's tabs from its toolbar: the row in a pane's tabs' color, the tab in
-  // front in the terminal's, as a pane's active tab in its toolbar's.
-  const row = '.dv-groupview:has([data-testid="terminal-tabs"]) .dv-tabs-and-actions-container';
-  expect(await color(row)).not.toBe(await color('[data-testid="terminals"]'));
-  expect(await color('nav[aria-label="Terminals"] [role="tab"][aria-selected="true"]')).toBe(await color('[data-testid="terminals"]'));
-  expect([await color(row), await color('nav[aria-label="Terminals"] [role="tab"][aria-selected="true"]')]).toEqual([await color('[role="region"][data-profile] nav[aria-label="Tabs"]'), await color('[role="region"][data-profile] [role="tab"][aria-selected="true"]')]);
-  // + is the island's, not a tab's: its menu has the project's agents (none here) and Terminal. The tab growing in is
-  // an attribute there for a moment: an observer notes it (an assertion could look after it went).
-  await ui.evaluate(() => {
-    (window as any).__grew = [];
-    new MutationObserver((m) => (window as any).__grew.push(...m.map((x) => (x.target as HTMLElement).dataset.id)))
-      .observe(document.querySelector('nav[aria-label="Terminals"]'), { subtree: true, attributeFilter: ['data-opening'] });
-  });
+  // The terminals' tabs look as a pane's: the row, and the tab in front.
+  const tabsOf = async (list: string) => [await color(list), await color(`${list} [role="tab"][aria-selected="true"]`)];
+  expect(await tabsOf('nav[aria-label="Terminals"]')).toEqual(await tabsOf('[role="region"][data-profile] [role="tablist"]'));
+  // + is the island's, not a tab's: its menu has the project's agents (none here) and Terminal.
   await ui.locator('#termAdd').click();
   await expect(menu(ui)).toMatchAriaSnapshot(`
     - menu:
       - menuitem "Terminal"`);
   await choose(ui, 'Terminal');
   await expect.poll(tabs).toEqual(['bash', 'Terminal *']);
-  // The new tab grows in, as a pane's (lib/strip.ts), and is left grown.
-  await expect.poll(() => ui.evaluate(() => (window as any).__grew.length)).toBe(2);
-  await expect(ui.locator('[role="tab"][data-opening]')).toHaveCount(0);
   const human = await terminal(core, 'Terminal');
   expect(await core((k) => (k.shell.task.terminal('Terminal') as TaskTerminal).by)).toBe('human');
   // A shell in front: no dictation (it is the shown agent's), the bar kept, its microphone disabled saying why; a pick
@@ -306,7 +294,6 @@ test("the island: its terminals in tabs over them, one shown, the row apart; + o
     expect(n, 'the row fills').toBeLessThan(had + 40);
     await ui.evaluate(() => (window as any).act('terminal:open'));
     await expect.poll(() => terminals(core)).toBe(n + 1);
-    await expect(nav.locator('[role="tab"][data-opening]')).toHaveCount(0);
     await frames(ui);
   }
   const island = await ui.locator('.dv-groupview').filter({ has: nav }).boundingBox(), right = async (l: string) => { const b = await ui.locator(l).boundingBox(); return b.x + b.width; };
@@ -495,13 +482,14 @@ test("the OS buttons' strip shows the top bar under it: dimmed with it under a d
 
 test("theme: Dark by default, Light or System in ☰; the window, the terminal and the OS buttons follow, the pages keep the OS's; saved", async ({ core, ui, files }) => {
   await sam(core);
-  // What is shown: a panel's color, the terminal's (a pane's toolbar's); the controls' own scheme (color-scheme).
-  const DARK = 'rgb(30, 31, 34)', LIGHT = 'rgb(255, 255, 255)', TERM = { dark: 'rgb(47, 49, 53)', light: 'rgb(242, 243, 245)' };
+  // What is shown: the panels' color, the terminal's the same (the theme's background); the controls' own scheme
+  // (color-scheme).
+  const BACKGROUND = { dark: 'oklch(0.145 0 0)', light: 'oklch(1 0 0)' }, WHITE = 'rgb(255, 255, 255)';
   // The theme as shown, once it is: the panels, the terminal (xterm's own option: it draws on a canvas), the one chosen
   // in ☰, the controls' scheme.
   const looks = async (shade: 'dark' | 'light', chosen: string, scheme: string = shade) => {
-    await expect(ui.locator('.dv-groupview').first()).toHaveCSS('background-color', shade === 'dark' ? DARK : LIGHT);
-    await expect.poll(() => ui.evaluate(() => (window as any).__term.options.theme.background)).toBe(TERM[shade]);
+    await expect(ui.locator('.dv-groupview').first()).toHaveCSS('background-color', BACKGROUND[shade]);
+    await expect.poll(() => ui.evaluate(() => (window as any).__term.options.theme.background)).toBe(BACKGROUND[shade]);
     const theme = menu(ui).getByTestId('theme-row');
     await expect(theme.getByRole('menuitemradio', { checked: true })).toHaveCount(1);
     await expect(theme.locator(`[data-theme="${chosen}"]`)).toHaveAttribute('data-state', 'checked');
@@ -534,7 +522,7 @@ test("theme: Dark by default, Light or System in ☰; the window, the terminal a
       - group:
         - text: Tasks bar`);
   await looks('dark', 'dark');
-  expect(await onAccent()).toBe(LIGHT);
+  expect(await onAccent()).toBe(WHITE);
   const pick = async (t: string, shade: 'dark' | 'light', scheme: string = shade) => {
     await menu(ui).locator(`[data-theme="${t}"]`).click();
     await looks(shade, t, scheme);
@@ -542,7 +530,7 @@ test("theme: Dark by default, Light or System in ☰; the window, the terminal a
     expect(saved(), 'saved').toBe(t);
   };
   await pick('light', 'light');
-  expect(await onAccent()).toBe(LIGHT);
+  expect(await onAccent()).toBe(WHITE);
   expect(await pageDark(), "a site under test keeps the OS's scheme").toBe(osDark);
   await shot('light.png');
   await pick('system', await core((k) => k.electron.nativeTheme.shouldUseDarkColors) ? 'dark' : 'light', 'light dark'); // the OS's, as the pages'

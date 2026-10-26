@@ -1,5 +1,5 @@
 // The grid of the shown task (dockview, drawn by Grid.vue; docs/window.md, The grid). After any change the main process
-// gets where each pane's .content box is, or that it is not on screen (stacked behind another pane), as it lays the
+// gets where each pane's page box is, or that it is not on screen (stacked behind another pane), as it lays the
 // native views over them.
 import { nextTick } from 'vue';
 import type { AddPanelPositionOptions, DockviewApi } from 'dockview-vue';

@@ -30,12 +30,12 @@ test('projects: several repositories: a task works in the main tree until it mak
   const of = (key: string) => core((k, t) => { const x = k.shell.taskByKey(t); return { folder: x.folder, worktrees: x.worktrees.map((c) => ({ repo: c.repo, folder: c.folder, branch: c.branch })), addable: x.addable(), dirs: x.dirs() }; }, key);
   // The Resources island (Resources.vue): each row its label, its branch line (or 'main working tree'), and whether it
   // can be removed (an added repository's worktree can; the main tree and the task's own worktree cannot).
-  const resources = ui.locator('#resources li > [role="button"]');
+  const resources = ui.locator('#resources [data-slot="item"][role="button"]');
   const rows = async (want: [string, string, boolean][]) => {
     await expect(resources).toHaveCount(want.length);
     for (const [i, [label, line, removable]] of want.entries()) {
       await expect(resources.nth(i)).toHaveAttribute('aria-label', label);
-      await expect(resources.nth(i).locator('small')).toHaveText(line);
+      await expect(resources.nth(i).locator('[data-slot="item-description"]')).toHaveText(line);
       // Hidden until the pointer is on the row: by its label, which a role's query of hidden ones passes over.
       await expect(resources.nth(i).locator('[aria-label="Remove Repository"]')).toHaveCount(removable ? 1 : 0);
     }
