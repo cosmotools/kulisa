@@ -522,6 +522,43 @@ test("projects: Delete Project… (the projects' manager alone) asks, closes the
   await core((k, a) => { const acc = k.shell.accounts; acc.drop(a.account); acc.remove(a.dir); }, { account: made.account, dir: made.accountDir });
 });
 
+test("projects: Settings, not modal, acts for the tasks' window last in front; its lists follow the profiles the agent makes and lets go meanwhile", async ({ core, ui, sui, call, files }) => {
+  await begin(core, ui, files, { featureX: true });
+  // A second tasks' window, with a project of its own.
+  const fourth = path.join(files.root, 'fourth');
+  await openFolder(core, ui, fourth);
+  const key = files.tkey('fourth', 1);
+  await invoke(ui, 'task:move', { key, terminals: {} });
+  await expect.poll(() => core((k, t) => k.shell.windows[1]?.current?.key === t && k.settled(false, k.shell.windows[1]), key)).toBe(true);
+  await backTo(core, ui, files, 'project');
+  const there = await otherPage(ui);
+  await notLoading(there);
+  // Opened from the second window: at its shown task's project.
+  await expect.poll(async () => (await there.evaluate(() => document.hasFocus())) || (await core((k) => k.focus(k.shell.windows[1].win)), false)).toBe(true);
+  await there.evaluate(() => (window as any).kulisa.send('settings:open', { section: 'projects', id: null }));
+  const s = await sui();
+  await pageOf(s, 'fourth');
+  // Made and let go by that task's agent (asked in its window): the project's page shows it, then not.
+  await call('profile_create', { name: 'Fay' }, { task: key });
+  const fay = files.idOf('Fay');
+  await expect(s.locator(`#npprofiles [data-profile="${fay}"]`)).toHaveCount(1);
+  await expect(s.locator(`#pjlist [data-profile="${fay}"]`)).toHaveCount(1);
+  await call('profile_delete', { profile: 'Fay' }, { task: key });
+  expect((await asked(core)).message).toBe('The agent asks to remove the profile Fay from fourth.');
+  await expect(s.locator(`#npprofiles [data-profile="${fay}"]`)).toHaveCount(0);
+  await core((k, f) => { k.shell.profileStore.delete(f); }, fay); // not needed after
+  // The first one in front (the question's dialog in the second gone first): Settings acts for it now, without being
+  // opened again.
+  await expect.poll(() => there.evaluate(() => document.getElementById('ask')?.dataset.state !== 'open')).toBe(true);
+  await focusWindow(core, ui);
+  await expect.poll(async () => (await invoke(s, 'projects:list')).project).toBe(files.pid('project'));
+  await closeSettings(core, ui, sui);
+  // The second window and its project gone, for a test after it.
+  await invoke(ui, 'project:close-tasks', { id: files.pid('fourth') });
+  await expect.poll(() => core((k) => k.shell.windows.length)).toBe(1);
+  await forget(core, ui, files, 'fourth');
+});
+
 test("projects: another tab left in the background, with a terminal its agent ran something in: after a restart the open tasks are as they were left, the one in the background loads when shown, its terminals back in their tabs (its agent's conversation resumed, a shell with nothing running)", async ({ core, ui, call, files, restart }) => {
   await begin(core, ui, files, { featureX: true });
   const other = path.join(files.root, 'other');
@@ -570,41 +607,4 @@ test('projects: one left in a window of its own comes back after a restart where
   // Its page: the second window's (ui is the first's).
   const second = await otherPage(ui2, `#projectTabs [data-task="${key}"]`);
   await expect.poll(() => projectTabs(second, files)).toEqual(['third *']);
-});
-
-test("projects: Settings, not modal, acts for the tasks' window last in front; its lists follow the profiles the agent makes and lets go meanwhile", async ({ core, ui, sui, call, files }) => {
-  await begin(core, ui, files, { featureX: true });
-  // A second tasks' window, with a project of its own.
-  const fourth = path.join(files.root, 'fourth');
-  await openFolder(core, ui, fourth);
-  const key = files.tkey('fourth', 1);
-  await invoke(ui, 'task:move', { key, terminals: {} });
-  await expect.poll(() => core((k, t) => k.shell.windows[1]?.current?.key === t && k.settled(false, k.shell.windows[1]), key)).toBe(true);
-  await backTo(core, ui, files, 'project');
-  const there = await otherPage(ui);
-  await notLoading(there);
-  // Opened from the second window: at its shown task's project.
-  await expect.poll(async () => (await there.evaluate(() => document.hasFocus())) || (await core((k) => k.focus(k.shell.windows[1].win)), false)).toBe(true);
-  await there.evaluate(() => (window as any).kulisa.send('settings:open', { section: 'projects', id: null }));
-  const s = await sui();
-  await pageOf(s, 'fourth');
-  // Made and let go by that task's agent (asked in its window): the project's page shows it, then not.
-  await call('profile_create', { name: 'Fay' }, { task: key });
-  const fay = files.idOf('Fay');
-  await expect(s.locator(`#npprofiles [data-profile="${fay}"]`)).toHaveCount(1);
-  await expect(s.locator(`#pjlist [data-profile="${fay}"]`)).toHaveCount(1);
-  await call('profile_delete', { profile: 'Fay' }, { task: key });
-  expect((await asked(core)).message).toBe('The agent asks to remove the profile Fay from fourth.');
-  await expect(s.locator(`#npprofiles [data-profile="${fay}"]`)).toHaveCount(0);
-  await core((k, f) => { k.shell.profileStore.delete(f); }, fay); // not needed after
-  // The first one in front (the question's dialog in the second gone first): Settings acts for it now, without being
-  // opened again.
-  await expect.poll(() => there.evaluate(() => document.getElementById('ask')?.dataset.state !== 'open')).toBe(true);
-  await focusWindow(core, ui);
-  await expect.poll(async () => (await invoke(s, 'projects:list')).project).toBe(files.pid('project'));
-  await closeSettings(core, ui, sui);
-  // The second window and its project gone, for a test after it.
-  await invoke(ui, 'project:close-tasks', { id: files.pid('fourth') });
-  await expect.poll(() => core((k) => k.shell.windows.length)).toBe(1);
-  await forget(core, ui, files, 'fourth');
 });
