@@ -1,7 +1,7 @@
 // Profiles, the human's and the agent's: made in Settings and by profile_create, who each is, renamed, signed in by the
 // human when the agent asks; isolated, presenting as what they are, the sign-in pause (docs/profiles.md).
 import { test, expect } from './fixtures.ts';
-import { SITE, who, menu, menuRows, choose, closeMenu, manageProfiles, closeSettings, chooseProfile, taskMenu, act, invoke , typeIn } from './helpers.ts';
+import { SITE, who, menu, choose, closeMenu, manageProfiles, closeSettings, chooseProfile, taskMenu, act, invoke, typeIn } from './helpers.ts';
 import { profiles, signIn } from './agent-helpers.ts';
 
 test('profiles are made in Settings (Profiles\' + in its tree), each with its own picture and, if the human says, who it is; added to the project on its page, opened in its task; the pages stay on screen under Settings\' window', async ({ core, ui, sui, files }) => {
@@ -47,13 +47,8 @@ test('profiles are made in Settings (Profiles\' + in its tree), each with its ow
   const project = await core((k) => k.shell.current.id);
   await s.locator(`#pjlist [data-project="${project}"]`).click(); // the projects come as it opens
   for (const name of ['Sam.seller', 'Elon.buyer']) {
-    // The profiles to add are asked for again as the page is shown: the menu may open before they come.
-    await expect(async () => {
-      await s.locator('#npprofileadd').click();
-      const has = (await menuRows(s)).includes(name);
-      if (!has) await closeMenu(s);
-      expect(has).toBe(true);
-    }).toPass();
+    // The profiles to add are asked for again as the page is shown: the open menu shows them as they come.
+    await s.locator('#npprofileadd').click();
     await choose(s, name);
     const row = s.locator('#npprofiles').getByRole('option', { name, exact: true });
     await expect(row).toHaveCount(1);

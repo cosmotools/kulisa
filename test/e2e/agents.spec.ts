@@ -8,7 +8,7 @@ import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
 import type { Files } from './data.ts';
-import { SITE, WIN, holdPointer, focusWindow, menu, menuRows, choose, closeMenu, rightClick, closeSettings, renamed, termText, termShows, invoke, projectMenu, onRow } from './helpers.ts';
+import { SITE, WIN, holdPointer, focusWindow, menu, menuRows, choose, closeMenu, rightClick, closeSettings, item, renamed, termText, termShows, invoke, projectMenu, onRow } from './helpers.ts';
 import { newTask } from './tasks-helpers.ts';
 import { fakeAgent, fakeBin } from './agent-helpers.ts';
 
@@ -355,13 +355,10 @@ test("an account lives until deleted in Settings → Agents: let go by its proje
   await s.locator(`#pjlist [data-project="${pid}"]`).click();
   await expect(s.locator('#pjconfig')).toBeVisible();
   await expect(s.locator('#npagentadd')).toBeEnabled();
-  // The accounts to add are asked for again as the tab is shown: the menu may open before they come.
-  await expect(async () => {
-    await s.locator('#npagentadd').click();
-    const rows = await menuRows(s);
-    await closeMenu(s);
-    expect(rows).toContain('Fake agent · home@shop.com');
-  }).toPass();
+  // The accounts to add are asked for again as the tab is shown: the open menu shows them as they come.
+  await s.locator('#npagentadd').click();
+  await expect(item(s, 'Fake agent · home@shop.com')).toBeVisible();
+  await closeMenu(s);
   // In no project and no task: deleted at once after the question.
   await showAgent(s, 'fake');
   await expect(row(s, home)).toBeVisible();
