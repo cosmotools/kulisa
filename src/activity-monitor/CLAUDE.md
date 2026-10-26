@@ -1,7 +1,7 @@
 # Activity monitor: working in this folder
 
 What Kulisa takes on the computer: a Kulisa package (`docs/packages.md`: what one is, its rules). How it works and
-why: `README.md`; keep it current with the code, as the docs in `docs/`. What is planned for it: issue #113.
+why: `README.md`. What is planned for it: issue #113.
 
 - From outside only through `main/index.ts`; it has no window half and no channels. `main/` uses nothing of
   `src/main`; `npm run deps` refuses any import.
