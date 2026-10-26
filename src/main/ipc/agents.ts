@@ -1,4 +1,4 @@
-// The windows' handles on the agents and their accounts (docs/tasks.md, Agents, Accounts): Settings → Agents, a new
+// The windows' handles on the agents and their accounts (docs/tasks.md, Choosing the agent, Accounts): Settings → Agents, a new
 // account's sign-in, Choose the Agent, the installer.
 import { app } from 'electron';
 import { addAgent, deleteAccount } from '../projects.ts';

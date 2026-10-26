@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// The tasks' bar: a tab per open task, in the bar's order (tasks.md, Tasks in the bar; docs/window.md, The tasks'
+// The tasks' bar: a tab per open task, in the bar's order (docs/window.md, The tasks'
 // bar). A tab stands for itself: its project is its icon (the author's choice). Every tab keeps its width whichever task is shown, so showing one moves
 // none (tabs moving under the mouse make the human miss). Where a dragged tab is let
 // go outside every Kulisa window, the main process says (the page does not know where the pointer is then).
