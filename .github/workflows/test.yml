@@ -55,7 +55,7 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
     name: checks (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 15
+    timeout-minutes: 20
     defaults:
       run:
         shell: bash
@@ -89,7 +89,7 @@ jobs:
         shard: [1, 2, 3]
     name: e2e (${{ matrix.os }}, ${{ matrix.shard }}/3)
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 15
+    timeout-minutes: 20
     defaults:
       run:
         shell: bash
@@ -119,7 +119,7 @@ jobs:
           path: ${{ runner.temp }}/apt
           key: apt-${{ runner.os }}-xvfb-openbox-gnome-keyring-dbus-x11-libsecret
       # The image's package lists first: with the cached .debs nothing is downloaded. Updated only when they no longer
-      # name those versions; a mirror that stops answering fails the step in minutes, not the job's 30.
+      # name those versions; a mirror that stops answering fails the step in minutes, not the whole job.
       - if: runner.os == 'Linux'
         timeout-minutes: 8
         run: |

@@ -19,7 +19,7 @@ export default defineConfig({
   timeout: 30000,
   // A menu's or a list's rows checked whole, as the human reads them (a template says /children: contain for a part).
   expect: { toMatchAriaSnapshot: { children: 'equal' } },
-  // A whole run stops by itself: nothing runs on unseen. A CI shard (about 5 min) before its job's 15 min, so that its
+  // A whole run stops by itself: nothing runs on unseen. A CI shard (about 5 min) before its job's 20 min, so that its
   // report is still made.
   globalTimeout: (ci ? 12 : 20) * 60000,
   workers,
