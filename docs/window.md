@@ -185,7 +185,7 @@ built: [ui.md](ui.md), Menus):
 A row whose command has a key shows it at its end (Keys). The window's menus are not native: a native menu has rows of
 text only, no buttons in a row.
 
-**About Kulisa** (a page of Settings, `settings/AboutPage.vue`, under Log, as Chrome's About: one place for what is
+**About Kulisa** (a page of Settings, `fluent/AboutPage.tsx`, under Log, as Chrome's About: one place for what is
 about the app; ☰ → About Kulisa opens Settings at it; on macOS also first in the app menu, in place of Electron's own
 panel): Kulisa's version (package.json's: from source `app.getVersion()` is Electron's), Electron's and Chromium's (for
 a bug report, and What sites see), kulisa.app and the license; then the folders Kulisa writes in on this computer, as
@@ -224,7 +224,7 @@ deleting button or lay out what goes. The OS's own dialogs stay for choosing a f
 
 ## Settings
 
-Settings (a tree of Projects, Agents and Profiles: [tasks.md](tasks.md), Projects; GitHub's page after Agents:
+Settings (a nav of Projects, Agents and Profiles: [tasks.md](tasks.md), Projects; GitHub's page after Agents:
 [src/github](../src/github/README.md), The window; then the Log page, The log below, and About, Menus above) is a
 window of its own, as a desktop app's settings (JetBrains', macOS apps'): the OS's title bar ("Settings — Kulisa"), its
 own size and place, kept (`settings.json`: `settingsWindow`), at least 640 × 420 times the Kulisa zoom.
@@ -248,7 +248,7 @@ own size and place, kept (`settings.json`: `settingsWindow`), at least 640 × 42
   window closed, the next one; the last one closed, Kulisa quits, Settings with it. Closed, Settings gives the keyboard
   back to that window. A new account's sign-in and an installer answer the page that asked.
 - **Its lists follow** what changes elsewhere while it is open: the profiles made and let go in a tasks' window or by
-  the agent (`settings:changed`, sent on `profilesChanged`), its tree's and the shown project's; nothing typed on its
+  the agent (`settings:changed`, sent on `profilesChanged`), its nav's and the shown project's; nothing typed on its
   page is touched.
 - **Never full screen** (`fullscreenable: false`), as Mac apps' settings: opened from a task's window in full screen,
   macOS would make it a full-screen window in a Space of its own; so it opens at its size over that window, in its
@@ -259,9 +259,9 @@ own size and place, kept (`settings.json`: `settingsWindow`), at least 640 × 42
 - **Settings only**: a project is made in a tasks' window (New Project: the empty window with no project, New Project…
   on the board), which opens its first task: one way to open each.
 - **Shown once its page is filled** (the projects, the profiles, the agents as last found, its fonts: `settings:ready`),
-  as Electron's docs advise (`show: false`), so its tree and page do not jump as they come; a page that never says so is
+  as Electron's docs advise (`show: false`), so its nav and page do not jump as they come; a page that never says so is
   shown after 2 s all the same.
-- Its page is the app's third (`settings.html`, `settings/Settings.vue`): nothing of a tasks' window (no grid, no
+- Its page is the app's third (`settings.html`, `fluent/Settings.tsx`): nothing of a tasks' window (no grid, no
   profiles' views, no keys of its own). Its process lives while it is open: about 40 MB of its own (PSS).
 - Not tried on Wayland: there an app may not place, move or focus its windows itself (Electron's docs, the same
   Platform notices), so where it opens and bringing it to the front are the compositor's.
@@ -620,7 +620,7 @@ shortcuts carry (`com.squirrel.kulisa.kulisa`), or Windows would not pin it to t
 | `src/main/page-menu.ts` | the right-click menu in a profile's page (Menus) |
 | `src/shared/ipc.ts`, `src/main/ipc.ts` | the channels between a page and the main process; `handle` and `on`, checked against them (IPC) |
 | `src/main/window.ts` | a window: its BrowserWindow, the native views' places, its questions, screenshot |
-| `src/main/settings-window.ts`, `src/renderer/settings.html`, `components/settings/` | Settings' window (Settings); its page is `ProjectEditor.vue` |
+| `src/main/settings-window.ts`, `src/renderer/settings.html`, `settings.tsx`, `fluent/` | Settings' window (Settings), on React and Fluent UI |
 | `src/preload/index.cjs` | the window's bridge to the main process: the windows' pages are sandboxed (no Node: about 15 MB less a window, PSS), so it is a few lines of plain JavaScript; the window imports what it shares with the main process from `src/shared/` (`names.ts`, `avatars.ts`, `result.ts`) |
 | `src/main/log.ts` | the log: the file (electron-log), `summary` of an action's arguments, the Log page's reading and following of it, the issue's address (The log) |
 | `fluent/LogPage.tsx`, `fluent/AboutPage.tsx` | the Log and About pages of Settings (The log; Menus, About Kulisa) |

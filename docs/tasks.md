@@ -797,7 +797,7 @@ rm -rf ~/.config/Kulisa/projects/<project id>   # all its tasks with their profi
 | `src/main/agents/` | the agents to choose from: find, install, start, resume; a folder's trust carried to a task's copy |
 | `src/main/store.ts` | the data folder above |
 | `src/terminal/` | the terminals: their ptys, buffers and the xterm shown ([README](../src/terminal/README.md)) |
-| `src/renderer/components/TaskBar.vue`, `NewTask.vue`, `Empty.vue`, `settings/ProjectEditor.vue` | the tasks' bar (a tab per open task); its + (the new-task menu); the grid's place when no task's grid is shown (the window's pages: the board, the welcome); a project's page in Settings |
+| `src/renderer/components/TaskBar.vue`, `NewTask.vue`, `Empty.vue`, `fluent/ProjectPage.tsx` | the tasks' bar (a tab per open task); its + (the new-task menu); the grid's place when no task's grid is shown (the window's pages: the board, the welcome); a project's page in Settings |
 | `src/renderer/components/newtab/` | the board, the empty window's: `Board.vue` (the columns, New Project…), `ProjectColumn.vue` (a project and its tasks) |
 | `src/renderer/components/welcome/` | the first start's welcome: `Welcome.vue` (the slides, then New Project's steps under a question each), `Tour.vue` (the slides, their pictures drawn in HTML) |
 | `src/renderer/components/newproject/` | New Project's steps: `Wizard.vue` (the steps, the buttons; the welcome's and the dialog's), `wizard.ts` (their state and rules, one per wizard), `CodeStep.vue`, `AgentStep.vue`, `ProfilesStep.vue`, `NewProject.vue` (the dialog) |

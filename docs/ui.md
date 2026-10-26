@@ -212,7 +212,7 @@ The window's controls are Reka UI's, in this look:
 - `Toggle`: a button that stays on (Pick, `[data-state="on"]`).
 - `Collapsible`: something shown on demand (a profile's pictures to choose from; Details: `button.disclose` its trigger, an
   installer's output, an agent's sign-in's terminal).
-- `.avatar`: a profile's picture (`<img>`, `avatarSrc(name)` in `lib/common.ts`; `settings/Avatars.vue` the ones to choose from), 16 px; `--avatar` where a place needs
+- `.avatar`: a profile's picture (`<img>`, `avatarSrc(name)` in `lib/common.ts`), 16 px; `--avatar` where a place needs
   another size (22 px in a profile's row, `ProfileRow.vue`).
 - `.tab`: a panel's tab, as Chrome's: a pane's (`ProfilePane.vue`: the page's icon, its title, ×) and a terminal's
   (`TerminalTabs.vue`: the agent's icon, its name, its `.state`, ×). The row in the island's color, the active tab in
