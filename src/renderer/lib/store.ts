@@ -59,7 +59,7 @@ export const setCaption = (profile: string, caption: string) => setIn('captions'
 // human switches tasks is refused, not done in the other one (main/ipc/panes.ts, onScreen).
 // The shown task (TaskInfo) and its project, from the window's tabs.
 export const shownTask = (s = get()) => s.projects.tabs.find((t) => t.key === s.current);
-export const shownProject = (s = get()) => s.projects.projects.find((p) => p.id === s.projects.project);
+const shownProject = (s = get()) => s.projects.projects.find((p) => p.id === s.projects.project);
 type OnTaskChannel = { [C in keyof Invoke]: Invoke[C]['args'] extends [OnTask] ? C : never }[keyof Invoke];
 type Rest<C extends OnTaskChannel> = Omit<Invoke[C]['args'][0], 'task'>;
 export const act = <C extends OnTaskChannel>(channel: C, ...args: {} extends Rest<C> ? [Rest<C>?] : [Rest<C>]) =>
