@@ -89,7 +89,10 @@ function start(options: Options = {}) {
   const userData = options.userData || path.join(app.getPath('appData'), 'Kulisa');
   app.setPath('userData', userData);
   if (options.quit) return askToQuit(userData);
-  const { previousRunQuit } = startLog(userData, app.isPackaged);
+  const { previousRunQuit } = startLog(userData, app.isPackaged,
+    // The platform Chromium chose, written back into the switch (auto by default), not XDG_SESSION_TYPE:
+    // --ozone-platform=x11 runs X11 in a Wayland session.
+    app.commandLine.getSwitchValue('ozone-platform'));
   log.info(`[kulisa] start ${environment()}, data ${userData}`);
   // A crash of the main process writes no line: Crashpad keeps its minidump in crashDumps (Crashpad prunes them itself:
   // 90 days, 128 MB), to ask a user for. No server (docs/window.md, The log).

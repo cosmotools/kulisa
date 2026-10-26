@@ -422,8 +422,8 @@ logs to the console again, and so on, in nextTicks that let nothing else run: Ku
 line has the time (ISO 8601 with the computer's offset, `stamp`: a user's log is read next to times from another zone;
 electron-log's own has no offset), the level and a tag:
 
-- `[kulisa]`: the start (the version, Electron's, the OS and its session, X11 or Wayland, packaged or from source, the
-  data folder), whether the OS keeps Kulisa's key (`encryption available`, on Linux which keyring; `basic_text` is
+- `[kulisa]`: the start (the version, Electron's, the OS and, on Linux, the display server Chromium runs on, X11 or
+  Wayland, packaged or from source, the data folder), whether the OS keeps Kulisa's key (`encryption available`, on Linux which keyring; `basic_text` is
   none: a warning), quitting. At a start, that the run before did not say it quit (`quitSaid`, from the file's end): a
   crash of the main process, a kill or the computer going down, which nothing else can write; a crash leaves its
   minidump in `crashDumps` (Electron's crashReporter, `uploadToServer: false`: Crashpad keeps them, pruned by itself,

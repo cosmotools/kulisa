@@ -31,12 +31,13 @@ export const shortEmail = (email: string) => {
 export const tilde = (p: string, home = os.homedir()) => homeAsTilde(p, home, path.sep);
 
 export const log = elog;
-let file = '', packaged = false;
+let file = '', packaged = false, display = '';
 export const logFile = () => file;
 export const LOG_MAX = elog.transports.file.maxSize; // 1 MB: then kulisa.old.log
-// The start line's facts, which a bug report names too (issueUrl): the version, Electron's, the OS and its session (X11 or
-// Wayland: the first bug looked at was on one and not the other), packaged or from source.
-export const environment = () => `${pkg.version}, electron ${process.versions.electron}, ${process.platform} ${os.release()}${process.env.XDG_SESSION_TYPE ? ` (${process.env.XDG_SESSION_TYPE})` : ''}, ${packaged ? 'packaged' : 'from source'}`;
+// The start line's facts, which a bug report names too (issueUrl): the version, Electron's, the OS and, on Linux, the
+// display server Chromium runs on (X11 or Wayland: the first bug looked at was on one and not the other), packaged or
+// from source.
+export const environment = () => `${pkg.version}, electron ${process.versions.electron}, ${process.platform} ${os.release()}${display ? ` (${display})` : ''}, ${packaged ? 'packaged' : 'from source'}`;
 // A new issue on GitHub from the bug template (.github/ISSUE_TEMPLATE/bug.yml), its environment filled in: GitHub takes a
 // form's fields by their id in the query. The template asks for the file (Save As… on the Log page) and says what is in it.
 export const issueUrl = (env: string) => `https://github.com/cosmotools/kulisa/issues/new?template=bug.yml&environment=${encodeURIComponent(`Kulisa ${env}`)}`;
@@ -44,8 +45,8 @@ export const issueUrl = (env: string) => `https://github.com/cosmotools/kulisa/i
 // logs/kulisa.log in the data folder, on every OS (electron-log would put macOS's in ~/Library/Logs: one place to name,
 // and the tests' in their own folder). At 1 MB it becomes kulisa.old.log and a new one starts: 2 MB at most. A second
 // Kulisa started on the same data writes its start line and "already running" into the same file (app.ts).
-export function startLog(userData: string, isPackaged: boolean) {
-  file = path.join(userData, 'logs', 'kulisa.log'); packaged = isPackaged;
+export function startLog(userData: string, isPackaged: boolean, displayServer = '') {
+  file = path.join(userData, 'logs', 'kulisa.log'); packaged = isPackaged; display = displayServer;
   const previousRunQuit = quitSaid(tail(file));
   elog.transports.file.resolvePathFn = () => file;
   elog.transports.file.format = ({ message: m, data }) => [`[${stamp(m.date)}] [${m.level}]`, ...data];
