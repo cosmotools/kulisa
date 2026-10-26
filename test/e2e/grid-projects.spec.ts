@@ -218,9 +218,10 @@ test('tasks: Move to New Window puts a task in a window of its own, still runnin
   await expect.poll(() => termText(ui2)).toContain(`agent: rc of ${other}`);
   // What it showed comes as it was, not cut at a default width; the agent never gets another width meanwhile (it
   // would draw its prompt again for it, leaving the old one behind).
+  // The run of = alone: on Windows ConPTY draws the echoed line again with what was before it on the row.
   const lines = await ui2.evaluate(() => {
     const b = (window as any).__term.buffer.active;
-    return Array.from({ length: b.length }, (_, i) => b.getLine(i)).filter((l: any) => l.translateToString(true).includes('===')).map((l: any) => [l.translateToString(true).length, l.isWrapped]);
+    return Array.from({ length: b.length }, (_, i) => b.getLine(i)).filter((l: any) => l.translateToString(true).includes('===')).map((l: any) => [/=+/.exec(l.translateToString(true))[0].length, l.isWrapped]);
   });
   expect(lines.filter(([n, wrapped]) => n !== 150 || wrapped), `whole lines: ${JSON.stringify(lines)}`).toEqual([]);
   // The window is the same size, so the agent keeps its size, and gets no other on the way: each one makes it draw
