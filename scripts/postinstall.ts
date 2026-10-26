@@ -4,6 +4,9 @@
 // Its prebuilt spawn-helper (the program it starts a shell with on macOS) may come without its exec bit in node-pty's
 // package: made executable, else every terminal fails (posix_spawnp failed), and
 // the packaged app (which takes it from node_modules) the same.
+// Electron's binary fetched here, once: npm runs no install script of Electron's (allowScripts), and its first import
+// fetches it instead, which several test processes at once do together (EBUSY on Windows).
+import 'electron';
 import { spawnSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
