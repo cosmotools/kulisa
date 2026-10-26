@@ -24,5 +24,6 @@ export default defineConfig({
   forbidOnly: ci,
   outputDir: 'test-results',
   // On the CI a shard's report is a blob, merged with the others' into the HTML and JUnit (test.yml, test).
-  reporter: ci ? [['list'], ['github'], ['blob']] : [['list'], ['html', { open: 'never', outputFolder: 'playwright-report' }]],
+  // Named by the shard: the shards' blobs are downloaded into one folder, and one name each would overwrite the others.
+  reporter: ci ? [['list'], ['github'], ['blob', { fileName: `report-${(process.env.KULISA_SHARD ?? '1/1').replace('/', '-')}.zip` }]] : [['list'], ['html', { open: 'never', outputFolder: 'playwright-report' }]],
 });
