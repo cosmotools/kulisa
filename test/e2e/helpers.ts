@@ -1,15 +1,194 @@
-// What the e2e test files share (docs/testing.md, End to end on Playwright Test).
-// The test site: the run's own (global-setup.ts).
+// What the e2e files share: the test site, the OS, and driving the window as the human does (its menus, the tasks' bar,
+// Settings, the terminal). Locators and web-first assertions, which wait (docs/testing.md, End to end on Playwright Test).
+import fs from 'fs';
+import { expect } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
+import type { Core, Call } from './fixtures.ts';
+import type { data } from './data.ts';
+
+type Files = ReturnType<typeof data>;
+
+// The run's test site (global-setup.ts), on a free port: never a literal port (CLAUDE.md, Hard-won facts).
 export const SITE = process.env.KULISA_TEST_SITE;
+export const PORT = new URL(SITE).port;
 export const MAC = process.platform === 'darwin';
-// What Windows does its own way: the terminal copies and pastes with Ctrl+C / V.
+// What Windows does its own way: the user's shell is PowerShell (src/terminal), a right-click's menu opens on the
+// release, the terminal copies and pastes with Ctrl+C / V.
 export const WIN = process.platform === 'win32';
+// An attribute's value in a selector, as a CSS string: a Windows path's backslashes are CSS escapes.
+export const attr = (name: string, value: string) => `[${name}=${JSON.stringify(value)}]`;
+export const near = (a: number, b: number) => Math.abs(a - b) < 1e-6;
+export const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+// Kulisa's menus (Reka's, docs/ui.md, Menus): the open one once it is shown (the pages under it are pictures), the
+// submenu open (the last one).
+export const menu = (ui: Page) => ui.locator('.menu[data-state="open"].ready').first();
+export const submenu = (ui: Page) => ui.locator('.menu[data-state="open"]').last();
+// The open menu's rows, each as its words: '-' a line, '# …' a heading, '~ …' a note, 'zoom' the zoom row; an item its
+// label, '(off)' when disabled, '  ' before it when it is set in under the row above.
+export async function menuRows(ui: Page, which: Locator = menu(ui)): Promise<(string | string[])[]> {
+  await expect(menu(ui)).toBeVisible();
+  return which.evaluate((m) => {
+    const row = (r: Element): string | string[] => (r.matches('[role="separator"]') ? '-' : r.matches('.heading') ? `# ${r.textContent}`
+      : r.matches('.zoomrow') ? 'zoom' : r.matches('.themerow') ? 'theme' : r.matches('.barrow') ? 'bar' : r.matches('.arrange') ? `arrange: ${[...r.querySelectorAll('span')].map((s) => s.textContent).join(', ')}`
+        : r.matches('[role="group"]') ? [...r.children].map(row) as string[]
+          : (r.matches('.inset') ? '  ' : '') + r.querySelector('.label').textContent + ((r.matches('.item') ? r : r.querySelector('.item')).matches('[data-disabled]') ? ' (off)' : ''));
+    return [...m.children].flatMap(row);
+  });
+}
+// An item of the open menu (or of which) by its label, whole.
+export const item = (ui: Page, label: string, which: Locator = menu(ui)) => which.locator('.item').filter({ has: ui.locator('.label', { hasText: new RegExp(`^${RegExp.escape(label)}$`) }) });
+export const choose = (ui: Page, label: string, which?: Locator) => item(ui, label, which).click();
+// The open menu closed as Esc does; no menu or list open after.
+export async function closeMenu(ui: Page) {
+  await ui.keyboard.press('Escape');
+  await expect(ui.locator('[data-state="open"]:is(.menu, [role="listbox"])')).toHaveCount(0);
+}
+// A right-click as the mouse makes it, at an element's middle (its press closes a menu open elsewhere; on Windows the
+// menu opens on the release).
+export const rightClick = (ui: Page, sel: string | Locator) => (typeof sel === 'string' ? ui.locator(sel) : sel).first().click({ button: 'right' });
+
+// The window given the keyboard as the human's click gives it, once its page has it: on a loaded machine the window
+// manager focuses the window and its page learns it later, and macOS gives the keyboard back to the view that had it
+// (a profile's page), over this: given again until the page has it.
+export async function focusWindow(core: Core, ui: Page) {
+  await core((k) => k.focus());
+  await expect.poll(async () => (await ui.evaluate(() => document.hasFocus())) || (await core((k) => k.focus()), false)).toBe(true);
+}
+
+// The tasks' bar's tabs (one per open task): each its project, by its folder's name, the shown one with ' *'.
+export const projectTabs = async (ui: Page, files: Files) => (await ui.locator('#projectTabs .tasktab').evaluateAll((ts) => ts.map((t) => (t as HTMLElement).dataset.project + (t.classList.contains('active') ? ' *' : '')))).map(files.named);
+// A project's first tab in the bar; the project shown again as the human does it, a click on it; its open tasks
+// closed with the middle button on each tab.
+export const projectTab = (ui: Page, files: Files, folder: string) => ui.locator(`#projectTabs .tasktab[data-project="${files.pid(folder)}"]`).first();
+export const showProject = (ui: Page, files: Files, folder: string) => projectTab(ui, files, folder).click();
+export const closeProject = (ui: Page, files: Files, folder: string) => ui.locator(`#projectTabs .tasktab[data-project="${files.pid(folder)}"]`).evaluateAll((ts) => { for (const t of ts) t.dispatchEvent(new MouseEvent('auxclick', { button: 1, bubbles: true })); });
+
+// The bar's + (NewTask.vue): a menu of every project with its tasks; one project shows its tasks inline, several nest
+// each project as a submenu. plusMenu(ui) opens it and gives its top rows' labels; plusMenu(ui, project) makes a new
+// task of that project (its New Task row); plusMenu(ui, project, task) opens that task again (a closed one) or shows it.
+const topLabels = (m: Locator) => m.locator(':scope > [role="menuitem"] .label').allTextContents();
+const anyMenu = (ui: Page) => ui.locator('.menu[data-state="open"]');
+export async function plusMenu(ui: Page, project?: string, task?: string) {
+  if (!(await anyMenu(ui).count())) await ui.locator('#newTask').click();
+  const top = anyMenu(ui).first();
+  await expect(top).toBeVisible();
+  if (project === undefined) return topLabels(top);
+  // Several projects: the project is a submenu to open first (its subtrigger opens on the pointer); one project: its
+  // tasks and New Task are the top menu's own. The rows are drawn a moment after the menu opens, and drawn again as a
+  // project just shown moves to the top (the submenu under the pointer then closes): opened again until its row is there.
+  const label = task ?? 'New Task';
+  const trigger = top.locator('[role="menuitem"][aria-haspopup]').filter({ has: ui.locator('.label', { hasText: new RegExp(`^${RegExp.escape(project)}$`) }) });
+  const rowIn = (m: Locator) => m.locator('[role="menuitem"]').filter({ has: ui.locator('.label', { hasText: new RegExp(`^${RegExp.escape(label)}$`) }) });
+  await expect(trigger.or(rowIn(top)).first()).toBeVisible();
+  if (!(await trigger.count())) return rowIn(top).first().click();
+  await expect(async () => {
+    if ((await anyMenu(ui).count()) < 2) await trigger.click();
+    await expect(rowIn(anyMenu(ui).last())).toBeVisible({ timeout: 500 });
+  }).toPass({ timeout: 5000 });
+  await rowIn(anyMenu(ui).last()).first().click();
+}
+// The + menu's rows for one project (its tasks, then New Task); the menu opened, read and closed again.
+export async function plusRows(ui: Page, project: string) {
+  await plusMenu(ui);
+  const top = anyMenu(ui).first();
+  await expect(top.locator(':scope > [role="menuitem"]').first()).toBeVisible();
+  const trigger = top.locator('[role="menuitem"][aria-haspopup]').filter({ has: ui.locator('.label', { hasText: new RegExp(`^${RegExp.escape(project)}$`) }) });
+  const multi = await trigger.count() > 0;
+  if (multi) await expect(async () => { await trigger.click(); await expect(anyMenu(ui)).toHaveCount(2, { timeout: 500 }); }).toPass({ timeout: 5000 });
+  const rows = await topLabels(multi ? anyMenu(ui).last() : top);
+  await closeBoard(ui);
+  return rows;
+}
+export async function closeBoard(ui: Page) {
+  if (await anyMenu(ui).count()) await anyMenu(ui).first().press('Escape');
+  await expect(anyMenu(ui)).toHaveCount(0);
+}
+// The shown task's tab's right-click menu, where its profiles are: its rows.
+export async function taskMenu(ui: Page) {
+  await rightClick(ui, '#taskbar .tasktab.active .name');
+  return menuRows(ui);
+}
+
+// Settings → Profiles: the shown task's tab's menu, then Manage Profiles…; once its window shows the page.
+export async function manageProfiles(ui: Page, sui: () => Promise<Page>) {
+  await taskMenu(ui);
+  await choose(ui, 'Manage Profiles…');
+  const s = await sui();
+  await expect(s.locator('#prconfig')).toBeVisible();
+  return s;
+}
+// A profile in Settings' tree chosen (a click), its page shown.
+export async function chooseProfile(s: Page, files: Files, name: string) {
+  const row = s.locator(`#pjlist [data-profile="${files.idOf(name)}"]`);
+  await row.click();
+  await expect(row).toHaveAttribute('aria-selected', 'true');
+  await expect(s.locator('#profilepage')).toBeVisible();
+}
+// A field of Settings → Profiles typed and left (saved on change).
+export const setProfileField = (s: Page, id: string, value: string) => s.locator(`#${id}`).evaluate((f: HTMLInputElement, v) => {
+  f.value = v; f.dispatchEvent(new Event('input')); f.dispatchEvent(new Event('change'));
+}, value);
+// Settings closed as the human does it with Esc, what was typed saved; its window gone, the keyboard back in the task's
+// window, the window's and its page's (a menu opened there before it comes closes as the window gets it). The key's
+// promise is not waited for: its page closes under it.
+export async function closeSettings(core: Core, ui: Page, sui: () => Promise<Page>) {
+  const s = await sui();
+  void s.keyboard.press('Escape').catch(() => {});
+  await settingsClosed(core, ui);
+}
+// However it closed (Esc, the OS's ×).
+export async function settingsClosed(core: Core, ui: Page) {
+  await expect.poll(() => core((k) => !k.shell.settings)).toBe(true);
+  await expect.poll(async () => (await core((k) => k.shell.win.isFocused())) && ui.evaluate(() => document.hasFocus()), { message: 'the task\'s window has the keyboard back' }).toBe(true);
+}
+
+// The window is a grid of peer panels (dockview): a pane per profile and the terminal. A profile's page is a native view
+// laid over its pane's .content box, so after any change in the grid it must follow the box (driver.ts, viewOn).
+export const box = (ui: Page, sel: string) => ui.evaluate((s) => {
+  const e = document.querySelector<HTMLElement>(s);
+  if (!e || !e.isConnected || !e.offsetWidth) return null;
+  const r = e.getBoundingClientRect();
+  return { x: Math.round(r.x), y: Math.round(r.y), width: Math.round(r.width), height: Math.round(r.height) };
+}, sel);
+export const pageBox = (ui: Page, files: Files, name: string) => box(ui, `.pane[data-profile="${files.idOf(name)}"] .content`);
+export const viewOn = async (core: Core, ui: Page, files: Files, name: string) => core((k, a) => k.viewOn(a.name, a.box), { name, box: await pageBox(ui, files, name) });
+// dockview's API, as the window keeps it for the tests (window.__dock).
+export const dock = <R>(ui: Page, fn: (api: any) => R) => ui.evaluate((src) => (0, eval)(`(${src})`)((window as any).__dock), fn.toString()) as Promise<R>;
+// The Resources island's height on screen (its group in the grid: lib/grid.ts).
+export const resourcesHeight = (ui: Page) => ui.evaluate(() => Math.round(document.getElementById('resources').closest('.dv-groupview').getBoundingClientRect().height));
+
+// Who the test site says is signed in, in a profile's page, as the agent reads it.
+export const who = async (call: Call, profile: string) => (await call('browser_snapshot', { profile })).text.match(/Signed (in as \w+|out)/)?.[0];
 
 // What the terminal in the window shows ('' while none is shown yet), as the screen reads: lines wrapped at its width
 // joined again, and each line's trailing spaces dropped (ConPTY pads a line repainted after a resize).
-export const termText = (ui: import('@playwright/test').Page) => ui.evaluate(() => {
+export const termText = (ui: Page) => ui.evaluate(() => {
   const b = (window as any).__term?.buffer.active;
   if (!b) return '';
   return Array.from({ length: b.length }, (_, i) => b.getLine(i)).map((l: any, i) => (i && !l.isWrapped ? '\n' : '') + l.translateToString(true)).join('')
     .split('\n').map((l) => l.replace(/ +$/, '')).join('\n');
 });
+// The terminal's xterm as it is: its size, its cursor, its lines up to the cursor and every one with text, each with its
+// number and a ~ when it continues the one before (wrapped): what a failed wait on the terminal says.
+export const termDump = (ui: Page) => ui.evaluate(() => {
+  const t = (window as any).__term, b = t?.buffer.active;
+  if (!b) return 'no terminal shown';
+  const lines = Array.from({ length: b.length }, (_, i) => b.getLine(i)).map((l: any, i) => `${i}${l.isWrapped ? '~' : ' '}|${l.translateToString(true)}`);
+  return { cols: t.cols, rows: t.rows, length: b.length, cursor: [b.cursorX, b.cursorY], baseY: b.baseY,
+    lines: lines.filter((l, i) => i <= b.baseY + b.cursorY + 2 || l.length > 4).slice(0, 40) };
+});
+export async function termShows(ui: Page, text: string, timeout = 5000) {
+  try { await expect.poll(() => termText(ui), { timeout }).toContain(text); } catch (e) {
+    throw new Error(`the terminal does not show ${JSON.stringify(text)}: ${JSON.stringify(await termDump(ui))}`, { cause: e });
+  }
+}
+
+// A file renamed once nothing holds it: Windows refuses (EBUSY, EPERM) while a process runs it, as an agent's .cmd that
+// a look at the agents' versions runs a moment longer (docs/testing.md, On Windows).
+export const renamed = (from: string, to: string) => expect.poll(() => {
+  try { fs.renameSync(from, to); return true; } catch (e) {
+    if ((e as NodeJS.ErrnoException).code === 'EBUSY' || (e as NodeJS.ErrnoException).code === 'EPERM') return false;
+    throw e;
+  }
+}).toBe(true);
