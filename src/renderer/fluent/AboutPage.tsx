@@ -17,7 +17,7 @@ export function AboutPage() {
   if (!info) return null;
   return <div style={{ display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 640 }}>
     <div>
-      <Text size={500} weight="semibold">Kulisa </Text><Text size={500}>{info.version}</Text>
+      <div role="heading" aria-level={1}><Text size={500} weight="semibold">Kulisa </Text><Text size={500}>{info.version}</Text></div>
       <div><Text size={200}>Electron {info.electron} · Chromium {info.chrome}</Text></div>
       <div><Text size={200}><Link href="https://kulisa.app">kulisa.app</Link> · GPL-3.0-or-later</Text></div>
     </div>

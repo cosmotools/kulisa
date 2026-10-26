@@ -4,7 +4,7 @@ import type { ReactElement, ReactNode } from 'react';
 import { Card, CardHeader, Text, Toolbar, ToolbarButton, Tooltip } from '@fluentui/react-components';
 
 export function Group({ title, hint, tools, children }: { title: string; hint: ReactNode; tools: ReactNode; children: ReactNode }) {
-  return <Card appearance="outline" size="small">
+  return <Card appearance="outline" size="small" aria-label={title}>
     <CardHeader header={<Text weight="semibold">{title}</Text>} description={<Text size={200}>{hint}</Text>} action={<Toolbar size="small">{tools}</Toolbar>} />
     {children}
   </Card>;

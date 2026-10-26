@@ -214,20 +214,31 @@ export const resize = (core: Core, size: { width?: number; height?: number }) =>
   return { width, height };
 }, size);
 
+// Settings (fluent/Settings.tsx): a row of its nav by its key (p:<project>, a:<agent>, f:<profile>, github, log, about),
+// the shown one aria-current; the shown page's path; a card of a page (Group.tsx) by its title; the open menu (Fluent's:
+// there only while open).
+export const navRow = (s: Page, key: string) => s.getByRole('navigation', { name: 'Settings' }).locator(`[data-key="${key}"]`);
+export const shownRow = (s: Page) => s.getByRole('navigation', { name: 'Settings' }).locator('[data-key][aria-current="page"]');
+export const pathOf = (s: Page) => s.getByRole('navigation', { name: 'Path' });
+export const group = (s: Page, title: string) => s.getByRole('group', { name: title, exact: true });
+export const settingsMenu = (s: Page) => s.getByRole('menu');
+// A list of a Settings page (List.tsx) by its name: its rows (not its head), one by its name.
+export const listRows = (s: Page, list: string) => s.getByRole('table', { name: list, exact: true }).getByRole('row').filter({ has: s.getByRole('cell') });
+export const listRow = (s: Page, list: string, name: string) => s.getByRole('table', { name: list, exact: true }).getByRole('row', { name, exact: true });
 // Settings → Profiles: the shown task's tab's menu, then Manage Profiles…; once its window shows the page.
 export async function manageProfiles(ui: Page, sui: () => Promise<Page>) {
   await taskMenu(ui);
   await choose(ui, 'Manage Profiles…');
   const s = await sui();
-  await expect(s.locator('#prconfig')).toBeVisible();
+  await expect(pathOf(s)).toHaveText(/^Profiles/);
   return s;
 }
-// A profile in Settings' tree chosen (a click), its page shown.
+// A profile in Settings' nav chosen (a click), its page shown.
 export async function chooseProfile(s: Page, files: Files, name: string) {
-  const row = s.locator(`#pjlist [data-profile="${files.idOf(name)}"]`);
+  const row = navRow(s, `f:${files.idOf(name)}`);
   await row.click();
-  await expect(row).toHaveAttribute('aria-selected', 'true');
-  await expect(s.locator('#profilepage')).toBeVisible();
+  await expect(row).toHaveAttribute('aria-current', 'page');
+  await expect(s.getByRole('textbox', { name: 'Name', exact: true })).toHaveValue(name);
 }
 // Settings closed as the human does it with Esc, what was typed saved; its window gone, the keyboard back in the task's
 // window, the window's and its page's (a menu opened there before it comes closes as the window gets it). The key's
@@ -237,22 +248,24 @@ export async function closeSettings(core: Core, ui: Page, sui: () => Promise<Pag
   void s.keyboard.press('Escape').catch(() => {});
   await settingsClosed(core, ui);
 }
-// A text field typed as the human types it, and left (a change) when leave.
-export async function typeIn(page: Page, sel: string, value: string, leave = false) {
-  await page.locator(sel).fill(value);
-  if (leave) await page.locator(sel).dispatchEvent('change');
+// A text field typed as the human types it, and left (a change; React's pages save as it loses the keyboard) when leave.
+export async function typeIn(page: Page, sel: string | Locator, value: string, leave = false) {
+  const field = typeof sel === 'string' ? page.locator(sel) : sel;
+  await field.fill(value);
+  if (leave) { await field.dispatchEvent('change'); await field.blur(); }
 }
-// Settings' project page shown: its name in place at its top.
+// Settings' project page shown: its name in its path and in its field.
 export async function pageOf(s: Page, name: string) {
-  await expect(s.locator('#pjname')).toHaveValue(name);
-  await expect(s.locator('#pjhead')).toBeVisible();
+  await expect(pathOf(s)).toHaveText(new RegExp(`^Projects\\s*${RegExp.escape(name)}$`));
+  await expect(s.getByRole('textbox', { name: 'Name', exact: true })).toHaveValue(name);
 }
 // A list's row selected (a click), then a button of its toolbar acting on it (− removes, ★ makes it the default).
-export async function onRow(s: Page, row: string, button: string) {
-  await s.locator(row).click();
-  await expect(s.locator(row)).toHaveAttribute('aria-selected', 'true');
-  await expect(s.locator(button)).toBeEnabled();
-  await s.locator(button).click();
+export async function onRow(s: Page, row: string | Locator, button: string | Locator) {
+  const r = typeof row === 'string' ? s.locator(row) : row, b = typeof button === 'string' ? s.locator(button) : button;
+  await r.click();
+  await expect(r).toHaveAttribute('aria-selected', 'true');
+  await expect(b).toBeEnabled();
+  await b.click();
 }
 // However it closed (Esc, the OS's ×).
 export async function settingsClosed(core: Core, ui: Page) {

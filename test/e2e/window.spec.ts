@@ -11,7 +11,7 @@ import type { TaskTerminal } from '../../src/main/tasks.ts';
 import type { Question } from '../../src/shared/types.ts';
 import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
-import { termTabs, SITE, CHECKOUT, MAC, WIN, echoed, frames, holdPointer, ipcSettled, menu, choose, closeMenu, rightClick, box, viewOn, focusWindow, closeSettings, termText, invoke, answer, removed, termKeys } from './helpers.ts';
+import { termTabs, SITE, CHECKOUT, MAC, WIN, echoed, frames, holdPointer, ipcSettled, menu, choose, closeMenu, rightClick, box, viewOn, focusWindow, closeSettings, termText, invoke, answer, removed, termKeys, navRow } from './helpers.ts';
 
 const NO_SHOT = 'macOS: the app that started the tests (the terminal) may not record the screen';
 const ACCENT = 'rgb(53, 116, 240)'; // a main button's, in the dark theme
@@ -431,7 +431,7 @@ test("one row on top: no menu bar, OS window buttons over the top bar; on macOS 
       return { roles: m.items.map((i) => i.role), accelerator: item?.accelerator };
     })).toEqual({ roles: ['appmenu', 'editmenu', 'windowmenu'], accelerator: 'Command+,' });
     await core((k) => k.electron.Menu.getApplicationMenu().items[0].submenu.items.find((i) => i.label === 'Settings…').click(undefined, k.shell.win, undefined));
-    await expect((await sui()).locator('#pjlist')).toBeAttached();
+    await expect((await sui()).getByRole('navigation', { name: 'Settings' })).toBeAttached();
     await closeSettings(core, ui, sui);
   } else expect(await core((k) => k.shell.win.isMenuBarVisible())).toBe(false);
   expect(await ui.evaluate(() => (navigator as any).windowControlsOverlay.visible)).toBe(true);
@@ -690,21 +690,27 @@ test("About Kulisa (☰; on macOS the app menu's) is a page of Settings: the ver
   }
   const shown = async () => {
     const s = await sui();
-    await expect(s.locator('#pjlist [data-page="about"]')).toHaveAttribute('aria-selected', 'true');
-    await expect(s.locator('#abconfig')).toBeVisible();
-    await expect(s.locator('#aboutpage h3').first()).toBeAttached();
+    await expect(navRow(s, 'about')).toHaveAttribute('aria-current', 'page');
+    await expect(s.getByRole('heading', { name: /^Kulisa / })).toBeVisible();
     return s;
   };
   const s = await shown();
   expect(await core((k) => k.shell.settings.win.getTitle()), "a page of Settings, as Chrome's About").toBe('Settings — Kulisa');
-  const a = await s.locator('#aboutpage').evaluate((d) => ({ title: d.querySelector('h3').textContent, line: [...d.querySelector('h3').parentElement.querySelectorAll('p')].map((p) => p.textContent).join(' / '),
-    folders: [...d.querySelectorAll<HTMLElement>('dd[data-folder]')].map((dd) => ({ id: dd.dataset.folder, path: dd.firstElementChild.textContent, missing: dd.hasAttribute('data-missing'), disabled: dd.querySelector<HTMLButtonElement>('[aria-label="Show"]').disabled })) }));
-  expect(a.title).toBe(`Kulisa ${pkg.version}`);
+  await expect(s.getByRole('heading', { name: /^Kulisa / })).toHaveText(`Kulisa ${pkg.version}`);
   const versions = await core(() => ({ electron: process.versions.electron, chrome: process.versions.chrome }));
-  expect(a.line).toBe(`Electron ${versions.electron} · Chromium ${versions.chrome} / kulisa.app · GPL-3.0-or-later`);
+  await expect(s.getByText(`Electron ${versions.electron} · Chromium ${versions.chrome}`, { exact: true })).toBeVisible();
+  await expect(s.getByText('kulisa.app · GPL-3.0-or-later', { exact: true })).toBeVisible();
+  // Each folder: its path, and its button to show it, told so and off when it is not made yet.
   const projectsHome = path.join(files.root, 'KulisaProjects'), made = fs.existsSync(projectsHome);
-  expect(a.folders).toEqual([{ id: 'data', path: files.userData, missing: false, disabled: false }, { id: 'projects', path: projectsHome, missing: !made, disabled: !made },
-    { id: 'program', path: CHECKOUT, missing: false, disabled: false }]);
+  const folders = s.locator('[data-folder]');
+  await expect(folders).toHaveCount(3);
+  for (const [i, [id, dir, there]] of ([['data', files.userData, true], ['projects', projectsHome, made], ['program', CHECKOUT, true]] as const).entries()) {
+    await expect(folders.nth(i)).toHaveAttribute('data-folder', id);
+    await expect(folders.nth(i).getByText(dir, { exact: true })).toBeVisible();
+    const show = folders.nth(i).getByRole('button');
+    await expect(show).toHaveAccessibleName(there ? 'Show in your file manager' : 'Not made yet');
+    await expect(show).toBeEnabled({ enabled: there });
+  }
   // Show: the folder in the file manager, by its id (the window names no path).
   await core((k) => {
     const g = k.stash;
@@ -712,7 +718,7 @@ test("About Kulisa (☰; on macOS the app menu's) is a page of Settings: the ver
     k.electron.shell.openPath = async (dir: string) => { g.shownDirs.push(dir); return ''; };
   });
   try {
-    await s.locator('#aboutpage dd[data-folder="data"]').getByRole('button', { name: 'Show' }).click();
+    await s.locator('[data-folder="data"]').getByRole('button', { name: 'Show in your file manager' }).click();
     await expect.poll(() => core((k) => k.stash.shownDirs.length)).toBe(1);
   } finally { await core((k) => { k.electron.shell.openPath = k.stash.openPath; }); }
   expect(await core((k) => k.stash.shownDirs)).toEqual([files.userData]);

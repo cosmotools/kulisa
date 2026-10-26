@@ -5,7 +5,7 @@ import path from 'path';
 import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
-import { attr, menu, choose, rightClick, closeSettings, termText, termDump, invoke, answer, projectMenu, pageOf, onRow, removed } from './helpers.ts';
+import { menu, choose, rightClick, closeSettings, termText, termDump, invoke, answer, projectMenu, pageOf, onRow, removed, group, listRows, listRow } from './helpers.ts';
 import { git, committed, hook, newTask, showTask, openFolder, projectShown } from './tasks-helpers.ts';
 
 // What the agent is told at a session's start (its SessionStart hook, as its plugin sends it: agent-hooks.ts).
@@ -119,14 +119,15 @@ test('projects: several repositories: a task works in the main tree until it mak
   await choose(ui, 'Project Settings…', await projectMenu(ui, `#projectTabs [data-project="${pid}"]`));
   const s = await sui();
   await pageOf(s, 'api');
-  await expect(s.locator('#npfolders [role="option"]')).toHaveCount(2);
+  await expect(listRows(s, 'Folders')).toHaveCount(2);
   for (const [i, [label, isDefault]] of ([['api', true], ['web', false]] as const).entries()) {
-    const option = s.locator('#npfolders [role="option"]').nth(i);
-    await expect(option).toHaveAttribute('aria-label', label);
-    await expect(option.locator('kbd').getByText('default', { exact: true })).toHaveCount(isDefault ? 1 : 0);
+    const row = listRows(s, 'Folders').nth(i);
+    await expect(row).toHaveAttribute('aria-label', label);
+    await expect(row.getByText('default', { exact: true })).toHaveCount(isDefault ? 1 : 0);
   }
-  await onRow(s, `#npfolders ${attr('data-folder', web)}`, '#npfolderdel');
-  await expect(s.locator('#npfolderserror')).toContainText(/Tasks work in it: New Task, Checkout/);
+  await expect(listRow(s, 'Folders', 'web')).toHaveAttribute('data-folder', web);
+  await onRow(s, listRow(s, 'Folders', 'web'), group(s, 'Folders').getByRole('button', { name: 'Remove from the project (its folder stays)' }));
+  await expect(group(s, 'Folders').getByRole('alert')).toContainText(/Tasks work in it: New Task, Checkout/);
   await closeSettings(core, ui, sui);
   // Removed again by its agent once the human agreed: nothing of its own in it, so not asked; its folder and branch
   // gone, the agent told once its turn is over. Its own folder is refused.

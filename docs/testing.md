@@ -105,6 +105,8 @@ passes, alone and with its file.
   config), `choose`, `closeMenu`, `rightClick`, `plusMenu`; a menu is shown once `[data-ready]`. `focusWindow(core, ui)`
   first, or no focus events. Kulisa's question is answered in the window that asks it, `answer(page, …)`; a call that
   waits for it is started first and awaited after.
+- **Settings' window is Fluent UI's** (`helpers.ts`): its menu `settingsMenu` (there only while open), its nav's rows
+  `navRow` (the shown one `aria-current`), a page's path `pathOf`, cards `group`, lists `listRows`/`listRow`.
 - **Never await a script in a window that it closes** (the reply is dropped): `closeSettings`.
 - Names say what the human sees, as a sentence; comments say why.
 - Writes stay in the test's folder (`files.userData`, `files.project`); a unit test removes its temporary folder.

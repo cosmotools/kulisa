@@ -4,7 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
-import { SITE, PORT, MAC, WIN, near, uiZoom, who, menu, anyMenu, item, choose, closeMenu, taskMenu, answer, manageProfiles, closeSettings, plusMenu, closeBoard, viewOn, invoke , typeIn } from './helpers.ts';
+import { SITE, PORT, MAC, WIN, near, uiZoom, who, menu, anyMenu, item, choose, closeMenu, taskMenu, answer, manageProfiles, chooseProfile, closeSettings, plusMenu, closeBoard, viewOn, invoke , typeIn } from './helpers.ts';
 import { profileId, deleteProfile } from './tasks-helpers.ts';
 
 // Files of the sites' Cache API in a profile's folder, wherever Chromium's layout puts them (`WebStorage/<bucket>/CacheStorage/`).
@@ -344,15 +344,14 @@ test("test users' sign-ins: the agent saves a pair and signs in with it on a loc
   await expect(call('browser_type_login', { profile: 'Tess', locator: "locator('#x')", field: 'password' })).rejects.toThrow(/not the app under test on this computer/);
   // The human: Settings → Profiles' login fields; the password saved encrypted, never shown back.
   const s = await manageProfiles(ui, sui);
-  const row = s.locator(`#pjlist [data-profile="${tess}"]`);
-  await row.click();
-  await expect(row).toHaveAttribute('aria-selected', 'true');
-  await expect(s.locator('#profilepage')).toBeVisible();
-  await expect(s.locator('#profilelogin')).toHaveValue('tester');
-  await expect(s.locator('#profilepassword')).toHaveAttribute('placeholder', 'Kept (type to change it)');
-  await typeIn(s, '#profilepassword', 'secret-tess', true);
-  await expect(s.locator('#profilepassword')).toHaveValue('');
-  await typeIn(s, '#profilelogin', 'tess', true);
+  await chooseProfile(s, files, 'Tess');
+  // a password field is no textbox
+  const login = s.getByRole('textbox', { name: 'Test login' }), password = s.getByLabel('Test password');
+  await expect(login).toHaveValue('tester');
+  await expect(password).toHaveAttribute('placeholder', 'Kept (type to change it)');
+  await typeIn(s, password, 'secret-tess', true);
+  await expect(password).toHaveValue('');
+  await typeIn(s, login, 'tess', true);
   await expect.poll(() => core((k, id) => k.shell.profileStore.get(id).login?.user, tess)).toBe('tess');
   await closeSettings(core, ui, sui);
   await call('browser_navigate', { profile: 'Tess', url: `${SITE}/app/signin` });

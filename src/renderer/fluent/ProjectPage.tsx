@@ -14,17 +14,25 @@ import type { ProjectAgent, ProjectFolder, ProjectGitHub, ProjectProfile, Projec
 
 const base = (f: string) => f.split(/[\\/]/).pop()!;
 const rowAt = (e: MouseEvent, attr: string) => (e.target as Element).closest<HTMLElement>(`[data-${attr}]`)?.getAttribute(`data-${attr}`) ?? null;
+// A list's selection while its row is there: it goes with its row.
+const kept = <T,>(sel: string | undefined, rows: T[], key: (r: T) => string) => (rows.some((r) => key(r) === sel) ? sel : undefined);
 
-export function ProjectPage({ id, onSaved, saveRef }: { id: string; onSaved: () => void; saveRef: { current: () => Promise<void> } }) {
+// The profiles changed elsewhere (a tasks' window, the agent): the page shown reads its own again (one listener: kulisa.on
+// has no off).
+const changed = new Set<() => void>();
+kulisa.on('settings:changed', () => { for (const f of changed) f(); });
+
+export function ProjectPage({ id, onSaved, onLoaded, saveRef }: { id: string; onSaved: () => void; onLoaded: () => void; saveRef: { current: () => Promise<void> } }) {
   const [s, setS] = useState<ProjectSettings | null>(null);
   const [name, setName] = useState(''), [local, setLocal] = useState(''), [error, setError] = useState('');
   const [folders, setFolders] = useState<ProjectFolder[]>([]), [github, setGithub] = useState<ProjectGitHub | null>(null);
   const [mine, setMine] = useState<ProjectAgent[]>([]), [profiles, setProfiles] = useState<ProjectProfile[]>([]), [others, setOthers] = useState<ProjectProfile[]>([]);
-  const [folderSel, setFolderSel] = useState<string>(), [agentSel, setAgentSel] = useState<string>(), [profileSel, setProfileSel] = useState<string>();
+  const [folderPick, setFolderSel] = useState<string>(), [agentPick, setAgentSel] = useState<string>(), [profilePick, setProfileSel] = useState<string>();
+  const folderSel = kept(folderPick, folders, (f) => f.folder), agentSel = kept(agentPick, mine, (a) => a.id), profileSel = kept(profilePick, profiles, (p) => p.id);
   const [adding, setAdding] = useState<'' | 'clone' | 'profile'>(''), [text, setText] = useState(''), [cloning, setCloning] = useState(false);
   const [errors, setErrors] = useState({ folders: '', agents: '', profiles: '' });
   const [signing, setSigning] = useState<{ id: string; name: string } | null>(null); // New Account…: the agent it is of, while signing in
-  const saved = useRef('');
+  const saved = useRef(''), loaded = useRef(onLoaded); // told once, as it is first read
 
   const githubNow = useCallback(async (answer?: Promise<Result<ProjectGitHub>>) => {
     const r = await (answer ?? kulisa.invoke('project:github-get', { id }));
@@ -37,6 +45,7 @@ export function ProjectPage({ id, onSaved, saveRef }: { id: string; onSaved: () 
   };
   useEffect(() => {
     void kulisa.invoke('project:settings-get', { id }).then((c) => {
+      loaded.current();
       if (refused(c)) return;
       setS(c); setName(c.name); setLocal((c.local || []).join(' ')); setFolders(c.folders); setMine(c.projectAgents);
       setProfiles(c.profiles); setOthers(c.others);
@@ -44,6 +53,11 @@ export function ProjectPage({ id, onSaved, saveRef }: { id: string; onSaved: () 
       void githubNow();
     });
   }, [id, githubNow]);
+  useEffect(() => {
+    const again = async () => { const c = await kulisa.invoke('project:settings-get', { id }); if (!refused(c)) { setProfiles(c.profiles); setOthers(c.others); } };
+    changed.add(again);
+    return () => { changed.delete(again); };
+  }, [id]);
 
   // Its name and local addresses, saved on Enter, on leaving them, and before Settings closes or another page shows.
   const look = () => JSON.stringify({ name: name.trim(), local: local.split(/[\s,]+/).filter(Boolean) });
@@ -104,18 +118,18 @@ export function ProjectPage({ id, onSaved, saveRef }: { id: string; onSaved: () 
   const accountName = (a: ProjectGitHub['accounts'][number]) => (a.kind === 'pat' ? `${a.login} (token)` : a.login);
   const stop = () => { setAdding(''); setText(''); };
   // What is added in place under a list: a field with its buttons, Enter does it, Esc puts it away.
-  const inPlace = (what: 'clone' | 'profile', placeholder: string, go: () => void, ok: string) => adding === what &&
+  const inPlace = (what: 'clone' | 'profile', label: string, placeholder: string, go: () => void, ok: string) => adding === what &&
     <div style={{ display: 'flex', gap: 8 }}>
-      <Input autoFocus style={{ flex: 1 }} value={text} placeholder={placeholder} spellCheck={false} onChange={(_, d) => setText(d.value)}
+      <Input autoFocus style={{ flex: 1 }} aria-label={label} data-name={what === 'profile' || undefined} value={text} placeholder={placeholder} spellCheck={false} onChange={(_, d) => setText(d.value)}
         onKeyDown={(e) => { if (e.key === 'Enter') go(); if (e.key === 'Escape') { e.stopPropagation(); stop(); } }} />
       <Button onClick={stop}>Cancel</Button><Button appearance="primary" disabled={cloning} onClick={go}>{ok}</Button>
     </div>;
-  const err = (t: string) => t && <Text size={200} style={{ color: 'var(--colorPaletteRedForeground1)' }}>{t}</Text>;
+  const err = (t: string) => t && <Text role="alert" size={200} style={{ color: 'var(--colorPaletteRedForeground1)' }}>{t}</Text>;
   if (!s) return null;
 
   return <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
     <Field label="Name" validationMessage={error || undefined}>
-      <Input value={name} maxLength={64} spellCheck={false} onChange={(_, d) => { setName(d.value); setError(''); }} onBlur={save}
+      <Input value={name} data-name maxLength={64} spellCheck={false} onChange={(_, d) => { setName(d.value); setError(''); }} onBlur={save}
         onKeyDown={(e) => { if (e.key === 'Enter') void save(); }} />
     </Field>
 
@@ -147,7 +161,7 @@ export function ProjectPage({ id, onSaved, saveRef }: { id: string; onSaved: () 
               {r.folder === folders[0]?.folder && folders.length > 1 && <Badge appearance="outline">default</Badge>}</> },
           ]} />
       </RightClickMenu>
-      {inPlace('clone', 'git@github.com:me/shop.git', () => void clone(), cloning ? 'Cloning…' : 'Clone')}
+      {inPlace('clone', 'Repository URL', 'git@github.com:me/shop.git', () => void clone(), cloning ? 'Cloning…' : 'Clone')}
       {github?.repos.filter((g) => g.why).map((g) => <Text key={g.folder} size={200}>{base(g.folder)}: {g.why}
         {g.install && <> <Link href={g.install} target="_blank">Install it on {g.owner}</Link> (or ask its owner to)</>}</Text>)}
       {err(errors.folders)}
@@ -188,7 +202,7 @@ export function ProjectPage({ id, onSaved, saveRef }: { id: string; onSaved: () 
             { label: 'Also in', width: '24%', cell: (p) => <Text size={200}>{p.also.join(', ')}</Text> },
           ]} />
       </RightClickMenu> : adding !== 'profile' && <Text size={200}>No profiles yet: the browser profiles its tasks test as, signed in once.</Text>}
-      {inPlace('profile', 'Its name, e.g. ann@shop.com', () => void addProfile(), 'Create')}
+      {inPlace('profile', 'New profile', 'Its name, e.g. ann@shop.com', () => void addProfile(), 'Create')}
       {err(errors.profiles)}
     </Group>
 

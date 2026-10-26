@@ -2,7 +2,7 @@
 import fs from 'fs';
 import path from 'path';
 import { test, expect } from './fixtures.ts';
-import { anyMenu, item, choose, projectTabs, projectTabSel, plusMenu, closeSettings, invoke, typeIn, answer, notLoading, projectMenu, pageOf, removed } from './helpers.ts';
+import { anyMenu, item, choose, projectTabs, projectTabSel, plusMenu, closeSettings, invoke, typeIn, answer, notLoading, projectMenu, pageOf, removed, navRow, settingsMenu } from './helpers.ts';
 import { git, committed, begin, bothOn, taskShown, taskTabs } from './tasks-helpers.ts';
 import { createWorktree } from '../../src/main/worktrees.ts';
 
@@ -38,10 +38,10 @@ test("projects: Delete Project… (the projects' manager alone) asks, closes the
     const { id, name } = await core((k, i) => k.shell.store.projects().find((x) => x.id === i), files.pid(folder));
     if (!(await core((k) => !!k.shell.settings))) await ui.locator('#manageProjects').click();
     const s = await sui();
-    await s.locator(`#pjlist [data-project="${id}"]`).click();
+    await navRow(s, `p:${id}`).click();
     await pageOf(s, name);
-    await s.locator('#pjmore').click(); // ⋯ at its top
-    await choose(s, 'Delete Project…');
+    await s.getByRole('button', { name: 'More' }).click(); // ⋯ at its top
+    await choose(s, 'Delete Project…', settingsMenu(s));
     return answer(s, yes);
   };
   const q = await removeRow('spare', false);
@@ -63,7 +63,7 @@ test("projects: Delete Project… (the projects' manager alone) asks, closes the
   expect(git(spare, 'branch', '--list', wt.branch), "the task's branch").toBe('');
   expect(fs.readFileSync(path.join(spare, 'a.txt'), 'utf8'), "the project's own folder stays").toBe('a');
   expect(await core((k, i) => !!k.shell.task?.loaded && k.shell.current?.id === i, files.pid('project')), 'another project: the open one stays open').toBe(true);
-  await expect((await sui()).locator(`#pjlist [data-project="${made.id}"]`)).toHaveCount(0);
+  await expect(navRow(await sui(), `p:${made.id}`)).toHaveCount(0);
   await closeSettings(core, ui, sui);
 
   // New Project… asks for its code first (the code is often on the disk already). Folder on disk, a repository: taken

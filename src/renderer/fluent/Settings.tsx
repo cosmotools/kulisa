@@ -2,7 +2,7 @@
 // Profiles, each with its own under it; GitHub, Log, About), the chosen one's page on the right under its path. Saved as
 // it changes. Esc closes it unless a layer was open; the OS's × asks the page first (settings:closing).
 import { useEffect, useRef, useState, type ReactElement, type ReactNode } from 'react';
-import { Avatar, Breadcrumb, BreadcrumbButton, BreadcrumbDivider, BreadcrumbItem, Button, FluentProvider, Input,
+import { Avatar, Breadcrumb, BreadcrumbButton, BreadcrumbDivider, BreadcrumbItem, Button, FluentProvider, Image, Input,
   NavDrawer, NavDrawerBody, NavItem, NavSectionHeader, Text, Tooltip } from '@fluentui/react-components';
 import { BotIcon, EllipsisIcon, GitBranchIcon, InfoIcon, PlusIcon, ScrollTextIcon } from 'lucide-react';
 import { dark, light, shade, ThemeShown } from './theme';
@@ -28,7 +28,7 @@ kulisa.on('settings:show', (at) => { asked = at; onAsked?.(at); });
 
 function useTheme() {
   const [theme, setTheme] = useState(document.documentElement.dataset.theme);
-  useEffect(() => kulisa.on('theme', (t) => { document.documentElement.dataset.theme = t; setTheme(t); }), []);
+  useEffect(() => { kulisa.on('theme', (t) => { document.documentElement.dataset.theme = t; setTheme(t); }); }, []);
   return shade(theme) === 'dark' ? dark : light;
 }
 
@@ -41,6 +41,8 @@ export function Settings() {
   const [profiles, setProfiles] = useState<SettingsProfile[]>([]), [profileAt, setProfileAt] = useState<string>();
   const [newProfile, setNewProfile] = useState<string | null>(null), [profilesError, setProfilesError] = useState('');
   const save = useRef(async () => {});
+  // The project's page read again each time Settings is asked for a page (shown), and when it is there (loaded).
+  const [shown, setShown] = useState(0), loaded = useRef(() => {});
 
   const lists = async () => {
     const [list, p] = await Promise.all([kulisa.invoke('projects:list'), kulisa.invoke('profiles:list')]);
@@ -57,18 +59,25 @@ export function Settings() {
   };
   // Opened, or brought to the front, at a page (settings-window.ts); shown once all of it is there (settings:ready).
   useEffect(() => { onAsked = async ({ section: on, id }) => {
+    await save.current();
     const { list, profiles: all } = await lists();
-    await loadAgents(true); // as last found; looked for again behind them
-    void loadAgents(false); void loadAccounts();
+    const agentsShown = loadAgents(true); // as last found; looked for again behind them
+    void loadAccounts();
     const at = (on === 'profiles' ? 'profiles' : on === 'log' || on === 'about' ? on : 'projects') as Section;
+    const project = at === 'projects' ? (id ?? list.project ?? list.projects[0]?.id ?? null) : (list.project ?? list.projects[0]?.id ?? null);
+    const pageShown = at === 'projects' && project && new Promise<void>((done) => { loaded.current = done; });
     setSection(at);
-    setEditing(at === 'projects' ? (id ?? list.project ?? list.projects[0]?.id ?? null) : (list.project ?? list.projects[0]?.id ?? null));
+    setEditing(project); setShown((n) => n + 1);
     setProfileAt(at === 'profiles' && id ? id : all[0]?.id);
+    await Promise.all([agentsShown, pageShown]);
+    void loadAgents(false);
     await document.fonts.ready;
     kulisa.send('settings:ready');
   }; if (asked) onAsked(asked); }, []);
-  useEffect(() => kulisa.on('settings:changed', () => { void lists(); }), []);
+  useEffect(() => { kulisa.on('settings:changed', () => { void lists(); }); }, []);
   useEffect(() => { if (!agents.some((a) => a.id === agentAt)) setAgentAt(agents[0]?.id); }, [agents, agentAt]);
+  // A profile gone (deleted here or elsewhere): the first one shown instead.
+  useEffect(() => { if (!profiles.some((p) => p.id === profileAt)) setProfileAt(profiles[0]?.id); }, [profiles, profileAt]);
 
   // While an agent installs, it stays.
   const close = async () => { if (installing()) return; await save.current(); kulisa.send('settings:close'); };
@@ -126,16 +135,17 @@ export function Settings() {
           void (kind === 'p' ? show('projects', id) : kind === 'a' ? show('agents', id) : kind === 'f' ? show('profiles', id) : show(kind as Section)); }}>
         <NavDrawerBody>
           {head('Projects')}
-          {projects.map((p) => item(`p:${p.id}`, p.name, <span style={{ width: 12, height: 12, borderRadius: 3, background: p.color }} />))}
+          {projects.map((p) => item(`p:${p.id}`, p.name, p.favicon ? <Image data-testid="project-icon" src={p.favicon} alt="" width={16} height={16} />
+            : <span data-testid="project-icon" style={{ width: 12, height: 12, borderRadius: 3, background: p.color }} />))}
           {head('Agents', <ButtonMenu items={newAccount}><Button appearance="subtle" size="small" icon={<PlusIcon />} aria-label="New Account" disabled={!clis.length} /></ButtonMenu>)}
           {agents.map((a) => item(`a:${a.id}`, a.name, <BotIcon />, !a.installed && <Text size={100}>not installed</Text>))}
           {item('github', 'GitHub', <GitBranchIcon />)}
           {head('Profiles', <Tooltip content="New Profile…" relationship="label"><Button appearance="subtle" size="small" icon={<PlusIcon />} onClick={() => setNewProfile('')} /></Tooltip>)}
           {profiles.map((p) => item(`f:${p.id}`, p.name, <Avatar size={16} image={{ src: avatarSrc(p.avatar) }} />))}
-          {newProfile !== null && <Input autoFocus size="small" value={newProfile} placeholder="Its name, e.g. ann@shop.com" aria-label="New profile" style={{ margin: '4px 8px' }}
+          {newProfile !== null && <Input autoFocus size="small" data-name value={newProfile} placeholder="Its name, e.g. ann@shop.com" aria-label="New profile" style={{ margin: '4px 8px' }}
             onChange={(_, d) => { setNewProfile(d.value); setProfilesError(''); }}
             onKeyDown={(e) => { if (e.key === 'Enter') void createProfile(); if (e.key === 'Escape') { e.stopPropagation(); setNewProfile(null); } }} />}
-          {profilesError && <Text size={200} style={{ margin: '0 8px', color: 'var(--colorPaletteRedForeground1)' }}>{profilesError}</Text>}
+          {profilesError && <Text role="alert" size={200} style={{ margin: '0 8px', color: 'var(--colorPaletteRedForeground1)' }}>{profilesError}</Text>}
           <div style={{ height: 12 }} />
           {item('log', 'Log', <ScrollTextIcon />)}
           {item('about', 'About', <InfoIcon />)}
@@ -150,7 +160,7 @@ export function Settings() {
           ...(i < all.length - 1 ? [<BreadcrumbDivider key={`d${i}`} />] : [])])}</Breadcrumb>
         {chosen && actions(chosen).length > 0 && <ButtonMenu end items={() => actions(chosen)}><Button appearance="subtle" icon={<EllipsisIcon />} aria-label="More" /></ButtonMenu>}
       </div>
-      {section === 'projects' && (editing ? <ProjectPage key={editing} id={editing} saveRef={save} onSaved={() => void lists()} /> : <Text>No projects yet.</Text>)}
+      {section === 'projects' && (editing ? <ProjectPage key={`${editing}:${shown}`} id={editing} saveRef={save} onSaved={() => void lists()} onLoaded={() => loaded.current()} /> : <Text>No projects yet.</Text>)}
       {section === 'profiles' && (shownProfile ? <ProfilePage profile={shownProfile} onChanged={(r) => { setProfiles(r.profiles); if (r.id) setProfileAt(r.id); }} />
         : <Text>No profiles yet.</Text>)}
       {section === 'github' && <GitHubPage />}

@@ -4,7 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
-import { SITE, PORT, logged, who, choose, rightClick, focusWindow, closeSettings, chooseProfile, invoke, answer } from './helpers.ts';
+import { SITE, PORT, logged, who, choose, rightClick, focusWindow, closeSettings, chooseProfile, navRow, invoke, answer } from './helpers.ts';
 import { begin, newTask } from './tasks-helpers.ts';
 
 // The one master window open, once its page is there.
@@ -44,9 +44,10 @@ test("About this profile… opens Settings' window at it (one, not modal: the ta
   await rightClick(ui, `[data-panel="profile:${sam}"] b`);
   await choose(ui, 'About this profile…');
   const s = await sui();
-  await expect(s.locator(`#pjlist [data-profile="${sam}"]`)).toHaveAttribute('aria-selected', 'true');
-  await expect(s.locator('#profilename')).toHaveValue('Sam.admin');
-  await expect(s.locator(`#pjlist [data-profile="${sam}"] [title]`), "the tree's narrow column cuts a name: the whole in its tooltip").toHaveAttribute('title', 'Sam.admin');
+  const name = s.getByRole('textbox', { name: 'Name', exact: true });
+  await expect(navRow(s, `f:${sam}`)).toHaveAttribute('aria-current', 'page');
+  await expect(name).toHaveValue('Sam.admin');
+  await expect(navRow(s, `f:${sam}`), "the nav's narrow column cuts a name: the whole in its tooltip").toHaveAttribute('title', 'Sam.admin');
   // A window of its own, not a child of the task's (on macOS a child stays above its parent), which goes on taking input
   // and comes in front of it, Settings left as it is; the task's pages stay on screen.
   const win = await core((k) => { const w = k.shell.settings.win; return { id: w.id, title: w.getTitle(), parent: w.getParentWindow(), enabled: k.shell.win.isEnabled(), fullScreenable: w.isFullScreenable() }; });
@@ -62,16 +63,16 @@ test("About this profile… opens Settings' window at it (one, not modal: the ta
   // Asked again, from another profile's menu: the same window, at that page.
   await rightClick(ui, `[data-panel="profile:${elon}"] b`);
   await choose(ui, 'About this profile…');
-  await expect(s.locator('#profilename')).toHaveValue('Elon.buyer');
+  await expect(name).toHaveValue('Elon.buyer');
   expect(await core((k) => k.shell.settings.win.id)).toBe(win.id);
   await chooseProfile(s, files, 'Sam.admin');
   const asks = () => logged(core, /\[ipc\] profiles:master /), before = await asks();
-  await s.locator('#profilesignin').click();
+  await s.getByRole('button', { name: 'Sign In…' }).click();
   await oneMaster(core);
   // Again, Settings brought in front of the master's window first, as the human's click there does: a page behind
   // another window gets no mouse under Xvfb.
   await core((k) => k.focus(k.shell.settings.win));
-  await s.locator('#profilesignin').click();
+  await s.getByRole('button', { name: 'Sign In…' }).click();
   await expect.poll(asks, 'asked twice').toBe(before + 2);
   await oneMaster(core);
   expect(await core((k) => k.shell.masters.values().next().value.profile.dir)).toBe(path.join(files.userData, 'profiles', sam));
