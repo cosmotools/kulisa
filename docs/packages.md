@@ -1,16 +1,13 @@
 # Kulisa packages
 
 A **Kulisa package** is a part of Kulisa that does one thing and knows nothing of the core (other Kulisa packages only
-by their entries), with all of it in one folder `src/<package>/`, reached from outside only through its entries. The term follows "Kulisa plugin": an npm
-package's idea (one folder, its own doc, a public API and nothing else seen) in Kulisa's own context. Always the two
-words: a bare "package" is an npm package (a dependency) or the app's package (Forge's build, the installers). Not a
-cluster (a folder of the window's components, [ui.md](ui.md), Clusters). The first is the terminal, `src/terminal/` (its
-[README](../src/terminal/README.md)): the example this doc points to.
+by their entries), all of it in one folder `src/<package>/`, reached from outside only through its entries (the term:
+CLAUDE.md, Conventions; not a cluster, [ui.md](ui.md), Clusters). The example this doc points to is the terminal,
+`src/terminal/` (its [README](../src/terminal/README.md)).
 
-Why: code smeared over `src/` is hard to keep in hand. In one folder a part is read, changed
-and reviewed in one place; its boundary is checked, not remembered; and Claude Code, working in it, reads its own
-`CLAUDE.md` by itself. Kulisa moves to it gradually: a part at a time, when it is worked on and found self-contained;
-no big move.
+Why: in one folder a part is read, changed and reviewed in one place, its boundary is checked rather than remembered,
+and Claude Code reads its own `CLAUDE.md` by itself. Code moves into one a part at a time, when it is worked on and
+found self-contained; no big move.
 
 ## What makes code one
 
@@ -32,14 +29,14 @@ Code that is *about* the thing but knows the rest stays outside, using the packa
 (`Terminals.vue`, `TerminalTabs.vue`, `lib/terminals.ts`: its agents' buttons, the closed profiles' tiles, Change
 agent…, the project's accounts in its +), the agents in terminals (`tasks.ts`: conversations, handing over, the
 agent's state) and the agent's tools (`terminal_run`, `terminal_read`, `terminal_stop` in `kulisa-plugin/tools/terminal.ts`:
-what the agent sees lives in the Kulisa plugin, CLAUDE.md, Architecture). Drawn so, the island would have pulled half
-of `src/renderer/lib` into the folder, and the boundary would have meant nothing.
+what the agent sees lives in the Kulisa plugin, CLAUDE.md, Architecture). Inside, the island would pull half of
+`src/renderer/lib` with it, and the boundary would mean nothing.
 
 **The caller stays thin: it states facts, the package does the work.** What the package's things are and do (their
 life, their timers, their views, their places, their files) is the package's, behind a small API; the code outside
-gives it what only the rest knows and calls it. The screenshots' thumbnail, for one: the window makes it
-(`new Thumbnails(win, …)`) and says three things, where its panes are after a change of the grid (`place`), that its
-pages are covered (`setHidden`), that a task goes (`close`). What only the rest can do comes in as a function:
+gives it what only the rest knows and calls it. The screenshots' thumbnail: the window makes it (`new Thumbnails(win,
+…)`) and says where its panes are after a change of the grid (`place`), that its pages are covered (`setHidden`), that
+a task goes (`close`). What only the rest can do comes in as a function:
 - the window's own components (its menus, dialogs: one set of components, `docs/ui.md`): the window passes the opener
   (`thumbnailMenu(menuAtPoint)`), the package gives the rows and what they do;
 - what belongs to tasks or agents (Send to Agent: `send`, the window's `Task.typeForAgent`).
@@ -91,8 +88,8 @@ A half it does not have is left out. Its e2e tests stay in `test/e2e/` with the 
 - The app's package (`forge.config.ts`, `ignore`) keeps a package's `main/` and `ipc.ts`, which the main process runs
   from source, and leaves out its `renderer/` (Vite builds it into `dist/renderer`), its tests and its docs.
 
-These are written for any `src/<package>/`: a new one needs only its line in `.dependency-cruiser.ts`. When one of
-them does not take it (a check that silently skips it is the danger), fix the config for every package, not for one.
+These are written for any `src/<package>/`: a new one needs only its line in `.dependency-cruiser.ts`. A check that
+silently skips one is fixed in the config for every package, not for that one.
 
 ## Its docs
 
@@ -105,8 +102,8 @@ them does not take it (a check that silently skips it is the danger), fix the co
   the ROADMAP's platform gaps), and a sentence where a doc's topic leads into the package. How it works and why is
   only in its README.
 - `CLAUDE.md`, short: that it is a Kulisa package (and this doc), its entries and what its halves may use, what stays
-  outside and so where a rule about that belongs, where its tests are. Claude Code reads a folder's `CLAUDE.md` when
-  it reads the folder's files; other agents read the root one, which points here.
+  outside and so where a rule about that belongs, where its tests are (Claude Code reads it with the folder's files;
+  other agents, the root one, which points here).
 
 ## Moving code into one, step by step
 
