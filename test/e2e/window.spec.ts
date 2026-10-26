@@ -5,7 +5,7 @@ import fs from 'fs';
 import path from 'path';
 import { createPackage } from '@electron/asar';
 import electronPath from 'electron';
-import type { Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 import forge from '../../forge.config.ts';
 import type { TaskTerminal } from '../../src/main/tasks.ts';
 import type { Question } from '../../src/shared/types.ts';
@@ -22,6 +22,8 @@ const terminal = async (core: Core, name: string) => {
   return core((k, n) => { const t = k.shell.task.terminal(n) as TaskTerminal; return { id: t.id, key: t.key }; }, name);
 };
 const terminals = (core: Core) => core((k) => k.shell.task.terminals.size);
+// The terminals' row's +.
+const termAdd = (ui: Page) => ui.getByTestId('terminal-tabs').getByRole('button', { name: 'New terminal', exact: true });
 const term = (ui: Page) => ui.evaluate(() => {
   const t = (window as any).__term;
   return t && { cols: t.cols as number, rows: t.rows as number };
@@ -49,11 +51,11 @@ test('terminal: Unicode 11 widths (cursor stays put after emoji), bundled font, 
   expect(x).toBe(5);
   const font = await ui.evaluate(() => {
     const t = (window as any).__term;
-    return { bundled: document.fonts.check(t.options.fontSize + 'px "JetBrains Mono"'), size: t.options.fontSize, ui: parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--font')),
+    return { bundled: document.fonts.check(t.options.fontSize + 'px "JetBrains Mono"'), size: t.options.fontSize, ui: parseFloat(getComputedStyle(document.querySelector('[data-testid="terminal"]')).getPropertyValue('--fontSizeBase300')),
       family: t.options.fontFamily.startsWith('"JetBrains Mono"'), renderer: (window as any).__termRenderer };
   });
   expect(font.bundled).toBe(true);
-  expect(font.size, 'the terminal uses the UI text size').toBe(font.ui);
+  expect(font.size, "the terminal uses the window's body text size (Fluent's fontSizeBase300)").toBe(font.ui);
   expect(font.family).toBe(true);
   expect(font.renderer).toBe('webgl');
   // What is left under a whole row is shared above and below the rows.
@@ -114,7 +116,7 @@ test("terminal: dictation where the agent has its own: the right Ctrl held anywh
   const mic = ui.locator('[aria-label="Speak to the agent"]');
   await expect(mic).toBeEnabled();
   // At the row's end, after + and the task's repositories, inside the row: no row of its own.
-  const row = await ui.getByTestId('terminal-tabs').boundingBox(), add = await ui.locator('#termAdd').boundingBox(), m = await mic.boundingBox();
+  const row = await ui.getByTestId('terminal-tabs').boundingBox(), add = await termAdd(ui).boundingBox(), m = await mic.boundingBox();
   expect(m.x > add.x + add.width && row.x + row.width - (m.x + m.width) <= 12, `at the row's end: ${JSON.stringify({ row, add, m })}`).toBe(true);
   expect(m.y >= row.y && m.y + m.height <= row.y + row.height, 'in the row').toBe(true);
   const name = MAC ? 'Right ⌘' : 'Right Ctrl'; // Apple keyboards have no right Ctrl
@@ -190,7 +192,7 @@ test("terminal: dictation where the agent has its own: the right Ctrl held anywh
   await expect(ui.locator('.xterm:focus-within'), 'the keyboard back in the terminal, to send it').toHaveCount(1);
   // With a shell in front (the button disabled: the dictation is the agent's), the key brings the agent the prompt
   // goes to in front, and records.
-  await ui.locator('#termAdd').click();
+  await termAdd(ui).click();
   await choose(ui, 'Terminal');
   await expect(mic).toBeDisabled();
   n = await keys();
@@ -233,22 +235,23 @@ test("terminal: dictation where the agent has its own: the right Ctrl held anywh
   expect(await recordingNow(), `the ${name} is a modifier again`).toBe(false);
 });
 
-test("the island: its terminals in tabs over them, one shown, the row apart; + opens the human's shell in front; the agent runs what keeps running in a shell of its own, behind, reads it, stops it, closes it, never in an agent's tab; × and a shell's exit close one", async ({ core, ui, call, mcp }) => {
+test("the island: its terminals in tabs over them, one shown, flat as a profile's pane; + opens the human's shell in front; the agent runs what keeps running in a shell of its own, behind, reads it, stops it, closes it, never in an agent's tab; × and a shell's exit close one", async ({ core, ui, call, mcp }) => {
   // Named for the instructions to say it, before the agent first connects (the instructions come at its start).
   await core((k) => k.shell.task.rename('task-1'));
   await sam(core);
   const tabs = () => termTabs(ui);
   const shown = () => ui.locator('[data-testid="terminal"] .xterm:visible').count();
-  // A color to compare with another element's (toHaveCSS takes a value known before).
-  const color = (sel: string) => ui.locator(sel).first().evaluate((e) => getComputedStyle(e).backgroundColor);
+  // The background shown behind an element (its own, or the first ancestor's that has one), to compare with another's.
+  const color = (sel: string) => ui.locator(sel).first().evaluate((e) => {
+    for (let x: Element | null = e; x; x = x.parentElement) { const c = getComputedStyle(x).backgroundColor; if (c !== 'rgba(0, 0, 0, 0)') return c; }
+    return '';
+  });
   expect((await mcp()).getInstructions()).toMatch(/terminal_run, not in your own shell.*This is the Kulisa task "task-1", working right in the project's folder .* \(no git, so no worktree of its own\)\. Run the app under test on a free port you pick \(Kulisa assigns none\).*Name the task with task_rename once you know what it is about, silently: never ask the human for a name or mention it\. These notes are for you/s);
   expect(await tabs(), "the agent's tab, named after its agent").toEqual(['bash *']);
-  // The row is apart from the terminal, as a pane's tabs from its toolbar: the row in a pane's tabs' color, the tab in
-  // front in the terminal's, as a pane's active tab in its toolbar's.
-  const row = '.dv-groupview:has([data-testid="terminal-tabs"]) .dv-tabs-and-actions-container';
-  expect(await color(row)).not.toBe(await color('[data-testid="terminals"]'));
-  expect(await color('nav[aria-label="Terminals"] [role="tab"][aria-selected="true"]')).toBe(await color('[data-testid="terminals"]'));
-  expect([await color(row), await color('nav[aria-label="Terminals"] [role="tab"][aria-selected="true"]')]).toEqual([await color('[role="region"][data-profile] nav[aria-label="Tabs"]'), await color('[role="region"][data-profile] [role="tab"][aria-selected="true"]')]);
+  // Flat, as a profile's pane: the row, its tab in front and the terminal on one background, a pane's tabs' own.
+  const front = 'nav[aria-label="Terminals"] [role="tab"][aria-selected="true"]';
+  expect([await color('[data-testid="terminal-tabs"]'), await color(front)]).toEqual([await color('[data-testid="terminals"]'), await color('[data-testid="terminals"]')]);
+  expect([await color('[data-testid="terminal-tabs"]'), await color(front)]).toEqual([await color('[role="region"][data-profile] nav[aria-label="Tabs"]'), await color('[role="region"][data-profile] [role="tab"][aria-selected="true"]')]);
   // + is the island's, not a tab's: its menu has the project's agents (none here) and Terminal. The tab growing in is
   // an attribute there for a moment: an observer notes it (an assertion could look after it went).
   await ui.evaluate(() => {
@@ -256,7 +259,7 @@ test("the island: its terminals in tabs over them, one shown, the row apart; + o
     new MutationObserver((m) => (window as any).__grew.push(...m.map((x) => (x.target as HTMLElement).dataset.id)))
       .observe(document.querySelector('nav[aria-label="Terminals"]'), { subtree: true, attributeFilter: ['data-opening'] });
   });
-  await ui.locator('#termAdd').click();
+  await termAdd(ui).click();
   await expect(menu(ui)).toMatchAriaSnapshot(`
     - menu:
       - menuitem "Terminal"`);
@@ -302,7 +305,8 @@ test("the island: its terminals in tabs over them, one shown, the row apart; + o
   const nav = ui.locator('nav[aria-label="Terminals"]'), had = await terminals(core);
   const ids = () => core((k) => [...k.shell.task.terminals.values()].map((t) => t.id));
   const before = await ids();
-  while (await nav.getAttribute('data-past-end') === null && await nav.getAttribute('data-past-start') === null) {
+  const strip = nav.getByRole('tablist');
+  while (await strip.getAttribute('data-past-end') === null && await strip.getAttribute('data-past-start') === null) {
     const n = await terminals(core);
     expect(n, 'the row fills').toBeLessThan(had + 40);
     await ui.evaluate(() => (window as any).act('terminal:open'));
@@ -310,11 +314,11 @@ test("the island: its terminals in tabs over them, one shown, the row apart; + o
     await expect(nav.locator('[role="tab"][data-opening]')).toHaveCount(0);
     await frames(ui);
   }
-  const island = await ui.locator('.dv-groupview').filter({ has: nav }).boundingBox(), right = async (l: string) => { const b = await ui.locator(l).boundingBox(); return b.x + b.width; };
-  expect(await right('#termAdd') <= island.x + island.width, '+ in the island').toBe(true);
-  expect(await right('[aria-label="Speak to the agent"]') <= island.x + island.width, 'the microphone in the island').toBe(true);
+  const island = await ui.locator('.dv-groupview').filter({ has: nav }).boundingBox(), right = async (l: Locator) => { const b = await l.boundingBox(); return b.x + b.width; };
+  expect(await right(termAdd(ui)) <= island.x + island.width, '+ in the island').toBe(true);
+  expect(await right(ui.locator('[aria-label="Speak to the agent"]')) <= island.x + island.width, 'the microphone in the island').toBe(true);
   // Scrolled, every name whole: measures Playwright has no assertion for.
-  expect(await nav.evaluate((n) => [n.scrollWidth > n.clientWidth, [...n.querySelectorAll('[role="tab"]')].map((t) => [...t.querySelectorAll('span')].find((e) => e.textContent === t.getAttribute('aria-label'))).every((x) => x && x.scrollWidth <= x.clientWidth)]))
+  expect(await strip.evaluate((n) => [n.scrollWidth > n.clientWidth, [...n.querySelectorAll('[role="tab"]')].map((t) => [...t.querySelectorAll('span')].find((e) => e.textContent === t.getAttribute('aria-label'))).every((x) => x && x.scrollWidth <= x.clientWidth)]))
     .toEqual([true, true]);
   for (const id of (await ids()).filter((i) => !before.includes(i))) await nav.locator(`[data-id="${id}"] [title^="Close"]`).click();
   await expect.poll(() => terminals(core)).toBe(had);

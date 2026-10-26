@@ -14,7 +14,7 @@ import { act, store, useWindow } from '../../lib/store';
 import { profileLaunchers } from '../../lib/profiles';
 import { island, launchers, newTerminalItems, shownTerm, tabItems, terminalMenu } from '../../lib/terminals';
 import { dialog } from '../../lib/dialogs';
-import { avatarSrc, keyText, withKeys } from '../../lib/common';
+import { avatarSrc, useShortcuts, withKeys } from '../../lib/common';
 import { useStrip } from '../../lib/strip';
 import { dialogsShown } from '../../lib/cover';
 import { termFocus } from '../../../terminal/renderer';
@@ -104,7 +104,7 @@ export function Terminals({ api, containerApi }: IDockviewPanelProps) {
   };
 
   return <div data-testid="terminals" data-folded={folded || undefined}
-    style={{ height: '100%', position: 'relative', display: 'grid', gridTemplateRows: 'minmax(0, 1fr)' }}>
+    style={{ height: '100%', position: 'relative', display: 'grid', gridTemplateRows: 'minmax(0, 1fr)', background: tokens.colorNeutralBackground1 }}>
     {big ? <Launchers ref={launch} />
       : folded ? <div style={{ display: 'grid', placeItems: 'center' }}>
         <ButtonMenu items={newTerminalItems}><Button data-unfold appearance="subtle" size="small" icon={<PlusIcon />}
@@ -164,7 +164,8 @@ const language = new Intl.DisplayNames(['en'], { type: 'language' });
 export function TerminalsHeader({ api }: IDockviewPanelHeaderProps) {
   const list = useWindow((s) => s.terminals.list), front = useWindow((s) => s.terminals.front);
   const task = useWindow((s) => s.current), lang = useWindow((s) => s.language?.language);
-  const row = useRef<HTMLDivElement>(null), strip = useRef<HTMLElement>(null);
+  const hold = useShortcuts().find((s) => s.id === 'voice.hold')?.keys[0] || '';
+  const row = useRef<HTMLDivElement>(null), strip = useRef<HTMLDivElement>(null);
   const stripClass = useStrip(strip, front);
   // dockview's tab grows to its content: the row would run past the panel, its + and microphone with it.
   useEffect(() => { const tab = row.current?.closest<HTMLElement>('.dv-tab'); if (tab) Object.assign(tab.style, { minWidth: '0', flexShrink: '1' }); }, []);
@@ -175,13 +176,13 @@ export function TerminalsHeader({ api }: IDockviewPanelHeaderProps) {
   const noDrag = (e: React.DragEvent) => e.preventDefault();
   return <div ref={row} data-panel={api.id} data-testid="terminal-tabs" hidden={!list.length}
     style={{ display: list.length ? 'flex' : 'none', alignItems: 'center', gap: 4, height: '100%', minWidth: 0, padding: '0 4px' }}>
-    <RightClickMenu items={tabMenu}>
-      <nav ref={strip} className={stripClass} aria-label="Terminals" onDragStart={noDrag}>
-        <TabList size="small" reserveSelectedTabSpace={false} selectedValue={front === null ? undefined : String(front)}
+    <RightClickMenu items={tabMenu} style={{ display: 'flex', flex: '0 1 auto', minWidth: 0 }}>
+      <nav aria-label="Terminals" style={{ display: 'flex', minWidth: 0 }} onDragStart={noDrag}>
+        <TabList ref={strip} className={stripClass} style={{ flexShrink: 1 }} size="small" reserveSelectedTabSpace={false} selectedValue={front === null ? undefined : String(front)}
           onTabSelect={(_, d) => void act('terminal:show', { id: Number(d.value) })}>
           {list.map((t) => {
             const Mark = agentMark(t.agent?.cli ?? 'shell');
-            return <Tab key={t.id} value={String(t.id)} data-id={t.id} aria-label={t.name} title={tabTitle(t)} style={{ flex: 'none', maxWidth: 220 }}
+            return <Tab key={t.id} value={String(t.id)} data-id={t.id} data-grow aria-label={t.name} title={tabTitle(t)} style={{ flex: 'none', maxWidth: 220 }}
               icon={t.agent
                 ? <span role="button" aria-label={`${t.agent.name}: change agent…`}
                   title="Change agent: hand the task to another agent, or this one afresh; it goes on with this conversation"
@@ -202,6 +203,7 @@ export function TerminalsHeader({ api }: IDockviewPanelHeaderProps) {
     </RightClickMenu>
     <ButtonMenu items={newTerminalItems}><Button appearance="subtle" size="small" icon={<PlusIcon />} aria-label="New terminal"
       title={withKeys(NEW_TITLE, 'terminal.new')} onDragStart={noDrag} /></ButtonMenu>
-    <Dictation task={task} keyName={keyText('voice.hold')} language={lang ? language.of(lang) ?? '' : ''} onDone={() => shownTerm()?.focus()} />
+    <span style={{ flex: 1 }} />
+    <Dictation task={task} keyName={hold} language={lang ? language.of(lang) ?? '' : ''} onDone={() => shownTerm()?.focus()} />
   </div>;
 }

@@ -259,10 +259,10 @@ test("language: one for every agent (☰ → Language): written into the agents'
   await ui.locator('#windowMenu').click();
   const row = item(ui, 'Language');
   await expect(row).toBeVisible();
-  await expect(row).toHaveAccessibleDescription('English');
+  await expect(row, 'the language chosen, under its label').toContainText('English');
   await expect(row).toHaveAttribute('title', /^The language you speak with the agents\. Fake agent dictates and answers in it, and may write code comments in it too: your project's CLAUDE\.md or AGENTS\.md decides that\./);
   await row.click();
-  const languages = ui.locator('[role="menu"][aria-label="Languages"][data-state="open"]');
+  const languages = ui.getByRole('menu', { name: 'Language', exact: true });
   await expect(languages).toBeVisible();
   const system = await ui.evaluate(() => navigator.language.split('-')[0]);
   await expect(languages.locator('[data-language]').first(), "the system's first").toHaveAttribute('data-language', system);
@@ -278,6 +278,9 @@ test("language: one for every agent (☰ → Language): written into the agents'
   await expect.poll(() => read(path.join(files.userData, 'settings.json')).language).toBe('ru');
   await expect.poll(() => read(own).language).toBe('Russian');
   expect(fs.existsSync(path.join(files.root, 'fake-config', 'settings.json')), "the human's own folder untouched").toBe(false);
+  // Esc closes the languages first, then ☰.
+  await ui.keyboard.press('Escape');
+  await expect(languages).toHaveCount(0);
   await closeMenu(ui);
   expect(await core((k) => k.shell.setLanguage('xx').error !== undefined), 'only one an agent takes').toBe(true);
   await core((k) => { k.shell.setLanguage('en'); });
