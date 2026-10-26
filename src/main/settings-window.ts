@@ -70,7 +70,7 @@ function installSettings(shell: Shell, { preload, appDevTools }: { preload: stri
     };
     shell.settings = s;
     // Its ×: the page first saves what is typed (a project's name) and then closes it (settings:close); while an agent
-    // installs, it stays (AgentPage.vue). Quitting, or its page gone, it just closes.
+    // installs, it stays (fluent/agents.ts). Quitting, or its page gone, it just closes.
     win.on('close', (e) => {
       if (closing || shell.quitting || !loaded) return;
       e.preventDefault();

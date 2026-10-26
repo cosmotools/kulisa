@@ -4,8 +4,10 @@ A terminal as Kulisa has it, the same wherever it is shown: a pty running the us
 command, or nothing), its output kept in the window, and an xterm that shows it. A Kulisa package
 ([docs/packages.md](../../docs/packages.md)), used by the task's island (`Terminals.vue`, `TerminalTabs.vue`,
 `lib/terminals.ts`: its tabs, its agents' launchers and menus; docs/window.md, The terminal), an account's sign-in
-(`AccountSignIn.vue`) and the task's agents (`tasks.ts`: which agent, its conversation, what is typed to it). It knows
-nothing of them: a terminal is a key, `<task key>#<id>` for a task's, any string for a sign-in's.
+(Settings' `fluent/SignIn.tsx` through `fluent/Terminal.tsx`; New Project's `AccountSignIn.vue`) and the task's agents
+(`tasks.ts`: which agent, its conversation, what is typed to it). It knows nothing of them, nor of the window's look: a
+terminal is a key, `<task key>#<id>` for a task's, any string for a sign-in's; its colors and font size are the
+caller's.
 
 ## The main process (`main/`)
 
@@ -72,9 +74,11 @@ encoding off sets the default one, so those off go first (`serialized`). A task 
 terminals' buffers the same way (`terminals:restore`), at the same size, also when its page showed the task first.
 
 Set up as VS Code's: Unicode 11 widths (Claude Code draws ✅ ⏵ ✻; with Unicode 6 the cursor drifts a cell after each),
-a bundled font (JetBrains Mono, at the window's `--font`), the WebGL renderer, the colors of the place it is in (its
-background a token the place gives `View`; the programs' own colors stay xterm's, readable on either background by its
-`minimumContrastRatio`). The rows that fit sit in the middle of the xterm, what is left under a whole row shared above and below them, so two tasks whose grids differ by a pixel do
+a bundled font (JetBrains Mono, which it imports with xterm's stylesheet, so any page that shows a terminal has them),
+the WebGL renderer. **Its look is the place's**: `new View({ colors, fontSize })` (`TermStyle`: the background, the
+text, selected text, as colors, not a window's tokens), and `restyle(…)` when the place's theme changes, so the package
+reads nothing of a window's CSS or theme. The programs' own colors stay xterm's, readable on either background by its
+`minimumContrastRatio`. The rows that fit sit in the middle of the xterm, what is left under a whole row shared above and below them, so two tasks whose grids differ by a pixel do
 not show a row's height under the agent's status line in one and nothing in the other.
 
 Copy and paste take the keys of the OS's own terminal, so hands need nothing new: Ctrl+Shift+C / V (GNOME Terminal,

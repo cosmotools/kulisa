@@ -13,7 +13,17 @@ import type { Terminal as TerminalInfo } from '../../shared/types';
 // The terminal in front of the shown task's island: where the keyboard goes (Ctrl+`), what the tests read.
 const frontKey = () => (store.current && store.terminals.front !== null ? `${store.current}#${store.terminals.front}` : null);
 // The island's xterm, one for the window: Terminals.vue puts it in whichever grid is shown.
-export const island = new View({ background: '--toolbar' }); // a pane's toolbar's, under the tab in front
+// Its colors and font size the window's tokens as now shown (tokens.css; a token is light-dark(…): read through an
+// element that uses it), set again when the theme changes (☰; System: the OS's). background: the place's token.
+const probe = Object.assign(document.createElement('i'), { hidden: true });
+document.body.append(probe);
+const shown = (v: string) => { probe.style.color = `var(${v})`; return getComputedStyle(probe).color; };
+export const termStyle = (background: string) => ({ colors: { background: shown(background), foreground: shown('--text'), selection: shown('--selection') },
+  fontSize: parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--font')) || 14 });
+export const island = new View(termStyle('--toolbar')); // a pane's toolbar's, under the tab in front
+const restyle = () => requestAnimationFrame(() => island.restyle(termStyle('--toolbar')));
+kulisa.on('theme', restyle);
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', restyle);
 export const shownTerm = () => (island.key && island.key === frontKey() ? island.term : null);
 Object.defineProperty(window, '__term', { get: shownTerm }); // for tests
 Object.defineProperty(window, '__termRenderer', { get: () => shownTerm() && island.renderer }); // for tests

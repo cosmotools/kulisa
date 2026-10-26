@@ -371,7 +371,7 @@ never assumes one is installed.
   puts it (`<config dir>/settings.json`, the language's English name), the rest of the file kept, not written when it
   says so already, never into a file that is not JSON. Claude Code reads that file again when it changes, so it holds
   at once in every session; a `--settings` file would not (read once).
-- **Settings → Agents** (`AgentPage.vue`), as JetBrains' list of SDKs: the agents in the tree (not the terminal only;
+- **Settings → Agents** (`fluent/AgentPage.tsx`), as JetBrains' list of SDKs: the agents in the nav (not the terminal only;
   "not installed" at a row's end), the chosen one's page: its maker and website, what it needs, its status (its
   `--version`, and its folder, marked when not on the user's `PATH`: Kulisa runs it from there; Install for the
   others, with the command it runs), and its **Accounts** (below), a list with + (New Account…) and − (asked first;
@@ -387,9 +387,9 @@ never assumes one is installed.
   `config` in its entry); agents without one (the terminal only) are chosen as themselves. The human's own folder
   (`~/.claude`, `~/.codex`) is no account: every account is made in Kulisa and starts clean (no global `CLAUDE.md`,
   settings, plugins, skills or MCP servers of the human's), the author's choice over copying them.
-  - **Made** in Settings → Agents (+ over its accounts, or + beside Agents in the tree: in no project yet) or on a
+  - **Made** in Settings → Agents (+ over its accounts, or + beside Agents in the nav: in no project yet) or on a
     project's page (Agents' + → New Account: in that project): the agent's own sign-in starts at once, as its `/login`
-    does (Claude Code `auth login`, Codex `login`), in a terminal there (`AccountSignIn.vue`), and ends once signed
+    does (Claude Code `auth login`, Codex `login`), in a terminal there (`fluent/SignIn.tsx`), and ends once signed
     in. The terminal is under Details, closed (the address it prints, with the browser open, only confuses); it opens
     by itself when the sign-in fails, and is there for what the browser does not show (the address when no browser
     opened; a code the agent asks for).
@@ -416,8 +416,8 @@ never assumes one is installed.
     else after a question ("Delete the account …?", naming its projects): signed out with its agent's command (`auth
     logout`: the Keychain's entry on macOS goes too), then its folder, with its sign-in, settings and conversations.
 - The dialogs are part of the window, not windows (no extra process). `AgentPicker.vue` (choosing) and Settings →
-  Agents (`AgentPage.vue`, its state kept by Settings, so an install goes on behind a project's page) share one list
-  of agents with Install (`lib/agents.ts`); choosing draws it as radios (`AgentList.vue`).
+  Agents keep their agents and an install under way apart from the page shown (`lib/agents.ts`; Settings'
+  `fluent/agents.ts`, so an install goes on behind a project's page); choosing draws them as radios (`AgentList.vue`).
 - **An agent's state on the tabs** comes from its hooks, each agent's at its own terminal's URL ("Several agents in a
   task"). Kulisa's events (`agent-hooks.ts`): `prompt` working, `waiting` for the human, `tool-done` working again
   after waiting, `stop` done, `interrupt` and `session-end` unknown (a session ending after a done turn keeps done).
@@ -802,10 +802,11 @@ rm -rf ~/.config/Kulisa/projects/<project id>   # all its tasks with their profi
 | `src/renderer/components/welcome/` | the first start's welcome: `Welcome.vue` (the slides, then New Project's steps under a question each), `Tour.vue` (the slides, their pictures drawn in HTML) |
 | `src/renderer/components/newproject/` | New Project's steps: `Wizard.vue` (the steps, the buttons; the welcome's and the dialog's), `wizard.ts` (their state and rules, one per wizard), `CodeStep.vue`, `AgentStep.vue`, `ProfilesStep.vue`, `NewProject.vue` (the dialog) |
 | `src/renderer/components/TaskTab.vue`, `TaskRename.vue` | a task's tab in the bar, its menu, the Rename Task dialog |
-| `src/renderer/components/AgentPicker.vue`, `settings/AgentPage.vue`, `AgentList.vue`, `InstallProgress.vue` | choosing an agent when the one to open is not there; an agent's page in Settings, its details and accounts; the radios of agents with Install that choosing shows; an install's line and its Details |
+| `src/renderer/components/AgentPicker.vue`, `AgentList.vue`, `InstallProgress.vue` | choosing an agent when the one to open is not there; the radios of agents with Install that choosing shows; an install's line and its Details |
+| `src/renderer/fluent/AgentPage.tsx`, `agents.ts` | an agent's page in Settings, its details, Install and accounts; Settings' agents, accounts and the install under way |
 | `src/main/favicons.ts` | a project's icon: its site's favicon in its code (Projects, "Each project has a color and an icon") |
 | `src/shared/names.ts` | the rules for names (projects and profiles; a task's, a label) and slugs |
-| `src/main/accounts.ts`, `src/renderer/components/AccountSignIn.vue` | the agents' accounts, one store; a new one's sign-in in Settings (a project's page, or Agents) |
+| `src/main/accounts.ts`, `src/renderer/fluent/SignIn.tsx`, `src/renderer/components/AccountSignIn.vue` | the agents' accounts, one store; a new one's sign-in in Settings (a project's page, or Agents), and New Project's |
 | `src/main/recognizer.ts` | which account recognizes speech for an agent without dictation of its own ([src/dictation](../src/dictation/README.md)), its session's folder |
 | `src/renderer/lib/grid.ts`, `components/Grid.vue` | building a task's grid; the slide (a view transition) |
 | `test/e2e/tasks*.spec.ts`, `taskbar.spec.ts`, `projects*.spec.ts`, `project-repositories.spec.ts`, `empty-window.spec.ts`, `agents*.spec.ts`, `masters.spec.ts`; `test/unit/agents.test.ts` | the tests |

@@ -1,10 +1,13 @@
 // Terminals as Kulisa draws them, in any of its windows (docs/window.md, The terminal): a buffer per terminal, keyed as
 // in the main process, its output from its pty; and a shown xterm (View) for each place that shows one, its keys to
-// that terminal's pty. A tasks' window's island: terminals.ts. Settings' window and New Project have a sign-in's
-// (AccountSignIn.vue).
+// that terminal's pty, its colors and font size the place's (TermStyle).
 // Set up as VS Code does: Unicode 11 character widths (Claude Code draws ✅ ⏵ ✻ and the like; with the default Unicode 6
 // widths the cursor and the input line drift off the text), the WebGL renderer, and a bundled font so it looks and
 // measures the same on every OS.
+// Its own: xterm's stylesheet and the font, in whichever page shows a terminal.
+import '@xterm/xterm/css/xterm.css';
+import '@fontsource/jetbrains-mono/400.css';
+import '@fontsource/jetbrains-mono/700.css';
 import { Terminal, type ILink } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { Unicode11Addon } from '@xterm/addon-unicode11';
@@ -16,28 +19,23 @@ import type { FileLink } from '../ipc';
 
 // A terminal's buffer is an xterm never opened: its text, scrollback and modes with no renderer, every pty's output
 // written into it. A place that shows terminals (the island, an account's sign-in) has one shown xterm, a View, the
-// only one with a renderer (WebGL), links and the theme: showing another terminal there writes that one's buffer into
+// only one with a renderer (WebGL), links and colors: showing another terminal there writes that one's buffer into
 // it (ROADMAP, "One xterm a window": each xterm's renderer cost 15-30 MB, and Chromium keeps 16 WebGL contexts a page).
 interface Buffer { term: Terminal; serialize: SerializeAddon; modes: Map<number, boolean>; scroll?: number }
 const buffers = new Map<string, Buffer>(); // terminal key -> its buffer
 const views = new Set<View>();
 export const xtermKeys = () => buffers.keys();
-const css = (v: string) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
-const termFontSize = parseFloat(css('--font')) || 14;
-// xterm measures the cell size when it opens: once the font is loaded. Output written before is kept.
-const termFont = Promise.all([`${termFontSize}px`, `bold ${termFontSize}px`].map((f) => document.fonts.load(`${f} "JetBrains Mono"`))).catch(() => {});
-// The colors of the place it is shown in (tokens.css; its background the place's: View's), set again when the theme changes. The programs' own colors (ANSI) stay xterm's: it
-// makes them readable on either background (minimumContrastRatio, WCAG AA; VS Code does the same). A token is
-// light-dark(…): its color as now shown is read through an element that uses it.
-const probe = Object.assign(document.createElement('i'), { hidden: true });
-document.body.append(probe);
-const shown = (v: string) => { probe.style.color = `var(${v})`; return getComputedStyle(probe).color; };
-const termTheme = (background: string) => ({ background: shown(background), foreground: shown('--text'), cursor: shown('--text'), cursorAccent: shown(background),
-  selectionBackground: shown('--selection') });
-function themeTerminals() { for (const v of views) v.term.options.theme = termTheme(v.background); }
-// After the theme changed (☰), also when the OS changes its own (System). The root's data-theme first.
-kulisa.on('theme', () => requestAnimationFrame(themeTerminals));
-matchMedia('(prefers-color-scheme: dark)').addEventListener('change', themeTerminals);
+// xterm measures the cell size when it opens: once the font is loaded (any size loads the face). Output written before is kept.
+const termFont = Promise.all(['16px', 'bold 16px'].map((f) => document.fonts.load(`${f} "JetBrains Mono"`))).catch(() => {});
+
+// What the place a terminal is shown in gives it, as colors xterm reads (not CSS variables): its background (the
+// place's own, so the terminal is of a piece with it), its text and cursor, selected text; its font size in px. The
+// programs' own colors (ANSI) stay xterm's: it makes them readable on either background (minimumContrastRatio, WCAG
+// AA; VS Code does the same).
+interface TermColors { background: string; foreground: string; selection: string }
+export interface TermStyle { colors: TermColors; fontSize: number }
+const xtermTheme = ({ background, foreground, selection }: TermColors) => ({ background, foreground, cursor: foreground, cursorAccent: background,
+  selectionBackground: selection });
 
 // What a window adds: where a link opens (a tasks' window asks: one of its profiles or the browser), which paths a
 // terminal names exist and what is done with one (files, openFile: the window knows the folder and the disk; without
@@ -110,11 +108,10 @@ export function serialized(key: string) {
 }
 
 // The xterm a place shows its terminal in, filling the element it is put in (xterm fits its rows to its host's height,
-// and would keep its 24 rows over what is under it). show(key) puts that terminal's buffer into it. background: the
-// token of the place's color (tokens.css), so the terminal is of a piece with it.
+// and would keep its 24 rows over what is under it). show(key) puts that terminal's buffer into it; restyle(…) gives
+// it the place's colors or font size again (its theme changed).
 export class View {
   term: Terminal;
-  background: string;
   el = Object.assign(document.createElement('div'), { className: 'term', style: 'height: 100%' });
   key: string | null = null;
   renderer?: 'dom' | 'webgl';
@@ -126,11 +123,10 @@ export class View {
   private opened = false;
   private seen = new ResizeObserver(() => this.fitSoon());
   private pending: string[] | null = null; // output that came while the buffer was being put in
-  constructor({ background }: { background: string }) {
-    this.background = background;
+  constructor({ colors, fontSize }: TermStyle) {
     this.el.append(this.host);
-    const t = this.term = new Terminal({ fontSize: termFontSize, fontFamily: '"JetBrains Mono", monospace', cursorBlink: true,
-      allowProposedApi: true, theme: termTheme(background), minimumContrastRatio: 4.5, linkHandler: termLinks });
+    const t = this.term = new Terminal({ fontSize, fontFamily: '"JetBrains Mono", monospace', cursorBlink: true,
+      allowProposedApi: true, theme: xtermTheme(colors), minimumContrastRatio: 4.5, linkHandler: termLinks });
     t.loadAddon(new Unicode11Addon());
     t.unicode.activeVersion = '11';
     t.loadAddon(this.fit);
@@ -192,6 +188,10 @@ export class View {
     if (key !== this.key) return;
     if (this.pending) this.pending.push(data);
     else this.term.write(data);
+  }
+  restyle({ colors, fontSize }: Partial<TermStyle>) {
+    if (colors) this.term.options.theme = xtermTheme(colors);
+    if (fontSize !== undefined && fontSize !== this.term.options.fontSize) { this.term.options.fontSize = fontSize; this.fitSoon(); }
   }
   dispose() { views.delete(this); this.seen.disconnect(); this.term.dispose(); this.el.remove(); }
   // The size it has room for, once it is on screen and xterm has measured its characters.

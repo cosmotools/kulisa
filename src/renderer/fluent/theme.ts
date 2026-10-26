@@ -1,5 +1,6 @@
 // Fluent UI's theme in Kulisa's colors (the probe: Settings on React and Fluent UI): Fluent's tokens, a neutral brand,
 // Inter, softer corners. Only tokens: the components are Fluent's as they ship.
+import { createContext } from 'react';
 import { createDarkTheme, createLightTheme, type BrandVariants, type Theme } from '@fluentui/react-components';
 
 // A neutral ramp in place of Microsoft's blue: the main button and what is chosen in the text's own color.
@@ -40,3 +41,7 @@ export const light: Theme = {
 
 // Settings' theme: the page's data-theme (its URL, then the main process's 'theme'), System as the OS's.
 export const shade = (theme: string | undefined) => (theme === 'light' || (theme === 'system' && !matchMedia('(prefers-color-scheme: dark)').matches) ? 'light' : 'dark');
+
+// The theme shown, for what draws in its colors outside Fluent's components (a terminal: Terminal.tsx); the one given
+// to FluentProvider.
+export const ThemeShown = createContext<Theme>(dark);

@@ -75,7 +75,7 @@ export interface ProjectsInfo {
 export interface SettingsProfile { id: string; name: string; avatar: string; description: string; login: string; hasPassword: boolean; projects: string[] }
 export interface Account { id: string; agent: string; name: string; email: string | null; projects: string[] }
 export interface AccountsInfo { accounts: Account[]; clis: string[] }
-// What a new account's sign-in answers (AccountSignIn.vue): the project's agents, made in one; else every account.
+// What a new account's sign-in answers (fluent/SignIn.tsx): the project's agents, made in one; else every account.
 // One of a project's agents (Settings, a project's page): an account (its agent, its email) or the terminal only.
 export interface ProjectAgent { id: string; name: string; agent: string; cli: string; email: string | null; default?: boolean }
 export interface SignedIn extends Partial<AccountsInfo> { agents?: ProjectAgent[] }

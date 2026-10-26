@@ -1,11 +1,13 @@
 // A project's page in Settings (docs/tasks.md, Projects): its name, its Folders, Agents and Profiles (a card each, a
-// list with its toolbar), its local addresses; saved as they change. The probe: a new account's sign-in is not here.
+// list with its toolbar), its local addresses; saved as they change. Agents' + → New Account signs in to one there
+// (SignIn.tsx), added to the project.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Avatar, Badge, Button, Dropdown, Field, Input, Link, Option, Text } from '@fluentui/react-components';
 import { MinusIcon, PlusIcon, StarIcon } from 'lucide-react';
 import { ButtonMenu, RightClickMenu, type Item } from './Menus';
 import { List } from './List';
 import { Group, Tool } from './Group';
+import { SignIn } from './SignIn';
 import { avatarSrc } from './avatar';
 import { refused, type Result } from '../../shared/result';
 import type { ProjectAgent, ProjectFolder, ProjectGitHub, ProjectProfile, ProjectSettings } from '../../shared/types';
@@ -21,12 +23,18 @@ export function ProjectPage({ id, onSaved, saveRef }: { id: string; onSaved: () 
   const [folderSel, setFolderSel] = useState<string>(), [agentSel, setAgentSel] = useState<string>(), [profileSel, setProfileSel] = useState<string>();
   const [adding, setAdding] = useState<'' | 'clone' | 'profile'>(''), [text, setText] = useState(''), [cloning, setCloning] = useState(false);
   const [errors, setErrors] = useState({ folders: '', agents: '', profiles: '' });
+  const [signing, setSigning] = useState<{ id: string; name: string } | null>(null); // New Account…: the agent it is of, while signing in
   const saved = useRef('');
 
   const githubNow = useCallback(async (answer?: Promise<Result<ProjectGitHub>>) => {
     const r = await (answer ?? kulisa.invoke('project:github-get', { id }));
     if (refused(r)) setErrors((e) => ({ ...e, folders: r.error })); else setGithub(r);
   }, [id]);
+  // The accounts to add as they are now (one made, or deleted in Settings → Agents, meanwhile), and the project's own.
+  const agentsNow = async () => {
+    const c = await kulisa.invoke('project:settings-get', { id });
+    if (!refused(c)) { setS(c); setMine(c.projectAgents); }
+  };
   useEffect(() => {
     void kulisa.invoke('project:settings-get', { id }).then((c) => {
       if (refused(c)) return;
@@ -75,7 +83,7 @@ export function ProjectPage({ id, onSaved, saveRef }: { id: string; onSaved: () 
   const addable = (s?.agents ?? []).filter((x) => !mine.some((m) => m.id === x.id));
   const agentMenu = (): Item[] => [...addable.map((x) => ({ label: x.name, run: () => agents(kulisa.invoke('project:agent-add', { id, agent: x.id })) })),
     ...(s?.clis.length ? [...(addable.length ? ['-' as const] : []), { heading: 'New Account' },
-      ...s.clis.map((c) => ({ label: `${c.name}…`, sub: 'not in the probe', enabled: false, run: () => undefined }))] : [])];
+      ...s.clis.map((c) => ({ label: `${c.name}…`, run: () => { setErrors((e) => ({ ...e, agents: '' })); setSigning(c); } }))] : [])];
 
   async function profileChange(answer: Promise<Result<{ profiles: ProjectProfile[]; others: ProjectProfile[] }>>) {
     setErrors((e) => ({ ...e, profiles: '' }));
@@ -146,7 +154,7 @@ export function ProjectPage({ id, onSaved, saveRef }: { id: string; onSaved: () 
     </Group>
 
     <Group title="Agents" hint="The agents its tasks run; + makes a task with the default one." tools={<>
-      <ButtonMenu items={agentMenu}><Tool label="Add an agent" icon={<PlusIcon />} disabled={!addable.length && !s.clis.length} /></ButtonMenu>
+      <ButtonMenu items={agentMenu}><Tool label="Add an agent" icon={<PlusIcon />} disabled={!!signing || (!addable.length && !s.clis.length)} /></ButtonMenu>
       <Tool label="Remove from the project (its tasks keep it)" icon={<MinusIcon />} disabled={!agentSel} onClick={() => void removeAgent()} />
       <Tool label={isDefault(agentSel) ? 'No Default: a new task starts with no agent' : 'Make Default: + makes a task with it'} icon={<StarIcon />}
         disabled={!agentSel} onClick={() => agentSel && void defaultAgent(isDefault(agentSel) ? null : agentSel)} />
@@ -160,7 +168,9 @@ export function ProjectPage({ id, onSaved, saveRef }: { id: string; onSaved: () 
             { label: 'Account', cell: (a) => <Text size={200}>{a.email ?? '—'}</Text> },
             { label: '', width: '80px', cell: (a) => a.default && <Badge appearance="outline">default</Badge> },
           ]} />
-      </RightClickMenu> : <Text size={200}>No agents yet: its tasks get the terminal only.</Text>}
+      </RightClickMenu> : !signing && <Text size={200}>No agents yet: its tasks get the terminal only.</Text>}
+      {signing && <SignIn project={id} agent={signing} onClose={() => setSigning(null)}
+        onDone={(r) => { setSigning(null); if (r.agents) setMine(r.agents); void agentsNow(); }} />}
       {err(errors.agents)}
     </Group>
 
