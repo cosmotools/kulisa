@@ -66,6 +66,10 @@ prompt; the human writes the rest of the message around it.
   the docs' (`docs/`) and the code's own; a file's header is a line saying what it is, and the doc to read. Types are
   TypeScript's, not a comment's. When a term or a part is renamed, look for the old word in the code's comments too,
   not only in the docs.
+- **Docs without redundancy**: each rule once, its reason in a clause; no connecting prose, no retelling of the code,
+  a tool's docs or another doc. A sentence whose removal would not change what an agent does goes. A doc section the
+  change edits is tightened in the same change; a whole doc's rewrite is a commit of its own. Not `docs/guide.md`
+  (the users').
 - **Docs and comments say how it is, not how it came to be.** They describe the last state
   only; how it was before and what replaced what is git's: the commit message, the pull request's text. No "was",
   "until", "no longer", "replaced", nor a negation that only makes sense against the old shape ("lists no projects").
