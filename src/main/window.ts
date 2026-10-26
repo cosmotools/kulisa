@@ -22,11 +22,11 @@ type Question = Sent.Question;
 interface Place { bounds?: Rectangle | null; maximized?: boolean; near?: Electron.BrowserWindow; at?: Point }
 type Shade = 'dark' | 'light';
 
-const TITLE_BAR_HEIGHT = 44; // --title in tokens.css: keep in step
+const TITLE_BAR_HEIGHT = 44; // TopBar.vue's height: keep in step
 // macOS's window buttons: their height and Electron's place for them from the left, in pt (measured).
 const MAC_BUTTONS = { height: 14, x: 7 };
-// The window's background and the OS buttons' strip, in each theme: --window and --text in tokens.css.
-const COLORS: Record<Shade, { window: string; text: string }> = { dark: { window: '#2b2d30', text: '#dfe1e5' }, light: { window: '#ebecf0', text: '#1e1f22' } };
+// The window's background and the OS buttons' symbols, in each theme: --background and --foreground in app.css.
+const COLORS: Record<Shade, { window: string; text: string }> = { dark: { window: '#0a0a0a', text: '#fafafa' }, light: { window: '#ffffff', text: '#0a0a0a' } };
 // The smallest window whose UI still works (the top bar with the OS buttons, ☰ and a task's tab, something under
 // it), as VS Code's: fixed, times the Kulisa zoom, in DIP. Not the grid's own minimum: with five profiles in a row it
 // would keep the window from half a screen next to the human's IDE. The OS holds it for the human's drag only;
@@ -334,7 +334,7 @@ class AppWindow {
     else this.win.setWindowButtonPosition({ x: MAC_BUTTONS.x, y: Math.max(0, Math.min(Math.round((bar - MAC_BUTTONS.height) / 2), this.barHeight - MAC_BUTTONS.height)) });
     this.send('zoom', z);
   }
-  // The theme (app.ts): the page's colors (tokens.css: theme, as chosen), the window's background and the OS buttons'
+  // The theme (app.ts): the page's colors (lib/theme.ts: theme, as chosen), the window's background and the OS buttons'
   // symbols in the colors shown (shade: dark or light); their strip is see-through (CLEAR).
   setTheme(theme: string, shade: Shade) {
     if (this.win.isDestroyed()) return;

@@ -132,6 +132,21 @@
 
 /* Kulisa's own: what utilities cannot reach (docs/ui.md). */
 
+/* The window's own controls in the theme shown (native scrollbars, a date's picker), as the dark class says. The open
+   project's color (lib/store.ts) for the logo; until then the app icon's own red. */
+:root { color-scheme: light; --project: #c8333b; }
+.dark { color-scheme: dark; }
+
+/* Icons (Lucide's, components/marks/): the size of the window's text where a place sets none, as shadcn-vue's parts
+   size theirs; Lucide's own 24 px is a web page's. In base: a utility sizes them. Scrollbars: a rounded thumb on no
+   track, as a desktop app's; the standard scrollbar-color leaves Chromium's arrows at the ends. */
+@layer base {
+  svg:is(.lucide, [data-icon]) { @apply size-4 shrink-0; }
+  ::-webkit-scrollbar { @apply size-2.5; }
+  ::-webkit-scrollbar-track, ::-webkit-scrollbar-corner { @apply bg-transparent; }
+  ::-webkit-scrollbar-thumb { @apply rounded-full border-2 border-solid border-transparent bg-muted-foreground/40 bg-clip-padding hover:bg-muted-foreground; }
+}
+
 /* The grid (Grid.vue): dockview's markup, themed by its variables. Flat panes split by hairlines, in the theme's
    colors; dockview's dark theme is the base for the variables it does not take from here. */
 #dock .dockview-theme-dark {

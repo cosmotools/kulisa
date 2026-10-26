@@ -96,68 +96,25 @@ const label = computed(() => ({
 </script>
 
 <template>
-  <Transition name="pill">
-    <div v-if="look" class="dictation-pill" :data-state="look" role="status" aria-label="Dictation">
-      <span class="lead"><span v-if="look === 'done'" class="mark"><slot /></span><span v-else class="dot" /></span>
-      <span ref="wave" class="wave" aria-hidden="true"><i v-for="n in BARS" :key="n" :style="{ '--i': n }" /></span>
-      <span class="label">{{ label }}</span>
+  <!-- Over the terminal's top (the terminal keeps its size: Claude Code redraws badly after a resize), the pointer going
+       through it. Red while it listens, blue while it gets ready or transcribes, green when the text is in. -->
+  <Transition enter-active-class="animate-in fade-in zoom-in-75 slide-in-from-top-4 duration-300 motion-reduce:zoom-in-100 motion-reduce:slide-in-from-top-0"
+    leave-active-class="animate-out fade-out zoom-out-90 slide-out-to-top-2 duration-200 motion-reduce:zoom-out-100 motion-reduce:slide-out-to-top-0">
+    <div v-if="look" class="group pointer-events-none absolute top-2.5 left-1/2 z-5 flex h-8.5 -translate-x-1/2 items-center gap-2.5 rounded-full border bg-popover/70 ps-3.5 pe-4
+      text-xs whitespace-nowrap text-popover-foreground tabular-nums shadow-lg backdrop-blur-lg backdrop-saturate-150 data-[state=listening]:border-destructive/50"
+      :data-state="look" role="status" aria-label="Dictation">
+      <span class="grid size-3 place-items-center">
+        <span v-if="look === 'done'" class="grid text-green-500 motion-safe:animate-in motion-safe:zoom-in-50 [&_svg]:size-3.5"><slot /></span>
+        <span v-else-if="look === 'getting'" class="size-2.5 rounded-full border-2 border-blue-500/25 border-t-blue-500 motion-safe:animate-spin" />
+        <span v-else class="size-2 rounded-full bg-destructive group-data-[state=transcribing]:bg-blue-500 motion-safe:group-data-[state=listening]:animate-pulse" />
+      </span>
+      <!-- The older moments fade to the left -->
+      <span ref="wave" class="flex h-5 items-center gap-0.5 overflow-hidden mask-l-from-65% group-data-[state=done]:hidden" aria-hidden="true">
+        <i v-for="n in BARS" :key="n" class="h-full w-0.75 flex-none scale-y-(--h,0.1) rounded-xs bg-destructive transition-transform duration-75 ease-linear
+          group-data-[state=getting]:bg-blue-500/50 group-data-[state=transcribing]:bg-blue-500 motion-safe:group-data-[state=transcribing]:animate-pulse"
+          :style="{ animationDelay: `${n * -55}ms` }" />
+      </span>
+      <span class="min-w-8.5 group-data-[state=getting]:motion-safe:animate-pulse group-data-[state=transcribing]:motion-safe:animate-pulse">{{ label }}</span>
     </div>
   </Transition>
 </template>
-
-<style>
-/* A capsule of frosted glass at the terminal's top, over it (the terminal keeps its size: Claude Code redraws badly
-   after a resize), not in the way of the pointer. It grows and shrinks to what it says, with a spring; red while it
-   listens, the agent's blue while it transcribes, green when the text is in. */
-.dictation-pill { position: absolute; z-index: 5; inset-block-start: 10px; inset-inline-start: 50%; translate: -50% 0;
-  display: flex; align-items: center; gap: 10px; height: 34px; padding-inline: 13px 15px; border-radius: 17px;
-  interpolate-size: allow-keywords; width: auto; transition: width 0.4s cubic-bezier(0.34, 1.3, 0.64, 1), border-color 0.4s, box-shadow 0.4s;
-  background: color-mix(in srgb, var(--island) 70%, transparent); backdrop-filter: blur(16px) saturate(1.6);
-  border: 1px solid color-mix(in srgb, var(--text) 14%, transparent);
-  box-shadow: 0 12px 32px -8px var(--shadow), inset 0 1px 0 color-mix(in srgb, var(--text-strong) 8%, transparent);
-  color: var(--text); font-size: var(--font-small); font-variant-numeric: tabular-nums; white-space: nowrap; pointer-events: none;
-  --tone: var(--danger);
-  &[data-state="getting"], &[data-state="transcribing"] { --tone: var(--agent); }
-  &[data-state="done"] { --tone: var(--done); }
-  &[data-state="listening"] { border-color: color-mix(in srgb, var(--danger) 50%, transparent);
-    box-shadow: 0 12px 32px -8px var(--shadow), 0 0 30px -6px color-mix(in srgb, var(--danger) 55%, transparent); }
-
-  .lead { display: grid; place-items: center; width: 12px; height: 12px; }
-  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--tone); transition: background 0.3s; }
-  &[data-state="listening"] .dot { animation: pill-beat 1.4s ease-in-out infinite; }
-  &[data-state="getting"] .dot { width: 10px; height: 10px; background: none; border: 2px solid color-mix(in srgb, var(--tone) 25%, transparent);
-    border-block-start-color: var(--tone); animation: pill-spin 0.8s linear infinite; }
-  .mark { display: grid; color: var(--tone); animation: pill-pop 0.45s cubic-bezier(0.34, 1.8, 0.64, 1); svg { width: 14px; height: 14px; } }
-
-  /* The older moments fade to the left. */
-  .wave { display: flex; align-items: center; gap: 2px; height: 20px; overflow: hidden;
-    mask-image: linear-gradient(to right, transparent, black 35%);
-    i { flex: none; width: 3px; height: 100%; border-radius: 2px; background: var(--tone); transform: scaleY(var(--h, 0.1));
-      transition: transform 0.08s linear, background 0.3s; } }
-  &[data-state="getting"] .wave i { --h: 0.1; opacity: 0.5; }
-  /* Transcribing: the heard wave gives way to a wave running through the bars, the voice being worked on. */
-  &[data-state="transcribing"] .wave { mask-image: linear-gradient(to right, transparent, black 25% 75%, transparent);
-    i { animation: pill-wave 1.1s ease-in-out infinite; animation-delay: calc(var(--i) * -55ms); } }
-  &[data-state="done"] .wave { width: 0; margin-inline-end: -10px; }
-
-  .label { min-width: 34px; }
-  &[data-state="getting"] .label, &[data-state="transcribing"] .label {
-    background: linear-gradient(90deg, var(--text-muted) 0 35%, var(--text-strong) 50%, var(--text-muted) 65% 100%) 100% 0 / 300% 100%;
-    background-clip: text; color: transparent; animation: pill-shimmer 1.6s linear infinite; }
-}
-.pill-enter-active { transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.2s, filter 0.3s; }
-.pill-leave-active { transition: transform 0.3s ease-in, opacity 0.3s ease-in, filter 0.3s; }
-.pill-enter-from { opacity: 0; transform: translateY(-16px) scale(0.6); filter: blur(4px); }
-.pill-leave-to { opacity: 0; transform: translateY(-10px) scale(0.85); filter: blur(4px); }
-@keyframes pill-beat { 0%, 100% { scale: 1; box-shadow: 0 0 0 0 color-mix(in srgb, var(--danger) 60%, transparent); }
-  50% { scale: 1.15; box-shadow: 0 0 0 5px color-mix(in srgb, var(--danger) 0%, transparent); } }
-@keyframes pill-spin { to { rotate: 1turn; } }
-@keyframes pill-pop { from { scale: 0.3; opacity: 0; } }
-@keyframes pill-wave { 0%, 100% { transform: scaleY(0.12); } 50% { transform: scaleY(0.75); } }
-@keyframes pill-shimmer { to { background-position: 0 0; } }
-@media (prefers-reduced-motion: reduce) {
-  .dictation-pill, .dictation-pill * { animation: none !important; transition: none !important; }
-  .pill-enter-active, .pill-leave-active { transition: opacity 0.2s; }
-  .pill-enter-from, .pill-leave-to { transform: none; filter: none; }
-}
-</style>

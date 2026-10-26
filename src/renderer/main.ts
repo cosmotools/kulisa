@@ -4,8 +4,6 @@ import '@fontsource/jetbrains-mono/400.css';
 import '@fontsource/jetbrains-mono/700.css';
 import '@xterm/xterm/css/xterm.css';
 import './app.css';
-import './tokens.css';
-import './components.css';
 import { createApp } from 'vue';
 import App from './components/App.vue';
 import './lib/names';

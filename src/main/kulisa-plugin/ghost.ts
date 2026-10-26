@@ -4,9 +4,9 @@
 //   (@playwright/mcp) are not drawn in the page.
 // - Over the pane (the window's HTML): a caption from every CDP command through the proxy, from any client.
 // Captions go to the window with the profile's task; it shows those of the task on screen.
-// The agent's marks in the pages are in Kulisa's accent (tokens.css, --accent), the same in every profile: the pane says
-// whose page it is.
-const MARK = '#3574f0';
+// The agent's marks in the pages are in the agent's color in the window (Tailwind's blue-500: AgentState.vue, the log),
+// the same in every profile: the pane says whose page it is.
+const MARK = '#2b7fff';
 import { takenByHuman } from '../../screenshots/main/index.ts';
 import type { Page } from 'playwright-core';
 import type { Shell } from '../shell.ts';

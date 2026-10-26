@@ -53,6 +53,11 @@ const language = computed(() => (store.language ? new Intl.DisplayNames(['en'], 
     </TabsList></RightClickMenu>
     <ButtonMenu :items="newTerminalItems"><Button id="termAdd" variant="ghost" size="icon-sm" :title="withKeys('New conversation of an agent, or a terminal', 'terminal.new')"
       aria-label="New terminal" @dragstart.prevent><PlusIcon /></Button></ButtonMenu>
-    <Dictation :task="store.current" :key-name="keyText('voice.hold')" :language="language" @done="shownTerm()?.focus()"><MicIcon /></Dictation>
+    <!-- Red while it records, breathing so the eye catches it from across the window; blue while it gets ready
+         (src/dictation/README.md, The microphone) -->
+    <Dictation v-slot="{ mic }" :task="store.current" :key-name="keyText('voice.hold')" :language="language" @done="shownTerm()?.focus()">
+      <Button v-bind="mic" variant="secondary" size="icon-sm" class="ms-auto rounded-full aria-pressed:bg-destructive aria-pressed:text-white data-[state=starting]:bg-blue-500 data-[state=starting]:text-white motion-safe:aria-pressed:animate-pulse"
+        @dragstart.prevent><MicIcon /></Button>
+    </Dictation>
   </div></Tabs>
 </template>

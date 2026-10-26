@@ -1,8 +1,8 @@
 # The window's UI
 
-What the window is built of: the tokens, the icons, and the components, each defined once, so every dialog, button
-and list looks and behaves the same. **Before making a button, an icon, a row or a dialog, look here:** use the
-component, or add one here (and in `components.css`) when nothing fits. Keep this file current.
+What the window is built of: shadcn-vue's components in its theme, Tailwind's utilities, the icons, each defined once,
+so every dialog, button and list looks and behaves the same. **Before making a button, an icon, a row or a dialog, look
+here:** use the component, or add shadcn-vue's (`npx shadcn-vue add`) when nothing fits. Keep this file current.
 
 Vue 3 components in TypeScript, built by Vite (`vite.config.mts`, into `dist/renderer`). Before using a part of Vue
 new to the window, read its page in Vue's own documentation for agents (`https://vuejs.org/llms.txt`, each page as
@@ -27,8 +27,7 @@ that it is off screen) to the main process after every grid change (docs/window.
 | `src/renderer/components/*.vue` | the window's parts, each its markup, behavior and own look (`<style>`, rooted at its id or class): `App.vue` puts a tasks' window together; `grid/` the grid's panels and headers, `menu/` the menus (`ButtonMenu`, `RightClickMenu`, `PointMenu`, `MenuRows`) and ☰'s own rows; `Modal.vue` the dialogs; the clusters (below): `settings/` Settings' window (`Settings.vue`, its pages `ProjectEditor.vue`, `AgentPage.vue`, `ProfilePage.vue`, `GitHubPage.vue`), `newproject/` New Project's steps |
 | `src/renderer/lib/*.ts` | what parts share or what outlives a component: `store.ts` (what the main process sends, `act`), `grid.ts`, `terminals.ts` (a tasks' window's island; the terminal itself is `src/terminal/`), `menu.ts` (what a menu holds), `agents.ts` (the agents' list of a dialog, and an install under way), `ask.ts`, `dialogs.ts`, `keys.ts`, `cover.ts` (`covered()` for every menu and dialog: one menu at a time, all closed at once), `views.ts` (a tasks' window's profiles' pages under them: hidden, or pictures), `profiles.ts` (the profiles' menu), `names.ts` (name fields), `strip.ts` (a strip of tabs that scrolls), `common.ts`, `test-hooks.ts` (what the tests reach by name) |
 | `src/shared/types.ts`, `ipc.ts`; `env.d.ts` | the shapes the main process sends, the channels they come by (docs/window.md, IPC); the bridge to it (`src/preload`) typed by them, and Vite's types |
-| `src/renderer/tokens.css` | every color and size (`:root`); no literal color anywhere else |
-| `src/renderer/components.css` | the shared components below, global |
+| `src/renderer/app.css` | Tailwind, shadcn-vue's theme (its colors for both themes, as its CLI writes them), and what utilities cannot reach: the icons' size, the scrollbars, dockview's variables, switching tasks' slide |
 | `src/renderer/index.html`, `main.ts`; `settings.html`, `settings.ts`; `master.html`, `master.ts` | a tasks' window's page, Settings' window's and a master's window's: the theme before the first paint, then the app. Settings' loads nothing of a tasks' window (no grid, no store of its tasks): `cover.ts` and the terminal (`src/terminal/renderer/`) are what the two share of `views.ts` and `terminals.ts` |
 | `src/renderer/public/avatars/` | the profiles' pictures, copied as they are |
 
@@ -42,13 +41,10 @@ the one place where a button is there to draw the eye, seen only while no profil
 - **JetBrains' UI font and size**: Geist (shadcn-vue's) at 14 px (a step above their UI Guidelines' 13, Typography: 13 reads small), bundled
   (`@fontsource-variable/geist`, `app.css`), so the window looks the same on every OS (the OS's own, on Linux Noto
   Sans, is wide and reads as a web page's). The terminal keeps JetBrains Mono.
-- **Two text sizes** (`--font`, `--font-small` for group titles and a dialog's title), two weights; nothing bigger.
-  Weight and color carry what matters, not size. The one exception, the welcome (`welcome/`), the one place the window
-  speaks to a new user rather than being worked in: its questions and slides' titles `--font-hero`, the words under
-  them `--font-lead`.
-- **Dense**: rows and controls `--control` high (`--row` the same), toolbar buttons 24 px, corners `--corner` (4 px)
-  on controls and `--island-radius` on windows and dialogs.
-- **One scrollbar everywhere** (`components.css`, `--scrollbar`): a rounded thumb on no track, no arrows, as JetBrains'
+- **Two text sizes** (`text-sm`, `text-xs`), two weights; nothing bigger. Weight and color carry what matters, not
+  size. The one exception, the welcome (`welcome/`), the one place the window speaks to a new user rather than being
+  worked in: its slides' titles `text-4xl`.
+- **One scrollbar everywhere** (`app.css`): a rounded thumb on no track, no arrows, as JetBrains'
   (not the OS's, with arrows, in menus, Settings and dialogs). Chromium's `::-webkit-scrollbar`:
   the standard `scrollbar-color` and `scrollbar-width: thin` left the arrows. A tabs' strip has none
   (`scrollbar-width: none`): it scrolls by the wheel.
@@ -64,28 +60,13 @@ the one place where a button is there to draw the eye, seen only while no profil
   [window.md](window.md), Settings) is a nav on the left (shadcn-vue's `Sidebar`) and a page on the right, under its path
   (`Breadcrumb`, `settings/PageHead.vue`). No search field over the nav (the author's choice).
 
-## Tokens (`tokens.css`)
+## Colors
 
-- Colors for both themes ([window.md](window.md), Theme): each is `light-dark(light, dark)`, so a new color gets
-  both values. JS reads a color as shown through an element that uses it (`src/terminal/renderer/`), not the token's text.
-  JetBrains' themes: `--window` (the title bar, under the grid and the tasks' bar), `--island` (panels, dialogs, menus), `--island-hi`
-  (a lit row, a divider), `--toolbar` (a pane's toolbar and active tab), `--field`, `--button`, `--line` (borders);
-  text `--text`, `--text-strong`, `--text-dim`, `--text-muted`; `--blue` (main button, focus), `--danger`,
-  `--error`, `--note` (what waits for the human), `--agent` (the agent's caption on a pane, in the accent's hue, not
-  `--note`'s, the color of "waiting for you"), `--done`; `--on-accent` (text on `--blue` and `--danger`),
-  `--selection` (the terminal's); `--chosen`, `--chosen-idle` (a list's selected row, while the list has the keyboard
-  and when it has not: JetBrains'); `--page-button`, `--on-page-button`, `--page-pad` (Chrome's blue and room, a page's
-  dialog: `.pagedialog`); `--page`, `--backdrop`, `--shadow`; `--hover` (under the
-  pointer, on any background); `--project` (the shown task's project's color, set by `lib/store.ts`: the logo's).
-- Sizes: `--sans` (the window's font, Geist), `--font` (all text, the terminal too), `--font-small` (a group's title, a dialog's title), `--font-hero` and `--font-lead` (the welcome's alone, above), `--control` (the
-  height of buttons and fields), `--tab` (a tab's: a step taller), `--corner`,
-  `--tab-radius` (a pane's tab's and a task's), `--island-radius`, `--gap` (the space between and inside islands, between the
-  window's rows, between the tasks' tabs; also dockview's `gap` in `Grid.vue`), `--bartab` (a task's tab's height), `--title` (the title bar's: `--gap`,
-  `--control`, `--gap`; the OS buttons' strip is as tall, `window.ts`); room as Chrome's menus and dialogs have it: `--row` (a row of a menu or a list), `--inset` (inside
-  a row, between its icon and text, between a dialog's fields), `--pad` (inside a dialog along its edges), `--label` (a form's labels' column, "Name:", `.field`, and what lines up
-  with its fields). Space
-  comes from these, not from new numbers (things set close together). The
-  Kulisa zoom scales them all.
+shadcn-vue's theme (`app.css`: `:root`, `.dark`), nothing of our own: a part takes its colors from its utilities
+(`bg-background`, `text-muted-foreground`, `border`, `text-destructive`). Where the theme has no meaning for it,
+Tailwind's palette, one color a meaning everywhere: the agent `blue-500` (also its marks in the pages, `ghost.ts`),
+waiting for the human `amber-500`, done `green-500`; a project's own color (`--project`, `lib/store.ts`: the logo's).
+JS reads a color as shown through an element that uses it (`src/terminal/renderer/`), not the variable's text.
 
 ## Icons
 
@@ -99,18 +80,18 @@ GitHub's (Lucide has no brands' marks). Pictures are not icons: the arrangements
 profiles' pictures are files of their own (`src/renderer/public/avatars/`, Noto Emoji). The test `icons: …` in
 `test/e2e/window.spec.ts` checks that every other `<svg>` is one of these.
 
-## Components (`components.css`)
+## Components
 
-What is `hidden` is off the screen, whatever `display` its component sets (`[hidden] { display: none !important }`,
-the browser's own `until-found` apart): a component's `display` beats the browser's own `[hidden]` rule. Tests check what is on screen (`checkVisibility()`), not the attribute.
+What is `hidden` is off the screen, whatever `display` its component sets (Tailwind's base). Tests check what is on
+screen (`checkVisibility()`), not the attribute.
 
 ### Buttons
 
 - shadcn-vue's `Button` (`components/ui/button`): the main action of a form `default`, last; the others `outline`; an
   icon alone `ghost` with `size="icon-sm"`, always with `aria-label` (or `title`). Inside a form, a button that does not
   submit is `type="button"`.
-- A Kulisa package's own buttons are not in Tailwind yet (`components.css`): `<button>`, framed, `--control` high; `.icon`
-  an icon alone, `.round` a circle that stands out in a row (the dictation's microphone).
+- A Kulisa package imports nothing of the window: its button is the window's, given its attributes and handlers by a
+  slot (the dictation's microphone, `TerminalTabs.vue`).
 - `:title="withKeys('Reload', 'tab.reload')"` (a command of `src/main/keys.ts`; `lib/common.ts`): its key at the end
   of its tooltip, "Reload (Ctrl+R)", as Chrome's toolbar says it.
 

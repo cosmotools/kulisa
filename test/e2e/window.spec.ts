@@ -49,7 +49,7 @@ test('terminal: Unicode 11 widths (cursor stays put after emoji), bundled font, 
   expect(x).toBe(5);
   const font = await ui.evaluate(() => {
     const t = (window as any).__term;
-    return { bundled: document.fonts.check(t.options.fontSize + 'px "JetBrains Mono"'), size: t.options.fontSize, ui: parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--font')),
+    return { bundled: document.fonts.check(t.options.fontSize + 'px "JetBrains Mono"'), size: t.options.fontSize, ui: parseFloat(getComputedStyle(document.body).fontSize),
       family: t.options.fontFamily.startsWith('"JetBrains Mono"'), renderer: (window as any).__termRenderer };
   });
   expect(font.bundled).toBe(true);
@@ -484,26 +484,26 @@ test("theme: Dark by default, Light or System in ☰; the window, the terminal a
   await sam(core);
   // What is shown: the panels' color, the terminal's the same (the theme's background); the controls' own scheme
   // (color-scheme).
-  const BACKGROUND = { dark: 'oklch(0.145 0 0)', light: 'oklch(1 0 0)' }, WHITE = 'rgb(255, 255, 255)';
+  const BACKGROUND = { dark: 'oklch(0.145 0 0)', light: 'oklch(1 0 0)' };
   // The theme as shown, once it is: the panels, the terminal (xterm's own option: it draws on a canvas), the one chosen
   // in ☰, the controls' scheme.
-  const looks = async (shade: 'dark' | 'light', chosen: string, scheme: string = shade) => {
+  const looks = async (shade: 'dark' | 'light', chosen: string) => {
     await expect(ui.locator('.dv-groupview').first()).toHaveCSS('background-color', BACKGROUND[shade]);
     await expect.poll(() => ui.evaluate(() => (window as any).__term.options.theme.background)).toBe(BACKGROUND[shade]);
     const theme = menu(ui).getByTestId('theme-row');
     await expect(theme.getByRole('menuitemradio', { checked: true })).toHaveCount(1);
     await expect(theme.locator(`[data-theme="${chosen}"]`)).toHaveAttribute('data-state', 'checked');
-    await expect(ui.locator('input').first()).toHaveCSS('color-scheme', scheme);
+    await expect(ui.locator('input').first()).toHaveCSS('color-scheme', shade);
   };
-  // A main button's text, as a dialog has (none in the page while closed): the token's color, resolved on an element
-  // made for it.
-  const onAccent = () => ui.evaluate(() => {
-    const b = document.body.appendChild(document.createElement('i'));
-    b.style.color = 'var(--on-accent)';
-    const c = getComputedStyle(b).color;
-    b.remove();
-    return c;
-  });
+  // The window's own background (window.ts, for what CSS does not paint: the window before its page, the OS buttons'
+  // strip) is the page's, as a color, both written as #rrggbb.
+  const hex = (css: string) => ui.evaluate((c) => {
+    const x = document.createElement('canvas').getContext('2d');
+    x.fillStyle = c; x.fillRect(0, 0, 1, 1);
+    return `#${[...x.getImageData(0, 0, 1, 1).data.slice(0, 3)].map((v) => v.toString(16).padStart(2, '0')).join('')}`;
+  }, css);
+  const windowColor = async (shade: 'dark' | 'light') =>
+    expect(await core((k) => k.shell.windows[0].win.getBackgroundColor().slice(0, 7).toLowerCase())).toBe(await hex(BACKGROUND[shade]));
   const pageDark = () => core((k) => k.profile('Sam').get().wc.executeJavaScript(`matchMedia('(prefers-color-scheme: dark)').matches`) as Promise<boolean>);
   const osDark = await pageDark();
   const saved = () => files.json('settings.json').theme;
@@ -522,18 +522,18 @@ test("theme: Dark by default, Light or System in ☰; the window, the terminal a
       - group:
         - text: Tasks bar`);
   await looks('dark', 'dark');
-  expect(await onAccent()).toBe(WHITE);
-  const pick = async (t: string, shade: 'dark' | 'light', scheme: string = shade) => {
+  await windowColor('dark');
+  const pick = async (t: string, shade: 'dark' | 'light') => {
     await menu(ui).locator(`[data-theme="${t}"]`).click();
-    await looks(shade, t, scheme);
+    await looks(shade, t);
     await expect(menu(ui), 'the menu stays open: the next one can be tried').toBeVisible();
     expect(saved(), 'saved').toBe(t);
   };
   await pick('light', 'light');
-  expect(await onAccent()).toBe(WHITE);
+  await windowColor('light');
   expect(await pageDark(), "a site under test keeps the OS's scheme").toBe(osDark);
   await shot('light.png');
-  await pick('system', await core((k) => k.electron.nativeTheme.shouldUseDarkColors) ? 'dark' : 'light', 'light dark'); // the OS's, as the pages'
+  await pick('system', await core((k) => k.electron.nativeTheme.shouldUseDarkColors) ? 'dark' : 'light'); // the OS's, as the pages'
   await pick('dark', 'dark');
   await shot('dark.png');
   expect(await pageDark()).toBe(osDark);

@@ -264,7 +264,7 @@ function start(options: Options = {}) {
     store.saveSettings({ ...store.settings(), uiZoom: z });
   };
   // The theme of Kulisa's own UI: 'dark' (the default, as JetBrains'), 'light', or 'system' (the OS's, followed as it
-  // changes). Only the windows' UI, by CSS (tokens.css): nativeTheme.themeSource stays the OS's, so the profiles'
+  // changes). Only the windows' UI, by CSS (lib/theme.ts): nativeTheme.themeSource stays the OS's, so the profiles'
   // pages keep the OS's scheme, as without Kulisa, and a site under test looks as its users see it. shade(): 'dark'
   // or 'light', what is shown, for what CSS does not paint (the window's background, the OS buttons).
   shell.theme = store.settings().theme || 'dark';

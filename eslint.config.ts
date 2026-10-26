@@ -78,11 +78,11 @@ export default tseslint.config(
     settings: { 'better-tailwindcss': { entryPoint: 'src/renderer/app.css' } },
     rules: { ...tailwind.configs['recommended-error'].rules,
       // A formatter's: it breaks a class string inside a long line (class="↵ name↵ "), not the line; no formatter here.
-      'better-tailwindcss/enforce-consistent-line-wrapping': 'off',
-      // The window's own CSS classes (components.css, the parts' <style>) until each part is in Tailwind's.
-      'better-tailwindcss/no-unknown-classes': 'off' } },
+      'better-tailwindcss/enforce-consistent-line-wrapping': 'off' } },
   // shadcn-vue's components as its CLI writes them (components.json), so that it can update them: its way of writing
   // classes, not ours; what would be a bug still checked.
   { files: ['src/renderer/components/ui/**'], rules: { 'better-tailwindcss/enforce-consistent-class-order': 'off',
-    'better-tailwindcss/enforce-canonical-classes': 'off', 'better-tailwindcss/no-unnecessary-whitespace': 'off' } },
+    'better-tailwindcss/enforce-canonical-classes': 'off', 'better-tailwindcss/no-unnecessary-whitespace': 'off',
+    // cn-*: its markers for its themes' CSS (none here); text-md: its Stepper's, no Tailwind size
+    'better-tailwindcss/no-unknown-classes': ['error', { ignore: ['^cn-', '^text-md$'] }] } },
 );

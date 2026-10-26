@@ -3,7 +3,7 @@
 // trigger is a key held anywhere in the window (the main process). It stays when the agent in front has none, disabled:
 // a button that came and went would resize the terminal, and Claude Code redraws badly after one.
 // task: the task shown; keyName: the key, as the window names it; language: what it hears; done: let go, the keyboard
-// goes back to the terminal; its icon is the slot's (the window's icon).
+// goes back to the terminal. The button is the slot's (the window's): mic, its attributes and handlers, bound to it.
 import { computed, watch } from 'vue';
 import { read, record, slow, voices } from './voice';
 
@@ -46,24 +46,6 @@ const title = computed(() => {
 </script>
 
 <template>
-  <!-- The panel is not dragged by its row's buttons. -->
-  <div class="dictation" @dragstart.prevent>
-    <button class="icon round mic" aria-label="Speak to the agent" :aria-pressed="recording" :data-state="state" :disabled="!v || v.state === 'none'" :title="title"
-      @pointerdown="press" @pointerup="release" @pointercancel="release" @click="key"><slot /></button>
-  </div>
+  <slot :mic="{ 'aria-label': 'Speak to the agent', 'aria-pressed': recording, 'data-state': state, 'disabled': !v || v.state === 'none', title,
+                onPointerdown: press, onPointerup: release, onPointercancel: release, onClick: key }" />
 </template>
-
-<style>
-/* At the row's end; red while it records, breathing with a ring, as a voice message's button does, so the eye catches
-   from across the window that the agent is listening (not with reduced motion: red alone). */
-.dictation { display: grid; place-items: center; flex: none; margin-inline-start: auto;
-  .mic.round[aria-pressed="true"] { color: var(--on-accent); background: var(--danger); animation: mic-breathe 1.2s ease-in-out infinite; }
-  /* Getting ready (~1 s, the hidden session starting): lit, not red yet, so nobody speaks before it hears. */
-  .mic.round[data-state="starting"] { background: var(--blue); animation: none; } }
-.taskrepos + .dictation { margin-inline-start: 0; }
-@keyframes mic-breathe {
-  0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 color-mix(in srgb, var(--danger) 55%, transparent); }
-  50% { transform: scale(1.12); box-shadow: 0 0 0 4px color-mix(in srgb, var(--danger) 0%, transparent); }
-}
-@media (prefers-reduced-motion: reduce) { .dictation .mic.round[aria-pressed="true"] { animation: none; } }
-</style>

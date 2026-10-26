@@ -10,11 +10,8 @@ kulisa.on('thumbnail:place', (t) => { thumbnail.value = t; });
 </script>
 
 <template>
-  <img v-if="thumbnail" id="shotthumb" :src="thumbnail.src" alt="" :style="{ left: `${thumbnail.x}px`, top: `${thumbnail.y}px`, width: `${thumbnail.width}px`, height: `${thumbnail.height}px` }">
+  <!-- Over the pages' pictures, under the window's dialogs and menus; framed as its own page's (thumbnail.ts) -->
+  <img v-if="thumbnail" id="shotthumb" class="pointer-events-none fixed z-10 rounded-sm object-cover object-top shadow-[0_0_0_1px_#00000030,0_3px_10px_#00000060] outline -outline-offset-1
+    outline-white/50" :src="thumbnail.src" alt=""
+    :style="{ left: `${thumbnail.x}px`, top: `${thumbnail.y}px`, width: `${thumbnail.width}px`, height: `${thumbnail.height}px` }">
 </template>
-
-<style>
-/* Over the pages' pictures, under the window's dialogs and menus (their z-index: 20, 30). */
-#shotthumb { position: fixed; z-index: 10; object-fit: cover; object-position: top; border-radius: var(--corner); pointer-events: none;
-  outline: 1px solid var(--shot-edge); outline-offset: -1px; box-shadow: 0 0 0 1px var(--shot-ring), 0 3px 10px var(--shot-shadow); } /* as its own page's (thumbnail.ts) */
-</style>

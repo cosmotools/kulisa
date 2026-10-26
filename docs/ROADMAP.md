@@ -112,7 +112,7 @@ in both. A feature built is documented in its doc ([profiles.md](profiles.md), [
     promise, not checked yet (Checking, below).
   - Seeing: high contrast, the OS's setting (`nativeTheme.shouldUseHighContrastColors`; CSS `forced-colors` on
     Windows, where the browser puts in the system's colors: check that nothing disappears; `prefers-contrast`); WCAG
-    contrast of every token in both themes (the muted text first). Kulisa's own: Reka has no look.
+    contrast of every color in both themes (the muted text first): shadcn-vue's theme and the palette colors Kulisa uses.
   - Keyboard: moving between the grid's panels, moving and resizing them without a mouse (dockview's, not Reka's:
     what dockview has for it first); focus always visible. Shortcuts are built ([window.md](window.md), Keys: none
     without a modifier, WCAG 2.1.4); check they do not clash with screen readers.

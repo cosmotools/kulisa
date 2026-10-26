@@ -22,18 +22,18 @@ interface Buffer { term: Terminal; serialize: SerializeAddon; modes: Map<number,
 const buffers = new Map<string, Buffer>(); // terminal key -> its buffer
 const views = new Set<View>();
 export const xtermKeys = () => buffers.keys();
-const css = (v: string) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
-const termFontSize = parseFloat(css('--font')) || 14;
+const termFontSize = parseFloat(getComputedStyle(document.body).fontSize) || 14; // the window's text
 // xterm measures the cell size when it opens: once the font is loaded. Output written before is kept.
 const termFont = Promise.all([`${termFontSize}px`, `bold ${termFontSize}px`].map((f) => document.fonts.load(`${f} "JetBrains Mono"`))).catch(() => {});
-// The colors of the place it is shown in (tokens.css; its background the place's: View's), set again when the theme changes. The programs' own colors (ANSI) stay xterm's: it
-// makes them readable on either background (minimumContrastRatio, WCAG AA; VS Code does the same). A token is
-// light-dark(…): its color as now shown is read through an element that uses it.
+// The colors of the place it is shown in (the window's theme, its CSS variables; its background the place's: View's), set
+// again when the theme changes. The programs' own colors (ANSI) stay xterm's: it makes them readable on either
+// background (minimumContrastRatio, WCAG AA; VS Code does the same). A color is read as now shown, through an element
+// that uses it: the theme's are oklch(…) and the dark class's.
 const probe = Object.assign(document.createElement('i'), { hidden: true });
 document.body.append(probe);
-const shown = (v: string) => { probe.style.color = `var(${v})`; return getComputedStyle(probe).color; };
-const termTheme = (background: string) => ({ background: shown(background), foreground: shown('--text'), cursor: shown('--text'), cursorAccent: shown(background),
-  selectionBackground: shown('--selection') });
+const shown = (color: string) => { probe.style.color = color; return getComputedStyle(probe).color; };
+const termTheme = (background: string) => ({ background: shown(`var(${background})`), foreground: shown('var(--foreground)'), cursor: shown('var(--foreground)'),
+  cursorAccent: shown(`var(${background})`), selectionBackground: shown('color-mix(in oklab, var(--ring) 45%, transparent)') });
 function themeTerminals() { for (const v of views) v.term.options.theme = termTheme(v.background); }
 // After the theme changed (☰), also when the OS changes its own (System). The root's data-theme first.
 kulisa.on('theme', () => requestAnimationFrame(themeTerminals));
@@ -111,7 +111,7 @@ export function serialized(key: string) {
 
 // The xterm a place shows its terminal in, filling the element it is put in (xterm fits its rows to its host's height,
 // and would keep its 24 rows over what is under it). show(key) puts that terminal's buffer into it. background: the
-// token of the place's color (tokens.css), so the terminal is of a piece with it.
+// CSS variable of the place's color, so the terminal is of a piece with it.
 export class View {
   term: Terminal;
   background: string;
