@@ -22,7 +22,7 @@ import type { ChildProcess } from 'child_process';
 // A group starts from nothing, or from setup.ts (the profiles the first group makes on its way).
 const GROUPS: Record<string, { files: string[]; restart: string[] }> = {
   profiles: { files: ['agent', 'profiles', 'zoom-and-closing', 'github'], restart: ['restart-profiles'] },
-  tasks: { files: ['setup', 'window', 'grid', 'tasks'], restart: ['restart-tasks'] },
+  tasks: { files: ['setup', 'grid', 'tasks'], restart: ['restart-tasks'] },
 };
 
 const visible = process.argv.includes('--visible');

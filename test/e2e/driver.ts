@@ -35,7 +35,8 @@ export function driver(shell: Shell, openedExternally: string[]) {
   const watched = new WeakSet<IPty>();
   const watchPty = (p: IPty) => { if (!watched.has(p)) { watched.add(p); p.onData((d) => (pty += d)); } };
   const k = {
-    shell, CMD, press, profile, watchPty, openedExternally,
+    // Electron's module, for what a test does in the main process beyond Kulisa's own (its menus, the theme, the app).
+    electron, shell, CMD, press, profile, watchPty, openedExternally,
     ptyOutput: () => pty,
     // Kulisa's uncaught errors (app.ts): fixtures.ts fails the test they came in.
     errors: [] as string[],

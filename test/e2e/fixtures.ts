@@ -2,8 +2,8 @@
 // Kulisa per test file in a folder of its own, its core (core), its window's page (ui), Settings' (sui), the agent's MCP
 // tools (call), a restart in the same folder, and what a failed test leaves to read: the window's picture, Playwright's
 // trace, Kulisa's log. Kulisa's uncaught errors fail the test.
-import { test as base, expect, _electron } from '@playwright/test';
-import type { ElectronApplication, Page, TestInfo } from '@playwright/test';
+import { test as base, expect, chromium } from '@playwright/test';
+import type { Browser, BrowserContext, Page, TestInfo } from '@playwright/test';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { spawn } from 'child_process';
@@ -25,7 +25,7 @@ type Core = <A, R>(fn: (k: Kulisa, arg: A) => R | Promise<R>, arg?: A) => Promis
 type Where = { task?: string; terminal?: number };
 type CallResult = { content: { type: string; text?: string; data?: string; mimeType?: string }[]; text: string; isError?: boolean; structuredContent?: unknown };
 type Call = (name: string, args?: Record<string, unknown>, where?: Where) => Promise<CallResult>;
-type Running = { file: string; app: ElectronApplication; root: string; core: Core; ui: Page; errors: string[]; clients: Map<string, Client> };
+type Running = { file: string; child: ChildProcess; exited: Promise<void>; output: () => string; browser: Browser; context: BrowserContext; root: string; core: Core; ui: Page; errors: string[]; clients: Map<string, Client> };
 
 // The checkout's own folder for the tests' Kulisas: worktrees run their tests at once (CLAUDE.md, Worktrees).
 const repo = path.join(import.meta.dirname, '..', '..');
@@ -55,45 +55,73 @@ async function launch(file: string, display: string | null, restart?: string): P
   if (restart) env.KULISA_RESTART = '1';
   // On Xvfb, X11's: Electron takes Wayland wherever WAYLAND_DISPLAY is set, and would open on the human's screen.
   if (display) { env.DISPLAY = display; delete env.WAYLAND_DISPLAY; env.XDG_SESSION_TYPE = 'x11'; }
-  // executablePath: without Playwright's loader, which would give Kulisa Chromium's switches of a test browser
-  // (no throttling of background and covered windows): the tests run Kulisa as the human does. No GPU on Xvfb: WebGL on
-  // Chromium's software renderer, as the terminal uses it on a real one.
-  const app = await _electron.launch({ executablePath: electronPath as unknown as string, args: [...(display ? ['--ignore-gpu-blocklist'] : []), path.join(import.meta.dirname, 'app.ts')], env, timeout: 60000 });
+  // Started as the human starts it, with a debugging port of its own (127.0.0.1, a free one) and an IPC channel for
+  // core(), not by Playwright's _electron: that one makes every page it attaches to think it has the focus (which keeps
+  // it visible, a minimized window's too: CLAUDE.md, Hard-won facts) and light, and has no way to leave them as they
+  // are; connected over CDP with noDefaults, Playwright changes nothing in the pages. Linux: no setuid sandbox in
+  // node_modules (CLAUDE.md, Commands). No GPU on Xvfb: WebGL on Chromium's software renderer, as the terminal uses it
+  // on a real one.
+  const args = [...(process.platform === 'linux' ? ['--no-sandbox'] : []), '--remote-debugging-port=0', ...(display ? ['--ignore-gpu-blocklist'] : []), path.join(import.meta.dirname, 'app.ts')];
+  const child = spawn(electronPath as unknown as string, args, { env, stdio: ['ignore', 'pipe', 'pipe', 'ipc'] }); // JSON: Electron's V8 is not the test's
+  // What Electron printed, the last of it, for a failed test (leave).
+  let output = '';
+  const keep = (d: Buffer) => { output = (output + d.toString()).slice(-200_000); };
+  child.stdout.on('data', keep); child.stderr.on('data', keep);
+  const exited = new Promise<void>((r) => child.once('exit', () => r()));
+  const endpoint = await new Promise<string>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`Electron gave no debugging port in 60 s:\n${output}`)), 60000);
+    readline.createInterface({ input: child.stderr }).on('line', (l) => { const m = /DevTools listening on (ws:\/\/\S+)/.exec(l); if (m) { clearTimeout(timer); resolve(m[1]); } });
+    child.once('exit', (code) => { clearTimeout(timer); reject(new Error(`Electron ended with ${code}:\n${output}`)); });
+  });
+  let seq = 0;
+  const pending = new Map<number, { resolve: (v: unknown) => void; reject: (e: Error) => void }>();
+  child.on('message', ({ id, value, error }: { id: number; value?: unknown; error?: string }) => {
+    const p = pending.get(id);
+    pending.delete(id);
+    if (error !== undefined) p?.reject(new Error(`in Kulisa's main process: ${error}`)); else p?.resolve(value);
+  });
+  void exited.then(() => { for (const p of pending.values()) p.reject(new Error('Kulisa ended')); pending.clear(); });
+  const core: Core = (fn, arg) => new Promise((resolve, reject) => {
+    if (child.exitCode !== null) return reject(new Error('Kulisa ended'));
+    const id = ++seq;
+    pending.set(id, { resolve: resolve as (v: unknown) => void, reject });
+    child.send({ id, src: fn.toString(), arg });
+  });
+  const browser = await chromium.connectOverCDP(endpoint, { noDefaults: true });
+  const context = browser.contexts()[0];
   const errors: string[] = [];
-  // Playwright attaches to every page, profiles' too, and makes each think it has the focus
-  // (Emulation.setFocusEmulationEnabled), which also keeps it visible and unthrottled behind others (CLAUDE.md, Hard-won
-  // facts): each gets the OS's focus and visibility back, as the human's Kulisa has them. Kulisa's own pages' uncaught
-  // errors fail the test (a site's are the site's).
-  const attach = async (p: Page) => {
-    if (own(p)) p.on('pageerror', (e) => errors.push(`${path.basename(new URL(p.url()).pathname)}: ${e.stack ?? e.message}`));
-    // A page closing as it comes (a tab closed at once) has no target left to send to.
-    await app.context().newCDPSession(p).then((c) => c.send('Emulation.setFocusEmulationEnabled', { enabled: false })).catch(() => {});
-  };
-  app.on('window', (p) => void attach(p));
-  for (const p of app.windows()) await attach(p);
-  const core: Core = (fn, arg) => app.evaluate((_electron, [src, a]) => (0, eval)(`(${src})`)(globalThis.__kulisa, a), [fn.toString(), arg] as const);
-  await expect.poll(() => app.evaluate(() => !!globalThis.__kulisa?.shell.task?.loaded && !!globalThis.__kulisa.shell.pty), { timeout: 30000 }).toBe(true);
+  // Kulisa's own pages' uncaught errors fail the test (a site's are the site's).
+  const attach = (p: Page) => { if (own(p)) p.on('pageerror', (e) => errors.push(`${path.basename(new URL(p.url()).pathname)}: ${e.stack ?? e.message}`)); };
+  context.on('page', attach);
+  context.pages().forEach(attach);
+  await expect.poll(() => core((k) => !!k?.shell.task?.loaded && !!k.shell.pty), { timeout: 30000 }).toBe(true);
   await core((k) => k.watchPty(k.shell.pty));
-  const ui = app.windows().find((p) => p.url().includes('/index.html')) ?? await app.waitForEvent('window', (p) => p.url().includes('/index.html'));
-  await app.context().tracing.start({ screenshots: true, snapshots: true });
-  return { file, app, root, core, ui, errors, clients: new Map() };
+  const isUi = (p: Page) => p.url().includes('/index.html');
+  const ui = context.pages().find(isUi) ?? await context.waitForEvent('page', isUi);
+  await context.tracing.start({ screenshots: true, snapshots: true });
+  return { file, child, exited, output: () => output, browser, context, root, core, ui, errors, clients: new Map() };
 }
 
 // What a failed test leaves, as its attachments (the HTML report, the CI's artifact): the window as the screen shows it,
-// the trace of its steps in the window's page, Kulisa's log.
+// the trace of its steps in the window's page, Kulisa's log, what Electron printed.
 async function leave(k: Running, info: TestInfo) {
   const png = info.outputPath('window.png');
   await k.core((d, f) => d.shot(f), png).then(() => info.attach('window', { path: png, contentType: 'image/png' }), () => {});
   const trace = info.outputPath('trace.zip');
-  await k.app.context().tracing.stopChunk({ path: trace }).then(() => info.attach('trace', { path: trace, contentType: 'application/zip' }), () => {});
+  await k.context.tracing.stopChunk({ path: trace }).then(() => info.attach('trace', { path: trace, contentType: 'application/zip' }), () => {});
   const log = path.join(k.root, 'data', 'logs', 'kulisa.log');
   if (fs.existsSync(log)) await info.attach('kulisa.log', { path: log, contentType: 'text/plain' });
+  await info.attach('electron output', { body: k.output(), contentType: 'text/plain' });
 }
 
-// Quit as the human does (Playwright's close is app.quit: before-quit saves the session cookies).
+// Quit as the human does (app.quit: before-quit saves the session cookies), killed if it does not end in 30 s. Playwright's
+// connection goes with it (its own close waits on a browser it did not start).
 async function quit(k: Running) {
   for (const c of k.clients.values()) await c.close().catch(() => {});
-  await k.app.close().catch(() => {});
+  await k.core((d) => { setImmediate(() => d.electron.app.quit()); }).catch(() => {});
+  const timer = setTimeout(() => k.child.kill(), 30000);
+  await k.exited;
+  clearTimeout(timer);
 }
 async function close(k: Running) {
   await quit(k);
@@ -134,14 +162,14 @@ export const test = base.extend<Fixtures, { display: string | null; running: { c
       running.current = await launch(info.file, display);
     }
     const k = running.current;
-    await k.app.context().tracing.startChunk({ title: info.title });
+    await k.context.tracing.startChunk({ title: info.title });
     k.errors.length = 0;
     await k.core((d) => d.reset());
     await use(k);
     const now = running.current; // a restart's Kulisa
     const errors = [...now.errors, ...await now.core((d) => d.errors).catch(() => [] as string[])];
     if (info.status !== info.expectedStatus || errors.length) await leave(now, info);
-    else await now.app.context().tracing.stopChunk().catch(() => {});
+    else await now.context.tracing.stopChunk().catch(() => {});
     // Started again (restart), it is not as a file's tests begin: the next test gets a new one.
     if (now !== k) { await close(now); running.current = null; }
     expect(errors, 'uncaught errors in Kulisa while the test ran').toEqual([]);
@@ -177,8 +205,8 @@ export const test = base.extend<Fixtures, { display: string | null; running: { c
   sui: async ({ kulisa, running }, use) => {
     void kulisa;
     await use(async () => {
-      const app = running.current.app, isSettings = (p: Page) => p.url().includes('settings.html') && !p.isClosed();
-      const p = app.windows().find(isSettings) ?? await app.waitForEvent('window', isSettings);
+      const context = running.current.context, isSettings = (p: Page) => p.url().includes('settings.html') && !p.isClosed();
+      const p = context.pages().find(isSettings) ?? await context.waitForEvent('page', isSettings);
       await p.waitForLoadState();
       return p;
     });
@@ -187,10 +215,10 @@ export const test = base.extend<Fixtures, { display: string | null; running: { c
     void kulisa;
     await use(async () => {
       const old = running.current;
-      await old.app.context().tracing.stopChunk().catch(() => {});
+      await old.context.tracing.stopChunk().catch(() => {});
       await quit(old);
       running.current = await launch(old.file, display, old.root);
-      await running.current.app.context().tracing.startChunk({ title: `${info.title} (after the restart)` });
+      await running.current.context.tracing.startChunk({ title: `${info.title} (after the restart)` });
       await running.current.core((d) => d.reset());
       return running.current.ui;
     });

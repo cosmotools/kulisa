@@ -75,6 +75,13 @@ const agents: Agent[] = [
 const openedExternally: string[] = [];
 electron.shell.openExternal = async (url: string) => { openedExternally.push(url); };
 
+// fixtures.ts' core(): a function's source run with the driver, its result or its error sent back, over the IPC channel
+// the tests start Electron with (Playwright reaches the pages, not the main process: fixtures.ts).
+process.on('message', async ({ id, src, arg }: { id: number; src: string; arg: unknown }) => {
+  const reply = (m: object) => { try { process.send({ id, ...m }); } catch (e) { process.send({ id, error: `its result cannot be sent back: ${(e as Error).message}` }); } };
+  try { reply({ value: await (0, eval)(`(${src})`)(globalThis.__kulisa, arg) }); } catch (e) { reply({ error: (e as Error)?.stack ?? String(e) }); }
+});
+
 // Uncaught in the main process: app.ts logs it and goes on (an error dialog would block everything); the test it came
 // in fails (fixtures.ts).
 const uncaught = (e: unknown) => globalThis.__kulisa?.errors.push(`main: ${(e as Error)?.stack ?? String(e)}`);
