@@ -36,9 +36,9 @@ export function ProfilePage({ profile: p, onChanged }: { profile: SettingsProfil
         </PopoverSurface>
       </Popover>
     </Field>
-    <Field label="Name"><Input value={name} maxLength={64} spellCheck={false} onChange={(_, d) => setName(d.value)} onBlur={rename} onKeyDown={enter(rename)} /></Field>
+    <Field label="Name"><Input value={name} data-name maxLength={64} spellCheck={false} onChange={(_, d) => setName(d.value)} onBlur={rename} onKeyDown={enter(rename)} /></Field>
     <Field label="About" hint="The agent reads this to choose the profile for a task, and asks you when it is empty.">
-      <Textarea value={about} rows={2} maxLength={500} placeholder="e.g. seller in the Acme shop; can approve refunds" onChange={(_, d) => setAbout(d.value)} onBlur={describe} />
+      <Textarea value={about} rows={2} resize="vertical" maxLength={500} placeholder="e.g. seller in the Acme shop; can approve refunds" onChange={(_, d) => setAbout(d.value)} onBlur={describe} />
     </Field>
     <Field label="Test login"><Input value={login} maxLength={200} spellCheck={false} autoComplete="off" placeholder="A test user of your local app (optional)"
       onChange={(_, d) => setLogin(d.value)} onBlur={saveLogin} onKeyDown={enter(saveLogin)} /></Field>

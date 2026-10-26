@@ -194,7 +194,7 @@ export function ProjectPage({ id, onSaved, onLoaded, saveRef }: { id: string; on
     </>}>
       {profiles.length ? <RightClickMenu items={(e) => { const p = rowAt(e, 'profile'); if (!p) return null; setProfileSel(p);
         return [{ label: 'Remove from the Project…', run: () => removeProfile(p) }]; }}>
-        <List label="Profiles" attr="profile" rows={profiles} id={(p) => p.id} rowLabel={(p) => p.name} selected={profileSel} onSelect={setProfileSel}
+        <List label="Profiles" attr="profile" rows={profiles} id={(p) => p.id} rowLabel={(p) => p.name} rowTitle={(p) => [p.name, p.description, p.also.length && `also in ${p.also.join(', ')}`].filter(Boolean).join('\n')} selected={profileSel} onSelect={setProfileSel}
           onDelete={() => void removeProfile()} columns={[
             { label: 'Name', width: '36%', cell: (p) => <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <Avatar size={20} image={{ src: avatarSrc(p.avatar) }} />{p.name}</span> },
