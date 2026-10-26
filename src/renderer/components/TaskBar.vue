@@ -6,18 +6,19 @@
 // Under the grid, or in the title bar: App.vue puts it in one place or the other (☰ → Tasks bar).
 import { computed, ref, watch } from 'vue';
 import TaskTab from './TaskTab.vue';
-import { TabsList, TabsRoot } from 'reka-ui';
-import NewTask from './NewTask.vue';
+import { Button } from '@/components/ui/button';
+import { Tabs, TabsList } from '@/components/ui/tabs';
 import RightClickMenu from './menu/RightClickMenu.vue';
 import { store } from '../lib/store';
 import { projectColor } from '../lib/project-color';
-import { keyText } from '../lib/common';
+import { keyText, withKeys } from '../lib/common';
 import { dialog, openSettings } from '../lib/dialogs';
 import { profilesMenu } from '../lib/profiles';
 import { terminalsOf } from '../lib/terminals';
 import { useStrip } from '../lib/strip';
 import type { MenuItem } from '../lib/menu';
 import type { ProjectEntry, TaskInfo } from '../../shared/types';
+import { PlusIcon } from '@lucide/vue';
 
 const strip = ref<HTMLElement>();
 const tabs = computed(() => {
@@ -56,7 +57,7 @@ const manage = (id?: string) => openSettings('projects', id);
 
 // The task whose tab an event was on (TaskTab.vue handles a tab's own clicks).
 const tabAt = (e: Event) => { const el = (e.target as Element).closest<HTMLElement>('[data-task]'); return el && tabs.value.find(({ t }) => t.key === el.dataset.task) || null; };
-// The middle button on a tab closes the task, as a browser's tab (Close All Tasks is in the menu). A new task is the bar's + (NewTask.vue), or New Task in the menu.
+// The middle button on a tab closes the task, as a browser's tab (Close All Tasks is in the menu).
 function auxclick(e: MouseEvent) {
   const at = e.button === 1 && tabAt(e);
   if (at) void kulisa.invoke('task:close', at.t.key);
@@ -97,7 +98,7 @@ const taskMenu = ({ key, name, repos, resources }: TaskInfo): MenuItem[] => [
   '-', { label: 'Close', run: () => kulisa.invoke('task:close', key) },
   { label: 'Delete Task…', run: () => kulisa.invoke('task:delete', key) },
 ];
-// A project's rows (its submenu): what is not one task's. Its closed tasks are the bar's +'s. Move All Tasks: its
+// A project's rows (its submenu): what is not one task's. Its closed tasks are the sidebar's. Move All Tasks: its
 // open tasks of this window, together.
 function projectItems(p: ProjectEntry): MenuItem[] {
   const id = p.id, mine = store.projects.tabs.filter((t) => t.project === id);
@@ -153,46 +154,26 @@ function dragend(e: DragEvent) {
   dragged.value = null;
   if (key && e.dataTransfer!.dropEffect === 'none') void kulisa.invoke('task:drag-out', { key, terminals: terminalsOf(key) });
 }
-
+const shown = computed(() => tabs.value.find(({ t }) => t.key === store.current)?.p);
 </script>
 
 <template>
-  <nav id="taskbar" aria-label="Open tasks">
-    <!-- Every open task a tab (Reka's Tabs): the shown one chosen, or the one pressed until it is shown; a press on
-         another shows it. -->
-    <RightClickMenu :items="menu"><TabsRoot as-child :model-value="(pressed ?? store.current) ?? undefined" activation-mode="manual"
-      @update:model-value="showTask"><TabsList as-child :loop="false">
-      <div id="projectTabs" ref="strip" class="tabstrip" @dblclick="dblclick" @auxclick="auxclick" @pointerdown="pointerdown"
-        @dragstart="dragstart" @dragover="dragover" @dragleave="dragleave" @drop="drop" @dragend="dragend">
-        <TaskTab v-for="{ p, t } in tabs" :key="t.key" :t :p :data-project="p.id" :style="{ '--color': projectColor(p) }"
-          draggable="true" :data-dragging="dragged === t.key || undefined" :data-drop="mark?.key === t.key ? mark.side : undefined" />
-      </div>
-    </TabsList></TabsRoot></RightClickMenu>
-    <NewTask />
+  <!-- Under the grid: the window's last row. In the title bar (TopBar.vue): after the logo, where a browser's tabs are;
+       not a handle to drag the window by (the window is dragged after it). -->
+  <nav id="taskbar" aria-label="Open tasks" class="flex min-w-0 items-center gap-1" :class="store.bar === 'top' ? '[-webkit-app-region:no-drag]' : 'h-11 border-t px-2'">
+    <!-- Every open task a tab (shadcn-vue's Tabs): the shown one chosen, or the one pressed until it is shown; a press on
+         another shows it. More than fit scroll (lib/strip.ts), their edges faded; the shown one kept clear of a fade. -->
+    <RightClickMenu :items="menu"><Tabs class="min-w-0" :model-value="(pressed ?? store.current) ?? undefined" activation-mode="manual" @update:model-value="showTask">
+      <TabsList as-child :loop="false" class="no-scrollbar max-w-full scroll-fade-x scroll-px-10 justify-start overflow-x-auto">
+        <div id="projectTabs" ref="strip" @dblclick="dblclick" @auxclick="auxclick" @pointerdown="pointerdown"
+          @dragstart="dragstart" @dragover="dragover" @dragleave="dragleave" @drop="drop" @dragend="dragend">
+          <TaskTab v-for="{ p, t } in tabs" :key="t.key" :t :p :data-project="p.id" :style="{ '--color': projectColor(p) }"
+            draggable="true" :data-dragging="dragged === t.key || undefined" :data-drop="mark?.key === t.key ? mark.side : undefined" />
+        </div>
+      </TabsList>
+    </Tabs></RightClickMenu>
+    <!-- A new task of the shown one's project, at once; another project's: the sidebar -->
+    <Button id="newTask" variant="ghost" size="icon-sm" :title="withKeys(`New task of ${shown?.name ?? 'the project'}`, 'task.new')" aria-label="New task"
+      @click="kulisa.invoke('task:new')"><PlusIcon /></Button>
   </nav>
 </template>
-
-<style>
-/* The bar: the tabs as Firefox's, rounded rectangles on the window's background, the shown one filled in the panels'
-   color, apart from the grid (the author's choice). Nothing moves when another is shown: every tab keeps its width. */
-#taskbar {
-  display: flex; align-items: center; gap: var(--gap); min-width: 0;
-  /* Under the grid: a row of the window (App.vue), in the middle, --gap from the grid. In the title bar (#topbar):
-     after the logo, where a browser's tabs are, in the middle of its height; the title bar keeps its 44 px and a tab
-     its 36 (the author's choice: neither a taller bar nor a tab as low as its buttons), so 4 px are left above
-     and below it, the grid right under them, as a browser's tabs sit over its content. The tabs are not a handle to
-     drag the window by. */
-  #app > & { justify-self: center; max-width: calc(100% - 2 * var(--gap)); margin-block-start: var(--gap); }
-  #topbar & { -webkit-app-region: no-drag; } /* the window is dragged after it (TopBar.vue) */
-  #projectTabs { display: flex; gap: var(--gap); min-width: 0; } /* .tabstrip: more tabs than fit scroll */
-  /* A tab: as tall as a browser's (Firefox's 36 px), wide enough to hit in passing, rounded as the panels' tabs are,
-     --gap from the next. Its project's icon (the app's curtain, in its color): as a browser's tab shows its site's
-     favicon. Where a dropped one would go, a line at its side. At its narrowest its name keeps about ten letters:
-     narrower, every tab reads "task…" (× kept on every tab). */
-  .tasktab { --tab: var(--bartab); gap: 8px; min-width: 160px; max-width: 240px; padding-inline: 12px 6px; border-radius: var(--tab-radius);
-    .picon { width: 20px; height: 20px; color: var(--color); } } /* as an agent's mark in a row (docs/ui.md): a tab's face */
-  [data-dragging] { opacity: .5; }
-  [data-drop="before"] { box-shadow: inset 2px 0 var(--blue); }
-  [data-drop="after"] { box-shadow: inset -2px 0 var(--blue); }
-}
-</style>

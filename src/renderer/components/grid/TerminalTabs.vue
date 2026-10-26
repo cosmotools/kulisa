@@ -7,7 +7,8 @@ import { Dictation } from '../../../dictation/renderer';
 import ButtonMenu from '../menu/ButtonMenu.vue';
 import RightClickMenu from '../menu/RightClickMenu.vue';
 import { act, store } from '../../lib/store';
-import { agentMark, STATE_ICONS } from '../../lib/agents';
+import AgentState from '../AgentState.vue';
+import { agentMark } from '../../lib/agents';
 import { newTerminalItems, shownTerm, tabItems } from '../../lib/terminals';
 import { dialog } from '../../lib/dialogs';
 import { keyText, withKeys } from '../../lib/common';
@@ -39,7 +40,7 @@ const language = computed(() => (store.language ? new Intl.DisplayNames(['en'], 
               @click.stop="dialog('handover').then((d) => d.open(t))"><component :is="agentMark(t.agent.cli)!" /></button>
             <SquareTerminalIcon v-else class="shellmark" />
             <span class="title">{{ t.name }}</span>
-            <span class="state" :data-state="t.state || ''"><component :is="STATE_ICONS[t.state || 'done']" /></span>
+            <AgentState :state="t.state" />
             <!-- Not a press on the tab: it is not chosen first. -->
             <span class="x icon small" :title="t.agent ? 'Close: the agent stops (asked first); its conversation stays in the task\'s history' : 'Close: what runs there stops'"
               @mousedown.prevent @click="act('terminal:close', { id: t.id })"><XIcon /></span>

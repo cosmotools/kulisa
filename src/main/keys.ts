@@ -44,7 +44,7 @@ const KEYS: Binding[] = [
   { id: 'task.next', group: 'global', label: 'Next task in the bar', keys: ['CommandOrControl+Shift+PageDown'] },
   { id: 'task.previous', group: 'global', label: 'Previous task', keys: ['CommandOrControl+Shift+PageUp'] },
   { id: 'task.new', group: 'global', label: 'New task of the same project', keys: ['CommandOrControl+Shift+N'], window: true },
-  { id: 'task.menu', group: 'global', label: 'New task: of which project, or a closed one', keys: ['CommandOrControl+Shift+A'], window: true }, // the bar's +
+  { id: 'task.menu', group: 'global', label: 'Projects and tasks: every task, open or closed', keys: ['CommandOrControl+Shift+A'], window: true }, // the sidebar
   { id: 'shortcuts', group: 'global', label: 'Keyboard shortcuts', keys: ['CommandOrControl+Shift+/'], window: true },
   { id: 'zoom.in', group: 'global', label: 'Zoom Kulisa in', ...ZOOM_IN, always: true },
   { id: 'zoom.out', group: 'global', label: 'Zoom Kulisa out', ...ZOOM_OUT, always: true },

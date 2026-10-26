@@ -51,9 +51,9 @@ kulisa.on('projects', (info) => {
 });
 
 // What the window shows in the grid's place, one page at a time (docs/tasks.md, The window's pages): the shown task's
-// grid; with no task open, every project's tasks (the board); with no project at all, the welcome (what Kulisa does,
+// grid; with no task open, every project's tasks (the sidebar, docked); with no project at all, the welcome (what Kulisa does,
 // then New Project's steps). Its own switch, not a router's: what is shown is the main process's (current).
-export const page = computed(() => (store.current === null ? (store.projects.projects.length ? 'board' : 'welcome') : 'task'));
+export const page = computed(() => (store.current === null ? (store.projects.projects.length ? 'projects' : 'welcome') : 'task'));
 kulisa.on('closed-profiles', (list) => { store.closedProfiles = list; });
 kulisa.on('artifacts', (a) => { store.artifacts = a; });
 kulisa.on('zoom', (z) => { store.zoom = z; });
@@ -63,15 +63,12 @@ kulisa.on('bar', (bar) => { store.bar = bar; });
 kulisa.on('language', (info) => { store.language = info; });
 void kulisa.invoke('language:get').then((info) => { store.language = info; });
 
-// The theme of Kulisa's own UI (app.ts; lib/theme.ts). The tasks' bar
-// over the grid or under it. The shown task's project's color for the whole window (--project); none: Kulisa's own colors.
+// The theme of Kulisa's own UI (app.ts; lib/theme.ts). The shown task's project's color for the whole window
+// (--project: the logo); none: Kulisa's own.
 watch(() => store.theme, setTheme);
-watch(() => store.bar, (b) => { root.dataset.bar = b; });
-watch(() => store.current === null, (none) => root.toggleAttribute('data-noproject', none), { immediate: true });
 watch(page, (p) => { root.dataset.page = p; }, { immediate: true });
 watch(() => { const p = shownProject(); return p && projectColor(p); }, (color) => {
   if (color) root.style.setProperty('--project', color); else root.style.removeProperty('--project');
-  if (color) root.style.setProperty('--glow', color); // the glow's (App.vue): kept when the last task closes, as it fades
 }, { immediate: true });
 
 // The agent's activity: a caption over the pane (the cursor itself is drawn inside the page, ghost.ts). A sticky one

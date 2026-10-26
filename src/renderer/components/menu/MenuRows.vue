@@ -2,17 +2,12 @@
 // The items of a menu (lib/menu.ts) as shadcn-vue's menu parts (Reka's Menu primitives, which DropdownMenu and
 // ContextMenu share: one set of rows for both). A submenu's rows are its own MenuRows.
 import { DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuPortal } from '@/components/ui/dropdown-menu';
-import { inject } from 'vue';
 import MenuButton from '../MenuButton.vue';
 import ProjectIcon from '../ProjectIcon.vue';
 import { projectColor } from '../../lib/project-color';
-import { closeMenu, leaveClosing, type MenuItem } from '../../lib/menu';
+import { leaveClosing, type MenuItem } from '../../lib/menu';
 
 defineProps<{ items: MenuItem[] }>();
-const close = inject(closeMenu, () => {});
-// A submenu row with its own action (NewTask.vue, a project): the left release on it acts and closes the menu, while
-// hover (Reka's own) still opens the submenu. Reka's SubTrigger ignores pointerup, so this does not fight it.
-const runSub = (e: PointerEvent, run?: () => unknown) => { if (run && e.button === 0) { run(); close(); } };
 </script>
 
 <template>
@@ -20,7 +15,7 @@ const runSub = (e: PointerEvent, run?: () => unknown) => { if (run && e.button =
     <DropdownMenuSeparator v-if="it === '-'" />
     <DropdownMenuLabel v-else-if="'heading' in it" class="flex items-center gap-1.5" data-testid="menu-heading"><component :is="it.icon" v-if="it.icon" class="size-4" /><span class="truncate">{{ it.heading }}</span></DropdownMenuLabel>
     <DropdownMenuSub v-else-if="'submenu' in it">
-      <DropdownMenuSubTrigger :text-value="it.submenu" :aria-label="it.submenu" @pointerup="runSub($event, it.run)">
+      <DropdownMenuSubTrigger :text-value="it.submenu" :aria-label="it.submenu">
         <ProjectIcon v-if="it.project" class="size-4 shrink-0 text-(--color)" :p="it.project" :style="{ '--color': projectColor(it.project) }" />
         <span class="truncate">{{ it.submenu }}</span>
       </DropdownMenuSubTrigger>

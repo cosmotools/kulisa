@@ -4,9 +4,10 @@
 // menu has them, Settings edits them (the author's choice). Reka's trigger marks the chosen one (aria-selected); the
 // tab's name is its task's, not its ×'s.
 import { computed } from 'vue';
-import { TabsTrigger } from 'reka-ui';
+import { Button } from '@/components/ui/button';
+import { TabsTrigger } from '@/components/ui/tabs';
+import AgentState from './AgentState.vue';
 import ProjectIcon from './ProjectIcon.vue';
-import { STATE_ICONS } from '../lib/agents';
 import type { ProjectEntry, TaskInfo } from '../../shared/types';
 import { XIcon } from '@lucide/vue';
 
@@ -15,15 +16,17 @@ const STATES = { working: 'is working', waiting: 'waits for you', done: 'is done
 // The project's name is in the tooltip alone: the bar shows its icon (tasks.md, Projects).
 const title = computed(() => `${props.p.name}\n` + (props.t.branch ? `branch ${props.t.branch} in ${props.t.folder}`
   : `in the project's folder ${props.t.folder} (no git: no copy of its own)`));
-
 </script>
 
 <template>
-  <TabsTrigger :value="t.key" as-child><div class="tasktab striptab" :data-task="t.key" :aria-label="t.name" :title @click.stop>
-    <ProjectIcon :p />
-    <span class="state" :data-state="t.state || ''" :title="t.state ? `The agent ${STATES[t.state]}` : ''"><component :is="STATE_ICONS[t.state || 'done']" /></span>
-    <span class="name">{{ t.name }}</span>
-    <button class="close icon quiet small" aria-label="Close" title="Close the task: its agent stops, all else stays (open it again from its project's menu)"
-      @mousedown.prevent @click="kulisa.invoke('task:close', t.key)"><XIcon /></button>
-  </div></TabsTrigger>
+  <!-- Never narrow, a target for a quick throw of the mouse; its name keeps about ten letters (× kept on every tab) -->
+  <TabsTrigger :value="t.key" as-child class="max-w-60 min-w-40 flex-[0_1_auto] justify-start pr-0.5 pl-2 data-dragging:opacity-50 data-[drop=after]:border-r-primary data-[drop=before]:border-l-primary">
+    <div :data-task="t.key" :aria-label="t.name" :title @click.stop>
+      <ProjectIcon :p class="size-4 shrink-0 text-(--color)" />
+      <AgentState :state="t.state" :title="t.state ? `The agent ${STATES[t.state]}` : ''" />
+      <span class="flex-1 truncate text-left">{{ t.name }}</span>
+      <Button variant="ghost" size="icon-xs" aria-label="Close" title="Close the task: its agent stops, all else stays (open it again from the sidebar)"
+        @mousedown.prevent @click="kulisa.invoke('task:close', t.key)"><XIcon /></Button>
+    </div>
+  </TabsTrigger>
 </template>

@@ -43,11 +43,11 @@ interface Command { n?: number; page?: boolean; p?: Profile; tab?: string }
 const run: Record<string, (c: Command) => unknown> = {
   'terminal.focus': () => (!store.terminals.list.length ? openOwn() : zone === 'terminal' && lastPane ? focusPage(lastPane) : shownTerm()?.focus()),
   'terminal.new': () => act('terminal:open'),
-  'task.n': ({ n }) => showTask(document.querySelectorAll('#projectTabs .tasktab')[n! - 1]),
+  'task.n': ({ n }) => showTask(document.querySelectorAll('#projectTabs [data-task]')[n! - 1]),
   'task.next': () => stepTask(1),
   'task.previous': () => stepTask(-1),
   'task.new': () => kulisa.invoke('task:new'),
-  'task.menu': () => document.getElementById('newTask')?.click(), // the bar's + menu (ButtonMenu: Reka's trigger opens on the click too)
+  'task.menu': () => document.getElementById('sidebarToggle')?.click(), // the sidebar over the grid, or back
   shortcuts: async () => (await dialog('shortcuts')).showShortcuts(),
   'tab.new': ({ p }) => panes.get(p!.id)?.newTab(),
   'tab.close': ({ p, tab, page }) => act('tab:close', { profile: p!.id, tab, focus: page }),
@@ -67,7 +67,7 @@ const run: Record<string, (c: Command) => unknown> = {
 };
 // The bar's tasks, in its order.
 function stepTask(dir: number) {
-  const all = [...document.querySelectorAll<HTMLElement>('#projectTabs .tasktab')];
+  const all = [...document.querySelectorAll<HTMLElement>('#projectTabs [data-task]')];
   const i = all.findIndex((t) => t.dataset.task === store.current);
   if (all.length > 1) showTask(all[(i + dir + all.length) % all.length]);
 }

@@ -16,7 +16,8 @@ import { termFocus } from '../../../terminal/renderer';
 import { Pill } from '../../../dictation/renderer';
 import { avatarSrc, withKeys } from '../../lib/common';
 import { closing } from '../../lib/cover';
-import { CheckIcon, PlusIcon, SparklesIcon } from '@lucide/vue';
+import AgentState from '../AgentState.vue';
+import { CheckIcon, PlusIcon } from '@lucide/vue';
 
 const props = defineProps<{ params: { api: DockviewPanelApi; containerApi: DockviewApi } }>();
 const root = ref<HTMLElement>();
@@ -107,7 +108,7 @@ const menu = (e: MouseEvent) => {
       :title="withKeys('New conversation of an agent, or a terminal', 'terminal.new')" aria-label="New terminal"><PlusIcon /></button></ButtonMenu></div>
     <RightClickMenu :items="menu"><div ref="root" class="termpanel" data-testid="terminal" :hidden="folded" /></RightClickMenu>
     <Pill v-if="!folded" :task="store.current"><CheckIcon /></Pill>
-    <p v-if="starting" class="starting" role="status"><span class="state" data-state="working"><SparklesIcon /></span>Starting {{ starting.name }}…</p>
+    <p v-if="starting" class="starting" role="status"><AgentState state="working" />Starting {{ starting.name }}…</p>
   </div>
 </template>
 

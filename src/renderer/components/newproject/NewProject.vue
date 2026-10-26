@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// New Project as a dialog (New Project… of the board: a new tab's, the empty window's). With no project at all the
+// New Project as a dialog (New Project… in the sidebar). With no project at all the
 // welcome has the same steps (welcome/).
 import { ref } from 'vue';
 import Modal from '../Modal.vue';

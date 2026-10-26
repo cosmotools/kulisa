@@ -1,27 +1,19 @@
 // What a menu holds, as the window's parts build their menus (docs/ui.md, Menus).
-import { shallowRef, watch, type Component, type InjectionKey } from 'vue';
+import { shallowRef, watch, type Component } from 'vue';
 
 export interface MenuRow {
   label: string; sub?: string; keys?: string;
   title?: string; // its tooltip
   icon?: Component; // at the row's start
-  color?: string; // a project's dot
   avatar?: string; // a profile's picture
-  project?: { favicon?: string; color: string }; // a project's icon, in its color (ProjectIcon.vue)
-  inset?: boolean; // set in under the row above, as its own (a project's closed task under it)
   enabled?: boolean;
   run?: () => unknown; // none: shown only
-  remove?: { label: string; run: () => unknown }; // a 🗑 at its end, on hover or Delete (a closed task)
 }
 export type MenuItem = '-' | MenuRow
-  // a row opening a menu of its own at its side (hover); run: a click on the row itself acts and closes the menu
-  | { submenu: string; items: MenuItem[]; project?: { favicon?: string; color: string }; run?: () => unknown }
+  // a row opening a menu of its own at its side (hover)
+  | { submenu: string; items: MenuItem[]; project?: { favicon?: string; color: string } }
   | { heading: string; icon?: Component }
   | { component: Component; props?: Record<string, unknown> }; // a row of its own (☰'s zoom, theme …)
-
-// A menu closes itself from inside (a submenu row's click acts, then closes): the button's menu provides this, MenuRows
-// calls it. Absent (a point or right-click menu) it does nothing: those rows carry no such action.
-export const closeMenu: InjectionKey<() => void> = Symbol('closeMenu');
 
 // A menu at a point with no button or area of its own: a link in the terminal (Ctrl+click). PointMenu.vue shows it.
 export const pointMenu = shallowRef<{ x: number; y: number; items: MenuItem[] } | null>(null);
@@ -56,4 +48,3 @@ export function focusBack(e: Event, el: Element | null) {
 // (the menu shrinking under it) gives it to its menu, taking it from what had it since (the welcome's Next). Its
 // content's pointerleave on the capture, kept from the row (not cancelable).
 export const leaveClosing = (e: PointerEvent) => { if ((e.target as Element).closest('[role="menu"]')?.matches('[data-state="closed"]')) e.stopPropagation(); };
-// The bar's + menu (NewTask.vue) opened or closed as a click on it does: Ctrl+Shift+A, the empty window's New Task.

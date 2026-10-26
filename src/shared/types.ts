@@ -54,7 +54,7 @@ export interface TaskInfo {
   resources: TaskResource[]; // what the task has/created (Resources.vue)
 }
 export interface ProjectEntry { id: string; name: string; folders: string[]; color: string; favicon?: string; tasks: ProjectTask[] }
-// A task of a project, open or not (app.ts, shell.projects): the bar's + lists the closed ones (NewTask.vue).
+// A task of a project, open or not (app.ts, shell.projects): the sidebar lists them (ProjectsSidebar.vue).
 export interface ProjectTask { id: string; name: string; branch?: string | null; closed: boolean; closedAt?: number; merged: boolean }
 // The window's tasks' bar (AppWindow.info): every project, the window's tabs in the bar's order, the shown task (its
 // key) and its project (its id), the loaded projects' agents (the island's +), the other windows (Move to Window).

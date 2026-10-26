@@ -2,7 +2,7 @@
 import fs from 'fs';
 import path from 'path';
 import { test, expect } from './fixtures.ts';
-import { anyMenu, item, choose, projectTabs, projectTabSel, plusMenu, closeSettings, invoke, typeIn, answer, notLoading, projectMenu, pageOf, removed } from './helpers.ts';
+import { choose, projectTabs, projectTabSel, sidebar, fromSidebar, closeSettings, invoke, typeIn, answer, notLoading, projectMenu, pageOf, removed } from './helpers.ts';
 import { git, committed, begin, bothOn, taskShown, taskTabs } from './tasks-helpers.ts';
 import { createWorktree } from '../../src/main/worktrees.ts';
 
@@ -71,14 +71,12 @@ test("projects: Delete Project… (the projects' manager alone) asks, closes the
   // first task, as for any new project.
   const goneDir = path.join(root, 'gone');
   committed(goneDir, 'a.txt', 'a', 'mine');
-  // In a tasks' window (the bar's +, a dialog), Settings closed first.
+  // In a tasks' window (the sidebar's New Project…, a dialog), Settings closed first.
   const newProject = async (from: string) => {
     if (await core((k) => !!k.shell.settings)) await closeSettings(core, ui, sui);
-    // A task shown: New Project… in the bar's + dropdown; the empty window: the board's own button.
-    if (await ui.locator('#newTask').count()) {
-      await plusMenu(ui);
-      await item(ui, 'New Project…', anyMenu(ui)).click();
-    } else await ui.locator('#boardnewproject').click();
+    // A task shown: the sidebar over the grid; the empty window: docked.
+    await sidebar(ui);
+    await ui.locator('#sidebarnewproject').click();
     await ui.locator(`#newproject #npfrom [data-value="${from}"]`).click();
     await expect(ui.locator(`#npfrom [data-value="${from}"]`)).toHaveAttribute('aria-selected', 'true');
   };
@@ -195,23 +193,24 @@ test("projects: Delete Project… (the projects' manager alone) asks, closes the
   await notLoading(ui);
   await choose(ui, 'Close All Tasks', await projectMenu(ui, projectTabSel(files, 'project')));
   await expect.poll(() => core((k) => k.shell.task === null && k.shell.open.size === 0)).toBe(true);
-  await expect(ui.locator('html')).toHaveAttribute('data-noproject');
+  await expect(ui.locator('#dock')).toBeHidden();
   expect(await core((k, i) => k.shell.store.tasksOf({ id: i }).list.every((e) => e.closed), files.pid('project')), 'its tasks closed').toBe(true);
 
-  // A closed task opened again from the board (the empty window), a tab at the end; another from the bar's + after.
+  // A closed task opened again from the sidebar (docked in the empty window), a tab at the end; another from it over
+  // the grid after.
   const first = files.tkey('project', 1);
-  await ui.locator(`#board [data-task="${first}"]`).click();
+  await ui.locator(`#projects [data-task="${first}"]`).click();
   await taskShown(core, first);
   expect(await core((k) => !k.shell.task.entry.closed), 'open again').toBe(true);
   await notLoading(ui);
-  await plusMenu(ui, 'project', 'Feature-X');
+  await fromSidebar(ui, 'project', 'Feature-X');
   await expect.poll(() => core((k) => k.shell.task?.name === 'Feature-X' && k.settled(true))).toBe(true);
   await ui.locator(`#projectTabs [data-task="${first}"]`).click();
   await taskShown(core, first);
   expect(await projectTabs(ui, files), 'a tab each').toEqual(['project *', 'project']);
   expect(await taskTabs(ui)).toEqual(['task-1 *', 'Feature-X']);
   await core((k) => k.watchPty(k.shell.pty));
-  await expect(ui.locator('html')).not.toHaveAttribute('data-noproject');
+  await expect(ui.locator('#dock')).toBeVisible();
   await notLoading(ui);
   await bothOn(core, ui, files);
   await core((k, a) => { const acc = k.shell.accounts; acc.drop(a.account); acc.remove(a.dir); }, { account: made.account, dir: made.accountDir });

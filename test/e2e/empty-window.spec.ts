@@ -1,10 +1,10 @@
-// The empty window (docs/window.md, The empty window): the board with every project, the welcome at the first start,
+// The empty window (docs/window.md, The empty window): the sidebar with every project, the welcome at the first start,
 // New Project's steps there and in a dialog; the log a new project leaves.
 import fs from 'fs';
 import path from 'path';
 import { test, expect } from './fixtures.ts';
 import type { Page } from '@playwright/test';
-import { ipcSettled, menu, choose, projectTabs, projectTab, showProject, invoke, typeIn, notLoading, projectMenu, plusMenu, removed, answer, termKeys } from './helpers.ts';
+import { ipcSettled, menu, choose, projectTabs, projectTab, showProject, invoke, typeIn, notLoading, projectMenu, fromSidebar, removed, answer, termKeys } from './helpers.ts';
 import { begin, bothOn, taskShown, taskTab, deleteProfile } from './tasks-helpers.ts';
 
 // A color token as the page resolves it (Playwright reads a style only to compare it with one given).
@@ -38,7 +38,7 @@ test("the empty window: Close All Tasks in the project's submenu; links in ☰ o
   await expect(sub.getByRole('menuitem').last()).toHaveAccessibleName('Close All Tasks');
   await choose(ui, 'Close All Tasks', sub);
   await expect.poll(() => core((k) => k.shell.task === null && !k.shell.current)).toBe(true);
-  await expect(ui.locator('html')).toHaveAttribute('data-noproject');
+  await expect(ui.locator('#dock')).toBeHidden();
   await ui.locator('#windowMenu').click();
   await expect(menu(ui)).toMatchAriaSnapshot(`
     - /children: contain
@@ -52,12 +52,12 @@ test("the empty window: Close All Tasks in the project's submenu; links in ☰ o
   expect(ui.url().startsWith('file:') && await ui.locator('#empty').count(), 'the window stays on its page').toBe(1);
 
   // With no project at all, the empty window is the welcome: what Kulisa does in three slides, the keyboard on Next
-  // at the first start, the window's glow behind (Kulisa's own red); then New Project's steps, a question each, in an
-  // island as a dialog. With projects, the board, and nothing happens.
+  // at the first start; then New Project's steps, a question each, in an island as a dialog. With projects, the
+  // sidebar, and nothing happens.
   await blur(ui);
   await core((k) => k.shell.firstStart(k.shell.windows[0]));
   await ipcSettled(ui); // what it told the window is there
-  await expect(ui.locator('html'), 'projects there: nothing').toHaveAttribute('data-page', 'board');
+  await expect(ui.locator('html'), 'projects there: nothing').toHaveAttribute('data-page', 'projects');
   const gear = ui.locator('#manageProjects');
   await expect(gear).toBeVisible();
   await core((k) => {
@@ -78,7 +78,6 @@ test("the empty window: Close All Tasks in the project's submenu; links in ☰ o
       s.sendProjects();
     });
     await expect(gear).toBeHidden();
-    await expect(ui.locator('#glow')).toHaveCSS('opacity', '1');
     const slide = async (title: string, next: string) => {
       await expect(ui.locator('#tour h1')).toHaveText(title);
       await expect(ui.locator('#tournext')).toHaveText(next);
@@ -149,10 +148,10 @@ test("the empty window: Close All Tasks in the project's submenu; links in ☰ o
       s.sendProjects();
     });
   }
-  await expect(ui.locator('html')).toHaveAttribute('data-page', 'board');
+  await expect(ui.locator('html')).toHaveAttribute('data-page', 'projects');
 
-  // New Project… after the columns: the same steps in a dialog.
-  await ui.locator('#boardnewproject').click();
+  // New Project… at the sidebar's foot: the same steps in a dialog.
+  await ui.locator('#sidebarnewproject').click();
   await expect(ui.locator('#newproject')).toHaveAttribute('data-state', 'open');
   await expect(ui.locator('#npname')).toHaveCount(1);
 
@@ -236,23 +235,17 @@ test("the empty window: Close All Tasks in the project's submenu; links in ☰ o
   // No favicon in its code: the curtain, in the next free color, the window's too.
   await expect(projectTab(ui, files, 'shop').getByTestId('project-icon')).toHaveAttribute('data-icon', 'logo');
   await expect(ui.locator(':root')).toHaveCSS('--project', color);
-  // Its glow comes softly, in its color, a blot changing its shape (three soft spots, each its own pace: App.vue).
-  await expect(ui.locator('#glow')).toHaveCSS('opacity', '1');
-  // As set: its computed value is a color in transition (App.vue, @property --glow).
-  await expect(ui.locator(':root')).toHaveAttribute('style', new RegExp(`--glow: ${RegExp.escape(color)}`));
-  await expect(ui.locator('#glow i')).toHaveCount(3);
-  for (const [i, blot] of ['blot-a', 'blot-b', 'blot-c'].entries()) await expect(ui.locator('#glow i').nth(i)).toHaveCSS('animation-name', blot);
   expect(await core((k) => k.shell.task.folder), 'its first task works in it').toBe(shopDir);
   expect(await core((k) => k.shell.settings)).toBe(null);
   await notLoading(ui);
-  await plusMenu(ui, 'project', 'task-1'); // a closed task in the bar's +: its group opens again on it
+  await fromSidebar(ui, 'project', 'task-1'); // a closed task in the sidebar: its project opens again on it
   await expect.poll(() => core((k, f) => k.shell.current?.folder === f && k.shell.task?.name === 'task-1' && !!k.shell.task.loaded && !!k.shell.pty, files.project)).toBe(true);
   await core((k) => k.watchPty(k.shell.pty));
-  await expect(ui.locator('html')).not.toHaveAttribute('data-noproject');
+  await expect(ui.locator('#dock')).toBeVisible();
   await notLoading(ui);
   await bothOn(core, ui, files);
-  // Feature-X, closed with the others, opened again from the +.
-  await plusMenu(ui, 'project', 'Feature-X');
+  // Feature-X, closed with the others, opened again from the sidebar.
+  await fromSidebar(ui, 'project', 'Feature-X');
   await taskShown(core, files.tkey('project', 2));
   await taskTab(ui, files.tkey('project', 1)).click();
   await taskShown(core, files.tkey('project', 1));

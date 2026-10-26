@@ -7,7 +7,7 @@ import type { Locator, Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
 import type { Files } from './data.ts';
-import { SITE, menu, choose, closeBoard, plusMenu, plusRows, focusWindow, viewOn, who, invoke, notLoading, noSlide, answer, removed, arrange } from './helpers.ts';
+import { SITE, menu, choose, sidebar, sidebarRows, fromSidebar, closeSidebar, focusWindow, viewOn, who, invoke, notLoading, noSlide, answer, removed, arrange } from './helpers.ts';
 import { git, rand, hasDirenv, keyAt, isNth, taskTab, taskTabs, hook, reportSession, newTask, projectShown, begin, bothOn, deleteProfile } from './tasks-helpers.ts';
 
 // No question of Kulisa's asked in the window.
@@ -50,7 +50,7 @@ test("tasks: without git a task works in the project's folder, and a second one 
   await expect.poll(() => taskTabs(ui)).toEqual(['task-1 *']);
   expect(await core((k) => [k.shell.task.folder, (k.shell.task.entry as { worktree?: string }).worktree ?? null])).toEqual([dir, null]);
   await expect(taskTab(ui, key)).toHaveAttribute('title', /in the project's folder .*no git/);
-  await plusMenu(ui, 'nogit');
+  await fromSidebar(ui, 'nogit');
   const q = await answer(ui, false);
   expect(q.message).toBe('Another task of nogit works in its folder');
   expect(q.detail).toMatch(/may get in each other's way/);
@@ -235,16 +235,11 @@ test("tasks: × closes a task: its agent stops and its tabs close, all else stay
   expect(fs.existsSync(folder) && !!git(files.project, 'branch', '--list', 'task-3') && fs.existsSync(path.join(files.userData, 'projects', files.pid('project'), id)), 'its code and data stay').toBe(true);
   expect(files.tasksOf(files.pid('project')).find((e) => e.id === id).closed).toBe(true);
   await expect.poll(() => taskTabs(ui)).toEqual(['task-1', 'Feature-X *']);
-  // The bar's + (a new tab) lists it in its project's column, after the open ones; opening it shows it again, its
-  // agent resuming the conversation.
-  await expect(await plusRows(ui, 'project')).toMatchAriaSnapshot(`
-    - menu:
-      - menuitem "task-1"
-      - menuitem "Feature-X"
-      - menuitem "task-3"
-      - menuitem "New Task"
-  `);
-  await closeBoard(ui);
+  // The sidebar lists it under its project, after the open ones; opening it shows it again, its agent resuming the
+  // conversation.
+  await sidebar(ui);
+  expect(await sidebarRows(ui, files.pid('project'))).toEqual(['task-1', 'Feature-X', 'task-3']);
+  await closeSidebar(ui);
   // Its grid comes before its profiles have started (their cookies, tabs, automation: a site's answer away), its agent
   // after them, as it finds them ready; the window does not wait for them all. They start once the test has seen the grid.
   await core((k) => {
@@ -254,7 +249,7 @@ test("tasks: × closes a task: its agent stops and its tabs close, all else stay
     s.restore = async (p) => { await answered; const n = await restore.call(s, p); g.started = true; return n; };
   });
   try {
-    await plusMenu(ui, 'project', 'task-3');
+    await fromSidebar(ui, 'project', 'task-3');
     await expect.poll(() => core((k, key) => k.shell.task?.key === key && k.settled(), task)).toBe(true); // its state sent to the window
     expect(await core((k) => k.stash.started), 'the grid before its profiles started').toBe(false);
     await expect(ui.locator(`[role="region"][data-profile="${SAM}"]`)).toHaveCount(1);
@@ -445,7 +440,7 @@ test("tasks: an agent's tab closes after a question, always (Cancel keeps it); t
 
 test('tasks: × on the last open task of a project lets the project go, nothing asked: the empty window; a task of it opens it again', async ({ core, ui, files, call }) => {
   await begin(core, ui, files, { only: true, columns: true, featureX: call });
-  // A third task, closed (the board lists it with the others).
+  // A third task, closed (the sidebar lists it with the others).
   const third = await newTask(core, ui);
   await invoke(ui, 'task:close', third);
   await expect.poll(() => core((k, key) => !!k.shell.taskByKey(key).entry.closed, third)).toBe(true);
@@ -463,54 +458,46 @@ test('tasks: × on the last open task of a project lets the project go, nothing 
   await noQuestion(ui, 'no agent works: nothing asked');
   expect(await core((k) => { const s = k.stash.second; return s.profiles.size === 0 && !s.pty; }), 'every task of the project stopped').toBe(true);
   expect(files.tasksOf(files.pid('project')).map((e) => [e.name, !!e.closed])).toEqual([['task-1', true], ['Feature-X', true], ['task-3', true]]);
-  await expect(ui.locator('html')).toHaveAttribute('data-noproject');
-  // The empty window, projects there: every project with its tasks, a column each, as a new tab shows them; no tasks' bar.
-  await expect(ui.locator('html')).toHaveAttribute('data-page', 'board');
-  await expect(ui.locator('#empty')).toHaveCSS('display', 'grid');
-  await expect(ui.locator('#newtabtab'), 'no new tab: the window is it').toHaveCount(0);
-  await expect(ui.locator('#taskbar'), "no tasks' bar: no tab, and + would show the board it shows").toHaveCount(0);
+  await expect(ui.locator('#dock')).toBeHidden();
+  // The empty window, projects there: the sidebar docked, every project with its tasks; no tasks' bar, no sidebar's
+  // button.
+  await expect(ui.locator('html')).toHaveAttribute('data-page', 'projects');
+  await expect(ui.locator('#projects')).toBeVisible();
+  await expect(ui.locator('#taskbar'), "no tasks' bar: no tab, and the sidebar shows every task").toHaveCount(0);
+  await expect(ui.locator('#sidebarToggle')).toHaveCount(0);
   await expect(ui.locator('html'), "no project's color").not.toHaveAttribute('style', /--project/);
-  // Its glow goes softly (App.vue): faded out, not cut.
-  await expect(ui.locator('#glow')).toHaveCSS('opacity', '0');
   expect(await core((k) => k.shell.win.getTitle())).toBe('Kulisa');
   expect(files.savedWindows(), 'the window opens so next time').toEqual([{ tabs: [], shown: null }]);
-  // Each column: its project's icon in its color, as on its tasks' tabs, its name, + (a new task of it); its tasks,
-  // the one closed last first (all are closed here), each when it was closed; New Project… after the columns. The
-  // project worked in last first.
+  // Each project: its icon in its color, as on its tasks' tabs, its name, + (a new task of it); its tasks, the one
+  // closed last first (all are closed here), each when it was closed. The project worked in last first.
   const byClosing = files.tasksOf(files.pid('project')).filter((e) => e.closed).sort((a, b) => (b.closedAt ?? 0) - (a.closedAt ?? 0)).map((e) => e.name);
-  await expect(ui.locator('#board section').first(), 'worked in last').toHaveAccessibleName('project');
-  expect(await ui.locator(`#board section[data-project="${pid}"] [data-task]`).evaluateAll((xs) => xs.map((x) => x.getAttribute('aria-label')))).toEqual(byClosing);
+  await expect(ui.locator('#projects [role="group"]').first(), 'worked in last').toHaveAccessibleName('project');
+  expect(await sidebarRows(ui, pid)).toEqual(byClosing);
   expect(byClosing[0]).toBe('Feature-X');
   // Each project's icon: its favicon, else the curtain.
-  const ids = await ui.locator('#board section').evaluateAll((ss) => ss.map((x) => (x as HTMLElement).dataset.project));
+  const ids = await ui.locator('#projects [role="group"]').evaluateAll((ss) => ss.map((x) => (x as HTMLElement).dataset.project));
   for (const [id, favicon] of await core((k, all) => all.map((i) => [i, !!k.shell.projects().find((p) => p.id === i).favicon] as const), ids)) {
-    const curtain = ui.locator(`#board section[data-project="${id}"]`).getByTestId('project-icon');
+    const curtain = ui.locator(`#projects [data-project="${id}"]`).getByTestId('project-icon');
     await (favicon ? expect(curtain).toHaveJSProperty('tagName', 'IMG') : expect(curtain).toHaveAttribute('data-icon', 'logo'));
   }
-  await expect(ui.locator(`#board section[data-project="${pid}"] [data-task] small`).first()).toHaveText(/ago|just now/);
-  // A closed task's 🗑 asks as Delete Task… does (Cancel keeps it).
-  // Shown on the row the pointer is on.
-  await ui.locator(`#board [data-task="${third}"]`).hover();
-  await ui.locator(`#board [data-task="${third}"] [aria-label="Delete Task…"]`).click();
+  await expect(ui.locator(`#projects [data-project="${pid}"] [data-task]`).first()).toContainText(/ago|just now/);
+  // A task's 🗑 asks as Delete Task… does (Cancel keeps it). Shown on the row the pointer is on.
+  await ui.locator(`#projects [data-task="${third}"]`).hover();
+  await ui.locator(`#projects [data-task="${third}"]`).locator('..').getByRole('button', { name: 'Delete Task…' }).click();
   expect((await answer(ui, false)).message).toBe('Delete the task task-3?');
   expect(files.tasksOf(files.pid('project')).some((e) => e.name === 'task-3'), 'Cancel keeps it').toBe(true);
-  // A closed task in the board opens it again, as that task's tab.
-  await ui.locator(`#board [data-task="${second}"]`).click();
+  // A closed task in the sidebar opens it again, as that task's tab.
+  await ui.locator(`#projects [data-task="${second}"]`).click();
   await expect.poll(() => core((k, key) => k.shell.task?.key === key && k.shell.task.loaded && !!k.shell.pty, second)).toBe(true);
   await core((k) => k.watchPty(k.shell.pty));
-  await expect(ui.locator('html')).not.toHaveAttribute('data-noproject');
+  await expect(ui.locator('#dock')).toBeVisible();
   await notLoading(ui);
   await expect.poll(() => taskTabs(ui)).toEqual(['Feature-X *']);
-  // Now a task is shown: the bar's + lists the project's tasks (the open one to switch to, the closed ones to reopen), then New Task.
-  await expect(await plusRows(ui, 'project')).toMatchAriaSnapshot(`
-    - menu:
-      - menuitem "Feature-X"
-      - menuitem "task-1"
-      - menuitem "task-3"
-      - menuitem "New Task"
-  `);
-  await closeBoard(ui);
-  await plusMenu(ui, 'project', 'task-1');
+  // Now a task is shown: the sidebar over the grid lists the project's tasks (the open one first, the shown one marked).
+  await sidebar(ui);
+  expect(await sidebarRows(ui, pid)).toEqual(['Feature-X', 'task-1', 'task-3']);
+  await expect(ui.locator(`#projects [data-task="${second}"]`)).toHaveAttribute('data-active', 'true');
+  await fromSidebar(ui, 'project', 'task-1');
   await expect.poll(() => core((k, key) => k.shell.task?.key === key && k.shell.task.loaded && !!k.shell.pty, first)).toBe(true);
   await core((k) => k.watchPty(k.shell.pty));
   await expect.poll(() => taskTabs(ui)).toEqual(['Feature-X', 'task-1 *']); // a tab opens at the end

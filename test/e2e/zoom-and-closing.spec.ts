@@ -4,7 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
-import { closeX, SITE, PORT, MAC, WIN, near, uiZoom, who, menu, anyMenu, item, choose, closeMenu, taskMenu, answer, manageProfiles, closeSettings, plusMenu, closeBoard, viewOn, invoke , typeIn } from './helpers.ts';
+import { closeX, SITE, PORT, MAC, WIN, near, uiZoom, who, menu, item, choose, closeMenu, taskMenu, answer, manageProfiles, closeSettings, sidebar, viewOn, invoke , typeIn } from './helpers.ts';
 import { profileId, deleteProfile } from './tasks-helpers.ts';
 
 // Files of the sites' Cache API in a profile's folder, wherever Chromium's layout puts them (`WebStorage/<bucket>/CacheStorage/`).
@@ -92,11 +92,9 @@ test('the window\'s minimum follows the Kulisa zoom; a window at the minimum gro
   // The smallest window has 640×400 for the UI at any zoom: New Project keeps its buttons and Browse… in it, each kind.
   await core((k) => k.shell.win.setSize(800, 500));
   await expect.poll(() => ui.evaluate(() => innerHeight)).toBe(400);
-  // A task shown: New Project… in the bar's + dropdown; the empty window: the board's own button.
-  if (await ui.locator('#newTask').count()) {
-    await plusMenu(ui);
-    await item(ui, 'New Project…', anyMenu(ui)).click();
-  } else await ui.locator('#boardnewproject').click();
+  // New Project… at the sidebar's foot.
+  await sidebar(ui);
+  await ui.locator('#sidebarnewproject').click();
   await expect(ui.locator('#newproject')).toHaveAttribute('data-state', 'open');
   await expect(ui.locator('#npname')).toHaveCount(1);
   for (const from of ['new', 'folder', 'clone']) {
@@ -113,7 +111,6 @@ test('the window\'s minimum follows the Kulisa zoom; a window at the minimum gro
   }
   await closeX(ui.locator('#newproject')).click();
   await expect(ui.locator('#newproject[data-state="open"]')).toHaveCount(0);
-  await closeBoard(ui);
   await core((k, s) => k.shell.win.setSize(s[0], s[1]), size);
   await expect.poll(async () => (await sizes()).size[0] === size[0] && await viewOn(core, ui, files, 'Sam.admin')).toBe(true);
   await zoomAt(core, 1);

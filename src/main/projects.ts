@@ -173,7 +173,7 @@ class Project {
     if (found) this.save();
     return found;
   }
-  // A closed task opened again (the bar's +), to be shown: it loads then, its agent resumed.
+  // A closed task opened again (the sidebar), to be shown: it loads then, its agent resumed.
   reopen(task: Task) {
     delete task.entry.closed; delete task.entry.closedAt; delete task.entry.merged;
     this.save();
@@ -218,7 +218,7 @@ async function askDeleteTask(shell: Shell, entry: TaskEntry, folder: string, w: 
   return shell.ask(deleteQuestion({ message: `Delete the task ${entry.name}?`, ok: 'Delete', goes, notInMain: what ? [what] : [],
     stays: !copies.length && `It worked in ${folder}: its files stay, and so does its agent's conversation there.` }), w);
 }
-// A closed task of a project not loaded (the bar's + lists them): nothing of it is loaded, its entry is all there is.
+// A closed task of a project not loaded (the sidebar lists them): nothing of it is loaded, its entry is all there is.
 async function deleteClosedTask(shell: Shell, p: ProjectEntry, id: string, w: AppWindow): Promise<Result<{ id: string }>> {
   const entry = shell.store.tasksOf(p).list.find((e) => e.id === id && e.closed);
   if (!entry) return { error: `no closed task ${id}` };

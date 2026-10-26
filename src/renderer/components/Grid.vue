@@ -22,21 +22,18 @@ const tabComponents = markRaw({ profile: ProfileHeader, terminal: TerminalTabs, 
 </script>
 
 <template>
-  <main id="dock" :aria-busy="store.loading || undefined">
+  <!-- min-w-0: a row wider than the window (many closed profiles over the terminal) would stretch the window's column,
+       the terminal and the tasks' bar past its edge. Unseen until the grid is laid out (lib/grid.ts, reveal). -->
+  <main id="dock" class="col-start-1 row-start-2 mx-2 flex min-w-0 flex-col pb-2 transition-opacity duration-150 aria-busy:opacity-0 aria-busy:transition-none"
+    :aria-busy="store.loading || undefined" :hidden="store.current === null">
     <ClosedProfiles />
-    <DockviewVue id="grid" :theme :disable-floating-groups="true" single-tab-mode="fullwidth" :components :tab-components="tabComponents"
+    <DockviewVue id="grid" class="min-h-0 flex-1" :theme :disable-floating-groups="true" single-tab-mode="fullwidth" :components :tab-components="tabComponents"
       @ready="(e) => gridMounted(e.api)" />
   </main>
 </template>
 
 <style>
 #dock {
-  /* min-width: a row wider than the window (many closed profiles over the terminal) would stretch the window's column,
-     the terminal and the tasks' bar past its edge */
-  display: flex; flex-direction: column; min-width: 0; margin-inline: var(--gap); transition: opacity .15s;
-  #grid { flex: 1; min-height: 0; }
-  &[aria-busy] { opacity: 0; transition: none; } /* until the grid is laid out (lib/grid.ts, reveal) */
-  [data-noproject] & { display: none; }
   .dockview-theme-abyss-spaced {
     color-scheme: inherit; /* the theme's own is dark; Kulisa's is the root's (tokens.css: light-dark()) */
     --dv-group-view-background-color: var(--island);

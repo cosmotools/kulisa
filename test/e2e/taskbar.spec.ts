@@ -3,7 +3,7 @@
 import path from 'path';
 import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
-import { MAC, frames, ipcSettled, menu, choose, closeMenu, rightClick, plusMenu, focusWindow, viewOn, termShows, invoke, notLoading, noSlide, answer, removed, termKeys, resize } from './helpers.ts';
+import { MAC, frames, ipcSettled, menu, choose, closeMenu, rightClick, anyMenu, sidebar, sidebarTask, fromSidebar, closeSidebar, focusWindow, viewOn, termShows, invoke, notLoading, noSlide, answer, removed, termKeys, resize } from './helpers.ts';
 import { committed, rand, keyAt, isNth, nthShown, taskTab, hook, begin, bothOn, newTask } from './tasks-helpers.ts';
 
 // The tab chosen (lit) in the bar.
@@ -85,7 +85,7 @@ test("tasks: switching shows the other grid and terminal; the one left keeps run
   const badge = taskTab(ui, second).locator('[data-state]');
   const state = async (s: string, message?: string) => {
     await expect(badge, message).toHaveAttribute('data-state', s);
-    await expect(badge.locator(`svg.lucide-${{ working: 'sparkles', waiting: 'bell', done: 'check' }[s || 'done']}`), message).toHaveCount(1);
+    await expect(badge.locator(s ? `svg.lucide-${{ working: 'sparkles', waiting: 'bell', done: 'check' }[s]}` : 'svg'), message).toHaveCount(s ? 1 : 0);
     if (s) await expect(badge, message).toBeVisible(); else await expect(badge, message).toBeHidden();
   };
   await state('', 'unknown: no icon');
@@ -369,10 +369,9 @@ test('menus: one longer than the window has stays in it and scrolls', async ({ c
   } finally { await resize(core, before); }
 });
 
-test("tasks: the bar's + with several projects — a click on a project makes it a new task, and a task's 🗑 deletes it after the question", async ({ core, ui, files, call }) => {
+test("tasks: the bar's + makes a task of the shown one's project at once; the sidebar's + another project's; a task's 🗑 there deletes it after the question", async ({ core, ui, files, call }) => {
   // About 1 s: git's work (a second project made and deleted).
   await begin(core, ui, files, { only: true, columns: true, featureX: call });
-  // A second project, open, so the + nests each project as a submenu (one project shows its tasks inline).
   const plus2 = path.join(files.root, `plus2-${rand()}`);
   committed(plus2, 'a.txt', 'a', 'mine');
   const made = await invoke(ui, 'project:new', { from: 'folder', folders: [plus2], name: 'Plus2' });
@@ -381,28 +380,31 @@ test("tasks: the bar's + with several projects — a click on a project makes it
   const on = () => core((k, id) => k.shell.current?.id === id && k.settled(), made.id);
   await expect.poll(async () => (await on()) && core((k) => !!k.shell.pty), { timeout: 10000 }).toBe(true);
   await notLoading(ui);
-  const tasks2 = () => core((k, id) => k.shell.store.tasksOf(k.shell.store.projects().find((x) => x.id === id)).list.length, made.id);
-  const open = ui.locator('[role="menu"][data-state="open"]');
-  const trigger = (name: string) => open.first().getByRole('menuitem', { name, exact: true }).and(ui.locator('[aria-haspopup]'));
+  const tasks = (id: string) => core((k, i) => k.shell.store.tasksOf(k.shell.store.projects().find((x) => x.id === i)).list.length, id);
 
-  // A left release on the project row itself makes a new task of it and closes the menu (its tasks still open on hover).
-  await plusMenu(ui);
-  const before = await tasks2();
-  await trigger('Plus2').click();
-  await expect.poll(async () => (await tasks2()) === before + 1 && on(), { timeout: 10000 }).toBe(true);
-  await expect(open).toHaveCount(0);
+  // The bar's +: a new task of the shown task's project, no menu.
+  await expect(ui.locator('#newTask')).toHaveAttribute('title', /^New task of Plus2/);
+  let before = await tasks(made.id);
+  await ui.locator('#newTask').click();
+  await expect.poll(async () => (await tasks(made.id)) === before + 1 && on(), { timeout: 10000 }).toBe(true);
+  await expect(anyMenu(ui)).toHaveCount(0);
+  await notLoading(ui);
+
+  // The sidebar's + by another project: a new task of that one; the sidebar closes.
+  const pid = files.pid('project');
+  before = await tasks(pid);
+  await fromSidebar(ui, 'project');
+  await expect.poll(async () => (await tasks(pid)) === before + 1 && core((k, id) => k.shell.current?.id === id && k.settled(), pid), { timeout: 10000 }).toBe(true);
+  await expect(ui.locator('#projects')).toHaveCount(0);
+  await notLoading(ui);
 
   // Each task row carries a 🗑 that deletes the task after the Delete Task… question (Cancel keeps it).
-  await plusMenu(ui);
-  const fx = () => open.last().getByRole('menuitem', { name: 'Feature-X', exact: true });
-  await expect(async () => {
-    if ((await open.count()) < 2) { await ui.mouse.move(0, 0); await trigger('project').hover(); }
-    await expect(fx()).toBeVisible({ timeout: 500 });
-  }).toPass({ timeout: 5000 });
-  await expect(fx().locator('[aria-label="Delete Task…"]'), 'a task row has a 🗑').toHaveCount(1);
-  await fx().hover();
-  await fx().locator('[aria-label="Delete Task…"]').click();
+  await sidebar(ui);
+  const trash = sidebarTask(ui, 'project', 'Feature-X').locator('..').getByRole('button', { name: 'Delete Task…' });
+  await sidebarTask(ui, 'project', 'Feature-X').hover();
+  await trash.click();
   expect((await answer(ui, false)).message).toBe('Delete the task Feature-X?');
+  await closeSidebar(ui);
 
   // The second project removed; back to project's task-1 shown.
   const deleted = invoke(ui, 'project:delete', { id: made.id });

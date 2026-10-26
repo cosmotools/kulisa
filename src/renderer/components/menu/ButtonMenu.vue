@@ -3,15 +3,14 @@
 // so a press, a drag to a row and the release there chooses it (Reka's trigger opens on the click, after the release);
 // the click that follows is the press's, not another toggle.
 //   <ButtonMenu :items="() => […]" end> <button …> </ButtonMenu>   end: its end edge at the button's (at a bar's end)
-import { computed, provide } from 'vue';
+import { computed } from 'vue';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import MenuRows from './MenuRows.vue';
 import { covered } from '../../lib/cover';
-import { closeMenu, focusBack, leaveClosing, type MenuItem } from '../../lib/menu';
+import { focusBack, leaveClosing, type MenuItem } from '../../lib/menu';
 
 const props = defineProps<{ items: () => MenuItem[]; end?: boolean }>();
 const { open, ready } = covered('pictures');
-provide(closeMenu, () => toggle(false));
 // Read while it is open: rows whose data comes after it opened (a list asked for again) show as it comes. Closing, it
 // keeps the last ones as it goes.
 let last: MenuItem[] = [];

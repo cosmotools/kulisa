@@ -1,5 +1,9 @@
 <!doctype html>
-<html lang="en">
+<!-- The window never scrolls, also not from a script (scrollIntoView): body clips what reaches past it, such as a panel
+     kept behind another (dockview keeps it laid out below the grid). body's own overflow would pass to the window, which
+     cannot clip and takes it as hidden (scrollable from a script); html's own keeps body's. A desktop app: labels and
+     buttons are not text to select (fields are), the arrow over buttons. -->
+<html lang="en" class="h-full overflow-hidden">
 <head>
   <meta charset="utf-8">
   <title>Kulisa</title>
@@ -10,7 +14,8 @@
     root.classList.toggle('dark', t === 'dark' || (t === 'system' && matchMedia('(prefers-color-scheme: dark)').matches)); }</script>
   <script type="module" src="./main.ts"></script>
 </head>
-<body>
-  <div id="app"></div>
+<!-- Its rows: the title bar, the grid (or the empty window), the tasks' bar when it is under the grid -->
+<body class="grid h-full cursor-default text-sm grid-rows-[auto_minmax(0,1fr)_auto] overflow-clip select-none">
+  <div id="app" class="contents"></div>
 </body>
 </html>

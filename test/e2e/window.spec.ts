@@ -566,14 +566,12 @@ test("the tasks' bar: under the grid by default; in the title bar, after the log
       return { areaEnd: area.x + area.width, height: innerHeight, rows: getComputedStyle(document.body).gridTemplateRows.split(' ') };
     });
     return { bar: inTitle ? 'top' : bar.top >= grid.bottom ? 'bottom' : 'elsewhere',
-      above: Math.round((await rect('.dv-groupview')).top - (inTitle ? tab : settings).bottom), // from the title bar's buttons to the panels; from a tab in it, what the bar's 44 px leave under a 36 px tab
-      edge: Math.round(grid.top - top.bottom), // the grid starts at the title bar's edge: it holds the gap itself
-      over: inTitle ? Math.round(tab.top - top.top) : 8, // from the window's top to a tab: as under it
-      // ☰ a gap from the title bar area's end (the OS buttons, or the window's edge on macOS, where the area starts after them)
+      edge: Math.round(grid.top - top.bottom), // the grid starts at the title bar's edge
+      // ☰ as far from the title bar area's end (the OS buttons, or the window's edge on macOS) as the logo from its start
       end: Math.round(page.areaEnd - (await rect('#windowMenu')).right),
-      title: Math.round(top.height), tall: Math.round(tab.height), // the title bar keeps its height, a tab its own
-      below: Math.round(page.height - (inTitle ? grid : bar).bottom), between: inTitle ? 8 : Math.round(bar.top - grid.bottom), // the window's rows --gap apart (App.vue)
-      rows: page.rows.map((px, i) => (i === 1 ? 'grid' : Math.round(parseFloat(px)))), // no row but the title bar, the grid and the bar (a tab and its gap from the grid)
+      title: Math.round(top.height), // the title bar keeps its height (window.ts, TITLE_BAR_HEIGHT)
+      below: Math.round(page.height - (inTitle ? grid : bar).bottom), between: inTitle ? 0 : Math.round(bar.top - grid.bottom),
+      rows: page.rows.map((px, i) => (i === 1 ? 'grid' : Math.round(parseFloat(px)))), // no row but the title bar, the grid and the bar
       // The logo, the buttons and the tabs in the middle of its height
       level: !inTitle || !logo || Math.abs((logo.top + logo.bottom) - (tab.top + tab.bottom)) < 2 };
   };
@@ -585,8 +583,8 @@ test("the tasks' bar: under the grid by default; in the title bar, after the log
     await expect(menu(ui).getByTestId('bar-row').getByRole('menuitemradio', { checked: true })).toHaveCount(1);
     await expect(menu(ui).locator(`[data-bar="${bar}"]`)).toHaveAttribute('data-state', 'checked');
     await expect.poll(async () => (await where()).bar === bar && saved() === bar).toBe(true);
-    expect(await where(), 'one gap: over what is in the title bar and from it to the panels, from the grid to the bar and under it')
-      .toEqual({ bar, above: bar === 'top' ? 4 : 8, over: bar === 'top' ? 4 : 8, end: 8, title: 44, below: 8, between: 8, edge: 0, rows: bar === 'top' ? [44, 'grid', 0] : [44, 'grid', 36 + 8], level: true, tall: 36 });
+    expect(await where(), 'the rows next to each other, the bar a row as high as the title bar')
+      .toEqual({ bar, end: 8, title: 44, below: 0, between: 0, edge: 0, rows: bar === 'top' ? [44, 'grid', 0] : [44, 'grid', 44], level: true });
     await expect(ui.locator('#projectTabs [role="tab"]').first(), 'in the title bar the tabs do not drag the window').toHaveCSS('app-region', bar === 'top' ? 'no-drag' : 'none');
     await expect(menu(ui), 'the menu stays open: the other one can be tried').toBeVisible();
     await closeMenu(ui);

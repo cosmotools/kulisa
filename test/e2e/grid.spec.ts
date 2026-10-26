@@ -4,27 +4,20 @@ import type { Page } from '@playwright/test';
 import { menu, choose, closeMenu, rightClick, box, pageBox, viewOn, resourcesHeight, dock } from './helpers.ts';
 import { SAM, ELON, begin, bothOn } from './tasks-helpers.ts';
 
-const ISLAND = 'rgb(30, 31, 34)'; // --island, the panels' color, in the dark theme
 // A pane's tab dragged by the hand onto a place of a target (dockview's drop zones: its edges, its middle).
 async function drag(ui: Page, panel: string, target: string, where: 'right' | 'center') {
   const t = await ui.locator(target).boundingBox();
   await ui.locator(`[data-panel="${panel}"]`).dragTo(ui.locator(target), { targetPosition: { x: where === 'right' ? t.width - 10 : t.width / 2, y: t.height / 2 } });
 }
 
-test("tasks' bar: a tab is a rounded rectangle apart from the grid, as Firefox's, the shown one filled; its project's icon first", async ({ core, ui, files }) => {
+test("tasks' bar: a tab per open task, the shown one chosen; its project's icon first; wide enough for a quick throw of the mouse", async ({ core, ui, files }) => {
   await begin(core, ui, files, { columns: true });
-  const shown = ui.locator('#projectTabs [role="tab"][aria-selected="true"]'), other = ui.locator('#projectTabs [role="tab"]:not([aria-selected="true"])').first();
-  const grid = await ui.locator('#dock').boundingBox(), tab = await shown.boundingBox(), icon = await shown.getByTestId('project-icon').boundingBox();
-  expect(Math.round(tab.y - (grid.y + grid.height)), 'apart from the grid by the one gap').toBe(8);
-  if (await other.count()) {
-    const o = await other.boundingBox();
-    expect(Math.round(Math.abs(o.x - (tab.x + tab.width))), 'the tabs apart by it too').toBe(8);
-    await expect(other, 'the others on the window').toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
-  }
-  expect(parseFloat(await shown.evaluate((t) => getComputedStyle(t).borderRadius)), 'rounded').toBeGreaterThanOrEqual(4);
-  expect(tab.height >= 36 && tab.width >= 120, `as big as a browser's: ${tab.width} × ${tab.height}`).toBe(true);
-  await expect(shown, "the shown one in the panels' color (--island)").toHaveCSS('background-color', ISLAND);
-  expect(icon.width === 20 && icon.x > tab.x && icon.x <= tab.x + 12, 'the icon, 20 px, at the tab\'s start').toBe(true);
+  const shown = ui.locator('#projectTabs [role="tab"][aria-selected="true"]');
+  await expect(shown).toHaveCount(1);
+  await expect(shown).toHaveAttribute('data-state', 'active');
+  const tab = await shown.boundingBox(), icon = await shown.getByTestId('project-icon').boundingBox();
+  expect(tab.width, 'its name keeps about ten letters').toBeGreaterThanOrEqual(160);
+  expect(icon.x > tab.x && icon.x <= tab.x + 12, "the icon at the tab's start").toBe(true);
 });
 
 test("grid: a pane narrower than its profile's name: the name cut with …, its × in the pane, no list of hidden tabs", async ({ core, ui, files }) => {

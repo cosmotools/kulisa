@@ -13,19 +13,20 @@
 ::-webkit-scrollbar-thumb { border: 2px solid transparent; border-radius: 5px; background: var(--scrollbar) padding-box;
   &:hover { background-color: var(--text-muted); } }
 
-/* Controls: in a layer, so that shadcn-vue's parts (their utilities) override them */
+/* Controls not yet shadcn-vue's (theirs carry data-slot, and set only some of these): in a layer, so that utilities
+   override them */
 @layer base {
-  button, input, select, textarea {
+  :where(button, input, select, textarea):not([data-slot]) {
     font: inherit; color: var(--text); height: var(--control); padding: 0 10px;
     border: 1px solid var(--line); border-radius: var(--corner); background: var(--button);
   }
   /* The arrow over buttons and tabs too, as in Chrome and other desktop apps (body), not a web page's hand */
-  button:disabled { opacity: .35; }
+  button:not([data-slot]):disabled { opacity: .35; }
   /* A button answers the hand: lit under the pointer, darker while pressed, as JetBrains' and Chrome's. :where keeps it
      as weak as the rule above, so every button of its own (.icon, a tab) keeps its own. */
-  button:where(:not(:disabled):hover) { background: color-mix(in srgb, var(--button) 88%, var(--text)); }
-  button:where(:not(:disabled):active) { background: color-mix(in srgb, var(--button) 78%, var(--text)); }
-  input, textarea { background: var(--field); color: var(--text-strong); padding: 0 8px; user-select: text; }
+  button:where(:not([data-slot], :disabled):hover) { background: color-mix(in srgb, var(--button) 88%, var(--text)); }
+  button:where(:not([data-slot], :disabled):active) { background: color-mix(in srgb, var(--button) 78%, var(--text)); }
+  :where(input, textarea):not([data-slot]) { background: var(--field); color: var(--text-strong); padding: 0 8px; user-select: text; }
   /* Text of more than a line: as high as its rows, resized only in height */
   textarea { height: auto; padding-block: 6px; resize: vertical; }
 }
@@ -117,26 +118,6 @@ button.danger { background: var(--danger); border-color: var(--danger); color: v
 }
 @keyframes tab-open { from { width: 0; min-width: 0; padding-inline: 0; } }
 @container (max-width: 80px) { .tab .title { display: none; } }
-/* A tab of a strip on an island, as a browser's (TaskTab.vue): the agent's .state, the .name, × at the end
-   (button.close.icon.quiet.small), always shown, as Chrome's (the author's choice). A
-   step taller than a button and never narrow: a target for a quick throw of the mouse. Lit under the pointer;
-   chosen (aria-selected): the shown one, in the panels' color on the dark island. */
-.striptab { display: flex; align-items: center; gap: 6px; flex: 0 1 auto; height: var(--tab); min-width: 64px;
-  padding: 0 4px 0 12px; border-radius: var(--corner); color: var(--text-muted); white-space: nowrap;
-  .name { flex: 1; overflow: hidden; text-overflow: ellipsis; }
-  &:hover { background: var(--hover); color: var(--text); }
-  &[aria-selected="true"] { background: var(--island); color: var(--text-strong); } }
-/* An agent's state (data-state, from its hooks), an icon each, not told by color alone: working (sparkles, twinkling),
-   waiting for you (a bell), done (a check) until seen; nothing otherwise. On a task's tab. */
-.state { display: grid; place-items: center; flex: none; color: var(--text-muted);
-  svg { width: 14px; height: 14px; }
-  &[data-state=""] { display: none; }
-  &[data-state="working"] { color: var(--blue); svg { animation: twinkle 1.6s ease-in-out infinite; } }
-  &[data-state="waiting"] { color: var(--note); }
-  &[data-state="done"] { color: var(--done); }
-  @media (prefers-reduced-motion: reduce) { svg { animation: none !important; } } }
-@keyframes twinkle { 50% { opacity: .45; scale: .8; } }
-
 /* Icons (Lucide's; components/marks/ ours): 16 px where a place sets no size. In a layer: utilities size them. */
 @layer base { svg:is(.lucide, [data-icon]) { width: 16px; height: 16px; flex: none; } }
 /* An icon button: the icon alone, square with rounded corners as JetBrains' toolbars, lit under the pointer. --icon:

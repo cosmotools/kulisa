@@ -78,7 +78,7 @@ place where a button is there to draw the eye, seen only while no profile is ope
   `--selection` (the terminal's); `--chosen`, `--chosen-idle` (a list's selected row, while the list has the keyboard
   and when it has not: JetBrains'); `--page-button`, `--on-page-button`, `--page-pad` (Chrome's blue and room, a page's
   dialog: `.pagedialog`); `--page`, `--backdrop`, `--shadow`; `--hover` (under the
-  pointer, on any background); `--project` (the shown task's project's color, set by `lib/store.ts`), `--glow` (the window's glow, the same color, kept as the last task closes so the glow fades in it; registered as a color, `@property`, so it changes softly: `App.vue`).
+  pointer, on any background); `--project` (the shown task's project's color, set by `lib/store.ts`: the logo's).
 - Sizes: `--sans` (the window's font, Geist), `--font` (all text, the terminal too), `--font-small` (a group's title, a dialog's title), `--font-hero` and `--font-lead` (the welcome's alone, above), `--control` (the
   height of buttons and fields), `--tab` (a tab's: a step taller), `--corner`,
   `--tab-radius` (a pane's tab's and a task's), `--island-radius`, `--gap` (the space between and inside islands, between the
@@ -108,7 +108,8 @@ the browser's own `until-found` apart): a component's `display` beats the browse
 
 ### Buttons
 
-- `<button>`: a framed button with text, `--control` high. `.primary` (blue, the main action of a dialog, last in its
+- `<button>`: a framed button with text, `--control` high (not shadcn-vue's: theirs carry `data-slot`, and these
+  rules leave them alone). `.primary` (blue, the main action of a dialog, last in its
   footer), `.danger` (red, when it deletes). Lit under the pointer and darker while pressed, so it answers the hand;
   a button of its own kind (`.icon`, a tab) keeps its own (the rule is as weak as `button`'s). Disabled: faded.
 - `.icon`: an icon alone, square with `--corner` corners as a toolbar's, no frame, lit under the pointer (`--hover`);
@@ -126,9 +127,9 @@ the browser's own `until-found` apart): a component's `display` beats the browse
 
 ### Rows
 
-- `.item`: a row of a list (Settings' rows, the board's tasks), `--row` high: an optional icon (`.ico`), `.dot`
+- `.item`: a row of a list (Settings' rows), `--row` high: an optional icon (`.ico`), `.dot`
   (a project's color, `--color`), `ProjectIcon.vue` (a project's icon in its color: its favicon, one of Kulisa's set or
-  the curtain; `.picon`, also on a task's tab in the tasks' bar, 20 px there) or `.avatar` (a profile's picture), `.text` with `.label` and a `small` line under it, a `kbd` key at the end. Lit under the
+  the curtain; `.picon`) or `.avatar` (a profile's picture), `.text` with `.label` and a `small` line under it, a `kbd` key at the end. Lit under the
   pointer and on keyboard focus. Named by its label alone (`aria-label`), not its icon, its `small` line or its key.
 - `.list`: a list a dialog edits (a project's Code, Agents and Profiles; New Project's folders; an agent's accounts),
   or chooses from (Settings → Agents' agents, no toolbar), as JetBrains': framed,
@@ -178,10 +179,11 @@ The window's controls are Reka UI's, in this look:
   lines, Esc puts it back (and leaves the dialog open).
 - Fields in a dialog: shadcn-vue's `Field`, `FieldLabel`, `Input`, `FieldDescription`, `FieldError`; choosing one of a
   few, its `RadioGroup` (the agents to choose from, `AgentList.vue`: its choice cards).
-- Tabs: a pane's tabs and the tasks' tabs are Reka's `Tabs` (`activationMode` manual): chosen on the press, as a
+- Tabs: a pane's tabs are Reka's `Tabs`, the tasks' tabs shadcn-vue's (`activationMode` manual): chosen on the press, as a
   browser's (not on their ×), one Tab stop for the strip, the arrows move and Enter chooses. A task's is shown on
   the release, or as its drag begins ([window.md](window.md), The tasks' bar).
-- A strip of tabs that do not all fit (the tasks' bar, a pane's tabs, the closed profiles' tiles, the terminals' tabs) is `.tabstrip` (`components.css`) with
+- A strip of tabs that do not all fit (the tasks' bar, a pane's tabs, the closed profiles' tiles, the terminals' tabs) is `.tabstrip` (`components.css`;
+  the tasks' bar: `no-scrollbar`, `scroll-fade-x`, `scroll-px-10`) with
   `useStrip` (`lib/strip.ts`), one for every strip, so all scroll one way:
   no scrollbar; a mouse's wheel scrolls it sideways (Shift and a touchpad's swipe are the browser's: with Shift both
   would scroll, twice as far); an edge with tabs past it fades (`--fade`; `data-past-start`, `data-past-end` from the scroll: CSS's
@@ -194,22 +196,20 @@ The window's controls are Reka UI's, in this look:
 - `.avatar`: a profile's picture (`<img>`, `avatarSrc(name)` in `lib/common.ts`; `settings/Avatars.vue` the ones to choose from), 16 px; `--avatar` where a place needs
   another size (22 px in a profile's row, `ProfileRow.vue`).
 - `.tab`: a panel's tab, as Chrome's: a pane's (`ProfilePane.vue`: the page's icon, its title, ×) and a terminal's
-  (`TerminalTabs.vue`: the agent's icon, its name, its `.state`, ×). The row in the island's color, the active tab in
+  (`TerminalTabs.vue`: the agent's icon, its name, its state (`AgentState.vue`), ×). The row in the island's color, the active tab in
   `--toolbar`, rounded at its top only (`--tab-radius`) and joined to what is under the row: a pane's toolbar, the
   terminal (in `--toolbar` too: the island's `View` is given that background). A short line between two tabs that
   are not lit; × is `span.x.icon.small`, on every tab, always. A tab opened grows in from the left (`data-opening`,
   set by `useStrip`). A pane's tabs are 220 px and shrink as Chrome's, to their icon and × (64 px), then scroll; a
   terminal's is as wide as its name, up to 220 px, and never shrinks (the agents' marks look alike, so a tab without
   its name could not be told from another): more than fit scroll.
-- `.striptab`: a tab of a strip with nothing to join (the tasks' bar, `TaskTab.vue`), as a browser's: the agent's
-  `.state`, `.name`, × at the end (`button.close.icon.quiet.small`), on every tab, always, as Chrome's. A
-  step taller than a button (`--tab`, `--control` + 4 px) and at least 64 px wide: a target for a quick throw of the mouse.
-  Lit under the pointer; chosen (`aria-selected`): the shown one, or the one pressed until it is shown, in the panels'
-  color (`--island`) on the dark island.
-- `.state`: an agent's state by `data-state` (from its hooks), an icon each so that color is not the only sign (some
-  people do not tell yellow from green): working (sparkles in `--blue`, twinkling; not with reduced motion), waiting
-  for you (a bell in `--note`), done (a check in `--done`: come and see, until the human sees that task); nothing otherwise, as nothing asks for
-  the human then. On a task's tab (`TaskTab.vue`), with its tooltip.
+- `AgentState.vue`: an agent's state by `data-state` (from its hooks), an icon each so that color is not the only sign
+  (some people do not tell yellow from green): working (sparkles, pulsing; not with reduced motion), waiting for you
+  (a bell), done (a check: come and see, until the human sees that task), in Tailwind's blue, amber and green; nothing
+  otherwise, as nothing asks for the human then. On a task's tab and its row in the sidebar, on a terminal's tab.
+- shadcn-vue's `Sidebar` (`ProjectsSidebar.vue`, its parts as its docs build one): docked (`collapsible="none"`) in
+  the empty window; over the grid in a `Sheet`, as shadcn-vue's own on a narrow screen (`TopBar.vue`), because its
+  offcanvas pushes the content aside and the grid keeps its width ([window.md](window.md), The sidebar).
 
 ### Dialogs
 
@@ -293,15 +293,12 @@ one at a point (`menuAt(e, items)` in `lib/menu.ts`, `PointMenu.vue`: a link in 
 
 Items (`lib/menu.ts`, laid out by `menu/MenuRows.vue`):
 
-- `{ label, sub, keys, title, icon, color, avatar, project, inset, enabled, run, remove }`: a row (`MenuButton.vue`).
-  `keys` the row's key at its end (`keyText(id)`, `lib/common.ts`); `title` its tooltip; `icon` a component (Lucide's
-  or a mark); `project` a project's icon in its color (`ProjectIcon.vue`); `remove` a 🗑 at its end, on the row the
-  pointer or the keyboard is on, and Delete, running it instead of `run` (a closed task's); `inset` sets the row in
-  under the one above (`data-inset`). Named by its label alone (`aria-label`).
+- `{ label, sub, keys, title, icon, avatar, enabled, run }`: a row (`MenuButton.vue`). `keys` the row's key at its end
+  (`keyText(id)`, `lib/common.ts`); `title` its tooltip; `icon` a component (Lucide's or a mark). Named by its label
+  alone (`aria-label`).
 - `'-'` a divider; `{ heading, icon }` a label over rows.
-- `{ submenu, items, project, run }`: a row opening a menu of its own at its side, its rows the same items (a task
-  tab's menu holds its project's rows so). `run` makes a click on the row itself act and close the menu, hover still
-  opening the submenu (a project in the bar's +: a click makes a new task of it).
+- `{ submenu, items, project }`: a row opening a menu of its own at its side, its rows the same items (a task tab's
+  menu holds its project's rows so, under its icon: `project`, `ProjectIcon.vue`).
 - `{ component, props }`: a row of its own, ☰'s (`components/menu/`): zoom (− and + leave the menu open), theme and
   tasks' bar (`ChoiceRow.vue`: its choices side by side as shadcn-vue's Tabs show theirs, as no menu part does; they
   leave it open), language (a submenu of radio rows, its value at the row's end as its description,
@@ -332,7 +329,6 @@ every handle's (CLAUDE.md, "One core"). A single component is no cluster.
 | `settings/` | `Settings.vue` | Settings' window: the tree, a project's, an agent's and a profile's page, GitHub's |
 | `newproject/` | `Wizard.vue`, `NewProject.vue` | New Project's steps (Code, Agents, Profiles; `wizard.ts` their state): the welcome's and the dialog |
 | `welcome/` | `Welcome.vue` | the first start, no project at all: what Kulisa does in three slides (`Tour.vue`), then New Project's steps (`Wizard.vue`, its head a question each); the empty window's (`Empty.vue`) |
-| `newtab/` | `Board.vue` | the board: every project a column (an island, as the grid's panels) with its tasks as `.item` rows, the empty window's |
 
 New Project's steps (`.wizard`) are a form: the steps over it (`.steps`, the one shown `aria-current`; the welcome puts
 its own head there, the `head` slot), one step at a time, its buttons in a dialog's `footer` (Back at the start, Cancel

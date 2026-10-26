@@ -58,12 +58,12 @@ file you downloaded, with GitHub's command-line tool: `gh attestation verify <fi
 3. **Sign in** where your app needs a real account: when the agent asks, or ahead of time with **Sign In…** in
    Settings → Profiles. You sign in once, for every task.
 
-More tasks: **+** in the bar at the bottom, then **+** in your project's column.
+More tasks: **+** in the bar at the bottom, or **+** by a project in the sidebar (Tasks, below).
 
 ## The window
 
 - **The title bar**: the Kulisa logo in the shown project's color (not on a Mac, where Kulisa's icon is in the Dock),
-  **Settings** (the gear; not at the very first start, while there is nothing to set yet), and **☰**, the window's menu: zoom, theme, where the tasks' bar is, language, Arrange
+  the sidebar's button (Tasks, below), **Settings** (the gear; not at the very first start, while there is nothing to set yet), and **☰**, the window's menu: zoom, theme, where the tasks' bar is, language, Arrange
   panels, Keyboard Shortcuts, links, About Kulisa, Exit. On a Mac there is no Exit: **⌘Q** quits Kulisa, and closing the last
   window only hides it, while your agents go on working; click Kulisa's icon in the Dock to bring it back.
 - **Settings** (on a Mac also ⌘, or Kulisa → Settings… in the menu bar) opens in a window of its own, as in other desktop apps: set what you need and close it (**Esc** or its
@@ -79,9 +79,9 @@ More tasks: **+** in the bar at the bottom, then **+** in your project's column.
   its 🗑 deletes them all. The agent sees the same: ask it what is there, or to clean them up. Past 100 MB a task's oldest
   go by themselves. Drag the gap beside it to resize it, as any pane.
 - **The tasks' bar**, under the grid (or in the title bar, as a browser's tabs: **☰ → Tasks bar**): a tab per open task,
-  of any project, with its project's icon and its agent's state, and **+** after them. When there are more tabs than
+  of any project, with its project's icon and its agent's state, and **+** after them (a new task of the shown one's project). When there are more tabs than
   fit, the mouse wheel over the bar scrolls them, and a faded edge shows that more are past it.
-- **No task open** (after you close the last task): the window shows every project with its tasks, as **+** does
+- **No task open** (after you close the last task): the window shows the sidebar, every project with its tasks
   (Tasks, below). At the very first start, with no project yet, it shows what Kulisa does, then New Project.
 
 ## Projects
@@ -207,12 +207,13 @@ it ends: the question links the GitHub page where you revoke it at once.
 
 ## Tasks
 
-- **+ in the tasks' bar** (or Ctrl+Shift+A) is the new-task menu: every project with its tasks — the one you worked
-  in last first — open ones to switch to, closed ones to open again (they show when you closed them, and "merged" once
-  their work is merged) — and New Task of each, then **New Project…**. Click a project to start a new task of it; a
-  task's trash can deletes it. With no task open at all, the window shows the same projects and tasks as a board of
-  columns instead.
-- **A new task**: click a project in the **+** menu, or **+** in a project's column (or Ctrl+Shift+N for the shown project). It runs the
+- **The sidebar** (the button at the left of the title bar, or Ctrl+Shift+A) lists every project with its tasks, the
+  one you worked in last first: open ones to switch to, closed ones to open again (they show when you closed them, and
+  "merged" once their work is merged), **+** by each project, and **New Project…** at the bottom. A task's trash can
+  deletes it. It slides over the grid and closes once you choose; with no task open at all, the window shows it
+  in the grid's place.
+- **A new task**: **+** after the tabs in the tasks' bar (or Ctrl+Shift+N) for the shown task's project, or **+** by
+  a project in the sidebar. It runs the
   project's default agent with a new conversation; describe the task to it. With no default agent, you choose one
   with the buttons in the middle (Ctrl+` puts the keyboard on them). Its profiles are all closed: the agent
   opens those it needs, or you do: while none is open, each has a button over the terminal (click it), and the task's
@@ -383,7 +384,7 @@ A pane is a small Chrome: a tab strip, an address bar, back, forward and reload.
 |---|---|
 | Ctrl+` | The terminal in front, and back to the page |
 | Ctrl+Shift+` | A new terminal |
-| Ctrl+Shift+A | The new-task menu: every project with its tasks |
+| Ctrl+Shift+A | The sidebar: every project with its tasks |
 | Ctrl+Shift+N | New task of the same project |
 | Ctrl+Shift+1…9 | The first to ninth tab |
 | Ctrl+Shift+PgDn / PgUp | The next or previous task |

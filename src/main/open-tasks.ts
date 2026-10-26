@@ -35,7 +35,7 @@ export function openTasks(shell: Shell, { appDevTools }: { appDevTools: boolean 
   // A project with no open task left is let go: nothing of it runs.
   const unloadIdle = () => { for (const [id, p] of shell.open) if (!p.open().length) shell.open.delete(id); };
   const openTasksOf = (project: Project, w: AppWindow) => w.tabs.filter((t) => t.project === project);
-  // Task id of project p shown (the bar's +), opened again if it was closed; none: a new task of it. In the window it
+  // Task id of project p shown (the sidebar), opened again if it was closed; none: a new task of it. In the window it
   // is open in, brought to the front; a closed or new one at the end of window w's bar.
   async function openProject(p: ProjectEntry, w: AppWindow, id?: string | null): Promise<Result<{ id: string; key: string }>> {
     log.info(`[task] open ${p.id}${id != null ? `/${id}` : ''} wc=${w.win.webContents.id}`);
@@ -183,7 +183,7 @@ export function openTasks(shell: Shell, { appDevTools }: { appDevTools: boolean 
     if (await askClosing(w, tasks, { quit: true })) app.quit();
   }
   function dropWindow(w: AppWindow) { log.info(`[window] dropped wc=${w.win.webContents.id}`); shell.windows.splice(shell.windows.indexOf(w), 1); w.destroy(); }
-  // A new task of a project (the bar's +, New Task: projects.ts), with its default agent, at the end of window w's
+  // A new task of a project (the bar's +, the sidebar's, New Task: projects.ts), with its default agent, at the end of window w's
   // bar, then shown. Without git it would work in the folder another open task works in: the human is told first.
   async function createTask(project: Project | null | undefined, w: AppWindow | null): Promise<Result<{ id: string; key: string }>> {
     if (!project || !w) return { error: 'the project is not open' };

@@ -104,8 +104,8 @@ prompt; the human writes the rest of the message around it.
   `docs/window.md`); in code `settings/`. Earlier commits say "the projects' manager". New Project is steps
   (`newproject/`): the welcome's, and a dialog of a tasks' window.
 - **Terminology: "the empty window"**: what a window is with no task open (`Empty.vue`; `docs/window.md`): the title
-  bar, no tasks' bar, and in the grid's place the board (every project a column with its tasks) or, with no project at
-  all, the welcome.
+  bar, no tasks' bar, and in the grid's place the sidebar docked (every project with its tasks) or, with no project at
+  all, the welcome. Earlier commits say "the board" (a column per project).
 - **Terminology: "the welcome"**: the first start's (`welcome/`; `docs/window.md`). Earlier commits say "Welcome
   screen" (JetBrains' name) for a list of projects, not this.
 - **Terminology: "task"** for one line of work inside a project: its agents, a branch of the code, profiles and a
