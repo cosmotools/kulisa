@@ -26,24 +26,6 @@ async function openSub(ui: Page) {
   }).toPass({ timeout: 10000 });
 }
 
-test('rename keeps the profile, its id, pane and sign-in', async ({ core, ui, call, files }) => {
-  await deleteProfile(core, ui, 'Ren.admin');
-  const id = await core(async (k, url) => (await k.ensureProfile('Ren.seller', url)).id, `${SITE}/app`);
-  await call('browser_navigate', { profile: 'Ren.seller', url: `${SITE}/app/login?name=sam` });
-  const dir = await core((k, p) => k.shell.profiles.get(p).dir, id);
-  const r = await invoke(ui, 'profiles:rename', { profile: id, name: 'Ren.admin' });
-  expect(r.id).toBe(id);
-  expect(await profileId(core, 'Ren.admin'), 'only its name changed').toBe(id);
-  expect(await core((k, p) => k.shell.profiles.get(p).dir, id), 'its copy too').toBe(dir);
-  await expect(ui.locator(`[role="region"][data-profile="${id}"]`), 'its pane too').toHaveCount(1);
-  // Its id beside its new name, so the lines before and after it go together.
-  await expect.poll(() => files.log()).toMatch(new RegExp(`\\[profiles\\] ${id} renamed: Ren\\.admin$`, 'm'));
-  expect(await who(call, 'Ren.admin')).toBe('Signed in as sam');
-  await expect(ui.getByTestId('profile-name').filter({ hasText: /^Ren\.admin$/ })).toHaveCount(1);
-  await expect(ui.getByTestId('profile-name').filter({ hasText: /^Ren\.seller$/ })).toHaveCount(0);
-  await deleteProfile(core, ui, 'Ren.admin');
-});
-
 test('names: typed, pasted, from the agent, checked where they are made (the rule itself: unit/names.test.ts)', async ({ core, ui, sui, call }) => {
   const id = await core(async (k, url) => (await k.ensureProfile('Sam.admin', url)).id, `${SITE}/app`);
   const names = () => core((k) => [...k.shell.profiles.values()].map((p) => p.name));
@@ -132,23 +114,34 @@ test("delete a profile in Settings (its page's ⋯, its row's right-click): sign
   await deleteProfile(core, ui, 'Temp');
 });
 
-test('rename in Settings → Profiles: typed, and Enter or leaving the field saves it; the panes follow', async ({ core, ui, sui, files }) => {
-  const elon = await core(async (k, url) => (await k.ensureProfile('Elon.buyer', url)).id, `${SITE}/app`);
+// Only its name changes: its id, folder, pane and sign-in are the profile's.
+test('rename in Settings → Profiles: typed, and Enter or leaving the field saves it; the panes follow; the profile keeps its folder and sign-in', async ({ core, ui, sui, call, files }) => {
+  await deleteProfile(core, ui, 'Ren.admin'); await deleteProfile(core, ui, 'Ren.seller');
+  const id = await core(async (k, url) => (await k.ensureProfile('Ren.seller', url)).id, `${SITE}/app`);
+  await call('browser_navigate', { profile: 'Ren.seller', url: `${SITE}/app/login?name=sam` });
+  const dir = await core((k, p) => k.shell.profiles.get(p).dir, id);
   const s = await manageProfiles(ui, sui);
-  await chooseProfile(s, files, 'Elon.buyer');
+  await chooseProfile(s, files, 'Ren.seller');
   await core((k) => k.focus(k.shell.settings.win)); // the keyboard in Settings' window, as the human's hands
   await s.locator('#profilename').evaluate((f: HTMLInputElement) => { f.focus(); f.select(); });
   await core(async (k) => {
     const wc = k.shell.settings.win.webContents;
-    await wc.insertText('Elon.shopper');
+    await wc.insertText('Ren.admin');
     for (const type of ['keyDown', 'char', 'keyUp'] as const) wc.sendInputEvent({ type, keyCode: type === 'char' ? '\r' : 'Enter' });
   });
-  await expect.poll(() => core((k, p) => k.shell.profiles.get(p).name, elon)).toBe('Elon.shopper');
-  await expect(ui.getByTestId('profile-name').filter({ hasText: /^Elon\.shopper$/ })).toHaveCount(1);
-  await expect(ui.getByTestId('profile-name').filter({ hasText: /^Elon\.buyer$/ })).toHaveCount(0);
-  await setProfileField(s, 'profilename', 'Elon.buyer');
-  await expect.poll(() => core((k, p) => k.shell.profiles.get(p).name, elon)).toBe('Elon.buyer');
+  await expect.poll(() => core((k, p) => k.shell.profiles.get(p).name, id)).toBe('Ren.admin');
+  expect(await profileId(core, 'Ren.admin'), 'only its name changed').toBe(id);
+  expect(await core((k, p) => k.shell.profiles.get(p).dir, id), 'its copy too').toBe(dir);
+  await expect(ui.locator(`[role="region"][data-profile="${id}"]`), 'its pane too').toHaveCount(1);
+  await expect(ui.getByTestId('profile-name').filter({ hasText: /^Ren\.admin$/ })).toHaveCount(1);
+  await expect(ui.getByTestId('profile-name').filter({ hasText: /^Ren\.seller$/ })).toHaveCount(0);
+  // Its id beside its new name, so the lines before and after it go together.
+  await expect.poll(() => files.log()).toMatch(new RegExp(`\\[profiles\\] ${id} renamed: Ren\\.admin$`, 'm'));
+  expect(await who(call, 'Ren.admin')).toBe('Signed in as sam');
+  await setProfileField(s, 'profilename', 'Ren.seller');
+  await expect.poll(() => core((k, p) => k.shell.profiles.get(p).name, id)).toBe('Ren.seller');
   await closeSettings(core, ui, sui);
+  await deleteProfile(core, ui, 'Ren.seller');
 });
 
 test('a page never makes a region that drags the window (Teams declared one, and it took every click over the panes)', async ({ core }) => {
@@ -288,6 +281,7 @@ test("a pane's ⋮ → Screenshot takes an element, the visible part or the whol
   await closeMenu(ui);
   // Back by the tab's own page: Profile.page() would look among the pages while the closed tab's is still going.
   await core(async (k, a) => { const p = k.profile('Sam.admin'); p.closeTab(a.blank); await p.get(a.tall).wc.loadURL(a.was); }, { blank, was, tall });
+  await expect(ui.locator(`[role="region"][data-profile="${id}"] [aria-label="Pick an element"]`), 'a page again: Pick on').toBeEnabled();
   removeTree(dir);
 });
 
@@ -375,10 +369,10 @@ test('a screenshot shows its thumbnail in its pane\'s corner: a click opens it, 
 });
 
 // What a profile keeps across a restart: the profiles with their pictures and words, sign-ins, tabs and the one in
-// front; a deleted one's folders gone at the next start.
-test('after a restart: profiles, sign-ins and tabs are back, the one in front in front', async ({ core, ui, call, restart, files }) => {
+// front; a closed one closed; a deleted one's folders gone at the next start.
+test('after a restart: profiles, sign-ins and tabs are back, the one in front in front; a closed profile is still closed, and opens signed in', async ({ core, ui, call, restart, files }) => {
   test.setTimeout(60000); // a restart
-  await deleteProfile(core, ui, 'Rhea.admin'); await deleteProfile(core, ui, 'Rob.buyer'); await deleteProfile(core, ui, 'Gone');
+  await deleteProfile(core, ui, 'Rhea.admin'); await deleteProfile(core, ui, 'Rob.buyer'); await deleteProfile(core, ui, 'Gone'); await deleteProfile(core, ui, 'Dora');
   await core(async (k) => {
     await k.shell.task.createProfile('Rhea.admin', 'seller in the test shop', 'fox');
     await k.shell.task.createProfile('Rob.buyer', '', 'owl');
@@ -397,6 +391,10 @@ test('after a restart: profiles, sign-ins and tabs are back, the one in front in
   }, { site: SITE, port: PORT });
   await expect.poll(() => files.savedTabs('Rob.buyer')).toEqual([`${SITE}/errors`, `${SITE}/app?n=5`, `${SITE}/`]);
   await expect.poll(() => files.savedActive('Rob.buyer')).toBe(1);
+  await call('profile_create', { name: 'Dora' });
+  await call('browser_navigate', { profile: 'Dora', url: `${SITE}/app/login?name=dora` });
+  await call('profile_close', { profile: 'Dora' });
+  const dora = await profileId(core, 'Dora');
   // One deleted: its copy and master go at the next start.
   await core(async (k) => { await k.shell.task.createProfile('Gone'); });
   await deleteProfile(core, ui, 'Gone');
@@ -417,16 +415,6 @@ test('after a restart: profiles, sign-ins and tabs are back, the one in front in
   const rob = () => core((k) => { const r = k.profile('Rob.buyer'); return { urls: r.tabs.map((t) => t.wc.getURL()), front: r.tabs.findIndex((t) => t.id === r.active), signinMode: r.signinMode }; });
   await expect.poll(async () => (await rob()).urls).toEqual([`${SITE}/errors`, `${SITE}/app?n=5`, `${SITE}/`]);
   expect(await rob()).toMatchObject({ front: 1, signinMode: false }); // the tab in front as it was left
-});
-
-test('after a restart: a closed profile is still closed, and opens signed in', async ({ core, ui, call, restart }) => {
-  test.setTimeout(60000); // a restart
-  await deleteProfile(core, ui, 'Dora');
-  await call('profile_create', { name: 'Dora' });
-  await call('browser_navigate', { profile: 'Dora', url: `${SITE}/app/login?name=dora` });
-  await call('profile_close', { profile: 'Dora' });
-  const dora = await profileId(core, 'Dora');
-  await restart();
   expect(await core((k, p) => k.shell.closed.has(p) && !k.shell.profiles.has(p), dora)).toBe(true);
   await call('profile_open', { profile: 'Dora' });
   expect(await who(call, 'Dora')).toBe('Signed in as dora');

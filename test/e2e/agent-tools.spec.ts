@@ -1,5 +1,6 @@
 // The agent's browser tools on the profiles' pages (src/main/kulisa-plugin/tools/, docs/profiles.md, The agent's
-// tools): tabs, highlights, acting by ref and locator, screenshots, typing, dialogs, waiting, several profiles at once.
+// tools): tabs, highlights, acting by ref and locator (the ghost showing where), screenshots, typing, dialogs,
+// waiting, several profiles at once.
 import fs from 'fs';
 import path from 'path';
 import { test, expect } from './fixtures.ts';
@@ -82,16 +83,21 @@ test('agent: an element that is not there fails fast, with what to do instead', 
 });
 
 // Each action of the agent waits while it is shown in the page (0.5 s, ghost.ts): the agent's tests take seconds.
-test('agent: navigate, snapshot, type by ref, click by locator, screenshot', async ({ core, call }) => {
+test('agent: navigate, snapshot, type by ref, click by locator; the click shown where it went', async ({ core, call }) => {
   await profiles(core);
   await call('browser_navigate', { profile: 'Sam.seller', url: `${SITE}/app` });
   const snap = await call('browser_snapshot', { profile: 'Sam.seller' });
   const ref = snap.text.match(/textbox "Name"[^\n]*\[ref=(\w+)\]/)[1];
   await call('browser_type', { profile: 'Sam.seller', ref, text: 'sam', submit: true });
   await call('browser_wait_for', { profile: 'Sam.seller', text: 'Signed in as sam' });
-  await call('browser_click', { profile: 'Sam.seller', locator: "getByRole('button', { name: 'Checkout' })" });
-  const shot = await call('browser_screenshot', { profile: 'Sam.seller' });
-  expect(shot.content[1].type).toBe('image');
+  await core((k) => { const g = k.stash; g.actions = []; g.watch = (a: unknown) => g.actions.push(a); k.shell.bus.on('agent-action', g.watch); });
+  try {
+    await call('browser_click', { profile: 'Sam.seller', locator: "getByRole('button', { name: 'Checkout' })" });
+  } finally {
+    const actions = await core((k) => { const g = k.stash; k.shell.bus.off('agent-action', g.watch); return g.actions as { caption: string; x?: number; y?: number }[]; });
+    const click = actions.find((a) => a.caption === 'click');
+    expect(click && click.x > 0 && click.y > 0, JSON.stringify(actions)).toBe(true);
+  }
 });
 
 // The agent's marks (its pointer, browser_highlight's outline) are Kulisa's, not the site's: not in the picture.

@@ -316,13 +316,3 @@ test('point and tell: Pick again or Esc in the page cancels it; nothing goes to 
   expect((await core((k) => k.ptyOutput())).slice(before).includes('kulisa pick')).toBe(false);
 });
 
-test('point and tell: Pick is off on an empty tab (about:blank)', async ({ core, ui }) => {
-  const { elon } = await profiles(core);
-  const button = ui.locator(`[role="region"][data-profile="${elon}"] [aria-label="Pick an element"]`);
-  await expect(button).toBeEnabled();
-  const tab = await act(ui, 'tab:new', { profile: elon });
-  await expect.poll(() => core((k) => k.profile('Elon.buyer').active)).toBe(tab);
-  await expect(button).toBeDisabled();
-  await core((k, id) => k.profile('Elon.buyer').closeTab(id), tab);
-  await expect(button).toBeEnabled();
-});

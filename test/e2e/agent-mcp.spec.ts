@@ -1,5 +1,5 @@
 // The agent's side of Kulisa: the MCP server and its local-only checks, the Claude Code plugin, the session-start hook,
-// one core under the window and the agent, the ghost's actions, task_history, @playwright/mcp through the CDP proxy
+// one core under the window and the agent, task_history, @playwright/mcp through the CDP proxy
 // (src/main/kulisa-plugin/CLAUDE.md, docs/profiles.md, docs/transcripts.md).
 import { spawnSync, spawn } from 'child_process';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
@@ -13,9 +13,6 @@ import { test, expect } from './fixtures.ts';
 import { SITE, act, invoke } from './helpers.ts';
 import { hookCommand } from '../../src/main/agents/agent.ts';
 import { profiles, signIn, opened } from './agent-helpers.ts';
-
-// What the agent's ghost shows of an action (ghost.ts).
-type Action = { caption: string; x?: number; y?: number };
 
 test('web pages cannot reach the MCP server, its hooks or the CDP proxy (Host and Origin checks)', async ({ core, files }) => {
   const { sam } = await profiles(core);
@@ -112,27 +109,6 @@ test('agent bridge: at session start the plugin hook tells the agent which profi
   expect(context).toMatch(only);
   expect((await mcp()).getInstructions()).toMatch(only);
   expect(await run({}), 'without its URL the hook does nothing and fails nothing').toEqual({ code: 0, out: '' });
-});
-
-test('ghost cursor: agent clicks are seen with coordinates', async ({ core, call }) => {
-  await profiles(core);
-  await core((k) => {
-    const g = k.stash as { actions: Action[]; onAction: (a: Action) => void };
-    g.actions = [];
-    g.onAction = (a) => { g.actions.push(a); };
-    k.shell.bus.on('agent-action', g.onAction);
-  });
-  try {
-    await call('browser_click', { profile: 'Sam.seller', locator: "getByRole('button', { name: /Checkout|Checked/ })" });
-  } finally {
-    const actions = await core((k) => {
-      const g = k.stash as { actions: Action[]; onAction: (a: Action) => void };
-      k.shell.bus.off('agent-action', g.onAction);
-      return g.actions;
-    });
-    const click = actions.find((a) => a.caption === 'click');
-    expect(click && click.x > 0 && click.y > 0, JSON.stringify(actions)).toBe(true);
-  }
 });
 
 // task_history (history.ts): the task's runs read from their transcripts, for an agent taking the task over or one
