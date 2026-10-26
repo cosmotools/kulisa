@@ -1,7 +1,7 @@
 # Dictation: working in this folder
 
-All of the dictation is here: a Kulisa package (`docs/packages.md`: what one is, its rules). How it works and why:
-`README.md`; keep it current with the code, as the docs in `docs/`. The plan and what is decided: issue #120.
+All of the dictation: a Kulisa package (`docs/packages.md`: what one is, its rules). How it works and why:
+`README.md`. The plan and what is decided: issue #120.
 
 - From outside only through `main/index.ts`, `renderer/index.ts` and `ipc.ts`. `main/` uses nothing of `src/main` but
   `ipc.ts` and `log.ts`; `renderer/` nothing of the window; `npm run deps` refuses any other import.
