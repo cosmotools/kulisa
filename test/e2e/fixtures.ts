@@ -111,15 +111,13 @@ async function launch(file: string, display: string | null, automation: boolean,
 }
 async function ready(k: Pick<Running, 'file' | 'automation' | 'child' | 'exited' | 'output' | 'root' | 'core'>, endpoint: string | null): Promise<Running> {
   const { core } = k;
-  // Connected meanwhile. Its traces in the test's folder, which goes with it (close): in the OS's temporary folder,
-  // Playwright's own was left behind by the worker's end.
-  const connected = endpoint === null ? null : chromium.connectOverCDP(endpoint, { noDefaults: true, artifactsDir: path.join(k.root, 'playwright') });
-  connected?.catch(() => {}); // a Kulisa never ready: its own error says why
   await expect.poll(() => core((d) => !!d?.shell.task?.loaded && !!d.shell.pty), { timeout: 30000 }).toBe(true);
   await core((d) => d.watchPty(d.shell.pty));
   const errors: string[] = [];
-  if (connected === null) return { ...k, browser: null, context: null, ui: null, errors, clients: new Map() };
-  const browser = await connected;
+  if (!endpoint) return { ...k, browser: null, context: null, ui: null, errors, clients: new Map() };
+  // Its traces in the test's folder, which goes with it (close): in the OS's temporary folder, Playwright's own was left
+  // behind by the worker's end.
+  const browser = await chromium.connectOverCDP(endpoint, { noDefaults: true, artifactsDir: path.join(k.root, 'playwright') });
   const context = browser.contexts()[0];
   // Kulisa's own pages' uncaught errors fail the test (a site's are the site's); a DOMException's stack is ''.
   const attach = (p: Page) => { if (own(p)) p.on('pageerror', (e) => errors.push(`${path.basename(new URL(p.url()).pathname)}: ${e.stack || `${e.name}: ${e.message}`}`)); };
