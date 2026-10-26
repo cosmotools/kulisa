@@ -1,5 +1,6 @@
 // The e2e tests on Playwright Test (docs/testing.md, End to end): Kulisa started by test/e2e/fixtures.ts.
-// On the CI a failed test runs once more: passing then, it is reported flaky, not hidden, and the job stays green.
+// On the CI a failed test runs once more: passing then, it is reported flaky; on a pull request the job stays green, on
+// develop it fails (docs/testing.md, Flaky tests).
 import os from 'os';
 import { defineConfig } from '@playwright/test';
 import { shardFiles } from './test/e2e/shards.ts';
@@ -24,6 +25,7 @@ export default defineConfig({
   globalTimeout: (ci ? 12 : 20) * 60000,
   workers,
   retries: ci ? 1 : 0,
+  failOnFlakyTests: process.env.GITHUB_EVENT_NAME === 'push',
   forbidOnly: ci,
   outputDir: 'test-results',
   // On the CI a shard's report is a blob, merged with the others' into the HTML and JUnit (test.yml, test).
