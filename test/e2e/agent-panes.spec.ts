@@ -4,15 +4,18 @@ import fs from 'fs';
 import path from 'path';
 import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
-import { SITE, upTo, frames, echoed, focusWindow, box, pageBox, termText, termShows, act, invoke } from './helpers.ts';
+import type { Locator } from '@playwright/test';
+import { SITE, upTo, frames, echoed, focusWindow, pageBox, termText, termShows, act, invoke, termKeys } from './helpers.ts';
 import { profiles, opened } from './agent-helpers.ts';
+
+// The shown terminal's keyboard (xterm's own field).
 
 test('the keyboard stays where the human put it: a tab the agent opens, its page loading, does not take it', async ({ core, ui, call }) => {
   await profiles(core);
   // The human typing to the agent in the terminal: on macOS a tab the agent opens takes the keyboard as its page
   // loads, and the next keys go to the site, unless kept (page-focus.ts).
   await focusWindow(core, ui);
-  await ui.evaluate(() => (window as any).__term.focus());
+  await termKeys(ui).focus();
   await expect.poll(() => core((k) => k.shell.windows[0].keyZone)).toBe('terminal');
   const id = opened(await call('browser_tab_new', { profile: 'Elon.buyer', url: 'data:text/html,<input autofocus>' }));
   // The page taking the keyboard by itself, as one loading does on macOS: given back (page-focus.ts).
@@ -23,7 +26,8 @@ test('the keyboard stays where the human put it: a tab the agent opens, its page
     tab.wc.focus();
     return decided;
   }, id)).toBe('given back to the window');
-  expect(await ui.evaluate(() => [document.hasFocus(), !!document.activeElement.closest('.xterm')]), 'still in the terminal').toEqual([true, true]);
+  await expect(termKeys(ui), 'still in the terminal').toBeFocused();
+  expect(await ui.evaluate(() => document.hasFocus()), 'the window has the keyboard (Playwright reads no window focus)').toBe(true);
   await call('browser_tab_close', { profile: 'Elon.buyer', tab: id });
   await expect.poll(() => core((k) => k.profile('Elon.buyer').tabs.length)).toBe(1);
 });
@@ -33,6 +37,7 @@ test('tab strip: + opens a tab with the focus in its empty address, a click on a
   const state = () => core((k) => { const e = k.profile('Elon.buyer'); return { active: e.active, tabs: e.tabs.length }; });
   const pane = ui.locator(`[role="region"][data-profile="${elon}"]`), strip = pane.getByRole('navigation', { name: 'Tabs' });
   const { active: first, tabs: n } = await state();
+  // Its element kept in the page, to tell it is the same one after (Playwright tells no element from another).
   await strip.locator(`[data-tab="${first}"]`).evaluate((t) => { (window as any).__firstTab = t; });
   await strip.getByRole('button', { name: 'New tab' }).click();
   await expect.poll(async () => { const s = await state(); return s.tabs === n + 1 && s.active !== first; }).toBe(true);
@@ -67,7 +72,7 @@ test('tab strip: + opens a tab with the focus in its empty address, a click on a
     return decided;
   }, added)).toBe("left (the human's)");
   expect(['page', 'another app'], 'the page keeps the focus once clicked').toContain(await keys());
-  await ui.evaluate(() => (document.activeElement as HTMLElement).blur());
+  await pane.locator('[aria-label="Address"]').blur();
   await expect(strip.getByRole('tab')).toHaveCount(n + 1);
   await strip.locator(`[data-tab="${first}"]`).click();
   await expect.poll(async () => (await state()).active).toBe(first);
@@ -94,44 +99,44 @@ test('many tabs: they shrink as in Chrome; the strip, the toolbar and the page s
   const pane = `[role="region"][data-profile="${elon}"]`;
   const before = await pageBox(ui, files, 'Elon.buyer');
   // A lone tab has its full width (220px, as Chrome's), not shrunk while there is room.
-  expect(await ui.locator(`[role="region"][data-profile="${sam}"] [role="tab"]`).evaluate((t) => Math.round(t.getBoundingClientRect().width))).toBe(220);
+  expect(Math.round((await ui.locator(`[role="region"][data-profile="${sam}"] [role="tab"]`).boundingBox()).width)).toBe(220);
   for (let i = 0; i < 24; i++) await act(ui, 'tab:new', { profile: elon });
   await expect(ui.locator(`${pane} [role="tab"]`)).toHaveCount(n + 24);
   await expect(ui.locator(`${pane} [role="tab"][data-opening]`)).toHaveCount(0); // grown in
-  const fit = await ui.locator(pane).evaluate((p) => {
-    const r = (q: string) => p.querySelector(q).getBoundingClientRect(), pr = p.getBoundingClientRect(), g = p.closest('.dv-groupview');
-    return { pane: p.scrollWidth <= p.clientWidth, tabs: r('nav[aria-label="Tabs"]').right <= pr.right, add: r('button[aria-label="New tab"]').right <= pr.right, more: r('[aria-label="More"]').right <= pr.right,
-      group: g.scrollWidth <= g.clientWidth };
-  });
-  expect(fit).toEqual({ pane: true, tabs: true, add: true, more: true, group: true });
+  // Nothing past the pane's right edge, nor scrolling it or its group (Playwright reads no scroll).
+  const right = async (l: Locator) => { const r = await l.boundingBox(); return r.x + r.width; };
+  const edge = await right(ui.locator(pane)), nav = ui.locator(`${pane} nav[aria-label="Tabs"]`), add = nav.getByRole('button', { name: 'New tab' });
+  for (const l of [nav, add, ui.locator(`${pane} [aria-label="More"]`)]) expect(await right(l)).toBeLessThanOrEqual(edge);
+  expect(await ui.locator(pane).evaluate((p) => [p.scrollWidth <= p.clientWidth, p.closest('.dv-groupview').scrollWidth <= p.closest('.dv-groupview').clientWidth])).toEqual([true, true]);
   // The active one (the last opened) in sight; every one its icon and × (not the active one alone, as Chrome's: the
   // author's choice).
-  const strip = await ui.locator(`${pane} nav[aria-label="Tabs"]`).evaluate((s) => {
-    const r = s.getBoundingClientRect(), a = s.querySelector('[role="tab"][aria-selected="true"]').getBoundingClientRect();
-    const other = s.querySelector('[role="tab"]:not([aria-selected="true"])'), shown = (e: Element) => getComputedStyle(e).display !== 'none';
-    return { activeInSight: a.left >= r.left && a.right <= s.querySelector('button[aria-label="New tab"]').getBoundingClientRect().left,
-      nothingUnderAdd: s.querySelector('[role="tablist"]').getBoundingClientRect().right <= s.querySelector('button[aria-label="New tab"]').getBoundingClientRect().left,
-      activeX: shown(s.querySelector('[role="tab"][aria-selected="true"] [title="Close tab"]')), otherIcon: shown(other.querySelector(':scope > svg')) || shown(other.querySelector('img')),
-      otherTitle: shown([...other.querySelectorAll('span')].find((e) => e.textContent === other.getAttribute('aria-label'))),
-      otherX: shown(other.querySelector('[title="Close tab"]')) };
-  });
+  const active = nav.locator('[role="tab"][aria-selected="true"]'), other = nav.locator('[role="tab"]:not([aria-selected="true"])').first();
+  const a = await active.boundingBox(), r = await nav.boundingBox(), plus = await add.boundingBox();
+  expect(a.x >= r.x && a.x + a.width <= plus.x, 'the active one in sight').toBe(true);
+  expect(await right(nav.getByRole('tablist')), 'nothing under +').toBeLessThanOrEqual(plus.x);
+  await expect(active.getByTitle('Close tab')).toBeVisible();
+  await expect(other.locator(':scope > svg, img').filter({ visible: true }), 'its icon').not.toHaveCount(0);
+  const title = other.getByText(await other.getAttribute('aria-label'), { exact: true });
+  await expect(title).toHaveCount(1);
+  await expect(title, 'no title').toBeHidden();
+  await expect(other.getByTitle('Close tab')).toBeVisible();
   // + and a tab's × are the same icon size.
-  expect(await ui.locator(`${pane} nav[aria-label="Tabs"]`).evaluate((s) => ['[role="tab"][aria-selected="true"] [title="Close tab"] svg', 'button[aria-label="New tab"] svg'].map((q) => s.querySelector(q).getBoundingClientRect().width))).toEqual([14, 14]);
-  expect(strip).toEqual({ activeInSight: true, nothingUnderAdd: true, activeX: true, otherIcon: true, otherTitle: false, otherX: true });
+  expect([(await active.getByTitle('Close tab').locator('svg').boundingBox()).width, (await add.locator('svg').boundingBox()).width]).toEqual([14, 14]);
   expect(await pageBox(ui, files, 'Elon.buyer'), 'the page keeps its place and size').toEqual(before);
   // Past that the strip scrolls (lib/strip.ts): the edge with tabs past it fades; a mouse's wheel scrolls it; a tab
   // not shown that changes (its page loads, its title) leaves it where the human scrolled it, not back at the active
-  // one.
+  // one. Where it is scrolled to, and how far it can be: Playwright reads no scroll.
   const s = ui.locator(`${pane} [role="tablist"]`);
-  const at = () => s.evaluate((e) => [Math.round(e.scrollLeft), e.scrollWidth - e.clientWidth, ['past-start', 'past-end'].filter((c) => e.hasAttribute(`data-${c}`)).join(' ')] as [number, number, string]);
-  await expect.poll(async () => { const [left, max, faded] = await at(); return max > 0 && left === max && faded === 'past-start'; }).toBe(true); // scrolled to the active one at the end, the start faded
-  const b = await box(ui, `${pane} [role="tablist"]`);
-  await core((k, r) => { // up: to the start
-    const z = k.shell.win.webContents.getZoomFactor();
-    k.shell.win.webContents.sendInputEvent({ type: 'mouseWheel', x: Math.round((r.x + r.width / 2) * z), y: Math.round((r.y + r.height / 2) * z), deltaX: 0, deltaY: 100000 });
-  }, b);
+  const at = () => s.evaluate((e) => [Math.round(e.scrollLeft), e.scrollWidth - e.clientWidth] as [number, number]);
+  // Scrolled to the active one at the end, the start faded.
+  await expect.poll(async () => { const [left, max] = await at(); return max > 0 && left === max; }).toBe(true);
+  await expect(s).toHaveAttribute('data-past-start');
+  await expect(s).not.toHaveAttribute('data-past-end');
+  await s.hover();
+  await ui.mouse.wheel(0, -100000); // up: to the start
   await expect.poll(async () => (await at())[0]).toBe(0);
-  await expect.poll(async () => (await at())[2]).toBe('past-end');
+  await expect(s).toHaveAttribute('data-past-end');
+  await expect(s).not.toHaveAttribute('data-past-start');
   const changed = await core((k, a) => { const e = k.profile('Elon.buyer'), id = e.tabs[a.n].id; e.navigate(id, a.url); return id; }, { n, url: `${SITE}/app?n=strip` });
   await expect(s.locator(`[data-tab="${changed}"]`)).toHaveAttribute('title', /n=strip/);
   await frames(ui); // what a change brings it into sight by (a resize's observer, the next update) has run
@@ -143,12 +148,14 @@ test('many tabs: they shrink as in Chrome; the strip, the toolbar and the page s
 test('back and forward buttons are enabled only when there is somewhere to go', async ({ core, call, ui }) => {
   const { sam } = await profiles(core);
   const pane = ui.locator(`[role="region"][data-profile="${sam}"]`);
-  const buttons = () => pane.locator('[aria-label="Back"], [aria-label="Forward"]').evaluateAll((bs) => bs.map((b) => (b as HTMLButtonElement).disabled));
+  const back = pane.locator('[aria-label="Back"]'), forward = pane.locator('[aria-label="Forward"]');
   await call('browser_navigate', { profile: 'Sam.seller', url: `${SITE}/app?n=1` });
   await call('browser_navigate', { profile: 'Sam.seller', url: `${SITE}/app?n=2` });
-  await expect.poll(buttons).toEqual([false, true]);
-  await pane.locator('[aria-label="Back"]').click();
-  await expect.poll(buttons).toEqual([false, false]);
+  await expect(back).toBeEnabled();
+  await expect(forward).toBeDisabled();
+  await back.click();
+  await expect(back).toBeEnabled();
+  await expect(forward).toBeEnabled();
   // The buttons change as the back navigation starts; it lands after, in the tab and in the pane (on a slow machine the
   // pane may show n=2 while the tab is on n=1).
   await expect.poll(() => core((k) => k.profile('Sam.seller').get().url)).toMatch(/n=1$/);
@@ -161,15 +168,18 @@ test('the address as in Chrome: shown without http(s)://, a click shows all of i
   const b = await addr.boundingBox();
   await core((k) => k.shell.win.webContents.focus()); // not in a page
   const click = () => addr.click({ position: { x: Math.round(b.width / 3), y: Math.round(b.height / 2) } });
-  const sel = () => addr.evaluate((a: HTMLInputElement) => [document.activeElement === a, a.selectionStart, a.selectionEnd, a.value.length] as [boolean, number, number, number]);
+  // What is selected in it: Playwright reads no selection.
+  const sel = () => addr.evaluate((a: HTMLInputElement) => [a.selectionStart, a.selectionEnd, a.value.length] as [number, number, number]);
   const full = await core((k) => k.profile('Sam.seller').get().wc.getURL());
   expect(full.startsWith('http://'), full).toBe(true);
   await expect(addr).toHaveValue(full.replace('http://', ''));
   await click();
-  await expect.poll(async () => { const [focused, start, end, n] = await sel(); return focused && start === 0 && end === n && n > 0; }).toBe(true);
+  await expect(addr).toBeFocused();
+  await expect.poll(async () => { const [start, end, n] = await sel(); return start === 0 && end === n && n > 0; }).toBe(true);
   await expect(addr).toHaveValue(full);
   await click(); // a click of its own, not the second of a double-click: Playwright's clicks each say clickCount 1
-  await expect.poll(async () => { const [focused, start, end] = await sel(); return focused && start === end; }).toBe(true);
+  await expect(addr).toBeFocused();
+  await expect.poll(async () => { const [start, end] = await sel(); return start === end; }).toBe(true);
   await addr.blur();
   await expect(addr).toHaveValue(full.replace('http://', ''));
 });
@@ -302,7 +312,7 @@ test('point and tell: a pick puts a reference into the agent\'s prompt, not sent
   const after = text.slice(text.lastIndexOf(ref)).trimEnd(); // the paste's end mark (^[[201~) between
   expect(!after.includes('\n') && after.endsWith(mark), text).toBe(true);
   expect(text.split(ref).length - 1, text).toBe(1);
-  expect(await ui.evaluate(() => document.activeElement.classList.contains('xterm-helper-textarea')), 'the terminal has focus').toBe(true);
+  await expect(termKeys(ui), 'the terminal has focus').toBeFocused();
   await core((k) => k.shell.pty.write('\x15')); // Ctrl+U: the line cleared, nothing sent
 });
 

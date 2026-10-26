@@ -2,11 +2,11 @@
 import fs from 'fs';
 import path from 'path';
 import { test, expect } from './fixtures.ts';
-import { CHECKOUT, menuRows, choose, closeSettings, invoke } from './helpers.ts';
+import { CHECKOUT, menu, choose, closeSettings, invoke } from './helpers.ts';
 
 test("☰ → Report a Problem… opens Settings at the Log page: the log so far and live, each line with its time and tag; chips and a text filter; Copy All, Save As… (a file), Open Folder; Report… → On GitHub… opens a new issue with the environment filled in", async ({ core, ui, sui, files }) => {
   await ui.locator('#windowMenu').click();
-  await menuRows(ui);
+  await expect(menu(ui)).toBeVisible();
   await choose(ui, 'Report a Problem…');
   const s = await sui();
   const line = s.locator('#logpage [role="log"] > div'), lines = () => line.allTextContents();
@@ -20,14 +20,15 @@ test("☰ → Report a Problem… opens Settings at the Log page: the log so far
   const theme = await core((k) => k.electron.nativeTheme.themeSource);
   await invoke(ui, 'theme:set', 'dark');
   await expect.poll(async () => (await lines()).at(-1)).toContain('[ipc]theme:set wc=');
-  await expect.poll(() => s.locator('#logpage [role="log"]').evaluate((b) => b.scrollHeight - b.scrollTop - b.clientHeight < 4), 'the end in view').toBe(true);
+  await expect(line.last(), 'the end in view').toBeInViewport();
   // Errors: a page's error is a warning line, in red; the chip shows those alone.
   await ui.evaluate(() => console.error('boom-for-the-log'));
   await expect.poll(async () => (await lines()).some((l) => l.includes('boom-for-the-log'))).toBe(true);
   const chip = (id: string) => s.locator(`#logchips [data-chip="${id}"]`).click();
   const typeFilter = (text: string) => s.locator('#logfilter').fill(text);
   await chip('errors');
-  await expect.poll(async () => (await lines()).some((x) => x.includes('boom-for-the-log')) && await line.evaluateAll((ls) => ls.every((l) => l.hasAttribute('data-bad')))).toBe(true);
+  await expect(line.filter({ hasText: 'boom-for-the-log' })).not.toHaveCount(0);
+  await expect(line.and(s.locator(':not([data-bad])')), 'errors alone').toHaveCount(0);
   await expect(s.locator('#logpage [role="log"] > div[data-tag="page"]').first(), 'in red').toHaveAttribute('data-bad');
   // A chip and the text filter on top of it; nothing left says so.
   await chip('tasks');
@@ -71,7 +72,9 @@ test("☰ → Report a Problem… opens Settings at the Log page: the log so far
   // line's facts). The pages Kulisa opens in the user's browser are noted, not opened (app.ts).
   const opened = await core((k) => k.openedExternally.length);
   await s.locator('#logreport').click();
-  expect(await menuRows(s)).toEqual(['On GitHub…']);
+  await expect(menu(s)).toMatchAriaSnapshot(`
+    - menu:
+      - menuitem "On GitHub…"`);
   await choose(s, 'On GitHub…');
   await expect.poll(() => core((k) => k.openedExternally.length)).toBe(opened + 1);
   const u = new URL(await core((k) => k.openedExternally.at(-1)));

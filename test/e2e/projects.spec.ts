@@ -5,7 +5,7 @@ import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
 import type { Files } from './data.ts';
-import { menuRows, choose, closeMenu, rightClick, projectTabs, projectTab, projectTabSel, showProject, focusWindow, closeSettings, settingsClosed, invoke, act, typeIn, asked, notLoading, projectMenu, otherPage, pageOf, onRow, removed } from './helpers.ts';
+import { attr, menu, choose, closeMenu, rightClick, projectTabs, projectTab, projectTabSel, showProject, focusWindow, closeSettings, settingsClosed, invoke, act, typeIn, answer, notLoading, projectMenu, otherPage, pageOf, onRow, removed } from './helpers.ts';
 import { SAM, begin, newTask, openFolder, projectShown } from './tasks-helpers.ts';
 import { fakeAgent } from './agent-helpers.ts';
 
@@ -26,8 +26,11 @@ async function newProfileHere(s: Page, name: string) {
 // A project deleted as Settings does (its data and tasks' copies; Delete Project… is tested below), its folder too.
 async function forget(core: Core, ui: Page, files: Files, folder: string, dir = path.join(files.root, folder)) {
   const id = await core((k, f) => k.shell.store.projects().find((p) => p.folders.some((x) => path.basename(x).toLowerCase() === f))?.id, folder).catch((): undefined => undefined);
-  if (id) await invoke(ui, 'project:delete', { id });
-  await core((k) => { k.asked.length = 0; });
+  if (id) {
+    const deleted = invoke(ui, 'project:delete', { id });
+    await answer(ui);
+    await deleted;
+  }
   await removed(dir);
 }
 
@@ -44,13 +47,14 @@ test("projects: the projects' manager (Project Settings…) changes its name and
   // Its color: its favicon's hue (red: 29°; a few degrees off where its edges blend) in the lightness and chroma of
   // Kulisa's own colors; the window's and its island's. What projects.json keeps (the next free color) is for a
   // project with none.
-  const shown = (hue: number | string) => ui.evaluate(([hue, sel]) => {
-    const c = document.documentElement.style.getPropertyValue('--project'), h = /^oklch\(0\.61 0\.12 (\d+)\)$/.exec(c)?.[1];
-    return document.querySelector<HTMLElement>(sel).style.getPropertyValue('--color') === c && (typeof hue === 'number' ? Math.abs(Number(h) - hue) <= 4 : c === hue);
-  }, [hue, tab] as const);
-  await expect.poll(() => shown(29)).toBe(true);
+  const shown = async (hue: number | string) => {
+    const color = typeof hue === 'string' ? hue : new RegExp(`^oklch\\(0\\.61 0\\.12 (${Array.from({ length: 9 }, (_, i) => hue - 4 + i).join('|')})\\)$`);
+    await expect(ui.locator(':root')).toHaveCSS('--project', color);
+    await expect(ui.locator(tab).first()).toHaveCSS('--color', color);
+  };
+  await shown(29);
   // Its settings: its favicon in the list, the folder shown and not changed.
-  await projectMenu(ui, 'Project Settings…', tab);
+  await choose(ui, 'Project Settings…', await projectMenu(ui, tab));
   let s = await sui();
   await pageOf(s, 'site');
   // The manager lists every project, this one chosen.
@@ -59,25 +63,24 @@ test("projects: the projects' manager (Project Settings…) changes its name and
   await expect(s.locator('#npfolders [data-folder] small'), 'its folder, as its code').toHaveText(site);
   await expect(s.locator('#nplocationrow')).toHaveCount(0);
   // A page: its top (New Task, ⋯), each part saved as it changes; the dialog stays open.
-  expect(await s.evaluate(() => [...document.querySelectorAll('#pjconfig :is(h3, label[for])')].map((h) => h.textContent).join(', ')))
-    .toBe('Name:, Folders, Agents, Profiles, Local addresses:');
+  await expect(s.locator('#pjconfig :is(h3, label[for])')).toHaveText(['Name:', 'Folders', 'Agents', 'Profiles', 'Local addresses:']);
   const entryOf = () => core((k, i) => k.shell.store.projects().find((p) => p.id === i), id);
   // Its favicon changed: read again as its settings open. Mostly blue with a red dot: the hue of the most (264°).
   const favicon = (svg: string) => fs.writeFileSync(path.join(site, 'public', 'favicon.svg'), `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">${svg}</svg>`);
   const reopen = async () => {
     await closeSettings(core, ui, sui);
-    await projectMenu(ui, 'Project Settings…', tab);
+    await choose(ui, 'Project Settings…', await projectMenu(ui, tab));
     s = await sui();
     await pageOf(s, 'site');
   };
   favicon('<rect width="16" height="16" fill="#00f"/><circle cx="8" cy="8" r="2" fill="red"/>');
   await reopen();
-  await expect.poll(() => shown(264)).toBe(true);
+  await shown(264);
   // A black mark (GitHub's, an SVG in currentColor) has no hue: the color it was given.
   favicon('<path d="M2 2h12v12H2z" fill="#000"/>');
   await reopen();
   const given = (await entryOf()).color;
-  await expect.poll(() => shown(given)).toBe(true);
+  await shown(given);
   await typeIn(s, '#nplocal', 'abc.ngrok.app *.Shop.dev', true);
   await expect.poll(async () => (await entryOf()).local?.length).toBe(2);
   // The name typed and the window closed with the OS's ×: kept (its page saves it, then closes it).
@@ -94,7 +97,7 @@ test("projects: the projects' manager (Project Settings…) changes its name and
   expect(entry.local, "its own local addresses, where test users' pairs may be typed (local.ts)").toEqual(['abc.ngrok.app', 'shop.dev']);
   await expect.poll(async () => (await projectTabs(ui, files)).includes('site *') && await core((k) => k.shell.win.getTitle() === `${k.shell.task.name} · Site-2 — Kulisa`)).toBe(true);
   // Its profiles: a new one; one of another project, the same person (its master, its sign-ins); × lets go of one.
-  await projectMenu(ui, 'Project Settings…', tab);
+  await choose(ui, 'Project Settings…', await projectMenu(ui, tab));
   s = await sui();
   await expect(s.locator('#npprofilesrow')).toBeVisible();
   await expect(s.locator('#npprofiles [role="option"]')).toHaveCount(0);
@@ -103,12 +106,16 @@ test("projects: the projects' manager (Project Settings…) changes its name and
   const siteUser = files.idOf('Site-user'), samId = files.idOf(SAM);
   await expect(s.locator(`#npprofiles [data-profile="${siteUser}"]`)).toBeVisible();
   await s.locator('#npprofileadd').click();
-  expect((await menuRows(s)).join('|')).toContain('# Other Profiles|Sam.admin');
+  await expect(menu(s)).toMatchAriaSnapshot(`
+    - /children: contain
+    - text: Other Profiles
+    - menuitem "Sam.admin"
+  `);
   await choose(s, 'Sam.admin');
   await expect(s.locator(`#npprofiles [data-profile="${samId}"] > *`)).toHaveText(['Sam.admin', 'seller in the test shop', 'project']);
   await expect.poll(() => core((k, a) => k.shell.closed.has(a.sam) && k.shell.closed.has(a.user), { sam: samId, user: siteUser })).toBe(true); // its task lists them, closed
   await onRow(s, `#npprofiles [data-profile="${siteUser}"]`, '#npprofiledel');
-  expect((await asked(core)).message).toBe('Remove the profile Site-user from Site-2?');
+  expect((await answer(s)).message).toBe('Remove the profile Site-user from Site-2?');
   await expect.poll(() => core((k, u) => !k.shell.closed.has(u), siteUser)).toBe(true);
   expect(await core((k, u) => k.shell.profileStore.projectsOf(k.shell.profileStore.get(u)), siteUser), 'in no other project: kept all the same, until deleted in Settings → Profiles').toEqual([]);
   await core((k, u) => { k.shell.profileStore.delete(u); }, siteUser); // not needed after
@@ -118,60 +125,75 @@ test("projects: the projects' manager (Project Settings…) changes its name and
   await expect.poll(() => core((k, sam) => k.shell.profiles.has(sam), samId)).toBe(true);
   expect(await core((k, sam) => k.shell.profiles.get(sam).dir, samId)).toBe(path.join(files.userData, 'projects', id, files.tid('site', 1), samId));
   // Let go here: it stays in project, with its master.
-  await act(ui, 'profile:delete', { profile: samId });
-  expect((await asked(core)).message).toBe('Remove the profile Sam.admin from Site-2?');
+  const dropped = act(ui, 'profile:delete', { profile: samId });
+  expect((await answer(ui)).message).toBe('Remove the profile Sam.admin from Site-2?');
+  await dropped;
   await expect.poll(() => core((k, sam) => !k.shell.profiles.has(sam), samId)).toBe(true);
   expect(await core((k, sam) => k.shell.profileStore.projectsOf(k.shell.profileStore.get(sam)), samId)).toEqual([files.pid('project')]);
   // Its agents: a list, added from the agents without accounts and the accounts in the store (one made in Settings →
   // Agents, in no project), one the default (a radio); at once, not on Save.
   const ann = await core((k) => { const a = k.shell.accounts; return a.create((a.prepare('fake') as { id: string }).id, 'fake', 'ann@shop.com').id; });
-  await projectMenu(ui, 'Project Settings…', tab);
+  await choose(ui, 'Project Settings…', await projectMenu(ui, tab));
   s = await sui();
   await expect(s.locator('#npagentsrow')).toBeVisible();
   await s.locator('#npagentadd').click();
-  expect(await menuRows(s), 'an agent with accounts: one of its accounts').not.toContain('Fake agent');
+  await expect(menu(s)).toBeVisible();
+  await expect(menu(s).getByRole('menuitem', { name: 'Fake agent', exact: true }), 'an agent with accounts: one of its accounts').toHaveCount(0);
   await closeMenu(s);
-  const titles = () => s.locator('#npagents [role="option"]').evaluateAll((rs) => rs.map((r) => (r as HTMLElement).title));
   for (const name of ['Terminal only', 'Fake agent · ann@shop.com']) {
     await s.locator('#npagentadd').click();
-    await menuRows(s);
     await choose(s, name);
-    await expect.poll(titles).toContain(name);
+    await expect(s.locator(`#npagents [role="option"]${attr('title', name)}`)).toHaveCount(1);
   }
-  // The default marked, Make Default on the others.
-  const agentRows = () => s.locator('#npagents [role="option"]').evaluateAll((rs) => rs.map((r) => `${(r as HTMLElement).title} ${[...r.querySelectorAll('kbd')].some((k) => k.textContent === 'default')}`));
-  expect(await agentRows(), 'the first added, the default').toEqual(['Terminal only true', 'Fake agent · ann@shop.com false']);
+  // The default marked, Make Default on the others. Each row by its title, and whether it is the default.
+  const agentRows = async (rows: [string, boolean][]) => {
+    const options = s.locator('#npagents [role="option"]');
+    await expect(options).toHaveCount(rows.length);
+    for (const [i, [title, isDefault]] of rows.entries()) {
+      await expect(options.nth(i)).toHaveAttribute('title', title);
+      await expect(options.nth(i).locator('kbd').getByText('default', { exact: true })).toHaveCount(isDefault ? 1 : 0);
+    }
+  };
+  await agentRows([['Terminal only', true], ['Fake agent · ann@shop.com', false]]); // the first added, the default
   // A table: each value in its column, under its name, the columns at the same places in every row (values
   // one after another, each row in its own rhythm, read as chaos).
-  expect(await s.evaluate(() => {
-    const head = document.querySelector('#npagentsrow div[aria-hidden="true"]'), x = (e: Element) => Math.round(e.getBoundingClientRect().left);
-    const rows = [head, ...document.querySelectorAll('#npagentsrow [role="option"]')].map((r) => [...r.children].map(x).join());
-    return [[...head.children].map((h) => h.textContent), rows.every((r) => r === rows[0])];
-  })).toEqual([['Agent', 'Account', ''], true]);
+  await expect(s.locator('#npagentsrow div[aria-hidden="true"] > *')).toHaveText(['Agent', 'Account', '']);
+  // Every cell's left edge in every row at once (boundingBox reads one element at a time).
+  expect(await s.locator('#npagentsrow').evaluate((t) => {
+    const x = (e: Element) => Math.round(e.getBoundingClientRect().left);
+    const rows = [t.querySelector('div[aria-hidden="true"]'), ...t.querySelectorAll('[role="option"]')].map((r) => [...r.children].map(x).join());
+    return rows.every((r) => r === rows[0]);
+  }), 'the columns in line').toBe(true);
   expect((await entryOf()).agents).toEqual(['shell', ann]);
   expect(await core((k, a) => k.shell.store.projectsWith('agents', a).map((p) => p.id), ann), 'the projects list their agents').toEqual([id]);
   await onRow(s, `#npagents [data-agent="${ann}"]`, '#npagentdefault');
-  await expect.poll(agentRows).toEqual(['Fake agent · ann@shop.com true', 'Terminal only false']);
+  await agentRows([['Fake agent · ann@shop.com', true], ['Terminal only', false]]);
   // Its right-click has the same: Make Default.
   // The row not chosen yet: Reka's list takes the keyboard to it just after the menu opens, which would close the
   // menu (RightClickMenu.vue).
   await rightClick(s, '#npagents [data-agent="shell"]');
-  expect(await menuRows(s)).toEqual(['Make Default', 'Remove from the Project']);
+  await expect(menu(s)).toMatchAriaSnapshot(`
+    - menuitem "Make Default"
+    - menuitem "Remove from the Project"
+  `);
   await choose(s, 'Make Default');
-  await expect.poll(agentRows).toEqual(['Terminal only true', 'Fake agent · ann@shop.com false']);
+  await agentRows([['Terminal only', true], ['Fake agent · ann@shop.com', false]]);
   // None the default: No Default on the default one's right-click, or its ★; ★ on it again makes it the default.
   await rightClick(s, '#npagents [data-agent="shell"]');
-  expect(await menuRows(s)).toEqual(['No Default', 'Remove from the Project']);
+  await expect(menu(s)).toMatchAriaSnapshot(`
+    - menuitem "No Default"
+    - menuitem "Remove from the Project"
+  `);
   await choose(s, 'No Default');
-  await expect.poll(agentRows).toEqual(['Terminal only false', 'Fake agent · ann@shop.com false']);
+  await agentRows([['Terminal only', false], ['Fake agent · ann@shop.com', false]]);
   expect((await entryOf()).noDefaultAgent).toBe(true);
   await onRow(s, '#npagents [data-agent="shell"]', '#npagentdefault');
-  await expect.poll(agentRows).toEqual(['Terminal only true', 'Fake agent · ann@shop.com false']);
+  await agentRows([['Terminal only', true], ['Fake agent · ann@shop.com', false]]);
   expect((await entryOf()).noDefaultAgent).toBeUndefined();
   await onRow(s, '#npagents [data-agent="shell"]', '#npagentdefault');
-  await expect.poll(agentRows).toEqual(['Terminal only false', 'Fake agent · ann@shop.com false']);
+  await agentRows([['Terminal only', false], ['Fake agent · ann@shop.com', false]]);
   await onRow(s, '#npagents [data-agent="shell"]', '#npagentdefault');
-  await expect.poll(agentRows).toEqual(['Terminal only true', 'Fake agent · ann@shop.com false']);
+  await agentRows([['Terminal only', true], ['Fake agent · ann@shop.com', false]]);
   await closeSettings(core, ui, sui);
   // + makes a task with the default one (the first kept the one it started with). No git: a second task in the folder,
   // after the question.
@@ -185,14 +207,19 @@ test("projects: the projects' manager (Project Settings…) changes its name and
   expect(await core((k) => k.shell.task.profiles.size), 'no profile opens by itself').toBe(0);
   // None the default: a new task starts nothing, the island's buttons instead; Ctrl+` there gives them the keyboard.
   await invoke(ui, 'project:agent-default', { id, agent: null });
-  await invoke(ui, 'task:new', { project: id });
+  const made = invoke(ui, 'task:new', { project: id });
+  await answer(ui, 'Create Anyway');
+  await made;
   // Shown, not only loaded: a key while the window still switches acts for the task before (docs/testing.md; on a
   // loaded machine Ctrl+` below may do nothing).
   await expect.poll(() => core((k, a) => k.shell.task.key !== a && k.settled(), annTask)).toBe(true);
   await notLoading(ui);
-  const bare = await core((k) => { k.asked.length = 0; return k.shell.task.key; });
-  await expect.poll(() => ui.getByRole('navigation', { name: 'New terminal' }).getByRole('button').evaluateAll((bs) => bs.map((b) => b.getAttribute('aria-label'))))
-    .toEqual(['Fake agent', 'Terminal']);
+  const bare = await core((k) => k.shell.task.key);
+  await expect(ui.getByRole('navigation', { name: 'New terminal' })).toMatchAriaSnapshot(`
+    - navigation "New terminal":
+      - button "Fake agent"
+      - button "Terminal"
+  `);
   // A project with no profiles: one tile, Add Profile…, its page in Settings.
   const launchProfiles = ui.locator('#dock').getByRole('navigation', { name: 'Open a profile' });
   await expect(launchProfiles.getByRole('button')).toHaveText(['Add Profile…']);
@@ -203,11 +230,11 @@ test("projects: the projects' manager (Project Settings…) changes its name and
   const terminals = () => core((k, key) => k.shell.taskByKey(key).terminals.size, bare);
   expect(await terminals()).toBe(0);
   expect(agentOf(bare)).toBe(null);
-  await ui.evaluate(() => (document.activeElement as HTMLElement)?.blur());
+  if (await ui.locator(':focus').count()) await ui.locator(':focus').blur();
   await focusWindow(core, ui);
   // Ctrl+` gives the launcher the keyboard. Opens nothing: no agent.
   await core((k) => k.press(k.shell.win.webContents, '`', 'control'));
-  await expect.poll(() => ui.evaluate(() => document.activeElement === document.querySelector('nav[aria-label="New terminal"] button'))).toBe(true);
+  await expect(ui.getByRole('navigation', { name: 'New terminal' }).getByRole('button').first()).toBeFocused();
   expect(await terminals(), 'nothing opened').toBe(0);
   // With a profile open, the island is a strip: Ctrl+` opens its +.
   await call('profile_create', { name: 'Bo.bare' }, { task: bare });
@@ -215,13 +242,19 @@ test("projects: the projects' manager (Project Settings…) changes its name and
   await expect(ui.getByRole('navigation', { name: 'New terminal' })).toHaveCount(0);
   await focusWindow(core, ui);
   await core((k) => k.press(k.shell.win.webContents, '`', 'control'));
-  expect(await menuRows(ui)).toEqual(['Fake agent · ann@shop.com', '-', 'Terminal']);
+  await expect(menu(ui)).toMatchAriaSnapshot(`
+    - menuitem "Fake agent · ann@shop.com"
+    - separator
+    - menuitem "Terminal"
+  `);
   await closeMenu(ui);
   expect(await terminals(), 'nothing opened').toBe(0);
   const bo = files.idOf('Bo.bare');
-  await act(ui, 'profile:delete', { profile: bo });
+  const droppedBo = act(ui, 'profile:delete', { profile: bo });
+  await answer(ui);
+  await droppedBo;
   await expect.poll(() => core((k, a) => !k.shell.taskByKey(a.key).profiles.has(a.bo), { key: bare, bo })).toBe(true);
-  await core((k, b) => { k.shell.profileStore.delete(b); k.asked.length = 0; }, bo);
+  await core((k, b) => { k.shell.profileStore.delete(b); }, bo);
   // Let go of at once, an account as an agent without accounts: its tasks keep it, and the account stays in the store.
   await invoke(ui, 'project:agent-remove', { id, agent: ann });
   await invoke(ui, 'project:agent-remove', { id, agent: 'shell' });
@@ -268,9 +301,10 @@ test("projects: the title bar's gear opens Settings' window at the shown project
   const closedOne = files.idOf('Closed-one');
   await expect(s.locator(`#npprofiles [data-profile="${closedOne}"]`)).toBeVisible();
   await onRow(s, `#npprofiles [data-profile="${closedOne}"]`, '#npprofiledel');
-  await expect.poll(() => core((k, p) => k.asked.length > 0 && !k.shell.store.projectsWith('profiles', p).length, closedOne)).toBe(true);
-  expect((await asked(core)).message).toBe('Remove the profile Closed-one from closed?');
-  await expect(ui.locator('#ask'), "not in the task's window").toHaveCount(0);
+  await expect(s.getByRole('alertdialog')).toBeVisible();
+  await expect(ui.getByRole('alertdialog'), "not in the task's window").toHaveCount(0);
+  expect((await answer(s)).message).toBe('Remove the profile Closed-one from closed?');
+  await expect.poll(() => core((k, p) => !k.shell.store.projectsWith('profiles', p).length, closedOne)).toBe(true);
   await core((k, p) => { k.shell.profileStore.delete(p); }, closedOne); // not needed after
   await expect(s.locator(`#npprofiles [data-profile="${closedOne}"]`)).toHaveCount(0);
   await expect(s.locator('#npprofileerror')).toHaveText('');
@@ -284,14 +318,13 @@ test("projects: the title bar's gear opens Settings' window at the shown project
   await expect.poll(() => core((k) => k.shell.win.isMinimized())).toBe(true);
   await core((k) => k.shell.settings.win.focus());
   await expect.poll(() => core((k) => k.shell.settings.win.isFocused())).toBe(true);
-  await core((k) => { k.answer = false; });
-  const said = await invoke(ui, 'profile:delete', { task: await core((k) => k.shell.task.key), profile: files.idOf(SAM) });
-  expect(said).toEqual({ error: 'the human said no' });
-  expect((await asked(core)).message).toMatch(/^Remove the profile Sam\.admin from /);
-  await expect(s.locator('#ask'), "not in Settings' window").toHaveCount(0);
+  const said = invoke(ui, 'profile:delete', { task: await core((k) => k.shell.task.key), profile: files.idOf(SAM) });
+  await expect(ui.getByRole('alertdialog')).toBeVisible();
+  await expect(s.getByRole('alertdialog'), "not in Settings' window").toHaveCount(0);
   // Waited for: macOS restores a minimized window with its animation, and makes it key at its end.
   await expect.poll(() => core((k) => !k.shell.win.isMinimized() && k.shell.win.isFocused()), { message: 'the task\'s window in front with its question' }).toBe(true);
-  await core((k) => { k.answer = true; });
+  expect((await answer(ui, false)).message).toMatch(/^Remove the profile Sam\.admin from /);
+  expect(await said).toEqual({ error: 'the human said no' });
   // The theme and the Kulisa zoom are every window's: its too.
   const theme = await core((k) => k.shell.theme);
   const other = theme === 'light' ? 'dark' as const : 'light' as const;
@@ -328,13 +361,13 @@ test("projects: Settings, not modal, acts for the tasks' window last in front; i
   const fay = files.idOf('Fay');
   await expect(s.locator(`#npprofiles [data-profile="${fay}"]`)).toHaveCount(1);
   await expect(s.locator(`#pjlist [data-profile="${fay}"]`)).toHaveCount(1);
-  await call('profile_delete', { profile: 'Fay' }, { task: key });
-  expect((await asked(core)).message).toBe('The agent asks to remove the profile Fay from fourth.');
+  const dropping = call('profile_delete', { profile: 'Fay' }, { task: key });
+  expect((await answer(there)).message).toBe('The agent asks to remove the profile Fay from fourth.');
+  await dropping;
   await expect(s.locator(`#npprofiles [data-profile="${fay}"]`)).toHaveCount(0);
   await core((k, f) => { k.shell.profileStore.delete(f); }, fay); // not needed after
-  // The first one in front (the question's dialog in the second gone first): Settings acts for it now, without being
-  // opened again.
-  await expect.poll(() => there.evaluate(() => document.getElementById('ask')?.dataset.state !== 'open')).toBe(true);
+  // The first one in front (the question's dialog in the second gone first: answer): Settings acts for it now, without
+  // being opened again.
   await focusWindow(core, ui);
   await expect.poll(async () => (await invoke(s, 'projects:list')).project).toBe(files.pid('project'));
   await closeSettings(core, ui, sui);

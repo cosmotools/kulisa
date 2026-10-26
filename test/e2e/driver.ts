@@ -1,14 +1,11 @@
 // What the e2e tests reach in Kulisa's main process (fixtures.ts, core): the running app, the uncaught errors it had,
-// its questions answered in their dialog, what its terminals printed, and the actions a test takes there as the human's
-// hand would (keys as input events). Loaded by app.ts; the tests import only its type.
+// what its terminals printed, and the actions a test takes there as the human's hand would (keys as input events).
+// Loaded by app.ts; the tests import only its type.
 import electron from 'electron';
 import fs from 'fs';
 import type { WebContents } from 'electron';
 import type { IPty } from 'node-pty';
 import type { Shell } from '../../src/main/shell.ts';
-import type { AppWindow } from '../../src/main/window.ts';
-import type { SettingsWindow } from '../../src/main/settings-window.ts';
-import type { Question } from '../../src/shared/types.ts';
 // The app's own instances (app.ts loads the same files): what a test reaches beyond the shell, imported here so that
 // core's functions, which are eval'd and cannot import, get them by k.
 import * as pageMenu from '../../src/main/page-menu.ts';
@@ -110,16 +107,11 @@ export function driver(shell: Shell, openedExternally: string[]) {
     },
     // Kulisa's uncaught errors (app.ts): fixtures.ts fails the test they came in.
     errors: [] as string[],
-    // Questions (deleting a profile, a task…) answered in the window's dialog as the human would: true clicks the button
-    // that does it, false Cancel, 'other' the other one; null leaves the dialog to the test. asked: what was asked.
-    answer: true as boolean | 'other' | null,
-    asked: [] as Question[],
     // What a test keeps in the main process between its core() calls (a stubbed function's original, an object it
     // watches): only data crosses back, so it stays here, by name. Empty as each test begins.
     stash: {} as Record<string, any>,
-    // A test begins with Kulisa's questions answered yes, none asked yet, no output or log read, nothing stashed, the
-    // real clock (fixtures.ts).
-    reset() { k.errors.length = 0; k.asked.length = 0; k.answer = true; pty = ''; logged.length = 0; k.stash = {}; k.clock.release(); },
+    // A test begins with no output or log read, nothing stashed, the real clock (fixtures.ts).
+    reset() { k.errors.length = 0; pty = ''; logged.length = 0; k.stash = {}; k.clock.release(); },
     // A window done showing its task: loaded, not switching (and its agent's terminal started, with pty).
     settled(pty = false, w = shell.windows[0]) { return !!w?.task?.loaded && !w.switching && (!pty || !!shell.pty); },
     // A profile of the task shown, opened again when it is closed, made when it is not there yet (with who it is and its
@@ -169,24 +161,6 @@ export function driver(shell: Shell, openedExternally: string[]) {
       fs.writeFileSync(file, image.toPNG());
       return file;
     },
-  };
-  // Asked where w is (a tasks' window, Settings': app.ts, askWhich), the first window when none is named; shell.ask asks
-  // through it. Answered once its dialog shows this question.
-  const ask = shell.askWhich;
-  shell.askWhich = (q: Question, w: AppWindow | SettingsWindow | null = shell.windows[0]) => {
-    k.asked.push(q);
-    const answer = ask(q, w), yes = k.answer, page = w.win.webContents;
-    if (yes === null) return answer;
-    const there = (js: string) => page.executeJavaScript(js);
-    const shown = `document.getElementById('ask')?.dataset.state === 'open' && document.querySelector('#ask h2').textContent === ${JSON.stringify(q.message)}`;
-    const until = Date.now() + 5000;
-    const click = async () => {
-      if (page.isDestroyed()) return;
-      if (await there(shown)) return there(`[...document.querySelectorAll('#ask footer button')].find((b) => b.textContent === ${JSON.stringify(yes === 'other' ? q.other : yes ? q.ok || 'OK' : q.cancel || 'Cancel')}).click()`);
-      if (Date.now() < until) setTimeout(() => void click(), 50);
-    };
-    void click();
-    return answer;
   };
   return k;
 }

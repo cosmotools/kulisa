@@ -5,7 +5,7 @@ import fs from 'fs';
 import http from 'http';
 import path from 'path';
 import { test, expect } from './fixtures.ts';
-import { termTabs, menuRows, choose, rightClick, focusWindow, renamed, invoke, act } from './helpers.ts';
+import { termTabs, menu, choose, rightClick, focusWindow, renamed, invoke, act, answer } from './helpers.ts';
 import { begin, newTask } from './tasks-helpers.ts';
 import { fakeAgent, fakeBin } from './agent-helpers.ts';
 
@@ -28,8 +28,9 @@ test("+ opens any of the project's accounts, a new conversation in a tab of its 
   }));
   for (const x of [a, b]) await invoke(ui, 'project:agent-add', { id: files.pid('project'), agent: x.id });
   const tabs = () => termTabs(ui);
-  const tabState = (id: number) => ui.locator(`nav[aria-label="Terminals"] [data-id="${id}"] [data-state]`).getAttribute('data-state');
-  const taskState = () => ui.locator(`#projectTabs [data-task="${key}"] [data-state]`).getAttribute('data-state');
+  // A terminal's tab's state, and the task's tab's.
+  const tabIs = (id: number, state: string) => expect(ui.locator(`nav[aria-label="Terminals"] [data-id="${id}"] [data-state]`)).toHaveAttribute('data-state', state);
+  const taskIs = (state: string) => expect(ui.locator(`#projectTabs [data-task="${key}"] [data-state]`)).toHaveAttribute('data-state', state);
   const conversations = () => files.json(files.pfile('agent.json', taskId)).conversations;
   type Term = { id: number; agent: string | undefined; pty: boolean };
   const terms = () => core((k, t) => [...k.shell.taskByKey(t).terminals.values()].map((x): Term => ({ id: x.id, agent: x.agent?.id, pty: !!x.pty })), key);
@@ -47,9 +48,15 @@ test("+ opens any of the project's accounts, a new conversation in a tab of its 
   fs.writeFileSync(path.join(a.dir, '.claude.json'), JSON.stringify({ projects: { [other]: { hasTrustDialogAccepted: true } } }));
 
   // +: the project's accounts, then Terminal; one chosen opens in a tab of its own, in front, a new conversation.
+  const AGENTS = ['Fake agent · a@switch.test', 'Fake agent · b@switch.test'];
   await ui.locator('#termAdd').click();
-  const rows = await menuRows(ui);
-  expect(rows.slice(-4)).toEqual(['Fake agent · a@switch.test', 'Fake agent · b@switch.test', '-', 'Terminal']);
+  await expect(menu(ui)).toMatchAriaSnapshot(`
+    - menu:
+      - menuitem "Fake agent · a@switch.test"
+      - menuitem "Fake agent · b@switch.test"
+      - separator
+      - menuitem "Terminal"
+  `);
   await choose(ui, 'Fake agent · a@switch.test');
   await expect.poll(async () => JSON.stringify(await tabs()) === '["bash","Fake agent *"]' && (await newest()).pty, { timeout: 20000 }).toBe(true);
   expect(JSON.parse(fs.readFileSync(path.join(a.dir, '.claude.json'), 'utf8')).projects[copy]?.hasTrustDialogAccepted).toBe(true);
@@ -65,22 +72,27 @@ test("+ opens any of the project's accounts, a new conversation in a tab of its 
     await new Promise((r) => http.request(`${url}/hooks/${event}`, { method: 'POST' }, (res) => { res.resume(); res.on('end', r); }).end(body));
   };
   await hook(fake, 'prompt');
-  await expect.poll(async () => (await tabState(fake)) === 'working' && (await taskState()) === 'working').toBe(true);
-  expect(await tabState(bash)).toBe('');
+  await tabIs(fake, 'working');
+  await taskIs('working');
+  await tabIs(bash, '');
   await hook(bash, 'waiting');
-  await expect.poll(async () => (await tabState(bash)) === 'waiting' && (await taskState()) === 'waiting').toBe(true);
+  await tabIs(bash, 'waiting');
+  await taskIs('waiting');
   // A tool finished: the human answered, it works again (no agent says so itself); one working or done stays so.
   await hook(bash, 'tool-done');
-  await expect.poll(async () => (await tabState(bash)) === 'working' && (await taskState()) === 'working').toBe(true);
+  await tabIs(bash, 'working');
+  await taskIs('working');
   await hook(bash, 'waiting');
-  await expect.poll(() => tabState(bash)).toBe('waiting');
+  await tabIs(bash, 'waiting');
   await hook(bash, 'stop'); await hook(fake, 'stop');
   // Done in a tab behind: shown until the human brings it to the front.
-  await expect.poll(async () => (await tabState(bash)) === 'done' && (await tabState(fake)) === '').toBe(true);
+  await tabIs(bash, 'done');
+  await tabIs(fake, '');
   await hook(bash, 'tool-done');
   expect(await core((k, w) => k.shell.taskByKey(w.key).terminals.get(w.bash).state, { key, bash }), 'a tool finished after the turn ended changes nothing').toBe('done');
   await ui.locator(`nav[aria-label="Terminals"] [data-id="${bash}"]`).click();
-  await expect.poll(async () => (await tabState(bash)) === '' && (await taskState()) === '').toBe(true);
+  await tabIs(bash, '');
+  await taskIs('');
   expect(await target()).toBe(bash);
 
   // Each names its own tab, in 1 to 3 words; at the task's own URL there is no tab to name.
@@ -102,8 +114,11 @@ test("+ opens any of the project's accounts, a new conversation in a tab of its 
   // and goes once it has read the last part of it.
   const dialog = ui.locator('#handover'), progress = ui.locator('#handover').getByRole('status');
   await ui.locator(`nav[aria-label="Terminals"] [data-id="${fake}"]`).getByRole('button', { name: /change agent/ }).click();
-  await expect(ui.locator('#handover').getByRole('radio').first()).toBeAttached();
-  expect(await ui.locator('#handover').getByRole('radio').evaluateAll((rs) => rs.map((r) => r.getAttribute('aria-label')))).toEqual(rows.slice(0, -2));
+  // The project's agents, as in +.
+  const radios = ui.locator('#handover').getByRole('radio');
+  await expect(radios).toHaveCount(AGENTS.length);
+  for (const [i, name] of AGENTS.entries()) await expect(radios.nth(i)).toHaveAccessibleName(name);
+
   await expect(ui.locator('#handover').getByRole('list', { name: 'Goes along' })).toHaveText(/^task-\d+.*the whole conversation$/s);
   await ui.locator(`#handover [data-agent="${b.id}"] [role="radio"]`).click();
   await ui.locator('#handoverstart').click();
@@ -112,7 +127,7 @@ test("+ opens any of the project's accounts, a new conversation in a tab of its 
   const pty = await core((k, w) => { const t = k.shell.taskByKey(w.key).terminals.get(w.id); return { agent: t.agent.id, cols: t.pty.spawnSize.cols, last: t.pty.spawnArgs.at(-1) }; }, { key, id: handed });
   // In front under the dialog from its start, as + opens one: a tab behind has no size, and its xterm would lay out what
   // the agent drew for the island's size in 80 columns, broken.
-  await expect.poll(() => ui.evaluate(() => (window as any).__term?.cols)).toBe(pty.cols);
+  await expect.poll(() => ui.evaluate(() => (window as any).__term?.cols)).toBe(pty.cols); // xterm's own: its canvas has no text to read
   expect(pty.agent).toBe(b.id);
   expect(pty.last).toBe('Go on with the work of conversation 2 of this task ("Pay with cards"). Read it whole with the kulisa task_history tool (conversation 2) before anything else. Then tell me in a few lines what is done and what is next, and go on with it.');
   await expect(progress).toHaveText('Fake agent is starting…');
@@ -127,22 +142,30 @@ test("+ opens any of the project's accounts, a new conversation in a tab of its 
   // asks: answered yes.
   for (const how of ['waiting', 'show']) {
     await rightClick(ui, `nav[aria-label="Terminals"] [data-id="${fake}"]`);
-    expect(await menuRows(ui)).toEqual(['Change agent…', 'New Conversation', '-', 'Close']);
+    await expect(menu(ui)).toMatchAriaSnapshot(`
+      - menu:
+        - menuitem "Change agent…"
+        - menuitem "New Conversation"
+        - separator
+        - menuitem "Close"
+    `);
     await choose(ui, 'Change agent…');
     await expect(ui.locator('#handover').getByRole('radio').first()).toBeAttached();
     await ui.locator(`#handover [data-agent="${b.id}"] [role="radio"]`).click();
     await ui.locator('#handoverstart').click();
-    await expect.poll(async () => (await tabs()).length === 4 && (await newest()).pty && (await progress.textContent()) !== '', { timeout: 20000 }).toBe(true);
+    await expect.poll(async () => (await tabs()).length === 4 && (await newest()).pty, { timeout: 20000 }).toBe(true);
+    await expect(progress).not.toHaveText('');
     const next = (await newest()).id;
     if (how === 'waiting') await hook(next, 'waiting'); else await ui.locator('#handovershow').click();
     await expect(dialog).toHaveCount(0);
     await expect.poll(async () => (await tabs()).at(-1).endsWith(' *')).toBe(true);
-    await act(ui, 'terminal:close', { id: next });
+    const closed = act(ui, 'terminal:close', { id: next });
+    await answer(ui);
+    await closed;
     await expect.poll(async () => (await tabs()).length).toBe(3);
   }
   // New Conversation: the same agent from nothing, in a tab of its own.
   await rightClick(ui, `nav[aria-label="Terminals"] [data-id="${bash}"]`);
-  await menuRows(ui);
   await choose(ui, 'New Conversation');
   await expect.poll(async () => JSON.stringify(await tabs()) === '["bash","Pay with cards","Fake agent","bash 2 *"]' && (await newest()).pty, { timeout: 20000 }).toBe(true);
   expect(conversations().map((c: { agent: string }) => c.agent)).toEqual(['custom', a.id, b.id, b.id, b.id, 'custom']);
@@ -150,36 +173,46 @@ test("+ opens any of the project's accounts, a new conversation in a tab of its 
   const bin = fakeBin(files);
   await renamed(bin, `${bin}.away`);
   try {
-    await ui.evaluate((id) => { void (window as any).act('terminal:open', { agent: id }); }, a.id); // it answers once the human has chosen
+    const opened = act(ui, 'terminal:open', { agent: a.id }); // it answers once the human has chosen
     await expect(ui.getByRole('status').filter({ hasText: /^Starting / }), "numbered: a's other tab is open").toHaveText('Starting Fake agent 2…');
     await expect(ui.locator('#agentcancel')).toBeVisible();
     await ui.locator('#agentcancel').click();
+    await opened;
     await expect.poll(tabs).toEqual(['bash', 'Pay with cards', 'Fake agent', 'bash 2 *']);
     await expect(ui.getByRole('status').filter({ hasText: /^Starting / })).toHaveCount(0);
   } finally { await renamed(`${bin}.away`, bin); }
   // All closed, no profile open: the big buttons, an account's email under its agent's name, no keys; the first has
   // the keyboard, Tab moves to the next, Enter opens it.
-  for (const t of await terms()) await act(ui, 'terminal:close', { id: t.id });
+  // Each an agent's: asked first.
+  for (const t of await terms()) {
+    const closed = act(ui, 'terminal:close', { id: t.id });
+    await answer(ui);
+    await closed;
+  }
   const launchers = ui.getByRole('navigation', { name: 'New terminal' }).getByRole('button');
   await expect(launchers).toHaveCount(3);
-  expect(await launchers.evaluateAll((ls) => ls.map((l) => [l.getAttribute('aria-label'), l.querySelector('small')?.textContent ?? '', (l as HTMLElement).title]))).toEqual(
-    [['Fake agent', 'a@switch.test', 'Fake agent · a@switch.test'], ['Fake agent', 'b@switch.test', 'Fake agent · b@switch.test'], ['Terminal', '', 'Terminal']]);
+  for (const [i, [name, email, title]] of [['Fake agent', 'a@switch.test', 'Fake agent · a@switch.test'], ['Fake agent', 'b@switch.test', 'Fake agent · b@switch.test'], ['Terminal', '', 'Terminal']].entries()) {
+    await expect(launchers.nth(i)).toHaveAccessibleName(name);
+    await (email ? expect(launchers.nth(i).locator('small')).toHaveText(email) : expect(launchers.nth(i).locator('small')).toHaveCount(0));
+    await expect(launchers.nth(i)).toHaveAttribute('title', title);
+  }
   // Under them the project's profiles, a tile each.
-  expect(await ui.locator('#dock').getByRole('navigation', { name: 'Open a profile' }).getByRole('button').allTextContents()).toEqual(['Sam.admin', 'Elon.buyer', 'Dora']);
+  await expect(ui.locator('#dock').getByRole('navigation', { name: 'Open a profile' }).getByRole('button')).toHaveText(['Sam.admin', 'Elon.buyer', 'Dora']);
   await expect(launchers.first()).toBeFocused();
   await focusWindow(core, ui);
-  await core((k) => k.press(k.shell.win.webContents, 'Tab'));
+  await ui.keyboard.press('Tab');
   await expect(launchers.nth(1)).toBeFocused();
-  await core((k) => { for (const type of ['keyDown', 'char', 'keyUp'] as const) k.shell.win.webContents.sendInputEvent({ type, keyCode: type === 'char' ? '\r' : 'Enter' }); });
+  await ui.keyboard.press('Enter');
   await expect.poll(async () => { const ts = await terms(); return ts.length === 1 && ts[0].agent === b.id; }, { timeout: 20000 }).toBe(true);
 
   // Deleting the task forgets every conversation, each in its account's folder.
-  await invoke(ui, 'task:delete', key);
+  const deleted = invoke(ui, 'task:delete', key);
+  await answer(ui);
+  await deleted;
   await expect.poll(() => core((k, t) => !k.shell.taskByKey(t), key)).toBe(true);
   expect(fs.existsSync(file), "the fake agent's, in its account").toBe(false);
   for (const x of [a, b]) await invoke(ui, 'project:agent-remove', { id: files.pid('project'), agent: x.id });
   await core(async (k, ids) => {
     for (const x of ids) { k.shell.accounts.drop(x.id); k.removeTree(x.dir); }
-    k.asked.length = 0;
   }, [a, b]);
 });

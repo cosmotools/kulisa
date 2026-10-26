@@ -4,14 +4,16 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import url from 'url';
-import type { Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
-import { SITE, MAC, WIN, frames, seen, ipcSettled, echoed, uiZoom, menu, anyMenu, menuRows, choose, closeMenu, rightClick, focusWindow, pageBox, viewOn, answered, mouse, scaled, mid, removed } from './helpers.ts';
-import type { Mods } from './helpers.ts';
+import { SITE, MAC, WIN, frames, seen, ipcSettled, echoed, menu, anyMenu, item, choose, closeMenu, rightClick, focusWindow, pageBox, viewOn, answer, removed, termKeys } from './helpers.ts';
 import { SAM, ELON, begin } from './tasks-helpers.ts';
 
 const menuOpen = (ui: Page) => menu(ui).isVisible();
+// The middle of an element, where the hand presses it with Playwright's mouse (a press and a release apart, which a
+// locator's click does not give).
+const center = async (l: Locator) => { const b = await l.boundingBox(); return { x: b.x + b.width / 2, y: b.y + b.height / 2 }; };
 // Everything the window would have sent its agent's terminal by now is there, echoed: a paste reads the clipboard first
 // (navigator.clipboard: answered in order), so a mark sent after a read of it comes after anything a paste sent; the
 // mark then rubbed out.
@@ -24,24 +26,28 @@ test('context menus: a pane\'s header, a tab, the terminal; pages are pictures w
   await begin(core, ui, files, { columns: true });
   const elonId = files.idOf(ELON), header = `[data-panel="${files.panel(ELON)}"]`;
   const elonVisible = () => core((k) => k.profile('Elon.buyer').get().view.getVisible());
+  const headerMenu = `
+    - menu:
+      - menuitem "New tab"
+      - menuitem "About this profile…"
+      - menuitem "Sign In to Master…"
+      - menuitem "Close profile"
+      - separator
+      - menuitem "Remove from Project…"`;
   await rightClick(ui, header);
-  expect(await menuRows(ui)).toEqual(['New tab', 'About this profile…', 'Sign In to Master…', 'Close profile', '-', 'Remove from Project…']);
-  const at = await ui.evaluate((sel) => {
-    const h = document.querySelector(sel).getBoundingClientRect(), m = document.querySelector('[role="menu"][data-state="open"]').getBoundingClientRect();
-    return Math.abs(m.left - (h.x + h.width / 2)) <= 4 && Math.abs(m.top - (h.y + h.height / 2)) <= 4;
-  }, header);
-  expect(at, 'at the pointer').toBe(true);
+  await expect(menu(ui)).toMatchAriaSnapshot(headerMenu);
+  const h = await ui.locator(header).boundingBox(), m = await menu(ui).boundingBox();
+  expect(Math.abs(m.x - (h.x + h.width / 2)) <= 4 && Math.abs(m.y - (h.y + h.height / 2)) <= 4, 'at the pointer').toBe(true);
   // The pages are native views above the menu: pictures of them stand in meanwhile.
   expect(await elonVisible()).toBe(false);
   await expect(ui.locator(`[role="region"][data-profile="${elonId}"] [data-testid="page"] [data-testid="snapshot"]`)).toHaveCount(1);
   // Another menu right from this one: the pages stay pictures.
   await ui.locator('#windowMenu').click();
-  await expect.poll(async () => (await menuRows(ui))[0]).toBe('zoom');
+  await expect(menu(ui).getByTestId('zoom-row')).toBeVisible();
   expect(await elonVisible(), 'a page over the second menu').toBe(false);
   // At the header's start: ☰'s menu may lie over its middle.
   await ui.locator(header).click({ button: 'right', position: { x: 8, y: 8 } });
-  await expect.poll(async () => (await menuRows(ui))[0]).toBe('New tab');
-  expect(await menuRows(ui)).toEqual(['New tab', 'About this profile…', 'Sign In to Master…', 'Close profile', '-', 'Remove from Project…']);
+  await expect(menu(ui)).toMatchAriaSnapshot(headerMenu);
   expect(await elonVisible(), 'a page over the third menu').toBe(false);
   const n = await core((k) => k.profile('Elon.buyer').tabs.length);
   await choose(ui, 'New tab');
@@ -52,7 +58,13 @@ test('context menus: a pane\'s header, a tab, the terminal; pages are pictures w
   const tabs = ui.locator(`[role="region"][data-profile="${elonId}"] [role="tab"]`);
   await expect(tabs).toHaveCount(n + 1);
   await rightClick(ui, tabs);
-  expect(await menuRows(ui)).toEqual(['Reload', 'Duplicate', '-', 'Close tab', 'Close other tabs']);
+  await expect(menu(ui)).toMatchAriaSnapshot(`
+    - menu:
+      - menuitem "Reload"
+      - menuitem "Duplicate"
+      - separator
+      - menuitem "Close tab"
+      - menuitem "Close other tabs"`);
   await core((k) => { k.stash.firstTab = k.profile('Elon.buyer').tabs[0]; });
   await choose(ui, 'Close other tabs');
   await expect.poll(() => core((k) => { const e = k.profile('Elon.buyer'); return e.tabs.length === 1 && e.tabs[0] === k.stash.firstTab; })).toBe(true);
@@ -60,25 +72,38 @@ test('context menus: a pane\'s header, a tab, the terminal; pages are pictures w
   await ui.evaluate(() => (window as any).__term.clearSelection());
   // A real right-click (press, release): the menu stays after the button is released. On Linux it opens on the
   // press, just below the pointer, so the release is outside it; on Windows on the release.
-  const term = await mid(core, ui, '[data-testid="terminal"]');
-  await mouse(core, 'mouseDown', term, 'right');
-  if (WIN) await mouse(core, 'mouseUp', term, 'right');
+  const term = await center(ui.getByTestId('terminal'));
+  await ui.mouse.move(term.x, term.y);
+  await ui.mouse.down({ button: 'right' });
+  if (WIN) await ui.mouse.up({ button: 'right' });
   await expect(menu(ui)).toBeVisible(); // once the pages' pictures are there (menuCover): slower under load
-  if (!WIN) await seen(ui, 'mouseup', () => mouse(core, 'mouseUp', term, 'right'));
+  if (!WIN) await seen(ui, 'mouseup', () => ui.mouse.up({ button: 'right' }));
   expect(await menuOpen(ui), 'open after the release').toBe(true);
   await core((k) => k.press(k.shell.win.webContents, 'Escape'));
   await expect(menu(ui)).toHaveCount(0);
   // A press anywhere else closes it.
   await rightClick(ui, '[data-testid="terminal"] .xterm-screen');
-  await menuRows(ui);
-  const bar = await mid(core, ui, '#topbar');
-  await mouse(core, 'mouseDown', bar);
-  await mouse(core, 'mouseUp', bar);
+  await expect(menu(ui)).toBeVisible();
+  const bar = await center(ui.locator('#topbar'));
+  await ui.mouse.move(bar.x, bar.y);
+  await ui.mouse.down();
+  await ui.mouse.up();
   await expect(menu(ui)).toHaveCount(0);
   await rightClick(ui, '[data-testid="terminal"] .xterm-screen');
-  expect(await menuRows(ui), 'nothing selected to copy').toEqual(['Copy (off)', 'Paste', 'Select all', '-', 'Clear', '-', 'Change agent…', 'New Conversation', '-', 'Close']);
-  await anyMenu(ui).first().evaluate((m) => m.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true })));
-  expect(await ui.evaluate(() => document.activeElement.getAttribute('aria-label')), 'arrows move over the enabled rows').toBe('Paste');
+  await expect(menu(ui), 'nothing selected to copy').toMatchAriaSnapshot(`
+    - menu:
+      - menuitem "Copy" [disabled]
+      - menuitem "Paste"
+      - menuitem "Select all"
+      - separator
+      - menuitem "Clear"
+      - separator
+      - menuitem "Change agent…"
+      - menuitem "New Conversation"
+      - separator
+      - menuitem "Close"`);
+  await anyMenu(ui).first().press('ArrowDown');
+  await expect(item(ui, 'Paste'), 'arrows move over the enabled rows').toBeFocused();
   await choose(ui, 'Select all');
   await expect.poll(() => ui.evaluate(() => (window as any).__term.hasSelection())).toBe(true);
   await ui.evaluate(() => (window as any).__term.clearSelection());
@@ -106,7 +131,7 @@ test('context menus: a pane\'s header, a tab, the terminal; pages are pictures w
   // machine the window manager's focus, coming late after another window went, may take it away for a moment; a read
   // refused pastes nothing, so a second press cannot paste twice.
   await expect(async () => {
-    await focusWindow(core, ui); await ui.evaluate(() => (window as any).__term.focus());
+    await focusWindow(core, ui); await termKeys(ui).focus();
     await paste();
     await expect.poll(async () => (await output()).slice(before).includes('kulisa-paste'), { timeout: 2000 }).toBe(true);
   }).toPass({ timeout: 12000 });
@@ -136,19 +161,64 @@ test('context menus: a pane\'s header, a tab, the terminal; pages are pictures w
   // Links in the terminal, marked by the agent (OSC 8) or in plain text: Ctrl+click asks where, at the pointer: a tab of
   // one of the open profiles, or the user's browser. A plain click, or an address that is not http(s), does nothing.
   const write = (text: string) => ui.evaluate((t) => new Promise((r) => (window as any).__term.write(t, r)), text);
-  await write(`\r\n\x1b]8;;${SITE}/app\x07the app\x1b]8;;\x07 and https://example.com/docs\r\n`);
+  const osc8 = (uri: string, text: string) => `\x1b]8;;${uri}\x07${text}\x1b]8;;\x07`;
+  await write(`\r\n${osc8(`${SITE}/app`, 'the app')} and ${osc8('https://example.com/docs', 'the docs')} ${osc8('javascript:alert(1)', 'a script')}\r\n`);
   expect(await ui.evaluate(() => (window as any).__term.options.linkHandler === (window as any).termLinks), "the agent's links (OSC 8) are Kulisa's").toBe(true);
-  const click = (uri: string, mods: object) => ui.evaluate(([u, m]) => (window as any).termLinks.activate(new MouseEvent('click', { clientX: 120, clientY: 600, ...m }), u), [uri, mods] as const);
-  const ctrlKey = MAC ? { metaKey: true } : { ctrlKey: true }; // ⌘+click on macOS
-  await click(`${SITE}/app`, {});
-  await click('javascript:alert(1)', ctrlKey);
-  await frames(ui); // activate decides as it is called; a menu it opened would be drawn by now
+  // Where a text starts on the screen (in a line as written, its wrapped rows joined; at the cell's middle, a row
+  // lower with below): its cell from xterm's buffer (drawn on a canvas, no element per cell), on the screen's box.
+  const spot = async (text: string, below = 0) => {
+    const s = await ui.locator('[data-testid="terminal"] .xterm:visible .xterm-screen').boundingBox();
+    const c = await ui.evaluate(([t0, bl]) => {
+      const t = (window as any).__term, b = t.buffer.active;
+      for (let row = t.rows - 1; row >= 0; row--) {
+        if (b.getLine(b.viewportY + row).isWrapped) continue;
+        let line = '', r = row;
+        do line += b.getLine(b.viewportY + r).translateToString(); while (b.getLine(b.viewportY + ++r)?.isWrapped);
+        const i = line.indexOf(t0);
+        if (i >= 0) return { col: i % t.cols + 1.5, row: row + Math.floor(i / t.cols) + bl + 0.5, cols: t.cols, rows: t.rows };
+      }
+      return null;
+    }, [text, below] as const);
+    return { x: s.x + c.col * s.width / c.cols, y: s.y + c.row * s.height / c.rows };
+  };
+  // A path is a link once the main process says it exists (asked as the pointer comes over its line): its full path
+  // shown on hover. An agent's link (OSC 8) is one at once: its address shown. With Ctrl (⌘) held, as a Ctrl+click
+  // comes; let go after.
+  const linkShown = ui.locator('[data-testid="terminal"] [title]:not([title=""])');
+  const hoverAt = async (text: string, below: number, shown: string) => {
+    const p = await spot(text, below);
+    await ui.mouse.move(p.x, p.y);
+    await expect(linkShown).toHaveAttribute('title', shown);
+    return p;
+  };
+  const ctrlClick = async () => {
+    await ui.keyboard.down('ControlOrMeta');
+    await ui.mouse.down();
+    await ui.mouse.up();
+    await ui.keyboard.up('ControlOrMeta');
+  };
+  // Ctrl+click on a text once its link shows what it is.
+  const pressAt = async (text: string, shown: string, below = 0) => {
+    await hoverAt(text, below, shown);
+    await frames(ui);
+    await ctrlClick();
+  };
+  await hoverAt('the app', 0, `${SITE}/app`);
+  await ui.mouse.down();
+  await ui.mouse.up();
+  await pressAt('a script', 'javascript:alert(1)');
+  await frames(ui); // the link handler decides as it is called; a menu it opened would be drawn by now
   expect(await anyMenu(ui).count(), 'a plain click, or not http(s): nothing').toBe(0);
   const names: string[] = await ui.evaluate(() => (window as any).state.map((p: { name: string }) => p.name));
-  await click(`${SITE}/app`, ctrlKey);
-  expect(await menuRows(ui)).toEqual([`# ${SITE}/app`, ...names.map((x) => `Open in ${x}`), '-', 'Open in your browser']);
+  await pressAt('the app', `${SITE}/app`);
+  await expect(menu(ui)).toMatchAriaSnapshot(`
+    - menu:
+      - text: ${JSON.stringify(`${SITE}/app`)}
+${names.map((x) => `      - menuitem ${JSON.stringify(`Open in ${x}`)}`).join('\n')}
+      - separator
+      - menuitem "Open in your browser"`);
   // The keyboard moving within the window (its page getting it back puts it on the terminal) leaves the menu open.
-  await ui.evaluate(() => (window as any).__term.focus());
+  await termKeys(ui).focus();
   await frames(ui); // the focus's events handled as it moved; a menu closing would be gone by now
   expect(await menuOpen(ui), 'the keyboard moved within the window: the menu stays').toBe(true);
   const linked: string = await ui.evaluate(() => (window as any).state[0].id);
@@ -158,8 +228,8 @@ test('context menus: a pane\'s header, a tab, the terminal; pages are pictures w
   await core((k, id) => { const p = k.shell.profiles.get(id); p.closeTab(p.get().id); }, linked);
   const opened = () => core((k) => [...k.openedExternally]); // app.ts: the user's browser, noted
   const wasOpened = (await opened()).length;
-  await click('https://example.com/docs', ctrlKey);
-  await menuRows(ui);
+  await pressAt('the docs', 'https://example.com/docs');
+  await expect(menu(ui)).toBeVisible();
   await choose(ui, 'Open in your browser');
   await expect.poll(async () => (await opened()).slice(wasOpened)).toEqual(['https://example.com/docs']);
 
@@ -173,37 +243,6 @@ test('context menus: a pane\'s header, a tab, the terminal; pages are pictures w
   // A path that does not exist beside one that does: one answer for the line's paths (a link, shown on hover, says it came).
   const lines = ['see kl-links/a.txt:12.', run, 'kl-links/missing.txt or kl-links/a.txt', `${dir} here`, `kl-links/${long}`];
   await write(`\r\n${lines.join('\r\n')}\r\n`);
-  // Where a text starts on the screen (in a line as written, its wrapped rows joined; at the cell's middle, a row
-  // lower with below), and a press there with Ctrl (⌘).
-  const spot = (text: string, below = 0) => ui.evaluate(([t0, bl]) => {
-    const t = (window as any).__term, b = t.buffer.active, s = document.querySelector('[data-testid="terminal"] .xterm-screen').getBoundingClientRect();
-    for (let row = t.rows - 1; row >= 0; row--) {
-      if (b.getLine(b.viewportY + row).isWrapped) continue;
-      let line = '', r = row;
-      do line += b.getLine(b.viewportY + r).translateToString(); while (b.getLine(b.viewportY + ++r)?.isWrapped);
-      const i = line.indexOf(t0);
-      if (i >= 0) return { x: s.x + (i % t.cols + 1.5) * s.width / t.cols, y: s.y + (row + Math.floor(i / t.cols) + bl + 0.5) * s.height / t.rows };
-    }
-    return null;
-  }, [text, below] as const);
-  const mods: Mods = [MAC ? 'meta' : 'control'];
-  const z = await uiZoom(core);
-  // A path is a link once the main process says it exists (asked as the pointer comes over its line): its full path
-  // shown on hover. An agent's link (OSC 8) is one at once: its address shown.
-  const hovered = () => ui.evaluate(() => [...document.querySelectorAll<HTMLElement>('[data-testid="terminal"] [title]')].map((e) => e.title).find(Boolean) ?? '');
-  const hoverAt = async (text: string, below: number, shown: string) => {
-    const p = scaled(z, await spot(text, below));
-    await mouse(core, 'mouseMove', p, 'left', mods);
-    await expect.poll(hovered).toBe(shown);
-    return p;
-  };
-  // Ctrl+click on a text once its link shows what it is.
-  const pressAt = async (text: string, shown: string, below = 0) => {
-    const p = await hoverAt(text, below, shown);
-    await frames(ui);
-    await mouse(core, 'mouseDown', p, 'left', mods);
-    await mouse(core, 'mouseUp', p, 'left', mods);
-  };
   const a = path.join(dir, 'a.txt');
   await core((k) => {
     const e = k.electron, g: any = k.stash.links = { openPath: e.shell.openPath, showItemInFolder: e.shell.showItemInFolder, files: [] };
@@ -211,45 +250,50 @@ test('context menus: a pane\'s header, a tab, the terminal; pages are pictures w
     e.shell.showItemInFolder = (p: string) => { g.files.push(`show ${p}`); };
   });
   const handed = () => core((k): string[] => k.stash.links.files);
+  const fileMenu = `
+    - menu:
+      - menuitem "Open"
+      - menuitem "Show in Folder"`;
   try {
     // The menu has no heading: the path is in the terminal. Which file a link is, by what the OS is handed.
     const chooseFile = async (row: string) => { const n0 = (await handed()).length; await choose(ui, row); await expect.poll(async () => (await handed()).length).toBe(n0 + 1); };
     await pressAt('a.txt:12', a);
-    expect(await menuRows(ui), 'relative, with :line').toEqual(['Open', 'Show in Folder']);
+    await expect(menu(ui), 'relative, with :line').toMatchAriaSnapshot(fileMenu);
     await chooseFile('Open');
     await pressAt(run, run);
-    expect(await menuRows(ui), 'it would run: shown only').toEqual(['Show in Folder']);
+    await expect(menu(ui), 'it would run: shown only').toMatchAriaSnapshot(`
+      - menu:
+        - menuitem "Show in Folder"`);
     await chooseFile('Show in Folder');
     await pressAt(`${dir} here`, dir);
-    expect(await menuRows(ui), 'a folder').toEqual(['Open', 'Show in Folder']);
+    await expect(menu(ui), 'a folder').toMatchAriaSnapshot(fileMenu);
     await chooseFile('Show in Folder');
     await pressAt(`kl-links/${long.slice(0, 10)}`, path.join(dir, long), 1);
-    expect(await menuRows(ui), 'wrapped over two rows: one link').toEqual(['Open', 'Show in Folder']);
+    await expect(menu(ui), 'wrapped over two rows: one link').toMatchAriaSnapshot(fileMenu);
     await chooseFile('Show in Folder');
     // A file an agent marks as a link (OSC 8): Claude Code gives its path as it is, others a file:// address, with no
     // host or this computer's; another host's is no file here (below).
     const fileUrl = (host: string) => `file://${host}${url.pathToFileURL(path.join(dir, 'a.txt')).pathname}`;
     for (const uri of [path.join(dir, 'a.txt'), fileUrl(''), fileUrl(os.hostname())]) {
-      await write(`\x1b]8;;${uri}\x07marked-file\x1b]8;;\x07\r\n`);
+      await write(`${osc8(uri, 'marked-file')}\r\n`);
       await pressAt('marked-file', uri);
-      expect(await menuRows(ui), uri).toEqual(['Open', 'Show in Folder']);
+      await expect(menu(ui), uri).toMatchAriaSnapshot(fileMenu);
       await chooseFile('Show in Folder');
     }
     await hoverAt('kl-links/a.txt', 0, a); // its line's answer in (the lowest a.txt on the screen)
-    const missing = scaled(z, await spot('kl-links/missing.txt'));
-    await mouse(core, 'mouseMove', missing, 'left', mods);
+    const missing = await spot('kl-links/missing.txt');
+    await ui.mouse.move(missing.x, missing.y);
     await frames(ui);
-    expect(await hovered(), 'a path that does not exist is no link').toBe('');
-    await mouse(core, 'mouseDown', missing, 'left', mods); await mouse(core, 'mouseUp', missing, 'left', mods);
+    await expect(linkShown, 'a path that does not exist is no link').toHaveCount(0);
+    await ctrlClick();
     await frames(ui); // a menu the press opened would be drawn by now
     expect(await anyMenu(ui).count(), 'a path that does not exist is no link').toBe(0);
-    await write(`\x1b]8;;${fileUrl('elsewhere.example')}\x07other-host\x1b]8;;\x07\r\n`);
-    const other = await hoverAt('other-host', 0, fileUrl('elsewhere.example'));
+    await write(`${osc8(fileUrl('elsewhere.example'), 'other-host')}\r\n`);
+    await hoverAt('other-host', 0, fileUrl('elsewhere.example'));
     await frames(ui);
-    await mouse(core, 'mouseDown', other, 'left', mods);
     // The click asks the main process, which answers another host's file at once (no disk read): a question after
     // it is answered after it.
-    await seen(ui, 'mouseup', () => mouse(core, 'mouseUp', other, 'left', mods));
+    await seen(ui, 'mouseup', ctrlClick);
     await ipcSettled(ui);
     await frames(ui);
     expect(await anyMenu(ui).count(), "another computer's file is not opened here").toBe(0);
@@ -262,9 +306,36 @@ test('context menus: a pane\'s header, a tab, the terminal; pages are pictures w
   await ui.locator('#windowMenu').click();
   // The arrangements as pictures, a short name under each, the full words in the tooltip.
   // No Exit on macOS: ⌘Q and the app menu's Quit there (TopBar.vue).
-  const exit = MAC ? [] : ['-', 'Exit'];
-  expect((await menuRows(ui)).slice(3)).toEqual(['Language', '-', '# Arrange panels', 'arrange: Columns, Two by two, One at a time', '-', 'Keyboard Shortcuts', '-',
-    'Documentation', 'GitHub', 'Report a Problem…', 'About Kulisa', ...exit]);
+  await expect(menu(ui)).toMatchAriaSnapshot(`
+    - menu:
+      - text: Zoom
+      - menuitem "Zoom out"
+      - status
+      - menuitem "Zoom in"
+      - group:
+        - text: Theme
+        - menuitemradio "Dark"
+        - menuitemradio "Light"
+        - menuitemradio "System"
+      - group:
+        - text: Tasks bar
+        - menuitemradio "Top"
+        - menuitemradio "Bottom"
+      - menuitem "Language"
+      - separator
+      - text: Arrange panels
+      - menuitem "Columns"
+      - menuitem "Two by two"
+      - menuitem "One at a time"
+      - separator
+      - menuitem "Keyboard Shortcuts"
+      - separator
+      - menuitem "Documentation"
+      - menuitem "GitHub"
+      - menuitem "Report a Problem…"
+      - menuitem "About Kulisa"${MAC ? '' : `
+      - separator
+      - menuitem "Exit"`}`);
   expect(await anyMenu(ui).locator('svg:not([hidden]) > use').evaluateAll((us) => us.map((u) => u.getAttribute('href'))), 'each row with its icon')
     .toEqual(['#i-zoom', '#i-theme', '#i-projects', '#i-language', '#i-chevron', '#i-arrange', '#i-keyboard', '#i-docs', '#i-github', '#i-bug', '#i-logo', ...(MAC ? [] : ['#i-exit'])]);
   const pics = await anyMenu(ui).getByTestId('arrange-row').getByRole('menuitem').evaluateAll((bs) => bs.map((b) => ({ title: (b as HTMLElement).title,
@@ -276,13 +347,13 @@ test('context menus: a pane\'s header, a tab, the terminal; pages are pictures w
   await expect.poll(async () => (await pageBox(ui, files, ELON)) === null && viewOn(core, ui, files, SAM)).toBe(true);
   // ☰'s links open in the user's browser.
   await ui.locator('#windowMenu').click();
-  await menuRows(ui);
+  await expect(menu(ui)).toBeVisible();
   await choose(ui, 'GitHub');
   await expect.poll(async () => (await opened()).slice(wasOpened)).toEqual(['https://example.com/docs', 'https://github.com/cosmotools/kulisa']);
 
   // Exit quits as the last window's × does: asked only when an agent works. On macOS the app menu's Quit (⌘Q) does
   // (no Exit there: above), its hidden window shown for the question.
-  await core((k) => { k.shell.task.promptTarget().state = 'working'; k.answer = false; });
+  await core((k) => { k.shell.task.promptTarget().state = 'working'; });
   if (MAC) {
     await core((k) => {
       k.shell.win.hide();
@@ -291,52 +362,49 @@ test('context menus: a pane\'s header, a tab, the terminal; pages are pictures w
     await expect.poll(() => core((k) => k.shell.win.isVisible())).toBe(true);
   } else {
     await ui.locator('#windowMenu').click();
-    await menuRows(ui);
+    await expect(menu(ui)).toBeVisible();
     await choose(ui, 'Exit');
   }
-  await answered(core, ui);
-  expect(await core((k) => k.asked.pop().message)).toBe('Quit Kulisa?');
+  expect((await answer(ui, false)).message).toBe('Quit Kulisa?');
   expect(await core((k) => !k.shell.win.isDestroyed() && k.shell.open.size > 0), 'Kulisa goes on when the human says no').toBe(true);
-  await core((k) => { k.shell.task.promptTarget().state = null; k.answer = true; });
+  await core((k) => { k.shell.task.promptTarget().state = null; });
 });
 
 test("menus with the mouse and the keyboard, as the OS's: a press on ☰, a drag to a row and the release there chooses it; a click opens, the next closes; a right-click's release over a row chooses nothing; Enter and the arrows; the keyboard back where it was; leaving the window closes it", async ({ core, ui, files }) => {
   await begin(core, ui, files, { columns: true });
-  const z = await uiZoom(core);
-  const rowAt = async (label: string) => scaled(z, await ui.evaluate((l) => {
-    const r = [...document.querySelectorAll('[role="menu"][data-state="open"] [role^="menuitem"]')].find((e) => e.getAttribute('aria-label') === l).getBoundingClientRect();
-    return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
-  }, label));
+  const rowAt = (label: string) => center(item(ui, label));
   const shortcuts = ui.locator('#shortcuts');
   const press = (keyCode: string) => core((k, c) => k.press(k.shell.win.webContents, c), keyCode);
   const output = () => core((k) => k.ptyOutput());
 
   // Pressed on ☰, dragged to Keyboard Shortcuts, let go there: chosen.
-  const menuButton = await mid(core, ui, '#windowMenu');
-  await mouse(core, 'mouseDown', menuButton);
+  const menuButton = await center(ui.locator('#windowMenu'));
+  const clickMenuButton = async () => { await ui.mouse.move(menuButton.x, menuButton.y); await ui.mouse.down(); await ui.mouse.up(); };
+  await ui.mouse.move(menuButton.x, menuButton.y);
+  await ui.mouse.down();
   await expect(menu(ui)).toBeVisible();
   const to = await rowAt('Keyboard Shortcuts');
-  await mouse(core, 'mouseMove', to, 'left', ['leftbuttondown']);
-  await mouse(core, 'mouseUp', to);
+  await ui.mouse.move(to.x, to.y);
+  await ui.mouse.up();
   await expect(shortcuts).toHaveAttribute('data-state', 'open');
   await shortcuts.locator('header').getByRole('button', { name: 'Close' }).click();
   await expect(ui.locator('#shortcuts[data-state="open"]')).toHaveCount(0);
 
   // A click opens it (the click after the press is not a second toggle); a click on the same button closes it.
-  await seen(ui, 'mouseup', async () => { await mouse(core, 'mouseDown', menuButton); await mouse(core, 'mouseUp', menuButton); });
+  await seen(ui, 'mouseup', clickMenuButton);
   await expect(menu(ui)).toBeVisible();
   expect(await anyMenu(ui).count(), 'open after the click').toBeGreaterThan(0);
-  await mouse(core, 'mouseDown', menuButton); await mouse(core, 'mouseUp', menuButton);
+  await clickMenuButton();
   await expect(anyMenu(ui)).toHaveCount(0);
 
   // The keyboard: Enter on ☰ opens it on its first row, ↓ goes to the next, Esc closes it, ☰ has the keyboard again.
   await ui.locator('#windowMenu').focus();
   await press('Enter');
   await expect(menu(ui)).toBeVisible();
-  await expect.poll(() => ui.evaluate(() => !!document.activeElement.closest('[role="menu"][data-state="open"]'))).toBe(true);
-  const first = await ui.evaluate(() => document.activeElement.textContent);
+  await expect(ui.locator('[role="menu"][data-state="open"]:focus-within')).toHaveCount(1);
+  const first = await ui.locator(':focus').textContent();
   await press('Down');
-  await expect.poll(() => ui.evaluate(() => document.activeElement.textContent)).not.toBe(first);
+  await expect(ui.locator(':focus')).not.toHaveText(first);
   await press('Escape');
   await expect(anyMenu(ui)).toHaveCount(0);
   await expect(ui.locator('#windowMenu')).toBeFocused();
@@ -344,29 +412,30 @@ test("menus with the mouse and the keyboard, as the OS's: a press on ☰, a drag
   // A right-click in the terminal: on Linux the menu opens on the press, and letting go over a row chooses nothing; on
   // Windows it opens on the release, which chooses nothing either. Esc closes it, and the keyboard is back in the
   // terminal.
-  await ui.evaluate(() => (window as any).__term.focus());
+  await termKeys(ui).focus();
   await core((k) => k.electron.clipboard.writeText('kl-not-pasted'));
-  const at = await mid(core, ui, '[data-testid="terminal"] .xterm-screen');
-  await mouse(core, 'mouseDown', at, 'right');
-  if (WIN) await mouse(core, 'mouseUp', at, 'right');
+  const at = await center(ui.locator('[data-testid="terminal"] .xterm:visible .xterm-screen'));
+  await ui.mouse.move(at.x, at.y);
+  await ui.mouse.down({ button: 'right' });
+  if (WIN) await ui.mouse.up({ button: 'right' });
   await expect(menu(ui)).toBeVisible();
   const before = (await output()).length;
   if (!WIN) {
     const paste = await rowAt('Paste');
-    await mouse(core, 'mouseMove', paste, 'right', ['rightbuttondown']);
-    await seen(ui, 'mouseup', () => mouse(core, 'mouseUp', paste, 'right'));
+    await ui.mouse.move(paste.x, paste.y);
+    await seen(ui, 'mouseup', () => ui.mouse.up({ button: 'right' }));
   }
   expect(await anyMenu(ui).count(), 'still open').toBeGreaterThan(0);
   await sentAll(core, ui);
   expect((await output()).slice(before), 'nothing pasted').not.toContain('kl-not-pasted');
   await press('Escape');
   await expect(anyMenu(ui)).toHaveCount(0);
-  expect(await ui.evaluate(() => !!document.activeElement.closest('[data-testid="terminal"]')), 'the keyboard back in the terminal').toBe(true);
+  await expect(ui.locator('[data-testid="terminal"]:focus-within'), 'the keyboard back in the terminal').toHaveCount(1);
 
   // A profile's page in the window taking the keyboard (as one loading did on macOS) leaves a menu open: the window is
   // not left, and the page's blur would close the menu under the hand.
   await focusWindow(core, ui);
-  await mouse(core, 'mouseDown', menuButton); await mouse(core, 'mouseUp', menuButton);
+  await clickMenuButton();
   await expect(menu(ui)).toBeVisible();
   // The window's page has lost the keyboard only for a moment when it is looked at (page-focus.ts gives it back): its
   // blur noted.
@@ -383,7 +452,7 @@ test("menus with the mouse and the keyboard, as the OS's: a press on ☰, a drag
   await focusWindow(core, ui);
 
   // Leaving the window (another one takes the focus) closes a menu, as the OS's own menus close.
-  await mouse(core, 'mouseDown', menuButton); await mouse(core, 'mouseUp', menuButton);
+  await clickMenuButton();
   await expect(menu(ui)).toBeVisible();
   try {
     await core((k) => {

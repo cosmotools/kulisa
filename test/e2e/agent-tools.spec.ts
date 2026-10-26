@@ -187,17 +187,17 @@ test('agent: keys, hover, select, files, waiting, evaluate, back and forward; di
   // The agent's action answers its own dialog: none is shown.
   const view = () => core((k) => k.profile('Sam.seller').get().view.getVisible());
   const pane = ui.locator(`[role="region"][data-profile="${sam}"]`), paneDialog = pane.getByRole('dialog');
-  const dialogOpen = () => paneDialog.evaluateAll((ds) => ds.some((d) => (d as HTMLElement).dataset.state === 'open'));
+  const openDialog = pane.locator('[role="dialog"][data-state="open"]');
   expect((await call('browser_click', del)).text).toMatch(/asked: confirm "Delete the draft\?"; dismissed/);
   expect(await out()).toBe('kept');
   expect((await call('browser_click', { ...del, dialog: 'accept' })).text).toMatch(/accepted/);
   expect(await out()).toBe('deleted');
-  expect(await dialogOpen()).toBe(false);
+  await expect(openDialog).toHaveCount(0);
   // A dialog the agent did not open is the human's, in its pane over a picture of the page (not Electron's message
   // box in the middle of the window, which said nothing of where it came from); the human answers there.
   const ask = async (js: string) => {
     await call('browser_evaluate', { ...p, function: `() => { setTimeout(() => out.textContent = String(${js})); }` });
-    await expect.poll(dialogOpen).toBe(true);
+    await expect(openDialog).toHaveCount(1);
   };
   await ask("confirm('Yours?\\nReally.')");
   await expect(paneDialog.locator('h2')).toHaveText(`127.0.0.1:${PORT} says`);
@@ -206,9 +206,12 @@ test('agent: keys, hover, select, files, waiting, evaluate, back and forward; di
   expect(await view(), 'the page drawn as a picture under its dialog').toBe(false);
   // The page does nothing until it is answered: the agent's tools say so at once rather than wait.
   await expect(call('browser_snapshot', p)).rejects.toThrow(/shows a confirm \("Yours\?\nReally\."\) for the human to answer/);
-  expect(await pane.getByTestId('page').evaluate((c: HTMLElement) => c.style.getPropertyValue('--picture'))).toMatch(/^url\("data:image\/jpeg/);
+  await expect(pane.getByTestId('page')).toHaveCSS('--picture', /^url\("data:image\/jpeg/);
   // Gone from the pane, and the answer in the main process (it goes there after the pane has closed it).
-  const closed = () => expect.poll(async () => !(await dialogOpen()) && await core((k) => !k.profile('Sam.seller').get().dialog)).toBe(true);
+  const closed = async () => {
+    await expect(openDialog).toHaveCount(0);
+    await expect.poll(() => core((k) => !k.profile('Sam.seller').get().dialog)).toBe(true);
+  };
   await paneDialog.getByRole('button', { name: 'OK' }).click();
   await closed();
   expect(await out()).toBe('true');

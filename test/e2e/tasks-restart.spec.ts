@@ -3,7 +3,7 @@
 import fs from 'fs';
 import path from 'path';
 import { test, expect } from './fixtures.ts';
-import { SITE, who, resourcesHeight, invoke, notLoading } from './helpers.ts';
+import { SITE, who, box, resourcesHeight, invoke, notLoading, arrange } from './helpers.ts';
 import { SAM, ELON, committed, begin, bothOn, newTask, showTask } from './tasks-helpers.ts';
 
 test('after a restart: the other task waits in the bar with its tabs, loads when shown, still signed in; a closed one stays closed', async ({ core, ui, call, files, restart }) => {
@@ -31,7 +31,7 @@ test('after a restart: the other task waits in the bar with its tabs, loads when
   await notLoading(ui);
 
   const ui2 = await restart();
-  await expect.poll(() => ui2.locator(`#projectTabs [data-project="${pid}"]`).allTextContents()).toEqual(['task-1', 'Feature-X']);
+  await expect(ui2.locator(`#projectTabs [data-project="${pid}"]`)).toHaveText(['task-1', 'Feature-X']);
   expect(await core((k, id) => [...k.shell.taskByKey(id).project.tasks.values()][2].entry.closed, first)).toBe(true);
   expect(await core((k, key) => k.shell.taskByKey(key).loaded, second)).toBe(false);
   // Left loaded in the background: its tabs saved as Kulisa quit, not again as they closed (none left at last).
@@ -55,8 +55,9 @@ test('after a restart: the other task waits in the bar with its tabs, loads when
 
 test('after a restart: the grid is as it was left (preset "grid")', async ({ core, ui, files, restart }) => {
   await begin(core, ui, files, { featureX: true });
-  await ui.evaluate(() => (window as any).__layoutPreset('grid'));
-  // Saved as laid out (the task's layout.json, 300 ms after the grid's last change: lib/grid.ts), before the restart.
+  await arrange(ui, 'grid');
+  // Saved as laid out (the task's layout.json, 300 ms after the grid's last change: lib/grid.ts), before the restart;
+  // the grid's shape from dockview's API.
   await expect.poll(async () => {
     const now = JSON.stringify(await ui.evaluate(() => (window as any).__dock.toJSON().grid));
     try { return JSON.stringify(files.json(files.pfile('layout.json')).grid) === now; } catch { return false; }
@@ -64,12 +65,12 @@ test('after a restart: the grid is as it was left (preset "grid")', async ({ cor
 
   const ui2 = await restart();
   const saved = files.savedResourcesHeight(); // before anything here changes the grid
-  const box = (sel: string) => ui2.evaluate((s) => { const r = document.querySelector(s)?.getBoundingClientRect(); return r ? { x: r.x, width: r.width } : { x: -1, width: 0 }; }, sel);
+  const at = async (sel: string) => (await box(ui2, sel)) ?? { x: -1, width: 0 };
   const sam = `[role="region"][data-profile="${files.idOf(SAM)}"]`, elon = `[role="region"][data-profile="${files.idOf(ELON)}"]`;
   // Once the grid is laid out: Sam's column, Elon's, the terminal right of them.
   await expect.poll(async () => {
     if (await ui2.locator(`${sam}, ${elon}`).count() !== 2) return false;
-    const s = await box(`${sam} [data-testid="page"]`), e = await box(`${elon} [data-testid="page"]`), term = await box('[data-testid="terminal"]');
+    const s = await at(`${sam} [data-testid="page"]`), e = await at(`${elon} [data-testid="page"]`), term = await at('[data-testid="terminal"]');
     return s.width > 0 && s.x < e.x && term.x > e.x + e.width - 1;
   }, { timeout: 10000 }).toBe(true); // a loaded machine takes over 3 s
   expect(Math.abs((await resourcesHeight(ui2)) - saved), 'the Resources island as tall as it was left (dockview rounds its panels as it restores them)').toBeLessThanOrEqual(3);

@@ -79,6 +79,11 @@ passes, alone and with its file.
 
 ## Writing an e2e test
 
+- **Playwright's API, not our own**: an action is a locator's (`click`, `dblclick`, `click({ button: 'middle' })`,
+  `press`, `fill`, `selectText`, `focus`, `dragTo`), a check a web-first assertion (`toHaveAttribute`, `toHaveCSS`,
+  `toHaveText`, `toMatchAriaSnapshot`), never an event dispatched or the DOM read in `evaluate` where one of those does
+  it. Own code only where Playwright has none (the main process, a native view, xterm's canvas, "nothing happened"),
+  its reason in a comment.
 - **Act as the human or the agent**: the window's controls, the MCP tools (`call`). The core only to set up what
   another test covers.
 - **Find elements as the human does**: role and name, label, text, an existing id or `data-*` (`data-profile`,
@@ -95,8 +100,10 @@ passes, alone and with its file.
 - **Kulisa's waits are moved, not waited**: `k.clock.hold(ms)`, `advance(ms)`, `release()`; a time Kulisa reads is
   dated back; a slow mock waits for the test.
 - **Before a click** wait for the window: `k.settled()`, `notLoading`, the grid's slide over.
-- **Menus and dialogs are Reka UI's**: `menuRows`, `choose`, `closeMenu`, `rightClick`, `plusMenu`; a menu is shown
-  once `[data-ready]`. `focusWindow(core, ui)` first, or no focus events. Kulisa's questions are answered by `k.answer`.
+- **Menus and dialogs are Reka UI's**: a menu's rows by `toMatchAriaSnapshot` (whole: `children: 'equal'` in the
+  config), `choose`, `closeMenu`, `rightClick`, `plusMenu`; a menu is shown once `[data-ready]`. `focusWindow(core, ui)`
+  first, or no focus events. Kulisa's question is answered in the window that asks it, `answer(page, …)`; a call that
+  waits for it is started first and awaited after.
 - **Never await a script in a window that it closes** (the reply is dropped): `closeSettings`.
 - Names say what the human sees, as a sentence; comments say why.
 - Writes stay in the test's folder (`files.userData`, `files.project`); a unit test removes its temporary folder.

@@ -11,9 +11,10 @@ import type { TaskTerminal } from '../../src/main/tasks.ts';
 import type { Question } from '../../src/shared/types.ts';
 import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
-import { termTabs, SITE, CHECKOUT, MAC, WIN, echoed, holdPointer, ipcSettled, menu, menuRows, choose, closeMenu, rightClick, box, viewOn, focusWindow, closeSettings, termText, invoke, removed } from './helpers.ts';
+import { termTabs, SITE, CHECKOUT, MAC, WIN, echoed, frames, holdPointer, ipcSettled, menu, choose, closeMenu, rightClick, box, viewOn, focusWindow, closeSettings, termText, invoke, answer, removed, termKeys } from './helpers.ts';
 
 const NO_SHOT = 'macOS: the app that started the tests (the terminal) may not record the screen';
+const ACCENT = 'rgb(53, 116, 240)'; // a main button's, in the dark theme
 
 const sam = (core: Core) => core(async (k, url) => (await k.ensureProfile('Sam', url)).id, `${SITE}/app`);
 // The terminal named so, once its shell runs: its id and key.
@@ -57,10 +58,8 @@ test('terminal: Unicode 11 widths (cursor stays put after emoji), bundled font, 
   expect(font.family).toBe(true);
   expect(font.renderer).toBe('webgl');
   // What is left under a whole row is shared above and below the rows.
-  const { above, below } = await ui.evaluate(() => {
-    const h = document.querySelector('[data-testid="terminal"] .xterm-host').getBoundingClientRect(), r = document.querySelector('[data-testid="terminal"] .xterm-screen').getBoundingClientRect();
-    return { above: r.top - h.top, below: h.bottom - r.bottom };
-  });
+  const h = await ui.locator('[data-testid="terminal"] .xterm-host').boundingBox(), r = await ui.locator('[data-testid="terminal"] .xterm-screen').boundingBox();
+  const above = r.y - h.y, below = h.y + h.height - (r.y + r.height);
   expect(Math.abs(above - below) <= 1, `the rows in the middle: ${above} above, ${below} below`).toBe(true);
 });
 
@@ -101,8 +100,8 @@ test('terminal: one opened in a hidden window starts at once, at its room: a hid
     await ui.evaluate(() => (window as any).act('terminal:open'));
     const sh = await terminal(core, 'Terminal');
     expect(await core((k) => { const p = (k.shell.task.terminal('Terminal') as TaskTerminal).pty; return { cols: p.cols, rows: p.rows }; })).toEqual(await term(ui));
-    // A DOM click: Playwright's waits for frames, which a hidden page does not draw.
-    await ui.evaluate((id) => document.querySelector<HTMLElement>(`nav[aria-label="Terminals"] [data-id="${id}"] [title^="Close"]`).click(), sh.id);
+    // A click event, not a click: Playwright's click waits for frames, which a hidden page does not draw.
+    await ui.locator(`nav[aria-label="Terminals"] [data-id="${sh.id}"] [title^="Close"]`).dispatchEvent('click');
     await expect.poll(() => terminals(core)).toBe(1);
   } finally { await core((k) => k.shell.win.restore()); }
   await expect.poll(() => ui.evaluate(() => document.hidden)).toBe(false);
@@ -116,12 +115,9 @@ test("terminal: dictation where the agent has its own: the right Ctrl held anywh
   const mic = ui.locator('[aria-label="Speak to the agent"]');
   await expect(mic).toBeEnabled();
   // At the row's end, after + and the task's repositories, inside the row: no row of its own.
-  const { row, add, m } = await ui.evaluate(() => {
-    const r = (s: string) => document.querySelector(s).getBoundingClientRect().toJSON();
-    return { row: r('[data-testid="terminal-tabs"]'), add: r('#termAdd'), m: r('[aria-label="Speak to the agent"]') };
-  });
-  expect(m.left > add.right && row.right - m.right <= 12, `at the row's end: ${JSON.stringify({ row, add, m })}`).toBe(true);
-  expect(m.top >= row.top && m.bottom <= row.bottom, 'in the row').toBe(true);
+  const row = await ui.getByTestId('terminal-tabs').boundingBox(), add = await ui.locator('#termAdd').boundingBox(), m = await mic.boundingBox();
+  expect(m.x > add.x + add.width && row.x + row.width - (m.x + m.width) <= 12, `at the row's end: ${JSON.stringify({ row, add, m })}`).toBe(true);
+  expect(m.y >= row.y && m.y + m.height <= row.y + row.height, 'in the row').toBe(true);
   const name = MAC ? 'Right ⌘' : 'Right Ctrl'; // Apple keyboards have no right Ctrl
   expect(await mic.getAttribute('title'), "in Kulisa's language (☰ → Language), with the key")
     .toBe(`Speak to the agent in English: hold ${name} anywhere, or press it once and again; or this button the same way`);
@@ -174,7 +170,7 @@ test("terminal: dictation where the agent has its own: the right Ctrl held anywh
   await tap('page');
   await stopped('tap in the page');
   // In the window too (the terminal has the keyboard); the window losing the keyboard lets go.
-  await ui.evaluate(() => document.querySelector<HTMLElement>('[data-testid="terminal"] .xterm-helper-textarea').focus());
+  await termKeys(ui).focus();
   n = await keys();
   await ctrl('win', 'keyDown');
   await recording(n);
@@ -192,7 +188,7 @@ test("terminal: dictation where the agent has its own: the right Ctrl held anywh
   await recording(n, 'repeated while held');
   await letGo();
   await stopped('button held');
-  expect(await ui.evaluate(() => document.activeElement.closest('.xterm') !== null), 'the keyboard back in the terminal, to send it').toBe(true);
+  await expect(ui.locator('.xterm:focus-within'), 'the keyboard back in the terminal, to send it').toHaveCount(1);
   // With a shell in front (the button disabled: the dictation is the agent's), the key brings the agent the prompt
   // goes to in front, and records.
   await ui.locator('#termAdd').click();
@@ -242,8 +238,9 @@ test("the island: its terminals in tabs over them, one shown, the row apart; + o
   await core((k) => k.shell.task.rename('task-1'));
   await sam(core);
   const tabs = () => termTabs(ui);
-  const shown = () => ui.evaluate(() => [...document.querySelectorAll<HTMLElement>('[data-testid="terminal"] .xterm')].filter((t) => t.checkVisibility()).length);
-  const color = (sel: string) => ui.evaluate((s) => getComputedStyle(document.querySelector(s)).backgroundColor, sel);
+  const shown = () => ui.locator('[data-testid="terminal"] .xterm:visible').count();
+  // A color to compare with another element's (toHaveCSS takes a value known before).
+  const color = (sel: string) => ui.locator(sel).first().evaluate((e) => getComputedStyle(e).backgroundColor);
   expect((await mcp()).getInstructions()).toMatch(/terminal_run, not in your own shell.*This is the Kulisa task "task-1", working right in the project's folder .* \(no git, so no worktree of its own\)\. Run the app under test on a free port you pick \(Kulisa assigns none\).*Name the task with task_rename once you know what it is about, silently: never ask the human for a name or mention it\. These notes are for you/s);
   expect(await tabs(), "the agent's tab, named after its agent").toEqual(['bash *']);
   // The row is apart from the terminal, as a pane's tabs from its toolbar: the row in a pane's tabs' color, the tab in
@@ -252,18 +249,22 @@ test("the island: its terminals in tabs over them, one shown, the row apart; + o
   expect(await color(row)).not.toBe(await color('[data-testid="terminals"]'));
   expect(await color('nav[aria-label="Terminals"] [role="tab"][aria-selected="true"]')).toBe(await color('[data-testid="terminals"]'));
   expect([await color(row), await color('nav[aria-label="Terminals"] [role="tab"][aria-selected="true"]')]).toEqual([await color('[role="region"][data-profile] nav[aria-label="Tabs"]'), await color('[role="region"][data-profile] [role="tab"][aria-selected="true"]')]);
-  // + is the island's, not a tab's: its menu has the project's agents (none here) and Terminal.
+  // + is the island's, not a tab's: its menu has the project's agents (none here) and Terminal. The tab growing in is
+  // an attribute there for a moment: an observer notes it (an assertion could look after it went).
   await ui.evaluate(() => {
     (window as any).__grew = [];
     new MutationObserver((m) => (window as any).__grew.push(...m.map((x) => (x.target as HTMLElement).dataset.id)))
       .observe(document.querySelector('nav[aria-label="Terminals"]'), { subtree: true, attributeFilter: ['data-opening'] });
   });
   await ui.locator('#termAdd').click();
-  expect(await menuRows(ui)).toEqual(['Terminal']);
+  await expect(menu(ui)).toMatchAriaSnapshot(`
+    - menu:
+      - menuitem "Terminal"`);
   await choose(ui, 'Terminal');
   await expect.poll(tabs).toEqual(['bash', 'Terminal *']);
   // The new tab grows in, as a pane's (lib/strip.ts), and is left grown.
-  await expect.poll(() => ui.evaluate(() => (window as any).__grew.length === 2 && !document.querySelector('[role="tab"][data-opening]'))).toBe(true);
+  await expect.poll(() => ui.evaluate(() => (window as any).__grew.length)).toBe(2);
+  await expect(ui.locator('[role="tab"][data-opening]')).toHaveCount(0);
   const human = await terminal(core, 'Terminal');
   expect(await core((k) => (k.shell.task.terminal('Terminal') as TaskTerminal).by)).toBe('human');
   // A shell in front: no dictation (it is the shown agent's), the bar kept, its microphone disabled saying why; a pick
@@ -272,7 +273,8 @@ test("the island: its terminals in tabs over them, one shown, the row apart; + o
   await expect(mic).toBeDisabled();
   expect(await mic.getAttribute('title')).toBe("Dictation is the agent's: a shell is in front");
   expect(await core((k) => k.shell.task.promptTarget().agent.cli)).toBe('bash');
-  await expect.poll(async () => (await shown()) === 1 && ui.evaluate(() => document.activeElement.closest('.xterm') !== null)).toBe(true);
+  await expect.poll(shown).toBe(1);
+  await expect(ui.locator('.xterm:focus-within')).toHaveCount(1);
 
   // The agent's: its environment (KULISA_TASK), behind (the human watches what is in front), read back as plain text.
   const ready = WIN ? 'echo "ready in $env:KULISA_TASK"; sleep 30' : 'echo "ready in $KULISA_TASK"; sleep 30';
@@ -283,7 +285,9 @@ test("the island: its terminals in tabs over them, one shown, the row apart; + o
   expect(await shown()).toBe(1);
   // Laid out while behind, it does not make the window scrollable: the agent's state on its tab (the tasks' bar brings
   // its tab into view) had moved the grid up by a window's height.
-  await ui.evaluate(() => document.querySelector('#projectTabs > *').scrollIntoView());
+  // As the bar brings a tab into view (scrollIntoView, which scrolls whatever can): Playwright's scrollIntoViewIfNeeded
+  // leaves a tab already in view.
+  await ui.locator('#projectTabs [role="tab"]').first().evaluate((t) => t.scrollIntoView());
   expect(await ui.evaluate(() => [document.documentElement.scrollTop, document.documentElement.scrollHeight <= innerHeight])).toEqual([0, true]);
   expect((await call('terminal_read', {})).text).toBe(`"Terminal" (the human's)\n"dev server" (an agent's): ${ready}`);
   await expect(call('terminal_stop', { name: 'nope' })).rejects.toThrow(/no terminal "nope"; open now: "Terminal", "dev server"/);
@@ -292,15 +296,29 @@ test("the island: its terminals in tabs over them, one shown, the row apart; + o
     await expect(call(tool, { name: 'bash', ...args })).rejects.toThrow(/"bash" is an agent's tab, not a terminal to run in: read what it did in task_history/);
   }
   expect(await tabs()).toEqual(['bash', 'Terminal *', 'dev server']);
-  // More than fit (36 terminals): the row scrolls, its end faded; each tab its name whole; + and the microphone at its
-  // end stay in the island, not cut off past it; its tabs do not shrink to no name.
-  await ui.evaluate(() => { const n = document.querySelector('nav[aria-label="Terminals"]'); for (let i = 0; i < 40; i++) n.append(n.querySelector('[role="tab"]').cloneNode(true)); });
-  await expect(ui.locator('nav[aria-label="Terminals"][data-past-start], nav[aria-label="Terminals"][data-past-end]')).toHaveCount(1);
-  expect(await ui.evaluate(() => {
-    const n = document.querySelector('nav[aria-label="Terminals"]'), island = n.closest('.dv-groupview').getBoundingClientRect(), r = (q: string) => document.querySelector(q).getBoundingClientRect();
-    return [n.scrollWidth > n.clientWidth, [...n.querySelectorAll('[role="tab"]')].map((t) => [...t.querySelectorAll('span')].find((e) => e.textContent === t.getAttribute('aria-label'))).every((x) => x && x.scrollWidth <= x.clientWidth), r('#termAdd').right <= island.right, r('[aria-label="Speak to the agent"]').right <= island.right];
-  })).toEqual([true, true, true, true]);
-  await ui.evaluate(() => document.querySelectorAll('nav[aria-label="Terminals"] [role="tab"]').forEach((t, i) => { if (i >= 3) t.remove(); }));
+  // More than fit: the row scrolls, its end faded; each tab its name whole; + and the microphone at its end stay in the
+  // island, not cut off past it; its tabs do not shrink to no name. The human's shells opened as + opens them until the
+  // row is past its end, then closed with their ×.
+  const nav = ui.locator('nav[aria-label="Terminals"]'), had = await terminals(core);
+  const ids = () => core((k) => [...k.shell.task.terminals.values()].map((t) => t.id));
+  const before = await ids();
+  while (await nav.getAttribute('data-past-end') === null && await nav.getAttribute('data-past-start') === null) {
+    const n = await terminals(core);
+    expect(n, 'the row fills').toBeLessThan(had + 40);
+    await ui.evaluate(() => (window as any).act('terminal:open'));
+    await expect.poll(() => terminals(core)).toBe(n + 1);
+    await expect(nav.locator('[role="tab"][data-opening]')).toHaveCount(0);
+    await frames(ui);
+  }
+  const island = await ui.locator('.dv-groupview').filter({ has: nav }).boundingBox(), right = async (l: string) => { const b = await ui.locator(l).boundingBox(); return b.x + b.width; };
+  expect(await right('#termAdd') <= island.x + island.width, '+ in the island').toBe(true);
+  expect(await right('[aria-label="Speak to the agent"]') <= island.x + island.width, 'the microphone in the island').toBe(true);
+  // Scrolled, every name whole: measures Playwright has no assertion for.
+  expect(await nav.evaluate((n) => [n.scrollWidth > n.clientWidth, [...n.querySelectorAll('[role="tab"]')].map((t) => [...t.querySelectorAll('span')].find((e) => e.textContent === t.getAttribute('aria-label'))).every((x) => x && x.scrollWidth <= x.clientWidth)]))
+    .toEqual([true, true]);
+  for (const id of (await ids()).filter((i) => !before.includes(i))) await nav.locator(`[data-id="${id}"] [title^="Close"]`).click();
+  await expect.poll(() => terminals(core)).toBe(had);
+  await expect(nav.locator('[role="tab"]')).toHaveCount(had);
   // Stopped: Ctrl+C, the shell stays; the same name again types into it (PowerShell shows no ^C: its answer at once,
   // not after the sleep, says the command stopped).
   await call('terminal_stop', { name: 'dev server' });
@@ -374,6 +392,7 @@ test('KULISA_QUIT: a second start asks the Kulisa running on the same data to qu
 
 test("icons: each from the sprite (docs/ui.md), drawn there once and in lines of the text's color; icon buttons have a name", async ({ core, ui }) => {
   await sam(core);
+  // Every icon of the page and its templates checked at once: a sweep no locator makes (templates are not in the page).
   const r = await ui.evaluate(() => {
     const every = (q: string) => [...document.querySelectorAll(q), ...[...document.querySelectorAll('template')].flatMap((t) => [...t.content.querySelectorAll(q)])];
     const ids = [...document.querySelectorAll('#sprite > symbol')].map((s) => s.id);
@@ -389,14 +408,13 @@ test("icons: each from the sprite (docs/ui.md), drawn there once and in lines of
 });
 
 test("the app icon: in the top bar (not on macOS: the Dock's), and every file the window and the installers use", async ({ ui }) => {
-  const img = await ui.evaluate(() => {
-    const i = document.querySelector('[data-testid="title-logo"]'), r = i?.getBoundingClientRect();
-    return i && { w: r.width, h: r.height, drawn: !!i.querySelector('use[href="#i-logo"]'), drape: getComputedStyle(i).color, project: getComputedStyle(document.documentElement).getPropertyValue('--project') };
-  });
-  if (MAC) expect(img, 'macOS apps show their icon in the Dock, not by the window buttons').toBeNull();
+  const logo = ui.getByTestId('title-logo');
+  if (MAC) await expect(logo, 'macOS apps show their icon in the Dock, not by the window buttons').toHaveCount(0);
   else {
-    expect(img && img.drawn && img.w >= 16 && img.h >= 16, JSON.stringify(img)).toBe(true);
-    expect(img.drape, "the curtain is in the project's color (#4a7bd0, the first one)").toBe('rgb(74, 123, 208)');
+    await expect(logo.locator('use[href="#i-logo"]')).toHaveCount(1);
+    const b = await logo.boundingBox();
+    expect(b.width >= 16 && b.height >= 16, JSON.stringify(b)).toBe(true);
+    await expect(logo, "the curtain is in the project's color (#4a7bd0, the first one)").toHaveCSS('color', 'rgb(74, 123, 208)');
   }
   const icons = [forge.packagerConfig.icon + '.png', forge.packagerConfig.icon + '.ico', forge.packagerConfig.icon + '.icns',
     ...(forge.makers as { config?: { setupIcon?: string; icon?: string; options?: { icon?: string } } }[]).flatMap((m) => [m.config?.setupIcon, m.config?.icon, m.config?.options?.icon]).filter(Boolean)];
@@ -417,7 +435,7 @@ test("one row on top: no menu bar, OS window buttons over the top bar; on macOS 
     await closeSettings(core, ui, sui);
   } else expect(await core((k) => k.shell.win.isMenuBarVisible())).toBe(false);
   expect(await ui.evaluate(() => (navigator as any).windowControlsOverlay.visible)).toBe(true);
-  const bar = await ui.evaluate(() => { const r = document.getElementById('topbar').getBoundingClientRect(); return { top: r.top, height: r.height, right: r.right }; });
+  const b = await ui.locator('#topbar').boundingBox(), bar = { top: b.y, height: b.height, right: b.x + b.width };
   const controls = await ui.evaluate(() => { const r = (navigator as any).windowControlsOverlay.getTitlebarAreaRect(); return { x: r.x as number, width: r.width as number }; });
   expect(bar.top).toBe(0);
   expect(bar.height).toBe(44);
@@ -435,14 +453,13 @@ test("a right-click on the title bar opens no window menu on Linux: GNOME's froz
 
 test('UI text is not selectable by dragging, as in a desktop app; fields are; the arrow over buttons', async ({ core, ui }) => {
   await sam(core);
-  const sel = await ui.evaluate(() => {
-    const us = (q: string) => getComputedStyle(document.querySelector(q)).userSelect;
-    return { button: us('#newTask'), name: us('#projectTabs [role="tab"] span'), tab: us('[data-tab] span'), header: us('[data-panel^="profile:"]'), field: us('[aria-label="Address"]') };
-  });
-  expect(sel).toEqual({ button: 'none', name: 'none', tab: 'none', header: 'none', field: 'text' });
+  for (const [q, select] of [['#newTask', 'none'], ['#projectTabs [role="tab"] span', 'none'], ['[data-tab] span', 'none'], ['[data-panel^="profile:"]', 'none'], ['[aria-label="Address"]', 'text']]) {
+    await expect(ui.locator(q).first(), q).toHaveCSS('user-select', select);
+  }
   // The arrow over buttons and tabs, as in Chrome, not a web page's hand.
-  expect(await ui.evaluate(() => ['#newTask', '#projectTabs [role="tab"]', '[data-tab]', 'button[aria-label="New tab"]', '[aria-label="Back"]', '[aria-label="Close profile"]', '#windowMenu'].map((q) => getComputedStyle(document.querySelector(q)).cursor)))
-    .toEqual(['default', 'default', 'default', 'default', 'default', 'default', 'default']);
+  for (const q of ['#newTask', '#projectTabs [role="tab"]', '[data-tab]', 'button[aria-label="New tab"]', '[aria-label="Back"]', '[aria-label="Close profile"]', '#windowMenu']) {
+    await expect(ui.locator(q).first(), q).toHaveCSS('cursor', 'default');
+  }
 });
 
 test('screenshot of the whole window, profile views included', async ({ core, files }) => {
@@ -484,17 +501,25 @@ test("theme: Dark by default, Light or System in ☰; the window, the terminal a
   await sam(core);
   // What is shown: a panel's color, the terminal's (a pane's toolbar's); the controls' own scheme (color-scheme).
   const DARK = 'rgb(30, 31, 34)', LIGHT = 'rgb(255, 255, 255)', TERM = { dark: 'rgb(47, 49, 53)', light: 'rgb(242, 243, 245)' };
-  const look = () => ui.evaluate(([dark, light]) => {
-    const panel = getComputedStyle(document.querySelector('.dv-groupview')).backgroundColor;
-    // A main button's text, as a dialog has (none in the page while closed).
+  // The theme as shown, once it is: the panels, the terminal (xterm's own option: it draws on a canvas), the one chosen
+  // in ☰, the controls' scheme.
+  const looks = async (shade: 'dark' | 'light', chosen: string, scheme: string = shade) => {
+    await expect(ui.locator('.dv-groupview').first()).toHaveCSS('background-color', shade === 'dark' ? DARK : LIGHT);
+    await expect.poll(() => ui.evaluate(() => (window as any).__term.options.theme.background)).toBe(TERM[shade]);
+    const theme = menu(ui).getByTestId('theme-row');
+    await expect(theme.getByRole('menuitemradio', { checked: true })).toHaveCount(1);
+    await expect(theme.locator(`[data-theme="${chosen}"]`)).toHaveAttribute('data-state', 'checked');
+    await expect(ui.locator('input').first()).toHaveCSS('color-scheme', scheme);
+  };
+  // A main button's text, as a dialog has (none in the page while closed): the token's color, resolved on an element
+  // made for it.
+  const onAccent = () => ui.evaluate(() => {
     const b = document.body.appendChild(document.createElement('i'));
     b.style.color = 'var(--on-accent)';
-    const onAccent = getComputedStyle(b).color;
+    const c = getComputedStyle(b).color;
     b.remove();
-    return { shade: panel === dark ? 'dark' : panel === light ? 'light' : panel, term: (window as any).__term.options.theme.background as string,
-      scheme: getComputedStyle(document.querySelector('input')).colorScheme,
-      chosen: [...document.querySelectorAll<HTMLElement>('[role="menu"][data-state="open"] [data-testid="theme-row"] [data-state="checked"]')].map((x) => x.dataset.theme), onAccent };
-  }, [DARK, LIGHT]);
+    return c;
+  });
   const pageDark = () => core((k) => k.profile('Sam').get().wc.executeJavaScript(`matchMedia('(prefers-color-scheme: dark)').matches`) as Promise<boolean>);
   const osDark = await pageDark();
   const saved = () => files.json('settings.json').theme;
@@ -504,20 +529,27 @@ test("theme: Dark by default, Light or System in ☰; the window, the terminal a
     await test.info().attach(name, { path: file, contentType: 'image/png' });
   };
   await ui.locator('#windowMenu').click();
-  expect((await menuRows(ui)).slice(0, 3)).toEqual(['zoom', 'theme', 'bar']);
-  expect(await look()).toEqual({ shade: 'dark', term: TERM.dark, scheme: 'dark', chosen: ['dark'], onAccent: LIGHT });
-  const pick = async (t: string, shade: 'dark' | 'light') => {
-    await ui.locator(`[role="menu"][data-state="open"] [data-theme="${t}"]`).click();
-    await expect.poll(async () => { const l = await look(); return { shade: l.shade, term: l.term, chosen: l.chosen[0] }; }).toEqual({ shade, term: TERM[shade], chosen: t });
+  await expect(menu(ui)).toMatchAriaSnapshot(`
+    - menu:
+      - /children: contain
+      - text: Zoom
+      - group:
+        - text: Theme
+      - group:
+        - text: Tasks bar`);
+  await looks('dark', 'dark');
+  expect(await onAccent()).toBe(LIGHT);
+  const pick = async (t: string, shade: 'dark' | 'light', scheme: string = shade) => {
+    await menu(ui).locator(`[data-theme="${t}"]`).click();
+    await looks(shade, t, scheme);
     await expect(menu(ui), 'the menu stays open: the next one can be tried').toBeVisible();
     expect(saved(), 'saved').toBe(t);
   };
   await pick('light', 'light');
-  expect(await look()).toEqual({ shade: 'light', term: TERM.light, scheme: 'light', chosen: ['light'], onAccent: LIGHT });
+  expect(await onAccent()).toBe(LIGHT);
   expect(await pageDark(), "a site under test keeps the OS's scheme").toBe(osDark);
   await shot('light.png');
-  await pick('system', await core((k) => k.electron.nativeTheme.shouldUseDarkColors) ? 'dark' : 'light'); // the OS's, as the pages'
-  expect((await look()).scheme).toBe('light dark');
+  await pick('system', await core((k) => k.electron.nativeTheme.shouldUseDarkColors) ? 'dark' : 'light', 'light dark'); // the OS's, as the pages'
   await pick('dark', 'dark');
   await shot('dark.png');
   expect(await pageDark()).toBe(osDark);
@@ -527,32 +559,39 @@ test("theme: Dark by default, Light or System in ☰; the window, the terminal a
 test("the tasks' bar: under the grid by default; in the title bar, after the logo, when Top is chosen in ☰; the grid and its pages take the room left; saved", async ({ core, ui, files }) => {
   await sam(core);
   // Where the bar is: in the title bar's row between the logo and Settings (top), or under the grid (bottom).
-  const where = () => ui.evaluate(() => {
-    const r = (q: string) => document.querySelector(q).getBoundingClientRect(), bar = r('#taskbar'), grid = r('#dock'), top = r('#topbar');
-    const inTitle = bar.top >= top.top && bar.bottom <= top.bottom && bar.left >= (document.querySelector('[data-testid="title-logo"]') ? r('[data-testid="title-logo"]').right : top.left) && bar.right <= r('#manageProjects').left;
-    const area = (navigator as any).windowControlsOverlay.getTitlebarAreaRect();
-    return { bar: inTitle ? 'top' : bar.top >= grid.bottom ? 'bottom' : 'elsewhere', drag: (getComputedStyle(document.querySelector('#projectTabs [role="tab"]')) as any).appRegion,
-      above: Math.round(r('.dv-groupview').top - (inTitle ? r('#projectTabs [role="tab"]') : r('#manageProjects')).bottom), // from the title bar's buttons to the panels; from a tab in it, what the bar's 44 px leave under a 36 px tab
+  const rect = async (l: string) => { const b = await ui.locator(l).first().boundingBox(); return { top: b.y, bottom: b.y + b.height, left: b.x, right: b.x + b.width, height: b.height }; };
+  const where = async () => {
+    const bar = await rect('#taskbar'), grid = await rect('#dock'), top = await rect('#topbar'), tab = await rect('#projectTabs [role="tab"]'), settings = await rect('#manageProjects');
+    const logo = await ui.getByTestId('title-logo').count() ? await rect('[data-testid="title-logo"]') : null;
+    const inTitle = bar.top >= top.top && bar.bottom <= top.bottom && bar.left >= (logo ? logo.right : top.left) && bar.right <= settings.left;
+    // The OS buttons' area, the window's height and the body's rows: the page's own values, no element's box.
+    const page = await ui.evaluate(() => {
+      const area = (navigator as any).windowControlsOverlay.getTitlebarAreaRect();
+      return { areaEnd: area.x + area.width, height: innerHeight, rows: getComputedStyle(document.body).gridTemplateRows.split(' ') };
+    });
+    return { bar: inTitle ? 'top' : bar.top >= grid.bottom ? 'bottom' : 'elsewhere',
+      above: Math.round((await rect('.dv-groupview')).top - (inTitle ? tab : settings).bottom), // from the title bar's buttons to the panels; from a tab in it, what the bar's 44 px leave under a 36 px tab
       edge: Math.round(grid.top - top.bottom), // the grid starts at the title bar's edge: it holds the gap itself
-      over: inTitle ? Math.round(r('#projectTabs [role="tab"]').top - top.top) : 8, // from the window's top to a tab: as under it
+      over: inTitle ? Math.round(tab.top - top.top) : 8, // from the window's top to a tab: as under it
       // ☰ a gap from the title bar area's end (the OS buttons, or the window's edge on macOS, where the area starts after them)
-      end: Math.round(area.x + area.width - r('#windowMenu').right),
-      title: Math.round(top.height), tall: Math.round(r('#projectTabs [role="tab"]').height), // the title bar keeps its height, a tab its own
-      below: Math.round(innerHeight - (inTitle ? grid : bar).bottom), between: inTitle ? 8 : Math.round(bar.top - grid.bottom), // the window's rows --gap apart (App.vue)
-      rows: getComputedStyle(document.body).gridTemplateRows.split(' ').map((px, i) => (i === 1 ? 'grid' : Math.round(parseFloat(px)))), // no row but the title bar, the grid and the bar (a tab and its gap from the grid)
+      end: Math.round(page.areaEnd - (await rect('#windowMenu')).right),
+      title: Math.round(top.height), tall: Math.round(tab.height), // the title bar keeps its height, a tab its own
+      below: Math.round(page.height - (inTitle ? grid : bar).bottom), between: inTitle ? 8 : Math.round(bar.top - grid.bottom), // the window's rows --gap apart (App.vue)
+      rows: page.rows.map((px, i) => (i === 1 ? 'grid' : Math.round(parseFloat(px)))), // no row but the title bar, the grid and the bar (a tab and its gap from the grid)
       // The logo, the buttons and the tabs in the middle of its height
-      level: !inTitle || !document.querySelector('[data-testid="title-logo"]') || Math.abs((r('[data-testid="title-logo"]').top + r('[data-testid="title-logo"]').bottom) - (r('#projectTabs [role="tab"]').top + r('#projectTabs [role="tab"]').bottom)) < 2,
-      chosen: [...document.querySelectorAll<HTMLElement>('[role="menu"][data-state="open"] [data-testid="bar-row"] [data-state="checked"]')].map((b) => b.dataset.bar) };
-  });
+      level: !inTitle || !logo || Math.abs((logo.top + logo.bottom) - (tab.top + tab.bottom)) < 2 };
+  };
   const saved = () => files.json('settings.json').bar;
   expect((await where()).bar).toBe('bottom');
   for (const bar of ['top', 'bottom']) {
     await ui.locator('#windowMenu').click();
-    await menuRows(ui);
-    await ui.locator(`[role="menu"][data-state="open"] [data-bar="${bar}"]`).click();
+    await menu(ui).locator(`[data-bar="${bar}"]`).click();
+    await expect(menu(ui).getByTestId('bar-row').getByRole('menuitemradio', { checked: true })).toHaveCount(1);
+    await expect(menu(ui).locator(`[data-bar="${bar}"]`)).toHaveAttribute('data-state', 'checked');
     await expect.poll(async () => (await where()).bar === bar && saved() === bar).toBe(true);
-    expect(await where(), 'one gap: over what is in the title bar and from it to the panels, from the grid to the bar and under it; in the title bar the tabs do not drag the window')
-      .toEqual({ bar, drag: bar === 'top' ? 'no-drag' : 'none', above: bar === 'top' ? 4 : 8, over: bar === 'top' ? 4 : 8, end: 8, title: 44, below: 8, between: 8, edge: 0, rows: bar === 'top' ? [44, 'grid', 0] : [44, 'grid', 36 + 8], level: true, tall: 36, chosen: [bar] });
+    expect(await where(), 'one gap: over what is in the title bar and from it to the panels, from the grid to the bar and under it')
+      .toEqual({ bar, above: bar === 'top' ? 4 : 8, over: bar === 'top' ? 4 : 8, end: 8, title: 44, below: 8, between: 8, edge: 0, rows: bar === 'top' ? [44, 'grid', 0] : [44, 'grid', 36 + 8], level: true, tall: 36 });
+    await expect(ui.locator('#projectTabs [role="tab"]').first(), 'in the title bar the tabs do not drag the window').toHaveCSS('app-region', bar === 'top' ? 'no-drag' : 'none');
     await expect(menu(ui), 'the menu stays open: the other one can be tried').toBeVisible();
     await closeMenu(ui);
     await expect.poll(() => viewOn(core, ui, files, 'Sam'), { timeout: 3000 }).toBe(true); // the pages follow the grid
@@ -565,7 +604,7 @@ test('dialogs: one look (title and ×, content, buttons at the bottom right, the
   const dialog = (id: string) => ui.locator(`#${id}`);
   const fromMenu = async (row: string, at?: string) => {
     if (at) await rightClick(ui, at); else await ui.locator('#windowMenu').click();
-    await menuRows(ui);
+    await expect(menu(ui)).toBeVisible();
     await choose(ui, row);
   };
   const openers = {
@@ -578,50 +617,51 @@ test('dialogs: one look (title and ×, content, buttons at the bottom right, the
   for (const [id, open] of Object.entries(openers)) {
     await open();
     await expect(dialog(id)).toHaveAttribute('data-state', 'open', { timeout: 20000 });
-    const l = await dialog(id).evaluate((d, i) => ({ id: i, title: !!d.querySelector('header h2'), body: !!d.querySelector(':scope > header ~ :not(footer)'), footer: !!d.querySelector('footer'),
-      last: (() => { const b = d.querySelector('footer > button:last-child'), i = d.appendChild(document.createElement('i')); i.style.color = 'var(--accent)';
-        const accent = getComputedStyle(i).color; i.remove(); return !!b && getComputedStyle(b).backgroundColor === accent; })() }), id);
-    expect(l.title && l.body && l.last, `the main button last, in the accent: ${JSON.stringify(l)}`).toBe(true);
+    await expect(dialog(id).locator('header h2'), id).toHaveCount(1);
+    await expect(dialog(id).locator(':scope > header ~ :not(footer)').first(), id).toBeAttached();
+    await expect(dialog(id).locator('footer > button:last-child'), `${id}: the main button last, in the accent`).toHaveCSS('background-color', ACCENT);
     await (id === 'agentpick' ? ui.locator('#agentcancel') : ui.locator(`#${id}`).locator('header').getByRole('button', { name: 'Close' })).click(); // the agent's choice: Cancel, no ×
     await expect(ui.locator(`#${id}[data-state="open"]`)).toHaveCount(0);
   }
   await expect(ui.locator('[role="dialog"], [role="alertdialog"]')).toHaveCount(0);
 
   // A question before deleting: the title, what goes line by line, Cancel (focused) and a red Delete at the right.
-  await core((k) => { k.answer = null; }); // the test answers
   const view = () => core((k) => k.profile('Sam').get().view.getVisible());
   const ask = ui.locator('#ask');
   // The question's answer kept in the main process, to be read once given.
   const asking = (q: Question) => core((k, a) => { k.stash.answer = k.shell.ask(a); }, q);
-  const answer = () => core((k) => k.stash.answer as Promise<boolean | 'other'>);
+  const answered = () => core((k) => k.stash.answer as Promise<boolean | 'other'>);
   await asking({ message: 'Delete the thing?', ok: 'Delete', danger: true, detail: 'Deleted for good:\n• a\n• b' });
   await expect(ask).toHaveAttribute('data-state', 'open');
-  const q = await ask.evaluate((d) => {
-    const r = (s: string) => d.querySelector(s).getBoundingClientRect(), ok = d.querySelector('footer > button:last-child'), body = document.getElementById(d.getAttribute('aria-describedby'));
-    return { title: d.querySelector('h2').textContent, lines: body.innerText.split('\n').length, ok: ok.textContent,
-      order: r('header').bottom <= body.parentElement.getBoundingClientRect().top && body.parentElement.getBoundingClientRect().bottom <= r('footer').top, right: Math.round(r('footer').right - ok.getBoundingClientRect().right),
-      focused: document.activeElement.textContent };
-  });
-  expect(q).toEqual({ title: 'Delete the thing?', lines: 3, ok: 'Delete', order: true, right: 16, focused: 'Cancel' });
+  const ok = ask.locator('footer > button:last-child');
+  await expect(ask.getByRole('heading')).toHaveText('Delete the thing?');
+  expect(await ask.locator(`#${await ask.getAttribute('aria-describedby')}`).innerText(), 'line by line').toBe('Deleted for good:\n• a\n• b');
+  await expect(ok).toHaveText('Delete');
+  await expect(ask.getByRole('button', { name: 'Cancel' })).toBeFocused();
+  const header = await ask.locator('header').boundingBox(), body = await ask.locator('header + div').boundingBox(), footer = await ask.locator('footer').boundingBox(), okBox = await ok.boundingBox();
+  expect(header.y + header.height <= body.y && body.y + body.height <= footer.y, 'the title, the body, the buttons').toBe(true);
+  expect(Math.round(footer.x + footer.width - (okBox.x + okBox.width)), 'at the right').toBe(16);
   await expect(ask.locator('footer > button:last-child'), 'red').toHaveCSS('background-color', 'rgb(201, 79, 79)');
-  // Its buttons answer the hand: lit under the pointer, another color while pressed (still, they look dead).
+  // Its buttons answer the hand: lit under the pointer, another color while pressed (still, they look dead). Each
+  // color read to tell the next from it (toHaveCSS takes a value known before).
   const bg = (sel: string) => ui.locator(sel).evaluate((e) => getComputedStyle(e).backgroundColor);
   for (const sel of ['#ask footer > button:first-child', '#ask footer > button:last-child']) {
-    const b = await box(ui, sel), at = { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+    const b = await box(ui, sel), at = { x: b.x + b.width / 2, y: b.y + b.height / 2 }, button = ui.locator(sel);
     const still = await bg(sel);
     await ui.mouse.move(at.x, at.y);
-    await expect.poll(() => bg(sel)).not.toBe(still);
+    await expect(button).not.toHaveCSS('background-color', still);
     const lit = await bg(sel);
     await ui.mouse.down();
-    await expect.poll(async () => [still, lit].includes(await bg(sel))).toBe(false);
+    await expect(button).not.toHaveCSS('background-color', lit);
+    await expect(button).not.toHaveCSS('background-color', still);
     await ui.mouse.move(1, at.y); // let go away from it: nothing chosen
     await ui.mouse.up();
-    await expect.poll(() => bg(sel)).toBe(still);
+    await expect(button).toHaveCSS('background-color', still);
   }
   await expect(ask, 'still asking').toHaveAttribute('data-state', 'open');
   expect(await view(), 'pages hidden under the dialog').toBe(false);
   await core((k) => k.press(k.shell.win.webContents, 'Escape'));
-  expect(await answer(), 'Esc says no').toBe(false);
+  expect(await answered(), 'Esc says no').toBe(false);
   await expect.poll(view).toBe(true);
 
   // Two at once: the second waits for the first. Not deleting: the main button is blue.
@@ -629,9 +669,9 @@ test('dialogs: one look (title and ×, content, buttons at the bottom right, the
   await core((k) => { k.stash.second = k.shell.ask({ message: 'Delete the other?', ok: 'Delete', danger: true }); });
   await expect(ask).toHaveAttribute('data-state', 'open');
   await expect(ask.locator('h2')).toHaveText('Initialize it?');
-  await expect(ask.locator('footer > button:last-child'), 'blue').toHaveCSS('background-color', 'rgb(53, 116, 240)');
+  await expect(ask.locator('footer > button:last-child'), 'blue').toHaveCSS('background-color', ACCENT);
   await ask.locator('footer > button:last-child').click();
-  expect(await answer()).toBe(true);
+  expect(await answered()).toBe(true);
   await expect(ask).toHaveAttribute('data-state', 'open');
   await expect(ask.locator('h2')).toHaveText('Delete the other?');
   await ask.getByRole('button', { name: 'Cancel' }).click();
@@ -645,7 +685,7 @@ test("About Kulisa (☰; on macOS the app menu's) is a page of Settings: the ver
     await core((k) => k.electron.Menu.getApplicationMenu().items[0].submenu.items[0].click(undefined, k.shell.win, undefined));
   } else {
     await ui.locator('#windowMenu').click();
-    await menuRows(ui);
+    await expect(menu(ui)).toBeVisible();
     await choose(ui, 'About Kulisa');
   }
   const shown = async () => {
@@ -701,22 +741,21 @@ test('a new version installed while Kulisa runs is offered once, in its own dial
     k.shell.restart = async (apply) => { g.restarted = apply ? 'squirrel' : 'relaunch'; };
   });
   try {
-    await core((k) => { k.answer = false; }); // Later
+    const asked = ui.getByRole('alertdialog');
     await install('9.9.9');
-    await expect.poll(() => core((k) => k.asked.some((q) => q.message === 'Kulisa 9.9.9 is ready')), { timeout: 10000 }).toBe(true);
-    const q = await core((k) => k.asked.pop());
-    expect(q.ok).toBe('Restart'); expect(q.cancel).toBe('Later');
+    await expect(asked).toBeVisible({ timeout: 10000 }); // the archive's change, noticed
+    await expect(asked.locator('footer button')).toHaveText(['Later', 'Restart']);
+    const q = await answer(ui, false);
+    expect(q.message).toBe('Kulisa 9.9.9 is ready');
     expect(q.detail).toMatch(/Restart to use it: the windows, their tasks and conversations come back\. Later: the next start is 9\.9\.9\.$/);
-    await expect(ui.locator('#ask[data-state="open"]')).toHaveCount(0);
     expect(await restarted(), 'Later: nothing').toBeNull();
     // Restart: the way to quit that keeps everything, then the new version.
-    await core((k) => { k.answer = true; });
     await install('9.9.10');
-    await expect.poll(restarted, { timeout: 10000 }).not.toBeNull();
-    expect(await restarted()).toBe('relaunch');
-    expect((await core((k) => k.asked.pop())).message).toBe('Kulisa 9.9.10 is ready');
+    await expect(asked).toBeVisible({ timeout: 10000 });
+    expect((await answer(ui)).message).toBe('Kulisa 9.9.10 is ready');
+    await expect.poll(restarted).toBe('relaunch');
   } finally {
-    await core((k) => { k.shell.restart = k.stash.restart; k.answer = true; });
+    await core((k) => { k.shell.restart = k.stash.restart; });
     await removed(src);
   }
 });

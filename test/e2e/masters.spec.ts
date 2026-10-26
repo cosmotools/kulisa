@@ -4,7 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
-import { SITE, PORT, logged, who, menuRows, choose, rightClick, focusWindow, closeSettings, chooseProfile, invoke } from './helpers.ts';
+import { SITE, PORT, logged, who, choose, rightClick, focusWindow, closeSettings, chooseProfile, invoke, answer } from './helpers.ts';
 import { begin, newTask } from './tasks-helpers.ts';
 
 // The one master window open, once its page is there.
@@ -18,7 +18,6 @@ async function closeMaster(core: Core) {
 test("Sign In to Master… opens its master in a window of its own, nothing automated on it; a task's copy made before keeps its own sign-in to a local app", async ({ core, ui, call, files }) => {
   const { sam } = await begin(core, ui, files);
   await rightClick(ui, `[data-panel="profile:${sam}"] b`);
-  expect(await menuRows(ui)).toContain('Sign In to Master…');
   await choose(ui, 'Sign In to Master…');
   await oneMaster(core);
   const m = await core(async (k) => {
@@ -43,7 +42,6 @@ test("Sign In to Master… opens its master in a window of its own, nothing auto
 test("About this profile… opens Settings' window at it (one, not modal: the task's window takes input and comes in front of it, its pages on screen); its Sign In… opens the same master window, once", async ({ core, ui, sui, files }) => {
   const { sam, elon } = await begin(core, ui, files);
   await rightClick(ui, `[data-panel="profile:${sam}"] b`);
-  await menuRows(ui);
   await choose(ui, 'About this profile…');
   const s = await sui();
   await expect(s.locator(`#pjlist [data-profile="${sam}"]`)).toHaveAttribute('aria-selected', 'true');
@@ -59,7 +57,8 @@ test("About this profile… opens Settings' window at it (one, not modal: the ta
   expect(await core((k, id) => k.shell.settings?.win.id === id && !k.shell.settings.win.isFocused(), win.id), 'Settings stays open behind it').toBe(true);
   expect(await core((k, id) => k.shell.task.profiles.get(id).get().view.getVisible(), sam), 'pages on screen').toBe(true);
   // Asked again (another profile's About…): the same window, at that page.
-  await ui.evaluate((id) => (window as any).kulisa.send('settings:open', { section: 'profiles', id }), elon);
+  await rightClick(ui, `[data-panel="profile:${elon}"] b`);
+  await choose(ui, 'About this profile…');
   await expect(s.locator('#profilename')).toHaveValue('Elon.buyer');
   expect(await core((k) => k.shell.settings.win.id)).toBe(win.id);
   await chooseProfile(s, files, 'Sam.admin');
@@ -84,11 +83,11 @@ test("a master's window closed while its page still loads (a slow sign-in) goes 
   const tabs = path.join(files.userData, 'profiles', sam, 'Kulisa Tabs.json'), before = fs.existsSync(tabs) ? fs.readFileSync(tabs, 'utf8') : null;
   fs.writeFileSync(tabs, JSON.stringify({ urls: [`${SITE}/hang`], active: 0 }));
   try {
-    const answer = invoke(ui, 'profiles:master', { profile: sam });
+    const answered = invoke(ui, 'profiles:master', { profile: sam });
     await oneMaster(core);
     await closeMaster(core);
     // It laid out its page in the window closed meanwhile: "Object has been destroyed".
-    expect(await answer).toEqual({ id: sam });
+    expect(await answered).toEqual({ id: sam });
   } finally {
     if (before === null) fs.rmSync(tabs, { force: true }); else fs.writeFileSync(tabs, before);
   }
@@ -104,7 +103,6 @@ test("a real account's sign-in kept in step: signed in to a site (not local) in 
     const t = k.shell.task;
     if (t.closed.has(a.sam)) await t.openProfile(a.sam);
     await k.ensureProfile('Sam.admin', `${a.site}/app`);
-    k.asked.length = 0;
   }, { sam, site: SITE });
   const inFirst = { task: first };
   const shopCookie = (task: string) => core(async (k, a) => (await k.shell.taskByKey(a.task).profiles.get(a.sam).session.cookies.get({ domain: 'shop.example' })).map((c) => c.value), { task, sam });
@@ -125,6 +123,8 @@ test("a real account's sign-in kept in step: signed in to a site (not local) in 
   await call('browser_navigate', { profile: 'Sam.admin', url: `${SITE}/app` }, inFirst);
   expect(await who(call, 'Sam.admin', inFirst)).toBe('Signed in as sam');
   // The second task goes: the file's other tests begin from the first alone.
-  await invoke(ui, 'task:delete', second);
+  const deleted = invoke(ui, 'task:delete', second);
+  await answer(ui);
+  await deleted;
   await expect.poll(() => core((k, a) => !k.shell.taskByKey(a.second) && k.shell.task?.key === a.first && k.settled(), { first, second })).toBe(true);
 });

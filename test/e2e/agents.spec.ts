@@ -8,7 +8,7 @@ import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
 import type { Files } from './data.ts';
-import { SITE, WIN, holdPointer, focusWindow, menuRows, choose, closeMenu, rightClick, closeSettings, item, renamed, termText, termShows, invoke, projectMenu, onRow } from './helpers.ts';
+import { SITE, WIN, holdPointer, focusWindow, menu, choose, closeMenu, rightClick, closeSettings, item, renamed, termText, termShows, invoke, ipcSettled, answer, projectMenu, onRow } from './helpers.ts';
 import { newTask } from './tasks-helpers.ts';
 import { fakeAgent, fakeBin } from './agent-helpers.ts';
 
@@ -16,12 +16,15 @@ import { fakeAgent, fakeBin } from './agent-helpers.ts';
 // (deleting a task asks: answered yes).
 async function fresh(core: Core, ui: Page, files: Files) {
   const first = files.tkey('project', 1), pid = files.pid('project');
-  for (const key of await core((k, f) => [...k.shell.current.tasks.values()].map((t) => t.key).filter((x) => x !== f), first)) await invoke(ui, 'task:delete', key);
+  for (const key of await core((k, f) => [...k.shell.current.tasks.values()].map((t) => t.key).filter((x) => x !== f), first)) {
+    const deleted = invoke(ui, 'task:delete', key);
+    await answer(ui);
+    await deleted;
+  }
   await expect.poll(() => core((k, f) => k.shell.current.tasks.size === 1 && k.shell.task?.key === f && k.settled(), first), { timeout: 20000 }).toBe(true);
   for (const id of await core((k) => k.shell.accounts.stored().map((a) => a.id))) await invoke(ui, 'project:agent-remove', { id: pid, agent: id });
   await core(async (k) => {
     for (const a of k.shell.accounts.stored()) { k.shell.accounts.drop(a.id); k.removeTree(k.shell.accounts.folderOf(a)); }
-    k.asked.length = 0;
   });
 }
 // The account the new account test makes (Fake agent · work@shop.com, the project's one account), signed in, and a task
@@ -68,7 +71,7 @@ async function showAgent(s: Page, id: string) {
 const agentRow = (s: Page, id: string, q: string) => s.locator(`#agentpage [data-agent="${id}"] ${q}`);
 // The project's settings (Project Settings… in its submenu: helpers.ts, projectMenu), with its agents.
 async function projectSettings(ui: Page, sui: () => Promise<Page>) {
-  await projectMenu(ui, 'Project Settings…');
+  await choose(ui, 'Project Settings…', await projectMenu(ui));
   const s = await sui();
   await expect(s.locator('#npagentsrow')).toBeAttached();
   return s;
@@ -94,7 +97,13 @@ async function newAccount(core: Core, s: Page, files: Files) {
   await core((k) => k.shell.signins.clear());
   const before = browserOpened(files).length;
   await s.locator('#npagentadd').click();
-  expect((await menuRows(s)).slice(-2), 'the agents that have accounts, after the ones to add').toEqual(['# New Account', 'Fake agent…']);
+  // The agents that have accounts, after the ones to add.
+  await expect(menu(s)).toMatchAriaSnapshot(`
+    - menu:
+      - /children: contain
+      - text: New Account
+      - menuitem "Fake agent…"
+  `);
   await choose(s, 'Fake agent…');
   await expect.poll(() => core((k) => k.shell.signins.size)).toBeGreaterThan(0);
   await expect.poll(() => browserOpened(files).length).toBe(before + 1);
@@ -230,9 +239,9 @@ test("a new account is made in the project's settings: the agent's own sign-in a
   }
   // Change agent… (the terminal's menu) hands the task to one of the project's accounts.
   await rightClick(ui, '[data-testid="terminal"]');
-  await menuRows(ui);
   await choose(ui, 'Change agent…');
-  expect(await ui.locator('#handover').getByRole('radio').evaluateAll((rs) => rs.map((r) => r.getAttribute('aria-label')))).toEqual(['Fake agent · work@shop.com']);
+  await expect(ui.locator('#handover').getByRole('radio')).toHaveCount(1);
+  await expect(ui.locator('#handover').getByRole('radio')).toHaveAccessibleName('Fake agent · work@shop.com');
   await ui.locator('#handover').locator('header').getByRole('button', { name: 'Close' }).click();
   await expect(ui.locator('#handover')).toHaveCount(0);
 });
@@ -244,8 +253,8 @@ test("language: one for every agent (☰ → Language): written into the agents'
   await expect.poll(() => fs.existsSync(own) && read(own), 'at its start: English, the default').toEqual({ language: 'English' });
   await focusWindow(core, ui); // the keyboard chooses below
   await ui.locator('#windowMenu').click();
-  expect(await menuRows(ui)).toContain('Language');
   const row = item(ui, 'Language');
+  await expect(row).toBeVisible();
   await expect(row).toHaveAccessibleDescription('English');
   await expect(row).toHaveAttribute('title', /^The language you speak with the agents\. Fake agent dictates and answers in it, and may write code comments in it too: your project's CLAUDE\.md or AGENTS\.md decides that\./);
   await row.click();
@@ -301,13 +310,17 @@ test("an account lives until deleted in Settings → Agents: let go by its proje
   const row = (s: Page, id: string) => s.locator(`#agentpage [data-account="${id}"]`);
   // An account deleted: its row selected, then − over its list.
   const deleteAccount = (s: Page, id: string) => onRow(s, `#agentpage [data-account="${id}"]`, `#agentpage [data-accounts]:has([data-account="${id}"]) [aria-label="Delete the account"]`);
-  const asked = () => core((k) => k.asked.length);
+  // Nothing asked, in either window, once what Settings sent is handled.
+  const noQuestion = async (s: Page) => {
+    await ipcSettled(s);
+    for (const page of [s, ui]) await expect(page.getByRole('alertdialog')).toHaveCount(0);
+  };
   const inProjects = (id: string) => core((k, a) => k.shell.store.projectsWith('agents', a).map((p) => p.id), id);
   // × in the project lets go of it at once, nothing asked; the account stays, and the task running it keeps it.
   let s = await projectSettings(ui, sui);
   await onRow(s, `#npagents [data-agent="${work}"]`, '#npagentdel');
   await expect(s.locator(`#npagents [data-agent="${work}"]`)).toHaveCount(0);
-  expect(await asked()).toBe(0);
+  await noQuestion(s);
   expect(await inProjects(work), 'kept, in no project').toEqual([]);
   expect(await core((k, key) => k.shell.taskByKey(key).promptTarget().agent.id, task)).toBe(work);
   expect(fs.existsSync(dir)).toBe(true);
@@ -317,32 +330,31 @@ test("an account lives until deleted in Settings → Agents: let go by its proje
   await deleteAccount(s, work);
   const name = await core((k, key) => k.shell.taskByKey(key).entry.name, task);
   await expect(s.locator('#agentpageerror')).toHaveText(new RegExp(`^Tasks run it: ${RegExp.escape(name)} \\(project\\)`));
-  expect(await asked()).toBe(0);
+  await noQuestion(s);
   await closeSettings(core, ui, sui);
-  await invoke(ui, 'task:delete', task);
+  const deleted = invoke(ui, 'task:delete', task);
+  await answer(ui);
+  await deleted;
   await expect.poll(() => core((k, key) => !k.shell.taskByKey(key) && k.settled(), task)).toBe(true);
-  await core((k) => { k.asked.length = 0; });
   // Deleted after a question; no: kept.
   s = await openAgents(ui, sui);
   await showAgent(s, 'fake'); // its accounts on its page
   await expect(row(s, work)).toBeVisible();
-  await core((k) => { k.answer = false; });
   await deleteAccount(s, work);
-  await expect.poll(asked).toBeGreaterThan(0);
-  expect((await core((k) => k.asked.pop())).message).toBe('Delete the account Fake agent · work@shop.com?');
+  expect((await answer(s, false)).message).toBe('Delete the account Fake agent · work@shop.com?');
+  await ipcSettled(s);
   expect(fs.existsSync(dir), 'kept when the human says no').toBe(true);
-  await core((k) => { k.answer = true; });
   await deleteAccount(s, work);
+  await answer(s);
   await expect.poll(() => fs.existsSync(dir)).toBe(false);
   await expect(row(s, work)).toHaveCount(0);
   expect(logouts(files), "signed out first, with its agent's own command").toContain(dir);
   expect(files.json('agents.json')).toEqual({ list: [] });
-  await core((k) => { k.asked.length = 0; k.shell.signins.clear(); });
+  await core((k) => { k.shell.signins.clear(); });
   // New Account… there (the + beside Agents in the tree, an agent): signed in on its page, in no project; a project's
   // Add Agent… takes it.
   await s.locator('#pjlist [data-agent]:not([data-agent="fake"])').click(); // another agent's page shown first
   await s.locator('#agentnew').click();
-  await menuRows(s);
   await choose(s, 'Fake agent…');
   await expect(s.locator('#pjlist [data-agent="fake"]')).toHaveAttribute('aria-selected', 'true');
   await expect.poll(() => core((k) => k.shell.signins.size)).toBeGreaterThan(0);
@@ -363,7 +375,7 @@ test("an account lives until deleted in Settings → Agents: let go by its proje
   await showAgent(s, 'fake');
   await expect(row(s, home)).toBeVisible();
   await deleteAccount(s, home);
+  await answer(s);
   await expect.poll(async () => !fs.existsSync(accountDir(files, home)) && !(await core((k, id) => !!k.shell.accounts.find(id), home))).toBe(true);
-  await core((k) => { k.asked.length = 0; });
   await closeSettings(core, ui, sui);
 });

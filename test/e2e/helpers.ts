@@ -43,7 +43,7 @@ export const act = (page: Page, channel: string, arg: unknown) => page.evaluate(
 // The window done building what it shows (a project, a task: the grid's region busy; none before the window is up), and
 // its grid done sliding to another task (a view transition: a key or a click meanwhile goes to the grid being left).
 export const notLoading = (page: Page) => expect(page.locator('#dock:not([aria-busy])')).toHaveCount(1);
-export const noSlide = (page: Page) => expect.poll(() => page.evaluate(() => document.documentElement.matches(':active-view-transition'))).toBe(false);
+export const noSlide = (page: Page) => expect(page.locator(':root:active-view-transition')).toHaveCount(0);
 // That nothing happened is checked once what would have made it is done (docs/testing.md, Writing an e2e test): each
 // of these waits for a proof of that, never for a time.
 // The page drew what its last changes made: Vue's updates, a ResizeObserver's, what waits for a frame.
@@ -94,52 +94,22 @@ export async function otherPage(ui: Page, sel?: string) {
   return found;
 }
 
-// Kulisa's questions, answered in their dialog (driver.ts, answer): the last one asked, once it is asked; and that one
-// was asked and its dialog is gone (answered) in page.
-export async function asked(core: Core) {
-  await expect.poll(() => core((k) => k.asked.length)).toBeGreaterThan(0);
-  return core((k) => k.asked.pop());
+// Kulisa's question in page's dialog (Ask.vue), answered as the human answers it: true its button that does it (the
+// last), false the one that does not (Cancel, Later), or a button by its name. What it asked.
+export async function answer(page: Page, yes: boolean | string = true) {
+  const d = page.getByRole('alertdialog');
+  await expect(d).toBeVisible();
+  const asked = { message: await d.getByRole('heading').textContent(), detail: await page.locator(`#${await d.getAttribute('aria-describedby')}`).textContent() };
+  const buttons = d.locator('footer button');
+  await (typeof yes === 'string' ? d.getByRole('button', { name: yes, exact: true }) : yes ? buttons.last() : buttons.first()).click();
+  await expect(d).toBeHidden();
+  return asked;
 }
-export const answered = (core: Core, page: Page) => expect.poll(async () => (await core((k) => k.asked.length)) > 0
-  && page.evaluate(() => document.getElementById('ask')?.dataset.state !== 'open')).toBe(true);
-
-// Mouse input into the window's page as the hand sends it, in window pixels (the page's CSS pixels times the Kulisa
-// zoom: mid gives an element's middle so).
-type Point = { x: number; y: number };
-export type Mods = ('control' | 'shift' | 'alt' | 'meta' | 'leftbuttondown' | 'rightbuttondown')[];
-export const mouse = (core: Core, type: 'mouseDown' | 'mouseUp' | 'mouseMove', at: Point, button: 'left' | 'right' = 'left', modifiers: Mods = []) =>
-  core((k, a) => k.shell.win.webContents.sendInputEvent({ type: a.type, x: a.at.x, y: a.at.y, button: a.button, clickCount: 1, modifiers: a.modifiers }), { type, at, button, modifiers });
-export const scaled = (z: number, { x, y }: Point) => ({ x: Math.round(x * z), y: Math.round(y * z) });
-export const mid = async (core: Core, ui: Page, sel: string) => {
-  const b = await box(ui, sel);
-  return scaled(await uiZoom(core), { x: b.x + b.width / 2, y: b.y + b.height / 2 });
-};
 
 // Kulisa's menus (Reka's, docs/ui.md, Menus): the open one once it is shown (the pages under it are pictures), the
 // submenu open (the last one).
 export const menu = (ui: Page) => ui.locator('[role="menu"][data-state="open"][data-ready]').first();
 export const submenu = (ui: Page) => ui.locator('[role="menu"][data-state="open"]').last();
-// The open menu's rows, each as its words: '-' a line, '# …' a heading, '~ …' a note, 'zoom' the zoom row; an item its
-// label, '(off)' when disabled, '  ' before it when it is set in under the row above.
-export async function menuRows(ui: Page, which: Locator = menu(ui)): Promise<(string | string[])[]> {
-  await expect(menu(ui)).toBeVisible();
-  return which.evaluate((m) => {
-    // An item's words: its name, its label alone (MenuButton.vue).
-    const label = (i: Element) => i.getAttribute('aria-label');
-    const row = (r: Element): string | string[] => {
-      if (r.matches('[role="separator"]')) return '-';
-      const id = r.getAttribute('data-testid') ?? '';
-      if (id === 'menu-heading') return `# ${r.textContent}`;
-      if (id === 'arrange-row') return `arrange: ${[...r.querySelectorAll('span')].map((s) => s.textContent).join(', ')}`;
-      const kind = /^(zoom|theme|bar)-row$/.exec(id)?.[1];
-      if (kind) return kind;
-      if (r.matches('[role="group"]')) return [...r.children].map(row) as string[];
-      const item = r.matches('[role^="menuitem"]') ? r : r.querySelector('[role^="menuitem"]');
-      return (r.matches('[data-inset]') ? '  ' : '') + label(item) + (item.matches('[data-disabled]') ? ' (off)' : '');
-    };
-    return [...m.children].flatMap(row);
-  });
-}
 // An item of the open menu (or of which) by its label, whole.
 export const item = (ui: Page, label: string, which: Locator = menu(ui)) => which.getByRole('menuitem', { name: label, exact: true }).or(which.getByRole('menuitemradio', { name: label, exact: true }));
 export const choose = (ui: Page, label: string, which?: Locator) => item(ui, label, which).click();
@@ -170,14 +140,17 @@ export const termTabs = (ui: Page) => ui.locator('nav[aria-label="Terminals"] [r
 export const projectTabSel = (files: Files, folder: string) => `#projectTabs [data-project="${files.pid(folder)}"]`;
 export const projectTab = (ui: Page, files: Files, folder: string) => ui.locator(projectTabSel(files, folder)).first();
 export const showProject = (ui: Page, files: Files, folder: string) => projectTab(ui, files, folder).click();
-export const closeProject = (ui: Page, files: Files, folder: string) => ui.locator(projectTabSel(files, folder)).evaluateAll((ts) => { for (const t of ts) t.dispatchEvent(new MouseEvent('auxclick', { button: 1, bubbles: true })); });
+export async function closeProject(ui: Page, files: Files, folder: string) {
+  for (const key of await ui.locator(projectTabSel(files, folder)).evaluateAll((ts) => ts.map((t) => (t as HTMLElement).dataset.task))) {
+    await ui.locator(`#projectTabs [data-task="${key}"]`).click({ button: 'middle' });
+  }
+}
 
 // The bar's + (NewTask.vue): a menu of every project with its tasks; one project shows its tasks inline, several nest
-// each project as a submenu. plusMenu(ui) opens it and gives its top rows' labels; plusMenu(ui, project) makes a new
-// task of that project (its New Task row); plusMenu(ui, project, task) opens that task again (a closed one) or shows it.
+// each project as a submenu. plusMenu(ui) opens it and gives it; plusMenu(ui, project) makes a new task of that project
+// (its New Task row); plusMenu(ui, project, task) opens that task again (a closed one) or shows it.
 // Every open menu, a submenu too (menu waits for the first to be shown).
 export const anyMenu = (ui: Page) => ui.locator('[role="menu"][data-state="open"]');
-const topLabels = (m: Locator) => m.locator(':scope > [role="menuitem"]').evaluateAll((items) => items.map((i) => i.getAttribute('aria-label')));
 const projectRow = (ui: Page, project: string) => anyMenu(ui).first().getByRole('menuitem', { name: project, exact: true }).and(ui.locator('[aria-haspopup]'));
 // A project's submenu, with several projects, opened as the hand does it: hovering its row (a release on the row makes
 // the project a new task: MenuRows.vue, runSub). The rows are drawn again as a project just shown moves to the top, and
@@ -191,48 +164,55 @@ async function projectSub(ui: Page, project: string, until: (sub: Locator) => Pr
   }).toPass({ timeout: 5000 });
   return anyMenu(ui).last();
 }
-export async function plusMenu(ui: Page, project?: string, task?: string) {
+export function plusMenu(ui: Page): Promise<Locator>;
+export function plusMenu(ui: Page, project: string, task?: string): Promise<void>;
+export async function plusMenu(ui: Page, project?: string, task?: string): Promise<Locator | void> {
   if (!(await anyMenu(ui).count())) await ui.locator('#newTask').click();
   const top = anyMenu(ui).first();
-  await expect(top.locator(':scope > [role="menuitem"]').first()).toBeVisible(); // its rows drawn, a moment after it opens
-  if (project === undefined) return topLabels(top);
+  await expect(top.getByRole('menuitem').first()).toBeVisible(); // its rows drawn, a moment after it opens
+  if (project === undefined) return top;
   const label = task ?? 'New Task';
   await expect(projectRow(ui, project).or(item(ui, label, top)).first()).toBeVisible();
   if (!(await projectRow(ui, project).count())) return item(ui, label, top).first().click();
   const sub = await projectSub(ui, project, (m) => expect(item(ui, label, m).first()).toBeVisible({ timeout: 500 }));
   await item(ui, label, sub).first().click();
 }
-// The + menu's rows for one project (its tasks, then New Task); the menu opened, read and closed again. With one
-// project its rows are the menu's own, which ends with New Project… after them.
+// The + menu open where one project's rows are (its tasks, then New Task): its submenu, with several projects; else the
+// menu itself, which ends with New Project… after them. closeBoard closes it.
 export async function plusRows(ui: Page, project: string) {
   await plusMenu(ui);
-  const multi = await projectRow(ui, project).count() > 0;
-  const m = !multi ? anyMenu(ui).first()
-    : await projectSub(ui, project, (sub) => expect(anyMenu(ui)).toHaveCount(2, { timeout: 500 }).then(() => expect(sub.locator(':scope > [role="menuitem"]').first()).toBeVisible({ timeout: 500 })));
-  const rows = await topLabels(m);
-  await closeBoard(ui);
-  return multi ? rows : rows.slice(0, -1);
+  if (!(await projectRow(ui, project).count())) return anyMenu(ui).first();
+  return projectSub(ui, project, (sub) => expect(anyMenu(ui)).toHaveCount(2, { timeout: 500 }).then(() => expect(sub.getByRole('menuitem').first()).toBeVisible({ timeout: 500 })));
 }
 export async function closeBoard(ui: Page) {
   if (await anyMenu(ui).count()) await anyMenu(ui).first().press('Escape');
   await expect(anyMenu(ui)).toHaveCount(0);
 }
-// A project's submenu (a tab's right-click, then the row of the project's name, the one row opening a menu): its rows,
-// a row of it chosen.
-export async function projectMenu(ui: Page, label?: string, tab = '#projectTabs [aria-selected="true"]') {
+// A project's submenu (a tab's right-click, then the row of the project's name, the one row opening a menu), open.
+export async function projectMenu(ui: Page, tab = '#projectTabs [aria-selected="true"]') {
   await rightClick(ui, tab);
   await menu(ui).locator('[role="menuitem"][aria-haspopup]').click();
   await expect(anyMenu(ui)).toHaveCount(2);
-  const rows = await menuRows(ui, submenu(ui));
-  if (label) await choose(ui, label, submenu(ui));
-  else await closeMenu(ui);
-  return rows;
+  return submenu(ui);
 }
-// The shown task's tab's right-click menu, where its profiles are: its rows.
+// The shown task's tab's right-click menu, where its profiles are, open.
 export async function taskMenu(ui: Page) {
   await rightClick(ui, '#projectTabs [aria-selected="true"]');
-  return menuRows(ui);
+  await expect(menu(ui)).toBeVisible();
+  return menu(ui);
 }
+
+// The panels arranged as the human does it: ☰ → Arrange panels.
+export async function arrange(ui: Page, preset: 'columns' | 'grid' | 'focus') {
+  await ui.locator('#windowMenu').click();
+  await menu(ui).locator(`[data-preset="${preset}"]`).click();
+}
+// The window resized as the human drags its edge (by its page's size), its size before given back.
+export const resize = (core: Core, size: { width?: number; height?: number }) => core((k, s) => {
+  const [width, height] = k.shell.win.getContentSize();
+  k.shell.win.setContentSize(s.width ?? width, s.height ?? height);
+  return { width, height };
+}, size);
 
 // Settings → Profiles: the shown task's tab's menu, then Manage Profiles…; once its window shows the page.
 export async function manageProfiles(ui: Page, sui: () => Promise<Page>) {
@@ -282,12 +262,11 @@ export async function settingsClosed(core: Core, ui: Page) {
 
 // The window is a grid of peer panels (dockview): a pane per profile and the terminal. A profile's page is a native view
 // laid over its pane's .content box, so after any change in the grid it must follow the box (driver.ts, viewOn).
-export const box = (ui: Page, sel: string) => ui.evaluate((s) => {
-  const e = document.querySelector<HTMLElement>(s);
-  if (!e || !e.isConnected || !e.offsetWidth) return null;
-  const r = e.getBoundingClientRect();
-  return { x: Math.round(r.x), y: Math.round(r.y), width: Math.round(r.width), height: Math.round(r.height) };
-}, sel);
+// None while it is not there: a wait that polls it ends.
+export const box = async (ui: Page, sel: string) => {
+  const r = await ui.locator(sel).count() === 1 ? await ui.locator(sel).boundingBox() : null;
+  return r && { x: Math.round(r.x), y: Math.round(r.y), width: Math.round(r.width), height: Math.round(r.height) };
+};
 export const pageBox = (ui: Page, files: Files, name: string) => box(ui, `[role="region"][data-profile="${files.idOf(name)}"] [data-testid="page"]`);
 export const viewOn = async (core: Core, ui: Page, files: Files, name: string) => core((k, a) => k.viewOn(a.name, a.box), { name, box: await pageBox(ui, files, name) });
 // dockview's API, as the window keeps it for the tests (window.__dock), given to fn with an argument.
@@ -298,6 +277,8 @@ export const resourcesHeight = (ui: Page) => ui.evaluate(() => Math.round(docume
 // Who the test site says is signed in, in a profile's page, as the agent (of the window's task, or of where) reads it.
 export const who = async (call: Call, profile: string, where?: Where) => (await call('browser_snapshot', { profile }, where)).text.match(/Signed (in as \w+|out)/)?.[0];
 
+// The shown terminal's keyboard (xterm's own field; the others' terminals are kept hidden).
+export const termKeys = (ui: Page) => ui.locator('[data-testid="terminal"] .xterm:visible .xterm-helper-textarea');
 // What the terminal in the window shows ('' while none is shown yet), as the screen reads: lines wrapped at its width
 // joined again, and each line's trailing spaces dropped (ConPTY pads a line repainted after a resize). With a text, only
 // whether it is there: the screen's text stays in the page.

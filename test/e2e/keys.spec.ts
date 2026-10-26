@@ -2,7 +2,7 @@
 // terminal keeps the agent's keys, Kulisa's own work everywhere, Keyboard Shortcuts lists them. Keys are sent as input
 // events into the page or the window, where the human's keyboard would put them.
 import { test, expect } from './fixtures.ts';
-import { SITE, MAC, WIN, termText, ipcSettled, item } from './helpers.ts';
+import { SITE, MAC, WIN, termText, ipcSettled, item, termKeys } from './helpers.ts';
 
 test("keys in a profile's page are Chrome's, for its pane: Ctrl+T a tab with the address to type in, Ctrl+W, Ctrl+Shift+T, Ctrl+1 and Ctrl+Tab; the site never gets them", async ({ core, ui }) => {
   // What the site sees: keys with Ctrl (⌘ on macOS).
@@ -49,7 +49,7 @@ test("keys in the terminal are the agent's, but Kulisa's own: Ctrl+T reaches the
   await ui.locator(`[role="region"][data-profile="${id}"] [aria-label="Address"]`).focus();
   await expect.poll(() => core((k) => k.shell.windows[0].keyZone)).toBe(`pane:${id}`);
   const tabsBefore = await core((k) => k.profile('Sam').tabs.length);
-  await ui.evaluate(() => (window as any).__term.focus());
+  await termKeys(ui).focus();
   await expect.poll(() => core((k) => k.shell.windows[0].keyZone)).toBe('terminal');
   await core((k) => { k.press(k.shell.win.webContents, 'T', 'control'); k.press(k.shell.win.webContents, 'Enter'); });
   // The fake agent (cat -v) shows what it got once its line is sent (Windows' console echoes a control key as it is,

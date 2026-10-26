@@ -5,7 +5,7 @@ import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
 import type { Core, Call } from './fixtures.ts';
 import type { Files } from './data.ts';
-import { WIN, menuRows, choose, rightClick, plusMenu, invoke, notLoading, asked, projectMenu, removed } from './helpers.ts';
+import { WIN, choose, rightClick, plusMenu, invoke, notLoading, answer, projectMenu, removed } from './helpers.ts';
 import { git, rand, hasDirenv, isNth, nthShown, taskTab, taskTabs, reportSession, newTask, openFolder, begin } from './tasks-helpers.ts';
 
 // A repository with a remote, as a clone of one is, opened as a project (its folder named name-<random>); its first
@@ -27,8 +27,9 @@ async function remoteProject(core: Core, ui: Page, files: Files, call: Call, nam
 // The project deleted (its data; never its folder) and its folders after it, once its tasks' shells have left them:
 // Windows does not remove a process's folder.
 async function dropProject(core: Core, ui: Page, id: string, folders: string[]) {
-  await core((k) => { k.answer = true; });
-  await invoke(ui, 'project:delete', { id });
+  const deleted = invoke(ui, 'project:delete', { id });
+  await answer(ui);
+  await deleted;
   await expect.poll(() => core((k, p) => !k.shell.open.has(p) && !k.shell.store.projects().some((x) => x.id === p), id)).toBe(true);
   await removed(...folders);
 }
@@ -44,9 +45,8 @@ test('tasks: Delete Task… asks first, saying what goes and any work not in mai
   await reportSession(core, empty, 's-3', transcript);
   const dir = path.join(files.userData, 'projects', files.pid('project'), empty.split('/')[1]);
   await rightClick(ui, taskTab(ui, empty));
-  await menuRows(ui);
   await choose(ui, 'Delete Task…');
-  const q0 = await asked(core);
+  const q0 = await answer(ui);
   await expect.poll(async () => (await core((k, key) => !k.shell.current.tasks.has(key.split('/')[1]), empty)) && isNth(core, 2)).toBe(true);
   expect(q0.message, 'asked also without changes').toBe('Delete the task task-3?');
   expect(q0.detail.startsWith('Deleted for good:') && q0.detail.includes(`${project}@task-3`) && q0.detail.includes('its branch task-3'), q0.detail).toBe(true);
@@ -67,17 +67,13 @@ test('tasks: Delete Task… asks first, saying what goes and any work not in mai
   const spike = await newTask(core, ui), was = await core((k, key) => k.shell.taskByKey(key).name, spike);
   await call('task_worktree', {}, { task: spike }); // its own worktree, to commit in and to delete with it
   await rightClick(ui, taskTab(ui, spike));
-  await menuRows(ui);
   await choose(ui, 'Rename…');
   await expect(ui.locator('#taskrename')).toHaveAttribute('data-state', 'open');
   await expect(ui.locator('#taskname')).toHaveValue(was);
   await expect(ui.locator('#taskname')).toBeFocused();
   // Typed, and Enter (with its character, as a keyboard sends it: the form is sent on it): the dialog's form is sent.
-  await core(async (k) => {
-    const wc = k.shell.win.webContents;
-    await wc.insertText('Spike');
-    for (const type of ['keyDown', 'char', 'keyUp'] as const) wc.sendInputEvent({ type, keyCode: type === 'char' ? '\r' : 'Enter' });
-  });
+  await ui.locator('#taskname').fill('Spike');
+  await ui.locator('#taskname').press('Enter');
   await expect.poll(() => core((k, key) => k.shell.taskByKey(key).name, spike)).toBe('Spike');
   await expect(ui.locator('#taskrename[data-state="open"]')).toHaveCount(0);
   const { branch, folder } = await core((k, key) => { const t = k.shell.taskByKey(key); return { branch: t.branch, folder: t.folder }; }, spike);
@@ -86,10 +82,10 @@ test('tasks: Delete Task… asks first, saying what goes and any work not in mai
   fs.writeFileSync(path.join(folder, 'idea.txt'), 'x');
   git(folder, 'add', '-A'); git(folder, 'commit', '-qm', 'idea');
   fs.writeFileSync(path.join(folder, 'more.txt'), 'y');
-  const remove = async (answer: boolean) => {
-    await core((k, a) => { k.answer = a; }, answer);
-    await invoke(ui, 'task:delete', spike);
-    return asked(core);
+  const remove = async (yes: boolean) => {
+    const done = invoke(ui, 'task:delete', spike), q = await answer(ui, yes);
+    await done;
+    return q;
   };
   let q = await remove(false);
   expect(q.message).toBe('Delete the task Spike?');
@@ -121,15 +117,12 @@ test("tasks: a closed task whose PR is merged on the remote is marked in its gro
   fs.writeFileSync(path.join(folders[1].folder, 'c.txt'), 'c'); git(folders[1].folder, 'add', '-A'); git(folders[1].folder, 'commit', '-qm', 'c');
   await taskTab(ui, first).getByRole('button', { name: 'Close' }).click();
   await expect.poll(() => core((k, key) => { const t = k.shell.taskByKey(key); return !!t.entry.closed && !!t.entry.merged; }, first), { timeout: 10000 }).toBe(true); // a fetch from the remote
-  expect(await projectMenu(ui)).toContain('Delete Merged Tasks…');
-  await core((k) => { k.asked.length = 0; });
-  await projectMenu(ui, 'Delete Merged Tasks…');
-  expect((await asked(core)).message).toBe('Delete the task task-1?');
+  await choose(ui, 'Delete Merged Tasks…', await projectMenu(ui));
+  expect((await answer(ui)).message).toBe('Delete the task task-1?');
   await expect.poll(async () => !(await core((k, key) => k.shell.current.tasks.has(key.split('/')[1]), first)) && !fs.existsSync(folders[0].folder)).toBe(true);
   expect(await core((k, key) => k.shell.current.tasks.has(key.split('/')[1]) && !k.shell.taskByKey(key).entry.merged, second), 'one not merged stays').toBe(true);
   await invoke(ui, 'project:close-tasks', { id });
   await expect.poll(() => core((k, p) => !k.shell.open.has(p), id)).toBe(true);
-  await core((k) => { k.asked.length = 0; });
   await dropProject(core, ui, id, [dir, origin]);
 });
 
@@ -138,9 +131,10 @@ test("tasks: a closed task is deleted from its row, 🗑 or Delete, in the board
   await begin(core, ui, files, { only: true, columns: true, featureX: call });
   // A project not loaded, its one task closed, with a commit not merged.
   const { id, dir, origin, first, second } = await remoteProject(core, ui, files, call, 'gone');
-  await invoke(ui, 'task:delete', first);
+  const deleted = invoke(ui, 'task:delete', first);
+  await answer(ui);
+  await deleted;
   await expect.poll(() => core((k, key) => !k.shell.current.tasks.has(key.split('/')[1]), first)).toBe(true);
-  await core((k) => { k.asked.length = 0; }); // its question, answered yes
   const made = await core((k, key) => k.shell.taskByKey(key).folder, second);
   fs.writeFileSync(path.join(made, 'c.txt'), 'c'); git(made, 'add', '-A'); git(made, 'commit', '-qm', 'c');
   await invoke(ui, 'project:close-tasks', { id });
@@ -155,19 +149,17 @@ test("tasks: a closed task is deleted from its row, 🗑 or Delete, in the board
   await expect(ui.locator('html')).toHaveAttribute('data-noproject');
   await expect(ui.locator('#board')).toHaveCount(1);
   await expect(row('task-2').locator('[aria-label="Delete Task…"]'), 'shown on the row the pointer or the keyboard is on').toHaveCSS('visibility', 'hidden');
-  await core((k) => { k.answer = false; });
-  await row('task-2').dispatchEvent('keydown', { key: 'Delete', bubbles: true });
-  const q = await asked(core);
+  await row('task-2').press('Delete');
+  const q = await answer(ui, false);
   expect(q.message).toBe('Delete the task task-2?');
   expect(q.detail, 'its work not in main, as Delete Task… says').toMatch(/1 commit of its own/);
-  await expect(ui.locator('#ask[data-state="open"]')).toHaveCount(0);
   expect(!!(await entry('task-2')) && fs.existsSync(folder), 'Cancel keeps it').toBe(true);
-  await core((k) => { k.answer = true; });
   await row('task-2').hover();
   await row('task-2').locator('[aria-label="Delete Task…"]').click();
+  await answer(ui);
   await expect.poll(async () => !(await entry('task-2')) && !fs.existsSync(folder)).toBe(true);
   expect(await core((k, p) => k.shell.open.has(p), id), 'not opened for it').toBe(false);
-  expect(await ui.locator(`#board section[data-project="${id}"] [data-task]`).allTextContents(), 'it has no closed task left in the board').toEqual([]);
+  await expect(ui.locator(`#board section[data-project="${id}"] [data-task]`), 'it has no closed task left in the board').toHaveCount(0);
 
   // Back to project's task-1 and Feature-X.
   await ui.locator(`#board [data-task="${files.tkey('project', 1)}"]`).click();
@@ -179,6 +171,6 @@ test("tasks: a closed task is deleted from its row, 🗑 or Delete, in the board
   await expect.poll(() => core((k) => k.shell.task.loaded && !!k.shell.pty)).toBe(true);
   await taskTab(ui, files.tkey('project', 1)).click();
   await nthShown(core, 1);
-  await core((k) => { k.watchPty(k.shell.pty); k.asked.length = 0; });
+  await core((k) => k.watchPty(k.shell.pty));
   await dropProject(core, ui, id, [dir, origin]);
 });

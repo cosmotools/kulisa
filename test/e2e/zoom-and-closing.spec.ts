@@ -4,7 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
-import { SITE, PORT, MAC, WIN, near, uiZoom, who, menu, anyMenu, item, menuRows, choose, closeMenu, taskMenu, manageProfiles, closeSettings, plusMenu, closeBoard, viewOn, invoke , typeIn } from './helpers.ts';
+import { SITE, PORT, MAC, WIN, near, uiZoom, who, menu, anyMenu, item, choose, closeMenu, taskMenu, answer, manageProfiles, closeSettings, plusMenu, closeBoard, viewOn, invoke , typeIn } from './helpers.ts';
 import { profileId, deleteProfile } from './tasks-helpers.ts';
 
 // Files of the sites' Cache API in a profile's folder, wherever Chromium's layout puts them (`WebStorage/<bucket>/CacheStorage/`).
@@ -37,7 +37,18 @@ test('Kulisa zoom: Ctrl+= outside the pages scales the whole UI, pages follow, p
   await expect(ui.locator('#zoomReset')).toHaveText('110%');
   await expect(ui.locator('#zoomReset')).toBeVisible();
   await ui.locator('#windowMenu').click();
-  expect((await menuRows(ui)).slice(0, 6)).toEqual(['zoom', 'theme', 'bar', 'Language', '-', '# Arrange panels']);
+  await expect(menu(ui)).toMatchAriaSnapshot(`
+    - menu:
+      - /children: contain
+      - text: Zoom
+      - group:
+        - text: Theme
+      - group:
+        - text: Tasks bar
+      - menuitem "Language"
+      - separator
+      - text: Arrange panels
+  `);
   await expect(menu(ui).getByTestId('zoom-row').locator('output')).toHaveText('110%');
   await menu(ui).getByRole('menuitem', { name: 'Zoom in' }).click(); // − 110% + in the menu, as in Chrome
   await expect.poll(async () => near(await uiZoom(core), 1.25)).toBe(true);
@@ -91,16 +102,13 @@ test('the window\'s minimum follows the Kulisa zoom; a window at the minimum gro
   for (const from of ['new', 'folder', 'clone']) {
     await ui.locator(`#npfrom [data-value="${from}"]`).click();
     await expect(ui.locator(`#npfrom [data-value="${from}"]`)).toHaveAttribute('aria-selected', 'true');
-    const fits = await ui.evaluate(() => {
-      const d = document.getElementById('newproject').getBoundingClientRect();
-      const inside = (id: string) => {
-        const e = document.getElementById(id);
-        if (!e) return null;
-        const r = e.getBoundingClientRect();
-        return r.right <= d.right && r.bottom <= d.bottom && d.bottom <= innerHeight;
-      };
-      return { create: inside('npcreate'), browse: inside('npbrowse') };
-    });
+    const d = await ui.locator('#newproject').boundingBox(), height = await ui.evaluate(() => innerHeight);
+    const inside = async (id: string) => {
+      if (!(await ui.locator(`#${id}`).count())) return null;
+      const r = await ui.locator(`#${id}`).boundingBox();
+      return r.x + r.width <= d.x + d.width && r.y + r.height <= d.y + d.height && d.y + d.height <= height;
+    };
+    const fits = { create: await inside('npcreate'), browse: await inside('npbrowse') };
     expect(fits, from).toEqual({ create: true, browse: from === 'folder' ? null : true });
   }
   await ui.locator('#newproject').locator('header').getByRole('button', { name: 'Close' }).click();
@@ -205,9 +213,15 @@ test('close a profile (its × or the agent) and open it again (👥 or the agent
   await call('profile_close', { profile: 'Cleo' });
   expect(await core((k, id) => !k.shell.profiles.has(id) && k.shell.closed.has(id), cleo)).toBe(true);
   const rows = await taskMenu(ui), names = await core((k) => [...k.shell.profiles.values()].map((p) => p.name));
-  expect(rows[0]).toBe('# Profiles');
-  expect(rows.slice(1, rows.indexOf('-'))).toEqual(expect.arrayContaining([...names, 'Cleo']));
-  expect(rows[rows.indexOf('-') + 1]).toBe('Manage Profiles…');
+  // Under Profiles, before the first line: the open ones and Cleo; then Manage Profiles….
+  await expect(rows).toMatchAriaSnapshot(`
+    - menu:
+      - /children: contain
+      - text: Profiles
+      ${[...names, 'Cleo'].map((n) => `- menuitem ${JSON.stringify(n)}`).join('\n      ')}
+      - separator
+      - menuitem "Manage Profiles…"
+  `);
   await expect(cleoRow().locator('small')).toHaveText('closed · click to open');
   await choose(ui, 'Cleo');
   await expect.poll(() => core((k, id) => k.shell.profiles.has(id), cleo)).toBe(true);
@@ -231,20 +245,23 @@ test('close a profile (its × or the agent) and open it again (👥 or the agent
 
   // The agent removes it from the project: the human is asked; no keeps it, yes removes it (closed ones too); the
   // profile stays in Settings → Profiles.
-  await core((k) => { k.answer = false; });
-  await expect(call('profile_delete', { profile: 'Cleo' })).rejects.toThrow(/said no/);
-  const asked = await core((k) => ({ message: k.asked.pop().message, project: k.shell.current.name }));
-  expect(asked.message).toBe(`The agent asks to remove the profile Cleo from ${asked.project}.`);
+  const refused = expect(call('profile_delete', { profile: 'Cleo' })).rejects.toThrow(/said no/);
+  const asked = await answer(ui, false);
+  await refused;
+  expect(asked.message).toBe(`The agent asks to remove the profile Cleo from ${await core((k) => k.shell.current.name)}.`);
   expect(await core((k, id) => k.shell.profiles.has(id), cleo)).toBe(true);
   await call('profile_close', { profile: 'Cleo' });
-  await core((k) => { k.answer = true; });
-  await call('profile_delete', { profile: 'Cleo' });
+  const removed = call('profile_delete', { profile: 'Cleo' });
+  await answer(ui);
+  await removed;
   expect(await core((k, id) => !k.shell.profiles.has(id) && !k.shell.closed.has(id), cleo)).toBe(true);
   expect(saved('profiles.json').some((p) => p.id === cleo)).toBe(false);
   expect(files.json('deleted-folders.json')).toContain(cleoDir);
   expect(await core((k, id) => k.shell.profileStore.projectsOf(k.shell.profileStore.get(id)), cleo), 'kept, in no project').toEqual([]);
   // Deleted for good, as Settings does: the file's next runs make a Cleo again.
-  await invoke(ui, 'profiles:delete', { profile: cleo });
+  const deleted = invoke(ui, 'profiles:delete', { profile: cleo });
+  await answer(ui);
+  await deleted;
   await expect.poll(() => core((k, id) => !k.shell.profileStore.get(id), cleo)).toBe(true);
 });
 
@@ -293,7 +310,9 @@ test('closing the last tab of a profile leaves an empty tab, not a pane without 
     expect(await core((k) => k.profile('Solo').get().view.getVisible()), 'its page is shown').toBe(true);
     await expect(tabs).toHaveCount(1);
   }
-  await ui.evaluate((id) => (window as any).act('profile:delete', { profile: id }), solo);
+  const removed = ui.evaluate((id) => (window as any).act('profile:delete', { profile: id }), solo);
+  await answer(ui);
+  await removed;
   await expect.poll(() => core((k, id) => k.shell.profiles.has(id), solo)).toBe(false);
   await deleteProfile(core, ui, 'Solo');
 });
@@ -356,8 +375,12 @@ test("test users' sign-ins: the agent saves a pair and signs in with it on a loc
   expect(later).toMatch(/\[mcp\] browser_type \S+\/[a-z0-9]{6} \{"profile":"Tess","locator":"locator\('body'\)","text":"…"\}/);
   expect(later).toMatch(/\[mcp\] browser_navigate \S+\/[a-z0-9]{6} \{"profile":"Tess","url":"http:\/\/nowhere\.invalid\/x\?…"\}/);
   expect(later, "nothing of the page's address or the typed text").not.toMatch(/typed-by-agent|code=abc|did-fail|certificate-error/);
-  await call('profile_delete', { profile: 'Tess' });
-  await invoke(ui, 'profiles:delete', { profile: tess });
+  const removed = call('profile_delete', { profile: 'Tess' });
+  await answer(ui);
+  await removed;
+  const deleted = invoke(ui, 'profiles:delete', { profile: tess });
+  await answer(ui);
+  await deleted;
   await expect.poll(() => core((k, id) => !k.shell.profileStore.get(id), tess)).toBe(true);
 });
 

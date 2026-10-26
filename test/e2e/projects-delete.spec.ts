@@ -2,7 +2,7 @@
 import fs from 'fs';
 import path from 'path';
 import { test, expect } from './fixtures.ts';
-import { anyMenu, item, menuRows, choose, projectTabs, projectTabSel, plusMenu, closeSettings, invoke, typeIn, asked, notLoading, projectMenu, pageOf, removed } from './helpers.ts';
+import { anyMenu, item, choose, projectTabs, projectTabSel, plusMenu, closeSettings, invoke, typeIn, answer, notLoading, projectMenu, pageOf, removed } from './helpers.ts';
 import { git, committed, begin, bothOn, taskShown, taskTabs } from './tasks-helpers.ts';
 import { createWorktree } from '../../src/main/worktrees.ts';
 
@@ -32,33 +32,31 @@ test("projects: Delete Project… (the projects' manager alone) asks, closes the
   fs.writeFileSync(path.join(data, 'tasks.json'), JSON.stringify({ list: [{ id: 'aaaaa1', name: 'task-1', named: true, resources: [{ kind: 'maintree', folder: spare }] }, { id: 'aaaaa2', name: 'Idea', named: true, resources: [{ kind: 'worktree', ...wt }] }] }));
   await core((k) => k.shell.sendProjects()); // made behind the windows' back: they are told, as when a project is made
 
-  // In the projects' manager, its Delete Project…: the human is told what goes, says no, then yes.
-  const removeRow = async (folder = 'spare') => {
+  // In the projects' manager, its Delete Project…: the human is told what goes (asked in Settings' window), says no,
+  // then yes.
+  const removeRow = async (folder = 'spare', yes = true) => {
     const { id, name } = await core((k, i) => k.shell.store.projects().find((x) => x.id === i), files.pid(folder));
     if (!(await core((k) => !!k.shell.settings))) await ui.locator('#manageProjects').click();
     const s = await sui();
     await s.locator(`#pjlist [data-project="${id}"]`).click();
     await pageOf(s, name);
     await s.locator('#pjmore').click(); // ⋯ at its top
-    await menuRows(s);
     await choose(s, 'Delete Project…');
+    return answer(s, yes);
   };
-  await core((k) => { k.answer = false; });
-  await removeRow();
-  const q = await asked(core);
+  const q = await removeRow('spare', false);
   expect(q.message).toBe('Delete the project spare?');
   expect(q.detail).not.toMatch(/Spare-user/);
   expect(q.detail).toMatch(/Its profiles stay, with their sign-ins/);
   expect(q.detail, 'its accounts stay').not.toMatch(/accounts/);
   expect(q.detail.includes(wt.worktree) && q.detail.includes('Idea: 1 commit of its own') && q.detail.includes(`Its folders stay as they are: ${spare}.`)).toBe(true);
   expect((await projects()).includes('spare') && fs.existsSync(data) && fs.existsSync(wt.worktree), 'kept when the human says no').toBe(true);
-  await core((k) => { k.answer = true; });
   await removeRow();
   await expect.poll(async () => (await projects()).includes('spare')).toBe(false);
   await expect.poll(() => !fs.existsSync(data) && !fs.existsSync(wt.worktree)).toBe(true);
   const master = await core((k, o) => k.shell.profileStore.projectsOf(k.shell.profileStore.get(o)).length === 0 && k.shell.profileStore.masterDir(o), made.own);
   expect(!!master && fs.existsSync(master), 'its profile kept, with its sign-ins, in no project (as its account)').toBe(true);
-  await core((k, o) => { k.shell.profileStore.delete(o); k.asked.length = 0; }, made.own); // not needed after
+  await core((k, o) => { k.shell.profileStore.delete(o); }, made.own); // not needed after
   const logouts = path.join(root, 'logouts');
   expect(fs.existsSync(made.accountDir) && !(fs.existsSync(logouts) && fs.readFileSync(logouts, 'utf8').includes(made.accountDir)), 'its account kept, signed in').toBe(true);
   expect(await core((k, a) => k.shell.store.projectsWith('agents', a).map((p) => p.id), made.account)).toEqual([]);
@@ -84,12 +82,12 @@ test("projects: Delete Project… (the projects' manager alone) asks, closes the
     await ui.locator(`#newproject #npfrom [data-value="${from}"]`).click();
     await expect(ui.locator(`#npfrom [data-value="${from}"]`)).toHaveAttribute('aria-selected', 'true');
   };
-  const submit = () => ui.evaluate(() => (document.getElementById('npform') as HTMLFormElement).requestSubmit());
+  const submit = () => ui.locator('#npcreate').click();
   // Its steps gone through (no agent, no profile chosen), then Create: made, its first task opened in this window.
   const create = async (folder: string) => {
     for (const step of ['Agents', 'Profiles']) {
       await submit();
-      await expect.poll(() => ui.evaluate(() => document.querySelector('#newproject [aria-current="step"]')?.textContent.slice(1))).toBe(step);
+      await expect(ui.locator('#newproject [aria-current="step"]')).toHaveText(new RegExp(`^.${step}$`));
     }
     await submit();
     await expect.poll(async () => {
@@ -117,19 +115,17 @@ test("projects: Delete Project… (the projects' manager alone) asks, closes the
     await expect(ui.locator('#npname')).toHaveValue('gone');
   } finally { await core((k) => { k.electron.dialog.showOpenDialog = k.stash.open; }); }
   await expect(ui.locator('#npsources [role="option"] kbd')).toHaveText('git');
-  await core((k) => { k.asked.length = 0; });
   await create('gone');
   expect(await core((k) => k.shell.current.folder)).toBe(goneDir);
   expect(git(goneDir, 'log', '--format=%s'), 'its history as it was').toBe('mine');
   expect(fs.readFileSync(path.join(goneDir, 'a.txt'), 'utf8')).toBe('a');
-  expect(await core((k) => k.asked.length), 'its task in this window, nothing asked where').toBe(0);
+  await expect(ui.getByRole('alertdialog'), 'its task in this window, nothing asked').toHaveCount(0);
   // The open one: closed, then deleted; the tab next to it shown.
   const goneData = path.join(files.userData, 'projects', files.pid('gone'));
   await removeRow('gone');
   await expect.poll(async () => (await projects()).includes('gone')).toBe(false);
   // Its grid taken down closes the window's dialogs, the manager too (lib/views.ts, closeLayers).
   if (await core((k) => !!k.shell.settings)) await closeSettings(core, ui, sui);
-  await core((k) => { k.asked.length = 0; });
   await expect.poll(() => core((k, f) => k.shell.current?.folder === f && !!k.shell.task?.loaded, files.project)).toBe(true);
   expect(await projectTabs(ui, files), 'the tab next to it shown').toEqual(['project', 'project *']);
   expect(fs.existsSync(goneDir) && !fs.existsSync(goneData)).toBe(true);
@@ -142,8 +138,12 @@ test("projects: Delete Project… (the projects' manager alone) asks, closes the
   await newProject('folder');
   await add(goneDir);
   await add(back);
-  await expect.poll(() => ui.locator('#npsources [role="option"]').evaluateAll((rs) => rs.map((r) => `${(r as HTMLElement).dataset.source} ${r.querySelector('kbd').textContent} ${[...r.querySelectorAll('kbd')].some((k) => k.textContent === 'default')}`).join()))
-    .toBe(`${goneDir} git true,${back} no git false`);
+  const sources = ui.locator('#npsources [role="option"]');
+  await expect(sources).toHaveCount(2);
+  await expect(sources.nth(0)).toHaveAttribute('data-source', goneDir);
+  await expect(sources.nth(0).locator('kbd')).toHaveText(['git', 'default']);
+  await expect(sources.nth(1)).toHaveAttribute('data-source', back);
+  await expect(sources.nth(1).locator('kbd')).toHaveText(['no git']);
   await create('gone');
   expect(await core((k, i) => k.shell.store.projects().find((x) => x.id === i).folders, files.pid('gone'))).toEqual([goneDir, back]);
   expect(fs.existsSync(path.join(back, '.git')), 'the one without git left so').toBe(false);
@@ -187,16 +187,14 @@ test("projects: Delete Project… (the projects' manager alone) asks, closes the
   await removeRow('cloned');
   await expect.poll(async () => (await projects()).includes('cloned')).toBe(false);
   if (await core((k) => !!k.shell.settings)) await closeSettings(core, ui, sui);
-  await core((k) => { k.asked.length = 0; });
   // A URL git cannot clone: git's own words, nothing left behind, the clones before it neither.
   expect((await invoke(ui, 'project:new', { from: 'clone', name: 'bad', location: root, urls: [bare, path.join(root, 'none.git')] })).error).toBeTruthy();
   expect(!fs.existsSync(path.join(root, 'bad')) && !(await projects()).includes('bad')).toBe(true);
 
   // Close All Tasks in its submenu: the last tasks, so the empty window; its tasks closed.
   await notLoading(ui);
-  await projectMenu(ui, 'Close All Tasks', projectTabSel(files, 'project'));
+  await choose(ui, 'Close All Tasks', await projectMenu(ui, projectTabSel(files, 'project')));
   await expect.poll(() => core((k) => k.shell.task === null && k.shell.open.size === 0)).toBe(true);
-  await core((k) => { k.asked.length = 0; });
   await expect(ui.locator('html')).toHaveAttribute('data-noproject');
   expect(await core((k, i) => k.shell.store.tasksOf({ id: i }).list.every((e) => e.closed), files.pid('project')), 'its tasks closed').toBe(true);
 

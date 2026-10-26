@@ -1,9 +1,9 @@
 // Renaming and deleting profiles, DevTools, the human's screenshots; what profiles keep across a restart (docs/profiles.md).
 import fs from 'fs';
 import path from 'path';
-import type { Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
-import { SITE, PORT, logged, ipcSettled, who, menu, submenu, item, menuRows, choose, closeMenu, rightClick, manageProfiles, closeSettings, chooseProfile, termText, invoke , typeIn, removed } from './helpers.ts';
+import { SITE, PORT, logged, ipcSettled, who, menu, submenu, item, choose, closeMenu, rightClick, manageProfiles, closeSettings, chooseProfile, termText, invoke, answer, typeIn, removed } from './helpers.ts';
 import { profileId, deleteProfile } from './tasks-helpers.ts';
 
 // A PNG's size in pixels, from its header.
@@ -68,23 +68,18 @@ test("delete a profile in Settings (its page's ⋯, its row's right-click): sign
 
   const s = await manageProfiles(ui, sui);
   await chooseProfile(s, files, 'Temp');
-  await core((k) => { k.answer = false; }); // Cancel
   await s.locator('#profilemore').click(); // ⋯ at its page's top
-  await menuRows(s);
   await choose(s, 'Delete Profile…');
-  await expect.poll(() => core((k) => k.asked.length)).toBe(1);
-  const q = await core((k) => k.asked.pop());
+  const q = await answer(s, false);
   expect(q.message).toBe('Delete the profile Temp?');
   expect(q.detail).toMatch(/removed for good, here and in every task\. The projects .* let go of it\./);
-  // Cancel clicked (driver.ts), its dialog gone; the answer reaches the main process before anything Settings sends
-  // after it, and the deleting would go on as it comes.
-  await expect.poll(() => s.evaluate(() => document.getElementById('ask')?.dataset.state !== 'open')).toBe(true);
+  // Cancel's answer reaches the main process before anything Settings sends after it, and the deleting would go on as
+  // it comes.
   await ipcSettled(s);
   expect(await core((k, p) => k.shell.profiles.has(p), tempId), 'nothing is deleted without the confirmation').toBe(true);
-  await core((k) => { k.answer = true; });
   await rightClick(s, `#pjlist [data-profile="${tempId}"]`);
-  await menuRows(s);
   await choose(s, 'Delete Profile…');
+  await answer(s);
   await expect.poll(() => core((k, p) => !k.shell.profiles.has(p) && !k.shell.profileStore.get(p), tempId)).toBe(true);
   await expect(s.locator(`#pjlist [data-profile="${tempId}"]`)).toHaveCount(0);
   await expect(s.locator('#pjlist [data-profile][aria-selected="true"]')).toHaveCount(1);
@@ -122,7 +117,7 @@ test('rename in Settings → Profiles: typed, and Enter or leaving the field sav
   const s = await manageProfiles(ui, sui);
   await chooseProfile(s, files, 'Ren.seller');
   await core((k) => k.focus(k.shell.settings.win)); // the keyboard in Settings' window, as the human's hands
-  await s.locator('#profilename').evaluate((f: HTMLInputElement) => { f.focus(); f.select(); });
+  await s.locator('#profilename').selectText();
   await core(async (k) => {
     const wc = k.shell.settings.win.webContents;
     await wc.insertText('Ren.admin');
@@ -168,29 +163,43 @@ test("DevTools in a pane's ⋮ menu opens and closes the DevTools of its active 
   const opened = () => core((k) => k.profile('Sam.admin').get().wc.isDevToolsOpened());
   // ⋮ as tall as the bar's other buttons, its dots upright, its menu open or not: the Details' trigger's rule must
   // not take its height or turn its dots.
-  const looks = () => pane.locator('[role="toolbar"] button:not([hidden])').evaluateAll((bs) => bs.map((b) => [Math.round(b.getBoundingClientRect().height), getComputedStyle(b.querySelector('svg')).rotate]));
-  const closed = await looks();
-  expect(closed, 'its menu closed').toEqual(closed.map(() => [closed[0][0], 'none']));
+  const buttons = pane.locator('[role="toolbar"] button:not([hidden])');
+  const looks = async (what: string) => {
+    for (const svg of await buttons.locator('svg').all()) await expect(svg, what).toHaveCSS('rotate', 'none');
+    return Promise.all((await buttons.all()).map(async (b) => Math.round((await b.boundingBox()).height)));
+  };
+  const closed = await looks('its menu closed');
+  expect(closed, 'its menu closed').toEqual(closed.map(() => closed[0]));
   const click = async () => {
     await openMore(ui, id);
-    expect(await menuRows(ui)).toEqual(['Screenshot', 'DevTools']);
+    await expect(menu(ui)).toMatchAriaSnapshot(`
+      - menu:
+        - menuitem "Screenshot"
+        - menuitem "DevTools"
+    `);
     // As Chrome's ⋮: under the button, its right edge at the button's, so it stays over its own pane.
     const m = await menu(ui).boundingBox(), b = await pane.locator('[aria-label="More"]').boundingBox();
     expect(Math.abs(m.x + m.width - (b.x + b.width)) < 1 && m.y >= b.y + b.height, JSON.stringify({ m, b })).toBe(true);
     // Back, forward, reload, Pick and ⋮ are icon buttons, as Chrome's: no border, no text, a name for screen readers.
-    expect(await pane.locator('[role="toolbar"] button:not([hidden])').evaluateAll((bs) => bs.map((b) => [b.ariaLabel, b.textContent.trim(), !!b.querySelector('svg'), getComputedStyle(b).borderTopWidth])))
-      .toEqual(['Back', 'Forward', 'Reload', 'Pick an element', 'More'].map((c) => [c, '', true, '0px']));
-    expect(await looks(), 'its menu open').toEqual(closed);
+    const names = ['Back', 'Forward', 'Reload', 'Pick an element', 'More'];
+    await expect(buttons).toHaveCount(names.length);
+    for (const [i, name] of names.entries()) {
+      const b = buttons.nth(i);
+      await expect(b).toHaveAccessibleName(name);
+      await expect(b).toHaveText('');
+      await expect(b.locator('svg')).toHaveCount(1);
+      await expect(b).toHaveCSS('border-top-width', '0px');
+    }
+    expect(await looks('its menu open'), 'its menu open').toEqual(closed);
     // The same inset from the island's edges for the controls in it; the page reaches its edges (the author's choice).
-    const inset = await pane.evaluate((p) => {
-      const group = p.closest('.dv-groupview'), island = group.getBoundingClientRect();
-      const header = document.querySelector(`[data-panel="${group.querySelector<HTMLElement>('[data-panel]').dataset.panel}"]`);
-      const r = (e: Element) => e.getBoundingClientRect();
-      const left = (e: Element) => Math.round(r(e).left - island.left), right = (e: Element) => Math.round(island.right - r(e).right);
-      return { avatar: left(header.querySelector('img')), tab: left(p.querySelector('[role="tab"]')), back: left(p.querySelector('[aria-label="Back"]')),
-        page: left(p.querySelector('[data-testid="page"]')), close: right(header.querySelector('[aria-label="Close profile"]')), more: right(p.querySelector('[aria-label="More"]')),
-        pageRight: right(p.querySelector('[data-testid="page"]')), pageBottom: Math.round(island.bottom - r(p.querySelector('[data-testid="page"]')).bottom) };
-    });
+    // The island: dockview's group of the pane; its header the panel's tab there.
+    const island = await ui.locator('.dv-groupview').filter({ has: pane }).boundingBox(), header = ui.locator(`[data-panel="profile:${id}"]`).first();
+    const left = async (l: Locator) => Math.round((await l.boundingBox()).x - island.x);
+    const right = async (l: Locator) => { const r = await l.boundingBox(); return Math.round(island.x + island.width - (r.x + r.width)); };
+    const page = pane.getByTestId('page'), pageBox = await page.boundingBox();
+    const inset = { avatar: await left(header.locator('img')), tab: await left(pane.getByRole('tab').first()), back: await left(pane.locator('[aria-label="Back"]')),
+      page: await left(page), close: await right(header.locator('[aria-label="Close profile"]')), more: await right(pane.locator('[aria-label="More"]')),
+      pageRight: await right(page), pageBottom: Math.round(island.y + island.height - (pageBox.y + pageBox.height)) };
     expect(inset).toEqual({ avatar: 8, tab: 8, back: 8, page: 0, close: 8, more: 8, pageRight: 0, pageBottom: 0 });
     await choose(ui, 'DevTools');
   };
@@ -225,7 +234,12 @@ test("a pane's ⋮ → Screenshot takes an element, the visible part or the whol
   const fromMenu = async (label: string) => {
     await openMore(ui, id);
     await openSub(ui);
-    expect(await menuRows(ui, submenu(ui))).toEqual(['Element', 'Visible Part', 'Full Page']);
+    await expect(submenu(ui)).toMatchAriaSnapshot(`
+      - menu:
+        - menuitem "Element"
+        - menuitem "Visible Part"
+        - menuitem "Full Page"
+    `);
     // The pointer taken to its row as the hand takes it, through what lies between: a jump straight there leaves the
     // submenu's trigger toward nowhere its grace area knows, and the submenu closes.
     const row = item(ui, label, submenu(ui)), b = await row.boundingBox();
@@ -276,7 +290,12 @@ test("a pane's ⋮ → Screenshot takes an element, the visible part or the whol
   expect(await core((k) => { const p = k.profile('Sam.admin'); return p.screenshot(p.get(), { scale: 'device', type: 'png', by: 'human' }).then(() => 'taken', (e: Error) => e.message); })).toMatch(/is empty/);
   await openMore(ui, id);
   await openSub(ui);
-  expect(await menuRows(ui, submenu(ui))).toEqual(['Element (off)', 'Visible Part (off)', 'Full Page (off)']);
+  await expect(submenu(ui)).toMatchAriaSnapshot(`
+    - menu:
+      - menuitem "Element" [disabled]
+      - menuitem "Visible Part" [disabled]
+      - menuitem "Full Page" [disabled]
+  `);
   await closeMenu(ui);
   // Back by the tab's own page: Profile.page() would look among the pages while the closed tab's is still going.
   await core(async (k, a) => { const p = k.profile('Sam.admin'); p.closeTab(a.blank); await p.get(a.tall).wc.loadURL(a.was); }, { blank, was, tall });
@@ -299,31 +318,48 @@ test('a screenshot shows its thumbnail in its pane\'s corner: a click opens it, 
     shell.trashItem = async (f) => { g.did.push(`trash ${f}`); fs.rmSync(f); };
   });
   const did = () => core((k) => k.stash.did as string[]);
-  // The thumbnail's page, by the view of the screenshot taken last.
-  const thumb = <R>(js: string) => core((k, s) => k.stash.thumbWc.executeJavaScript(s) as Promise<R>, js);
+  // The thumbnail's page (one at a time: the last one gone before the next is taken), once Playwright has it.
+  let tp: Page;
   const thumbGone = () => core((k) => k.stash.thumbWc.isDestroyed());
   const shown = ui.locator('#shotthumb');
   try {
     const take = async () => {
       expect((await ui.evaluate((p) => (window as any).act('tab:screenshot', { profile: p, kind: 'visible' }), id)).error).toBeUndefined();
       await expect.poll(() => core((k) => !!k.shell.windows[0].thumbnails.bounds)).toBe(true);
-      return core((k) => { const t = k.shell.windows[0].thumbnails; Object.assign(k.stash, { thumb: t.view, thumbWc: t.view.webContents }); return { file: t.file, bounds: t.bounds }; });
+      const t = await core((k) => { const t = k.shell.windows[0].thumbnails; Object.assign(k.stash, { thumb: t.view, thumbWc: t.view.webContents }); return { file: t.file, bounds: t.bounds }; });
+      await expect.poll(() => { tp = ui.context().pages().find((x) => x.url().includes('thumbnail.html') && !x.isClosed()); return !!tp; }).toBe(true);
+      return t;
     };
+    const state = (s: string) => expect(tp.locator('body')).toHaveAttribute('data-state', s);
     const t = await take(), file = t.file;
     // In the pane's bottom right corner, the picture shown in its page, and drawn by the window too.
     const p = await core((k) => k.profile('Sam.admin').bounds), b = t.bounds;
     expect(b.x > p.x && b.y > p.y && b.x + b.width < p.x + p.width && b.y + b.height < p.y + p.height && p.x + p.width - (b.x + b.width) < 40 && p.y + p.height - (b.y + b.height) < 40, JSON.stringify({ p, b })).toBe(true);
-    await expect.poll(() => thumb(`document.querySelector('img').src.startsWith('data:image/png') && document.body.dataset.state === 'in'`)).toBe(true);
+    await expect(tp.locator('img')).toHaveAttribute('src', /^data:image\/png/);
+    await state('in');
     await expect(shown).toHaveCount(1);
-    await thumb(`document.querySelector('img').click()`);
+    await tp.locator('img').click();
     await expect.poll(did).toContain(`open ${file}`);
     await core((k) => { const wc = k.stash.thumbWc; wc.startDrag = (item: { file: string }) => { k.stash.dragged = item.file; }; });
-    await thumb(`document.querySelector('img').dispatchEvent(new DragEvent('dragstart', { bubbles: true, cancelable: true })); 0`);
+    // Dragged out as the hand drags it: pressed, then moved.
+    const img = await tp.locator('img').boundingBox();
+    await tp.mouse.move(img.x + img.width / 2, img.y + img.height / 2);
+    await tp.mouse.down();
+    await tp.mouse.move(img.x + img.width / 2 + 30, img.y + img.height / 2 + 30, { steps: 5 });
+    await tp.mouse.up();
     await expect.poll(() => core((k) => k.stash.dragged)).toBe(file);
     // Its menu, the window's, where it was right-clicked; the thumbnail stays while it is open.
     const thumbMenu = async (label: string) => {
-      await thumb(`document.dispatchEvent(new MouseEvent('contextmenu', { clientX: 20, clientY: 10, bubbles: true, cancelable: true })); 0`);
-      expect(await menuRows(ui)).toEqual(['Show in Folder', 'Copy', 'Send to Agent', '-', 'Delete', 'Close']);
+      await tp.mouse.click(20, 10, { button: 'right' });
+      await expect(menu(ui)).toMatchAriaSnapshot(`
+        - menu:
+          - menuitem "Show in Folder"
+          - menuitem "Copy"
+          - menuitem "Send to Agent"
+          - separator
+          - menuitem "Delete"
+          - menuitem "Close"
+      `);
       await choose(ui, label);
       await expect(ui.locator('[role="menu"][data-state="open"]')).toHaveCount(0);
     };
@@ -341,9 +377,9 @@ test('a screenshot shows its thumbnail in its pane\'s corner: a click opens it, 
     await expect(shown).toHaveCount(0);
     // Its ×: it fades out first, then goes.
     await take();
-    await expect.poll(() => thumb(`document.body.dataset.state === 'in'`)).toBe(true);
-    await thumb(`document.querySelector('button').click()`);
-    await expect.poll(async () => await thumbGone() || await thumb(`document.body.dataset.state === 'out'`)).toBe(true);
+    await state('in');
+    await tp.getByRole('button').click();
+    await expect.poll(async (): Promise<boolean> => tp.isClosed() || await tp.locator('body').getAttribute('data-state').catch((): null => null) === 'out').toBe(true);
     await expect.poll(async () => await core((k) => !k.shell.windows[0].thumbnails.file) && await thumbGone()).toBe(true);
     // It goes by itself after 5 s (the time macOS gives one), fading out first, and stays while the pointer is over it:
     // the main process's clock moved on by the test for its timers of those lengths (driver.ts, clock).
@@ -351,11 +387,11 @@ test('a screenshot shows its thumbnail in its pane\'s corner: a click opens it, 
     await core((k, ms) => k.clock.hold(ms), FADE);
     await take();
     const from = await core((k) => k.logged.length);
-    await thumb(`document.documentElement.dispatchEvent(new MouseEvent('mouseenter')); 0`);
+    await tp.mouse.move(20, 10);
     await expect.poll(() => core((k, i) => k.logged.slice(i).some((l) => l.includes('thumbnail:hover')), from)).toBe(true); // heard
     await core((k, ms) => k.clock.advance(ms), STAYS + FADE);
     expect(await core((k) => k.shell.windows[0].thumbnails.view === k.stash.thumb), 'held while the pointer is over it').toBe(true);
-    await thumb(`document.documentElement.dispatchEvent(new MouseEvent('mouseleave')); 0`);
+    await tp.mouse.move(-1, -1); // out of its page
     await expect.poll(() => core((k, i) => k.logged.slice(i).filter((l) => l.includes('thumbnail:hover')).length, from)).toBe(2);
     await core((k, ms) => k.clock.advance(ms), STAYS + FADE);
     expect(await core((k) => !k.shell.windows[0].thumbnails.file), 'gone once its time is over').toBe(true);
@@ -401,7 +437,7 @@ test('after a restart: profiles, sign-ins and tabs are back, the one in front in
   const profiles = () => core((k) => [...k.shell.profiles.values()].map((p) => [p.id, p.avatar, p.description]));
   const before = await profiles();
 
-  await restart();
+  const ui2 = await restart();
   await expect.poll(profiles).toEqual(before);
   expect(await core((k) => ['Rhea.admin', 'Rob.buyer'].map((n) => { const p = k.profile(n); return [p.avatar, p.description]; }))).toEqual([['fox', 'seller in the test shop'], ['owl', '']]);
   // The deleted ones' copies and masters removed; the live ones keep their folders (beside the task's artifacts).
@@ -417,7 +453,9 @@ test('after a restart: profiles, sign-ins and tabs are back, the one in front in
   expect(await core((k, p) => k.shell.closed.has(p) && !k.shell.profiles.has(p), dora)).toBe(true);
   await call('profile_open', { profile: 'Dora' });
   expect(await who(call, 'Dora')).toBe('Signed in as dora');
-  await call('profile_delete', { profile: 'Dora' });
+  const deleted = call('profile_delete', { profile: 'Dora' });
+  await answer(ui2);
+  await deleted;
 });
 
 test("a packaged build (appDevTools off): no DevTools for Kulisa's own UI, a tab's still open", async ({ core, restart }) => {

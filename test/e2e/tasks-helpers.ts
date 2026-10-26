@@ -9,7 +9,7 @@ import { expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import type { Core, Call } from './fixtures.ts';
 import type { Files } from './data.ts';
-import { SITE, invoke, notLoading, noSlide, viewOn } from './helpers.ts';
+import { SITE, answer, invoke, notLoading, noSlide, viewOn, arrange } from './helpers.ts';
 
 export const SAM = 'Sam.admin', ELON = 'Elon.buyer';
 export const rand = () => crypto.randomBytes(3).toString('hex');
@@ -77,16 +77,19 @@ export async function showTask(core: Core, ui: Page, key: string) {
 export const taskShown = (core: Core, key: string) => expect.poll(() => core((k, t) => k.shell.task?.key === t && k.settled(true), key), { timeout: 20000 }).toBe(true);
 // A new task (its + in the board or the bar: task:new; the menu itself is tested elsewhere) of a project, the shown one
 // by default, shown once its agent started; named task-<its place among its project's tasks> for the test to refer to
-// it by, unless name is null (left "New Task"). A project without git asks first: answered yes (driver.ts). Its key.
+// it by, unless name is null (left "New Task"). A project without git whose folder a task works in asks first: answered
+// yes. Its key.
 export async function newTask(core: Core, ui: Page, name?: string | null, project?: string) {
-  const before = await core((k) => k.shell.task?.key ?? null);
-  await invoke(ui, 'task:new', { project: project ?? await core((k) => k.shell.current.id) });
+  const before = await core((k) => k.shell.task?.key ?? null), id = project ?? await core((k) => k.shell.current.id);
+  const shares = await core(async (k, i) => { const p = k.shell.open.get(i); await p.checkGit(); return p.sharesFolder(); }, id);
+  const made = invoke(ui, 'task:new', { project: id });
+  if (shares) await answer(ui, 'Create Anyway');
+  await made;
   await expect.poll(() => core((k, b) => { const t = k.shell.task; return !!t && t.key !== b && [...t.terminals.values()].some((x) => !!x.pty) && k.settled(); }, before), { timeout: 20000 }).toBe(true);
   return core(async (k, n) => {
     const t = k.shell.task;
     if (n !== null) await t.rename(n ?? `task-${[...t.project.tasks.values()].indexOf(t) + 1}`);
     if (k.shell.pty) k.watchPty(k.shell.pty);
-    k.asked.length = 0;
     return t.key;
   }, name);
 }
@@ -119,7 +122,7 @@ type Begin = {
 };
 // The test project's task-1 shown, named so, with Sam.admin (the fox, "seller in the test shop") signed in to the test
 // site and Elon.buyer (the owl) signed out open in it (a closed one opened again, a missing one made), laid out, the
-// agent's output watched; what is asked meanwhile cleared, for the test's own asked(). Sam's and Elon's ids.
+// agent's output watched. Sam's and Elon's ids.
 export async function begin(core: Core, ui: Page, files: Files, { columns = false, featureX = false, only = false, shown = 1 }: Begin = {}) {
   const pid = files.pid('project'), call = typeof featureX === 'function' ? featureX : null;
   if ((only || call) && !fs.existsSync(path.join(files.project, '.git'))) gitProject(files.project);
@@ -127,7 +130,11 @@ export async function begin(core: Core, ui: Page, files: Files, { columns = fals
   const first = files.tkey('project', 1);
   await showTask(core, ui, first);
   if (only) {
-    for (const key of await core((k, keep) => [...k.shell.current.tasks.values()].slice(1).filter((t) => !keep || t.name !== 'Feature-X').map((t) => t.key), !!featureX)) await invoke(ui, 'task:delete', key);
+    for (const key of await core((k, keep) => [...k.shell.current.tasks.values()].slice(1).filter((t) => !keep || t.name !== 'Feature-X').map((t) => t.key), !!featureX)) {
+      const deleted = invoke(ui, 'task:delete', key);
+      await answer(ui);
+      await deleted;
+    }
   }
   await core(async (k, dora) => {
     const task = k.shell.task;
@@ -145,7 +152,7 @@ export async function begin(core: Core, ui: Page, files: Files, { columns = fals
   if (columns) await expect(ui.locator('[data-panel^="profile:"]')).toHaveCount(2); // a pane stacked behind another has no .pane drawn
   await notLoading(ui);
   // Columns first: a page stacked behind another's tab is never laid out, and ensureProfile waits for that.
-  if (columns) await ui.evaluate(() => (window as any).__layoutPreset('columns'));
+  if (columns) await arrange(ui, 'columns');
   const ids = await core(async (k, site) => ({
     sam: (await k.ensureProfile('Sam.admin', `${site}/app/login?name=sam`)).id,
     elon: (await k.ensureProfile('Elon.buyer', `${site}/app`)).id,
@@ -164,7 +171,6 @@ export async function begin(core: Core, ui: Page, files: Files, { columns = fals
   }
   await notLoading(ui);
   await noSlide(ui);
-  await core((k) => { k.asked.length = 0; });
   return ids;
 }
 
@@ -180,6 +186,8 @@ export const profileId = (core: Core, name: string) => core((k, n) => {
 export async function deleteProfile(core: Core, ui: Page, name: string) {
   const id = await profileId(core, name);
   if (!id) return;
-  await invoke(ui, 'profiles:delete', { profile: id });
+  const deleted = invoke(ui, 'profiles:delete', { profile: id });
+  await answer(ui);
+  await deleted;
   await expect.poll(() => core((k, p) => !k.shell.profileStore.get(p), id)).toBe(true);
 }

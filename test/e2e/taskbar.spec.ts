@@ -3,24 +3,38 @@
 import path from 'path';
 import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
-import { MAC, frames, ipcSettled, menu, menuRows, choose, closeMenu, rightClick, plusMenu, focusWindow, viewOn, termShows, invoke, notLoading, noSlide, asked, mouse, mid, removed } from './helpers.ts';
-import { committed, rand, keyAt, isNth, nthShown, taskTab, hook, begin, bothOn } from './tasks-helpers.ts';
+import { MAC, frames, ipcSettled, menu, choose, closeMenu, rightClick, plusMenu, focusWindow, viewOn, termShows, invoke, notLoading, noSlide, answer, removed, termKeys, resize } from './helpers.ts';
+import { committed, rand, keyAt, isNth, nthShown, taskTab, hook, begin, bothOn, newTask } from './tasks-helpers.ts';
 
-const chosen = (ui: Page) => ui.evaluate(() => document.querySelector<HTMLElement>('#projectTabs [role="tab"][aria-selected="true"]')?.dataset.task ?? '');
+// The tab chosen (lit) in the bar.
+const chosen = (ui: Page) => ui.locator('#projectTabs [role="tab"][aria-selected="true"]');
 
 test("tasks: switching shows the other grid and terminal; the one left keeps running; the agent's state shows on its tab", async ({ core, ui, files, call }) => {
   await begin(core, ui, files, { only: true, columns: true, featureX: call, shown: 2 });
   const first = await keyAt(core, 1), second = await keyAt(core, 2), SAM = files.idOf('Sam.admin');
   // No profiles' button on a task's tab, its right-click menu has them; the × on every tab, as Chrome's, not only
   // the shown one's (the author's choice).
-  expect(await ui.evaluate(() => [...document.querySelectorAll('#projectTabs [role="tab"]')].map((t) => [...t.querySelectorAll('button')].map((b) => `${b.ariaLabel} ${getComputedStyle(b).visibility}`))))
-    .toEqual([['Close visible'], ['Close visible']]);
-  const widths = () => ui.evaluate(() => [...document.querySelectorAll('#projectTabs [role="tab"]')].map((t) => t.getBoundingClientRect().width));
+  const tabs = ui.locator('#projectTabs [role="tab"]');
+  await expect(tabs).toHaveCount(2);
+  await expect(tabs.getByRole('button')).toHaveCount(2);
+  await expect(tabs.getByRole('button', { name: 'Close', exact: true }), 'one ×, shown').toHaveCount(2);
+  const widths = async () => Promise.all((await tabs.all()).map(async (t) => (await t.boundingBox()).width));
   const before = await widths();
   // A tab's right-click menu: the shown one's has its profiles; then renaming, its folder, moving to another window,
   // closing, deleting, and its project's submenu. Show Folder opens the task's worktree in the file manager.
   await rightClick(ui, taskTab(ui, first));
-  expect(await menuRows(ui)).toEqual(['Rename…', 'Show Folder', '-', 'Move to New Window', '-', 'Close', 'Delete Task…', '-', 'project']);
+  await expect(menu(ui)).toMatchAriaSnapshot(`
+    - menu:
+      - menuitem "Rename…"
+      - menuitem "Show Folder"
+      - separator
+      - menuitem "Move to New Window"
+      - separator
+      - menuitem "Close"
+      - menuitem "Delete Task…"
+      - separator
+      - menuitem "project"
+  `);
   await closeMenu(ui);
   await core((k) => {
     const g = k.stash;
@@ -29,9 +43,26 @@ test("tasks: switching shows the other grid and terminal; the one left keeps run
   });
   try {
     await rightClick(ui, taskTab(ui, second));
-    const rows = await menuRows(ui) as string[];
-    expect([rows[0], ...rows.slice(-12)]).toEqual(['# Profiles', '-', 'Manage Profiles…', '-', 'Rename…', 'Show Folder', '-', 'Move to New Window', '-', 'Close', 'Delete Task…', '-', 'project']);
-    expect(rows.slice(1, -12).toSorted(), 'its open and closed profiles').toEqual(['Dora', 'Elon.buyer', 'Sam.admin']);
+    // Its open and closed profiles.
+    await expect(menu(ui)).toMatchAriaSnapshot(`
+      - menu:
+        - text: Profiles
+        - menuitem "Sam.admin"
+        - menuitem "Elon.buyer"
+        - menuitem "Dora"
+        - separator
+        - menuitem "Manage Profiles…"
+        - separator
+        - menuitem "Rename…"
+        - menuitem "Show Folder"
+        - separator
+        - menuitem "Move to New Window"
+        - separator
+        - menuitem "Close"
+        - menuitem "Delete Task…"
+        - separator
+        - menuitem "project"
+    `);
     await choose(ui, 'Show Folder');
     await expect.poll(() => core((k) => k.stash.shown.length)).toBe(1);
   } finally { await core((k) => { k.electron.shell.openPath = k.stash.openPath; }); }
@@ -50,52 +81,60 @@ test("tasks: switching shows the other grid and terminal; the one left keeps run
   await expect.poll(() => files.savedWindows()[0].shown, 'the shown task kept for the next start').toBe('project/1');
   // What the second task's agent does reaches its tab (Claude Code's hooks); its captions do not show on the first's panes.
   const post = (event: string) => hook(core, second, event);
-  const state = () => taskTab(ui, second).locator('[data-state]').evaluate((s: HTMLElement) => `${s.dataset.state} ${s.querySelector('use').getAttribute('href')} ${s.checkVisibility()}`);
-  expect(await state(), 'unknown: no icon').toBe(' #i-done false');
+  // Its state on the tab: an icon of it, none shown while it is unknown ('').
+  const badge = taskTab(ui, second).locator('[data-state]');
+  const state = async (s: string, message?: string) => {
+    await expect(badge, message).toHaveAttribute('data-state', s);
+    await expect(badge.locator('use'), message).toHaveAttribute('href', `#i-${s || 'done'}`);
+    if (s) await expect(badge, message).toBeVisible(); else await expect(badge, message).toBeHidden();
+  };
+  await state('', 'unknown: no icon');
   await post('prompt');
-  await expect.poll(state).toBe('working #i-working true');
+  await state('working');
   await post('stop');
-  await expect.poll(state).toBe('done #i-done true');
+  await state('done');
   // A permission the agent asks for: waiting.
   await post('waiting');
-  await expect.poll(state).toBe('waiting #i-waiting true');
-  await expect(taskTab(ui, second).locator('[data-state]')).toHaveAttribute('title', 'The agent waits for you');
+  await state('waiting');
+  await expect(badge).toHaveAttribute('title', 'The agent waits for you');
   // Interrupted by the human (Codex's Interrupt), or its session ended: unknown again; but a session ending after a
   // done turn (Codex: 30 minutes idle) leaves "come and see".
   await post('prompt');
   await post('interrupt');
-  await expect.poll(state).toBe(' #i-done false');
+  await state('');
   // Esc in its terminal: Claude Code stops the turn and runs no hook, so working would be shown on and on. A done
   // one stays done.
+  // Sent as its terminal sends a key: the task is behind, its terminal not on screen to type in.
   const agent = await core((k, key) => k.shell.taskByKey(key).promptTarget().key, second); // its agent's terminal
   const esc = () => ui.evaluate((key) => (window as any).kulisa.send('pty:in', { task: key, data: '\x1b' }), agent);
   for (const s of ['prompt', 'waiting']) {
     await post(s);
-    await expect.poll(state).toMatch(s === 'prompt' ? /^working/ : /^waiting/);
+    await expect(badge).toHaveAttribute('data-state', s === 'prompt' ? 'working' : 'waiting');
     await esc();
-    await expect.poll(state).toBe(' #i-done false');
+    await state('');
   }
   // The hooks answer once handled, and the main process tells the window as it handles a hook, an Esc or a caption: all
   // of it is in the window once its channel has gone there and back.
   await post('stop');
   await esc();
   await ipcSettled(ui);
-  expect(await state(), 'Esc after a done turn: it stays').toBe('done #i-done true');
+  await state('done', 'Esc after a done turn: it stays');
   await post('prompt');
   await post('session-end');
-  await expect.poll(state).toBe(' #i-done false');
+  await state('');
   await post('stop');
   await post('session-end');
   await ipcSettled(ui);
-  expect(await state(), 'the session ending after a done turn: it stays').toBe('done #i-done true');
+  await state('done', 'the session ending after a done turn: it stays');
   await core((k, a) => k.shell.taskByKey(a.second).caption(a.SAM, 'from the second task'), { second, SAM });
   await ipcSettled(ui);
-  expect(await ui.locator(`[data-panel="profile:${SAM}"] [role="status"]`).textContent(), 'not on the first task\'s pane').toBe('');
+  await expect(ui.locator(`[data-panel="profile:${SAM}"] [role="status"]`), 'not on the first task\'s pane').toHaveText('');
   // Done says "come and see" until the human sees that task.
   await post('stop');
-  await expect.poll(state).toBe('done #i-done true');
+  await state('done');
   await taskTab(ui, second).click();
-  await expect.poll(async () => (await core((k, key) => k.shell.task?.key === key, second)) && state()).toBe(' #i-done false');
+  await expect.poll(() => core((k, key) => k.shell.task?.key === key, second)).toBe(true);
+  await state('');
   expect(await core((k, key) => k.shell.taskByKey(key).promptTarget().state, second), 'the agent is still done: only its tab says nothing').toBe('done');
   await taskTab(ui, first).click();
   await nthShown(core, 1);
@@ -109,7 +148,8 @@ test('tasks: switching slides the grid towards the other tab (a view transition)
   // The transition's types (which way), and the grid's own slide as it runs: an animation of 0 s, as a CSS minifier may
   // make it, leaves the two grids' pictures one over the other; out past the window's margin, not lingering at its edge
   // (Grid.vue).
-  // Read as the slide starts (its ready), the transition the window's own again after.
+  // Read as the slide starts (its ready), the transition the window's own again after: Playwright reaches no view
+  // transition, nor a running animation's keyframes.
   const swap = (key: string) => ui.evaluate(async (key) => {
     const d = document as any, start = d.startViewTransition.bind(document);
     const seen = new Promise<{ types: string[]; animations: string[] }>((resolve) => {
@@ -150,16 +190,17 @@ test('tasks: switching slides the grid towards the other tab (a view transition)
   await expect.poll(live).toBe(true);
   // A menu opened while the grid still slides keeps the pages under it pictures, not shown over it at the slide's end.
   // Opened as soon as the slide starts, before the grid left is taken down (the transition's update, a frame later,
-  // later still on a loaded machine): taking it down must not forget the menu's pictures.
-  const sliding = () => ui.evaluate(() => document.documentElement.matches(':active-view-transition'));
+  // later still on a loaded machine): taking it down must not forget the menu's pictures. Clicked by the script that
+  // starts the slide: a click from the test would come after it has begun, a frame or more too late.
+  const sliding = ui.locator(':root:active-view-transition');
   await ui.evaluate((key) => {
     const d = document as any, start = d.startViewTransition.bind(document);
     d.startViewTransition = (o: unknown) => { const t = start(o); delete d.startViewTransition; document.getElementById('windowMenu').click(); return t; };
     void (window as any).kulisa.invoke('task:show', key);
   }, second);
-  await expect.poll(sliding).toBe(true);
+  await expect(sliding).toHaveCount(1);
   await expect(menu(ui)).toBeVisible();
-  await expect.poll(sliding).toBe(false);
+  await expect(sliding).toHaveCount(0);
   // What the slide's end does (lib/grid.ts: the pages live again, unless a menu holds them) asks the main process: done
   // once the window has drawn its frames and its channel gone there and back.
   await frames(ui);
@@ -173,11 +214,14 @@ test('tasks: switching slides the grid towards the other tab (a view transition)
 
 test('tasks: Ctrl+Shift+2 shows the second, Ctrl+Shift+PgUp and PgDn the one before and after, from the terminal too', async ({ core, ui, files, call }) => {
   await begin(core, ui, files, { only: true, columns: true, featureX: call });
-  const shown = (n: number) => expect.poll(async () => (await isNth(core, n)) && (await core((k) => k.settled())) && !(await ui.evaluate(() => document.getElementById('dock').hasAttribute('aria-busy')))).toBe(true);
+  const shown = async (n: number) => {
+    await expect.poll(async () => (await isNth(core, n)) && core((k) => k.settled())).toBe(true);
+    await notLoading(ui);
+  };
   await focusWindow(core, ui);
   // The terminal shown before it takes the keyboard: the grid's slide hides it (dockview's overlay) until it is over.
-  await expect.poll(() => ui.evaluate(() => !!(window as any).__term?.textarea?.checkVisibility({ visibilityProperty: true }))).toBe(true);
-  await ui.evaluate(() => (window as any).__term.focus());
+  await expect(termKeys(ui)).toHaveCSS('visibility', 'visible');
+  await termKeys(ui).focus();
   await expect.poll(() => core((k) => k.shell.windows[0].keyZone)).toBe('terminal');
   // ⌘⌥2 on macOS: ⌘⇧3…5 are its screenshots.
   await core((k, mac) => k.press(k.shell.win.webContents, '2', ...(mac ? ['meta', 'alt'] as const : ['control', 'shift'] as const)), MAC);
@@ -191,52 +235,63 @@ test('tasks: Ctrl+Shift+2 shows the second, Ctrl+Shift+PgUp and PgDn the one bef
 });
 
 test("tasks: more tabs than the bar holds: each keeps its name readable, a mouse's wheel scrolls them, a faded edge says some are past it, the shown one stays in sight; in the title bar the window is still dragged after +", async ({ core, ui, files, call }) => {
+  // About 3 s: three tasks more, as many as the narrowest window's bar does not hold.
   await begin(core, ui, files, { only: true, columns: true, featureX: call });
-  // Two tabs, the bar narrowed to less than they take: as thirty tabs in a window.
-  const bar = () => ui.evaluate(() => {
-    const s = document.querySelector('#projectTabs'), a = s.querySelector('[aria-selected="true"]').getBoundingClientRect(), b = s.getBoundingClientRect();
-    return { left: Math.round(s.scrollLeft), max: s.scrollWidth - s.clientWidth, fade: ['past-start', 'past-end'].filter((e) => s.hasAttribute(`data-${e}`)).join(' '), inSight: a.left >= b.left && a.right <= b.right };
-  });
-  expect((await bar()).fade, 'all fit: no edge fades').toBe('');
-  await taskTab(ui, await keyAt(core, 2)).click();
-  await nthShown(core, 2);
+  const strip = ui.locator('#projectTabs'), tabs = strip.getByRole('tab');
+  // Where the bar is scrolled to, and how far it can be: Playwright reads no scroll.
+  const scroll = () => strip.evaluate((s) => ({ left: Math.round(s.scrollLeft), max: s.scrollWidth - s.clientWidth }));
+  // Which edges fade: the one with a tab past it.
+  const fades = async (start: boolean, end: boolean, message?: string) => {
+    await (start ? expect(strip, message).toHaveAttribute('data-past-start') : expect(strip, message).not.toHaveAttribute('data-past-start'));
+    await (end ? expect(strip, message).toHaveAttribute('data-past-end') : expect(strip, message).not.toHaveAttribute('data-past-end'));
+  };
+  await fades(false, false, 'all fit: no edge fades');
+  for (let i = 0; i < 3; i++) await newTask(core, ui); // the last one shown
+  const before = await resize(core, { width: 640 });
   try {
-    await ui.evaluate(() => { document.querySelector<HTMLElement>('#taskbar').style.maxWidth = '300px'; });
-    await expect.poll(async () => { const b = await bar(); return b.max > 0 && b.inSight; }).toBe(true);
-    expect(await ui.evaluate(() => [...document.querySelectorAll('#projectTabs [role="tab"]')].map((t) => { const n = [...t.querySelectorAll('span')].find((e) => e.textContent === t.getAttribute('aria-label')); return [t.getBoundingClientRect().width, n.scrollWidth <= n.clientWidth]; })),
-      'at their narrowest, the names whole').toEqual([[160, true], [160, true]]);
-    const now = await bar();
-    expect([now.left, now.fade], 'brought into view when the bar narrowed; only the edge with a tab past it fades').toEqual([now.max, 'past-start']);
+    await expect.poll(async () => (await scroll()).max).toBeGreaterThan(0);
+    await expect(chosen(ui), 'brought into view when the bar narrowed').toBeInViewport({ ratio: 1 });
+    for (const t of await tabs.all()) {
+      expect((await t.boundingBox()).width, 'at their narrowest').toBe(160);
+      // The name whole: its words' box as wide as they are (Playwright reads no overflow).
+      expect(await t.getByText(await t.getAttribute('aria-label'), { exact: true }).evaluate((n) => n.scrollWidth <= n.clientWidth), 'the name whole').toBe(true);
+    }
+    const now = await scroll();
+    expect(now.left, 'scrolled to the end').toBe(now.max);
+    await fades(true, false, 'only the edge with a tab past it fades');
     // The wheel turns up and down; the bar scrolls sideways.
     await noSlide(ui); // the slide's pictures over the window take every event
-    const b = await ui.evaluate(() => document.querySelector('#projectTabs').getBoundingClientRect().toJSON());
-    await core((k, r) => {
-      const wc = k.shell.win.webContents, z = wc.getZoomFactor();
-      wc.sendInputEvent({ type: 'mouseWheel', x: Math.round((r.x + r.width / 2) * z), y: Math.round((r.y + r.height / 2) * z), deltaX: 0, deltaY: 400 }); // up: towards the start
-    }, b);
-    await expect.poll(async () => (await bar()).left).toBe(0);
-    await expect.poll(async () => (await bar()).fade).toBe('past-end'); // scrolled to the start: the other edge fades
-    expect((await bar()).inSight, 'the bar stays where the wheel took it').toBe(false);
+    await strip.hover();
+    await ui.mouse.wheel(0, -400); // up: towards the start
+    await expect.poll(async () => (await scroll()).left).toBe(0);
+    await fades(false, true); // scrolled to the start: the other edge fades
+    await expect(chosen(ui), 'the bar stays where the wheel took it').not.toBeInViewport({ ratio: 1 });
     // In the title bar: the tabs give way before the space after + that drags the window (Chrome's), however many. The
     // tabs scrolled past the bar's edges are no-drag over the logo and that space too (Chromium does not clip them to
     // the bar) and the last region in the page wins: so both come after the bar, the logo shown first all the same (a
-    // real drag of the window is the OS's, out of a test's reach).
+    // real drag of the window is the OS's, out of a test's reach). Where each is in the page and its app-region:
+    // Playwright reads neither.
     await invoke(ui, 'bar:set', 'top');
     await expect(ui.locator('#topbar #projectTabs')).toHaveCount(1);
-    await ui.evaluate(() => document.querySelectorAll<HTMLElement>('#projectTabs [role="tab"]').forEach((t) => { t.style.minWidth = t.style.maxWidth = '1000px'; })); // the bar drawn anew: tabs as wide as many
-    await frames(ui);
+    await expect.poll(async () => (await scroll()).max, 'the tabs overflow').toBeGreaterThan(0);
+    const width = async (sel: string) => (await ui.locator(sel).boundingBox()).width;
+    expect(await width('[data-testid="drag-area"]'), '40 px left to drag by').toBeGreaterThanOrEqual(40);
+    const plus = await ui.locator('#newTask').boundingBox(), gear = await ui.locator('#manageProjects').boundingBox();
+    expect(gear.x - (plus.x + plus.width)).toBeGreaterThanOrEqual(40);
+    const logo = ui.getByTestId('title-logo');
     expect(await ui.evaluate(() => {
-      const q = (s: string) => document.querySelector(s), r = (s: string) => q(s).getBoundingClientRect(), s = q('#projectTabs');
+      const q = (s: string) => document.querySelector(s);
       const after = (x: string) => !!(q('#taskbar').compareDocumentPosition(q(x)) & Node.DOCUMENT_POSITION_FOLLOWING) && (getComputedStyle(q(x)) as any).appRegion;
-      return [s.scrollWidth > s.clientWidth, r('[data-testid="drag-area"]').width >= 40, r('#manageProjects').left - r('#newTask').right >= 40, q('[data-testid="title-logo"]') ? after('[data-testid="title-logo"]') : 'drag', after('[data-testid="drag-area"]'), !q('[data-testid="title-logo"]') || r('[data-testid="title-logo"]').right <= r('#taskbar').left];
-    }), 'the tabs overflow, 40 px left to drag by; it and the logo (none on macOS) after the bar in the page, the logo before it on screen').toEqual([true, true, true, 'drag', 'drag', true]);
-    expect((await bar()).inSight, 'the shown one in sight, the bar drawn anew there').toBe(true);
+      return [q('[data-testid="title-logo"]') ? after('[data-testid="title-logo"]') : 'drag', after('[data-testid="drag-area"]')];
+    }), 'it and the logo (none on macOS) after the bar in the page').toEqual(['drag', 'drag']);
+    if (await logo.count()) {
+      const l = await logo.boundingBox(), bar = await ui.locator('#taskbar').boundingBox();
+      expect(l.x + l.width, 'the logo before the bar on screen').toBeLessThanOrEqual(bar.x);
+    }
+    await expect(chosen(ui), 'the shown one in sight, the bar drawn anew there').toBeInViewport({ ratio: 1 });
   } finally {
     await invoke(ui, 'bar:set', 'bottom');
-    await ui.evaluate(() => {
-      document.querySelector<HTMLElement>('#taskbar').style.maxWidth = '';
-      document.querySelectorAll<HTMLElement>('#projectTabs [role="tab"]').forEach((t) => { t.style.minWidth = t.style.maxWidth = ''; });
-    });
+    await resize(core, before);
   }
   await expect(ui.locator('#topbar #projectTabs')).toHaveCount(0);
   await expect(ui.locator('#projectTabs')).toHaveCount(1);
@@ -247,59 +302,65 @@ test("tasks: more tabs than the bar holds: each keeps its name readable, a mouse
 test("tasks: a press on a tab not shown chooses it at once, as Chrome's; its task is shown when the button is let go or the tab starts being dragged, so it can be dragged", async ({ core, ui, files, call }) => {
   await begin(core, ui, files, { only: true, columns: true, featureX: call });
   const first = await keyAt(core, 1), second = await keyAt(core, 2);
-  const nameOf = (key: string) => mid(core, ui, `#projectTabs [data-task="${key}"]`); // where the hand presses a tab
+  // Pressed and let go where the hand does it, on its name.
+  const press = async (key: string) => { await taskTab(ui, key).hover(); await ui.mouse.down(); };
   // The slide that showing a task starts makes Chromium drop a drag about to begin: a tab not shown would not be
   // dragged, its press only showing it. One begun goes on through the slide.
   await noSlide(ui); // the slide's pictures over the window take every event
   const from = await core((k) => k.logged.length);
-  await mouse(core, 'mouseDown', await nameOf(second));
-  await expect.poll(() => chosen(ui)).toBe(second);
+  await press(second);
+  await expect(chosen(ui)).toHaveAttribute('data-task', second);
   // Shown, the window would have asked for it (task:show, logged as it comes) by the time its channel has gone there
   // and back.
   await ipcSettled(ui);
   expect(await core((k, i) => k.logged.slice(i).filter((l) => l.includes('task:show')), from), 'not asked for while the button is down').toEqual([]);
   expect(await isNth(core, 1), 'not shown while the button is down').toBe(true);
   // Lit on the press, it stays lit: let go of, it would go dark while the main process takes the pictures for the slide
-  // and light again with the new state, the tab blinking.
+  // and light again with the new state, the tab blinking. Every change of the lit tab noted as it comes: an assertion
+  // sees only the state when it looks.
   await ui.evaluate(() => {
     const w = window as any, lit = () => document.querySelector<HTMLElement>('#projectTabs [role="tab"][aria-selected="true"]')?.dataset.task ?? '';
     w.__lit = [lit()];
     w.__litObs = new MutationObserver(() => w.__lit.push(lit()));
-    w.__litObs.observe(document.getElementById('projectTabs'), { attributes: true, attributeFilter: ['class'], subtree: true });
+    w.__litObs.observe(document.getElementById('projectTabs'), { attributes: true, attributeFilter: ['aria-selected'], subtree: true });
   });
-  await mouse(core, 'mouseUp', await nameOf(second));
+  await ui.mouse.up();
   await nthShown(core, 2);
   await noSlide(ui);
   expect([...new Set(await ui.evaluate(() => { const w = window as any; w.__litObs.disconnect(); return w.__lit as string[]; }))], 'the tab lit from the press to the task shown, no other').toEqual([second]);
   // A drag begins: Chromium cancels the pointer (a real drag of a tab is the OS's, out of a test's reach).
-  await mouse(core, 'mouseDown', await nameOf(first));
-  await expect.poll(() => chosen(ui)).toBe(first);
+  await press(first);
+  await expect(chosen(ui)).toHaveAttribute('data-task', first);
+  // Playwright has no cancelled pointer.
   await ui.evaluate(() => dispatchEvent(new PointerEvent('pointercancel', { pointerType: 'mouse' })));
   await nthShown(core, 1);
-  await mouse(core, 'mouseUp', await nameOf(first));
-  await ui.evaluate(() => (document.activeElement as HTMLElement).blur()); // a real press leaves the keyboard on the tab (Reka's); a later dialog takes it from nothing
+  await ui.mouse.up();
+  await taskTab(ui, first).blur(); // a real press leaves the keyboard on the tab (Reka's); a later dialog takes it from nothing
 });
 
 test("tasks: a double click on a task's tab is its Rename…", async ({ core, ui, files, call }) => {
   await begin(core, ui, files, { only: true, columns: true, featureX: call });
-  const tab = ui.locator('#projectTabs [role="tab"]:not([aria-selected="true"])');
+  const tab = chosen(ui);
   const name = await tab.textContent();
-  await tab.dispatchEvent('dblclick');
+  await tab.dblclick();
   await expect(ui.locator('#taskrename')).toHaveAttribute('data-state', 'open');
   await expect(ui.locator('#taskname')).toHaveValue(name);
-  await core((k) => k.press(k.shell.win.webContents, 'Escape'));
+  await ui.keyboard.press('Escape');
   await expect(ui.locator('#taskrename[data-state="open"]')).toHaveCount(0);
 });
 
-test('menus: one longer than the window has stays in it and scrolls', async ({ ui }) => {
+test('menus: one longer than the window has stays in it and scrolls', async ({ core, ui }) => {
   // A menu longer than the window (thirty closed tasks) must not run past its edge, its first rows out of reach
-  // above. Any menu: ☰'s here.
-  await ui.locator('#windowMenu').click();
-  await menuRows(ui);
-  await menu(ui).evaluate((m) => { const row = m.querySelector('[role="menuitem"]'); for (let i = 0; i < 60; i++) m.append(row.cloneNode(true)); }); // as many rows as thirty closed tasks and more
-  await frames(ui);
-  expect(await menu(ui).evaluate((m) => { const b = m.getBoundingClientRect(); return [b.top >= 0, b.bottom <= innerHeight, m.scrollHeight > m.clientHeight]; })).toEqual([true, true, true]);
-  await closeMenu(ui);
+  // above. Any menu: ☰'s here, in the lowest window.
+  const before = await resize(core, { height: 400 });
+  try {
+    await expect.poll(() => ui.evaluate(() => innerHeight)).toBeLessThanOrEqual(400); // Playwright knows no viewport here (noDefaults)
+    await ui.locator('#windowMenu').click();
+    await expect(menu(ui)).toBeInViewport({ ratio: 1 });
+    // Its rows scroll (Playwright reads no scroll).
+    expect(await menu(ui).evaluate((m) => m.scrollHeight > m.clientHeight)).toBe(true);
+    await closeMenu(ui);
+  } finally { await resize(core, before); }
 });
 
 test("tasks: the bar's + with several projects — a click on a project makes it a new task, and a task's 🗑 deletes it after the question", async ({ core, ui, files, call }) => {
@@ -326,7 +387,6 @@ test("tasks: the bar's + with several projects — a click on a project makes it
   await expect(open).toHaveCount(0);
 
   // Each task row carries a 🗑 that deletes the task after the Delete Task… question (Cancel keeps it).
-  await core((k) => { k.answer = false; });
   await plusMenu(ui);
   const fx = () => open.last().getByRole('menuitem', { name: 'Feature-X', exact: true });
   await expect(async () => {
@@ -336,12 +396,12 @@ test("tasks: the bar's + with several projects — a click on a project makes it
   await expect(fx().locator('[aria-label="Delete Task…"]'), 'a task row has a 🗑').toHaveCount(1);
   await fx().hover();
   await fx().locator('[aria-label="Delete Task…"]').click();
-  expect((await asked(core)).message).toBe('Delete the task Feature-X?');
-  await expect(ui.locator('#ask[data-state="open"]')).toHaveCount(0);
+  expect((await answer(ui, false)).message).toBe('Delete the task Feature-X?');
 
   // The second project removed; back to project's task-1 shown.
-  await core((k) => { k.answer = true; });
-  await invoke(ui, 'project:delete', { id: made.id });
+  const deleted = invoke(ui, 'project:delete', { id: made.id });
+  await answer(ui);
+  await deleted;
   await expect.poll(() => core((k, id) => !k.shell.open.has(id), made.id)).toBe(true);
   // Once its task's shell has left it: Windows does not remove a process's folder.
   await removed(plus2);
