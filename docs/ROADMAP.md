@@ -194,17 +194,6 @@ in both. A feature built is documented in its doc ([profiles.md](profiles.md), [
 
 ## Open issues
 
-- **The agents' accounts tests flaky on Windows** (`test/e2e/agents.spec.ts`), not reproduced alone: the fake agent's
-  sign-in terminal ending at once with no exit code (node-pty's for a process killed); the test app not exiting after
-  `[kulisa] quitting`, its terminals ended (the tests fail then: `quit` in `fixtures.ts`).
-
-- **Kulisa's main process left running after quitting, on Windows**, not reproduced: closed by the window's × with a
-  real Claude Code at work and Settings open, everything saved (`[kulisa] quitting`, the agent's terminal exited,
-  `[settings] closed`) and the windows gone, the main process stays idle until ended by hand; the next start is
-  refused (one Kulisa per data folder). Node's inspector cannot be turned on in a running Kulisa on Windows: start it
-  with `--inspect` and log the app's quit events (`will-quit`, `quit`, the process's `exit`) to see the step it stops
-  at.
-
 - **Windows and macOS have gaps left** (Linux is where Kulisa is developed). Windows: its tests are a required check;
   what only a human can check there is marked Windows below. **The macOS support** in two:
   1. **For development**: Kulisa works on a Mac from source and from a build made there, unsigned (a build made on the

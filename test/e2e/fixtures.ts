@@ -153,7 +153,7 @@ async function leave(k: Running, info: TestInfo) {
 }
 
 // Quit as the human does (app.quit: before-quit saves the session cookies). One that does not end in 30 s is killed and
-// fails the run: a Kulisa left running after quitting is a bug (ROADMAP, Open issues). Playwright's connection goes
+// fails the run: a Kulisa left running after quitting is a bug (#203). Playwright's connection goes
 // with it (its own close waits on a browser it did not start).
 async function quit(k: Running) {
   for (const c of k.clients.values()) await c.close().catch(() => {});
