@@ -10,6 +10,8 @@ import { spawn } from 'child_process';
 import type { ChildProcess } from 'child_process';
 import crypto from 'crypto';
 import fs from 'fs';
+import net from 'net';
+import os from 'os';
 import path from 'path';
 import readline from 'readline';
 import electronPath from 'electron';
@@ -54,30 +56,36 @@ async function launch(file: string, display: string | null, automation: boolean,
   if (restart) env.KULISA_RESTART = '1';
   // On Xvfb, X11's: Electron takes Wayland wherever WAYLAND_DISPLAY is set, and would open on the human's screen.
   if (display) { env.DISPLAY = display; delete env.WAYLAND_DISPLAY; env.XDG_SESSION_TYPE = 'x11'; }
-  // Started as the human starts it, with a debugging port of its own (127.0.0.1, a free one) and core() over its stdin
-  // and stdout (app.ts), not by Playwright's _electron: that one makes every page it attaches to think it has the focus (which keeps
+  // Started as the human starts it, with a debugging port of its own (127.0.0.1, a free one) and core() over a local
+  // socket (below), not by Playwright's _electron: that one makes every page it attaches to think it has the focus (which keeps
   // it visible, a minimized window's too: CLAUDE.md, Hard-won facts) and light, and has no way to leave them as they
   // are; connected over CDP with noDefaults, Playwright changes nothing in the pages. Linux: no setuid sandbox in
   // node_modules (CLAUDE.md, Commands). No GPU on Xvfb: WebGL on Chromium's software renderer, as the terminal uses it
   // on a real one.
   const args = [...(process.platform === 'linux' ? ['--no-sandbox'] : []), ...(automation ? ['--remote-debugging-port=0'] : []), ...(display ? ['--ignore-gpu-blocklist'] : []), path.join(import.meta.dirname, 'app.ts')];
-  const marker = `\u0001core-${crypto.randomBytes(6).toString('hex')} `;
-  env.KULISA_CORE_MARKER = marker;
-  const child = spawn(electronPath as unknown as string, args, { env, stdio: ['pipe', 'pipe', 'pipe'] });
-  // What Electron printed, the last of it, for a failed test (leave); core()'s replies apart.
+  // core(): a line of JSON each way on a socket the test listens on and Kulisa connects to (app.ts), a named pipe on
+  // Windows. Not its stdin, which Electron's main process does not read on Windows; not Node's IPC channel, whose
+  // NODE_CHANNEL_FD Chromium's processes inherit, and DevTools' page crashes on it.
+  const name = `kulisa-core-${crypto.randomBytes(6).toString('hex')}`;
+  env.KULISA_CORE = process.platform === 'win32' ? `\\\\.\\pipe\\${name}` : path.join(os.tmpdir(), `${name}.sock`);
+  const server = net.createServer();
+  await new Promise<void>((r) => server.listen(env.KULISA_CORE, r));
+  const socket = new Promise<net.Socket>((r) => server.once('connection', r));
+  const child = spawn(electronPath as unknown as string, args, { env, stdio: ['ignore', 'pipe', 'pipe'] });
+  // What Electron printed, the last of it, for a failed test (leave).
   let output = '';
-  const keep = (d: string) => { output = (output + d).slice(-200_000); };
-  child.stderr.on('data', (d: Buffer) => keep(d.toString()));
+  const keep = (d: Buffer) => { output = (output + d.toString()).slice(-200_000); };
+  child.stdout.on('data', keep);
+  child.stderr.on('data', keep);
   let seq = 0;
   const pending = new Map<number, { resolve: (v: unknown) => void; reject: (e: Error) => void }>();
-  readline.createInterface({ input: child.stdout }).on('line', (l) => {
-    if (!l.startsWith(marker)) return keep(`${l}\n`);
-    const { id, value, error } = JSON.parse(l.slice(marker.length)) as { id: number; value?: unknown; error?: string };
+  void socket.then((s) => readline.createInterface({ input: s }).on('line', (l) => {
+    const { id, value, error } = JSON.parse(l) as { id: number; value?: unknown; error?: string };
     const p = pending.get(id);
     pending.delete(id);
     if (error !== undefined) p?.reject(new Error(`in Kulisa's main process: ${error}`)); else p?.resolve(value);
-  });
-  const exited = new Promise<void>((r) => child.once('exit', () => r()));
+  }));
+  const exited = new Promise<void>((r) => child.once('exit', () => { server.close(); r(); }));
   const endpoint = !automation ? null : await new Promise<string>((resolve, reject) => {
     const timer = setTimeout(() => { child.kill(); reject(new Error(`Electron gave no debugging port in 60 s:\n${output}`)); }, 60000);
     readline.createInterface({ input: child.stderr }).on('line', (l) => { const m = /DevTools listening on (ws:\/\/\S+)/.exec(l); if (m) { clearTimeout(timer); resolve(m[1]); } });
@@ -88,7 +96,7 @@ async function launch(file: string, display: string | null, automation: boolean,
     if (child.exitCode !== null) return reject(new Error('Kulisa ended'));
     const id = ++seq;
     pending.set(id, { resolve: resolve as (v: unknown) => void, reject });
-    child.stdin.write(`${JSON.stringify({ id, src: fn.toString(), arg })}\n`);
+    void socket.then((s) => s.write(`${JSON.stringify({ id, src: fn.toString(), arg })}\n`));
   });
   // A Kulisa that never gets ready is stopped, not left running, and says why: its log and what Electron printed (a
   // fixture's failure leaves no attachments).

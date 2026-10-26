@@ -55,8 +55,9 @@ test:e2e` builds and runs them alone; `npx playwright test keys -g "…"` some, 
   `_electron`, which forces focus emulation on every page (a minimized window's page never hides) and a light color
   scheme. The tests connect to it over CDP (`connectOverCDP` with `noDefaults`: nothing in the pages changed) on a
   debugging port on 127.0.0.1, the test's alone: the one place Kulisa runs with one ([profiles.md](profiles.md), How
-  automation reaches the pages). `core` goes over Electron's stdin and stdout, not Node's IPC channel: its
-  `NODE_CHANNEL_FD` is inherited by Chromium's children, and DevTools' renderer crashes on it.
+  automation reaches the pages). `core` goes over a local socket the test listens on (a named pipe on
+  Windows): not Electron's stdin, which its main process does not read on Windows, nor Node's IPC channel, whose
+  `NODE_CHANNEL_FD` Chromium's children inherit, and DevTools' renderer crashes on it.
 - **What an open port changes in the pages** (`navigator.webdriver` is true then) is tested in a file of its own with
   `test.use({ automation: false })`: Kulisa without the port, so no `ui`, `sui` or trace there.
 - **On Linux each Kulisa has a screen of its own**: Xvfb with the openbox window manager (without one, windows are

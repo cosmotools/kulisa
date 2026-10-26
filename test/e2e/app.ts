@@ -3,6 +3,7 @@
 // folder, as a packaged build would as to DevTools.
 import electron, { app } from 'electron';
 import fs from 'fs';
+import net from 'net';
 import path from 'path';
 import readline from 'readline';
 import { start } from '../../src/main/app.ts';
@@ -76,16 +77,16 @@ const agents: Agent[] = [
 const openedExternally: string[] = [];
 electron.shell.openExternal = async (url: string) => { openedExternally.push(url); };
 
-// fixtures.ts' core(): a function's source run with the driver, read as a line of JSON on stdin; its result or its error
-// written back as a line on stdout after the launch's marker, among Kulisa's own output. Not Node's IPC channel: the
-// variable it sets reaches Chromium's processes, and DevTools' page crashes on it.
-const marker = process.env.KULISA_CORE_MARKER;
-readline.createInterface({ input: process.stdin }).on('line', async (line) => {
+// fixtures.ts' core(): a function's source run with the driver, read as a line of JSON on the test's socket (why a
+// socket: fixtures.ts); its result or its error written back as a line.
+const core = net.connect(process.env.KULISA_CORE);
+core.on('error', () => {}); // the test gone first: nothing to answer
+readline.createInterface({ input: core }).on('line', async (line) => {
   const { id, src, arg } = JSON.parse(line) as { id: number; src: string; arg: unknown };
   const reply = (m: object) => {
     let text: string;
     try { text = JSON.stringify({ id, ...m }); } catch (e) { text = JSON.stringify({ id, error: `its result cannot be sent back: ${(e as Error).message}` }); }
-    process.stdout.write(`${marker}${text}\n`);
+    core.write(`${text}\n`);
   };
   try { reply({ value: await (0, eval)(`(${src})`)(globalThis.__kulisa, arg) }); } catch (e) { reply({ error: (e as Error)?.stack ?? String(e) }); }
 });
