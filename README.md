@@ -47,7 +47,7 @@ actors, the panes the stage, and the developer watches from the audience and sto
   - [docs/profiles.md](docs/profiles.md), [docs/tasks.md](docs/tasks.md), [docs/window.md](docs/window.md),
     [docs/transcripts.md](docs/transcripts.md), [docs/ui.md](docs/ui.md): how it works and why it is built so;
   - [docs/packages.md](docs/packages.md): Kulisa packages, parts of Kulisa in folders of their own (the terminal);
-  - [docs/ROADMAP.md](docs/ROADMAP.md): what is planned, open issues;
+  - what is planned and the open bugs: [GitHub issues](https://github.com/cosmotools/kulisa/issues);
   - [docs/testing.md](docs/testing.md) and [CONTRIBUTING.md](CONTRIBUTING.md): the tests, contributing.
 
 ## Run

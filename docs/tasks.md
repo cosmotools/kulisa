@@ -1,7 +1,7 @@
 # Projects and tasks
 
 What projects and their tasks are, what the human does, what Kulisa creates on the computer and removes, why, and the
-code. What is left: [ROADMAP.md](ROADMAP.md). Profiles: [profiles.md](profiles.md); the window: [window.md](window.md).
+code. What is left: GitHub issues. Profiles: [profiles.md](profiles.md); the window: [window.md](window.md).
 
 ## Projects
 
@@ -440,7 +440,7 @@ never assumes one is installed.
 
   Done means "come and see": once the human sees that agent's tab (in front in the shown task, Kulisa's window in
   focus; at once when it was on screen) its tab and its task's show nothing (`seen`, `Task.tabState`), the agent still
-  done for the rest of Kulisa. Other agents show no state yet (ROADMAP).
+  done for the rest of Kulisa. Other agents show no state yet (#212).
 
 ## What each agent can do
 

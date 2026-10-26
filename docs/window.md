@@ -596,7 +596,7 @@ key in the secret `APT_SIGNING_KEY`, is the files of the release `apt` (a prerel
 buttons are the latest's files), naming the newest `.deb` by its path in its own release,
 `v<version>/kulisa_<version>_amd64.deb`, whose address GitHub answers with a redirect apt follows. `release.yml` writes
 it once the release is published, then installs the `.deb`, Kulisa again from the repository, and purges it. An `.rpm`
-is installed again by hand (a dnf repository: ROADMAP). Each format updates its own way only, never one put over
+is installed again by hand (a dnf repository: #207). Each format updates its own way only, never one put over
 another. A check sends update.electronjs.org the version, the OS and the IP; the download comes from GitHub.
 
 On Windows, Squirrel starts the app while installing, updating and removing it (`--squirrel-install` …), to make or
