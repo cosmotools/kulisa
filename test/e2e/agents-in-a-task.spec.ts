@@ -175,8 +175,9 @@ test("+ opens any of the project's accounts, a new conversation in a tab of its 
   try {
     const opened = act(ui, 'terminal:open', { agent: a.id }); // it answers once the human has chosen
     await expect(ui.getByRole('status').filter({ hasText: /^Starting / }), "numbered: a's other tab is open").toHaveText('Starting Fake agent 2…');
-    await expect(ui.locator('#agentcancel')).toBeVisible();
-    await ui.locator('#agentcancel').click();
+    const choose = ui.getByRole('dialog', { name: 'Choose the Agent' });
+    await expect(choose).toBeVisible();
+    await choose.getByRole('button', { name: 'Cancel' }).click();
     await opened;
     await expect.poll(tabs).toEqual(['bash', 'Pay with cards', 'Fake agent', 'bash 2 *']);
     await expect(ui.getByRole('status').filter({ hasText: /^Starting / })).toHaveCount(0);

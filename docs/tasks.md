@@ -60,7 +60,7 @@ repositories (git worktrees), so the project's folders stay the human's. Its dat
   **Profiles**, then Create, which makes the project and opens its first task. Next checks a step as Create would;
   nothing is made before Create (but an agent's account signed in to on the way: accounts live on their own); Back
   keeps what was typed. The welcome's with no project, else a dialog (New Project… after the board's columns): the
-  same steps (`newproject/`). The first step as JetBrains' New Project: on the left where its code comes from, on the
+  same steps (`fluent/NewProject.tsx`). The first step as JetBrains' New Project: on the left where its code comes from, on the
   right the form (**Name:**, **Location:**). Code already on the disk or at a URL is the project's own, with no
   empty folder made beside it:
   - **New folder**: a name and a location, `~/KulisaProjects` unless typed or browsed (every new project's place, as
@@ -88,7 +88,7 @@ repositories (git worktrees), so the project's folders stay the human's. Its dat
     every project has it, and one with none ticked starts its tasks with it. Under them **Add account**, a button per
     agent an account can be made of: its sign-in, as New Account…, the account ticked. An agent not on the computer is
     installed first, by itself, with its maker's installer, then signed in; Details shows the installer at work
-    (`InstallProgress.vue`).
+    (`InstallProgress` in `fluent/AgentPicker.tsx`).
   - **Profiles**: new ones, a name and who it is each (the agent chooses by it), and the human's other profiles,
     ticked; none: the agent makes those it needs. No signing in there: real accounts are signed in when the agent
     asks, or with Sign In… in Settings → Profiles.
@@ -154,14 +154,14 @@ repositories (git worktrees), so the project's folders stay the human's. Its dat
   every computer), else the first account that reaches it, bound then; a line under the list for one no account
   reaches or whose account is signed out ([src/github](../src/github/README.md), A repository's account).
 - **The empty window** (CLAUDE.md, Terminology), at the first start and after the last task closes (×, Close All
-  Tasks, the project deleted): the title bar, no tasks' bar, and in the grid's place (`Empty.vue`) **the board**
-  (`newtab/`): every project a column (any task one click away), the one worked in last first. A column: its icon,
+  Tasks, the project deleted): the title bar, no tasks' bar, and in the grid's place (`fluent/Empty.tsx`) **the board**
+  (`fluent/Sidebar.tsx`): every project a column (any task one click away), the one worked in last first. A column: its icon,
   its name, its **+** (a new task with its default agent); its tasks, the open first, marked "open" and not to choose
   (in this window's bar or another's), then the closed, the one closed last first, each with its branch (when its
   name is another), when it was closed, "merged"; a click opens one again; its 🗑 (on the row under the pointer or the
   keyboard) or Delete: Delete Task…'s question. A project without tasks says so. New Project… after the columns.
   Columns scroll down, the board sideways.
-- **The welcome** (`welcome/`), with no project: what Kulisa does in three slides (its agent in your browsers;
+- **The welcome** (`fluent/Welcome.tsx`), with no project: what Kulisa does in three slides (its agent in your browsers;
   checking as every user; Pick), with Skip, then New Project's steps under a question each ("Where is the code?"), as
   a dialog without its backdrop, Kulisa's red glow behind them until the first task's project's color takes its
   place. Back on the first step goes back to the slides. The slides' picture shrinks in a low window and is left out
@@ -410,9 +410,9 @@ never assumes one is installed.
     open or closed, has it open in a tab (from their `agent.json`; its conversation is in its folder), naming them;
     else after a question ("Delete the account …?", naming its projects): signed out with its agent's command (`auth
     logout`: the Keychain's entry on macOS goes too), then its folder, with its sign-in, settings and conversations.
-- The dialogs are part of the window, not windows (no extra process). `AgentPicker.vue` (choosing) and Settings →
-  Agents keep their agents and an install under way apart from the page shown (`lib/agents.ts`; Settings'
-  `fluent/agents.ts`, so an install goes on behind a project's page); choosing draws them as radios (`AgentList.vue`).
+- The dialogs are part of the window, not windows (no extra process). Choosing (`fluent/AgentPicker.tsx`), New
+  Project and Settings → Agents keep their agents and an install under way apart from the page shown (`lib/agents.ts`;
+  Settings' `fluent/agents.ts`, so an install goes on behind a project's page); choosing draws them as radios.
 - **An agent's state on the tabs** comes from its hooks, each agent's at its own terminal's URL ("Several agents in a
   task"). Kulisa's events (`agent-hooks.ts`): `prompt` working, `waiting` for the human, `tool-done` working again
   after waiting, `stop` done, `interrupt` and `session-end` unknown (a session ending after a done turn keeps done).
@@ -792,16 +792,16 @@ rm -rf ~/.config/Kulisa/projects/<project id>   # all its tasks with their profi
 | `src/main/agents/` | the agents to choose from: find, install, start, resume; a folder's trust carried to a task's copy |
 | `src/main/store.ts` | the data folder above |
 | `src/terminal/` | the terminals: their ptys, buffers and the xterm shown ([README](../src/terminal/README.md)) |
-| `src/renderer/fluent/TaskBar.tsx`, `Empty.vue`, `fluent/ProjectPage.tsx` | the tasks' bar (a tab per open task, its menu); its + (a new task); the grid's place when no task's grid is shown (the window's pages: the board, the welcome); a project's page in Settings |
-| `src/renderer/components/newtab/` | the board, the empty window's: `Board.vue` (the columns, New Project…), `ProjectColumn.vue` (a project and its tasks) |
-| `src/renderer/components/welcome/` | the first start's welcome: `Welcome.vue` (the slides, then New Project's steps under a question each), `Tour.vue` (the slides, their pictures drawn in HTML) |
-| `src/renderer/components/newproject/` | New Project's steps: `Wizard.vue` (the steps, the buttons; the welcome's and the dialog's), `wizard.ts` (their state and rules, one per wizard), `CodeStep.vue`, `AgentStep.vue`, `ProfilesStep.vue`, `NewProject.vue` (the dialog) |
+| `src/renderer/fluent/TaskBar.tsx`, `fluent/Empty.tsx`, `fluent/ProjectPage.tsx` | the tasks' bar (a tab per open task); the grid's place when no task's grid is shown (the window's pages: the sidebar docked, the welcome); a project's page in Settings |
+| `src/renderer/fluent/Sidebar.tsx`, `ProjectIcon.tsx`, `lib/sidebar.ts` | the sidebar: every project with its tasks, docked in the empty window, over the grid (its button, Ctrl+Shift+A); a project's icon |
+| `src/renderer/fluent/Welcome.tsx` | the first start's welcome: the slides (their pictures drawn from Fluent's parts), then New Project's steps under a question each |
+| `src/renderer/fluent/NewProject.tsx`, `lib/new-project.ts` | New Project's steps (the welcome's and the dialog's) and the dialog; their state and rules, one per wizard |
 | `src/renderer/fluent/TaskRename.tsx` | the Rename Task dialog |
-| `src/renderer/components/AgentPicker.vue`, `AgentList.vue`, `InstallProgress.vue` | choosing an agent when the one to open is not there; the radios of agents with Install that choosing shows; an install's line and its Details |
+| `src/renderer/fluent/AgentPicker.tsx`, `lib/agents.ts` | choosing an agent when the one to open is not there: the radios of agents with Install; an install's line and its Details |
 | `src/renderer/fluent/AgentPage.tsx`, `agents.ts` | an agent's page in Settings, its details, Install and accounts; Settings' agents, accounts and the install under way |
 | `src/main/favicons.ts` | a project's icon: its site's favicon in its code (Projects, "Each project has a color and an icon") |
 | `src/shared/names.ts` | the rules for names (projects and profiles; a task's, a label) and slugs |
-| `src/main/accounts.ts`, `src/renderer/fluent/SignIn.tsx`, `src/renderer/components/AccountSignIn.vue` | the agents' accounts, one store; a new one's sign-in in Settings (a project's page, or Agents), and New Project's |
+| `src/main/accounts.ts`, `src/renderer/fluent/SignIn.tsx` | the agents' accounts, one store; a new one's sign-in in Settings (a project's page, or Agents), and New Project's |
 | `src/main/recognizer.ts` | which account recognizes speech for an agent without dictation of its own ([src/dictation](../src/dictation/README.md)), its session's folder |
 | `src/renderer/lib/grid.ts`, `components/Grid.vue` | building a task's grid; the slide (a view transition) |
 | `test/e2e/tasks*.spec.ts`, `taskbar.spec.ts`, `projects*.spec.ts`, `project-repositories.spec.ts`, `empty-window.spec.ts`, `agents*.spec.ts`, `masters.spec.ts`; `test/unit/agents.test.ts` | the tests |

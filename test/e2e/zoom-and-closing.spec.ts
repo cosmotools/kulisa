@@ -4,7 +4,8 @@ import fs from 'fs';
 import path from 'path';
 import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
-import { SITE, PORT, MAC, WIN, near, uiZoom, who, menu, anyMenu, item, choose, closeMenu, taskMenu, answer, manageProfiles, chooseProfile, closeSettings, plusMenu, closeBoard, viewOn, invoke , typeIn } from './helpers.ts';
+import type { Locator } from '@playwright/test';
+import { SITE, PORT, MAC, WIN, near, uiZoom, who, menu, item, choose, closeMenu, taskMenu, answer, manageProfiles, chooseProfile, closeSettings, openSidebar, closeSidebar, viewOn, invoke , typeIn } from './helpers.ts';
 import { profileId, deleteProfile } from './tasks-helpers.ts';
 
 // Files of the sites' Cache API in a profile's folder, wherever Chromium's layout puts them (`WebStorage/<bucket>/CacheStorage/`).
@@ -89,28 +90,27 @@ test('the window\'s minimum follows the Kulisa zoom; a window at the minimum gro
   // The smallest window has 640×400 for the UI at any zoom: New Project keeps its buttons and Browse… in it, each kind.
   await core((k) => k.shell.win.setSize(800, 500));
   await expect.poll(() => ui.evaluate(() => innerHeight)).toBe(400);
-  // A task shown: New Project… in the bar's + dropdown; the empty window: the board's own button.
-  if (await ui.locator('#newTask').count()) {
-    await plusMenu(ui);
-    await item(ui, 'New Project…', anyMenu(ui)).click();
-  } else await ui.locator('#boardnewproject').click();
-  await expect(ui.locator('#newproject')).toHaveAttribute('data-state', 'open');
-  await expect(ui.locator('#npname')).toHaveCount(1);
-  for (const from of ['new', 'folder', 'clone']) {
-    await ui.locator(`#npfrom [data-value="${from}"]`).click();
-    await expect(ui.locator(`#npfrom [data-value="${from}"]`)).toHaveAttribute('aria-selected', 'true');
-    const d = await ui.locator('#newproject').boundingBox(), height = await ui.evaluate(() => innerHeight);
-    const inside = async (id: string) => {
-      if (!(await ui.locator(`#${id}`).count())) return null;
-      const r = await ui.locator(`#${id}`).boundingBox();
+  // New Project… at the sidebar's foot.
+  await openSidebar(ui);
+  await ui.getByRole('button', { name: 'New Project…' }).click();
+  const np = ui.getByRole('dialog', { name: 'New Project' });
+  await expect(np).toBeVisible();
+  await expect(np.getByRole('textbox', { name: 'Name', exact: true })).toHaveCount(1);
+  for (const from of ['New Folder', 'Folders on Disk', 'Clone from URL']) {
+    await np.getByRole('tab', { name: from }).click();
+    await expect(np.getByRole('tab', { name: from })).toHaveAttribute('aria-selected', 'true');
+    const d = await np.boundingBox(), height = await ui.evaluate(() => innerHeight);
+    const inside = async (b: Locator) => {
+      if (!(await b.count())) return null;
+      const r = await b.boundingBox();
       return r.x + r.width <= d.x + d.width && r.y + r.height <= d.y + d.height && d.y + d.height <= height;
     };
-    const fits = { create: await inside('npcreate'), browse: await inside('npbrowse') };
-    expect(fits, from).toEqual({ create: true, browse: from === 'folder' ? null : true });
+    const fits = { create: await inside(np.getByRole('button', { name: 'Next' })), browse: await inside(np.getByRole('button', { name: 'Browse…' })) };
+    expect(fits, from).toEqual({ create: true, browse: from === 'Folders on Disk' ? null : true });
   }
-  await ui.locator('#newproject').locator('header').getByRole('button', { name: 'Close' }).click();
-  await expect(ui.locator('#newproject[data-state="open"]')).toHaveCount(0);
-  await closeBoard(ui);
+  await np.getByRole('button', { name: 'Close' }).click();
+  await expect(np).toHaveCount(0);
+  await closeSidebar(ui);
   await core((k, s) => k.shell.win.setSize(s[0], s[1]), size);
   await expect.poll(async () => (await sizes()).size[0] === size[0] && await viewOn(core, ui, files, 'Sam.admin')).toBe(true);
   await zoomAt(core, 1);

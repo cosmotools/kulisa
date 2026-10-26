@@ -1,9 +1,10 @@
 // The tasks' bar: a tab per open task, switching between them (by a click, a press, the keys), the slide, more tabs than
 // it holds, the agent's state on a tab, its + (docs/tasks.md, docs/window.md).
+import path from 'path';
 import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
-import { MAC, frames, ipcSettled, menu, choose, closeMenu, rightClick, focusWindow, viewOn, termShows, invoke, notLoading, noSlide, termKeys, resize } from './helpers.ts';
-import { keyAt, isNth, nthShown, taskTab, hook, begin, bothOn, newTask } from './tasks-helpers.ts';
+import { MAC, frames, ipcSettled, menu, choose, closeMenu, rightClick, fromSidebar, openSidebar, closeSidebar, taskRow, rowButton, focusWindow, viewOn, termShows, invoke, notLoading, noSlide, answer, removed, termKeys, resize } from './helpers.ts';
+import { committed, rand, keyAt, isNth, nthShown, taskTab, hook, begin, bothOn, newTask } from './tasks-helpers.ts';
 
 // The tab chosen (lit) in the bar.
 const chosen = (ui: Page) => ui.locator('#projectTabs [role="tab"][aria-selected="true"]');
@@ -370,5 +371,43 @@ test("tasks: the bar's + makes a new task of the shown task's project in one cli
   await expect(ui.getByRole('menu'), 'no menu: made at once').toHaveCount(0);
   await expect(ui.locator('#projectTabs [role="tab"]')).toHaveCount(before + 1);
   await taskTab(ui, first).click();
+  await nthShown(core, 1);
+});
+
+test("tasks: the sidebar with several projects — a project's + makes it a new task, and a task's 🗑 deletes it after the question", async ({ core, ui, files, call }) => {
+  // About 1 s: git's work (a second project made and deleted).
+  await begin(core, ui, files, { only: true, columns: true, featureX: call });
+  // A second project, open.
+  const plus2 = path.join(files.root, `plus2-${rand()}`);
+  committed(plus2, 'a.txt', 'a', 'mine');
+  const made = await invoke(ui, 'project:new', { from: 'folder', folders: [plus2], name: 'Plus2' });
+  expect(made.id, 'the second project is made').toBeTruthy();
+  await invoke(ui, 'project:open', { id: made.id });
+  const on = () => core((k, id) => k.shell.current?.id === id && k.settled(), made.id);
+  await expect.poll(async () => (await on()) && core((k) => !!k.shell.pty), { timeout: 10000 }).toBe(true);
+  await notLoading(ui);
+  const tasks2 = () => core((k, id) => k.shell.store.tasksOf(k.shell.store.projects().find((x) => x.id === id)).list.length, made.id);
+  // A project's + (on its row, under the pointer) makes a new task of it and closes the sidebar.
+  const before = await tasks2();
+  await fromSidebar(ui, 'Plus2');
+  await expect.poll(async () => (await tasks2()) === before + 1 && on(), { timeout: 10000 }).toBe(true);
+  await closeSidebar(ui);
+
+  // Each task row carries a 🗑 (on the row under the pointer) that deletes the task after the Delete Task… question
+  // (Cancel keeps it).
+  await openSidebar(ui);
+  await (await rowButton(taskRow(ui, 'project', 'Feature-X'), 'Delete Task…')).click();
+  expect((await answer(ui, false)).message).toBe('Delete the task Feature-X?');
+  await closeSidebar(ui);
+
+  // The second project removed; back to project's task-1 shown.
+  const deleted = invoke(ui, 'project:delete', { id: made.id });
+  await answer(ui);
+  await deleted;
+  await expect.poll(() => core((k, id) => !k.shell.open.has(id), made.id)).toBe(true);
+  // Once its task's shell has left it: Windows does not remove a process's folder.
+  await removed(plus2);
+  await expect.poll(() => core((k, id) => k.shell.current?.id === id && !!k.shell.task?.loaded, files.pid('project'))).toBe(true);
+  await taskTab(ui, await keyAt(core, 1)).click();
   await nthShown(core, 1);
 });

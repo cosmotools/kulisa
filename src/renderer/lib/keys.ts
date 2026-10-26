@@ -5,6 +5,7 @@ import { act, screenshot, store } from './store';
 import { panes } from './grid';
 import { shownTerm } from './terminals';
 import { dialog } from './dialogs';
+import { toggleSidebar } from './sidebar';
 import { dialogsShown, onDialogs } from './cover';
 import type { Profile } from '../../shared/types';
 import { refused } from '../../shared/result';
@@ -46,7 +47,7 @@ const run: Record<string, (c: Command) => unknown> = {
   'task.next': () => stepTask(1),
   'task.previous': () => stepTask(-1),
   'task.new': () => kulisa.invoke('task:new'),
-  'task.menu': () => document.getElementById('newTask')?.click(), // the bar's + menu (ButtonMenu: Reka's trigger opens on the click too)
+  'task.menu': () => toggleSidebar(),
   shortcuts: async () => (await dialog('shortcuts')).showShortcuts(),
   'tab.new': ({ p }) => panes.get(p!.id)?.newTab(),
   'tab.close': ({ p, tab, page }) => act('tab:close', { profile: p!.id, tab, focus: page }),

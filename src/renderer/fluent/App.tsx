@@ -7,6 +7,7 @@ import { useWindow } from '../lib/store';
 import { TopBar } from './TopBar';
 import { Grid } from './Grid';
 import { Empty } from './Empty';
+import { Sidebar } from './Sidebar';
 import { TaskBar } from './TaskBar';
 import { Ask } from './Ask';
 import { NewProject } from './NewProject';
@@ -42,6 +43,7 @@ export function App() {
       {/* The tasks' bar in the title bar, as a browser's tabs, or under the grid (☰ → Tasks bar); none with no task open */}
       <TopBar>{bar === 'top' && open && <TaskBar />}</TopBar>
       {open ? <Grid /> : <Empty />}
+      {open && <Sidebar />}
       {bar !== 'top' && open ? <TaskBar /> : <div />}
       <NewProject />
       <TaskRename />

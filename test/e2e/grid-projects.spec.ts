@@ -6,7 +6,7 @@ import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
 import type { Files } from './data.ts';
-import { SITE, MAC, projectTabSel, ipcSettled, menu, submenu, choose, rightClick, projectTabs, showProject, closeProject, plusMenu, viewOn, who, termText, invoke, act, box, notLoading, otherPage, answer } from './helpers.ts';
+import { SITE, MAC, projectTabSel, ipcSettled, menu, submenu, choose, rightClick, projectTabs, showProject, closeProject, anyMenu, openSidebar, closeSidebar, fromSidebar, sidebar, sidebarTasks, viewOn, who, termText, invoke, act, box, notLoading, otherPage, answer } from './helpers.ts';
 import { SAM, ELON, begin, bothOn, openFolder, reportSession, deleteProfile } from './tasks-helpers.ts';
 
 // The second project, a folder 'other' with a task 1 that has Sam.seller: made if there is none, closed.
@@ -90,7 +90,16 @@ test('projects: another folder opens in a tab of its own, with its own profiles 
   await call('browser_navigate', { profile: 'Sam.seller', url: `${SITE}/app` });
   expect(await who(call, 'Sam.seller'), "the first project's sign-ins stay there").toBe('Signed out');
 
-  const anyMenu = ui.getByRole('menu');
+  // The sidebar over the grid (the title bar's button): every project with its tasks, the one worked in last first.
+  await openSidebar(ui);
+  expect(await sidebar(ui).locator('[data-project]').evaluateAll((xs) => xs.map((x) => x.getAttribute('aria-label')))).toEqual(['project', 'other']);
+  expect(await sidebarTasks(ui, 'project')).toEqual(['task-1']);
+  await closeSidebar(ui);
+  // Ctrl+Shift+A opens it from anywhere; again closes it.
+  await core((k) => k.press(k.shell.win.webContents, 'A', k.CMD, 'shift'));
+  await expect(sidebar(ui)).toBeVisible();
+  await core((k) => k.press(k.shell.win.webContents, 'A', k.CMD, 'shift'));
+  await expect(sidebar(ui)).toHaveCount(0);
   await ui.evaluate(() => (window as any).__islands.clear()); // a new tab is a tab more in the bar, as a task's: watched from here on
   await showProject(ui, files, 'other');
   await expect.poll(() => core((k, f) => k.shell.current?.folder === f && k.settled(), other)).toBe(true);
@@ -109,7 +118,7 @@ test('projects: another folder opens in a tab of its own, with its own profiles 
     - menuitem "other"
   `);
   await choose(ui, 'other');
-  await expect(anyMenu).toHaveCount(2);
+  await expect(anyMenu(ui)).toHaveCount(2);
   await expect(submenu(ui)).toMatchAriaSnapshot(`
     - menuitem "New Task"
     - menuitem "Move All Tasks to New Window"
@@ -169,8 +178,8 @@ test('projects: another folder opens in a tab of its own, with its own profiles 
   expect(await core((k, id) => ({ closed: k.shell.store.tasksOf({ id } as any).list.every((e) => e.closed),
     tabs: k.stash.grid.sam.tabs.every((t: any) => t.wc.isDestroyed()) }), ids.project)).toEqual({ closed: true, tabs: true }); // its tasks closed; the closed project's tabs are closed
   expect(await projectTabs(ui, files)).toEqual(['other *']);
-  // Opened again from the bar's +, on its task: the conversation goes on, the profiles signed in.
-  await plusMenu(ui, 'project', 'task-1');
+  // Opened again from the sidebar, on its task: the conversation goes on, the profiles signed in.
+  await fromSidebar(ui, 'project', 'task-1');
   await expect.poll(() => core((k, a) => k.shell.current?.folder === a.project && k.shell.profiles.has(a.elon) && !!k.shell.pty, { project, elon: ids.elon })).toBe(true);
   await notLoading(ui);
   await core((k) => k.watchPty(k.shell.pty));
@@ -255,6 +264,10 @@ test('tasks: Move to New Window puts a task in a window of its own, still runnin
   await info.attach('second-window', { path: png, contentType: 'image/png' });
   await call('browser_navigate', { profile: 'Sam.seller', url: `${SITE}/app?moved` }, { task: files.tkey('other', 1) });
   expect(await core((k) => k.stash.grid.seller.get().wc.getURL())).toMatch(/\?moved$/);
+  // The sidebar in either window: every project.
+  await openSidebar(ui2);
+  for (const name of await core((k) => k.shell.store.projects().map((p) => p.name))) await expect(sidebar(ui2).locator('[data-project]').and(ui2.getByRole('treeitem', { name, exact: true }))).toHaveCount(1);
+  await closeSidebar(ui2);
   // Questions about its project are asked in its window.
   const dropping = act(ui2, 'profile:delete', { profile: ids.seller });
   await expect(ui.getByRole('alertdialog')).toHaveCount(0);
@@ -292,7 +305,7 @@ test('tasks: Move to New Window puts a task in a window of its own, still runnin
   await expect.poll(() => core((k, a) => !k.shell.open.has(a.other) && k.shell.current?.id === a.project && k.settled(), ids)).toBe(true);
 
   // A closed task opened again: a tab in this window, nothing asked; Move to New Window takes it away.
-  await plusMenu(ui, 'other', 'New Task');
+  await fromSidebar(ui, 'other');
   await expect.poll(() => core((k, id) => k.shell.current?.id === id && [...k.shell.current.tasks.values()][0] === k.shell.task && !!k.shell.task.pty && k.settled(), ids.other)).toBe(true);
   await expect(ui.getByRole('alertdialog'), 'no question').toHaveCount(0);
   expect(await projectTabs(ui, files)).toEqual(['project', 'other *']);

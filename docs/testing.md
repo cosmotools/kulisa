@@ -102,7 +102,7 @@ passes, alone and with its file.
   dated back; a slow mock waits for the test.
 - **Before a click** wait for the window: `k.settled()`, `notLoading`, the grid's slide over.
 - **Menus and dialogs are Reka UI's**: a menu's rows by `toMatchAriaSnapshot` (whole: `children: 'equal'` in the
-  config), `choose`, `closeMenu`, `rightClick`, `plusMenu`; a menu is shown once `[data-ready]`. `focusWindow(core, ui)`
+  config), `choose`, `closeMenu`, `rightClick`; the sidebar `openSidebar`, `fromSidebar`; a menu is shown once `[data-ready]`. `focusWindow(core, ui)`
   first, or no focus events. Kulisa's question is answered in the window that asks it, `answer(page, …)`; a call that
   waits for it is started first and awaited after.
 - **Settings' window is Fluent UI's** (`helpers.ts`): its menu `settingsMenu` (there only while open), its nav's rows

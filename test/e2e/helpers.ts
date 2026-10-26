@@ -158,47 +158,37 @@ export async function closeProject(ui: Page, files: Files, folder: string) {
   }
 }
 
-// The bar's + (NewTask.vue): a menu of every project with its tasks; one project shows its tasks inline, several nest
-// each project as a submenu. plusMenu(ui) opens it and gives it; plusMenu(ui, project) makes a new task of that project
-// (its New Task row); plusMenu(ui, project, task) opens that task again (a closed one) or shows it.
 // Every open menu, a submenu too (menu waits for the first to be shown).
 export const anyMenu = (ui: Page) => ui.getByRole('menu');
-const projectRow = (ui: Page, project: string) => anyMenu(ui).first().getByRole('menuitem', { name: project, exact: true }).and(ui.locator('[aria-haspopup]'));
-// A project's submenu, with several projects, opened as the hand does it: hovering its row (a release on the row makes
-// the project a new task: MenuRows.vue, runSub). The rows are drawn again as a project just shown moves to the top, and
-// the submenu under the pointer closes: hovered again until `until` holds in it.
-async function projectSub(ui: Page, project: string, until: (sub: Locator) => Promise<void>) {
-  const trigger = projectRow(ui, project);
-  await expect(trigger).toBeVisible();
-  await expect(async () => {
-    if ((await anyMenu(ui).count()) < 2) { await ui.mouse.move(0, 0); await trigger.hover(); }
-    await until(anyMenu(ui).last());
-  }).toPass({ timeout: 5000 });
-  return anyMenu(ui).last();
+// The sidebar (fluent/Sidebar.tsx; docs/tasks.md, The sidebar): every project with its tasks, a tree. Docked in the empty
+// window; over the grid opened with the title bar's button, closed by a choice or Esc. openSidebar gives it, open.
+export const sidebar = (ui: Page) => ui.getByRole('tree', { name: 'Projects' });
+export async function openSidebar(ui: Page) {
+  if (!(await sidebar(ui).count())) await ui.getByRole('button', { name: /^Projects and tasks/ }).click();
+  await expect(sidebar(ui)).toBeVisible();
+  return sidebar(ui);
 }
-export function plusMenu(ui: Page): Promise<Locator>;
-export function plusMenu(ui: Page, project: string, task?: string): Promise<void>;
-export async function plusMenu(ui: Page, project?: string, task?: string): Promise<Locator | void> {
-  if (!(await anyMenu(ui).count())) await ui.locator('#newTask').click();
-  const top = anyMenu(ui).first();
-  await expect(top.getByRole('menuitem').first()).toBeVisible(); // its rows drawn, a moment after it opens
-  if (project === undefined) return top;
-  const label = task ?? 'New Task';
-  await expect(projectRow(ui, project).or(item(ui, label, top)).first()).toBeVisible();
-  if (!(await projectRow(ui, project).count())) return item(ui, label, top).first().click();
-  const sub = await projectSub(ui, project, (m) => expect(item(ui, label, m).first()).toBeVisible({ timeout: 500 }));
-  await item(ui, label, sub).first().click();
+export async function closeSidebar(ui: Page) {
+  if (await ui.locator('html[data-noproject]').count()) return; // docked: always there
+  if (await sidebar(ui).count()) await sidebar(ui).press('Escape');
+  await expect(sidebar(ui)).toHaveCount(0);
 }
-// The + menu open where one project's rows are (its tasks, then New Task): its submenu, with several projects; else the
-// menu itself, which ends with New Project… after them. closeBoard closes it.
-export async function plusRows(ui: Page, project: string) {
-  await plusMenu(ui);
-  if (!(await projectRow(ui, project).count())) return anyMenu(ui).first();
-  return projectSub(ui, project, (sub) => expect(anyMenu(ui)).toHaveCount(2, { timeout: 500 }).then(() => expect(sub.getByRole('menuitem').first()).toBeVisible({ timeout: 500 })));
+// A project's row (its tasks under it), by its name; a task's under it.
+export const projectRow = (ui: Page, project: string) => sidebar(ui).getByRole('treeitem', { name: project, exact: true }).and(ui.locator('[data-project]'));
+export const taskRow = (ui: Page, project: string, task: string) => projectRow(ui, project).getByRole('treeitem', { name: task, exact: true });
+// A project's tasks in the sidebar, by their names, in its order.
+export const sidebarTasks = (ui: Page, project: string) => projectRow(ui, project).locator('[data-task]').evaluateAll((xs) => xs.map((x) => x.getAttribute('aria-label')));
+// A row's own buttons, shown under the pointer: hovered at its start, where its name is (not its tasks under it).
+export async function rowButton(row: Locator, name: string) {
+  await row.hover({ position: { x: 48, y: 8 } });
+  return row.getByRole('button', { name, exact: true }).first();
 }
-export async function closeBoard(ui: Page) {
-  if (await anyMenu(ui).count()) await anyMenu(ui).first().press('Escape');
-  await expect(anyMenu(ui)).toHaveCount(0);
+// From the sidebar as the human does it: a new task of the project (+ on its row), or one of its tasks opened again (a
+// closed one) or shown.
+export async function fromSidebar(ui: Page, project: string, task?: string) {
+  await openSidebar(ui);
+  if (task) return taskRow(ui, project, task).first().click();
+  await (await rowButton(projectRow(ui, project), `New Task of ${project}`)).click();
 }
 // A project's submenu (a tab's right-click, then the row of the project's name, the one row opening a menu), open.
 export async function projectMenu(ui: Page, tab = '#projectTabs [aria-selected="true"]') {

@@ -2,7 +2,7 @@
 import fs from 'fs';
 import path from 'path';
 import { test, expect } from './fixtures.ts';
-import { anyMenu, item, choose, projectTabs, projectTabSel, plusMenu, closeSettings, invoke, typeIn, answer, notLoading, projectMenu, pageOf, removed, navRow, settingsMenu } from './helpers.ts';
+import { choose, projectTabs, projectTabSel, fromSidebar, openSidebar, taskRow, closeSettings, invoke, typeIn, answer, notLoading, projectMenu, pageOf, removed, navRow, settingsMenu } from './helpers.ts';
 import { git, committed, begin, bothOn, taskShown, taskTabs } from './tasks-helpers.ts';
 import { createWorktree } from '../../src/main/worktrees.ts';
 
@@ -71,23 +71,23 @@ test("projects: Delete Project… (the projects' manager alone) asks, closes the
   // first task, as for any new project.
   const goneDir = path.join(root, 'gone');
   committed(goneDir, 'a.txt', 'a', 'mine');
-  // In a tasks' window (the bar's +, a dialog), Settings closed first.
+  // In a tasks' window (New Project… at the sidebar's foot, a dialog), Settings closed first.
+  const np = ui.getByRole('dialog', { name: 'New Project' });
+  const field = (name: string) => np.getByRole('textbox', { name, exact: true });
+  const where = np.getByRole('status', { name: 'What will happen' });
   const newProject = async (from: string) => {
     if (await core((k) => !!k.shell.settings)) await closeSettings(core, ui, sui);
-    // A task shown: New Project… in the bar's + dropdown; the empty window: the board's own button.
-    if (await ui.locator('#newTask').count()) {
-      await plusMenu(ui);
-      await item(ui, 'New Project…', anyMenu(ui)).click();
-    } else await ui.locator('#boardnewproject').click();
-    await ui.locator(`#newproject #npfrom [data-value="${from}"]`).click();
-    await expect(ui.locator(`#npfrom [data-value="${from}"]`)).toHaveAttribute('aria-selected', 'true');
+    await openSidebar(ui);
+    await ui.getByRole('button', { name: 'New Project…' }).click();
+    await np.getByRole('tab', { name: from }).click();
+    await expect(np.getByRole('tab', { name: from })).toHaveAttribute('aria-selected', 'true');
   };
-  const submit = () => ui.locator('#npcreate').click();
+  const submit = () => np.getByRole('button', { name: /^(Next|Create)$/ }).click();
   // Its steps gone through (no agent, no profile chosen), then Create: made, its first task opened in this window.
   const create = async (folder: string) => {
     for (const step of ['Agents', 'Profiles']) {
       await submit();
-      await expect(ui.locator('#newproject [aria-current="step"]')).toHaveText(new RegExp(`^.${step}$`));
+      await expect(np.getByRole('list', { name: 'Steps' }).locator('[aria-current="step"]')).toHaveText(new RegExp(`^.${step}$`));
     }
     await submit();
     await expect.poll(async () => {
@@ -96,12 +96,14 @@ test("projects: Delete Project… (the projects' manager alone) asks, closes the
     }, { timeout: 10000 }).toBe(true); // a clone takes a while
     await notLoading(ui);
   };
-  await newProject('folder');
-  await expect(ui.locator('#nplocationrow'), 'no location: nothing is made').toHaveCount(0);
-  const add = async (v: string) => { await typeIn(ui, '#npsource', v); await ui.locator('#npaddsource').click(); };
+  await newProject('Folders on Disk');
+  await expect(field('Location'), 'no location: nothing is made').toHaveCount(0);
+  const source = np.getByRole('textbox', { name: /^A (folder|repository URL)$/ });
+  const add = async (v: string) => { await typeIn(ui, source, v); await np.getByRole('button', { name: 'Add', exact: true }).click(); };
   await add(path.join(root, 'nowhere'));
-  await expect(ui.locator('#nperror')).toHaveText(`${path.join(root, 'nowhere')} is not there`);
-  await expect(ui.locator('#npsources [role="option"]'), 'not in the list').toHaveCount(0);
+  await expect(np.getByRole('alert')).toHaveText(`${path.join(root, 'nowhere')} is not there`);
+  const sources = np.getByRole('option');
+  await expect(sources, 'not in the list').toHaveCount(0);
   expect(fs.existsSync(path.join(root, 'nowhere')), 'not made').toBe(false);
   await core((k, f) => {
     const d = k.electron.dialog;
@@ -109,12 +111,12 @@ test("projects: Delete Project… (the projects' manager alone) asks, closes the
     d.showOpenDialog = (async () => ({ canceled: false, filePaths: [f] }));
   }, goneDir);
   try {
-    await typeIn(ui, '#npsource', '');
-    await typeIn(ui, '#npname', ''); // typed by the human: kept; emptied, it follows the first folder again
-    await ui.locator('#npbrowsesource').click();
-    await expect(ui.locator('#npname')).toHaveValue('gone');
+    await typeIn(ui, source, '');
+    await typeIn(ui, field('Name'), ''); // typed by the human: kept; emptied, it follows the first folder again
+    await np.getByRole('button', { name: 'Add Folder…' }).click();
+    await expect(field('Name')).toHaveValue('gone');
   } finally { await core((k) => { k.electron.dialog.showOpenDialog = k.stash.open; }); }
-  await expect(ui.locator('#npsources [role="option"] kbd')).toHaveText('git');
+  await expect(sources).toHaveText(new RegExp(`^${RegExp.escape(goneDir)}git$`));
   await create('gone');
   expect(await core((k) => k.shell.current.folder)).toBe(goneDir);
   expect(git(goneDir, 'log', '--format=%s'), 'its history as it was').toBe('mine');
@@ -135,15 +137,14 @@ test("projects: Delete Project… (the projects' manager alone) asks, closes the
   // folder; the one without git left so.
   const back = path.join(root, 'back');
   fs.mkdirSync(back); fs.writeFileSync(path.join(back, 'b.txt'), 'b');
-  await newProject('folder');
+  await newProject('Folders on Disk');
   await add(goneDir);
   await add(back);
-  const sources = ui.locator('#npsources [role="option"]');
   await expect(sources).toHaveCount(2);
   await expect(sources.nth(0)).toHaveAttribute('data-source', goneDir);
-  await expect(sources.nth(0).locator('kbd')).toHaveText(['git', 'default']);
+  await expect(sources.nth(0)).toHaveText(new RegExp(`^${RegExp.escape(goneDir)}gitdefault$`));
   await expect(sources.nth(1)).toHaveAttribute('data-source', back);
-  await expect(sources.nth(1).locator('kbd')).toHaveText(['no git']);
+  await expect(sources.nth(1)).toHaveText(new RegExp(`^${RegExp.escape(back)}no git$`));
   await create('gone');
   expect(await core((k, i) => k.shell.store.projects().find((x) => x.id === i).folders, files.pid('gone'))).toEqual([goneDir, back]);
   expect(fs.existsSync(path.join(back, '.git')), 'the one without git left so').toBe(false);
@@ -157,17 +158,16 @@ test("projects: Delete Project… (the projects' manager alone) asks, closes the
   git(back, 'init', '-q'); git(back, 'add', '-A'); git(back, 'commit', '-qm', 'back');
   git(root, 'clone', '-q', '--bare', goneDir, bare);
   git(root, 'clone', '-q', '--bare', back, backBare);
-  await newProject('clone');
-  await typeIn(ui, '#npsource', bare);
-  await ui.locator('#npaddsource').click();
-  await expect(ui.locator('#npname')).toHaveValue('cloned');
+  await newProject('Clone from URL');
+  await add(bare);
+  await expect(field('Name')).toHaveValue('cloned');
   const into = path.join(home, 'cloned');
-  await expect(ui.locator('#npwhere')).toHaveText(`The repository will be cloned into ${into}`);
-  await typeIn(ui, '#nplocation', root);
-  await typeIn(ui, '#npname', 'gone');
-  await expect(ui.locator('#npwhere')).toHaveText(`${goneDir} is there already: choose another name or location`);
-  await typeIn(ui, '#nplocation', home);
-  await typeIn(ui, '#npname', 'cloned');
+  await expect(where).toHaveText(`The repository will be cloned into ${into}`);
+  await typeIn(ui, field('Location'), root);
+  await typeIn(ui, field('Name'), 'gone');
+  await expect(where).toHaveText(`${goneDir} is there already: choose another name or location`);
+  await typeIn(ui, field('Location'), home);
+  await typeIn(ui, field('Name'), 'cloned');
   await create('cloned');
   expect(await core((k, i) => k.shell.store.projects().find((x) => x.id === i).folders, files.pid('cloned'))).toEqual([into]);
   expect(git(into, 'log', '--format=%s'), 'its history').toBe('mine');
@@ -175,11 +175,10 @@ test("projects: Delete Project… (the projects' manager alone) asks, closes the
   await expect.poll(async () => (await projects()).includes('cloned')).toBe(false);
   // Several: each repository cloned into a folder named after the project, the first the default; that folder is
   // none of the project's. A URL typed and not yet added counts.
-  await newProject('clone');
-  await typeIn(ui, '#npsource', bare);
-  await ui.locator('#npaddsource').click();
-  await typeIn(ui, '#npname', 'fullstack');
-  await typeIn(ui, '#npsource', backBare);
+  await newProject('Clone from URL');
+  await add(bare);
+  await typeIn(ui, field('Name'), 'fullstack');
+  await typeIn(ui, source, backBare);
   const stack = path.join(home, 'fullstack');
   await create('cloned'); // named by its first folder (data.ts, pid)
   const full = await core((k, i) => k.shell.store.projects().find((x) => x.id === i), files.pid('cloned'));
@@ -198,13 +197,13 @@ test("projects: Delete Project… (the projects' manager alone) asks, closes the
   await expect(ui.locator('html')).toHaveAttribute('data-noproject');
   expect(await core((k, i) => k.shell.store.tasksOf({ id: i }).list.every((e) => e.closed), files.pid('project')), 'its tasks closed').toBe(true);
 
-  // A closed task opened again from the board (the empty window), a tab at the end; another from the bar's + after.
+  // A closed task opened again from the sidebar (the empty window's), a tab at the end; another from it over the grid after.
   const first = files.tkey('project', 1);
-  await ui.locator(`#board [data-task="${first}"]`).click();
+  await taskRow(ui, 'project', 'task-1').click();
   await taskShown(core, first);
   expect(await core((k) => !k.shell.task.entry.closed), 'open again').toBe(true);
   await notLoading(ui);
-  await plusMenu(ui, 'project', 'Feature-X');
+  await fromSidebar(ui, 'project', 'Feature-X');
   await expect.poll(() => core((k) => k.shell.task?.name === 'Feature-X' && k.settled(true))).toBe(true);
   await ui.locator(`#projectTabs [data-task="${first}"]`).click();
   await taskShown(core, first);
