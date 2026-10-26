@@ -25,7 +25,7 @@ type Core = <A, R>(fn: (k: Kulisa, arg: A) => R | Promise<R>, arg?: A) => Promis
 type Where = { task?: string; terminal?: number };
 type CallResult = { content: { type: string; text?: string; data?: string; mimeType?: string }[]; text: string; isError?: boolean; structuredContent?: unknown };
 type Call = (name: string, args?: Record<string, unknown>, where?: Where) => Promise<CallResult>;
-type Running = { file: string; automation: boolean; child: ChildProcess; exited: Promise<void>; output: () => string; browser: Browser; context: BrowserContext; root: string; core: Core; ui: Page; errors: string[]; clients: Map<string, Client> };
+type Running = { file: string; automation: boolean; restarted?: boolean; child: ChildProcess; exited: Promise<void>; output: () => string; browser: Browser; context: BrowserContext; root: string; core: Core; ui: Page; errors: string[]; clients: Map<string, Client> };
 
 // The checkout's own folder for the tests' Kulisas: worktrees run their tests at once (CLAUDE.md, Worktrees).
 const repo = path.join(import.meta.dirname, '..', '..');
@@ -106,8 +106,14 @@ async function launch(file: string, display: string | null, automation: boolean,
   // A page's dialog (alert, confirm, beforeunload) left to Kulisa, which shows it in its pane: Playwright dismisses one
   // nobody listens to.
   context.on('dialog', () => {});
-  const isUi = (p: Page) => p.url().includes('/index.html');
-  const ui = context.pages().find(isUi) ?? await context.waitForEvent('page', isUi);
+  // The first window's page (a restart may bring several back), known by its target.
+  const first = async (p: Page) => {
+    if (!p.url().includes('/index.html')) return false;
+    const { targetInfo } = await (await context.newCDPSession(p)).send('Target.getTargetInfo');
+    return core((k, id) => k.electron.webContents.fromDevToolsTargetId(id) === k.shell.windows[0].win.webContents, targetInfo.targetId);
+  };
+  let ui: Page | undefined;
+  await expect.poll(async () => { for (const p of context.pages()) if (await first(p).catch(() => false)) ui = p; return !!ui; }, { timeout: 30000 }).toBe(true);
   await context.tracing.start({ screenshots: true, snapshots: true });
   return { file, automation, child, exited, output: () => output, browser, context, root, core, ui, errors, clients: new Map() };
 }
@@ -179,12 +185,12 @@ export const test = base.extend<Fixtures, { display: string | null; running: { c
     k.errors.length = 0;
     await k.core((d) => d.reset());
     await use(k);
-    const now = running.current; // a restart's Kulisa
+    const now = running.current; // the same, started again by restart()
     const errors = [...now.errors, ...await now.core((d) => d.errors).catch(() => [] as string[])];
     if (info.status !== info.expectedStatus || errors.length) await leave(now, info);
     else await now.context?.tracing.stopChunk().catch(() => {});
     // Started again (restart), it is not as a file's tests begin: the next test gets a new one.
-    if (now !== k) { await close(now); running.current = null; }
+    if (now.restarted) { await close(now); running.current = null; }
     expect(errors, 'uncaught errors in Kulisa while the test ran').toEqual([]);
   }, { timeout: 90000 }],
   core: async ({ kulisa, running }, use) => { void kulisa; await use((fn, arg) => running.current.core(fn, arg)); },
@@ -230,7 +236,8 @@ export const test = base.extend<Fixtures, { display: string | null; running: { c
       const old = running.current;
       await old.context?.tracing.stopChunk().catch(() => {});
       await quit(old);
-      running.current = await launch(old.file, display, old.automation, old.root);
+      // The same object, so that the test's kulisa reaches the new one.
+      Object.assign(old, await launch(old.file, display, old.automation, old.root), { restarted: true });
       await running.current.context?.tracing.startChunk({ title: `${info.title} (after the restart)` });
       await running.current.core((d) => d.reset());
       return running.current.ui;

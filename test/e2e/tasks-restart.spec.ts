@@ -1,0 +1,83 @@
+// What a project's tasks are after a restart (docs/tasks.md, Tasks; docs/window.md, The grid): the open ones back in the
+// bar, the one in the background loaded when shown, still signed in; a closed one closed; the grid as it was left.
+import fs from 'fs';
+import path from 'path';
+import { test, expect } from './fixtures.ts';
+import { SITE, who, viewOn, resourcesHeight } from './helpers.ts';
+import { SAM, ELON, git, begin, invoke, notLoading, newTask } from './project-helpers.ts';
+
+test('after a restart: the other task waits in the bar with its tabs, loads when shown, still signed in; a closed one stays closed', async ({ core, ui, call, files, restart }) => {
+  test.slow(); // a worktree made, a task opened and closed, Kulisa started again
+  const project = files.project;
+  if (!fs.existsSync(path.join(project, '.git'))) {
+    git(project, 'init', '-q');
+    fs.writeFileSync(path.join(project, 'README.md'), '# shop\n');
+    git(project, 'add', '-A');
+    git(project, 'commit', '-qm', 'first');
+  }
+  await begin(core, ui, files);
+  const pid = files.pid('project'), first = files.tkey('project', 1), second = files.tkey('project', 2);
+  const samId = files.idOf(SAM), elonId = files.idOf(ELON);
+  // Feature-X in a worktree of its own (named so by its agent), Sam signed in there as another user than in task-1,
+  // its tabs loaded in the background as Kulisa quits.
+  await invoke(ui, 'task:show', second);
+  await expect.poll(() => core((k, key) => k.shell.task?.key === key && !!k.shell.task.loaded && !k.shell.windows[0].switching, second)).toBe(true);
+  await notLoading(ui);
+  await call('task_worktree', { name: 'Feature-X' });
+  expect(await core((k) => k.shell.task.folder)).toBe(`${project}@feature-x`);
+  await core(async (k, ids) => { for (const id of ids) if (!k.shell.profiles.has(id)) await k.shell.task.openProfile(id); }, [samId, elonId]);
+  await expect.poll(() => core((k, ids) => ids.every((id) => k.shell.profiles.has(id)), [samId, elonId])).toBe(true);
+  await call('browser_navigate', { profile: SAM, url: `${SITE}/app/login?name=second` });
+  expect(await who(call, SAM)).toBe('Signed in as second');
+  // A third task, closed.
+  const third = await newTask(core, ui, pid);
+  await invoke(ui, 'task:close', third);
+  await expect.poll(() => core((k, key) => !!k.shell.store.tasksOf({ id: key.split('/')[0] }).list.find((e) => key.endsWith(`/${e.id}`))?.closed, third)).toBe(true);
+  await invoke(ui, 'task:show', first);
+  await expect.poll(() => core((k, key) => k.shell.task?.key === key && !!k.shell.task.loaded && !k.shell.windows[0].switching, first)).toBe(true);
+  await notLoading(ui);
+
+  const ui2 = await restart();
+  await expect.poll(() => ui2.locator(`#projectTabs .tasktab[data-project="${pid}"] .name`).allTextContents()).toEqual(['task-1', 'Feature-X']);
+  expect(await core((k, id) => [...k.shell.taskByKey(id).project.tasks.values()][2].entry.closed, first)).toBe(true);
+  expect(await core((k, key) => k.shell.taskByKey(key).loaded, second)).toBe(false);
+  // Left loaded in the background: its tabs saved as Kulisa quit, not again as they closed (none left at last).
+  const secondDir = path.join(files.userData, 'projects', pid, files.tid('project', 2));
+  const saved = fs.readdirSync(secondDir).filter((d) => fs.existsSync(path.join(secondDir, d, 'Kulisa Tabs.json')))
+    .map((d) => JSON.parse(fs.readFileSync(path.join(secondDir, d, 'Kulisa Tabs.json'), 'utf8')).urls as string[]);
+  expect(saved.some((urls) => urls.length), `its tabs kept: ${JSON.stringify(saved)}`).toBe(true);
+  // Once the first has loaded: a click while the window still builds it is not taken.
+  await expect.poll(() => core((k) => !!k.shell.task?.loaded && !k.shell.windows[0].switching)).toBe(true);
+  await notLoading(ui2);
+  await ui2.locator(`#projectTabs .tasktab[data-task="${second}"]`).click();
+  await expect.poll(() => core((k, key) => k.shell.task?.key === key && k.shell.task.loaded && !!k.shell.task.pty, second)).toBe(true);
+  expect(await core((k) => k.shell.task.folder)).toBe(`${project}@feature-x`);
+  expect(await core((k) => [...k.shell.profiles.keys()])).toEqual([samId, elonId]);
+  await call('browser_navigate', { profile: SAM, url: `${SITE}/app` });
+  expect(await who(call, SAM), 'its own sign-in to the local app').toBe('Signed in as second');
+  await ui2.locator(`#projectTabs .tasktab[data-task="${first}"]`).click();
+  await expect.poll(() => core((k, key) => k.shell.task?.key === key, first)).toBe(true);
+  await expect.poll(async () => (await viewOn(core, ui2, files, SAM)) && viewOn(core, ui2, files, ELON)).toBe(true);
+});
+
+test('after a restart: the grid is as it was left (preset "grid")', async ({ core, ui, files, restart }) => {
+  await begin(core, ui, files);
+  await ui.evaluate(() => (window as any).__layoutPreset('grid'));
+  // Saved as laid out (the task's layout.json, 300 ms after the grid's last change: lib/grid.ts), before the restart.
+  await expect.poll(async () => {
+    const now = JSON.stringify(await ui.evaluate(() => (window as any).__dock.toJSON().grid));
+    try { return JSON.stringify(JSON.parse(fs.readFileSync(files.pfile('layout.json'), 'utf8')).grid) === now; } catch { return false; }
+  }).toBe(true);
+
+  const ui2 = await restart();
+  const saved = files.savedResourcesHeight(); // before anything here changes the grid
+  const box = (sel: string) => ui2.evaluate((s) => { const r = document.querySelector(s)?.getBoundingClientRect(); return r ? { x: r.x, width: r.width } : { x: -1, width: 0 }; }, sel);
+  const sam = `.pane[data-profile="${files.idOf(SAM)}"]`, elon = `.pane[data-profile="${files.idOf(ELON)}"]`;
+  // Once the grid is laid out: Sam's column, Elon's, the terminal right of them.
+  await expect.poll(async () => {
+    if (await ui2.locator(`${sam}, ${elon}`).count() !== 2) return false;
+    const s = await box(`${sam} .content`), e = await box(`${elon} .content`), term = await box('.term:not([hidden])');
+    return s.width > 0 && s.x < e.x && term.x > e.x + e.width - 1;
+  }, { timeout: 10000 }).toBe(true); // a loaded machine takes over 3 s
+  expect(Math.abs((await resourcesHeight(ui2)) - saved), 'the Resources island as tall as it was left (dockview rounds its panels as it restores them)').toBeLessThanOrEqual(3);
+});

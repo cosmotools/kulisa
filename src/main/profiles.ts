@@ -122,7 +122,7 @@ class Profile extends EventEmitter {
     const id = await ensureTarget(tab);
     for (let i = 0; i < 50; i++) {
       // A page still closing (a tab closed a moment ago) has no target left to ask: not this one.
-      for (const p of this.context.pages()) if ((await targetIdOf(p).catch(() => null)) === id) return p;
+      for (const p of this.context.pages()) if ((await targetIdOf(p).catch((): null => null)) === id) return p;
       await new Promise((r) => setTimeout(r, 100));
     }
     throw new Error(`no Playwright page for tab ${id}`);
