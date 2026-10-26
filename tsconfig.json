@@ -21,7 +21,8 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
     "noUncheckedIndexedAccess": true,
-    "noImplicitOverride": true
+    "noImplicitOverride": true,
+    "paths": { "@/*": ["./src/renderer/*"] }
   },
   "include": ["src/main", "src/shared", "src/*/main", "src/*/ipc.ts", "src/*/*.test.ts", "scripts", "forge.config.ts", ".dependency-cruiser.ts", ".claude/hooks"]
 }

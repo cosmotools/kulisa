@@ -135,20 +135,15 @@ button.danger { background: var(--danger); border-color: var(--danger); color: v
   @media (prefers-reduced-motion: reduce) { svg { animation: none !important; } } }
 @keyframes twinkle { 50% { opacity: .45; scale: .8; } }
 
-/* Icons (the sprite: Sprite.vue): lines in the text's color. × and + are drawn smaller than the others, as in
-   Chrome. The sprite takes no room but is not display: none: its gradients and clip paths (the logo's) would not
-   reach the <use>s then. An icon hidden (hidden, which an <svg> does not get from the browser's own styles) is not
-   shown. */
-.sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
-svg:has(> use) { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.5;
-  stroke-linecap: round; stroke-linejoin: round; }
+/* Icons (Lucide's; components/marks/ ours): 16 px where a place sets no size. In a layer: utilities size them. */
+@layer base { svg:is(.lucide, [data-icon]) { width: 16px; height: 16px; flex: none; } }
 /* An icon button: the icon alone, square with rounded corners as JetBrains' toolbars, lit under the pointer. --icon:
    the icon's size. .quiet: muted until pointed at (× and removing); .small: in a row or a list's toolbar (a tab's ×, a
    task's ×, .list's + and −); .round: a circle filled as a raised button, one that stands out in a row (the microphone). */
 .icon { --icon: 16px; display: grid; place-items: center; flex: none; width: var(--control); height: var(--control);
   padding: 0; border: none; border-radius: var(--corner); background: none; color: var(--text-dim);
   svg { width: var(--icon); height: var(--icon); }
-  &:has(use:is([href="#i-close"], [href="#i-plus"])) { --icon: 14px; }
+  &:has(:is(.lucide-x, .lucide-plus)) { --icon: 14px; }
   &:hover:not(:disabled) { color: var(--text-strong); background: var(--hover); }
   &.quiet { color: var(--text-muted); &:hover { color: var(--text-strong); } }
   &.small { width: 24px; height: 24px; }

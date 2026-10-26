@@ -4,11 +4,11 @@
 // them its artifacts, the files the agent's tools kept of its pages: a click opens one in the OS's app for it; their
 // heading says what they take (Task.artifactsUsage).
 import { computed, watch } from 'vue';
-import Icon from './Icon.vue';
 import RightClickMenu from './menu/RightClickMenu.vue';
 import { shownTask, store } from '../lib/store';
 import type { MenuItem } from '../lib/menu';
 import { sizeText } from '../../shared/bytes';
+import { FileTextIcon, FolderIcon, GitBranchIcon, Trash2Icon } from '@lucide/vue';
 
 const task = computed(shownTask);
 const open = (folder: string) => kulisa.invoke('task:open-folder', { key: task.value!.key, folder });
@@ -38,20 +38,20 @@ const menu = (e: MouseEvent): MenuItem[] | null => {
       <!-- A row is no <button>: its 🗑 is one, and a button holds no other -->
       <li v-for="r in task?.resources" :key="r.folder"><div class="item resource" role="button" tabindex="0" :aria-label="r.label" :title="`Open Folder: ${r.folder}`"
         @click="open(r.folder)" @keydown.enter.space.self.prevent="open(r.folder)">
-        <Icon class="ico" :name="r.kind === 'maintree' ? 'i-folder' : 'i-git'" />
+        <component :is="r.kind === 'maintree' ? FolderIcon : GitBranchIcon" class="ico" />
         <span class="text"><span class="label">{{ r.label }}</span><small>{{ r.branch ? `branch ${r.branch}` : 'main working tree' }}</small></span>
         <button v-if="r.removable" type="button" class="remove icon quiet small" aria-label="Remove Repository" title="Remove Repository"
-          @click.stop="remove(r.folder)"><Icon name="i-trash" /></button>
+          @click.stop="remove(r.folder)"><Trash2Icon /></button>
       </div></li>
     </ul>
     <template v-if="artifacts.length">
       <h3 class="titled">Artifacts<span class="size" data-testid="artifacts-size">{{ sizeText(store.artifacts.bytes) }}</span>
         <button type="button" class="delete-all icon quiet small" aria-label="Delete All Artifacts" title="Delete All Artifacts"
-          @click="deleteArtifacts(null)"><Icon name="i-trash" /></button></h3>
+          @click="deleteArtifacts(null)"><Trash2Icon /></button></h3>
       <RightClickMenu :items="menu"><ul>
         <li v-for="a in artifacts" :key="a.file"><button type="button" class="item artifact" :data-file="a.file" :aria-label="kindOf(a.kind)" :title="`Open: ${a.file} (${sizeText(a.bytes)})`"
           @click="openFile(a.file)">
-          <img v-if="a.thumb" class="thumb" :src="a.thumb" alt=""><Icon v-else class="ico" name="i-file" />
+          <img v-if="a.thumb" class="thumb" :src="a.thumb" alt=""><FileTextIcon v-else class="ico" />
           <span class="text"><span class="label">{{ kindOf(a.kind) }}</span><small>{{ [profileName(a.profile), when(a.time)].filter(Boolean).join(' · ') }}</small></span>
         </button></li>
       </ul></RightClickMenu>

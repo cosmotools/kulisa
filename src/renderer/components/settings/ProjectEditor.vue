@@ -5,7 +5,6 @@
 // tasks' window (New Project…), which then opens it here.
 import { computed, nextTick, ref, watch } from 'vue';
 import { ListboxContent, ListboxItem, ListboxRoot, TreeItem, TreeRoot } from 'reka-ui';
-import Icon from '../Icon.vue';
 import ButtonMenu from '../menu/ButtonMenu.vue';
 import RightClickMenu from '../menu/RightClickMenu.vue';
 import AccountSignIn from '../AccountSignIn.vue';
@@ -23,6 +22,9 @@ import { agentList, agentMark, type Agent } from '../../lib/agents';
 import { refused } from '../../../shared/result';
 import type { Result } from '../../../shared/result';
 import type { Account, AccountsInfo, ProjectAgent, ProjectChoices, ProjectEntry, ProjectGitHub, ProjectProfile, ProjectFolder, SettingsProfile, SignedIn } from '../../../shared/types';
+import LogoMark from '../marks/LogoMark.vue';
+import GitHubMark from '../marks/GitHubMark.vue';
+import { BookOpenIcon, ChevronDownIcon, EllipsisVerticalIcon, MinusIcon, PlusIcon, StarIcon } from '@lucide/vue';
 
 // The page shown, of the tree's section (the log and About are pages of their own, under them); the agents' list lives here, so an
 // install goes on while a project is shown, and the window stays open while it runs (close).
@@ -352,16 +354,16 @@ const stopAdding = () => { adding.value = ''; newName.value = ''; cloneUrl.value
           <TreeItem v-for="it in flattenItems" :key="it._id" v-bind="it.bind" class="item" :aria-label="it.value.label" :data-key="it.value.key" :data-section="it.value.section" :data-page="it.value.page"
             :data-project="it.value.project?.id" :data-agent="it.value.agent?.id" :data-profile="it.value.profile?.id"
             :style="{ '--color': it.value.project && projectColor(it.value.project) }" @select="choose">
-            <Icon v-if="it.value.section" class="twist" name="i-down" /><Icon v-else-if="it.value.page" class="twist" :name="({ github: 'i-github', log: 'i-docs', about: 'i-logo' } as const)[it.value.page]" /><ProjectIcon v-if="it.value.project" :p="it.value.project" />
-            <template v-if="it.value.agent"><Icon v-if="mark(it.value.agent)" class="logo" :name="mark(it.value.agent)!" /></template>
+            <ChevronDownIcon v-if="it.value.section" class="twist" /><component :is="{ github: GitHubMark, log: BookOpenIcon, about: LogoMark }[it.value.page]" v-else-if="it.value.page" class="twist" /><ProjectIcon v-if="it.value.project" :p="it.value.project" />
+            <template v-if="it.value.agent"><component :is="mark(it.value.agent)!" v-if="mark(it.value.agent)" class="logo" /></template>
             <img v-if="it.value.profile" class="avatar" alt="" :src="avatarSrc(it.value.profile.avatar)">
             <span class="text"><span class="label" :title="it.value.section ? undefined : it.value.label">{{ it.value.label }}</span></span>
             <kbd v-if="it.value.agent && !it.value.agent.installed">not installed</kbd>
             <!-- The same as the section's right-click, which the keyboard has -->
             <ButtonMenu v-if="it.value.section === 'agents'" :items="newAccountMenu"><button id="agentnew" class="icon small add" type="button" tabindex="-1"
-              title="New Account…: of an agent, signed in with its own sign-in" aria-label="New Account" :disabled="!clis.length" @click.stop><Icon name="i-plus" /></button></ButtonMenu>
+              title="New Account…: of an agent, signed in with its own sign-in" aria-label="New Account" :disabled="!clis.length" @click.stop><PlusIcon /></button></ButtonMenu>
             <button v-else-if="it.value.section === 'profiles'" id="profilenew" class="icon small add" type="button" tabindex="-1" title="New Profile…" aria-label="New Profile"
-              @click.stop="startNewProfile"><Icon name="i-plus" /></button>
+              @click.stop="startNewProfile"><PlusIcon /></button>
           </TreeItem>
         </TreeRoot>
       </RightClickMenu>
@@ -375,7 +377,7 @@ const stopAdding = () => { adding.value = ''; newName.value = ''; cloneUrl.value
       <template v-if="editing">
         <div id="pjhead" class="crumbs">
           <span>Projects</span><span aria-hidden="true">›</span><b id="pjtitle">{{ projects.find((p) => p.id === editing)?.name }}</b>
-          <ButtonMenu :items="more" end><button id="pjmore" class="icon small" type="button" title="More" aria-label="More"><Icon name="i-more" /></button></ButtonMenu>
+          <ButtonMenu :items="more" end><button id="pjmore" class="icon small" type="button" title="More" aria-label="More"><EllipsisVerticalIcon /></button></ButtonMenu>
         </div>
         <!-- Enter saves it, not a form -->
         <div class="field"><label for="pjname">Name:</label>
@@ -387,10 +389,10 @@ const stopAdding = () => { adding.value = ''; newName.value = ''; cloneUrl.value
           <RightClickMenu :items="folderMenu">
             <div class="list">
               <div class="tools">
-                <ButtonMenu :items="addMenu"><button id="npfoldersadd" class="icon small" type="button" title="Add a folder or a repository" aria-label="Add a folder"><Icon name="i-plus" /></button></ButtonMenu>
-                <button id="npfolderdel" class="icon small" type="button" title="Remove from the project (its folder stays)" aria-label="Remove from the project" :disabled="!folderSel" @click="removeFolder()"><Icon name="i-minus" /></button>
+                <ButtonMenu :items="addMenu"><button id="npfoldersadd" class="icon small" type="button" title="Add a folder or a repository" aria-label="Add a folder"><PlusIcon /></button></ButtonMenu>
+                <button id="npfolderdel" class="icon small" type="button" title="Remove from the project (its folder stays)" aria-label="Remove from the project" :disabled="!folderSel" @click="removeFolder()"><MinusIcon /></button>
                 <button id="npfolderdefault" class="icon small" type="button" title="Make Default: new tasks' agents start in its copy" aria-label="Make Default"
-                  :disabled="!folderSel || folderSel === folders[0]?.folder" @click="defaultFolder()"><Icon name="i-star" /></button>
+                  :disabled="!folderSel || folderSel === folders[0]?.folder" @click="defaultFolder()"><StarIcon /></button>
               </div>
               <div v-if="folders.length" class="head" aria-hidden="true"><span>Name</span><span>Folder</span><span>GitHub</span><span /></div>
               <ListboxRoot selection-behavior="replace" v-if="folders.length" id="npfolders" v-model="folderSel" aria-label="Folders" @keydown.delete="removeFolder()">
@@ -430,17 +432,17 @@ const stopAdding = () => { adding.value = ''; newName.value = ''; cloneUrl.value
             <div class="list">
               <div class="tools">
                 <ButtonMenu :items="agentMenu"><button id="npagentadd" class="icon small" type="button" title="Add an agent" aria-label="Add an agent"
-                  :disabled="!!signing || (!addable.length && !choices.clis.length)"><Icon name="i-plus" /></button></ButtonMenu>
-                <button id="npagentdel" class="icon small" type="button" title="Remove from the project (its tasks keep it)" aria-label="Remove from the project" :disabled="!agentSel" @click="removeAgent()"><Icon name="i-minus" /></button>
+                  :disabled="!!signing || (!addable.length && !choices.clis.length)"><PlusIcon /></button></ButtonMenu>
+                <button id="npagentdel" class="icon small" type="button" title="Remove from the project (its tasks keep it)" aria-label="Remove from the project" :disabled="!agentSel" @click="removeAgent()"><MinusIcon /></button>
                 <button id="npagentdefault" class="icon small" type="button" :disabled="!agentSel" @click="starAgent()"
                   :title="isDefault(agentSel) ? 'No Default: a new task starts with no agent, you choose one there' : 'Make Default: + makes a task with it'"
-                  :aria-label="isDefault(agentSel) ? 'No Default' : 'Make Default'"><Icon name="i-star" /></button>
+                  :aria-label="isDefault(agentSel) ? 'No Default' : 'Make Default'"><StarIcon /></button>
               </div>
               <div v-if="mine.length" class="head" aria-hidden="true"><span>Agent</span><span>Account</span><span /></div>
               <ListboxRoot selection-behavior="replace" v-if="mine.length" id="npagents" v-model="agentSel" aria-label="Agents" @keydown.delete="removeAgent()">
                 <ListboxContent>
                   <ListboxItem v-for="a in mine" :key="a.id" :value="a.id" class="item" :data-agent="a.id" :title="a.name" :aria-label="a.agent">
-                    <span class="cell label"><Icon v-if="agentMark(a.cli, null)" :name="agentMark(a.cli, null)!" />{{ a.agent }}</span>
+                    <span class="cell label"><component :is="agentMark(a.cli, null)!" v-if="agentMark(a.cli, null)" />{{ a.agent }}</span>
                     <small class="cell account">{{ a.email ?? '—' }}</small>
                     <span class="cell end"><kbd v-if="a.default" class="default" title="+ makes a task with it; the others are in +'s right-click menu">default</kbd></span>
                   </ListboxItem>
@@ -459,8 +461,8 @@ const stopAdding = () => { adding.value = ''; newName.value = ''; cloneUrl.value
             <div class="list">
               <div class="tools">
                 <ButtonMenu :items="profileMenu"><button id="npprofileadd" class="icon small" type="button"
-                  title="Add a profile: the browser profiles its tasks test as, each task with its own copy" aria-label="Add a profile"><Icon name="i-plus" /></button></ButtonMenu>
-                <button id="npprofiledel" class="icon small" type="button" title="Remove from the project (asks first)" aria-label="Remove from the project" :disabled="!profileSel" @click="removeProfile()"><Icon name="i-minus" /></button>
+                  title="Add a profile: the browser profiles its tasks test as, each task with its own copy" aria-label="Add a profile"><PlusIcon /></button></ButtonMenu>
+                <button id="npprofiledel" class="icon small" type="button" title="Remove from the project (asks first)" aria-label="Remove from the project" :disabled="!profileSel" @click="removeProfile()"><MinusIcon /></button>
               </div>
               <div v-if="profiles.length" class="head" aria-hidden="true"><span>Name</span><span>About</span><span>Also in</span></div>
               <ListboxRoot selection-behavior="replace" v-if="profiles.length" id="npprofiles" v-model="profileSel" aria-label="Profiles" @keydown.delete="removeProfile()">
@@ -499,7 +501,7 @@ const stopAdding = () => { adding.value = ''; newName.value = ''; cloneUrl.value
       <template v-if="shownProfile">
         <div class="crumbs">
           <span>Profiles</span><span aria-hidden="true">›</span><b>{{ shownProfile.name }}</b>
-          <ButtonMenu :items="more" end><button id="profilemore" class="icon small" type="button" title="More" aria-label="More"><Icon name="i-more" /></button></ButtonMenu>
+          <ButtonMenu :items="more" end><button id="profilemore" class="icon small" type="button" title="More" aria-label="More"><EllipsisVerticalIcon /></button></ButtonMenu>
         </div>
         <ProfilePage :profile="shownProfile" @changed="profileChanged" />
       </template>
@@ -511,7 +513,7 @@ const stopAdding = () => { adding.value = ''; newName.value = ''; cloneUrl.value
     <div v-show="tab === 'agents'" id="agconfig">
       <div v-if="shownAgent" class="crumbs">
         <span>Agents</span><span aria-hidden="true">›</span><b aria-current="page">{{ shownAgent.name }}</b>
-        <ButtonMenu :items="more" end><button id="agentmore" class="icon small" type="button" title="More" aria-label="More"><Icon name="i-more" /></button></ButtonMenu>
+        <ButtonMenu :items="more" end><button id="agentmore" class="icon small" type="button" title="More" aria-label="More"><EllipsisVerticalIcon /></button></ButtonMenu>
       </div>
       <AgentPage ref="agentPage" :list="agentsList" :chosen="agentAt" :accounts :clis @accounts="showAccounts" />
     </div>

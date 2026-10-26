@@ -117,7 +117,7 @@ passes, alone and with its file.
 
 `npm run knip`. What it finds goes (the file, or the `export`); code for the next step waits for it. A path-loaded
 file is an entry in `knip.jsonc` with why; `ignore` last, with its reason. Invisible to knip: names joined as strings
-(IPC channels, CSS classes, sprite icons, the keys' table): check the other side by hand.
+(IPC channels, CSS classes, icons, the keys' table): check the other side by hand.
 
 ## Layers
 

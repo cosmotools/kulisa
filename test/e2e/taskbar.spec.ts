@@ -85,7 +85,7 @@ test("tasks: switching shows the other grid and terminal; the one left keeps run
   const badge = taskTab(ui, second).locator('[data-state]');
   const state = async (s: string, message?: string) => {
     await expect(badge, message).toHaveAttribute('data-state', s);
-    await expect(badge.locator('use'), message).toHaveAttribute('href', `#i-${s || 'done'}`);
+    await expect(badge.locator(`svg.lucide-${{ working: 'sparkles', waiting: 'bell', done: 'check' }[s || 'done']}`), message).toHaveCount(1);
     if (s) await expect(badge, message).toBeVisible(); else await expect(badge, message).toBeHidden();
   };
   await state('', 'unknown: no icon');

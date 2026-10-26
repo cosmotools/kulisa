@@ -336,8 +336,8 @@ ${names.map((x) => `      - menuitem ${JSON.stringify(`Open in ${x}`)}`).join('\
       - menuitem "About Kulisa"${MAC ? '' : `
       - separator
       - menuitem "Exit"`}`);
-  expect(await anyMenu(ui).locator('svg:not([hidden]) > use').evaluateAll((us) => us.map((u) => u.getAttribute('href'))), 'each row with its icon')
-    .toEqual(['#i-zoom', '#i-theme', '#i-projects', '#i-language', '#i-chevron', '#i-arrange', '#i-keyboard', '#i-docs', '#i-github', '#i-bug', '#i-logo', ...(MAC ? [] : ['#i-exit'])]);
+  expect(await anyMenu(ui).locator('svg:is(.lucide, [data-icon]):not([hidden])').evaluateAll((ss) => ss.map((s) => s.getAttribute('data-icon') ?? /lucide-[\w-]+/.exec(s.getAttribute('class'))[0])), 'each row with its icon (Lucide names it in its class)')
+    .toEqual(['lucide-zoom-in', 'lucide-sun-moon', 'lucide-folder-open', 'lucide-languages', 'lucide-chevron-right', 'lucide-layout-panel-left', 'lucide-keyboard', 'lucide-book-open', 'github', 'lucide-bug', 'logo', ...(MAC ? [] : ['lucide-log-out'])]);
   const pics = await anyMenu(ui).getByTestId('arrange-row').getByRole('menuitem').evaluateAll((bs) => bs.map((b) => ({ title: (b as HTMLElement).title,
     panes: b.querySelectorAll('svg [data-shape="page"]').length, term: b.querySelectorAll('svg [data-shape="term"]').length, w: b.querySelector('svg').getBoundingClientRect().width })));
   expect(pics.map((p) => [p.panes, p.term])).toEqual([[3, 1], [4, 1], [1, 1]]);

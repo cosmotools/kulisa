@@ -5,6 +5,7 @@ import { act, store } from './store';
 import { keyText } from './common';
 import { menuAt, type MenuItem } from './menu';
 import { agentMark } from './agents';
+import { SquareTerminalIcon } from '@lucide/vue';
 import { dialog } from './dialogs';
 import { refused } from '../../shared/result';
 import { restoreTerminal, serialized, termCopy, termHooks, termPaste, View, xtermKeys } from '../../terminal/renderer';
@@ -70,13 +71,13 @@ export const launchers = () => [
     const [name, sub = ''] = a.name.split(' · ');
     return { id: a.id, name, sub, icon: agentMark(a.cli)!, title: a.name, run: () => act('terminal:open', { agent: a.id }) };
   }),
-  { id: 'shell', name: 'Terminal', sub: '', icon: 'i-agent-shell', title: 'Terminal', run: () => act('terminal:open') },
+  { id: 'shell', name: 'Terminal', sub: '', icon: SquareTerminalIcon, title: 'Terminal', run: () => act('terminal:open') },
 ];
 // +: a new conversation of one of them, or a shell.
 export const newTerminalItems = (): MenuItem[] => [
   ...projectAgents().map((a) => ({ label: a.name, icon: agentMark(a.cli)!, run: () => act('terminal:open', { agent: a.id }) })),
   ...(projectAgents().length ? ['-' as const] : []),
-  { label: 'Terminal', icon: 'i-agent-shell', keys: keyText('terminal.new'), run: () => act('terminal:open') },
+  { label: 'Terminal', icon: SquareTerminalIcon, keys: keyText('terminal.new'), run: () => act('terminal:open') },
 ];
 // What a tab's menu and its terminal's end with.
 export const tabItems = (t: TerminalInfo): MenuItem[] => [

@@ -1,16 +1,16 @@
 <script setup lang="ts">
 // A row of ☰ with its few choices (docs/ui.md, Menus); it stays open, so another can be tried. kind: the data attribute
 // each has (data-theme, data-bar).
+import type { Component } from 'vue';
 import { DropdownMenuRadioGroup, DropdownMenuRadioItem } from 'reka-ui';
-import Icon from '../Icon.vue';
 
-defineProps<{ kind: string; icon: string; label: string; choices: { value: string; label: string; title?: string }[]; chosen: () => string;
+defineProps<{ kind: string; icon: Component; label: string; choices: { value: string; label: string; title?: string }[]; chosen: () => string;
   choose: (value: string) => unknown }>();
 </script>
 
 <template>
   <DropdownMenuRadioGroup class="choicerow" :data-testid="`${kind}-row`" :model-value="chosen()" @update:model-value="(v) => choose(String(v))">
-    <Icon :name="icon" /><span>{{ label }}</span>
+    <component :is="icon" /><span>{{ label }}</span>
     <DropdownMenuRadioItem v-for="c in choices" :key="c.value" :value="c.value" v-bind="{ [`data-${kind}`]: c.value }" :title="c.title"
       @select.prevent>{{ c.label }}</DropdownMenuRadioItem>
   </DropdownMenuRadioGroup>

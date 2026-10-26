@@ -9,8 +9,8 @@
 //   formId: the content and the buttons are Reka's form; errors: the main process's answer by field
 import { watch } from 'vue';
 import { DialogClose, DialogContent, DialogOverlay, DialogPortal, DialogRoot, DialogTitle, FormRoot } from 'reka-ui';
-import Icon from './Icon.vue';
 import { covered } from '../lib/cover';
+import { XIcon } from '@lucide/vue';
 
 const props = withDefaults(defineProps<{ id: string; title?: string; closable?: boolean; stay?: boolean; form?: boolean; formId?: string;
   errors?: Record<string, string> }>(),
@@ -41,7 +41,7 @@ defineExpose({
       <DialogContent :id class="dialog" tabindex="-1" :aria-describedby="undefined" @escape-key-down="esc" @interact-outside="keep" @open-auto-focus="focus">
         <header>
           <DialogTitle><slot name="title">{{ title }}</slot></DialogTitle>
-          <DialogClose v-if="closable" class="x icon quiet" :disabled="stay" title="Close" aria-label="Close"><Icon name="i-close" /></DialogClose>
+          <DialogClose v-if="closable" class="x icon quiet" :disabled="stay" title="Close" aria-label="Close"><XIcon /></DialogClose>
         </header>
         <FormRoot v-if="form" :id="formId" :errors @form-submit="emit('submit')">
           <div class="body"><slot /></div>

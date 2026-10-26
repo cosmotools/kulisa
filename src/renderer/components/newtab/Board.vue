@@ -3,11 +3,11 @@
 // empty window shows. The project worked in last first: its open task, else the one closed last. New Project… after
 // them.
 import { computed } from 'vue';
-import Icon from '../Icon.vue';
 import ProjectColumn from './ProjectColumn.vue';
 import { store } from '../../lib/store';
 import { dialog } from '../../lib/dialogs';
 import { lastWorked } from '../../lib/common';
+import { FolderPlusIcon } from '@lucide/vue';
 
 const projects = computed(() => [...store.projects.projects].sort((a, b) => lastWorked(b) - lastWorked(a)));
 </script>
@@ -16,7 +16,7 @@ const projects = computed(() => [...store.projects.projects].sort((a, b) => last
   <div id="board">
     <ProjectColumn v-for="p in projects" :key="p.id" :p />
     <button id="boardnewproject" type="button" class="launcher" title="New Project…: its code, its agents, its profiles"
-      @click="dialog('newproject').then((d) => d.open())"><Icon name="i-folder-plus" /><span class="name">New Project…</span></button>
+      @click="dialog('newproject').then((d) => d.open())"><FolderPlusIcon /><span class="name">New Project…</span></button>
   </div>
 </template>
 

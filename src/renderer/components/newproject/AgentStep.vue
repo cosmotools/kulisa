@@ -2,12 +2,12 @@
 // New Project's second step: its agents, the accounts there are first, then a new one of Claude Code or Codex
 // (wizard.ts has the rules).
 import { CheckboxIndicator, CheckboxRoot } from 'reka-ui';
-import Icon from '../Icon.vue';
 import AccountSignIn from '../AccountSignIn.vue';
 import InstallProgress from '../InstallProgress.vue';
 import { agentMark } from '../../lib/agents';
 import { useWizard } from './wizard';
 import type { Account } from '../../../shared/types';
+import { CheckIcon, StarIcon } from '@lucide/vue';
 
 const w = useWizard();
 const accountName = (a: Account) => `${a.name} · ${a.email || a.id}`;
@@ -20,12 +20,12 @@ const accountName = (a: Account) => `${a.name} · ${a.email || a.id}`;
     <div id="npagents">
       <div v-for="a in w.accounts.value" :key="a.id" class="nprow" :data-account="a.id">
         <label class="nprow"><CheckboxRoot class="checkbox" :model-value="w.chosen.value.includes(a.id)" @update:model-value="(on) => w.choose(a.id, !!on)">
-          <CheckboxIndicator as-child><Icon name="i-done" /></CheckboxIndicator></CheckboxRoot>
-          <Icon :name="agentMark(a.agent)!" /><span>{{ accountName(a) }}</span></label>
+          <CheckboxIndicator as-child><CheckIcon /></CheckboxIndicator></CheckboxRoot>
+          <component :is="agentMark(a.agent)!" /><span>{{ accountName(a) }}</span></label>
         <template v-if="w.chosen.value.includes(a.id)">
           <button type="button" class="icon small" :class="{ quiet: !w.isDefault(a.id) }" :aria-pressed="w.isDefault(a.id)"
             :title="w.isDefault(a.id) ? 'The default: a new task starts it' : 'Make Default'" aria-label="Default" @click="w.main.value = a.id">
-            <Icon name="i-star" /></button>
+            <StarIcon /></button>
           <kbd v-if="w.isDefault(a.id)" class="default">default</kbd>
         </template>
       </div>
@@ -37,7 +37,7 @@ const accountName = (a: Account) => `${a.name} · ${a.email || a.id}`;
       <div class="npnew">
         <button v-for="a in w.addable.value" :key="a.id" type="button" :data-add="a.id" :disabled="w.installs.state.installing || (!a.installed && !a.install)"
           :title="a.installed ? `Sign in to an account of ${a.name}` : `${a.name} is installed first (its maker's installer), then you sign in`"
-          @click="w.addAccount(a)"><Icon :name="agentMark(a.id)!" />{{ a.name }}</button>
+          @click="w.addAccount(a)"><component :is="agentMark(a.id)!" />{{ a.name }}</button>
       </div>
       <InstallProgress :list="w.installs" />
     </template>

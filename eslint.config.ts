@@ -16,10 +16,10 @@ const PAUSES = [
 
 // An e2e test finds Kulisa's elements by role and name, label, text or data-testid, and reads a state by its attribute
 // (aria-*, data-*): never by a class of Kulisa's CSS, which changes with the look (docs/testing.md, Writing an e2e
-// test). dockview's (dv-*) and xterm's classes are theirs. A class in a selector: after its start, a space, a
+// test). dockview's (dv-*), xterm's and Lucide's (lucide-*: the icon's name) classes are theirs. A class in a selector: after its start, a space, a
 // combinator, a bracket or a quote (a selector inside code in a string), or after a tag (button.x); not a file's name
 // (.git, a.txt) nor a method called on a string in code.
-const NOT = String.raw`(?!dv-|xterm|(?:kulisa|git|gitignore|claude|envrc|worktreeinclude|env|mcp|sock|github|away|dpkg-new|cmd|txt|png|ico|icns|spec|json|jsonl|sh|ts|js|log|md|old)\b)(?![\w-]*\()`;
+const NOT = String.raw`(?!dv-|xterm|lucide|(?:kulisa|git|gitignore|claude|envrc|worktreeinclude|env|mcp|sock|github|away|dpkg-new|cmd|txt|png|ico|icns|spec|json|jsonl|sh|ts|js|log|md|old)\b)(?![\w-]*\()`;
 const CLASS = new RegExp(String.raw`(?:^|[\s>+~,(:'"])\.${NOT}-?[a-z_][\w-]*|\b(?:a|button|div|span|img|input|li|svg|use|label|section|h[1-6])\.${NOT}[a-z_][\w-]*`);
 const noKulisaClasses: Rule.RuleModule = {
   meta: { type: 'problem', schema: [] },
@@ -81,4 +81,8 @@ export default tseslint.config(
       'better-tailwindcss/enforce-consistent-line-wrapping': 'off',
       // The window's own CSS classes (components.css, the parts' <style>) until each part is in Tailwind's.
       'better-tailwindcss/no-unknown-classes': 'off' } },
+  // shadcn-vue's components as its CLI writes them (components.json), so that it can update them: its way of writing
+  // classes, not ours; what would be a bug still checked.
+  { files: ['src/renderer/components/ui/**'], rules: { 'better-tailwindcss/enforce-consistent-class-order': 'off',
+    'better-tailwindcss/enforce-canonical-classes': 'off', 'better-tailwindcss/no-unnecessary-whitespace': 'off' } },
 );

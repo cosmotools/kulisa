@@ -2,7 +2,6 @@
 // A profile's panel's header in the grid (docs/profiles.md).
 import { computed } from 'vue';
 import type { DockviewPanelApi } from 'dockview-vue';
-import Icon from '../Icon.vue';
 import RightClickMenu from '../menu/RightClickMenu.vue';
 import { act, store } from '../../lib/store';
 import { avatarSrc, keyText } from '../../lib/common';
@@ -10,6 +9,7 @@ import type { MenuItem } from '../../lib/menu';
 import { panes } from '../../lib/grid';
 import { openSettings } from '../../lib/dialogs';
 import { deleteProfile } from '../../lib/profiles';
+import { XIcon } from '@lucide/vue';
 
 const props = defineProps<{ params: { api: DockviewPanelApi } }>();
 const key = props.params.api.id.slice('profile:'.length);
@@ -37,7 +37,7 @@ function menu(): MenuItem[] | null {
         :title="[profile.name, profile.description].filter(Boolean).join('\n')">{{ profile.name }}</b>
       <span class="caption" role="status">{{ caption }}</span>
       <button class="close icon quiet" title="Close profile: its tabs go, its sign-ins stay (open it again in Profiles)" aria-label="Close profile"
-        @click="act('profile:close', { profile: profile.id })"><Icon name="i-close" /></button>
+        @click="act('profile:close', { profile: profile.id })"><XIcon /></button>
     </template>
   </div></RightClickMenu>
 </template>

@@ -3,11 +3,11 @@
 // to choose ("open": in this window's tabs or another's), then those closed, the one closed last first, each opened
 // again with a click, deleted with its 🗑 (or Delete) after Delete Task…'s question.
 import { computed } from 'vue';
-import Icon from '../Icon.vue';
 import ProjectIcon from '../ProjectIcon.vue';
 import { projectColor } from '../../lib/project-color';
 import { taskLine } from '../../lib/common';
 import type { ProjectEntry, ProjectTask } from '../../../shared/types';
+import { PlusIcon, Trash2Icon } from '@lucide/vue';
 
 const { p } = defineProps<{ p: ProjectEntry }>();
 const tasks = computed(() => [...p.tasks.filter((t) => !t.closed), ...p.tasks.filter((t) => t.closed)]); // closed: the last first (main)
@@ -19,7 +19,7 @@ const remove = (t: ProjectTask) => kulisa.invoke('task:delete-closed', { project
 <template>
   <section class="column" :data-project="p.id" :aria-label="p.name" :style="{ '--color': projectColor(p) }">
     <header><ProjectIcon :p /><span class="name" :title="p.folders[0]">{{ p.name }}</span>
-      <button class="icon small" type="button" :title="`New Task of ${p.name}`" aria-label="New Task" @click="newTask"><Icon name="i-plus" /></button></header>
+      <button class="icon small" type="button" :title="`New Task of ${p.name}`" aria-label="New Task" @click="newTask"><PlusIcon /></button></header>
     <ul>
       <!-- A row is no <button>: its 🗑 is one, and a button holds no other -->
       <li v-for="t in tasks" :key="t.id"><div class="item" :data-task="`${p.id}/${t.id}`" role="button" :aria-label="t.name"
@@ -27,7 +27,7 @@ const remove = (t: ProjectTask) => kulisa.invoke('task:delete-closed', { project
         @click="open(t)" @keydown.enter.space.prevent="open(t)" @keydown.delete="t.closed && remove(t)">
         <span class="text"><span class="label">{{ t.name }}</span><small>{{ taskLine(t) }}</small></span>
         <kbd v-if="!t.closed">open</kbd><kbd v-else-if="t.merged">merged</kbd>
-        <button v-if="t.closed" type="button" class="remove icon quiet small" tabindex="-1" aria-label="Delete Task…" title="Delete Task…" @click.stop="remove(t)"><Icon name="i-trash" /></button>
+        <button v-if="t.closed" type="button" class="remove icon quiet small" tabindex="-1" aria-label="Delete Task…" title="Delete Task…" @click.stop="remove(t)"><Trash2Icon /></button>
       </div></li>
       <li v-if="!tasks.length" class="empty">No tasks yet</li>
     </ul>

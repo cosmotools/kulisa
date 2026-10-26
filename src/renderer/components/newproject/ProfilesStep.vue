@@ -1,9 +1,9 @@
 <script setup lang="ts">
 // New Project's third step: its profiles, new ones (a name, who it is) and any of those there are already.
 import { CheckboxIndicator, CheckboxRoot } from 'reka-ui';
-import Icon from '../Icon.vue';
 import { avatarSrc } from '../../lib/common';
 import { useWizard } from './wizard';
+import { CheckIcon, PlusIcon, XIcon } from '@lucide/vue';
 
 const w = useWizard();
 const take = (id: string, on: boolean) => (on ? w.taken.add(id) : w.taken.delete(id));
@@ -16,14 +16,14 @@ const take = (id: string, on: boolean) => (on ? w.taken.add(id) : w.taken.delete
     <div v-for="(f, i) in w.fresh.value" :key="i" class="row npprofile">
       <input v-model="f.name" data-name maxlength="64" placeholder="ann@shop.com" spellcheck="false" aria-label="Name">
       <input v-model="f.description" class="about" maxlength="500" placeholder="Who it is in your app" aria-label="Who it is">
-      <button class="icon small quiet" type="button" title="Leave Out" aria-label="Leave Out" @click="w.fresh.value.splice(i, 1)"><Icon name="i-close" /></button>
+      <button class="icon small quiet" type="button" title="Leave Out" aria-label="Leave Out" @click="w.fresh.value.splice(i, 1)"><XIcon /></button>
     </div>
-    <button id="npprofileadd" type="button" @click="w.fresh.value.push({ name: '', description: '' })"><Icon name="i-plus" />Add Profile</button>
+    <button id="npprofileadd" type="button" @click="w.fresh.value.push({ name: '', description: '' })"><PlusIcon />Add Profile</button>
     <template v-if="w.others.value.length">
       <h3 class="titled">Your profiles</h3>
       <label v-for="p in w.others.value" :key="p.id" class="nprow" :data-profile="p.id">
         <CheckboxRoot class="checkbox" :model-value="w.taken.has(p.id)" @update:model-value="(on) => take(p.id, !!on)">
-          <CheckboxIndicator as-child><Icon name="i-done" /></CheckboxIndicator></CheckboxRoot>
+          <CheckboxIndicator as-child><CheckIcon /></CheckboxIndicator></CheckboxRoot>
         <img class="avatar" alt="" :src="avatarSrc(p.avatar)"><span>{{ p.name }} <small>{{ p.description }}</small></span></label>
     </template>
   </div>

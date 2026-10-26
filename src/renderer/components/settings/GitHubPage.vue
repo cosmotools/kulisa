@@ -4,13 +4,13 @@
 // Again; Delete. Read when shown, not as Settings opens: where Kulisa App is installed is asked of GitHub.
 import { computed, nextTick, ref, watch } from 'vue';
 import { ListboxContent, ListboxItem, ListboxRoot } from 'reka-ui';
-import Icon from '../Icon.vue';
 import ButtonMenu from '../menu/ButtonMenu.vue';
 import RightClickMenu from '../menu/RightClickMenu.vue';
 import { focusAfterMenu, type MenuItem } from '../../lib/menu';
 import { refused } from '../../../shared/result';
 import { NEW_TOKEN } from '../../../github/ipc';
 import type { GitHubAccount, GitHubInfo } from '../../../github/ipc';
+import { MinusIcon, PlusIcon } from '@lucide/vue';
 
 const props = defineProps<{ shown: boolean }>();
 const accounts = ref<GitHubAccount[]>([]), kept = ref(true), loaded = ref(false), error = ref('');
@@ -81,8 +81,8 @@ const rowMenu = (e: MouseEvent): MenuItem[] | null => {
     <RightClickMenu :items="rowMenu">
       <div id="ghaccounts" class="list">
         <div class="tools">
-          <ButtonMenu :items="addMenu"><button id="ghadd" class="icon small" type="button" title="Add an account" aria-label="Add an account" :disabled="busy"><Icon name="i-plus" /></button></ButtonMenu>
-          <button id="ghdel" class="icon small" type="button" title="Delete the account (asks first)" aria-label="Delete the account" :disabled="!sel" @click="remove()"><Icon name="i-minus" /></button>
+          <ButtonMenu :items="addMenu"><button id="ghadd" class="icon small" type="button" title="Add an account" aria-label="Add an account" :disabled="busy"><PlusIcon /></button></ButtonMenu>
+          <button id="ghdel" class="icon small" type="button" title="Delete the account (asks first)" aria-label="Delete the account" :disabled="!sel" @click="remove()"><MinusIcon /></button>
         </div>
         <div v-if="accounts.length" class="head" aria-hidden="true"><span>Account</span><span>Kulisa App on</span><span>Projects</span><span>Signed in</span></div>
         <ListboxRoot v-if="accounts.length" v-model="sel" selection-behavior="replace" aria-label="GitHub accounts" @keydown.delete="remove()">

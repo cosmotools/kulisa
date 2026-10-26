@@ -3,12 +3,12 @@
 // right (wizard.ts has the rules).
 import { computed, ref } from 'vue';
 import { ListboxContent, ListboxItem, ListboxRoot } from 'reka-ui';
-import Icon from '../Icon.vue';
 import { useWizard } from './wizard';
+import { FolderIcon, FolderPlusIcon, GitBranchIcon, MinusIcon, PlusIcon } from '@lucide/vue';
 
 const w = useWizard(), c = w.code;
-const kinds = [{ value: 'new', label: 'New Folder', icon: 'i-folder-plus' }, { value: 'folder', label: 'Folders on Disk', icon: 'i-folder' },
-  { value: 'clone', label: 'Clone from URL', icon: 'i-git' }] as const;
+const kinds = [{ value: 'new', label: 'New Folder', icon: FolderPlusIcon }, { value: 'folder', label: 'Folders on Disk', icon: FolderIcon },
+  { value: 'clone', label: 'Clone from URL', icon: GitBranchIcon }] as const;
 const nameField = ref<HTMLInputElement>(), sourceField = ref<HTMLInputElement>();
 const chosen = ref<string>();
 const rows = computed(() => (c.from === 'folder' ? c.sources : c.urls.map((u) => ({ folder: u, state: '' }))));
@@ -24,7 +24,7 @@ defineExpose({ focus: () => nameField.value?.focus() });
   <div class="npsplit">
     <ListboxRoot selection-behavior="replace" id="npfrom" v-model="c.from" class="npkinds" aria-label="Start from" @update:model-value="w.error.value = ''">
       <ListboxContent>
-        <ListboxItem v-for="k in kinds" :key="k.value" :value="k.value" class="item" :data-value="k.value"><Icon :name="k.icon" /><span class="text"><span class="label">{{ k.label }}</span></span></ListboxItem>
+        <ListboxItem v-for="k in kinds" :key="k.value" :value="k.value" class="item" :data-value="k.value"><component :is="k.icon" /><span class="text"><span class="label">{{ k.label }}</span></span></ListboxItem>
       </ListboxContent>
     </ListboxRoot>
     <div class="npform">
@@ -37,8 +37,8 @@ defineExpose({ focus: () => nameField.value?.focus() });
         <div class="npsourcelist">
           <div class="list">
             <div class="tools">
-              <button :id="c.from === 'folder' ? 'npbrowsesource' : 'npurladd'" class="icon small" type="button" :title="c.from === 'folder' ? 'Add Folder…' : 'Add a URL'" :aria-label="c.from === 'folder' ? 'Add Folder' : 'Add a URL'" @click="plus"><Icon name="i-plus" /></button>
-              <button class="icon small" type="button" title="Leave Out" aria-label="Leave Out" :disabled="!chosen" @click="remove"><Icon name="i-minus" /></button>
+              <button :id="c.from === 'folder' ? 'npbrowsesource' : 'npurladd'" class="icon small" type="button" :title="c.from === 'folder' ? 'Add Folder…' : 'Add a URL'" :aria-label="c.from === 'folder' ? 'Add Folder' : 'Add a URL'" @click="plus"><PlusIcon /></button>
+              <button class="icon small" type="button" title="Leave Out" aria-label="Leave Out" :disabled="!chosen" @click="remove"><MinusIcon /></button>
             </div>
             <div v-if="rows.length" class="head" aria-hidden="true"><span>{{ c.from === 'folder' ? 'Folder' : 'URL' }}</span><span /></div>
             <ListboxRoot selection-behavior="replace" v-if="rows.length" v-model="chosen" :aria-label="c.from === 'folder' ? 'Folders' : 'URLs'" @keydown.delete="remove">

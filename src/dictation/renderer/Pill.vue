@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // The dictation's pill (../README.md, The pill): over the top of the terminal while the task dictates, what the
-// dictation does now, the voice heard as a live wave. task: the task shown; its slot: the done mark (the window's sprite).
+// dictation does now, the voice heard as a live wave. task: the task shown; its slot: the done mark (the window's icon).
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { slow, voices } from './voice';
 

@@ -1,6 +1,8 @@
 // What several parts of the window use: what came in its URL (window.ts, load), the keys as this OS shows them,
-// the pictures' and icons' names.
+// the pictures' names.
 import { reactive } from 'vue';
+import { BookOpenIcon } from '@lucide/vue';
+import GitHubMark from '../components/marks/GitHubMark.vue';
 import { slugOf } from '../../shared/names';
 import type { ProjectEntry, ProjectTask, ProjectsInfo, Shortcut } from '../../shared/types';
 
@@ -19,8 +21,8 @@ export const avatarSrc = (a: string): string => `avatars/${a}.svg`;
 
 // The links in ☰; they open in the user's browser (window.ts).
 export const LINKS = [
-  { label: 'Documentation', href: 'https://kulisa.app/docs', icon: 'i-docs' },
-  { label: 'GitHub', href: 'https://github.com/cosmotools/kulisa', icon: 'i-github' },
+  { label: 'Documentation', href: 'https://kulisa.app/docs', icon: BookOpenIcon },
+  { label: 'GitHub', href: 'https://github.com/cosmotools/kulisa', icon: GitHubMark },
 ];
 
 export const plural = (n: number, word: string): string => `${n} ${word}${n === 1 ? '' : 's'}`;

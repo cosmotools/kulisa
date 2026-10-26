@@ -234,7 +234,7 @@ test("the empty window: Close All Tasks in the project's submenu; links in ☰ o
   expect(logged, 'what is typed into a terminal is never logged').not.toMatch(/pty:in/);
   expect(await core((k, id) => { const p = k.shell.store.projects().find((x) => x.id === id); return [p.color, p.agents ?? null]; }, shopId)).toEqual([color, null]);
   // No favicon in its code: the curtain, in the next free color, the window's too.
-  await expect(projectTab(ui, files, 'shop').locator('[data-testid="project-icon"] use')).toHaveAttribute('href', '#i-logo');
+  await expect(projectTab(ui, files, 'shop').getByTestId('project-icon')).toHaveAttribute('data-icon', 'logo');
   await expect(ui.locator(':root')).toHaveCSS('--project', color);
   // Its glow comes softly, in its color, a blot changing its shape (three soft spots, each its own pace: App.vue).
   await expect(ui.locator('#glow')).toHaveCSS('opacity', '1');

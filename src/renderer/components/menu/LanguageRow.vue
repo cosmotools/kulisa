@@ -3,10 +3,10 @@
 // in the row, Theme's way. The system's language first, then by name in each language itself.
 import { computed, useId } from 'vue';
 import { DropdownMenuPortal, DropdownMenuRadioGroup, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger } from 'reka-ui';
-import Icon from '../Icon.vue';
 import MenuButton from '../MenuButton.vue';
 import { store } from '../../lib/store';
 import { ask } from '../../lib/ask';
+import { ChevronRightIcon, LanguagesIcon } from '@lucide/vue';
 
 const name = (code: string, inLanguage = code) => new Intl.DisplayNames([inLanguage], { type: 'language' }).of(code)!;
 const info = computed(() => store.language);
@@ -31,8 +31,8 @@ async function choose(code: string) {
 <template>
   <DropdownMenuSub v-if="info?.languages.length">
     <DropdownMenuSubTrigger class="item languagerow" :title aria-label="Language" :aria-describedby="`${uid}-value`">
-      <Icon class="ico" name="i-language" /><span class="text"><span class="label">Language</span></span>
-      <span :id="`${uid}-value`" class="value">{{ name(info.language, 'en') }}</span><Icon class="more" name="i-chevron" />
+      <LanguagesIcon class="ico" /><span class="text"><span class="label">Language</span></span>
+      <span :id="`${uid}-value`" class="value">{{ name(info.language, 'en') }}</span><ChevronRightIcon class="more" />
     </DropdownMenuSubTrigger>
     <DropdownMenuPortal>
       <DropdownMenuSubContent class="menu languages" data-ready aria-label="Languages" :side-offset="4" :collision-padding="4">

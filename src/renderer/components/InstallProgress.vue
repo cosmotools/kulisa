@@ -3,8 +3,8 @@
 // output under Details (written for programmers: opened by itself only when it fails), the error. Settings → Agents,
 // choosing an agent, New Project's agents.
 import { CollapsibleContent, CollapsibleRoot, CollapsibleTrigger } from 'reka-ui';
-import Icon from './Icon.vue';
 import type { AgentList } from '../lib/agents';
+import { ChevronDownIcon } from '@lucide/vue';
 
 const { list } = defineProps<{ list: AgentList }>();
 const state = list.state;
@@ -14,7 +14,7 @@ const state = list.state;
   <div class="installprogress">
     <p class="progress hint" role="status">{{ state.progress }}</p>
     <CollapsibleRoot :open="state.detailsOpen" @update:open="list.openDetails" class="details" :hidden="!state.showDetails" :unmount-on-hide="false">
-      <CollapsibleTrigger class="disclose"><Icon name="i-down" />Details</CollapsibleTrigger><CollapsibleContent><pre>{{ state.log }}</pre></CollapsibleContent>
+      <CollapsibleTrigger class="disclose"><ChevronDownIcon />Details</CollapsibleTrigger><CollapsibleContent><pre>{{ state.log }}</pre></CollapsibleContent>
     </CollapsibleRoot>
     <p class="error">{{ state.error }}</p>
   </div>

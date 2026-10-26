@@ -4,7 +4,7 @@ import { shallowRef, watch, type Component, type InjectionKey } from 'vue';
 export interface MenuRow {
   label: string; sub?: string; keys?: string;
   title?: string; // its tooltip
-  icon?: string; // the sprite's id, at the row's start
+  icon?: Component; // at the row's start
   color?: string; // a project's dot
   avatar?: string; // a profile's picture
   project?: { favicon?: string; color: string }; // a project's icon, in its color (ProjectIcon.vue)
@@ -16,7 +16,7 @@ export interface MenuRow {
 export type MenuItem = '-' | MenuRow
   // a row opening a menu of its own at its side (hover); run: a click on the row itself acts and closes the menu
   | { submenu: string; items: MenuItem[]; project?: { favicon?: string; color: string }; run?: () => unknown }
-  | { heading: string; icon?: string }
+  | { heading: string; icon?: Component }
   | { component: Component; props?: Record<string, unknown> }; // a row of its own (☰'s zoom, theme …)
 
 // A menu closes itself from inside (a submenu row's click acts, then closes): the button's menu provides this, MenuRows

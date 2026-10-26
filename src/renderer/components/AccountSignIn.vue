@@ -4,9 +4,9 @@
 // is there for a failure and for what the window does not show (a code the agent asks for).
 import { CollapsibleContent, CollapsibleRoot, CollapsibleTrigger } from 'reka-ui';
 import { onBeforeUnmount, onMounted, ref } from 'vue';
-import Icon from './Icon.vue';
 import { forgetTerminals, View } from '../../terminal/renderer';
 import type { SignedIn } from '../../shared/types';
+import { ChevronDownIcon } from '@lucide/vue';
 
 const props = defineProps<{ project?: string | null; agent: { id: string; name: string } }>();
 const emit = defineEmits<{ done: [r: SignedIn]; close: [] }>();
@@ -42,7 +42,7 @@ onBeforeUnmount(() => { void stop(); forgetTerminals([shown]); view.dispose(); }
     <p class="hint">Signing in to a new account of {{ agent.name }}: sign in in your browser, which opens (check the account
       it signs in to there; its address is under Details if it did not open). The account is {{ project ? 'added' : 'kept' }} once you are signed in.</p>
     <CollapsibleRoot v-model:open="details" :unmount-on-hide="false">
-      <CollapsibleTrigger class="disclose"><Icon name="i-down" />Details</CollapsibleTrigger>
+      <CollapsibleTrigger class="disclose"><ChevronDownIcon />Details</CollapsibleTrigger>
       <CollapsibleContent><div id="npsigninterm" ref="host" /></CollapsibleContent>
     </CollapsibleRoot>
     <p id="npsigninerror" class="error">{{ error }}</p>

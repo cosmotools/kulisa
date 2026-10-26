@@ -64,7 +64,7 @@ test('projects: another folder opens in a tab of its own, with its own profiles 
   const tabs = ui.locator('#projectTabs [role="tab"]');
   await expect(tabs).toHaveText(['task-1', 'New Task']);
   for (const [i, project] of ['project', 'other'].entries()) {
-    await expect(tabs.nth(i).getByTestId('project-icon').locator('use')).toHaveAttribute('href', '#i-logo');
+    await expect(tabs.nth(i).getByTestId('project-icon')).toHaveAttribute('data-icon', 'logo');
     await expect(tabs.nth(i)).toHaveAttribute('title', new RegExp(`^${project}(\n|$)`));
   }
   // Every island keeps its place and width whichever task is shown, also while it switches: nothing jumps. Read at

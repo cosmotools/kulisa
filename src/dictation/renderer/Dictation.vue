@@ -3,7 +3,7 @@
 // trigger is a key held anywhere in the window (the main process). It stays when the agent in front has none, disabled:
 // a button that came and went would resize the terminal, and Claude Code redraws badly after one.
 // task: the task shown; keyName: the key, as the window names it; language: what it hears; done: let go, the keyboard
-// goes back to the terminal; its icon is the slot's (the window's sprite).
+// goes back to the terminal; its icon is the slot's (the window's icon).
 import { computed, watch } from 'vue';
 import { read, record, slow, voices } from './voice';
 

@@ -4,8 +4,9 @@
 // #67), each opened in the file manager, its path there to copy. Asked of the main process each time the page is
 // shown, so a folder made since shows. As Chrome's About, a page of the settings: one place for what is about the app.
 import { ref, watch } from 'vue';
-import Icon from '../Icon.vue';
 import type { AboutInfo, AboutFolder } from '../../../shared/types';
+import { FolderIcon } from '@lucide/vue';
+import LogoMark from '../marks/LogoMark.vue';
 
 const props = defineProps<{ shown: boolean }>(); // the page chosen in the tree
 const FOLDERS: Record<AboutFolder, { label: string; hint: string }> = {
@@ -21,7 +22,7 @@ watch(() => props.shown, async (s) => { if (s) info.value = await kulisa.invoke(
   <div id="aboutpage">
     <template v-if="info">
       <div class="who">
-        <Icon name="i-logo" />
+        <LogoMark />
         <div>
           <h3>Kulisa <span class="version">{{ info.version }}</span></h3>
           <p class="hint">Electron {{ info.electron }} · Chromium {{ info.chrome }}</p>
@@ -35,7 +36,7 @@ watch(() => props.shown, async (s) => { if (s) info.value = await kulisa.invoke(
           <dd :data-missing="!f.exists || undefined" :data-folder="f.id">
             <span class="path">{{ f.path }}</span>
             <button class="icon show" :disabled="!f.exists" :title="f.exists ? 'Show in your file manager' : 'Not made yet'" aria-label="Show"
-              @click="kulisa.invoke('about:show-folder', f.id)"><Icon name="i-folder" /></button>
+              @click="kulisa.invoke('about:show-folder', f.id)"><FolderIcon /></button>
             <span class="hint">{{ FOLDERS[f.id].hint }}</span>
           </dd>
         </template>

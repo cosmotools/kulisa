@@ -1,6 +1,5 @@
 <script setup lang="ts">
 // A Kulisa window (docs/window.md).
-import Sprite from './Sprite.vue';
 import TopBar from './TopBar.vue';
 import Grid from './Grid.vue';
 import TaskBar from './TaskBar.vue';
@@ -20,7 +19,6 @@ thumbnailMenu(menuAtPoint);
 </script>
 
 <template>
-  <Sprite />
   <div id="glow" aria-hidden="true"><i /><i /><i /></div>
   <!-- The tasks' bar in the title bar, as a browser's tabs, or under the grid (☰ → Tasks bar: Top, Bottom); none with
        no task open: no tab, and its + would show the board the window shows already -->

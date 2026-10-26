@@ -390,28 +390,25 @@ test('KULISA_QUIT: a second start asks the Kulisa running on the same data to qu
   await focusWindow(core, ui); // the other Kulisa's window took it (macOS: the front app's), as a click would give it back
 });
 
-test("icons: each from the sprite (docs/ui.md), drawn there once and in lines of the text's color; icon buttons have a name", async ({ core, ui }) => {
+test("icons: Lucide's or our marks (docs/ui.md), in lines of the text's color; icon buttons have a name", async ({ core, ui }) => {
   await sam(core);
   // Every icon of the page and its templates checked at once: a sweep no locator makes (templates are not in the page).
   const r = await ui.evaluate(() => {
     const every = (q: string) => [...document.querySelectorAll(q), ...[...document.querySelectorAll('template')].flatMap((t) => [...t.content.querySelectorAll(q)])];
-    const ids = [...document.querySelectorAll('#sprite > symbol')].map((s) => s.id);
-    const icons = every('svg').filter((s) => !s.closest('#sprite, [data-testid="arrange-row"]')); // pictures, not icons
+    const icons = every('svg').filter((s) => !s.closest('[data-testid="arrange-row"]') && !s.parentElement.closest('svg')); // pictures, not icons
     const add = document.querySelector('button[aria-label="New tab"] svg');
-    return { ids: ids.length === new Set(ids).size, drawnInPlace: icons.filter((s) => !s.querySelector(':scope > use')).length,
-      unknown: icons.map((s) => s.querySelector('use')?.getAttribute('href')).filter((h) => h && !ids.includes(h.slice(1))),
+    return { drawnInPlace: icons.filter((s) => !s.matches('.lucide, [data-icon]')).map((s) => s.outerHTML.slice(0, 80)),
       unnamed: every('button, [role="button"]').filter((b) => !b.textContent.trim() && !b.getAttribute('aria-label') && !b.getAttribute('aria-labelledby') && !(b as HTMLElement).title).map((b) => b.outerHTML.slice(0, 80)),
-      lines: [getComputedStyle(add).fill, getComputedStyle(add).stroke === getComputedStyle(add.closest('button')).color],
-      sprite: document.getElementById('sprite').getBoundingClientRect().height }; // takes no room
+      lines: [getComputedStyle(add).fill, getComputedStyle(add).stroke === getComputedStyle(add.closest('button')).color] };
   });
-  expect(r).toEqual({ ids: true, drawnInPlace: 0, unknown: [], unnamed: [], lines: ['none', true], sprite: 0 });
+  expect(r).toEqual({ drawnInPlace: [], unnamed: [], lines: ['none', true] });
 });
 
 test("the app icon: in the top bar (not on macOS: the Dock's), and every file the window and the installers use", async ({ ui }) => {
   const logo = ui.getByTestId('title-logo');
   if (MAC) await expect(logo, 'macOS apps show their icon in the Dock, not by the window buttons').toHaveCount(0);
   else {
-    await expect(logo.locator('use[href="#i-logo"]')).toHaveCount(1);
+    await expect(logo).toHaveAttribute('data-icon', 'logo');
     const b = await logo.boundingBox();
     expect(b.width >= 16 && b.height >= 16, JSON.stringify(b)).toBe(true);
     await expect(logo, "the curtain is in the project's color (#4a7bd0, the first one)").toHaveCSS('color', 'rgb(74, 123, 208)');

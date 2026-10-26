@@ -7,7 +7,6 @@
 // (docs/window.md, The terminal), the closed profiles' under them.
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import type { DockviewApi, DockviewPanelApi } from 'dockview-vue';
-import Icon from '../Icon.vue';
 import ButtonMenu from '../menu/ButtonMenu.vue';
 import RightClickMenu from '../menu/RightClickMenu.vue';
 import { store } from '../../lib/store';
@@ -16,6 +15,7 @@ import { island, launchers, newTerminalItems, tabItems, terminalMenu } from '../
 import { termFocus } from '../../../terminal/renderer';
 import { Pill } from '../../../dictation/renderer';
 import { avatarSrc, withKeys } from '../../lib/common';
+import { CheckIcon, PlusIcon, SparklesIcon } from '@lucide/vue';
 
 const props = defineProps<{ params: { api: DockviewPanelApi; containerApi: DockviewApi } }>();
 const root = ref<HTMLElement>();
@@ -92,21 +92,21 @@ const menu = (e: MouseEvent) => {
     <div v-if="folded && alone" ref="launch" class="launch" data-testid="launchers">
       <nav class="agents" aria-label="New terminal">
         <button v-for="l in launchers()" :key="l.id" class="launcher" :aria-label="l.name" :title="l.title" @click="l.run()">
-          <Icon :name="l.icon" /><span class="name">{{ l.name }}</span><small v-if="l.sub">{{ l.sub }}</small>
+          <component :is="l.icon" /><span class="name">{{ l.name }}</span><small v-if="l.sub">{{ l.sub }}</small>
         </button>
       </nav>
       <nav class="profiles" aria-label="Open a profile">
         <button v-for="p in profileLaunchers()" :key="p.id" class="launcher" :data-profile="p.id" :title="p.title" @click="p.run()">
-          <img v-if="p.avatar" class="avatar" :src="avatarSrc(p.avatar)" alt=""><Icon v-else name="i-plus" />
+          <img v-if="p.avatar" class="avatar" :src="avatarSrc(p.avatar)" alt=""><PlusIcon v-else />
           <span class="name">{{ p.name }}</span>
         </button>
       </nav>
     </div>
     <div v-else-if="folded" class="strip"><ButtonMenu :items="newTerminalItems"><button id="termUnfold" class="add icon quiet"
-      :title="withKeys('New conversation of an agent, or a terminal', 'terminal.new')" aria-label="New terminal"><Icon name="i-plus" /></button></ButtonMenu></div>
+      :title="withKeys('New conversation of an agent, or a terminal', 'terminal.new')" aria-label="New terminal"><PlusIcon /></button></ButtonMenu></div>
     <RightClickMenu :items="menu"><div ref="root" class="termpanel" data-testid="terminal" :hidden="folded" /></RightClickMenu>
-    <Pill v-if="!folded" :task="store.current"><Icon name="i-done" /></Pill>
-    <p v-if="starting" class="starting" role="status"><span class="state" data-state="working"><Icon name="i-working" /></span>Starting {{ starting.name }}…</p>
+    <Pill v-if="!folded" :task="store.current"><CheckIcon /></Pill>
+    <p v-if="starting" class="starting" role="status"><span class="state" data-state="working"><SparklesIcon /></span>Starting {{ starting.name }}…</p>
   </div>
 </template>
 

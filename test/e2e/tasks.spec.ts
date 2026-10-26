@@ -484,8 +484,8 @@ test('tasks: × on the last open task of a project lets the project go, nothing 
   // Each project's icon: its favicon, else the curtain.
   const ids = await ui.locator('#board section').evaluateAll((ss) => ss.map((x) => (x as HTMLElement).dataset.project));
   for (const [id, favicon] of await core((k, all) => all.map((i) => [i, !!k.shell.projects().find((p) => p.id === i).favicon] as const), ids)) {
-    const curtain = ui.locator(`#board section[data-project="${id}"]`).getByTestId('project-icon').locator('use');
-    await (favicon ? expect(curtain).toHaveCount(0) : expect(curtain).toHaveAttribute('href', '#i-logo'));
+    const curtain = ui.locator(`#board section[data-project="${id}"]`).getByTestId('project-icon');
+    await (favicon ? expect(curtain).toHaveJSProperty('tagName', 'IMG') : expect(curtain).toHaveAttribute('data-icon', 'logo'));
   }
   await expect(ui.locator(`#board section[data-project="${pid}"] [data-task] small`).first()).toHaveText(/ago|just now/);
   // A closed task's 🗑 asks as Delete Task… does (Cancel keeps it).

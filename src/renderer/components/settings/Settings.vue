@@ -3,7 +3,6 @@
 // (Ask.vue). Esc closes it, as a dialog's; the OS's ×
 // asks first (settings:closing): either way the page saves what is typed, then closes it.
 import { ref } from 'vue';
-import Sprite from '../Sprite.vue';
 import ProjectEditor from './ProjectEditor.vue';
 import Ask from '../Ask.vue';
 
@@ -18,7 +17,6 @@ addEventListener('keydown', (e) => { if (e.key === 'Escape' && !layered && !e.de
 </script>
 
 <template>
-  <Sprite />
   <ProjectEditor ref="editor" />
   <Ask />
 </template>

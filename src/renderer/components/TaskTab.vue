@@ -5,9 +5,10 @@
 // tab's name is its task's, not its ×'s.
 import { computed } from 'vue';
 import { TabsTrigger } from 'reka-ui';
-import Icon from './Icon.vue';
 import ProjectIcon from './ProjectIcon.vue';
+import { STATE_ICONS } from '../lib/agents';
 import type { ProjectEntry, TaskInfo } from '../../shared/types';
+import { XIcon } from '@lucide/vue';
 
 const props = defineProps<{ t: TaskInfo; p: Pick<ProjectEntry, 'name' | 'favicon'> }>();
 const STATES = { working: 'is working', waiting: 'waits for you', done: 'is done' };
@@ -20,9 +21,9 @@ const title = computed(() => `${props.p.name}\n` + (props.t.branch ? `branch ${p
 <template>
   <TabsTrigger :value="t.key" as-child><div class="tasktab striptab" :data-task="t.key" :aria-label="t.name" :title @click.stop>
     <ProjectIcon :p />
-    <span class="state" :data-state="t.state || ''" :title="t.state ? `The agent ${STATES[t.state]}` : ''"><Icon :name="`i-${t.state || 'done'}`" /></span>
+    <span class="state" :data-state="t.state || ''" :title="t.state ? `The agent ${STATES[t.state]}` : ''"><component :is="STATE_ICONS[t.state || 'done']" /></span>
     <span class="name">{{ t.name }}</span>
     <button class="close icon quiet small" aria-label="Close" title="Close the task: its agent stops, all else stays (open it again from its project's menu)"
-      @mousedown.prevent @click="kulisa.invoke('task:close', t.key)"><Icon name="i-close" /></button>
+      @mousedown.prevent @click="kulisa.invoke('task:close', t.key)"><XIcon /></button>
   </div></TabsTrigger>
 </template>

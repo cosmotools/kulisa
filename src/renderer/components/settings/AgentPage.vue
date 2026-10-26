@@ -5,7 +5,6 @@
 // row keeps its state as another is looked at.
 import { computed, ref, watch } from 'vue';
 import { ListboxContent, ListboxItem, ListboxRoot } from 'reka-ui';
-import Icon from '../Icon.vue';
 import AccountSignIn from '../AccountSignIn.vue';
 import InstallProgress from '../InstallProgress.vue';
 import RightClickMenu from '../menu/RightClickMenu.vue';
@@ -13,6 +12,7 @@ import type { MenuItem } from '../../lib/menu';
 import { shortPath, type Agent, type AgentList as List } from '../../lib/agents';
 import type { Account, AccountsInfo, SignedIn } from '../../../shared/types';
 import { refused } from '../../../shared/result';
+import { MinusIcon, PlusIcon } from '@lucide/vue';
 
 const props = defineProps<{ list: List; chosen?: string; accounts: Account[]; clis: string[] }>();
 const emit = defineEmits<{ accounts: [r: Partial<AccountsInfo>] }>();
@@ -64,9 +64,9 @@ defineExpose({ newAccount, busy });
         <div class="list" :data-accounts="a.id">
           <div class="tools">
             <button class="accountnew icon small" type="button" title="New Account…: signed in with its own sign-in" aria-label="New Account"
-              :disabled="!a.installed || busy" @click="newAccount(a)"><Icon name="i-plus" /></button>
+              :disabled="!a.installed || busy" @click="newAccount(a)"><PlusIcon /></button>
             <button class="accountdel icon small" type="button" title="Delete the account (asks first)" aria-label="Delete the account"
-              :disabled="!accountSel || !of(a).some((x) => x.id === accountSel)" @click="remove()"><Icon name="i-minus" /></button>
+              :disabled="!accountSel || !of(a).some((x) => x.id === accountSel)" @click="remove()"><MinusIcon /></button>
           </div>
           <div v-if="of(a).length" class="head" aria-hidden="true"><span>Account</span><span>Projects</span></div>
           <RightClickMenu :items="accountMenu">

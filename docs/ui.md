@@ -88,44 +88,15 @@ place where a button is there to draw the eye, seen only while no profile is ope
 
 ## Icons
 
-Each icon is drawn once, as a `<symbol id="i-…">` in the sprite (`Sprite.vue`, the window's first element), on a
-16 × 16 grid, in lines (`stroke`) of the text's color; a filled part has `fill="currentColor"`. Use it as:
-
-```html
-<Icon name="i-close" />   <!-- Icon.vue: <svg aria-hidden="true"><use href="#i-close"/></svg> -->
-```
-
-| Icon | Where |
-|---|---|
-| `i-close` | × of dialogs, profiles, tabs, tasks |
-| `i-plus` | a pane's new tab, the bar's + (the new-task menu), a project's new task (its column's + in the board), a new terminal (the island's +); adding to a section of a dialog |
-| `i-settings` | Settings in the title bar (Lucide's settings) |
-| `i-projects` | ☰'s Tasks bar row (Lucide's folder-open) |
-| `i-logo` | the app icon with its curtain in `currentColor`: the title bar's (`--project`; not on macOS, whose apps show their icon in the Dock), and a project's label in the tasks' bar (its `--color`). The folds are a shadow over the color, one for every color: a `<use>` takes the sprite's gradient, not one of its own |
-| `i-docs`, `i-github`, `i-bug` | the links (Documentation, GitHub) and Report a Problem…, rows of ☰ (`data-icon` on each link; Lucide's book-open, github, bug); `i-docs` also the Log node of Settings' tree, `i-github` its GitHub node |
-| `i-menu` | ☰, the window's menu |
-| `i-more` | ⋮, a pane's menu |
-| `i-back`, `i-forward`, `i-reload` | a pane's toolbar (Chrome's) |
-| `i-pick` | Pick (DevTools' inspect icon) |
-| `i-globe` | a tab whose site has no icon |
-| `i-zoom`, `i-theme`, `i-language`, `i-arrange`, `i-keyboard`, `i-exit` | ☰'s rows: Zoom, Theme, Language, Arrange panels, Keyboard Shortcuts, Exit |
-| `i-agent` | an agent without a mark of its own (`agentMark`, `lib/agents.ts`) |
-| `i-chevron` | a row that opens a menu beside it (☰'s Language; Lucide's chevron-right) |
-| `i-mic` | dictation's microphone at the end of the terminals' row of tabs (Lucide's mic) |
-| `i-working`, `i-waiting`, `i-done` | an agent's state on a tab (`.state`); `i-done` also checks the chosen row of a menu, and a checkbox |
-| `i-down` | what opens below it: a `.select`'s choices, an agent's details (`AgentList.vue`) |
-| `i-trash` | a closed task's row in a menu: delete it (`remove`; Lucide's trash-2) |
-| `i-minus`, `i-star` | a list's toolbar (`.list`, after its `i-plus`): remove the selected row, make it the default (Lucide's star) |
-| `i-file` | an artifact that is not a picture in the Resources island: a snapshot, a body (Lucide's file-text) |
-| `i-folder-plus`, `i-folder`, `i-git` | New Project's code: New Folder, Folders on Disk, Clone from URL (Lucide's folder-plus, folder, git-branch) |
-| `i-agent-claude`, `i-agent-codex`, `i-agent-shell` | an agent's row and its accounts' (`AgentList.vue`, `i-agent-<id>`, 20 px; `agentMark` in `lib/agents.ts`), a terminal's tab (`TerminalTabs.vue`), the island's + menu and its big buttons in an empty grid: the makers' own marks in their own colors (claude.ai's and developers.openai.com's favicons; not under the GPL: `docs/LICENSING.md`), and Lucide's square-terminal for the terminal only and a shell's tab; `i-agent` for an agent without a mark of its own |
-
-An icon is 16 px; × and + are 14 px, as in Chrome (`.icon`), and so is an agent's state. ☰'s and the agent's states are Lucide's (lucide.dev, ISC), drawn on 24 × 24 with
-their lines thickened to match; take a new one from there rather than drawing it. The sprite takes no room but is not
-`display: none`, so the logo's gradient and clip path reach its `<use>`s. Pictures are not icons: the arrangements in ☰
-are drawn in place; the profiles' pictures are files of their own
-(`src/renderer/public/avatars/`, Noto Emoji, in their own colors). The test `icons: …` in `test/e2e/window.spec.ts` checks that
-every other `<svg>` uses the sprite.
+Lucide's (`@lucide/vue`, lucide.dev; the one shadcn-vue uses), imported where used: `<XIcon />`. Choose by the name
+Lucide gives the meaning (× `XIcon`, ⋮ `EllipsisVerticalIcon`, an agent's states `STATE_ICONS` in `lib/agents.ts`);
+the same meaning, the same icon everywhere. A place sizes it with a utility (`size-4`); where nothing does, it is
+16 px. What Lucide does not have is ours, in `components/marks/`, an `<svg data-icon="…">` each: the app icon with its
+curtain in the text's color (`LogoMark.vue`: the title bar's, a project's without a favicon, `ProjectIcon.vue`), the
+agents' marks in their makers' colors (`agentMark` in `lib/agents.ts`; not under the GPL: `docs/LICENSING.md`), and
+GitHub's (Lucide has no brands' marks). Pictures are not icons: the arrangements in ☰ are drawn in place; the
+profiles' pictures are files of their own (`src/renderer/public/avatars/`, Noto Emoji). The test `icons: …` in
+`test/e2e/window.spec.ts` checks that every other `<svg>` is one of these.
 
 ## Components (`components.css`)
 
@@ -189,10 +160,10 @@ The window's controls are Reka UI's, in this look:
   start (the row a `<label>`), exactly one of a list: the agent to start (`AgentList.vue`). The arrows move between
   them. Not for a list's default, whose rows are what the list is about: a radio there reads as choosing the row; that is "default" at the row's end and ★. Not for a few big choices either
   (New Project's code: a list on the dialog's left, Reka's Listbox, as JetBrains' New Project).
-- `.checkbox`: a checkbox (Reka's `CheckboxRoot`, its `CheckboxIndicator` the check, `i-done`): New Project's agents and profiles, the log's Follow.
+- `.checkbox`: a checkbox (Reka's `CheckboxRoot`, its `CheckboxIndicator` the check, `CheckIcon`): New Project's agents and profiles, the log's Follow.
 - `.select`: a button that opens what to choose from below it (Reka's `Popover`), as a field: the chosen one and
-  `i-down` (a profile's picture); or Reka's `Select`, where the choices are rows of words, in a menu's look (`.menu`, its
-  rows `.item`, the chosen one checked: `i-done`): a repository's GitHub account (`settings/RepoAccount.vue`).
+  `ChevronDownIcon` (a profile's picture); or Reka's `Select`, where the choices are rows of words, in a menu's look (`.menu`, its
+  rows `.item`, the chosen one checked: `CheckIcon`): a repository's GitHub account (`settings/RepoAccount.vue`).
 - `.choices`: icon buttons (`.icon`) to choose one of, the chosen one ringed in `--blue`: a profile's pictures
   (Reka's `ToggleGroup`, one always chosen).
 - `.chips`: a row of `.chip`s to choose one of (Reka's `ToggleGroup`, one always chosen), the chosen one in `--chosen`
@@ -317,7 +288,7 @@ rows so, under the project's icon and name; `run` makes a click on the row itsel
 opening the submenu — a project in the bar's +: click makes a new task of it, hover shows its tasks) or `{ component, props }` (a row
 of its own: ☰'s zoom, theme, tasks' bar, language (a menu beside it: Reka's submenu, its rows `MenuButton`s, the
 chosen one checked) and arrangements, `components/menu/`, built of Reka's menu items; − and + and the choices leave the menu open);
-`title` its tooltip (the native one, as every tooltip); `icon` is the sprite's id, at the row's start; `project` a project's icon in its color there (`ProjectIcon.vue`,
+`title` its tooltip (the native one, as every tooltip); `icon` a component (Lucide's or a mark), at the row's start; `project` a project's icon in its color there (`ProjectIcon.vue`,
 `.picon`); `remove` puts a 🗑 at the row's end (`.remove`, on the row the pointer or the keyboard is on, `:focus-visible` too; Delete too) that runs it instead of `run`, the menu closing as for any row (a task's, deleted); `inset` sets a row in under the one above, its text under that one's; rows are `.item`, lit as Reka highlights them
 (`[data-highlighted]`); a list's chosen row (Reka's Listbox, Tree) is `[aria-selected="true"]`.
 
@@ -356,7 +327,7 @@ questions, `leavable` (Back on the first step goes back to its slides).
 
 ## Adding something
 
-- A new icon: a `<symbol>` in `Sprite.vue`, a row in the table above.
+- A new icon: Lucide's, imported where used; one of ours only for what Lucide has not (Icons).
 - A new kind of control or row: in `components.css` with a comment saying what it is and its variants (or a component
   of its own when it has behavior), and a section here. A part used by one place only (a pane's tab strip, the omnibox,
   the projects' islands) keeps its look in its own `.vue` file.

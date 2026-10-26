@@ -120,8 +120,6 @@ test('Settings → Agents (not the terminal only): what is installed, installs t
   await expect(s.locator('#agconfig [aria-current="page"]')).toHaveText('Fake agent');
   expect(await core((k) => k.shell.settings.win.getTitle())).toBe('Settings — Kulisa');
   await expect(s.locator('#pjconfig'), "a project's page behind it").toBeHidden();
-  // The agents' marks (the terminal only's shown in choosing a task's agent).
-  for (const mark of ['shell', 'claude', 'codex']) await expect(s.locator(`#i-agent-${mark}`)).toBeAttached();
   await expect(agentRow(s, 'shell', ''), 'not the terminal only: nothing of it to set up').toHaveCount(0);
   await expect(s.locator('#agentpage [data-accounts="fake"]').getByText('No accounts yet.', { exact: true })).toBeVisible();
   await expect(s.locator('#agentpage [data-accounts="fake"]').getByRole('button', { name: 'New Account' }), 'not installed: no account yet').toBeDisabled();

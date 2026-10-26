@@ -5,10 +5,10 @@
 // Settings opens: a megabyte for nothing otherwise.
 import { computed, nextTick, ref, watch } from 'vue';
 import { CheckboxIndicator, CheckboxRoot, ToggleGroupItem, ToggleGroupRoot } from 'reka-ui';
-import Icon from '../Icon.vue';
 import ButtonMenu from '../menu/ButtonMenu.vue';
 import { refused } from '../../../shared/result';
 import type { MenuItem } from '../../lib/menu';
+import { CheckIcon } from '@lucide/vue';
 
 const props = defineProps<{ shown: boolean }>(); // the page chosen in the tree
 
@@ -83,7 +83,7 @@ const report = (): MenuItem[] => [{ label: 'On GitHub…', sub: 'a public issue,
         <ToggleGroupItem v-for="c in CHIPS" :key="c.id" :value="c.id" class="chip" :title="c.title" :data-chip="c.id">{{ c.label }}</ToggleGroupItem>
       </ToggleGroupRoot>
       <label class="check"><CheckboxRoot id="logfollow" class="checkbox" :model-value="follow" @update:model-value="setFollow">
-        <CheckboxIndicator as-child><Icon name="i-done" /></CheckboxIndicator></CheckboxRoot> Follow</label>
+        <CheckboxIndicator as-child><CheckIcon /></CheckboxIndicator></CheckboxRoot> Follow</label>
     </div>
     <div ref="box" class="lines" role="log" aria-label="Log" @scroll.passive="scrolled">
       <div v-for="(l, i) in visible" :key="i" class="line" :data-group="l.group" :data-bad="bad(l) || undefined" :title="`${l.date} ${l.offset}`.trim()" :data-tag="l.tag || undefined">

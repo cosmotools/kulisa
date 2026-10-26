@@ -5,7 +5,6 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import type { DockviewPanelApi } from 'dockview-vue';
 import { DialogContent, DialogDescription, DialogRoot, DialogTitle, TabsList, TabsRoot, TabsTrigger, Toggle } from 'reka-ui';
-import Icon from '../Icon.vue';
 import ButtonMenu from '../menu/ButtonMenu.vue';
 import RightClickMenu from '../menu/RightClickMenu.vue';
 import { act, screenshot, store, togglePick } from '../../lib/store';
@@ -13,6 +12,7 @@ import { keyText, withKeys } from '../../lib/common';
 import type { MenuItem } from '../../lib/menu';
 import { panes, scheduleLayout, type PaneHandle } from '../../lib/grid';
 import { useStrip } from '../../lib/strip';
+import { ArrowLeftIcon, ArrowRightIcon, EllipsisVerticalIcon, GlobeIcon, PlusIcon, RotateCwIcon, SquareMousePointerIcon, XIcon } from '@lucide/vue';
 
 const props = defineProps<{ params: { api: DockviewPanelApi } }>();
 const key = props.params.api.id.slice('profile:'.length);
@@ -120,29 +120,29 @@ onBeforeUnmount(() => { observer.disconnect(); if (panes.get(key) === handle) pa
       <RightClickMenu :items="tabMenu"><TabsList as-child :loop="false"><div ref="strip" class="strip tabstrip">
         <TabsTrigger v-for="t in profile.tabs" :key="t.id" :value="t.id" as-child>
           <div class="tab" :data-tab="t.id" :aria-label="t.title || t.url || 'New tab'" :title="t.url">
-            <img alt="" :hidden="!t.favicon" :src="t.favicon || undefined"><Icon class="globe" name="i-globe" />
+            <img alt="" :hidden="!t.favicon" :src="t.favicon || undefined"><GlobeIcon class="globe" />
             <span class="title">{{ t.title || t.url || 'New tab' }}</span>
             <!-- Not a press on the tab: it is not chosen first. -->
-            <span class="x icon small" title="Close tab" @mousedown.prevent @click="act('tab:close', { profile: profile.id, tab: t.id })"><Icon name="i-close" /></span>
+            <span class="x icon small" title="Close tab" @mousedown.prevent @click="act('tab:close', { profile: profile.id, tab: t.id })"><XIcon /></span>
           </div>
         </TabsTrigger>
       </div></TabsList></RightClickMenu>
-      <button class="add icon" :title="withKeys('New tab', 'tab.new')" aria-label="New tab" @click="newTab"><Icon name="i-plus" /></button>
+      <button class="add icon" :title="withKeys('New tab', 'tab.new')" aria-label="New tab" @click="newTab"><PlusIcon /></button>
     </nav></TabsRoot>
     <div ref="bar" class="bar" role="toolbar" aria-label="Page">
       <button class="back icon" :title="withKeys('Back', 'tab.back')" aria-label="Back" :disabled="!active?.canBack"
-        @click="act('tab:back', { profile: id(), tab: tab() })"><Icon name="i-back" /></button>
+        @click="act('tab:back', { profile: id(), tab: tab() })"><ArrowLeftIcon /></button>
       <button class="fwd icon" :title="withKeys('Forward', 'tab.forward')" aria-label="Forward" :disabled="!active?.canFwd"
-        @click="act('tab:forward', { profile: id(), tab: tab() })"><Icon name="i-forward" /></button>
-      <button class="reload icon" :title="withKeys('Reload', 'tab.reload')" aria-label="Reload" @click="act('tab:reload', { profile: id(), tab: tab() })"><Icon name="i-reload" /></button>
+        @click="act('tab:forward', { profile: id(), tab: tab() })"><ArrowRightIcon /></button>
+      <button class="reload icon" :title="withKeys('Reload', 'tab.reload')" aria-label="Reload" @click="act('tab:reload', { profile: id(), tab: tab() })"><RotateCwIcon /></button>
       <input ref="addr" class="addr" aria-label="Address" spellcheck="false" @keydown.enter="go" @focus="addrFocus" @blur="addrBlur" @mousedown="addrDown" @mouseup="addrUp">
       <!-- The site's own zoom in this profile, when it differs from the Kulisa zoom; a click resets it. -->
       <button class="zoom tool" :hidden="!active || active.zoom === 1" title="This site's zoom in this profile (Ctrl + / − / 0 in the page). Click to reset."
         @click="act('tab:zoom', { profile: id(), tab: tab(), dir: 0 })">{{ active ? Math.round(active.zoom * 100) : 100 }}%</button>
       <!-- Pick needs a page to point at: off on an empty tab (about:blank), unless picking already. -->
       <Toggle class="pick icon" :model-value="picking" :title="withKeys('Pick an element on the page to mention it to the agent (again or Esc: cancel)', 'pick')"
-        aria-label="Pick an element" :disabled="!picking && (!active?.url || active.url === 'about:blank')" @update:model-value="togglePick(profile.id)"><Icon name="i-pick" /></Toggle>
-      <ButtonMenu :items="more" end><button class="more icon" title="More: DevTools" aria-label="More"><Icon name="i-more" /></button></ButtonMenu>
+        aria-label="Pick an element" :disabled="!picking && (!active?.url || active.url === 'about:blank')" @update:model-value="togglePick(profile.id)"><SquareMousePointerIcon /></Toggle>
+      <ButtonMenu :items="more" end><button class="more icon" title="More: DevTools" aria-label="More"><EllipsisVerticalIcon /></button></ButtonMenu>
     </div>
     <div ref="content" class="content" data-testid="page" :style="{ '--picture': shownDialog?.picture ? `url(${JSON.stringify(shownDialog.picture)})` : 'none' }">
       <DialogRoot :open="!!shownDialog" :modal="false" @update:open="(o) => o || answer(false)">

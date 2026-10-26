@@ -6,13 +6,13 @@
 import { computed, ref, watch } from 'vue';
 import { DialogClose, RadioGroupIndicator, RadioGroupItem, RadioGroupRoot } from 'reka-ui';
 import Modal from './Modal.vue';
-import Icon from './Icon.vue';
 import { act, store, shownTask } from '../lib/store';
 import { agentMark } from '../lib/agents';
 import { avatarSrc } from '../lib/common';
 import { registerDialog } from '../lib/dialogs';
 import type { Terminal } from '../../shared/types';
 import { refused } from '../../shared/result';
+import { BookOpenIcon, GitBranchIcon, GlobeIcon, SquareTerminalIcon } from '@lucide/vue';
 
 const modal = ref<InstanceType<typeof Modal>>();
 const from = ref<Terminal | null>(null), chosen = ref<string>(), going = ref(false);
@@ -75,23 +75,23 @@ const progress = computed(() => {
   <Modal id="handover" ref="modal" title="Change Agent" @close="going && show()">
     <div v-if="from" class="relay" :class="{ going }">
       <div class="side from">
-        <Icon class="mark" :name="agentMark(from.agent!.cli)!" />
+        <component :is="agentMark(from.agent!.cli)!" class="mark" />
         <b>{{ parts(from.agent!.name).agent }}</b>
         <small>{{ parts(from.agent!.name).account }}</small>
         <small class="conv">“{{ from.name }}”</small>
       </div>
       <ul class="baton" aria-label="Goes along">
-        <li v-if="branch" class="chip" style="--i: 0" :title="`branch ${branch}`"><Icon name="i-git" /><span class="name">{{ branch }}</span></li>
+        <li v-if="branch" class="chip" style="--i: 0" :title="`branch ${branch}`"><GitBranchIcon /><span class="name">{{ branch }}</span></li>
         <li v-if="store.profiles.length" class="chip" style="--i: 1">
           <span class="faces"><img v-for="p in store.profiles" :key="p.id" class="avatar" alt="" :src="avatarSrc(p.avatar)" :title="p.name"></span>
           {{ plural(store.profiles.length, 'profile') }}, signed in
         </li>
-        <li v-if="tabs" class="chip" style="--i: 2"><Icon name="i-globe" />{{ plural(tabs, 'tab') }}</li>
-        <li v-if="shells.length" class="chip" style="--i: 3"><Icon name="i-agent-shell" />{{ shells.length === 1 ? shells[0]!.name : plural(shells.length, 'terminal') }}, running</li>
-        <li class="chip" style="--i: 4"><Icon name="i-docs" />the whole conversation</li>
+        <li v-if="tabs" class="chip" style="--i: 2"><GlobeIcon />{{ plural(tabs, 'tab') }}</li>
+        <li v-if="shells.length" class="chip" style="--i: 3"><SquareTerminalIcon />{{ shells.length === 1 ? shells[0]!.name : plural(shells.length, 'terminal') }}, running</li>
+        <li class="chip" style="--i: 4"><BookOpenIcon />the whole conversation</li>
       </ul>
       <div class="side to">
-        <Icon v-if="to" class="mark" :name="agentMark(to.cli)!" />
+        <component :is="agentMark(to.cli)!" v-if="to" class="mark" />
         <b>{{ to ? parts(to.name).agent : '' }}</b>
         <small>{{ to ? parts(to.name).account : '' }}</small>
         <small class="conv">a new tab</small>
@@ -100,7 +100,7 @@ const progress = computed(() => {
     <RadioGroupRoot v-model="chosen" class="choose" aria-label="Agent" :disabled="going">
       <label v-for="a in agents" :key="a.id" class="item" :data-agent="a.id">
         <RadioGroupItem class="radio" :value="a.id" :aria-label="a.name"><RadioGroupIndicator /></RadioGroupItem>
-        <Icon :name="agentMark(a.cli)!" /><span class="label">{{ a.name }}</span>
+        <component :is="agentMark(a.cli)!" /><span class="label">{{ a.name }}</span>
         <small v-if="a.id === from?.agent?.account">this one, afresh</small>
       </label>
     </RadioGroupRoot>

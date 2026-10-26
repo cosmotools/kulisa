@@ -2,8 +2,9 @@
 // What Kulisa does, in three slides, before the first project's steps (Welcome.vue; docs/tasks.md, The window's pages).
 // The pictures are a task's window drawn small in HTML: no pictures to ship, the window's own colors in either theme.
 import { computed, ref } from 'vue';
-import Icon from '../Icon.vue';
 import { avatarSrc } from '../../lib/common';
+import { SquareMousePointerIcon } from '@lucide/vue';
+import ClaudeMark from '../marks/ClaudeMark.vue';
 
 const emit = defineEmits<{ done: [] }>();
 const slide = defineModel<number>({ default: 0 });
@@ -30,7 +31,7 @@ defineExpose({ focus: () => next.value?.focus() });
       <!-- A task: its agent's terminal, two profiles' panes -->
       <div class="picture" aria-hidden="true">
         <div class="term">
-          <div><Icon name="i-agent-claude" /> claude</div>
+          <div><ClaudeMark /> claude</div>
           <div class="said">&gt; does the checkout work for every user?</div>
           <div :data-on="slide >= 1 || undefined" class="step">⏺ Checking as Admin…</div>
           <div :data-on="slide >= 1 || undefined" class="step">⏺ Checking as Customer…</div>
@@ -40,7 +41,7 @@ defineExpose({ focus: () => next.value?.focus() });
           <div class="head"><img :src="avatarSrc(p.avatar)" alt="">{{ p.name }}</div>
           <div class="page"><i /><i class="short" /><i class="button" :class="{ picked: slide === 2 && i === 1 }" /><i class="shorter" /></div>
         </div>
-        <Icon v-if="slide === 2" name="i-pick" class="pointer" />
+        <SquareMousePointerIcon v-if="slide === 2" class="pointer" />
       </div>
     </div>
     <footer>

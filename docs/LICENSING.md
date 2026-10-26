@@ -31,12 +31,12 @@ must have a name of its own and must not present itself as the official Kulisa; 
 
 ## What Kulisa ships from others
 
-The agents' marks in `Sprite.vue` (`i-agent-claude`: Claude's, Anthropic's; `i-agent-codex`: OpenAI's) are their
+The agents' marks in `src/renderer/components/marks/` (`ClaudeMark.vue`: Claude's, Anthropic's; `CodexMark.vue`: OpenAI's) are their
 makers' trademarks, not licensed under the GPL: they name the agent a row is of, as an IDE shows them, and nothing
 else.
 
 Its dependencies keep their own licenses, all of which allow being part of a GPL-3.0 program: npm packages (MIT,
-ISC, BSD, Apache-2.0), Lucide's icons copied into `Sprite.vue` (ISC), the profiles' pictures from Google's Noto Emoji
+ISC, BSD, Apache-2.0), Lucide's icons (ISC; GitHub's mark as Lucide drew it, `GitHubMark.vue`), the profiles' pictures from Google's Noto Emoji
 in `src/renderer/public/avatars/` with their license (Apache-2.0), the fonts Geist (the window's) and JetBrains Mono
 (the terminal's; SIL Open Font License) and Chromium's licenses (in Electron; packaged builds carry `LICENSE` and `LICENSES.chromium.html`).
 

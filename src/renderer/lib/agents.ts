@@ -4,15 +4,21 @@
 //   const list = agentList({ choose, details, installed })   choose: a radio per row; details: each one's version, folder
 //   and website; installed(agent): what to say once it is installed.
 //   list.load(selected, show) the agents, then await show() (opens the dialog); reload(); chosen; state.installing …
-import { computed, nextTick, reactive } from 'vue';
+import { computed, nextTick, reactive, type Component } from 'vue';
+import { BellIcon, BotIcon, CheckIcon, SparklesIcon, SquareTerminalIcon } from '@lucide/vue';
+import ClaudeMark from '../components/marks/ClaudeMark.vue';
+import CodexMark from '../components/marks/CodexMark.vue';
 import { refused } from '../../shared/result';
 import { tilde } from '../../shared/paths';
 import type { AgentInfo } from '../../shared/types';
 
 export type Agent = AgentInfo;
 
-// An agent's mark in the sprite, by its id (cli); an agent new to Kulisa may have none: the generic one, or none.
-export const agentMark = (cli: string, fallback: string | null = 'i-agent') => (document.getElementById(`i-agent-${cli}`) ? `i-agent-${cli}` : fallback);
+// An agent's mark, by its id (cli); an agent new to Kulisa may have none: the generic one, or none.
+const MARKS: Record<string, Component> = { claude: ClaudeMark, codex: CodexMark, shell: SquareTerminalIcon };
+export const agentMark = (cli: string, fallback: Component | null = BotIcon) => MARKS[cli] ?? fallback;
+// An agent's state (its hooks), an icon each, not told by color alone.
+export const STATE_ICONS = { working: SparklesIcon, waiting: BellIcon, done: CheckIcon };
 
 // A folder with the home folder as ~ (home: the main process's, state.home).
 export const shortPath = (p: string, home: string | null) => (home ? tilde(p, home, kulisa.platform === 'win32' ? '\\' : '/') : p);

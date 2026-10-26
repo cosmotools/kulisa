@@ -7,7 +7,6 @@
 // run …") is under Details, opened by itself when it fails (InstallProgress.vue). Choosing, the rows are Reka's
 // RadioGroup.
 import { RadioGroupIndicator, RadioGroupItem, RadioGroupRoot } from 'reka-ui';
-import Icon from './Icon.vue';
 import InstallProgress from './InstallProgress.vue';
 import { agentMark, shortPath, type Agent, type AgentList } from '../lib/agents';
 
@@ -28,7 +27,7 @@ const status = (a: Agent) => (a.installed ? (a.install && !a.account ? 'Installe
       <p v-if="s.looking" class="hint">Looking for agents on this computer…</p>
       <template v-for="a in s.agents" :key="a.id"><label class="agentrow" :class="{ account: !!a.account }" :data-agent="a.id">
         <RadioGroupItem v-if="list.choose" class="radio" :value="a.id"><RadioGroupIndicator /></RadioGroupItem>
-        <Icon v-if="mark(a)" class="logo" :name="mark(a)!" />
+        <component :is="mark(a)!" v-if="mark(a)" class="logo" />
         <span class="what"><b class="name">{{ a.account || !a.maker ? a.name : `${a.name} · ${a.maker}` }}</b><small class="needs">{{ needs(a) }}</small>
           <small class="where">{{ where(a) }}</small><small class="install-line">{{ installLine(a) }}</small></span>
         <a class="site" target="_blank" :href="list.details && a.site && !a.account ? a.site : undefined">Website</a>

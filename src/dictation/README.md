@@ -81,7 +81,7 @@ ready (once slow, below) it is blue, while it records red and breathes with a ri
 motion), so the eye catches from across the window that the agent is listening. It works as a voice message's button too: held, or a click to start and another to
 stop; let go, the keyboard goes back to the terminal (`done`). Disabled when the task's dictation is none, its tooltip
 saying why: a button that came and went would resize the terminal, and Claude Code redraws badly after one. The window
-gives it the task shown, the key's name, the language and its icon (the window's sprite, as its slot).
+gives it the task shown, the key's name, the language and its icon (the window's, as its slot).
 
 Starting is drawn as such (the microphone blue, the pill's Getting ready…) only once it has lasted 300 ms
 (`renderer/voice.ts`, `slow`): the hidden session mostly listens in a fifth of a second, and a flash of it before every
@@ -104,7 +104,7 @@ shrinks to what it says:
   it goes.
 
 With reduced motion, no spring, beat or wave running; the heard wave stays, being what is heard. Its check icon is the
-slot's (the window's sprite).
+slot's (the window's).
 
 ## Its channels
 

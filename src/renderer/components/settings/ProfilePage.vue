@@ -4,7 +4,6 @@
 // tree makes and deletes profiles (ProjectEditor.vue); a project's page adds and removes them there.
 import { ref, watch } from 'vue';
 import { PopoverContent, PopoverPortal, PopoverRoot, PopoverTrigger } from 'reka-ui';
-import Icon from '../Icon.vue';
 import Avatars from './Avatars.vue';
 import { avatarSrc } from '../../lib/common';
 import { covered } from '../../lib/cover';
@@ -12,6 +11,7 @@ import { focusBack } from '../../lib/menu';
 import { refused } from '../../../shared/result';
 import type { Result } from '../../../shared/result';
 import type { SettingsProfile } from '../../../shared/types';
+import { ChevronDownIcon } from '@lucide/vue';
 
 const props = defineProps<{ profile: SettingsProfile }>();
 // changed: the profiles as they are now, and its id.
@@ -51,7 +51,7 @@ async function signIn() { error.value = (await kulisa.invoke('profiles:master', 
     <div class="field"><span>Picture:</span><span>
       <PopoverRoot :open="picking" @update:open="togglePick">
         <PopoverTrigger as-child><button id="profilepic" class="select" type="button" title="Its picture" aria-label="Picture">
-          <img class="avatar" alt="" :src="avatarSrc(profile.avatar)"><Icon name="i-down" /></button></PopoverTrigger>
+          <img class="avatar" alt="" :src="avatarSrc(profile.avatar)"><ChevronDownIcon /></button></PopoverTrigger>
         <PopoverPortal>
           <PopoverContent class="menu profilepics" :data-ready="pickReady || undefined" aria-label="Pictures" align="start" :side-offset="4" :collision-padding="4"
             @close-auto-focus="focusBack($event, pickFocused)"><Avatars :current="profile.avatar" @choose="pick" /></PopoverContent>

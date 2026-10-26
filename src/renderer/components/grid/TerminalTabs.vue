@@ -3,17 +3,17 @@
 // each terminal's tab, then +; at its end the dictation's microphone (src/dictation).
 import { computed, ref } from 'vue';
 import { TabsList, TabsRoot, TabsTrigger } from 'reka-ui';
-import Icon from '../Icon.vue';
 import { Dictation } from '../../../dictation/renderer';
 import ButtonMenu from '../menu/ButtonMenu.vue';
 import RightClickMenu from '../menu/RightClickMenu.vue';
 import { act, store } from '../../lib/store';
-import { agentMark } from '../../lib/agents';
+import { agentMark, STATE_ICONS } from '../../lib/agents';
 import { newTerminalItems, shownTerm, tabItems } from '../../lib/terminals';
 import { dialog } from '../../lib/dialogs';
 import { keyText, withKeys } from '../../lib/common';
 import { useStrip } from '../../lib/strip';
 import type { Terminal } from '../../../shared/types';
+import { MicIcon, PlusIcon, SquareTerminalIcon, XIcon } from '@lucide/vue';
 
 const STATES = { working: 'is working', waiting: 'waits for you', done: 'is done' };
 const tabOf = (e: MouseEvent) => store.terminals.list.find((t) => String(t.id) === (e.target as Element).closest<HTMLElement>('.termtab')?.dataset.id);
@@ -36,20 +36,20 @@ const language = computed(() => (store.language ? new Intl.DisplayNames(['en'], 
           <div class="termtab tab" :data-id="t.id" :aria-label="t.name" :title="title(t)">
             <button v-if="t.agent" class="handover icon quiet small" :aria-label="`${t.agent.name}: change agent…`"
               title="Change agent: hand the task to another agent, or this one afresh; it goes on with this conversation" @mousedown.stop
-              @click.stop="dialog('handover').then((d) => d.open(t))"><Icon :name="agentMark(t.agent.cli)!" /></button>
-            <Icon v-else class="shellmark" name="i-agent-shell" />
+              @click.stop="dialog('handover').then((d) => d.open(t))"><component :is="agentMark(t.agent.cli)!" /></button>
+            <SquareTerminalIcon v-else class="shellmark" />
             <span class="title">{{ t.name }}</span>
-            <span class="state" :data-state="t.state || ''"><Icon :name="`i-${t.state || 'done'}`" /></span>
+            <span class="state" :data-state="t.state || ''"><component :is="STATE_ICONS[t.state || 'done']" /></span>
             <!-- Not a press on the tab: it is not chosen first. -->
             <span class="x icon small" :title="t.agent ? 'Close: the agent stops (asked first); its conversation stays in the task\'s history' : 'Close: what runs there stops'"
-              @mousedown.prevent @click="act('terminal:close', { id: t.id })"><Icon name="i-close" /></span>
+              @mousedown.prevent @click="act('terminal:close', { id: t.id })"><XIcon /></span>
           </div>
         </TabsTrigger>
       </nav>
     </TabsList></TabsRoot></RightClickMenu>
     <ButtonMenu :items="newTerminalItems"><button id="termAdd" class="add icon quiet small" :title="withKeys('New conversation of an agent, or a terminal', 'terminal.new')"
-      aria-label="New terminal" @dragstart.prevent><Icon name="i-plus" /></button></ButtonMenu>
-    <Dictation :task="store.current" :key-name="keyText('voice.hold')" :language="language" @done="shownTerm()?.focus()"><Icon name="i-mic" /></Dictation>
+      aria-label="New terminal" @dragstart.prevent><PlusIcon /></button></ButtonMenu>
+    <Dictation :task="store.current" :key-name="keyText('voice.hold')" :language="language" @done="shownTerm()?.focus()"><MicIcon /></Dictation>
   </div>
 </template>
 
