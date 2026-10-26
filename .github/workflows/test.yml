@@ -65,8 +65,11 @@ jobs:
         with:
           node-version: 24
           cache: npm
-      # No app is started here: Electron's own download is left out (its postinstall).
+      # No app is started here: no install script is run (node-pty is not built). Electron's binary is fetched once all
+      # the same, as the postinstall does it: unit tests run it, and its first import fetches it, which several test
+      # processes at once do together (a file exists, EBUSY).
       - run: npm ci --ignore-scripts
+      - run: node -e "require('electron')"
       - run: npm run test:unit
       - run: npm run knip
       - run: npm run lint
