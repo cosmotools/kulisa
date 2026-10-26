@@ -18,8 +18,6 @@ in both. A feature built is documented in its doc ([profiles.md](profiles.md), [
     - "Sign in with Google" on a local app: the human signs in once to a test Google account in the profile's
       master, and the agent goes the whole way itself (account chooser, consent) with no sign-in pause on that path,
       never typing a Google password. The pause part goes into the author's replacement of `signin-pause.ts`.
-  - **Put off**: ongoing tasks ("watch the feedback for a month") with Kulisa kept in the tray (none in GNOME by
-    default).
 
 - **Phone, tablet and desktop views of a site** (to discuss with the author before building). Responsive layouts are
   checked only by resizing the pane.
@@ -85,9 +83,6 @@ in both. A feature built is documented in its doc ([profiles.md](profiles.md), [
   - Other tools that, like direnv, want a folder allowed before they apply (mise's `trust`): not handled.
   - A task's start point is the remote's default branch: local commits not pushed yet are not in it (as with Claude
     Code's `--worktree`). If that surprises, an option as Claude's `worktree.baseRef: "head"`.
-  - The agent making tasks itself (an MCP tool on `Project.createTask`), e.g. to hand parallel parts of a task to
-    agents of their own, as Conductor does: a gap in the table of actions ([tasks.md](tasks.md), "Actions"). To
-    discuss with Ensemble (#49); deleting stays the human's.
 - **Discuss security for the end user** (with the author, before a public release): Kulisa holds signed-in work
   accounts and lets an agent act in them. Each topic to decide or document for users:
   - **What the agent can do in signed-in accounts:** read private data (it saw passwords in a Teams chat), send
@@ -102,8 +97,7 @@ in both. A feature built is documented in its doc ([profiles.md](profiles.md), [
   - **Electron hardening:** the windows are sandboxed with a preload that forwards any IPC
     channel; profile pages are sandboxed and have no preload. Check against Electron's security checklist.
   - **Distribution:** code signing (Windows a certificate, macOS notarization: "Releases and auto-update") and the
-    `.deb`'s setuid `chrome-sandbox`. Built: the update channel ("Releases and auto-update") and each release file's
-    signed provenance ([window.md](window.md), "The app icon, installers and updates").
+    `.deb`'s setuid `chrome-sandbox`.
 - **Accessibility** (a11y; before a public release, as security): for people who see poorly, do not use a mouse, or
   use a screen reader, as the big IDEs do; a requirement for software bought by public bodies and large companies
   (Section 508 in the US, EN 301 549 in the EU, both on WCAG). Start from Electron's guide
