@@ -102,7 +102,7 @@ export function electronEvent({ eventName, event, args }: { eventName: string; e
   return [`[electron] ${eventName}${where}`, ...(details ? [details] : [])];
 }
 
-// The Log page (settings/LogPage.vue) reads the file whole (1 MB at most) and then follows it: a hook runs before the
+// The Log page (fluent/LogPage.tsx) reads the file whole (1 MB at most) and then follows it: a hook runs before the
 // file transport, which writes at once, so what came since goes to the page at the end of the same tick, a burst of
 // lines as one. One page follows: the last that read. The file shorter than what was read (turned over at 1 MB): the
 // page is told to read it again. Nothing of this is logged: no line of the page's own to send it again.

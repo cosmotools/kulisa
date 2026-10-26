@@ -12,6 +12,7 @@ import { ProjectPage } from './ProjectPage';
 import { ProfilePage } from './ProfilePage';
 import { AboutPage } from './AboutPage';
 import { GitHubPage } from './GitHubPage';
+import { LogPage } from './LogPage';
 import { avatarSrc } from './avatar';
 import { refused } from '../../shared/result';
 import type { AgentInfo, ProjectEntry, SettingsProfile } from '../../shared/types';
@@ -132,7 +133,7 @@ export function Settings() {
       </NavDrawer>
     </RightClickMenu>
 
-    <main style={{ flex: 1, minWidth: 0, overflow: 'auto', padding: '0 24px 24px', background: 'var(--colorNeutralBackground2)' }}>
+    <main style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', overflow: 'auto', padding: '0 24px 24px', background: 'var(--colorNeutralBackground2)' }}>
       <div style={{ position: 'sticky', top: 0, zIndex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0', background: 'var(--colorNeutralBackground2)' }}>
         <Breadcrumb aria-label="Path">{path.filter(Boolean).flatMap((p, i, all) => [
           <BreadcrumbItem key={i}><BreadcrumbButton current={i === all.length - 1}>{p}</BreadcrumbButton></BreadcrumbItem>,
@@ -144,7 +145,8 @@ export function Settings() {
         : <Text>No profiles yet.</Text>)}
       {section === 'github' && <GitHubPage />}
       {section === 'about' && <AboutPage />}
-      {(section === 'agents' || section === 'log') && <MessageBar><MessageBarBody>This page is not in the probe: Settings on Fluent UI has a project's, a profile's and About.</MessageBarBody></MessageBar>}
+      {section === 'log' && <LogPage />}
+      {section === 'agents' && <MessageBar><MessageBarBody>This page is not in the probe: Settings on Fluent UI has a project's, a profile's and About.</MessageBarBody></MessageBar>}
     </main>
     <Ask />
   </FluentProvider>;

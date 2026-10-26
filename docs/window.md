@@ -480,22 +480,24 @@ file: two starts in a row are not a restart. What the code says with `console.*`
 new action of the core goes through `handle()` or the MCP server's `registerTool`, so it is logged by itself; a line
 elsewhere says what happened and who asked, never what was typed.
 
-**The Log page** (Settings → Log, under Profiles; ☰ → Report a Problem… opens it; `settings/LogPage.vue`; issue #73) is
+**The Log page** (Settings → Log, under Profiles; ☰ → Report a Problem… opens it; `fluent/LogPage.tsx`; issue #73) is
 where the human reads it and passes it on, by any means: not everyone has a GitHub account.
 
-- The file whole (1 MB at most), read when the page is first shown, not as Settings opens (`log:get`); then followed
-  (`log:lines`): a hook of electron-log's runs before its file transport, which writes at once, so what came since is
-  read from the file at the end of the same tick and sent, a burst of lines as one (`readLog` in `log.ts`; the last page
-  that read is the one followed). The file turned over under it (shorter than what was read): the page reads it again.
-  Nothing of this is logged: a line of its own would send it again.
-- A line each with its time (the date in its tooltip) and its tag, the tag in the color of who acted (`--log-agent`,
-  `--log-human`, `--log-tasks`), warnings and errors in red; what is not a line of that shape (an object's lines under
-  an `[electron]` event) hangs under the line before it. **Follow** keeps the end in view, as a terminal does, lets go
-  when the log is scrolled up, and goes back to the end when checked again.
-- The chips (`.chips`, [ui.md](ui.md)), one always chosen, and a text filter on top of the chosen one (a task's key,
-  `wc=1`, a tag): **All**; **Errors** (warn and error lines, `[page]`, `[electron]`, an action refused or failed);
-  **Agent** (`[mcp]`, `[hook]`, `[terminal]`); **Human** (`[ipc]`, `[key]`, `[settings]`); **Tasks** (`[task]`,
-  `[window]`, `[kulisa]`). Nothing left says so.
+- The file whole (1 MB at most), read each time the page is shown and let go when it is left, not as Settings opens
+  (`log:get`); then followed (`log:lines`): a hook of electron-log's runs before its file transport, which writes at
+  once, so what came since is read from the file at the end of the same tick and sent, a burst of lines as one
+  (`readLog` in `log.ts`; the last page that read is the one followed). The file turned over under it (shorter than
+  what was read): the page reads it again. Nothing of this is logged: a line of its own would send it again.
+- A line each with its time (the date in its native tooltip: a Fluent tooltip per line would be thousands of
+  components) and its tag, the tag in the color of who acted (Fluent's palette: blue the agent, berry the human,
+  marigold the tasks), warnings and errors in red; what is not a line of that shape (an object's lines under an
+  `[electron]` event) hangs under the line before it. The box of lines is ours (Fluent has no log view), drawn in
+  Fluent's tokens. **Follow** keeps the end in view, as a terminal does, lets go when the log is scrolled up, and
+  goes back to the end when checked again.
+- What to show (a toolbar's radio buttons, one always chosen) and a text filter on top of it (a task's key, `wc=1`, a
+  tag): **All**; **Errors** (warn and error lines, `[page]`, `[electron]`, an action refused or failed); **Agent**
+  (`[mcp]`, `[hook]`, `[terminal]`); **Human** (`[ipc]`, `[key]`, `[settings]`); **Tasks** (`[task]`, `[window]`,
+  `[kulisa]`). Nothing left says so.
 - Under it: the file's size of its 1 MB, when `kulisa.old.log` is from, and what is never in the log.
 - **Copy All** (the whole log to the clipboard), **Save As…** (a copy of the file where the human says, their Downloads
   by default; `log:save`), **Open Folder** (the file picked out in the file manager; `log:show-folder`), **Report…**:
@@ -621,7 +623,7 @@ shortcuts carry (`com.squirrel.kulisa.kulisa`), or Windows would not pin it to t
 | `src/main/settings-window.ts`, `src/renderer/settings.html`, `components/settings/` | Settings' window (Settings); its page is `ProjectEditor.vue` |
 | `src/preload/index.cjs` | the window's bridge to the main process: the windows' pages are sandboxed (no Node: about 15 MB less a window, PSS), so it is a few lines of plain JavaScript; the window imports what it shares with the main process from `src/shared/` (`names.ts`, `avatars.ts`, `result.ts`) |
 | `src/main/log.ts` | the log: the file (electron-log), `summary` of an action's arguments, the Log page's reading and following of it, the issue's address (The log) |
-| `components/settings/LogPage.vue`, `AboutPage.vue` | the Log and About pages of Settings (The log; Menus, About Kulisa) |
+| `fluent/LogPage.tsx`, `fluent/AboutPage.tsx` | the Log and About pages of Settings (The log; Menus, About Kulisa) |
 | `src/main/keys.ts` | the keyboard shortcuts: the table, which key an input event is; `shortcuts.ts` takes them (Keys) |
 | `src/main/updates.ts`, `installed.ts`, `forge.config.ts` | updates, Squirrel's events, a new version ready while Kulisa runs (the version installed on disk); the installers and the release |
 | `src/terminal/` | the terminal, a Kulisa package: its pty, its buffers, the xterm shown ([README](../src/terminal/README.md)) |

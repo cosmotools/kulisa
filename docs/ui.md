@@ -189,13 +189,11 @@ The window's controls are Reka UI's, in this look:
   start (the row a `<label>`), exactly one of a list: the agent to start (`AgentList.vue`). The arrows move between
   them. Not for a list's default, whose rows are what the list is about: a radio there reads as choosing the row; that is "default" at the row's end and ★. Not for a few big choices either
   (New Project's code: a list on the dialog's left, Reka's Listbox, as JetBrains' New Project).
-- `.checkbox`: a checkbox (Reka's `CheckboxRoot`, its `CheckboxIndicator` the check, `i-done`): New Project's agents and profiles, the log's Follow.
+- `.checkbox`: a checkbox (Reka's `CheckboxRoot`, its `CheckboxIndicator` the check, `i-done`): New Project's agents and profiles.
 - `.select`: a button that opens what to choose from below it (Reka's `Popover`), as a field: the chosen one and
   `i-down` (a profile's picture).
 - `.choices`: icon buttons (`.icon`) to choose one of, the chosen one ringed in `--accent`: a profile's pictures
   (Reka's `ToggleGroup`, one always chosen).
-- `.chips`: a row of `.chip`s to choose one of (Reka's `ToggleGroup`, one always chosen), the chosen one in `--chosen`
-  with the accent's edge: the log's preset filters (`settings/LogPage.vue`).
 - `.editable`: a value edited in place (Reka's `Editable`: a profile's name, who it is, its test login): text in a
   field's box (`.preview`), a click or Tab edits it; Enter or leaving saves, Shift+Enter is a new line where it has
   lines, Esc puts it back (and leaves the dialog open).
