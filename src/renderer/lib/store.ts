@@ -31,8 +31,8 @@ export const store = reactive({
   pictures: {} as Record<string, string>,
 });
 
-// The grid laid out or not (grid.ts): the root busy at once, as the view transition and the pages' views go by it.
-export function setLoading(on: boolean) { store.loading = on; root.toggleAttribute('aria-busy', on); }
+// The grid laid out or not (grid.ts): the grid's region busy (Grid.vue).
+export function setLoading(on: boolean) { store.loading = on; }
 
 // The window's actions on the shown task's profiles and tabs name it, as the grid's layout does: one sent just as the
 // human switches tasks is refused, not done in the other one (main/ipc/panes.ts, onScreen).

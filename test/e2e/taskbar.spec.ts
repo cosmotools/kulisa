@@ -173,7 +173,7 @@ test('tasks: switching slides the grid towards the other tab (a view transition)
 
 test('tasks: Ctrl+Shift+2 shows the second, Ctrl+Shift+PgUp and PgDn the one before and after, from the terminal too', async ({ core, ui, files, call }) => {
   await begin(core, ui, files, { only: true, columns: true, featureX: call });
-  const shown = (n: number) => expect.poll(async () => (await isNth(core, n)) && (await core((k) => k.settled())) && !(await ui.evaluate(() => document.documentElement.hasAttribute('aria-busy')))).toBe(true);
+  const shown = (n: number) => expect.poll(async () => (await isNth(core, n)) && (await core((k) => k.settled())) && !(await ui.evaluate(() => document.getElementById('dock').hasAttribute('aria-busy')))).toBe(true);
   await focusWindow(core, ui);
   // The terminal shown before it takes the keyboard: the grid's slide hides it (dockview's overlay) until it is over.
   await expect.poll(() => ui.evaluate(() => !!(window as any).__term?.textarea?.checkVisibility({ visibilityProperty: true }))).toBe(true);

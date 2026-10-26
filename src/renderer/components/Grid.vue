@@ -12,6 +12,7 @@ import ClosedProfiles from './grid/ClosedProfiles.vue';
 import Resources from './Resources.vue';
 import ResourcesTab from './ResourcesTab.vue';
 import { gridMounted } from '../lib/grid';
+import { store } from '../lib/store';
 
 // dockview takes the gap between panels as a number: tokens.css's --gap, loaded before the window mounts (main.ts).
 const gap = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--gap'));
@@ -21,7 +22,7 @@ const tabComponents = markRaw({ profile: ProfileHeader, terminal: TerminalTabs, 
 </script>
 
 <template>
-  <main id="dock">
+  <main id="dock" :aria-busy="store.loading || undefined">
     <ClosedProfiles />
     <DockviewVue id="grid" :theme :disable-floating-groups="true" single-tab-mode="fullwidth" :components :tab-components="tabComponents"
       @ready="(e) => gridMounted(e.api)" />
@@ -34,7 +35,7 @@ const tabComponents = markRaw({ profile: ProfileHeader, terminal: TerminalTabs, 
      the terminal and the tasks' bar past its edge */
   display: flex; flex-direction: column; min-width: 0; margin-inline: var(--gap); transition: opacity .15s;
   #grid { flex: 1; min-height: 0; }
-  [aria-busy] & { opacity: 0; transition: none; } /* until the grid is laid out (lib/grid.ts, reveal) */
+  &[aria-busy] { opacity: 0; transition: none; } /* until the grid is laid out (lib/grid.ts, reveal) */
   [data-noproject] & { display: none; }
   .dockview-theme-abyss-spaced {
     color-scheme: inherit; /* the theme's own is dark; Kulisa's is the root's (tokens.css: light-dark()) */

@@ -40,9 +40,9 @@ export const uiZoom = (core: Core) => core((k) => k.shell.win.webContents.getZoo
 // refused).
 export const invoke = (page: Page, channel: string, arg?: unknown) => page.evaluate(([c, a]) => (window as any).kulisa.invoke(c, a), [channel, arg] as const);
 export const act = (page: Page, channel: string, arg: unknown) => page.evaluate(([c, a]) => (window as any).act(c, a), [channel, arg] as const);
-// The window done building what it shows (a project, a task: the root busy), and its grid done sliding to another task
-// (a view transition: a key or a click meanwhile goes to the grid being left).
-export const notLoading = (page: Page) => expect(page.locator('html')).not.toHaveAttribute('aria-busy');
+// The window done building what it shows (a project, a task: the grid's region busy; none before the window is up), and
+// its grid done sliding to another task (a view transition: a key or a click meanwhile goes to the grid being left).
+export const notLoading = (page: Page) => expect(page.locator('#dock:not([aria-busy])')).toHaveCount(1);
 export const noSlide = (page: Page) => expect.poll(() => page.evaluate(() => document.documentElement.matches(':active-view-transition'))).toBe(false);
 // That nothing happened is checked once what would have made it is done (docs/testing.md, Writing an e2e test): each
 // of these waits for a proof of that, never for a time.

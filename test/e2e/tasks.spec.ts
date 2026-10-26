@@ -654,7 +654,7 @@ test('the CDP proxy takes ids in any letters (percent-encoded in its URLs); the 
   await expect.poll(saved).toBe(shape(JSON.parse(columns))); // saved as it was left: it comes as the grid is taken down
   // Back: built again as it was left.
   await invoke(ui, 'task:show', task);
-  await expect.poll(async () => (await core((k, key) => k.shell.task?.key === key, task)) && !(await ui.evaluate(() => document.documentElement.hasAttribute('aria-busy')))
+  await expect.poll(async () => (await core((k, key) => k.shell.task?.key === key, task)) && !(await ui.evaluate(() => document.getElementById('dock').hasAttribute('aria-busy')))
     && shape(JSON.parse(await ui.evaluate(() => JSON.stringify((window as any).__dock.toJSON().grid.root)))) === shape(JSON.parse(columns))).toBe(true);
   await ui.evaluate(() => (window as any).__layoutPreset('grid'));
   await expect.poll(saved).not.toBe(shape(JSON.parse(columns)));

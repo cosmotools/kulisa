@@ -113,8 +113,8 @@ runner's conditions: CI, below) and the test passes `--repeat-each=20`, alone an
   (`k.focusGrace()`); a later event of the same kind that does show.
 - **A time Kulisa waits is the test's to move**: `k.clock.hold(ms)`, `advance(ms)`, `release()` for the main process's
   long timers; a time Kulisa reads is dated back; a slow mock waits for the test to let it go.
-- **Before a click, wait until the window is ready**: no task being shown (`!shell.windows[0].switching`, the root not
-  `aria-busy`), the grid's slide over. A click while the window builds another grid is lost.
+- **Before a click, wait until the window is ready**: no task being shown (`k.settled()`, the grid's region not
+  `aria-busy`: `notLoading`), the grid's slide over. A click while the window builds another grid is lost.
 - **Menus and dialogs are Reka UI's**: `menuRows`, `choose`, `closeMenu`, `rightClick`, `plusMenu` (`helpers.ts`); a menu
   is shown once `[data-ready]` (the pages under it are pictures). The window has the keyboard first
   (`focusWindow(core, ui)`), or focus events do not come. A question Kulisa asks is answered as `k.answer` says.
