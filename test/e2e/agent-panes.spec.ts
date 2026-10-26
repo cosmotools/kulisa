@@ -15,8 +15,14 @@ test('the keyboard stays where the human put it: a tab the agent opens, its page
   await ui.evaluate(() => (window as any).__term.focus());
   await expect.poll(() => core((k) => k.shell.windows[0].keyZone)).toBe('terminal');
   const id = opened(await call('browser_tab_new', { profile: 'Elon.buyer', url: 'data:text/html,<input autofocus>' }));
-  await core((k, t) => k.profile('Elon.buyer').get(t).ready, id);
-  await core((k) => k.focusGrace()); // the keyboard the loading page took is given back by now (page-focus.ts)
+  // The page taking the keyboard by itself, as one loading does on macOS: given back (page-focus.ts).
+  expect(await core(async (k, t) => {
+    const tab = k.profile('Elon.buyer').get(t);
+    await tab.ready;
+    const decided = k.focusDecided(tab.wc);
+    tab.wc.focus();
+    return decided;
+  }, id)).toBe('given back to the window');
   expect(await ui.evaluate(() => [document.hasFocus(), !!document.activeElement.closest('.xterm')]), 'still in the terminal').toEqual([true, true]);
   await call('browser_tab_close', { profile: 'Elon.buyer', tab: id });
   await expect.poll(() => core((k) => k.profile('Elon.buyer').tabs.length)).toBe(1);
@@ -44,16 +50,22 @@ test('tab strip: + opens a tab with the focus in its empty address, a click on a
     const page = k.profile('Elon.buyer').get(id).wc, win = k.shell.win;
     return !win.isFocused() ? 'another app' : win.webContents.isFocused() ? 'window' : page.isFocused() ? 'page' : 'none';
   }, added);
-  await core((k, id) => k.profile('Elon.buyer').get(id).ready, added);
-  await core((k) => k.focusGrace()); // the keyboard the loading page took is given back by now (page-focus.ts)
+  // The page taking the keyboard by itself, as one loading does on macOS: given back (page-focus.ts).
+  expect(await core(async (k, id) => {
+    const tab = k.profile('Elon.buyer').get(id);
+    await tab.ready;
+    const decided = k.focusDecided(tab.wc);
+    tab.wc.focus();
+    return decided;
+  }, added)).toBe('given back to the window');
   expect(['window', 'another app'], 'the window has the focus, not the page').toContain(await keys());
   // A click into the page gives it the keys, and they stay there.
-  await core((k, id) => {
-    const page = k.profile('Elon.buyer').get(id).wc;
+  expect(await core((k, id) => {
+    const page = k.profile('Elon.buyer').get(id).wc, decided = k.focusDecided(page);
     page.sendInputEvent({ type: 'mouseDown', x: 20, y: 20, button: 'left', clickCount: 1 }); page.sendInputEvent({ type: 'mouseUp', x: 20, y: 20, button: 'left', clickCount: 1 });
     page.focus();
-  }, added);
-  await core((k) => k.focusGrace()); // a give-back would be done by now: the click makes the focus the human's
+    return decided;
+  }, added)).toBe("left (the human's)");
   expect(['page', 'another app'], 'the page keeps the focus once clicked').toContain(await keys());
   await ui.evaluate(() => (document.activeElement as HTMLElement).blur());
   await expect(strip.getByRole('tab')).toHaveCount(n + 1);

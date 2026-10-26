@@ -96,12 +96,13 @@ test("keys in the terminal are the agent's, but Kulisa's own: Ctrl+T reaches the
 test('a page that took the keyboard by itself, then given it for the human within the moment it would give it back, keeps it', async ({ core }) => {
   // Loading pages take the keyboard (page-focus.ts gives it back to where the human left it): Ctrl+` to such a page,
   // or a tab chosen by a key, at once after it loaded.
-  await core(async (k, url) => {
+  expect(await core(async (k, url) => {
     const sam = await k.ensureProfile('Sam', url), t = sam.get();
     k.shell.win.webContents.focus();
+    const decided = k.focusDecided(t.wc, true);
     t.wc.focus(); // the page's own
     sam.focusTab(t); // Kulisa's, for the human
-  }, `${SITE}/app`);
-  await core((k) => k.focusGrace()); // a give-back of the page's own focus would be done by now
+    return decided;
+  }, `${SITE}/app`)).toBe('left (a later focus)');
   expect(await core((k) => k.profile('Sam').get().wc.isFocused())).toBe(true);
 });

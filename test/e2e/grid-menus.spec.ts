@@ -368,9 +368,12 @@ test("menus with the mouse and the keyboard, as the OS's: a press on ☰, a drag
   // The window's page has lost the keyboard only for a moment when it is looked at (page-focus.ts gives it back): its
   // blur noted.
   await ui.evaluate(() => { const w = window as any; w.__blurred = false; addEventListener('blur', () => { w.__blurred = true; }, { once: true }); });
-  await core((k) => k.shell.profiles.values().next().value.get().wc.focus());
+  expect(await core((k) => {
+    const page = k.shell.profiles.values().next().value.get().wc, decided = k.focusDecided(page);
+    page.focus();
+    return decided;
+  })).toBe('given back to the window');
   await expect.poll(() => ui.evaluate(() => (window as any).__blurred)).toBe(true);
-  await core((k) => k.focusGrace()); // the keyboard given back to the window (page-focus.ts)
   await frames(ui);
   expect(await menuOpen(ui), "the menu stays: the window's keyboard went to a page of its own").toBe(true);
   await closeMenu(ui);

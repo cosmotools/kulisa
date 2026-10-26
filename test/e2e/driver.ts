@@ -17,7 +17,6 @@ import * as browserTools from '../../src/main/kulisa-plugin/tools/browser.ts';
 import { removeTree } from '../../src/main/remove.ts';
 import { worktreesOf } from '../../src/main/store.ts';
 import { log } from '../../src/main/log.ts';
-import { GRACE } from '../../src/main/page-focus.ts';
 
 type Modifier = 'control' | 'shift' | 'alt' | 'meta';
 // Kulisa's keys that are ⌘ on macOS and Ctrl elsewhere (CommandOrControl in keys.ts); Ctrl+` and Ctrl+Tab are Ctrl's
@@ -94,10 +93,21 @@ export function driver(shell: Shell, openedExternally: string[]) {
     electron, shell, CMD, press, profile, watchPty, openedExternally, pageMenu, agentHooks, browserTools, removeTree, worktreesOf,
     logged, clock: clock(),
     ptyOutput: () => pty,
-    // Every give-back of the keyboard that the focus guard has waiting is done (page-focus.ts): its timers are all of one
-    // length, and Node runs those in the order they were set. A timer set after theirs, not a pause.
-    // eslint-disable-next-line no-restricted-syntax
-    focusGrace: () => new Promise((r) => setTimeout(r, GRACE)),
+    // The focus guard's next decision about a page's own focus (page-focus.ts), its log line: given back, or left. One
+    // that a later focus made moot is passed over unless asked for (a focus the page took before this one).
+    focusDecided(page: WebContents, moot = false) {
+      return new Promise<string>((done) => {
+        const hook: (typeof log.hooks)[number] = (m, _t, name) => {
+          const line = m.data.map(String).join(' ');
+          if (name === 'file' && line.startsWith(`[focus] page ${page.id} `) && (moot || !line.includes('(a later focus)'))) {
+            log.hooks.splice(log.hooks.indexOf(hook), 1);
+            done(line.replace(/^.*?: /, ''));
+          }
+          return m;
+        };
+        log.hooks.push(hook);
+      });
+    },
     // Kulisa's uncaught errors (app.ts): fixtures.ts fails the test they came in.
     errors: [] as string[],
     // Questions (deleting a profile, a task…) answered in the window's dialog as the human would: true clicks the button

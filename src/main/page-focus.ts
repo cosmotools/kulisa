@@ -3,12 +3,13 @@
 // (allow: a tab chosen by a key, a dialog answered, Pick, an address from its pane's bar); a page taking it by itself
 // (loading, a tab the agent opened: on macOS every one did) gives it back to where it was in its window.
 import type { BrowserWindow, WebContents } from 'electron';
+import { log } from './log.ts';
 
 // A real click's order on macOS: the page's focus, then its mouseDown
 // 2 ms later (input sent to a page, as the tests do, comes before). So the human's input in that page within this
 // long of its focus, before or after, makes the focus theirs; else it is given back after it. On a loaded machine the
-// gap can be longer. The tests wait for a give-back by it (test/e2e/driver.ts, focusGrace).
-export const GRACE = 150;
+// gap can be longer.
+const GRACE = 150;
 const allowed = new WeakSet<WebContents>();
 // Per window (its page's webContents), where the human left the keyboard: its page, or a profile's page.
 const held = new WeakMap<WebContents, WebContents>();
@@ -39,11 +40,15 @@ export function guardFocus(wc: WebContents, win: () => BrowserWindow) {
     if (allowed.delete(wc)) { held.set(page, wc); return; }
     const at = Date.now();
     setTimeout(() => {
-      if (wc.isDestroyed() || page.isDestroyed() || turns.get(wc) !== n || input >= at - GRACE || !wc.isFocused()) return; // the human's, or gone on
+      if (wc.isDestroyed() || page.isDestroyed()) return;
+      const kept = turns.get(wc) !== n ? 'a later focus' : input >= at - GRACE ? "the human's" : !wc.isFocused() ? 'gone on' : null;
+      // Each decision leaves a line, kept or not: where the keyboard went is what a bug about it is read from.
+      if (kept) { log.info(`[focus] page ${wc.id} took the keyboard: left (${kept})`); return; }
       const back = held.get(page);
       const to = back && !back.isDestroyed() && back !== wc ? back : page;
       if (to !== page) allowed.add(to);
       to.focus();
+      log.info(`[focus] page ${wc.id} took the keyboard: given back to ${to === page ? 'the window' : `page ${to.id}`}`);
     }, GRACE);
   });
 }

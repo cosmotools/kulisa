@@ -109,8 +109,8 @@ runner's conditions: CI, below) and the test passes `--repeat-each=20`, alone an
 - **That something did not happen** is checked once a proof shows what would have made it is done (`helpers.ts`,
   `driver.ts`): the `core()` call that sent a key or mouse event (decided as it is sent); the window's channel gone
   there and back (`ipcSettled`), two frames on (`frames`); a page's event handled (`seen`); a mark typed after into
-  the terminal echoed (`echoed`); the core's log line not written (`k.logged`); the focus guard's give-backs done
-  (`k.focusGrace()`); a later event of the same kind that does show.
+  the terminal echoed (`echoed`); the core's log line not written (`k.logged`); the focus guard's decision about a
+  page's focus logged (`k.focusDecided`); a later event of the same kind that does show.
 - **A time Kulisa waits is the test's to move**: `k.clock.hold(ms)`, `advance(ms)`, `release()` for the main process's
   long timers; a time Kulisa reads is dated back; a slow mock waits for the test to let it go.
 - **Before a click, wait until the window is ready**: no task being shown (`k.settled()`, the grid's region not
