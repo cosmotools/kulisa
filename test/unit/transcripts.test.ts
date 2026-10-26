@@ -11,7 +11,7 @@ import { codex, codexConversation } from '../../src/main/agents/codex.ts';
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'kulisa-unit-'));
 after(() => fs.rmSync(root, { recursive: true, force: true }));
 
-// A record of each kind Claude Code 2.1.296 writes (docs/transcripts.md: the reader's table).
+// A record of each kind Claude Code writes (docs/transcripts.md: the reader's table).
 const user = (content: unknown, more = {}) => ({ type: 'user', message: { role: 'user', content }, ...more });
 const assistant = (...content: object[]) => ({ type: 'assistant', message: { role: 'assistant', content } });
 const use = (id: string, name: string, input: object) => ({ type: 'tool_use', id, name, input });
@@ -79,7 +79,7 @@ test('history: where a Claude Code turn stopped: a call with no result, or the h
   assert.equal(unanswered.stopped, "the human's last message got no answer");
 });
 
-// A record of each kind Codex 0.160.1 writes (docs/transcripts.md: the reader's table).
+// A record of each kind Codex writes (docs/transcripts.md: the reader's table).
 const item = (payload: object) => ({ type: 'response_item', payload });
 const said = (role: string, text: string) => item({ type: 'message', role, content: [{ type: role === 'assistant' ? 'output_text' : 'input_text', text }] });
 const script = (id: string, input: string) => item({ type: 'custom_tool_call', name: 'exec', call_id: id, input, status: 'completed' });
