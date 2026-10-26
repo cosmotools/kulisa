@@ -1,6 +1,7 @@
-# npm test on every pull request into develop or main and every push to develop, on each OS Kulisa targets
-# (docs/testing.md, CI). Linux: Ubuntu, Xvfb and openbox. A pull request into main also
-# needs its version raised: a merge into main is a release (CLAUDE.md, Releases).
+# npm test's parts on every pull request into develop or main and every push to develop, on each OS Kulisa targets
+# (docs/testing.md, CI and Speed): per OS the checks once, the e2e tests in shards, each on a runner of its own, and
+# test (<os>), the name the rulesets require, green when all of that OS's are. Linux: Ubuntu, Xvfb and openbox. A pull
+# request into main also needs its version raised: a merge into main is a release (CLAUDE.md, Releases).
 name: test
 on:
   push:
@@ -13,6 +14,7 @@ concurrency:
   cancel-in-progress: true
 permissions:
   contents: read
+  actions: read # test (<os>) reads its OS's jobs of the run
 jobs:
   # main's version and the pull request's: higher, or the same while that one was never released (the first release).
   version:
@@ -45,11 +47,44 @@ jobs:
             GPL-3.0-or-later, GPL-3.0-only, GPL-2.0-or-later, LGPL-2.1-or-later, LGPL-3.0-or-later, MIT, ISC, 0BSD,
             BSD-2-Clause, BSD-3-Clause, Apache-2.0, MPL-2.0, BlueOak-1.0.0, Unlicense, CC0-1.0, Zlib, BSL-1.0,
             Python-2.0, OFL-1.1
-  test:
+  # What needs no screen, once per OS: the unit tests, knip, ESLint and the layers, the types; actionlint on Linux.
+  checks:
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
+    name: checks (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      # No app is started here: Electron's own download is left out (its postinstall).
+      - run: npm ci --ignore-scripts
+      - run: npm run test:unit
+      - run: npm run knip
+      - run: npm run lint
+      - run: npx tsc -p . && npx tsc -p test && npx vue-tsc --noEmit -p src/renderer
+      # A Go program with no maintained npm package: its release, by its own script at the same version.
+      - if: runner.os == 'Linux'
+        run: |
+          bash <(curl -sSf https://raw.githubusercontent.com/rhysd/actionlint/v1.7.12/scripts/download-actionlint.bash) 1.7.12
+          ./actionlint -color
+  # The e2e tests in shards: each a runner of its own, with its own screen and focus, the one way to run Kulisas side
+  # by side on macOS and Windows. Its report a blob, merged in test (<os>).
+  e2e:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        shard: [1, 2, 3]
+    name: e2e (${{ matrix.os }}, ${{ matrix.shard }}/3)
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     defaults:
@@ -57,17 +92,27 @@ jobs:
         shell: bash
     steps:
       - uses: actions/checkout@v7
-      # The test folders in one known place on every OS (os.tmpdir() reads these), for the artifact below. Through
-      # GITHUB_ENV: the job's env cannot read the runner context (GitHub refuses the whole file).
-      - run: printf 'TMPDIR=%s\nTEMP=%s\nTMP=%s\n' "$RUNNER_TEMP" "$RUNNER_TEMP" "$RUNNER_TEMP" >> "$GITHUB_ENV"
+      # The test folders in one known place on every OS (os.tmpdir() reads these), and Electron's download kept there
+      # by the cache below. Through GITHUB_ENV: the job's env cannot read the runner context (GitHub refuses the whole
+      # file).
+      - run: |
+          printf 'TMPDIR=%s\nTEMP=%s\nTMP=%s\nelectron_config_cache=%s\n' "$RUNNER_TEMP" "$RUNNER_TEMP" "$RUNNER_TEMP" "$RUNNER_TEMP/electron" >> "$GITHUB_ENV"
+          echo "ELECTRON_VERSION=$(node -p "require('./package-lock.json').packages['node_modules/electron'].version")" >> "$GITHUB_ENV"
       - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm
+      - uses: actions/cache@v6
+        with:
+          path: ${{ runner.temp }}/electron
+          key: electron-${{ runner.os }}-${{ env.ELECTRON_VERSION }}
       # gnome-keyring and D-Bus: a keyring, as a desktop has, or safeStorage encrypts nothing and Kulisa keeps no
-      # session cookies and no test password (they are never written in the clear).
+      # session cookies and no test password (they are never written in the clear). The packages kept between runs.
       - if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y xvfb openbox gnome-keyring dbus-x11 libsecret-1-0
+        uses: awalsh128/cache-apt-pkgs-action@v1.6.3
+        with:
+          packages: xvfb openbox gnome-keyring dbus-x11 libsecret-1-0
+          execute_install_scripts: true
       - run: npm ci
       # The macOS runner's screen is 1024×768, smaller than a laptop's: the tests' windows do not fit as they lay them
       # out. Its virtual screen has 1920×1080, as Linux's Xvfb (displayplacer, MIT: the runner's only).
@@ -82,19 +127,54 @@ jobs:
         run: Set-DisplayResolution -Width 1920 -Height 1080 -Force; Get-DisplayResolution
       # Tasks commit in their test repositories (worktrees.ts): git needs a name.
       - run: git config --global user.name "Kulisa tests" && git config --global user.email "tests@kulisa.app"
+      # The window built (its types are the checks'), then this shard's share of the files.
+      - run: npx vite build --logLevel warn
       - if: runner.os != 'Linux'
-        run: npm test
+        run: npx playwright test --shard=${{ matrix.shard }}/3
       # On Linux in a D-Bus session with a keyring made and unlocked: its password is any but empty (an empty one makes
       # none, and libsecret then waits on a prompt nobody answers); the runner is thrown away after. Chromium takes
       # the keyring by the desktop's name, and a desktop it does not know gets none (basic_text: nothing encrypted).
       - if: runner.os == 'Linux'
         env:
           XDG_CURRENT_DESKTOP: GNOME
-        run: dbus-run-session -- sh -c 'echo ci | gnome-keyring-daemon --unlock --components=secrets >/dev/null && npm test'
-      # Playwright Test's report (its HTML with a failed test's trace, picture and log; test-results/junit.xml): also from
-      # a run that passed, where it shows the flaky tests a retry passed (docs/testing.md, Flaky tests).
+        run: dbus-run-session -- sh -c 'echo ci | gnome-keyring-daemon --unlock --components=secrets >/dev/null && npx playwright test --shard=${{ matrix.shard }}/3'
       - if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v7
+        with:
+          name: blob-${{ matrix.os }}-${{ matrix.shard }}
+          path: blob-report
+          if-no-files-found: ignore
+          retention-days: 1
+  # The name the rulesets require, per OS: green when its checks and every shard of it are. needs waits for every OS
+  # (a matrix job's result is all its OSes'), so this OS's own are read from the run's jobs. Its report: the shards'
+  # merged, Playwright Test's HTML (a failed test's trace, picture and log) and test-results/junit.xml, also from a
+  # run that passed, where it shows the flaky tests a retry passed (docs/testing.md, Flaky tests).
+  test:
+    needs: [checks, e2e]
+    if: ${{ always() }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: blob-${{ matrix.os }}-*
+          path: all-blob
+          merge-multiple: true
+      - if: ${{ hashFiles('all-blob/**') != '' }}
+        env:
+          PLAYWRIGHT_JUNIT_OUTPUT_FILE: test-results/junit.xml
+        run: npx playwright merge-reports --reporter html,junit all-blob
+      - uses: actions/upload-artifact@v7
         with:
           name: e2e-report-${{ matrix.os }}
           path: |
@@ -102,3 +182,11 @@ jobs:
             test-results/junit.xml
           if-no-files-found: ignore
           retention-days: 7
+      - env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OS: ${{ matrix.os }}
+        run: |
+          jobs=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/attempts/$GITHUB_RUN_ATTEMPT/jobs?per_page=100" \
+            --jq ".jobs[] | select(.name | startswith(\"checks ($OS)\") or startswith(\"e2e ($OS,\")) | \"\(.conclusion) \(.name)\"")
+          echo "$jobs"
+          [ "$(echo "$jobs" | grep -c .)" = 4 ] && ! echo "$jobs" | grep -qv '^success ' || { echo "::error::$OS: not every check and shard passed"; exit 1; }

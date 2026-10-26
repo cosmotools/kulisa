@@ -52,8 +52,7 @@ How a test is set up and what it gets: `test/e2e/fixtures.ts`, its comments. Wha
   back ([window.md](window.md), Keys).
 - **On Linux each Kulisa has a screen of its own** (Xvfb with openbox: without a window manager, windows are not listed
   for screenshots and focus differs from a desktop); the tests never take the human's focus or clipboard.
-  `npm run test:visible` shows them on the human's screen. One worker: on macOS and Windows the Kulisas share one
-  screen.
+  `npm run test:visible` shows them on the human's screen. Several workers on Linux, one elsewhere (Speed, below).
 - **A failed test leaves** the window as the screen shows it (profiles' pages included), the trace, Kulisa's log and
   Electron's output, in the report; a Kulisa that never got ready says why in the error.
 
@@ -184,14 +183,15 @@ when `.ts`, `.mts` or `.vue` files have changes not committed, and sends it back
 
 ## CI
 
-`.github/workflows/test.yml`: `npm test` on Ubuntu, Windows and macOS at every pull request into `develop` or `main`
-and every push to `develop`; its report kept a week, a passing run's too, for its flaky tests. Slow but not flaky:
-deleting a task (git, up to 11 s), a site that never answers (10 s).
+`.github/workflows/test.yml`: what `npm test` does, on Ubuntu, Windows and macOS at every pull request into `develop`
+or `main` and every push to `develop`, laid out for speed (Speed, below): per OS `checks (<os>)`, the e2e tests in
+`e2e (<os>, i/3)`, and `test (<os>)`, the check the rulesets require. Its report, the shards' merged, kept a week, a
+passing run's too, for its flaky tests. Slow but not flaky: deleting a task (git, up to 11 s), a site that never
+answers (10 s).
 
-- **Linux has no desktop there**: `npm test` runs in a D-Bus session with gnome-keyring unlocked and
-  `XDG_CURRENT_DESKTOP=GNOME`, else `safeStorage` encrypts nothing. The Kulisas run one at a time: two starting at once
-  on a fresh keyring would each store their own key, and one's restart would not read its saved cookies. Its test
-  folders are inside the home folder: a path as the window shows it is shortened to `~`.
+- **Linux has no desktop there**: the e2e tests run in a D-Bus session with gnome-keyring unlocked and
+  `XDG_CURRENT_DESKTOP=GNOME`, else `safeStorage` encrypts nothing. Its test folders are inside the home folder: a
+  path as the window shows it is shortened to `~`.
 - **macOS and Windows runners have 1024×768**: the CI sets 1920×1080.
 - **Lines end in LF on every OS** (`.gitattributes`), else a test comparing a file fails on Windows.
 
@@ -203,3 +203,27 @@ H=$(mktemp -d /tmp/kh.XXXX); printf '[user]\n\tname = t\n\temail = t@t\n' > $H/.
 printf '#!/bin/sh\necho ci | gnome-keyring-daemon --unlock --components=secrets >/dev/null\ncd %s && exec npm test\n' "$PWD" > $H/run.sh; chmod +x $H/run.sh
 env -i PATH=$(dirname $(which node)):/usr/bin:/bin HOME=$H TMPDIR=$H XDG_CURRENT_DESKTOP=GNOME taskset -c 0-3 dbus-run-session -- $H/run.sh
 ```
+
+### Speed
+
+- **Workers**: several on Linux, each Kulisa on an Xvfb of its own: as many as half the cores and the free memory
+  allow, a test Kulisa taking up to about 1.5 GB (1480 MB measured at its peak, several profiles and windows open), at
+  most 4 (`playwright.config.ts`; `--workers` overrides it). One on macOS, Windows and with `KULISA_VISIBLE`: one
+  screen and one focus, and two Kulisas there would take each other's keys and clicks.
+- **The keyring's key is made once**, in `global-setup.ts` before any worker starts (`keyring.ts`, a bare Electron of
+  the same name, Linux only): Kulisas starting at once on a keyring without it would each store their own, and one's
+  restart would not read the cookies it saved.
+- **On the CI**: the checks (unit tests, knip, ESLint, the types, actionlint) once per OS, apart from the e2e tests; the
+  e2e tests in three shards per OS, each on a runner of its own, with its own screen and focus: the one parallelism
+  safe on macOS and Windows; on Linux a shard also runs the workers above. `test (<os>)` keeps the name the rulesets
+  require, green only when its OS's checks and shards are, so the rulesets do not change; it merges the shards' blob
+  reports into one HTML report and `junit.xml`, flaky tests included.
+- **Caches** keep a shard's setup under a minute: npm's (`setup-node`), Electron's download (by its version in
+  `package-lock.json`), the apt packages (Xvfb, openbox, the keyring). macOS's `displayplacer` comes from brew each
+  time.
+- **Not used**: a runner image of our own (larger runners are paid; a Docker image runs on Linux only); a self-hosted
+  runner (the repository is public: a fork's pull request would run its code on it); several workers on one macOS or
+  Windows screen (the focus, above).
+- **Tuning**: the shards' number from the jobs' times: another shard while a shard's tests take much longer than its
+  setup; the workers from a test Kulisa's RSS (`ps -eo pid,rss,comm`, summed over its `electron` processes) against
+  the free memory. A test flaky only with several workers is a bug fixed at its cause, never by fewer workers.
