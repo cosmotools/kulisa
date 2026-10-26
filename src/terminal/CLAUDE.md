@@ -6,6 +6,6 @@ works and why: `README.md`.
 - From outside only through `main/index.ts` (the main process), `renderer/index.ts` (the window) and `ipc.ts` (its
   channels). `main/` uses nothing of `src/main` but `ipc.ts` and `log.ts`; `renderer/` nothing of the window; `npm run
   deps` refuses any other import.
-- It knows nothing of tasks, agents or profiles: they use it (`tasks.ts`; the island, `Terminals.vue`). A rule about
+- It knows nothing of tasks, agents or profiles: they use it (`tasks.ts`; the island, `fluent/grid/Terminals.tsx`). A rule about
   an agent belongs there, not here.
 - Its unit tests are here (`*.test.ts`, run by `npm run test:unit`); its e2e tests in `test/e2e/` (README, The code).

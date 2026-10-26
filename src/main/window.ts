@@ -167,7 +167,7 @@ class AppWindow {
       ({ id: cfg.id, name: cfg.name, avatar: cfg.avatar, description: cfg.description ?? '', tabs: tabs.urls.length })));
     task.list.saveTabs();
   }
-  // The shown task's artifacts (Resources.vue): when it is shown, and when its agent makes one.
+  // The shown task's artifacts (Resources.tsx): when it is shown, and when its agent makes one.
   async sendArtifacts(task = this.task) {
     if (!task || task !== this.task) return;
     const [list, { bytes }] = await Promise.all([task.artifacts(), task.artifactsUsage()]);

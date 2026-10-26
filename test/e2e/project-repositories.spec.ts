@@ -28,16 +28,14 @@ test('projects: several repositories: a task works in the main tree until it mak
   await openFolder(core, ui, api);
   const pid = files.pid('api'), first = await core((k) => k.shell.task.key), firstId = first.split('/')[1];
   const of = (key: string) => core((k, t) => { const x = k.shell.taskByKey(t); return { folder: x.folder, worktrees: x.worktrees.map((c) => ({ repo: c.repo, folder: c.folder, branch: c.branch })), addable: x.addable(), dirs: x.dirs() }; }, key);
-  // The Resources island (Resources.vue): each row its label, its branch line (or 'main working tree'), and whether it
+  // The Resources panel (Resources.tsx): each row its label, its branch line (or 'main working tree'), and whether it
   // can be removed (an added repository's worktree can; the main tree and the task's own worktree cannot).
-  const resources = ui.locator('#resources li > [role="button"]');
+  const resources = ui.locator('#resources').getByRole('list', { name: 'Folders' }).getByRole('listitem');
   const rows = async (want: [string, string, boolean][]) => {
     await expect(resources).toHaveCount(want.length);
     for (const [i, [label, line, removable]] of want.entries()) {
-      await expect(resources.nth(i)).toHaveAttribute('aria-label', label);
-      await expect(resources.nth(i).locator('small')).toHaveText(line);
-      // Hidden until the pointer is on the row: by its label, which a role's query of hidden ones passes over.
-      await expect(resources.nth(i).locator('[aria-label="Remove Repository"]')).toHaveCount(removable ? 1 : 0);
+      await expect(resources.nth(i).getByRole('button', { name: label, exact: true })).toHaveText(label + line);
+      await expect(resources.nth(i).getByRole('button', { name: 'Remove Repository' })).toHaveCount(removable ? 1 : 0);
     }
   };
   const copyOf = async (name: string) => (await of(first)).worktrees.find((c) => path.basename(c.repo) === name).folder;
@@ -149,9 +147,7 @@ test('projects: several repositories: a task works in the main tree until it mak
   // it: not asked); its own worktree's row has no Remove.
   await showTask(core, ui, first);
   await expect(resources).toHaveCount(2);
-  const webRow = ui.locator('#resources').getByRole('button', { name: 'web', exact: true });
-  await webRow.hover(); // its 🗑 shows on the row under the pointer
-  await webRow.getByRole('button', { name: 'Remove Repository' }).click();
+  await resources.filter({ has: ui.getByRole('button', { name: 'web', exact: true }) }).getByRole('button', { name: 'Remove Repository' }).click();
   await expect.poll(() => fs.existsSync(webCopy)).toBe(false);
   await rows([['api', `branch ${b1}`, false]]);
   await expect(ui.getByRole('alertdialog'), 'nothing of its own: not asked').toHaveCount(0);

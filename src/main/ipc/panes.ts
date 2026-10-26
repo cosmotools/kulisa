@@ -29,7 +29,7 @@ export function registerPanes(ipc: Ipc) {
   handle('layout:load', (e, { task }) => onScreen(e, task)?.store.layout());
   // A profile's master, to sign in to (master.ts), and its cookies brought to this task's copy (tasks.ts).
   handle('profile:master', (e, { task, profile }) => onScreen(e, task)?.openMaster(profile) || noTask);
-  // The island's tabs (Terminals.vue): + (an agent of the project, a new conversation; or a shell; own: the task's own
+  // The island's tabs (Terminals.tsx): + (an agent of the project, a new conversation; or a shell; own: the task's own
   // agent, Ctrl+` on the folded island), the one in front,
   // ×, an agent's tab handed over to another agent (Task.handOver).
   handle('terminal:open', (e, { task, agent, own }) => {

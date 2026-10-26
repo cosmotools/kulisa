@@ -72,7 +72,7 @@ The grid is saved per task (`layout.json`) 300 ms after its last change, and at 
 grid naming a profile deleted since is not restored, the default arrangement takes its place. The island is one panel
 however many terminals it holds (The terminal).
 
-**The Resources island** (`Resources.vue`, its header `ResourcesTab.vue`; what it lists: [tasks.md](tasks.md), The
+**The Resources island** (`grid/Resources.tsx`, its header `ResourcesHeader` there; what it lists: [tasks.md](tasks.md), The
 Resources island) is a panel next to the terminal (`addResources`, `lib/grid.ts`; the author's choice): right of it, a
 quarter of the grid's width, when the terminal is under the pages; under it, a third of the grid's height, when the
 terminal is on the right. It resizes, is saved and follows the window's size as any panel. It is as low as its header
@@ -86,8 +86,8 @@ A window made narrower or wider changes every panel in its share, as VS Code's a
 A pane's header (its profile's picture, name and ×) shrinks with the pane: a longer name is cut with …, the whole and
 the profile's description in its tooltip, and the × stays (`ProfileHeader.vue`).
 
-**No profile open, a terminal open**: the profiles' room folds to a row of buttons over the grid (`ClosedProfiles.vue`,
-`#closedprofiles`): an `.opener` per closed profile, its picture, name and a + (who it is in its tooltip); a click
+**No profile open, a terminal open**: the profiles' room folds to a row of buttons over the grid (`grid/ClosedProfiles.tsx`):
+a button per closed profile, its picture, name and a + (who it is in its tooltip); a click
 opens it over the terminal, and the row goes. A project with no profiles has one, Add Profile… (its page in Settings).
 The row is outside dockview: the grid's room is what is left under it (`room()`, `lib/grid.ts`). More than fit scroll
 (`.tabstrip`, [ui.md](ui.md); `#dock` keeps `min-width: 0`, or many profiles stretch the window's column, the terminal
@@ -270,11 +270,11 @@ own size and place, kept (`settings.json`: `settingsWindow`), at least 640 × 42
 
 A task's terminals are an **island** of the grid, one panel: the terminal in front, a **row of tabs** over it, apart
 from it as a pane's tabs from its toolbar (`.tab`, [ui.md](ui.md): the row in the island's color, the tab in front in
-the terminal's, `--toolbar`, joined to it; `TerminalTabs.vue`, `Terminals.vue`). One terminal is shown at a time, none
+the terminal's, `--toolbar`, joined to it; `TerminalsHeader` and `Terminals` in `grid/Terminals.tsx`). One terminal is shown at a time, none
 split off into a panel of its own. Each is the user's shell in the task's folder (`src/terminal/`), an agent the human
 chose started in it ([tasks.md](tasks.md), "Several agents in a task") or not. Each tab: the agent's icon (a shell's,
 for a shell), its name whole, its state (an agent's: working, waiting for you, done), ×; more than fit scroll
-(`.tabstrip`, [ui.md](ui.md); dockview's tab keeps `min-width: 0`, or it grows to its content and the tabs run past the
+(`useStrip`, `lib/strip.ts`; dockview's tab keeps `min-width: 0`, or it grows to its content and the tabs run past the
 island, + and the microphone with them). After the tabs, the island's own **+** (a menu of the project's accounts, the
 default first, each a new conversation; then Terminal, a shell); last, the dictation's microphone (Dictation, below).
 The task's repositories are in the Resources island, not in this row. The agent's icon opens **Change Agent**, a dialog
@@ -284,19 +284,19 @@ The task's repositories are in the Resources island, not in this row. The agent'
 **The last terminal closed folds the island** to a strip of one button, + in its middle, as JetBrains' tool windows go
 but with their button kept in place (the author's choice): by its height under or over the grid, by its width at a side
 (dockview's constraints hold it there; the row goes). Alone in the grid (no profile open), the +'s rows are big buttons
-in a line in the grid's middle, whatever the arrangement (its group fills the grid there, so it is not drawn): `.launch`,
-a `.launcher` each, the agent's icon over its name, an account's email under it, no keys (Ctrl+` opens the task's agent,
+in a line in the grid's middle, whatever the arrangement (its group fills the grid there, its header hidden): a
+`data-launcher` button each, the agent's icon over its name, an account's email under it, no keys (Ctrl+` opens the task's agent,
 which the window does not show: a key on one of them would read as a mistake). Each is a Tab stop, Enter opens it; the
 first, the project's default agent, gets the keyboard when they come, unless the keyboard is in something else (a
-field, a dialog). Under them, a second row: the task's closed profiles, a `.launcher` each, its picture over its name
+field, a dialog). Under them, a second row: the task's closed profiles, a `data-launcher` each, its picture over its name
 (The grid: No profile open). A terminal opened unfolds it to the size it had. Ctrl+` there opens a new conversation of
 the task's agent; a task with none (its project had no default agent: [tasks.md](tasks.md), "Choosing the agent")
 gives the keyboard to the buttons, or opens the +. A task that never had a terminal opens its agent, or nothing (the
 buttons).
 
 **A tab comes before its program.** An agent's tab is there at once, before its program is looked for (the user's
-login shell, its `--version`: a second or so): until it starts, `.starting` over its terminal, the agent's working
-`.state` and "Starting Claude Code…" (`starting` in `Sent.Terminals`, the tab without its `pty`). Its terminal stays
+login shell, its `--version`: a second or so): until it starts, a status over its terminal, a spinner and "Starting
+Claude Code…" (`starting` in `Sent.Terminals`, the tab without its `pty`). Its terminal stays
 laid out under it, so the program starts at its size. Not found and none chosen in its place (Choose the Agent,
 Cancel), the tab goes. A task opening sends its tabs with its first state, each starting (`Window.showLoaded`, then
 `Task.loadTerminals`), so the folded island's buttons do not show while the agents are looked for. A pick or a
@@ -628,10 +628,9 @@ shortcuts carry (`com.squirrel.kulisa.kulisa`), or Windows would not pin it to t
 | `src/main/updates.ts`, `installed.ts`, `forge.config.ts` | updates, Squirrel's events, a new version ready while Kulisa runs (the version installed on disk); the installers and the release |
 | `src/terminal/` | the terminal, a Kulisa package: its pty, its buffers, the xterm shown ([README](../src/terminal/README.md)) |
 | `src/main/file-links.ts` | the paths a terminal names: which exist, opening one or showing it in its folder (The terminal) |
-| `src/renderer/components/Grid.vue`, `grid/*.vue`, `lib/grid.ts` | the grid (dockview), the panes and their headers, the island of terminals (`Terminals.vue`, its row of tabs `TerminalTabs.vue`), the closed profiles' tiles over it (`ClosedProfiles.vue`), Arrange panels |
-| `src/renderer/components/Resources.vue` | the Resources island next to the terminal: the shown task's resources (its worktree(s) or the main working tree) and its artifacts, each with its actions (tasks.md) |
-| `src/renderer/components/ResourcesTab.vue` | the Resources island's header |
+| `src/renderer/fluent/Grid.tsx`, `fluent/grid/`, `lib/grid.ts` | the grid (dockview), the panes and their headers, the terminals (`grid/Terminals.tsx`: `Terminals`, its row of tabs `TerminalsHeader`), the closed profiles' tiles over it (`grid/ClosedProfiles.tsx`), Arrange panels |
+| `src/renderer/fluent/grid/Resources.tsx` | Resources next to the terminal: the shown task's resources (its worktree(s) or the main working tree) and its artifacts, each with its actions (tasks.md) |
 | `src/renderer/fluent/TopBar.tsx`, `ProjectIcon.tsx` | the title bar, ☰ and its own rows; the logo, a project's icon |
-| `src/renderer/fluent/Menus.tsx`, `PointMenu.tsx`, `Ask.tsx`, `lib/menu.ts`, `cover.ts`, `views.ts`, `ask.ts`, `terminals.ts`, `voice.ts` | the menus, the dialogs and questions (Fluent UI's: `cover.ts`), the pages under them in a tasks' window (`views.ts`), a tasks' window's island (`terminals.ts`), dictation |
+| `src/renderer/fluent/Menus.tsx`, `PointMenu.tsx`, `Ask.tsx`, `lib/menu.ts`, `cover.ts`, `views.ts`, `ask.ts`, `terminals.ts` | the menus, the dialogs and questions (Fluent UI's: `cover.ts`), the pages under them in a tasks' window (`views.ts`), a tasks' window's terminals (`terminals.ts`) |
 | `src/renderer/lib/keys.ts`, `fluent/Shortcuts.tsx` | where the keyboard is, the commands the keys run; Keyboard Shortcuts |
 | `test/e2e/window.spec.ts`, `grid*.spec.ts`, `keys.spec.ts`, `log.spec.ts`, `zoom-and-closing.spec.ts`, `test/unit/keys.test.ts` | the tests |

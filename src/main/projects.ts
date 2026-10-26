@@ -48,7 +48,7 @@ class Project {
   folders() { return this.entry.folders; }
   // The agents' accounts its tasks run, the default first.
   agents() { return agentsOf(this.shell, this.entry); }
-  // The one a new task starts; none: its tasks start with nothing open (the island's buttons, Terminals.vue).
+  // The one a new task starts; none: its tasks start with nothing open (the island's buttons, Terminals.tsx).
   defaultAgent() { return defaultOf(this.shell, this.entry); }
   // Its open tasks, in the order they were made (the bar's); the closed ones, the one closed last first.
   open() { return [...this.tasks.values()].filter((t) => !t.entry.closed); }

@@ -2,7 +2,7 @@
 
 A terminal as Kulisa has it, the same wherever it is shown: a pty running the user's shell (an agent typed into it, a
 command, or nothing), its output kept in the window, and an xterm that shows it. A Kulisa package
-([docs/packages.md](../../docs/packages.md)), used by the task's island (`Terminals.vue`, `TerminalTabs.vue`,
+([docs/packages.md](../../docs/packages.md)), used by the task's island (`fluent/grid/Terminals.tsx`,
 `lib/terminals.ts`: its tabs, its agents' launchers and menus; docs/window.md, The terminal), an account's sign-in
 (`fluent/SignIn.tsx` through `fluent/Terminal.tsx`: Settings' and New Project's) and the task's agents
 (`tasks.ts`: which agent, its conversation, what is typed to it). It knows nothing of them, nor of the window's look: a

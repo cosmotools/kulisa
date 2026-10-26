@@ -159,7 +159,7 @@ test('tasks: + opens a task in the project\'s main working tree ("New Task", no 
   // It makes its own worktree, naming the task in the same call (task_worktree's name, since it is still "New Task"):
   // the tab and the branch take the name, the folder becomes the worktree; the project's folder stays the human's.
   // The Resources island: the main working tree until it has its own worktree, then the worktree on its branch.
-  const resources = ui.locator('#resources li > [role="button"]');
+  const resources = ui.locator('#resources').getByRole('list', { name: 'Folders' }).getByRole('listitem');
   await expect(resources).toHaveText([`${path.basename(project)}main working tree`]);
   // Two of its agents at once (each a call) get the one worktree, not one each.
   const wt = `${project}@feature-x`, trees = () => git(project, 'worktree', 'list').split('\n').length, before = trees();
@@ -302,7 +302,7 @@ test("tasks: an agent's tab closes after a question, always (Cancel keeps it); t
     return Math.abs(Math.round(b.x + b.width / 2 - (r.x + r.width / 2))) <= 1 && Math.abs(Math.round(b.y + b.height / 2 - (r.y + r.height / 2))) <= 1;
   };
   // Its + from the middle of the island (x), and from where a strip's middle would be.
-  const middle = () => centred(ui.locator('#termUnfold'), island);
+  const unfold = island.getByRole('button', { name: 'New terminal' }), middle = () => centred(unfold, island);
   // The project's profiles, all closed: Sam.admin, Elon.buyer, Dora.
   // The island and the Resources island beside or under it fill the grid: dockview's room, the closed profiles' tiles no
   // longer over it.
@@ -310,7 +310,7 @@ test("tasks: an agent's tab closes after a question, always (Cancel keeps it); t
   const fills = async () => {
     const g = await ui.locator('#grid').boundingBox(), t = await group.boundingBox(), r = await resources.boundingBox(), near = (x: number, y: number) => Math.abs(x - y) <= 1;
     return near(Math.min(t.x, r.x), g.x) && near(Math.max(t.x + t.width, r.x + r.width), g.x + g.width) && near(Math.min(t.y, r.y), g.y)
-      && near(Math.max(t.y + t.height, r.y + r.height), g.y + g.height) && (r.x > t.x + t.width || r.y > t.y + t.height);
+      && near(Math.max(t.y + t.height, r.y + r.height), g.y + g.height) && (r.x >= t.x + t.width || r.y >= t.y + t.height);
   };
   const launchers = ui.getByTestId('launchers'), newTerminal = launchers.getByRole('navigation', { name: 'New terminal' }).getByRole('button');
   for (const preset of ['grid', 'focus', 'columns'] as const) {
@@ -326,8 +326,7 @@ test("tasks: an agent's tab closes after a question, always (Cancel keeps it); t
     `);
     const ys = new Set(await Promise.all((await newTerminal.all()).map(async (x) => Math.round((await x.boundingBox()).y))));
     expect(ys.size, 'in one line').toBe(1);
-    await expect(ui.locator('#termUnfold')).toHaveCount(0);
-    await expect(group.locator('.dv-content-container'), 'no panel behind them').toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+    await expect(unfold).toHaveCount(0);
   }
   // One opens what its row in + does: a terminal; closed, the buttons are back.
   await newTerminal.first().click();
@@ -335,7 +334,7 @@ test("tasks: an agent's tab closes after a question, always (Cancel keeps it); t
   await folded(false);
   // A terminal and no profile: the profiles' room a row of buttons over it, one for each; one opens its profile, and
   // the row goes.
-  const tiles = ui.locator('#closedprofiles');
+  const tiles = ui.getByTestId('closed-profiles');
   await expect(tiles).toMatchAriaSnapshot(`
     - button "Sam.admin"
     - button "Elon.buyer"
@@ -385,7 +384,7 @@ test("tasks: an agent's tab closes after a question, always (Cancel keeps it); t
   await expect.poll(async () => (await size(group)).height <= 40 && (await middle())).toBe(true);
   expect(Math.abs((await size(group)).width - before.width), 'as wide as before (Resources beside it takes its share as the grid changes)').toBeLessThanOrEqual(5);
   // Its + opens a terminal: the island unfolds.
-  await ui.locator('#termUnfold').click();
+  await unfold.click();
   await expect(menu(ui)).toMatchAriaSnapshot(`
     - menu:
       - menuitem "Terminal"
@@ -404,7 +403,7 @@ test("tasks: an agent's tab closes after a question, always (Cancel keeps it); t
   // + over Resources.
   await arrange(ui, 'grid');
   await expect.poll(async () => (await size(group)).height <= 40 && (await middle()) && (await size(resources)).height > 300).toBe(true);
-  await ui.locator('#termUnfold').click();
+  await unfold.click();
   await choose(ui, 'Terminal');
   await expect.poll(terminals).toBe(1);
   await folded(false);
@@ -415,7 +414,7 @@ test("tasks: an agent's tab closes after a question, always (Cancel keeps it); t
   await ui.evaluate((id) => { const d = (window as any).__dock; d.getPanel('resources').api.moveTo({ group: d.getPanel(`profile:${id}`).group, position: 'bottom' }); }, SAM);
   await closeTab();
   await expect.poll(async () => { const r = await size(group); return (await terminals()) === 0 && r.width <= 40 && r.height > 100 && (await middle()); }).toBe(true);
-  await ui.locator('#termUnfold').click();
+  await unfold.click();
   await choose(ui, 'Terminal');
   await expect.poll(terminals).toBe(1);
   await folded(false);

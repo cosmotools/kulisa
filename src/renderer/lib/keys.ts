@@ -15,7 +15,7 @@ let lastPane: string | null = null; // the profile whose page or pane had the ke
 const zoneOf = (el: Element | null) => {
   if (dialogsShown()) return 'dialog'; // its keys are its own, wherever its focus is
   if (!el || el === document.body) return 'window';
-  if (el.closest('.xterm')) return 'terminal';
+  if (el.closest('[data-zone="terminal"]')) return 'terminal';
   const pane = el.closest<HTMLElement>('.pane');
   return pane ? `pane:${pane.dataset.profile}` : 'window';
 };
@@ -28,13 +28,13 @@ document.addEventListener('focusin', report);
 document.addEventListener('focusout', () => setTimeout(report)); // where it went is known after the event
 onDialogs(report); // a dialog opened or closed
 
-// The folded island: the task's agent; a task with none (its project had no default) leaves the choice to the human,
-// the keyboard on the island's buttons (fluent/grid/Terminals.tsx), or its + opened.
+// The folded terminals' panel: the task's agent; a task with none (its project had no default) leaves the choice to the
+// human, the keyboard on the panel's big buttons (fluent/grid/Terminals.tsx), or its + opened.
 const openOwn = async () => {
   const r = await act('terminal:open', { own: true });
   if (refused(r) || !('none' in r)) return;
-  const first = document.querySelector<HTMLElement>('.launch .launcher');
-  if (first) first.focus(); else document.getElementById('termUnfold')?.click();
+  const first = document.querySelector<HTMLElement>('[data-launcher]');
+  if (first) first.focus(); else document.querySelector<HTMLElement>('[data-unfold]')?.click();
 };
 // A task's tab in the tasks' bar shown, as a click on it does (the tasks' bar).
 const showTask = (tab?: Element) => { const key = (tab as HTMLElement | undefined)?.dataset.task; if (key && key !== store.getState().current) void kulisa.invoke('task:show', key); };

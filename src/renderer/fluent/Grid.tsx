@@ -6,6 +6,7 @@ import 'dockview-react/dist/styles/dockview.css';
 import { ProfilePane, ProfileHeader } from './grid/ProfilePane';
 import { Terminals, TerminalsHeader } from './grid/Terminals';
 import { Resources, ResourcesHeader } from './grid/Resources';
+import { ClosedProfiles } from './grid/ClosedProfiles';
 import { gridMounted } from '../lib/grid';
 import { useWindow } from '../lib/store';
 import { ThemeShown } from './theme';
@@ -29,6 +30,7 @@ export function Grid() {
   } as CSSProperties;
   // #grid: dockview's room (lib/grid.ts, room), under what a task shows over it
   return <main id="dock" aria-busy={loading || undefined} style={{ minWidth: 0, minHeight: 0, opacity: loading ? 0 : 1, display: 'flex', flexDirection: 'column', ...vars }}>
+    <ClosedProfiles />
     <div id="grid" style={{ flex: 1, minHeight: 0 }}>
       <DockviewReact theme={kulisaTheme} disableFloatingGroups singleTabMode="fullwidth" components={components}
         tabComponents={tabComponents} onReady={(e) => gridMounted(e.api)} />

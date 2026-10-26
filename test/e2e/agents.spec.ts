@@ -243,10 +243,11 @@ test("a new account is made in the project's settings: the agent's own sign-in a
   // Change agent… (the terminal's menu) hands the task to one of the project's accounts.
   await rightClick(ui, '[data-testid="terminal"]');
   await choose(ui, 'Change agent…');
-  await expect(ui.locator('#handover').getByRole('radio')).toHaveCount(1);
-  await expect(ui.locator('#handover').getByRole('radio')).toHaveAccessibleName('Fake agent · work@shop.com');
-  await ui.locator('#handover').locator('header').getByRole('button', { name: 'Close' }).click();
-  await expect(ui.locator('#handover')).toHaveCount(0);
+  const handover = ui.getByRole('dialog', { name: 'Change Agent' });
+  await expect(handover.getByRole('radio')).toHaveCount(1);
+  await expect(handover.getByRole('radio')).toHaveAccessibleName('Fake agent · work@shop.com');
+  await handover.getByRole('button', { name: 'Close' }).click();
+  await expect(handover).toHaveCount(0);
 });
 
 test("language: one for every agent (☰ → Language): written into the agents' own setting in each account's folder, at an agent's start and when chosen, never into the human's own", async ({ core, ui, files }) => {

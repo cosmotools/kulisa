@@ -50,7 +50,7 @@ const HANDOVER = (n: number, name: string) => `Go on with the work of conversati
   `whole with the kulisa task_history tool (conversation ${n}) before anything else. Then tell me in a few lines what ` +
   'is done and what is next, and go on with it.';
 
-// A screenshot's picture in its Resources row: twice the row's (Resources.vue), sharp on a Retina screen.
+// A screenshot's picture in its Resources row: twice the row's (Resources.tsx), sharp on a Retina screen.
 const THUMB_WIDTH = 128;
 
 class Task {
@@ -452,7 +452,7 @@ class Task {
   }
   // The task handed to an agent (the agent's icon on its tab, Change agent…): it opens in a new tab, told to go on with
   // that tab's conversation, which it reads in task_history while the window's dialog shows it (historyRead;
-  // HandOver.vue). In front from its start, under the dialog: a tab behind has no size, and its xterm laid out what the
+  // HandOver.tsx). In front from its start, under the dialog: a tab behind has no size, and its xterm laid out what the
   // agent drew for the island's size in 80 columns. The tab it came from stays: the human closes it.
   async handOver(id: number, account: string): Promise<Result<{ id: number }>> {
     const t = this.terminals.get(id);
@@ -462,7 +462,7 @@ class Task {
     if (handed) handed.handedFrom = n;
     return r;
   }
-  // An agent read a part of a conversation in task_history: the one it was handed, shown as it goes (HandOver.vue).
+  // An agent read a part of a conversation in task_history: the one it was handed, shown as it goes (HandOver.tsx).
   historyRead(t: TaskTerminal, conversation: number, part: number, parts: number) {
     if (t.handedFrom !== conversation) return;
     if (part >= parts) t.handedFrom = undefined;
@@ -760,7 +760,7 @@ class Task {
     return { id, key, project: this.project.id, name, state, folder, branch: this.branch, closed: !!this.entry.closed, merged: !!this.entry.merged,
       repos: this.addable(), resources: this.resources() };
   }
-  // Its resources as the Resources island (Resources.vue) shows them: the first, where it works, is not removed there
+  // Its resources as the Resources island (Resources.tsx) shows them: the first, where it works, is not removed there
   // (the main tree is the human's, its own worktree goes with the task); an added repository's worktree is
   // (task_remove_repository).
   resources(): Sent.TaskResource[] {

@@ -28,7 +28,7 @@ export interface Terminal {
 // Kulisa's language (☰ → Language): the codes the agents' own settings take, and which agents have one.
 export interface LanguageInfo { language: string; languages: string[]; agents: { name: string; has: boolean }[] }
 export interface Terminals { task?: string; front: number | null; list: Terminal[] }
-// Something the task has, uses or created, a row in the Resources island (Resources.vue): a repository's worktree, or
+// Something the task has, uses or created, a row in the Resources island (Resources.tsx): a repository's worktree, or
 // the main working tree it works in before it makes one. More kinds come over time (the app's URL, a pull request).
 export interface TaskResource {
   kind: 'worktree' | 'maintree';
@@ -51,7 +51,7 @@ export interface TaskInfo {
   id: string; key: string; project: string; name: string; state: AgentState; folder: string; branch: string | null;
   closed: boolean; merged: boolean;
   repos: string[]; // the project's repositories it may add (Add Repository)
-  resources: TaskResource[]; // what the task has/created (Resources.vue)
+  resources: TaskResource[]; // what the task has/created (Resources.tsx)
 }
 export interface ProjectEntry { id: string; name: string; folders: string[]; color: string; favicon?: string; tasks: ProjectTask[] }
 // A task of a project, open or not (app.ts, shell.projects): the sidebar lists the closed ones.

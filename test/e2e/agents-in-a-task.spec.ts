@@ -49,7 +49,7 @@ test("+ opens any of the project's accounts, a new conversation in a tab of its 
 
   // +: the project's accounts, then Terminal; one chosen opens in a tab of its own, in front, a new conversation.
   const AGENTS = ['Fake agent · a@switch.test', 'Fake agent · b@switch.test'];
-  await ui.locator('#termAdd').click();
+  await ui.getByTestId('terminal-tabs').getByRole('button', { name: 'New terminal' }).click();
   await expect(menu(ui)).toMatchAriaSnapshot(`
     - menu:
       - menuitem "Fake agent · a@switch.test"
@@ -62,7 +62,7 @@ test("+ opens any of the project's accounts, a new conversation in a tab of its 
   expect(JSON.parse(fs.readFileSync(path.join(a.dir, '.claude.json'), 'utf8')).projects[copy]?.hasTrustDialogAccepted).toBe(true);
   expect(fs.existsSync(path.join(a.dir, 'skills', 'kulisa-profiles', 'SKILL.md')), "Kulisa's skill in the account's folder").toBe(true);
   const fake = (await newest()).id;
-  await expect(ui.locator(`nav[aria-label="Terminals"] [data-id="${fake}"] button use`), 'an agent without a mark of its own: the generic one').toHaveAttribute('href', '#i-agent');
+  await expect(ui.locator(`nav[aria-label="Terminals"] [data-id="${fake}"] [role="button"] svg`), 'an agent without a mark of its own: the generic one').toHaveClass(/\blucide-bot\b/);
   expect(conversations().map((c: { agent: string; terminal: number }) => [c.agent, c.terminal])).toEqual([['custom', bash], [a.id, fake]]);
   expect(await target(), 'a pick goes to the agent shown').toBe(fake);
 
@@ -112,16 +112,16 @@ test("+ opens any of the project's accounts, a new conversation in a tab of its 
   // Its icon (Change Agent) hands the task to an agent of the project (this one too): what goes along shown, and the
   // one chosen opens in a new tab, told to go on with this conversation. The dialog stays over it while it reads,
   // and goes once it has read the last part of it.
-  const dialog = ui.locator('#handover'), progress = ui.locator('#handover').getByRole('status');
+  const dialog = ui.getByRole('dialog', { name: 'Change Agent' }), progress = dialog.getByRole('status');
   await ui.locator(`nav[aria-label="Terminals"] [data-id="${fake}"]`).getByRole('button', { name: /change agent/ }).click();
   // The project's agents, as in +.
-  const radios = ui.locator('#handover').getByRole('radio');
+  const radios = dialog.getByRole('radio');
   await expect(radios).toHaveCount(AGENTS.length);
   for (const [i, name] of AGENTS.entries()) await expect(radios.nth(i)).toHaveAccessibleName(name);
 
-  await expect(ui.locator('#handover').getByRole('list', { name: 'Goes along' })).toHaveText(/^task-\d+.*the whole conversation$/s);
-  await ui.locator(`#handover [data-agent="${b.id}"] [role="radio"]`).click();
-  await ui.locator('#handoverstart').click();
+  await expect(dialog.getByRole('list', { name: 'Goes along' })).toHaveText(/^task-\d+.*the whole conversation$/s);
+  await dialog.getByRole('radio', { name: 'Fake agent · b@switch.test' }).click();
+  await dialog.getByRole('button', { name: 'Hand over' }).click();
   await expect.poll(async () => JSON.stringify(await tabs()) === '["bash","Pay with cards","Fake agent *"]' && (await newest()).pty, { timeout: 20000 }).toBe(true);
   const handed = (await newest()).id;
   const pty = await core((k, w) => { const t = k.shell.taskByKey(w.key).terminals.get(w.id); return { agent: t.agent.id, cols: t.pty.spawnSize.cols, last: t.pty.spawnArgs.at(-1) }; }, { key, id: handed });
@@ -150,13 +150,13 @@ test("+ opens any of the project's accounts, a new conversation in a tab of its 
         - menuitem "Close"
     `);
     await choose(ui, 'Change agent…');
-    await expect(ui.locator('#handover').getByRole('radio').first()).toBeAttached();
-    await ui.locator(`#handover [data-agent="${b.id}"] [role="radio"]`).click();
-    await ui.locator('#handoverstart').click();
+    await expect(dialog.getByRole('radio').first()).toBeAttached();
+    await dialog.getByRole('radio', { name: 'Fake agent · b@switch.test' }).click();
+    await dialog.getByRole('button', { name: 'Hand over' }).click();
     await expect.poll(async () => (await tabs()).length === 4 && (await newest()).pty, { timeout: 20000 }).toBe(true);
     await expect(progress).not.toHaveText('');
     const next = (await newest()).id;
-    if (how === 'waiting') await hook(next, 'waiting'); else await ui.locator('#handovershow').click();
+    if (how === 'waiting') await hook(next, 'waiting'); else await dialog.getByRole('button', { name: 'Show now' }).click();
     await expect(dialog).toHaveCount(0);
     await expect.poll(async () => (await tabs()).at(-1).endsWith(' *')).toBe(true);
     const closed = act(ui, 'terminal:close', { id: next });
@@ -194,7 +194,7 @@ test("+ opens any of the project's accounts, a new conversation in a tab of its 
   await expect(launchers).toHaveCount(3);
   for (const [i, [name, email, title]] of [['Fake agent', 'a@switch.test', 'Fake agent · a@switch.test'], ['Fake agent', 'b@switch.test', 'Fake agent · b@switch.test'], ['Terminal', '', 'Terminal']].entries()) {
     await expect(launchers.nth(i)).toHaveAccessibleName(name);
-    await (email ? expect(launchers.nth(i).locator('small')).toHaveText(email) : expect(launchers.nth(i).locator('small')).toHaveCount(0));
+    await expect(launchers.nth(i)).toHaveText(name + email);
     await expect(launchers.nth(i)).toHaveAttribute('title', title);
   }
   // Under them the project's profiles, a tile each.

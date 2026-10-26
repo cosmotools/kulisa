@@ -241,7 +241,7 @@ then named "Checkout redesign":
 ### The Resources island
 
 Next to the terminal, the task's **resources** (what it has, uses or created), each a row with its actions
-(`Resources.vue`, a panel of the grid: [window.md](window.md), The grid; `Task.resources`, in the task's info):
+(`grid/Resources.tsx`, a panel of the grid: [window.md](window.md), The grid; `Task.resources`, in the task's info):
 
 - A **worktree** per repository the task has made its own (`task_worktree` for the default one,
   `task_add_repository` for another): its name and branch; a click opens its folder. An added repository's is removed
@@ -482,7 +482,7 @@ project's accounts, the default first) opens always a **new conversation**. Each
   numbered, each with its tab's name, agent, open or closed, when, and the human's first and last request; then the one
   asked for, whole ([transcripts.md](transcripts.md)).
 - **Handing the task over** is the human's click: the agent's icon on its tab (or **Change agent…** in its tab's or
-  terminal's menu) opens **Change Agent** (`HandOver.vue`): the agent it comes from and the one chosen, between them
+  terminal's menu) opens **Change Agent** (`fluent/HandOver.tsx`): the agent it comes from and the one chosen, between them
   what goes along (the branch, open profiles, their tabs, shells, the conversation), under them the project's
   accounts (the same one too, "afresh"; another agent's first: a limit is the usual reason) and what stays behind.
   Hand over: the one chosen opens in a new tab, in front under the dialog (a tab behind has no size, and its terminal
