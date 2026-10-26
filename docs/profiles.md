@@ -1,11 +1,11 @@
 # Profiles
 
 How profiles work today: what the human and the agent do with them, what is on the computer, how sign-ins are kept,
-how automation reaches the pages, and where the code is. What is next: [ROADMAP.md](ROADMAP.md). Keep this file current when profiles change.
+how automation reaches the pages, and where the code is. What is next: [ROADMAP.md](ROADMAP.md).
 
 ## What a profile is
 
-A **profile** (the word Chrome uses; not "persona", "user" or "account") is one embedded browser identity: its own
+A **profile** is one embedded browser identity: its own
 cookies, storage, sign-ins and tabs, shown as a pane in the grid. One profile is one user of the app under test
 ("sam@shop.com", "ann.admin"); several profiles side by side are several users at once.
 
@@ -42,8 +42,7 @@ A profile is an Electron session on a folder of its own (`session.fromPath`), la
   pane's menu open it, the latter at that profile; `settings/ProfilePage.vue`): every
   profile in Settings' tree, under Profiles, the chosen one's page on the right, each field saved on Enter or
   leaving it: **Picture**, **Name**, **About**, **Test login** and **Test password**, **Sign In…** (its master's
-  window, below) and the projects it is in. It is the human's one place for who a profile is: a profile is the same
-  in every project and task.
+  window, below) and the projects it is in: the human's one place for who a profile is.
 - **Create** there: the + beside Profiles in the tree, its name typed in place under it, Enter: in no project yet, the next free picture, empty and signed
   out; a project's page adds it (+ → Other Profiles). Or on a project's page (+ → New Profile…: in that project).
   Names of profiles, projects and tasks take letters (any language), digits and `@ . _ + -`, as an email
@@ -59,13 +58,12 @@ A profile is an Electron session on a folder of its own (`session.fromPath`), la
   tool, Playwright or picker reaches it, and no sign-in pause is needed). Closed, its tabs and sign-ins are saved;
   its cookies reach every task's copy of the profile (below, "Sign-ins kept in step"). Signing in to a real account in a
   task's pane reaches the master and the other tasks too; to a local app, that task only (each task runs its own copy
-  of the app): a task's copy made before its master signed in to a local app is signed in there in its own pane. Only the human signs in: Kulisa never types
-  passwords or automates a sign-in, and never prints or logs cookies or tokens (CLAUDE.md, Rules).
+  of the app): a task's copy made before its master signed in to a local app is signed in there in its own pane.
 - **Rename**: Settings → Profiles, its Name. Only the name changes; the id, the folders (sign-ins), tabs and place stay.
 - **Who it is** (the description): a few words on who the profile is in the app under test, its role, what it can do
   ("seller in the Acme shop; can approve refunds"), Settings → Profiles' About. Agents
-  choose profiles by it: a name says which account is signed in, not who that is in the tests. Optional, and the
-  dialog says so, with what it is for: left empty, the agent asks the human when a task needs to know and saves the
+  choose profiles by it: a name says which account is signed in, not who that is in the tests. Optional, and its
+  hint says so, with what it is for: left empty, the agent asks the human when a task needs to know and saves the
   answer (below). At most 500 characters; shown under the name in the task tab's right-click menu and when pointing at the pane's name.
   The human's own words, never rewritten by an AI: the reader is an agent, which understands them as they are, and a
   rewrite would add what the human did not say.
@@ -134,8 +132,8 @@ What the tools are for, beyond acting as one user:
   agent's click, key or navigation opens are answered as it asks (`dialog: accept`), else dismissed, the safe
   answer, and none is shown; the result says what the page asked. Others stay for the human; one answered over CDP
   by another client (an agent's own script) leaves the pane too. While one is open the page does nothing (its JS waits,
-  as in Chrome), so the agent's tools on that tab say so at once instead of waiting for it. Its look is Chrome's
-  (smaller and plainer than Kulisa's own dialogs), as everything in the pane: it is the page's.
+  as in Chrome), so the agent's tools on that tab say so at once instead of waiting for it. Its look is Chrome's,
+  not Kulisa's dialogs': it is the page's.
 - **Signing in stays the human's** (Rules): `profile_ask_signin` shows the request over the pane ("sign in,
   please: …"), optionally opens the app's sign-in page first (the window's way, `Profile.navigate`: a sign-in page
   puts the profile in sign-in mode, which cuts Playwright off), and waits until the human is through: the profile
@@ -171,8 +169,7 @@ page gets the keys typing sends (suggestions, checks as one types). A text over 
 is filled at once (`TYPED_MAX`, `kulisa-plugin/tools/browser.ts`). Letters not on a US keyboard come as typed text, without key codes
 (Playwright's way).
 
-The agent learns how to work with profiles from the Kulisa plugin (CLAUDE.md, Architecture):
-the profiles skill (`src/agent/skills/profiles/SKILL.md`; keep it in step with the tools), one text for every agent,
+The agent learns how to work with profiles from the Kulisa plugin: the profiles skill (`src/agent/skills/profiles/SKILL.md`; keep it in step with the tools), one text for every agent,
 written into each account's folder where its agent reads its skills (`kulisa-profiles`), and for Claude Code a plugin
 with the MCP config (`src/agent/claude-plugin/`, `claude --plugin-dir`). Every agent gets Kulisa's hooks at its start (a table in
 its file, `agents/`), among them `SessionStart`, which tells the agent which profiles are open and tells Kulisa its
@@ -257,7 +254,7 @@ two tasks changing the same cookie at once end with the one that came last.
 ## Test users' sign-ins
 
 Real accounts are the human's to sign in to (Rules); a **test user of the app under test on this computer** is the
-agent's, so it can sign up, sign in and sign out as many users as the tests need without asking. How it is kept safe, each line with its reason:
+agent's, so it can sign up, sign in and sign out as many users as the tests need without asking. Kept safe so:
 
 - **A pair per profile** (`profile-store.ts`, `login`): a login and a password. Set by the human (Settings → Profiles'
   Test login and Test password) or the agent (`profile_set_login`, after it signed that user up). The password is
@@ -294,8 +291,7 @@ Each profile's tabs are saved in its folder (`Kulisa Tabs.json`: their addresses
 every change of its task and as Kulisa quits, and opened again at the next start, the one in front again in front,
 as Chrome does (a master's the same; `Profile.savedTabs`, `openTabs`).
 
-Saving often means a moment with no tabs, saved, loses them all: the profiles come back on `about:blank`. Two such
-moments are kept from being saved:
+A moment with no tabs, saved, loses them all: the profiles come back on `about:blank`. Two such moments are not saved:
 
 1. **A profile still opening** (its session cookies restored before its tabs open) is saved as what it opens, not as
    the none it has yet (`ProjectProfiles.saveTabs`; test in `grid.spec.ts`).
@@ -311,9 +307,9 @@ pages.
 
 ## Tabs unloaded
 
-A tab no one looks at loses its process after a while, as Chrome's Memory Saver discards tabs (with several projects open, each with several profiles, every tab of them is a Chromium process whether anyone looks
-at it or not). What stays is the tab's entry in the strip: its address, title and icon, as they were, nothing
-marks it (Chrome marks none either). Looked at or used again, its page loads again at that address.
+A tab no one looks at loses its process after a while, as Chrome's Memory Saver discards tabs (every tab is a
+Chromium process whether anyone looks at it or not). What stays is the tab's entry in the strip: its address, title
+and icon, nothing marking it (as Chrome). Looked at or used again, its page loads again at that address.
 
 - **Off screen** is a tab that is not the active tab of a pane on screen in the task shown in some window: a tab behind
   the active one, a pane stacked behind another, every tab of a task not shown.
@@ -350,12 +346,12 @@ that the human is signing in. When no tab is on one, the shell's connection come
 host (`signin-pages.ts`: Microsoft, Google, GoDaddy, Okta, OneLogin, Auth0, Duo, PingOne, Salesforce; more with
 `KULISA_SIGNIN_HOSTS`). Some sign-ins (GoDaddy SSO behind Kasada) pass only so: Kasada judges the sign-in itself, with
 automation attached at that moment; once signed in, the agent reattaches and works in the session without being
-blocked. `signin-pause.ts` is a deliberately temporary implementation; the author will replace it (CLAUDE.md, Rules).
+blocked.
 
-Why so, and why temporary: the agent's presence in a profile is not automation of a sign-in
-(Kulisa is not a bot: [README](../README.md), Why); the pause exists only because such a service refuses a sign-in with
-automation attached at that moment, and goes once it is understood how the embedded browser passes it with the agent
-attached. Not by hiding the agent from bot detection: Kulisa does not get past it.
+`signin-pause.ts` is deliberately temporary (CLAUDE.md, Rules): the agent's presence in a profile is not automation of
+a sign-in (Kulisa is not a bot: [README](../README.md), Why); the pause goes once it is understood how the embedded
+browser passes such a service with the agent attached. Not by hiding the agent from bot detection: Kulisa does not get
+past it.
 
 ## What sites see
 
@@ -364,7 +360,7 @@ Profiles present themselves as what they are: Kulisa on Chromium, Electron's Use
 (Chromium, not Google Chrome); `navigator.webdriver` stays false, as no automation port is open. Without Electron's
 word: Teams takes a Mac's or Windows' User-Agent with it for its own retired desktop app (built on Electron) and
 shows "Classic Teams is no longer available" (`/error/eoa`) instead of its sign-in; Linux's, and a Mac's without it,
-get the sign-in (checked in a bare Electron, one change at a time).
+get the sign-in.
 Not as Google Chrome: Google refuses to sign in a profile that presents as Chrome ("This browser or app may not be
 secure") and lets Electron's own Chromium in, with a debugger attached too; GoDaddy's Kasada needs only the sign-in
 pause.
@@ -386,8 +382,7 @@ only and refuse requests from web pages (`local-only.ts`). Why the tools are Kul
 each, while profiles come and go and an agent's servers are fixed at its start); the core's rules live in the tools
 (the sign-in pause, dialogs, captions and highlights over the pane, the human's tabs); and a tool running the agent's
 own Playwright code cannot run in Electron's main process (`vm` is no boundary), while in a process of its own it is
-what the agent already does with a script through the proxy. Each tool is a few lines of Playwright; most of their size
-is the descriptions the agent reads.
+what the agent already does with a script through the proxy.
 
 ## What is on the computer
 
