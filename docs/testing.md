@@ -219,8 +219,8 @@ env -i PATH=$(dirname $(which node)):/usr/bin:/bin HOME=$H TMPDIR=$H XDG_CURRENT
   require, green only when its OS's checks and shards are, so the rulesets do not change; it merges the shards' blob
   reports into one HTML report and `junit.xml`, flaky tests included.
 - **Caches** keep a shard's setup under a minute: npm's (`setup-node`), Electron's download (by its version in
-  `package-lock.json`), the apt packages (Xvfb, openbox, the keyring). macOS's `displayplacer` comes from brew each
-  time.
+  `package-lock.json`). The apt packages (Xvfb, openbox, the keyring) are installed each time: a cache of the
+  packages does not bring `gnome-keyring-daemon` back. macOS's `displayplacer` comes from brew each time.
 - **Not used**: a runner image of our own (larger runners are paid; a Docker image runs on Linux only); a self-hosted
   runner (the repository is public: a fork's pull request would run its code on it); several workers on one macOS or
   Windows screen (the focus, above).
