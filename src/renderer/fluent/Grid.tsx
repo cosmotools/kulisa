@@ -1,7 +1,7 @@
 // The grid of the shown task (lib/grid.ts; docs/window.md, The grid): dockview's panels, flat, split by hairlines. A
 // profile's page is a native view over its pane's content, square as the pane is. While no profile is open and a
 // terminal is, the closed profiles' buttons over it.
-import { useContext, useRef, type CSSProperties } from 'react';
+import { useContext, useEffect, useRef, type CSSProperties } from 'react';
 import { DockviewReact, type DockviewTheme } from 'dockview-react';
 import 'dockview-react/dist/styles/dockview.css';
 import { Avatar, Button, makeStaticStyles, makeStyles, tokens } from '@fluentui/react-components';
@@ -9,7 +9,7 @@ import { PlusIcon } from 'lucide-react';
 import { ProfilePane, ProfileHeader } from './grid/ProfilePane';
 import { Terminals, TerminalsHeader } from './grid/Terminals';
 import { Resources, ResourcesHeader } from './grid/Resources';
-import { gridMounted } from '../lib/grid';
+import { gridMounted, gridUnmounted } from '../lib/grid';
 import { useWindow } from '../lib/store';
 import { profileLaunchers } from '../lib/profiles';
 import { useStrip } from '../lib/strip';
@@ -70,6 +70,7 @@ function ClosedProfiles() {
 
 export function Grid() {
   useSlide();
+  useEffect(() => gridUnmounted, []);
   const t = useContext(ThemeShown), styles = useStyles(), loading = useWindow((s) => s.loading);
   const folded = useWindow((s) => !!s.current && !s.profiles.length && s.terminals.list.length > 0);
   const vars = {

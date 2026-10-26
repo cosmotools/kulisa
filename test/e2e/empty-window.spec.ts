@@ -22,11 +22,7 @@ test("the empty window: Close All Tasks in the project's submenu; links in ☰ o
   await ui.keyboard.type('typed');
 
   const sub = await projectMenu(ui);
-  await expect(sub).toMatchAriaSnapshot(`
-    - /children: contain
-    - separator
-    - menuitem "Close All Tasks"
-  `);
+  // Fluent's divider is presentational: no separator in the tree, so the row's place is checked as the last one.
   await expect(sub.getByRole('menuitem').last()).toHaveAccessibleName('Close All Tasks');
   await choose(ui, 'Close All Tasks', sub);
   await expect.poll(() => core((k) => k.shell.task === null && !k.shell.current)).toBe(true);

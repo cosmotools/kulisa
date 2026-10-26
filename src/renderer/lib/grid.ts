@@ -16,7 +16,9 @@ export const panes = new Map<string, PaneHandle>();
 
 let api: DockviewApi | null = null;
 let gotApi: (a: DockviewApi) => void;
-const apiReady = new Promise<DockviewApi>((r) => (gotApi = r));
+let apiReady: Promise<DockviewApi>;
+const awaitApi = () => { apiReady = new Promise<DockviewApi>((r) => (gotApi = r)); };
+awaitApi();
 let gridReady: Promise<void> | null = null;
 let leaving: Promise<void> | null = null; // the grid being taken down, before the next one is built
 let sliding: { transition: ViewTransition; built: () => void } | null = null; // a switch as a view transition, until the next grid is built
@@ -47,6 +49,9 @@ export function gridMounted(a: DockviewApi) {
   gotApi(a);
 }
 let flushSave = () => {};
+// Grid.tsx gone (the window left with no task: the empty window): the next grid is built in the next dockview, not
+// into the one gone.
+export function gridUnmounted() { api = null; awaitApi(); gridReady = null; flushSave = () => {}; }
 document.addEventListener('dragend', unfreeze, true);
 document.addEventListener('drop', () => setTimeout(unfreeze), true);
 
@@ -232,6 +237,7 @@ function syncGrid() {
     // arrangements (a terminal as tall as the pages was mostly empty). Once the closed profiles' tiles have gone: the
     // room they leave went to the terminal (dockview resizing after its share was set), 45% of the grid.
     if (!last) requestAnimationFrame(() => {
+      if (api !== a || !a.getPanel('terminal')) return; // the grid taken down meanwhile (the task left)
       const { w, h } = room();
       a.layout(w, h);
       groupOf('terminal').setSize({ height: Math.round(h * TERMINAL_SHARE) });
