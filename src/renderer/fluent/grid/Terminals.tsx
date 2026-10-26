@@ -166,7 +166,7 @@ export function TerminalsHeader({ api }: IDockviewPanelHeaderProps) {
   const list = useWindow((s) => s.terminals.list), front = useWindow((s) => s.terminals.front);
   const task = useWindow((s) => s.current), lang = useWindow((s) => s.language?.language);
   const row = useRef<HTMLDivElement>(null), strip = useRef<HTMLElement>(null);
-  useStrip(strip, front);
+  const stripClass = useStrip(strip, front);
   // dockview's tab grows to its content: the row would run past the panel, its + and microphone with it.
   useEffect(() => { const tab = row.current?.closest<HTMLElement>('.dv-tab'); if (tab) Object.assign(tab.style, { minWidth: '0', flexShrink: '1' }); }, []);
   const tabMenu = (e: MouseEvent) => {
@@ -177,7 +177,7 @@ export function TerminalsHeader({ api }: IDockviewPanelHeaderProps) {
   return <div ref={row} data-panel={api.id} data-testid="terminal-tabs" hidden={!list.length}
     style={{ display: list.length ? 'flex' : 'none', alignItems: 'center', gap: 4, height: '100%', minWidth: 0, padding: '0 4px' }}>
     <RightClickMenu items={tabMenu}>
-      <nav ref={strip} aria-label="Terminals" onDragStart={noDrag} style={{ minWidth: 0, overflowX: 'auto', scrollbarWidth: 'none' }}>
+      <nav ref={strip} className={stripClass} aria-label="Terminals" onDragStart={noDrag}>
         <TabList size="small" reserveSelectedTabSpace={false} selectedValue={front === null ? undefined : String(front)}
           onTabSelect={(_, d) => void act('terminal:show', { id: Number(d.value) })}>
           {list.map((t) => {

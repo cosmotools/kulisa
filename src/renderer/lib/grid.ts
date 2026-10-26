@@ -11,7 +11,7 @@ import { forgetTerminals } from '../../terminal/renderer';
 
 const panelId = (id: string) => `profile:${id}`;
 // What the window does with a mounted pane (fluent/grid/ProfilePane.tsx), by its profile's id.
-export interface PaneHandle { content: HTMLElement; focusAddress(): void; newTab(): void }
+export interface PaneHandle { content: HTMLElement; focusAddress(): void; newTab(): void; pick(): void }
 export const panes = new Map<string, PaneHandle>();
 
 let api: DockviewApi | null = null;

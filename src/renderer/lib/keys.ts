@@ -16,7 +16,7 @@ const zoneOf = (el: Element | null) => {
   if (dialogsShown()) return 'dialog'; // its keys are its own, wherever its focus is
   if (!el || el === document.body) return 'window';
   if (el.closest('[data-zone="terminal"]')) return 'terminal';
-  const pane = el.closest<HTMLElement>('.pane');
+  const pane = el.closest<HTMLElement>('[role="region"][data-profile]');
   return pane ? `pane:${pane.dataset.profile}` : 'window';
 };
 const report = () => {
@@ -61,8 +61,7 @@ const run: Record<string, (c: Command) => unknown> = {
   'tab.previous': (c) => toTab(c, (i, n) => (i - 1 + n) % n),
   'tab.n': (c) => toTab(c, (_i, n) => (c.n! <= n ? c.n! - 1 : -1)),
   'tab.last': (c) => toTab(c, (_i, n) => n - 1),
-  // As a click on Pick: off on an empty tab; again cancels.
-  pick: ({ p }) => document.querySelector<HTMLButtonElement>(`.pane[data-profile="${CSS.escape(p!.id)}"] .pick`)?.click(),
+  pick: ({ p }) => panes.get(p!.id)?.pick(),
   screenshot: ({ p }) => screenshot(p!.id, 'element'),
 };
 // The bar's tasks, in its order.

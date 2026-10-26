@@ -803,5 +803,5 @@ rm -rf ~/.config/Kulisa/projects/<project id>   # all its tasks with their profi
 | `src/shared/names.ts` | the rules for names (projects and profiles; a task's, a label) and slugs |
 | `src/main/accounts.ts`, `src/renderer/fluent/SignIn.tsx` | the agents' accounts, one store; a new one's sign-in in Settings (a project's page, or Agents), and New Project's |
 | `src/main/recognizer.ts` | which account recognizes speech for an agent without dictation of its own ([src/dictation](../src/dictation/README.md)), its session's folder |
-| `src/renderer/lib/grid.ts`, `components/Grid.vue` | building a task's grid; the slide (a view transition) |
+| `src/renderer/lib/grid.ts`, `fluent/Grid.tsx` | building a task's grid; the slide (a view transition) |
 | `test/e2e/tasks*.spec.ts`, `taskbar.spec.ts`, `projects*.spec.ts`, `project-repositories.spec.ts`, `empty-window.spec.ts`, `agents*.spec.ts`, `masters.spec.ts`; `test/unit/agents.test.ts` | the tests |

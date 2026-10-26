@@ -64,7 +64,7 @@ test("grid: a narrow pane's bar gives up Back and Forward, then Reload, into ⋮
   // The bar's controls shown, each its name, ' out' when it is not inside the pane.
   const bar = async () => {
     const p = await ui.locator(pane).boundingBox(), names: string[] = [];
-    for (const e of await ui.locator(`${pane} [role="toolbar"] > :is(button, input):not([hidden])`).filter({ visible: true }).all()) {
+    for (const e of await ui.locator(`${pane} [role="toolbar"] :is(button, input)`).filter({ visible: true }).all()) {
       const r = await e.boundingBox({ timeout: 1000 });
       names.push(await e.getAttribute('aria-label') + (r.x >= p.x && r.x + r.width <= p.x + p.width ? '' : ' out'));
     }
@@ -80,20 +80,21 @@ test("grid: a narrow pane's bar gives up Back and Forward, then Reload, into ⋮
     await expect.poll(bar, { timeout: 3000, message: `${w} px` }).toEqual(shown);
   };
   await at(400, ['Back', 'Forward', 'Reload', 'Address', 'Pick an element', 'More']);
+  const shots = `
+      - text: Screenshot
+      - menuitem /^Element/
+      - menuitem "Visible Part"
+      - menuitem "Full Page"
+      - menuitem /^DevTools/`;
   await more(`
-    - menu:
-      - menuitem "Screenshot"
-      - menuitem "DevTools"`);
+    - menu: ${shots}`);
   await at(240, ['Reload', 'Address', 'Pick an element', 'More']);
   await at(100, ['Address', 'Pick an element', 'More']);
   await more(`
     - menu:
-      - menuitem "Back"
-      - menuitem "Forward"
-      - menuitem "Reload"
-      - separator
-      - menuitem "Screenshot"
-      - menuitem "DevTools"`);
+      - menuitem /^Back/
+      - menuitem /^Forward/
+      - menuitem /^Reload/ ${shots}`);
   await dock(ui, (api, a) => api.getPanel(a.panel).group.api.setSize({ width: a.width }), { panel, width });
 });
 

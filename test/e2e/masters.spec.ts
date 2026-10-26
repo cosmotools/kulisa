@@ -17,7 +17,7 @@ async function closeMaster(core: Core) {
 
 test("Sign In to Master… opens its master in a window of its own, nothing automated on it; a task's copy made before keeps its own sign-in to a local app", async ({ core, ui, call, files }) => {
   const { sam } = await begin(core, ui, files);
-  await rightClick(ui, `[data-panel="profile:${sam}"] b`);
+  await rightClick(ui, ui.locator(`[data-panel="profile:${sam}"]`).getByTestId('profile-name'));
   await choose(ui, 'Sign In to Master…');
   await oneMaster(core);
   const m = await core(async (k) => {
@@ -41,7 +41,7 @@ test("Sign In to Master… opens its master in a window of its own, nothing auto
 
 test("About this profile… opens Settings' window at it (one, not modal: the task's window takes input and comes in front of it, its pages on screen); its Sign In… opens the same master window, once", async ({ core, ui, sui, files }) => {
   const { sam, elon } = await begin(core, ui, files);
-  await rightClick(ui, `[data-panel="profile:${sam}"] b`);
+  await rightClick(ui, ui.locator(`[data-panel="profile:${sam}"]`).getByTestId('profile-name'));
   await choose(ui, 'About this profile…');
   const s = await sui();
   const name = s.getByRole('textbox', { name: 'Name', exact: true });
@@ -61,7 +61,7 @@ test("About this profile… opens Settings' window at it (one, not modal: the ta
   expect(await core((k, id) => k.shell.settings?.win.id === id && !k.shell.settings.win.isFocused(), win.id), 'Settings stays open behind it').toBe(true);
   expect(await core((k, id) => k.shell.task.profiles.get(id).get().view.getVisible(), sam), 'pages on screen').toBe(true);
   // Asked again, from another profile's menu: the same window, at that page.
-  await rightClick(ui, `[data-panel="profile:${elon}"] b`);
+  await rightClick(ui, ui.locator(`[data-panel="profile:${elon}"]`).getByTestId('profile-name'));
   await choose(ui, 'About this profile…');
   await expect(name).toHaveValue('Elon.buyer');
   expect(await core((k) => k.shell.settings.win.id)).toBe(win.id);

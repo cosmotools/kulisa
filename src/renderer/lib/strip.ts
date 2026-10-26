@@ -1,19 +1,32 @@
 // A strip of tabs that scrolls sideways when they do not fit (docs/ui.md, Controls): the tasks' bar, a pane's tabs, the
 // closed profiles over the terminal, the terminals' tabs.
-// The element scrolls sideways with no scrollbar (its own style); this module scrolls it by the wheel, fades the edges
-// with tabs past them, keeps its chosen tab (aria-selected) in sight, and grows a panel's tab (.tab) in as it opens.
+// useStrip scrolls it by the wheel, says which edges have tabs past them, keeps its chosen tab (aria-selected) in sight,
+// and grows a panel's tab (data-grow) in as it opens; the class it gives draws that: no scrollbar, its edges faded.
 import { useEffect, useRef, type RefObject } from 'react';
+import { makeStyles } from '@fluentui/react-components';
 import { reducedMotion } from './common';
 
-const FADE = 24; // px: as wide as the strip's scroll-padding, so the tab in sight is clear of it
+const FADE = '24px';
+// A mask takes alpha alone, hence the literal color. A tab brought into view clears the fade (scroll-padding).
+const useStyles = makeStyles({
+  strip: {
+    overflowX: 'auto', scrollbarWidth: 'none', scrollPaddingInline: FADE, minWidth: 0,
+    maskImage: 'linear-gradient(to right, transparent, #000 var(--fade-start, 0px), #000 calc(100% - var(--fade-end, 0px)), transparent)',
+    '&[data-past-start]': { '--fade-start': FADE }, '&[data-past-end]': { '--fade-end': FADE },
+    // opened: it grows in from the left, as Chrome's
+    '& > [data-opening]': {
+      overflow: 'hidden', animationName: { from: { width: 0, minWidth: 0, paddingInline: 0 } }, animationDuration: '.2s',
+      animationTimingFunction: 'cubic-bezier(.2, .8, .2, 1)', '@media (prefers-reduced-motion: reduce)': { animationName: 'none' },
+    },
+  },
+});
+
 // What a strip element does, until dispose().
 function strip(s: HTMLElement) {
   // Which edges have tabs past them (data-past-start, data-past-end), faded.
   const edges = () => {
-    const start = s.scrollLeft > 1, end = s.scrollLeft < s.scrollWidth - s.clientWidth - 1;
-    s.toggleAttribute('data-past-start', start);
-    s.toggleAttribute('data-past-end', end);
-    s.style.maskImage = start || end ? `linear-gradient(to right, transparent, #000 ${start ? FADE : 0}px, #000 calc(100% - ${end ? FADE : 0}px), transparent)` : '';
+    s.toggleAttribute('data-past-start', s.scrollLeft > 1);
+    s.toggleAttribute('data-past-end', s.scrollLeft < s.scrollWidth - s.clientWidth - 1);
   };
   // The active tab in sight, clear of the fades (scroll-padding), the strip alone scrolled (scrollIntoView moved the
   // window's grid once, docs/window.md). Only when another is chosen, a tab grows in or the strip is resized: on
@@ -27,11 +40,11 @@ function strip(s: HTMLElement) {
     edges(); // at once: the scroll event comes a frame later
   };
   // A panel's tab added to a strip that has tabs (not the first ones, nor a strip drawn whole) grows in from the left,
-  // as Chrome's: data-opening until its animation ends, then brought into sight. An attribute, not a class: the tab's
-  // :class would write over a class. With reduced motion it does not grow, so no animation ends: in sight at once
+  // as Chrome's: data-opening until its animation ends, then brought into sight. An attribute, not a class: React
+  // writes the tab's className over one. With reduced motion it does not grow, so no animation ends: in sight at once
   // (else it stays opening, and out of sight).
   const opened = (t: Element) => {
-    if (!t.matches('.tab')) return;
+    if (!t.matches('[data-grow]')) return;
     if (reducedMotion.matches) { requestAnimationFrame(reveal); return; }
     t.setAttribute('data-opening', '');
     t.addEventListener('animationend', () => { t.removeAttribute('data-opening'); reveal(); }, { once: true });
@@ -63,8 +76,9 @@ function strip(s: HTMLElement) {
   return { reveal, dispose() { resized.disconnect(); grown.disconnect(); tabs.disconnect(); s.removeEventListener('wheel', wheel); s.removeEventListener('scroll', edges); } };
 }
 
-// ref: the strip's element; active: what changes when another tab is chosen (its key).
+// ref: the strip's element; active: what changes when another tab is chosen (its key). The strip's class.
 export function useStrip(ref: RefObject<HTMLElement | null>, active: unknown) {
+  const styles = useStyles();
   const shown = useRef<ReturnType<typeof strip> | null>(null);
   useEffect(() => {
     if (!ref.current) return;
@@ -72,4 +86,5 @@ export function useStrip(ref: RefObject<HTMLElement | null>, active: unknown) {
     return () => { it.dispose(); shown.current = null; };
   }, [ref]);
   useEffect(() => { const f = requestAnimationFrame(() => shown.current?.reveal()); return () => cancelAnimationFrame(f); }, [active]);
+  return styles.strip;
 }

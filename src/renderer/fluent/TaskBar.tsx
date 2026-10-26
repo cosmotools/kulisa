@@ -78,7 +78,7 @@ export function TaskBar() {
   const tabs = all.tabs.flatMap((t) => { const p = byId.get(t.project); return p ? [{ t, p }] : []; });
   const strip = useRef<HTMLDivElement>(null);
   // More tabs than fit: the wheel scrolls them, the edges with tabs past them fade, the shown one stays in sight.
-  useStrip(strip, current);
+  const stripClass = useStrip(strip, current);
 
   // A press on another tab makes it the chosen one at once, as Chrome's; its task is shown when the button is let go or
   // the tab starts being dragged (pointercancel), whichever comes first: the grid's slide that showing it starts makes
@@ -169,10 +169,10 @@ export function TaskBar() {
   return <nav id="taskbar" aria-label="Open tasks" style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0, justifySelf: 'center',
     maxWidth: '100%', boxSizing: 'border-box', padding: top ? 0 : '4px 8px', WebkitAppRegion: top ? 'no-drag' : undefined } as CSSProperties}>
     <RightClickMenu items={menu} style={{ display: 'flex', minWidth: 0 }}>
-      <TabList id="projectTabs" ref={strip} size="small" reserveSelectedTabSpace={false} selectedValue={pressed ?? current ?? ''}
+      <TabList id="projectTabs" ref={strip} className={stripClass} size="small" reserveSelectedTabSpace={false} selectedValue={pressed ?? current ?? ''}
         onTabSelect={(_, d) => onTabSelect(String(d.value))}
         onPointerDown={onPointerDown} onAuxClick={onAuxClick} onDoubleClick={onDoubleClick} {...drag}
-        style={{ flex: '0 1 auto', minWidth: 0, flexWrap: 'nowrap', overflowX: 'auto', scrollbarWidth: 'none', scrollPaddingInline: 24 }}>
+        style={{ flex: '0 1 auto', flexWrap: 'nowrap' }}>
         {tabs.map(({ t, p }) => {
           const color = projectColor(p), at = mark?.key === t.key ? mark.side : undefined;
           // × on every tab, as Chrome's: in the tab, its own click (not the tab's), never the tab's press

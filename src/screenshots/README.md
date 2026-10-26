@@ -119,7 +119,7 @@ same connection, are not captioned: `ghost.ts` asks `takenByHuman`.
 
 Outside, using it: `Profile.screenshot` (`src/main/profiles.ts`), `browser_screenshot`
 (`src/main/kulisa-plugin/tools/browser.ts`), `takenByHuman` in `ghost.ts`; the human's `tab:screenshot`
-(`src/main/ipc/panes.ts`), `chooseElement` (`picker.ts`), the key (`keys.ts`), ⋮ → Screenshot (`ProfilePane.vue`) and
+(`src/main/ipc/panes.ts`), `chooseElement` (`picker.ts`), the key (`keys.ts`), ⋮ → Screenshot (`src/renderer/fluent/grid/ProfilePane.tsx`) and
 `screenshot` (`src/renderer/lib/store.ts`); the window's `thumbnails` (`window.ts`: made, placed, hidden, closed),
 `<Thumbnail />` and `thumbnailMenu(menuAtPoint)` (`fluent/App.tsx`), `Task.typeForAgent` (Send to Agent, as Pick), the page's
 shell `src/renderer/thumbnail.html` (`vite.config.mts`). Its e2e tests, on the test site's `/tall`:

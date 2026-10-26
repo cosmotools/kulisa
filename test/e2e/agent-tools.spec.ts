@@ -187,7 +187,7 @@ test('agent: keys, hover, select, files, waiting, evaluate, back and forward; di
   // The agent's action answers its own dialog: none is shown.
   const view = () => core((k) => k.profile('Sam.seller').get().view.getVisible());
   const pane = ui.locator(`[role="region"][data-profile="${sam}"]`), paneDialog = pane.getByRole('dialog');
-  const openDialog = pane.locator('[role="dialog"][data-state="open"]');
+  const openDialog = paneDialog;
   expect((await call('browser_click', del)).text).toMatch(/asked: confirm "Delete the draft\?"; dismissed/);
   expect(await out()).toBe('kept');
   expect((await call('browser_click', { ...del, dialog: 'accept' })).text).toMatch(/accepted/);

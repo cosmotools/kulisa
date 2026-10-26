@@ -84,13 +84,13 @@ A window made narrower or wider changes every panel in its share, as VS Code's a
 [1691](https://github.com/dockview/dockview/issues/1691), [1692](https://github.com/dockview/dockview/issues/1692)).
 
 A pane's header (its profile's picture, name and ×) shrinks with the pane: a longer name is cut with …, the whole and
-the profile's description in its tooltip, and the × stays (`ProfileHeader.vue`).
+the profile's description in its tooltip, and the × stays (`ProfileHeader`, `fluent/grid/ProfilePane.tsx`).
 
-**No profile open, a terminal open**: the profiles' room folds to a row of buttons over the grid (`grid/ClosedProfiles.tsx`):
-a button per closed profile, its picture, name and a + (who it is in its tooltip); a click
+**No profile open, a terminal open**: the profiles' room folds to a row of buttons over the grid (`ClosedProfiles` in `Grid.tsx`,
+`#closedprofiles`): a button per closed profile, its picture and name (who it is in its tooltip); a click
 opens it over the terminal, and the row goes. A project with no profiles has one, Add Profile… (its page in Settings).
 The row is outside dockview: the grid's room is what is left under it (`room()`, `lib/grid.ts`). More than fit scroll
-(`.tabstrip`, [ui.md](ui.md); `#dock` keeps `min-width: 0`, or many profiles stretch the window's column, the terminal
+(`useStrip`, `lib/strip.ts`; `#dock` keeps `min-width: 0`, or many profiles stretch the window's column, the terminal
 and the tasks' bar past its edge). With no terminal either, they are the second row of the big buttons (The terminal).
 Nothing opens by itself: the agent opens a profile when it needs it (`profile_open`). Not on the task's tab (no place
 for profiles), nor in the terminals' row (it folds with the island).
@@ -146,7 +146,7 @@ it when it changes). Saved (`settings.json`), the same in every window.
 - CSS does it: each color token is `light-dark(light, dark)` (tokens.css), and the choice is `data-theme` on the
   page's root, which sets `color-scheme`: `dark`, `light`, or `light dark` for System. The browser's own controls
   (fields, scrollbars) follow. The choice comes in the page's URL, set before the first paint, so a light window never
-  flashes dark. dockview's theme sets `color-scheme: dark` on the grid; `Grid.vue` gives it back the root's.
+  flashes dark. Kulisa's dockview theme (`Grid.tsx`) sets no `color-scheme` of its own, so the grid keeps the root's.
 - What CSS does not paint follows from the main process: the window's background and the OS buttons' strip
   (`window.ts`).
 
@@ -628,7 +628,7 @@ shortcuts carry (`com.squirrel.kulisa.kulisa`), or Windows would not pin it to t
 | `src/main/updates.ts`, `installed.ts`, `forge.config.ts` | updates, Squirrel's events, a new version ready while Kulisa runs (the version installed on disk); the installers and the release |
 | `src/terminal/` | the terminal, a Kulisa package: its pty, its buffers, the xterm shown ([README](../src/terminal/README.md)) |
 | `src/main/file-links.ts` | the paths a terminal names: which exist, opening one or showing it in its folder (The terminal) |
-| `src/renderer/fluent/Grid.tsx`, `fluent/grid/`, `lib/grid.ts` | the grid (dockview), the panes and their headers, the terminals (`grid/Terminals.tsx`: `Terminals`, its row of tabs `TerminalsHeader`), the closed profiles' tiles over it (`grid/ClosedProfiles.tsx`), Arrange panels |
+| `src/renderer/fluent/Grid.tsx`, `fluent/grid/`, `lib/grid.ts` | the grid (dockview), the panes and their headers, the terminals (`grid/Terminals.tsx`: `Terminals`, its row of tabs `TerminalsHeader`), the closed profiles' buttons over it (`ClosedProfiles`, `Grid.tsx`), Arrange panels |
 | `src/renderer/fluent/grid/Resources.tsx` | Resources next to the terminal: the shown task's resources (its worktree(s) or the main working tree) and its artifacts, each with its actions (tasks.md) |
 | `src/renderer/fluent/TopBar.tsx`, `ProjectIcon.tsx` | the title bar, ☰ and its own rows; the logo, a project's icon |
 | `src/renderer/fluent/Menus.tsx`, `PointMenu.tsx`, `Ask.tsx`, `lib/menu.ts`, `cover.ts`, `views.ts`, `ask.ts`, `terminals.ts` | the menus, the dialogs and questions (Fluent UI's: `cover.ts`), the pages under them in a tasks' window (`views.ts`), a tasks' window's terminals (`terminals.ts`) |

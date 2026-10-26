@@ -3,7 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import type { Locator, Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
-import { SITE, PORT, logged, ipcSettled, who, menu, submenu, item, choose, closeMenu, rightClick, manageProfiles, closeSettings, chooseProfile, navRow, shownRow, settingsMenu, termText, invoke, answer, typeIn, removed } from './helpers.ts';
+import { SITE, PORT, logged, ipcSettled, who, menu, choose, closeMenu, rightClick, manageProfiles, closeSettings, chooseProfile, navRow, shownRow, settingsMenu, termText, invoke, answer, typeIn, removed } from './helpers.ts';
 import { profileId, deleteProfile } from './tasks-helpers.ts';
 
 // A PNG's size in pixels, from its header.
@@ -14,14 +14,6 @@ async function openMore(ui: Page, id: string) {
   await expect(async () => {
     if (!(await menu(ui).isVisible())) await ui.locator(`[role="region"][data-profile="${id}"] [aria-label="More"]`).click();
     await expect(menu(ui)).toBeVisible({ timeout: 1500 });
-  }).toPass({ timeout: 10000 });
-}
-// Its submenu (the ⋮ menu's Screenshot) opened as the pointer opens it, on its row: again when it closed meanwhile (the
-// pointer passing where the submenu is still being placed closes it).
-async function openSub(ui: Page) {
-  await expect(async () => {
-    if ((await ui.locator('[role="menu"][data-state="open"]').count()) < 2) await menu(ui).locator('[role="menuitem"][aria-haspopup]').hover();
-    await expect(ui.locator('[role="menu"][data-state="open"]')).toHaveCount(2, { timeout: 1000 });
   }).toPass({ timeout: 10000 });
 }
 
@@ -175,12 +167,16 @@ test("DevTools in a pane's ⋮ menu opens and closes the DevTools of its active 
     await openMore(ui, id);
     await expect(menu(ui)).toMatchAriaSnapshot(`
       - menu:
-        - menuitem "Screenshot"
-        - menuitem "DevTools"
+        - text: Screenshot
+        - menuitem /^Element/
+        - menuitem "Visible Part"
+        - menuitem "Full Page"
+        - menuitem /^DevTools/
     `);
-    // As Chrome's ⋮: under the button, its right edge at the button's, so it stays over its own pane.
+    // As Chrome's ⋮: under the button, its right edge at the button's (within its popover's padding), so it stays over
+    // its own pane.
     const m = await menu(ui).boundingBox(), b = await pane.locator('[aria-label="More"]').boundingBox();
-    expect(Math.abs(m.x + m.width - (b.x + b.width)) < 1 && m.y >= b.y + b.height, JSON.stringify({ m, b })).toBe(true);
+    expect(m.x + m.width <= b.x + b.width && b.x + b.width - (m.x + m.width) < 8 && m.y > b.y + b.height - 1, JSON.stringify({ m, b })).toBe(true);
     // Back, forward, reload, Pick and ⋮ are icon buttons, as Chrome's: no border, no text, a name for screen readers.
     const names = ['Back', 'Forward', 'Reload', 'Pick an element', 'More'];
     await expect(buttons).toHaveCount(names.length);
@@ -189,7 +185,7 @@ test("DevTools in a pane's ⋮ menu opens and closes the DevTools of its active 
       await expect(b).toHaveAccessibleName(name);
       await expect(b).toHaveText('');
       await expect(b.locator('svg')).toHaveCount(1);
-      await expect(b).toHaveCSS('border-top-width', '0px');
+      await expect(b).toHaveCSS('border-top-color', 'rgba(0, 0, 0, 0)'); // none seen
     }
     expect(await looks('its menu open'), 'its menu open').toEqual(closed);
     // The same inset from the island's edges for the controls in it; the page reaches its edges (the author's choice).
@@ -234,18 +230,15 @@ test("a pane's ⋮ → Screenshot takes an element, the visible part or the whol
   const picking = () => core((k, p) => k.shell.windows[0].picking.has(p), id);
   const fromMenu = async (label: string) => {
     await openMore(ui, id);
-    await openSub(ui);
-    await expect(submenu(ui)).toMatchAriaSnapshot(`
+    await expect(menu(ui)).toMatchAriaSnapshot(`
       - menu:
-        - menuitem "Element"
+        - text: Screenshot
+        - menuitem /^Element/
         - menuitem "Visible Part"
         - menuitem "Full Page"
+        - menuitem /^DevTools/
     `);
-    // The pointer taken to its row as the hand takes it, through what lies between: a jump straight there leaves the
-    // submenu's trigger toward nowhere its grace area knows, and the submenu closes.
-    const row = item(ui, label, submenu(ui)), b = await row.boundingBox();
-    await ui.mouse.move(b.x + b.width / 2, b.y + b.height / 2, { steps: 10 });
-    await row.click();
+    await menu(ui).getByRole('menuitem', { name: new RegExp(`^${label}`) }).click();
   };
   await fromMenu('Full Page');
   await expect.poll(() => shots().length).toBe(1);
@@ -290,12 +283,13 @@ test("a pane's ⋮ → Screenshot takes an element, the visible part or the whol
   await expect(ui.locator(`[role="region"][data-profile="${id}"] [aria-label="Pick an element"]`)).toBeDisabled(); // the window knows it: Pick off too
   expect(await core((k) => { const p = k.profile('Sam.admin'); return p.screenshot(p.get(), { scale: 'device', type: 'png', by: 'human' }).then(() => 'taken', (e: Error) => e.message); })).toMatch(/is empty/);
   await openMore(ui, id);
-  await openSub(ui);
-  await expect(submenu(ui)).toMatchAriaSnapshot(`
+  await expect(menu(ui)).toMatchAriaSnapshot(`
     - menu:
-      - menuitem "Element" [disabled]
+      - text: Screenshot
+      - menuitem /^Element/ [disabled]
       - menuitem "Visible Part" [disabled]
       - menuitem "Full Page" [disabled]
+      - menuitem /^DevTools/
   `);
   await closeMenu(ui);
   // Back by the tab's own page: Profile.page() would look among the pages while the closed tab's is still going.
