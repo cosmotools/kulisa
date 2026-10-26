@@ -9,13 +9,16 @@ test.**
 - **What can break comes with a test**: a behavior, its logic, a bug fixed. Not a removal, nor a cosmetic change (a
   symbol, a label, a color): ask what regression a test would catch; none, no test.
 - **A bug is first reproduced by a failing test**, then fixed.
-- **While building**: `npm run test:unit` (a second), some e2e files (`npm test -- e2e <file>…`, or `npx playwright
-  test <file> -g "…"` after `npm run build`), a screenshot (`KULISA_SHOT`, below) or the author's running Kulisa,
-  restarted with the change (the `run-kulisa` skill). `npm run knip` once a step, when its code is written, not after
-  every change (midway, what is not called yet is dead).
-- **The full suite (`npm test`, minutes) runs once, when the author says the work is done** ("всё ок", "commit"),
-  before the commit; fix what fails and run it again. Not for a change to documentation alone: the pull request's CI
-  runs it anyway.
+- **While building, only what the change touches**: `npm run test:unit` (a second); the e2e files of the part changed
+  (`npm test -- e2e <file>…`, or `npx playwright test <file> -g "…"` after `npm run build`), and those whose tests or
+  helpers changed (`npx playwright test --only-changed=develop`: it follows the tests' imports, not Kulisa's code, so a
+  change to a part several features share, a menu, the grid, the focus, takes their files too); a screenshot
+  (`KULISA_SHOT`, below) or the author's running Kulisa, restarted with the change (the `run-kulisa` skill). `npm run
+  knip` once a step, when its code is written, not after every change (midway, what is not called yet is dead).
+- **The full suite (`npm test`, about 3 minutes with the workers) runs once, before the push**, when the author says
+  the work is done ("всё ок", "commit"); fix what fails and run it again. The CI runs it again, and on macOS and
+  Windows, but a failure found there costs a push and a CI run each, and only the author can re-run a job: what fails
+  on Linux fails here first. Not for a change to documentation alone: the CI runs it anyway.
 
 ## Two layers
 
@@ -215,15 +218,21 @@ env -i PATH=$(dirname $(which node)):/usr/bin:/bin HOME=$H TMPDIR=$H XDG_CURRENT
   restart would not read the cookies it saved.
 - **On the CI**: the checks (unit tests, knip, ESLint, the types, actionlint) once per OS, apart from the e2e tests; the
   e2e tests in three shards per OS, each on a runner of its own, with its own screen and focus: the one parallelism
-  safe on macOS and Windows; on Linux a shard also runs the workers above. `test (<os>)` keeps the name the rulesets
+  safe on macOS and Windows; on Linux a shard also runs the workers above. A shard's files are chosen by their times
+  (`KULISA_SHARD=i/n`, `shards.ts`, seconds per file in `timings.json`), not by their tests' number as Playwright's
+  `--shard` does: one file of slow tests outweighs ten quick ones; a file not in `timings.json` counts as the mean, so a
+  new one runs too. A file is never split between shards, so the slowest file bounds a shard's time: one much
+  heavier than the rest is split by its topics (`projects*.spec.ts`, `tasks*.spec.ts`). `test (<os>)` keeps the name the rulesets
   require, green only when its OS's checks and shards are, so the rulesets do not change; it merges the shards' blob
   reports into one HTML report and `junit.xml`, flaky tests included.
 - **Caches** keep a shard's setup under a minute: npm's (`setup-node`), Electron's download (by its version in
-  `package-lock.json`). The apt packages (Xvfb, openbox, the keyring) are installed each time: a cache of the
-  packages does not bring `gnome-keyring-daemon` back. macOS's `displayplacer` comes from brew each time.
+  `package-lock.json`). The apt packages (Xvfb, openbox, the keyring) are installed each time from their .deb files
+  kept between runs (the Ubuntu mirror is at times slow: minutes); a cache of the installed packages does not bring
+  `gnome-keyring-daemon` back. macOS's `displayplacer` comes from brew each time.
 - **Not used**: a runner image of our own (larger runners are paid; a Docker image runs on Linux only); a self-hosted
   runner (the repository is public: a fork's pull request would run its code on it); several workers on one macOS or
   Windows screen (the focus, above).
-- **Tuning**: the shards' number from the jobs' times: another shard while a shard's tests take much longer than its
-  setup; the workers from a test Kulisa's RSS (`ps -eo pid,rss,comm`, summed over its `electron` processes) against
+- **Tuning**: `timings.json` from a CI run's report (its `junit.xml`, the slowest OS's time of each file) when the
+  shards' times drift apart; the shards' number from the jobs' times: another shard while a shard's tests take much
+  longer than its setup; the workers from a test Kulisa's RSS (`ps -eo pid,rss,comm`, summed over its `electron` processes) against
   the free memory. A test flaky only with several workers is a bug fixed at its cause, never by fewer workers.
