@@ -40,7 +40,7 @@ test('after a restart: the other task waits in the bar with its tabs, loads when
     .map((d) => JSON.parse(fs.readFileSync(path.join(secondDir, d, 'Kulisa Tabs.json'), 'utf8')).urls as string[]);
   expect(saved.some((urls) => urls.length), `its tabs kept: ${JSON.stringify(saved)}`).toBe(true);
   // Once the first has loaded: a click while the window still builds it is not taken.
-  await expect.poll(() => core((k) => !!k.shell.task?.loaded && !k.shell.windows[0].switching)).toBe(true);
+  await expect.poll(() => core((k) => k.settled())).toBe(true);
   await notLoading(ui2);
   await ui2.locator(`#projectTabs [data-task="${second}"]`).click();
   await expect.poll(() => core((k, key) => k.shell.task?.key === key && k.shell.task.loaded && !!k.shell.task.pty, second)).toBe(true);
@@ -59,7 +59,7 @@ test('after a restart: the grid is as it was left (preset "grid")', async ({ cor
   // Saved as laid out (the task's layout.json, 300 ms after the grid's last change: lib/grid.ts), before the restart.
   await expect.poll(async () => {
     const now = JSON.stringify(await ui.evaluate(() => (window as any).__dock.toJSON().grid));
-    try { return JSON.stringify(JSON.parse(fs.readFileSync(files.pfile('layout.json'), 'utf8')).grid) === now; } catch { return false; }
+    try { return JSON.stringify(files.json(files.pfile('layout.json')).grid) === now; } catch { return false; }
   }).toBe(true);
 
   const ui2 = await restart();

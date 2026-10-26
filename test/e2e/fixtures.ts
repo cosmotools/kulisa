@@ -18,6 +18,7 @@ import electronPath from 'electron';
 import { removeTree } from '../../src/main/remove.ts';
 import type { Kulisa } from './driver.ts';
 import { data } from './data.ts';
+import type { Files } from './data.ts';
 import { BASE } from './helpers.ts';
 
 // A function run in Kulisa's main process with its driver and one argument; only data crosses (Playwright serializes
@@ -176,7 +177,7 @@ type Fixtures = {
   // The MCP client of the agent of a task, as it gets the server's instructions and tools.
   mcp: (where?: Where) => Promise<Client>;
   // The test's folders and what Kulisa saved there (data.ts).
-  files: ReturnType<typeof data>;
+  files: Files;
 };
 
 export const test = base.extend<Fixtures, { display: string | null; running: { current: Running | null } }>({

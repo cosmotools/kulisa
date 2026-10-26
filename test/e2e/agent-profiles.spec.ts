@@ -1,7 +1,7 @@
 // Profiles, the human's and the agent's: made in Settings and by profile_create, who each is, renamed, signed in by the
 // human when the agent asks; isolated, presenting as what they are, the sign-in pause (docs/profiles.md).
 import { test, expect } from './fixtures.ts';
-import { SITE, who, menu, menuRows, choose, closeMenu, manageProfiles, closeSettings, chooseProfile, setProfileField, taskMenu, act, invoke } from './helpers.ts';
+import { SITE, who, menu, menuRows, choose, closeMenu, manageProfiles, closeSettings, chooseProfile, taskMenu, act, invoke , typeIn } from './helpers.ts';
 import { profiles, signIn } from './agent-helpers.ts';
 
 test('profiles are made in Settings (Profiles\' + in its tree), each with its own picture and, if the human says, who it is; added to the project on its page, opened in its task; the pages stay on screen under Settings\' window', async ({ core, ui, sui, files }) => {
@@ -23,7 +23,7 @@ test('profiles are made in Settings (Profiles\' + in its tree), each with its ow
   };
   const stored = (name: string) => core((k, id) => k.shell.profileStore.get(id), files.idOf(name));
   await make('Sam.seller');
-  await setProfileField(s, 'profileabout', ' seller in the test shop ');
+  await typeIn(s, '#profileabout', ' seller in the test shop ', true);
   await expect.poll(async () => (await stored('Sam.seller'))?.description).toBe('seller in the test shop');
   await make('Elon.buyer');
   expect((await stored('Elon.buyer')).avatar, 'the next picture free').toBe('frog');
@@ -117,7 +117,7 @@ test('who a profile is: the agent is told to choose by it and to ask; it saves t
   await expect(s.locator('#profileabout')).toHaveValue('buyer; pays by card');
   expect(await s.locator('#profileabout').evaluate((a: HTMLTextAreaElement) => [a.localName, a.rows, getComputedStyle(a).resize]), 'two lines, made taller by hand')
     .toEqual(['textarea', 2, 'vertical']);
-  await setProfileField(s, 'profileabout', '');
+  await typeIn(s, '#profileabout', '', true);
   await expect.poll(description).toBe('');
   // The picture: a panel of them from the button beside it; one chosen, it goes.
   await s.locator('#profilepic').click();

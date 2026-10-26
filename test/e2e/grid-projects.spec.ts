@@ -5,46 +5,40 @@ import path from 'path';
 import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
-import type { data } from './data.ts';
-import { SITE, MAC, ipcSettled, submenu, menuRows, choose, rightClick, projectTabs, showProject, closeProject, plusMenu, plusRows, closeBoard, viewOn, who, termText, invoke, notLoading, otherPage, answered } from './helpers.ts';
-import { SAM, ELON, begin, bothOn, openFolder, reportSession } from './tasks-helpers.ts';
-
-type Files = ReturnType<typeof data>;
+import type { Files } from './data.ts';
+import { SITE, MAC, projectTabSel, ipcSettled, submenu, menuRows, choose, rightClick, projectTabs, showProject, closeProject, plusMenu, plusRows, closeBoard, viewOn, who, termText, invoke, notLoading, otherPage, answered } from './helpers.ts';
+import { SAM, ELON, begin, bothOn, openFolder, reportSession, deleteProfile } from './tasks-helpers.ts';
 
 // The second project, a folder 'other' with a task 1 that has Sam.seller: made if there is none, closed.
 const otherFolder = (files: Files) => path.join(files.root, 'other');
-const hasOther = (files: Files) => JSON.parse(fs.readFileSync(path.join(files.userData, 'projects.json'), 'utf8')).list
-  .some((p: { folders: string[] }) => p.folders.some((f) => path.basename(f).toLowerCase() === 'other'));
+const hasOther = (files: Files) => files.projectsSaved().some((p) => p.folders.some((f) => path.basename(f).toLowerCase() === 'other'));
 async function makeOther(core: Core, ui: Page, files: Files) {
   if (hasOther(files)) return;
   await openFolder(core, ui, otherFolder(files));
   await core((k) => k.shell.task.createProfile('Sam.seller'));
   await expect(ui.locator('[role="region"][data-profile]')).toHaveCount(1);
   await closeProject(ui, files, 'other');
-  await expect.poll(() => core((k, a) => !k.shell.open.has(a.other) && k.shell.current?.id === a.project && !k.shell.windows[0].switching,
+  await expect.poll(() => core((k, a) => !k.shell.open.has(a.other) && k.shell.current?.id === a.project && k.settled(),
     { other: files.pid('other'), project: files.pid('project') })).toBe(true);
   await notLoading(ui);
 }
 // The second project gone, with its Sam.seller, as Settings deletes them: for a test that opens it first.
 async function forgetOther(core: Core, ui: Page, files: Files) {
   if (hasOther(files)) await invoke(ui, 'project:delete', { id: files.pid('other') });
-  const seller = JSON.parse(fs.readFileSync(path.join(files.userData, 'profiles.json'), 'utf8')).list.find((p: { name: string }) => p.name === 'Sam.seller');
-  if (seller) await invoke(ui, 'profiles:delete', { profile: seller.id });
+  await deleteProfile(core, ui, 'Sam.seller');
   await core((k) => { k.asked.length = 0; });
 }
-// A project's tab in the bar, as a selector for a script in the page.
-const tabSel = (files: Files, folder: string) => `#projectTabs [data-project="${files.pid(folder)}"]`;
 
 test('projects: another folder opens in a tab of its own, with its own profiles and agent; the first keeps running', async ({ core, ui, call, files }) => {
   await begin(core, ui, files, { columns: true });
   await forgetOther(core, ui, files);
   // The agent reported its session (its SessionStart hook, as Claude Code sends it): Kulisa resumes it when the project
   // opens again.
-  if (JSON.parse(fs.readFileSync(files.pfile('agent.json'), 'utf8')).conversations?.[0]?.sessionId !== 'session-1') {
+  if (files.json(files.pfile('agent.json')).conversations?.[0]?.sessionId !== 'session-1') {
     const transcript = path.join(files.project, 'transcript.jsonl');
     fs.writeFileSync(transcript, '');
     await reportSession(core, await core((k) => k.shell.task.key), 'session-1', transcript);
-    await expect.poll(() => JSON.parse(fs.readFileSync(files.pfile('agent.json'), 'utf8')).conversations[0].sessionId).toBe('session-1');
+    await expect.poll(() => files.json(files.pfile('agent.json')).conversations[0].sessionId).toBe('session-1');
   }
   const other = otherFolder(files), project = files.project;
   fs.mkdirSync(other, { recursive: true });
@@ -99,10 +93,10 @@ test('projects: another folder opens in a tab of its own, with its own profiles 
   await expect(anyMenu).toHaveCount(0);
   await ui.evaluate(() => (window as any).__islands.clear()); // a new tab is a tab more in the bar, as a task's: watched from here on
   await showProject(ui, files, 'other');
-  await expect.poll(() => core((k, f) => k.shell.current?.folder === f && !k.shell.windows[0].switching, other)).toBe(true);
+  await expect.poll(() => core((k, f) => k.shell.current?.folder === f && k.settled(), other)).toBe(true);
   // The tab's right-click: the task's rows, then its project's in a submenu of its name (the project has no tab of
   // its own).
-  await rightClick(ui, `${tabSel(files, 'other')}`);
+  await rightClick(ui, projectTabSel(files, 'other'));
   expect(await menuRows(ui)).toEqual(['# Profiles', 'Sam.seller', '-', 'Manage Profiles…', '-', 'Rename…', 'Show Folder', '-', 'Move to New Window', '-', 'Close', 'Delete Task…', '-', 'other']);
   await choose(ui, 'other');
   await expect(anyMenu).toHaveCount(2);
@@ -176,7 +170,7 @@ test('projects: another folder opens in a tab of its own, with its own profiles 
   expect(await core((k) => { k.asked.length = 0; return k.stash.grid.seller.tabs.every((t: any) => t.wc.isDestroyed()); })).toBe(true);
   expect(await projectTabs(ui, files)).toEqual(['project *']);
   await expect.poll(() => viewOn(core, ui, files, SAM)).toBe(true);
-  expect(JSON.parse(fs.readFileSync(path.join(files.userData, 'projects.json'), 'utf8')).list.map((p: { folders: string[] }) => p.folders[0])).toEqual([project, other]);
+  expect(files.json('projects.json').list.map((p: { folders: string[] }) => p.folders[0])).toEqual([project, other]);
   expect(files.savedWindows()).toEqual([{ tabs: ['project/1'], shown: 'project/1' }]);
 });
 
@@ -200,10 +194,10 @@ test('tasks: Move to New Window puts a task in a window of its own, still runnin
     g.sizes = []; g.resize = pty.resize;
     pty.resize = (cols: number, rows: number) => { g.sizes.push([cols, rows]); return g.resize.call(pty, cols, rows); };
   });
-  await rightClick(ui, `${tabSel(files, 'other')}`);
+  await rightClick(ui, projectTabSel(files, 'other'));
   await menuRows(ui);
   await choose(ui, 'Move to New Window');
-  await expect.poll(() => core((k) => k.shell.windows.length === 2 && k.shell.windows[1].current === k.stash.grid.moved && !k.shell.windows[1].switching)).toBe(true);
+  await expect.poll(() => core((k) => k.shell.windows.length === 2 && k.shell.windows[1].current === k.stash.grid.moved && k.settled(false, k.shell.windows[1]))).toBe(true);
   await core((k) => { k.stash.grid.second = k.shell.windows[1]; });
   const ui2 = await otherPage(ui);
 
@@ -256,7 +250,7 @@ test('tasks: Move to New Window puts a task in a window of its own, still runnin
 
   // Back into the first window (Move to Window, as a browser moves a tab; the other window named by its shown
   // task): the only tab of the second, so it closes.
-  await rightClick(ui2, `${tabSel(files, 'other')}`);
+  await rightClick(ui2, projectTabSel(files, 'other'));
   expect(await menuRows(ui2)).toEqual(['# Profiles', 'Sam.seller', '-', 'Manage Profiles…', '-', 'Rename…', 'Show Folder', '-', 'Move to New Window (off)', 'Move to Window: task-1', '-', 'Close', 'Delete Task…', '-', 'other']);
   // Chosen once the script has answered: the choice closes this window, and a script still running in a window that
   // goes never answers.
@@ -270,18 +264,18 @@ test('tasks: Move to New Window puts a task in a window of its own, still runnin
   expect(await projectTabs(ui, files)).toEqual(['project', 'other *']);
   expect(files.savedWindows()).toEqual([{ tabs: ['project/1', 'other/1'], shown: 'other/1' }]);
   await closeProject(ui, files, 'other');
-  await expect.poll(() => core((k, a) => !k.shell.open.has(a.other) && k.shell.current?.id === a.project && !k.shell.windows[0].switching, ids)).toBe(true);
+  await expect.poll(() => core((k, a) => !k.shell.open.has(a.other) && k.shell.current?.id === a.project && k.settled(), ids)).toBe(true);
 
   // A closed task opened again: a tab in this window, nothing asked where; Move to New Window takes it away.
   await core((k) => { k.asked.length = 0; });
   await plusMenu(ui, 'other', 'New Task');
-  await expect.poll(() => core((k, id) => k.shell.current?.id === id && [...k.shell.current.tasks.values()][0] === k.shell.task && !!k.shell.task.pty && !k.shell.windows[0].switching, ids.other)).toBe(true);
+  await expect.poll(() => core((k, id) => k.shell.current?.id === id && [...k.shell.current.tasks.values()][0] === k.shell.task && !!k.shell.task.pty && k.settled(), ids.other)).toBe(true);
   expect(await core((k) => k.asked.length), 'no question where').toBe(0);
   expect(await projectTabs(ui, files)).toEqual(['project', 'other *']);
-  await rightClick(ui, `${tabSel(files, 'other')}`);
+  await rightClick(ui, projectTabSel(files, 'other'));
   await menuRows(ui);
   await choose(ui, 'Move to New Window');
-  await expect.poll(() => core((k, id) => k.shell.windows.length === 2 && k.shell.windows[1].current?.project.id === id && !k.shell.windows[1].switching, ids.other)).toBe(true);
+  await expect.poll(() => core((k, id) => k.shell.windows.length === 2 && k.shell.windows[1].current?.project.id === id && k.settled(false, k.shell.windows[1]), ids.other)).toBe(true);
   await core((k) => { const g = k.stash.grid; g.third = k.shell.windows[1]; g.reopened = g.third.current; });
   await expect.poll(() => core((k) => !!k.stash.grid.reopened.pty)).toBe(true);
   expect(await projectTabs(ui, files), 'nothing else in the first window').toEqual(['project *']);
@@ -332,7 +326,7 @@ test('tasks: a tab dragged changes the order, goes out into a new window and bac
   await makeOther(core, ui, files);
   const other = otherFolder(files), DRAG = 'application/x-kulisa-task', ids = { other: files.pid('other'), project: files.pid('project') };
   await invoke(ui, 'project:open', { folder: other, task: files.tid('other', 1) });
-  await expect.poll(() => core((k, id) => k.shell.current?.id === id && !!k.shell.task.loaded && !!k.shell.pty && !k.shell.windows[0].switching, ids.other)).toBe(true);
+  await expect.poll(() => core((k, id) => k.shell.current?.id === id && k.settled(true), ids.other)).toBe(true);
   await core((k) => { k.asked.length = 0; k.stash.grid = { moved: k.shell.task, pty: k.shell.task.pty, pointer: k.shell.pointer }; });
   // Synthetic drag events, as the human's mouse would send them; a drop gets what the drag carried.
   const dragStart = (page: Page, folder: string) => page.evaluate(([sel, drag]) => {
@@ -340,12 +334,12 @@ test('tasks: a tab dragged changes the order, goes out into a new window and bac
     w.__dt = new DataTransfer();
     document.querySelector(sel).dispatchEvent(new DragEvent('dragstart', { bubbles: true, dataTransfer: w.__dt }));
     return w.__dt.getData(drag) as string;
-  }, [tabSel(files, folder), DRAG]);
+  }, [projectTabSel(files, folder), DRAG]);
   const dragEnd = (page: Page, folder: string, effect: string) => page.evaluate(([sel, e]) => {
     const w = window as any;
     w.__dt.dropEffect = e;
     document.querySelector(sel).dispatchEvent(new DragEvent('dragend', { bubbles: true, dataTransfer: w.__dt }));
-  }, [tabSel(files, folder), effect]);
+  }, [projectTabSel(files, folder), effect]);
   // The mark is drawn with the window's next update (Vue), before the next frame.
   const dropOn = (page: Page, folder: string, side: 'before' | 'after', carried: string) => page.evaluate(async ([sel, s, drag, d]) => {
     const dt = new DataTransfer();
@@ -357,7 +351,7 @@ test('tasks: a tab dragged changes the order, goes out into a new window and bac
     const shown = t.getAttribute('data-drop') === s;
     t.dispatchEvent(new DragEvent('drop', o));
     return shown;
-  }, [tabSel(files, folder), side, DRAG, carried]);
+  }, [projectTabSel(files, folder), side, DRAG, carried]);
   const pointAt = (p: { x: number; y: number } | null) => core((k, at) => { const g = k.stash.grid; k.shell.pointer = at ? () => at : g.pointer; }, p);
 
   // The pointer where a test says (dragend's dropEffect of synthetic events is 'none': taken for let go outside).
@@ -367,7 +361,7 @@ test('tasks: a tab dragged changes the order, goes out into a new window and bac
   // Within the tabs: another order, kept.
   let carried = await dragStart(ui, 'other');
   expect(JSON.parse(carried).key).toBe(files.tkey('other', 1));
-  await expect(ui.locator(tabSel(files, 'other'))).toHaveAttribute('data-dragging');
+  await expect(ui.locator(projectTabSel(files, 'other'))).toHaveAttribute('data-dragging');
   expect(await dropOn(ui, 'project', 'before', carried), 'where it would go is marked').toBe(true);
   await dragEnd(ui, 'other', 'move');
   await expect.poll(() => projectTabs(ui, files)).toEqual(['other *', 'project']);
@@ -392,7 +386,7 @@ test('tasks: a tab dragged changes the order, goes out into a new window and bac
   await pointAt({ x: right ? Math.min(nw.x + nw.width + 300, area.x + area.width - 10) : Math.max(nw.x - 300, area.x + 10), y: nw.y + 200 });
   await dragStart(ui, 'other');
   await dragEnd(ui, 'other', 'none');
-  await expect.poll(() => core((k) => k.shell.windows.length > 1 && k.shell.windows.at(-1).current === k.stash.grid.moved && !k.shell.windows.at(-1).switching)).toBe(true);
+  await expect.poll(() => core((k) => k.shell.windows.length > 1 && k.shell.windows.at(-1).current === k.stash.grid.moved && k.settled(false, k.shell.windows.at(-1)))).toBe(true);
   expect(await core((k) => k.shell.windows.length), 'one new window: none for the drop inside').toBe(2);
   await pointAt(null);
   if (narrowed) await core((k, a) => k.shell.win.setBounds(a), b);
@@ -404,14 +398,14 @@ test('tasks: a tab dragged changes the order, goes out into a new window and bac
 
   // Onto the first window's tabs: back there, where it was let go; the second window, left empty, closes.
   await core((k) => { k.stash.grid.second = k.shell.windows[1]; });
-  await expect(ui2.locator(tabSel(files, 'other'))).toBeVisible();
+  await expect(ui2.locator(projectTabSel(files, 'other'))).toBeVisible();
   carried = await dragStart(ui2, 'other');
   expect(await dropOn(ui, 'project', 'after', carried)).toBe(true);
   // Its window closes with it: no dragend there.
-  await expect.poll(() => core((k) => k.shell.windows.length === 1 && k.shell.task === k.stash.grid.moved && !k.shell.windows[0].switching)).toBe(true);
+  await expect.poll(() => core((k) => k.shell.windows.length === 1 && k.shell.task === k.stash.grid.moved && k.settled())).toBe(true);
   expect(await core((k) => { const g = k.stash.grid; return g.second.win.isDestroyed() && g.moved.pty === g.pty; })).toBe(true);
   expect(await projectTabs(ui, files)).toEqual(['project', 'other *']);
   await closeProject(ui, files, 'other');
-  await expect.poll(() => core((k, a) => !k.shell.open.has(a.other) && k.shell.current?.id === a.project && !k.shell.windows[0].switching, ids)).toBe(true);
+  await expect.poll(() => core((k, a) => !k.shell.open.has(a.other) && k.shell.current?.id === a.project && k.settled(), ids)).toBe(true);
   await core((k) => { k.asked.length = 0; });
 });

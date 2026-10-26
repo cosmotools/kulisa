@@ -6,17 +6,14 @@ import { execFileSync } from 'child_process';
 import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
-import type { data } from './data.ts';
+import type { Files } from './data.ts';
 import type { SettingsAt } from '../../src/shared/ipc.ts';
-import { removeTree } from '../../src/main/remove.ts';
-import { SITE, attr, menuRows, choose, rightClick, closeSettings, invoke } from './helpers.ts';
+import { SITE, attr, menuRows, choose, rightClick, closeSettings, invoke, removed } from './helpers.ts';
 
-type Files = ReturnType<typeof data>;
 type Account = { id: string; login: string; kind: string; secret?: string };
 
 const accounts = (core: Core) => core((k) => k.shell.github.accounts.list() as Account[]);
-const stored = (files: Files): Account[] => JSON.parse(fs.readFileSync(path.join(files.userData, 'github.json'), 'utf8')).list;
-const logText = (files: Files) => fs.readFileSync(path.join(files.userData, 'logs', 'kulisa.log'), 'utf8');
+const stored = (files: Files): Account[] => files.json('github.json').list;
 const idOfLogin = async (core: Core, login: string, kind = 'app') => (await accounts(core)).find((a) => a.login === login && a.kind === kind).id;
 // No accounts, Settings closed: what a test starts from (deleting one as the human does: the last test).
 async function clean(core: Core) {
@@ -67,7 +64,7 @@ async function annAndBob(core: Core, sui: () => Promise<Page>) {
 // Repositories with origins as people write them: a token and capitals in one, GitLab's, an owner no account reaches;
 // a project of them (ghproject).
 async function ghProject(core: Core, files: Files) {
-  removeTree(path.join(files.root, 'gh'));
+  await removed(path.join(files.root, 'gh'));
   const repo = (name: string, origin: string) => {
     const d = path.join(files.root, 'gh', name);
     fs.mkdirSync(d, { recursive: true });
@@ -106,10 +103,10 @@ test('GitHub: signing in with Kulisa App, Kulisa shows the code itself and opens
   const [a] = stored(files);
   expect([a.login, a.kind]).toEqual(['ann', 'app']);
   expect(!!a.secret, 'its tokens encrypted when there is a keyring, else nowhere on disk').toBe(await core((k) => k.shell.github.kept()));
-  for (const text of [fs.readFileSync(path.join(files.userData, 'github.json'), 'utf8'), logText(files)]) {
+  for (const text of [fs.readFileSync(path.join(files.userData, 'github.json'), 'utf8'), files.log()]) {
     expect(!/ghu_|ghr_/.test(text) && !text.includes(code), 'no token, no code').toBe(true);
   }
-  expect(logText(files)).toMatch(new RegExp(`\\[github\\] added ${a.id} \\(ann\\)$`, 'm'));
+  expect(files.log()).toMatch(new RegExp(`\\[github\\] added ${a.id} \\(ann\\)$`, 'm'));
   await closeSettings(core, ui, sui);
 });
 
@@ -141,7 +138,7 @@ test('GitHub: a fine-grained token, checked with GitHub, its end read from GitHu
   expect(bob.slice(1, 3)).toEqual(['a token', 'in no project']);
   expect(bob[3], "GitHub's header says when it ends").toMatch(/2027/);
   expect(fs.readFileSync(path.join(files.userData, 'github.json'), 'utf8')).not.toContain('github_pat_');
-  expect(logText(files), 'the token, not even in the line of its channel').not.toContain('github_pat_bob');
+  expect(files.log(), 'the token, not even in the line of its channel').not.toContain('github_pat_bob');
   await closeSettings(core, ui, sui);
 });
 
@@ -159,7 +156,7 @@ test("GitHub: a repository's row: the account that reaches its remote suggested 
       .toBe('beta: Kulisa App is not installed on beta. Install it on beta (or ask its owner to)');
     await expect(s.locator(`#npgithub ${attr('data-folder', folders.beta)} a`)).toHaveAttribute('href', 'https://github.com/apps/kulisa-app/installations/new');
     expect(await github(core, id), 'bound by remote: the token in its address dropped').toEqual({ 'github.com/acme/shop': bob, 'github.com/ann/site': ann });
-    expect(logText(files)).not.toContain('ghp_leaked');
+    expect(files.log()).not.toContain('ghp_leaked');
     // Another chosen on its row (Reka's Select): bound to it, even as it cannot reach it, which its line says.
     await account('github.com/acme/shop').click();
     await s.locator(`[role="listbox"][data-state="open"][data-ready] [data-account="${ann}"]`).click();
@@ -194,7 +191,7 @@ test('GitHub: signed out (a refresh refused): said on the account and on its rep
     await typeToken(s, 'github_pat_bob_acme');
     await expect.poll(async () => (await rows(s)).some((r) => r[0] === 'bob' && r[3] !== 'signed out')).toBe(true);
     expect(await idOfLogin(core, 'bob', 'pat'), 'the same account').toBe(bob);
-    expect(logText(files)).toMatch(new RegExp(`\\[github\\] signed out ${bob} \\(bob, token\\): the test$`, 'm'));
+    expect(files.log()).toMatch(new RegExp(`\\[github\\] signed out ${bob} \\(bob, token\\): the test$`, 'm'));
     await closeSettings(core, ui, sui);
   } finally { await removeProject(core, id); }
 });
@@ -218,7 +215,7 @@ test('GitHub: deleting an account asks first, linking where to revoke it on GitH
     expect(asked.detail).toMatch(/the projects ghproject let go of it/);
     expect(asked.link).toEqual({ url: 'https://github.com/settings/apps/authorizations', label: 'Revoke on GitHub' });
     expect(await github(core, id)).toEqual({ 'github.com/acme/shop': bob });
-    expect(logText(files)).toMatch(new RegExp(`\\[github\\] deleted ${ann} \\(ann\\)$`, 'm'));
+    expect(files.log()).toMatch(new RegExp(`\\[github\\] deleted ${ann} \\(ann\\)$`, 'm'));
     await closeSettings(core, ui, sui);
   } finally { await removeProject(core, id); }
 });

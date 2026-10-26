@@ -6,10 +6,9 @@ import os from 'os';
 import path from 'path';
 import { expect } from '@playwright/test';
 import type { Locator, Page } from '@playwright/test';
-import type { Core, Call } from './fixtures.ts';
-import type { data } from './data.ts';
-
-type Files = ReturnType<typeof data>;
+import type { Core, Call, Where } from './fixtures.ts';
+import { removeTree } from '../../src/main/remove.ts';
+import type { Files } from './data.ts';
 
 // The run's test site (global-setup.ts), on a free port: never a literal port (CLAUDE.md, Hard-won facts).
 export const SITE = process.env.KULISA_TEST_SITE;
@@ -31,6 +30,10 @@ export const near = (a: number, b: number) => Math.abs(a - b) < 1e-6;
 export const upTo = <T>(p: Promise<T>, ms: number) => Promise.race([p, new Promise<null>((r) => { setTimeout(() => r(null), ms); })]);
 // A text whole, as a pattern (a label, a name).
 export const exact = (s: string) => new RegExp(`^${RegExp.escape(s)}$`);
+// How many lines of Kulisa's log since the test began match (driver.ts, logged: no file read).
+export const logged = (core: Core, re: RegExp) => core((k, a) => k.logged.filter((l) => new RegExp(a.source, a.flags).test(l)).length, { source: re.source, flags: re.flags });
+// The Kulisa zoom of the first window.
+export const uiZoom = (core: Core) => core((k) => k.shell.win.webContents.getZoomFactor());
 
 // A channel of the window's, as its page sends it (a part tested elsewhere, or one with no control of its own), and an
 // action on the shown task's profiles, as the renderer sends it (lib/store.ts, act). What they answer ({ error } when
@@ -57,11 +60,14 @@ export async function seen(page: Page, type: string, act: () => Promise<unknown>
   await frames(page);
 }
 // Everything written into the shown task's agent's terminal before now has come back (the terminal echoes its input in
-// the order it came): a mark typed, waited for in its output (or on the screen, by shows), then rubbed out.
-export async function echoed(core: Core, shows: () => Promise<string> = () => core((k) => k.ptyOutput())) {
+// the order it came): a mark typed (or sent as send sends it), waited for in its output (or on the screen, by shows),
+// then rubbed out.
+type Echo = { shows?: () => Promise<string>; send?: (mark: string) => Promise<unknown> };
+export async function echoed(core: Core, { shows, send }: Echo = {}) {
   const mark = `kl${Math.random().toString(36).slice(2, 8)}`;
-  await core((k, m) => k.shell.pty.write(m), mark);
-  await expect.poll(shows, { message: 'the terminal does not echo' }).toContain(mark);
+  await (send ? send(mark) : core((k, m) => k.shell.pty.write(m), mark));
+  if (shows) await expect.poll(shows, { message: 'the terminal does not echo' }).toContain(mark);
+  else await expect.poll(() => core((k, m) => k.ptyOutput().includes(m), mark), { message: 'the terminal does not echo' }).toBe(true);
   await core((k, n) => k.shell.pty.write('\x7f'.repeat(n)), mark.length);
   return mark;
 }
@@ -106,7 +112,7 @@ export const mouse = (core: Core, type: 'mouseDown' | 'mouseUp' | 'mouseMove', a
 export const scaled = (z: number, { x, y }: Point) => ({ x: Math.round(x * z), y: Math.round(y * z) });
 export const mid = async (core: Core, ui: Page, sel: string) => {
   const b = await box(ui, sel);
-  return scaled(await core((k) => k.shell.win.webContents.getZoomFactor()), { x: b.x + b.width / 2, y: b.y + b.height / 2 });
+  return scaled(await uiZoom(core), { x: b.x + b.width / 2, y: b.y + b.height / 2 });
 };
 
 // Kulisa's menus (Reka's, docs/ui.md, Menus): the open one once it is shown (the pages under it are pictures), the
@@ -118,14 +124,19 @@ export const submenu = (ui: Page) => ui.locator('[role="menu"][data-state="open"
 export async function menuRows(ui: Page, which: Locator = menu(ui)): Promise<(string | string[])[]> {
   await expect(menu(ui)).toBeVisible();
   return which.evaluate((m) => {
-    const is = (r: Element, id: string) => r.matches(`[data-testid="${id}"]`);
-    // An item's words: its name, its label alone (MenuButton.vue, aria-labelledby).
-    const item = (r: Element) => (r.matches('[role^="menuitem"]') ? r : r.querySelector('[role^="menuitem"]'));
+    // An item's words: its accessible name's label alone (MenuButton.vue, aria-labelledby).
     const label = (i: Element) => document.getElementById(i.getAttribute('aria-labelledby')).textContent;
-    const row = (r: Element): string | string[] => (r.matches('[role="separator"]') ? '-' : is(r, 'menu-heading') ? `# ${r.textContent}`
-      : is(r, 'zoom-row') ? 'zoom' : is(r, 'theme-row') ? 'theme' : is(r, 'bar-row') ? 'bar' : is(r, 'arrange-row') ? `arrange: ${[...r.querySelectorAll('span')].map((s) => s.textContent).join(', ')}`
-        : r.matches('[role="group"]') ? [...r.children].map(row) as string[]
-          : (r.matches('[data-inset]') ? '  ' : '') + label(item(r)) + (item(r).matches('[data-disabled]') ? ' (off)' : ''));
+    const row = (r: Element): string | string[] => {
+      if (r.matches('[role="separator"]')) return '-';
+      const id = r.getAttribute('data-testid') ?? '';
+      if (id === 'menu-heading') return `# ${r.textContent}`;
+      if (id === 'arrange-row') return `arrange: ${[...r.querySelectorAll('span')].map((s) => s.textContent).join(', ')}`;
+      const kind = /^(zoom|theme|bar)-row$/.exec(id)?.[1];
+      if (kind) return kind;
+      if (r.matches('[role="group"]')) return [...r.children].map(row) as string[];
+      const item = r.matches('[role^="menuitem"]') ? r : r.querySelector('[role^="menuitem"]');
+      return (r.matches('[data-inset]') ? '  ' : '') + label(item) + (item.matches('[data-disabled]') ? ' (off)' : '');
+    };
     return [...m.children].flatMap(row);
   });
 }
@@ -155,9 +166,11 @@ export const projectTabs = async (ui: Page, files: Files) => (await ui.locator('
 export const termTabs = (ui: Page) => ui.locator('nav[aria-label="Terminals"] [role="tab"]').evaluateAll((ts) => ts.map((t) => t.textContent.trim() + (t.ariaSelected === 'true' ? ' *' : '')));
 // A project's first tab in the bar; the project shown again as the human does it, a click on it; its open tasks
 // closed with the middle button on each tab.
-export const projectTab = (ui: Page, files: Files, folder: string) => ui.locator(`#projectTabs [data-project="${files.pid(folder)}"]`).first();
+// As a selector, for a script in the page.
+export const projectTabSel = (files: Files, folder: string) => `#projectTabs [data-project="${files.pid(folder)}"]`;
+export const projectTab = (ui: Page, files: Files, folder: string) => ui.locator(projectTabSel(files, folder)).first();
 export const showProject = (ui: Page, files: Files, folder: string) => projectTab(ui, files, folder).click();
-export const closeProject = (ui: Page, files: Files, folder: string) => ui.locator(`#projectTabs [data-project="${files.pid(folder)}"]`).evaluateAll((ts) => { for (const t of ts) t.dispatchEvent(new MouseEvent('auxclick', { button: 1, bubbles: true })); });
+export const closeProject = (ui: Page, files: Files, folder: string) => ui.locator(projectTabSel(files, folder)).evaluateAll((ts) => { for (const t of ts) t.dispatchEvent(new MouseEvent('auxclick', { button: 1, bubbles: true })); });
 
 // The bar's + (NewTask.vue): a menu of every project with its tasks; one project shows its tasks inline, several nest
 // each project as a submenu. plusMenu(ui) opens it and gives its top rows' labels; plusMenu(ui, project) makes a new
@@ -165,7 +178,6 @@ export const closeProject = (ui: Page, files: Files, folder: string) => ui.locat
 // Every open menu, a submenu too (menu waits for the first to be shown).
 export const anyMenu = (ui: Page) => ui.locator('[role="menu"][data-state="open"]');
 const topLabels = (m: Locator) => m.locator(':scope > [role="menuitem"]').evaluateAll((items) => items.map((i) => document.getElementById(i.getAttribute('aria-labelledby')).textContent));
-const rowIn = (_ui: Page, m: Locator, label: string) => m.getByRole('menuitem', { name: label, exact: true });
 const projectRow = (ui: Page, project: string) => anyMenu(ui).first().getByRole('menuitem', { name: project, exact: true }).and(ui.locator('[aria-haspopup]'));
 // A project's submenu, with several projects, opened as the hand does it: hovering its row (a release on the row makes
 // the project a new task: MenuRows.vue, runSub). The rows are drawn again as a project just shown moves to the top, and
@@ -185,10 +197,10 @@ export async function plusMenu(ui: Page, project?: string, task?: string) {
   await expect(top.locator(':scope > [role="menuitem"]').first()).toBeVisible(); // its rows drawn, a moment after it opens
   if (project === undefined) return topLabels(top);
   const label = task ?? 'New Task';
-  await expect(projectRow(ui, project).or(rowIn(ui, top, label)).first()).toBeVisible();
-  if (!(await projectRow(ui, project).count())) return rowIn(ui, top, label).first().click();
-  const sub = await projectSub(ui, project, (m) => expect(rowIn(ui, m, label).first()).toBeVisible({ timeout: 500 }));
-  await rowIn(ui, sub, label).first().click();
+  await expect(projectRow(ui, project).or(item(ui, label, top)).first()).toBeVisible();
+  if (!(await projectRow(ui, project).count())) return item(ui, label, top).first().click();
+  const sub = await projectSub(ui, project, (m) => expect(item(ui, label, m).first()).toBeVisible({ timeout: 500 }));
+  await item(ui, label, sub).first().click();
 }
 // The + menu's rows for one project (its tasks, then New Task); the menu opened, read and closed again. With one
 // project its rows are the menu's own, which ends with New Project… after them.
@@ -241,10 +253,6 @@ export async function chooseProfile(s: Page, files: Files, name: string) {
   await expect(row).toHaveAttribute('aria-selected', 'true');
   await expect(s.locator('#profilepage')).toBeVisible();
 }
-// A field of Settings → Profiles typed and left (saved on change).
-export const setProfileField = (s: Page, id: string, value: string) => s.locator(`#${id}`).evaluate((f: HTMLInputElement, v) => {
-  f.value = v; f.dispatchEvent(new Event('input')); f.dispatchEvent(new Event('change'));
-}, value);
 // Settings closed as the human does it with Esc, what was typed saved; its window gone, the keyboard back in the task's
 // window, the window's and its page's (a menu opened there before it comes closes as the window gets it). The key's
 // promise is not waited for: its page closes under it.
@@ -291,17 +299,19 @@ export const dock = <A, R>(ui: Page, fn: (api: any, arg: A) => R, arg?: A) => ui
 // The Resources island's height on screen (its group in the grid: lib/grid.ts).
 export const resourcesHeight = (ui: Page) => ui.evaluate(() => Math.round(document.getElementById('resources').closest('.dv-groupview').getBoundingClientRect().height));
 
-// Who the test site says is signed in, in a profile's page, as the agent reads it.
-export const who = async (call: Call, profile: string) => (await call('browser_snapshot', { profile })).text.match(/Signed (in as \w+|out)/)?.[0];
+// Who the test site says is signed in, in a profile's page, as the agent (of the window's task, or of where) reads it.
+export const who = async (call: Call, profile: string, where?: Where) => (await call('browser_snapshot', { profile }, where)).text.match(/Signed (in as \w+|out)/)?.[0];
 
 // What the terminal in the window shows ('' while none is shown yet), as the screen reads: lines wrapped at its width
-// joined again, and each line's trailing spaces dropped (ConPTY pads a line repainted after a resize).
-export const termText = (ui: Page) => ui.evaluate(() => {
+// joined again, and each line's trailing spaces dropped (ConPTY pads a line repainted after a resize). With a text, only
+// whether it is there: the screen's text stays in the page.
+const screenText = (t: string | null) => {
   const b = (window as any).__term?.buffer.active;
-  if (!b) return '';
-  return Array.from({ length: b.length }, (_, i) => b.getLine(i)).map((l: any, i) => (i && !l.isWrapped ? '\n' : '') + l.translateToString(true)).join('')
+  const all = !b ? '' : Array.from({ length: b.length }, (_, i) => b.getLine(i)).map((l: any, i) => (i && !l.isWrapped ? '\n' : '') + l.translateToString(true)).join('')
     .split('\n').map((l) => l.replace(/ +$/, '')).join('\n');
-});
+  return t === null ? all : all.includes(t);
+};
+export const termText = (ui: Page) => ui.evaluate(screenText, null) as Promise<string>;
 // The terminal's xterm as it is: its size, its cursor, its lines up to the cursor and every one with text, each with its
 // number and a ~ when it continues the one before (wrapped): what a failed wait on the terminal says.
 export const termDump = (ui: Page) => ui.evaluate(() => {
@@ -312,11 +322,14 @@ export const termDump = (ui: Page) => ui.evaluate(() => {
     lines: lines.filter((l, i) => i <= b.baseY + b.cursorY + 2 || l.length > 4).slice(0, 40) };
 });
 export async function termShows(ui: Page, text: string, timeout = 5000) {
-  try { await expect.poll(() => termText(ui), { timeout }).toContain(text); } catch (e) {
+  try { await expect.poll(() => ui.evaluate(screenText, text), { timeout }).toBe(true); } catch (e) {
     throw new Error(`the terminal does not show ${JSON.stringify(text)}: ${JSON.stringify(await termDump(ui))}`, { cause: e });
   }
 }
 
+// A folder of the test's removed, once nothing holds it: on Windows a folder a process was in (Kulisa's git, a shell)
+// cannot go until that process lets go (docs/testing.md, On Windows).
+export const removed = (...dirs: string[]) => expect(() => { for (const d of dirs) removeTree(d); }).toPass();
 // A file renamed once nothing holds it: Windows refuses (EBUSY, EPERM) while a process runs it, as an agent's .cmd that
 // a look at the agents' versions runs a moment longer (docs/testing.md, On Windows).
 export const renamed = (from: string, to: string) => expect.poll(() => {

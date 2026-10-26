@@ -5,9 +5,8 @@ import path from 'path';
 import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
-import { attr, menuRows, choose, rightClick, closeSettings, termText, termDump, invoke, asked, projectMenu, pageOf, onRow } from './helpers.ts';
+import { attr, menuRows, choose, rightClick, closeSettings, termText, termDump, invoke, asked, projectMenu, pageOf, onRow, removed } from './helpers.ts';
 import { git, committed, hook, newTask, showTask, openFolder, projectShown } from './tasks-helpers.ts';
-import { removeTree } from '../../src/main/remove.ts';
 
 // What the agent is told at a session's start (its SessionStart hook, as its plugin sends it: agent-hooks.ts).
 const sessionContext = async (core: Core, task: string) => (await hook(core, task, 'session-start')).hookSpecificOutput.additionalContext as string;
@@ -23,7 +22,7 @@ const shownTimes = async (ui: Page, text: string, n: number) => {
 test('projects: several repositories: a task works in the main tree until it makes its worktree (task_worktree); another repository is added when it needs it (the human on its tab, the agent with task_add_repository), on its branch, its agent told; a repository tasks have a worktree of is not removed', async ({ core, ui, sui, call, files }) => {
   test.slow(); // git's work: worktrees made and removed, two clones
   const root = files.root;
-  for (const d of ['api', 'web', 'docs', 'notes', 'docs.git', 'notes.git', 'plain']) if (fs.existsSync(path.join(root, d))) removeTree(path.join(root, d));
+  await removed(...['api', 'web', 'docs', 'notes', 'docs.git', 'notes.git', 'plain'].map((d) => path.join(root, d)));
   const repo = (name: string) => committed(path.join(root, name), 'a.txt', name, name);
   const api = repo('api'), web = repo('web');
   await openFolder(core, ui, api);
@@ -194,5 +193,5 @@ test('projects: several repositories: a task works in the main tree until it mak
   // What it made gone, for a test after it: the projects with their tasks' copies, then the folders.
   for (const id of [pid, plainId]) await invoke(ui, 'project:delete', { id });
   await core((k) => { k.asked.length = 0; });
-  for (const d of ['api', 'web', 'docs', 'notes', 'docs.git', 'notes.git', 'plain']) removeTree(path.join(root, d));
+  await removed(...['api', 'web', 'docs', 'notes', 'docs.git', 'notes.git', 'plain'].map((d) => path.join(root, d)));
 });

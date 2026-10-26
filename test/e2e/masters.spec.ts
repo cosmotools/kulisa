@@ -3,8 +3,8 @@
 import fs from 'fs';
 import path from 'path';
 import { test, expect } from './fixtures.ts';
-import type { Core, Call, Where } from './fixtures.ts';
-import { SITE, PORT, who, menuRows, choose, rightClick, focusWindow, closeSettings, chooseProfile, invoke } from './helpers.ts';
+import type { Core } from './fixtures.ts';
+import { SITE, PORT, logged, who, menuRows, choose, rightClick, focusWindow, closeSettings, chooseProfile, invoke } from './helpers.ts';
 import { begin, newTask } from './tasks-helpers.ts';
 
 // The one master window open, once its page is there.
@@ -14,8 +14,6 @@ async function closeMaster(core: Core) {
   await core((k) => { k.shell.masters.values().next().value.win.close(); });
   await expect.poll(() => core((k) => k.shell.masters.size)).toBe(0);
 }
-// Who the test site says is signed in, as the agent of a task reads it.
-const whoIn = async (call: Call, profile: string, where: Where) => (await call('browser_snapshot', { profile }, where)).text.match(/Signed (in as \w+|out)/)?.[0];
 
 test("Sign In to Master… opens its master in a window of its own, nothing automated on it; a task's copy made before keeps its own sign-in to a local app", async ({ core, ui, call, files }) => {
   const { sam } = await begin(core, ui, files);
@@ -65,7 +63,7 @@ test("About this profile… opens Settings' window at it (one, not modal: the ta
   await expect(s.locator('#profilename')).toHaveValue('Elon.buyer');
   expect(await core((k) => k.shell.settings.win.id)).toBe(win.id);
   await chooseProfile(s, files, 'Sam.admin');
-  const asks = () => files.log().split('\n').filter((l) => l.includes('[ipc] profiles:master ')).length, before = asks();
+  const asks = () => logged(core, /\[ipc\] profiles:master /), before = await asks();
   await s.locator('#profilesignin').click();
   await oneMaster(core);
   // Again, Settings brought in front of the master's window first, as the human's click there does: a page behind
@@ -114,7 +112,7 @@ test("a real account's sign-in kept in step: signed in to a site (not local) in 
   expect(await who(call, 'Sam.admin')).toBe('Signed in as real');
   await expect.poll(() => shopCookie(first)).toContain('real');
   await call('browser_navigate', { profile: 'Sam.admin', url: `${shop}/app` }, inFirst);
-  expect(await whoIn(call, 'Sam.admin', inFirst), 'in the other task too').toBe('Signed in as real');
+  expect(await who(call, 'Sam.admin', inFirst), 'in the other task too').toBe('Signed in as real');
   expect(await core(async (k, id) => (await k.electron.session.fromPath(k.shell.profileStore.masterDir(id)).cookies.get({ domain: 'shop.example' })).map((c) => c.value), sam), 'and in its master').toContain('real');
   // Signed out in the first task: out in this one too.
   await call('browser_navigate', { profile: 'Sam.admin', url: `${shop}/app/logout` }, inFirst);
@@ -125,8 +123,8 @@ test("a real account's sign-in kept in step: signed in to a site (not local) in 
   await call('browser_navigate', { profile: 'Sam.admin', url: `${SITE}/app/login?name=second` });
   expect(await who(call, 'Sam.admin')).toBe('Signed in as second');
   await call('browser_navigate', { profile: 'Sam.admin', url: `${SITE}/app` }, inFirst);
-  expect(await whoIn(call, 'Sam.admin', inFirst)).toBe('Signed in as sam');
+  expect(await who(call, 'Sam.admin', inFirst)).toBe('Signed in as sam');
   // The second task goes: the file's other tests begin from the first alone.
   await invoke(ui, 'task:delete', second);
-  await expect.poll(() => core((k, a) => !k.shell.taskByKey(a.second) && k.shell.task?.key === a.first && !k.shell.windows[0].switching, { first, second })).toBe(true);
+  await expect.poll(() => core((k, a) => !k.shell.taskByKey(a.second) && k.shell.task?.key === a.first && k.settled(), { first, second })).toBe(true);
 });

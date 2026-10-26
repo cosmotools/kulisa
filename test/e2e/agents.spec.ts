@@ -7,19 +7,17 @@ import path from 'path';
 import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
-import type { data } from './data.ts';
+import type { Files } from './data.ts';
 import { SITE, WIN, holdPointer, focusWindow, menu, menuRows, choose, closeMenu, rightClick, closeSettings, renamed, termText, termShows, invoke, projectMenu, onRow } from './helpers.ts';
 import { newTask } from './tasks-helpers.ts';
 import { fakeAgent, fakeBin } from './agent-helpers.ts';
-
-type Files = ReturnType<typeof data>;
 
 // The project with its first task alone, shown, and no account: the tasks and accounts the file's other tests made go
 // (deleting a task asks: answered yes).
 async function fresh(core: Core, ui: Page, files: Files) {
   const first = files.tkey('project', 1), pid = files.pid('project');
   for (const key of await core((k, f) => [...k.shell.current.tasks.values()].map((t) => t.key).filter((x) => x !== f), first)) await invoke(ui, 'task:delete', key);
-  await expect.poll(() => core((k, f) => k.shell.current.tasks.size === 1 && k.shell.task?.key === f && k.shell.task.loaded && !k.shell.windows[0].switching, first), { timeout: 20000 }).toBe(true);
+  await expect.poll(() => core((k, f) => k.shell.current.tasks.size === 1 && k.shell.task?.key === f && k.settled(), first), { timeout: 20000 }).toBe(true);
   for (const id of await core((k) => k.shell.accounts.stored().map((a) => a.id))) await invoke(ui, 'project:agent-remove', { id: pid, agent: id });
   await core(async (k) => {
     for (const a of k.shell.accounts.stored()) { k.shell.accounts.drop(a.id); k.removeTree(k.shell.accounts.folderOf(a)); }
@@ -188,7 +186,7 @@ test("a new account is made in the project's settings: the agent's own sign-in a
   await expect(s.locator('#npsignin')).toHaveCount(0);
   // Its agent and its email, each in its column (a table).
   expect((await s.locator(`#npagents [data-agent="${work}"] > *`).allTextContents()).slice(0, 2).map((c) => c.trim())).toEqual(['Fake agent', 'work@shop.com']);
-  expect(JSON.parse(fs.readFileSync(path.join(files.userData, 'agents.json'), 'utf8'))).toEqual({ list: [{ id: work, agent: 'fake', email: 'work@shop.com' }] });
+  expect(files.json('agents.json')).toEqual({ list: [{ id: work, agent: 'fake', email: 'work@shop.com' }] });
   expect(await core((k, a) => k.shell.store.projects().find((x) => x.id === a.pid).agents.includes(a.work), { pid: files.pid('project'), work }), 'the project lists it').toBe(true);
   // Signed in to an email it has already: that account, the new folder signed out and gone.
   await newAccount(core, s, files);
@@ -322,7 +320,7 @@ test("an account lives until deleted in Settings → Agents: let go by its proje
   expect(await asked()).toBe(0);
   await closeSettings(core, ui, sui);
   await invoke(ui, 'task:delete', task);
-  await expect.poll(() => core((k, key) => !k.shell.taskByKey(key) && !!k.shell.task?.loaded && !k.shell.windows[0].switching, task)).toBe(true);
+  await expect.poll(() => core((k, key) => !k.shell.taskByKey(key) && k.settled(), task)).toBe(true);
   await core((k) => { k.asked.length = 0; });
   // Deleted after a question; no: kept.
   s = await openAgents(ui, sui);
@@ -338,7 +336,7 @@ test("an account lives until deleted in Settings → Agents: let go by its proje
   await expect.poll(() => fs.existsSync(dir)).toBe(false);
   await expect(row(s, work)).toHaveCount(0);
   expect(logouts(files), "signed out first, with its agent's own command").toContain(dir);
-  expect(JSON.parse(fs.readFileSync(path.join(files.userData, 'agents.json'), 'utf8'))).toEqual({ list: [] });
+  expect(files.json('agents.json')).toEqual({ list: [] });
   await core((k) => { k.asked.length = 0; k.shell.signins.clear(); });
   // New Account… there (the + beside Agents in the tree, an agent): signed in on its page, in no project; a project's
   // Add Agent… takes it.

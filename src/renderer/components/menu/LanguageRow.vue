@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // ☰'s Language (docs/window.md, Language): a row opening a menu of its own beside it, as there are too many to show
 // in the row, Theme's way. The system's language first, then by name in each language itself.
-import { computed } from 'vue';
+import { computed, useId } from 'vue';
 import { DropdownMenuPortal, DropdownMenuRadioGroup, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger } from 'reka-ui';
 import Icon from '../Icon.vue';
 import MenuButton from '../MenuButton.vue';
@@ -10,6 +10,7 @@ import { ask } from '../../lib/ask';
 
 const name = (code: string, inLanguage = code) => new Intl.DisplayNames([inLanguage], { type: 'language' }).of(code)!;
 const info = computed(() => store.language);
+const uid = useId();
 const order = computed(() => {
   const system = navigator.language.split('-')[0];
   return (info.value?.languages || []).toSorted((a, b) => Number(b === system) - Number(a === system) || name(a).localeCompare(name(b)));
@@ -29,9 +30,9 @@ async function choose(code: string) {
 
 <template>
   <DropdownMenuSub v-if="info?.languages.length">
-    <DropdownMenuSubTrigger class="item languagerow" data-testid="language-row" :title aria-labelledby="language-label" aria-describedby="language-value">
-      <Icon class="ico" name="i-language" /><span class="text"><span id="language-label" class="label">Language</span></span>
-      <span id="language-value" class="value">{{ name(info.language, 'en') }}</span><Icon class="more" name="i-chevron" />
+    <DropdownMenuSubTrigger class="item languagerow" data-testid="language-row" :title :aria-labelledby="`${uid}-label`" :aria-describedby="`${uid}-value`">
+      <Icon class="ico" name="i-language" /><span class="text"><span :id="`${uid}-label`" class="label">Language</span></span>
+      <span :id="`${uid}-value`" class="value">{{ name(info.language, 'en') }}</span><Icon class="more" name="i-chevron" />
     </DropdownMenuSubTrigger>
     <DropdownMenuPortal>
       <DropdownMenuSubContent class="menu languages" data-ready aria-label="Languages" :side-offset="4" :collision-padding="4">

@@ -4,11 +4,8 @@ import fs from 'fs';
 import path from 'path';
 import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
-import type { data } from './data.ts';
-import { SITE, PORT, MAC, WIN, near, who, menu, anyMenu, item, menuRows, choose, closeMenu, taskMenu, manageProfiles, closeSettings, setProfileField, plusMenu, closeBoard, viewOn, invoke } from './helpers.ts';
+import { SITE, PORT, MAC, WIN, near, uiZoom, who, menu, anyMenu, item, menuRows, choose, closeMenu, taskMenu, manageProfiles, closeSettings, plusMenu, closeBoard, viewOn, invoke , typeIn } from './helpers.ts';
 import { profileId, deleteProfile } from './tasks-helpers.ts';
-
-type Files = ReturnType<typeof data>;
 
 // Files of the sites' Cache API in a profile's folder, wherever Chromium's layout puts them (`WebStorage/<bucket>/CacheStorage/`).
 // A folder Chromium removes while it is read is not counted yet (NaN): asked again.
@@ -17,13 +14,11 @@ const cacheStorageFiles = (dir: string) => {
   catch (e) { if ((e as NodeJS.ErrnoException).code === 'ENOENT') return NaN; throw e; }
 };
 // The tabs saved for a profile of the first task, by its id (a name may be made again here).
-const savedTabs = (files: Files, id: string): string[] => JSON.parse(fs.readFileSync(files.pfile(path.join(id, 'Kulisa Tabs.json')), 'utf8')).urls;
 // Ctrl+ a key (⌘ on macOS) where the keyboard is put first: Kulisa's window, or a profile's tab (its active one).
 const ctrl = (core: Core, where: string | null, key: string) => core((k, a) => {
   const wc = a.where === null ? k.shell.win.webContents : k.profile(a.where).get().wc;
   wc.focus(); k.press(wc, a.key, k.CMD);
 }, { where, key });
-const uiZoom = (core: Core) => core((k) => k.shell.win.webContents.getZoomFactor());
 // The Kulisa zoom set as a test starts from it (its keys and ☰'s row are the first test's).
 async function zoomAt(core: Core, z: number) {
   await core((k, x) => k.shell.setUiZoom(x), z);
@@ -51,7 +46,7 @@ test('Kulisa zoom: Ctrl+= outside the pages scales the whole UI, pages follow, p
   await closeMenu(ui);
   await expect.poll(() => viewOn(core, ui, files, 'Sam.admin')).toBe(true);
   await expect.poll(() => ui.evaluate(() => (window as any).__term.cols), { timeout: 3000 }).toBeLessThan(200); // the terminal refits
-  await expect.poll(() => JSON.parse(fs.readFileSync(path.join(files.userData, 'settings.json'), 'utf8')).uiZoom).toBe(1.25);
+  await expect.poll(() => files.json('settings.json').uiZoom).toBe(1.25);
   // macOS: the window's buttons centered in the bar as it grows (made at 100%: a 44 pt bar), never below the height
   // the window was made with, where they would not take a click (docs/window.md, The title bar).
   if (MAC) {
@@ -130,7 +125,7 @@ test('page zoom: Ctrl+= in a page zooms that site in that profile only, shows on
   for (const z of await core((k) => k.profile('Elon.buyer').tabs.map((t) => t.wc.getZoomFactor()))) expect(near(z, 1.25), 'other profiles keep the Kulisa zoom').toBe(true);
   const shown = ui.locator(`[role="region"][data-profile="${sam}"]`).getByTitle(/^This site's zoom/);
   await expect(shown).toHaveText('110%');
-  const saved = JSON.parse(fs.readFileSync(files.pfile('profiles.json'), 'utf8')).find((p: { id: string }) => p.id === sam);
+  const saved = files.json(files.pfile('profiles.json')).find((p: { id: string }) => p.id === sam);
   expect(saved.zoom).toEqual({ [`127.0.0.1:${PORT}`]: 1.1 });
   await ctrl(core, 'Sam.admin', '0');
   await expect.poll(async () => near(await zoom(), 1.25)).toBe(true);
@@ -156,17 +151,17 @@ test('tabs on sign-in pages are saved as where the sign-in started', async ({ co
     await none.ready;
     return [viaHistory.id, direct.id, none.id];
   }, { site: SITE, port: PORT });
-  await expect.poll(() => savedTabs(files, elon)).toEqual([`${SITE}/errors`, `${SITE}/app?n=5`, `${SITE}/`]);
+  await expect.poll(() => files.savedTabs(elon)).toEqual([`${SITE}/errors`, `${SITE}/app?n=5`, `${SITE}/`]);
   // The one in front, not the first, comes back in front (profiles.spec.ts, after a restart); the one on a sign-in page left behind.
   await core((k, id) => k.profile('Elon.buyer').activate(id), opened[0]);
-  await expect.poll(() => JSON.parse(fs.readFileSync(files.pfile(path.join(elon, 'Kulisa Tabs.json')), 'utf8')).active).toBe(1);
+  await expect.poll(() => files.json(files.pfile(path.join(elon, 'Kulisa Tabs.json'))).active).toBe(1);
   // Its sign-in pages closed: Elon out of the sign-in pause for the file's other tests.
   await core((k, ids) => { for (const id of ids) k.profile('Elon.buyer').closeTab(id); }, opened);
 });
 
 test('close a profile (its × or the agent) and open it again (👥 or the agent): signed in, same tabs; the agent removes it from the project only when the human confirms', async ({ core, ui, call, files }) => {
   await deleteProfile(core, ui, 'Cleo');
-  const saved = (f: string): { id: string; closed?: boolean }[] => JSON.parse(fs.readFileSync(files.pfile(f), 'utf8'));
+  const saved = (f: string): { id: string; closed?: boolean }[] => files.json(files.pfile(f));
   await call('profile_create', { name: 'Cleo' });
   const cleo = await profileId(core, 'Cleo');
   const header = ui.locator(`[data-panel="profile:${cleo}"]`);
@@ -188,7 +183,7 @@ test('close a profile (its × or the agent) and open it again (👥 or the agent
   await expect.poll(() => cacheStorageFiles(cleoDir)).toBe(0);
   await expect(header).toHaveCount(0);
   expect(saved('profiles.json').find((p) => p.id === cleo).closed).toBe(true);
-  await expect.poll(() => savedTabs(files, cleo).length).toBe(2);
+  await expect.poll(() => files.savedTabs(cleo).length).toBe(2);
   const listed = JSON.parse((await call('profile_list', {})).text).find((p: { name: string }) => p.name === 'Cleo');
   expect(listed).toEqual({ name: 'Cleo', description: null, avatar, closed: true, tabs: 2 });
   await expect(call('browser_snapshot', { profile: 'Cleo' })).rejects.toThrow(/closed.*profile_open/);
@@ -246,7 +241,7 @@ test('close a profile (its × or the agent) and open it again (👥 or the agent
   await call('profile_delete', { profile: 'Cleo' });
   expect(await core((k, id) => !k.shell.profiles.has(id) && !k.shell.closed.has(id), cleo)).toBe(true);
   expect(saved('profiles.json').some((p) => p.id === cleo)).toBe(false);
-  expect(JSON.parse(fs.readFileSync(path.join(files.userData, 'deleted-folders.json'), 'utf8'))).toContain(cleoDir);
+  expect(files.json('deleted-folders.json')).toContain(cleoDir);
   expect(await core((k, id) => k.shell.profileStore.projectsOf(k.shell.profileStore.get(id)), cleo), 'kept, in no project').toEqual([]);
   // Deleted for good, as Settings does: the file's next runs make a Cleo again.
   await invoke(ui, 'profiles:delete', { profile: cleo });
@@ -260,7 +255,7 @@ test('a profile with a tab on a site that never answers opens anyway, and the ag
   const hung = await profileId(core, 'Hung');
   await call('browser_tab_new', { profile: 'Hung', url: `${SITE}/hang` }); // returns after 5 s without a page
   await core((k, id) => k.shell.task.closeProfile(id), hung);
-  await expect.poll(() => savedTabs(files, hung).some((u) => u.endsWith('/hang'))).toBe(true);
+  await expect.poll(() => files.savedTabs(hung).some((u) => u.endsWith('/hang'))).toBe(true);
   const took = await core(async (k, id) => { const started = Date.now(); await k.shell.task.openProfile(id); return Date.now() - started; }, hung);
   expect(took < 10000, `opened in ${took} ms`).toBe(true);
   const t = await call('browser_tab_new', { profile: 'Hung', url: `${SITE}/app` });
@@ -278,7 +273,7 @@ test('a tab on a site that refuses to connect (its dev server not started, as in
   await call('browser_tab_new', { profile: 'Down', url: 'http://127.0.0.1:4419/app' }); // nothing listens there
   expect(Date.now() - started < soon, `tab opened in ${Date.now() - started} ms`).toBe(true);
   await core((k, id) => k.shell.task.closeProfile(id), down);
-  await expect.poll(() => savedTabs(files, down).some((u) => u.includes(':4419/'))).toBe(true);
+  await expect.poll(() => files.savedTabs(down).some((u) => u.includes(':4419/'))).toBe(true);
   const took = await core(async (k, id) => { const at = Date.now(); await k.shell.task.openProfile(id); return Date.now() - at; }, down);
   expect(took < soon, `profile opened in ${took} ms`).toBe(true);
   await deleteProfile(core, ui, 'Down');
@@ -337,9 +332,9 @@ test("test users' sign-ins: the agent saves a pair and signs in with it on a loc
   await expect(s.locator('#profilepage')).toBeVisible();
   await expect(s.locator('#profilelogin')).toHaveValue('tester');
   await expect(s.locator('#profilepassword')).toHaveAttribute('placeholder', 'Kept (type to change it)');
-  await setProfileField(s, 'profilepassword', 'secret-tess');
+  await typeIn(s, '#profilepassword', 'secret-tess', true);
   await expect(s.locator('#profilepassword')).toHaveValue('');
-  await setProfileField(s, 'profilelogin', 'tess');
+  await typeIn(s, '#profilelogin', 'tess', true);
   await expect.poll(() => core((k, id) => k.shell.profileStore.get(id).login?.user, tess)).toBe('tess');
   await closeSettings(core, ui, sui);
   await call('browser_navigate', { profile: 'Tess', url: `${SITE}/app/signin` });
@@ -372,13 +367,13 @@ test('after a restart: the Kulisa zoom and a site\'s page zoom are as they were 
   await core(async (k, url) => { await k.ensureProfile('Sam.admin', url); }, `${SITE}/app`);
   await zoomAt(core, 1.25);
   const sam = await core((k) => k.profile('Sam.admin').id);
-  const siteZoom = () => JSON.parse(fs.readFileSync(files.pfile('profiles.json'), 'utf8')).find((p: { id: string }) => p.id === sam).zoom?.[`127.0.0.1:${PORT}`];
+  const siteZoom = () => files.json(files.pfile('profiles.json')).find((p: { id: string }) => p.id === sam).zoom?.[`127.0.0.1:${PORT}`];
   const zoom = () => core((k) => k.profile('Sam.admin').get().wc.getZoomFactor());
   await ctrl(core, 'Sam.admin', '0'); // the site at the Kulisa zoom, then zoomed
   await expect.poll(async () => near(await zoom(), 1.25)).toBe(true);
   await ctrl(core, 'Sam.admin', '=');
   await expect.poll(siteZoom).toBe(1.1);
-  await expect.poll(() => JSON.parse(fs.readFileSync(path.join(files.userData, 'settings.json'), 'utf8')).uiZoom).toBe(1.25);
+  await expect.poll(() => files.json('settings.json').uiZoom).toBe(1.25);
   await restart();
   await expect.poll(async () => near(await uiZoom(core), 1.25)).toBe(true);
   await expect.poll(() => core((k) => [...k.shell.profiles.values()].some((p) => p.name === 'Sam.admin' && !!p.get()))).toBe(true);

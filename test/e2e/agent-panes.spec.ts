@@ -263,18 +263,17 @@ test('point and tell: a pick puts a reference into the agent\'s prompt, not sent
   // Pick mode reaches the page a moment after it starts (Playwright's recorder in the page learns it by a message, or
   // by polling once a second), and says nothing when: a click before goes to the page (Pay now again), so it clicks
   // again, as the human would, until the pick comes.
-  let pick: { locator: string; tab: string } | undefined;
-  void pending.then((r) => { pick = r; });
-  for (let i = 0; !pick && i < 20; i++) {
+  let pick: { locator: string; tab: string } | null = null;
+  await expect(async () => {
     await core((k, { x, y }) => {
       const wc = k.profile('Elon.buyer').get().wc;
       wc.sendInputEvent({ type: 'mouseMove', x, y });
       wc.sendInputEvent({ type: 'mouseDown', x, y, button: 'left', clickCount: 1 });
       wc.sendInputEvent({ type: 'mouseUp', x, y, button: 'left', clickCount: 1 });
     }, at);
-    await upTo(pending, 500);
-  }
-  expect(pick, 'picked').toBeTruthy();
+    pick = await upTo(pending, 500);
+    expect(pick, 'picked').toBeTruthy();
+  }).toPass({ timeout: 10000 });
   expect(pick.locator).toBe("getByRole('button', { name: 'Pay now' })");
   expect(pick.tab).toBe(await core((k) => k.profile('Elon.buyer').active));
   expect(fs.existsSync(path.join(files.project, '.kulisa')), 'nothing is written into the project').toBe(false);

@@ -4,10 +4,8 @@ import fs from 'fs';
 import path from 'path';
 import type { Page } from '@playwright/test';
 import type { Core, Call } from './fixtures.ts';
-import type { data } from './data.ts';
+import type { Files } from './data.ts';
 import { SITE, WIN, invoke } from './helpers.ts';
-
-type Files = ReturnType<typeof data>;
 
 // Sam.seller (the fox, "seller in the test shop") and Elon.buyer (the penguin, who it is not said), open in the shown
 // task, laid out, each its one tab in front on the app's page: what the agent's tests start from (making profiles is
@@ -15,15 +13,10 @@ type Files = ReturnType<typeof data>;
 export const profiles = (core: Core) => core(async (k, url) => {
   const t = k.shell.task, ids: string[] = [];
   for (const [name, description, avatar] of [['Sam.seller', 'seller in the test shop', 'fox'], ['Elon.buyer', '', 'penguin']]) {
-    const named = (n: string) => n.toLowerCase() === name.toLowerCase();
-    const closed = [...t.closed.values()].find((c) => named(c.cfg.name));
-    if (closed) await t.openProfile(closed.cfg.id);
-    else if (![...k.shell.profiles.values()].some((p) => named(p.name))) await t.createProfile(name, description, avatar);
-    const p = k.profile(name);
+    const p = await k.ensureProfile(name, url, { description, avatar });
     if (p.description !== description) t.describeProfile(p.id, description);
     if (p.avatar !== avatar) t.setProfileAvatar(p.id, avatar);
     for (const tab of p.tabs.slice(1)) p.closeTab(tab.id);
-    await k.ensureProfile(name, url);
     ids.push(p.id);
   }
   return { sam: ids[0], elon: ids[1] };

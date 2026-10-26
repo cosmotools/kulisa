@@ -96,7 +96,7 @@ test('agent bridge: at session start the plugin hook tells the agent which profi
   // The agent's terminal's own environment: its conversation's.
   const { env, terminal } = await core((k) => { const agent = k.shell.task.promptTarget(); return { env: k.shell.task.env(agent), terminal: agent.id }; });
   const inKulisa = await run(env);
-  expect(JSON.parse(fs.readFileSync(files.pfile('agent.json'), 'utf8')).conversations.map(({ from, ...c }: { from: number }) => c))
+  expect(files.json(files.pfile('agent.json')).conversations.map(({ from, ...c }: { from: number }) => c))
     .toEqual([{ agent: 'custom', started: true, terminal, sessionId: 'session-1', transcript }]);
   expect(inKulisa.code).toBe(0);
   const context = JSON.parse(inKulisa.out).hookSpecificOutput.additionalContext;

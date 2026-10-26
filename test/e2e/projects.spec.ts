@@ -5,16 +5,12 @@ import path from 'path';
 import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
-import type { data } from './data.ts';
-import { anyMenu, item, termTabs, menuRows, choose, closeMenu, rightClick, projectTabs, projectTab, showProject, plusMenu, focusWindow, closeSettings, settingsClosed, invoke, act, typeIn, asked, notLoading, projectMenu, otherPage, pageOf, onRow } from './helpers.ts';
+import type { Files } from './data.ts';
+import { anyMenu, item, termTabs, menuRows, choose, closeMenu, rightClick, projectTabs, projectTab, projectTabSel, showProject, plusMenu, focusWindow, closeSettings, settingsClosed, invoke, act, typeIn, asked, notLoading, projectMenu, otherPage, pageOf, onRow, removed } from './helpers.ts';
 import { SAM, git, committed, begin, bothOn, newTask, taskShown, openFolder, projectShown, taskTabs } from './tasks-helpers.ts';
 import { fakeAgent } from './agent-helpers.ts';
 import { createWorktree } from '../../src/main/worktrees.ts';
-import { removeTree } from '../../src/main/remove.ts';
 
-type Files = ReturnType<typeof data>;
-
-const gone = (...dirs: string[]) => { for (const d of dirs) if (fs.existsSync(d)) removeTree(d); };
 // A project the window has no task of shown again as the human does it (its tab), once it is.
 async function backTo(core: Core, ui: Page, files: Files, folder: string) {
   await showProject(ui, files, folder);
@@ -34,7 +30,7 @@ async function forget(core: Core, ui: Page, files: Files, folder: string, dir = 
   const id = await core((k, f) => k.shell.store.projects().find((p) => p.folders.some((x) => path.basename(x).toLowerCase() === f))?.id, folder).catch((): undefined => undefined);
   if (id) await invoke(ui, 'project:delete', { id });
   await core((k) => { k.asked.length = 0; });
-  gone(dir);
+  await removed(dir);
 }
 
 test("projects: the projects' manager (Project Settings…) changes its name and agents, the default one + runs, none the default: a new task starts nothing, the island's buttons instead; a folder with a favicon gets it as its icon, and its hue as its color", async ({ core, ui, sui, call, files }) => {
@@ -45,7 +41,7 @@ test("projects: the projects' manager (Project Settings…) changes its name and
   fs.mkdirSync(path.join(site, 'public'), { recursive: true });
   fs.writeFileSync(path.join(site, 'public', 'favicon.svg'), '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><circle cx="8" cy="8" r="8" fill="red"/></svg>');
   await openFolder(core, ui, site);
-  const id = files.pid('site'), tab = `#projectTabs [data-project="${id}"]`;
+  const id = files.pid('site'), tab = projectTabSel(files, 'site');
   await expect(projectTab(ui, files, 'site').getByTestId('project-icon')).toHaveAttribute('src', /^data:image\/svg\+xml;base64,/);
   // Its color: its favicon's hue (red: 29°; a few degrees off where its edges blend) in the lightness and chroma of
   // Kulisa's own colors; the window's and its island's. What projects.json keeps (the next free color) is for a
@@ -53,7 +49,7 @@ test("projects: the projects' manager (Project Settings…) changes its name and
   const shown = (hue: number | string) => ui.evaluate(([hue, sel]) => {
     const c = document.documentElement.style.getPropertyValue('--project'), h = /^oklch\(0\.61 0\.12 (\d+)\)$/.exec(c)?.[1];
     return document.querySelector<HTMLElement>(sel).style.getPropertyValue('--color') === c && (typeof hue === 'number' ? Math.abs(Number(h) - hue) <= 4 : c === hue);
-  }, [hue, `#projectTabs [data-project="${id}"]`] as const);
+  }, [hue, tab] as const);
   await expect.poll(() => shown(29)).toBe(true);
   // Its settings: its favicon in the list, the folder shown and not changed.
   await projectMenu(ui, 'Project Settings…', tab);
@@ -95,7 +91,7 @@ test("projects: the projects' manager (Project Settings…) changes its name and
   const entry = await entryOf();
   expect([entry.name, entry.folders]).toEqual(['Site-2', [site]]);
   // Said in the log once, though the page saves every field at each change (store.ts, updateProject).
-  const renames = fs.readFileSync(path.join(files.userData, 'logs', 'kulisa.log'), 'utf8').match(new RegExp(`\\[project\\] ${id} renamed: .*`, 'g'));
+  const renames = files.log().match(new RegExp(`\\[project\\] ${id} renamed: .*`, 'g'));
   expect(renames).toEqual([`[project] ${id} renamed: Site-2`]);
   expect(entry.local, "its own local addresses, where test users' pairs may be typed (local.ts)").toEqual(['abc.ngrok.app', 'shop.dev']);
   await expect.poll(async () => (await projectTabs(ui, files)).includes('site *') && await core((k) => k.shell.win.getTitle() === `${k.shell.task.name} · Site-2 — Kulisa`)).toBe(true);
@@ -181,7 +177,7 @@ test("projects: the projects' manager (Project Settings…) changes its name and
   await closeSettings(core, ui, sui);
   // + makes a task with the default one (the first kept the one it started with). No git: a second task in the folder,
   // after the question.
-  const agentOf = (key: string) => JSON.parse(fs.readFileSync(path.join(files.userData, 'projects', key.replace('/', path.sep), 'agent.json'), 'utf8')).agent;
+  const agentOf = (key: string) => files.json('projects', key.replace('/', path.sep), 'agent.json').agent;
   const before = await newTask(core, ui, id);
   expect(agentOf(before)).toBe('shell');
   // Another agent: made the default on the project's page (Make Default), + runs it.
@@ -194,7 +190,7 @@ test("projects: the projects' manager (Project Settings…) changes its name and
   await invoke(ui, 'task:new', { project: id });
   // Shown, not only loaded: a key while the window still switches acts for the task before (docs/testing.md; on a
   // loaded machine Ctrl+` below may do nothing).
-  await expect.poll(() => core((k, a) => k.shell.task.key !== a && k.shell.task.loaded && !k.shell.windows[0].switching, annTask)).toBe(true);
+  await expect.poll(() => core((k, a) => k.shell.task.key !== a && k.settled(), annTask)).toBe(true);
   await notLoading(ui);
   const bare = await core((k) => { k.asked.length = 0; return k.shell.task.key; });
   await expect.poll(() => ui.getByRole('navigation', { name: 'New terminal' }).getByRole('button').evaluateAll((bs) => bs.map((b) => document.getElementById(b.getAttribute('aria-labelledby')).textContent)))
@@ -320,7 +316,7 @@ test("projects: the title bar's gear opens Settings' window at the shown project
 test("projects: Delete Project… (the projects' manager alone) asks, closes the project when open, deletes its data and its tasks' copies, never its folder; New Project takes its code from folders on the disk or clones it from URLs, one or several, making no other folder", async ({ core, ui, sui, files }) => {
   test.slow(); // git's work (worktrees, clones), five projects made and deleted, the project's tasks closed and opened again
   const root = files.root, home = await core((k) => k.shell.projectsHome);
-  gone(...['spare', 'gone', 'back', 'cloned.git', 'back.git', 'bad'].map((d) => path.join(root, d)), path.join(home, 'cloned'), path.join(home, 'fullstack'));
+  await removed(...['spare', 'gone', 'back', 'cloned.git', 'back.git', 'bad'].map((d) => path.join(root, d)), path.join(home, 'cloned'), path.join(home, 'fullstack'));
   await begin(core, ui, files, { featureX: true });
   const projects = async () => (await core((k) => k.shell.store.projects().map((p) => p.folders[0]))).map((f) => path.basename(f)); // each by its folder's name (pid)
   // A project that is not open, with a task that has a commit of its own, as Kulisa lays them out.
@@ -404,7 +400,7 @@ test("projects: Delete Project… (the projects' manager alone) asks, closes the
     }
     await submit();
     await expect.poll(async () => {
-      const c = await core((k) => k.shell.current && !!k.shell.task?.loaded && !!k.shell.pty && !k.shell.windows[0].switching && k.shell.current.id);
+      const c = await core((k) => k.shell.current && k.settled(true) && k.shell.current.id);
       return !!c && files.named(c) === folder;
     }, { timeout: 10000 }).toBe(true); // a clone takes a while
     await notLoading(ui);
@@ -505,7 +501,7 @@ test("projects: Delete Project… (the projects' manager alone) asks, closes the
 
   // Close All Tasks in its submenu: the last tasks, so the empty window; its tasks closed.
   await notLoading(ui);
-  await projectMenu(ui, 'Close All Tasks', `#projectTabs [data-project="${files.pid('project')}"]`);
+  await projectMenu(ui, 'Close All Tasks', projectTabSel(files, 'project'));
   await expect.poll(() => core((k) => k.shell.task === null && k.shell.open.size === 0)).toBe(true);
   await core((k) => { k.asked.length = 0; });
   await expect(ui.locator('html')).toHaveAttribute('data-noproject');
@@ -518,7 +514,7 @@ test("projects: Delete Project… (the projects' manager alone) asks, closes the
   expect(await core((k) => !k.shell.task.entry.closed), 'open again').toBe(true);
   await notLoading(ui);
   await plusMenu(ui, 'project', 'Feature-X');
-  await expect.poll(() => core((k) => k.shell.task?.name === 'Feature-X' && !!k.shell.task.loaded && !!k.shell.pty && !k.shell.windows[0].switching)).toBe(true);
+  await expect.poll(() => core((k) => k.shell.task?.name === 'Feature-X' && k.settled(true))).toBe(true);
   await ui.locator(`#projectTabs [data-task="${first}"]`).click();
   await taskShown(core, first);
   expect(await projectTabs(ui, files), 'a tab each').toEqual(['project *', 'project']);
@@ -564,7 +560,7 @@ test('projects: one left in a window of its own comes back after a restart where
   await openFolder(core, ui, third);
   const key = files.tkey('third', 1);
   await invoke(ui, 'task:move', { key, terminals: {} });
-  await expect.poll(() => core((k, t) => k.shell.windows[1]?.current?.key === t && !k.shell.windows[1].switching, key)).toBe(true);
+  await expect.poll(() => core((k, t) => k.shell.windows[1]?.current?.key === t && k.settled(false, k.shell.windows[1]), key)).toBe(true);
   // Smaller than the window's minimum (setBounds passes below it, the human's drag does not): it comes back at it.
   await core((k) => k.shell.windows[1].win.setBounds({ x: 40, y: 50, width: 10, height: 10 }));
   await backTo(core, ui, files, 'project');
@@ -587,7 +583,7 @@ test("projects: Settings, not modal, acts for the tasks' window last in front; i
   await openFolder(core, ui, fourth);
   const key = files.tkey('fourth', 1);
   await invoke(ui, 'task:move', { key, terminals: {} });
-  await expect.poll(() => core((k, t) => k.shell.windows[1]?.current?.key === t && !k.shell.windows[1].switching && !!k.shell.windows[1].task?.loaded, key)).toBe(true);
+  await expect.poll(() => core((k, t) => k.shell.windows[1]?.current?.key === t && k.settled(false, k.shell.windows[1]), key)).toBe(true);
   await backTo(core, ui, files, 'project');
   const there = await otherPage(ui);
   await notLoading(there);

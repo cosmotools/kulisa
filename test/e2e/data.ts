@@ -5,9 +5,11 @@ import fs from 'fs';
 import path from 'path';
 import { expect } from '@playwright/test';
 
+export type Files = ReturnType<typeof data>;
 export function data(root: string) {
   const userData = path.join(root, 'data'), project = path.join(root, 'project');
-  const json = (f: string) => JSON.parse(fs.readFileSync(f, 'utf8'));
+  // A JSON file Kulisa saved, by its path in the data folder (or a whole path).
+  const json = (...f: string[]) => JSON.parse(fs.readFileSync(path.isAbsolute(f[0]) ? path.join(...f) : path.join(userData, ...f), 'utf8'));
   const projectsSaved = (): { id: string; folders: string[] }[] => json(path.join(userData, 'projects.json')).list;
   const folderName = (p: { folders: string[] }) => path.basename(p.folders[0]).toLowerCase();
   // A project's id by the name of a folder of it.
@@ -16,7 +18,8 @@ export function data(root: string) {
     expect(found, `one project in a folder named ${folder}`).toHaveLength(1);
     return found[0].id;
   };
-  const tasksOf = (id: string): { id: string }[] => json(path.join(userData, 'projects', id, 'tasks.json')).list;
+  // A project's tasks as tasks.json keeps them.
+  const tasksOf = (id: string): { id: string; name: string; named?: boolean; closed?: boolean; closedAt?: number }[] => json('projects', id, 'tasks.json').list;
   // A task's id by its place (from 1) among its project's tasks, as made; its key (`<project>/<task>`, as the core
   // knows it).
   const tid = (folder: string, i: number) => {
@@ -41,18 +44,20 @@ export function data(root: string) {
     expect(found, `one profile named ${name}`).toHaveLength(1);
     return found[0].id;
   };
-  const savedFile = (name: string, task: number) => json(pfile(path.join(idOf(name), 'Kulisa Tabs.json'), task));
+  // A profile by its name, or its id as it is.
+  const idFor = (profile: string) => (json('profiles.json').list.some((p: { id: string }) => p.id === profile) ? profile : idOf(profile));
+  const savedFile = (profile: string, task: number) => json(pfile(path.join(idFor(profile), 'Kulisa Tabs.json'), task));
   // The windows as settings.json keeps them for the next start: each one's tabs and the one shown, by their projects'
   // folders (named).
   const savedWindows = () => json(path.join(userData, 'settings.json')).windows.map(({ tabs, shown }: { tabs: string[]; shown: string | null }) => ({ tabs: tabs.map(named), shown: shown && named(shown) }));
   type GridNode = { type: string; size: number; data: { views: string[] } & GridNode[] };
   return {
-    root, userData, project, pid, tid, tkey, named, pfile, idOf, savedWindows,
+    root, userData, project, json, projectsSaved, tasksOf, pid, tid, tkey, named, pfile, idOf, savedWindows,
     // Kulisa's log as it is now.
     log: () => fs.readFileSync(path.join(userData, 'logs', 'kulisa.log'), 'utf8'),
-    // The tabs saved for a profile (in its folder), and the place of the one saved in front.
-    savedTabs: (name: string, task = 1): string[] => savedFile(name, task).urls,
-    savedActive: (name: string, task = 1): number => savedFile(name, task).active,
+    // The tabs saved for a profile (in its folder; by its name or id), and the place of the one saved in front.
+    savedTabs: (profile: string, task = 1): string[] => savedFile(profile, task).urls,
+    savedActive: (profile: string, task = 1): number => savedFile(profile, task).active,
     // The id of a profile's panel in the grid.
     panel: (name: string) => `profile:${idOf(name)}`,
     // The Resources island's height as the task's grid is saved (dockview keeps a panel's size along its column).

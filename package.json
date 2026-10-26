@@ -73,7 +73,7 @@
     "watch": "vite build --watch",
     "test": "node test/start.ts",
     "test:visible": "node test/start.ts --visible",
-    "test:e2e": "npm run build && playwright test",
+    "test:e2e": "node test/start.ts e2e",
     "test:unit": "node --test \"test/unit/*.test.ts\" \"src/*/*.test.ts\"",
     "knip": "knip",
     "lint": "eslint . && npm run deps",

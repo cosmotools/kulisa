@@ -3,9 +3,8 @@
 import path from 'path';
 import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
-import { MAC, frames, ipcSettled, menu, menuRows, choose, closeMenu, rightClick, plusMenu, focusWindow, viewOn, termShows, invoke, notLoading, noSlide, asked, mouse, mid } from './helpers.ts';
-import { committed, rand, keyAt, isNth, nthShown, taskTab, hook, begin } from './tasks-helpers.ts';
-import { removeTree } from '../../src/main/remove.ts';
+import { MAC, frames, ipcSettled, menu, menuRows, choose, closeMenu, rightClick, plusMenu, focusWindow, viewOn, termShows, invoke, notLoading, noSlide, asked, mouse, mid, removed } from './helpers.ts';
+import { committed, rand, keyAt, isNth, nthShown, taskTab, hook, begin, bothOn } from './tasks-helpers.ts';
 
 const chosen = (ui: Page) => ui.evaluate(() => document.querySelector<HTMLElement>('#projectTabs [role="tab"][aria-selected="true"]')?.dataset.task ?? '');
 
@@ -42,7 +41,7 @@ test("tasks: switching shows the other grid and terminal; the one left keeps run
   await taskTab(ui, first).click();
   await nthShown(core, 1);
   expect(await widths(), 'the tabs keep their widths').toEqual(before);
-  await expect.poll(async () => (await viewOn(core, ui, files, 'Sam.admin')) && viewOn(core, ui, files, 'Elon.buyer')).toBe(true);
+  await bothOn(core, ui, files);
   expect(await core((k, a) => {
     const t = k.shell.taskByKey(a.second), sam = t.profiles.get(a.SAM);
     return [sam.get().view.getVisible(), sam.tabs.every((x) => !x.wc.isDestroyed()) && !!t.pty];
@@ -100,7 +99,7 @@ test("tasks: switching shows the other grid and terminal; the one left keeps run
   expect(await core((k, key) => k.shell.taskByKey(key).promptTarget().state, second), 'the agent is still done: only its tab says nothing').toBe('done');
   await taskTab(ui, first).click();
   await nthShown(core, 1);
-  await expect.poll(async () => (await viewOn(core, ui, files, 'Sam.admin')) && viewOn(core, ui, files, 'Elon.buyer')).toBe(true);
+  await bothOn(core, ui, files);
   await noSlide(ui);
 });
 
@@ -174,7 +173,7 @@ test('tasks: switching slides the grid towards the other tab (a view transition)
 
 test('tasks: Ctrl+Shift+2 shows the second, Ctrl+Shift+PgUp and PgDn the one before and after, from the terminal too', async ({ core, ui, files, call }) => {
   await begin(core, ui, files, { only: true, columns: true, featureX: call });
-  const shown = (n: number) => expect.poll(async () => (await isNth(core, n)) && (await core((k) => !k.shell.windows[0].switching)) && !(await ui.evaluate(() => document.documentElement.hasAttribute('aria-busy')))).toBe(true);
+  const shown = (n: number) => expect.poll(async () => (await isNth(core, n)) && (await core((k) => k.settled())) && !(await ui.evaluate(() => document.documentElement.hasAttribute('aria-busy')))).toBe(true);
   await focusWindow(core, ui);
   // The terminal shown before it takes the keyboard: the grid's slide hides it (dockview's overlay) until it is over.
   await expect.poll(() => ui.evaluate(() => !!(window as any).__term?.textarea?.checkVisibility({ visibilityProperty: true }))).toBe(true);
@@ -198,7 +197,6 @@ test("tasks: more tabs than the bar holds: each keeps its name readable, a mouse
     const s = document.querySelector('#projectTabs'), a = s.querySelector('[aria-selected="true"]').getBoundingClientRect(), b = s.getBoundingClientRect();
     return { left: Math.round(s.scrollLeft), max: s.scrollWidth - s.clientWidth, fade: ['past-start', 'past-end'].filter((e) => s.hasAttribute(`data-${e}`)).join(' '), inSight: a.left >= b.left && a.right <= b.right };
   });
-  const frame = () => ui.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
   expect((await bar()).fade, 'all fit: no edge fades').toBe('');
   await taskTab(ui, await keyAt(core, 2)).click();
   await nthShown(core, 2);
@@ -226,7 +224,7 @@ test("tasks: more tabs than the bar holds: each keeps its name readable, a mouse
     await invoke(ui, 'bar:set', 'top');
     await expect(ui.locator('#topbar #projectTabs')).toHaveCount(1);
     await ui.evaluate(() => document.querySelectorAll<HTMLElement>('#projectTabs [role="tab"]').forEach((t) => { t.style.minWidth = t.style.maxWidth = '1000px'; })); // the bar drawn anew: tabs as wide as many
-    await frame();
+    await frames(ui);
     expect(await ui.evaluate(() => {
       const q = (s: string) => document.querySelector(s), r = (s: string) => q(s).getBoundingClientRect(), s = q('#projectTabs');
       const after = (x: string) => !!(q('#taskbar').compareDocumentPosition(q(x)) & Node.DOCUMENT_POSITION_FOLLOWING) && (getComputedStyle(q(x)) as any).appRegion;
@@ -299,10 +297,8 @@ test('menus: one longer than the window has stays in it and scrolls', async ({ u
   await ui.locator('#windowMenu').click();
   await menuRows(ui);
   await menu(ui).evaluate((m) => { const row = m.querySelector('[role="menuitem"]'); for (let i = 0; i < 60; i++) m.append(row.cloneNode(true)); }); // as many rows as thirty closed tasks and more
-  expect(await menu(ui).evaluate((m) => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => {
-    const b = m.getBoundingClientRect();
-    r([b.top >= 0, b.bottom <= innerHeight, m.scrollHeight > m.clientHeight]);
-  }))))).toEqual([true, true, true]);
+  await frames(ui);
+  expect(await menu(ui).evaluate((m) => { const b = m.getBoundingClientRect(); return [b.top >= 0, b.bottom <= innerHeight, m.scrollHeight > m.clientHeight]; })).toEqual([true, true, true]);
   await closeMenu(ui);
 });
 
@@ -315,7 +311,7 @@ test("tasks: the bar's + with several projects — a click on a project makes it
   const made = await invoke(ui, 'project:new', { from: 'folder', folders: [plus2], name: 'Plus2' });
   expect(made.id, 'the second project is made').toBeTruthy();
   await invoke(ui, 'project:open', { id: made.id });
-  const on = () => core((k, id) => k.shell.current?.id === id && !!k.shell.task?.loaded && !k.shell.windows[0].switching, made.id);
+  const on = () => core((k, id) => k.shell.current?.id === id && k.settled(), made.id);
   await expect.poll(async () => (await on()) && core((k) => !!k.shell.pty), { timeout: 10000 }).toBe(true);
   await notLoading(ui);
   const tasks2 = () => core((k, id) => k.shell.store.tasksOf(k.shell.store.projects().find((x) => x.id === id)).list.length, made.id);
@@ -348,7 +344,7 @@ test("tasks: the bar's + with several projects — a click on a project makes it
   await invoke(ui, 'project:delete', { id: made.id });
   await expect.poll(() => core((k, id) => !k.shell.open.has(id), made.id)).toBe(true);
   // Once its task's shell has left it: Windows does not remove a process's folder.
-  await expect.poll(() => { try { removeTree(plus2); return true; } catch { return false; } }).toBe(true);
+  await removed(plus2);
   await expect.poll(() => core((k, id) => k.shell.current?.id === id && !!k.shell.task?.loaded, files.pid('project'))).toBe(true);
   await taskTab(ui, await keyAt(core, 1)).click();
   await nthShown(core, 1);

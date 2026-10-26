@@ -30,7 +30,7 @@ test("+ opens any of the project's accounts, a new conversation in a tab of its 
   const tabs = () => termTabs(ui);
   const tabState = (id: number) => ui.locator(`nav[aria-label="Terminals"] [data-id="${id}"] [data-state]`).getAttribute('data-state');
   const taskState = () => ui.locator(`#projectTabs [data-task="${key}"] [data-state]`).getAttribute('data-state');
-  const conversations = () => JSON.parse(fs.readFileSync(files.pfile('agent.json', taskId), 'utf8')).conversations;
+  const conversations = () => files.json(files.pfile('agent.json', taskId)).conversations;
   type Term = { id: number; agent: string | undefined; pty: boolean };
   const terms = () => core((k, t) => [...k.shell.taskByKey(t).terminals.values()].map((x): Term => ({ id: x.id, agent: x.agent?.id, pty: !!x.pty })), key);
   const newest = async () => (await terms()).at(-1);

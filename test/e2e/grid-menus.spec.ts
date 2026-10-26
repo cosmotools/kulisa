@@ -7,8 +7,7 @@ import url from 'url';
 import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
-import { removeTree } from '../../src/main/remove.ts';
-import { SITE, MAC, WIN, frames, seen, menu, anyMenu, menuRows, choose, closeMenu, rightClick, focusWindow, pageBox, viewOn, answered, mouse, scaled, mid } from './helpers.ts';
+import { SITE, MAC, WIN, frames, seen, echoed, uiZoom, menu, anyMenu, menuRows, choose, closeMenu, rightClick, focusWindow, pageBox, viewOn, answered, mouse, scaled, mid, removed } from './helpers.ts';
 import type { Mods } from './helpers.ts';
 import { SAM, ELON, begin } from './tasks-helpers.ts';
 
@@ -17,12 +16,9 @@ const menuOpen = (ui: Page) => menu(ui).isVisible();
 // (navigator.clipboard: answered in order), so a mark sent after a read of it comes after anything a paste sent; the
 // mark then rubbed out.
 async function sentAll(core: Core, ui: Page) {
-  const mark = `kl${Math.random().toString(36).slice(2, 8)}`, task = await core((k) => k.shell.task.promptTarget().key);
-  await ui.evaluate(async ([t, m]) => { await navigator.clipboard.readText().catch(() => ''); (window as any).kulisa.send('pty:in', { task: t, data: m }); }, [task, mark]);
-  await expect.poll(() => core((k) => k.ptyOutput())).toContain(mark);
-  await core((k, n) => k.shell.pty.write('\x7f'.repeat(n)), mark.length);
+  const task = await core((k) => k.shell.task.promptTarget().key);
+  await echoed(core, { send: (mark) => ui.evaluate(async ([t, m]) => { await navigator.clipboard.readText().catch(() => ''); (window as any).kulisa.send('pty:in', { task: t, data: m }); }, [task, mark]) });
 }
-const zoom = (core: Core) => core((k) => k.shell.win.webContents.getZoomFactor());
 
 test('context menus: a pane\'s header, a tab, the terminal; pages are pictures while a menu is open; Arrange panels in ☰; Exit', async ({ core, ui, files }) => {
   await begin(core, ui, files, { columns: true });
@@ -114,11 +110,11 @@ test('context menus: a pane\'s header, a tab, the terminal; pages are pictures w
   // Pressed again while nothing is pasted: the page reads the clipboard only while it has the focus, and on a loaded
   // machine the window manager's focus, coming late after another window went, may take it away for a moment; a read
   // refused pastes nothing, so a second press cannot paste twice.
-  for (let i = 0; ; i++) {
+  await expect(async () => {
     await focusWindow(core, ui); await ui.evaluate(() => (window as any).__term.focus());
     await paste();
-    try { await expect.poll(async () => (await output()).slice(before).includes('kulisa-paste'), { timeout: 2000 }).toBe(true); break; } catch (e) { if (i === 4) throw e; }
-  }
+    await expect.poll(async () => (await output()).slice(before).includes('kulisa-paste'), { timeout: 2000 }).toBe(true);
+  }).toPass({ timeout: 12000 });
   await sentAll(core, ui);
   expect((await output()).slice(before).split('kulisa-paste').length - 1, 'pasted once').toBe(1);
   await clipboard.write('');
@@ -195,7 +191,7 @@ test('context menus: a pane\'s header, a tab, the terminal; pages are pictures w
     return null;
   }, [text, below] as const);
   const mods: Mods = [MAC ? 'meta' : 'control'];
-  const z = await zoom(core);
+  const z = await uiZoom(core);
   // A path is a link once the main process says it exists (termHooks.files, asked as the pointer comes over its line):
   // its answers counted, as they reach the terminal. An agent's link (OSC 8) is one at once: its address shown on hover.
   await ui.evaluate(() => {
@@ -257,7 +253,7 @@ test('context menus: a pane\'s header, a tab, the terminal; pages are pictures w
   } finally {
     await ui.evaluate(() => { const w = window as any; w.termHooks.files = w.__files; });
     await core((k) => { const g = k.stash.links; Object.assign(k.electron.shell, { openPath: g.openPath, showItemInFolder: g.showItemInFolder }); });
-    removeTree(dir);
+    await removed(dir);
   }
 
   await ui.locator('#windowMenu').click();
@@ -303,7 +299,7 @@ test('context menus: a pane\'s header, a tab, the terminal; pages are pictures w
 
 test("menus with the mouse and the keyboard, as the OS's: a press on ☰, a drag to a row and the release there chooses it; a click opens, the next closes; a right-click's release over a row chooses nothing; Enter and the arrows; the keyboard back where it was; leaving the window closes it", async ({ core, ui, files }) => {
   await begin(core, ui, files, { columns: true });
-  const z = await zoom(core);
+  const z = await uiZoom(core);
   const rowAt = async (label: string) => scaled(z, await ui.evaluate((l) => {
     const r = [...document.querySelectorAll('[role="menu"][data-state="open"] [role^="menuitem"]')].find((e) => document.getElementById(e.getAttribute('aria-labelledby'))?.textContent === l).getBoundingClientRect();
     return { x: r.x + r.width / 2, y: r.y + r.height / 2 };

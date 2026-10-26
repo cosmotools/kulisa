@@ -3,8 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
-import { removeTree } from '../../src/main/remove.ts';
-import { SITE, PORT, ipcSettled, who, menu, submenu, item, menuRows, choose, closeMenu, rightClick, manageProfiles, closeSettings, chooseProfile, setProfileField, termText, invoke } from './helpers.ts';
+import { SITE, PORT, logged, ipcSettled, who, menu, submenu, item, menuRows, choose, closeMenu, rightClick, manageProfiles, closeSettings, chooseProfile, termText, invoke , typeIn, removed } from './helpers.ts';
 import { profileId, deleteProfile } from './tasks-helpers.ts';
 
 // A PNG's size in pixels, from its header.
@@ -97,11 +96,11 @@ test("delete a profile in Settings (its page's ⋯, its row's right-click): sign
     return { tabs: temp.tabs.length, cookies: await temp.session.cookies.get({}) };
   })).toEqual({ tabs: 0, cookies: [] });
   expect(fs.existsSync(cookiesFile)).toBe(false);
-  const savedIds = () => JSON.parse(fs.readFileSync(files.pfile('profiles.json'), 'utf8')).map((p: { id: string }) => p.id);
+  const savedIds = () => files.json(files.pfile('profiles.json')).map((p: { id: string }) => p.id);
   await expect.poll(savedIds).toEqual(others);
   expect(await core((k, p) => k.shell.profileStore.get(p), tempId), 'gone from the store').toBeNull();
   // Its task's copy and its master.
-  const marked = JSON.parse(fs.readFileSync(path.join(files.userData, 'deleted-folders.json'), 'utf8'));
+  const marked = files.json('deleted-folders.json');
   expect(marked.slice(-2)).toEqual([files.pfile(tempId), path.join(files.userData, 'profiles', tempId)]);
   await expect(call('browser_snapshot', { profile: 'Temp' })).rejects.toThrow(/No profile "Temp"/);
   await expect(ui.locator(`[role="region"][data-profile="${tempId}"]`)).toHaveCount(0);
@@ -136,9 +135,9 @@ test('rename in Settings → Profiles: typed, and Enter or leaving the field sav
   await expect(ui.getByTestId('profile-name').filter({ hasText: /^Ren\.admin$/ })).toHaveCount(1);
   await expect(ui.getByTestId('profile-name').filter({ hasText: /^Ren\.seller$/ })).toHaveCount(0);
   // Its id beside its new name, so the lines before and after it go together.
-  await expect.poll(() => files.log()).toMatch(new RegExp(`\\[profiles\\] ${id} renamed: Ren\\.admin$`, 'm'));
+  await expect.poll(() => logged(core, new RegExp(`\\[profiles\\] ${id} renamed: Ren\\.admin$`))).toBeGreaterThan(0);
   expect(await who(call, 'Ren.admin')).toBe('Signed in as sam');
-  await setProfileField(s, 'profilename', 'Ren.seller');
+  await typeIn(s, '#profilename', 'Ren.seller', true);
   await expect.poll(() => core((k, p) => k.shell.profiles.get(p).name, id)).toBe('Ren.seller');
   await closeSettings(core, ui, sui);
   await deleteProfile(core, ui, 'Ren.seller');
@@ -210,7 +209,7 @@ test("DevTools in a pane's ⋮ menu opens and closes the DevTools of its active 
 test("a pane's ⋮ → Screenshot takes an element, the visible part or the whole page, to the clipboard and the folder of screenshots", async ({ core, ui, files }) => {
   const id = await core(async (k, url) => (await k.ensureProfile('Sam.admin', url)).id, `${SITE}/app`);
   const dir = path.join(files.root, 'screenshots');
-  removeTree(dir);
+  await removed(dir);
   const shots = () => (fs.existsSync(dir) ? fs.readdirSync(dir).sort() : []);
   const { was, dpr, tall } = await core(async (k, url) => {
     const page = await k.profile('Sam.admin').page(), was = page.url();
@@ -282,7 +281,7 @@ test("a pane's ⋮ → Screenshot takes an element, the visible part or the whol
   // Back by the tab's own page: Profile.page() would look among the pages while the closed tab's is still going.
   await core(async (k, a) => { const p = k.profile('Sam.admin'); p.closeTab(a.blank); await p.get(a.tall).wc.loadURL(a.was); }, { blank, was, tall });
   await expect(ui.locator(`[role="region"][data-profile="${id}"] [aria-label="Pick an element"]`), 'a page again: Pick on').toBeEnabled();
-  removeTree(dir);
+  await removed(dir);
 });
 
 // The thumbnail (src/screenshots, The thumbnail): what the OS would do with the file is stubbed (a file manager, an
@@ -364,7 +363,7 @@ test('a screenshot shows its thumbnail in its pane\'s corner: a click opens it, 
   } finally {
     await core((k) => { Object.assign(k.electron.shell, k.stash.real); });
     await core(async (k, url) => { await (await k.profile('Sam.admin').page()).goto(url); }, was);
-    removeTree(dir);
+    await removed(dir);
   }
 });
 

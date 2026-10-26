@@ -8,10 +8,8 @@ import path from 'path';
 import { expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import type { Core, Call } from './fixtures.ts';
-import type { data } from './data.ts';
+import type { Files } from './data.ts';
 import { SITE, invoke, notLoading, noSlide, viewOn } from './helpers.ts';
-
-type Files = ReturnType<typeof data>;
 
 export const SAM = 'Sam.admin', ELON = 'Elon.buyer';
 export const rand = () => crypto.randomBytes(3).toString('hex');
@@ -28,7 +26,7 @@ export function committed(dir: string, file = 'a.txt', text = 'a', message = 'a'
 }
 // The project made a git repository as the human sets it up: committed, with what a task's copy takes along or not (an
 // .env, an .envrc direnv allowed, a file .worktreeinclude names, an agent's local settings, a file not committed).
-export function gitProject(project: string) {
+function gitProject(project: string) {
   git(project, 'init', '-q');
   fs.writeFileSync(path.join(project, '.gitignore'), '.env*\nconfig/local.json\ntranscript.jsonl\n.claude/settings.local.json\n');
   fs.writeFileSync(path.join(project, '.worktreeinclude'), 'config/local.json\n');
@@ -48,7 +46,7 @@ export function gitProject(project: string) {
 // The shown project's task by its place (from 1), as made; whether the shown task is that one, the window done showing it.
 export const keyAt = (core: Core, n: number) => core((k, i) => [...k.shell.current.tasks.values()][i - 1]?.key, n);
 export const isNth = (core: Core, n: number) => core((k, i) => { const t = k.shell.task; return !!t && [...t.project.tasks.values()][i - 1] === t; }, n);
-export const nthShown = (core: Core, n: number, timeout = 5000) => expect.poll(async () => (await isNth(core, n)) && core((k) => !k.shell.windows[0].switching), { timeout }).toBe(true);
+export const nthShown = (core: Core, n: number, timeout = 5000) => expect.poll(async () => (await isNth(core, n)) && core((k) => k.settled()), { timeout }).toBe(true);
 // A task's tab in the bar by its key; the shown task's project's tabs, each its task's name, the shown one with ' *'.
 export const taskTab = (ui: Page, key: string) => ui.locator(`#projectTabs [data-task="${key}"]`);
 export const taskTabs = (ui: Page) => ui.evaluate(() => {
@@ -76,14 +74,14 @@ export async function showTask(core: Core, ui: Page, key: string) {
   await taskShown(core, key);
 }
 // A task shown, by its key, once its agent started and the window is done showing it.
-export const taskShown = (core: Core, key: string) => expect.poll(() => core((k, t) => k.shell.task?.key === t && !!k.shell.task.loaded && !!k.shell.pty && !k.shell.windows[0].switching, key), { timeout: 20000 }).toBe(true);
+export const taskShown = (core: Core, key: string) => expect.poll(() => core((k, t) => k.shell.task?.key === t && k.settled(true), key), { timeout: 20000 }).toBe(true);
 // A new task (its + in the board or the bar: task:new; the menu itself is tested elsewhere) of a project, the shown one
 // by default, shown once its agent started; named task-<its place among its project's tasks> for the test to refer to
 // it by, unless name is null (left "New Task"). A project without git asks first: answered yes (driver.ts). Its key.
 export async function newTask(core: Core, ui: Page, name?: string | null, project?: string) {
   const before = await core((k) => k.shell.task?.key ?? null);
   await invoke(ui, 'task:new', { project: project ?? await core((k) => k.shell.current.id) });
-  await expect.poll(() => core((k, b) => { const t = k.shell.task; return !!t && t.key !== b && t.loaded && [...t.terminals.values()].some((x) => !!x.pty) && !k.shell.windows[0].switching; }, before), { timeout: 20000 }).toBe(true);
+  await expect.poll(() => core((k, b) => { const t = k.shell.task; return !!t && t.key !== b && [...t.terminals.values()].some((x) => !!x.pty) && k.settled(); }, before), { timeout: 20000 }).toBe(true);
   return core(async (k, n) => {
     const t = k.shell.task;
     if (n !== null) await t.rename(n ?? `task-${[...t.project.tasks.values()].indexOf(t) + 1}`);
@@ -97,12 +95,12 @@ export async function newTask(core: Core, ui: Page, name?: string | null, projec
 export async function openFolder(core: Core, ui: Page, folder: string) {
   fs.mkdirSync(folder, { recursive: true });
   await invoke(ui, 'project:open', { folder });
-  await expect.poll(() => core((k, f) => k.shell.current?.folder === f && !!k.shell.task?.loaded && !!k.shell.pty && !k.shell.windows[0].switching, folder), { timeout: 10000 }).toBe(true);
+  await expect.poll(() => core((k, f) => k.shell.current?.folder === f && k.settled(true), folder), { timeout: 10000 }).toBe(true);
   await core((k) => k.watchPty(k.shell.pty));
   await notLoading(ui);
 }
 // A project the window shows (its id), its task loaded and the window done showing it.
-export const projectShown = (core: Core, id: string) => expect.poll(() => core((k, p) => k.shell.current?.id === p && !!k.shell.task?.loaded && !k.shell.windows[0].switching, id), { timeout: 20000 }).toBe(true);
+export const projectShown = (core: Core, id: string) => expect.poll(() => core((k, p) => k.shell.current?.id === p && k.settled(), id), { timeout: 20000 }).toBe(true);
 
 // Sam's and Elon's pages each on its pane (driver.ts, viewOn).
 export const bothOn = (core: Core, ui: Page, files: Files) => expect.poll(async () => (await viewOn(core, ui, files, SAM)) && viewOn(core, ui, files, ELON)).toBe(true);
@@ -132,20 +130,21 @@ export async function begin(core: Core, ui: Page, files: Files, { columns = fals
     for (const key of await core((k, keep) => [...k.shell.current.tasks.values()].slice(1).filter((t) => !keep || t.name !== 'Feature-X').map((t) => t.key), !!featureX)) await invoke(ui, 'task:delete', key);
   }
   await core(async (k, dora) => {
-    const task = k.shell.task, closed = (n: string) => [...task.closed.values()].find((c) => c.cfg.name === n);
+    const task = k.shell.task;
     if (task.name !== 'task-1') await task.rename('task-1');
-    const made: [string, string, string | undefined][] = [['Sam.admin', 'seller in the test shop', 'fox'], ['Elon.buyer', '', 'owl']];
-    if (dora) made.push(['Dora', '', undefined]);
-    for (const [name, description, avatar] of made) {
-      if ([...k.shell.profiles.values()].some((p) => p.name === name)) continue;
-      if (closed(name)) { if (name !== 'Dora') await task.openProfile(closed(name).cfg.id); } else await task.createProfile(name, description, avatar);
+    await k.openProfile('Sam.admin', { description: 'seller in the test shop', avatar: 'fox' });
+    await k.openProfile('Elon.buyer', { avatar: 'owl' });
+    if (dora) {
+      const named = (p: { name: string }) => p.name === 'Dora';
+      if (![...k.shell.profiles.values()].some(named) && ![...task.closed.values()].some((c) => named(c.cfg))) await task.createProfile('Dora');
+      const open = [...k.shell.profiles.values()].find(named);
+      if (open) await task.closeProfile(open.id);
     }
-    const doraOpen = [...k.shell.profiles.values()].find((p) => p.name === 'Dora');
-    if (dora && doraOpen) await task.closeProfile(doraOpen.id);
     k.watchPty(k.shell.pty);
   }, only);
   if (columns) await expect(ui.locator('[data-panel^="profile:"]')).toHaveCount(2); // a pane stacked behind another has no .pane drawn
   await notLoading(ui);
+  // Columns first: a page stacked behind another's tab is never laid out, and ensureProfile waits for that.
   if (columns) await ui.evaluate(() => (window as any).__layoutPreset('columns'));
   const ids = await core(async (k, site) => ({
     sam: (await k.ensureProfile('Sam.admin', `${site}/app/login?name=sam`)).id,
@@ -169,11 +168,12 @@ export async function begin(core: Core, ui: Page, files: Files, { columns = fals
   return ids;
 }
 
-// A profile's id by its name, open or closed (the core's: profiles.json keeps a profile its project let go, and a test
-// may make one of a name again), or null.
+// A profile's id by its name: the shown task's, open or closed, else one in no task shown (profiles.json keeps a profile
+// its project let go, and a test may make one of a name again); or null.
 export const profileId = (core: Core, name: string) => core((k, n) => {
-  const all = [...k.shell.profiles.values(), ...[...k.shell.closed.values()].map((c) => c.cfg)];
-  return all.find((p) => p.name.toLowerCase() === n.toLowerCase())?.id ?? null;
+  const named = (p: { name: string }) => p.name.toLowerCase() === n.toLowerCase();
+  return [...k.shell.profiles.values(), ...[...k.shell.closed.values()].map((c) => c.cfg)].find(named)?.id
+    ?? k.shell.profileStore.all().find(named)?.id ?? null;
 }, name);
 // A profile deleted for good (Settings → Profiles' Delete, as the window sends it), when there is one of that name:
 // what a test made goes, and the file's other tests (and its own next run) find it gone.

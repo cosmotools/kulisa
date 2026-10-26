@@ -3,9 +3,8 @@
 import fs from 'fs';
 import path from 'path';
 import { test, expect } from './fixtures.ts';
-import { ipcSettled, menuRows, choose, projectTabs, projectTab, showProject, invoke, typeIn, notLoading, projectMenu, plusMenu } from './helpers.ts';
-import { begin, bothOn, taskShown, taskTab } from './tasks-helpers.ts';
-import { removeTree } from '../../src/main/remove.ts';
+import { ipcSettled, menuRows, choose, projectTabs, projectTab, showProject, invoke, typeIn, notLoading, projectMenu, plusMenu, removed } from './helpers.ts';
+import { begin, bothOn, taskShown, taskTab, deleteProfile } from './tasks-helpers.ts';
 
 test("the empty window: Close All Tasks in the project's submenu; links in ☰ open in the browser; at the first start the manager on New Project; New Project… asks where its folder goes", async ({ core, ui, files }) => {
   test.slow(); // the welcome's slides, New Project's steps, and three tasks opened again
@@ -110,7 +109,7 @@ test("the empty window: Close All Tasks in the project's submenu; links in ☰ o
     await kind('new');
     await expect(ui.locator('#npname')).toHaveCount(1);
     // Once the git that looked at it (whether it is a repository) has left it: Windows does not remove a process's folder.
-    await expect.poll(() => { try { removeTree(taken); return true; } catch { return false; } }).toBe(true);
+    await removed(taken);
     // Back on the first step: the slides again, on the one left.
     await ui.locator('#npback').click();
     await expect(ui.locator('#tour h1')).toHaveText('It checks the result as every user');
@@ -228,7 +227,7 @@ test("the empty window: Close All Tasks in the project's submenu; links in ☰ o
   // Another project's task: a click shows it.
   const shopTask = files.tkey('shop', 1);
   await ui.locator(`#projectTabs [data-task="${shopTask}"]`).click();
-  await expect.poll(() => core((k, a) => k.shell.current?.id === a.id && k.shell.task?.key === a.task && !!k.shell.task.loaded && !k.shell.windows[0].switching, { id: shopId, task: shopTask })).toBe(true);
+  await expect.poll(() => core((k, a) => k.shell.current?.id === a.id && k.shell.task?.key === a.task && k.settled(), { id: shopId, task: shopTask })).toBe(true);
   await notLoading(ui);
   expect(await projectTabs(ui, files)).toEqual(['shop *', 'project', 'project']);
   await showProject(ui, files, 'project');
@@ -240,8 +239,7 @@ test("the empty window: Close All Tasks in the project's submenu; links in ☰ o
 
   // Shop and its profile gone, for the test run again in this Kulisa.
   await invoke(ui, 'project:delete', { id: shopId });
-  const buyer = await core((k) => k.shell.profileStore.all().find((p) => p.name === 'Shop-buyer' && !k.shell.profileStore.projectsOf(p).length)?.id);
-  if (buyer) await invoke(ui, 'profiles:delete', { profile: buyer });
-  removeTree(made);
+  await deleteProfile(core, ui, 'Shop-buyer');
+  await removed(made);
   await core((k) => { k.asked.length = 0; });
 });

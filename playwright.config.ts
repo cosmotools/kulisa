@@ -14,7 +14,5 @@ export default defineConfig({
   retries: ci ? 1 : 0,
   forbidOnly: ci,
   outputDir: 'test-results',
-  reporter: ci
-    ? [['list'], ['github'], ['junit', { outputFile: 'test-results/junit.xml' }], ['html', { open: 'never', outputFolder: 'playwright-report' }]]
-    : [['list'], ['html', { open: 'never', outputFolder: 'playwright-report' }]],
+  reporter: [['list'], ...(ci ? [['github'], ['junit', { outputFile: 'test-results/junit.xml' }]] as const : []), ['html', { open: 'never', outputFolder: 'playwright-report' }]],
 });

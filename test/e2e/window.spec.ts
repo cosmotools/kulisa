@@ -6,25 +6,14 @@ import path from 'path';
 import { createPackage } from '@electron/asar';
 import electronPath from 'electron';
 import type { Page } from '@playwright/test';
-import { removeTree } from '../../src/main/remove.ts';
 import forge from '../../forge.config.ts';
 import type { TaskTerminal } from '../../src/main/tasks.ts';
 import type { Question } from '../../src/shared/types.ts';
 import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
-import type { Kulisa } from './driver.ts';
-import { termTabs, SITE, CHECKOUT, MAC, WIN, echoed, holdPointer, ipcSettled, menu, menuRows, choose, closeMenu, rightClick, box, viewOn, focusWindow, closeSettings, termText, invoke } from './helpers.ts';
+import { termTabs, SITE, CHECKOUT, MAC, WIN, echoed, holdPointer, ipcSettled, menu, menuRows, choose, closeMenu, rightClick, box, viewOn, focusWindow, closeSettings, termText, invoke, removed } from './helpers.ts';
 
 const NO_SHOT = 'macOS: the app that started the tests (the terminal) may not record the screen';
-
-// A function run in Kulisa's main process with Electron's module first (k.electron): Menu, nativeTheme, nativeImage,
-// shell.openPath, systemPreferences. Only data crosses, as with core.
-type Electron = typeof import('electron');
-const main = <A, R>(kulisa: { core: Core }, fn: (e: Electron, k: Kulisa, arg: A) => R | Promise<R>, arg?: A) =>
-  kulisa.core((k, [src, a]) => (0, eval)(`(${src})`)(k.electron, k, a), [fn.toString(), arg] as const) as Promise<R>;
-// Whether a screenshot shows the whole window, profiles' views included (window.ts, screenshot): on macOS only with the
-// screen recording permission (docs/testing.md, On macOS).
-const canShoot = (kulisa: { core: Core }) => main(kulisa, (e) => process.platform !== 'darwin' || e.systemPreferences.getMediaAccessStatus('screen') === 'granted');
 
 const sam = (core: Core) => core(async (k, url) => (await k.ensureProfile('Sam', url)).id, `${SITE}/app`);
 // The terminal named so, once its shell runs: its id and key.
@@ -148,7 +137,7 @@ test("terminal: dictation where the agent has its own: the right Ctrl held anywh
   // Stopped: no more keys typed, those typed before all on the screen (echoed in order), the microphone told.
   const stopped = async (what = '') => {
     await expect.poll(recordingNow, { message: `not stopped: ${what}` }).toBe(false);
-    await echoed(core, () => termText(ui));
+    await echoed(core, { shows: () => termText(ui) });
     await ipcSettled(ui);
     expect(await lit(), what).toBe('false');
   };
@@ -234,7 +223,7 @@ test("terminal: dictation where the agent has its own: the right Ctrl held anywh
   await hold.getByRole('button', { name: 'Change' }).click();
   await core((k) => k.press(k.shell.win.webContents, 'F9'));
   await expect(hold.locator('kbd')).toHaveText(['F9']);
-  expect(JSON.parse(fs.readFileSync(path.join(files.userData, 'settings.json'), 'utf8')).keys).toEqual({ 'voice.hold': 'F9' });
+  expect(files.json('settings.json').keys).toEqual({ 'voice.hold': 'F9' });
   await shortcuts.locator('header').getByRole('button', { name: 'Close' }).click();
   await expect(mic).toHaveAttribute('title', /hold F9 anywhere/);
   n = await keys();
@@ -363,7 +352,7 @@ test("one Kulisa per data folder: a second one started on the same data shows th
 test('KULISA_QUIT: a second start asks the Kulisa running on the same data to quit, saved as at SIGINT, and leaves no start in its log', async ({ core, ui, files }) => {
   test.setTimeout(60000); // a whole Kulisa started and quit, besides the test's
   const data = path.join(files.root, 'quit');
-  removeTree(data);
+  await removed(data);
   const first = await start(core, data);
   const timer = setTimeout(() => first.p.kill('SIGINT'), 30000); // one that stays is stopped, not left behind
   try {
@@ -379,7 +368,7 @@ test('KULISA_QUIT: a second start asks the Kulisa running on the same data to qu
   const log = fs.readFileSync(path.join(data, 'logs', 'kulisa.log'), 'utf8');
   expect(log).toMatch(/asked to quit by another start[^\n]*\n[^\n]*\[kulisa\] quitting/);
   expect(log.lastIndexOf('[kulisa] start') < log.lastIndexOf('[kulisa] quitting'), 'the next start does not take it for a crash').toBe(true);
-  removeTree(data);
+  await removed(data);
   await focusWindow(core, ui); // the other Kulisa's window took it (macOS: the front app's), as a click would give it back
 });
 
@@ -415,15 +404,15 @@ test("the app icon: in the top bar (not on macOS: the Dock's), and every file th
   expect(icons).toHaveLength(7); // the .rpm's too
 });
 
-test("one row on top: no menu bar, OS window buttons over the top bar; on macOS the system's, Settings… (⌘,) in it", async ({ kulisa, core, ui, sui }) => {
+test("one row on top: no menu bar, OS window buttons over the top bar; on macOS the system's, Settings… (⌘,) in it", async ({ core, ui, sui }) => {
   // macOS: the menu bar is the system's, at the screen's top, always there: Kulisa's own there (app.ts), Settings… in
   // its app menu as Mac apps have it.
   if (MAC) {
-    expect(await main(kulisa, (e) => {
-      const m = e.Menu.getApplicationMenu(), item = m.items[0].submenu.items.find((i) => i.label === 'Settings…');
+    expect(await core((k) => {
+      const m = k.electron.Menu.getApplicationMenu(), item = m.items[0].submenu.items.find((i) => i.label === 'Settings…');
       return { roles: m.items.map((i) => i.role), accelerator: item?.accelerator };
     })).toEqual({ roles: ['appmenu', 'editmenu', 'windowmenu'], accelerator: 'Command+,' });
-    await main(kulisa, (e, k) => e.Menu.getApplicationMenu().items[0].submenu.items.find((i) => i.label === 'Settings…').click(undefined, k.shell.win, undefined));
+    await core((k) => k.electron.Menu.getApplicationMenu().items[0].submenu.items.find((i) => i.label === 'Settings…').click(undefined, k.shell.win, undefined));
     await expect((await sui()).locator('#pjlist')).toBeAttached();
     await closeSettings(core, ui, sui);
   } else expect(await core((k) => k.shell.win.isMenuBarVisible())).toBe(false);
@@ -456,8 +445,8 @@ test('UI text is not selectable by dragging, as in a desktop app; fields are; th
     .toEqual(['default', 'default', 'default', 'default', 'default', 'default', 'default']);
 });
 
-test('screenshot of the whole window, profile views included', async ({ kulisa, core, files }) => {
-  test.skip(!await canShoot(kulisa), NO_SHOT);
+test('screenshot of the whole window, profile views included', async ({ core, files }) => {
+  test.skip(!await core((k) => k.canShoot()), NO_SHOT);
   await sam(core);
   await expect.poll(() => core((k) => k.profile('Sam').get().view.getVisible())).toBe(true);
   const file = path.join(files.root, 'window.png');
@@ -467,14 +456,14 @@ test('screenshot of the whole window, profile views included', async ({ kulisa, 
   expect(png.length, `${png.length} bytes`).toBeGreaterThan(10000);
 });
 
-test("the OS buttons' strip shows the top bar under it: dimmed with it under a dialog", async ({ kulisa, ui, files }) => {
+test("the OS buttons' strip shows the top bar under it: dimmed with it under a dialog", async ({ core, ui, files }) => {
   test.skip(MAC, 'macOS draws no strip under its buttons');
-  test.skip(!await canShoot(kulisa), NO_SHOT);
+  test.skip(!await core((k) => k.canShoot()), NO_SHOT);
   // The strip's first pixel and the top bar's just left of it, in the screenshot (the strip is the OS's, not the page's).
   const { x, y } = await ui.evaluate(() => { const r = (navigator as any).windowControlsOverlay.getTitlebarAreaRect(); return { x: r.right * devicePixelRatio, y: 2 * devicePixelRatio }; });
-  const pixels = (name: string) => main(kulisa, async (e, k, a) => {
+  const pixels = (name: string) => core(async (k, a) => {
     await k.shell.screenshot(a.file);
-    const img = e.nativeImage.createFromPath(a.file), { width } = img.getSize(), bgra = img.toBitmap();
+    const img = k.electron.nativeImage.createFromPath(a.file), { width } = img.getSize(), bgra = img.toBitmap();
     const at = (px: number) => [...bgra.subarray((a.y * width + px) * 4, (a.y * width + px) * 4 + 3)];
     return { bar: at(Math.round(a.x) - 3), strip: at(Math.round(a.x) + 3) };
   }, { file: path.join(files.root, name), x, y });
@@ -491,7 +480,7 @@ test("the OS buttons' strip shows the top bar under it: dimmed with it under a d
   await expect(ui.locator('#shortcuts')).toHaveCount(0);
 });
 
-test("theme: Dark by default, Light or System in ☰; the window, the terminal and the OS buttons follow, the pages keep the OS's; saved", async ({ kulisa, core, ui, files }) => {
+test("theme: Dark by default, Light or System in ☰; the window, the terminal and the OS buttons follow, the pages keep the OS's; saved", async ({ core, ui, files }) => {
   await sam(core);
   // What is shown: a panel's color, the terminal's (a pane's toolbar's); the controls' own scheme (color-scheme).
   const DARK = 'rgb(30, 31, 34)', LIGHT = 'rgb(255, 255, 255)', TERM = { dark: 'rgb(47, 49, 53)', light: 'rgb(242, 243, 245)' };
@@ -508,7 +497,7 @@ test("theme: Dark by default, Light or System in ☰; the window, the terminal a
   }, [DARK, LIGHT]);
   const pageDark = () => core((k) => k.profile('Sam').get().wc.executeJavaScript(`matchMedia('(prefers-color-scheme: dark)').matches`) as Promise<boolean>);
   const osDark = await pageDark();
-  const saved = () => JSON.parse(fs.readFileSync(path.join(files.userData, 'settings.json'), 'utf8')).theme;
+  const saved = () => files.json('settings.json').theme;
   const shot = async (name: string) => {
     const file = path.join(files.root, name);
     await core((k, f) => k.shot(f), file);
@@ -527,7 +516,7 @@ test("theme: Dark by default, Light or System in ☰; the window, the terminal a
   expect(await look()).toEqual({ shade: 'light', term: TERM.light, scheme: 'light', chosen: ['light'], onAccent: LIGHT });
   expect(await pageDark(), "a site under test keeps the OS's scheme").toBe(osDark);
   await shot('light.png');
-  await pick('system', await main(kulisa, (e) => e.nativeTheme.shouldUseDarkColors) ? 'dark' : 'light'); // the OS's, as the pages'
+  await pick('system', await core((k) => k.electron.nativeTheme.shouldUseDarkColors) ? 'dark' : 'light'); // the OS's, as the pages'
   expect((await look()).scheme).toBe('light dark');
   await pick('dark', 'dark');
   await shot('dark.png');
@@ -555,7 +544,7 @@ test("the tasks' bar: under the grid by default; in the title bar, after the log
       level: !inTitle || !document.querySelector('[data-testid="title-logo"]') || Math.abs((r('[data-testid="title-logo"]').top + r('[data-testid="title-logo"]').bottom) - (r('#projectTabs [role="tab"]').top + r('#projectTabs [role="tab"]').bottom)) < 2,
       chosen: [...document.querySelectorAll<HTMLElement>('[role="menu"][data-state="open"] [data-testid="bar-row"] [data-state="checked"]')].map((b) => b.dataset.bar) };
   });
-  const saved = () => JSON.parse(fs.readFileSync(path.join(files.userData, 'settings.json'), 'utf8')).bar;
+  const saved = () => files.json('settings.json').bar;
   expect((await where()).bar).toBe('bottom');
   for (const bar of ['top', 'bottom']) {
     await ui.locator('#windowMenu').click();
@@ -649,11 +638,11 @@ test('dialogs: one look (title and ×, content, buttons at the bottom right, the
   expect(await core((k) => k.stash.second as Promise<boolean | 'other'>), 'Cancel says no').toBe(false);
 });
 
-test("About Kulisa (☰; on macOS the app menu's) is a page of Settings: the versions, and the folders Kulisa writes in on this computer, each shown in the file manager, one not made yet told so", async ({ kulisa, core, ui, sui, files }) => {
+test("About Kulisa (☰; on macOS the app menu's) is a page of Settings: the versions, and the folders Kulisa writes in on this computer, each shown in the file manager, one not made yet told so", async ({ core, ui, sui, files }) => {
   const pkg = JSON.parse(fs.readFileSync(path.join(CHECKOUT, 'package.json'), 'utf8'));
   if (MAC) {
-    expect(await main(kulisa, (e) => e.Menu.getApplicationMenu().items[0].submenu.items[0].label), 'first in the app menu, where Mac apps have it').toBe('About Kulisa');
-    await main(kulisa, (e, k) => e.Menu.getApplicationMenu().items[0].submenu.items[0].click(undefined, k.shell.win, undefined));
+    expect(await core((k) => k.electron.Menu.getApplicationMenu().items[0].submenu.items[0].label), 'first in the app menu, where Mac apps have it').toBe('About Kulisa');
+    await core((k) => k.electron.Menu.getApplicationMenu().items[0].submenu.items[0].click(undefined, k.shell.win, undefined));
   } else {
     await ui.locator('#windowMenu').click();
     await menuRows(ui);
@@ -677,15 +666,15 @@ test("About Kulisa (☰; on macOS the app menu's) is a page of Settings: the ver
   expect(a.folders).toEqual([{ id: 'data', path: files.userData, missing: false, disabled: false }, { id: 'projects', path: projectsHome, missing: !made, disabled: !made },
     { id: 'program', path: CHECKOUT, missing: false, disabled: false }]);
   // Show: the folder in the file manager, by its id (the window names no path).
-  await main(kulisa, (e, k) => {
+  await core((k) => {
     const g = k.stash;
-    g.openPath = e.shell.openPath; g.shownDirs = [];
-    e.shell.openPath = async (dir: string) => { g.shownDirs.push(dir); return ''; };
+    g.openPath = k.electron.shell.openPath; g.shownDirs = [];
+    k.electron.shell.openPath = async (dir: string) => { g.shownDirs.push(dir); return ''; };
   });
   try {
     await s.locator('#aboutpage dd[data-folder="data"]').getByRole('button', { name: 'Show' }).click();
     await expect.poll(() => core((k) => k.stash.shownDirs.length)).toBe(1);
-  } finally { await main(kulisa, (e, k) => { e.shell.openPath = k.stash.openPath; }); }
+  } finally { await core((k) => { k.electron.shell.openPath = k.stash.openPath; }); }
   expect(await core((k) => k.stash.shownDirs)).toEqual([files.userData]);
   await closeSettings(core, ui, sui);
   // The main process opens it too (macOS's menu, whichever OS): the same window at that page.
@@ -728,6 +717,6 @@ test('a new version installed while Kulisa runs is offered once, in its own dial
     expect((await core((k) => k.asked.pop())).message).toBe('Kulisa 9.9.10 is ready');
   } finally {
     await core((k) => { k.shell.restart = k.stash.restart; k.answer = true; });
-    removeTree(src);
+    await removed(src);
   }
 });

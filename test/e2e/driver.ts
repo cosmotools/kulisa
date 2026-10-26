@@ -110,12 +110,22 @@ export function driver(shell: Shell, openedExternally: string[]) {
     // A test begins with Kulisa's questions answered yes, none asked yet, no output or log read, nothing stashed, the
     // real clock (fixtures.ts).
     reset() { k.errors.length = 0; k.asked.length = 0; k.answer = true; pty = ''; logged.length = 0; k.stash = {}; k.clock.release(); },
-    // A profile of the task shown, made if it is not there yet, its pane laid out in the grid and its tab in front on
-    // url once loaded: what a test that needs a profile starts from, through the core (making profiles is tested in
-    // Settings' tests). A page not laid out yet takes no focus.
-    async ensureProfile(name: string, url: string) {
-      if (![...shell.profiles.values()].some((p) => p.name.toLowerCase() === name.toLowerCase())) await shell.task.createProfile(name);
-      const p = profile(name);
+    // A window done showing its task: loaded, not switching (and its agent's terminal started, with pty).
+    settled(pty = false, w = shell.windows[0]) { return !!w?.task?.loaded && !w.switching && (!pty || !!shell.pty); },
+    // A profile of the task shown, opened again when it is closed, made when it is not there yet (with who it is and its
+    // picture).
+    async openProfile(name: string, made: { description?: string; avatar?: string } = {}) {
+      const named = (n: string) => n.toLowerCase() === name.toLowerCase(), task = shell.task;
+      const closed = [...task.closed.values()].find((c) => named(c.cfg.name));
+      if (closed) await task.openProfile(closed.cfg.id);
+      else if (![...shell.profiles.values()].some((p) => named(p.name))) await task.createProfile(name, made.description, made.avatar);
+      return profile(name);
+    },
+    // That profile, its pane laid out in the grid and its tab in front on url once loaded: what a test that needs a
+    // profile starts from, through the core (making profiles is tested in Settings' tests). A page not laid out yet takes
+    // no focus.
+    async ensureProfile(name: string, url: string, made: { description?: string; avatar?: string } = {}) {
+      const p = await k.openProfile(name, made);
       if (!p.visible() || !p.bounds.width) await new Promise<void>((r) => p.once('laid-out', () => r()));
       const tab = p.get();
       if (tab.wc.getURL() !== url) { p.navigate(tab.id, url); await new Promise<void>((r) => tab.wc.once('did-finish-load', () => r())); }
@@ -142,8 +152,9 @@ export function driver(shell: Shell, openedExternally: string[]) {
     },
     // The whole window as the screen shows it, its profiles' views included (window.ts, screenshot): on macOS only with
     // the screen recording permission (docs/testing.md, On macOS), else its page alone.
+    canShoot: () => process.platform !== 'darwin' || electron.systemPreferences.getMediaAccessStatus('screen') === 'granted',
     async shot(file: string, w: { win: electron.BrowserWindow; screenshot(file: string): Promise<unknown> } = shell.windows[0]) {
-      if (process.platform !== 'darwin' || electron.systemPreferences.getMediaAccessStatus('screen') === 'granted') return w.screenshot(file);
+      if (k.canShoot()) return w.screenshot(file);
       const image = await w.win.webContents.capturePage();
       fs.writeFileSync(file, image.toPNG());
       return file;

@@ -6,14 +6,10 @@ import path from 'path';
 import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
 import type { Core, Call } from './fixtures.ts';
-import type { data } from './data.ts';
-import { SITE, WIN, menuRows, choose, rightClick, plusMenu, plusRows, focusWindow, viewOn, who, invoke, notLoading, noSlide, asked, projectMenu } from './helpers.ts';
-import { git, rand, hasDirenv, keyAt, isNth, nthShown, taskTab, taskTabs, hook, reportSession, newTask, openFolder, projectShown, begin } from './tasks-helpers.ts';
-import { removeTree } from '../../src/main/remove.ts';
+import type { Files } from './data.ts';
+import { SITE, WIN, menuRows, choose, rightClick, plusMenu, plusRows, focusWindow, viewOn, who, invoke, notLoading, noSlide, asked, projectMenu, removed } from './helpers.ts';
+import { git, rand, hasDirenv, keyAt, isNth, nthShown, taskTab, taskTabs, hook, reportSession, newTask, openFolder, projectShown, begin, bothOn } from './tasks-helpers.ts';
 
-type Files = ReturnType<typeof data>;
-
-const tasksFile = (files: Files): { list: { id: string; name: string; named?: boolean; closed?: boolean; closedAt?: number }[] } => JSON.parse(fs.readFileSync(path.join(files.userData, 'projects', files.pid('project'), 'tasks.json'), 'utf8'));
 // Sam.admin's master signed in (as master, a lasting cookie too) or out in its own window, as the human does it there
 // (tested in the profiles' tests); closed after.
 async function master(core: Core, files: Files, signedIn: boolean) {
@@ -51,7 +47,7 @@ async function dropProject(core: Core, ui: Page, id: string, folders: string[]) 
   await core((k) => { k.answer = true; });
   await invoke(ui, 'project:delete', { id });
   await expect.poll(() => core((k, p) => !k.shell.open.has(p) && !k.shell.store.projects().some((x) => x.id === p), id)).toBe(true);
-  for (const f of folders) await expect.poll(() => { try { removeTree(f); return true; } catch { return false; } }).toBe(true);
+  await removed(...folders);
 }
 
 test("tasks: without git a task works in the project's folder, and a second one there is asked about first", async ({ core, ui, files }) => {
@@ -165,7 +161,7 @@ test('tasks: + opens a task in the project\'s main working tree ("New Task", no 
   }, { first, SAM })).toEqual([true, false, `${SITE}/app?task`]);
   expect((await call('browser_snapshot', { profile: 'Sam.admin' }, { task: first })).text).toMatch(/URL: .*\/app\?task/);
   expect(await core((k, key) => { const f = k.shell.taskByKey(key); return !!f.pty && f.pty !== k.shell.pty; }, first)).toBe(true);
-  expect(JSON.parse(fs.readFileSync(files.pfile('agent.json', 2), 'utf8')).conversations[0].agent, "no agent in the project: the one there is (the tests' own)").toBe('custom');
+  expect(files.json(files.pfile('agent.json', 2)).conversations[0].agent, "no agent in the project: the one there is (the tests' own)").toBe('custom');
 
   // The window: the task's grid with its panes; the bar shows it, "New Task" until it is named.
   await expect(taskTab(ui, task)).toHaveText('New Task');
@@ -199,7 +195,7 @@ test('tasks: + opens a task in the project\'s main working tree ("New Task", no 
   expect(fs.existsSync(path.join(wt, 'README.md')) && !fs.existsSync(path.join(wt, 'wip.txt')), 'uncommitted changes are not carried').toBe(true);
   expect(fs.existsSync(path.join(wt, '.kulisa')), 'nothing of Kulisa in the folder').toBe(false);
   if (hasDirenv) expect(execFileSync('direnv', ['exec', wt, 'sh', '-c', 'echo $FROM_ENVRC'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim()).toBe(`envrc of ${wt}`);
-  expect([tasksFile(files).list[1].name, tasksFile(files).list[1].named]).toEqual(['Feature-X', true]);
+  expect([files.tasksOf(files.pid('project'))[1].name, files.tasksOf(files.pid('project'))[1].named]).toEqual(['Feature-X', true]);
   const png = test.info().outputPath('task.png');
   await core((k, f) => k.shot(f), png);
   await test.info().attach('task', { path: png, contentType: 'image/png' });
@@ -252,7 +248,7 @@ test("tasks: × closes a task: its agent stops and its tabs close, all else stay
   expect(await core((k) => k.asked.length), 'not asked: nothing is lost').toBe(0);
   const { folder, id } = await core((k, key) => { const t = k.shell.taskByKey(key); return { folder: t.folder, id: t.id }; }, task);
   expect(fs.existsSync(folder) && !!git(files.project, 'branch', '--list', 'task-3') && fs.existsSync(path.join(files.userData, 'projects', files.pid('project'), id)), 'its code and data stay').toBe(true);
-  expect(tasksFile(files).list.find((e) => e.id === id).closed).toBe(true);
+  expect(files.tasksOf(files.pid('project')).find((e) => e.id === id).closed).toBe(true);
   await expect.poll(() => taskTabs(ui)).toEqual(['task-1', 'Feature-X *']);
   // The bar's + (a new tab) lists it in its project's column, after the open ones; opening it shows it again, its
   // agent resuming the conversation.
@@ -267,7 +263,7 @@ test("tasks: × closes a task: its agent stops and its tabs close, all else stay
   });
   try {
     await plusMenu(ui, 'project', 'task-3');
-    await expect.poll(() => core((k, key) => k.shell.task?.key === key && !k.shell.windows[0].switching, task)).toBe(true); // its state sent to the window
+    await expect.poll(() => core((k, key) => k.shell.task?.key === key && k.settled(), task)).toBe(true); // its state sent to the window
     expect(await core((k) => k.stash.started), 'the grid before its profiles started').toBe(false);
     await expect(ui.locator(`[role="region"][data-profile="${SAM}"]`)).toHaveCount(1);
     await notLoading(ui);
@@ -278,7 +274,7 @@ test("tasks: × closes a task: its agent stops and its tabs close, all else stay
   await core((k) => k.watchPty(k.shell.pty));
   expect(await core((k) => k.shell.resumedSession)).toBe('s-3');
   await expect.poll(() => taskTabs(ui)).toEqual(['task-1', 'Feature-X', 'task-3 *']);
-  expect(tasksFile(files).list.find((e) => e.id === id).closed).toBe(undefined);
+  expect(files.tasksOf(files.pid('project')).find((e) => e.id === id).closed).toBe(undefined);
 });
 
 test('tasks: Delete Task… asks first, saying what goes and any work not in main and not pushed; it goes with its branch, folder and profiles', async ({ core, ui, files, call }) => {
@@ -355,8 +351,8 @@ test('tasks: Delete Task… asks first, saying what goes and any work not in mai
   await expect.poll(async () => (await core((k, key) => !k.shell.current.tasks.has(key.split('/')[1]), spike)) && isNth(core, 2)).toBe(true);
   // The folder goes first (git worktree remove), then the branch.
   await expect.poll(() => !fs.existsSync(folder) && git(project, 'branch', '--list', 'spike') === '').toBe(true);
-  expect(tasksFile(files).list.map((e) => e.name)).toEqual(['task-1', 'Feature-X']);
-  removeTree(remote);
+  expect(files.tasksOf(files.pid('project')).map((e) => e.name)).toEqual(['task-1', 'Feature-X']);
+  await removed(remote);
 });
 
 test("tasks: an agent's tab closes after a question, always (Cancel keeps it); the last terminal closed folds the island to its +, which opens one again; Ctrl+` there opens the task's agent, a new conversation", async ({ core, ui, files, call }) => {
@@ -367,8 +363,8 @@ test("tasks: an agent's tab closes after a question, always (Cancel keeps it); t
   const folded = () => ui.evaluate(() => !!document.querySelector('[data-testid="terminals"][data-folded]') && document.querySelector<HTMLElement>('[data-testid="terminal-tabs"]').hidden);
   // The island's group (its content is laid over it: dockview's renderer 'always').
   const island = () => ui.evaluate(() => { const r = document.querySelector('[data-testid="terminal-tabs"]').closest('.dv-groupview').getBoundingClientRect(); return { width: Math.round(r.width), height: Math.round(r.height) }; });
-  const saved = () => JSON.parse(fs.readFileSync(files.pfile('terminals.json', task.split('/')[1]), 'utf8'));
-  const conversations = () => JSON.parse(fs.readFileSync(files.pfile('agent.json', task.split('/')[1]), 'utf8')).conversations;
+  const saved = () => files.json(files.pfile('terminals.json', task.split('/')[1]));
+  const conversations = () => files.json(files.pfile('agent.json', task.split('/')[1])).conversations;
   const closeTab = () => ui.locator('nav[aria-label="Terminals"] [role="tab"]').first().getByTitle(/^Close/).click();
   await expect(ui.locator('nav[aria-label="Terminals"] [role="tab"]')).not.toHaveCount(0);
   const before = await island();
@@ -519,7 +515,7 @@ test('tasks: × on the last open task of a project lets the project go, nothing 
   await expect.poll(() => core((k, p) => k.shell.task === null && !k.shell.current && !k.shell.open.has(p), pid), { timeout: 15000 }).toBe(true);
   expect(await core((k) => k.asked.length), 'no agent works: nothing asked').toBe(0);
   expect(await core((k) => { const s = k.stash.second; return s.profiles.size === 0 && !s.pty; }), 'every task of the project stopped').toBe(true);
-  expect(tasksFile(files).list.map((e) => [e.name, !!e.closed])).toEqual([['task-1', true], ['Feature-X', true], ['task-3', true]]);
+  expect(files.tasksOf(files.pid('project')).map((e) => [e.name, !!e.closed])).toEqual([['task-1', true], ['Feature-X', true], ['task-3', true]]);
   await expect(ui.locator('html')).toHaveAttribute('data-noproject');
   // The empty window, projects there: every project with its tasks, a column each, as a new tab shows them; no tasks' bar.
   await expect(ui.locator('html')).toHaveAttribute('data-page', 'board');
@@ -534,7 +530,7 @@ test('tasks: × on the last open task of a project lets the project go, nothing 
   // Each column: its project's icon in its color, as on its tasks' tabs, its name, + (a new task of it); its tasks,
   // the one closed last first (all are closed here), each when it was closed; New Project… after the columns. The
   // project worked in last first.
-  const byClosing = tasksFile(files).list.filter((e) => e.closed).sort((a, b) => (b.closedAt ?? 0) - (a.closedAt ?? 0)).map((e) => e.name);
+  const byClosing = files.tasksOf(files.pid('project')).filter((e) => e.closed).sort((a, b) => (b.closedAt ?? 0) - (a.closedAt ?? 0)).map((e) => e.name);
   await expect(ui.locator('#board section').first(), 'worked in last').toHaveAccessibleName('project');
   expect(await ui.locator(`#board section[data-project="${pid}"] [data-task]`).evaluateAll((xs) => xs.map((x) => document.getElementById(x.getAttribute('aria-labelledby')).textContent))).toEqual(byClosing);
   expect(byClosing[0]).toBe('Feature-X');
@@ -547,7 +543,7 @@ test('tasks: × on the last open task of a project lets the project go, nothing 
   expect((await asked(core)).message).toBe('Delete the task task-3?');
   await expect(ui.locator('#ask[data-state="open"]')).toHaveCount(0);
   await core((k) => { k.answer = true; });
-  expect(tasksFile(files).list.some((e) => e.name === 'task-3'), 'Cancel keeps it').toBe(true);
+  expect(files.tasksOf(files.pid('project')).some((e) => e.name === 'task-3'), 'Cancel keeps it').toBe(true);
   // A closed task in the board opens it again, as that task's tab.
   await ui.locator(`#board [data-task="${second}"]`).click();
   await expect.poll(() => core((k, key) => k.shell.task?.key === key && k.shell.task.loaded && !!k.shell.pty, second)).toBe(true);
@@ -562,7 +558,7 @@ test('tasks: × on the last open task of a project lets the project go, nothing 
   await core((k) => k.watchPty(k.shell.pty));
   await expect.poll(() => taskTabs(ui)).toEqual(['Feature-X', 'task-1 *']); // a tab opens at the end
   expect(await core((k, key) => k.shell.taskByKey(key).loaded, second), 'the other open one stays loaded').toBe(true);
-  await expect.poll(async () => (await viewOn(core, ui, files, 'Sam.admin')) && viewOn(core, ui, files, 'Elon.buyer')).toBe(true);
+  await bothOn(core, ui, files);
 });
 
 test("tasks: a closed task whose PR is merged on the remote is marked in its group's menu; Delete Merged Tasks… deletes it after one question", async ({ core, ui, files, call }) => {
