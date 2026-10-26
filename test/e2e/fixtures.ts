@@ -115,7 +115,9 @@ async function ready(k: Pick<Running, 'file' | 'automation' | 'child' | 'exited'
   await core((d) => d.watchPty(d.shell.pty));
   const errors: string[] = [];
   if (!endpoint) return { ...k, browser: null, context: null, ui: null, errors, clients: new Map() };
-  const browser = await chromium.connectOverCDP(endpoint, { noDefaults: true });
+  // Its traces in the test's folder, which goes with it (close): in the OS's temporary folder, Playwright's own was left
+  // behind by the worker's end.
+  const browser = await chromium.connectOverCDP(endpoint, { noDefaults: true, artifactsDir: path.join(k.root, 'playwright') });
   const context = browser.contexts()[0];
   // Kulisa's own pages' uncaught errors fail the test (a site's are the site's); a DOMException's stack is ''.
   const attach = (p: Page) => { if (own(p)) p.on('pageerror', (e) => errors.push(`${path.basename(new URL(p.url()).pathname)}: ${e.stack || `${e.name}: ${e.message}`}`)); };
