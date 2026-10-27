@@ -51,11 +51,12 @@ test('terminal: Unicode 11 widths (cursor stays put after emoji), bundled font, 
   expect(x).toBe(5);
   const font = await ui.evaluate(() => {
     const t = (window as any).__term;
-    return { bundled: document.fonts.check(t.options.fontSize + 'px "JetBrains Mono"'), size: t.options.fontSize, ui: parseFloat(getComputedStyle(document.querySelector('[data-testid="terminal"]')).getPropertyValue('--fontSizeBase300')),
+    return { bundled: document.fonts.check(t.options.fontSize + 'px "JetBrains Mono"'), size: t.options.fontSize,
+      ui: parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--text-sm')) * parseFloat(getComputedStyle(document.documentElement).fontSize),
       family: t.options.fontFamily.startsWith('"JetBrains Mono"'), renderer: (window as any).__termRenderer };
   });
   expect(font.bundled).toBe(true);
-  expect(font.size, "the terminal uses the window's body text size (Fluent's fontSizeBase300)").toBe(font.ui);
+  expect(font.size, "the terminal uses the window's body text size (Tailwind's text-sm)").toBe(font.ui);
   expect(font.family).toBe(true);
   expect(font.renderer).toBe('webgl');
   // What is left under a whole row is shared above and below the rows.
@@ -394,15 +395,15 @@ test('KULISA_QUIT: a second start asks the Kulisa running on the same data to qu
   await focusWindow(core, ui); // the other Kulisa's window took it (macOS: the front app's), as a click would give it back
 });
 
-test("icons: Fluent's, filled in the text's color, one look across the bars; icon buttons have a name", async ({ core, ui }) => {
+test("icons: Lucide's, drawn in the text's color, one look across the bars; icon buttons have a name", async ({ core, ui }) => {
   await sam(core);
   // Every button and icon of the page checked at once: a sweep no locator makes.
   const r = await ui.evaluate(() => {
     const icon = document.querySelector('#windowMenu svg'), button = icon.closest('button');
-    const icons = [...document.querySelectorAll('svg[data-fui-icon]')].filter((s) => s.getClientRects().length);
+    const icons = [...document.querySelectorAll('svg[stroke="currentColor"]')].filter((s) => s.getClientRects().length); // Lucide's
     return { unnamed: [...document.querySelectorAll('button, [role="button"]')].filter((b) => !b.textContent.trim() && !b.getAttribute('aria-label') && !b.getAttribute('aria-labelledby') && !(b as HTMLElement).title).map((b) => b.outerHTML.slice(0, 80)),
-      menu: getComputedStyle(icon).fill === getComputedStyle(button).color, some: icons.length > 5,
-      apart: icons.filter((s) => { const c = getComputedStyle(s); return c.fill !== c.color || c.stroke !== 'none'; }).map((s) => s.outerHTML.slice(0, 80)) };
+      menu: getComputedStyle(icon).stroke === getComputedStyle(button).color, some: icons.length > 5,
+      apart: icons.filter((s) => { const c = getComputedStyle(s); return c.stroke !== c.color || c.fill !== 'none'; }).map((s) => s.outerHTML.slice(0, 80)) };
   });
   expect(r).toEqual({ unnamed: [], menu: true, some: true, apart: [] });
 });
@@ -500,10 +501,16 @@ test("the OS buttons' strip shows the top bar under it: dimmed with it under a d
 
 test("theme: Dark by default, Light or System in ☰; the window, the terminal and the OS buttons follow, the pages keep the OS's; saved", async ({ core, ui, files }) => {
   await sam(core);
-  // The theme's panels' color (Fluent's token, components/theme.ts), the terminal's (xterm's own option: it draws on a
-  // canvas), the one chosen in ☰, the controls' own scheme (color-scheme).
-  const BACKGROUND = { dark: '#292929', light: '#ffffff' };
-  const background = () => ui.evaluate(() => getComputedStyle(document.getElementById('app').firstElementChild).getPropertyValue('--colorNeutralBackground1').trim());
+  // The theme's panels' color (--card, src/ui/theme.css) as a canvas draws it, the terminal's (xterm's own option: it
+  // draws on a canvas), the one chosen in ☰, the controls' own scheme (color-scheme).
+  const BACKGROUND = { dark: 'rgba(23, 23, 23, 1)', light: 'rgba(255, 255, 255, 1)' };
+  const background = () => ui.evaluate(() => {
+    const c = new OffscreenCanvas(1, 1).getContext('2d');
+    c.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--card');
+    c.fillRect(0, 0, 1, 1);
+    const [r, g, b, a] = c.getImageData(0, 0, 1, 1).data;
+    return `rgba(${r}, ${g}, ${b}, ${a / 255})`;
+  });
   const looks = async (shade: 'dark' | 'light', chosen: string, scheme: string = shade) => {
     await expect.poll(background).toBe(BACKGROUND[shade]);
     await expect.poll(() => ui.evaluate(() => (window as any).__term.options.theme.background)).toBe(BACKGROUND[shade]);
@@ -585,7 +592,7 @@ test("the tasks' bar: under the grid by default; in the title bar, after the log
   }
 });
 
-test("dialogs: Fluent's, in the page only while open, the pages hidden under them; a question is asked in one", async ({ core, ui }) => {
+test("dialogs: shadcn's, in the page only while open, the pages hidden under them; a question is asked in one", async ({ core, ui }) => {
   await sam(core);
   // Each opened as the human opens it, looked at, closed: a closed one leaves nothing in the page (no memory kept).
   const view = () => core((k) => k.profile('Sam').get().view.getVisible());

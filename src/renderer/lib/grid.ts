@@ -170,7 +170,7 @@ Object.assign(window, { __layoutPreset: applyPreset }); // for tests
 // it at once. Not with reduced motion: then the grid is hidden at once, so nothing half-built shows. The title bar and
 // the tasks' bar stay.
 kulisa.on('grid:closing', ({ dir, task, pics }) => {
-  closeLayers(); // its dialogs and menus are for the grid that goes
+  void closeLayers(); // its dialogs and menus are for the grid that goes
   // A freeze under way (a drag) no longer matters; now, not when the grid is taken down (the slide's update, a frame or
   // more later): a menu opened in between, for the next grid, would lose its pictures, and the slide's end show the
   // pages over it.

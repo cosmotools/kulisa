@@ -6,9 +6,9 @@ import type { ComponentProps, ReactNode, Ref } from 'react';
 import { XIcon } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger } from '@ui';
 
-export function TabStrip({ value, onChoose, label, stripRef, className, children, ...rest }: { value: string; onChoose?: (value: string) => void;
-  label: string; stripRef?: Ref<HTMLDivElement>; className?: string; children: ReactNode } & Omit<ComponentProps<typeof TabsList>, 'children'>) {
-  return <Tabs value={value} onValueChange={onChoose} activationMode="manual" className={className}>
+export function TabStrip({ value, onChoose, label, stripRef, children, ...rest }: { value: string; onChoose?: (value: string) => void;
+  label: string; stripRef?: Ref<HTMLDivElement>; children: ReactNode } & Omit<ComponentProps<typeof TabsList>, 'children'>) {
+  return <Tabs value={value} onValueChange={onChoose} activationMode="manual" className="min-w-0">
     <TabsList ref={stripRef} aria-label={label} className="max-w-full justify-start" {...rest}>{children}</TabsList>
   </Tabs>;
 }

@@ -25,9 +25,9 @@ async function newProfileHere(s: Page, name: string) {
   await field.fill(name);
   await profiles.getByRole('button', { name: 'Create', exact: true }).click();
 }
-// The project page's text fields, by their labels; its local addresses' (a TagPicker's input).
+// The project page's text fields, by their labels; its local addresses' (a field of words).
 const field = (s: Page, label: string) => s.getByRole('textbox', { name: label, exact: true });
-const hosts = (s: Page) => s.getByRole('combobox', { name: 'Local addresses', exact: true });
+const hosts = (s: Page) => s.getByRole('textbox', { name: 'Local addresses', exact: true });
 // A project deleted as Settings does (its data and tasks' copies; Delete Project… is tested below), its folder too.
 async function forget(core: Core, ui: Page, files: Files, folder: string, dir = path.join(files.root, folder)) {
   const id = await core((k, f) => k.shell.store.projects().find((p) => p.folders.some((x) => path.basename(x).toLowerCase() === f))?.id, folder).catch((): undefined => undefined);
@@ -250,6 +250,7 @@ test("projects: the projects' manager (Project Settings…) changes its name and
   await core((k) => k.press(k.shell.win.webContents, '`', 'control'));
   await expect(menu(ui)).toMatchAriaSnapshot(`
     - menuitem "Fake agent · ann@shop.com"
+    - separator
     - menuitem "Terminal"
   `);
   await closeMenu(ui);
@@ -301,7 +302,7 @@ test("projects: the title bar's gear shows Settings over the window at the shown
   await expect.poll(() => core((k, p) => !k.shell.store.projectsWith('profiles', p).length, closedOne)).toBe(true);
   await core((k, p) => { k.shell.profileStore.delete(p); }, closedOne); // not needed after
   await expect(listRow(s, 'Profiles', 'Closed-one')).toHaveCount(0);
-  await expect(group(s, 'Profiles').locator('[role="group"]:not([data-row])'), 'no refusal (a MessageBar)').toHaveCount(0);
+  await expect(group(s, 'Profiles').getByRole('alert'), 'no refusal').toHaveCount(0);
   const png = test.info().outputPath('projects.png');
   await core((k, f) => k.shot(f), png);
   await test.info().attach('projects', { path: png, contentType: 'image/png' });

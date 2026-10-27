@@ -77,13 +77,13 @@ gets its text, knowing no agent by name.
 
 `Dictation.tsx`, at the end of the terminals' row of tabs (the terminals' pane places it): the key's indicator, and the
 way by the mouse. Its tooltip names the key and the language the agent hears (Kulisa's one, ☰ → Language); getting
-ready (once slow, below) it is blue, while it records red and breathes with a ring (not with reduced
+ready (once slow, below) it is lit in the main button's color, while it records red and breathes with a ring (not with reduced
 motion), so the eye catches from across the window that the agent is listening. It works as a voice message's button too: held, or a click to start and another to
 stop; let go, the keyboard goes back to the terminal (`onDone`). Disabled when the task's dictation is none, its tooltip
 saying why: a button that came and went would resize the terminal, and Claude Code redraws badly after one. The window
 gives it the task shown, the key's name and the language.
 
-Starting is drawn as such (the microphone blue, the pill's Getting ready…) only once it has lasted 300 ms
+Starting is drawn as such (the microphone lit, not red yet, the pill's Getting ready…) only once it has lasted 300 ms
 (`renderer/voice.ts`, `slow`): the hidden session mostly listens in a fifth of a second, and a flash of it before every
 recording reads as a glitch; until then it is drawn as recording.
 

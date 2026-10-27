@@ -55,8 +55,8 @@ test("grid: a narrow pane's bar gives up Back and Forward, then Reload, into ⋮
   await begin(core, ui, files, { columns: true });
   const panel = files.panel(SAM), pane = `[role="region"][data-profile="${files.idOf(SAM)}"]`;
   const width = await dock(ui, (api, p) => api.getPanel(p).group.api.width, panel);
-  // The bar's controls shown, each its name, ' out' when it is not inside the pane. Read at once: Fluent's Overflow
-  // hides its items a frame after a resize, between one locator's reading and the next.
+  // The bar's controls shown, each its name, ' out' when it is not inside the pane. Read at once, in one
+  // layout: a locator's readings one by one could straddle a resize.
   const bar = () => ui.evaluate((sel) => {
     const p = document.querySelector(sel).getBoundingClientRect();
     return [...document.querySelectorAll(`${sel} [role="toolbar"] :is(button, input)`)].filter((e) => e.checkVisibility()).map((e) => {

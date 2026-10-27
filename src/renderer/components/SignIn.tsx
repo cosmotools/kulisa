@@ -3,12 +3,13 @@
 // in the browser, only confuses; it is there for a failure (opened by itself then) and for what the browser does not
 // show (a code the agent asks for). Gone (Cancel, its page left), the sign-in is cancelled.
 import { useEffect, useRef, useState } from 'react';
-import { Accordion, AccordionHeader, AccordionItem, AccordionPanel, Button, Card, Spinner, Text } from '@fluentui/react-components';
+import { Button } from '@ui';
 import { forgetTerminals } from '../../terminal/renderer';
 import { Terminal } from './Terminal';
 import type { SignedIn as Answer } from '../../shared/types';
 import { ErrorBar } from './ErrorBar';
-import css from './SignIn.module.css';
+import { Working } from './Working';
+import { Details } from './Details';
 
 let n = 0;
 const fresh = () => `signin#${Date.now()}-${++n}`; // a sign-in's terminal: a new one for each try
@@ -35,22 +36,15 @@ export function SignIn({ agent, project, onDone, onClose }: { agent: { id: strin
   }, [key, agent.id, project]);
 
   const again = () => { setKey(fresh()); setRunning(true); setError(''); setDetails(false); };
-  return <div role="group" aria-label={`New account of ${agent.name}`} className={css.signIn}>
-    <Text size={200}>Signing in to a new account of {agent.name}: sign in in your browser, which opens (check the account it signs in to
-      there; its address is under Details if it did not open). The account is {project ? 'added' : 'kept'} once you are signed in.</Text>
-    <Accordion collapsible openItems={details ? ['details'] : []} onToggle={(_, d) => setDetails(d.openItems.includes('details'))}>
-      <AccordionItem value="details">
-        <AccordionHeader size="small">Details</AccordionHeader>
-        <AccordionPanel>
-          <Card appearance="outline" size="small"><Terminal terminal={key} className={css.terminal} /></Card>
-        </AccordionPanel>
-      </AccordionItem>
-    </Accordion>
-    {error && <ErrorBar actions={<Button onClick={again}>Try Again</Button>}>{error}</ErrorBar>}
-    {running && <Spinner size="tiny" labelPosition="after" label="Waiting for the sign-in…" />}
-    <div className={css.buttons}>
-      {!running && !error && <Button onClick={again}>Try Again</Button>}
-      <Button onClick={onClose}>Cancel</Button>
+  return <div role="group" aria-label={`New account of ${agent.name}`} className="flex flex-col gap-3">
+    <p className="text-muted-foreground">Signing in to a new account of {agent.name}: sign in in your browser, which opens (check the account it signs in to
+      there; its address is under Details if it did not open). The account is {project ? 'added' : 'kept'} once you are signed in.</p>
+    <Details open={details} onOpenChange={setDetails}><Terminal terminal={key} className="h-40" /></Details>
+    {error && <ErrorBar actions={<Button type="button" variant="outline" size="sm" onClick={again}>Try Again</Button>}>{error}</ErrorBar>}
+    {running && <Working>Waiting for the sign-in…</Working>}
+    <div className="flex gap-2">
+      {!running && !error && <Button type="button" variant="outline" onClick={again}>Try Again</Button>}
+      <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
     </div>
   </div>;
 }

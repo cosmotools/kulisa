@@ -1,12 +1,13 @@
 // The Log page of Settings (docs/window.md, The log): the log read whole and followed as it grows, filtered, passed on.
 // Read as the page is shown, not as Settings opens (a megabyte for nothing otherwise), and let go as it is left.
-import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactElement } from 'react';
-import { Button, Caption1, Link, MenuButton, SearchBox, Switch, Text, Toast, Toaster, ToastTitle, Toolbar,
-  ToolbarRadioButton, ToolbarRadioGroup, Tooltip, useId, useToastController } from '@fluentui/react-components';
+import { memo, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { ChevronDownIcon } from 'lucide-react';
+import { toast } from 'sonner';
+import { Button, Input, Label, Switch, ToggleGroup, ToggleGroupItem } from '@ui';
 import { ButtonMenu } from '../Menus';
-import { refused } from '../../../shared/result';
-import css from './LogPage.module.css';
+import { Tip } from '../Tip';
 import { ErrorBar } from '../ErrorBar';
+import { refused } from '../../../shared/result';
 
 // A line as the file has it: [date T time offset] [level] [tag …] the rest (log.ts, stamp; electron-log's local time with
 // a space and no offset read too); a line not of that shape (an object's lines under an [electron] event) belongs to the
@@ -21,6 +22,8 @@ const SHOW: { id: Show; label: string; hint: string }[] = [
   { id: 'agent', label: 'Agent', hint: 'What the agent did: its tools, its hooks, its terminal' },
   { id: 'human', label: 'Human', hint: 'What you did: a window\'s messages, keys, Settings' },
   { id: 'tasks', label: 'Tasks', hint: 'Tasks and windows opened and closed, the start' }];
+// Who acted, in the theme's colors: the agent's, the human's, the tasks'; a line in trouble in the error's.
+const TAG: Record<Group, string> = { agent: 'text-success', human: 'text-warning', tasks: 'text-foreground' };
 const LINE = /^\[(\d{4}-\d\d-\d\d)[T ](\d\d:\d\d:\d\d\.\d{3})([+-]\d\d:\d\d|Z)?\] \[(\w+)\]\s*(?:\[(\w+)[^\]]*\]\s?)?(.*)$/;
 const isBad = (level: string, tag: string, text: string) => level === 'warn' || level === 'error' || tag === 'page' || tag === 'electron' || /\b(refused|failed)\b/.test(text);
 
@@ -44,11 +47,12 @@ function parse(text: string, into: Line[], rest: { text: string }) {
 let onLines: ((m: { text: string } | { reset: true }) => void) | null = null;
 kulisa.on('log:lines', (m) => onLines?.(m));
 
+// data-tag, data-group, data-bad: the tests' handles on a line's kind.
 const Row = memo(function Row({ l }: { l: Line }) {
   return <div data-tag={l.tag || undefined} data-group={l.group ?? undefined} data-bad={l.bad || undefined} title={`${l.date} ${l.offset}`.trim()}
-    className={css.row}>
-    <span className={css.time}>{l.time}</span>
-    <span className={css.tag}>{l.tag && `[${l.tag}]`}</span>
+    className={`grid grid-cols-[auto_auto_1fr] gap-x-2 whitespace-pre-wrap [overflow-wrap:anywhere] ${l.bad ? 'text-destructive' : ''}`}>
+    <span className="text-muted-foreground tabular-nums">{l.time}</span>
+    <span className={`font-semibold ${l.bad ? '' : l.group ? TAG[l.group] : 'text-muted-foreground'}`}>{l.tag && `[${l.tag}]`}</span>
     <span>{l.text}</span>
   </div>;
 });
@@ -57,8 +61,7 @@ export function LogPage() {
   const [lines, setLines] = useState<Line[] | null>(null), [info, setInfo] = useState({ size: 0, max: 0, old: null as string | null });
   const [show, setShow] = useState<Show>('all'), [filter, setFilter] = useState(''), [follow, setFollow] = useState(true);
   const [error, setError] = useState('');
-  const toaster = useId('log'), { dispatchToast } = useToastController(toaster);
-  const box = useRef<HTMLDivElement>(null);
+  const box = useRef<HTMLDivElement>(null), followId = useId();
 
   // Read whole, then followed: what comes before the answer is what this read has already (log.ts, readLog).
   useEffect(() => {
@@ -92,44 +95,45 @@ export function LogPage() {
   const scrolled = () => { const b = box.current!; setFollow(b.scrollHeight - b.scrollTop - b.clientHeight < 4); };
 
   const kb = (n: number) => `${Math.max(1, Math.round(n / 1024))} KB`;
-  const copy = async () => { await navigator.clipboard.writeText((lines ?? []).map((l) => l.raw).join('\n')); setError('');
-    dispatchToast(<Toast><ToastTitle>Copied</ToastTitle></Toast>, { intent: 'success' }); };
+  const copy = async () => { await navigator.clipboard.writeText((lines ?? []).map((l) => l.raw).join('\n')); setError(''); toast.success('Copied'); };
   const save = async () => {
     const r = await kulisa.invoke('log:save');
     setError(refused(r) ? r.error : '');
     const file = !refused(r) && r.file;
-    if (file) dispatchToast(<Toast><ToastTitle action={<Link onClick={() => void kulisa.invoke('file:show', file)}>Show in Folder</Link>}>Saved as {file}</ToastTitle></Toast>,
-      { intent: 'success' });
+    if (file) toast.success(`Saved as ${file}`, { action: { label: 'Show in Folder', onClick: () => void kulisa.invoke('file:show', file) } });
   };
-  const tip = (content: string, child: ReactElement) => <Tooltip content={content} relationship="description">{child}</Tooltip>;
 
-  return <div className={css.page}>
-    <Toaster toasterId={toaster} position="bottom-end" />
-    <div className={css.bar}>
-      <SearchBox size="small" value={filter} placeholder="Filter: a task, wc=1, [mcp]…" aria-label="Filter" spellCheck={false} onChange={(_, d) => setFilter(d.value)} />
-      <Toolbar size="small" aria-label="Show" checkedValues={{ show: [show] }} onCheckedValueChange={(_, d) => { if (d.checkedItems[0]) setShow(d.checkedItems[0] as Show); }}>
-        <ToolbarRadioGroup>
-          {SHOW.map((s) => <Tooltip key={s.id} content={s.hint} relationship="description">
-            <ToolbarRadioButton appearance="subtle" name="show" value={s.id}>{s.label}</ToolbarRadioButton></Tooltip>)}
-        </ToolbarRadioGroup>
-      </Toolbar>
-      <span className={css.end}><Switch label="Follow" checked={follow} onChange={(_, d) => { setFollow(d.checked); if (d.checked) toEnd(); }} /></span>
+  return <div className="flex min-h-0 flex-1 flex-col gap-2">
+    <div className="flex flex-wrap items-center gap-2">
+      <Input type="search" className="w-64" value={filter} placeholder="Filter: a task, wc=1, [mcp]…" aria-label="Filter" spellCheck={false}
+        onChange={(e) => setFilter(e.target.value)} />
+      <div role="toolbar" aria-label="Show">
+        <ToggleGroup type="single" size="sm" value={show} onValueChange={(v) => { if (v) setShow(v as Show); }}>
+          {/* the tip on a box around the item: as its trigger, the tooltip's data-state would take the place of the item's */}
+          {SHOW.map((s) => <Tip key={s.id} text={s.hint}><span><ToggleGroupItem value={s.id}>{s.label}</ToggleGroupItem></span></Tip>)}
+        </ToggleGroup>
+      </div>
+      <div className="ms-auto flex items-center gap-2">
+        <Switch id={followId} checked={follow} onCheckedChange={(on) => { setFollow(on); if (on) toEnd(); }} />
+        <Label htmlFor={followId}>Follow</Label>
+      </div>
     </div>
-    <div ref={box} role="log" aria-label="Log" onScroll={scrolled} className={css.log}>
+    <div ref={box} role="log" aria-label="Log" data-selectable onScroll={scrolled}
+      className="min-h-0 flex-1 cursor-text overflow-auto rounded-lg border bg-card px-2 py-1.5 font-mono text-xs leading-5 text-card-foreground">
       {shown.map((l, i) => <Row key={i} l={l} />)}
-      {lines && !shown.length && <Text>Nothing matches.</Text>}
+      {lines && !shown.length && <p className="text-muted-foreground">Nothing matches.</p>}
     </div>
-    <Caption1>
+    <p className="text-xs text-muted-foreground">
       kulisa.log, {kb(info.size)} of {Math.round(info.max / 1024 / 1024)} MB{info.old ? `; kulisa.old.log from ${info.old.slice(0, 10)}` : ''}. Never here: what you typed,
       passwords, tokens, cookies, the pages' queries.
-    </Caption1>
+    </p>
     {error && <ErrorBar>{error}</ErrorBar>}
-    <div className={css.actions}>
-      {tip('The whole log, to paste anywhere', <Button onClick={() => void copy()}>Copy All</Button>)}
-      {tip('The log as a file, to attach to a message or an issue', <Button onClick={() => void save()}>Save As…</Button>)}
-      {tip('Its folder in your file manager', <Button onClick={() => void kulisa.invoke('log:show-folder')}>Open Folder</Button>)}
+    <div className="flex items-center justify-end gap-2">
+      <Tip text="The whole log, to paste anywhere"><Button variant="outline" onClick={() => void copy()}>Copy All</Button></Tip>
+      <Tip text="The log as a file, to attach to a message or an issue"><Button variant="outline" onClick={() => void save()}>Save As…</Button></Tip>
+      <Tip text="Its folder in your file manager"><Button variant="outline" onClick={() => void kulisa.invoke('log:show-folder')}>Open Folder</Button></Tip>
       <ButtonMenu end items={() => [{ label: 'On GitHub…', sub: 'a public issue, the environment filled in; attach the saved log', run: () => kulisa.invoke('log:report') }]}>
-        <MenuButton appearance="primary">Report…</MenuButton>
+        <Button>Report…<ChevronDownIcon data-icon="inline-end" /></Button>
       </ButtonMenu>
     </div>
   </div>;

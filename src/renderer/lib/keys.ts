@@ -34,7 +34,11 @@ const openOwn = async () => {
   const r = await act('terminal:open', { own: true });
   if (refused(r) || !('none' in r)) return;
   const first = document.querySelector<HTMLElement>('[data-launcher]');
-  if (first) first.focus(); else document.querySelector<HTMLElement>('[data-unfold]')?.click();
+  if (first) { first.focus(); return; }
+  // Its menu opens on a press or a key (Radix's), not on a click
+  const plus = document.querySelector<HTMLElement>('[data-unfold]');
+  plus?.focus();
+  plus?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
 };
 // A task's tab in the tasks' bar shown, as a click on it does (the tasks' bar).
 const showTask = (tab?: Element) => { const key = (tab as HTMLElement | undefined)?.dataset.task; if (key && key !== store.getState().current) void kulisa.invoke('task:show', key); };

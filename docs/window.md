@@ -40,7 +40,7 @@ of another project, or one closed, is opened from the sidebar. ☰ → **Tasks b
 after the logo instead, as a browser's tabs (`settings.json`: `bar`; in the page's URL, so it is drawn in place at
 once; `App.tsx` puts `TaskBar.tsx` in `TopBar.tsx`'s children or under the grid). Bottom is the default, on macOS too:
 the hand is at the terminal under the grid all the time, and a bar on top sits right over the grid's panels' tabs. The
-tabs are Fluent's, the shown one filled (the author's choice). A tab is a target for a
+tabs are shadcn's, the shown one raised (the author's choice). A tab is a target for a
 quick throw of the mouse: at least 160 px wide (about ten letters of its name), × on every tab as Chrome's. The window
 is three rows (`App.tsx`: the title bar, the grid, the bar when below), the grid from edge to edge. In the title bar
 the tabs are no drag handle (`app-region: no-drag`). Nothing in the bar moves when another task is shown.
@@ -144,9 +144,9 @@ following it when it changes). Saved (`settings.json`), the same in every window
 - Only Kulisa's own UI changes: the profiles' pages keep the OS's light or dark (`prefers-color-scheme`), so a site
   under test looks as its users see it. So Kulisa does not set `nativeTheme.themeSource` (it would change every page's
   scheme); System reads `nativeTheme.shouldUseDarkColors` and its `updated` event.
-- Fluent's theme does it ([ui.md](ui.md), Fluent in Kulisa), the one shown given to `FluentProvider` (`App.tsx`) with its `color-scheme` (`light dark` for System), so the browser's
-  own controls (scrollbars) follow; the grid takes dockview's colors from the same tokens (`Grid.tsx`), a terminal its
-  colors (`termStyle`). The choice comes in the page's URL (`data-theme` on its root), set before the first paint, so a
+- shadcn's theme does it ([ui.md](ui.md), The theme): the root's `.dark` class and its `color-scheme`
+  (`lib/theme.ts`), so the browser's own controls (scrollbars) follow; the grid takes dockview's colors from the same
+  variables (`Grid.css`), a terminal its colors (`termStyle`). The choice comes in the page's URL (`data-theme` on its root), set before the first paint, so a
   light window never flashes dark.
 - What CSS does not paint follows from the main process: the window's background and the OS buttons' strip
   (`window.ts`).
@@ -169,7 +169,7 @@ English by default, as the agents are without it. Saved (`settings.json`), the s
 
 ## Menus
 
-Kulisa draws its menus in HTML, as Chrome does (Fluent UI's menus: `components/Menus.tsx`; how they open, close and are
+Kulisa draws its menus in HTML, as Chrome does (shadcn's menus: `components/Menus.tsx`; how they open, close and are
 built: [ui.md](ui.md), Menus):
 
 - a task tab's right-click menu ([tasks.md](tasks.md), Projects, "A tab's right-click menu"), a project's and a task's
@@ -220,8 +220,7 @@ works: [tasks.md](tasks.md)) or between two ways to go (a second button, `other`
 with its question, restored when minimized, while another of Kulisa's windows has the focus (another tasks' window, a
 master's): left behind, it would look as if nothing happened; never from another app. While a dialog
 is open the profiles' pages are hidden (native views above the HTML), and the keys are the dialog's (Keys): a page that
-had the keyboard would keep it unseen, and Fluent's focus trap leaves a dialog it never saw focused `aria-hidden`, its
-keys going nowhere, so the window's page takes the keyboard (`hideViews` in `window.ts`); a menu, over pictures of the
+had the keyboard would keep it unseen, the dialog's keys going nowhere, so the window's page takes the keyboard (`hideViews` in `window.ts`); a menu, over pictures of the
 pages, puts the keyboard back itself as it closes. Not the
 OS's own question (`dialog.showMessageBox`): it looks different on each OS and plain on Linux, and cannot mark the
 deleting button or lay out what goes. The OS's own dialogs stay for choosing a folder.
@@ -241,9 +240,9 @@ Code's settings are a page of their window: the window it is opened in is the on
   welcome makes them); it comes with the first account signed in to. An account or a profile left after the last
   project is deleted keeps it: Settings is where they are removed (`settings` in the projects' news).
 - **Shown in one go**, once its page is filled and the profiles' pages are hidden: until then the window stays as it
-  was (`opened`, `lib/cover.ts`).
+  was (`coverPage`, `lib/cover.ts`).
 - **The grid stays under it**, laid out and hidden (dockview's sizes, the terminals), its agents working on; the
-  profiles' pages are hidden as under a dialog (`useCovered('page')`, `lib/cover.ts`), and the keys are its own. A
+  profiles' pages are hidden as under a dialog (`coverPage`, `lib/cover.ts`), and the keys are its own. A
   grid changed underneath (a task shown by the agent, the shown project deleted) leaves it open. The agent's questions
   show over it.
 - **Closed** by Esc (unless a menu, a question or a popover is open: Esc closes that first; or a field takes it), its
@@ -324,7 +323,7 @@ agent the prompt goes to in front first (`Task.holdKey`, `promptTarget`): it alw
 
 The key's indicator, and the way by the mouse, is the round microphone at the end of the terminals' row of tabs
 ([src/dictation](../src/dictation/README.md), The microphone); what the dictation does meanwhile is the pill at the
-terminal's top, a Fluent badge (the same, The pill). The agent hears through its own program (Claude Code: its audio
+terminal's top, a badge (the same, The pill). The agent hears through its own program (Claude Code: its audio
 module, or `arecord`/SoX on Linux); on macOS the system asks for the microphone on Kulisa's behalf
 (`NSMicrophoneUsageDescription`, `forge.config.ts`); the pill's wave is the window's own reading of it, the level
 only.
@@ -483,8 +482,8 @@ issue #73) is where the human reads it and passes it on, by any means: not every
   once, so what came since is read from the file at the end of the same tick and sent, a burst of lines as one
   (`readLog` in `log.ts`; the last page that read is the one followed). The file turned over under it (shorter than
   what was read): the page reads it again. Nothing of this is logged: a line of its own would send it again.
-- A line each with its time (the date in its tooltip) and its tag, the tag in the color of who acted (Fluent's palette: blue the agent, berry the human,
-  marigold the tasks), warnings and errors in red; what is not a line of that shape (an object's lines under an
+- A line each with its time (the date in its tooltip) and its tag, the tag in the color of who acted (the theme's: success the agent, warning the human,
+  the text's the tasks), warnings and errors in red; what is not a line of that shape (an object's lines under an
   `[electron]` event) hangs under the line before it. **Follow** keeps the end in view, as a terminal does, lets go when the log is scrolled up, and
   goes back to the end when checked again.
 - What to show (a toolbar's radio buttons, one always chosen) and a text filter on top of it (a task's key, `wc=1`, a
@@ -542,6 +541,6 @@ window it comes from (`event.sender`); one change to the open tasks after anothe
 | `src/renderer/components/Grid.tsx`, `components/grid/`, `lib/grid.ts` | the grid (dockview), the panes and their headers, the terminals (`grid/Terminals.tsx`: `Terminals`, its row of tabs `TerminalsHeader`), the closed profiles' buttons over it (`ClosedProfiles`, `Grid.tsx`), Arrange panels |
 | `src/renderer/components/grid/Resources.tsx` | Resources next to the terminal: the shown task's resources (its worktree(s) or the main working tree) and its artifacts, each with its actions (tasks.md) |
 | `src/renderer/components/TopBar.tsx`, `ProjectIcon.tsx` | the title bar, ☰ and its own rows; the logo, a project's icon |
-| `src/renderer/components/Menus.tsx`, `PointMenu.tsx`, `Ask.tsx`, `lib/menu.ts`, `cover.ts`, `views.ts`, `ask.ts`, `terminals.ts` | the menus, the dialogs and questions (Fluent UI's: `cover.ts`), the pages under them in a tasks' window (`views.ts`), a tasks' window's terminals (`terminals.ts`) |
+| `src/renderer/components/Menus.tsx`, `PointMenu.tsx`, `Ask.tsx`, `lib/menu.ts`, `cover.ts`, `views.ts`, `ask.ts`, `terminals.ts` | the menus, the dialogs and questions (shadcn's: `cover.ts`), the pages under them in a tasks' window (`views.ts`), a tasks' window's terminals (`terminals.ts`) |
 | `src/renderer/lib/keys.ts`, `components/Shortcuts.tsx` | where the keyboard is, the commands the keys run; Keyboard Shortcuts |
 | `test/e2e/window.spec.ts`, `grid*.spec.ts`, `keys.spec.ts`, `log.spec.ts`, `zoom-and-closing.spec.ts`, `test/unit/keys.test.ts` | the tests |

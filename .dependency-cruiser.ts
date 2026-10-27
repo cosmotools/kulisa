@@ -70,7 +70,7 @@ const config: IConfiguration = {
     // logic never comes to depend on a look.
     { name: 'logic-not-look', severity: 'error', comment: 'src/renderer/lib/ imports no component, no UI library, no icons.',
       from: { path: '^src/renderer/lib/' },
-      to: { path: ['^src/renderer/components/', '^src/ui/', 'node_modules/(@fluentui|lucide-react|radix-ui|@radix-ui)/'] } },
+      to: { path: ['^src/renderer/components/', '^src/ui/', 'node_modules/(lucide-react|radix-ui|@radix-ui)/'] } },
     // Settings is the window's chunk of its own, read as it is first shown (App.tsx): a static import pulls it into the
     // window's bundle.
     { name: 'settings-entry', severity: 'error', comment: 'components/settings/ is reached from outside only by import() of its index.ts.',

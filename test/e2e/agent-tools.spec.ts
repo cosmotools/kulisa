@@ -186,7 +186,7 @@ test('agent: keys, hover, select, files, waiting, evaluate, back and forward; di
   const del = { ...p, locator: "getByRole('button', { name: 'Delete' })" };
   // The agent's action answers its own dialog: none is shown.
   const view = () => core((k) => k.profile('Sam.seller').get().view.getVisible());
-  const pane = ui.locator(`[role="region"][data-profile="${sam}"]`), paneDialog = pane.getByRole('dialog');
+  const pane = ui.locator(`[role="region"][data-profile="${sam}"]`), paneDialog = pane.getByRole('alertdialog');
   const openDialog = paneDialog;
   expect((await call('browser_click', del)).text).toMatch(/asked: confirm "Delete the draft\?"; dismissed/);
   expect(await out()).toBe('kept');

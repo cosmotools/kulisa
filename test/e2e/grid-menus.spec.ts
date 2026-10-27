@@ -36,7 +36,7 @@ test('context menus: a pane\'s header, a tab, the terminal; pages are pictures w
   await rightClick(ui, header);
   await expect(menu(ui)).toMatchAriaSnapshot(headerMenu);
   const h = await ui.locator(header).boundingBox(), m = await menu(ui).boundingBox();
-  // Its list inset by the menu's padding and border (Fluent's).
+  // Its list inset by the menu's padding and ring.
   expect(Math.abs(m.x - (h.x + h.width / 2)) <= 8 && Math.abs(m.y - (h.y + h.height / 2)) <= 8, 'at the pointer').toBe(true);
   // The pages are native views above the menu: pictures of them stand in meanwhile.
   expect(await elonVisible()).toBe(false);
@@ -383,7 +383,7 @@ test("menus with the mouse and the keyboard, as the OS's: a press on ☰, a drag
   await ui.locator('#windowMenu').focus();
   await ui.keyboard.press('Enter'); // a key's whole sequence: a button acts on Enter's keypress, which press() sends none of
   await expect(menu(ui)).toBeVisible();
-  await expect(ui.locator('[role="menu"][data-ready]:focus-within')).toHaveCount(1);
+  await expect(ui.locator('[role="menu"][data-ready][data-state="open"]:focus-within')).toHaveCount(1);
   const first = await ui.locator(':focus').getAttribute('aria-label');
   await press('Down');
   await expect(ui.locator(':focus')).not.toHaveAccessibleName(first);

@@ -79,7 +79,7 @@ async function projectSettings(ui: Page, sui: () => Promise<Page>) {
 // The project page's Agents: Add Agent, a row's ⋯, the sign-in of a new account.
 const addAgent = (s: Page) => s.getByRole('button', { name: 'Add Agent', exact: true });
 const signIn = (s: Page) => s.getByRole('group', { name: /^New account of / });
-// Settings' menu open (Fluent's).
+// Settings' menu open.
 const settingsMenu = (s: Page) => s.getByRole('menu');
 const accountDir = (files: Files, id: string) => path.join(files.userData, 'agents', `fake-${id}`);
 const accountOf = (dir: string) => path.basename(dir).replace(/^fake-/, '');

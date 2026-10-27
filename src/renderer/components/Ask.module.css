@@ -1,2 +1,0 @@
-/* A question (Ask.tsx): its detail as written, its lines kept; its link under it. */
-.detail { display: flex; flex-direction: column; gap: var(--spacingVerticalS); white-space: pre-line; }

@@ -1,14 +1,14 @@
 // A profile's pane, as a Chrome window, and its header in the grid (docs/profiles.md; docs/window.md, The grid). The
 // page itself is a native view the main process lays over the content box (lib/grid.ts tells it where); while a panel is
 // dragged or a menu is open, a picture of the page stands in for it. The pages draw above the window's HTML, so the
-// pane's and its header's hints are the OS's (title), not Fluent's Tooltip, which a page under it would cover.
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type MouseEvent, type PointerEvent } from 'react';
+// pane's and its header's hints are the OS's (title): a tooltip of the window's would be covered.
+import { useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type MouseEvent } from 'react';
 import type { IDockviewPanelHeaderProps, IDockviewPanelProps } from 'dockview-react';
-import { Avatar, Badge, Button, Caption1, Dialog, DialogActions, DialogBody, DialogContent, DialogSurface, DialogTitle, Image, Input, Overflow, OverflowItem,
-  Tab, TabList, Text, ToggleButton, Toolbar, ToolbarButton, useIsOverflowItemVisible } from '@fluentui/react-components';
-import { AddRegular, ArrowClockwiseRegular, ArrowLeftRegular, ArrowRightRegular, CursorHoverFilled, CursorHoverRegular, DismissRegular, GlobeFilled,
-  GlobeRegular, LockClosedRegular, MoreHorizontalRegular, MoreVerticalRegular, bundleIcon } from '@fluentui/react-icons';
+import { ArrowLeftIcon, ArrowRightIcon, EllipsisIcon, EllipsisVerticalIcon, GlobeIcon, LockIcon, PlusIcon, RotateCwIcon, SquareMousePointerIcon,
+  XIcon } from 'lucide-react';
+import { Avatar, AvatarImage, Badge, Button, Input, Toggle } from '@ui';
 import { ButtonMenu, RightClickMenu } from '../Menus';
+import { BrowserTab, TabStrip } from '../BrowserTabs';
 import { act, screenshot, store, togglePick, useWindow } from '../../lib/store';
 import { avatarSrc, keyText, withKeys } from '../../lib/common';
 import type { MenuItem } from '../../lib/menu';
@@ -16,7 +16,6 @@ import { panes, scheduleLayout } from '../../lib/grid';
 import { grow, useStrip } from '../../lib/strip';
 import { openSettings } from '../../lib/settings';
 import { deleteProfile } from '../../lib/profiles';
-import css from './ProfilePane.module.css';
 
 const profileOf = (panel: string) => panel.slice('profile:'.length);
 const useProfile = (id: string) => useWindow((s) => s.profiles.find((p) => p.id === id));
@@ -27,16 +26,13 @@ const fullUrl = (u = '') => (u === 'about:blank' ? '' : u);
 const shortUrl = (u?: string) => fullUrl(u).replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/^([^/?#]+)\/$/, '$1');
 // Nothing to pick or take on an empty tab.
 const blank = (u?: string) => !fullUrl(u);
-// Filled when chosen, as Fluent's tabs and toggles show it.
-const Globe = bundleIcon(GlobeFilled, GlobeRegular), PickIcon = bundleIcon(CursorHoverFilled, CursorHoverRegular);
-// The tests' handle on a tab's icon, on its slot: a bundled icon is two.
-const TAB_ICON = { 'data-testid': 'tab-icon' };
 
 export function ProfilePane({ api }: IDockviewPanelProps) {
   const id = profileOf(api.id), profile = useProfile(id);
   const picking = useWindow((s) => !!s.picking[id]), picture = useWindow((s) => s.pictures[id]);
   const [content, setContent] = useState<HTMLDivElement | null>(null);
   const addr = useRef<HTMLInputElement>(null), strip = useRef<HTMLDivElement>(null);
+  const nav = useRef<HTMLSpanElement>(null), reload = useRef<HTMLSpanElement>(null);
   const typeInto = useRef<string | null>(null), clickedIn = useRef(false);
   const active = profile?.tabs.find((t) => t.id === profile.active);
   useStrip(strip, profile?.active);
@@ -91,12 +87,9 @@ export function ProfilePane({ api }: IDockviewPanelProps) {
     return () => { observer.disconnect(); if (panes.get(id) === handle) panes.delete(id); };
   }, [id, content]);
 
-  // The tab strip: a tab is chosen on the press, as in Chrome (not on its ×); the arrows move between them and Enter
-  // chooses (Fluent's TabList). A tab opened grows in, and the active tab is kept in sight (lib/strip.ts, with the
-  // wheel and the faded edges). Tabs are kept by id: an element stays as its tab does.
+  // The tab strip: a tab is chosen on the press, as in Chrome (not on its ×), or by Enter or Space. A tab opened grows
+  // in, and the active tab is kept in sight (lib/strip.ts). Tabs are kept by id: an element stays as its tab does.
   const activate = (t: string) => { if (t !== tab()) void act('tab:activate', { profile: id, tab: t }); };
-  const pressTab = (t: string) => (e: PointerEvent) => { if (e.button === 0) activate(t); };
-  const closeTab = (t: string) => (e: MouseEvent) => { e.stopPropagation(); void act('tab:close', { profile: id, tab: t }); };
   // A tab's right-click menu (the strip's: for the tab it was on).
   function tabMenu(e: globalThis.MouseEvent): MenuItem[] | null {
     const t = (e.target as Element).closest<HTMLElement>('[data-tab]')?.dataset.tab, p = store.getState().profiles.find((x) => x.id === id);
@@ -113,10 +106,10 @@ export function ProfilePane({ api }: IDockviewPanelProps) {
   }
 
   // The active tab's alert or confirm (profiles.ts), over a picture of its page, as Chrome shows it: not modal (the
-  // other panes and the rest of the window go on), in the pane. The human's answer goes back when they close it (OK,
-  // Cancel, Esc; a click outside does nothing), not when it goes for them (answered by the agent, the page gone: the
-  // state has it no more). One answered is not shown again by a state sent before the answer arrived. OK has the
-  // keyboard, as in Chrome.
+  // other panes and the rest of the window go on), so not a dialog layer of the window's, whose overlay would hide every
+  // page (lib/cover.ts). The human's answer goes back when they close it (OK, Cancel, Esc), not when it goes for them
+  // (answered by the agent, the page gone: the state has it no more). One answered is not shown again by a state sent
+  // before the answer arrived.
   const [answered, setAnswered] = useState<number | null>(null);
   const dialog = active?.dialog && active.dialog.id !== answered ? active.dialog : null;
   const answer = (ok: boolean) => {
@@ -127,92 +120,13 @@ export function ProfilePane({ api }: IDockviewPanelProps) {
 
   if (!profile) return null;
   const run = (channel: 'tab:back' | 'tab:forward' | 'tab:reload') => () => void act(channel, { profile: id, tab: tab() });
-  return <div className={css.pane} role="region" aria-label={profile.name} data-profile={id}>
-    <nav className={css.tabs} aria-label="Tabs">
-      <RightClickMenu items={tabMenu} className={css.strip}>
-        <TabList ref={strip} appearance="filled-circular" size="small" reserveSelectedTabSpace={false} selectedValue={profile.active ?? undefined}
-          onTabSelect={(e, d) => { if (!('detail' in e && e.detail > 0)) activate(String(d.value)); }}>
-          {profile.tabs.map((t) => <Tab key={t.id} ref={grow} value={t.id} data-tab={t.id} aria-label={t.title || t.url || 'New tab'} title={t.url}
-            onPointerDown={pressTab(t.id)}
-            icon={{ ...TAB_ICON, children: t.favicon ? <img className={css.favicon} alt="" src={t.favicon} /> : <Globe /> }}>
-            <span className={css.label}>
-              {/* Text sets a weight of its own: the chosen tab's, as Fluent's Tab sets its label's */}
-              <span className={css.title}><Text truncate wrap={false} block weight={t.id === profile.active ? 'semibold' : 'regular'}>{t.title || t.url || 'New tab'}</Text></span>
-              {/* Not a press on the tab: it is not chosen first. */}
-              <span className={css.close}><Button as="a" appearance="subtle" size="small" icon={<DismissRegular />} aria-label="Close tab" title="Close tab" tabIndex={-1}
-                onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); }} onClick={closeTab(t.id)} /></span>
-            </span>
-          </Tab>)}
-        </TabList>
-      </RightClickMenu>
-      <Button appearance="subtle" size="small" icon={<AddRegular />} title={withKeys('New tab', 'tab.new')} aria-label="New tab" onClick={() => void panes.get(id)?.newTab()} />
-    </nav>
-    {/* A narrow pane gives up Back and Forward, then Reload (into ⋮; their keys stay), never Pick or ⋮: in order, else
-        the buttons at the end go out of reach first. The address is no item (it shrinks): padding keeps its room. */}
-    <Overflow padding={ADDRESS_ROOM}>
-      <Toolbar aria-label="Page">
-        {/* one item: Back without Forward would be half a pair */}
-        <OverflowItem id="nav" priority={0}>
-          <span className={css.group}>
-            <ToolbarButton icon={<ArrowLeftRegular />} title={withKeys('Back', 'tab.back')} aria-label="Back"
-              disabledFocusable={!active?.canBack} onClick={run('tab:back')} />
-            <ToolbarButton icon={<ArrowRightRegular />} title={withKeys('Forward', 'tab.forward')} aria-label="Forward"
-              disabledFocusable={!active?.canFwd} onClick={run('tab:forward')} />
-          </span>
-        </OverflowItem>
-        <OverflowItem id="reload" priority={1}>
-          <ToolbarButton icon={<ArrowClockwiseRegular />} title={withKeys('Reload', 'tab.reload')} aria-label="Reload" onClick={run('tab:reload')} />
-        </OverflowItem>
-        <span className={css.address}><Input ref={addr} appearance="filled-darker" size="small" aria-label="Address" spellCheck={false}
-          value={editing ?? shortUrl(active?.url)} onChange={(_, d) => setEditing(d.value)}
-          onKeyDown={go} onFocus={addrFocus} onBlur={() => setEditing(null)} onMouseDown={addrDown} onMouseUp={addrUp} /></span>
-        {/* The site's own zoom in this profile, when it differs from the Kulisa zoom; a click resets it. */}
-        {active && active.zoom !== 1 && <OverflowItem id="zoom" pinned>
-          <Button appearance="subtle" size="small" title="This site's zoom in this profile (Ctrl + / − / 0 in the page). Click to reset."
-            onClick={() => void act('tab:zoom', { profile: id, tab: tab(), dir: 0 })}>{Math.round(active.zoom * 100)}%</Button>
-        </OverflowItem>}
-        {/* Pick needs a page to point at: off on an empty tab, unless picking already. */}
-        <OverflowItem id="pick" pinned>
-          <ToggleButton appearance="subtle" icon={<PickIcon />} checked={picking} aria-label="Pick an element"
-            title={withKeys('Pick an element on the page to mention it to the agent (again or Esc: cancel)', 'pick')}
-            disabledFocusable={!picking && blank(active?.url)} onClick={() => void togglePick(id)} />
-        </OverflowItem>
-        <More id={id} />
-      </Toolbar>
-    </Overflow>
-    <div ref={setContent} className={css.content} data-dimmed={dialog ? '' : undefined} data-testid="page"
-      style={{ '--picture': dialog?.picture ? `url(${JSON.stringify(dialog.picture)})` : 'none' } as CSSProperties}>
-      {content && <Dialog open={!!dialog} modalType="non-modal" onOpenChange={(_, d) => { if (!d.open) answer(false); }}>
-        <DialogSurface mountNode={content}>
-          <DialogBody>
-            <DialogTitle as="h2">{dialog?.from}</DialogTitle>
-            <DialogContent><span className={css.message}>{dialog?.message}</span></DialogContent>
-            <DialogActions>
-              {dialog?.type === 'confirm' && <Button onClick={() => answer(false)}>Cancel</Button>}
-              <Button appearance="primary" autoFocus onClick={() => answer(true)}>OK</Button>
-            </DialogActions>
-          </DialogBody>
-        </DialogSurface>
-      </Dialog>}
-      {picture && <div className={css.snapshot}><Image data-testid="snapshot" alt="" src={picture} fit="cover" /></div>}
-    </div>
-  </div>;
-}
-
-// What the bar keeps besides its items: the address's least width (about a host's name), its margins, the gaps and the
-// bar's padding (the container's width counts it).
-const ADDRESS_ROOM = 90 + 8 + 12 + 16;
-
-// ⋮ at the end of the bar, as Chrome's: what a pane does less often; and the buttons the bar has given up. Screenshot's
-// kinds are rows under its heading, one click away. In a span: ButtonMenu's trigger takes no OverflowItem.
-function More({ id }: { id: string }) {
-  const nav = !useIsOverflowItemVisible('nav'), reload = !useIsOverflowItemVisible('reload'), tab = () => activeOf(id);
+  // ⋮: what a pane does less often, after the buttons the bar has given up (hidden by its width, below).
   const more = (): MenuItem[] => {
     const t = store.getState().profiles.find((p) => p.id === id)?.tabs.find((x) => x.id === tab()), off = blank(t?.url);
     const given: MenuItem[] = [
-      ...nav ? [{ label: 'Back', keys: keyText('tab.back'), enabled: !!t?.canBack, run: () => act('tab:back', { profile: id, tab: tab() }) },
-        { label: 'Forward', keys: keyText('tab.forward'), enabled: !!t?.canFwd, run: () => act('tab:forward', { profile: id, tab: tab() }) }] : [],
-      ...reload ? [{ label: 'Reload', keys: keyText('tab.reload'), run: () => act('tab:reload', { profile: id, tab: tab() }) }] : [],
+      ...!nav.current?.checkVisibility() ? [{ label: 'Back', keys: keyText('tab.back'), enabled: !!t?.canBack, run: run('tab:back') },
+        { label: 'Forward', keys: keyText('tab.forward'), enabled: !!t?.canFwd, run: run('tab:forward') }] : [],
+      ...!reload.current?.checkVisibility() ? [{ label: 'Reload', keys: keyText('tab.reload'), run: run('tab:reload') }] : [],
     ];
     return [...given, ...given.length ? ['-' as const] : [],
       { heading: 'Screenshot' },
@@ -222,17 +136,92 @@ function More({ id }: { id: string }) {
       '-',
       { label: 'DevTools', keys: keyText('devtools.tab'), run: () => act('tab:devtools', { profile: id, tab: tab() }) }];
   };
-  return <OverflowItem id="more" pinned>
-    <span className={css.more}>
+
+  // @container: the pane's width decides which of the bar's buttons it keeps.
+  return <div className="@container flex h-full min-w-0 flex-col bg-card" role="region" aria-label={profile.name} data-profile={id}>
+    {/* The tabs scroll in their strip; + is next to it, never over a tab, as in Chrome. */}
+    <nav aria-label="Tabs" className="flex flex-none items-center gap-1 px-2 pt-1">
+      <RightClickMenu items={tabMenu} className="flex min-w-0">
+        <TabStrip stripRef={strip} label="Open tabs" value={profile.active ?? ''} onChoose={activate}>
+          {/* As Chrome's: 220 px, shrinking to their icon and × (64 px), every one keeping its × (the author's choice, as
+              in the tasks' bar); past that the strip scrolls. The title goes when the tab is too narrow for it. */}
+          {profile.tabs.map((t) => <BrowserTab key={t.id} ref={grow} value={t.id} data-tab={t.id} aria-label={t.title || t.url || 'New tab'} title={t.url}
+            className="@container w-[220px] min-w-16 flex-[0_1_auto]"
+            icon={t.favicon ? <img data-testid="tab-icon" alt="" src={t.favicon} className="size-4" /> : <GlobeIcon data-testid="tab-icon" />}
+            close={{ title: 'Close tab', run: () => void act('tab:close', { profile: id, tab: t.id }) }}>
+            <span className="@max-[80px]:hidden">{t.title || t.url || 'New tab'}</span>
+          </BrowserTab>)}
+        </TabStrip>
+      </RightClickMenu>
+      <Button variant="ghost" size="icon-sm" title={withKeys('New tab', 'tab.new')} aria-label="New tab" onClick={() => void panes.get(id)?.newTab()}>
+        <PlusIcon />
+      </Button>
+    </nav>
+    {/* A narrow pane gives up Back and Forward, then Reload (into ⋮; their keys stay), never Pick or ⋮: in order, else
+        the buttons at the end go out of reach first. The address shrinks. */}
+    <div role="toolbar" aria-label="Page" className="flex flex-none items-center gap-1 px-2 py-1">
+      {/* one: Back without Forward would be half a pair */}
+      <span ref={nav} className="hidden gap-1 @min-[300px]:flex">
+        <Button variant="ghost" size="icon-sm" title={withKeys('Back', 'tab.back')} aria-label="Back" disabled={!active?.canBack} onClick={run('tab:back')}>
+          <ArrowLeftIcon />
+        </Button>
+        <Button variant="ghost" size="icon-sm" title={withKeys('Forward', 'tab.forward')} aria-label="Forward" disabled={!active?.canFwd} onClick={run('tab:forward')}>
+          <ArrowRightIcon />
+        </Button>
+      </span>
+      <span ref={reload} className="hidden @min-[200px]:flex">
+        <Button variant="ghost" size="icon-sm" title={withKeys('Reload', 'tab.reload')} aria-label="Reload" onClick={run('tab:reload')}><RotateCwIcon /></Button>
+      </span>
+      <Input ref={addr} aria-label="Address" spellCheck={false} className="h-7 min-w-0 flex-1"
+        value={editing ?? shortUrl(active?.url)} onChange={(e) => setEditing(e.target.value)}
+        onKeyDown={go} onFocus={addrFocus} onBlur={() => setEditing(null)} onMouseDown={addrDown} onMouseUp={addrUp} />
+      {/* The site's own zoom in this profile, when it differs from the Kulisa zoom; a click resets it. */}
+      {active && active.zoom !== 1 && <Button variant="ghost" size="sm" title="This site's zoom in this profile (Ctrl + / − / 0 in the page). Click to reset."
+        onClick={() => void act('tab:zoom', { profile: id, tab: tab(), dir: 0 })}>{Math.round(active.zoom * 100)}%</Button>}
+      {/* Pick needs a page to point at: off on an empty tab, unless picking already. */}
+      <Toggle size="sm" pressed={picking} aria-label="Pick an element" title={withKeys('Pick an element on the page to mention it to the agent (again or Esc: cancel)', 'pick')}
+        disabled={!picking && blank(active?.url)} onPressedChange={() => void togglePick(id)}><SquareMousePointerIcon /></Toggle>
       <ButtonMenu items={more} end>
-        <ToolbarButton icon={<MoreVerticalRegular />} title="More: Screenshot, DevTools" aria-label="More" />
+        <Button variant="ghost" size="icon-sm" title="More: Screenshot, DevTools" aria-label="More"><EllipsisVerticalIcon /></Button>
       </ButtonMenu>
-    </span>
-  </OverflowItem>;
+    </div>
+    {/* --picture: the page's picture under its dialog, dimmed. */}
+    <div ref={setContent} data-testid="page" data-dimmed={dialog ? '' : undefined}
+      className="relative flex-1 overflow-hidden bg-card data-dimmed:bg-(image:--picture) data-dimmed:bg-size-[100%_100%]"
+      style={{ '--picture': dialog?.picture ? `url(${JSON.stringify(dialog.picture)})` : 'none' } as CSSProperties}>
+      {dialog && <PageDialog key={dialog.id} from={dialog.from} message={dialog.message} confirm={dialog.type === 'confirm'} answer={answer} />}
+      {picture && <img data-testid="snapshot" alt="" src={picture} className="absolute inset-0 size-full object-cover" />}
+    </div>
+  </div>;
+}
+
+// A page's alert or confirm, right under the address bar on the dimmed picture of the page, as Chrome shows it. OK has
+// the keyboard, as in Chrome; Esc is Cancel; Tab stays among its buttons.
+function PageDialog({ from, message, confirm, answer }: { from: string; message: string; confirm: boolean; answer: (ok: boolean) => void }) {
+  const title = useId(), text = useId();
+  const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === 'Escape') { e.preventDefault(); answer(false); }
+    if (e.key !== 'Tab') return;
+    const buttons = [...e.currentTarget.querySelectorAll('button')], at = buttons.indexOf(document.activeElement as HTMLButtonElement);
+    e.preventDefault();
+    buttons.at((at + (e.shiftKey ? -1 : 1)) % buttons.length)?.focus();
+  };
+  return <div className="absolute inset-0 backdrop-blur-xs backdrop-brightness-75">
+    <div role="alertdialog" aria-labelledby={title} aria-describedby={text} onKeyDown={onKeyDown}
+      className="mx-auto mt-2 flex w-[min(450px,calc(100%-1rem))] flex-col gap-4 rounded-xl bg-popover p-4 text-sm text-popover-foreground shadow-lg ring-1 ring-foreground/10">
+      <h2 id={title} className="font-medium">{from}</h2>
+      <p id={text} data-selectable className="whitespace-pre-wrap wrap-anywhere">{message}</p>
+      <div className="flex justify-end gap-2">
+        {confirm && <Button variant="outline" onClick={() => answer(false)}>Cancel</Button>}
+        <Button autoFocus onClick={() => answer(true)}>OK</Button>
+      </div>
+    </div>
+  </div>;
 }
 
 // A profile's panel's header: its picture and name, what the agent does in it (or that it is paused on a sign-in
-// page), its menu (⋯, and a right-click on the header), ×.
+// page), its menu (⋯, and a right-click on the header), ×. A pane narrower than its name: the name cut with …, ⋯ and ×
+// kept.
 export function ProfileHeader({ api }: IDockviewPanelHeaderProps) {
   const id = profileOf(api.id), profile = useProfile(id);
   const caption = useWindow((s) => s.captions[id] || '');
@@ -244,18 +233,21 @@ export function ProfileHeader({ api }: IDockviewPanelHeaderProps) {
     '-',
     { label: 'Remove from Project…', run: () => deleteProfile(id) },
   ];
-  return <RightClickMenu items={() => (profile ? menu() : null)}><div className={css.header} data-panel={api.id}>
-    {profile && <>
-      <Avatar size={20} image={{ src: avatarSrc(profile.avatar) }} aria-hidden />
-      <span className={css.name}><Text weight="semibold" truncate wrap={false} block data-testid="profile-name"
-        title={[profile.name, profile.description].filter(Boolean).join('\n')}>{profile.name}</Text></span>
-      <span className={css.caption}><Caption1 role="status" truncate wrap={false} block>
-        {profile.signinMode ? <Badge appearance="tint" color="warning" icon={<LockClosedRegular />}>Sign-in page · agent paused</Badge> : caption}</Caption1></span>
-      <ButtonMenu items={menu} end>
-        <Button appearance="subtle" size="small" icon={<MoreHorizontalRegular />} title="Profile" aria-label="Profile menu" />
-      </ButtonMenu>
-      <Button appearance="subtle" size="small" icon={<DismissRegular />} title="Close profile: its tabs go, its sign-ins stay (open it again in Profiles)"
-        aria-label="Close profile" onClick={() => void act('profile:close', { profile: id })} />
-    </>}
-  </div></RightClickMenu>;
+  return <RightClickMenu items={() => (profile ? menu() : null)} className="h-full min-w-0">
+    <div className="flex h-full min-w-0 items-center gap-1.5 px-2" data-panel={api.id}>
+      {profile && <>
+        <Avatar aria-hidden className="size-5"><AvatarImage src={avatarSrc(profile.avatar)} alt="" /></Avatar>
+        <span data-testid="profile-name" className="min-w-0 flex-[0_1_auto] truncate font-medium"
+          title={[profile.name, profile.description].filter(Boolean).join('\n')}>{profile.name}</span>
+        <span role="status" className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
+          {profile.signinMode ? <Badge variant="outline"><LockIcon className="text-warning" />Sign-in page · agent paused</Badge> : caption}
+        </span>
+        <ButtonMenu items={menu} end>
+          <Button variant="ghost" size="icon-xs" title="Profile" aria-label="Profile menu"><EllipsisIcon /></Button>
+        </ButtonMenu>
+        <Button variant="ghost" size="icon-xs" title="Close profile: its tabs go, its sign-ins stay (open it again in Profiles)" aria-label="Close profile"
+          onClick={() => void act('profile:close', { profile: id })}><XIcon /></Button>
+      </>}
+    </div>
+  </RightClickMenu>;
 }

@@ -29,10 +29,11 @@ export function App() {
   // Rows: the title bar, the grid (or the empty window), the tasks' bar. Under Settings the grid stays laid out
   // (dockview's sizes, the terminals) and its agents work on, the tasks' bar keeping its place: a row resized as
   // Settings closes moved the terminal. Hidden once Settings is drawn (it draws nothing until filled), not as it is
-  // asked for.
+  // asked for. Hidden to the last element (dockview makes parts of its own visible again inside a hidden box), at
+  // once (a transition of all of a button's properties would keep it visible meanwhile).
   return <TooltipProvider>
     <div className="grid h-screen grid-rows-[auto_minmax(0,1fr)_auto] bg-background text-sm text-foreground
-      [&:has(>#settings)>:is(#dock,#empty,#taskbar)]:invisible [&>:is(#dock,#empty)]:[grid-area:2/1] [&>#taskbar]:[grid-area:3/1]">
+      [&:has(>#settings)>:is(#dock,#empty,#taskbar)]:invisible [&:has(>#settings)>:is(#dock,#empty,#taskbar)_*]:invisible! [&:has(>#settings)>:is(#dock,#empty,#taskbar)_*]:transition-none! [&>:is(#dock,#empty)]:[grid-area:2/1] [&>#taskbar]:[grid-area:3/1]">
       {/* The tasks' bar in the title bar, as a browser's tabs, or under the grid (☰ → Tasks bar); none with no task open */}
       <TopBar>{bar === 'top' && open && <TaskBar />}</TopBar>
       {open ? <Grid /> : <Empty />}

@@ -155,9 +155,8 @@ test("DevTools in a pane's ⋮ menu opens and closes the DevTools of its active 
   const id = await core(async (k, url) => (await k.ensureProfile('Sam.admin', url)).id, `${SITE}/app`);
   const pane = ui.locator(`[role="region"][data-profile="${id}"]`);
   const opened = () => core((k) => k.profile('Sam.admin').get().wc.isDevToolsOpened());
-  // ⋮ as tall as the bar's other buttons, its dots upright, its menu open or not: the Details' trigger's rule must
-  // not take its height or turn its dots.
-  const buttons = pane.locator('[role="toolbar"] button:not([hidden])');
+  // ⋮ as tall as the bar's other buttons, its dots upright, its menu open or not.
+  const buttons = pane.locator('[role="toolbar"] button:visible');
   const looks = async (what: string) => {
     for (const svg of await buttons.locator('svg').all()) await expect(svg, what).toHaveCSS('rotate', 'none');
     return Promise.all((await buttons.all()).map(async (b) => Math.round((await b.boundingBox()).height)));
@@ -186,7 +185,7 @@ test("DevTools in a pane's ⋮ menu opens and closes the DevTools of its active 
       await expect(b).toHaveAccessibleName(name);
       await expect(b).toHaveText('');
       await expect(b.locator('svg').locator('visible=true'), 'one icon shown (Pick: its filled one hidden till chosen)').toHaveCount(1);
-      await expect(b).toHaveCSS('border-top-color', 'rgba(0, 0, 0, 0)'); // none seen
+      expect(await b.evaluate((e) => { const c = getComputedStyle(e); return c.borderTopWidth === '0px' || c.borderTopColor === 'rgba(0, 0, 0, 0)'; }), 'no border seen').toBe(true);
     }
     expect(await looks('its menu open'), 'its menu open').toEqual(closed);
     // The same inset from the pane's edges for the controls in it; the page reaches its edges (the author's choice).
@@ -195,7 +194,7 @@ test("DevTools in a pane's ⋮ menu opens and closes the DevTools of its active 
     const left = async (l: Locator) => Math.round((await l.boundingBox()).x - group.x);
     const right = async (l: Locator) => { const r = await l.boundingBox(); return Math.round(group.x + group.width - (r.x + r.width)); };
     const page = pane.getByTestId('page'), pageBox = await page.boundingBox();
-    const inset = { avatar: await left(header.locator('img')), tab: await left(pane.getByRole('tab').first()), back: await left(pane.locator('[aria-label="Back"]')),
+    const inset = { avatar: await left(header.locator('img')), tab: await left(pane.getByRole('tablist').first()), back: await left(pane.locator('[aria-label="Back"]')),
       page: await left(page), close: await right(header.locator('[aria-label="Close profile"]')), more: await right(pane.locator('[aria-label="More"]')),
       pageRight: await right(page), pageBottom: Math.round(group.y + group.height - (pageBox.y + pageBox.height)) };
     expect(inset).toEqual({ avatar: 8, tab: 8, back: 8, page: 0, close: 8, more: 8, pageRight: 0, pageBottom: 0 });

@@ -106,10 +106,10 @@ export async function answer(page: Page, yes: boolean | string = true) {
   return asked;
 }
 
-// Kulisa's menus (Fluent's, docs/ui.md, Menus; components/Menus.tsx): the open one once it is shown (its list
-// [data-ready]: the pages under it are pictures), the submenu open (the last one).
-export const menu = (ui: Page) => ui.locator('[role="menu"][data-ready]').first();
-export const submenu = (ui: Page) => ui.locator('[role="menu"][data-ready]').last();
+// Kulisa's menus (docs/ui.md, Menus; components/Menus.tsx): the open one once it is shown (data-ready: the pages under
+// it are pictures, lib/cover.ts; data-state: not one closing), the submenu open (the last one).
+export const menu = (ui: Page) => ui.locator('[role="menu"][data-ready][data-state="open"]').first();
+export const submenu = (ui: Page) => ui.locator('[role="menu"][data-ready][data-state="open"]').last();
 // An item of the open menu (or of which) by its label, whole.
 export const item = (ui: Page, label: string, which: Locator = menu(ui)) => which.getByRole('menuitem', { name: label, exact: true }).or(which.getByRole('menuitemradio', { name: label, exact: true }));
 export const choose = (ui: Page, label: string, which?: Locator) => item(ui, label, which).click();
@@ -160,9 +160,9 @@ export async function closeProject(ui: Page, files: Files, folder: string) {
 
 // Every open menu, a submenu too (menu waits for the first to be shown).
 export const anyMenu = (ui: Page) => ui.getByRole('menu');
-// The sidebar (components/Sidebar.tsx; docs/tasks.md, The sidebar): every project with its tasks, a tree. Docked in the empty
-// window; over the grid opened with the title bar's button, closed by a choice or Esc. openSidebar gives it, open.
-export const sidebar = (ui: Page) => ui.getByRole('tree', { name: 'Projects' });
+// The sidebar (components/Sidebar.tsx; docs/tasks.md, The sidebar): every project with its tasks, a group each. Docked in
+// the empty window; over the grid opened with the title bar's button, closed by a choice or Esc. openSidebar gives it, open.
+export const sidebar = (ui: Page) => ui.getByRole('navigation', { name: 'Projects' });
 export async function openSidebar(ui: Page) {
   if (!(await sidebar(ui).count())) await ui.getByRole('button', { name: /^Projects and tasks/ }).click();
   await expect(sidebar(ui)).toBeVisible();
@@ -174,14 +174,15 @@ export async function closeSidebar(ui: Page) {
   await expect(sidebar(ui)).toHaveCount(0);
 }
 // A project's row (its tasks under it), by its name; a task's under it.
-export const projectRow = (ui: Page, project: string) => sidebar(ui).getByRole('treeitem', { name: project, exact: true }).and(ui.locator('[data-project]'));
-export const taskRow = (ui: Page, project: string, task: string) => projectRow(ui, project).getByRole('treeitem', { name: task, exact: true });
+export const projectRow = (ui: Page, project: string) => sidebar(ui).getByRole('group', { name: project, exact: true }).and(ui.locator('[data-project]'));
+export const taskRow = (ui: Page, project: string, task: string) => projectRow(ui, project).getByRole('button', { name: task, exact: true }).and(ui.locator('[data-task]'));
 // A project's tasks in the sidebar, by their names, in its order.
 export const sidebarTasks = (ui: Page, project: string) => projectRow(ui, project).locator('[data-task]').evaluateAll((xs) => xs.map((x) => x.getAttribute('aria-label')));
-// A row's own buttons, shown under the pointer: hovered at its start, where its name is (not its tasks under it).
+// A row's own buttons, shown under the pointer: hovered at its start, where its name is (not its tasks under it). A
+// task's are beside its row's button, in its list item.
 export async function rowButton(row: Locator, name: string) {
   await row.hover({ position: { x: 48, y: 8 } });
-  return row.getByRole('button', { name, exact: true }).first();
+  return row.locator('xpath=ancestor-or-self::*[self::li or @data-project][1]').getByRole('button', { name, exact: true }).first();
 }
 // From the sidebar as the human does it: a new task of the project (+ on its row), or one of its tasks opened again (a
 // closed one) or shown.
@@ -218,7 +219,7 @@ export const resize = (core: Core, size: { width?: number; height?: number }) =>
 
 // Settings (components/settings): a category of its nav (projects, agents, profiles, github, log, about), the shown one
 // aria-current; one thing's row on its category's page by its key (p:<project>, a:<agent>, f:<profile>); the shown
-// page's path; a section of a page (its Card, a group) by its title; the open menu (Fluent's: there only while open).
+// page's path; a section of a page (its Card, a group) by its title; the open menu (Radix's: there only while open).
 export const navRow = (s: Page, key: string) => s.getByRole('navigation', { name: 'Settings' }).locator(`[data-key="${key}"]`);
 export const thingRow = (s: Page, key: string) => s.locator(`#settings main [data-row][data-key="${key}"]`);
 export const pathOf = (s: Page) => s.getByRole('navigation', { name: 'Path' });

@@ -2,21 +2,19 @@
 // between the two, and how far the new one has read the conversation (task_history: handover:read, its real progress);
 // its tab, in front under the dialog, is shown once it has read it all, or at once when it needs the human or stops
 // reading: a dialog that never waits for an agent waiting for the human. Show now any time.
-import { createElement, useEffect, type ReactElement } from 'react';
+import { createElement, useEffect, useState, type ReactNode } from 'react';
 import { createStore, useStore } from 'zustand';
 import { useShallow } from 'zustand/react/shallow';
-import { AvatarGroup, AvatarGroupItem, Button, Caption1, Card, Dialog, DialogActions, DialogBody, DialogContent, DialogSurface, DialogTitle, Field,
-  ProgressBar, Radio, RadioGroup, Tag, Text } from '@fluentui/react-components';
-import { BookOpenRegular, BranchRegular, DismissRegular, GlobeRegular, WindowConsoleRegular } from '@fluentui/react-icons';
+import { BookOpenIcon, GitBranchIcon, GlobeIcon, SquareTerminalIcon } from 'lucide-react';
+import { Avatar, AvatarGroup, AvatarImage, Badge, Button, Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, FieldDescription, Label,
+  RadioGroup, RadioGroupItem } from '@ui';
 import { agentMark } from './AgentMark';
 import { act, shownTask, store, useWindow } from '../lib/store';
-import { useCovered } from '../lib/cover';
 import { registerDialog } from '../lib/dialogs';
 import { avatarSrc, plural } from '../lib/common';
 import { refused } from '../../shared/result';
 import type { Terminal } from '../../shared/types';
 import { ErrorBar } from './ErrorBar';
-import css from './HandOver.module.css';
 
 // No part read for this long: an agent that thinks before it reads, or never does.
 const IDLE = 30_000;
@@ -73,16 +71,18 @@ store.subscribe((s) => {
 // One of the two agents: its mark, its name and account, the conversation.
 function Side({ cli, name, conv }: { cli?: string; name?: string; conv: string }) {
   const p = parts(name ?? '');
-  return <div className={css.side}>
-    <span className={css.mark}>{cli && createElement(agentMark(cli))}</span>
-    <Text weight="semibold">{p.agent}</Text>
-    <Caption1 truncate wrap={false} block>{p.account}</Caption1>
-    <Caption1 truncate wrap={false} block>{conv}</Caption1>
+  return <div className="flex min-w-0 flex-col items-center gap-0.5 text-center">
+    <span className="mb-1.5 flex size-10 text-[40px]">{cli && createElement(agentMark(cli))}</span>
+    <span className="font-medium">{p.agent}</span>
+    <span className="max-w-full truncate text-xs text-muted-foreground">{p.account}</span>
+    <span className="max-w-full truncate text-xs text-muted-foreground">{conv}</span>
   </div>;
 }
+// What goes along, a line of it.
+const along = (icon: ReactNode, text: string, title?: string) => <div role="listitem"><Badge variant="outline" title={title}>{icon}{text}</Badge></div>;
 
 export function HandOver() {
-  const { open, setOpen } = useCovered('hide');
+  const [open, setOpen] = useState(false);
   const { from, chosen, going, error, read } = useStore(state);
   const agents = useWindow(useShallow((s) => agentsOf(s))), profiles = useWindow((s) => s.profiles);
   const branch = useWindow((s) => shownTask(s)?.branch), shells = useWindow((s) => s.terminals.list).filter((t) => !t.agent);
@@ -97,50 +97,53 @@ export function HandOver() {
         setOpen(true);
       },
     });
-  }, [setOpen]);
+  }, []);
   const to = agents.find((a) => a.id === chosen), tabs = profiles.reduce((n, p) => n + p.tabs.length, 0);
   const progress = !going || !to ? '' : read ? `${parts(to.name).agent} is reading “${from?.name}”: part ${read.part} of ${read.parts}` : `${parts(to.name).agent} is starting…`;
   const onClose = () => { if (state.getState().going) show(); else setOpen(false); };
-  // A column of tags, not Fluent's List: a List's items stand with no room between them.
-  const along = (icon: ReactElement, text: string, title?: string) => <div role="listitem"><Tag size="small" appearance="outline" media={icon} title={title}>{text}</Tag></div>;
-  return <Dialog open={open} onOpenChange={(_, d) => { if (!d.open) onClose(); }}>
-    <DialogSurface aria-label="Change Agent">
-      <DialogBody>
-        <DialogTitle action={<Button appearance="subtle" aria-label="Close" icon={<DismissRegular />} onClick={onClose} />}>Change Agent</DialogTitle>
-        <DialogContent><div className={css.content}>
-          {from?.agent && <Card appearance="filled-alternative"><div className={css.sides}>
-            <Side cli={from.agent.cli} name={from.agent.name} conv={`“${from.name}”`} />
-            <div role="list" aria-label="Goes along" className={css.along}>
-              {branch && along(<BranchRegular />, branch, `branch ${branch}`)}
-              {profiles.length > 0 && along(<AvatarGroup size={16} layout="stack">{profiles.map((p) => <AvatarGroupItem key={p.id} name={p.name} image={{ src: avatarSrc(p.avatar) }} />)}</AvatarGroup>,
-                `${plural(profiles.length, 'profile')}, signed in`)}
-              {tabs > 0 && along(<GlobeRegular />, plural(tabs, 'tab'))}
-              {shells.length > 0 && along(<WindowConsoleRegular />, `${shells.length === 1 ? shells[0]!.name : plural(shells.length, 'terminal')}, running`)}
-              {along(<BookOpenRegular />, 'the whole conversation')}
-            </div>
-            <Side cli={to?.cli} name={to?.name} conv="a new tab" />
-          </div></Card>}
-          <Field hint={going ? undefined : `It reads this conversation first, then tells you in a few lines what is done and what is next. Its own hidden
-            reasoning, permissions given and its account's settings stay behind. This tab stays until you close it.`}>
-            <RadioGroup aria-label="Agent" value={chosen ?? ''} disabled={going} onChange={(_, d) => state.setState({ chosen: d.value })}>
-              {agents.map((a) => { const Mark = agentMark(a.cli); return <div key={a.id} data-agent={a.id} className={css.agent}>
-                <Radio value={a.id} label={<span className={css.label}><Mark />{a.name}</span>} />
-                {a.id === from?.agent?.account && <span className={css.afresh}><Caption1>this one, afresh</Caption1></span>}
-              </div>; })}
-            </RadioGroup>
-          </Field>
-          {going && <Field validationMessage={{ children: progress, role: 'status' }} validationState="none">
-            <ProgressBar value={read ? read.part / read.parts : undefined} />
-          </Field>}
-          {error && <ErrorBar>{error}</ErrorBar>}
-        </div></DialogContent>
-        <DialogActions>
-          {going ? <Button appearance="primary" onClick={show}>Show now</Button> : <>
-            <Button onClick={() => setOpen(false)}>Cancel</Button>
-            <Button appearance="primary" disabled={!chosen} onClick={() => void hand()}>Hand over</Button>
-          </>}
-        </DialogActions>
-      </DialogBody>
-    </DialogSurface>
+  return <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+    <DialogContent aria-describedby={undefined} className="sm:max-w-lg">
+      <DialogHeader><DialogTitle>Change Agent</DialogTitle></DialogHeader>
+      <div className="flex max-h-[60vh] min-h-0 flex-col gap-4 overflow-auto">
+        {from?.agent && <div className="grid grid-cols-[1fr_auto_1fr] items-center rounded-lg bg-muted p-3">
+          <Side cli={from.agent.cli} name={from.agent.name} conv={`“${from.name}”`} />
+          <div role="list" aria-label="Goes along" className="flex flex-col items-center gap-1">
+            {branch && along(<GitBranchIcon />, branch, `branch ${branch}`)}
+            {profiles.length > 0 && along(<AvatarGroup>{profiles.map((p) => <Avatar key={p.id} className="size-3"><AvatarImage src={avatarSrc(p.avatar)} alt={p.name} /></Avatar>)}</AvatarGroup>,
+              `${plural(profiles.length, 'profile')}, signed in`)}
+            {tabs > 0 && along(<GlobeIcon />, plural(tabs, 'tab'))}
+            {shells.length > 0 && along(<SquareTerminalIcon />, `${shells.length === 1 ? shells[0]!.name : plural(shells.length, 'terminal')}, running`)}
+            {along(<BookOpenIcon />, 'the whole conversation')}
+          </div>
+          <Side cli={to?.cli} name={to?.name} conv="a new tab" />
+        </div>}
+        <div className="flex flex-col gap-2">
+          <RadioGroup aria-label="Agent" value={chosen ?? ''} disabled={going} onValueChange={(v) => state.setState({ chosen: v })}>
+            {agents.map((a) => <div key={a.id} data-agent={a.id} className="flex items-center gap-2">
+              <RadioGroupItem id={`handover-${a.id}`} value={a.id} />
+              <Label htmlFor={`handover-${a.id}`}>{createElement(agentMark(a.cli), { className: 'size-4' })}{a.name}</Label>
+              {a.id === from?.agent?.account && <span className="ms-auto text-xs text-muted-foreground">this one, afresh</span>}
+            </div>)}
+          </RadioGroup>
+          {!going && <FieldDescription>It reads this conversation first, then tells you in a few lines what is done and what is next. Its own hidden
+            reasoning, permissions given and its account's settings stay behind. This tab stays until you close it.</FieldDescription>}
+        </div>
+        {going && <div className="flex flex-col gap-1.5">
+          {/* how far it has read: no shadcn Progress here, a bar of our own; pulsing until the first part is read */}
+          <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+            <div className={read ? 'h-full bg-primary transition-[width]' : 'h-full w-full animate-pulse bg-primary/40'}
+              style={read ? { width: `${(100 * read.part) / read.parts}%` } : undefined} />
+          </div>
+          <p role="status" className="text-muted-foreground">{progress}</p>
+        </div>}
+        {error && <ErrorBar>{error}</ErrorBar>}
+      </div>
+      <DialogFooter>
+        {going ? <Button onClick={show}>Show now</Button> : <>
+          <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+          <Button disabled={!chosen} onClick={() => void hand()}>Hand over</Button>
+        </>}
+      </DialogFooter>
+    </DialogContent>
   </Dialog>;
 }

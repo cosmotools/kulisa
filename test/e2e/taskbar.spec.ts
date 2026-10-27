@@ -181,12 +181,12 @@ test('tasks: switching slides the grid towards the other tab (a view transition)
   await expect.poll(live).toBe(true);
   // A menu opened while the grid still slides keeps the pages under it pictures, not shown over it at the slide's end.
   // Opened as soon as the slide starts, before the grid left is taken down (the transition's update, a frame later,
-  // later still on a loaded machine): taking it down must not forget the menu's pictures. Clicked by the script that
-  // starts the slide: a click from the test would come after it has begun, a frame or more too late.
+  // later still on a loaded machine): taking it down must not forget the menu's pictures. Pressed (a menu opens on the
+  // press) by the script that starts the slide: a click from the test would come after it has begun, a frame or more too late.
   const sliding = ui.locator(':root:active-view-transition');
   await ui.evaluate((key) => {
     const d = document as any, start = d.startViewTransition.bind(document);
-    d.startViewTransition = (o: unknown) => { const t = start(o); delete d.startViewTransition; document.getElementById('windowMenu').click(); return t; };
+    d.startViewTransition = (o: unknown) => { const t = start(o); delete d.startViewTransition; document.getElementById('windowMenu').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, pointerType: 'mouse' })); return t; };
     void (window as any).kulisa.invoke('task:show', key);
   }, second);
   await expect(sliding).toHaveCount(1);
@@ -326,7 +326,7 @@ test("tasks: a press on a tab not shown chooses it at once, as Chrome's; its tas
   await ui.evaluate(() => dispatchEvent(new PointerEvent('pointercancel', { pointerType: 'mouse' })));
   await nthShown(core, 1);
   await ui.mouse.up();
-  await taskTab(ui, first).blur(); // a real press leaves the keyboard on the tab (Fluent's); a later dialog takes it from nothing
+  await taskTab(ui, first).blur(); // a real press leaves the keyboard on the tab; a later dialog takes it from nothing
 });
 
 test("tasks: a double click on a task's tab is its Rename…, the shown one's and another's (its first press shows it)", async ({ core, ui, files, call }) => {
@@ -355,8 +355,8 @@ test('menus: one longer than the window has stays in it and scrolls', async ({ c
     await expect.poll(() => ui.evaluate(() => innerHeight)).toBeLessThanOrEqual(400); // Playwright knows no viewport here (noDefaults)
     await ui.locator('#windowMenu').click();
     await expect(menu(ui)).toBeInViewport({ ratio: 1 });
-    // Its rows scroll, in the menu's popover (Playwright reads no scroll).
-    expect(await menu(ui).evaluate((m) => m.parentElement.scrollHeight > m.parentElement.clientHeight)).toBe(true);
+    // Its rows scroll, in the menu itself (Playwright reads no scroll).
+    expect(await menu(ui).evaluate((m) => m.scrollHeight > m.clientHeight)).toBe(true);
     await closeMenu(ui);
   } finally { await resize(core, before); }
 });

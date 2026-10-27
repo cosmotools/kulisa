@@ -54,8 +54,9 @@ test("+ opens any of the project's accounts, a new conversation in a tab of its 
     - menu:
       - menuitem "Fake agent · a@switch.test"
       - menuitem "Fake agent · b@switch.test"
+      - separator
       - menuitem "Terminal"
-  `); // Fluent's divider between them is presentational
+  `);
   await choose(ui, 'Fake agent · a@switch.test');
   await expect.poll(async () => JSON.stringify(await tabs()) === '["bash","Fake agent *"]' && (await newest()).pty, { timeout: 20000 }).toBe(true);
   expect(JSON.parse(fs.readFileSync(path.join(a.dir, '.claude.json'), 'utf8')).projects[copy]?.hasTrustDialogAccepted).toBe(true);

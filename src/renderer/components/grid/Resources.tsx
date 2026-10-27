@@ -2,17 +2,15 @@
 // each, opening its folder; what the task added (another repository's worktree) has a 🗑. Under them its artifacts, the
 // files the agent's tools kept of its pages: a click opens one in the OS's app for it; their heading says what they take
 // (Task.artifactsUsage).
-import { useEffect } from 'react';
-import { Button, Caption1, Caption1Strong, CompoundButton, Image, List, ListItem, Text } from '@fluentui/react-components';
-import { BranchRegular, DeleteRegular, DocumentRegular, FolderRegular } from '@fluentui/react-icons';
+import { useEffect, type ReactNode } from 'react';
+import { FileIcon, FolderIcon, GitBranchIcon, Trash2Icon } from 'lucide-react';
 import type { IDockviewPanelHeaderProps } from 'dockview-react';
 import { useShallow } from 'zustand/react/shallow';
+import { Button } from '@ui';
 import { RightClickMenu } from '../Menus';
 import { shownTask, useWindow } from '../../lib/store';
 import type { MenuItem } from '../../lib/menu';
 import { sizeText } from '../../../shared/bytes';
-import common from '../common.module.css';
-import css from './Resources.module.css';
 
 const KINDS: Record<string, string> = { screenshot: 'Screenshot', snapshot: 'Snapshot', request: 'Request body', response: 'Response body' };
 const kindOf = (kind: string) => KINDS[kind] ?? kind;
@@ -20,6 +18,18 @@ const day = (t: number) => new Date(t).toDateString();
 const when = (t: number) => (day(t) === day(Date.now()) ? new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   : new Date(t).toLocaleDateString([], { day: 'numeric', month: 'short' }));
 const openFile = (file: string) => kulisa.invoke('file:open', file);
+
+// A row's inside: its icon, its name and the line under it.
+function Row({ icon, name, line }: { icon: ReactNode; name: string; line: string }) {
+  return <>
+    {icon}
+    <span className="flex min-w-0 flex-col items-start py-1">
+      <span className="max-w-full truncate">{name}</span>
+      <span className="max-w-full truncate text-xs font-normal text-muted-foreground">{line}</span>
+    </span>
+  </>;
+}
+
 export function Resources() {
   const task = useWindow((s) => shownTask(s));
   const key = task?.key;
@@ -37,32 +47,36 @@ export function Resources() {
     return file ? [{ label: 'Open', run: () => openFile(file) }, { label: 'Show in Folder', run: () => kulisa.invoke('file:show', file) }, '-',
       { label: 'Delete', run: () => deleteArtifacts([file]) }] : null;
   };
-  return <aside id="resources" aria-label="The task's resources" className={css.panel}>
-    <List aria-label="Folders">
-      {task.resources.map((r) => <ListItem key={r.folder}><div className={css.item}>
-        <CompoundButton appearance="subtle" size="small" aria-label={r.label} title={`Open Folder: ${r.folder}`}
-          icon={r.kind === 'maintree' ? <FolderRegular /> : <BranchRegular />} secondaryContent={r.branch ? `branch ${r.branch}` : 'main working tree'}
-          onClick={() => void open(r.folder)}>{r.label}</CompoundButton>
-        {r.removable && <Button appearance="subtle" size="small" icon={<DeleteRegular />} aria-label="Remove Repository" title="Remove Repository"
-          onClick={() => void remove(r.folder)} />}
-      </div></ListItem>)}
-    </List>
+  return <aside id="resources" aria-label="The task's resources" className="h-full overflow-y-auto px-2 pb-2">
+    <ul aria-label="Folders" className="flex flex-col">
+      {task.resources.map((r) => <li key={r.folder} className="flex items-center gap-0.5">
+        <Button variant="ghost" aria-label={r.label} title={`Open Folder: ${r.folder}`} className="h-auto min-w-0 flex-1 justify-start" onClick={() => void open(r.folder)}>
+          <Row icon={r.kind === 'maintree' ? <FolderIcon /> : <GitBranchIcon />} name={r.label} line={r.branch ? `branch ${r.branch}` : 'main working tree'} />
+        </Button>
+        {r.removable && <Button variant="ghost" size="icon-sm" aria-label="Remove Repository" title="Remove Repository" onClick={() => void remove(r.folder)}>
+          <Trash2Icon />
+        </Button>}
+      </li>)}
+    </ul>
     {artifacts.length > 0 && <>
-      <div className={css.heading}>
-        <h3 className={common.heading}><Caption1Strong>Artifacts</Caption1Strong></h3>
-        <span className={css.size}><Caption1 data-testid="artifacts-size">{sizeText(bytes)}</Caption1></span>
-        <Button appearance="subtle" size="small" icon={<DeleteRegular />} aria-label="Delete All Artifacts" title="Delete All Artifacts"
-          onClick={() => void deleteArtifacts(null)} />
+      <div className="mt-2 mb-0.5 flex items-center gap-2 ps-2.5">
+        <h3 className="text-xs font-medium text-muted-foreground">Artifacts</h3>
+        <span data-testid="artifacts-size" className="ms-auto text-xs text-muted-foreground">{sizeText(bytes)}</span>
+        <Button variant="ghost" size="icon-sm" aria-label="Delete All Artifacts" title="Delete All Artifacts" onClick={() => void deleteArtifacts(null)}>
+          <Trash2Icon />
+        </Button>
       </div>
       <RightClickMenu items={menu}>
-        <List aria-label="Artifacts">
-          {artifacts.map((a) => <ListItem key={a.file}><div className={css.item}>
-            <CompoundButton appearance="subtle" size="small" data-file={a.file} aria-label={kindOf(a.kind)}
-              title={`Open: ${a.file} (${sizeText(a.bytes)})`} onClick={() => void openFile(a.file)}
-              icon={a.thumb ? <Image src={a.thumb} alt="" bordered shape="rounded" fit="cover" /> : <DocumentRegular />}
-              secondaryContent={[names[a.profile], when(a.time)].filter(Boolean).join(' · ')}>{kindOf(a.kind)}</CompoundButton>
-          </div></ListItem>)}
-        </List>
+        <ul aria-label="Artifacts" className="flex flex-col">
+          {artifacts.map((a) => <li key={a.file} className="flex">
+            <Button variant="ghost" data-file={a.file} aria-label={kindOf(a.kind)} title={`Open: ${a.file} (${sizeText(a.bytes)})`}
+              className="h-auto min-w-0 flex-1 justify-start" onClick={() => void openFile(a.file)}>
+              {/* a page's head: where its picture is cut */}
+              <Row icon={a.thumb ? <img src={a.thumb} alt="" className="size-8 rounded-sm border object-cover object-top" /> : <FileIcon />}
+                name={kindOf(a.kind)} line={[names[a.profile], when(a.time)].filter(Boolean).join(' · ')} />
+            </Button>
+          </li>)}
+        </ul>
       </RightClickMenu>
     </>}
   </aside>;
@@ -70,7 +84,7 @@ export function Resources() {
 
 // Its header in the grid: its name; the panel is dragged by it.
 export function ResourcesHeader({ api }: IDockviewPanelHeaderProps) {
-  return <div data-panel={api.id} className={css.header}>
-    <span className={css.name}><Text truncate wrap={false} block>{api.title}</Text></span>
+  return <div data-panel={api.id} className="flex h-full min-w-0 items-center px-2">
+    <span className="min-w-0 truncate">{api.title}</span>
   </div>;
 }

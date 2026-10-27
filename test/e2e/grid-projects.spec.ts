@@ -109,21 +109,29 @@ test('projects: another folder opens in a tab of its own, with its own profiles 
   await expect(menu(ui)).toMatchAriaSnapshot(`
     - text: Profiles
     - menuitem "Sam.seller"
+    - separator
     - menuitem "Manage Profiles…"
+    - separator
     - menuitem "Rename…"
     - menuitem "Show Folder"
+    - separator
     - menuitem "Move to New Window"
+    - separator
     - menuitem "Close"
     - menuitem "Delete Task…"
+    - separator
     - menuitem "other"
   `);
   await choose(ui, 'other');
   await expect(anyMenu(ui)).toHaveCount(2);
   await expect(submenu(ui)).toMatchAriaSnapshot(`
     - menuitem "New Task"
+    - separator
     - menuitem "Move All Tasks to New Window"
+    - separator
     - menuitem "Project Settings…"
     - menuitem "Show Data Folder"
+    - separator
     - menuitem "Close All Tasks"
   `);
   // Show Data Folder: Kulisa's folder of that project, in the file manager.
@@ -266,7 +274,7 @@ test('tasks: Move to New Window puts a task in a window of its own, still runnin
   expect(await core((k) => k.stash.grid.seller.get().wc.getURL())).toMatch(/\?moved$/);
   // The sidebar in either window: every project.
   await openSidebar(ui2);
-  for (const name of await core((k) => k.shell.store.projects().map((p) => p.name))) await expect(sidebar(ui2).locator('[data-project]').and(ui2.getByRole('treeitem', { name, exact: true }))).toHaveCount(1);
+  for (const name of await core((k) => k.shell.store.projects().map((p) => p.name))) await expect(sidebar(ui2).locator('[data-project]').and(ui2.getByRole('group', { name, exact: true }))).toHaveCount(1);
   await closeSidebar(ui2);
   // Questions about its project are asked in its window.
   const dropping = act(ui2, 'profile:delete', { profile: ids.seller });
@@ -282,13 +290,18 @@ test('tasks: Move to New Window puts a task in a window of its own, still runnin
   await expect(menu(ui2)).toMatchAriaSnapshot(`
     - text: Profiles
     - menuitem "Sam.seller"
+    - separator
     - menuitem "Manage Profiles…"
+    - separator
     - menuitem "Rename…"
     - menuitem "Show Folder"
+    - separator
     - menuitem "Move to New Window" [disabled]
     - 'menuitem "Move to Window: task-1"'
+    - separator
     - menuitem "Close"
     - menuitem "Delete Task…"
+    - separator
     - menuitem "other"
   `);
   // The click not waited for: the choice closes this window under it.

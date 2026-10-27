@@ -1,17 +1,18 @@
 // An agent's page in Settings (docs/tasks.md, "Choosing the agent", Accounts), as JetBrains' SDKs: who makes it, where it
 // is, Install (agents.ts: the install goes on while another page is shown), and its accounts: Add Account signs in to a
-// new one (SignIn.tsx), Delete deletes one (asked first). Stock Fluent only (docs/ui.md, Settings).
+// new one (SignIn.tsx), Delete deletes one (asked first).
 import { createElement, useEffect, useState } from 'react';
-import { Accordion, AccordionHeader, AccordionItem, AccordionPanel, Avatar, Badge, Button, Caption1, Card, CardHeader, Field, Link, MessageBar,
-  MessageBarBody, Spinner, Subtitle2, Table, TableBody, TableCell, TableCellActions, TableCellLayout, TableRow, Text, Title3 } from '@fluentui/react-components';
-import { AddRegular, MoreHorizontalRegular } from '@fluentui/react-icons';
+import { PlusIcon } from 'lucide-react';
+import { Alert, AlertDescription, Avatar, AvatarFallback, Badge, Button, Card, CardAction, CardDescription, CardHeader, CardTitle } from '@ui';
 import { install, loadAccounts, openInstallDetails, shortPath, showAccounts, useAgents } from './agents';
-import { ButtonMenu, RightClickMenu, type Item } from '../Menus';
+import { Section, Things } from './kit';
 import { agentMark } from '../AgentMark';
 import { SignIn } from '../SignIn';
+import { ErrorBar } from '../ErrorBar';
+import { Working } from '../Working';
+import { Details } from '../Details';
 import { refused } from '../../../shared/result';
 import type { AgentInfo } from '../../../shared/types';
-import { ErrorBar } from '../ErrorBar';
 
 export function AgentPage({ agent: a, signing, onSigning }: { agent: AgentInfo; signing: boolean; onSigning: (on: boolean) => void }) {
   const { accounts, clis, install: inst } = useAgents();
@@ -27,58 +28,47 @@ export function AgentPage({ agent: a, signing, onSigning }: { agent: AgentInfo; 
     if (refused(r)) { setError(r.error ?? ''); return; } // null: the human said no
     showAccounts(r);
   }
-  const menu = (id: string): Item[] => [{ label: 'Delete…', run: () => remove(id) }];
+  const fact = (label: string, value: string, testid?: string) => <div className="flex flex-col gap-0.5">
+    <span className="font-medium">{label}</span><span data-selectable data-testid={testid} className="text-muted-foreground">{value}</span>
+  </div>;
 
-  // section, data-agent: the tests' handle on the page shown (docs/testing.md); Card's root can only be a div.
-  return <section aria-label={a.name} data-agent={a.id}><Card appearance="subtle">
+  // section, data-agent: the tests' handle on the page shown (docs/testing.md).
+  return <section aria-label={a.name} data-agent={a.id} className="flex flex-col gap-4">
     <Card>
-      <CardHeader image={createElement(agentMark(a.id), { width: 48, height: 48, fontSize: 48 })}
-        header={<Title3 role="heading" aria-level={2}>{a.name} <Badge role="status" appearance="tint" color={a.installed ? 'success' : 'informative'}>
-          {a.installed ? 'Installed' : 'Not installed'}</Badge></Title3>}
-        description={<Caption1>{a.maker || '—'}{a.site && <> · <Link href={a.site} target="_blank">Website</Link></>}</Caption1>}
-        action={!a.installed && a.install ? <Button appearance="primary" disabled={installing} onClick={() => void install(a.id)}>Install</Button> : undefined} />
+      <CardHeader>
+        <div className="flex items-center gap-3">
+          {createElement(agentMark(a.id), { className: 'size-10 shrink-0' })}
+          <div className="flex flex-col gap-1">
+            <CardTitle role="heading" aria-level={2}><span className="flex items-center gap-2">{a.name}
+              <Badge role="status" variant={a.installed ? 'default' : 'secondary'}>{a.installed ? 'Installed' : 'Not installed'}</Badge></span></CardTitle>
+            <CardDescription>{a.maker || '—'}{a.site && <> · <a href={a.site} target="_blank" rel="noreferrer" className="underline underline-offset-4">Website</a></>}</CardDescription>
+          </div>
+        </div>
+        {!a.installed && a.install && <CardAction><Button disabled={installing} onClick={() => void install(a.id)}>Install</Button></CardAction>}
+      </CardHeader>
     </Card>
 
-    <Card role="group" aria-label="About">
-      <CardHeader header={<Subtitle2>About</Subtitle2>} />
-      {a.needs && <Field label="Needs"><Text>{a.needs}</Text></Field>}
-      {where ? <Field label="Installed at"><Text data-testid="agent-where">{where}</Text></Field>
-        : a.install && <Field label="Install"><Text>{`Runs ${a.maker || 'its maker'}'s installer: ${a.install}`}</Text></Field>}
-      {shown?.progress && (shown.running ? <Spinner size="tiny" labelPosition="after" label={shown.progress} />
-        : <MessageBar intent="success"><MessageBarBody>{shown.progress}</MessageBarBody></MessageBar>)}
-      {shown && <Accordion collapsible openItems={shown.open ? ['log'] : []} onToggle={(_, d) => openInstallDetails(d.openItems.includes('log'))}>
-        <AccordionItem value="log">
-          <AccordionHeader size="small">Details</AccordionHeader>
-          <AccordionPanel>
-            {/* a line a Text, in a monospace font: the installer's output as its terminal showed it */}
-            <div role="log" aria-label="What the installer said">
-              {shown.log.split('\n').map((l, i) => <Text key={i} block font="monospace" size={200}>{l || '\u00a0'}</Text>)}
-            </div></AccordionPanel>
-        </AccordionItem>
-      </Accordion>}
+    <Section title="About">
+      {a.needs && fact('Needs', a.needs)}
+      {where ? fact('Installed at', where, 'agent-where') : a.install && fact('Install', `Runs ${a.maker || 'its maker'}'s installer: ${a.install}`)}
+      {shown?.progress && (shown.running ? <Working>{shown.progress}</Working>
+        : <Alert><AlertDescription>{shown.progress}</AlertDescription></Alert>)}
+      {shown && <Details open={shown.open} onOpenChange={openInstallDetails}>
+        {/* the installer's output as its terminal showed it */}
+        <div role="log" aria-label="What the installer said" data-selectable className="max-h-64 overflow-auto font-mono text-xs whitespace-pre-wrap">{shown.log}</div>
+      </Details>}
       {shown?.error && <ErrorBar>{shown.error}</ErrorBar>}
-    </Card>
+    </Section>
 
-    {clis.includes(a.id) && <Card role="group" aria-label="Accounts">
-      <CardHeader header={<Subtitle2>Accounts</Subtitle2>} action={<Button icon={<AddRegular />} disabled={!a.installed || signing}
-        onClick={() => { setError(''); onSigning(true); }}>Add Account</Button>} />
-      {mine.length ? <RightClickMenu items={(e) => { const k = (e.target as Element).closest<HTMLElement>('[data-row]')?.dataset.key; return k ? menu(k) : null; }}>
-        {/* data-row, data-key, aria-label: the tests' handles (docs/testing.md); the right-click is the table's: a menu's trigger wraps its child in a box, which a row cannot have */}
-        <Table aria-label="Accounts"><TableBody>{mine.map((x) => {
-          const name = x.email || x.id;
-          return <TableRow key={x.id} data-row="" data-key={x.id} aria-label={name} data-account={x.id} title={name}>
-            <TableCell>
-              <TableCellLayout truncate media={<Avatar size={32} name={name} />}
-                description={x.projects.length ? `in ${x.projects.join(', ')}` : 'in no project'}>{name}</TableCellLayout>
-              <TableCellActions>
-                <ButtonMenu end items={() => menu(x.id)}><Button appearance="subtle" icon={<MoreHorizontalRegular />} aria-label={`More for ${name}`} /></ButtonMenu>
-              </TableCellActions>
-            </TableCell>
-          </TableRow>;
-        })}</TableBody></Table>
-      </RightClickMenu> : !signing && <Text>No accounts yet: each its own sign-in, added to a project on its page.</Text>}
+    {clis.includes(a.id) && <Section title="Accounts" action={<Button variant="outline" size="sm" disabled={!a.installed || signing}
+      onClick={() => { setError(''); onSigning(true); }}><PlusIcon data-icon="inline-start" />Add Account</Button>}>
+      <Things label="Accounts" menu={(id) => [{ label: 'Delete…', run: () => remove(id) }]}
+        empty={signing ? undefined : 'No accounts yet: each its own sign-in, added to a project on its page.'}
+        things={mine.map((x) => { const name = x.email || x.id; return { key: x.id, name, data: { 'data-account': x.id },
+          media: <Avatar size="sm"><AvatarFallback>{name.slice(0, 1).toUpperCase()}</AvatarFallback></Avatar>,
+          description: x.projects.length ? `in ${x.projects.join(', ')}` : 'in no project' }; })} />
       {signing && <SignIn agent={a} onDone={(r) => { onSigning(false); showAccounts(r); }} onClose={() => onSigning(false)} />}
       {error && <ErrorBar>{error}</ErrorBar>}
-    </Card>}
-  </Card></section>;
+    </Section>}
+  </section>;
 }

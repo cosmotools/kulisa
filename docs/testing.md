@@ -101,8 +101,8 @@ passes, alone and with its file.
 - **Kulisa's waits are moved, not waited**: `k.clock.hold(ms)`, `advance(ms)`, `release()`; a time Kulisa reads is
   dated back; a slow mock waits for the test.
 - **Before a click** wait for the window: `k.settled()`, `notLoading`, the grid's slide over.
-- **Menus and dialogs are Fluent UI's**: a menu's rows by `toMatchAriaSnapshot` (whole: `children: 'equal'` in the
-  config; a row's name is its label alone, without its keys; no separators: Fluent's `MenuDivider` is presentational),
+- **Menus and dialogs are shadcn's (Radix)**: a menu's rows by `toMatchAriaSnapshot` (whole: `children: 'equal'` in the
+  config; a row's name is its label alone, without its keys; a divider is a `separator`),
   `choose`, `closeMenu`, `rightClick`, `windowSubmenu` (☰'s rows that open a menu beside them); a menu is shown once
   `[data-ready]`. The sidebar: `openSidebar`, `closeSidebar`, `sidebar`, `projectRow`, `taskRow`, `sidebarTasks`,
   `rowButton` (a row's buttons, shown under the pointer), `fromSidebar`. `focusWindow(core, ui)` first, or no focus
@@ -134,8 +134,8 @@ its list. A refused import is moved, not allowed: the need goes below, or the co
 ## Lint
 
 `npm run lint`: rules picked one by one in `eslint.config.ts`, no presets (thousands of `any` findings, no bugs). A
-promise is awaited, or `void` says it runs on its own. In the window, Fluent's parts as they ship, its icons and tokens ([ui.md](ui.md), Fluent in
-Kulisa).
+promise is awaited, or `void` says it runs on its own. In the window, shadcn's parts as they ship, Lucide's icons, the theme's colors ([ui.md](ui.md), shadcn
+in Kulisa).
 
 ## Upgrading Electron
 

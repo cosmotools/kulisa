@@ -1,4 +1,0 @@
-/* A master's bar (Master.tsx): 44 px, the address taking the room the buttons leave. */
-.bar { height: 44px; display: grid; align-items: center; }
-/* A grid stretches the address to the form's width. */
-.form { flex: 1; display: grid; }

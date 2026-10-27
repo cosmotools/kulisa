@@ -799,7 +799,7 @@ rm -rf ~/.config/Kulisa/projects/<project id>   # all its tasks with their profi
 | `src/terminal/` | the terminals: their ptys, buffers and the xterm shown ([README](../src/terminal/README.md)) |
 | `src/renderer/components/TaskBar.tsx`, `components/Empty.tsx`, `components/settings/ProjectPage.tsx` | the tasks' bar (a tab per open task); the grid's place when no task's grid is shown (the window's pages: the sidebar docked, the welcome); a project's page in Settings |
 | `src/renderer/components/Sidebar.tsx`, `ProjectIcon.tsx`, `lib/sidebar.ts` | the sidebar: every project with its tasks, docked in the empty window, over the grid (its button, Ctrl+Shift+A); a project's icon |
-| `src/renderer/components/Welcome.tsx` | the first start's welcome: the slides (their pictures drawn from Fluent's parts), then New Project's steps under a question each |
+| `src/renderer/components/Welcome.tsx` | the first start's welcome: the slides (their pictures drawn from the window's parts), then New Project's steps under a question each |
 | `src/renderer/components/NewProject.tsx`, `lib/new-project.ts` | New Project's steps (the welcome's and the dialog's) and the dialog; their state and rules, one per wizard |
 | `src/renderer/components/TaskRename.tsx` | the Rename Task dialog |
 | `src/renderer/components/AgentPicker.tsx`, `lib/agents.ts` | choosing an agent when the one to open is not there: the radios of agents with Install; an install's line and its Details |

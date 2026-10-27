@@ -7,7 +7,7 @@ import type { Locator, Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
 import type { Files } from './data.ts';
-import { SITE, menu, choose, openSidebar, closeSidebar, fromSidebar, sidebar, projectRow, taskRow, rowButton, sidebarTasks, focusWindow, viewOn, who, invoke, notLoading, noSlide, answer, removed, arrange } from './helpers.ts';
+import { SITE, menu, choose, openSidebar, closeSidebar, fromSidebar, sidebar, taskRow, rowButton, sidebarTasks, focusWindow, viewOn, who, invoke, notLoading, noSlide, answer, removed, arrange } from './helpers.ts';
 import { git, rand, hasDirenv, keyAt, isNth, taskTab, taskTabs, hook, reportSession, newTask, projectShown, begin, bothOn, deleteProfile } from './tasks-helpers.ts';
 
 // No question of Kulisa's asked in the window.
@@ -493,7 +493,7 @@ test('tasks: × on the last open task of a project lets the project go, nothing 
   // Now a task is shown: the sidebar over the grid lists the project's tasks (the open one to switch to, the closed ones to reopen).
   await openSidebar(ui);
   expect(await sidebarTasks(ui, 'project')).toEqual(['Feature-X', 'task-1', 'task-3']);
-  await expect(projectRow(ui, 'project').getByRole('treeitem', { name: 'Feature-X' })).toHaveAttribute('aria-current', 'true');
+  await expect(taskRow(ui, 'project', 'Feature-X')).toHaveAttribute('aria-current', 'true');
   await closeSidebar(ui);
   await fromSidebar(ui, 'project', 'task-1');
   await expect.poll(() => core((k, key) => k.shell.task?.key === key && k.shell.task.loaded && !!k.shell.pty, first)).toBe(true);

@@ -26,9 +26,8 @@ type Shade = 'dark' | 'light';
 const TITLE_BAR_HEIGHT = 44; // the title bar's (components/TopBar.tsx): keep in step
 // macOS's window buttons: their height and Electron's place for them from the left, in pt (measured).
 const MAC_BUTTONS = { height: 14, x: 7 };
-// The window's background and the OS buttons' strip, in each theme: colorNeutralBackground2 and colorNeutralForeground1
-// in components/theme.ts.
-const COLORS: Record<Shade, { window: string; text: string }> = { dark: { window: '#1f1f1f', text: '#ffffff' }, light: { window: '#fafafa', text: '#242424' } };
+// The window's background and the OS buttons' strip, in each theme: --background and --foreground of src/ui/theme.css.
+const COLORS: Record<Shade, { window: string; text: string }> = { dark: { window: '#0a0a0a', text: '#fafafa' }, light: { window: '#ffffff', text: '#0a0a0a' } };
 // The smallest window whose UI still works (the top bar with the OS buttons, ☰ and a task's tab, something under
 // it), as VS Code's: fixed, times the Kulisa zoom, in DIP. Not the grid's own minimum: with five profiles in a row it
 // would keep the window from half a screen next to the human's IDE. The OS holds it for the human's drag only;
@@ -277,8 +276,8 @@ class AppWindow {
     // While a task is being switched they stay hidden, whatever comes (a closing menu shows them
     // again); the page shows them once it has the next grid laid out.
     this.viewsHidden = !!hidden || this.switching;
-    // A dialog over the pages (hidden, no pictures): a page that had the keyboard keeps it unseen, and Fluent's focus
-    // trap leaves a dialog it never saw focused aria-hidden, its keys going nowhere: the window's page takes it. Menus
+    // A dialog over the pages (hidden, no pictures): a page that had the keyboard keeps it unseen, and the dialog's focus
+    // trap (Radix's) works in a page that has the keyboard, its keys going nowhere else: the window's page takes it. Menus
     // (pictures) put the keyboard back themselves as they close.
     const from = hidden && !snapshots && [...this.profiles.values()].some((p) => { const wc = p.get()?.wc; return wc && !wc.isDestroyed() && wc.isFocused(); });
     for (const p of this.profiles.values()) p.setHidden(this.viewsHidden);
@@ -341,7 +340,7 @@ class AppWindow {
     else this.win.setWindowButtonPosition({ x: MAC_BUTTONS.x, y: Math.max(0, Math.min(Math.round((bar - MAC_BUTTONS.height) / 2), this.barHeight - MAC_BUTTONS.height)) });
     this.send('zoom', z);
   }
-  // The theme (app.ts): the page's colors (Fluent UI's theme, as chosen), the window's background and the OS buttons'
+  // The theme (app.ts): the page's colors (its theme, as chosen), the window's background and the OS buttons'
   // symbols in the colors shown (shade: dark or light); their strip is see-through (CLEAR).
   setTheme(theme: string, shade: Shade) {
     if (this.win.isDestroyed()) return;

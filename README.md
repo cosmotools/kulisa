@@ -112,7 +112,7 @@ for `/reload-plugins`) and a Stop hook running ESLint and the unit tests before 
 | Folder | What |
 |---|---|
 | `src/main/` | the Electron main process: profiles, tasks, agents, the MCP server, the windows; `index.ts` starts it |
-| `src/renderer/` | the window's UI: React and Fluent UI in TypeScript, built by Vite (`vite.config.mts`) into `dist/renderer` (not in git) |
+| `src/renderer/` | the window's UI: React and shadcn/ui (Radix, Tailwind) in TypeScript, built by Vite (`vite.config.mts`) into `dist/renderer` (not in git) |
 | `src/preload/` | the window's bridge to the main process |
 | `src/shared/` | what the main process and the window both import: the shapes and channels they send, names, `Result` |
 | `src/agent/` | what Kulisa gives the agents: the profiles skill, Claude Code's plugin |

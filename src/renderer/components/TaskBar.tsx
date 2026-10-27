@@ -72,7 +72,7 @@ export function TaskBar() {
   useEffect(() => onColors(colorsRead), []);
   const byId = new Map(all.projects.map((p) => [p.id, p]));
   const tabs = all.tabs.flatMap((t) => { const p = byId.get(t.project); return p ? [{ t, p }] : []; });
-  const shown = tabs.find(({ t }) => t.key === current)?.p, [tip, setTip] = useState(false); // the +'s: its project, its tooltip
+  const shown = tabs.find(({ t }) => t.key === current)?.p; // the +'s project
   const strip = useRef<HTMLDivElement>(null);
   // More tabs than fit: the wheel scrolls them, the edges with tabs past them fade, the shown one stays in sight.
   useStrip(strip, current);
@@ -185,9 +185,9 @@ export function TaskBar() {
     {/* beside the +: above or under it, the tooltip would open over the pages, which cover it. It goes as the + is
         pressed, as Chrome's: the slide to the new task shows a picture of the window, the tooltip in it until it ends;
         the + takes no keyboard (its focus would show the tooltip again). */}
-    <Tip text={withKeys(shown ? `New task of ${shown.name}` : 'New task', 'task.new')} side="right" open={tip} onOpenChange={setTip}>
+    <Tip text={withKeys(shown ? `New task of ${shown.name}` : 'New task', 'task.new')} side="right">
       <Button id="newTask" variant="ghost" size="icon-sm" aria-label={withKeys(shown ? `New task of ${shown.name}` : 'New task', 'task.new')}
-        onMouseDown={(e) => { e.preventDefault(); setTip(false); }} onClick={() => kulisa.invoke('task:new')}><PlusIcon /></Button>
+        onMouseDown={(e) => e.preventDefault()} onClick={() => kulisa.invoke('task:new')}><PlusIcon /></Button>
     </Tip>
   </nav>;
 }

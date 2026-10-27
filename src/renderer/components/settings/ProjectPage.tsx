@@ -1,51 +1,18 @@
 // A project's page in Settings (docs/tasks.md, Projects): its name, its local addresses, its Folders, Agents and Profiles;
 // saved as they change. Add Agent → New Account signs in to one there (SignIn.tsx), added to the project.
-import { useCallback, useEffect, useRef, useState, type ReactElement, type ReactNode } from 'react';
-import { Avatar, Badge, Button, Caption1, Card, CardFooter, CardHeader, Dropdown, Field, Input, Link, MessageBar, MessageBarActions, MessageBarBody, Option, Spinner,
-  Subtitle2, Table, TableBody, TableCell, TableCellActions, TableCellLayout, TableRow, createTableColumn, useTableColumnSizing_unstable, useTableFeatures, Tag, TagPicker, TagPickerControl, TagPickerGroup, TagPickerInput,
-  Text } from '@fluentui/react-components';
-import { AddRegular, FolderRegular, MoreHorizontalRegular } from '@fluentui/react-icons';
-import { ButtonMenu, RightClickMenu, type Item } from '../Menus';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { FolderIcon, PlusIcon, XIcon } from 'lucide-react';
+import { Alert, AlertAction, AlertDescription, Badge, Button, Card, CardContent, FieldGroup, Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@ui';
+import { ButtonMenu, type Item } from '../Menus';
 import { agentMark } from '../AgentMark';
 import { SignIn } from '../SignIn';
+import { ErrorBar } from '../ErrorBar';
+import { AddInPlace, ProfileAvatar, Section, Setting, Things } from './kit';
 import { useChanged } from './changed';
-import { avatarSrc } from '../../lib/common';
 import { refused, type Result } from '../../../shared/result';
 import type { ProjectAgent, ProjectFolder, ProjectGitHub, ProjectProfile, ProjectSettings } from '../../../shared/types';
-import { ErrorBar } from '../ErrorBar';
 
 const base = (f: string) => f.split(/[\\/]/).pop()!;
-
-type Row = { key: string; name: string; media: ReactElement; badges?: ReactNode; description?: string; data: Record<string, string>; control?: ReactNode };
-
-// A section's things as a Table: a thing's actions behind its ⋯ and its right-click. data-row, aria-label, data-key: the
-// tests' handles (docs/testing.md). The right-click is the table's: a menu's trigger wraps its child in a box, which a row
-// cannot have.
-// A row's control (a folder's GitHub account) in a column of its own; Fluent's column sizing gives the thing's column
-// the rest (a fixed Table shares its width equally).
-const columns = [createTableColumn<Row>({ columnId: 'thing' }), createTableColumn<Row>({ columnId: 'control' })];
-const sizes = { thing: { idealWidth: 480, minWidth: 200 }, control: { idealWidth: 260, minWidth: 200 } };
-
-function Rows({ label, things, menu, empty }: { label: string; things: Row[]; menu: (key: string) => Item[]; empty?: string }) {
-  const control = things.some((x) => x.control !== undefined);
-  const { columnSizing_unstable: sizing, tableRef } = useTableFeatures({ columns, items: things }, [useTableColumnSizing_unstable({ columnSizingOptions: sizes })]);
-  if (!things.length) return empty ? <Text>{empty}</Text> : null;
-  const cell = (id: string) => (control ? sizing.getTableCellProps(id) : {});
-  return <RightClickMenu items={(e) => { const k = (e.target as Element).closest<HTMLElement>('[data-row]')?.dataset.key; return k ? menu(k) : null; }}>
-    <Table aria-label={label} ref={control ? tableRef : undefined} {...(control ? sizing.getTableProps() : {})}>
-      {/* title: what the truncated cell cuts, whole */}
-      <TableBody>{things.map((t) => <TableRow key={t.key} data-row="" data-key={t.key} aria-label={t.name} title={[t.name, t.description].filter(Boolean).join('\n')} {...t.data}>
-        <TableCell {...cell('thing')}>
-          <TableCellLayout media={t.media} description={t.description} truncate>{t.name} {t.badges}</TableCellLayout>
-          <TableCellActions>
-            <ButtonMenu end items={() => menu(t.key)}><Button appearance="subtle" icon={<MoreHorizontalRegular />} aria-label={`More for ${t.name}`} /></ButtonMenu>
-          </TableCellActions>
-        </TableCell>
-        {control && <TableCell {...cell('control')}>{t.control}</TableCell>}
-      </TableRow>)}</TableBody>
-    </Table>
-  </RightClickMenu>;
-}
 
 // first: what Settings fetched before it showed (Settings.tsx), its page filled from the start; fetched again here.
 export function ProjectPage({ id, first, onSaved, saveRef }: { id: string; first?: ProjectSettings; onSaved: () => void; saveRef: { current: () => Promise<void> } }) {
@@ -122,7 +89,7 @@ export function ProjectPage({ id, first, onSaved, saveRef }: { id: string; first
   const addable = (s?.agents ?? []).filter((x) => !mine.some((m) => m.id === x.id));
   const agentMenu = (): Item[] => [...addable.map((x) => ({ label: x.name, run: () => agents(kulisa.invoke('project:agent-add', { id, agent: x.id })) })),
     ...(s?.clis.length ? [...(addable.length ? ['-' as const] : []), { heading: 'New Account' },
-      ...s.clis.map((c) => ({ label: `${c.name}…`, run: () => { setErrors((e) => ({ ...e, agents: '' })); setSigning(c); } }))] : [])];
+      ...s.clis.map((c) => ({ label: `${c.name}…`, agent: c.id, run: () => { setErrors((e) => ({ ...e, agents: '' })); setSigning(c); } }))] : [])];
 
   async function profileChange(answer: Promise<Result<{ profiles: ProjectProfile[]; others: ProjectProfile[] }>>) {
     setErrors((e) => ({ ...e, profiles: '' }));
@@ -142,17 +109,6 @@ export function ProjectPage({ id, first, onSaved, saveRef }: { id: string; first
   const githubOf = (f: string) => github?.repos.find((g) => g.folder === f);
   const accountName = (a: ProjectGitHub['accounts'][number]) => (a.kind === 'pat' ? `${a.login} (token)` : a.login);
   const stop = () => { setAdding(''); setText(''); };
-  // What is added in place under a list: a field with its buttons, Enter submits it, Esc puts it away; the refusal at it.
-  const inPlace = (what: 'clone' | 'profile', label: string, placeholder: string, go: () => void, ok: string, error: string) => adding === what &&
-    <>
-      <Field label={label} validationMessage={error || undefined}>
-        <Input autoFocus data-name={what === 'profile' || undefined} value={text} placeholder={placeholder} spellCheck={false} onChange={(_, d) => setText(d.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter' && !cloning) go(); if (e.key === 'Escape') { e.stopPropagation(); stop(); } }} />
-      </Field>
-      <CardFooter action={<Button appearance="primary" onClick={go} disabled={cloning} icon={cloning ? <Spinner size="tiny" /> : undefined}>{ok}</Button>}>
-        <Button onClick={stop}>Cancel</Button>
-      </CardFooter>
-    </>;
   // A refusal not at a field (the field put away, or none).
   const err = (t: string) => t && <ErrorBar>{t}</ErrorBar>;
   if (!s) return null;
@@ -162,73 +118,70 @@ export function ProjectPage({ id, first, onSaved, saveRef }: { id: string; first
   const agentRowMenu = (a: string): Item[] => [isDefault(a) ? { label: 'No Default', run: () => defaultAgent(null) } : { label: 'Make Default', run: () => defaultAgent(a) },
     { label: 'Remove from the Project', run: () => removeAgent(a) }];
   const add = (label: string, items: () => Item[], disabled?: boolean) =>
-    <ButtonMenu end items={items}><Button icon={<AddRegular />} disabled={disabled}>{label}</Button></ButtonMenu>;
-  const header = (title: string, action: ReactElement) => <CardHeader header={<Subtitle2>{title}</Subtitle2>} action={action} />;
+    <ButtonMenu end items={items}><Button variant="outline" size="sm" disabled={disabled}><PlusIcon data-icon="inline-start" />{label}</Button></ButtonMenu>;
+  const muted = (t: string) => <span className="text-sm text-muted-foreground">{t}</span>;
   const account = (f: string) => { const g = githubOf(f);
     if (!g?.remote) return null;
-    if (g.state === 'not-github') return <Caption1>Not a GitHub address</Caption1>;
-    if (!github!.accounts.length) return <Caption1>No GitHub account</Caption1>;
-    const now = github!.accounts.find((a) => a.id === g.account);
-    return <Dropdown size="small" aria-label={`GitHub account of ${g.repo}`} placeholder="GitHub account…"
-      value={now ? accountName(now) : ''} selectedOptions={g.account ? [g.account] : []}
-      // its keys are its own, but Esc, which closes Settings
-      onKeyDown={(e) => { if (e.key !== 'Escape') e.stopPropagation(); }}
-      onOptionSelect={(_, d) => d.optionValue && void githubNow(kulisa.invoke('project:github-set', { id, remote: g.remote!, account: d.optionValue }))}>
-      {github!.accounts.map((a) => <Option key={a.id} value={a.id}>{accountName(a)}</Option>)}
-    </Dropdown>; };
+    if (g.state === 'not-github') return muted('Not a GitHub address');
+    if (!github!.accounts.length) return muted('No GitHub account');
+    return <Select value={g.account ?? ''} onValueChange={(v) => void githubNow(kulisa.invoke('project:github-set', { id, remote: g.remote!, account: v }))}>
+      <SelectTrigger size="sm" className="w-48" aria-label={`GitHub account of ${g.repo}`}><SelectValue placeholder="GitHub account…" /></SelectTrigger>
+      <SelectContent>{github!.accounts.map((a) => <SelectItem key={a.id} value={a.id}>{accountName(a)}</SelectItem>)}</SelectContent>
+    </Select>; };
 
-  return <Card appearance="subtle">
-    <Card>
-      <Field label="Name" validationMessage={error || undefined}>
-        <Input value={name} data-name maxLength={64} spellCheck={false} onChange={(_, d) => { setName(d.value); setError(''); }} onBlur={() => void save()}
-          onKeyDown={(e) => { if (e.key === 'Enter') void save(); }} />
-      </Field>
-      <Field label="Local addresses" hint="Where saved test users' passwords may be typed besides localhost and your network">
-        <TagPicker noPopover selectedOptions={local} onOptionSelect={(_, d) => hosts(d.selectedOptions)}>
-          <TagPickerControl>
-            <TagPickerGroup aria-label="Local addresses kept">{local.map((h) => <Tag key={h} value={h} shape="rounded">{h}</Tag>)}</TagPickerGroup>
-            <TagPickerInput aria-label="Local addresses" value={host} spellCheck={false} placeholder={local.length ? undefined : 'abc.ngrok.app'}
-              onChange={(e) => setHost(e.target.value)} onBlur={addHost}
-              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ' || e.key === ',') { e.preventDefault(); addHost(); } }} />
-          </TagPickerControl>
-        </TagPicker>
-      </Field>
-    </Card>
+  return <>
+    <Card><CardContent><FieldGroup>
+      <Setting label="Name" error={error || undefined}>{(c) =>
+        <Input {...c} value={name} data-name maxLength={64} spellCheck={false} onChange={(e) => { setName(e.target.value); setError(''); }} onBlur={() => void save()}
+          onKeyDown={(e) => { if (e.key === 'Enter') void save(); }} />}
+      </Setting>
+      <Setting label="Local addresses" description="Where saved test users' passwords may be typed besides localhost and your network">{(c) =>
+        <div className="flex flex-col gap-2">
+          {local.length > 0 && <div role="list" aria-label="Local addresses kept" className="flex flex-wrap gap-1.5">
+            {local.map((h) => <Badge key={h} role="listitem" variant="secondary">{h}
+              <Button variant="ghost" size="icon-xs" className="-me-1 size-4" data-icon="inline-end" aria-label={`Remove ${h}`}
+                onClick={() => hosts(local.filter((x) => x !== h))}><XIcon /></Button>
+            </Badge>)}
+          </div>}
+          <Input {...c} value={host} spellCheck={false} placeholder="abc.ngrok.app" onChange={(e) => setHost(e.target.value)} onBlur={addHost}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ' || e.key === ',') { e.preventDefault(); addHost(); } }} />
+        </div>}
+      </Setting>
+    </FieldGroup></CardContent></Card>
 
-    <Card role="group" aria-label="Folders">
-      {header('Folders', add('Add Folder', () => [{ label: 'Add Folder…', run: () => changeFolders(kulisa.invoke('project:folder-add', { id })) },
-        { label: 'Clone from URL…', run: () => { setText(''); setAdding('clone'); } }]))}
-      <Rows label="Folders" things={folders.map((f) => ({ key: f.folder, name: base(f.folder), media: <FolderRegular />, description: f.folder, data: { 'data-folder': f.folder },
-        badges: <>{f.folder === folders[0]?.folder && folders.length > 1 && <Badge appearance="tint">Default</Badge>}
-          {f.git !== 'ok' && <Badge appearance="outline" color="warning">{f.git === 'none' ? 'No git' : 'No commit yet'}</Badge>}</>,
-        control: account(f.folder) }))} menu={folderMenu} />
-      {inPlace('clone', 'Repository URL', 'git@github.com:me/shop.git', () => void clone(), cloning ? 'Cloning…' : 'Clone', errors.folders)}
-      {github?.repos.filter((g) => g.why).map((g) => <MessageBar key={g.folder} intent="warning">
-        <MessageBarBody>{base(g.folder)}: {g.why}{g.install && ' Install it, or ask its owner to.'}</MessageBarBody>
-        {g.install && <MessageBarActions><Link href={g.install} target="_blank">Install it on {g.owner}</Link></MessageBarActions>}
-      </MessageBar>)}
+    <Section title="Folders" action={add('Add Folder', () => [{ label: 'Add Folder…', run: () => changeFolders(kulisa.invoke('project:folder-add', { id })) },
+      { label: 'Clone from URL…', run: () => { setText(''); setAdding('clone'); } }])}>
+      <Things label="Folders" menu={folderMenu} things={folders.map((f) => ({ key: f.folder, name: base(f.folder), media: <FolderIcon className="size-5" />,
+        description: f.folder, data: { 'data-folder': f.folder },
+        badges: <>{f.folder === folders[0]?.folder && folders.length > 1 && <Badge variant="secondary">Default</Badge>}
+          {f.git !== 'ok' && <Badge variant="outline"><span className="text-warning">{f.git === 'none' ? 'No git' : 'No commit yet'}</span></Badge>}</>,
+        control: account(f.folder) }))} />
+      {adding === 'clone' && <AddInPlace label="Repository URL" placeholder="git@github.com:me/shop.git" value={text} onChange={setText} go={() => void clone()} stop={stop}
+        ok={cloning ? 'Cloning…' : 'Clone'} busy={cloning} error={errors.folders || undefined} />}
+      {github?.repos.filter((g) => g.why).map((g) => <Alert key={g.folder}>
+        <AlertDescription><span data-selectable>{base(g.folder)}: {g.why}{g.install && ' Install it, or ask its owner to.'}</span></AlertDescription>
+        {g.install && <AlertAction><Button variant="outline" size="sm" asChild><a href={g.install} target="_blank" rel="noreferrer">Install it on {g.owner}</a></Button></AlertAction>}
+      </Alert>)}
       {adding !== 'clone' && err(errors.folders)}
-    </Card>
+    </Section>
 
-    <Card role="group" aria-label="Agents">
-      {header('Agents', add('Add Agent', agentMenu, !!signing || (!addable.length && !s.clis.length)))}
-      <Rows label="Agents" things={mine.map((a) => { const Mark = agentMark(a.cli); return { key: a.id, name: a.agent, media: <Mark width={24} height={24} fontSize={24} />,
-        data: { 'data-agent': a.id }, badges: a.default && <Badge appearance="tint">Default</Badge>, description: a.email ?? undefined }; })}
-        menu={agentRowMenu} empty={signing ? undefined : 'No agents: its tasks get the terminal only.'} />
+    <Section title="Agents" action={add('Add Agent', agentMenu, !!signing || (!addable.length && !s.clis.length))}>
+      <Things label="Agents" menu={agentRowMenu} empty={signing ? undefined : 'No agents: its tasks get the terminal only.'}
+        things={mine.map((a) => { const Mark = agentMark(a.cli); return { key: a.id, name: a.agent, media: <Mark className="size-6" />,
+          data: { 'data-agent': a.id }, badges: a.default && <Badge variant="secondary">Default</Badge>, description: a.email ?? undefined }; })} />
       {signing && <SignIn project={id} agent={signing} onClose={() => setSigning(null)}
         onDone={(r) => { setSigning(null); if (r.agents) setMine(r.agents); void agentsNow(); }} />}
       {err(errors.agents)}
-    </Card>
+    </Section>
 
-    <Card role="group" aria-label="Profiles">
-      {header('Profiles', add('Add Profile', profileMenu))}
-      <Rows label="Profiles" things={profiles.map((p) => ({ key: p.id, name: p.name, media: <Avatar size={32} name={p.name} image={{ src: avatarSrc(p.avatar) }} />,
-        data: { 'data-profile': p.id },
-        description: [p.description, p.also.length && `also in ${p.also.join(', ')}`].filter(Boolean).join(' · ') || undefined }))}
-        menu={(p) => [{ label: 'Remove from the Project…', run: () => removeProfile(p) }]}
-        empty={adding === 'profile' ? undefined : 'No profiles: the browser profiles its tasks test as, signed in once.'} />
-      {inPlace('profile', 'New profile', 'Its name, e.g. ann@shop.com', () => void addProfile(), 'Create', errors.profiles)}
+    <Section title="Profiles" action={add('Add Profile', profileMenu)}>
+      <Things label="Profiles" menu={(p) => [{ label: 'Remove from the Project…', run: () => removeProfile(p) }]}
+        empty={adding === 'profile' ? undefined : 'No profiles: the browser profiles its tasks test as, signed in once.'}
+        things={profiles.map((p) => ({ key: p.id, name: p.name, media: <ProfileAvatar name={p.name} avatar={p.avatar} />, data: { 'data-profile': p.id },
+          description: [p.description, p.also.length && `also in ${p.also.join(', ')}`].filter(Boolean).join(' · ') || undefined }))} />
+      {adding === 'profile' && <AddInPlace label="New profile" placeholder="Its name, e.g. ann@shop.com" value={text} onChange={setText} go={() => void addProfile()}
+        stop={stop} ok="Create" name error={errors.profiles || undefined} />}
       {adding !== 'profile' && err(errors.profiles)}
-    </Card>
-  </Card>;
+    </Section>
+  </>;
 }

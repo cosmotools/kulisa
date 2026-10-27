@@ -5,9 +5,10 @@ import { useSyncExternalStore } from 'react';
 import type { TermStyle } from '../../terminal/renderer';
 
 const osDark = matchMedia('(prefers-color-scheme: dark)');
-export const shade = (theme: string | undefined): 'dark' | 'light' => (theme === 'light' || (theme === 'system' && !osDark.matches) ? 'light' : 'dark');
+const shade = (theme: string | undefined): 'dark' | 'light' => (theme === 'light' || (theme === 'system' && !osDark.matches) ? 'light' : 'dark');
 
 const root = document.documentElement, listeners = new Set<() => void>();
+root.dataset.theme ??= new URLSearchParams(location.search).get('theme') ?? 'dark'; // a master's window: its URL alone
 let shown = shade(root.dataset.theme);
 const apply = () => {
   const theme = root.dataset.theme;

@@ -1,11 +1,12 @@
-// An error not of a field: Fluent's MessageBar, its text selectable (docs/ui.md, Notices).
+// An error not of a field: shadcn's destructive Alert, its text selectable (docs/ui.md, Notices).
 import type { ReactNode } from 'react';
-import { MessageBar, MessageBarActions, MessageBarBody } from '@fluentui/react-components';
-import common from './common.module.css';
+import { CircleAlertIcon } from 'lucide-react';
+import { Alert, AlertAction, AlertDescription } from '@ui';
 
 export function ErrorBar({ children, actions }: { children: ReactNode; actions?: ReactNode }) {
-  return <MessageBar intent="error">
-    <MessageBarBody><span className={common.selectable}>{children}</span></MessageBarBody>
-    {actions && <MessageBarActions>{actions}</MessageBarActions>}
-  </MessageBar>;
+  return <Alert variant="destructive">
+    <CircleAlertIcon />
+    <AlertDescription><span data-selectable>{children}</span></AlertDescription>
+    {actions && <AlertAction>{actions}</AlertAction>}
+  </Alert>;
 }

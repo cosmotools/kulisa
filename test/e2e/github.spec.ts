@@ -28,7 +28,7 @@ async function settings(core: Core, sui: () => Promise<Page>, at: SettingsAt = {
 }
 // The accounts' rows as Settings → GitHub shows them (one by its id).
 const rows = (s: Page, id?: string) => s.locator(id ? `[data-github="${id}"]` : '[data-github]');
-// The open menu (Fluent's: there only while open).
+// The open menu (Radix's: there only while open).
 const menu = (s: Page) => s.getByRole('menu');
 async function githubPage(core: Core, sui: () => Promise<Page>) {
   const s = await settings(core, sui);
