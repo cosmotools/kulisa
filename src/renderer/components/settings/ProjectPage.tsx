@@ -47,15 +47,16 @@ function Rows({ label, things, menu, empty }: { label: string; things: Row[]; me
   </RightClickMenu>;
 }
 
-export function ProjectPage({ id, onSaved, saveRef }: { id: string; onSaved: () => void; saveRef: { current: () => Promise<void> } }) {
-  const [s, setS] = useState<ProjectSettings | null>(null);
-  const [name, setName] = useState(''), [local, setLocal] = useState<string[]>([]), [host, setHost] = useState(''), [error, setError] = useState('');
-  const [folders, setFolders] = useState<ProjectFolder[]>([]), [github, setGithub] = useState<ProjectGitHub | null>(null);
-  const [mine, setMine] = useState<ProjectAgent[]>([]), [profiles, setProfiles] = useState<ProjectProfile[]>([]), [others, setOthers] = useState<ProjectProfile[]>([]);
+// first: what Settings fetched before it showed (Settings.tsx), its page filled from the start; fetched again here.
+export function ProjectPage({ id, first, onSaved, saveRef }: { id: string; first?: ProjectSettings; onSaved: () => void; saveRef: { current: () => Promise<void> } }) {
+  const [s, setS] = useState<ProjectSettings | null>(first ?? null);
+  const [name, setName] = useState(first?.name ?? ''), [local, setLocal] = useState<string[]>(first?.local || []), [host, setHost] = useState(''), [error, setError] = useState('');
+  const [folders, setFolders] = useState<ProjectFolder[]>(first?.folders ?? []), [github, setGithub] = useState<ProjectGitHub | null>(null);
+  const [mine, setMine] = useState<ProjectAgent[]>(first?.projectAgents ?? []), [profiles, setProfiles] = useState<ProjectProfile[]>(first?.profiles ?? []), [others, setOthers] = useState<ProjectProfile[]>(first?.others ?? []);
   const [adding, setAdding] = useState<'' | 'clone' | 'profile'>(''), [text, setText] = useState(''), [cloning, setCloning] = useState(false);
   const [errors, setErrors] = useState({ folders: '', agents: '', profiles: '' });
   const [signing, setSigning] = useState<{ id: string; name: string } | null>(null); // New Account…: the agent it is of, while signing in
-  const saved = useRef('');
+  const saved = useRef(first ? JSON.stringify({ name: first.name.trim(), local: first.local || [] }) : '');
 
   const githubNow = useCallback(async (answer?: Promise<Result<ProjectGitHub>>) => {
     const r = await (answer ?? kulisa.invoke('project:github-get', { id }));
