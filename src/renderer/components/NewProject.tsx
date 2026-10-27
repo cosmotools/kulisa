@@ -3,7 +3,7 @@
 // each, Back on the first step leaves for the slides before it).
 import { useEffect, useRef, useState, type ReactElement, type ReactNode } from 'react';
 import { Avatar, Badge, Button, Card, Checkbox, Dialog, DialogActions, DialogBody, DialogContent, DialogSurface, DialogTitle, DialogTrigger, Divider, Field,
-  Input, List, ListItem, Tab, TabList, Text, ToggleButton, Tooltip, makeStyles, mergeClasses, tokens } from '@fluentui/react-components';
+  Input, List, ListItem, Tab, TabList, Spinner, Text, ToggleButton, Tooltip, makeStyles, mergeClasses, tokens } from '@fluentui/react-components';
 import { AddRegular, BranchFilled, BranchRegular, DismissRegular, FolderAddFilled, FolderAddRegular, FolderFilled, FolderRegular, StarFilled, StarRegular, SubtractRegular,
   bundleIcon } from '@fluentui/react-icons';
 import { useShallow } from 'zustand/react/shallow';
@@ -203,7 +203,7 @@ export function Wizard({ w, leave, done, className, children }: { w: W; leave?: 
       </div>,
       error: error && !errorAt && <ErrorBar>{error}</ErrorBar>,
       back: (step > 0 || leave) && <Button onClick={() => (step ? w.back() : leave?.())}>Back</Button>,
-      go: <Button type="submit" appearance="primary" disabled={saving}>{saving ? (from === 'clone' ? 'Cloning…' : 'Creating…') : last ? 'Create' : 'Next'}</Button>,
+      go: <Button type="submit" appearance="primary" disabled={saving} icon={saving ? <Spinner size="tiny" /> : undefined}>{saving ? (from === 'clone' ? 'Cloning…' : 'Creating…') : last ? 'Create' : 'Next'}</Button>,
     })}
   </form>;
 }

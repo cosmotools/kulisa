@@ -2,7 +2,7 @@
 // is, Install (agents.ts: the install goes on while another page is shown), and its accounts: + signs in to a new one
 // (SignIn.tsx), − deletes one (asked first).
 import { useEffect, useState } from 'react';
-import { Accordion, AccordionHeader, AccordionItem, AccordionPanel, Button, Field, Link, makeStyles, MessageBar, MessageBarBody, Spinner, Text, Textarea,
+import { Accordion, AccordionHeader, AccordionItem, AccordionPanel, Button, Field, Link, makeStyles, MessageBar, MessageBarBody, Spinner, Badge, Text, Textarea,
   tokens } from '@fluentui/react-components';
 import { AddRegular, SubtractRegular } from '@fluentui/react-icons';
 import { install, loadAccounts, openInstallDetails, shortPath, showAccounts, useAgents } from './agents';
@@ -47,7 +47,7 @@ export function AgentPage({ agent: a, signing, onSigning }: { agent: AgentInfo; 
     {a.needs && <Field label="Needs"><Text>{a.needs}</Text></Field>}
     <Field label="Status" hint={a.install && !a.installed ? <Text font="monospace" size={200} className={styles.mono}>Install runs {a.maker || 'its maker'}'s installer: {a.install}</Text> : undefined}>
       <div className={styles.status}>
-        <Text role="status" weight="semibold">{a.installed ? 'Installed' : 'Not installed'}</Text>
+        <Badge role="status" appearance="tint" color={a.installed ? 'success' : 'subtle'}>{a.installed ? 'Installed' : 'Not installed'}</Badge>
         {where && <Text font="monospace" size={200} className={styles.mono} data-testid="agent-where">{where}</Text>}
         {!a.installed && a.install && <Button size="small" disabled={installing} onClick={() => void install(a.id)}>Install</Button>}
       </div>

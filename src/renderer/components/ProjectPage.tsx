@@ -2,7 +2,7 @@
 // list with its toolbar), its local addresses; saved as they change. Agents' + → New Account signs in to one there
 // (SignIn.tsx), added to the project.
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Badge, Button, Dropdown, Field, Input, Link, makeStyles, MessageBar, MessageBarActions, MessageBarBody, Option, Persona, Text,
+import { Badge, Button, Dropdown, Field, Input, Link, makeStyles, MessageBar, MessageBarActions, MessageBarBody, Option, Persona, Spinner, Text,
   tokens } from '@fluentui/react-components';
 import { AddRegular, StarRegular, SubtractRegular } from '@fluentui/react-icons';
 import { ButtonMenu, RightClickMenu, type Item } from './Menus';
@@ -135,7 +135,7 @@ export function ProjectPage({ id, onSaved, onLoaded, saveRef }: { id: string; on
         <Input autoFocus data-name={what === 'profile' || undefined} value={text} placeholder={placeholder} spellCheck={false} onChange={(_, d) => setText(d.value)}
           onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); stop(); } }} />
       </Field>
-      <div className={styles.buttons}><Button onClick={stop}>Cancel</Button><Button appearance="primary" type="submit" disabled={cloning}>{ok}</Button></div>
+      <div className={styles.buttons}><Button onClick={stop}>Cancel</Button><Button appearance="primary" type="submit" disabled={cloning} icon={cloning ? <Spinner size="tiny" /> : undefined}>{ok}</Button></div>
     </form>;
   // A refusal not at a field (the field put away, or none).
   const err = (t: string) => t && <ErrorBar>{t}</ErrorBar>;
