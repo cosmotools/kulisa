@@ -1,5 +1,5 @@
 // Fluent UI's theme in Kulisa's colors (the probe: Settings on React and Fluent UI): Fluent's tokens, a neutral brand,
-// Inter, softer corners. Only tokens: the components are Fluent's as they ship.
+// Inter and JetBrains Mono, softer corners. Only tokens: the components are Fluent's as they ship.
 import { createContext } from 'react';
 import { createDarkTheme, createLightTheme, type BrandVariants, type Theme } from '@fluentui/react-components';
 import type { TermStyle } from '../../terminal/renderer';
@@ -12,6 +12,7 @@ const neutral: BrandVariants = {
 
 const shape = {
   fontFamilyBase: "'Inter Variable', 'Segoe UI', system-ui, sans-serif",
+  fontFamilyMonospace: "'JetBrains Mono', ui-monospace, monospace", // the terminal's, bundled (src/terminal/renderer)
   borderRadiusSmall: '4px', borderRadiusMedium: '6px', borderRadiusLarge: '8px', borderRadiusXLarge: '12px',
 };
 

@@ -2,7 +2,7 @@
 // Fluent UI's alert Dialog: Cancel has the keyboard, Esc is Cancel, a click outside does nothing. Questions asked while
 // one is open wait their turn; the main process's (shell.ask) are asked here and answered back.
 import { useEffect, useState } from 'react';
-import { Button, Dialog, DialogActions, DialogBody, DialogContent, DialogSurface, DialogTitle, Link } from '@fluentui/react-components';
+import { Button, Dialog, DialogActions, DialogBody, DialogContent, DialogSurface, DialogTitle, Link, tokens } from '@fluentui/react-components';
 import { useAsking } from '../lib/ask';
 import { layer } from '../lib/cover';
 import type { Question } from '../../shared/types';
@@ -33,7 +33,7 @@ export function Ask() {
         <DialogActions>
           <Button autoFocus onClick={() => answer('')}>{q?.cancel || 'Cancel'}</Button>
           {q?.other && <Button onClick={() => answer('other')}>{q.other}</Button>}
-          <Button appearance="primary" style={q?.danger ? { background: '#dc2626', color: '#fff' } : undefined} onClick={() => answer('ok')}>{q?.ok || 'OK'}</Button>
+          <Button appearance="primary" style={q?.danger ? { background: tokens.colorStatusDangerBackground3, color: tokens.colorNeutralForegroundStaticInverted } : undefined} onClick={() => answer('ok')}>{q?.ok || 'OK'}</Button>
         </DialogActions>
       </DialogBody>
     </DialogSurface>
