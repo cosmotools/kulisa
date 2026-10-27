@@ -38,13 +38,13 @@ test('profiles are made in Settings (Profiles\' + in its nav), each with its own
   await expect.poll(async () => (await stored('Sam.seller'))?.description).toBe('seller in the test shop');
   await make('Elon.buyer');
   expect((await stored('Elon.buyer')).avatar, 'the next picture free').toBe('frog');
-  // Its picture's button shows the chosen one; it opens a panel of them all, the chosen one pressed.
+  // Its picture's button shows the chosen one; it opens a grid of them all, the chosen one selected.
   await expect(picture(s).locator('img')).toHaveAttribute('src', 'avatars/frog.svg');
   await picture(s).click();
   await expect(pictures(s)).toBeVisible();
-  await expect(pictures(s).getByRole('button'), 'all of them to choose from, at once').toHaveCount(16);
-  await expect(pictures(s).getByRole('button', { name: 'frog' })).toHaveAttribute('aria-pressed', 'true');
-  await pictures(s).getByRole('button', { name: 'penguin' }).click();
+  await expect(pictures(s).getByRole('gridcell'), 'all of them to choose from, at once').toHaveCount(16);
+  await expect(pictures(s).getByRole('gridcell', { name: 'frog' })).toHaveAttribute('aria-selected', 'true');
+  await pictures(s).getByRole('gridcell', { name: 'penguin' }).click();
   await expect.poll(async () => (await stored('Elon.buyer')).avatar).toBe('penguin');
   await expect(picture(s).locator('img')).toHaveAttribute('src', 'avatars/penguin.svg');
   // Who they are: in the store of profiles (profile-store.ts), the same in every task; in no project yet.
@@ -141,7 +141,7 @@ test('who a profile is: the agent is told to choose by it and to ask; it saves t
   // The picture: a panel of them from the button beside it; one chosen, it goes.
   await picture(s).click();
   await expect(pictures(s)).toBeVisible();
-  await pictures(s).getByRole('button', { name: 'owl' }).click();
+  await pictures(s).getByRole('gridcell', { name: 'owl' }).click();
   await expect.poll(() => core((k) => k.profile('Elon.buyer').avatar)).toBe('owl');
   await expect(pictures(s)).toHaveCount(0);
   await expect(picture(s).locator('img')).toHaveAttribute('src', 'avatars/owl.svg');

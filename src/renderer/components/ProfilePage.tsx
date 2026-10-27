@@ -1,8 +1,8 @@
 // A profile's page in Settings (docs/profiles.md): who it is, each field saved on Enter or leaving it; Sign In… opens its
 // master's window. Its picture: a panel of them beside it.
 import { useState, type KeyboardEvent } from 'react';
-import { Avatar, Button, Field, Input, MenuButton, Popover, PopoverSurface, PopoverTrigger, Text, Textarea, ToggleButton,
-  makeStyles, tokens, Tooltip } from '@fluentui/react-components';
+import { Avatar, Button, Field, ImageSwatch, Input, MenuButton, Popover, PopoverSurface, PopoverTrigger, SwatchPicker, Text, Textarea,
+  makeStyles, renderSwatchPickerGrid, tokens } from '@fluentui/react-components';
 import { avatarSrc } from './avatar';
 import { AVATARS } from '../../shared/avatars';
 import { refused, type Result } from '../../shared/result';
@@ -14,7 +14,6 @@ type Fields = 'picture' | 'name' | 'about' | 'login' | 'password' | 'signins';
 const useStyles = makeStyles({
   page: { display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalL, maxWidth: '560px' },
   fit: { width: 'fit-content' },
-  pictures: { display: 'grid', gridTemplateColumns: 'repeat(8, auto)', gap: tokens.spacingHorizontalXS, maxWidth: '340px' },
 });
 
 export function ProfilePage({ profile: p, onChanged }: { profile: SettingsProfile; onChanged: (r: { profiles: SettingsProfile[]; id?: string }) => void }) {
@@ -45,10 +44,12 @@ export function ProfilePage({ profile: p, onChanged }: { profile: SettingsProfil
         <PopoverTrigger disableButtonEnhancement>
           <MenuButton className={styles.fit} aria-label="Picture"><Avatar size={20} image={{ src: avatarSrc(p.avatar) }} /></MenuButton>
         </PopoverTrigger>
-        <PopoverSurface aria-label="Pictures" className={styles.pictures}>
-          {AVATARS.map((a) => <Tooltip key={a} content={a} relationship="label"><ToggleButton appearance="subtle" size="small" checked={a === p.avatar}
-            icon={<Avatar size={20} image={{ src: avatarSrc(a) }} />}
-            onClick={async () => { setPicking(false); await change('picture', kulisa.invoke('profiles:avatar', { profile: p.id, avatar: a })); }} /></Tooltip>)}
+        <PopoverSurface aria-label="Pictures">
+          <SwatchPicker layout="grid" shape="circular" aria-label="Pictures" selectedValue={p.avatar}
+            onSelectionChange={async (_, d) => { setPicking(false); await change('picture', kulisa.invoke('profiles:avatar', { profile: p.id, avatar: d.selectedValue })); }}>
+            {renderSwatchPickerGrid({ columnCount: 8, items: AVATARS.map((a) => ({ value: a, src: avatarSrc(a), 'aria-label': a })),
+              renderSwatch: (s) => <ImageSwatch key={s.value} {...(s as { value: string; src: string })} /> })}
+          </SwatchPicker>
         </PopoverSurface>
       </Popover>
     </Field>

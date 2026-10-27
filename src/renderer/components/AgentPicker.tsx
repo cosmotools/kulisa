@@ -3,7 +3,7 @@
 // choice (Cancel, another task shown), none opens. Also an install's progress, New Project's too (InstallProgress).
 import { createElement, Fragment, useEffect } from 'react';
 import { Accordion, AccordionHeader, AccordionItem, AccordionPanel, Badge, Button, Dialog, DialogActions, DialogBody, DialogContent, DialogSurface, DialogTitle, Divider, Field,
-  Link, Radio, RadioGroup, Spinner, Text, makeStyles, mergeClasses, tokens } from '@fluentui/react-components';
+  Link, MessageBar, MessageBarBody, Radio, RadioGroup, Spinner, Text, makeStyles, mergeClasses, tokens } from '@fluentui/react-components';
 import { agentMark } from './AgentMark';
 import { agentList, shortPath, useAgentList, type AgentList } from '../lib/agents';
 import { useCovered } from '../lib/cover';
@@ -43,8 +43,10 @@ const answer = (id: string | null) => { const task = asking; asking = null; kuli
 export function InstallProgress({ list: l }: { list: AgentList }) {
   const progress = useAgentList(l, (s) => s.progress), log = useAgentList(l, (s) => s.log), error = useAgentList(l, (s) => s.error);
   const details = useAgentList(l, (s) => s.showDetails), open = useAgentList(l, (s) => s.detailsOpen), styles = useStyles();
+  const installing = useAgentList(l, (s) => s.installing);
   return <div className={styles.progress}>
-    {progress && <Text role="status">{progress}</Text>}
+    {progress && (installing ? <Spinner size="tiny" labelPosition="after" label={progress} />
+      : <MessageBar intent="success"><MessageBarBody>{progress}</MessageBarBody></MessageBar>)}
     {details && <Accordion collapsible openItems={open ? ['log'] : []} onToggle={(_, d) => l.openDetails(d.openItems.includes('log'))}>
       <AccordionItem value="log">
         <AccordionHeader size="small">Details</AccordionHeader>

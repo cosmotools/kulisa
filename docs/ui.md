@@ -140,7 +140,8 @@ terminal, a screenshot's thumbnail). Fluent's `Menu` alone only for a row's own 
   `Card`, its `Toolbar` of `Tool`s: + adds, − removes the selected row, ★ makes it the default). Each row has
   `data-<attr>` for a `RightClickMenu` around the list (it selects the row), and Delete removes it. What is added in
   place goes under the list, a `form` (Enter submits it; Esc puts it away).
-- **Notices**: an error of a field is that `Field`'s `validationMessage`; any other error, a warning, a step to take
+- **Notices**: work under way (an install, a sign-in, a search) is a `Spinner` with its label, done a success
+  `MessageBar`. An error of a field is that `Field`'s `validationMessage`; any other error, a warning, a step to take
   or what is done is a `MessageBar` of its intent, an error's through `ErrorBar`. A `MessageBar` announces itself
   through the `AriaLiveAnnouncer` around each window's content (`App.tsx`, `Settings.tsx`, `Master.tsx`). A
   confirmation that passes (Copied, Saved as) is a `Toast`, in Settings' window only: in a tasks' window the pages

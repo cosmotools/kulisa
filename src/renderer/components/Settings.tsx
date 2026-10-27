@@ -3,7 +3,7 @@
 // it changes. Esc closes it unless a layer was open; the OS's × asks the page first (settings:closing).
 import { useCallback, useEffect, useRef, useState, type ReactElement, type ReactNode } from 'react';
 import { AriaLiveAnnouncer, Avatar, Badge, Breadcrumb, BreadcrumbButton, BreadcrumbDivider, BreadcrumbItem, Button, Field, FluentProvider, Input,
-  makeStyles, NavDivider, NavDrawer, NavDrawerBody, NavItem, NavSectionHeader, Text, tokens, Tooltip } from '@fluentui/react-components';
+  makeStyles, NavDivider, NavDrawer, NavDrawerBody, NavItem, NavSectionHeader, Spinner, Text, tokens, Tooltip } from '@fluentui/react-components';
 import { AddRegular, BranchFilled, BranchRegular, bundleIcon, DocumentBulletListFilled, DocumentBulletListRegular, InfoFilled, InfoRegular,
   MoreHorizontalRegular } from '@fluentui/react-icons';
 import { dark, light, shade, ThemeShown } from './theme';
@@ -30,6 +30,7 @@ const GitHubIcon = bundleIcon(BranchFilled, BranchRegular), LogIcon = bundleIcon
 
 // The layout in a div, not FluentProvider's className, which Fluent copies to every portal's node (App.tsx).
 const useStyles = makeStyles({
+  looking: { justifyContent: 'flex-start' },
   root: { display: 'flex', height: '100vh', background: tokens.colorNeutralBackground1 },
   nav: { height: '100%', width: '240px' },
   head: { display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
@@ -192,7 +193,7 @@ export function Settings() {
       {section === 'about' && <AboutPage />}
       {section === 'log' && <LogPage />}
       {section === 'agents' && (shownAgent ? <AgentPage key={shownAgent.id} agent={shownAgent} signing={signing === shownAgent.id} onSigning={(on) => setSigning(on ? shownAgent.id : null)} />
-        : <Text>{looking ? 'Looking for agents on this computer…' : 'No agents.'}</Text>)}
+        : looking ? <Spinner size="tiny" labelPosition="after" label="Looking for agents on this computer…" className={styles.looking} /> : <Text>No agents.</Text>)}
     </main>
     <Ask />
   </div></AriaLiveAnnouncer></FluentProvider></ThemeShown.Provider>;

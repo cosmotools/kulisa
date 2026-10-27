@@ -3,7 +3,7 @@
 // in the browser, only confuses; it is there for a failure (opened by itself then) and for what the browser does not
 // show (a code the agent asks for). Gone (Cancel, its page left), the sign-in is cancelled.
 import { useEffect, useRef, useState } from 'react';
-import { Accordion, AccordionHeader, AccordionItem, AccordionPanel, Button, Text, makeStyles,
+import { Accordion, AccordionHeader, AccordionItem, AccordionPanel, Button, Spinner, Text, makeStyles,
   tokens } from '@fluentui/react-components';
 import { forgetTerminals } from '../../terminal/renderer';
 import { Terminal } from './Terminal';
@@ -53,6 +53,7 @@ export function SignIn({ agent, project, onDone, onClose }: { agent: { id: strin
       </AccordionItem>
     </Accordion>
     {error && <ErrorBar actions={<Button onClick={again}>Try Again</Button>}>{error}</ErrorBar>}
+    {running && <Spinner size="tiny" labelPosition="after" label="Waiting for the sign-in…" />}
     <div className={styles.buttons}>
       {!running && !error && <Button onClick={again}>Try Again</Button>}
       <Button onClick={onClose}>Cancel</Button>
