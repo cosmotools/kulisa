@@ -190,11 +190,8 @@ prompt; the human writes the rest of the message around it.
 - **GitHub's API, not `gh`** (not installed; the author's choice): `curl` to `https://api.github.com`
   with the token of the remote's URL, read into a shell variable and never printed:
   `T=$(git config --get remote.origin.url | sed -E 's#^https://[^:@/]*:?([^@/]*)@.*#\1#')`, then
-  `curl -sf -H "Authorization: Bearer $T" …`. A pull request: `POST /repos/cosmotools/kulisa/pulls` (`title`, `head`
-  the branch, `base`, `body`); its checks: `GET /repos/cosmotools/kulisa/commits/<sha>/check-runs`; whether it is
-  merged: `GET …/pulls/<n>`; a branch removed: `DELETE /repos/cosmotools/kulisa/git/refs/heads/<branch>`; a job's
-  log: `GET …/actions/jobs/<id>/logs` answers with a redirect to a signed address, fetched without the token. The
-  token cannot re-run a workflow (no Actions write): the author does it on the run's page.
+  `curl -sf -H "Authorization: Bearer $T" …`. A job's log (`GET …/actions/jobs/<id>/logs`) answers with a redirect to
+  a signed address, fetched without the token.
 
 ## Releases
 
@@ -224,9 +221,6 @@ prompt; the human writes the rest of the message around it.
   4. After the merge, watch the release's run; tell the author when it is published, or what failed.
 
 ## Commands
-
-The npm scripts, what each does, and what to install first (Node 24.12+, npm 11 and its `allowScripts`): README, Run
-(one list, kept there). When to run which: `docs/testing.md`.
 
 - **Code intelligence.** Claude Code's `LSP` tool (the `kulisa-dev` plugin; docs/testing.md, Claude Code's checks):
   references, definitions and types through the language server, `.ts` and `.tsx` together. For a symbol — who
@@ -309,8 +303,7 @@ asking, where a fix goes) are the agent's: Kulisa gives it the tools and says in
 that cannot act says back what is missing instead of doing it itself. Not against One core: a core action still keeps
 its own checks and rules; what Kulisa does not do is decide the agent's way through the work.
 
-Modules: each part's doc lists its files ("The code", its last section; `docs/ui.md` at its top; a Kulisa package's own
-`README.md`); the code's own names (LSP, grep) find the rest. Where a kind of code goes:
+Where a kind of code goes:
 
 - Agent-specific code goes into its agent's file in `agents/` (`claude.ts`, `codex.ts`: everything Kulisa knows of
   that agent, its transcript's reader too), nowhere else; a new agent is a new file there.
