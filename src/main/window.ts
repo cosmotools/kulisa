@@ -378,7 +378,7 @@ class AppWindow {
 // 'other'; null for Cancel, or no answer (the page gone). A tasks' window's, Settings' (settings-window.ts).
 let asked = 0;
 // Where a question is asked: a tasks' window, or Settings' (settings-window.ts).
-interface Asker { ask(q: Question): Promise<string | null> }
+interface Asker { ask(q: Question): Promise<string | null>; answer(id: number, answer: string): void }
 class Questions {
   send: (q: Question & { id: number }) => void; answers = new Map<number, (answer: string | null) => void>();
   constructor(send: (q: Question & { id: number }) => void) { this.send = send; }
