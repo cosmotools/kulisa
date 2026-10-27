@@ -1,4 +1,4 @@
-// A question before something that cannot be undone, before closing, or with two ways to go (fluent/Ask.tsx), the same look
+// A question before something that cannot be undone, before closing, or with two ways to go (components/Ask.tsx), the same look
 // on every OS. Questions asked while one is open wait their turn.
 //   ask({ message, detail, ok, other, danger })   resolves 'ok' or 'other' (the button clicked); '' for Cancel, Esc, ×,
 //                                                 a click outside, or the dialog closed by the window

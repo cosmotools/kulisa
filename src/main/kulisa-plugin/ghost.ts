@@ -4,7 +4,7 @@
 //   (@playwright/mcp) are not drawn in the page.
 // - Over the pane (the window's HTML): a caption from every CDP command through the proxy, from any client.
 // Captions go to the window with the profile's task; it shows those of the task on screen.
-// The agent's marks in the pages are in Kulisa's accent (tokens.css, --accent), the same in every profile: the pane says
+// The agent's marks in the pages are in one blue, the same in every profile: the pane says
 // whose page it is.
 const MARK = '#3574f0';
 import { takenByHuman } from '../../screenshots/main/index.ts';

@@ -2,9 +2,9 @@
 
 A terminal as Kulisa has it, the same wherever it is shown: a pty running the user's shell (an agent typed into it, a
 command, or nothing), its output kept in the window, and an xterm that shows it. A Kulisa package
-([docs/packages.md](../../docs/packages.md)), used by the task's island (`fluent/grid/Terminals.tsx`,
+([docs/packages.md](../../docs/packages.md)), used by the task's island (`components/grid/Terminals.tsx`,
 `lib/terminals.ts`: its tabs, its agents' launchers and menus; docs/window.md, The terminal), an account's sign-in
-(`fluent/SignIn.tsx` through `fluent/Terminal.tsx`: Settings' and New Project's) and the task's agents
+(`components/SignIn.tsx` through `components/Terminal.tsx`: Settings' and New Project's) and the task's agents
 (`tasks.ts`: which agent, its conversation, what is typed to it). It knows nothing of them, nor of the window's look: a
 terminal is a key, `<task key>#<id>` for a task's, any string for a sign-in's; its colors and font size are the
 caller's.

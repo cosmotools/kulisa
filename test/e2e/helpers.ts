@@ -46,7 +46,7 @@ export const notLoading = (page: Page) => expect(page.locator('#dock:not([aria-b
 export const noSlide = (page: Page) => expect(page.locator(':root:active-view-transition')).toHaveCount(0);
 // That nothing happened is checked once what would have made it is done (docs/testing.md, Writing an e2e test): each
 // of these waits for a proof of that, never for a time.
-// The page drew what its last changes made: Vue's updates, a ResizeObserver's, what waits for a frame.
+// The page drew what its last changes made: React's updates, a ResizeObserver's, what waits for a frame.
 export const frames = (page: Page) => page.evaluate(() => new Promise<void>((r) => { requestAnimationFrame(() => requestAnimationFrame(() => r())); }));
 // Every message the page sent the main process before now is handled there, and every one the main process sent the
 // page before it handled is handled in the page: a channel's round trip, on the one pipe that keeps their order.
@@ -94,7 +94,7 @@ export async function otherPage(ui: Page, sel?: string) {
   return found;
 }
 
-// Kulisa's question in page's dialog (Ask.vue; Settings' Ask.tsx), answered as the human answers it: true its button that does it (the
+// Kulisa's question in page's dialog (components/Ask.tsx), answered as the human answers it: true its button that does it (the
 // last), false the one that does not (Cancel, Later), or a button by its name. What it asked.
 export async function answer(page: Page, yes: boolean | string = true) {
   const d = page.getByRole('alertdialog');
@@ -106,7 +106,7 @@ export async function answer(page: Page, yes: boolean | string = true) {
   return asked;
 }
 
-// Kulisa's menus (Fluent's, docs/ui.md, Menus; fluent/Menus.tsx): the open one once it is shown (its list
+// Kulisa's menus (Fluent's, docs/ui.md, Menus; components/Menus.tsx): the open one once it is shown (its list
 // [data-ready]: the pages under it are pictures), the submenu open (the last one).
 export const menu = (ui: Page) => ui.locator('[role="menu"][data-ready]').first();
 export const submenu = (ui: Page) => ui.locator('[role="menu"][data-ready]').last();
@@ -118,7 +118,7 @@ export async function closeMenu(ui: Page) {
   await ui.keyboard.press('Escape');
   await expect(ui.getByRole('menu')).toHaveCount(0);
 }
-// Keyboard Shortcuts (fluent/Shortcuts.tsx), and the keys a row of it shows by its label (or what it says while it
+// Keyboard Shortcuts (components/Shortcuts.tsx), and the keys a row of it shows by its label (or what it says while it
 // waits for the key).
 export const shortcutsDialog = (ui: Page) => ui.getByRole('dialog', { name: 'Keyboard Shortcuts' });
 export const shortcutKeys = (ui: Page, label: string) => shortcutsDialog(ui).getByRole('row').filter({ has: ui.getByRole('cell', { name: label, exact: true }) }).locator('[data-key]');
@@ -160,7 +160,7 @@ export async function closeProject(ui: Page, files: Files, folder: string) {
 
 // Every open menu, a submenu too (menu waits for the first to be shown).
 export const anyMenu = (ui: Page) => ui.getByRole('menu');
-// The sidebar (fluent/Sidebar.tsx; docs/tasks.md, The sidebar): every project with its tasks, a tree. Docked in the empty
+// The sidebar (components/Sidebar.tsx; docs/tasks.md, The sidebar): every project with its tasks, a tree. Docked in the empty
 // window; over the grid opened with the title bar's button, closed by a choice or Esc. openSidebar gives it, open.
 export const sidebar = (ui: Page) => ui.getByRole('tree', { name: 'Projects' });
 export async function openSidebar(ui: Page) {
@@ -216,7 +216,7 @@ export const resize = (core: Core, size: { width?: number; height?: number }) =>
   return { width, height };
 }, size);
 
-// Settings (fluent/Settings.tsx): a row of its nav by its key (p:<project>, a:<agent>, f:<profile>, github, log, about),
+// Settings (components/Settings.tsx): a row of its nav by its key (p:<project>, a:<agent>, f:<profile>, github, log, about),
 // the shown one aria-current; the shown page's path; a card of a page (Group.tsx) by its title; the open menu (Fluent's:
 // there only while open).
 export const navRow = (s: Page, key: string) => s.getByRole('navigation', { name: 'Settings' }).locator(`[data-key="${key}"]`);

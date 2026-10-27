@@ -1,5 +1,5 @@
 // The window's dialogs, opened from anywhere by name: dialog('newproject').then((d) => d.open()). Each is in
-// App.vue from the start and registers what it does once mounted (registerDialog). Not loaded when first opened, as
+// App.tsx from the start and registers what it does once mounted (registerDialog). Not loaded when first opened, as
 // the window's scripts were before Vite: the window's code is one bundle read from disk, a dialog's part of it a few
 // KB.
 
@@ -8,10 +8,10 @@ import type { SettingsAt } from '../../shared/ipc';
 
 export interface Dialogs {
   taskrename: { rename(key: string, name: string): void };
-  // New Project (newproject/NewProject.vue).
+  // New Project (components/NewProject.tsx).
   newproject: { open(): Promise<void> };
   shortcuts: { showShortcuts(): void };
-  // Change Agent (fluent/HandOver.tsx): an agent's tab handed over.
+  // Change Agent (components/HandOver.tsx): an agent's tab handed over.
   handover: { open(t: Terminal): Promise<void> };
 }
 type Name = keyof Dialogs;

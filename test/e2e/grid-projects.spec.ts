@@ -378,7 +378,7 @@ test('tasks: a tab dragged changes the order, goes out into a new window and bac
     w.__dt.dropEffect = e;
     document.querySelector(sel).dispatchEvent(new DragEvent('dragend', { bubbles: true, dataTransfer: w.__dt }));
   }, [projectTabSel(files, folder), effect]);
-  // The mark is drawn with the window's next update (Vue), before the next frame.
+  // The mark is drawn with the window's next update (React), before the next frame.
   const dropOn = (page: Page, folder: string, side: 'before' | 'after', carried: string) => page.evaluate(async ([sel, s, drag, d]) => {
     const dt = new DataTransfer();
     dt.setData(drag, d);

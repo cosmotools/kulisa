@@ -17,6 +17,6 @@
     "noUncheckedIndexedAccess": true,
     "noImplicitOverride": true
   },
-  "include": ["**/*.ts", "**/*.tsx", "**/*.vue", "../*/renderer", "../*/ipc.ts"],
+  "include": ["**/*.ts", "**/*.tsx", "../*/renderer", "../*/ipc.ts"],
   "exclude": ["public", "../main"]
 }

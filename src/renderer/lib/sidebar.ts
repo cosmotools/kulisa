@@ -1,4 +1,4 @@
-// The sidebar's switch (fluent/Sidebar.tsx; docs/tasks.md, The sidebar), for the title bar's button and Ctrl+Shift+A
+// The sidebar's switch (components/Sidebar.tsx; docs/tasks.md, The sidebar), for the title bar's button and Ctrl+Shift+A
 // (keys.ts, task.menu): over the grid, opened or closed; docked in the empty window, the keyboard given to it.
 import { store } from './store';
 import { dialogsShown } from './cover';

@@ -1,11 +1,11 @@
 // A tasks' window's terminals (docs/window.md, The terminal): the terminals themselves are src/terminal's, keyed
-// "<task>#<id>" as in the main process; here the island's side: the shown task's terminal in front (fluent/grid/Terminals.tsx),
+// "<task>#<id>" as in the main process; here the island's side: the shown task's terminal in front (components/grid/Terminals.tsx),
 // links into its profiles, terminals moving to another window, their menus.
 import { act, store } from './store';
-import { dark, termStyle } from '../fluent/theme';
+import { dark, termStyle } from '../components/theme';
 import { keyText } from './common';
 import { menuAt, type MenuItem } from './menu';
-import { agentMark } from '../fluent/AgentMark';
+import { agentMark } from '../components/AgentMark';
 import { dialog } from './dialogs';
 import { refused } from '../../shared/result';
 import { restoreTerminal, serialized, termCopy, termHooks, termPaste, View, xtermKeys } from '../../terminal/renderer';
@@ -13,7 +13,7 @@ import type { Terminal as TerminalInfo } from '../../shared/types';
 
 // The terminal in front of the shown task's island: where the keyboard goes (Ctrl+`), what the tests read.
 const frontKey = () => { const { current, terminals } = store.getState(); return current && terminals.front !== null ? `${current}#${terminals.front}` : null; };
-// The terminals' pane's xterm, one for the window: fluent/grid/Terminals.tsx puts it in whichever grid is shown and
+// The terminals' pane's xterm, one for the window: components/grid/Terminals.tsx puts it in whichever grid is shown and
 // gives it the theme's colors.
 export const island = new View(termStyle(dark, 'colorNeutralBackground1'));
 export const shownTerm = () => (island.key && island.key === frontKey() ? island.term : null);
@@ -47,7 +47,7 @@ kulisa.on('terminals:restore', (list) => { for (const [key, t] of Object.entries
 
 kulisa.on('terminal:focus', () => shownTerm()?.focus());
 
-// The right-click menu of a terminal (its key): an agent's ends with what its tab's menu has (fluent/grid/Terminals.tsx), a
+// The right-click menu of a terminal (its key): an agent's ends with what its tab's menu has (components/grid/Terminals.tsx), a
 // shell's with Close.
 export function terminalMenu(key: string, more: MenuItem[]): MenuItem[] | null {
   const t = island.key === key ? island.term : null;
@@ -63,7 +63,7 @@ export function terminalMenu(key: string, more: MenuItem[]): MenuItem[] | null {
   ];
 }
 
-// The island's menus (fluent/grid/Terminals.tsx). The shown task's project's agents (its accounts), the default first; the terminal
+// The island's menus (components/grid/Terminals.tsx). The shown task's project's agents (its accounts), the default first; the terminal
 // only is the Terminal row.
 const projectAgents = () => { const { projects } = store.getState(); return (projects.open.find((o) => o.id === projects.project)?.agents || []).filter((a) => a.cli !== 'shell'); };
 // The same as big buttons, the island alone in the grid: an account's name is its agent's · its email, on two lines.

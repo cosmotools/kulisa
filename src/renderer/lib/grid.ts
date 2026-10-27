@@ -1,4 +1,4 @@
-// The grid of the shown task (dockview, drawn by fluent/Grid.tsx; docs/window.md, The grid). After any change the main process
+// The grid of the shown task (dockview, drawn by components/Grid.tsx; docs/window.md, The grid). After any change the main process
 // gets where each pane's .content box is, or that it is not on screen (stacked behind another pane), as it lays the
 // native views over them.
 import type { AddPanelPositionOptions, DockviewApi } from 'dockview-react';
@@ -10,7 +10,7 @@ import { reducedMotion } from './common';
 import { forgetTerminals } from '../../terminal/renderer';
 
 const panelId = (id: string) => `profile:${id}`;
-// What the window does with a mounted pane (fluent/grid/ProfilePane.tsx), by its profile's id.
+// What the window does with a mounted pane (components/grid/ProfilePane.tsx), by its profile's id.
 export interface PaneHandle { content: HTMLElement; focusAddress(): void; newTab(): void; pick(): void }
 export const panes = new Map<string, PaneHandle>();
 
@@ -102,8 +102,8 @@ const addProfilePanel = (p: Profile, position?: AddPanelPositionOptions, extra: 
   api!.addPanel({ id: panelId(p.id), component: 'profile', tabComponent: 'profile', title: p.name, position, ...extra });
 const addTerminal = (position: AddPanelPositionOptions) =>
   api!.addPanel({ id: 'terminal', component: 'terminal', tabComponent: 'terminal', title: 'Terminal', renderer: 'always', position });
-// The Resources pane (fluent/grid/Resources.tsx), next to the terminal: right of it in its row, or under it in its column. As low
-// as its header, so the row folds with the terminal (fluent/grid/Terminals.tsx, fold) when that lies under or over the pages.
+// The Resources pane (components/grid/Resources.tsx), next to the terminal: right of it in its row, or under it in its column. As low
+// as its header, so the row folds with the terminal (components/grid/Terminals.tsx, fold) when that lies under or over the pages.
 const addResources = (direction: 'right' | 'below') => api!.addPanel({ id: 'resources', component: 'resources', tabComponent: 'resources',
   title: 'Resources', position: { referencePanel: 'terminal', direction }, minimumHeight: 36 });
 const groupOf = (id: string) => api!.getPanel(id)!.group.api;
@@ -244,7 +244,7 @@ function syncGrid() {
     });
   }
 }
-// The shown task's terminals (fluent/grid/Terminals.tsx): its tabs, the one in front.
+// The shown task's terminals (components/grid/Terminals.tsx): its tabs, the one in front.
 kulisa.on('terminals', async (t) => {
   await leaving; // as the state: the next task's, once the grid on screen has gone
   if (t.task === store.getState().current) store.setState({ terminals: t });

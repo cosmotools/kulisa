@@ -10,5 +10,5 @@ All of the screenshots: a Kulisa package (`docs/packages.md`: what one is, its r
   empty tab) are the core's, `Profile.screenshot`; the agent's tool is in the Kulisa plugin (`tools/browser.ts`); the
   human's ⋮ and key are the window's, choosing an element is Pick's (`picker.ts`). The thumbnail is all here; the
   window only makes it, says where its panes are and when its pages are covered, and gives it a menu and the agent's
-  prompt (`window.ts`, `fluent/App.tsx`).
+  prompt (`window.ts`, `components/App.tsx`).
 - Its unit tests are here (`folder.test.ts`); its e2e tests in `test/e2e/` (README, The code).

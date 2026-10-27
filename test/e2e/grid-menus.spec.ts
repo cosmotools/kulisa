@@ -300,7 +300,7 @@ ${names.map((x) => `      - menuitem ${JSON.stringify(`Open in ${x}`)}`).join('\
 
   await ui.locator('#windowMenu').click();
   // Theme, Tasks bar and Language each a menu beside its row (helpers.ts, windowSubmenu); the arrangements a row each,
-  // the full words in the tooltip. No Exit on macOS: ⌘Q and the app menu's Quit there (fluent/TopBar.tsx).
+  // the full words in the tooltip. No Exit on macOS: ⌘Q and the app menu's Quit there (components/TopBar.tsx).
   await expect(menu(ui)).toMatchAriaSnapshot(`
     - menu:
       - group "Zoom":

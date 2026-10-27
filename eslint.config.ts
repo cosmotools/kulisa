@@ -1,7 +1,6 @@
 // ESLint: only what tsc cannot see, with the types (docs/testing.md, Lint). Not the presets: they flag every `any` from
 // JSON and IPC and the templates' formatting, about 2400 places and no bug.
 import tseslint from 'typescript-eslint';
-import vue from 'eslint-plugin-vue';
 import reactHooks from 'eslint-plugin-react-hooks';
 import type { Rule } from 'eslint';
 
@@ -39,14 +38,11 @@ const noKulisaClasses: Rule.RuleModule = {
 
 export default tseslint.config(
   { ignores: ['dist', 'out', '.claude/*', '!.claude/hooks', 'src/preload'] },
-  ...vue.configs['flat/essential'],
   { files: ['**/*.ts', '**/*.mts', '**/*.tsx'], languageOptions: { parser: tseslint.parser } },
   {
-    files: ['**/*.ts', '**/*.mts', '**/*.tsx', '**/*.vue'],
+    files: ['**/*.ts', '**/*.mts', '**/*.tsx'],
     languageOptions: {
       parserOptions: {
-        parser: tseslint.parser, // a .vue file's script
-        extraFileExtensions: ['.vue'],
         projectService: { allowDefaultProject: ['eslint.config.ts', 'vite.config.mts', 'playwright.config.ts'] },
         tsconfigRootDir: import.meta.dirname,
       },
@@ -60,7 +56,6 @@ export default tseslint.config(
       '@typescript-eslint/await-thenable': 'error',
       '@typescript-eslint/switch-exhaustiveness-check': ['error', { considerDefaultExhaustiveForUnions: true }],
       '@typescript-eslint/no-unnecessary-type-assertion': 'error',
-      'vue/multi-word-component-names': 'off',
       // A folder's index.ts re-exports by name: its surface is what is written, not whatever a file happens to hold.
       'no-restricted-syntax': ['error', EXPORT_ALL],
     },
@@ -69,15 +64,11 @@ export default tseslint.config(
   // read or written while rendering, a render that is not pure, props or state changed in place, a component made
   // inside another, state set while rendering or copied in an effect (what breaks once React renders concurrently). Not
   // the preset's memoization rules: the window is not compiled by the React Compiler.
-  { files: ['src/renderer/**/*.tsx', 'src/renderer/fluent/**'], plugins: { 'react-hooks': reactHooks },
+  { files: ['src/renderer/**', 'src/*/renderer/**'], plugins: { 'react-hooks': reactHooks },
     rules: Object.fromEntries(['rules-of-hooks', 'exhaustive-deps', 'refs', 'purity', 'immutability', 'globals', 'static-components',
       'set-state-in-render', 'set-state-in-effect'].map((r) => [`react-hooks/${r}`, 'error'])) },
   // An e2e test waits for a proof, never for a time: a pause long enough here is too short on a loaded machine, and
   // proves nothing when it is long enough (docs/testing.md, Writing an e2e test). A wait with an end is upTo (helpers.ts).
   { files: ['test/e2e/**'], plugins: { kulisa: { rules: { 'no-kulisa-classes': noKulisaClasses } } },
     rules: { 'no-restricted-syntax': ['error', EXPORT_ALL, ...PAUSES], 'kulisa/no-kulisa-classes': 'error' } },
-  // Not in the Vue window: it took `{} as Record<…>` inside reactive({ … }) for needless, where only the `as` gives the
-  // store's field its type (vue-tsc failed once they were removed); and it reads a .vue file's script without Vue's plugin.
-  { files: ['src/renderer/**'], ignores: ['src/renderer/**/*.tsx', 'src/renderer/fluent/**'],
-    rules: { '@typescript-eslint/no-unnecessary-type-assertion': 'off' } },
 );

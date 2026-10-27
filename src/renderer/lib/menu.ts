@@ -8,7 +8,7 @@ export interface MenuRow {
   icon?: ComponentType; // at the row's start (Lucide's, an agent's mark)
   color?: string; // a project's dot
   avatar?: string; // a profile's picture
-  project?: { favicon?: string; color: string }; // a project's icon, in its color shown (fluent/ProjectIcon.tsx; projectColor)
+  project?: { favicon?: string; color: string }; // a project's icon, in its color shown (components/ProjectIcon.tsx; projectColor)
   inset?: boolean; // set in under the row above, as its own (a project's closed task under it)
   enabled?: boolean;
   run?: () => unknown; // none: shown only
@@ -20,7 +20,7 @@ export type MenuItem = '-' | MenuRow
   | { heading: string; icon?: ComponentType }
   | { component: ComponentType<{ close: () => void }> }; // a row of its own (☰'s zoom, theme …)
 
-// A menu at a point with no button or area of its own: a link in the terminal (Ctrl+click). fluent/PointMenu.tsx shows it.
+// A menu at a point with no button or area of its own: a link in the terminal (Ctrl+click). components/PointMenu.tsx shows it.
 type AtPoint = { x: number; y: number; items: MenuItem[] } | null;
 const pointMenu = createStore<AtPoint>()(() => null);
 export const usePointMenu = () => useStore(pointMenu);

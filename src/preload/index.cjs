@@ -4,7 +4,7 @@
 // are the window's: src/renderer/env.d.ts.
 const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('kulisa', {
-  platform: process.platform, // ☰ has Exit where the OS has no menu bar with Quit (TopBar.vue)
+  platform: process.platform, // ☰ has Exit where the OS has no menu bar with Quit (components/TopBar.tsx)
   invoke: (ch, ...args) => ipcRenderer.invoke(ch, ...args),
   send: (ch, arg) => ipcRenderer.send(ch, arg),
   on: (ch, fn) => ipcRenderer.on(ch, (_e, arg) => fn(arg)),

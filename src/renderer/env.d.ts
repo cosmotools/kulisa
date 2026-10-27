@@ -1,12 +1,6 @@
 // The window's bridge to the main process (src/preload/index.cjs).
 /// <reference types="vite/client" />
 
-declare module '*.vue' {
-  import type { DefineComponent } from 'vue';
-  const component: DefineComponent<object, object, unknown>;
-  export default component;
-}
-
 // Its channels, what each takes and answers: src/shared/ipc.ts (docs/window.md, IPC).
 interface KulisaBridge {
   platform: string; // process.platform: 'linux', 'darwin', 'win32'

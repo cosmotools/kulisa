@@ -65,7 +65,7 @@ export interface ProjectsInfo {
   tabs: TaskInfo[];
   open: { id: string; agents: { id: string; name: string; cli: string }[] }[];
   windows?: { id: number; name: string }[];
-  // Anything for Settings to show: a project, an account or a profile. None at the first start: no gear (fluent/TopBar.tsx).
+  // Anything for Settings to show: a project, an account or a profile. None at the first start: no gear (components/TopBar.tsx).
   settings: boolean;
 }
 // The projects' manager (main/ipc/projects.ts): what a project may be, its folders, its profiles, its configuration.
@@ -75,7 +75,7 @@ export interface ProjectsInfo {
 export interface SettingsProfile { id: string; name: string; avatar: string; description: string; login: string; hasPassword: boolean; projects: string[] }
 export interface Account { id: string; agent: string; name: string; email: string | null; projects: string[] }
 export interface AccountsInfo { accounts: Account[]; clis: string[] }
-// What a new account's sign-in answers (fluent/SignIn.tsx): the project's agents, made in one; else every account.
+// What a new account's sign-in answers (components/SignIn.tsx): the project's agents, made in one; else every account.
 // One of a project's agents (Settings, a project's page): an account (its agent, its email) or the terminal only.
 export interface ProjectAgent { id: string; name: string; agent: string; cli: string; email: string | null; default?: boolean }
 export interface SignedIn extends Partial<AccountsInfo> { agents?: ProjectAgent[] }
@@ -104,7 +104,7 @@ export interface AgentInfo {
   id: string; name: string; maker?: string; needs?: string; site?: string; install?: string | null; installed?: boolean;
   account?: string | null; agent?: string; path?: string | null; onPath?: boolean | null; version?: string | null;
 }
-// About Kulisa (fluent/AboutPage.tsx): the versions and the folders Kulisa writes in, each with whether it is there yet.
+// About Kulisa (components/AboutPage.tsx): the versions and the folders Kulisa writes in, each with whether it is there yet.
 export type AboutFolder = 'data' | 'projects' | 'program';
 export interface AboutInfo { version: string; electron: string; chrome: string; folders: { id: AboutFolder; path: string; exists: boolean }[] }
 // The log as the Log page reads it (main/log.ts, readLog): the file's text and size, its limit, when the old one is from.

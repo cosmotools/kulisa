@@ -138,7 +138,7 @@ test('tasks: switching slides the grid towards the other tab (a view transition)
   const first = await keyAt(core, 1), second = await keyAt(core, 2), SAM = files.idOf('Sam.admin'), ELON = files.idOf('Elon.buyer');
   // The transition's types (which way), and the grid's own slide as it runs: an animation of 0 s, as a CSS minifier may
   // make it, leaves the two grids' pictures one over the other; a whole grid's width, out past the window's edge it
-  // reaches (fluent/Grid.tsx).
+  // reaches (components/Grid.tsx).
   // Read as the slide starts (its ready), the transition the window's own again after: Playwright reaches no view
   // transition, nor a running animation's keyframes.
   const swap = (key: string) => ui.evaluate(async (key) => {
@@ -326,7 +326,7 @@ test("tasks: a press on a tab not shown chooses it at once, as Chrome's; its tas
   await ui.evaluate(() => dispatchEvent(new PointerEvent('pointercancel', { pointerType: 'mouse' })));
   await nthShown(core, 1);
   await ui.mouse.up();
-  await taskTab(ui, first).blur(); // a real press leaves the keyboard on the tab (Reka's); a later dialog takes it from nothing
+  await taskTab(ui, first).blur(); // a real press leaves the keyboard on the tab (Fluent's); a later dialog takes it from nothing
 });
 
 test("tasks: a double click on a task's tab is its Rename…, the shown one's and another's (its first press shows it)", async ({ core, ui, files, call }) => {

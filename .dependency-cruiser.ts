@@ -15,20 +15,6 @@ const main = '^src/main/';
 const only = (name: string, from: string, allowed: string[], comment: string) =>
   ({ name, comment, severity: 'error' as const, from: { path: from }, to: { path: main, pathNot: allowed } });
 
-// The window's clusters: a part of several files with a state of its own, in a folder of src/renderer/components,
-// reached from outside only through its entries (docs/ui.md, Clusters). A new cluster is a line here.
-const clusters: Record<string, string[]> = {
-  newproject: ['NewProject', 'Wizard'], // New Project's steps: a dialog, and the welcome's
-  settings: ['Settings'], // Settings' window
-  newtab: ['Board'], // every project with its tasks: a new tab's, the empty window's
-  welcome: ['Welcome'], // the first start: what Kulisa does, then New Project's steps
-};
-const cluster = (name: string, entries: string[]) => {
-  const dir = `^src/renderer/components/${name}/`;
-  return { name: `cluster-${name}`, severity: 'error' as const, comment: `${name}/ is reached through ${entries.join(', ')} only: its other files are its own.`,
-    from: { pathNot: dir }, to: { path: dir, pathNot: `${dir}(${entries.join('|')})\\.vue$` } };
-};
-
 // Kulisa packages (docs/packages.md): all of one in src/<package>/, reached from outside only
 // through its entries (other packages' too); its main process half uses of src/main only what its line names, its window
 // half nothing of the window. A new Kulisa package is a line here.
@@ -73,7 +59,6 @@ const config: IConfiguration = {
     { name: 'agents-entry', severity: 'error',
       comment: 'src/main/agents/ is reached from outside through index.ts only (the agent contract\'s types cross freely as import type).',
       from: { pathNot: '^src/main/agents/' }, to: { path: '^src/main/agents/', pathNot: '^src/main/agents/index\\.ts$' } },
-    ...Object.entries(clusters).map(([name, entries]) => cluster(name, entries)),
     ...Object.entries(packages).flatMap(([name, p]) => packageRules(name, p)),
     { name: 'no-circular', severity: 'error', comment: 'A cycle at run time: one of its modules is loaded half done.',
       // grid.ts and views.ts call each other's functions only after both have loaded (the pages live again, then

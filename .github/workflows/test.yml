@@ -73,7 +73,7 @@ jobs:
       - run: npm run test:unit
       - run: npm run knip
       - run: npm run lint
-      - run: npx tsc -p . && npx tsc -p test && npx vue-tsc --noEmit -p src/renderer
+      - run: npx tsc -p . && npx tsc -p test && npx tsc --noEmit -p src/renderer
       # A Go program with no maintained npm package: its release, by its own script at the same version.
       - if: runner.os == 'Linux'
         run: |

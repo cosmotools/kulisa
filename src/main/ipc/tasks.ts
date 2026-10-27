@@ -46,7 +46,7 @@ export function registerTasks(ipc: Ipc) {
     const target = windowById(to);
     return to && !target ? { error: 'that window is closed' } : moveAll(shell.open.get(id), at(e), terminals, target ?? null);
   }));
-  // A task's tab dragged (fluent/TaskBar.tsx): let go on this window's tabs, or where no window took it.
+  // A task's tab dragged (components/TaskBar.tsx): let go on this window's tabs, or where no window took it.
   handle('task:drop', (e, { key, index, terminals }) => serial(() => dropTask(shell.taskByKey(key), at(e), index, terminals)));
   handle('task:drag-out', (_e, { key, terminals }) => serial(() => dragOut(shell.taskByKey(key), terminals)));
   handle('app:quit', (e) => serial(() => quit(at(e))));

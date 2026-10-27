@@ -84,7 +84,7 @@ A window made narrower or wider changes every panel in its share, as VS Code's a
 [1691](https://github.com/dockview/dockview/issues/1691), [1692](https://github.com/dockview/dockview/issues/1692)).
 
 A pane's header (its profile's picture, name and ×) shrinks with the pane: a longer name is cut with …, the whole and
-the profile's description in its tooltip, and the × stays (`ProfileHeader`, `fluent/grid/ProfilePane.tsx`).
+the profile's description in its tooltip, and the × stays (`ProfileHeader`, `components/grid/ProfilePane.tsx`).
 
 **No profile open, a terminal open**: the profiles' room folds to a row of buttons over the grid (`ClosedProfiles` in `Grid.tsx`,
 `#closedprofiles`): a button per closed profile, its picture and name (who it is in its tooltip); a click
@@ -168,7 +168,7 @@ English by default, as the agents are without it. Saved (`settings.json`), the s
 
 ## Menus
 
-Kulisa draws its menus in HTML, as Chrome does (Fluent UI's menus: `fluent/Menus.tsx`; how they open, close and are
+Kulisa draws its menus in HTML, as Chrome does (Fluent UI's menus: `components/Menus.tsx`; how they open, close and are
 built: [ui.md](ui.md), Menus):
 
 - a task tab's right-click menu ([tasks.md](tasks.md), Projects, "A tab's right-click menu"), ☰ (as Chrome's ⋮, each
@@ -185,7 +185,7 @@ built: [ui.md](ui.md), Menus):
 A row whose command has a key shows it at its end (Keys). The window's menus are not native: a native menu has rows of
 text only, no buttons in a row.
 
-**About Kulisa** (a page of Settings, `fluent/AboutPage.tsx`, under Log, as Chrome's About: one place for what is
+**About Kulisa** (a page of Settings, `components/AboutPage.tsx`, under Log, as Chrome's About: one place for what is
 about the app; ☰ → About Kulisa opens Settings at it; on macOS also first in the app menu, in place of Electron's own
 panel): Kulisa's version (package.json's: from source `app.getVersion()` is Electron's), Electron's and Chromium's (for
 a bug report, and What sites see), kulisa.app and the license; then the folders Kulisa writes in on this computer, as
@@ -261,7 +261,7 @@ own size and place, kept (`settings.json`: `settingsWindow`), at least 640 × 42
 - **Shown once its page is filled** (the projects, the profiles, the agents as last found, its fonts: `settings:ready`),
   as Electron's docs advise (`show: false`), so its nav and page do not jump as they come; a page that never says so is
   shown after 2 s all the same.
-- Its page is the app's third (`settings.html`, `fluent/Settings.tsx`): nothing of a tasks' window (no grid, no
+- Its page is the app's third (`settings.html`, `components/Settings.tsx`): nothing of a tasks' window (no grid, no
   profiles' views, no keys of its own). Its process lives while it is open: about 40 MB of its own (PSS).
 - Not tried on Wayland: there an app may not place, move or focus its windows itself (Electron's docs, the same
   Platform notices), so where it opens and bringing it to the front are the compositor's.
@@ -480,7 +480,7 @@ file: two starts in a row are not a restart. What the code says with `console.*`
 new action of the core goes through `handle()` or the MCP server's `registerTool`, so it is logged by itself; a line
 elsewhere says what happened and who asked, never what was typed.
 
-**The Log page** (Settings → Log, under Profiles; ☰ → Report a Problem… opens it; `fluent/LogPage.tsx`; issue #73) is
+**The Log page** (Settings → Log, under Profiles; ☰ → Report a Problem… opens it; `components/LogPage.tsx`; issue #73) is
 where the human reads it and passes it on, by any means: not everyone has a GitHub account.
 
 - The file whole (1 MB at most), read each time the page is shown and let go when it is left, not as Settings opens
@@ -620,17 +620,17 @@ shortcuts carry (`com.squirrel.kulisa.kulisa`), or Windows would not pin it to t
 | `src/main/page-menu.ts` | the right-click menu in a profile's page (Menus) |
 | `src/shared/ipc.ts`, `src/main/ipc.ts` | the channels between a page and the main process; `handle` and `on`, checked against them (IPC) |
 | `src/main/window.ts` | a window: its BrowserWindow, the native views' places, its questions, screenshot |
-| `src/main/settings-window.ts`, `src/renderer/settings.html`, `settings.tsx`, `fluent/` | Settings' window (Settings), on React and Fluent UI |
+| `src/main/settings-window.ts`, `src/renderer/settings.html`, `settings.tsx`, `components/` | Settings' window (Settings), on React and Fluent UI |
 | `src/preload/index.cjs` | the window's bridge to the main process: the windows' pages are sandboxed (no Node: about 15 MB less a window, PSS), so it is a few lines of plain JavaScript; the window imports what it shares with the main process from `src/shared/` (`names.ts`, `avatars.ts`, `result.ts`) |
 | `src/main/log.ts` | the log: the file (electron-log), `summary` of an action's arguments, the Log page's reading and following of it, the issue's address (The log) |
-| `fluent/LogPage.tsx`, `fluent/AboutPage.tsx` | the Log and About pages of Settings (The log; Menus, About Kulisa) |
+| `components/LogPage.tsx`, `components/AboutPage.tsx` | the Log and About pages of Settings (The log; Menus, About Kulisa) |
 | `src/main/keys.ts` | the keyboard shortcuts: the table, which key an input event is; `shortcuts.ts` takes them (Keys) |
 | `src/main/updates.ts`, `installed.ts`, `forge.config.ts` | updates, Squirrel's events, a new version ready while Kulisa runs (the version installed on disk); the installers and the release |
 | `src/terminal/` | the terminal, a Kulisa package: its pty, its buffers, the xterm shown ([README](../src/terminal/README.md)) |
 | `src/main/file-links.ts` | the paths a terminal names: which exist, opening one or showing it in its folder (The terminal) |
-| `src/renderer/fluent/Grid.tsx`, `fluent/grid/`, `lib/grid.ts` | the grid (dockview), the panes and their headers, the terminals (`grid/Terminals.tsx`: `Terminals`, its row of tabs `TerminalsHeader`), the closed profiles' buttons over it (`ClosedProfiles`, `Grid.tsx`), Arrange panels |
-| `src/renderer/fluent/grid/Resources.tsx` | Resources next to the terminal: the shown task's resources (its worktree(s) or the main working tree) and its artifacts, each with its actions (tasks.md) |
-| `src/renderer/fluent/TopBar.tsx`, `ProjectIcon.tsx` | the title bar, ☰ and its own rows; the logo, a project's icon |
-| `src/renderer/fluent/Menus.tsx`, `PointMenu.tsx`, `Ask.tsx`, `lib/menu.ts`, `cover.ts`, `views.ts`, `ask.ts`, `terminals.ts` | the menus, the dialogs and questions (Fluent UI's: `cover.ts`), the pages under them in a tasks' window (`views.ts`), a tasks' window's terminals (`terminals.ts`) |
-| `src/renderer/lib/keys.ts`, `fluent/Shortcuts.tsx` | where the keyboard is, the commands the keys run; Keyboard Shortcuts |
+| `src/renderer/components/Grid.tsx`, `components/grid/`, `lib/grid.ts` | the grid (dockview), the panes and their headers, the terminals (`grid/Terminals.tsx`: `Terminals`, its row of tabs `TerminalsHeader`), the closed profiles' buttons over it (`ClosedProfiles`, `Grid.tsx`), Arrange panels |
+| `src/renderer/components/grid/Resources.tsx` | Resources next to the terminal: the shown task's resources (its worktree(s) or the main working tree) and its artifacts, each with its actions (tasks.md) |
+| `src/renderer/components/TopBar.tsx`, `ProjectIcon.tsx` | the title bar, ☰ and its own rows; the logo, a project's icon |
+| `src/renderer/components/Menus.tsx`, `PointMenu.tsx`, `Ask.tsx`, `lib/menu.ts`, `cover.ts`, `views.ts`, `ask.ts`, `terminals.ts` | the menus, the dialogs and questions (Fluent UI's: `cover.ts`), the pages under them in a tasks' window (`views.ts`), a tasks' window's terminals (`terminals.ts`) |
+| `src/renderer/lib/keys.ts`, `components/Shortcuts.tsx` | where the keyboard is, the commands the keys run; Keyboard Shortcuts |
 | `test/e2e/window.spec.ts`, `grid*.spec.ts`, `keys.spec.ts`, `log.spec.ts`, `zoom-and-closing.spec.ts`, `test/unit/keys.test.ts` | the tests |

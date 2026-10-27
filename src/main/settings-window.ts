@@ -1,7 +1,7 @@
 // Settings in a window of its own (docs/window.md, Settings), as a desktop app's: one for the whole app, with the OS's
 // title bar, at a page. Not modal: the tasks' windows go on taking input beside it, as macOS
 // apps', VS Code's and Chrome's settings do; on macOS a window could not be held without Electron's half-black sheet
-// over it. Its page: settings.html (fluent/Settings.tsx).
+// over it. Its page: settings.html (components/Settings.tsx).
 import { BrowserWindow } from 'electron';
 import path from 'path';
 import { on } from './ipc.ts';
@@ -70,7 +70,7 @@ function installSettings(shell: Shell, { preload, appDevTools }: { preload: stri
     };
     shell.settings = s;
     // Its ×: the page first saves what is typed (a project's name) and then closes it (settings:close); while an agent
-    // installs, it stays (fluent/agents.ts). Quitting, or its page gone, it just closes.
+    // installs, it stays (components/agents.ts). Quitting, or its page gone, it just closes.
     win.on('close', (e) => {
       if (closing || shell.quitting || !loaded) return;
       e.preventDefault();

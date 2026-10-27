@@ -29,7 +29,7 @@ document.addEventListener('focusout', () => setTimeout(report)); // where it wen
 onDialogs(report); // a dialog opened or closed
 
 // The folded terminals' panel: the task's agent; a task with none (its project had no default) leaves the choice to the
-// human, the keyboard on the panel's big buttons (fluent/grid/Terminals.tsx), or its + opened.
+// human, the keyboard on the panel's big buttons (components/grid/Terminals.tsx), or its + opened.
 const openOwn = async () => {
   const r = await act('terminal:open', { own: true });
   if (refused(r) || !('none' in r)) return;

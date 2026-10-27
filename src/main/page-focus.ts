@@ -23,7 +23,7 @@ const turn = (wc: WebContents) => { const n = (turns.get(wc) ?? 0) + 1; turns.se
 export function allowFocus(wc: WebContents) { allowed.add(wc); turn(wc); }
 
 // Kulisa gives the window's own page the keyboard for the human (the address of a tab they open,
-// fluent/grid/ProfilePane.tsx): a page taking it next gives it back there, not to the page the human was in (Ctrl+T
+// components/grid/ProfilePane.tsx): a page taking it next gives it back there, not to the page the human was in (Ctrl+T
 // from it, Linux).
 export function focusWindow(page: WebContents) { watchWindow(page); held.set(page, page); page.focus(); }
 

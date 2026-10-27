@@ -498,7 +498,7 @@ test("the OS buttons' strip shows the top bar under it: dimmed with it under a d
 
 test("theme: Dark by default, Light or System in ☰; the window, the terminal and the OS buttons follow, the pages keep the OS's; saved", async ({ core, ui, files }) => {
   await sam(core);
-  // The theme's panels' color (Fluent's token, fluent/theme.ts), the terminal's (xterm's own option: it draws on a
+  // The theme's panels' color (Fluent's token, components/theme.ts), the terminal's (xterm's own option: it draws on a
   // canvas), the one chosen in ☰, the controls' own scheme (color-scheme).
   const BACKGROUND = { dark: '#18181b', light: '#ffffff' };
   const background = () => ui.evaluate(() => getComputedStyle(document.getElementById('app').firstElementChild).getPropertyValue('--colorNeutralBackground1').trim());

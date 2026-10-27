@@ -35,7 +35,7 @@ export function registerProjects(ipc: Ipc, { lookForFavicon }: { lookForFavicon:
     if (!refused(r)) sendProjects(); // the board lists it
     return r;
   });
-  // A project's configuration in the projects' manager (ProjectEditor.vue): its name, agents,
+  // A project's configuration in the projects' manager (components/ProjectPage.tsx): its name, agents,
   // repositories, profiles and local addresses; its folder is shown, not changed (its tasks' copies are made from it).
   // Open or not.
   handle('project:settings-get', async (_e, { id }) => {

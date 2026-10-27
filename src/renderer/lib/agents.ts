@@ -1,5 +1,5 @@
 // The agents Kulisa knows (main/agents/), for a list of them with Install in a tasks' window: choosing a task's agent
-// (fluent/AgentPicker.tsx: the project's accounts and the terminal only) and New Project's agents (the agents alone,
+// (components/AgentPicker.tsx: the project's accounts and the terminal only) and New Project's agents (the agents alone,
 // details). The state lives in the list, not in its dialog: a closed dialog's content is unmounted, and an install it
 // started goes on and shows when it opens again.
 //   const list = agentList({ details, installed })   installed(agent): what to say once it is installed

@@ -1,6 +1,6 @@
 // New Project's state, shared by its steps (docs/tasks.md, Projects): what the code comes from, the agents' accounts,
 // the profiles; checked step by step, nothing made before Create (main: project:new, setUpProject), which then opens
-// its first task. One per wizard (fluent/NewProject.tsx makes it as it is shown; its steps read it with useWizard).
+// its first task. One per wizard (components/NewProject.tsx makes it as it is shown; its steps read it with useWizard).
 import { createStore, useStore } from 'zustand';
 import { agentList } from './agents';
 import { MAX, nameChar, repoName } from '../../shared/names';
