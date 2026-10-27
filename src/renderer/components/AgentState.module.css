@@ -1,5 +1,0 @@
-/* An agent's state (AgentState.tsx): its icon in a 16 px place, kept empty with room, so rows under each other align. */
-.root { display: inline-flex; flex: none; width: 16px; justify-content: center; }
-.root:empty:not([data-room]) { display: none; }
-.root[data-state="waiting"] { color: var(--colorStatusWarningForeground1); }
-.root[data-state="done"] { color: var(--colorStatusSuccessForeground1); }
