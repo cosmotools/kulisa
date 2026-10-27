@@ -5,15 +5,16 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Badge, Button, Dropdown, Field, Input, Link, makeStyles, MessageBar, MessageBarActions, MessageBarBody, Option, Persona, Spinner, Text,
   tokens } from '@fluentui/react-components';
 import { AddRegular, StarRegular, SubtractRegular } from '@fluentui/react-icons';
-import { ButtonMenu, RightClickMenu, type Item } from './Menus';
+import { ButtonMenu, RightClickMenu, type Item } from '../Menus';
 import { List } from './List';
 import { Group, Tool } from './Group';
-import { SignIn } from './SignIn';
-import { avatarSrc } from './avatar';
-import { refused, type Result } from '../../shared/result';
-import type { ProjectAgent, ProjectFolder, ProjectGitHub, ProjectProfile, ProjectSettings } from '../../shared/types';
-import { useCommonStyles } from './theme';
-import { ErrorBar } from './ErrorBar';
+import { SignIn } from '../SignIn';
+import { useChanged } from './changed';
+import { avatarSrc } from '../../lib/common';
+import { refused, type Result } from '../../../shared/result';
+import type { ProjectAgent, ProjectFolder, ProjectGitHub, ProjectProfile, ProjectSettings } from '../../../shared/types';
+import { useCommonStyles } from '../theme';
+import { ErrorBar } from '../ErrorBar';
 
 const useStyles = makeStyles({
   page: { display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalL },
@@ -27,12 +28,7 @@ const rowAt = (e: MouseEvent, attr: string) => (e.target as Element).closest<HTM
 // A list's selection while its row is there: it goes with its row.
 const kept = <T,>(sel: string | undefined, rows: T[], key: (r: T) => string) => (rows.some((r) => key(r) === sel) ? sel : undefined);
 
-// The profiles changed elsewhere (a tasks' window, the agent): the page shown reads its own again (one listener: kulisa.on
-// has no off).
-const changed = new Set<() => void>();
-kulisa.on('settings:changed', () => { for (const f of changed) f(); });
-
-export function ProjectPage({ id, onSaved, onLoaded, saveRef }: { id: string; onSaved: () => void; onLoaded: () => void; saveRef: { current: () => Promise<void> } }) {
+export function ProjectPage({ id, onSaved, saveRef }: { id: string; onSaved: () => void; saveRef: { current: () => Promise<void> } }) {
   const styles = useStyles(), common = useCommonStyles();
   const [s, setS] = useState<ProjectSettings | null>(null);
   const [name, setName] = useState(''), [local, setLocal] = useState(''), [error, setError] = useState('');
@@ -43,7 +39,7 @@ export function ProjectPage({ id, onSaved, onLoaded, saveRef }: { id: string; on
   const [adding, setAdding] = useState<'' | 'clone' | 'profile'>(''), [text, setText] = useState(''), [cloning, setCloning] = useState(false);
   const [errors, setErrors] = useState({ folders: '', agents: '', profiles: '' });
   const [signing, setSigning] = useState<{ id: string; name: string } | null>(null); // New Account…: the agent it is of, while signing in
-  const saved = useRef(''), loaded = useRef(onLoaded); // told once, as it is first read
+  const saved = useRef('');
 
   const githubNow = useCallback(async (answer?: Promise<Result<ProjectGitHub>>) => {
     const r = await (answer ?? kulisa.invoke('project:github-get', { id }));
@@ -56,7 +52,6 @@ export function ProjectPage({ id, onSaved, onLoaded, saveRef }: { id: string; on
   };
   useEffect(() => {
     void kulisa.invoke('project:settings-get', { id }).then((c) => {
-      loaded.current();
       if (refused(c)) return;
       setS(c); setName(c.name); setLocal((c.local || []).join(' ')); setFolders(c.folders); setMine(c.projectAgents);
       setProfiles(c.profiles); setOthers(c.others);
@@ -64,11 +59,10 @@ export function ProjectPage({ id, onSaved, onLoaded, saveRef }: { id: string; on
       void githubNow();
     });
   }, [id, githubNow]);
-  useEffect(() => {
-    const again = async () => { const c = await kulisa.invoke('project:settings-get', { id }); if (!refused(c)) { setProfiles(c.profiles); setOthers(c.others); } };
-    changed.add(again);
-    return () => { changed.delete(again); };
-  }, [id]);
+  useChanged(useCallback(async () => {
+    const c = await kulisa.invoke('project:settings-get', { id });
+    if (!refused(c)) { setProfiles(c.profiles); setOthers(c.others); }
+  }, [id]));
 
   // Its name and local addresses, saved on Enter, on leaving them, and before Settings closes or another page shows.
   const look = () => JSON.stringify({ name: name.trim(), local: local.split(/[\s,]+/).filter(Boolean) });

@@ -1,4 +1,4 @@
-// Projects (docs/tasks.md, Projects; docs/window.md, Settings): Project Settings… and Settings' window.
+// Projects (docs/tasks.md, Projects; docs/window.md, Settings): Project Settings… and Settings.
 import fs from 'fs';
 import path from 'path';
 import type { Page } from '@playwright/test';
@@ -89,10 +89,10 @@ test("projects: the projects' manager (Project Settings…) changes its name and
   await shown(given);
   await typeIn(s, field(s, 'Local addresses'), 'abc.ngrok.app *.Shop.dev', true);
   await expect.poll(async () => (await entryOf()).local?.length).toBe(2);
-  // The name typed and the window closed with the OS's ×: kept (its page saves it, then closes it).
+  // The name typed and Settings closed with its ×: kept (saved first).
   await field(s, 'Name').fill('Site-2');
   expect((await entryOf()).name, 'not yet: on Enter or leaving it').toBe('site');
-  await core((k) => k.shell.settings.win.close());
+  await s.getByRole('button', { name: 'Close (Esc)' }).click();
   await settingsClosed(core, ui);
   await expect.poll(async () => (await entryOf()).name).toBe('Site-2');
   const entry = await entryOf();
@@ -278,30 +278,21 @@ test("projects: the projects' manager (Project Settings…) changes its name and
   await core((k, a) => { const acc = k.shell.accounts, dir = acc.find(a).dir; acc.drop(a); acc.remove(dir); }, ann);
 });
 
-test("projects: the title bar's gear opens Settings' window at the shown project; another one, not open, is configured there too, asked there; what is done in the task's window meanwhile is asked there; no New Project in it", async ({ core, ui, sui, files }) => {
+test("projects: the title bar's gear shows Settings over the window at the shown project, the pages hidden under it; another one, not open, is configured there too; no New Project in it", async ({ core, ui, sui, files }) => {
   await begin(core, ui, files, { featureX: true });
   // A project with no task open.
   const closed = path.join(files.root, 'closed');
   fs.mkdirSync(closed, { recursive: true });
   const closedId = await core((k, f) => { const p = k.shell.store.projectFor(f); k.shell.sendProjects(); return p.id; }, closed);
-  // Shown once it is filled (its nav's three sections, the agents found, the project's page): as it came, it jumped.
-  await core((k) => {
-    const g = k.stash;
-    g.filled = null;
-    k.electron.app.once('browser-window-created', (_e, w) => w.once('show', () => {
-      void w.webContents.executeJavaScript(`[document.querySelectorAll('[data-key^="a:"]').length > 0, document.querySelectorAll('[data-key^="f:"]').length > 0, !!document.querySelector('[role="group"][aria-label="Folders"]')]`)
-        .then((r) => { g.filled = r; });
-    }));
-  });
+  // Shown once it is filled (its nav's three sections, the agents found): as it came, it jumped.
   await ui.locator('#manageProjects').click();
-  await expect.poll(() => core((k) => k.stash.filled)).toEqual([true, true, true]);
   const s = await sui();
+  expect([await s.locator('#settings [data-key^="a:"]').count() > 0, await s.locator('#settings [data-key^="f:"]').count() > 0]).toEqual([true, true]);
   await pageOf(s, 'project');
   await expect(shownRow(s)).toHaveAttribute('data-key', `p:${files.pid('project')}`);
-  // Pages on screen under Settings' window (once live again after the last menu's pictures: on a loaded machine later).
-  await expect.poll(() => core((k) => k.profile('Sam.admin').get().view.getVisible())).toBe(true);
-  // The other project is closed: its configuration all the same; a profile made and let go there (asked first, in
-  // Settings' window, where it was done).
+  // The pages hidden under it, as under a dialog (they draw above the window's HTML).
+  await expect.poll(() => core((k) => k.profile('Sam.admin').get().view.getVisible())).toBe(false);
+  // The other project is closed: its configuration all the same; a profile made and let go there (asked first).
   await navRow(s, `p:${closedId}`).click();
   await pageOf(s, 'closed');
   expect(await core((k, i) => k.shell.open.has(i), closedId)).toBe(false);
@@ -311,7 +302,6 @@ test("projects: the title bar's gear opens Settings' window at the shown project
   await expect(listRow(s, 'Profiles', 'Closed-one')).toHaveAttribute('data-profile', closedOne);
   await onRow(s, listRow(s, 'Profiles', 'Closed-one'), removeProfile(s));
   await expect(s.getByRole('alertdialog')).toBeVisible();
-  await expect(ui.getByRole('alertdialog'), "not in the task's window").toHaveCount(0);
   expect((await answer(s)).message).toBe('Remove the profile Closed-one from closed?');
   await expect.poll(() => core((k, p) => !k.shell.store.projectsWith('profiles', p).length, closedOne)).toBe(true);
   await core((k, p) => { k.shell.profileStore.delete(p); }, closedOne); // not needed after
@@ -320,36 +310,12 @@ test("projects: the title bar's gear opens Settings' window at the shown project
   const png = test.info().outputPath('projects.png');
   await core((k, f) => k.shot(f), png);
   await test.info().attach('projects', { path: png, contentType: 'image/png' });
-  // Done in the task's window with Settings in front, that window minimized (a pane's Remove from Project…; on macOS the
-  // OS's × of a window behind): asked in the task's window, not in Settings', and that window comes back to the front
-  // with it.
-  await core((k) => k.shell.win.minimize());
-  await expect.poll(() => core((k) => k.shell.win.isMinimized())).toBe(true);
-  await core((k) => k.shell.settings.win.focus());
-  await expect.poll(() => core((k) => k.shell.settings.win.isFocused())).toBe(true);
-  const said = invoke(ui, 'profile:delete', { task: await core((k) => k.shell.task.key), profile: files.idOf(SAM) });
-  await expect(ui.getByRole('alertdialog')).toBeVisible();
-  await expect(s.getByRole('alertdialog'), "not in Settings' window").toHaveCount(0);
-  // Waited for: macOS restores a minimized window with its animation, and makes it key at its end.
-  await expect.poll(() => core((k) => !k.shell.win.isMinimized() && k.shell.win.isFocused()), { message: 'the task\'s window in front with its question' }).toBe(true);
-  expect((await answer(ui, false)).message).toMatch(/^Remove the profile Sam\.admin from /);
-  expect(await said).toEqual({ error: 'the human said no' });
-  // The theme and the Kulisa zoom are every window's: its too.
-  const theme = await core((k) => k.shell.theme);
-  const other = theme === 'light' ? 'dark' as const : 'light' as const;
-  await core((k, t) => k.shell.setTheme(t), other);
-  await expect(s.locator('html')).toHaveAttribute('data-theme', other);
-  await core((k, t) => k.shell.setTheme(t), theme);
-  const zoom = () => core((k) => k.shell.settings.win.webContents.getZoomFactor());
-  await core((k) => k.shell.setUiZoom(1.25));
-  await expect.poll(zoom).toBeCloseTo(1.25, 6);
-  await core((k) => k.shell.setUiZoom(1));
-  await expect.poll(zoom).toBeCloseTo(1, 6);
   await closeSettings(core, ui, sui);
+  await expect.poll(() => core((k) => k.profile('Sam.admin').get().view.getVisible()), 'the pages back').toBe(true);
   await forget(core, ui, files, 'closed');
 });
 
-test("projects: Settings, not modal, acts for the tasks' window last in front; its lists follow the profiles the agent makes and lets go meanwhile", async ({ core, ui, sui, call, files }) => {
+test("projects: Settings is its window's, at that window's project, its questions there; its lists follow the profiles the agent makes and lets go meanwhile", async ({ core, ui, sui, call, files }) => {
   await begin(core, ui, files, { featureX: true });
   // A second tasks' window, with a project of its own.
   const fourth = path.join(files.root, 'fourth');
@@ -375,10 +341,13 @@ test("projects: Settings, not modal, acts for the tasks' window last in front; i
   await dropping;
   await expect(listRow(s, 'Profiles', 'Fay')).toHaveCount(0);
   await core((k, f) => { k.shell.profileStore.delete(f); }, fay); // not needed after
-  // The first one in front (the question's dialog in the second gone first: answer): Settings acts for it now, without
-  // being opened again.
+  // Closed there with the gear; the first window's own, at its project.
+  await there.locator('#manageProjects').click();
+  await expect(there.locator('#settings')).toHaveCount(0);
   await focusWindow(core, ui);
-  await expect.poll(async () => (await invoke(s, 'projects:list')).project).toBe(files.pid('project'));
+  await expect(ui.locator('#settings')).toHaveCount(0);
+  await ui.locator('#manageProjects').click();
+  await pageOf(await sui(), 'project');
   await closeSettings(core, ui, sui);
   // The second window and its project gone, for a test after it.
   await invoke(ui, 'project:close-tasks', { id: files.pid('fourth') });

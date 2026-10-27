@@ -35,8 +35,8 @@ repositories (git worktrees), so the project's folders stay the human's. Its dat
   - **The window's pages** (`page` in `lib/store.ts`), one at a time in the grid's place: the shown task's grid
     (`task`), the sidebar docked with no task open (`sidebar`), the welcome with no project (`welcome`). One switch, not a
     router: it follows the main process's current task.
-- **Settings** (the title bar's button left of ☰), as JetBrains' Settings: a window of its own, not modal (a dialog
-  reads as a web page's: [ui.md](ui.md), Desktop, not a web page; how it opens and which window it acts for:
+- **Settings** (the title bar's button left of ☰), as JetBrains' Settings: over the window's area under the title bar,
+  not a dialog (a dialog reads as a web page's: [ui.md](ui.md), Desktop, not a web page; how it opens and closes:
   [window.md](window.md), Settings). On the left a tree of three sections: **Projects** (each with its icon in its
   color), **Agents** ("Choosing the agent") and **Profiles** ([profiles.md](profiles.md)); on the right the chosen
   one's page under its path ("Projects › shop") with **⋯** at its end. All three alike (the author's choice): a
@@ -46,7 +46,7 @@ repositories (git worktrees), so the project's folders stay the human's. Its dat
   right-click has what its page's ⋯ has (a project's or profile's Delete…, asked first, also Delete on the row; an
   agent's Install and New Account…), a section's what its + does. Project Settings… opens it at that project; Manage
   Profiles… and About this profile… at a profile.
-  - **A project's page** (`components/ProjectPage.tsx`; "the projects' manager" in the code): **⋯** (Delete Project…),
+  - **A project's page** (`components/settings/ProjectPage.tsx`): **⋯** (Delete Project…),
     then **Name**, then **Folders**, **Agents**, **Profiles**, each a card (`Group.tsx`) holding a list (`List.tsx`)
     with a toolbar: **+** adds (a menu), **−** removes the selected row (and Delete), **★** makes it the default
     (Folders, Agents); a row's right-click has the same. What needs typing (a URL to clone, a new profile's name)
@@ -370,7 +370,7 @@ never assumes one is installed.
   puts it (`<config dir>/settings.json`, the language's English name), the rest of the file kept, not written when it
   says so already, never into a file that is not JSON. Claude Code reads that file again when it changes, so it holds
   at once in every session; a `--settings` file would not (read once).
-- **Settings → Agents** (`components/AgentPage.tsx`), as JetBrains' list of SDKs: the agents in the nav (not the terminal only;
+- **Settings → Agents** (`components/settings/AgentPage.tsx`), as JetBrains' list of SDKs: the agents in the nav (not the terminal only;
   "not installed" at a row's end), the chosen one's page: its maker and website, what it needs, its status (its
   `--version`, and its folder, marked when not on the user's `PATH`: Kulisa runs it from there; Install for the
   others, with the command it runs), and its **Accounts** (below), a list with + (New Account…) and − (asked first;
@@ -416,7 +416,7 @@ never assumes one is installed.
     logout`: the Keychain's entry on macOS goes too), then its folder, with its sign-in, settings and conversations.
 - The dialogs are part of the window, not windows (no extra process). Choosing (`components/AgentPicker.tsx`), New
   Project and Settings → Agents keep their agents and an install under way apart from the page shown (`lib/agents.ts`;
-  Settings' `components/agents.ts`, so an install goes on behind a project's page); choosing draws them as radios.
+  Settings' `components/settings/agents.ts`, so an install goes on behind a project's page); choosing draws them as radios.
 - **An agent's state on the tabs** comes from its hooks, each agent's at its own terminal's URL ("Several agents in a
   task"). Kulisa's events (`agent-hooks.ts`): `prompt` working, `waiting` for the human, `tool-done` working again
   after waiting, `stop` done, `interrupt` and `session-end` unknown (a session ending after a done turn keeps done).
@@ -796,13 +796,13 @@ rm -rf ~/.config/Kulisa/projects/<project id>   # all its tasks with their profi
 | `src/main/agents/` | the agents to choose from: find, install, start, resume; a folder's trust carried to a task's copy |
 | `src/main/store.ts` | the data folder above |
 | `src/terminal/` | the terminals: their ptys, buffers and the xterm shown ([README](../src/terminal/README.md)) |
-| `src/renderer/components/TaskBar.tsx`, `components/Empty.tsx`, `components/ProjectPage.tsx` | the tasks' bar (a tab per open task); the grid's place when no task's grid is shown (the window's pages: the sidebar docked, the welcome); a project's page in Settings |
+| `src/renderer/components/TaskBar.tsx`, `components/Empty.tsx`, `components/settings/ProjectPage.tsx` | the tasks' bar (a tab per open task); the grid's place when no task's grid is shown (the window's pages: the sidebar docked, the welcome); a project's page in Settings |
 | `src/renderer/components/Sidebar.tsx`, `ProjectIcon.tsx`, `lib/sidebar.ts` | the sidebar: every project with its tasks, docked in the empty window, over the grid (its button, Ctrl+Shift+A); a project's icon |
 | `src/renderer/components/Welcome.tsx` | the first start's welcome: the slides (their pictures drawn from Fluent's parts), then New Project's steps under a question each |
 | `src/renderer/components/NewProject.tsx`, `lib/new-project.ts` | New Project's steps (the welcome's and the dialog's) and the dialog; their state and rules, one per wizard |
 | `src/renderer/components/TaskRename.tsx` | the Rename Task dialog |
 | `src/renderer/components/AgentPicker.tsx`, `lib/agents.ts` | choosing an agent when the one to open is not there: the radios of agents with Install; an install's line and its Details |
-| `src/renderer/components/AgentPage.tsx`, `agents.ts` | an agent's page in Settings, its details, Install and accounts; Settings' agents, accounts and the install under way |
+| `src/renderer/components/settings/AgentPage.tsx`, `agents.ts` | an agent's page in Settings, its details, Install and accounts; Settings' agents, accounts and the install under way |
 | `src/main/favicons.ts` | a project's icon: its site's favicon in its code (Projects, "Each project has a color and an icon") |
 | `src/shared/names.ts` | the rules for names (projects and profiles; a task's, a label) and slugs |
 | `src/main/accounts.ts`, `src/renderer/components/SignIn.tsx` | the agents' accounts, one store; a new one's sign-in in Settings (a project's page, or Agents), and New Project's |

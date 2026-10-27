@@ -216,7 +216,7 @@ export const resize = (core: Core, size: { width?: number; height?: number }) =>
   return { width, height };
 }, size);
 
-// Settings (components/Settings.tsx): a row of its nav by its key (p:<project>, a:<agent>, f:<profile>, github, log, about),
+// Settings (components/settings): a row of its nav by its key (p:<project>, a:<agent>, f:<profile>, github, log, about),
 // the shown one aria-current; the shown page's path; a card of a page (Group.tsx) by its title; the open menu (Fluent's:
 // there only while open).
 export const navRow = (s: Page, key: string) => s.getByRole('navigation', { name: 'Settings' }).locator(`[data-key="${key}"]`);
@@ -229,7 +229,7 @@ export const settingsMenu = (s: Page) => s.getByRole('menu');
 export const listRows = (s: Page, list: string) => s.getByRole('grid', { name: list, exact: true }).getByRole('row').filter({ has: s.getByRole('radio') });
 export const listRow = (s: Page, list: string, name: string) => s.getByRole('grid', { name: list, exact: true }).getByRole('row', { name, exact: true });
 export const listCells = (row: Locator) => row.getByRole('gridcell').filter({ hasNot: row.page().getByRole('radio') });
-// Settings → Profiles: the shown task's tab's menu, then Manage Profiles…; once its window shows the page.
+// Settings → Profiles: the shown task's tab's menu, then Manage Profiles…; once Settings shows the page.
 export async function manageProfiles(ui: Page, sui: () => Promise<Page>) {
   await taskMenu(ui);
   await choose(ui, 'Manage Profiles…');
@@ -244,12 +244,10 @@ export async function chooseProfile(s: Page, files: Files, name: string) {
   await expect(row).toHaveAttribute('aria-current', 'page');
   await expect(s.getByRole('textbox', { name: 'Name', exact: true })).toHaveValue(name);
 }
-// Settings closed as the human does it with Esc, what was typed saved; its window gone, the keyboard back in the task's
-// window, the window's and its page's (a menu opened there before it comes closes as the window gets it). The key's
-// promise is not waited for: its page closes under it.
+// Settings closed as the human does it with Esc, what was typed saved; the grid back, the keyboard in the task's window.
 export async function closeSettings(core: Core, ui: Page, sui: () => Promise<Page>) {
   const s = await sui();
-  void s.keyboard.press('Escape').catch(() => {});
+  await s.keyboard.press('Escape');
   await settingsClosed(core, ui);
 }
 // A text field typed as the human types it, and left (a change; React's pages save as it loses the keyboard) when leave.
@@ -271,10 +269,10 @@ export async function onRow(s: Page, row: string | Locator, button: string | Loc
   await expect(b).toBeEnabled();
   await b.click();
 }
-// However it closed (Esc, the OS's ×).
+// However it closed (Esc, its ×, the gear).
 export async function settingsClosed(core: Core, ui: Page) {
-  await expect.poll(() => core((k) => !k.shell.settings)).toBe(true);
-  await expect.poll(async () => (await core((k) => k.shell.win.isFocused())) && ui.evaluate(() => document.hasFocus()), { message: 'the task\'s window has the keyboard back' }).toBe(true);
+  await expect(ui.locator('#settings')).toHaveCount(0);
+  await expect.poll(async () => (await core((k) => k.shell.win.isFocused())) && ui.evaluate(() => document.hasFocus()), { message: 'the task\'s window has the keyboard' }).toBe(true);
 }
 
 // The window is a grid of peer panels (dockview): a pane per profile and the terminal. A profile's page is a native view

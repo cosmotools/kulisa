@@ -20,7 +20,7 @@ export type OnTab = OnProfile & { tab?: string | null }; // none: the active one
 type Grid = Record<string, Partial<{ x: number; y: number; width: number; height: number }> & { shown?: boolean }>;
 export type Theme = 'dark' | 'light' | 'system';
 export type Bar = 'top' | 'bottom';
-// Where Settings opens (its window: main/settings-window.ts): a project's page (none: the shown task's), a profile's, the
+// Where Settings opens (components/settings): a project's page (none: the shown task's), a profile's, the
 // log (☰ → Report a Problem…), About (☰ → About Kulisa; macOS's app menu).
 export type SettingsAt = { section: 'projects' | 'profiles' | 'log' | 'about'; id?: string | null };
 // A project's folders as its manager shows them (projects.ts, foldersInfo).
@@ -149,9 +149,8 @@ export interface Send extends TerminalSend, ThumbnailSend {
   'ask:answer': { id: number; answer: string };
   'agent:chosen': { task: string | null; id: string | null };
   'keys:zone': string;
-  'settings:open': SettingsAt;
-  'settings:close': void; // its page has saved what was typed
-  'settings:ready': void; // its page is filled: the window is shown
+  'settings:open': SettingsAt; // shown in the window asking (shell.openSettings)
+  'settings:close': void; // left, what was typed saved
 }
 
 // webContents.send (AppWindow.send) / the window's kulisa.on: what the main process tells a window.
@@ -178,8 +177,7 @@ export interface Events extends TerminalEvents, ThumbnailEvents, DictationEvents
   'project:new': void;
   'master:url': string;
   'settings:show': SettingsAt;
-  'settings:closing': void; // asked to close (its ×): its page saves, then closes it
-  'settings:changed': void; // the profiles changed elsewhere (a tasks' window, the agent): its lists read again
+  'settings:changed': void; // the profiles changed elsewhere (another window, the agent): Settings' lists read again
   'log:lines': { text: string } | { reset: true }; // what the log got since it was read; turned over: read it again
   'window:blur': void; // a tasks' window left (another window, another app): its menus close (lib/cover.ts)
 }

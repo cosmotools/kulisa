@@ -26,7 +26,7 @@ test('names: typed, pasted, from the agent, checked where they are made (the rul
   const field = s.getByRole('textbox', { name: 'New profile' });
   await s.getByRole('button', { name: 'New Profile…' }).click();
   await expect(field).toBeFocused();
-  await core((k) => k.shell.settings.win.webContents.insertText('ann admin·@shop.com'));
+  await core((k) => k.shell.win.webContents.insertText('ann admin·@shop.com'));
   await expect(field).toHaveValue('annadmin@shop.com');
   await field.press('Escape'); // put away, nothing made
   await expect(field).toHaveCount(0);
@@ -109,10 +109,10 @@ test('rename in Settings → Profiles: typed, and Enter or leaving the field sav
   const dir = await core((k, p) => k.shell.profiles.get(p).dir, id);
   const s = await manageProfiles(ui, sui);
   await chooseProfile(s, files, 'Ren.seller');
-  await core((k) => k.focus(k.shell.settings.win)); // the keyboard in Settings' window, as the human's hands
+  await core((k) => k.focus(k.shell.win)); // the keyboard in the window, as the human's hands
   await s.getByRole('textbox', { name: 'Name', exact: true }).selectText();
   await core(async (k) => {
-    const wc = k.shell.settings.win.webContents;
+    const wc = k.shell.win.webContents;
     await wc.insertText('Ren.admin');
     for (const type of ['keyDown', 'char', 'keyUp'] as const) wc.sendInputEvent({ type, keyCode: type === 'char' ? '\r' : 'Enter' });
   });

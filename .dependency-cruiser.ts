@@ -10,6 +10,7 @@ const layer1 = '^src/main/(profiles|page-focus|project-profiles|profile-store|st
 const layer2 = '^src/main/(cdp-proxy|local-only)\\.ts$';
 const layer3 = '^src/main/kulisa-plugin/';
 const main = '^src/main/';
+const settings = '^src/renderer/components/settings/';
 
 // A file of `from` imports nothing of src/main but `allowed`.
 const only = (name: string, from: string, allowed: string[], comment: string) =>
@@ -60,6 +61,12 @@ const config: IConfiguration = {
       comment: 'src/main/agents/ is reached from outside through index.ts only (the agent contract\'s types cross freely as import type).',
       from: { pathNot: '^src/main/agents/' }, to: { path: '^src/main/agents/', pathNot: '^src/main/agents/index\\.ts$' } },
     ...Object.entries(packages).flatMap(([name, p]) => packageRules(name, p)),
+    // Settings is the window's chunk of its own, read as it is first shown (App.tsx): a static import pulls it into the
+    // window's bundle.
+    { name: 'settings-entry', severity: 'error', comment: 'components/settings/ is reached from outside only by import() of its index.ts.',
+      from: { pathNot: settings }, to: { path: settings, pathNot: `${settings}index\\.ts$` } },
+    { name: 'settings-lazy', severity: 'error', comment: 'components/settings/ is imported from outside only by import() (App.tsx, lazy).',
+      from: { pathNot: settings }, to: { path: settings, dynamic: false } },
     { name: 'no-circular', severity: 'error', comment: 'A cycle at run time: one of its modules is loaded half done.',
       // grid.ts and views.ts call each other's functions only after both have loaded (the pages live again, then
       // the grid's boxes sent): a cycle without that danger, and passing one of them in would be code for the tool.

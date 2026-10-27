@@ -8,7 +8,7 @@ import { refused } from '../shared/result.ts';
 import type { Shell } from './shell.ts';
 import type { ProjectEntry } from './store.ts';
 import type { Task } from './tasks.ts';
-import type { Asker, Place } from './window.ts';
+import type { Place } from './window.ts';
 import type { Result } from '../shared/result.ts';
 import type { TerminalContents } from '../terminal/ipc.ts';
 
@@ -152,8 +152,8 @@ export function openTasks(shell: Shell, { appDevTools }: { appDevTools: boolean 
   }
   // A tab let go where no Kulisa window took it: outside them all, a new window there; on one (cancelled, or let go
   // elsewhere in a window), nothing.
-  // The first start (no project yet: nothing to do in Kulisa without one): the projects' manager opens by itself on New
-  // Project, over the empty window (components/Empty.tsx).
+  // The first start (no project yet: nothing to do in Kulisa without one): New Project opens by itself, over the empty
+  // window (components/Empty.tsx).
   shell.firstStart = (w) => { if (!store.projects().length) w.send('project:new'); };
   shell.pointer = () => screen.getCursorScreenPoint(); // where the pointer is on the screen (the tests set it)
   async function dragOut(task: Task | null, terminals: TerminalContents): Promise<Result<{ key?: string }>> {
@@ -246,7 +246,7 @@ export function openTasks(shell: Shell, { appDevTools }: { appDevTools: boolean 
   }
   // Removing a project, from wherever a window asks for it (w): the human confirms, then its open tasks are closed
   // in every window, and its data deleted (projects.ts).
-  async function deleteProject(id: string, w: Asker | null) {
+  async function deleteProject(id: string, w: AppWindow | null) {
     const p = store.projects().find((x) => x.id === id);
     if (!p) return { error: `no project ${id}` };
     const open = shell.open.get(id);

@@ -6,16 +6,16 @@ import { Accordion, AccordionHeader, AccordionItem, AccordionPanel, Button, Fiel
   tokens } from '@fluentui/react-components';
 import { AddRegular, SubtractRegular } from '@fluentui/react-icons';
 import { install, loadAccounts, openInstallDetails, shortPath, showAccounts, useAgents } from './agents';
-import { RightClickMenu } from './Menus';
+import { RightClickMenu } from '../Menus';
 import { List } from './List';
 import { Group, Tool } from './Group';
-import { SignIn } from './SignIn';
-import { refused } from '../../shared/result';
-import type { AgentInfo } from '../../shared/types';
-import { ErrorBar } from './ErrorBar';
+import { SignIn } from '../SignIn';
+import { refused } from '../../../shared/result';
+import type { AgentInfo } from '../../../shared/types';
+import { ErrorBar } from '../ErrorBar';
 
 const useStyles = makeStyles({
-  page: { display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalL, maxWidth: '720px' },
+  page: { display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalL },
   status: { display: 'flex', alignItems: 'center', gap: tokens.spacingHorizontalS, flexWrap: 'wrap' },
   mono: { overflowWrap: 'anywhere', userSelect: 'text' },
   install: { display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalXS },

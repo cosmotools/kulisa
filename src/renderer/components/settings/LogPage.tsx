@@ -3,10 +3,10 @@
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import { Button, Link, makeStyles, MenuButton, mergeClasses, SearchBox, Switch, Text, Toast, Toaster, ToastTitle, tokens, Toolbar,
   ToolbarRadioButton, ToolbarRadioGroup, Tooltip, useId, useToastController } from '@fluentui/react-components';
-import { ButtonMenu } from './Menus';
-import { refused } from '../../shared/result';
-import { useCommonStyles } from './theme';
-import { ErrorBar } from './ErrorBar';
+import { ButtonMenu } from '../Menus';
+import { refused } from '../../../shared/result';
+import { useCommonStyles } from '../theme';
+import { ErrorBar } from '../ErrorBar';
 
 // A line as the file has it: [date T time offset] [level] [tag …] the rest (log.ts, stamp; electron-log's local time with
 // a space and no offset read too); a line not of that shape (an object's lines under an [electron] event) belongs to the

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Button, Field, Input, Link, makeStyles, Text, tokens, Tooltip } from '@fluentui/react-components';
 import { FolderOpenRegular } from '@fluentui/react-icons';
-import type { AboutFolder, AboutInfo } from '../../shared/types';
+import type { AboutFolder, AboutInfo } from '../../../shared/types';
 
 const FOLDERS: Record<AboutFolder, { label: string; hint: string }> = {
   data: { label: 'Data', hint: 'Profiles with their sign-ins, agents\' accounts, projects\' tasks, settings, the log.' },
@@ -12,10 +12,9 @@ const FOLDERS: Record<AboutFolder, { label: string; hint: string }> = {
 };
 
 const useStyles = makeStyles({
-  page: { display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalL, maxWidth: '640px' },
+  page: { display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalL },
   // a flex item's heading keeps its own margins: the gap spaces them
   heading: { margin: 0 },
-  missing: { color: tokens.colorNeutralForegroundDisabled },
 });
 
 export function AboutPage() {
@@ -31,7 +30,8 @@ export function AboutPage() {
     </div>
     <Text as="h2" weight="semibold" className={styles.heading}>Where Kulisa keeps things</Text>
     {info.folders.map((f) => <Field key={f.id} data-folder={f.id} label={FOLDERS[f.id].label} hint={FOLDERS[f.id].hint}>
-      <Input readOnly value={f.path} input={{ className: f.exists ? undefined : styles.missing }}
+      {/* a folder not made yet: disabled, as its button */}
+      <Input readOnly disabled={!f.exists} value={f.path}
         contentAfter={<Tooltip content={f.exists ? 'Show in your file manager' : 'Not made yet'} relationship="label">
           <Button appearance="transparent" size="small" icon={<FolderOpenRegular />} disabled={!f.exists} onClick={() => void kulisa.invoke('about:show-folder', f.id)} />
         </Tooltip>} />

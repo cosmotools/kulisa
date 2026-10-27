@@ -3,16 +3,16 @@
 import { useState, type KeyboardEvent } from 'react';
 import { Avatar, Button, Field, ImageSwatch, Input, MenuButton, Popover, PopoverSurface, PopoverTrigger, SwatchPicker, Text, Textarea,
   makeStyles, renderSwatchPickerGrid, tokens } from '@fluentui/react-components';
-import { avatarSrc } from './avatar';
-import { AVATARS } from '../../shared/avatars';
-import { refused, type Result } from '../../shared/result';
-import type { SettingsProfile } from '../../shared/types';
-import { useCommonStyles } from './theme';
+import { avatarSrc } from '../../lib/common';
+import { AVATARS } from '../../../shared/avatars';
+import { refused, type Result } from '../../../shared/result';
+import type { SettingsProfile } from '../../../shared/types';
+import { useCommonStyles } from '../theme';
 
 type Fields = 'picture' | 'name' | 'about' | 'login' | 'password' | 'signins';
 
 const useStyles = makeStyles({
-  page: { display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalL, maxWidth: '560px' },
+  page: { display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalL },
   fit: { width: 'fit-content' },
 });
 

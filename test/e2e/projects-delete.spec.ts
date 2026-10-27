@@ -6,7 +6,7 @@ import { choose, projectTabs, projectTabSel, fromSidebar, openSidebar, taskRow, 
 import { git, committed, begin, bothOn, taskShown, taskTabs } from './tasks-helpers.ts';
 import { createWorktree } from '../../src/main/worktrees.ts';
 
-test("projects: Delete Project… (the projects' manager alone) asks, closes the project when open, deletes its data and its tasks' copies, never its folder; New Project takes its code from folders on the disk or clones it from URLs, one or several, making no other folder", async ({ core, ui, sui, files }) => {
+test("projects: Delete Project… (in Settings alone) asks, closes the project when open, deletes its data and its tasks' copies, never its folder; New Project takes its code from folders on the disk or clones it from URLs, one or several, making no other folder", async ({ core, ui, sui, files }) => {
   test.slow(); // git's work (worktrees, clones), five projects made and deleted, the project's tasks closed and opened again
   const root = files.root, home = await core((k) => k.shell.projectsHome);
   await removed(...['spare', 'gone', 'back', 'cloned.git', 'back.git', 'bad'].map((d) => path.join(root, d)), path.join(home, 'cloned'), path.join(home, 'fullstack'));
@@ -32,11 +32,10 @@ test("projects: Delete Project… (the projects' manager alone) asks, closes the
   fs.writeFileSync(path.join(data, 'tasks.json'), JSON.stringify({ list: [{ id: 'aaaaa1', name: 'task-1', named: true, resources: [{ kind: 'maintree', folder: spare }] }, { id: 'aaaaa2', name: 'Idea', named: true, resources: [{ kind: 'worktree', ...wt }] }] }));
   await core((k) => k.shell.sendProjects()); // made behind the windows' back: they are told, as when a project is made
 
-  // In the projects' manager, its Delete Project…: the human is told what goes (asked in Settings' window), says no,
-  // then yes.
+  // In Settings, its Delete Project…: the human is told what goes, says no, then yes.
   const removeRow = async (folder = 'spare', yes = true) => {
     const { id, name } = await core((k, i) => k.shell.store.projects().find((x) => x.id === i), files.pid(folder));
-    if (!(await core((k) => !!k.shell.settings))) await ui.locator('#manageProjects').click();
+    if (!await ui.locator('#settings').count()) await ui.locator('#manageProjects').click();
     const s = await sui();
     await navRow(s, `p:${id}`).click();
     await pageOf(s, name);
@@ -76,7 +75,7 @@ test("projects: Delete Project… (the projects' manager alone) asks, closes the
   const field = (name: string) => np.getByRole('textbox', { name, exact: true });
   const where = np.getByRole('status', { name: 'What will happen' });
   const newProject = async (from: string) => {
-    if (await core((k) => !!k.shell.settings)) await closeSettings(core, ui, sui);
+    if (await ui.locator('#settings').count()) await closeSettings(core, ui, sui);
     await openSidebar(ui);
     await ui.getByRole('button', { name: 'New Project…' }).click();
     await np.getByRole('tab', { name: from }).click();
@@ -126,8 +125,9 @@ test("projects: Delete Project… (the projects' manager alone) asks, closes the
   const goneData = path.join(files.userData, 'projects', files.pid('gone'));
   await removeRow('gone');
   await expect.poll(async () => (await projects()).includes('gone')).toBe(false);
-  // Its grid taken down closes the window's dialogs, the manager too (lib/views.ts, closeLayers).
-  if (await core((k) => !!k.shell.settings)) await closeSettings(core, ui, sui);
+  // Settings stays over the window as its grid changes underneath (lib/cover.ts, 'page').
+  await expect(ui.locator('#settings')).toHaveCount(1);
+  if (await ui.locator('#settings').count()) await closeSettings(core, ui, sui);
   await expect.poll(() => core((k, f) => k.shell.current?.folder === f && !!k.shell.task?.loaded, files.project)).toBe(true);
   expect(await projectTabs(ui, files), 'the tab next to it shown').toEqual(['project', 'project *']);
   expect(fs.existsSync(goneDir) && !fs.existsSync(goneData)).toBe(true);
@@ -185,7 +185,7 @@ test("projects: Delete Project… (the projects' manager alone) asks, closes the
   expect([full.name, full.folders]).toEqual(['fullstack', [path.join(stack, 'cloned'), path.join(stack, 'back')]]);
   await removeRow('cloned');
   await expect.poll(async () => (await projects()).includes('cloned')).toBe(false);
-  if (await core((k) => !!k.shell.settings)) await closeSettings(core, ui, sui);
+  if (await ui.locator('#settings').count()) await closeSettings(core, ui, sui);
   // A URL git cannot clone: git's own words, nothing left behind, the clones before it neither.
   expect((await invoke(ui, 'project:new', { from: 'clone', name: 'bad', location: root, urls: [bare, path.join(root, 'none.git')] })).error).toBeTruthy();
   expect(!fs.existsSync(path.join(root, 'bad')) && !(await projects()).includes('bad')).toBe(true);

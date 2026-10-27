@@ -10,7 +10,7 @@ const textbox = (s: Page, label: string) => s.getByRole('textbox', { name: label
 const picture = (s: Page) => s.getByRole('button', { name: 'Picture', exact: true });
 const pictures = (s: Page) => s.getByRole('dialog', { name: 'Pictures' });
 
-test('profiles are made in Settings (Profiles\' + in its nav), each with its own picture and, if the human says, who it is; added to the project on its page, opened in its task; the pages stay on screen under Settings\' window', async ({ core, ui, sui, files }) => {
+test('profiles are made in Settings (Profiles\' + in its nav), each with its own picture and, if the human says, who it is; added to the project on its page, opened in its task, its page on screen once Settings is closed', async ({ core, ui, sui, files }) => {
   // None yet, as in a new Kulisa: the profiles a test before left deleted as the human deletes them.
   for (const id of await core((k) => k.shell.profileStore.all().map((p) => p.id))) {
     const deleted = invoke(ui, 'profiles:delete', { profile: id });
@@ -71,10 +71,10 @@ test('profiles are made in Settings (Profiles\' + in its nav), each with its own
   await act(ui, 'profile:open', { profile: sam });
   await act(ui, 'profile:open', { profile: elon });
   expect(await core((k) => [...k.shell.profiles.keys()])).toEqual([sam, elon]);
-  // Settings is a window of its own: the task's pages stay on screen and live (a dialog had hidden them). Elon's first
-  // tab comes after it is opened.
-  await expect.poll(() => core((k, id) => !!k.shell.profiles.get(id).get()?.view.getVisible(), elon)).toBe(true);
   await closeSettings(core, ui, sui);
+  // Hidden under Settings (the pages draw above the window's HTML), on screen once it is closed. Elon's first tab comes
+  // after it is opened.
+  await expect.poll(() => core((k, id) => !!k.shell.profiles.get(id).get()?.view.getVisible(), elon)).toBe(true);
   await expect(ui.locator('[role="region"][data-profile]')).toHaveCount(2);
   // The first page over the terminal alone took half the grid (dockview's split); the terminal keeps its share.
   const grid = await ui.locator('#dock').boundingBox(), terminal = await ui.getByRole('region', { name: 'Terminal', exact: true }).boundingBox();

@@ -1,8 +1,8 @@
 // The window's UI (src/renderer: React components on Fluent UI, in TypeScript), built by Vite into dist/renderer, which the main
 // process loads from disk (window.ts, master.ts): no dev server, as no page of the app may load from an HTTP server
-// of its own (CLAUDE.md, Hard-won facts). Four pages: a tasks' window (index.html), Settings' window (settings.html),
-// a master's window (master.html) and a screenshot's thumbnail (thumbnail.html: only loading
-// src/screenshots/renderer/thumbnail.ts; a page outside the root is refused).
+// of its own (CLAUDE.md, Hard-won facts). Three pages: a tasks' window (index.html), a master's window (master.html) and
+// a screenshot's thumbnail (thumbnail.html: only loading src/screenshots/renderer/thumbnail.ts; a page outside the root
+// is refused).
 //   npm run build   type checks (tsc), then builds; npm start and npm test build first
 //   npm run watch   builds again on every change (then reload the window: Ctrl+R in its DevTools, or restart)
 // Not Electron Forge's Vite plugin: it packages only what Vite built (.vite/), the main process included, and
@@ -24,7 +24,6 @@ export default defineConfig({
     cssTarget: 'chrome150',
     chunkSizeWarningLimit: 2000, // xterm, dockview, React and Fluent UI in one bundle, read from disk: no network to split it for
     sourcemap: true, // Kulisa's own DevTools, running from source; packaged builds leave them out (forge.config.ts)
-    rolldownOptions: { input: { index: resolve(renderer, 'index.html'), master: resolve(renderer, 'master.html'), settings: resolve(renderer, 'settings.html'),
-      thumbnail: resolve(renderer, 'thumbnail.html') } },
+    rolldownOptions: { input: { index: resolve(renderer, 'index.html'), master: resolve(renderer, 'master.html'), thumbnail: resolve(renderer, 'thumbnail.html') } },
   },
 });

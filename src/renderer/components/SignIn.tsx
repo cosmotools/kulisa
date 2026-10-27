@@ -3,7 +3,7 @@
 // in the browser, only confuses; it is there for a failure (opened by itself then) and for what the browser does not
 // show (a code the agent asks for). Gone (Cancel, its page left), the sign-in is cancelled.
 import { useEffect, useRef, useState } from 'react';
-import { Accordion, AccordionHeader, AccordionItem, AccordionPanel, Button, Spinner, Text, makeStyles,
+import { Accordion, AccordionHeader, AccordionItem, AccordionPanel, Button, Card, Spinner, Text, makeStyles,
   tokens } from '@fluentui/react-components';
 import { forgetTerminals } from '../../terminal/renderer';
 import { Terminal } from './Terminal';
@@ -15,8 +15,7 @@ const fresh = () => `signin#${Date.now()}-${++n}`; // a sign-in's terminal: a ne
 
 const useStyles = makeStyles({
   signIn: { display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalS },
-  terminal: { height: '160px', boxSizing: 'border-box', padding: `${tokens.spacingVerticalXS} ${tokens.spacingHorizontalS}`, border: `1px solid ${tokens.colorNeutralStroke1}`,
-    borderRadius: tokens.borderRadiusMedium, background: tokens.colorNeutralBackground3, overflow: 'hidden' },
+  terminal: { height: '160px' },
   buttons: { display: 'flex', gap: tokens.spacingHorizontalS },
 });
 export function SignIn({ agent, project, onDone, onClose }: { agent: { id: string; name: string }; project?: string; onDone: (r: Answer) => void; onClose: () => void }) {
@@ -48,7 +47,7 @@ export function SignIn({ agent, project, onDone, onClose }: { agent: { id: strin
       <AccordionItem value="details">
         <AccordionHeader size="small">Details</AccordionHeader>
         <AccordionPanel>
-          <Terminal terminal={key} background="colorNeutralBackground3" className={styles.terminal} />
+          <Card appearance="outline" size="small"><Terminal terminal={key} className={styles.terminal} /></Card>
         </AccordionPanel>
       </AccordionItem>
     </Accordion>

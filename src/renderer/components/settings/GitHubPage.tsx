@@ -5,13 +5,13 @@ import { useEffect, useRef, useState } from 'react';
 import { Badge, Button, Field, Input, Link, makeStyles, MessageBar, MessageBarActions, MessageBarBody, MessageBarTitle, Text,
   tokens } from '@fluentui/react-components';
 import { AddRegular, SubtractRegular } from '@fluentui/react-icons';
-import { ButtonMenu, RightClickMenu, type Item } from './Menus';
+import { ButtonMenu, RightClickMenu, type Item } from '../Menus';
 import { List } from './List';
 import { Group, Tool } from './Group';
-import { refused } from '../../shared/result';
-import { NEW_TOKEN, type GitHubAccount, type GitHubInfo } from '../../github/ipc';
-import { useCommonStyles } from './theme';
-import { ErrorBar } from './ErrorBar';
+import { refused } from '../../../shared/result';
+import { NEW_TOKEN, type GitHubAccount, type GitHubInfo } from '../../../github/ipc';
+import { useCommonStyles } from '../theme';
+import { ErrorBar } from '../ErrorBar';
 
 const useStyles = makeStyles({
   page: { display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalL },

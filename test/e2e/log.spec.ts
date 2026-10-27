@@ -20,7 +20,9 @@ test("☰ → Report a Problem… opens Settings at the Log page: the log so far
   await invoke(ui, 'theme:set', 'dark');
   await expect.poll(async () => (await lines()).at(-1)).toContain('[ipc]theme:set wc=');
   await expect(line.last(), 'the end in view').toBeInViewport();
-  // Scrolled up, Follow lets go; checked again, back to the end.
+  // Scrolled up, Follow lets go; checked again, back to the end. Lines logged until there is somewhere to scroll: Settings
+  // takes the whole window.
+  while (await log.evaluate((b) => b.scrollHeight <= b.clientHeight)) await invoke(ui, 'theme:set', 'dark');
   const follow = s.getByRole('switch', { name: 'Follow' });
   await log.evaluate((b) => { b.scrollTop = 0; b.dispatchEvent(new Event('scroll')); });
   await expect(follow).not.toBeChecked();

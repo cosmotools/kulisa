@@ -120,7 +120,6 @@ test('Settings → Agents (not the terminal only): what is installed, installs t
   await expect(s.locator('[data-key="a:fake"]')).toContainText('not installed');
   await showAgent(s, 'fake');
   await expect(s.getByRole('navigation', { name: 'Path' }).locator('[aria-current="page"]')).toHaveText('Fake agent');
-  expect(await core((k) => k.shell.settings.win.getTitle())).toBe('Settings — Kulisa');
   await expect(s.locator('[data-key="a:shell"]'), 'not the terminal only: nothing of it to set up').toHaveCount(0);
   const page = agentPage(s, 'fake'), newAccount = page.getByRole('button', { name: 'New Account…: signed in with its own sign-in' });
   await expect(page.getByText('No accounts yet.', { exact: true })).toBeVisible();

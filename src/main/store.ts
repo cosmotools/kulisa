@@ -87,8 +87,7 @@ interface TasksFile { list: TaskEntry[] }
 // A window as settings.json keeps it: its tasks by key ("<project id>/<task id>", tasks.ts) in the bar's order, the shown
 // one.
 interface SavedWindow { tabs: string[]; shown: string | null; bounds?: Electron.Rectangle; maximized?: boolean }
-interface Settings { uiZoom?: number; theme?: 'dark' | 'light' | 'system'; bar?: 'top' | 'bottom'; language?: string; keys?: Record<string, string>; windows?: SavedWindow[];
-  settingsWindow?: Electron.Rectangle } // where Settings' window was (settings-window.ts)
+interface Settings { uiZoom?: number; theme?: 'dark' | 'light' | 'system'; bar?: 'top' | 'bottom'; language?: string; keys?: Record<string, string>; windows?: SavedWindow[] }
 // A profile as a task keeps it in profiles.json (project-profiles.ts).
 interface TaskProfile { id: string; zoom?: Record<string, number>; closed?: boolean }
 // A task's agents (tasks.ts): the one it was made with (opened when it has never had a terminal), and every
@@ -134,7 +133,7 @@ class Store {
   nextColor() { return nextColor(this.projects()); }
   // The projects that have an agent's account or a profile (by its id).
   projectsWith(list: 'agents' | 'profiles', item: string) { return this.projects().filter((p) => p[list]?.includes(item)); }
-  // A project's name, agents or repositories changed (the projects' manager); its id stays.
+  // A project's name, agents or repositories changed (Settings); its id stays.
   // null fields go.
   updateProject(id: string, fields: { [K in keyof ProjectEntry]?: ProjectEntry[K] | null }): ProjectEntry | null {
     const list = this.projects(), i = list.findIndex((p) => p.id === id);

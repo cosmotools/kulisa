@@ -16,11 +16,12 @@ const accounts = (core: Core) => core((k) => k.shell.github.accounts.list() as A
 const stored = (files: Files): Account[] => files.json('github.json').list;
 const idOfLogin = async (core: Core, login: string, kind = 'app') => (await accounts(core)).find((a) => a.login === login && a.kind === kind).id;
 // No accounts, Settings closed: what a test starts from (deleting one as the human does: the last test).
-async function clean(core: Core) {
-  await core((k) => { for (const a of k.shell.github.accounts.list()) k.shell.github.accounts.delete(a.id); k.shell.settings?.win.close(); });
-  await expect.poll(() => core((k) => !k.shell.settings)).toBe(true);
+async function clean(core: Core, ui: Page) {
+  await core((k) => { for (const a of k.shell.github.accounts.list()) k.shell.github.accounts.delete(a.id); });
+  if (await ui.locator('#settings').count()) await ui.locator('#manageProjects').click();
+  await expect(ui.locator('#settings')).toHaveCount(0);
 }
-// Settings' window open (on Settings → GitHub once it is), its page.
+// Settings shown (on Settings → GitHub once it is), its window's page.
 async function settings(core: Core, sui: () => Promise<Page>, at: SettingsAt = { section: 'projects', id: null }) {
   await core((k, a) => k.shell.openSettings(a), at);
   return sui();
@@ -98,7 +99,7 @@ const removeProject = (core: Core, id: string) => core((k, p) => { const x = k.s
 const bind = (s: Page, a: { id: string; remote: string; account: string }) => invoke(s, 'project:github-set', a);
 
 test('GitHub: signing in with Kulisa App, Kulisa shows the code itself and opens GitHub\'s page; the account comes once it is entered there, no token on disk or in the log', async ({ core, ui, sui, files }) => {
-  await clean(core);
+  await clean(core, ui);
   const s = await githubPage(core, sui);
   await expect(s.getByText('No accounts yet.', { exact: true })).toBeVisible();
   await addAccount(s, 'With GitHub…');
@@ -122,7 +123,7 @@ test('GitHub: signing in with Kulisa App, Kulisa shows the code itself and opens
 });
 
 test('GitHub: a code denied on GitHub says so; a sign-in cancelled makes nothing', async ({ core, ui, sui }) => {
-  await clean(core);
+  await clean(core, ui);
   const s = await githubPage(core, sui);
   await addAccount(s, 'With GitHub…');
   await enter(await shownCode(s), 'deny=1');
@@ -136,7 +137,7 @@ test('GitHub: a code denied on GitHub says so; a sign-in cancelled makes nothing
 });
 
 test('GitHub: a fine-grained token, checked with GitHub, its end read from GitHub\'s answer; a classic one refused', async ({ core, ui, sui, files }) => {
-  await clean(core);
+  await clean(core, ui);
   const s = await githubPage(core, sui);
   await addAccount(s, 'With a Token…');
   await typeToken(s, 'ghp_classic');
@@ -152,7 +153,7 @@ test('GitHub: a fine-grained token, checked with GitHub, its end read from GitHu
 });
 
 test("GitHub: a repository's row: the account that reaches its remote suggested and bound (by its remote, whatever its address), why none can, not a GitHub address; another chosen", async ({ core, ui, sui, files }) => {
-  await clean(core);
+  await clean(core, ui);
   const { ann, bob } = await annAndBob(core, sui);
   const { id, folders } = await ghProject(core, files);
   try {
@@ -182,7 +183,7 @@ test("GitHub: a repository's row: the account that reaches its remote suggested 
 });
 
 test('GitHub: signed out (a refresh refused): said on the account and on its repositories; Sign in Again with a new token', async ({ core, ui, sui, files }) => {
-  await clean(core);
+  await clean(core, ui);
   const { s: page, bob } = await annAndBob(core, sui);
   const { id } = await ghProject(core, files);
   try {
@@ -209,7 +210,7 @@ test('GitHub: signed out (a refresh refused): said on the account and on its rep
 });
 
 test('GitHub: deleting an account asks first, linking where to revoke it on GitHub; its projects let go of it', async ({ core, ui, sui, files }) => {
-  await clean(core);
+  await clean(core, ui);
   const { s: page, ann, bob } = await annAndBob(core, sui);
   const { id } = await ghProject(core, files);
   try {
@@ -233,7 +234,7 @@ test('GitHub: deleting an account asks first, linking where to revoke it on GitH
 
 // The account's Dropdown keeps Delete and the arrows to itself, not Esc.
 test('Delete on a repository\'s account leaves its folder in the project; Esc there closes Settings (as after choosing one)', async ({ core, ui, sui, files }) => {
-  await clean(core);
+  await clean(core, ui);
   await annAndBob(core, sui);
   const { id, folders } = await ghProject(core, files);
   try {
@@ -247,7 +248,7 @@ test('Delete on a repository\'s account leaves its folder in the project; Esc th
 // The token kept with the keyring, else (no keyring: basic_text) only while Kulisa ran.
 test('after a restart: a GitHub sign-in is kept with the keyring, or signed out without one', async ({ core, ui, sui, restart }) => {
   test.setTimeout(60000); // a restart
-  await clean(core);
+  await clean(core, ui);
   const s = await githubPage(core, sui);
   await addAccount(s, 'With a Token…');
   await typeToken(s, 'github_pat_bob_acme');

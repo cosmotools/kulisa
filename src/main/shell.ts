@@ -11,10 +11,9 @@ import type { Agent, Found } from './agents/index.ts';
 import type { Profile, Tab } from './profiles.ts';
 import type { Project } from './projects.ts';
 import type { Task } from './tasks.ts';
-import type { AppWindow, Asker } from './window.ts';
+import type { AppWindow } from './window.ts';
 import type { Question, ProjectEntry as SentProject, LanguageInfo, Shortcut } from '../shared/types.ts';
 import type { Master } from './master.ts';
-import type { SettingsWindow } from './settings-window.ts';
 import type { SettingsAt } from '../shared/ipc.ts';
 import type { Pty } from '../terminal/main/index.ts';
 import type { signinPages } from './signin-pages.ts';
@@ -53,10 +52,10 @@ interface Shell {
   tabOf(wc: WebContents): { w: AppWindow; profile: Profile; tab: Tab } | null;
   taskChanged(task: Task, now?: boolean, agentState?: boolean): void;
   projects(): SentProject[];
-  askWhich(q: Question, w?: Asker | null): Promise<string | null>;
+  askWhich(q: Question, w?: AppWindow | null): Promise<string | null>;
   restart(apply?: () => void): Promise<void>; // into a new version: everything saved as at quitting (updates.ts)
-  ask(q: Question, w?: Asker | null): Promise<boolean>;
-  front(): AppWindow | null; // the tasks' window last in front: the one Settings acts for (settings-window.ts)
+  ask(q: Question, w?: AppWindow | null): Promise<boolean>;
+  front(): AppWindow | null; // the tasks' window last in front
   saveWindows(): void;
   sendProjects(): void;
   uiZoom: number; setUiZoom(z: number): void;
@@ -78,9 +77,8 @@ interface Shell {
   findAgent(agent: Agent, cwd: string): Promise<Found | null>;
   chooseAgent: ((task: Task, agent: AgentChoice | null) => Promise<AgentChoice | null>)
     & { cancel(task: Task): void };
-  // settings-window.ts: Settings' window while it is open, at a page.
-  settings: SettingsWindow | null;
-  openSettings(at: SettingsAt): void;
+  // Settings shown in a window (the one last in front when none is named), at a page.
+  openSettings(at: SettingsAt, w?: AppWindow | null): void;
   // master.ts
   masters: Map<string, Master>;
   flushMaster(id: string): Promise<void>;

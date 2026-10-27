@@ -5,15 +5,16 @@ import electron from 'electron';
 import type { IpcMainEvent, IpcMainInvokeEvent } from 'electron';
 import type { Invoke, Send } from '../shared/ipc.ts';
 import type { Shell } from './shell.ts';
-import type { AppWindow, Asker } from './window.ts';
+import type { AppWindow } from './window.ts';
 import type { OpenTasks } from './open-tasks.ts';
 import { bare, log, summary } from './log.ts';
 
 // Every channel is logged with who sent it (log.ts), but these: the terminal's keystrokes and size (never: what is typed),
 // and what comes on every change, draw or hover (the grid's boxes, layouts, lists read again, the paths under the pointer), which would fill the log with
-// nothing. An answer to a question is logged without the answer: it may be anything the human typed.
+// nothing; and Settings shown and left, which say so in lines of their own (app.ts, openSettings; ipc/window.ts). An
+// answer to a question is logged without the answer: it may be anything the human typed.
 const QUIET = new Set<string>(['pty:in', 'pty:resize', 'terminal:files', 'layout', 'layout:save', 'layout:load', 'views:hidden', 'keys:zone', 'zoom:get', 'voice:get', 'voice:record',
-  'language:get', 'tasks:get', 'projects:list', 'accounts:list', 'profiles:list', 'agents:list', 'settings:ready', 'github:accounts', 'project:github-get']);
+  'language:get', 'tasks:get', 'projects:list', 'accounts:list', 'profiles:list', 'agents:list', 'settings:open', 'settings:close', 'github:accounts', 'project:github-get']);
 const BARE = new Set<string>(['ask:answer']);
 function line(channel: string, e: IpcEvent, args: unknown[]) {
   if (QUIET.has(channel)) return;
@@ -40,14 +41,11 @@ export function on<C extends keyof Send>(channel: C, fn: (e: IpcMainEvent, arg: 
 
 export type IpcEvent = IpcMainEvent | IpcMainInvokeEvent;
 
-// What the windows' handles (ipc/) get: the app, the tasks' window a message comes from (at) or is about (owner: for
-// Settings, the tasks' window last in front), where its questions are asked (asker: its own window, Settings' too),
-// the open tasks (open-tasks.ts) and their one-after-another.
+// What the windows' handles (ipc/) get: the app, the window a message comes from (at: where its questions are asked
+// too), the open tasks (open-tasks.ts) and their one-after-another.
 export interface Ipc {
   shell: Shell;
   at: (e: IpcEvent) => AppWindow | null;
-  owner: (e: IpcEvent) => AppWindow | null;
-  asker: (e: IpcEvent) => Asker | null;
   tasks: OpenTasks;
   serial: OpenTasks['serial'];
 }

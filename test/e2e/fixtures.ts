@@ -173,7 +173,7 @@ type Fixtures = {
   // Kulisa started without a debugging port (test.use({ automation: false })): ui, sui and the trace are not there.
   automation: boolean;
   kulisa: Running; core: Core; ui: Page; call: Call;
-  // Settings' window's page, once it is open and loaded (settings-window.ts).
+  // The page of the tasks' window showing Settings, once its nav is there (components/settings).
   sui: () => Promise<Page>;
   // The test's Kulisa quit as the human quits it and started again in the same folder (KULISA_RESTART, app.ts): its
   // window's page given back; core, call, sui and mcp reach the new Kulisa.
@@ -249,10 +249,10 @@ export const test = base.extend<Fixtures, { display: string | null; running: { c
   sui: async ({ kulisa, running }, use) => {
     void kulisa;
     await use(async () => {
-      const context = running.current.context, isSettings = (p: Page) => p.url().includes('settings.html') && !p.isClosed();
-      const p = context.pages().find(isSettings) ?? await context.waitForEvent('page', isSettings);
-      await p.waitForLoadState();
-      return p;
+      const shows = async (p: Page) => !p.isClosed() && p.url().includes('index.html') && await p.locator('#settings nav').isVisible().catch(() => false);
+      const found = async () => { for (const p of running.current.context.pages()) if (await shows(p)) return p; return null; };
+      await expect.poll(async () => !!await found(), { message: 'Settings shown in a window' }).toBe(true);
+      return found();
     });
   },
   restart: async ({ kulisa, running, display }, use, info) => {

@@ -14,7 +14,7 @@ import type { Pty } from '../../terminal/main/index.ts';
 import type * as Sent from '../../shared/types.ts'; // what the window gets: its one definition
 
 export function registerAgents(ipc: Ipc) {
-  const { shell, owner, asker, serial } = ipc;
+  const { shell, at, serial } = ipc;
   const store = shell.store;
   // The accounts (Settings → Agents), each with the projects it is in; clis: the agents an account can be made of.
   const accountsInfo = (): Sent.AccountsInfo => {
@@ -25,7 +25,7 @@ export function registerAgents(ipc: Ipc) {
   handle('accounts:list', () => accountsInfo());
   // Delete Account… (projects.ts: refused while a task runs it, asked first). { accounts, clis } or { error }.
   handle('account:delete', (e, { id }) => serial(async () => {
-    const r = await deleteAccount(shell, id, asker(e));
+    const r = await deleteAccount(shell, id, at(e));
     if (refused(r)) return r;
     shell.sendProjects(); // +'s right-click menu of the projects that had it
     return accountsInfo();
@@ -92,7 +92,7 @@ export function registerAgents(ipc: Ipc) {
   };
   const notYet: { list: null } = { list: null }; // not looked for in this folder yet
   handle('agents:list', async (e, { check, details, cached } = {}) => {
-    const w = owner(e), looks = new Map<string, ReturnType<typeof look>>(), cwd = w?.task?.folder || app.getPath('home'); // each agent looked for once, whatever its accounts
+    const w = at(e), looks = new Map<string, ReturnType<typeof look>>(), cwd = w?.task?.folder || app.getPath('home'); // each agent looked for once, whatever its accounts
     // The project's agents first (Choose the Agent), in its order.
     const mine = w?.task?.project.agents() || [], rank = (id: string) => (mine.includes(id) ? mine.indexOf(id) : mine.length);
     // Choosing a task's: the project's accounts, and the agents without accounts (the terminal only); never another
@@ -119,7 +119,7 @@ export function registerAgents(ipc: Ipc) {
   });
   // The maker's installer, run when the human clicks Install (that is their go-ahead); its output goes to the window.
   handle('agents:install', async (e, { id }) => {
-    const w = owner(e), a = shell.agentFor(id, { any: true });
+    const w = at(e), a = shell.agentFor(id, { any: true });
     if (!a?.install) return { error: `nothing to install for ${id}` };
     const { code, log } = await installAgent(a, (data) => { if (!e.sender.isDestroyed()) e.sender.send('agents:install-log', data); });
     return { code, log, installed: !!(await look(a, w?.task?.folder || app.getPath('home'), true)).found };
