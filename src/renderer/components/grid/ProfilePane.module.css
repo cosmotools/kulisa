@@ -1,9 +1,9 @@
 /* A profile's pane and its header (ProfilePane.tsx). */
 .pane { height: 100%; display: flex; flex-direction: column; min-width: 0; background: var(--colorNeutralBackground1); }
 /* The tabs scroll in their strip; + is next to it, never over a tab, as in Chrome. The strip's right-click area
-   (RightClickMenu's own element) shrinks with it. */
+   shrinks with it. */
 .tabs { display: flex; align-items: center; gap: var(--spacingHorizontalXS); padding: 0 var(--spacingHorizontalS); flex: none; }
-.tabs > div { display: flex; min-width: 0; }
+.strip { display: flex; min-width: 0; }
 .tabs [role="tablist"] { flex-shrink: 1; min-width: 0; }
 /* Browser tabs, which Fluent does not have: Fluent's Tab sized here, by role from the strip's box (which also outranks
    Fluent's own classes; docs/ui.md, Own drawing). As Chrome's: 220 px, shrinking to their icon and × (64 px), every one

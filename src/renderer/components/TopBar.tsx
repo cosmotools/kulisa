@@ -104,12 +104,12 @@ export function TopBar({ children }: { children?: ReactNode }) {
   // the bar's edges as no-drag over them too (it does not clip them to the bar) and the regions in the page's order, the
   // last one winning; so both come after the tasks' bar in the page, the logo put first by order. The space is at least
   // 40 px, as Chrome's after its +.
-  return <header id="topbar" className={`${css.bar} ${css.drag}`}>
+  return <header id="topbar" className={css.bar}>
     {children}
-    {!mac && <span data-testid="title-logo" className={`${css.logo} ${css.drag}`}><Logo color={`var(--project, ${tokens.colorNeutralForeground1})`} size={26} /></span>}
-    <span className={`${css.sidebar} ${css.noDrag}`}>{!shown && <SidebarToggle />}</span>
-    <span data-testid="drag-area" className={`${css.space} ${css.drag}`} />
-    <span className={`${css.end} ${css.noDrag}`}>
+    {!mac && <span data-testid="title-logo" className={css.logo}><Logo color={`var(--project, ${tokens.colorNeutralForeground1})`} size={26} /></span>}
+    <span className={css.sidebar}>{!shown && <SidebarToggle />}</span>
+    <span data-testid="drag-area" className={css.space} />
+    <span className={css.end}>
       {zoom !== 1 && <Tooltip content={`Kulisa's zoom. Click to reset (${keyText('zoom.reset')})`} relationship="description">
         <Button id="zoomReset" appearance="subtle" onClick={() => kulisa.invoke('zoom:ui', 0)}>{Math.round(zoom * 100)}%</Button></Tooltip>}
       {/* No tooltip while Settings is shown: one under the pointer would take its first Esc */}

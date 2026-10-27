@@ -11,6 +11,7 @@ import { RightClickMenu } from '../Menus';
 import { shownTask, useWindow } from '../../lib/store';
 import type { MenuItem } from '../../lib/menu';
 import { sizeText } from '../../../shared/bytes';
+import common from '../common.module.css';
 import css from './Resources.module.css';
 
 const KINDS: Record<string, string> = { screenshot: 'Screenshot', snapshot: 'Snapshot', request: 'Request body', response: 'Response body' };
@@ -48,7 +49,7 @@ export function Resources() {
     </List>
     {artifacts.length > 0 && <>
       <div className={css.heading}>
-        <h3 className={css.title}><Caption1Strong>Artifacts</Caption1Strong></h3>
+        <h3 className={common.heading}><Caption1Strong>Artifacts</Caption1Strong></h3>
         <span className={css.size}><Caption1 data-testid="artifacts-size">{sizeText(bytes)}</Caption1></span>
         <Button appearance="subtle" size="small" icon={<DeleteRegular />} aria-label="Delete All Artifacts" title="Delete All Artifacts"
           onClick={() => void deleteArtifacts(null)} />

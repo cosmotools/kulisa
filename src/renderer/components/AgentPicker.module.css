@@ -1,4 +1,4 @@
-/* Choose the Agent (AgentPicker.tsx) and an install's progress: a row an agent, its mark beside its lines. */
+/* Choose the Agent (AgentPicker.tsx) and an install's progress. */
 .content { display: flex; flex-direction: column; gap: var(--spacingVerticalM); }
 .progress { display: flex; flex-direction: column; gap: var(--spacingVerticalXS); }
 .agents { display: flex; flex-direction: column; }

@@ -1,2 +1,4 @@
 /* What many parts share (docs/ui.md, Desktop): text to copy and search for (an error, a path), where the window's is not. */
 .selectable { user-select: text; overflow-wrap: anywhere; }
+/* A heading of ours around Fluent's text (Text sets no margin, and a heading's own stays). */
+.heading { margin: 0; }

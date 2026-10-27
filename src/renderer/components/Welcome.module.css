@@ -1,4 +1,4 @@
-/* The welcome (Welcome.tsx): the slides beside their pictures, then New Project's steps in a card. */
+/* The welcome (Welcome.tsx). */
 .root { flex: 1; display: grid; place-items: safe center; overflow: auto; padding: var(--spacingHorizontalXXXL); box-sizing: border-box; min-height: 0; }
 .dots { display: flex; gap: var(--spacingHorizontalSNudge); margin: 0; padding: 0; list-style: none; }
 .tour { width: min(960px, 100%); }

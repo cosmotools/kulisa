@@ -13,7 +13,7 @@
 .header { display: flex; align-items: center; gap: var(--spacingHorizontalXS); height: 100%; min-width: 0; padding: 0 var(--spacingHorizontalXS); }
 .header[hidden] { display: none; }
 .tabs { display: flex; flex: 0 1 auto; min-width: 0; }
-.tabs > nav { display: flex; min-width: 0; }
+.strip { display: flex; min-width: 0; }
 .tabs [role="tablist"] { flex-shrink: 1; }
 /* Browser tabs, which Fluent does not have: Fluent's Tab as wide as its name up to 220 px, never shrinking (the agents'
    marks look alike), by role from the strip's box (which also outranks Fluent's own classes; docs/ui.md, Own drawing). */

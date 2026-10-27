@@ -25,6 +25,7 @@ export function Ask() {
   }, [a]);
   // Esc is Cancel: Fluent's onOpenChange, from a key in the dialog. A click on the backdrop (which an alert dialog
   // ignores) would move the keyboard to the page's body, where Esc reaches no dialog: it keeps the keyboard where it is.
+  const ok = <Button appearance="primary" onClick={() => answer('ok')}>{q?.ok || 'OK'}</Button>;
   return <Dialog modalType="alert" open={!!a} onOpenChange={(_, d) => { if (!d.open) answer(''); }}>
     <DialogSurface aria-describedby="askdetail" backdrop={{ onMouseDown: (e) => e.preventDefault() }}>
       <DialogBody>
@@ -32,15 +33,13 @@ export function Ask() {
         <DialogContent id="askdetail">
           <div className={css.detail}>
             {q?.detail && <span className={common.selectable}>{q.detail}</span>}
-            {q?.link && <span><Link href={q.link.url} target="_blank">{q.link.label}</Link></span>}
+            {q?.link && <Link href={q.link.url} target="_blank">{q.link.label}</Link>}
           </div>
         </DialogContent>
         <DialogActions>
           <Button autoFocus onClick={() => answer('')}>{q?.cancel || 'Cancel'}</Button>
           {q?.other && <Button onClick={() => answer('other')}>{q.other}</Button>}
-          <FluentProvider theme={q?.danger ? danger : {}}>
-            <Button appearance="primary" onClick={() => answer('ok')}>{q?.ok || 'OK'}</Button>
-          </FluentProvider>
+          {q?.danger ? <FluentProvider theme={danger}>{ok}</FluentProvider> : ok}
         </DialogActions>
       </DialogBody>
     </DialogSurface>

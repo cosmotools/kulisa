@@ -9,6 +9,7 @@ import { registerDialog } from '../lib/dialogs';
 import { useShortcuts } from '../lib/common';
 import { refused } from '../../shared/result';
 import { ErrorBar } from './ErrorBar';
+import common from './common.module.css';
 import css from './Shortcuts.module.css';
 
 const GROUPS = [
@@ -44,7 +45,7 @@ export function Shortcuts() {
         <DialogTitle>Keyboard Shortcuts</DialogTitle>
         <DialogContent><div className={css.groups}>
           {GROUPS.map(([group, title, hint]) => <section key={group} aria-label={title} className={css.group}>
-            <h3 className={css.title}><Subtitle2>{title}</Subtitle2></h3>
+            <h3 className={common.heading}><Subtitle2>{title}</Subtitle2></h3>
             <Caption1>{hint}</Caption1>
             <Table size="small" aria-label={title}>
               <TableBody>

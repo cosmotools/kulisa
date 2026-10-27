@@ -159,7 +159,7 @@ export function TerminalsHeader({ api }: IDockviewPanelHeaderProps) {
   const noDrag = (e: React.DragEvent) => e.preventDefault();
   return <div data-panel={api.id} data-testid="terminal-tabs" hidden={!list.length} className={css.header}>
     <RightClickMenu items={tabMenu} className={css.tabs}>
-      <nav aria-label="Terminals" onDragStart={noDrag}>
+      <nav aria-label="Terminals" className={css.strip} onDragStart={noDrag}>
         <TabList ref={strip} appearance="filled-circular" size="small" reserveSelectedTabSpace={false} selectedValue={front === null ? undefined : String(front)}
           onTabSelect={(_, d) => void act('terminal:show', { id: Number(d.value) })}>
           {list.map((t) => {

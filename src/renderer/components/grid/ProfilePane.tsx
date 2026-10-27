@@ -129,7 +129,7 @@ export function ProfilePane({ api }: IDockviewPanelProps) {
   const run = (channel: 'tab:back' | 'tab:forward' | 'tab:reload') => () => void act(channel, { profile: id, tab: tab() });
   return <div className={css.pane} role="region" aria-label={profile.name} data-profile={id}>
     <nav className={css.tabs} aria-label="Tabs">
-      <RightClickMenu items={tabMenu}>
+      <RightClickMenu items={tabMenu} className={css.strip}>
         <TabList ref={strip} appearance="filled-circular" size="small" reserveSelectedTabSpace={false} selectedValue={profile.active ?? undefined}
           onTabSelect={(e, d) => { if (!('detail' in e && e.detail > 0)) activate(String(d.value)); }}>
           {profile.tabs.map((t) => <Grow key={t.id}><Tab value={t.id} data-tab={t.id} aria-label={t.title || t.url || 'New tab'} title={t.url}

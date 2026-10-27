@@ -2,8 +2,8 @@
    44 px: TITLE_BAR_HEIGHT there). Where the window is dragged by (drag), and what in it takes clicks instead. */
 .bar { height: 44px; display: flex; align-items: center; gap: var(--spacingHorizontalS); min-width: 0; box-sizing: border-box;
   padding-inline-start: calc(env(titlebar-area-x, 0px) + 8px); width: calc(env(titlebar-area-x, 0px) + env(titlebar-area-width, 100%)); }
-.drag { -webkit-app-region: drag; }
-.noDrag { -webkit-app-region: no-drag; }
+.bar, .logo, .space { -webkit-app-region: drag; }
+.sidebar, .end { -webkit-app-region: no-drag; }
 .logo { order: -2; display: flex; }
 .sidebar { order: -1; display: flex; }
 .space { flex: 1 0 40px; align-self: stretch; }

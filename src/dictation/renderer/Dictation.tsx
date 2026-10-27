@@ -20,12 +20,12 @@ const still = matchMedia('(prefers-reduced-motion: reduce)');
 const Mic = bundleIcon(MicFilled, MicRegular);
 // Lit, its main color in every state of the button (pointed at, pressed, checked): a FluentProvider of it around the
 // button, whose brand colors it changes, the button primary then.
-const lit = (color: string): Partial<Theme> => ({ colorBrandBackground: color, colorBrandBackgroundHover: color, colorBrandBackgroundPressed: color,
+const brandAs = (color: string): Partial<Theme> => ({ colorBrandBackground: color, colorBrandBackgroundHover: color, colorBrandBackgroundPressed: color,
   colorBrandBackgroundSelected: color, colorNeutralForegroundOnBrand: tokens.colorNeutralForegroundStaticInverted });
 const LOOK: Record<string, Partial<Theme>> = {
-  recording: lit(tokens.colorPaletteRedBackground3),
+  recording: brandAs(tokens.colorPaletteRedBackground3),
   // Getting ready (~1 s, the hidden session starting): lit, not red yet, so nobody speaks before it hears.
-  starting: lit(tokens.colorPaletteBlueBorderActive),
+  starting: brandAs(tokens.colorPaletteBlueBorderActive),
 };
 
 // task: the task shown; keyName: the key, as the window names it; language: what it hears; onDone: let go, the
@@ -71,8 +71,8 @@ export function Dictation({ task, keyName, language, onDone }: { task: string | 
   // The pane is not dragged by its row's buttons. The tooltip is the native title: a disabled button gets no pointer
   // events, and its tooltip says why it is disabled.
   // The provider stays as the look changes: the button must not mount anew while pressed (its pointer capture).
-  const look = (state && LOOK[state]) || undefined;
-  return <div className={css.root} onDragStart={(e) => e.preventDefault()}><FluentProvider theme={look ?? {}}>
+  const look = state ? LOOK[state] : undefined;
+  return <div className={css.root} onDragStart={(e) => e.preventDefault()}><FluentProvider theme={look}>
     <ToggleButton ref={button} appearance={look ? 'primary' : 'subtle'} shape="circular" size="small" icon={<Mic />} aria-label="Speak to the agent"
       checked={recording} data-state={state} disabled={!v || v.state === 'none'} title={title}
       onPointerDown={press} onPointerUp={release} onPointerCancel={release}
