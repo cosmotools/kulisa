@@ -191,8 +191,7 @@ prompt; the human writes the rest of the message around it.
   `curl -sf -H "Authorization: Bearer $T" …`. A pull request: `POST /repos/cosmotools/kulisa/pulls` (`title`, `head`
   the branch, `base`, `body`); its checks: `GET /repos/cosmotools/kulisa/commits/<sha>/check-runs`; whether it is
   merged: `GET …/pulls/<n>`; a branch removed: `DELETE /repos/cosmotools/kulisa/git/refs/heads/<branch>`; a job's
-  log: `GET …/actions/jobs/<id>/logs` answers with a redirect to a signed address, fetched without the token; a job
-  that failed for the runner, not the code (a download timed out): `POST …/actions/jobs/<id>/rerun`.
+  log: `GET …/actions/jobs/<id>/logs` answers with a redirect to a signed address, fetched without the token.
 
 ## Releases
 
