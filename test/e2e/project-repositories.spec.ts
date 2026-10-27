@@ -73,7 +73,6 @@ test('projects: several repositories: a task works in the main tree until it mak
     - /children: contain
     - text: Add Repository
     - menuitem "web"
-    - separator
     - menuitem "Rename…"
   `);
   await choose(ui, 'web');
@@ -172,7 +171,6 @@ test('projects: several repositories: a task works in the main tree until it mak
       - /children: contain
       - text: Remove Repository
       - menuitem "web"
-      - separator
       - menuitem "Rename…"
     `);
     await choose(ui, 'web');

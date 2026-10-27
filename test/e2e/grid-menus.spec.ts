@@ -7,7 +7,7 @@ import url from 'url';
 import type { Locator, Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
-import { SITE, MAC, WIN, frames, seen, ipcSettled, echoed, menu, anyMenu, item, choose, closeMenu, rightClick, focusWindow, pageBox, viewOn, answer, removed, termKeys } from './helpers.ts';
+import { SITE, MAC, WIN, frames, seen, ipcSettled, echoed, menu, anyMenu, item, choose, closeMenu, rightClick, focusWindow, pageBox, viewOn, answer, removed, termKeys, shortcutsDialog } from './helpers.ts';
 import { SAM, ELON, begin } from './tasks-helpers.ts';
 
 const menuOpen = (ui: Page) => menu(ui).isVisible();
@@ -32,12 +32,12 @@ test('context menus: a pane\'s header, a tab, the terminal; pages are pictures w
       - menuitem "About this profile…"
       - menuitem "Sign In to Master…"
       - menuitem "Close profile"
-      - separator
       - menuitem "Remove from Project…"`;
   await rightClick(ui, header);
   await expect(menu(ui)).toMatchAriaSnapshot(headerMenu);
   const h = await ui.locator(header).boundingBox(), m = await menu(ui).boundingBox();
-  expect(Math.abs(m.x - (h.x + h.width / 2)) <= 4 && Math.abs(m.y - (h.y + h.height / 2)) <= 4, 'at the pointer').toBe(true);
+  // Its list inset by the menu's padding and border (Fluent's).
+  expect(Math.abs(m.x - (h.x + h.width / 2)) <= 8 && Math.abs(m.y - (h.y + h.height / 2)) <= 8, 'at the pointer').toBe(true);
   // The pages are native views above the menu: pictures of them stand in meanwhile.
   expect(await elonVisible()).toBe(false);
   await expect(ui.locator(`[role="region"][data-profile="${elonId}"] [data-testid="page"] [data-testid="snapshot"]`)).toHaveCount(1);
@@ -62,7 +62,6 @@ test('context menus: a pane\'s header, a tab, the terminal; pages are pictures w
     - menu:
       - menuitem "Reload"
       - menuitem "Duplicate"
-      - separator
       - menuitem "Close tab"
       - menuitem "Close other tabs"`);
   await core((k) => { k.stash.firstTab = k.profile('Elon.buyer').tabs[0]; });
@@ -95,12 +94,9 @@ test('context menus: a pane\'s header, a tab, the terminal; pages are pictures w
       - menuitem "Copy" [disabled]
       - menuitem "Paste"
       - menuitem "Select all"
-      - separator
       - menuitem "Clear"
-      - separator
       - menuitem "Change agent…"
       - menuitem "New Conversation"
-      - separator
       - menuitem "Close"`);
   await anyMenu(ui).first().press('ArrowDown');
   await expect(item(ui, 'Paste'), 'arrows move over the enabled rows').toBeFocused();
@@ -215,7 +211,6 @@ test('context menus: a pane\'s header, a tab, the terminal; pages are pictures w
     - menu:
       - text: ${JSON.stringify(`${SITE}/app`)}
 ${names.map((x) => `      - menuitem ${JSON.stringify(`Open in ${x}`)}`).join('\n')}
-      - separator
       - menuitem "Open in your browser"`);
   // The keyboard moving within the window (its page getting it back puts it on the terminal) leaves the menu open.
   await termKeys(ui).focus();
@@ -304,44 +299,31 @@ ${names.map((x) => `      - menuitem ${JSON.stringify(`Open in ${x}`)}`).join('\
   }
 
   await ui.locator('#windowMenu').click();
-  // The arrangements as pictures, a short name under each, the full words in the tooltip.
-  // No Exit on macOS: ⌘Q and the app menu's Quit there (fluent/TopBar.tsx).
+  // Theme, Tasks bar and Language each a menu beside its row (helpers.ts, windowSubmenu); the arrangements a row each,
+  // the full words in the tooltip. No Exit on macOS: ⌘Q and the app menu's Quit there (fluent/TopBar.tsx).
   await expect(menu(ui)).toMatchAriaSnapshot(`
     - menu:
-      - text: Zoom
-      - menuitem "Zoom out"
-      - status
-      - menuitem "Zoom in"
-      - group:
-        - text: Theme
-        - menuitemradio "Dark"
-        - menuitemradio "Light"
-        - menuitemradio "System"
-      - group:
-        - text: Tasks bar
-        - menuitemradio "Top"
-        - menuitemradio "Bottom"
+      - group "Zoom":
+        - text: Zoom
+        - menuitem "Zoom out"
+        - text: 100%
+        - menuitem "Zoom in"
+      - menuitem "Theme"
+      - menuitem "Tasks bar"
       - menuitem "Language"
-      - separator
       - text: Arrange panels
       - menuitem "Columns"
       - menuitem "Two by two"
       - menuitem "One at a time"
-      - separator
       - menuitem "Keyboard Shortcuts"
-      - separator
       - menuitem "Documentation"
       - menuitem "GitHub"
       - menuitem "Report a Problem…"
       - menuitem "About Kulisa"${MAC ? '' : `
-      - separator
       - menuitem "Exit"`}`);
-  expect(await anyMenu(ui).locator('svg:not([hidden]) > use').evaluateAll((us) => us.map((u) => u.getAttribute('href'))), 'each row with its icon')
-    .toEqual(['#i-zoom', '#i-theme', '#i-projects', '#i-language', '#i-chevron', '#i-arrange', '#i-keyboard', '#i-docs', '#i-github', '#i-bug', '#i-logo', ...(MAC ? [] : ['#i-exit'])]);
-  const pics = await anyMenu(ui).getByTestId('arrange-row').getByRole('menuitem').evaluateAll((bs) => bs.map((b) => ({ title: (b as HTMLElement).title,
-    panes: b.querySelectorAll('svg [data-shape="page"]').length, term: b.querySelectorAll('svg [data-shape="term"]').length, w: b.querySelector('svg').getBoundingClientRect().width })));
-  expect(pics.map((p) => [p.panes, p.term])).toEqual([[3, 1], [4, 1], [1, 1]]);
-  expect(pics.every((p) => p.title && p.w >= 40), JSON.stringify(pics)).toBe(true);
+  expect(await menu(ui).getByRole('menuitem').evaluateAll((rs) => rs.filter((r) => !r.querySelector('svg')).map((r) => r.ariaLabel || r.textContent)), 'each row with its icon').toEqual([]);
+  const presets = menu(ui).locator('[data-preset]');
+  expect(await presets.evaluateAll((bs) => bs.map((b) => !!(b as HTMLElement).title && !!b.querySelector('svg'))), 'a tooltip and an icon each').toEqual([true, true, true]);
   await anyMenu(ui).locator('[data-preset="focus"]').click();
   await expect(anyMenu(ui), 'a choice closes the menu').toHaveCount(0);
   await expect.poll(async () => (await pageBox(ui, files, ELON)) === null && viewOn(core, ui, files, SAM)).toBe(true);
@@ -373,7 +355,7 @@ ${names.map((x) => `      - menuitem ${JSON.stringify(`Open in ${x}`)}`).join('\
 test("menus with the mouse and the keyboard, as the OS's: a press on ☰, a drag to a row and the release there chooses it; a click opens, the next closes; a right-click's release over a row chooses nothing; Enter and the arrows; the keyboard back where it was; leaving the window closes it", async ({ core, ui, files }) => {
   await begin(core, ui, files, { columns: true });
   const rowAt = (label: string) => center(item(ui, label));
-  const shortcuts = ui.locator('#shortcuts');
+  const shortcuts = shortcutsDialog(ui);
   const press = (keyCode: string) => core((k, c) => k.press(k.shell.win.webContents, c), keyCode);
   const output = () => core((k) => k.ptyOutput());
 
@@ -386,12 +368,12 @@ test("menus with the mouse and the keyboard, as the OS's: a press on ☰, a drag
   const to = await rowAt('Keyboard Shortcuts');
   await ui.mouse.move(to.x, to.y);
   await ui.mouse.up();
-  await expect(shortcuts).toHaveAttribute('data-state', 'open');
-  await shortcuts.locator('header').getByRole('button', { name: 'Close' }).click();
-  await expect(ui.locator('#shortcuts[data-state="open"]')).toHaveCount(0);
+  await expect(shortcuts).toBeVisible();
+  await shortcuts.getByRole('button', { name: 'Close', exact: true }).click();
+  await expect(shortcuts).toHaveCount(0);
 
   // A click opens it (the click after the press is not a second toggle); a click on the same button closes it.
-  await seen(ui, 'mouseup', clickMenuButton);
+  await seen(ui, 'pointerup', clickMenuButton); // the press's mouse events are the menu's (Menus.tsx: preventDefault)
   await expect(menu(ui)).toBeVisible();
   expect(await anyMenu(ui).count(), 'open after the click').toBeGreaterThan(0);
   await clickMenuButton();
@@ -399,12 +381,12 @@ test("menus with the mouse and the keyboard, as the OS's: a press on ☰, a drag
 
   // The keyboard: Enter on ☰ opens it on its first row, ↓ goes to the next, Esc closes it, ☰ has the keyboard again.
   await ui.locator('#windowMenu').focus();
-  await press('Enter');
+  await ui.keyboard.press('Enter'); // a key's whole sequence: a button acts on Enter's keypress, which press() sends none of
   await expect(menu(ui)).toBeVisible();
-  await expect(ui.locator('[role="menu"][data-state="open"]:focus-within')).toHaveCount(1);
-  const first = await ui.locator(':focus').textContent();
+  await expect(ui.locator('[role="menu"][data-ready]:focus-within')).toHaveCount(1);
+  const first = await ui.locator(':focus').getAttribute('aria-label');
   await press('Down');
-  await expect(ui.locator(':focus')).not.toHaveText(first);
+  await expect(ui.locator(':focus')).not.toHaveAccessibleName(first);
   await press('Escape');
   await expect(anyMenu(ui)).toHaveCount(0);
   await expect(ui.locator('#windowMenu')).toBeFocused();

@@ -45,14 +45,16 @@ function Row({ it, close }: { it: MenuRow; close: () => void }) {
 
 // The rows of a menu (lib/menu.ts). A submenu is a menu of its own at its row's side, opened on hover; its row's run
 // makes a click on the row itself act, closing the menu.
+// Whether a menu's rows leave room for a mark at their start: given to its Menu (Fluent's context; on the MenuList
+// within one it warns).
+const hasIcons = (items: Item[]) => items.some((it) => typeof it === 'object' && ('icon' in it || 'avatar' in it || 'project' in it || 'color' in it));
 function Rows({ items, close, ready = true }: { items: Item[]; close: () => void; ready?: boolean }) {
-  const icons = items.some((it) => typeof it === 'object' && ('icon' in it || 'avatar' in it || 'project' in it || 'color' in it));
-  return <MenuList hasIcons={icons} data-ready={ready || undefined}>{items.map((it, i) => {
+  return <MenuList data-ready={ready || undefined}>{items.map((it, i) => {
     if (it === '-') return <MenuDivider key={i} />;
     if ('heading' in it) { const Icon = it.icon; return <MenuGroupHeader key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>{Icon && <Icon />}{it.heading}</MenuGroupHeader>; }
     if ('component' in it) { const Own = it.component; return <Own key={i} close={close} />; }
     if ('submenu' in it) {
-      return <Menu key={i} positioning={FIT}>
+      return <Menu key={i} positioning={FIT} hasIcons={hasIcons(it.items)}>
         <MenuTrigger disableButtonEnhancement>
           <MenuItem aria-label={it.submenu} icon={it.project ? <ProjectIcon p={it.project} size={16} /> : undefined}
             onClick={it.run && ((e: MouseEvent) => { if (e.button === 0) { close(); void it.run!(); } })}>{it.submenu}</MenuItem>
@@ -111,7 +113,7 @@ export function ButtonMenu({ items, children, end }: { items: () => Item[]; chil
     setPressed(true); setRows(items()); m.setOpen(true);
   };
   const onClickCapture = (e: MouseEvent<HTMLElement>) => { if (e.detail > 0) e.stopPropagation(); };
-  return <Menu open={m.shown} positioning={{ ...FIT, position: 'below', align: end ? 'end' : 'start', offset: 4 }}
+  return <Menu open={m.shown} hasIcons={hasIcons(rows)} positioning={{ ...FIT, position: 'below', align: end ? 'end' : 'start', offset: 4 }}
     onOpenChange={(e, d) => { if (!d.open) m.close(); else if (!pressed && !off(e.target)) { setRows(items()); m.setOpen(true); } }}>
     {/* open on the press, not on the click (Enter, Space and ↓ open it as Fluent's trigger does) */}
     <MenuTrigger disableButtonEnhancement>{cloneElement(children as ReactElement<HTMLAttributes<HTMLElement>>, { onPointerDown, onClickCapture })}</MenuTrigger>
@@ -123,7 +125,7 @@ export function ButtonMenu({ items, children, end }: { items: () => Item[]; chil
 // chosen with the left button only: on Linux it opens on the press, and the release over a row must not choose it.
 export function RightClickMenu({ items, children, style }: { items: (e: globalThis.MouseEvent) => Item[] | null; children: ReactNode; style?: CSSProperties }) {
   const m = useMenuState(), [rows, setRows] = useState<Item[]>([]);
-  return <Menu openOnContext open={m.shown} positioning={FIT} onOpenChange={(e, d) => {
+  return <Menu openOnContext open={m.shown} hasIcons={hasIcons(rows)} positioning={FIT} onOpenChange={(e, d) => {
     if (!d.open) return m.close();
     const r = 'nativeEvent' in e && 'clientX' in e ? items(e.nativeEvent) : e instanceof globalThis.MouseEvent ? items(e) : null;
     if (r?.length) { setRows(r); m.setOpen(true); }
@@ -140,7 +142,7 @@ export function MenuAt({ at, items, onClosed }: { at: { x: number; y: number } |
   const wasOpen = useRef(false);
   useEffect(() => { if (wasOpen.current && !open) onClosed(); wasOpen.current = open; }, [open, onClosed]);
   const target = { getBoundingClientRect: () => DOMRect.fromRect({ x: at?.x ?? 0, y: at?.y ?? 0, width: 0, height: 0 }) };
-  return <Menu open={m.shown && !!at} positioning={{ ...FIT, target, position: 'below', align: 'start' }} onOpenChange={(_, d) => { if (!d.open) m.close(); }}>
+  return <Menu open={m.shown && !!at} hasIcons={hasIcons(items)} positioning={{ ...FIT, target, position: 'below', align: 'start' }} onOpenChange={(_, d) => { if (!d.open) m.close(); }}>
     <MenuPopover style={POPOVER}><Rows items={items} close={m.close} ready={m.ready} /></MenuPopover>
   </Menu>;
 }

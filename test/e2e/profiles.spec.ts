@@ -351,7 +351,6 @@ test('a screenshot shows its thumbnail in its pane\'s corner: a click opens it, 
           - menuitem "Show in Folder"
           - menuitem "Copy"
           - menuitem "Send to Agent"
-          - separator
           - menuitem "Delete"
           - menuitem "Close"
       `);

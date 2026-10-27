@@ -182,7 +182,6 @@ test("Resources: the agent's artifacts listed as it makes them, the newest first
     - menu:
       - menuitem "Open"
       - menuitem "Show in Folder"
-      - separator
       - menuitem "Delete"
   `);
   await choose(ui, 'Delete');

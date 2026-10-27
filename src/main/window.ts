@@ -407,9 +407,11 @@ function keepPage(win: Electron.BrowserWindow) {
     return { action: 'deny' };
   });
   win.webContents.on('will-navigate', (e) => e.preventDefault());
-  // What the page says is wrong (an uncaught error, a warning of its own), in the log with the main process's lines.
+  // What the page says is wrong (an uncaught error, a warning of its own), in the log with the main process's lines;
+  // also as the window closes, its BrowserWindow already destroyed.
+  const id = win.webContents.id;
   win.webContents.on('console-message', (d) => {
-    if (d.level === 'error' || d.level === 'warning') log.warn(`[page wc=${win.webContents.id}] ${d.message} (${d.sourceId}:${d.lineNumber})`);
+    if (d.level === 'error' || d.level === 'warning') log.warn(`[page wc=${id}] ${d.message} (${d.sourceId}:${d.lineNumber})`);
   });
 }
 

@@ -62,8 +62,8 @@ function ClosedProfiles() {
   const stripClass = useStrip(row, null); // no button is the active one
   return <nav ref={row} id="closedprofiles" data-testid="closed-profiles" className={`${styles.closed} ${stripClass}`} aria-label="Open a profile">
     {profileLaunchers(closed).map((p) => <Button key={p.id} className={styles.opener} appearance="subtle" data-profile={p.id} aria-label={p.name}
-      title={p.title} icon={p.avatar ? <Avatar size={20} image={{ src: avatarSrc(p.avatar) }} /> : <PlusIcon />} onClick={() => void p.run()}>
-      <span className={styles.name}>{p.name}</span>
+      title={p.title} icon={p.avatar ? <Avatar size={20} image={{ src: avatarSrc(p.avatar) }} /> : undefined} onClick={() => void p.run()}>
+      <span className={styles.name}>{p.name}</span><PlusIcon style={{ marginInlineStart: 4 }} />
     </Button>)}
   </nav>;
 }

@@ -305,7 +305,7 @@ test('tasks: Move to New Window puts a task in a window of its own, still runnin
   await expect.poll(() => core((k, a) => !k.shell.open.has(a.other) && k.shell.current?.id === a.project && k.settled(), ids)).toBe(true);
 
   // A closed task opened again: a tab in this window, nothing asked; Move to New Window takes it away.
-  await fromSidebar(ui, 'other');
+  await fromSidebar(ui, 'other', 'New Task'); // its row (the project's own + makes a new one)
   await expect.poll(() => core((k, id) => k.shell.current?.id === id && [...k.shell.current.tasks.values()][0] === k.shell.task && !!k.shell.task.pty && k.settled(), ids.other)).toBe(true);
   await expect(ui.getByRole('alertdialog'), 'no question').toHaveCount(0);
   expect(await projectTabs(ui, files)).toEqual(['project', 'other *']);
@@ -327,7 +327,7 @@ test('tasks: Move to New Window puts a task in a window of its own, still runnin
   await core((k) => { k.stash.grid.third.win.close(); });
   // Yes, its button's click not waited for: the window closes under it.
   await expect(ui3.getByRole('alertdialog')).toBeVisible();
-  void ui3.getByRole('alertdialog').locator('footer button').last().click().catch(() => {});
+  void ui3.getByRole('alertdialog').getByRole('button').last().click().catch(() => {});
   await expect.poll(() => core((k, id) => k.shell.windows.length === 1 && !k.shell.open.has(id), ids.other)).toBe(true);
   expect(await core((k) => {
     const g = k.stash.grid;

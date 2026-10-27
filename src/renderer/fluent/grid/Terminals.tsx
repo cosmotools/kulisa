@@ -104,7 +104,7 @@ export function Terminals({ api, containerApi }: IDockviewPanelProps) {
   };
 
   return <div data-testid="terminals" data-folded={folded || undefined}
-    style={{ height: '100%', position: 'relative', display: 'grid', gridTemplateRows: 'minmax(0, 1fr)', background: tokens.colorNeutralBackground1 }}>
+    style={{ height: '100%', position: 'relative', display: 'grid', gridTemplateRows: 'minmax(0, 1fr)', gridTemplateColumns: 'minmax(0, 1fr)', background: tokens.colorNeutralBackground1 }}>
     {big ? <Launchers ref={launch} />
       : folded ? <div style={{ display: 'grid', placeItems: 'center' }}>
         <ButtonMenu items={newTerminalItems}><Button data-unfold appearance="subtle" size="small" icon={<PlusIcon />}

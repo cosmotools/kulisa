@@ -471,10 +471,11 @@ test('tasks: × on the last open task of a project lets the project go, nothing 
   await expect(sidebar(ui).locator('[data-project]').first(), 'worked in last').toHaveAccessibleName('project');
   expect(await sidebarTasks(ui, 'project')).toEqual(byClosing);
   expect(byClosing[0]).toBe('Feature-X');
-  // Each project's icon: its favicon, else a square in its color.
+  // Each project's icon: its favicon, else Kulisa's logo in its color.
   const ids = await sidebar(ui).locator('[data-project]').evaluateAll((ss) => ss.map((x) => (x as HTMLElement).dataset.project));
   for (const [id, favicon] of await core((k, all) => all.map((i) => [i, !!k.shell.projects().find((p) => p.id === i).favicon] as const), ids)) {
-    await expect(sidebar(ui).locator(`[data-project="${id}"]`).getByTestId('project-icon').first()).toHaveJSProperty('tagName', favicon ? 'IMG' : 'SPAN');
+    const icon = sidebar(ui).locator(`[data-project="${id}"]`).getByTestId('project-icon').first();
+    if (favicon) await expect(icon).toHaveJSProperty('tagName', 'IMG'); else await expect(icon).toHaveAttribute('data-logo', '');
   }
   await expect(taskRow(ui, 'project', 'Feature-X')).toContainText(/ago|just now/);
   // A closed task's 🗑 asks as Delete Task… does (Cancel keeps it).
