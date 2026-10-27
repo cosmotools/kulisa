@@ -2,7 +2,8 @@
 // window left). Under them are the profiles' native views, which draw above the HTML (views.ts plugs them in: under;
 // docs/ui.md, Menus, Dialogs).
 //   useCovered('hide')       a dialog's open state: [open, setOpen]
-//   useCovered('page')       Settings': as a dialog's, but not closed with the grid (it is not the grid's)
+//   useCovered('page')       Settings': as a dialog's, but not closed with the grid (it is not the grid's); opened(true)
+//                            waits for the pages to be hidden
 //   useCovered('pictures')   a menu's; ready once what is under it allows it to show (pictures of the pages)
 import { useCallback, useEffect, useRef, useState } from 'react';
 
@@ -15,13 +16,13 @@ const dialogs = new Set<() => void>(), pages = new Set<() => void>(), menus = ne
 type How = 'hide' | 'page' | 'pictures';
 
 // What a page has under its menus and dialogs: hidden while a dialog is open; still while a menu is (frozen).
-interface Under { hide(hidden: boolean): void; freeze(): Promise<void>; unfreeze(): Promise<void> }
+interface Under { hide(hidden: boolean): Promise<unknown>; freeze(): Promise<void>; unfreeze(): Promise<void> }
 let under: Under | null = null;
 export const coverUnder = (u: Under) => { under = u; };
 
 // A layer opened or closed: what is under it follows. close: what closes it from outside (another menu, the window).
-// ready: a menu's, once what is under it allows it to show.
-export function layer(how: How, open: boolean, close: () => void, ready: () => void) {
+// ready: a menu's, once what is under it allows it to show. Done: a dialog's or a page's, once the pages are hidden.
+export async function layer(how: How, open: boolean, close: () => void, ready: () => void) {
   const set = how === 'hide' ? dialogs : how === 'page' ? pages : menus;
   if (open === set.has(close)) return;
   if (open) set.add(close); else set.delete(close);
@@ -29,7 +30,7 @@ export function layer(how: How, open: boolean, close: () => void, ready: () => v
   if (how !== 'pictures') {
     dialogsOpen += open ? 1 : -1;
     for (const l of dialogListeners) l();
-    under?.hide(open);
+    await under?.hide(open);
   } else if (open) {
     if (under) void under.freeze().then(ready); else ready();
   } else if (!menus.size) void under?.unfreeze(); // not when another menu has opened already
@@ -41,16 +42,18 @@ export function useCovered(how: How) {
   const [open, setOpenState] = useState(false), [ready, setReady] = useState(how !== 'pictures');
   const openRef = useRef(false), latest = useRef<(v: boolean) => void>(() => {});
   const [close] = useState(() => () => latest.current(false)); // one for the layer's whole life
-  const setOpen = useCallback((v: boolean) => {
+  // opened(v): as setOpen, done once what is under it follows (Settings is drawn only once the pages are hidden).
+  const opened = useCallback(async (v: boolean) => {
     if (v === openRef.current) return;
     openRef.current = v;
     setOpenState(v);
     if (how === 'pictures') setReady(false);
-    layer(how, v, close, () => { if (openRef.current) setReady(true); });
+    return layer(how, v, close, () => { if (openRef.current) setReady(true); });
   }, [how, close]);
+  const setOpen = useCallback((v: boolean) => { void opened(v); }, [opened]);
   useEffect(() => { latest.current = setOpen; });
-  useEffect(() => () => { if (openRef.current) { openRef.current = false; layer(how, false, close, () => {}); } }, [how, close]);
-  return { open, setOpen, ready };
+  useEffect(() => () => { if (openRef.current) { openRef.current = false; void layer(how, false, close, () => {}); } }, [how, close]);
+  return { open, setOpen, ready, opened };
 }
 
 const closeMenus = () => { for (const close of [...menus]) close(); };

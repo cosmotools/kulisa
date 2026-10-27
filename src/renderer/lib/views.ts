@@ -32,4 +32,4 @@ export async function livePages() {
 // A grid leaving: a freeze under way no longer matters (grid.ts, grid:closing).
 export const forgetFrozen = () => { frozen = null; };
 
-coverUnder({ hide: (hidden) => void (hidden ? kulisa.invoke('views:hidden', true) : showViews()), freeze, unfreeze });
+coverUnder({ hide: (hidden) => (hidden ? kulisa.invoke('views:hidden', true) : showViews()), freeze, unfreeze });

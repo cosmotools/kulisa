@@ -44,7 +44,7 @@ export function App() {
   useEffect(() => { document.documentElement.style.colorScheme = chosen === 'system' ? 'light dark' : shade(chosen); }, [chosen]);
   const bar = useWindow((s) => s.bar), open = useWindow((s) => s.current !== null), settings = useSettings();
   return <FluentProvider theme={theme}>
-    <AriaLiveAnnouncer><ThemeShown.Provider value={theme}><div className={css.root} data-settings={settings ? '' : undefined}>
+    <AriaLiveAnnouncer><ThemeShown.Provider value={theme}><div className={css.root}>
       {/* The tasks' bar in the title bar, as a browser's tabs, or under the grid (☰ → Tasks bar); none with no task open */}
       <TopBar>{bar === 'top' && open && <TaskBar />}</TopBar>
       {open ? <Grid /> : <Empty />}
