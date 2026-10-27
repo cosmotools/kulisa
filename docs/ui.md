@@ -6,8 +6,7 @@ size and place, never its padding, colors or slots' insides). How a component is
 (`node_modules/@fluentui/react-<component>/dist/index.d.ts`), read rather than remembered: this doc holds only what
 Fluent cannot know (the native pages, the desktop) and where Fluent leaves a choice, the one made. Nothing of ours where
 Fluent has a component, a prop or a pattern: its keyboard, focus and accessibility are maintained upstream. A deviation
-is the exception: a comment at it says why, and a line here names it. The `fluent-check` skill finds what is not
-stock in a part, after building it.
+is the exception: a comment at it says why, and a line here names it.
 
 React 19 in TypeScript, built by Vite (`vite.config.mts`, into `dist/renderer`); state is zustand's; the grid is
 dockview's (`dockview-react`: its API before layout code of our own); the terminal is xterm's (`src/terminal/`).
