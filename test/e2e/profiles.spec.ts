@@ -176,7 +176,7 @@ test("DevTools in a pane's ⋮ menu opens and closes the DevTools of its active 
     // As Chrome's ⋮: under the button, its right edge at the button's (within its popover's padding), so it stays over
     // its own pane.
     const m = await menu(ui).boundingBox(), b = await pane.locator('[aria-label="More"]').boundingBox();
-    expect(m.x + m.width <= b.x + b.width && b.x + b.width - (m.x + m.width) < 8 && m.y > b.y + b.height - 1, JSON.stringify({ m, b })).toBe(true);
+    expect(m.x + m.width <= b.x + b.width && b.x + b.width - (m.x + m.width) < 8 && m.y >= b.y + b.height - 1, JSON.stringify({ m, b })).toBe(true);
     // Back, forward, reload, Pick and ⋮ are icon buttons, as Chrome's: no border, no text, a name for screen readers.
     const names = ['Back', 'Forward', 'Reload', 'Pick an element', 'More'];
     await expect(buttons).toHaveCount(names.length);

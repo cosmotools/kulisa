@@ -43,7 +43,6 @@ const PRELOAD = path.join(import.meta.dirname, '..', 'preload', 'index.cjs');
 class AppWindow {
   shell: Shell; id: number; tabs: Task[]; current: Task | null; viewsHidden: boolean; switching: boolean;
   stateTimer: NodeJS.Timeout | undefined; picking: Map<string, { profile: Profile; page: import('playwright-core').Page; cancel: () => unknown }>;
-  keyboardFrom: Profile | null = null; // the page whose keyboard the window's page holds while the pages are hidden
   questions: Questions; loaded: boolean; pending: [string, unknown[]][]; keyZone: string;
   thumbnails: Thumbnails; // a screenshot's, in its pane's corner (src/screenshots)
   win: Electron.BrowserWindow; place: { bounds: Rectangle; maximized: boolean }; barHeight: number; // the title bar's, as the window was made
@@ -277,19 +276,13 @@ class AppWindow {
     // While a task is being switched they stay hidden, whatever comes (a closing menu shows them
     // again); the page shows them once it has the next grid laid out.
     this.viewsHidden = !!hidden || this.switching;
-    // A hidden page keeps the keyboard, and the window's page then has none: what covers the pages (a dialog: its keys,
-    // and Fluent's focus trap, which leaves a dialog it never saw focused aria-hidden) gets it, and the page it came
-    // from has it back once shown again.
-    const from = [...this.profiles.values()].find((p) => { const wc = p.get()?.wc; return wc && !wc.isDestroyed() && wc.isFocused(); });
+    // A dialog over the pages (hidden, no pictures): a page that had the keyboard keeps it unseen, and Fluent's focus
+    // trap leaves a dialog it never saw focused aria-hidden, its keys going nowhere: the window's page takes it. Menus
+    // (pictures) put the keyboard back themselves as they close.
+    const from = hidden && !snapshots && [...this.profiles.values()].some((p) => { const wc = p.get()?.wc; return wc && !wc.isDestroyed() && wc.isFocused(); });
     for (const p of this.profiles.values()) p.setHidden(this.viewsHidden);
     this.thumbnails.setHidden(this.viewsHidden);
-    if (this.viewsHidden && from) { this.keyboardFrom = from; focusWindow(this.win.webContents); }
-    const back = this.keyboardFrom;
-    if (!this.viewsHidden && back) {
-      this.keyboardFrom = null;
-      const tab = back.get();
-      if (tab && this.profiles.get(back.id) === back && back.visible(tab) && this.win.webContents.isFocused()) back.focusTab(tab);
-    }
+    if (from) focusWindow(this.win.webContents);
     return pics;
   }
   // JPEG: a picture shown for a moment, encoded three times faster than PNG. A page that draws no
