@@ -59,8 +59,8 @@ repositories (git worktrees), so the project's folders stay the human's. Its dat
   **Profiles**, then Create, which makes the project and opens its first task. Next checks a step as Create would;
   nothing is made before Create (but an agent's account signed in to on the way: accounts live on their own); Back
   keeps what was typed. The welcome's with no project, else a dialog (New Project… at the sidebar's foot): the
-  same steps (`components/NewProject.tsx`). The first step as JetBrains' New Project: on the left where its code comes from, on the
-  right the form (**Name:**, **Location:**). Code already on the disk or at a URL is the project's own, with no
+  same steps (`components/NewProject.tsx`). The first step: where its code comes from (tabs over the form), then the form
+  (**Name:**, **Location:**). Code already on the disk or at a URL is the project's own, with no
   empty folder made beside it:
   - **New folder**: a name and a location, `~/KulisaProjects` unless typed or browsed (every new project's place, as
     JetBrains' `~/PycharmProjects`; a name not to be taken for Kulisa's data folder); the step shows the folder it

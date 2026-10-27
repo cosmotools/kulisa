@@ -1,0 +1,28 @@
+/* The welcome (Welcome.tsx). */
+.root { flex: 1; display: grid; place-items: safe center; overflow: auto; padding: var(--spacingHorizontalXXXL); box-sizing: border-box; min-height: 0; }
+.dots { display: flex; gap: var(--spacingHorizontalSNudge); margin: 0; padding: 0; list-style: none; }
+.tour { width: min(960px, 100%); }
+.tourBody { display: flex; flex-direction: column; gap: 48px; }
+.slide { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: 48px; align-items: center; }
+.words { display: grid; gap: var(--spacingVerticalL); min-width: 0; }
+.text { max-width: 42ch; }
+.buttons { display: flex; align-items: center; gap: var(--spacingHorizontalS); }
+.grow { flex: 1; }
+.steps { width: min(760px, 100%); min-height: min(520px, 100%); display: grid; }
+.wizard { flex: 1; display: flex; flex-direction: column; gap: var(--spacingVerticalL); min-height: 0; }
+/* A slide's picture, a task's window drawn small: its terminal and two profiles' panes. */
+.frame { justify-self: center; width: 100%; min-width: 0; }
+.picture { display: grid; grid-template-columns: 1.1fr 1fr 1fr; grid-template-rows: minmax(0, 1fr); gap: var(--spacingHorizontalS); aspect-ratio: 16 / 10; overflow: hidden; }
+.muted { color: var(--colorNeutralForeground3); }
+.done { color: var(--colorPaletteGreenForeground1); }
+.page { display: grid; gap: var(--spacingVerticalSNudge); }
+.w70 { width: 70%; }
+.w45 { width: 45%; }
+.buy { width: 55%; min-width: 0; display: grid; }
+.pointer { position: absolute; right: 20%; top: 55%; color: var(--colorPaletteYellowForeground1); }
+@media (max-width: 720px) { .slide { grid-template-columns: minmax(0, 1fr); } }
+@media (max-height: 640px) {
+  .frame { width: min(100%, calc((100vh - 200px) * 1.6)); }
+  .tourBody { gap: var(--spacingVerticalXXL); }
+  .slide { gap: var(--spacingHorizontalXXL); }
+}

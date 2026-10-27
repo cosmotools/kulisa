@@ -1,8 +1,9 @@
 // The dictation's pill (../README.md, The pill): over the top of the terminal while the task dictates, what the
 // dictation does now, the voice heard as a live wave. task: the task shown; children: the done mark.
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { Badge, Spinner, createMotionComponent, createPresenceComponent, makeStyles, mergeClasses, motionTokens, tokens, type BadgeProps } from '@fluentui/react-components';
+import { Badge, Spinner, createMotionComponent, createPresenceComponent, motionTokens, type BadgeProps } from '@fluentui/react-components';
 import { useVoices } from './voice';
+import css from './Pill.module.css';
 
 const BARS = 28;
 type Look = 'getting' | 'listening' | 'transcribing' | 'done';
@@ -23,23 +24,7 @@ const Run = createMotionComponent<{ delay: number }>(({ delay }) => ({
   keyframes: [{ transform: 'scaleY(0.12)' }, { transform: 'scaleY(0.75)' }, { transform: 'scaleY(0.12)' }],
   duration: 1100, easing: 'ease-in-out', iterations: Infinity, delay, reducedMotion: once }));
 
-const useStyles = makeStyles({
-  // Over the terminal, not above it (the terminal keeps its size: Claude Code redraws badly after a resize), and not in
-  // the way of the pointer.
-  place: { position: 'absolute', zIndex: 5, insetBlockStart: '10px', insetInlineStart: '50%', translate: '-50% 0', pointerEvents: 'none' },
-  pill: { gap: tokens.spacingHorizontalS, paddingInline: tokens.spacingHorizontalM, boxShadow: tokens.shadow16, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' },
-  mark: { display: 'grid', placeItems: 'center', width: '14px', height: '14px' },
-  clock: { minWidth: '34px' },
-  wave: { display: 'flex', alignItems: 'center', gap: tokens.spacingHorizontalXXS, height: '20px', overflow: 'hidden',
-    maskImage: 'linear-gradient(to right, transparent, black 35%)' },
-  getting: { opacity: 0.5 },
-  running: { maskImage: 'linear-gradient(to right, transparent, black 25% 75%, transparent)' },
-  // Its height set as it is heard (transform, by the meter); the transition smooths the meter's steps.
-  bar: { flex: 'none', width: '3px', height: '100%', borderRadius: '2px', background: 'currentColor', transform: 'scaleY(0.1)', transition: 'transform 0.08s linear' },
-});
-
 export function Pill({ task, children }: { task: string | null; children?: ReactNode }) {
-  const styles = useStyles();
   const v = useVoices((s) => (task ? s.voices[task] : undefined));
   const slow = useVoices((s) => (task ? !!s.slow[task] : false));
   const done = useVoices((s) => (task ? s.done[task] : undefined));
@@ -52,18 +37,18 @@ export function Pill({ task, children }: { task: string | null; children?: React
 
   const label = !shown ? '' : shown.look === 'getting' ? 'Getting ready…' : shown.look === 'transcribing' ? 'Transcribing…'
     : shown.look === 'done' ? `In ${shown.to}'s input` : null;
-  return <div className={styles.place}>
-    <Arrive visible={!!look} appear unmountOnExit>
+  return <div className={css.place}>
+    <Arrive visible={!!look} appear unmountOnExit><span className={css.pill}>
       <Badge role="status" aria-label="Dictation" data-state={shown?.look} size="extra-large" shape="circular" appearance="tint"
-        color={shown ? COLOR[shown.look] : 'informative'} className={styles.pill}>
-        <span className={styles.mark}>
+        color={shown ? COLOR[shown.look] : 'informative'}><span className={css.row}>
+        <span className={css.mark}>
           {shown?.look === 'done' ? children : shown?.look === 'getting' ? <Spinner size="extra-tiny" />
             : <Beat><Badge size="tiny" shape="circular" appearance="filled" color={shown ? COLOR[shown.look] : 'informative'} /></Beat>}
         </span>
         {shown?.look !== 'done' && <Wave look={shown?.look} listening={look === 'listening'} />}
         {label ?? <Clock />}
-      </Badge>
-    </Arrive>
+      </span></Badge>
+    </span></Arrive>
   </div>;
 }
 
@@ -72,15 +57,15 @@ function Clock() {
   const [since] = useState(Date.now);
   const [now, setNow] = useState(since);
   useEffect(() => { const t = setInterval(() => setNow(Date.now()), 250); return () => clearInterval(t); }, []);
-  const s = Math.max(0, Math.floor((now - since) / 1000)), styles = useStyles();
-  return <span className={styles.clock}>{Math.floor(s / 60)}:{String(s % 60).padStart(2, '0')}</span>;
+  const s = Math.max(0, Math.floor((now - since) / 1000));
+  return <span className={css.clock}>{Math.floor(s / 60)}:{String(s % 60).padStart(2, '0')}</span>;
 }
 
 // The voice heard, as a wave: Kulisa's own reading of the microphone, its level only, while it records (the agent
 // records on its own; nothing of this is kept or sent). Each bar a moment, the newest at the right; the older ones fade
 // to the left.
 function Wave({ look, listening }: { look: Look | undefined; listening: boolean }) {
-  const wave = useRef<HTMLSpanElement>(null), styles = useStyles();
+  const wave = useRef<HTMLSpanElement>(null);
   useEffect(() => {
     if (!listening) return;
     let stream: MediaStream | null = null, audio: AudioContext | null = null, frame = 0, gone = false;
@@ -120,9 +105,9 @@ function Wave({ look, listening }: { look: Look | undefined; listening: boolean 
     };
   }, [listening]);
 
-  return <span ref={wave} aria-hidden="true" className={mergeClasses(styles.wave, look === 'getting' && styles.getting, look === 'transcribing' && styles.running)}>
+  return <span ref={wave} aria-hidden="true" data-look={look} className={css.wave}>
     {Array.from({ length: BARS }, (_, i) => look === 'transcribing'
-      ? <Run key={`r${i}`} delay={-55 * (i + 1)}><i className={styles.bar} /></Run>
-      : <i key={i} className={styles.bar} />)}
+      ? <Run key={`r${i}`} delay={-55 * (i + 1)}><i className={css.bar} /></Run>
+      : <i key={i} className={css.bar} />)}
   </span>;
 }

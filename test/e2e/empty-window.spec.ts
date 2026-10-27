@@ -179,10 +179,11 @@ test("the empty window: Close All Tasks in the project's submenu; links in ☰ o
   await step('Code'); // not on
   // An error is text to copy and search for: it can be selected (the window's other words cannot). What is selected
   // read in the page: Playwright has no getter of the selection.
-  await expect(error).toHaveCSS('user-select', 'text');
+  const said = error.getByText(/is a file, not a folder/);
+  await expect(said).toHaveCSS('user-select', 'text');
   await expect(np.getByRole('heading', { name: 'New Project' })).toHaveCSS('user-select', 'none');
-  await error.selectText();
-  expect(await ui.evaluate(() => getSelection().toString())).toBe(await error.textContent());
+  await said.selectText();
+  expect(await ui.evaluate(() => getSelection().toString())).toBe(await said.textContent());
   await typeIn(ui, field('Name'), 'Shop');
   await expect(where).toHaveText(`The project will be created in ${path.join(made, 'Shop')}`);
   await next();

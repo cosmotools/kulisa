@@ -5,8 +5,8 @@
 import { createElement, useEffect, type ReactElement } from 'react';
 import { createStore, useStore } from 'zustand';
 import { useShallow } from 'zustand/react/shallow';
-import { AvatarGroup, AvatarGroupItem, Button, Card, Dialog, DialogActions, DialogBody, DialogContent, DialogSurface, DialogTitle, Field, List, ListItem,
-  ProgressBar, Radio, RadioGroup, Tag, Text, makeStyles, mergeClasses, tokens } from '@fluentui/react-components';
+import { AvatarGroup, AvatarGroupItem, Button, Caption1, Card, Dialog, DialogActions, DialogBody, DialogContent, DialogSurface, DialogTitle, Field,
+  ProgressBar, Radio, RadioGroup, Tag, Text } from '@fluentui/react-components';
 import { BookOpenRegular, BranchRegular, DismissRegular, GlobeRegular, WindowConsoleRegular } from '@fluentui/react-icons';
 import { agentMark } from './AgentMark';
 import { act, shownTask, store, useWindow } from '../lib/store';
@@ -15,8 +15,8 @@ import { registerDialog } from '../lib/dialogs';
 import { avatarSrc, plural } from '../lib/common';
 import { refused } from '../../shared/result';
 import type { Terminal } from '../../shared/types';
-import { useCommonStyles } from './theme';
 import { ErrorBar } from './ErrorBar';
+import css from './HandOver.module.css';
 
 // No part read for this long: an agent that thinks before it reads, or never does.
 const IDLE = 30_000;
@@ -70,32 +70,19 @@ store.subscribe((s) => {
   if (t?.state === 'waiting' || (!t && seen && s.current === inTask)) show();
 });
 
-const useStyles = makeStyles({
-  side: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: tokens.spacingVerticalXXS, minWidth: 0, textAlign: 'center' },
-  mark: { fontSize: '40px', height: '40px', marginBottom: tokens.spacingVerticalSNudge, display: 'flex' },
-  line: { maxWidth: '100%' },
-  surface: { maxWidth: '640px' },
-  sides: { display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', marginBottom: tokens.spacingVerticalL },
-  along: { display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalXS, alignItems: 'center' },
-  agent: { display: 'flex', alignItems: 'center', gap: tokens.spacingHorizontalS },
-  label: { display: 'inline-flex', alignItems: 'center', gap: tokens.spacingHorizontalSNudge },
-  afresh: { marginInlineStart: 'auto' },
-  below: { marginTop: tokens.spacingVerticalM },
-});
-
 // One of the two agents: its mark, its name and account, the conversation.
 function Side({ cli, name, conv }: { cli?: string; name?: string; conv: string }) {
-  const p = parts(name ?? ''), styles = useStyles(), common = useCommonStyles();
-  return <div className={styles.side}>
-    <span className={styles.mark}>{cli && createElement(agentMark(cli))}</span>
+  const p = parts(name ?? '');
+  return <div className={css.side}>
+    <span className={css.mark}>{cli && createElement(agentMark(cli))}</span>
     <Text weight="semibold">{p.agent}</Text>
-    <Text size={200} truncate wrap={false} className={mergeClasses(styles.line, common.muted)}>{p.account}</Text>
-    <Text size={200} truncate wrap={false} className={mergeClasses(styles.line, common.muted)}>{conv}</Text>
+    <Caption1 truncate wrap={false} block>{p.account}</Caption1>
+    <Caption1 truncate wrap={false} block>{conv}</Caption1>
   </div>;
 }
 
 export function HandOver() {
-  const { open, setOpen } = useCovered('hide'), styles = useStyles(), common = useCommonStyles();
+  const { open, setOpen } = useCovered('hide');
   const { from, chosen, going, error, read } = useStore(state);
   const agents = useWindow(useShallow((s) => agentsOf(s))), profiles = useWindow((s) => s.profiles);
   const branch = useWindow((s) => shownTask(s)?.branch), shells = useWindow((s) => s.terminals.list).filter((t) => !t.agent);
@@ -114,38 +101,39 @@ export function HandOver() {
   const to = agents.find((a) => a.id === chosen), tabs = profiles.reduce((n, p) => n + p.tabs.length, 0);
   const progress = !going || !to ? '' : read ? `${parts(to.name).agent} is reading “${from?.name}”: part ${read.part} of ${read.parts}` : `${parts(to.name).agent} is starting…`;
   const onClose = () => { if (state.getState().going) show(); else setOpen(false); };
-  const along = (icon: ReactElement, text: string, title?: string) => <ListItem><Tag size="small" appearance="outline" media={icon} title={title}>{text}</Tag></ListItem>;
+  // A column of tags, not Fluent's List: a List's items stand with no room between them.
+  const along = (icon: ReactElement, text: string, title?: string) => <div role="listitem"><Tag size="small" appearance="outline" media={icon} title={title}>{text}</Tag></div>;
   return <Dialog open={open} onOpenChange={(_, d) => { if (!d.open) onClose(); }}>
-    <DialogSurface aria-label="Change Agent" className={styles.surface}>
+    <DialogSurface aria-label="Change Agent">
       <DialogBody>
         <DialogTitle action={<Button appearance="subtle" aria-label="Close" icon={<DismissRegular />} onClick={onClose} />}>Change Agent</DialogTitle>
-        <DialogContent>
-          {from?.agent && <Card appearance="filled-alternative" className={styles.sides}>
+        <DialogContent><div className={css.content}>
+          {from?.agent && <Card appearance="filled-alternative"><div className={css.sides}>
             <Side cli={from.agent.cli} name={from.agent.name} conv={`“${from.name}”`} />
-            <List aria-label="Goes along" className={styles.along}>
+            <div role="list" aria-label="Goes along" className={css.along}>
               {branch && along(<BranchRegular />, branch, `branch ${branch}`)}
               {profiles.length > 0 && along(<AvatarGroup size={16} layout="stack">{profiles.map((p) => <AvatarGroupItem key={p.id} name={p.name} image={{ src: avatarSrc(p.avatar) }} />)}</AvatarGroup>,
                 `${plural(profiles.length, 'profile')}, signed in`)}
               {tabs > 0 && along(<GlobeRegular />, plural(tabs, 'tab'))}
               {shells.length > 0 && along(<WindowConsoleRegular />, `${shells.length === 1 ? shells[0]!.name : plural(shells.length, 'terminal')}, running`)}
               {along(<BookOpenRegular />, 'the whole conversation')}
-            </List>
+            </div>
             <Side cli={to?.cli} name={to?.name} conv="a new tab" />
-          </Card>}
+          </div></Card>}
           <Field hint={going ? undefined : `It reads this conversation first, then tells you in a few lines what is done and what is next. Its own hidden
             reasoning, permissions given and its account's settings stay behind. This tab stays until you close it.`}>
             <RadioGroup aria-label="Agent" value={chosen ?? ''} disabled={going} onChange={(_, d) => state.setState({ chosen: d.value })}>
-              {agents.map((a) => { const Mark = agentMark(a.cli); return <div key={a.id} data-agent={a.id} className={styles.agent}>
-                <Radio value={a.id} label={<span className={styles.label}><Mark />{a.name}</span>} />
-                {a.id === from?.agent?.account && <Text size={200} className={mergeClasses(styles.afresh, common.muted)}>this one, afresh</Text>}
+              {agents.map((a) => { const Mark = agentMark(a.cli); return <div key={a.id} data-agent={a.id} className={css.agent}>
+                <Radio value={a.id} label={<span className={css.label}><Mark />{a.name}</span>} />
+                {a.id === from?.agent?.account && <span className={css.afresh}><Caption1>this one, afresh</Caption1></span>}
               </div>; })}
             </RadioGroup>
           </Field>
-          {going && <Field validationMessage={{ children: progress, role: 'status' }} validationState="none" className={styles.below}>
+          {going && <Field validationMessage={{ children: progress, role: 'status' }} validationState="none">
             <ProgressBar value={read ? read.part / read.parts : undefined} />
           </Field>}
-          {error && <ErrorBar className={styles.below}>{error}</ErrorBar>}
-        </DialogContent>
+          {error && <ErrorBar>{error}</ErrorBar>}
+        </div></DialogContent>
         <DialogActions>
           {going ? <Button appearance="primary" onClick={show}>Show now</Button> : <>
             <Button onClick={() => setOpen(false)}>Cancel</Button>

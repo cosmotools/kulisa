@@ -19,10 +19,10 @@ const STYLE = "JSXAttribute[name.name='style'] > JSXExpressionContainer > Object
 const FLUENT = [
   { selector: 'JSXOpeningElement[name.name=/^(button|input|select|textarea)$/]', message: "Fluent's Button, Input, Select or Textarea (docs/ui.md)." },
   { selector: 'Literal[value=/var\\(--color/], TemplateElement[value.raw=/var\\(--color/]', message: "`tokens.*`, typed, not a 'var(--color…)' string (docs/ui.md)." },
-  { selector: `${STYLE}[value.type='Literal'], ${STYLE}[value.object.name='tokens']`, message: "A constant style is makeStyles'; `style` holds only what run time knows (docs/ui.md)." },
+  { selector: `${STYLE}[value.type='Literal'], ${STYLE}[value.object.name='tokens']`, message: "A constant style is the CSS Module's; `style` holds only what run time knows (docs/ui.md)." },
 ];
-// Settings is Fluent's components as they ship, their look the theme's alone (docs/ui.md, Fluent in Kulisa): no class or
-// style on one, no makeStyles; our own boxes (the frame, the log) take a CSS Module.
+// The window is Fluent's components as they ship, their look the theme's alone (docs/ui.md, Fluent in Kulisa): no class
+// or style on one, no makeStyles; our own boxes take a CSS Module.
 const fluentAsShipped: Rule.RuleModule = {
   meta: { type: 'problem', schema: [] },
   create(context) {
@@ -99,15 +99,14 @@ export default tseslint.config(
   { files: ['src/renderer/**', 'src/*/renderer/**'], plugins: { 'react-hooks': reactHooks },
     rules: Object.fromEntries(['rules-of-hooks', 'exhaustive-deps', 'refs', 'purity', 'immutability', 'globals', 'static-components',
       'set-state-in-render', 'set-state-in-effect'].map((r) => [`react-hooks/${r}`, 'error'])) },
-  // The window is Fluent's as it ships (docs/ui.md): its controls, its icons, its tokens, its makeStyles. What only
-  // run time knows (a width, the project's color) may stay in `style`; a constant there is makeStyles'. theme.ts sets
-  // the theme's own colors; the logos (Kulisa's, the agents' makers') are drawn in their own.
-  { files: WINDOW, ignores: ['src/renderer/components/theme.ts'],
-    rules: { 'no-restricted-imports': ['error', NO_LUCIDE], 'no-restricted-syntax': ['error', EXPORT_ALL, ...FLUENT, HEX] } },
+  // The window is Fluent's as it ships (docs/ui.md): its controls, its icons, its tokens. What only run time knows (a
+  // width, the project's color) may stay in `style`; a constant there is its CSS Module's. theme.ts sets the theme's
+  // own colors; the logos (Kulisa's, the agents' makers') are drawn in their own.
+  { files: WINDOW, plugins: { kulisa: { rules: { 'fluent-as-shipped': fluentAsShipped } } },
+    rules: { 'no-restricted-imports': ['error', NO_MAKE_STYLES], 'kulisa/fluent-as-shipped': 'error' } },
+  { files: WINDOW, ignores: ['src/renderer/components/theme.ts'], rules: { 'no-restricted-syntax': ['error', EXPORT_ALL, ...FLUENT, HEX] } },
   { files: ['src/renderer/components/AgentMark.tsx', 'src/renderer/components/ProjectIcon.tsx'],
     rules: { 'no-restricted-syntax': ['error', EXPORT_ALL, ...FLUENT] } },
-  { files: ['src/renderer/components/settings/**'], plugins: { kulisa: { rules: { 'fluent-as-shipped': fluentAsShipped } } },
-    rules: { 'no-restricted-imports': ['error', NO_MAKE_STYLES], 'kulisa/fluent-as-shipped': 'error' } },
   // An e2e test waits for a proof, never for a time: a pause long enough here is too short on a loaded machine, and
   // proves nothing when it is long enough (docs/testing.md, Writing an e2e test). A wait with an end is upTo (helpers.ts).
   { files: ['test/e2e/**'], plugins: { kulisa: { rules: { 'no-kulisa-classes': noKulisaClasses } } },

@@ -1,0 +1,5 @@
+/* The thumbnail's picture (ThumbnailPicture.tsx): over the pages' pictures, under the window's dialogs and menus
+   (Fluent's portals), where its window draws it (its place set at run time). */
+.place { position: fixed; z-index: 10; pointer-events: none; }
+/* A page's head, where its picture is cut (Fluent's Image has fit, not where). */
+.place img { object-position: top; }

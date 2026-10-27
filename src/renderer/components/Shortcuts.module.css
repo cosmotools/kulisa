@@ -1,0 +1,4 @@
+/* Keyboard Shortcuts (Shortcuts.tsx). */
+.groups { display: flex; flex-direction: column; gap: var(--spacingVerticalL); }
+.group { display: flex; flex-direction: column; gap: var(--spacingVerticalXS); }
+.keys { display: flex; justify-content: end; align-items: center; gap: var(--spacingHorizontalSNudge); }

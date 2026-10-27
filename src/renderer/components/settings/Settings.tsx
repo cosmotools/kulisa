@@ -22,7 +22,7 @@ import { closeSettings, onLeaveSettings } from '../../lib/settings';
 import { agentMark } from '../AgentMark';
 import { ProjectIcon } from '../ProjectIcon';
 import { refused } from '../../../shared/result';
-import type { ProjectEntry, SettingsProfile } from '../../../shared/types';
+import type { ProjectEntry, ProjectSettings, SettingsProfile } from '../../../shared/types';
 import type { SettingsAt } from '../../../shared/ipc';
 import { ErrorBar } from '../ErrorBar';
 
@@ -38,8 +38,9 @@ const names = { projects: 'Projects', agents: 'Agents', profiles: 'Profiles', gi
 
 type Section = 'projects' | 'agents' | 'profiles' | 'github' | 'log' | 'about';
 
-export function Settings({ at, className }: { at: SettingsAt; className: string }) {
+export function Settings({ at, className }: { at: SettingsAt; className?: string }) {
   const [loaded, setLoaded] = useState(false);
+  const [first, setFirst] = useState<{ id: string; page: ProjectSettings } | null>(null); // the project's page it opens at, filled
   const [section, setSection] = useState<Section>('projects');
   const [projects, setProjects] = useState<ProjectEntry[]>([]), [editing, setEditing] = useState<string | null>(null);
   const { list: agents, clis, looking, install: inst } = useAgents();
@@ -68,6 +69,7 @@ export function Settings({ at, className }: { at: SettingsAt; className: string 
   const show = async (on: Section, id?: string) => {
     await save.current();
     if (on !== 'agents' || id !== agentAt) setSigning(null);
+    setFirst(null); // what it opened at is as it was then: a page shown later fetches its own
     setSection(on);
     if (on === 'projects') setEditing(id ?? null);
     if (on === 'agents') setAgentAt(id);
@@ -84,9 +86,14 @@ export function Settings({ at, className }: { at: SettingsAt; className: string 
     const on = (at.section === 'profiles' ? 'profiles' : at.section === 'log' || at.section === 'about' ? at.section : 'projects') as Section;
     setSection(on);
     // the gear: the window's project; Profiles from a task: their list
-    setEditing(on === 'projects' ? (at.id ?? list.project ?? null) : null); setShown((n) => n + 1);
+    const project = on === 'projects' ? (at.id ?? list.project ?? null) : null;
+    // Its page waited for too, as the agents are: shown as it comes, it jumps.
+    const page = project ? kulisa.invoke('project:settings-get', { id: project }) : null;
     setProfileAt(on === 'profiles' && at.id && all.some((p) => p.id === at.id) ? at.id : undefined);
     if (!await cached) await loadAgents(false); else void loadAgents(false);
+    const filled = page && await page;
+    setFirst(project && filled && !refused(filled) ? { id: project, page: filled } : null);
+    setEditing(project); setShown((n) => n + 1);
     setLoaded(true);
   })(); }, [at, lists]);
   useChanged(lists);
@@ -154,7 +161,7 @@ export function Settings({ at, className }: { at: SettingsAt; className: string 
     </RightClickMenu>;
 
   const page = (): ReactNode => {
-    if (section === 'projects') return shownProject ? <ProjectPage key={`${editing}:${shown}`} id={shownProject.id} saveRef={save} onSaved={() => void lists()} />
+    if (section === 'projects') return shownProject ? <ProjectPage key={`${editing}:${shown}`} id={shownProject.id} first={first?.id === shownProject.id ? first.page : undefined} saveRef={save} onSaved={() => void lists()} />
       : <Card appearance="subtle">{projects.length ? list('Projects', projects.map((p) => ({ key: `p:${p.id}`, name: p.name, media: <ProjectIcon p={p} size={24} />,
         description: [`${p.folders.length} ${p.folders.length === 1 ? 'folder' : 'folders'}`, `${p.tasks.length} ${p.tasks.length === 1 ? 'task' : 'tasks'}`].join(' · ') })))
         : <Text>No projects yet.</Text>}</Card>;
@@ -179,7 +186,7 @@ export function Settings({ at, className }: { at: SettingsAt; className: string 
   };
 
   const width = section === 'log' ? css.wide : css.column;
-  return <div id="settings" className={`${css.root} ${className}`}>
+  return <div id="settings" className={`${css.root} ${className ?? ''}`}>
     <div className={css.body}>
       <NavDrawer open type="inline" selectedValue={section} aria-label="Settings"
         onNavItemSelect={(_, d) => void show(d.value as Section)}>

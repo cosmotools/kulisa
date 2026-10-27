@@ -1,0 +1,6 @@
+/* A strip of tabs (strip.ts, useStrip marks it data-strip): no scrollbar, its edges with tabs past them faded. A mask
+   takes alpha alone, hence the literal color. A tab brought into view clears the fade (scroll-padding). */
+[data-strip] { --fade: 24px; overflow-x: auto; scrollbar-width: none; scroll-padding-inline: var(--fade); min-width: 0;
+  mask-image: linear-gradient(to right, transparent, #000 var(--fade-start, 0px), #000 calc(100% - var(--fade-end, 0px)), transparent); }
+[data-strip][data-past-start] { --fade-start: var(--fade); }
+[data-strip][data-past-end] { --fade-end: var(--fade); }
