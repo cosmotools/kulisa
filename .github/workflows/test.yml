@@ -99,9 +99,11 @@ jobs:
       # by the cache below. Through GITHUB_ENV: the job's env cannot read the runner context (GitHub refuses the whole
       # file).
       - run: |
-          printf 'TMPDIR=%s\nTEMP=%s\nTMP=%s\nelectron_config_cache=%s\n' "$RUNNER_TEMP" "$RUNNER_TEMP" "$RUNNER_TEMP" "$RUNNER_TEMP/electron" >> "$GITHUB_ENV"
-          echo "ELECTRON_VERSION=$(node -p "require('./package-lock.json').packages['node_modules/electron'].version")" >> "$GITHUB_ENV"
-          echo "RUNNER_IMAGE=$ImageOS-$ImageVersion" >> "$GITHUB_ENV"
+          {
+            printf 'TMPDIR=%s\nTEMP=%s\nTMP=%s\nelectron_config_cache=%s\n' "$RUNNER_TEMP" "$RUNNER_TEMP" "$RUNNER_TEMP" "$RUNNER_TEMP/electron"
+            echo "ELECTRON_VERSION=$(node -p "require('./package-lock.json').packages['node_modules/electron'].version")"
+            echo "RUNNER_IMAGE=$ImageOS-$ImageVersion"
+          } >> "$GITHUB_ENV"
       - uses: actions/setup-node@v7
         with:
           node-version: 24
@@ -113,7 +115,7 @@ jobs:
       # gnome-keyring and D-Bus: a keyring, as a desktop has, or safeStorage encrypts nothing and Kulisa keeps no
       # session cookies and no test password (they are never written in the clear). Installed by apt each time (a cache
       # of the installed packages, cache-apt-pkgs-action, does not bring gnome-keyring-daemon back), without what they
-      # only recommend (GTK 4, GStreamer, Ghostscript: 65 packages), from .deb files kept between runs: the Ubuntu
+      # only recommend (fonts, GStreamer's plugins, IBus: 18 of 65 packages), from .deb files kept between runs: the Ubuntu
       # mirror is at times slow, the cache is not. A cache is never overwritten, so its key names the runner's image:
       # a new image saves the .debs it needs, starting from the last image's.
       - if: runner.os == 'Linux'
