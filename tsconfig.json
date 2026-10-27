@@ -2,6 +2,8 @@
 // are (Electron's own Node, or plain Node 24.12+ for the unit tests), so erasable syntax only. The tests have their own
 // (test/tsconfig.json), the window too (src/renderer/tsconfig.json). DOM: for the functions the main process
 // runs in pages (executeJavaScript, Playwright's evaluate).
+// paths: src/ui's alias, for shadcn's CLI and dependency-cruiser, which read it here (the window's build and tsc:
+// vite.config.mts, src/renderer).
 // noUncheckedIndexedAccess: an element read by index may be missing; where the code knows it is there, `!` says so.
 {
   "compilerOptions": {
@@ -21,7 +23,8 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
     "noUncheckedIndexedAccess": true,
-    "noImplicitOverride": true
+    "noImplicitOverride": true,
+    "paths": { "@ui": ["./src/ui"], "@ui/*": ["./src/ui/*"] }
   },
   "include": ["src/main", "src/shared", "src/*/main", "src/*/ipc.ts", "src/*/*.test.ts", "scripts", "forge.config.ts", ".dependency-cruiser.ts", ".claude/hooks"]
 }

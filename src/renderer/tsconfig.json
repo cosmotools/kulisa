@@ -15,8 +15,9 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
     "noUncheckedIndexedAccess": true,
-    "noImplicitOverride": true
+    "noImplicitOverride": true,
+    "paths": { "@ui": ["../ui"], "@ui/*": ["../ui/*"] }
   },
-  "include": ["**/*.ts", "**/*.tsx", "../*/renderer", "../*/ipc.ts"],
+  "include": ["**/*.ts", "**/*.tsx", "../*/renderer", "../*/ipc.ts", "../ui"],
   "exclude": ["public", "../main"]
 }

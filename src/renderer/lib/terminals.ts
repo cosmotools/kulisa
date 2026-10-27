@@ -2,10 +2,9 @@
 // "<task>#<id>" as in the main process; here the terminals' side: the shown task's terminal in front (components/grid/Terminals.tsx),
 // links into its profiles, terminals moving to another window, their menus.
 import { act, store } from './store';
-import { dark, termStyle } from '../components/theme';
+import { termStyle } from './theme';
 import { keyText } from './common';
 import { menuAt, type MenuItem } from './menu';
-import { agentMark } from '../components/AgentMark';
 import { dialog } from './dialogs';
 import { refused } from '../../shared/result';
 import { restoreTerminal, serialized, termCopy, termHooks, termPaste, View, xtermKeys } from '../../terminal/renderer';
@@ -15,7 +14,7 @@ import type { Terminal as TerminalInfo } from '../../shared/types';
 const frontKey = () => { const { current, terminals } = store.getState(); return current && terminals.front !== null ? `${current}#${terminals.front}` : null; };
 // The terminals' panel's xterm, one for the window: components/grid/Terminals.tsx puts it in whichever grid is shown and
 // gives it the theme's colors.
-export const panelView = new View(termStyle(dark, 'colorNeutralBackground1'));
+export const panelView = new View(termStyle());
 export const shownTerm = () => (panelView.key && panelView.key === frontKey() ? panelView.term : null);
 Object.defineProperty(window, '__term', { get: shownTerm }); // for tests
 Object.defineProperty(window, '__termRenderer', { get: () => shownTerm() && panelView.renderer }); // for tests
@@ -70,15 +69,15 @@ const projectAgents = () => { const { projects } = store.getState(); return (pro
 export const launchers = () => [
   ...projectAgents().map((a) => {
     const [name, sub = ''] = a.name.split(' · ');
-    return { id: a.id, name, sub, icon: agentMark(a.cli), title: a.name, run: () => act('terminal:open', { agent: a.id }) };
+    return { id: a.id, name, sub, cli: a.cli, title: a.name, run: () => act('terminal:open', { agent: a.id }) };
   }),
-  { id: 'shell', name: 'Terminal', sub: '', icon: agentMark('shell'), title: 'Terminal', run: () => act('terminal:open') },
+  { id: 'shell', name: 'Terminal', sub: '', cli: 'shell', title: 'Terminal', run: () => act('terminal:open') },
 ];
 // +: a new conversation of one of them, or a shell.
 export const newTerminalItems = (): MenuItem[] => [
-  ...projectAgents().map((a) => ({ label: a.name, icon: agentMark(a.cli), run: () => act('terminal:open', { agent: a.id }) })),
+  ...projectAgents().map((a) => ({ label: a.name, agent: a.cli, run: () => act('terminal:open', { agent: a.id }) })),
   ...(projectAgents().length ? ['-' as const] : []),
-  { label: 'Terminal', icon: agentMark('shell'), keys: keyText('terminal.new'), run: () => act('terminal:open') },
+  { label: 'Terminal', agent: 'shell', keys: keyText('terminal.new'), run: () => act('terminal:open') },
 ];
 // What a tab's menu and its terminal's end with.
 export const tabItems = (t: TerminalInfo): MenuItem[] => [

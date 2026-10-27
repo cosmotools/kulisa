@@ -61,6 +61,16 @@ const config: IConfiguration = {
       comment: 'src/main/agents/ is reached from outside through index.ts only (the agent contract\'s types cross freely as import type).',
       from: { pathNot: '^src/main/agents/' }, to: { path: '^src/main/agents/', pathNot: '^src/main/agents/index\\.ts$' } },
     ...Object.entries(packages).flatMap(([name, p]) => packageRules(name, p)),
+    // src/ui, shadcn's components as its CLI makes them (src/ui/README.md): reached through its entry, using nothing of Kulisa.
+    { name: 'ui-entry', severity: 'error', comment: 'src/ui is reached from outside through its index.ts only.',
+      from: { pathNot: '^src/ui/' }, to: { path: '^src/ui/', pathNot: '^src/ui/index\\.ts$' } },
+    { name: 'ui-alone', severity: 'error', comment: 'src/ui uses nothing of Kulisa.',
+      from: { path: '^src/ui/' }, to: { path: '^src/', pathNot: '^src/ui/' } },
+    // The window's logic apart from its look (docs/ui.md, The code): rewriting the components touches no logic, and the
+    // logic never comes to depend on a look.
+    { name: 'logic-not-look', severity: 'error', comment: 'src/renderer/lib/ imports no component, no UI library, no icons.',
+      from: { path: '^src/renderer/lib/' },
+      to: { path: ['^src/renderer/components/', '^src/ui/', 'node_modules/(@fluentui|lucide-react|radix-ui|@radix-ui)/'] } },
     // Settings is the window's chunk of its own, read as it is first shown (App.tsx): a static import pulls it into the
     // window's bundle.
     { name: 'settings-entry', severity: 'error', comment: 'components/settings/ is reached from outside only by import() of its index.ts.',
@@ -74,6 +84,7 @@ const config: IConfiguration = {
   ],
   options: {
     doNotFollow: { path: 'node_modules' },
+    tsConfig: { fileName: 'tsconfig.json' }, // its paths: src/ui's alias (@ui)
     exclude: { path: '^src/renderer/public/' },
   },
 };

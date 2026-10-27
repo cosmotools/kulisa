@@ -47,7 +47,8 @@ jobs:
             GPL-3.0-or-later, GPL-3.0-only, GPL-2.0-or-later, LGPL-2.1-or-later, LGPL-3.0-or-later, MIT, ISC, 0BSD,
             BSD-2-Clause, BSD-3-Clause, Apache-2.0, MPL-2.0, BlueOak-1.0.0, Unlicense, CC0-1.0, Zlib, BSL-1.0,
             Python-2.0, OFL-1.1
-  # What needs no screen, once per OS: the unit tests, knip, ESLint and the layers, the types; actionlint on Linux.
+  # What needs no screen, once per OS: the unit tests, knip, ESLint and the layers, the types; src/ui as shadcn's CLI
+  # writes it and actionlint on Linux.
   checks:
     strategy:
       fail-fast: false
@@ -74,6 +75,10 @@ jobs:
       - run: npm run knip
       - run: npm run lint
       - run: npx tsc -p . && npx tsc -p test && npx tsc --noEmit -p src/renderer
+      # src/ui as shadcn's CLI writes it, never edited by hand (src/ui/README.md): made again, no difference. Once, on
+      # Linux: the CLI fetches shadcn's registry.
+      - if: runner.os == 'Linux'
+        run: npm run ui && git add -N src/ui && git diff --exit-code -- src/ui components.json
       # A Go program with no maintained npm package: its release, by its own script at the same version.
       - if: runner.os == 'Linux'
         run: |

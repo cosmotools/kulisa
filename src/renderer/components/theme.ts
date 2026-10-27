@@ -1,8 +1,6 @@
 // Fluent UI's theme: Fluent's tokens with a neutral brand, Inter and JetBrains Mono (bundled: the same on every OS,
 // offline). Only tokens: the components are Fluent's as they ship (docs/ui.md).
-import { createContext } from 'react';
 import { createDarkTheme, createLightTheme, tokens, type BrandVariants, type Theme } from '@fluentui/react-components';
-import type { TermStyle } from '../../terminal/renderer';
 
 // A neutral ramp in place of Microsoft's blue: the main button and what is chosen in the text's own color.
 const neutral: BrandVariants = {
@@ -24,20 +22,6 @@ const nav = (t: Theme): Theme => ({ ...t, colorNeutralBackground4: t.colorNeutra
 // Fluent's own neutrals (backgrounds, strokes, text) but the nav's: ours are the brand ramp, the fonts and the nav.
 export const dark: Theme = { ...nav(createDarkTheme(neutral)), ...fonts };
 export const light: Theme = { ...nav(createLightTheme(neutral)), ...fonts };
-
-// A window's theme: the page's data-theme (its URL, then the main process's 'theme'), System as the OS's.
-export const shade = (theme: string | undefined) => (theme === 'light' || (theme === 'system' && !matchMedia('(prefers-color-scheme: dark)').matches) ? 'light' : 'dark');
-
-// The theme shown, for what draws in its colors outside Fluent's components (a terminal: Terminal.tsx); the one given
-// to FluentProvider.
-export const ThemeShown = createContext<Theme>(dark);
-
-// A terminal's colors and font in a theme: the place's background (a Fluent color token), its text, its font size.
-export type ColorToken = Extract<keyof Theme, `color${string}`>;
-export const termStyle = (t: Theme, background: ColorToken): TermStyle => ({
-  colors: { background: t[background], foreground: t.colorNeutralForeground1, selection: t.colorNeutralStroke1 },
-  fontSize: parseFloat(t.fontSizeBase300),
-});
 
 // A dangerous question's main button (Delete): Fluent's Button has no danger appearance, so a FluentProvider of this
 // around it makes the brand's colors the danger ones (tokens: the theme around it decides them).

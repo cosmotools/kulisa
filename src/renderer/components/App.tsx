@@ -2,7 +2,8 @@
 // over them, and the dialogs, in Fluent UI's theme as the main process says (☰ → Theme; System: the OS's).
 import { lazy, Suspense, useEffect, useSyncExternalStore } from 'react';
 import { AriaLiveAnnouncer, FluentProvider } from '@fluentui/react-components';
-import { dark, light, shade, ThemeShown } from './theme';
+import { dark, light } from './theme';
+import { shade } from '../lib/theme';
 import { useWindow } from '../lib/store';
 import { TopBar } from './TopBar';
 import { Grid } from './Grid';
@@ -44,7 +45,7 @@ export function App() {
   useEffect(() => { document.documentElement.style.colorScheme = chosen === 'system' ? 'light dark' : shade(chosen); }, [chosen]);
   const bar = useWindow((s) => s.bar), open = useWindow((s) => s.current !== null), settings = useSettings();
   return <FluentProvider theme={theme}>
-    <AriaLiveAnnouncer><ThemeShown.Provider value={theme}><div className={css.root}>
+    <AriaLiveAnnouncer><div className={css.root}>
       {/* The tasks' bar in the title bar, as a browser's tabs, or under the grid (☰ → Tasks bar); none with no task open */}
       <TopBar>{bar === 'top' && open && <TaskBar />}</TopBar>
       {open ? <Grid /> : <Empty />}
@@ -59,6 +60,6 @@ export function App() {
       <Ask />
       <Thumbnail />
       <PointMenu />
-    </div></ThemeShown.Provider></AriaLiveAnnouncer>
+    </div></AriaLiveAnnouncer>
   </FluentProvider>;
 }

@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { AriaLiveAnnouncer, Caption1, FluentProvider, Input, Toolbar, ToolbarButton } from '@fluentui/react-components';
 import { ArrowClockwiseRegular, ArrowLeftRegular, ArrowRightRegular, type FluentIcon } from '@fluentui/react-icons';
-import { dark, light, shade } from './theme';
+import { dark, light } from './theme';
+import { shade } from '../lib/theme';
 import css from './Master.module.css';
 
 const query = new URLSearchParams(location.search);

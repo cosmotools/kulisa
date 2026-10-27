@@ -3,13 +3,14 @@
 // menu at a time, leaving the window closes it, and a menu over the pages shows once they are pictures (lib/cover.ts).
 // An area's right-click menu builds its rows for what was right-clicked; PointMenu.tsx opens one at a point.
 // The open menu's list is [role="menu"][data-ready] once shown (the tests' handle).
-import { cloneElement, useCallback, useEffect, useRef, useState, type HTMLAttributes, type KeyboardEvent, type MouseEvent,
+import { cloneElement, createElement, useCallback, useEffect, useRef, useState, type HTMLAttributes, type KeyboardEvent, type MouseEvent,
   type PointerEvent, type ReactElement, type ReactNode } from 'react';
 import { Avatar, Button, Menu, MenuDivider, MenuGroupHeader, MenuItem, MenuList, MenuPopover, MenuTrigger,
   type PositioningShorthand } from '@fluentui/react-components';
 import { CircleFilled, DeleteRegular } from '@fluentui/react-icons';
 import { avatarSrc } from '../lib/common';
 import { ProjectIcon } from './ProjectIcon';
+import { agentMark } from './AgentMark';
 import { useCovered } from '../lib/cover';
 import type { MenuItem as Item, MenuRow } from '../lib/menu';
 import css from './Menus.module.css';
@@ -25,6 +26,7 @@ function mark(it: MenuRow) {
   if (it.avatar) return <Avatar size={16} image={{ src: avatarSrc(it.avatar) }} />;
   if (it.project) return <ProjectIcon p={it.project} size={16} />;
   if (it.color) return <CircleFilled style={{ color: it.color }} />; // a project's color, known at run time
+  if (it.agent) return createElement(agentMark(it.agent));
   return Icon ? <Icon /> : undefined;
 }
 

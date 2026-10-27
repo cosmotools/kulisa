@@ -3,20 +3,20 @@
 // shown task's. With none, the panel folds to its + (by its height with a panel over or under it, by its width when it
 // is as tall as the grid), and unfolds to the size it had when one opens. With no profile open it is the grid's room for
 // them: the +'s rows are big buttons in its middle instead, the closed profiles' under them.
-import { useCallback, useContext, useEffect, useRef, useSyncExternalStore } from 'react';
+import { createElement, useCallback, useEffect, useRef, useSyncExternalStore } from 'react';
 import { Avatar, Button, CompoundButton, Spinner, Tab, TabList, Text } from '@fluentui/react-components';
 import { AddRegular, CheckmarkRegular, DismissRegular } from '@fluentui/react-icons';
 import type { IDockviewPanelHeaderProps, IDockviewPanelProps } from 'dockview-react';
 import { ButtonMenu, RightClickMenu } from '../Menus';
 import { agentMark } from '../AgentMark';
 import { AgentState, STATES } from '../AgentState';
-import { ThemeShown, termStyle } from '../theme';
+import { termStyle, useShade } from '../../lib/theme';
 import { act, store, useWindow } from '../../lib/store';
 import { profileLaunchers } from '../../lib/profiles';
 import { panelView, launchers, newTerminalItems, shownTerm, tabItems, terminalMenu } from '../../lib/terminals';
 import { dialog } from '../../lib/dialogs';
 import { avatarSrc, useShortcuts, withKeys } from '../../lib/common';
-import { Grow, useStrip } from '../../lib/strip';
+import { grow, useStrip } from '../../lib/strip';
 import { dialogsShown } from '../../lib/cover';
 import { termFocus } from '../../../terminal/renderer';
 import { Dictation, Pill } from '../../../dictation/renderer';
@@ -51,7 +51,7 @@ function fold(api: IDockviewPanelProps['api'], grid: IDockviewPanelProps['contai
 }
 
 export function Terminals({ api, containerApi }: IDockviewPanelProps) {
-  const host = useRef<HTMLDivElement>(null), launch = useRef<HTMLDivElement>(null), theme = useContext(ThemeShown);
+  const host = useRef<HTMLDivElement>(null), launch = useRef<HTMLDivElement>(null), shade = useShade();
   const task = useWindow((s) => s.current), front = useWindow((s) => s.terminals.front);
   const folded = useWindow((s) => !s.terminals.list.length);
   // No profile's pane in the grid: as dockview has them, so it folds against the grid as it is laid out.
@@ -67,7 +67,7 @@ export function Terminals({ api, containerApi }: IDockviewPanelProps) {
 
   useEffect(() => { host.current!.append(panelView.el); }, []);
   useEffect(() => panelView.show(shown), [shown]);
-  useEffect(() => panelView.restyle(termStyle(theme, 'colorNeutralBackground1')), [theme]);
+  useEffect(() => panelView.restyle(termStyle()), [shade]);
   // Another tab in front of the same task (chosen, or opened by the human): the keyboard goes to it. Not from a dialog
   // (Change Agent's tab comes in front under it): Fluent's dialog hides itself from the keyboard and the screen reader
   // once the keyboard leaves it.
@@ -128,7 +128,7 @@ function Launchers({ ref }: { ref: React.Ref<HTMLDivElement> }) {
   return <div ref={ref} data-testid="launchers" className={css.launchers}>
     <nav aria-label="New terminal" className={css.row}>
       {launchers().map((l) => <span key={l.id} className={css.launcher}><CompoundButton data-launcher appearance="secondary" aria-label={l.name} title={l.title}
-        icon={<l.icon />} onClick={() => void l.run()} secondaryContent={l.sub}>{l.name}</CompoundButton></span>)}
+        icon={createElement(agentMark(l.cli))} onClick={() => void l.run()} secondaryContent={l.sub}>{l.name}</CompoundButton></span>)}
     </nav>
     <nav aria-label="Open a profile" className={css.row}>
       {profileLaunchers(closed).map((p) => <span key={p.id} className={css.launcher}><CompoundButton data-launcher data-profile={p.id} appearance="secondary"
@@ -164,7 +164,7 @@ export function TerminalsHeader({ api }: IDockviewPanelHeaderProps) {
           onTabSelect={(_, d) => void act('terminal:show', { id: Number(d.value) })}>
           {list.map((t) => {
             const Mark = agentMark(t.agent?.cli ?? 'shell');
-            return <Grow key={t.id}><Tab value={String(t.id)} data-id={t.id} aria-label={t.name} title={tabTitle(t)}
+            return <Tab key={t.id} ref={grow} value={String(t.id)} data-id={t.id} aria-label={t.name} title={tabTitle(t)}
               icon={t.agent
                 ? <Button as="a" appearance="transparent" size="small" icon={<Mark />} tabIndex={-1} aria-label={`${t.agent.name}: change agent…`}
                   title="Change agent: hand the task to another agent, or this one afresh; it goes on with this conversation"
@@ -179,7 +179,7 @@ export function TerminalsHeader({ api }: IDockviewPanelHeaderProps) {
                   title={t.agent ? "Close: the agent stops (asked first); its conversation stays in the task's history" : 'Close: what runs there stops'}
                   onMouseDown={(e) => e.preventDefault()} onClick={(e) => { e.stopPropagation(); void act('terminal:close', { id: t.id }); }} />
               </span>
-            </Tab></Grow>;
+            </Tab>;
           })}
         </TabList>
       </nav>

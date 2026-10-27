@@ -1,25 +1,24 @@
 // A strip of tabs that scrolls sideways when they do not fit (docs/ui.md, Controls): the tasks' bar, a pane's tabs, the
 // closed profiles over the terminal, the terminals' tabs.
 // useStrip scrolls it by the wheel, says which edges have tabs past them, keeps its chosen tab (aria-selected) in sight;
-// it marks the strip data-strip, which strip.css draws: no scrollbar, its edges faded (an attribute: the strip is
-// Fluent's TabList, which takes no class of ours). A panel's tab in Grow grows in as it opens.
+// it marks the strip data-strip, which strip.css draws: no scrollbar, its edges faded. A panel's tab with grow as its
+// ref grows in as it opens.
 import { useEffect, useRef, type RefObject } from 'react';
-import { createMotionComponent, motionTokens } from '@fluentui/react-components';
 import { reducedMotion } from './common';
 import './strip.css';
 
 // The strips that had tabs before the change being committed: the MutationObserver below marks them after React's
-// commit, so a tab's motion (run in its layout effect, before that) still sees the strip as it was.
+// commit, so a tab's motion (started by its ref, before that) still sees the strip as it was.
 const filled = new WeakSet<Element>();
 
 // A tab added to a strip that has tabs (not the first ones, nor a strip drawn whole) grows in from the left, as
-// Chrome's. clip-path, not overflow (not animatable): what the tab holds is cut at its edge while it is narrow. fill
-// none: once grown, the tab is laid out by its own styles again. With reduced motion none at all, not Fluent's 1 ms:
-// that one still marks the tab opening until it ends.
-export const Grow = createMotionComponent(({ element }) => (!reducedMotion.matches && element.parentElement && filled.has(element.parentElement) ? [{
-  keyframes: [{ width: '0px', minWidth: '0px', paddingInline: '0px', clipPath: 'inset(0)' }, { clipPath: 'inset(0)' }],
-  duration: motionTokens.durationNormal, easing: motionTokens.curveDecelerateMax, fill: 'none',
-}] : []));
+// Chrome's: its ref. clip-path, not overflow (not animatable): what the tab holds is cut at its edge while it is
+// narrow. fill none: once grown, the tab is laid out by its own styles again. None with reduced motion.
+export const grow = (tab: HTMLElement | null) => {
+  if (!tab?.parentElement || !filled.has(tab.parentElement) || reducedMotion.matches) return;
+  tab.animate([{ width: '0px', minWidth: '0px', paddingInline: '0px', clipPath: 'inset(0)' }, { clipPath: 'inset(0)' }],
+    { duration: 200, easing: 'cubic-bezier(0.1, 0.9, 0.2, 1)', fill: 'none' });
+};
 
 // What a strip element does, until dispose().
 function strip(s: HTMLElement) {
@@ -40,9 +39,9 @@ function strip(s: HTMLElement) {
     else if (a.right > b.right - pad) s.scrollLeft += a.right - (b.right - pad);
     edges(); // at once: the scroll event comes a frame later
   };
-  // A tab growing in (Grow's motion, started before the observer hears of it): data-opening until it has grown, then
+  // A tab growing in (grow's motion, started before the observer hears of it): data-opening until it has grown, then
   // brought into sight. An attribute, not a class: React writes the tab's className over one. Its own animations
-  // only, not a CSS transition of Fluent's.
+  // only, not a CSS transition of its look.
   const opened = (t: Element) => {
     const growing = t.getAnimations().filter((a) => !(a instanceof CSSTransition) && !(a instanceof CSSAnimation));
     if (!growing.length) return;

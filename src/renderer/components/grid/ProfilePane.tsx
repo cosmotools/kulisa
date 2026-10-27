@@ -13,7 +13,7 @@ import { act, screenshot, store, togglePick, useWindow } from '../../lib/store';
 import { avatarSrc, keyText, withKeys } from '../../lib/common';
 import type { MenuItem } from '../../lib/menu';
 import { panes, scheduleLayout } from '../../lib/grid';
-import { Grow, useStrip } from '../../lib/strip';
+import { grow, useStrip } from '../../lib/strip';
 import { openSettings } from '../../lib/settings';
 import { deleteProfile } from '../../lib/profiles';
 import css from './ProfilePane.module.css';
@@ -132,7 +132,7 @@ export function ProfilePane({ api }: IDockviewPanelProps) {
       <RightClickMenu items={tabMenu} className={css.strip}>
         <TabList ref={strip} appearance="filled-circular" size="small" reserveSelectedTabSpace={false} selectedValue={profile.active ?? undefined}
           onTabSelect={(e, d) => { if (!('detail' in e && e.detail > 0)) activate(String(d.value)); }}>
-          {profile.tabs.map((t) => <Grow key={t.id}><Tab value={t.id} data-tab={t.id} aria-label={t.title || t.url || 'New tab'} title={t.url}
+          {profile.tabs.map((t) => <Tab key={t.id} ref={grow} value={t.id} data-tab={t.id} aria-label={t.title || t.url || 'New tab'} title={t.url}
             onPointerDown={pressTab(t.id)}
             icon={{ ...TAB_ICON, children: t.favicon ? <img className={css.favicon} alt="" src={t.favicon} /> : <Globe /> }}>
             <span className={css.label}>
@@ -142,7 +142,7 @@ export function ProfilePane({ api }: IDockviewPanelProps) {
               <span className={css.close}><Button as="a" appearance="subtle" size="small" icon={<DismissRegular />} aria-label="Close tab" title="Close tab" tabIndex={-1}
                 onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); }} onClick={closeTab(t.id)} /></span>
             </span>
-          </Tab></Grow>)}
+          </Tab>)}
         </TabList>
       </RightClickMenu>
       <Button appearance="subtle" size="small" icon={<AddRegular />} title={withKeys('New tab', 'tab.new')} aria-label="New tab" onClick={() => void panes.get(id)?.newTab()} />
