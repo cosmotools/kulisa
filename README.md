@@ -47,7 +47,7 @@ actors, the panes the stage, and the developer watches from the audience and sto
   - [docs/profiles.md](docs/profiles.md), [docs/tasks.md](docs/tasks.md), [docs/window.md](docs/window.md),
     [docs/transcripts.md](docs/transcripts.md), [docs/ui.md](docs/ui.md): how it works and why it is built so;
   - [docs/packages.md](docs/packages.md): Kulisa packages, parts of Kulisa in folders of their own (the terminal);
-  - [docs/ROADMAP.md](docs/ROADMAP.md): what is planned, open issues;
+  - what is planned and the open bugs: [GitHub issues](https://github.com/cosmotools/kulisa/issues);
   - [docs/testing.md](docs/testing.md) and [CONTRIBUTING.md](CONTRIBUTING.md): the tests, contributing.
 
 ## Run
@@ -79,7 +79,7 @@ npm version <patch|minor> --no-git-tag-version   # a release's version (CLAUDE.m
 ```
 
 Kulisa's tests run on Ubuntu, Windows and macOS at every pull request; macOS is for development so far (from source,
-or built unsigned on one's own Mac); Windows is less tried by hand (docs/ROADMAP.md). Installers are built by
+or built unsigned on one's own Mac); Windows is less tried by hand (#194). Installers are built by
 [Electron Forge](https://www.electronforge.io/) (`forge.config.ts`), each on its own platform. On Linux `npm start`
 and `npm test` run Electron with `--no-sandbox` (`chrome-sandbox` in `node_modules` is not setuid); the `.deb` installs
 it setuid, so the installed app is sandboxed.

@@ -8,9 +8,8 @@ coding agent the human chooses (Claude Code, Codex: the unchanged CLI) runs in t
 profiles through Kulisa's MCP server. Tasks run several agents on one project at once. Point-and-tell (Pick, then click an element) puts a reference with a Playwright locator into the agent's
 prompt; the human writes the rest of the message around it.
 
-- **Ideas and bugs go to GitHub issues** (`enhancement`, `bug`; GitHub's API below), not into the repository
-  (`docs/ROADMAP.md` is what is not moved there yet). Before building something, look for its issue: it may have been
-  put off, with the reason. Once built, close it.
+- **Ideas and bugs go to GitHub issues** (`enhancement`, `bug`; GitHub's API below), not into the repository. Before
+  building something, look for its issue: it may have been put off, with the reason. Once built, close it.
 - `docs/profiles.md`, `docs/tasks.md`, `docs/window.md`: how profiles, projects with their tasks, and the
   window work now: what the human and the agent do, what Kulisa creates on the computer and removes, why it is built
   so, the code. Read the one for the part you change; keep it current.
