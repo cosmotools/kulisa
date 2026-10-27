@@ -54,6 +54,9 @@ to the main process after every grid change ([window.md](window.md), The grid).
 - **Our class loses to Fluent's on its element**: Fluent's styles are inserted after ours, at the same specificity, so a
   class of ours on a Fluent component would not hold even if lint let it. Our box lays its children out (a grid
   stretches them, a span cuts a `Text`'s line); a part of Own drawing reaches Fluent's element by role from its box.
+- **A CSS Module renames its ids and keyframes too**: an id another part sets is `:global(#dock)`; what is the
+  document's (a view transition, its keyframes) or marks any element (`[data-strip]`) is a plain `.css` beside its part
+  (`Grid.css`, `lib/strip.css`).
 - **Under reduced motion a Fluent motion still runs** (1 ms): a part that waits for its end (`Grow`, `lib/strip.ts`)
   gets no motion then.
 - **`npm run lint` refuses** in the window a raw `button`, `input`, `select` or `textarea`, `lucide-react`, a hex
@@ -187,7 +190,7 @@ terminal, a screenshot's thumbnail). Fluent's `Menu` alone only for a row's own 
 
 What is drawn or moved here rather than by Fluent, each for a reason at it:
 
-- the grid's slide between tasks (a view transition of `#dock`, `Grid.module.css`): pictures, so the compositor moves them;
+- the grid's slide between tasks (a view transition of `#dock`, `Grid.css`): pictures, so the compositor moves them;
 - the dictation's pill with its wave bars, and the microphone breathing red while it records (`src/dictation/`, its
   `README.md`). The breathing is the Web Animations API: a Fluent motion only pauses, and remounting the button would
   drop its press's pointer capture;

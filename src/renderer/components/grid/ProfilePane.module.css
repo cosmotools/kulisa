@@ -18,7 +18,7 @@
 .close { flex: none; margin-inline-start: auto; display: flex; }
 /* The toolbar: the address taking what the buttons leave. */
 .group { display: flex; gap: var(--spacingHorizontalXXS); }
-.address { flex: 1; min-width: 0; display: grid; margin-inline: var(--spacingHorizontalXS); }
+.address { flex: 1; min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr); margin-inline: var(--spacingHorizontalXS); }
 .content { flex: 1; position: relative; overflow: hidden; background: var(--colorNeutralBackground1); }
 /* A page's dialog, right under the address bar on a dimmed picture of the page, as Chrome shows it. */
 .content[data-dimmed] { background: linear-gradient(var(--colorBackgroundOverlay), var(--colorBackgroundOverlay)), var(--picture) 0 0 / 100% 100%; }

@@ -3,7 +3,7 @@
    keeping its place: a row resized as Settings closes moved the terminal. In its row (Settings' row too: auto-placed,
    it would go below it). */
 .root { height: 100vh; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; background: var(--colorNeutralBackground2); }
-.root > :is(#dock, #empty) { grid-area: 2 / 1; }
-.root > #taskbar { grid-area: 3 / 1; }
-.root[data-settings] :is(#dock, #empty, #taskbar) { visibility: hidden; }
+.root > :global(:is(#dock, #empty)) { grid-area: 2 / 1; }
+.root > :global(#taskbar) { grid-area: 3 / 1; }
+.root[data-settings] :global(:is(#dock, #empty, #taskbar)) { visibility: hidden; }
 .settings { grid-area: 2 / 1 / -1; }

@@ -17,24 +17,11 @@
 .dock :global(.dv-tab) { min-width: 0; flex-shrink: 1; }
 .grid { flex: 1; min-height: 0; }
 
-/* Switching tasks (lib/grid.ts, grid:closing): the grid slides towards the next task's tab, as macOS desktops do (types
-   next and previous say which way). Pictures, so the compositor moves them. Longhands: Vite's CSS minifier (Lightning
-   CSS) makes the shorthand with no name `animation: none`, and nothing slides. Material's standard easing: an ease-out
-   creeps over its last few percent, the grid going out lingering at the window's edge. Until the grid is laid out
-   (aria-busy: lib/grid.ts, reveal) it is not shown; then it fades in, unless it comes sliding. */
+/* The grid that slides between tasks (Grid.css). Until it is laid out (aria-busy: lib/grid.ts, reveal) it is not
+   shown; then it fades in, unless it comes sliding. */
 .dock { view-transition-name: grid; transition: opacity .15s; }
 .dock[aria-busy] { opacity: 0; transition: none; }
 :active-view-transition .dock { transition: none; }
-::view-transition-old(grid), ::view-transition-new(grid) {
-  animation-duration: .3s; animation-timing-function: cubic-bezier(.4, 0, .2, 1); animation-fill-mode: both; mix-blend-mode: normal; }
-:active-view-transition-type(next)::view-transition-old(grid) { animation-name: grid-to-left; }
-:active-view-transition-type(next)::view-transition-new(grid) { animation-name: grid-from-right; }
-:active-view-transition-type(previous)::view-transition-old(grid) { animation-name: grid-to-right; }
-:active-view-transition-type(previous)::view-transition-new(grid) { animation-name: grid-from-left; }
-@keyframes grid-to-left { to { translate: -100% 0; } }
-@keyframes grid-from-right { from { translate: 100% 0; } }
-@keyframes grid-to-right { to { translate: 100% 0; } }
-@keyframes grid-from-left { from { translate: -100% 0; } }
 
 /* The closed profiles' row over the terminal (a strip: lib/strip.ts), its buttons as wide as their names up to 18em. */
 .closed { display: flex; gap: var(--spacingHorizontalXS); flex: none; padding: var(--spacingVerticalXS) var(--spacingHorizontalS);

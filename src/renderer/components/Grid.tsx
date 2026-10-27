@@ -14,6 +14,7 @@ import { useWindow } from '../lib/store';
 import { profileLaunchers } from '../lib/profiles';
 import { useStrip } from '../lib/strip';
 import { avatarSrc } from '../lib/common';
+import './Grid.css';
 import css from './Grid.module.css';
 
 const components = { profile: ProfilePane, terminal: Terminals, resources: Resources };

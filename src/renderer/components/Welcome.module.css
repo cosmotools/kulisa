@@ -12,7 +12,7 @@
 .wizard { flex: 1; display: flex; flex-direction: column; gap: var(--spacingVerticalL); min-height: 0; }
 /* A slide's picture, a task's window drawn small: its terminal and two profiles' panes. */
 .frame { justify-self: center; width: 100%; min-width: 0; }
-.picture { display: grid; grid-template-columns: 1.1fr 1fr 1fr; gap: var(--spacingHorizontalS); aspect-ratio: 16 / 10; }
+.picture { display: grid; grid-template-columns: 1.1fr 1fr 1fr; grid-template-rows: minmax(0, 1fr); gap: var(--spacingHorizontalS); aspect-ratio: 16 / 10; overflow: hidden; }
 .muted { color: var(--colorNeutralForeground3); }
 .done { color: var(--colorPaletteGreenForeground1); }
 .page { display: grid; gap: var(--spacingVerticalSNudge); }
