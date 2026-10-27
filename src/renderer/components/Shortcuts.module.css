@@ -1,0 +1,5 @@
+/* Keyboard Shortcuts (Shortcuts.tsx): a group a section, its keys at the row's end. */
+.groups { display: flex; flex-direction: column; gap: var(--spacingVerticalL); }
+.group { display: flex; flex-direction: column; gap: var(--spacingVerticalXS); }
+.keys { display: flex; justify-content: end; align-items: center; gap: var(--spacingHorizontalSNudge); }
+.title { margin: 0; }

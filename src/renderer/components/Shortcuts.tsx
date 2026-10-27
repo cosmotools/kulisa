@@ -2,13 +2,14 @@
 // so it is never out of date. A key held alone (the dictation's) is the human's to change: Change, then the key pressed
 // is it (keys:set; the main process says what may not be one).
 import { useEffect, useState } from 'react';
-import { Badge, Button, Dialog, DialogActions, DialogBody, DialogContent, DialogSurface, DialogTitle, Table, TableBody, TableCell,
-  TableRow, Text, Tooltip, makeStyles, tokens } from '@fluentui/react-components';
+import { Badge, Button, Caption1, Dialog, DialogActions, DialogBody, DialogContent, DialogSurface, DialogTitle, Subtitle2, Table, TableBody,
+  TableCell, TableRow, Tooltip } from '@fluentui/react-components';
 import { useCovered } from '../lib/cover';
 import { registerDialog } from '../lib/dialogs';
 import { useShortcuts } from '../lib/common';
 import { refused } from '../../shared/result';
 import { ErrorBar } from './ErrorBar';
+import css from './Shortcuts.module.css';
 
 const GROUPS = [
   ['global', 'Everywhere', 'In the window, the pages and the terminal.'],
@@ -16,17 +17,7 @@ const GROUPS = [
   ['terminal', 'In the terminal', 'Every other key goes to the agent.'],
 ];
 
-const useStyles = makeStyles({
-  surface: { maxWidth: '560px' },
-  group: { marginBottom: tokens.spacingVerticalL },
-  title: { margin: 0 },
-  hint: { color: tokens.colorNeutralForeground3, marginBottom: tokens.spacingVerticalXS },
-  keys: { display: 'flex', justifyContent: 'end', alignItems: 'center', gap: tokens.spacingHorizontalSNudge },
-  message: { marginTop: tokens.spacingVerticalS },
-});
-
 export function Shortcuts() {
-  const styles = useStyles();
   const { open, setOpen } = useCovered('hide');
   const shortcuts = useShortcuts();
   const [listening, setListening] = useState<string | null>(null); // the id whose key is pressed next
@@ -48,18 +39,18 @@ export function Shortcuts() {
   }, [listening]);
   const change = (id: string) => { setMessage(''); setListening(id); };
   return <Dialog open={open} onOpenChange={(_, d) => { setOpen(d.open); if (!d.open) setListening(null); }}>
-    <DialogSurface className={styles.surface}>
+    <DialogSurface>
       <DialogBody>
         <DialogTitle>Keyboard Shortcuts</DialogTitle>
-        <DialogContent>
-          {GROUPS.map(([group, title, hint]) => <section key={group} aria-label={title} className={styles.group}>
-            <Text as="h3" weight="semibold" block className={styles.title}>{title}</Text>
-            <Text size={200} block className={styles.hint}>{hint}</Text>
+        <DialogContent><div className={css.groups}>
+          {GROUPS.map(([group, title, hint]) => <section key={group} aria-label={title} className={css.group}>
+            <h3 className={css.title}><Subtitle2>{title}</Subtitle2></h3>
+            <Caption1>{hint}</Caption1>
             <Table size="small" aria-label={title}>
               <TableBody>
                 {shortcuts.filter((s) => s.group === group).map((s) => <TableRow key={s.id} data-shortcut={s.id}>
                   <TableCell>{s.label}</TableCell>
-                  <TableCell><div className={styles.keys}>
+                  <TableCell><div className={css.keys}>
                     {listening === s.id ? <Badge data-key appearance="outline" color="subtle">Press a key…</Badge>
                       : s.keys.map((k) => <Badge key={k} data-key appearance="outline" color="informative">{k}</Badge>)}
                     {s.hold && <Tooltip relationship="description" content="Press the key to hold instead: a Ctrl, Shift, Alt or ⌘ by its side, an F key, Insert, Pause or Scroll Lock">
@@ -68,9 +59,9 @@ export function Shortcuts() {
                 </TableRow>)}
               </TableBody>
             </Table>
-            {group === 'global' && message && <ErrorBar className={styles.message}>{message}</ErrorBar>}
+            {group === 'global' && message && <ErrorBar>{message}</ErrorBar>}
           </section>)}
-        </DialogContent>
+        </div></DialogContent>
         <DialogActions><Button appearance="primary" onClick={() => setOpen(false)}>Close</Button></DialogActions>
       </DialogBody>
     </DialogSurface>

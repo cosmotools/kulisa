@@ -1,20 +1,12 @@
 // A strip of tabs that scrolls sideways when they do not fit (docs/ui.md, Controls): the tasks' bar, a pane's tabs, the
 // closed profiles over the terminal, the terminals' tabs.
 // useStrip scrolls it by the wheel, says which edges have tabs past them, keeps its chosen tab (aria-selected) in sight;
-// the class it gives draws that: no scrollbar, its edges faded. A panel's tab in Grow grows in as it opens.
+// it marks the strip data-strip, which strip.css draws: no scrollbar, its edges faded (an attribute: the strip is
+// Fluent's TabList, which takes no class of ours). A panel's tab in Grow grows in as it opens.
 import { useEffect, useRef, type RefObject } from 'react';
-import { createMotionComponent, makeStyles, motionTokens } from '@fluentui/react-components';
+import { createMotionComponent, motionTokens } from '@fluentui/react-components';
 import { reducedMotion } from './common';
-
-const FADE = '24px';
-// A mask takes alpha alone, hence the literal color. A tab brought into view clears the fade (scroll-padding).
-const useStyles = makeStyles({
-  strip: {
-    overflowX: 'auto', scrollbarWidth: 'none', scrollPaddingInline: FADE, minWidth: 0,
-    maskImage: 'linear-gradient(to right, transparent, #000 var(--fade-start, 0px), #000 calc(100% - var(--fade-end, 0px)), transparent)',
-    '&[data-past-start]': { '--fade-start': FADE }, '&[data-past-end]': { '--fade-end': FADE },
-  },
-});
+import './strip.css';
 
 // The strips that had tabs before the change being committed: the MutationObserver below marks them after React's
 // commit, so a tab's motion (run in its layout effect, before that) still sees the strip as it was.
@@ -31,6 +23,7 @@ export const Grow = createMotionComponent(({ element }) => (!reducedMotion.match
 
 // What a strip element does, until dispose().
 function strip(s: HTMLElement) {
+  s.setAttribute('data-strip', '');
   // Which edges have tabs past them (data-past-start, data-past-end), faded.
   const edges = () => {
     s.toggleAttribute('data-past-start', s.scrollLeft > 1);
@@ -85,9 +78,8 @@ function strip(s: HTMLElement) {
   return { reveal, dispose() { resized.disconnect(); grown.disconnect(); tabs.disconnect(); filled.delete(s); s.removeEventListener('wheel', wheel); s.removeEventListener('scroll', edges); } };
 }
 
-// ref: the strip's element; active: what changes when another tab is chosen (its key). The strip's class.
+// ref: the strip's element; active: what changes when another tab is chosen (its key).
 export function useStrip(ref: RefObject<HTMLElement | null>, active: unknown) {
-  const styles = useStyles();
   const shown = useRef<ReturnType<typeof strip> | null>(null);
   useEffect(() => {
     if (!ref.current) return;
@@ -95,5 +87,4 @@ export function useStrip(ref: RefObject<HTMLElement | null>, active: unknown) {
     return () => { it.dispose(); shown.current = null; };
   }, [ref]);
   useEffect(() => { const f = requestAnimationFrame(() => shown.current?.reveal()); return () => cancelAnimationFrame(f); }, [active]);
-  return styles.strip;
 }

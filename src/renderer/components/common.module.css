@@ -1,0 +1,2 @@
+/* What many parts share (docs/ui.md, Desktop): text to copy and search for (an error, a path), where the window's is not. */
+.selectable { user-select: text; overflow-wrap: anywhere; }

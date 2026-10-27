@@ -1,0 +1,14 @@
+/* The title bar (TopBar.tsx): env(titlebar-area-*) leaves room for the OS window buttons (titleBarOverlay in window.ts;
+   44 px: TITLE_BAR_HEIGHT there). Where the window is dragged by (drag), and what in it takes clicks instead. */
+.bar { height: 44px; display: flex; align-items: center; gap: var(--spacingHorizontalS); min-width: 0; box-sizing: border-box;
+  padding-inline-start: calc(env(titlebar-area-x, 0px) + 8px); width: calc(env(titlebar-area-x, 0px) + env(titlebar-area-width, 100%)); }
+.drag { -webkit-app-region: drag; }
+.noDrag { -webkit-app-region: no-drag; }
+.logo { order: -2; display: flex; }
+.sidebar { order: -1; display: flex; }
+.space { flex: 1 0 40px; align-self: stretch; }
+.end { display: flex; gap: var(--spacingHorizontalXS); margin-inline-end: var(--spacingHorizontalS); }
+/* ☰'s zoom row, as Chrome's: its label taking the room, − value +. */
+.zoom { display: flex; align-items: center; gap: var(--spacingHorizontalXXS); }
+.zoomLabel { flex: 1; display: flex; align-items: center; gap: var(--spacingHorizontalS); padding-inline: var(--spacingHorizontalMNudge); }
+.zoomValue { min-width: 4em; text-align: center; }

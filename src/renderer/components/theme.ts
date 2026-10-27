@@ -1,7 +1,7 @@
 // Fluent UI's theme: Fluent's tokens with a neutral brand, Inter and JetBrains Mono (bundled: the same on every OS,
 // offline). Only tokens: the components are Fluent's as they ship (docs/ui.md).
 import { createContext } from 'react';
-import { createDarkTheme, createLightTheme, makeStyles, tokens, type BrandVariants, type Theme } from '@fluentui/react-components';
+import { createDarkTheme, createLightTheme, tokens, type BrandVariants, type Theme } from '@fluentui/react-components';
 import type { TermStyle } from '../../terminal/renderer';
 
 // A neutral ramp in place of Microsoft's blue: the main button and what is chosen in the text's own color.
@@ -39,8 +39,9 @@ export const termStyle = (t: Theme, background: ColorToken): TermStyle => ({
   fontSize: parseFloat(t.fontSizeBase300),
 });
 
-// Classes many parts share: muted text, and text to copy and search for (an error, a path) where the window's text is not.
-export const useCommonStyles = makeStyles({
-  muted: { color: tokens.colorNeutralForeground3 },
-  selectable: { userSelect: 'text' },
-});
+// A dangerous question's main button (Delete): Fluent's Button has no danger appearance, so a FluentProvider of this
+// around it makes the brand's colors the danger ones (tokens: the theme around it decides them).
+export const danger: Partial<Theme> = {
+  colorBrandBackground: tokens.colorStatusDangerBackground3, colorBrandBackgroundHover: tokens.colorStatusDangerBackground3Hover,
+  colorBrandBackgroundPressed: tokens.colorStatusDangerBackground3Pressed, colorNeutralForegroundOnBrand: tokens.colorNeutralForegroundStaticInverted,
+};

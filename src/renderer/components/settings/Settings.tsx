@@ -38,7 +38,7 @@ const names = { projects: 'Projects', agents: 'Agents', profiles: 'Profiles', gi
 
 type Section = 'projects' | 'agents' | 'profiles' | 'github' | 'log' | 'about';
 
-export function Settings({ at, className }: { at: SettingsAt; className: string }) {
+export function Settings({ at, className }: { at: SettingsAt; className?: string }) {
   const [loaded, setLoaded] = useState(false);
   const [section, setSection] = useState<Section>('projects');
   const [projects, setProjects] = useState<ProjectEntry[]>([]), [editing, setEditing] = useState<string | null>(null);
@@ -179,7 +179,7 @@ export function Settings({ at, className }: { at: SettingsAt; className: string 
   };
 
   const width = section === 'log' ? css.wide : css.column;
-  return <div id="settings" className={`${css.root} ${className}`}>
+  return <div id="settings" className={`${css.root} ${className ?? ''}`}>
     <div className={css.body}>
       <NavDrawer open type="inline" selectedValue={section} aria-label="Settings"
         onNavItemSelect={(_, d) => void show(d.value as Section)}>

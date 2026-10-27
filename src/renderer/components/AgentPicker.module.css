@@ -1,0 +1,9 @@
+/* Choose the Agent (AgentPicker.tsx) and an install's progress: a row an agent, its mark beside its lines. */
+.content { display: flex; flex-direction: column; gap: var(--spacingVerticalM); }
+.progress { display: flex; flex-direction: column; gap: var(--spacingVerticalXS); }
+.agents { display: flex; flex-direction: column; }
+.row { display: grid; grid-auto-flow: column; grid-template-columns: minmax(0, 1fr); align-items: center; gap: var(--spacingHorizontalS);
+  padding-block: var(--spacingVerticalXS); }
+.label { display: flex; gap: var(--spacingHorizontalS); align-items: flex-start; }
+.mark { flex: none; width: 20px; height: 20px; margin-top: 1px; }
+.lines { display: flex; flex-direction: column; gap: var(--spacingVerticalXXS); min-width: 0; }

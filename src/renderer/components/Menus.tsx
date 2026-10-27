@@ -5,23 +5,19 @@
 // The open menu's list is [role="menu"][data-ready] once shown (the tests' handle).
 import { cloneElement, useCallback, useEffect, useRef, useState, type HTMLAttributes, type KeyboardEvent, type MouseEvent,
   type PointerEvent, type ReactElement, type ReactNode } from 'react';
-import { Avatar, Button, Menu, MenuDivider, MenuGroupHeader, MenuItem, MenuList, MenuPopover, MenuTrigger, makeStyles, tokens,
+import { Avatar, Button, Menu, MenuDivider, MenuGroupHeader, MenuItem, MenuList, MenuPopover, MenuTrigger,
   type PositioningShorthand } from '@fluentui/react-components';
 import { CircleFilled, DeleteRegular } from '@fluentui/react-icons';
 import { avatarSrc } from '../lib/common';
 import { ProjectIcon } from './ProjectIcon';
 import { useCovered } from '../lib/cover';
 import type { MenuItem as Item, MenuRow } from '../lib/menu';
+import css from './Menus.module.css';
 
 export type { Item };
 
 // A menu taller than the window has scrolls, reaching as far as its edge.
 export const FIT = { autoSize: 'height', overflowBoundaryPadding: 4 } satisfies PositioningShorthand;
-
-const useStyles = makeStyles({
-  hidden: { visibility: 'hidden' },
-  heading: { display: 'flex', alignItems: 'center', gap: tokens.spacingHorizontalS },
-});
 
 // A row's mark at its start: its icon, a project's dot or icon, a profile's picture.
 function mark(it: MenuRow) {
@@ -35,14 +31,13 @@ function mark(it: MenuRow) {
 // A row. remove: its 🗑, shown while the pointer or the keyboard is on the row, Delete too; it runs instead of the row's
 // own action, the menu closing as for any row.
 function Row({ it, close }: { it: MenuRow; close: () => void }) {
-  const [hot, setHot] = useState(false), styles = useStyles();
+  const [hot, setHot] = useState(false);
   const remove = () => { close(); void it.remove!.run(); };
   const onKeyDown = (e: KeyboardEvent) => { if (it.remove && e.key === 'Delete') { e.preventDefault(); remove(); } };
   return <MenuItem aria-label={it.label} disabled={it.enabled === false || !it.run} title={it.title} icon={mark(it)}
     subText={it.sub || undefined}
-    secondaryContent={it.remove ? <Button appearance="subtle" size="small" icon={<DeleteRegular />} aria-label={it.remove.label} title={it.remove.label}
-      tabIndex={-1} className={hot ? undefined : styles.hidden}
-      onClick={(e) => { e.stopPropagation(); remove(); }} /> : it.keys || undefined}
+    secondaryContent={it.remove ? <span className={hot ? undefined : css.hidden}><Button appearance="subtle" size="small" icon={<DeleteRegular />}
+      aria-label={it.remove.label} title={it.remove.label} tabIndex={-1} onClick={(e) => { e.stopPropagation(); remove(); }} /></span> : it.keys || undefined}
     onMouseEnter={() => setHot(true)} onMouseLeave={() => setHot(false)} onFocus={() => setHot(true)} onBlur={() => setHot(false)}
     onKeyDown={onKeyDown} onClick={() => void it.run?.()}>{it.label}</MenuItem>;
 }
@@ -53,10 +48,9 @@ function Row({ it, close }: { it: MenuRow; close: () => void }) {
 // within one it warns).
 const hasIcons = (items: Item[]) => items.some((it) => typeof it === 'object' && ('icon' in it || 'avatar' in it || 'project' in it || 'color' in it));
 function Rows({ items, close, ready = true }: { items: Item[]; close: () => void; ready?: boolean }) {
-  const styles = useStyles();
   return <MenuList data-ready={ready || undefined}>{items.map((it, i) => {
     if (it === '-') return <MenuDivider key={i} />;
-    if ('heading' in it) { const Icon = it.icon; return <MenuGroupHeader key={i} className={styles.heading}>{Icon && <Icon />}{it.heading}</MenuGroupHeader>; }
+    if ('heading' in it) { const Icon = it.icon; return <MenuGroupHeader key={i}><span className={css.heading}>{Icon && <Icon />}{it.heading}</span></MenuGroupHeader>; }
     if ('component' in it) { const Own = it.component; return <Own key={i} close={close} />; }
     if ('submenu' in it) {
       return <Menu key={i} positioning={FIT} hasIcons={hasIcons(it.items)}>

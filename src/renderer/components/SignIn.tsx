@@ -3,26 +3,21 @@
 // in the browser, only confuses; it is there for a failure (opened by itself then) and for what the browser does not
 // show (a code the agent asks for). Gone (Cancel, its page left), the sign-in is cancelled.
 import { useEffect, useRef, useState } from 'react';
-import { Accordion, AccordionHeader, AccordionItem, AccordionPanel, Button, Card, Spinner, Text, makeStyles,
-  tokens } from '@fluentui/react-components';
+import { Accordion, AccordionHeader, AccordionItem, AccordionPanel, Button, Card, Spinner, Text } from '@fluentui/react-components';
 import { forgetTerminals } from '../../terminal/renderer';
 import { Terminal } from './Terminal';
 import type { SignedIn as Answer } from '../../shared/types';
 import { ErrorBar } from './ErrorBar';
+import css from './SignIn.module.css';
 
 let n = 0;
 const fresh = () => `signin#${Date.now()}-${++n}`; // a sign-in's terminal: a new one for each try
 
-const useStyles = makeStyles({
-  signIn: { display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalS },
-  terminal: { height: '160px' },
-  buttons: { display: 'flex', gap: tokens.spacingHorizontalS },
-});
 export function SignIn({ agent, project, onDone, onClose }: { agent: { id: string; name: string }; project?: string; onDone: (r: Answer) => void; onClose: () => void }) {
   // key: its terminal, kept after its sign-in ends (a failure's Details show what the agent said); a new one on Try Again
   const [key, setKey] = useState(fresh), [running, setRunning] = useState(true);
   const [error, setError] = useState(''), [details, setDetails] = useState(false);
-  const done = useRef(onDone), styles = useStyles();
+  const done = useRef(onDone);
   useEffect(() => { done.current = onDone; });
   // A sign-in, its terminal shown; cancelled when it goes (Cancel, its page left) while it runs, its terminal forgotten.
   useEffect(() => {
@@ -40,20 +35,20 @@ export function SignIn({ agent, project, onDone, onClose }: { agent: { id: strin
   }, [key, agent.id, project]);
 
   const again = () => { setKey(fresh()); setRunning(true); setError(''); setDetails(false); };
-  return <div role="group" aria-label={`New account of ${agent.name}`} className={styles.signIn}>
+  return <div role="group" aria-label={`New account of ${agent.name}`} className={css.signIn}>
     <Text size={200}>Signing in to a new account of {agent.name}: sign in in your browser, which opens (check the account it signs in to
       there; its address is under Details if it did not open). The account is {project ? 'added' : 'kept'} once you are signed in.</Text>
     <Accordion collapsible openItems={details ? ['details'] : []} onToggle={(_, d) => setDetails(d.openItems.includes('details'))}>
       <AccordionItem value="details">
         <AccordionHeader size="small">Details</AccordionHeader>
         <AccordionPanel>
-          <Card appearance="outline" size="small"><Terminal terminal={key} className={styles.terminal} /></Card>
+          <Card appearance="outline" size="small"><Terminal terminal={key} className={css.terminal} /></Card>
         </AccordionPanel>
       </AccordionItem>
     </Accordion>
     {error && <ErrorBar actions={<Button onClick={again}>Try Again</Button>}>{error}</ErrorBar>}
     {running && <Spinner size="tiny" labelPosition="after" label="Waiting for the sign-in…" />}
-    <div className={styles.buttons}>
+    <div className={css.buttons}>
       {!running && !error && <Button onClick={again}>Try Again</Button>}
       <Button onClick={onClose}>Cancel</Button>
     </div>

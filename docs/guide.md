@@ -94,7 +94,7 @@ At the first start, with no project yet, the window is New Project after three s
 the first step shows them again); later, **New Project…** at the foot of the sidebar. Three steps; **Next** goes on,
 **Back** goes back with what you typed kept, and nothing is made before **Create**.
 
-**1. Code.** Where its code comes from, on the left:
+**1. Code.** Where its code comes from, in the tabs at the top:
 
 - **New folder**: a new, empty project. Kulisa makes the folder (in the KulisaProjects folder in your home folder unless you choose another place),
   a plain folder: tasks work right in it. Want git? Ask the agent to set it up; the tasks you make after that each
