@@ -94,7 +94,7 @@ test("projects: the projects' manager (Project Settings…) changes its name and
   // The name typed and Settings closed with its ×: kept (saved first).
   await field(s, 'Name').fill('Site-2');
   expect((await entryOf()).name, 'not yet: on Enter or leaving it').toBe('site');
-  await s.getByRole('button', { name: 'Close (Esc)' }).click();
+  await s.getByRole('button', { name: 'Back (Esc)' }).click();
   await settingsClosed(core, ui);
   await expect.poll(async () => (await entryOf()).name).toBe('Site-2');
   const entry = await entryOf();

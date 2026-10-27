@@ -136,7 +136,8 @@ prompt; the human writes the rest of the message around it.
   - Before using a Fluent UI component in the window, read its file from Fluent's own docs for agents
     (`https://storybooks.fluentui.dev/react/llms.txt`: each component's purpose, best practices and stories as code)
     and build as its stories do, not from memory; what it is for and when not to use it is on its usage page
-    (`https://fluent2.microsoft.design/components/web/react/core/<name>/usage`).
+    (`https://fluent2.microsoft.design/components/web/react/core/<name>/usage`). Used as it ships: no class, style,
+    `makeStyles` or wrapper of ours on it; the look is `theme.ts`'s tokens alone (`docs/ui.md`).
   - Hand-written protocol code is the exception: today only `cdp-proxy.ts`, because nothing existing exposes
     `webContents.debugger` over CDP.
   - When adding a dependency, prefer one that is widely used and maintained, and say why in the commit message. Its

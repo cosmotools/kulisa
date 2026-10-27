@@ -218,7 +218,7 @@ export const resize = (core: Core, size: { width?: number; height?: number }) =>
 
 // Settings (components/settings): a category of its nav (projects, agents, profiles, github, log, about), the shown one
 // aria-current; one thing's row on its category's page by its key (p:<project>, a:<agent>, f:<profile>); the shown
-// page's path; a section of a page (Row.tsx) by its title; the open menu (Fluent's: there only while open).
+// page's path; a section of a page (its Card, a group) by its title; the open menu (Fluent's: there only while open).
 export const navRow = (s: Page, key: string) => s.getByRole('navigation', { name: 'Settings' }).locator(`[data-key="${key}"]`);
 export const thingRow = (s: Page, key: string) => s.locator(`#settings main [data-row][data-key="${key}"]`);
 export const pathOf = (s: Page) => s.getByRole('navigation', { name: 'Path' });
@@ -229,7 +229,7 @@ export async function openThing(s: Page, key: string) {
   await navRow(s, { p: 'projects', a: 'agents', f: 'profiles' }[key.split(':')[0]]).click();
   await thingRow(s, key).click();
 }
-// The rows of a section of a page (Row.tsx) by its title, one by its name; a row's menu (its ⋯) and one of its actions.
+// The rows of a section of a page (its Card, a group) by its title, one by its name; a row's menu (its ⋯) and one of its actions.
 export const listRows = (s: Page, list: string) => group(s, list).locator('[data-row]');
 export const listRow = (s: Page, list: string, name: string) => group(s, list).locator(`[data-row][aria-label="${name}"]`);
 export async function onRow(s: Page, row: string | Locator, action: string) {

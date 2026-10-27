@@ -70,7 +70,7 @@ project, and those you closed, are in the sidebar (Tasks, below).
   Kulisa, and closing the last window only hides it, while your agents go on working; click Kulisa's icon in the Dock
   to bring it back.
 - **Settings** (on a Mac also ⌘, or Kulisa → Settings… in the menu bar) fills the window, over your task, and shows that task's project: set what you need and close it (**Esc**,
-  its ×, or the gear again; what you typed is saved as you go). Your task goes on meanwhile, and is there as you left it.
+  the ← arrow at its top left, or the gear again; what you typed is saved as you go). Your task goes on meanwhile, and is there as you left it.
 - **The grid**: the shown task's panes (one per open profile) and its terminals, flat side by side, split by thin
   lines. Drag a pane by its header to move it, onto another pane to stack them as tabs; drag the line between two to
   resize them. **☰ → Arrange panels** offers ready-made arrangements. Each task keeps its own grid.

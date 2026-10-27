@@ -21,6 +21,28 @@ const FLUENT = [
   { selector: 'Literal[value=/var\\(--color/], TemplateElement[value.raw=/var\\(--color/]', message: "`tokens.*`, typed, not a 'var(--color…)' string (docs/ui.md)." },
   { selector: `${STYLE}[value.type='Literal'], ${STYLE}[value.object.name='tokens']`, message: "A constant style is makeStyles'; `style` holds only what run time knows (docs/ui.md)." },
 ];
+// Settings is Fluent's components as they ship, their look the theme's alone (docs/ui.md, Fluent in Kulisa): no class or
+// style on one, no makeStyles; our own boxes (the frame, the log) take a CSS Module.
+const fluentAsShipped: Rule.RuleModule = {
+  meta: { type: 'problem', schema: [] },
+  create(context) {
+    const fluent = new Set<string>();
+    return {
+      ImportDeclaration(node) {
+        if (node.source.value !== '@fluentui/react-components') return;
+        for (const s of node.specifiers) if (s.type === 'ImportSpecifier') fluent.add(s.local.name);
+      },
+      JSXAttribute(node: Rule.Node) {
+        const n = node as unknown as { name: { name: string }; parent: { name: { type: string; name?: string } } };
+        const el = n.parent.name;
+        if ((n.name.name === 'className' || n.name.name === 'style') && el.type === 'JSXIdentifier' && fluent.has(el.name!))
+          context.report({ node, message: `${n.name.name} on Fluent's ${el.name}: its look is the theme's (docs/ui.md, Fluent in Kulisa).` });
+      },
+    };
+  },
+};
+const NO_MAKE_STYLES = { paths: [...NO_LUCIDE.paths, { name: '@fluentui/react-components', importNames: ['makeStyles', 'mergeClasses'],
+  message: "Fluent's look is the theme's; our own box takes a CSS Module (docs/ui.md, Fluent in Kulisa)." }] };
 const HEX = { selector: 'Literal[value=/^#[0-9a-fA-F]{3,8}$/]', message: 'A color is a Fluent token, `tokens.*` (docs/ui.md).' };
 
 // An e2e test finds Kulisa's elements by role and name, label, text or data-testid, and reads a state by its attribute
@@ -84,6 +106,8 @@ export default tseslint.config(
     rules: { 'no-restricted-imports': ['error', NO_LUCIDE], 'no-restricted-syntax': ['error', EXPORT_ALL, ...FLUENT, HEX] } },
   { files: ['src/renderer/components/AgentMark.tsx', 'src/renderer/components/ProjectIcon.tsx'],
     rules: { 'no-restricted-syntax': ['error', EXPORT_ALL, ...FLUENT] } },
+  { files: ['src/renderer/components/settings/**'], plugins: { kulisa: { rules: { 'fluent-as-shipped': fluentAsShipped } } },
+    rules: { 'no-restricted-imports': ['error', NO_MAKE_STYLES], 'kulisa/fluent-as-shipped': 'error' } },
   // An e2e test waits for a proof, never for a time: a pause long enough here is too short on a loaded machine, and
   // proves nothing when it is long enough (docs/testing.md, Writing an e2e test). A wait with an end is upTo (helpers.ts).
   { files: ['test/e2e/**'], plugins: { kulisa: { rules: { 'no-kulisa-classes': noKulisaClasses } } },

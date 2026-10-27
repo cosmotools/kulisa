@@ -132,7 +132,7 @@ test('Settings → Agents (not the terminal only): what is installed, installs t
   const details = page.getByRole('button', { name: 'Details' });
   await expect(details, "the installer's own output only under Details").toHaveAttribute('aria-expanded', 'false');
   await details.click();
-  const said = await page.getByRole('textbox', { name: 'What the installer said' }).inputValue();
+  const said = await page.getByRole('log', { name: 'What the installer said' }).innerText();
   expect(said).toMatch(/installing the fake agent\s+(tar: .*\s+)?done/);
   if (WIN) expect(said.match(/tar: (.*)/)[1].trim().toLowerCase(), "Windows' own tar, not Git's: GNU tar reads C:\\… as a host").toBe(path.join(process.env.SystemRoot, 'System32', 'tar.exe').toLowerCase());
   expect(said, 'no terminal codes: colors, links').not.toMatch(/\x1b/);

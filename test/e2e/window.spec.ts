@@ -657,8 +657,7 @@ test("About Kulisa (☰; on macOS the app menu's) is a page of Settings: the ver
   const s = await shown();
   await expect(s.getByRole('heading', { name: /^Kulisa / })).toHaveText(`Kulisa ${pkg.version}`);
   const versions = await core(() => ({ electron: process.versions.electron, chrome: process.versions.chrome }));
-  await expect(s.getByText(`Electron ${versions.electron} · Chromium ${versions.chrome}`, { exact: true })).toBeVisible();
-  await expect(s.getByText('kulisa.app · GPL-3.0-or-later', { exact: true })).toBeVisible();
+  await expect(s.getByText(`Electron ${versions.electron} · Chromium ${versions.chrome} · kulisa.app · GPL-3.0-or-later`, { exact: true })).toBeVisible();
   // Each folder: its path, and its button to show it, told so and off when it is not made yet.
   const projectsHome = path.join(files.root, 'KulisaProjects'), made = fs.existsSync(projectsHome);
   const folders = s.locator('[data-folder]');

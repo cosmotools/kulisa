@@ -8,7 +8,7 @@ import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
 import type { Files } from './data.ts';
 import type { SettingsAt } from '../../src/shared/ipc.ts';
-import { SITE, choose, rightClick, closeSettings, invoke, answer, removed, listRow } from './helpers.ts';
+import { SITE, choose, rightClick, closeSettings, invoke, answer, removed, listRow, group } from './helpers.ts';
 
 type Account = { id: string; login: string; kind: string; secret?: string };
 
@@ -60,7 +60,7 @@ async function typeToken(s: Page, token: string, shown = true) {
   const field = s.getByRole('textbox', { name: 'Token' });
   if (shown) await expect(field).toBeFocused();
   await field.fill(token);
-  await s.getByRole('form', { name: 'Add a token' }).getByRole('button', { name: 'Add', exact: true }).click();
+  await group(s, 'Accounts').getByRole('button', { name: 'Add', exact: true }).click();
 }
 // ann with Kulisa App and bob with a fine-grained token, signed in in Settings → GitHub as the first and third tests do.
 async function annAndBob(core: Core, sui: () => Promise<Page>) {

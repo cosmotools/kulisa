@@ -1,0 +1,16 @@
+/* Settings' frame (Settings.tsx): the nav, the path, the page scrolling under it. */
+/* The line under the title bar. */
+.root { display: flex; flex-direction: column; min-width: 0; min-height: 0; border-top: 1px solid var(--colorNeutralStroke2); }
+.body { flex: 1; display: flex; min-height: 0; }
+.main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.path { display: flex; align-items: center; justify-content: space-between; gap: var(--spacingHorizontalM);
+  padding-block: var(--spacingVerticalXXL) var(--spacingVerticalL); }
+/* Padding, not a box's width: the page's scrollbar stays at the window's edge. */
+/* A column: the log fills the height left (LogPage.tsx). */
+.page { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: auto; padding-bottom: var(--spacingVerticalXXL); }
+.column { padding-inline: 40px; }
+/* A page as wide as reads well, from the left. */
+.page.column > * { max-width: 840px; }
+/* The path as wide as the page's column under it (.page.column), its button at the column's end. */
+.path.column { max-width: calc(840px + 80px); box-sizing: border-box; }
+.wide { padding-inline: var(--spacingHorizontalXXL); }

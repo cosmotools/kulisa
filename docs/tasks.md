@@ -47,7 +47,7 @@ repositories (git worktrees), so the project's folders stay the human's. Its dat
   agent's Install and New Account…). Project Settings… opens it at that project; Manage Profiles… at Profiles, About
   this profile… at a profile.
   - **A project's page** (`components/settings/ProjectPage.tsx`): **⋯** (Delete Project…), then **Name** and **Local
-    addresses** (a host each, Enter adds one), then **Folders**, **Agents**, **Profiles**, a section each (`Row.tsx`):
+    addresses** (a host each, Enter adds one), then **Folders**, **Agents**, **Profiles**, a section each:
     its **Add …** (a menu), a row per thing with its **⋯** (Make Default, Remove from the Project; its right-click the
     same). What needs typing (a URL to clone, a new profile's name) opens a field under the rows (Esc puts it away).
     Its folder is shown, not changed.

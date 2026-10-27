@@ -1,0 +1,17 @@
+/* The Log page (LogPage.tsx): Fluent has no log view, so the box of lines and the page around it are ours. */
+.page { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: var(--spacingVerticalS); }
+.bar { display: flex; align-items: center; gap: var(--spacingHorizontalS); flex-wrap: wrap; }
+.end { margin-left: auto; }
+.log { flex: 1; min-height: 0; overflow: auto; padding: var(--spacingVerticalSNudge) var(--spacingHorizontalS);
+  border: var(--strokeWidthThin) solid var(--colorNeutralStroke1); border-radius: var(--borderRadiusMedium);
+  background: var(--colorNeutralBackground1); color: var(--colorNeutralForeground1); font-family: var(--fontFamilyMonospace);
+  font-size: var(--fontSizeBase200); line-height: var(--lineHeightBase300); user-select: text; cursor: text; }
+.row { display: grid; grid-template-columns: auto auto 1fr; column-gap: var(--spacingHorizontalS); white-space: pre-wrap; overflow-wrap: anywhere; }
+.time { color: var(--colorNeutralForeground3); font-variant-numeric: tabular-nums; }
+.tag { font-weight: var(--fontWeightSemibold); color: var(--colorNeutralForeground2); }
+/* Who acted, in Fluent's palette: the agent's, the human's, the tasks'. */
+.row[data-group="agent"] .tag { color: var(--colorPaletteBlueForeground2); }
+.row[data-group="human"] .tag { color: var(--colorPaletteBerryForeground2); }
+.row[data-group="tasks"] .tag { color: var(--colorPaletteMarigoldForeground2); }
+.row[data-bad], .row[data-bad] .tag { color: var(--colorPaletteRedForeground1); }
+.actions { display: flex; align-items: center; gap: var(--spacingHorizontalS); justify-content: end; }

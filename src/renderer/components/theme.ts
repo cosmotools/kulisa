@@ -15,9 +15,15 @@ const fonts = {
   fontFamilyMonospace: "'JetBrains Mono', ui-monospace, monospace", // the terminal's, bundled (src/terminal/renderer)
 };
 
-// Fluent's own neutrals (backgrounds, strokes, text): ours are only the brand ramp and the fonts.
-export const dark: Theme = { ...createDarkTheme(neutral), ...fonts };
-export const light: Theme = { ...createLightTheme(neutral), ...fonts };
+// Fluent draws its nav (NavDrawer: Settings', the sidebar's) on Background4, the darkest, as a frame around an app;
+// Kulisa's nav sits on the window's own background (Background2), as Windows' Settings, its hover and pressed following.
+const nav = (t: Theme): Theme => ({ ...t, colorNeutralBackground4: t.colorNeutralBackground2,
+  colorNeutralBackground4Hover: t.colorNeutralBackground2Hover, colorNeutralBackground4Pressed: t.colorNeutralBackground2Pressed,
+  colorNeutralBackground4Selected: t.colorNeutralBackground2Selected });
+
+// Fluent's own neutrals (backgrounds, strokes, text) but the nav's: ours are the brand ramp, the fonts and the nav.
+export const dark: Theme = { ...nav(createDarkTheme(neutral)), ...fonts };
+export const light: Theme = { ...nav(createLightTheme(neutral)), ...fonts };
 
 // A window's theme: the page's data-theme (its URL, then the main process's 'theme'), System as the OS's.
 export const shade = (theme: string | undefined) => (theme === 'light' || (theme === 'system' && !matchMedia('(prefers-color-scheme: dark)').matches) ? 'light' : 'dark');

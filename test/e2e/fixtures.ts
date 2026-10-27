@@ -249,7 +249,7 @@ export const test = base.extend<Fixtures, { display: string | null; running: { c
   sui: async ({ kulisa, running }, use) => {
     void kulisa;
     await use(async () => {
-      const shows = async (p: Page) => !p.isClosed() && p.url().includes('index.html') && await p.locator('#settings nav').isVisible().catch(() => false);
+      const shows = async (p: Page) => !p.isClosed() && p.url().includes('index.html') && await p.locator('#settings').getByRole('navigation', { name: 'Settings' }).isVisible().catch(() => false);
       const found = async () => { for (const p of running.current.context.pages()) if (await shows(p)) return p; return null; };
       await expect.poll(async () => !!await found(), { message: 'Settings shown in a window' }).toBe(true);
       return found();

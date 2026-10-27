@@ -1,19 +1,19 @@
 // Settings (docs/window.md, Settings): over the window's area under the title bar, its categories in a nav on the left
 // (Projects, Agents, Profiles, GitHub, Log, About), on the right a category's page (its list) or one thing's, under its
 // path. Saved as it changes. Its ×, Esc (unless a layer was open) and the gear close it, what is typed saved first.
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import { Avatar, Badge, Breadcrumb, BreadcrumbButton, BreadcrumbDivider, BreadcrumbItem, Button, Caption1, Divider, DrawerHeaderTitle, Field, Input,
-  makeStyles, mergeClasses, NavDrawer, NavDrawerBody, NavDrawerHeader, NavItem, Spinner, Text, tokens, Tooltip } from '@fluentui/react-components';
-import { AddRegular, BotFilled, BotRegular, BranchFilled, BranchRegular, bundleIcon, DocumentBulletListFilled, DocumentBulletListRegular, DismissRegular,
+import { useCallback, useEffect, useRef, useState, type ReactElement, type ReactNode } from 'react';
+import { Avatar, Badge, Breadcrumb, BreadcrumbButton, BreadcrumbDivider, BreadcrumbItem, Button, Card, DrawerHeaderNavigation, DrawerHeaderTitle, Field, Input, Table, TableBody, TableCell, TableCellLayout, TableRow, createTableColumn, useTableColumnSizing_unstable, useTableFeatures,
+  NavDrawer, NavDrawerBody, NavDrawerHeader, NavItem, Spinner, Text, Tooltip } from '@fluentui/react-components';
+import { AddRegular, ArrowLeftRegular, ChevronRightRegular, BotFilled, BotRegular, BranchFilled, BranchRegular, bundleIcon, DocumentBulletListFilled, DocumentBulletListRegular, 
   GridFilled, GridRegular, InfoFilled, InfoRegular, MoreHorizontalRegular, PeopleFilled, PeopleRegular } from '@fluentui/react-icons';
-import { ButtonMenu, type Item } from '../Menus';
+import { ButtonMenu, RightClickMenu, type Item } from '../Menus';
 import { ProjectPage } from './ProjectPage';
 import { ProfilePage } from './ProfilePage';
 import { AboutPage } from './AboutPage';
 import { GitHubPage } from './GitHubPage';
 import { LogPage } from './LogPage';
 import { AgentPage } from './AgentPage';
-import { Row } from './Row';
+import css from './Settings.module.css';
 import { useChanged } from './changed';
 import { install, installing, loadAccounts, loadAgents, useAgents } from './agents';
 import { avatarSrc } from '../../lib/common';
@@ -29,32 +29,16 @@ import { ErrorBar } from '../ErrorBar';
 // A nav item's icon is filled while it is the one chosen (NavItem's own styles switch them).
 const icons = { projects: bundleIcon(GridFilled, GridRegular), agents: bundleIcon(BotFilled, BotRegular), profiles: bundleIcon(PeopleFilled, PeopleRegular),
   github: bundleIcon(BranchFilled, BranchRegular), log: bundleIcon(DocumentBulletListFilled, DocumentBulletListRegular), about: bundleIcon(InfoFilled, InfoRegular) };
+// A category's list: the thing, and the chevron of a row going to its page, as narrow as it (Fluent's column sizing: a
+// fixed Table shares its width equally).
+const listColumns = [createTableColumn({ columnId: 'thing' }), createTableColumn({ columnId: 'go' })];
+const listSizes = { thing: { idealWidth: 800, minWidth: 200 }, go: { idealWidth: 32, minWidth: 32 } };
 const names = { projects: 'Projects', agents: 'Agents', profiles: 'Profiles', github: 'GitHub', log: 'Log', about: 'About' };
 
-const useStyles = makeStyles({
-  // The window's background, the title bar's: a page's cards (Background1) stand out on it, as Windows' Settings.
-  root: { display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0, background: tokens.colorNeutralBackground2 },
-  line: { flex: 'none' },
-  body: { flex: 1, display: 'flex', minHeight: 0 },
-  // Fluent's nav is drawn on Background4, the darkest, for a frame around the app; here it sits beside a page, so it
-  // takes the page's, its hover and pressed following.
-  nav: { height: '100%', '--colorNeutralBackground4': tokens.colorNeutralBackground2,
-    '--colorNeutralBackground4Hover': tokens.colorNeutralBackground2Hover, '--colorNeutralBackground4Pressed': tokens.colorNeutralBackground2Pressed },
-  newProfile: { width: '300px' },
-  main: { flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' },
-  path: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: tokens.spacingHorizontalM, padding: `${tokens.spacingVerticalL} 0 ${tokens.spacingVerticalM}` },
-  page: { flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalXS, overflow: 'auto', paddingBottom: tokens.spacingVerticalXXL },
-  // One column in the middle of a wide window, the path over it; the log as wide as the window. Padding, not a box's
-  // width: the page's scrollbar stays at the window's edge.
-  column: { paddingInline: `max(${tokens.spacingHorizontalXXL}, calc((100% - 900px) / 2))` },
-  wide: { paddingInline: tokens.spacingHorizontalXXL },
-  looking: { justifyContent: 'flex-start' },
-});
 
 type Section = 'projects' | 'agents' | 'profiles' | 'github' | 'log' | 'about';
 
 export function Settings({ at, className }: { at: SettingsAt; className: string }) {
-  const styles = useStyles();
   const [loaded, setLoaded] = useState(false);
   const [section, setSection] = useState<Section>('projects');
   const [projects, setProjects] = useState<ProjectEntry[]>([]), [editing, setEditing] = useState<string | null>(null);
@@ -63,6 +47,7 @@ export function Settings({ at, className }: { at: SettingsAt; className: string 
   const [profiles, setProfiles] = useState<SettingsProfile[]>([]), [profilePick, setProfileAt] = useState<string>();
   const [newProfile, setNewProfile] = useState<string | null>(null), [profilesError, setProfilesError] = useState('');
   const save = useRef(async () => {});
+  const { columnSizing_unstable: sizing, tableRef } = useTableFeatures({ columns: listColumns, items: [] }, [useTableColumnSizing_unstable({ columnSizingOptions: listSizes })]);
   // The project's page read again each time Settings is asked for a page.
   const [shown, setShown] = useState(0);
   // The pages of the profiles hidden while it is shown, the keys its own, as a dialog's; not closed with the grid.
@@ -156,52 +141,65 @@ export function Settings({ at, className }: { at: SettingsAt; className: string 
     : section === 'agents' ? <ButtonMenu end items={newAccount}><Button icon={<AddRegular />} disabled={!clis.length}>New Account</Button></ButtonMenu>
     : section === 'profiles' ? <Button appearance="primary" icon={<AddRegular />} onClick={() => setNewProfile('')}>New Profile</Button> : null;
 
+  // A category's things, each row going to its page; their actions in its right-click (data-row, data-key: the tests'
+  // handles, docs/testing.md).
+  const list = (label: string, rows: { key: string; name: string; media: ReactElement; badges?: ReactNode; description?: string }[]) =>
+    <RightClickMenu items={(e) => { const k = (e.target as Element).closest<HTMLElement>('[data-row]')?.dataset.key; return k ? actions(k) : null; }}>
+      <Table aria-label={label} ref={tableRef} {...sizing.getTableProps()}><TableBody>{rows.map((r) => { const open = () => void show(section, r.key.split(':')[1]);
+        return <TableRow key={r.key} data-row="" data-key={r.key} aria-label={r.name} title={[r.name, r.description].filter(Boolean).join('\n')} tabIndex={0} onClick={open} onKeyDown={(e) => { if (e.key === 'Enter') open(); }}>
+          <TableCell {...sizing.getTableCellProps('thing')}><TableCellLayout truncate media={r.media} description={r.description}>{r.name} {r.badges}</TableCellLayout></TableCell>
+          {/* the row goes to its page */}
+          <TableCell {...sizing.getTableCellProps('go')}><ChevronRightRegular fontSize={16} /></TableCell>
+        </TableRow>; })}</TableBody></Table>
+    </RightClickMenu>;
+
   const page = (): ReactNode => {
     if (section === 'projects') return shownProject ? <ProjectPage key={`${editing}:${shown}`} id={shownProject.id} saveRef={save} onSaved={() => void lists()} />
-      : projects.length ? projects.map((p) => <Row key={p.id} image={<ProjectIcon p={p} size={24} />} title={p.name} data={{ 'data-key': `p:${p.id}` }}
-        description={[`${p.folders.length} ${p.folders.length === 1 ? 'folder' : 'folders'}`, `${p.tasks.length} ${p.tasks.length === 1 ? 'task' : 'tasks'}`].join(' · ')}
-        open={() => void show('projects', p.id)} menu={() => actions(`p:${p.id}`)} />) : <Caption1>No projects yet.</Caption1>;
+      : <Card appearance="subtle">{projects.length ? list('Projects', projects.map((p) => ({ key: `p:${p.id}`, name: p.name, media: <ProjectIcon p={p} size={24} />,
+        description: [`${p.folders.length} ${p.folders.length === 1 ? 'folder' : 'folders'}`, `${p.tasks.length} ${p.tasks.length === 1 ? 'task' : 'tasks'}`].join(' · ') })))
+        : <Text>No projects yet.</Text>}</Card>;
     if (section === 'agents') return shownAgent ? <AgentPage key={shownAgent.id} agent={shownAgent} signing={signing === shownAgent.id} onSigning={(on) => setSigning(on ? shownAgent.id : null)} />
-      : agents.length ? agents.map((a) => { const Mark = agentMark(a.id); return <Row key={a.id} image={<Mark />} title={a.name} data={{ 'data-key': `a:${a.id}` }}
-        badges={!a.installed && <Badge appearance="tint" color="informative">Not installed</Badge>} description={a.installed ? [a.version, a.path].filter(Boolean).join(' · ') || undefined : a.maker}
-        open={() => void show('agents', a.id)} menu={() => actions(`a:${a.id}`)} />; })
-      : looking ? <Spinner size="tiny" labelPosition="after" label="Looking for agents on this computer…" className={styles.looking} /> : <Caption1>No agents.</Caption1>;
+      : <Card appearance="subtle">{agents.length ? list('Agents', agents.map((a) => { const Mark = agentMark(a.id); return { key: `a:${a.id}`, name: a.name,
+        media: <Mark width={24} height={24} fontSize={24} />, badges: !a.installed && <Badge appearance="tint" color="informative">Not installed</Badge>,
+        description: a.installed ? [a.version, a.path].filter(Boolean).join(' · ') || undefined : a.maker }; }))
+        : looking ? <Spinner size="tiny" labelPosition="after" label="Looking for agents on this computer…" /> : <Text>No agents.</Text>}</Card>;
     if (section === 'profiles') return shownProfile ? <ProfilePage key={JSON.stringify(shownProfile)} profile={shownProfile} onChanged={(r) => { setProfiles(r.profiles); if (r.id) setProfileAt(r.id); }} />
-      : <>
-        {newProfile !== null && <form onSubmit={(e) => { e.preventDefault(); void createProfile(); }}><Field label="New profile" validationMessage={profilesError || undefined}>
-          <Input autoFocus data-name value={newProfile} className={styles.newProfile} placeholder="Its name, e.g. ann@shop.com"
+      : <Card appearance="subtle">
+        {newProfile !== null && <Field label="New profile" validationMessage={profilesError || undefined}>
+          <Input autoFocus data-name value={newProfile} placeholder="Its name, e.g. ann@shop.com"
             onChange={(_, d) => { setNewProfile(d.value); setProfilesError(''); }}
-            onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); setNewProfile(null); } }} />
-        </Field></form>}
+            onKeyDown={(e) => { if (e.key === 'Enter') void createProfile(); if (e.key === 'Escape') { e.stopPropagation(); setNewProfile(null); } }} />
+        </Field>}
         {newProfile === null && profilesError && <ErrorBar>{profilesError}</ErrorBar>}
-        {profiles.map((p) => <Row key={p.id} image={<Avatar size={32} name={p.name} image={{ src: avatarSrc(p.avatar) }} />} title={p.name} data={{ 'data-key': `f:${p.id}` }}
-          description={[p.description, p.projects.length ? `in ${p.projects.join(', ')}` : 'in no project'].filter(Boolean).join(' · ')}
-          open={() => void show('profiles', p.id)} menu={() => actions(`f:${p.id}`)} />)}
-        {!profiles.length && newProfile === null && <Caption1>No profiles yet.</Caption1>}
-      </>;
+        {profiles.length ? list('Profiles', profiles.map((p) => ({ key: `f:${p.id}`, name: p.name, media: <Avatar size={24} name={p.name} image={{ src: avatarSrc(p.avatar) }} />,
+          description: [p.description, p.projects.length ? `in ${p.projects.join(', ')}` : 'in no project'].filter(Boolean).join(' · ') })))
+          : newProfile === null && <Text>No profiles yet.</Text>}
+      </Card>;
     return section === 'github' ? <GitHubPage /> : section === 'log' ? <LogPage /> : <AboutPage />;
   };
 
-  const width = section === 'log' ? styles.wide : styles.column;
-  return <div id="settings" className={mergeClasses(styles.root, className)}>
-    <Divider className={styles.line} />
-    <div className={styles.body}>
-      <NavDrawer open type="inline" selectedValue={section} className={styles.nav} aria-label="Settings"
+  const width = section === 'log' ? css.wide : css.column;
+  return <div id="settings" className={`${css.root} ${className}`}>
+    <div className={css.body}>
+      <NavDrawer open type="inline" selectedValue={section} aria-label="Settings"
         onNavItemSelect={(_, d) => void show(d.value as Section)}>
         {/* as the sidebar's (Sidebar.tsx) */}
         <NavDrawerHeader>
-          <DrawerHeaderTitle action={<Tooltip content="Close (Esc)" relationship="label">
-            <Button appearance="subtle" icon={<DismissRegular />} onClick={() => void close()} /></Tooltip>}>
-            <Text size={300} weight="semibold">Settings</Text>
-          </DrawerHeaderTitle>
+          {/* Back to the tasks, as Windows' Settings: a × at the nav's edge reads as closing the nav */}
+          <DrawerHeaderNavigation>
+            <Tooltip content="Back (Esc)" relationship="label">
+              <Button appearance="subtle" icon={<ArrowLeftRegular />} onClick={() => void close()} />
+            </Tooltip>
+          </DrawerHeaderNavigation>
+          <DrawerHeaderTitle><Text size={300} weight="semibold">Settings</Text></DrawerHeaderTitle>
         </NavDrawerHeader>
         <NavDrawerBody>
           {(Object.keys(names) as Section[]).map((k) => { const Icon = icons[k]; return <NavItem key={k} value={k} data-key={k} icon={<Icon />}>{names[k]}</NavItem>; })}
         </NavDrawerBody>
       </NavDrawer>
 
-      <main className={styles.main}>
-        <div className={mergeClasses(styles.path, width)}>
+      <main className={css.main}>
+        <div className={`${css.path} ${width}`}>
           <Breadcrumb size="large" aria-label="Path">
             {one && listed ? <>
               <BreadcrumbItem><BreadcrumbButton onClick={() => void show(section)}>{names[section]}</BreadcrumbButton></BreadcrumbItem>
@@ -211,7 +209,7 @@ export function Settings({ at, className }: { at: SettingsAt; className: string 
           </Breadcrumb>
           {make}
         </div>
-        <div className={mergeClasses(styles.page, width)}>{page()}</div>
+        <div className={`${css.page} ${width}`}>{page()}</div>
       </main>
     </div>
   </div>;

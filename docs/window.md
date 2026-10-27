@@ -245,7 +245,7 @@ Code's settings are a page of their window: the window it is opened in is the on
   grid changed underneath (a task shown by the agent, the shown project deleted) leaves it open. The agent's questions
   show over it.
 - **Closed** by Esc (unless a menu, a question or a popover is open: Esc closes that first; or a field takes it), its
-  ×, or the gear; what is typed is saved first (a project's name); while an agent installs, it stays. The keyboard goes
+  ←, or the gear; what is typed is saved first (a project's name); while an agent installs, it stays. The keyboard goes
   back where it was.
 - **Its lists follow** what changes elsewhere while it is shown: the profiles made and let go in another window or by
   the agent (`settings:changed` to every window, on `profilesChanged`), its nav's and the shown project's; nothing

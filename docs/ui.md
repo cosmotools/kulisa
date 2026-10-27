@@ -1,8 +1,11 @@
 # The window's UI
 
 **The window is Fluent UI v9 as it ships** (`@fluentui/react-components`, its icons `@fluentui/react-icons`): its
-components, tokens, type ramp, Griffel's `makeStyles` and its motion; our code only places them (layout: a component's
-size and place, never its padding, colors or slots' insides). How a component is used is Fluent's documentation (https://react.fluentui.dev, the storybook) and the installed version's `.d.ts`
+components, tokens, type ramp and motion, used as its stories use them. **A Fluent component takes no `className`,
+`style` or `makeStyles` and no wrapper of ours; its look is the theme's tokens alone** (`theme.ts`), one place for
+the whole window, so no page looks its own way. Our own box (what Fluent has no component for: a frame, the log) is a
+div with a CSS Module beside its component (`Settings.module.css`), named under Own drawing. Settings keeps to it (lint,
+below); the rest of the window still places Fluent's components with `makeStyles` (issue #229). How a component is used is Fluent's documentation (https://react.fluentui.dev, the storybook) and the installed version's `.d.ts`
 (`node_modules/@fluentui/react-<component>/dist/index.d.ts`), read rather than remembered: this doc holds only what
 Fluent cannot know (the native pages, the desktop) and where Fluent leaves a choice, the one made. Nothing of ours where
 Fluent has a component, a prop or a pattern: its keyboard, focus and accessibility are maintained upstream. A deviation
@@ -22,7 +25,7 @@ to the main process after every grid change ([window.md](window.md), The grid).
 | Where | What |
 |---|---|
 | `src/renderer/index.html`, `main.tsx`; `master.html`, `master.tsx` | a tasks' window's page and a master's window's: the theme (and the tasks' bar's place) from the URL before the first paint, Inter, then the app; the few global rules (text selection, the cursor) in `master.tsx` and `App.tsx` |
-| `src/renderer/components/` | the parts. `App.tsx` a tasks' window; `theme.ts` the theme and the classes many parts share (`useCommonStyles`: muted, selectable); `ErrorBar.tsx` an error not of a field; `Menus.tsx`, `PointMenu.tsx` the menus; `Ask.tsx` the questions; `TopBar.tsx`, `TaskBar.tsx`, `Sidebar.tsx`, `Empty.tsx`, `Welcome.tsx`; `Grid.tsx` and `grid/` (`ProfilePane.tsx`, `Terminals.tsx`, `Resources.tsx`: a panel and its header each); the dialogs `NewProject.tsx` (also `Wizard`, the welcome's), `TaskRename.tsx`, `AgentPicker.tsx`, `HandOver.tsx`, `Shortcuts.tsx`; `settings/` Settings, its own chunk (`index.ts` its one entry, loaded by `import()`: `npm run deps`): `Settings.tsx` and its pages (`ProjectPage.tsx`, `AgentPage.tsx`, `ProfilePage.tsx`, `GitHubPage.tsx`, `LogPage.tsx`, `AboutPage.tsx`; `Row.tsx`, `agents.ts`, `changed.ts` theirs); `SignIn.tsx` a new account's sign-in (Settings', New Project's); `AgentMark.tsx`, `ProjectIcon.tsx` the marks; `Terminal.tsx` a terminal in a page; `Master.tsx` a master's bar |
+| `src/renderer/components/` | the parts. `App.tsx` a tasks' window; `theme.ts` the theme and the classes many parts share (`useCommonStyles`: muted, selectable); `ErrorBar.tsx` an error not of a field; `Menus.tsx`, `PointMenu.tsx` the menus; `Ask.tsx` the questions; `TopBar.tsx`, `TaskBar.tsx`, `Sidebar.tsx`, `Empty.tsx`, `Welcome.tsx`; `Grid.tsx` and `grid/` (`ProfilePane.tsx`, `Terminals.tsx`, `Resources.tsx`: a panel and its header each); the dialogs `NewProject.tsx` (also `Wizard`, the welcome's), `TaskRename.tsx`, `AgentPicker.tsx`, `HandOver.tsx`, `Shortcuts.tsx`; `settings/` Settings, its own chunk (`index.ts` its one entry, loaded by `import()`: `npm run deps`): `Settings.tsx` and its pages (`ProjectPage.tsx`, `AgentPage.tsx`, `ProfilePage.tsx`, `GitHubPage.tsx`, `LogPage.tsx`, `AboutPage.tsx`; `agents.ts`, `changed.ts` theirs; `Settings.module.css`, `LogPage.module.css` the own boxes); `SignIn.tsx` a new account's sign-in (Settings', New Project's); `AgentMark.tsx`, `ProjectIcon.tsx` the marks; `Terminal.tsx` a terminal in a page; `Master.tsx` a master's bar |
 | `src/renderer/lib/` | what parts share or what outlives a component: `store.ts` (the window's state as the main process sends it: `useWindow(selector)` in a component, `store.getState()` elsewhere; `act`), `cover.ts`, `views.ts`, `menu.ts` (what a menu holds, the menu at a point), `dialogs.ts`, `settings.ts` (Settings shown, at what), `ask.ts`, `strip.ts`, `keys.ts`, `sidebar.ts`, `grid.ts`, `terminals.ts`, `agents.ts`, `new-project.ts`, `profiles.ts`, `project-color.ts`, `common.ts`, `names.ts` (name fields: `data-name`), `test-hooks.ts` |
 | `src/shared/types.ts`, `ipc.ts`; `src/renderer/env.d.ts` | the shapes the main process sends and the channels they come by ([window.md](window.md), IPC); the bridge (`kulisa`) typed by them |
 | `src/renderer/public/avatars/` | the profiles' pictures (Noto Emoji), copied as they are |
@@ -32,7 +35,9 @@ to the main process after every grid change ([window.md](window.md), The grid).
 
 - **The theme** (`theme.ts`): Fluent's dark and light themes, with a neutral brand ramp (the main button and what is
   chosen grey, not Microsoft's blue) and Inter and JetBrains Mono (the terminal's), bundled, so the window looks the
-  same on every OS. Nothing else set: a color by hand would be a second palette. **Dark by default**, as JetBrains;
+  same on every OS; the nav's background (`colorNeutralBackground4`, which only Fluent's nav takes) is the window's
+  (`Background2`): Fluent's darkest read as a hole beside a page. Nothing else set: a color by hand would be a second
+  palette. **Dark by default**, as JetBrains;
   Light; System follows the OS ([window.md](window.md), Theme). What draws outside Fluent (a terminal) takes the shown
   theme from `ThemeShown` (`termStyle`).
 - **A literal color only where no token can be**: a mask (alpha alone, `lib/strip.ts`) and the marks. A question's
@@ -47,7 +52,9 @@ to the main process after every grid change ([window.md](window.md), The grid).
   gets no motion then.
 - **`npm run lint` refuses** in the window a raw `button`, `input`, `select` or `textarea`, `lucide-react`, a hex
   color (but `theme.ts` and the marks), a `'var(--color…)'` string and a constant in `style`; and React's hook rules
-  (`eslint.config.ts`), not its memoization ones: the window is not compiled by the React Compiler.
+  (`eslint.config.ts`), not its memoization ones: the window is not compiled by the React Compiler. In Settings
+  (`components/settings/`) it refuses `className` or `style` on a Fluent component (`kulisa/fluent-as-shipped`) and
+  `makeStyles`.
 
 ## Desktop, not a web page
 
@@ -73,9 +80,9 @@ frames, pills, rows that show their buttons only under the pointer: those read a
 - **A dialog asks one thing**; what is browsed (Settings, over the window's area) is a `NavDrawer` of categories and a
   page under its `Breadcrumb` (`size="large"`), saved as it changes, no OK, as Windows' Settings: its things not in the
   nav (it would grow with every project and profile) but a category's page. No search field over the nav (the
-  author's choice). Its pages are one column of 900px in the middle (the log the window's width), on the window's
-  background, their cards (Background1) standing out on it; its nav on that background too, not Fluent's darkest:
-  beside a page it read as a hole (the tokens it takes, `Settings.tsx`).
+  author's choice). Back to the tasks is the nav header's ← (`DrawerHeaderNavigation`), as Windows' Settings: a × at
+  the nav's edge reads as closing the nav. Its pages are one column of 840px from the left (the log the window's
+  width), on the window's background, their cards (Background1) standing out on it.
 - **It fits the smallest window** (640 × 400, or any at 200%): a dialog that keeps a height of its own (New Project)
   gives it as `min(…, 85vh)`, so its buttons stay in the window.
 
@@ -139,12 +146,15 @@ terminal, a screenshot's thumbnail). Fluent's `Menu` alone only for a row's own 
 
 ## Controls
 
-- **A setting, or a thing of a list**, in Settings is a `Row` (`Row.tsx`: a `Card` and its `CardHeader`: an icon or
-  picture, its name, one line under it, its control or its **⋯** at its end), in a `Section` (its title and its **Add
-  …** button), as Windows' Settings: no tables, toolbars or selection. A row's actions are its ⋯ and its right-click
-  (the same `Item`s); a row that opens a page has a chevron instead of ⋯. Default and state are `Badge`s by its name.
-  What is added in place goes under the rows, a `form` (Enter submits it; Esc puts it away). A list of words
-  (hosts) is a `TagPicker` with no popover.
+- **A page of Settings** is a subtle `Card`, a column of its sections. A section is a `Card` (`role="group"`, named by
+  its title): a `CardHeader` (its `Subtitle2` title, its **Add …** as the action), its settings `Field`s, its things a
+  `Table`. A button never stands in a `Field` or a card's body (both stretch it): a `CardHeader`'s action, a
+  `CardFooter`, a `TableCell`. A table's columns are sized by Fluent's `useTableColumnSizing_unstable` (its layout is
+  fixed: equal columns otherwise). A thing's row: `TableCellLayout` (its picture, its name, one line under it; default
+  and state `Badge`s by the name), its actions its ⋯ in `TableCellActions` and its right-click (the same `Item`s); a
+  row that opens a page ends in a chevron instead. What is added in place goes under the rows: a `Field` (Enter takes
+  it, Esc puts it away) and a `CardFooter` with its buttons; no `form`, which would part the field from the card's gap.
+  A list of words (hosts) is a `TagPicker` with no popover.
 - **Notices**: work under way (an install, a sign-in, a search) is a `Spinner` with its label, done a success
   `MessageBar`. An error of a field is that `Field`'s `validationMessage`; any other error, a warning, a step to take
   or what is done is a `MessageBar` of its intent, an error's through `ErrorBar`. A `MessageBar` announces itself
@@ -176,8 +186,10 @@ What is drawn or moved here rather than by Fluent, each for a reason at it:
   `README.md`). The breathing is the Web Animations API: a Fluent motion only pauses, and remounting the button would
   drop its press's pointer capture;
 - the strips' fades (`lib/strip.ts`: tied to the scroll), the marks and the logo;
-- the log's box of lines (`LogPage.tsx`): Fluent has no log view; its tags in Fluent's palette tokens; the
-  installer's output (`AgentPage.tsx`) a read-only `Textarea` in the monospace font, as tall as what it says;
+- Settings' frame (`Settings.module.css`): the nav beside the page, the path over it, the page scrolling with its
+  scrollbar at the window's edge; Fluent has no layout components;
+- the log's box of lines (`LogPage.module.css`): Fluent has no log view; its tags in Fluent's palette tokens; the
+  installer's output (`AgentPage.tsx`) a `role="log"` of monospace `Text` lines, as tall as what it says;
 - the sidebar's task rows (`Sidebar.tsx`): the shown task's lit and a closed one's muted, pointed at too, as `Tree` has
   no current item;
 - a dangerous question's button in the danger tokens (`Ask.tsx`): `Button` has no danger appearance.
@@ -186,7 +198,8 @@ What is drawn or moved here rather than by Fluent, each for a reason at it:
 
 ## Adding something
 
-- A component: Fluent's. Nothing fits: say so before building one; a deviation gets its comment and its line here.
+- A component: Fluent's, as its stories build it, without asking whether to. Nothing fits: say so before building
+  one; a deviation gets its comment and its line here. A look that is wrong everywhere: a token in `theme.ts`.
 - A dialog: Fluent's `Dialog` with `useCovered('hide')`, in `App.tsx`, registered (`registerDialog`).
 - A menu: `ButtonMenu`, `RightClickMenu` or `menuAt`, its rows `MenuItem`s.
 - Its tests find it as the human does (role and name, label, `data-*`; never a class: [testing.md](testing.md)).
