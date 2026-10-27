@@ -194,7 +194,7 @@ test("projects: Delete Project… (the projects' manager alone) asks, closes the
   await notLoading(ui);
   await choose(ui, 'Close All Tasks', await projectMenu(ui, projectTabSel(files, 'project')));
   await expect.poll(() => core((k) => k.shell.task === null && k.shell.open.size === 0)).toBe(true);
-  await expect(ui.locator('html')).toHaveAttribute('data-noproject');
+  await expect(ui.locator('html')).toHaveAttribute('data-empty');
   expect(await core((k, i) => k.shell.store.tasksOf({ id: i }).list.every((e) => e.closed), files.pid('project')), 'its tasks closed').toBe(true);
 
   // A closed task opened again from the sidebar (the empty window's), a tab at the end; another from it over the grid after.
@@ -210,7 +210,7 @@ test("projects: Delete Project… (the projects' manager alone) asks, closes the
   expect(await projectTabs(ui, files), 'a tab each').toEqual(['project *', 'project']);
   expect(await taskTabs(ui)).toEqual(['task-1 *', 'Feature-X']);
   await core((k) => k.watchPty(k.shell.pty));
-  await expect(ui.locator('html')).not.toHaveAttribute('data-noproject');
+  await expect(ui.locator('html')).not.toHaveAttribute('data-empty');
   await notLoading(ui);
   await bothOn(core, ui, files);
   await core((k, a) => { const acc = k.shell.accounts; acc.drop(a.account); acc.remove(a.dir); }, { account: made.account, dir: made.accountDir });

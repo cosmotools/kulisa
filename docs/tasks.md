@@ -33,7 +33,7 @@ repositories (git worktrees), so the project's folders stay the human's. Its dat
   - **A task's tab shows nothing of its profiles**: Settings edits them, and how many are open says nothing.
   - **The + after the tabs** (`TaskBar.tsx`): a new task of the shown task's project, in one click.
   - **The window's pages** (`page` in `lib/store.ts`), one at a time in the grid's place: the shown task's grid
-    (`task`), the sidebar docked with no task open (`board`), the welcome with no project (`welcome`). One switch, not a
+    (`task`), the sidebar docked with no task open (`sidebar`), the welcome with no project (`welcome`). One switch, not a
     router: it follows the main process's current task.
 - **Settings** (the title bar's button left of ☰), as JetBrains' Settings: a window of its own, not modal (a dialog
   reads as a web page's: [ui.md](ui.md), Desktop, not a web page; how it opens and which window it acts for:

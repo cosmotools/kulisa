@@ -190,13 +190,13 @@ test("DevTools in a pane's ⋮ menu opens and closes the DevTools of its active 
     expect(await looks('its menu open'), 'its menu open').toEqual(closed);
     // The same inset from the pane's edges for the controls in it; the page reaches its edges (the author's choice).
     // The pane's group in dockview; its header the panel's tab there.
-    const island = await ui.locator('.dv-groupview').filter({ has: pane }).boundingBox(), header = ui.locator(`[data-panel="profile:${id}"]`).first();
-    const left = async (l: Locator) => Math.round((await l.boundingBox()).x - island.x);
-    const right = async (l: Locator) => { const r = await l.boundingBox(); return Math.round(island.x + island.width - (r.x + r.width)); };
+    const group = await ui.locator('.dv-groupview').filter({ has: pane }).boundingBox(), header = ui.locator(`[data-panel="profile:${id}"]`).first();
+    const left = async (l: Locator) => Math.round((await l.boundingBox()).x - group.x);
+    const right = async (l: Locator) => { const r = await l.boundingBox(); return Math.round(group.x + group.width - (r.x + r.width)); };
     const page = pane.getByTestId('page'), pageBox = await page.boundingBox();
     const inset = { avatar: await left(header.locator('img')), tab: await left(pane.getByRole('tab').first()), back: await left(pane.locator('[aria-label="Back"]')),
       page: await left(page), close: await right(header.locator('[aria-label="Close profile"]')), more: await right(pane.locator('[aria-label="More"]')),
-      pageRight: await right(page), pageBottom: Math.round(island.y + island.height - (pageBox.y + pageBox.height)) };
+      pageRight: await right(page), pageBottom: Math.round(group.y + group.height - (pageBox.y + pageBox.height)) };
     expect(inset).toEqual({ avatar: 8, tab: 8, back: 8, page: 0, close: 8, more: 8, pageRight: 0, pageBottom: 0 });
     await choose(ui, 'DevTools');
   };

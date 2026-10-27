@@ -13,7 +13,7 @@ import { AgentState, STATES } from '../AgentState';
 import { ThemeShown, termStyle } from '../theme';
 import { act, store, useWindow } from '../../lib/store';
 import { profileLaunchers } from '../../lib/profiles';
-import { island, launchers, newTerminalItems, shownTerm, tabItems, terminalMenu } from '../../lib/terminals';
+import { panelView, launchers, newTerminalItems, shownTerm, tabItems, terminalMenu } from '../../lib/terminals';
 import { dialog } from '../../lib/dialogs';
 import { avatarSrc, useShortcuts, withKeys } from '../../lib/common';
 import { useStrip } from '../../lib/strip';
@@ -64,9 +64,9 @@ export function Terminals({ api, containerApi }: IDockviewPanelProps) {
   const starting = useWindow((s) => s.terminals.list.find((t) => t.id === s.terminals.front && t.starting)?.name);
   const shown = task !== null && front !== null ? `${task}#${front}` : null;
 
-  useEffect(() => { host.current!.append(island.el); }, []);
-  useEffect(() => island.show(shown), [shown]);
-  useEffect(() => island.restyle(termStyle(theme, 'colorNeutralBackground1')), [theme]);
+  useEffect(() => { host.current!.append(panelView.el); }, []);
+  useEffect(() => panelView.show(shown), [shown]);
+  useEffect(() => panelView.restyle(termStyle(theme, 'colorNeutralBackground1')), [theme]);
   // Another tab in front of the same task (chosen, or opened by the human): the keyboard goes to it. Not from a dialog
   // (Change Agent's tab comes in front under it): Fluent's dialog hides itself from the keyboard and the screen reader
   // once the keyboard leaves it.

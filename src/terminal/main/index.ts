@@ -40,8 +40,8 @@ const termOf = (key: string) => {
   return terms.get(key)!;
 };
 on('pty:resize', (_e, { task, cols, rows }) => {
-  const t = termOf(task), island = termOf(task.split('#')[0]!);
-  t.size = island.size = { cols, rows }; t.sized(); island.sized();
+  const t = termOf(task), panel = termOf(task.split('#')[0]!);
+  t.size = panel.size = { cols, rows }; t.sized(); panel.sized();
   try { t.pty?.resize(cols, rows); t.pty?.screen?.resize(cols, rows); } catch {}
 });
 // Every terminal's process until it has exited (stopAllTerminals).

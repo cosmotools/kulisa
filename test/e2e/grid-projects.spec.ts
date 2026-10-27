@@ -69,14 +69,14 @@ test('projects: another folder opens in a tab of its own, with its own profiles 
   }
   // Every tab keeps its place and width whichever task is shown, also while it switches: nothing jumps. Read at
   // every frame in the page: Playwright reads a box once, when asked.
-  const islands = () => ui.locator('#projectTabs [role="tab"]').evaluateAll((ts) => ts.map((t) => { const r = t.getBoundingClientRect(); return [r.x, r.width]; }));
-  const before = await islands();
+  const tabPlaces = () => ui.locator('#projectTabs [role="tab"]').evaluateAll((ts) => ts.map((t) => { const r = t.getBoundingClientRect(); return [r.x, r.width]; }));
+  const before = await tabPlaces();
   await ui.evaluate(() => {
     const w = window as any;
-    w.__islands = new Set();
+    w.__tabPlaces = new Set();
     const tick = () => {
-      if (!w.__islands) return;
-      w.__islands.add(JSON.stringify([...document.querySelectorAll('#projectTabs [role="tab"]')].map((t) => { const r = t.getBoundingClientRect(); return [r.x, r.width]; })));
+      if (!w.__tabPlaces) return;
+      w.__tabPlaces.add(JSON.stringify([...document.querySelectorAll('#projectTabs [role="tab"]')].map((t) => { const r = t.getBoundingClientRect(); return [r.x, r.width]; })));
       requestAnimationFrame(tick);
     };
     tick();
@@ -100,7 +100,7 @@ test('projects: another folder opens in a tab of its own, with its own profiles 
   await expect(sidebar(ui)).toBeVisible();
   await core((k) => k.press(k.shell.win.webContents, 'A', k.CMD, 'shift'));
   await expect(sidebar(ui)).toHaveCount(0);
-  await ui.evaluate(() => (window as any).__islands.clear()); // a new tab is a tab more in the bar, as a task's: watched from here on
+  await ui.evaluate(() => (window as any).__tabPlaces.clear()); // a new tab is a tab more in the bar, as a task's: watched from here on
   await showProject(ui, files, 'other');
   await expect.poll(() => core((k, f) => k.shell.current?.folder === f && k.settled(), other)).toBe(true);
   // The tab's right-click: the task's rows, then its project's in a submenu of its name (the project has no tab of
@@ -137,8 +137,8 @@ test('projects: another folder opens in a tab of its own, with its own profiles 
     await expect.poll(() => core((k) => k.stash.grid.shown.length)).toBe(1);
   } finally { await core((k) => { k.electron.shell.openPath = k.stash.grid.openPath; }); }
   expect(await core((k) => k.stash.grid.shown)).toEqual([path.join(files.userData, 'projects', files.pid('other'))]);
-  expect(await ui.evaluate(() => [...(window as any).__islands]), 'the islands keep their places while another project opens').toEqual([JSON.stringify(before)]);
-  await ui.evaluate(() => (window as any).__islands.clear());
+  expect(await ui.evaluate(() => [...(window as any).__tabPlaces]), 'the tabs keep their places while another project opens').toEqual([JSON.stringify(before)]);
+  await ui.evaluate(() => (window as any).__tabPlaces.clear());
   // A click on the first project's task: it comes back as it was left, its agent the same; no page shows before
   // it has its place in the grid (nothing jumps).
   await core((k) => {
@@ -161,8 +161,8 @@ test('projects: another folder opens in a tab of its own, with its own profiles 
     return { jumps: g.jumps, agent: k.shell.pty === g.firstPty, seller: g.seller.get().view.getVisible() };
   })).toEqual({ jumps: [], agent: true, seller: false }); // pages shown before the grid placed them; the same agent; the other project's pages hidden
   expect(await projectTabs(ui, files)).toEqual(['project *', 'other']);
-  const seen = await ui.evaluate(() => { const w = window as any, s = [...w.__islands]; w.__islands = null; return s; });
-  expect(seen, 'the islands keep their places, also while switching').toEqual([JSON.stringify(before)]);
+  const seen = await ui.evaluate(() => { const w = window as any, s = [...w.__tabPlaces]; w.__tabPlaces = null; return s; });
+  expect(seen, 'the tabs keep their places, also while switching').toEqual([JSON.stringify(before)]);
 
   // Closing the task (the middle button on its tab) asks first when an agent works; Cancel keeps it open.
   await core((k) => { const g = k.stash.grid; g.working = k.shell.task; g.working.promptTarget().state = 'working'; });

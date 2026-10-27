@@ -235,7 +235,7 @@ test("terminal: dictation where the agent has its own: the right Ctrl held anywh
   expect(await recordingNow(), `the ${name} is a modifier again`).toBe(false);
 });
 
-test("the island: its terminals in tabs over them, one shown, flat as a profile's pane; + opens the human's shell in front; the agent runs what keeps running in a shell of its own, behind, reads it, stops it, closes it, never in an agent's tab; × and a shell's exit close one", async ({ core, ui, call, mcp }) => {
+test("the terminals' panel: its terminals in tabs over them, one shown, flat as a profile's pane; + opens the human's shell in front; the agent runs what keeps running in a shell of its own, behind, reads it, stops it, closes it, never in an agent's tab; × and a shell's exit close one", async ({ core, ui, call, mcp }) => {
   // Named for the instructions to say it, before the agent first connects (the instructions come at its start).
   await core((k) => k.shell.task.rename('task-1'));
   await sam(core);
@@ -314,9 +314,9 @@ test("the island: its terminals in tabs over them, one shown, flat as a profile'
     await expect(nav.locator('[role="tab"][data-opening]')).toHaveCount(0);
     await frames(ui);
   }
-  const island = await ui.locator('.dv-groupview').filter({ has: nav }).boundingBox(), right = async (l: Locator) => { const b = await l.boundingBox(); return b.x + b.width; };
-  expect(await right(termAdd(ui)) <= island.x + island.width, '+ in the island').toBe(true);
-  expect(await right(ui.locator('[aria-label="Speak to the agent"]')) <= island.x + island.width, 'the microphone in the island').toBe(true);
+  const panel = await ui.locator('.dv-groupview').filter({ has: nav }).boundingBox(), right = async (l: Locator) => { const b = await l.boundingBox(); return b.x + b.width; };
+  expect(await right(termAdd(ui)) <= panel.x + panel.width, '+ in the panel').toBe(true);
+  expect(await right(ui.locator('[aria-label="Speak to the agent"]')) <= panel.x + panel.width, 'the microphone in the panel').toBe(true);
   // Scrolled, every name whole: measures Playwright has no assertion for.
   expect(await strip.evaluate((n) => [n.scrollWidth > n.clientWidth, [...n.querySelectorAll('[role="tab"]')].map((t) => [...t.querySelectorAll('span')].find((e) => e.textContent === t.getAttribute('aria-label'))).every((x) => x && x.scrollWidth <= x.clientWidth)]))
     .toEqual([true, true]);

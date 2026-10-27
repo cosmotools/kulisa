@@ -169,7 +169,7 @@ export async function openSidebar(ui: Page) {
   return sidebar(ui);
 }
 export async function closeSidebar(ui: Page) {
-  if (await ui.locator('html[data-noproject]').count()) return; // docked: always there
+  if (await ui.locator('html[data-empty]').count()) return; // docked: always there
   if (await sidebar(ui).count()) await sidebar(ui).press('Escape');
   await expect(sidebar(ui)).toHaveCount(0);
 }

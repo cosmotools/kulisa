@@ -13,12 +13,12 @@ import type { Terminal as TerminalInfo } from '../../shared/types';
 
 // The terminal in front of the shown task's terminals: where the keyboard goes (Ctrl+`), what the tests read.
 const frontKey = () => { const { current, terminals } = store.getState(); return current && terminals.front !== null ? `${current}#${terminals.front}` : null; };
-// The terminals' pane's xterm, one for the window: components/grid/Terminals.tsx puts it in whichever grid is shown and
+// The terminals' panel's xterm, one for the window: components/grid/Terminals.tsx puts it in whichever grid is shown and
 // gives it the theme's colors.
-export const island = new View(termStyle(dark, 'colorNeutralBackground1'));
-export const shownTerm = () => (island.key && island.key === frontKey() ? island.term : null);
+export const panelView = new View(termStyle(dark, 'colorNeutralBackground1'));
+export const shownTerm = () => (panelView.key && panelView.key === frontKey() ? panelView.term : null);
 Object.defineProperty(window, '__term', { get: shownTerm }); // for tests
-Object.defineProperty(window, '__termRenderer', { get: () => shownTerm() && island.renderer }); // for tests
+Object.defineProperty(window, '__termRenderer', { get: () => shownTerm() && panelView.renderer }); // for tests
 
 // Links in the terminal: those an agent marks (OSC 8, as Claude Code does) and addresses in plain text (the web-links
 // addon). Ctrl+click (⌘ on macOS) asks where, in a menu at the pointer: a tab of one of the shown task's open
@@ -50,7 +50,7 @@ kulisa.on('terminal:focus', () => shownTerm()?.focus());
 // The right-click menu of a terminal (its key): an agent's ends with what its tab's menu has (components/grid/Terminals.tsx), a
 // shell's with Close.
 export function terminalMenu(key: string, more: MenuItem[]): MenuItem[] | null {
-  const t = island.key === key ? island.term : null;
+  const t = panelView.key === key ? panelView.term : null;
   if (!t) return null;
   return [
     { label: 'Copy', keys: keyText('terminal.copy'), enabled: t.hasSelection(), run: () => termCopy(t) },

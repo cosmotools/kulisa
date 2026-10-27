@@ -26,7 +26,7 @@ test("the empty window: Close All Tasks in the project's submenu; links in ☰ o
   await expect(sub.getByRole('menuitem').last()).toHaveAccessibleName('Close All Tasks');
   await choose(ui, 'Close All Tasks', sub);
   await expect.poll(() => core((k) => k.shell.task === null && !k.shell.current)).toBe(true);
-  await expect(ui.locator('html')).toHaveAttribute('data-noproject');
+  await expect(ui.locator('html')).toHaveAttribute('data-empty');
   await ui.locator('#windowMenu').click();
   await expect(menu(ui)).toMatchAriaSnapshot(`
     - /children: contain
@@ -44,7 +44,7 @@ test("the empty window: Close All Tasks in the project's submenu; links in ☰ o
   await blur(ui);
   await core((k) => k.shell.firstStart(k.shell.windows[0]));
   await ipcSettled(ui); // what it told the window is there
-  await expect(ui.locator('html'), 'projects there: nothing').toHaveAttribute('data-page', 'board');
+  await expect(ui.locator('html'), 'projects there: nothing').toHaveAttribute('data-page', 'sidebar');
   await expect(sidebar(ui)).toBeVisible();
   const gear = ui.locator('#manageProjects');
   await expect(gear).toBeVisible();
@@ -138,7 +138,7 @@ test("the empty window: Close All Tasks in the project's submenu; links in ☰ o
       s.sendProjects();
     });
   }
-  await expect(ui.locator('html')).toHaveAttribute('data-page', 'board');
+  await expect(ui.locator('html')).toHaveAttribute('data-page', 'sidebar');
 
   // New Project… at the sidebar's foot: the same steps in a dialog.
   await ui.getByRole('button', { name: 'New Project…' }).click();
@@ -235,7 +235,7 @@ test("the empty window: Close All Tasks in the project's submenu; links in ☰ o
   await fromSidebar(ui, 'project', 'task-1'); // a closed task in the sidebar: opened again
   await expect.poll(() => core((k, f) => k.shell.current?.folder === f && k.shell.task?.name === 'task-1' && !!k.shell.task.loaded && !!k.shell.pty, files.project)).toBe(true);
   await core((k) => k.watchPty(k.shell.pty));
-  await expect(ui.locator('html')).not.toHaveAttribute('data-noproject');
+  await expect(ui.locator('html')).not.toHaveAttribute('data-empty');
   await notLoading(ui);
   await bothOn(core, ui, files);
   // Feature-X, closed with the others, opened again from the sidebar over the grid.

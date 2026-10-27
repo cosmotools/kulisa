@@ -70,8 +70,8 @@ kulisa.on('projects', (info) => set({ projects: info, current: info.current }));
 // What the window shows in the grid's place, one page at a time (docs/tasks.md, The window's pages): the shown task's
 // grid; with no task open, the sidebar of every project's tasks; with no project at all, the welcome. Its own switch,
 // not a router's: what is shown is the main process's (current).
-export type Page = 'task' | 'board' | 'welcome';
-export const pageOf = (s: WindowState): Page => (s.current === null ? (s.projects.projects.length ? 'board' : 'welcome') : 'task');
+export type Page = 'task' | 'sidebar' | 'welcome';
+export const pageOf = (s: WindowState): Page => (s.current === null ? (s.projects.projects.length ? 'sidebar' : 'welcome') : 'task');
 kulisa.on('closed-profiles', (list) => set({ closedProfiles: list }));
 kulisa.on('artifacts', (a) => set({ artifacts: a }));
 kulisa.on('zoom', (z) => set({ zoom: z }));
@@ -87,7 +87,7 @@ const reflect = (s: WindowState) => {
   root.dataset.theme = s.theme;
   root.dataset.bar = s.bar;
   root.dataset.page = pageOf(s);
-  root.toggleAttribute('data-noproject', s.current === null);
+  root.toggleAttribute('data-empty', s.current === null);
   const p = shownProject(s), color = p && projectColor(p);
   if (color) root.style.setProperty('--project', color); else root.style.removeProperty('--project');
 };

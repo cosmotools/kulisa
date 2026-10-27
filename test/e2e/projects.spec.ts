@@ -40,7 +40,7 @@ async function forget(core: Core, ui: Page, files: Files, folder: string, dir = 
   await removed(dir);
 }
 
-test("projects: the projects' manager (Project Settings…) changes its name and agents, the default one + runs, none the default: a new task starts nothing, the island's buttons instead; a folder with a favicon gets it as its icon, and its hue as its color", async ({ core, ui, sui, call, files }) => {
+test("projects: the projects' manager (Project Settings…) changes its name and agents, the default one + runs, none the default: a new task starts nothing, the terminals' panel's buttons instead; a folder with a favicon gets it as its icon, and its hue as its color", async ({ core, ui, sui, call, files }) => {
   test.slow(); // three tasks started, Settings opened six times
   await fakeAgent(ui, files);
   await begin(core, ui, files, { featureX: true });
