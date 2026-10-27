@@ -142,7 +142,10 @@ terminal, a screenshot's thumbnail). Fluent's `Menu` alone only for a row's own 
   place goes under the list, a `form` (Enter submits it; Esc puts it away).
 - **Notices**: an error of a field is that `Field`'s `validationMessage`; any other error, a warning, a step to take
   or what is done is a `MessageBar` of its intent, an error's through `ErrorBar`. A `MessageBar` announces itself
-  through the `AriaLiveAnnouncer` around each window's content (`App.tsx`, `Settings.tsx`, `Master.tsx`).
+  through the `AriaLiveAnnouncer` around each window's content (`App.tsx`, `Settings.tsx`, `Master.tsx`). A
+  confirmation that passes (Copied, Saved as) is a `Toast`, in Settings' window only: in a tasks' window the pages
+  would cover it. A field's explanation in a dialog is its `hint`, not an `InfoLabel`: a dialog gives the keyboard to
+  its first focusable, which would be the (i), not the field.
 - **Tabs** are `TabList appearance="filled-circular"` (the author's choice) as browser tabs, which Fluent does not
   have: the tasks' bar, a pane's tabs, the terminals'. A tab is chosen on the press, as a browser's (not on its ×). Its
   × is on every tab, always, as Chrome's: inside the tab, so not a `<button>` (a button holds none) but `Button

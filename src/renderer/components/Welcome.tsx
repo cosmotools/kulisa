@@ -2,8 +2,8 @@
 // own steps under a question each. The slides' pictures are a task's window drawn small from Fluent's own parts: no
 // pictures to ship, the theme's colors.
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { Avatar, Badge, Button, Card, CardFooter, CardHeader, Skeleton, SkeletonItem, Text, Title1, createPresenceComponent, makeStyles, mergeClasses, motionTokens,
-  tokens } from '@fluentui/react-components';
+import { Avatar, Badge, Button, Card, CardFooter, CardHeader, Carousel, CarouselCard, CarouselNav, CarouselNavButton, CarouselSlider, CarouselViewport, Skeleton,
+  SkeletonItem, Text, Title1, createPresenceComponent, makeStyles, mergeClasses, motionTokens, tokens } from '@fluentui/react-components';
 import { CursorClick20Regular } from '@fluentui/react-icons';
 import { agentMark } from './AgentMark';
 import { avatarSrc } from './avatar';
@@ -93,24 +93,30 @@ function Picture({ slide }: { slide: number }) {
   </Card>;
 }
 
+// Fluent's Carousel: the slides, their dots (a click shows one); Back and Next as a teaching popover's footer has them.
 function Tour({ slide, setSlide, done, next }: { slide: number; setSlide: (n: number) => void; done: () => void; next: React.RefObject<HTMLButtonElement | null> }) {
   const tiny = useMedia(tinyQ), styles = useStyles(), common = useCommonStyles(); // tiny: no room for the picture at all
-  const now = SLIDES[slide]!, last = slide === SLIDES.length - 1;
-  return <section aria-label="What Kulisa does" data-slide={slide} className={styles.tour}>
-    <div className={styles.slide}>
-      <div className={styles.words}>
-        <Title1 as="h1" className={styles.title}>{now.title}</Title1>
-        <Text size={400} className={mergeClasses(common.muted, styles.text)}>{now.text}</Text>
-      </div>
-      {!tiny && <Picture slide={slide} />}
-    </div>
+  const last = slide === SLIDES.length - 1;
+  return <Carousel aria-label="What Kulisa does" data-slide={slide} activeIndex={slide} onActiveIndexChange={(_, d) => setSlide(d.index)} className={styles.tour}>
+    <CarouselViewport>
+      <CarouselSlider>
+        {SLIDES.map((s, i) => <CarouselCard key={s.title} aria-label={s.title} className={styles.slide}>
+          <div className={styles.words}>
+            <Title1 as="h1" className={styles.title}>{s.title}</Title1>
+            <Text size={400} className={mergeClasses(common.muted, styles.text)}>{s.text}</Text>
+          </div>
+          {/* the slide before's picture until this one is shown, so what it says comes in then */}
+          {!tiny && <Picture slide={slide >= i ? i : Math.max(0, i - 1)} />}
+        </CarouselCard>)}
+      </CarouselSlider>
+    </CarouselViewport>
     <div className={styles.buttons}>
-      <span className={styles.grow}><Dots label="Slides" count={SLIDES.length} at={slide} names={SLIDES.map((s) => s.title)} /></span>
+      <CarouselNav className={styles.grow}>{(i) => <CarouselNavButton aria-label={SLIDES[i]!.title} />}</CarouselNav>
       <Button onClick={done}>Skip</Button>
       {slide > 0 && <Button onClick={() => setSlide(slide - 1)}>Back</Button>}
       <Button ref={next} appearance="primary" onClick={() => (last ? done() : setSlide(slide + 1))}>{last ? 'Set Up a Project' : 'Next'}</Button>
     </div>
-  </section>;
+  </Carousel>;
 }
 
 export function Welcome() {

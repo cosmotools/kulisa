@@ -1,8 +1,8 @@
 // The Log page of Settings (docs/window.md, The log): the log read whole and followed as it grows, filtered, passed on.
 // Read as the page is shown, not as Settings opens (a megabyte for nothing otherwise), and let go as it is left.
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactElement } from 'react';
-import { Button, Checkbox, makeStyles, mergeClasses, MenuButton, SearchBox, Text, tokens, Toolbar, ToolbarRadioButton, ToolbarRadioGroup,
-  Tooltip } from '@fluentui/react-components';
+import { Button, Link, makeStyles, MenuButton, mergeClasses, SearchBox, Switch, Text, Toast, Toaster, ToastTitle, tokens, Toolbar,
+  ToolbarRadioButton, ToolbarRadioGroup, Tooltip, useId, useToastController } from '@fluentui/react-components';
 import { ButtonMenu } from './Menus';
 import { refused } from '../../shared/result';
 import { useCommonStyles } from './theme';
@@ -42,7 +42,6 @@ const useStyles = makeStyles({
   human: { color: tokens.colorPaletteBerryForeground2 },
   tasks: { color: tokens.colorPaletteMarigoldForeground2 },
   bad: { color: tokens.colorPaletteRedForeground1 },
-  status: { marginRight: 'auto' },
   actions: { display: 'flex', alignItems: 'center', gap: tokens.spacingHorizontalS, justifyContent: 'end' },
 });
 
@@ -80,7 +79,8 @@ export function LogPage() {
   const styles = useStyles(), common = useCommonStyles();
   const [lines, setLines] = useState<Line[] | null>(null), [info, setInfo] = useState({ size: 0, max: 0, old: null as string | null });
   const [show, setShow] = useState<Show>('all'), [filter, setFilter] = useState(''), [follow, setFollow] = useState(true);
-  const [note, setNote] = useState(''), [error, setError] = useState('');
+  const [error, setError] = useState('');
+  const toaster = useId('log'), { dispatchToast } = useToastController(toaster);
   const box = useRef<HTMLDivElement>(null);
 
   // Read whole, then followed: what comes before the answer is what this read has already (log.ts, readLog).
@@ -115,15 +115,19 @@ export function LogPage() {
   const scrolled = () => { const b = box.current!; setFollow(b.scrollHeight - b.scrollTop - b.clientHeight < 4); };
 
   const kb = (n: number) => `${Math.max(1, Math.round(n / 1024))} KB`;
-  const copy = async () => { await navigator.clipboard.writeText((lines ?? []).map((l) => l.raw).join('\n')); setError(''); setNote('Copied.'); };
+  const copy = async () => { await navigator.clipboard.writeText((lines ?? []).map((l) => l.raw).join('\n')); setError('');
+    dispatchToast(<Toast><ToastTitle>Copied</ToastTitle></Toast>, { intent: 'success' }); };
   const save = async () => {
     const r = await kulisa.invoke('log:save');
     setError(refused(r) ? r.error : '');
-    if (!refused(r) && r.file) setNote(`Saved as ${r.file}`);
+    const file = !refused(r) && r.file;
+    if (file) dispatchToast(<Toast><ToastTitle action={<Link onClick={() => void kulisa.invoke('file:show', file)}>Show in Folder</Link>}>Saved as {file}</ToastTitle></Toast>,
+      { intent: 'success' });
   };
   const tip = (content: string, child: ReactElement) => <Tooltip content={content} relationship="description">{child}</Tooltip>;
 
   return <div className={styles.page}>
+    <Toaster toasterId={toaster} position="bottom-end" />
     <div className={styles.bar}>
       <SearchBox size="small" value={filter} placeholder="Filter: a task, wc=1, [mcp]…" aria-label="Filter" spellCheck={false}
         className={styles.filter} onChange={(_, d) => setFilter(d.value)} />
@@ -133,7 +137,7 @@ export function LogPage() {
             <ToolbarRadioButton appearance="subtle" name="show" value={s.id}>{s.label}</ToolbarRadioButton></Tooltip>)}
         </ToolbarRadioGroup>
       </Toolbar>
-      <Checkbox label="Follow" checked={follow} className={styles.follow} onChange={(_, d) => { setFollow(!!d.checked); if (d.checked) toEnd(); }} />
+      <Switch label="Follow" checked={follow} className={styles.follow} onChange={(_, d) => { setFollow(d.checked); if (d.checked) toEnd(); }} />
     </div>
     <div ref={box} role="log" aria-label="Log" onScroll={scrolled} className={styles.log}>
       {shown.map((l, i) => <Row key={i} l={l} />)}
@@ -145,7 +149,6 @@ export function LogPage() {
     </Text>
     {error && <ErrorBar>{error}</ErrorBar>}
     <div className={styles.actions}>
-      <Text role="status" truncate wrap={false} className={mergeClasses(styles.status, common.muted)}>{error ? '' : note}</Text>
       {tip('The whole log, to paste anywhere', <Button onClick={() => void copy()}>Copy All</Button>)}
       {tip('The log as a file, to attach to a message or an issue', <Button onClick={() => void save()}>Save As…</Button>)}
       {tip('Its folder in your file manager', <Button onClick={() => void kulisa.invoke('log:show-folder')}>Open Folder</Button>)}

@@ -21,7 +21,7 @@ test("☰ → Report a Problem… opens Settings at the Log page: the log so far
   await expect.poll(async () => (await lines()).at(-1)).toContain('[ipc]theme:set wc=');
   await expect(line.last(), 'the end in view').toBeInViewport();
   // Scrolled up, Follow lets go; checked again, back to the end.
-  const follow = s.getByRole('checkbox', { name: 'Follow' });
+  const follow = s.getByRole('switch', { name: 'Follow' });
   await log.evaluate((b) => { b.scrollTop = 0; b.dispatchEvent(new Event('scroll')); });
   await expect(follow).not.toBeChecked();
   await follow.check();
@@ -50,7 +50,7 @@ test("☰ → Report a Problem… opens Settings at the Log page: the log so far
   await expect(s.getByText(/^kulisa\.log, /)).toHaveText(/^kulisa\.log, \d+ KB of 1 MB\. Never here: what you typed, passwords, tokens, cookies, the pages' queries\.$/);
   // Copy All: the whole log, line by line as the file has it.
   await s.getByRole('button', { name: 'Copy All' }).click();
-  await expect(s.getByRole('status')).toHaveText('Copied.');
+  await expect(s.getByRole('listitem', { name: 'Copied', exact: true }), 'a toast').toBeVisible();
   expect((await core((k) => k.electron.clipboard.readText())).split('\n')[0]).toMatch(/^\[\d{4}-\d\d-\d\dT[^\]]+\] \[info\]\s*\[kulisa\] start /);
   // Save As…: where the human says, the file as it is.
   const saved = path.join(files.root, 'saved.log'), file = path.join(files.userData, 'logs', 'kulisa.log');
@@ -64,7 +64,9 @@ test("☰ → Report a Problem… opens Settings at the Log page: the log so far
     await expect.poll(() => fs.existsSync(saved)).toBe(true);
   } finally { await core((k) => { k.electron.dialog.showSaveDialog = k.stash.showSaveDialog; }); }
   expect(fs.readFileSync(saved, 'utf8').split('\n')[0]).toBe(fs.readFileSync(file, 'utf8').split('\n')[0]);
-  await expect(s.getByRole('status')).toHaveText(/^Saved as /);
+  const toast = s.getByRole('listitem', { name: `Saved as ${saved}`, exact: true });
+  await expect(toast, 'a toast').toBeVisible();
+  await expect(toast.getByRole('button', { name: 'Show in Folder' })).toBeVisible();
   fs.rmSync(saved);
   // Open Folder: the file picked out in the file manager.
   await core((k) => {
