@@ -12,7 +12,7 @@ import { SignIn } from './SignIn';
 import { refused } from '../../shared/result';
 import type { AgentInfo } from '../../shared/types';
 
-const mono = { fontFamily: '"JetBrains Mono", monospace', overflowWrap: 'anywhere', userSelect: 'text' } as const;
+const mono = { fontFamily: 'var(--fontFamilyMonospace)', overflowWrap: 'anywhere', userSelect: 'text' } as const;
 const red = { color: 'var(--colorPaletteRedForeground1)' };
 
 export function AgentPage({ agent: a, signing, onSigning }: { agent: AgentInfo; signing: boolean; onSigning: (on: boolean) => void }) {

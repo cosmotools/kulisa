@@ -16,7 +16,7 @@ export interface Profile {
 }
 // A closed one (window.ts, pushState): tabs is how many it had.
 export interface ClosedProfile { id: string; name: string; avatar: string; description: string | null; tabs: number }
-type AgentState = 'working' | 'waiting' | 'done' | null;
+export type AgentState = 'working' | 'waiting' | 'done' | null;
 // A tab of the task's terminals' panel (Task.terminalsInfo): a shell (the human's, or what the agent runs: by, its command) or an
 // agent (its account; cli: its agent, for its icon), with its state.
 export interface Terminal {

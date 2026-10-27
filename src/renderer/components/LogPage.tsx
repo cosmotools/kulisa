@@ -114,7 +114,7 @@ export function LogPage() {
     </div>
     <div ref={box} role="log" aria-label="Log" onScroll={scrolled}
       style={{ flex: 1, minHeight: 0, overflow: 'auto', padding: '6px 8px', border: '1px solid var(--colorNeutralStroke1)', borderRadius: 'var(--borderRadiusMedium)',
-        background: 'var(--colorNeutralBackground1)', color: 'var(--colorNeutralForeground1)', font: '12px/1.5 "JetBrains Mono", ui-monospace, monospace',
+        background: 'var(--colorNeutralBackground1)', color: 'var(--colorNeutralForeground1)', fontFamily: 'var(--fontFamilyMonospace)', fontSize: 'var(--fontSizeBase200)', lineHeight: 'var(--lineHeightBase300)',
         userSelect: 'text', cursor: 'text' }}>
       {shown.map((l, i) => <Row key={i} l={l} />)}
       {lines && !shown.length && <Text>Nothing matches.</Text>}

@@ -80,7 +80,8 @@ frames, pills, rows that show their buttons only under the pointer: those read a
   Chrome (`App.tsx`, `!important` over Fluent's hand). The window never scrolls (`overflow: clip`, also from
   a script); a part scrolls inside.
 - **An agent's state is an icon each**, not a color alone (some people do not tell yellow from green): working,
-  waiting for you, done; nothing otherwise. On a task's tab, its row in the sidebar, a terminal's tab.
+  waiting for you, done; nothing otherwise. One component (`AgentState.tsx`) on a task's tab, its row in the sidebar,
+  a terminal's tab.
 - **A dialog asks one thing and ends with its buttons**; what is browsed (Settings, a window of its own) is a nav on
   the left (`NavDrawer`) and a page on the right under its path (`Breadcrumb`, its ⋯ at the end), saved as it
   changes, no OK. No search field over the nav (the author's choice).

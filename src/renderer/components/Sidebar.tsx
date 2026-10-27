@@ -2,11 +2,12 @@
 // last first (lib/common.ts, lastWorked); New Project… at its foot. Docked in the empty window; over the grid while a
 // task is shown (the title bar's button, Ctrl+Shift+A; Esc or a choice closes it).
 import { useEffect, useRef, useState } from 'react';
-import { Badge, Button, DrawerBody, DrawerFooter, DrawerHeader, DrawerHeaderTitle, InlineDrawer, OverlayDrawer, Spinner, Text,
+import { Badge, Button, DrawerBody, DrawerFooter, DrawerHeader, DrawerHeaderTitle, InlineDrawer, OverlayDrawer, Text,
   Tooltip, Tree, TreeItem, TreeItemLayout } from '@fluentui/react-components';
-import { CircleCheckIcon, FolderPlusIcon, MessageCircleQuestionIcon, PanelLeftIcon, PlusIcon, Trash2Icon } from 'lucide-react';
+import { FolderPlusIcon, PanelLeftIcon, PlusIcon, Trash2Icon } from 'lucide-react';
 import { useShallow } from 'zustand/react/shallow';
 import { ProjectIcon } from './ProjectIcon';
+import { AgentState } from './AgentState';
 import { RightClickMenu } from './Menus';
 import { store, useWindow } from '../lib/store';
 import { useCovered } from '../lib/cover';
@@ -38,15 +39,6 @@ function taskItems(p: ProjectEntry, t: ProjectTask, done: () => void): MenuItem[
     '-', { label: 'Delete Task…', run: () => deleteTask(p, t) }];
 }
 
-const STATES = { working: 'The agent is working', waiting: 'The agent waits for you', done: 'The agent is done' };
-// An open task of this window: its agent's state, as its tab shows it.
-function State({ state }: { state: keyof typeof STATES | null | undefined }) {
-  if (!state) return <span style={{ width: 16 }} />;
-  const icon = state === 'working' ? <Spinner size="extra-tiny" />
-    : state === 'waiting' ? <MessageCircleQuestionIcon style={{ color: 'var(--colorPaletteYellowForeground1)' }} />
-      : <CircleCheckIcon style={{ color: 'var(--colorPaletteGreenForeground1)' }} />;
-  return <span role="img" aria-label={STATES[state]} title={STATES[state]} data-state={state} style={{ display: 'inline-flex', width: 16, justifyContent: 'center' }}>{icon}</span>;
-}
 
 function TaskRow({ p, t, done }: { p: ProjectEntry; t: ProjectTask; done: () => void }) {
   const key = `${p.id}/${t.id}`;
@@ -58,7 +50,7 @@ function TaskRow({ p, t, done }: { p: ProjectEntry; t: ProjectTask; done: () => 
       if (e.target !== e.currentTarget) return;
       if (e.key === ' ') { e.preventDefault(); choose(); } else if (e.key === 'Delete') { e.preventDefault(); void deleteTask(p, t); }
     }}>
-    <TreeItemLayout iconBefore={<State state={tab?.state} />}
+    <TreeItemLayout iconBefore={<AgentState state={tab?.state} room />}
       aside={<>
         {line && <Text size={200} style={{ color: 'var(--colorNeutralForeground3)' }}>{line}</Text>}
         {!t.closed && !tab && <Badge appearance="outline" size="small" color="informative">open</Badge>}

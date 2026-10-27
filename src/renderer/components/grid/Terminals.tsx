@@ -5,10 +5,11 @@
 // them: the +'s rows are big buttons in its middle instead, the closed profiles' under them.
 import { useCallback, useContext, useEffect, useRef, useSyncExternalStore } from 'react';
 import { Avatar, Button, Spinner, Tab, TabList, Text, tokens } from '@fluentui/react-components';
-import { CheckIcon, MessageCircleQuestionIcon, PlusIcon, SparklesIcon, XIcon } from 'lucide-react';
+import { CheckIcon, PlusIcon, XIcon } from 'lucide-react';
 import type { IDockviewPanelHeaderProps, IDockviewPanelProps } from 'dockview-react';
 import { ButtonMenu, RightClickMenu } from '../Menus';
 import { agentMark } from '../AgentMark';
+import { AgentState, STATES } from '../AgentState';
 import { ThemeShown, termStyle } from '../theme';
 import { act, store, useWindow } from '../../lib/store';
 import { profileLaunchers } from '../../lib/profiles';
@@ -145,14 +146,6 @@ function Launchers({ ref }: { ref: React.Ref<HTMLDivElement> }) {
   </div>;
 }
 
-// An agent's state, from its hooks, an icon each, not told by color alone.
-const STATES: Record<NonNullable<Terminal['state']>, string> = { working: 'is working', waiting: 'waits for you', done: 'is done' };
-function State({ state }: { state: Terminal['state'] }) {
-  const icon = state === 'working' ? <SparklesIcon style={{ color: tokens.colorBrandForeground1 }} />
-    : state === 'waiting' ? <MessageCircleQuestionIcon style={{ color: tokens.colorStatusWarningForeground1 }} />
-      : state === 'done' ? <CheckIcon style={{ color: tokens.colorStatusSuccessForeground1 }} /> : null;
-  return <span data-state={state || ''} style={{ display: icon ? 'inline-flex' : 'none' }}>{icon}</span>;
-}
 
 const tabTitle = (t: Terminal) => (t.agent ? `${t.agent.name}${t.state ? `: it ${STATES[t.state]}` : ''}` : t.command || "Your shell in the task's folder");
 const handOver = (t: Terminal) => void dialog('handover').then((d) => d.open(t));
@@ -190,7 +183,7 @@ export function TerminalsHeader({ api }: IDockviewPanelHeaderProps) {
                 : <Mark style={{ color: tokens.colorNeutralForeground3 }} />}>
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                 <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.name}</span>
-                <State state={t.state} />
+                <AgentState state={t.state} />
                 {/* Not a press on the tab: it is not chosen first. */}
                 <span title={t.agent ? "Close: the agent stops (asked first); its conversation stays in the task's history" : 'Close: what runs there stops'}
                   style={{ display: 'inline-flex', color: tokens.colorNeutralForeground3 }}

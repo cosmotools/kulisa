@@ -10,7 +10,7 @@ import { useCovered } from '../lib/cover';
 import { whenLeft } from '../lib/grid';
 import type { AgentInfo } from '../../shared/types';
 
-const mono = { fontFamily: '"JetBrains Mono", monospace', overflowWrap: 'anywhere', userSelect: 'text' } as const;
+const mono = { fontFamily: 'var(--fontFamilyMonospace)', overflowWrap: 'anywhere', userSelect: 'text' } as const;
 const red = { color: 'var(--colorPaletteRedForeground1)' };
 
 const list = agentList({ installed: (a) => `${a.name} is installed. Start it; it asks you to sign in.` });

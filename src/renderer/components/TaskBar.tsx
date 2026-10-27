@@ -5,10 +5,11 @@
 // Kulisa window, the main process says (the page does not know where the pointer is then).
 import { flushSync } from 'react-dom';
 import { useEffect, useReducer, useRef, useState, type CSSProperties, type DragEvent, type MouseEvent, type PointerEvent } from 'react';
-import { Button, Spinner, Tab, TabList, Tooltip, tokens } from '@fluentui/react-components';
-import { CircleAlertIcon, CircleCheckIcon, PlusIcon, XIcon } from 'lucide-react';
+import { Button, Tab, TabList, Tooltip, tokens } from '@fluentui/react-components';
+import { PlusIcon, XIcon } from 'lucide-react';
 import { RightClickMenu, type Item } from './Menus';
 import { ProjectIcon } from './ProjectIcon';
+import { AgentState } from './AgentState';
 import { store, useWindow } from '../lib/store';
 import { onColors, projectColor } from '../lib/project-color';
 import { keyText, withKeys } from '../lib/common';
@@ -18,7 +19,6 @@ import { terminalsOf } from '../lib/terminals';
 import { useStrip } from '../lib/strip';
 import type { ProjectEntry, TaskInfo } from '../../shared/types';
 
-const STATES = { working: 'is working', waiting: 'waits for you', done: 'is done' };
 
 const rename = async (key: string, name: string) => (await dialog('taskrename')).rename(key, name);
 // Move to New Window, Move to Window: … (one row per other window, named as it names itself: window.ts, label):
@@ -58,13 +58,6 @@ function projectItems(p: ProjectEntry): Item[] {
     '-', { label: 'Close All Tasks', run: () => kulisa.invoke('project:close-tasks', { id }) }];
 }
 
-// The agent's state on its tab: none while unknown.
-function State({ state }: { state: TaskInfo['state'] }) {
-  return <span data-state={state || ''} hidden={!state} title={state ? `The agent ${STATES[state]}` : ''} style={{ display: state ? 'flex' : 'none', flex: 'none' }}>
-    {state === 'working' ? <Spinner size="extra-tiny" /> : state === 'waiting' ? <CircleAlertIcon size={14} color={tokens.colorPaletteMarigoldForeground1} />
-      : <CircleCheckIcon size={14} color={tokens.colorPaletteGreenForeground1} />}
-  </span>;
-}
 
 // HTML drag and drop, which also crosses windows. The tab carries its task and what its terminals show (the window it
 // goes to has neither), as a type of Kulisa's own: a page under the pointer takes nothing from it.
@@ -182,7 +175,7 @@ export function TaskBar() {
             style={{ flex: '0 1 200px', minWidth: 160, opacity: dragged === t.key ? 0.5 : 1, '--colorCompoundBrandStroke': color,
               boxShadow: at && `inset ${at === 'before' ? 2 : -2}px 0 ${tokens.colorBrandStroke1}` } as CSSProperties}>
             <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <State state={t.state} />
+              <AgentState state={t.state} />
               {/* the name cut short where the tab ends: at its narrowest about ten letters */}
               <span style={{ maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.name}</span>
               <Button as="a" data-close appearance="subtle" size="small" icon={<XIcon size={14} />} aria-label="Close" tabIndex={-1}
