@@ -42,8 +42,7 @@ const useStyles = makeStyles({
   title: { flex: 1, minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', textAlign: 'start',
     '@container (max-width: 80px)': { display: 'none' } },
   favicon: { width: '16px', height: '16px' },
-  close: { display: 'flex', flex: 'none', marginInlineStart: 'auto', padding: '2px', fontSize: '16px', borderRadius: tokens.borderRadiusSmall,
-    color: tokens.colorNeutralForeground3, ':hover': { background: tokens.colorSubtleBackgroundHover, color: tokens.colorNeutralForeground1 } },
+  close: { flex: 'none', minWidth: 0, marginInlineStart: 'auto' },
   // A narrow pane gives up Back and Forward, then Reload (into ⋮; their keys stay), never Pick or ⋮: in order, else the
   // buttons at the end go out of reach first. The widths are the pane's less the bar's padding.
   bar: { flex: 'none', containerType: 'inline-size', padding: '4px 8px', gap: '2px', alignItems: 'center' },
@@ -182,7 +181,8 @@ export function ProfilePane({ api }: IDockviewPanelProps) {
             icon={t.favicon ? <img className={styles.favicon} data-testid="tab-icon" alt="" src={t.favicon} /> : <GlobeIcon data-testid="tab-icon" />}>
             <span className={styles.title}>{t.title || t.url || 'New tab'}</span>
             {/* Not a press on the tab: it is not chosen first. */}
-            <span className={styles.close} title="Close tab" onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); }} onClick={closeTab(t.id)}><XIcon /></span>
+            <Button as="a" appearance="subtle" size="small" icon={<XIcon />} className={styles.close} aria-label="Close tab" title="Close tab" tabIndex={-1}
+              onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); }} onClick={closeTab(t.id)} />
           </Tab>)}
         </TabList>
       </RightClickMenu>

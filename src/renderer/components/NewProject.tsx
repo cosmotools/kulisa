@@ -2,8 +2,7 @@
 // lib/new-project.ts. A dialog of a tasks' window (New Project…), and the welcome's own (Welcome.tsx: under a question
 // each, Back on the first step leaves for the slides before it).
 import { useEffect, useRef, useState, type ReactElement, type ReactNode } from 'react';
-import { Avatar, Badge, Button, Checkbox, Dialog, DialogSurface, DialogTitle, Field, Input, List,
-  ListItem, Tab, TabList, Text, ToggleButton, Tooltip } from '@fluentui/react-components';
+import { Avatar, Badge, Button, Checkbox, Dialog, DialogSurface, DialogTitle, Divider, Field, Input, List, ListItem, Tab, TabList, Text, ToggleButton, Tooltip } from '@fluentui/react-components';
 import { FolderIcon, FolderPlusIcon, GitBranchIcon, MinusIcon, PlusIcon, StarIcon, XIcon } from 'lucide-react';
 import { useShallow } from 'zustand/react/shallow';
 import { SignIn } from './SignIn';
@@ -32,9 +31,10 @@ function CodeStep({ w, nameRef }: { w: W; nameRef: React.RefObject<HTMLInputElem
   const where = whereOf(s, w.single);
   return <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
     <TabList vertical aria-label="Start from" selectedValue={s.from} onTabSelect={(_, d) => w.change({ from: d.value as From })}
-      style={{ flex: 'none', width: 180, padding: 8, borderInlineEnd: '1px solid var(--colorNeutralStroke2)' }}>
+      style={{ flex: 'none', width: 180, padding: 8 }}>
       {KINDS.map((k) => <Tab key={k.value} value={k.value} icon={k.icon}>{k.label}</Tab>)}
     </TabList>
+    <Divider vertical style={{ flex: 'none' }} />
     <div style={{ flex: 1, minWidth: 0, padding: 16, overflow: 'auto', display: 'flex', flexDirection: 'column', gap: 8 }}>
       {/* One folder or URL (the welcome's): taken as it is left, or at Next */}
       {s.from !== 'new' && w.single && <Field label={folder ? 'Folder' : 'URL'}>
@@ -157,18 +157,19 @@ export function Wizard({ w, head, leave, cancel, done }: { w: W; head?: (step: n
   const next = async () => { if (await w.next()) done?.(); };
   return <form aria-label="New Project's steps" onSubmit={(e) => { e.preventDefault(); void next(); }}
     style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-    {head ? head(step) : <ol aria-label="Steps" style={{ display: 'flex', gap: 24, margin: 0, padding: '8px 16px', listStyle: 'none', borderBottom: '1px solid var(--colorNeutralStroke2)' }}>
+    {head ? head(step) : <><ol aria-label="Steps" style={{ display: 'flex', gap: 24, margin: 0, padding: '8px 16px', listStyle: 'none' }}>
       {STEPS.map((s, i) => <li key={s} aria-current={i === step ? 'step' : undefined} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
         <Badge shape="circular" appearance={i === step ? 'filled' : i < step ? 'tint' : 'outline'} color={i <= step ? 'brand' : 'subtle'}>{i + 1}</Badge>
         <Text weight={i === step ? 'semibold' : 'regular'} style={i === step ? undefined : hint}>{s}</Text></li>)}
-    </ol>}
+    </ol><Divider style={{ flex: 'none' }} /></>}
     <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
       {step === 0 && <CodeStep w={w} nameRef={nameRef} />}
       {step === 1 && <AgentStep w={w} />}
       {step === 2 && <ProfilesStep w={w} />}
     </div>
     {error && <Text role="alert" style={{ ...red, margin: '0 16px 8px' }}>{error}</Text>}
-    <div style={{ display: 'flex', gap: 8, padding: 16, borderTop: '1px solid var(--colorNeutralStroke2)' }}>
+    <Divider style={{ flex: 'none' }} />
+    <div style={{ display: 'flex', gap: 8, padding: 16 }}>
       {(step > 0 || leave) && <Button onClick={() => (step ? w.back() : leave?.())}>Back</Button>}
       <span style={{ flex: 1 }} />
       {cancel && <Button disabled={saving} onClick={cancel}>Cancel</Button>}

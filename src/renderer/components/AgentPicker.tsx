@@ -1,9 +1,8 @@
 // Choosing a task's agent when the one to open is not there or not installed (docs/tasks.md, Choosing the agent): the
 // project's accounts and the terminal only, with Install. Asked once the grid it is for is on screen; closed without a
 // choice (Cancel, another task shown), none opens. Also an install's progress, New Project's too (InstallProgress).
-import { createElement, useEffect } from 'react';
-import { Accordion, AccordionHeader, AccordionItem, AccordionPanel, Button, Dialog, DialogActions, DialogBody, DialogContent,
-  DialogSurface, DialogTitle, Link, Radio, RadioGroup, Text } from '@fluentui/react-components';
+import { createElement, Fragment, useEffect } from 'react';
+import { Accordion, AccordionHeader, AccordionItem, AccordionPanel, Button, Dialog, DialogActions, DialogBody, DialogContent, DialogSurface, DialogTitle, Divider, Link, Radio, RadioGroup, Text } from '@fluentui/react-components';
 import { agentMark } from './AgentMark';
 import { agentList, shortPath, useAgentList, type AgentList } from '../lib/agents';
 import { useCovered } from '../lib/cover';
@@ -49,7 +48,7 @@ function AgentRow({ a, chosen, installing, home }: { a: AgentInfo; chosen: boole
     : a.path ? [a.version, shortPath(a.path, home), a.onPath === false && 'not on your PATH: Kulisa runs it from here'].filter(Boolean).join(' · ') : '';
   const installLine = chosen && a.install && !a.installed && !a.account ? `Install runs ${a.maker || 'its maker'}'s installer: ${a.install}` : '';
   const status = a.installed ? (a.install && !a.account ? 'Installed' : '') : 'Not installed';
-  return <div data-agent={a.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0', borderBottom: '1px solid var(--colorNeutralStroke2)' }}>
+  return <div data-agent={a.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0' }}>
     <Radio value={a.id} aria-label={a.name} label={<span style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
       {createElement(agentMark(a.agent || a.id), { style: { width: 20, height: 20, marginTop: 1 } })}
       <span style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
@@ -86,7 +85,7 @@ export function AgentPicker() {
           {looking && <Text>Looking for agents on this computer…</Text>}
           <RadioGroup aria-label="Agents" value={selected ?? ''} disabled={installing} onChange={(_, d) => list.select(d.value)}
             style={{ display: 'flex', flexDirection: 'column' }}>
-            {agents.map((a) => <AgentRow key={a.id} a={a} chosen={a.id === selected} installing={installing} home={home} />)}
+            {agents.map((a, i) => <Fragment key={a.id}>{i > 0 && <Divider />}<AgentRow a={a} chosen={a.id === selected} installing={installing} home={home} /></Fragment>)}
           </RadioGroup>
           <InstallProgress list={list} />
         </DialogContent>

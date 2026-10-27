@@ -500,7 +500,7 @@ test("theme: Dark by default, Light or System in ☰; the window, the terminal a
   await sam(core);
   // The theme's panels' color (Fluent's token, components/theme.ts), the terminal's (xterm's own option: it draws on a
   // canvas), the one chosen in ☰, the controls' own scheme (color-scheme).
-  const BACKGROUND = { dark: '#18181b', light: '#ffffff' };
+  const BACKGROUND = { dark: '#292929', light: '#ffffff' };
   const background = () => ui.evaluate(() => getComputedStyle(document.getElementById('app').firstElementChild).getPropertyValue('--colorNeutralBackground1').trim());
   const looks = async (shade: 'dark' | 'light', chosen: string, scheme: string = shade) => {
     await expect.poll(background).toBe(BACKGROUND[shade]);

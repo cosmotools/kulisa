@@ -1,5 +1,5 @@
-// Fluent UI's theme in Kulisa's colors (the probe: Settings on React and Fluent UI): Fluent's tokens, a neutral brand,
-// Inter and JetBrains Mono, softer corners. Only tokens: the components are Fluent's as they ship.
+// Fluent UI's theme: Fluent's tokens with a neutral brand, Inter and JetBrains Mono (bundled: the same on every OS,
+// offline), softer corners. Only tokens: the components are Fluent's as they ship (docs/ui.md).
 import { createContext } from 'react';
 import { createDarkTheme, createLightTheme, type BrandVariants, type Theme } from '@fluentui/react-components';
 import type { TermStyle } from '../../terminal/renderer';
@@ -16,30 +16,9 @@ const shape = {
   borderRadiusSmall: '4px', borderRadiusMedium: '6px', borderRadiusLarge: '8px', borderRadiusXLarge: '12px',
 };
 
-export const dark: Theme = {
-  ...createDarkTheme(neutral), ...shape,
-  colorNeutralBackground1: '#18181b', colorNeutralBackground1Hover: '#232327', colorNeutralBackground1Pressed: '#2a2a2f',
-  colorNeutralBackground1Selected: '#27272a',
-  colorNeutralBackground2: '#111113', colorNeutralBackground3: '#0c0c0e', colorNeutralBackground4: '#09090b',
-  colorSubtleBackgroundHover: '#27272a', colorSubtleBackgroundPressed: '#2f2f34', colorSubtleBackgroundSelected: '#27272a',
-  colorNeutralStroke1: '#3f3f46', colorNeutralStroke2: '#27272a', colorNeutralStroke3: '#202024',
-  colorNeutralForeground1: '#fafafa', colorNeutralForeground2: '#d4d4d8', colorNeutralForeground3: '#a1a1aa',
-  colorBrandBackground: '#fafafa', colorBrandBackgroundHover: '#e4e4e7', colorBrandBackgroundPressed: '#d4d4d8',
-  colorNeutralForegroundOnBrand: '#09090b',
-  colorBrandForeground1: '#fafafa', colorBrandForeground2: '#e4e4e7', colorCompoundBrandStroke: '#d4d4d8',
-  colorCompoundBrandBackground: '#fafafa', colorNeutralForeground2BrandSelected: '#fafafa',
-};
-
-export const light: Theme = {
-  ...createLightTheme(neutral), ...shape,
-  colorNeutralBackground1: '#ffffff', colorNeutralBackground2: '#fafafa', colorNeutralBackground3: '#f4f4f5', colorNeutralBackground4: '#ededf0',
-  colorNeutralStroke1: '#d4d4d8', colorNeutralStroke2: '#e4e4e7',
-  colorNeutralForeground1: '#09090b', colorNeutralForeground2: '#3f3f46', colorNeutralForeground3: '#71717a',
-  colorBrandBackground: '#18181b', colorBrandBackgroundHover: '#27272a', colorBrandBackgroundPressed: '#3f3f46',
-  colorNeutralForegroundOnBrand: '#fafafa',
-  colorBrandForeground1: '#18181b', colorCompoundBrandStroke: '#3f3f46', colorCompoundBrandBackground: '#18181b',
-  colorNeutralForeground2BrandSelected: '#09090b',
-};
+// Fluent's own neutrals (backgrounds, strokes, text): ours are only the brand ramp, the fonts and the corners.
+export const dark: Theme = { ...createDarkTheme(neutral), ...shape };
+export const light: Theme = { ...createLightTheme(neutral), ...shape };
 
 // A window's theme: the page's data-theme (its URL, then the main process's 'theme'), System as the OS's.
 export const shade = (theme: string | undefined) => (theme === 'light' || (theme === 'system' && !matchMedia('(prefers-color-scheme: dark)').matches) ? 'light' : 'dark');

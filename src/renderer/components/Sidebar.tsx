@@ -2,8 +2,7 @@
 // last first (lib/common.ts, lastWorked); New Project… at its foot. Docked in the empty window; over the grid while a
 // task is shown (the title bar's button, Ctrl+Shift+A; Esc or a choice closes it).
 import { useEffect, useRef, useState } from 'react';
-import { Badge, Button, DrawerBody, DrawerFooter, DrawerHeader, DrawerHeaderTitle, InlineDrawer, OverlayDrawer, Text,
-  Tooltip, Tree, TreeItem, TreeItemLayout } from '@fluentui/react-components';
+import { Badge, Button, Divider, DrawerBody, DrawerFooter, DrawerHeader, DrawerHeaderTitle, InlineDrawer, OverlayDrawer, Text, Tooltip, Tree, TreeItem, TreeItemLayout } from '@fluentui/react-components';
 import { FolderPlusIcon, PanelLeftIcon, PlusIcon, Trash2Icon } from 'lucide-react';
 import { useShallow } from 'zustand/react/shallow';
 import { ProjectIcon } from './ProjectIcon';
@@ -67,9 +66,10 @@ function TaskRow({ p, t, done }: { p: ProjectEntry; t: ProjectTask; done: () => 
 function ProjectRow({ p, done }: { p: ProjectEntry; done: () => void }) {
   const tasks = [...p.tasks.filter((t) => !t.closed), ...p.tasks.filter((t) => t.closed)]; // closed: the last first (main)
   return <TreeItem itemType="branch" value={p.id} data-project={p.id} aria-label={p.name}>
-    <TreeItemLayout iconBefore={<ProjectIcon p={p} />} title={p.folders[0]} style={{ fontWeight: 600 }}
+    <TreeItemLayout iconBefore={<ProjectIcon p={p} />} title={p.folders[0]}
       actions={<Tooltip content={`New Task of ${p.name}`} relationship="label"><Button appearance="subtle" size="small" icon={<PlusIcon />}
-        onClick={() => { done(); void newTask(p); }} /></Tooltip>}>{p.name}</TreeItemLayout>
+        onClick={() => { done(); void newTask(p); }} /></Tooltip>}>
+      <Text weight="semibold">{p.name}</Text></TreeItemLayout>
     <Tree>
       {tasks.map((t) => <TaskRow key={t.id} p={p} t={t} done={done} />)}
       {!tasks.length && <TreeItem itemType="leaf" value={`${p.id}/`} aria-disabled>
@@ -103,7 +103,8 @@ function Projects({ done }: { done: () => void }) {
         </Tree>
       </RightClickMenu>
     </DrawerBody>
-    <DrawerFooter style={{ padding: 8, borderTop: '1px solid var(--colorNeutralStroke2)' }}>
+    <Divider />
+    <DrawerFooter style={{ padding: 8 }}>
       <Button appearance="subtle" icon={<FolderPlusIcon />} title="New Project…: its code, its agents, its profiles"
         onClick={() => { done(); void newProject(); }} style={{ flex: 1, justifyContent: 'flex-start' }}>New Project…</Button>
     </DrawerFooter>

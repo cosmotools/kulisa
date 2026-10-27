@@ -28,7 +28,7 @@ const TITLE_BAR_HEIGHT = 44; // the title bar's (components/TopBar.tsx): keep in
 const MAC_BUTTONS = { height: 14, x: 7 };
 // The window's background and the OS buttons' strip, in each theme: colorNeutralBackground2 and colorNeutralForeground1
 // in components/theme.ts.
-const COLORS: Record<Shade, { window: string; text: string }> = { dark: { window: '#111113', text: '#fafafa' }, light: { window: '#fafafa', text: '#09090b' } };
+const COLORS: Record<Shade, { window: string; text: string }> = { dark: { window: '#1f1f1f', text: '#ffffff' }, light: { window: '#fafafa', text: '#242424' } };
 // The smallest window whose UI still works (the top bar with the OS buttons, ☰ and a task's tab, something under
 // it), as VS Code's: fixed, times the Kulisa zoom, in DIP. Not the grid's own minimum: with five profiles in a row it
 // would keep the window from half a screen next to the human's IDE. The OS holds it for the human's drag only;

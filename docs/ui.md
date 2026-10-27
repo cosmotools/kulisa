@@ -37,11 +37,13 @@ to the main process after every grid change ([window.md](window.md), The grid).
 - **Colors only from Fluent's tokens, text sizes from its type ramp** (gaps and paddings in px are layout, ours; `tokens.colorNeutralForeground3` in `makeStyles` or `style`, or
   `var(--colorNeutralForeground3)`): both themes come from one place. Muted text is `colorNeutralForeground3`, an
   error `colorPaletteRedForeground1` (selectable: text to copy and search for), a hairline `colorNeutralStroke2`. A
-  literal color only where no token can be: a mask (alpha alone, `lib/strip.ts`), the logo, the agents' marks, a
-  question's deleting button (`Ask.tsx`: Fluent's Button has no danger appearance).
-- **The theme** (`theme.ts`): Fluent's dark and light themes over a neutral brand ramp, so the main button and what is
-  chosen are in the text's own color, not Microsoft's blue; Inter, bundled (`@fontsource-variable/inter`), so the
-  window looks the same on every OS; softer radii (4, 6, 8, 12 px). **Dark by default**, as JetBrains; Light; System
+  literal color only where no token can be: a mask (alpha alone, `lib/strip.ts`), the logo, the agents' marks. A
+  question's deleting button takes the danger tokens (`Ask.tsx`: Fluent's Button has no danger appearance).
+  A line between parts is Fluent's `Divider`, not a border (a pane's own edges are dockview's).
+- **The theme** (`theme.ts`): Fluent's dark and light themes as they ship (its neutrals: backgrounds, strokes, text),
+  ours only in what makes it unlike Microsoft's apps: a neutral brand ramp, so the main button and what is chosen are
+  grey, not Microsoft's blue; Inter and JetBrains Mono (the terminal's), bundled, so the window looks the same on every
+  OS (Segoe UI is Windows' only); softer radii (4, 6, 8, 12 px). No color set by hand: a second palette over Fluent's. **Dark by default**, as JetBrains; Light; System
   follows the OS ([window.md](window.md), Theme). What draws outside Fluent's components (a terminal) takes the shown
   theme from `ThemeShown` (`termStyle`).
 - **Icons are Lucide's**, in Fluent's icon slots (`icon={<XIcon />}`), sized by the slot. Not icons: the agents'
