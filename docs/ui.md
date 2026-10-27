@@ -90,7 +90,8 @@ frames, pills, rows that show their buttons only under the pointer: those read a
 
 ## Tooltips
 
-Fluent's `Tooltip` where it opens over no page: the title bar, the sidebar, dialogs, Settings. In the grid, over and
+Fluent's `Tooltip` where it opens over no page: the title bar, the sidebar, dialogs, Settings, the tasks' bar's +
+(beside it, `positioning="after"`: over or under it are the pages). In the grid, over and
 next to the pages (a pane's tabs, toolbar and header; the terminals' header; the microphone), the native `title`: the
 OS draws it above the native views, which would cover Fluent's. An icon-only button is named by `aria-label`, or by a
 `Tooltip` with `relationship="label"`. A command with a key says it at the end of its tooltip, as Chrome's toolbar:

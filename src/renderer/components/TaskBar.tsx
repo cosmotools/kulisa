@@ -193,7 +193,8 @@ export function TaskBar() {
         })}
       </TabList>
     </RightClickMenu>
-    <Tooltip content={withKeys('New task', 'task.new')} relationship="label">
+    {/* beside the +: above or under it, the tooltip would open over the pages, which cover it */}
+    <Tooltip content={withKeys('New task', 'task.new')} relationship="label" positioning="after">
       <Button id="newTask" appearance="subtle" icon={<PlusIcon />} onClick={() => kulisa.invoke('task:new')} />
     </Tooltip>
   </nav>;

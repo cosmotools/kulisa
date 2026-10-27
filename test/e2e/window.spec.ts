@@ -11,7 +11,7 @@ import type { TaskTerminal } from '../../src/main/tasks.ts';
 import type { Question } from '../../src/shared/types.ts';
 import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
-import { termTabs, SITE, CHECKOUT, MAC, WIN, echoed, frames, holdPointer, ipcSettled, menu, choose, closeMenu, rightClick, viewOn, focusWindow, closeSettings, termText, invoke, answer, removed, termKeys, navRow, shortcutsDialog, shortcutKeys, windowSubmenu } from './helpers.ts';
+import { termTabs, SITE, CHECKOUT, MAC, WIN, echoed, frames, holdPointer, ipcSettled, menu, choose, closeMenu, rightClick, viewOn, focusWindow, closeSettings, termText, invoke, answer, removed, termKeys, navRow, shortcutsDialog, shortcutKeys, windowSubmenu, arrange } from './helpers.ts';
 
 const NO_SHOT = 'macOS: the app that started the tests (the terminal) may not record the screen';
 
@@ -722,4 +722,29 @@ test('a new version installed while Kulisa runs is offered once, in its own dial
     await core((k) => { k.shell.restart = k.stash.restart; });
     await removed(src);
   }
+});
+
+test("tooltips of the title bar and the tasks' bar open beside their buttons, never over the pages, which would cover them", async ({ core, ui, files }) => {
+  await sam(core);
+  await arrange(ui, 'grid'); // the page down to the tasks' bar
+  await invoke(ui, 'zoom:ui', 1); // the zoom's reset shown
+  await expect(ui.locator('#zoomReset')).toBeVisible();
+  const over = async (button: Locator) => {
+    await button.hover();
+    const t = ui.getByRole('tooltip');
+    await expect(t).toBeVisible();
+    const b = await t.boundingBox();
+    await ui.mouse.move(0, 300);
+    await expect(t).toHaveCount(0);
+    // The page's bounds are the window's (DIP); the tooltip's, the Kulisa-zoomed page's.
+    await expect.poll(() => viewOn(core, ui, files, 'Sam'), { timeout: 3000 }).toBe(true);
+    const page = await core((k) => k.profile('Sam').get().view.getBounds()), z = await invoke(ui, 'zoom:get') as number;
+    return b.x * z < page.x + page.width && (b.x + b.width) * z > page.x && b.y * z < page.y + page.height && (b.y + b.height) * z > page.y;
+  };
+  for (const bar of ['bottom', 'top']) {
+    if (bar === 'top') { await (await windowSubmenu(ui, 'Tasks bar')).locator('[data-bar="top"]').click(); await ui.keyboard.press('Escape'); await closeMenu(ui); }
+    for (const button of [ui.locator('#newTask'), ui.locator('#zoomReset'), ui.locator('#manageProjects'), ui.getByRole('button', { name: /^Projects and tasks/ })])
+      expect(await over(button), `${button}, the bar ${bar}`).toBe(false);
+  }
+  await invoke(ui, 'zoom:ui', 0);
 });
