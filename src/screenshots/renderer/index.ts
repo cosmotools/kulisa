@@ -1,6 +1,6 @@
 // The screenshots' window half: its entry (../README.md, The thumbnail). The thumbnail's own page is thumbnail.ts.
 import type { ThumbnailAction } from '../ipc.ts';
-export { Thumbnail } from './Thumbnail';
+export { Thumbnail } from './ThumbnailPicture';
 
 // Its menu, the window's own (the window's menus are its own components): openMenu shows these rows at a point and
 // resolves once it is closed, chosen in or not; its time goes on then.
