@@ -1,6 +1,6 @@
 // Menus and dialogs over a page: one menu at a time, as the OS's; every layer closed at once (a grid taken down, the
 // window left). What lies under them is the page's own: in a tasks' window the profiles' native views, which draw
-// above its HTML (views.ts plugs them in: under); Settings' window has none (docs/ui.md, Menus and dialogs).
+// above its HTML (views.ts plugs them in: under); Settings' window has none (docs/ui.md, Menus, Dialogs).
 //   useCovered('hide')       a dialog's open state: [open, setOpen]
 //   useCovered('pictures')   a menu's; ready once what is under it allows it to show (pictures of the pages)
 import { useCallback, useEffect, useRef, useState } from 'react';

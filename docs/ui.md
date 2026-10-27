@@ -34,7 +34,7 @@ to the main process after every grid change ([window.md](window.md), The grid).
   restyled into a component of our own, and nothing of ours where Fluent has one: its keyboard, focus and
   accessibility are maintained upstream, and every part looks like every other. A deviation is the exception: a
   comment at it says why, and a line here names it.
-- **Colors and sizes only from Fluent's tokens** (`tokens.colorNeutralForeground3` in `makeStyles` or `style`, or
+- **Colors only from Fluent's tokens, text sizes from its type ramp** (gaps and paddings in px are layout, ours; `tokens.colorNeutralForeground3` in `makeStyles` or `style`, or
   `var(--colorNeutralForeground3)`): both themes come from one place. Muted text is `colorNeutralForeground3`, an
   error `colorPaletteRedForeground1` (selectable: text to copy and search for), a hairline `colorNeutralStroke2`. A
   literal color only where no token can be: a mask (alpha alone, `lib/strip.ts`), the logo, the agents' marks, a
@@ -201,7 +201,7 @@ What is drawn here rather than taken from Fluent, each for a reason at it:
 
 ## Adding something
 
-- A component: Fluent's (its storybook, then its `.d.ts`), placed by layout, its colors and sizes tokens. Nothing
+- A component: Fluent's (its storybook, then its `.d.ts`), placed by layout, its colors tokens. Nothing
   fits: say so before building one; a deviation gets its comment and its line here.
 - A dialog: Fluent's `Dialog` with `useCovered('hide')`, in `App.tsx`, registered (`registerDialog`, a line in
   `Dialogs`).
