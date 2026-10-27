@@ -8,7 +8,7 @@ import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
 import type { Files } from './data.ts';
-import { SITE, WIN, holdPointer, focusWindow, choose, closeMenu, rightClick, closeSettings, item, renamed, termText, termShows, invoke, ipcSettled, answer, projectMenu, onRow } from './helpers.ts';
+import { SITE, WIN, holdPointer, focusWindow, choose, closeMenu, rightClick, closeSettings, item, renamed, termText, termShows, invoke, ipcSettled, answer, projectMenu, onRow, listCells } from './helpers.ts';
 import { newTask } from './tasks-helpers.ts';
 import { fakeAgent, fakeBin } from './agent-helpers.ts';
 
@@ -198,7 +198,7 @@ test("a new account is made in the project's settings: the agent's own sign-in a
   await expect(s.locator(`[data-agent="${work}"]`)).toHaveCount(1);
   await expect(signIn(s)).toHaveCount(0);
   // Its agent and its email, each in its column (a table).
-  expect((await s.locator(`[data-agent="${work}"] > *`).allTextContents()).slice(0, 2).map((c) => c.trim())).toEqual(['Fake agent', 'work@shop.com']);
+  expect((await listCells(s.locator(`[data-agent="${work}"]`)).allTextContents()).slice(0, 2).map((c) => c.trim())).toEqual(['Fake agent', 'work@shop.com']);
   expect(files.json('agents.json')).toEqual({ list: [{ id: work, agent: 'fake', email: 'work@shop.com' }] });
   expect(await core((k, a) => k.shell.store.projects().find((x) => x.id === a.pid).agents.includes(a.work), { pid: files.pid('project'), work }), 'the project lists it').toBe(true);
   // Signed in to an email it has already: that account, the new folder signed out and gone.

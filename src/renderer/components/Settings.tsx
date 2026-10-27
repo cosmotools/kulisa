@@ -166,11 +166,11 @@ export function Settings() {
           {item('github', 'GitHub', <GitHubIcon />)}
           {head('Profiles', <Tooltip content="New Profile…" relationship="label"><Button appearance="subtle" size="small" icon={<AddRegular />} onClick={() => setNewProfile('')} /></Tooltip>)}
           {profiles.map((p) => item(`f:${p.id}`, p.name, <Avatar size={16} image={{ src: avatarSrc(p.avatar) }} />))}
-          {newProfile !== null ? <Field size="small" validationMessage={profilesError || undefined} className={styles.newProfile}>
+          {newProfile !== null ? <form onSubmit={(e) => { e.preventDefault(); void createProfile(); }}><Field size="small" validationMessage={profilesError || undefined} className={styles.newProfile}>
             <Input autoFocus data-name value={newProfile} placeholder="Its name, e.g. ann@shop.com" aria-label="New profile"
               onChange={(_, d) => { setNewProfile(d.value); setProfilesError(''); }}
-              onKeyDown={(e) => { if (e.key === 'Enter') void createProfile(); if (e.key === 'Escape') { e.stopPropagation(); setNewProfile(null); } }} />
-          </Field> : profilesError && <ErrorBar className={styles.error}>{profilesError}</ErrorBar>}
+              onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); setNewProfile(null); } }} />
+          </Field></form> : profilesError && <ErrorBar className={styles.error}>{profilesError}</ErrorBar>}
           <NavDivider />
           {item('log', 'Log', <LogIcon />)}
           {item('about', 'About', <AboutIcon />)}

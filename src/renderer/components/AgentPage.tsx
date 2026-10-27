@@ -76,7 +76,7 @@ export function AgentPage({ agent: a, signing, onSigning }: { agent: AgentInfo; 
         return [{ label: 'Delete…', run: () => remove(id) }];
       }}>
         <List label="Accounts" attr="account" rows={mine} id={(x) => x.id} rowLabel={(x) => x.email || x.id} selected={selected} onSelect={setSelected}
-          onDelete={() => void remove()} columns={[
+          onDelete={(k) => void remove(k)} columns={[
             { label: 'Account', width: '50%', cell: (x) => x.email || x.id },
             { label: 'Projects', cell: (x) => <Text size={200}>{x.projects.length ? `in ${x.projects.join(', ')}` : 'in no project'}</Text> },
           ]} />

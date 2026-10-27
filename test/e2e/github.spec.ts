@@ -3,12 +3,12 @@
 import fs from 'fs';
 import path from 'path';
 import { execFileSync } from 'child_process';
-import type { Locator, Page } from '@playwright/test';
+import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
 import type { Files } from './data.ts';
 import type { SettingsAt } from '../../src/shared/ipc.ts';
-import { SITE, choose, rightClick, closeSettings, invoke, answer, removed } from './helpers.ts';
+import { SITE, choose, rightClick, closeSettings, invoke, answer, removed, listCells } from './helpers.ts';
 
 type Account = { id: string; login: string; kind: string; secret?: string };
 
@@ -27,7 +27,7 @@ async function settings(core: Core, sui: () => Promise<Page>, at: SettingsAt = {
 }
 // The accounts' rows as Settings → GitHub shows them (one by its id), and a row's cells.
 const rows = (s: Page, id?: string) => s.locator(id ? `[data-github="${id}"]` : '[data-github]');
-const cells = (row: Locator) => row.getByRole('cell');
+const cells = listCells;
 // The open menu (Fluent's: there only while open).
 const menu = (s: Page) => s.getByRole('menu');
 async function githubPage(core: Core, sui: () => Promise<Page>) {
@@ -60,7 +60,7 @@ async function typeToken(s: Page, token: string, shown = true) {
   const field = s.getByRole('textbox', { name: 'Token' });
   if (shown) await expect(field).toBeFocused();
   await field.fill(token);
-  await s.getByRole('group', { name: 'Add a token' }).getByRole('button', { name: 'Add', exact: true }).click();
+  await s.getByRole('form', { name: 'Add a token' }).getByRole('button', { name: 'Add', exact: true }).click();
 }
 // ann with Kulisa App and bob with a fine-grained token, signed in in Settings → GitHub as the first and third tests do.
 async function annAndBob(core: Core, sui: () => Promise<Page>) {

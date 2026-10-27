@@ -128,15 +128,15 @@ export function ProjectPage({ id, onSaved, onLoaded, saveRef }: { id: string; on
   const githubOf = (f: string) => github?.repos.find((g) => g.folder === f);
   const accountName = (a: ProjectGitHub['accounts'][number]) => (a.kind === 'pat' ? `${a.login} (token)` : a.login);
   const stop = () => { setAdding(''); setText(''); };
-  // What is added in place under a list: a field with its buttons, Enter does it, Esc puts it away; the refusal at it.
+  // What is added in place under a list: a field with its buttons, Enter submits it, Esc puts it away; the refusal at it.
   const inPlace = (what: 'clone' | 'profile', label: string, placeholder: string, go: () => void, ok: string, error: string) => adding === what &&
-    <div className={styles.inPlace}>
+    <form className={styles.inPlace} onSubmit={(e) => { e.preventDefault(); go(); }}>
       <Field label={label} validationMessage={error || undefined} className={common.selectable}>
         <Input autoFocus data-name={what === 'profile' || undefined} value={text} placeholder={placeholder} spellCheck={false} onChange={(_, d) => setText(d.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter') go(); if (e.key === 'Escape') { e.stopPropagation(); stop(); } }} />
+          onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); stop(); } }} />
       </Field>
-      <div className={styles.buttons}><Button onClick={stop}>Cancel</Button><Button appearance="primary" disabled={cloning} onClick={go}>{ok}</Button></div>
-    </div>;
+      <div className={styles.buttons}><Button onClick={stop}>Cancel</Button><Button appearance="primary" type="submit" disabled={cloning}>{ok}</Button></div>
+    </form>;
   // A refusal not at a field (the field put away, or none).
   const err = (t: string) => t && <ErrorBar>{t}</ErrorBar>;
   if (!s) return null;
@@ -156,7 +156,7 @@ export function ProjectPage({ id, onSaved, onLoaded, saveRef }: { id: string; on
       <RightClickMenu items={(e) => { const f = rowAt(e, 'folder'); if (!f) return null; setFolderSel(f);
         return [{ label: 'Make Default', enabled: folders[0]?.folder !== f, run: () => defaultFolder(f) }, { label: 'Remove from the Project', run: () => removeFolder(f) }]; }}>
         <List label="Folders" attr="folder" rows={folders} id={(r) => r.folder} rowLabel={(r) => base(r.folder)} selected={folderSel} onSelect={setFolderSel}
-          onDelete={() => void removeFolder()} columns={[
+          onDelete={(k) => void removeFolder(k)} columns={[
             { label: 'Name', width: '22%', cell: (r) => base(r.folder) },
             { label: 'Folder', cell: (r) => <Text size={200} title={r.folder}>{r.folder}</Text> },
             { label: 'GitHub', width: '24%', cell: (r) => { const g = githubOf(r.folder);
@@ -193,7 +193,7 @@ export function ProjectPage({ id, onSaved, onLoaded, saveRef }: { id: string; on
         return [isDefault(a) ? { label: 'No Default', run: () => defaultAgent(null) } : { label: 'Make Default', run: () => defaultAgent(a) },
           { label: 'Remove from the Project', run: () => removeAgent(a) }]; }}>
         <List label="Agents" attr="agent" rows={mine} id={(a) => a.id} rowLabel={(a) => a.agent} selected={agentSel} onSelect={setAgentSel}
-          onDelete={() => void removeAgent()} columns={[
+          onDelete={(k) => void removeAgent(k)} columns={[
             { label: 'Agent', width: '40%', cell: (a) => a.agent },
             { label: 'Account', cell: (a) => <Text size={200}>{a.email ?? '—'}</Text> },
             { label: '', width: '80px', cell: (a) => a.default && <Badge appearance="outline">default</Badge> },
@@ -211,7 +211,7 @@ export function ProjectPage({ id, onSaved, onLoaded, saveRef }: { id: string; on
       {profiles.length ? <RightClickMenu items={(e) => { const p = rowAt(e, 'profile'); if (!p) return null; setProfileSel(p);
         return [{ label: 'Remove from the Project…', run: () => removeProfile(p) }]; }}>
         <List label="Profiles" attr="profile" rows={profiles} id={(p) => p.id} rowLabel={(p) => p.name} rowTitle={(p) => [p.name, p.description, p.also.length && `also in ${p.also.join(', ')}`].filter(Boolean).join('\n')} selected={profileSel} onSelect={setProfileSel}
-          onDelete={() => void removeProfile()} columns={[
+          onDelete={(k) => void removeProfile(k)} columns={[
             { label: 'Name', width: '36%', cell: (p) => <Persona size="extra-small" name={p.name} avatar={{ image: { src: avatarSrc(p.avatar) } }} /> },
             { label: 'About', cell: (p) => <Text size={200}>{p.description}</Text> },
             { label: 'Also in', width: '24%', cell: (p) => <Text size={200}>{p.also.join(', ')}</Text> },

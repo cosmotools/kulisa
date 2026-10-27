@@ -2,7 +2,7 @@
 // master's window. Its picture: a panel of them beside it.
 import { useState, type KeyboardEvent } from 'react';
 import { Avatar, Button, Field, Input, MenuButton, Popover, PopoverSurface, PopoverTrigger, Text, Textarea, ToggleButton,
-  makeStyles, tokens } from '@fluentui/react-components';
+  makeStyles, tokens, Tooltip } from '@fluentui/react-components';
 import { avatarSrc } from './avatar';
 import { AVATARS } from '../../shared/avatars';
 import { refused, type Result } from '../../shared/result';
@@ -46,9 +46,9 @@ export function ProfilePage({ profile: p, onChanged }: { profile: SettingsProfil
           <MenuButton className={styles.fit} aria-label="Picture"><Avatar size={20} image={{ src: avatarSrc(p.avatar) }} /></MenuButton>
         </PopoverTrigger>
         <PopoverSurface aria-label="Pictures" className={styles.pictures}>
-          {AVATARS.map((a) => <ToggleButton key={a} appearance="subtle" size="small" checked={a === p.avatar} title={a} aria-label={a}
+          {AVATARS.map((a) => <Tooltip key={a} content={a} relationship="label"><ToggleButton appearance="subtle" size="small" checked={a === p.avatar}
             icon={<Avatar size={20} image={{ src: avatarSrc(a) }} />}
-            onClick={async () => { setPicking(false); await change('picture', kulisa.invoke('profiles:avatar', { profile: p.id, avatar: a })); }} />)}
+            onClick={async () => { setPicking(false); await change('picture', kulisa.invoke('profiles:avatar', { profile: p.id, avatar: a })); }} /></Tooltip>)}
         </PopoverSurface>
       </Popover>
     </Field>

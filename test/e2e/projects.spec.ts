@@ -6,7 +6,7 @@ import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
 import type { Files } from './data.ts';
 import { menu, choose, closeMenu, rightClick, projectTabs, projectTab, projectTabSel, showProject, focusWindow, closeSettings, settingsClosed, invoke, act, typeIn, answer, notLoading, projectMenu, otherPage, pageOf, onRow, removed,
-  navRow, shownRow, group, settingsMenu, listRows, listRow } from './helpers.ts';
+  navRow, shownRow, group, settingsMenu, listRows, listRow, listCells } from './helpers.ts';
 import { SAM, begin, newTask, openFolder, projectShown } from './tasks-helpers.ts';
 import { fakeAgent } from './agent-helpers.ts';
 
@@ -65,7 +65,7 @@ test("projects: the projects' manager (Project Settings…) changes its name and
   // The manager lists every project, this one chosen.
   await expect(navRow(s, `p:${id}`)).toHaveAttribute('aria-current', 'page');
   await expect(navRow(s, `p:${id}`).getByTestId('project-icon'), 'its favicon, a picture').toHaveJSProperty('tagName', 'IMG');
-  await expect(listRow(s, 'Folders', 'site').getByRole('cell').nth(1), 'its folder, as its code').toHaveText(site);
+  await expect(listCells(listRow(s, 'Folders', 'site')).nth(1), 'its folder, as its code').toHaveText(site);
   await expect(field(s, 'Location')).toHaveCount(0);
   // A page: its parts, each saved as it changes; the window stays open.
   for (const f of ['Name', 'Local addresses']) await expect(field(s, f)).toBeVisible();
@@ -120,7 +120,7 @@ test("projects: the projects' manager (Project Settings…) changes its name and
   `);
   await settingsMenu(s).getByRole('menuitem', { name: /^Sam\.admin/ }).click();
   // Its name a Persona's: its picture's initials (under the picture) are text too
-  await expect(listRow(s, 'Profiles', 'Sam.admin').getByRole('cell')).toHaveText([/^S?Sam\.admin$/, 'seller in the test shop', 'project']);
+  await expect(listCells(listRow(s, 'Profiles', 'Sam.admin'))).toHaveText([/^S?Sam\.admin$/, 'seller in the test shop', 'project']);
   await expect(listRow(s, 'Profiles', 'Sam.admin')).toHaveAttribute('data-profile', samId);
   await expect.poll(() => core((k, a) => k.shell.closed.has(a.sam) && k.shell.closed.has(a.user), { sam: samId, user: siteUser })).toBe(true); // its task lists them, closed
   await onRow(s, listRow(s, 'Profiles', 'Site-user'), removeProfile(s));
@@ -159,18 +159,18 @@ test("projects: the projects' manager (Project Settings…) changes its name and
   // The default marked, Make Default on the others. Each row by its agent and account, and whether it is the default.
   const agentRows = async (rows: [string, string, boolean][]) => {
     await expect(listRows(s, 'Agents')).toHaveCount(rows.length);
-    for (const [i, [agent, account, isDefault]] of rows.entries()) await expect(listRows(s, 'Agents').nth(i).getByRole('cell')).toHaveText([agent, account, isDefault ? 'default' : '']);
+    for (const [i, [agent, account, isDefault]] of rows.entries()) await expect(listCells(listRows(s, 'Agents').nth(i))).toHaveText([agent, account, isDefault ? 'default' : '']);
   };
   const shell: [string, string] = ['Terminal only', '—'], annRow: [string, string] = ['Fake agent', 'ann@shop.com'];
   await agentRows([[...shell, true], [...annRow, false]]); // the first added, the default
   // A table: each value in its column, under its name, the columns at the same places in every row (values
   // one after another, each row in its own rhythm, read as chaos).
-  const agentTable = s.getByRole('table', { name: 'Agents', exact: true });
+  const agentTable = s.getByRole('grid', { name: 'Agents', exact: true });
   await expect(agentTable.getByRole('columnheader')).toHaveText(['Agent', 'Account', '']);
   // Every cell's left edge in every row at once (boundingBox reads one element at a time).
   expect(await agentTable.evaluate((t) => {
     const x = (e: Element) => Math.round(e.getBoundingClientRect().left);
-    const rows = [...t.querySelectorAll('tr')].map((r) => [...r.children].map(x).join());
+    const rows = [...t.querySelectorAll('[role="row"]')].map((r) => [...r.querySelectorAll('[role="gridcell"], [role="columnheader"]')].map(x).join());
     return rows.every((r) => r === rows[0]);
   }), 'the columns in line').toBe(true);
   expect((await entryOf()).agents).toEqual(['shell', ann]);

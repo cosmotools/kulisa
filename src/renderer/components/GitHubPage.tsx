@@ -96,7 +96,7 @@ export function GitHubPage() {
     </>}>
       {info.accounts.length ? <RightClickMenu items={rowMenu}>
         <List label="GitHub accounts" attr="github" rows={info.accounts} id={(a) => a.id} rowLabel={(a) => a.login} selected={sel} onSelect={setSel}
-          onDelete={() => void remove()} columns={[
+          onDelete={(k) => void remove(k)} columns={[
             { label: 'Account', width: '22%', cell: (a) => a.login },
             { label: 'Kulisa App on', cell: (a) => <Text size={200}>{installed(a)}</Text> },
             { label: 'Projects', cell: (a) => <Text size={200}>{a.projects.length ? `in ${a.projects.join(', ')}` : 'in no project'}</Text> },
@@ -120,19 +120,19 @@ export function GitHubPage() {
         </MessageBarActions>
       </MessageBar>}
 
-      {pasting && <div role="group" aria-label="Add a token" className={styles.stack}>
+      {pasting && <form aria-label="Add a token" className={styles.stack} onSubmit={(e) => { e.preventDefault(); void addToken(); }}>
         <Field label="Token" validationMessage={tokenError || undefined} className={common.selectable}
           hint={<>A fine-grained token: <Link href={NEW_TOKEN} target="_blank">make one on GitHub</Link>, its resource owner the organization or user
             of your repositories (an organization may have to approve it), then paste it here.</>}>
           <Input ref={tokenField} type="password" value={token} placeholder="github_pat_…" spellCheck={false}
             onChange={(_, d) => { setToken(d.value); setTokenError(''); }}
-            onKeyDown={(e) => { if (e.key === 'Enter') void addToken(); if (e.key === 'Escape') { e.stopPropagation(); setPasting(null); } }} />
+            onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); setPasting(null); } }} />
         </Field>
         <div className={styles.buttons}>
           <Button onClick={() => setPasting(null)}>Cancel</Button>
-          <Button appearance="primary" onClick={() => void addToken()}>Add</Button>
+          <Button appearance="primary" type="submit">Add</Button>
         </div>
-      </div>}
+      </form>}
       {/* a refusal not at the token's field */}
       {error && <ErrorBar>{error}</ErrorBar>}
     </Group>

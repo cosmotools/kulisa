@@ -104,8 +104,10 @@ frames, pills, rows that show their buttons only under the pointer: those read a
 
 ## Tooltips
 
-Fluent's `Tooltip` where it opens over no page: the title bar, the sidebar, dialogs, Settings, the tasks' bar's +
-(beside it, `positioning="after"`: over or under it are the pages). In the grid, over and next to the pages (a pane's
+Fluent's `Tooltip` on a control where it opens over no page: the title bar, the sidebar, dialogs, Settings, the tasks'
+bar's + (beside it, `positioning="after"`: over or under it are the pages). A row (of a list, a tree, a nav) and a text
+that cuts take the native `title`: Fluent's is for controls, and it stays open while the pointer is over it, covering
+the row above and taking its click, and takes the first Esc. In the grid, over and next to the pages (a pane's
 tabs, toolbar and header; the terminals' header; the microphone), and on a master's bar (the window's top above it, its
 page under it), the native `title`: the OS draws it above the native views, which would cover Fluent's. An icon-only
 button is named by `aria-label`, or by a `Tooltip` with `relationship="label"`. A command with a key says it at the end
@@ -182,13 +184,14 @@ A form is the `<form>` between `DialogSurface` and `DialogBody` (Enter submits).
   alike, around one control only: it gives its id and label to every Fluent control inside, so a group of checkboxes
   or inputs takes none. A progress line is a Field's `validationMessage` (`validationState="none"`, role `status`)
   around its `ProgressBar`.
-- **A list to act on** is `List` (`List.tsx`, on Fluent's `Table`) in a `Group` (`Group.tsx`: a `Card` with its title,
+- **A list to act on** is `List` (`List.tsx`, Fluent's `DataGrid` with single selection) in a `Group` (`Group.tsx`: a `Card` with its title,
   a line under it and a `Toolbar` of `Tool`s at its end: + adds (often a `ButtonMenu`), − removes the selected row, ★
-  makes it the default), as JetBrains' lists: columns at the same place in every row, the selected one lit
-  (`aria-selected`), the arrows move, Delete removes it, a state at its end in a `Badge` ("default", "no git"). Each
+  makes it the default): columns at the same place in every row, each row's radio, the selected one lit; the arrows
+  move, a click or Space selects, Delete removes the row with the keyboard; a state at its end in a `Badge`
+  ("default", "no git"). Each
   row has `data-<attr>` for a `RightClickMenu` around the list (it selects the row), its name (`rowLabel`) and the
   whole of what its cells cut in its tooltip (`rowTitle`). What is added in place goes under the list: a `Field` (its
-  refusal the `validationMessage`), its buttons under it, Enter adds, Esc puts it away.
+  refusal the `validationMessage`), its buttons under it, in a `form` (Enter submits it), Esc puts it away.
 - **Trees**: the sidebar's `Tree` (`TreeItemLayout`: `aside` a task's line and badges, `actions` its buttons); Settings'
   `NavDrawer` (`NavSectionHeader` with its + at its end, `NavItem`, a state in a `Badge`; a `NavDivider` before Log
   and About).
