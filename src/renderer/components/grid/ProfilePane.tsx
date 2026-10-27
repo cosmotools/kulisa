@@ -5,7 +5,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type MouseEvent, type PointerEvent } from 'react';
 import type { IDockviewPanelHeaderProps, IDockviewPanelProps } from 'dockview-react';
 import { Avatar, Badge, Button, Dialog, DialogActions, DialogBody, DialogContent, DialogSurface, DialogTitle, Image, Input, Overflow, OverflowItem,
-  Tab, TabList, Text, ToggleButton, Toolbar, ToolbarButton, makeStyles, mergeClasses, tabClassNames, tokens,
+  Tab, TabList, Text, ToggleButton, Toolbar, ToolbarButton, makeStyles, mergeClasses, tokens,
   useIsOverflowItemVisible } from '@fluentui/react-components';
 import { AddRegular, ArrowClockwiseRegular, ArrowLeftRegular, ArrowRightRegular, CursorHoverFilled, CursorHoverRegular, DismissRegular, GlobeFilled,
   GlobeRegular, LockClosedRegular, MoreHorizontalRegular, MoreVerticalRegular, bundleIcon } from '@fluentui/react-icons';
@@ -41,13 +41,12 @@ const useStyles = makeStyles({
   strip: { flexShrink: 1, minWidth: 0 },
   // As Chrome's: 220 px, shrinking to their icon and × (64 px), every one keeping its × (the author's choice, as in the
   // tasks' bar); past that the strip scrolls. A width, not a basis: size containment leaves it no other.
-  // Its content slot as a row of the title and × (a content prop of its own would draw it twice: Fluent's reserved space).
-  tab: { width: '220px', flex: '0 1 auto', minWidth: '64px', containerType: 'inline-size', gridTemplateColumns: 'auto minmax(0, 1fr)', justifyContent: 'stretch',
-    [`& > .${tabClassNames.content}`]: { display: 'flex', alignItems: 'center', gap: tokens.spacingHorizontalXS, minWidth: 0, padding: 0 } },
+  tab: { width: '220px', flex: '0 1 auto', minWidth: '64px', containerType: 'inline-size', gridTemplateColumns: 'auto minmax(0, 1fr)', justifyContent: 'stretch' },
+  label: { display: 'flex', alignItems: 'center', gap: tokens.spacingHorizontalXS, width: '100%', minWidth: 0 },
   title: { flex: 1, minWidth: 0, '@container (max-width: 80px)': { display: 'none' } },
   favicon: { width: '16px', height: '16px' },
-  close: { flex: 'none', minWidth: 0, marginInlineStart: 'auto' },
-  bar: { flex: 'none', padding: `${tokens.spacingVerticalXS} ${tokens.spacingHorizontalS}`, gap: tokens.spacingHorizontalXXS, alignItems: 'center' },
+  close: { flex: 'none', marginInlineStart: 'auto' },
+  bar: { flex: 'none', gap: tokens.spacingHorizontalXXS },
   group: { display: 'flex', gap: tokens.spacingHorizontalXXS },
   address: { flex: 1, minWidth: 0, marginInline: tokens.spacingHorizontalXS },
   content: { flex: 1, position: 'relative', overflow: 'hidden', background: tokens.colorNeutralBackground1 },
@@ -167,11 +166,13 @@ export function ProfilePane({ api }: IDockviewPanelProps) {
           {profile.tabs.map((t) => <Grow key={t.id}><Tab value={t.id} data-tab={t.id} aria-label={t.title || t.url || 'New tab'} title={t.url}
             className={styles.tab} onPointerDown={pressTab(t.id)}
             icon={{ ...TAB_ICON, children: t.favicon ? <img className={styles.favicon} alt="" src={t.favicon} /> : <Globe /> }}>
-            {/* Text sets a weight of its own: the chosen tab's, as Fluent's Tab sets its label's */}
-            <Text truncate wrap={false} weight={t.id === profile.active ? 'semibold' : 'regular'} className={styles.title}>{t.title || t.url || 'New tab'}</Text>
-            {/* Not a press on the tab: it is not chosen first. */}
-            <Button as="a" appearance="subtle" size="small" icon={<DismissRegular />} className={styles.close} aria-label="Close tab" title="Close tab" tabIndex={-1}
-              onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); }} onClick={closeTab(t.id)} />
+            <span className={styles.label}>
+              {/* Text sets a weight of its own: the chosen tab's, as Fluent's Tab sets its label's */}
+              <Text truncate wrap={false} weight={t.id === profile.active ? 'semibold' : 'regular'} className={styles.title}>{t.title || t.url || 'New tab'}</Text>
+              {/* Not a press on the tab: it is not chosen first. */}
+              <Button as="a" appearance="subtle" size="small" icon={<DismissRegular />} className={styles.close} aria-label="Close tab" title="Close tab" tabIndex={-1}
+                onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); }} onClick={closeTab(t.id)} />
+            </span>
           </Tab></Grow>)}
         </TabList>
       </RightClickMenu>
@@ -180,7 +181,7 @@ export function ProfilePane({ api }: IDockviewPanelProps) {
     {/* A narrow pane gives up Back and Forward, then Reload (into ⋮; their keys stay), never Pick or ⋮: in order, else
         the buttons at the end go out of reach first. The address is no item (it shrinks): padding keeps its room. */}
     <Overflow padding={ADDRESS_ROOM}>
-      <Toolbar className={styles.bar} size="small" aria-label="Page">
+      <Toolbar className={styles.bar} aria-label="Page">
         {/* one item: Back without Forward would be half a pair */}
         <OverflowItem id="nav" priority={0}>
           <span className={styles.group}>

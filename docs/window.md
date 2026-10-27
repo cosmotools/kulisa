@@ -289,10 +289,10 @@ the parts of it read; [tasks.md](tasks.md), "Several agents in a task"). An agen
 but with their button kept in place (the author's choice): by its height under or over the grid, by its width at a side
 (dockview's constraints hold it there; the row goes). Alone in the grid (no profile open), the +'s rows are big buttons
 in a line in the grid's middle, whatever the arrangement (its group fills the grid there, its header hidden): a
-`data-launcher` button each, the agent's icon over its name, an account's email under it, no keys (Ctrl+` opens the task's agent,
+`data-launcher` button each, the agent's icon beside its name, an account's email under it, no keys (Ctrl+` opens the task's agent,
 which the window does not show: a key on one of them would read as a mistake). Each is a Tab stop, Enter opens it; the
 first, the project's default agent, gets the keyboard when they come, unless the keyboard is in something else (a
-field, a dialog). Under them, a second row: the task's closed profiles, a `data-launcher` each, its picture over its name
+field, a dialog). Under them, a second row: the task's closed profiles, a `data-launcher` each, its picture beside its name
 (The grid: No profile open). A terminal opened unfolds it to the size it had. Ctrl+` there opens a new conversation of
 the task's agent; a task with none (its project had no default agent: [tasks.md](tasks.md), "Choosing the agent")
 gives the keyboard to the buttons, or opens the +. A task that never had a terminal opens its agent, or nothing (the

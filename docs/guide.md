@@ -363,7 +363,7 @@ profile's menu, also on a right-click) and **×**. Under it, a tab strip, then b
 - Close the last one and the panel folds to a thin strip with **+** in its middle, which opens one again (Ctrl+`
   opens the task's agent). With no profile open either, big buttons in the middle of the window do what **+** does:
   one for each of the project's agents, then **Terminal**. Tab moves between them and Enter opens one. Under them, a
-  tile for each of the project's profiles opens it.
+  button for each of the project's profiles opens it.
 - Terminals come back after a restart in their tabs: an agent continues its conversation, a shell starts fresh. An
   agent's tab shows "Starting…" for a moment while its agent starts.
 - Copy and paste as in your OS's terminal: Ctrl+Shift+C / Ctrl+Shift+V on Linux, Ctrl+C / Ctrl+V on Windows, ⌘C / ⌘V

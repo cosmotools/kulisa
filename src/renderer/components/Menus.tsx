@@ -19,7 +19,6 @@ export type { Item };
 export const FIT = { autoSize: 'height', overflowBoundaryPadding: 4 } satisfies PositioningShorthand;
 
 const useStyles = makeStyles({
-  inset: { paddingInlineStart: '32px' },
   hidden: { visibility: 'hidden' },
   heading: { display: 'flex', alignItems: 'center', gap: tokens.spacingHorizontalS },
 });
@@ -40,7 +39,7 @@ function Row({ it, close }: { it: MenuRow; close: () => void }) {
   const remove = () => { close(); void it.remove!.run(); };
   const onKeyDown = (e: KeyboardEvent) => { if (it.remove && e.key === 'Delete') { e.preventDefault(); remove(); } };
   return <MenuItem aria-label={it.label} disabled={it.enabled === false || !it.run} title={it.title} icon={mark(it)}
-    subText={it.sub || undefined} className={it.inset ? styles.inset : undefined}
+    subText={it.sub || undefined}
     secondaryContent={it.remove ? <Button appearance="subtle" size="small" icon={<DeleteRegular />} aria-label={it.remove.label} title={it.remove.label}
       tabIndex={-1} className={hot ? undefined : styles.hidden}
       onClick={(e) => { e.stopPropagation(); remove(); }} /> : it.keys || undefined}

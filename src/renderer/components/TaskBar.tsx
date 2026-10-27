@@ -77,7 +77,7 @@ const useStyles = makeStyles({
     '&[data-drop="after"]': { boxShadow: `inset -2px 0 ${tokens.colorBrandStroke1}` } },
   label: { display: 'flex', alignItems: 'center', gap: tokens.spacingHorizontalSNudge },
   name: { maxWidth: '120px' },
-  close: { minWidth: 0, marginInlineStart: 'auto' },
+  close: { marginInlineStart: 'auto' },
 });
 
 export function TaskBar() {

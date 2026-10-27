@@ -36,11 +36,9 @@ const useStyles = makeStyles({
   launchers: { alignSelf: 'center', justifySelf: 'center', display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalL,
     padding: tokens.spacingHorizontalM, maxWidth: '100%', boxSizing: 'border-box' },
   row: { display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: tokens.spacingHorizontalL },
-  // A tile, not a row: the compound button's icon over its name and line, centred.
-  tile: { flexDirection: 'column', justifyContent: 'center', width: '140px', height: '116px', gap: tokens.spacingVerticalXS, padding: `${tokens.spacingVerticalM} ${tokens.spacingHorizontalM}` },
-  tileIcon: { marginRight: 0 },
-  tileContent: { alignItems: 'center', maxWidth: '100%', minWidth: 0 },
-  tileLine: { maxWidth: '100%' },
+  // One width for all, so the rows line up; the name and line cut with … inside it.
+  launcher: { width: '240px', justifyContent: 'flex-start' },
+  launcherText: { minWidth: 0 },
   // hidden: no terminal (the attribute, over the display)
   header: { display: 'flex', alignItems: 'center', gap: tokens.spacingHorizontalXS, height: '100%', minWidth: 0, padding: `0 ${tokens.spacingHorizontalXS}`, '&[hidden]': { display: 'none' } },
   tabsArea: { display: 'flex', flex: '0 1 auto', minWidth: 0 },
@@ -48,7 +46,6 @@ const useStyles = makeStyles({
   strip: { flexShrink: 1 },
   tab: { flex: 'none', maxWidth: '220px' },
   label: { display: 'inline-flex', alignItems: 'center', gap: tokens.spacingHorizontalSNudge },
-  close: { minWidth: 0 },
   spacer: { flex: 1 },
 });
 
@@ -144,24 +141,24 @@ export function Terminals({ api, containerApi }: IDockviewPanelProps) {
   </div>;
 }
 
-// The +'s rows as big buttons in the grid's middle, the agent's mark over its name, an account's email under it; the
+// The +'s rows as big buttons in the grid's middle, the agent's mark beside its name, an account's email under it; the
 // task's closed profiles under them (lib/profiles.ts, profileLaunchers).
 function Launchers({ ref }: { ref: React.Ref<HTMLDivElement> }) {
   const closed = useWindow((s) => s.closedProfiles);
   useWindow((s) => s.projects); // the project's agents
   const styles = useStyles();
-  const contentContainer = { className: styles.tileContent };
+  const contentContainer = { className: styles.launcherText };
   return <div ref={ref} data-testid="launchers" className={styles.launchers}>
     <nav aria-label="New terminal" className={styles.row}>
-      {launchers().map((l) => <CompoundButton key={l.id} data-launcher appearance="secondary" className={styles.tile} aria-label={l.name} title={l.title}
-        icon={{ className: styles.tileIcon, children: <l.icon /> }} contentContainer={contentContainer} onClick={() => void l.run()}
-        secondaryContent={l.sub ? { className: styles.tileLine, children: <Text truncate wrap={false} block size={200}>{l.sub}</Text> } : undefined}>
+      {launchers().map((l) => <CompoundButton key={l.id} data-launcher appearance="secondary" className={styles.launcher} aria-label={l.name} title={l.title}
+        icon={<l.icon />} contentContainer={contentContainer} onClick={() => void l.run()}
+        secondaryContent={l.sub ? <Text truncate wrap={false} block size={200}>{l.sub}</Text> : undefined}>
         <Text truncate wrap={false} block weight="semibold">{l.name}</Text>
       </CompoundButton>)}
     </nav>
     <nav aria-label="Open a profile" className={styles.row}>
-      {profileLaunchers(closed).map((p) => <CompoundButton key={p.id} data-launcher data-profile={p.id} appearance="secondary" className={styles.tile} aria-label={p.name}
-        title={p.title} icon={{ className: styles.tileIcon, children: p.avatar ? <Avatar size={40} image={{ src: avatarSrc(p.avatar) }} aria-hidden /> : <AddRegular /> }}
+      {profileLaunchers(closed).map((p) => <CompoundButton key={p.id} data-launcher data-profile={p.id} appearance="secondary" className={styles.launcher} aria-label={p.name}
+        title={p.title} icon={p.avatar ? <Avatar size={40} image={{ src: avatarSrc(p.avatar) }} aria-hidden /> : <AddRegular />}
         contentContainer={contentContainer} onClick={() => void p.run()}><Text truncate wrap={false} block weight="semibold">{p.name}</Text></CompoundButton>)}
     </nav>
   </div>;
@@ -204,7 +201,7 @@ export function TerminalsHeader({ api }: IDockviewPanelHeaderProps) {
                 <Text truncate wrap={false} weight={String(t.id) === String(front) ? 'semibold' : 'regular'}>{t.name}</Text>
                 <AgentState state={t.state} />
                 {/* Not a press on the tab: it is not chosen first. */}
-                <Button as="a" appearance="subtle" size="small" icon={<DismissRegular />} aria-label="Close" tabIndex={-1} className={styles.close}
+                <Button as="a" appearance="subtle" size="small" icon={<DismissRegular />} aria-label="Close" tabIndex={-1}
                   title={t.agent ? "Close: the agent stops (asked first); its conversation stays in the task's history" : 'Close: what runs there stops'}
                   onMouseDown={(e) => e.preventDefault()} onClick={(e) => { e.stopPropagation(); void act('terminal:close', { id: t.id }); }} />
               </span>

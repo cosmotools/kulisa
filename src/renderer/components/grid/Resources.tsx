@@ -23,11 +23,8 @@ const useStyles = makeStyles({
   item: { display: 'flex', alignItems: 'center', gap: tokens.spacingHorizontalXXS },
   // A row: the whole width, its icon, its name over its line.
   row: { width: '100%', justifyContent: 'start', minWidth: 0, textAlign: 'start' },
-  // An icon in a compound button's icon slot, at a row's size (the slot is a picture's).
-  icon: { fontSize: '20px', width: '20px', height: '20px' },
   // A screenshot's picture in the icon's place: its top, where a page's head is.
-  thumbSlot: { width: '64px', height: '40px' },
-  thumb: { width: '64px', height: '40px', objectPosition: 'top' },
+  thumb: { width: '100%', height: '100%', objectPosition: 'top' },
   heading: { display: 'flex', alignItems: 'center', gap: tokens.spacingHorizontalS, marginBlock: `${tokens.spacingVerticalS} 2px` },
   title: { margin: 0 },
   size: { color: tokens.colorNeutralForeground3, marginInlineStart: 'auto' },
@@ -56,7 +53,7 @@ export function Resources() {
     <List aria-label="Folders">
       {task.resources.map((r) => <ListItem key={r.folder} className={styles.item}>
         <CompoundButton appearance="subtle" size="small" className={styles.row} aria-label={r.label} title={`Open Folder: ${r.folder}`}
-          icon={{ children: r.kind === 'maintree' ? <FolderRegular /> : <BranchRegular />, className: styles.icon }} secondaryContent={r.branch ? `branch ${r.branch}` : 'main working tree'}
+          icon={r.kind === 'maintree' ? <FolderRegular /> : <BranchRegular />} secondaryContent={r.branch ? `branch ${r.branch}` : 'main working tree'}
           onClick={() => void open(r.folder)}><Text truncate wrap={false}>{r.label}</Text></CompoundButton>
         {r.removable && <Button appearance="subtle" size="small" icon={<DeleteRegular />} aria-label="Remove Repository" title="Remove Repository"
           onClick={() => void remove(r.folder)} />}
@@ -74,8 +71,7 @@ export function Resources() {
           {artifacts.map((a) => <ListItem key={a.file}>
             <CompoundButton appearance="subtle" size="small" className={styles.row} data-file={a.file} aria-label={kindOf(a.kind)}
               title={`Open: ${a.file} (${sizeText(a.bytes)})`} onClick={() => void openFile(a.file)}
-              icon={a.thumb ? { children: <Image src={a.thumb} alt="" bordered shape="rounded" fit="cover" className={styles.thumb} />, className: styles.thumbSlot }
-                : { children: <DocumentRegular />, className: styles.icon }}
+              icon={a.thumb ? <Image src={a.thumb} alt="" bordered shape="rounded" fit="cover" className={styles.thumb} /> : <DocumentRegular />}
               secondaryContent={[names[a.profile], when(a.time)].filter(Boolean).join(' · ')}>{kindOf(a.kind)}</CompoundButton>
           </ListItem>)}
         </List>

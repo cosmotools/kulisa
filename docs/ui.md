@@ -1,8 +1,8 @@
 # The window's UI
 
 **The window is Fluent UI v9 as it ships** (`@fluentui/react-components`, its icons `@fluentui/react-icons`): its
-components, tokens, type ramp, Griffel's `makeStyles` and its motion; our code places them (layout). How a component
-is used is Fluent's documentation (https://react.fluentui.dev, the storybook) and the installed version's `.d.ts`
+components, tokens, type ramp, Griffel's `makeStyles` and its motion; our code only places them (layout: a component's
+size and place, never its padding, colors or slots' insides). How a component is used is Fluent's documentation (https://react.fluentui.dev, the storybook) and the installed version's `.d.ts`
 (`node_modules/@fluentui/react-<component>/dist/index.d.ts`), read rather than remembered: this doc holds only what
 Fluent cannot know (the native pages, the desktop) and where Fluent leaves a choice, the one made. Nothing of ours where
 Fluent has a component, a prop or a pattern: its keyboard, focus and accessibility are maintained upstream. A deviation
@@ -171,7 +171,10 @@ What is drawn or moved here rather than by Fluent, each for a reason at it:
   `README.md`). The breathing is the Web Animations API: a Fluent motion only pauses, and remounting the button would
   drop its press's pointer capture;
 - the strips' fades (`lib/strip.ts`: tied to the scroll), the marks and the logo;
-- the log's box of lines (`LogPage.tsx`): Fluent has no log view; its tags in Fluent's palette tokens.
+- the log's box of lines (`LogPage.tsx`): Fluent has no log view; its tags in Fluent's palette tokens;
+- the sidebar's task rows (`Sidebar.tsx`): the shown task's lit and a closed one's muted, pointed at too, as `Tree` has
+  no current item;
+- a dangerous question's button in the danger tokens (`Ask.tsx`): `Button` has no danger appearance.
 
 ## Adding something
 

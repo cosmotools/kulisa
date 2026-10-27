@@ -10,10 +10,9 @@ const what = `${query.get('name')}: signed in here, every new task's copy is too
 let shown = '', onShown: ((url: string) => void) | null = null;
 kulisa.on('master:url', (url) => { shown = url === 'about:blank' ? '' : url; onShown?.(shown); });
 
-// The layout in a div, not FluentProvider's className, which Fluent copies to every portal's node (App.tsx).
+// The bar is the Toolbar itself, not FluentProvider's className, which Fluent copies to every portal's node (App.tsx).
 const useStyles = makeStyles({
-  bar: { height: '44px', boxSizing: 'border-box', display: 'flex', alignItems: 'center', gap: tokens.spacingHorizontalXS, padding: `0 ${tokens.spacingHorizontalS}` },
-  tools: { padding: 0 },
+  bar: { height: '44px', boxSizing: 'border-box', gap: tokens.spacingHorizontalXS },
   form: { flex: 1, display: 'flex' },
   address: { flex: 1 },
 });
@@ -26,16 +25,14 @@ export function Master() {
   // native view that would cover it (docs/ui.md, Tooltips).
   const tool = (label: string, Icon: FluentIcon, channel: 'master:back' | 'master:forward' | 'master:reload') =>
     <ToolbarButton icon={<Icon />} aria-label={label} title={label} onClick={() => void kulisa.invoke(channel)} />;
-  return <FluentProvider theme={shade(query.get('theme') ?? 'dark') === 'dark' ? dark : light}><AriaLiveAnnouncer><div className={styles.bar}>
-    <Toolbar aria-label="Page" className={styles.tools}>
-      {tool('Back', ArrowLeftRegular, 'master:back')}
-      {tool('Forward', ArrowRightRegular, 'master:forward')}
-      {tool('Reload', ArrowClockwiseRegular, 'master:reload')}
-    </Toolbar>
+  return <FluentProvider theme={shade(query.get('theme') ?? 'dark') === 'dark' ? dark : light}><AriaLiveAnnouncer><Toolbar aria-label="Page" className={styles.bar}>
+    {tool('Back', ArrowLeftRegular, 'master:back')}
+    {tool('Forward', ArrowRightRegular, 'master:forward')}
+    {tool('Reload', ArrowClockwiseRegular, 'master:reload')}
     <form className={styles.form} onSubmit={(e) => { e.preventDefault(); typing.current = false; const url = address.trim(); if (url) void kulisa.invoke('master:go', url); }}>
       <Input id="address" className={styles.address} autoFocus spellCheck={false} aria-label="Address" placeholder="The site to sign in to, e.g. github.com"
         value={address} onChange={(_, d) => { typing.current = true; setAddress(d.value); }} onBlur={() => { typing.current = false; }} />
     </form>
     <Text size={200} wrap={false} className={common.muted}>{what}</Text>
-  </div></AriaLiveAnnouncer></FluentProvider>;
+  </Toolbar></AriaLiveAnnouncer></FluentProvider>;
 }

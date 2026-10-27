@@ -9,7 +9,6 @@ export interface MenuRow {
   color?: string; // a project's dot
   avatar?: string; // a profile's picture
   project?: { favicon?: string; color: string }; // a project's icon, in its color shown (components/ProjectIcon.tsx; projectColor)
-  inset?: boolean; // set in under the row above, as its own (a project's closed task under it)
   enabled?: boolean;
   run?: () => unknown; // none: shown only
   remove?: { label: string; run: () => unknown }; // a 🗑 at its end, on hover or Delete (a closed task)
