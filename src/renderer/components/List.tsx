@@ -1,4 +1,4 @@
-// A list to choose a row of and act on (docs/ui.md, Rows), Fluent UI's DataGrid with single selection: Delete acts on
+// A list to choose a row of and act on (docs/ui.md, Controls), Fluent UI's DataGrid with single selection: Delete acts on
 // the row with the keyboard.
 import type { KeyboardEvent, ReactNode } from 'react';
 import { DataGrid, DataGridBody, DataGridCell, DataGridHeader, DataGridHeaderCell, DataGridRow, TableCellLayout, createTableColumn,
