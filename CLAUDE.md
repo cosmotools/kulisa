@@ -133,6 +133,10 @@ prompt; the human writes the rest of the message around it.
     their index and what changed between versions are in the repository's docs at the version's tag
     (`https://raw.githubusercontent.com/electron/electron/v<version>/docs/`: `README.md`, `tutorial/…`, `api/…`,
     `breaking-changes.md`); the API is in `node_modules/electron/electron.d.ts`.
+  - Before using a Fluent UI component in the window, read its file from Fluent's own docs for agents
+    (`https://storybooks.fluentui.dev/react/llms.txt`: each component's purpose, best practices and stories as code)
+    and build as its stories do, not from memory; what it is for and when not to use it is on its usage page
+    (`https://fluent2.microsoft.design/components/web/react/core/<name>/usage`).
   - Hand-written protocol code is the exception: today only `cdp-proxy.ts`, because nothing existing exposes
     `webContents.debugger` over CDP.
   - When adding a dependency, prefer one that is widely used and maintained, and say why in the commit message. Its
