@@ -52,11 +52,11 @@ export function Settings({ at, className }: { at: SettingsAt; className?: string
   // The project's page read again each time Settings is asked for a page.
   const [shown, setShown] = useState(0);
   // The pages of the profiles hidden while it is shown, the keys its own, as a dialog's; not closed with the grid.
-  // Closed, the keyboard goes back where it was, as a dialog gives it back.
-  const { setOpen } = useCovered('page');
+  // Hidden as it is filled, not before: the window stays as it is until Settings is drawn in one go. Closed, the
+  // keyboard goes back where it was, as a dialog gives it back.
+  const { setOpen, opened } = useCovered('page');
   useEffect(() => {
     const before = document.activeElement as HTMLElement | null;
-    setOpen(true);
     return () => { setOpen(false); if (before?.isConnected) before.focus(); };
   }, [setOpen]);
 
@@ -94,8 +94,9 @@ export function Settings({ at, className }: { at: SettingsAt; className?: string
     const filled = page && await page;
     setFirst(project && filled && !refused(filled) ? { id: project, page: filled } : null);
     setEditing(project); setShown((n) => n + 1);
+    await opened(true);
     setLoaded(true);
-  })(); }, [at, lists]);
+  })(); }, [at, lists, opened]);
   useChanged(lists);
   // The one shown; none (or one gone: deleted here or elsewhere), its category's list.
   const agentAt = agents.some((a) => a.id === agentPick) ? agentPick : undefined;

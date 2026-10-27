@@ -365,8 +365,12 @@ test("tasks: the bar's + makes a new task of the shown task's project in one cli
   await begin(core, ui, files, { only: true, columns: true, featureX: call });
   const before = await core((k) => k.shell.current.tasks.size), first = await keyAt(core, 1);
   await noSlide(ui); // the slide's pictures over the window take every event
-  await expect(ui.locator('#newTask'), 'its key in its name').toHaveAccessibleName(`New task (${await ui.evaluate(() => (window as any).keyText('task.new'))})`);
+  const project = await core((k) => k.shell.current.name);
+  await expect(ui.locator('#newTask'), 'its project and its key in its name').toHaveAccessibleName(`New task of ${project} (${await ui.evaluate(() => (window as any).keyText('task.new'))})`);
+  await ui.locator('#newTask').hover();
+  await expect(ui.getByRole('tooltip')).toBeVisible();
   await ui.locator('#newTask').click();
+  await expect(ui.getByRole('tooltip'), 'gone as it is pressed, not frozen in the slide').toBeHidden({ timeout: 100 });
   await expect.poll(() => core((k, a) => k.shell.current.tasks.size === a.before + 1 && k.shell.task?.key !== a.first && k.settled(), { before, first }), { timeout: 20000 }).toBe(true);
   await expect(ui.getByRole('menu'), 'no menu: made at once').toHaveCount(0);
   await expect(ui.locator('#projectTabs [role="tab"]')).toHaveCount(before + 1);

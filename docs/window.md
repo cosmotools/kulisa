@@ -240,6 +240,8 @@ Code's settings are a page of their window: the window it is opened in is the on
   its own. No gear while Settings would be empty (no project, no account, no profile, as at the first start, where the
   welcome makes them); it comes with the first account signed in to. An account or a profile left after the last
   project is deleted keeps it: Settings is where they are removed (`settings` in the projects' news).
+- **Shown in one go**, once its page is filled and the profiles' pages are hidden: until then the window stays as it
+  was (`opened`, `lib/cover.ts`).
 - **The grid stays under it**, laid out and hidden (dockview's sizes, the terminals), its agents working on; the
   profiles' pages are hidden as under a dialog (`useCovered('page')`, `lib/cover.ts`), and the keys are its own. A
   grid changed underneath (a task shown by the agent, the shown project deleted) leaves it open. The agent's questions

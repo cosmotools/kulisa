@@ -20,8 +20,8 @@ export function Ask() {
   useEffect(() => {
     if (!a) return;
     const cancel = () => a.answer('');
-    layer('hide', true, cancel, () => {});
-    return () => layer('hide', false, cancel, () => {});
+    void layer('hide', true, cancel, () => {});
+    return () => { void layer('hide', false, cancel, () => {}); };
   }, [a]);
   // Esc is Cancel: Fluent's onOpenChange, from a key in the dialog. A click on the backdrop (which an alert dialog
   // ignores) would move the keyboard to the page's body, where Esc reaches no dialog: it keeps the keyboard where it is.

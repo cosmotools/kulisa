@@ -1,9 +1,9 @@
 /* A tasks' window's layout (App.tsx), a div inside FluentProvider: its className Fluent copies to every portal's node. */
 /* Under Settings the grid stays laid out (dockview's sizes, the terminals) and its agents work on, the tasks' bar
    keeping its place: a row resized as Settings closes moved the terminal. In its row (Settings' row too: auto-placed,
-   it would go below it). */
+   it would go below it). Hidden once Settings is drawn (it draws nothing until filled), not as it is asked for. */
 .root { height: 100vh; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; background: var(--colorNeutralBackground2); }
 .root > :global(:is(#dock, #empty)) { grid-area: 2 / 1; }
 .root > :global(#taskbar) { grid-area: 3 / 1; }
-.root[data-settings] :global(:is(#dock, #empty, #taskbar)) { visibility: hidden; }
+.root:has(> .settings) :global(:is(#dock, #empty, #taskbar)) { visibility: hidden; }
 .settings { grid-area: 2 / 1 / -1; }
