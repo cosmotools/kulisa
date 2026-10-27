@@ -144,8 +144,7 @@ following it when it changes). Saved (`settings.json`), the same in every window
 - Only Kulisa's own UI changes: the profiles' pages keep the OS's light or dark (`prefers-color-scheme`), so a site
   under test looks as its users see it. So Kulisa does not set `nativeTheme.themeSource` (it would change every page's
   scheme); System reads `nativeTheme.shouldUseDarkColors` and its `updated` event.
-- Fluent's theme does it: Fluent's tokens with Kulisa's brand ramp, one theme dark and one light (`components/theme.ts`), the
-  one shown given to `FluentProvider` (`App.tsx`) with its `color-scheme` (`light dark` for System), so the browser's
+- Fluent's theme does it ([ui.md](ui.md), Fluent in Kulisa), the one shown given to `FluentProvider` (`App.tsx`) with its `color-scheme` (`light dark` for System), so the browser's
   own controls (scrollbars) follow; the grid takes dockview's colors from the same tokens (`Grid.tsx`), a terminal its
   colors (`termStyle`). The choice comes in the page's URL (`data-theme` on its root), set before the first paint, so a
   light window never flashes dark.
@@ -495,11 +494,9 @@ where the human reads it and passes it on, by any means: not everyone has a GitH
   once, so what came since is read from the file at the end of the same tick and sent, a burst of lines as one
   (`readLog` in `log.ts`; the last page that read is the one followed). The file turned over under it (shorter than
   what was read): the page reads it again. Nothing of this is logged: a line of its own would send it again.
-- A line each with its time (the date in its native tooltip: a Fluent tooltip per line would be thousands of
-  components) and its tag, the tag in the color of who acted (Fluent's palette: blue the agent, berry the human,
+- A line each with its time (the date in its tooltip) and its tag, the tag in the color of who acted (Fluent's palette: blue the agent, berry the human,
   marigold the tasks), warnings and errors in red; what is not a line of that shape (an object's lines under an
-  `[electron]` event) hangs under the line before it. The box of lines is ours (Fluent has no log view), drawn in
-  Fluent's tokens. **Follow** keeps the end in view, as a terminal does, lets go when the log is scrolled up, and
+  `[electron]` event) hangs under the line before it. **Follow** keeps the end in view, as a terminal does, lets go when the log is scrolled up, and
   goes back to the end when checked again.
 - What to show (a toolbar's radio buttons, one always chosen) and a text filter on top of it (a task's key, `wc=1`, a
   tag): **All**; **Errors** (warn and error lines, `[page]`, `[electron]`, an action refused or failed); **Agent**

@@ -50,8 +50,7 @@ repositories (git worktrees), so the project's folders stay the human's. Its dat
     then **Name**, then **Folders**, **Agents**, **Profiles**, each a card (`Group.tsx`) holding a list (`List.tsx`)
     with a toolbar: **+** adds (a menu), **−** removes the selected row (and Delete), **★** makes it the default
     (Folders, Agents); a row's right-click has the same. What needs typing (a URL to clone, a new profile's name)
-    opens a field under the list (Esc puts it away). Then **Local addresses**. Explanations are in the empty lines and
-    tooltips (a paragraph per section reads as documentation). Its folder is shown, not changed.
+    opens a field under the list (Esc puts it away). Then **Local addresses**. Its folder is shown, not changed.
   - **Profiles** there are only which profiles its tasks have: + makes one in it or adds another, − lets go of one
     (the profile stays); who a profile is, is Settings → Profiles'.
   - **Everything is saved as it changes** (nothing asks what a Save would cover); the name on Enter or leaving its

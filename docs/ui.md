@@ -68,6 +68,8 @@ frames, pills, rows that show their buttons only under the pointer: those read a
   scrolls (`overflow: clip`); a part scrolls inside.
 - **An agent's state is an icon each**, not a color alone (some people do not tell yellow from green): one component
   (`AgentState.tsx`) on a task's tab, its row in the sidebar, a terminal's tab.
+- **Explanations are a card's line, an empty list's line, a field's hint and tooltips**, not a paragraph per
+  section: that reads as documentation.
 - **A dialog asks one thing**; what is browsed (Settings, a window of its own) is a `NavDrawer` and a page under its
   `Breadcrumb`, saved as it changes, no OK. No search field over the nav (the author's choice).
 - **It fits the smallest window** (640 × 400, or any at 200%): a dialog that keeps a height of its own (New Project)
@@ -80,7 +82,8 @@ bar's + (`positioning="after"`: over or under it are the pages). The native `tit
 - in the grid, over and next to the pages (a pane's tabs, toolbar and header; the terminals' header; the microphone),
   and on a master's bar: the OS draws it above the native views, which would cover Fluent's;
 - on a row (of a list, a tree, a nav) and on a text that cuts: Fluent's stays open while the pointer is over it,
-  covering the row above and taking its click, and takes the first Esc.
+  covering the row above and taking its click, and takes the first Esc;
+- on a line of the log (Settings → Log, its date): a Fluent tooltip per line would be thousands of components.
 
 A command with a key says it at the end of its tooltip, as Chrome's toolbar: `withKeys('Reload', 'tab.reload')` →
 "Reload (Ctrl+R)" (`lib/common.ts`). A button disabled under a tooltip is `disabledFocusable` (`Tool`, `Group.tsx`): a
@@ -163,7 +166,8 @@ What is drawn or moved here rather than by Fluent, each for a reason at it:
 - the dictation's pill with its wave bars, and the microphone breathing red while it records (`src/dictation/`, its
   `README.md`). The breathing is the Web Animations API: a Fluent motion only pauses, and remounting the button would
   drop its press's pointer capture;
-- the strips' fades (`lib/strip.ts`: tied to the scroll), the marks and the logo.
+- the strips' fades (`lib/strip.ts`: tied to the scroll), the marks and the logo;
+- the log's box of lines (`LogPage.tsx`): Fluent has no log view; its tags in Fluent's palette tokens.
 
 ## Adding something
 
