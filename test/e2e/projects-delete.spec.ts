@@ -2,7 +2,7 @@
 import fs from 'fs';
 import path from 'path';
 import { test, expect } from './fixtures.ts';
-import { choose, projectTabs, projectTabSel, fromSidebar, openSidebar, taskRow, closeSettings, invoke, typeIn, answer, notLoading, projectMenu, pageOf, removed, navRow, settingsMenu } from './helpers.ts';
+import { choose, projectTabs, projectTabSel, fromSidebar, openSidebar, taskRow, closeSettings, invoke, typeIn, answer, notLoading, projectMenu, pageOf, removed, openThing, thingRow, settingsMenu } from './helpers.ts';
 import { git, committed, begin, bothOn, taskShown, taskTabs } from './tasks-helpers.ts';
 import { createWorktree } from '../../src/main/worktrees.ts';
 
@@ -37,9 +37,9 @@ test("projects: Delete Project… (in Settings alone) asks, closes the project w
     const { id, name } = await core((k, i) => k.shell.store.projects().find((x) => x.id === i), files.pid(folder));
     if (!await ui.locator('#settings').count()) await ui.locator('#manageProjects').click();
     const s = await sui();
-    await navRow(s, `p:${id}`).click();
+    await openThing(s, `p:${id}`);
     await pageOf(s, name);
-    await s.getByRole('button', { name: 'More' }).click(); // ⋯ at its top
+    await s.getByRole('button', { name: 'More', exact: true }).click(); // ⋯ at its top
     await choose(s, 'Delete Project…', settingsMenu(s));
     return answer(s, yes);
   };
@@ -62,7 +62,7 @@ test("projects: Delete Project… (in Settings alone) asks, closes the project w
   expect(git(spare, 'branch', '--list', wt.branch), "the task's branch").toBe('');
   expect(fs.readFileSync(path.join(spare, 'a.txt'), 'utf8'), "the project's own folder stays").toBe('a');
   expect(await core((k, i) => !!k.shell.task?.loaded && k.shell.current?.id === i, files.pid('project')), 'another project: the open one stays open').toBe(true);
-  await expect(navRow(await sui(), `p:${made.id}`)).toHaveCount(0);
+  await expect(thingRow(await sui(), `p:${made.id}`)).toHaveCount(0);
   await closeSettings(core, ui, sui);
 
   // New Project… asks for its code first (the code is often on the disk already). Folder on disk, a repository: taken

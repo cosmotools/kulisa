@@ -228,8 +228,9 @@ deleting button or lay out what goes. The OS's own dialogs stay for choosing a f
 
 ## Settings
 
-Settings (a nav of Projects, Agents and Profiles: [tasks.md](tasks.md), Projects; GitHub's page after Agents:
-[src/github](../src/github/README.md), The window; then the Log page, The log below, and About, Menus above) is shown
+Settings (a nav of its categories: Projects, Agents and Profiles, [tasks.md](tasks.md), Projects; GitHub,
+[src/github](../src/github/README.md), The window; Log, The log below; About, Menus above; a category's page lists its
+things, each with its own page, as Windows' Settings) is shown
 in a tasks' window, over all of it under the title bar (the sidebar, the grid, the tasks' bar), as Chrome's and VS
 Code's settings are a page of their window: the window it is opened in is the one it acts for, with nothing to keep in front or in step.
 

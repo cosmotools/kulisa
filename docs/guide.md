@@ -130,19 +130,20 @@ sidebar, or in a task tab's right-click menu, under the project's name.
 Everything is saved as you change it; there is no Save button.
 
 - **Name**.
-- **Folders**: its repositories or plain folders, all alike, with git or without. **+** adds one (Add Folder…, Clone from URL…,
-  which clones next to the default folder), **−** removes the selected
-  one from the project (its folder stays), **★** makes it the default: a new task gets a copy of it, and the agent
-  starts there; a task adds the others when it needs them (Tasks, below). Each repository on GitHub shows the GitHub
-  account it goes as (GitHub, below): Kulisa picks the first of yours that can reach it, and you can choose another
-  there. A line under the list says when none can, and why.
-- **Agents**: the accounts its tasks run. **★** makes one the default, the one a new task runs; **★** on the default
-  one again leaves the project with no default: a new task then starts with nothing running, and big buttons in the
-  middle let you open the agent you want, or a terminal. With no agents at all, a new task starts with a terminal.
-- **Profiles**: which profiles its tasks have. **+** makes a new one or adds one you have; **−** lets go of one (the
-  profile stays in Settings → Profiles).
 - **Local addresses**: addresses of your app besides `localhost` (a tunnel, a dev domain), where the agent may type a
-  test user's password (Profiles, below).
+  test user's password (Profiles, below). Type one and press Enter; its × removes it.
+- **Folders**: its repositories or plain folders, all alike, with git or without. **Add Folder** adds one (Add Folder…,
+  Clone from URL…, which clones next to the default folder). A folder's **⋯** (or a right-click on it): **Remove from
+  the Project** (its folder stays), **Make Default**: a new task gets a copy of it, and the agent starts there; a task
+  adds the others when it needs them (Tasks, below). Each repository on GitHub shows the GitHub account it goes as
+  (GitHub, below): Kulisa picks the first of yours that can reach it, and you can choose another there. A line under
+  the list says when none can, and why.
+- **Agents**: the accounts its tasks run. **Make Default** in one's **⋯** makes it the one a new task runs; **No
+  Default** on the default one leaves the project with none: a new task then starts with nothing running, and big
+  buttons in the middle let you open the agent you want, or a terminal. With no agents at all, a new task starts with a
+  terminal.
+- **Profiles**: which profiles its tasks have. **Add Profile** makes a new one or adds one you have; **Remove from the
+  Project…** in one's **⋯** lets go of it (the profile stays in Settings → Profiles).
 - **⋯ → Delete Project…** deletes Kulisa's data of the project and all its tasks, after a question saying what goes.
   Its own folder and your code stay.
 
@@ -152,9 +153,9 @@ Everything is saved as you change it; there is no Save button.
 one to see its version, its accounts, and **Install** if it is not installed. Kulisa never removes or updates an agent: its maker's installer updates it.
 
 An **account** is an agent signed in to one of your subscriptions, so a work and a personal one can run side by side.
-Make one with the **+** beside Agents (then the agent), the **+** over its accounts on the agent's page, or on a
+Make one with **New Account** on the Agents page (then the agent), **Add Account** on the agent's page, or on a
 project's page. Each account starts clean: your own settings of the
-agent outside Kulisa are not used. It is shown by its email, and stays until you delete it here (**−**).
+agent outside Kulisa are not used. It is shown by its email, and stays until you delete it here (its **⋯** → Delete…).
 
 A task may have several agents at once, each in a tab of its own (Terminals, below): Claude Code next to Codex, two of
 your accounts, or one agent twice. Each starts a new conversation and names its tab in a few words once it knows what
@@ -183,7 +184,7 @@ the right Ctrl: **☰ → Keyboard Shortcuts**, Change on its row, then press th
 ## GitHub
 
 **Settings → GitHub** holds your GitHub accounts, as many as you have (work, personal). Kulisa keeps their sign-ins
-itself, encrypted with your computer's keyring; your agents never see them. **+** adds one, two ways:
+itself, encrypted with your computer's keyring; your agents never see them. **Add Account** adds one, two ways:
 
 - **With GitHub…**: Kulisa shows a code and opens GitHub's page in your browser; enter the code there and allow
   **Kulisa App**. Then install Kulisa App on the accounts or organizations whose repositories you work on
@@ -202,9 +203,9 @@ the project, with a link to install Kulisa App.
 
 The list shows each account, where Kulisa App is installed, the projects using it and until when it is signed in. A
 sign-in with GitHub lasts six months from the last time Kulisa used it; a token, until it ends. When one ends, or
-GitHub turns it down, the account says **signed out**: **Sign in Again…** in its right-click menu. On a Linux computer
+GitHub turns it down, the account says **Signed out**: **Sign in Again…** in its **⋯** or right-click menu. On a Linux computer
 without a keyring, Kulisa cannot keep a sign-in safely, so it keeps none: you sign in again after Kulisa restarts, and
-the page says so. **−** deletes an account after a question; Kulisa forgets its sign-in, which GitHub still knows until
+the page says so. **Delete…** (its **⋯**) deletes an account after a question; Kulisa forgets its sign-in, which GitHub still knows until
 it ends: the question links the GitHub page where you revoke it at once.
 
 ## Tasks
@@ -265,10 +266,10 @@ it ends: the question links the GitHub page where you revoke it at once.
 ## Profiles
 
 **Settings → Profiles** is the one place for who a profile is: the same person in every project and task. Click a
-profile under Profiles to see its page.
+profile there to see its page.
 
-- The **+** beside Profiles makes one: type its name, Enter (or + → New Profile… on a project's page, to make it in
-  that project).
+- **New Profile** there makes one: type its name, Enter (or Add Profile → New Profile… on a project's page, to make it
+  in that project).
 - **Name**: letters, digits and `@ . _ + -`, so it can be the account's email (`ann+test@shop.com`). The agent calls
   the profile by it, so two profiles of one project cannot have the same name (`Ann` and `ann` are the same).
 - **About**: who it is in your app and what it can do. The agent picks profiles by it; if it is empty, the agent
@@ -450,8 +451,8 @@ brings it all back: your projects, tasks, profiles with their sign-ins, agents' 
 To remove everything, do it before uninstalling, in Kulisa, so that it cleans up after itself. First note the folders
 in **☰ → About Kulisa** (Settings → About): once the program is gone, nothing shows them. Then delete every project
 (**⋯ → Delete Project…** on its page: its tasks go with it, with their copies of the code and their branches),
-every profile (Settings → Profiles) and every agent's account (Settings → Agents: − on the account, which signs it
-out). Then uninstall the program and delete the data folder (above). What remains and is yours to keep or remove:
+every profile (Settings → Profiles) and every agent's account (Settings → Agents: the account's ⋯ → Delete…, which
+signs it out). Then uninstall the program and delete the data folder (above). What remains and is yours to keep or remove:
 
 - Agents Kulisa installed for you (Claude Code, Codex): programs of your own, updated by their makers. Settings →
   Agents shows where each one is; remove them their way.

@@ -23,7 +23,7 @@ to the main process after every grid change ([window.md](window.md), The grid).
 | Where | What |
 |---|---|
 | `src/renderer/index.html`, `main.tsx`; `master.html`, `master.tsx` | a tasks' window's page and a master's window's: the theme (and the tasks' bar's place) from the URL before the first paint, Inter, then the app; the few global rules (text selection, the cursor) in `master.tsx` and `App.tsx` |
-| `src/renderer/components/` | the parts. `App.tsx` a tasks' window; `theme.ts` the theme and the classes many parts share (`useCommonStyles`: muted, selectable); `ErrorBar.tsx` an error not of a field; `Menus.tsx`, `PointMenu.tsx` the menus; `Ask.tsx` the questions; `TopBar.tsx`, `TaskBar.tsx`, `Sidebar.tsx`, `Empty.tsx`, `Welcome.tsx`; `Grid.tsx` and `grid/` (`ProfilePane.tsx`, `Terminals.tsx`, `Resources.tsx`: a panel and its header each); the dialogs `NewProject.tsx` (also `Wizard`, the welcome's), `TaskRename.tsx`, `AgentPicker.tsx`, `HandOver.tsx`, `Shortcuts.tsx`; `settings/` Settings, its own chunk (`index.ts` its one entry, loaded by `import()`: `npm run deps`): `Settings.tsx` and its pages (`ProjectPage.tsx`, `AgentPage.tsx`, `ProfilePage.tsx`, `GitHubPage.tsx`, `LogPage.tsx`, `AboutPage.tsx`; `Group.tsx`, `List.tsx`, `agents.ts`, `changed.ts` theirs); `SignIn.tsx` a new account's sign-in (Settings', New Project's); `AgentMark.tsx`, `ProjectIcon.tsx` the marks; `Terminal.tsx` a terminal in a page; `Master.tsx` a master's bar |
+| `src/renderer/components/` | the parts. `App.tsx` a tasks' window; `theme.ts` the theme and the classes many parts share (`useCommonStyles`: muted, selectable); `ErrorBar.tsx` an error not of a field; `Menus.tsx`, `PointMenu.tsx` the menus; `Ask.tsx` the questions; `TopBar.tsx`, `TaskBar.tsx`, `Sidebar.tsx`, `Empty.tsx`, `Welcome.tsx`; `Grid.tsx` and `grid/` (`ProfilePane.tsx`, `Terminals.tsx`, `Resources.tsx`: a panel and its header each); the dialogs `NewProject.tsx` (also `Wizard`, the welcome's), `TaskRename.tsx`, `AgentPicker.tsx`, `HandOver.tsx`, `Shortcuts.tsx`; `settings/` Settings, its own chunk (`index.ts` its one entry, loaded by `import()`: `npm run deps`): `Settings.tsx` and its pages (`ProjectPage.tsx`, `AgentPage.tsx`, `ProfilePage.tsx`, `GitHubPage.tsx`, `LogPage.tsx`, `AboutPage.tsx`; `Row.tsx`, `agents.ts`, `changed.ts` theirs); `SignIn.tsx` a new account's sign-in (Settings', New Project's); `AgentMark.tsx`, `ProjectIcon.tsx` the marks; `Terminal.tsx` a terminal in a page; `Master.tsx` a master's bar |
 | `src/renderer/lib/` | what parts share or what outlives a component: `store.ts` (the window's state as the main process sends it: `useWindow(selector)` in a component, `store.getState()` elsewhere; `act`), `cover.ts`, `views.ts`, `menu.ts` (what a menu holds, the menu at a point), `dialogs.ts`, `settings.ts` (Settings shown, at what), `ask.ts`, `strip.ts`, `keys.ts`, `sidebar.ts`, `grid.ts`, `terminals.ts`, `agents.ts`, `new-project.ts`, `profiles.ts`, `project-color.ts`, `common.ts`, `names.ts` (name fields: `data-name`), `test-hooks.ts` |
 | `src/shared/types.ts`, `ipc.ts`; `src/renderer/env.d.ts` | the shapes the main process sends and the channels they come by ([window.md](window.md), IPC); the bridge (`kulisa`) typed by them |
 | `src/renderer/public/avatars/` | the profiles' pictures (Noto Emoji), copied as they are |
@@ -71,10 +71,12 @@ frames, pills, rows that show their buttons only under the pointer: those read a
   (`AgentState.tsx`) on a task's tab, its row in the sidebar, a terminal's tab.
 - **Explanations are a card's line, an empty list's line, a field's hint and tooltips**, not a paragraph per
   section: that reads as documentation.
-- **A dialog asks one thing**; what is browsed (Settings, over the window's area) is a `NavDrawer` and a page under its
-  `Breadcrumb`, saved as it changes, no OK. No search field over the nav (the author's choice). Its pages are one
-  column of 900px in the middle (the log the window's width); its nav on the window's background, not Fluent's
-  darkest: beside a page it read as a hole (the tokens it takes, `Settings.tsx`).
+- **A dialog asks one thing**; what is browsed (Settings, over the window's area) is a `NavDrawer` of categories and a
+  page under its `Breadcrumb` (`size="large"`), saved as it changes, no OK, as Windows' Settings: its things not in the
+  nav (it would grow with every project and profile) but a category's page. No search field over the nav (the
+  author's choice). Its pages are one column of 900px in the middle (the log the window's width), on the window's
+  background, their cards (Background1) standing out on it; its nav on that background too, not Fluent's darkest:
+  beside a page it read as a hole (the tokens it takes, `Settings.tsx`).
 - **It fits the smallest window** (640 × 400, or any at 200%): a dialog that keeps a height of its own (New Project)
   gives it as `min(…, 85vh)`, so its buttons stay in the window.
 
@@ -89,7 +91,7 @@ bar's + (`positioning="after"`: over or under it are the pages). The native `tit
 - on a line of the log (Settings → Log, its date): a Fluent tooltip per line would be thousands of components.
 
 A command with a key says it at the end of its tooltip, as Chrome's toolbar: `withKeys('Reload', 'tab.reload')` →
-"Reload (Ctrl+R)" (`lib/common.ts`). A button disabled under a tooltip is `disabledFocusable` (`Tool`, `Group.tsx`): a
+"Reload (Ctrl+R)" (`lib/common.ts`). A button disabled under a tooltip is `disabledFocusable` (`Shortcuts.tsx`): a
 disabled one gets no pointer events, and its tooltip would stay and take the next Esc.
 
 ## Menus
@@ -138,10 +140,12 @@ terminal, a screenshot's thumbnail). Fluent's `Menu` alone only for a row's own 
 
 ## Controls
 
-- **A list to act on** is `List` (`List.tsx`: Fluent's `DataGrid`, single selection) in a `Group` (`Group.tsx`: a
-  `Card`, its `Toolbar` of `Tool`s: + adds, − removes the selected row, ★ makes it the default). Each row has
-  `data-<attr>` for a `RightClickMenu` around the list (it selects the row), and Delete removes it. What is added in
-  place goes under the list, a `form` (Enter submits it; Esc puts it away).
+- **A setting, or a thing of a list**, in Settings is a `Row` (`Row.tsx`: a `Card` and its `CardHeader`: an icon or
+  picture, its name, one line under it, its control or its **⋯** at its end), in a `Section` (its title and its **Add
+  …** button), as Windows' Settings: no tables, toolbars or selection. A row's actions are its ⋯ and its right-click
+  (the same `Item`s); a row that opens a page has a chevron instead of ⋯. Default and state are `Badge`s by its name.
+  What is added in place goes under the rows, a `form` (Enter submits it; Esc puts it away). A list of words
+  (hosts) is a `TagPicker` with no popover.
 - **Notices**: work under way (an install, a sign-in, a search) is a `Spinner` with its label, done a success
   `MessageBar`. An error of a field is that `Field`'s `validationMessage`; any other error, a warning, a step to take
   or what is done is a `MessageBar` of its intent, an error's through `ErrorBar`. A `MessageBar` announces itself

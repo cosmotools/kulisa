@@ -38,12 +38,12 @@ A profile is an Electron session on a folder of its own (`session.fromPath`), la
 
 ## What the human does
 
-- **Settings → Profiles** (the gear's Settings, its tree; Manage Profiles… in a task tab's right-click menu and About this profile… in the
+- **Settings → Profiles** (the gear's Settings; Manage Profiles… in a task tab's right-click menu and About this profile… in the
   pane's menu open it, the latter at that profile; `components/settings/ProfilePage.tsx`): every
-  profile in Settings' tree, under Profiles, the chosen one's page on the right, each field saved on Enter or
+  profile a row of Settings' Profiles page, its own page under it, each field saved on Enter or
   leaving it: **Picture**, **Name**, **About**, **Test login** and **Test password**, **Sign In…** (its master's
   window, below) and the projects it is in: the human's one place for who a profile is.
-- **Create** there: the + beside Profiles in the tree, its name typed in place under it, Enter: in no project yet, the next free picture, empty and signed
+- **Create** there: New Profile on Profiles' page, its name typed in place, Enter: in no project yet, the next free picture, empty and signed
   out; a project's page adds it (+ → Other Profiles). Or on a project's page (+ → New Profile…: in that project).
   Names of profiles, projects and tasks take letters (any language), digits and `@ . _ + -`, as an email
   address does, starting with a letter or a digit (not `@` alone, `.x`, `..`, `-x`), at most 64, so a profile can be

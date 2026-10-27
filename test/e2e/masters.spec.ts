@@ -4,7 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
-import { SITE, PORT, logged, who, choose, rightClick, focusWindow, closeSettings, chooseProfile, navRow, invoke, answer } from './helpers.ts';
+import { SITE, PORT, logged, who, choose, rightClick, focusWindow, closeSettings, chooseProfile, pathOf, invoke, answer } from './helpers.ts';
 import { begin, newTask } from './tasks-helpers.ts';
 
 // The one master window open, once its page is there.
@@ -45,9 +45,8 @@ test("About this profile… shows Settings at it, over the task's window (its pa
   await choose(ui, 'About this profile…');
   const s = await sui();
   const name = s.getByRole('textbox', { name: 'Name', exact: true });
-  await expect(navRow(s, `f:${sam}`)).toHaveAttribute('aria-current', 'page');
+  await expect(pathOf(s)).toHaveText(/^Profiles\s*Sam\.admin$/);
   await expect(name).toHaveValue('Sam.admin');
-  await expect(navRow(s, `f:${sam}`), "the nav's narrow column cuts a name: the whole in its tooltip").toHaveAttribute('title', 'Sam.admin');
   // The pages draw above the window's HTML: hidden while it is shown.
   await expect.poll(() => core((k, id) => k.shell.task.profiles.get(id).get().view.getVisible(), sam), 'pages hidden').toBe(false);
   // Asked again (the main process, as macOS's menu): the same Settings, at that page.

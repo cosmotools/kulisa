@@ -101,8 +101,8 @@ prompt; the human writes the rest of the message around it.
 - **Terminology: "the tasks' bar"**: the bar of the tasks' tabs, under the grid or in the title bar after the logo,
   as a browser's tabs (☰ → Tasks bar; `TaskBar.tsx`, `#taskbar`). Not "taskbar", the OS's. Earlier commits say "the
   projects' bar" (`ProjectBar.vue`).
-- **Terminology: "Settings"**: what the title bar's gear shows over the whole window, as JetBrains' Settings (its tree and
-  pages: `docs/window.md`); in code `components/settings/`. Earlier commits say "the projects' manager". New Project is steps
+- **Terminology: "Settings"**: what the title bar's gear shows over the whole window, as JetBrains' Settings (its categories
+  and pages: `docs/window.md`); in code `components/settings/`. Earlier commits say "the projects' manager". New Project is steps
   (`NewProject.tsx`): the welcome's, and a dialog of a tasks' window.
 - **Terminology: "the empty window"**: what a window is with no task open (`Empty.tsx`; `docs/window.md`): the title
   bar, no tasks' bar, and in the grid's place the sidebar docked (every project with its tasks) or, with no project at

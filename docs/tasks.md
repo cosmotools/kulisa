@@ -37,22 +37,22 @@ repositories (git worktrees), so the project's folders stay the human's. Its dat
     router: it follows the main process's current task.
 - **Settings** (the title bar's button left of ☰), as JetBrains' Settings: over the window's area under the title bar,
   not a dialog (a dialog reads as a web page's: [ui.md](ui.md), Desktop, not a web page; how it opens and closes:
-  [window.md](window.md), Settings). On the left a tree of three sections: **Projects** (each with its icon in its
-  color), **Agents** ("Choosing the agent") and **Profiles** ([profiles.md](profiles.md)); on the right the chosen
-  one's page under its path ("Projects › shop") with **⋯** at its end. All three alike (the author's choice): a
-  section only opens and closes; its **+** makes one (Profiles: New Profile…, its name typed in place under the tree,
-  Enter makes it and shows its page, Esc puts it away; Agents: a menu of the agents an account can be made of, as
-  agents are installed, not made; Projects: none, a project is made in a tasks' window, New Project…). A row's
-  right-click has what its page's ⋯ has (a project's or profile's Delete…, asked first, also Delete on the row; an
-  agent's Install and New Account…), a section's what its + does. Project Settings… opens it at that project; Manage
-  Profiles… and About this profile… at a profile.
-  - **A project's page** (`components/settings/ProjectPage.tsx`): **⋯** (Delete Project…),
-    then **Name**, then **Folders**, **Agents**, **Profiles**, each a card (`Group.tsx`) holding a list (`List.tsx`)
-    with a toolbar: **+** adds (a menu), **−** removes the selected row (and Delete), **★** makes it the default
-    (Folders, Agents); a row's right-click has the same. What needs typing (a URL to clone, a new profile's name)
-    opens a field under the list (Esc puts it away). Then **Local addresses**. Its folder is shown, not changed.
-  - **Profiles** there are only which profiles its tasks have: + makes one in it or adds another, − lets go of one
-    (the profile stays); who a profile is, is Settings → Profiles'.
+  [window.md](window.md), Settings). On the left its categories, as Windows' Settings: **Projects** (each with its icon
+  in its color), **Agents** ("Choosing the agent"), **Profiles** ([profiles.md](profiles.md)), GitHub, Log, About; on
+  the right a category's page, its things a row each, or one thing's page under its path ("Projects › shop", the
+  category a link back) with **⋯** at its end. A category's button at its path makes one (Profiles: New Profile, its
+  name typed in place, Enter makes it and shows its page, Esc puts it away; Agents: New Account, a menu of the agents
+  an account can be made of, as agents are installed, not made; Projects: none, a project is made in a tasks' window,
+  New Project…). A row's right-click has what its page's ⋯ has (a project's or profile's Delete…, asked first; an
+  agent's Install and New Account…). Project Settings… opens it at that project; Manage Profiles… at Profiles, About
+  this profile… at a profile.
+  - **A project's page** (`components/settings/ProjectPage.tsx`): **⋯** (Delete Project…), then **Name** and **Local
+    addresses** (a host each, Enter adds one), then **Folders**, **Agents**, **Profiles**, a section each (`Row.tsx`):
+    its **Add …** (a menu), a row per thing with its **⋯** (Make Default, Remove from the Project; its right-click the
+    same). What needs typing (a URL to clone, a new profile's name) opens a field under the rows (Esc puts it away).
+    Its folder is shown, not changed.
+  - **Profiles** there are only which profiles its tasks have: Add Profile makes one in it or adds another, Remove
+    from the Project… lets go of one (the profile stays); who a profile is, is Settings → Profiles'.
   - **Everything is saved as it changes** (nothing asks what a Save would cover); the name on Enter or leaving its
     field, also when Settings closes or another project is chosen.
 - **New Project**, three steps, so a newcomer goes through all a project needs in one place: **Code**, **Agents**,

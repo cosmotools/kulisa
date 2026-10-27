@@ -8,7 +8,7 @@ import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
 import type { Files } from './data.ts';
 import type { SettingsAt } from '../../src/shared/ipc.ts';
-import { SITE, choose, rightClick, closeSettings, invoke, answer, removed, listCells } from './helpers.ts';
+import { SITE, choose, rightClick, closeSettings, invoke, answer, removed, listRow } from './helpers.ts';
 
 type Account = { id: string; login: string; kind: string; secret?: string };
 
@@ -26,19 +26,18 @@ async function settings(core: Core, sui: () => Promise<Page>, at: SettingsAt = {
   await core((k, a) => k.shell.openSettings(a), at);
   return sui();
 }
-// The accounts' rows as Settings → GitHub shows them (one by its id), and a row's cells.
+// The accounts' rows as Settings → GitHub shows them (one by its id).
 const rows = (s: Page, id?: string) => s.locator(id ? `[data-github="${id}"]` : '[data-github]');
-const cells = listCells;
 // The open menu (Fluent's: there only while open).
 const menu = (s: Page) => s.getByRole('menu');
 async function githubPage(core: Core, sui: () => Promise<Page>) {
   const s = await settings(core, sui);
   await s.locator('[data-key="github"]').click();
-  await expect(s.getByRole('button', { name: 'Add an account' })).toBeVisible();
+  await expect(s.getByRole('button', { name: 'Add Account' })).toBeVisible();
   return s;
 }
 async function addAccount(s: Page, how: 'With GitHub…' | 'With a Token…') {
-  await s.getByRole('button', { name: 'Add an account' }).click();
+  await s.getByRole('button', { name: 'Add Account' }).click();
   await expect(menu(s)).toMatchAriaSnapshot(`
     - menu:
       - text: Add Account
@@ -101,7 +100,7 @@ const bind = (s: Page, a: { id: string; remote: string; account: string }) => in
 test('GitHub: signing in with Kulisa App, Kulisa shows the code itself and opens GitHub\'s page; the account comes once it is entered there, no token on disk or in the log', async ({ core, ui, sui, files }) => {
   await clean(core, ui);
   const s = await githubPage(core, sui);
-  await expect(s.getByText('No accounts yet.', { exact: true })).toBeVisible();
+  await expect(s.getByText(/^No accounts yet/)).toBeVisible();
   await addAccount(s, 'With GitHub…');
   const code = await shownCode(s);
   await expect(signin(s)).toContainText(/only when Kulisa has just shown it/);
@@ -111,7 +110,8 @@ test('GitHub: signing in with Kulisa App, Kulisa shows the code itself and opens
   await expect(rows(s)).toHaveCount(1);
   await expect(signin(s)).toHaveCount(0);
   // Where Kulisa App is installed, asked of GitHub; the sign-in lasts until its refresh token ends.
-  await expect(cells(rows(s))).toHaveText(['ann', 'ann', 'in no project', /^until .*\d{4}$/]);
+  await expect(rows(s)).toHaveAttribute('aria-label', 'ann');
+  await expect(rows(s)).toContainText(/Kulisa App on ann · in no project · signed in until .*\d{4}$/);
   const [a] = stored(files);
   expect([a.login, a.kind]).toEqual(['ann', 'app']);
   expect(!!a.secret, 'its tokens encrypted when there is a keyring, else nowhere on disk').toBe(await core((k) => k.shell.github.kept()));
@@ -146,7 +146,8 @@ test('GitHub: a fine-grained token, checked with GitHub, its end read from GitHu
   await expect(error(s)).toContainText(/refused this token/);
   await typeToken(s, 'github_pat_bob_acme', false);
   // GitHub's header says when it ends.
-  await expect(cells(rows(s))).toHaveText(['bob', 'a token', 'in no project', /2027/]);
+  await expect(rows(s)).toHaveAttribute('aria-label', 'bob');
+  await expect(rows(s)).toContainText(/a token · in no project · signed in until .*2027$/);
   expect(fs.readFileSync(path.join(files.userData, 'github.json'), 'utf8')).not.toContain('github_pat_');
   expect(files.log(), 'the token, not even in the line of its channel').not.toContain('github_pat_bob');
   await closeSettings(core, ui, sui);
@@ -161,7 +162,7 @@ test("GitHub: a repository's row: the account that reaches its remote suggested 
     const account = (repo: string) => s.getByRole('combobox', { name: `GitHub account of ${repo}` });
     await expect(account('acme/shop')).toHaveText('bob (token)');
     await expect(account('ann/site')).toHaveText('ann');
-    await expect(s.getByRole('row', { name: 'lab' }).getByText('not a GitHub address', { exact: true })).toBeVisible();
+    await expect(listRow(s, 'Folders', 'lab').getByText('Not a GitHub address', { exact: true })).toBeVisible();
     await expect(s.getByText(/^beta: /)).toHaveText('beta: Kulisa App is not installed on beta. Install it, or ask its owner to.');
     await expect(s.getByRole('link', { name: 'Install it on beta' })).toHaveAttribute('href', 'https://github.com/apps/kulisa-app/installations/new');
     expect(await github(core, id), 'bound by remote: the token in its address dropped').toEqual({ 'github.com/acme/shop': bob, 'github.com/ann/site': ann });
@@ -193,7 +194,7 @@ test('GitHub: signed out (a refresh refused): said on the account and on its rep
     let s = await settings(core, sui, { section: 'projects', id });
     await expect(s.getByText(/^shop: /)).toHaveText('shop: bob is signed out: Sign in Again in Settings → GitHub.');
     s = await githubPage(core, sui); // read again as it is shown
-    await expect(cells(rows(s, bob)).nth(3)).toHaveText('signed out');
+    await expect(rows(s, bob).getByText('Signed out', { exact: true })).toBeVisible();
     await rightClick(s, rows(s, bob));
     await expect(menu(s)).toMatchAriaSnapshot(`
       - menu:
@@ -202,7 +203,7 @@ test('GitHub: signed out (a refresh refused): said on the account and on its rep
     `);
     await choose(s, 'Sign in Again…', menu(s));
     await typeToken(s, 'github_pat_bob_acme');
-    await expect(cells(rows(s, bob)).nth(3)).not.toHaveText('signed out');
+    await expect(rows(s, bob).getByText('Signed out', { exact: true })).toHaveCount(0);
     expect(await idOfLogin(core, 'bob', 'pat'), 'the same account').toBe(bob);
     expect(files.log()).toMatch(new RegExp(`\\[github\\] signed out ${bob} \\(bob, token\\): the test$`, 'm'));
     await closeSettings(core, ui, sui);
@@ -218,7 +219,7 @@ test('GitHub: deleting an account asks first, linking where to revoke it on GitH
     expect((await bind(page, { id, remote: 'github.com/acme/shop', account: bob })).error).toBeUndefined();
     expect((await bind(page, { id, remote: 'github.com/ann/site', account: ann })).error).toBeUndefined();
     const s = await githubPage(core, sui);
-    await expect(cells(rows(s, ann)).nth(2)).toHaveText('in ghproject');
+    await expect(rows(s, ann)).toContainText('in ghproject');
     await rightClick(s, rows(s, ann));
     await choose(s, 'Delete…', menu(s));
     await expect(s.getByRole('alertdialog').getByRole('link', { name: 'Revoke on GitHub' })).toHaveAttribute('href', 'https://github.com/settings/apps/authorizations');

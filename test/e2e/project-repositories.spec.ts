@@ -112,7 +112,7 @@ test('projects: several repositories: a task works in the main tree until it mak
   // Its agent names it: the branch of each copy.
   await call('task_rename', { name: 'Checkout' });
   for (const r of ['api', 'web']) expect(git(path.join(home, r), 'rev-parse', '--abbrev-ref', 'HEAD')).toBe('checkout');
-  // Project Settings… shows them, the default first; × on one tasks have a worktree of is refused, naming them.
+  // Project Settings… shows them, the default first; removing one tasks have a worktree of is refused, naming them.
   await choose(ui, 'Project Settings…', await projectMenu(ui, `#projectTabs [data-project="${pid}"]`));
   const s = await sui();
   await pageOf(s, 'api');
@@ -120,10 +120,10 @@ test('projects: several repositories: a task works in the main tree until it mak
   for (const [i, [label, isDefault]] of ([['api', true], ['web', false]] as const).entries()) {
     const row = listRows(s, 'Folders').nth(i);
     await expect(row).toHaveAttribute('aria-label', label);
-    await expect(row.getByText('default', { exact: true })).toHaveCount(isDefault ? 1 : 0);
+    await expect(row.getByText('Default', { exact: true })).toHaveCount(isDefault ? 1 : 0);
   }
   await expect(listRow(s, 'Folders', 'web')).toHaveAttribute('data-folder', web);
-  await onRow(s, listRow(s, 'Folders', 'web'), group(s, 'Folders').getByRole('button', { name: 'Remove from the project (its folder stays)' }));
+  await onRow(s, listRow(s, 'Folders', 'web'), 'Remove from the Project');
   await expect(group(s, 'Folders').getByText(/Tasks work in it: New Task, Checkout/)).toBeVisible();
   await closeSettings(core, ui, sui);
   // Removed again by its agent once the human agreed: nothing of its own in it, so not asked; its folder and branch
