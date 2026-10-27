@@ -1,6 +1,6 @@
 #!/bin/sh
-# The .deb's: Kulisa's apt repository and its key, as Chrome's and VS Code's do, so apt updates Kulisa (docs/window.md,
-# "The app icon, installers and updates"). Written again at each upgrade; removed with purge (postrm).
+# The .deb's: Kulisa's apt repository and its key, as Chrome's and VS Code's do, so apt updates Kulisa (docs/releases.md,
+# Updates). Written again at each upgrade; removed with purge (postrm).
 set -e
 if [ "$1" = configure ]; then
   install -d -m 755 /etc/apt/keyrings

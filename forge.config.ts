@@ -2,7 +2,7 @@
 //   npm run package   the app folder for this platform, in out/
 //   npm run make      installers for this platform, in out/make/ (Linux: rpmbuild for the .rpm, `apt install rpm`)
 //   npm run publish   made and uploaded to a draft release on GitHub (GITHUB_TOKEN; the CI does it on a tag)
-// Each platform's installers are built on that platform. docs/window.md, "The app icon, installers and updates".
+// Each platform's installers are built on that platform. docs/releases.md, Installers.
 import { execSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
@@ -10,7 +10,7 @@ import type { ForgeConfig } from '@electron-forge/shared-types';
 
 // node-pty ships prebuilt binaries for macOS and Windows (58 MB, the Windows ones 28 MB each) and loads only the one of
 // the platform and architecture it runs on (its lib/utils.js; on Linux the one built at install, build/Release): the
-// others are left out of the package. docs/window.md, "The app icon, installers and updates".
+// others are left out of the package. docs/releases.md, Installers.
 export function prunePrebuilds(buildPath: string, platform: string, arch: string) {
   const dir = path.join(buildPath, 'node_modules/node-pty/prebuilds');
   if (!fs.existsSync(dir)) return;
