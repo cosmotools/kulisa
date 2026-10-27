@@ -127,7 +127,7 @@ test("tasks: a closed task whose PR is merged on the remote is marked in its gro
   await dropProject(core, ui, id, [dir, origin]);
 });
 
-test("tasks: a closed task is deleted from its row, 🗑 or Delete, in the board (the bar's +), its project loaded or not, after the question Delete Task… asks", async ({ core, ui, files, call }) => {
+test("tasks: a closed task is deleted from its row, 🗑 or Delete, in the sidebar, its project loaded or not, after the question Delete Task… asks", async ({ core, ui, files, call }) => {
   // About 2 s: git's work (worktrees made and removed).
   await begin(core, ui, files, { only: true, columns: true, featureX: call });
   // A project not loaded, its one task closed, with a commit not merged.

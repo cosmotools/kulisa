@@ -81,7 +81,7 @@ pane is off screen.
 `WebContentsView` of its own page (`renderer/thumbnail.ts`; its `src/renderer/thumbnail.html` only loads it: Vite
 builds no page outside its root), made when it shows and destroyed when it goes: one more process for those seconds,
 about 21 MB (PSS; 10 MB of it its own; 94 MB RSS, Chromium's shared libraries mostly), next
-to a tasks' window's 102 MB (a task of two profiles) and a page's 57 MB. Weighed and not chosen: a window of its own over Kulisa's (Wayland does not let
+to a window's 116 MB and a page's 57 MB. Weighed and not chosen: a window of its own over Kulisa's (Wayland does not let
 a window be placed); the pages turned into pictures for its seconds (the human could not use the page meanwhile);
 Electron's `ImageView` (a `View` drawing a `NativeImage`, no process: experimental in 44, and it gets no mouse, so no
 click, menu or drag; issue #107). Its page gets a small picture (`preview`: twice the thumbnail's size), not the

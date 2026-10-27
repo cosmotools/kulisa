@@ -87,7 +87,7 @@ export function openTasks(shell: Shell, { appDevTools }: { appDevTools: boolean 
     if (!window) {
       const what = tasks.length === 1 ? `the task ${tasks[0]!.name}` : `the ${tasks.length} tasks of ${[...projects].map((p) => p.name).join(', ')}`;
       return !working || shell.ask({ message: `Close ${what}?`, ok: 'Close',
-        detail: `${stillWorking(tasks, 'closing')}${tasks.length === 1 ? 'Its conversation, code and profiles stay' : 'Their conversations, code and profiles stay'}: open ${tasks.length === 1 ? 'it' : 'them'} again from the bar's +.` }, w);
+        detail: `${stillWorking(tasks, 'closing')}${tasks.length === 1 ? 'Its conversation, code and profiles stay' : 'Their conversations, code and profiles stay'}: open ${tasks.length === 1 ? 'it' : 'them'} again from the sidebar.` }, w);
     }
     return shell.ask({ message: 'Close the window?', ok: 'Close',
       detail: `Its tasks close: ${tasks.map(named).join(', ')}. ${stillWorking(tasks, 'closing')}`
