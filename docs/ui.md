@@ -44,7 +44,7 @@ to the main process after every grid change ([window.md](window.md), The grid).
 - **The theme** (`theme.ts`): Fluent's dark and light themes as they ship (its neutrals: backgrounds, strokes, text),
   ours only in what makes it unlike Microsoft's apps: a neutral brand ramp, so the main button and what is chosen are
   grey, not Microsoft's blue; Inter and JetBrains Mono (the terminal's), bundled, so the window looks the same on every
-  OS (Segoe UI is Windows' only); softer radii (4, 6, 8, 12 px). No color set by hand: a second palette over Fluent's.
+  OS (Segoe UI is Windows' only); Fluent's own radii. No color set by hand: a second palette over Fluent's.
   **Dark by default**, as JetBrains; Light; System follows the OS ([window.md](window.md), Theme). What draws outside
   Fluent's components (a terminal) takes the shown theme from `ThemeShown` (`termStyle`).
 - **Icons are Fluent's** (`@fluentui/react-icons`, filled paths in `currentColor`): the unsized `…Regular` in a

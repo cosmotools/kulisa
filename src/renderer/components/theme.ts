@@ -1,5 +1,5 @@
 // Fluent UI's theme: Fluent's tokens with a neutral brand, Inter and JetBrains Mono (bundled: the same on every OS,
-// offline), softer corners. Only tokens: the components are Fluent's as they ship (docs/ui.md).
+// offline). Only tokens: the components are Fluent's as they ship (docs/ui.md).
 import { createContext } from 'react';
 import { createDarkTheme, createLightTheme, makeStyles, tokens, type BrandVariants, type Theme } from '@fluentui/react-components';
 import type { TermStyle } from '../../terminal/renderer';
@@ -10,15 +10,14 @@ const neutral: BrandVariants = {
   90: '#8b8b94', 100: '#a1a1aa', 110: '#b4b4bc', 120: '#d4d4d8', 130: '#e4e4e7', 140: '#ededf0', 150: '#f4f4f5', 160: '#fafafa',
 };
 
-const shape = {
+const fonts = {
   fontFamilyBase: "'Inter Variable', 'Segoe UI', system-ui, sans-serif",
   fontFamilyMonospace: "'JetBrains Mono', ui-monospace, monospace", // the terminal's, bundled (src/terminal/renderer)
-  borderRadiusSmall: '4px', borderRadiusMedium: '6px', borderRadiusLarge: '8px', borderRadiusXLarge: '12px',
 };
 
-// Fluent's own neutrals (backgrounds, strokes, text): ours are only the brand ramp, the fonts and the corners.
-export const dark: Theme = { ...createDarkTheme(neutral), ...shape };
-export const light: Theme = { ...createLightTheme(neutral), ...shape };
+// Fluent's own neutrals (backgrounds, strokes, text): ours are only the brand ramp and the fonts.
+export const dark: Theme = { ...createDarkTheme(neutral), ...fonts };
+export const light: Theme = { ...createLightTheme(neutral), ...fonts };
 
 // A window's theme: the page's data-theme (its URL, then the main process's 'theme'), System as the OS's.
 export const shade = (theme: string | undefined) => (theme === 'light' || (theme === 'system' && !matchMedia('(prefers-color-scheme: dark)').matches) ? 'light' : 'dark');
