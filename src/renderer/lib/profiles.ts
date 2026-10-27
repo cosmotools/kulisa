@@ -6,19 +6,19 @@ import { showPane } from './grid';
 import { openSettings } from './dialogs';
 import type { MenuItem } from './menu';
 
-export const profilesMenu = (): MenuItem[] => [
-  ...store.profiles.map((p) => ({ label: p.name, sub: p.description || plural(p.tabs.length, 'tab'), avatar: p.avatar,
+export const profilesMenu = (): MenuItem[] => { const { profiles, closedProfiles } = store.getState(); return [
+  ...profiles.map((p) => ({ label: p.name, sub: p.description || plural(p.tabs.length, 'tab'), avatar: p.avatar,
     run: () => showPane(p.id) })),
-  ...store.closedProfiles.map((p) => ({ label: p.name, sub: `closed · click to open${p.description ? ` · ${p.description}` : ''}`, avatar: p.avatar,
+  ...closedProfiles.map((p) => ({ label: p.name, sub: `closed · click to open${p.description ? ` · ${p.description}` : ''}`, avatar: p.avatar,
     run: () => act('profile:open', { profile: p.id }) })),
-  ...(store.profiles.length || store.closedProfiles.length ? ['-' as const] : []),
+  ...(profiles.length || closedProfiles.length ? ['-' as const] : []),
   { label: 'Manage Profiles…', run: () => openSettings('profiles') },
-];
-// With no profile open, what opens one (the buttons of ClosedProfiles.vue, the tiles of Terminals.vue): each closed
+]; };
+// With no profile open, what opens one (the closed profiles' buttons, the terminals' pane's tiles): each closed
 // one, or, with none in the project, its page in Settings to add them. A profile's picture and name, who it is in the
 // tooltip alone: under the name it is cut off by the tile's edge.
-export const profileLaunchers = () => store.closedProfiles.length
-  ? store.closedProfiles.map((p) => ({ id: p.id, name: p.name, avatar: p.avatar,
+export const profileLaunchers = (closedProfiles = store.getState().closedProfiles) => closedProfiles.length
+  ? closedProfiles.map((p) => ({ id: p.id, name: p.name, avatar: p.avatar,
     title: `Open ${p.name}${p.description ? `: ${p.description}` : ''}`, run: () => act('profile:open', { profile: p.id }) }))
   : [{ id: 'add', name: 'Add Profile…', avatar: null, title: "The project's profiles, in Settings",
     run: () => openSettings() }];

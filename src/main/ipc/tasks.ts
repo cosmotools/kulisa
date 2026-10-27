@@ -46,7 +46,7 @@ export function registerTasks(ipc: Ipc) {
     const target = windowById(to);
     return to && !target ? { error: 'that window is closed' } : moveAll(shell.open.get(id), at(e), terminals, target ?? null);
   }));
-  // A task's tab dragged (TaskBar.vue): let go on this window's tabs, or where no window took it.
+  // A task's tab dragged (components/TaskBar.tsx): let go on this window's tabs, or where no window took it.
   handle('task:drop', (e, { key, index, terminals }) => serial(() => dropTask(shell.taskByKey(key), at(e), index, terminals)));
   handle('task:drag-out', (_e, { key, terminals }) => serial(() => dragOut(shell.taskByKey(key), terminals)));
   handle('app:quit', (e) => serial(() => quit(at(e))));
@@ -57,7 +57,7 @@ export function registerTasks(ipc: Ipc) {
   handle('task:new', (e, { project } = {}) => serial(() => createTask(project ? shell.open.get(project) : at(e)?.task?.project, at(e) ?? null)));
   handle('task:close', (_e, key) => taskAt(key, closeTask));
   handle('task:delete', (_e, key) => taskAt(key, deleteTask));
-  // 🗑 on a closed task's row (the bar's +): its project need not be loaded.
+  // 🗑 on a closed task's row (the sidebar): its project need not be loaded.
   handle('task:delete-closed', (e, { project, id }) => serial(async () => {
     const open = shell.open.get(project)?.tasks.get(id);
     if (open) return open.entry.closed ? deleteTask(open) : { error: `task ${id} is open` };

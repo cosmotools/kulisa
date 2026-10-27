@@ -39,7 +39,7 @@ A profile is an Electron session on a folder of its own (`session.fromPath`), la
 ## What the human does
 
 - **Settings → Profiles** (the gear's Settings, its tree; Manage Profiles… in a task tab's right-click menu and About this profile… in the
-  pane's menu open it, the latter at that profile; `settings/ProfilePage.vue`): every
+  pane's menu open it, the latter at that profile; `components/ProfilePage.tsx`): every
   profile in Settings' tree, under Profiles, the chosen one's page on the right, each field saved on Enter or
   leaving it: **Picture**, **Name**, **About**, **Test login** and **Test password**, **Sign In…** (its master's
   window, below) and the projects it is in: the human's one place for who a profile is.
@@ -78,13 +78,13 @@ A profile is an Electron session on a folder of its own (`session.fromPath`), la
   (above); the profile stays. **Delete** in Settings (its page's ⋯ → Delete Profile…, its row's right-click, Delete), after a
   confirmation: its copies in every project's tasks and its master, with its sign-ins, storage and tabs, go for good
   (`projects.ts`, `deleteProfile`).
-- **Tabs**: a tab strip and an address bar per pane, drawn as Chrome's (the active tab of a piece with the toolbar;
-  back, forward, reload as Chrome's icons; the address without `https://` and `www.` until it is clicked, then all
-  of it, selected; a tab opened with + gets the focus in its empty address; many tabs shrink to their icon and × (each keeps its ×), then the
-  strip scrolls: [ui.md](ui.md), `.tabstrip`); `target=_blank` and `window.open` open tabs of the same
-  profile. Right-click a tab: reload, duplicate, close, close others. DevTools of a tab: the pane's ⋮ menu (where more of a pane's actions will go, as in Chrome) or F12.
-  A narrow pane gives up back and forward (under 260 px), then reload (under 200), into ⋮, their keys staying; never
-  Pick or ⋮ (`.bar`'s container queries).
+- **Tabs**: a tab strip and a toolbar per pane, as Chrome's (`components/grid/ProfilePane.tsx`): back, forward,
+  reload; the address without `https://` and `www.` until it is clicked, then all of it, selected; a tab opened with +
+  gets the focus in its empty address; many tabs shrink to their icon and × (each keeps its ×), then the strip scrolls
+  (`useStrip`, `lib/strip.ts`); `target=_blank` and `window.open` open tabs of the same profile. Right-click a tab:
+  reload, duplicate, close, close others. **⋮** at the toolbar's end, as Chrome's: Screenshot (Element, Visible Part,
+  Full Page) and DevTools (or F12). A narrow pane gives up back and forward (under 260 px), then reload (under 200),
+  into ⋮, their keys staying; never Pick or ⋮ (the toolbar's container queries).
   Chrome's keys work in a page for its pane: Ctrl+T, Ctrl+W, Ctrl+Shift+T, Ctrl+L, Ctrl+Tab, Ctrl+1…9 and the rest
   ([window.md](window.md), Keys).
 - **Zoom**: Ctrl + / − / 0 in a page zooms that site in that profile, on top of the Kulisa zoom (saved per profile,
@@ -190,7 +190,7 @@ draws it); and a caption over the pane for every command through the proxy. The 
 
 **Point and tell** (`picker.ts`): Pick, then a click on an element (Playwright's `page.pickLocator()`; Esc or Pick
 again cancels). `[kulisa pick: <profile> tab <tab> <locator>]` is typed without Enter into the prompt of the agent in
-front of the task's island, else the one in front last (a shell in front: `Task.promptTarget`), whose tab comes to the
+front of the task's terminals, else the one in front last (a shell in front: `Task.promptTarget`), whose tab comes to the
 front, and the terminal gets the focus: the human writes the rest of the message around it. Nothing is saved; the agent looks
 at the element on the live page with its tools.
 
@@ -229,7 +229,7 @@ methods; who a profile is changes and is checked in the store (`ProfileStore.ren
 | Sign in | by hand, in its master (Sign In to Master…) or a task's pane | never (Rules); asks with `profile_ask_signin` | `master.ts`; the sign-in pause |
 | Save a test user's pair | Settings → Profiles' Test login and Test password | `profile_set_login` | `ProfileStore.setLogin`, `Task.setLogin` (encrypted: `shell.loginSecret`) |
 | Sign in as a test user | types it | `browser_type_login` (never sees the password) | `Task.loginFor`, `local.ts` |
-| Open a shell in the task's island, run in it | the island's + → Terminal, then types | `terminal_run` (a name and a command; never in another agent's tab) | `Task.openTerminal`, `runInTerminal` |
+| Open a shell in the task's terminals, run in it | the terminals' + → Terminal, then types | `terminal_run` (a name and a command; never in another agent's tab) | `Task.openTerminal`, `runInTerminal` |
 | Read a terminal, stop what runs there | looks at it, Ctrl+C | `terminal_read`, `terminal_stop` | `Task.readTerminal`, `interruptTerminal` |
 | Close a terminal | ×, Close in its menu, `exit` | `terminal_stop` with `close` | `Task.closeTerminal`; a shell's exit too |
 
@@ -414,7 +414,7 @@ space (issue #113, a task manager).
 | `src/main/profile-store.ts` | the profiles, one store: who each is, its master, its projects, a test user's pair |
 | `src/main/local.ts` | what is local: where a test user's pair may be typed, which sites' cookies stay each task's |
 | `src/main/cookie-sync.ts` | real accounts' cookies kept in step between a master and its copies |
-| `src/main/master.ts`, `src/renderer/master.html`, `master.ts`, `components/Master.vue` | a master's window, to sign in to it |
+| `src/main/master.ts`, `src/renderer/master.html`, `master.tsx`, `components/Master.tsx` | a master's window, to sign in to it |
 | `src/main/project-profiles.ts` | a task's profiles: copies of their masters made at their first open, open and closed; create, rename, describe, close, open, let go |
 | `src/shared/avatars.ts`, `src/renderer/public/avatars/` | the profiles' pictures (Noto Emoji) |
 | `src/main/store.ts` | a task's `profiles.json`, the profiles' folders, their tabs |
@@ -427,8 +427,8 @@ space (issue #113, a task manager).
 | `src/main/discard.ts` | tabs no one looks at losing their process: the rule, the sweep (`Profile.discard`, `load` in `profiles.ts`) |
 | `src/main/kulisa-plugin/mcp-server.ts` | the agent's MCP server: a URL per task, its instructions, every call logged |
 | `src/main/kulisa-plugin/tools/` | the agent's tools, a file a group: `profile.ts`, `browser.ts` (the pages), `task.ts` (its repositories: [tasks.md](tasks.md), Tasks; its history: [transcripts.md](transcripts.md)), `terminal.ts` ([window.md](window.md), The terminal); `handles.ts`, what they share |
-| `src/main/kulisa-plugin/artifacts.ts` | what the tools keep of the pages in the task's `artifacts/`: numbered files, the oldest gone past 100 MB; listed with their sizes for the Resources island and `task_artifacts` |
+| `src/main/kulisa-plugin/artifacts.ts` | what the tools keep of the pages in the task's `artifacts/`: numbered files, the oldest gone past 100 MB; listed with their sizes for the Resources panel and `task_artifacts` |
 | `src/main/kulisa-plugin/ghost.ts`; `src/main/picker.ts` | the agent's actions shown in the page; point and tell |
 | `src/agent/skills/profiles/SKILL.md`, `src/agent/claude-plugin/` | the profiles skill, every agent's; Claude Code's plugin (`.mcp.json`: the task's MCP URL) |
-| `src/renderer/components/grid/ProfilePane.vue`, `ProfileHeader.vue`, `lib/profiles.ts`; `settings/ProfilePage.vue`, `settings/Avatars.vue` | the panes and the profiles' menu (a task tab's right-click); a profile's page in Settings and its pictures |
+| `src/renderer/components/grid/ProfilePane.tsx` (the pane, `ProfileHeader`), `lib/profiles.ts`; `components/ProfilePage.tsx` | the panes and the profiles' menu (a task tab's right-click); a profile's page in Settings and its pictures |
 | `test/e2e/agent-*.spec.ts`, `profiles.spec.ts`, `discard.spec.ts`, `zoom-and-closing.spec.ts`, `test/unit/store.test.ts`, `unit/discard.test.ts` | the tests |

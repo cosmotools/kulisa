@@ -15,7 +15,7 @@ if (!fs.existsSync(path.join(root, 'node_modules', '.bin')) || !fs.existsSync(pa
 
 // The code changed and not committed: `XY path`, or `XY old -> new` when renamed.
 const changed = git('status', '--porcelain', '-uall').split('\n').filter(Boolean)
-  .map((line) => line.slice(3).split(' -> ').at(-1)!).filter((f) => /\.(ts|mts|vue)$/.test(f)).sort();
+  .map((line) => line.slice(3).split(' -> ').at(-1)!).filter((f) => /\.(ts|mts|tsx)$/.test(f)).sort();
 if (!changed.length) process.exit(0);
 
 // Checked once per state of those files: a turn that changed none of them since costs nothing. The record is one file

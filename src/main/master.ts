@@ -15,7 +15,7 @@ import type { Shell } from './shell.ts';
 // A master's window, with its profile.
 interface Master { win: BrowserWindow; profile: Profile; closing: Promise<void> | null; closed?: boolean; ready?: Promise<unknown> }
 
-const BAR = 44; // keep in sync with #bar in Master.vue
+const BAR = 44; // keep in sync with components/Master.tsx
 
 function installMasters(shell: Shell, { preload, colors }: { preload: string; colors: () => { window: string } }) {
   shell.masters = new Map(); // id -> { win, profile }

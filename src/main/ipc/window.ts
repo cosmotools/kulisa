@@ -20,7 +20,7 @@ function programFolder(): string {
 }
 
 export function registerWindow(ipc: Ipc) {
-  const { shell, at } = ipc;
+  const { shell, at, asker } = ipc;
   handle('zoom:get', () => shell.uiZoom);
   // About Kulisa: the versions (Electron's and Chromium's for a bug report and What sites see) and the folders Kulisa
   // writes in, so the exact ones are in the app, whatever the OS and its variables make of them (docs/guide.md, Where
@@ -51,5 +51,5 @@ export function registerWindow(ipc: Ipc) {
   handle('bar:set', (_e, bar) => ['top', 'bottom'].includes(bar) && shell.setBar(bar));
   handle('zoom:ui', (_e, dir) => shell.setUiZoom(stepZoom(shell.uiZoom, dir)));
   handle('views:hidden', (e, hidden, opts?) => at(e)?.hideViews(hidden, opts));
-  on('ask:answer', (e, { id, answer }) => at(e)?.answer(id, answer));
+  on('ask:answer', (e, { id, answer }) => asker(e)?.answer(id, answer)); // where it was asked: a tasks' window or Settings
 }

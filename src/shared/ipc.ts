@@ -83,8 +83,8 @@ export interface Invoke extends ThumbnailInvoke, GitHubInvoke, DictationInvoke {
   'task:add-repo': I<[{ key: string; repo: string }]>;
   'task:remove-repo': I<[{ key: string; repo: string }]>;
   'task:show-folder': I<[key: string]>;
-  'task:open-folder': I<[{ key: string; folder: string }]>; // a resource's folder (Resources.vue), checked to be the task's
-  'task:artifacts': I<[string]>; // the task's artifacts sent again (Resources.vue: the task shown)
+  'task:open-folder': I<[{ key: string; folder: string }]>; // a resource's folder (Resources.tsx), checked to be the task's
+  'task:artifacts': I<[string]>; // the task's artifacts sent again (Resources.tsx: the task shown)
   'task:artifacts-delete': I<[{ key: string; files: string[] | null }], Result>; // null: all
   'app:quit': I<[]>;
   'agents:list': I<[{ check?: boolean; details?: boolean; cached?: boolean }?], { list: AgentInfo[]; home: string } | { list: null }>; // null: not looked for yet (cached)

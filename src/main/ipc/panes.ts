@@ -29,8 +29,8 @@ export function registerPanes(ipc: Ipc) {
   handle('layout:load', (e, { task }) => onScreen(e, task)?.store.layout());
   // A profile's master, to sign in to (master.ts), and its cookies brought to this task's copy (tasks.ts).
   handle('profile:master', (e, { task, profile }) => onScreen(e, task)?.openMaster(profile) || noTask);
-  // The island's tabs (Terminals.vue): + (an agent of the project, a new conversation; or a shell; own: the task's own
-  // agent, Ctrl+` on the folded island), the one in front,
+  // The terminals' tabs (Terminals.tsx): + (an agent of the project, a new conversation; or a shell; own: the task's own
+  // agent, Ctrl+` on the folded terminals), the one in front,
   // ×, an agent's tab handed over to another agent (Task.handOver).
   handle('terminal:open', (e, { task, agent, own }) => {
     const w = onScreen(e, task);
@@ -47,8 +47,8 @@ export function registerPanes(ipc: Ipc) {
   on('layout:save', (e, { task, layout }) => at(e)?.saveLayout(task, layout));
   on('layout', (e, { task, rects }) => at(e)?.layout(task, rects));
 
-  // A tab the human opens (+): the window keeps the keys for its address (ProfilePane.vue); its page taking them as it
-  // loads gives them back (page-focus.ts).
+  // A tab the human opens (+): the window keeps the keys for its address (components/grid/ProfilePane.tsx); its page taking
+  // them as it loads gives them back (page-focus.ts).
   handle('tab:new', onProfile((p, { url }) => { focusWindow(p.win.webContents); return p.newTab(url || 'about:blank').id; }));
   // focus: the keyboard was in the tab's page (a key closed or switched it): it goes to the page shown next, as in Chrome.
   handle('tab:close', onTab((p, t, { focus }) => {

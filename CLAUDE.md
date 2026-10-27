@@ -97,15 +97,15 @@ prompt; the human writes the rest of the message around it.
   loaded (`Project` in `shell.open`) while a task of it is open in any window. Earlier commits say **group** (Close
   Group).
 - **Terminology: "the tasks' bar"**: the bar of the tasks' tabs, under the grid or in the title bar after the logo,
-  as a browser's tabs (☰ → Tasks bar; `TaskBar.vue`, `#taskbar`). Not "taskbar", the OS's. Earlier commits say "the
+  as a browser's tabs (☰ → Tasks bar; `TaskBar.tsx`, `#taskbar`). Not "taskbar", the OS's. Earlier commits say "the
   projects' bar" (`ProjectBar.vue`).
 - **Terminology: "Settings"**: the window behind the title bar's gear, as JetBrains' Settings (its tree and pages:
-  `docs/window.md`); in code `settings/`. Earlier commits say "the projects' manager". New Project is steps
-  (`newproject/`): the welcome's, and a dialog of a tasks' window.
-- **Terminology: "the empty window"**: what a window is with no task open (`Empty.vue`; `docs/window.md`): the title
-  bar, no tasks' bar, and in the grid's place the board (every project a column with its tasks) or, with no project at
+  `docs/window.md`); in code `Settings.tsx`. Earlier commits say "the projects' manager". New Project is steps
+  (`NewProject.tsx`): the welcome's, and a dialog of a tasks' window.
+- **Terminology: "the empty window"**: what a window is with no task open (`Empty.tsx`; `docs/window.md`): the title
+  bar, no tasks' bar, and in the grid's place the sidebar docked (every project with its tasks) or, with no project at
   all, the welcome.
-- **Terminology: "the welcome"**: the first start's (`welcome/`; `docs/window.md`). Earlier commits say "Welcome
+- **Terminology: "the welcome"**: the first start's (`Welcome.tsx`; `docs/window.md`). Earlier commits say "Welcome
   screen" (JetBrains' name) for a list of projects, not this.
 - **Terminology: "task"** for one line of work inside a project: its agents, a branch of the code, profiles and a
   grid, each in a git worktree of its own next to the project (`myshop@task-2`). Earlier commits say "workspace" (the
@@ -227,7 +227,7 @@ The npm scripts, what each does, and what to install first (Node 24.12+, npm 11 
 (one list, kept there). When to run which: `docs/testing.md`.
 
 - **Code intelligence.** Claude Code's `LSP` tool (the `kulisa-dev` plugin; docs/testing.md, Claude Code's checks):
-  references, definitions and types through the language server, `.ts` and `.vue` together. For a symbol — who
+  references, definitions and types through the language server, `.ts` and `.tsx` together. For a symbol — who
   defines it, who uses it, its type, what it calls or calls it — the `LSP` tool, never grep: it reads the types, so it
   neither misses a use nor matches the name in a comment or an unrelated scope (it does miss the tests: grep `test/`
   for those too). grep is for text that is not a symbol (a string, a config key, a path). No `LSP` tool in the session: the

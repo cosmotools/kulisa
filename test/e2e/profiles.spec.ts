@@ -3,7 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import type { Locator, Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
-import { SITE, PORT, logged, ipcSettled, who, menu, submenu, item, choose, closeMenu, rightClick, manageProfiles, closeSettings, chooseProfile, termText, invoke, answer, typeIn, removed } from './helpers.ts';
+import { SITE, PORT, logged, ipcSettled, who, menu, choose, closeMenu, rightClick, manageProfiles, closeSettings, chooseProfile, navRow, shownRow, settingsMenu, termText, invoke, answer, typeIn, removed } from './helpers.ts';
 import { profileId, deleteProfile } from './tasks-helpers.ts';
 
 // A PNG's size in pixels, from its header.
@@ -16,14 +16,6 @@ async function openMore(ui: Page, id: string) {
     await expect(menu(ui)).toBeVisible({ timeout: 1500 });
   }).toPass({ timeout: 10000 });
 }
-// Its submenu (the ⋮ menu's Screenshot) opened as the pointer opens it, on its row: again when it closed meanwhile (the
-// pointer passing where the submenu is still being placed closes it).
-async function openSub(ui: Page) {
-  await expect(async () => {
-    if ((await ui.locator('[role="menu"][data-state="open"]').count()) < 2) await menu(ui).locator('[role="menuitem"][aria-haspopup]').hover();
-    await expect(ui.locator('[role="menu"][data-state="open"]')).toHaveCount(2, { timeout: 1000 });
-  }).toPass({ timeout: 10000 });
-}
 
 test('names: typed, pasted, from the agent, checked where they are made (the rule itself: unit/names.test.ts)', async ({ core, ui, sui, call }) => {
   const id = await core(async (k, url) => (await k.ensureProfile('Sam.admin', url)).id, `${SITE}/app`);
@@ -31,12 +23,13 @@ test('names: typed, pasted, from the agent, checked where they are made (the rul
   const before = await names();
   // The field leaves other characters out, typed or pasted.
   const s = await manageProfiles(ui, sui);
-  await s.locator('#profilenew').click();
-  await expect(s.locator('#profilenewname')).toBeFocused();
+  const field = s.getByRole('textbox', { name: 'New profile' });
+  await s.getByRole('button', { name: 'New Profile…' }).click();
+  await expect(field).toBeFocused();
   await core((k) => k.shell.settings.win.webContents.insertText('ann admin·@shop.com'));
-  await expect(s.locator('#profilenewname')).toHaveValue('annadmin@shop.com');
-  await s.locator('#profilenewname').press('Escape'); // put away, nothing made
-  await expect(s.locator('#profilenewname')).toHaveCount(0);
+  await expect(field).toHaveValue('annadmin@shop.com');
+  await field.press('Escape'); // put away, nothing made
+  await expect(field).toHaveCount(0);
   await closeSettings(core, ui, sui);
   // Checked again where names are made: the agent, a rename, a project, a task.
   await expect(call('profile_create', { name: 'Ann admin' })).rejects.toThrow(/letters, digits and @ \. _ \+ - only/);
@@ -68,8 +61,8 @@ test("delete a profile in Settings (its page's ⋯, its row's right-click): sign
 
   const s = await manageProfiles(ui, sui);
   await chooseProfile(s, files, 'Temp');
-  await s.locator('#profilemore').click(); // ⋯ at its page's top
-  await choose(s, 'Delete Profile…');
+  await s.getByRole('button', { name: 'More' }).click(); // ⋯ at its page's top
+  await choose(s, 'Delete Profile…', settingsMenu(s));
   const q = await answer(s, false);
   expect(q.message).toBe('Delete the profile Temp?');
   expect(q.detail).toMatch(/removed for good, here and in every task\. The projects .* let go of it\./);
@@ -77,12 +70,12 @@ test("delete a profile in Settings (its page's ⋯, its row's right-click): sign
   // it comes.
   await ipcSettled(s);
   expect(await core((k, p) => k.shell.profiles.has(p), tempId), 'nothing is deleted without the confirmation').toBe(true);
-  await rightClick(s, `#pjlist [data-profile="${tempId}"]`);
-  await choose(s, 'Delete Profile…');
+  await rightClick(s, navRow(s, `f:${tempId}`));
+  await choose(s, 'Delete Profile…', settingsMenu(s));
   await answer(s);
   await expect.poll(() => core((k, p) => !k.shell.profiles.has(p) && !k.shell.profileStore.get(p), tempId)).toBe(true);
-  await expect(s.locator(`#pjlist [data-profile="${tempId}"]`)).toHaveCount(0);
-  await expect(s.locator('#pjlist [data-profile][aria-selected="true"]')).toHaveCount(1);
+  await expect(navRow(s, `f:${tempId}`)).toHaveCount(0);
+  await expect(shownRow(s), 'another profile shown').toHaveAttribute('data-key', /^f:/);
   await closeSettings(core, ui, sui);
 
   expect(await core((k) => [...k.shell.profiles.keys()])).toEqual(others);
@@ -117,7 +110,7 @@ test('rename in Settings → Profiles: typed, and Enter or leaving the field sav
   const s = await manageProfiles(ui, sui);
   await chooseProfile(s, files, 'Ren.seller');
   await core((k) => k.focus(k.shell.settings.win)); // the keyboard in Settings' window, as the human's hands
-  await s.locator('#profilename').selectText();
+  await s.getByRole('textbox', { name: 'Name', exact: true }).selectText();
   await core(async (k) => {
     const wc = k.shell.settings.win.webContents;
     await wc.insertText('Ren.admin');
@@ -132,7 +125,7 @@ test('rename in Settings → Profiles: typed, and Enter or leaving the field sav
   // Its id beside its new name, so the lines before and after it go together.
   await expect.poll(() => logged(core, new RegExp(`\\[profiles\\] ${id} renamed: Ren\\.admin$`))).toBeGreaterThan(0);
   expect(await who(call, 'Ren.admin')).toBe('Signed in as sam');
-  await typeIn(s, '#profilename', 'Ren.seller', true);
+  await typeIn(s, s.getByRole('textbox', { name: 'Name', exact: true }), 'Ren.seller', true);
   await expect.poll(() => core((k, p) => k.shell.profiles.get(p).name, id)).toBe('Ren.seller');
   await closeSettings(core, ui, sui);
   await deleteProfile(core, ui, 'Ren.seller');
@@ -174,12 +167,16 @@ test("DevTools in a pane's ⋮ menu opens and closes the DevTools of its active 
     await openMore(ui, id);
     await expect(menu(ui)).toMatchAriaSnapshot(`
       - menu:
-        - menuitem "Screenshot"
-        - menuitem "DevTools"
+        - text: Screenshot
+        - menuitem /^Element/
+        - menuitem "Visible Part"
+        - menuitem "Full Page"
+        - menuitem /^DevTools/
     `);
-    // As Chrome's ⋮: under the button, its right edge at the button's, so it stays over its own pane.
+    // As Chrome's ⋮: under the button, its right edge at the button's (within its popover's padding), so it stays over
+    // its own pane.
     const m = await menu(ui).boundingBox(), b = await pane.locator('[aria-label="More"]').boundingBox();
-    expect(Math.abs(m.x + m.width - (b.x + b.width)) < 1 && m.y >= b.y + b.height, JSON.stringify({ m, b })).toBe(true);
+    expect(m.x + m.width <= b.x + b.width && b.x + b.width - (m.x + m.width) < 8 && m.y >= b.y + b.height - 1, JSON.stringify({ m, b })).toBe(true);
     // Back, forward, reload, Pick and ⋮ are icon buttons, as Chrome's: no border, no text, a name for screen readers.
     const names = ['Back', 'Forward', 'Reload', 'Pick an element', 'More'];
     await expect(buttons).toHaveCount(names.length);
@@ -188,18 +185,18 @@ test("DevTools in a pane's ⋮ menu opens and closes the DevTools of its active 
       await expect(b).toHaveAccessibleName(name);
       await expect(b).toHaveText('');
       await expect(b.locator('svg')).toHaveCount(1);
-      await expect(b).toHaveCSS('border-top-width', '0px');
+      await expect(b).toHaveCSS('border-top-color', 'rgba(0, 0, 0, 0)'); // none seen
     }
     expect(await looks('its menu open'), 'its menu open').toEqual(closed);
-    // The same inset from the island's edges for the controls in it; the page reaches its edges (the author's choice).
-    // The island: dockview's group of the pane; its header the panel's tab there.
-    const island = await ui.locator('.dv-groupview').filter({ has: pane }).boundingBox(), header = ui.locator(`[data-panel="profile:${id}"]`).first();
-    const left = async (l: Locator) => Math.round((await l.boundingBox()).x - island.x);
-    const right = async (l: Locator) => { const r = await l.boundingBox(); return Math.round(island.x + island.width - (r.x + r.width)); };
+    // The same inset from the pane's edges for the controls in it; the page reaches its edges (the author's choice).
+    // The pane's group in dockview; its header the panel's tab there.
+    const group = await ui.locator('.dv-groupview').filter({ has: pane }).boundingBox(), header = ui.locator(`[data-panel="profile:${id}"]`).first();
+    const left = async (l: Locator) => Math.round((await l.boundingBox()).x - group.x);
+    const right = async (l: Locator) => { const r = await l.boundingBox(); return Math.round(group.x + group.width - (r.x + r.width)); };
     const page = pane.getByTestId('page'), pageBox = await page.boundingBox();
     const inset = { avatar: await left(header.locator('img')), tab: await left(pane.getByRole('tab').first()), back: await left(pane.locator('[aria-label="Back"]')),
       page: await left(page), close: await right(header.locator('[aria-label="Close profile"]')), more: await right(pane.locator('[aria-label="More"]')),
-      pageRight: await right(page), pageBottom: Math.round(island.y + island.height - (pageBox.y + pageBox.height)) };
+      pageRight: await right(page), pageBottom: Math.round(group.y + group.height - (pageBox.y + pageBox.height)) };
     expect(inset).toEqual({ avatar: 8, tab: 8, back: 8, page: 0, close: 8, more: 8, pageRight: 0, pageBottom: 0 });
     await choose(ui, 'DevTools');
   };
@@ -233,18 +230,15 @@ test("a pane's ⋮ → Screenshot takes an element, the visible part or the whol
   const picking = () => core((k, p) => k.shell.windows[0].picking.has(p), id);
   const fromMenu = async (label: string) => {
     await openMore(ui, id);
-    await openSub(ui);
-    await expect(submenu(ui)).toMatchAriaSnapshot(`
+    await expect(menu(ui)).toMatchAriaSnapshot(`
       - menu:
-        - menuitem "Element"
+        - text: Screenshot
+        - menuitem /^Element/
         - menuitem "Visible Part"
         - menuitem "Full Page"
+        - menuitem /^DevTools/
     `);
-    // The pointer taken to its row as the hand takes it, through what lies between: a jump straight there leaves the
-    // submenu's trigger toward nowhere its grace area knows, and the submenu closes.
-    const row = item(ui, label, submenu(ui)), b = await row.boundingBox();
-    await ui.mouse.move(b.x + b.width / 2, b.y + b.height / 2, { steps: 10 });
-    await row.click();
+    await menu(ui).getByRole('menuitem', { name: new RegExp(`^${label}`) }).click();
   };
   await fromMenu('Full Page');
   await expect.poll(() => shots().length).toBe(1);
@@ -289,12 +283,13 @@ test("a pane's ⋮ → Screenshot takes an element, the visible part or the whol
   await expect(ui.locator(`[role="region"][data-profile="${id}"] [aria-label="Pick an element"]`)).toBeDisabled(); // the window knows it: Pick off too
   expect(await core((k) => { const p = k.profile('Sam.admin'); return p.screenshot(p.get(), { scale: 'device', type: 'png', by: 'human' }).then(() => 'taken', (e: Error) => e.message); })).toMatch(/is empty/);
   await openMore(ui, id);
-  await openSub(ui);
-  await expect(submenu(ui)).toMatchAriaSnapshot(`
+  await expect(menu(ui)).toMatchAriaSnapshot(`
     - menu:
-      - menuitem "Element" [disabled]
+      - text: Screenshot
+      - menuitem /^Element/ [disabled]
       - menuitem "Visible Part" [disabled]
       - menuitem "Full Page" [disabled]
+      - menuitem /^DevTools/
   `);
   await closeMenu(ui);
   // Back by the tab's own page: Profile.page() would look among the pages while the closed tab's is still going.
@@ -356,7 +351,6 @@ test('a screenshot shows its thumbnail in its pane\'s corner: a click opens it, 
           - menuitem "Show in Folder"
           - menuitem "Copy"
           - menuitem "Send to Agent"
-          - separator
           - menuitem "Delete"
           - menuitem "Close"
       `);

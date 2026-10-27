@@ -73,5 +73,5 @@ test('after a restart: the grid is as it was left (preset "grid")', async ({ cor
     const s = await at(`${sam} [data-testid="page"]`), e = await at(`${elon} [data-testid="page"]`), term = await at('[data-testid="terminal"]');
     return s.width > 0 && s.x < e.x && term.x > e.x + e.width - 1;
   }, { timeout: 10000 }).toBe(true); // a loaded machine takes over 3 s
-  expect(Math.abs((await resourcesHeight(ui2)) - saved), 'the Resources island as tall as it was left (dockview rounds its panels as it restores them)').toBeLessThanOrEqual(3);
+  expect(Math.abs((await resourcesHeight(ui2)) - saved), 'the Resources panel as tall as it was left (dockview rounds its panels as it restores them)').toBeLessThanOrEqual(3);
 });

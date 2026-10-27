@@ -160,7 +160,7 @@ test("Resources: the agent's artifacts listed as it makes them, the newest first
     await expect(r).toHaveAttribute('aria-label', label);
     await expect(r.locator('img')).toHaveCount(0);
   }
-  await expect(ui.locator('#resources [data-file] small').first(), 'whose, and when').toHaveText(/^Elon\.buyer · /);
+  await expect(list.first(), 'whose, and when').toHaveText(/^ScreenshotElon\.buyer · /);
   // What the OS would open it with: noted, not opened.
   await core((k) => {
     const { shell } = k.electron;
@@ -182,7 +182,6 @@ test("Resources: the agent's artifacts listed as it makes them, the newest first
     - menu:
       - menuitem "Open"
       - menuitem "Show in Folder"
-      - separator
       - menuitem "Delete"
   `);
   await choose(ui, 'Delete');
@@ -212,7 +211,7 @@ test("artifacts: what they take, in Resources' heading and for the agent, which 
   expect((await call('task_artifacts_delete', { files: [shot] })).text).toMatch(/^Deleted 1 file\(s\), \S+ [KMG]B; \S+ [KMG]B left\.$/);
   expect(fs.existsSync(shot)).toBe(false);
   await expect(call('task_artifacts_delete', { files: [path.join(files.root, 'package.json')] })).rejects.toThrow(/not an artifact of this task/);
-  await ui.locator('#resources [aria-label="Delete All Artifacts"]').click();
+  await ui.locator('#resources').getByRole('button', { name: 'Delete All Artifacts' }).click();
   await expect(heading).toHaveCount(0);
   await expect.poll(() => fs.readdirSync(dir).length).toBe(0);
   expect((await call('task_artifacts', {})).text).toMatch(/^This task's artifacts: 0 KB in 0 file\(s\)\.$/);

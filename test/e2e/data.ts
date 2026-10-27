@@ -60,7 +60,7 @@ export function data(root: string) {
     savedActive: (profile: string, task = 1): number => savedFile(profile, task).active,
     // The id of a profile's panel in the grid.
     panel: (name: string) => `profile:${idOf(name)}`,
-    // The Resources island's height as the task's grid is saved (dockview keeps a panel's size along its column).
+    // The Resources panel's height as the task's grid is saved (dockview keeps a panel's size along its column).
     savedResourcesHeight: () => {
       const leaf = (n: GridNode): GridNode | undefined => (n.type === 'leaf' ? (n.data.views.includes('resources') ? n : undefined) : n.data.map(leaf).find(Boolean));
       return leaf(json(pfile('layout.json')).grid.root)?.size;

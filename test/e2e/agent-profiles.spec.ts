@@ -1,10 +1,16 @@
 // Profiles, the human's and the agent's: made in Settings and by profile_create, who each is, renamed, signed in by the
 // human when the agent asks; isolated, presenting as what they are, the sign-in pause (docs/profiles.md).
 import { test, expect } from './fixtures.ts';
-import { SITE, who, choose, closeMenu, manageProfiles, closeSettings, chooseProfile, taskMenu, act, invoke, typeIn, answer } from './helpers.ts';
+import type { Page } from '@playwright/test';
+import { SITE, who, closeMenu, manageProfiles, closeSettings, chooseProfile, taskMenu, act, invoke, typeIn, answer, navRow, shownRow, group, settingsMenu, listRow } from './helpers.ts';
 import { profiles, signIn } from './agent-helpers.ts';
 
-test('profiles are made in Settings (Profiles\' + in its tree), each with its own picture and, if the human says, who it is; added to the project on its page, opened in its task; the pages stay on screen under Settings\' window', async ({ core, ui, sui, files }) => {
+// A profile's page in Settings: its fields by their labels; its picture's button, and the panel of pictures it opens.
+const textbox = (s: Page, label: string) => s.getByRole('textbox', { name: label, exact: true });
+const picture = (s: Page) => s.getByRole('button', { name: 'Picture', exact: true });
+const pictures = (s: Page) => s.getByRole('dialog', { name: 'Pictures' });
+
+test('profiles are made in Settings (Profiles\' + in its nav), each with its own picture and, if the human says, who it is; added to the project on its page, opened in its task; the pages stay on screen under Settings\' window', async ({ core, ui, sui, files }) => {
   // None yet, as in a new Kulisa: the profiles a test before left deleted as the human deletes them.
   for (const id of await core((k) => k.shell.profileStore.all().map((p) => p.id))) {
     const deleted = invoke(ui, 'profiles:delete', { profile: id });
@@ -13,48 +19,49 @@ test('profiles are made in Settings (Profiles\' + in its tree), each with its ow
   }
   await expect.poll(() => core((k) => k.shell.profileStore.all().length)).toBe(0);
   const s = await manageProfiles(ui, sui);
-  await expect(s.locator('#prconfig').getByText('No profiles yet.', { exact: true })).toBeVisible();
-  // + beside Profiles: its name typed in place under the tree, Enter; then it is chosen, its page shown (the picture:
+  await expect(s.getByRole('main').getByText('No profiles yet.', { exact: true })).toBeVisible();
+  // + beside Profiles: its name typed in place under the nav, Enter; then it is chosen, its page shown (the picture:
   // the next free one, unless the human picks another).
   const make = async (name: string) => {
-    await s.locator('#profilenew').click();
-    await expect(s.locator('#profilenewname')).toBeFocused();
-    await s.locator('#profilenewname').fill(name);
-    await s.locator('#profilenewname').press('Enter');
-    await expect(s.locator('#profilename')).toHaveValue(name);
-    await expect(s.locator('#profilenewname')).toHaveCount(0);
-    await expect(s.locator('#pjlist [aria-selected="true"]')).toHaveAccessibleName(name);
+    const field = textbox(s, 'New profile');
+    await s.getByRole('button', { name: 'New Profile…' }).click();
+    await expect(field).toBeFocused();
+    await field.fill(name);
+    await field.press('Enter');
+    await expect(textbox(s, 'Name')).toHaveValue(name);
+    await expect(field).toHaveCount(0);
+    await expect(shownRow(s)).toHaveAccessibleName(name);
   };
   const stored = (name: string) => core((k, id) => k.shell.profileStore.get(id), files.idOf(name));
   await make('Sam.seller');
-  await typeIn(s, '#profileabout', ' seller in the test shop ', true);
+  await typeIn(s, textbox(s, 'About'), ' seller in the test shop ', true);
   await expect.poll(async () => (await stored('Sam.seller'))?.description).toBe('seller in the test shop');
   await make('Elon.buyer');
   expect((await stored('Elon.buyer')).avatar, 'the next picture free').toBe('frog');
-  // Its picture's button looks as a field to choose from (.select): the chosen one, a chevron, the fields' background
-  // (the token's color as the page resolves it: Playwright reads a style only to compare it with one given).
-  const field = await s.evaluate(() => { const f = document.body.appendChild(document.createElement('i')); f.style.background = 'var(--field)'; const c = getComputedStyle(f).backgroundColor; f.remove(); return c; });
-  await expect(s.locator('#profilepic')).toHaveCSS('display', 'flex');
-  await expect(s.locator('#profilepic')).toHaveCSS('background-color', field);
-  await s.locator('#profilepic').click();
-  await expect(s.locator('[role="dialog"][aria-label="Pictures"][data-ready]')).toBeVisible();
-  await expect(s.locator('[role="dialog"][aria-label="Pictures"] [data-avatar]'), 'all of them to choose from, at once').toHaveCount(16);
-  await s.locator('[role="dialog"][aria-label="Pictures"] [data-avatar="penguin"]').click();
+  // Its picture's button shows the chosen one; it opens a panel of them all, the chosen one pressed.
+  await expect(picture(s).locator('img')).toHaveAttribute('src', 'avatars/frog.svg');
+  await picture(s).click();
+  await expect(pictures(s)).toBeVisible();
+  await expect(pictures(s).getByRole('button'), 'all of them to choose from, at once').toHaveCount(16);
+  await expect(pictures(s).getByRole('button', { name: 'frog' })).toHaveAttribute('aria-pressed', 'true');
+  await pictures(s).getByRole('button', { name: 'penguin' }).click();
   await expect.poll(async () => (await stored('Elon.buyer')).avatar).toBe('penguin');
+  await expect(picture(s).locator('img')).toHaveAttribute('src', 'avatars/penguin.svg');
   // Who they are: in the store of profiles (profile-store.ts), the same in every task; in no project yet.
   expect(await core((k) => k.shell.profileStore.all().map((g: { id: string; avatar: string; description?: string; color?: string }) => ({ id: g.id, avatar: g.avatar, description: g.description, projects: k.shell.profileStore.projectsOf(g as never), color: g.color }))),
     'pictures, not colors; who it is when said').toEqual([
     { id: files.idOf('Sam.seller'), avatar: 'fox', description: 'seller in the test shop', projects: [], color: undefined },
     { id: files.idOf('Elon.buyer'), avatar: 'penguin', description: undefined, projects: [], color: undefined }]);
-  await expect(s.locator('#profilepage').getByText("none: add it on a project's page", { exact: true })).toBeVisible();
+  await expect(s.getByRole('main').getByText("none: add it on a project's page", { exact: true })).toBeVisible();
   // Added on the project's page (+ → its other profiles), closed in its task; opened there (👥).
   const project = await core((k) => k.shell.current.id);
-  await s.locator(`#pjlist [data-project="${project}"]`).click(); // the projects come as it opens
+  await navRow(s, `p:${project}`).click(); // the projects come as it opens
   for (const name of ['Sam.seller', 'Elon.buyer']) {
-    // The profiles to add are asked for again as the page is shown: the open menu shows them as they come.
-    await s.locator('#npprofileadd').click();
-    await choose(s, name);
-    const row = s.locator('#npprofiles').getByRole('option', { name, exact: true });
+    // The profiles to add are asked for again as the page is shown: the open menu shows them as they come; a row's
+    // name is its label and the line under it.
+    await group(s, 'Profiles').getByRole('button', { name: 'Add a profile' }).click();
+    await settingsMenu(s).getByRole('menuitem', { name: new RegExp(`^${RegExp.escape(name)}`) }).click();
+    const row = listRow(s, 'Profiles', name);
     await expect(row).toHaveCount(1);
     // A row cuts its name and description: the whole in its tooltip.
     expect((await row.getAttribute('title')).split('\n')[0]).toBe(name);
@@ -118,20 +125,26 @@ test('who a profile is: the agent is told to choose by it and to ask; it saves t
   // Settings → Profiles shows it and the human changes it there.
   const s = await manageProfiles(ui, sui);
   await chooseProfile(s, files, 'Elon.buyer');
-  await expect(s.locator('#profileabout')).toHaveValue('buyer; pays by card');
-  // Two lines, made taller by hand.
-  await expect(s.locator('#profileabout')).toHaveJSProperty('localName', 'textarea');
-  await expect(s.locator('#profileabout')).toHaveAttribute('rows', '2');
-  await expect(s.locator('#profileabout')).toHaveCSS('resize', 'vertical');
-  await typeIn(s, '#profileabout', '', true);
+  const about = textbox(s, 'About');
+  await expect(about).toHaveValue('buyer; pays by card');
+  // Two lines, made taller by hand: its corner dragged down.
+  await expect(about).toHaveJSProperty('localName', 'textarea');
+  await expect(about).toHaveAttribute('rows', '2');
+  const before = (await about.boundingBox());
+  await s.mouse.move(before.x + before.width - 2, before.y + before.height - 2);
+  await s.mouse.down();
+  await s.mouse.move(before.x + before.width - 2, before.y + before.height + 40, { steps: 4 });
+  await s.mouse.up();
+  await expect.poll(async () => (await about.boundingBox()).height, 'taller').toBeGreaterThan(before.height + 20);
+  await typeIn(s, about, '', true);
   await expect.poll(description).toBe('');
   // The picture: a panel of them from the button beside it; one chosen, it goes.
-  await s.locator('#profilepic').click();
-  await expect(s.locator('[role="dialog"][aria-label="Pictures"][data-ready]')).toBeVisible();
-  await s.locator('[role="dialog"][aria-label="Pictures"] [data-avatar="owl"]').click();
+  await picture(s).click();
+  await expect(pictures(s)).toBeVisible();
+  await pictures(s).getByRole('button', { name: 'owl' }).click();
   await expect.poll(() => core((k) => k.profile('Elon.buyer').avatar)).toBe('owl');
-  await expect(s.locator('[role="dialog"][aria-label="Pictures"]')).toHaveCount(0);
-  await expect(s.locator('#profilepic img')).toHaveAttribute('src', 'avatars/owl.svg');
+  await expect(pictures(s)).toHaveCount(0);
+  await expect(picture(s).locator('img')).toHaveAttribute('src', 'avatars/owl.svg');
   expect((await invoke(s, 'profiles:avatar', { profile: elon, avatar: 'dragon' })).error).toMatch(/no picture/);
   await closeSettings(core, ui, sui);
 });

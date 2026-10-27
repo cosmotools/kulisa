@@ -115,13 +115,11 @@ test('many tabs: they shrink as in Chrome; the strip, the toolbar and the page s
   expect(a.x >= r.x && a.x + a.width <= plus.x, 'the active one in sight').toBe(true);
   expect(await right(nav.getByRole('tablist')), 'nothing under +').toBeLessThanOrEqual(plus.x);
   await expect(active.getByTitle('Close tab')).toBeVisible();
-  await expect(other.locator(':scope > svg, img').filter({ visible: true }), 'its icon').not.toHaveCount(0);
+  await expect(other.getByTestId('tab-icon'), 'its icon').toBeVisible();
   const title = other.getByText(await other.getAttribute('aria-label'), { exact: true });
   await expect(title).toHaveCount(1);
   await expect(title, 'no title').toBeHidden();
   await expect(other.getByTitle('Close tab')).toBeVisible();
-  // + and a tab's × are the same icon size.
-  expect([(await active.getByTitle('Close tab').locator('svg').boundingBox()).width, (await add.locator('svg').boundingBox()).width]).toEqual([14, 14]);
   expect(await pageBox(ui, files, 'Elon.buyer'), 'the page keeps its place and size').toEqual(before);
   // Past that the strip scrolls (lib/strip.ts): the edge with tabs past it fades; a mouse's wheel scrolls it; a tab
   // not shown that changes (its page loads, its title) leaves it where the human scrolled it, not back at the active
@@ -323,11 +321,11 @@ test('point and tell: Pick again or Esc in the page cancels it; nothing goes to 
   const before = (await core((k) => k.ptyOutput())).length;
   for (const cancel of ['button', 'esc']) {
     await button.click();
-    await expect(button).toHaveAttribute('data-state', 'on');
+    await expect(button).toHaveAttribute('aria-pressed', 'true');
     await expect.poll(picking).toBe(true);
     if (cancel === 'button') await button.click();
     else await core((k) => { const wc = k.profile('Elon.buyer').get().wc; wc.focus(); k.press(wc, 'Escape'); });
-    await expect(button).not.toHaveAttribute('data-state', 'on');
+    await expect(button).toHaveAttribute('aria-pressed', 'false');
     await expect.poll(picking).toBe(false);
     await expect(ui.locator(`[data-panel="profile:${elon}"] [role="status"]`), cancel).toHaveText('');
   }

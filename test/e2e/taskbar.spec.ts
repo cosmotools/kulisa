@@ -1,9 +1,9 @@
 // The tasks' bar: a tab per open task, switching between them (by a click, a press, the keys), the slide, more tabs than
-// it holds, the agent's state on a tab, its + with several projects (docs/tasks.md, docs/window.md).
+// it holds, the agent's state on a tab, its + (docs/tasks.md, docs/window.md).
 import path from 'path';
 import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
-import { MAC, frames, ipcSettled, menu, choose, closeMenu, rightClick, plusMenu, focusWindow, viewOn, termShows, invoke, notLoading, noSlide, answer, removed, termKeys, resize } from './helpers.ts';
+import { MAC, frames, ipcSettled, menu, choose, closeMenu, rightClick, fromSidebar, openSidebar, closeSidebar, taskRow, rowButton, focusWindow, viewOn, termShows, invoke, notLoading, noSlide, answer, removed, termKeys, resize } from './helpers.ts';
 import { committed, rand, keyAt, isNth, nthShown, taskTab, hook, begin, bothOn, newTask } from './tasks-helpers.ts';
 
 // The tab chosen (lit) in the bar.
@@ -27,12 +27,9 @@ test("tasks: switching shows the other grid and terminal; the one left keeps run
     - menu:
       - menuitem "Rename…"
       - menuitem "Show Folder"
-      - separator
       - menuitem "Move to New Window"
-      - separator
       - menuitem "Close"
       - menuitem "Delete Task…"
-      - separator
       - menuitem "project"
   `);
   await closeMenu(ui);
@@ -50,17 +47,12 @@ test("tasks: switching shows the other grid and terminal; the one left keeps run
         - menuitem "Sam.admin"
         - menuitem "Elon.buyer"
         - menuitem "Dora"
-        - separator
         - menuitem "Manage Profiles…"
-        - separator
         - menuitem "Rename…"
         - menuitem "Show Folder"
-        - separator
         - menuitem "Move to New Window"
-        - separator
         - menuitem "Close"
         - menuitem "Delete Task…"
-        - separator
         - menuitem "project"
     `);
     await choose(ui, 'Show Folder');
@@ -85,7 +77,6 @@ test("tasks: switching shows the other grid and terminal; the one left keeps run
   const badge = taskTab(ui, second).locator('[data-state]');
   const state = async (s: string, message?: string) => {
     await expect(badge, message).toHaveAttribute('data-state', s);
-    await expect(badge.locator('use'), message).toHaveAttribute('href', `#i-${s || 'done'}`);
     if (s) await expect(badge, message).toBeVisible(); else await expect(badge, message).toBeHidden();
   };
   await state('', 'unknown: no icon');
@@ -146,8 +137,8 @@ test('tasks: switching slides the grid towards the other tab (a view transition)
   await begin(core, ui, files, { only: true, columns: true, featureX: call });
   const first = await keyAt(core, 1), second = await keyAt(core, 2), SAM = files.idOf('Sam.admin'), ELON = files.idOf('Elon.buyer');
   // The transition's types (which way), and the grid's own slide as it runs: an animation of 0 s, as a CSS minifier may
-  // make it, leaves the two grids' pictures one over the other; out past the window's margin, not lingering at its edge
-  // (Grid.vue).
+  // make it, leaves the two grids' pictures one over the other; a whole grid's width, out past the window's edge it
+  // reaches (components/Grid.tsx).
   // Read as the slide starts (its ready), the transition the window's own again after: Playwright reaches no view
   // transition, nor a running animation's keyframes.
   const swap = (key: string) => ui.evaluate(async (key) => {
@@ -168,7 +159,7 @@ test('tasks: switching slides the grid towards the other tab (a view transition)
   const live = async () => (await ui.locator('[data-testid="snapshot"]').count()) === 0 && viewOn(core, ui, files, 'Sam.admin');
   let seen = await swap(second);
   expect(seen.types).toEqual(['next']);
-  expect(seen.animations, 'it slides').toEqual(['grid-from-right calc(100% + 8px) cubic-bezier(0.4, 0, 0.2, 1)', 'grid-to-left calc(-100% - 8px) cubic-bezier(0.4, 0, 0.2, 1)']);
+  expect(seen.animations, 'it slides').toEqual(['grid-from-right 100% cubic-bezier(0.4, 0, 0.2, 1)', 'grid-to-left -100% cubic-bezier(0.4, 0, 0.2, 1)']);
   await expect.poll(live).toBe(true);
   // A page that draws no frame (busy, covered) holds the slide's start no longer than three times what the others
   // take (a tenth of a second at least), its pane then empty: half a second is felt after each click.
@@ -186,7 +177,7 @@ test('tasks: switching slides the grid towards the other tab (a view transition)
   expect(!pics.sam && pics.elon, 'the others taken').toBe(true);
   seen = await swap(first);
   expect(seen.types).toEqual(['previous']);
-  expect(seen.animations).toEqual(['grid-from-left calc(-100% - 8px) cubic-bezier(0.4, 0, 0.2, 1)', 'grid-to-right calc(100% + 8px) cubic-bezier(0.4, 0, 0.2, 1)']);
+  expect(seen.animations).toEqual(['grid-from-left -100% cubic-bezier(0.4, 0, 0.2, 1)', 'grid-to-right 100% cubic-bezier(0.4, 0, 0.2, 1)']);
   await expect.poll(live).toBe(true);
   // A menu opened while the grid still slides keeps the pages under it pictures, not shown over it at the slide's end.
   // Opened as soon as the slide starts, before the grid left is taken down (the transition's update, a frame later,
@@ -335,7 +326,7 @@ test("tasks: a press on a tab not shown chooses it at once, as Chrome's; its tas
   await ui.evaluate(() => dispatchEvent(new PointerEvent('pointercancel', { pointerType: 'mouse' })));
   await nthShown(core, 1);
   await ui.mouse.up();
-  await taskTab(ui, first).blur(); // a real press leaves the keyboard on the tab (Reka's); a later dialog takes it from nothing
+  await taskTab(ui, first).blur(); // a real press leaves the keyboard on the tab (Fluent's); a later dialog takes it from nothing
 });
 
 test("tasks: a double click on a task's tab is its Rename…, the shown one's and another's (its first press shows it)", async ({ core, ui, files, call }) => {
@@ -344,14 +335,15 @@ test("tasks: a double click on a task's tab is its Rename…, the shown one's an
   for (const key of [second, first]) {
     const tab = taskTab(ui, key);
     const name = await tab.textContent();
+    const renaming = ui.getByRole('dialog', { name: 'Rename Task' });
     await tab.dblclick();
     await expect(tab).toHaveAttribute('aria-selected', 'true');
-    await expect(ui.locator('#taskrename')).toHaveAttribute('data-state', 'open');
-    await expect(ui.locator('#taskname')).toHaveValue(name);
+    await expect(renaming).toBeVisible();
+    await expect(renaming.getByRole('textbox', { name: 'Name' })).toHaveValue(name);
     await noSlide(ui);
-    await expect(ui.locator('#taskrename'), 'still open once the grid is shown').toHaveAttribute('data-state', 'open');
+    await expect(renaming, 'still open once the grid is shown').toBeVisible();
     await ui.keyboard.press('Escape');
-    await expect(ui.locator('#taskrename[data-state="open"]')).toHaveCount(0);
+    await expect(renaming).toHaveCount(0);
   }
 });
 
@@ -363,16 +355,29 @@ test('menus: one longer than the window has stays in it and scrolls', async ({ c
     await expect.poll(() => ui.evaluate(() => innerHeight)).toBeLessThanOrEqual(400); // Playwright knows no viewport here (noDefaults)
     await ui.locator('#windowMenu').click();
     await expect(menu(ui)).toBeInViewport({ ratio: 1 });
-    // Its rows scroll (Playwright reads no scroll).
-    expect(await menu(ui).evaluate((m) => m.scrollHeight > m.clientHeight)).toBe(true);
+    // Its rows scroll, in the menu's popover (Playwright reads no scroll).
+    expect(await menu(ui).evaluate((m) => m.parentElement.scrollHeight > m.parentElement.clientHeight)).toBe(true);
     await closeMenu(ui);
   } finally { await resize(core, before); }
 });
 
-test("tasks: the bar's + with several projects — a click on a project makes it a new task, and a task's 🗑 deletes it after the question", async ({ core, ui, files, call }) => {
+test("tasks: the bar's + makes a new task of the shown task's project in one click", async ({ core, ui, files, call }) => {
+  await begin(core, ui, files, { only: true, columns: true, featureX: call });
+  const before = await core((k) => k.shell.current.tasks.size), first = await keyAt(core, 1);
+  await noSlide(ui); // the slide's pictures over the window take every event
+  await expect(ui.locator('#newTask'), 'its key in its name').toHaveAccessibleName(`New task (${await ui.evaluate(() => (window as any).keyText('task.new'))})`);
+  await ui.locator('#newTask').click();
+  await expect.poll(() => core((k, a) => k.shell.current.tasks.size === a.before + 1 && k.shell.task?.key !== a.first && k.settled(), { before, first }), { timeout: 20000 }).toBe(true);
+  await expect(ui.getByRole('menu'), 'no menu: made at once').toHaveCount(0);
+  await expect(ui.locator('#projectTabs [role="tab"]')).toHaveCount(before + 1);
+  await taskTab(ui, first).click();
+  await nthShown(core, 1);
+});
+
+test("tasks: the sidebar with several projects — a project's + makes it a new task, and a task's 🗑 deletes it after the question", async ({ core, ui, files, call }) => {
   // About 1 s: git's work (a second project made and deleted).
   await begin(core, ui, files, { only: true, columns: true, featureX: call });
-  // A second project, open, so the + nests each project as a submenu (one project shows its tasks inline).
+  // A second project, open.
   const plus2 = path.join(files.root, `plus2-${rand()}`);
   committed(plus2, 'a.txt', 'a', 'mine');
   const made = await invoke(ui, 'project:new', { from: 'folder', folders: [plus2], name: 'Plus2' });
@@ -382,27 +387,18 @@ test("tasks: the bar's + with several projects — a click on a project makes it
   await expect.poll(async () => (await on()) && core((k) => !!k.shell.pty), { timeout: 10000 }).toBe(true);
   await notLoading(ui);
   const tasks2 = () => core((k, id) => k.shell.store.tasksOf(k.shell.store.projects().find((x) => x.id === id)).list.length, made.id);
-  const open = ui.locator('[role="menu"][data-state="open"]');
-  const trigger = (name: string) => open.first().getByRole('menuitem', { name, exact: true }).and(ui.locator('[aria-haspopup]'));
-
-  // A left release on the project row itself makes a new task of it and closes the menu (its tasks still open on hover).
-  await plusMenu(ui);
+  // A project's + (on its row, under the pointer) makes a new task of it and closes the sidebar.
   const before = await tasks2();
-  await trigger('Plus2').click();
+  await fromSidebar(ui, 'Plus2');
   await expect.poll(async () => (await tasks2()) === before + 1 && on(), { timeout: 10000 }).toBe(true);
-  await expect(open).toHaveCount(0);
+  await closeSidebar(ui);
 
-  // Each task row carries a 🗑 that deletes the task after the Delete Task… question (Cancel keeps it).
-  await plusMenu(ui);
-  const fx = () => open.last().getByRole('menuitem', { name: 'Feature-X', exact: true });
-  await expect(async () => {
-    if ((await open.count()) < 2) { await ui.mouse.move(0, 0); await trigger('project').hover(); }
-    await expect(fx()).toBeVisible({ timeout: 500 });
-  }).toPass({ timeout: 5000 });
-  await expect(fx().locator('[aria-label="Delete Task…"]'), 'a task row has a 🗑').toHaveCount(1);
-  await fx().hover();
-  await fx().locator('[aria-label="Delete Task…"]').click();
+  // Each task row carries a 🗑 (on the row under the pointer) that deletes the task after the Delete Task… question
+  // (Cancel keeps it).
+  await openSidebar(ui);
+  await (await rowButton(taskRow(ui, 'project', 'Feature-X'), 'Delete Task…')).click();
   expect((await answer(ui, false)).message).toBe('Delete the task Feature-X?');
+  await closeSidebar(ui);
 
   // The second project removed; back to project's task-1 shown.
   const deleted = invoke(ui, 'project:delete', { id: made.id });

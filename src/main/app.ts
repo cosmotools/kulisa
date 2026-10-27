@@ -228,7 +228,7 @@ function start(options: Options = {}) {
     const file = favicons.get(p.id);
     return file ? picture(file) : null;
   };
-  // And its tasks (the board lists them: newtab/): those open, as made, then the closed ones, the one closed last first.
+  // And its tasks (the sidebar lists them: components/Sidebar.tsx): those open, as made, then the closed ones, the one closed last first.
   const tasksOf = (p: ProjectEntry) => {
     const list = store.tasksOf(p).list.map((e) => ({ id: e.id, name: e.name, branch: branchOf(e), closed: !!e.closed, closedAt: e.closedAt, merged: !!e.merged }));
     return [...list.filter((t) => !t.closed), ...list.filter((t) => t.closed).sort((a, b) => (b.closedAt || 0) - (a.closedAt || 0))];
@@ -261,9 +261,9 @@ function start(options: Options = {}) {
     store.saveSettings({ ...store.settings(), uiZoom: z });
   };
   // The theme of Kulisa's own UI: 'dark' (the default, as JetBrains'), 'light', or 'system' (the OS's, followed as it
-  // changes). Only the windows' UI, by CSS (tokens.css): nativeTheme.themeSource stays the OS's, so the profiles'
+  // changes). Only the windows' UI (Fluent UI's theme, components/theme.ts): nativeTheme.themeSource stays the OS's, so the profiles'
   // pages keep the OS's scheme, as without Kulisa, and a site under test looks as its users see it. shade(): 'dark'
-  // or 'light', what is shown, for what CSS does not paint (the window's background, the OS buttons).
+  // or 'light', what is shown, for what the page does not paint (the window's background, the OS buttons).
   shell.theme = store.settings().theme || 'dark';
   shell.shade = () => (shell.theme === 'system' ? (nativeTheme.shouldUseDarkColors ? 'dark' : 'light') : shell.theme);
   shell.setTheme = (theme) => {
@@ -397,7 +397,7 @@ function start(options: Options = {}) {
 
   // ---------- agents ----------
   // A task's agents are the human's choice, each in a terminal of its own (agents/; tasks.ts). One not chosen yet or
-  // not installed: the window asks (AgentPicker.vue), installing it with its maker's installer if the human wants.
+  // not installed: the window asks (components/AgentPicker.tsx), installing it with its maker's installer if the human wants.
   // Every agent learns where Kulisa is from the environment, set per task (tasks.ts): its MCP server from KULISA_MCP_URL
   // (Claude Code's plugin's .mcp.json), its hooks from KULISA_URL.
   shell.packages = AGENT_PACKAGES;

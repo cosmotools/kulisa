@@ -1,11 +1,11 @@
-// Tasks deleted: Delete Task…, merged tasks, from the board (docs/tasks.md).
+// Tasks deleted: Delete Task…, merged tasks, from the sidebar (docs/tasks.md).
 import fs from 'fs';
 import path from 'path';
 import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
 import type { Core, Call } from './fixtures.ts';
 import type { Files } from './data.ts';
-import { WIN, choose, rightClick, plusMenu, invoke, notLoading, answer, projectMenu, removed } from './helpers.ts';
+import { WIN, choose, rightClick, fromSidebar, sidebar, taskRow, rowButton, invoke, notLoading, answer, projectMenu, removed } from './helpers.ts';
 import { git, rand, hasDirenv, isNth, nthShown, taskTab, taskTabs, reportSession, newTask, openFolder, begin } from './tasks-helpers.ts';
 
 // A repository with a remote, as a clone of one is, opened as a project (its folder named name-<random>); its first
@@ -68,14 +68,15 @@ test('tasks: Delete Task… asks first, saying what goes and any work not in mai
   await call('task_worktree', {}, { task: spike }); // its own worktree, to commit in and to delete with it
   await rightClick(ui, taskTab(ui, spike));
   await choose(ui, 'Rename…');
-  await expect(ui.locator('#taskrename')).toHaveAttribute('data-state', 'open');
-  await expect(ui.locator('#taskname')).toHaveValue(was);
-  await expect(ui.locator('#taskname')).toBeFocused();
+  const renaming = ui.getByRole('dialog', { name: 'Rename Task' }), field = renaming.getByRole('textbox', { name: 'Name' });
+  await expect(renaming).toBeVisible();
+  await expect(field).toHaveValue(was);
+  await expect(field).toBeFocused();
   // Typed, and Enter (with its character, as a keyboard sends it: the form is sent on it): the dialog's form is sent.
-  await ui.locator('#taskname').fill('Spike');
-  await ui.locator('#taskname').press('Enter');
+  await field.fill('Spike');
+  await field.press('Enter');
   await expect.poll(() => core((k, key) => k.shell.taskByKey(key).name, spike)).toBe('Spike');
-  await expect(ui.locator('#taskrename[data-state="open"]')).toHaveCount(0);
+  await expect(renaming).toHaveCount(0);
   const { branch, folder } = await core((k, key) => { const t = k.shell.taskByKey(key); return { branch: t.branch, folder: t.folder }; }, spike);
   expect(branch).toBe('spike');
   expect(folder, 'the folder stays').toBe(`${project}@${was}`);
@@ -126,7 +127,7 @@ test("tasks: a closed task whose PR is merged on the remote is marked in its gro
   await dropProject(core, ui, id, [dir, origin]);
 });
 
-test("tasks: a closed task is deleted from its row, 🗑 or Delete, in the board (the bar's +), its project loaded or not, after the question Delete Task… asks", async ({ core, ui, files, call }) => {
+test("tasks: a closed task is deleted from its row, 🗑 or Delete, in the sidebar, its project loaded or not, after the question Delete Task… asks", async ({ core, ui, files, call }) => {
   // About 2 s: git's work (worktrees made and removed).
   await begin(core, ui, files, { only: true, columns: true, featureX: call });
   // A project not loaded, its one task closed, with a commit not merged.
@@ -140,33 +141,33 @@ test("tasks: a closed task is deleted from its row, 🗑 or Delete, in the board
   await invoke(ui, 'project:close-tasks', { id });
   await expect.poll(() => core((k, p) => !k.shell.open.has(p), id)).toBe(true);
   const entry = (name: string) => core((k, a) => k.shell.store.tasksOf(k.shell.store.projects().find((x) => x.id === a.id)).list.find((e) => e.name === a.name) ?? null, { id, name });
-  // A task's row in its project's column of the board (a new tab, the bar's +; the empty window).
-  const row = (name: string) => ui.locator(`#board section[data-project="${id}"]`).getByRole('button', { name, exact: true }).and(ui.locator('[data-task]'));
+  // A task's row under its project in the sidebar.
+  const project: string = await core((k, i) => k.shell.store.projects().find((p) => p.id === i).name, id);
+  const row = (name: string) => taskRow(ui, project, name);
   const folder = (await entry('task-2')).resources[0].folder;
-  // The board is the empty window's (not a menu over a task): close the open tasks to get there.
+  // The sidebar docked, the empty window's: close the open tasks to get there.
   for (const open of await core((k) => [...k.shell.open.keys()])) await invoke(ui, 'project:close-tasks', { id: open });
   await expect.poll(() => core((k) => k.shell.open.size)).toBe(0);
-  await expect(ui.locator('html')).toHaveAttribute('data-noproject');
-  await expect(ui.locator('#board')).toHaveCount(1);
-  await expect(row('task-2').locator('[aria-label="Delete Task…"]'), 'shown on the row the pointer or the keyboard is on').toHaveCSS('visibility', 'hidden');
+  await expect(ui.locator('html')).toHaveAttribute('data-empty');
+  await expect(sidebar(ui)).toBeVisible();
+  await expect(row('task-2').getByRole('button', { name: 'Delete Task…' }), 'shown on the row the pointer or the keyboard is on').toHaveCount(0);
   await row('task-2').press('Delete');
   const q = await answer(ui, false);
   expect(q.message).toBe('Delete the task task-2?');
   expect(q.detail, 'its work not in main, as Delete Task… says').toMatch(/1 commit of its own/);
   expect(!!(await entry('task-2')) && fs.existsSync(folder), 'Cancel keeps it').toBe(true);
-  await row('task-2').hover();
-  await row('task-2').locator('[aria-label="Delete Task…"]').click();
+  await (await rowButton(row('task-2'), 'Delete Task…')).click();
   await answer(ui);
   await expect.poll(async () => !(await entry('task-2')) && !fs.existsSync(folder)).toBe(true);
   expect(await core((k, p) => k.shell.open.has(p), id), 'not opened for it').toBe(false);
-  await expect(ui.locator(`#board section[data-project="${id}"] [data-task]`), 'it has no closed task left in the board').toHaveCount(0);
+  await expect(sidebar(ui).locator(`[data-project="${id}"] [data-task]`), 'it has no closed task left in the sidebar').toHaveCount(0);
 
   // Back to project's task-1 and Feature-X.
-  await ui.locator(`#board [data-task="${files.tkey('project', 1)}"]`).click();
+  await taskRow(ui, 'project', 'task-1').click();
   await nthShown(core, 1);
   await expect.poll(() => core((k) => k.shell.task.loaded && !!k.shell.pty)).toBe(true);
   await notLoading(ui);
-  await plusMenu(ui, 'project', 'Feature-X');
+  await fromSidebar(ui, 'project', 'Feature-X');
   await nthShown(core, 2);
   await expect.poll(() => core((k) => k.shell.task.loaded && !!k.shell.pty)).toBe(true);
   await taskTab(ui, files.tkey('project', 1)).click();

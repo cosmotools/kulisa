@@ -1,7 +1,7 @@
 // Settings in a window of its own (docs/window.md, Settings), as a desktop app's: one for the whole app, with the OS's
 // title bar, at a page. Not modal: the tasks' windows go on taking input beside it, as macOS
 // apps', VS Code's and Chrome's settings do; on macOS a window could not be held without Electron's half-black sheet
-// over it. Its page: settings.html (components/settings/Settings.vue).
+// over it. Its page: settings.html (components/Settings.tsx).
 import { BrowserWindow } from 'electron';
 import path from 'path';
 import { on } from './ipc.ts';
@@ -20,6 +20,7 @@ interface SettingsWindow {
   win: BrowserWindow;
   questions: Questions; // what is done in it is asked in it (app.ts, asker)
   ask(q: Question): Promise<string | null>;
+  answer(id: number, answer: string): void;
   send<C extends keyof Events>(channel: C, ...data: Arg<Events[C]>): void;
   setZoom(z: number): void;
   setTheme(theme: string, shade: 'dark' | 'light'): void;
@@ -50,6 +51,7 @@ function installSettings(shell: Shell, { preload, appDevTools }: { preload: stri
       win,
       questions: new Questions((q) => s.send('ask', q)),
       ask: (q) => s.questions.ask(q),
+      answer: (id, answer) => s.questions.answer(id, answer),
       send(channel, ...data) {
         if (win.isDestroyed()) return;
         if (loaded) win.webContents.send(channel, ...data); else pending.push([channel, data]);
@@ -70,7 +72,7 @@ function installSettings(shell: Shell, { preload, appDevTools }: { preload: stri
     };
     shell.settings = s;
     // Its ×: the page first saves what is typed (a project's name) and then closes it (settings:close); while an agent
-    // installs, it stays (AgentPage.vue). Quitting, or its page gone, it just closes.
+    // installs, it stays (components/agents.ts). Quitting, or its page gone, it just closes.
     win.on('close', (e) => {
       if (closing || shell.quitting || !loaded) return;
       e.preventDefault();
@@ -100,11 +102,10 @@ function installSettings(shell: Shell, { preload, appDevTools }: { preload: stri
       for (const [channel, data] of pending.splice(0)) win.webContents.send(channel, ...data);
     });
   };
-  // Its page, done: closed. A question's answer in it.
+  // Its page, done: closed.
   const of = (e: Electron.IpcMainEvent) => (shell.settings?.win.webContents === e.sender ? shell.settings : null);
   on('settings:close', (e) => of(e)?.close());
   on('settings:ready', (e) => { const s = of(e); if (s && !s.win.isVisible()) s.win.show(); });
-  on('ask:answer', (e, { id, answer }) => of(e)?.questions.answer(id, answer));
   on('settings:open', (e, at) => { if (shell.windowOf(e.sender)) shell.openSettings(at); });
 }
 

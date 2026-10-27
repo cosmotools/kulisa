@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
+import { execFileSync } from 'child_process';
 import forge, { prunePrebuilds } from '../../forge.config.ts';
 
 // node-pty starts a shell through its spawn-helper, run from app.asar.unpacked: inside the archive, a packaged
@@ -47,4 +48,18 @@ test("node-pty's prebuilt binaries of the other platforms are left out of the pa
   assert.deepEqual(left(dir), [], 'Linux loads the one built at install');
   fs.rmSync(dir, { recursive: true });
   prunePrebuilds(dir, 'linux', 'x64'); // no prebuilds folder at all: nothing to do
+});
+
+// macOS's and Windows's file systems ignore case: two files whose names differ only in it are one there, and an import
+// without its extension (./Thumbnail) finds either of two modules named so (a component, the page thumbnail.ts): the
+// build there fails while Linux's passes.
+test('no two files of the repository are one on a file system that ignores case, nor two modules one import', () => {
+  const files = execFileSync('git', ['ls-files'], { cwd: path.join(import.meta.dirname, '../..'), encoding: 'utf8' }).split('\n').filter(Boolean);
+  const seen = new Map<string, string>(), twins: string[] = [];
+  for (const f of files) for (const key of [f.toLowerCase(), /\.[cm]?[jt]sx?$/.test(f) && `module ${f.replace(/\.[^./]+$/, '').toLowerCase()}`]) {
+    if (!key) continue;
+    const other = seen.get(key);
+    if (other) twins.push(`${other} ~ ${f}`); else seen.set(key, f);
+  }
+  assert.deepEqual(twins, []);
 });

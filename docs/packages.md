@@ -25,12 +25,12 @@ any caller, in that package's own terms; not a crutch shaped for this one caller
 the same thing worked out again beside it. Where it is not clear which of the two an extension is, the author decides
 before it is built.
 
-Code that is *about* the thing but knows the rest stays outside, using the package: for the terminal, the island
-(`Terminals.vue`, `TerminalTabs.vue`, `lib/terminals.ts`: its agents' buttons, the closed profiles' tiles, Change
+Code that is *about* the thing but knows the rest stays outside, using the package: for the terminal, the terminals'
+panel (`components/grid/Terminals.tsx`, `lib/terminals.ts`: its agents' buttons, the closed profiles' tiles, Change
 agent…, the project's accounts in its +), the agents in terminals (`tasks.ts`: conversations, handing over, the
-agent's state) and the agent's tools (`terminal_run`, `terminal_read`, `terminal_stop` in `kulisa-plugin/tools/terminal.ts`:
-what the agent sees lives in the Kulisa plugin, CLAUDE.md, Architecture). Inside, the island would pull half of
-`src/renderer/lib` with it, and the boundary would mean nothing.
+agent's state) and the agent's tools (`terminal_run`, `terminal_read`, `terminal_stop` in
+`kulisa-plugin/tools/terminal.ts`: what the agent sees lives in the Kulisa plugin, CLAUDE.md, Architecture). Inside,
+the terminals' panel would pull half of `src/renderer/lib` with it, and the boundary would mean nothing.
 
 **The caller stays thin: it states facts, the package does the work.** What the package's things are and do (their
 life, their timers, their views, their places, their files) is the package's, behind a small API; the code outside
@@ -55,9 +55,9 @@ src/<package>/
   main/index.ts      the main process's half: its entry
   main/…             its other files
   renderer/index.ts  the window's half: its entry
-  renderer/…         its other files (.ts; .vue when it has parts of the window of its own; a page of its own,
-                     as the screenshots' thumbnail: its script here, its .html a shell in src/renderer that only
-                     loads it, as Vite builds no page outside its root)
+  renderer/…         its other files (.ts; .tsx for parts of the window of its own; a page of its own, as the
+                     screenshots' thumbnail: its script here, its .html a shell in src/renderer that only loads
+                     it, as Vite builds no page outside its root)
   renderer/tsconfig.json   extends src/renderer's; ESLint finds the half's types by it
   *.test.ts          its unit tests, plain Node (docs/testing.md)
 ```
@@ -82,7 +82,7 @@ A half it does not have is left out. Its e2e tests stay in `test/e2e/` with the 
 - A unit test may load its main half (`profiles.ts` imports the screenshots' `Profile.screenshot`'s capture; the unit
   tests load `profiles.ts`): its files and what they import from `src/main` (`ipc.ts`, `log.ts`) take Electron's
   objects from the module, not by name (docs/testing.md). `npm run test:unit` fails at load otherwise.
-- `tsc` and `vue-tsc` check both halves: `tsconfig.json` takes every `src/*/main`, `src/*/ipc.ts` and
+- `tsc` checks both halves: `tsconfig.json` takes every `src/*/main`, `src/*/ipc.ts` and
   `src/*/*.test.ts`, `src/renderer/tsconfig.json` every `src/*/renderer` (the window's build imports it anyway).
 - `npm run test:unit` and `npm test` run `src/*/*.test.ts` (`package.json`, `test/start.ts`: the same two globs).
 - The app's package (`forge.config.ts`, `ignore`) keeps a package's `main/` and `ipc.ts`, which the main process runs

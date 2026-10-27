@@ -2,10 +2,12 @@
 
 A terminal as Kulisa has it, the same wherever it is shown: a pty running the user's shell (an agent typed into it, a
 command, or nothing), its output kept in the window, and an xterm that shows it. A Kulisa package
-([docs/packages.md](../../docs/packages.md)), used by the task's island (`Terminals.vue`, `TerminalTabs.vue`,
+([docs/packages.md](../../docs/packages.md)), used by the task's terminals' panel (`components/grid/Terminals.tsx`,
 `lib/terminals.ts`: its tabs, its agents' launchers and menus; docs/window.md, The terminal), an account's sign-in
-(`AccountSignIn.vue`) and the task's agents (`tasks.ts`: which agent, its conversation, what is typed to it). It knows
-nothing of them: a terminal is a key, `<task key>#<id>` for a task's, any string for a sign-in's.
+(`components/SignIn.tsx` through `components/Terminal.tsx`: Settings' and New Project's) and the task's agents
+(`tasks.ts`: which agent, its conversation, what is typed to it). It knows nothing of them, nor of the window's look: a
+terminal is a key, `<task key>#<id>` for a task's, any string for a sign-in's; its colors and font size are the
+caller's.
 
 ## The main process (`main/`)
 
@@ -24,7 +26,7 @@ nothing of them: a terminal is a key, `<task key>#<id>` for a task's, any string
   program's runtime reads its command line back, one with a space in quotes of its own (left to PowerShell, 5.1 and 7
   differ on the backslashes before the quote they add); the command in PowerShell's `'…'` alone. A program is
   found by name as Windows' shells find it (`PATHEXT`: `claude` may be a `.cmd`), which node-pty does not do.
-- **At its real size.** It starts only once the window has sent its size (`pty:resize`), or its island's (`sizeOf`: a
+- **At its real size.** It starts only once the window has sent its size (`pty:resize`), or its panel's (`sizeOf`: a
   terminal behind another tab has none of its own), however long that takes: an agent draws its prompt for the size
   it starts with and does not fully redraw on the first resize.
 - **What the agent reads of a shell.** It keeps a shell's screen, in memory: a terminal without a window
@@ -47,7 +49,7 @@ nothing of them: a terminal is a key, `<task key>#<id>` for a task's, any string
 ## The window (`renderer/`)
 
 **One xterm a place**: every terminal's output goes into a buffer of its own, an xterm never opened (its text,
-scrollback and modes, no renderer: about 0.6 MB full), and each place that shows a terminal, the island and an
+scrollback and modes, no renderer: about 0.6 MB full), and each place that shows a terminal, the terminals' panel and an
 account's sign-in, has one shown xterm (`View`), the only one with a renderer. Showing another terminal there writes
 that one's buffer into it (`serialize`, after `reset()`), its scroll put back, in about 15 ms; its selection is lost,
 as when another tab is shown. While shown, a terminal's output goes into both, at one size, so leaving it costs
@@ -72,9 +74,11 @@ encoding off sets the default one, so those off go first (`serialized`). A task 
 terminals' buffers the same way (`terminals:restore`), at the same size, also when its page showed the task first.
 
 Set up as VS Code's: Unicode 11 widths (Claude Code draws ✅ ⏵ ✻; with Unicode 6 the cursor drifts a cell after each),
-a bundled font (JetBrains Mono, at the window's `--font`), the WebGL renderer, the colors of the place it is in (its
-background a token the place gives `View`; the programs' own colors stay xterm's, readable on either background by its
-`minimumContrastRatio`). The rows that fit sit in the middle of the xterm, what is left under a whole row shared above and below them, so two tasks whose grids differ by a pixel do
+a bundled font (JetBrains Mono, which it imports with xterm's stylesheet, so any page that shows a terminal has them),
+the WebGL renderer. **Its look is the place's**: `new View({ colors, fontSize })` (`TermStyle`: the background, the
+text, selected text, as colors, not a window's tokens), and `restyle(…)` when the place's theme changes, so the package
+reads nothing of a window's CSS or theme. The programs' own colors stay xterm's, readable on either background by its
+`minimumContrastRatio`. The rows that fit sit in the middle of the xterm, what is left under a whole row shared above and below them, so two tasks whose grids differ by a pixel do
 not show a row's height under the agent's status line in one and nothing in the other.
 
 Copy and paste take the keys of the OS's own terminal, so hands need nothing new: Ctrl+Shift+C / V (GNOME Terminal,
@@ -86,9 +90,9 @@ Code's fullscreen rendering selects with its own mouse and copies on release its
 ibus with a Cyrillic layout leaves `code` out.
 
 Links (OSC 8, as Claude Code marks them, and addresses in plain text: xterm's web-links addon) open with Ctrl+click (⌘
-on macOS), `http` and `https` only, the address shown on hover, through `termHooks.open`, which the island sets (a
-menu: one of the task's profiles, or the user's browser; docs/window.md, The terminal), not xterm's own handler, which
-asks with the browser's `confirm()`, an OS dialog.
+on macOS), `http` and `https` only, the address shown on hover, through `termHooks.open`, which the terminals' panel
+sets (a menu: one of the task's profiles, or the user's browser; docs/window.md, The terminal), not xterm's own
+handler, which asks with the browser's `confirm()`, an OS dialog.
 
 A path is a link too, when it names a file or folder that exists (an agent's answer names its files): absolute (`/…`, `~/…`, `C:\…`, `\\server\share\…`) or relative (`src/main/tasks.ts`),
 a `:line[:column]` after it kept in the link and left out of the path, a quoted one with spaces in it. Finding the
@@ -121,5 +125,6 @@ hover. A file an agent marks as a link (OSC 8) goes to `openFile` too: Claude Co
 | `shell-quote.test.ts` | quoting, in each shell installed (`npm run test:unit`) |
 | `paths.test.ts` | the paths found in a line and their cells (in `@xterm/headless`), what is no path, an agent's link to a file |
 
-Its e2e tests are in `test/e2e/` with the others: `window.spec.ts` (the xterm's set-up; one xterm for the
-island, switching), `grid*.spec.ts` (copy and paste, links, moving to another window), `tasks.spec.ts` (the island, shells).
+Its e2e tests are in `test/e2e/` with the others: `window.spec.ts` (the xterm's set-up; one xterm for the terminals'
+panel, switching), `grid*.spec.ts` (copy and paste, links, moving to another window), `tasks.spec.ts` (the terminals'
+panel, shells).

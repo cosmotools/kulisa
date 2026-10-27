@@ -5,7 +5,7 @@ import path from 'path';
 import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
-import { attr, menu, choose, rightClick, closeSettings, termText, termDump, invoke, answer, projectMenu, pageOf, onRow, removed } from './helpers.ts';
+import { menu, choose, rightClick, closeSettings, termText, termDump, invoke, answer, projectMenu, pageOf, onRow, removed, group, listRows, listRow } from './helpers.ts';
 import { git, committed, hook, newTask, showTask, openFolder, projectShown } from './tasks-helpers.ts';
 
 // What the agent is told at a session's start (its SessionStart hook, as its plugin sends it: agent-hooks.ts).
@@ -28,16 +28,14 @@ test('projects: several repositories: a task works in the main tree until it mak
   await openFolder(core, ui, api);
   const pid = files.pid('api'), first = await core((k) => k.shell.task.key), firstId = first.split('/')[1];
   const of = (key: string) => core((k, t) => { const x = k.shell.taskByKey(t); return { folder: x.folder, worktrees: x.worktrees.map((c) => ({ repo: c.repo, folder: c.folder, branch: c.branch })), addable: x.addable(), dirs: x.dirs() }; }, key);
-  // The Resources island (Resources.vue): each row its label, its branch line (or 'main working tree'), and whether it
+  // The Resources panel (Resources.tsx): each row its label, its branch line (or 'main working tree'), and whether it
   // can be removed (an added repository's worktree can; the main tree and the task's own worktree cannot).
-  const resources = ui.locator('#resources li > [role="button"]');
+  const resources = ui.locator('#resources').getByRole('list', { name: 'Folders' }).getByRole('listitem');
   const rows = async (want: [string, string, boolean][]) => {
     await expect(resources).toHaveCount(want.length);
     for (const [i, [label, line, removable]] of want.entries()) {
-      await expect(resources.nth(i)).toHaveAttribute('aria-label', label);
-      await expect(resources.nth(i).locator('small')).toHaveText(line);
-      // Hidden until the pointer is on the row: by its label, which a role's query of hidden ones passes over.
-      await expect(resources.nth(i).locator('[aria-label="Remove Repository"]')).toHaveCount(removable ? 1 : 0);
+      await expect(resources.nth(i).getByRole('button', { name: label, exact: true })).toHaveText(label + line);
+      await expect(resources.nth(i).getByRole('button', { name: 'Remove Repository' })).toHaveCount(removable ? 1 : 0);
     }
   };
   const copyOf = async (name: string) => (await of(first)).worktrees.find((c) => path.basename(c.repo) === name).folder;
@@ -75,7 +73,6 @@ test('projects: several repositories: a task works in the main tree until it mak
     - /children: contain
     - text: Add Repository
     - menuitem "web"
-    - separator
     - menuitem "Rename…"
   `);
   await choose(ui, 'web');
@@ -119,14 +116,15 @@ test('projects: several repositories: a task works in the main tree until it mak
   await choose(ui, 'Project Settings…', await projectMenu(ui, `#projectTabs [data-project="${pid}"]`));
   const s = await sui();
   await pageOf(s, 'api');
-  await expect(s.locator('#npfolders [role="option"]')).toHaveCount(2);
+  await expect(listRows(s, 'Folders')).toHaveCount(2);
   for (const [i, [label, isDefault]] of ([['api', true], ['web', false]] as const).entries()) {
-    const option = s.locator('#npfolders [role="option"]').nth(i);
-    await expect(option).toHaveAttribute('aria-label', label);
-    await expect(option.locator('kbd').getByText('default', { exact: true })).toHaveCount(isDefault ? 1 : 0);
+    const row = listRows(s, 'Folders').nth(i);
+    await expect(row).toHaveAttribute('aria-label', label);
+    await expect(row.getByText('default', { exact: true })).toHaveCount(isDefault ? 1 : 0);
   }
-  await onRow(s, `#npfolders ${attr('data-folder', web)}`, '#npfolderdel');
-  await expect(s.locator('#npfolderserror')).toContainText(/Tasks work in it: New Task, Checkout/);
+  await expect(listRow(s, 'Folders', 'web')).toHaveAttribute('data-folder', web);
+  await onRow(s, listRow(s, 'Folders', 'web'), group(s, 'Folders').getByRole('button', { name: 'Remove from the project (its folder stays)' }));
+  await expect(group(s, 'Folders').getByRole('alert')).toContainText(/Tasks work in it: New Task, Checkout/);
   await closeSettings(core, ui, sui);
   // Removed again by its agent once the human agreed: nothing of its own in it, so not asked; its folder and branch
   // gone, the agent told once its turn is over. Its own folder is refused.
@@ -144,13 +142,11 @@ test('projects: several repositories: a task works in the main tree until it mak
   await deleted;
   await expect.poll(() => fs.existsSync(home)).toBe(false);
   expect(git(web, 'branch', '--list', 'checkout') + git(api, 'branch', '--list', 'checkout')).toBe('');
-  // Back on the first, shown again: the human removes its web by the Resources island's 🗑 (nothing uncommitted in
+  // Back on the first, shown again: the human removes its web by the Resources panel's 🗑 (nothing uncommitted in
   // it: not asked); its own worktree's row has no Remove.
   await showTask(core, ui, first);
   await expect(resources).toHaveCount(2);
-  const webRow = ui.locator('#resources').getByRole('button', { name: 'web', exact: true });
-  await webRow.hover(); // its 🗑 shows on the row under the pointer
-  await webRow.getByRole('button', { name: 'Remove Repository' }).click();
+  await resources.filter({ has: ui.getByRole('button', { name: 'web', exact: true }) }).getByRole('button', { name: 'Remove Repository' }).click();
   await expect.poll(() => fs.existsSync(webCopy)).toBe(false);
   await rows([['api', `branch ${b1}`, false]]);
   await expect(ui.getByRole('alertdialog'), 'nothing of its own: not asked').toHaveCount(0);
@@ -175,7 +171,6 @@ test('projects: several repositories: a task works in the main tree until it mak
       - /children: contain
       - text: Remove Repository
       - menuitem "web"
-      - separator
       - menuitem "Rename…"
     `);
     await choose(ui, 'web');

@@ -62,7 +62,7 @@ approving `node-pty` builds it for Node: `npm run postinstall` after that builds
 ```sh
 npm install           # the dependencies; node-pty built for Electron on Linux (scripts/postinstall.ts)
 npm start             # builds the window, then opens the windows and tasks open last; at first start the welcome, then New Project
-npm run build         # type checks (tsc, vue-tsc), then the window built by Vite into dist/renderer
+npm run build         # type checks (tsc), then the window built by Vite into dist/renderer
 npm run watch         # the window built again on every change; reload it (Ctrl+R in its DevTools) or restart
 npm test              # unit tests, knip, ESLint, actionlint (when installed), then the e2e tests on Playwright Test,
                       # the real app against a local test site (docs/testing.md)
@@ -103,7 +103,7 @@ computer).
 ### Developing with Claude Code
 
 Set up for Claude Code sessions on Kulisa itself (CLAUDE.md is their guide), nothing to do by hand: a language server
-for TypeScript and Vue (the `kulisa-dev` plugin, `.claude/dev-plugins/`; a session without it installs it and asks you
+for TypeScript (the `kulisa-dev` plugin, `.claude/dev-plugins/`; a session without it installs it and asks you
 for `/reload-plugins`) and a Stop hook running ESLint and the unit tests before a session ends its turn
 (docs/testing.md, Claude Code's checks).
 
@@ -112,7 +112,7 @@ for `/reload-plugins`) and a Stop hook running ESLint and the unit tests before 
 | Folder | What |
 |---|---|
 | `src/main/` | the Electron main process: profiles, tasks, agents, the MCP server, the windows; `index.ts` starts it |
-| `src/renderer/` | the window's UI: Vue 3 and TypeScript, built by Vite (`vite.config.mts`) into `dist/renderer` (not in git) |
+| `src/renderer/` | the window's UI: React and Fluent UI in TypeScript, built by Vite (`vite.config.mts`) into `dist/renderer` (not in git) |
 | `src/preload/` | the window's bridge to the main process |
 | `src/shared/` | what the main process and the window both import: the shapes and channels they send, names, `Result` |
 | `src/agent/` | what Kulisa gives the agents: the profiles skill, Claude Code's plugin |

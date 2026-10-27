@@ -1,5 +1,5 @@
 // A Kulisa window. Usually there is one; Move to New Window puts a task into a window of its own (e.g. on a second
-// monitor). Each window has a tab per task open in it (an island in its tasks' bar, in the bar's order, of any
+// monitor). Each window has a tab per task open in it (in its tasks' bar, in the bar's order, of any
 // projects), shows one of them (its grid and terminal), and asks its questions in its own dialog; the tasks behind its
 // other tabs keep running. What a window shows and asks is here. What the app has once (the store, the CDP proxy, the MCP server, the
 // agents, the windows) is app.ts's, the open tasks with their one change after another (serial) open-tasks.ts's; what happens to projects and tasks,
@@ -9,6 +9,7 @@ import path from 'path';
 import fs from 'fs';
 import { page } from './pages.ts';
 import { log } from './log.ts';
+import { focusWindow } from './page-focus.ts';
 import { Thumbnails } from '../screenshots/main/index.ts';
 import type { Rectangle, Point } from 'electron';
 import type { Shell } from './shell.ts';
@@ -22,11 +23,12 @@ type Question = Sent.Question;
 interface Place { bounds?: Rectangle | null; maximized?: boolean; near?: Electron.BrowserWindow; at?: Point }
 type Shade = 'dark' | 'light';
 
-const TITLE_BAR_HEIGHT = 44; // --title in tokens.css: keep in step
+const TITLE_BAR_HEIGHT = 44; // the title bar's (components/TopBar.tsx): keep in step
 // macOS's window buttons: their height and Electron's place for them from the left, in pt (measured).
 const MAC_BUTTONS = { height: 14, x: 7 };
-// The window's background and the OS buttons' strip, in each theme: --window and --text in tokens.css.
-const COLORS: Record<Shade, { window: string; text: string }> = { dark: { window: '#2b2d30', text: '#dfe1e5' }, light: { window: '#ebecf0', text: '#1e1f22' } };
+// The window's background and the OS buttons' strip, in each theme: colorNeutralBackground2 and colorNeutralForeground1
+// in components/theme.ts.
+const COLORS: Record<Shade, { window: string; text: string }> = { dark: { window: '#1f1f1f', text: '#ffffff' }, light: { window: '#fafafa', text: '#242424' } };
 // The smallest window whose UI still works (the top bar with the OS buttons, ☰ and a task's tab, something under
 // it), as VS Code's: fixed, times the Kulisa zoom, in DIP. Not the grid's own minimum: with five profiles in a row it
 // would keep the window from half a screen next to the human's IDE. The OS holds it for the human's drag only;
@@ -143,7 +145,7 @@ class AppWindow {
   }
 
   // The projects (store.ts), its tabs in order (each task with what its agent does), the one shown (shown: the one
-  // about to be) and its project, the loaded projects' agents (the island's +), and the other windows (to move a
+  // about to be) and its project, the loaded projects' agents (the terminals' +), and the other windows (to move a
   // task to: their id and how each is named).
   info(shown = this.current): Sent.ProjectsInfo {
     const { shell } = this;
@@ -167,7 +169,7 @@ class AppWindow {
       ({ id: cfg.id, name: cfg.name, avatar: cfg.avatar, description: cfg.description ?? '', tabs: tabs.urls.length })));
     task.list.saveTabs();
   }
-  // The shown task's artifacts (Resources.vue): when it is shown, and when its agent makes one.
+  // The shown task's artifacts (Resources.tsx): when it is shown, and when its agent makes one.
   async sendArtifacts(task = this.task) {
     if (!task || task !== this.task) return;
     const [list, { bytes }] = await Promise.all([task.artifacts(), task.artifactsUsage()]);
@@ -211,14 +213,14 @@ class AppWindow {
     await this.showLoaded();
   }
   // The shown task: its profiles loaded (the first time it is shown), the page's grid built from its state
-  // (the terminals' island included, even with no profiles; its tabs too, each starting), then its terminals started at
-  // the island's size.
+  // (the terminals' panel included, even with no profiles; its tabs too, each starting), then its terminals started at
+  // the terminals' size.
   async showLoaded() {
     const task = this.task!;
     if (!task.loaded) task.loadProfiles();
     this.switching = false;
     // Not waited for: the human may first have to choose the agent (or switch away meanwhile). Its tabs come at once,
-    // each starting, so the grid comes with them, not with the island's buttons.
+    // each starting, so the grid comes with them, not with the terminals' buttons.
     const terminals = task.loadTerminals();
     this.pushState();
     this.seen();
@@ -240,7 +242,7 @@ class AppWindow {
     this.send('grid:closing', { dir, task: this.task?.key, pics });
   }
   // Before a task's tab goes (the task closes, or moves to another window): the tab next to it is shown, or the
-  // window is left with none (an empty island in the grid's place).
+  // window is left with none (the empty window).
   async leave(task: Task) {
     if (task !== this.current) return;
     const i = this.tabs.indexOf(task), next = this.tabs[i + 1] || this.tabs[i - 1];
@@ -275,8 +277,13 @@ class AppWindow {
     // While a task is being switched they stay hidden, whatever comes (a closing menu shows them
     // again); the page shows them once it has the next grid laid out.
     this.viewsHidden = !!hidden || this.switching;
+    // A dialog over the pages (hidden, no pictures): a page that had the keyboard keeps it unseen, and Fluent's focus
+    // trap leaves a dialog it never saw focused aria-hidden, its keys going nowhere: the window's page takes it. Menus
+    // (pictures) put the keyboard back themselves as they close.
+    const from = hidden && !snapshots && [...this.profiles.values()].some((p) => { const wc = p.get()?.wc; return wc && !wc.isDestroyed() && wc.isFocused(); });
     for (const p of this.profiles.values()) p.setHidden(this.viewsHidden);
     this.thumbnails.setHidden(this.viewsHidden);
+    if (from) focusWindow(this.win.webContents);
     return pics;
   }
   // JPEG: a picture shown for a moment, encoded three times faster than PNG. A page that draws no
@@ -334,7 +341,7 @@ class AppWindow {
     else this.win.setWindowButtonPosition({ x: MAC_BUTTONS.x, y: Math.max(0, Math.min(Math.round((bar - MAC_BUTTONS.height) / 2), this.barHeight - MAC_BUTTONS.height)) });
     this.send('zoom', z);
   }
-  // The theme (app.ts): the page's colors (tokens.css: theme, as chosen), the window's background and the OS buttons'
+  // The theme (app.ts): the page's colors (Fluent UI's theme, as chosen), the window's background and the OS buttons'
   // symbols in the colors shown (shade: dark or light); their strip is see-through (CLEAR).
   setTheme(theme: string, shade: Shade) {
     if (this.win.isDestroyed()) return;
@@ -371,7 +378,7 @@ class AppWindow {
 // 'other'; null for Cancel, or no answer (the page gone). A tasks' window's, Settings' (settings-window.ts).
 let asked = 0;
 // Where a question is asked: a tasks' window, or Settings' (settings-window.ts).
-interface Asker { ask(q: Question): Promise<string | null> }
+interface Asker { ask(q: Question): Promise<string | null>; answer(id: number, answer: string): void }
 class Questions {
   send: (q: Question & { id: number }) => void; answers = new Map<number, (answer: string | null) => void>();
   constructor(send: (q: Question & { id: number }) => void) { this.send = send; }
@@ -394,9 +401,11 @@ function keepPage(win: Electron.BrowserWindow) {
     return { action: 'deny' };
   });
   win.webContents.on('will-navigate', (e) => e.preventDefault());
-  // What the page says is wrong (an uncaught error, a warning of its own), in the log with the main process's lines.
+  // What the page says is wrong (an uncaught error, a warning of its own), in the log with the main process's lines;
+  // also as the window closes, its BrowserWindow already destroyed.
+  const id = win.webContents.id;
   win.webContents.on('console-message', (d) => {
-    if (d.level === 'error' || d.level === 'warning') log.warn(`[page wc=${win.webContents.id}] ${d.message} (${d.sourceId}:${d.lineNumber})`);
+    if (d.level === 'error' || d.level === 'warning') log.warn(`[page wc=${id}] ${d.message} (${d.sourceId}:${d.lineNumber})`);
   });
 }
 

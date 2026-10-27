@@ -1,5 +1,5 @@
 // knip: files, exports and dependencies nothing uses (npm run knip; npm test runs it first). Its plugins find most
-// entry points themselves (package.json's main and scripts, Vite with Vue, node --test); listed here are those loaded
+// entry points themselves (package.json's main and scripts, Vite, node --test); listed here are those loaded
 // by a path instead of an import. docs/testing.md, "Dead code".
 {
   "$schema": "https://unpkg.com/knip@6/schema-jsonc.json",
@@ -8,8 +8,8 @@
     "src/preload/index.cjs",
     // The master window's, Settings' and a screenshot's thumbnail's pages, vite.config.mts's other inputs: knip finds
     // them there on Linux, not on Windows. On Linux knip hints they are redundant: keep them, Windows needs them.
-    "src/renderer/master.ts",
-    "src/renderer/settings.ts",
+    "src/renderer/master.tsx",
+    "src/renderer/settings.tsx",
     "src/screenshots/renderer/thumbnail.ts",
     // The debug-kulisa skill's script, run by its path; Claude Code's hooks (.claude/settings.json).
     ".claude/skills/debug-kulisa/*.mjs",
@@ -22,8 +22,8 @@
   // where.exe: Windows' own, finding a shell the quoting test runs.
   // Xvfb, openbox: the e2e tests' screen on Linux, the system's (docs/testing.md).
   "ignoreBinaries": ["direnv", "actionlint", "where.exe", "Xvfb", "openbox"],
-  // Forge's makers, publisher and plugins, named by strings in forge.config.ts. The language server and its Vue plugin,
+  // Forge's makers, publisher and plugins, named by strings in forge.config.ts. The language server,
   // run by Claude Code's kulisa-dev plugin (.claude/dev-plugins; README, Developing with Claude Code).
   "ignoreDependencies": ["@electron-forge/maker-.*", "@electron-forge/publisher-github", "@electron-forge/plugin-auto-unpack-natives",
-    "typescript-language-server", "@vue/typescript-plugin"]
+    "typescript-language-server"]
 }

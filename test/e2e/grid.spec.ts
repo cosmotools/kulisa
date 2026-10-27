@@ -4,27 +4,21 @@ import type { Page } from '@playwright/test';
 import { menu, choose, closeMenu, rightClick, box, pageBox, viewOn, resourcesHeight, dock } from './helpers.ts';
 import { SAM, ELON, begin, bothOn } from './tasks-helpers.ts';
 
-const ISLAND = 'rgb(30, 31, 34)'; // --island, the panels' color, in the dark theme
 // A pane's tab dragged by the hand onto a place of a target (dockview's drop zones: its edges, its middle).
 async function drag(ui: Page, panel: string, target: string, where: 'right' | 'center') {
   const t = await ui.locator(target).boundingBox();
   await ui.locator(`[data-panel="${panel}"]`).dragTo(ui.locator(target), { targetPosition: { x: where === 'right' ? t.width - 10 : t.width / 2, y: t.height / 2 } });
 }
 
-test("tasks' bar: a tab is a rounded rectangle apart from the grid, as Firefox's, the shown one filled; its project's icon first", async ({ core, ui, files }) => {
+test("tasks' bar: under the grid, a tab per open task, its project's icon first, its name after; the shown one selected", async ({ core, ui, files }) => {
   await begin(core, ui, files, { columns: true });
-  const shown = ui.locator('#projectTabs [role="tab"][aria-selected="true"]'), other = ui.locator('#projectTabs [role="tab"]:not([aria-selected="true"])').first();
+  const shown = ui.locator('#projectTabs [role="tab"][aria-selected="true"]');
+  await expect(shown).toHaveCount(1);
   const grid = await ui.locator('#dock').boundingBox(), tab = await shown.boundingBox(), icon = await shown.getByTestId('project-icon').boundingBox();
-  expect(Math.round(tab.y - (grid.y + grid.height)), 'apart from the grid by the one gap').toBe(8);
-  if (await other.count()) {
-    const o = await other.boundingBox();
-    expect(Math.round(Math.abs(o.x - (tab.x + tab.width))), 'the tabs apart by it too').toBe(8);
-    await expect(other, 'the others on the window').toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
-  }
-  expect(parseFloat(await shown.evaluate((t) => getComputedStyle(t).borderRadius)), 'rounded').toBeGreaterThanOrEqual(4);
-  expect(tab.height >= 36 && tab.width >= 120, `as big as a browser's: ${tab.width} × ${tab.height}`).toBe(true);
-  await expect(shown, "the shown one in the panels' color (--island)").toHaveCSS('background-color', ISLAND);
-  expect(icon.width === 20 && icon.x > tab.x && icon.x <= tab.x + 12, 'the icon, 20 px, at the tab\'s start').toBe(true);
+  const name = await shown.getByText(await shown.getAttribute('aria-label'), { exact: true }).boundingBox();
+  expect(tab.y >= grid.y + grid.height - 1, 'under the grid').toBe(true);
+  expect(tab.width >= 160, `wide enough for a name: ${tab.width}`).toBe(true);
+  expect(icon.width === 16 && icon.x > tab.x && icon.x + icon.width <= name.x, "the icon at the tab's start, the name after it").toBe(true);
 });
 
 test("grid: a pane narrower than its profile's name: the name cut with …, its × in the pane, no list of hidden tabs", async ({ core, ui, files }) => {
@@ -64,7 +58,7 @@ test("grid: a narrow pane's bar gives up Back and Forward, then Reload, into ⋮
   // The bar's controls shown, each its name, ' out' when it is not inside the pane.
   const bar = async () => {
     const p = await ui.locator(pane).boundingBox(), names: string[] = [];
-    for (const e of await ui.locator(`${pane} [role="toolbar"] > :is(button, input):not([hidden])`).filter({ visible: true }).all()) {
+    for (const e of await ui.locator(`${pane} [role="toolbar"] :is(button, input)`).filter({ visible: true }).all()) {
       const r = await e.boundingBox({ timeout: 1000 });
       names.push(await e.getAttribute('aria-label') + (r.x >= p.x && r.x + r.width <= p.x + p.width ? '' : ' out'));
     }
@@ -80,20 +74,21 @@ test("grid: a narrow pane's bar gives up Back and Forward, then Reload, into ⋮
     await expect.poll(bar, { timeout: 3000, message: `${w} px` }).toEqual(shown);
   };
   await at(400, ['Back', 'Forward', 'Reload', 'Address', 'Pick an element', 'More']);
+  const shots = `
+      - text: Screenshot
+      - menuitem /^Element/
+      - menuitem "Visible Part"
+      - menuitem "Full Page"
+      - menuitem /^DevTools/`;
   await more(`
-    - menu:
-      - menuitem "Screenshot"
-      - menuitem "DevTools"`);
+    - menu: ${shots}`);
   await at(240, ['Reload', 'Address', 'Pick an element', 'More']);
   await at(100, ['Address', 'Pick an element', 'More']);
   await more(`
     - menu:
-      - menuitem "Back"
-      - menuitem "Forward"
-      - menuitem "Reload"
-      - separator
-      - menuitem "Screenshot"
-      - menuitem "DevTools"`);
+      - menuitem /^Back/
+      - menuitem /^Forward/
+      - menuitem /^Reload/ ${shots}`);
   await dock(ui, (api, a) => api.getPanel(a.panel).group.api.setSize({ width: a.width }), { panel, width });
 });
 

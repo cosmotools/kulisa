@@ -46,7 +46,7 @@ export const notLoading = (page: Page) => expect(page.locator('#dock:not([aria-b
 export const noSlide = (page: Page) => expect(page.locator(':root:active-view-transition')).toHaveCount(0);
 // That nothing happened is checked once what would have made it is done (docs/testing.md, Writing an e2e test): each
 // of these waits for a proof of that, never for a time.
-// The page drew what its last changes made: Vue's updates, a ResizeObserver's, what waits for a frame.
+// The page drew what its last changes made: React's updates, a ResizeObserver's, what waits for a frame.
 export const frames = (page: Page) => page.evaluate(() => new Promise<void>((r) => { requestAnimationFrame(() => requestAnimationFrame(() => r())); }));
 // Every message the page sent the main process before now is handled there, and every one the main process sent the
 // page before it handled is handled in the page: a channel's round trip, on the one pipe that keeps their order.
@@ -94,29 +94,41 @@ export async function otherPage(ui: Page, sel?: string) {
   return found;
 }
 
-// Kulisa's question in page's dialog (Ask.vue), answered as the human answers it: true its button that does it (the
+// Kulisa's question in page's dialog (components/Ask.tsx), answered as the human answers it: true its button that does it (the
 // last), false the one that does not (Cancel, Later), or a button by its name. What it asked.
 export async function answer(page: Page, yes: boolean | string = true) {
   const d = page.getByRole('alertdialog');
   await expect(d).toBeVisible();
   const asked = { message: await d.getByRole('heading').textContent(), detail: await page.locator(`#${await d.getAttribute('aria-describedby')}`).textContent() };
-  const buttons = d.locator('footer button');
+  const buttons = d.getByRole('button');
   await (typeof yes === 'string' ? d.getByRole('button', { name: yes, exact: true }) : yes ? buttons.last() : buttons.first()).click();
   await expect(d).toBeHidden();
   return asked;
 }
 
-// Kulisa's menus (Reka's, docs/ui.md, Menus): the open one once it is shown (the pages under it are pictures), the
-// submenu open (the last one).
-export const menu = (ui: Page) => ui.locator('[role="menu"][data-state="open"][data-ready]').first();
-export const submenu = (ui: Page) => ui.locator('[role="menu"][data-state="open"]').last();
+// Kulisa's menus (Fluent's, docs/ui.md, Menus; components/Menus.tsx): the open one once it is shown (its list
+// [data-ready]: the pages under it are pictures), the submenu open (the last one).
+export const menu = (ui: Page) => ui.locator('[role="menu"][data-ready]').first();
+export const submenu = (ui: Page) => ui.locator('[role="menu"][data-ready]').last();
 // An item of the open menu (or of which) by its label, whole.
 export const item = (ui: Page, label: string, which: Locator = menu(ui)) => which.getByRole('menuitem', { name: label, exact: true }).or(which.getByRole('menuitemradio', { name: label, exact: true }));
 export const choose = (ui: Page, label: string, which?: Locator) => item(ui, label, which).click();
-// The open menu closed as Esc does; no menu or list open after.
+// The open menu closed as Esc does; no menu open after.
 export async function closeMenu(ui: Page) {
   await ui.keyboard.press('Escape');
-  await expect(ui.locator('[data-state="open"]:is([role="menu"], [role="listbox"])')).toHaveCount(0);
+  await expect(ui.getByRole('menu')).toHaveCount(0);
+}
+// Keyboard Shortcuts (components/Shortcuts.tsx), and the keys a row of it shows by its label (or what it says while it
+// waits for the key).
+export const shortcutsDialog = (ui: Page) => ui.getByRole('dialog', { name: 'Keyboard Shortcuts' });
+export const shortcutKeys = (ui: Page, label: string) => shortcutsDialog(ui).getByRole('row').filter({ has: ui.getByRole('cell', { name: label, exact: true }) }).locator('[data-key]');
+// A row of ☰ that opens a menu beside it (Theme, Tasks bar, Language), opened; that menu.
+export async function windowSubmenu(ui: Page, row: string) {
+  if (!(await menu(ui).count())) await ui.locator('#windowMenu').click();
+  await item(ui, row).click();
+  const sub = ui.getByRole('menu', { name: row, exact: true });
+  await expect(sub).toBeVisible();
+  return sub;
 }
 // A right-click as the mouse makes it, at an element's middle (its press closes a menu open elsewhere; on Windows the
 // menu opens on the release).
@@ -132,7 +144,7 @@ export async function focusWindow(core: Core, ui: Page) {
 
 // The tasks' bar's tabs (one per open task): each its project, by its folder's name, the shown one with ' *'.
 export const projectTabs = async (ui: Page, files: Files) => (await ui.locator('#projectTabs [role="tab"]').evaluateAll((ts) => ts.map((t) => (t as HTMLElement).dataset.project + (t.ariaSelected === 'true' ? ' *' : '')))).map(files.named);
-// The island's terminals' tabs: each its name, the one in front with ' *'.
+// The terminals' tabs: each its name, the one in front with ' *'.
 export const termTabs = (ui: Page) => ui.locator('nav[aria-label="Terminals"] [role="tab"]').evaluateAll((ts) => ts.map((t) => t.textContent.trim() + (t.ariaSelected === 'true' ? ' *' : '')));
 // A project's first tab in the bar; the project shown again as the human does it, a click on it; its open tasks
 // closed with the middle button on each tab.
@@ -146,47 +158,37 @@ export async function closeProject(ui: Page, files: Files, folder: string) {
   }
 }
 
-// The bar's + (NewTask.vue): a menu of every project with its tasks; one project shows its tasks inline, several nest
-// each project as a submenu. plusMenu(ui) opens it and gives it; plusMenu(ui, project) makes a new task of that project
-// (its New Task row); plusMenu(ui, project, task) opens that task again (a closed one) or shows it.
 // Every open menu, a submenu too (menu waits for the first to be shown).
-export const anyMenu = (ui: Page) => ui.locator('[role="menu"][data-state="open"]');
-const projectRow = (ui: Page, project: string) => anyMenu(ui).first().getByRole('menuitem', { name: project, exact: true }).and(ui.locator('[aria-haspopup]'));
-// A project's submenu, with several projects, opened as the hand does it: hovering its row (a release on the row makes
-// the project a new task: MenuRows.vue, runSub). The rows are drawn again as a project just shown moves to the top, and
-// the submenu under the pointer closes: hovered again until `until` holds in it.
-async function projectSub(ui: Page, project: string, until: (sub: Locator) => Promise<void>) {
-  const trigger = projectRow(ui, project);
-  await expect(trigger).toBeVisible();
-  await expect(async () => {
-    if ((await anyMenu(ui).count()) < 2) { await ui.mouse.move(0, 0); await trigger.hover(); }
-    await until(anyMenu(ui).last());
-  }).toPass({ timeout: 5000 });
-  return anyMenu(ui).last();
+export const anyMenu = (ui: Page) => ui.getByRole('menu');
+// The sidebar (components/Sidebar.tsx; docs/tasks.md, The sidebar): every project with its tasks, a tree. Docked in the empty
+// window; over the grid opened with the title bar's button, closed by a choice or Esc. openSidebar gives it, open.
+export const sidebar = (ui: Page) => ui.getByRole('tree', { name: 'Projects' });
+export async function openSidebar(ui: Page) {
+  if (!(await sidebar(ui).count())) await ui.getByRole('button', { name: /^Projects and tasks/ }).click();
+  await expect(sidebar(ui)).toBeVisible();
+  return sidebar(ui);
 }
-export function plusMenu(ui: Page): Promise<Locator>;
-export function plusMenu(ui: Page, project: string, task?: string): Promise<void>;
-export async function plusMenu(ui: Page, project?: string, task?: string): Promise<Locator | void> {
-  if (!(await anyMenu(ui).count())) await ui.locator('#newTask').click();
-  const top = anyMenu(ui).first();
-  await expect(top.getByRole('menuitem').first()).toBeVisible(); // its rows drawn, a moment after it opens
-  if (project === undefined) return top;
-  const label = task ?? 'New Task';
-  await expect(projectRow(ui, project).or(item(ui, label, top)).first()).toBeVisible();
-  if (!(await projectRow(ui, project).count())) return item(ui, label, top).first().click();
-  const sub = await projectSub(ui, project, (m) => expect(item(ui, label, m).first()).toBeVisible({ timeout: 500 }));
-  await item(ui, label, sub).first().click();
+export async function closeSidebar(ui: Page) {
+  if (await ui.locator('html[data-empty]').count()) return; // docked: always there
+  if (await sidebar(ui).count()) await sidebar(ui).press('Escape');
+  await expect(sidebar(ui)).toHaveCount(0);
 }
-// The + menu open where one project's rows are (its tasks, then New Task): its submenu, with several projects; else the
-// menu itself, which ends with New Project… after them. closeBoard closes it.
-export async function plusRows(ui: Page, project: string) {
-  await plusMenu(ui);
-  if (!(await projectRow(ui, project).count())) return anyMenu(ui).first();
-  return projectSub(ui, project, (sub) => expect(anyMenu(ui)).toHaveCount(2, { timeout: 500 }).then(() => expect(sub.getByRole('menuitem').first()).toBeVisible({ timeout: 500 })));
+// A project's row (its tasks under it), by its name; a task's under it.
+export const projectRow = (ui: Page, project: string) => sidebar(ui).getByRole('treeitem', { name: project, exact: true }).and(ui.locator('[data-project]'));
+export const taskRow = (ui: Page, project: string, task: string) => projectRow(ui, project).getByRole('treeitem', { name: task, exact: true });
+// A project's tasks in the sidebar, by their names, in its order.
+export const sidebarTasks = (ui: Page, project: string) => projectRow(ui, project).locator('[data-task]').evaluateAll((xs) => xs.map((x) => x.getAttribute('aria-label')));
+// A row's own buttons, shown under the pointer: hovered at its start, where its name is (not its tasks under it).
+export async function rowButton(row: Locator, name: string) {
+  await row.hover({ position: { x: 48, y: 8 } });
+  return row.getByRole('button', { name, exact: true }).first();
 }
-export async function closeBoard(ui: Page) {
-  if (await anyMenu(ui).count()) await anyMenu(ui).first().press('Escape');
-  await expect(anyMenu(ui)).toHaveCount(0);
+// From the sidebar as the human does it: a new task of the project (+ on its row), or one of its tasks opened again (a
+// closed one) or shown.
+export async function fromSidebar(ui: Page, project: string, task?: string) {
+  await openSidebar(ui);
+  if (task) return taskRow(ui, project, task).first().click();
+  await (await rowButton(projectRow(ui, project), `New Task of ${project}`)).click();
 }
 // A project's submenu (a tab's right-click, then the row of the project's name, the one row opening a menu), open.
 export async function projectMenu(ui: Page, tab = '#projectTabs [aria-selected="true"]') {
@@ -214,20 +216,31 @@ export const resize = (core: Core, size: { width?: number; height?: number }) =>
   return { width, height };
 }, size);
 
+// Settings (components/Settings.tsx): a row of its nav by its key (p:<project>, a:<agent>, f:<profile>, github, log, about),
+// the shown one aria-current; the shown page's path; a card of a page (Group.tsx) by its title; the open menu (Fluent's:
+// there only while open).
+export const navRow = (s: Page, key: string) => s.getByRole('navigation', { name: 'Settings' }).locator(`[data-key="${key}"]`);
+export const shownRow = (s: Page) => s.getByRole('navigation', { name: 'Settings' }).locator('[data-key][aria-current="page"]');
+export const pathOf = (s: Page) => s.getByRole('navigation', { name: 'Path' });
+export const group = (s: Page, title: string) => s.getByRole('group', { name: title, exact: true });
+export const settingsMenu = (s: Page) => s.getByRole('menu');
+// A list of a Settings page (List.tsx) by its name: its rows (not its head), one by its name.
+export const listRows = (s: Page, list: string) => s.getByRole('table', { name: list, exact: true }).getByRole('row').filter({ has: s.getByRole('cell') });
+export const listRow = (s: Page, list: string, name: string) => s.getByRole('table', { name: list, exact: true }).getByRole('row', { name, exact: true });
 // Settings → Profiles: the shown task's tab's menu, then Manage Profiles…; once its window shows the page.
 export async function manageProfiles(ui: Page, sui: () => Promise<Page>) {
   await taskMenu(ui);
   await choose(ui, 'Manage Profiles…');
   const s = await sui();
-  await expect(s.locator('#prconfig')).toBeVisible();
+  await expect(pathOf(s)).toHaveText(/^Profiles/);
   return s;
 }
-// A profile in Settings' tree chosen (a click), its page shown.
+// A profile in Settings' nav chosen (a click), its page shown.
 export async function chooseProfile(s: Page, files: Files, name: string) {
-  const row = s.locator(`#pjlist [data-profile="${files.idOf(name)}"]`);
+  const row = navRow(s, `f:${files.idOf(name)}`);
   await row.click();
-  await expect(row).toHaveAttribute('aria-selected', 'true');
-  await expect(s.locator('#profilepage')).toBeVisible();
+  await expect(row).toHaveAttribute('aria-current', 'page');
+  await expect(s.getByRole('textbox', { name: 'Name', exact: true })).toHaveValue(name);
 }
 // Settings closed as the human does it with Esc, what was typed saved; its window gone, the keyboard back in the task's
 // window, the window's and its page's (a menu opened there before it comes closes as the window gets it). The key's
@@ -237,22 +250,24 @@ export async function closeSettings(core: Core, ui: Page, sui: () => Promise<Pag
   void s.keyboard.press('Escape').catch(() => {});
   await settingsClosed(core, ui);
 }
-// A text field typed as the human types it, and left (a change) when leave.
-export async function typeIn(page: Page, sel: string, value: string, leave = false) {
-  await page.locator(sel).fill(value);
-  if (leave) await page.locator(sel).dispatchEvent('change');
+// A text field typed as the human types it, and left (a change; React's pages save as it loses the keyboard) when leave.
+export async function typeIn(page: Page, sel: string | Locator, value: string, leave = false) {
+  const field = typeof sel === 'string' ? page.locator(sel) : sel;
+  await field.fill(value);
+  if (leave) { await field.dispatchEvent('change'); await field.blur(); }
 }
-// Settings' project page shown: its name in place at its top.
+// Settings' project page shown: its name in its path and in its field.
 export async function pageOf(s: Page, name: string) {
-  await expect(s.locator('#pjname')).toHaveValue(name);
-  await expect(s.locator('#pjhead')).toBeVisible();
+  await expect(pathOf(s)).toHaveText(new RegExp(`^Projects\\s*${RegExp.escape(name)}$`));
+  await expect(s.getByRole('textbox', { name: 'Name', exact: true })).toHaveValue(name);
 }
 // A list's row selected (a click), then a button of its toolbar acting on it (− removes, ★ makes it the default).
-export async function onRow(s: Page, row: string, button: string) {
-  await s.locator(row).click();
-  await expect(s.locator(row)).toHaveAttribute('aria-selected', 'true');
-  await expect(s.locator(button)).toBeEnabled();
-  await s.locator(button).click();
+export async function onRow(s: Page, row: string | Locator, button: string | Locator) {
+  const r = typeof row === 'string' ? s.locator(row) : row, b = typeof button === 'string' ? s.locator(button) : button;
+  await r.click();
+  await expect(r).toHaveAttribute('aria-selected', 'true');
+  await expect(b).toBeEnabled();
+  await b.click();
 }
 // However it closed (Esc, the OS's ×).
 export async function settingsClosed(core: Core, ui: Page) {
@@ -271,7 +286,7 @@ export const pageBox = (ui: Page, files: Files, name: string) => box(ui, `[role=
 export const viewOn = async (core: Core, ui: Page, files: Files, name: string) => core((k, a) => k.viewOn(a.name, a.box), { name, box: await pageBox(ui, files, name) });
 // dockview's API, as the window keeps it for the tests (window.__dock), given to fn with an argument.
 export const dock = <A, R>(ui: Page, fn: (api: any, arg: A) => R, arg?: A) => ui.evaluate(([src, a]) => (0, eval)(`(${src})`)((window as any).__dock, a), [fn.toString(), arg] as const) as Promise<R>;
-// The Resources island's height on screen (its group in the grid: lib/grid.ts).
+// The Resources panel's height on screen (its group in the grid: lib/grid.ts).
 export const resourcesHeight = (ui: Page) => ui.evaluate(() => Math.round(document.getElementById('resources').closest('.dv-groupview').getBoundingClientRect().height));
 
 // Who the test site says is signed in, in a profile's page, as the agent (of the window's task, or of where) reads it.
