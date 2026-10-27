@@ -113,7 +113,7 @@ repositories (git worktrees), so the project's folders stay the human's. Its dat
   terminals and pages go on, the Dock's icon shows it again; ⌘Q quits, asking as above, the window shown for the
   question. A window whose last tab closes closes too, unless it is the only one: then it is the empty window.
 - **Each project has a color and an icon**, to tell projects apart: the color is the title bar logo's curtain while
-  one of its tasks is shown (`--project`, `lib/store.ts`) and the shown tab's outline; the icon is on its tasks' tabs
+  one of its tasks is shown (`--project`, `lib/store.ts`); the icon is on its tasks' tabs
   and its row in the sidebar, in its color. **Both are Kulisa's, nothing to choose** (a project is
   made to work in, not to be set up):
   - **The icon: its site's favicon**, the curtain while it has none: `favicon.*` (svg, png, ico, webp, gif, jpg)

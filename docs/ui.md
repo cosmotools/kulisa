@@ -59,7 +59,7 @@ to the main process after every grid change ([window.md](window.md), The grid).
   px), a Fluent part's inner slot styled through that slot's `className`, ours last in `mergeClasses` so they win; no
   CSS file of our own. A window's layout is a div inside `FluentProvider`, not its `className`: Fluent copies that to
   every portal's node (a menu's, a tooltip's), which would cover the window. `style` holds only what run time knows (a
-  width, the project's color as `--colorCompoundBrandStroke`). dockview's look is its variables, set from the tokens in `Grid.tsx`'s `dock` class.
+  width, the project's color). dockview's look is its variables, set from the tokens in `Grid.tsx`'s `dock` class.
 - **Motion is Fluent's** (`createMotionComponent`, `createPresenceComponent`, `motionTokens`): a tab growing in
   (`Grow`, `lib/strip.ts`), the welcome's fade, the dictation's pill.
 - **`npm run lint` refuses** in the window a raw `button`, `input`, `select` or `textarea`, `lucide-react`, a hex color
@@ -77,8 +77,7 @@ frames, pills, rows that show their buttons only under the pointer: those read a
   a hairline); a profile's pane's header is "picture, name · what the agent does · ⋯ · ×" (`ProfileHeader`; paused on
   a sign-in page, a warning `Badge` with a lock), the terminals' is their tabs, + and the microphone, the Resources'
   its title.
-- **The project's color only on its icon and on its task tab's outline** (the chosen tab's border, its
-  `colorCompoundBrandStroke` set per tab: `TaskBar.tsx`); the title bar's logo is the shown project's (`--project` on
+- **The project's color only on its icon**; the title bar's logo is the shown project's (`--project` on
   the root, `lib/store.ts`). Nothing else is colored by it (the author's choice). `projectColor`
   (`lib/project-color.ts`): a favicon's hue in Kulisa's lightness and chroma, so it suits both themes.
 - **The tasks' bar is at the bottom by default** (☰ → Tasks bar: Top puts it in the title bar); its + makes a task of
@@ -203,7 +202,7 @@ A form is the `<form>` between `DialogSurface` and `DialogBody` (Enter submits).
   `validationMessage` too). A `MessageBar` announces itself (polite for info, assertive otherwise) through the
   `AriaLiveAnnouncer` around each window's content (`App.tsx`, `Settings.tsx`, `Master.tsx`): no `role` by hand.
   Progress is a `Spinner` with its `label` or a `ProgressBar`; a state at a row's end a `Badge`.
-- **Tabs** are Fluent's `TabList appearance="subtle-circular"` (`size="small"`, `reserveSelectedTabSpace={false}`): the
+- **Tabs** are Fluent's `TabList appearance="filled-circular"` (the chosen one filled; the author's choice) (`size="small"`, `reserveSelectedTabSpace={false}`): the
   tasks' bar, a pane's tabs, the terminals'; each tab a shape of its own (Fluent has no browser tabs, and a navigation
   TabList's underline does not read as tabs). A tab is chosen on the press, as a browser's (not on its ×); the arrows
   move between them and Enter chooses. A task's tab is shown on the release or as its drag begins, and keeps its width

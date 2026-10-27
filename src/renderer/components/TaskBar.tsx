@@ -4,7 +4,7 @@
 // showing one moves none (tabs moving under the mouse make the human miss). Where a dragged tab is let go outside every
 // Kulisa window, the main process says (the page does not know where the pointer is then).
 import { flushSync } from 'react-dom';
-import { useEffect, useReducer, useRef, useState, type CSSProperties, type DragEvent, type MouseEvent, type PointerEvent } from 'react';
+import { useEffect, useReducer, useRef, useState, type DragEvent, type MouseEvent, type PointerEvent } from 'react';
 import { Button, Tab, TabList, Text, Tooltip, makeStyles, mergeClasses, tokens } from '@fluentui/react-components';
 import { AddRegular, DismissRegular } from '@fluentui/react-icons';
 import { RightClickMenu, type Item } from './Menus';
@@ -177,7 +177,7 @@ export function TaskBar() {
 
   return <nav id="taskbar" aria-label="Open tasks" className={mergeClasses(styles.bar, top && styles.top)}>
     <RightClickMenu items={menu} className={styles.tabsArea}>
-      <TabList id="projectTabs" ref={strip} className={mergeClasses(stripClass, styles.strip)} appearance="subtle-circular" size="small" reserveSelectedTabSpace={false} selectedValue={pressed ?? current ?? ''}
+      <TabList id="projectTabs" ref={strip} className={mergeClasses(stripClass, styles.strip)} appearance="filled-circular" size="small" reserveSelectedTabSpace={false} selectedValue={pressed ?? current ?? ''}
         onTabSelect={(_, d) => onTabSelect(String(d.value))}
         onPointerDown={onPointerDown} onAuxClick={onAuxClick} onDoubleClick={onDoubleClick} {...drag}>
         {tabs.map(({ t, p }) => {
@@ -185,9 +185,7 @@ export function TaskBar() {
           // × on every tab, as Chrome's: in the tab, its own click (not the tab's), never the tab's press
           return <Tab key={t.key} value={t.key} data-task={t.key} data-project={p.id} draggable aria-label={t.name} data-dragging={dragged === t.key || undefined}
             data-drop={at} title={`${p.name}\n${t.branch ? `branch ${t.branch} in ${t.folder}` : `in the project's folder ${t.folder} (no git: no copy of its own)`}`}
-            icon={<ProjectIcon p={{ favicon: p.favicon, color }} size={16} />} className={styles.tab}
-            // the chosen tab's outline in its project's color
-            style={{ '--colorCompoundBrandStroke': color } as CSSProperties}>
+            icon={<ProjectIcon p={{ favicon: p.favicon, color }} size={16} />} className={styles.tab}>
             <span className={styles.label}>
               <AgentState state={t.state} />
               {/* the name cut short where the tab ends: at its narrowest about ten letters. Text sets a weight of its

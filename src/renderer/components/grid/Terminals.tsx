@@ -189,7 +189,7 @@ export function TerminalsHeader({ api }: IDockviewPanelHeaderProps) {
   return <div data-panel={api.id} data-testid="terminal-tabs" hidden={!list.length} className={styles.header}>
     <RightClickMenu items={tabMenu} className={styles.tabsArea}>
       <nav aria-label="Terminals" className={styles.tabs} onDragStart={noDrag}>
-        <TabList ref={strip} className={mergeClasses(stripClass, styles.strip)} appearance="subtle-circular" size="small" reserveSelectedTabSpace={false} selectedValue={front === null ? undefined : String(front)}
+        <TabList ref={strip} className={mergeClasses(stripClass, styles.strip)} appearance="filled-circular" size="small" reserveSelectedTabSpace={false} selectedValue={front === null ? undefined : String(front)}
           onTabSelect={(_, d) => void act('terminal:show', { id: Number(d.value) })}>
           {list.map((t) => {
             const Mark = agentMark(t.agent?.cli ?? 'shell');
