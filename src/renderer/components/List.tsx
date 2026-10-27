@@ -1,7 +1,9 @@
 // A list to choose a row of and act on (docs/ui.md, Rows), on Fluent UI's Table: its columns, the selected row lit, the
 // arrows move and choose, Delete acts on the chosen one.
 import type { ReactNode } from 'react';
-import { Table, TableBody, TableCell, TableCellLayout, TableHeader, TableHeaderCell, TableRow, useArrowNavigationGroup } from '@fluentui/react-components';
+import { Table, TableBody, TableCell, TableCellLayout, TableHeader, TableHeaderCell, TableRow, makeStyles, useArrowNavigationGroup } from '@fluentui/react-components';
+
+const useStyles = makeStyles({ table: { tableLayout: 'fixed' } });
 
 export interface Column<T> { label: string; width?: string; cell: (row: T) => ReactNode }
 
@@ -11,9 +13,10 @@ export function List<T>({ label, rows, columns, id, rowLabel, rowTitle, attr, se
   attr: string; // data-<attr> on each row: what a right-click reads
   selected?: string; onSelect: (id: string) => void; onDelete?: () => void;
 }) {
+  const styles = useStyles();
   const arrows = useArrowNavigationGroup({ axis: 'vertical', memorizeCurrent: true });
-  return <Table size="small" aria-label={label} style={{ tableLayout: 'fixed' }}>
-    <TableHeader><TableRow>{columns.map((c) => <TableHeaderCell key={c.label} style={{ width: c.width }}>{c.label}</TableHeaderCell>)}</TableRow></TableHeader>
+  return <Table size="small" aria-label={label} className={styles.table}>
+    <TableHeader><TableRow>{columns.map((c) => <TableHeaderCell key={c.label} style={{ width: c.width }} /* the caller's, per column */>{c.label}</TableHeaderCell>)}</TableRow></TableHeader>
     <TableBody {...arrows}>
       {rows.map((r) => {
         const key = id(r), chosen = key === selected;

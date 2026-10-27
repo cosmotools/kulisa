@@ -184,7 +184,7 @@ test("DevTools in a pane's ⋮ menu opens and closes the DevTools of its active 
       const b = buttons.nth(i);
       await expect(b).toHaveAccessibleName(name);
       await expect(b).toHaveText('');
-      await expect(b.locator('svg')).toHaveCount(1);
+      await expect(b.locator('svg').locator('visible=true'), 'one icon shown (Pick: its filled one hidden till chosen)').toHaveCount(1);
       await expect(b).toHaveCSS('border-top-color', 'rgba(0, 0, 0, 0)'); // none seen
     }
     expect(await looks('its menu open'), 'its menu open').toEqual(closed);

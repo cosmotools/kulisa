@@ -1,9 +1,9 @@
 // A strip of tabs that scrolls sideways when they do not fit (docs/ui.md, Controls): the tasks' bar, a pane's tabs, the
 // closed profiles over the terminal, the terminals' tabs.
-// useStrip scrolls it by the wheel, says which edges have tabs past them, keeps its chosen tab (aria-selected) in sight,
-// and grows a panel's tab (data-grow) in as it opens; the class it gives draws that: no scrollbar, its edges faded.
+// useStrip scrolls it by the wheel, says which edges have tabs past them, keeps its chosen tab (aria-selected) in sight;
+// the class it gives draws that: no scrollbar, its edges faded. A panel's tab in Grow grows in as it opens.
 import { useEffect, useRef, type RefObject } from 'react';
-import { makeStyles } from '@fluentui/react-components';
+import { createMotionComponent, makeStyles, motionTokens } from '@fluentui/react-components';
 import { reducedMotion } from './common';
 
 const FADE = '24px';
@@ -13,13 +13,21 @@ const useStyles = makeStyles({
     overflowX: 'auto', scrollbarWidth: 'none', scrollPaddingInline: FADE, minWidth: 0,
     maskImage: 'linear-gradient(to right, transparent, #000 var(--fade-start, 0px), #000 calc(100% - var(--fade-end, 0px)), transparent)',
     '&[data-past-start]': { '--fade-start': FADE }, '&[data-past-end]': { '--fade-end': FADE },
-    // opened: it grows in from the left, as Chrome's
-    '& > [data-opening]': {
-      overflow: 'hidden', animationName: { from: { width: 0, minWidth: 0, paddingInline: 0 } }, animationDuration: '.2s',
-      animationTimingFunction: 'cubic-bezier(.2, .8, .2, 1)', '@media (prefers-reduced-motion: reduce)': { animationName: 'none' },
-    },
   },
 });
+
+// The strips that had tabs before the change being committed: the MutationObserver below marks them after React's
+// commit, so a tab's motion (run in its layout effect, before that) still sees the strip as it was.
+const filled = new WeakSet<Element>();
+
+// A tab added to a strip that has tabs (not the first ones, nor a strip drawn whole) grows in from the left, as
+// Chrome's. clip-path, not overflow (not animatable): what the tab holds is cut at its edge while it is narrow. fill
+// none: once grown, the tab is laid out by its own styles again. With reduced motion none at all, not Fluent's 1 ms:
+// that one still marks the tab opening until it ends.
+export const Grow = createMotionComponent(({ element }) => (!reducedMotion.matches && element.parentElement && filled.has(element.parentElement) ? [{
+  keyframes: [{ width: '0px', minWidth: '0px', paddingInline: '0px', clipPath: 'inset(0)' }, { clipPath: 'inset(0)' }],
+  duration: motionTokens.durationNormal, easing: motionTokens.curveDecelerateMax, fill: 'none',
+}] : []));
 
 // What a strip element does, until dispose().
 function strip(s: HTMLElement) {
@@ -39,15 +47,16 @@ function strip(s: HTMLElement) {
     else if (a.right > b.right - pad) s.scrollLeft += a.right - (b.right - pad);
     edges(); // at once: the scroll event comes a frame later
   };
-  // A panel's tab added to a strip that has tabs (not the first ones, nor a strip drawn whole) grows in from the left,
-  // as Chrome's: data-opening until its animation ends, then brought into sight. An attribute, not a class: React
-  // writes the tab's className over one. With reduced motion it does not grow, so no animation ends: in sight at once
-  // (else it stays opening, and out of sight).
+  // A tab growing in (Grow's motion, started before the observer hears of it): data-opening until it has grown, then
+  // brought into sight. An attribute, not a class: React writes the tab's className over one. Its own animations
+  // only, not a CSS transition of Fluent's.
   const opened = (t: Element) => {
-    if (!t.matches('[data-grow]')) return;
-    if (reducedMotion.matches) { requestAnimationFrame(reveal); return; }
+    const growing = t.getAnimations().filter((a) => !(a instanceof CSSTransition) && !(a instanceof CSSAnimation));
+    if (!growing.length) return;
     t.setAttribute('data-opening', '');
-    t.addEventListener('animationend', () => { t.removeAttribute('data-opening'); reveal(); }, { once: true });
+    let left = growing.length;
+    const done = () => { if (--left) return; t.removeAttribute('data-opening'); reveal(); };
+    for (const a of growing) { a.addEventListener('finish', done, { once: true }); a.addEventListener('cancel', done, { once: true }); }
   };
   // A mouse's wheel turns up and down, and the strip scrolls only sideways; Shift and a touchpad's sideways swipe are
   // the browser's (with Shift both scrolled, twice as far).
@@ -58,22 +67,22 @@ function strip(s: HTMLElement) {
   // how far the tabs reach: the edges again.
   const resized = new ResizeObserver(reveal);
   const grown = new ResizeObserver(edges);
-  let filled = false; // the strip had tabs before these changes
+  const fill = () => { if (s.children.length) filled.add(s); else filled.delete(s); };
   const tabs = new MutationObserver((changes) => {
     for (const c of changes) {
-      for (const t of c.addedNodes) if (t instanceof Element) { grown.observe(t); if (filled) opened(t); }
+      for (const t of c.addedNodes) if (t instanceof Element) { grown.observe(t); opened(t); }
       for (const t of c.removedNodes) if (t instanceof Element) grown.unobserve(t); // or the observer keeps it
     }
-    filled = !!s.children.length;
+    fill();
     edges();
   });
   resized.observe(s);
   for (const t of s.children) grown.observe(t);
-  filled = s.children.length > 0;
+  fill();
   tabs.observe(s, { childList: true });
   s.addEventListener('wheel', wheel, { passive: true });
   s.addEventListener('scroll', edges, { passive: true });
-  return { reveal, dispose() { resized.disconnect(); grown.disconnect(); tabs.disconnect(); s.removeEventListener('wheel', wheel); s.removeEventListener('scroll', edges); } };
+  return { reveal, dispose() { resized.disconnect(); grown.disconnect(); tabs.disconnect(); filled.delete(s); s.removeEventListener('wheel', wheel); s.removeEventListener('scroll', edges); } };
 }
 
 // ref: the strip's element; active: what changes when another tab is chosen (its key). The strip's class.

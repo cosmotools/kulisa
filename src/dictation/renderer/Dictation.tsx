@@ -2,18 +2,32 @@
 // the mouse. The trigger is a key held anywhere in the window (the main process). It stays when the agent in front has
 // none, disabled: a button that came and went would resize the terminal, and Claude Code redraws badly after one.
 import { useEffect, useRef, type PointerEvent } from 'react';
-import { ToggleButton, tokens } from '@fluentui/react-components';
-import { Mic } from 'lucide-react';
+import { ToggleButton, makeStyles, tokens } from '@fluentui/react-components';
+import { MicFilled, MicRegular, bundleIcon } from '@fluentui/react-icons';
 import { leave, read, record, recording as isRecording, useVoices } from './voice';
 
 // Red while it records, breathing with a ring, as a voice message's button does, so the eye catches from across the
-// window that the agent is listening (not with reduced motion: red alone).
+// window that the agent is listening (not with reduced motion: red alone). The Web Animations API, not Fluent's motion
+// component: that one plays as it mounts and can only pause, and this button must not mount anew while pressed (the
+// press's pointer capture).
 const BREATHE: Keyframe[] = [
   { transform: 'scale(1)', boxShadow: `0 0 0 0 ${tokens.colorPaletteRedBorderActive}` },
   { transform: 'scale(1.12)', boxShadow: '0 0 0 4px transparent' },
   { transform: 'scale(1)', boxShadow: '0 0 0 0 transparent' },
 ];
 const still = matchMedia('(prefers-reduced-motion: reduce)');
+const Mic = bundleIcon(MicFilled, MicRegular);
+// Its look in every state of the button (pointed at, pressed), over the checked button's own.
+const look = (backgroundColor: string) => {
+  const l = { backgroundColor, color: tokens.colorNeutralForegroundStaticInverted };
+  return { ...l, ':hover': l, ':hover:active,:active:focus-visible': l };
+};
+const useStyles = makeStyles({
+  root: { display: 'grid', placeItems: 'center', flex: 'none' },
+  recording: look(tokens.colorPaletteRedBackground3),
+  // Getting ready (~1 s, the hidden session starting): lit, not red yet, so nobody speaks before it hears.
+  starting: look(tokens.colorPaletteBlueBorderActive),
+});
 
 // task: the task shown; keyName: the key, as the window names it; language: what it hears; onDone: let go, the
 // keyboard goes back to the terminal.
@@ -29,7 +43,7 @@ export function Dictation({ task, keyName, language, onDone }: { task: string | 
     return () => leave(task);
   }, [task]);
 
-  const button = useRef<HTMLButtonElement>(null);
+  const button = useRef<HTMLButtonElement>(null), styles = useStyles();
   const lit = state === 'recording';
   useEffect(() => {
     if (!lit || still.matches) return;
@@ -55,14 +69,11 @@ export function Dictation({ task, keyName, language, onDone }: { task: string | 
     : v.state === 'starting' ? 'Getting ready to listen: speak once the microphone is red'
     : recording ? `Recording: let go of ${keyName}, or click to stop`
     : `Speak to the agent${language ? ` in ${language}` : ''}: hold ${keyName} anywhere, or press it once and again; or this button the same way`;
-  // Getting ready (~1 s, the hidden session starting): lit, not red yet, so nobody speaks before it hears.
-  const look = state === 'recording' ? { background: tokens.colorPaletteRedBackground3, color: tokens.colorNeutralForegroundStaticInverted }
-    : state === 'starting' ? { background: tokens.colorPaletteBlueBorderActive, color: tokens.colorNeutralForegroundStaticInverted } : undefined;
   // The pane is not dragged by its row's buttons. The tooltip is the native title: a disabled button gets no pointer
   // events, and its tooltip says why it is disabled.
-  return <div style={{ display: 'grid', placeItems: 'center', flex: 'none' }} onDragStart={(e) => e.preventDefault()}>
+  return <div className={styles.root} onDragStart={(e) => e.preventDefault()}>
     <ToggleButton ref={button} appearance="subtle" shape="circular" size="small" icon={<Mic />} aria-label="Speak to the agent"
-      checked={recording} data-state={state} disabled={!v || v.state === 'none'} title={title} style={look}
+      checked={recording} data-state={state} disabled={!v || v.state === 'none'} title={title} className={state === 'recording' ? styles.recording : state === 'starting' ? styles.starting : undefined}
       onPointerDown={press} onPointerUp={release} onPointerCancel={release}
       // Enter or Space on it
       onClick={(e) => { if (!e.detail && task) void record(task, !recording); }} />

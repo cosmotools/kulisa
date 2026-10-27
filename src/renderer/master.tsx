@@ -4,5 +4,5 @@ import '@fontsource-variable/inter/wght.css';
 import { createRoot } from 'react-dom/client';
 import { Master } from './components/Master';
 
-document.head.insertAdjacentHTML('beforeend', '<style>body { margin: 0; user-select: none; } .lucide { width: 1em; height: 1em; }</style>');
+document.head.insertAdjacentHTML('beforeend', '<style>body { margin: 0; user-select: none; }</style>');
 createRoot(document.getElementById('app')!).render(<Master />);

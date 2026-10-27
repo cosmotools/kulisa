@@ -550,7 +550,7 @@ the Mac it was built on; for users: #206). On macOS and Windows node-pty is not 
 its own prebuilt binary is packaged (N-API, the one `npm start` loads), so no compiler is needed; on macOS its
 `spawn-helper`, the program it starts a shell with, is kept outside the archive, where it runs it from (in it, a
 packaged Kulisa's terminal fails). **What the package holds** is what the main process runs: its `dependencies`, the
-window's build (`dist/renderer`, 3 MB) and the agents' packages. The window's libraries (React, Fluent UI, Lucide's
+window's build (`dist/renderer`, 3 MB) and the agents' packages. The window's libraries (React, Fluent UI and its
 icons, xterm and its addons, the fonts) are `devDependencies`, which Forge leaves out: Vite bundles them, and the main
 process imports none of them (but `@xterm/headless`, which keeps each shell's screen). node-pty's prebuilt binaries for
 the other platforms (58 MB, mostly Windows's) are removed by a packaging hook (`prunePrebuilds` in `forge.config.ts`):

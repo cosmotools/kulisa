@@ -1,7 +1,7 @@
 // Fluent UI's theme: Fluent's tokens with a neutral brand, Inter and JetBrains Mono (bundled: the same on every OS,
 // offline), softer corners. Only tokens: the components are Fluent's as they ship (docs/ui.md).
 import { createContext } from 'react';
-import { createDarkTheme, createLightTheme, type BrandVariants, type Theme } from '@fluentui/react-components';
+import { createDarkTheme, createLightTheme, makeStyles, tokens, type BrandVariants, type Theme } from '@fluentui/react-components';
 import type { TermStyle } from '../../terminal/renderer';
 
 // A neutral ramp in place of Microsoft's blue: the main button and what is chosen in the text's own color.
@@ -32,4 +32,10 @@ export type ColorToken = Extract<keyof Theme, `color${string}`>;
 export const termStyle = (t: Theme, background: ColorToken): TermStyle => ({
   colors: { background: t[background], foreground: t.colorNeutralForeground1, selection: t.colorNeutralStroke1 },
   fontSize: parseFloat(t.fontSizeBase300),
+});
+
+// Classes many parts share: muted text, and text to copy and search for (an error, a path) where the window's text is not.
+export const useCommonStyles = makeStyles({
+  muted: { color: tokens.colorNeutralForeground3 },
+  selectable: { userSelect: 'text' },
 });

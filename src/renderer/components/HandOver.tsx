@@ -6,8 +6,8 @@ import { createElement, useEffect, type ReactElement } from 'react';
 import { createStore, useStore } from 'zustand';
 import { useShallow } from 'zustand/react/shallow';
 import { AvatarGroup, AvatarGroupItem, Button, Card, Dialog, DialogActions, DialogBody, DialogContent, DialogSurface, DialogTitle, Field, List, ListItem,
-  MessageBar, MessageBarBody, ProgressBar, Radio, RadioGroup, Tag, Text, tokens } from '@fluentui/react-components';
-import { BookOpenTextIcon, GitBranchIcon, GlobeIcon, SquareTerminalIcon, XIcon } from 'lucide-react';
+  ProgressBar, Radio, RadioGroup, Tag, Text, makeStyles, mergeClasses, tokens } from '@fluentui/react-components';
+import { BookOpenRegular, BranchRegular, DismissRegular, GlobeRegular, WindowConsoleRegular } from '@fluentui/react-icons';
 import { agentMark } from './AgentMark';
 import { act, shownTask, store, useWindow } from '../lib/store';
 import { useCovered } from '../lib/cover';
@@ -16,6 +16,8 @@ import { plural } from '../lib/common';
 import { avatarSrc } from './avatar';
 import { refused } from '../../shared/result';
 import type { Terminal } from '../../shared/types';
+import { useCommonStyles } from './theme';
+import { ErrorBar } from './ErrorBar';
 
 // No part read for this long: an agent that thinks before it reads, or never does.
 const IDLE = 30_000;
@@ -69,19 +71,32 @@ store.subscribe((s) => {
   if (t?.state === 'waiting' || (!t && seen && s.current === inTask)) show();
 });
 
+const useStyles = makeStyles({
+  side: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: tokens.spacingVerticalXXS, minWidth: 0, textAlign: 'center' },
+  mark: { fontSize: '40px', height: '40px', marginBottom: tokens.spacingVerticalSNudge, display: 'flex' },
+  line: { maxWidth: '100%' },
+  surface: { maxWidth: '640px' },
+  sides: { display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', marginBottom: tokens.spacingVerticalL },
+  along: { display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalXS, alignItems: 'center' },
+  agent: { display: 'flex', alignItems: 'center', gap: tokens.spacingHorizontalS },
+  label: { display: 'inline-flex', alignItems: 'center', gap: tokens.spacingHorizontalSNudge },
+  afresh: { marginInlineStart: 'auto' },
+  below: { marginTop: tokens.spacingVerticalM },
+});
+
 // One of the two agents: its mark, its name and account, the conversation.
 function Side({ cli, name, conv }: { cli?: string; name?: string; conv: string }) {
-  const p = parts(name ?? '');
-  return <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, minWidth: 0, textAlign: 'center' }}>
-    <span style={{ fontSize: 40, height: 40, marginBottom: 6, display: 'flex' }}>{cli && createElement(agentMark(cli))}</span>
+  const p = parts(name ?? ''), styles = useStyles(), common = useCommonStyles();
+  return <div className={styles.side}>
+    <span className={styles.mark}>{cli && createElement(agentMark(cli))}</span>
     <Text weight="semibold">{p.agent}</Text>
-    <Text size={200} truncate wrap={false} style={{ maxWidth: '100%', color: tokens.colorNeutralForeground3 }}>{p.account}</Text>
-    <Text size={200} truncate wrap={false} style={{ maxWidth: '100%', color: tokens.colorNeutralForeground3 }}>{conv}</Text>
+    <Text size={200} truncate wrap={false} className={mergeClasses(styles.line, common.muted)}>{p.account}</Text>
+    <Text size={200} truncate wrap={false} className={mergeClasses(styles.line, common.muted)}>{conv}</Text>
   </div>;
 }
 
 export function HandOver() {
-  const { open, setOpen } = useCovered('hide');
+  const { open, setOpen } = useCovered('hide'), styles = useStyles(), common = useCommonStyles();
   const { from, chosen, going, error, read } = useStore(state);
   const agents = useWindow(useShallow((s) => agentsOf(s))), profiles = useWindow((s) => s.profiles);
   const branch = useWindow((s) => shownTask(s)?.branch), shells = useWindow((s) => s.terminals.list).filter((t) => !t.agent);
@@ -102,36 +117,35 @@ export function HandOver() {
   const onClose = () => { if (state.getState().going) show(); else setOpen(false); };
   const along = (icon: ReactElement, text: string, title?: string) => <ListItem><Tag size="small" appearance="outline" media={icon} title={title}>{text}</Tag></ListItem>;
   return <Dialog open={open} onOpenChange={(_, d) => { if (!d.open) onClose(); }}>
-    <DialogSurface aria-label="Change Agent" style={{ maxWidth: 640 }}>
+    <DialogSurface aria-label="Change Agent" className={styles.surface}>
       <DialogBody>
-        <DialogTitle action={<Button appearance="subtle" aria-label="Close" icon={<XIcon />} onClick={onClose} />}>Change Agent</DialogTitle>
+        <DialogTitle action={<Button appearance="subtle" aria-label="Close" icon={<DismissRegular />} onClick={onClose} />}>Change Agent</DialogTitle>
         <DialogContent>
-          {from?.agent && <Card appearance="filled-alternative" style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center',
-            marginBottom: tokens.spacingVerticalL }}>
+          {from?.agent && <Card appearance="filled-alternative" className={styles.sides}>
             <Side cli={from.agent.cli} name={from.agent.name} conv={`“${from.name}”`} />
-            <List aria-label="Goes along" style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'center' }}>
-              {branch && along(<GitBranchIcon />, branch, `branch ${branch}`)}
+            <List aria-label="Goes along" className={styles.along}>
+              {branch && along(<BranchRegular />, branch, `branch ${branch}`)}
               {profiles.length > 0 && along(<AvatarGroup size={16} layout="stack">{profiles.map((p) => <AvatarGroupItem key={p.id} name={p.name} image={{ src: avatarSrc(p.avatar) }} />)}</AvatarGroup>,
                 `${plural(profiles.length, 'profile')}, signed in`)}
-              {tabs > 0 && along(<GlobeIcon />, plural(tabs, 'tab'))}
-              {shells.length > 0 && along(<SquareTerminalIcon />, `${shells.length === 1 ? shells[0]!.name : plural(shells.length, 'terminal')}, running`)}
-              {along(<BookOpenTextIcon />, 'the whole conversation')}
+              {tabs > 0 && along(<GlobeRegular />, plural(tabs, 'tab'))}
+              {shells.length > 0 && along(<WindowConsoleRegular />, `${shells.length === 1 ? shells[0]!.name : plural(shells.length, 'terminal')}, running`)}
+              {along(<BookOpenRegular />, 'the whole conversation')}
             </List>
             <Side cli={to?.cli} name={to?.name} conv="a new tab" />
           </Card>}
           <Field hint={going ? undefined : `It reads this conversation first, then tells you in a few lines what is done and what is next. Its own hidden
             reasoning, permissions given and its account's settings stay behind. This tab stays until you close it.`}>
             <RadioGroup aria-label="Agent" value={chosen ?? ''} disabled={going} onChange={(_, d) => state.setState({ chosen: d.value })}>
-              {agents.map((a) => { const Mark = agentMark(a.cli); return <div key={a.id} data-agent={a.id} style={{ display: 'flex', alignItems: 'center', gap: tokens.spacingHorizontalS }}>
-                <Radio value={a.id} label={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Mark />{a.name}</span>} />
-                {a.id === from?.agent?.account && <Text size={200} style={{ marginInlineStart: 'auto', color: tokens.colorNeutralForeground3 }}>this one, afresh</Text>}
+              {agents.map((a) => { const Mark = agentMark(a.cli); return <div key={a.id} data-agent={a.id} className={styles.agent}>
+                <Radio value={a.id} label={<span className={styles.label}><Mark />{a.name}</span>} />
+                {a.id === from?.agent?.account && <Text size={200} className={mergeClasses(styles.afresh, common.muted)}>this one, afresh</Text>}
               </div>; })}
             </RadioGroup>
           </Field>
-          {going && <Field validationMessage={{ children: progress, role: 'status' }} validationState="none" style={{ marginTop: tokens.spacingVerticalM }}>
+          {going && <Field validationMessage={{ children: progress, role: 'status' }} validationState="none" className={styles.below}>
             <ProgressBar value={read ? read.part / read.parts : undefined} />
           </Field>}
-          {error && <MessageBar intent="error" style={{ marginTop: tokens.spacingVerticalM }}><MessageBarBody style={{ userSelect: 'text' }}>{error}</MessageBarBody></MessageBar>}
+          {error && <ErrorBar className={styles.below}>{error}</ErrorBar>}
         </DialogContent>
         <DialogActions>
           {going ? <Button appearance="primary" onClick={show}>Show now</Button> : <>

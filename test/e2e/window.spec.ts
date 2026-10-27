@@ -394,15 +394,17 @@ test('KULISA_QUIT: a second start asks the Kulisa running on the same data to qu
   await focusWindow(core, ui); // the other Kulisa's window took it (macOS: the front app's), as a click would give it back
 });
 
-test("icons: Lucide's, in lines of the text's color; icon buttons have a name", async ({ core, ui }) => {
+test("icons: Fluent's, filled in the text's color, one look across the bars; icon buttons have a name", async ({ core, ui }) => {
   await sam(core);
-  // Every button of the page checked at once: a sweep no locator makes.
+  // Every button and icon of the page checked at once: a sweep no locator makes.
   const r = await ui.evaluate(() => {
     const icon = document.querySelector('#windowMenu svg'), button = icon.closest('button');
+    const icons = [...document.querySelectorAll('svg[data-fui-icon]')].filter((s) => s.getClientRects().length);
     return { unnamed: [...document.querySelectorAll('button, [role="button"]')].filter((b) => !b.textContent.trim() && !b.getAttribute('aria-label') && !b.getAttribute('aria-labelledby') && !(b as HTMLElement).title).map((b) => b.outerHTML.slice(0, 80)),
-      lines: [getComputedStyle(icon).fill, getComputedStyle(icon).stroke === getComputedStyle(button).color] };
+      menu: getComputedStyle(icon).fill === getComputedStyle(button).color, some: icons.length > 5,
+      apart: icons.filter((s) => { const c = getComputedStyle(s); return c.fill !== c.color || c.stroke !== 'none'; }).map((s) => s.outerHTML.slice(0, 80)) };
   });
-  expect(r).toEqual({ unnamed: [], lines: ['none', true] });
+  expect(r).toEqual({ unnamed: [], menu: true, some: true, apart: [] });
 });
 
 test("the app icon: in the top bar (not on macOS: the Dock's), and every file the window and the installers use", async ({ ui }) => {

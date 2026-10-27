@@ -13,6 +13,16 @@ const PAUSES = [
   { selector: "NewExpression[callee.name='Promise'] > :function CallExpression[callee.name='setTimeout'][arguments.0.type='Identifier']", message: PAUSE },
 ];
 
+const WINDOW = ['src/renderer/**/*.tsx', 'src/renderer/**/*.ts', 'src/*/renderer/**/*.tsx'];
+const NO_LUCIDE = { paths: [{ name: 'lucide-react', message: "Fluent's icons, @fluentui/react-icons (docs/ui.md)." }] };
+const STYLE = "JSXAttribute[name.name='style'] > JSXExpressionContainer > ObjectExpression > Property";
+const FLUENT = [
+  { selector: 'JSXOpeningElement[name.name=/^(button|input|select|textarea)$/]', message: "Fluent's Button, Input, Select or Textarea (docs/ui.md)." },
+  { selector: 'Literal[value=/var\\(--color/], TemplateElement[value.raw=/var\\(--color/]', message: "`tokens.*`, typed, not a 'var(--color…)' string (docs/ui.md)." },
+  { selector: `${STYLE}[value.type='Literal'], ${STYLE}[value.object.name='tokens']`, message: "A constant style is makeStyles'; `style` holds only what run time knows (docs/ui.md)." },
+];
+const HEX = { selector: 'Literal[value=/^#[0-9a-fA-F]{3,8}$/]', message: 'A color is a Fluent token, `tokens.*` (docs/ui.md).' };
+
 // An e2e test finds Kulisa's elements by role and name, label, text or data-testid, and reads a state by its attribute
 // (aria-*, data-*): never by a class of Kulisa's CSS, which changes with the look (docs/testing.md, Writing an e2e
 // test). dockview's (dv-*) and xterm's classes are theirs. A class in a selector: after its start, a space, a
@@ -67,6 +77,13 @@ export default tseslint.config(
   { files: ['src/renderer/**', 'src/*/renderer/**'], plugins: { 'react-hooks': reactHooks },
     rules: Object.fromEntries(['rules-of-hooks', 'exhaustive-deps', 'refs', 'purity', 'immutability', 'globals', 'static-components',
       'set-state-in-render', 'set-state-in-effect'].map((r) => [`react-hooks/${r}`, 'error'])) },
+  // The window is Fluent's as it ships (docs/ui.md): its controls, its icons, its tokens, its makeStyles. What only
+  // run time knows (a width, the project's color) may stay in `style`; a constant there is makeStyles'. theme.ts sets
+  // the theme's own colors; the logos (Kulisa's, the agents' makers') are drawn in their own.
+  { files: WINDOW, ignores: ['src/renderer/components/theme.ts'],
+    rules: { 'no-restricted-imports': ['error', NO_LUCIDE], 'no-restricted-syntax': ['error', EXPORT_ALL, ...FLUENT, HEX] } },
+  { files: ['src/renderer/components/AgentMark.tsx', 'src/renderer/components/ProjectIcon.tsx'],
+    rules: { 'no-restricted-syntax': ['error', EXPORT_ALL, ...FLUENT] } },
   // An e2e test waits for a proof, never for a time: a pause long enough here is too short on a loaded machine, and
   // proves nothing when it is long enough (docs/testing.md, Writing an e2e test). A wait with an end is upTo (helpers.ts).
   { files: ['test/e2e/**'], plugins: { kulisa: { rules: { 'no-kulisa-classes': noKulisaClasses } } },

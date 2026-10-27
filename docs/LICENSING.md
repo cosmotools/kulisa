@@ -35,7 +35,7 @@ The agents' marks in `AgentMark.tsx` (Claude's, Anthropic's; Codex's, OpenAI's) 
 licensed under the GPL: they name the agent a row is of, as an IDE shows them, and nothing else.
 
 Its dependencies keep their own licenses, all of which allow being part of a GPL-3.0 program: npm packages (MIT, ISC,
-BSD, Apache-2.0; Lucide's icons, `lucide-react`, ISC), the profiles' pictures from Google's Noto Emoji in
+BSD, Apache-2.0; Fluent UI and its icons, `@fluentui/react-icons`, Microsoft's, MIT), the profiles' pictures from Google's Noto Emoji in
 `src/renderer/public/avatars/` with their license (Apache-2.0), the fonts Inter and JetBrains Mono (SIL Open Font
 License) and Chromium's licenses (in Electron; packaged builds carry `LICENSE` and `LICENSES.chromium.html`).
 

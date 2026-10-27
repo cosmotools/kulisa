@@ -1,18 +1,25 @@
 // A profile's page in Settings (docs/profiles.md): who it is, each field saved on Enter or leaving it; Sign In… opens its
 // master's window. Its picture: a panel of them beside it.
 import { useState, type KeyboardEvent } from 'react';
-import { Avatar, Button, Field, Input, MenuButton, Popover, PopoverSurface, PopoverTrigger, Text, Textarea, ToggleButton } from '@fluentui/react-components';
-import { ChevronDownIcon } from 'lucide-react';
+import { Avatar, Button, Field, Input, MenuButton, Popover, PopoverSurface, PopoverTrigger, Text, Textarea, ToggleButton,
+  makeStyles, tokens } from '@fluentui/react-components';
 import { avatarSrc } from './avatar';
 import { AVATARS } from '../../shared/avatars';
 import { refused, type Result } from '../../shared/result';
 import type { SettingsProfile } from '../../shared/types';
+import { useCommonStyles } from './theme';
 
 type Fields = 'picture' | 'name' | 'about' | 'login' | 'password' | 'signins';
 
+const useStyles = makeStyles({
+  page: { display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalL, maxWidth: '560px' },
+  fit: { width: 'fit-content' },
+  pictures: { display: 'grid', gridTemplateColumns: 'repeat(8, auto)', gap: tokens.spacingHorizontalXS, maxWidth: '340px' },
+});
+
 export function ProfilePage({ profile: p, onChanged }: { profile: SettingsProfile; onChanged: (r: { profiles: SettingsProfile[]; id?: string }) => void }) {
   const [name, setName] = useState(p.name), [about, setAbout] = useState(p.description), [login, setLogin] = useState(p.login);
-  const [password, setPassword] = useState(''), [picking, setPicking] = useState(false);
+  const [password, setPassword] = useState(''), [picking, setPicking] = useState(false), styles = useStyles(), common = useCommonStyles();
   // The main process's refusal, at the field that was changed (docs/ui.md, Dialogs).
   const [error, setError] = useState<{ field: Fields; text: string } | null>(null);
   async function change(field: Fields, answer: Promise<Result<{ profiles: SettingsProfile[]; id: string }>>) {
@@ -21,8 +28,7 @@ export function ProfilePage({ profile: p, onChanged }: { profile: SettingsProfil
     if (!refused(r)) onChanged(r);
     return !refused(r);
   }
-  // Selectable: text to copy and search for.
-  const at = (field: Fields) => (error?.field === field ? { children: error.text, style: { userSelect: 'text' } } as const : undefined);
+  const at = (field: Fields) => (error?.field === field ? { children: error.text, className: common.selectable } : undefined);
   const rename = () => { if (name.trim() !== p.name) void change('name', kulisa.invoke('profiles:rename', { profile: p.id, name })); };
   const describe = () => { if (about.trim() !== p.description) void change('about', kulisa.invoke('profiles:describe', { profile: p.id, description: about })); };
   const saveLogin = () => { if (login.trim() !== p.login) void change('login', kulisa.invoke('profiles:login', { profile: p.id, user: login })); };
@@ -33,13 +39,13 @@ export function ProfilePage({ profile: p, onChanged }: { profile: SettingsProfil
   };
   const enter = (go: () => void) => (e: KeyboardEvent) => { if (e.key === 'Enter') go(); };
 
-  return <div style={{ display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 560 }}>
+  return <div className={styles.page}>
     <Field label="Picture" validationMessage={at('picture')}>
       <Popover open={picking} onOpenChange={(_, d) => setPicking(d.open)} positioning="below-start" trapFocus>
         <PopoverTrigger disableButtonEnhancement>
-          <MenuButton style={{ width: 'fit-content' }} menuIcon={<ChevronDownIcon />} aria-label="Picture"><Avatar size={20} image={{ src: avatarSrc(p.avatar) }} /></MenuButton>
+          <MenuButton className={styles.fit} aria-label="Picture"><Avatar size={20} image={{ src: avatarSrc(p.avatar) }} /></MenuButton>
         </PopoverTrigger>
-        <PopoverSurface aria-label="Pictures" style={{ display: 'grid', gridTemplateColumns: 'repeat(8, auto)', gap: 4, maxWidth: 340 }}>
+        <PopoverSurface aria-label="Pictures" className={styles.pictures}>
           {AVATARS.map((a) => <ToggleButton key={a} appearance="subtle" size="small" checked={a === p.avatar} title={a} aria-label={a}
             icon={<Avatar size={20} image={{ src: avatarSrc(a) }} />}
             onClick={async () => { setPicking(false); await change('picture', kulisa.invoke('profiles:avatar', { profile: p.id, avatar: a })); }} />)}
@@ -57,7 +63,7 @@ export function ProfilePage({ profile: p, onChanged }: { profile: SettingsProfil
         placeholder={p.hasPassword ? 'Kept (type to change it)' : 'Test password'} onChange={(_, d) => setPassword(d.value)} onBlur={savePassword} onKeyDown={enter(() => void savePassword())} />
     </Field>
     <Field label="Sign-ins" validationMessage={at('signins')} hint="In a window of its own, once for every task of its projects.">
-      <Button style={{ width: 'fit-content' }} onClick={() => void signIn()}>Sign In…</Button>
+      <Button className={styles.fit} onClick={() => void signIn()}>Sign In…</Button>
     </Field>
     <Field label="Projects"><Text>{p.projects.join(', ') || 'none: add it on a project\'s page'}</Text></Field>
   </div>;

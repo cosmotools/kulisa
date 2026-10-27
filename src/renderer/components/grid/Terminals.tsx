@@ -4,19 +4,19 @@
 // is as tall as the grid), and unfolds to the size it had when one opens. With no profile open it is the grid's room for
 // them: the +'s rows are big buttons in its middle instead, the closed profiles' under them.
 import { useCallback, useContext, useEffect, useRef, useSyncExternalStore } from 'react';
-import { Avatar, Button, CompoundButton, Spinner, Tab, TabList, Text, tokens } from '@fluentui/react-components';
-import { CheckIcon, PlusIcon, XIcon } from 'lucide-react';
+import { Avatar, Button, CompoundButton, Spinner, Tab, TabList, Text, makeStyles, mergeClasses, tokens } from '@fluentui/react-components';
+import { AddRegular, CheckmarkRegular, DismissRegular } from '@fluentui/react-icons';
 import type { IDockviewPanelHeaderProps, IDockviewPanelProps } from 'dockview-react';
 import { ButtonMenu, RightClickMenu } from '../Menus';
 import { agentMark } from '../AgentMark';
 import { AgentState, STATES } from '../AgentState';
-import { ThemeShown, termStyle } from '../theme';
+import { ThemeShown, termStyle, useCommonStyles } from '../theme';
 import { act, store, useWindow } from '../../lib/store';
 import { profileLaunchers } from '../../lib/profiles';
 import { panelView, launchers, newTerminalItems, shownTerm, tabItems, terminalMenu } from '../../lib/terminals';
 import { dialog } from '../../lib/dialogs';
 import { avatarSrc, useShortcuts, withKeys } from '../../lib/common';
-import { useStrip } from '../../lib/strip';
+import { Grow, useStrip } from '../../lib/strip';
 import { dialogsShown } from '../../lib/cover';
 import { termFocus } from '../../../terminal/renderer';
 import { Dictation, Pill } from '../../../dictation/renderer';
@@ -26,6 +26,31 @@ import type { Terminal } from '../../../shared/types';
 const NEW_TITLE = 'New conversation of an agent, or a terminal';
 // The header's height (Grid.tsx): the folded panel is one button of it.
 const STRIP = 36;
+
+const useStyles = makeStyles({
+  panel: { height: '100%', position: 'relative', display: 'grid', gridTemplateRows: 'minmax(0, 1fr)', gridTemplateColumns: 'minmax(0, 1fr)',
+    background: tokens.colorNeutralBackground1 },
+  unfold: { display: 'grid', placeItems: 'center' },
+  host: { height: '100%', padding: `${tokens.spacingVerticalXXS} ${tokens.spacingHorizontalXS} ${tokens.spacingVerticalXXS} ${tokens.spacingHorizontalS}`, boxSizing: 'border-box' },
+  starting: { position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: tokens.colorNeutralBackground1 },
+  launchers: { alignSelf: 'center', justifySelf: 'center', display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalL,
+    padding: tokens.spacingHorizontalM, maxWidth: '100%', boxSizing: 'border-box' },
+  row: { display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: tokens.spacingHorizontalL },
+  // A tile, not a row: the compound button's icon over its name and line, centred.
+  tile: { flexDirection: 'column', justifyContent: 'center', width: '140px', height: '116px', gap: tokens.spacingVerticalXS, padding: `${tokens.spacingVerticalM} ${tokens.spacingHorizontalM}` },
+  tileIcon: { marginRight: 0 },
+  tileContent: { alignItems: 'center', maxWidth: '100%', minWidth: 0 },
+  tileLine: { maxWidth: '100%' },
+  // hidden: no terminal (the attribute, over the display)
+  header: { display: 'flex', alignItems: 'center', gap: tokens.spacingHorizontalXS, height: '100%', minWidth: 0, padding: `0 ${tokens.spacingHorizontalXS}`, '&[hidden]': { display: 'none' } },
+  tabsArea: { display: 'flex', flex: '0 1 auto', minWidth: 0 },
+  tabs: { display: 'flex', minWidth: 0 },
+  strip: { flexShrink: 1 },
+  tab: { flex: 'none', maxWidth: '220px' },
+  label: { display: 'inline-flex', alignItems: 'center', gap: tokens.spacingHorizontalSNudge },
+  close: { minWidth: 0 },
+  spacer: { flex: 1 },
+});
 
 // Folding: the group held at one button's size along the grid's axis it lies across (dockview's constraints), its
 // header gone; its size before (before), given back when it unfolds.
@@ -50,7 +75,7 @@ function fold(api: IDockviewPanelProps['api'], grid: IDockviewPanelProps['contai
 }
 
 export function Terminals({ api, containerApi }: IDockviewPanelProps) {
-  const host = useRef<HTMLDivElement>(null), launch = useRef<HTMLDivElement>(null), theme = useContext(ThemeShown);
+  const host = useRef<HTMLDivElement>(null), launch = useRef<HTMLDivElement>(null), theme = useContext(ThemeShown), styles = useStyles();
   const task = useWindow((s) => s.current), front = useWindow((s) => s.terminals.front);
   const folded = useWindow((s) => !s.terminals.list.length);
   // No profile's pane in the grid: as dockview has them, so it folds against the grid as it is laid out.
@@ -104,19 +129,17 @@ export function Terminals({ api, containerApi }: IDockviewPanelProps) {
     return t && task && (e.target as Element).closest('[data-testid="terminal"]') ? terminalMenu(`${task}#${t.id}`, tabItems(t)) : null;
   };
 
-  return <div data-testid="terminals" data-folded={folded || undefined}
-    style={{ height: '100%', position: 'relative', display: 'grid', gridTemplateRows: 'minmax(0, 1fr)', gridTemplateColumns: 'minmax(0, 1fr)', background: tokens.colorNeutralBackground1 }}>
+  return <div data-testid="terminals" data-folded={folded || undefined} className={styles.panel}>
     {big ? <Launchers ref={launch} />
-      : folded ? <div style={{ display: 'grid', placeItems: 'center' }}>
-        <ButtonMenu items={newTerminalItems}><Button data-unfold appearance="subtle" size="small" icon={<PlusIcon />}
+      : folded ? <div className={styles.unfold}>
+        <ButtonMenu items={newTerminalItems}><Button data-unfold appearance="subtle" size="small" icon={<AddRegular />}
           aria-label="New terminal" title={withKeys(NEW_TITLE, 'terminal.new')} /></ButtonMenu>
       </div> : null}
     <RightClickMenu items={menu}>
-      <div ref={host} data-testid="terminal" data-zone="terminal" hidden={folded} style={{ height: '100%', padding: '2px 4px 2px 8px', boxSizing: 'border-box' }} />
+      <div ref={host} data-testid="terminal" data-zone="terminal" hidden={folded} className={styles.host} />
     </RightClickMenu>
-    {!folded && <Pill task={task}><CheckIcon /></Pill>}
-    {starting && <div role="status" style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-      background: tokens.colorNeutralBackground1 }}>
+    {!folded && <Pill task={task}><CheckmarkRegular /></Pill>}
+    {starting && <div role="status" className={styles.starting}>
       <Spinner size="extra-tiny" label={`Starting ${starting}…`} labelPosition="after" /></div>}
   </div>;
 }
@@ -126,23 +149,20 @@ export function Terminals({ api, containerApi }: IDockviewPanelProps) {
 function Launchers({ ref }: { ref: React.Ref<HTMLDivElement> }) {
   const closed = useWindow((s) => s.closedProfiles);
   useWindow((s) => s.projects); // the project's agents
-  // A tile, not a row: the compound button's icon over its name and line, centred.
-  const big = { flexDirection: 'column', justifyContent: 'center', width: 140, height: 116, gap: 4, padding: 12 } as const;
-  const tile = { icon: { style: { marginRight: 0 } }, contentContainer: { style: { alignItems: 'center', maxWidth: '100%', minWidth: 0 } } } as const;
-  const row = { display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: tokens.spacingHorizontalL } as const;
-  return <div ref={ref} data-testid="launchers" style={{ alignSelf: 'center', justifySelf: 'center', display: 'flex', flexDirection: 'column',
-    gap: tokens.spacingVerticalL, padding: tokens.spacingHorizontalM, maxWidth: '100%', boxSizing: 'border-box' }}>
-    <nav aria-label="New terminal" style={row}>
-      {launchers().map((l) => <CompoundButton key={l.id} data-launcher appearance="secondary" style={big} aria-label={l.name} title={l.title}
-        icon={{ ...tile.icon, children: <l.icon /> }} contentContainer={tile.contentContainer} onClick={() => void l.run()}
-        secondaryContent={l.sub ? { style: { maxWidth: '100%' }, children: <Text truncate wrap={false} block size={200}>{l.sub}</Text> } : undefined}>
+  const styles = useStyles();
+  const contentContainer = { className: styles.tileContent };
+  return <div ref={ref} data-testid="launchers" className={styles.launchers}>
+    <nav aria-label="New terminal" className={styles.row}>
+      {launchers().map((l) => <CompoundButton key={l.id} data-launcher appearance="secondary" className={styles.tile} aria-label={l.name} title={l.title}
+        icon={{ className: styles.tileIcon, children: <l.icon /> }} contentContainer={contentContainer} onClick={() => void l.run()}
+        secondaryContent={l.sub ? { className: styles.tileLine, children: <Text truncate wrap={false} block size={200}>{l.sub}</Text> } : undefined}>
         <Text truncate wrap={false} block weight="semibold">{l.name}</Text>
       </CompoundButton>)}
     </nav>
-    <nav aria-label="Open a profile" style={row}>
-      {profileLaunchers(closed).map((p) => <CompoundButton key={p.id} data-launcher data-profile={p.id} appearance="secondary" style={big} aria-label={p.name}
-        title={p.title} icon={{ ...tile.icon, children: p.avatar ? <Avatar size={40} image={{ src: avatarSrc(p.avatar) }} aria-hidden /> : <PlusIcon /> }}
-        contentContainer={tile.contentContainer} onClick={() => void p.run()}><Text truncate wrap={false} block weight="semibold">{p.name}</Text></CompoundButton>)}
+    <nav aria-label="Open a profile" className={styles.row}>
+      {profileLaunchers(closed).map((p) => <CompoundButton key={p.id} data-launcher data-profile={p.id} appearance="secondary" className={styles.tile} aria-label={p.name}
+        title={p.title} icon={{ className: styles.tileIcon, children: p.avatar ? <Avatar size={40} image={{ src: avatarSrc(p.avatar) }} aria-hidden /> : <AddRegular /> }}
+        contentContainer={contentContainer} onClick={() => void p.run()}><Text truncate wrap={false} block weight="semibold">{p.name}</Text></CompoundButton>)}
     </nav>
   </div>;
 }
@@ -159,46 +179,43 @@ export function TerminalsHeader({ api }: IDockviewPanelHeaderProps) {
   const list = useWindow((s) => s.terminals.list), front = useWindow((s) => s.terminals.front);
   const task = useWindow((s) => s.current), lang = useWindow((s) => s.language?.language);
   const hold = useShortcuts().find((s) => s.id === 'voice.hold')?.keys[0] || '';
-  const row = useRef<HTMLDivElement>(null), strip = useRef<HTMLDivElement>(null);
+  const strip = useRef<HTMLDivElement>(null), styles = useStyles(), common = useCommonStyles();
   const stripClass = useStrip(strip, front);
-  // dockview's tab grows to its content: the row would run past the panel, its + and microphone with it.
-  useEffect(() => { const tab = row.current?.closest<HTMLElement>('.dv-tab'); if (tab) Object.assign(tab.style, { minWidth: '0', flexShrink: '1' }); }, []);
   const tabMenu = (e: MouseEvent) => {
     const id = (e.target as Element).closest<HTMLElement>('[data-id]')?.dataset.id, t = list.find((x) => String(x.id) === id);
     return t ? tabItems(t) : null;
   };
   const noDrag = (e: React.DragEvent) => e.preventDefault();
-  return <div ref={row} data-panel={api.id} data-testid="terminal-tabs" hidden={!list.length}
-    style={{ display: list.length ? 'flex' : undefined, alignItems: 'center', gap: 4, height: '100%', minWidth: 0, padding: '0 4px' }}>
-    <RightClickMenu items={tabMenu} style={{ display: 'flex', flex: '0 1 auto', minWidth: 0 }}>
-      <nav aria-label="Terminals" style={{ display: 'flex', minWidth: 0 }} onDragStart={noDrag}>
-        <TabList ref={strip} className={stripClass} style={{ flexShrink: 1 }} appearance="subtle-circular" size="small" reserveSelectedTabSpace={false} selectedValue={front === null ? undefined : String(front)}
+  return <div data-panel={api.id} data-testid="terminal-tabs" hidden={!list.length} className={styles.header}>
+    <RightClickMenu items={tabMenu} className={styles.tabsArea}>
+      <nav aria-label="Terminals" className={styles.tabs} onDragStart={noDrag}>
+        <TabList ref={strip} className={mergeClasses(stripClass, styles.strip)} appearance="subtle-circular" size="small" reserveSelectedTabSpace={false} selectedValue={front === null ? undefined : String(front)}
           onTabSelect={(_, d) => void act('terminal:show', { id: Number(d.value) })}>
           {list.map((t) => {
             const Mark = agentMark(t.agent?.cli ?? 'shell');
-            return <Tab key={t.id} value={String(t.id)} data-id={t.id} data-grow aria-label={t.name} title={tabTitle(t)} style={{ flex: 'none', maxWidth: 220 }}
+            return <Grow key={t.id}><Tab value={String(t.id)} data-id={t.id} aria-label={t.name} title={tabTitle(t)} className={styles.tab}
               icon={t.agent
                 ? <Button as="a" appearance="transparent" size="small" icon={<Mark />} tabIndex={-1} aria-label={`${t.agent.name}: change agent…`}
                   title="Change agent: hand the task to another agent, or this one afresh; it goes on with this conversation"
                   onMouseDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); handOver(t); }} />
-                : <Mark style={{ color: tokens.colorNeutralForeground3 }} />}>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                : <Mark className={common.muted} />}>
+              <span className={styles.label}>
                 {/* Text sets a weight of its own: the chosen tab's, as Fluent's Tab sets its label's */}
                 <Text truncate wrap={false} weight={String(t.id) === String(front) ? 'semibold' : 'regular'}>{t.name}</Text>
                 <AgentState state={t.state} />
                 {/* Not a press on the tab: it is not chosen first. */}
-                <Button as="a" appearance="subtle" size="small" icon={<XIcon />} aria-label="Close" tabIndex={-1} style={{ minWidth: 0 }}
+                <Button as="a" appearance="subtle" size="small" icon={<DismissRegular />} aria-label="Close" tabIndex={-1} className={styles.close}
                   title={t.agent ? "Close: the agent stops (asked first); its conversation stays in the task's history" : 'Close: what runs there stops'}
                   onMouseDown={(e) => e.preventDefault()} onClick={(e) => { e.stopPropagation(); void act('terminal:close', { id: t.id }); }} />
               </span>
-            </Tab>;
+            </Tab></Grow>;
           })}
         </TabList>
       </nav>
     </RightClickMenu>
-    <ButtonMenu items={newTerminalItems}><Button appearance="subtle" size="small" icon={<PlusIcon />} aria-label="New terminal"
+    <ButtonMenu items={newTerminalItems}><Button appearance="subtle" size="small" icon={<AddRegular />} aria-label="New terminal"
       title={withKeys(NEW_TITLE, 'terminal.new')} onDragStart={noDrag} /></ButtonMenu>
-    <span style={{ flex: 1 }} />
+    <span className={styles.spacer} />
     <Dictation task={task} keyName={hold} language={lang ? language.of(lang) ?? '' : ''} onDone={() => shownTerm()?.focus()} />
   </div>;
 }

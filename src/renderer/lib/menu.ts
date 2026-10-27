@@ -5,7 +5,7 @@ import { createStore, useStore } from 'zustand';
 export interface MenuRow {
   label: string; sub?: string; keys?: string;
   title?: string; // its tooltip
-  icon?: ComponentType; // at the row's start (Lucide's, an agent's mark)
+  icon?: ComponentType; // at the row's start (Fluent's, an agent's mark)
   color?: string; // a project's dot
   avatar?: string; // a profile's picture
   project?: { favicon?: string; color: string }; // a project's icon, in its color shown (components/ProjectIcon.tsx; projectColor)

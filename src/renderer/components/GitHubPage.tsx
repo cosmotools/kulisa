@@ -2,18 +2,28 @@
 // Kulisa App (the device flow: Kulisa shows GitHub's code itself) or a fine-grained token, signed in again, deleted.
 // Read as it is shown, not as Settings opens: where Kulisa App is installed is asked of GitHub.
 import { useEffect, useRef, useState } from 'react';
-import { Badge, Button, Field, Input, Link, MessageBar, MessageBarActions, MessageBarBody, MessageBarTitle, Text } from '@fluentui/react-components';
-import { MinusIcon, PlusIcon } from 'lucide-react';
+import { Badge, Button, Field, Input, Link, makeStyles, MessageBar, MessageBarActions, MessageBarBody, MessageBarTitle, Text,
+  tokens } from '@fluentui/react-components';
+import { AddRegular, SubtractRegular } from '@fluentui/react-icons';
 import { ButtonMenu, RightClickMenu, type Item } from './Menus';
 import { List } from './List';
 import { Group, Tool } from './Group';
 import { refused } from '../../shared/result';
 import { NEW_TOKEN, type GitHubAccount, type GitHubInfo } from '../../github/ipc';
+import { useCommonStyles } from './theme';
+import { ErrorBar } from './ErrorBar';
+
+const useStyles = makeStyles({
+  page: { display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalL },
+  stack: { display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalS },
+  buttons: { display: 'flex', gap: tokens.spacingHorizontalS, justifyContent: 'end' },
+});
 
 const day = (ms: number) => new Date(ms).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
 const installed = (a: GitHubAccount) => (a.kind === 'pat' ? 'a token' : a.installed === null ? '—' : a.installed.join(', ') || 'nowhere yet');
 
 export function GitHubPage() {
+  const styles = useStyles(), common = useCommonStyles();
   const [info, setInfo] = useState<GitHubInfo | null>(null), [sel, setSel] = useState<string>(), [error, setError] = useState('');
   const [tokenError, setTokenError] = useState(''); // GitHub's refusal of the token pasted, at its field
   // Signing in with Kulisa App: the code GitHub gave, until it is entered (again: the account signed in again).
@@ -75,14 +85,14 @@ export function GitHubPage() {
   };
   if (!info) return null;
 
-  return <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+  return <div className={styles.page}>
     {!info.kept && <MessageBar intent="warning"><MessageBarBody>
       This computer has no keyring, so sign-ins are not kept: you sign in again after Kulisa restarts.</MessageBarBody></MessageBar>}
 
     <Group title="Accounts" hint="Your GitHub accounts, for your agents' work on GitHub. Each repository of a project goes as one of them (its row on the project's page)." tools={<>
       {/* never disabled: a new way replaces the one under way */}
-      <ButtonMenu items={addMenu}><Tool label="Add an account" icon={<PlusIcon />} /></ButtonMenu>
-      <Tool label="Delete the account (asks first)" icon={<MinusIcon />} disabled={!sel} onClick={() => void remove()} />
+      <ButtonMenu items={addMenu}><Tool label="Add an account" icon={<AddRegular />} /></ButtonMenu>
+      <Tool label="Delete the account (asks first)" icon={<SubtractRegular />} disabled={!sel} onClick={() => void remove()} />
     </>}>
       {info.accounts.length ? <RightClickMenu items={rowMenu}>
         <List label="GitHub accounts" attr="github" rows={info.accounts} id={(a) => a.id} rowLabel={(a) => a.login} selected={sel} onSelect={setSel}
@@ -97,11 +107,11 @@ export function GitHubPage() {
 
       {/* named by its title (MessageBar's aria-labelledby) */}
       {signing && <MessageBar intent="info" layout="multiline">
-        <MessageBarBody style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <MessageBarBody className={styles.stack}>
           <MessageBarTitle>Sign in with GitHub</MessageBarTitle>
           <Text size={200}>Enter this code on GitHub's page, which opened in your browser (<Link href={signing.url} target="_blank">open it again</Link>):</Text>
           {/* GitHub's code in a monospace font: read and typed without a mistake (0 and O) */}
-          <Text font="monospace" size={500} weight="semibold" data-testid="code" style={{ userSelect: 'text' }}>{signing.code}</Text>
+          <Text font="monospace" size={500} weight="semibold" data-testid="code" className={common.selectable}>{signing.code}</Text>
           <Text size={200}>Enter a code on GitHub only when Kulisa has just shown it to you: a code someone else gives you signs them in as you.</Text>
         </MessageBarBody>
         <MessageBarActions>
@@ -110,21 +120,21 @@ export function GitHubPage() {
         </MessageBarActions>
       </MessageBar>}
 
-      {pasting && <div role="group" aria-label="Add a token" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <Field label="Token" validationMessage={tokenError || undefined} style={{ userSelect: 'text' }}
+      {pasting && <div role="group" aria-label="Add a token" className={styles.stack}>
+        <Field label="Token" validationMessage={tokenError || undefined} className={common.selectable}
           hint={<>A fine-grained token: <Link href={NEW_TOKEN} target="_blank">make one on GitHub</Link>, its resource owner the organization or user
             of your repositories (an organization may have to approve it), then paste it here.</>}>
           <Input ref={tokenField} type="password" value={token} placeholder="github_pat_…" spellCheck={false}
             onChange={(_, d) => { setToken(d.value); setTokenError(''); }}
             onKeyDown={(e) => { if (e.key === 'Enter') void addToken(); if (e.key === 'Escape') { e.stopPropagation(); setPasting(null); } }} />
         </Field>
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'end' }}>
+        <div className={styles.buttons}>
           <Button onClick={() => setPasting(null)}>Cancel</Button>
           <Button appearance="primary" onClick={() => void addToken()}>Add</Button>
         </div>
       </div>}
       {/* a refusal not at the token's field */}
-      {error && <MessageBar intent="error"><MessageBarBody style={{ userSelect: 'text' }}>{error}</MessageBarBody></MessageBar>}
+      {error && <ErrorBar>{error}</ErrorBar>}
     </Group>
   </div>;
 }
