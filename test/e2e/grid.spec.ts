@@ -93,13 +93,14 @@ test("grid: a narrow pane's bar gives up Back and Forward, then Reload, into ⋮
 });
 
 test('grid: a pane stacked behind another as a tab hides its page until chosen', async ({ core, ui, files }) => {
+  // Polled: dockview may still count the pane behind as visible in the drop's first layout; the next one hides it.
   await begin(core, ui, files, { columns: true });
   await drag(ui, files.panel(SAM), `[role="region"][data-profile="${files.idOf(ELON)}"]`, 'center');
   await expect.poll(() => viewOn(core, ui, files, SAM)).toBe(true);
-  expect(await core((k) => k.profile('Elon.buyer').get().view.getVisible())).toBe(false);
+  await expect.poll(() => core((k) => k.profile('Elon.buyer').get().view.getVisible())).toBe(false);
   await ui.locator(`[data-panel="${files.panel(ELON)}"]`).click();
   await expect.poll(() => viewOn(core, ui, files, ELON)).toBe(true);
-  expect(await core((k) => k.profile('Sam.admin').get().view.getVisible())).toBe(false);
+  await expect.poll(() => core((k) => k.profile('Sam.admin').get().view.getVisible())).toBe(false);
 });
 
 test('grid: while a pane is dragged, pages are pictures (drop targets are HTML), live again after the drop', async ({ core, ui, files }) => {
