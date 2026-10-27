@@ -69,6 +69,7 @@ export function Settings({ at, className }: { at: SettingsAt; className?: string
   const show = async (on: Section, id?: string) => {
     await save.current();
     if (on !== 'agents' || id !== agentAt) setSigning(null);
+    setFirst(null); // what it opened at is as it was then: a page shown later fetches its own
     setSection(on);
     if (on === 'projects') setEditing(id ?? null);
     if (on === 'agents') setAgentAt(id);
