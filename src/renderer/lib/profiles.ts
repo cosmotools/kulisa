@@ -3,7 +3,7 @@
 import { act, store } from './store';
 import { plural } from './common';
 import { showPane } from './grid';
-import { openSettings } from './dialogs';
+import { openSettings } from './settings';
 import type { MenuItem } from './menu';
 
 export const profilesMenu = (): MenuItem[] => { const { profiles, closedProfiles } = store.getState(); return [

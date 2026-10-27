@@ -96,13 +96,13 @@ reached. The words are the core's (`why`), so the window and the agent say the s
 
 ## The window
 
-**Settings → GitHub** (`components/GitHubPage.tsx`, a page of Settings' nav after Agents): a card of the accounts, a list
+**Settings → GitHub** (`components/settings/GitHubPage.tsx`, a page of Settings' nav after Agents): a card of the accounts, a list
 with a column each for its login, where Kulisa App is installed (`GET /user/installations`, asked as the page is
 shown), the projects using it and when its sign-in ends (a refresh token's, a token's own), or signed out. **+** adds
 one, With GitHub… or With a Token…, either replacing one under way; **−** and Delete delete the selected one, after the
 question; its right-click: Sign in Again…, Delete…. Leaving the page while its code is shown cancels the sign-in: a code
 no longer on screen is not to be entered. A repository's row on a project's page has its account (a Dropdown in
-`components/ProjectPage.tsx`) and, under the list, a line for each that needs the human. Both are Settings' window's: they
+`components/settings/ProjectPage.tsx`) and, under the list, a line for each that needs the human. Both are Settings': they
 use its parts (menus, lists, the question), which a package's window half may not.
 
 ## Its channels (`ipc.ts`)
@@ -127,6 +127,6 @@ repositories' accounts are the window's channels, about a project: `project:gith
 Outside it, each because it knows the rest: `src/main/remotes.ts` (a remote's key: the base, for #127's import too),
 `projects.ts` (`githubOf`, `setGitHub`, `githubUsers`, `deleteGitHub`: the bindings in `projects.json`), `app.ts`
 (making it: the keyring, `net.fetch`, `openExternal`), `ipc/projects.ts` (the project's channels),
-`components/GitHubPage.tsx`, `ProjectPage.tsx` (the rows), `Settings.tsx` (the nav's item), `Ask.tsx` (a question's
+`components/settings/GitHubPage.tsx`, `ProjectPage.tsx` (the rows), `Settings.tsx` (the nav's item), `Ask.tsx` (a question's
 link). Its e2e tests are in `test/e2e/github.spec.ts`, against the test site's fake GitHub
 (`test/fixtures/site.ts`, `/github`), a sign-in kept with the keyring after a restart too.

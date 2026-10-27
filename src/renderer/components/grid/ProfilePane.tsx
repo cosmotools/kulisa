@@ -10,13 +10,12 @@ import { Avatar, Badge, Button, Dialog, DialogActions, DialogBody, DialogContent
 import { AddRegular, ArrowClockwiseRegular, ArrowLeftRegular, ArrowRightRegular, CursorHoverFilled, CursorHoverRegular, DismissRegular, GlobeFilled,
   GlobeRegular, LockClosedRegular, MoreHorizontalRegular, MoreVerticalRegular, bundleIcon } from '@fluentui/react-icons';
 import { ButtonMenu, RightClickMenu } from '../Menus';
-import { avatarSrc } from '../avatar';
 import { act, screenshot, store, togglePick, useWindow } from '../../lib/store';
-import { keyText, withKeys } from '../../lib/common';
+import { avatarSrc, keyText, withKeys } from '../../lib/common';
 import type { MenuItem } from '../../lib/menu';
 import { panes, scheduleLayout } from '../../lib/grid';
 import { Grow, useStrip } from '../../lib/strip';
-import { openSettings } from '../../lib/dialogs';
+import { openSettings } from '../../lib/settings';
 import { deleteProfile } from '../../lib/profiles';
 
 const profileOf = (panel: string) => panel.slice('profile:'.length);

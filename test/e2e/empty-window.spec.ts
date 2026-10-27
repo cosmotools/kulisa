@@ -231,7 +231,7 @@ test("the empty window: Close All Tasks in the project's submenu; links in ☰ o
   // No favicon in its code: the next free color, the window's too.
   await expect(ui.locator(':root')).toHaveCSS('--project', color);
   expect(await core((k) => k.shell.task.folder), 'its first task works in it').toBe(shopDir);
-  expect(await core((k) => k.shell.settings)).toBe(null);
+  await expect(ui.locator('#settings')).toHaveCount(0);
   await notLoading(ui);
   await fromSidebar(ui, 'project', 'task-1'); // a closed task in the sidebar: opened again
   await expect.poll(() => core((k, f) => k.shell.current?.folder === f && k.shell.task?.name === 'task-1' && !!k.shell.task.loaded && !!k.shell.pty, files.project)).toBe(true);

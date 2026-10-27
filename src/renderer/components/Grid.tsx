@@ -13,7 +13,7 @@ import { gridMounted, gridUnmounted } from '../lib/grid';
 import { useWindow } from '../lib/store';
 import { profileLaunchers } from '../lib/profiles';
 import { useStrip } from '../lib/strip';
-import { avatarSrc } from './avatar';
+import { avatarSrc } from '../lib/common';
 
 const components = { profile: ProfilePane, terminal: Terminals, resources: Resources };
 const tabComponents = { profile: ProfileHeader, terminal: TerminalsHeader, resources: ResourcesHeader };

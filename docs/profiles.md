@@ -38,12 +38,12 @@ A profile is an Electron session on a folder of its own (`session.fromPath`), la
 
 ## What the human does
 
-- **Settings → Profiles** (the gear's Settings, its tree; Manage Profiles… in a task tab's right-click menu and About this profile… in the
-  pane's menu open it, the latter at that profile; `components/ProfilePage.tsx`): every
-  profile in Settings' tree, under Profiles, the chosen one's page on the right, each field saved on Enter or
+- **Settings → Profiles** (the gear's Settings; Manage Profiles… in a task tab's right-click menu and About this profile… in the
+  pane's menu open it, the latter at that profile; `components/settings/ProfilePage.tsx`): every
+  profile a row of Settings' Profiles page, its own page under it, each field saved on Enter or
   leaving it: **Picture**, **Name**, **About**, **Test login** and **Test password**, **Sign In…** (its master's
   window, below) and the projects it is in: the human's one place for who a profile is.
-- **Create** there: the + beside Profiles in the tree, its name typed in place under it, Enter: in no project yet, the next free picture, empty and signed
+- **Create** there: New Profile on Profiles' page, its name typed in place, Enter: in no project yet, the next free picture, empty and signed
   out; a project's page adds it (+ → Other Profiles). Or on a project's page (+ → New Profile…: in that project).
   Names of profiles, projects and tasks take letters (any language), digits and `@ . _ + -`, as an email
   address does, starting with a letter or a digit (not `@` alone, `.x`, `..`, `-x`), at most 64, so a profile can be
@@ -430,5 +430,5 @@ space (issue #113, a task manager).
 | `src/main/kulisa-plugin/artifacts.ts` | what the tools keep of the pages in the task's `artifacts/`: numbered files, the oldest gone past 100 MB; listed with their sizes for the Resources panel and `task_artifacts` |
 | `src/main/kulisa-plugin/ghost.ts`; `src/main/picker.ts` | the agent's actions shown in the page; point and tell |
 | `src/agent/skills/profiles/SKILL.md`, `src/agent/claude-plugin/` | the profiles skill, every agent's; Claude Code's plugin (`.mcp.json`: the task's MCP URL) |
-| `src/renderer/components/grid/ProfilePane.tsx` (the pane, `ProfileHeader`), `lib/profiles.ts`; `components/ProfilePage.tsx` | the panes and the profiles' menu (a task tab's right-click); a profile's page in Settings and its pictures |
+| `src/renderer/components/grid/ProfilePane.tsx` (the pane, `ProfileHeader`), `lib/profiles.ts`; `components/settings/ProfilePage.tsx` | the panes and the profiles' menu (a task tab's right-click); a profile's page in Settings and its pictures |
 | `test/e2e/agent-*.spec.ts`, `profiles.spec.ts`, `discard.spec.ts`, `zoom-and-closing.spec.ts`, `test/unit/store.test.ts`, `unit/discard.test.ts` | the tests |

@@ -655,11 +655,9 @@ test("About Kulisa (☰; on macOS the app menu's) is a page of Settings: the ver
     return s;
   };
   const s = await shown();
-  expect(await core((k) => k.shell.settings.win.getTitle()), "a page of Settings, as Chrome's About").toBe('Settings — Kulisa');
   await expect(s.getByRole('heading', { name: /^Kulisa / })).toHaveText(`Kulisa ${pkg.version}`);
   const versions = await core(() => ({ electron: process.versions.electron, chrome: process.versions.chrome }));
-  await expect(s.getByText(`Electron ${versions.electron} · Chromium ${versions.chrome}`, { exact: true })).toBeVisible();
-  await expect(s.getByText('kulisa.app · GPL-3.0-or-later', { exact: true })).toBeVisible();
+  await expect(s.getByText(`Electron ${versions.electron} · Chromium ${versions.chrome} · kulisa.app · GPL-3.0-or-later`, { exact: true })).toBeVisible();
   // Each folder: its path, and its button to show it, told so and off when it is not made yet.
   const projectsHome = path.join(files.root, 'KulisaProjects'), made = fs.existsSync(projectsHome);
   const folders = s.locator('[data-folder]');
@@ -667,6 +665,7 @@ test("About Kulisa (☰; on macOS the app menu's) is a page of Settings: the ver
   for (const [i, [id, dir, there]] of ([['data', files.userData, true], ['projects', projectsHome, made], ['program', CHECKOUT, true]] as const).entries()) {
     await expect(folders.nth(i)).toHaveAttribute('data-folder', id);
     await expect(folders.nth(i).getByRole('textbox')).toHaveValue(dir);
+    await expect(folders.nth(i).getByRole('textbox')).toBeEnabled({ enabled: there });
     const show = folders.nth(i).getByRole('button');
     await expect(show).toHaveAccessibleName(there ? 'Show in your file manager' : 'Not made yet');
     await expect(show).toBeEnabled({ enabled: there });
@@ -683,7 +682,7 @@ test("About Kulisa (☰; on macOS the app menu's) is a page of Settings: the ver
   } finally { await core((k) => { k.electron.shell.openPath = k.stash.openPath; }); }
   expect(await core((k) => k.stash.shownDirs)).toEqual([files.userData]);
   await closeSettings(core, ui, sui);
-  // The main process opens it too (macOS's menu, whichever OS): the same window at that page.
+  // The main process opens it too (macOS's menu, whichever OS): in the window, at that page.
   await core((k) => k.shell.openSettings({ section: 'about', id: null }));
   await shown();
   await closeSettings(core, ui, sui);

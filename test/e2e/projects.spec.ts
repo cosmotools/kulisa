@@ -1,4 +1,4 @@
-// Projects (docs/tasks.md, Projects; docs/window.md, Settings): Project Settings… and Settings' window.
+// Projects (docs/tasks.md, Projects; docs/window.md, Settings): Project Settings… and Settings.
 import fs from 'fs';
 import path from 'path';
 import type { Page } from '@playwright/test';
@@ -6,7 +6,7 @@ import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
 import type { Files } from './data.ts';
 import { menu, choose, closeMenu, rightClick, projectTabs, projectTab, projectTabSel, showProject, focusWindow, closeSettings, settingsClosed, invoke, act, typeIn, answer, notLoading, projectMenu, otherPage, pageOf, onRow, removed,
-  navRow, shownRow, group, settingsMenu, listRows, listRow, listCells } from './helpers.ts';
+  navRow, thingRow, openThing, pathOf, group, settingsMenu, listRows, listRow } from './helpers.ts';
 import { SAM, begin, newTask, openFolder, projectShown } from './tasks-helpers.ts';
 import { fakeAgent } from './agent-helpers.ts';
 
@@ -16,19 +16,18 @@ async function backTo(core: Core, ui: Page, files: Files, folder: string) {
   await projectShown(core, files.pid(folder));
   await notLoading(ui);
 }
-// A new profile on a project's page: + → New Profile…, its name typed in place, Create.
+// A new profile on a project's page: Add Profile → New Profile…, its name typed in place, Create.
 async function newProfileHere(s: Page, name: string) {
   const profiles = group(s, 'Profiles'), field = profiles.getByRole('textbox', { name: 'New profile' });
-  await profiles.getByRole('button', { name: 'Add a profile' }).click();
+  await profiles.getByRole('button', { name: 'Add Profile' }).click();
   await choose(s, 'New Profile…', settingsMenu(s));
   await expect(field).toBeFocused();
   await field.fill(name);
   await profiles.getByRole('button', { name: 'Create', exact: true }).click();
 }
-// Profiles' − on a project's page.
-const removeProfile = (s: Page) => group(s, 'Profiles').getByRole('button', { name: 'Remove from the project (asks first)' });
-// The project page's text fields, by their labels.
+// The project page's text fields, by their labels; its local addresses' (a TagPicker's input).
 const field = (s: Page, label: string) => s.getByRole('textbox', { name: label, exact: true });
+const hosts = (s: Page) => s.getByRole('combobox', { name: 'Local addresses', exact: true });
 // A project deleted as Settings does (its data and tasks' copies; Delete Project… is tested below), its folder too.
 async function forget(core: Core, ui: Page, files: Files, folder: string, dir = path.join(files.root, folder)) {
   const id = await core((k, f) => k.shell.store.projects().find((p) => p.folders.some((x) => path.basename(x).toLowerCase() === f))?.id, folder).catch((): undefined => undefined);
@@ -62,13 +61,16 @@ test("projects: the projects' manager (Project Settings…) changes its name and
   await choose(ui, 'Project Settings…', await projectMenu(ui, tab));
   let s = await sui();
   await pageOf(s, 'site');
-  // The manager lists every project, this one chosen.
-  await expect(navRow(s, `p:${id}`)).toHaveAttribute('aria-current', 'page');
-  await expect(navRow(s, `p:${id}`).getByTestId('project-icon'), 'its favicon, a picture').toHaveJSProperty('tagName', 'IMG');
-  await expect(listCells(listRow(s, 'Folders', 'site')).nth(1), 'its folder, as its code').toHaveText(site);
+  // Projects lists every project, this one with its favicon; back on its page.
+  await navRow(s, 'projects').click();
+  await expect(thingRow(s, `p:${id}`).getByTestId('project-icon'), 'its favicon, a picture').toHaveJSProperty('tagName', 'IMG');
+  await thingRow(s, `p:${id}`).click();
+  await pageOf(s, 'site');
+  await expect(listRow(s, 'Folders', 'site'), 'its folder').toContainText(site);
   await expect(field(s, 'Location')).toHaveCount(0);
   // A page: its parts, each saved as it changes; the window stays open.
-  for (const f of ['Name', 'Local addresses']) await expect(field(s, f)).toBeVisible();
+  await expect(field(s, 'Name')).toBeVisible();
+  await expect(hosts(s)).toBeVisible();
   for (const g of ['Folders', 'Agents', 'Profiles']) await expect(group(s, g)).toBeVisible();
   const entryOf = () => core((k, i) => k.shell.store.projects().find((p) => p.id === i), id);
   // Its favicon changed: read again as its settings open. Mostly blue with a red dot: the hue of the most (264°).
@@ -87,12 +89,12 @@ test("projects: the projects' manager (Project Settings…) changes its name and
   await reopen();
   const given = (await entryOf()).color;
   await shown(given);
-  await typeIn(s, field(s, 'Local addresses'), 'abc.ngrok.app *.Shop.dev', true);
+  await typeIn(s, hosts(s), 'abc.ngrok.app *.Shop.dev', true);
   await expect.poll(async () => (await entryOf()).local?.length).toBe(2);
-  // The name typed and the window closed with the OS's ×: kept (its page saves it, then closes it).
+  // The name typed and Settings closed with its ×: kept (saved first).
   await field(s, 'Name').fill('Site-2');
   expect((await entryOf()).name, 'not yet: on Enter or leaving it').toBe('site');
-  await core((k) => k.shell.settings.win.close());
+  await s.getByRole('button', { name: 'Back (Esc)' }).click();
   await settingsClosed(core, ui);
   await expect.poll(async () => (await entryOf()).name).toBe('Site-2');
   const entry = await entryOf();
@@ -111,7 +113,7 @@ test("projects: the projects' manager (Project Settings…) changes its name and
   await expect.poll(() => { try { return !!files.idOf('Site-user'); } catch { return false; } }).toBe(true);
   const siteUser = files.idOf('Site-user'), samId = files.idOf(SAM);
   await expect(listRow(s, 'Profiles', 'Site-user')).toHaveAttribute('data-profile', siteUser);
-  await group(s, 'Profiles').getByRole('button', { name: 'Add a profile' }).click();
+  await group(s, 'Profiles').getByRole('button', { name: 'Add Profile' }).click();
   // a row's name is its label and the line under it: the projects it is in
   await expect(settingsMenu(s)).toMatchAriaSnapshot(`
     - /children: contain
@@ -119,11 +121,10 @@ test("projects: the projects' manager (Project Settings…) changes its name and
     - menuitem /^Sam\\.admin/
   `);
   await settingsMenu(s).getByRole('menuitem', { name: /^Sam\.admin/ }).click();
-  // Its name a Persona's: its picture's initials (under the picture) are text too
-  await expect(listCells(listRow(s, 'Profiles', 'Sam.admin'))).toHaveText([/^S?Sam\.admin$/, 'seller in the test shop', 'project']);
+  await expect(listRow(s, 'Profiles', 'Sam.admin')).toContainText('seller in the test shop · also in project');
   await expect(listRow(s, 'Profiles', 'Sam.admin')).toHaveAttribute('data-profile', samId);
   await expect.poll(() => core((k, a) => k.shell.closed.has(a.sam) && k.shell.closed.has(a.user), { sam: samId, user: siteUser })).toBe(true); // its task lists them, closed
-  await onRow(s, listRow(s, 'Profiles', 'Site-user'), removeProfile(s));
+  await onRow(s, listRow(s, 'Profiles', 'Site-user'), 'Remove from the Project…');
   expect((await answer(s)).message).toBe('Remove the profile Site-user from Site-2?');
   await expect.poll(() => core((k, u) => !k.shell.closed.has(u), siteUser)).toBe(true);
   expect(await core((k, u) => k.shell.profileStore.projectsOf(k.shell.profileStore.get(u)), siteUser), 'in no other project: kept all the same, until deleted in Settings → Profiles').toEqual([]);
@@ -140,11 +141,11 @@ test("projects: the projects' manager (Project Settings…) changes its name and
   await expect.poll(() => core((k, sam) => !k.shell.profiles.has(sam), samId)).toBe(true);
   expect(await core((k, sam) => k.shell.profileStore.projectsOf(k.shell.profileStore.get(sam)), samId)).toEqual([files.pid('project')]);
   // Its agents: a list, added from the agents without accounts and the accounts in the store (one made in Settings →
-  // Agents, in no project), one the default (a radio); at once, not on Save.
+  // Agents, in no project), one the default; at once, not on Save.
   const ann = await core((k) => { const a = k.shell.accounts; return a.create((a.prepare('fake') as { id: string }).id, 'fake', 'ann@shop.com').id; });
   await choose(ui, 'Project Settings…', await projectMenu(ui, tab));
   s = await sui();
-  const agentAdd = group(s, 'Agents').getByRole('button', { name: 'Add an agent' });
+  const agentAdd = group(s, 'Agents').getByRole('button', { name: 'Add Agent' });
   await expect(group(s, 'Agents')).toBeVisible();
   await agentAdd.click();
   await expect(settingsMenu(s)).toBeVisible();
@@ -156,29 +157,23 @@ test("projects: the projects' manager (Project Settings…) changes its name and
     await choose(s, name, settingsMenu(s));
     await expect(listRow(s, 'Agents', agent)).toHaveCount(1);
   }
-  // The default marked, Make Default on the others. Each row by its agent and account, and whether it is the default.
-  const agentRows = async (rows: [string, string, boolean][]) => {
+  // The default marked, Make Default on the others. Each row by its agent, its account, and whether it is the default.
+  const agentRows = async (rows: [string, string | null, boolean][]) => {
     await expect(listRows(s, 'Agents')).toHaveCount(rows.length);
-    for (const [i, [agent, account, isDefault]] of rows.entries()) await expect(listCells(listRows(s, 'Agents').nth(i))).toHaveText([agent, account, isDefault ? 'default' : '']);
+    for (const [i, [agent, account, isDefault]] of rows.entries()) {
+      const row = listRows(s, 'Agents').nth(i);
+      await expect(row).toHaveAttribute('aria-label', agent);
+      if (account) await expect(row).toContainText(account);
+      await expect(row.getByText('Default', { exact: true })).toHaveCount(isDefault ? 1 : 0);
+    }
   };
-  const shell: [string, string] = ['Terminal only', '—'], annRow: [string, string] = ['Fake agent', 'ann@shop.com'];
+  const shell: [string, null] = ['Terminal only', null], annRow: [string, string] = ['Fake agent', 'ann@shop.com'];
   await agentRows([[...shell, true], [...annRow, false]]); // the first added, the default
-  // A table: each value in its column, under its name, the columns at the same places in every row (values
-  // one after another, each row in its own rhythm, read as chaos).
-  const agentTable = s.getByRole('grid', { name: 'Agents', exact: true });
-  await expect(agentTable.getByRole('columnheader')).toHaveText(['Agent', 'Account', '']);
-  // Every cell's left edge in every row at once (boundingBox reads one element at a time).
-  expect(await agentTable.evaluate((t) => {
-    const x = (e: Element) => Math.round(e.getBoundingClientRect().left);
-    const rows = [...t.querySelectorAll('[role="row"]')].map((r) => [...r.querySelectorAll('[role="gridcell"], [role="columnheader"]')].map(x).join());
-    return rows.every((r) => r === rows[0]);
-  }), 'the columns in line').toBe(true);
   expect((await entryOf()).agents).toEqual(['shell', ann]);
   expect(await core((k, a) => k.shell.store.projectsWith('agents', a).map((p) => p.id), ann), 'the projects list their agents').toEqual([id]);
-  // ★: Make Default on a row that is not the default, No Default on the one that is.
-  const star = group(s, 'Agents').getByRole('button', { name: /^(Make|No) Default/ });
+  // Its ⋯: Make Default on a row that is not the default, No Default on the one that is.
   const shellRow = listRow(s, 'Agents', 'Terminal only');
-  await onRow(s, listRow(s, 'Agents', 'Fake agent'), star);
+  await onRow(s, listRow(s, 'Agents', 'Fake agent'), 'Make Default');
   await agentRows([[...annRow, true], [...shell, false]]);
   // Its right-click has the same: Make Default.
   await rightClick(s, shellRow);
@@ -188,7 +183,7 @@ test("projects: the projects' manager (Project Settings…) changes its name and
   `);
   await choose(s, 'Make Default', settingsMenu(s));
   await agentRows([[...shell, true], [...annRow, false]]);
-  // None the default: No Default on the default one's right-click, or its ★; ★ on it again makes it the default.
+  // None the default: No Default on the default one's right-click, or its ⋯; Make Default again makes it the default.
   await rightClick(s, shellRow);
   await expect(settingsMenu(s)).toMatchAriaSnapshot(`
     - menuitem "No Default"
@@ -197,12 +192,12 @@ test("projects: the projects' manager (Project Settings…) changes its name and
   await choose(s, 'No Default', settingsMenu(s));
   await agentRows([[...shell, false], [...annRow, false]]);
   expect((await entryOf()).noDefaultAgent).toBe(true);
-  await onRow(s, shellRow, star);
+  await onRow(s, shellRow, 'Make Default');
   await agentRows([[...shell, true], [...annRow, false]]);
   expect((await entryOf()).noDefaultAgent).toBeUndefined();
-  await onRow(s, shellRow, star);
+  await onRow(s, shellRow, 'No Default');
   await agentRows([[...shell, false], [...annRow, false]]);
-  await onRow(s, shellRow, star);
+  await onRow(s, shellRow, 'Make Default');
   await agentRows([[...shell, true], [...annRow, false]]);
   await closeSettings(core, ui, sui);
   // + makes a task with the default one (the first kept the one it started with). No git: a second task in the folder,
@@ -235,7 +230,8 @@ test("projects: the projects' manager (Project Settings…) changes its name and
   await expect(launchProfiles.getByRole('button')).toHaveText(['Add Profile…']);
   await launchProfiles.getByRole('button').click();
   s = await sui();
-  await expect(navRow(s, `p:${id}`)).toHaveAttribute('aria-current', 'page');
+  await expect(pathOf(s)).toHaveText(/^Projects\s*/);
+  await expect(field(s, 'Name')).toHaveValue((await entryOf()).name);
   await closeSettings(core, ui, sui);
   const terminals = () => core((k, key) => k.shell.taskByKey(key).terminals.size, bare);
   expect(await terminals()).toBe(0);
@@ -278,78 +274,43 @@ test("projects: the projects' manager (Project Settings…) changes its name and
   await core((k, a) => { const acc = k.shell.accounts, dir = acc.find(a).dir; acc.drop(a); acc.remove(dir); }, ann);
 });
 
-test("projects: the title bar's gear opens Settings' window at the shown project; another one, not open, is configured there too, asked there; what is done in the task's window meanwhile is asked there; no New Project in it", async ({ core, ui, sui, files }) => {
+test("projects: the title bar's gear shows Settings over the window at the shown project, the pages hidden under it; another one, not open, is configured there too; no New Project in it", async ({ core, ui, sui, files }) => {
   await begin(core, ui, files, { featureX: true });
   // A project with no task open.
   const closed = path.join(files.root, 'closed');
   fs.mkdirSync(closed, { recursive: true });
   const closedId = await core((k, f) => { const p = k.shell.store.projectFor(f); k.shell.sendProjects(); return p.id; }, closed);
-  // Shown once it is filled (its nav's three sections, the agents found, the project's page): as it came, it jumped.
-  await core((k) => {
-    const g = k.stash;
-    g.filled = null;
-    k.electron.app.once('browser-window-created', (_e, w) => w.once('show', () => {
-      void w.webContents.executeJavaScript(`[document.querySelectorAll('[data-key^="a:"]').length > 0, document.querySelectorAll('[data-key^="f:"]').length > 0, !!document.querySelector('[role="group"][aria-label="Folders"]')]`)
-        .then((r) => { g.filled = r; });
-    }));
-  });
+  // Shown once it is filled (its page, the agents found): as it came, it jumped.
   await ui.locator('#manageProjects').click();
-  await expect.poll(() => core((k) => k.stash.filled)).toEqual([true, true, true]);
   const s = await sui();
+  expect(await s.locator('#settings main [data-row]').count() > 0).toBe(true);
   await pageOf(s, 'project');
-  await expect(shownRow(s)).toHaveAttribute('data-key', `p:${files.pid('project')}`);
-  // Pages on screen under Settings' window (once live again after the last menu's pictures: on a loaded machine later).
-  await expect.poll(() => core((k) => k.profile('Sam.admin').get().view.getVisible())).toBe(true);
-  // The other project is closed: its configuration all the same; a profile made and let go there (asked first, in
-  // Settings' window, where it was done).
-  await navRow(s, `p:${closedId}`).click();
+  // The pages hidden under it, as under a dialog (they draw above the window's HTML).
+  await expect.poll(() => core((k) => k.profile('Sam.admin').get().view.getVisible())).toBe(false);
+  // The other project is closed: its configuration all the same; a profile made and let go there (asked first).
+  await openThing(s, `p:${closedId}`);
   await pageOf(s, 'closed');
   expect(await core((k, i) => k.shell.open.has(i), closedId)).toBe(false);
   await newProfileHere(s, 'Closed-one');
   await expect.poll(() => { try { return !!files.idOf('Closed-one'); } catch { return false; } }).toBe(true);
   const closedOne = files.idOf('Closed-one');
   await expect(listRow(s, 'Profiles', 'Closed-one')).toHaveAttribute('data-profile', closedOne);
-  await onRow(s, listRow(s, 'Profiles', 'Closed-one'), removeProfile(s));
+  await onRow(s, listRow(s, 'Profiles', 'Closed-one'), 'Remove from the Project…');
   await expect(s.getByRole('alertdialog')).toBeVisible();
-  await expect(ui.getByRole('alertdialog'), "not in the task's window").toHaveCount(0);
   expect((await answer(s)).message).toBe('Remove the profile Closed-one from closed?');
   await expect.poll(() => core((k, p) => !k.shell.store.projectsWith('profiles', p).length, closedOne)).toBe(true);
   await core((k, p) => { k.shell.profileStore.delete(p); }, closedOne); // not needed after
   await expect(listRow(s, 'Profiles', 'Closed-one')).toHaveCount(0);
-  await expect(group(s, 'Profiles').getByRole('group'), 'no refusal (a MessageBar)').toHaveCount(0);
+  await expect(group(s, 'Profiles').locator('[role="group"]:not([data-row])'), 'no refusal (a MessageBar)').toHaveCount(0);
   const png = test.info().outputPath('projects.png');
   await core((k, f) => k.shot(f), png);
   await test.info().attach('projects', { path: png, contentType: 'image/png' });
-  // Done in the task's window with Settings in front, that window minimized (a pane's Remove from Project…; on macOS the
-  // OS's × of a window behind): asked in the task's window, not in Settings', and that window comes back to the front
-  // with it.
-  await core((k) => k.shell.win.minimize());
-  await expect.poll(() => core((k) => k.shell.win.isMinimized())).toBe(true);
-  await core((k) => k.shell.settings.win.focus());
-  await expect.poll(() => core((k) => k.shell.settings.win.isFocused())).toBe(true);
-  const said = invoke(ui, 'profile:delete', { task: await core((k) => k.shell.task.key), profile: files.idOf(SAM) });
-  await expect(ui.getByRole('alertdialog')).toBeVisible();
-  await expect(s.getByRole('alertdialog'), "not in Settings' window").toHaveCount(0);
-  // Waited for: macOS restores a minimized window with its animation, and makes it key at its end.
-  await expect.poll(() => core((k) => !k.shell.win.isMinimized() && k.shell.win.isFocused()), { message: 'the task\'s window in front with its question' }).toBe(true);
-  expect((await answer(ui, false)).message).toMatch(/^Remove the profile Sam\.admin from /);
-  expect(await said).toEqual({ error: 'the human said no' });
-  // The theme and the Kulisa zoom are every window's: its too.
-  const theme = await core((k) => k.shell.theme);
-  const other = theme === 'light' ? 'dark' as const : 'light' as const;
-  await core((k, t) => k.shell.setTheme(t), other);
-  await expect(s.locator('html')).toHaveAttribute('data-theme', other);
-  await core((k, t) => k.shell.setTheme(t), theme);
-  const zoom = () => core((k) => k.shell.settings.win.webContents.getZoomFactor());
-  await core((k) => k.shell.setUiZoom(1.25));
-  await expect.poll(zoom).toBeCloseTo(1.25, 6);
-  await core((k) => k.shell.setUiZoom(1));
-  await expect.poll(zoom).toBeCloseTo(1, 6);
   await closeSettings(core, ui, sui);
+  await expect.poll(() => core((k) => k.profile('Sam.admin').get().view.getVisible()), 'the pages back').toBe(true);
   await forget(core, ui, files, 'closed');
 });
 
-test("projects: Settings, not modal, acts for the tasks' window last in front; its lists follow the profiles the agent makes and lets go meanwhile", async ({ core, ui, sui, call, files }) => {
+test("projects: Settings is its window's, at that window's project, its questions there; its lists follow the profiles the agent makes and lets go meanwhile", async ({ core, ui, sui, call, files }) => {
   await begin(core, ui, files, { featureX: true });
   // A second tasks' window, with a project of its own.
   const fourth = path.join(files.root, 'fourth');
@@ -368,17 +329,19 @@ test("projects: Settings, not modal, acts for the tasks' window last in front; i
   // Made and let go by that task's agent (asked in its window): the project's page shows it, then not.
   await call('profile_create', { name: 'Fay' }, { task: key });
   const fay = files.idOf('Fay');
-  await expect(listRow(s, 'Profiles', 'Fay')).toHaveCount(1);
-  await expect(navRow(s, `f:${fay}`)).toHaveCount(1);
+  await expect(listRow(s, 'Profiles', 'Fay')).toHaveAttribute('data-profile', fay);
   const dropping = call('profile_delete', { profile: 'Fay' }, { task: key });
   expect((await answer(there)).message).toBe('The agent asks to remove the profile Fay from fourth.');
   await dropping;
   await expect(listRow(s, 'Profiles', 'Fay')).toHaveCount(0);
   await core((k, f) => { k.shell.profileStore.delete(f); }, fay); // not needed after
-  // The first one in front (the question's dialog in the second gone first: answer): Settings acts for it now, without
-  // being opened again.
+  // Closed there with the gear; the first window's own, at its project.
+  await there.locator('#manageProjects').click();
+  await expect(there.locator('#settings')).toHaveCount(0);
   await focusWindow(core, ui);
-  await expect.poll(async () => (await invoke(s, 'projects:list')).project).toBe(files.pid('project'));
+  await expect(ui.locator('#settings')).toHaveCount(0);
+  await ui.locator('#manageProjects').click();
+  await pageOf(await sui(), 'project');
   await closeSettings(core, ui, sui);
   // The second window and its project gone, for a test after it.
   await invoke(ui, 'project:close-tasks', { id: files.pid('fourth') });

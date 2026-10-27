@@ -3,7 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import type { Locator, Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
-import { SITE, PORT, logged, ipcSettled, who, menu, choose, closeMenu, rightClick, manageProfiles, closeSettings, chooseProfile, navRow, shownRow, settingsMenu, termText, invoke, answer, typeIn, removed } from './helpers.ts';
+import { SITE, PORT, logged, ipcSettled, who, menu, choose, closeMenu, rightClick, manageProfiles, closeSettings, chooseProfile, navRow, thingRow, pathOf, settingsMenu, termText, invoke, answer, typeIn, removed } from './helpers.ts';
 import { profileId, deleteProfile } from './tasks-helpers.ts';
 
 // A PNG's size in pixels, from its header.
@@ -24,9 +24,9 @@ test('names: typed, pasted, from the agent, checked where they are made (the rul
   // The field leaves other characters out, typed or pasted.
   const s = await manageProfiles(ui, sui);
   const field = s.getByRole('textbox', { name: 'New profile' });
-  await s.getByRole('button', { name: 'New Profile…' }).click();
+  await s.getByRole('button', { name: 'New Profile', exact: true }).click();
   await expect(field).toBeFocused();
-  await core((k) => k.shell.settings.win.webContents.insertText('ann admin·@shop.com'));
+  await core((k) => k.shell.win.webContents.insertText('ann admin·@shop.com'));
   await expect(field).toHaveValue('annadmin@shop.com');
   await field.press('Escape'); // put away, nothing made
   await expect(field).toHaveCount(0);
@@ -61,7 +61,7 @@ test("delete a profile in Settings (its page's ⋯, its row's right-click): sign
 
   const s = await manageProfiles(ui, sui);
   await chooseProfile(s, files, 'Temp');
-  await s.getByRole('button', { name: 'More' }).click(); // ⋯ at its page's top
+  await s.getByRole('button', { name: 'More', exact: true }).click(); // ⋯ at its page's top
   await choose(s, 'Delete Profile…', settingsMenu(s));
   const q = await answer(s, false);
   expect(q.message).toBe('Delete the profile Temp?');
@@ -70,12 +70,13 @@ test("delete a profile in Settings (its page's ⋯, its row's right-click): sign
   // it comes.
   await ipcSettled(s);
   expect(await core((k, p) => k.shell.profiles.has(p), tempId), 'nothing is deleted without the confirmation').toBe(true);
-  await rightClick(s, navRow(s, `f:${tempId}`));
+  await navRow(s, 'profiles').click();
+  await rightClick(s, thingRow(s, `f:${tempId}`));
   await choose(s, 'Delete Profile…', settingsMenu(s));
   await answer(s);
   await expect.poll(() => core((k, p) => !k.shell.profiles.has(p) && !k.shell.profileStore.get(p), tempId)).toBe(true);
-  await expect(navRow(s, `f:${tempId}`)).toHaveCount(0);
-  await expect(shownRow(s), 'another profile shown').toHaveAttribute('data-key', /^f:/);
+  await expect(thingRow(s, `f:${tempId}`)).toHaveCount(0);
+  await expect(pathOf(s), 'their list').toHaveText('Profiles');
   await closeSettings(core, ui, sui);
 
   expect(await core((k) => [...k.shell.profiles.keys()])).toEqual(others);
@@ -109,10 +110,10 @@ test('rename in Settings → Profiles: typed, and Enter or leaving the field sav
   const dir = await core((k, p) => k.shell.profiles.get(p).dir, id);
   const s = await manageProfiles(ui, sui);
   await chooseProfile(s, files, 'Ren.seller');
-  await core((k) => k.focus(k.shell.settings.win)); // the keyboard in Settings' window, as the human's hands
+  await core((k) => k.focus(k.shell.win)); // the keyboard in the window, as the human's hands
   await s.getByRole('textbox', { name: 'Name', exact: true }).selectText();
   await core(async (k) => {
-    const wc = k.shell.settings.win.webContents;
+    const wc = k.shell.win.webContents;
     await wc.insertText('Ren.admin');
     for (const type of ['keyDown', 'char', 'keyUp'] as const) wc.sendInputEvent({ type, keyCode: type === 'char' ? '\r' : 'Enter' });
   });

@@ -8,7 +8,7 @@ and dialogs, the terminal, the keys, and why they are built so. Projects and the
 
 One row, 44 px (`TopBar.tsx`; `TITLE_BAR_HEIGHT` in `window.ts`, the OS buttons' strip, kept in step): the app's logo
 (the shown task's project's color on its curtain), the sidebar's button while a task is shown ([tasks.md](tasks.md),
-The sidebar), Settings (a window of its own: below), ☰, and the OS's window buttons over its right end
+The sidebar), Settings (checked while shown: below), ☰, and the OS's window buttons over its right end
 (`titleBarStyle: 'hidden'` with `titleBarOverlay`); no menu bar. Their strip is see-through (`CLEAR` in `window.ts`),
 as macOS's traffic lights: a dialog's backdrop dims it with the rest of the window (a strip in the theme's color would
 stay bright); their symbols are the theme's and stay as they are under a dialog. On macOS the buttons are at the left
@@ -187,7 +187,7 @@ built: [ui.md](ui.md), Menus):
 A row whose command has a key shows it at its end (Keys). The window's menus are not native: a native menu has rows of
 text only, no buttons in a row.
 
-**About Kulisa** (a page of Settings, `components/AboutPage.tsx`, under Log, as Chrome's About: one place for what is
+**About Kulisa** (a page of Settings, `components/settings/AboutPage.tsx`, under Log, as Chrome's About: one place for what is
 about the app; ☰ → About Kulisa opens Settings at it; on macOS also first in the app menu, in place of Electron's own
 panel): Kulisa's version (package.json's: from source `app.getVersion()` is Electron's), Electron's and Chromium's (for
 a bug report, and What sites see), kulisa.app and the license; then the folders Kulisa writes in on this computer, as
@@ -215,11 +215,10 @@ its right press is told by the CDP proxy it passes.
 Every dialog has one look, as in JetBrains ([ui.md](ui.md), Dialogs). Questions before something that cannot be undone
 (deleting a profile, a task, a project), before closing (a task while an agent works, a window, quitting while an agent
 works: [tasks.md](tasks.md)) or between two ways to go (a second button, `other`) are asked in that dialog too
-(`shell.ask` → `lib/ask.ts`, `Ask.tsx`, queued; its keys: [ui.md](ui.md), Dialogs), in the window the action is in:
-Settings' for what is done in Settings, a tasks' window's for what is done there, the agent's in its task's window
-(`asker` in `ipc/`; `Asker` in `window.ts`). A tasks' window asked in comes to the front with its question, restored
-when minimized, while another of Kulisa's windows has the focus (Settings, another tasks' window): left behind, it
-would look as if nothing happened (on macOS a window's × works behind Settings); never from another app. While a dialog
+(`shell.ask` → `lib/ask.ts`, `Ask.tsx`, queued; its keys: [ui.md](ui.md), Dialogs), in the window the action is in
+(Settings' too), the agent's in its task's window (`Asker` in `window.ts`). A tasks' window asked in comes to the front
+with its question, restored when minimized, while another of Kulisa's windows has the focus (another tasks' window, a
+master's): left behind, it would look as if nothing happened; never from another app. While a dialog
 is open the profiles' pages are hidden (native views above the HTML), and the keys are the dialog's (Keys): a page that
 had the keyboard would keep it unseen, and Fluent's focus trap leaves a dialog it never saw focused `aria-hidden`, its
 keys going nowhere, so the window's page takes the keyboard (`hideViews` in `window.ts`); a menu, over pictures of the
@@ -229,47 +228,34 @@ deleting button or lay out what goes. The OS's own dialogs stay for choosing a f
 
 ## Settings
 
-Settings (a nav of Projects, Agents and Profiles: [tasks.md](tasks.md), Projects; GitHub's page after Agents:
-[src/github](../src/github/README.md), The window; then the Log page, The log below, and About, Menus above) is a
-window of its own, as a desktop app's settings (JetBrains', macOS apps'): the OS's title bar ("Settings — Kulisa"), its
-own size and place, kept (`settings.json`: `settingsWindow`), at least 640 × 420 times the Kulisa zoom.
+Settings (a nav of its categories: Projects, Agents and Profiles, [tasks.md](tasks.md), Projects; GitHub,
+[src/github](../src/github/README.md), The window; Log, The log below; About, Menus above; a category's page lists its
+things, each with its own page, as Windows' Settings) is shown
+in a tasks' window, over all of it under the title bar (the sidebar, the grid, the tasks' bar), as Chrome's and VS
+Code's settings are a page of their window: the window it is opened in is the one it acts for, with nothing to keep in front or in step.
 
-- **One for the whole app.** The gear (on macOS also Kulisa → Settings…, ⌘,, under About Kulisa), a task tab's Manage
-  Profiles… and Project Settings…, a pane's About this profile… and a project's Add Profile… tile open it at that page
-  (a project's: none named, the shown task's); open already, it comes to the front at that page. No gear while Settings
-  would be empty (no project, no account, no profile, as at the first start, where the welcome makes them); it comes
-  with the first account signed in to. An account or a profile left after the last project is deleted keeps it:
-  Settings is where they are removed (`settings` in the projects' news).
-- **Not modal**, as macOS apps', VS Code's and Chrome's settings: the tasks' windows go on taking clicks and keys
-  beside it, and either comes in front of the other. Not `setEnabled(false)` on them, as JetBrains holds its IDE: on
-  macOS Electron disables a window by putting a half-black sheet over it (`NativeWindowMac::SetEnabled`; electron#9272
-  `wontfix`). Its page saves what is typed as it goes, so nothing waits for it to close. Not Electron's modal window
-  (on macOS a sheet, attached to its parent's title bar, not movable:
-  [Electron's docs](https://github.com/electron/electron/blob/v44.8.0/docs/api/browser-window.md#platform-notices)),
-  nor a child of a tasks' window (on macOS a child stays above its parent, which then never comes in front of it).
-- **It acts for the tasks' window last in front** (`shell.front`: clicked, or brought up by the keyboard or the OS):
-  what it asks the main process about a project or a task goes there (`owner` in `ipc/`): the shown task's project
-  (where it opens when none is named, also from macOS's Kulisa → Settings…), the folder agents are looked for in. That
-  window closed, the next one; the last one closed, Kulisa quits, Settings with it. Closed, Settings gives the keyboard
-  back to that window. A new account's sign-in and an installer answer the page that asked.
-- **Its lists follow** what changes elsewhere while it is open: the profiles made and let go in a tasks' window or by
-  the agent (`settings:changed`, sent on `profilesChanged`), its nav's and the shown project's; nothing typed on its
-  page is touched.
-- **Never full screen** (`fullscreenable: false`), as Mac apps' settings: opened from a task's window in full screen,
-  macOS would make it a full-screen window in a Space of its own; so it opens at its size over that window, in its
-  Space. macOS's Window menu lists it.
-- **Esc closes it**, as a dialog's: unless a menu, a question or a popover is open (Esc closes that first), or a field
-  takes it. Esc and the OS's × alike save what is typed first (a project's name), then close it; while an agent
-  installs, it stays.
+- **Opened** by the gear (on macOS also Kulisa → Settings…, ⌘,, under About Kulisa: in the window last in front), a
+  task tab's Manage Profiles… and Project Settings…, a pane's About this profile… and a project's Add Profile… tile, at
+  that page (a project's: none named, the window's shown task's); shown already, it goes to that page. Each window has
+  its own. No gear while Settings would be empty (no project, no account, no profile, as at the first start, where the
+  welcome makes them); it comes with the first account signed in to. An account or a profile left after the last
+  project is deleted keeps it: Settings is where they are removed (`settings` in the projects' news).
+- **The grid stays under it**, laid out and hidden (dockview's sizes, the terminals), its agents working on; the
+  profiles' pages are hidden as under a dialog (`useCovered('page')`, `lib/cover.ts`), and the keys are its own. A
+  grid changed underneath (a task shown by the agent, the shown project deleted) leaves it open. The agent's questions
+  show over it.
+- **Closed** by Esc (unless a menu, a question or a popover is open: Esc closes that first; or a field takes it), its
+  ←, or the gear; what is typed is saved first (a project's name); while an agent installs, it stays. The keyboard goes
+  back where it was.
+- **Its lists follow** what changes elsewhere while it is shown: the profiles made and let go in another window or by
+  the agent (`settings:changed` to every window, on `profilesChanged`), its nav's and the shown project's; nothing
+  typed on its page is touched.
 - **Settings only**: a project is made in a tasks' window (New Project: the empty window with no project, New Project…
   at the sidebar's foot), which opens its first task: one way to open each.
-- **Shown once its page is filled** (the projects, the profiles, the agents as last found, its fonts: `settings:ready`),
-  as Electron's docs advise (`show: false`), so its nav and page do not jump as they come; a page that never says so is
-  shown after 2 s all the same.
-- Its page is the app's third (`settings.html`, `components/Settings.tsx`): nothing of a tasks' window (no grid, no
-  profiles' views, no keys of its own). Its process lives while it is open: about 75–81 MB (PSS).
-- Not tried on Wayland: there an app may not place, move or focus its windows itself (Electron's docs, the same
-  Platform notices), so where it opens and bringing it to the front are the compositor's.
+- **Its code is a chunk of its own** (`components/settings/`, reached only by `import()` of its `index.ts`: `npm run
+  deps`), read as Settings is first shown: a window never showing it never parses it. A module is never unloaded, so
+  once shown it stays in that window's memory: about 7 MB of its renderer (PSS), against some 80 MB for a window of its
+  own.
 
 ## The terminal
 
@@ -435,9 +421,10 @@ electron-log's own has no offset), the level and a tag:
   minidump in `crashDumps` (Electron's crashReporter, `uploadToServer: false`: Crashpad keeps them, pruned by itself,
   90 days or 128 MB; no server), to ask a user for.
 - `[ipc]`: every channel a window sends (`ipc.ts`, `handle` and `on`), the sender's webContents id (`wc=`: a window's,
-  Settings', a master's; `[window] new wc=` says which) and its arguments; an answer refused, with its reason. Not the
+  a master's; `[window] new wc=` says which) and its arguments; an answer refused, with its reason. Not the
   terminal's keystrokes and size (never: what is typed), nor what comes at every change or draw (`QUIET`: the grid's
-  boxes, layouts, lists read again), and a question's answer without the answer.
+  boxes, layouts, lists read again; Settings shown and closed, `[settings]`'s), and a question's answer without the
+  answer.
 - `[mcp]`: every tool the agent calls (`mcp-server.ts`), its task and terminal, its arguments; one that failed, with
   its error.
 - `[key]`: a key of Kulisa's taken (`shortcuts.ts`), where the keyboard was.
@@ -449,7 +436,7 @@ electron-log's own has no offset), the level and a tag:
   it comes with the name where it first appears in a run, alone after, the key a line is found by.
 - `[task]`, `[window]`, `[settings]`, `[terminal]`: a project's task opened, created (its project's name, where:
   `[task] created k3f9a2/1 (shop) in ~/IdeaProjects/shop@task-1`), closed, deleted; a window made, showing a task,
-  dropped; Settings opened (at what) and closed; a terminal started (the agent and whether its session is resumed, or a
+  dropped; Settings shown (at what) and closed; a terminal started (the agent and whether its session is resumed, or a
   shell), gone, its exit code.
 - `[github]`: a GitHub account, its id with its login beside it (`, token` for a fine-grained token's), at every start
   and as it is added, signed in again, signed out (and why: a refresh refused, its token refused) and deleted; a
@@ -486,8 +473,8 @@ file: two starts in a row are not a restart. What the code says with `console.*`
 new action of the core goes through `handle()` or the MCP server's `registerTool`, so it is logged by itself; a line
 elsewhere says what happened and who asked, never what was typed.
 
-**The Log page** (Settings → Log, under Profiles; ☰ → Report a Problem… opens it; `components/LogPage.tsx`; issue #73) is
-where the human reads it and passes it on, by any means: not everyone has a GitHub account.
+**The Log page** (Settings → Log, under Profiles; ☰ → Report a Problem… opens it; `components/settings/LogPage.tsx`;
+issue #73) is where the human reads it and passes it on, by any means: not everyone has a GitHub account.
 
 - The file whole (1 MB at most), read each time the page is shown and let go when it is left, not as Settings opens
   (`log:get`); then followed (`log:lines`): a hook of electron-log's runs before its file transport, which writes at
@@ -543,10 +530,10 @@ window it comes from (`event.sender`); one change to the open tasks after anothe
 | `src/main/page-menu.ts` | the right-click menu in a profile's page (Menus) |
 | `src/shared/ipc.ts`, `src/main/ipc.ts` | the channels between a page and the main process; `handle` and `on`, checked against them (IPC) |
 | `src/main/window.ts` | a window: its BrowserWindow, the native views' places, its questions, screenshot |
-| `src/main/settings-window.ts`, `src/renderer/settings.html`, `settings.tsx`, `components/` | Settings' window (Settings), on React and Fluent UI |
+| `src/renderer/components/settings/`, `lib/settings.ts` | Settings: its nav and its pages, a chunk of its own; shown and closed (Settings) |
 | `src/preload/index.cjs` | the window's bridge to the main process: the windows' pages are sandboxed (no Node: about 15 MB less a window, PSS), so it is a few lines of plain JavaScript; the window imports what it shares with the main process from `src/shared/` (`names.ts`, `avatars.ts`, `result.ts`) |
 | `src/main/log.ts` | the log: the file (electron-log), `summary` of an action's arguments, the Log page's reading and following of it, the issue's address (The log) |
-| `components/LogPage.tsx`, `components/AboutPage.tsx` | the Log and About pages of Settings (The log; Menus, About Kulisa) |
+| `components/settings/LogPage.tsx`, `AboutPage.tsx` | the Log and About pages of Settings (The log; Menus, About Kulisa) |
 | `src/main/keys.ts` | the keyboard shortcuts: the table, which key an input event is; `shortcuts.ts` takes them (Keys) |
 | `src/terminal/` | the terminal, a Kulisa package: its pty, its buffers, the xterm shown ([README](../src/terminal/README.md)) |
 | `src/main/file-links.ts` | the paths a terminal names: which exist, opening one or showing it in its folder (The terminal) |

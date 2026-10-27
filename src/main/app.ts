@@ -28,7 +28,6 @@ import { installPageMenu } from './page-menu.ts';
 import { installGhost } from './kulisa-plugin/ghost.ts';
 import { startDiscarding } from './discard.ts';
 import { installMasters } from './master.ts';
-import { installSettings } from './settings-window.ts';
 import { openTasks } from './open-tasks.ts';
 import { environment, log, startLog } from './log.ts';
 import { updateNotices } from './updates.ts';
@@ -154,10 +153,10 @@ function start(options: Options = {}) {
   };
   // Profiles whose test password is being typed (kulisa-plugin/tools/browser.ts, browser_type_login): ghost.ts shows no text for them.
   shell.typingSecret = new Set<string>();
-  // Settings too: not modal, it is open beside the windows where profiles are made and let go (settings-window.ts).
+  // Settings too, shown in any window (components/settings).
   shell.profilesChanged = (from) => {
     for (const p of shell.open.values()) for (const t of p.tasks.values()) if (t.loaded && t !== from) { t.list.refresh(); shell.taskChanged(t, true); }
-    shell.settings?.send('settings:changed');
+    for (const w of shell.windows) w.send('settings:changed');
   };
   // Where new projects go, and the folders of copies of tasks with several repositories (projects.ts).
   // New projects' place, and the folders of copies of tasks of several repositories: KulisaProjects, as JetBrains'
@@ -187,15 +186,16 @@ function start(options: Options = {}) {
     return null;
   };
   const at = (e: IpcEvent) => shell.windowOf(e.sender);
-  // The tasks' window a message is about: its own, or for Settings (settings-window.ts) the tasks' window last in front:
-  // its shown task's project and folder. Where a question about it is asked: in the window it came from, Settings' too.
-  const fromSettings = (e: IpcEvent) => !!shell.settings && shell.settings.win.webContents === e.sender;
-  const owner = (e: IpcEvent) => at(e) ?? (fromSettings(e) ? shell.front() : null);
-  const asker = (e: IpcEvent) => at(e) ?? (fromSettings(e) ? shell.settings : null);
-  // Clicked, or brought up by the keyboard or the OS: the window Settings acts for and the macOS menu's Settings… opens for.
+  // Clicked, or brought up by the keyboard or the OS: the window the macOS menu's Settings… and Quit act in.
   let front: AppWindow | null = null;
   app.on('browser-window-focus', (_e, win) => { front = shell.windows.find((w) => w.win === win) ?? front; });
   shell.front = () => (front && shell.windows.includes(front) && !front.win.isDestroyed() ? front : first());
+  shell.openSettings = (at, w = shell.front()) => {
+    if (!w) return;
+    log.info(`[settings] shown at ${at.section}${at.id ? ` ${at.id}` : ''}`);
+    w.send('settings:show', at);
+    w.focus();
+  };
   const appDevTools = options.appDevTools ?? !app.isPackaged;
   let quitting = false; // from before-quit on (below): closing a window asks nothing, tabs closing save nothing
   Object.defineProperty(shell, 'quitting', { get: () => quitting });
@@ -237,9 +237,8 @@ function start(options: Options = {}) {
     const favicon = faviconPicture(p);
     return { ...p, ...(favicon && { favicon }), tasks: tasksOf(p) };
   });
-  // A question asked where its action was done (a tasks' window, Settings: window.ts, Asker), the first window when none
-  // is named: askWhich gives the button clicked ('ok', 'other') or null; ask whether it was ok. Through shell: the
-  // tests answer it.
+  // A question asked in the window where its action was done, the first window when none is named: askWhich gives
+  // the button clicked ('ok', 'other') or null; ask whether it was ok. Through shell: the tests answer it.
   shell.askWhich = (q, w) => (w ?? first())?.ask(q) ?? Promise.resolve(null);
   shell.ask = async (q, w) => (await shell.askWhich(q, w)) === 'ok';
   shell.saveWindows = () => store.saveWindows(shell.windows.map((w) => w.saved()));
@@ -256,7 +255,6 @@ function start(options: Options = {}) {
     z = Math.min(z, UI_ZOOM_MAX);
     shell.uiZoom = z;
     for (const w of shell.windows) w.setZoom(z);
-    shell.settings?.setZoom(z);
     for (const p of allProfiles()) p.setBaseZoom(z);
     store.saveSettings({ ...store.settings(), uiZoom: z });
   };
@@ -269,7 +267,6 @@ function start(options: Options = {}) {
   shell.setTheme = (theme) => {
     if (theme) { shell.theme = theme; store.saveSettings({ ...store.settings(), theme }); }
     for (const w of shell.windows) w.setTheme(shell.theme, shell.shade());
-    shell.settings?.setTheme(shell.theme, shell.shade());
   };
   nativeTheme.on('updated', () => { if (shell.theme === 'system') shell.setTheme(); });
   // The language the human speaks with the agents (☰ → Language; docs/window.md, Language): Kulisa's one, written into
@@ -311,7 +308,7 @@ function start(options: Options = {}) {
   const { serial, newWindow, loadProject, unloadIdle, openProject } = tasks;
   updateNotices(shell, options.installed);
   // The windows' handles (ipc/): each message acts in the window it comes from.
-  const ipc: Ipc = { shell, at, owner, asker, serial, tasks };
+  const ipc: Ipc = { shell, at, serial, tasks };
   registerTasks(ipc);
   // Esc typed into an agent's terminal (its key: "<task>#<id>"): the agent's turn ended (Task.interrupted).
   onEscape((key) => shell.taskByKey(key.split('#')[0]!)?.interrupted(key));
@@ -320,7 +317,7 @@ function start(options: Options = {}) {
   registerAgents(ipc);
   registerPanes(ipc);
   registerWindow(ipc);
-  installGitHub(shell.github, { usedBy: (id) => githubUsers(shell, id), remove: (e, id) => deleteGitHub(shell, id, asker(e)),
+  installGitHub(shell.github, { usedBy: (id) => githubUsers(shell, id), remove: (e, id) => deleteGitHub(shell, id, at(e)),
     open: (url) => { void electronShell.openExternal(url); } });
   installDictation(shell.dictation);
   const ready = app.whenReady().then(async () => {
@@ -335,7 +332,7 @@ function start(options: Options = {}) {
     // (onKey). Elsewhere the windows have no menu (window.ts). Its app menu as Electron's own, Settings… added
     // (tutorial/application-menu.md).
     if (process.platform === 'darwin') {
-      // At the project of the tasks' window last in front (shell.front), Settings' own in front too.
+      // In the tasks' window last in front (shell.front), at its project.
       const settings = () => shell.openSettings({ section: 'projects', id: null });
       Menu.setApplicationMenu(Menu.buildFromTemplate([
         { role: 'appMenu', submenu: [{ label: 'About Kulisa', click: () => shell.openSettings({ section: 'about', id: null }) }, { type: 'separator' }, { label: 'Settings…', accelerator: 'Command+,', click: settings },
@@ -370,7 +367,6 @@ function start(options: Options = {}) {
     installPageMenu(shell);
     installGhost(shell);
     installMasters(shell, { preload: path.join(import.meta.dirname, '..', 'preload', 'index.cjs'), colors: () => COLORS[shell.shade()] });
-    installSettings(shell, { preload: path.join(import.meta.dirname, '..', 'preload', 'index.cjs'), appDevTools });
 
     for (const [i, { w, shown }] of windows.entries()) {
       if (i) await w.load(shown);

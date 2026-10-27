@@ -12,7 +12,7 @@ import type { StoredProfile } from '../profile-store.ts';
 import type { Result } from '../../shared/result.ts';
 
 export function registerProjects(ipc: Ipc, { lookForFavicon }: { lookForFavicon: (p: ProjectEntry) => Promise<void> }) {
-  const { shell, at, asker, serial } = ipc;
+  const { shell, at, serial } = ipc;
   const store = shell.store;
   const sendProjects = () => shell.sendProjects();
   // New Project (projects.ts, createProject); the window then opens its first task (project:open).
@@ -35,7 +35,7 @@ export function registerProjects(ipc: Ipc, { lookForFavicon }: { lookForFavicon:
     if (!refused(r)) sendProjects(); // the sidebar lists it
     return r;
   });
-  // A project's configuration in the projects' manager (components/ProjectPage.tsx): its name, agents,
+  // A project's configuration in Settings (components/settings/ProjectPage.tsx): its name, agents,
   // repositories, profiles and local addresses; its folder is shown, not changed (its tasks' copies are made from it).
   // Open or not.
   handle('project:settings-get', async (_e, { id }) => {
@@ -70,7 +70,7 @@ export function registerProjects(ipc: Ipc, { lookForFavicon }: { lookForFavicon:
   handle('project:profile-remove', (e, { id, profile }) => serial(async () => {
     const entry = store.projects().find((x) => x.id === id), g = shell.profileStore.get(profile);
     if (!entry || !g) return { error: entry ? `no profile ${profile}` : `no project ${id}` };
-    if (!await askDropProfile(shell, entry, g, 'human', asker(e))) return { error: 'the human said no' };
+    if (!await askDropProfile(shell, entry, g, 'human', at(e))) return { error: 'the human said no' };
     await dropProfile(shell, entry, g.id);
     return profilesOf(id);
   }));

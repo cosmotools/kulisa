@@ -10,7 +10,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { SignIn } from './SignIn';
 import { InstallProgress } from './AgentPicker';
 import { agentMark } from './AgentMark';
-import { avatarSrc } from './avatar';
+import { avatarSrc } from '../lib/common';
 import { useAgentList } from '../lib/agents';
 import { askName, isDefault, refusalOf, STEPS, useWizard, whereOf, wizard, type From, type Wizard as W } from '../lib/new-project';
 import { useCovered } from '../lib/cover';

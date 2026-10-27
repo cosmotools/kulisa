@@ -2,7 +2,7 @@
 // human when the agent asks; isolated, presenting as what they are, the sign-in pause (docs/profiles.md).
 import { test, expect } from './fixtures.ts';
 import type { Page } from '@playwright/test';
-import { SITE, who, closeMenu, manageProfiles, closeSettings, chooseProfile, taskMenu, act, invoke, typeIn, answer, navRow, shownRow, group, settingsMenu, listRow } from './helpers.ts';
+import { SITE, who, closeMenu, manageProfiles, closeSettings, chooseProfile, taskMenu, act, invoke, typeIn, answer, navRow, openThing, pathOf, group, settingsMenu, listRow } from './helpers.ts';
 import { profiles, signIn } from './agent-helpers.ts';
 
 // A profile's page in Settings: its fields by their labels; its picture's button, and the panel of pictures it opens.
@@ -10,7 +10,7 @@ const textbox = (s: Page, label: string) => s.getByRole('textbox', { name: label
 const picture = (s: Page) => s.getByRole('button', { name: 'Picture', exact: true });
 const pictures = (s: Page) => s.getByRole('dialog', { name: 'Pictures' });
 
-test('profiles are made in Settings (Profiles\' + in its nav), each with its own picture and, if the human says, who it is; added to the project on its page, opened in its task; the pages stay on screen under Settings\' window', async ({ core, ui, sui, files }) => {
+test('profiles are made in Settings (Profiles\' + in its nav), each with its own picture and, if the human says, who it is; added to the project on its page, opened in its task, its page on screen once Settings is closed', async ({ core, ui, sui, files }) => {
   // None yet, as in a new Kulisa: the profiles a test before left deleted as the human deletes them.
   for (const id of await core((k) => k.shell.profileStore.all().map((p) => p.id))) {
     const deleted = invoke(ui, 'profiles:delete', { profile: id });
@@ -20,17 +20,18 @@ test('profiles are made in Settings (Profiles\' + in its nav), each with its own
   await expect.poll(() => core((k) => k.shell.profileStore.all().length)).toBe(0);
   const s = await manageProfiles(ui, sui);
   await expect(s.getByRole('main').getByText('No profiles yet.', { exact: true })).toBeVisible();
-  // + beside Profiles: its name typed in place under the nav, Enter; then it is chosen, its page shown (the picture:
+  // New Profile on Profiles' page: its name typed in place, Enter; then its page shown (the picture:
   // the next free one, unless the human picks another).
   const make = async (name: string) => {
     const field = textbox(s, 'New profile');
-    await s.getByRole('button', { name: 'New Profile…' }).click();
+    await navRow(s, 'profiles').click(); // their list, from the page of the one made before
+    await s.getByRole('button', { name: 'New Profile', exact: true }).click();
     await expect(field).toBeFocused();
     await field.fill(name);
     await field.press('Enter');
     await expect(textbox(s, 'Name')).toHaveValue(name);
     await expect(field).toHaveCount(0);
-    await expect(shownRow(s)).toHaveAccessibleName(name);
+    await expect(pathOf(s)).toHaveText(new RegExp(`^Profiles\\s*${RegExp.escape(name)}$`));
   };
   const stored = (name: string) => core((k, id) => k.shell.profileStore.get(id), files.idOf(name));
   await make('Sam.seller');
@@ -52,14 +53,14 @@ test('profiles are made in Settings (Profiles\' + in its nav), each with its own
     'pictures, not colors; who it is when said').toEqual([
     { id: files.idOf('Sam.seller'), avatar: 'fox', description: 'seller in the test shop', projects: [], color: undefined },
     { id: files.idOf('Elon.buyer'), avatar: 'penguin', description: undefined, projects: [], color: undefined }]);
-  await expect(s.getByRole('main').getByText("none: add it on a project's page", { exact: true })).toBeVisible();
+  await expect(s.getByRole('main').getByText("None: add it on a project's page", { exact: true })).toBeVisible();
   // Added on the project's page (+ → its other profiles), closed in its task; opened there (👥).
   const project = await core((k) => k.shell.current.id);
-  await navRow(s, `p:${project}`).click(); // the projects come as it opens
+  await openThing(s, `p:${project}`); // the projects come as it opens
   for (const name of ['Sam.seller', 'Elon.buyer']) {
     // The profiles to add are asked for again as the page is shown: the open menu shows them as they come; a row's
     // name is its label and the line under it.
-    await group(s, 'Profiles').getByRole('button', { name: 'Add a profile' }).click();
+    await group(s, 'Profiles').getByRole('button', { name: 'Add Profile' }).click();
     await settingsMenu(s).getByRole('menuitem', { name: new RegExp(`^${RegExp.escape(name)}`) }).click();
     const row = listRow(s, 'Profiles', name);
     await expect(row).toHaveCount(1);
@@ -71,10 +72,10 @@ test('profiles are made in Settings (Profiles\' + in its nav), each with its own
   await act(ui, 'profile:open', { profile: sam });
   await act(ui, 'profile:open', { profile: elon });
   expect(await core((k) => [...k.shell.profiles.keys()])).toEqual([sam, elon]);
-  // Settings is a window of its own: the task's pages stay on screen and live (a dialog had hidden them). Elon's first
-  // tab comes after it is opened.
-  await expect.poll(() => core((k, id) => !!k.shell.profiles.get(id).get()?.view.getVisible(), elon)).toBe(true);
   await closeSettings(core, ui, sui);
+  // Hidden under Settings (the pages draw above the window's HTML), on screen once it is closed. Elon's first tab comes
+  // after it is opened.
+  await expect.poll(() => core((k, id) => !!k.shell.profiles.get(id).get()?.view.getVisible(), elon)).toBe(true);
   await expect(ui.locator('[role="region"][data-profile]')).toHaveCount(2);
   // The first page over the terminal alone took half the grid (dockview's split); the terminal keeps its share.
   const grid = await ui.locator('#dock').boundingBox(), terminal = await ui.getByRole('region', { name: 'Terminal', exact: true }).boundingBox();

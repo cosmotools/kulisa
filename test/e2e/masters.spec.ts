@@ -4,7 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
-import { SITE, PORT, logged, who, choose, rightClick, focusWindow, closeSettings, chooseProfile, navRow, invoke, answer } from './helpers.ts';
+import { SITE, PORT, logged, who, choose, rightClick, focusWindow, closeSettings, chooseProfile, pathOf, invoke, answer } from './helpers.ts';
 import { begin, newTask } from './tasks-helpers.ts';
 
 // The one master window open, once its page is there.
@@ -39,46 +39,35 @@ test("Sign In to Master… opens its master in a window of its own, nothing auto
   expect(await who(call, 'Sam.admin')).toBe('Signed in as sam');
 });
 
-test("About this profile… opens Settings' window at it (one, not modal: the task's window takes input and comes in front of it, its pages on screen); its Sign In… opens the same master window, once", async ({ core, ui, sui, files }) => {
+test("About this profile… shows Settings at it, over the task's window (its pages hidden under it, back after); asked again, the other profile's; its Sign In… opens the same master window, once", async ({ core, ui, sui, files }) => {
   const { sam, elon } = await begin(core, ui, files);
   await rightClick(ui, ui.locator(`[data-panel="profile:${sam}"]`).getByTestId('profile-name'));
   await choose(ui, 'About this profile…');
   const s = await sui();
   const name = s.getByRole('textbox', { name: 'Name', exact: true });
-  await expect(navRow(s, `f:${sam}`)).toHaveAttribute('aria-current', 'page');
+  await expect(pathOf(s)).toHaveText(/^Profiles\s*Sam\.admin$/);
   await expect(name).toHaveValue('Sam.admin');
-  await expect(navRow(s, `f:${sam}`), "the nav's narrow column cuts a name: the whole in its tooltip").toHaveAttribute('title', 'Sam.admin');
-  // A window of its own, not a child of the task's (on macOS a child stays above its parent), which goes on taking input
-  // and comes in front of it, Settings left as it is; the task's pages stay on screen.
-  const win = await core((k) => { const w = k.shell.settings.win; return { id: w.id, title: w.getTitle(), parent: w.getParentWindow(), enabled: k.shell.win.isEnabled(), fullScreenable: w.isFullScreenable() }; });
-  expect([win.title, win.parent, win.enabled]).toEqual(['Settings — Kulisa', null, true]);
-  // Never full screen: macOS made it a full-screen window of its own when opened from one (settings-window.ts).
-  expect(win.fullScreenable).toBe(false);
-  // In front once its page is filled (settings:ready); the human turns back to the task's window only after: one
-  // coming in front later takes the keyboard from it and closes its menu (Windows).
-  await expect.poll(() => core((k) => k.shell.settings.win.isVisible() && k.shell.settings.win.isFocused()), 'Settings in front').toBe(true);
-  await focusWindow(core, ui);
-  expect(await core((k, id) => k.shell.settings?.win.id === id && !k.shell.settings.win.isFocused(), win.id), 'Settings stays open behind it').toBe(true);
-  expect(await core((k, id) => k.shell.task.profiles.get(id).get().view.getVisible(), sam), 'pages on screen').toBe(true);
-  // Asked again, from another profile's menu: the same window, at that page.
-  await rightClick(ui, ui.locator(`[data-panel="profile:${elon}"]`).getByTestId('profile-name'));
-  await choose(ui, 'About this profile…');
+  // The pages draw above the window's HTML: hidden while it is shown.
+  await expect.poll(() => core((k, id) => k.shell.task.profiles.get(id).get().view.getVisible(), sam), 'pages hidden').toBe(false);
+  // Asked again (the main process, as macOS's menu): the same Settings, at that page.
+  await core((k, id) => k.shell.openSettings({ section: 'profiles', id }), elon);
   await expect(name).toHaveValue('Elon.buyer');
-  expect(await core((k) => k.shell.settings.win.id)).toBe(win.id);
+  await expect(s.locator('#settings')).toHaveCount(1);
   await chooseProfile(s, files, 'Sam.admin');
   const asks = () => logged(core, /\[ipc\] profiles:master /), before = await asks();
   await s.getByRole('button', { name: 'Sign In…' }).click();
   await oneMaster(core);
-  // Again, Settings brought in front of the master's window first, as the human's click there does: a page behind
+  // Again, the task's window brought in front of the master's first, as the human's click there does: a page behind
   // another window gets no mouse under Xvfb.
-  await core((k) => k.focus(k.shell.settings.win));
+  await focusWindow(core, ui);
   await s.getByRole('button', { name: 'Sign In…' }).click();
   await expect.poll(asks, 'asked twice').toBe(before + 2);
   await oneMaster(core);
   expect(await core((k) => k.shell.masters.values().next().value.profile.dir)).toBe(path.join(files.userData, 'profiles', sam));
   await closeMaster(core);
+  await focusWindow(core, ui);
   await closeSettings(core, ui, sui);
-  expect(await core((k, id) => !k.electron.BrowserWindow.fromId(id), win.id), 'its window gone, with its process').toBe(true);
+  await expect.poll(() => core((k, id) => k.shell.task.profiles.get(id).get().view.getVisible(), sam), 'pages back').toBe(true);
 });
 
 // About 5 s: its tab waits for a site that never answers, by design (profiles.ts).

@@ -8,7 +8,7 @@ import { cloneElement, useCallback, useEffect, useRef, useState, type HTMLAttrib
 import { Avatar, Button, Menu, MenuDivider, MenuGroupHeader, MenuItem, MenuList, MenuPopover, MenuTrigger, makeStyles, tokens,
   type PositioningShorthand } from '@fluentui/react-components';
 import { CircleFilled, DeleteRegular } from '@fluentui/react-icons';
-import { avatarSrc } from './avatar';
+import { avatarSrc } from '../lib/common';
 import { ProjectIcon } from './ProjectIcon';
 import { useCovered } from '../lib/cover';
 import type { MenuItem as Item, MenuRow } from '../lib/menu';

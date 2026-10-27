@@ -3,7 +3,7 @@
 // (titleBarOverlay in window.ts; 44 px: TITLE_BAR_HEIGHT there). No logo on macOS: its apps show their icon in the
 // Dock; Exit only where the OS has no menu bar with Quit (macOS: Cmd+Q).
 import type { ComponentType, ReactNode } from 'react';
-import { Button, Menu, MenuItem, MenuItemRadio, MenuList, MenuPopover, MenuTrigger, Text, Tooltip, makeStyles, mergeClasses, tokens } from '@fluentui/react-components';
+import { Button, Menu, MenuItem, MenuItemRadio, MenuList, MenuPopover, MenuTrigger, Text, ToggleButton, Tooltip, makeStyles, mergeClasses, tokens } from '@fluentui/react-components';
 import { AddRegular, BoardRegular, BookOpenRegular, BranchRegular, BugRegular, DarkThemeRegular, InfoRegular, KeyboardRegular,
   LayoutCellFourRegular, LayoutColumnThreeRegular, NavigationRegular, PanelBottomRegular, SettingsRegular, SignOutRegular, SquareRegular,
   SubtractRegular, TranslateRegular, ZoomIn20Regular } from '@fluentui/react-icons';
@@ -14,7 +14,8 @@ import { useWindow } from '../lib/store';
 import { keyText, LINKS, withKeys } from '../lib/common';
 import { applyPreset } from '../lib/grid';
 import { ask } from '../lib/ask';
-import { dialog, openSettings } from '../lib/dialogs';
+import { dialog } from '../lib/dialogs';
+import { leaveSettings, openSettings, useSettings } from '../lib/settings';
 import { refused } from '../../shared/result';
 import type { Bar, Theme } from '../../shared/ipc';
 
@@ -113,7 +114,7 @@ const windowMenu = (): Item[] => [
 ];
 
 export function TopBar({ children }: { children?: ReactNode }) {
-  const zoom = useWindow((s) => s.zoom), settings = useWindow((s) => s.projects.settings), styles = useStyles();
+  const zoom = useWindow((s) => s.zoom), settings = useWindow((s) => s.projects.settings), shown = !!useSettings(), styles = useStyles();
   // The logo and the space after the tasks' bar drag the window, however many tabs: Chromium takes tabs scrolled past
   // the bar's edges as no-drag over them too (it does not clip them to the bar) and the regions in the page's order, the
   // last one winning; so both come after the tasks' bar in the page, the logo put first by order. The space is at least
@@ -121,13 +122,15 @@ export function TopBar({ children }: { children?: ReactNode }) {
   return <header id="topbar" className={mergeClasses(styles.bar, styles.drag)}>
     {children}
     {!mac && <span data-testid="title-logo" className={mergeClasses(styles.logo, styles.drag)}><Logo color={`var(--project, ${tokens.colorNeutralForeground1})`} size={26} /></span>}
-    <span className={mergeClasses(styles.sidebar, styles.noDrag)}><SidebarToggle /></span>
+    <span className={mergeClasses(styles.sidebar, styles.noDrag)}>{!shown && <SidebarToggle />}</span>
     <span data-testid="drag-area" className={mergeClasses(styles.space, styles.drag)} />
     <span className={mergeClasses(styles.end, styles.noDrag)}>
       {zoom !== 1 && <Tooltip content={`Kulisa's zoom. Click to reset (${keyText('zoom.reset')})`} relationship="description">
         <Button id="zoomReset" appearance="subtle" onClick={() => kulisa.invoke('zoom:ui', 0)}>{Math.round(zoom * 100)}%</Button></Tooltip>}
-      {settings && <Tooltip content="Settings: projects, agents, profiles" relationship="description">
-        <Button id="manageProjects" appearance="subtle" icon={<SettingsRegular />} aria-label="Settings" onClick={() => openSettings()} /></Tooltip>}
+      {/* No tooltip while Settings is shown: one under the pointer would take its first Esc */}
+      {shown ? <ToggleButton id="manageProjects" appearance="subtle" icon={<SettingsRegular />} aria-label="Settings" checked onClick={() => void leaveSettings()} />
+        : settings && <Tooltip content="Settings: projects, agents, profiles" relationship="description">
+          <ToggleButton id="manageProjects" appearance="subtle" icon={<SettingsRegular />} aria-label="Settings" checked={false} onClick={() => openSettings()} /></Tooltip>}
       <ButtonMenu items={windowMenu} end><Button id="windowMenu" appearance="subtle" icon={<NavigationRegular />} aria-label="Menu" /></ButtonMenu>
     </span>
   </header>;

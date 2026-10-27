@@ -216,20 +216,28 @@ export const resize = (core: Core, size: { width?: number; height?: number }) =>
   return { width, height };
 }, size);
 
-// Settings (components/Settings.tsx): a row of its nav by its key (p:<project>, a:<agent>, f:<profile>, github, log, about),
-// the shown one aria-current; the shown page's path; a card of a page (Group.tsx) by its title; the open menu (Fluent's:
-// there only while open).
+// Settings (components/settings): a category of its nav (projects, agents, profiles, github, log, about), the shown one
+// aria-current; one thing's row on its category's page by its key (p:<project>, a:<agent>, f:<profile>); the shown
+// page's path; a section of a page (its Card, a group) by its title; the open menu (Fluent's: there only while open).
 export const navRow = (s: Page, key: string) => s.getByRole('navigation', { name: 'Settings' }).locator(`[data-key="${key}"]`);
-export const shownRow = (s: Page) => s.getByRole('navigation', { name: 'Settings' }).locator('[data-key][aria-current="page"]');
+export const thingRow = (s: Page, key: string) => s.locator(`#settings main [data-row][data-key="${key}"]`);
 export const pathOf = (s: Page) => s.getByRole('navigation', { name: 'Path' });
 export const group = (s: Page, title: string) => s.getByRole('group', { name: title, exact: true });
 export const settingsMenu = (s: Page) => s.getByRole('menu');
-// A list of a Settings page (List.tsx) by its name: its rows (each with its radio, not its head), one by its name, and
-// a row's own cells (not its radio's).
-export const listRows = (s: Page, list: string) => s.getByRole('grid', { name: list, exact: true }).getByRole('row').filter({ has: s.getByRole('radio') });
-export const listRow = (s: Page, list: string, name: string) => s.getByRole('grid', { name: list, exact: true }).getByRole('row', { name, exact: true });
-export const listCells = (row: Locator) => row.getByRole('gridcell').filter({ hasNot: row.page().getByRole('radio') });
-// Settings → Profiles: the shown task's tab's menu, then Manage Profiles…; once its window shows the page.
+// One thing's page: its category's list, then its row.
+export async function openThing(s: Page, key: string) {
+  await navRow(s, { p: 'projects', a: 'agents', f: 'profiles' }[key.split(':')[0]]).click();
+  await thingRow(s, key).click();
+}
+// The rows of a section of a page (its Card, a group) by its title, one by its name; a row's menu (its ⋯) and one of its actions.
+export const listRows = (s: Page, list: string) => group(s, list).locator('[data-row]');
+export const listRow = (s: Page, list: string, name: string) => group(s, list).locator(`[data-row][aria-label="${name}"]`);
+export async function onRow(s: Page, row: string | Locator, action: string) {
+  const r = typeof row === 'string' ? s.locator(row) : row;
+  await r.getByRole('button', { name: /^More for / }).click();
+  await choose(s, action);
+}
+// Settings → Profiles: the shown task's tab's menu, then Manage Profiles…; once Settings shows the page.
 export async function manageProfiles(ui: Page, sui: () => Promise<Page>) {
   await taskMenu(ui);
   await choose(ui, 'Manage Profiles…');
@@ -237,19 +245,16 @@ export async function manageProfiles(ui: Page, sui: () => Promise<Page>) {
   await expect(pathOf(s)).toHaveText(/^Profiles/);
   return s;
 }
-// A profile in Settings' nav chosen (a click), its page shown.
+// A profile's page shown from Settings' list of them (a click).
 export async function chooseProfile(s: Page, files: Files, name: string) {
-  const row = navRow(s, `f:${files.idOf(name)}`);
-  await row.click();
-  await expect(row).toHaveAttribute('aria-current', 'page');
+  await openThing(s, `f:${files.idOf(name)}`);
+  await expect(pathOf(s)).toHaveText(new RegExp(`^Profiles\\s*${RegExp.escape(name)}$`));
   await expect(s.getByRole('textbox', { name: 'Name', exact: true })).toHaveValue(name);
 }
-// Settings closed as the human does it with Esc, what was typed saved; its window gone, the keyboard back in the task's
-// window, the window's and its page's (a menu opened there before it comes closes as the window gets it). The key's
-// promise is not waited for: its page closes under it.
+// Settings closed as the human does it with Esc, what was typed saved; the grid back, the keyboard in the task's window.
 export async function closeSettings(core: Core, ui: Page, sui: () => Promise<Page>) {
   const s = await sui();
-  void s.keyboard.press('Escape').catch(() => {});
+  await s.keyboard.press('Escape');
   await settingsClosed(core, ui);
 }
 // A text field typed as the human types it, and left (a change; React's pages save as it loses the keyboard) when leave.
@@ -263,18 +268,10 @@ export async function pageOf(s: Page, name: string) {
   await expect(pathOf(s)).toHaveText(new RegExp(`^Projects\\s*${RegExp.escape(name)}$`));
   await expect(s.getByRole('textbox', { name: 'Name', exact: true })).toHaveValue(name);
 }
-// A list's row selected (a click), then a button of its toolbar acting on it (− removes, ★ makes it the default).
-export async function onRow(s: Page, row: string | Locator, button: string | Locator) {
-  const r = typeof row === 'string' ? s.locator(row) : row, b = typeof button === 'string' ? s.locator(button) : button;
-  await r.click();
-  await expect(r).toHaveAttribute('aria-selected', 'true');
-  await expect(b).toBeEnabled();
-  await b.click();
-}
-// However it closed (Esc, the OS's ×).
+// However it closed (Esc, its ×, the gear).
 export async function settingsClosed(core: Core, ui: Page) {
-  await expect.poll(() => core((k) => !k.shell.settings)).toBe(true);
-  await expect.poll(async () => (await core((k) => k.shell.win.isFocused())) && ui.evaluate(() => document.hasFocus()), { message: 'the task\'s window has the keyboard back' }).toBe(true);
+  await expect(ui.locator('#settings')).toHaveCount(0);
+  await expect.poll(async () => (await core((k) => k.shell.win.isFocused())) && ui.evaluate(() => document.hasFocus()), { message: 'the task\'s window has the keyboard' }).toBe(true);
 }
 
 // The window is a grid of peer panels (dockview): a pane per profile and the terminal. A profile's page is a native view

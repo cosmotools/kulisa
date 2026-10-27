@@ -101,8 +101,8 @@ prompt; the human writes the rest of the message around it.
 - **Terminology: "the tasks' bar"**: the bar of the tasks' tabs, under the grid or in the title bar after the logo,
   as a browser's tabs (☰ → Tasks bar; `TaskBar.tsx`, `#taskbar`). Not "taskbar", the OS's. Earlier commits say "the
   projects' bar" (`ProjectBar.vue`).
-- **Terminology: "Settings"**: the window behind the title bar's gear, as JetBrains' Settings (its tree and pages:
-  `docs/window.md`); in code `Settings.tsx`. Earlier commits say "the projects' manager". New Project is steps
+- **Terminology: "Settings"**: what the title bar's gear shows over the whole window, as JetBrains' Settings (its categories
+  and pages: `docs/window.md`); in code `components/settings/`. Earlier commits say "the projects' manager". New Project is steps
   (`NewProject.tsx`): the welcome's, and a dialog of a tasks' window.
 - **Terminology: "the empty window"**: what a window is with no task open (`Empty.tsx`; `docs/window.md`): the title
   bar, no tasks' bar, and in the grid's place the sidebar docked (every project with its tasks) or, with no project at
@@ -133,6 +133,11 @@ prompt; the human writes the rest of the message around it.
     their index and what changed between versions are in the repository's docs at the version's tag
     (`https://raw.githubusercontent.com/electron/electron/v<version>/docs/`: `README.md`, `tutorial/…`, `api/…`,
     `breaking-changes.md`); the API is in `node_modules/electron/electron.d.ts`.
+  - Before using a Fluent UI component in the window, read its file from Fluent's own docs for agents
+    (`https://storybooks.fluentui.dev/react/llms.txt`: each component's purpose, best practices and stories as code)
+    and build as its stories do, not from memory; what it is for and when not to use it is on its usage page
+    (`https://fluent2.microsoft.design/components/web/react/core/<name>/usage`). Used as it ships: no class, style,
+    `makeStyles` or wrapper of ours on it; the look is `theme.ts`'s tokens alone (`docs/ui.md`).
   - Hand-written protocol code is the exception: today only `cdp-proxy.ts`, because nothing existing exposes
     `webContents.debugger` over CDP.
   - When adding a dependency, prefer one that is widely used and maintained, and say why in the commit message. Its

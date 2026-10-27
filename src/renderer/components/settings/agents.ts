@@ -1,9 +1,9 @@
 // Settings' agents and their accounts (docs/tasks.md, Choosing the agent, Accounts): what the nav and an agent's page
 // show, kept here rather than in a page, so an install goes on (and its output is kept) while another page is shown.
 import { useSyncExternalStore } from 'react';
-import { refused } from '../../shared/result';
-import { tilde } from '../../shared/paths';
-import type { Account, AccountsInfo, AgentInfo } from '../../shared/types';
+import { refused } from '../../../shared/result';
+import { tilde } from '../../../shared/paths';
+import type { Account, AccountsInfo, AgentInfo } from '../../../shared/types';
 
 interface Install { id: string; running: boolean; progress: string; log: string; error: string; open: boolean }
 interface Agents {

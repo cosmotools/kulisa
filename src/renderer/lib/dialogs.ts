@@ -4,7 +4,6 @@
 // KB.
 
 import type { Terminal } from '../../shared/types';
-import type { SettingsAt } from '../../shared/ipc';
 
 export interface Dialogs {
   taskrename: { rename(key: string, name: string): void };
@@ -27,7 +26,3 @@ const entry = (name: Name) => {
 };
 export function registerDialog<N extends Name>(name: N, api: Dialogs[N]) { entry(name).got!(api); }
 export const dialog = <N extends Name>(name: N) => entry(name).ready as Promise<Dialogs[N]>;
-
-// Settings: a window of its own (main/settings-window.ts), opened at a project's page (none: the shown task's), a
-// profile's (section 'profiles'), the log or About; brought to the front when it is open.
-export const openSettings = (section: SettingsAt['section'] = 'projects', id?: string | null) => kulisa.send('settings:open', { section, id: id ?? null });

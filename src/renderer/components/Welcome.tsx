@@ -6,7 +6,7 @@ import { Avatar, Badge, Button, Card, CardFooter, CardHeader, Carousel, Carousel
   SkeletonItem, Text, Title1, createPresenceComponent, makeStyles, mergeClasses, motionTokens, tokens } from '@fluentui/react-components';
 import { CursorClick20Regular } from '@fluentui/react-icons';
 import { agentMark } from './AgentMark';
-import { avatarSrc } from './avatar';
+import { avatarSrc } from '../lib/common';
 import { Wizard } from './NewProject';
 import { wizard, type Wizard as W } from '../lib/new-project';
 import { useCommonStyles } from './theme';
