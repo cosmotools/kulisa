@@ -16,7 +16,7 @@
 //                            resources what it has (TaskEntry), the first where it works
 //     <task id>/             a task (TaskStore): profiles.json (what it has of its project's profiles: id, sites'
 //                            zoom, closed), layout.json (the window's grid), agent.json (its agents' conversations,
-//                            to resume and read them), terminals.json (its island's tabs), and a copy of a profile's
+//                            to resume and read them), terminals.json (its terminals' tabs), and a copy of a profile's
 //                            master per profile opened here, named by the profile's id:
 //       <id>/                a Chromium profile (session.fromPath) with Kulisa's own files in it: Kulisa Tabs.json
 //                            (its tabs' URLs), Kulisa Session Cookies.bin (session-cookies.ts)
@@ -61,7 +61,7 @@ interface ProjectEntry {
 }
 // A task's copy of one repository (worktrees.ts, createWorktree).
 interface Copy { repo: string; worktree: string; branch: string; base: string | null; folder: string }
-// What a task has (docs/tasks.md, The Resources island), the first where it works: the project's folder it opened in
+// What a task has (docs/tasks.md, The Resources panel), the first where it works: the project's folder it opened in
 // (maintree: the human's, kept as it was then, though the project's default may change), until its own worktree takes
 // that place (task_worktree); then the worktrees of the other repositories it added. More kinds come over time.
 type Resource = { kind: 'maintree'; folder: string } | ({ kind: 'worktree' } & Copy);
@@ -91,7 +91,7 @@ interface Settings { uiZoom?: number; theme?: 'dark' | 'light' | 'system'; bar?:
   settingsWindow?: Electron.Rectangle } // where Settings' window was (settings-window.ts)
 // A profile as a task keeps it in profiles.json (project-profiles.ts).
 interface TaskProfile { id: string; zoom?: Record<string, number>; closed?: boolean }
-// A task's agents (tasks.ts): the one it was made with (opened when its island has never had a terminal), and every
+// A task's agents (tasks.ts): the one it was made with (opened when it has never had a terminal), and every
 // conversation an agent had in it, oldest first, numbered from 1 in task_history: its account, its session as its
 // hooks reported it (agent-hooks.ts), when, the name the agent gave it (title) or its own auto-title read from its
 // transcript (autoTitle, shown until title is given), and the terminal it is open in (none: closed).
@@ -99,7 +99,7 @@ interface Conversation {
   agent: string; sessionId?: string; transcript?: string; started?: boolean; from: number; to?: number; title?: string; autoTitle?: string; terminal?: number;
 }
 interface AgentFile { agent?: string | null; conversations?: Conversation[] }
-// Its island's terminals, in their tabs' order, and the one in front (tasks.ts): a shell has its name; an agent's, its
+// Its terminals, in their tabs' order, and the one in front (tasks.ts): a shell has its name; an agent's, its
 // conversation's index in agent.json.
 interface SavedTerminal { id: number; name?: string; by?: 'human' | 'agent'; conversation?: number }
 interface TerminalsFile { front?: number | null; list: SavedTerminal[] }
@@ -227,7 +227,7 @@ class TaskStore {
   saveLayout(layout: unknown) { writeJSON(this.file('layout.json'), layout); }
   agent(): AgentFile { return readJSON(this.file('agent.json')) || {}; }
   saveAgent(a: AgentFile) { writeJSON(this.file('agent.json'), a); }
-  // null: the island never had a terminal (a new task: its agent opens).
+  // null: the task never had a terminal (a new task: its agent opens).
   terminals(): TerminalsFile | null { const t = readJSON(this.file('terminals.json')); return Array.isArray(t?.list) ? t : null; }
   saveTerminals(t: TerminalsFile) { writeJSON(this.file('terminals.json'), t); }
 }

@@ -67,7 +67,7 @@ test('projects: another folder opens in a tab of its own, with its own profiles 
     await expect(tabs.nth(i).getByTestId('project-icon'), "Kulisa's logo in its color: no favicon").toHaveAttribute('data-logo', '');
     await expect(tabs.nth(i)).toHaveAttribute('title', new RegExp(`^${project}(\n|$)`));
   }
-  // Every island keeps its place and width whichever task is shown, also while it switches: nothing jumps. Read at
+  // Every tab keeps its place and width whichever task is shown, also while it switches: nothing jumps. Read at
   // every frame in the page: Playwright reads a box once, when asked.
   const islands = () => ui.locator('#projectTabs [role="tab"]').evaluateAll((ts) => ts.map((t) => { const r = t.getBoundingClientRect(); return [r.x, r.width]; }));
   const before = await islands();

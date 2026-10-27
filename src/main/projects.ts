@@ -48,7 +48,7 @@ class Project {
   folders() { return this.entry.folders; }
   // The agents' accounts its tasks run, the default first.
   agents() { return agentsOf(this.shell, this.entry); }
-  // The one a new task starts; none: its tasks start with nothing open (the island's buttons, Terminals.tsx).
+  // The one a new task starts; none: its tasks start with nothing open (the terminals' buttons, Terminals.tsx).
   defaultAgent() { return defaultOf(this.shell, this.entry); }
   // Its open tasks, in the order they were made (the bar's); the closed ones, the one closed last first.
   open() { return [...this.tasks.values()].filter((t) => !t.entry.closed); }
@@ -68,7 +68,7 @@ class Project {
   // the project's folder (the human's), and its agent makes the task its own git worktree with task_worktree
   // (ensureWorktree) when it reaches code — or the human has it work right in the folder. A project without git works
   // in its folder as it is. Made from the project's configuration alone (the projects' manager), nothing from the task
-  // on screen: its agent the project's default one; none: nothing starts, the island shows what can. No profile opens
+  // on screen: its agent the project's default one; none: nothing starts, the terminals' panel shows what can. No profile opens
   // by itself: all its project's are listed closed, and the agent (profile_open) or the human (a task tab's menu)
   // opens one when it is needed, a copy of its master made then. The new Task, or { error }.
   async createTask(): Promise<Result<Task>> {
@@ -173,7 +173,7 @@ class Project {
     if (found) this.save();
     return found;
   }
-  // A closed task opened again (the bar's +), to be shown: it loads then, its agent resumed.
+  // A closed task opened again (the sidebar), to be shown: it loads then, its agent resumed.
   reopen(task: Task) {
     delete task.entry.closed; delete task.entry.closedAt; delete task.entry.merged;
     this.save();
@@ -218,7 +218,7 @@ async function askDeleteTask(shell: Shell, entry: TaskEntry, folder: string, w: 
   return shell.ask(deleteQuestion({ message: `Delete the task ${entry.name}?`, ok: 'Delete', goes, notInMain: what ? [what] : [],
     stays: !copies.length && `It worked in ${folder}: its files stay, and so does its agent's conversation there.` }), w);
 }
-// A closed task of a project not loaded (the bar's + lists them): nothing of it is loaded, its entry is all there is.
+// A closed task of a project not loaded (the sidebar lists them): nothing of it is loaded, its entry is all there is.
 async function deleteClosedTask(shell: Shell, p: ProjectEntry, id: string, w: AppWindow): Promise<Result<{ id: string }>> {
   const entry = shell.store.tasksOf(p).list.find((e) => e.id === id && e.closed);
   if (!entry) return { error: `no closed task ${id}` };
@@ -350,7 +350,7 @@ async function deleteProfile(shell: Shell, id: string, w: Asker | null): Promise
 }
 
 // The agents' accounts a project's tasks run (the projects' manager), whether it is open or not: added, made the
-// default (+ runs it) or none the default (its tasks start with the island's buttons), removed.
+// default (+ runs it) or none the default (its tasks start with the terminals' buttons), removed.
 // The default is the first, unless noDefaultAgent; with no agents left, the next one added is the default. A task keeps
 // the agent it started with. The accounts' store (accounts.ts) lists the projects each is in. { agents } or { error }.
 function changeAgents(shell: Shell, id: string, list: string[], noDefault?: boolean) {

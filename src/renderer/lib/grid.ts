@@ -117,7 +117,7 @@ const underPages = () => {
   addResources('right');
   return (w: number, h: number) => { groupOf('resources').setSize({ width: Math.round(w * RESOURCES_SHARE.width) }); groupOf('terminal').setSize({ height: Math.round(h * TERMINAL_SHARE) }); };
 };
-// Ready-made arrangements (☰); after one, panels move freely again. Each gives what sizes its islands, once the grid
+// Ready-made arrangements (☰); after one, panels move freely again. Each gives what sizes its panels, once the grid
 // has one.
 const presets: Record<'columns' | 'grid' | 'focus', (s: Profile[]) => (w: number, h: number) => void> = {
   columns(s) {
@@ -146,7 +146,7 @@ export function applyPreset(name: keyof typeof presets) {
   const a = api!;
   a.clear();
   const sizes = presets[name](store.getState().profiles);
-  // The islands' sizes, once the grid has a size (at first start the window may have none yet). Its
+  // The panels' sizes, once the grid has a size (at first start the window may have none yet). Its
   // room (room()), not #dock's: laid out to a box larger than its room, the right and bottom were cut off until the
   // window was resized.
   const dock = document.getElementById('dock')!;
@@ -215,7 +215,7 @@ async function restoreGrid() {
   const saved = await act('layout:load') as { panels?: Record<string, unknown> } | null | undefined; // as the window saved it
   // A saved grid may name profiles deleted since; dockview needs a component for every panel in it.
   const known = (id: string) => id === 'terminal' || id === 'resources' || store.getState().profiles.some((p) => panelId(p.id) === id);
-  // One without the Resources island is not a grid this window makes: the default arrangement instead.
+  // One without the Resources panel is not a grid this window makes: the default arrangement instead.
   if (saved && Object.keys(saved.panels || {}).every(known) && saved.panels?.resources) {
     try { a.fromJSON(saved as Parameters<DockviewApi['fromJSON']>[0]); } catch (e) { console.warn('[layout] saved grid not restored:', (e as Error).message); a.clear(); }
   }

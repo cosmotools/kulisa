@@ -1,4 +1,4 @@
-// Tasks deleted: Delete Task…, merged tasks, from the board (docs/tasks.md).
+// Tasks deleted: Delete Task…, merged tasks, from the sidebar (docs/tasks.md).
 import fs from 'fs';
 import path from 'path';
 import type { Page } from '@playwright/test';

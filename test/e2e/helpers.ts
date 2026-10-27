@@ -144,7 +144,7 @@ export async function focusWindow(core: Core, ui: Page) {
 
 // The tasks' bar's tabs (one per open task): each its project, by its folder's name, the shown one with ' *'.
 export const projectTabs = async (ui: Page, files: Files) => (await ui.locator('#projectTabs [role="tab"]').evaluateAll((ts) => ts.map((t) => (t as HTMLElement).dataset.project + (t.ariaSelected === 'true' ? ' *' : '')))).map(files.named);
-// The island's terminals' tabs: each its name, the one in front with ' *'.
+// The terminals' tabs: each its name, the one in front with ' *'.
 export const termTabs = (ui: Page) => ui.locator('nav[aria-label="Terminals"] [role="tab"]').evaluateAll((ts) => ts.map((t) => t.textContent.trim() + (t.ariaSelected === 'true' ? ' *' : '')));
 // A project's first tab in the bar; the project shown again as the human does it, a click on it; its open tasks
 // closed with the middle button on each tab.
@@ -286,7 +286,7 @@ export const pageBox = (ui: Page, files: Files, name: string) => box(ui, `[role=
 export const viewOn = async (core: Core, ui: Page, files: Files, name: string) => core((k, a) => k.viewOn(a.name, a.box), { name, box: await pageBox(ui, files, name) });
 // dockview's API, as the window keeps it for the tests (window.__dock), given to fn with an argument.
 export const dock = <A, R>(ui: Page, fn: (api: any, arg: A) => R, arg?: A) => ui.evaluate(([src, a]) => (0, eval)(`(${src})`)((window as any).__dock, a), [fn.toString(), arg] as const) as Promise<R>;
-// The Resources island's height on screen (its group in the grid: lib/grid.ts).
+// The Resources panel's height on screen (its group in the grid: lib/grid.ts).
 export const resourcesHeight = (ui: Page) => ui.evaluate(() => Math.round(document.getElementById('resources').closest('.dv-groupview').getBoundingClientRect().height));
 
 // Who the test site says is signed in, in a profile's page, as the agent (of the window's task, or of where) reads it.

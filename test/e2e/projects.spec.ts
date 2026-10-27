@@ -51,7 +51,7 @@ test("projects: the projects' manager (Project Settings…) changes its name and
   const id = files.pid('site'), tab = projectTabSel(files, 'site');
   await expect(projectTab(ui, files, 'site').getByTestId('project-icon')).toHaveAttribute('src', /^data:image\/svg\+xml;base64,/);
   // Its color: its favicon's hue (red: 29°; a few degrees off where its edges blend) in the lightness and chroma of
-  // Kulisa's own colors; the window's and its island's. What projects.json keeps (the next free color) is for a
+  // Kulisa's own colors. What projects.json keeps (the next free color) is for a
   // project with none.
   const shown = async (hue: number | string) => {
     const color = typeof hue === 'string' ? hue : new RegExp(`^oklch\\(0\\.61 0\\.12 (${Array.from({ length: 9 }, (_, i) => hue - 4 + i).join('|')})\\)$`);
@@ -215,7 +215,7 @@ test("projects: the projects' manager (Project Settings…) changes its name and
   const annTask = await newTask(core, ui, id);
   await expect.poll(() => core((k) => k.shell.task.promptTarget()?.agent.id)).toBe(ann);
   expect(await core((k) => k.shell.task.profiles.size), 'no profile opens by itself').toBe(0);
-  // None the default: a new task starts nothing, the island's buttons instead; Ctrl+` there gives them the keyboard.
+  // None the default: a new task starts nothing, the terminals' buttons instead; Ctrl+` there gives them the keyboard.
   await invoke(ui, 'project:agent-default', { id, agent: null });
   const made = invoke(ui, 'task:new', { project: id });
   await answer(ui, 'Create Anyway');
@@ -246,7 +246,7 @@ test("projects: the projects' manager (Project Settings…) changes its name and
   await core((k) => k.press(k.shell.win.webContents, '`', 'control'));
   await expect(ui.getByRole('navigation', { name: 'New terminal' }).getByRole('button').first()).toBeFocused();
   expect(await terminals(), 'nothing opened').toBe(0);
-  // With a profile open, the island is a strip: Ctrl+` opens its +.
+  // With a profile open, the terminals' panel is a strip: Ctrl+` opens its +.
   await call('profile_create', { name: 'Bo.bare' }, { task: bare });
   await expect(ui.getByTestId('terminals').locator('[data-unfold]')).toHaveCount(1);
   await expect(ui.getByRole('navigation', { name: 'New terminal' })).toHaveCount(0);

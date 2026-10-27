@@ -24,9 +24,9 @@ interface TerminalConfig {
 type Send = (channel: 'pty:out', data: TerminalEvents['pty:out']) => void;
 interface Term { pty: Pty | null; size: Size | null; firstSize: Promise<void>; sized: () => void }
 
-// The terminal's size as the window measures it, per terminal and per task (its island's, which all its terminals
+// The terminal's size as the window measures it, per terminal and per task (its panel's, which all its terminals
 // share: one is shown at a time). An agent starts only once its size is known: Claude Code draws its prompt for the
-// size it starts with and does not fully redraw on the first resize. However long the window takes to lay the island
+// size it starts with and does not fully redraw on the first resize. However long the window takes to lay the panel
 // out: a loaded machine lays it out slower than any fixed wait would allow for.
 // The size comes: a task loads its terminals when it is first shown (docs/tasks.md). Listening from require time, so
 // a size sent while the window loads is not missed.
@@ -79,7 +79,7 @@ function programPath(name: string, env: Record<string, string | undefined> = pro
 // pinned: variables of env the shell's startup must not change, typed before the command too (`VAR=… cmd`: bash, zsh,
 // fish 3.1+; PowerShell's $env:VAR=…): the task's account, which a project's .envrc setting CLAUDE_CONFIG_DIR would replace.
 // line: a command line typed into the shell as it is (a shell's; none: the shell alone). size:
-// start at it rather than wait for the window's; sizeOf: or at that key's (the task's island: a terminal behind another
+// start at it rather than wait for the window's; sizeOf: or at that key's (the task's terminals' panel: a terminal behind another
 // tab has none of its own), whichever comes first. screen: its last lines kept for the agent to read (a shell's). key: the terminal's; the window sends its input and size, and gets
 // its output, under it. send(channel, data): to the task's window, whichever it is then.
 async function startTerminal(send: Send, cfg: TerminalConfig, key: string): Promise<Pty> {

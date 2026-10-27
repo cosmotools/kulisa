@@ -7,5 +7,5 @@ why: `README.md`. What is planned for it: issue #113.
   `src/main`; `npm run deps` refuses any import.
 - It knows of tasks only what the caller gives it (`Tasks`: `app.ts`, from the store). What a figure means to the
   human or the agent, and deleting, are the callers': `Task.artifactsUsage`, `Task.deleteArtifacts`, the Resources
-  island, `task_artifacts`.
+  panel, `task_artifacts`.
 - Its unit tests are here (`monitor.test.ts`, `npm run test:unit`); its e2e test in `test/e2e/agent-reports.spec.ts`.

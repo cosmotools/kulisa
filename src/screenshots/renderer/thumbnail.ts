@@ -1,7 +1,7 @@
 // The thumbnail's page (../README.md, The thumbnail): the picture only; what is done with it, the main process does.
 const style = document.createElement('style');
 // Around the picture, room for its shadow and its × (PAD in ../main/thumbnail.ts). Its colors are written out here,
-// its × drawn here: this page imports nothing of the window, the sprite neither (../CLAUDE.md).
+// its × drawn here: this page imports nothing of the window, its icons neither (../CLAUDE.md).
 // FADE in ../main/thumbnail.ts is its fading out's time.
 style.textContent = `html, body { margin: 0; height: 100%; overflow: hidden; background: transparent; }
   body { box-sizing: border-box; padding: 12px; position: relative; opacity: 0; scale: .96; transition: opacity .2s ease, scale .2s ease; }

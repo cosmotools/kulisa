@@ -75,7 +75,7 @@ export async function showTask(core: Core, ui: Page, key: string) {
 }
 // A task shown, by its key, once its agent started and the window is done showing it.
 export const taskShown = (core: Core, key: string) => expect.poll(() => core((k, t) => k.shell.task?.key === t && k.settled(true), key), { timeout: 20000 }).toBe(true);
-// A new task (its + in the board or the bar: task:new; the menu itself is tested elsewhere) of a project, the shown one
+// A new task (a project's + in the sidebar or the bar's +: task:new; the menu itself is tested elsewhere) of a project, the shown one
 // by default, shown once its agent started; named task-<its place among its project's tasks> for the test to refer to
 // it by, unless name is null (left "New Task"). A project without git whose folder a task works in asks first: answered
 // yes. Its key.

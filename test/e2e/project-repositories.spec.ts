@@ -142,7 +142,7 @@ test('projects: several repositories: a task works in the main tree until it mak
   await deleted;
   await expect.poll(() => fs.existsSync(home)).toBe(false);
   expect(git(web, 'branch', '--list', 'checkout') + git(api, 'branch', '--list', 'checkout')).toBe('');
-  // Back on the first, shown again: the human removes its web by the Resources island's 🗑 (nothing uncommitted in
+  // Back on the first, shown again: the human removes its web by the Resources panel's 🗑 (nothing uncommitted in
   // it: not asked); its own worktree's row has no Remove.
   await showTask(core, ui, first);
   await expect(resources).toHaveCount(2);

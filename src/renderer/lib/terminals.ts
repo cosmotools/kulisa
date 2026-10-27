@@ -1,5 +1,5 @@
 // A tasks' window's terminals (docs/window.md, The terminal): the terminals themselves are src/terminal's, keyed
-// "<task>#<id>" as in the main process; here the island's side: the shown task's terminal in front (components/grid/Terminals.tsx),
+// "<task>#<id>" as in the main process; here the terminals' side: the shown task's terminal in front (components/grid/Terminals.tsx),
 // links into its profiles, terminals moving to another window, their menus.
 import { act, store } from './store';
 import { dark, termStyle } from '../components/theme';
@@ -11,7 +11,7 @@ import { refused } from '../../shared/result';
 import { restoreTerminal, serialized, termCopy, termHooks, termPaste, View, xtermKeys } from '../../terminal/renderer';
 import type { Terminal as TerminalInfo } from '../../shared/types';
 
-// The terminal in front of the shown task's island: where the keyboard goes (Ctrl+`), what the tests read.
+// The terminal in front of the shown task's terminals: where the keyboard goes (Ctrl+`), what the tests read.
 const frontKey = () => { const { current, terminals } = store.getState(); return current && terminals.front !== null ? `${current}#${terminals.front}` : null; };
 // The terminals' pane's xterm, one for the window: components/grid/Terminals.tsx puts it in whichever grid is shown and
 // gives it the theme's colors.
@@ -63,10 +63,10 @@ export function terminalMenu(key: string, more: MenuItem[]): MenuItem[] | null {
   ];
 }
 
-// The island's menus (components/grid/Terminals.tsx). The shown task's project's agents (its accounts), the default first; the terminal
+// The terminals' menus (components/grid/Terminals.tsx). The shown task's project's agents (its accounts), the default first; the terminal
 // only is the Terminal row.
 const projectAgents = () => { const { projects } = store.getState(); return (projects.open.find((o) => o.id === projects.project)?.agents || []).filter((a) => a.cli !== 'shell'); };
-// The same as big buttons, the island alone in the grid: an account's name is its agent's · its email, on two lines.
+// The same as big buttons, the terminals alone in the grid: an account's name is its agent's · its email, on two lines.
 export const launchers = () => [
   ...projectAgents().map((a) => {
     const [name, sub = ''] = a.name.split(' · ');

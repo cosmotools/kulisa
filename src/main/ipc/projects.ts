@@ -32,7 +32,7 @@ export function registerProjects(ipc: Ipc, { lookForFavicon }: { lookForFavicon:
   handle('project:folder-state', (_e, args) => folderStateOf(shell, args));
   handle('project:new', async (_e, spec) => {
     const r = await createProject(shell, spec);
-    if (!refused(r)) sendProjects(); // the board lists it
+    if (!refused(r)) sendProjects(); // the sidebar lists it
     return r;
   });
   // A project's configuration in the projects' manager (components/ProjectPage.tsx): its name, agents,

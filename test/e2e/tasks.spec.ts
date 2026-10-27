@@ -59,13 +59,13 @@ test("tasks: without git a task works in the project's folder, and a second one 
 });
 
 test('tasks: + opens a task in the project\'s main working tree ("New Task", no worktree, no port offset); its profiles closed until opened (each a copy of its master); the agent makes its worktree and names it with task_worktree', async ({ core, ui, files, call, mcp }) => {
-  test.slow(); // the island held back 6 s by design, then git's work
+  test.slow(); // the terminals' panel held back 6 s by design, then git's work
   await begin(core, ui, files, { only: true, columns: true });
   await master(core, files, false);
   const project = files.project, SAM = files.idOf('Sam.admin'), ELON = files.idOf('Elon.buyer'), DORA = files.idOf('Dora');
   const first = await core((k) => k.shell.task.key);
   await call('browser_navigate', { profile: 'Sam.admin', url: `${SITE}/app?task` });
-  // The island's buttons are for a task with nothing open: a task opening shows its agent's tab at once, starting,
+  // The terminals' buttons are for a task with nothing open: a task opening shows its agent's tab at once, starting,
   // not them for the second its agent is looked for. Each noted as it comes: an assertion sees only the state when it
   // looks.
   await ui.evaluate(() => {
@@ -81,8 +81,8 @@ test('tasks: + opens a task in the project\'s main working tree ("New Task", no 
     g.find = find; g.found = false;
     Object.assign(k.shell, { findAgent: async (...a: Parameters<typeof find>) => { await new Promise((r) => { g.look = r; }); const r = await find(...a); g.found = true; return r; } });
   });
-  // Its agent waits for its terminal's size however late the window lays the island out: not at a default one after
-  // 5 s, which a loaded machine reaches. The island hidden while the main process's clock goes 6 s on after the agent
+  // Its agent waits for its terminal's size however late the window lays the terminals' panel out: not at a default one after
+  // 5 s, which a loaded machine reaches. The terminals' panel hidden while the main process's clock goes 6 s on after the agent
   // is found (driver.ts, clock: its timers of a second or more).
   const lateIsland = await ui.addStyleTag({ content: '[data-testid="terminal"] { display: none !important; }' });
   await core((k) => k.clock.hold(1000));
@@ -158,7 +158,7 @@ test('tasks: + opens a task in the project\'s main working tree ("New Task", no 
 
   // It makes its own worktree, naming the task in the same call (task_worktree's name, since it is still "New Task"):
   // the tab and the branch take the name, the folder becomes the worktree; the project's folder stays the human's.
-  // The Resources island: the main working tree until it has its own worktree, then the worktree on its branch.
+  // The Resources panel: the main working tree until it has its own worktree, then the worktree on its branch.
   const resources = ui.locator('#resources').getByRole('list', { name: 'Folders' }).getByRole('listitem');
   await expect(resources).toHaveText([`${path.basename(project)}main working tree`]);
   // Two of its agents at once (each a call) get the one worktree, not one each.
@@ -274,7 +274,7 @@ test("tasks: an agent's tab closes after a question, always (Cancel keeps it); t
     await (yes ? expect(island).toHaveAttribute('data-folded') : expect(island).not.toHaveAttribute('data-folded'));
     await (yes ? expect(strip).toBeHidden() : expect(strip).toBeVisible());
   };
-  // The island's group (its content is laid over it: dockview's renderer 'always').
+  // The terminals' panel's group (its content is laid over it: dockview's renderer 'always').
   const group = ui.locator('.dv-groupview', { has: strip });
   const size = async (l: Locator) => { const b = await l.boundingBox(); return { width: Math.round(b.width), height: Math.round(b.height) }; };
   const saved = () => files.json(files.pfile('terminals.json', task.split('/')[1]));
@@ -301,10 +301,10 @@ test("tasks: an agent's tab closes after a question, always (Cancel keeps it); t
     const b = await inner.boundingBox(), r = await outer.boundingBox();
     return Math.abs(Math.round(b.x + b.width / 2 - (r.x + r.width / 2))) <= 1 && Math.abs(Math.round(b.y + b.height / 2 - (r.y + r.height / 2))) <= 1;
   };
-  // Its + from the middle of the island (x), and from where a strip's middle would be.
+  // Its + from the middle of the terminals' panel (x), and from where a strip's middle would be.
   const unfold = island.getByRole('button', { name: 'New terminal' }), middle = () => centred(unfold, island);
   // The project's profiles, all closed: Sam.admin, Elon.buyer, Dora.
-  // The island and the Resources island beside or under it fill the grid: dockview's room, the closed profiles' tiles no
+  // The terminals' panel and the Resources panel beside or under it fill the grid: dockview's room, the closed profiles' tiles no
   // longer over it.
   const resources = ui.locator('.dv-groupview', { has: ui.locator('#resources') });
   const fills = async () => {
@@ -379,11 +379,11 @@ test("tasks: an agent's tab closes after a question, always (Cancel keeps it); t
   await expect(launchers).toHaveCount(1);
   await expect(tiles).toHaveCount(0);
   // With a profile open (its tile among the big buttons): folded to a strip of its +, along the grid's height (the
-  // island is under the grid); kept so.
+  // terminals are under the grid); kept so.
   await launchers.locator(`[data-profile="${SAM}"]`).click();
   await expect.poll(async () => (await size(group)).height <= 40 && (await middle())).toBe(true);
   expect(Math.abs((await size(group)).width - before.width), 'as wide as before (Resources beside it takes its share as the grid changes)').toBeLessThanOrEqual(5);
-  // Its + opens a terminal: the island unfolds.
+  // Its + opens a terminal: the terminals' panel unfolds.
   await unfold.click();
   await expect(menu(ui)).toMatchAriaSnapshot(`
     - menu:

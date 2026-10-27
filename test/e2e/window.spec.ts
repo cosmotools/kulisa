@@ -1,4 +1,4 @@
-// The window: the terminal and its island, dictation, one Kulisa per data folder, the app icon, the top bar, the theme,
+// The window: the terminal and its panel, dictation, one Kulisa per data folder, the app icon, the top bar, the theme,
 // the tasks' bar, dialogs, About, a new version installed, screenshots (docs/window.md).
 import { spawn } from 'child_process';
 import fs from 'fs';
@@ -68,7 +68,7 @@ test('terminal: one xterm shows the terminal in front; another shown and back ke
   // An xterm each cost its renderer and a WebGL context, of which Chromium keeps 16 a page: the 17th takes the
   // oldest terminal's, which then draws slower for good, silently (src/terminal/README.md).
   const agent = await core((k) => [...k.shell.task.terminals.values()][0].id);
-  // Opened as the island's + does, without its menu: a menu's pictures of the pages, put back late on a slow machine,
+  // Opened as the terminals' + does, without its menu: a menu's pictures of the pages, put back late on a slow machine,
   // took the keyboard from the page the next test had put it in.
   await ui.evaluate(() => (window as any).act('terminal:open'));
   const sh = await terminal(core, 'Terminal');
@@ -252,7 +252,7 @@ test("the island: its terminals in tabs over them, one shown, flat as a profile'
   const front = 'nav[aria-label="Terminals"] [role="tab"][aria-selected="true"]';
   expect([await color('[data-testid="terminal-tabs"]'), await color(front)]).toEqual([await color('[data-testid="terminals"]'), await color('[data-testid="terminals"]')]);
   expect([await color('[data-testid="terminal-tabs"]'), await color(front)]).toEqual([await color('[role="region"][data-profile] nav[aria-label="Tabs"]'), await color('[role="region"][data-profile] [role="tab"][aria-selected="true"]')]);
-  // + is the island's, not a tab's: its menu has the project's agents (none here) and Terminal. The tab growing in is
+  // + is the panel's, not a tab's: its menu has the project's agents (none here) and Terminal. The tab growing in is
   // an attribute there for a moment: an observer notes it (an assertion could look after it went).
   await ui.evaluate(() => {
     (window as any).__grew = [];
@@ -300,7 +300,7 @@ test("the island: its terminals in tabs over them, one shown, flat as a profile'
   }
   expect(await tabs()).toEqual(['bash', 'Terminal *', 'dev server']);
   // More than fit: the row scrolls, its end faded; each tab its name whole; + and the microphone at its end stay in the
-  // island, not cut off past it; its tabs do not shrink to no name. The human's shells opened as + opens them until the
+  // panel, not cut off past it; its tabs do not shrink to no name. The human's shells opened as + opens them until the
   // row is past its end, then closed with their ×.
   const nav = ui.locator('nav[aria-label="Terminals"]'), had = await terminals(core);
   const ids = () => core((k) => [...k.shell.task.terminals.values()].map((t) => t.id));

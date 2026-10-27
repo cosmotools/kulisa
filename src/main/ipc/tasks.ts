@@ -57,7 +57,7 @@ export function registerTasks(ipc: Ipc) {
   handle('task:new', (e, { project } = {}) => serial(() => createTask(project ? shell.open.get(project) : at(e)?.task?.project, at(e) ?? null)));
   handle('task:close', (_e, key) => taskAt(key, closeTask));
   handle('task:delete', (_e, key) => taskAt(key, deleteTask));
-  // 🗑 on a closed task's row (the bar's +): its project need not be loaded.
+  // 🗑 on a closed task's row (the sidebar): its project need not be loaded.
   handle('task:delete-closed', (e, { project, id }) => serial(async () => {
     const open = shell.open.get(project)?.tasks.get(id);
     if (open) return open.entry.closed ? deleteTask(open) : { error: `task ${id} is open` };

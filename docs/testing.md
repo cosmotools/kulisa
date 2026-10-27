@@ -101,9 +101,12 @@ passes, alone and with its file.
 - **Kulisa's waits are moved, not waited**: `k.clock.hold(ms)`, `advance(ms)`, `release()`; a time Kulisa reads is
   dated back; a slow mock waits for the test.
 - **Before a click** wait for the window: `k.settled()`, `notLoading`, the grid's slide over.
-- **Menus and dialogs are Reka UI's**: a menu's rows by `toMatchAriaSnapshot` (whole: `children: 'equal'` in the
-  config), `choose`, `closeMenu`, `rightClick`; the sidebar `openSidebar`, `fromSidebar`; a menu is shown once `[data-ready]`. `focusWindow(core, ui)`
-  first, or no focus events. Kulisa's question is answered in the window that asks it, `answer(page, …)`; a call that
+- **Menus and dialogs are Fluent UI's**: a menu's rows by `toMatchAriaSnapshot` (whole: `children: 'equal'` in the
+  config; a row's name is its label alone, without its keys; no separators: Fluent's `MenuDivider` is presentational),
+  `choose`, `closeMenu`, `rightClick`, `windowSubmenu` (☰'s rows that open a menu beside them); a menu is shown once
+  `[data-ready]`. The sidebar: `openSidebar`, `closeSidebar`, `sidebar`, `projectRow`, `taskRow`, `sidebarTasks`,
+  `rowButton` (a row's buttons, shown under the pointer), `fromSidebar`. `focusWindow(core, ui)` first, or no focus
+  events. Kulisa's question is answered in the window that asks it, `answer(page, …)`; a call that
   waits for it is started first and awaited after.
 - **Settings' window is Fluent UI's** (`helpers.ts`): its menu `settingsMenu` (there only while open), its nav's rows
   `navRow` (the shown one `aria-current`), a page's path `pathOf`, cards `group`, lists `listRows`/`listRow`.
@@ -119,7 +122,7 @@ passes, alone and with its file.
 
 `npm run knip`. What it finds goes (the file, or the `export`); code for the next step waits for it. A path-loaded
 file is an entry in `knip.jsonc` with why; `ignore` last, with its reason. Invisible to knip: names joined as strings
-(IPC channels, CSS classes, sprite icons, the keys' table): check the other side by hand.
+(IPC channels, CSS classes, the keys' table): check the other side by hand.
 
 ## Layers
 
@@ -153,11 +156,11 @@ with shellcheck it checks `run:` scripts too.
 
 - **LSP** (`kulisa-dev` plugin, `.claude/dev-plugins/`): type errors while editing, the `LSP` tool for references. Not
   auto-installed: a session without the `LSP` tool installs it and asks for `/reload-plugins` (CLAUDE.md, Commands).
-  Not the official `typescript-lsp`: no `.vue`, and references from the syntax-only `tsserver` (`useSyntaxServer:
-  "never"` here). The project's own server and Vue plugin, nothing global. ~700 MB; references from `src/` miss the
-  tests.
+  TypeScript only (`.ts`, `.mts`, `.tsx`). Not the official `typescript-lsp`: its references come from the
+  syntax-only `tsserver` (`useSyntaxServer: "never"` here). The project's own server, nothing global. ~700 MB;
+  references from `src/` miss the tests.
 - **Stop hook** (`.claude/hooks/stop.ts`): `npm run lint` and `npm run test:unit` before a turn ends, when `.ts`,
-  `.mts` or `.vue` files have uncommitted changes.
+  `.mts` or `.tsx` files have uncommitted changes.
 
 ## CI
 

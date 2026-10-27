@@ -1,5 +1,5 @@
 // A Kulisa window. Usually there is one; Move to New Window puts a task into a window of its own (e.g. on a second
-// monitor). Each window has a tab per task open in it (an island in its tasks' bar, in the bar's order, of any
+// monitor). Each window has a tab per task open in it (in its tasks' bar, in the bar's order, of any
 // projects), shows one of them (its grid and terminal), and asks its questions in its own dialog; the tasks behind its
 // other tabs keep running. What a window shows and asks is here. What the app has once (the store, the CDP proxy, the MCP server, the
 // agents, the windows) is app.ts's, the open tasks with their one change after another (serial) open-tasks.ts's; what happens to projects and tasks,
@@ -145,7 +145,7 @@ class AppWindow {
   }
 
   // The projects (store.ts), its tabs in order (each task with what its agent does), the one shown (shown: the one
-  // about to be) and its project, the loaded projects' agents (the island's +), and the other windows (to move a
+  // about to be) and its project, the loaded projects' agents (the terminals' +), and the other windows (to move a
   // task to: their id and how each is named).
   info(shown = this.current): Sent.ProjectsInfo {
     const { shell } = this;
@@ -213,14 +213,14 @@ class AppWindow {
     await this.showLoaded();
   }
   // The shown task: its profiles loaded (the first time it is shown), the page's grid built from its state
-  // (the terminals' island included, even with no profiles; its tabs too, each starting), then its terminals started at
-  // the island's size.
+  // (the terminals' panel included, even with no profiles; its tabs too, each starting), then its terminals started at
+  // the terminals' size.
   async showLoaded() {
     const task = this.task!;
     if (!task.loaded) task.loadProfiles();
     this.switching = false;
     // Not waited for: the human may first have to choose the agent (or switch away meanwhile). Its tabs come at once,
-    // each starting, so the grid comes with them, not with the island's buttons.
+    // each starting, so the grid comes with them, not with the terminals' buttons.
     const terminals = task.loadTerminals();
     this.pushState();
     this.seen();
@@ -242,7 +242,7 @@ class AppWindow {
     this.send('grid:closing', { dir, task: this.task?.key, pics });
   }
   // Before a task's tab goes (the task closes, or moves to another window): the tab next to it is shown, or the
-  // window is left with none (an empty island in the grid's place).
+  // window is left with none (the empty window).
   async leave(task: Task) {
     if (task !== this.current) return;
     const i = this.tabs.indexOf(task), next = this.tabs[i + 1] || this.tabs[i - 1];

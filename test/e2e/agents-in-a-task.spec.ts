@@ -125,7 +125,7 @@ test("+ opens any of the project's accounts, a new conversation in a tab of its 
   const handed = (await newest()).id;
   const pty = await core((k, w) => { const t = k.shell.taskByKey(w.key).terminals.get(w.id); return { agent: t.agent.id, cols: t.pty.spawnSize.cols, last: t.pty.spawnArgs.at(-1) }; }, { key, id: handed });
   // In front under the dialog from its start, as + opens one: a tab behind has no size, and its xterm would lay out what
-  // the agent drew for the island's size in 80 columns, broken.
+  // the agent drew for the terminals' size in 80 columns, broken.
   await expect.poll(() => ui.evaluate(() => (window as any).__term?.cols)).toBe(pty.cols); // xterm's own: its canvas has no text to read
   expect(pty.agent).toBe(b.id);
   expect(pty.last).toBe('Go on with the work of conversation 2 of this task ("Pay with cards"). Read it whole with the kulisa task_history tool (conversation 2) before anything else. Then tell me in a few lines what is done and what is next, and go on with it.');

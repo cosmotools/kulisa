@@ -1,4 +1,4 @@
-// The Resources panel (docs/tasks.md, The Resources island), a panel of the grid: the shown task's resources, a row
+// The Resources panel (docs/tasks.md, The Resources panel), a panel of the grid: the shown task's resources, a row
 // each, opening its folder; what the task added (another repository's worktree) has a 🗑. Under them its artifacts, the
 // files the agent's tools kept of its pages: a click opens one in the OS's app for it; their heading says what they take
 // (Task.artifactsUsage).

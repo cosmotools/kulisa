@@ -32,7 +32,7 @@ import { refused } from '../shared/result.ts';
 import type { Result } from '../shared/result.ts';
 
 type AgentState = 'working' | 'waiting' | 'done' | null;
-// A terminal of the task, a tab of its island: the user's shell in its folder, with an agent started in it (agent,
+// A terminal of the task, a tab of its terminals: the user's shell in its folder, with an agent started in it (agent,
 // its conversation: an index in agent.json; its state as its hooks report it, seen: the human has seen it since) or
 // not (a shell: its name, the command typed in, by whom).
 interface TaskTerminal {
@@ -61,7 +61,7 @@ class Task {
   _copying: Promise<unknown>; // its copies made one at a time (copying)
   terminals: Map<number, TaskTerminal>; terminalSeq: number; list: ProjectProfiles;
   profiles: ProjectProfiles['profiles']; closed: ProjectProfiles['closed'];
-  front: number | null; lastAgent: number | null; // the island's tab in front; the agent's tab in front last
+  front: number | null; lastAgent: number | null; // the terminals' tab in front; the agent's tab in front last
   resumedSession?: string | null;
   // project: its project (projects.ts); entry: its record in its tasks.json (store.ts, TaskEntry); one without a
   // worktree works in the project's folder. key: the task among all (store.ts, taskKey).
@@ -75,7 +75,7 @@ class Task {
     this.key = taskKey(project, this.id);
     this.store = shell.store.taskOf(project, this.id);
     this.loaded = false; this.terminalsLoaded = false; this.gitChecked = Promise.resolve(); this._copying = Promise.resolve();
-    this.terminals = new Map(); this.terminalSeq = 0; // its island's terminals, by id, in their tabs' order
+    this.terminals = new Map(); this.terminalSeq = 0; // its terminals, by id, in their tabs' order
     this.front = null; this.lastAgent = null;
     this.list = new ProjectProfiles(this.store, shell.profileStore, project.id, this._profileHooks());
     this.profiles = this.list.profiles; this.closed = this.list.closed;
@@ -280,14 +280,14 @@ class Task {
     this.loaded = true;
   }
 
-  // Its island (docs/window.md, The terminal): the terminals in tabs, one shown at a time. Each the user's shell in the
+  // Its terminals' panel (docs/window.md, The terminal): the terminals in tabs, one shown at a time. Each the user's shell in the
   // task's folder, with an agent started in it or not. A shell is for what keeps running where the human sees it (the
   // human's own, the agent's terminal_run: the app's dev server), rather than in the background of the agent's own
   // shell, which some agents cannot do and the human does not see. As in an IDE they are kept: when the task loads
   // again (a restart, its project opened again) each comes back in its tab, an agent's conversation resumed, a shell
   // with nothing running (the agent runs its command again). They go when closed (×, terminal_stop) or their shell exits.
-  // A task that never had one opens its agent (none: nothing, the island's buttons instead); the last one closed leaves
-  // the island folded to its + (terminals.json says so).
+  // A task that never had one opens its agent (none: nothing, the terminals' buttons instead); the last one closed leaves
+  // the terminals folded to their + (terminals.json says so).
   async loadTerminals() {
     if (this.terminalsLoaded || !this.loaded) return;
     this.terminalsLoaded = true;
@@ -318,8 +318,8 @@ class Task {
   // The task's agent: the one it was made with (its project's default then); null: none, its project had agents and no
   // default (projects.ts, createTask); undefined: its project had none, openAgent opens a shell (or KULISA_AGENT's).
   ownAgent() { return this.store.agent().agent; }
-  // Ctrl+` on the folded island: the task's agent, a new conversation; { none } when it has none (the window then gives
-  // the keyboard to the island's buttons or opens its +).
+  // Ctrl+` on the folded terminals: the task's agent, a new conversation; { none } when it has none (the window then gives
+  // the keyboard to the terminals' buttons or opens its +).
   async openOwn(): Promise<Result<{ id: number } | { none: true }>> {
     const own = this.ownAgent();
     return own === null ? { none: true } : this.openAgent(own);
@@ -382,7 +382,7 @@ class Task {
       return tab;
     };
     // Its tab at once, starting (terminalsInfo), while its program is looked for in the user's login shell: a task
-    // opening showed the island's buttons for that second (docs/window.md, A tab comes before its program).
+    // opening showed the terminals' buttons for that second (docs/window.md, A tab comes before its program).
     let t = agent?.command ? place(agent) : null;
     let found = agent && await shell.findAgent(agent, this.folder);
     if (t && this.terminals.get(t.id) !== t) return { error: 'the terminal was closed' };
@@ -390,7 +390,7 @@ class Task {
       const chosen = await shell.chooseAgent(this, agent);
       found = chosen && this.loaded ? await shell.findAgent(chosen, this.folder) : null;
       if (!found) {
-        if (t) this.dropTerminal(t); // its tab goes: the island as it was before
+        if (t) this.dropTerminal(t); // its tab goes: the terminals as they were before
         else if (conversation !== undefined) this.updateConversation(conversation, { terminal: undefined, to: Date.now() });
         return { error: 'no agent was chosen' };
       }
@@ -453,7 +453,7 @@ class Task {
   // The task handed to an agent (the agent's icon on its tab, Change agent…): it opens in a new tab, told to go on with
   // that tab's conversation, which it reads in task_history while the window's dialog shows it (historyRead;
   // HandOver.tsx). In front from its start, under the dialog: a tab behind has no size, and its xterm laid out what the
-  // agent drew for the island's size in 80 columns. The tab it came from stays: the human closes it.
+  // agent drew for the terminals' size in 80 columns. The tab it came from stays: the human closes it.
   async handOver(id: number, account: string): Promise<Result<{ id: number }>> {
     const t = this.terminals.get(id);
     if (!t?.agent) return { error: `no agent's terminal ${id}` };
@@ -517,7 +517,7 @@ class Task {
     this.voiceShown();
     return { id };
   }
-  // The island's tabs changed (opened, closed, in front, named, an agent's state): the window draws them, the task's tab
+  // The terminals' tabs changed (opened, closed, in front, named, an agent's state): the window draws them, the task's tab
   // its state.
   changedTerminals() { this.shell.taskChanged(this, true); this.shell.taskChanged(this, false, true); }
   // A shell by its name (as the agent knows it) or id (as the window does); never an agent's: its conversation is read in
@@ -610,7 +610,7 @@ class Task {
     this.changedTerminals();
     this.voiceShown();
   }
-  // The island's tabs, for the window.
+  // The terminals' tabs, for the window.
   terminalsInfo(): Sent.Terminals {
     return { front: this.front, list: [...this.terminals.values()].map((t) => ({ id: t.id, name: this.label(t), command: t.command, by: t.by,
       agent: t.agent ? { account: t.agent.id, cli: t.agent.agentId, name: t.agent.name } : null, starting: !t.pty,
@@ -760,7 +760,7 @@ class Task {
     return { id, key, project: this.project.id, name, state, folder, branch: this.branch, closed: !!this.entry.closed, merged: !!this.entry.merged,
       repos: this.addable(), resources: this.resources() };
   }
-  // Its resources as the Resources island (Resources.tsx) shows them: the first, where it works, is not removed there
+  // Its resources as the Resources panel (Resources.tsx) shows them: the first, where it works, is not removed there
   // (the main tree is the human's, its own worktree goes with the task); an added repository's worktree is
   // (task_remove_repository).
   resources(): Sent.TaskResource[] {
@@ -769,7 +769,7 @@ class Task {
       : { kind: r.kind, label: path.basename(r.repo), folder: r.folder, branch: r.branch, removable: i > 0 }));
   }
 
-  // The files the agent's tools kept of its pages (kulisa-plugin/artifacts.ts), as the Resources island lists them. A
+  // The files the agent's tools kept of its pages (kulisa-plugin/artifacts.ts), as the Resources panel lists them. A
   // screenshot's small picture is made here once and kept while the task is loaded: the window never decodes the
   // files themselves (a page's picture is megabytes once decoded, a hundred of them a lot of a window's memory).
   private thumbs = new Map<string, string>(); // '' where none could be made
@@ -797,7 +797,7 @@ class Task {
   // One made (or more gone past the limit, or deleted): the window showing the task lists them again.
   artifactsChanged() { void this.window?.sendArtifacts(this); }
   // What its artifacts take, or those of its project's tasks or of every task, loaded or not (the activity monitor,
-  // src/activity-monitor): the Resources island's figure, task_artifacts. Each task with its name and its project's.
+  // src/activity-monitor): the Resources panel's figure, task_artifacts. Each task with its name and its project's.
   async artifactsUsage(scope: 'task' | 'project' | 'all' = 'task') {
     const r = await this.shell.activity.query({ metrics: ['artifacts'], ...(scope === 'task' ? { tasks: [this.key] } : scope === 'project' ? { projects: [this.project.id] } : {}) });
     const named = new Map(this.shell.store.allTasks().map((t) => [t.key, { name: this.shell.taskByKey(t.key)?.displayName ?? t.entry.name, project: t.project.name }]));

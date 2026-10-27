@@ -35,7 +35,7 @@ export function openTasks(shell: Shell, { appDevTools }: { appDevTools: boolean 
   // A project with no open task left is let go: nothing of it runs.
   const unloadIdle = () => { for (const [id, p] of shell.open) if (!p.open().length) shell.open.delete(id); };
   const openTasksOf = (project: Project, w: AppWindow) => w.tabs.filter((t) => t.project === project);
-  // Task id of project p shown (the bar's +), opened again if it was closed; none: a new task of it. In the window it
+  // Task id of project p shown (the sidebar), opened again if it was closed; none: a new task of it. In the window it
   // is open in, brought to the front; a closed or new one at the end of window w's bar.
   async function openProject(p: ProjectEntry, w: AppWindow, id?: string | null): Promise<Result<{ id: string; key: string }>> {
     log.info(`[task] open ${p.id}${id != null ? `/${id}` : ''} wc=${w.win.webContents.id}`);
@@ -56,7 +56,7 @@ export function openTasks(shell: Shell, { appDevTools }: { appDevTools: boolean 
   // window's ×): one function, so one rule. The human is asked first in their window w, only when an agent works (a
   // window's ×: always; asked: already). Each closes as × on it would (projects.ts, closeTask: its agent stopped,
   // its profiles saved and closed, all kept to open again), its tab goes; the one on screen goes last, so the one
-  // next to it is shown, or none is left: an empty island in the grid's place, or the window closes when there is
+  // next to it is shown, or none is left: the empty window, or the window closes when there is
   // another (as a browser's). A project with no open task left is let go.
   async function closeTasks(w: AppWindow, tasks: Task[], { asked = false, window = false } = {}): Promise<Result<{ keys: string[] }>> {
     if (!asked && !await askClosing(w, tasks, { window })) return { error: 'the human said no' };
@@ -103,7 +103,7 @@ export function openTasks(shell: Shell, { appDevTools }: { appDevTools: boolean 
     if (!task || !from) return { error: 'the task is not open' };
     if (to === from) return { key: task.key };
     if (!to && from.tabs.length < 2) return { error: 'the task is the only one in its window' };
-    shell.chooseAgent.cancel(task); // none opens: the island's + there
+    shell.chooseAgent.cancel(task); // none opens: the terminals' + there
     await from.leave(task);
     from.drop(task);
     const target = to || newWindow({ near: from.win, at });

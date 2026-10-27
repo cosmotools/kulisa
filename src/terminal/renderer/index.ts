@@ -18,7 +18,7 @@ import { fileOf, pathsAt } from './paths';
 import type { FileLink } from '../ipc';
 
 // A terminal's buffer is an xterm never opened: its text, scrollback and modes with no renderer, every pty's output
-// written into it. A place that shows terminals (the island, an account's sign-in) has one shown xterm, a View, the
+// written into it. A place that shows terminals (the terminals' panel, an account's sign-in) has one shown xterm, a View, the
 // only one with a renderer (WebGL), links and colors: showing another terminal there writes that one's buffer into
 // it (ROADMAP, "One xterm a window": each xterm's renderer cost 15-30 MB, and Chromium keeps 16 WebGL contexts a page).
 interface Buffer { term: Terminal; serialize: SerializeAddon; modes: Map<number, boolean>; scroll?: number }

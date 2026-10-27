@@ -6,16 +6,18 @@ and dialogs, the terminal, the keys, and why they are built so. Projects and the
 
 ## The title bar
 
-One row: the app's logo (the shown task's project's color on its curtain), Settings (a window of its own: below), ☰,
-and the OS's window buttons over its right end (`titleBarStyle: 'hidden'` with `titleBarOverlay`); no menu bar. Their
-strip is see-through (`CLEAR` in `window.ts`), as macOS's traffic lights: a dialog's backdrop dims it with the rest of
-the window (a strip in the theme's color would stay bright); their symbols are the theme's and stay as they are under a
-dialog. On macOS the buttons are at the left end and there is no logo (Mac apps show their icon in the Dock). macOS
-centers them in the bar the window is made with, and Electron there cannot change that strip's height
-(`setTitleBarOverlay` is Windows' and Linux's): on a zoom change `setZoom` moves them to the new bar's middle
-(`setWindowButtonPosition`), never below the strip they were made in, where they take no click (Electron's
-`window_buttons_proxy.mm`). Zoomed past about 175%, they sit a little above the middle until the next start. Dragging
-the empty part moves the window. A Kulisa zoom other than 100% shows in the bar (a click resets it).
+One row, 44 px (`TopBar.tsx`; `TITLE_BAR_HEIGHT` in `window.ts`, the OS buttons' strip, kept in step): the app's logo
+(the shown task's project's color on its curtain), the sidebar's button while a task is shown ([tasks.md](tasks.md),
+The sidebar), Settings (a window of its own: below), ☰, and the OS's window buttons over its right end
+(`titleBarStyle: 'hidden'` with `titleBarOverlay`); no menu bar. Their strip is see-through (`CLEAR` in `window.ts`),
+as macOS's traffic lights: a dialog's backdrop dims it with the rest of the window (a strip in the theme's color would
+stay bright); their symbols are the theme's and stay as they are under a dialog. On macOS the buttons are at the left
+end and there is no logo (Mac apps show their icon in the Dock). macOS centers them in the bar the window is made
+with, and Electron there cannot change that strip's height (`setTitleBarOverlay` is Windows' and Linux's): on a zoom
+change `setZoom` moves them to the new bar's middle (`setWindowButtonPosition`), never below the strip they were made
+in, where they take no click (Electron's `window_buttons_proxy.mm`). Zoomed past about 175%, they sit a little above
+the middle until the next start. Dragging the empty part moves the window. A Kulisa zoom other than 100% shows in the
+bar (a click resets it).
 
 A right-click on the title bar does nothing on Linux: there Chromium asks the window manager for its window menu, and
 GNOME on X11 places it at a NaN position, invisible, keeping the pointer and keyboard grab, so the whole desktop takes
@@ -33,25 +35,22 @@ window, mouse moves still passing, so the pages look frozen (in an unmaximized w
 ## The tasks' bar
 
 Under the grid, in the middle: a tab per open task (its project's icon, its agent's state, its name, ×:
-[tasks.md](tasks.md), Projects), then +, the new-task menu (every project's tasks, where one is made or opened again).
-☰ → **Tasks bar: Top, Bottom** puts it in the title bar after the logo instead, as a browser's tabs (`settings.json`:
-`bar`; in the page's URL, so it is drawn in place at once; `App.tsx` puts `TaskBar.tsx` in `TopBar.tsx`'s children or
-under the grid). Bottom is the default, on macOS too: the hand is at the terminal under the grid all the time, and a
-bar on top sits right over the grid's panels' tabs. The tabs are Firefox's: rounded rectangles on the window's
-background, the shown one filled in the panels' color, the others plain, lit under the pointer, a gap between them and
-the grid (the author's choice). A tab is a browser's size, a target for a quick throw of the mouse: 36 px tall, at
-least 160 px wide (about ten letters of its name), × on every tab as Chrome's, 8 px apart. In the title bar (44 px) a
-tab keeps its 36 px, 4 px above and below, the grid right under. The window is a grid of rows (App.vue: the title bar,
-the grid, the bar when below) with one gap, 8 px: the title bar holds it above and below its content (`--title` = 8 +
-28 + 8, tokens.css; the OS buttons' strip as tall, `TITLE_BAR_HEIGHT` in window.ts), the grid keeps it from the sides,
-the bar from the grid, the window's bottom edge from the last row; nothing else adds to it (the author's choice). In
-the title bar the tabs are no drag handle (`app-region: no-drag`). Nothing in the bar moves when another task is shown.
+[tasks.md](tasks.md), Projects), then +, a new task of the shown task's project in one click (Ctrl+Shift+N); a task
+of another project, or one closed, is opened from the sidebar. ☰ → **Tasks bar: Top, Bottom** puts it in the title bar
+after the logo instead, as a browser's tabs (`settings.json`: `bar`; in the page's URL, so it is drawn in place at
+once; `App.tsx` puts `TaskBar.tsx` in `TopBar.tsx`'s children or under the grid). Bottom is the default, on macOS too:
+the hand is at the terminal under the grid all the time, and a bar on top sits right over the grid's panels' tabs. The
+tabs are Fluent's, the shown one underlined in its project's color (the author's choice). A tab is a target for a
+quick throw of the mouse: at least 160 px wide (about ten letters of its name), × on every tab as Chrome's. The window
+is three rows (`App.tsx`: the title bar, the grid, the bar when below), the grid from edge to edge. In the title bar
+the tabs are no drag handle (`app-region: no-drag`). Nothing in the bar moves when another task is shown.
 
-More tabs than the bar holds scroll ([ui.md](ui.md), Controls: `.tabstrip`). In the title bar the tabs give way before
-at least 40 px after + (`--drag`), where the window is dragged however many tabs there are, as Chrome's space after
-its +; by the logo too. Chromium takes the tabs scrolled past the bar's edges as no-drag over both (it does not clip
-them to the bar: `overflow`, `contain` or `clip-path` alike) and the page's regions in order, the last one winning: so
-the logo and that space come after the bar in the page (`TopBar.tsx`), the logo put back first by `order`.
+More tabs than the bar holds scroll (`useStrip`, `lib/strip.ts`). In the title bar the tabs give way before at least
+40 px after + (`drag-area` in `TopBar.tsx`), where the window is dragged however many tabs there are, as Chrome's
+space after its +; by the logo too. Chromium takes the tabs scrolled past the bar's edges as no-drag over both (it
+does not clip them to the bar: `overflow`, `contain` or `clip-path` alike) and the page's regions in order, the last
+one winning: so the logo and that space come after the bar in the page (`TopBar.tsx`), the logo put back first by
+`order`.
 
 A press on a tab not shown chooses it at once, as Chrome's; its task is shown on the release or when the tab starts
 being dragged, whichever is first: showing a task starts the grid's slide (a view transition), and Chromium drops a
@@ -60,31 +59,33 @@ shown, through the slide's pictures, so the tab left is not lit again meanwhile.
 
 ## The grid
 
-A task's profiles' panes and its island of terminals are peer panels in a grid (dockview), in JetBrains' Islands look:
-dragged by the header to another place or onto another panel (stacked as tabs), resized by the gaps. A panel stacked
-behind another hides its page until chosen (and later unloads it: [profiles.md](profiles.md), "Tabs unloaded").
-**☰ → Arrange panels** offers ready-made arrangements, each drawn as a small picture of itself, as Windows' snap layouts
-(the words in its tooltip): profiles in columns with the terminal below, two by two with the terminal on the right, one
-profile at a time; the Resources island beside the terminal, or under it when the terminal is on the right. Each fits
-the window with nothing cut off, the terminal a third of it (`TERMINAL_SHARE`, `lib/grid.ts`): the pages are what is
-looked at. The first profile opened over the terminal alone keeps that share too (dockview's own would halve the room).
-The grid is saved per task (`layout.json`) 300 ms after its last change, and at once when the task is left; a saved
-grid naming a profile deleted since is not restored, the default arrangement takes its place. The island is one panel
-however many terminals it holds (The terminal).
+A task's profiles' panes and its terminals' panel are peer panels in a grid (dockview), flat, split by hairlines
+(`Grid.tsx`): dragged by the header to another place or onto another panel (stacked as tabs), resized by the line
+between them. A profile's page is square, as its pane is. A panel stacked behind another hides its page until chosen
+(and later unloads it: [profiles.md](profiles.md), "Tabs unloaded"). **☰ → Arrange panels** offers ready-made
+arrangements, a row each with its icon (the whole in its tooltip): profiles in columns with the terminal below, two by
+two with the terminal on the right, one profile at a time; the Resources panel beside the terminal, or under it when
+the terminal is on the right. Each fits the window with nothing cut off, the terminal a third of it (`TERMINAL_SHARE`,
+`lib/grid.ts`): the pages are what is looked at. The first profile opened over the terminal alone keeps that share too
+(dockview's own would halve the room). The grid is saved per task (`layout.json`) 300 ms after its last change, and at
+once when the task is left; a saved grid naming a profile deleted since is not restored, the default arrangement takes
+its place. The terminals are one panel however many there are (The terminal).
 
-**The Resources island** (`grid/Resources.tsx`, its header `ResourcesHeader` there; what it lists: [tasks.md](tasks.md), The
-Resources island) is a panel next to the terminal (`addResources`, `lib/grid.ts`; the author's choice): right of it, a
-quarter of the grid's width, when the terminal is under the pages; under it, a third of the grid's height, when the
-terminal is on the right. It resizes, is saved and follows the window's size as any panel. It is as low as its header
-(`minimumHeight`), so the terminal's row folds with the terminal to its +, Resources with it; under the terminal, it
-takes the room the terminal folding leaves.
+**The Resources panel** (`grid/Resources.tsx`, its header `ResourcesHeader` there; what it lists:
+[tasks.md](tasks.md), The Resources panel) is a panel next to the terminal (`addResources`, `lib/grid.ts`; the
+author's choice): right of it, a quarter of the grid's width, when the terminal is under the pages; under it, a third
+of the grid's height, when the terminal is on the right. It resizes, is saved and follows the window's size as any
+panel. It is as low as its header (`minimumHeight`), so the terminal's row folds with the terminal to its +, Resources
+with it; under the terminal, it takes the room the terminal folding leaves.
 
 A window made narrower or wider changes every panel in its share, as VS Code's and JetBrains' do (dockview's
-`proportionalLayout`; it needs dockview-vue 8.6.0 or later:
+`proportionalLayout`; it needs dockview 8.6.0 or later:
 [1691](https://github.com/dockview/dockview/issues/1691), [1692](https://github.com/dockview/dockview/issues/1692)).
 
-A pane's header (its profile's picture, name and ×) shrinks with the pane: a longer name is cut with …, the whole and
-the profile's description in its tooltip, and the × stays (`ProfileHeader`, `components/grid/ProfilePane.tsx`).
+A pane's header (`ProfileHeader`, `components/grid/ProfilePane.tsx`): its profile's picture and name, a caption of what
+the agent does in it (or that it is paused on a sign-in page), ⋯ (its menu, as a right-click on the header: Menus) and
+×. It shrinks with the pane: the caption first, then the name, cut with … (the whole and the profile's description in
+its tooltip); ⋯ and × stay. Under it the pane's tabs and its toolbar, ⋮ at its end ([profiles.md](profiles.md), Tabs).
 
 **No profile open, a terminal open**: the profiles' room folds to a row of buttons over the grid (`ClosedProfiles` in `Grid.tsx`,
 `#closedprofiles`): a button per closed profile, its picture and name (who it is in its tooltip); a click
@@ -93,9 +94,9 @@ The row is outside dockview: the grid's room is what is left under it (`room()`,
 (`useStrip`, `lib/strip.ts`; `#dock` keeps `min-width: 0`, or many profiles stretch the window's column, the terminal
 and the tasks' bar past its edge). With no terminal either, they are the second row of the big buttons (The terminal).
 Nothing opens by itself: the agent opens a profile when it needs it (`profile_open`). Not on the task's tab (no place
-for profiles), nor in the terminals' row (it folds with the island).
+for profiles), nor in the terminals' row (it folds with the terminals).
 
-The window itself never scrolls, also not from a script (`overflow` on `html` and `body`, App.vue): a panel stacked
+The window itself never scrolls, also not from a script (`overflow` on `html` and `body`, `App.tsx`): a panel stacked
 behind another is laid out below the grid (dockview), making the page taller than the window, and the tasks' bar
 bringing its tab into view (`scrollIntoView`) would move the whole grid up by a window's height.
 
@@ -127,9 +128,9 @@ smaller again when it goes down).
 ## Zoom
 
 - **The Kulisa zoom**: Ctrl + / − / 0 outside the pages, or the zoom row in ☰. It scales the whole UI of every window,
-  the terminal and the pages together (Chromium's zoom of the window's page; `setUiZoom` in `app.ts`); all text and
-  controls take their size from `--font` and `--control` (tokens.css). From 50% to 200%: the window's minimum grows
-  with it, and at 300% it is past a laptop's screen; the OS's own magnification is there for more.
+  the terminal and the pages together (Chromium's zoom of the window's page; `setUiZoom` in `app.ts`). From 50% to
+  200%: the window's minimum grows with it, and at 300% it is past a laptop's screen; the OS's own magnification is
+  there for more.
 - **A site's zoom**: the same keys in a page zoom that site in that profile on top of the Kulisa zoom, as in Chrome, to
   300%; shown in the address bar (a click resets it).
 
@@ -137,23 +138,24 @@ Both are saved (`settings.json`; the profile's `profiles.json`).
 
 ## Theme
 
-**☰ → Theme**: Dark (the default, as in JetBrains), Light (JetBrains' Islands Light) or System (as the OS, following
-it when it changes). Saved (`settings.json`), the same in every window.
+**☰ → Theme**, a row opening a menu beside it: Dark (the default, as in JetBrains), Light or System (as the OS,
+following it when it changes). Saved (`settings.json`), the same in every window.
 
 - Only Kulisa's own UI changes: the profiles' pages keep the OS's light or dark (`prefers-color-scheme`), so a site
   under test looks as its users see it. So Kulisa does not set `nativeTheme.themeSource` (it would change every page's
   scheme); System reads `nativeTheme.shouldUseDarkColors` and its `updated` event.
-- CSS does it: each color token is `light-dark(light, dark)` (tokens.css), and the choice is `data-theme` on the
-  page's root, which sets `color-scheme`: `dark`, `light`, or `light dark` for System. The browser's own controls
-  (fields, scrollbars) follow. The choice comes in the page's URL, set before the first paint, so a light window never
-  flashes dark. Kulisa's dockview theme (`Grid.tsx`) sets no `color-scheme` of its own, so the grid keeps the root's.
+- Fluent's theme does it: Fluent's tokens in Kulisa's colors, one theme dark and one light (`components/theme.ts`), the
+  one shown given to `FluentProvider` (`App.tsx`) with its `color-scheme` (`light dark` for System), so the browser's
+  own controls (scrollbars) follow; the grid takes dockview's colors from the same tokens (`Grid.tsx`), a terminal its
+  colors (`termStyle`). The choice comes in the page's URL (`data-theme` on its root), set before the first paint, so a
+  light window never flashes dark.
 - What CSS does not paint follows from the main process: the window's background and the OS buttons' strip
   (`window.ts`).
 
 ## Language
 
 **☰ → Language**: the language the human speaks with the agents, one for all of them (one setting, so what the agents
-do because of it is plain). A row with the language chosen at its end, opening a menu beside it (Reka's submenu): the
+do because of it is plain). A row with the language chosen at its end, opening a menu beside it (`ChoiceRow`): the
 languages the agents' own settings take, the system's first, then by name in each language itself (`TopBar.tsx`, `LanguageRow`).
 English by default, as the agents are without it. Saved (`settings.json`), the same in every window.
 
@@ -171,16 +173,17 @@ English by default, as the agents are without it. Saved (`settings.json`), the s
 Kulisa draws its menus in HTML, as Chrome does (Fluent UI's menus: `components/Menus.tsx`; how they open, close and are
 built: [ui.md](ui.md), Menus):
 
-- a task tab's right-click menu ([tasks.md](tasks.md), Projects, "A tab's right-click menu"), ☰ (as Chrome's ⋮, each
-  row with its icon: the zoom row, the theme row, the tasks' bar's row, Language (a menu beside it), Arrange panels,
+- a task tab's right-click menu ([tasks.md](tasks.md), Projects, "A tab's right-click menu"), a project's and a task's
+  row's in the sidebar ([tasks.md](tasks.md), The sidebar), ☰ (as Chrome's ⋮, each row with its icon: the zoom row;
+  Theme, Tasks bar and Language, rows each opening a menu beside it, the choice at the row's end; Arrange panels,
   Keyboard Shortcuts, the links (Documentation, the user guide on kulisa.app; GitHub; one list in `lib/common.ts`),
   Report a Problem… (Settings at its Log page: not everyone has a GitHub account, and an issue without the log says
   little), About Kulisa (below), and Exit, which quits as the last window's × does; not on macOS, where Cmd+Q and the
   app's menu quit);
-- right-click on a pane's header (New tab, About this profile… (Settings at it), Sign In to Master…, Refresh from
-  Master…, Close profile, Remove from Project…), a tab (Reload, Duplicate, Close tab, Close other tabs), a terminal
-  (Copy, Paste, Select all, Clear; then its tab's) and a terminal's tab (Change agent…, the dialog its icon opens, and
-  New Conversation in an agent's; Close).
+- right-click on a pane's header or its ⋯ (New tab, About this profile… (Settings at it), Sign In to Master…, Close
+  profile, Remove from Project…), a pane's ⋮ ([profiles.md](profiles.md), Tabs), a tab (Reload, Duplicate, Close tab,
+  Close other tabs), a terminal (Copy, Paste, Select all, Clear; then its tab's) and a terminal's tab (Change agent…,
+  the dialog its icon opens, and New Conversation in an agent's; Close).
 
 A row whose command has a key shows it at its end (Keys). The window's menus are not native: a native menu has rows of
 text only, no buttons in a row.
@@ -213,12 +216,15 @@ its right press is told by the CDP proxy it passes.
 Every dialog has one look, as in JetBrains ([ui.md](ui.md), Dialogs). Questions before something that cannot be undone
 (deleting a profile, a task, a project), before closing (a task while an agent works, a window, quitting while an agent
 works: [tasks.md](tasks.md)) or between two ways to go (a second button, `other`) are asked in that dialog too
-(`shell.ask` → `lib/ask.ts`, `Ask.vue`, queued; its keys: [ui.md](ui.md), Dialogs), in the window the action is in:
+(`shell.ask` → `lib/ask.ts`, `Ask.tsx`, queued; its keys: [ui.md](ui.md), Dialogs), in the window the action is in:
 Settings' for what is done in Settings, a tasks' window's for what is done there, the agent's in its task's window
 (`asker` in `ipc/`; `Asker` in `window.ts`). A tasks' window asked in comes to the front with its question, restored
 when minimized, while another of Kulisa's windows has the focus (Settings, another tasks' window): left behind, it
 would look as if nothing happened (on macOS a window's × works behind Settings); never from another app. While a dialog
-is open the profiles' pages are hidden (native views above the HTML), and the keys are the dialog's (Keys). Not the
+is open the profiles' pages are hidden (native views above the HTML), and the keys are the dialog's (Keys): a page that
+had the keyboard would keep it unseen, and Fluent's focus trap leaves a dialog it never saw focused `aria-hidden`, its
+keys going nowhere, so the window's page takes the keyboard (`hideViews` in `window.ts`); a menu, over pictures of the
+pages, puts the keyboard back itself as it closes. Not the
 OS's own question (`dialog.showMessageBox`): it looks different on each OS and plain on Linux, and cannot mark the
 deleting button or lay out what goes. The OS's own dialogs stay for choosing a folder.
 
@@ -257,31 +263,30 @@ own size and place, kept (`settings.json`: `settingsWindow`), at least 640 × 42
   takes it. Esc and the OS's × alike save what is typed first (a project's name), then close it; while an agent
   installs, it stays.
 - **Settings only**: a project is made in a tasks' window (New Project: the empty window with no project, New Project…
-  on the board), which opens its first task: one way to open each.
+  at the sidebar's foot), which opens its first task: one way to open each.
 - **Shown once its page is filled** (the projects, the profiles, the agents as last found, its fonts: `settings:ready`),
   as Electron's docs advise (`show: false`), so its nav and page do not jump as they come; a page that never says so is
   shown after 2 s all the same.
 - Its page is the app's third (`settings.html`, `components/Settings.tsx`): nothing of a tasks' window (no grid, no
-  profiles' views, no keys of its own). Its process lives while it is open: about 40 MB of its own (PSS).
+  profiles' views, no keys of its own). Its process lives while it is open: about 75–81 MB (PSS).
 - Not tried on Wayland: there an app may not place, move or focus its windows itself (Electron's docs, the same
   Platform notices), so where it opens and bringing it to the front are the compositor's.
 
 ## The terminal
 
-A task's terminals are an **island** of the grid, one panel: the terminal in front, a **row of tabs** over it, apart
-from it as a pane's tabs from its toolbar (`.tab`, [ui.md](ui.md): the row in the island's color, the tab in front in
-the terminal's, `--toolbar`, joined to it; `TerminalsHeader` and `Terminals` in `grid/Terminals.tsx`). One terminal is shown at a time, none
+A task's terminals are one **panel** of the grid: the terminal in front, a **row of tabs** over it, the panel's header
+(`TerminalsHeader` and `Terminals` in `grid/Terminals.tsx`). One terminal is shown at a time, none
 split off into a panel of its own. Each is the user's shell in the task's folder (`src/terminal/`), an agent the human
 chose started in it ([tasks.md](tasks.md), "Several agents in a task") or not. Each tab: the agent's icon (a shell's,
 for a shell), its name whole, its state (an agent's: working, waiting for you, done), ×; more than fit scroll
 (`useStrip`, `lib/strip.ts`; dockview's tab keeps `min-width: 0`, or it grows to its content and the tabs run past the
-island, + and the microphone with them). After the tabs, the island's own **+** (a menu of the project's accounts, the
+panel, + and the microphone with them). After the tabs, the panel's own **+** (a menu of the project's accounts, the
 default first, each a new conversation; then Terminal, a shell); last, the dictation's microphone (Dictation, below).
-The task's repositories are in the Resources island, not in this row. The agent's icon opens **Change Agent**, a dialog
-(the project's accounts: the one chosen opens in a new tab, told to go on with this conversation; [tasks.md](tasks.md),
-"Several agents in a task"). An agent's × asks first; a shell's closes it.
+The task's repositories are in the Resources panel, not in this row. The agent's icon opens **Change Agent**, a dialog
+(the project's accounts: the one chosen opens in a new tab, told to go on with this conversation, a progress bar of
+the parts of it read; [tasks.md](tasks.md), "Several agents in a task"). An agent's × asks first; a shell's closes it.
 
-**The last terminal closed folds the island** to a strip of one button, + in its middle, as JetBrains' tool windows go
+**The last terminal closed folds the panel** to a strip of one button, + in its middle, as JetBrains' tool windows go
 but with their button kept in place (the author's choice): by its height under or over the grid, by its width at a side
 (dockview's constraints hold it there; the row goes). Alone in the grid (no profile open), the +'s rows are big buttons
 in a line in the grid's middle, whatever the arrangement (its group fills the grid there, its header hidden): a
@@ -299,12 +304,12 @@ login shell, its `--version`: a second or so): until it starts, a status over it
 Claude Code…" (`starting` in `Sent.Terminals`, the tab without its `pty`). Its terminal stays
 laid out under it, so the program starts at its size. Not found and none chosen in its place (Choose the Agent,
 Cancel), the tab goes. A task opening sends its tabs with its first state, each starting (`Window.showLoaded`, then
-`Task.loadTerminals`), so the folded island's buttons do not show while the agents are looked for. A pick or a
+`Task.loadTerminals`), so the folded panel's buttons do not show while the agents are looked for. A pick or a
 dictation meanwhile goes nowhere: the human gives it again.
 
 The terminal itself (a pty in the user's shell, its output in a buffer, one xterm a place that shows it, the keys of the
 OS's own terminal, its size) is a Kulisa package, `src/terminal/` ([packages.md](packages.md); its
-[README](../src/terminal/README.md)). The island is the task's: its tabs, its agents, its shells.
+[README](../src/terminal/README.md)). The panel is the task's: its tabs, its agents, its shells.
 
 **Shells**: the human's (+ → Terminal, `Terminal`, `Terminal 2` …) and what an agent keeps running for the human to see
 (`terminal_run`: the app's dev server, `docker compose up`), behind the tab in front so the human goes on watching the
@@ -332,12 +337,13 @@ agent the prompt goes to in front first (`Task.holdKey`, `promptTarget`): it alw
 
 The key's indicator, and the way by the mouse, is the round microphone at the end of the terminals' row of tabs
 ([src/dictation](../src/dictation/README.md), The microphone); what the dictation does meanwhile is the pill at the
-terminal's top (the same, The pill). The agent hears through its own program (Claude Code: its audio module, or
-`arecord`/SoX on Linux); on macOS the system asks for the microphone on Kulisa's behalf (`NSMicrophoneUsageDescription`,
-`forge.config.ts`); the pill's wave is the window's own reading of it, the level only.
+terminal's top, a Fluent badge (the same, The pill). The agent hears through its own program (Claude Code: its audio
+module, or `arecord`/SoX on Linux); on macOS the system asks for the microphone on Kulisa's behalf
+(`NSMicrophoneUsageDescription`, `forge.config.ts`); the pill's wave is the window's own reading of it, the level
+only.
 
 Links in the terminal open with Ctrl+click (⌘ on macOS; which links: [src/terminal](../src/terminal/README.md)) and
-always ask where, in a menu at the pointer (the island's `termHooks.open`): a new tab in one of the shown task's open
+always ask where, in a menu at the pointer (the panel's `termHooks.open`): a new tab in one of the shown task's open
 profiles, or the user's browser. Every time, so a link never lands where the human did not expect: which profile a link
 belongs to cannot be told, and a rule such as "where that site is open" is not obvious.
 
@@ -373,9 +379,10 @@ line in the log (`[focus]`): given back, or left and why.
   ([src/screenshots](../src/screenshots/README.md)). The site does not get them, as in Chrome. Closing or switching a
   tab from the page leaves the keyboard in the page shown next.
 - **Everywhere, the terminal too**: Ctrl+` to the terminal in front and back to the page used last (on the folded
-  island, a new conversation of the task's agent), Ctrl+Shift+` a new terminal, Ctrl+Shift+1…9 the bar's first to
+  terminals, a new conversation of the task's agent), Ctrl+Shift+` a new terminal, Ctrl+Shift+1…9 the bar's first to
   ninth tab, Ctrl+Shift+PgDn / PgUp the next or previous one (in the bar's order), Ctrl+Shift+N a new task of the shown
-  task's project, Ctrl+Shift+A the bar's + (the new-task menu; again, back), Ctrl+Shift+/ the list; the right Ctrl
+  task's project, Ctrl+Shift+A the sidebar (over the grid, again to close it; docked in the empty window, the keyboard
+  to it), Ctrl+Shift+/ the list; the right Ctrl
   (right ⌘ on macOS) held alone, speak to the agent (The terminal, Dictation: the one key the human may change).
   Ctrl+Shift+… and Ctrl+` are what agents and sites leave alone; Alt+letters are Claude Code's (Alt+V, Alt+P, Alt+T),
   Ctrl+Alt+arrows GNOME's, Ctrl+Shift+U and E ibus's, so Kulisa takes none of them.
@@ -405,9 +412,9 @@ Windows windows have no menu.
 
 ## DevTools
 
-A pane's ⋮ menu (where more of a pane's actions will go, as in Chrome), or F12 or Ctrl+Shift+I in its page, opens the
-active tab's DevTools in a window of their own. Kulisa's own DevTools (F12 outside the pages) exist only when running
-from source (`appDevTools`, off when `app.isPackaged`).
+A pane's ⋮ → DevTools, or F12 or Ctrl+Shift+I in its page, opens the active tab's DevTools in a window of their own.
+Kulisa's own DevTools (F12 outside the pages) exist only when running from source (`appDevTools`, off when
+`app.isPackaged`).
 
 ## The log
 
@@ -543,8 +550,8 @@ the Mac it was built on: ROADMAP, "Windows and macOS have gaps left"). On macOS 
 its own prebuilt binary is packaged (N-API, the one `npm start` loads), so no compiler is needed; on macOS its
 `spawn-helper`, the program it starts a shell with, is kept outside the archive, where it runs it from (in it, a
 packaged Kulisa's terminal fails). **What the package holds** is what the main process runs: its `dependencies`, the
-window's build (`dist/renderer`, 2 MB) and the agents' packages. The window's libraries (Vue, Reka UI, dockview, xterm
-and its addons, the fonts: about 40 MB) are `devDependencies`, which Forge leaves out: Vite bundles them, and the main
+window's build (`dist/renderer`, 3 MB) and the agents' packages. The window's libraries (React, Fluent UI, Lucide's
+icons, xterm and its addons, the fonts) are `devDependencies`, which Forge leaves out: Vite bundles them, and the main
 process imports none of them (but `@xterm/headless`, which keeps each shell's screen). node-pty's prebuilt binaries for
 the other platforms (58 MB, mostly Windows's) are removed by a packaging hook (`prunePrebuilds` in `forge.config.ts`):
 it loads only its own platform's, on Linux the one built at install; the archive is 40 MB. The `.dmg` needs `appdmg`,
