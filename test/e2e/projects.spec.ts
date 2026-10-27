@@ -120,7 +120,8 @@ test("projects: the projects' manager (Project Settings…) changes its name and
     - menuitem /^Sam\\.admin/
   `);
   await settingsMenu(s).getByRole('menuitem', { name: /^Sam\.admin/ }).click();
-  await expect(listRow(s, 'Profiles', 'Sam.admin').getByRole('cell')).toHaveText(['Sam.admin', 'seller in the test shop', 'project']);
+  // Its name a Persona's: its picture's initials (under the picture) are text too
+  await expect(listRow(s, 'Profiles', 'Sam.admin').getByRole('cell')).toHaveText([/^S?Sam\.admin$/, 'seller in the test shop', 'project']);
   await expect(listRow(s, 'Profiles', 'Sam.admin')).toHaveAttribute('data-profile', samId);
   await expect.poll(() => core((k, a) => k.shell.closed.has(a.sam) && k.shell.closed.has(a.user), { sam: samId, user: siteUser })).toBe(true); // its task lists them, closed
   await onRow(s, listRow(s, 'Profiles', 'Site-user'), removeProfile(s));
@@ -316,7 +317,7 @@ test("projects: the title bar's gear opens Settings' window at the shown project
   await expect.poll(() => core((k, p) => !k.shell.store.projectsWith('profiles', p).length, closedOne)).toBe(true);
   await core((k, p) => { k.shell.profileStore.delete(p); }, closedOne); // not needed after
   await expect(listRow(s, 'Profiles', 'Closed-one')).toHaveCount(0);
-  await expect(group(s, 'Profiles').getByRole('alert')).toHaveCount(0);
+  await expect(group(s, 'Profiles').getByRole('group'), 'no refusal (a MessageBar)').toHaveCount(0);
   const png = test.info().outputPath('projects.png');
   await core((k, f) => k.shot(f), png);
   await test.info().attach('projects', { path: png, contentType: 'image/png' });

@@ -22,7 +22,6 @@ const openFile = (file: string) => kulisa.invoke('file:open', file);
 const rowStyle = { width: '100%', justifyContent: 'start', minWidth: 0, textAlign: 'start' } as const;
 // A Lucide icon in a compound button's icon slot, at a row's size (the slot is a picture's).
 const ICON = { fontSize: 20, width: 20, height: 20 } as const;
-const cut = { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } as const;
 
 export function Resources() {
   const task = useWindow((s) => shownTask(s));
@@ -47,7 +46,7 @@ export function Resources() {
       {task.resources.map((r) => <ListItem key={r.folder} style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
         <CompoundButton appearance="subtle" size="small" style={rowStyle} aria-label={r.label} title={`Open Folder: ${r.folder}`}
           icon={{ children: r.kind === 'maintree' ? <FolderIcon /> : <GitBranchIcon />, style: ICON }} secondaryContent={r.branch ? `branch ${r.branch}` : 'main working tree'}
-          onClick={() => void open(r.folder)}><span style={cut}>{r.label}</span></CompoundButton>
+          onClick={() => void open(r.folder)}><Text truncate wrap={false}>{r.label}</Text></CompoundButton>
         {r.removable && <Button appearance="subtle" size="small" icon={<Trash2Icon />} aria-label="Remove Repository" title="Remove Repository"
           onClick={() => void remove(r.folder)} />}
       </ListItem>)}
@@ -78,6 +77,6 @@ export function Resources() {
 // Its header in the grid: its name; the panel is dragged by it.
 export function ResourcesHeader({ api }: IDockviewPanelHeaderProps) {
   return <div data-panel={api.id} style={{ padding: '0 8px', display: 'flex', alignItems: 'center', height: '100%', minWidth: 0 }}>
-    <Text style={{ ...cut, color: tokens.colorNeutralForeground2 }}>{api.title}</Text>
+    <Text truncate wrap={false} style={{ color: tokens.colorNeutralForeground2 }}>{api.title}</Text>
   </div>;
 }

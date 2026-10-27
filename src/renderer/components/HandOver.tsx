@@ -5,7 +5,7 @@
 import { createElement, useEffect, type ReactElement } from 'react';
 import { createStore, useStore } from 'zustand';
 import { useShallow } from 'zustand/react/shallow';
-import { AvatarGroup, AvatarGroupItem, Button, Dialog, DialogActions, DialogBody, DialogContent, DialogSurface, DialogTitle, List, ListItem,
+import { AvatarGroup, AvatarGroupItem, Button, Card, Dialog, DialogActions, DialogBody, DialogContent, DialogSurface, DialogTitle, Field, List, ListItem,
   MessageBar, MessageBarBody, ProgressBar, Radio, RadioGroup, Tag, Text, tokens } from '@fluentui/react-components';
 import { BookOpenTextIcon, GitBranchIcon, GlobeIcon, SquareTerminalIcon, XIcon } from 'lucide-react';
 import { agentMark } from './AgentMark';
@@ -106,8 +106,8 @@ export function HandOver() {
       <DialogBody>
         <DialogTitle action={<Button appearance="subtle" aria-label="Close" icon={<XIcon />} onClick={onClose} />}>Change Agent</DialogTitle>
         <DialogContent>
-          {from?.agent && <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', gap: tokens.spacingHorizontalM,
-            marginBottom: tokens.spacingVerticalL, padding: tokens.spacingVerticalM, borderRadius: tokens.borderRadiusMedium, background: tokens.colorNeutralBackground3 }}>
+          {from?.agent && <Card appearance="filled-alternative" style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center',
+            marginBottom: tokens.spacingVerticalL }}>
             <Side cli={from.agent.cli} name={from.agent.name} conv={`“${from.name}”`} />
             <List aria-label="Goes along" style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'center' }}>
               {branch && along(<GitBranchIcon />, branch, `branch ${branch}`)}
@@ -118,21 +118,20 @@ export function HandOver() {
               {along(<BookOpenTextIcon />, 'the whole conversation')}
             </List>
             <Side cli={to?.cli} name={to?.name} conv="a new tab" />
-          </div>}
-          <RadioGroup aria-label="Agent" value={chosen ?? ''} disabled={going} onChange={(_, d) => state.setState({ chosen: d.value })}>
-            {agents.map((a) => { const Mark = agentMark(a.cli); return <div key={a.id} data-agent={a.id} style={{ display: 'flex', alignItems: 'center', gap: tokens.spacingHorizontalS }}>
-              <Radio value={a.id} label={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Mark />{a.name}</span>} />
-              {a.id === from?.agent?.account && <Text size={200} style={{ marginInlineStart: 'auto', color: tokens.colorNeutralForeground3 }}>this one, afresh</Text>}
-            </div>; })}
-          </RadioGroup>
-          {going && <div style={{ marginTop: tokens.spacingVerticalM }}>
-            <Text role="status" block align="center">{progress}</Text>
-            <ProgressBar value={read ? read.part / read.parts : undefined} style={{ marginTop: tokens.spacingVerticalS }} />
-          </div>}
-          {error && <MessageBar intent="error" style={{ marginTop: tokens.spacingVerticalM }}><MessageBarBody>{error}</MessageBarBody></MessageBar>}
-          {!going && <Text block size={200} style={{ marginTop: tokens.spacingVerticalM, color: tokens.colorNeutralForeground3 }}>It reads this conversation
-            first, then tells you in a few lines what is done and what is next. Its own hidden reasoning, permissions given and its account's settings
-            stay behind. This tab stays until you close it.</Text>}
+          </Card>}
+          <Field hint={going ? undefined : `It reads this conversation first, then tells you in a few lines what is done and what is next. Its own hidden
+            reasoning, permissions given and its account's settings stay behind. This tab stays until you close it.`}>
+            <RadioGroup aria-label="Agent" value={chosen ?? ''} disabled={going} onChange={(_, d) => state.setState({ chosen: d.value })}>
+              {agents.map((a) => { const Mark = agentMark(a.cli); return <div key={a.id} data-agent={a.id} style={{ display: 'flex', alignItems: 'center', gap: tokens.spacingHorizontalS }}>
+                <Radio value={a.id} label={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Mark />{a.name}</span>} />
+                {a.id === from?.agent?.account && <Text size={200} style={{ marginInlineStart: 'auto', color: tokens.colorNeutralForeground3 }}>this one, afresh</Text>}
+              </div>; })}
+            </RadioGroup>
+          </Field>
+          {going && <Field validationMessage={{ children: progress, role: 'status' }} validationState="none" style={{ marginTop: tokens.spacingVerticalM }}>
+            <ProgressBar value={read ? read.part / read.parts : undefined} />
+          </Field>}
+          {error && <MessageBar intent="error" style={{ marginTop: tokens.spacingVerticalM }}><MessageBarBody style={{ userSelect: 'text' }}>{error}</MessageBarBody></MessageBar>}
         </DialogContent>
         <DialogActions>
           {going ? <Button appearance="primary" onClick={show}>Show now</Button> : <>

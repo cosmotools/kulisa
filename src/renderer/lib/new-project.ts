@@ -13,6 +13,7 @@ type Source = { folder: string; state: string };
 
 export interface WizardState {
   step: number; saving: boolean; error: string;
+  errorAt: 'source' | 'name' | ''; // the field the error is of; none: Create's refusal (a clone failing), over the buttons
   ready: boolean; // its defaults there: shown only then, or a choice made at once was undone by them
   // 1. Its code: a new folder, folders on the disk (nothing made), or repositories cloned from URLs.
   from: From; name: string; place: string; sep: string; sources: Source[]; urls: string[]; typed: string;
@@ -27,7 +28,7 @@ export interface WizardState {
 // single: one folder or one URL, in a field of its own, not a list (the welcome's: a first project made simply; more are
 // added in Settings).
 export function wizard(single: boolean) {
-  const store = createStore<WizardState>()(() => ({ step: 0, saving: false, error: '', ready: false,
+  const store = createStore<WizardState>()(() => ({ step: 0, saving: false, error: '', errorAt: '', ready: false,
     from: 'new', name: '', place: '', sep: '/', sources: [], urls: [], typed: '', asked: null, nameTrouble: false,
     accounts: [], clis: [], chosen: [], main: '', signing: null, others: [], taken: [], fresh: [] }));
   const get = store.getState, set = store.setState;
@@ -69,7 +70,7 @@ export function wizard(single: boolean) {
     const r = await kulisa.invoke('project:folder-state', { from: 'folder', folder: v });
     const why = !r ? `${v}: a full path, please` : ({ new: `${r.folder} is not there`, file: `${r.folder} is a file, not a folder`,
       project: `${r.folder} is the project ${r.project}'s already` } as Record<string, string>)[r.state];
-    if (why) { set({ error: why, ...(!get().typed && { typed: v }) }); return false; } // left to correct
+    if (why) { set({ error: why, errorAt: 'source', ...(!get().typed && { typed: v }) }); return false; } // left to correct
     if (single && v !== get().typed.trim()) return true; // another typed meanwhile: its own answer comes
     if (!get().sources.some((x) => x.folder === r!.folder)) set({ sources: [...get().sources, { folder: r!.folder, state: r!.state }] });
     follow();
@@ -88,10 +89,10 @@ export function wizard(single: boolean) {
     const s0 = get();
     if (s0.from !== 'new' && !(await addSource())) return false;
     const s = get(), refusal = refusalOf(s);
-    if (s.from === 'folder' && !s.sources.length) { set({ error: 'Add a folder' }); return false; }
-    if (s.from === 'clone' && !s.urls.length) { set({ error: 'Add a repository URL' }); return false; }
-    if (!s.name.trim()) { set({ error: 'Its name, please', nameTrouble: true }); return false; }
-    if (refusal) { set({ error: refusal, nameTrouble: true }); return false; }
+    if (s.from === 'folder' && !s.sources.length) { set({ error: 'Add a folder', errorAt: 'source' }); return false; }
+    if (s.from === 'clone' && !s.urls.length) { set({ error: 'Add a repository URL', errorAt: 'source' }); return false; }
+    if (!s.name.trim()) { set({ error: 'Its name, please', errorAt: 'name', nameTrouble: true }); return false; }
+    if (refusal) { set({ nameTrouble: true }); return false; } // said at its field as it is typed (refusalOf)
     return true;
   }
 
@@ -133,7 +134,8 @@ export function wizard(single: boolean) {
     set({ saving: true });
     try {
       const r = await kulisa.invoke('project:new', { from: s.from, name: s.name, location: s.place, folders: s.sources.map((x) => x.folder), urls: s.urls, ...setup });
-      if (refused(r)) { set({ error: r.error, step: 0, nameTrouble: true }); return false; }
+      // Not at a field: the main process's refusal does not say which (the code's step checked them all before).
+      if (refused(r)) { set({ error: r.error, errorAt: '', step: 0, nameTrouble: true }); return false; }
       await kulisa.invoke('project:open', { id: r.id });
       return true;
     } finally { set({ saving: false }); }
@@ -142,7 +144,7 @@ export function wizard(single: boolean) {
   async function reset() {
     const [c, a, p] = await Promise.all([kulisa.invoke('project:new-defaults'), kulisa.invoke('accounts:list'), kulisa.invoke('profiles:list')]);
     named = '';
-    set({ from: 'new', name: '', place: c.location, sep: c.sep, sources: [], urls: [], typed: '', asked: null, step: 0, error: '', nameTrouble: false,
+    set({ from: 'new', name: '', place: c.location, sep: c.sep, sources: [], urls: [], typed: '', asked: null, step: 0, error: '', errorAt: '', nameTrouble: false,
       accounts: a.accounts, clis: a.clis, chosen: [], main: '', signing: null, others: p.profiles, taken: [], fresh: [], ready: true });
     void ask();
     // The agents behind it: looking for them runs the user's login shell and each one's --version (seconds with a heavy
@@ -162,7 +164,7 @@ const thereOf = (s: WizardState) => {
   const t = s.from === 'folder' ? '' : `${s.place.trim().replace(/[\\/]+$/, '')}${s.sep}${s.name.trim()}`;
   return { t, there: s.asked?.folder === t ? s.asked : null };
 };
-function refusalOf(s: WizardState) {
+export function refusalOf(s: WizardState) {
   const { t, there } = thereOf(s), state = there?.state ?? '';
   return ({ project: `${t} is the project ${there?.project}'s already`, file: `${t} is a file, not a folder` } as Record<string, string>)[state]
     ?? (s.from === 'clone' && ['files', 'repo'].includes(state) ? `${t} is there already: choose another name or location` : '');

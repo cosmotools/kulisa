@@ -2,15 +2,15 @@
 // project's accounts and the terminal only, with Install. Asked once the grid it is for is on screen; closed without a
 // choice (Cancel, another task shown), none opens. Also an install's progress, New Project's too (InstallProgress).
 import { createElement, Fragment, useEffect } from 'react';
-import { Accordion, AccordionHeader, AccordionItem, AccordionPanel, Button, Dialog, DialogActions, DialogBody, DialogContent, DialogSurface, DialogTitle, Divider, Link, Radio, RadioGroup, Text } from '@fluentui/react-components';
+import { Accordion, AccordionHeader, AccordionItem, AccordionPanel, Badge, Button, Dialog, DialogActions, DialogBody, DialogContent, DialogSurface, DialogTitle, Divider, Field,
+  Link, MessageBar, MessageBarBody, Radio, RadioGroup, Spinner, Text } from '@fluentui/react-components';
 import { agentMark } from './AgentMark';
 import { agentList, shortPath, useAgentList, type AgentList } from '../lib/agents';
 import { useCovered } from '../lib/cover';
 import { whenLeft } from '../lib/grid';
 import type { AgentInfo } from '../../shared/types';
 
-const mono = { fontFamily: 'var(--fontFamilyMonospace)', overflowWrap: 'anywhere', userSelect: 'text' } as const;
-const red = { color: 'var(--colorPaletteRedForeground1)' };
+const copyable = { overflowWrap: 'anywhere', userSelect: 'text' } as const; // paths and commands: text to copy
 
 const list = agentList({ installed: (a) => `${a.name} is installed. Start it; it asks you to sign in.` });
 let asking: string | null = null; // the task asked for
@@ -33,11 +33,11 @@ export function InstallProgress({ list: l }: { list: AgentList }) {
     {details && <Accordion collapsible openItems={open ? ['log'] : []} onToggle={(_, d) => l.openDetails(d.openItems.includes('log'))}>
       <AccordionItem value="log">
         <AccordionHeader size="small">Details</AccordionHeader>
-        <AccordionPanel><pre style={{ ...mono, maxHeight: 180, overflow: 'auto', margin: 0, padding: 8, whiteSpace: 'pre-wrap', fontSize: 'var(--fontSizeBase200)',
-          background: 'var(--colorNeutralBackground3)', borderRadius: 'var(--borderRadiusMedium)' }}>{log}</pre></AccordionPanel>
+        <AccordionPanel><Text as="pre" font="monospace" size={200} block style={{ ...copyable, maxHeight: 180, overflow: 'auto', margin: 0, padding: 8, whiteSpace: 'pre-wrap',
+          background: 'var(--colorNeutralBackground3)', borderRadius: 'var(--borderRadiusMedium)' }}>{log}</Text></AccordionPanel>
       </AccordionItem>
     </Accordion>}
-    {error && <Text role="alert" style={red}>{error}</Text>}
+    {error && <MessageBar intent="error"><MessageBarBody style={{ userSelect: 'text' }}>{error}</MessageBarBody></MessageBar>}
   </div>;
 }
 
@@ -54,12 +54,12 @@ function AgentRow({ a, chosen, installing, home }: { a: AgentInfo; chosen: boole
       <span style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
         <Text weight="semibold">{a.account || !a.maker ? a.name : `${a.name} · ${a.maker}`}</Text>
         {!a.account && a.needs && <Text size={200}>{a.needs}</Text>}
-        {where && <Text size={200} style={mono}>{where}</Text>}
-        {installLine && <Text size={200} style={mono}>{installLine}</Text>}
+        {where && <Text size={200} font="monospace" style={copyable}>{where}</Text>}
+        {installLine && <Text size={200} font="monospace" style={copyable}>{installLine}</Text>}
       </span>
     </span>} style={{ flex: 1, minWidth: 0 }} />
     {list.details && a.site && !a.account && <Link href={a.site} target="_blank">Website</Link>}
-    {status && <Text size={200} style={{ whiteSpace: 'nowrap' }}>{status}</Text>}
+    {status && <Badge appearance="outline">{status}</Badge>}
     {!a.installed && a.install && !a.account && <Button size="small" disabled={installing} onClick={() => void list.install(a.id)}>Install</Button>}
   </div>;
 }
@@ -80,13 +80,13 @@ export function AgentPicker() {
       <DialogBody>
         <DialogTitle>Choose the Agent</DialogTitle>
         <DialogContent style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <Text>The agent works in a terminal of this task: it writes the code and uses the profiles. If it is not on this
-            computer yet, Kulisa installs it with its maker's installer. On its first start it asks you to sign in.</Text>
-          {looking && <Text>Looking for agents on this computer…</Text>}
-          <RadioGroup aria-label="Agents" value={selected ?? ''} disabled={installing} onChange={(_, d) => list.select(d.value)}
-            style={{ display: 'flex', flexDirection: 'column' }}>
-            {agents.map((a, i) => <Fragment key={a.id}>{i > 0 && <Divider />}<AgentRow a={a} chosen={a.id === selected} installing={installing} home={home} /></Fragment>)}
-          </RadioGroup>
+          {looking && <Spinner size="tiny" label="Looking for agents on this computer…" style={{ justifyContent: 'flex-start' }} />}
+          <Field label="Agents" hint="It works in a terminal of this task: it writes the code and uses the profiles. If it is not on this computer yet,
+            Kulisa installs it with its maker's installer. On its first start it asks you to sign in.">
+            <RadioGroup value={selected ?? ''} disabled={installing} onChange={(_, d) => list.select(d.value)} style={{ display: 'flex', flexDirection: 'column' }}>
+              {agents.map((a, i) => <Fragment key={a.id}>{i > 0 && <Divider />}<AgentRow a={a} chosen={a.id === selected} installing={installing} home={home} /></Fragment>)}
+            </RadioGroup>
+          </Field>
           <InstallProgress list={list} />
         </DialogContent>
         <DialogActions>

@@ -5,7 +5,7 @@
 // Kulisa window, the main process says (the page does not know where the pointer is then).
 import { flushSync } from 'react-dom';
 import { useEffect, useReducer, useRef, useState, type CSSProperties, type DragEvent, type MouseEvent, type PointerEvent } from 'react';
-import { Button, Tab, TabList, Tooltip, tokens } from '@fluentui/react-components';
+import { Button, Tab, TabList, Text, Tooltip, tokens } from '@fluentui/react-components';
 import { PlusIcon, XIcon } from 'lucide-react';
 import { RightClickMenu, type Item } from './Menus';
 import { ProjectIcon } from './ProjectIcon';
@@ -162,7 +162,7 @@ export function TaskBar() {
   return <nav id="taskbar" aria-label="Open tasks" style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0, justifySelf: 'center',
     maxWidth: '100%', boxSizing: 'border-box', padding: top ? 0 : '4px 8px', WebkitAppRegion: top ? 'no-drag' : undefined } as CSSProperties}>
     <RightClickMenu items={menu} style={{ display: 'flex', minWidth: 0 }}>
-      <TabList id="projectTabs" ref={strip} className={stripClass} size="small" reserveSelectedTabSpace={false} selectedValue={pressed ?? current ?? ''}
+      <TabList id="projectTabs" ref={strip} className={stripClass} appearance="subtle-circular" size="small" reserveSelectedTabSpace={false} selectedValue={pressed ?? current ?? ''}
         onTabSelect={(_, d) => onTabSelect(String(d.value))}
         onPointerDown={onPointerDown} onAuxClick={onAuxClick} onDoubleClick={onDoubleClick} {...drag}
         style={{ flex: '0 1 auto', flexWrap: 'nowrap' }}>
@@ -176,9 +176,10 @@ export function TaskBar() {
               boxShadow: at && `inset ${at === 'before' ? 2 : -2}px 0 ${tokens.colorBrandStroke1}` } as CSSProperties}>
             <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <AgentState state={t.state} />
-              {/* the name cut short where the tab ends: at its narrowest about ten letters */}
-              <span style={{ maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.name}</span>
-              <Button as="a" data-close appearance="subtle" size="small" icon={<XIcon size={14} />} aria-label="Close" tabIndex={-1}
+              {/* the name cut short where the tab ends: at its narrowest about ten letters. Text sets a weight of its
+                  own: the chosen tab's, as Fluent's Tab sets its label's. */}
+              <Text truncate wrap={false} weight={t.key === (pressed ?? current) ? 'semibold' : 'regular'} style={{ maxWidth: 120 }}>{t.name}</Text>
+              <Button as="a" data-close appearance="subtle" size="small" icon={<XIcon />} aria-label="Close" tabIndex={-1}
                 title="Close the task: its agent stops, all else stays (open it again from the sidebar)" style={{ minWidth: 0, marginInlineStart: 'auto' }}
                 onMouseDown={(e) => e.preventDefault()} onClick={(e) => { e.stopPropagation(); void kulisa.invoke('task:close', t.key); }} />
             </span>

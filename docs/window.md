@@ -40,7 +40,7 @@ of another project, or one closed, is opened from the sidebar. ☰ → **Tasks b
 after the logo instead, as a browser's tabs (`settings.json`: `bar`; in the page's URL, so it is drawn in place at
 once; `App.tsx` puts `TaskBar.tsx` in `TopBar.tsx`'s children or under the grid). Bottom is the default, on macOS too:
 the hand is at the terminal under the grid all the time, and a bar on top sits right over the grid's panels' tabs. The
-tabs are Fluent's, the shown one underlined in its project's color (the author's choice). A tab is a target for a
+tabs are Fluent's, the shown one outlined in its project's color (the author's choice). A tab is a target for a
 quick throw of the mouse: at least 160 px wide (about ten letters of its name), × on every tab as Chrome's. The window
 is three rows (`App.tsx`: the title bar, the grid, the bar when below), the grid from edge to edge. In the title bar
 the tabs are no drag handle (`app-region: no-drag`). Nothing in the bar moves when another task is shown.
@@ -59,7 +59,7 @@ shown, through the slide's pictures, so the tab left is not lit again meanwhile.
 
 ## The grid
 
-A task's profiles' panes and its terminals' panel are peer panels in a grid (dockview), flat, split by hairlines
+A task's profiles' panes and its terminals' panel are peer panels in a grid (dockview), flat, split by a gap
 (`Grid.tsx`): dragged by the header to another place or onto another panel (stacked as tabs), resized by the line
 between them. A profile's page is square, as its pane is. A panel stacked behind another hides its page until chosen
 (and later unloads it: [profiles.md](profiles.md), "Tabs unloaded"). **☰ → Arrange panels** offers ready-made

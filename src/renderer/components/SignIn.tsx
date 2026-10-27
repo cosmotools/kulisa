@@ -3,7 +3,7 @@
 // in the browser, only confuses; it is there for a failure (opened by itself then) and for what the browser does not
 // show (a code the agent asks for). Gone (Cancel, its page left), the sign-in is cancelled.
 import { useEffect, useRef, useState } from 'react';
-import { Accordion, AccordionHeader, AccordionItem, AccordionPanel, Button, Text } from '@fluentui/react-components';
+import { Accordion, AccordionHeader, AccordionItem, AccordionPanel, Button, MessageBar, MessageBarActions, MessageBarBody, Text } from '@fluentui/react-components';
 import { forgetTerminals } from '../../terminal/renderer';
 import { Terminal } from './Terminal';
 import type { SignedIn as Answer } from '../../shared/types';
@@ -31,6 +31,7 @@ export function SignIn({ agent, project, onDone, onClose }: { agent: { id: strin
     };
   }, [key, agent.id, project]);
 
+  const again = () => { setKey(fresh()); setRunning(true); setError(''); setDetails(false); };
   return <div role="group" aria-label={`New account of ${agent.name}`} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
     <Text size={200}>Signing in to a new account of {agent.name}: sign in in your browser, which opens (check the account it signs in to
       there; its address is under Details if it did not open). The account is {project ? 'added' : 'kept'} once you are signed in.</Text>
@@ -44,9 +45,13 @@ export function SignIn({ agent, project, onDone, onClose }: { agent: { id: strin
         </AccordionPanel>
       </AccordionItem>
     </Accordion>
-    {error && <Text role="alert" size={200} style={{ color: 'var(--colorPaletteRedForeground1)' }}>{error}</Text>}
+    {/* Its text selectable: to copy and search for. */}
+    {error && <MessageBar intent="error">
+      <MessageBarBody style={{ userSelect: 'text' }}>{error}</MessageBarBody>
+      <MessageBarActions><Button onClick={again}>Try Again</Button></MessageBarActions>
+    </MessageBar>}
     <div style={{ display: 'flex', gap: 8 }}>
-      {!running && <Button onClick={() => { setKey(fresh()); setRunning(true); setError(''); setDetails(false); }}>Try Again</Button>}
+      {!running && !error && <Button onClick={again}>Try Again</Button>}
       <Button onClick={onClose}>Cancel</Button>
     </div>
   </div>;

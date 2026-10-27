@@ -2,7 +2,7 @@
 // Kulisa App (the device flow: Kulisa shows GitHub's code itself) or a fine-grained token, signed in again, deleted.
 // Read as it is shown, not as Settings opens: where Kulisa App is installed is asked of GitHub.
 import { useEffect, useRef, useState } from 'react';
-import { Badge, Button, Input, Link, MessageBar, MessageBarBody, Text } from '@fluentui/react-components';
+import { Badge, Button, Field, Input, Link, MessageBar, MessageBarActions, MessageBarBody, MessageBarTitle, Text } from '@fluentui/react-components';
 import { MinusIcon, PlusIcon } from 'lucide-react';
 import { ButtonMenu, RightClickMenu, type Item } from './Menus';
 import { List } from './List';
@@ -15,6 +15,7 @@ const installed = (a: GitHubAccount) => (a.kind === 'pat' ? 'a token' : a.instal
 
 export function GitHubPage() {
   const [info, setInfo] = useState<GitHubInfo | null>(null), [sel, setSel] = useState<string>(), [error, setError] = useState('');
+  const [tokenError, setTokenError] = useState(''); // GitHub's refusal of the token pasted, at its field
   // Signing in with Kulisa App: the code GitHub gave, until it is entered (again: the account signed in again).
   const [signing, setSigning] = useState<{ again: string | null; code: string; url: string } | null>(null), [copied, setCopied] = useState(false);
   // A token being pasted (again: the account it is a new token for).
@@ -45,12 +46,12 @@ export function GitHubPage() {
   }
   async function withToken(again: string | null = null) {
     if (signing) await cancelSignin();
-    setError(''); setToken(''); setPasting({ again });
+    setError(''); setTokenError(''); setToken(''); setPasting({ again });
   }
   async function addToken() {
     if (!token.trim()) { tokenField.current?.focus(); return; }
     const r = await kulisa.invoke('github:token', { token, again: pasting?.again ?? null });
-    if (refused(r)) { setError(r.error); return; }
+    if (refused(r)) { setTokenError(r.error); return; }
     setPasting(null); setToken(''); show(r); setSel(r.id);
   }
   const again = (a: GitHubAccount) => (a.kind === 'app' ? withGitHub(a.id) : withToken(a.id));
@@ -94,29 +95,36 @@ export function GitHubPage() {
           ]} />
       </RightClickMenu> : <Text size={200}>No accounts yet.</Text>}
 
-      {signing && <div role="group" aria-label="Sign in with GitHub" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <Text size={200}>Enter this code on GitHub's page, which opened in your browser (<Link href={signing.url} target="_blank">open it again</Link>):</Text>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      {/* named by its title (MessageBar's aria-labelledby) */}
+      {signing && <MessageBar intent="info" layout="multiline">
+        <MessageBarBody style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <MessageBarTitle>Sign in with GitHub</MessageBarTitle>
+          <Text size={200}>Enter this code on GitHub's page, which opened in your browser (<Link href={signing.url} target="_blank">open it again</Link>):</Text>
           {/* GitHub's code in a monospace font: read and typed without a mistake (0 and O) */}
-          <Text font="monospace" size={500} weight="semibold" data-testid="code" style={{ userSelect: 'text', marginInlineEnd: 8 }}>{signing.code}</Text>
+          <Text font="monospace" size={500} weight="semibold" data-testid="code" style={{ userSelect: 'text' }}>{signing.code}</Text>
+          <Text size={200}>Enter a code on GitHub only when Kulisa has just shown it to you: a code someone else gives you signs them in as you.</Text>
+        </MessageBarBody>
+        <MessageBarActions>
           <Button onClick={() => void navigator.clipboard.writeText(signing.code).then(() => setCopied(true))}>{copied ? 'Copied' : 'Copy'}</Button>
           <Button onClick={() => void cancelSignin()}>Cancel</Button>
-        </div>
-        <Text size={200}>Enter a code on GitHub only when Kulisa has just shown it to you: a code someone else gives you signs them in as you.</Text>
-      </div>}
+        </MessageBarActions>
+      </MessageBar>}
 
       {pasting && <div role="group" aria-label="Add a token" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <Text size={200}>A fine-grained token: <Link href={NEW_TOKEN} target="_blank">make one on GitHub</Link>, its resource owner the organization or user
-          of your repositories (an organization may have to approve it), then paste it here.</Text>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <Input ref={tokenField} style={{ flex: 1 }} type="password" value={token} placeholder="github_pat_…" aria-label="Token" spellCheck={false}
-            onChange={(_, d) => { setToken(d.value); setError(''); }}
+        <Field label="Token" validationMessage={tokenError || undefined} style={{ userSelect: 'text' }}
+          hint={<>A fine-grained token: <Link href={NEW_TOKEN} target="_blank">make one on GitHub</Link>, its resource owner the organization or user
+            of your repositories (an organization may have to approve it), then paste it here.</>}>
+          <Input ref={tokenField} type="password" value={token} placeholder="github_pat_…" spellCheck={false}
+            onChange={(_, d) => { setToken(d.value); setTokenError(''); }}
             onKeyDown={(e) => { if (e.key === 'Enter') void addToken(); if (e.key === 'Escape') { e.stopPropagation(); setPasting(null); } }} />
+        </Field>
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'end' }}>
           <Button onClick={() => setPasting(null)}>Cancel</Button>
           <Button appearance="primary" onClick={() => void addToken()}>Add</Button>
         </div>
       </div>}
-      {error && <Text role="alert" size={200} style={{ color: 'var(--colorPaletteRedForeground1)' }}>{error}</Text>}
+      {/* a refusal not at the token's field */}
+      {error && <MessageBar intent="error"><MessageBarBody style={{ userSelect: 'text' }}>{error}</MessageBarBody></MessageBar>}
     </Group>
   </div>;
 }

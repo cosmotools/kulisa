@@ -105,8 +105,9 @@ function Projects({ done }: { done: () => void }) {
     </DrawerBody>
     <Divider />
     <DrawerFooter style={{ padding: 8 }}>
-      <Button appearance="subtle" icon={<FolderPlusIcon />} title="New Project…: its code, its agents, its profiles"
-        onClick={() => { done(); void newProject(); }} style={{ flex: 1, justifyContent: 'flex-start' }}>New Project…</Button>
+      <Tooltip content="Its code, its agents, its profiles" relationship="description">
+        <Button appearance="subtle" icon={<FolderPlusIcon />} onClick={() => { done(); void newProject(); }} style={{ flex: 1, justifyContent: 'flex-start' }}>New Project…</Button>
+      </Tooltip>
     </DrawerFooter>
   </>;
 }

@@ -2,8 +2,8 @@
 // so it is never out of date. A key held alone (the dictation's) is the human's to change: Change, then the key pressed
 // is it (keys:set; the main process says what may not be one).
 import { useEffect, useState } from 'react';
-import { Badge, Button, Dialog, DialogActions, DialogBody, DialogContent, DialogSurface, DialogTitle, Table, TableBody, TableCell,
-  TableRow, Text, tokens } from '@fluentui/react-components';
+import { Badge, Button, Dialog, DialogActions, DialogBody, DialogContent, DialogSurface, DialogTitle, MessageBar, MessageBarBody, Table, TableBody, TableCell,
+  TableRow, Text, Tooltip, tokens } from '@fluentui/react-components';
 import { useCovered } from '../lib/cover';
 import { registerDialog } from '../lib/dialogs';
 import { useShortcuts } from '../lib/common';
@@ -51,13 +51,13 @@ export function Shortcuts() {
                   <TableCell><div style={{ display: 'flex', justifyContent: 'end', alignItems: 'center', gap: 6 }}>
                     {listening === s.id ? <Badge data-key appearance="outline" color="subtle">Press a key…</Badge>
                       : s.keys.map((k) => <Badge key={k} data-key appearance="outline" color="informative">{k}</Badge>)}
-                    {s.hold && <Button size="small" disabled={listening === s.id} onClick={() => change(s.id)}
-                      title="Press the key to hold instead: a Ctrl, Shift, Alt or ⌘ by its side, an F key, Insert, Pause or Scroll Lock">Change</Button>}
+                    {s.hold && <Tooltip relationship="description" content="Press the key to hold instead: a Ctrl, Shift, Alt or ⌘ by its side, an F key, Insert, Pause or Scroll Lock">
+                      <Button size="small" disabledFocusable={listening === s.id} onClick={() => change(s.id)}>Change</Button></Tooltip>}
                   </div></TableCell>
                 </TableRow>)}
               </TableBody>
             </Table>
-            {group === 'global' && message && <Text role="alert" size={200} block style={{ color: tokens.colorPaletteRedForeground1, marginTop: 8 }}>{message}</Text>}
+            {group === 'global' && message && <MessageBar intent="error" style={{ marginTop: 8 }}><MessageBarBody style={{ userSelect: 'text' }}>{message}</MessageBarBody></MessageBar>}
           </section>)}
         </DialogContent>
         <DialogActions><Button appearance="primary" onClick={() => setOpen(false)}>Close</Button></DialogActions>

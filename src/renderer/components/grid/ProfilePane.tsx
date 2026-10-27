@@ -4,8 +4,9 @@
 // pane's and its header's hints are the OS's (title), not Fluent's Tooltip, which a page under it would cover.
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type MouseEvent, type PointerEvent } from 'react';
 import type { IDockviewPanelHeaderProps, IDockviewPanelProps } from 'dockview-react';
-import { Avatar, Button, Dialog, DialogActions, DialogBody, DialogContent, DialogSurface, DialogTitle, Image, Input, Tab, TabList, Text,
-  ToggleButton, Toolbar, ToolbarButton, makeStyles, mergeClasses, tabClassNames, tokens } from '@fluentui/react-components';
+import { Avatar, Badge, Button, Dialog, DialogActions, DialogBody, DialogContent, DialogSurface, DialogTitle, Image, Input, Overflow, OverflowItem,
+  Tab, TabList, Text, ToggleButton, Toolbar, ToolbarButton, makeStyles, mergeClasses, tabClassNames, tokens,
+  useIsOverflowItemVisible } from '@fluentui/react-components';
 import { ArrowLeftIcon, ArrowRightIcon, EllipsisIcon, EllipsisVerticalIcon, GlobeIcon, LockIcon, PlusIcon, RotateCwIcon, SquareMousePointerIcon,
   XIcon } from 'lucide-react';
 import { ButtonMenu, RightClickMenu } from '../Menus';
@@ -39,15 +40,11 @@ const useStyles = makeStyles({
   // Its content slot as a row of the title and × (a content prop of its own would draw it twice: Fluent's reserved space).
   tab: { width: '220px', flex: '0 1 auto', minWidth: '64px', containerType: 'inline-size', gridTemplateColumns: 'auto minmax(0, 1fr)', justifyContent: 'stretch',
     [`& > .${tabClassNames.content}`]: { display: 'flex', alignItems: 'center', gap: '4px', minWidth: 0, padding: 0 } },
-  title: { flex: 1, minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', textAlign: 'start',
-    '@container (max-width: 80px)': { display: 'none' } },
+  title: { flex: 1, minWidth: 0, '@container (max-width: 80px)': { display: 'none' } },
   favicon: { width: '16px', height: '16px' },
   close: { flex: 'none', minWidth: 0, marginInlineStart: 'auto' },
-  // A narrow pane gives up Back and Forward, then Reload (into ⋮; their keys stay), never Pick or ⋮: in order, else the
-  // buttons at the end go out of reach first. The widths are the pane's less the bar's padding.
-  bar: { flex: 'none', containerType: 'inline-size', padding: '4px 8px', gap: '2px', alignItems: 'center' },
-  nav: { '@container (width < 244px)': { display: 'none' } },
-  reload: { '@container (width < 184px)': { display: 'none' } },
+  bar: { flex: 'none', padding: '4px 8px', gap: '2px', alignItems: 'center' },
+  group: { display: 'flex', gap: '2px' },
   address: { flex: 1, minWidth: 0, marginInline: '4px' },
   content: { flex: 1, position: 'relative', overflow: 'hidden', background: tokens.colorNeutralBackground1 },
   // A page's dialog, right under the address bar on a dimmed picture of the page, as Chrome shows it.
@@ -61,7 +58,7 @@ export function ProfilePane({ api }: IDockviewPanelProps) {
   const id = profileOf(api.id), profile = useProfile(id), styles = useStyles();
   const picking = useWindow((s) => !!s.picking[id]), picture = useWindow((s) => s.pictures[id]);
   const [content, setContent] = useState<HTMLDivElement | null>(null);
-  const addr = useRef<HTMLInputElement>(null), strip = useRef<HTMLDivElement>(null), bar = useRef<HTMLDivElement>(null);
+  const addr = useRef<HTMLInputElement>(null), strip = useRef<HTMLDivElement>(null);
   const typeInto = useRef<string | null>(null), clickedIn = useRef(false);
   const active = profile?.tabs.find((t) => t.id === profile.active);
   const stripClass = useStrip(strip, profile?.active);
@@ -137,25 +134,6 @@ export function ProfilePane({ api }: IDockviewPanelProps) {
     ];
   }
 
-  // ⋮ at the end of the bar, as Chrome's: what a pane does less often; and the buttons a narrow pane hides. Screenshot's
-  // kinds are rows under its heading, one click away.
-  const hidden = (what: string) => !bar.current?.querySelector<HTMLElement>(`[data-hides="${what}"]`)?.checkVisibility();
-  const more = (): MenuItem[] => {
-    const t = store.getState().profiles.find((p) => p.id === id)?.tabs.find((x) => x.id === tab()), off = blank(t?.url);
-    const nav: MenuItem[] = [
-      ...hidden('nav') ? [{ label: 'Back', keys: keyText('tab.back'), enabled: !!t?.canBack, run: () => act('tab:back', { profile: id, tab: tab() }) },
-        { label: 'Forward', keys: keyText('tab.forward'), enabled: !!t?.canFwd, run: () => act('tab:forward', { profile: id, tab: tab() }) }] : [],
-      ...hidden('reload') ? [{ label: 'Reload', keys: keyText('tab.reload'), run: () => act('tab:reload', { profile: id, tab: tab() }) }] : [],
-    ];
-    return [...nav, ...nav.length ? ['-' as const] : [],
-      { heading: 'Screenshot' },
-      { label: 'Element', keys: keyText('screenshot'), enabled: !off, run: () => screenshot(id, 'element') },
-      { label: 'Visible Part', enabled: !off, run: () => screenshot(id, 'visible') },
-      { label: 'Full Page', enabled: !off, run: () => screenshot(id, 'full') },
-      '-',
-      { label: 'DevTools', keys: keyText('devtools.tab'), run: () => act('tab:devtools', { profile: id, tab: tab() }) }];
-  };
-
   // The active tab's alert or confirm (profiles.ts), over a picture of its page, as Chrome shows it: not modal (the
   // other panes and the rest of the window go on), in the pane. The human's answer goes back when they close it (OK,
   // Cancel, Esc; a click outside does nothing), not when it goes for them (answered by the agent, the page gone: the
@@ -174,12 +152,13 @@ export function ProfilePane({ api }: IDockviewPanelProps) {
   return <div className={styles.pane} role="region" aria-label={profile.name} data-profile={id}>
     <nav className={styles.tabs} aria-label="Tabs">
       <RightClickMenu items={tabMenu}>
-        <TabList ref={strip} className={mergeClasses(stripClass, styles.strip)} size="small" reserveSelectedTabSpace={false} selectedValue={profile.active ?? undefined}
+        <TabList ref={strip} className={mergeClasses(stripClass, styles.strip)} appearance="subtle-circular" size="small" reserveSelectedTabSpace={false} selectedValue={profile.active ?? undefined}
           onTabSelect={(e, d) => { if (!('detail' in e && e.detail > 0)) activate(String(d.value)); }}>
           {profile.tabs.map((t) => <Tab key={t.id} value={t.id} data-tab={t.id} data-grow aria-label={t.title || t.url || 'New tab'} title={t.url}
             className={styles.tab} onPointerDown={pressTab(t.id)}
             icon={t.favicon ? <img className={styles.favicon} data-testid="tab-icon" alt="" src={t.favicon} /> : <GlobeIcon data-testid="tab-icon" />}>
-            <span className={styles.title}>{t.title || t.url || 'New tab'}</span>
+            {/* Text sets a weight of its own: the chosen tab's, as Fluent's Tab sets its label's */}
+            <Text truncate wrap={false} weight={t.id === profile.active ? 'semibold' : 'regular'} className={styles.title}>{t.title || t.url || 'New tab'}</Text>
             {/* Not a press on the tab: it is not chosen first. */}
             <Button as="a" appearance="subtle" size="small" icon={<XIcon />} className={styles.close} aria-label="Close tab" title="Close tab" tabIndex={-1}
               onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); }} onClick={closeTab(t.id)} />
@@ -188,27 +167,39 @@ export function ProfilePane({ api }: IDockviewPanelProps) {
       </RightClickMenu>
       <Button appearance="subtle" size="small" icon={<PlusIcon />} title={withKeys('New tab', 'tab.new')} aria-label="New tab" onClick={() => void panes.get(id)?.newTab()} />
     </nav>
-    <Toolbar ref={bar} className={styles.bar} size="small" aria-label="Page">
-      <ToolbarButton className={styles.nav} data-hides="nav" icon={<ArrowLeftIcon />} title={withKeys('Back', 'tab.back')} aria-label="Back"
-        disabledFocusable={!active?.canBack} onClick={run('tab:back')} />
-      <ToolbarButton className={styles.nav} icon={<ArrowRightIcon />} title={withKeys('Forward', 'tab.forward')} aria-label="Forward"
-        disabledFocusable={!active?.canFwd} onClick={run('tab:forward')} />
-      <ToolbarButton className={styles.reload} data-hides="reload" icon={<RotateCwIcon />} title={withKeys('Reload', 'tab.reload')} aria-label="Reload"
-        onClick={run('tab:reload')} />
-      <Input ref={addr} className={styles.address} appearance="filled-darker" size="small" aria-label="Address" spellCheck={false}
-        value={editing ?? shortUrl(active?.url)} onChange={(_, d) => setEditing(d.value)}
-        onKeyDown={go} onFocus={addrFocus} onBlur={() => setEditing(null)} onMouseDown={addrDown} onMouseUp={addrUp} />
-      {/* The site's own zoom in this profile, when it differs from the Kulisa zoom; a click resets it. */}
-      {active && active.zoom !== 1 && <Button appearance="subtle" size="small" title="This site's zoom in this profile (Ctrl + / − / 0 in the page). Click to reset."
-        onClick={() => void act('tab:zoom', { profile: id, tab: tab(), dir: 0 })}>{Math.round(active.zoom * 100)}%</Button>}
-      {/* Pick needs a page to point at: off on an empty tab, unless picking already. */}
-      <ToggleButton appearance="subtle" icon={<SquareMousePointerIcon />} checked={picking} aria-label="Pick an element"
-        title={withKeys('Pick an element on the page to mention it to the agent (again or Esc: cancel)', 'pick')}
-        disabledFocusable={!picking && blank(active?.url)} onClick={() => void togglePick(id)} />
-      <ButtonMenu items={more} end>
-        <ToolbarButton icon={<EllipsisVerticalIcon />} title="More: Screenshot, DevTools" aria-label="More" />
-      </ButtonMenu>
-    </Toolbar>
+    {/* A narrow pane gives up Back and Forward, then Reload (into ⋮; their keys stay), never Pick or ⋮: in order, else
+        the buttons at the end go out of reach first. The address is no item (it shrinks): padding keeps its room. */}
+    <Overflow padding={ADDRESS_ROOM}>
+      <Toolbar className={styles.bar} size="small" aria-label="Page">
+        {/* one item: Back without Forward would be half a pair */}
+        <OverflowItem id="nav" priority={0}>
+          <span className={styles.group}>
+            <ToolbarButton icon={<ArrowLeftIcon />} title={withKeys('Back', 'tab.back')} aria-label="Back"
+              disabledFocusable={!active?.canBack} onClick={run('tab:back')} />
+            <ToolbarButton icon={<ArrowRightIcon />} title={withKeys('Forward', 'tab.forward')} aria-label="Forward"
+              disabledFocusable={!active?.canFwd} onClick={run('tab:forward')} />
+          </span>
+        </OverflowItem>
+        <OverflowItem id="reload" priority={1}>
+          <ToolbarButton icon={<RotateCwIcon />} title={withKeys('Reload', 'tab.reload')} aria-label="Reload" onClick={run('tab:reload')} />
+        </OverflowItem>
+        <Input ref={addr} className={styles.address} appearance="filled-darker" size="small" aria-label="Address" spellCheck={false}
+          value={editing ?? shortUrl(active?.url)} onChange={(_, d) => setEditing(d.value)}
+          onKeyDown={go} onFocus={addrFocus} onBlur={() => setEditing(null)} onMouseDown={addrDown} onMouseUp={addrUp} />
+        {/* The site's own zoom in this profile, when it differs from the Kulisa zoom; a click resets it. */}
+        {active && active.zoom !== 1 && <OverflowItem id="zoom" pinned>
+          <Button appearance="subtle" size="small" title="This site's zoom in this profile (Ctrl + / − / 0 in the page). Click to reset."
+            onClick={() => void act('tab:zoom', { profile: id, tab: tab(), dir: 0 })}>{Math.round(active.zoom * 100)}%</Button>
+        </OverflowItem>}
+        {/* Pick needs a page to point at: off on an empty tab, unless picking already. */}
+        <OverflowItem id="pick" pinned>
+          <ToggleButton appearance="subtle" icon={<SquareMousePointerIcon />} checked={picking} aria-label="Pick an element"
+            title={withKeys('Pick an element on the page to mention it to the agent (again or Esc: cancel)', 'pick')}
+            disabledFocusable={!picking && blank(active?.url)} onClick={() => void togglePick(id)} />
+        </OverflowItem>
+        <More id={id} />
+      </Toolbar>
+    </Overflow>
     <div ref={setContent} className={mergeClasses(styles.content, !!dialog && styles.dimmed)} data-testid="page"
       style={{ '--picture': dialog?.picture ? `url(${JSON.stringify(dialog.picture)})` : 'none' } as CSSProperties}>
       {content && <Dialog open={!!dialog} modalType="non-modal" onOpenChange={(_, d) => { if (!d.open) answer(false); }}>
@@ -228,13 +219,44 @@ export function ProfilePane({ api }: IDockviewPanelProps) {
   </div>;
 }
 
+// What the bar keeps besides its items: the address's least width (about a host's name), its margins, the gaps and the
+// bar's padding (the container's width counts it).
+const ADDRESS_ROOM = 90 + 8 + 12 + 16;
+
+// ⋮ at the end of the bar, as Chrome's: what a pane does less often; and the buttons the bar has given up. Screenshot's
+// kinds are rows under its heading, one click away. In a span: ButtonMenu's trigger takes no OverflowItem.
+function More({ id }: { id: string }) {
+  const nav = !useIsOverflowItemVisible('nav'), reload = !useIsOverflowItemVisible('reload'), tab = () => activeOf(id);
+  const more = (): MenuItem[] => {
+    const t = store.getState().profiles.find((p) => p.id === id)?.tabs.find((x) => x.id === tab()), off = blank(t?.url);
+    const given: MenuItem[] = [
+      ...nav ? [{ label: 'Back', keys: keyText('tab.back'), enabled: !!t?.canBack, run: () => act('tab:back', { profile: id, tab: tab() }) },
+        { label: 'Forward', keys: keyText('tab.forward'), enabled: !!t?.canFwd, run: () => act('tab:forward', { profile: id, tab: tab() }) }] : [],
+      ...reload ? [{ label: 'Reload', keys: keyText('tab.reload'), run: () => act('tab:reload', { profile: id, tab: tab() }) }] : [],
+    ];
+    return [...given, ...given.length ? ['-' as const] : [],
+      { heading: 'Screenshot' },
+      { label: 'Element', keys: keyText('screenshot'), enabled: !off, run: () => screenshot(id, 'element') },
+      { label: 'Visible Part', enabled: !off, run: () => screenshot(id, 'visible') },
+      { label: 'Full Page', enabled: !off, run: () => screenshot(id, 'full') },
+      '-',
+      { label: 'DevTools', keys: keyText('devtools.tab'), run: () => act('tab:devtools', { profile: id, tab: tab() }) }];
+  };
+  return <OverflowItem id="more" pinned>
+    <span style={{ display: 'flex' }}>
+      <ButtonMenu items={more} end>
+        <ToolbarButton icon={<EllipsisVerticalIcon />} title="More: Screenshot, DevTools" aria-label="More" />
+      </ButtonMenu>
+    </span>
+  </OverflowItem>;
+}
+
 const useHeaderStyles = makeStyles({
   // A pane narrower than its name: the header shrinks with it (Grid.tsx lets dockview's tab shrink), the name cut with
   // …, ⋯ and × kept.
   header: { display: 'flex', alignItems: 'center', gap: '6px', height: '100%', padding: '0 8px', minWidth: 0 },
-  name: { flex: 'none', maxWidth: '100%', minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', flexShrink: 1 },
-  caption: { flex: '1 1 0', minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', color: tokens.colorNeutralForeground3 },
-  signin: { display: 'flex', alignItems: 'center', gap: '4px', color: tokens.colorPaletteMarigoldForeground1 },
+  name: { flex: '0 1 auto', maxWidth: '100%', minWidth: 0 },
+  caption: { flex: '1 1 0', minWidth: 0, color: tokens.colorNeutralForeground3 },
 });
 
 // A profile's panel's header: its picture and name, what the agent does in it (or that it is paused on a sign-in
@@ -253,10 +275,10 @@ export function ProfileHeader({ api }: IDockviewPanelHeaderProps) {
   return <RightClickMenu items={() => (profile ? menu() : null)}><div className={styles.header} data-panel={api.id}>
     {profile && <>
       <Avatar size={20} image={{ src: avatarSrc(profile.avatar) }} aria-hidden />
-      <Text weight="semibold" className={styles.name} data-testid="profile-name"
+      <Text weight="semibold" truncate wrap={false} className={styles.name} data-testid="profile-name"
         title={[profile.name, profile.description].filter(Boolean).join('\n')}>{profile.name}</Text>
-      <Text role="status" size={200} className={mergeClasses(styles.caption, profile.signinMode && styles.signin)}>
-        {profile.signinMode ? <><LockIcon />Sign-in page · agent paused</> : caption}</Text>
+      <Text role="status" size={200} truncate wrap={false} className={styles.caption}>
+        {profile.signinMode ? <Badge appearance="tint" color="warning" icon={<LockIcon />}>Sign-in page · agent paused</Badge> : caption}</Text>
       <ButtonMenu items={menu} end>
         <Button appearance="subtle" size="small" icon={<EllipsisIcon />} title="Profile" aria-label="Profile menu" />
       </ButtonMenu>

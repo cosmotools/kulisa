@@ -1,8 +1,9 @@
 // New Project, step by step (docs/tasks.md, Projects): Code, Agents, Profiles, then Create; its state and rules in
 // lib/new-project.ts. A dialog of a tasks' window (New Project…), and the welcome's own (Welcome.tsx: under a question
 // each, Back on the first step leaves for the slides before it).
-import { useEffect, useRef, useState, type ReactElement, type ReactNode } from 'react';
-import { Avatar, Badge, Button, Checkbox, Dialog, DialogSurface, DialogTitle, Divider, Field, Input, List, ListItem, Tab, TabList, Text, ToggleButton, Tooltip } from '@fluentui/react-components';
+import { useEffect, useRef, useState, type CSSProperties, type ReactElement, type ReactNode } from 'react';
+import { Avatar, Badge, Button, Card, Checkbox, Dialog, DialogActions, DialogBody, DialogContent, DialogSurface, DialogTitle, DialogTrigger, Divider, Field,
+  Input, List, ListItem, MessageBar, MessageBarBody, Tab, TabList, Text, ToggleButton, Tooltip } from '@fluentui/react-components';
 import { FolderIcon, FolderPlusIcon, GitBranchIcon, MinusIcon, PlusIcon, StarIcon, XIcon } from 'lucide-react';
 import { useShallow } from 'zustand/react/shallow';
 import { SignIn } from './SignIn';
@@ -10,12 +11,15 @@ import { InstallProgress } from './AgentPicker';
 import { agentMark } from './AgentMark';
 import { avatarSrc } from './avatar';
 import { useAgentList } from '../lib/agents';
-import { askName, isDefault, STEPS, useWizard, whereOf, wizard, type From, type Wizard as W } from '../lib/new-project';
+import { askName, isDefault, refusalOf, STEPS, useWizard, whereOf, wizard, type From, type Wizard as W } from '../lib/new-project';
 import { useCovered } from '../lib/cover';
 import { registerDialog } from '../lib/dialogs';
 
-const red = { color: 'var(--colorPaletteRedForeground1)', userSelect: 'text' } as const; // an error: text to copy and search for
 const hint = { color: 'var(--colorNeutralForeground3)' };
+// An error: text to copy and search for (the body is not); at its field, or over the buttons.
+const invalid = (text: string | false | undefined) => (text ? { children: text, style: { userSelect: 'text' } as CSSProperties } : undefined);
+// What will happen, said under its field as it is typed (the tests' handle: its name), and a line more.
+const said = (where: string, more?: string) => (where || more ? <>{where && <div role="status" aria-label="What will happen">{where}</div>}{more && <div>{more}</div>}</> : undefined);
 // A one-line field's label beside it: every kind's form fits the smallest window (640×400) unscrolled, Browse… in sight.
 const LABEL_BESIDE = { gridTemplateColumns: '96px minmax(0, 1fr)' };
 const KINDS: { value: From; label: string; icon: ReactElement }[] = [{ value: 'new', label: 'New Folder', icon: <FolderPlusIcon /> },
@@ -28,16 +32,17 @@ function CodeStep({ w, nameRef }: { w: W; nameRef: React.RefObject<HTMLInputElem
   const folder = s.from === 'folder';
   const rows = folder ? s.sources : s.urls.map((u) => ({ folder: u, state: '' }));
   const remove = () => { w.removeSource(chosen); setChosen(undefined); };
-  const where = whereOf(s, w.single);
+  const refusal = refusalOf(s), where = refusal ? '' : whereOf(s, w.single), at = (field: 'source' | 'name') => s.errorAt === field && s.error;
+  const later = w.single && s.from !== 'new' ? `A frontend and a backend? Add the other ${folder ? 'folder' : 'repository'} later in Settings.` : '';
   return <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
     <TabList vertical aria-label="Start from" selectedValue={s.from} onTabSelect={(_, d) => w.change({ from: d.value as From })}
-      style={{ flex: 'none', width: 180, padding: 8 }}>
+      style={{ flex: 'none', width: 180 }}>
       {KINDS.map((k) => <Tab key={k.value} value={k.value} icon={k.icon}>{k.label}</Tab>)}
     </TabList>
     <Divider vertical style={{ flex: 'none' }} />
-    <div style={{ flex: 1, minWidth: 0, padding: 16, overflow: 'auto', display: 'flex', flexDirection: 'column', gap: 8 }}>
+    <div style={{ flex: 1, minWidth: 0, paddingInlineStart: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
       {/* One folder or URL (the welcome's): taken as it is left, or at Next */}
-      {s.from !== 'new' && w.single && <Field label={folder ? 'Folder' : 'URL'}>
+      {s.from !== 'new' && w.single && <Field label={folder ? 'Folder' : 'URL'} validationMessage={invalid(at('source'))} hint={said(folder ? where : '', later)}>
         <div style={{ display: 'flex', gap: 8 }}>
           <Input value={s.typed} spellCheck={false} style={{ flex: 1 }} placeholder={folder ? '~/IdeaProjects/shop' : 'git@github.com:me/shop.git'}
             onChange={(_, d) => w.set({ typed: d.value, error: '' })} onBlur={() => void w.addSource()}
@@ -48,7 +53,8 @@ function CodeStep({ w, nameRef }: { w: W; nameRef: React.RefObject<HTMLInputElem
       {/* Folders or URLs, one or several (a frontend and a backend): Enter or Add puts the one typed in the list, under
           it once there is one. Its label is for the field (htmlFor): Field otherwise names the field by it over the
           field's own aria-label. */}
-      {s.from !== 'new' && !w.single && <Field label={{ children: folder ? 'Folders' : 'URLs', htmlFor: 'npsource' }}>
+      {s.from !== 'new' && !w.single && <Field label={{ children: folder ? 'Folders' : 'URLs', htmlFor: 'npsource' }}
+        validationMessage={invalid(at('source'))} hint={said(folder ? where : '')}>
         <div role="group" aria-label={folder ? 'Folders' : 'URLs'} style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0 }}>
           <div style={{ display: 'flex', gap: 8 }}>
             <Input id="npsource" value={s.typed} spellCheck={false} aria-label={folder ? 'A folder' : 'A repository URL'} style={{ flex: 1, minWidth: 0 }}
@@ -58,31 +64,29 @@ function CodeStep({ w, nameRef }: { w: W; nameRef: React.RefObject<HTMLInputElem
             {folder && <Tooltip content="Add Folder…" relationship="label"><Button icon={<PlusIcon />} onClick={() => void w.browse(true)} /></Tooltip>}
             <Tooltip content="Leave Out" relationship="label"><Button icon={<MinusIcon />} disabledFocusable={!chosen} onClick={remove} /></Tooltip>
           </div>
-          {rows.length > 0 && <List aria-label={folder ? 'Folders' : 'URLs'} navigationMode="items" selectionMode="single"
+          {rows.length > 0 && <Card appearance="outline" size="small"><List aria-label={folder ? 'Folders' : 'URLs'} navigationMode="items" selectionMode="single"
             selectedItems={chosen ? [chosen] : []} onSelectionChange={(_, d) => setChosen(d.selectedItems[0] as string | undefined)}
-            onKeyDown={(e) => { if (e.key === 'Delete') remove(); }}
-            style={{ maxHeight: 160, overflow: 'auto', border: '1px solid var(--colorNeutralStroke1)', borderRadius: 'var(--borderRadiusMedium)' }}>
+            onKeyDown={(e) => { if (e.key === 'Delete') remove(); }} style={{ maxHeight: 144, overflow: 'auto' }}>
             {rows.map((x, i) => <ListItem key={x.folder} value={x.folder} data-source={x.folder} aria-label={x.folder} checkmark={null}
-              style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 8px' }}>
+              style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0' }}>
               <Text truncate wrap={false} title={x.folder} style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>{x.folder}</Text>
               {x.state && <Badge appearance="outline" size="small">{x.state === 'repo' ? 'git' : 'no git'}</Badge>}
               {!i && rows.length > 1 && <Badge appearance="outline" size="small">default</Badge>}
             </ListItem>)}
-          </List>}
+          </List></Card>}
         </div>
       </Field>}
-      {askName(s, w.single) && <Field orientation="horizontal" style={LABEL_BESIDE} label={w.single ? 'Project name' : 'Name'}>
+      {askName(s, w.single) && <Field orientation="horizontal" style={LABEL_BESIDE} label={w.single ? 'Project name' : 'Name'}
+        validationMessage={invalid(at('name'))}>
         <Input input={{ ref: nameRef }} value={s.name} maxLength={64} placeholder="e.g. tenant-audit" spellCheck={false}
           onChange={(_, d) => w.change({ name: d.value })} />
       </Field>}
-      {!folder && <Field orientation="horizontal" style={LABEL_BESIDE} label="Location">
+      {!folder && <Field orientation="horizontal" style={LABEL_BESIDE} label="Location" validationMessage={invalid(refusal)} hint={said(where)}>
         <div style={{ display: 'flex', gap: 8 }}>
           <Input value={s.place} spellCheck={false} style={{ flex: 1, minWidth: 0 }} onChange={(_, d) => w.change({ place: d.value })} />
           <Button onClick={() => void w.browse()}>Browse…</Button>
         </div>
       </Field>}
-      {where && <Text role="status" aria-label="What will happen" style={hint}>{where}</Text>}
-      {w.single && s.from !== 'new' && <Text style={hint}>A frontend and a backend? Add the other {folder ? 'folder' : 'repository'} later in Settings.</Text>}
     </div>
   </div>;
 }
@@ -93,7 +97,7 @@ function AgentStep({ w }: { w: W }) {
   const agents = useAgentList(w.installs, (s) => s.agents), installing = useAgentList(w.installs, (s) => s.installing);
   const addable = agents.filter((a) => clis.includes(a.id));
   const st = { chosen, main } as Parameters<typeof isDefault>[0];
-  return <div style={{ flex: 1, minWidth: 0, padding: 16, overflow: 'auto', display: 'flex', flexDirection: 'column', gap: 8 }}>
+  return <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
     <Text style={hint}>Who works in its tasks: agents signed in to your accounts, one or several (a new task starts the default one; the others
       open beside it). Change it any time in Settings.</Text>
     <div role="group" aria-label="Accounts" style={{ display: 'flex', flexDirection: 'column' }}>
@@ -112,9 +116,10 @@ function AgentStep({ w }: { w: W }) {
     <Text weight="semibold">Add account</Text>
     {signing ? <SignIn agent={signing} onDone={w.signedIn} onClose={() => w.set({ signing: null })} /> : <>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-        {addable.map((a) => { const Mark = agentMark(a.id); return <Button key={a.id} data-add={a.id} icon={<Mark />} disabled={installing || (!a.installed && !a.install)}
-          title={a.installed ? `Sign in to an account of ${a.name}` : `${a.name} is installed first (its maker's installer), then you sign in`}
-          onClick={() => void w.addAccount(a)}>{a.name}</Button>; })}
+        {addable.map((a) => { const Mark = agentMark(a.id); return <Tooltip key={a.id} relationship="description"
+          content={a.installed ? `Sign in to an account of ${a.name}` : `${a.name} is installed first (its maker's installer), then you sign in`}>
+          <Button data-add={a.id} icon={<Mark />} disabledFocusable={installing || (!a.installed && !a.install)} onClick={() => void w.addAccount(a)}>{a.name}</Button>
+        </Tooltip>; })}
       </div>
       <InstallProgress list={w.installs} />
     </>}
@@ -125,7 +130,7 @@ function AgentStep({ w }: { w: W }) {
 function ProfilesStep({ w }: { w: W }) {
   const { fresh, others, taken } = useWizard(w, useShallow((s) => ({ fresh: s.fresh, others: s.others, taken: s.taken })));
   const edit = (i: number, c: Partial<{ name: string; description: string }>) => w.set({ fresh: fresh.map((f, j) => (j === i ? { ...f, ...c } : f)) });
-  return <div role="group" aria-label="Profiles" style={{ flex: 1, minWidth: 0, padding: 16, overflow: 'auto', display: 'flex', flexDirection: 'column', gap: 8 }}>
+  return <div role="group" aria-label="Profiles" style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
     <Text style={hint}>The users of your app the agent works as, a browser profile each: a name and who it is ("seller; can approve refunds").
       You sign in to them when the agent asks. None now: the agent makes those it needs.</Text>
     {fresh.map((f, i) => <div key={i} style={{ display: 'flex', gap: 8 }}>
@@ -145,60 +150,68 @@ function ProfilesStep({ w }: { w: W }) {
   </div>;
 }
 
-// The steps and their buttons, of a wizard made as they are shown (w). head: what is over them (the welcome's question);
-// else the steps' names, the shown one marked. leave: Back on the first step (the welcome's); cancel: the dialog's.
-export function Wizard({ w, head, leave, cancel, done }: { w: W; head?: (step: number) => ReactNode; leave?: () => void; cancel?: () => void; done?: () => void }) {
-  const { ready, step, saving, error, from } = useWizard(w, useShallow((s) => ({ ready: s.ready, step: s.step, saving: s.saving, error: s.error, from: s.from })));
+// The steps and their buttons, of a wizard made as they are shown (w), in a form (Enter is Next): its parts laid out by
+// what shows it, the dialog in DialogTitle, DialogContent and DialogActions, the welcome in a Card's header and footer.
+// leave: Back on the first step (the welcome's).
+export interface WizardParts { step: number; saving: boolean; steps: ReactNode; error: ReactNode; back: ReactNode; go: ReactElement }
+export function Wizard({ w, leave, done, style, children }: { w: W; leave?: () => void; done?: () => void; style?: CSSProperties; children: (p: WizardParts) => ReactNode }) {
+  const { ready, step, saving, error, errorAt, from } = useWizard(w, useShallow((s) => ({ ready: s.ready, step: s.step, saving: s.saving, error: s.error, errorAt: s.errorAt, from: s.from })));
   const nameRef = useRef<HTMLInputElement>(null);
   useEffect(() => { void w.reset(); }, [w]);
   useEffect(() => { if (ready) nameRef.current?.focus(); }, [ready]); // the keyboard in its name, once its defaults are there
   if (!ready) return null;
   const last = step === STEPS.length - 1;
   const next = async () => { if (await w.next()) done?.(); };
-  return <form aria-label="New Project's steps" onSubmit={(e) => { e.preventDefault(); void next(); }}
-    style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-    {head ? head(step) : <><ol aria-label="Steps" style={{ display: 'flex', gap: 24, margin: 0, padding: '8px 16px', listStyle: 'none' }}>
-      {STEPS.map((s, i) => <li key={s} aria-current={i === step ? 'step' : undefined} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <Badge shape="circular" appearance={i === step ? 'filled' : i < step ? 'tint' : 'outline'} color={i <= step ? 'brand' : 'subtle'}>{i + 1}</Badge>
-        <Text weight={i === step ? 'semibold' : 'regular'} style={i === step ? undefined : hint}>{s}</Text></li>)}
-    </ol><Divider style={{ flex: 'none' }} /></>}
-    <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
-      {step === 0 && <CodeStep w={w} nameRef={nameRef} />}
-      {step === 1 && <AgentStep w={w} />}
-      {step === 2 && <ProfilesStep w={w} />}
-    </div>
-    {error && <Text role="alert" style={{ ...red, margin: '0 16px 8px' }}>{error}</Text>}
-    <Divider style={{ flex: 'none' }} />
-    <div style={{ display: 'flex', gap: 8, padding: 16 }}>
-      {(step > 0 || leave) && <Button onClick={() => (step ? w.back() : leave?.())}>Back</Button>}
-      <span style={{ flex: 1 }} />
-      {cancel && <Button disabled={saving} onClick={cancel}>Cancel</Button>}
-      <Button type="submit" appearance="primary" disabled={saving}>{saving ? (from === 'clone' ? 'Cloning…' : 'Creating…') : last ? 'Create' : 'Next'}</Button>
-    </div>
+  return <form aria-label="New Project's steps" style={style} onSubmit={(e) => { e.preventDefault(); void next(); }}>
+    {children({
+      step, saving,
+      steps: <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
+        {step === 0 && <CodeStep w={w} nameRef={nameRef} />}
+        {step === 1 && <AgentStep w={w} />}
+        {step === 2 && <ProfilesStep w={w} />}
+      </div>,
+      error: error && !errorAt && <MessageBar intent="error"><MessageBarBody style={{ userSelect: 'text' }}>{error}</MessageBarBody></MessageBar>,
+      back: (step > 0 || leave) && <Button onClick={() => (step ? w.back() : leave?.())}>Back</Button>,
+      go: <Button type="submit" appearance="primary" disabled={saving}>{saving ? (from === 'clone' ? 'Cloning…' : 'Creating…') : last ? 'Create' : 'Next'}</Button>,
+    })}
   </form>;
 }
 
+// The steps' names, the shown one marked (the dialog's; the welcome asks a question each).
+function StepNames({ step }: { step: number }) {
+  return <ol aria-label="Steps" style={{ display: 'flex', gap: 24, margin: 0, padding: 0, listStyle: 'none' }}>
+    {STEPS.map((s, i) => <li key={s} aria-current={i === step ? 'step' : undefined} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+      <Badge shape="circular" appearance={i === step ? 'filled' : i < step ? 'tint' : 'outline'} color={i <= step ? 'brand' : 'subtle'}>{i + 1}</Badge>
+      <Text weight={i === step ? 'semibold' : 'regular'} style={i === step ? undefined : hint}>{s}</Text></li>)}
+  </ol>;
+}
+
 // The dialog (New Project… in the sidebar), its steps anew each time it opens; a Create under way (a clone takes a
-// while) keeps it open.
+// while) keeps it open, however it would close (Esc, a click outside, ×, Cancel).
 export function NewProject() {
   const { open, setOpen } = useCovered('hide');
   const [w, setW] = useState<W | null>(null);
   useEffect(() => { registerDialog('newproject', { open: async () => { setW(wizard(false)); setOpen(true); } }); }, [setOpen]);
-  return <Dialog open={open && !!w} onOpenChange={(_, d) => { if (!d.open) setOpen(false); }}>
-    <DialogSurface aria-label="New Project" style={{ width: 'min(760px, 92vw)', maxWidth: 'none', padding: 0, display: 'flex' }}>
-      {w && <Body w={w} close={() => setOpen(false)} />}
+  return <Dialog open={open && !!w} onOpenChange={(_, d) => { if (!d.open && !w?.store.getState().saving) setOpen(false); }}>
+    <DialogSurface aria-label="New Project" style={{ width: 'min(760px, 92vw)', maxWidth: 'none' }}>
+      {w && <Wizard w={w} done={() => setOpen(false)}>{({ step, saving, steps, error, back, go }) =>
+        // Its height its own, so the steps do not change it (docs/ui.md, It fits the smallest window).
+        <DialogBody style={{ minHeight: 'min(480px, 85vh)' }}>
+          <DialogTitle action={<DialogTrigger action="close"><Button appearance="subtle" aria-label="Close" icon={<XIcon />} disabled={saving} /></DialogTrigger>}>
+            New Project
+          </DialogTitle>
+          <DialogContent style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <StepNames step={step} />
+            {steps}
+            {error}
+          </DialogContent>
+          {back && <DialogActions position="start">{back}</DialogActions>}
+          <DialogActions position="end">
+            <DialogTrigger action="close"><Button disabled={saving}>Cancel</Button></DialogTrigger>
+            {go}
+          </DialogActions>
+        </DialogBody>}
+      </Wizard>}
     </DialogSurface>
   </Dialog>;
-}
-function Body({ w, close }: { w: W; close: () => void }) {
-  const saving = useWizard(w, (s) => s.saving);
-  const leave = () => { if (!saving) close(); };
-  return <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 'min(480px, 85vh)', maxHeight: '90vh' }}
-    onKeyDown={(e) => { if (e.key === 'Escape' && saving) e.preventDefault(); }}>
-    <div style={{ display: 'flex', alignItems: 'center', padding: '12px 12px 4px 16px' }}>
-      <DialogTitle style={{ flex: 1 }}>New Project</DialogTitle>
-      <Button appearance="subtle" aria-label="Close" icon={<XIcon />} disabled={saving} onClick={leave} />
-    </div>
-    <Wizard w={w} cancel={leave} done={close} />
-  </div>;
 }

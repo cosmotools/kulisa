@@ -2,7 +2,7 @@
 // own steps under a question each. The slides' pictures are a task's window drawn small from Fluent's own parts: no
 // pictures to ship, the theme's colors.
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { Avatar, Badge, Button, Card, CardHeader, Skeleton, SkeletonItem, Text, Title1 } from '@fluentui/react-components';
+import { Avatar, Badge, Button, Card, CardFooter, CardHeader, Skeleton, SkeletonItem, Text, Title1 } from '@fluentui/react-components';
 import { MousePointerClickIcon } from 'lucide-react';
 import { agentMark } from './AgentMark';
 import { avatarSrc } from './avatar';
@@ -38,9 +38,8 @@ function Dots({ label, count, at, names }: { label: string; count: number; at: n
 // A task: its agent's terminal, two profiles' panes; what the slide says lit in it.
 function Picture({ slide, low }: { slide: number; low: boolean }) {
   const line = (text: string, on: boolean, color?: string) => <Text font="monospace" size={200} style={{ opacity: on ? 1 : 0, transition: 'opacity .4s', color }}>{text}</Text>;
-  return <div aria-hidden="true" style={{ display: 'grid', gridTemplateColumns: '1.1fr 1fr 1fr', gap: 6, aspectRatio: '16 / 10', padding: 6, minWidth: 0,
-    justifySelf: 'center', width: low ? 'min(100%, calc((100vh - 200px) * 1.6))' : '100%', boxSizing: 'border-box',
-    background: 'var(--colorNeutralBackground2)', border: '1px solid var(--colorNeutralStroke2)', borderRadius: 'var(--borderRadiusLarge)' }}>
+  return <Card aria-hidden="true" size="small" appearance="filled-alternative" style={{ display: 'grid', gridTemplateColumns: '1.1fr 1fr 1fr', aspectRatio: '16 / 10', minWidth: 0,
+    justifySelf: 'center', width: low ? 'min(100%, calc((100vh - 200px) * 1.6))' : '100%', boxSizing: 'border-box' }}>
     <Card size="small" appearance="filled-alternative" style={{ gap: 4, overflow: 'hidden' }}>
       <Text font="monospace" size={200}><Claude /> claude</Text>
       {line('> does the checkout work for every user?', true)}
@@ -57,7 +56,7 @@ function Picture({ slide, low }: { slide: number; low: boolean }) {
       </Skeleton>
       {slide === 2 && i === 1 && <MousePointerClickIcon style={{ position: 'absolute', right: '20%', top: '55%', width: 20, height: 20, color: 'var(--colorPaletteYellowForeground1)' }} />}
     </Card>)}
-  </div>;
+  </Card>;
 }
 
 function Tour({ slide, setSlide, done, next }: { slide: number; setSlide: (n: number) => void; done: () => void; next: React.RefObject<HTMLButtonElement | null> }) {
@@ -90,12 +89,16 @@ export function Welcome() {
   }, []);
   return <div id="welcome" style={{ flex: 1, display: 'grid', placeItems: 'safe center', overflow: 'auto', padding: 32, boxSizing: 'border-box', minHeight: 0 }}>
     {!w ? <Tour slide={slide} setSlide={setSlide} done={() => setW(wizard(true))} next={next} />
-      // New Project's steps: a dialog's look, no backdrop: nothing else is in the window to cover
-      : <Card appearance="outline" style={{ width: 'min(760px, 100%)', minHeight: 'min(520px, 100%)', padding: 0, gap: 0, boxShadow: 'var(--shadow16)' }}>
-        <Wizard w={w} leave={() => setW(null)} head={(step) => <header style={{ display: 'grid', gap: 8, padding: '24px 16px 8px' }}>
-          <Dots label="Steps" count={QUESTIONS.length} at={step} />
-          <Title1 as="h1">{QUESTIONS[step]}</Title1>
-        </header>} />
+      // New Project's steps in a Card, not a dialog: nothing else is in the window to cover
+      : <Card size="large" style={{ width: 'min(760px, 100%)', minHeight: 'min(520px, 100%)' }}>
+        <Wizard w={w} leave={() => setW(null)} style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 16, minHeight: 0 }}>
+          {({ step, steps, error, back, go }) => <>
+            <CardHeader header={<Title1 as="h1">{QUESTIONS[step]}</Title1>} description={<Dots label="Steps" count={QUESTIONS.length} at={step} />} />
+            {steps}
+            {error}
+            <CardFooter action={go}>{back}</CardFooter>
+          </>}
+        </Wizard>
       </Card>}
   </div>;
 }

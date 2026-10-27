@@ -2,8 +2,8 @@
 // Profiles, each with its own under it; GitHub, Log, About), the chosen one's page on the right under its path. Saved as
 // it changes. Esc closes it unless a layer was open; the OS's × asks the page first (settings:closing).
 import { useCallback, useEffect, useRef, useState, type ReactElement, type ReactNode } from 'react';
-import { Avatar, Breadcrumb, BreadcrumbButton, BreadcrumbDivider, BreadcrumbItem, Button, FluentProvider, Image, Input,
-  NavDrawer, NavDrawerBody, NavItem, NavSectionHeader, Text, Tooltip } from '@fluentui/react-components';
+import { AriaLiveAnnouncer, Avatar, Badge, Breadcrumb, BreadcrumbButton, BreadcrumbDivider, BreadcrumbItem, Button, Field, FluentProvider, Input,
+  MessageBar, MessageBarBody, NavDivider, NavDrawer, NavDrawerBody, NavItem, NavSectionHeader, Text, Tooltip } from '@fluentui/react-components';
 import { EllipsisIcon, GitBranchIcon, InfoIcon, PlusIcon, ScrollTextIcon } from 'lucide-react';
 import { dark, light, shade, ThemeShown } from './theme';
 import { ButtonMenu, RightClickMenu, type Item } from './Menus';
@@ -17,6 +17,7 @@ import { AgentPage } from './AgentPage';
 import { install, installing, loadAccounts, loadAgents, useAgents } from './agents';
 import { avatarSrc } from './avatar';
 import { agentMark } from './AgentMark';
+import { ProjectIcon } from './ProjectIcon';
 import { refused } from '../../shared/result';
 import type { ProjectEntry, SettingsProfile } from '../../shared/types';
 import type { SettingsAt } from '../../shared/ipc';
@@ -127,10 +128,10 @@ export function Settings() {
     <NavSectionHeader>{title}</NavSectionHeader>{add}</div>;
   const item = (key: string, label: string, icon: ReactElement, extra?: ReactNode) =>
     <NavItem key={key} value={key} data-key={key} icon={icon} title={label}>
-      <span style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}><span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</span>{extra}</span>
+      <span style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}><Text truncate wrap={false}>{label}</Text>{extra}</span>
     </NavItem>;
 
-  return <ThemeShown.Provider value={theme}><FluentProvider theme={theme} style={{ display: 'flex', height: '100vh', background: 'var(--colorNeutralBackground1)' }}>
+  return <ThemeShown.Provider value={theme}><FluentProvider theme={theme} style={{ display: 'flex', height: '100vh', background: 'var(--colorNeutralBackground1)' }}><AriaLiveAnnouncer>
     <RightClickMenu items={(e) => { const k = (e.target as Element).closest('[data-key]')?.getAttribute('data-key'); if (!k) return null;
       const [kind, id] = k.split(':'); if (kind === 'p') void show('projects', id); else if (kind === 'f') void show('profiles', id); else if (kind === 'a') void show('agents', id);
       const it = actions(k); return it.length ? it : null; }}>
@@ -139,18 +140,18 @@ export function Settings() {
           void (kind === 'p' ? show('projects', id) : kind === 'a' ? show('agents', id) : kind === 'f' ? show('profiles', id) : show(kind as Section)); }}>
         <NavDrawerBody>
           {head('Projects')}
-          {projects.map((p) => item(`p:${p.id}`, p.name, p.favicon ? <Image data-testid="project-icon" src={p.favicon} alt="" width={16} height={16} />
-            : <span data-testid="project-icon" style={{ width: 12, height: 12, borderRadius: 3, background: p.color }} />))}
+          {projects.map((p) => item(`p:${p.id}`, p.name, <ProjectIcon p={p} />))}
           {head('Agents', <ButtonMenu items={newAccount}><Button appearance="subtle" size="small" icon={<PlusIcon />} aria-label="New Account" disabled={!clis.length} /></ButtonMenu>)}
-          {agents.map((a) => { const Mark = agentMark(a.id); return item(`a:${a.id}`, a.name, <Mark />, !a.installed && <Text size={100}>not installed</Text>); })}
+          {agents.map((a) => { const Mark = agentMark(a.id); return item(`a:${a.id}`, a.name, <Mark />, !a.installed && <Badge appearance="tint" size="small">not installed</Badge>); })}
           {item('github', 'GitHub', <GitBranchIcon />)}
           {head('Profiles', <Tooltip content="New Profile…" relationship="label"><Button appearance="subtle" size="small" icon={<PlusIcon />} onClick={() => setNewProfile('')} /></Tooltip>)}
           {profiles.map((p) => item(`f:${p.id}`, p.name, <Avatar size={16} image={{ src: avatarSrc(p.avatar) }} />))}
-          {newProfile !== null && <Input autoFocus size="small" data-name value={newProfile} placeholder="Its name, e.g. ann@shop.com" aria-label="New profile" style={{ margin: '4px 8px' }}
-            onChange={(_, d) => { setNewProfile(d.value); setProfilesError(''); }}
-            onKeyDown={(e) => { if (e.key === 'Enter') void createProfile(); if (e.key === 'Escape') { e.stopPropagation(); setNewProfile(null); } }} />}
-          {profilesError && <Text role="alert" size={200} style={{ margin: '0 8px', color: 'var(--colorPaletteRedForeground1)' }}>{profilesError}</Text>}
-          <div style={{ height: 12 }} />
+          {newProfile !== null ? <Field size="small" validationMessage={profilesError || undefined} style={{ margin: '4px 8px', userSelect: 'text' }}>
+            <Input autoFocus data-name value={newProfile} placeholder="Its name, e.g. ann@shop.com" aria-label="New profile"
+              onChange={(_, d) => { setNewProfile(d.value); setProfilesError(''); }}
+              onKeyDown={(e) => { if (e.key === 'Enter') void createProfile(); if (e.key === 'Escape') { e.stopPropagation(); setNewProfile(null); } }} />
+          </Field> : profilesError && <MessageBar intent="error" style={{ margin: '4px 8px' }}><MessageBarBody style={{ userSelect: 'text' }}>{profilesError}</MessageBarBody></MessageBar>}
+          <NavDivider />
           {item('log', 'Log', <ScrollTextIcon />)}
           {item('about', 'About', <InfoIcon />)}
         </NavDrawerBody>
@@ -174,5 +175,5 @@ export function Settings() {
         : <Text>{looking ? 'Looking for agents on this computer…' : 'No agents.'}</Text>)}
     </main>
     <Ask />
-  </FluentProvider></ThemeShown.Provider>;
+  </AriaLiveAnnouncer></FluentProvider></ThemeShown.Provider>;
 }

@@ -4,7 +4,7 @@
 import { useContext, useEffect, useRef, type CSSProperties } from 'react';
 import { DockviewReact, type DockviewTheme } from 'dockview-react';
 import 'dockview-react/dist/styles/dockview.css';
-import { Avatar, Button, makeStaticStyles, makeStyles, tokens } from '@fluentui/react-components';
+import { Avatar, Button, Divider, Text, makeStaticStyles, makeStyles, tokens } from '@fluentui/react-components';
 import { PlusIcon } from 'lucide-react';
 import { ProfilePane, ProfileHeader } from './grid/ProfilePane';
 import { Terminals, TerminalsHeader } from './grid/Terminals';
@@ -18,7 +18,7 @@ import { ThemeShown } from './theme';
 
 const components = { profile: ProfilePane, terminal: Terminals, resources: Resources };
 const tabComponents = { profile: ProfileHeader, terminal: TerminalsHeader, resources: ResourcesHeader };
-const kulisaTheme: DockviewTheme = { name: 'kulisa', className: 'dockview-theme-kulisa', gap: 0, dndOverlayMounting: 'absolute' };
+const kulisaTheme: DockviewTheme = { name: 'kulisa', className: 'dockview-theme-kulisa', gap: 6, dndOverlayMounting: 'absolute' };
 
 // Switching tasks (lib/grid.ts, grid:closing): the grid slides towards the next task's tab, as macOS desktops do (types
 // next and previous say which way). Pictures, so the compositor moves them. Longhands: Vite's CSS minifier (Lightning
@@ -49,10 +49,8 @@ const useStyles = makeStyles({
     // and dockview's list of hidden tabs shown for it).
     '& .dv-tab': { minWidth: 0, flexShrink: 1 } },
   grid: { flex: 1, minHeight: 0 },
-  closed: { display: 'flex', gap: '4px', flex: 'none', padding: '4px 8px', background: tokens.colorNeutralBackground1,
-    borderBottom: `1px solid ${tokens.colorNeutralStroke2}` },
+  closed: { display: 'flex', gap: '4px', flex: 'none', padding: '4px 8px', background: tokens.colorNeutralBackground1 },
   opener: { flex: 'none', maxWidth: '18em' },
-  name: { minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
 });
 
 // The profiles' room folded to a row of buttons that open them, where the first one opens (above the terminal). With
@@ -60,12 +58,12 @@ const useStyles = makeStyles({
 function ClosedProfiles() {
   const closed = useWindow((s) => s.closedProfiles), styles = useStyles(), row = useRef<HTMLElement>(null);
   const stripClass = useStrip(row, null); // no button is the active one
-  return <nav ref={row} id="closedprofiles" data-testid="closed-profiles" className={`${styles.closed} ${stripClass}`} aria-label="Open a profile">
+  return <><nav ref={row} id="closedprofiles" data-testid="closed-profiles" className={`${styles.closed} ${stripClass}`} aria-label="Open a profile">
     {profileLaunchers(closed).map((p) => <Button key={p.id} className={styles.opener} appearance="subtle" data-profile={p.id} aria-label={p.name}
       title={p.title} icon={p.avatar ? <Avatar size={20} image={{ src: avatarSrc(p.avatar) }} /> : undefined} onClick={() => void p.run()}>
-      <span className={styles.name}>{p.name}</span><PlusIcon style={{ marginInlineStart: 4 }} />
+      <Text truncate wrap={false} style={{ minWidth: 0 }}>{p.name}</Text><PlusIcon style={{ marginInlineStart: 4 }} />
     </Button>)}
-  </nav>;
+  </nav><Divider style={{ flex: 'none' }} /></>;
 }
 
 export function Grid() {

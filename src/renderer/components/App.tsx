@@ -1,7 +1,7 @@
 // A tasks' window (docs/window.md): the title bar, the shown task's grid or the empty window, the tasks' bar, and the
 // dialogs, in Fluent UI's theme as the main process says (☰ → Theme; System: the OS's).
 import { useSyncExternalStore } from 'react';
-import { FluentProvider } from '@fluentui/react-components';
+import { AriaLiveAnnouncer, FluentProvider } from '@fluentui/react-components';
 import { dark, light, shade, ThemeShown } from './theme';
 import { useWindow } from '../lib/store';
 import { TopBar } from './TopBar';
@@ -39,7 +39,7 @@ export function App() {
   const bar = useWindow((s) => s.bar), open = useWindow((s) => s.current !== null);
   return <FluentProvider theme={theme} style={{ height: '100%', display: 'grid', gridTemplateRows: 'auto minmax(0, 1fr) auto', background: theme.colorNeutralBackground2,
     colorScheme: chosen === 'system' ? 'light dark' : shade(chosen) }}>
-    <ThemeShown.Provider value={theme}>
+    <AriaLiveAnnouncer><ThemeShown.Provider value={theme}>
       {/* The tasks' bar in the title bar, as a browser's tabs, or under the grid (☰ → Tasks bar); none with no task open */}
       <TopBar>{bar === 'top' && open && <TaskBar />}</TopBar>
       {open ? <Grid /> : <Empty />}
@@ -53,6 +53,6 @@ export function App() {
       <Ask />
       <Thumbnail />
       <PointMenu />
-    </ThemeShown.Provider>
+    </ThemeShown.Provider></AriaLiveAnnouncer>
   </FluentProvider>;
 }

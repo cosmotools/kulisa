@@ -1,7 +1,7 @@
 // The Log page of Settings (docs/window.md, The log): the log read whole and followed as it grows, filtered, passed on.
 // Read as the page is shown, not as Settings opens (a megabyte for nothing otherwise), and let go as it is left.
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactElement } from 'react';
-import { Button, Checkbox, SearchBox, Text, Toolbar, ToolbarRadioButton, ToolbarRadioGroup, Tooltip } from '@fluentui/react-components';
+import { Button, Checkbox, MenuButton, MessageBar, MessageBarBody, SearchBox, Text, Toolbar, ToolbarRadioButton, ToolbarRadioGroup, Tooltip } from '@fluentui/react-components';
 import { ChevronDownIcon } from 'lucide-react';
 import { ButtonMenu } from './Menus';
 import { refused } from '../../shared/result';
@@ -49,7 +49,8 @@ const Row = memo(function Row({ l }: { l: Line }) {
   return <div data-tag={l.tag || undefined} data-group={l.group ?? undefined} data-bad={l.bad || undefined} title={`${l.date} ${l.offset}`.trim()}
     style={{ display: 'grid', gridTemplateColumns: 'auto auto 1fr', columnGap: 8, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', color: l.bad ? RED : undefined }}>
     <span style={{ color: 'var(--colorNeutralForeground3)', fontVariantNumeric: 'tabular-nums' }}>{l.time}</span>
-    <b style={{ color: l.bad ? RED : l.group ? COLOR[l.group] : 'var(--colorNeutralForeground2)' }}>{l.tag && `[${l.tag}]`}</b>
+    {/* the row's line height, as its other cells' */}
+    <Text weight="semibold" font="monospace" size={200} style={{ lineHeight: 'inherit', color: l.bad ? RED : l.group ? COLOR[l.group] : 'var(--colorNeutralForeground2)' }}>{l.tag && `[${l.tag}]`}</Text>
     <span>{l.text}</span>
   </div>;
 });
@@ -123,13 +124,14 @@ export function LogPage() {
       kulisa.log, {kb(info.size)} of {Math.round(info.max / 1024 / 1024)} MB{info.old ? `; kulisa.old.log from ${info.old.slice(0, 10)}` : ''}. Never here: what you typed,
       passwords, tokens, cookies, the pages' queries.
     </Text>
+    {error && <MessageBar intent="error"><MessageBarBody style={{ userSelect: 'text' }}>{error}</MessageBarBody></MessageBar>}
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'end' }}>
-      <Text role="status" truncate wrap={false} style={{ marginRight: 'auto', color: error ? RED : 'var(--colorNeutralForeground3)' }}>{error || note}</Text>
+      <Text role="status" truncate wrap={false} style={{ marginRight: 'auto', color: 'var(--colorNeutralForeground3)' }}>{error ? '' : note}</Text>
       {tip('The whole log, to paste anywhere', <Button onClick={() => void copy()}>Copy All</Button>)}
       {tip('The log as a file, to attach to a message or an issue', <Button onClick={() => void save()}>Save As…</Button>)}
       {tip('Its folder in your file manager', <Button onClick={() => void kulisa.invoke('log:show-folder')}>Open Folder</Button>)}
       <ButtonMenu end items={() => [{ label: 'On GitHub…', sub: 'a public issue, the environment filled in; attach the saved log', run: () => kulisa.invoke('log:report') }]}>
-        <Button appearance="primary" icon={<ChevronDownIcon />} iconPosition="after">Report…</Button>
+        <MenuButton appearance="primary" menuIcon={<ChevronDownIcon />}>Report…</MenuButton>
       </ButtonMenu>
     </div>
   </div>;

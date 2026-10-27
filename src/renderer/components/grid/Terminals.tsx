@@ -4,7 +4,7 @@
 // is as tall as the grid), and unfolds to the size it had when one opens. With no profile open it is the grid's room for
 // them: the +'s rows are big buttons in its middle instead, the closed profiles' under them.
 import { useCallback, useContext, useEffect, useRef, useSyncExternalStore } from 'react';
-import { Avatar, Button, Spinner, Tab, TabList, Text, tokens } from '@fluentui/react-components';
+import { Avatar, Button, CompoundButton, Spinner, Tab, TabList, Text, tokens } from '@fluentui/react-components';
 import { CheckIcon, PlusIcon, XIcon } from 'lucide-react';
 import type { IDockviewPanelHeaderProps, IDockviewPanelProps } from 'dockview-react';
 import { ButtonMenu, RightClickMenu } from '../Menus';
@@ -116,8 +116,8 @@ export function Terminals({ api, containerApi }: IDockviewPanelProps) {
     </RightClickMenu>
     {!folded && <Pill task={task}><CheckIcon /></Pill>}
     {starting && <div role="status" style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-      gap: tokens.spacingHorizontalS, background: tokens.colorNeutralBackground1, color: tokens.colorNeutralForeground3 }}>
-      <Spinner size="extra-tiny" />Starting {starting}…</div>}
+      background: tokens.colorNeutralBackground1 }}>
+      <Spinner size="extra-tiny" label={`Starting ${starting}…`} labelPosition="after" /></div>}
   </div>;
 }
 
@@ -126,22 +126,23 @@ export function Terminals({ api, containerApi }: IDockviewPanelProps) {
 function Launchers({ ref }: { ref: React.Ref<HTMLDivElement> }) {
   const closed = useWindow((s) => s.closedProfiles);
   useWindow((s) => s.projects); // the project's agents
-  const big = { flexDirection: 'column', width: 140, height: 116, gap: 4, padding: 12 } as const;
-  const line = { maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } as const;
+  // A tile, not a row: the compound button's icon over its name and line, centred.
+  const big = { flexDirection: 'column', justifyContent: 'center', width: 140, height: 116, gap: 4, padding: 12 } as const;
+  const tile = { icon: { style: { marginRight: 0 } }, contentContainer: { style: { alignItems: 'center', maxWidth: '100%', minWidth: 0 } } } as const;
   const row = { display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: tokens.spacingHorizontalL } as const;
   return <div ref={ref} data-testid="launchers" style={{ alignSelf: 'center', justifySelf: 'center', display: 'flex', flexDirection: 'column',
     gap: tokens.spacingVerticalL, padding: tokens.spacingHorizontalM, maxWidth: '100%', boxSizing: 'border-box' }}>
     <nav aria-label="New terminal" style={row}>
-      {launchers().map((l) => <Button key={l.id} data-launcher appearance="secondary" style={big} aria-label={l.name} title={l.title}
-        icon={<l.icon style={{ fontSize: 32 }} />} onClick={() => void l.run()}>
-        <span style={line}>{l.name}</span>
-        {l.sub && <Text size={200} style={{ ...line, color: tokens.colorNeutralForeground3 }}>{l.sub}</Text>}
-      </Button>)}
+      {launchers().map((l) => <CompoundButton key={l.id} data-launcher appearance="secondary" style={big} aria-label={l.name} title={l.title}
+        icon={{ ...tile.icon, children: <l.icon /> }} contentContainer={tile.contentContainer} onClick={() => void l.run()}
+        secondaryContent={l.sub ? { style: { maxWidth: '100%' }, children: <Text truncate wrap={false} block size={200}>{l.sub}</Text> } : undefined}>
+        <Text truncate wrap={false} block weight="semibold">{l.name}</Text>
+      </CompoundButton>)}
     </nav>
     <nav aria-label="Open a profile" style={row}>
-      {profileLaunchers(closed).map((p) => <Button key={p.id} data-launcher data-profile={p.id} appearance="secondary" style={big} aria-label={p.name} title={p.title}
-        icon={p.avatar ? <Avatar size={32} image={{ src: avatarSrc(p.avatar) }} aria-hidden /> : <PlusIcon style={{ fontSize: 32 }} />}
-        onClick={() => void p.run()}><span style={line}>{p.name}</span></Button>)}
+      {profileLaunchers(closed).map((p) => <CompoundButton key={p.id} data-launcher data-profile={p.id} appearance="secondary" style={big} aria-label={p.name}
+        title={p.title} icon={{ ...tile.icon, children: p.avatar ? <Avatar size={40} image={{ src: avatarSrc(p.avatar) }} aria-hidden /> : <PlusIcon /> }}
+        contentContainer={tile.contentContainer} onClick={() => void p.run()}><Text truncate wrap={false} block weight="semibold">{p.name}</Text></CompoundButton>)}
     </nav>
   </div>;
 }
@@ -153,7 +154,7 @@ const language = new Intl.DisplayNames(['en'], { type: 'language' });
 
 // The panel's header: each terminal's tab, then +; at its end the dictation's microphone (src/dictation). The panel is
 // dragged by the row's empty end, not by its tabs and buttons. Fluent's Tab is a button, and a button holds no other:
-// the agent's mark (Change Agent) and × in it are spans that take the click.
+// the agent's mark (Change Agent) and × in it are Buttons as links, each taking its own click.
 export function TerminalsHeader({ api }: IDockviewPanelHeaderProps) {
   const list = useWindow((s) => s.terminals.list), front = useWindow((s) => s.terminals.front);
   const task = useWindow((s) => s.current), lang = useWindow((s) => s.language?.language);
@@ -168,26 +169,27 @@ export function TerminalsHeader({ api }: IDockviewPanelHeaderProps) {
   };
   const noDrag = (e: React.DragEvent) => e.preventDefault();
   return <div ref={row} data-panel={api.id} data-testid="terminal-tabs" hidden={!list.length}
-    style={{ display: list.length ? 'flex' : 'none', alignItems: 'center', gap: 4, height: '100%', minWidth: 0, padding: '0 4px' }}>
+    style={{ display: list.length ? 'flex' : undefined, alignItems: 'center', gap: 4, height: '100%', minWidth: 0, padding: '0 4px' }}>
     <RightClickMenu items={tabMenu} style={{ display: 'flex', flex: '0 1 auto', minWidth: 0 }}>
       <nav aria-label="Terminals" style={{ display: 'flex', minWidth: 0 }} onDragStart={noDrag}>
-        <TabList ref={strip} className={stripClass} style={{ flexShrink: 1 }} size="small" reserveSelectedTabSpace={false} selectedValue={front === null ? undefined : String(front)}
+        <TabList ref={strip} className={stripClass} style={{ flexShrink: 1 }} appearance="subtle-circular" size="small" reserveSelectedTabSpace={false} selectedValue={front === null ? undefined : String(front)}
           onTabSelect={(_, d) => void act('terminal:show', { id: Number(d.value) })}>
           {list.map((t) => {
             const Mark = agentMark(t.agent?.cli ?? 'shell');
             return <Tab key={t.id} value={String(t.id)} data-id={t.id} data-grow aria-label={t.name} title={tabTitle(t)} style={{ flex: 'none', maxWidth: 220 }}
               icon={t.agent
-                ? <span role="button" aria-label={`${t.agent.name}: change agent…`}
+                ? <Button as="a" appearance="transparent" size="small" icon={<Mark />} tabIndex={-1} aria-label={`${t.agent.name}: change agent…`}
                   title="Change agent: hand the task to another agent, or this one afresh; it goes on with this conversation"
-                  onMouseDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); handOver(t); }}><Mark /></span>
+                  onMouseDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); handOver(t); }} />
                 : <Mark style={{ color: tokens.colorNeutralForeground3 }} />}>
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.name}</span>
+                {/* Text sets a weight of its own: the chosen tab's, as Fluent's Tab sets its label's */}
+                <Text truncate wrap={false} weight={String(t.id) === String(front) ? 'semibold' : 'regular'}>{t.name}</Text>
                 <AgentState state={t.state} />
                 {/* Not a press on the tab: it is not chosen first. */}
-                <span title={t.agent ? "Close: the agent stops (asked first); its conversation stays in the task's history" : 'Close: what runs there stops'}
-                  style={{ display: 'inline-flex', color: tokens.colorNeutralForeground3 }}
-                  onMouseDown={(e) => e.preventDefault()} onClick={(e) => { e.stopPropagation(); void act('terminal:close', { id: t.id }); }}><XIcon /></span>
+                <Button as="a" appearance="subtle" size="small" icon={<XIcon />} aria-label="Close" tabIndex={-1} style={{ minWidth: 0 }}
+                  title={t.agent ? "Close: the agent stops (asked first); its conversation stays in the task's history" : 'Close: what runs there stops'}
+                  onMouseDown={(e) => e.preventDefault()} onClick={(e) => { e.stopPropagation(); void act('terminal:close', { id: t.id }); }} />
               </span>
             </Tab>;
           })}

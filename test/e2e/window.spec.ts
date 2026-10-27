@@ -216,7 +216,7 @@ test("terminal: dictation where the agent has its own: the right Ctrl held anywh
   await change.click();
   await expect(hold).toHaveText(['Press a key…']);
   await core((k) => k.press(k.shell.win.webContents, 'A'));
-  await expect(shortcuts.getByRole('alert')).toHaveText(/^Press a key that types nothing/);
+  await expect(shortcuts.getByText(/^Press a key that types nothing/)).toBeVisible();
   await expect(hold).toHaveText([name]);
   await change.click();
   await core((k) => k.press(k.shell.win.webContents, 'F9'));
@@ -248,9 +248,9 @@ test("the terminals' panel: its terminals in tabs over them, one shown, flat as 
   });
   expect((await mcp()).getInstructions()).toMatch(/terminal_run, not in your own shell.*This is the Kulisa task "task-1", working right in the project's folder .* \(no git, so no worktree of its own\)\. Run the app under test on a free port you pick \(Kulisa assigns none\).*Name the task with task_rename once you know what it is about, silently: never ask the human for a name or mention it\. These notes are for you/s);
   expect(await tabs(), "the agent's tab, named after its agent").toEqual(['bash *']);
-  // Flat, as a profile's pane: the row, its tab in front and the terminal on one background, a pane's tabs' own.
+  // Flat, as a profile's pane: the row and the terminal on one background; the row and its tab in front a pane's tabs' own.
   const front = 'nav[aria-label="Terminals"] [role="tab"][aria-selected="true"]';
-  expect([await color('[data-testid="terminal-tabs"]'), await color(front)]).toEqual([await color('[data-testid="terminals"]'), await color('[data-testid="terminals"]')]);
+  expect(await color('[data-testid="terminal-tabs"]')).toBe(await color('[data-testid="terminals"]'));
   expect([await color('[data-testid="terminal-tabs"]'), await color(front)]).toEqual([await color('[role="region"][data-profile] nav[aria-label="Tabs"]'), await color('[role="region"][data-profile] [role="tab"][aria-selected="true"]')]);
   // + is the panel's, not a tab's: its menu has the project's agents (none here) and Terminal. The tab growing in is
   // an attribute there for a moment: an observer notes it (an assertion could look after it went).
@@ -664,7 +664,7 @@ test("About Kulisa (☰; on macOS the app menu's) is a page of Settings: the ver
   await expect(folders).toHaveCount(3);
   for (const [i, [id, dir, there]] of ([['data', files.userData, true], ['projects', projectsHome, made], ['program', CHECKOUT, true]] as const).entries()) {
     await expect(folders.nth(i)).toHaveAttribute('data-folder', id);
-    await expect(folders.nth(i).getByText(dir, { exact: true })).toBeVisible();
+    await expect(folders.nth(i).getByRole('textbox')).toHaveValue(dir);
     const show = folders.nth(i).getByRole('button');
     await expect(show).toHaveAccessibleName(there ? 'Show in your file manager' : 'Not made yet');
     await expect(show).toBeEnabled({ enabled: there });

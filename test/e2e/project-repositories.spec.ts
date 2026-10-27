@@ -124,7 +124,7 @@ test('projects: several repositories: a task works in the main tree until it mak
   }
   await expect(listRow(s, 'Folders', 'web')).toHaveAttribute('data-folder', web);
   await onRow(s, listRow(s, 'Folders', 'web'), group(s, 'Folders').getByRole('button', { name: 'Remove from the project (its folder stays)' }));
-  await expect(group(s, 'Folders').getByRole('alert')).toContainText(/Tasks work in it: New Task, Checkout/);
+  await expect(group(s, 'Folders').getByText(/Tasks work in it: New Task, Checkout/)).toBeVisible();
   await closeSettings(core, ui, sui);
   // Removed again by its agent once the human agreed: nothing of its own in it, so not asked; its folder and branch
   // gone, the agent told once its turn is over. Its own folder is refused.
