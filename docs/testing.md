@@ -132,7 +132,8 @@ its list. A refused import is moved, not allowed: the need goes below, or the co
 ## Lint
 
 `npm run lint`: rules picked one by one in `eslint.config.ts`, no presets (thousands of `any` findings, no bugs). A
-promise is awaited, or `void` says it runs on its own.
+promise is awaited, or `void` says it runs on its own. In the window, Fluent's parts, icons, tokens and `makeStyles` ([ui.md](ui.md), Fluent in
+Kulisa).
 
 ## Upgrading Electron
 

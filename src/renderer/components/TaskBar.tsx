@@ -4,9 +4,9 @@
 // showing one moves none (tabs moving under the mouse make the human miss). Where a dragged tab is let go outside every
 // Kulisa window, the main process says (the page does not know where the pointer is then).
 import { flushSync } from 'react-dom';
-import { useEffect, useReducer, useRef, useState, type CSSProperties, type DragEvent, type MouseEvent, type PointerEvent } from 'react';
-import { Button, Tab, TabList, Tooltip, tokens } from '@fluentui/react-components';
-import { PlusIcon, XIcon } from 'lucide-react';
+import { useEffect, useReducer, useRef, useState, type DragEvent, type MouseEvent, type PointerEvent } from 'react';
+import { Button, Tab, TabList, Text, Tooltip, makeStyles, mergeClasses, tokens } from '@fluentui/react-components';
+import { AddRegular, DismissRegular } from '@fluentui/react-icons';
 import { RightClickMenu, type Item } from './Menus';
 import { ProjectIcon } from './ProjectIcon';
 import { AgentState } from './AgentState';
@@ -63,8 +63,25 @@ function projectItems(p: ProjectEntry): Item[] {
 // goes to has neither), as a type of Kulisa's own: a page under the pointer takes nothing from it.
 const DRAG = 'application/x-kulisa-task';
 
+const useStyles = makeStyles({
+  bar: { display: 'flex', alignItems: 'center', gap: tokens.spacingHorizontalXS, minWidth: 0, justifySelf: 'center', maxWidth: '100%', boxSizing: 'border-box',
+    padding: `${tokens.spacingVerticalXS} ${tokens.spacingHorizontalS}` },
+  // In the title bar the tabs are no handle to drag the window by (TopBar.tsx drags after them).
+  top: { padding: 0, WebkitAppRegion: 'no-drag' },
+  tabsArea: { display: 'flex', minWidth: 0 },
+  strip: { flex: '0 1 auto', flexWrap: 'nowrap' },
+  tab: { flex: '0 1 200px', minWidth: '160px',
+    '&[data-dragging]': { opacity: 0.5 },
+    // where a dropped tab would go
+    '&[data-drop="before"]': { boxShadow: `inset 2px 0 ${tokens.colorBrandStroke1}` },
+    '&[data-drop="after"]': { boxShadow: `inset -2px 0 ${tokens.colorBrandStroke1}` } },
+  label: { display: 'flex', alignItems: 'center', gap: tokens.spacingHorizontalSNudge },
+  name: { maxWidth: '120px' },
+  close: { marginInlineStart: 'auto' },
+});
+
 export function TaskBar() {
-  const all = useWindow((s) => s.projects), current = useWindow((s) => s.current), top = useWindow((s) => s.bar === 'top');
+  const all = useWindow((s) => s.projects), current = useWindow((s) => s.current), top = useWindow((s) => s.bar === 'top'), styles = useStyles();
   const [, colorsRead] = useReducer((n: number) => n + 1, 0);
   useEffect(() => onColors(colorsRead), []);
   const byId = new Map(all.projects.map((p) => [p.id, p]));
@@ -158,28 +175,24 @@ export function TaskBar() {
     },
   };
 
-  // In the title bar the tabs are no handle to drag the window by (TopBar.tsx drags after them).
-  return <nav id="taskbar" aria-label="Open tasks" style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0, justifySelf: 'center',
-    maxWidth: '100%', boxSizing: 'border-box', padding: top ? 0 : '4px 8px', WebkitAppRegion: top ? 'no-drag' : undefined } as CSSProperties}>
-    <RightClickMenu items={menu} style={{ display: 'flex', minWidth: 0 }}>
-      <TabList id="projectTabs" ref={strip} className={stripClass} size="small" reserveSelectedTabSpace={false} selectedValue={pressed ?? current ?? ''}
+  return <nav id="taskbar" aria-label="Open tasks" className={mergeClasses(styles.bar, top && styles.top)}>
+    <RightClickMenu items={menu} className={styles.tabsArea}>
+      <TabList id="projectTabs" ref={strip} className={mergeClasses(stripClass, styles.strip)} appearance="filled-circular" size="small" reserveSelectedTabSpace={false} selectedValue={pressed ?? current ?? ''}
         onTabSelect={(_, d) => onTabSelect(String(d.value))}
-        onPointerDown={onPointerDown} onAuxClick={onAuxClick} onDoubleClick={onDoubleClick} {...drag}
-        style={{ flex: '0 1 auto', flexWrap: 'nowrap' }}>
+        onPointerDown={onPointerDown} onAuxClick={onAuxClick} onDoubleClick={onDoubleClick} {...drag}>
         {tabs.map(({ t, p }) => {
           const color = projectColor(p), at = mark?.key === t.key ? mark.side : undefined;
           // × on every tab, as Chrome's: in the tab, its own click (not the tab's), never the tab's press
           return <Tab key={t.key} value={t.key} data-task={t.key} data-project={p.id} draggable aria-label={t.name} data-dragging={dragged === t.key || undefined}
             data-drop={at} title={`${p.name}\n${t.branch ? `branch ${t.branch} in ${t.folder}` : `in the project's folder ${t.folder} (no git: no copy of its own)`}`}
-            icon={<ProjectIcon p={{ favicon: p.favicon, color }} size={16} />}
-            style={{ flex: '0 1 200px', minWidth: 160, opacity: dragged === t.key ? 0.5 : 1, '--colorCompoundBrandStroke': color,
-              boxShadow: at && `inset ${at === 'before' ? 2 : -2}px 0 ${tokens.colorBrandStroke1}` } as CSSProperties}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            icon={<ProjectIcon p={{ favicon: p.favicon, color }} size={16} />} className={styles.tab}>
+            <span className={styles.label}>
               <AgentState state={t.state} />
-              {/* the name cut short where the tab ends: at its narrowest about ten letters */}
-              <span style={{ maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.name}</span>
-              <Button as="a" data-close appearance="subtle" size="small" icon={<XIcon size={14} />} aria-label="Close" tabIndex={-1}
-                title="Close the task: its agent stops, all else stays (open it again from the sidebar)" style={{ minWidth: 0, marginInlineStart: 'auto' }}
+              {/* the name cut short where the tab ends: at its narrowest about ten letters. Text sets a weight of its
+                  own: the chosen tab's, as Fluent's Tab sets its label's. */}
+              <Text truncate wrap={false} weight={t.key === (pressed ?? current) ? 'semibold' : 'regular'} className={styles.name}>{t.name}</Text>
+              <Button as="a" data-close appearance="subtle" size="small" icon={<DismissRegular />} aria-label="Close" tabIndex={-1}
+                title="Close the task: its agent stops, all else stays (open it again from the sidebar)" className={styles.close}
                 onMouseDown={(e) => e.preventDefault()} onClick={(e) => { e.stopPropagation(); void kulisa.invoke('task:close', t.key); }} />
             </span>
           </Tab>;
@@ -188,7 +201,7 @@ export function TaskBar() {
     </RightClickMenu>
     {/* beside the +: above or under it, the tooltip would open over the pages, which cover it */}
     <Tooltip content={withKeys('New task', 'task.new')} relationship="label" positioning="after">
-      <Button id="newTask" appearance="subtle" icon={<PlusIcon />} onClick={() => kulisa.invoke('task:new')} />
+      <Button id="newTask" appearance="subtle" icon={<AddRegular />} onClick={() => kulisa.invoke('task:new')} />
     </Tooltip>
   </nav>;
 }

@@ -1,5 +1,5 @@
 // The version installed on disk while Kulisa runs: the package manager replaces its files under it (Linux), and the
-// running Kulisa goes on from the old ones. docs/window.md, "The app icon, installers and updates".
+// running Kulisa goes on from the old ones. docs/releases.md, Updates.
 import fs from 'fs';
 import path from 'path';
 

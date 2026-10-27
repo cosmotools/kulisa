@@ -2,8 +2,9 @@
 // list with its toolbar), its local addresses; saved as they change. Agents' + → New Account signs in to one there
 // (SignIn.tsx), added to the project.
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Avatar, Badge, Button, Dropdown, Field, Input, Link, Option, Text } from '@fluentui/react-components';
-import { MinusIcon, PlusIcon, StarIcon } from 'lucide-react';
+import { Badge, Button, Dropdown, Field, Input, Link, makeStyles, MessageBar, MessageBarActions, MessageBarBody, Option, Persona, Spinner, Text,
+  tokens } from '@fluentui/react-components';
+import { AddRegular, StarRegular, SubtractRegular } from '@fluentui/react-icons';
 import { ButtonMenu, RightClickMenu, type Item } from './Menus';
 import { List } from './List';
 import { Group, Tool } from './Group';
@@ -11,6 +12,15 @@ import { SignIn } from './SignIn';
 import { avatarSrc } from './avatar';
 import { refused, type Result } from '../../shared/result';
 import type { ProjectAgent, ProjectFolder, ProjectGitHub, ProjectProfile, ProjectSettings } from '../../shared/types';
+import { useCommonStyles } from './theme';
+import { ErrorBar } from './ErrorBar';
+
+const useStyles = makeStyles({
+  page: { display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalL },
+  inPlace: { display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalS },
+  buttons: { display: 'flex', gap: tokens.spacingHorizontalS, justifyContent: 'end' },
+  account: { minWidth: 0 },
+});
 
 const base = (f: string) => f.split(/[\\/]/).pop()!;
 const rowAt = (e: MouseEvent, attr: string) => (e.target as Element).closest<HTMLElement>(`[data-${attr}]`)?.getAttribute(`data-${attr}`) ?? null;
@@ -23,6 +33,7 @@ const changed = new Set<() => void>();
 kulisa.on('settings:changed', () => { for (const f of changed) f(); });
 
 export function ProjectPage({ id, onSaved, onLoaded, saveRef }: { id: string; onSaved: () => void; onLoaded: () => void; saveRef: { current: () => Promise<void> } }) {
+  const styles = useStyles(), common = useCommonStyles();
   const [s, setS] = useState<ProjectSettings | null>(null);
   const [name, setName] = useState(''), [local, setLocal] = useState(''), [error, setError] = useState('');
   const [folders, setFolders] = useState<ProjectFolder[]>([]), [github, setGithub] = useState<ProjectGitHub | null>(null);
@@ -117,17 +128,20 @@ export function ProjectPage({ id, onSaved, onLoaded, saveRef }: { id: string; on
   const githubOf = (f: string) => github?.repos.find((g) => g.folder === f);
   const accountName = (a: ProjectGitHub['accounts'][number]) => (a.kind === 'pat' ? `${a.login} (token)` : a.login);
   const stop = () => { setAdding(''); setText(''); };
-  // What is added in place under a list: a field with its buttons, Enter does it, Esc puts it away.
-  const inPlace = (what: 'clone' | 'profile', label: string, placeholder: string, go: () => void, ok: string) => adding === what &&
-    <div style={{ display: 'flex', gap: 8 }}>
-      <Input autoFocus style={{ flex: 1 }} aria-label={label} data-name={what === 'profile' || undefined} value={text} placeholder={placeholder} spellCheck={false} onChange={(_, d) => setText(d.value)}
-        onKeyDown={(e) => { if (e.key === 'Enter') go(); if (e.key === 'Escape') { e.stopPropagation(); stop(); } }} />
-      <Button onClick={stop}>Cancel</Button><Button appearance="primary" disabled={cloning} onClick={go}>{ok}</Button>
-    </div>;
-  const err = (t: string) => t && <Text role="alert" size={200} style={{ color: 'var(--colorPaletteRedForeground1)' }}>{t}</Text>;
+  // What is added in place under a list: a field with its buttons, Enter submits it, Esc puts it away; the refusal at it.
+  const inPlace = (what: 'clone' | 'profile', label: string, placeholder: string, go: () => void, ok: string, error: string) => adding === what &&
+    <form className={styles.inPlace} onSubmit={(e) => { e.preventDefault(); go(); }}>
+      <Field label={label} validationMessage={error || undefined} className={common.selectable}>
+        <Input autoFocus data-name={what === 'profile' || undefined} value={text} placeholder={placeholder} spellCheck={false} onChange={(_, d) => setText(d.value)}
+          onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); stop(); } }} />
+      </Field>
+      <div className={styles.buttons}><Button onClick={stop}>Cancel</Button><Button appearance="primary" type="submit" disabled={cloning} icon={cloning ? <Spinner size="tiny" /> : undefined}>{ok}</Button></div>
+    </form>;
+  // A refusal not at a field (the field put away, or none).
+  const err = (t: string) => t && <ErrorBar>{t}</ErrorBar>;
   if (!s) return null;
 
-  return <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+  return <div className={styles.page}>
     <Field label="Name" validationMessage={error || undefined}>
       <Input value={name} data-name maxLength={64} spellCheck={false} onChange={(_, d) => { setName(d.value); setError(''); }} onBlur={save}
         onKeyDown={(e) => { if (e.key === 'Enter') void save(); }} />
@@ -135,21 +149,21 @@ export function ProjectPage({ id, onSaved, onLoaded, saveRef }: { id: string; on
 
     <Group title="Folders" hint="The repositories or folders its tasks work on; new tasks get a copy of the default one." tools={<>
       <ButtonMenu items={() => [{ label: 'Add Folder…', run: () => changeFolders(kulisa.invoke('project:folder-add', { id })) },
-        { label: 'Clone from URL…', run: () => { setText(''); setAdding('clone'); } }]}><Tool label="Add a folder or a repository" icon={<PlusIcon />} /></ButtonMenu>
-      <Tool label="Remove from the project (its folder stays)" icon={<MinusIcon />} disabled={!folderSel} onClick={() => void removeFolder()} />
-      <Tool label="Make Default: new tasks' agents start in its copy" icon={<StarIcon />} disabled={!folderSel || folderSel === folders[0]?.folder} onClick={() => void defaultFolder()} />
+        { label: 'Clone from URL…', run: () => { setText(''); setAdding('clone'); } }]}><Tool label="Add a folder or a repository" icon={<AddRegular />} /></ButtonMenu>
+      <Tool label="Remove from the project (its folder stays)" icon={<SubtractRegular />} disabled={!folderSel} onClick={() => void removeFolder()} />
+      <Tool label="Make Default: new tasks' agents start in its copy" icon={<StarRegular />} disabled={!folderSel || folderSel === folders[0]?.folder} onClick={() => void defaultFolder()} />
     </>}>
       <RightClickMenu items={(e) => { const f = rowAt(e, 'folder'); if (!f) return null; setFolderSel(f);
         return [{ label: 'Make Default', enabled: folders[0]?.folder !== f, run: () => defaultFolder(f) }, { label: 'Remove from the Project', run: () => removeFolder(f) }]; }}>
         <List label="Folders" attr="folder" rows={folders} id={(r) => r.folder} rowLabel={(r) => base(r.folder)} selected={folderSel} onSelect={setFolderSel}
-          onDelete={() => void removeFolder()} columns={[
+          onDelete={(k) => void removeFolder(k)} columns={[
             { label: 'Name', width: '22%', cell: (r) => base(r.folder) },
             { label: 'Folder', cell: (r) => <Text size={200} title={r.folder}>{r.folder}</Text> },
             { label: 'GitHub', width: '24%', cell: (r) => { const g = githubOf(r.folder);
               if (!g?.remote) return null;
               if (g.state === 'not-github') return <Text size={200}>not a GitHub address</Text>;
               if (!github!.accounts.length) return <Text size={200}>no account</Text>;
-              return <Dropdown size="small" style={{ minWidth: 0 }} aria-label={`GitHub account of ${g.repo}`} placeholder="Choose…"
+              return <Dropdown size="small" className={styles.account} aria-label={`GitHub account of ${g.repo}`} placeholder="Choose…"
                 value={github!.accounts.find((a) => a.id === g.account) ? accountName(github!.accounts.find((a) => a.id === g.account)!) : ''}
                 selectedOptions={g.account ? [g.account] : []}
                 // its keys are its own (Delete and the arrows would act on the list's row), but Esc, which closes Settings
@@ -161,23 +175,25 @@ export function ProjectPage({ id, onSaved, onLoaded, saveRef }: { id: string; on
               {r.folder === folders[0]?.folder && folders.length > 1 && <Badge appearance="outline">default</Badge>}</> },
           ]} />
       </RightClickMenu>
-      {inPlace('clone', 'Repository URL', 'git@github.com:me/shop.git', () => void clone(), cloning ? 'Cloning…' : 'Clone')}
-      {github?.repos.filter((g) => g.why).map((g) => <Text key={g.folder} size={200}>{base(g.folder)}: {g.why}
-        {g.install && <> <Link href={g.install} target="_blank">Install it on {g.owner}</Link> (or ask its owner to)</>}</Text>)}
-      {err(errors.folders)}
+      {inPlace('clone', 'Repository URL', 'git@github.com:me/shop.git', () => void clone(), cloning ? 'Cloning…' : 'Clone', errors.folders)}
+      {github?.repos.filter((g) => g.why).map((g) => <MessageBar key={g.folder} intent="warning">
+        <MessageBarBody>{base(g.folder)}: {g.why}{g.install && ' Install it, or ask its owner to.'}</MessageBarBody>
+        {g.install && <MessageBarActions><Link href={g.install} target="_blank">Install it on {g.owner}</Link></MessageBarActions>}
+      </MessageBar>)}
+      {adding !== 'clone' && err(errors.folders)}
     </Group>
 
     <Group title="Agents" hint="The agents its tasks run; + makes a task with the default one." tools={<>
-      <ButtonMenu items={agentMenu}><Tool label="Add an agent" icon={<PlusIcon />} disabled={!!signing || (!addable.length && !s.clis.length)} /></ButtonMenu>
-      <Tool label="Remove from the project (its tasks keep it)" icon={<MinusIcon />} disabled={!agentSel} onClick={() => void removeAgent()} />
-      <Tool label={isDefault(agentSel) ? 'No Default: a new task starts with no agent' : 'Make Default: + makes a task with it'} icon={<StarIcon />}
+      <ButtonMenu items={agentMenu}><Tool label="Add an agent" icon={<AddRegular />} disabled={!!signing || (!addable.length && !s.clis.length)} /></ButtonMenu>
+      <Tool label="Remove from the project (its tasks keep it)" icon={<SubtractRegular />} disabled={!agentSel} onClick={() => void removeAgent()} />
+      <Tool label={isDefault(agentSel) ? 'No Default: a new task starts with no agent' : 'Make Default: + makes a task with it'} icon={<StarRegular />}
         disabled={!agentSel} onClick={() => agentSel && void defaultAgent(isDefault(agentSel) ? null : agentSel)} />
     </>}>
       {mine.length ? <RightClickMenu items={(e) => { const a = rowAt(e, 'agent'); if (!a) return null; setAgentSel(a);
         return [isDefault(a) ? { label: 'No Default', run: () => defaultAgent(null) } : { label: 'Make Default', run: () => defaultAgent(a) },
           { label: 'Remove from the Project', run: () => removeAgent(a) }]; }}>
         <List label="Agents" attr="agent" rows={mine} id={(a) => a.id} rowLabel={(a) => a.agent} selected={agentSel} onSelect={setAgentSel}
-          onDelete={() => void removeAgent()} columns={[
+          onDelete={(k) => void removeAgent(k)} columns={[
             { label: 'Agent', width: '40%', cell: (a) => a.agent },
             { label: 'Account', cell: (a) => <Text size={200}>{a.email ?? '—'}</Text> },
             { label: '', width: '80px', cell: (a) => a.default && <Badge appearance="outline">default</Badge> },
@@ -189,21 +205,20 @@ export function ProjectPage({ id, onSaved, onLoaded, saveRef }: { id: string; on
     </Group>
 
     <Group title="Profiles" hint="The browser profiles its tasks test as, each task with its own copy." tools={<>
-      <ButtonMenu items={profileMenu}><Tool label="Add a profile" icon={<PlusIcon />} /></ButtonMenu>
-      <Tool label="Remove from the project (asks first)" icon={<MinusIcon />} disabled={!profileSel} onClick={() => void removeProfile()} />
+      <ButtonMenu items={profileMenu}><Tool label="Add a profile" icon={<AddRegular />} /></ButtonMenu>
+      <Tool label="Remove from the project (asks first)" icon={<SubtractRegular />} disabled={!profileSel} onClick={() => void removeProfile()} />
     </>}>
       {profiles.length ? <RightClickMenu items={(e) => { const p = rowAt(e, 'profile'); if (!p) return null; setProfileSel(p);
         return [{ label: 'Remove from the Project…', run: () => removeProfile(p) }]; }}>
         <List label="Profiles" attr="profile" rows={profiles} id={(p) => p.id} rowLabel={(p) => p.name} rowTitle={(p) => [p.name, p.description, p.also.length && `also in ${p.also.join(', ')}`].filter(Boolean).join('\n')} selected={profileSel} onSelect={setProfileSel}
-          onDelete={() => void removeProfile()} columns={[
-            { label: 'Name', width: '36%', cell: (p) => <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Avatar size={20} image={{ src: avatarSrc(p.avatar) }} />{p.name}</span> },
+          onDelete={(k) => void removeProfile(k)} columns={[
+            { label: 'Name', width: '36%', cell: (p) => <Persona size="extra-small" name={p.name} avatar={{ image: { src: avatarSrc(p.avatar) } }} /> },
             { label: 'About', cell: (p) => <Text size={200}>{p.description}</Text> },
             { label: 'Also in', width: '24%', cell: (p) => <Text size={200}>{p.also.join(', ')}</Text> },
           ]} />
       </RightClickMenu> : adding !== 'profile' && <Text size={200}>No profiles yet: the browser profiles its tasks test as, signed in once.</Text>}
-      {inPlace('profile', 'New profile', 'Its name, e.g. ann@shop.com', () => void addProfile(), 'Create')}
-      {err(errors.profiles)}
+      {inPlace('profile', 'New profile', 'Its name, e.g. ann@shop.com', () => void addProfile(), 'Create', errors.profiles)}
+      {adding !== 'profile' && err(errors.profiles)}
     </Group>
 
     <Field label="Local addresses" hint="Where Kulisa may type saved test users' passwords besides localhost and your network: a tunnel, dev domains.">

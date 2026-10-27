@@ -83,8 +83,8 @@ A profile is an Electron session on a folder of its own (`session.fromPath`), la
   gets the focus in its empty address; many tabs shrink to their icon and × (each keeps its ×), then the strip scrolls
   (`useStrip`, `lib/strip.ts`); `target=_blank` and `window.open` open tabs of the same profile. Right-click a tab:
   reload, duplicate, close, close others. **⋮** at the toolbar's end, as Chrome's: Screenshot (Element, Visible Part,
-  Full Page) and DevTools (or F12). A narrow pane gives up back and forward (under 260 px), then reload (under 200),
-  into ⋮, their keys staying; never Pick or ⋮ (the toolbar's container queries).
+  Full Page) and DevTools (or F12). A narrow pane gives up back and forward, then reload, into ⋮ as they no longer
+  fit beside the address's least room, their keys staying; never Pick or ⋮ (Fluent's `Overflow`: [ui.md](ui.md)).
   Chrome's keys work in a page for its pane: Ctrl+T, Ctrl+W, Ctrl+Shift+T, Ctrl+L, Ctrl+Tab, Ctrl+1…9 and the rest
   ([window.md](window.md), Keys).
 - **Zoom**: Ctrl + / − / 0 in a page zooms that site in that profile, on top of the Kulisa zoom (saved per profile,

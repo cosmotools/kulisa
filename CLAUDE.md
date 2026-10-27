@@ -13,6 +13,8 @@ prompt; the human writes the rest of the message around it.
 - `docs/profiles.md`, `docs/tasks.md`, `docs/window.md`: how profiles, projects with their tasks, and the
   window work now: what the human and the agent do, what Kulisa creates on the computer and removes, why it is built
   so, the code. Read the one for the part you change; keep it current.
+- `docs/releases.md`: how Kulisa is packaged, released and updated on the user's computer: the app icon, the
+  installers, the release workflow, the updates.
 - `docs/transcripts.md`: the task's history for its agent (`task_history`) and how each agent CLI's transcript is
   read for it, field by field. Check it when an agent CLI is updated: the formats are undocumented.
 - `docs/packages.md`: Kulisa packages, parts of Kulisa in folders of their own (`src/terminal/`): what makes code
@@ -208,8 +210,8 @@ prompt; the human writes the rest of the message around it.
   request into `main` raises it (the `version` check refuses one that does not, unless no release of that number
   exists yet). `npm version <patch|minor> --no-git-tag-version`: no tag by hand,
   the CI makes it. While 0.x: `patch` by default, `minor` when the author says so or for a large change (say which).
-- **A merge into `main` is published by itself** (`.github/workflows/release.yml`; docs/window.md, "The app icon,
-  installers and updates"). A failed build or start leaves the draft unpublished: fixed by the next release, its
+- **A merge into `main` is published by itself** (`.github/workflows/release.yml`; docs/releases.md, Publishing a
+  release). A failed build or start leaves the draft unpublished: fixed by the next release, its
   version raised again; the failed draft deleted (`DELETE …/releases/<id>`).
 - **When the author says to release** (that is the ask to open the two pull requests, nothing more):
   1. In a worktree from `develop`: raise the version, commit (`Kulisa <version>`), and open its pull request into

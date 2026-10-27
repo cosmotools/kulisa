@@ -3,18 +3,27 @@
 // in the browser, only confuses; it is there for a failure (opened by itself then) and for what the browser does not
 // show (a code the agent asks for). Gone (Cancel, its page left), the sign-in is cancelled.
 import { useEffect, useRef, useState } from 'react';
-import { Accordion, AccordionHeader, AccordionItem, AccordionPanel, Button, Text } from '@fluentui/react-components';
+import { Accordion, AccordionHeader, AccordionItem, AccordionPanel, Button, Spinner, Text, makeStyles,
+  tokens } from '@fluentui/react-components';
 import { forgetTerminals } from '../../terminal/renderer';
 import { Terminal } from './Terminal';
 import type { SignedIn as Answer } from '../../shared/types';
+import { ErrorBar } from './ErrorBar';
 
 let n = 0;
 const fresh = () => `signin#${Date.now()}-${++n}`; // a sign-in's terminal: a new one for each try
+
+const useStyles = makeStyles({
+  signIn: { display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalS },
+  terminal: { height: '160px', boxSizing: 'border-box', padding: `${tokens.spacingVerticalXS} ${tokens.spacingHorizontalS}`, border: `1px solid ${tokens.colorNeutralStroke1}`,
+    borderRadius: tokens.borderRadiusMedium, background: tokens.colorNeutralBackground3, overflow: 'hidden' },
+  buttons: { display: 'flex', gap: tokens.spacingHorizontalS },
+});
 export function SignIn({ agent, project, onDone, onClose }: { agent: { id: string; name: string }; project?: string; onDone: (r: Answer) => void; onClose: () => void }) {
   // key: its terminal, kept after its sign-in ends (a failure's Details show what the agent said); a new one on Try Again
   const [key, setKey] = useState(fresh), [running, setRunning] = useState(true);
   const [error, setError] = useState(''), [details, setDetails] = useState(false);
-  const done = useRef(onDone);
+  const done = useRef(onDone), styles = useStyles();
   useEffect(() => { done.current = onDone; });
   // A sign-in, its terminal shown; cancelled when it goes (Cancel, its page left) while it runs, its terminal forgotten.
   useEffect(() => {
@@ -31,22 +40,22 @@ export function SignIn({ agent, project, onDone, onClose }: { agent: { id: strin
     };
   }, [key, agent.id, project]);
 
-  return <div role="group" aria-label={`New account of ${agent.name}`} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+  const again = () => { setKey(fresh()); setRunning(true); setError(''); setDetails(false); };
+  return <div role="group" aria-label={`New account of ${agent.name}`} className={styles.signIn}>
     <Text size={200}>Signing in to a new account of {agent.name}: sign in in your browser, which opens (check the account it signs in to
       there; its address is under Details if it did not open). The account is {project ? 'added' : 'kept'} once you are signed in.</Text>
     <Accordion collapsible openItems={details ? ['details'] : []} onToggle={(_, d) => setDetails(d.openItems.includes('details'))}>
       <AccordionItem value="details">
         <AccordionHeader size="small">Details</AccordionHeader>
         <AccordionPanel>
-          <Terminal terminal={key} background="colorNeutralBackground3"
-            style={{ height: 160, boxSizing: 'border-box', padding: '4px 8px', border: '1px solid var(--colorNeutralStroke1)', borderRadius: 'var(--borderRadiusMedium)',
-              background: 'var(--colorNeutralBackground3)', overflow: 'hidden' }} />
+          <Terminal terminal={key} background="colorNeutralBackground3" className={styles.terminal} />
         </AccordionPanel>
       </AccordionItem>
     </Accordion>
-    {error && <Text role="alert" size={200} style={{ color: 'var(--colorPaletteRedForeground1)' }}>{error}</Text>}
-    <div style={{ display: 'flex', gap: 8 }}>
-      {!running && <Button onClick={() => { setKey(fresh()); setRunning(true); setError(''); setDetails(false); }}>Try Again</Button>}
+    {error && <ErrorBar actions={<Button onClick={again}>Try Again</Button>}>{error}</ErrorBar>}
+    {running && <Spinner size="tiny" labelPosition="after" label="Waiting for the sign-in…" />}
+    <div className={styles.buttons}>
+      {!running && !error && <Button onClick={again}>Try Again</Button>}
       <Button onClick={onClose}>Cancel</Button>
     </div>
   </div>;

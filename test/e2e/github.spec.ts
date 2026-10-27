@@ -3,12 +3,12 @@
 import fs from 'fs';
 import path from 'path';
 import { execFileSync } from 'child_process';
-import type { Locator, Page } from '@playwright/test';
+import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
 import type { Files } from './data.ts';
 import type { SettingsAt } from '../../src/shared/ipc.ts';
-import { SITE, choose, rightClick, closeSettings, invoke, answer, removed } from './helpers.ts';
+import { SITE, choose, rightClick, closeSettings, invoke, answer, removed, listCells } from './helpers.ts';
 
 type Account = { id: string; login: string; kind: string; secret?: string };
 
@@ -27,7 +27,7 @@ async function settings(core: Core, sui: () => Promise<Page>, at: SettingsAt = {
 }
 // The accounts' rows as Settings → GitHub shows them (one by its id), and a row's cells.
 const rows = (s: Page, id?: string) => s.locator(id ? `[data-github="${id}"]` : '[data-github]');
-const cells = (row: Locator) => row.getByRole('cell');
+const cells = listCells;
 // The open menu (Fluent's: there only while open).
 const menu = (s: Page) => s.getByRole('menu');
 async function githubPage(core: Core, sui: () => Promise<Page>) {
@@ -54,13 +54,13 @@ async function shownCode(s: Page) {
   return s.getByTestId('code').textContent();
 }
 const enter = (code: string, query: string) => fetch(`${SITE}/github/login/device/enter?code=${code}&${query}`);
-const error = (s: Page) => s.getByRole('alert');
+const error = (s: Page) => s.getByRole('alert'); // the token's field's
 // The field takes the keyboard as it opens (shown: false, typed again after GitHub refused one).
 async function typeToken(s: Page, token: string, shown = true) {
   const field = s.getByRole('textbox', { name: 'Token' });
   if (shown) await expect(field).toBeFocused();
   await field.fill(token);
-  await s.getByRole('group', { name: 'Add a token' }).getByRole('button', { name: 'Add', exact: true }).click();
+  await s.getByRole('form', { name: 'Add a token' }).getByRole('button', { name: 'Add', exact: true }).click();
 }
 // ann with Kulisa App and bob with a fine-grained token, signed in in Settings → GitHub as the first and third tests do.
 async function annAndBob(core: Core, sui: () => Promise<Page>) {
@@ -126,7 +126,7 @@ test('GitHub: a code denied on GitHub says so; a sign-in cancelled makes nothing
   const s = await githubPage(core, sui);
   await addAccount(s, 'With GitHub…');
   await enter(await shownCode(s), 'deny=1');
-  await expect(error(s)).toContainText(/denied/);
+  await expect(s.getByRole('group', { name: 'Accounts', exact: true }).getByText(/denied/)).toBeVisible();
   await addAccount(s, 'With GitHub…');
   await shownCode(s);
   await signin(s).getByRole('button', { name: 'Cancel' }).click();
@@ -161,7 +161,7 @@ test("GitHub: a repository's row: the account that reaches its remote suggested 
     await expect(account('acme/shop')).toHaveText('bob (token)');
     await expect(account('ann/site')).toHaveText('ann');
     await expect(s.getByRole('row', { name: 'lab' }).getByText('not a GitHub address', { exact: true })).toBeVisible();
-    await expect(s.getByText(/^beta: /)).toHaveText('beta: Kulisa App is not installed on beta. Install it on beta (or ask its owner to)');
+    await expect(s.getByText(/^beta: /)).toHaveText('beta: Kulisa App is not installed on beta. Install it, or ask its owner to.');
     await expect(s.getByRole('link', { name: 'Install it on beta' })).toHaveAttribute('href', 'https://github.com/apps/kulisa-app/installations/new');
     expect(await github(core, id), 'bound by remote: the token in its address dropped').toEqual({ 'github.com/acme/shop': bob, 'github.com/ann/site': ann });
     expect(files.log()).not.toContain('ghp_leaked');

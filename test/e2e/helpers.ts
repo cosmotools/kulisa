@@ -224,9 +224,11 @@ export const shownRow = (s: Page) => s.getByRole('navigation', { name: 'Settings
 export const pathOf = (s: Page) => s.getByRole('navigation', { name: 'Path' });
 export const group = (s: Page, title: string) => s.getByRole('group', { name: title, exact: true });
 export const settingsMenu = (s: Page) => s.getByRole('menu');
-// A list of a Settings page (List.tsx) by its name: its rows (not its head), one by its name.
-export const listRows = (s: Page, list: string) => s.getByRole('table', { name: list, exact: true }).getByRole('row').filter({ has: s.getByRole('cell') });
-export const listRow = (s: Page, list: string, name: string) => s.getByRole('table', { name: list, exact: true }).getByRole('row', { name, exact: true });
+// A list of a Settings page (List.tsx) by its name: its rows (each with its radio, not its head), one by its name, and
+// a row's own cells (not its radio's).
+export const listRows = (s: Page, list: string) => s.getByRole('grid', { name: list, exact: true }).getByRole('row').filter({ has: s.getByRole('radio') });
+export const listRow = (s: Page, list: string, name: string) => s.getByRole('grid', { name: list, exact: true }).getByRole('row', { name, exact: true });
+export const listCells = (row: Locator) => row.getByRole('gridcell').filter({ hasNot: row.page().getByRole('radio') });
 // Settings → Profiles: the shown task's tab's menu, then Manage Profiles…; once its window shows the page.
 export async function manageProfiles(ui: Page, sui: () => Promise<Page>) {
   await taskMenu(ui);

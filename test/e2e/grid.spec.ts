@@ -55,15 +55,15 @@ test("grid: a narrow pane's bar gives up Back and Forward, then Reload, into ⋮
   await begin(core, ui, files, { columns: true });
   const panel = files.panel(SAM), pane = `[role="region"][data-profile="${files.idOf(SAM)}"]`;
   const width = await dock(ui, (api, p) => api.getPanel(p).group.api.width, panel);
-  // The bar's controls shown, each its name, ' out' when it is not inside the pane.
-  const bar = async () => {
-    const p = await ui.locator(pane).boundingBox(), names: string[] = [];
-    for (const e of await ui.locator(`${pane} [role="toolbar"] :is(button, input)`).filter({ visible: true }).all()) {
-      const r = await e.boundingBox({ timeout: 1000 });
-      names.push(await e.getAttribute('aria-label') + (r.x >= p.x && r.x + r.width <= p.x + p.width ? '' : ' out'));
-    }
-    return names;
-  };
+  // The bar's controls shown, each its name, ' out' when it is not inside the pane. Read at once: Fluent's Overflow
+  // hides its items a frame after a resize, between one locator's reading and the next.
+  const bar = () => ui.evaluate((sel) => {
+    const p = document.querySelector(sel).getBoundingClientRect();
+    return [...document.querySelectorAll(`${sel} [role="toolbar"] :is(button, input)`)].filter((e) => e.checkVisibility()).map((e) => {
+      const r = e.getBoundingClientRect();
+      return e.getAttribute('aria-label') + (r.x >= p.x && r.right <= p.right ? '' : ' out');
+    });
+  }, pane);
   const more = async (rows: string) => {
     await ui.locator(`${pane} [aria-label="More"]`).click();
     await expect(menu(ui)).toMatchAriaSnapshot(rows);
@@ -93,13 +93,14 @@ test("grid: a narrow pane's bar gives up Back and Forward, then Reload, into ⋮
 });
 
 test('grid: a pane stacked behind another as a tab hides its page until chosen', async ({ core, ui, files }) => {
+  // Polled: dockview may still count the pane behind as visible in the drop's first layout; the next one hides it.
   await begin(core, ui, files, { columns: true });
   await drag(ui, files.panel(SAM), `[role="region"][data-profile="${files.idOf(ELON)}"]`, 'center');
   await expect.poll(() => viewOn(core, ui, files, SAM)).toBe(true);
-  expect(await core((k) => k.profile('Elon.buyer').get().view.getVisible())).toBe(false);
+  await expect.poll(() => core((k) => k.profile('Elon.buyer').get().view.getVisible())).toBe(false);
   await ui.locator(`[data-panel="${files.panel(ELON)}"]`).click();
   await expect.poll(() => viewOn(core, ui, files, ELON)).toBe(true);
-  expect(await core((k) => k.profile('Sam.admin').get().view.getVisible())).toBe(false);
+  await expect.poll(() => core((k) => k.profile('Sam.admin').get().view.getVisible())).toBe(false);
 });
 
 test('grid: while a pane is dragged, pages are pictures (drop targets are HTML), live again after the drop', async ({ core, ui, files }) => {

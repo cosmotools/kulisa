@@ -3,11 +3,12 @@
 // is it (keys:set; the main process says what may not be one).
 import { useEffect, useState } from 'react';
 import { Badge, Button, Dialog, DialogActions, DialogBody, DialogContent, DialogSurface, DialogTitle, Table, TableBody, TableCell,
-  TableRow, Text, tokens } from '@fluentui/react-components';
+  TableRow, Text, Tooltip, makeStyles, tokens } from '@fluentui/react-components';
 import { useCovered } from '../lib/cover';
 import { registerDialog } from '../lib/dialogs';
 import { useShortcuts } from '../lib/common';
 import { refused } from '../../shared/result';
+import { ErrorBar } from './ErrorBar';
 
 const GROUPS = [
   ['global', 'Everywhere', 'In the window, the pages and the terminal.'],
@@ -15,7 +16,17 @@ const GROUPS = [
   ['terminal', 'In the terminal', 'Every other key goes to the agent.'],
 ];
 
+const useStyles = makeStyles({
+  surface: { maxWidth: '560px' },
+  group: { marginBottom: tokens.spacingVerticalL },
+  title: { margin: 0 },
+  hint: { color: tokens.colorNeutralForeground3, marginBottom: tokens.spacingVerticalXS },
+  keys: { display: 'flex', justifyContent: 'end', alignItems: 'center', gap: tokens.spacingHorizontalSNudge },
+  message: { marginTop: tokens.spacingVerticalS },
+});
+
 export function Shortcuts() {
+  const styles = useStyles();
   const { open, setOpen } = useCovered('hide');
   const shortcuts = useShortcuts();
   const [listening, setListening] = useState<string | null>(null); // the id whose key is pressed next
@@ -37,27 +48,27 @@ export function Shortcuts() {
   }, [listening]);
   const change = (id: string) => { setMessage(''); setListening(id); };
   return <Dialog open={open} onOpenChange={(_, d) => { setOpen(d.open); if (!d.open) setListening(null); }}>
-    <DialogSurface style={{ maxWidth: 560 }}>
+    <DialogSurface className={styles.surface}>
       <DialogBody>
         <DialogTitle>Keyboard Shortcuts</DialogTitle>
         <DialogContent>
-          {GROUPS.map(([group, title, hint]) => <section key={group} aria-label={title} style={{ marginBottom: 16 }}>
-            <Text as="h3" weight="semibold" block style={{ margin: 0 }}>{title}</Text>
-            <Text size={200} block style={{ color: tokens.colorNeutralForeground3, marginBottom: 4 }}>{hint}</Text>
+          {GROUPS.map(([group, title, hint]) => <section key={group} aria-label={title} className={styles.group}>
+            <Text as="h3" weight="semibold" block className={styles.title}>{title}</Text>
+            <Text size={200} block className={styles.hint}>{hint}</Text>
             <Table size="small" aria-label={title}>
               <TableBody>
                 {shortcuts.filter((s) => s.group === group).map((s) => <TableRow key={s.id} data-shortcut={s.id}>
                   <TableCell>{s.label}</TableCell>
-                  <TableCell><div style={{ display: 'flex', justifyContent: 'end', alignItems: 'center', gap: 6 }}>
+                  <TableCell><div className={styles.keys}>
                     {listening === s.id ? <Badge data-key appearance="outline" color="subtle">Press a key…</Badge>
                       : s.keys.map((k) => <Badge key={k} data-key appearance="outline" color="informative">{k}</Badge>)}
-                    {s.hold && <Button size="small" disabled={listening === s.id} onClick={() => change(s.id)}
-                      title="Press the key to hold instead: a Ctrl, Shift, Alt or ⌘ by its side, an F key, Insert, Pause or Scroll Lock">Change</Button>}
+                    {s.hold && <Tooltip relationship="description" content="Press the key to hold instead: a Ctrl, Shift, Alt or ⌘ by its side, an F key, Insert, Pause or Scroll Lock">
+                      <Button size="small" disabledFocusable={listening === s.id} onClick={() => change(s.id)}>Change</Button></Tooltip>}
                   </div></TableCell>
                 </TableRow>)}
               </TableBody>
             </Table>
-            {group === 'global' && message && <Text role="alert" size={200} block style={{ color: tokens.colorPaletteRedForeground1, marginTop: 8 }}>{message}</Text>}
+            {group === 'global' && message && <ErrorBar className={styles.message}>{message}</ErrorBar>}
           </section>)}
         </DialogContent>
         <DialogActions><Button appearance="primary" onClick={() => setOpen(false)}>Close</Button></DialogActions>

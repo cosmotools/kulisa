@@ -1,11 +1,13 @@
 // A project's icon (docs/tasks.md, Projects): its site's favicon, or Kulisa's logo with its curtain in the project's
 // color. The logo is the app icon's drawing (assets/icon.svg), its curtain in any color; its folds a shadow over it.
 import { useId } from 'react';
-import { Image } from '@fluentui/react-components';
+import { Image, makeStyles } from '@fluentui/react-components';
+
+const useStyles = makeStyles({ icon: { flex: 'none' } });
 
 export function Logo({ color, size = 16, ...rest }: { color: string; size?: number; 'data-testid'?: string }) {
-  const id = useId(), folds = `${id}f`, body = `${id}b`;
-  return <svg viewBox="100 100 824 824" width={size} height={size} aria-hidden="true" style={{ color, flex: 'none' }} data-logo="" {...rest}>
+  const id = useId(), styles = useStyles(), folds = `${id}f`, body = `${id}b`;
+  return <svg viewBox="100 100 824 824" width={size} height={size} aria-hidden="true" className={styles.icon} style={{ color }} data-logo="" {...rest}>
     <defs>
       <linearGradient id={folds} x1="0" y1="0" x2="1" y2="0">
         <stop offset="0" stopOpacity=".4" /><stop offset=".3" stopOpacity="0" /><stop offset=".55" stopOpacity=".3" /><stop offset=".8" stopOpacity="0" /><stop offset="1" stopOpacity=".4" />
@@ -25,6 +27,7 @@ export function Logo({ color, size = 16, ...rest }: { color: string; size?: numb
 
 // p.color: the color shown (lib/project-color.ts, projectColor: a favicon's own once read).
 export function ProjectIcon({ p, size = 16 }: { p: { favicon?: string; color: string }; size?: number }) {
-  return p.favicon ? <Image data-testid="project-icon" src={p.favicon} alt="" width={size} height={size} style={{ flex: 'none' }} />
+  const styles = useStyles();
+  return p.favicon ? <Image data-testid="project-icon" src={p.favicon} alt="" width={size} height={size} className={styles.icon} />
     : <Logo data-testid="project-icon" color={p.color} size={size} />;
 }

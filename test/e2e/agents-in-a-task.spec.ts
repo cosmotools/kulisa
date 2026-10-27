@@ -61,7 +61,7 @@ test("+ opens any of the project's accounts, a new conversation in a tab of its 
   expect(JSON.parse(fs.readFileSync(path.join(a.dir, '.claude.json'), 'utf8')).projects[copy]?.hasTrustDialogAccepted).toBe(true);
   expect(fs.existsSync(path.join(a.dir, 'skills', 'kulisa-profiles', 'SKILL.md')), "Kulisa's skill in the account's folder").toBe(true);
   const fake = (await newest()).id;
-  await expect(ui.locator(`nav[aria-label="Terminals"] [data-id="${fake}"] [role="button"] svg`), 'an agent without a mark of its own: the generic one').toHaveAttribute('data-mark', 'generic');
+  await expect(ui.locator(`nav[aria-label="Terminals"] [data-id="${fake}"]`).getByRole('button', { name: /: change agent…$/ }).locator('svg'), 'an agent without a mark of its own: the generic one').toHaveAttribute('data-mark', 'generic');
   expect(conversations().map((c: { agent: string; terminal: number }) => [c.agent, c.terminal])).toEqual([['custom', bash], [a.id, fake]]);
   expect(await target(), 'a pick goes to the agent shown').toBe(fake);
 
@@ -195,7 +195,7 @@ test("+ opens any of the project's accounts, a new conversation in a tab of its 
     await expect(launchers.nth(i)).toHaveText(name + email);
     await expect(launchers.nth(i)).toHaveAttribute('title', title);
   }
-  // Under them the project's profiles, a tile each.
+  // Under them the project's profiles, a button each.
   await expect(ui.locator('#dock').getByRole('navigation', { name: 'Open a profile' }).getByRole('button')).toHaveText(['Sam.admin', 'Elon.buyer', 'Dora']);
   await expect(launchers.first()).toBeFocused();
   await focusWindow(core, ui);

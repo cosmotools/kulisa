@@ -165,7 +165,7 @@ test("projects: Delete Project… (the projects' manager alone) asks, closes the
   await expect(where).toHaveText(`The repository will be cloned into ${into}`);
   await typeIn(ui, field('Location'), root);
   await typeIn(ui, field('Name'), 'gone');
-  await expect(where).toHaveText(`${goneDir} is there already: choose another name or location`);
+  await expect(field('Location'), 'refused at its field').toHaveAccessibleDescription(`${goneDir} is there already: choose another name or location`);
   await typeIn(ui, field('Location'), home);
   await typeIn(ui, field('Name'), 'cloned');
   await create('cloned');

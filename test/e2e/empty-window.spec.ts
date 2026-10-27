@@ -123,7 +123,7 @@ test("the empty window: Close All Tasks in the project's submenu; links in ☰ o
     fs.writeFileSync(path.join(taken, 'notes.txt'), '');
     await typeIn(ui, field('URL'), 'https://example.com/me/taken.git', true);
     await expect(field('Project name')).toHaveValue('taken');
-    await expect(where).toContainText(/is there already: choose another name or location/);
+    await expect(field('Location'), 'refused at its field').toHaveAccessibleDescription(/is there already: choose another name or location/);
     await kind('New Folder');
     await expect(field('Project name')).toHaveCount(1);
     // Once the git that looked at it (whether it is a repository) has left it: Windows does not remove a process's folder.
@@ -167,12 +167,13 @@ test("the empty window: Close All Tasks in the project's submenu; links in ☰ o
   const step = (name: string) => expect(np.getByRole('list', { name: 'Steps' }).locator('[aria-current="step"]')).toHaveText(new RegExp(`^.${name}$`));
   const next = () => np.getByRole('button', { name: /^(Next|Create)$/ }).click();
   const where = np.getByRole('status', { name: 'What will happen' }), error = np.getByRole('alert');
-  // A folder there already would be taken as it is (the form says so as it is typed); a file is refused at Next.
+  // A folder there already would be taken as it is (the form says so as it is typed); a file is refused at its field,
+  // and Next does not go on.
   await typeIn(ui, field('Name'), 'Taken');
   await expect(where).toHaveText(`${path.join(made, 'Taken')} is there already: the project takes it as it is, its files kept`);
   fs.writeFileSync(path.join(made, 'note'), '');
   await typeIn(ui, field('Name'), 'note');
-  await expect(where).toContainText(/is a file, not a folder/);
+  await expect(field('Location')).toHaveAccessibleDescription(/is a file, not a folder/);
   await next();
   await expect(error).toContainText(/is a file, not a folder/);
   await step('Code'); // not on

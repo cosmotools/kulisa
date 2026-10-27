@@ -1,30 +1,38 @@
 // The bar of a master's window (docs/profiles.md), 44 px high (main/master.ts, BAR). While the human types an address,
 // where the page goes does not overwrite it.
 import { useEffect, useRef, useState } from 'react';
-import { Button, FluentProvider, Input, Text, Tooltip } from '@fluentui/react-components';
-import { ArrowLeftIcon, ArrowRightIcon, RotateCwIcon } from 'lucide-react';
-import { dark, light, shade } from './theme';
+import { AriaLiveAnnouncer, FluentProvider, Input, Text, Toolbar, ToolbarButton, makeStyles, tokens } from '@fluentui/react-components';
+import { ArrowClockwiseRegular, ArrowLeftRegular, ArrowRightRegular, type FluentIcon } from '@fluentui/react-icons';
+import { dark, light, shade, useCommonStyles } from './theme';
 
 const query = new URLSearchParams(location.search);
 const what = `${query.get('name')}: signed in here, every new task's copy is too`;
 let shown = '', onShown: ((url: string) => void) | null = null;
 kulisa.on('master:url', (url) => { shown = url === 'about:blank' ? '' : url; onShown?.(shown); });
 
+// The bar is the Toolbar itself, not FluentProvider's className, which Fluent copies to every portal's node (App.tsx).
+const useStyles = makeStyles({
+  bar: { height: '44px', boxSizing: 'border-box', gap: tokens.spacingHorizontalXS },
+  form: { flex: 1, display: 'flex' },
+  address: { flex: 1 },
+});
+
 export function Master() {
   const [address, setAddress] = useState(shown);
-  const typing = useRef(false);
+  const typing = useRef(false), styles = useStyles(), common = useCommonStyles();
   useEffect(() => { onShown = (url) => { if (!typing.current) setAddress(url); }; return () => { onShown = null; }; }, []);
-  const tool = (label: string, Icon: typeof ArrowLeftIcon, channel: 'master:back' | 'master:forward' | 'master:reload') =>
-    <Tooltip content={label} relationship="label"><Button appearance="subtle" icon={<Icon />} onClick={() => void kulisa.invoke(channel)} /></Tooltip>;
-  return <FluentProvider theme={shade(query.get('theme') ?? 'dark') === 'dark' ? dark : light}
-    style={{ height: 44, boxSizing: 'border-box', display: 'flex', alignItems: 'center', gap: 4, padding: '0 8px' }}>
-    {tool('Back', ArrowLeftIcon, 'master:back')}
-    {tool('Forward', ArrowRightIcon, 'master:forward')}
-    {tool('Reload', RotateCwIcon, 'master:reload')}
-    <form style={{ flex: 1, display: 'flex' }} onSubmit={(e) => { e.preventDefault(); typing.current = false; const url = address.trim(); if (url) void kulisa.invoke('master:go', url); }}>
-      <Input id="address" style={{ flex: 1 }} autoFocus spellCheck={false} aria-label="Address" placeholder="The site to sign in to, e.g. github.com"
+  // The OS's hint, not Fluent's Tooltip: the window's top leaves it no room above the bar, and under it is the page, a
+  // native view that would cover it (docs/ui.md, Tooltips).
+  const tool = (label: string, Icon: FluentIcon, channel: 'master:back' | 'master:forward' | 'master:reload') =>
+    <ToolbarButton icon={<Icon />} aria-label={label} title={label} onClick={() => void kulisa.invoke(channel)} />;
+  return <FluentProvider theme={shade(query.get('theme') ?? 'dark') === 'dark' ? dark : light}><AriaLiveAnnouncer><Toolbar aria-label="Page" className={styles.bar}>
+    {tool('Back', ArrowLeftRegular, 'master:back')}
+    {tool('Forward', ArrowRightRegular, 'master:forward')}
+    {tool('Reload', ArrowClockwiseRegular, 'master:reload')}
+    <form className={styles.form} onSubmit={(e) => { e.preventDefault(); typing.current = false; const url = address.trim(); if (url) void kulisa.invoke('master:go', url); }}>
+      <Input id="address" className={styles.address} autoFocus spellCheck={false} aria-label="Address" placeholder="The site to sign in to, e.g. github.com"
         value={address} onChange={(_, d) => { typing.current = true; setAddress(d.value); }} onBlur={() => { typing.current = false; }} />
     </form>
-    <Text size={200} style={{ whiteSpace: 'nowrap', opacity: 0.7 }}>{what}</Text>
-  </FluentProvider>;
+    <Text size={200} wrap={false} className={common.muted}>{what}</Text>
+  </Toolbar></AriaLiveAnnouncer></FluentProvider>;
 }

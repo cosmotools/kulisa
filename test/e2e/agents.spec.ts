@@ -8,7 +8,7 @@ import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
 import type { Files } from './data.ts';
-import { SITE, WIN, holdPointer, focusWindow, choose, closeMenu, rightClick, closeSettings, item, renamed, termText, termShows, invoke, ipcSettled, answer, projectMenu, onRow } from './helpers.ts';
+import { SITE, WIN, holdPointer, focusWindow, choose, closeMenu, rightClick, closeSettings, item, renamed, termText, termShows, invoke, ipcSettled, answer, projectMenu, onRow, listCells } from './helpers.ts';
 import { newTask } from './tasks-helpers.ts';
 import { fakeAgent, fakeBin } from './agent-helpers.ts';
 
@@ -130,11 +130,11 @@ test('Settings → Agents (not the terminal only): what is installed, installs t
   // Installed with its maker's installer; what it said only under Details.
   await page.getByRole('button', { name: 'Install', exact: true }).click();
   await expect(page.getByRole('status').first()).toHaveText('Installed', { timeout: 10000 });
-  await expect(page.getByRole('status').filter({ hasText: /^Fake agent is installed/ })).toHaveText(/^Fake agent is installed\. Make an account of it below/);
+  await expect(page.getByText(/^Fake agent is installed\. Make an account of it below/)).toBeVisible();
   const details = page.getByRole('button', { name: 'Details' });
   await expect(details, "the installer's own output only under Details").toHaveAttribute('aria-expanded', 'false');
   await details.click();
-  const said = await page.locator('pre').textContent();
+  const said = await page.getByRole('textbox', { name: 'What the installer said' }).inputValue();
   expect(said).toMatch(/installing the fake agent\s+(tar: .*\s+)?done/);
   if (WIN) expect(said.match(/tar: (.*)/)[1].trim().toLowerCase(), "Windows' own tar, not Git's: GNU tar reads C:\\… as a host").toBe(path.join(process.env.SystemRoot, 'System32', 'tar.exe').toLowerCase());
   expect(said, 'no terminal codes: colors, links').not.toMatch(/\x1b/);
@@ -198,14 +198,14 @@ test("a new account is made in the project's settings: the agent's own sign-in a
   await expect(s.locator(`[data-agent="${work}"]`)).toHaveCount(1);
   await expect(signIn(s)).toHaveCount(0);
   // Its agent and its email, each in its column (a table).
-  expect((await s.locator(`[data-agent="${work}"] > *`).allTextContents()).slice(0, 2).map((c) => c.trim())).toEqual(['Fake agent', 'work@shop.com']);
+  expect((await listCells(s.locator(`[data-agent="${work}"]`)).allTextContents()).slice(0, 2).map((c) => c.trim())).toEqual(['Fake agent', 'work@shop.com']);
   expect(files.json('agents.json')).toEqual({ list: [{ id: work, agent: 'fake', email: 'work@shop.com' }] });
   expect(await core((k, a) => k.shell.store.projects().find((x) => x.id === a.pid).agents.includes(a.work), { pid: files.pid('project'), work }), 'the project lists it').toBe(true);
   // Signed in to an email it has already: that account, the new folder signed out and gone.
   await newAccount(core, s, files);
   let again = await signingIn(core, files);
   await typeSignIn(core, 'work@shop.com\r');
-  await expect(signIn(s).getByRole('alert')).toHaveText(/is in the project already/);
+  await expect(signIn(s).getByText(/is in the project already/)).toBeVisible();
   await expect.poll(() => !fs.existsSync(again) && logouts(files).includes(again)).toBe(true);
   await signIn(s).getByRole('button', { name: 'Cancel' }).click();
   await expect(signIn(s)).toHaveCount(0);
@@ -221,7 +221,7 @@ test("a new account is made in the project's settings: the agent's own sign-in a
   await newAccount(core, s, files);
   again = await signingIn(core, files);
   await typeSignIn(core, '\r');
-  await expect(signIn(s).getByRole('alert')).toHaveText(/Not signed in/);
+  await expect(signIn(s).getByText(/Not signed in/)).toBeVisible();
   await expect(signIn(s).getByRole('button', { name: 'Try Again' })).toBeVisible();
   await expect(signIn(s).locator('.xterm'), 'its Details open by itself, with what the agent said').toBeVisible();
   expect(fs.existsSync(again)).toBe(false);
@@ -336,7 +336,7 @@ test("an account lives until deleted in Settings → Agents: let go by its proje
   await expect(row(s, work).getByText('in no project', { exact: true })).toBeVisible();
   await deleteAccount(s, work);
   const name = await core((k, key) => k.shell.taskByKey(key).entry.name, task);
-  await expect(agentPage(s, 'fake').getByRole('alert')).toHaveText(new RegExp(`^Tasks run it: ${RegExp.escape(name)} \\(project\\)`));
+  await expect(agentPage(s, 'fake').getByText(new RegExp(`^Tasks run it: ${RegExp.escape(name)} \\(project\\)`))).toBeVisible();
   await noQuestion(s);
   await closeSettings(core, ui, sui);
   const deleted = invoke(ui, 'task:delete', task);

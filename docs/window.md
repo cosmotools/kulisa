@@ -40,7 +40,7 @@ of another project, or one closed, is opened from the sidebar. ☰ → **Tasks b
 after the logo instead, as a browser's tabs (`settings.json`: `bar`; in the page's URL, so it is drawn in place at
 once; `App.tsx` puts `TaskBar.tsx` in `TopBar.tsx`'s children or under the grid). Bottom is the default, on macOS too:
 the hand is at the terminal under the grid all the time, and a bar on top sits right over the grid's panels' tabs. The
-tabs are Fluent's, the shown one underlined in its project's color (the author's choice). A tab is a target for a
+tabs are Fluent's, the shown one filled (the author's choice). A tab is a target for a
 quick throw of the mouse: at least 160 px wide (about ten letters of its name), × on every tab as Chrome's. The window
 is three rows (`App.tsx`: the title bar, the grid, the bar when below), the grid from edge to edge. In the title bar
 the tabs are no drag handle (`app-region: no-drag`). Nothing in the bar moves when another task is shown.
@@ -59,7 +59,7 @@ shown, through the slide's pictures, so the tab left is not lit again meanwhile.
 
 ## The grid
 
-A task's profiles' panes and its terminals' panel are peer panels in a grid (dockview), flat, split by hairlines
+A task's profiles' panes and its terminals' panel are peer panels in a grid (dockview), flat, split by a gap
 (`Grid.tsx`): dragged by the header to another place or onto another panel (stacked as tabs), resized by the line
 between them. A profile's page is square, as its pane is. A panel stacked behind another hides its page until chosen
 (and later unloads it: [profiles.md](profiles.md), "Tabs unloaded"). **☰ → Arrange panels** offers ready-made
@@ -144,8 +144,7 @@ following it when it changes). Saved (`settings.json`), the same in every window
 - Only Kulisa's own UI changes: the profiles' pages keep the OS's light or dark (`prefers-color-scheme`), so a site
   under test looks as its users see it. So Kulisa does not set `nativeTheme.themeSource` (it would change every page's
   scheme); System reads `nativeTheme.shouldUseDarkColors` and its `updated` event.
-- Fluent's theme does it: Fluent's tokens with Kulisa's brand ramp, one theme dark and one light (`components/theme.ts`), the
-  one shown given to `FluentProvider` (`App.tsx`) with its `color-scheme` (`light dark` for System), so the browser's
+- Fluent's theme does it ([ui.md](ui.md), Fluent in Kulisa), the one shown given to `FluentProvider` (`App.tsx`) with its `color-scheme` (`light dark` for System), so the browser's
   own controls (scrollbars) follow; the grid takes dockview's colors from the same tokens (`Grid.tsx`), a terminal its
   colors (`termStyle`). The choice comes in the page's URL (`data-theme` on its root), set before the first paint, so a
   light window never flashes dark.
@@ -290,10 +289,10 @@ the parts of it read; [tasks.md](tasks.md), "Several agents in a task"). An agen
 but with their button kept in place (the author's choice): by its height under or over the grid, by its width at a side
 (dockview's constraints hold it there; the row goes). Alone in the grid (no profile open), the +'s rows are big buttons
 in a line in the grid's middle, whatever the arrangement (its group fills the grid there, its header hidden): a
-`data-launcher` button each, the agent's icon over its name, an account's email under it, no keys (Ctrl+` opens the task's agent,
+`data-launcher` button each, the agent's icon beside its name, an account's email under it, no keys (Ctrl+` opens the task's agent,
 which the window does not show: a key on one of them would read as a mistake). Each is a Tab stop, Enter opens it; the
 first, the project's default agent, gets the keyboard when they come, unless the keyboard is in something else (a
-field, a dialog). Under them, a second row: the task's closed profiles, a `data-launcher` each, its picture over its name
+field, a dialog). Under them, a second row: the task's closed profiles, a `data-launcher` each, its picture beside its name
 (The grid: No profile open). A terminal opened unfolds it to the size it had. Ctrl+` there opens a new conversation of
 the task's agent; a task with none (its project had no default agent: [tasks.md](tasks.md), "Choosing the agent")
 gives the keyboard to the buttons, or opens the +. A task that never had a terminal opens its agent, or nothing (the
@@ -495,11 +494,9 @@ where the human reads it and passes it on, by any means: not everyone has a GitH
   once, so what came since is read from the file at the end of the same tick and sent, a burst of lines as one
   (`readLog` in `log.ts`; the last page that read is the one followed). The file turned over under it (shorter than
   what was read): the page reads it again. Nothing of this is logged: a line of its own would send it again.
-- A line each with its time (the date in its native tooltip: a Fluent tooltip per line would be thousands of
-  components) and its tag, the tag in the color of who acted (Fluent's palette: blue the agent, berry the human,
+- A line each with its time (the date in its tooltip) and its tag, the tag in the color of who acted (Fluent's palette: blue the agent, berry the human,
   marigold the tasks), warnings and errors in red; what is not a line of that shape (an object's lines under an
-  `[electron]` event) hangs under the line before it. The box of lines is ours (Fluent has no log view), drawn in
-  Fluent's tokens. **Follow** keeps the end in view, as a terminal does, lets go when the log is scrolled up, and
+  `[electron]` event) hangs under the line before it. **Follow** keeps the end in view, as a terminal does, lets go when the log is scrolled up, and
   goes back to the end when checked again.
 - What to show (a toolbar's radio buttons, one always chosen) and a text filter on top of it (a task's key, `wc=1`, a
   tag): **All**; **Errors** (warn and error lines, `[page]`, `[electron]`, an action refused or failed); **Agent**
@@ -533,87 +530,6 @@ window it comes from (`event.sender`); one change to the open tasks after anothe
 - The tests call channels by their names in pages (`invoke` and `act` in `test/e2e/helpers.ts`, through
   `page.evaluate`): those are not checked.
 
-## The app icon, installers and updates
-
-The icon is a stage curtain drawn apart with the agent's pointer (`assets/icon.svg`, rendered for each OS by `npm run
-icons`): in the title bar, the taskbar and the installers. Run from source, GNOME's dock shows a generic icon, on
-purpose: it takes icons from installed `.desktop` files only (the `.deb` installs one matching the window class
-`kulisa`, named Kulisa by its own template, `assets/linux.desktop.ejs`: the makers' would name it after the package and
-give it the class `Kulisa`). The macOS Dock shows Electron's own icon for a bundle run from source, so Kulisa sets its
-own there (`app.dock.setIcon`); a packaged one has it in its bundle.
-
-Installers are made with Electron Forge (`npm run make`, `forge.config.ts`), each on its own OS: `.deb` and `.rpm` on
-Linux (the `.deb` checked: it installs `chrome-sandbox` setuid root, a menu entry and the icon, and the app starts;
-99 MB, about 280 of its 320 MB installed being Electron itself, as VS Code's or Slack's), Squirrel `.exe` on Windows,
-`.dmg` and `.zip` on macOS (signed and notarized when the Apple secrets are set; without them unsigned, which runs on
-the Mac it was built on; for users: #206). On macOS and Windows node-pty is not built again:
-its own prebuilt binary is packaged (N-API, the one `npm start` loads), so no compiler is needed; on macOS its
-`spawn-helper`, the program it starts a shell with, is kept outside the archive, where it runs it from (in it, a
-packaged Kulisa's terminal fails). **What the package holds** is what the main process runs: its `dependencies`, the
-window's build (`dist/renderer`, 3 MB) and the agents' packages. The window's libraries (React, Fluent UI, Lucide's
-icons, xterm and its addons, the fonts) are `devDependencies`, which Forge leaves out: Vite bundles them, and the main
-process imports none of them (but `@xterm/headless`, which keeps each shell's screen). node-pty's prebuilt binaries for
-the other platforms (58 MB, mostly Windows's) are removed by a packaging hook (`prunePrebuilds` in `forge.config.ts`):
-it loads only its own platform's, on Linux the one built at install; the archive is 40 MB. The `.dmg` needs `appdmg`,
-whose native parts npm builds at install with the Command Line Tools: without a working compiler it is left out, and
-`npm run package` (the app in `out/`) or the `.zip` do.
-
-`npm run publish` makes them and uploads them to a **draft release** on GitHub (`@electron-forge/publisher-github`). A
-merge into `main` (CLAUDE.md, Releases) releases them by itself, on GitHub Actions (`.github/workflows/release.yml`;
-macOS once its secrets are set): the workflow first makes the draft `v<version>` at the merged commit, its notes the
-pull request's text (Forge's own would name no commit, and GitHub would tag whatever `main` is when the draft is
-published); Ubuntu and Windows build and Forge uploads into it, finding it by its name, and each file's provenance is
-attested (`actions/attest`: a statement signed through Sigstore and kept by GitHub, not in the release, that this
-workflow built this very file from this commit; the `.nupkg` the Windows updater downloads too; checked with `gh
-attestation verify <file> -R cosmotools/kulisa`); the `.deb` is installed on Ubuntu and started under Xvfb (its MCP
-server listening, nothing uncaught, still running after 5 s: the tests run Kulisa from source, and what breaks only
-packaged would reach every installed copy, one failing at start never able to update again); then the draft is
-published, the tag made at that commit. Before that, and when a step fails, it is a draft nobody is served. A version
-released before stops it. Once published, kulisa.app is built again (`kulisa-site`'s deploy, the secret
-`SITE_DEPLOY_TOKEN`): its download buttons lead to this release's files. What is left of releases and updates:
-#206 (macOS), #207.
-
-**Not made, and why** (the guide, Systems, says it to users): AppImage (on Ubuntu 24.04 and later Electron in an
-AppImage starts only with `--no-sandbox`: its FUSE mount is `nosuid` and AppArmor restricts unprivileged user
-namespaces; Kulisa's pages hold real accounts; no maker of Forge's own); Snap and Flatpak (their sandbox is in the way
-of what Kulisa does: the user's shell, agent CLIs, git, direnv, agents installed in `~/.local/bin`; Snap only with
-classic confinement, reviewed by hand). Not Velopack or electron-updater for updates: one leaves Forge's makers and has
-AppImage only on Linux, the other needs electron-builder.
-
-**Updates**, Forge's way (`updates.ts`, called by `index.ts`): Electron's `autoUpdater` (Squirrel) through the Electron
-team's `update-electron-app`, from update.electronjs.org, which serves a public repository's published GitHub releases.
-A packaged Kulisa on Windows or macOS checks at start and every 6 hours (not the module's 10 minutes: Kulisa stays open
-for days), downloads a newer release in the background, and starts it the next time it is started. It never restarts
-by itself nor asks with the OS's dialog (`notifyUser: false`). Not from source (`app.isPackaged`), nor on Linux, where
-Electron has no updater: the distribution's package manager updates it, as Electron's docs advise, under the running
-Kulisa, which goes on from the old files (dpkg and rpm write each file beside and rename it over).
-
-**A new version ready while Kulisa runs** (`updateNotices` in `updates.ts`): downloaded by the updater
-(`update-downloaded`), or installed on disk (Linux: the app archive's folder watched, `installed.ts`: the version read
-from the archive as it is on disk, `process.noAsar` for that read, since Electron's own reads go to the file it opened
-at start), is asked about once per version, in Kulisa's own dialog (Dialogs and questions), in the tasks' window in
-front: "Kulisa <version> is ready", Restart or Later, saying which agents it would stop, as quitting does. Restart
-(`shell.restart`) saves everything as `before-quit` does (session cookies, tabs, the windows), then Squirrel's
-`quitAndInstall` (which closes the windows before `before-quit`, Electron's `api/auto-updater.md`: `quitting` is set
-already, so they close without a question) or, on disk, `app.relaunch` (the same path, its files replaced) and quit;
-the windows and their tasks come back in the new version. Later: nothing more; the next start is the new version.
-
-The `.deb` adds Kulisa's apt repository and its key as Chrome's and VS Code's do (`assets/deb/postinst`; gone with
-`purge`, `postrm`), so a new release comes with the system's updates. The repository is a flat one on GitHub Releases,
-nothing else to host (GitHub Pages takes no file over 100 MB, and the `.deb` is about that): its index, signed with the
-key in the secret `APT_SIGNING_KEY`, is the files of the release `apt` (a prerelease, never the latest: kulisa.app's
-buttons are the latest's files), naming the newest `.deb` by its path in its own release,
-`v<version>/kulisa_<version>_amd64.deb`, whose address GitHub answers with a redirect apt follows. `release.yml` writes
-it once the release is published, then installs the `.deb`, Kulisa again from the repository, and purges it. An `.rpm`
-is installed again by hand (a dnf repository: #207). Each format updates its own way only, never one put over
-another. A check sends update.electronjs.org the version, the OS and the IP; the download comes from GitHub.
-
-On Windows, Squirrel starts the app while installing, updating and removing it (`--squirrel-install` …), to make or
-remove its shortcuts: `electron-squirrel-startup` does that and Kulisa quits without starting (Forge's Squirrel.Windows
-maker). Its first run after installing checks nothing (Squirrel holds a lock then), and the app's id is the one its
-shortcuts carry (`com.squirrel.kulisa.kulisa`), or Windows would not pin it to the taskbar (Electron's
-`api/auto-updater.md`).
-
 ## The code
 
 | File | What |
@@ -632,7 +548,6 @@ shortcuts carry (`com.squirrel.kulisa.kulisa`), or Windows would not pin it to t
 | `src/main/log.ts` | the log: the file (electron-log), `summary` of an action's arguments, the Log page's reading and following of it, the issue's address (The log) |
 | `components/LogPage.tsx`, `components/AboutPage.tsx` | the Log and About pages of Settings (The log; Menus, About Kulisa) |
 | `src/main/keys.ts` | the keyboard shortcuts: the table, which key an input event is; `shortcuts.ts` takes them (Keys) |
-| `src/main/updates.ts`, `installed.ts`, `forge.config.ts` | updates, Squirrel's events, a new version ready while Kulisa runs (the version installed on disk); the installers and the release |
 | `src/terminal/` | the terminal, a Kulisa package: its pty, its buffers, the xterm shown ([README](../src/terminal/README.md)) |
 | `src/main/file-links.ts` | the paths a terminal names: which exist, opening one or showing it in its folder (The terminal) |
 | `src/renderer/components/Grid.tsx`, `components/grid/`, `lib/grid.ts` | the grid (dockview), the panes and their headers, the terminals (`grid/Terminals.tsx`: `Terminals`, its row of tabs `TerminalsHeader`), the closed profiles' buttons over it (`ClosedProfiles`, `Grid.tsx`), Arrange panels |

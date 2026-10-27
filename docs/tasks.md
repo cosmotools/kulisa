@@ -50,8 +50,7 @@ repositories (git worktrees), so the project's folders stay the human's. Its dat
     then **Name**, then **Folders**, **Agents**, **Profiles**, each a card (`Group.tsx`) holding a list (`List.tsx`)
     with a toolbar: **+** adds (a menu), **−** removes the selected row (and Delete), **★** makes it the default
     (Folders, Agents); a row's right-click has the same. What needs typing (a URL to clone, a new profile's name)
-    opens a field under the list (Esc puts it away). Then **Local addresses**. Explanations are in the empty lines and
-    tooltips (a paragraph per section reads as documentation). Its folder is shown, not changed.
+    opens a field under the list (Esc puts it away). Then **Local addresses**. Its folder is shown, not changed.
   - **Profiles** there are only which profiles its tasks have: + makes one in it or adds another, − lets go of one
     (the profile stays); who a profile is, is Settings → Profiles'.
   - **Everything is saved as it changes** (nothing asks what a Save would cover); the name on Enter or leaving its
@@ -80,9 +79,10 @@ repositories (git worktrees), so the project's folders stay the human's. Its dat
 
   The name is the first folder's or repository's until the human types one. A folder or URL typed and not added counts
   when Next is pressed. The step says what will happen as it is typed ("… is there already", "… is a git
-  repository", "The repository will be cloned into …"; refused: a file, or a folder a project has). Color and icon
-  are not asked (below). Git is not asked of: a new folder, or one without git, is a plain folder its tasks work in
-  ("Without git", below); a developer who wants git asks the agent, and tasks made once it has a commit get copies.
+  repository", "The repository will be cloned into …"; refused at its field: a file, or a folder a project has).
+  Color and icon are not asked (below). Git is not asked of: a new folder, or one without git, is a plain folder its
+  tasks work in ("Without git", below); a developer who wants git asks the agent, and tasks made once it has a commit
+  get copies.
   - **Agents**: the accounts there are, ticked (one or several), one the default (★; the first ticked unless another is
     starred): a new task starts it, the others open beside it ("Choosing the agent"). The terminal is no choice:
     every project has it, and one with none ticked starts its tasks with it. Under them **Add account**, a button per
@@ -112,7 +112,7 @@ repositories (git worktrees), so the project's folders stay the human's. Its dat
   terminals and pages go on, the Dock's icon shows it again; ⌘Q quits, asking as above, the window shown for the
   question. A window whose last tab closes closes too, unless it is the only one: then it is the empty window.
 - **Each project has a color and an icon**, to tell projects apart: the color is the title bar logo's curtain while
-  one of its tasks is shown (`--project`, `lib/store.ts`) and the shown tab's underline; the icon is on its tasks' tabs
+  one of its tasks is shown (`--project`, `lib/store.ts`); the icon is on its tasks' tabs
   and its row in the sidebar, in its color. **Both are Kulisa's, nothing to choose** (a project is
   made to work in, not to be set up):
   - **The icon: its site's favicon**, the curtain while it has none: `favicon.*` (svg, png, ico, webp, gif, jpg)

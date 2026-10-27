@@ -82,8 +82,7 @@ project, and those you closed, are in the sidebar (Tasks, below).
   its 🗑 deletes them all. The agent sees the same: ask it what is there, or to clean them up. Past 100 MB a task's oldest
   go by themselves. Drag the line beside it to resize it, as any pane.
 - **The tasks' bar**, under the grid (or in the title bar, as a browser's tabs: **☰ → Tasks bar**): a tab per open
-  task, of any project, with its project's icon and its agent's state, the shown one underlined in its project's
-  color; **+** after them makes a new task of the shown task's project. When there are more tabs than fit, the mouse
+  task, of any project, with its project's icon and its agent's state, the shown one filled; **+** after them makes a new task of the shown task's project. When there are more tabs than fit, the mouse
   wheel over the bar scrolls them, and a faded edge shows that more are past it.
 - **No task open** (after you close the last task): the sidebar stays open at the window's left, every project with
   its tasks (Tasks, below). At the very first start, with no project yet, it shows what Kulisa does, then New Project.
@@ -364,7 +363,7 @@ profile's menu, also on a right-click) and **×**. Under it, a tab strip, then b
 - Close the last one and the panel folds to a thin strip with **+** in its middle, which opens one again (Ctrl+`
   opens the task's agent). With no profile open either, big buttons in the middle of the window do what **+** does:
   one for each of the project's agents, then **Terminal**. Tab moves between them and Enter opens one. Under them, a
-  tile for each of the project's profiles opens it.
+  button for each of the project's profiles opens it.
 - Terminals come back after a restart in their tabs: an agent continues its conversation, a shell starts fresh. An
   agent's tab shows "Starting…" for a moment while its agent starts.
 - Copy and paste as in your OS's terminal: Ctrl+Shift+C / Ctrl+Shift+V on Linux, Ctrl+C / Ctrl+V on Windows, ⌘C / ⌘V

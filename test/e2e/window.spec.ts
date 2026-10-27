@@ -216,7 +216,7 @@ test("terminal: dictation where the agent has its own: the right Ctrl held anywh
   await change.click();
   await expect(hold).toHaveText(['Press a key…']);
   await core((k) => k.press(k.shell.win.webContents, 'A'));
-  await expect(shortcuts.getByRole('alert')).toHaveText(/^Press a key that types nothing/);
+  await expect(shortcuts.getByText(/^Press a key that types nothing/)).toBeVisible();
   await expect(hold).toHaveText([name]);
   await change.click();
   await core((k) => k.press(k.shell.win.webContents, 'F9'));
@@ -248,9 +248,9 @@ test("the terminals' panel: its terminals in tabs over them, one shown, flat as 
   });
   expect((await mcp()).getInstructions()).toMatch(/terminal_run, not in your own shell.*This is the Kulisa task "task-1", working right in the project's folder .* \(no git, so no worktree of its own\)\. Run the app under test on a free port you pick \(Kulisa assigns none\).*Name the task with task_rename once you know what it is about, silently: never ask the human for a name or mention it\. These notes are for you/s);
   expect(await tabs(), "the agent's tab, named after its agent").toEqual(['bash *']);
-  // Flat, as a profile's pane: the row, its tab in front and the terminal on one background, a pane's tabs' own.
+  // Flat, as a profile's pane: the row and the terminal on one background; the row and its tab in front a pane's tabs' own.
   const front = 'nav[aria-label="Terminals"] [role="tab"][aria-selected="true"]';
-  expect([await color('[data-testid="terminal-tabs"]'), await color(front)]).toEqual([await color('[data-testid="terminals"]'), await color('[data-testid="terminals"]')]);
+  expect(await color('[data-testid="terminal-tabs"]')).toBe(await color('[data-testid="terminals"]'));
   expect([await color('[data-testid="terminal-tabs"]'), await color(front)]).toEqual([await color('[role="region"][data-profile] nav[aria-label="Tabs"]'), await color('[role="region"][data-profile] [role="tab"][aria-selected="true"]')]);
   // + is the panel's, not a tab's: its menu has the project's agents (none here) and Terminal. The tab growing in is
   // an attribute there for a moment: an observer notes it (an assertion could look after it went).
@@ -394,15 +394,17 @@ test('KULISA_QUIT: a second start asks the Kulisa running on the same data to qu
   await focusWindow(core, ui); // the other Kulisa's window took it (macOS: the front app's), as a click would give it back
 });
 
-test("icons: Lucide's, in lines of the text's color; icon buttons have a name", async ({ core, ui }) => {
+test("icons: Fluent's, filled in the text's color, one look across the bars; icon buttons have a name", async ({ core, ui }) => {
   await sam(core);
-  // Every button of the page checked at once: a sweep no locator makes.
+  // Every button and icon of the page checked at once: a sweep no locator makes.
   const r = await ui.evaluate(() => {
     const icon = document.querySelector('#windowMenu svg'), button = icon.closest('button');
+    const icons = [...document.querySelectorAll('svg[data-fui-icon]')].filter((s) => s.getClientRects().length);
     return { unnamed: [...document.querySelectorAll('button, [role="button"]')].filter((b) => !b.textContent.trim() && !b.getAttribute('aria-label') && !b.getAttribute('aria-labelledby') && !(b as HTMLElement).title).map((b) => b.outerHTML.slice(0, 80)),
-      lines: [getComputedStyle(icon).fill, getComputedStyle(icon).stroke === getComputedStyle(button).color] };
+      menu: getComputedStyle(icon).fill === getComputedStyle(button).color, some: icons.length > 5,
+      apart: icons.filter((s) => { const c = getComputedStyle(s); return c.fill !== c.color || c.stroke !== 'none'; }).map((s) => s.outerHTML.slice(0, 80)) };
   });
-  expect(r).toEqual({ unnamed: [], lines: ['none', true] });
+  expect(r).toEqual({ unnamed: [], menu: true, some: true, apart: [] });
 });
 
 test("the app icon: in the top bar (not on macOS: the Dock's), and every file the window and the installers use", async ({ ui }) => {
@@ -664,7 +666,7 @@ test("About Kulisa (☰; on macOS the app menu's) is a page of Settings: the ver
   await expect(folders).toHaveCount(3);
   for (const [i, [id, dir, there]] of ([['data', files.userData, true], ['projects', projectsHome, made], ['program', CHECKOUT, true]] as const).entries()) {
     await expect(folders.nth(i)).toHaveAttribute('data-folder', id);
-    await expect(folders.nth(i).getByText(dir, { exact: true })).toBeVisible();
+    await expect(folders.nth(i).getByRole('textbox')).toHaveValue(dir);
     const show = folders.nth(i).getByRole('button');
     await expect(show).toHaveAccessibleName(there ? 'Show in your file manager' : 'Not made yet');
     await expect(show).toBeEnabled({ enabled: there });
