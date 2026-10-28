@@ -202,5 +202,7 @@ What is drawn or moved here rather than by shadcn, each for a reason at it:
   at the window's edge;
 - the log's box of lines (`LogPage.tsx`): shadcn has no log view; its tags in the theme's colors; the installer's
   output (`AgentPage.tsx`, `AgentPicker.tsx`) a `role="log"` of monospace lines, as tall as what it says;
+- the steps' names of New Project (`StepNames`, `NewProject.tsx`) and the welcome's dots (`Dots`, `Welcome.tsx`):
+  shadcn has no stepper, and its `carousel` brings no dots;
 - the welcome's pictures (`Welcome.tsx`): a task's window drawn small in boxes of our own, its terminal's lines in a
   terminal's colors.

@@ -13,7 +13,6 @@ import { NEW_TOKEN, type GitHubAccount, type GitHubInfo } from '../../../github/
 
 const day = (ms: number) => new Date(ms).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
 const installed = (a: GitHubAccount) => (a.kind === 'pat' ? 'a token' : a.installed === null ? '—' : a.installed.join(', ') || 'nowhere yet');
-const link = 'underline underline-offset-4';
 
 export function GitHubPage() {
   const [info, setInfo] = useState<GitHubInfo | null>(null), [error, setError] = useState('');
@@ -85,7 +84,7 @@ export function GitHubPage() {
         <Alert>
           <AlertTitle>Sign in with GitHub</AlertTitle>
           <AlertDescription>
-            <p>Enter this code on GitHub's page, which opened in your browser (<a href={signing.url} target="_blank" rel="noreferrer" className={link}>open it again</a>):</p>
+            <p>Enter this code on GitHub's page, which opened in your browser (<a href={signing.url} target="_blank" rel="noreferrer">open it again</a>):</p>
             {/* GitHub's code in a monospace font: read and typed without a mistake (0 and O) */}
             <p data-testid="code" data-selectable className="font-mono text-xl font-semibold text-foreground">{signing.code}</p>
             <p>Enter a code on GitHub only when Kulisa has just shown it to you: a code someone else gives you signs them in as you.</p>
@@ -98,7 +97,7 @@ export function GitHubPage() {
       </div>}
 
       {pasting && <AddInPlace label="Token" type="password" placeholder="github_pat_…" value={token} ok="Add" error={tokenError || undefined}
-        description={<>A fine-grained token: <a href={NEW_TOKEN} target="_blank" rel="noreferrer" className={link}>make one on GitHub</a>, its resource owner the
+        description={<>A fine-grained token: <a href={NEW_TOKEN} target="_blank" rel="noreferrer">make one on GitHub</a>, its resource owner the
           organization or user of your repositories (an organization may have to approve it), then paste it here.</>}
         onChange={(v) => { setToken(v); setTokenError(''); }} go={() => void addToken()} stop={() => setPasting(null)} />}
       {/* a refusal not at the token's field */}
