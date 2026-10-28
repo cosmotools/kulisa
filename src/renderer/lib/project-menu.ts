@@ -5,6 +5,9 @@ import { openSettings } from './settings';
 import type { MenuItem } from './menu';
 import type { ProjectEntry } from '../../shared/types';
 
+// A project's sort key for "worked in last first" (the sidebar, the bar's + menu): an open task → Infinity, else its last close.
+export const lastWorked = (p: ProjectEntry): number => (p.tasks.some((t) => !t.closed) ? Infinity : Math.max(0, ...p.tasks.map((t) => t.closedAt ?? 0)));
+
 // newTask: how its New Task opens one, keys its key; move: its Move All Tasks rows (a tab's); done: a choice that shows
 // something made (the sidebar over the grid closes then).
 export function projectMenu(p: ProjectEntry, { newTask, keys, move = [], done = () => {} }:

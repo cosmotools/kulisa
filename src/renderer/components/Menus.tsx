@@ -1,6 +1,6 @@
 // The window's menus, on shadcn's DropdownMenu, their rows from lib/menu.ts (docs/ui.md, Menus): Radix's rules but
 // four, each kept where it is done.
-import { createElement, useCallback, useEffect, useRef, useState, type MouseEvent, type PointerEvent, type ReactElement, type ReactNode } from 'react';
+import { createElement, useCallback, useEffect, useRef, useState, type ComponentProps, type MouseEvent, type PointerEvent, type ReactElement, type ReactNode } from 'react';
 import { Avatar, AvatarImage, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuShortcut,
   DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger, Item, ItemContent, ItemDescription, ItemMedia, ItemTitle } from '@ui';
 import { avatarSrc } from '../lib/common';
@@ -8,8 +8,9 @@ import { closePointMenu, menuAt, usePointMenu, type MenuItem, type MenuRow } fro
 import { ProjectIcon } from './ProjectIcon';
 import { agentMark } from './AgentMark';
 
-// A row's mark at its start: its icon, a profile's picture, an agent's mark.
+// A row's mark at its start: its icon, a profile's picture, an agent's mark, a project's icon.
 function mark(it: MenuRow) {
+  if (it.project) return <ProjectIcon p={it.project} size={16} />;
   if (it.avatar) return <Avatar className="size-4"><AvatarImage src={avatarSrc(it.avatar)} alt="" /></Avatar>;
   if (it.agent) return createElement(agentMark(it.agent));
   return it.icon ? createElement(it.icon) : undefined;
@@ -74,11 +75,12 @@ function useMenu() {
 // chooses it); items: built as it opens; end: its end edge at the button's (at a bar's end). Not modal: a press outside
 // closes it and acts there, another menu opening right from this one, as a menu bar's. Its content mounted only while
 // open, so it is gone at once as it closes: a fading menu keeps the keyboard, taking it back from a dialog its row
-// opened under the pointer, and takes the next Esc. As wide as its rows (w-auto), at least a button's.
-export function ButtonMenu({ items, children, end }: { items: () => MenuItem[]; children: ReactElement; end?: boolean }) {
+// opened under the pointer, and takes the next Esc. As wide as its rows (w-auto), at least a button's. trigger: what a
+// part around it gives its button (a Tip's trigger).
+export function ButtonMenu({ items, children, end, ...trigger }: { items: () => MenuItem[]; children: ReactElement; end?: boolean } & ComponentProps<typeof DropdownMenuTrigger>) {
   const m = useMenu();
   return <DropdownMenu modal={false} open={m.open} onOpenChange={(o) => (o ? m.show(items()) : m.close())}>
-    <DropdownMenuTrigger asChild>{children}</DropdownMenuTrigger>
+    <DropdownMenuTrigger asChild {...trigger}>{children}</DropdownMenuTrigger>
     {m.open && <DropdownMenuContent align={end ? 'end' : 'start'} className="w-auto min-w-48" onCloseAutoFocus={m.onCloseAutoFocus} onFocusOutside={keep}>
       <Rows items={m.rows} close={m.close} />
     </DropdownMenuContent>}

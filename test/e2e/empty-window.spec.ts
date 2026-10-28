@@ -222,7 +222,7 @@ test("the empty window: Close All Tasks in the project's submenu; links in ☰ o
   expect(logged, 'the time as ISO 8601 with its offset').toMatch(/^\[\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}[+-]\d\d:\d\d\] \[info\] \[kulisa\] start \d+\.\d+\.\d+, electron \d+\./m);
   expect(logged).toMatch(/\[kulisa\] encryption (available|not available)/);
   expect(logged, 'the run before quit as asked (the tests quit with app.quit)').not.toMatch(/did not quit by itself/);
-  expect(logged).toMatch(new RegExp(`\\[ipc\\] project:open wc=\\d+ \\{"id":"${shopId}"\\}`));
+  expect(logged).toMatch(new RegExp(`\\[ipc\\] task:new wc=\\d+ \\{"project":"${shopId}"\\}`));
   // The project named beside its id where it first appears (its id is random: store.ts).
   expect(logged).toMatch(new RegExp(`\\[project\\] ${shopId} loaded: Shop \\(\\S*Shop\\)`));
   expect(logged).toMatch(new RegExp(`\\[task\\] created ${shopId}/[a-z0-9]{6} \\(Shop\\) in \\S*Shop wc=\\d+`));

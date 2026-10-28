@@ -94,7 +94,7 @@ repositories (git worktrees), so the project's folders stay the human's. Its dat
     asks, or with Sign In… in Settings → Profiles.
   - **Create**: one call (`project:new`), the core making it all (`createProject`, `projects.ts`: code, agents in
     order, profiles); what could not be added of the agents and profiles is logged, the project made all the same.
-    Its first task opens in this window (`project:open`) with its default agent, nothing asked.
+    Its first task opens in this window (`task:new`) with its default agent, nothing asked.
 - **Showing another task** slides the grid towards its tab, as macOS desktops do (a view transition, the pages as
   pictures meanwhile; not with reduced motion), the other grid built in place, so nothing jumps; out past the window's
   edge with Material's standard easing, so no strip of the page lingers. When a task closes, the one next to it is
@@ -275,8 +275,8 @@ and the cleanup: the main working tree is the human's, never removed; a worktree
 
 - **Its tab**: its project's icon, the agent's state (working, waiting for you, done; from its hooks: "Choosing the
   agent"), its name. A click shows the task (the slide: Projects, above); the one left keeps running.
-- **A new task** (the tasks' bar's + or Ctrl+Shift+N, for the shown task's project; a project's + in the sidebar, or
-  New Task in its right-click menu or in the project's submenu) is made at once, no dialog, from the project's
+- **A new task** (the tasks' bar's +, a menu of the projects when there are several; Ctrl+Shift+N, for the shown
+  task's project; a project's + in the sidebar, or New Task in its right-click menu or in the project's submenu) is made at once, no dialog, from the project's
   configuration alone: the human describes the task to its agent in the terminal. It runs the project's default agent;
   with none, the terminal only. **No profile opens by itself** ([profiles.md](profiles.md), What a profile is): each
   is a browser's processes and memory.

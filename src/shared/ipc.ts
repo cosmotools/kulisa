@@ -34,7 +34,7 @@ type I<A extends unknown[], R = void> = { args: A; result: R };
 export interface Invoke extends ThumbnailInvoke, GitHubInvoke, DictationInvoke {
   'projects:list': I<[], ProjectsInfo | undefined>;
   'tasks:get': I<[]>;
-  'project:open': I<[{ id?: string; folder?: string; task?: string }]>;
+  'project:open': I<[{ folder: string; task?: string } | { id: string; task: string }]>;
   'project:new-defaults': I<[], ProjectChoices & { location: string; sep: string }>;
   'project:pick-location': I<[{ location?: string; existing?: boolean }], string | null>;
   'project:folder-state': I<[{ from?: string; location?: string; name?: string; folder?: string }], { folder: string; state: string; project?: string } | null>;

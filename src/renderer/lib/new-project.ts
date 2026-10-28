@@ -135,7 +135,7 @@ export function wizard(single: boolean) {
       const r = await kulisa.invoke('project:new', { from: s.from, name: s.name, location: s.place, folders: s.sources.map((x) => x.folder), urls: s.urls, ...setup });
       // Not at a field: the main process's refusal does not say which (the code's step checked them all before).
       if (refused(r)) { set({ error: r.error, errorAt: '', step: 0, nameTrouble: true }); return false; }
-      await kulisa.invoke('project:open', { id: r.id });
+      await kulisa.invoke('task:new', { project: r.id });
       return true;
     } finally { set({ saving: false }); }
   }

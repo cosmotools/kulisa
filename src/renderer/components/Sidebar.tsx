@@ -14,20 +14,18 @@ import { Tip } from './Tip';
 import { useWindow } from '../lib/store';
 import { sidebarDocked, sidebarOverlay, toggleSidebar } from '../lib/sidebar';
 import { dialog } from '../lib/dialogs';
-import { projectMenu } from '../lib/project-menu';
+import { lastWorked, projectMenu } from '../lib/project-menu';
 import { keyText, withKeys } from '../lib/common';
 import { slugOf } from '../../shared/names';
 import type { MenuItem } from '../lib/menu';
 import type { ProjectEntry, ProjectTask } from '../../shared/types';
 
 // What a choice in it does; over the grid it closes then.
-const newTask = (p: ProjectEntry) => kulisa.invoke('project:open', { id: p.id }); // its project loaded, open or not
+const newTask = (p: ProjectEntry) => kulisa.invoke('task:new', { project: p.id }); // its project loaded, open or not
 const openTask = (p: ProjectEntry, t: ProjectTask) => (t.closed ? kulisa.invoke('project:open', { id: p.id, task: t.id }) : kulisa.invoke('task:show', `${p.id}/${t.id}`));
 const deleteTask = (p: ProjectEntry, t: ProjectTask) => (t.closed ? kulisa.invoke('task:delete-closed', { project: p.id, id: t.id }) : kulisa.invoke('task:delete', `${p.id}/${t.id}`));
 const newProject = () => dialog('newproject').then((d) => d.open());
 
-// A project's sort key for "worked in last first": an open task → Infinity, else its last close.
-const lastWorked = (p: ProjectEntry): number => (p.tasks.some((t) => !t.closed) ? Infinity : Math.max(0, ...p.tasks.map((t) => t.closedAt ?? 0)));
 // When it was closed, as a person says it.
 function ago(at?: number) {
   if (!at) return '';

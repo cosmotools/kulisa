@@ -1,5 +1,5 @@
 // The tasks' bar (docs/window.md, The tasks' bar; docs/tasks.md, Projects): a tab per open task, in the bar's order,
-// then + (a new task of the shown task's project). A tab stands for itself: its project is its icon, in the project's
+// then + (a new task: of which project, a menu asks when there are several). A tab stands for itself: its project is its icon, in the project's
 // color, which also marks the shown tab (the author's choice). Every tab keeps its width whichever task is shown, so
 // showing one moves none (tabs moving under the mouse make the human miss). Where a dragged tab is let go outside every
 // Kulisa window, the main process says (the page does not know where the pointer is then).
@@ -7,7 +7,7 @@ import { flushSync } from 'react-dom';
 import { useRef, useState, type DragEvent, type MouseEvent, type PointerEvent } from 'react';
 import { PlusIcon } from 'lucide-react';
 import { Button } from '@ui';
-import { RightClickMenu } from './Menus';
+import { ButtonMenu, RightClickMenu } from './Menus';
 import { BrowserTab, TabStrip } from './BrowserTabs';
 import { Tip } from './Tip';
 import { ProjectIcon } from './ProjectIcon';
@@ -16,7 +16,7 @@ import { store, useWindow } from '../lib/store';
 import { useProjectColor } from '../lib/project-color';
 import { keyText } from '../lib/common';
 import { dialog } from '../lib/dialogs';
-import { projectMenu } from '../lib/project-menu';
+import { lastWorked, projectMenu } from '../lib/project-menu';
 import { profilesMenu } from '../lib/profiles';
 import { terminalsOf } from '../lib/terminals';
 import { useStrip } from '../lib/strip';
@@ -105,10 +105,17 @@ export function TaskBar() {
     await showing.current.catch(() => {});
     void rename(at.t.key, at.t.name);
   };
+  // The +'s menu: every project, as the sidebar orders them; Ctrl+Shift+N's is the shown task's.
+  const projectsMenu = (): MenuItem[] => [...all.projects].sort((a, b) => lastWorked(b) - lastWorked(a)).map((p) => ({ label: p.name,
+    project: { favicon: p.favicon, color: projectColor(p) }, keys: p.id === all.project ? keyText('task.new') : undefined,
+    run: () => kulisa.invoke('task:new', { project: p.id }) }));
   const menu = (e: globalThis.MouseEvent): MenuItem[] | null => {
     const at = tabAt(e);
     return at && [...taskMenu(at.t), '-', { submenu: at.p.name, project: { favicon: at.p.favicon, color: projectColor(at.p) }, items: projectItems(at.p) }];
   };
+
+  const one = all.projects.length === 1, plus = <Button id="newTask" variant="ghost" size="icon-sm" aria-label="New task"
+    onMouseDown={(e) => e.preventDefault()} onClick={one ? () => kulisa.invoke('task:new') : undefined}><PlusIcon /></Button>;
 
   const [dragged, setDragged] = useState<string | null>(null); // the task dragged from this window
   const [mark, setMark] = useState<{ key: string; side: 'before' | 'after' } | null>(null); // where a dropped one would go
@@ -176,10 +183,9 @@ export function TaskBar() {
     </RightClickMenu>
     {/* beside the +: above or under it, the tooltip would open over the pages, which cover it. It goes as the + is
         pressed, as Chrome's: the slide to the new task shows a picture of the window, the tooltip in it until it ends;
-        the + takes no keyboard (its focus would show the tooltip again). */}
+        the + takes no keyboard (its focus would show the tooltip again). With one project it asks nothing. */}
     <Tip text="New task" side="right">
-      <Button id="newTask" variant="ghost" size="icon-sm" aria-label="New task"
-        onMouseDown={(e) => e.preventDefault()} onClick={() => kulisa.invoke('task:new')}><PlusIcon /></Button>
+      {one ? plus : <ButtonMenu items={projectsMenu}>{plus}</ButtonMenu>}
     </Tip>
   </nav>;
 }

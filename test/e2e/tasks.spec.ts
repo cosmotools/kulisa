@@ -44,7 +44,7 @@ test("tasks: without git a task works in the project's folder, and a second one 
   fs.mkdirSync(dir);
   const made = await invoke(ui, 'project:new', { from: 'folder', folders: [dir], name: 'nogit' });
   expect(made.id, JSON.stringify(made)).toBeTruthy();
-  await invoke(ui, 'project:open', { id: made.id });
+  await invoke(ui, 'task:new', { project: made.id });
   await projectShown(core, made.id);
   const key = await core(async (k) => { await k.shell.task.rename('task-1'); return k.shell.task.key; }); // named for the test to refer to it by
   await expect.poll(() => taskTabs(ui)).toEqual(['task-1 *']);

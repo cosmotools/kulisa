@@ -8,6 +8,7 @@ export interface MenuRow {
   icon?: ComponentType; // at the row's start
   agent?: string; // an agent's mark at the row's start, by its id (cli; components/AgentMark.tsx)
   avatar?: string; // a profile's picture
+  project?: { favicon?: string; color: string }; // a project's icon, in its color shown (components/ProjectIcon.tsx; projectColor)
   enabled?: boolean;
   run?: () => unknown; // none: shown only
 }

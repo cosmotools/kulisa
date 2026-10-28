@@ -3,7 +3,7 @@
 import path from 'path';
 import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
-import { MAC, frames, ipcSettled, menu, choose, closeMenu, rightClick, fromSidebar, openSidebar, closeSidebar, sidebar, taskRow, rowButton, focusWindow, viewOn, termShows, invoke, notLoading, noSlide, answer, removed, termKeys, resize } from './helpers.ts';
+import { MAC, frames, ipcSettled, menu, item, choose, closeMenu, rightClick, fromSidebar, openSidebar, closeSidebar, sidebar, taskRow, rowButton, focusWindow, viewOn, termShows, invoke, notLoading, noSlide, answer, removed, termKeys, resize } from './helpers.ts';
 import { committed, rand, keyAt, isNth, nthShown, taskTab, hook, begin, bothOn, newTask } from './tasks-helpers.ts';
 
 // The tab chosen (lit) in the bar.
@@ -361,7 +361,7 @@ test('menus: one longer than the window has stays in it and scrolls', async ({ c
   } finally { await resize(core, before); }
 });
 
-test("tasks: the bar's + makes a new task of the shown task's project in one click", async ({ core, ui, files, call }) => {
+test("tasks: with one project the bar's + makes a new task of it in one click", async ({ core, ui, files, call }) => {
   await begin(core, ui, files, { only: true, columns: true, featureX: call });
   const before = await core((k) => k.shell.current.tasks.size), first = await keyAt(core, 1);
   await noSlide(ui); // the slide's pictures over the window take every event
@@ -377,7 +377,7 @@ test("tasks: the bar's + makes a new task of the shown task's project in one cli
   await nthShown(core, 1);
 });
 
-test("tasks: the sidebar with several projects — a project's + makes it a new task, and a task's 🗑 deletes it after the question", async ({ core, ui, files, call }) => {
+test("tasks: with several projects the bar's + asks which (one not loaded too), the sidebar's project's + makes it a new task, and a task's 🗑 deletes it after the question", async ({ core, ui, files, call }) => {
   // About 1 s: git's work (a second project made and deleted).
   await begin(core, ui, files, { only: true, columns: true, featureX: call });
   // A second project, open.
@@ -385,7 +385,18 @@ test("tasks: the sidebar with several projects — a project's + makes it a new 
   committed(plus2, 'a.txt', 'a', 'mine');
   const made = await invoke(ui, 'project:new', { from: 'folder', folders: [plus2], name: 'Plus2' });
   expect(made.id, 'the second project is made').toBeTruthy();
-  await invoke(ui, 'project:open', { id: made.id });
+  // The bar's + asks which project: each with its icon, the shown task's first (worked in last) with Ctrl+Shift+N, the
+  // key's. Plus2, not loaded yet, gets its first task.
+  await noSlide(ui);
+  await ui.locator('#newTask').click();
+  await expect(menu(ui)).toMatchAriaSnapshot(`
+    - menu:
+      - menuitem "project"
+      - menuitem "Plus2"
+  `);
+  await expect(item(ui, 'project')).toContainText(MAC ? '⇧⌘N' : 'Ctrl+Shift+N');
+  await expect(item(ui, 'Plus2').getByTestId('project-icon')).toBeVisible();
+  await choose(ui, 'Plus2');
   const on = () => core((k, id) => k.shell.current?.id === id && k.settled(), made.id);
   await expect.poll(async () => (await on()) && core((k) => !!k.shell.pty), { timeout: 10000 }).toBe(true);
   await notLoading(ui);
