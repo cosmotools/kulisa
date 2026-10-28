@@ -124,12 +124,16 @@ export async function closeMenu(ui: Page) {
 // waits for the key).
 export const shortcutsDialog = (ui: Page) => ui.getByRole('dialog', { name: 'Keyboard Shortcuts' });
 export const shortcutKeys = (ui: Page, label: string) => shortcutsDialog(ui).getByRole('row').filter({ has: ui.getByRole('cell', { name: label, exact: true }) }).locator('[data-key]');
-// A row of ☰ that opens a menu beside it (Theme, Tasks bar, Language), opened; that menu.
+// A row of ☰ that opens a menu beside it (Theme, Tasks bar, Language), opened, the pointer moved into it as a hand moves
+// it; that menu. Radix keeps it open as the pointer leaves the row only toward the side the last moves inside ☰ went:
+// a move in one step tells none, and a menu on the row's left (macOS: ☰ at the window's edge) closed on the way to it.
 export async function windowSubmenu(ui: Page, row: string) {
   if (!(await menu(ui).count())) await ui.locator('#windowMenu').click();
   await item(ui, row).click();
   const sub = ui.getByRole('menu', { name: row, exact: true });
   await expect(sub).toBeVisible();
+  const b = await sub.boundingBox();
+  await ui.mouse.move(b.x + b.width / 2, b.y + b.height / 2, { steps: 5 });
   return sub;
 }
 // A right-click as the mouse makes it, at an element's middle (its press closes a menu open elsewhere; on Windows the
