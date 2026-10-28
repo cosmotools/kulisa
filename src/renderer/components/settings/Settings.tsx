@@ -44,7 +44,7 @@ export function Settings({ at, className }: { at: SettingsAt; className?: string
   const [profiles, setProfiles] = useState<SettingsProfile[]>([]);
   const [newProfile, setNewProfile] = useState<string | null>(null), [profilesError, setProfilesError] = useState('');
   const save = useRef(async () => {});
-  // The project's page read again each time Settings is asked for a page.
+  // The page read again each time Settings is asked for one, or one is chosen in its nav (the same one too).
   const [shown, setShown] = useState(0);
   // The pages of the profiles hidden while it is shown, the keys its own, as a dialog's. Hidden as it is filled, not
   // before: the window stays as it is until Settings is drawn in one go. Closed, the keyboard goes back where it was.
@@ -71,6 +71,7 @@ export function Settings({ at, className }: { at: SettingsAt; className?: string
     if (on !== 'agents' || id !== shownAgent?.id) setSigning(null);
     setFirst(null); // what it opened at is as it was then: a page shown later fetches its own
     setPlace({ section: on, id });
+    setShown((s) => s + 1);
   };
   // Opened, or asked again, at a page (lib/settings.ts).
   useEffect(() => { void (async () => {
@@ -175,7 +176,7 @@ export function Settings({ at, className }: { at: SettingsAt; className?: string
           description: [p.description, p.projects.length ? `in ${p.projects.join(', ')}` : 'in no project'].filter(Boolean).join(' · ') })),
         profileMenu, newProfile === null && 'No profiles yet.')}
       </>;
-    return section === 'github' ? <GitHubPage /> : section === 'log' ? <LogPage /> : <AboutPage />;
+    return section === 'github' ? <GitHubPage key={shown} /> : section === 'log' ? <LogPage key={shown} /> : <AboutPage key={shown} />;
   };
 
   // The log as wide and high as the window lets it; the other pages a column from the left, scrolling under the path.
