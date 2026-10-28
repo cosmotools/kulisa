@@ -89,6 +89,11 @@ takes (pasting again from Kulisa would double it). With nothing selected in xter
 Code's fullscreen rendering selects with its own mouse and copies on release itself (an empty copy would wipe it); Shift held while dragging selects in xterm instead. Keys are known by `keyCode` too, as
 ibus with a Cyrillic layout leaves `code` out.
 
+Files dropped onto a View are disk paths from the preload's `webUtils.getPathForFile`, quoted for that terminal's
+shell (`pty:quote-paths`, `quotePaths`), separated by spaces and pasted through xterm, without Enter. A reply is used
+only while the same terminal is shown. JavaScript-created Files have no disk path and are ignored. The drop cancels
+Chromium's navigation; the log records the terminal and file count, never the paths.
+
 Links (OSC 8, as Claude Code marks them, and addresses in plain text: xterm's web-links addon) open with Ctrl+click (⌘
 on macOS), `http` and `https` only, the address shown on hover, through `termHooks.open`, which the terminals' panel
 sets (a menu: one of the task's profiles, or the user's browser; docs/window.md, The terminal), not xterm's own
@@ -108,7 +113,7 @@ hover. A file an agent marks as a link (OSC 8) goes to `openFile` too: Claude Co
 
 ## Its channels (`ipc.ts`)
 
-`pty:in` (keys), `pty:resize` (the size shown), `pty:out` (output, to the window of the task it is in),
+`pty:quote-paths` (invoke: shell literals for dropped files), `pty:in` (keys), `pty:resize` (the size shown), `pty:out` (output, to the window of the task it is in),
 `terminals:restore` (a task's terminals' contents, written into the buffers of the window it moves to),
 `terminals:gone` (their buffers dropped). `src/shared/ipc.ts` joins them into all of the window's channels.
 

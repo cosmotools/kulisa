@@ -147,6 +147,23 @@ export class View {
       this.opened = true;
       this.fitSoon();
     });
+    this.el.addEventListener('dragover', (e) => {
+      if (!e.dataTransfer?.types.includes('Files')) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = this.key ? 'copy' : 'none';
+    });
+    this.el.addEventListener('drop', (e) => {
+      if (!e.dataTransfer?.types.includes('Files')) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const key = this.key, paths = [...e.dataTransfer.files].map((f) => kulisa.filePath(f)).filter(Boolean);
+      if (!key || !paths.length) return;
+      void kulisa.invoke('pty:quote-paths', { task: key, paths }).then((text) => {
+        if (!text || this.key !== key || !views.has(this)) return;
+        t.paste(text);
+        t.focus();
+      });
+    });
     t.onData((data) => { if (this.key) kulisa.send('pty:in', { task: this.key, data }); });
     t.attachCustomKeyEventHandler((e) => {
       const does = e.type === 'keydown' && clipboardKey(e, kulisa.platform, t.hasSelection());

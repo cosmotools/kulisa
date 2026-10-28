@@ -41,4 +41,10 @@ function shellLine(shell: string, command: string, args: string[], pinned: Recor
   return [...Object.entries(pinned).map(([k, v]) => `${k}=${quote(v)}`), ...[command, ...args].map(quote)].join(' ');
 }
 
-export { shellQuote, shellLine };
+// Paths pasted into a prompt need shell literals; PowerShell's native-program argument conversion belongs to shellLine.
+function quotePaths(shell: string, paths: string[]) {
+  const ps = ['pwsh', 'powershell'].includes(shellName(shell));
+  return paths.map((p) => ps ? `'${p.replace(/'/g, "''")}'` : shellQuote(shell, p)).join(' ');
+}
+
+export { shellQuote, shellLine, quotePaths };

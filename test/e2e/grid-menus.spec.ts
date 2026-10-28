@@ -452,3 +452,28 @@ test("menus with the mouse and the keyboard, as the OS's: a press on ☰, a drag
   await expect.poll(() => core((k) => k.shell.win.isFocused())).toBe(true);
   await focusWindow(core, ui);
 });
+
+test('files dropped onto a terminal paste their disk paths once without sending the prompt', async ({ core, ui, files }) => {
+  await begin(core, ui, files);
+  const paths = ['plain.png', "image with spaces & 'quote'.png"].map((name) => path.join(files.project, name));
+  for (const file of paths) fs.writeFileSync(file, 'image');
+  const before = await core((k) => k.ptyOutput()), pageUrl = ui.url();
+  const at = await center(ui.getByTestId('terminal'));
+  // Native disk-backed Files are required by webUtils; a JavaScript File has no disk path.
+  const cdp = await ui.context().newCDPSession(ui);
+  try {
+    for (const type of ['dragEnter', 'dragOver', 'drop'] as const) {
+      await cdp.send('Input.dispatchDragEvent', { type, ...at, data: { items: [], files: paths, dragOperationsMask: 1 } });
+    }
+    const expected = WIN ? paths.map((p) => `'${p.replace(/'/g, "''")}'`).join(' ')
+      : `${paths[0]} '${paths[1].replace(/'/g, `'\\''`)}'`;
+    await expect.poll(async () => (await core((k) => k.ptyOutput())).slice(before.length)).toContain(expected);
+    await sentAll(core, ui);
+    const typed = (await core((k) => k.ptyOutput())).slice(before.length);
+    for (const p of paths) expect(typed.split(path.basename(p).split("'")[0]).length - 1, 'each path pasted once').toBe(1);
+    expect(typed, 'the prompt is not submitted').not.toContain('\r');
+    expect(typed, 'the prompt is not submitted').not.toContain('\n');
+    expect(ui.url()).toBe(pageUrl);
+    await expect(termKeys(ui)).toBeFocused();
+  } finally { await cdp.detach(); }
+});

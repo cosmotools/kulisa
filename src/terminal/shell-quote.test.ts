@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'assert/strict';
 import { execFileSync } from 'child_process';
-import { shellLine, shellQuote } from './main/shell-quote.ts';
+import { shellLine, shellQuote, quotePaths } from './main/shell-quote.ts';
 
 const ARGS = ['plain', '', 'two words', "it's", '$HOME', '*', '!x', '{"a":"b \\"c\\""}', 'back\\slash', 'back\\\\two',
   "q\\'x", 'end\\', "'", 'line\nbreak', 'café ✓'];
@@ -46,3 +46,16 @@ test('shell quote: a plain word as it is; fish by its program\'s name; PowerShel
   assert.equal(shellQuote('powershell.exe', "it's"), "'it''s'");
   assert.equal(shellLine('/bin/bash', 'claude', ['--x'], { A: 'b c' }), "A='b c' claude --x");
 });
+
+for (const name of ['sh', 'bash', 'zsh', 'fish', 'powershell', 'pwsh']) {
+  const shell = where(name);
+  test(`dropped paths stay literal: ${name}`, { skip: !shell ? `no ${name}` : false }, () => {
+    const paths = ['plain.png', "a b/it's $HOME; & (image).png", 'café.png', 'back\\slash.png'];
+    const ps = ['powershell', 'pwsh'].includes(name);
+    const command = ps ? `& { ConvertTo-Json -Compress -InputObject @($args) } ${quotePaths(shell, paths)}`
+      : `printf '%s\\0' ${quotePaths(shell, paths)}`;
+    const out = execFileSync(shell, ps ? ['-NoLogo', '-NoProfile', '-Command', command]
+      : name === 'fish' ? ['--no-config', '-c', command] : ['-c', command], { encoding: 'utf8' });
+    assert.deepEqual(ps ? JSON.parse(out) : out.split('\0').slice(0, -1), paths);
+  });
+}

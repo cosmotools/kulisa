@@ -3,7 +3,7 @@
 // act). docs/window.md, IPC. An answer the window does not read is `void`: the main process may answer anything there
 // (the tests read some).
 import type { Result } from './result.ts';
-import type { FileLink, TerminalContents, TerminalEvents, TerminalSend } from '../terminal/ipc.ts';
+import type { FileLink, TerminalContents, TerminalEvents, TerminalInvoke, TerminalSend } from '../terminal/ipc.ts';
 import type { ThumbnailEvents, ThumbnailInvoke, ThumbnailSend } from '../screenshots/ipc.ts';
 import type { GitHubInvoke } from '../github/ipc.ts';
 import type { DictationEvents, DictationInvoke } from '../dictation/ipc.ts';
@@ -31,7 +31,7 @@ type Profiles = { profiles: SettingsProfile[] };
 
 // ipcRenderer.invoke / ipcMain.handle: args, the answer.
 type I<A extends unknown[], R = void> = { args: A; result: R };
-export interface Invoke extends ThumbnailInvoke, GitHubInvoke, DictationInvoke {
+export interface Invoke extends TerminalInvoke, ThumbnailInvoke, GitHubInvoke, DictationInvoke {
   'projects:list': I<[], ProjectsInfo | undefined>;
   'tasks:get': I<[]>;
   'project:open': I<[{ folder: string; task?: string } | { id: string; task: string }]>;

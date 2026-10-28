@@ -13,7 +13,7 @@ import { bare, log, summary } from './log.ts';
 // and what comes on every change, draw or hover (the grid's boxes, layouts, lists read again, the paths under the pointer), which would fill the log with
 // nothing; and Settings shown and left, which say so in lines of their own (app.ts, openSettings; ipc/window.ts). An
 // answer to a question is logged without the answer: it may be anything the human typed.
-const QUIET = new Set<string>(['pty:in', 'pty:resize', 'terminal:files', 'layout', 'layout:save', 'layout:load', 'views:hidden', 'keys:zone', 'zoom:get', 'voice:get', 'voice:record',
+const QUIET = new Set<string>(['pty:in', 'pty:resize', 'pty:quote-paths', 'terminal:files', 'layout', 'layout:save', 'layout:load', 'views:hidden', 'keys:zone', 'zoom:get', 'voice:get', 'voice:record',
   'language:get', 'tasks:get', 'projects:list', 'accounts:list', 'profiles:list', 'agents:list', 'settings:open', 'settings:close', 'github:accounts', 'project:github-get']);
 const BARE = new Set<string>(['ask:answer']);
 function line(channel: string, e: IpcEvent, args: unknown[]) {
