@@ -1,4 +1,4 @@
-// Browser tabs (docs/ui.md, Tabs), one look for the three strips (the tasks' bar, a pane's tabs, the terminals'): on
+// Browser tabs (docs/ui.md, Tabs) for the three strips (the tasks' bar, a pane's tabs, the terminals'): on
 // shadcn's Tabs, which has no panels here and no ×. A tab is chosen on the press, as a browser's (Radix's own); the
 // keyboard moves along them and Enter or Space chooses. Its × is on every tab, always, as Chrome's: inside the tab, its
 // own click, never the tab's press. The strip scrolls when they do not fit (lib/strip.ts, useStrip on its ref).
@@ -6,10 +6,14 @@ import type { ComponentProps, ReactNode, Ref } from 'react';
 import { XIcon } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger } from '@ui';
 
-export function TabStrip({ value, onChoose, label, stripRef, children, ...rest }: { value: string; onChoose?: (value: string) => void;
-  label: string; stripRef?: Ref<HTMLDivElement>; children: ReactNode } & Omit<ComponentProps<typeof TabsList>, 'children'>) {
+// bar: the tasks' bar's, tabs of their own kind: on the bar, the chosen one filled, taller (shadcn's look is a segmented
+// control, the chosen tab framed in a pill around them all). A pane's and the terminals' are shadcn's as it ships.
+export function TabStrip({ value, onChoose, label, stripRef, bar, children, ...rest }: { value: string; onChoose?: (value: string) => void;
+  label: string; stripRef?: Ref<HTMLDivElement>; bar?: boolean; children: ReactNode } & Omit<ComponentProps<typeof TabsList>, 'children'>) {
   return <Tabs value={value} onValueChange={onChoose} activationMode="manual" className="min-w-0">
-    <TabsList ref={stripRef} aria-label={label} className="max-w-full justify-start" {...rest}>{children}</TabsList>
+    {bar
+      ? <TabsList ref={stripRef} aria-label={label} className="!h-10 max-w-full justify-start [--muted:transparent] [--background:var(--secondary)]" {...rest}>{children}</TabsList>
+      : <TabsList ref={stripRef} aria-label={label} className="max-w-full justify-start" {...rest}>{children}</TabsList>}
   </Tabs>;
 }
 

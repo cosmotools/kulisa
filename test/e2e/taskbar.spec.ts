@@ -288,6 +288,9 @@ test("tasks: a press on a tab not shown shows its task at once, as Chrome's, the
   await notLoading(ui);
   expect([...new Set(await ui.evaluate(() => { const w = window as any; w.__litObs.disconnect(); return w.__lit as string[]; }))], 'lit once, no blink').toEqual([first, second]);
   await ui.mouse.up();
+  // Focused by the press, not ringed as by the keyboard (BrowserTabs.tsx). Playwright has no :focus-visible check.
+  await expect(taskTab(ui, second)).toBeFocused();
+  expect(await taskTab(ui, second).evaluate((t) => t.matches(':focus-visible')), 'no focus ring after a press').toBe(false);
   await taskTab(ui, second).blur(); // a real press leaves the keyboard on the tab; a later dialog takes it from nothing
 });
 
