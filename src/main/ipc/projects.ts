@@ -15,7 +15,7 @@ export function registerProjects(ipc: Ipc, { lookForFavicon }: { lookForFavicon:
   const { shell, at, serial } = ipc;
   const store = shell.store;
   const sendProjects = () => shell.sendProjects();
-  // New Project (projects.ts, createProject); the window then opens its first task (project:open).
+  // New Project (projects.ts, createProject); the window then opens its first task (task:new).
   // agents: every account, the agents' own first; clis: the agents a new account can be made of (New Account…).
   const choices = () => {
     const all = shell.accounts.all().filter((a) => !a.agent.custom);

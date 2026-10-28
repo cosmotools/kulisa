@@ -23,9 +23,10 @@ export function registerTasks(ipc: Ipc) {
     setImmediate(() => serial(() => (shell.windows.includes(w) ? openProject(p, w, task) : null)).catch((err) => console.error('[project:open]', err)));
     return w.info();
   };
-  handle('project:open', (e, { id, folder, task }) => {
-    const p = id ? store.projects().find((x) => x.id === id) : folder && fs.existsSync(folder) ? store.projectFor(path.resolve(folder)) : null;
-    return p ? openLater(p, at(e)!, task) : { error: 'no such project' };
+  // A folder's project (made for it), or a project's given task; a new task of a project is task:new's.
+  handle('project:open', (e, a) => {
+    const p = 'id' in a ? store.projects().find((x) => x.id === a.id) : fs.existsSync(a.folder) ? store.projectFor(path.resolve(a.folder)) : null;
+    return p ? openLater(p, at(e)!, a.task) : { error: 'no such project' };
   });
   // Close All Tasks (a project's menu): its open tasks in every window, asked once in the window it came from.
   handle('project:close-tasks', (e, { id }) => serial(async () => {
@@ -54,7 +55,13 @@ export function registerTasks(ipc: Ipc) {
   // A task of any project (the bar shows every open task).
   const taskAt = <T>(key: string, fn: (task: Task) => T | Promise<T>) => serial(() => { const task = shell.taskByKey(key); return task ? fn(task) : { error: `no task ${key}` }; });
   handle('task:show', (_e, key) => taskAt(key, showTask));
-  handle('task:new', (e, { project } = {}) => serial(() => createTask(project ? shell.open.get(project) : at(e)?.task?.project, at(e) ?? null)));
+  // A new task of a project, any (the bar's and the sidebar's +, New Project: loaded with it), or without one of the shown
+  // task's (Ctrl+Shift+N).
+  handle('task:new', (e, { project } = {}) => serial(() => {
+    if (!project) return createTask(at(e)?.task?.project, at(e) ?? null);
+    const p = store.projects().find((x) => x.id === project), w = at(e);
+    return p && w ? openProject(p, w) : { error: 'no such project' };
+  }));
   handle('task:close', (_e, key) => taskAt(key, closeTask));
   handle('task:delete', (_e, key) => taskAt(key, deleteTask));
   // 🗑 on a closed task's row (the sidebar): its project need not be loaded.

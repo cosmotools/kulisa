@@ -58,7 +58,7 @@ file you downloaded, with GitHub's command-line tool: `gh attestation verify <fi
 3. **Sign in** where your app needs a real account: when the agent asks, or ahead of time with **Sign In…** in
    Settings → Profiles. You sign in once, for every task.
 
-More tasks: **+** in the tasks' bar makes a new one of the shown task's project, in one click. Tasks of another
+More tasks: **+** in the tasks' bar makes a new one in one click (with several projects, it asks which one first). Tasks of another
 project, and those you closed, are in the sidebar (Tasks, below).
 
 ## The window
@@ -81,7 +81,7 @@ project, and those you closed, are in the sidebar (Tasks, below).
   its 🗑 deletes them all. The agent sees the same: ask it what is there, or to clean them up. Past 100 MB a task's oldest
   go by themselves. Drag the line beside it to resize it, as any pane.
 - **The tasks' bar**, under the grid (or in the title bar, as a browser's tabs: **☰ → Tasks bar**): a tab per open
-  task, of any project, with its project's icon and its agent's state, the shown one filled; **+** after them makes a new task of the shown task's project. When there are more tabs than fit, the mouse
+  task, of any project, with its project's icon and its agent's state, the shown one filled; **+** after them makes a new task, asking which project when there are several. When there are more tabs than fit, the mouse
   wheel over the bar scrolls them, and a faded edge shows that more are past it.
 - **No task open** (after you close the last task): the sidebar stays open at the window's left, every project with
   its tasks (Tasks, below). At the very first start, with no project yet, it shows what Kulisa does, then New Project.
@@ -217,8 +217,9 @@ it ends: the question links the GitHub page where you revoke it at once.
   deletes it. **+** on a project's row, shown under the pointer, starts a new task of it; a right-click on the project
   has New Task, Project Settings…, Show Data Folder, Delete Merged Tasks… and Close All Tasks. **New Project…** is at
   its foot. Over a task, it closes once you choose something (or with Esc).
-- **A new task**: **+** in the tasks' bar (or Ctrl+Shift+N) for the shown task's project, or **+** on a project's row
-  in the sidebar. It runs the project's default agent with a new conversation; describe the task to it. With no
+- **A new task**: **+** in the tasks' bar (with several projects it asks which one), Ctrl+Shift+N for the shown
+  task's project, or **+** on a project's row in the sidebar. It runs the project's default agent with a new
+  conversation; describe the task to it. With no
   default agent, you choose one with the buttons in the middle (Ctrl+` puts the keyboard on them). Its profiles are
   all closed: the agent opens those it needs, or you do: while none is open, each has a button over the terminal
   (click it), and the task's tab lists them on a right-click. A project with no profiles has one button there,
