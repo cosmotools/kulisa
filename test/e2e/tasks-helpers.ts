@@ -9,7 +9,7 @@ import { expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import type { Core, Call } from './fixtures.ts';
 import type { Files } from './data.ts';
-import { SITE, answer, invoke, notLoading, noSlide, viewOn, arrange } from './helpers.ts';
+import { SITE, answer, invoke, notLoading, viewOn, arrange } from './helpers.ts';
 
 export const SAM = 'Sam.admin', ELON = 'Elon.buyer';
 export const rand = () => crypto.randomBytes(3).toString('hex');
@@ -170,7 +170,6 @@ export async function begin(core: Core, ui: Page, files: Files, { columns = fals
     await showTask(core, ui, shown === 1 ? first : fx);
   }
   await notLoading(ui);
-  await noSlide(ui);
   return ids;
 }
 

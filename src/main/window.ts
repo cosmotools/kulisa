@@ -200,12 +200,12 @@ class AppWindow {
     this.shell.saveWindows();
     this.sendProjects();
   }
-  // Another task on screen: the grid slides towards its tab (none: the window showed no task), then its profiles
-  // and terminals come.
+  // Another task on screen: the grid on screen goes at once, as a browser's tab (none: the window showed no task), then
+  // its profiles and terminals come.
   async show(task: Task) {
     log.info(`[window] wc=${this.win.webContents.id} shows ${task.key}`);
     if (task === this.current) return;
-    if (this.current) await this.leaveGrid(Math.sign(this.tabs.indexOf(task) - this.tabs.indexOf(this.current)));
+    if (this.current) this.leaveGrid();
     this.current = task;
     this.shell.saveWindows();
     this.win.setTitle(`${task.displayName} · ${task.project.name} — Kulisa`);
@@ -227,27 +227,23 @@ class AppWindow {
     this.seen();
     terminals.catch((e) => console.error('[agent]', e));
   }
-  // The page takes the grid down; it gets the next task's state once its profiles are loaded. dir: where the
-  // next one is (1 right, -1 left, in the tasks' bar; 0 none, the window is left with no task), for the page
-  // to slide that way. Pictures of its pages come along, for the page to show them meanwhile (and when it comes
-  // back).
-  async leaveGrid(dir: number) {
+  // The page takes the grid down; it gets the next task's state once its profiles are loaded.
+  leaveGrid() {
     this.pushState(); // saves the tabs
     this.switching = true;
     clearTimeout(this.stateTimer);
     for (const { cancel } of this.picking.values()) cancel();
     this.thumbnails.close(); // its pane goes
-    const pics = dir ? await this.pictures() : null;
     this.viewsHidden = true;
     for (const p of this.profiles.values()) p.setHidden(true);
-    this.send('grid:closing', { dir, task: this.task?.key, pics });
+    this.send('grid:closing');
   }
   // Before a task's tab goes (the task closes, or moves to another window): the tab next to it is shown, or the
   // window is left with none (the empty window).
   async leave(task: Task) {
     if (task !== this.current) return;
     const i = this.tabs.indexOf(task), next = this.tabs[i + 1] || this.tabs[i - 1];
-    if (next) await this.show(next); else await this.leaveGrid(0);
+    if (next) await this.show(next); else this.leaveGrid();
   }
   // Then the tab goes, and the page forgets the task (terminals, pictures).
   drop(task: Task) {
@@ -287,11 +283,11 @@ class AppWindow {
     if (from) focusWindow(this.win.webContents);
     return pics;
   }
-  // JPEG: a picture shown for a moment, encoded three times faster than PNG. A page that draws no
-  // frame (covered, the monitor off, busy) gives none: its pane is empty meanwhile. Waiting for it would hold every menu
-  // after it closed, and a task's slide after the click. How long a picture takes is the computer's (a few ms, or
-  // over a hundred on a loaded one, where a fixed tenth of a second leaves every pane empty), so the pages set the pace: once the first has
-  // answered, the rest get three times as long, a tenth of a second at least; none answering, half a second.
+  // JPEG: a picture shown for a moment, encoded three times faster than PNG. A page that draws no frame (covered, the
+  // monitor off, busy) gives none: its pane is empty meanwhile. Waiting for it would hold every menu after it closed.
+  // How long a picture takes is the computer's (a few ms, or over a hundred on a loaded one, where a fixed tenth of a
+  // second leaves every pane empty), so the pages set the pace: once the first has answered, the rest get three times as
+  // long, a tenth of a second at least; none answering, half a second.
   async pictures() {
     const pics: Record<string, string> = {}, t0 = Date.now();
     let giveUp = () => {}, paced = false;

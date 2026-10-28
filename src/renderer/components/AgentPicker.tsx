@@ -7,7 +7,6 @@ import { Alert, AlertDescription, Badge, Button, Dialog, DialogContent, DialogFo
   FieldLabel, FieldLegend, FieldSet, FieldTitle, RadioGroup, RadioGroupItem, Spinner, Collapsible, CollapsibleContent, CollapsibleTrigger } from '@ui';
 import { agentMark } from './AgentMark';
 import { agentList, shortPath, useAgentList, type AgentList } from '../lib/agents';
-import { whenLeft } from '../lib/grid';
 import type { AgentInfo } from '../../shared/types';
 
 const list = agentList({ installed: (a) => `${a.name} is installed. Start it; it asks you to sign in.` });
@@ -15,7 +14,6 @@ let asking: string | null = null; // the task asked for
 let show: ((open: boolean) => void) | null = null; // the dialog's, once mounted
 
 kulisa.on('agent:choose', async ({ task, selected }) => {
-  await whenLeft();
   asking = task;
   await list.load(selected ?? undefined, () => show?.(true));
 });

@@ -1,9 +1,8 @@
-// The tasks' bar: a tab per open task, switching between them (by a click, a press, the keys), the slide, more tabs than
-// it holds, the agent's state on a tab, its + (docs/tasks.md, docs/window.md).
+// The tasks' bar: a tab per open task, switching between them (by a click, a press, the keys), more tabs than it holds, the agent's state on a tab, its + (docs/tasks.md, docs/window.md).
 import path from 'path';
 import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
-import { MAC, frames, ipcSettled, menu, item, choose, closeMenu, rightClick, fromSidebar, openSidebar, closeSidebar, sidebar, taskRow, rowButton, focusWindow, viewOn, termShows, invoke, notLoading, noSlide, answer, removed, termKeys, resize } from './helpers.ts';
+import { MAC, frames, ipcSettled, menu, item, choose, closeMenu, rightClick, fromSidebar, openSidebar, closeSidebar, sidebar, taskRow, rowButton, focusWindow, viewOn, termShows, invoke, notLoading, answer, removed, termKeys, resize } from './helpers.ts';
 import { committed, rand, keyAt, isNth, nthShown, taskTab, hook, begin, bothOn, newTask } from './tasks-helpers.ts';
 
 // The tab chosen (lit) in the bar.
@@ -130,38 +129,15 @@ test("tasks: switching shows the other grid and terminal; the one left keeps run
   await taskTab(ui, first).click();
   await nthShown(core, 1);
   await bothOn(core, ui, files);
-  await noSlide(ui);
 });
 
-test('tasks: switching slides the grid towards the other tab (a view transition); then the pages are live again', async ({ core, ui, files, call }) => {
+test('tasks: switching shows the other grid at once, its pages live once it is laid out; a menu opened as the grid goes keeps them pictures under it', async ({ core, ui, files, call }) => {
   await begin(core, ui, files, { only: true, columns: true, featureX: call });
   const first = await keyAt(core, 1), second = await keyAt(core, 2), SAM = files.idOf('Sam.admin'), ELON = files.idOf('Elon.buyer');
-  // The transition's types (which way), and the grid's own slide as it runs: an animation of 0 s, as a CSS minifier may
-  // make it, leaves the two grids' pictures one over the other; a whole grid's width, out past the window's edge it
-  // reaches (components/Grid.tsx).
-  // Read as the slide starts (its ready), the transition the window's own again after: Playwright reaches no view
-  // transition, nor a running animation's keyframes.
-  const swap = (key: string) => ui.evaluate(async (key) => {
-    const d = document as any, start = d.startViewTransition.bind(document);
-    const seen = new Promise<{ types: string[]; animations: string[] }>((resolve) => {
-      d.startViewTransition = (o: unknown) => {
-        const t = start(o);
-        delete d.startViewTransition;
-        t.ready.then(() => resolve({ types: [...t.types],
-          animations: document.getAnimations().filter((a) => ['::view-transition-old(grid)', '::view-transition-new(grid)'].includes((a.effect as KeyframeEffect)?.pseudoElement) && Number(a.effect.getTiming().duration) > 0)
-            .map((a) => { const [from, to] = (a.effect as KeyframeEffect).getKeyframes(); return [(a as CSSAnimation).animationName, from.translate === 'none' ? to.translate : from.translate, from.easing].join(' '); }).sort() }));
-        return t;
-      };
-    });
-    await (window as any).kulisa.invoke('task:show', key);
-    return seen;
-  }, key);
   const live = async () => (await ui.locator('[data-testid="snapshot"]').count()) === 0 && viewOn(core, ui, files, 'Sam.admin');
-  let seen = await swap(second);
-  expect(seen.types).toEqual(['next']);
-  expect(seen.animations, 'it slides').toEqual(['grid-from-right 100% cubic-bezier(0.4, 0, 0.2, 1)', 'grid-to-left -100% cubic-bezier(0.4, 0, 0.2, 1)']);
+  await invoke(ui, 'task:show', second);
   await expect.poll(live).toBe(true);
-  // A page that draws no frame (busy, covered) holds the slide's start no longer than three times what the others
+  // A page that draws no frame (busy, covered) holds a menu's pictures no longer than three times what the others
   // take (a tenth of a second at least), its pane then empty: half a second is felt after each click.
   // Their pace, not a fixed time: a loaded machine takes over a tenth of a second for a picture.
   const pics = await core(async (k, ids) => {
@@ -175,31 +151,25 @@ test('tasks: switching slides the grid towards the other tab (a view transition)
   }, { SAM, ELON });
   expect(pics.took && pics.all < Math.max(100, 3 * pics.took) + 150, `pictures in ${pics.all} ms, the other's in ${pics.took} ms`).toBeTruthy();
   expect(!pics.sam && pics.elon, 'the others taken').toBe(true);
-  seen = await swap(first);
-  expect(seen.types).toEqual(['previous']);
-  expect(seen.animations).toEqual(['grid-from-left -100% cubic-bezier(0.4, 0, 0.2, 1)', 'grid-to-right 100% cubic-bezier(0.4, 0, 0.2, 1)']);
-  await expect.poll(live).toBe(true);
-  // A menu opened while the grid still slides keeps the pages under it pictures, not shown over it at the slide's end.
-  // Opened as soon as the slide starts, before the grid left is taken down (the transition's update, a frame later,
-  // later still on a loaded machine): taking it down must not forget the menu's pictures. Pressed (a menu opens on the
-  // press) by the script that starts the slide: a click from the test would come after it has begun, a frame or more too late.
-  const sliding = ui.locator(':root:active-view-transition');
-  await ui.evaluate((key) => {
-    const d = document as any, start = d.startViewTransition.bind(document);
-    d.startViewTransition = (o: unknown) => { const t = start(o); delete d.startViewTransition; document.getElementById('windowMenu').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, pointerType: 'mouse' })); return t; };
-    void (window as any).kulisa.invoke('task:show', key);
-  }, second);
-  await expect(sliding).toHaveCount(1);
+  // A menu opened as the grid left is taken down, before the next one is laid out, keeps the pages under it pictures,
+  // not shown over it once the grid is. Pressed (a menu opens on the press) as the window hears of it: a click from the
+  // test would come once the grid is laid out.
+  await ui.evaluate(() => {
+    let once = true;
+    (window as any).kulisa.on('grid:closing', () => {
+      if (once) document.getElementById('windowMenu').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, pointerType: 'mouse' }));
+      once = false;
+    });
+  });
+  await invoke(ui, 'task:show', first);
   await expect(menu(ui)).toBeVisible();
-  await expect(sliding).toHaveCount(0);
-  // What the slide's end does (lib/grid.ts: the pages live again, unless a menu holds them) asks the main process: done
-  // once the window has drawn its frames and its channel gone there and back.
+  await notLoading(ui);
+  // What the grid laid out does (lib/grid.ts, reveal: the pages shown, unless a menu holds them) asks the main process:
+  // done once the window has drawn its frames and its channel gone there and back.
   await frames(ui);
   await ipcSettled(ui);
   expect(await core((k) => [...k.shell.profiles.values()].every((p) => !p.get().view.getVisible())), 'the pages stay under the menu').toBe(true);
   await closeMenu(ui);
-  await expect.poll(live).toBe(true);
-  await swap(first);
   await expect.poll(live).toBe(true);
 });
 
@@ -210,7 +180,7 @@ test('tasks: Ctrl+Shift+2 shows the second, Ctrl+Shift+PgUp and PgDn the one bef
     await notLoading(ui);
   };
   await focusWindow(core, ui);
-  // The terminal shown before it takes the keyboard: the grid's slide hides it (dockview's overlay) until it is over.
+  // The terminal shown (dockview's overlay, laid out) before it takes the keyboard.
   await expect(termKeys(ui)).toHaveCSS('visibility', 'visible');
   await termKeys(ui).focus();
   await expect.poll(() => core((k) => k.shell.windows[0].keyZone)).toBe('terminal');
@@ -251,7 +221,6 @@ test("tasks: more tabs than the bar holds: each keeps its name readable, a mouse
     expect(now.left, 'scrolled to the end').toBe(now.max);
     await fades(true, false, 'only the edge with a tab past it fades');
     // The wheel turns up and down; the bar scrolls sideways.
-    await noSlide(ui); // the slide's pictures over the window take every event
     await strip.hover();
     await ui.mouse.wheel(0, -400); // up: towards the start
     await expect.poll(async () => (await scroll()).left).toBe(0);
@@ -290,43 +259,24 @@ test("tasks: more tabs than the bar holds: each keeps its name readable, a mouse
   await nthShown(core, 1);
 });
 
-test("tasks: a press on a tab not shown chooses it at once, as Chrome's; its task is shown when the button is let go or the tab starts being dragged, so it can be dragged", async ({ core, ui, files, call }) => {
+test("tasks: a press on a tab not shown shows its task at once, as Chrome's, the tab lit from then on", async ({ core, ui, files, call }) => {
   await begin(core, ui, files, { only: true, columns: true, featureX: call });
   const first = await keyAt(core, 1), second = await keyAt(core, 2);
-  // Pressed and let go where the hand does it, on its name.
-  const press = async (key: string) => { await taskTab(ui, key).hover(); await ui.mouse.down(); };
-  // The slide that showing a task starts makes Chromium drop a drag about to begin: a tab not shown would not be
-  // dragged, its press only showing it. One begun goes on through the slide.
-  await noSlide(ui); // the slide's pictures over the window take every event
-  const from = await core((k) => k.logged.length);
-  await press(second);
-  await expect(chosen(ui)).toHaveAttribute('data-task', second);
-  // Shown, the window would have asked for it (task:show, logged as it comes) by the time its channel has gone there
-  // and back.
-  await ipcSettled(ui);
-  expect(await core((k, i) => k.logged.slice(i).filter((l) => l.includes('task:show')), from), 'not asked for while the button is down').toEqual([]);
-  expect(await isNth(core, 1), 'not shown while the button is down').toBe(true);
-  // Lit on the press, it stays lit: let go of, it would go dark while the main process takes the pictures for the slide
-  // and light again with the new state, the tab blinking. Every change of the lit tab noted as it comes: an assertion
-  // sees only the state when it looks.
+  // Every change of the lit tab noted as it comes: an assertion sees only the state when it looks.
   await ui.evaluate(() => {
     const w = window as any, lit = () => document.querySelector<HTMLElement>('#taskTabs [role="tab"][aria-selected="true"]')?.dataset.task ?? '';
     w.__lit = [lit()];
     w.__litObs = new MutationObserver(() => w.__lit.push(lit()));
     w.__litObs.observe(document.getElementById('taskTabs'), { attributes: true, attributeFilter: ['aria-selected'], subtree: true });
   });
-  await ui.mouse.up();
+  // Pressed where the hand does it, on its name; shown while the button is still down.
+  await taskTab(ui, second).hover();
+  await ui.mouse.down();
   await nthShown(core, 2);
-  await noSlide(ui);
-  expect([...new Set(await ui.evaluate(() => { const w = window as any; w.__litObs.disconnect(); return w.__lit as string[]; }))], 'the tab lit from the press to the task shown, no other').toEqual([second]);
-  // A drag begins: Chromium cancels the pointer (a real drag of a tab is the OS's, out of a test's reach).
-  await press(first);
-  await expect(chosen(ui)).toHaveAttribute('data-task', first);
-  // Playwright has no cancelled pointer.
-  await ui.evaluate(() => dispatchEvent(new PointerEvent('pointercancel', { pointerType: 'mouse' })));
-  await nthShown(core, 1);
+  await notLoading(ui);
+  expect([...new Set(await ui.evaluate(() => { const w = window as any; w.__litObs.disconnect(); return w.__lit as string[]; }))], 'lit once, no blink').toEqual([first, second]);
   await ui.mouse.up();
-  await taskTab(ui, first).blur(); // a real press leaves the keyboard on the tab; a later dialog takes it from nothing
+  await taskTab(ui, second).blur(); // a real press leaves the keyboard on the tab; a later dialog takes it from nothing
 });
 
 test("tasks: a double click on a task's tab is its Rename…, the shown one's and another's (its first press shows it)", async ({ core, ui, files, call }) => {
@@ -340,7 +290,7 @@ test("tasks: a double click on a task's tab is its Rename…, the shown one's an
     await expect(tab).toHaveAttribute('aria-selected', 'true');
     await expect(renaming).toBeVisible();
     await expect(renaming.getByRole('textbox', { name: 'Name' })).toHaveValue(name);
-    await noSlide(ui);
+    await notLoading(ui);
     await expect(renaming, 'still open once the grid is shown').toBeVisible();
     await ui.keyboard.press('Escape');
     await expect(renaming).toHaveCount(0);
@@ -364,12 +314,11 @@ test('menus: one longer than the window has stays in it and scrolls', async ({ c
 test("tasks: with one project the bar's + makes a new task of it in one click", async ({ core, ui, files, call }) => {
   await begin(core, ui, files, { only: true, columns: true, featureX: call });
   const before = await core((k) => k.shell.current.tasks.size), first = await keyAt(core, 1);
-  await noSlide(ui); // the slide's pictures over the window take every event
   await expect(ui.locator('#newTask')).toHaveAccessibleName('New task');
   await ui.locator('#newTask').hover();
   await expect(ui.getByRole('tooltip')).toBeVisible();
   await ui.locator('#newTask').click();
-  await expect(ui.getByRole('tooltip'), 'gone as it is pressed, not frozen in the slide').toBeHidden({ timeout: 100 });
+  await expect(ui.getByRole('tooltip'), 'gone as it is pressed').toBeHidden();
   await expect.poll(() => core((k, a) => k.shell.current.tasks.size === a.before + 1 && k.shell.task?.key !== a.first && k.settled(), { before, first }), { timeout: 20000 }).toBe(true);
   await expect(ui.getByRole('menu'), 'no menu: made at once').toHaveCount(0);
   await expect(ui.locator('#taskTabs [role="tab"]')).toHaveCount(before + 1);
@@ -387,7 +336,6 @@ test("tasks: with several projects the bar's + asks which (one not loaded too), 
   expect(made.id, 'the second project is made').toBeTruthy();
   // The bar's + asks which project: each with its icon, the shown task's first (worked in last) with Ctrl+Shift+N, the
   // key's. Plus2, not loaded yet, gets its first task.
-  await noSlide(ui);
   await ui.locator('#newTask').click();
   await expect(menu(ui)).toMatchAriaSnapshot(`
     - menu:

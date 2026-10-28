@@ -11,7 +11,7 @@ import { restoreTerminal, serialized, termCopy, termHooks, termPaste, View, xter
 import type { Terminal as TerminalInfo } from '../../shared/types';
 
 // The terminal in front of the shown task's terminals: where the keyboard goes (Ctrl+`), what the tests read.
-const frontKey = () => { const { current, terminals } = store.getState(); return current && terminals.front !== null ? `${current}#${terminals.front}` : null; };
+const frontKey = () => { const { task, front } = store.getState().terminals; return task && front !== null ? `${task}#${front}` : null; };
 // The terminals' panel's xterm, one for the window: components/grid/Terminals.tsx puts it in whichever grid is shown and
 // gives it the theme's colors.
 export const panelView = new View(termStyle());

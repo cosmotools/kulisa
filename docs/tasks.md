@@ -95,9 +95,8 @@ repositories (git worktrees), so the project's folders stay the human's. Its dat
   - **Create**: one call (`project:new`), the core making it all (`createProject`, `projects.ts`: code, agents in
     order, profiles); what could not be added of the agents and profiles is logged, the project made all the same.
     Its first task opens in this window (`task:new`) with its default agent, nothing asked.
-- **Showing another task** slides the grid towards its tab, as macOS desktops do (a view transition, the pages as
-  pictures meanwhile; not with reduced motion), the other grid built in place, so nothing jumps; out past the window's
-  edge with Material's standard easing, so no strip of the page lingers. When a task closes, the one next to it is
+- **Showing another task** replaces the grid at once, as a browser's tab (no motion: it is done tens of times a day),
+  the next grid shown once laid out, so nothing jumps. When a task closes, the one next to it is
   shown, or the empty window after the last.
 - **Move to New Window** puts the task into a window of its own next to this one (a second monitor); **Move to
   Window: …** into that window, as a browser moves a tab. It keeps running: its agents, its pages (moved, not loaded
@@ -274,7 +273,7 @@ and the cleanup: the main working tree is the human's, never removed; a worktree
 ## What the human does
 
 - **Its tab**: its project's icon, the agent's state (working, waiting for you, done; from its hooks: "Choosing the
-  agent"), its name. A click shows the task (the slide: Projects, above); the one left keeps running.
+  agent"), its name. A press shows the task (Projects, above); the one left keeps running.
 - **A new task** (the tasks' bar's +, a menu of the projects when there are several; Ctrl+Shift+N, for the shown
   task's project; a project's + in the sidebar, or New Task in its right-click menu or in the project's submenu) is made at once, no dialog, from the project's
   configuration alone: the human describes the task to its agent in the terminal. It runs the project's default agent;
@@ -807,5 +806,5 @@ rm -rf ~/.config/Kulisa/projects/<project id>   # all its tasks with their profi
 | `src/shared/names.ts` | the rules for names (projects and profiles; a task's, a label) and slugs |
 | `src/main/accounts.ts`, `src/renderer/components/SignIn.tsx` | the agents' accounts, one store; a new one's sign-in in Settings (a project's page, or Agents), and New Project's |
 | `src/main/recognizer.ts` | which account recognizes speech for an agent without dictation of its own ([src/dictation](../src/dictation/README.md)), its session's folder |
-| `src/renderer/lib/grid.ts`, `components/Grid.tsx` | building a task's grid; the slide (a view transition) |
+| `src/renderer/lib/grid.ts`, `components/Grid.tsx` | building a task's grid, taking it down when another is shown |
 | `test/e2e/tasks*.spec.ts`, `taskbar.spec.ts`, `projects*.spec.ts`, `project-repositories.spec.ts`, `empty-window.spec.ts`, `agents*.spec.ts`, `masters.spec.ts`; `test/unit/agents.test.ts` | the tests |

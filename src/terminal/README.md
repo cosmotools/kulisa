@@ -60,11 +60,9 @@ video memory 472 → 178 MB, the RAM about the same (on an integrated GPU, or a 
 Chromium's software GPU, 609 → 234 MB. (VS Code keeps an xterm a terminal.)
 
 **Fitted in a frame about to be drawn.** A terminal is put in at its buffer's size, and the xterm and the buffer get
-the room laid out only from the fit, measured in `requestAnimationFrame`: measured between frames, during a task's
-slide (a view transition, which builds the next grid while nothing is drawn), the room is passing (954 px for 293) and
-no ResizeObserver tells of the room it ends with (the agent would keep 52 rows in a panel of 16); fitted at once in a
-window just opened, its grid not laid out, the buffer would be wrapped at 9 columns. A hidden page draws no frames and
-runs no transition, so there it is measured at once: Windows hides a window other windows cover (one opening behind
+the room laid out only from the fit, measured in `requestAnimationFrame`: fitted at once in a window just opened, its
+grid not laid out, the buffer would be wrapped at 9 columns. A hidden page draws no frames, so there it is measured at
+once: Windows hides a window other windows cover (one opening behind
 them too), whose agents would otherwise start only once someone looks at it.
 
 Serializing leaves out the cursor's visibility (`?25`) and the mouse's encoding (`?1006`, `?1015`, `?1016`: Claude

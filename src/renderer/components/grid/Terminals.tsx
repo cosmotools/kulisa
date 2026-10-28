@@ -48,7 +48,8 @@ function fold(api: IDockviewPanelProps['api'], grid: IDockviewPanelProps['contai
 
 export function Terminals({ api, containerApi }: IDockviewPanelProps) {
   const host = useRef<HTMLDivElement>(null), launch = useRef<HTMLDivElement>(null), shade = useShade();
-  const task = useWindow((s) => s.current), front = useWindow((s) => s.terminals.front);
+  // The task from the terminals' own message (docs/window.md, The terminal).
+  const task = useWindow((s) => s.terminals.task ?? null), front = useWindow((s) => s.terminals.front);
   const folded = useWindow((s) => !s.terminals.list.length);
   // No profile's pane in the grid: as dockview has them, so it folds against the grid as it is laid out.
   const alone = useSyncExternalStore(useCallback((changed: () => void) => {
@@ -148,7 +149,7 @@ const noDrag = (e: DragEvent) => e.preventDefault();
 // Change Agent: a span with the role, as a button holds no other (docs/ui.md, Tabs).
 export function TerminalsHeader({ api }: IDockviewPanelHeaderProps) {
   const list = useWindow((s) => s.terminals.list), front = useWindow((s) => s.terminals.front);
-  const task = useWindow((s) => s.current), lang = useWindow((s) => s.language?.language);
+  const task = useWindow((s) => s.terminals.task ?? null), lang = useWindow((s) => s.language?.language);
   const hold = useShortcuts().find((s) => s.id === 'voice.hold')?.keys[0] || '';
   const strip = useRef<HTMLDivElement>(null);
   useStrip(strip, front);

@@ -54,10 +54,7 @@ does not clip them to the bar: `overflow`, `contain` or `clip-path` alike) and t
 one winning: so the logo and that space come after the bar in the page (`TopBar.tsx`), the logo put back first by
 `order`.
 
-A press on a tab not shown chooses it at once, as Chrome's; its task is shown on the release or when the tab starts
-being dragged, whichever is first: showing a task starts the grid's slide (a view transition), and Chromium drops a
-drag about to begin when one starts (one begun goes on). The pressed tab stays lit from the press until the task is
-shown, through the slide's pictures, so the tab left is not lit again meanwhile.
+A press on a tab not shown shows its task at once, as Chrome's; the tab is lit once the window is told so.
 
 ## The grid
 
@@ -103,13 +100,12 @@ behind another is laid out below the grid (dockview), making the page taller tha
 bringing its tab into view (`scrollIntoView`) would move the whole grid up by a window's height.
 
 The profiles' pages are native views above the window's HTML ([ui.md](ui.md)) and belong to their project's window
-(`Profile.moveTo`). While a panel is dragged, a menu is open or a dialog is shown, the pages are pictures of themselves
-(or hidden), so the HTML can be on top; live again once nothing covers them (a task's slide ending under a menu leaves
-them pictures until it closes: `livePages`). A page that gives no picture (covered, the monitor off, busy) leaves its
-pane empty meanwhile: waiting would hold the menu, every one after it, and a task's slide. How long is the pages' own
-pace: once the first has answered, the rest get three times as long, a tenth of a second at least (a live page answers
-in a few milliseconds on a fast machine, over a hundred on a slow one); none answering, half a second
-(`AppWindow.pictures`).
+(`Profile.moveTo`). While a panel is dragged, a menu is open or a dialog is shown, the pages are pictures of
+themselves (or hidden), so the HTML can be on top; live again once nothing covers them (`livePages`). A page that
+gives no picture (covered, the monitor off, busy) leaves its pane empty meanwhile: waiting would hold the menu and
+every one after it. How long is the pages' own pace: once the first has answered, the rest get three times as long, a
+tenth of a second at least (a live page answers in a few milliseconds on a fast machine, over a hundred on a slow
+one); none answering, half a second (`AppWindow.pictures`).
 
 A pane's tab strip and toolbar move as Chrome's, the terminals' tabs too: a tab opened grows in from the left
 (`data-opening`, `useStrip` in `lib/strip.ts`; the strip keeps its tabs' elements by id, so only a new one animates),
@@ -273,6 +269,8 @@ default first, each a new conversation; then Terminal, a shell); last, the dicta
 The task's repositories are in the Resources panel, not in this row. The agent's icon opens **Change Agent**, a dialog
 (the project's accounts: the one chosen opens in a new tab, told to go on with this conversation, a progress bar of
 the parts of it read; [tasks.md](tasks.md), "Several agents in a task"). An agent's × asks first; a shell's closes it.
+The terminal in front is named by the task and the tab from one message (`terminals`), not the task from the window's
+shown task: that comes in another message, and between the two a terminal that does not exist would be shown.
 
 **The last terminal closed folds the panel** to a strip of one button, + in its middle, as JetBrains' tool windows go
 but with their button kept in place (the author's choice): by its height under or over the grid, by its width at a side

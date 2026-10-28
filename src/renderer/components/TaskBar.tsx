@@ -4,7 +4,7 @@
 // showing one moves none (tabs moving under the mouse make the human miss). Where a dragged tab is let go outside every
 // Kulisa window, the main process says (the page does not know where the pointer is then).
 import { flushSync } from 'react-dom';
-import { useRef, useState, type DragEvent, type MouseEvent, type PointerEvent } from 'react';
+import { useRef, useState, type DragEvent, type MouseEvent } from 'react';
 import { PlusIcon } from 'lucide-react';
 import { Button } from '@ui';
 import { ButtonMenu, RightClickMenu } from './Menus';
@@ -69,32 +69,14 @@ export function TaskBar() {
   // More tabs than fit: the wheel scrolls them, the edges with tabs past them fade, the shown one stays in sight.
   useStrip(strip, current);
 
-  // A press on another tab makes it the chosen one at once, as Chrome's; its task is shown when the button is let go or
-  // the tab starts being dragged (pointercancel), whichever comes first: the grid's slide that showing it starts makes
-  // Chromium drop the drag about to begin. The pressed tab stays lit until the window is told its task is shown (or it
-  // was refused): let go of, it would go dark while the main process takes the pictures for the slide, and blink.
-  const [pressed, setPressed] = useState<string | null>(null), press = useRef<string | null>(null); // the ref: Radix chooses on the press too
-  if (pressed !== null && pressed === current) setPressed(null);
-  // The last press's switch: done once the window has taken its grid down (grid:closing comes before the answer).
+  // The last choice's switch: done once the window has taken its grid down (grid:closing comes before the answer).
   const showing = useRef<Promise<unknown>>(Promise.resolve());
   const tabAt = (e: { target: EventTarget | null }) => {
     const el = (e.target as Element).closest<HTMLElement>('[data-task]');
     return (el && tabs.find(({ t }) => t.key === el.dataset.task)) || null;
   };
-  const onPointerDown = (e: PointerEvent) => {
-    const at = e.button === 0 && !e.ctrlKey && e.pointerType === 'mouse' && !(e.target as Element).closest('[data-close]') && tabAt(e);
-    if (!at || at.t.key === current) return;
-    setPressed(press.current = at.t.key);
-    const done = new AbortController(), show = async () => {
-      done.abort();
-      press.current = null;
-      const r = await (showing.current = kulisa.invoke('task:show', at.t.key));
-      if (r?.error) setPressed((p) => (p === at.t.key ? null : p));
-    };
-    for (const type of ['pointerup', 'pointercancel']) addEventListener(type, show, { signal: done.signal });
-  };
-  // The keyboard's choice (Enter, Space), shown at once; a press's is shown on its release.
-  const onTabSelect = (key: string) => { if (key !== current && key !== press.current) void kulisa.invoke('task:show', key); };
+  // A press (Radix chooses on it) or the keyboard (Enter, Space): its task shown at once, as a browser's tab.
+  const onTabSelect = (key: string) => { if (key !== current) showing.current = kulisa.invoke('task:show', key); };
   // The middle button on a tab closes its task, as a browser's tab.
   const onAuxClick = (e: MouseEvent) => { const at = e.button === 1 && tabAt(e); if (at) void kulisa.invoke('task:close', at.t.key); };
   // A double click: its Rename…, a shortcut to the menu's row. On a tab not shown, after its first press has shown it:
@@ -166,8 +148,8 @@ export function TaskBar() {
     className={top ? 'flex min-w-0 items-center gap-1 [-webkit-app-region:no-drag]' : 'flex min-w-0 max-w-full items-center gap-1 justify-self-center px-2 py-1'}>
     {/* In the title bar the tabs are no handle to drag the window by (TopBar.tsx drags after them). */}
     <RightClickMenu items={menu} className="flex min-w-0">
-      <TabStrip id="taskTabs" stripRef={strip} label="Open tasks" value={pressed ?? current ?? ''} onChoose={onTabSelect}
-        onPointerDown={onPointerDown} onAuxClick={onAuxClick} onDoubleClick={onDoubleClick} {...drag}>
+      <TabStrip id="taskTabs" stripRef={strip} label="Open tasks" value={current ?? ''} onChoose={onTabSelect}
+        onAuxClick={onAuxClick} onDoubleClick={onDoubleClick} {...drag}>
         {tabs.map(({ t, p }) => {
           const color = projectColor(p), at = mark?.key === t.key ? mark.side : undefined;
           // Every tab keeps its width whichever is shown, so none moves under the mouse; at its narrowest about ten letters.
@@ -181,9 +163,8 @@ export function TaskBar() {
         })}
       </TabStrip>
     </RightClickMenu>
-    {/* beside the +: above or under it, the tooltip would open over the pages, which cover it. It goes as the + is
-        pressed, as Chrome's: the slide to the new task shows a picture of the window, the tooltip in it until it ends;
-        the + takes no keyboard (its focus would show the tooltip again). With one project it asks nothing. */}
+    {/* beside the +: above or under it, the tooltip would open over the pages, which cover it. The + takes no keyboard:
+        its focus would show the tooltip again once pressed. */}
     <Tip text="New task" side="right">
       {one ? plus : <ButtonMenu items={projectsMenu}>{plus}</ButtonMenu>}
     </Tip>

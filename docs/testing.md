@@ -100,7 +100,7 @@ passes, alone and with its file.
   `k.focusDecided`; a later event of the same kind that shows.
 - **Kulisa's waits are moved, not waited**: `k.clock.hold(ms)`, `advance(ms)`, `release()`; a time Kulisa reads is
   dated back; a slow mock waits for the test.
-- **Before a click** wait for the window: `k.settled()`, `notLoading`, the grid's slide over.
+- **Before a click** wait for the window: `k.settled()`, `notLoading`.
 - **Menus and dialogs are shadcn's (Radix)**: a menu's rows by `toMatchAriaSnapshot` (whole: `children: 'equal'` in the
   config; a row's name is its label alone, without its keys; a divider is a `separator`),
   `choose`, `closeMenu`, `rightClick`, `windowSubmenu` (☰'s rows that open a menu beside them); a menu is shown once

@@ -4,9 +4,8 @@
 import type { AddPanelPositionOptions, DockviewApi } from 'dockview-react';
 import type { Profile } from '../../shared/types';
 import { act, setCaption, store } from './store';
-import { forgetFrozen, freeze, livePages, showViews, unfreeze } from './views';
+import { forgetFrozen, freeze, showViews, unfreeze } from './views';
 import { closeLayers } from './cover';
-import { reducedMotion } from './common';
 import { forgetTerminals } from '../../terminal/renderer';
 
 const panelId = (id: string) => `profile:${id}`;
@@ -17,11 +16,6 @@ export const panes = new Map<string, PaneHandle>();
 let api: DockviewApi | null = null;
 let apiReady = Promise.withResolvers<DockviewApi>();
 let gridReady: Promise<void> | null = null;
-let leaving: Promise<void> | null = null; // the grid being taken down, before the next one is built
-let sliding: { transition: ViewTransition; built: () => void } | null = null; // a switch as a view transition, until the next grid is built
-const pictures = new Map<string, Record<string, string>>(); // task key -> its pages when it was left, for sliding in
-// What comes for the next task waits until the grid on screen has gone (it clears the state).
-export const whenLeft = () => Promise.resolve(leaving);
 
 // Grid.tsx, once dockview is there.
 export function gridMounted(a: DockviewApi) {
@@ -52,7 +46,6 @@ document.addEventListener('dragend', unfreeze, true);
 document.addEventListener('drop', () => setTimeout(unfreeze), true);
 
 kulisa.on('state', async (s) => {
-  await leaving;
   // A profile leaving sign-in mode: the words over its pane go.
   for (const p of s) if (!p.signinMode && store.getState().profiles.find((x) => x.id === p.id)?.signinMode) setCaption(p.id, '');
   store.setState({ profiles: s });
@@ -64,17 +57,8 @@ kulisa.on('state', async (s) => {
 });
 
 // Until the grid is built and the pages have their places, the window shows no grid and the main process keeps the
-// pages hidden (loading): nothing jumps while the window loads, e.g. when another project is opened. A task shown from
-// the bar slides in with pictures of its pages (grid:closing), then the pages themselves come.
+// pages hidden (loading): nothing jumps while the window loads or another task is shown.
 function reveal() {
-  if (sliding) {
-    const { transition, built } = sliding; sliding = null;
-    store.setState({ loading: false });
-    store.setState({ pictures: pictures.get(store.getState().current!) || {} });
-    built(); // the transition's new state: it slides in
-    void transition.finished.catch(() => {}).then(() => { sendLayout(); void livePages(); }); // skipped or given up: the pages still come
-    return;
-  }
   requestAnimationFrame(() => requestAnimationFrame(() => { // after sendLayout's frame
     store.setState({ loading: false });
     void showViews();
@@ -158,52 +142,23 @@ export function applyPreset(name: keyof typeof presets) {
 // dockview's API of the grid shown (test-hooks.ts).
 export const dockApi = () => api;
 
-// Another task is being shown, or another project (dir: where it is in the tasks' bar; 0: none, the window is left
-// with no project; level: 'task' or 'project'): the grid goes and is built again on the next state, as a view
-// transition (Grid.tsx's styles): Chromium takes a picture of the grid on screen, with pictures of its pages (the main
-// process sends them; kept for when it comes back), and shows it while the next grid is built (reveal). Another
-// project's grid slides in as macOS desktops do, the one left out and the next one in at once; another task's replaces
-// it at once. Not with reduced motion: then the grid is hidden at once, so nothing half-built shows. The title bar and
-// the tasks' bar stay.
-kulisa.on('grid:closing', ({ dir, task, pics }) => {
+// Another task is being shown, or none (the window left with no task): the grid goes at once, as a browser's tab, and
+// is built again on the next state. The title bar and the tasks' bar stay.
+kulisa.on('grid:closing', () => {
   void closeLayers(); // its dialogs and menus are for the grid that goes
-  // A freeze under way (a drag) is forgotten now, not when the grid is taken down (the slide's update, a frame or more
-  // later): a menu opened in between, for the next grid, would lose its pictures, and the slide's end show the pages
-  // over it.
-  forgetFrozen();
+  forgetFrozen(); // a drag's: a menu opened for the next grid freezes its pages afresh
   // Its last change saved now, not dropped: a pane closed (its profile deleted) just before the task is left would stay
   // in its saved grid, and a saved grid naming a profile that is gone is not restored at all (restoreGrid).
   flushSave();
-  if (pics && task) pictures.set(task, pics);
-  const takeDown = () => {
-    store.setState({ loading: true });
-    api?.clear();
-    // The panes go with what was said over them: profile ids repeat across tasks.
-    store.setState({ profiles: [], pictures: {}, captions: {}, picking: {}, terminals: { front: null, list: [] } });
-    gridReady = null;
-  };
-  // A slide still waiting for its grid ends now: Chromium draws no frame until its update is done, and would wait for it
-  // until its own timeout.
-  sliding?.built();
-  sliding = null;
-  if (!dir || reducedMotion.matches || !gridReady) { takeDown(); leaving = null; return; }
-  store.setState({ pictures: pics || {} });
-  const cleared = Promise.withResolvers<void>(), built = Promise.withResolvers<void>();
-  leaving = cleared.promise;
-  // While the next grid is built (the callback), Chromium shows the picture of this one and draws no frames: the
-  // building must not wait for one (reveal).
-  const transition = document.startViewTransition({ update: () => { takeDown(); cleared.resolve(); return built.promise; }, types: [dir > 0 ? 'next' : 'previous'] });
-  // Skipped (another switch began, the window hidden) or given up, a slide is no error: the next grid comes all the same.
-  transition.ready.catch(() => {});
-  sliding = { transition, built: built.resolve };
+  store.setState({ loading: true });
+  api?.clear();
+  // The panes go with what was said over them: profile ids repeat across tasks.
+  store.setState({ profiles: [], pictures: {}, captions: {}, picking: {}, terminals: { front: null, list: [] } });
+  gridReady = null;
 });
 
-// Tasks gone (closed, deleted, moved to another window): their terminals and pictures too; a task opened again
-// later starts afresh.
-kulisa.on('tasks:closed', (keys) => {
-  for (const key of keys) pictures.delete(key);
-  forgetTerminals(keys);
-});
+// Tasks gone (closed, deleted, moved to another window): their terminals too; a task opened again later starts afresh.
+kulisa.on('tasks:closed', forgetTerminals);
 
 async function restoreGrid() {
   const a = await apiReady.promise;
@@ -240,8 +195,7 @@ function syncGrid() {
   }
 }
 // The shown task's terminals (components/grid/Terminals.tsx): its tabs, the one in front.
-kulisa.on('terminals', async (t) => {
-  await leaving; // as the state: the next task's, once the grid on screen has gone
+kulisa.on('terminals', (t) => {
   if (t.task === store.getState().current) store.setState({ terminals: t });
 });
 // A terminal closed, of any task: its xterm goes.
