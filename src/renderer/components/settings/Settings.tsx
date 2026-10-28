@@ -62,14 +62,19 @@ export function Settings({ at, className }: { at: SettingsAt; className?: string
     setProjects(list!.projects); setProfiles(p.profiles);
     return { list: list!, profiles: p.profiles };
   }, []);
+  // Each page asked for, here or by the main process: one fetched after another was asked for shows nothing.
+  const asked = useRef(0);
   const show = async (on: Section, id?: string) => {
+    const n = ++asked.current;
     await save.current();
+    if (n !== asked.current) return;
     if (on !== 'agents' || id !== shownAgent?.id) setSigning(null);
     setFirst(null); // what it opened at is as it was then: a page shown later fetches its own
     setPlace({ section: on, id });
   };
   // Opened, or asked again, at a page (lib/settings.ts).
   useEffect(() => { void (async () => {
+    const n = ++asked.current;
     await save.current();
     const { list, profiles: all } = await lists();
     // As last found, looked for again behind them; never looked for yet (nothing in the window has asked), the first
@@ -82,6 +87,7 @@ export function Settings({ at, className }: { at: SettingsAt; className?: string
     const page = project ? kulisa.invoke('project:settings-get', { id: project }) : null;
     if (!await cached) await agentList.look(false); else void agentList.look(false);
     const filled = page && await page;
+    if (n !== asked.current) return;
     setFirst(project && filled && !refused(filled) ? { id: project, page: filled } : null);
     setPlace({ section: at.section, id: at.section === 'projects' ? project : at.section === 'profiles' && all.some((p) => p.id === at.id) ? at.id : undefined });
     setShown((n) => n + 1);
