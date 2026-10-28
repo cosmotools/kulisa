@@ -7,7 +7,7 @@ thumbnail (issue #107).
 
 It knows nothing of profiles, tasks or agents: it is given a Playwright page. The core's action is
 `Profile.screenshot` (`src/main/profiles.ts`): its checks, then the tab's page passed here, and a line in the log;
-the agent's `browser_screenshot` and the human's ⋮ → Screenshot both call it, so a check is written once (CLAUDE.md,
+the agent's `browser_screenshot` and the human's ⋮ → Screenshot both call it, so a check is written once (AGENTS.md,
 "One core").
 
 ## What is taken
@@ -52,7 +52,7 @@ name theirs, `Kulisa <profile> 2026-10-19 14.32.05.png` (` (2)` for a second in 
 file name may not have on any of the three.
 
 The file is the user's, made by their action as a download is: it stays, and they keep the folder as they keep the
-OS's screenshots (CLAUDE.md's "Nothing piles up" is about Kulisa's own data). No Save dialog.
+OS's screenshots (AGENTS.md's "Nothing piles up" is about Kulisa's own data). No Save dialog.
 
 Electron's clipboard is the W3C Clipboard API's (`clipboard.write([new ClipboardItem({ 'image/png': blob })])`;
 `breaking-changes.md`): it has no `writeImage`.

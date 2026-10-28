@@ -2,12 +2,12 @@
 
 A **Kulisa package** is a part of Kulisa that does one thing and knows nothing of the core (other Kulisa packages only
 by their entries), all of it in one folder `src/<package>/`, reached from outside only through its entries (the term:
-CLAUDE.md, Conventions; not a cluster, [ui.md](ui.md), Clusters). The example this doc points to is the terminal,
+AGENTS.md, Conventions; not a cluster, [ui.md](ui.md), Clusters). The example this doc points to is the terminal,
 `src/terminal/` (its [README](../src/terminal/README.md)).
 
 Why: in one folder a part is read, changed and reviewed in one place, its boundary is checked rather than remembered,
-and Claude Code reads its own `CLAUDE.md` by itself. Code moves into one a part at a time, when it is worked on and
-found self-contained; no big move.
+and each folder keeps its own agent instructions in `AGENTS.md`. Code moves into one a part at a time, when it is
+worked on and found self-contained; no big move.
 
 ## What makes code one
 
@@ -29,7 +29,7 @@ Code that is *about* the thing but knows the rest stays outside, using the packa
 panel (`components/grid/Terminals.tsx`, `lib/terminals.ts`: its agents' buttons, the closed profiles' tiles, Change
 agent…, the project's accounts in its +), the agents in terminals (`tasks.ts`: conversations, handing over, the
 agent's state) and the agent's tools (`terminal_run`, `terminal_read`, `terminal_stop` in
-`kulisa-plugin/tools/terminal.ts`: what the agent sees lives in the Kulisa plugin, CLAUDE.md, Architecture). Inside,
+`kulisa-plugin/tools/terminal.ts`: what the agent sees lives in the Kulisa plugin, AGENTS.md, Architecture). Inside,
 the terminals' panel would pull half of `src/renderer/lib` with it, and the boundary would mean nothing.
 
 **The caller stays thin: it states facts, the package does the work.** What the package's things are and do (their
@@ -49,7 +49,8 @@ it touched is listed with why that line cannot be in the package (the screenshot
 
 ```
 src/<package>/
-  CLAUDE.md          working in it: its entries, its rules, what stays outside, where its tests are
+  CLAUDE.md          imports the adjacent AGENTS.md for Claude Code (`@AGENTS.md`)
+  AGENTS.md          working in it: its entries, its rules, what stays outside, where its tests are
   README.md          how it works and why, as docs/ does for the rest; its last section "The code"
   ipc.ts             its channels' types (<Name>Send, <Name>Events, …), joined in src/shared/ipc.ts
   main/index.ts      the main process's half: its entry
@@ -94,16 +95,16 @@ silently skips one is fixed in the config for every package, not for that one.
 ## Its docs
 
 - `README.md`: what it is and who uses it (and that it knows nothing of them), how each half works and why, its
-  channels, "The code" (its files, its e2e test files), as the docs in `docs/` are written (CLAUDE.md, Conventions).
+  channels, "The code" (its files, its e2e test files), as the docs in `docs/` are written (AGENTS.md, Conventions).
   The paragraphs of `docs/` about it move there; `docs/` keeps a sentence and a link where the topic was.
 - **Outside the package, only what a reader outside needs, never a retelling**: the guide (`docs/guide.md`: for the
   user, and it may not link to other docs), the lists that hold all of a kind with a word and a link each (the table
   of actions in `profiles.md`, the keys in `window.md`, the environment variables in the README, "The code" tables,
   the manual checks' issues, #193, #194, #205), and a sentence where a doc's topic leads into the package. How it works and why is
   only in its README.
-- `CLAUDE.md`, short: that it is a Kulisa package (and this doc), its entries and what its halves may use, what stays
-  outside and so where a rule about that belongs, where its tests are (Claude Code reads it with the folder's files;
-  other agents, the root one, which points here).
+- `AGENTS.md`, short: that it is a Kulisa package (and this doc), its entries and what its halves may use, what stays
+  outside and so where a rule about that belongs, where its tests are. `CLAUDE.md` contains only `@AGENTS.md`,
+  so both agents use the same rules.
 
 ## Moving code into one, step by step
 
@@ -114,8 +115,8 @@ silently skips one is fixed in the config for every package, not for that one.
 3. **Its channels** into `ipc.ts`, `src/shared/ipc.ts` extending its interfaces.
 4. **Its line in `.dependency-cruiser.ts`**, then check each rule fires: put a forbidden import in a scratch file,
    see `npm run deps` refuse it, remove it.
-5. **Its docs**: `README.md` from the paragraphs of `docs/`, a link left there; `CLAUDE.md`; "The code" tables of the
-   other docs; the old paths searched for in `docs/`, `CLAUDE.md`, `README.md` and the code's comments.
+5. **Its docs**: `README.md` from the paragraphs of `docs/`, a link left there; `AGENTS.md` and its `CLAUDE.md` import;
+   "The code" tables of the other docs; the old paths searched for in `docs/`, `AGENTS.md`, `README.md` and the code's comments.
 6. **Its unit tests** into the folder; then the full `npm test`, and the number of unit tests the same as before (a glob
    of its own in `test/start.ts` would miss them).
 7. **What is left outside**: each file outside the package that it touches, and why that line is not in it (the

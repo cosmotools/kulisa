@@ -163,7 +163,7 @@ repositories (git worktrees), so the project's folders stay the human's. Its dat
     keyboard) or Delete: Delete Task…'s question; its right-click: Show or Open, Close, Delete Task…. A project without
     tasks says so.
   - **New Project…** at its foot.
-- **The empty window** (CLAUDE.md, Terminology), at the first start and after the last task closes (×, Close All
+- **The empty window** (AGENTS.md, Terminology), at the first start and after the last task closes (×, Close All
   Tasks, the project deleted): the title bar, no tasks' bar, and in the grid's place (`components/Empty.tsx`) the
   sidebar docked, beside it what to do.
 - **The welcome** (`components/Welcome.tsx`), with no project: what Kulisa does in three slides (its agent in your
@@ -188,7 +188,7 @@ repositories (git worktrees), so the project's folders stay the human's. Its dat
 
 ## Tasks
 
-A **task** (CLAUDE.md, Terminology) is one line of work in a project: its own copy of the code on a branch, browser
+A **task** (AGENTS.md, Terminology) is one line of work in a project: its own copy of the code on a branch, browser
 profiles, a grid of panels and agents in terminals, so several agents build several features of one project at once.
 
 - **Always a copy.** With git (and a first commit), a task's work is in a git worktree of the default repository on a
@@ -756,7 +756,7 @@ rm -rf ~/.config/Kulisa/projects/<project id>   # all its tasks with their profi
   `session.fromPath` keeps the caches inside the profile, so a copy skips them.
 - **Storage as Chrome lays it out**, so what is known about Chrome's storage applies. Folders are named by fixed ids:
   a rename touches only the JSON.
-- **The agent picks the app's port** (CLAUDE.md, Tools for the agent). Separate hostnames such as
+- **The agent picks the app's port** (AGENTS.md, Tools for the agent). Separate hostnames such as
   `checkout.localhost` would lose the sign-ins that a port keeps. The local database is the developer's matter
   (`docker compose` names containers after the folder, so a task gets its own; only published ports clash). An app
   that cannot change its port (hard-coded, OAuth bound to `localhost:3000`) cannot run beside another task's; the

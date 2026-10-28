@@ -75,7 +75,7 @@ npm run package       # the app for this platform, in out/
 npm run make          # installers for this platform, in out/make/ (.deb and .rpm, .exe, .dmg and .zip)
 npm run publish       # the same, into a draft release on GitHub (GITHUB_TOKEN); the CI does it on a merge into main
 npm run icons         # after changing assets/icon.svg: icon.png, .ico, .icns next to it (committed)
-npm version <patch|minor> --no-git-tag-version   # a release's version (CLAUDE.md, Releases); the plugin manifest's follows (scripts/version.ts)
+npm version <patch|minor> --no-git-tag-version   # a release's version (AGENTS.md, Releases); the plugin manifest's follows (scripts/version.ts)
 ```
 
 Kulisa's tests run on Ubuntu, Windows and macOS at every pull request; macOS is for development so far (from source,
@@ -100,12 +100,12 @@ computer).
 | `KULISA_GITHUB` | GitHub's address instead of github.com, its API under `/api` (the tests' own: their fake GitHub; src/github) |
 | `KULISA_SHOT` | Save a screenshot of the whole window to this PNG file ~4 s after start (`KULISA_SHOT_DELAY`, ms) |
 
-### Developing with Claude Code
+### Developing with an agent
 
-Set up for Claude Code sessions on Kulisa itself (CLAUDE.md is their guide), nothing to do by hand: a language server
-for TypeScript (the `kulisa-dev` plugin, `.claude/dev-plugins/`; a session without it installs it and asks you
-for `/reload-plugins`) and a Stop hook running ESLint and the unit tests before a session ends its turn
-(docs/testing.md, Claude Code's checks).
+Start with [AGENTS.md](AGENTS.md): the shared rules for Codex and Claude Code, including worktrees and pull requests.
+Each directory's `AGENTS.md` holds its local rules; `CLAUDE.md` imports the adjacent file for Claude Code.
+Development skills live in `.agents/skills/`, with Claude Code entrypoints in `.claude/skills/`.
+[Testing](docs/testing.md) covers completion checks, code analysis and Claude Code's optional LSP setup and Stop hook.
 
 ## Code
 
@@ -125,7 +125,8 @@ for `/reload-plugins`) and a Stop hook running ESLint and the unit tests before 
 | `scripts/` | `electron.ts` (npm start: Electron, `--no-sandbox` on Linux only), `postinstall.ts` (node-pty for Electron), `icons.ts` (npm run icons), `version.ts` (Claude Code's plugin manifest's version from package.json's, at npm version) |
 | `assets/` | the app icon: `icon.svg` and what each OS needs, rendered from it |
 | `docs/` | how it works and why (Documentation, above) |
-| `.claude/` | for Claude Code sessions on Kulisa: their skills (running and debugging the author's Kulisa), the Stop hook, the `kulisa-dev` plugin |
+| `.agents/` | shared development skills for running and debugging Kulisa |
+| `.claude/` | Claude Code entrypoints to the shared skills, the Stop hook and the `kulisa-dev` plugin |
 | `.github/workflows/` | the CI: the tests at every pull request, the release on a merge into main |
 
 At the root, the tools' configs: `forge.config.ts` (packaging), `vite.config.mts`, `tsconfig.json`,

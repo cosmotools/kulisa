@@ -11,6 +11,9 @@ playwright-report/
 .envrc
 .idea/
 
+# Development worktrees
+.worktrees/
+
 # Claude Code: personal settings and its worktrees stay local; the skill entrypoints (.claude/skills), the settings and the
 # development plugins (.claude/dev-plugins) are shared
 .claude/settings.local.json
