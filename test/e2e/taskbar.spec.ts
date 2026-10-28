@@ -3,7 +3,7 @@
 import path from 'path';
 import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
-import { MAC, frames, ipcSettled, menu, choose, closeMenu, rightClick, fromSidebar, openSidebar, closeSidebar, taskRow, rowButton, focusWindow, viewOn, termShows, invoke, notLoading, noSlide, answer, removed, termKeys, resize } from './helpers.ts';
+import { MAC, frames, ipcSettled, menu, choose, closeMenu, rightClick, fromSidebar, openSidebar, closeSidebar, sidebar, taskRow, rowButton, focusWindow, viewOn, termShows, invoke, notLoading, noSlide, answer, removed, termKeys, resize } from './helpers.ts';
 import { committed, rand, keyAt, isNth, nthShown, taskTab, hook, begin, bothOn, newTask } from './tasks-helpers.ts';
 
 // The tab chosen (lit) in the bar.
@@ -395,7 +395,7 @@ test("tasks: the sidebar with several projects — a project's + makes it a new 
   const before = await tasks2();
   await fromSidebar(ui, 'Plus2');
   await expect.poll(async () => (await tasks2()) === before + 1 && on(), { timeout: 10000 }).toBe(true);
-  await closeSidebar(ui);
+  await expect(sidebar(ui)).toHaveCount(0);
 
   // Each task row carries a 🗑 (on the row under the pointer) that deletes the task after the Delete Task… question
   // (Cancel keeps it).
