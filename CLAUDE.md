@@ -176,9 +176,10 @@ prompt; the human writes the rest of the message around it.
     not change the dependencies; work that does gets its own (`npm install`, then `npm run postinstall`).
   - Commits go to the worktree's branch; no worktree has `develop` checked out. **Into `develop` only by a pull
     request, merged by the author**: when the author asks for the commit, push the branch (`git push -u origin
-    <name>`) and open its pull request into `develop` (GitHub's API, below), its body what the change does and its
-    cost line (Working with the author). Its required checks are `main`'s but `version` (Releases): tell the author
-    when they are green. Never merge into `develop` or `main` here, nor push them.
+    <name>`) and open its pull request into `develop` (GitHub's API, below), its body what the change does, its cost
+    line (Working with the author) and a line on `src/ui`: what it adds or updates and why (`npm run ui -- progress`:
+    the agent's progress bar), or that it is unchanged, so the author decides on it without reading its diff. Its
+    required checks are `main`'s but `version` (Releases): tell the author when they are green. Never merge into `develop` or `main` here, nor push them.
   - The author's Kulisa runs one checkout at a time: the `run-kulisa` skill, from the worktree
     while its work is shown, from the repository's folder (`develop`) once it is merged.
   - Once its pull request is merged (or the author drops it), the repository's folder follows `develop` (above),

@@ -76,9 +76,14 @@ jobs:
       - run: npm run lint
       - run: npx tsc -p . && npx tsc -p test && npx tsc --noEmit -p src/renderer
       # src/ui as shadcn's CLI writes it, never edited by hand (src/ui/README.md): made again, no difference. Once, on
-      # Linux: the CLI fetches shadcn's registry.
+      # Linux: the CLI fetches shadcn's registry. A difference says what to do, to whoever reads it (an agent too).
       - if: runner.os == 'Linux'
-        run: npm run ui && git add -N src/ui && git diff --exit-code -- src/ui components.json
+        run: |
+          npm run ui && git add -N src/ui
+          if ! git diff --stat --exit-code -- src/ui components.json; then
+            echo "::error title=src/ui differs from what npm run ui makes::A file of src/ui edited by hand: undo it; a look is a theme's variable (src/renderer/window.css), a component missing is npm run ui -- <name> (src/ui/README.md). Not touched in this pull request: shadcn's registry changed; run npm run ui and commit what it makes, a commit of its own."
+            exit 1
+          fi
       # A Go program with no maintained npm package: its release, by its own script at the same version.
       - if: runner.os == 'Linux'
         run: |
