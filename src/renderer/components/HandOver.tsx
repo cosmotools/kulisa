@@ -73,7 +73,7 @@ store.subscribe((s) => {
 function Side({ cli, name, conv }: { cli?: string; name?: string; conv: string }) {
   const p = parts(name ?? '');
   return <div className="flex min-w-0 flex-col items-center gap-0.5 text-center">
-    <span className="mb-1.5 flex size-10 text-[40px]">{cli && createElement(agentMark(cli))}</span>
+    <span className="mb-1.5 flex size-10">{cli && createElement(agentMark(cli), { className: 'size-10' })}</span>
     <span className="font-medium">{p.agent}</span>
     <span className="max-w-full truncate text-xs text-muted-foreground">{p.account}</span>
     <span className="max-w-full truncate text-xs text-muted-foreground">{conv}</span>

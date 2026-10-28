@@ -144,7 +144,7 @@ export function ProfilePane({ api }: IDockviewPanelProps) {
         <TabStrip stripRef={strip} label="Open tabs" value={profile.active ?? ''} onChoose={activate}>
           {/* their widths: docs/ui.md, Tabs */}
           {profile.tabs.map((t) => <BrowserTab key={t.id} ref={grow} value={t.id} data-tab={t.id} aria-label={t.title || t.url || 'New tab'} title={t.url}
-            className="@container w-[220px] min-w-16 flex-[0_1_auto]"
+            className="@container w-55 min-w-16 flex-[0_1_auto]"
             icon={t.favicon ? <img data-testid="tab-icon" alt="" src={t.favicon} className="size-4" /> : <GlobeIcon data-testid="tab-icon" />}
             close={{ title: 'Close tab', run: () => void act('tab:close', { profile: id, tab: t.id }) }}>
             <span className="@max-[80px]:hidden">{t.title || t.url || 'New tab'}</span>

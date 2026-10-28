@@ -206,7 +206,7 @@ export function Settings({ at, className }: { at: SettingsAt; className?: string
     </div>
 
     <main className="flex min-w-0 flex-1 flex-col">
-      <div className={`flex min-h-12 items-center justify-between gap-3 pt-6 pb-4 ${wide ? 'px-6' : 'max-w-[920px] px-10'}`}>
+      <div className={`flex min-h-12 items-center justify-between gap-3 pt-6 pb-4 ${wide ? 'px-6' : 'max-w-230 px-10'}`}>
         <Breadcrumb aria-label="Path">
           <BreadcrumbList>
             {one ? <>
@@ -220,7 +220,7 @@ export function Settings({ at, className }: { at: SettingsAt; className?: string
       </div>
       {/* padding, not a box's width: the page's scrollbar stays at the window's edge */}
       <div className={`flex min-h-0 flex-1 flex-col overflow-auto pb-6 ${wide ? 'px-6' : 'px-10'}`}>
-        <div className={`flex flex-col gap-4 ${wide ? 'min-h-0 flex-1' : 'w-full max-w-[840px]'}`}>{page()}</div>
+        <div className={`flex flex-col gap-4 ${wide ? 'min-h-0 flex-1' : 'w-full max-w-210'}`}>{page()}</div>
       </div>
     </main>
   </div>;

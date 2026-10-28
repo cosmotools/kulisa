@@ -162,7 +162,7 @@ export function TerminalsHeader({ api }: IDockviewPanelHeaderProps) {
           onChoose={(v) => void act('terminal:show', { id: Number(v) })}>
           {list.map((t) => {
             const Mark = agentMark(t.agent?.cli ?? 'shell');
-            return <BrowserTab key={t.id} ref={grow} value={String(t.id)} data-id={t.id} aria-label={t.name} title={tabTitle(t)} className="max-w-[220px] flex-none"
+            return <BrowserTab key={t.id} ref={grow} value={String(t.id)} data-id={t.id} aria-label={t.name} title={tabTitle(t)} className="max-w-55 flex-none"
               icon={<>
                 {t.agent
                   ? <span role="button" tabIndex={-1} aria-label={`${t.agent.name}: change agent…`} className="inline-flex rounded-sm hover:bg-foreground/10"
