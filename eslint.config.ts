@@ -18,7 +18,7 @@ const STYLE = "JSXAttribute[name.name='style'] > JSXExpressionContainer > Object
 // The window is shadcn's components (src/ui) and Tailwind's classes on our own boxes (docs/ui.md, shadcn in Kulisa).
 const OWN = [
   { selector: 'JSXOpeningElement[name.name=/^(button|input|select|textarea)$/]', message: "src/ui's Button, Input, Select or Textarea (docs/ui.md)." },
-  { selector: `${STYLE}[value.type='Literal']`, message: 'A constant style is a class; `style` holds only what run time knows (docs/ui.md).' },
+  { selector: `${STYLE}[value.type='Literal']:not([key.value=/^--/])`, message: 'A constant style is a class; `style` holds only what run time knows (docs/ui.md).' },
 ];
 // One way to draw: no second UI library, no CSS Module beside Tailwind.
 const ONE_LOOK = { paths: [{ name: '@fluentui/react-components', message: "The window is shadcn's (src/ui; docs/ui.md)." }],
@@ -29,6 +29,8 @@ const HEX = { selector: 'Literal[value=/^#[0-9a-fA-F]{3,8}$/]', message: "A colo
 // only where it sits and how big it is: a literal of layout and size classes (w-64, flex-1, ms-auto), any variant
 // before them (data-[x]:hidden); in `style`, a custom property or a size or place known at run time.
 const LAYOUT = new RegExp(String.raw`^(?:[\w-]+(?:-\[[^\]]+\])?:)*!?(?:-?m[trblxyse]?-\S+|(?:min-|max-)?[wh]-\S+|size-\S+|flex-(?:1|auto|none|initial|\[[^\]]+\])|basis-\S+|(?:shrink|grow)(?:-0)?|(?:justify-|place-)?self-\S+|order-\S+|(?:col|row)-(?:span|start|end)-\S+|static|relative|absolute|fixed|sticky|-?(?:inset|top|right|bottom|left|start|end)(?:-[xy])?-\S+|z-\S+|hidden|sr-only|aspect-\S+|justify-(?:start|end|center|between)|items-(?:start|end|center|stretch))$`);
+// A variable passed to a component, the standard way to configure one (docs/ui.md, shadcn in Kulisa).
+const VARIABLE = /^\[--[\w-]+:[^\]]+\]$/;
 const PLACE = new Set(['width', 'height', 'minWidth', 'maxWidth', 'minHeight', 'maxHeight', 'flexBasis', 'left', 'top', 'right', 'bottom', 'inset']);
 const uiAsShipped: Rule.RuleModule = {
   meta: { type: 'problem', schema: [] },
@@ -41,16 +43,18 @@ const uiAsShipped: Rule.RuleModule = {
         for (const s of node.specifiers) if (s.type === 'ImportSpecifier') ui.add(s.local.name);
       },
       JSXAttribute(node: Rule.Node) {
-        const n = node as unknown as { name: { name: string }; value: { type: string; value?: unknown; expression?: { type: string; properties?: { type: string; key: { type: string; name?: string; value?: unknown } }[] } } | null;
+        const n = node as unknown as { name: { name: string }; value: { type: string; value?: unknown; expression?: { type: string; expression?: unknown; properties?: { type: string; key: { type: string; name?: string; value?: unknown } }[] } } | null;
           parent: { name: { type: string; name?: string } } };
         const el = n.parent.name;
         if (el.type !== 'JSXIdentifier' || !ui.has(el.name!)) return;
         if (n.name.name === 'className') {
           if (n.value?.type !== 'Literal') return report(node, `className on ${el.name}: a literal of layout and size classes`);
           for (const c of String(n.value.value).split(/\s+/).filter(Boolean))
-            if (!LAYOUT.test(c)) report(node, `${c} on ${el.name}: its look is the theme's; only where it sits and its size`);
+            if (!LAYOUT.test(c) && !VARIABLE.test(c)) report(node, `${c} on ${el.name}: its look is the theme's; only where it sits and its size`);
         } else if (n.name.name === 'style') {
-          const props = n.value?.expression?.type === 'ObjectExpression' ? n.value.expression.properties! : null;
+          let e = n.value?.expression;
+          if (e?.type === 'TSAsExpression') e = e.expression as typeof e; // custom properties are not in React's CSSProperties
+          const props = e?.type === 'ObjectExpression' ? e.properties! : null;
           if (!props) return report(node, `style on ${el.name}: an object of custom properties and sizes`);
           for (const p of props) {
             const key = p.type === 'Property' ? String(p.key.name ?? p.key.value) : '...';
