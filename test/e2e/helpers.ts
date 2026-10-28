@@ -73,8 +73,10 @@ export async function echoed(core: Core, { shows, send }: Echo = {}) {
 }
 
 // A press on an element as the hand makes it (CDP's input), dated a second back, and its release when called: the
-// page's events carry the time, so a hold is told from a click without waiting for one.
+// page's events carry the time, so a hold is told from a click without waiting for one. After the grid's slide: while
+// it runs every event goes to the page's root, and CDP's input has no Playwright check that the target receives it.
 export async function holdPointer(page: Page, target: Locator) {
+  await noSlide(page);
   const b = await target.boundingBox(), x = b.x + b.width / 2, y = b.y + b.height / 2;
   const cdp = await page.context().newCDPSession(page);
   await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y });
