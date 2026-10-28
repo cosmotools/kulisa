@@ -10,25 +10,11 @@ const BARS = 28;
 type Look = 'getting' | 'listening' | 'transcribing' | 'done';
 const VARIANT = { getting: 'secondary', listening: 'destructive', transcribing: 'secondary', done: 'outline' } as const;
 
-// None of its motions with reduced motion (the heard wave stays, being what is heard).
+// None of its motions with reduced motion (the heard wave stays, being what is heard): Tailwind's and tw-animate-css'.
 const still = matchMedia('(prefers-reduced-motion: reduce)');
 // It springs in as a recording starts (a spring's overshoot), and fades up as it goes: tw-animate-css, shadcn's motion.
 const ARRIVE = 'animate-in fade-in zoom-in-60 slide-in-from-top-4 blur-in-xs duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)]';
 const LEAVE = 'animate-out fade-out zoom-out-85 slide-out-to-top-2.5 blur-out-xs duration-300 ease-in fill-mode-forwards';
-// The beat and the transcribing wave: the Web Animations API, keyframes Tailwind has none of. Refs, stable: a motion starts as its element comes and ends as it goes, not again as the pill draws anew.
-const beat = (el: HTMLElement | null) => {
-  if (!el || still.matches) return;
-  const a = el.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.15)' }, { transform: 'scale(1)' }], { duration: 1400, easing: 'ease-in-out', iterations: Infinity });
-  return () => a.cancel();
-};
-// Transcribing: the heard wave gives way to a wave running through the bars (data-i: a bar's place), the voice being
-// worked on.
-const run = (el: HTMLElement | null) => {
-  if (!el || still.matches) return;
-  const a = el.animate([{ scale: '1 0.12' }, { scale: '1 0.75' }, { scale: '1 0.12' }],
-    { duration: 1100, easing: 'ease-in-out', iterations: Infinity, delay: -55 * (Number(el.dataset.i) + 1) });
-  return () => a.cancel();
-};
 
 export function Pill({ task, children }: { task: string | null; children?: ReactNode }) {
   const v = useVoices((s) => (task ? s.voices[task] : undefined));
@@ -55,7 +41,8 @@ export function Pill({ task, children }: { task: string | null; children?: React
         <span className="inline-flex items-center gap-2 px-1 text-sm whitespace-nowrap tabular-nums">
           <span className="grid size-3.5 place-items-center">
             {shown.look === 'done' ? children : shown.look === 'getting' ? <Spinner className="size-3.5" />
-              : <span ref={beat} className="size-2 rounded-full bg-current" />}
+              : <span className="relative flex size-2"><span className="absolute inset-0 animate-ping rounded-full bg-current motion-reduce:hidden" />
+                <span className="size-2 rounded-full bg-current" /></span>}
           </span>
           {shown.look !== 'done' && <Wave look={shown.look} listening={look === 'listening'} />}
           {label ?? <Clock />}
@@ -75,7 +62,7 @@ function Clock() {
 }
 
 // A bar of the wave: its height (scale) set as it is heard, by the meter; the transition smooths the meter's steps.
-const BAR = 'h-full w-0.75 flex-none rounded-xs bg-current scale-y-10 transition-[scale] duration-75 ease-linear';
+const BAR = 'h-full w-0.75 flex-none rounded-xs bg-current transition-[scale] duration-75 ease-linear';
 
 // The voice heard, as a wave: Kulisa's own reading of the microphone, its level only, while it records (the agent
 // records on its own; nothing of this is kept or sent). Each bar a moment, the newest at the right; the older ones fade
@@ -124,7 +111,9 @@ function Wave({ look, listening }: { look: Look | undefined; listening: boolean 
   return <span ref={wave} aria-hidden="true" data-look={look}
     className="flex h-5 items-center gap-0.5 overflow-hidden mask-l-from-65% data-[look=getting]:opacity-50 data-[look=transcribing]:mask-x-from-75%">
     {Array.from({ length: BARS }, (_, i) => look === 'transcribing'
-      ? <i key={`r${i}`} ref={run} data-i={i} className={BAR} />
-      : <i key={i} className={BAR} />)}
+      // Transcribing: the heard wave gives way to one running through the bars (Tailwind's bounce, a bar's delay its
+      // place), the voice being worked on.
+      ? <i key={`r${i}`} className={`${BAR} scale-y-30 animate-bounce motion-reduce:animate-none`} style={{ animationDelay: `${-55 * (i + 1)}ms` }} />
+      : <i key={i} className={`${BAR} scale-y-10`} />)}
   </span>;
 }

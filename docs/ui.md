@@ -202,8 +202,8 @@ What is drawn or moved here rather than by shadcn, each for a reason at it:
 
 - the grid's slide between tasks (a view transition of `#dock`, `Grid.css`): pictures, so the compositor moves them;
   dockview's look, its variables set from the theme's (`Grid.css`);
-- the dictation's pill with its wave bars, and the microphone breathing red while it records (`src/dictation/`, its
-  `README.md`). The breathing is the Web Animations API: remounting the button would drop its press's pointer capture;
+- the dictation's pill with its wave bars, read from the microphone (`src/dictation/`, its `README.md`); its motions and
+  the microphone's ring are Tailwind's and tw-animate-css';
 - the strips (`lib/strip.css`, on the element `useStrip` marks): no scrollbar, the fades tied to the scroll; a tab
   growing in (`grow`, the Web Animations API); the marks and the logo;
 - the browser tabs' ×, drag and drop marks (`BrowserTabs.tsx`);

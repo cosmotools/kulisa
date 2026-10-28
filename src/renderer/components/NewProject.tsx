@@ -156,7 +156,7 @@ function ProfilesStep({ w }: { w: W }) {
   return <div role="group" aria-label="Profiles" className="flex min-w-0 flex-1 flex-col gap-3">
     <p>The users of your app the agent works as, a browser profile each: a name and who it is ("seller; can approve refunds").
       You sign in to them when the agent asks. None now: the agent makes those it needs.</p>
-    {fresh.map((f, i) => <div key={i} className="grid grid-cols-[minmax(0,200px)_minmax(0,1fr)_auto] gap-2">
+    {fresh.map((f, i) => <div key={i} className="grid grid-cols-[minmax(0,--spacing(50))_minmax(0,1fr)_auto] gap-2">
       <Input value={f.name} maxLength={64} placeholder="ann@shop.com" spellCheck={false} aria-label="Name" onChange={(e) => edit(i, { name: e.target.value })} />
       <Input value={f.description} maxLength={500} placeholder="Who it is in your app" aria-label="Who it is" onChange={(e) => edit(i, { description: e.target.value })} />
       <Tip text="Leave Out"><Button type="button" variant="ghost" size="icon" aria-label="Leave Out" onClick={() => w.set({ fresh: fresh.filter((_, j) => j !== i) })}><XIcon /></Button></Tip>
@@ -226,7 +226,7 @@ export function NewProject() {
       <DialogHeader><DialogTitle>New Project</DialogTitle></DialogHeader>
       {w && <Wizard w={w} done={() => setOpen(false)} className="grid gap-4">{({ step, saving, steps, error, back, go }) => <>
         {/* its height its own, so the steps do not change it; what does not fit scrolls (docs/ui.md, It fits the smallest window) */}
-        <div className="flex h-[min(400px,60vh)] min-h-0 flex-col gap-5 overflow-auto">
+        <div className="flex h-100 max-h-[60vh] min-h-0 flex-col gap-5 overflow-auto">
           <StepNames step={step} />
           {steps}
           {error}

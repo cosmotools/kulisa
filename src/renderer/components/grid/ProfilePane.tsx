@@ -144,7 +144,7 @@ export function ProfilePane({ api }: IDockviewPanelProps) {
         <TabStrip stripRef={strip} label="Open tabs" value={profile.active ?? ''} onChoose={activate}>
           {/* their widths: docs/ui.md, Tabs */}
           {profile.tabs.map((t) => <BrowserTab key={t.id} ref={grow} value={t.id} data-tab={t.id} aria-label={t.title || t.url || 'New tab'} title={t.url}
-            className="@container w-55 min-w-16 flex-[0_1_auto]"
+            className="@container w-55 min-w-16 flex-initial"
             icon={t.favicon ? <img data-testid="tab-icon" alt="" src={t.favicon} className="size-4" /> : <GlobeIcon data-testid="tab-icon" />}
             close={{ title: 'Close tab', run: () => void act('tab:close', { profile: id, tab: t.id }) }}>
             <span className="@max-[80px]:hidden">{t.title || t.url || 'New tab'}</span>
@@ -159,7 +159,7 @@ export function ProfilePane({ api }: IDockviewPanelProps) {
         the buttons at the end go out of reach first. The address shrinks. */}
     <div role="toolbar" aria-label="Page" className="flex flex-none items-center gap-1 px-2 py-1">
       {/* one: Back without Forward would be half a pair */}
-      <span ref={nav} className="hidden gap-1 @min-[300px]:flex">
+      <span ref={nav} className="hidden gap-1 @2xs:flex">
         <Button variant="ghost" size="icon-sm" title={withKeys('Back', 'tab.back')} aria-label="Back" disabled={!active?.canBack} onClick={run('tab:back')}>
           <ArrowLeftIcon />
         </Button>
@@ -167,7 +167,7 @@ export function ProfilePane({ api }: IDockviewPanelProps) {
           <ArrowRightIcon />
         </Button>
       </span>
-      <span ref={reload} className="hidden @min-[200px]:flex">
+      <span ref={reload} className="hidden @3xs:flex">
         <Button variant="ghost" size="icon-sm" title={withKeys('Reload', 'tab.reload')} aria-label="Reload" onClick={run('tab:reload')}><RotateCwIcon /></Button>
       </span>
       <Input ref={addr} aria-label="Address" spellCheck={false} className="h-7 min-w-0 flex-1"
@@ -205,7 +205,7 @@ function PageDialog({ from, message, confirm, answer }: { from: string; message:
     buttons.at((at + (e.shiftKey ? -1 : 1)) % buttons.length)?.focus();
   };
   return <div className="absolute inset-0 backdrop-blur-xs backdrop-brightness-75">
-    <Card size="sm" role="alertdialog" aria-labelledby={title} aria-describedby={text} onKeyDown={onKeyDown} className="mx-auto mt-2 w-[min(450px,calc(100%-1rem))]">
+    <Card size="sm" role="alertdialog" aria-labelledby={title} aria-describedby={text} onKeyDown={onKeyDown} className="mx-auto mt-2 w-[calc(100%-(--spacing(4)))] max-w-112.5">
       <CardHeader><CardTitle id={title}>{from}</CardTitle></CardHeader>
       <CardContent><p id={text} data-selectable className="whitespace-pre-wrap wrap-anywhere">{message}</p></CardContent>
       <CardFooter className="justify-end">

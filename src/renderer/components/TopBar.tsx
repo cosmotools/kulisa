@@ -115,11 +115,11 @@ export function TopBar({ children }: { children?: ReactNode }) {
   // last one winning; so both come after the tasks' bar in the page, the logo put first by order. The space is at least
   // 40 px, as Chrome's after its +.
   return <header id="topbar" className="flex h-11 w-[calc(env(titlebar-area-x,0px)+env(titlebar-area-width,100%))] min-w-0 items-center gap-2
-    ps-[calc(env(titlebar-area-x,0px)+8px)] [-webkit-app-region:drag]">
+    ps-[calc(env(titlebar-area-x,0px)+--spacing(2))] [-webkit-app-region:drag]">
     {children}
     {!mac && <span data-testid="title-logo" className="-order-2 flex [-webkit-app-region:drag]"><Logo color="var(--project, var(--foreground))" size={24} /></span>}
     <span className="-order-1 flex [-webkit-app-region:no-drag]">{!shown && <SidebarToggle />}</span>
-    <span data-testid="drag-area" className="flex-[1_0_40px] self-stretch [-webkit-app-region:drag]" />
+    <span data-testid="drag-area" className="grow shrink-0 basis-10 self-stretch [-webkit-app-region:drag]" />
     <span className="me-2 flex gap-1 [-webkit-app-region:no-drag]">
       {zoom !== 1 && <Tip text={`Kulisa's zoom. Click to reset (${keyText('zoom.reset')})`}>
         <Button id="zoomReset" variant="ghost" onClick={() => kulisa.invoke('zoom:ui', 0)}>{Math.round(zoom * 100)}%</Button></Tip>}

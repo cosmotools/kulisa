@@ -82,7 +82,7 @@ test("grid: a narrow pane's bar gives up Back and Forward, then Reload, into ⋮
       - menuitem /^DevTools/`;
   await more(`
     - menu: ${shots}`);
-  await at(240, ['Reload', 'Address', 'Pick an element', 'More']);
+  await at(272, ['Reload', 'Address', 'Pick an element', 'More']);
   await at(100, ['Address', 'Pick an element', 'More']);
   await more(`
     - menu:

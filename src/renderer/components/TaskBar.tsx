@@ -167,7 +167,7 @@ export function TaskBar() {
           const color = projectColor(p), at = mark?.key === t.key ? mark.side : undefined;
           // Every tab keeps its width whichever is shown, so none moves under the mouse; at its narrowest about ten letters.
           return <BrowserTab key={t.key} value={t.key} data-task={t.key} data-project={p.id} draggable aria-label={t.name}
-            dragging={dragged === t.key} drop={at} className="min-w-40 flex-[0_1_200px]"
+            dragging={dragged === t.key} drop={at} className="min-w-40 flex-initial basis-50"
             title={`${p.name}\n${t.branch ? `branch ${t.branch} in ${t.folder}` : `in the project's folder ${t.folder} (no git: no copy of its own)`}`}
             icon={<><ProjectIcon p={{ favicon: p.favicon, color }} size={16} /><AgentState state={t.state} /></>}
             close={{ title: 'Close the task: its agent stops, all else stays (open it again from the sidebar)', run: () => void kulisa.invoke('task:close', t.key) }}>

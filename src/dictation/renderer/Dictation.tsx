@@ -6,15 +6,6 @@ import { MicIcon } from 'lucide-react';
 import { Button } from '@ui';
 import { leave, read, record, recording as isRecording, useVoices } from './voice';
 
-// Red while it records, breathing with a ring, as a voice message's button does, so the eye catches from across the
-// window that the agent is listening (not with reduced motion: red alone). The Web Animations API: the button must not
-// mount anew while pressed (the press's pointer capture). The ring in the theme's red, read as it starts.
-const breathe = (ring: string): Keyframe[] => [
-  { transform: 'scale(1)', boxShadow: `0 0 0 0 ${ring}` },
-  { transform: 'scale(1.12)', boxShadow: '0 0 0 4px transparent' },
-  { transform: 'scale(1)', boxShadow: '0 0 0 0 transparent' },
-];
-const still = matchMedia('(prefers-reduced-motion: reduce)');
 // Lit: red while it records; getting ready (~1 s, the hidden session starting) the primary color, not red yet, so
 // nobody speaks before it hears.
 const VARIANT = { recording: 'destructive', starting: 'default' } as const;
@@ -32,15 +23,6 @@ export function Dictation({ task, keyName, language, onDone }: { task: string | 
     void read(task);
     return () => leave(task);
   }, [task]);
-
-  const button = useRef<HTMLButtonElement>(null);
-  const lit = state === 'recording';
-  useEffect(() => {
-    const b = button.current;
-    if (!lit || still.matches || !b) return;
-    const a = b.animate(breathe(getComputedStyle(b).getPropertyValue('--destructive')), { duration: 1200, easing: 'ease-in-out', iterations: Infinity });
-    return () => a.cancel();
-  }, [lit]);
 
   const down = useRef(0); // when the press that started a recording began
   const press = (e: PointerEvent<HTMLButtonElement>) => {
@@ -63,8 +45,11 @@ export function Dictation({ task, keyName, language, onDone }: { task: string | 
   // The pane is not dragged by its row's buttons. The tooltip is the native title, also on the box around: a disabled
   // button gets no pointer events, and its tooltip says why it is disabled.
   const variant = state === 'recording' || state === 'starting' ? VARIANT[state] : 'ghost';
-  return <div className="grid flex-none place-items-center" title={title} onDragStart={(e) => e.preventDefault()}>
-    <Button ref={button} variant={variant} size="icon-sm" aria-label="Speak to the agent" aria-pressed={recording} data-state={state}
+  // Red while it records, a ring pinging out of it behind (Tailwind's animate-ping), so the eye catches from across the
+  // window that the agent is listening (not with reduced motion: red alone).
+  return <div className="relative isolate grid flex-none place-items-center" title={title} onDragStart={(e) => e.preventDefault()}>
+    {state === 'recording' && <span aria-hidden="true" className="absolute inset-0 -z-10 animate-ping rounded-lg bg-destructive/60 motion-reduce:hidden" />}
+    <Button variant={variant} size="icon-sm" aria-label="Speak to the agent" aria-pressed={recording} data-state={state}
       disabled={!v || v.state === 'none'} title={title} onPointerDown={press} onPointerUp={release} onPointerCancel={release}
       // Enter or Space on it
       onClick={(e) => { if (!e.detail && task) void record(task, !recording); }}><MicIcon /></Button>

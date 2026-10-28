@@ -40,8 +40,8 @@ function Picture({ slide }: { slide: number }) {
   // A line in the terminal, fading in as the slide comes to it.
   const line = (text: string, on: boolean, color = '') => <div className={`${color} transition-opacity duration-500 ${on ? 'opacity-100' : 'opacity-0'}`}>{text}</div>;
   return <div aria-hidden="true" className="grid aspect-[16/10] w-full grid-cols-[1.1fr_1fr_1fr] gap-2 overflow-hidden rounded-xl border bg-muted p-2
-    [@media(max-height:640px)]:w-[min(100%,calc((100vh-200px)*1.6))] [@media(max-height:640px)]:justify-self-center
-    [@media(max-width:720px)_and_(max-height:640px)]:hidden">
+    [@media(max-height:640px)]:max-w-[calc((100vh-(--spacing(50)))*1.6)] [@media(max-height:640px)]:justify-self-center
+    max-md:[@media(max-height:640px)]:hidden">
     <div className="flex min-w-0 flex-col gap-1 overflow-hidden rounded-lg border bg-card p-2 font-mono text-[10px] leading-snug">
       <div className="flex items-center gap-1"><Claude className="size-3" /> claude</div>
       {line('> does the checkout work for every user?', true)}
@@ -66,9 +66,9 @@ function Picture({ slide }: { slide: number }) {
 // The slides, their dots (a click shows one); Back and Next as a teaching popover's footer has them.
 function Tour({ slide, setSlide, done, next }: { slide: number; setSlide: (n: number) => void; done: () => void; next: React.RefObject<HTMLButtonElement | null> }) {
   const last = slide === SLIDES.length - 1, s = SLIDES[slide]!;
-  return <section aria-label="What Kulisa does" data-slide={slide} className="flex w-[min(960px,100%)] flex-col gap-12 [@media(max-height:640px)]:gap-6">
+  return <section aria-label="What Kulisa does" data-slide={slide} className="flex w-full max-w-240 flex-col gap-12 [@media(max-height:640px)]:gap-6">
     <div aria-roledescription="slide" aria-label={s.title} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] items-center gap-12
-      max-[720px]:grid-cols-1 [@media(max-height:640px)]:gap-6">
+      max-md:grid-cols-1 [@media(max-height:640px)]:gap-6">
       <div className="grid min-w-0 gap-4">
         <h1 className="text-3xl font-semibold tracking-tight">{s.title}</h1>
         <p className="max-w-[42ch] text-base text-muted-foreground">{s.text}</p>
@@ -96,7 +96,7 @@ export function Welcome() {
   return <div id="welcome" className="box-border grid min-h-0 flex-1 [place-items:safe_center] overflow-auto p-8">
     {!w ? <Tour slide={slide} setSlide={setSlide} done={() => setW(wizard(true))} next={next} />
       // New Project's steps in a Card, not a dialog: nothing else is in the window to cover
-      : <Card className="min-h-[min(520px,100%)] w-[min(760px,100%)]">
+      : <Card className="min-h-[min(--spacing(130),100%)] w-full max-w-190">
         <Wizard w={w} leave={() => setW(null)} className="flex min-h-0 flex-1 flex-col gap-4">
           {({ step, steps, error, back, go }) => <>
             <CardHeader>
