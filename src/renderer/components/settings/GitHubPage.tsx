@@ -2,12 +2,11 @@
 // Kulisa App (the device flow: Kulisa shows GitHub's code itself) or a fine-grained token, signed in again, deleted.
 // Read as it is shown, not as Settings opens: where Kulisa App is installed is asked of GitHub.
 import { useEffect, useRef, useState } from 'react';
-import { PlusIcon } from 'lucide-react';
+import { PlusIcon, CircleAlertIcon } from 'lucide-react';
 import { toast } from 'sonner';
-import { Alert, AlertDescription, AlertTitle, Avatar, AvatarFallback, Badge, Button } from '@ui';
+import { Alert, AlertDescription, AlertTitle, Avatar, AvatarFallback, Badge, Button, Card, CardHeader, CardTitle, CardContent, CardAction } from '@ui';
 import { ButtonMenu } from '../Menus';
-import { ErrorBar } from '../ErrorBar';
-import { AddInPlace, Section, Things } from './kit';
+import { AddInPlace, Things } from './kit';
 import type { MenuItem } from '../../lib/menu';
 import { refused } from '../../../shared/result';
 import { NEW_TOKEN, type GitHubAccount, type GitHubInfo } from '../../../github/ipc';
@@ -74,7 +73,7 @@ export function GitHubPage() {
       This computer has no keyring, so sign-ins are not kept: you sign in again after Kulisa restarts.</AlertDescription></Alert>}
 
     {/* never disabled: a new way replaces the one under way */}
-    <Section title="Accounts" action={<ButtonMenu end items={addMenu}><Button variant="outline" size="sm"><PlusIcon data-icon="inline-start" />Add Account</Button></ButtonMenu>}>
+    <Card role="group" aria-label="Accounts"><CardHeader><CardTitle>Accounts</CardTitle><CardAction><ButtonMenu end items={addMenu}><Button variant="outline" size="sm"><PlusIcon data-icon="inline-start" />Add Account</Button></ButtonMenu></CardAction></CardHeader><CardContent><div className="flex flex-col gap-3">
       <Things label="Accounts" menu={menu} empty="No accounts yet: your agents work on GitHub as one; each repository of a project goes as one of them."
         things={info.accounts.map((a) => ({ key: a.id, name: a.login, data: { 'data-github': a.id },
           media: <Avatar size="sm"><AvatarFallback>{a.login.slice(0, 1).toUpperCase()}</AvatarFallback></Avatar>,
@@ -103,7 +102,7 @@ export function GitHubPage() {
           organization or user of your repositories (an organization may have to approve it), then paste it here.</>}
         onChange={(v) => { setToken(v); setTokenError(''); }} go={() => void addToken()} stop={() => setPasting(null)} />}
       {/* a refusal not at the token's field */}
-      {error && <ErrorBar>{error}</ErrorBar>}
-    </Section>
+      {error && <Alert variant="destructive"><CircleAlertIcon /><AlertDescription><span data-selectable>{error}</span></AlertDescription></Alert>}
+    </div></CardContent></Card>
   </>;
 }

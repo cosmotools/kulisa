@@ -1,12 +1,11 @@
 // The Log page of Settings (docs/window.md, The log): the log read whole and followed as it grows, filtered, passed on.
 // Read as the page is shown, not as Settings opens (a megabyte for nothing otherwise), and let go as it is left.
 import { memo, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { ChevronDownIcon } from 'lucide-react';
+import { ChevronDownIcon, CircleAlertIcon } from 'lucide-react';
 import { toast } from 'sonner';
-import { Button, Input, Label, Switch, ToggleGroup, ToggleGroupItem } from '@ui';
+import { Button, Input, Label, Switch, ToggleGroup, ToggleGroupItem, Alert, AlertDescription } from '@ui';
 import { ButtonMenu } from '../Menus';
 import { Tip } from '../Tip';
-import { ErrorBar } from '../ErrorBar';
 import { refused } from '../../../shared/result';
 
 // A line as the file has it: [date T time offset] [level] [tag …] the rest (log.ts, stamp; electron-log's local time with
@@ -125,7 +124,7 @@ export function LogPage() {
       kulisa.log, {kb(info.size)} of {Math.round(info.max / 1024 / 1024)} MB{info.old ? `; kulisa.old.log from ${info.old.slice(0, 10)}` : ''}. Never here: what you typed,
       passwords, tokens, cookies, the pages' queries.
     </p>
-    {error && <ErrorBar>{error}</ErrorBar>}
+    {error && <Alert variant="destructive"><CircleAlertIcon /><AlertDescription><span data-selectable>{error}</span></AlertDescription></Alert>}
     <div className="flex items-center justify-end gap-2">
       <Tip text="The whole log, to paste anywhere"><Button variant="outline" onClick={() => void copy()}>Copy All</Button></Tip>
       <Tip text="The log as a file, to attach to a message or an issue"><Button variant="outline" onClick={() => void save()}>Save As…</Button></Tip>

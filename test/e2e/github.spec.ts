@@ -41,8 +41,12 @@ async function addAccount(s: Page, how: 'With GitHub…' | 'With a Token…') {
   await expect(menu(s)).toMatchAriaSnapshot(`
     - menu:
       - text: Add Account
-      - menuitem "With GitHub…": /Kulisa App/
-      - menuitem "With a Token…": /a fine-grained token/
+      - menuitem "With GitHub…":
+        - text: With GitHub…
+        - paragraph: /Kulisa App/
+      - menuitem "With a Token…":
+        - text: With a Token…
+        - paragraph: /a fine-grained token/
   `);
   await menu(s).getByRole('menuitem', { name: how }).click();
 }

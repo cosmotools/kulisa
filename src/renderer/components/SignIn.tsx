@@ -3,13 +3,11 @@
 // in the browser, only confuses; it is there for a failure (opened by itself then) and for what the browser does not
 // show (a code the agent asks for). Gone (Cancel, its page left), the sign-in is cancelled.
 import { useEffect, useEffectEvent, useState } from 'react';
-import { Button } from '@ui';
+import { CircleAlertIcon, ChevronRightIcon } from 'lucide-react';
+import { Button, Spinner, Alert, AlertDescription, AlertAction, Collapsible, CollapsibleContent, CollapsibleTrigger } from '@ui';
 import { forgetTerminals } from '../../terminal/renderer';
 import { Terminal } from './Terminal';
 import type { SignedIn as Answer } from '../../shared/types';
-import { ErrorBar } from './ErrorBar';
-import { Working } from './Working';
-import { Details } from './Details';
 
 let n = 0;
 const fresh = () => `signin#${Date.now()}-${++n}`; // a sign-in's terminal: a new one for each try
@@ -38,9 +36,15 @@ export function SignIn({ agent, project, onDone, onClose }: { agent: { id: strin
   return <div role="group" aria-label={`New account of ${agent.name}`} className="flex flex-col gap-3">
     <p className="text-muted-foreground">Signing in to a new account of {agent.name}: sign in in your browser, which opens (check the account it signs in to
       there; its address is under Details if it did not open). The account is {project ? 'added' : 'kept'} once you are signed in.</p>
-    <Details open={details} onOpenChange={setDetails}><Terminal terminal={key} className="h-40" /></Details>
-    {error && <ErrorBar actions={<Button type="button" variant="outline" size="sm" onClick={again}>Try Again</Button>}>{error}</ErrorBar>}
-    {running && <Working>Waiting for the sign-in…</Working>}
+    <Collapsible open={details} onOpenChange={setDetails}>
+      <CollapsibleTrigger asChild>
+        <Button type="button" variant="ghost" size="sm"><ChevronRightIcon className={details ? 'rotate-90' : undefined} />Details</Button>
+      </CollapsibleTrigger>
+      <CollapsibleContent><div className="mt-1 overflow-hidden rounded-lg border p-2"><Terminal terminal={key} className="h-40" /></div></CollapsibleContent>
+    </Collapsible>
+    {error && <Alert variant="destructive"><CircleAlertIcon /><AlertDescription><span data-selectable>{error}</span></AlertDescription>
+      <AlertAction><Button type="button" variant="outline" size="sm" onClick={again}>Try Again</Button></AlertAction></Alert>}
+    {running && <div role="status" className="flex items-center gap-2 text-muted-foreground"><Spinner role={undefined} aria-hidden />Waiting for the sign-in…</div>}
     <div className="flex gap-2">
       {!running && !error && <Button type="button" variant="outline" onClick={again}>Try Again</Button>}
       <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>

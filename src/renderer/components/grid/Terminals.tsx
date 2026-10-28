@@ -3,10 +3,8 @@
 import { createElement, useCallback, useEffect, useRef, useSyncExternalStore, type DragEvent, type Ref } from 'react';
 import { CheckIcon, PlusIcon } from 'lucide-react';
 import type { IDockviewPanelHeaderProps, IDockviewPanelProps } from 'dockview-react';
-import { Avatar, AvatarImage, Button } from '@ui';
+import { Avatar, AvatarImage, Button, Item, ItemContent, ItemDescription, ItemMedia, ItemTitle, Spinner } from '@ui';
 import { ButtonMenu, RightClickMenu } from '../Menus';
-import { Working } from '../Working';
-import { IconText } from './IconText';
 import { BrowserTab, TabStrip } from '../BrowserTabs';
 import { agentMark } from '../AgentMark';
 import { AgentState, STATES } from '../AgentState';
@@ -114,7 +112,7 @@ export function Terminals({ api, containerApi }: IDockviewPanelProps) {
       <div ref={host} data-testid="terminal" data-zone="terminal" hidden={folded} className="h-full py-0.5 ps-2 pe-1" />
     </RightClickMenu>
     {!folded && <Pill task={task}><CheckIcon className="size-3.5 text-success" /></Pill>}
-    {starting && <div className="absolute inset-0 grid place-items-center bg-card text-sm"><Working>Starting {starting}…</Working></div>}
+    {starting && <div className="absolute inset-0 grid place-items-center bg-card text-sm"><div role="status" className="flex items-center gap-2 text-muted-foreground"><Spinner role={undefined} aria-hidden />Starting {starting}…</div></div>}
   </div>;
 }
 
@@ -126,13 +124,16 @@ function Launchers({ ref }: { ref: Ref<HTMLDivElement> }) {
     <nav aria-label="New terminal" className="flex flex-wrap justify-center gap-3">
       {launchers().map((l) => <Button key={l.id} data-launcher variant="outline" aria-label={l.name} title={l.title} className="h-auto w-60 justify-start"
         onClick={() => void l.run()}>
-        <IconText big icon={createElement(agentMark(l.cli), { className: 'size-8' })} name={l.name ?? ''} line={l.sub} />
+        {/* shadcn's Item laid out in the button, as its examples put one in a menu's row */}
+        <Item size="sm"><ItemMedia>{createElement(agentMark(l.cli), { className: 'size-8' })}</ItemMedia>
+          <ItemContent className="min-w-0"><ItemTitle>{l.name}</ItemTitle>{l.sub && <ItemDescription>{l.sub}</ItemDescription>}</ItemContent></Item>
       </Button>)}
     </nav>
     <nav aria-label="Open a profile" className="flex flex-wrap justify-center gap-3">
       {profileLaunchers(closed).map((p) => <Button key={p.id} data-launcher data-profile={p.id} variant="outline" aria-label={p.name} title={p.title}
         className="h-auto w-60 justify-start" onClick={() => void p.run()}>
-        <IconText big icon={p.avatar ? <Avatar size="lg" aria-hidden><AvatarImage src={avatarSrc(p.avatar)} alt="" /></Avatar> : <PlusIcon className="size-8" />} name={p.name} />
+        <Item size="sm"><ItemMedia>{p.avatar ? <Avatar size="lg" aria-hidden><AvatarImage src={avatarSrc(p.avatar)} alt="" /></Avatar> : <PlusIcon className="size-8" />}</ItemMedia>
+          <ItemContent className="min-w-0"><ItemTitle>{p.name}</ItemTitle></ItemContent></Item>
       </Button>)}
     </nav>
   </div>;

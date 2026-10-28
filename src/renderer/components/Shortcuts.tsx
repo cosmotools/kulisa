@@ -2,12 +2,12 @@
 // so it is never out of date. A key held alone (the dictation's) is the human's to change: Change, then the key pressed
 // is it (keys:set; the main process says what may not be one).
 import { useEffect, useState } from 'react';
+import { CircleAlertIcon } from 'lucide-react';
 import { Button, Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, FieldDescription, FieldLegend, FieldSet, Kbd, Table, TableBody, TableCell,
-  TableRow } from '@ui';
+  TableRow, Alert, AlertDescription } from '@ui';
 import { registerDialog } from '../lib/dialogs';
 import { useShortcuts } from '../lib/common';
 import { refused } from '../../shared/result';
-import { ErrorBar } from './ErrorBar';
 import { Tip } from './Tip';
 
 const GROUPS = [
@@ -58,7 +58,7 @@ export function Shortcuts() {
               </TableRow>)}
             </TableBody>
           </Table>
-          {group === 'global' && message && <ErrorBar>{message}</ErrorBar>}
+          {group === 'global' && message && <Alert variant="destructive"><CircleAlertIcon /><AlertDescription><span data-selectable>{message}</span></AlertDescription></Alert>}
         </FieldSet>)}
       </div>
       <DialogFooter><Button onClick={() => setOpen(false)}>Close</Button></DialogFooter>

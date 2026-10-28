@@ -3,9 +3,9 @@ import { useEffect } from 'react';
 import { FileIcon, FolderIcon, GitBranchIcon, Trash2Icon } from 'lucide-react';
 import type { IDockviewPanelHeaderProps } from 'dockview-react';
 import { useShallow } from 'zustand/react/shallow';
-import { Button } from '@ui';
+import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupAction, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuAction,
+  SidebarMenuButton, SidebarMenuItem, SidebarProvider } from '@ui';
 import { RightClickMenu } from '../Menus';
-import { IconText } from './IconText';
 import { shownTask, useWindow } from '../../lib/store';
 import type { MenuItem } from '../../lib/menu';
 import { sizeText } from '../../../shared/bytes';
@@ -34,38 +34,47 @@ export function Resources() {
     return file ? [{ label: 'Open', run: () => openFile(file) }, { label: 'Show in Folder', run: () => kulisa.invoke('file:show', file) }, '-',
       { label: 'Delete', run: () => deleteArtifacts([file]) }] : null;
   };
-  return <aside id="resources" aria-label="The task's resources" className="h-full overflow-y-auto px-2 pb-2">
-    <ul aria-label="Folders" className="flex flex-col">
-      {task.resources.map((r) => <li key={r.folder} className="flex items-center gap-0.5">
-        <Button variant="ghost" aria-label={r.label} title={`Open Folder: ${r.folder}`} className="h-auto min-w-0 flex-1 justify-start" onClick={() => void open(r.folder)}>
-          <IconText icon={r.kind === 'maintree' ? <FolderIcon /> : <GitBranchIcon />} name={r.label} line={r.branch ? `branch ${r.branch}` : 'main working tree'} />
-        </Button>
-        {r.removable && <Button variant="ghost" size="icon-sm" aria-label="Remove Repository" title="Remove Repository" onClick={() => void remove(r.folder)}>
-          <Trash2Icon />
-        </Button>}
-      </li>)}
-    </ul>
-    {artifacts.length > 0 && <>
-      <div className="mt-2 mb-0.5 flex items-center gap-2 ps-2.5">
-        <h3 className="text-xs font-medium text-muted-foreground">Artifacts</h3>
-        <span data-testid="artifacts-size" className="ms-auto text-xs text-muted-foreground">{sizeText(bytes)}</span>
-        <Button variant="ghost" size="icon-sm" aria-label="Delete All Artifacts" title="Delete All Artifacts" onClick={() => void deleteArtifacts(null)}>
-          <Trash2Icon />
-        </Button>
-      </div>
-      <RightClickMenu items={menu}>
-        <ul aria-label="Artifacts" className="flex flex-col">
-          {artifacts.map((a) => <li key={a.file} className="flex">
-            <Button variant="ghost" data-file={a.file} aria-label={kindOf(a.kind)} title={`Open: ${a.file} (${sizeText(a.bytes)})`}
-              className="h-auto min-w-0 flex-1 justify-start" onClick={() => void openFile(a.file)}>
-              {/* a page's head: where its picture is cut */}
-              <IconText icon={a.thumb ? <img src={a.thumb} alt="" className="size-8 rounded-sm border object-cover object-top" /> : <FileIcon />}
-                name={kindOf(a.kind)} line={[names[a.profile], when(a.time)].filter(Boolean).join(' · ')} />
-            </Button>
-          </li>)}
-        </ul>
-      </RightClickMenu>
-    </>}
+  // A row: its icon, its name and a muted line under it, as a task's in the sidebar.
+  const lines = (name: string, line: string) => <span className="flex min-w-0 flex-1 flex-col">
+    <span className="truncate">{name}</span><span className="truncate text-xs text-muted-foreground">{line}</span>
+  </span>;
+  return <aside id="resources" aria-label="The task's resources" className="h-full min-h-0">
+    <SidebarProvider className="h-full min-h-0">
+      <Sidebar collapsible="none" className="h-full w-full">
+        <SidebarContent>
+          <SidebarGroup><SidebarGroupContent>
+            <SidebarMenu aria-label="Folders">
+              {task.resources.map((r) => <SidebarMenuItem key={r.folder}>
+                <SidebarMenuButton aria-label={r.label} title={`Open Folder: ${r.folder}`} className="h-auto" onClick={() => void open(r.folder)}>
+                  {r.kind === 'maintree' ? <FolderIcon /> : <GitBranchIcon />}
+                  {lines(r.label, r.branch ? `branch ${r.branch}` : 'main working tree')}
+                </SidebarMenuButton>
+                {r.removable && <SidebarMenuAction showOnHover aria-label="Remove Repository" title="Remove Repository" onClick={() => void remove(r.folder)}>
+                  <Trash2Icon /></SidebarMenuAction>}
+              </SidebarMenuItem>)}
+            </SidebarMenu>
+          </SidebarGroupContent></SidebarGroup>
+          {artifacts.length > 0 && <SidebarGroup>
+            <SidebarGroupLabel>Artifacts ·&nbsp;<span data-testid="artifacts-size">{sizeText(bytes)}</span></SidebarGroupLabel>
+            <SidebarGroupAction aria-label="Delete All Artifacts" title="Delete All Artifacts" onClick={() => void deleteArtifacts(null)}><Trash2Icon /></SidebarGroupAction>
+            <SidebarGroupContent>
+              <RightClickMenu items={menu}>
+                <SidebarMenu aria-label="Artifacts">
+                  {artifacts.map((a) => <SidebarMenuItem key={a.file}>
+                    <SidebarMenuButton data-file={a.file} aria-label={kindOf(a.kind)} title={`Open: ${a.file} (${sizeText(a.bytes)})`} className="h-auto"
+                      onClick={() => void openFile(a.file)}>
+                      {/* a page's head: where its picture is cut */}
+                      {a.thumb ? <img src={a.thumb} alt="" className="size-8 rounded-sm border object-cover object-top" /> : <FileIcon />}
+                      {lines(kindOf(a.kind), [names[a.profile], when(a.time)].filter(Boolean).join(' · '))}
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>)}
+                </SidebarMenu>
+              </RightClickMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>}
+        </SidebarContent>
+      </Sidebar>
+    </SidebarProvider>
   </aside>;
 }
 

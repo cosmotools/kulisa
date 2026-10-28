@@ -1,20 +1,19 @@
 // Settings: its nav, and a category's page or one thing's under its path (docs/window.md, Settings).
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import { ArrowLeftIcon, BotIcon, EllipsisIcon, GitBranchIcon, InfoIcon, LayoutGridIcon, PlusIcon, ScrollTextIcon, UsersIcon } from 'lucide-react';
-import { Badge, Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator, Button,
-  Card, CardContent, Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem,
-  SidebarProvider, Toaster } from '@ui';
+import { avatarSrc } from '../../lib/common';
+import { ArrowLeftIcon, BotIcon, EllipsisIcon, GitBranchIcon, InfoIcon, LayoutGridIcon, PlusIcon, ScrollTextIcon, UsersIcon, CircleAlertIcon } from 'lucide-react';
+import { Badge, Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator, Button, Card, CardContent, Sidebar,
+  SidebarContent, SidebarGroup, SidebarGroupContent, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, Toaster, Spinner,
+  Alert, AlertDescription, Avatar, AvatarImage, AvatarFallback } from '@ui';
 import { ButtonMenu } from '../Menus';
 import { Tip } from '../Tip';
-import { Working } from '../Working';
-import { ErrorBar } from '../ErrorBar';
 import { ProjectPage } from './ProjectPage';
 import { ProfilePage } from './ProfilePage';
 import { AboutPage } from './AboutPage';
 import { GitHubPage } from './GitHubPage';
 import { LogPage } from './LogPage';
 import { AgentPage } from './AgentPage';
-import { AddInPlace, ProfileAvatar, Things, type Thing } from './kit';
+import { AddInPlace, Things, type Thing } from './kit';
 import { useChanged } from './changed';
 import { agents as agentList, loadAccounts, useAccounts } from './agents';
 import { useAgentList } from '../../lib/agents';
@@ -157,7 +156,7 @@ export function Settings({ at, className }: { at: SettingsAt; className?: string
       : list('Agents', agents.map((a) => { const Mark = agentMark(a.id); return { key: a.id, name: a.name, media: <Mark className="size-6" />,
         badges: !a.installed && <Badge variant="secondary">Not installed</Badge>,
         description: a.installed ? [a.version, a.path].filter(Boolean).join(' · ') || undefined : a.maker }; }),
-      agentMenu, looking ? <Working>Looking for agents on this computer…</Working> : 'No agents.');
+      agentMenu, looking ? <div role="status" className="flex items-center gap-2 text-muted-foreground"><Spinner role={undefined} aria-hidden />Looking for agents on this computer…</div> : 'No agents.');
     // Keyed by its id alone: a field being typed in stays as the profile changes (saved, or elsewhere).
     if (section === 'profiles') return shownProfile ? <ProfilePage key={shownProfile.id} profile={shownProfile} onChanged={(r) => { setProfiles(r.profiles); if (r.id) setPlace({ section: 'profiles', id: r.id }); }} />
       : <>
@@ -165,8 +164,8 @@ export function Settings({ at, className }: { at: SettingsAt; className?: string
           <AddInPlace label="New profile" placeholder="Its name, e.g. ann@shop.com" value={newProfile} name ok="Create" error={profilesError || undefined}
             onChange={(v) => { setNewProfile(v); setProfilesError(''); }} go={() => void createProfile()} stop={() => { setNewProfile(null); setProfilesError(''); }} />
         </CardContent></Card>}
-        {newProfile === null && profilesError && <ErrorBar>{profilesError}</ErrorBar>}
-        {list('Profiles', profiles.map((p) => ({ key: p.id, name: p.name, media: <ProfileAvatar name={p.name} avatar={p.avatar} />,
+        {newProfile === null && profilesError && <Alert variant="destructive"><CircleAlertIcon /><AlertDescription><span data-selectable>{profilesError}</span></AlertDescription></Alert>}
+        {list('Profiles', profiles.map((p) => ({ key: p.id, name: p.name, media: <Avatar size="sm"><AvatarImage src={avatarSrc(p.avatar)} alt="" /><AvatarFallback>{p.name.slice(0, 1).toUpperCase()}</AvatarFallback></Avatar>,
           description: [p.description, p.projects.length ? `in ${p.projects.join(', ')}` : 'in no project'].filter(Boolean).join(' · ') })),
         profileMenu, newProfile === null && 'No profiles yet.')}
       </>;

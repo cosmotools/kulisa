@@ -1,12 +1,12 @@
 // An agent's page in Settings (docs/tasks.md, "Choosing the agent", Accounts).
 import { createElement, useEffect, useState } from 'react';
-import { PlusIcon } from 'lucide-react';
-import { Avatar, AvatarFallback, Badge, Button, Item, ItemActions, ItemContent, ItemDescription, ItemMedia, ItemTitle } from '@ui';
+import { PlusIcon, CircleAlertIcon } from 'lucide-react';
+import { Avatar, AvatarFallback, Badge, Button, Item, ItemActions, ItemContent, ItemDescription, ItemMedia, ItemTitle, Alert, AlertDescription, Field,
+  FieldTitle, FieldDescription, Card, CardHeader, CardTitle, CardContent, CardAction } from '@ui';
 import { agents, loadAccounts, showAccounts, useAccounts } from './agents';
-import { Fact, Section, Things } from './kit';
+import { Things } from './kit';
 import { agentMark } from '../AgentMark';
 import { SignIn } from '../SignIn';
-import { ErrorBar } from '../ErrorBar';
 import { InstallProgress } from '../AgentPicker';
 import { shortPath, useAgentList } from '../../lib/agents';
 import { refused } from '../../../shared/result';
@@ -41,22 +41,22 @@ export function AgentPage({ agent: a, signing, onSigning }: { agent: AgentInfo; 
       {!a.installed && a.install && <ItemActions><Button disabled={installing} onClick={() => void agents.install(a.id)}>Install</Button></ItemActions>}
     </Item>
 
-    <Section title="About">
-      {a.needs && <Fact label="Needs">{a.needs}</Fact>}
-      {where ? <Fact label="Installed at" data-testid="agent-where">{where}</Fact>
-        : a.install && <Fact label="Install">{`Runs ${a.maker || 'its maker'}'s installer: ${a.install}`}</Fact>}
+    <Card role="group" aria-label="About"><CardHeader><CardTitle>About</CardTitle></CardHeader><CardContent><div className="flex flex-col gap-3">
+      {a.needs && <Field><FieldTitle>Needs</FieldTitle><FieldDescription data-selectable>{a.needs}</FieldDescription></Field>}
+      {where ? <Field><FieldTitle>Installed at</FieldTitle><FieldDescription data-selectable data-testid="agent-where">{where}</FieldDescription></Field>
+        : a.install && <Field><FieldTitle>Install</FieldTitle><FieldDescription data-selectable>{`Runs ${a.maker || 'its maker'}'s installer: ${a.install}`}</FieldDescription></Field>}
       {shown && <InstallProgress list={agents} />}
-    </Section>
+    </div></CardContent></Card>
 
-    {clis.includes(a.id) && <Section title="Accounts" action={<Button variant="outline" size="sm" disabled={!a.installed || signing}
-      onClick={() => { setError(''); onSigning(true); }}><PlusIcon data-icon="inline-start" />Add Account</Button>}>
+    {clis.includes(a.id) && <Card role="group" aria-label="Accounts"><CardHeader><CardTitle>Accounts</CardTitle><CardAction><Button variant="outline" size="sm" disabled={!a.installed || signing}
+      onClick={() => { setError(''); onSigning(true); }}><PlusIcon data-icon="inline-start" />Add Account</Button></CardAction></CardHeader><CardContent><div className="flex flex-col gap-3">
       <Things label="Accounts" menu={(id) => [{ label: 'Delete…', run: () => remove(id) }]}
         empty={signing ? undefined : 'No accounts yet: each its own sign-in, added to a project on its page.'}
         things={mine.map((x) => { const name = x.email || x.id; return { key: x.id, name, data: { 'data-account': x.id },
           media: <Avatar size="sm"><AvatarFallback>{name.slice(0, 1).toUpperCase()}</AvatarFallback></Avatar>,
           description: x.projects.length ? `in ${x.projects.join(', ')}` : 'in no project' }; })} />
       {signing && <SignIn agent={a} onDone={(r) => { onSigning(false); showAccounts(r); }} onClose={() => onSigning(false)} />}
-      {error && <ErrorBar>{error}</ErrorBar>}
-    </Section>}
+      {error && <Alert variant="destructive"><CircleAlertIcon /><AlertDescription><span data-selectable>{error}</span></AlertDescription></Alert>}
+    </div></CardContent></Card>}
   </section>;
 }

@@ -1,8 +1,8 @@
 // The window's menus, on shadcn's DropdownMenu, their rows from lib/menu.ts (docs/ui.md, Menus): Radix's rules but
 // four, each kept where it is done.
 import { createElement, useCallback, useEffect, useRef, useState, type MouseEvent, type PointerEvent, type ReactElement, type ReactNode } from 'react';
-import { Avatar, AvatarImage, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuShortcut, DropdownMenuSub,
-  DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger } from '@ui';
+import { Avatar, AvatarImage, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuShortcut,
+  DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger, Item, ItemContent, ItemDescription, ItemMedia, ItemTitle } from '@ui';
 import { avatarSrc } from '../lib/common';
 import { closePointMenu, menuAt, usePointMenu, type MenuItem, type MenuRow } from '../lib/menu';
 import { ProjectIcon } from './ProjectIcon';
@@ -21,8 +21,8 @@ const leftOnly = (e: PointerEvent) => { if (e.button !== 0) e.preventDefault(); 
 function Row({ it }: { it: MenuRow }) {
   return <DropdownMenuItem aria-label={it.label} disabled={it.enabled === false || !it.run} title={it.title} onSelect={() => void it.run?.()}
     onPointerUp={leftOnly}>
-    {mark(it)}
-    {it.sub ? <span className="flex flex-col"><span>{it.label}</span><span className="text-xs text-muted-foreground">{it.sub}</span></span> : it.label}
+    {it.sub /* a line under its label: shadcn's Item in the row, as its examples put one in a menu (size xs: the row's padding) */
+      ? <Item size="xs">{mark(it) && <ItemMedia>{mark(it)}</ItemMedia>}<ItemContent><ItemTitle>{it.label}</ItemTitle><ItemDescription>{it.sub}</ItemDescription></ItemContent></Item> : <>{mark(it)}{it.label}</>}
     {it.keys && <DropdownMenuShortcut>{it.keys}</DropdownMenuShortcut>}
   </DropdownMenuItem>;
 }

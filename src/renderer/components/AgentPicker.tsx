@@ -2,16 +2,13 @@
 // project's accounts and the terminal only, with Install. Asked once the grid it is for is on screen; closed without a
 // choice (Cancel, Esc, another task shown), none opens. Also an install's progress, New Project's too (InstallProgress).
 import { createElement, useEffect, useState } from 'react';
-import { CircleCheckIcon } from 'lucide-react';
+import { CircleCheckIcon, CircleAlertIcon, ChevronRightIcon } from 'lucide-react';
 import { Alert, AlertDescription, Badge, Button, Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, Field, FieldContent, FieldDescription,
-  FieldLabel, FieldLegend, FieldSet, FieldTitle, RadioGroup, RadioGroupItem } from '@ui';
+  FieldLabel, FieldLegend, FieldSet, FieldTitle, RadioGroup, RadioGroupItem, Spinner, Collapsible, CollapsibleContent, CollapsibleTrigger } from '@ui';
 import { agentMark } from './AgentMark';
 import { agentList, shortPath, useAgentList, type AgentList } from '../lib/agents';
 import { whenLeft } from '../lib/grid';
 import type { AgentInfo } from '../../shared/types';
-import { ErrorBar } from './ErrorBar';
-import { Working } from './Working';
-import { Details } from './Details';
 
 const list = agentList({ installed: (a) => `${a.name} is installed. Start it; it asks you to sign in.` });
 let asking: string | null = null; // the task asked for
@@ -32,15 +29,20 @@ export function InstallProgress({ list: l }: { list: AgentList }) {
   const installing = useAgentList(l, (s) => s.installing);
   if (!progress && !details && !error) return null;
   return <div className="flex flex-col gap-2">
-    {progress && (installing ? <Working>{progress}</Working>
+    {progress && (installing ? <div role="status" className="flex items-center gap-2 text-muted-foreground"><Spinner role={undefined} aria-hidden />{progress}</div>
       : <Alert><CircleCheckIcon className="text-success" /><AlertDescription>{progress}</AlertDescription></Alert>)}
-    {details && <Details open={open} onOpenChange={(o) => l.openDetails(o)}>
+    {details && <Collapsible open={open} onOpenChange={(o) => l.openDetails(o)}>
+        <CollapsibleTrigger asChild>
+          <Button type="button" variant="ghost" size="sm"><ChevronRightIcon className={open ? 'rotate-90' : undefined} />Details</Button>
+        </CollapsibleTrigger>
+        <CollapsibleContent><div className="mt-1 overflow-hidden rounded-lg border p-2">
       {/* the installer's output as its terminal showed it, a line a line (Settings' AgentPage too: InstallProgress) */}
       <div role="log" aria-label="What the installer said" data-selectable className="max-h-40 overflow-auto font-mono text-xs whitespace-pre-wrap">
         {log.split('\n').map((line, i) => <div key={i}>{line || ' '}</div>)}
       </div>
-    </Details>}
-    {error && <ErrorBar>{error}</ErrorBar>}
+      </div></CollapsibleContent>
+    </Collapsible>}
+    {error && <Alert variant="destructive"><CircleAlertIcon /><AlertDescription><span data-selectable>{error}</span></AlertDescription></Alert>}
   </div>;
 }
 
@@ -84,7 +86,7 @@ export function AgentPicker() {
     <DialogContent showCloseButton={false} className="sm:max-w-xl" onInteractOutside={(e) => e.preventDefault()}>
       <DialogHeader><DialogTitle>Choose the Agent</DialogTitle></DialogHeader>
       <div className="flex max-h-[60vh] min-h-0 flex-col gap-3 overflow-auto">
-        {looking && <Working>Looking for agents on this computer…</Working>}
+        {looking && <div role="status" className="flex items-center gap-2 text-muted-foreground"><Spinner role={undefined} aria-hidden />Looking for agents on this computer…</div>}
         <FieldSet>
           <FieldLegend variant="label">Agents</FieldLegend>
           <FieldDescription>It works in a terminal of this task: it writes the code and uses the profiles. If it is not on this computer yet,

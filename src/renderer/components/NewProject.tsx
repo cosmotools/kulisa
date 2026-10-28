@@ -2,10 +2,10 @@
 // lib/new-project.ts. A dialog of a tasks' window (New Project…), and the welcome's own (Welcome.tsx: under a question
 // each, Back on the first step leaves for the slides before it).
 import { createElement, useEffect, useId, useRef, useState, type KeyboardEvent, type ReactElement, type ReactNode } from 'react';
-import { FolderGit2Icon, FolderOpenIcon, FolderPlusIcon, MinusIcon, PlusIcon, StarIcon, XIcon } from 'lucide-react';
+import { FolderGit2Icon, FolderOpenIcon, FolderPlusIcon, MinusIcon, PlusIcon, StarIcon, XIcon, CircleAlertIcon } from 'lucide-react';
 import { useShallow } from 'zustand/react/shallow';
 import { Avatar, AvatarImage, Badge, Button, Checkbox, Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, Field, FieldDescription, FieldError,
-  FieldLabel, FieldLegend, FieldSet, Input, RadioGroup, RadioGroupItem, Spinner, Tabs, TabsList, TabsTrigger, Toggle } from '@ui';
+  FieldLabel, FieldLegend, FieldSet, Input, RadioGroup, RadioGroupItem, Spinner, Tabs, TabsList, TabsTrigger, Toggle, Alert, AlertDescription } from '@ui';
 import { SignIn } from './SignIn';
 import { InstallProgress } from './AgentPicker';
 import { agentMark } from './AgentMark';
@@ -14,28 +14,9 @@ import { avatarSrc } from '../lib/common';
 import { useAgentList } from '../lib/agents';
 import { askName, isDefault, refusalOf, STEPS, useWizard, whereOf, wizard, type From, type Wizard as W } from '../lib/new-project';
 import { registerDialog } from '../lib/dialogs';
-import { ErrorBar } from './ErrorBar';
 
 const KINDS: { value: From; label: string; icon: ReactElement }[] = [{ value: 'new', label: 'New Folder', icon: <FolderPlusIcon /> },
   { value: 'folder', label: 'Folders on Disk', icon: <FolderOpenIcon /> }, { value: 'clone', label: 'Clone from URL', icon: <FolderGit2Icon /> }];
-
-// A field of a step: its label, its control, what will happen said under it as it is typed (the tests' handle: its
-// name) and a line more, its error (text to copy and search for: the body is not). The control is described by both,
-// as a screen reader and the tests read it.
-function StepField({ label, error, where, more, children }: { label: ReactNode; error?: string | false; where?: string; more?: string;
-  children: (control: { id: string; 'aria-describedby'?: string; 'aria-invalid'?: true }) => ReactNode }) {
-  const id = useId();
-  const described = [where || more ? `${id}-said` : '', error ? `${id}-error` : ''].filter(Boolean).join(' ') || undefined;
-  return <Field data-invalid={!!error || undefined}>
-    <FieldLabel htmlFor={id}>{label}</FieldLabel>
-    {children({ id, 'aria-describedby': described, 'aria-invalid': error ? true : undefined })}
-    {(where || more) && <FieldDescription id={`${id}-said`}>
-      {where && <span role="status" aria-label="What will happen" className="block">{where}</span>}
-      {more && <span className="block">{more}</span>}
-    </FieldDescription>}
-    {error && <FieldError id={`${id}-error`}><span data-selectable>{error}</span></FieldError>}
-  </Field>;
-}
 
 // The folders or URLs added, one chosen to leave out (Delete, or −); the first the default.
 function Sources({ label, rows, chosen, choose, remove }: { label: string; rows: { folder: string; state: string }[]; chosen?: string;
@@ -61,7 +42,7 @@ function Sources({ label, rows, chosen, choose, remove }: { label: string; rows:
 
 // 1. Its code: its kind (a new folder, folders there are, a clone), the form under it.
 function CodeStep({ w, nameRef }: { w: W; nameRef: React.RefObject<HTMLInputElement | null> }) {
-  const s = useWizard(w, (x) => x);
+  const s = useWizard(w, (x) => x), id = useId();
   const [chosen, setChosen] = useState<string>();
   const folder = s.from === 'folder';
   const rows = folder ? s.sources : s.urls.map((u) => ({ folder: u, state: '' }));
@@ -77,37 +58,48 @@ function CodeStep({ w, nameRef }: { w: W; nameRef: React.RefObject<HTMLInputElem
       </TabsList>
     </Tabs>
     {/* One folder or URL (the welcome's): taken as it is left, or at Next */}
-    {s.from !== 'new' && w.single && <StepField label={folder ? 'Folder' : 'URL'} error={at('source')} where={folder ? where : ''} more={later}>
-      {(c) => <div className="flex gap-2">
-        <Input {...c} className="flex-1" value={s.typed} spellCheck={false} placeholder={placeholder}
+    {s.from !== 'new' && w.single && <Field data-invalid={at('source') ? true : undefined}>
+      <FieldLabel htmlFor={`${id}-source`}>{folder ? 'Folder' : 'URL'}</FieldLabel>
+      <div className="flex gap-2">
+        <Input id={`${id}-source`} aria-describedby={[(folder && where) || later ? `${id}-source-said` : '', at('source') ? `${id}-source-error` : ''].filter(Boolean).join(' ') || undefined} aria-invalid={at('source') ? true : undefined} className="flex-1" value={s.typed} spellCheck={false} placeholder={placeholder}
           onChange={(e) => w.set({ typed: e.target.value, error: '' })} onBlur={() => void w.addSource()} onKeyDown={enter} />
         {folder && <Button type="button" variant="outline" onClick={() => void w.browse(true)}>Browse…</Button>}
-      </div>}
-    </StepField>}
+      </div>
+      {((folder && where) || later) && <FieldDescription id={`${id}-source-said`}>{folder && where && <span role="status" aria-label="What will happen" className="block">{where}</span>}{later && <span className="block">{later}</span>}</FieldDescription>}
+      {at('source') && <FieldError id={`${id}-source-error`}><span data-selectable>{at('source')}</span></FieldError>}
+    </Field>}
     {/* Folders or URLs, one or several (a frontend and a backend): Enter or Add puts the one typed in the list, under
         it once there is one. The field is one of them (its own name), the label the list's. */}
-    {s.from !== 'new' && !w.single && <StepField label={folder ? 'Folders' : 'URLs'} error={at('source')} where={folder ? where : ''}>
-      {(c) => <div role="group" aria-label={folder ? 'Folders' : 'URLs'} className="flex min-w-0 flex-col gap-2">
+    {s.from !== 'new' && !w.single && <Field data-invalid={at('source') ? true : undefined}>
+      <FieldLabel htmlFor={`${id}-sources`}>{folder ? 'Folders' : 'URLs'}</FieldLabel>
+      <div role="group" aria-label={folder ? 'Folders' : 'URLs'} className="flex min-w-0 flex-col gap-2">
         <div className="flex gap-2">
-          <Input {...c} className="flex-1" value={s.typed} spellCheck={false} placeholder={placeholder} aria-label={folder ? 'A folder' : 'A repository URL'}
+          <Input id={`${id}-sources`} aria-describedby={[folder && where ? `${id}-sources-said` : '', at('source') ? `${id}-sources-error` : ''].filter(Boolean).join(' ') || undefined} aria-invalid={at('source') ? true : undefined} className="flex-1" value={s.typed} spellCheck={false} placeholder={placeholder} aria-label={folder ? 'A folder' : 'A repository URL'}
             onChange={(e) => w.set({ typed: e.target.value, error: '' })} onKeyDown={enter} />
           <Button type="button" variant="outline" onClick={() => void w.addSource()}>Add</Button>
           {folder && <Tip text="Add Folder…"><Button type="button" variant="outline" size="icon" aria-label="Add Folder…" onClick={() => void w.browse(true)}><PlusIcon /></Button></Tip>}
           <Tip text="Leave Out"><Button type="button" variant="outline" size="icon" aria-label="Leave Out" disabled={!chosen} onClick={remove}><MinusIcon /></Button></Tip>
         </div>
         {rows.length > 0 && <Sources label={folder ? 'Folders' : 'URLs'} rows={rows} chosen={chosen} choose={setChosen} remove={remove} />}
-      </div>}
-    </StepField>}
-    {askName(s, w.single) && <StepField label={w.single ? 'Project name' : 'Name'} error={at('name')}>
-      {(c) => <Input {...c} ref={nameRef} value={s.name} maxLength={64} placeholder="e.g. tenant-audit" spellCheck={false}
-        onChange={(e) => w.change({ name: e.target.value })} />}
-    </StepField>}
-    {!folder && <StepField label="Location" error={refusal} where={where}>
-      {(c) => <div className="flex gap-2">
-        <Input {...c} className="flex-1" value={s.place} spellCheck={false} onChange={(e) => w.change({ place: e.target.value })} />
+      </div>
+      {folder && where && <FieldDescription id={`${id}-sources-said`}><span role="status" aria-label="What will happen" className="block">{where}</span></FieldDescription>}
+      {at('source') && <FieldError id={`${id}-sources-error`}><span data-selectable>{at('source')}</span></FieldError>}
+    </Field>}
+    {askName(s, w.single) && <Field data-invalid={at('name') ? true : undefined}>
+      <FieldLabel htmlFor={`${id}-name`}>{w.single ? 'Project name' : 'Name'}</FieldLabel>
+      <Input id={`${id}-name`} aria-describedby={at('name') ? `${id}-name-error` : undefined} aria-invalid={at('name') ? true : undefined} ref={nameRef} value={s.name} maxLength={64} placeholder="e.g. tenant-audit" spellCheck={false}
+        onChange={(e) => w.change({ name: e.target.value })} />
+      {at('name') && <FieldError id={`${id}-name-error`}><span data-selectable>{at('name')}</span></FieldError>}
+    </Field>}
+    {!folder && <Field data-invalid={refusal ? true : undefined}>
+      <FieldLabel htmlFor={`${id}-location`}>Location</FieldLabel>
+      <div className="flex gap-2">
+        <Input id={`${id}-location`} aria-describedby={[where ? `${id}-location-said` : '', refusal ? `${id}-location-error` : ''].filter(Boolean).join(' ') || undefined} aria-invalid={refusal ? true : undefined} className="flex-1" value={s.place} spellCheck={false} onChange={(e) => w.change({ place: e.target.value })} />
         <Button type="button" variant="outline" onClick={() => void w.browse()}>Browse…</Button>
-      </div>}
-    </StepField>}
+      </div>
+      {where && <FieldDescription id={`${id}-location-said`}><span role="status" aria-label="What will happen" className="block">{where}</span></FieldDescription>}
+      {refusal && <FieldError id={`${id}-location-error`}><span data-selectable>{refusal}</span></FieldError>}
+    </Field>}
   </div>;
 }
 
@@ -196,7 +188,7 @@ export function Wizard({ w, leave, done, className, children }: { w: W; leave?: 
         {step === 1 && <AgentStep w={w} />}
         {step === 2 && <ProfilesStep w={w} />}
       </div>,
-      error: error && !errorAt && <ErrorBar>{error}</ErrorBar>,
+      error: error && !errorAt && <Alert variant="destructive"><CircleAlertIcon /><AlertDescription><span data-selectable>{error}</span></AlertDescription></Alert>,
       back: (step > 0 || leave) && <Button type="button" variant="outline" onClick={() => (step ? w.back() : leave?.())}>Back</Button>,
       go: <Button type="submit" disabled={saving}>{saving && <Spinner role={undefined} aria-hidden />}
         {saving ? (from === 'clone' ? 'Cloning…' : 'Creating…') : last ? 'Create' : 'Next'}</Button>,

@@ -2,20 +2,18 @@
 // between the two, and how far the new one has read the conversation (task_history: handover:read, its real progress);
 // its tab, in front under the dialog, is shown once it has read it all, or at once when it needs the human or stops
 // reading: a dialog that never waits for an agent waiting for the human. Show now any time.
-import { createElement, useEffect, useState, type ReactNode } from 'react';
+import { createElement, useEffect, useState } from 'react';
 import { createStore, useStore } from 'zustand';
 import { useShallow } from 'zustand/react/shallow';
-import { BookOpenIcon, GitBranchIcon, GlobeIcon, SquareTerminalIcon } from 'lucide-react';
+import { BookOpenIcon, GitBranchIcon, GlobeIcon, SquareTerminalIcon, CircleAlertIcon } from 'lucide-react';
 import { Avatar, AvatarGroup, AvatarImage, Badge, Button, Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, Field, FieldContent,
-  FieldDescription, FieldLabel, FieldTitle, Progress, RadioGroup, RadioGroupItem } from '@ui';
+  FieldDescription, FieldLabel, FieldTitle, Progress, RadioGroup, RadioGroupItem, Spinner, Alert, AlertDescription } from '@ui';
 import { agentMark } from './AgentMark';
 import { act, shownTask, store, useWindow } from '../lib/store';
 import { registerDialog } from '../lib/dialogs';
 import { avatarSrc, plural } from '../lib/common';
 import { refused } from '../../shared/result';
 import type { Terminal } from '../../shared/types';
-import { ErrorBar } from './ErrorBar';
-import { Working } from './Working';
 
 // No part read for this long: an agent that thinks before it reads, or never does.
 const IDLE = 30_000;
@@ -69,18 +67,6 @@ store.subscribe((s) => {
   if (t?.state === 'waiting' || (!t && seen && s.current === inTask)) show();
 });
 
-// One of the two agents: its mark, its name and account, the conversation.
-function Side({ cli, name, conv }: { cli?: string; name?: string; conv: string }) {
-  const p = parts(name ?? '');
-  return <div className="flex min-w-0 flex-col items-center gap-0.5 text-center">
-    <span className="mb-1.5 flex size-10">{cli && createElement(agentMark(cli), { className: 'size-10' })}</span>
-    <span className="font-medium">{p.agent}</span>
-    <span className="max-w-full truncate text-xs text-muted-foreground">{p.account}</span>
-    <span className="max-w-full truncate text-xs text-muted-foreground">{conv}</span>
-  </div>;
-}
-// What goes along, a line of it.
-const along = (icon: ReactNode, text: string, title?: string) => <div role="listitem"><Badge variant="outline" title={title}>{icon}{text}</Badge></div>;
 
 export function HandOver() {
   const [open, setOpen] = useState(false);
@@ -107,16 +93,27 @@ export function HandOver() {
       <DialogHeader><DialogTitle>Change Agent</DialogTitle></DialogHeader>
       <div className="flex max-h-[60vh] min-h-0 flex-col gap-4 overflow-auto">
         {from?.agent && <div className="grid grid-cols-[1fr_auto_1fr] items-center rounded-lg bg-muted p-3">
-          <Side cli={from.agent.cli} name={from.agent.name} conv={`“${from.name}”`} />
-          <div role="list" aria-label="Goes along" className="flex flex-col items-center gap-1">
-            {branch && along(<GitBranchIcon />, branch, `branch ${branch}`)}
-            {profiles.length > 0 && along(<AvatarGroup>{profiles.map((p) => <Avatar key={p.id} className="size-3"><AvatarImage src={avatarSrc(p.avatar)} alt={p.name} /></Avatar>)}</AvatarGroup>,
-              `${plural(profiles.length, 'profile')}, signed in`)}
-            {tabs > 0 && along(<GlobeIcon />, plural(tabs, 'tab'))}
-            {shells.length > 0 && along(<SquareTerminalIcon />, `${shells.length === 1 ? shells[0]!.name : plural(shells.length, 'terminal')}, running`)}
-            {along(<BookOpenIcon />, 'the whole conversation')}
+          {/* one of the two agents: its mark, its name and account, the conversation */}
+          <div className="flex min-w-0 flex-col items-center gap-0.5 text-center">
+            <span className="mb-1.5 flex size-10">{from.agent.cli && createElement(agentMark(from.agent.cli), { className: 'size-10' })}</span>
+            <span className="font-medium">{parts(from.agent.name ?? '').agent}</span>
+            <span className="max-w-full truncate text-xs text-muted-foreground">{parts(from.agent.name ?? '').account}</span>
+            <span className="max-w-full truncate text-xs text-muted-foreground">“{from.name}”</span>
           </div>
-          <Side cli={to?.cli} name={to?.name} conv="a new tab" />
+          <div role="list" aria-label="Goes along" className="flex flex-col items-center gap-1">
+            {branch && <div role="listitem"><Badge variant="outline" title={`branch ${branch}`}><GitBranchIcon />{branch}</Badge></div>}
+            {profiles.length > 0 && <div role="listitem"><Badge variant="outline"><AvatarGroup>{profiles.map((p) => <Avatar key={p.id} className="size-3"><AvatarImage src={avatarSrc(p.avatar)} alt={p.name} /></Avatar>)}</AvatarGroup>
+              {`${plural(profiles.length, 'profile')}, signed in`}</Badge></div>}
+            {tabs > 0 && <div role="listitem"><Badge variant="outline"><GlobeIcon />{plural(tabs, 'tab')}</Badge></div>}
+            {shells.length > 0 && <div role="listitem"><Badge variant="outline"><SquareTerminalIcon />{`${shells.length === 1 ? shells[0]!.name : plural(shells.length, 'terminal')}, running`}</Badge></div>}
+            <div role="listitem"><Badge variant="outline"><BookOpenIcon />the whole conversation</Badge></div>
+          </div>
+          <div className="flex min-w-0 flex-col items-center gap-0.5 text-center">
+            <span className="mb-1.5 flex size-10">{to?.cli && createElement(agentMark(to?.cli), { className: 'size-10' })}</span>
+            <span className="font-medium">{parts(to?.name ?? '').agent}</span>
+            <span className="max-w-full truncate text-xs text-muted-foreground">{parts(to?.name ?? '').account}</span>
+            <span className="max-w-full truncate text-xs text-muted-foreground">a new tab</span>
+          </div>
         </div>}
         <div className="flex flex-col gap-2">
           <RadioGroup aria-label="Agent" value={chosen ?? ''} disabled={going} onValueChange={(v) => state.setState({ chosen: v })}>
@@ -137,8 +134,8 @@ export function HandOver() {
         {going && (read ? <div className="flex flex-col gap-1.5">
           <Progress value={(100 * read.part) / read.parts} aria-label="Read" />
           <p role="status" className="text-muted-foreground">{progress}</p>
-        </div> : <Working>{progress}</Working>)}
-        {error && <ErrorBar>{error}</ErrorBar>}
+        </div> : <div role="status" className="flex items-center gap-2 text-muted-foreground"><Spinner role={undefined} aria-hidden />{progress}</div>)}
+        {error && <Alert variant="destructive"><CircleAlertIcon /><AlertDescription><span data-selectable>{error}</span></AlertDescription></Alert>}
       </div>
       <DialogFooter>
         {going ? <Button onClick={show}>Show now</Button> : <>

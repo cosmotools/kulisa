@@ -1,9 +1,8 @@
 // A profile's page in Settings (docs/profiles.md): each field saved on Enter or leaving it.
 import { useState, type KeyboardEvent } from 'react';
+import { CircleAlertIcon } from 'lucide-react';
 import { Button, Card, CardContent, FieldGroup, Field, FieldContent, FieldDescription, FieldLabel, Input, Popover, PopoverContent, PopoverTrigger, Textarea,
-  ToggleGroup, ToggleGroupItem } from '@ui';
-import { ErrorBar } from '../ErrorBar';
-import { Fact, Section, Setting } from './kit';
+  ToggleGroup, ToggleGroupItem, Alert, AlertDescription, FieldTitle, CardHeader, CardTitle, FieldError } from '@ui';
 import { avatarSrc } from '../../lib/common';
 import { AVATARS } from '../../../shared/avatars';
 import { refused, type Result } from '../../../shared/result';
@@ -46,7 +45,7 @@ export function ProfilePage({ profile: p, onChanged }: { profile: SettingsProfil
   };
   const choose = async (avatar: string) => { setPicking(false); await change('picture', kulisa.invoke('profiles:avatar', { profile: p.id, avatar })); };
   const enter = (go: () => void) => (e: KeyboardEvent) => { if (e.key === 'Enter') go(); };
-  const refusal = (field: Part) => at(field) && <ErrorBar>{at(field)}</ErrorBar>;
+  const refusal = (field: Part) => at(field) && <Alert variant="destructive"><CircleAlertIcon /><AlertDescription><span data-selectable>{at(field)}</span></AlertDescription></Alert>;
 
   return <>
     <Card><CardContent><FieldGroup>
@@ -68,34 +67,45 @@ export function ProfilePage({ profile: p, onChanged }: { profile: SettingsProfil
         </Popover>
       </Field>
       {refusal('picture')}
-      <Setting label="Name" error={at('name')}>{(c) =>
-        <Input {...c} value={value('name')} data-name maxLength={64} spellCheck={false} onChange={type('name')} onBlur={rename} onKeyDown={enter(rename)} />}
-      </Setting>
-      <Setting label="About" description="The agent reads it to choose the profile for a task, and asks you when it is empty" error={at('about')}>{(c) =>
-        <Textarea {...c} value={value('about')} rows={2} maxLength={500} placeholder="e.g. seller in the Acme shop; can approve refunds"
-          onChange={type('about')} onBlur={describe} />}
-      </Setting>
+      <Field data-invalid={at('name') ? true : undefined}>
+        <FieldLabel htmlFor="profile-name">Name</FieldLabel>
+        <Input id="profile-name" aria-invalid={at('name') ? true : undefined} value={value('name')} data-name maxLength={64} spellCheck={false} onChange={type('name')} onBlur={rename} onKeyDown={enter(rename)} />
+        {at('name') && <FieldError><span data-selectable>{at('name')}</span></FieldError>}
+      </Field>
+      <Field data-invalid={at('about') ? true : undefined}>
+        <FieldLabel htmlFor="profile-about">About</FieldLabel>
+        <Textarea id="profile-about" aria-invalid={at('about') ? true : undefined} value={value('about')} rows={2} maxLength={500} placeholder="e.g. seller in the Acme shop; can approve refunds"
+          onChange={type('about')} onBlur={describe} />
+        <FieldDescription>The agent reads it to choose the profile for a task, and asks you when it is empty</FieldDescription>
+        {at('about') && <FieldError><span data-selectable>{at('about')}</span></FieldError>}
+      </Field>
     </FieldGroup></CardContent></Card>
 
-    <Section title="Test user">
-      <Setting label="Test login" description="A test user of your local app (optional)" error={at('login')}>{(c) =>
-        <Input {...c} value={value('login')} maxLength={200} spellCheck={false} autoComplete="off" placeholder="e.g. seller@shop.test"
-          onChange={type('login')} onBlur={saveLogin} onKeyDown={enter(saveLogin)} />}
-      </Setting>
-      <Setting label="Test password" description="Kulisa types it itself, on local addresses only; the agent never sees it" error={at('password')}>{(c) =>
-        <Input {...c} type="password" value={password} maxLength={500} autoComplete="new-password" disabled={!p.login}
+    <Card role="group" aria-label="Test user"><CardHeader><CardTitle>Test user</CardTitle></CardHeader><CardContent><div className="flex flex-col gap-3">
+      <Field data-invalid={at('login') ? true : undefined}>
+        <FieldLabel htmlFor="profile-test-login">Test login</FieldLabel>
+        <Input id="profile-test-login" aria-invalid={at('login') ? true : undefined} value={value('login')} maxLength={200} spellCheck={false} autoComplete="off" placeholder="e.g. seller@shop.test"
+          onChange={type('login')} onBlur={saveLogin} onKeyDown={enter(saveLogin)} />
+        <FieldDescription>A test user of your local app (optional)</FieldDescription>
+        {at('login') && <FieldError><span data-selectable>{at('login')}</span></FieldError>}
+      </Field>
+      <Field data-invalid={at('password') ? true : undefined}>
+        <FieldLabel htmlFor="profile-test-password">Test password</FieldLabel>
+        <Input id="profile-test-password" aria-invalid={at('password') ? true : undefined} type="password" value={password} maxLength={500} autoComplete="new-password" disabled={!p.login}
           placeholder={p.hasPassword ? 'Kept (type to change it)' : 'Test password'} onChange={(e) => setPassword(e.target.value)} onBlur={savePassword}
-          onKeyDown={enter(() => void savePassword())} />}
-      </Setting>
-    </Section>
+          onKeyDown={enter(() => void savePassword())} />
+        <FieldDescription>Kulisa types it itself, on local addresses only; the agent never sees it</FieldDescription>
+        {at('password') && <FieldError><span data-selectable>{at('password')}</span></FieldError>}
+      </Field>
+    </div></CardContent></Card>
 
-    <Section title="Sign-ins">
+    <Card role="group" aria-label="Sign-ins"><CardHeader><CardTitle>Sign-ins</CardTitle></CardHeader><CardContent><div className="flex flex-col gap-3">
       <Field orientation="horizontal">
         <FieldContent><FieldLabel>Its sites</FieldLabel><FieldDescription>Signed in to in a window of its own, once for every task of its projects</FieldDescription></FieldContent>
         <Button variant="outline" onClick={() => void signIn()}>Sign In…</Button>
       </Field>
       {refusal('signins')}
-      <Fact label="Projects">{p.projects.join(', ') || 'None: add it on a project\'s page'}</Fact>
-    </Section>
+      <Field><FieldTitle>Projects</FieldTitle><FieldDescription data-selectable>{p.projects.join(', ') || 'None: add it on a project\'s page'}</FieldDescription></Field>
+    </div></CardContent></Card>
   </>;
 }

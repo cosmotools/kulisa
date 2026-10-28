@@ -1,13 +1,14 @@
 // A project's page in Settings (docs/tasks.md, Projects): its name, its local addresses, its Folders, Agents and Profiles;
 // saved as they change. Add Agent → New Account signs in to one there (SignIn.tsx), added to the project.
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { FolderIcon, PlusIcon, XIcon } from 'lucide-react';
-import { Alert, AlertAction, AlertDescription, Badge, Button, Card, CardContent, FieldGroup, Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@ui';
+import { avatarSrc } from '../../lib/common';
+import { FolderIcon, PlusIcon, XIcon, CircleAlertIcon } from 'lucide-react';
+import { Alert, AlertAction, AlertDescription, Badge, Button, Card, CardContent, FieldGroup, Input, Select, SelectContent, SelectItem, SelectTrigger,
+  SelectValue, Avatar, AvatarImage, AvatarFallback, CardHeader, CardTitle, CardAction, Field, FieldDescription, FieldError, FieldLabel } from '@ui';
 import { ButtonMenu } from '../Menus';
 import { agentMark } from '../AgentMark';
 import { SignIn } from '../SignIn';
-import { ErrorBar } from '../ErrorBar';
-import { AddInPlace, ProfileAvatar, Section, Setting, Things } from './kit';
+import { AddInPlace, Things } from './kit';
 import { useChanged } from './changed';
 import type { MenuItem as Item } from '../../lib/menu';
 import { refused, type Result } from '../../../shared/result';
@@ -109,7 +110,7 @@ export function ProjectPage({ id, first, onSaved, saveRef }: { id: string; first
   const accountName = (a: ProjectGitHub['accounts'][number]) => (a.kind === 'pat' ? `${a.login} (token)` : a.login);
   const stop = () => { setAdding(''); setText(''); };
   // A refusal not at a field (the field put away, or none).
-  const err = (t: string) => t && <ErrorBar>{t}</ErrorBar>;
+  const err = (t: string) => t && <Alert variant="destructive"><CircleAlertIcon /><AlertDescription><span data-selectable>{t}</span></AlertDescription></Alert>;
   if (!s) return null;
 
   const folderMenu = (f: string): Item[] => [{ label: 'Make Default', enabled: folders[0]?.folder !== f, run: () => defaultFolder(f) },
@@ -130,11 +131,14 @@ export function ProjectPage({ id, first, onSaved, saveRef }: { id: string; first
 
   return <>
     <Card><CardContent><FieldGroup>
-      <Setting label="Name" error={error || undefined}>{(c) =>
-        <Input {...c} value={name} data-name maxLength={64} spellCheck={false} onChange={(e) => { setName(e.target.value); setError(''); }} onBlur={() => void save()}
-          onKeyDown={(e) => { if (e.key === 'Enter') void save(); }} />}
-      </Setting>
-      <Setting label="Local addresses" description="Where saved test users' passwords may be typed besides localhost and your network">{(c) =>
+      <Field data-invalid={error ? true : undefined}>
+        <FieldLabel htmlFor="project-name">Name</FieldLabel>
+        <Input id="project-name" aria-invalid={error ? true : undefined} value={name} data-name maxLength={64} spellCheck={false} onChange={(e) => { setName(e.target.value); setError(''); }} onBlur={() => void save()}
+          onKeyDown={(e) => { if (e.key === 'Enter') void save(); }} />
+        {error && <FieldError><span data-selectable>{error}</span></FieldError>}
+      </Field>
+      <Field>
+        <FieldLabel htmlFor="project-local-addresses">Local addresses</FieldLabel>
         <div className="flex flex-col gap-2">
           {local.length > 0 && <div role="list" aria-label="Local addresses kept" className="flex flex-wrap gap-1.5">
             {local.map((h) => <Badge key={h} role="listitem" variant="secondary">{h}
@@ -142,14 +146,15 @@ export function ProjectPage({ id, first, onSaved, saveRef }: { id: string; first
                 onClick={() => hosts(local.filter((x) => x !== h))}><XIcon /></Button>
             </Badge>)}
           </div>}
-          <Input {...c} value={host} spellCheck={false} placeholder="abc.ngrok.app" onChange={(e) => setHost(e.target.value)} onBlur={addHost}
+          <Input id="project-local-addresses" value={host} spellCheck={false} placeholder="abc.ngrok.app" onChange={(e) => setHost(e.target.value)} onBlur={addHost}
             onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ' || e.key === ',') { e.preventDefault(); addHost(); } }} />
-        </div>}
-      </Setting>
+        </div>
+        <FieldDescription>Where saved test users' passwords may be typed besides localhost and your network</FieldDescription>
+      </Field>
     </FieldGroup></CardContent></Card>
 
-    <Section title="Folders" action={add('Add Folder', () => [{ label: 'Add Folder…', run: () => changeFolders(kulisa.invoke('project:folder-add', { id })) },
-      { label: 'Clone from URL…', run: () => { setText(''); setAdding('clone'); } }])}>
+    <Card role="group" aria-label="Folders"><CardHeader><CardTitle>Folders</CardTitle><CardAction>{add('Add Folder', () => [{ label: 'Add Folder…', run: () => changeFolders(kulisa.invoke('project:folder-add', { id })) },
+      { label: 'Clone from URL…', run: () => { setText(''); setAdding('clone'); } }])}</CardAction></CardHeader><CardContent><div className="flex flex-col gap-3">
       <Things label="Folders" menu={folderMenu} things={folders.map((f) => ({ key: f.folder, name: base(f.folder), media: <FolderIcon className="size-5" />,
         description: f.folder, data: { 'data-folder': f.folder },
         badges: <>{f.folder === folders[0]?.folder && folders.length > 1 && <Badge variant="secondary">Default</Badge>}
@@ -162,25 +167,25 @@ export function ProjectPage({ id, first, onSaved, saveRef }: { id: string; first
         {g.install && <AlertAction><Button variant="outline" size="sm" asChild><a href={g.install} target="_blank" rel="noreferrer">Install it on {g.owner}</a></Button></AlertAction>}
       </Alert>)}
       {adding !== 'clone' && err(errors.folders)}
-    </Section>
+    </div></CardContent></Card>
 
-    <Section title="Agents" action={add('Add Agent', agentMenu, !!signing || (!addable.length && !s.clis.length))}>
+    <Card role="group" aria-label="Agents"><CardHeader><CardTitle>Agents</CardTitle><CardAction>{add('Add Agent', agentMenu, !!signing || (!addable.length && !s.clis.length))}</CardAction></CardHeader><CardContent><div className="flex flex-col gap-3">
       <Things label="Agents" menu={agentRowMenu} empty={signing ? undefined : 'No agents: its tasks get the terminal only.'}
         things={mine.map((a) => { const Mark = agentMark(a.cli); return { key: a.id, name: a.agent, media: <Mark className="size-6" />,
           data: { 'data-agent': a.id }, badges: a.default && <Badge variant="secondary">Default</Badge>, description: a.email ?? undefined }; })} />
       {signing && <SignIn project={id} agent={signing} onClose={() => setSigning(null)}
         onDone={(r) => { setSigning(null); if (r.agents) patch({ projectAgents: r.agents }); void reload(); }} />}
       {err(errors.agents)}
-    </Section>
+    </div></CardContent></Card>
 
-    <Section title="Profiles" action={add('Add Profile', profileMenu)}>
+    <Card role="group" aria-label="Profiles"><CardHeader><CardTitle>Profiles</CardTitle><CardAction>{add('Add Profile', profileMenu)}</CardAction></CardHeader><CardContent><div className="flex flex-col gap-3">
       <Things label="Profiles" menu={(p) => [{ label: 'Remove from the Project…', run: () => removeProfile(p) }]}
         empty={adding === 'profile' ? undefined : 'No profiles: the browser profiles its tasks test as, signed in once.'}
-        things={profiles.map((p) => ({ key: p.id, name: p.name, media: <ProfileAvatar name={p.name} avatar={p.avatar} />, data: { 'data-profile': p.id },
+        things={profiles.map((p) => ({ key: p.id, name: p.name, media: <Avatar size="sm"><AvatarImage src={avatarSrc(p.avatar)} alt="" /><AvatarFallback>{p.name.slice(0, 1).toUpperCase()}</AvatarFallback></Avatar>, data: { 'data-profile': p.id },
           description: [p.description, p.also.length && `also in ${p.also.join(', ')}`].filter(Boolean).join(' · ') || undefined }))} />
       {adding === 'profile' && <AddInPlace label="New profile" placeholder="Its name, e.g. ann@shop.com" value={text} onChange={setText} go={() => void addProfile()}
         stop={stop} ok="Create" name error={errors.profiles || undefined} />}
       {adding !== 'profile' && err(errors.profiles)}
-    </Section>
+    </div></CardContent></Card>
   </>;
 }

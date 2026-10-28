@@ -3,10 +3,10 @@
 // titleBarOverlay in window.ts, 44 px there). No logo on macOS: its apps show their icon in the Dock; Exit only where
 // the OS has no menu bar with Quit (macOS: Cmd+Q).
 import type { ComponentType, ReactNode } from 'react';
-import { BookOpenIcon, BugIcon, Columns3Icon, GitBranchIcon, Grid2x2Icon, InfoIcon, KeyboardIcon, LanguagesIcon, LayoutDashboardIcon, LogOutIcon,
-  MenuIcon, MinusIcon, PanelBottomIcon, PlusIcon, SettingsIcon, SquareIcon, SunMoonIcon, ZoomInIcon } from 'lucide-react';
+import { BookOpenIcon, BugIcon, Columns3Icon, GitBranchIcon, Grid2x2Icon, InfoIcon, KeyboardIcon, LanguagesIcon, LayoutDashboardIcon, LogOutIcon, MenuIcon,
+  MinusIcon, PanelBottomIcon, PlusIcon, SettingsIcon, SquareIcon, SunMoonIcon, ZoomInIcon } from 'lucide-react';
 import { Button, DropdownMenuItem, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuShortcut, DropdownMenuSub, DropdownMenuSubContent,
-  DropdownMenuSubTrigger, Toggle } from '@ui';
+  DropdownMenuSubTrigger, Toggle, Item, ItemContent, ItemDescription, ItemTitle } from '@ui';
 import { ButtonMenu } from './Menus';
 import { Tip } from './Tip';
 import { Logo } from './ProjectIcon';
@@ -48,7 +48,7 @@ function ChoiceRow({ name, icon: Icon, label, title, choices, chosen, choose }: 
       <DropdownMenuRadioGroup value={chosen} onValueChange={(v) => void choose(v)}>
         {choices.map((c) => <DropdownMenuRadioItem key={c.value} value={c.value} title={c.title} aria-label={c.label} {...{ [`data-${name}`]: c.value }}
           onSelect={(e) => e.preventDefault()}>
-          {c.sub ? <span className="flex flex-col"><span>{c.label}</span><span className="text-xs text-muted-foreground">{c.sub}</span></span> : c.label}
+          {c.sub ? <Item size="xs"><ItemContent><ItemTitle>{c.label}</ItemTitle><ItemDescription>{c.sub}</ItemDescription></ItemContent></Item> : c.label}
         </DropdownMenuRadioItem>)}
       </DropdownMenuRadioGroup>
     </DropdownMenuSubContent>
