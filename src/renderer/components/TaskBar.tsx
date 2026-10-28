@@ -1,11 +1,11 @@
-// The tasks' bar (docs/window.md, The tasks' bar; docs/tasks.md, Projects): a tab per open task, in the bar's order,
-// then + (a new task: of which project, a menu asks when there are several). A tab stands for itself: its project is its icon, in the project's
+// The tasks' bar (docs/window.md, The tasks' bar; docs/tasks.md, Projects): the sidebar's button, a tab per open task, in
+// the bar's order, then + (a new task: of which project, a menu asks when there are several). A tab stands for itself: its project is its icon, in the project's
 // color, which also marks the shown tab (the author's choice). Every tab keeps its width whichever task is shown, so
 // showing one moves none (tabs moving under the mouse make the human miss). Where a dragged tab is let go outside every
 // Kulisa window, the main process says (the page does not know where the pointer is then).
 import { flushSync } from 'react-dom';
 import { useRef, useState, type DragEvent, type MouseEvent } from 'react';
-import { PlusIcon } from 'lucide-react';
+import { PanelLeftIcon, PlusIcon } from 'lucide-react';
 import { Button } from '@ui';
 import { ButtonMenu, RightClickMenu } from './Menus';
 import { BrowserTab, TabStrip } from './BrowserTabs';
@@ -20,6 +20,7 @@ import { lastWorked, projectMenu } from '../lib/project-menu';
 import { profilesMenu } from '../lib/profiles';
 import { terminalsOf } from '../lib/terminals';
 import { useStrip } from '../lib/strip';
+import { toggleSidebar } from '../lib/sidebar';
 import type { MenuItem } from '../lib/menu';
 import type { ProjectEntry, TaskInfo } from '../../shared/types';
 
@@ -155,6 +156,10 @@ export function TaskBar() {
 
   return <nav id="taskbar" aria-label="Open tasks" data-top={top || undefined}
     className={top ? 'flex min-w-0 items-center gap-1 [-webkit-app-region:no-drag]' : 'flex min-w-0 max-w-full items-center gap-1 justify-self-center px-2 py-1'}>
+    {/* Its tooltip beside it, as the +'s: above or under, it would open over the pages. */}
+    <Tip text="Projects and tasks" side="right">
+      <Button variant="ghost" size="icon-sm" aria-label="Projects and tasks" onClick={toggleSidebar}><PanelLeftIcon /></Button>
+    </Tip>
     {/* In the title bar the tabs are no handle to drag the window by (TopBar.tsx drags after them). */}
     <RightClickMenu items={menu} className="flex min-w-0">
       <TabStrip id="taskTabs" bar stripRef={strip} label="Open tasks" value={current ?? ''} onChoose={onTabSelect}

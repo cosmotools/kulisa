@@ -1,10 +1,10 @@
 // The sidebar (docs/tasks.md, The sidebar): every project with its tasks, any task one click away, the project worked in
 // last first (lastWorked); New Project… at its foot. shadcn's Sidebar: docked in the empty window; in a
-// Sheet over the grid while a task is shown (the title bar's button, Ctrl+Shift+A; Esc or a choice closes it).
+// Sheet over the grid while a task is shown (its button in the tasks' bar, Ctrl+Shift+A; Esc or a choice closes it).
 import { useEffect, useRef, useState } from 'react';
-import { ChevronRightIcon, FolderPlusIcon, PanelLeftIcon, PlusIcon, Trash2Icon } from 'lucide-react';
+import { ChevronRightIcon, FolderPlusIcon, PlusIcon, Trash2Icon } from 'lucide-react';
 import { useShallow } from 'zustand/react/shallow';
-import { Badge, Button, Collapsible, CollapsibleContent, CollapsibleTrigger, Kbd, Sheet, SheetContent, SheetDescription, SheetTitle, Sidebar as Bar,
+import { Badge, Collapsible, CollapsibleContent, CollapsibleTrigger, Kbd, Sheet, SheetContent, SheetDescription, SheetTitle, Sidebar as Bar,
   SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupAction, SidebarGroupContent, SidebarGroupLabel, SidebarHeader, SidebarMenu,
   SidebarMenuAction, SidebarMenuButton, SidebarMenuItem, SidebarProvider } from '@ui';
 import { ProjectIcon } from './ProjectIcon';
@@ -12,10 +12,10 @@ import { AgentState } from './AgentState';
 import { RightClickMenu } from './Menus';
 import { Tip } from './Tip';
 import { useWindow } from '../lib/store';
-import { sidebarDocked, sidebarOverlay, toggleSidebar } from '../lib/sidebar';
+import { sidebarDocked, sidebarOverlay } from '../lib/sidebar';
 import { dialog } from '../lib/dialogs';
 import { lastWorked, projectMenu } from '../lib/project-menu';
-import { keyText, withKeys } from '../lib/common';
+import { keyText } from '../lib/common';
 import { slugOf } from '../../shared/names';
 import type { MenuItem } from '../lib/menu';
 import type { ProjectEntry, ProjectTask } from '../../shared/types';
@@ -137,10 +137,3 @@ export function DockedSidebar() {
   return <div ref={ref} className="h-full w-64 flex-none border-e"><Projects done={() => {}} /></div>;
 }
 
-// The title bar's button: the sidebar over the grid, or back. None in the empty window, where it is docked.
-export function SidebarToggle() {
-  const shown = useWindow((s) => s.current !== null);
-  return shown ? <Tip text={withKeys('Projects and tasks', 'task.menu')}>
-    <Button variant="ghost" size="icon" aria-label="Projects and tasks" onClick={toggleSidebar}><PanelLeftIcon /></Button>
-  </Tip> : null;
-}

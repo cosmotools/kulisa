@@ -163,10 +163,10 @@ export async function closeProject(ui: Page, files: Files, folder: string) {
 // Every open menu, a submenu too (menu waits for the first to be shown).
 export const anyMenu = (ui: Page) => ui.getByRole('menu');
 // The sidebar (components/Sidebar.tsx; docs/tasks.md, The sidebar): every project with its tasks, a group each. Docked in
-// the empty window; over the grid opened with the title bar's button, closed by a choice or Esc. openSidebar gives it, open.
+// the empty window; over the grid opened with its button in the tasks' bar, closed by a choice or Esc. openSidebar gives it, open.
 export const sidebar = (ui: Page) => ui.getByRole('navigation', { name: 'Projects' });
 export async function openSidebar(ui: Page) {
-  if (!(await sidebar(ui).count())) await ui.getByRole('button', { name: /^Projects and tasks/ }).click();
+  if (!(await sidebar(ui).count())) await ui.locator('#taskbar').getByRole('button', { name: 'Projects and tasks' }).click();
   await expect(sidebar(ui)).toBeVisible();
   return sidebar(ui);
 }

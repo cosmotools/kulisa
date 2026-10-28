@@ -97,7 +97,7 @@ frames, pills, rows that show their buttons only under the pointer: those read a
 ## Tooltips
 
 `Tip` (`Tip.tsx`, shadcn's `Tooltip`) on a control where it opens over no page: the title bar, the sidebar, dialogs,
-Settings, the tasks' bar's + (`side`: over or under it are the pages). The native `title` elsewhere:
+Settings, the tasks' bar's buttons (`side`: over or under them are the pages). The native `title` elsewhere:
 - in the grid, over and next to the pages (a pane's tabs, toolbar and header; the terminals' header; the microphone),
   and on a master's bar: the OS draws it above the native views, which would cover the window's;
 - on a row (of a list, a nav) and on a text that cuts: a tooltip of the window's over a row covers the row above;

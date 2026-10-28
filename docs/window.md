@@ -7,11 +7,10 @@ and dialogs, the terminal, the keys, and why they are built so. Projects and the
 ## The title bar
 
 One row, 44 px (`TopBar.tsx`; `TITLE_BAR_HEIGHT` in `window.ts`, the OS buttons' strip, kept in step): the app's logo
-(the shown task's project's color on its curtain), the sidebar's button while a task is shown ([tasks.md](tasks.md),
-The sidebar), Settings (checked while shown: below), ☰, and the OS's window buttons over its right end
-(`titleBarStyle: 'hidden'` with `titleBarOverlay`); no menu bar. Their strip is see-through (`CLEAR` in `window.ts`),
-as macOS's traffic lights: a dialog's backdrop dims it with the rest of the window (a strip in the theme's color would
-stay bright); their symbols are the theme's and stay as they are under a dialog. On macOS the buttons are at the left
+(the shown task's project's color on its curtain), the tasks' bar when it is here, Settings (checked while shown:
+below), ☰, and the OS's window buttons over its right end (`titleBarStyle: 'hidden'` with `titleBarOverlay`); no menu
+bar. Their strip is see-through (`CLEAR` in `window.ts`), as macOS's traffic lights: a dialog's backdrop dims it with
+the rest of the window (a strip in the theme's color would stay bright); their symbols are the theme's and stay as they are under a dialog. On macOS the buttons are at the left
 end and there is no logo (Mac apps show their icon in the Dock). macOS centers them in the bar the window is made
 with, and Electron there cannot change that strip's height (`setTitleBarOverlay` is Windows' and Linux's): on a zoom
 change `setZoom` moves them to the new bar's middle (`setWindowButtonPosition`), never below the strip they were made
@@ -34,7 +33,8 @@ window, mouse moves still passing, so the pages look frozen (in an unmaximized w
 
 ## The tasks' bar
 
-Under the grid, in the middle: a tab per open task (its project's icon, its agent's state, its name, ×:
+Under the grid, in the middle: the sidebar's button ([tasks.md](tasks.md), The sidebar; its tooltip without the key,
+which the sidebar's heading shows), a tab per open task (its project's icon, its agent's state, its name, ×:
 [tasks.md](tasks.md), Projects), then +, a new task: with one project made in one click, with several a menu of the projects asks which (each with
 its icon, as the sidebar orders them; one not loaded is loaded), since the bar holds tasks of several and the shown
 task's project is no guess to make; Ctrl+Shift+N, the shown task's project's, its key on that row. A task closed is

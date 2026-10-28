@@ -768,7 +768,13 @@ test("tooltips of the title bar and the tasks' bar open beside their buttons, ne
   };
   for (const bar of ['bottom', 'top']) {
     if (bar === 'top') { await (await windowSubmenu(ui, 'Tasks bar')).locator('[data-bar="top"]').click(); await ui.keyboard.press('Escape'); await closeMenu(ui); }
-    for (const button of [ui.locator('#newTask'), ui.locator('#zoomReset'), ui.locator('#settingsButton'), ui.getByRole('button', { name: /^Projects and tasks/ })])
+    // The sidebar's button wherever the tasks' bar is, its tooltip without the key (the sidebar's heading shows it).
+    const sidebarButton = ui.locator('#taskbar').getByRole('button', { name: 'Projects and tasks' });
+    await sidebarButton.hover();
+    await expect(ui.getByRole('tooltip')).toHaveText('Projects and tasks');
+    await ui.mouse.move(0, 300);
+    await expect(ui.getByRole('tooltip')).toHaveCount(0);
+    for (const button of [ui.locator('#newTask'), ui.locator('#zoomReset'), ui.locator('#settingsButton'), sidebarButton])
       expect(await over(button), `${button}, the bar ${bar}`).toBe(false);
   }
   await invoke(ui, 'zoom:ui', 0);
