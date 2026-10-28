@@ -11,7 +11,7 @@
     "src/renderer/master.tsx",
     "src/screenshots/renderer/thumbnail.ts",
     // The debug-kulisa skill's script, run by its path; Claude Code's hooks (.claude/settings.json).
-    ".claude/skills/debug-kulisa/*.mjs",
+    ".agents/skills/debug-kulisa/*.mjs",
     ".claude/hooks/*.ts",
     // dependency-cruiser's rules, which it finds by their name (npm run deps).
     ".dependency-cruiser.ts"

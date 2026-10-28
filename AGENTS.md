@@ -226,6 +226,10 @@ prompt; the human writes the rest of the message around it.
 
 ## Commands
 
+- **Development skills**: `.agents/skills/run-kulisa/SKILL.md` for starting, stopping or restarting the app;
+  `.agents/skills/debug-kulisa/SKILL.md` for diagnosing the running app. Instructions and scripts live there;
+  `.claude/skills/` contains Claude Code entrypoints to the same skills. Run their commands from the checkout root.
+
 - **Code intelligence.** Claude Code's `LSP` tool (the `kulisa-dev` plugin; docs/testing.md, Claude Code's checks):
   references, definitions and types through the language server, `.ts` and `.tsx` together. For a symbol — who
   defines it, who uses it, its type, what it calls or calls it — the `LSP` tool, never grep: it reads the types, so it
