@@ -14,7 +14,7 @@ import { ProjectIcon } from './ProjectIcon';
 import { AgentState } from './AgentState';
 import { store, useWindow } from '../lib/store';
 import { useProjectColor } from '../lib/project-color';
-import { keyText, withKeys } from '../lib/common';
+import { keyText } from '../lib/common';
 import { dialog } from '../lib/dialogs';
 import { projectMenu } from '../lib/project-menu';
 import { profilesMenu } from '../lib/profiles';
@@ -65,8 +65,6 @@ export function TaskBar() {
   const projectColor = useProjectColor();
   const byId = new Map(all.projects.map((p) => [p.id, p]));
   const tabs = all.tabs.flatMap((t) => { const p = byId.get(t.project); return p ? [{ t, p }] : []; });
-  const shown = tabs.find(({ t }) => t.key === current)?.p; // the +'s project
-  const plus = withKeys(shown ? `New task of ${shown.name}` : 'New task', 'task.new');
   const strip = useRef<HTMLDivElement>(null);
   // More tabs than fit: the wheel scrolls them, the edges with tabs past them fade, the shown one stays in sight.
   useStrip(strip, current);
@@ -179,8 +177,8 @@ export function TaskBar() {
     {/* beside the +: above or under it, the tooltip would open over the pages, which cover it. It goes as the + is
         pressed, as Chrome's: the slide to the new task shows a picture of the window, the tooltip in it until it ends;
         the + takes no keyboard (its focus would show the tooltip again). */}
-    <Tip text={plus} side="right">
-      <Button id="newTask" variant="ghost" size="icon-sm" aria-label={plus}
+    <Tip text="New task" side="right">
+      <Button id="newTask" variant="ghost" size="icon-sm" aria-label="New task"
         onMouseDown={(e) => e.preventDefault()} onClick={() => kulisa.invoke('task:new')}><PlusIcon /></Button>
     </Tip>
   </nav>;

@@ -81,7 +81,7 @@ project, and those you closed, are in the sidebar (Tasks, below).
   its 🗑 deletes them all. The agent sees the same: ask it what is there, or to clean them up. Past 100 MB a task's oldest
   go by themselves. Drag the line beside it to resize it, as any pane.
 - **The tasks' bar**, under the grid (or in the title bar, as a browser's tabs: **☰ → Tasks bar**): a tab per open
-  task, of any project, with its project's icon and its agent's state, the shown one filled; **+** after them makes a new task of the shown task's project (its tooltip names it). When there are more tabs than fit, the mouse
+  task, of any project, with its project's icon and its agent's state, the shown one filled; **+** after them makes a new task of the shown task's project. When there are more tabs than fit, the mouse
   wheel over the bar scrolls them, and a faded edge shows that more are past it.
 - **No task open** (after you close the last task): the sidebar stays open at the window's left, every project with
   its tasks (Tasks, below). At the very first start, with no project yet, it shows what Kulisa does, then New Project.

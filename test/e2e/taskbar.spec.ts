@@ -365,8 +365,7 @@ test("tasks: the bar's + makes a new task of the shown task's project in one cli
   await begin(core, ui, files, { only: true, columns: true, featureX: call });
   const before = await core((k) => k.shell.current.tasks.size), first = await keyAt(core, 1);
   await noSlide(ui); // the slide's pictures over the window take every event
-  const project = await core((k) => k.shell.current.name);
-  await expect(ui.locator('#newTask'), 'its project and its key in its name').toHaveAccessibleName(`New task of ${project} (${await ui.evaluate(() => (window as any).keyText('task.new'))})`);
+  await expect(ui.locator('#newTask')).toHaveAccessibleName('New task');
   await ui.locator('#newTask').hover();
   await expect(ui.getByRole('tooltip')).toBeVisible();
   await ui.locator('#newTask').click();
