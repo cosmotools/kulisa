@@ -7,7 +7,7 @@ import url from 'url';
 import type { Locator, Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
-import { SITE, MAC, WIN, frames, seen, ipcSettled, echoed, menu, anyMenu, item, choose, closeMenu, rightClick, focusWindow, pageBox, viewOn, answer, removed, termKeys, shortcutsDialog } from './helpers.ts';
+import { SITE, MAC, WIN, frames, seen, ipcSettled, echoed, menu, anyMenu, item, choose, closeMenu, rightClick, focusWindow, pageBox, viewOn, answer, removed, termKeys, termText, shortcutsDialog } from './helpers.ts';
 import { SAM, ELON, begin } from './tasks-helpers.ts';
 
 const menuOpen = (ui: Page) => menu(ui).isVisible();
@@ -465,14 +465,17 @@ test('files dropped onto a terminal paste their disk paths once without sending 
     for (const type of ['dragEnter', 'dragOver', 'drop'] as const) {
       await cdp.send('Input.dispatchDragEvent', { type, ...at, data: { items: [], files: paths, dragOperationsMask: 1 } });
     }
-    const expected = WIN ? paths.map((p) => `'${p.replace(/'/g, "''")}'`).join(' ')
-      : `${paths[0]} '${paths[1].replace(/'/g, `'\\''`)}'`;
-    await expect.poll(async () => (await core((k) => k.ptyOutput())).slice(before.length)).toContain(expected);
+    // The fake agent runs in bash on every OS; Windows paths need quotes around their backslashes too.
+    const expected = `${WIN ? `'${paths[0]}'` : paths[0]} '${paths[1].replace(/'/g, `'\\''`)}'`;
+    await expect.poll(() => termText(ui)).toContain(expected);
     await sentAll(core, ui);
-    const typed = (await core((k) => k.ptyOutput())).slice(before.length);
+    const typed = await termText(ui);
     for (const p of paths) expect(typed.split(path.basename(p).split("'")[0]).length - 1, 'each path pasted once').toBe(1);
-    expect(typed, 'the prompt is not submitted').not.toContain('\r');
-    expect(typed, 'the prompt is not submitted').not.toContain('\n');
+    if (!WIN) {
+      const output = (await core((k) => k.ptyOutput())).slice(before.length);
+      expect(output, 'the prompt is not submitted').not.toContain('\r');
+      expect(output, 'the prompt is not submitted').not.toContain('\n');
+    }
     expect(ui.url()).toBe(pageUrl);
     await expect(termKeys(ui)).toBeFocused();
   } finally { await cdp.detach(); }
