@@ -42,7 +42,7 @@ function Picture({ slide }: { slide: number }) {
   return <div aria-hidden="true" className="grid aspect-[16/10] w-full grid-cols-[1.1fr_1fr_1fr] gap-2 overflow-hidden rounded-xl border bg-muted p-2
     [@media(max-height:640px)]:max-w-[calc((100vh-(--spacing(50)))*1.6)] [@media(max-height:640px)]:justify-self-center
     max-md:[@media(max-height:640px)]:hidden">
-    <div className="flex min-w-0 flex-col gap-1 overflow-hidden rounded-lg border bg-card p-2 font-mono text-[10px] leading-snug">
+    <div className="flex min-w-0 flex-col gap-1 overflow-hidden rounded-lg border bg-card p-2 font-mono text-xs leading-snug">
       <div className="flex items-center gap-1"><Claude className="size-3" /> claude</div>
       {line('> does the checkout work for every user?', true)}
       {line('⏺ Checking as Admin…', slide >= 1, 'text-muted-foreground')}
@@ -50,12 +50,12 @@ function Picture({ slide }: { slide: number }) {
       {line('✓ Fixed: works for both', slide >= 1, 'text-success')}
     </div>
     {PANES.map((p, i) => <div key={p.name} className={`relative flex min-w-0 flex-col gap-2 rounded-lg border bg-card p-2 transition-shadow ${slide === 1 ? 'ring-2 ring-primary' : ''}`}>
-      <div className="flex items-center gap-1.5 text-[11px]"><Avatar className="size-4"><AvatarImage src={avatarSrc(p.avatar)} alt="" /></Avatar>{p.name}</div>
+      <div className="flex items-center gap-1.5 text-xs"><Avatar className="size-4"><AvatarImage src={avatarSrc(p.avatar)} alt="" /></Avatar>{p.name}</div>
       <div className="grid gap-1.5">
         <div className="h-2 rounded-sm bg-muted" />
         <div className="h-2 w-[70%] rounded-sm bg-muted" />
-        <div className={slide === 2 && i === 1 ? 'grid h-5 w-[55%] place-items-center rounded-md border border-primary text-[10px] text-primary'
-          : 'grid h-5 w-[55%] place-items-center rounded-md bg-primary text-[10px] text-primary-foreground'}>Buy</div>
+        <div className={slide === 2 && i === 1 ? 'grid h-5 w-[55%] place-items-center rounded-md border border-primary text-xs text-primary'
+          : 'grid h-5 w-[55%] place-items-center rounded-md bg-primary text-xs text-primary-foreground'}>Buy</div>
         <div className="h-2 w-[45%] rounded-sm bg-muted" />
       </div>
       {slide === 2 && i === 1 && <MousePointerClickIcon className="absolute top-[55%] right-[20%] size-5 text-warning" />}

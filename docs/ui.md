@@ -28,7 +28,7 @@ the main process after every grid change ([window.md](window.md), The grid).
 | `src/renderer/index.html`, `main.tsx`; `master.html`, `master.tsx`; `public/theme.js` | a tasks' window's page and a master's window's: the theme from the URL before the first paint (`theme.js`), then the app |
 | `src/renderer/window.css` | Tailwind and shadcn's theme for the window, Kulisa's own variables (`--warning`, `--success`), the few global rules (text selection, the cursor, no scrolling) |
 | `src/renderer/components/` | the parts. `App.tsx` a tasks' window; `Menus.tsx` the menus; `Tip.tsx` a tooltip; `BrowserTabs.tsx` the browser tabs; `Ask.tsx` the questions; `ErrorBar.tsx` an error not of a field; `Working.tsx` work under way; `Details.tsx` what is shown when asked for; `TopBar.tsx`, `TaskBar.tsx`, `Sidebar.tsx`, `Empty.tsx`, `Welcome.tsx`; `Grid.tsx` (`Grid.css`) and `grid/` (`ProfilePane.tsx`, `Terminals.tsx`, `Resources.tsx`: a panel and its header each; `IconText.tsx` their buttons' inside); the dialogs `NewProject.tsx` (also `Wizard`, the welcome's), `TaskRename.tsx`, `AgentPicker.tsx`, `HandOver.tsx`, `Shortcuts.tsx`; `settings/` Settings, its own chunk (`index.ts` its one entry, loaded by `import()`: `npm run deps`): `Settings.tsx`, `kit.tsx` (what its pages are built of) and its pages (`ProjectPage.tsx`, `AgentPage.tsx`, `ProfilePage.tsx`, `GitHubPage.tsx`, `LogPage.tsx`, `AboutPage.tsx`; `agents.ts`, `changed.ts` theirs); `SignIn.tsx` a new account's sign-in (Settings', New Project's); `AgentMark.tsx`, `ProjectIcon.tsx` the marks; `Terminal.tsx` a terminal in a page; `Master.tsx` a master's bar |
-| `src/renderer/lib/` | what parts share or what outlives a component, no component, UI library or icon (`npm run deps`): `store.ts` (the window's state as the main process sends it: `useWindow(selector)` in a component, `store.getState()` elsewhere; `act`), `theme.ts`, `cover.ts` (and `cover.css`), `views.ts`, `menu.ts` (what a menu holds, the menu at a point), `project-menu.ts` (a project's, the sidebar's and a tab's), `dialogs.ts`, `settings.ts` (Settings shown, at what), `ask.ts`, `strip.ts` (and `strip.css`), `keys.ts`, `sidebar.ts`, `grid.ts`, `terminals.ts`, `agents.ts`, `new-project.ts`, `profiles.ts`, `project-color.ts`, `common.ts`, `names.ts` (name fields: `data-name`), `test-hooks.ts` |
+| `src/renderer/lib/` | what parts share or what outlives a component, no component, UI library or icon (`npm run deps`): `store.ts` (the window's state as the main process sends it: `useWindow(selector)` in a component, `store.getState()` elsewhere; `act`), `theme.ts`, `cover.ts` (and `cover.css`), `views.ts`, `menu.ts` (what a menu holds, the menu at a point), `project-menu.ts` (a project's, the sidebar's and a tab's), `dialogs.ts`, `settings.ts` (Settings shown, at what), `ask.ts`, `strip.ts`, `keys.ts`, `sidebar.ts`, `grid.ts`, `terminals.ts`, `agents.ts`, `new-project.ts`, `profiles.ts`, `project-color.ts`, `common.ts`, `names.ts` (name fields: `data-name`), `test-hooks.ts` |
 | `src/shared/types.ts`, `ipc.ts`; `src/renderer/env.d.ts` | the shapes the main process sends and the channels they come by ([window.md](window.md), IPC); the bridge (`kulisa`) typed by them |
 | `src/renderer/public/avatars/` | the profiles' pictures (Noto Emoji), copied as they are |
 | `src/*/renderer/` | a Kulisa package's part of the window (the terminal, dictation, screenshots): its own `README.md` |
@@ -43,13 +43,11 @@ the main process after every grid change ([window.md](window.md), The grid).
   `setTheme` changes it (`useShade()` the one shown). What draws outside the DOM's styles (a terminal) takes the
   theme's colors by `termStyle()`, a variable read as a color.
 - **A color is the theme's** (`bg-muted`, `text-destructive`, `var(--card)`), never Tailwind's palette nor written
-  out: one palette, dark and light. A literal color only where none can be: a mask (alpha alone, `lib/strip.css`) and
-  the marks.
+  out: one palette, dark and light. A literal color only where none can be: the marks.
 - **Not Lucide's icons**: the agents' marks (`AgentMark.tsx`: the makers' own, in their colors, 1em), the logo
   (`Logo`, `ProjectIcon.tsx`: its curtain in `currentColor`) and the profiles' pictures (`avatarSrc` in an `Avatar`).
 - **No CSS Modules, no second UI library.** A plain `.css` only for what classes cannot say, with its reason: what is
-  the document's (a view transition and its keyframes, `Grid.css`), what marks any element (`[data-strip]`,
-  `lib/strip.css`; Radix's layers, `lib/cover.css`).
+  the document's (a view transition and its keyframes, `Grid.css`), Radix's layers (`lib/cover.css`).
 - **A component missing**: `npm run ui -- <name>` adds it (src/ui's README), before one of our own is written.
 - **`npm run lint` refuses** in the window a raw `button`, `input`, `select` or `textarea`, a `className` on a
   component of `src/ui` that is not a literal of layout and size classes, a `style` on one that is not a size, a place
@@ -204,7 +202,7 @@ What is drawn or moved here rather than by shadcn, each for a reason at it:
   dockview's look, its variables set from the theme's (`Grid.css`);
 - the dictation's pill with its wave bars, read from the microphone (`src/dictation/`, its `README.md`); its motions and
   the microphone's ring are Tailwind's and tw-animate-css';
-- the strips (`lib/strip.css`, on the element `useStrip` marks): no scrollbar, the fades tied to the scroll; a tab
+- the strips (`lib/strip.ts`, its classes on the element `useStrip` is given): the fades tied to the scroll; a tab
   growing in (`grow`, the Web Animations API); the marks and the logo;
 - the browser tabs' ×, drag and drop marks (`BrowserTabs.tsx`);
 - a page's alert or confirm placed in its pane under the address bar (`ProfilePane.tsx`): a dialog is placed over the

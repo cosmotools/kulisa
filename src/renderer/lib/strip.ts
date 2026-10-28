@@ -1,11 +1,16 @@
 // A strip of tabs that scrolls sideways when they do not fit (docs/ui.md, Controls): the tasks' bar, a pane's tabs, the
 // closed profiles over the terminal, the terminals' tabs.
 // useStrip scrolls it by the wheel, says which edges have tabs past them, keeps its chosen tab (aria-selected) in sight;
-// it marks the strip data-strip, which strip.css draws: no scrollbar, its edges faded. A panel's tab with grow as its
-// ref grows in as it opens.
+// STRIP draws it. A panel's tab with grow as its ref grows in as it opens.
 import { useEffect, useRef, type RefObject } from 'react';
 import { reducedMotion } from './common';
-import './strip.css';
+
+// The strip's classes: no scrollbar, the edges with tabs past them faded (data-past-start, data-past-end); a tab
+// brought into view clears the fade (scroll-padding). Put on by strip(), not in a className: a strip is shadcn's
+// TabsList too, which takes layout classes alone (docs/ui.md); its className is a constant, so React never writes
+// over them.
+const STRIP = ['min-w-0', 'overflow-x-auto', 'scrollbar-none', 'scroll-px-6', 'data-past-start:mask-l-from-[calc(100%-(--spacing(6)))]',
+  'data-past-end:mask-r-from-[calc(100%-(--spacing(6)))]'];
 
 // The strips that had tabs before the change being committed: the MutationObserver below marks them after React's
 // commit, so a tab's motion (started by its ref, before that) still sees the strip as it was.
@@ -22,7 +27,7 @@ export const grow = (tab: HTMLElement | null) => {
 
 // What a strip element does, until dispose().
 function strip(s: HTMLElement) {
-  s.setAttribute('data-strip', '');
+  s.classList.add(...STRIP);
   // Which edges have tabs past them (data-past-start, data-past-end), faded.
   const edges = () => {
     s.toggleAttribute('data-past-start', s.scrollLeft > 1);
@@ -75,7 +80,7 @@ function strip(s: HTMLElement) {
   tabs.observe(s, { childList: true });
   s.addEventListener('wheel', wheel, { passive: true });
   s.addEventListener('scroll', edges, { passive: true });
-  return { reveal, dispose() { resized.disconnect(); grown.disconnect(); tabs.disconnect(); filled.delete(s); s.removeEventListener('wheel', wheel); s.removeEventListener('scroll', edges); } };
+  return { reveal, dispose() { s.classList.remove(...STRIP); resized.disconnect(); grown.disconnect(); tabs.disconnect(); filled.delete(s); s.removeEventListener('wheel', wheel); s.removeEventListener('scroll', edges); } };
 }
 
 // ref: the strip's element; active: what changes when another tab is chosen (its key).
