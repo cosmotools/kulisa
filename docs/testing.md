@@ -155,10 +155,26 @@ Two Electron bugs are worked around; at each upgrade check whether each is still
 refuses a whole workflow for one bad line, only after the push). A Go binary: on `PATH`, or `brew install actionlint`;
 with shellcheck it checks `run:` scripts too.
 
+## Code analysis
+
+- Use the project's installed TypeScript to check the main process and scripts, tests, and renderer:
+
+  ```sh
+  node node_modules/typescript/bin/tsc -p .
+  node node_modules/typescript/bin/tsc -p test
+  node node_modules/typescript/bin/tsc --noEmit -p src/renderer
+  ```
+
+  These are the type checks in `npm run build`, without Vite's build. A passing type check does not prove that a
+  text search found every caller; behavior changes still need the tests described above.
+- **Codex and other sessions without a language-server tool**: follow `AGENTS.md`, Code intelligence. The
+  repository's `kulisa-dev` plugin configures Claude Code; installing it does not provide a tool in another agent.
+
 ## Claude Code's checks
 
 - **LSP** (`kulisa-dev` plugin, `.claude/dev-plugins/`): type errors while editing, the `LSP` tool for references. Not
-  auto-installed: a session without the `LSP` tool installs it and asks for `/reload-plugins` (CLAUDE.md, Commands).
+  auto-installed: in a Claude Code session without the `LSP` tool, install it with
+  `claude plugin install kulisa-dev@kulisa-dev --scope project`, then ask for `/reload-plugins`.
   TypeScript only (`.ts`, `.mts`, `.tsx`). Not the official `typescript-lsp`: its references come from the
   syntax-only `tsserver` (`useSyntaxServer: "never"` here). The project's own server, nothing global. ~700 MB;
   references from `src/` miss the tests.
