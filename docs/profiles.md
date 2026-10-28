@@ -89,6 +89,8 @@ A profile is an Electron session on a folder of its own (`session.fromPath`), la
   ([window.md](window.md), Keys).
 - **Zoom**: Ctrl + / − / 0 in a page zooms that site in that profile, on top of the Kulisa zoom (saved per profile,
   shown in the address bar).
+- **An empty tab** (`about:blank`: a new one, the last one closed) is the pane's color in Kulisa's theme, not
+  Chromium's white (`Profile.setBlank`, by the window; `COLORS.page`, `window.ts`); a page's own colors stay its own.
 - **A page that does not load** says why, as Chrome's error page does (Electron leaves it blank): the site cannot be
   found, refused to connect (a local app whose server is not running), took too long, no internet, an untrusted
   certificate; with Chromium's code (`ERR_…`). The address stays the one that failed, so reload tries it again; the

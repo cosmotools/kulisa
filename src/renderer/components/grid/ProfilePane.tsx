@@ -170,7 +170,7 @@ export function ProfilePane({ api }: IDockviewPanelProps) {
       <span ref={reload} className="hidden @3xs:flex">
         <Button variant="ghost" size="icon-sm" title={withKeys('Reload', 'tab.reload')} aria-label="Reload" onClick={run('tab:reload')}><RotateCwIcon /></Button>
       </span>
-      <Input ref={addr} aria-label="Address" spellCheck={false} className="h-7 min-w-0 flex-1"
+      <Input ref={addr} aria-label="Address" placeholder="Search Google or type a URL" spellCheck={false} className="h-7 min-w-0 flex-1"
         value={editing ?? shortUrl(active?.url)} onChange={(e) => setEditing(e.target.value)}
         onKeyDown={go} onFocus={addrFocus} onBlur={() => setEditing(null)} onMouseDown={addrDown} onMouseUp={addrUp} />
       {/* The site's own zoom in this profile, when it differs from the Kulisa zoom; a click resets it. */}

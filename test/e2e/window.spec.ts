@@ -499,8 +499,9 @@ test("the OS buttons' strip shows the top bar under it: dimmed with it under a d
   await expect(shortcutsDialog(ui)).toHaveCount(0);
 });
 
-test("theme: Dark by default, Light or System in ☰; the window, the terminal and the OS buttons follow, the pages keep the OS's; saved", async ({ core, ui, files }) => {
+test("theme: Dark by default, Light or System in ☰; the window, the terminal, the OS buttons and an empty tab follow, the pages keep the OS's; saved", async ({ core, ui, files }) => {
   await sam(core);
+  await core((k) => k.profile('Sam').newTab(null).ready); // an empty tab, in front
   // The theme's panels' color (--card, src/ui/theme.css) as a canvas draws it, the terminal's (xterm's own option: it
   // draws on a canvas), the one chosen in ☰, the controls' own scheme (color-scheme).
   const BACKGROUND = { dark: 'rgba(23, 23, 23, 1)', light: 'rgba(255, 255, 255, 1)' };
@@ -518,6 +519,8 @@ test("theme: Dark by default, Light or System in ☰; the window, the terminal a
     await expect(theme.getByRole('menuitemradio', { checked: true })).toHaveCount(1);
     await expect(theme.locator(`[data-theme="${chosen}"]`)).toHaveAttribute('aria-checked', 'true');
     await expect(ui.locator('#topbar')).toHaveCSS('color-scheme', scheme);
+    await expect.poll(() => core((k) => k.profile('Sam').get().wc.executeJavaScript('getComputedStyle(document.documentElement).backgroundColor')), 'the empty tab: the pane under it')
+      .toBe(BACKGROUND[shade].replace(/^rgba\((.*), 1\)$/, 'rgb($1)'));
   };
   const pageDark = () => core((k) => k.profile('Sam').get().wc.executeJavaScript(`matchMedia('(prefers-color-scheme: dark)').matches`) as Promise<boolean>);
   const osDark = await pageDark();

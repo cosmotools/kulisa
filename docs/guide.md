@@ -303,6 +303,8 @@ A pane is a small Chrome. Its header shows the profile's picture and name, what 
 profile's menu, also on a right-click) and **×**. Under it, a tab strip, then back, forward, reload, the address bar,
 **Pick** and **⋮**.
 
+- A new tab is empty, in Kulisa's colors, with the keyboard in the address bar: type an address, or words to search
+  Google for.
 - `target=_blank` links and pop-ups open as tabs of the same profile. Right-click a tab: Reload, Duplicate, Close tab,
   Close other tabs.
 - In a narrow pane, back, forward and then reload move into the pane's ⋮ menu, so Pick and ⋮ stay in reach; their

@@ -267,7 +267,9 @@ function start(options: Options = {}) {
   shell.setTheme = (theme) => {
     if (theme) { shell.theme = theme; store.saveSettings({ ...store.settings(), theme }); }
     for (const w of shell.windows) w.setTheme(shell.theme, shell.shade());
+    for (const p of allProfiles()) p.setBlank(shell.blankColor());
   };
+  shell.blankColor = () => COLORS[shell.shade()].page;
   nativeTheme.on('updated', () => { if (shell.theme === 'system') shell.setTheme(); });
   // The language the human speaks with the agents (☰ → Language; docs/window.md, Language): Kulisa's one, written into
   // each agent's own language setting (agents/, language) in every account of it, here and at an agent's start

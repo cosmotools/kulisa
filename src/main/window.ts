@@ -26,8 +26,10 @@ type Shade = 'dark' | 'light';
 const TITLE_BAR_HEIGHT = 44; // the title bar's (components/TopBar.tsx): keep in step
 // macOS's window buttons: their height and Electron's place for them from the left, in pt (measured).
 const MAC_BUTTONS = { height: 14, x: 7 };
-// The window's background and the OS buttons' strip, in each theme: --background and --foreground of src/ui/theme.css.
-const COLORS: Record<Shade, { window: string; text: string }> = { dark: { window: '#0a0a0a', text: '#fafafa' }, light: { window: '#ffffff', text: '#0a0a0a' } };
+// The window's background and the OS buttons' strip, in each theme: --background and --foreground of src/ui/theme.css;
+// page: an empty tab's, as the pane's box under it (--card).
+const COLORS: Record<Shade, { window: string; text: string; page: string }> = {
+  dark: { window: '#0a0a0a', text: '#fafafa', page: '#171717' }, light: { window: '#ffffff', text: '#0a0a0a', page: '#ffffff' } };
 // The smallest window whose UI still works (the top bar with the OS buttons, ☰ and a task's tab, something under
 // it), as VS Code's: fixed, times the Kulisa zoom, in DIP. Not the grid's own minimum: with five profiles in a row it
 // would keep the window from half a screen next to the human's IDE. The OS holds it for the human's drag only;
