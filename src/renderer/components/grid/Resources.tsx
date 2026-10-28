@@ -1,18 +1,14 @@
-// The Resources panel (docs/tasks.md, The Resources panel), a panel of the grid: the shown task's resources, a row
-// each, opening its folder; what the task added (another repository's worktree) has a 🗑. Under them its artifacts, the
-// files the agent's tools kept of its pages: a click opens one in the OS's app for it; their heading says what they take
-// (Task.artifactsUsage).
+// The Resources panel of the grid, and its header (docs/tasks.md, The Resources panel).
 import { useEffect } from 'react';
-import { Button, Caption1, Caption1Strong, CompoundButton, Image, List, ListItem, Text } from '@fluentui/react-components';
-import { BranchRegular, DeleteRegular, DocumentRegular, FolderRegular } from '@fluentui/react-icons';
+import { FileIcon, FolderIcon, GitBranchIcon, Trash2Icon } from 'lucide-react';
 import type { IDockviewPanelHeaderProps } from 'dockview-react';
 import { useShallow } from 'zustand/react/shallow';
+import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupAction, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuAction,
+  SidebarMenuButton, SidebarMenuItem, SidebarProvider } from '@ui';
 import { RightClickMenu } from '../Menus';
 import { shownTask, useWindow } from '../../lib/store';
 import type { MenuItem } from '../../lib/menu';
 import { sizeText } from '../../../shared/bytes';
-import common from '../common.module.css';
-import css from './Resources.module.css';
 
 const KINDS: Record<string, string> = { screenshot: 'Screenshot', snapshot: 'Snapshot', request: 'Request body', response: 'Response body' };
 const kindOf = (kind: string) => KINDS[kind] ?? kind;
@@ -20,6 +16,7 @@ const day = (t: number) => new Date(t).toDateString();
 const when = (t: number) => (day(t) === day(Date.now()) ? new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   : new Date(t).toLocaleDateString([], { day: 'numeric', month: 'short' }));
 const openFile = (file: string) => kulisa.invoke('file:open', file);
+
 export function Resources() {
   const task = useWindow((s) => shownTask(s));
   const key = task?.key;
@@ -37,40 +34,53 @@ export function Resources() {
     return file ? [{ label: 'Open', run: () => openFile(file) }, { label: 'Show in Folder', run: () => kulisa.invoke('file:show', file) }, '-',
       { label: 'Delete', run: () => deleteArtifacts([file]) }] : null;
   };
-  return <aside id="resources" aria-label="The task's resources" className={css.panel}>
-    <List aria-label="Folders">
-      {task.resources.map((r) => <ListItem key={r.folder}><div className={css.item}>
-        <CompoundButton appearance="subtle" size="small" aria-label={r.label} title={`Open Folder: ${r.folder}`}
-          icon={r.kind === 'maintree' ? <FolderRegular /> : <BranchRegular />} secondaryContent={r.branch ? `branch ${r.branch}` : 'main working tree'}
-          onClick={() => void open(r.folder)}>{r.label}</CompoundButton>
-        {r.removable && <Button appearance="subtle" size="small" icon={<DeleteRegular />} aria-label="Remove Repository" title="Remove Repository"
-          onClick={() => void remove(r.folder)} />}
-      </div></ListItem>)}
-    </List>
-    {artifacts.length > 0 && <>
-      <div className={css.heading}>
-        <h3 className={common.heading}><Caption1Strong>Artifacts</Caption1Strong></h3>
-        <span className={css.size}><Caption1 data-testid="artifacts-size">{sizeText(bytes)}</Caption1></span>
-        <Button appearance="subtle" size="small" icon={<DeleteRegular />} aria-label="Delete All Artifacts" title="Delete All Artifacts"
-          onClick={() => void deleteArtifacts(null)} />
-      </div>
-      <RightClickMenu items={menu}>
-        <List aria-label="Artifacts">
-          {artifacts.map((a) => <ListItem key={a.file}><div className={css.item}>
-            <CompoundButton appearance="subtle" size="small" data-file={a.file} aria-label={kindOf(a.kind)}
-              title={`Open: ${a.file} (${sizeText(a.bytes)})`} onClick={() => void openFile(a.file)}
-              icon={a.thumb ? <Image src={a.thumb} alt="" bordered shape="rounded" fit="cover" /> : <DocumentRegular />}
-              secondaryContent={[names[a.profile], when(a.time)].filter(Boolean).join(' · ')}>{kindOf(a.kind)}</CompoundButton>
-          </div></ListItem>)}
-        </List>
-      </RightClickMenu>
-    </>}
+  // A row: its icon, its name and a muted line under it, as a task's in the sidebar.
+  const lines = (name: string, line: string) => <span className="flex min-w-0 flex-1 flex-col">
+    <span className="truncate">{name}</span><span className="truncate text-xs text-muted-foreground">{line}</span>
+  </span>;
+  return <aside id="resources" aria-label="The task's resources" className="h-full min-h-0">
+    <SidebarProvider className="h-full min-h-0">
+      <Sidebar collapsible="none" className="h-full w-full">
+        <SidebarContent>
+          <SidebarGroup><SidebarGroupContent>
+            <SidebarMenu aria-label="Folders">
+              {task.resources.map((r) => <SidebarMenuItem key={r.folder}>
+                <SidebarMenuButton aria-label={r.label} title={`Open Folder: ${r.folder}`} className="h-auto" onClick={() => void open(r.folder)}>
+                  {r.kind === 'maintree' ? <FolderIcon /> : <GitBranchIcon />}
+                  {lines(r.label, r.branch ? `branch ${r.branch}` : 'main working tree')}
+                </SidebarMenuButton>
+                {r.removable && <SidebarMenuAction showOnHover aria-label="Remove Repository" title="Remove Repository" onClick={() => void remove(r.folder)}>
+                  <Trash2Icon /></SidebarMenuAction>}
+              </SidebarMenuItem>)}
+            </SidebarMenu>
+          </SidebarGroupContent></SidebarGroup>
+          {artifacts.length > 0 && <SidebarGroup>
+            <SidebarGroupLabel>Artifacts ·&nbsp;<span data-testid="artifacts-size">{sizeText(bytes)}</span></SidebarGroupLabel>
+            <SidebarGroupAction aria-label="Delete All Artifacts" title="Delete All Artifacts" onClick={() => void deleteArtifacts(null)}><Trash2Icon /></SidebarGroupAction>
+            <SidebarGroupContent>
+              <RightClickMenu items={menu}>
+                <SidebarMenu aria-label="Artifacts">
+                  {artifacts.map((a) => <SidebarMenuItem key={a.file}>
+                    <SidebarMenuButton data-file={a.file} aria-label={kindOf(a.kind)} title={`Open: ${a.file} (${sizeText(a.bytes)})`} className="h-auto"
+                      onClick={() => void openFile(a.file)}>
+                      {/* a page's head: where its picture is cut */}
+                      {a.thumb ? <img src={a.thumb} alt="" className="size-8 rounded-sm border object-cover object-top" /> : <FileIcon />}
+                      {lines(kindOf(a.kind), [names[a.profile], when(a.time)].filter(Boolean).join(' · '))}
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>)}
+                </SidebarMenu>
+              </RightClickMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>}
+        </SidebarContent>
+      </Sidebar>
+    </SidebarProvider>
   </aside>;
 }
 
-// Its header in the grid: its name; the panel is dragged by it.
+// The panel is dragged by its header.
 export function ResourcesHeader({ api }: IDockviewPanelHeaderProps) {
-  return <div data-panel={api.id} className={css.header}>
-    <span className={css.name}><Text truncate wrap={false} block>{api.title}</Text></span>
+  return <div data-panel={api.id} className="flex h-full min-w-0 items-center px-2">
+    <span className="min-w-0 truncate">{api.title}</span>
   </div>;
 }

@@ -1,4 +1,0 @@
-/* A menu's rows (Menus.tsx): a row's 🗑 keeps its room while hidden, so the menu does not widen under the pointer; a
-   heading's icon beside its words. */
-.hidden { visibility: hidden; }
-.heading { display: flex; align-items: center; gap: var(--spacingHorizontalS); }

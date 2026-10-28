@@ -1,9 +1,10 @@
-// The About page of Settings (docs/window.md, Menus, About Kulisa): the versions, and the folders Kulisa writes in,
-// each shown in the file manager. Asked again each time it is shown.
+// The About page of Settings (docs/window.md, Menus, About Kulisa). Asked again each time it is shown.
 import { useEffect, useState } from 'react';
-import { Button, Caption1, Card, CardHeader, Field, Input, Link, Subtitle2, Text, Title3, tokens, Tooltip } from '@fluentui/react-components';
-import { FolderOpenRegular } from '@fluentui/react-icons';
+import { FolderOpenIcon } from 'lucide-react';
+import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput, Item, ItemContent, ItemDescription, ItemMedia, ItemTitle, Card, CardHeader,
+  CardTitle, CardContent, Field, FieldDescription, FieldLabel } from '@ui';
 import { Logo } from '../ProjectIcon';
+import { Tip } from '../Tip';
 import type { AboutFolder, AboutInfo } from '../../../shared/types';
 
 const FOLDERS: Record<AboutFolder, { label: string; hint: string }> = {
@@ -12,28 +13,34 @@ const FOLDERS: Record<AboutFolder, { label: string; hint: string }> = {
   program: { label: 'Program', hint: 'The program as installed, or the checkout it runs from. Uninstalling removes it; the folders above stay' },
 };
 
-// The app icon's curtain (assets/icon.svg), in Fluent's palette.
-const CURTAIN = tokens.colorPaletteRedBackground3;
+// The app icon's curtain (assets/icon.svg), in the theme's red.
+const CURTAIN = 'var(--destructive)';
 
 export function AboutPage() {
   const [info, setInfo] = useState<AboutInfo | null>(null);
   useEffect(() => { void kulisa.invoke('about:get').then(setInfo); }, []);
   if (!info) return null;
-  return <Card appearance="subtle">
-    <Card>
-      <CardHeader image={<Logo color={CURTAIN} size={48} />} header={<Title3 role="heading" aria-level={1}>Kulisa <Text size={500}>{info.version}</Text></Title3>}
-        description={<Caption1>Electron {info.electron} · Chromium {info.chrome} · <Link href="https://kulisa.app">kulisa.app</Link> · GPL-3.0-or-later</Caption1>} />
-    </Card>
-    <Card role="group" aria-label="Where Kulisa keeps things">
-      <CardHeader header={<Subtitle2>Where Kulisa keeps things</Subtitle2>} />
-      {/* data-folder: the tests' handle on a folder */}
-      {info.folders.map((f) => <Field key={f.id} data-folder={f.id} label={FOLDERS[f.id].label} hint={FOLDERS[f.id].hint}>
-        {/* a folder not made yet: disabled, as its button */}
-        <Input readOnly disabled={!f.exists} value={f.path} title={f.path}
-          contentAfter={<Tooltip content={f.exists ? 'Show in your file manager' : 'Not made yet'} relationship="label">
-            <Button appearance="transparent" size="small" icon={<FolderOpenRegular />} disabled={!f.exists} onClick={() => void kulisa.invoke('about:show-folder', f.id)} />
-          </Tooltip>} />
-      </Field>)}
-    </Card>
-  </Card>;
+  return <>
+    <Item variant="outline">
+      <ItemMedia><Logo color={CURTAIN} size={48} /></ItemMedia>
+      <ItemContent>
+        <ItemTitle role="heading" aria-level={1}>Kulisa {info.version}</ItemTitle>
+        <ItemDescription>Electron {info.electron} · Chromium {info.chrome} · <a href="https://kulisa.app" target="_blank" rel="noreferrer">kulisa.app</a> · GPL-3.0-or-later</ItemDescription>
+      </ItemContent>
+    </Item>
+    <Card role="group" aria-label="Where Kulisa keeps things"><CardHeader><CardTitle>Where Kulisa keeps things</CardTitle></CardHeader><CardContent><div className="flex flex-col gap-3">
+      {/* data-folder: the tests' handle on a folder. One not made yet is disabled, its button too: a disabled button
+          gets no tooltip, so its description says it. */}
+      {info.folders.map((f) => { const show = f.exists ? 'Show in your file manager' : 'Not made yet';
+        const button = <InputGroupButton size="icon-xs" aria-label={show} disabled={!f.exists} onClick={() => void kulisa.invoke('about:show-folder', f.id)}><FolderOpenIcon /></InputGroupButton>;
+        return <Field key={f.id} data-folder={f.id}>
+          <FieldLabel htmlFor={`folder-${f.id}`}>{FOLDERS[f.id].label}</FieldLabel>
+          <InputGroup>
+            <InputGroupInput id={`folder-${f.id}`} readOnly disabled={!f.exists} value={f.path} title={f.path} />
+            <InputGroupAddon align="inline-end">{f.exists ? <Tip text={show}>{button}</Tip> : button}</InputGroupAddon>
+          </InputGroup>
+          <FieldDescription>{f.exists ? FOLDERS[f.id].hint : `${FOLDERS[f.id].hint}. Not made yet.`}</FieldDescription>
+        </Field>; })}
+    </div></CardContent></Card>
+  </>;
 }

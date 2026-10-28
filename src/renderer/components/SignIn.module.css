@@ -1,4 +1,0 @@
-/* A new account's sign-in (SignIn.tsx): its lines, the terminal under Details, the buttons. */
-.signIn { display: flex; flex-direction: column; gap: var(--spacingVerticalS); }
-.terminal { height: 160px; }
-.buttons { display: flex; gap: var(--spacingHorizontalS); }

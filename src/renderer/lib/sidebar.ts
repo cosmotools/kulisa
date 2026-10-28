@@ -9,7 +9,7 @@ export const sidebarOverlay = (o: typeof overlay) => { overlay = o; };
 export const sidebarDocked = (el: HTMLElement | null) => { docked = el; };
 
 export function toggleSidebar() {
-  if (store.getState().current === null) { docked?.querySelector<HTMLElement>('[role="treeitem"]')?.focus(); return; }
+  if (store.getState().current === null) { docked?.querySelector<HTMLElement>('[data-project] button, [data-task]')?.focus(); return; }
   if (!overlay || dialogsShown() > (overlay.open ? 1 : 0)) return; // another dialog has the window
   overlay.setOpen(!overlay.open);
 }

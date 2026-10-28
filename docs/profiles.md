@@ -84,11 +84,13 @@ A profile is an Electron session on a folder of its own (`session.fromPath`), la
   (`useStrip`, `lib/strip.ts`); `target=_blank` and `window.open` open tabs of the same profile. Right-click a tab:
   reload, duplicate, close, close others. **⋮** at the toolbar's end, as Chrome's: Screenshot (Element, Visible Part,
   Full Page) and DevTools (or F12). A narrow pane gives up back and forward, then reload, into ⋮ as they no longer
-  fit beside the address's least room, their keys staying; never Pick or ⋮ (Fluent's `Overflow`: [ui.md](ui.md)).
+  fit beside the address's least room, their keys staying; never Pick or ⋮ (container queries: [ui.md](ui.md), Controls).
   Chrome's keys work in a page for its pane: Ctrl+T, Ctrl+W, Ctrl+Shift+T, Ctrl+L, Ctrl+Tab, Ctrl+1…9 and the rest
   ([window.md](window.md), Keys).
 - **Zoom**: Ctrl + / − / 0 in a page zooms that site in that profile, on top of the Kulisa zoom (saved per profile,
   shown in the address bar).
+- **An empty tab** (`about:blank`: a new one, the last one closed) is the pane's color in Kulisa's theme, not
+  Chromium's white (`Profile.setBlank`, by the window; `COLORS.page`, `window.ts`); a page's own colors stay its own.
 - **A page that does not load** says why, as Chrome's error page does (Electron leaves it blank): the site cannot be
   found, refused to connect (a local app whose server is not running), took too long, no internet, an untrusted
   certificate; with Chromium's code (`ERR_…`). The address stays the one that failed, so reload tries it again; the

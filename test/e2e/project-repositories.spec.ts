@@ -68,7 +68,7 @@ test('projects: several repositories: a task works in the main tree until it mak
   // without /add-dir: a line saying so, sent; Claude Code's question after /add-dir: checked by hand), not while it
   // waits for the human (Enter would answer the question), once it no longer does.
   await setState(core, first, 'waiting');
-  await rightClick(ui, `#projectTabs [data-task="${first}"]`);
+  await rightClick(ui, `#taskTabs [data-task="${first}"]`);
   await expect(menu(ui)).toMatchAriaSnapshot(`
     - /children: contain
     - text: Add Repository
@@ -113,7 +113,7 @@ test('projects: several repositories: a task works in the main tree until it mak
   await call('task_rename', { name: 'Checkout' });
   for (const r of ['api', 'web']) expect(git(path.join(home, r), 'rev-parse', '--abbrev-ref', 'HEAD')).toBe('checkout');
   // Project Settings… shows them, the default first; removing one tasks have a worktree of is refused, naming them.
-  await choose(ui, 'Project Settings…', await projectMenu(ui, `#projectTabs [data-project="${pid}"]`));
+  await choose(ui, 'Project Settings…', await projectMenu(ui, `#taskTabs [data-project="${pid}"]`));
   const s = await sui();
   await pageOf(s, 'api');
   await expect(listRows(s, 'Folders')).toHaveCount(2);
@@ -160,13 +160,13 @@ test('projects: several repositories: a task works in the main tree until it mak
   expect((await invoke(ui, 'project:folder-default', { id: pid, folder: web })).folders[0].folder).toBe(web);
   expect((await of(inMain)).folder, 'where it opened, though the default is web now').toBe(api);
   // The human adds web back on its tab, then removes it with a file not committed there: asked first, told what goes.
-  await rightClick(ui, `#projectTabs [data-task="${first}"]`);
+  await rightClick(ui, `#taskTabs [data-task="${first}"]`);
   await choose(ui, 'web');
   await expect.poll(async () => (await of(first)).worktrees.length).toBe(2);
   const webCopy2 = await copyOf('web');
   fs.writeFileSync(path.join(webCopy2, 'b.txt'), 'work');
   const removeWeb = async (yes: boolean) => {
-    await rightClick(ui, `#projectTabs [data-task="${first}"]`);
+    await rightClick(ui, `#taskTabs [data-task="${first}"]`);
     await expect(menu(ui)).toMatchAriaSnapshot(`
       - /children: contain
       - text: Remove Repository

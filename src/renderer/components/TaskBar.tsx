@@ -4,28 +4,29 @@
 // showing one moves none (tabs moving under the mouse make the human miss). Where a dragged tab is let go outside every
 // Kulisa window, the main process says (the page does not know where the pointer is then).
 import { flushSync } from 'react-dom';
-import { useEffect, useReducer, useRef, useState, type DragEvent, type MouseEvent, type PointerEvent } from 'react';
-import { Button, Tab, TabList, Text, Tooltip } from '@fluentui/react-components';
-import { AddRegular, DismissRegular } from '@fluentui/react-icons';
-import { RightClickMenu, type Item } from './Menus';
+import { useRef, useState, type DragEvent, type MouseEvent, type PointerEvent } from 'react';
+import { PlusIcon } from 'lucide-react';
+import { Button } from '@ui';
+import { RightClickMenu } from './Menus';
+import { BrowserTab, TabStrip } from './BrowserTabs';
+import { Tip } from './Tip';
 import { ProjectIcon } from './ProjectIcon';
 import { AgentState } from './AgentState';
 import { store, useWindow } from '../lib/store';
-import { onColors, projectColor } from '../lib/project-color';
-import { keyText, withKeys } from '../lib/common';
+import { useProjectColor } from '../lib/project-color';
+import { keyText } from '../lib/common';
 import { dialog } from '../lib/dialogs';
-import { openSettings } from '../lib/settings';
+import { projectMenu } from '../lib/project-menu';
 import { profilesMenu } from '../lib/profiles';
 import { terminalsOf } from '../lib/terminals';
 import { useStrip } from '../lib/strip';
+import type { MenuItem } from '../lib/menu';
 import type { ProjectEntry, TaskInfo } from '../../shared/types';
-import css from './TaskBar.module.css';
-
 
 const rename = async (key: string, name: string) => (await dialog('taskrename')).rename(key, name);
 // Move to New Window, Move to Window: … (one row per other window, named as it names itself: window.ts, label):
 // to(null) for a new one. The only tab stays: a new window would be the same as this one.
-const moveRows = (to: (id: number | null) => unknown, { enabled = true, label = 'Move to' } = {}): Item[] => {
+const moveRows = (to: (id: number | null) => unknown, { enabled = true, label = 'Move to' } = {}): MenuItem[] => {
   const { projects } = store.getState();
   return [{ label: `${label} New Window`, enabled: enabled && projects.tabs.length > 1, run: () => to(null) },
     ...(projects.windows || []).map((w) => ({ label: `${label} Window: ${w.name}`, enabled, run: () => to(w.id) }))];
@@ -33,7 +34,7 @@ const moveRows = (to: (id: number | null) => unknown, { enabled = true, label = 
 // A tab's right-click menu: the shown one's profiles, the repositories it may add or remove, Rename…, Show Folder,
 // Move to Window, Close, Delete Task…; then its project's, in a submenu of its name. From what the window was last
 // told (store): it opens at once.
-const taskMenu = ({ key, name, repos, resources }: TaskInfo): Item[] => [
+const taskMenu = ({ key, name, repos, resources }: TaskInfo): MenuItem[] => [
   ...(key === store.getState().current ? [{ heading: 'Profiles' }, ...profilesMenu(), '-' as const] : []),
   // The project's repositories it has no copy of, one added when its work needs it (tasks.md, Tasks).
   ...(repos.length ? [{ heading: 'Add Repository' }, ...repos.map((r) => ({ label: r.split(/[\\/]/).pop()!, title: r,
@@ -47,19 +48,13 @@ const taskMenu = ({ key, name, repos, resources }: TaskInfo): Item[] => [
   '-', { label: 'Close', run: () => kulisa.invoke('task:close', key) },
   { label: 'Delete Task…', run: () => kulisa.invoke('task:delete', key) },
 ];
-// A project's rows (its submenu): what is not one task's. Move All Tasks: its open tasks of this window, together.
-function projectItems(p: ProjectEntry): Item[] {
+// A project's rows (its submenu). Move All Tasks: its open tasks of this window, together.
+function projectItems(p: ProjectEntry): MenuItem[] {
   const { projects } = store.getState(), id = p.id, mine = projects.tabs.filter((t) => t.project === id);
-  const merged = p.tasks.some((t) => t.closed && t.merged); // its PR merged, nothing uncommitted: deleting loses nothing (projects.ts, checkMerged)
   const terminals = () => Object.assign({}, ...mine.map((t) => terminalsOf(t.key)));
-  return [{ label: 'New Task', keys: id === projects.project ? keyText('task.new') : undefined, run: () => kulisa.invoke('task:new', { project: id }) },
-    '-', ...moveRows((to) => kulisa.invoke('project:move-all', { id, to, terminals: terminals() }), { enabled: mine.length < projects.tabs.length, label: 'Move All Tasks to' }),
-    '-', { label: 'Project Settings…', run: () => openSettings('projects', id) },
-    { label: 'Show Data Folder', run: () => kulisa.invoke('project:show-data', { id }) },
-    ...(merged ? [{ label: 'Delete Merged Tasks…', run: () => kulisa.invoke('project:delete-merged', { id }) }] : []),
-    '-', { label: 'Close All Tasks', run: () => kulisa.invoke('project:close-tasks', { id }) }];
+  return projectMenu(p, { newTask: () => kulisa.invoke('task:new', { project: id }), keys: id === projects.project ? keyText('task.new') : undefined,
+    move: moveRows((to) => kulisa.invoke('project:move-all', { id, to, terminals: terminals() }), { enabled: mine.length < projects.tabs.length, label: 'Move All Tasks to' }) });
 }
-
 
 // HTML drag and drop, which also crosses windows. The tab carries its task and what its terminals show (the window it
 // goes to has neither), as a type of Kulisa's own: a page under the pointer takes nothing from it.
@@ -67,11 +62,9 @@ const DRAG = 'application/x-kulisa-task';
 
 export function TaskBar() {
   const all = useWindow((s) => s.projects), current = useWindow((s) => s.current), top = useWindow((s) => s.bar === 'top');
-  const [, colorsRead] = useReducer((n: number) => n + 1, 0);
-  useEffect(() => onColors(colorsRead), []);
+  const projectColor = useProjectColor();
   const byId = new Map(all.projects.map((p) => [p.id, p]));
   const tabs = all.tabs.flatMap((t) => { const p = byId.get(t.project); return p ? [{ t, p }] : []; });
-  const shown = tabs.find(({ t }) => t.key === current)?.p, [tip, setTip] = useState(false); // the +'s: its project, its tooltip
   const strip = useRef<HTMLDivElement>(null);
   // More tabs than fit: the wheel scrolls them, the edges with tabs past them fade, the shown one stays in sight.
   useStrip(strip, current);
@@ -80,7 +73,7 @@ export function TaskBar() {
   // the tab starts being dragged (pointercancel), whichever comes first: the grid's slide that showing it starts makes
   // Chromium drop the drag about to begin. The pressed tab stays lit until the window is told its task is shown (or it
   // was refused): let go of, it would go dark while the main process takes the pictures for the slide, and blink.
-  const [pressed, setPressed] = useState<string | null>(null);
+  const [pressed, setPressed] = useState<string | null>(null), press = useRef<string | null>(null); // the ref: Radix chooses on the press too
   if (pressed !== null && pressed === current) setPressed(null);
   // The last press's switch: done once the window has taken its grid down (grid:closing comes before the answer).
   const showing = useRef<Promise<unknown>>(Promise.resolve());
@@ -91,16 +84,17 @@ export function TaskBar() {
   const onPointerDown = (e: PointerEvent) => {
     const at = e.button === 0 && !e.ctrlKey && e.pointerType === 'mouse' && !(e.target as Element).closest('[data-close]') && tabAt(e);
     if (!at || at.t.key === current) return;
-    setPressed(at.t.key);
+    setPressed(press.current = at.t.key);
     const done = new AbortController(), show = async () => {
       done.abort();
+      press.current = null;
       const r = await (showing.current = kulisa.invoke('task:show', at.t.key));
       if (r?.error) setPressed((p) => (p === at.t.key ? null : p));
     };
     for (const type of ['pointerup', 'pointercancel']) addEventListener(type, show, { signal: done.signal });
   };
   // The keyboard's choice (Enter, Space), shown at once; a press's is shown on its release.
-  const onTabSelect = (key: string) => { if (key !== current && key !== pressed) void kulisa.invoke('task:show', key); };
+  const onTabSelect = (key: string) => { if (key !== current && key !== press.current) void kulisa.invoke('task:show', key); };
   // The middle button on a tab closes its task, as a browser's tab.
   const onAuxClick = (e: MouseEvent) => { const at = e.button === 1 && tabAt(e); if (at) void kulisa.invoke('task:close', at.t.key); };
   // A double click: its Rename…, a shortcut to the menu's row. On a tab not shown, after its first press has shown it:
@@ -111,7 +105,7 @@ export function TaskBar() {
     await showing.current.catch(() => {});
     void rename(at.t.key, at.t.name);
   };
-  const menu = (e: globalThis.MouseEvent): Item[] | null => {
+  const menu = (e: globalThis.MouseEvent): MenuItem[] | null => {
     const at = tabAt(e);
     return at && [...taskMenu(at.t), '-', { submenu: at.p.name, project: { favicon: at.p.favicon, color: projectColor(at.p) }, items: projectItems(at.p) }];
   };
@@ -161,35 +155,31 @@ export function TaskBar() {
     },
   };
 
-  return <nav id="taskbar" aria-label="Open tasks" data-top={top || undefined} className={css.bar}>
-    <RightClickMenu items={menu} className={css.tabs}>
-      <TabList id="projectTabs" ref={strip} appearance="filled-circular" size="small" reserveSelectedTabSpace={false} selectedValue={pressed ?? current ?? ''}
-        onTabSelect={(_, d) => onTabSelect(String(d.value))}
+  return <nav id="taskbar" aria-label="Open tasks" data-top={top || undefined}
+    className={top ? 'flex min-w-0 items-center gap-1 [-webkit-app-region:no-drag]' : 'flex min-w-0 max-w-full items-center gap-1 justify-self-center px-2 py-1'}>
+    {/* In the title bar the tabs are no handle to drag the window by (TopBar.tsx drags after them). */}
+    <RightClickMenu items={menu} className="flex min-w-0">
+      <TabStrip id="taskTabs" stripRef={strip} label="Open tasks" value={pressed ?? current ?? ''} onChoose={onTabSelect}
         onPointerDown={onPointerDown} onAuxClick={onAuxClick} onDoubleClick={onDoubleClick} {...drag}>
         {tabs.map(({ t, p }) => {
           const color = projectColor(p), at = mark?.key === t.key ? mark.side : undefined;
-          // × on every tab, as Chrome's: in the tab, its own click (not the tab's), never the tab's press
-          return <Tab key={t.key} value={t.key} data-task={t.key} data-project={p.id} draggable aria-label={t.name} data-dragging={dragged === t.key || undefined}
-            data-drop={at} title={`${p.name}\n${t.branch ? `branch ${t.branch} in ${t.folder}` : `in the project's folder ${t.folder} (no git: no copy of its own)`}`}
-            icon={<ProjectIcon p={{ favicon: p.favicon, color }} size={16} />}>
-            <span className={css.label}>
-              <AgentState state={t.state} />
-              {/* Text sets a weight of its own: the chosen tab's, as Fluent's Tab sets its label's. */}
-              <span className={css.name}><Text truncate wrap={false} block weight={t.key === (pressed ?? current) ? 'semibold' : 'regular'}>{t.name}</Text></span>
-              <span className={css.close}><Button as="a" data-close appearance="subtle" size="small" icon={<DismissRegular />} aria-label="Close" tabIndex={-1}
-                title="Close the task: its agent stops, all else stays (open it again from the sidebar)"
-                onMouseDown={(e) => e.preventDefault()} onClick={(e) => { e.stopPropagation(); void kulisa.invoke('task:close', t.key); }} /></span>
-            </span>
-          </Tab>;
+          // Every tab keeps its width whichever is shown, so none moves under the mouse; at its narrowest about ten letters.
+          return <BrowserTab key={t.key} value={t.key} data-task={t.key} data-project={p.id} draggable aria-label={t.name}
+            dragging={dragged === t.key} drop={at} className="min-w-40 flex-initial basis-50"
+            title={`${p.name}\n${t.branch ? `branch ${t.branch} in ${t.folder}` : `in the project's folder ${t.folder} (no git: no copy of its own)`}`}
+            icon={<><ProjectIcon p={{ favicon: p.favicon, color }} size={16} /><AgentState state={t.state} /></>}
+            close={{ title: 'Close the task: its agent stops, all else stays (open it again from the sidebar)', run: () => void kulisa.invoke('task:close', t.key) }}>
+            {t.name}
+          </BrowserTab>;
         })}
-      </TabList>
+      </TabStrip>
     </RightClickMenu>
     {/* beside the +: above or under it, the tooltip would open over the pages, which cover it. It goes as the + is
         pressed, as Chrome's: the slide to the new task shows a picture of the window, the tooltip in it until it ends;
         the + takes no keyboard (its focus would show the tooltip again). */}
-    <Tooltip content={withKeys(shown ? `New task of ${shown.name}` : 'New task', 'task.new')} relationship="label" positioning="after"
-      visible={tip} onVisibleChange={(_, d) => setTip(d.visible)}>
-      <Button id="newTask" appearance="subtle" icon={<AddRegular />} onMouseDown={(e) => { e.preventDefault(); setTip(false); }} onClick={() => kulisa.invoke('task:new')} />
-    </Tooltip>
+    <Tip text="New task" side="right">
+      <Button id="newTask" variant="ghost" size="icon-sm" aria-label="New task"
+        onMouseDown={(e) => e.preventDefault()} onClick={() => kulisa.invoke('task:new')}><PlusIcon /></Button>
+    </Tip>
   </nav>;
 }

@@ -1,28 +1,24 @@
-// The shown task's terminals, a panel of the grid (docs/window.md, The terminal): the terminal in front, its tabs in the
-// panel's header (TerminalsHeader). The xterms live as long as their terminals (lib/terminals.ts); the panel holds the
-// shown task's. With none, the panel folds to its + (by its height with a panel over or under it, by its width when it
-// is as tall as the grid), and unfolds to the size it had when one opens. With no profile open it is the grid's room for
-// them: the +'s rows are big buttons in its middle instead, the closed profiles' under them.
-import { useCallback, useContext, useEffect, useRef, useSyncExternalStore } from 'react';
-import { Avatar, Button, CompoundButton, Spinner, Tab, TabList, Text } from '@fluentui/react-components';
-import { AddRegular, CheckmarkRegular, DismissRegular } from '@fluentui/react-icons';
+// The shown task's terminals, a panel of the grid, and its header (docs/window.md, The terminal). The xterms live as long
+// as their terminals (lib/terminals.ts), not as the panel: it shows the shown task's.
+import { createElement, useCallback, useEffect, useRef, useSyncExternalStore, type DragEvent, type Ref } from 'react';
+import { CheckIcon, PlusIcon } from 'lucide-react';
 import type { IDockviewPanelHeaderProps, IDockviewPanelProps } from 'dockview-react';
+import { Avatar, AvatarImage, Button, Item, ItemContent, ItemDescription, ItemMedia, ItemTitle, Spinner } from '@ui';
 import { ButtonMenu, RightClickMenu } from '../Menus';
+import { BrowserTab, TabStrip } from '../BrowserTabs';
 import { agentMark } from '../AgentMark';
 import { AgentState, STATES } from '../AgentState';
-import { ThemeShown, termStyle } from '../theme';
+import { termStyle, useShade } from '../../lib/theme';
 import { act, store, useWindow } from '../../lib/store';
 import { profileLaunchers } from '../../lib/profiles';
 import { panelView, launchers, newTerminalItems, shownTerm, tabItems, terminalMenu } from '../../lib/terminals';
 import { dialog } from '../../lib/dialogs';
 import { avatarSrc, useShortcuts, withKeys } from '../../lib/common';
-import { Grow, useStrip } from '../../lib/strip';
+import { grow, useStrip } from '../../lib/strip';
 import { dialogsShown } from '../../lib/cover';
 import { termFocus } from '../../../terminal/renderer';
 import { Dictation, Pill } from '../../../dictation/renderer';
 import type { Terminal } from '../../../shared/types';
-import css from './Terminals.module.css';
-
 
 const NEW_TITLE = 'New conversation of an agent, or a terminal';
 // The header's height (Grid.tsx): the folded panel is one button of it.
@@ -51,7 +47,7 @@ function fold(api: IDockviewPanelProps['api'], grid: IDockviewPanelProps['contai
 }
 
 export function Terminals({ api, containerApi }: IDockviewPanelProps) {
-  const host = useRef<HTMLDivElement>(null), launch = useRef<HTMLDivElement>(null), theme = useContext(ThemeShown);
+  const host = useRef<HTMLDivElement>(null), launch = useRef<HTMLDivElement>(null), shade = useShade();
   const task = useWindow((s) => s.current), front = useWindow((s) => s.terminals.front);
   const folded = useWindow((s) => !s.terminals.list.length);
   // No profile's pane in the grid: as dockview has them, so it folds against the grid as it is laid out.
@@ -67,10 +63,10 @@ export function Terminals({ api, containerApi }: IDockviewPanelProps) {
 
   useEffect(() => { host.current!.append(panelView.el); }, []);
   useEffect(() => panelView.show(shown), [shown]);
-  useEffect(() => panelView.restyle(termStyle(theme, 'colorNeutralBackground1')), [theme]);
+  // The terminal in the panel's own color (the grid's: Grid.css), again when the shade changes.
+  useEffect(() => panelView.restyle(termStyle()), [shade]);
   // Another tab in front of the same task (chosen, or opened by the human): the keyboard goes to it. Not from a dialog
-  // (Change Agent's tab comes in front under it): Fluent's dialog hides itself from the keyboard and the screen reader
-  // once the keyboard leaves it.
+  // (Change Agent's tab comes in front under it): the dialog keeps the keyboard.
   const was = useRef({ task, front });
   useEffect(() => {
     const before = was.current;
@@ -85,13 +81,13 @@ export function Terminals({ api, containerApi }: IDockviewPanelProps) {
   // keyboard when the keyboard was in the terminal just closed or nowhere (not taken from a field or a dialog). No keys
   // on them: Ctrl+` opens the task's agent, which the window does not show.
   const big = folded && alone && !loading;
-  // A question open as they come (closing an agent's tab asks first): once it has gone, also from the page (Fluent's
-  // dialog keeps the keyboard in it until then, and gives it back as it goes).
+  // A question open as they come (closing an agent's tab asks first): once it has gone, also from the page (a dialog
+  // keeps the keyboard in it while it fades out, and gives it back as it goes).
   useEffect(() => {
     if (!big) return;
     let frame = 0;
     const take = () => {
-      if (dialogsShown() || document.querySelector('[aria-modal="true"]')) { frame = requestAnimationFrame(take); return; }
+      if (dialogsShown() || document.querySelector('[role="dialog"], [role="alertdialog"]')) { frame = requestAnimationFrame(take); return; }
       const a = document.activeElement;
       if (a && a !== document.body && !host.current?.contains(a) && !launch.current?.contains(a)) return;
       launch.current?.querySelector<HTMLElement>('[data-launcher]')?.focus();
@@ -105,47 +101,51 @@ export function Terminals({ api, containerApi }: IDockviewPanelProps) {
     return t && task && (e.target as Element).closest('[data-testid="terminal"]') ? terminalMenu(`${task}#${t.id}`, tabItems(t)) : null;
   };
 
-  return <div data-testid="terminals" data-folded={folded || undefined} className={css.panel}>
+  // One cell: the launchers or the folded +, and the terminal, take it in turn; the pill and the loader lie over it.
+  return <div data-testid="terminals" data-folded={folded || undefined} className="relative grid h-full grid-cols-[minmax(0,1fr)] grid-rows-[minmax(0,1fr)] bg-card">
     {big ? <Launchers ref={launch} />
-      : folded ? <div className={css.unfold}>
-        <ButtonMenu items={newTerminalItems}><Button data-unfold appearance="subtle" size="small" icon={<AddRegular />}
-          aria-label="New terminal" title={withKeys(NEW_TITLE, 'terminal.new')} /></ButtonMenu>
+      : folded ? <div className="grid place-items-center">
+        <ButtonMenu items={newTerminalItems}><Button data-unfold variant="ghost" size="icon-sm" aria-label="New terminal"
+          title={withKeys(NEW_TITLE, 'terminal.new')}><PlusIcon /></Button></ButtonMenu>
       </div> : null}
     <RightClickMenu items={menu}>
-      <div ref={host} data-testid="terminal" data-zone="terminal" hidden={folded} className={css.host} />
+      <div ref={host} data-testid="terminal" data-zone="terminal" hidden={folded} className="h-full py-0.5 ps-2 pe-1" />
     </RightClickMenu>
-    {!folded && <Pill task={task}><CheckmarkRegular /></Pill>}
-    {starting && <div role="status" className={css.starting}>
-      <Spinner size="extra-tiny" label={`Starting ${starting}…`} labelPosition="after" /></div>}
+    {!folded && <Pill task={task}><CheckIcon className="size-3.5 text-success" /></Pill>}
+    {starting && <div className="absolute inset-0 grid place-items-center bg-card text-sm"><div role="status" className="flex items-center gap-2 text-muted-foreground"><Spinner role={undefined} aria-hidden />Starting {starting}…</div></div>}
   </div>;
 }
 
-// The +'s rows as big buttons in the grid's middle, the agent's mark beside its name, an account's email under it; the
-// task's closed profiles under them (lib/profiles.ts, profileLaunchers).
-function Launchers({ ref }: { ref: React.Ref<HTMLDivElement> }) {
+// One width for all, so the rows line up.
+function Launchers({ ref }: { ref: Ref<HTMLDivElement> }) {
   const closed = useWindow((s) => s.closedProfiles);
   useWindow((s) => s.projects); // the project's agents
-  return <div ref={ref} data-testid="launchers" className={css.launchers}>
-    <nav aria-label="New terminal" className={css.row}>
-      {launchers().map((l) => <span key={l.id} className={css.launcher}><CompoundButton data-launcher appearance="secondary" aria-label={l.name} title={l.title}
-        icon={<l.icon />} onClick={() => void l.run()} secondaryContent={l.sub}>{l.name}</CompoundButton></span>)}
+  return <div ref={ref} data-testid="launchers" className="flex max-w-full flex-col gap-4 self-center justify-self-center p-3">
+    <nav aria-label="New terminal" className="flex flex-wrap justify-center gap-3">
+      {launchers().map((l) => <Button key={l.id} data-launcher variant="outline" aria-label={l.name} title={l.title} className="h-auto w-60 justify-start"
+        onClick={() => void l.run()}>
+        {/* shadcn's Item laid out in the button, as its examples put one in a menu's row */}
+        <Item size="sm"><ItemMedia>{createElement(agentMark(l.cli), { className: 'size-8' })}</ItemMedia>
+          <ItemContent className="min-w-0"><ItemTitle>{l.name}</ItemTitle>{l.sub && <ItemDescription>{l.sub}</ItemDescription>}</ItemContent></Item>
+      </Button>)}
     </nav>
-    <nav aria-label="Open a profile" className={css.row}>
-      {profileLaunchers(closed).map((p) => <span key={p.id} className={css.launcher}><CompoundButton data-launcher data-profile={p.id} appearance="secondary"
-        aria-label={p.name} title={p.title} icon={p.avatar ? <Avatar size={40} image={{ src: avatarSrc(p.avatar) }} aria-hidden /> : <AddRegular />}
-        onClick={() => void p.run()}>{p.name}</CompoundButton></span>)}
+    <nav aria-label="Open a profile" className="flex flex-wrap justify-center gap-3">
+      {profileLaunchers(closed).map((p) => <Button key={p.id} data-launcher data-profile={p.id} variant="outline" aria-label={p.name} title={p.title}
+        className="h-auto w-60 justify-start" onClick={() => void p.run()}>
+        <Item size="sm"><ItemMedia>{p.avatar ? <Avatar size="lg" aria-hidden><AvatarImage src={avatarSrc(p.avatar)} alt="" /></Avatar> : <PlusIcon className="size-8" />}</ItemMedia>
+          <ItemContent className="min-w-0"><ItemTitle>{p.name}</ItemTitle></ItemContent></Item>
+      </Button>)}
     </nav>
   </div>;
 }
-
 
 const tabTitle = (t: Terminal) => (t.agent ? `${t.agent.name}${t.state ? `: it ${STATES[t.state]}` : ''}` : t.command || "Your shell in the task's folder");
 const handOver = (t: Terminal) => void dialog('handover').then((d) => d.open(t));
 const language = new Intl.DisplayNames(['en'], { type: 'language' });
+const noDrag = (e: DragEvent) => e.preventDefault();
 
-// The panel's header: each terminal's tab, then +; at its end the dictation's microphone (src/dictation). The panel is
-// dragged by the row's empty end, not by its tabs and buttons. Fluent's Tab is a button, and a button holds no other:
-// the agent's mark (Change Agent) and × in it are Buttons as links, each taking its own click.
+// The panel is dragged by the header's empty end, not by its tabs and buttons (noDrag). The agent's mark on a tab is
+// Change Agent: a span with the role, as a button holds no other (docs/ui.md, Tabs).
 export function TerminalsHeader({ api }: IDockviewPanelHeaderProps) {
   const list = useWindow((s) => s.terminals.list), front = useWindow((s) => s.terminals.front);
   const task = useWindow((s) => s.current), lang = useWindow((s) => s.language?.language);
@@ -156,37 +156,34 @@ export function TerminalsHeader({ api }: IDockviewPanelHeaderProps) {
     const id = (e.target as Element).closest<HTMLElement>('[data-id]')?.dataset.id, t = list.find((x) => String(x.id) === id);
     return t ? tabItems(t) : null;
   };
-  const noDrag = (e: React.DragEvent) => e.preventDefault();
-  return <div data-panel={api.id} data-testid="terminal-tabs" hidden={!list.length} className={css.header}>
-    <RightClickMenu items={tabMenu} className={css.tabs}>
-      <nav aria-label="Terminals" className={css.strip} onDragStart={noDrag}>
-        <TabList ref={strip} appearance="filled-circular" size="small" reserveSelectedTabSpace={false} selectedValue={front === null ? undefined : String(front)}
-          onTabSelect={(_, d) => void act('terminal:show', { id: Number(d.value) })}>
+  return <div data-panel={api.id} data-testid="terminal-tabs" hidden={!list.length} className="flex h-full min-w-0 items-center gap-1 px-1">
+    <RightClickMenu items={tabMenu} className="flex min-w-0 flex-[0_1_auto]">
+      <nav aria-label="Terminals" className="flex min-w-0" onDragStart={noDrag}>
+        <TabStrip stripRef={strip} label="Open terminals" value={front === null ? '' : String(front)}
+          onChoose={(v) => void act('terminal:show', { id: Number(v) })}>
           {list.map((t) => {
             const Mark = agentMark(t.agent?.cli ?? 'shell');
-            return <Grow key={t.id}><Tab value={String(t.id)} data-id={t.id} aria-label={t.name} title={tabTitle(t)}
-              icon={t.agent
-                ? <Button as="a" appearance="transparent" size="small" icon={<Mark />} tabIndex={-1} aria-label={`${t.agent.name}: change agent…`}
-                  title="Change agent: hand the task to another agent, or this one afresh; it goes on with this conversation"
-                  onMouseDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); handOver(t); }} />
-                : <Mark />}>
-              <span className={css.label}>
-                {/* Text sets a weight of its own: the chosen tab's, as Fluent's Tab sets its label's */}
-                <Text truncate wrap={false} weight={String(t.id) === String(front) ? 'semibold' : 'regular'}>{t.name}</Text>
+            return <BrowserTab key={t.id} ref={grow} value={String(t.id)} data-id={t.id} aria-label={t.name} title={tabTitle(t)} className="max-w-55 flex-none"
+              icon={<>
+                {t.agent
+                  ? <span role="button" tabIndex={-1} aria-label={`${t.agent.name}: change agent…`} className="inline-flex rounded-sm hover:bg-foreground/10"
+                    title="Change agent: hand the task to another agent, or this one afresh; it goes on with this conversation"
+                    onMouseDown={(e) => e.preventDefault()} onPointerDown={(e) => e.stopPropagation()}
+                    onClick={(e) => { e.stopPropagation(); handOver(t); }}><Mark /></span>
+                  : <Mark />}
                 <AgentState state={t.state} />
-                {/* Not a press on the tab: it is not chosen first. */}
-                <Button as="a" appearance="subtle" size="small" icon={<DismissRegular />} aria-label="Close" tabIndex={-1}
-                  title={t.agent ? "Close: the agent stops (asked first); its conversation stays in the task's history" : 'Close: what runs there stops'}
-                  onMouseDown={(e) => e.preventDefault()} onClick={(e) => { e.stopPropagation(); void act('terminal:close', { id: t.id }); }} />
-              </span>
-            </Tab></Grow>;
+              </>}
+              close={{ title: t.agent ? "Close: the agent stops (asked first); its conversation stays in the task's history" : 'Close: what runs there stops',
+                run: () => void act('terminal:close', { id: t.id }) }}>
+              {t.name}
+            </BrowserTab>;
           })}
-        </TabList>
+        </TabStrip>
       </nav>
     </RightClickMenu>
-    <ButtonMenu items={newTerminalItems}><Button appearance="subtle" size="small" icon={<AddRegular />} aria-label="New terminal"
-      title={withKeys(NEW_TITLE, 'terminal.new')} onDragStart={noDrag} /></ButtonMenu>
-    <span className={css.spacer} />
+    <ButtonMenu items={newTerminalItems}><Button variant="ghost" size="icon-sm" aria-label="New terminal"
+      title={withKeys(NEW_TITLE, 'terminal.new')} onDragStart={noDrag}><PlusIcon /></Button></ButtonMenu>
+    <span className="flex-1" />
     <Dictation task={task} keyName={hold} language={lang ? language.of(lang) ?? '' : ''} onDone={() => shownTerm()?.focus()} />
   </div>;
 }

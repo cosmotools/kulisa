@@ -48,10 +48,10 @@ export const keyAt = (core: Core, n: number) => core((k, i) => [...k.shell.curre
 export const isNth = (core: Core, n: number) => core((k, i) => { const t = k.shell.task; return !!t && [...t.project.tasks.values()][i - 1] === t; }, n);
 export const nthShown = (core: Core, n: number, timeout = 5000) => expect.poll(async () => (await isNth(core, n)) && core((k) => k.settled()), { timeout }).toBe(true);
 // A task's tab in the bar by its key; the shown task's project's tabs, each its task's name, the shown one with ' *'.
-export const taskTab = (ui: Page, key: string) => ui.locator(`#projectTabs [data-task="${key}"]`);
+export const taskTab = (ui: Page, key: string) => ui.locator(`#taskTabs [data-task="${key}"]`);
 export const taskTabs = (ui: Page) => ui.evaluate(() => {
-  const project = document.querySelector<HTMLElement>('#projectTabs [aria-selected="true"]').dataset.project;
-  return [...document.querySelectorAll(`#projectTabs [data-project="${project}"]`)].map((t) => t.textContent + (t.ariaSelected === 'true' ? ' *' : ''));
+  const project = document.querySelector<HTMLElement>('#taskTabs [aria-selected="true"]').dataset.project;
+  return [...document.querySelectorAll(`#taskTabs [data-project="${project}"]`)].map((t) => t.textContent + (t.ariaSelected === 'true' ? ' *' : ''));
 });
 // One of the agent's hooks of a task, as its plugin sends it (agent-hooks.ts); its answer.
 export async function hook(core: Core, task: string, event: string, input = {}) {

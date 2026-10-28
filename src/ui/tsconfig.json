@@ -1,0 +1,5 @@
+// The window's components: checked as the window is (src/renderer's build checks them too, as it imports them).
+{
+  "extends": "../renderer/tsconfig.json",
+  "include": ["."]
+}

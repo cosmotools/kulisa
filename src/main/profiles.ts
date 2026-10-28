@@ -31,6 +31,7 @@ interface Tab {
   // the address it comes back to, while its page may still hold its unload; offScreenSince: since when no one sees it
   // (discard.ts).
   discarded?: boolean; discarding?: string; offScreenSince?: number;
+  blankCss?: string; // the color put on its empty page (_paintBlank), taken off when the color changes
   // The agent's own action answers the dialogs it opens (kulisa-plugin/tools/handles.ts, answering).
   agentDialogs?: { asked: string[]; accept: boolean };
 }
@@ -70,7 +71,7 @@ interface DialogInfo { dialogType: 'alert' | 'confirm'; messageText: string; fra
 
 class Profile extends EventEmitter {
   win: BrowserWindow; id: string; name: string; avatar: string; description: string; login: string; hasPassword: boolean;
-  dir: string; task: string; baseZoom: number; siteZoom: Record<string, number>; session: Session;
+  dir: string; task: string; baseZoom: number; blank: string; siteZoom: Record<string, number>; session: Session;
   tabs: Tab[]; active: string | null; closedUrls: string[]; bounds: Bounds;
   browser: Browser | null; context: BrowserContext | null; endpoint: string | null; signinMode: boolean; resuming?: boolean;
   hidden: boolean; shown: boolean; deleted: boolean;
@@ -87,6 +88,7 @@ class Profile extends EventEmitter {
     // Page zoom: pages follow the Kulisa zoom (baseZoom, set by the window); a site the human zoomed with Ctrl + / -
     // in a page keeps its own factor on top of it, per host, in this profile only (saved in profiles.json).
     this.baseZoom = 1;
+    this.blank = ''; // an empty tab's color (setBlank, by the window); none: Chromium's white
     this.siteZoom = { ...(cfg.zoom || {}) };
     this.session = cfg.session || session.fromPath(this.dir); // a session of its own: one in memory (master.ts)
     this.tabs = []; this.active = null; this.closedUrls = []; this.bounds = { x: 0, y: 0, width: 0, height: 0 };
@@ -235,7 +237,7 @@ class Profile extends EventEmitter {
       this.emit('changed');
     };
     for (const e of ['did-start-loading', 'did-stop-loading', 'page-title-updated', 'did-navigate', 'did-navigate-in-page']) (wc as unknown as Internal).on(e, update);
-    wc.on('did-navigate', () => this._applyZoom(tab));
+    wc.on('did-navigate', () => { this._applyZoom(tab); this._paintBlank(tab); });
     // -3: replaced by another navigation. A page that would not load is a common report (a white pane), so it is logged,
     // its address bare (log.ts): the one kind of line about a profile's page.
     wc.on('did-fail-load', (_e, code, desc, url, mainFrame) => {
@@ -492,6 +494,15 @@ class Profile extends EventEmitter {
   pageZoom(tab: Tab) { return this.siteZoom[this._host(tab)] ?? 1; }
   _applyZoom(tab: Tab) { if (!tab.wc.isDestroyed()) tab.wc.setZoomFactor(this.baseZoom * this.pageZoom(tab)); }
   setBaseZoom(z: number) { this.baseZoom = z; for (const t of this.tabs) this._applyZoom(t); }
+  // An empty tab (about:blank) in the window's color, not a white page in a dark window.
+  _paintBlank(tab: Tab) {
+    const wc = tab.wc;
+    if (wc.isDestroyed()) return;
+    if (tab.blankCss) void wc.removeInsertedCSS(tab.blankCss).catch(() => {});
+    tab.blankCss = undefined;
+    if (this.blank && wc.getURL() === 'about:blank') wc.insertCSS(`html { background: ${this.blank} }`).then((k) => { tab.blankCss = k; }, () => {});
+  }
+  setBlank(color: string) { this.blank = color; for (const t of this.tabs) this._paintBlank(t); }
   // Zoom the site of a tab in this profile: dir 1, -1, or 0 (back to the Kulisa zoom). Emits 'zoom' to be saved.
   zoomSite(id: string | null | undefined, dir: number) {
     const tab = this.get(id); const host = tab && this._host(tab);

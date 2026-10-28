@@ -67,7 +67,7 @@ test("keys in the terminal are the agent's, but Kulisa's own: Ctrl+T reaches the
   const shortcuts = shortcutsDialog(ui);
   await core((k) => k.press(k.shell.win.webContents, '/', k.CMD, 'shift'));
   await expect(shortcuts).toBeVisible();
-  await expect(shortcuts.getByRole('heading', { level: 3 })).toHaveText(['Everywhere', 'In a profile\'s page', 'In the terminal']);
+  await expect(shortcuts.locator('legend')).toHaveText(['Everywhere', 'In a profile\'s page', 'In the terminal']);
   const keysOf = (label: string) => shortcutKeys(ui, label);
   await expect(keysOf('New tab')).toHaveText([MAC ? '⌘T' : 'Ctrl+T']);
   await expect(keysOf('Tab 1 to 8')).toHaveText([MAC ? '⌘1…8' : 'Ctrl+1…8']);

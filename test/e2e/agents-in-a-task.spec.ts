@@ -30,7 +30,7 @@ test("+ opens any of the project's accounts, a new conversation in a tab of its 
   const tabs = () => termTabs(ui);
   // A terminal's tab's state, and the task's tab's.
   const tabIs = (id: number, state: string) => expect(ui.locator(`nav[aria-label="Terminals"] [data-id="${id}"] [data-state]`)).toHaveAttribute('data-state', state);
-  const taskIs = (state: string) => expect(ui.locator(`#projectTabs [data-task="${key}"] [data-state]`)).toHaveAttribute('data-state', state);
+  const taskIs = (state: string) => expect(ui.locator(`#taskTabs [data-task="${key}"] [data-state]`)).toHaveAttribute('data-state', state);
   const conversations = () => files.json(files.pfile('agent.json', taskId)).conversations;
   type Term = { id: number; agent: string | undefined; pty: boolean };
   const terms = () => core((k, t) => [...k.shell.taskByKey(t).terminals.values()].map((x): Term => ({ id: x.id, agent: x.agent?.id, pty: !!x.pty })), key);
@@ -54,8 +54,9 @@ test("+ opens any of the project's accounts, a new conversation in a tab of its 
     - menu:
       - menuitem "Fake agent · a@switch.test"
       - menuitem "Fake agent · b@switch.test"
+      - separator
       - menuitem "Terminal"
-  `); // Fluent's divider between them is presentational
+  `);
   await choose(ui, 'Fake agent · a@switch.test');
   await expect.poll(async () => JSON.stringify(await tabs()) === '["bash","Fake agent *"]' && (await newest()).pty, { timeout: 20000 }).toBe(true);
   expect(JSON.parse(fs.readFileSync(path.join(a.dir, '.claude.json'), 'utf8')).projects[copy]?.hasTrustDialogAccepted).toBe(true);

@@ -3,7 +3,7 @@
     "target": "ES2024",
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "lib": ["ES2024", "ESNext.Collection", "DOM", "DOM.Iterable"],
+    "lib": ["ES2024", "DOM"],
     "types": ["vite/client"],
     "strict": true,
     "noEmit": true,
@@ -15,8 +15,9 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
     "noUncheckedIndexedAccess": true,
-    "noImplicitOverride": true
+    "noImplicitOverride": true,
+    "paths": { "@ui": ["../ui"], "@ui/*": ["../ui/*"] }
   },
-  "include": ["**/*.ts", "**/*.tsx", "../*/renderer", "../*/ipc.ts"],
+  "include": ["**/*.ts", "**/*.tsx", "../*/renderer", "../*/ipc.ts", "../ui"],
   "exclude": ["public", "../main"]
 }

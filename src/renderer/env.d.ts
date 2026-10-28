@@ -1,5 +1,4 @@
-// The window's bridge to the main process (src/preload/index.cjs).
-/// <reference types="vite/client" />
+// What the window's pages have globally: the bridge to the main process (src/preload/index.cjs), the theme's script.
 
 // Its channels, what each takes and answers: src/shared/ipc.ts (docs/window.md, IPC).
 interface KulisaBridge {
@@ -10,3 +9,6 @@ interface KulisaBridge {
 }
 
 declare const kulisa: KulisaBridge;
+
+// The theme put on the page's root (public/theme.js, lib/theme.ts).
+declare function showTheme(theme: string): void;

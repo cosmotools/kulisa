@@ -7,7 +7,7 @@ import type { Locator, Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
 import type { Files } from './data.ts';
-import { SITE, menu, choose, openSidebar, closeSidebar, fromSidebar, sidebar, projectRow, taskRow, rowButton, sidebarTasks, focusWindow, viewOn, who, invoke, notLoading, noSlide, answer, removed, arrange } from './helpers.ts';
+import { SITE, menu, choose, openSidebar, closeSidebar, fromSidebar, sidebar, taskRow, rowButton, sidebarTasks, focusWindow, viewOn, who, invoke, notLoading, noSlide, answer, removed, arrange } from './helpers.ts';
 import { git, rand, hasDirenv, keyAt, isNth, taskTab, taskTabs, hook, reportSession, newTask, projectShown, begin, bothOn, deleteProfile } from './tasks-helpers.ts';
 
 // No question of Kulisa's asked in the window.
@@ -457,7 +457,7 @@ test('tasks: × on the last open task of a project lets the project go, nothing 
   await noQuestion(ui, 'no agent works: nothing asked');
   expect(await core((k) => { const s = k.stash.second; return s.profiles.size === 0 && !s.pty; }), 'every task of the project stopped').toBe(true);
   expect(files.tasksOf(files.pid('project')).map((e) => [e.name, !!e.closed])).toEqual([['task-1', true], ['Feature-X', true], ['task-3', true]]);
-  await expect(ui.locator('html')).toHaveAttribute('data-empty');
+  await expect(ui.locator('html')).toHaveAttribute('data-page', /^(sidebar|welcome)$/);
   // The empty window, projects there: the sidebar docked, every project with its tasks; no tasks' bar.
   await expect(ui.locator('html')).toHaveAttribute('data-page', 'sidebar');
   await expect(sidebar(ui)).toBeVisible();
@@ -487,13 +487,13 @@ test('tasks: × on the last open task of a project lets the project go, nothing 
   await taskRow(ui, 'project', 'Feature-X').click();
   await expect.poll(() => core((k, key) => k.shell.task?.key === key && k.shell.task.loaded && !!k.shell.pty, second)).toBe(true);
   await core((k) => k.watchPty(k.shell.pty));
-  await expect(ui.locator('html')).not.toHaveAttribute('data-empty');
+  await expect(ui.locator('html')).toHaveAttribute('data-page', 'task');
   await notLoading(ui);
   await expect.poll(() => taskTabs(ui)).toEqual(['Feature-X *']);
   // Now a task is shown: the sidebar over the grid lists the project's tasks (the open one to switch to, the closed ones to reopen).
   await openSidebar(ui);
   expect(await sidebarTasks(ui, 'project')).toEqual(['Feature-X', 'task-1', 'task-3']);
-  await expect(projectRow(ui, 'project').getByRole('treeitem', { name: 'Feature-X' })).toHaveAttribute('aria-current', 'true');
+  await expect(taskRow(ui, 'project', 'Feature-X')).toHaveAttribute('aria-current', 'true');
   await closeSidebar(ui);
   await fromSidebar(ui, 'project', 'task-1');
   await expect.poll(() => core((k, key) => k.shell.task?.key === key && k.shell.task.loaded && !!k.shell.pty, first)).toBe(true);

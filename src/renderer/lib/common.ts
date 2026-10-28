@@ -1,8 +1,7 @@
 // What several parts of the window use: what came in its URL (window.ts, load), the keys as this OS shows them,
-// the pictures' and icons' names.
+// the profiles' pictures.
 import { createStore, useStore } from 'zustand';
-import { slugOf } from '../../shared/names';
-import type { ProjectEntry, ProjectTask, ProjectsInfo, Shortcut } from '../../shared/types';
+import type { ProjectsInfo, Shortcut } from '../../shared/types';
 
 const query = new URLSearchParams(location.search);
 // The projects open in this window, before the first paint; later the main process sends them (store.ts).
@@ -18,22 +17,5 @@ export const withKeys = (title: string, id: string): string => (keyText(id) ? `$
 // A profile's picture (shared/avatars.ts): its file, in public/avatars.
 export const avatarSrc = (a: string): string => `avatars/${a}.svg`;
 
-// The links in ☰; they open in the user's browser (window.ts).
-export const LINKS = [
-  { label: 'Documentation', href: 'https://kulisa.app/docs' },
-  { label: 'GitHub', href: 'https://github.com/cosmotools/kulisa' },
-];
-
 export const plural = (n: number, word: string): string => `${n} ${word}${n === 1 ? '' : 's'}`;
-// A project's sort key for "worked in last first" (the sidebar): an open task → Infinity, else its last close.
-export const lastWorked = (p: ProjectEntry): number => (p.tasks.some((t) => !t.closed) ? Infinity : Math.max(0, ...p.tasks.map((t) => t.closedAt ?? 0)));
-// When it was closed, as a person says it.
-function ago(at?: number) {
-  if (!at) return '';
-  const m = Math.round((Date.now() - at) / 60000);
-  return m < 1 ? 'just now' : m < 60 ? `${m} min ago` : m < 60 * 24 ? `${Math.round(m / 60)} h ago` : `${Math.round(m / 60 / 24)} days ago`;
-}
-// A task's line under its name (the sidebar's rows): its branch when it is not the name's slug, when it
-// closed.
-export const taskLine = (t: ProjectTask): string => [t.branch && t.branch !== slugOf(t.name, '') && t.branch, t.closed ? ago(t.closedAt) : ''].filter(Boolean).join(' · ');
 export const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');

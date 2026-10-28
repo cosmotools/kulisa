@@ -3,18 +3,18 @@
 import path from 'path';
 import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
-import { MAC, frames, ipcSettled, menu, choose, closeMenu, rightClick, fromSidebar, openSidebar, closeSidebar, taskRow, rowButton, focusWindow, viewOn, termShows, invoke, notLoading, noSlide, answer, removed, termKeys, resize } from './helpers.ts';
+import { MAC, frames, ipcSettled, menu, choose, closeMenu, rightClick, fromSidebar, openSidebar, closeSidebar, sidebar, taskRow, rowButton, focusWindow, viewOn, termShows, invoke, notLoading, noSlide, answer, removed, termKeys, resize } from './helpers.ts';
 import { committed, rand, keyAt, isNth, nthShown, taskTab, hook, begin, bothOn, newTask } from './tasks-helpers.ts';
 
 // The tab chosen (lit) in the bar.
-const chosen = (ui: Page) => ui.locator('#projectTabs [role="tab"][aria-selected="true"]');
+const chosen = (ui: Page) => ui.locator('#taskTabs [role="tab"][aria-selected="true"]');
 
 test("tasks: switching shows the other grid and terminal; the one left keeps running; the agent's state shows on its tab", async ({ core, ui, files, call }) => {
   await begin(core, ui, files, { only: true, columns: true, featureX: call, shown: 2 });
   const first = await keyAt(core, 1), second = await keyAt(core, 2), SAM = files.idOf('Sam.admin');
   // No profiles' button on a task's tab, its right-click menu has them; the × on every tab, as Chrome's, not only
   // the shown one's (the author's choice).
-  const tabs = ui.locator('#projectTabs [role="tab"]');
+  const tabs = ui.locator('#taskTabs [role="tab"]');
   await expect(tabs).toHaveCount(2);
   await expect(tabs.getByRole('button')).toHaveCount(2);
   await expect(tabs.getByRole('button', { name: 'Close', exact: true }), 'one ×, shown').toHaveCount(2);
@@ -181,12 +181,12 @@ test('tasks: switching slides the grid towards the other tab (a view transition)
   await expect.poll(live).toBe(true);
   // A menu opened while the grid still slides keeps the pages under it pictures, not shown over it at the slide's end.
   // Opened as soon as the slide starts, before the grid left is taken down (the transition's update, a frame later,
-  // later still on a loaded machine): taking it down must not forget the menu's pictures. Clicked by the script that
-  // starts the slide: a click from the test would come after it has begun, a frame or more too late.
+  // later still on a loaded machine): taking it down must not forget the menu's pictures. Pressed (a menu opens on the
+  // press) by the script that starts the slide: a click from the test would come after it has begun, a frame or more too late.
   const sliding = ui.locator(':root:active-view-transition');
   await ui.evaluate((key) => {
     const d = document as any, start = d.startViewTransition.bind(document);
-    d.startViewTransition = (o: unknown) => { const t = start(o); delete d.startViewTransition; document.getElementById('windowMenu').click(); return t; };
+    d.startViewTransition = (o: unknown) => { const t = start(o); delete d.startViewTransition; document.getElementById('windowMenu').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, pointerType: 'mouse' })); return t; };
     void (window as any).kulisa.invoke('task:show', key);
   }, second);
   await expect(sliding).toHaveCount(1);
@@ -228,7 +228,7 @@ test('tasks: Ctrl+Shift+2 shows the second, Ctrl+Shift+PgUp and PgDn the one bef
 test("tasks: more tabs than the bar holds: each keeps its name readable, a mouse's wheel scrolls them, a faded edge says some are past it, the shown one stays in sight; in the title bar the window is still dragged after +", async ({ core, ui, files, call }) => {
   // About 3 s: three tasks more, as many as the narrowest window's bar does not hold.
   await begin(core, ui, files, { only: true, columns: true, featureX: call });
-  const strip = ui.locator('#projectTabs'), tabs = strip.getByRole('tab');
+  const strip = ui.locator('#taskTabs'), tabs = strip.getByRole('tab');
   // Where the bar is scrolled to, and how far it can be: Playwright reads no scroll.
   const scroll = () => strip.evaluate((s) => ({ left: Math.round(s.scrollLeft), max: s.scrollWidth - s.clientWidth }));
   // Which edges fade: the one with a tab past it.
@@ -263,11 +263,11 @@ test("tasks: more tabs than the bar holds: each keeps its name readable, a mouse
     // real drag of the window is the OS's, out of a test's reach). Where each is in the page and its app-region:
     // Playwright reads neither.
     await invoke(ui, 'bar:set', 'top');
-    await expect(ui.locator('#topbar #projectTabs')).toHaveCount(1);
+    await expect(ui.locator('#topbar #taskTabs')).toHaveCount(1);
     await expect.poll(async () => (await scroll()).max, 'the tabs overflow').toBeGreaterThan(0);
     const width = async (sel: string) => (await ui.locator(sel).boundingBox()).width;
     expect(await width('[data-testid="drag-area"]'), '40 px left to drag by').toBeGreaterThanOrEqual(40);
-    const plus = await ui.locator('#newTask').boundingBox(), gear = await ui.locator('#manageProjects').boundingBox();
+    const plus = await ui.locator('#newTask').boundingBox(), gear = await ui.locator('#settingsButton').boundingBox();
     expect(gear.x - (plus.x + plus.width)).toBeGreaterThanOrEqual(40);
     const logo = ui.getByTestId('title-logo');
     expect(await ui.evaluate(() => {
@@ -284,8 +284,8 @@ test("tasks: more tabs than the bar holds: each keeps its name readable, a mouse
     await invoke(ui, 'bar:set', 'bottom');
     await resize(core, before);
   }
-  await expect(ui.locator('#topbar #projectTabs')).toHaveCount(0);
-  await expect(ui.locator('#projectTabs')).toHaveCount(1);
+  await expect(ui.locator('#topbar #taskTabs')).toHaveCount(0);
+  await expect(ui.locator('#taskTabs')).toHaveCount(1);
   await taskTab(ui, await keyAt(core, 1)).click();
   await nthShown(core, 1);
 });
@@ -310,10 +310,10 @@ test("tasks: a press on a tab not shown chooses it at once, as Chrome's; its tas
   // and light again with the new state, the tab blinking. Every change of the lit tab noted as it comes: an assertion
   // sees only the state when it looks.
   await ui.evaluate(() => {
-    const w = window as any, lit = () => document.querySelector<HTMLElement>('#projectTabs [role="tab"][aria-selected="true"]')?.dataset.task ?? '';
+    const w = window as any, lit = () => document.querySelector<HTMLElement>('#taskTabs [role="tab"][aria-selected="true"]')?.dataset.task ?? '';
     w.__lit = [lit()];
     w.__litObs = new MutationObserver(() => w.__lit.push(lit()));
-    w.__litObs.observe(document.getElementById('projectTabs'), { attributes: true, attributeFilter: ['aria-selected'], subtree: true });
+    w.__litObs.observe(document.getElementById('taskTabs'), { attributes: true, attributeFilter: ['aria-selected'], subtree: true });
   });
   await ui.mouse.up();
   await nthShown(core, 2);
@@ -326,7 +326,7 @@ test("tasks: a press on a tab not shown chooses it at once, as Chrome's; its tas
   await ui.evaluate(() => dispatchEvent(new PointerEvent('pointercancel', { pointerType: 'mouse' })));
   await nthShown(core, 1);
   await ui.mouse.up();
-  await taskTab(ui, first).blur(); // a real press leaves the keyboard on the tab (Fluent's); a later dialog takes it from nothing
+  await taskTab(ui, first).blur(); // a real press leaves the keyboard on the tab; a later dialog takes it from nothing
 });
 
 test("tasks: a double click on a task's tab is its Rename…, the shown one's and another's (its first press shows it)", async ({ core, ui, files, call }) => {
@@ -355,8 +355,8 @@ test('menus: one longer than the window has stays in it and scrolls', async ({ c
     await expect.poll(() => ui.evaluate(() => innerHeight)).toBeLessThanOrEqual(400); // Playwright knows no viewport here (noDefaults)
     await ui.locator('#windowMenu').click();
     await expect(menu(ui)).toBeInViewport({ ratio: 1 });
-    // Its rows scroll, in the menu's popover (Playwright reads no scroll).
-    expect(await menu(ui).evaluate((m) => m.parentElement.scrollHeight > m.parentElement.clientHeight)).toBe(true);
+    // Its rows scroll, in the menu itself (Playwright reads no scroll).
+    expect(await menu(ui).evaluate((m) => m.scrollHeight > m.clientHeight)).toBe(true);
     await closeMenu(ui);
   } finally { await resize(core, before); }
 });
@@ -365,15 +365,14 @@ test("tasks: the bar's + makes a new task of the shown task's project in one cli
   await begin(core, ui, files, { only: true, columns: true, featureX: call });
   const before = await core((k) => k.shell.current.tasks.size), first = await keyAt(core, 1);
   await noSlide(ui); // the slide's pictures over the window take every event
-  const project = await core((k) => k.shell.current.name);
-  await expect(ui.locator('#newTask'), 'its project and its key in its name').toHaveAccessibleName(`New task of ${project} (${await ui.evaluate(() => (window as any).keyText('task.new'))})`);
+  await expect(ui.locator('#newTask')).toHaveAccessibleName('New task');
   await ui.locator('#newTask').hover();
   await expect(ui.getByRole('tooltip')).toBeVisible();
   await ui.locator('#newTask').click();
   await expect(ui.getByRole('tooltip'), 'gone as it is pressed, not frozen in the slide').toBeHidden({ timeout: 100 });
   await expect.poll(() => core((k, a) => k.shell.current.tasks.size === a.before + 1 && k.shell.task?.key !== a.first && k.settled(), { before, first }), { timeout: 20000 }).toBe(true);
   await expect(ui.getByRole('menu'), 'no menu: made at once').toHaveCount(0);
-  await expect(ui.locator('#projectTabs [role="tab"]')).toHaveCount(before + 1);
+  await expect(ui.locator('#taskTabs [role="tab"]')).toHaveCount(before + 1);
   await taskTab(ui, first).click();
   await nthShown(core, 1);
 });
@@ -395,7 +394,7 @@ test("tasks: the sidebar with several projects — a project's + makes it a new 
   const before = await tasks2();
   await fromSidebar(ui, 'Plus2');
   await expect.poll(async () => (await tasks2()) === before + 1 && on(), { timeout: 10000 }).toBe(true);
-  await closeSidebar(ui);
+  await expect(sidebar(ui)).toHaveCount(0);
 
   // Each task row carries a 🗑 (on the row under the pointer) that deletes the task after the Delete Task… question
   // (Cancel keeps it).

@@ -143,6 +143,7 @@ class Task {
         shell.proxy.addProfile(profile);
         profile.endpoint = shell.proxy.endpoint(profile);
         profile.setBaseZoom(shell.uiZoom);
+        profile.setBlank(shell.blankColor());
         profile.on('changed', () => shell.taskChanged(this));
         profile.on('zoom', () => this.list.save());
         installSigninPause(profile, shell.signin.isSigninUrl);

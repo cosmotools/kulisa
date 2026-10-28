@@ -31,8 +31,7 @@ repositories (git worktrees), so the project's folders stay the human's. Its dat
     window), Project Settings…, Show Data Folder, Delete Merged Tasks… (Tasks, below), **Close All Tasks** (its open
     tasks in every window, asked once when an agent works). The project's name is changed in Settings only.
   - **A task's tab shows nothing of its profiles**: Settings edits them, and how many are open says nothing.
-  - **The + after the tabs** (`TaskBar.tsx`): a new task of the shown task's project, in one click; its tooltip names
-    the project (the tabs are of several).
+  - **The + after the tabs** (`TaskBar.tsx`): a new task of the shown task's project, in one click.
   - **The window's pages** (`page` in `lib/store.ts`), one at a time in the grid's place: the shown task's grid
     (`task`), the sidebar docked with no task open (`sidebar`), the welcome with no project (`welcome`). One switch, not a
     router: it follows the main process's current task.
@@ -152,7 +151,7 @@ repositories (git worktrees), so the project's folders stay the human's. Its dat
   every computer), else the first account that reaches it, bound then; a line under the list for one no account
   reaches or whose account is signed out ([src/github](../src/github/README.md), A repository's account).
 - **The sidebar** (`components/Sidebar.tsx`, `lib/sidebar.ts`): every project with its tasks, a tree, any task one
-  click away, the project worked in last first (`lastWorked`, `lib/common.ts`). Docked in the empty window; over the
+  click away, the project worked in last first (`lastWorked`). Docked in the empty window; over the
   grid while a task is shown (the title bar's button, Ctrl+Shift+A), covering the pages as a dialog does, closed by a
   choice, Esc or the same again.
   - **A project's row**: its icon, its name, its tasks under it (folded by its arrow); **+** under the pointer, a new
@@ -799,7 +798,7 @@ rm -rf ~/.config/Kulisa/projects/<project id>   # all its tasks with their profi
 | `src/terminal/` | the terminals: their ptys, buffers and the xterm shown ([README](../src/terminal/README.md)) |
 | `src/renderer/components/TaskBar.tsx`, `components/Empty.tsx`, `components/settings/ProjectPage.tsx` | the tasks' bar (a tab per open task); the grid's place when no task's grid is shown (the window's pages: the sidebar docked, the welcome); a project's page in Settings |
 | `src/renderer/components/Sidebar.tsx`, `ProjectIcon.tsx`, `lib/sidebar.ts` | the sidebar: every project with its tasks, docked in the empty window, over the grid (its button, Ctrl+Shift+A); a project's icon |
-| `src/renderer/components/Welcome.tsx` | the first start's welcome: the slides (their pictures drawn from Fluent's parts), then New Project's steps under a question each |
+| `src/renderer/components/Welcome.tsx` | the first start's welcome: the slides (their pictures drawn from the window's parts), then New Project's steps under a question each |
 | `src/renderer/components/NewProject.tsx`, `lib/new-project.ts` | New Project's steps (the welcome's and the dialog's) and the dialog; their state and rules, one per wizard |
 | `src/renderer/components/TaskRename.tsx` | the Rename Task dialog |
 | `src/renderer/components/AgentPicker.tsx`, `lib/agents.ts` | choosing an agent when the one to open is not there: the radios of agents with Install; an install's line and its Details |

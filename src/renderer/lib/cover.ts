@@ -1,64 +1,67 @@
-// Menus and dialogs over a page: one menu at a time, as the OS's; every layer closed at once (a grid taken down, the
-// window left). Under them are the profiles' native views, which draw above the HTML (views.ts plugs them in: under;
-// docs/ui.md, Menus, Dialogs).
-//   useCovered('hide')       a dialog's open state: [open, setOpen]
-//   useCovered('page')       Settings': as a dialog's, but not closed with the grid (it is not the grid's); opened(true)
-//                            waits for the pages to be hidden
-//   useCovered('pictures')   a menu's; ready once what is under it allows it to show (pictures of the pages)
-import { useCallback, useEffect, useRef, useState } from 'react';
+// What covers the profiles' pages, which are native views drawn above the window's HTML (docs/ui.md, Layers;
+// views.ts plugs them in: under). Seen in the document as Radix draws its layers, so no component knows of the pages:
+// - a layer with an overlay (a dialog, a question, the sidebar over the grid) hides them while it is open, and the
+//   keys are its (keys.ts);
+// - a popper's layer (a menu, a popover, a list) opens over pictures of them: it is drawn once they are pictures,
+//   then marked data-ready (the tests' handle);
+// - Settings, no Radix layer, says so itself (coverPage).
+// closeLayers closes them as Esc does (the grid taken down, the window left).
+import { createStore } from 'zustand';
+import './cover.css';
 
-// The dialogs open now (the keys are theirs then: keys.ts).
-let dialogsOpen = 0;
-const dialogListeners = new Set<() => void>();
-export const dialogsShown = () => dialogsOpen;
-export const onDialogs = (l: () => void) => { dialogListeners.add(l); return () => { dialogListeners.delete(l); }; };
-const dialogs = new Set<() => void>(), pages = new Set<() => void>(), menus = new Set<() => void>();
-type How = 'hide' | 'page' | 'pictures';
+const HIDE = '[data-slot$="-overlay"][data-state="open"]';
+// cover.css cuts away the same layers until they are marked data-ready.
+const PICTURES = '[data-radix-popper-content-wrapper] > [data-state="open"]:not([data-slot="tooltip-content"])';
 
 // What a page has under its menus and dialogs: hidden while a dialog is open; still while a menu is (frozen).
 interface Under { hide(hidden: boolean): Promise<unknown>; freeze(): Promise<void>; unfreeze(): Promise<void> }
 let under: Under | null = null;
 export const coverUnder = (u: Under) => { under = u; };
 
-// A layer opened or closed: what is under it follows. close: what closes it from outside (another menu, the window).
-// ready: a menu's, once what is under it allows it to show. Done: a dialog's or a page's, once the pages are hidden.
-export async function layer(how: How, open: boolean, close: () => void, ready: () => void) {
-  const set = how === 'hide' ? dialogs : how === 'page' ? pages : menus;
-  if (open === set.has(close)) return;
-  if (open) set.add(close); else set.delete(close);
-  if (open && how === 'pictures') for (const other of [...menus]) if (other !== close) other(); // one menu at a time, as the OS's
-  if (how !== 'pictures') {
-    dialogsOpen += open ? 1 : -1;
-    for (const l of dialogListeners) l();
-    await under?.hide(open);
-  } else if (open) {
-    if (under) void under.freeze().then(ready); else ready();
-  } else if (!menus.size) void under?.unfreeze(); // not when another menu has opened already
+// The dialogs open now (Settings counted): the keys are theirs then (keys.ts).
+const dialogs = createStore(() => 0);
+let pages = 0;
+export const dialogsShown = () => dialogs.getState();
+export const onDialogs = (l: () => void) => dialogs.subscribe(() => l());
+
+let menus = false, pictures = false; // a menu is open; the pages under it are pictures
+function seen() {
+  const d = document.querySelectorAll(HIDE).length + pages, was = dialogs.getState();
+  if (d !== was) {
+    dialogs.setState(d, true);
+    if (!was !== !d) void under?.hide(d > 0);
+  }
+  const open = document.querySelectorAll<HTMLElement>(PICTURES);
+  if (open.length && !menus) {
+    menus = true;
+    void (under?.freeze() ?? Promise.resolve()).then(() => { if (menus) { pictures = true; seen(); } });
+  } else if (!open.length && menus) {
+    menus = pictures = false;
+    void under?.unfreeze();
+  }
+  if (pictures) for (const m of open) m.setAttribute('data-ready', '');
+}
+new MutationObserver(seen).observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['data-state'] });
+
+// Settings shown or put away: done once the pages are hidden (it is drawn only then).
+export async function coverPage(open: boolean) {
+  pages += open ? 1 : -1;
+  seen();
+  if (open) await under?.hide(true);
 }
 
-// Opened at once, as Fluent expects (a right-click menu takes the pointer's place in the same turn); what is under it
-// follows. However it closes (Esc, a click outside, a choice, the window), that comes back.
-export function useCovered(how: How) {
-  const [open, setOpenState] = useState(false), [ready, setReady] = useState(how !== 'pictures');
-  const openRef = useRef(false), latest = useRef<(v: boolean) => void>(() => {});
-  const [close] = useState(() => () => latest.current(false)); // one for the layer's whole life
-  // opened(v): as setOpen, done once what is under it follows (Settings is drawn only once the pages are hidden).
-  const opened = useCallback(async (v: boolean) => {
-    if (v === openRef.current) return;
-    openRef.current = v;
-    setOpenState(v);
-    if (how === 'pictures') setReady(false);
-    return layer(how, v, close, () => { if (openRef.current) setReady(true); });
-  }, [how, close]);
-  const setOpen = useCallback((v: boolean) => { void opened(v); }, [opened]);
-  useEffect(() => { latest.current = setOpen; });
-  useEffect(() => () => { if (openRef.current) { openRef.current = false; void layer(how, false, close, () => {}); } }, [how, close]);
-  return { open, setOpen, ready, opened };
+// The layer on top: the last open one Radix drew (its portals go to the body's end in the order they open).
+const top = () => [...document.querySelectorAll<HTMLElement>(`${HIDE}, ${PICTURES}`)].at(-1);
+// Every layer closed (only: menus alone) as Esc closes the top one, until none is left or one keeps its place (a
+// question waiting for an answer takes no Esc). One a frame: Radix knows its new top layer once React has drawn.
+export async function closeLayers(only?: 'menus') {
+  for (let layer = top(), last: HTMLElement | undefined; layer && layer !== last && !(only && !layer.matches(PICTURES)); last = layer, layer = top()) {
+    document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+    await new Promise(requestAnimationFrame);
+  }
 }
-
-const closeMenus = () => { for (const close of [...menus]) close(); };
-export const closeLayers = () => { closeMenus(); for (const close of [...dialogs]) close(); };
-// Leaving the window closes a menu, as the OS's own menus close. The main process says so, not the page's own blur: that
-// came also when a profile's page in it took the keyboard as it loaded (macOS), a menu gone under the human's hand;
-// nothing else takes it while a menu is open (the pages under it are pictures). Its message comes after the blur: a window that has the keyboard again by then (a menu just opened in it) keeps it.
-kulisa.on('window:blur', () => { if (!document.hasFocus()) closeMenus(); });
+// Leaving the window closes a menu, as the OS's own menus close. The main process says so, not the page's own blur: a
+// blur comes also when a profile's page in it takes the keyboard as it loads (macOS), which would close a menu under
+// the human's hand; nothing else takes it while a menu is open (the pages under it are pictures). Its message comes
+// after the blur: a window that has the keyboard again by then (a menu just opened in it) keeps it.
+kulisa.on('window:blur', () => { if (!document.hasFocus()) void closeLayers('menus'); });

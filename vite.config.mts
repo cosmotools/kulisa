@@ -1,4 +1,4 @@
-// The window's UI (src/renderer: React components on Fluent UI, in TypeScript), built by Vite into dist/renderer, which the main
+// The window's UI (src/renderer: React components on shadcn/ui, src/ui, in TypeScript; Tailwind), built by Vite into dist/renderer, which the main
 // process loads from disk (window.ts, master.ts): no dev server, as no page of the app may load from an HTTP server
 // of its own (CLAUDE.md, Hard-won facts). Three pages: a tasks' window (index.html), a master's window (master.html) and
 // a screenshot's thumbnail (thumbnail.html: only loading src/screenshots/renderer/thumbnail.ts; a page outside the root
@@ -9,20 +9,22 @@
 // Kulisa's main process is not bundled (node-pty is native; playwright-core and the MCP SDK read their own files).
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
 import { resolve } from 'node:path';
 
 const renderer = resolve(import.meta.dirname, 'src/renderer');
 export default defineConfig({
   root: renderer,
   base: './', // loaded from file://
-  plugins: [react()],
+  plugins: [react(), tailwindcss()],
+  resolve: { alias: { '@ui': resolve(import.meta.dirname, 'src/ui') } }, // src/ui's own imports (components.json, aliases)
   build: {
     outDir: resolve(import.meta.dirname, 'dist/renderer'),
     emptyOutDir: true,
     // Electron's Chromium: the code and the CSS as written (nesting, light-dark(), anchor positioning), not lowered.
     target: 'esnext',
     cssTarget: 'chrome150',
-    chunkSizeWarningLimit: 2000, // xterm, dockview, React and Fluent UI in one bundle, read from disk: no network to split it for
+    chunkSizeWarningLimit: 2000, // xterm, dockview, React and Radix in one bundle, read from disk: no network to split it for
     sourcemap: true, // Kulisa's own DevTools, running from source; packaged builds leave them out (forge.config.ts)
     rolldownOptions: { input: { index: resolve(renderer, 'index.html'), master: resolve(renderer, 'master.html'), thumbnail: resolve(renderer, 'thumbnail.html') } },
   },

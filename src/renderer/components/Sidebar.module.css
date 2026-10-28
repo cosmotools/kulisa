@@ -1,4 +1,0 @@
-/* The sidebar's tree (Sidebar.tsx): the shown task's row lit and a closed one's muted, pointed at or pressed too, as
-   Fluent's Tree has no current item. By role from the tree's box, which also outranks Fluent's own hover. */
-.tree [role="treeitem"][aria-current="true"] > :first-child { background-color: var(--colorSubtleBackgroundSelected); }
-.tree [role="treeitem"][data-muted] > :first-child { color: var(--colorNeutralForeground3); }

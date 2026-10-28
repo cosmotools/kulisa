@@ -2,7 +2,7 @@
 import fs from 'fs';
 import path from 'path';
 import { test, expect } from './fixtures.ts';
-import { choose, projectTabs, projectTabSel, fromSidebar, openSidebar, taskRow, closeSettings, invoke, typeIn, answer, notLoading, projectMenu, pageOf, removed, openThing, thingRow, settingsMenu } from './helpers.ts';
+import { choose, tabProjects, projectTabSel, fromSidebar, openSidebar, taskRow, closeSettings, invoke, typeIn, answer, notLoading, projectMenu, pageOf, removed, openThing, thingRow, settingsMenu } from './helpers.ts';
 import { git, committed, begin, bothOn, taskShown, taskTabs } from './tasks-helpers.ts';
 import { createWorktree } from '../../src/main/worktrees.ts';
 
@@ -35,9 +35,9 @@ test("projects: Delete Project… (in Settings alone) asks, closes the project w
   // In Settings, its Delete Project…: the human is told what goes, says no, then yes.
   const removeRow = async (folder = 'spare', yes = true) => {
     const { id, name } = await core((k, i) => k.shell.store.projects().find((x) => x.id === i), files.pid(folder));
-    if (!await ui.locator('#settings').count()) await ui.locator('#manageProjects').click();
+    if (!await ui.locator('#settings').count()) await ui.locator('#settingsButton').click();
     const s = await sui();
-    await openThing(s, `p:${id}`);
+    await openThing(s, 'projects', id);
     await pageOf(s, name);
     await s.getByRole('button', { name: 'More', exact: true }).click(); // ⋯ at its top
     await choose(s, 'Delete Project…', settingsMenu(s));
@@ -62,7 +62,7 @@ test("projects: Delete Project… (in Settings alone) asks, closes the project w
   expect(git(spare, 'branch', '--list', wt.branch), "the task's branch").toBe('');
   expect(fs.readFileSync(path.join(spare, 'a.txt'), 'utf8'), "the project's own folder stays").toBe('a');
   expect(await core((k, i) => !!k.shell.task?.loaded && k.shell.current?.id === i, files.pid('project')), 'another project: the open one stays open').toBe(true);
-  await expect(thingRow(await sui(), `p:${made.id}`)).toHaveCount(0);
+  await expect(thingRow(await sui(), made.id)).toHaveCount(0);
   await closeSettings(core, ui, sui);
 
   // New Project… asks for its code first (the code is often on the disk already). Folder on disk, a repository: taken
@@ -101,7 +101,7 @@ test("projects: Delete Project… (in Settings alone) asks, closes the project w
   const add = async (v: string) => { await typeIn(ui, source, v); await np.getByRole('button', { name: 'Add', exact: true }).click(); };
   await add(path.join(root, 'nowhere'));
   await expect(np.getByRole('alert')).toHaveText(`${path.join(root, 'nowhere')} is not there`);
-  const sources = np.getByRole('option');
+  const sources = np.locator('[data-source]');
   await expect(sources, 'not in the list').toHaveCount(0);
   expect(fs.existsSync(path.join(root, 'nowhere')), 'not made').toBe(false);
   await core((k, f) => {
@@ -129,7 +129,7 @@ test("projects: Delete Project… (in Settings alone) asks, closes the project w
   await expect(ui.locator('#settings')).toHaveCount(1);
   if (await ui.locator('#settings').count()) await closeSettings(core, ui, sui);
   await expect.poll(() => core((k, f) => k.shell.current?.folder === f && !!k.shell.task?.loaded, files.project)).toBe(true);
-  expect(await projectTabs(ui, files), 'the tab next to it shown').toEqual(['project', 'project *']);
+  expect(await tabProjects(ui, files), 'the tab next to it shown').toEqual(['project', 'project *']);
   expect(fs.existsSync(goneDir) && !fs.existsSync(goneData)).toBe(true);
   await expect.poll(() => files.savedWindows()).toEqual([{ tabs: ['project/1', 'project/2'], shown: 'project/2' }]);
 
@@ -194,7 +194,7 @@ test("projects: Delete Project… (in Settings alone) asks, closes the project w
   await notLoading(ui);
   await choose(ui, 'Close All Tasks', await projectMenu(ui, projectTabSel(files, 'project')));
   await expect.poll(() => core((k) => k.shell.task === null && k.shell.open.size === 0)).toBe(true);
-  await expect(ui.locator('html')).toHaveAttribute('data-empty');
+  await expect(ui.locator('html')).toHaveAttribute('data-page', /^(sidebar|welcome)$/);
   expect(await core((k, i) => k.shell.store.tasksOf({ id: i }).list.every((e) => e.closed), files.pid('project')), 'its tasks closed').toBe(true);
 
   // A closed task opened again from the sidebar (the empty window's), a tab at the end; another from it over the grid after.
@@ -205,12 +205,12 @@ test("projects: Delete Project… (in Settings alone) asks, closes the project w
   await notLoading(ui);
   await fromSidebar(ui, 'project', 'Feature-X');
   await expect.poll(() => core((k) => k.shell.task?.name === 'Feature-X' && k.settled(true))).toBe(true);
-  await ui.locator(`#projectTabs [data-task="${first}"]`).click();
+  await ui.locator(`#taskTabs [data-task="${first}"]`).click();
   await taskShown(core, first);
-  expect(await projectTabs(ui, files), 'a tab each').toEqual(['project *', 'project']);
+  expect(await tabProjects(ui, files), 'a tab each').toEqual(['project *', 'project']);
   expect(await taskTabs(ui)).toEqual(['task-1 *', 'Feature-X']);
   await core((k) => k.watchPty(k.shell.pty));
-  await expect(ui.locator('html')).not.toHaveAttribute('data-empty');
+  await expect(ui.locator('html')).toHaveAttribute('data-page', 'task');
   await notLoading(ui);
   await bothOn(core, ui, files);
   await core((k, a) => { const acc = k.shell.accounts; acc.drop(a.account); acc.remove(a.dir); }, { account: made.account, dir: made.accountDir });

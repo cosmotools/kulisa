@@ -18,7 +18,7 @@ const idOfLogin = async (core: Core, login: string, kind = 'app') => (await acco
 // No accounts, Settings closed: what a test starts from (deleting one as the human does: the last test).
 async function clean(core: Core, ui: Page) {
   await core((k) => { for (const a of k.shell.github.accounts.list()) k.shell.github.accounts.delete(a.id); });
-  if (await ui.locator('#settings').count()) await ui.locator('#manageProjects').click();
+  if (await ui.locator('#settings').count()) await ui.locator('#settingsButton').click();
   await expect(ui.locator('#settings')).toHaveCount(0);
 }
 // Settings shown (on Settings → GitHub once it is), its window's page.
@@ -28,7 +28,7 @@ async function settings(core: Core, sui: () => Promise<Page>, at: SettingsAt = {
 }
 // The accounts' rows as Settings → GitHub shows them (one by its id).
 const rows = (s: Page, id?: string) => s.locator(id ? `[data-github="${id}"]` : '[data-github]');
-// The open menu (Fluent's: there only while open).
+// The open menu (Radix's: there only while open).
 const menu = (s: Page) => s.getByRole('menu');
 async function githubPage(core: Core, sui: () => Promise<Page>) {
   const s = await settings(core, sui);
@@ -41,8 +41,12 @@ async function addAccount(s: Page, how: 'With GitHub…' | 'With a Token…') {
   await expect(menu(s)).toMatchAriaSnapshot(`
     - menu:
       - text: Add Account
-      - menuitem "With GitHub…": /Kulisa App/
-      - menuitem "With a Token…": /a fine-grained token/
+      - menuitem "With GitHub…":
+        - text: With GitHub…
+        - paragraph: /Kulisa App/
+      - menuitem "With a Token…":
+        - text: With a Token…
+        - paragraph: /a fine-grained token/
   `);
   await menu(s).getByRole('menuitem', { name: how }).click();
 }

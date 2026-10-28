@@ -1,0 +1,20 @@
+/* The window's styles (docs/ui.md): src/ui's theme, Kulisa's variables over it, the desktop's rules. Each window's
+   page imports it (main.tsx, master.tsx). */
+@import "../ui/theme.css";
+/* Tailwind finds classes under Vite's root (src/renderer) alone: src/ui and the Kulisa packages' parts are outside it. */
+@source "../ui";
+@source "../*/renderer/**";
+
+/* Kulisa's own colors beside shadcn's (which has destructive alone): an agent's state, waiting for the human and done;
+   in the theme's lightness, a hue each. */
+:root { --warning: oklch(0.67 0.16 70); --success: oklch(0.6 0.15 150); }
+.dark { --warning: oklch(0.8 0.15 80); --success: oklch(0.72 0.17 150); }
+@theme inline { --color-warning: var(--warning); --color-success: var(--success); }
+
+@layer base {
+  /* A desktop app, not a web page: the window never scrolls, also not from a script (scrollIntoView); a part scrolls
+     inside. Labels and buttons are no text to select, fields are. */
+  html, body, #app { height: 100%; overflow: clip; }
+  body { user-select: none; cursor: default; }
+  input, textarea, [data-selectable] { user-select: text; }
+}

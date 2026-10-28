@@ -5,14 +5,21 @@ import { menu, choose, closeMenu, rightClick, box, pageBox, viewOn, resourcesHei
 import { SAM, ELON, begin, bothOn } from './tasks-helpers.ts';
 
 // A pane's tab dragged by the hand onto a place of a target (dockview's drop zones: its edges, its middle).
+// Moved on only once the drag is under way (the pages pictures): a drop let go before dockview has its drop targets is
+// lost.
 async function drag(ui: Page, panel: string, target: string, where: 'right' | 'center') {
-  const t = await ui.locator(target).boundingBox();
-  await ui.locator(`[data-panel="${panel}"]`).dragTo(ui.locator(target), { targetPosition: { x: where === 'right' ? t.width - 10 : t.width / 2, y: t.height / 2 } });
+  const f = await ui.locator(`[data-panel="${panel}"]`).boundingBox(), t = await ui.locator(target).boundingBox();
+  await ui.mouse.move(f.x + f.width / 2, f.y + f.height / 2);
+  await ui.mouse.down();
+  await ui.mouse.move(f.x + f.width / 2 + 40, f.y + f.height / 2 + 40, { steps: 4 });
+  await expect(ui.getByTestId('page').getByTestId('snapshot').first()).toBeVisible();
+  await ui.mouse.move(t.x + (where === 'right' ? t.width - 10 : t.width / 2), t.y + t.height / 2, { steps: 8 });
+  await ui.mouse.up();
 }
 
 test("tasks' bar: under the grid, a tab per open task, its project's icon first, its name after; the shown one selected", async ({ core, ui, files }) => {
   await begin(core, ui, files, { columns: true });
-  const shown = ui.locator('#projectTabs [role="tab"][aria-selected="true"]');
+  const shown = ui.locator('#taskTabs [role="tab"][aria-selected="true"]');
   await expect(shown).toHaveCount(1);
   const grid = await ui.locator('#dock').boundingBox(), tab = await shown.boundingBox(), icon = await shown.getByTestId('project-icon').boundingBox();
   const name = await shown.getByText(await shown.getAttribute('aria-label'), { exact: true }).boundingBox();
@@ -55,11 +62,11 @@ test("grid: a narrow pane's bar gives up Back and Forward, then Reload, into ⋮
   await begin(core, ui, files, { columns: true });
   const panel = files.panel(SAM), pane = `[role="region"][data-profile="${files.idOf(SAM)}"]`;
   const width = await dock(ui, (api, p) => api.getPanel(p).group.api.width, panel);
-  // The bar's controls shown, each its name, ' out' when it is not inside the pane. Read at once: Fluent's Overflow
-  // hides its items a frame after a resize, between one locator's reading and the next.
+  // The bar's controls shown, each its name, ' out' when it is not inside the pane. Read at once, in one
+  // layout: a locator's readings one by one could straddle a resize.
   const bar = () => ui.evaluate((sel) => {
     const p = document.querySelector(sel).getBoundingClientRect();
-    return [...document.querySelectorAll(`${sel} [role="toolbar"] :is(button, input)`)].filter((e) => e.checkVisibility()).map((e) => {
+    return [...document.querySelectorAll(`${sel} [role="group"][aria-label="Page"] :is(button, input)`)].filter((e) => e.checkVisibility()).map((e) => {
       const r = e.getBoundingClientRect();
       return e.getAttribute('aria-label') + (r.x >= p.x && r.right <= p.right ? '' : ' out');
     });
@@ -82,7 +89,7 @@ test("grid: a narrow pane's bar gives up Back and Forward, then Reload, into ⋮
       - menuitem /^DevTools/`;
   await more(`
     - menu: ${shots}`);
-  await at(240, ['Reload', 'Address', 'Pick an element', 'More']);
+  await at(272, ['Reload', 'Address', 'Pick an element', 'More']);
   await at(100, ['Address', 'Pick an element', 'More']);
   await more(`
     - menu:

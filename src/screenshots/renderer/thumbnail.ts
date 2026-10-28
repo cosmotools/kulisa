@@ -1,25 +1,20 @@
 // The thumbnail's page (../README.md, The thumbnail): the picture only; what is done with it, the main process does.
-const style = document.createElement('style');
-// Around the picture, room for its shadow and its × (PAD in ../main/thumbnail.ts). Its colors are written out here,
-// its × drawn here: this page imports nothing of the window, its icons neither (../CLAUDE.md).
-// FADE in ../main/thumbnail.ts is its fading out's time.
-style.textContent = `html, body { margin: 0; height: 100%; overflow: hidden; background: transparent; }
-  body { box-sizing: border-box; padding: 12px; position: relative; opacity: 0; scale: .96; transition: opacity .2s ease, scale .2s ease; }
-  body[data-state="in"] { opacity: 1; scale: 1; }
-  body[data-state="out"] { opacity: 0; scale: .96; }
-  @media (prefers-reduced-motion: reduce) { body { transition: none; } }
-  img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: top; cursor: pointer; border-radius: 4px;
-    outline: 1px solid #ffffff80; outline-offset: -1px; box-shadow: 0 0 0 1px #00000030, 0 3px 10px #00000060; }
-  button { position: absolute; inset-block-start: 2px; inset-inline-start: 2px; width: 20px; height: 20px; padding: 0; border: 0;
-    border-radius: 50%; display: grid; place-items: center; background: #1e1f22d9; color: #ffffff; cursor: pointer;
-    box-shadow: 0 0 0 1px #ffffff80; opacity: 0; transition: opacity .15s ease; }
-  body:hover button { opacity: 1; }`;
-document.head.append(style);
+import { createElement, X } from 'lucide';
+import './thumbnail.css';
+
+// Around the picture, room for its shadow and its × (PAD in ../main/thumbnail.ts: p-3). Its colors are Tailwind's own:
+// this page imports nothing of the window (../CLAUDE.md). FADE in ../main/thumbnail.ts is its fading out's time.
+document.documentElement.className = 'h-full overflow-hidden bg-transparent';
+document.body.className = `group relative h-full p-3 opacity-0 scale-96 transition-[opacity,scale] duration-200 motion-reduce:transition-none
+  data-[state=in]:opacity-100 data-[state=in]:scale-100`;
 const img = document.createElement('img');
 img.alt = 'Screenshot'; img.draggable = true;
+img.className = 'block size-full cursor-pointer rounded-sm object-cover object-top shadow-lg ring-1 ring-black/20 outline outline-white/50 -outline-offset-1';
 const closer = document.createElement('button');
 closer.title = 'Close';
-closer.innerHTML = '<svg width="10" height="10" viewBox="0 0 10 10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M2 2l6 6M8 2l-6 6"/></svg>';
+closer.className = `absolute start-0.5 top-0.5 grid size-5 cursor-pointer place-items-center rounded-full bg-neutral-900/85 text-white
+  opacity-0 ring-1 ring-white/50 transition-opacity group-hover:opacity-100`;
+closer.append(createElement(X, { class: 'size-3', 'stroke-width': 2.5 }));
 document.body.append(img, closer);
 kulisa.on('thumbnail:image', (src) => { img.src = src; });
 img.addEventListener('load', () => { document.body.dataset.state = 'in'; }, { once: true });

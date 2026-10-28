@@ -2,31 +2,13 @@
 // the mouse. The trigger is a key held anywhere in the window (the main process). It stays when the agent in front has
 // none, disabled: a button that came and went would resize the terminal, and Claude Code redraws badly after one.
 import { useEffect, useRef, type PointerEvent } from 'react';
-import { FluentProvider, ToggleButton, tokens, type Theme } from '@fluentui/react-components';
-import { MicFilled, MicRegular, bundleIcon } from '@fluentui/react-icons';
+import { MicIcon } from 'lucide-react';
+import { Button } from '@ui';
 import { leave, read, record, recording as isRecording, useVoices } from './voice';
-import css from './Dictation.module.css';
 
-// Red while it records, breathing with a ring, as a voice message's button does, so the eye catches from across the
-// window that the agent is listening (not with reduced motion: red alone). The Web Animations API, not Fluent's motion
-// component: that one plays as it mounts and can only pause, and this button must not mount anew while pressed (the
-// press's pointer capture).
-const BREATHE: Keyframe[] = [
-  { transform: 'scale(1)', boxShadow: `0 0 0 0 ${tokens.colorPaletteRedBorderActive}` },
-  { transform: 'scale(1.12)', boxShadow: '0 0 0 4px transparent' },
-  { transform: 'scale(1)', boxShadow: '0 0 0 0 transparent' },
-];
-const still = matchMedia('(prefers-reduced-motion: reduce)');
-const Mic = bundleIcon(MicFilled, MicRegular);
-// Lit, its main color in every state of the button (pointed at, pressed, checked): a FluentProvider of it around the
-// button, whose brand colors it changes, the button primary then.
-const brandAs = (color: string): Partial<Theme> => ({ colorBrandBackground: color, colorBrandBackgroundHover: color, colorBrandBackgroundPressed: color,
-  colorBrandBackgroundSelected: color, colorNeutralForegroundOnBrand: tokens.colorNeutralForegroundStaticInverted });
-const LOOK: Record<string, Partial<Theme>> = {
-  recording: brandAs(tokens.colorPaletteRedBackground3),
-  // Getting ready (~1 s, the hidden session starting): lit, not red yet, so nobody speaks before it hears.
-  starting: brandAs(tokens.colorPaletteBlueBorderActive),
-};
+// Lit: red while it records; getting ready (~1 s, the hidden session starting) the primary color, not red yet, so
+// nobody speaks before it hears.
+const VARIANT = { recording: 'destructive', starting: 'default' } as const;
 
 // task: the task shown; keyName: the key, as the window names it; language: what it hears; onDone: let go, the
 // keyboard goes back to the terminal.
@@ -41,14 +23,6 @@ export function Dictation({ task, keyName, language, onDone }: { task: string | 
     void read(task);
     return () => leave(task);
   }, [task]);
-
-  const button = useRef<HTMLButtonElement>(null);
-  const lit = state === 'recording';
-  useEffect(() => {
-    if (!lit || still.matches) return;
-    const a = button.current?.animate(BREATHE, { duration: 1200, easing: 'ease-in-out', iterations: Infinity });
-    return () => a?.cancel();
-  }, [lit]);
 
   const down = useRef(0); // when the press that started a recording began
   const press = (e: PointerEvent<HTMLButtonElement>) => {
@@ -68,15 +42,16 @@ export function Dictation({ task, keyName, language, onDone }: { task: string | 
     : v.state === 'starting' ? 'Getting ready to listen: speak once the microphone is red'
     : recording ? `Recording: let go of ${keyName}, or click to stop`
     : `Speak to the agent${language ? ` in ${language}` : ''}: hold ${keyName} anywhere, or press it once and again; or this button the same way`;
-  // The pane is not dragged by its row's buttons. The tooltip is the native title: a disabled button gets no pointer
-  // events, and its tooltip says why it is disabled.
-  // The provider stays as the look changes: the button must not mount anew while pressed (its pointer capture).
-  const look = state ? LOOK[state] : undefined;
-  return <div className={css.root} onDragStart={(e) => e.preventDefault()}><FluentProvider theme={look}>
-    <ToggleButton ref={button} appearance={look ? 'primary' : 'subtle'} shape="circular" size="small" icon={<Mic />} aria-label="Speak to the agent"
-      checked={recording} data-state={state} disabled={!v || v.state === 'none'} title={title}
-      onPointerDown={press} onPointerUp={release} onPointerCancel={release}
+  // The pane is not dragged by its row's buttons. The tooltip is the native title, also on the box around: a disabled
+  // button gets no pointer events, and its tooltip says why it is disabled.
+  const variant = state === 'recording' || state === 'starting' ? VARIANT[state] : 'ghost';
+  // Red while it records, a ring pinging out of it behind (Tailwind's animate-ping), so the eye catches from across the
+  // window that the agent is listening (not with reduced motion: red alone).
+  return <div className="relative isolate grid flex-none place-items-center" title={title} onDragStart={(e) => e.preventDefault()}>
+    {state === 'recording' && <span aria-hidden="true" className="absolute inset-0 -z-10 animate-ping rounded-lg bg-destructive/60 motion-reduce:hidden" />}
+    <Button variant={variant} size="icon-sm" aria-label="Speak to the agent" aria-pressed={recording} data-state={state}
+      disabled={!v || v.state === 'none'} title={title} onPointerDown={press} onPointerUp={release} onPointerCancel={release}
       // Enter or Space on it
-      onClick={(e) => { if (!e.detail && task) void record(task, !recording); }} />
-  </FluentProvider></div>;
+      onClick={(e) => { if (!e.detail && task) void record(task, !recording); }}><MicIcon /></Button>
+  </div>;
 }

@@ -148,7 +148,7 @@ test("tasks: a closed task is deleted from its row, 🗑 or Delete, in the sideb
   // The sidebar docked, the empty window's: close the open tasks to get there.
   for (const open of await core((k) => [...k.shell.open.keys()])) await invoke(ui, 'project:close-tasks', { id: open });
   await expect.poll(() => core((k) => k.shell.open.size)).toBe(0);
-  await expect(ui.locator('html')).toHaveAttribute('data-empty');
+  await expect(ui.locator('html')).toHaveAttribute('data-page', /^(sidebar|welcome)$/);
   await expect(sidebar(ui)).toBeVisible();
   await expect(row('task-2').getByRole('button', { name: 'Delete Task…' }), 'shown on the row the pointer or the keyboard is on').toHaveCount(0);
   await row('task-2').press('Delete');

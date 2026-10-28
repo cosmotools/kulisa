@@ -1,147 +1,114 @@
-// Menus on Fluent UI's Menu, with the window's desktop rules on top (docs/ui.md, Menus): a button's menu opens on the
-// press, and a press, a drag to a row and the release there chooses it; rows are chosen with the left button only; one
-// menu at a time, leaving the window closes it, and a menu over the pages shows once they are pictures (lib/cover.ts).
-// An area's right-click menu builds its rows for what was right-clicked; PointMenu.tsx opens one at a point.
-// The open menu's list is [role="menu"][data-ready] once shown (the tests' handle).
-import { cloneElement, useCallback, useEffect, useRef, useState, type HTMLAttributes, type KeyboardEvent, type MouseEvent,
-  type PointerEvent, type ReactElement, type ReactNode } from 'react';
-import { Avatar, Button, Menu, MenuDivider, MenuGroupHeader, MenuItem, MenuList, MenuPopover, MenuTrigger,
-  type PositioningShorthand } from '@fluentui/react-components';
-import { CircleFilled, DeleteRegular } from '@fluentui/react-icons';
+// The window's menus, on shadcn's DropdownMenu, their rows from lib/menu.ts (docs/ui.md, Menus): Radix's rules but
+// four, each kept where it is done.
+import { createElement, useCallback, useEffect, useRef, useState, type MouseEvent, type PointerEvent, type ReactElement, type ReactNode } from 'react';
+import { Avatar, AvatarImage, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuShortcut,
+  DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger, Item, ItemContent, ItemDescription, ItemMedia, ItemTitle } from '@ui';
 import { avatarSrc } from '../lib/common';
+import { closePointMenu, menuAt, usePointMenu, type MenuItem, type MenuRow } from '../lib/menu';
 import { ProjectIcon } from './ProjectIcon';
-import { useCovered } from '../lib/cover';
-import type { MenuItem as Item, MenuRow } from '../lib/menu';
-import css from './Menus.module.css';
+import { agentMark } from './AgentMark';
 
-export type { Item };
-
-// A menu taller than the window has scrolls, reaching as far as its edge.
-export const FIT = { autoSize: 'height', overflowBoundaryPadding: 4 } satisfies PositioningShorthand;
-
-// A row's mark at its start: its icon, a project's dot or icon, a profile's picture.
+// A row's mark at its start: its icon, a profile's picture, an agent's mark.
 function mark(it: MenuRow) {
-  const Icon = it.icon;
-  if (it.avatar) return <Avatar size={16} image={{ src: avatarSrc(it.avatar) }} />;
-  if (it.project) return <ProjectIcon p={it.project} size={16} />;
-  if (it.color) return <CircleFilled style={{ color: it.color }} />; // a project's color, known at run time
-  return Icon ? <Icon /> : undefined;
+  if (it.avatar) return <Avatar className="size-4"><AvatarImage src={avatarSrc(it.avatar)} alt="" /></Avatar>;
+  if (it.agent) return createElement(agentMark(it.agent));
+  return it.icon ? createElement(it.icon) : undefined;
 }
 
-// A row. remove: its 🗑, shown while the pointer or the keyboard is on the row, Delete too; it runs instead of the row's
-// own action, the menu closing as for any row.
-function Row({ it, close }: { it: MenuRow; close: () => void }) {
-  const [hot, setHot] = useState(false);
-  const remove = () => { close(); void it.remove!.run(); };
-  const onKeyDown = (e: KeyboardEvent) => { if (it.remove && e.key === 'Delete') { e.preventDefault(); remove(); } };
-  return <MenuItem aria-label={it.label} disabled={it.enabled === false || !it.run} title={it.title} icon={mark(it)}
-    subText={it.sub || undefined}
-    secondaryContent={it.remove ? <span className={hot ? undefined : css.hidden}><Button appearance="subtle" size="small" icon={<DeleteRegular />}
-      aria-label={it.remove.label} title={it.remove.label} tabIndex={-1} onClick={(e) => { e.stopPropagation(); remove(); }} /></span> : it.keys || undefined}
-    onMouseEnter={() => setHot(true)} onMouseLeave={() => setHot(false)} onFocus={() => setHot(true)} onBlur={() => setHot(false)}
-    onKeyDown={onKeyDown} onClick={() => void it.run?.()}>{it.label}</MenuItem>;
+// On Linux a right-click menu opens on the press: the release over a row must not choose it (Radix chooses on any).
+const leftOnly = (e: PointerEvent) => { if (e.button !== 0) e.preventDefault(); };
+
+function Row({ it }: { it: MenuRow }) {
+  return <DropdownMenuItem aria-label={it.label} disabled={it.enabled === false || !it.run} title={it.title} onSelect={() => void it.run?.()}
+    onPointerUp={leftOnly}>
+    {it.sub /* a line under its label: shadcn's Item in the row, as its examples put one in a menu (size xs: the row's padding) */
+      ? <Item size="xs">{mark(it) && <ItemMedia>{mark(it)}</ItemMedia>}<ItemContent><ItemTitle>{it.label}</ItemTitle><ItemDescription>{it.sub}</ItemDescription></ItemContent></Item> : <>{mark(it)}{it.label}</>}
+    {it.keys && <DropdownMenuShortcut>{it.keys}</DropdownMenuShortcut>}
+  </DropdownMenuItem>;
 }
 
-// The rows of a menu (lib/menu.ts). A submenu is a menu of its own at its row's side, opened on hover; its row's run
-// makes a click on the row itself act, closing the menu.
-// Whether a menu's rows leave room for a mark at their start: given to its Menu (Fluent's context; on the MenuList
-// within one it warns).
-const hasIcons = (items: Item[]) => items.some((it) => typeof it === 'object' && ('icon' in it || 'avatar' in it || 'project' in it || 'color' in it));
-function Rows({ items, close, ready = true }: { items: Item[]; close: () => void; ready?: boolean }) {
-  return <MenuList data-ready={ready || undefined}>{items.map((it, i) => {
-    if (it === '-') return <MenuDivider key={i} />;
-    if ('heading' in it) { const Icon = it.icon; return <MenuGroupHeader key={i}><span className={css.heading}>{Icon && <Icon />}{it.heading}</span></MenuGroupHeader>; }
-    if ('component' in it) { const Own = it.component; return <Own key={i} close={close} />; }
+// The rows of a menu (lib/menu.ts). A submenu is a menu of its own at its row's side, opened on hover.
+function Rows({ items, close }: { items: MenuItem[]; close: () => void }) {
+  return items.map((it, i) => {
+    if (it === '-') return <DropdownMenuSeparator key={i} />;
+    if ('heading' in it) return <DropdownMenuLabel key={i}>{it.icon && createElement(it.icon)}{it.heading}</DropdownMenuLabel>;
+    if ('component' in it) return createElement(it.component, { key: i, close });
     if ('submenu' in it) {
-      return <Menu key={i} positioning={FIT} hasIcons={hasIcons(it.items)}>
-        <MenuTrigger disableButtonEnhancement>
-          <MenuItem aria-label={it.submenu} icon={it.project ? <ProjectIcon p={it.project} size={16} /> : undefined}
-            onClick={it.run && ((e: MouseEvent) => { if (e.button === 0) { close(); void it.run!(); } })}>{it.submenu}</MenuItem>
-        </MenuTrigger>
-        <MenuPopover><Rows items={it.items} close={close} /></MenuPopover>
-      </Menu>;
+      return <DropdownMenuSub key={i}>
+        <DropdownMenuSubTrigger aria-label={it.submenu} onPointerUp={leftOnly}>
+          {it.project && <ProjectIcon p={it.project} size={16} />}{it.submenu}
+        </DropdownMenuSubTrigger>
+        <DropdownMenuSubContent><Rows items={it.items} close={close} /></DropdownMenuSubContent>
+      </DropdownMenuSub>;
     }
-    return <Row key={i} it={it} close={close} />;
-  })}</MenuList>;
+    return <Row key={i} it={it} />;
+  });
 }
 
-// A menu's open state with what is under it (pictures of the pages: lib/cover.ts), Fluent's shown only once ready.
-// Closed, the keyboard goes back where it was before it opened (the terminal, a field), unless it went elsewhere
-// meanwhile: Fluent's own puts it on the menu's button.
-function useMenuState() {
-  const { open, setOpen, ready } = useCovered('pictures');
+// Radix closes an open menu on the page's blur, which is not the window left (a profile's page taking the keyboard as it
+// loads; lib/cover.ts closes it as the window is left): a close asked while that blur is dispatched is not done.
+// window.event: the one event that tells it, Radix's call carrying none.
+const blurring = () => window.event?.type === 'blur' && window.event.target === window;
+
+// The keyboard moving elsewhere in the window (its page getting it back puts it in the terminal; a dialog a row opened)
+// leaves a menu as it is: a press closes it, or Esc, or leaving the window.
+const keep = (e: Event) => e.preventDefault();
+
+// A menu's open state, its rows built as it opens. Closed, the keyboard goes back where it was before it opened (the
+// terminal, a field), not to its button as Radix gives it, unless it went elsewhere meanwhile (a dialog the row opened).
+function useMenu() {
+  const [open, setOpen] = useState(false), [rows, setRows] = useState<MenuItem[]>([]);
   const before = useRef<Element | null>(null);
-  const opened = useCallback((v: boolean) => { if (v && before.current === null) before.current = document.activeElement; setOpen(v); }, [setOpen]);
-  const close = useCallback(() => setOpen(false), [setOpen]);
-  useEffect(() => {
-    if (open) return;
+  const show = useCallback((r: MenuItem[]) => { before.current = document.activeElement; setRows(r); setOpen(true); }, []);
+  const close = useCallback(() => { if (!blurring()) setOpen(false); }, []);
+  const onCloseAutoFocus = useCallback((e: Event) => {
+    e.preventDefault();
     const was = before.current, at = document.activeElement;
     before.current = null;
-    if (!(was instanceof HTMLElement) || !was.isConnected || was === document.body) return;
-    if (at === document.body || at?.closest('[role="menu"], [aria-haspopup="menu"]')) {
-      if (!document.querySelector('[role="menu"][data-ready]')) was.focus(); // not when another menu has it
-    }
-  }, [open]);
-  return { open, shown: open && ready, ready, setOpen: opened, close };
+    if (was instanceof HTMLElement && was.isConnected && was !== document.body && (at === document.body || at?.closest('[role="menu"]'))) was.focus();
+  }, []);
+  return { open, rows, show, close, onCloseAutoFocus };
 }
 
-// A button disabled but focusable (Group.tsx, Tool) opens nothing.
-const off = (t: EventTarget | null) => t instanceof Element && !!t.closest('[aria-disabled="true"]');
+// A button's menu. children: the button (Radix opens it on the press, and a press, a drag to a row and the release there
+// chooses it); items: built as it opens; end: its end edge at the button's (at a bar's end). Not modal: a press outside
+// closes it and acts there, another menu opening right from this one, as a menu bar's. Its content mounted only while
+// open, so it is gone at once as it closes: a fading menu keeps the keyboard, taking it back from a dialog its row
+// opened under the pointer, and takes the next Esc. As wide as its rows (w-auto), at least a button's.
+export function ButtonMenu({ items, children, end }: { items: () => MenuItem[]; children: ReactElement; end?: boolean }) {
+  const m = useMenu();
+  return <DropdownMenu modal={false} open={m.open} onOpenChange={(o) => (o ? m.show(items()) : m.close())}>
+    <DropdownMenuTrigger asChild>{children}</DropdownMenuTrigger>
+    {m.open && <DropdownMenuContent align={end ? 'end' : 'start'} className="w-auto min-w-48" onCloseAutoFocus={m.onCloseAutoFocus} onFocusOutside={keep}>
+      <Rows items={m.rows} close={m.close} />
+    </DropdownMenuContent>}
+  </DropdownMenu>;
+}
 
-// A button's menu. children: the button, given the press that opens it; items: built as it opens; end: its end edge at
-// the button's (at a bar's end).
-export function ButtonMenu({ items, children, end }: { items: () => Item[]; children: ReactElement; end?: boolean }) {
-  const m = useMenuState(), [rows, setRows] = useState<Item[]>([]);
-  const [pressed, setPressed] = useState(false); // opened by a press whose release is still to come
-  // The release after the press that opened it: on a row, that row is chosen (press, drag, release).
-  useEffect(() => {
-    if (!m.open) return;
-    const up = (e: globalThis.PointerEvent) => {
-      if (!pressed || e.button !== 0) return;
-      setPressed(false);
-      const row = (e.target as Element).closest<HTMLElement>('[role^="menuitem"]');
-      if (row && row.getAttribute('aria-disabled') !== 'true' && !row.hasAttribute('aria-haspopup')) row.click();
-    };
-    addEventListener('pointerup', up, true);
-    return () => removeEventListener('pointerup', up, true);
-  }, [m.open, pressed]);
-  const onPointerDown = (e: PointerEvent<HTMLElement>) => {
-    if (e.button !== 0 || off(e.currentTarget)) return;
+// An area's right-click menu at the pointer: items(e) the rows for what was right-clicked, or null: none (and none of
+// an area around it either: the right-click is this one's). Shown as the window's one menu at a point (PointMenu): a
+// place inside the grid is not the window's (dockview's panels are boxes of their own for a fixed element). Not
+// Radix's ContextMenu, whose open state is its own and closes on the page's blur.
+export function RightClickMenu({ items, children, className }: { items: (e: globalThis.MouseEvent) => MenuItem[] | null; children: ReactNode; className?: string }) {
+  const onContextMenu = (e: MouseEvent) => {
+    if (e.defaultPrevented) return; // an area inside has its own
     e.preventDefault();
-    if (m.open) { m.setOpen(false); return; }
-    setPressed(true); setRows(items()); m.setOpen(true);
+    const r = items(e.nativeEvent);
+    if (r?.length) menuAt(e.nativeEvent, r);
   };
-  const onClickCapture = (e: MouseEvent<HTMLElement>) => { if (e.detail > 0) e.stopPropagation(); };
-  return <Menu open={m.shown} hasIcons={hasIcons(rows)} positioning={{ ...FIT, position: 'below', align: end ? 'end' : 'start', offset: 4 }}
-    onOpenChange={(e, d) => { if (!d.open) m.close(); else if (!pressed && !off(e.target)) { setRows(items()); m.setOpen(true); } }}>
-    {/* open on the press, not on the click (Enter, Space and ↓ open it as Fluent's trigger does) */}
-    <MenuTrigger disableButtonEnhancement>{cloneElement(children as ReactElement<HTMLAttributes<HTMLElement>>, { onPointerDown, onClickCapture })}</MenuTrigger>
-    <MenuPopover><Rows items={rows} close={m.close} ready={m.ready} /></MenuPopover>
-  </Menu>;
+  return <div className={className} onContextMenu={onContextMenu}>{children}</div>;
 }
 
-// An area's right-click menu at the pointer: items(e) the rows for what was right-clicked, or null: none. Rows are
-// chosen with the left button only: on Linux it opens on the press, and the release over a row must not choose it.
-export function RightClickMenu({ items, children, className }: { items: (e: globalThis.MouseEvent) => Item[] | null; children: ReactNode; className?: string }) {
-  const m = useMenuState(), [rows, setRows] = useState<Item[]>([]);
-  return <Menu openOnContext open={m.shown} hasIcons={hasIcons(rows)} positioning={FIT} onOpenChange={(e, d) => {
-    if (!d.open) return m.close();
-    const r = 'nativeEvent' in e && 'clientX' in e ? items(e.nativeEvent) : e instanceof globalThis.MouseEvent ? items(e) : null;
-    if (r?.length) { setRows(r); m.setOpen(true); }
-  }}>
-    <MenuTrigger disableButtonEnhancement><div className={className}>{children}</div></MenuTrigger>
-    <MenuPopover><Rows items={rows} close={m.close} ready={m.ready} /></MenuPopover>
-  </Menu>;
-}
-
-// A menu with no button or area of its own, at a point (PointMenu.tsx).
-export function MenuAt({ at, items, onClosed }: { at: { x: number; y: number } | null; items: Item[]; onClosed: () => void }) {
-  const m = useMenuState(), { setOpen, open } = m;
-  useEffect(() => { if (at) setOpen(true); }, [at, setOpen]);
-  const wasOpen = useRef(false);
-  useEffect(() => { if (wasOpen.current && !open) onClosed(); wasOpen.current = open; }, [open, onClosed]);
-  const target = { getBoundingClientRect: () => DOMRect.fromRect({ x: at?.x ?? 0, y: at?.y ?? 0, width: 0, height: 0 }) };
-  return <Menu open={m.shown && !!at} hasIcons={hasIcons(items)} positioning={{ ...FIT, target, position: 'below', align: 'start' }} onOpenChange={(_, d) => { if (!d.open) m.close(); }}>
-    <MenuPopover><Rows items={items} close={m.close} ready={m.ready} /></MenuPopover>
-  </Menu>;
+// The window's one menu at a point (lib/menu.ts, menuAt): a right-click's, a link in the terminal's, a screenshot's
+// thumbnail's. Its button an empty span there.
+export function PointMenu() {
+  const at = usePointMenu(), m = useMenu(), { show } = m;
+  useEffect(() => { if (at) show(at.items); }, [at, show]);
+  const close = () => { m.close(); if (!blurring()) closePointMenu(); };
+  return <DropdownMenu modal={false} open={m.open && !!at} onOpenChange={(o) => { if (!o) close(); }}>
+    <DropdownMenuTrigger asChild><span aria-hidden className="pointer-events-none fixed" style={{ left: at?.x ?? 0, top: at?.y ?? 0 }} /></DropdownMenuTrigger>
+    {m.open && <DropdownMenuContent align="start" sideOffset={0} className="w-auto min-w-48" onCloseAutoFocus={m.onCloseAutoFocus} onFocusOutside={keep}>
+      <Rows items={m.rows} close={close} />
+    </DropdownMenuContent>}
+  </DropdownMenu>;
 }

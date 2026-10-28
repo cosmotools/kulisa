@@ -14,36 +14,56 @@ const PAUSES = [
 ];
 
 const WINDOW = ['src/renderer/**/*.tsx', 'src/renderer/**/*.ts', 'src/*/renderer/**/*.tsx'];
-const NO_LUCIDE = { paths: [{ name: 'lucide-react', message: "Fluent's icons, @fluentui/react-icons (docs/ui.md)." }] };
 const STYLE = "JSXAttribute[name.name='style'] > JSXExpressionContainer > ObjectExpression > Property";
-const FLUENT = [
-  { selector: 'JSXOpeningElement[name.name=/^(button|input|select|textarea)$/]', message: "Fluent's Button, Input, Select or Textarea (docs/ui.md)." },
-  { selector: 'Literal[value=/var\\(--color/], TemplateElement[value.raw=/var\\(--color/]', message: "`tokens.*`, typed, not a 'var(--color…)' string (docs/ui.md)." },
-  { selector: `${STYLE}[value.type='Literal'], ${STYLE}[value.object.name='tokens']`, message: "A constant style is the CSS Module's; `style` holds only what run time knows (docs/ui.md)." },
+// The window is shadcn's components (src/ui) and Tailwind's classes on our own boxes (docs/ui.md, shadcn in Kulisa).
+const OWN = [
+  { selector: 'JSXOpeningElement[name.name=/^(button|input|select|textarea)$/]', message: "src/ui's Button, Input, Select or Textarea (docs/ui.md)." },
+  { selector: `${STYLE}[value.type='Literal']`, message: 'A constant style is a class; `style` holds only what run time knows (docs/ui.md).' },
 ];
-// The window is Fluent's components as they ship, their look the theme's alone (docs/ui.md, Fluent in Kulisa): no class
-// or style on one, no makeStyles; our own boxes take a CSS Module.
-const fluentAsShipped: Rule.RuleModule = {
+// One way to draw: no second UI library, no CSS Module beside Tailwind.
+const ONE_LOOK = { paths: [{ name: '@fluentui/react-components', message: "The window is shadcn's (src/ui; docs/ui.md)." }],
+  patterns: [{ group: ['*.module.css'], message: "Tailwind's classes on our own box; a plain .css only for what they cannot say (docs/ui.md)." }] };
+const HEX = { selector: 'Literal[value=/^#[0-9a-fA-F]{3,8}$/]', message: "A color is the theme's (bg-muted, var(--card); docs/ui.md)." };
+
+// src/ui's components as shadcn's CLI makes them, their look the theme's alone (docs/ui.md, shadcn in Kulisa): on one
+// only where it sits and how big it is: a literal of layout and size classes (w-64, flex-1, ms-auto), any variant
+// before them (data-[x]:hidden); in `style`, a custom property or a size or place known at run time.
+const LAYOUT = new RegExp(String.raw`^(?:[\w-]+(?:-\[[^\]]+\])?:)*!?(?:-?m[trblxyse]?-\S+|(?:min-|max-)?[wh]-\S+|size-\S+|flex-(?:1|auto|none|initial|\[[^\]]+\])|basis-\S+|(?:shrink|grow)(?:-0)?|(?:justify-|place-)?self-\S+|order-\S+|(?:col|row)-(?:span|start|end)-\S+|static|relative|absolute|fixed|sticky|-?(?:inset|top|right|bottom|left|start|end)(?:-[xy])?-\S+|z-\S+|hidden|sr-only|aspect-\S+|justify-(?:start|end|center|between)|items-(?:start|end|center|stretch))$`);
+const PLACE = new Set(['width', 'height', 'minWidth', 'maxWidth', 'minHeight', 'maxHeight', 'flexBasis', 'left', 'top', 'right', 'bottom', 'inset']);
+const uiAsShipped: Rule.RuleModule = {
   meta: { type: 'problem', schema: [] },
   create(context) {
-    const fluent = new Set<string>();
+    const ui = new Set<string>();
+    const report = (node: Rule.Node, what: string) => context.report({ node, message: `${what} (docs/ui.md, shadcn in Kulisa).` });
     return {
       ImportDeclaration(node) {
-        if (node.source.value !== '@fluentui/react-components') return;
-        for (const s of node.specifiers) if (s.type === 'ImportSpecifier') fluent.add(s.local.name);
+        if (node.source.value !== '@ui') return;
+        for (const s of node.specifiers) if (s.type === 'ImportSpecifier') ui.add(s.local.name);
       },
       JSXAttribute(node: Rule.Node) {
-        const n = node as unknown as { name: { name: string }; parent: { name: { type: string; name?: string } } };
+        const n = node as unknown as { name: { name: string }; value: { type: string; value?: unknown; expression?: { type: string; properties?: { type: string; key: { type: string; name?: string; value?: unknown } }[] } } | null;
+          parent: { name: { type: string; name?: string } } };
         const el = n.parent.name;
-        if ((n.name.name === 'className' || n.name.name === 'style') && el.type === 'JSXIdentifier' && fluent.has(el.name!))
-          context.report({ node, message: `${n.name.name} on Fluent's ${el.name}: its look is the theme's (docs/ui.md, Fluent in Kulisa).` });
+        if (el.type !== 'JSXIdentifier' || !ui.has(el.name!)) return;
+        if (n.name.name === 'className') {
+          if (n.value?.type !== 'Literal') return report(node, `className on ${el.name}: a literal of layout and size classes`);
+          for (const c of String(n.value.value).split(/\s+/).filter(Boolean))
+            if (!LAYOUT.test(c)) report(node, `${c} on ${el.name}: its look is the theme's; only where it sits and its size`);
+        } else if (n.name.name === 'style') {
+          const props = n.value?.expression?.type === 'ObjectExpression' ? n.value.expression.properties! : null;
+          if (!props) return report(node, `style on ${el.name}: an object of custom properties and sizes`);
+          for (const p of props) {
+            const key = p.type === 'Property' ? String(p.key.name ?? p.key.value) : '...';
+            if (!key.startsWith('--') && !PLACE.has(key)) report(node, `style.${key} on ${el.name}: its look is the theme's`);
+          }
+        }
       },
     };
   },
 };
-const NO_MAKE_STYLES = { paths: [...NO_LUCIDE.paths, { name: '@fluentui/react-components', importNames: ['makeStyles', 'mergeClasses'],
-  message: "Fluent's look is the theme's; our own box takes a CSS Module (docs/ui.md, Fluent in Kulisa)." }] };
-const HEX = { selector: 'Literal[value=/^#[0-9a-fA-F]{3,8}$/]', message: 'A color is a Fluent token, `tokens.*` (docs/ui.md).' };
+// The theme's colors, not Tailwind's palette nor a color written out: one palette, dark and light (docs/ui.md).
+const PALETTE = String.raw`\b(?:bg|text|border|ring|fill|stroke|outline|from|via|to|shadow|decoration|accent|caret|divide)-(?:slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose|black|white)\b|-\[(?:#|rgb|hsl|oklch|color)`;
+const COLORS = { selector: `Literal[value=/${PALETTE}/], TemplateElement[value.raw=/${PALETTE}/]`, message: "A color is the theme's (bg-muted, text-destructive), not Tailwind's palette (docs/ui.md)." };
 
 // An e2e test finds Kulisa's elements by role and name, label, text or data-testid, and reads a state by its attribute
 // (aria-*, data-*): never by a class of Kulisa's CSS, which changes with the look (docs/testing.md, Writing an e2e
@@ -69,7 +89,7 @@ const noKulisaClasses: Rule.RuleModule = {
 };
 
 export default tseslint.config(
-  { ignores: ['dist', 'out', '.claude/*', '!.claude/hooks', 'src/preload'] },
+  { ignores: ['dist', 'out', '.claude/*', '!.claude/hooks', 'src/preload', 'src/ui/{components,hooks,lib}'] }, // src/ui's: shadcn's CLI's
   { files: ['**/*.ts', '**/*.mts', '**/*.tsx'], languageOptions: { parser: tseslint.parser } },
   {
     files: ['**/*.ts', '**/*.mts', '**/*.tsx'],
@@ -99,14 +119,14 @@ export default tseslint.config(
   { files: ['src/renderer/**', 'src/*/renderer/**'], plugins: { 'react-hooks': reactHooks },
     rules: Object.fromEntries(['rules-of-hooks', 'exhaustive-deps', 'refs', 'purity', 'immutability', 'globals', 'static-components',
       'set-state-in-render', 'set-state-in-effect'].map((r) => [`react-hooks/${r}`, 'error'])) },
-  // The window is Fluent's as it ships (docs/ui.md): its controls, its icons, its tokens. What only run time knows (a
-  // width, the project's color) may stay in `style`; a constant there is its CSS Module's. theme.ts sets the theme's
-  // own colors; the logos (Kulisa's, the agents' makers') are drawn in their own.
-  { files: WINDOW, plugins: { kulisa: { rules: { 'fluent-as-shipped': fluentAsShipped } } },
-    rules: { 'no-restricted-imports': ['error', NO_MAKE_STYLES], 'kulisa/fluent-as-shipped': 'error' } },
-  { files: WINDOW, ignores: ['src/renderer/components/theme.ts'], rules: { 'no-restricted-syntax': ['error', EXPORT_ALL, ...FLUENT, HEX] } },
+  // The window is shadcn's as it ships (docs/ui.md): its controls, Lucide's icons, the theme's colors. What only run time
+  // knows (a width, the project's color) may stay in `style`. The logos (Kulisa's, the agents' makers') are drawn in
+  // their own colors.
+  { files: WINDOW, plugins: { kulisa: { rules: { 'ui-as-shipped': uiAsShipped } } },
+    rules: { 'no-restricted-imports': ['error', ONE_LOOK], 'kulisa/ui-as-shipped': 'error' } },
+  { files: WINDOW, rules: { 'no-restricted-syntax': ['error', EXPORT_ALL, ...OWN, HEX, COLORS] } },
   { files: ['src/renderer/components/AgentMark.tsx', 'src/renderer/components/ProjectIcon.tsx'],
-    rules: { 'no-restricted-syntax': ['error', EXPORT_ALL, ...FLUENT] } },
+    rules: { 'no-restricted-syntax': ['error', EXPORT_ALL, ...OWN, COLORS] } },
   // An e2e test waits for a proof, never for a time: a pause long enough here is too short on a loaded machine, and
   // proves nothing when it is long enough (docs/testing.md, Writing an e2e test). A wait with an end is upTo (helpers.ts).
   { files: ['test/e2e/**'], plugins: { kulisa: { rules: { 'no-kulisa-classes': noKulisaClasses } } },

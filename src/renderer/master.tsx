@@ -1,8 +1,7 @@
 // A master's window (master.html; main/master.ts): its bar (components/Master.tsx). Its theme and the profile's name come
-// in the URL.
-import '@fontsource-variable/inter/wght.css';
+// in the URL (public/theme.js, Master.tsx).
+import './window.css';
 import { createRoot } from 'react-dom/client';
 import { Master } from './components/Master';
 
-document.head.insertAdjacentHTML('beforeend', '<style>body { margin: 0; user-select: none; }</style>');
 createRoot(document.getElementById('app')!).render(<Master />);

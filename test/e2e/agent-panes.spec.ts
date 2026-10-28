@@ -48,6 +48,7 @@ test('tab strip: + opens a tab with the focus in its empty address, a click on a
   await expect(strip.locator('[role="tab"][data-opening]')).toHaveCount(0);
   await expect(pane.locator('[aria-label="Address"]')).toBeFocused();
   await expect(pane.locator('[aria-label="Address"]')).toHaveValue('');
+  await expect(pane.locator('[aria-label="Address"]'), 'what to type there').toHaveAttribute('placeholder', 'Search Google or type a URL');
   // The keys go there, not to the new tab's page (a native view that would take the focus as it loads). Where the
   // keys go inside the window; when another app on the desktop is active (it may take the focus while the tests
   // run), no view has them, and Kulisa rightly leaves it so.

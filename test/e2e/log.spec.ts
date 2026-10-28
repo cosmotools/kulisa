@@ -31,7 +31,7 @@ test("☰ → Report a Problem… opens Settings at the Log page: the log so far
   // Errors: a page's error is a warning line, in red; Errors shows those alone.
   await ui.evaluate(() => console.error('boom-for-the-log'));
   await expect.poll(async () => (await lines()).some((l) => l.includes('boom-for-the-log'))).toBe(true);
-  const showOnly = (name: string) => s.getByRole('toolbar', { name: 'Show' }).getByRole('radio', { name, exact: true }).click();
+  const showOnly = (name: string) => s.getByRole('radiogroup', { name: 'Show' }).getByRole('radio', { name, exact: true }).click();
   const typeFilter = (text: string) => s.getByRole('searchbox', { name: 'Filter' }).fill(text);
   await showOnly('Errors');
   await expect(s.getByRole('radio', { name: 'Errors', exact: true })).toBeChecked();
@@ -52,7 +52,7 @@ test("☰ → Report a Problem… opens Settings at the Log page: the log so far
   await expect(s.getByText(/^kulisa\.log, /)).toHaveText(/^kulisa\.log, \d+ KB of 1 MB\. Never here: what you typed, passwords, tokens, cookies, the pages' queries\.$/);
   // Copy All: the whole log, line by line as the file has it.
   await s.getByRole('button', { name: 'Copy All' }).click();
-  await expect(s.getByRole('listitem', { name: 'Copied', exact: true }), 'a toast').toBeVisible();
+  await expect(s.locator('[data-sonner-toast]').filter({ hasText: /^Copied$/ }), 'a toast').toBeVisible();
   expect((await core((k) => k.electron.clipboard.readText())).split('\n')[0]).toMatch(/^\[\d{4}-\d\d-\d\dT[^\]]+\] \[info\]\s*\[kulisa\] start /);
   // Save As…: where the human says, the file as it is.
   const saved = path.join(files.root, 'saved.log'), file = path.join(files.userData, 'logs', 'kulisa.log');
@@ -66,7 +66,7 @@ test("☰ → Report a Problem… opens Settings at the Log page: the log so far
     await expect.poll(() => fs.existsSync(saved)).toBe(true);
   } finally { await core((k) => { k.electron.dialog.showSaveDialog = k.stash.showSaveDialog; }); }
   expect(fs.readFileSync(saved, 'utf8').split('\n')[0]).toBe(fs.readFileSync(file, 'utf8').split('\n')[0]);
-  const toast = s.getByRole('listitem', { name: `Saved as ${saved}`, exact: true });
+  const toast = s.locator('[data-sonner-toast]').filter({ hasText: `Saved as ${saved}` });
   await expect(toast, 'a toast').toBeVisible();
   await expect(toast.getByRole('button', { name: 'Show in Folder' })).toBeVisible();
   fs.rmSync(saved);

@@ -52,9 +52,9 @@ async function workAccount(core: Core, ui: Page, files: Files) {
 
 // Settings (the title bar's gear) at the first agent: the agents on its Agents page (agents are set up in Settings); it
 // closes as the human closes it (closeSettings). Its page.
-const agentRows = (s: Page) => s.locator('#settings main [data-row][data-key^="a:"]');
+const agentRows = (s: Page) => s.locator('#settings main').getByRole('list', { name: 'Agents' }).locator('[data-row]');
 async function openAgents(ui: Page, sui: () => Promise<Page>, rows = 2) {
-  await ui.locator('#manageProjects').click();
+  await ui.locator('#settingsButton').click();
   const s = await sui();
   await navRow(s, 'agents').click();
   await expect(agentRows(s)).toHaveCount(rows, { timeout: 20000 });
@@ -66,7 +66,7 @@ async function openAgents(ui: Page, sui: () => Promise<Page>, rows = 2) {
 const agentPage = (s: Page, id: string) => s.locator(`section[data-agent="${id}"]`);
 // An agent chosen on Agents' page (once the agents are there: looked for as Settings opens), its page shown.
 async function showAgent(s: Page, id: string) {
-  await openThing(s, `a:${id}`);
+  await openThing(s, 'agents', id);
   await expect(agentPage(s, id)).toBeVisible();
 }
 // The project's settings (Project Settings… in its submenu: helpers.ts, projectMenu), with its agents.
@@ -79,7 +79,7 @@ async function projectSettings(ui: Page, sui: () => Promise<Page>) {
 // The project page's Agents: Add Agent, a row's ⋯, the sign-in of a new account.
 const addAgent = (s: Page) => s.getByRole('button', { name: 'Add Agent', exact: true });
 const signIn = (s: Page) => s.getByRole('group', { name: /^New account of / });
-// Settings' menu open (Fluent's).
+// Settings' menu open.
 const settingsMenu = (s: Page) => s.getByRole('menu');
 const accountDir = (files: Files, id: string) => path.join(files.userData, 'agents', `fake-${id}`);
 const accountOf = (dir: string) => path.basename(dir).replace(/^fake-/, '');
@@ -116,8 +116,8 @@ test('Settings → Agents (not the terminal only): what is installed, installs t
   const pty = await core((k) => k.shell.task.pty.pid);
   const s = await openAgents(ui, sui);
   await navRow(s, 'agents').click();
-  await expect(thingRow(s, 'a:fake')).toContainText('Not installed');
-  await expect(thingRow(s, 'a:shell'), 'not the terminal only: nothing of it to set up').toHaveCount(0);
+  await expect(thingRow(s, 'fake')).toContainText('Not installed');
+  await expect(thingRow(s, 'shell'), 'not the terminal only: nothing of it to set up').toHaveCount(0);
   await showAgent(s, 'fake');
   await expect(s.getByRole('navigation', { name: 'Path' }).locator('[aria-current="page"]')).toHaveText('Fake agent');
   const page = agentPage(s, 'fake'), newAccount = page.getByRole('button', { name: 'Add Account', exact: true });
@@ -298,6 +298,10 @@ test("dictation: an agent without its own is recognized for by another agent's d
   // Drawn as recording while it gets ready, unless that lasts (src/dictation/renderer/voice.ts): it listens first.
   await expect.poll(() => core((k, key) => k.shell.dictation.state(key).state, task), { timeout: 15000 }).toBe('recording');
   expect(`${await mic.getAttribute('data-state')} ${await pill.getAttribute('data-state')}`).toBe('recording listening');
+  // Drawn as the package's classes say (Tailwind's @source, window.css): over the terminal's middle, its wave's bars seen.
+  const [p, t] = await Promise.all([pill.boundingBox(), ui.getByTestId('terminals').boundingBox()]);
+  expect(Math.abs(p.x + p.width / 2 - (t.x + t.width / 2)), 'the pill in the middle').toBeLessThan(2);
+  expect((await pill.locator('i').first().boundingBox()).width, "a bar's width").toBeGreaterThan(0);
   await letGo();
   await expect.poll(() => termText(ui)).toContain('Heard by the fake recognizer.');
   await expect(mic).toHaveAttribute('data-state', 'ready');
@@ -369,7 +373,7 @@ test("an account lives until deleted in Settings → Agents: let go by its proje
   await expect(signIn(s)).toHaveCount(0);
   await expect(row(s, home)).toHaveAccessibleName('home@shop.com');
   expect(await inProjects(home)).toEqual([]);
-  await openThing(s, `p:${pid}`);
+  await openThing(s, 'projects', pid);
   await expect(addAgent(s)).toBeEnabled();
   // The accounts to add are asked for again as the project's page is shown.
   await addAgent(s).click();

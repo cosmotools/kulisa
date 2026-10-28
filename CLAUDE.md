@@ -133,11 +133,10 @@ prompt; the human writes the rest of the message around it.
     their index and what changed between versions are in the repository's docs at the version's tag
     (`https://raw.githubusercontent.com/electron/electron/v<version>/docs/`: `README.md`, `tutorial/…`, `api/…`,
     `breaking-changes.md`); the API is in `node_modules/electron/electron.d.ts`.
-  - Before using a Fluent UI component in the window, read its file from Fluent's own docs for agents
-    (`https://storybooks.fluentui.dev/react/llms.txt`: each component's purpose, best practices and stories as code)
-    and build as its stories do, not from memory; what it is for and when not to use it is on its usage page
-    (`https://fluent2.microsoft.design/components/web/react/core/<name>/usage`). Used as it ships: no class, style,
-    `makeStyles` or wrapper of ours on it; the look is `theme.ts`'s tokens alone (`docs/ui.md`).
+  - Before using a shadcn/ui component in the window, read its page (`https://ui.shadcn.com/docs/components/radix/<name>`:
+    what it is for, its examples as code) and its file in `src/ui/`, and build as its examples do, not from memory. Used
+    as its CLI writes it (`src/ui/` is never edited: `npm run ui`): on it only layout and size classes; the look is the
+    theme's variables alone (`docs/ui.md`).
   - Hand-written protocol code is the exception: today only `cdp-proxy.ts`, because nothing existing exposes
     `webContents.debugger` over CDP.
   - When adding a dependency, prefer one that is widely used and maintained, and say why in the commit message. Its
@@ -177,9 +176,10 @@ prompt; the human writes the rest of the message around it.
     not change the dependencies; work that does gets its own (`npm install`, then `npm run postinstall`).
   - Commits go to the worktree's branch; no worktree has `develop` checked out. **Into `develop` only by a pull
     request, merged by the author**: when the author asks for the commit, push the branch (`git push -u origin
-    <name>`) and open its pull request into `develop` (GitHub's API, below), its body what the change does and its
-    cost line (Working with the author). Its required checks are `main`'s but `version` (Releases): tell the author
-    when they are green. Never merge into `develop` or `main` here, nor push them.
+    <name>`) and open its pull request into `develop` (GitHub's API, below), its body what the change does, its cost
+    line (Working with the author) and a line on `src/ui`: what it adds or updates and why (`npm run ui -- progress`:
+    the agent's progress bar), or that it is unchanged, so the author decides on it without reading its diff. Its
+    required checks are `main`'s but `version` (Releases): tell the author when they are green. Never merge into `develop` or `main` here, nor push them.
   - The author's Kulisa runs one checkout at a time: the `run-kulisa` skill, from the worktree
     while its work is shown, from the repository's folder (`develop`) once it is merged.
   - Once its pull request is merged (or the author drops it), the repository's folder follows `develop` (above),

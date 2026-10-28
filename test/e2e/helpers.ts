@@ -73,8 +73,10 @@ export async function echoed(core: Core, { shows, send }: Echo = {}) {
 }
 
 // A press on an element as the hand makes it (CDP's input), dated a second back, and its release when called: the
-// page's events carry the time, so a hold is told from a click without waiting for one.
+// page's events carry the time, so a hold is told from a click without waiting for one. After the grid's slide: while
+// it runs every event goes to the page's root, and CDP's input has no Playwright check that the target receives it.
 export async function holdPointer(page: Page, target: Locator) {
+  await noSlide(page);
   const b = await target.boundingBox(), x = b.x + b.width / 2, y = b.y + b.height / 2;
   const cdp = await page.context().newCDPSession(page);
   await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y });
@@ -106,10 +108,10 @@ export async function answer(page: Page, yes: boolean | string = true) {
   return asked;
 }
 
-// Kulisa's menus (Fluent's, docs/ui.md, Menus; components/Menus.tsx): the open one once it is shown (its list
-// [data-ready]: the pages under it are pictures), the submenu open (the last one).
-export const menu = (ui: Page) => ui.locator('[role="menu"][data-ready]').first();
-export const submenu = (ui: Page) => ui.locator('[role="menu"][data-ready]').last();
+// Kulisa's menus (docs/ui.md, Menus; components/Menus.tsx): the open one once it is shown (data-ready: the pages under
+// it are pictures, lib/cover.ts; data-state: not one closing), the submenu open (the last one).
+export const menu = (ui: Page) => ui.locator('[role="menu"][data-ready][data-state="open"]').first();
+export const submenu = (ui: Page) => ui.locator('[role="menu"][data-ready][data-state="open"]').last();
 // An item of the open menu (or of which) by its label, whole.
 export const item = (ui: Page, label: string, which: Locator = menu(ui)) => which.getByRole('menuitem', { name: label, exact: true }).or(which.getByRole('menuitemradio', { name: label, exact: true }));
 export const choose = (ui: Page, label: string, which?: Locator) => item(ui, label, which).click();
@@ -122,12 +124,16 @@ export async function closeMenu(ui: Page) {
 // waits for the key).
 export const shortcutsDialog = (ui: Page) => ui.getByRole('dialog', { name: 'Keyboard Shortcuts' });
 export const shortcutKeys = (ui: Page, label: string) => shortcutsDialog(ui).getByRole('row').filter({ has: ui.getByRole('cell', { name: label, exact: true }) }).locator('[data-key]');
-// A row of ☰ that opens a menu beside it (Theme, Tasks bar, Language), opened; that menu.
+// A row of ☰ that opens a menu beside it (Theme, Tasks bar, Language), opened, the pointer moved into it as a hand moves
+// it; that menu. Radix keeps it open as the pointer leaves the row only toward the side the last moves inside ☰ went:
+// a move in one step tells none, and a menu on the row's left (macOS: ☰ at the window's edge) closed on the way to it.
 export async function windowSubmenu(ui: Page, row: string) {
   if (!(await menu(ui).count())) await ui.locator('#windowMenu').click();
   await item(ui, row).click();
   const sub = ui.getByRole('menu', { name: row, exact: true });
   await expect(sub).toBeVisible();
+  const b = await sub.boundingBox();
+  await ui.mouse.move(b.x + b.width / 2, b.y + b.height / 2, { steps: 5 });
   return sub;
 }
 // A right-click as the mouse makes it, at an element's middle (its press closes a menu open elsewhere; on Windows the
@@ -143,45 +149,46 @@ export async function focusWindow(core: Core, ui: Page) {
 }
 
 // The tasks' bar's tabs (one per open task): each its project, by its folder's name, the shown one with ' *'.
-export const projectTabs = async (ui: Page, files: Files) => (await ui.locator('#projectTabs [role="tab"]').evaluateAll((ts) => ts.map((t) => (t as HTMLElement).dataset.project + (t.ariaSelected === 'true' ? ' *' : '')))).map(files.named);
+export const tabProjects = async (ui: Page, files: Files) => (await ui.locator('#taskTabs [role="tab"]').evaluateAll((ts) => ts.map((t) => (t as HTMLElement).dataset.project + (t.ariaSelected === 'true' ? ' *' : '')))).map(files.named);
 // The terminals' tabs: each its name, the one in front with ' *'.
 export const termTabs = (ui: Page) => ui.locator('nav[aria-label="Terminals"] [role="tab"]').evaluateAll((ts) => ts.map((t) => t.textContent.trim() + (t.ariaSelected === 'true' ? ' *' : '')));
 // A project's first tab in the bar; the project shown again as the human does it, a click on it; its open tasks
 // closed with the middle button on each tab.
 // As a selector, for a script in the page.
-export const projectTabSel = (files: Files, folder: string) => `#projectTabs [data-project="${files.pid(folder)}"]`;
+export const projectTabSel = (files: Files, folder: string) => `#taskTabs [data-project="${files.pid(folder)}"]`;
 export const projectTab = (ui: Page, files: Files, folder: string) => ui.locator(projectTabSel(files, folder)).first();
 export const showProject = (ui: Page, files: Files, folder: string) => projectTab(ui, files, folder).click();
 export async function closeProject(ui: Page, files: Files, folder: string) {
   for (const key of await ui.locator(projectTabSel(files, folder)).evaluateAll((ts) => ts.map((t) => (t as HTMLElement).dataset.task))) {
-    await ui.locator(`#projectTabs [data-task="${key}"]`).click({ button: 'middle' });
+    await ui.locator(`#taskTabs [data-task="${key}"]`).click({ button: 'middle' });
   }
 }
 
 // Every open menu, a submenu too (menu waits for the first to be shown).
 export const anyMenu = (ui: Page) => ui.getByRole('menu');
-// The sidebar (components/Sidebar.tsx; docs/tasks.md, The sidebar): every project with its tasks, a tree. Docked in the empty
-// window; over the grid opened with the title bar's button, closed by a choice or Esc. openSidebar gives it, open.
-export const sidebar = (ui: Page) => ui.getByRole('tree', { name: 'Projects' });
+// The sidebar (components/Sidebar.tsx; docs/tasks.md, The sidebar): every project with its tasks, a group each. Docked in
+// the empty window; over the grid opened with the title bar's button, closed by a choice or Esc. openSidebar gives it, open.
+export const sidebar = (ui: Page) => ui.getByRole('navigation', { name: 'Projects' });
 export async function openSidebar(ui: Page) {
   if (!(await sidebar(ui).count())) await ui.getByRole('button', { name: /^Projects and tasks/ }).click();
   await expect(sidebar(ui)).toBeVisible();
   return sidebar(ui);
 }
 export async function closeSidebar(ui: Page) {
-  if (await ui.locator('html[data-empty]').count()) return; // docked: always there
+  if (await ui.locator('html:not([data-page="task"])').count()) return; // docked: always there
   if (await sidebar(ui).count()) await sidebar(ui).press('Escape');
   await expect(sidebar(ui)).toHaveCount(0);
 }
 // A project's row (its tasks under it), by its name; a task's under it.
-export const projectRow = (ui: Page, project: string) => sidebar(ui).getByRole('treeitem', { name: project, exact: true }).and(ui.locator('[data-project]'));
-export const taskRow = (ui: Page, project: string, task: string) => projectRow(ui, project).getByRole('treeitem', { name: task, exact: true });
+export const projectRow = (ui: Page, project: string) => sidebar(ui).getByRole('group', { name: project, exact: true }).and(ui.locator('[data-project]'));
+export const taskRow = (ui: Page, project: string, task: string) => projectRow(ui, project).getByRole('button', { name: task, exact: true }).and(ui.locator('[data-task]'));
 // A project's tasks in the sidebar, by their names, in its order.
 export const sidebarTasks = (ui: Page, project: string) => projectRow(ui, project).locator('[data-task]').evaluateAll((xs) => xs.map((x) => x.getAttribute('aria-label')));
-// A row's own buttons, shown under the pointer: hovered at its start, where its name is (not its tasks under it).
+// A row's own buttons, shown under the pointer: hovered at its start, where its name is (not its tasks under it). A
+// task's are beside its row's button, in its list item.
 export async function rowButton(row: Locator, name: string) {
   await row.hover({ position: { x: 48, y: 8 } });
-  return row.getByRole('button', { name, exact: true }).first();
+  return row.locator('xpath=ancestor-or-self::*[self::li or @data-project][1]').getByRole('button', { name, exact: true }).first();
 }
 // From the sidebar as the human does it: a new task of the project (+ on its row), or one of its tasks opened again (a
 // closed one) or shown.
@@ -191,7 +198,7 @@ export async function fromSidebar(ui: Page, project: string, task?: string) {
   await (await rowButton(projectRow(ui, project), `New Task of ${project}`)).click();
 }
 // A project's submenu (a tab's right-click, then the row of the project's name, the one row opening a menu), open.
-export async function projectMenu(ui: Page, tab = '#projectTabs [aria-selected="true"]') {
+export async function projectMenu(ui: Page, tab = '#taskTabs [aria-selected="true"]') {
   await rightClick(ui, tab);
   await menu(ui).locator('[role="menuitem"][aria-haspopup]').click();
   await expect(anyMenu(ui)).toHaveCount(2);
@@ -199,7 +206,7 @@ export async function projectMenu(ui: Page, tab = '#projectTabs [aria-selected="
 }
 // The shown task's tab's right-click menu, where its profiles are, open.
 export async function taskMenu(ui: Page) {
-  await rightClick(ui, '#projectTabs [aria-selected="true"]');
+  await rightClick(ui, '#taskTabs [aria-selected="true"]');
   await expect(menu(ui)).toBeVisible();
   return menu(ui);
 }
@@ -217,17 +224,17 @@ export const resize = (core: Core, size: { width?: number; height?: number }) =>
 }, size);
 
 // Settings (components/settings): a category of its nav (projects, agents, profiles, github, log, about), the shown one
-// aria-current; one thing's row on its category's page by its key (p:<project>, a:<agent>, f:<profile>); the shown
-// page's path; a section of a page (its Card, a group) by its title; the open menu (Fluent's: there only while open).
+// aria-current; one thing's row on its category's page by its id; the shown
+// page's path; a section of a page (its Card, a group) by its title; the open menu (Radix's: there only while open).
 export const navRow = (s: Page, key: string) => s.getByRole('navigation', { name: 'Settings' }).locator(`[data-key="${key}"]`);
-export const thingRow = (s: Page, key: string) => s.locator(`#settings main [data-row][data-key="${key}"]`);
+export const thingRow = (s: Page, id: string) => s.locator(`#settings main [data-row][data-key="${id}"]`);
 export const pathOf = (s: Page) => s.getByRole('navigation', { name: 'Path' });
 export const group = (s: Page, title: string) => s.getByRole('group', { name: title, exact: true });
 export const settingsMenu = (s: Page) => s.getByRole('menu');
 // One thing's page: its category's list, then its row.
-export async function openThing(s: Page, key: string) {
-  await navRow(s, { p: 'projects', a: 'agents', f: 'profiles' }[key.split(':')[0]]).click();
-  await thingRow(s, key).click();
+export async function openThing(s: Page, category: 'projects' | 'agents' | 'profiles', id: string) {
+  await navRow(s, category).click();
+  await thingRow(s, id).click();
 }
 // The rows of a section of a page (its Card, a group) by its title, one by its name; a row's menu (its ⋯) and one of its actions.
 export const listRows = (s: Page, list: string) => group(s, list).locator('[data-row]');
@@ -247,7 +254,7 @@ export async function manageProfiles(ui: Page, sui: () => Promise<Page>) {
 }
 // A profile's page shown from Settings' list of them (a click).
 export async function chooseProfile(s: Page, files: Files, name: string) {
-  await openThing(s, `f:${files.idOf(name)}`);
+  await openThing(s, 'profiles', files.idOf(name));
   await expect(pathOf(s)).toHaveText(new RegExp(`^Profiles\\s*${RegExp.escape(name)}$`));
   await expect(s.getByRole('textbox', { name: 'Name', exact: true })).toHaveValue(name);
 }
@@ -283,8 +290,12 @@ export const box = async (ui: Page, sel: string) => {
 };
 export const pageBox = (ui: Page, files: Files, name: string) => box(ui, `[role="region"][data-profile="${files.idOf(name)}"] [data-testid="page"]`);
 export const viewOn = async (core: Core, ui: Page, files: Files, name: string) => core((k, a) => k.viewOn(a.name, a.box), { name, box: await pageBox(ui, files, name) });
-// dockview's API, as the window keeps it for the tests (window.__dock), given to fn with an argument.
-export const dock = <A, R>(ui: Page, fn: (api: any, arg: A) => R, arg?: A) => ui.evaluate(([src, a]) => (0, eval)(`(${src})`)((window as any).__dock, a), [fn.toString(), arg] as const) as Promise<R>;
+// dockview's API, as the window keeps it for the tests (window.__dock), given to fn with an argument. Through a handle,
+// not eval: the window's Content-Security-Policy refuses eval.
+export async function dock<A, R>(ui: Page, fn: (api: any, arg: A) => R, arg?: A) {
+  const api = await ui.evaluateHandle(() => (window as any).__dock);
+  try { return await api.evaluate(fn as (api: any, arg: unknown) => R, arg); } finally { await api.dispose(); }
+}
 // The Resources panel's height on screen (its group in the grid: lib/grid.ts).
 export const resourcesHeight = (ui: Page) => ui.evaluate(() => Math.round(document.getElementById('resources').closest('.dv-groupview').getBoundingClientRect().height));
 
