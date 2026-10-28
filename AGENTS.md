@@ -237,6 +237,9 @@ prompt; the human writes the rest of the message around it.
   project's TypeScript checks (`docs/testing.md`, Code analysis). Claude Code's LSP setup is documented there;
   installing its plugin is only for Claude Code sessions.
 
+- **Before committing or ending a turn with changes**, complete `docs/testing.md`, Agent completion checks,
+  in the worktree being changed. This applies to every agent, whether or not it has a checking hook.
+
 ## Rules
 
 - **A human signs in to real accounts, never the agent or the code.** Never type their passwords, automate their

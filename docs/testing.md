@@ -15,6 +15,27 @@ Kulisa's own rules for tests; the rest is [Playwright Test](https://playwright.d
 - **The full `npm test` (~3 min) once, before the push**, when the author says the work is done; fix and rerun. A
   failure found on the CI costs a push and a run, and only the author can re-run a job. Not for docs alone.
 
+## Agent completion checks
+
+Before committing or ending a turn that changes code, tests, dependencies or configuration affecting them, run
+both from the worktree being changed:
+
+```sh
+npm run lint
+npm run test:unit
+```
+
+- A successful run covers the checked state. Repeat a check only after a relevant change, a failure, or new evidence
+  that invalidates the result; committing the checked files does not require another run.
+- Fix failures caused by the change and rerun the affected checks. If a check remains blocked or fails for an
+  unrelated reason, report the command, the cause and what remains unverified; do not describe it as passing.
+- Report which checks passed and any not run, with the reason. For documentation-only changes, use
+  `git diff --check`; application checks are not required.
+- These checks supplement the type checks (Code analysis) and relevant e2e tests above; they do not replace them.
+- Codex follows this rule through the shared instructions. Claude Code's Stop hook below additionally runs checks
+  on uncommitted TypeScript changes; a commit or a change to another file type can bypass that trigger, so the
+  agent still completes these checks itself when needed.
+
 ## Two layers
 
 | Layer | Where | For |
