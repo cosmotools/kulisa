@@ -162,16 +162,16 @@ prompt; the human writes the rest of the message around it.
   concern (e.g. the shell fallback in `src/terminal/main/`). What is untested on a platform goes into an issue.
 - The repo is public on GitHub (`origin`, github.com/cosmotools/kulisa). Never print the remote URL (`git remote -v`):
   it carries the author's token.
-- **Each piece of work in a worktree of its own** (several Claude sessions work on Kulisa
+- **Each piece of work in a worktree of its own** (several agent sessions work on Kulisa
   at once, and one switching or editing a shared folder pulls the files out from under the others):
-  - Before the first change: `git worktree add .claude/worktrees/<name> -b <name> develop` (from the local
-    `develop`, or the branch the author names; not EnterWorktree's default, which starts from `origin`, behind the
-    local one), and work there. `develop` is where work goes; `main` is what is released (Releases, below).
+  - Before the first change: `git worktree add .worktrees/<name> -b <name> develop` (from the local
+    `develop`, or the branch the author names; use the explicit base rather than an agent tool's default), and work
+    there. `develop` is where work goes; `main` is what is released (Releases, below).
   - **The repository's own folder holds `develop`, always** (a session started there reads
     AGENTS.md and the docs of whatever branch the folder is on). Nothing is
     edited, committed or merged there, and it is never switched to another branch: it only follows GitHub's
     `develop` once a pull request is merged (`git -C <repo> pull --ff-only origin develop`).
-  - `node_modules` is a link to the repository's (`ln -s ../../../node_modules node_modules`) while the work does
+  - `node_modules` is a link to the repository's (`ln -s ../../node_modules node_modules`) while the work does
     not change the dependencies; work that does gets its own (`npm install`, then `npm run postinstall`).
   - Commits go to the worktree's branch; no worktree has `develop` checked out. **Into `develop` only by a pull
     request, merged by the author**: when the author asks for the commit, push the branch (`git push -u origin
@@ -188,8 +188,8 @@ prompt; the human writes the rest of the message around it.
   and test on its own OS, shared code too: what decides is where the bug can be checked, not which OS the code is for.
   What only another OS shows, or what it cannot check there, it does not fix blind: it writes it in a comment on the
   pull request, for the session on that OS, which fixes it on its side. The pull request is where they talk. Each
-  comment starts with who wrote it ("Claude (the Linux session), not the author"): the comments go up under the
-  author's account. Before pushing to a branch another session works on, take its new commits (`git pull --rebase`).
+  comment starts with the agent and OS (e.g. "Codex (the Linux session), not the author"): the comments go up under
+  the author's account. Before pushing to a branch another session works on, take its new commits (`git pull --rebase`).
   A session learns of new comments only when the author tells it to read them (`GET …/issues/<n>/comments`).
 - **GitHub's API, not `gh`** (not installed; the author's choice): `curl` to `https://api.github.com`
   with the token of the remote's URL, read into a shell variable and never printed:

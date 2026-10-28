@@ -103,7 +103,7 @@ A profile is an Electron session on a folder of its own (`session.fromPath`), la
 
 Through Kulisa's MCP server. A tool takes a profile by its name, which the handle turns into its id
 (`Task.named`), and one acting in a page an optional `tab`. What each tool does is its description in the server's
-listing, the one source; how a tool is designed: [src/main/kulisa-plugin/CLAUDE.md](../src/main/kulisa-plugin/CLAUDE.md).
+listing, the one source; how a tool is designed: [src/main/kulisa-plugin/AGENTS.md](../src/main/kulisa-plugin/AGENTS.md).
 
 **The agent does not ask the human before Kulisa's tools**: it works in the profiles while the
 human watches or is away, and a question at every click undoes that; what acts on real accounts asks in Kulisa itself
@@ -147,7 +147,7 @@ What the tools are for, beyond acting as one user:
   main process; CDP's evaluation is not held to the page's CSP) and called with the element, if one is given. It may
   read anything the page holds, as any script of it: Kulisa does not restrict the agent, and the profile's CDP proxy
   is open to local processes anyway (issue #90). `@playwright/mcp` works too, through the profile's CDP proxy (below).
-- **Reading a page without filling the agent's context** ([the tools' design](../src/main/kulisa-plugin/CLAUDE.md),
+- **Reading a page without filling the agent's context** ([the tools' design](../src/main/kulisa-plugin/AGENTS.md),
   "Saving the agent's context"). `browser_snapshot` takes a part: an element (ref or locator, its subtree:
   `locator.ariaSnapshot()`), a depth, or `find`, the lines that match under their ancestors. One larger than about
   10k tokens (Claude Code warns of a tool's answer from there) goes to a file in the task's `artifacts/` (tasks.md, What
@@ -198,7 +198,7 @@ at the element on the live page with its tools.
 
 ## Actions: the human's and the agent's
 
-Both act on one core (CLAUDE.md, Architecture): the window and the MCP tools find profiles and tabs with
+Both act on one core (AGENTS.md, Architecture): the window and the MCP tools find profiles and tabs with
 `Task.find` / `findTab` by id (the same refusals: no such profile, a closed one, no such tab; said with the profile's
 name), the agent's handle first finding the id of the name it was given (`Task.named`), and call the same
 methods; who a profile is changes and is checked in the store (`ProfileStore.rename`, `describe`, `setAvatar`,
@@ -350,7 +350,7 @@ host (`signin-pages.ts`: Microsoft, Google, GoDaddy, Okta, OneLogin, Auth0, Duo,
 automation attached at that moment; once signed in, the agent reattaches and works in the session without being
 blocked.
 
-`signin-pause.ts` is deliberately temporary (CLAUDE.md, Rules): the agent's presence in a profile is not automation of
+`signin-pause.ts` is deliberately temporary (AGENTS.md, Rules): the agent's presence in a profile is not automation of
 a sign-in (Kulisa is not a bot: [README](../README.md), Why); the pause goes once it is understood how the embedded
 browser passes such a service with the agent attached. Not by hiding the agent from bot detection: Kulisa does not get
 past it.

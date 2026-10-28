@@ -10,7 +10,7 @@ it. Its data is in `~/.config/Kulisa` (macOS: `~/Library/Application Support/Kul
 does the steps the same way each time.
 
 Work is done in a worktree of its own (AGENTS.md, Conventions), so run that worktree's `kulisa.sh`
-(`.claude/worktrees/<name>/.agents/skills/run-kulisa/kulisa.sh`): the author then sees its code. Say from which
+(`.worktrees/<name>/.agents/skills/run-kulisa/kulisa.sh`): the author then sees its code. Say from which
 worktree it runs now. Once the work is merged, run the repository's own `kulisa.sh` (its folder holds `develop`). Another session's Kulisa, started from its worktree, is stopped by this: tell the author whose
 change they no longer see.
 

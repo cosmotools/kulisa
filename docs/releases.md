@@ -1,7 +1,7 @@
 # Releases
 
 How Kulisa is packaged, released and updated on the user's computer: the app icon, the installers, the release
-workflow, the updates. When and how a release is asked for and merged: CLAUDE.md, Releases.
+workflow, the updates. When and how a release is asked for and merged: AGENTS.md, Releases.
 
 ## The app icon
 
@@ -48,7 +48,7 @@ AppImage only on Linux, the other needs electron-builder.
 ## Publishing a release
 
 `npm run publish` makes them and uploads them to a **draft release** on GitHub (`@electron-forge/publisher-github`). A
-merge into `main` (CLAUDE.md, Releases) releases them by itself, on GitHub Actions (`.github/workflows/release.yml`;
+merge into `main` (AGENTS.md, Releases) releases them by itself, on GitHub Actions (`.github/workflows/release.yml`;
 macOS once its secrets are set): the workflow first makes the draft `v<version>` at the merged commit, its notes the
 pull request's text (Forge's own would name no commit, and GitHub would tag whatever `main` is when the draft is
 published); Ubuntu and Windows build and Forge uploads into it, finding it by its name, and each file's provenance is
