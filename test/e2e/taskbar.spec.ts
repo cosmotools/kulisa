@@ -349,16 +349,22 @@ test("tasks: with several projects the bar's + asks which (one not loaded too), 
   committed(plus2, 'a.txt', 'a', 'mine');
   const made = await invoke(ui, 'project:new', { from: 'folder', folders: [plus2], name: 'Plus2' });
   expect(made.id, 'the second project is made').toBeTruthy();
-  // The bar's + asks which project: each with its icon, the shown task's first (worked in last) with Ctrl+Shift+N, the
-  // key's. Plus2, not loaded yet, gets its first task.
+  // The bar's + asks which project: each with its icon, the shown task's first (worked in last). Plus2, not loaded yet,
+  // gets its first task.
   await ui.locator('#newTask').click();
   await expect(menu(ui)).toMatchAriaSnapshot(`
     - menu:
       - menuitem "project"
       - menuitem "Plus2"
   `);
-  await expect(item(ui, 'project')).toContainText(MAC ? '⇧⌘N' : 'Ctrl+Shift+N');
+  await expect(item(ui, 'project'), 'no key on its row').not.toContainText(MAC ? '⇧⌘N' : 'Ctrl+Shift+N');
   await expect(item(ui, 'Plus2').getByTestId('project-icon')).toBeVisible();
+  // Its logo's curtain keeps its color on the hovered row, which colors all in it.
+  const curtain = item(ui, 'Plus2').getByTestId('project-icon').locator('path').first();
+  const fill = await curtain.evaluate((p) => getComputedStyle(p).fill);
+  await item(ui, 'Plus2').hover();
+  await expect(item(ui, 'Plus2')).toBeFocused();
+  await expect(curtain).toHaveCSS('fill', fill);
   await choose(ui, 'Plus2');
   const on = () => core((k, id) => k.shell.current?.id === id && k.settled(), made.id);
   await expect.poll(async () => (await on()) && core((k) => !!k.shell.pty), { timeout: 10000 }).toBe(true);

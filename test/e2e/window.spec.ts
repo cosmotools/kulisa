@@ -430,7 +430,7 @@ test("the app icon: in the top bar (not on macOS: the Dock's), and every file th
     await expect(drawn).toHaveCount(1);
     const b = await logo.boundingBox();
     expect(b.width >= 16 && b.height >= 16, JSON.stringify(b)).toBe(true);
-    await expect(drawn, "the curtain is in the project's color (#4a7bd0, the first one)").toHaveCSS('color', 'rgb(74, 123, 208)');
+    await expect(drawn.locator('path').first(), "the curtain is in the project's color (#4a7bd0, the first one)").toHaveCSS('fill', 'rgb(74, 123, 208)');
   }
   const icons = [forge.packagerConfig.icon + '.png', forge.packagerConfig.icon + '.ico', forge.packagerConfig.icon + '.icns',
     ...(forge.makers as { config?: { setupIcon?: string; icon?: string; options?: { icon?: string } } }[]).flatMap((m) => [m.config?.setupIcon, m.config?.icon, m.config?.options?.icon]).filter(Boolean)];

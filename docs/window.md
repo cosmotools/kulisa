@@ -33,11 +33,10 @@ window, mouse moves still passing, so the pages look frozen (in an unmaximized w
 
 ## The tasks' bar
 
-Under the grid, in the middle: the sidebar's button ([tasks.md](tasks.md), The sidebar; its tooltip without the key,
-which the sidebar's heading shows), a tab per open task (its project's icon, its agent's state, its name, ×:
-[tasks.md](tasks.md), Projects), then +, a new task: with one project made in one click, with several a menu of the projects asks which (each with
+Under the grid: the sidebar's button ([tasks.md](tasks.md), The sidebar), a tab per open task ([tasks.md](tasks.md),
+Projects), +; in the title bar the room after them is the window's handle. +, a new task: with one project made in one click, with several a menu of the projects asks which (each with
 its icon, as the sidebar orders them; one not loaded is loaded), since the bar holds tasks of several and the shown
-task's project is no guess to make; Ctrl+Shift+N, the shown task's project's, its key on that row. A task closed is
+task's project is no guess to make. A task closed is
 opened from the sidebar. ☰ → **Tasks bar: Top, Bottom** puts it in the title bar
 after the logo instead, as a browser's tabs (`settings.json`: `bar`; in the page's URL, so it is drawn in place at
 once; `App.tsx` puts `TaskBar.tsx` in `TopBar.tsx`'s children or under the grid). Bottom is the default, on macOS too:
