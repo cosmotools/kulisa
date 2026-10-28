@@ -135,8 +135,20 @@ test('tasks: switching shows the other grid at once, its pages live once it is l
   await begin(core, ui, files, { only: true, columns: true, featureX: call });
   const first = await keyAt(core, 1), second = await keyAt(core, 2), SAM = files.idOf('Sam.admin'), ELON = files.idOf('Elon.buyer');
   const live = async () => (await ui.locator('[data-testid="snapshot"]').count()) === 0 && viewOn(core, ui, files, 'Sam.admin');
+  // No frame without a grid between the two: the one on screen stays until the next one is built.
+  await ui.evaluate(() => {
+    const w = window as any;
+    w.__empty = 0; w.__watching = true;
+    const frame = () => {
+      const dock = document.getElementById('dock');
+      if (!dock || dock.hasAttribute('aria-busy') || !dock.querySelector('[data-panel]')) w.__empty++;
+      if (w.__watching) requestAnimationFrame(frame);
+    };
+    requestAnimationFrame(frame);
+  });
   await invoke(ui, 'task:show', second);
   await expect.poll(live).toBe(true);
+  expect(await ui.evaluate(() => { const w = window as any; w.__watching = false; return w.__empty; }), 'frames with no grid').toBe(0);
   // A page that draws no frame (busy, covered) holds a menu's pictures no longer than three times what the others
   // take (a tenth of a second at least), its pane then empty: half a second is felt after each click.
   // Their pace, not a fixed time: a loaded machine takes over a tenth of a second for a picture.
@@ -276,6 +288,9 @@ test("tasks: a press on a tab not shown shows its task at once, as Chrome's, the
   await notLoading(ui);
   expect([...new Set(await ui.evaluate(() => { const w = window as any; w.__litObs.disconnect(); return w.__lit as string[]; }))], 'lit once, no blink').toEqual([first, second]);
   await ui.mouse.up();
+  // Focused by the press, not ringed as by the keyboard (BrowserTabs.tsx). Playwright has no :focus-visible check.
+  await expect(taskTab(ui, second)).toBeFocused();
+  expect(await taskTab(ui, second).evaluate((t) => t.matches(':focus-visible')), 'no focus ring after a press').toBe(false);
   await taskTab(ui, second).blur(); // a real press leaves the keyboard on the tab; a later dialog takes it from nothing
 });
 

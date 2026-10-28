@@ -60,6 +60,11 @@ function projectItems(p: ProjectEntry): MenuItem[] {
 // goes to has neither), as a type of Kulisa's own: a page under the pointer takes nothing from it.
 const DRAG = 'application/x-kulisa-task';
 
+const shown = (key: string) => new Promise<void>((resolve) => {
+  const off = store.subscribe((s) => { if (s.current === key) { off(); resolve(); } });
+  if (store.getState().current === key) { off(); resolve(); }
+});
+
 export function TaskBar() {
   const all = useWindow((s) => s.projects), current = useWindow((s) => s.current), top = useWindow((s) => s.bar === 'top');
   const projectColor = useProjectColor();
@@ -69,14 +74,18 @@ export function TaskBar() {
   // More tabs than fit: the wheel scrolls them, the edges with tabs past them fade, the shown one stays in sight.
   useStrip(strip, current);
 
-  // The last choice's switch: done once the window has taken its grid down (grid:closing comes before the answer).
+  // The last choice's switch: done once the window has the task shown, its grid's grid:closing heard (the projects naming
+  // it come after it, in order; the invoke's answer may come before either).
   const showing = useRef<Promise<unknown>>(Promise.resolve());
   const tabAt = (e: { target: EventTarget | null }) => {
     const el = (e.target as Element).closest<HTMLElement>('[data-task]');
     return (el && tabs.find(({ t }) => t.key === el.dataset.task)) || null;
   };
   // A press (Radix chooses on it) or the keyboard (Enter, Space): its task shown at once, as a browser's tab.
-  const onTabSelect = (key: string) => { if (key !== current) showing.current = kulisa.invoke('task:show', key); };
+  const onTabSelect = (key: string) => { if (key !== current) showing.current = kulisa.invoke('task:show', key).then((r): unknown => r || shown(key)); };
+  // Radix focuses a tab from its press (focus()), which Chromium takes for the keyboard's and rings: focused here first,
+  // unringed, Radix's own focus() changes nothing. The keyboard's focus still rings.
+  const unringed = (e: MouseEvent<HTMLButtonElement>) => { if (e.button === 0 && !e.ctrlKey) e.currentTarget.focus({ focusVisible: false }); };
   // The middle button on a tab closes its task, as a browser's tab.
   const onAuxClick = (e: MouseEvent) => { const at = e.button === 1 && tabAt(e); if (at) void kulisa.invoke('task:close', at.t.key); };
   // A double click: its Rename…, a shortcut to the menu's row. On a tab not shown, after its first press has shown it:
@@ -148,13 +157,13 @@ export function TaskBar() {
     className={top ? 'flex min-w-0 items-center gap-1 [-webkit-app-region:no-drag]' : 'flex min-w-0 max-w-full items-center gap-1 justify-self-center px-2 py-1'}>
     {/* In the title bar the tabs are no handle to drag the window by (TopBar.tsx drags after them). */}
     <RightClickMenu items={menu} className="flex min-w-0">
-      <TabStrip id="taskTabs" stripRef={strip} label="Open tasks" value={current ?? ''} onChoose={onTabSelect}
+      <TabStrip id="taskTabs" bar stripRef={strip} label="Open tasks" value={current ?? ''} onChoose={onTabSelect}
         onAuxClick={onAuxClick} onDoubleClick={onDoubleClick} {...drag}>
         {tabs.map(({ t, p }) => {
           const color = projectColor(p), at = mark?.key === t.key ? mark.side : undefined;
           // Every tab keeps its width whichever is shown, so none moves under the mouse; at its narrowest about ten letters.
           return <BrowserTab key={t.key} value={t.key} data-task={t.key} data-project={p.id} draggable aria-label={t.name}
-            dragging={dragged === t.key} drop={at} className="min-w-40 flex-initial basis-50"
+            dragging={dragged === t.key} drop={at} className="min-w-40 flex-initial basis-50" onMouseDown={unringed}
             title={`${p.name}\n${t.branch ? `branch ${t.branch} in ${t.folder}` : `in the project's folder ${t.folder} (no git: no copy of its own)`}`}
             icon={<><ProjectIcon p={{ favicon: p.favicon, color }} size={16} /><AgentState state={t.state} /></>}
             close={{ title: 'Close the task: its agent stops, all else stays (open it again from the sidebar)', run: () => void kulisa.invoke('task:close', t.key) }}>

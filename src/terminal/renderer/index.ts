@@ -76,7 +76,7 @@ function fileLinks(term: Terminal, key: string | null, y: number, done: (links: 
 }
 
 // Modes serializing leaves out, followed in each buffer and written with it, each with its value whether set or not:
-// the shown xterm's reset() leaves a hidden cursor hidden. The cursor shown or hidden, and the mouse's encoding (SGR:
+// the shown xterm's reset leaves a hidden cursor hidden. The cursor shown or hidden, and the mouse's encoding (SGR:
 // Claude Code's clicks in its fullscreen), by default shown and none. xterm still handles them (false: not taken).
 const KEPT_MODES: Record<number, boolean> = { 25: true, 1006: false, 1015: false, 1016: false };
 function bufferOf(key: string, size?: { cols: number; rows: number }): Buffer {
@@ -159,8 +159,7 @@ export class View {
     const was = this.key && buffers.get(this.key), at = this.term.buffer.active;
     if (was) was.scroll = at.viewportY === at.baseY ? undefined : at.viewportY; // at the end: kept at the end
     this.key = key;
-    this.term.reset();
-    if (!key) return;
+    if (!key) return this.term.reset();
     const b = bufferOf(key, this.size() ?? undefined);
     // The buffer's own writes are queued: what is queued is parsed first, so the buffer is all its output so far.
     // Output coming meanwhile goes to the buffer after that mark, and here after it (pending).
@@ -170,7 +169,9 @@ export class View {
       // At the buffer's own size: the fit (below) gives both the room laid out, as for any change of size. Fitted to
       // the room here, a window just opened, its grid not laid out, would wrap the buffer at 9 columns.
       this.term.resize(b.term.cols, b.term.rows);
-      this.term.write(serialized(key)!.data + pending.join(''), () => {
+      // The reset (RIS) in the same write as the contents: one write is parsed at once, so no frame is drawn between
+      // them, and the terminal shown before stays on screen until then (one reset before it would be drawn empty).
+      this.term.write(`\x1bc${serialized(key)!.data}${pending.join('')}`, () => {
         if (b.scroll !== undefined) this.term.scrollToLine(b.scroll);
       });
       this.pending = null;
@@ -214,10 +215,17 @@ export class View {
       if (!key || this.pending || !this.opened || !this.el.offsetWidth) return; // not on screen: fitted when it comes
       const size = this.size();
       if (!size) return tries && this.fitSoon(tries - 1);
-      try { this.fit.fit(); } catch { return; }
-      const b = bufferOf(key, size);
-      if (b.term.cols !== size.cols || b.term.rows !== size.rows) b.term.resize(size.cols, size.rows);
-      kulisa.send('pty:resize', { task: key, ...size });
+      const fit = () => {
+        if (this.key !== key || this.pending || !views.has(this)) return; // another shown meanwhile (its own fit follows), or disposed
+        if (this.term.cols !== size.cols || this.term.rows !== size.rows) this.term.resize(size.cols, size.rows);
+        const b = bufferOf(key, size);
+        if (b.term.cols !== size.cols || b.term.rows !== size.rows) b.term.resize(size.cols, size.rows);
+        kulisa.send('pty:resize', { task: key, ...size });
+      };
+      // Resized after this frame: a resize clears WebGL's canvas and xterm draws it again in the next frame, so one
+      // resized in a frame is drawn empty (README.md, Fitted in a frame about to be drawn).
+      if (document.hidden) fit();
+      else this.fitTimer = window.setTimeout(fit);
     }), 100);
   }
 }

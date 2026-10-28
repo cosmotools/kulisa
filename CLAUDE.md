@@ -134,9 +134,8 @@ prompt; the human writes the rest of the message around it.
     (`https://raw.githubusercontent.com/electron/electron/v<version>/docs/`: `README.md`, `tutorial/…`, `api/…`,
     `breaking-changes.md`); the API is in `node_modules/electron/electron.d.ts`.
   - Before using a shadcn/ui component in the window, read its page (`https://ui.shadcn.com/docs/components/radix/<name>`:
-    what it is for, its examples as code) and its file in `src/ui/`, and build as its examples do, not from memory. Used
-    as its CLI writes it (`src/ui/` is never edited: `npm run ui`): on it only layout and size classes; the look is the
-    theme's variables alone (`docs/ui.md`).
+    what it is for, its examples as code) and its file in `src/ui/`, and build as its examples do, not from memory. `src/ui/`
+    is never edited (`npm run ui`); what is passed to a component: `docs/ui.md`.
   - Hand-written protocol code is the exception: today only `cdp-proxy.ts`, because nothing existing exposes
     `webContents.debugger` over CDP.
   - When adding a dependency, prefer one that is widely used and maintained, and say why in the commit message. Its

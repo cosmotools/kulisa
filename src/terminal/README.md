@@ -51,8 +51,9 @@ caller's.
 **One xterm a place**: every terminal's output goes into a buffer of its own, an xterm never opened (its text,
 scrollback and modes, no renderer: about 0.6 MB full), and each place that shows a terminal, the terminals' panel and an
 account's sign-in, has one shown xterm (`View`), the only one with a renderer. Showing another terminal there writes
-that one's buffer into it (`serialize`, after `reset()`), its scroll put back, in about 15 ms; its selection is lost,
-as when another tab is shown. While shown, a terminal's output goes into both, at one size, so leaving it costs
+that one's buffer into it (`serialize`, after a reset, RIS, in the same write: xterm parses a write at once, so the
+one shown before stays drawn until the other's is in, no frame empty between), its scroll put back, in about 15 ms; its
+selection is lost, as when another tab is shown. While shown, a terminal's output goes into both, at one size, so leaving it costs
 nothing; output coming while a buffer is being put in waits after it (`pending`). Why one: an xterm shown has a WebGL
 context and its glyph atlas, and Chromium keeps 16 contexts a page: the 17th would take the oldest terminal's (often
 the first task's agent), which would fall back to the DOM renderer silently. With 20 terminals on a discrete GPU, the
@@ -61,13 +62,14 @@ Chromium's software GPU, 609 → 234 MB. (VS Code keeps an xterm a terminal.)
 
 **Fitted in a frame about to be drawn.** A terminal is put in at its buffer's size, and the xterm and the buffer get
 the room laid out only from the fit, measured in `requestAnimationFrame`: fitted at once in a window just opened, its
-grid not laid out, the buffer would be wrapped at 9 columns. A hidden page draws no frames, so there it is measured at
+grid not laid out, the buffer would be wrapped at 9 columns. Resized after that frame: a resize clears WebGL's canvas,
+which xterm draws again in the next frame, so one resized in a frame is drawn empty. A hidden page draws no frames, so there it is measured at
 once: Windows hides a window other windows cover (one opening behind
 them too), whose agents would otherwise start only once someone looks at it.
 
 Serializing leaves out the cursor's visibility (`?25`) and the mouse's encoding (`?1006`, `?1015`, `?1016`: Claude
 Code's fullscreen clicks), so each buffer follows them (`registerCsiHandler`, not taking them) and they are written
-after it, every one with its value: `reset()` leaves a hidden cursor hidden in the next terminal shown, and turning an
+after it, every one with its value: the reset leaves a hidden cursor hidden in the next terminal shown, and turning an
 encoding off sets the default one, so those off go first (`serialized`). A task moving to another window takes its
 terminals' buffers the same way (`terminals:restore`), at the same size, also when its page showed the task first.
 

@@ -65,7 +65,7 @@ test('terminal: Unicode 11 widths (cursor stays put after emoji), bundled font, 
   expect(Math.abs(above - below) <= 1, `the rows in the middle: ${above} above, ${below} below`).toBe(true);
 });
 
-test('terminal: one xterm shows the terminal in front; another shown and back keeps its text, its scroll and the modes serializing leaves out', async ({ core, ui }) => {
+test('terminal: one xterm shows the terminal in front; another shown and back keeps its text, its scroll and the modes serializing leaves out, with no frame empty between', async ({ core, ui }) => {
   // An xterm each cost its renderer and a WebGL context, of which Chromium keeps 16 a page: the 17th takes the
   // oldest terminal's, which then draws slower for good, silently (src/terminal/README.md).
   const agent = await core((k) => [...k.shell.task.terminals.values()][0].id);
@@ -84,8 +84,22 @@ test('terminal: one xterm shows the terminal in front; another shown and back ke
   const set = { mouse: 'vt200', encoding: 'SGR', hidden: true };
   await expect.poll(async () => (await termText(ui)).includes('shell-marker') && JSON.stringify(await modes()) === JSON.stringify(set)).toBe(true);
   await ui.evaluate(() => (window as any).__term.scrollToLine(5));
+  // No frame without text between the two: the one shown stays until the other is put in. Its buffer read between
+  // any two of the page's tasks, where a frame may be drawn (WebGL draws no text in the DOM): read only in frames, the
+  // gap was caught now and then.
+  await ui.evaluate(() => {
+    const w = window as any, tick = new MessageChannel();
+    w.__blank = 0; w.__watching = true;
+    tick.port1.onmessage = () => {
+      const b = w.__term?.buffer.active;
+      if (!b || !Array.from({ length: b.length }, (_, i) => b.getLine(i).translateToString(true)).join('').trim()) w.__blank++;
+      if (w.__watching) tick.port2.postMessage(0);
+    };
+    tick.port2.postMessage(0);
+  });
   await ui.evaluate((id) => (window as any).act('terminal:show', { id }), agent);
   await expect.poll(async () => { const t = await termText(ui); return t.includes('agent: rc of') && !t.includes('shell-marker'); }).toBe(true);
+  expect(await ui.evaluate(() => { const w = window as any; w.__watching = false; return w.__blank; }), 'turns with no text').toBe(0);
   expect(await modes(), "the agent's own, not the shell's").toEqual({ mouse: 'none', encoding: 'DEFAULT', hidden: false });
   await ui.evaluate((id) => (window as any).act('terminal:show', { id }), sh.id);
   await expect.poll(() => termText(ui)).toContain('shell-marker');

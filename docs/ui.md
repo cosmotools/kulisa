@@ -3,7 +3,10 @@
 **The window is shadcn/ui as it ships** (`src/ui`, a Kulisa package its CLI writes: [its README](../src/ui/README.md)),
 built as shadcn's examples build it. **A component of `src/ui` takes only where it sits and its size** (layout and size
 classes: `w-64`, `flex-1`, `ms-auto`; its variants and sizes for the rest); **its look is the theme's alone**
-(`src/ui/theme.css`; Kulisa's own variables in `src/renderer/window.css`), so no part looks its own way. What shadcn
+(`src/ui/theme.css`; Kulisa's own variables in `src/renderer/window.css`); a part with a role of its own may look a
+little different (the tasks' bar's tabs), its reason at it. Variables
+passed to a component configure it (`[--muted:transparent]`, or in `style`): its own classes still draw it. `src/ui`
+itself is never edited. What shadcn
 has no component for (a layout, a frame, the log) is a div or span with Tailwind's classes around shadcn's components,
 not on them (Own drawing). How a component is used: shadcn's documentation
 (`https://ui.shadcn.com/docs/components/radix/<name>`) and its generated file, read rather than remembered; here only
@@ -48,9 +51,9 @@ the main process after every grid change ([window.md](window.md), The grid).
 - **A component missing**: `npm run ui -- <name>` adds it, without asking whether to; nothing in shadcn fits: say so
   before building one of our own.
 - **`npm run lint` refuses** in the window a raw `button`, `input`, `select` or `textarea`, a `className` on a
-  component of `src/ui` that is not a literal of layout and size classes, a `style` on one that is not a size, a place
+  component of `src/ui` that is not a literal of layout and size classes and variables, a `style` on one that is not a size, a place
   or a custom property (`kulisa/ui-as-shipped`), Tailwind's palette or a hex color (but the marks), a constant in
-  `style` (a class), `@fluentui` and a `*.module.css`; and React's hook rules (`eslint.config.ts`), not its memoization
+  `style` but a variable (a class), `@fluentui` and a `*.module.css`; and React's hook rules (`eslint.config.ts`), not its memoization
   ones: the window is not compiled by the React Compiler.
 
 ## Layers over the pages
@@ -171,8 +174,10 @@ is Radix's own. A Radix menu of a part's own only for a row's own menu inside on
   (elsewhere in a tasks' window the pages would cover it), at the bottom left, over the nav's empty foot: at the right
   are a page's buttons (the log's).
 - **Tabs** are shadcn's `Tabs` as browser tabs, which shadcn does not have (`BrowserTabs.tsx`: `TabStrip`,
-  `BrowserTab`): the tasks' bar, a pane's tabs, the terminals'. A tab is chosen on the press, as a browser's (not on
-  its ×). Its × is on every tab, always, as Chrome's: inside the tab, so not a button (a button holds none) but a
+  `BrowserTab`): the tasks' bar, a pane's tabs, the terminals'. The tasks' bar's are tabs of their own kind (`bar`):
+  on the bar, the chosen one filled (`--muted`, `--background`), taller; shadcn's look, a segmented control with the
+  tabs in a pill, is the other two's. A tab is chosen on the press, as a browser's (not on its ×); the tasks' bar's is not ringed
+  by it (Radix focuses it by `focus()`, which Chromium rings as the keyboard's). Its × is on every tab, always, as Chrome's: inside the tab, so not a button (a button holds none) but a
   `role="button"` span that takes its own click and never the tab's press; a terminal's agent mark (Change Agent)
   likewise. A task's tab keeps its width whichever is shown, so none moves under the mouse ([window.md](window.md),
   The tasks' bar). A pane's tabs shrink to their icon and ×; a terminal's never shrinks (the agents' marks look alike).

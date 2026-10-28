@@ -43,7 +43,7 @@ let windows = 0;
 const PRELOAD = path.join(import.meta.dirname, '..', 'preload', 'index.cjs');
 
 class AppWindow {
-  shell: Shell; id: number; tabs: Task[]; current: Task | null; viewsHidden: boolean; switching: boolean;
+  shell: Shell; id: number; tabs: Task[]; current: Task | null; viewsHidden: boolean; switching: boolean; leaving: Profile[];
   stateTimer: NodeJS.Timeout | undefined; picking: Map<string, { profile: Profile; page: import('playwright-core').Page; cancel: () => unknown }>;
   questions: Questions; loaded: boolean; pending: [string, unknown[]][]; keyZone: string;
   thumbnails: Thumbnails; // a screenshot's, in its pane's corner (src/screenshots)
@@ -58,6 +58,8 @@ class AppWindow {
     this.current = null; // the one shown
     // True until the page has laid out the shown task's grid (the renderer then shows the views).
     this.viewsHidden = true;
+    // The pages of the task left for another, on screen until the page has the next grid laid out (hideViews).
+    this.leaving = [];
     // From leaving a task until the next one's profiles are all loaded: nothing is saved, and the page gets no
     // state (a partial one would build a grid other than the saved one).
     this.switching = true;
@@ -205,7 +207,7 @@ class AppWindow {
   async show(task: Task) {
     log.info(`[window] wc=${this.win.webContents.id} shows ${task.key}`);
     if (task === this.current) return;
-    if (this.current) this.leaveGrid();
+    if (this.current) this.leaveGrid(true);
     this.current = task;
     this.shell.saveWindows();
     this.win.setTitle(`${task.displayName} · ${task.project.name} — Kulisa`);
@@ -227,16 +229,19 @@ class AppWindow {
     this.seen();
     terminals.catch((e) => console.error('[agent]', e));
   }
-  // The page takes the grid down; it gets the next task's state once its profiles are loaded.
-  leaveGrid() {
+  // The page takes the grid down; it gets the next task's state once its profiles are loaded. Left for another task
+  // (next), the grid and its pages stay on screen until the next one is laid out, as a browser keeps a tab's page until
+  // the next one's is drawn: nothing empty between them.
+  leaveGrid(next = false) {
     this.pushState(); // saves the tabs
     this.switching = true;
     clearTimeout(this.stateTimer);
     for (const { cancel } of this.picking.values()) cancel();
     this.thumbnails.close(); // its pane goes
     this.viewsHidden = true;
-    for (const p of this.profiles.values()) p.setHidden(true);
-    this.send('grid:closing');
+    if (next) this.leaving.push(...this.profiles.values());
+    else for (const p of this.profiles.values()) p.setHidden(true);
+    this.send('grid:closing', next);
   }
   // Before a task's tab goes (the task closes, or moves to another window): the tab next to it is shown, or the
   // window is left with none (the empty window).
@@ -271,6 +276,7 @@ class AppWindow {
   // place ({ profile id: data URL }).
   async hideViews(hidden: boolean, { snapshots = false } = {}) {
     const pics = hidden && snapshots ? await this.pictures() : {};
+    for (const p of this.leaving.splice(0)) p.setHidden(true);
     // While a task is being switched they stay hidden, whatever comes (a closing menu shows them
     // again); the page shows them once it has the next grid laid out.
     this.viewsHidden = !!hidden || this.switching;
