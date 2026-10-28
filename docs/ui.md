@@ -1,20 +1,19 @@
 # The window's UI
 
-**The window is shadcn/ui as it ships** (`src/ui`, a Kulisa package its CLI writes: Radix's primitives, Lucide's icons,
-Geist; [its README](../src/ui/README.md)), used as shadcn's examples use them. **A component of `src/ui` takes only
-where it sits and its size** (layout and size classes: `w-64`, `flex-1`, `ms-auto`; its variants and sizes for the
-rest); **its look is the theme's alone** (`src/ui/theme.css`, Kulisa's own variables in `src/renderer/window.css`), one
-place for the whole window, so no part looks its own way. Our own box (what shadcn has no component for: a layout, a
-frame, the log) is a div or span with Tailwind's classes, around shadcn's components, not on them; what draws over
-them is named under Own drawing. How a component is used is shadcn's documentation
-(`https://ui.shadcn.com/docs/components/radix/<name>`) and its generated file, read rather than remembered: this doc
-holds only what shadcn cannot know (the native pages, the desktop) and where it leaves a choice, the one made. Nothing
-of ours where shadcn or Radix has a component, a prop or a pattern: their keyboard, focus and accessibility are
-maintained upstream. A deviation is the exception: a comment at it says why, and a line here names it.
+**The window is shadcn/ui as it ships** (`src/ui`, a Kulisa package its CLI writes: [its README](../src/ui/README.md)),
+built as shadcn's examples build it. **A component of `src/ui` takes only where it sits and its size** (layout and size
+classes: `w-64`, `flex-1`, `ms-auto`; its variants and sizes for the rest); **its look is the theme's alone**
+(`src/ui/theme.css`; Kulisa's own variables in `src/renderer/window.css`), so no part looks its own way. What shadcn
+has no component for (a layout, a frame, the log) is a div or span with Tailwind's classes around shadcn's components,
+not on them (Own drawing). How a component is used: shadcn's documentation
+(`https://ui.shadcn.com/docs/components/radix/<name>`) and its generated file, read rather than remembered; here only
+what shadcn cannot know (the native pages, the desktop) and the choices it leaves. Nothing of ours where shadcn or
+Radix has a component, a prop or a pattern: their keyboard, focus and accessibility are maintained upstream. A
+deviation gets a comment at it saying why, and a line here. Tests find a part as the human does (role and name, label,
+`data-*`; never a class: [testing.md](testing.md)).
 
-React 19 in TypeScript, built by Vite with Tailwind v4 (`vite.config.mts`, into `dist/renderer`); state is zustand's;
-the grid is dockview's (`dockview-react`: its API before layout code of our own); the terminal is xterm's
-(`src/terminal/`).
+The grid is dockview's (`dockview-react`): its API before layout code of our own. State is zustand's; the terminal is
+xterm's (`src/terminal/`).
 
 **The profiles' pages are native views, drawn above the window's HTML**, so whatever HTML covers the panes hides the
 pages or puts pictures of them in their place (Layers, below; a tasks' window's pages under it: `lib/views.ts`); while
@@ -35,20 +34,19 @@ the main process after every grid change ([window.md](window.md), The grid).
 
 ## shadcn in Kulisa
 
-- **The theme** is shadcn's `neutral` (`src/ui/theme.css`): the main button and what is chosen in the text's own color,
-  Geist and JetBrains Mono (the terminal's), bundled, so the window looks the same on every OS. Kulisa's own colors,
-  for what shadcn has none (a warning, a success), are variables beside it (`window.css`: `--warning`, `--success`,
-  used as `text-warning`). **Dark by default**, as JetBrains; Light; System follows the OS ([window.md](window.md),
-  Theme): `public/theme.js` puts `.dark` on the root, a classic script so before the first paint, and `lib/theme.ts`'s
-  `setTheme` changes it (`useShade()` the one shown). What draws outside the DOM's styles (a terminal) takes the
-  theme's colors by `termStyle()`, a variable read as a color.
+- **The theme** is shadcn's `neutral` (`src/ui/theme.css`), Geist and the terminal's JetBrains Mono bundled, so the
+  window looks the same on every OS. Kulisa's own colors where shadcn has none are variables beside it (`window.css`:
+  `--warning`, `--success`, used as `text-warning`). Dark, Light or System ([window.md](window.md), Theme) is `.dark`
+  on the root: `public/theme.js` puts it before the first paint, `lib/theme.ts` changes it; what draws outside CSS (a
+  terminal) reads the theme's colors by `termStyle()`.
 - **A color is the theme's** (`bg-muted`, `text-destructive`, `var(--card)`), never Tailwind's palette nor written
   out: one palette, dark and light. A literal color only where none can be: the marks.
 - **Not Lucide's icons**: the agents' marks (`AgentMark.tsx`: the makers' own, in their colors, 1em), the logo
   (`Logo`, `ProjectIcon.tsx`: its curtain in `currentColor`) and the profiles' pictures (`avatarSrc` in an `Avatar`).
 - **No CSS Modules, no second UI library.** A plain `.css` only for what classes cannot say, with its reason: what is
   the document's (a view transition and its keyframes, `Grid.css`), Radix's layers (`lib/cover.css`).
-- **A component missing**: `npm run ui -- <name>` adds it (src/ui's README), before one of our own is written.
+- **A component missing**: `npm run ui -- <name>` adds it, without asking whether to; nothing in shadcn fits: say so
+  before building one of our own.
 - **`npm run lint` refuses** in the window a raw `button`, `input`, `select` or `textarea`, a `className` on a
   component of `src/ui` that is not a literal of layout and size classes, a `style` on one that is not a size, a place
   or a custom property (`kulisa/ui-as-shipped`), Tailwind's palette or a hex color (but the marks), a constant in
@@ -74,9 +72,7 @@ dialog's open state is a plain `useState`.
 Kulisa is a desktop app, an IDE: its window looks like one, JetBrains its model (not big titles, framed cards in
 frames, pills, rows that show their buttons only under the pointer: those read as a web page's).
 
-- **Flat panes split by a gap** (dockview's `gap`: 6 px of the window's background; at 0 the native pages draw over
-  a hairline); a profile's pane's header is "picture, name · what the agent does · ⋯ · ×" (`ProfileHeader`; paused on
-  a sign-in page, a warning `Badge` with a lock), the terminals' is their tabs, + and the microphone.
+- **Flat panes split by a gap** (dockview's `gap`: at 0 the native pages draw over a hairline).
 - **The project's color only on its icon** and the title bar's logo (`--project` on the root, `lib/store.ts`; the
   author's choice). `projectColor` (`lib/project-color.ts`): a favicon's hue in Kulisa's lightness and chroma.
 - **The sidebar** is shadcn's `Sidebar`, docked in the empty window and in a `Sheet` over the grid (covering as a
@@ -90,11 +86,10 @@ frames, pills, rows that show their buttons only under the pointer: those read a
   (`AgentState.tsx`) on a task's tab, its row in the sidebar, a terminal's tab.
 - **Explanations are a card's line, an empty list's line, a field's `FieldDescription` and tooltips**, not a paragraph
   per section: that reads as documentation.
-- **A dialog asks one thing**; what is browsed (Settings, over the window's area) is a nav of categories (shadcn's
-  `Sidebar`) and a page under its `Breadcrumb`, saved as it changes, no OK, as Windows' Settings: its things not in the
-  nav (it would grow with every project and profile) but a category's page. No search field over the nav (the
-  author's choice). Back to the tasks is the nav header's ←, as Windows' Settings: a × at the nav's edge reads as
-  closing the nav. Its pages are one column of 840px from the left (the log the window's width).
+- **A dialog asks one thing**; what is browsed (Settings) is a nav of categories (shadcn's `Sidebar`) and a page under
+  its `Breadcrumb`, saved as it changes, no OK, as Windows' Settings: a project or a profile is a category's page, not
+  in the nav (it would grow with each). No search field over the nav (the author's choice). Back to the tasks is the
+  nav header's ←: a × at the nav's edge reads as closing the nav.
 - **It fits the smallest window** (640 × 400, or any at 200%): a dialog that keeps a height of its own (New Project)
   gives it as `max-h-[70vh]` on our box inside it, so its buttons stay in the window.
 
@@ -137,9 +132,7 @@ is Radix's own. A Radix menu of a part's own only for a row's own menu inside on
   under the pointer, and takes the next Esc.
 - It shows once the pages under it are pictures (Layers); then its list is `[role="menu"][data-ready]` (the tests'
   handle).
-- Rows (`MenuItem` in `lib/menu.ts`): `{ label, sub, keys, title, icon, avatar, agent, enabled, run }`; `'-'` a
-  divider; `{ heading, icon }`; `{ submenu, items, project }`; `{ component }` a row of its own (☰'s zoom, theme, tasks'
-  bar, language and arrangements).
+- Rows are `MenuItem`s (`lib/menu.ts`).
 - **A row's accessible name is its label alone** (`aria-label`), so it is found by what it says.
 
 ## Dialogs
@@ -153,8 +146,7 @@ is Radix's own. A Radix menu of a part's own only for a row's own menu inside on
 - One that waits for an answer takes no click outside or × (`onInteractOutside`; `AgentPicker.tsx`); Esc cancels it.
 - **Questions** before something that cannot be undone, before closing, or between two ways to go are not new dialogs:
   `ask(q)` (`lib/ask.ts`) or the main process's `shell.ask` → `Ask.tsx`, an `AlertDialog`, queued: Cancel has the
-  keyboard, Esc is Cancel, a click outside does nothing; `other` a second way's button; `link` a page the answer may
-  need; `danger` a destructive main button.
+  keyboard, Esc is Cancel, a click outside does nothing.
 - **A page's alert or confirm** (`ProfilePane.tsx`) is drawn in its pane, not modal, over a dimmed picture of the page,
   as Chrome shows it; the other panes go on.
 - **New Project** is `Wizard` (`NewProject.tsx`), shown by the dialog and by the welcome (`Welcome.tsx`, in a `Card`),
@@ -184,8 +176,7 @@ is Radix's own. A Radix menu of a part's own only for a row's own menu inside on
   its ×). Its × is on every tab, always, as Chrome's: inside the tab, so not a button (a button holds none) but a
   `role="button"` span that takes its own click and never the tab's press; a terminal's agent mark (Change Agent)
   likewise. A task's tab keeps its width whichever is shown, so none moves under the mouse ([window.md](window.md),
-  The tasks' bar). A pane's tabs are 220 px and shrink to their icon and × (64 px; the title hidden by a container
-  query); a terminal's is as wide as its name up to 220 px and never shrinks (the agents' marks look alike).
+  The tasks' bar). A pane's tabs shrink to their icon and ×; a terminal's never shrinks (the agents' marks look alike).
 - **A strip of tabs that do not all fit** (those three, the closed profiles' buttons) shrinks, then scrolls: `useStrip`
   (`lib/strip.ts`), not tabs moved past the end into a menu, which pushes others under the mouse (Office's model, not
   Chrome's): no scrollbar; a mouse's wheel scrolls it sideways; an edge with tabs past it fades (`data-past-start`,
@@ -213,12 +204,3 @@ What is drawn or moved here rather than by shadcn, each for a reason at it:
   output (`AgentPage.tsx`, `AgentPicker.tsx`) a `role="log"` of monospace lines, as tall as what it says;
 - the welcome's pictures (`Welcome.tsx`): a task's window drawn small in boxes of our own, its terminal's lines in a
   terminal's colors.
-
-## Adding something
-
-- A component: shadcn's, as its examples build it (`npm run ui -- <name>` if it is not in `src/ui` yet), without asking
-  whether to. Nothing fits: say so before building one; a deviation gets its comment and its line here. A look that is
-  wrong everywhere: a variable of the theme (`window.css`).
-- A dialog: shadcn's `Dialog`, in `App.tsx`, registered (`registerDialog`).
-- A menu: `ButtonMenu`, `RightClickMenu` or `menuAt`, its rows `MenuItem`s.
-- Its tests find it as the human does (role and name, label, `data-*`; never a class: [testing.md](testing.md)).

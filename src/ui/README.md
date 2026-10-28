@@ -8,8 +8,7 @@ Geist; base color `neutral`) as its CLI writes them into this folder, and its th
 **Never edited by hand.** What the CLI writes (`components/`, `hooks/`, `lib/`, `theme.css`; `components.json` at the
 repository's root its settings) is made again by `npm run ui`, and the CI refuses a difference (`checks (ubuntu-latest)`):
 a fix or a look of our own would be lost at the next update, and a component keeps its keyboard, focus and
-accessibility as shadcn and Radix maintain them. A look that is wrong everywhere is a theme's variable, set outside this
-folder (`src/renderer/window.css`); a component that does not fit is said before building one of our own.
+accessibility as shadcn and Radix maintain them.
 
 - `npm run ui -- <name>` adds one of shadcn's components (its registry's name: `dropdown-menu`); its export goes into
   `index.ts` by name. The CLI's own dependencies of it are installed as devDependencies (`scripts/ui.ts`).
