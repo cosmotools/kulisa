@@ -498,7 +498,10 @@ async function deleteAccount(shell: Shell, agent: string, w: AppWindow | null): 
 
 // What Settings shows of them: each with whether it is in git.
 async function foldersInfo(p: ProjectEntry): Promise<{ folders: ProjectFolder[] }> {
-  return { folders: await Promise.all(p.folders.map(async (folder): Promise<ProjectFolder> => ({ folder, git: await gitOf(folder) }))) };
+  return { folders: await Promise.all(p.folders.map(async (folder): Promise<ProjectFolder> => {
+    const [git, remote] = await Promise.all([gitOf(folder), originKey(folder)]);
+    return { folder, git, remote };
+  })) };
 }
 
 // Its repositories' GitHub accounts (src/github/README.md, A repository's account), whether it is open or not: each

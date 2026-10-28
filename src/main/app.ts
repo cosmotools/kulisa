@@ -211,12 +211,14 @@ function start(options: Options = {}) {
   const favicons = new Map<string, string | null>(); // a project's id: its favicon's file
   const pictures = new Map<string, string | null>(); // a file: its picture
   const looking = new Set<string>();
+  // Whether its picture changed: the windows are sent the projects only then.
   const lookForFavicon = async (p: ProjectEntry) => {
     looking.add(p.id);
     try {
-      const file = await findFavicon(p.folders);
+      const file = await findFavicon(p.folders), had = favicons.has(p.id), was = favicons.get(p.id), before = was ? pictures.get(was) : null;
       favicons.set(p.id, file);
       if (file) pictures.delete(file);
+      return !had || file !== was || (!!file && picture(file) !== before);
     } finally { looking.delete(p.id); }
   };
   const picture = (file: string) => (pictures.has(file) ? pictures.get(file) : pictures.set(file, pictureOf(file)).get(file)) ?? null;

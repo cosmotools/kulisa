@@ -82,7 +82,8 @@ export interface SignedIn extends Partial<AccountsInfo> { agents?: ProjectAgent[
 // A new project's agents (accounts, the default first) and profiles (made in it, or taken from the others): New Project's steps.
 export interface NewProjectSetup { agents?: string[]; profiles?: ({ id: string } | { name: string; description?: string })[] }
 export interface ProjectChoices { agents: { id: string; name: string }[]; clis: { id: string; name: string }[] }
-export interface ProjectFolder { folder: string; git: 'ok' | 'none' | 'no-commit' }
+// remote: its origin's key (remotes.ts), known before GitHub is asked (ProjectGitHub).
+export interface ProjectFolder { folder: string; git: 'ok' | 'none' | 'no-commit'; remote: string | null }
 // Its repositories' GitHub accounts (projects.ts, githubOf: src/github): each one's remote by its key (null: no git or
 // no origin), what it is to the accounts; the accounts to choose from.
 export interface ProjectGitHub {

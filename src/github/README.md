@@ -101,9 +101,10 @@ with a column each for its login, where Kulisa App is installed (`GET /user/inst
 shown), the projects using it and when its sign-in ends (a refresh token's, a token's own), or signed out. **+** adds
 one, With GitHub… or With a Token…, either replacing one under way; **−** and Delete delete the selected one, after the
 question; its right-click: Sign in Again…, Delete…. Leaving the page while its code is shown cancels the sign-in: a code
-no longer on screen is not to be entered. A repository's row on a project's page has its account (a Dropdown in
-`components/settings/ProjectPage.tsx`) and, under the list, a line for each that needs the human. Both are Settings': they
-use its parts (menus, lists, the question), which a package's window half may not.
+no longer on screen is not to be entered. A repository's row on a project's page has its account (a `Select` in
+`components/settings/ProjectPage.tsx`, its room kept, disabled, while GitHub is asked) and, under the list, a line for
+each that needs the human. Both are Settings': they use its parts (menus, lists, the question), which a package's
+window half may not.
 
 ## Its channels (`ipc.ts`)
 

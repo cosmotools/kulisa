@@ -11,7 +11,7 @@ import type { ProjectEntry } from '../store.ts';
 import type { StoredProfile } from '../profile-store.ts';
 import type { Result } from '../../shared/result.ts';
 
-export function registerProjects(ipc: Ipc, { lookForFavicon }: { lookForFavicon: (p: ProjectEntry) => Promise<void> }) {
+export function registerProjects(ipc: Ipc, { lookForFavicon }: { lookForFavicon: (p: ProjectEntry) => Promise<boolean> }) {
   const { shell, at, serial } = ipc;
   const store = shell.store;
   const sendProjects = () => shell.sendProjects();
@@ -42,8 +42,8 @@ export function registerProjects(ipc: Ipc, { lookForFavicon }: { lookForFavicon:
     const p = store.projects().find((x) => x.id === id);
     if (!p) return { error: `no project ${id}` };
     const r = await foldersInfo(p);
-    await lookForFavicon(p);
-    sendProjects();
+    // Not waited for: the page comes at once, its icon in the windows when it changed.
+    lookForFavicon(p).then((changed) => changed && sendProjects(), (err) => console.error('[favicon]', err));
     return { name: p.name, projectAgents: agentsInfo(shell, p), local: p.local || [], ...r, ...profilesOf(id), ...choices() };
   });
   // Its profiles (profile-store.ts): those it has, and those of other projects it can take. A new one comes closed in

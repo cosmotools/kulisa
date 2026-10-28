@@ -1,6 +1,6 @@
 // A tasks' window (docs/window.md): the title bar, the shown task's grid or the empty window, the tasks' bar, Settings
 // over them, and the dialogs. Its theme: lib/theme.ts.
-import { lazy, Suspense } from 'react';
+import { useEffect, useState } from 'react';
 import { TooltipProvider } from '@ui';
 import { useWindow } from '../lib/store';
 import { TopBar } from './TopBar';
@@ -19,13 +19,16 @@ import { Thumbnail, thumbnailMenu } from '../../screenshots/renderer';
 import { menuAtPoint } from '../lib/menu';
 import { useSettings } from '../lib/settings';
 
-// Its own chunk, read as it is first shown: a window that never shows it never parses it (a module stays once loaded).
-const Settings = lazy(() => import('./settings'));
+// Its own chunk, read as it is first asked for: a window that never shows it never parses it (a module stays once
+// loaded). Not lazy(): React holds a Suspense fallback at least 300 ms, the chunk takes a few.
+type SettingsView = typeof import('./settings').default;
 
 thumbnailMenu(menuAtPoint);
 
 export function App() {
   const bar = useWindow((s) => s.bar), open = useWindow((s) => s.current !== null), settings = useSettings();
+  const [Settings, setSettings] = useState<SettingsView | null>(null);
+  useEffect(() => { if (settings && !Settings) void import('./settings').then((m) => setSettings(() => m.default)); }, [settings, Settings]);
   // Rows: the title bar, the grid (or the empty window), the tasks' bar. Under Settings the grid stays laid out
   // (dockview's sizes, the terminals) and its agents work on, the tasks' bar keeping its place: a row resized as
   // Settings closes moved the terminal. Hidden once Settings is drawn (it draws nothing until filled), not as it is
@@ -39,7 +42,7 @@ export function App() {
       {open ? <Grid /> : <Empty />}
       {open && <Sidebar />}
       {bar !== 'top' && open && <TaskBar />}
-      {settings && <Suspense><Settings at={settings} className="[grid-area:2/1/-1]" /></Suspense>}
+      {settings && Settings && <Settings at={settings} className="[grid-area:2/1/-1]" />}
       <NewProject />
       <TaskRename />
       <AgentPicker />
