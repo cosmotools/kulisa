@@ -156,7 +156,7 @@ test("DevTools in a pane's ⋮ menu opens and closes the DevTools of its active 
   const pane = ui.locator(`[role="region"][data-profile="${id}"]`);
   const opened = () => core((k) => k.profile('Sam.admin').get().wc.isDevToolsOpened());
   // ⋮ as tall as the bar's other buttons, its dots upright, its menu open or not.
-  const buttons = pane.locator('[role="toolbar"] button:visible');
+  const buttons = pane.locator('[role="group"][aria-label="Page"] button:visible');
   const looks = async (what: string) => {
     for (const svg of await buttons.locator('svg').all()) await expect(svg, what).toHaveCSS('rotate', 'none');
     return Promise.all((await buttons.all()).map(async (b) => Math.round((await b.boundingBox()).height)));

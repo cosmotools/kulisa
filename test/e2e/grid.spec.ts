@@ -59,7 +59,7 @@ test("grid: a narrow pane's bar gives up Back and Forward, then Reload, into ⋮
   // layout: a locator's readings one by one could straddle a resize.
   const bar = () => ui.evaluate((sel) => {
     const p = document.querySelector(sel).getBoundingClientRect();
-    return [...document.querySelectorAll(`${sel} [role="toolbar"] :is(button, input)`)].filter((e) => e.checkVisibility()).map((e) => {
+    return [...document.querySelectorAll(`${sel} [role="group"][aria-label="Page"] :is(button, input)`)].filter((e) => e.checkVisibility()).map((e) => {
       const r = e.getBoundingClientRect();
       return e.getAttribute('aria-label') + (r.x >= p.x && r.right <= p.right ? '' : ' out');
     });

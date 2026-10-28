@@ -157,7 +157,7 @@ export function ProfilePane({ api }: IDockviewPanelProps) {
     </nav>
     {/* A narrow pane gives up Back and Forward, then Reload (into ⋮; their keys stay), never Pick or ⋮: in order, else
         the buttons at the end go out of reach first. The address shrinks. */}
-    <div role="toolbar" aria-label="Page" className="flex flex-none items-center gap-1 px-2 py-1">
+    <div role="group" aria-label="Page" className="flex flex-none items-center gap-1 px-2 py-1">
       {/* one: Back without Forward would be half a pair */}
       <span ref={nav} className="hidden gap-1 @2xs:flex">
         <Button variant="ghost" size="icon-sm" title={withKeys('Back', 'tab.back')} aria-label="Back" disabled={!active?.canBack} onClick={run('tab:back')}>

@@ -4,7 +4,6 @@ export { Alert, AlertTitle, AlertDescription, AlertAction } from './components/u
 export { Avatar, AvatarImage, AvatarFallback, AvatarGroup, AvatarGroupCount, AvatarBadge } from './components/ui/avatar';
 export { Badge, badgeVariants } from './components/ui/badge';
 export { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbPage, BreadcrumbSeparator, BreadcrumbEllipsis } from './components/ui/breadcrumb';
-export { ButtonGroup, ButtonGroupSeparator, ButtonGroupText, buttonGroupVariants } from './components/ui/button-group';
 export { Button, buttonVariants } from './components/ui/button';
 export { Collapsible, CollapsibleTrigger, CollapsibleContent } from './components/ui/collapsible';
 export { Card, CardHeader, CardFooter, CardTitle, CardAction, CardDescription, CardContent } from './components/ui/card';
@@ -22,7 +21,6 @@ export { Label } from './components/ui/label';
 export { Popover, PopoverAnchor, PopoverContent, PopoverDescription, PopoverHeader, PopoverTitle, PopoverTrigger } from './components/ui/popover';
 export { Progress } from './components/ui/progress';
 export { RadioGroup, RadioGroupItem } from './components/ui/radio-group';
-export { ScrollArea, ScrollBar } from './components/ui/scroll-area';
 export { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectScrollDownButton, SelectScrollUpButton, SelectSeparator, SelectTrigger, SelectValue } from './components/ui/select';
 export { Separator } from './components/ui/separator';
 export { Sheet, SheetTrigger, SheetClose, SheetContent, SheetHeader, SheetFooter, SheetTitle, SheetDescription } from './components/ui/sheet';

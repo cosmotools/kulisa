@@ -17,7 +17,7 @@ export function Master() {
   // page, a native view that would cover it (docs/ui.md, Tooltips).
   const tool = (label: string, Icon: ComponentType, channel: 'master:back' | 'master:forward' | 'master:reload') =>
     <Button variant="ghost" size="icon-sm" aria-label={label} title={label} onClick={() => void kulisa.invoke(channel)}><Icon /></Button>;
-  return <div role="toolbar" aria-label="Page" className="flex h-11 items-center gap-1 border-b bg-background px-2 text-sm text-foreground">
+  return <div role="group" aria-label="Page" className="flex h-11 items-center gap-1 border-b bg-background px-2 text-sm text-foreground">
     {tool('Back', ArrowLeftIcon, 'master:back')}
     {tool('Forward', ArrowRightIcon, 'master:forward')}
     {tool('Reload', RotateCwIcon, 'master:reload')}

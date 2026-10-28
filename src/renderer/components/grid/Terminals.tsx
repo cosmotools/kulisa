@@ -3,8 +3,9 @@
 import { createElement, useCallback, useEffect, useRef, useSyncExternalStore, type DragEvent, type Ref } from 'react';
 import { CheckIcon, PlusIcon } from 'lucide-react';
 import type { IDockviewPanelHeaderProps, IDockviewPanelProps } from 'dockview-react';
-import { Avatar, AvatarImage, Button, Spinner } from '@ui';
+import { Avatar, AvatarImage, Button } from '@ui';
 import { ButtonMenu, RightClickMenu } from '../Menus';
+import { Working } from '../Working';
 import { IconText } from './IconText';
 import { BrowserTab, TabStrip } from '../BrowserTabs';
 import { agentMark } from '../AgentMark';
@@ -113,8 +114,7 @@ export function Terminals({ api, containerApi }: IDockviewPanelProps) {
       <div ref={host} data-testid="terminal" data-zone="terminal" hidden={folded} className="h-full py-0.5 ps-2 pe-1" />
     </RightClickMenu>
     {!folded && <Pill task={task}><CheckIcon className="size-3.5 text-success" /></Pill>}
-    {starting && <div role="status" className="absolute inset-0 flex items-center justify-center gap-2 bg-card text-sm text-muted-foreground">
-      <Spinner aria-hidden />Starting {starting}…</div>}
+    {starting && <div className="absolute inset-0 grid place-items-center bg-card text-sm"><Working>Starting {starting}…</Working></div>}
   </div>;
 }
 
