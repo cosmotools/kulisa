@@ -2,7 +2,7 @@
 // gets where each pane's .content box is, or that it is not on screen (stacked behind another pane), as it lays the
 // native views over them.
 import type { AddPanelPositionOptions, DockviewApi } from 'dockview-react';
-import type { Profile } from '../../shared/types';
+import type { Profile, Terminals } from '../../shared/types';
 import { act, setCaption, store } from './store';
 import { forgetFrozen, freeze, showViews, unfreeze } from './views';
 import { closeLayers } from './cover';
@@ -25,7 +25,7 @@ export function gridMounted(a: DockviewApi) {
     scheduleLayout();
     clearTimeout(saveTimer);
     // Not a grid being taken down or built.
-    if (store.getState().loading) return;
+    if (store.getState().loading || building) return;
     const task = store.getState().current;
     save = () => { save = null; kulisa.send('layout:save', { task, layout: a.toJSON() }); };
     saveTimer = window.setTimeout(save, 300);
@@ -46,6 +46,13 @@ document.addEventListener('dragend', unfreeze, true);
 document.addEventListener('drop', () => setTimeout(unfreeze), true);
 
 kulisa.on('state', async (s) => {
+  if (replacing) {
+    replacing = false;
+    await (rebuilding = replaceGrid(s));
+    rebuilding = null;
+    return;
+  }
+  if (rebuilding) await rebuilding;
   // A profile leaving sign-in mode: the words over its pane go.
   for (const p of s) if (!p.signinMode && store.getState().profiles.find((x) => x.id === p.id)?.signinMode) setCaption(p.id, '');
   store.setState({ profiles: s });
@@ -55,9 +62,26 @@ kulisa.on('state', async (s) => {
   scheduleLayout();
   if (first) reveal();
 });
+// Another task's grid follows the one on screen (grid:closing): built in one step once its saved grid is here, with no
+// frame between the two, the pages left on screen until it is laid out (the main process hides them then).
+let replacing = false, building = false, rebuilding: Promise<void> | null = null, nextTerminals: Terminals | null = null;
+async function replaceGrid(s: Profile[]) {
+  const a = await apiReady.promise, saved = await savedGrid();
+  building = true;
+  a.clear();
+  // The panes go with what was said over them: profile ids repeat across tasks.
+  store.setState({ profiles: s, pictures: {}, captions: {}, picking: {}, ...(nextTerminals && { terminals: nextTerminals }) });
+  nextTerminals = null;
+  buildGrid(a, saved);
+  syncGrid();
+  building = false;
+  gridReady = Promise.resolve();
+  scheduleLayout();
+  reveal();
+}
 
 // Until the grid is built and the pages have their places, the window shows no grid and the main process keeps the
-// pages hidden (loading): nothing jumps while the window loads or another task is shown.
+// pages hidden (loading): nothing jumps while the window loads or shows its first task.
 function reveal() {
   requestAnimationFrame(() => requestAnimationFrame(() => { // after sendLayout's frame
     store.setState({ loading: false });
@@ -142,14 +166,17 @@ export function applyPreset(name: keyof typeof presets) {
 // dockview's API of the grid shown (test-hooks.ts).
 export const dockApi = () => api;
 
-// Another task is being shown, or none (the window left with no task): the grid goes at once, as a browser's tab, and
-// is built again on the next state. The title bar and the tasks' bar stay.
-kulisa.on('grid:closing', () => {
+// Another task is being shown (next), or none (the window left with no task). The title bar and the tasks' bar stay.
+// None: the grid goes at once. Another: it stays until the next one is built (replaceGrid), as a browser keeps a tab's
+// page until the next one's is drawn.
+kulisa.on('grid:closing', (next) => {
   void closeLayers(); // its dialogs and menus are for the grid that goes
   forgetFrozen(); // a drag's: a menu opened for the next grid freezes its pages afresh
   // Its last change saved now, not dropped: a pane closed (its profile deleted) just before the task is left would stay
   // in its saved grid, and a saved grid naming a profile that is gone is not restored at all (restoreGrid).
   flushSave();
+  if (next) { replacing = true; return; }
+  replacing = false; nextTerminals = null;
   store.setState({ loading: true });
   api?.clear();
   // The panes go with what was said over them: profile ids repeat across tasks.
@@ -160,9 +187,12 @@ kulisa.on('grid:closing', () => {
 // Tasks gone (closed, deleted, moved to another window): their terminals too; a task opened again later starts afresh.
 kulisa.on('tasks:closed', forgetTerminals);
 
+const savedGrid = () => act('layout:load') as Promise<{ panels?: Record<string, unknown> } | null | undefined>; // as the window saved it
 async function restoreGrid() {
   const a = await apiReady.promise;
-  const saved = await act('layout:load') as { panels?: Record<string, unknown> } | null | undefined; // as the window saved it
+  buildGrid(a, await savedGrid());
+}
+function buildGrid(a: DockviewApi, saved: Awaited<ReturnType<typeof savedGrid>>) {
   // A saved grid may name profiles deleted since; dockview needs a component for every panel in it.
   const known = (id: string) => id === 'terminal' || id === 'resources' || store.getState().profiles.some((p) => panelId(p.id) === id);
   // One without the Resources panel is not a grid this window makes: the default arrangement instead.
@@ -196,7 +226,9 @@ function syncGrid() {
 }
 // The shown task's terminals (components/grid/Terminals.tsx): its tabs, the one in front.
 kulisa.on('terminals', (t) => {
-  if (t.task === store.getState().current) store.setState({ terminals: t });
+  if (t.task !== store.getState().current) return;
+  // The next task's, with the grid on screen still the last one's: shown with its grid, measured in its panel.
+  if (replacing || rebuilding) nextTerminals = t; else store.setState({ terminals: t });
 });
 // A terminal closed, of any task: its xterm goes.
 kulisa.on('terminals:gone', forgetTerminals);

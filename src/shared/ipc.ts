@@ -161,7 +161,7 @@ export interface Events extends TerminalEvents, ThumbnailEvents, DictationEvents
   'terminals': Terminals;
   'artifacts': { task: string; list: Artifact[]; bytes: number }; // bytes: all of them (Task.artifactsUsage)
   'terminal:focus': void;
-  'grid:closing': void;
+  'grid:closing': boolean; // another task's grid follows
   'tasks:closed': string[];
   'zoom': number;
   'theme': string;

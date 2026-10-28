@@ -95,8 +95,9 @@ repositories (git worktrees), so the project's folders stay the human's. Its dat
   - **Create**: one call (`project:new`), the core making it all (`createProject`, `projects.ts`: code, agents in
     order, profiles); what could not be added of the agents and profiles is logged, the project made all the same.
     Its first task opens in this window (`task:new`) with its default agent, nothing asked.
-- **Showing another task** replaces the grid at once, as a browser's tab (no motion: it is done tens of times a day),
-  the next grid shown once laid out, so nothing jumps. When a task closes, the one next to it is
+- **Showing another task** replaces the grid at once, as a browser's tab (no motion: it is done tens of times a day):
+  the grid on screen, its pages too, stays until the next one is built and laid out, then gives way to it in one
+  frame, nothing empty between them (`lib/grid.ts`, `replaceGrid`; `AppWindow.leaving`). When a task closes, the one next to it is
   shown, or the empty window after the last.
 - **Move to New Window** puts the task into a window of its own next to this one (a second monitor); **Move to
   Window: …** into that window, as a browser moves a tab. It keeps running: its agents, its pages (moved, not loaded
