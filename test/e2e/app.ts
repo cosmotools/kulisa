@@ -22,6 +22,12 @@ app.commandLine.appendSwitch('host-resolver-rules', 'MAP shop.example 127.0.0.1'
 // motion, and nothing moves then. Reduced motion is checked where it matters, emulated.
 app.commandLine.appendSwitch('force-prefers-no-reduced-motion');
 
+// The blur under a dialog (shadcn's overlays): with no GPU (Xvfb, CI) the CPU draws it every frame, and each question
+// takes up to twice as long. A look no test checks.
+app.on('browser-window-created', (_e, w) => w.webContents.on('did-finish-load', () => {
+  w.webContents.insertCSS('[data-slot$="-overlay"] { backdrop-filter: none !important; }').catch(() => {});
+}));
+
 const root = process.env.KULISA_TEST_ROOT, site = process.env.KULISA_TEST_SITE;
 const restart = !!process.env.KULISA_RESTART;
 const userData = path.join(root, 'data'), project = path.join(root, 'project');
