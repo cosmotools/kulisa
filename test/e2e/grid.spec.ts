@@ -5,9 +5,16 @@ import { menu, choose, closeMenu, rightClick, box, pageBox, viewOn, resourcesHei
 import { SAM, ELON, begin, bothOn } from './tasks-helpers.ts';
 
 // A pane's tab dragged by the hand onto a place of a target (dockview's drop zones: its edges, its middle).
+// Moved on only once the drag is under way (the pages pictures): a drop let go before dockview has its drop targets is
+// lost.
 async function drag(ui: Page, panel: string, target: string, where: 'right' | 'center') {
-  const t = await ui.locator(target).boundingBox();
-  await ui.locator(`[data-panel="${panel}"]`).dragTo(ui.locator(target), { targetPosition: { x: where === 'right' ? t.width - 10 : t.width / 2, y: t.height / 2 } });
+  const f = await ui.locator(`[data-panel="${panel}"]`).boundingBox(), t = await ui.locator(target).boundingBox();
+  await ui.mouse.move(f.x + f.width / 2, f.y + f.height / 2);
+  await ui.mouse.down();
+  await ui.mouse.move(f.x + f.width / 2 + 40, f.y + f.height / 2 + 40, { steps: 4 });
+  await expect(ui.getByTestId('page').getByTestId('snapshot').first()).toBeVisible();
+  await ui.mouse.move(t.x + (where === 'right' ? t.width - 10 : t.width / 2), t.y + t.height / 2, { steps: 8 });
+  await ui.mouse.up();
 }
 
 test("tasks' bar: under the grid, a tab per open task, its project's icon first, its name after; the shown one selected", async ({ core, ui, files }) => {
