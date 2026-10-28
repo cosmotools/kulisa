@@ -230,13 +230,12 @@ prompt; the human writes the rest of the message around it.
   `.agents/skills/debug-kulisa/SKILL.md` for diagnosing the running app. Instructions and scripts live there;
   `.claude/skills/` contains Claude Code entrypoints to the same skills. Run their commands from the checkout root.
 
-- **Code intelligence.** Claude Code's `LSP` tool (the `kulisa-dev` plugin; docs/testing.md, Claude Code's checks):
-  references, definitions and types through the language server, `.ts` and `.tsx` together. For a symbol — who
-  defines it, who uses it, its type, what it calls or calls it — the `LSP` tool, never grep: it reads the types, so it
-  neither misses a use nor matches the name in a comment or an unrelated scope (it does miss the tests: grep `test/`
-  for those too). grep is for text that is not a symbol (a string, a config key, a path). No `LSP` tool in the session: the
-  plugin is not installed in this `CLAUDE_CONFIG_DIR`; say so, install it (`claude plugin install
-  kulisa-dev@kulisa-dev --scope project`) and ask the human for `/reload-plugins`.
+- **Code intelligence.** Use an available language-server tool for definitions, references and types. Check
+  `test/` too: a language server's project may not include it. With no such tool (including a Codex session without
+  one), use `rg` to locate candidates, then read their declarations, imports, re-exports and callers; text matches
+  alone do not establish symbol identity or a complete set of references. Validate type-sensitive changes with the
+  project's TypeScript checks (`docs/testing.md`, Code analysis). Claude Code's LSP setup is documented there;
+  installing its plugin is only for Claude Code sessions.
 
 ## Rules
 
