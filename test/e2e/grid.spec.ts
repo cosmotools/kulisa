@@ -12,7 +12,7 @@ async function drag(ui: Page, panel: string, target: string, where: 'right' | 'c
 
 test("tasks' bar: under the grid, a tab per open task, its project's icon first, its name after; the shown one selected", async ({ core, ui, files }) => {
   await begin(core, ui, files, { columns: true });
-  const shown = ui.locator('#projectTabs [role="tab"][aria-selected="true"]');
+  const shown = ui.locator('#taskTabs [role="tab"][aria-selected="true"]');
   await expect(shown).toHaveCount(1);
   const grid = await ui.locator('#dock').boundingBox(), tab = await shown.boundingBox(), icon = await shown.getByTestId('project-icon').boundingBox();
   const name = await shown.getByText(await shown.getAttribute('aria-label'), { exact: true }).boundingBox();

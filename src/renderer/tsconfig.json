@@ -3,7 +3,7 @@
     "target": "ES2024",
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "lib": ["ES2024", "ESNext.Collection", "DOM", "DOM.Iterable"],
+    "lib": ["ES2024", "DOM"],
     "types": ["vite/client"],
     "strict": true,
     "noEmit": true,

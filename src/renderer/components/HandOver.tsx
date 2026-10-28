@@ -6,8 +6,8 @@ import { createElement, useEffect, useState, type ReactNode } from 'react';
 import { createStore, useStore } from 'zustand';
 import { useShallow } from 'zustand/react/shallow';
 import { BookOpenIcon, GitBranchIcon, GlobeIcon, SquareTerminalIcon } from 'lucide-react';
-import { Avatar, AvatarGroup, AvatarImage, Badge, Button, Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, FieldDescription, Label,
-  RadioGroup, RadioGroupItem } from '@ui';
+import { Avatar, AvatarGroup, AvatarImage, Badge, Button, Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, Field, FieldContent,
+  FieldDescription, FieldLabel, FieldTitle, Progress, RadioGroup, RadioGroupItem } from '@ui';
 import { agentMark } from './AgentMark';
 import { act, shownTask, store, useWindow } from '../lib/store';
 import { registerDialog } from '../lib/dialogs';
@@ -15,6 +15,7 @@ import { avatarSrc, plural } from '../lib/common';
 import { refused } from '../../shared/result';
 import type { Terminal } from '../../shared/types';
 import { ErrorBar } from './ErrorBar';
+import { Working } from './Working';
 
 // No part read for this long: an agent that thinks before it reads, or never does.
 const IDLE = 30_000;
@@ -119,23 +120,24 @@ export function HandOver() {
         </div>}
         <div className="flex flex-col gap-2">
           <RadioGroup aria-label="Agent" value={chosen ?? ''} disabled={going} onValueChange={(v) => state.setState({ chosen: v })}>
-            {agents.map((a) => <div key={a.id} data-agent={a.id} className="flex items-center gap-2">
-              <RadioGroupItem id={`handover-${a.id}`} value={a.id} />
-              <Label htmlFor={`handover-${a.id}`}>{createElement(agentMark(a.cli), { className: 'size-4' })}{a.name}</Label>
-              {a.id === from?.agent?.account && <span className="ms-auto text-xs text-muted-foreground">this one, afresh</span>}
-            </div>)}
+            {agents.map((a) => <FieldLabel key={a.id} htmlFor={`handover-${a.id}`} data-agent={a.id}>
+              <Field orientation="horizontal">
+                <RadioGroupItem id={`handover-${a.id}`} value={a.id} aria-label={a.name} />
+                <FieldContent>
+                  <FieldTitle>{createElement(agentMark(a.cli), { className: 'size-4' })}{a.name}</FieldTitle>
+                  {a.id === from?.agent?.account && <FieldDescription>this one, afresh</FieldDescription>}
+                </FieldContent>
+              </Field>
+            </FieldLabel>)}
           </RadioGroup>
           {!going && <FieldDescription>It reads this conversation first, then tells you in a few lines what is done and what is next. Its own hidden
             reasoning, permissions given and its account's settings stay behind. This tab stays until you close it.</FieldDescription>}
         </div>
-        {going && <div className="flex flex-col gap-1.5">
-          {/* how far it has read: no shadcn Progress here, a bar of our own; pulsing until the first part is read */}
-          <div className="h-1.5 overflow-hidden rounded-full bg-muted">
-            <div className={read ? 'h-full bg-primary transition-[width]' : 'h-full w-full animate-pulse bg-primary/40'}
-              style={read ? { width: `${(100 * read.part) / read.parts}%` } : undefined} />
-          </div>
+        {/* how far it has read; before its first part, how long is not known */}
+        {going && (read ? <div className="flex flex-col gap-1.5">
+          <Progress value={(100 * read.part) / read.parts} aria-label="Read" />
           <p role="status" className="text-muted-foreground">{progress}</p>
-        </div>}
+        </div> : <Working>{progress}</Working>)}
         {error && <ErrorBar>{error}</ErrorBar>}
       </div>
       <DialogFooter>

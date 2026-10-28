@@ -5,7 +5,7 @@ import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
 import type { Files } from './data.ts';
-import { menu, choose, closeMenu, rightClick, projectTabs, projectTab, projectTabSel, showProject, focusWindow, closeSettings, settingsClosed, invoke, act, typeIn, answer, notLoading, projectMenu, otherPage, pageOf, onRow, removed,
+import { menu, choose, closeMenu, rightClick, tabProjects, projectTab, projectTabSel, showProject, focusWindow, closeSettings, settingsClosed, invoke, act, typeIn, answer, notLoading, projectMenu, otherPage, pageOf, onRow, removed,
   navRow, thingRow, openThing, pathOf, group, settingsMenu, listRows, listRow } from './helpers.ts';
 import { SAM, begin, newTask, openFolder, projectShown } from './tasks-helpers.ts';
 import { fakeAgent } from './agent-helpers.ts';
@@ -63,8 +63,8 @@ test("projects: the projects' manager (Project Settings…) changes its name and
   await pageOf(s, 'site');
   // Projects lists every project, this one with its favicon; back on its page.
   await navRow(s, 'projects').click();
-  await expect(thingRow(s, `p:${id}`).getByTestId('project-icon'), 'its favicon, a picture').toHaveJSProperty('tagName', 'IMG');
-  await thingRow(s, `p:${id}`).click();
+  await expect(thingRow(s, id).getByTestId('project-icon'), 'its favicon, a picture').toHaveJSProperty('tagName', 'IMG');
+  await thingRow(s, id).click();
   await pageOf(s, 'site');
   await expect(listRow(s, 'Folders', 'site'), 'its folder').toContainText(site);
   await expect(field(s, 'Location')).toHaveCount(0);
@@ -103,7 +103,7 @@ test("projects: the projects' manager (Project Settings…) changes its name and
   const renames = files.log().match(new RegExp(`\\[project\\] ${id} renamed: .*`, 'g'));
   expect(renames).toEqual([`[project] ${id} renamed: Site-2`]);
   expect(entry.local, "its own local addresses, where test users' pairs may be typed (local.ts)").toEqual(['abc.ngrok.app', 'shop.dev']);
-  await expect.poll(async () => (await projectTabs(ui, files)).includes('site *') && await core((k) => k.shell.win.getTitle() === `${k.shell.task.name} · Site-2 — Kulisa`)).toBe(true);
+  await expect.poll(async () => (await tabProjects(ui, files)).includes('site *') && await core((k) => k.shell.win.getTitle() === `${k.shell.task.name} · Site-2 — Kulisa`)).toBe(true);
   // Its profiles: a new one; one of another project, the same person (its master, its sign-ins); × lets go of one.
   await choose(ui, 'Project Settings…', await projectMenu(ui, tab));
   s = await sui();
@@ -282,14 +282,14 @@ test("projects: the title bar's gear shows Settings over the window at the shown
   fs.mkdirSync(closed, { recursive: true });
   const closedId = await core((k, f) => { const p = k.shell.store.projectFor(f); k.shell.sendProjects(); return p.id; }, closed);
   // Shown once it is filled (its page, the agents found): as it came, it jumped.
-  await ui.locator('#manageProjects').click();
+  await ui.locator('#settingsButton').click();
   const s = await sui();
   expect(await s.locator('#settings main [data-row]').count() > 0).toBe(true);
   await pageOf(s, 'project');
   // The pages hidden under it, as under a dialog (they draw above the window's HTML).
   await expect.poll(() => core((k) => k.profile('Sam.admin').get().view.getVisible())).toBe(false);
   // The other project is closed: its configuration all the same; a profile made and let go there (asked first).
-  await openThing(s, `p:${closedId}`);
+  await openThing(s, 'projects', closedId);
   await pageOf(s, 'closed');
   expect(await core((k, i) => k.shell.open.has(i), closedId)).toBe(false);
   await newProfileHere(s, 'Closed-one');
@@ -337,11 +337,11 @@ test("projects: Settings is its window's, at that window's project, its question
   await expect(listRow(s, 'Profiles', 'Fay')).toHaveCount(0);
   await core((k, f) => { k.shell.profileStore.delete(f); }, fay); // not needed after
   // Closed there with the gear; the first window's own, at its project.
-  await there.locator('#manageProjects').click();
+  await there.locator('#settingsButton').click();
   await expect(there.locator('#settings')).toHaveCount(0);
   await focusWindow(core, ui);
   await expect(ui.locator('#settings')).toHaveCount(0);
-  await ui.locator('#manageProjects').click();
+  await ui.locator('#settingsButton').click();
   await pageOf(await sui(), 'project');
   await closeSettings(core, ui, sui);
   // The second window and its project gone, for a test after it.

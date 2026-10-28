@@ -4,10 +4,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { PlusIcon } from 'lucide-react';
 import { toast } from 'sonner';
-import { Alert, AlertDescription, AlertTitle, Avatar, AvatarFallback, Badge, Button, Input } from '@ui';
-import { ButtonMenu, type Item } from '../Menus';
+import { Alert, AlertDescription, AlertTitle, Avatar, AvatarFallback, Badge, Button } from '@ui';
+import { ButtonMenu } from '../Menus';
 import { ErrorBar } from '../ErrorBar';
-import { Section, Setting, Things } from './kit';
+import { AddInPlace, Section, Things } from './kit';
+import type { MenuItem } from '../../lib/menu';
 import { refused } from '../../../shared/result';
 import { NEW_TOKEN, type GitHubAccount, type GitHubInfo } from '../../../github/ipc';
 
@@ -22,7 +23,7 @@ export function GitHubPage() {
   const [signing, setSigning] = useState<{ again: string | null; code: string; url: string } | null>(null);
   // A token being pasted (again: the account it is a new token for).
   const [pasting, setPasting] = useState<{ again: string | null } | null>(null), [token, setToken] = useState('');
-  const tokenField = useRef<HTMLInputElement>(null), code = useRef<string | null>(null);
+  const code = useRef<string | null>(null);
   const show = (r: GitHubInfo) => setInfo({ accounts: r.accounts, kept: r.kept });
 
   // Shown: read again (an account's projects and sign-in change elsewhere). Left: a code no longer on screen is not to
@@ -31,8 +32,6 @@ export function GitHubPage() {
     void kulisa.invoke('github:accounts').then(show);
     return () => { if (code.current) { code.current = null; void kulisa.invoke('github:signin-cancel'); } };
   }, []);
-  // The field takes the keyboard once the menu that opened it has given it back to its button.
-  useEffect(() => { if (pasting) requestAnimationFrame(() => tokenField.current?.focus()); }, [pasting]);
 
   async function cancelSignin() { code.current = null; setSigning(null); await kulisa.invoke('github:signin-cancel'); }
   async function withGitHub(again: string | null = null) {
@@ -51,7 +50,7 @@ export function GitHubPage() {
     setError(''); setTokenError(''); setToken(''); setPasting({ again });
   }
   async function addToken() {
-    if (!token.trim()) { tokenField.current?.focus(); return; }
+    if (!token.trim()) return;
     const r = await kulisa.invoke('github:token', { token, again: pasting?.again ?? null });
     if (refused(r)) { setTokenError(r.error); return; }
     setPasting(null); setToken(''); show(r);
@@ -64,10 +63,10 @@ export function GitHubPage() {
     show(r);
   }
 
-  const addMenu = (): Item[] => [{ heading: 'Add Account' },
+  const addMenu = (): MenuItem[] => [{ heading: 'Add Account' },
     { label: 'With GitHub…', sub: 'Kulisa App, on the repositories you install it on', run: () => withGitHub() },
     { label: 'With a Token…', sub: 'a fine-grained token, where Kulisa App is not installed', run: () => withToken() }];
-  const menu = (id: string): Item[] => [{ label: 'Sign in Again…', run: () => again(info?.accounts.find((a) => a.id === id)) }, { label: 'Delete…', run: () => remove(id) }];
+  const menu = (id: string): MenuItem[] => [{ label: 'Sign in Again…', run: () => again(info?.accounts.find((a) => a.id === id)) }, { label: 'Delete…', run: () => remove(id) }];
   if (!info) return null;
 
   return <>
@@ -99,19 +98,10 @@ export function GitHubPage() {
         </Alert>
       </div>}
 
-      {pasting && <div className="flex flex-col gap-3">
-        <Setting label="Token" error={tokenError || undefined}
-          description={<>A fine-grained token: <a href={NEW_TOKEN} target="_blank" rel="noreferrer" className={link}>make one on GitHub</a>, its resource owner the
-            organization or user of your repositories (an organization may have to approve it), then paste it here.</>}>{(c) =>
-          <Input {...c} ref={tokenField} type="password" value={token} placeholder="github_pat_…" spellCheck={false}
-            onChange={(e) => { setToken(e.target.value); setTokenError(''); }}
-            onKeyDown={(e) => { if (e.key === 'Enter') void addToken(); if (e.key === 'Escape') { e.stopPropagation(); setPasting(null); } }} />}
-        </Setting>
-        <div className="flex justify-end gap-2">
-          <Button variant="outline" onClick={() => setPasting(null)}>Cancel</Button>
-          <Button onClick={() => void addToken()}>Add</Button>
-        </div>
-      </div>}
+      {pasting && <AddInPlace label="Token" type="password" placeholder="github_pat_…" value={token} ok="Add" error={tokenError || undefined}
+        description={<>A fine-grained token: <a href={NEW_TOKEN} target="_blank" rel="noreferrer" className={link}>make one on GitHub</a>, its resource owner the
+          organization or user of your repositories (an organization may have to approve it), then paste it here.</>}
+        onChange={(v) => { setToken(v); setTokenError(''); }} go={() => void addToken()} stop={() => setPasting(null)} />}
       {/* a refusal not at the token's field */}
       {error && <ErrorBar>{error}</ErrorBar>}
     </Section>

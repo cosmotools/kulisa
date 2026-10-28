@@ -2,7 +2,7 @@
 // in a project (project) or in none. Its terminal is under Details: the address it prints, with the sign-in page open
 // in the browser, only confuses; it is there for a failure (opened by itself then) and for what the browser does not
 // show (a code the agent asks for). Gone (Cancel, its page left), the sign-in is cancelled.
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useEffectEvent, useState } from 'react';
 import { Button } from '@ui';
 import { forgetTerminals } from '../../terminal/renderer';
 import { Terminal } from './Terminal';
@@ -18,8 +18,7 @@ export function SignIn({ agent, project, onDone, onClose }: { agent: { id: strin
   // key: its terminal, kept after its sign-in ends (a failure's Details show what the agent said); a new one on Try Again
   const [key, setKey] = useState(fresh), [running, setRunning] = useState(true);
   const [error, setError] = useState(''), [details, setDetails] = useState(false);
-  const done = useRef(onDone);
-  useEffect(() => { done.current = onDone; });
+  const done = useEffectEvent((r: Answer) => onDone(r));
   // A sign-in, its terminal shown; cancelled when it goes (Cancel, its page left) while it runs, its terminal forgotten.
   useEffect(() => {
     let on = true;
@@ -27,7 +26,7 @@ export function SignIn({ agent, project, onDone, onClose }: { agent: { id: strin
       if (!on) return;
       on = false;
       setRunning(false);
-      if (r.error) { setError(r.error); setDetails(true); } else if (r.error === undefined) done.current(r);
+      if (r.error) { setError(r.error); setDetails(true); } else if (r.error === undefined) done(r);
     });
     return () => {
       if (on) { on = false; void kulisa.invoke('account:signin-cancel', { key }); }

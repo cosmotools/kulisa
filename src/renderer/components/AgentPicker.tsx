@@ -3,8 +3,8 @@
 // choice (Cancel, Esc, another task shown), none opens. Also an install's progress, New Project's too (InstallProgress).
 import { createElement, useEffect, useState } from 'react';
 import { CircleCheckIcon } from 'lucide-react';
-import { Alert, AlertDescription, Badge, Button, Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, FieldDescription, FieldLegend, FieldSet, Label,
-  RadioGroup, RadioGroupItem } from '@ui';
+import { Alert, AlertDescription, Badge, Button, Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, Field, FieldContent, FieldDescription,
+  FieldLabel, FieldLegend, FieldSet, FieldTitle, RadioGroup, RadioGroupItem } from '@ui';
 import { agentMark } from './AgentMark';
 import { agentList, shortPath, useAgentList, type AgentList } from '../lib/agents';
 import { whenLeft } from '../lib/grid';
@@ -35,7 +35,7 @@ export function InstallProgress({ list: l }: { list: AgentList }) {
     {progress && (installing ? <Working>{progress}</Working>
       : <Alert><CircleCheckIcon className="text-success" /><AlertDescription>{progress}</AlertDescription></Alert>)}
     {details && <Details open={open} onOpenChange={(o) => l.openDetails(o)}>
-      {/* the installer's output as its terminal showed it, a line a line (Settings' AgentPage too) */}
+      {/* the installer's output as its terminal showed it, a line a line (Settings' AgentPage too: InstallProgress) */}
       <div role="log" aria-label="What the installer said" data-selectable className="max-h-40 overflow-auto font-mono text-xs whitespace-pre-wrap">
         {log.split('\n').map((line, i) => <div key={i}>{line || ' '}</div>)}
       </div>
@@ -52,21 +52,21 @@ function AgentRow({ a, chosen, installing, home }: { a: AgentInfo; chosen: boole
   const installLine = chosen && a.install && !a.installed && !a.account ? `Install runs ${a.maker || 'its maker'}'s installer: ${a.install}` : '';
   const status = a.installed ? (a.install && !a.account ? 'Installed' : '') : 'Not installed';
   const id = `agent-${a.id}`;
-  return <div data-agent={a.id} className="flex items-center gap-3 border-b pb-2 last:border-b-0 last:pb-0">
-    <RadioGroupItem id={id} value={a.id} aria-label={a.name} />
-    <Label htmlFor={id} className="min-w-0 flex-1 items-start">
-      {createElement(agentMark(a.agent || a.id), { className: 'mt-0.5 size-5 shrink-0' })}
-      <span className="flex min-w-0 flex-col gap-0.5">
-        <span>{a.account || !a.maker ? a.name : `${a.name} · ${a.maker}`}</span>
-        {!a.account && a.needs && <span className="text-xs font-normal text-muted-foreground">{a.needs}</span>}
-        {where && <span data-selectable className="font-mono text-xs font-normal break-all text-muted-foreground">{where}</span>}
-        {installLine && <span data-selectable className="font-mono text-xs font-normal break-all text-muted-foreground">{installLine}</span>}
-      </span>
-    </Label>
-    {list.details && a.site && !a.account && <Button variant="link" size="sm" asChild><a href={a.site} target="_blank" rel="noreferrer">Website</a></Button>}
-    {status && <Badge variant="outline">{status}</Badge>}
-    {!a.installed && a.install && !a.account && <Button type="button" variant="outline" size="sm" disabled={installing} onClick={() => void list.install(a.id)}>Install</Button>}
-  </div>;
+  return <FieldLabel htmlFor={id} data-agent={a.id}>
+    <Field orientation="horizontal">
+      <RadioGroupItem id={id} value={a.id} aria-label={a.name} />
+      {createElement(agentMark(a.agent || a.id), { className: 'size-5 shrink-0' })}
+      <FieldContent>
+        <FieldTitle>{a.account || !a.maker ? a.name : `${a.name} · ${a.maker}`}</FieldTitle>
+        {!a.account && a.needs && <FieldDescription>{a.needs}</FieldDescription>}
+        {where && <FieldDescription><span data-selectable className="font-mono text-xs break-all">{where}</span></FieldDescription>}
+        {installLine && <FieldDescription><span data-selectable className="font-mono text-xs break-all">{installLine}</span></FieldDescription>}
+      </FieldContent>
+      {list.details && a.site && !a.account && <Button variant="link" size="sm" asChild><a href={a.site} target="_blank" rel="noreferrer">Website</a></Button>}
+      {status && <Badge variant="outline">{status}</Badge>}
+      {!a.installed && a.install && !a.account && <Button type="button" variant="outline" size="sm" disabled={installing} onClick={() => void list.install(a.id)}>Install</Button>}
+    </Field>
+  </FieldLabel>;
 }
 
 export function AgentPicker() {
@@ -74,13 +74,13 @@ export function AgentPicker() {
   const agents = useAgentList(list, (s) => s.agents), selected = useAgentList(list, (s) => s.selected);
   const installing = useAgentList(list, (s) => s.installing), looking = useAgentList(list, (s) => s.looking), home = useAgentList(list, (s) => s.home);
   useEffect(() => { show = setOpen; return () => { show = null; }; }, []);
-  // However it closed without Start (Cancel, Esc, another task shown: closeLayers' Esc), none opens.
-  useEffect(() => { if (!open && asking !== null) answer(null); }, [open]);
+  // However it closes without Start (Cancel, Esc, another task shown: closeLayers' Esc), none opens.
+  const close = () => { setOpen(false); if (asking !== null) answer(null); };
   const chosen = agents.find((a) => a.id === selected);
   const start = () => { if (!chosen?.installed) return; answer(chosen.id); setOpen(false); };
 
   // It waits for an answer: no × and no click outside; Esc is Cancel, as a question's, but not while an install runs.
-  return <Dialog open={open} onOpenChange={(o) => { if (!o && installing) return; setOpen(o); }}>
+  return <Dialog open={open} onOpenChange={(o) => { if (!o && !installing) close(); }}>
     <DialogContent showCloseButton={false} className="sm:max-w-xl" onInteractOutside={(e) => e.preventDefault()}>
       <DialogHeader><DialogTitle>Choose the Agent</DialogTitle></DialogHeader>
       <div className="flex max-h-[60vh] min-h-0 flex-col gap-3 overflow-auto">
@@ -96,7 +96,7 @@ export function AgentPicker() {
         <InstallProgress list={list} />
       </div>
       <DialogFooter>
-        <Button type="button" variant="outline" disabled={installing} onClick={() => setOpen(false)}>Cancel</Button>
+        <Button type="button" variant="outline" disabled={installing} onClick={close}>Cancel</Button>
         <Button disabled={installing || !chosen?.installed} onClick={start}>Start</Button>
       </DialogFooter>
     </DialogContent>

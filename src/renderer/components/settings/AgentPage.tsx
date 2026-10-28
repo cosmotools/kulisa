@@ -1,63 +1,51 @@
-// An agent's page in Settings (docs/tasks.md, "Choosing the agent", Accounts), as JetBrains' SDKs: who makes it, where it
-// is, Install (agents.ts: the install goes on while another page is shown), and its accounts: Add Account signs in to a
-// new one (SignIn.tsx), Delete deletes one (asked first).
+// An agent's page in Settings (docs/tasks.md, "Choosing the agent", Accounts).
 import { createElement, useEffect, useState } from 'react';
 import { PlusIcon } from 'lucide-react';
-import { Alert, AlertDescription, Avatar, AvatarFallback, Badge, Button, Card, CardAction, CardDescription, CardHeader, CardTitle } from '@ui';
-import { install, loadAccounts, openInstallDetails, shortPath, showAccounts, useAgents } from './agents';
-import { Section, Things } from './kit';
+import { Avatar, AvatarFallback, Badge, Button, Item, ItemActions, ItemContent, ItemDescription, ItemMedia, ItemTitle } from '@ui';
+import { agents, loadAccounts, showAccounts, useAccounts } from './agents';
+import { Fact, Section, Things } from './kit';
 import { agentMark } from '../AgentMark';
 import { SignIn } from '../SignIn';
 import { ErrorBar } from '../ErrorBar';
-import { Working } from '../Working';
-import { Details } from '../Details';
+import { InstallProgress } from '../AgentPicker';
+import { shortPath, useAgentList } from '../../lib/agents';
 import { refused } from '../../../shared/result';
 import type { AgentInfo } from '../../../shared/types';
 
 export function AgentPage({ agent: a, signing, onSigning }: { agent: AgentInfo; signing: boolean; onSigning: (on: boolean) => void }) {
-  const { accounts, clis, install: inst } = useAgents();
+  const { accounts, clis } = useAccounts();
+  const home = useAgentList(agents, (s) => s.home), installing = useAgentList(agents, (s) => s.installing);
+  // The install's output on the page of the agent it is of.
+  const shown = useAgentList(agents, (s) => s.showDetails && s.selected === a.id);
   const [error, setError] = useState('');
   useEffect(() => { void loadAccounts(); }, []); // as now: made in a project, or let go by one, meanwhile
 
   const mine = accounts.filter((x) => x.agent === a.id);
-  const where = a.path ? [a.version, shortPath(a.path), a.onPath === false && 'not on your PATH: Kulisa runs it from here'].filter(Boolean).join(' · ') : '';
-  const installing = !!inst?.running, shown = inst?.id === a.id ? inst : null;
+  const where = a.path ? [a.version, shortPath(a.path, home), a.onPath === false && 'not on your PATH: Kulisa runs it from here'].filter(Boolean).join(' · ') : '';
   async function remove(id: string) {
     setError('');
     const r = await kulisa.invoke('account:delete', { id });
     if (refused(r)) { setError(r.error ?? ''); return; } // null: the human said no
     showAccounts(r);
   }
-  const fact = (label: string, value: string, testid?: string) => <div className="flex flex-col gap-0.5">
-    <span className="font-medium">{label}</span><span data-selectable data-testid={testid} className="text-muted-foreground">{value}</span>
-  </div>;
 
   // section, data-agent: the tests' handle on the page shown (docs/testing.md).
   return <section aria-label={a.name} data-agent={a.id} className="flex flex-col gap-4">
-    <Card>
-      <CardHeader>
-        <div className="flex items-center gap-3">
-          {createElement(agentMark(a.id), { className: 'size-10 shrink-0' })}
-          <div className="flex flex-col gap-1">
-            <CardTitle role="heading" aria-level={2}><span className="flex items-center gap-2">{a.name}
-              <Badge role="status" variant={a.installed ? 'default' : 'secondary'}>{a.installed ? 'Installed' : 'Not installed'}</Badge></span></CardTitle>
-            <CardDescription>{a.maker || '—'}{a.site && <> · <a href={a.site} target="_blank" rel="noreferrer" className="underline underline-offset-4">Website</a></>}</CardDescription>
-          </div>
-        </div>
-        {!a.installed && a.install && <CardAction><Button disabled={installing} onClick={() => void install(a.id)}>Install</Button></CardAction>}
-      </CardHeader>
-    </Card>
+    <Item variant="outline">
+      <ItemMedia>{createElement(agentMark(a.id), { className: 'size-10' })}</ItemMedia>
+      <ItemContent>
+        <ItemTitle role="heading" aria-level={2}>{a.name}
+          <Badge role="status" variant={a.installed ? 'default' : 'secondary'}>{a.installed ? 'Installed' : 'Not installed'}</Badge></ItemTitle>
+        <ItemDescription>{a.maker || '—'}{a.site && <> · <a href={a.site} target="_blank" rel="noreferrer">Website</a></>}</ItemDescription>
+      </ItemContent>
+      {!a.installed && a.install && <ItemActions><Button disabled={installing} onClick={() => void agents.install(a.id)}>Install</Button></ItemActions>}
+    </Item>
 
     <Section title="About">
-      {a.needs && fact('Needs', a.needs)}
-      {where ? fact('Installed at', where, 'agent-where') : a.install && fact('Install', `Runs ${a.maker || 'its maker'}'s installer: ${a.install}`)}
-      {shown?.progress && (shown.running ? <Working>{shown.progress}</Working>
-        : <Alert><AlertDescription>{shown.progress}</AlertDescription></Alert>)}
-      {shown && <Details open={shown.open} onOpenChange={openInstallDetails}>
-        {/* the installer's output as its terminal showed it */}
-        <div role="log" aria-label="What the installer said" data-selectable className="max-h-64 overflow-auto font-mono text-xs whitespace-pre-wrap">{shown.log}</div>
-      </Details>}
-      {shown?.error && <ErrorBar>{shown.error}</ErrorBar>}
+      {a.needs && <Fact label="Needs">{a.needs}</Fact>}
+      {where ? <Fact label="Installed at" data-testid="agent-where">{where}</Fact>
+        : a.install && <Fact label="Install">{`Runs ${a.maker || 'its maker'}'s installer: ${a.install}`}</Fact>}
+      {shown && <InstallProgress list={agents} />}
     </Section>
 
     {clis.includes(a.id) && <Section title="Accounts" action={<Button variant="outline" size="sm" disabled={!a.installed || signing}

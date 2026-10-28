@@ -14,7 +14,7 @@ type Source = { folder: string; state: string };
 export interface WizardState {
   step: number; saving: boolean; error: string;
   errorAt: 'source' | 'name' | ''; // the field the error is of; none: Create's refusal (a clone failing), over the buttons
-  ready: boolean; // its defaults there: shown only then, or a choice made at once was undone by them
+  ready: boolean; // its defaults there: shown only then, or a choice made at once is undone by them
   // 1. Its code: a new folder, folders on the disk (nothing made), or repositories cloned from URLs.
   from: From; name: string; place: string; sep: string; sources: Source[]; urls: string[]; typed: string;
   asked: { folder: string; state: string; project?: string } | null; // what the folder of a new or cloned one is
@@ -68,8 +68,7 @@ export function wizard(single: boolean) {
     set({ error: '' });
     if (get().from === 'clone') { if (!get().urls.includes(v)) set({ urls: [...get().urls, v] }); follow(); void ask(); return true; }
     const r = await kulisa.invoke('project:folder-state', { from: 'folder', folder: v });
-    const why = !r ? `${v}: a full path, please` : ({ new: `${r.folder} is not there`, file: `${r.folder} is a file, not a folder`,
-      project: `${r.folder} is the project ${r.project}'s already` } as Record<string, string>)[r.state];
+    const why = !r ? `${v}: a full path, please` : r.state === 'new' ? `${r.folder} is not there` : folderIs[r.state]?.(r.folder, r.project);
     if (why) { set({ error: why, errorAt: 'source', ...(!get().typed && { typed: v }) }); return false; } // left to correct
     if (single && v !== get().typed.trim()) return true; // another typed meanwhile: its own answer comes
     if (!get().sources.some((x) => x.folder === r!.folder)) set({ sources: [...get().sources, { folder: r!.folder, state: r!.state }] });
@@ -148,7 +147,7 @@ export function wizard(single: boolean) {
       accounts: a.accounts, clis: a.clis, chosen: [], main: '', signing: null, others: p.profiles, taken: [], fresh: [], ready: true });
     void ask();
     // The agents behind it: looking for them runs the user's login shell and each one's --version (seconds with a heavy
-    // .bashrc), and only the second step needs them; the first start's window was empty meanwhile.
+    // .bashrc), and only the second step needs them; waited for, the first start's window is empty meanwhile.
     void installs.load(undefined, () => {});
   }
 
@@ -158,6 +157,11 @@ export function wizard(single: boolean) {
 export type Wizard = ReturnType<typeof wizard>;
 export const useWizard = <T>(w: Wizard, selector: (s: WizardState) => T) => useStore(w.store, selector);
 
+// What a folder is that will not do, said of it (one added; a new or cloned one's).
+const folderIs: Record<string, (folder: string, project?: string) => string> = {
+  file: (folder) => `${folder} is a file, not a folder`,
+  project: (folder, project) => `${folder} is the project ${project}'s already`,
+};
 // What is said of the code as it is typed, from the state alone.
 export const isDefault = (s: WizardState, id: string) => (s.main || s.chosen[0]) === id;
 const thereOf = (s: WizardState) => {
@@ -166,7 +170,7 @@ const thereOf = (s: WizardState) => {
 };
 export function refusalOf(s: WizardState) {
   const { t, there } = thereOf(s), state = there?.state ?? '';
-  return ({ project: `${t} is the project ${there?.project}'s already`, file: `${t} is a file, not a folder` } as Record<string, string>)[state]
+  return folderIs[state]?.(t, there?.project)
     ?? (s.from === 'clone' && ['files', 'repo'].includes(state) ? `${t} is there already: choose another name or location` : '');
 }
 // The welcome's asks no name for code that has one (the folder's, the repository's), only when it will not do: then its

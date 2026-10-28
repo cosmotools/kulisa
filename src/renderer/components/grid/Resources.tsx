@@ -1,13 +1,11 @@
-// The Resources panel (docs/tasks.md, The Resources panel), a panel of the grid: the shown task's resources, a row
-// each, opening its folder; what the task added (another repository's worktree) has a 🗑. Under them its artifacts, the
-// files the agent's tools kept of its pages: a click opens one in the OS's app for it; their heading says what they take
-// (Task.artifactsUsage).
-import { useEffect, type ReactNode } from 'react';
+// The Resources panel of the grid, and its header (docs/tasks.md, The Resources panel).
+import { useEffect } from 'react';
 import { FileIcon, FolderIcon, GitBranchIcon, Trash2Icon } from 'lucide-react';
 import type { IDockviewPanelHeaderProps } from 'dockview-react';
 import { useShallow } from 'zustand/react/shallow';
 import { Button } from '@ui';
 import { RightClickMenu } from '../Menus';
+import { IconText } from './IconText';
 import { shownTask, useWindow } from '../../lib/store';
 import type { MenuItem } from '../../lib/menu';
 import { sizeText } from '../../../shared/bytes';
@@ -18,17 +16,6 @@ const day = (t: number) => new Date(t).toDateString();
 const when = (t: number) => (day(t) === day(Date.now()) ? new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   : new Date(t).toLocaleDateString([], { day: 'numeric', month: 'short' }));
 const openFile = (file: string) => kulisa.invoke('file:open', file);
-
-// A row's inside: its icon, its name and the line under it.
-function Row({ icon, name, line }: { icon: ReactNode; name: string; line: string }) {
-  return <>
-    {icon}
-    <span className="flex min-w-0 flex-col items-start py-1">
-      <span className="max-w-full truncate">{name}</span>
-      <span className="max-w-full truncate text-xs font-normal text-muted-foreground">{line}</span>
-    </span>
-  </>;
-}
 
 export function Resources() {
   const task = useWindow((s) => shownTask(s));
@@ -51,7 +38,7 @@ export function Resources() {
     <ul aria-label="Folders" className="flex flex-col">
       {task.resources.map((r) => <li key={r.folder} className="flex items-center gap-0.5">
         <Button variant="ghost" aria-label={r.label} title={`Open Folder: ${r.folder}`} className="h-auto min-w-0 flex-1 justify-start" onClick={() => void open(r.folder)}>
-          <Row icon={r.kind === 'maintree' ? <FolderIcon /> : <GitBranchIcon />} name={r.label} line={r.branch ? `branch ${r.branch}` : 'main working tree'} />
+          <IconText icon={r.kind === 'maintree' ? <FolderIcon /> : <GitBranchIcon />} name={r.label} line={r.branch ? `branch ${r.branch}` : 'main working tree'} />
         </Button>
         {r.removable && <Button variant="ghost" size="icon-sm" aria-label="Remove Repository" title="Remove Repository" onClick={() => void remove(r.folder)}>
           <Trash2Icon />
@@ -72,7 +59,7 @@ export function Resources() {
             <Button variant="ghost" data-file={a.file} aria-label={kindOf(a.kind)} title={`Open: ${a.file} (${sizeText(a.bytes)})`}
               className="h-auto min-w-0 flex-1 justify-start" onClick={() => void openFile(a.file)}>
               {/* a page's head: where its picture is cut */}
-              <Row icon={a.thumb ? <img src={a.thumb} alt="" className="size-8 rounded-sm border object-cover object-top" /> : <FileIcon />}
+              <IconText icon={a.thumb ? <img src={a.thumb} alt="" className="size-8 rounded-sm border object-cover object-top" /> : <FileIcon />}
                 name={kindOf(a.kind)} line={[names[a.profile], when(a.time)].filter(Boolean).join(' · ')} />
             </Button>
           </li>)}
@@ -82,7 +69,7 @@ export function Resources() {
   </aside>;
 }
 
-// Its header in the grid: its name; the panel is dragged by it.
+// The panel is dragged by its header.
 export function ResourcesHeader({ api }: IDockviewPanelHeaderProps) {
   return <div data-panel={api.id} className="flex h-full min-w-0 items-center px-2">
     <span className="min-w-0 truncate">{api.title}</span>

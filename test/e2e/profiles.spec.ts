@@ -71,11 +71,11 @@ test("delete a profile in Settings (its page's ⋯, its row's right-click): sign
   await ipcSettled(s);
   expect(await core((k, p) => k.shell.profiles.has(p), tempId), 'nothing is deleted without the confirmation').toBe(true);
   await navRow(s, 'profiles').click();
-  await rightClick(s, thingRow(s, `f:${tempId}`));
+  await rightClick(s, thingRow(s, tempId));
   await choose(s, 'Delete Profile…', settingsMenu(s));
   await answer(s);
   await expect.poll(() => core((k, p) => !k.shell.profiles.has(p) && !k.shell.profileStore.get(p), tempId)).toBe(true);
-  await expect(thingRow(s, `f:${tempId}`)).toHaveCount(0);
+  await expect(thingRow(s, tempId)).toHaveCount(0);
   await expect(pathOf(s), 'their list').toHaveText('Profiles');
   await closeSettings(core, ui, sui);
 

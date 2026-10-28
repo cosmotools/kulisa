@@ -1,9 +1,10 @@
 // The agents Kulisa knows (main/agents/), for a list of them with Install in a tasks' window: choosing a task's agent
-// (components/AgentPicker.tsx: the project's accounts and the terminal only) and New Project's agents (the agents alone,
-// details). The state lives in the list, not in its dialog: a closed dialog's content is unmounted, and an install it
-// started goes on and shows when it opens again.
+// (components/AgentPicker.tsx: the project's accounts and the terminal only), New Project's agents and Settings' (the
+// agents alone, details). The state lives in the list, not in its dialog or page: a closed dialog's content is
+// unmounted, and an install it started goes on and shows when it opens again.
 //   const list = agentList({ details, installed })   installed(agent): what to say once it is installed
-//   list.load(selected, show) the agents, then await show() (opens its dialog); useAgentList(list, selector) in a component
+//   list.load(selected, show) the agents, then await show() (opens its dialog); list.look(cached) without one
+//   useAgentList(list, selector) in a component
 import { createStore, useStore } from 'zustand';
 import { refused } from '../../shared/result';
 import { tilde } from '../../shared/paths';
@@ -56,6 +57,14 @@ export function agentList(opts: { details?: boolean; installed: (a: AgentInfo) =
     choose();
     await show();
   }
+  // The list with no dialog to open (Settings): cached, as the last look found it, at once; else looked for again,
+  // `looking` while there is no list yet. Whether a list came.
+  async function look(cached: boolean) {
+    if (!cached && !get().agents.length) set({ looking: true });
+    const found = await fetchAgents(cached, !cached);
+    if (!cached) set({ looking: false });
+    return found;
+  }
   // Install: its maker's installer, its output under Details (opened by itself when it fails).
   async function install(id: string) {
     const a = get().agents.find((x) => x.id === id);
@@ -73,7 +82,7 @@ export function agentList(opts: { details?: boolean; installed: (a: AgentInfo) =
     return installed;
   }
   return {
-    store, details: !!opts.details, load, install,
+    store, details: !!opts.details, load, look, install,
     chosen: () => get().agents.find((a) => a.id === get().selected),
     select: (id: string) => set({ selected: id }),
     openDetails: (open: boolean) => set({ detailsOpen: open }),

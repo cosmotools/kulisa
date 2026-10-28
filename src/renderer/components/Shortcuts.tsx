@@ -2,7 +2,8 @@
 // so it is never out of date. A key held alone (the dictation's) is the human's to change: Change, then the key pressed
 // is it (keys:set; the main process says what may not be one).
 import { useEffect, useState } from 'react';
-import { Button, Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, Kbd, Table, TableBody, TableCell, TableRow } from '@ui';
+import { Button, Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, FieldDescription, FieldLegend, FieldSet, Kbd, Table, TableBody, TableCell,
+  TableRow } from '@ui';
 import { registerDialog } from '../lib/dialogs';
 import { useShortcuts } from '../lib/common';
 import { refused } from '../../shared/result';
@@ -42,9 +43,9 @@ export function Shortcuts() {
       onOpenAutoFocus={(e) => { e.preventDefault(); (e.currentTarget as HTMLElement).focus(); }}>
       <DialogHeader><DialogTitle>Keyboard Shortcuts</DialogTitle></DialogHeader>
       <div className="flex max-h-[60vh] min-h-0 flex-col gap-5 overflow-auto">
-        {GROUPS.map(([group, title, hint]) => <section key={group} aria-label={title} className="flex flex-col gap-1">
-          <h3 className="font-medium">{title}</h3>
-          <p className="text-muted-foreground">{hint}</p>
+        {GROUPS.map(([group, title, hint]) => <FieldSet key={group}>
+          <FieldLegend variant="label">{title}</FieldLegend>
+          <FieldDescription>{hint}</FieldDescription>
           <Table aria-label={title}>
             <TableBody>
               {shortcuts.filter((s) => s.group === group).map((s) => <TableRow key={s.id} data-shortcut={s.id}>
@@ -58,7 +59,7 @@ export function Shortcuts() {
             </TableBody>
           </Table>
           {group === 'global' && message && <ErrorBar>{message}</ErrorBar>}
-        </section>)}
+        </FieldSet>)}
       </div>
       <DialogFooter><Button onClick={() => setOpen(false)}>Close</Button></DialogFooter>
     </DialogContent>

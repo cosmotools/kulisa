@@ -1,13 +1,11 @@
-// The shown task's terminals, a panel of the grid (docs/window.md, The terminal): the terminal in front, its tabs in the
-// panel's header (TerminalsHeader). The xterms live as long as their terminals (lib/terminals.ts); the panel holds the
-// shown task's. With none, the panel folds to its + (by its height with a panel over or under it, by its width when it
-// is as tall as the grid), and unfolds to the size it had when one opens. With no profile open it is the grid's room for
-// them: the +'s rows are big buttons in its middle instead, the closed profiles' under them.
-import { createElement, useCallback, useEffect, useRef, useSyncExternalStore, type DragEvent, type ReactNode, type Ref } from 'react';
+// The shown task's terminals, a panel of the grid, and its header (docs/window.md, The terminal). The xterms live as long
+// as their terminals (lib/terminals.ts), not as the panel: it shows the shown task's.
+import { createElement, useCallback, useEffect, useRef, useSyncExternalStore, type DragEvent, type Ref } from 'react';
 import { CheckIcon, PlusIcon } from 'lucide-react';
 import type { IDockviewPanelHeaderProps, IDockviewPanelProps } from 'dockview-react';
 import { Avatar, AvatarImage, Button, Spinner } from '@ui';
 import { ButtonMenu, RightClickMenu } from '../Menus';
+import { IconText } from './IconText';
 import { BrowserTab, TabStrip } from '../BrowserTabs';
 import { agentMark } from '../AgentMark';
 import { AgentState, STATES } from '../AgentState';
@@ -22,7 +20,6 @@ import { dialogsShown } from '../../lib/cover';
 import { termFocus } from '../../../terminal/renderer';
 import { Dictation, Pill } from '../../../dictation/renderer';
 import type { Terminal } from '../../../shared/types';
-
 
 const NEW_TITLE = 'New conversation of an agent, or a terminal';
 // The header's height (Grid.tsx): the folded panel is one button of it.
@@ -121,9 +118,7 @@ export function Terminals({ api, containerApi }: IDockviewPanelProps) {
   </div>;
 }
 
-// The +'s rows as big buttons in the grid's middle, the agent's mark beside its name, an account's email under it; the
-// task's closed profiles under them (lib/profiles.ts, profileLaunchers). One width for all, so the rows line up; the
-// name and line cut with … inside.
+// One width for all, so the rows line up.
 function Launchers({ ref }: { ref: Ref<HTMLDivElement> }) {
   const closed = useWindow((s) => s.closedProfiles);
   useWindow((s) => s.projects); // the project's agents
@@ -131,39 +126,25 @@ function Launchers({ ref }: { ref: Ref<HTMLDivElement> }) {
     <nav aria-label="New terminal" className="flex flex-wrap justify-center gap-3">
       {launchers().map((l) => <Button key={l.id} data-launcher variant="outline" aria-label={l.name} title={l.title} className="h-auto w-60 justify-start"
         onClick={() => void l.run()}>
-        <Big icon={createElement(agentMark(l.cli), { className: 'size-8' })} name={l.name ?? ''} sub={l.sub} />
+        <IconText big icon={createElement(agentMark(l.cli), { className: 'size-8' })} name={l.name ?? ''} line={l.sub} />
       </Button>)}
     </nav>
     <nav aria-label="Open a profile" className="flex flex-wrap justify-center gap-3">
       {profileLaunchers(closed).map((p) => <Button key={p.id} data-launcher data-profile={p.id} variant="outline" aria-label={p.name} title={p.title}
         className="h-auto w-60 justify-start" onClick={() => void p.run()}>
-        <Big icon={p.avatar ? <Avatar size="lg" aria-hidden><AvatarImage src={avatarSrc(p.avatar)} alt="" /></Avatar> : <PlusIcon className="size-8" />} name={p.name} />
+        <IconText big icon={p.avatar ? <Avatar size="lg" aria-hidden><AvatarImage src={avatarSrc(p.avatar)} alt="" /></Avatar> : <PlusIcon className="size-8" />} name={p.name} />
       </Button>)}
     </nav>
   </div>;
 }
-
-// A big button's inside: its icon, its name and the line under it.
-function Big({ icon, name, sub }: { icon: ReactNode; name: string; sub?: string }) {
-  return <span className="flex min-w-0 items-center gap-3 py-3">
-    {icon}
-    <span className="flex min-w-0 flex-col items-start">
-      <span className="max-w-full truncate">{name}</span>
-      {sub && <span className="max-w-full truncate text-xs font-normal text-muted-foreground">{sub}</span>}
-    </span>
-  </span>;
-}
-
 
 const tabTitle = (t: Terminal) => (t.agent ? `${t.agent.name}${t.state ? `: it ${STATES[t.state]}` : ''}` : t.command || "Your shell in the task's folder");
 const handOver = (t: Terminal) => void dialog('handover').then((d) => d.open(t));
 const language = new Intl.DisplayNames(['en'], { type: 'language' });
 const noDrag = (e: DragEvent) => e.preventDefault();
 
-// The panel's header: each terminal's tab, then +; at its end the dictation's microphone (src/dictation). The panel is
-// dragged by the row's empty end, not by its tabs and buttons. A tab is as wide as its name, up to 220 px, never
-// shrinking (the agents' marks look alike); past that the strip scrolls. An agent's mark on its tab is Change Agent,
-// its own click (a button holds no other: a span with the role, as the tab's ×).
+// The panel is dragged by the header's empty end, not by its tabs and buttons (noDrag). The agent's mark on a tab is
+// Change Agent: a span with the role, as a button holds no other (docs/ui.md, Tabs).
 export function TerminalsHeader({ api }: IDockviewPanelHeaderProps) {
   const list = useWindow((s) => s.terminals.list), front = useWindow((s) => s.terminals.front);
   const task = useWindow((s) => s.current), lang = useWindow((s) => s.language?.language);

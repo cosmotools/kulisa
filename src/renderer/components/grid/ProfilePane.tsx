@@ -6,7 +6,7 @@ import { useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties
 import type { IDockviewPanelHeaderProps, IDockviewPanelProps } from 'dockview-react';
 import { ArrowLeftIcon, ArrowRightIcon, EllipsisIcon, EllipsisVerticalIcon, GlobeIcon, LockIcon, PlusIcon, RotateCwIcon, SquareMousePointerIcon,
   XIcon } from 'lucide-react';
-import { Avatar, AvatarImage, Badge, Button, Input, Toggle } from '@ui';
+import { Avatar, AvatarImage, Badge, Button, Card, CardContent, CardFooter, CardHeader, CardTitle, Input, Toggle } from '@ui';
 import { ButtonMenu, RightClickMenu } from '../Menus';
 import { BrowserTab, TabStrip } from '../BrowserTabs';
 import { act, screenshot, store, togglePick, useWindow } from '../../lib/store';
@@ -19,8 +19,8 @@ import { deleteProfile } from '../../lib/profiles';
 
 const profileOf = (panel: string) => panel.slice('profile:'.length);
 const useProfile = (id: string) => useWindow((s) => s.profiles.find((p) => p.id === id));
-// The same now, for what acts: its active tab's id.
-const activeOf = (id: string) => store.getState().profiles.find((p) => p.id === id)?.active ?? '';
+// Its active tab as the store has it now, for what acts (a handler, not a render).
+const activeTab = (id: string) => { const p = store.getState().profiles.find((x) => x.id === id); return p?.tabs.find((t) => t.id === p.active); };
 // An address as Chrome shows it in the omnibox when not editing: no http(s)://, no www., no lone trailing /.
 const fullUrl = (u = '') => (u === 'about:blank' ? '' : u);
 const shortUrl = (u?: string) => fullUrl(u).replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/^([^/?#]+)\/$/, '$1');
@@ -36,7 +36,7 @@ export function ProfilePane({ api }: IDockviewPanelProps) {
   const typeInto = useRef<string | null>(null), clickedIn = useRef(false);
   const active = profile?.tabs.find((t) => t.id === profile.active);
   useStrip(strip, profile?.active);
-  const tab = () => activeOf(id);
+  const tab = () => activeTab(id)?.id ?? '';
 
   // A tab the human opened (+, New tab, Ctrl+T): the address gets the focus once the tab is the active one, as in
   // Chrome (here, or in newTab when the state came first). The address: shown short unless being edited; getting the
@@ -49,7 +49,7 @@ export function ProfilePane({ api }: IDockviewPanelProps) {
   useLayoutEffect(() => { if (selectAll.current) { selectAll.current = false; addr.current?.select(); } });
   const addrFocus = () => {
     selectAll.current = true;
-    setEditing(fullUrl(store.getState().profiles.find((p) => p.id === id)?.tabs.find((t) => t.id === tab())?.url));
+    setEditing(fullUrl(activeTab(id)?.url));
   };
   const addrDown = () => { clickedIn.current = document.activeElement !== addr.current; };
   const addrUp = (e: MouseEvent) => {
@@ -72,12 +72,11 @@ export function ProfilePane({ api }: IDockviewPanelProps) {
       async newTab() {
         const r = await act('tab:new', { profile: id });
         typeInto.current = typeof r === 'string' ? r : null;
-        if (typeInto.current && typeInto.current === activeOf(id)) { typeInto.current = null; addr.current?.focus(); }
+        if (typeInto.current && typeInto.current === activeTab(id)?.id) { typeInto.current = null; addr.current?.focus(); }
       },
       // As a click on Pick: off on an empty tab; again cancels.
       pick() {
-        const p = store.getState().profiles.find((x) => x.id === id), url = p?.tabs.find((t) => t.id === p.active)?.url;
-        if (store.getState().picking[id] || !blank(url)) void togglePick(id);
+        if (store.getState().picking[id] || !blank(activeTab(id)?.url)) void togglePick(id);
       },
     };
     panes.set(id, handle);
@@ -122,7 +121,7 @@ export function ProfilePane({ api }: IDockviewPanelProps) {
   const run = (channel: 'tab:back' | 'tab:forward' | 'tab:reload') => () => void act(channel, { profile: id, tab: tab() });
   // ⋮: what a pane does less often, after the buttons the bar has given up (hidden by its width, below).
   const more = (): MenuItem[] => {
-    const t = store.getState().profiles.find((p) => p.id === id)?.tabs.find((x) => x.id === tab()), off = blank(t?.url);
+    const t = activeTab(id), off = blank(t?.url);
     const given: MenuItem[] = [
       ...!nav.current?.checkVisibility() ? [{ label: 'Back', keys: keyText('tab.back'), enabled: !!t?.canBack, run: run('tab:back') },
         { label: 'Forward', keys: keyText('tab.forward'), enabled: !!t?.canFwd, run: run('tab:forward') }] : [],
@@ -143,8 +142,7 @@ export function ProfilePane({ api }: IDockviewPanelProps) {
     <nav aria-label="Tabs" className="flex flex-none items-center gap-1 px-2 pt-1">
       <RightClickMenu items={tabMenu} className="flex min-w-0">
         <TabStrip stripRef={strip} label="Open tabs" value={profile.active ?? ''} onChoose={activate}>
-          {/* As Chrome's: 220 px, shrinking to their icon and × (64 px), every one keeping its × (the author's choice, as
-              in the tasks' bar); past that the strip scrolls. The title goes when the tab is too narrow for it. */}
+          {/* their widths: docs/ui.md, Tabs */}
           {profile.tabs.map((t) => <BrowserTab key={t.id} ref={grow} value={t.id} data-tab={t.id} aria-label={t.title || t.url || 'New tab'} title={t.url}
             className="@container w-[220px] min-w-16 flex-[0_1_auto]"
             icon={t.favicon ? <img data-testid="tab-icon" alt="" src={t.favicon} className="size-4" /> : <GlobeIcon data-testid="tab-icon" />}
@@ -195,8 +193,8 @@ export function ProfilePane({ api }: IDockviewPanelProps) {
   </div>;
 }
 
-// A page's alert or confirm, right under the address bar on the dimmed picture of the page, as Chrome shows it. OK has
-// the keyboard, as in Chrome; Esc is Cancel; Tab stays among its buttons.
+// Not a Dialog: it is placed in its pane, not over the window (docs/ui.md, Dialogs), so the keyboard is kept in it here:
+// OK has it, as in Chrome; Esc is Cancel; Tab stays among its buttons.
 function PageDialog({ from, message, confirm, answer }: { from: string; message: string; confirm: boolean; answer: (ok: boolean) => void }) {
   const title = useId(), text = useId();
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
@@ -207,15 +205,16 @@ function PageDialog({ from, message, confirm, answer }: { from: string; message:
     buttons.at((at + (e.shiftKey ? -1 : 1)) % buttons.length)?.focus();
   };
   return <div className="absolute inset-0 backdrop-blur-xs backdrop-brightness-75">
-    <div role="alertdialog" aria-labelledby={title} aria-describedby={text} onKeyDown={onKeyDown}
-      className="mx-auto mt-2 flex w-[min(450px,calc(100%-1rem))] flex-col gap-4 rounded-xl bg-popover p-4 text-sm text-popover-foreground shadow-lg ring-1 ring-foreground/10">
-      <h2 id={title} className="font-medium">{from}</h2>
-      <p id={text} data-selectable className="whitespace-pre-wrap wrap-anywhere">{message}</p>
-      <div className="flex justify-end gap-2">
-        {confirm && <Button variant="outline" onClick={() => answer(false)}>Cancel</Button>}
-        <Button autoFocus onClick={() => answer(true)}>OK</Button>
-      </div>
-    </div>
+    <Card size="sm" role="alertdialog" aria-labelledby={title} aria-describedby={text} onKeyDown={onKeyDown} className="mx-auto mt-2 w-[min(450px,calc(100%-1rem))]">
+      <CardHeader><CardTitle id={title}>{from}</CardTitle></CardHeader>
+      <CardContent><p id={text} data-selectable className="whitespace-pre-wrap wrap-anywhere">{message}</p></CardContent>
+      <CardFooter className="justify-end">
+        <div className="flex gap-2">
+          {confirm && <Button variant="outline" onClick={() => answer(false)}>Cancel</Button>}
+          <Button autoFocus onClick={() => answer(true)}>OK</Button>
+        </div>
+      </CardFooter>
+    </Card>
   </div>;
 }
 

@@ -31,7 +31,7 @@ test('after a restart: the other task waits in the bar with its tabs, loads when
   await notLoading(ui);
 
   const ui2 = await restart();
-  await expect(ui2.locator(`#projectTabs [data-project="${pid}"]`)).toHaveText(['task-1', 'Feature-X']);
+  await expect(ui2.locator(`#taskTabs [data-project="${pid}"]`)).toHaveText(['task-1', 'Feature-X']);
   expect(await core((k, id) => [...k.shell.taskByKey(id).project.tasks.values()][2].entry.closed, first)).toBe(true);
   expect(await core((k, key) => k.shell.taskByKey(key).loaded, second)).toBe(false);
   // Left loaded in the background: its tabs saved as Kulisa quit, not again as they closed (none left at last).
@@ -42,13 +42,13 @@ test('after a restart: the other task waits in the bar with its tabs, loads when
   // Once the first has loaded: a click while the window still builds it is not taken.
   await expect.poll(() => core((k) => k.settled())).toBe(true);
   await notLoading(ui2);
-  await ui2.locator(`#projectTabs [data-task="${second}"]`).click();
+  await ui2.locator(`#taskTabs [data-task="${second}"]`).click();
   await expect.poll(() => core((k, key) => k.shell.task?.key === key && k.shell.task.loaded && !!k.shell.task.pty, second)).toBe(true);
   expect(await core((k) => k.shell.task.folder)).toBe(`${project}@feature-x`);
   expect(await core((k) => [...k.shell.profiles.keys()])).toEqual([samId, elonId]);
   await call('browser_navigate', { profile: SAM, url: `${SITE}/app` });
   expect(await who(call, SAM), 'its own sign-in to the local app').toBe('Signed in as second');
-  await ui2.locator(`#projectTabs [data-task="${first}"]`).click();
+  await ui2.locator(`#taskTabs [data-task="${first}"]`).click();
   await expect.poll(() => core((k, key) => k.shell.task?.key === key, first)).toBe(true);
   await bothOn(core, ui2, files);
 });

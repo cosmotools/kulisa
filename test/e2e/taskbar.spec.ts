@@ -7,14 +7,14 @@ import { MAC, frames, ipcSettled, menu, choose, closeMenu, rightClick, fromSideb
 import { committed, rand, keyAt, isNth, nthShown, taskTab, hook, begin, bothOn, newTask } from './tasks-helpers.ts';
 
 // The tab chosen (lit) in the bar.
-const chosen = (ui: Page) => ui.locator('#projectTabs [role="tab"][aria-selected="true"]');
+const chosen = (ui: Page) => ui.locator('#taskTabs [role="tab"][aria-selected="true"]');
 
 test("tasks: switching shows the other grid and terminal; the one left keeps running; the agent's state shows on its tab", async ({ core, ui, files, call }) => {
   await begin(core, ui, files, { only: true, columns: true, featureX: call, shown: 2 });
   const first = await keyAt(core, 1), second = await keyAt(core, 2), SAM = files.idOf('Sam.admin');
   // No profiles' button on a task's tab, its right-click menu has them; the × on every tab, as Chrome's, not only
   // the shown one's (the author's choice).
-  const tabs = ui.locator('#projectTabs [role="tab"]');
+  const tabs = ui.locator('#taskTabs [role="tab"]');
   await expect(tabs).toHaveCount(2);
   await expect(tabs.getByRole('button')).toHaveCount(2);
   await expect(tabs.getByRole('button', { name: 'Close', exact: true }), 'one ×, shown').toHaveCount(2);
@@ -228,7 +228,7 @@ test('tasks: Ctrl+Shift+2 shows the second, Ctrl+Shift+PgUp and PgDn the one bef
 test("tasks: more tabs than the bar holds: each keeps its name readable, a mouse's wheel scrolls them, a faded edge says some are past it, the shown one stays in sight; in the title bar the window is still dragged after +", async ({ core, ui, files, call }) => {
   // About 3 s: three tasks more, as many as the narrowest window's bar does not hold.
   await begin(core, ui, files, { only: true, columns: true, featureX: call });
-  const strip = ui.locator('#projectTabs'), tabs = strip.getByRole('tab');
+  const strip = ui.locator('#taskTabs'), tabs = strip.getByRole('tab');
   // Where the bar is scrolled to, and how far it can be: Playwright reads no scroll.
   const scroll = () => strip.evaluate((s) => ({ left: Math.round(s.scrollLeft), max: s.scrollWidth - s.clientWidth }));
   // Which edges fade: the one with a tab past it.
@@ -263,11 +263,11 @@ test("tasks: more tabs than the bar holds: each keeps its name readable, a mouse
     // real drag of the window is the OS's, out of a test's reach). Where each is in the page and its app-region:
     // Playwright reads neither.
     await invoke(ui, 'bar:set', 'top');
-    await expect(ui.locator('#topbar #projectTabs')).toHaveCount(1);
+    await expect(ui.locator('#topbar #taskTabs')).toHaveCount(1);
     await expect.poll(async () => (await scroll()).max, 'the tabs overflow').toBeGreaterThan(0);
     const width = async (sel: string) => (await ui.locator(sel).boundingBox()).width;
     expect(await width('[data-testid="drag-area"]'), '40 px left to drag by').toBeGreaterThanOrEqual(40);
-    const plus = await ui.locator('#newTask').boundingBox(), gear = await ui.locator('#manageProjects').boundingBox();
+    const plus = await ui.locator('#newTask').boundingBox(), gear = await ui.locator('#settingsButton').boundingBox();
     expect(gear.x - (plus.x + plus.width)).toBeGreaterThanOrEqual(40);
     const logo = ui.getByTestId('title-logo');
     expect(await ui.evaluate(() => {
@@ -284,8 +284,8 @@ test("tasks: more tabs than the bar holds: each keeps its name readable, a mouse
     await invoke(ui, 'bar:set', 'bottom');
     await resize(core, before);
   }
-  await expect(ui.locator('#topbar #projectTabs')).toHaveCount(0);
-  await expect(ui.locator('#projectTabs')).toHaveCount(1);
+  await expect(ui.locator('#topbar #taskTabs')).toHaveCount(0);
+  await expect(ui.locator('#taskTabs')).toHaveCount(1);
   await taskTab(ui, await keyAt(core, 1)).click();
   await nthShown(core, 1);
 });
@@ -310,10 +310,10 @@ test("tasks: a press on a tab not shown chooses it at once, as Chrome's; its tas
   // and light again with the new state, the tab blinking. Every change of the lit tab noted as it comes: an assertion
   // sees only the state when it looks.
   await ui.evaluate(() => {
-    const w = window as any, lit = () => document.querySelector<HTMLElement>('#projectTabs [role="tab"][aria-selected="true"]')?.dataset.task ?? '';
+    const w = window as any, lit = () => document.querySelector<HTMLElement>('#taskTabs [role="tab"][aria-selected="true"]')?.dataset.task ?? '';
     w.__lit = [lit()];
     w.__litObs = new MutationObserver(() => w.__lit.push(lit()));
-    w.__litObs.observe(document.getElementById('projectTabs'), { attributes: true, attributeFilter: ['aria-selected'], subtree: true });
+    w.__litObs.observe(document.getElementById('taskTabs'), { attributes: true, attributeFilter: ['aria-selected'], subtree: true });
   });
   await ui.mouse.up();
   await nthShown(core, 2);
@@ -373,7 +373,7 @@ test("tasks: the bar's + makes a new task of the shown task's project in one cli
   await expect(ui.getByRole('tooltip'), 'gone as it is pressed, not frozen in the slide').toBeHidden({ timeout: 100 });
   await expect.poll(() => core((k, a) => k.shell.current.tasks.size === a.before + 1 && k.shell.task?.key !== a.first && k.settled(), { before, first }), { timeout: 20000 }).toBe(true);
   await expect(ui.getByRole('menu'), 'no menu: made at once').toHaveCount(0);
-  await expect(ui.locator('#projectTabs [role="tab"]')).toHaveCount(before + 1);
+  await expect(ui.locator('#taskTabs [role="tab"]')).toHaveCount(before + 1);
   await taskTab(ui, first).click();
   await nthShown(core, 1);
 });

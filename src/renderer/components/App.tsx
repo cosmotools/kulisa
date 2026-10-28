@@ -13,7 +13,7 @@ import { NewProject } from './NewProject';
 import { AgentPicker } from './AgentPicker';
 import { TaskRename } from './TaskRename';
 import { Shortcuts } from './Shortcuts';
-import { PointMenu } from './PointMenu';
+import { PointMenu } from './Menus';
 import { HandOver } from './HandOver';
 import { Thumbnail, thumbnailMenu } from '../../screenshots/renderer';
 import { menuAtPoint } from '../lib/menu';
@@ -38,7 +38,7 @@ export function App() {
       <TopBar>{bar === 'top' && open && <TaskBar />}</TopBar>
       {open ? <Grid /> : <Empty />}
       {open && <Sidebar />}
-      {bar !== 'top' && open ? <TaskBar /> : !settings && <div />}
+      {bar !== 'top' && open && <TaskBar />}
       {settings && <Suspense><Settings at={settings} className="[grid-area:2/1/-1]" /></Suspense>}
       <NewProject />
       <TaskRename />

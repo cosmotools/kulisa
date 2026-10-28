@@ -16,8 +16,6 @@ const frontKey = () => { const { current, terminals } = store.getState(); return
 // gives it the theme's colors.
 export const panelView = new View(termStyle());
 export const shownTerm = () => (panelView.key && panelView.key === frontKey() ? panelView.term : null);
-Object.defineProperty(window, '__term', { get: shownTerm }); // for tests
-Object.defineProperty(window, '__termRenderer', { get: () => shownTerm() && panelView.renderer }); // for tests
 
 // Links in the terminal: those an agent marks (OSC 8, as Claude Code does) and addresses in plain text (the web-links
 // addon). Ctrl+click (⌘ on macOS) asks where, in a menu at the pointer: a tab of one of the shown task's open

@@ -1,16 +1,18 @@
 // A project's color as the window shows it (docs/tasks.md, Projects: its color and icon, nothing to choose).
+import { createStore, useStore } from 'zustand';
 import { getPaletteSync } from 'colorthief';
 import type { ProjectEntry } from '../../shared/types';
 
-// A favicon's hue in the lightness and chroma of Kulisa's own colors (store.ts, PROJECT_COLORS: about 0.61, 0.12), so
-// it suits both themes as they do: a site's own navy or yellow, as it is, was lost in one of them.
+// A favicon's hue in the lightness and chroma of Kulisa's own colors (src/main/store.ts, PROJECT_COLORS: about 0.61,
+// 0.12), so it suits both themes as they do: a site's own navy or yellow, as it is, is lost in one of them.
 const LIGHTNESS = 0.61, CHROMA = 0.12, SIZE = 32;
-const colors = new Map<string, string | null>(); // a favicon's picture: its color, or null: it has none
-const started = new Set<string>();
-// What redraws once a favicon's color is read.
-const listeners = new Set<() => void>();
-export const onColors = (l: () => void) => { listeners.add(l); return () => { listeners.delete(l); }; };
-const got = (src: string, c: string | null) => { colors.set(src, c); for (const l of listeners) l(); };
+// A favicon's picture: its color; null: none, or not read yet. Not the store's state: first asked for during a render,
+// where a store's change would redraw other components.
+const colors = new Map<string, string | null>();
+// How many are read: what draws again once one is.
+const read = createStore(() => 0);
+export const onColors = (l: () => void) => read.subscribe(() => l());
+const got = (src: string, c: string | null) => { colors.set(src, c); read.setState((n) => n + 1, true); };
 
 // Its color: the hue of most of its colored pixels. Near-black ones are left out here: HSV, colorthief's minSaturation,
 // calls a dark red saturated. Too few colored ones (a black or gray mark, an SVG in currentColor): none.
@@ -27,13 +29,16 @@ async function colorOf(src: string) {
   return `oklch(${LIGHTNESS} ${CHROMA} ${Math.round(top.oklch().h)})`;
 }
 
-// Its favicon's color once read (it comes a moment later: onColors), else the one it was given (the next free one).
+// Its favicon's color once read (it comes a moment later: onColors, useProjectColor), else the one it was given (the
+// next free one).
 export function projectColor(p: Pick<ProjectEntry, 'color' | 'favicon'>): string {
   const src = p.favicon;
   if (!src) return p.color;
-  if (!started.has(src)) {
-    started.add(src);
+  if (!colors.has(src)) {
+    colors.set(src, null);
     colorOf(src).then((c) => got(src, c), (err) => { console.error('[project color]', err); got(src, null); });
   }
   return colors.get(src) || p.color;
 }
+// projectColor for a component: it draws again once a color is read.
+export const useProjectColor = () => { useStore(read); return projectColor; };

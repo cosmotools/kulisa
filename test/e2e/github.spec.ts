@@ -18,7 +18,7 @@ const idOfLogin = async (core: Core, login: string, kind = 'app') => (await acco
 // No accounts, Settings closed: what a test starts from (deleting one as the human does: the last test).
 async function clean(core: Core, ui: Page) {
   await core((k) => { for (const a of k.shell.github.accounts.list()) k.shell.github.accounts.delete(a.id); });
-  if (await ui.locator('#settings').count()) await ui.locator('#manageProjects').click();
+  if (await ui.locator('#settings').count()) await ui.locator('#settingsButton').click();
   await expect(ui.locator('#settings')).toHaveCount(0);
 }
 // Settings shown (on Settings → GitHub once it is), its window's page.

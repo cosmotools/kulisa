@@ -1,9 +1,10 @@
 // What Settings' pages are built of (docs/window.md, Settings): a section, a list of things, a setting.
 import { useId, type KeyboardEvent, type ReactNode } from 'react';
 import { ChevronRightIcon, EllipsisIcon } from 'lucide-react';
-import { Avatar, AvatarFallback, AvatarImage, Button, Card, CardAction, CardContent, CardHeader, CardTitle, Field, FieldDescription, FieldError, FieldLabel, Input, Item, ItemActions, ItemContent,
-  ItemDescription, ItemGroup, ItemMedia, ItemTitle, Spinner } from '@ui';
-import { ButtonMenu, RightClickMenu, type Item as MenuItem } from '../Menus';
+import { Avatar, AvatarFallback, AvatarImage, Button, Card, CardAction, CardContent, CardHeader, CardTitle, Field, FieldDescription, FieldError, FieldLabel, FieldTitle, Input,
+  Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemMedia, ItemTitle, Spinner } from '@ui';
+import { ButtonMenu, RightClickMenu } from '../Menus';
+import type { MenuItem } from '../../lib/menu';
 import { avatarSrc } from '../../lib/common';
 
 // A section of a page: a Card named by its title (the tests' handle: a group by its name), its "Add …" at the title's end.
@@ -27,8 +28,9 @@ export interface Thing {
 
 // Things as rows, each one's actions behind its ⋯ and on its right-click. data-row, data-key, aria-label: the tests'
 // handles (docs/testing.md).
-export function Things({ label, things, menu, empty }: { label: string; things: Thing[]; menu: (key: string) => MenuItem[]; empty?: string }) {
-  if (!things.length) return empty ? <p className="text-muted-foreground">{empty}</p> : null;
+// empty: said instead of the rows (a line, or work under way).
+export function Things({ label, things, menu, empty }: { label: string; things: Thing[]; menu: (key: string) => MenuItem[]; empty?: ReactNode }) {
+  if (!things.length) return typeof empty === 'string' ? <p className="text-muted-foreground">{empty}</p> : empty ?? null;
   return <RightClickMenu items={(e) => { const k = (e.target as Element).closest<HTMLElement>('[data-row]')?.dataset.key; return k ? menu(k) : null; }}>
     <ItemGroup aria-label={label}>
       {things.map((t) => {
@@ -57,6 +59,10 @@ export function Things({ label, things, menu, empty }: { label: string; things: 
   </RightClickMenu>;
 }
 
+// What a thing is, not set here: its label over its value.
+export const Fact = ({ label, children, ...rest }: { label: string; children: ReactNode; 'data-testid'?: string }) =>
+  <Field><FieldTitle>{label}</FieldTitle><FieldDescription data-selectable {...rest}>{children}</FieldDescription></Field>;
+
 // A setting: its label, what it is for, the main process's refusal of it. children: its control, given its id and
 // whether it is refused.
 export function Setting({ label, description, error, children, ...rest }: { label: string; description?: ReactNode; error?: string;
@@ -72,11 +78,12 @@ export function Setting({ label, description, error, children, ...rest }: { labe
 
 // What is added in place under a list (a name, an address): Enter takes it, Esc puts it away (not Settings); the
 // refusal at its field.
-export function AddInPlace({ label, placeholder, value, onChange, go, stop, ok, busy, error, name }: { label: string; placeholder: string; value: string;
-  onChange: (v: string) => void; go: () => void; stop: () => void; ok: string; busy?: boolean; error?: string; name?: boolean }) {
-  return <Setting label={label} error={error}>{(c) =>
+export function AddInPlace({ label, description, placeholder, value, onChange, go, stop, ok, busy, error, name, type }: { label: string; description?: ReactNode;
+  placeholder: string; value: string; onChange: (v: string) => void; go: () => void; stop: () => void; ok: string; busy?: boolean; error?: string; name?: boolean;
+  type?: 'password' }) {
+  return <Setting label={label} description={description} error={error}>{(c) =>
     <div className="flex items-center gap-2">
-      <Input {...c} className="flex-1" autoFocus data-name={name || undefined} value={value} placeholder={placeholder} spellCheck={false}
+      <Input {...c} className="flex-1" autoFocus type={type} data-name={name || undefined} value={value} placeholder={placeholder} spellCheck={false}
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={(e) => { if (e.key === 'Enter' && !busy) go(); if (e.key === 'Escape') { e.stopPropagation(); stop(); } }} />
       <Button variant="outline" onClick={stop}>Cancel</Button>

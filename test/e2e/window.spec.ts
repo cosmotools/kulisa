@@ -291,7 +291,7 @@ test("the terminals' panel: its terminals in tabs over them, one shown, flat as 
   // its tab into view) had moved the grid up by a window's height.
   // As the bar brings a tab into view (scrollIntoView, which scrolls whatever can): Playwright's scrollIntoViewIfNeeded
   // leaves a tab already in view.
-  await ui.locator('#projectTabs [role="tab"]').first().evaluate((t) => t.scrollIntoView());
+  await ui.locator('#taskTabs [role="tab"]').first().evaluate((t) => t.scrollIntoView());
   expect(await ui.evaluate(() => [document.documentElement.scrollTop, document.documentElement.scrollHeight <= innerHeight])).toEqual([0, true]);
   expect((await call('terminal_read', {})).text).toBe(`"Terminal" (the human's)\n"dev server" (an agent's): ${ready}`);
   await expect(call('terminal_stop', { name: 'nope' })).rejects.toThrow(/no terminal "nope"; open now: "Terminal", "dev server"/);
@@ -455,11 +455,11 @@ test("a right-click on the title bar opens no window menu on Linux: GNOME's froz
 
 test('UI text is not selectable by dragging, as in a desktop app; fields are; the arrow over buttons', async ({ core, ui }) => {
   await sam(core);
-  for (const [q, select] of [['#newTask', 'none'], ['#projectTabs [role="tab"] span', 'none'], ['[data-tab] span', 'none'], ['[data-panel^="profile:"]', 'none'], ['[aria-label="Address"]', 'text']]) {
+  for (const [q, select] of [['#newTask', 'none'], ['#taskTabs [role="tab"] span', 'none'], ['[data-tab] span', 'none'], ['[data-panel^="profile:"]', 'none'], ['[aria-label="Address"]', 'text']]) {
     await expect(ui.locator(q).first(), q).toHaveCSS('user-select', select);
   }
   // The arrow over buttons and tabs, as in Chrome, not a web page's hand.
-  for (const q of ['#newTask', '#projectTabs [role="tab"]', '[data-tab]', 'button[aria-label="New tab"]', '[aria-label="Back"]', '[aria-label="Close profile"]', '#windowMenu']) {
+  for (const q of ['#newTask', '#taskTabs [role="tab"]', '[data-tab]', 'button[aria-label="New tab"]', '[aria-label="Back"]', '[aria-label="Close profile"]', '#windowMenu']) {
     await expect(ui.locator(q).first(), q).toHaveCSS('cursor', 'default');
   }
 });
@@ -558,7 +558,7 @@ test("the tasks' bar: under the grid by default; in the title bar, after the log
   // Where the bar is: in the title bar's row between the logo and Settings (top), or under the grid (bottom).
   const rect = async (l: string) => { const b = await ui.locator(l).first().boundingBox(); return { top: b.y, bottom: b.y + b.height, left: b.x, right: b.x + b.width, height: b.height }; };
   const where = async () => {
-    const bar = await rect('#taskbar'), grid = await rect('#dock'), top = await rect('#topbar'), tab = await rect('#projectTabs [role="tab"]'), settings = await rect('#manageProjects');
+    const bar = await rect('#taskbar'), grid = await rect('#dock'), top = await rect('#topbar'), tab = await rect('#taskTabs [role="tab"]'), settings = await rect('#settingsButton');
     const logo = await ui.getByTestId('title-logo').count() ? await rect('[data-testid="title-logo"]') : null;
     const inTitle = bar.top >= top.top && bar.bottom <= top.bottom && bar.left >= (logo ? logo.right : top.left) && bar.right <= settings.left;
     // The OS buttons' area and the window's height: the page's own values, no element's box.
@@ -584,7 +584,7 @@ test("the tasks' bar: under the grid by default; in the title bar, after the log
     await expect(bars.locator(`[data-bar="${bar}"]`)).toHaveAttribute('aria-checked', 'true');
     await expect.poll(async () => (await where()).bar === bar && saved() === bar).toBe(true);
     expect(await where()).toEqual({ bar, end: 8, title: 44, below: true, edge: 0, level: true });
-    await expect(ui.locator('#projectTabs [role="tab"]').first(), 'in the title bar the tabs do not drag the window').toHaveCSS('app-region', bar === 'top' ? 'no-drag' : 'none');
+    await expect(ui.locator('#taskTabs [role="tab"]').first(), 'in the title bar the tabs do not drag the window').toHaveCSS('app-region', bar === 'top' ? 'no-drag' : 'none');
     await expect(bars, 'the menu stays open: the other one can be tried').toBeVisible();
     await ui.keyboard.press('Escape');
     await closeMenu(ui);
@@ -602,7 +602,7 @@ test("dialogs: shadcn's, in the page only while open, the pages hidden under the
     await choose(ui, row);
   };
   const openers: [string, () => Promise<void>][] = [
-    ['Rename Task', () => fromMenu('Rename…', '#projectTabs [role="tab"]')],
+    ['Rename Task', () => fromMenu('Rename…', '#taskTabs [role="tab"]')],
     ['Keyboard Shortcuts', () => fromMenu('Keyboard Shortcuts')],
   ];
   await expect(ui.locator('[role="dialog"], [role="alertdialog"]'), 'none in the page while closed').toHaveCount(0);
@@ -751,7 +751,7 @@ test("tooltips of the title bar and the tasks' bar open beside their buttons, ne
   };
   for (const bar of ['bottom', 'top']) {
     if (bar === 'top') { await (await windowSubmenu(ui, 'Tasks bar')).locator('[data-bar="top"]').click(); await ui.keyboard.press('Escape'); await closeMenu(ui); }
-    for (const button of [ui.locator('#newTask'), ui.locator('#zoomReset'), ui.locator('#manageProjects'), ui.getByRole('button', { name: /^Projects and tasks/ })])
+    for (const button of [ui.locator('#newTask'), ui.locator('#zoomReset'), ui.locator('#settingsButton'), ui.getByRole('button', { name: /^Projects and tasks/ })])
       expect(await over(button), `${button}, the bar ${bar}`).toBe(false);
   }
   await invoke(ui, 'zoom:ui', 0);

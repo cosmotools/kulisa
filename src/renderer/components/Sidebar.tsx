@@ -1,5 +1,5 @@
 // The sidebar (docs/tasks.md, The sidebar): every project with its tasks, any task one click away, the project worked in
-// last first (lib/common.ts, lastWorked); New Project… at its foot. shadcn's Sidebar: docked in the empty window; in a
+// last first (lastWorked); New Project… at its foot. shadcn's Sidebar: docked in the empty window; in a
 // Sheet over the grid while a task is shown (the title bar's button, Ctrl+Shift+A; Esc or a choice closes it).
 import { useEffect, useRef, useState } from 'react';
 import { ChevronRightIcon, FolderPlusIcon, PanelLeftIcon, PlusIcon, Trash2Icon } from 'lucide-react';
@@ -11,11 +11,12 @@ import { ProjectIcon } from './ProjectIcon';
 import { AgentState } from './AgentState';
 import { RightClickMenu } from './Menus';
 import { Tip } from './Tip';
-import { store, useWindow } from '../lib/store';
+import { useWindow } from '../lib/store';
 import { sidebarDocked, sidebarOverlay, toggleSidebar } from '../lib/sidebar';
 import { dialog } from '../lib/dialogs';
-import { openSettings } from '../lib/settings';
-import { keyText, lastWorked, taskLine, withKeys } from '../lib/common';
+import { projectMenu } from '../lib/project-menu';
+import { keyText, withKeys } from '../lib/common';
+import { slugOf } from '../../shared/names';
 import type { MenuItem } from '../lib/menu';
 import type { ProjectEntry, ProjectTask } from '../../shared/types';
 
@@ -25,16 +26,17 @@ const openTask = (p: ProjectEntry, t: ProjectTask) => (t.closed ? kulisa.invoke(
 const deleteTask = (p: ProjectEntry, t: ProjectTask) => (t.closed ? kulisa.invoke('task:delete-closed', { project: p.id, id: t.id }) : kulisa.invoke('task:delete', `${p.id}/${t.id}`));
 const newProject = () => dialog('newproject').then((d) => d.open());
 
-// A project's menu (its right-click): what is not one task's. What needs it loaded (a task of it open somewhere) only then.
-function projectItems(p: ProjectEntry, done: () => void): MenuItem[] {
-  const loaded = store.getState().projects.open.some((x) => x.id === p.id), open = p.tasks.some((t) => !t.closed);
-  const merged = loaded && p.tasks.some((t) => t.closed && t.merged); // its PR merged, nothing uncommitted (projects.ts, checkMerged)
-  return [{ label: 'New Task', run: () => { done(); return newTask(p); } },
-    '-', { label: 'Project Settings…', run: () => { done(); openSettings('projects', p.id); } },
-    { label: 'Show Data Folder', enabled: loaded, run: () => kulisa.invoke('project:show-data', { id: p.id }) },
-    ...(merged ? [{ label: 'Delete Merged Tasks…', run: () => kulisa.invoke('project:delete-merged', { id: p.id }) }] : []),
-    '-', { label: 'Close All Tasks', enabled: open, run: () => kulisa.invoke('project:close-tasks', { id: p.id }) }];
+// A project's sort key for "worked in last first": an open task → Infinity, else its last close.
+const lastWorked = (p: ProjectEntry): number => (p.tasks.some((t) => !t.closed) ? Infinity : Math.max(0, ...p.tasks.map((t) => t.closedAt ?? 0)));
+// When it was closed, as a person says it.
+function ago(at?: number) {
+  if (!at) return '';
+  const m = Math.round((Date.now() - at) / 60000);
+  return m < 1 ? 'just now' : m < 60 ? `${m} min ago` : m < 60 * 24 ? `${Math.round(m / 60)} h ago` : `${Math.round(m / 60 / 24)} days ago`;
 }
+// A task's line under its name: its branch when it is not the name's slug, when it closed.
+const taskLine = (t: ProjectTask): string => [t.branch && t.branch !== slugOf(t.name, '') && t.branch, t.closed ? ago(t.closedAt) : ''].filter(Boolean).join(' · ');
+
 function taskItems(p: ProjectEntry, t: ProjectTask, done: () => void): MenuItem[] {
   return [{ label: t.closed ? 'Open' : 'Show', run: () => { done(); return openTask(p, t); } },
     ...(t.closed ? [] : [{ label: 'Close', run: () => kulisa.invoke('task:close', `${p.id}/${t.id}`) }]),
@@ -96,7 +98,7 @@ function Projects({ done }: { done: () => void }) {
     const p = projects.find((x) => x.id === id);
     if (!p) return null;
     const t = task ? p.tasks.find((x) => `${p.id}/${x.id}` === task) : undefined;
-    return t ? taskItems(p, t, done) : projectItems(p, done);
+    return t ? taskItems(p, t, done) : projectMenu(p, { newTask: () => newTask(p), done });
   };
   return <SidebarProvider className="h-full min-h-0">
     <Bar collapsible="none" className="h-full w-full">

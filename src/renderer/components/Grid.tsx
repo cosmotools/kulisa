@@ -5,7 +5,7 @@ import { useEffect, useRef } from 'react';
 import { DockviewReact, type DockviewTheme } from 'dockview-react';
 import 'dockview-react/dist/styles/dockview.css';
 import { PlusIcon } from 'lucide-react';
-import { Button } from '@ui';
+import { Avatar, AvatarImage, Button } from '@ui';
 import { ProfilePane, ProfileHeader } from './grid/ProfilePane';
 import { Terminals, TerminalsHeader } from './grid/Terminals';
 import { Resources, ResourcesHeader } from './grid/Resources';
@@ -28,7 +28,7 @@ function ClosedProfiles() {
   return <nav ref={row} id="closedprofiles" data-testid="closed-profiles" aria-label="Open a profile" className="flex flex-none gap-1 border-b bg-card px-2 py-1">
     {profileLaunchers(closed).map((p) => <Button key={p.id} variant="ghost" size="sm" data-profile={p.id} aria-label={p.name} title={p.title}
       className="max-w-72 flex-none" onClick={() => void p.run()}>
-      {p.avatar && <img src={avatarSrc(p.avatar)} alt="" className="size-5" />}<span className="min-w-0 truncate">{p.name}</span><PlusIcon />
+      {p.avatar && <Avatar className="size-5"><AvatarImage src={avatarSrc(p.avatar)} alt="" /></Avatar>}<span className="min-w-0 truncate">{p.name}</span><PlusIcon />
     </Button>)}
   </nav>;
 }

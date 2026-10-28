@@ -4,7 +4,7 @@ import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
 import type { Files } from './data.ts';
-import { termTabs, projectTabs, showProject, invoke, notLoading, otherPage } from './helpers.ts';
+import { termTabs, tabProjects, showProject, invoke, notLoading, otherPage } from './helpers.ts';
 import { begin, openFolder, projectShown } from './tasks-helpers.ts';
 
 // A project the window has no task of shown again as the human does it (its tab), once it is.
@@ -20,10 +20,10 @@ test("projects: another tab left in the background, with a terminal its agent ra
   await call('terminal_run', { name: 'dev server', command: 'echo "served before"; sleep 60' });
   await expect.poll(async () => (await call('terminal_read', { name: 'dev server' })).text).toMatch(/^served before$/m);
   await backTo(core, ui, files, 'project');
-  expect(await projectTabs(ui, files)).toEqual(['project *', 'project', 'other']);
+  expect(await tabProjects(ui, files)).toEqual(['project *', 'project', 'other']);
 
   const ui2 = await restart();
-  await expect.poll(() => projectTabs(ui2, files)).toEqual(['project *', 'project', 'other']);
+  await expect.poll(() => tabProjects(ui2, files)).toEqual(['project *', 'project', 'other']);
   expect(await core((k, id) => [...k.shell.open.get(id).tasks.values()][0].loaded, files.pid('other'))).toBe(false);
   await showProject(ui2, files, 'other');
   await expect.poll(() => core((k, id) => k.shell.current?.id === id && !!k.shell.task?.loaded, files.pid('other'))).toBe(true);
@@ -51,7 +51,7 @@ test('projects: one left in a window of its own comes back after a restart where
   // Smaller than the window's minimum (setBounds passes below it, the human's drag does not): it comes back at it.
   await core((k) => k.shell.windows[1].win.setBounds({ x: 40, y: 50, width: 10, height: 10 }));
   await backTo(core, ui, files, 'project');
-  expect(await projectTabs(ui, files)).toEqual(['project *', 'project']);
+  expect(await tabProjects(ui, files)).toEqual(['project *', 'project']);
 
   const ui2 = await restart();
   await expect.poll(() => core((k, id) => k.shell.windows.length === 2 && k.shell.windows[1].current?.project.id === id && !!k.shell.windows[1].task?.loaded, files.pid('third'))).toBe(true);
@@ -59,6 +59,6 @@ test('projects: one left in a window of its own comes back after a restart where
   expect(await core((k) => { const { width, height } = k.shell.windows[1].win.getNormalBounds(); return { width, height }; })).toEqual({ width: 640, height: 400 });
   expect(await core((k) => k.shell.windows[1].win.getMinimumSize())).toEqual([640, 400]);
   // Its page: the second window's (ui is the first's).
-  const second = await otherPage(ui2, `#projectTabs [data-task="${key}"]`);
-  await expect.poll(() => projectTabs(second, files)).toEqual(['third *']);
+  const second = await otherPage(ui2, `#taskTabs [data-task="${key}"]`);
+  await expect.poll(() => tabProjects(second, files)).toEqual(['third *']);
 });

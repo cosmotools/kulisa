@@ -3,7 +3,7 @@
 // native views over them.
 import type { AddPanelPositionOptions, DockviewApi } from 'dockview-react';
 import type { Profile } from '../../shared/types';
-import { act, setCaption, setLoading, store } from './store';
+import { act, setCaption, store } from './store';
 import { forgetFrozen, freeze, livePages, showViews, unfreeze } from './views';
 import { closeLayers } from './cover';
 import { reducedMotion } from './common';
@@ -11,14 +11,11 @@ import { forgetTerminals } from '../../terminal/renderer';
 
 const panelId = (id: string) => `profile:${id}`;
 // What the window does with a mounted pane (components/grid/ProfilePane.tsx), by its profile's id.
-export interface PaneHandle { content: HTMLElement; focusAddress(): void; newTab(): void; pick(): void }
+interface PaneHandle { content: HTMLElement; focusAddress(): void; newTab(): void; pick(): void }
 export const panes = new Map<string, PaneHandle>();
 
 let api: DockviewApi | null = null;
-let gotApi: (a: DockviewApi) => void;
-let apiReady: Promise<DockviewApi>;
-const awaitApi = () => { apiReady = new Promise<DockviewApi>((r) => (gotApi = r)); };
-awaitApi();
+let apiReady = Promise.withResolvers<DockviewApi>();
 let gridReady: Promise<void> | null = null;
 let leaving: Promise<void> | null = null; // the grid being taken down, before the next one is built
 let sliding: { transition: ViewTransition; built: () => void } | null = null; // a switch as a view transition, until the next grid is built
@@ -29,7 +26,6 @@ export const whenLeft = () => Promise.resolve(leaving);
 // Grid.tsx, once dockview is there.
 export function gridMounted(a: DockviewApi) {
   api = a;
-  Object.assign(window, { __dock: a }); // for tests
   let saveTimer = 0, save: (() => void) | null = null;
   a.onDidLayoutChange(() => {
     scheduleLayout();
@@ -46,12 +42,12 @@ export function gridMounted(a: DockviewApi) {
   a.onWillDragPanel(freeze);
   a.onWillDragGroup(freeze);
   a.onDidDrop(unfreeze);
-  gotApi(a);
+  apiReady.resolve(a);
 }
 let flushSave = () => {};
 // Grid.tsx gone (the window left with no task: the empty window): the next grid is built in the next dockview, not
 // into the one gone.
-export function gridUnmounted() { api = null; awaitApi(); gridReady = null; flushSave = () => {}; }
+export function gridUnmounted() { api = null; apiReady = Promise.withResolvers(); gridReady = null; flushSave = () => {}; }
 document.addEventListener('dragend', unfreeze, true);
 document.addEventListener('drop', () => setTimeout(unfreeze), true);
 
@@ -73,14 +69,14 @@ kulisa.on('state', async (s) => {
 function reveal() {
   if (sliding) {
     const { transition, built } = sliding; sliding = null;
-    setLoading(false);
+    store.setState({ loading: false });
     store.setState({ pictures: pictures.get(store.getState().current!) || {} });
     built(); // the transition's new state: it slides in
     void transition.finished.catch(() => {}).then(() => { sendLayout(); void livePages(); }); // skipped or given up: the pages still come
     return;
   }
   requestAnimationFrame(() => requestAnimationFrame(() => { // after sendLayout's frame
-    setLoading(false);
+    store.setState({ loading: false });
     void showViews();
   }));
 }
@@ -146,9 +142,8 @@ export function applyPreset(name: keyof typeof presets) {
   const a = api!;
   a.clear();
   const sizes = presets[name](store.getState().profiles);
-  // The panels' sizes, once the grid has a size (at first start the window may have none yet). Its
-  // room (room()), not #dock's: laid out to a box larger than its room, the right and bottom were cut off until the
-  // window was resized.
+  // The panels' sizes, once the grid has a size (at first start the window may have none yet). Its room (room()), not
+  // #dock's: laid out to a box larger than its room, the right and bottom are cut off until the window is resized.
   const dock = document.getElementById('dock')!;
   const size = () => {
     const { w, h } = room();
@@ -160,7 +155,8 @@ export function applyPreset(name: keyof typeof presets) {
   if (!size()) { const ro = new ResizeObserver(() => size() && ro.disconnect()); ro.observe(dock); }
   scheduleLayout();
 }
-Object.assign(window, { __layoutPreset: applyPreset }); // for tests
+// dockview's API of the grid shown (test-hooks.ts).
+export const dockApi = () => api;
 
 // Another task is being shown, or another project (dir: where it is in the tasks' bar; 0: none, the window is left
 // with no project; level: 'task' or 'project'): the grid goes and is built again on the next state, as a view
@@ -171,16 +167,16 @@ Object.assign(window, { __layoutPreset: applyPreset }); // for tests
 // the tasks' bar stay.
 kulisa.on('grid:closing', ({ dir, task, pics }) => {
   void closeLayers(); // its dialogs and menus are for the grid that goes
-  // A freeze under way (a drag) no longer matters; now, not when the grid is taken down (the slide's update, a frame or
-  // more later): a menu opened in between, for the next grid, would lose its pictures, and the slide's end show the
-  // pages over it.
+  // A freeze under way (a drag) is forgotten now, not when the grid is taken down (the slide's update, a frame or more
+  // later): a menu opened in between, for the next grid, would lose its pictures, and the slide's end show the pages
+  // over it.
   forgetFrozen();
-  // Its last change saved now, not dropped: a pane closed (its profile deleted) just before the task was left stayed in
-  // its saved grid, and a saved grid naming a profile no longer there is not restored at all (restoreGrid).
+  // Its last change saved now, not dropped: a pane closed (its profile deleted) just before the task is left would stay
+  // in its saved grid, and a saved grid naming a profile that is gone is not restored at all (restoreGrid).
   flushSave();
   if (pics && task) pictures.set(task, pics);
   const takeDown = () => {
-    setLoading(true);
+    store.setState({ loading: true });
     api?.clear();
     // The panes go with what was said over them: profile ids repeat across tasks.
     store.setState({ profiles: [], pictures: {}, captions: {}, picking: {}, terminals: { front: null, list: [] } });
@@ -192,15 +188,14 @@ kulisa.on('grid:closing', ({ dir, task, pics }) => {
   sliding = null;
   if (!dir || reducedMotion.matches || !gridReady) { takeDown(); leaving = null; return; }
   store.setState({ pictures: pics || {} });
-  let cleared!: () => void, built!: () => void;
-  leaving = new Promise((r) => (cleared = r));
-  const next = new Promise<void>((r) => (built = r));
+  const cleared = Promise.withResolvers<void>(), built = Promise.withResolvers<void>();
+  leaving = cleared.promise;
   // While the next grid is built (the callback), Chromium shows the picture of this one and draws no frames: the
   // building must not wait for one (reveal).
-  const transition = document.startViewTransition({ update: () => { takeDown(); cleared(); return next; }, types: [dir > 0 ? 'next' : 'previous'] });
+  const transition = document.startViewTransition({ update: () => { takeDown(); cleared.resolve(); return built.promise; }, types: [dir > 0 ? 'next' : 'previous'] });
   // Skipped (another switch began, the window hidden) or given up, a slide is no error: the next grid comes all the same.
   transition.ready.catch(() => {});
-  sliding = { transition, built };
+  sliding = { transition, built: built.resolve };
 });
 
 // Tasks gone (closed, deleted, moved to another window): their terminals and pictures too; a task opened again
@@ -211,7 +206,7 @@ kulisa.on('tasks:closed', (keys) => {
 });
 
 async function restoreGrid() {
-  const a = await apiReady;
+  const a = await apiReady.promise;
   const saved = await act('layout:load') as { panels?: Record<string, unknown> } | null | undefined; // as the window saved it
   // A saved grid may name profiles deleted since; dockview needs a component for every panel in it.
   const known = (id: string) => id === 'terminal' || id === 'resources' || store.getState().profiles.some((p) => panelId(p.id) === id);
@@ -234,8 +229,8 @@ function syncGrid() {
     // The first over the whole grid's width: the terminal's row, Resources in it too, under it.
     addProfilePanel(p, last ? { referencePanel: last.id, direction: 'right' } : { direction: 'above' });
     // The first page over the terminal alone: dockview halves the room; the terminal keeps its share, as in the
-    // arrangements (a terminal as tall as the pages was mostly empty). Once the closed profiles' tiles have gone: the
-    // room they leave went to the terminal (dockview resizing after its share was set), 45% of the grid.
+    // arrangements (a terminal as tall as the pages is mostly empty). Once the closed profiles' tiles have gone: else
+    // the room they leave goes to the terminal (dockview resizing after its share is set).
     if (!last) requestAnimationFrame(() => {
       if (api !== a || !a.getPanel('terminal')) return; // the grid taken down meanwhile (the task left)
       const { w, h } = room();

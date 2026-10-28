@@ -39,13 +39,13 @@ test('profiles are made in Settings (Profiles\' + in its nav), each with its own
   await expect.poll(async () => (await stored('Sam.seller'))?.description).toBe('seller in the test shop');
   await make('Elon.buyer');
   expect((await stored('Elon.buyer')).avatar, 'the next picture free').toBe('frog');
-  // Its picture's button shows the chosen one; it opens a grid of them all, the chosen one selected.
+  // Its picture's button shows the chosen one; it opens them all to choose one of, the chosen one checked.
   await expect(picture(s).locator('img')).toHaveAttribute('src', 'avatars/frog.svg');
   await picture(s).click();
   await expect(pictures(s)).toBeVisible();
-  await expect(pictures(s).getByRole('gridcell'), 'all of them to choose from, at once').toHaveCount(16);
-  await expect(pictures(s).getByRole('gridcell', { name: 'frog' })).toHaveAttribute('aria-selected', 'true');
-  await pictures(s).getByRole('gridcell', { name: 'penguin' }).click();
+  await expect(pictures(s).getByRole('radio'), 'all of them to choose from, at once').toHaveCount(16);
+  await expect(pictures(s).getByRole('radio', { name: 'frog' })).toHaveAttribute('aria-checked', 'true');
+  await pictures(s).getByRole('radio', { name: 'penguin' }).click();
   await expect.poll(async () => (await stored('Elon.buyer')).avatar).toBe('penguin');
   await expect(picture(s).locator('img')).toHaveAttribute('src', 'avatars/penguin.svg');
   // Who they are: in the store of profiles (profile-store.ts), the same in every task; in no project yet.
@@ -56,7 +56,7 @@ test('profiles are made in Settings (Profiles\' + in its nav), each with its own
   await expect(s.getByRole('main').getByText("None: add it on a project's page", { exact: true })).toBeVisible();
   // Added on the project's page (+ → its other profiles), closed in its task; opened there (👥).
   const project = await core((k) => k.shell.current.id);
-  await openThing(s, `p:${project}`); // the projects come as it opens
+  await openThing(s, 'projects', project); // the projects come as it opens
   for (const name of ['Sam.seller', 'Elon.buyer']) {
     // The profiles to add are asked for again as the page is shown: the open menu shows them as they come; a row's
     // name is its label and the line under it.
@@ -142,7 +142,7 @@ test('who a profile is: the agent is told to choose by it and to ask; it saves t
   // The picture: a panel of them from the button beside it; one chosen, it goes.
   await picture(s).click();
   await expect(pictures(s)).toBeVisible();
-  await pictures(s).getByRole('gridcell', { name: 'owl' }).click();
+  await pictures(s).getByRole('radio', { name: 'owl' }).click();
   await expect.poll(() => core((k) => k.profile('Elon.buyer').avatar)).toBe('owl');
   await expect(pictures(s)).toHaveCount(0);
   await expect(picture(s).locator('img')).toHaveAttribute('src', 'avatars/owl.svg');

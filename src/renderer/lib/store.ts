@@ -5,10 +5,11 @@ import type { Artifact, ClosedProfile, LanguageInfo, Profile, ProjectsInfo, Term
 import type { Invoke, OnTask } from '../../shared/ipc';
 import { initialProjects } from './common';
 import { projectColor, onColors } from './project-color';
+import { setTheme } from './theme';
 import { refused } from '../../shared/result';
 
-const root = document.documentElement;
-export interface WindowState {
+const root = document.documentElement, query = new URLSearchParams(location.search);
+interface WindowState {
   // The shown task's key ("<project id>/<task id>"); null with no task open (the empty window).
   current: string | null;
   // The projects and the window's tabs (the open tasks, each with its agent's state), from the projects' news.
@@ -20,7 +21,7 @@ export interface WindowState {
   // The files the agent's tools kept of a task's pages, the newest first (Resources), of the task named.
   artifacts: { task: string; list: Artifact[]; bytes: number };
   zoom: number; // the Kulisa zoom
-  theme: string; // Dark, Light or System (index.html sets it from the URL before the first paint)
+  theme: string; // Dark, Light or System (shown before the first paint from the URL: public/theme.js)
   bar: string; // where the tasks' bar is
   language: LanguageInfo | null; // Kulisa's language (☰ → Language)
   loading: boolean; // the grid not laid out yet: no grid shown, the pages kept hidden (grid.ts, reveal)
@@ -39,8 +40,8 @@ export const store = createStore<WindowState>()(() => ({
   terminals: { front: null, list: [] },
   artifacts: { task: '', list: [], bytes: 0 },
   zoom: 1,
-  theme: root.dataset.theme || 'dark',
-  bar: root.dataset.bar || 'bottom',
+  theme: query.get('theme') || 'dark',
+  bar: query.get('bar') || 'bottom',
   language: null,
   loading: true,
   captions: {},
@@ -50,16 +51,14 @@ export const store = createStore<WindowState>()(() => ({
 const set = store.setState, get = store.getState;
 export const useWindow = <T>(selector: (s: WindowState) => T) => useStore(store, selector);
 
-// The grid laid out or not (grid.ts): the grid's region busy.
-export function setLoading(on: boolean) { set({ loading: on }); }
 const setIn = <K extends 'captions' | 'picking'>(key: K, profile: string, value: WindowState[K][string]) => set({ [key]: { ...get()[key], [profile]: value } });
 export const setCaption = (profile: string, caption: string) => setIn('captions', profile, caption);
 
-// The window's actions on the shown task's profiles and tabs name it, as the grid's layout does: one sent just as the
-// human switches tasks is refused, not done in the other one (main/ipc/panes.ts, onScreen).
 // The shown task (TaskInfo) and its project, from the window's tabs.
 export const shownTask = (s = get()) => s.projects.tabs.find((t) => t.key === s.current);
 const shownProject = (s = get()) => s.projects.projects.find((p) => p.id === s.projects.project);
+// The window's actions on the shown task's profiles and tabs name it, as the grid's layout does: one sent just as the
+// human switches tasks is refused, not done in the other one (main/ipc/panes.ts, onScreen).
 type OnTaskChannel = { [C in keyof Invoke]: Invoke[C]['args'] extends [OnTask] ? C : never }[keyof Invoke];
 type Rest<C extends OnTaskChannel> = Omit<Invoke[C]['args'][0], 'task'>;
 export const act = <C extends OnTaskChannel>(channel: C, ...args: {} extends Rest<C> ? [Rest<C>?] : [Rest<C>]) =>
@@ -76,18 +75,14 @@ kulisa.on('closed-profiles', (list) => set({ closedProfiles: list }));
 kulisa.on('artifacts', (a) => set({ artifacts: a }));
 kulisa.on('zoom', (z) => set({ zoom: z }));
 void kulisa.invoke('zoom:get').then((z) => set({ zoom: z }));
-kulisa.on('theme', (theme) => set({ theme }));
+kulisa.on('theme', (theme) => { set({ theme }); setTheme(theme); });
 kulisa.on('bar', (bar) => set({ bar }));
 kulisa.on('language', (info) => set({ language: info }));
 void kulisa.invoke('language:get').then((info) => set({ language: info }));
 
-// On the root, for CSS and the tests: the theme (the provider's too), where the tasks' bar is, the page shown, the shown
-// task's project's color (--project; none: Kulisa's own).
+// On the root, for CSS and the tests: the page shown, the shown task's project's color (--project; none: Kulisa's own).
 const reflect = (s: WindowState) => {
-  root.dataset.theme = s.theme;
-  root.dataset.bar = s.bar;
   root.dataset.page = pageOf(s);
-  root.toggleAttribute('data-empty', s.current === null);
   const p = shownProject(s), color = p && projectColor(p);
   if (color) root.style.setProperty('--project', color); else root.style.removeProperty('--project');
 };
@@ -95,17 +90,21 @@ reflect(get());
 store.subscribe(reflect);
 onColors(() => reflect(get())); // a favicon's color read
 
-// The agent's activity: a caption over the pane (the cursor itself is drawn inside the page, ghost.ts). A sticky one
-// (what highlighted elements are) stays until the next one; the others go after 4 s. Not over a sign-in page, which
-// says the agent is paused.
+// A caption that goes after 4 s, unless sticky: it stays until the next one.
 const captionTimers = new Map<string, number>();
+function brief(profile: string, caption: string, sticky?: boolean) {
+  setCaption(profile, caption);
+  clearTimeout(captionTimers.get(profile));
+  if (!sticky) captionTimers.set(profile, window.setTimeout(() => setCaption(profile, ''), 4000));
+}
+
+// The agent's activity: a caption over the pane (the cursor itself is drawn inside the page, ghost.ts), sticky for what
+// highlighted elements are. Not over a sign-in page, which says the agent is paused.
 kulisa.on('agent', (a) => {
   if (a.task !== get().current) return; // a task in the background
   const p = get().profiles.find((x) => x.id === a.profile);
   if (!p || p.signinMode) return;
-  setCaption(a.profile, a.caption ? `↖ agent: ${a.caption}` : '');
-  clearTimeout(captionTimers.get(a.profile));
-  if (!a.sticky) captionTimers.set(a.profile, window.setTimeout(() => setCaption(a.profile, ''), 4000));
+  brief(a.profile, a.caption ? `↖ agent: ${a.caption}` : '', a.sticky);
 });
 
 // Pick, then click an element: a reference to it lands in the agent's prompt (not sent), and the terminal gets the
@@ -127,7 +126,5 @@ export async function screenshot(profile: string, kind: 'element' | 'visible' | 
   if (kind === 'element') { setCaption(profile, 'Click an element for its screenshot · Esc to cancel'); setIn('picking', profile, true); }
   const res = await act('tab:screenshot', { profile, kind });
   setIn('picking', profile, false);
-  setCaption(profile, refused(res) ? `Screenshot failed: ${res.error}` : res.file ? 'Screenshot copied and saved' : '');
-  clearTimeout(captionTimers.get(profile));
-  captionTimers.set(profile, window.setTimeout(() => setCaption(profile, ''), 4000));
+  brief(profile, refused(res) ? `Screenshot failed: ${res.error}` : res.file ? 'Screenshot copied and saved' : '');
 }

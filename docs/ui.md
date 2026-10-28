@@ -25,10 +25,10 @@ the main process after every grid change ([window.md](window.md), The grid).
 
 | Where | What |
 |---|---|
-| `src/renderer/index.html`, `main.tsx`; `master.html`, `master.tsx` | a tasks' window's page and a master's window's: the theme (and the tasks' bar's place) from the URL before the first paint, then the app |
+| `src/renderer/index.html`, `main.tsx`; `master.html`, `master.tsx`; `public/theme.js` | a tasks' window's page and a master's window's: the theme from the URL before the first paint (`theme.js`), then the app |
 | `src/renderer/window.css` | Tailwind and shadcn's theme for the window, Kulisa's own variables (`--warning`, `--success`), the few global rules (text selection, the cursor, no scrolling) |
-| `src/renderer/components/` | the parts. `App.tsx` a tasks' window; `Menus.tsx`, `PointMenu.tsx` the menus; `Tip.tsx` a tooltip; `BrowserTabs.tsx` the browser tabs; `Ask.tsx` the questions; `ErrorBar.tsx` an error not of a field; `Working.tsx` work under way; `Details.tsx` what is shown when asked for; `TopBar.tsx`, `TaskBar.tsx`, `Sidebar.tsx`, `Empty.tsx`, `Welcome.tsx`; `Grid.tsx` (`Grid.css`) and `grid/` (`ProfilePane.tsx`, `Terminals.tsx`, `Resources.tsx`: a panel and its header each); the dialogs `NewProject.tsx` (also `Wizard`, the welcome's), `TaskRename.tsx`, `AgentPicker.tsx`, `HandOver.tsx`, `Shortcuts.tsx`; `settings/` Settings, its own chunk (`index.ts` its one entry, loaded by `import()`: `npm run deps`): `Settings.tsx`, `kit.tsx` (what its pages are built of) and its pages (`ProjectPage.tsx`, `AgentPage.tsx`, `ProfilePage.tsx`, `GitHubPage.tsx`, `LogPage.tsx`, `AboutPage.tsx`; `agents.ts`, `changed.ts` theirs); `SignIn.tsx` a new account's sign-in (Settings', New Project's); `AgentMark.tsx`, `ProjectIcon.tsx` the marks; `Terminal.tsx` a terminal in a page; `Master.tsx` a master's bar |
-| `src/renderer/lib/` | what parts share or what outlives a component, no component, UI library or icon (`npm run deps`): `store.ts` (the window's state as the main process sends it: `useWindow(selector)` in a component, `store.getState()` elsewhere; `act`), `theme.ts`, `cover.ts` (and `cover.css`), `views.ts`, `menu.ts` (what a menu holds, the menu at a point), `dialogs.ts`, `settings.ts` (Settings shown, at what), `ask.ts`, `strip.ts` (and `strip.css`), `keys.ts`, `sidebar.ts`, `grid.ts`, `terminals.ts`, `agents.ts`, `new-project.ts`, `profiles.ts`, `project-color.ts`, `common.ts`, `names.ts` (name fields: `data-name`), `test-hooks.ts` |
+| `src/renderer/components/` | the parts. `App.tsx` a tasks' window; `Menus.tsx` the menus; `Tip.tsx` a tooltip; `BrowserTabs.tsx` the browser tabs; `Ask.tsx` the questions; `ErrorBar.tsx` an error not of a field; `Working.tsx` work under way; `Details.tsx` what is shown when asked for; `TopBar.tsx`, `TaskBar.tsx`, `Sidebar.tsx`, `Empty.tsx`, `Welcome.tsx`; `Grid.tsx` (`Grid.css`) and `grid/` (`ProfilePane.tsx`, `Terminals.tsx`, `Resources.tsx`: a panel and its header each; `IconText.tsx` their buttons' inside); the dialogs `NewProject.tsx` (also `Wizard`, the welcome's), `TaskRename.tsx`, `AgentPicker.tsx`, `HandOver.tsx`, `Shortcuts.tsx`; `settings/` Settings, its own chunk (`index.ts` its one entry, loaded by `import()`: `npm run deps`): `Settings.tsx`, `kit.tsx` (what its pages are built of) and its pages (`ProjectPage.tsx`, `AgentPage.tsx`, `ProfilePage.tsx`, `GitHubPage.tsx`, `LogPage.tsx`, `AboutPage.tsx`; `agents.ts`, `changed.ts` theirs); `SignIn.tsx` a new account's sign-in (Settings', New Project's); `AgentMark.tsx`, `ProjectIcon.tsx` the marks; `Terminal.tsx` a terminal in a page; `Master.tsx` a master's bar |
+| `src/renderer/lib/` | what parts share or what outlives a component, no component, UI library or icon (`npm run deps`): `store.ts` (the window's state as the main process sends it: `useWindow(selector)` in a component, `store.getState()` elsewhere; `act`), `theme.ts`, `cover.ts` (and `cover.css`), `views.ts`, `menu.ts` (what a menu holds, the menu at a point), `project-menu.ts` (a project's, the sidebar's and a tab's), `dialogs.ts`, `settings.ts` (Settings shown, at what), `ask.ts`, `strip.ts` (and `strip.css`), `keys.ts`, `sidebar.ts`, `grid.ts`, `terminals.ts`, `agents.ts`, `new-project.ts`, `profiles.ts`, `project-color.ts`, `common.ts`, `names.ts` (name fields: `data-name`), `test-hooks.ts` |
 | `src/shared/types.ts`, `ipc.ts`; `src/renderer/env.d.ts` | the shapes the main process sends and the channels they come by ([window.md](window.md), IPC); the bridge (`kulisa`) typed by them |
 | `src/renderer/public/avatars/` | the profiles' pictures (Noto Emoji), copied as they are |
 | `src/*/renderer/` | a Kulisa package's part of the window (the terminal, dictation, screenshots): its own `README.md` |
@@ -39,8 +39,9 @@ the main process after every grid change ([window.md](window.md), The grid).
   Geist and JetBrains Mono (the terminal's), bundled, so the window looks the same on every OS. Kulisa's own colors,
   for what shadcn has none (a warning, a success), are variables beside it (`window.css`: `--warning`, `--success`,
   used as `text-warning`). **Dark by default**, as JetBrains; Light; System follows the OS ([window.md](window.md),
-  Theme): `lib/theme.ts` sets the root's `.dark` from its `data-theme` (`useShade()` the one shown). What draws outside
-  the DOM's styles (a terminal) takes the theme's colors by `termStyle('--card')`, a variable read as a color.
+  Theme): `public/theme.js` puts `.dark` on the root, a classic script so before the first paint, and `lib/theme.ts`'s
+  `setTheme` changes it (`useShade()` the one shown). What draws outside the DOM's styles (a terminal) takes the
+  theme's colors by `termStyle()`, a variable read as a color.
 - **A color is the theme's** (`bg-muted`, `text-destructive`, `var(--card)`), never Tailwind's palette nor written
   out: one palette, dark and light. A literal color only where none can be: a mask (alpha alone, `lib/strip.css`) and
   the marks.
@@ -121,7 +122,7 @@ A command with a key says it at the end of its tooltip, as Chrome's toolbar: `wi
 `Menus.tsx`, on shadcn's `DropdownMenu`: a button's (`ButtonMenu`: `items` built as it opens; `end`: its end edge at
 the button's), an area's right-click menu at the pointer (`RightClickMenu`: `items(e)` the rows for what was
 right-clicked, or `null`), one at a point (`menuAt(e, items)`, `lib/menu.ts`: a link in the terminal, a screenshot's
-thumbnail). A right-click's and a point's are the window's one menu at a point (`PointMenu.tsx`, in `App.tsx`): an
+thumbnail). A right-click's and a point's are the window's one menu at a point (`PointMenu`, in `App.tsx`): an
 element fixed inside dockview's panels is placed in their box, not the window's; not `ContextMenu`, whose open state
 is Radix's own. A Radix menu of a part's own only for a row's own menu inside one
 (`ChoiceRow`, `TopBar.tsx`).
@@ -138,13 +139,10 @@ is Radix's own. A Radix menu of a part's own only for a row's own menu inside on
   under the pointer, and takes the next Esc.
 - It shows once the pages under it are pictures (Layers); then its list is `[role="menu"][data-ready]` (the tests'
   handle).
-- Rows (`MenuItem` in `lib/menu.ts`): `{ label, sub, keys, title, icon, color, avatar, agent, project, inset, enabled,
-  run, remove }`; `'-'` a divider; `{ heading, icon }`; `{ submenu, items, project, run }`; `{ component }` a row of its
-  own (☰'s zoom, theme, tasks' bar, language and arrangements). `remove` a 🗑 at its end, on the row under the pointer
-  or the keyboard, Delete too.
+- Rows (`MenuItem` in `lib/menu.ts`): `{ label, sub, keys, title, icon, avatar, agent, enabled, run }`; `'-'` a
+  divider; `{ heading, icon }`; `{ submenu, items, project }`; `{ component }` a row of its own (☰'s zoom, theme, tasks'
+  bar, language and arrangements).
 - **A row's accessible name is its label alone** (`aria-label`), so it is found by what it says.
-- A row that opens a field gives the field the keyboard once the menu has given it back (`requestAnimationFrame`,
-  `GitHubPage.tsx`).
 
 ## Dialogs
 
@@ -173,7 +171,11 @@ is Radix's own. A Radix menu of a part's own only for a row's own menu inside on
   name), its actions its ⋯ and its right-click (the same rows); a row that opens a page ends in a chevron instead.
   What is added in place goes under the rows (`AddInPlace`: Enter takes it, Esc puts it away). A list of words
   (hosts) is a field and its words as `Badge`s with their ×.
-- **Notices**: work under way (an install, a sign-in, a search) is a `Spinner` with its label (`Working.tsx`). An
+- **A section of a dialog** is a `FieldSet` under its `FieldLegend`; a choice of one agent a `RadioGroup` of shadcn's
+  choice cards (a `FieldLabel` around a horizontal `Field`: `AgentPicker.tsx`, `HandOver.tsx`); a checkbox's row a
+  horizontal `Field`.
+- **Notices**: work under way (an install, a sign-in, a search) is a `Spinner` with its label (`Working.tsx`), a
+  `Progress` once how far it is is known (Change Agent's reading). An
   error of a field is that `Field`'s `FieldError` (`data-invalid` on the field, `aria-invalid` on its control); any
   other error, a warning, a step to take or what is done is an `Alert` (`variant="destructive"` an error's, through
   `ErrorBar`). A confirmation that passes (Copied, Saved as) is a `toast` (sonner's `Toaster`), in Settings only

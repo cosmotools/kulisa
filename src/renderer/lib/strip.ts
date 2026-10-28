@@ -28,9 +28,10 @@ function strip(s: HTMLElement) {
     s.toggleAttribute('data-past-start', s.scrollLeft > 1);
     s.toggleAttribute('data-past-end', s.scrollLeft < s.scrollWidth - s.clientWidth - 1);
   };
-  // The active tab in sight, clear of the fades (scroll-padding), the strip alone scrolled (scrollIntoView moved the
-  // window's grid once, docs/window.md). Only when another is chosen, a tab grows in or the strip is resized: on
-  // every update (a title, a page loading, an agent's state) it took the strip back from where the human scrolled it.
+  // The active tab in sight, clear of the fades (scroll-padding), the strip alone scrolled (scrollIntoView would move
+  // the window's grid too, docs/window.md). Only when another is chosen, a tab grows in or the strip is resized: on
+  // every update (a title, a page loading, an agent's state) it would take the strip back from where the human
+  // scrolled it.
   const reveal = () => {
     const a = s.querySelector('[aria-selected="true"]')?.getBoundingClientRect();
     if (!a) return;

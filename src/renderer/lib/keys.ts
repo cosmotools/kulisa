@@ -40,14 +40,15 @@ const openOwn = async () => {
   plus?.focus();
   plus?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
 };
-// A task's tab in the tasks' bar shown, as a click on it does (the tasks' bar).
-const showTask = (tab?: Element) => { const key = (tab as HTMLElement | undefined)?.dataset.task; if (key && key !== store.getState().current) void kulisa.invoke('task:show', key); };
+// The tasks' bar's tabs, in its order; one shown, as a click on it does.
+const taskTabs = () => [...document.querySelectorAll<HTMLElement>('#taskTabs [role="tab"]')];
+const showTask = (tab?: HTMLElement) => { const key = tab?.dataset.task; if (key && key !== store.getState().current) void kulisa.invoke('task:show', key); };
 interface Command { n?: number; page?: boolean; p?: Profile; tab?: string }
 // What each command does. page: the key was typed in the profile's page, so the keyboard stays in its pages.
 const run: Record<string, (c: Command) => unknown> = {
   'terminal.focus': () => (!store.getState().terminals.list.length ? openOwn() : zone === 'terminal' && lastPane ? focusPage(lastPane) : shownTerm()?.focus()),
   'terminal.new': () => act('terminal:open'),
-  'task.n': ({ n }) => showTask(document.querySelectorAll('#projectTabs [role="tab"]')[n! - 1]),
+  'task.n': ({ n }) => showTask(taskTabs()[n! - 1]),
   'task.next': () => stepTask(1),
   'task.previous': () => stepTask(-1),
   'task.new': () => kulisa.invoke('task:new'),
@@ -68,9 +69,8 @@ const run: Record<string, (c: Command) => unknown> = {
   pick: ({ p }) => panes.get(p!.id)?.pick(),
   screenshot: ({ p }) => screenshot(p!.id, 'element'),
 };
-// The bar's tasks, in its order.
 function stepTask(dir: number) {
-  const all = [...document.querySelectorAll<HTMLElement>('#projectTabs [role="tab"]')];
+  const all = taskTabs();
   const i = all.findIndex((t) => t.dataset.task === store.getState().current);
   if (all.length > 1) showTask(all[(i + dir + all.length) % all.length]);
 }

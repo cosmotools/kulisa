@@ -31,7 +31,7 @@ test("☰ → Report a Problem… opens Settings at the Log page: the log so far
   // Errors: a page's error is a warning line, in red; Errors shows those alone.
   await ui.evaluate(() => console.error('boom-for-the-log'));
   await expect.poll(async () => (await lines()).some((l) => l.includes('boom-for-the-log'))).toBe(true);
-  const showOnly = (name: string) => s.getByRole('toolbar', { name: 'Show' }).getByRole('radio', { name, exact: true }).click();
+  const showOnly = (name: string) => s.getByRole('radiogroup', { name: 'Show' }).getByRole('radio', { name, exact: true }).click();
   const typeFilter = (text: string) => s.getByRole('searchbox', { name: 'Filter' }).fill(text);
   await showOnly('Errors');
   await expect(s.getByRole('radio', { name: 'Errors', exact: true })).toBeChecked();

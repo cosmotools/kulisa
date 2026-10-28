@@ -7,17 +7,18 @@ import { BookOpenIcon, BugIcon, Columns3Icon, GitBranchIcon, Grid2x2Icon, InfoIc
   MenuIcon, MinusIcon, PanelBottomIcon, PlusIcon, SettingsIcon, SquareIcon, SunMoonIcon, ZoomInIcon } from 'lucide-react';
 import { Button, DropdownMenuItem, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuShortcut, DropdownMenuSub, DropdownMenuSubContent,
   DropdownMenuSubTrigger, Toggle } from '@ui';
-import { ButtonMenu, type Item } from './Menus';
+import { ButtonMenu } from './Menus';
 import { Tip } from './Tip';
 import { Logo } from './ProjectIcon';
 import { SidebarToggle } from './Sidebar';
 import { useWindow } from '../lib/store';
-import { keyText, LINKS, withKeys } from '../lib/common';
+import { keyText, withKeys } from '../lib/common';
 import { applyPreset } from '../lib/grid';
 import { ask } from '../lib/ask';
 import { dialog } from '../lib/dialogs';
 import { leaveSettings, openSettings, useSettings } from '../lib/settings';
 import { refused } from '../../shared/result';
+import type { MenuItem } from '../lib/menu';
 import type { Bar, Theme } from '../../shared/ipc';
 
 const mac = kulisa.platform === 'darwin';
@@ -90,12 +91,16 @@ const PRESETS = [
 const ArrangeRows = () => PRESETS.map(({ preset, label, title, icon: Icon }) =>
   <DropdownMenuItem key={preset} data-preset={preset} title={title} onSelect={() => applyPreset(preset)}><Icon />{label}</DropdownMenuItem>);
 
-const LINK_ICONS: Record<string, ComponentType> = { Documentation: BookOpenIcon, GitHub: GitBranchIcon };
-const windowMenu = (): Item[] => [
+// They open in the user's browser (window.ts).
+const LINKS = [
+  { label: 'Documentation', href: 'https://kulisa.app/docs', icon: BookOpenIcon },
+  { label: 'GitHub', href: 'https://github.com/cosmotools/kulisa', icon: GitBranchIcon },
+];
+const windowMenu = (): MenuItem[] => [
   { component: ZoomRow }, { component: ThemeRow }, { component: BarRow }, { component: LanguageRow },
   '-', { heading: 'Arrange panels', icon: LayoutDashboardIcon }, { component: ArrangeRows },
   '-', { label: 'Keyboard Shortcuts', icon: KeyboardIcon, keys: keyText('shortcuts'), run: async () => (await dialog('shortcuts')).showShortcuts() },
-  '-', ...LINKS.map((l) => ({ label: l.label, icon: LINK_ICONS[l.label], run: () => { open(l.href); } })),
+  '-', ...LINKS.map((l) => ({ label: l.label, icon: l.icon, run: () => { open(l.href); } })),
   { label: 'Report a Problem…', icon: BugIcon, title: 'The log of what Kulisa did, and how to send it', run: () => openSettings('log') },
   { label: 'About Kulisa', icon: InfoIcon, run: () => openSettings('about') },
   ...(mac ? [] : ['-' as const, { label: 'Exit', icon: LogOutIcon, run: () => kulisa.invoke('app:quit') }]),
@@ -103,6 +108,8 @@ const windowMenu = (): Item[] => [
 
 export function TopBar({ children }: { children?: ReactNode }) {
   const zoom = useWindow((s) => s.zoom), settings = useWindow((s) => s.projects.settings), shown = !!useSettings();
+  const toggle = <Toggle id="settingsButton" aria-label="Settings" pressed={shown} onPressedChange={() => (shown ? void leaveSettings() : openSettings())}>
+    <SettingsIcon /></Toggle>;
   // The logo and the space after the tasks' bar drag the window, however many tabs: Chromium takes tabs scrolled past
   // the bar's edges as no-drag over them too (it does not clip them to the bar) and the regions in the page's order, the
   // last one winning; so both come after the tasks' bar in the page, the logo put first by order. The space is at least
@@ -117,9 +124,7 @@ export function TopBar({ children }: { children?: ReactNode }) {
       {zoom !== 1 && <Tip text={`Kulisa's zoom. Click to reset (${keyText('zoom.reset')})`}>
         <Button id="zoomReset" variant="ghost" onClick={() => kulisa.invoke('zoom:ui', 0)}>{Math.round(zoom * 100)}%</Button></Tip>}
       {/* No tooltip while Settings is shown: one under the pointer would take its first Esc */}
-      {shown ? <Toggle id="manageProjects" aria-label="Settings" pressed onPressedChange={() => void leaveSettings()}><SettingsIcon /></Toggle>
-        : settings && <Tip text="Settings: projects, agents, profiles">
-          <Toggle id="manageProjects" aria-label="Settings" pressed={false} onPressedChange={() => openSettings()}><SettingsIcon /></Toggle></Tip>}
+      {shown ? toggle : settings && <Tip text="Settings: projects, agents, profiles">{toggle}</Tip>}
       <ButtonMenu items={windowMenu} end><Button id="windowMenu" variant="ghost" size="icon" aria-label="Menu"><MenuIcon /></Button></ButtonMenu>
     </span>
   </header>;

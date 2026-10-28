@@ -5,7 +5,7 @@ import { createElement, useEffect, useId, useRef, useState, type KeyboardEvent, 
 import { FolderGit2Icon, FolderOpenIcon, FolderPlusIcon, MinusIcon, PlusIcon, StarIcon, XIcon } from 'lucide-react';
 import { useShallow } from 'zustand/react/shallow';
 import { Avatar, AvatarImage, Badge, Button, Checkbox, Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, Field, FieldDescription, FieldError,
-  FieldLabel, Input, Label, Spinner, Tabs, TabsList, TabsTrigger, Toggle } from '@ui';
+  FieldLabel, FieldLegend, FieldSet, Input, RadioGroup, RadioGroupItem, Spinner, Tabs, TabsList, TabsTrigger, Toggle } from '@ui';
 import { SignIn } from './SignIn';
 import { InstallProgress } from './AgentPicker';
 import { agentMark } from './AgentMark';
@@ -40,19 +40,22 @@ function StepField({ label, error, where, more, children }: { label: ReactNode; 
 // The folders or URLs added, one chosen to leave out (Delete, or −); the first the default.
 function Sources({ label, rows, chosen, choose, remove }: { label: string; rows: { folder: string; state: string }[]; chosen?: string;
   choose: (f: string | undefined) => void; remove: () => void }) {
-  const at = rows.findIndex((x) => x.folder === chosen);
-  const keys = (e: KeyboardEvent) => {
-    if (e.key === 'Delete') remove();
-    else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); choose(rows[Math.max(0, Math.min(rows.length - 1, at + (e.key === 'ArrowDown' ? 1 : -1)))]?.folder); }
+  const id = useId();
+  const keys = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (e.key !== 'Delete') return;
+    const list = e.currentTarget;
+    remove();
+    requestAnimationFrame(() => list.querySelector<HTMLElement>('[role="radio"]')?.focus()); // the keyboard stays in the list
   };
-  return <div role="listbox" aria-label={label} tabIndex={0} onKeyDown={keys}
-    className="max-h-36 overflow-auto rounded-lg border p-1 outline-none focus-visible:ring-3 focus-visible:ring-ring/50">
-    {rows.map((x, i) => <div key={x.folder} role="option" aria-selected={x.folder === chosen} data-source={x.folder} aria-label={x.folder}
-      onClick={() => choose(x.folder)} className="flex items-center gap-2 rounded-md px-2 py-1 aria-selected:bg-muted">
-      <span className="min-w-0 flex-1 truncate" title={x.folder}>{x.folder}</span>
-      {x.state && <Badge variant="outline">{x.state === 'repo' ? 'git' : 'no git'}</Badge>}
-      {!i && rows.length > 1 && <Badge variant="outline">default</Badge>}
-    </div>)}
+  return <div className="max-h-36 overflow-auto rounded-lg border p-2">
+    <RadioGroup aria-label={label} value={chosen ?? ''} loop={false} onValueChange={choose} onKeyDown={keys}>
+      {rows.map((x, i) => <Field key={x.folder} orientation="horizontal" data-source={x.folder}>
+        <RadioGroupItem id={`${id}-${i}`} value={x.folder} aria-label={x.folder} />
+        <FieldLabel htmlFor={`${id}-${i}`} className="min-w-0"><span className="truncate" title={x.folder}>{x.folder}</span></FieldLabel>
+        {x.state && <Badge variant="outline">{x.state === 'repo' ? 'git' : 'no git'}</Badge>}
+        {!i && rows.length > 1 && <Badge variant="outline">default</Badge>}
+      </Field>)}
+    </RadioGroup>
   </div>;
 }
 
@@ -120,27 +123,29 @@ function AgentStep({ w }: { w: W }) {
     <div role="group" aria-label="Accounts" className="flex flex-col">
       {accounts.map((a) => {
         const on = chosen.includes(a.id), def = on && isDefault(st, a.id), id = `account-${a.id}`;
-        return <div key={a.id} data-account={a.id} className="flex min-h-8 items-center gap-2">
+        return <Field key={a.id} orientation="horizontal" data-account={a.id} className="min-h-8">
           <Checkbox id={id} checked={on} onCheckedChange={(c) => w.choose(a.id, c === true)} />
-          <Label htmlFor={id}>{createElement(agentMark(a.agent), { className: 'size-4' })}{`${a.name} · ${a.email || a.id}`}</Label>
+          <FieldLabel htmlFor={id}>{createElement(agentMark(a.agent), { className: 'size-4' })}{`${a.name} · ${a.email || a.id}`}</FieldLabel>
           {on && <Tip text={def ? 'The default: a new task starts it' : 'Make Default'}>
             <Toggle size="sm" pressed={def} aria-label="Default" onPressedChange={() => w.set({ main: a.id })}>
               <StarIcon className={def ? 'fill-current' : undefined} /></Toggle></Tip>}
           {def && <Badge variant="outline">default</Badge>}
-        </div>;
+        </Field>;
       })}
       {!accounts.length && <p className="text-muted-foreground">No accounts yet: add one below, or go on without (a task then starts with a terminal).</p>}
     </div>
-    <h3 className="font-medium">Add account</h3>
-    {signing ? <SignIn agent={signing} onDone={w.signedIn} onClose={() => w.set({ signing: null })} /> : <>
-      <div className="flex flex-wrap gap-2">
-        {addable.map((a) => <Tip key={a.id} text={a.installed ? `Sign in to an account of ${a.name}` : `${a.name} is installed first (its maker's installer), then you sign in`}>
-          <Button type="button" variant="outline" data-add={a.id} disabled={installing || (!a.installed && !a.install)} onClick={() => void w.addAccount(a)}>
-            {createElement(agentMark(a.id))}{a.name}</Button>
-        </Tip>)}
-      </div>
-      <InstallProgress list={w.installs} />
-    </>}
+    <FieldSet>
+      <FieldLegend variant="label">Add account</FieldLegend>
+      {signing ? <SignIn agent={signing} onDone={w.signedIn} onClose={() => w.set({ signing: null })} /> : <>
+        <div className="flex flex-wrap gap-2">
+          {addable.map((a) => <Tip key={a.id} text={a.installed ? `Sign in to an account of ${a.name}` : `${a.name} is installed first (its maker's installer), then you sign in`}>
+            <Button type="button" variant="outline" data-add={a.id} disabled={installing || (!a.installed && !a.install)} onClick={() => void w.addAccount(a)}>
+              {createElement(agentMark(a.id))}{a.name}</Button>
+          </Tip>)}
+        </div>
+        <InstallProgress list={w.installs} />
+      </>}
+    </FieldSet>
   </div>;
 }
 
@@ -157,24 +162,24 @@ function ProfilesStep({ w }: { w: W }) {
       <Tip text="Leave Out"><Button type="button" variant="ghost" size="icon" aria-label="Leave Out" onClick={() => w.set({ fresh: fresh.filter((_, j) => j !== i) })}><XIcon /></Button></Tip>
     </div>)}
     <div><Button type="button" variant="outline" onClick={() => w.set({ fresh: [...fresh, { name: '', description: '' }] })}><PlusIcon />Add Profile</Button></div>
-    {!!others.length && <>
-      <h3 className="font-medium">Your profiles</h3>
-      {others.map((p) => <div key={p.id} data-profile={p.id} className="flex items-center gap-2">
+    {!!others.length && <FieldSet>
+      <FieldLegend variant="label">Your profiles</FieldLegend>
+      {others.map((p) => <Field key={p.id} orientation="horizontal" data-profile={p.id}>
         <Checkbox id={`profile-${p.id}`} checked={taken.includes(p.id)}
           onCheckedChange={(c) => w.set({ taken: c === true ? [...taken, p.id] : taken.filter((x) => x !== p.id) })} />
-        <Label htmlFor={`profile-${p.id}`}>
+        <FieldLabel htmlFor={`profile-${p.id}`}>
           <Avatar className="size-5"><AvatarImage src={avatarSrc(p.avatar)} alt="" /></Avatar>{p.name}
           <span className="font-normal text-muted-foreground">{p.description}</span>
-        </Label>
-      </div>)}
-    </>}
+        </FieldLabel>
+      </Field>)}
+    </FieldSet>}
   </div>;
 }
 
 // The steps and their buttons, of a wizard made as they are shown (w), in a form (Enter is Next): its parts laid out by
 // what shows it, the dialog in its header, body and footer, the welcome in a Card's.
 // leave: Back on the first step (the welcome's).
-export interface WizardParts { step: number; saving: boolean; steps: ReactNode; error: ReactNode; back: ReactNode; go: ReactElement }
+interface WizardParts { step: number; saving: boolean; steps: ReactNode; error: ReactNode; back: ReactNode; go: ReactElement }
 export function Wizard({ w, leave, done, className, children }: { w: W; leave?: () => void; done?: () => void; className?: string; children: (p: WizardParts) => ReactNode }) {
   const { ready, step, saving, error, errorAt, from } = useWizard(w, useShallow((s) => ({ ready: s.ready, step: s.step, saving: s.saving, error: s.error, errorAt: s.errorAt, from: s.from })));
   const nameRef = useRef<HTMLInputElement>(null);

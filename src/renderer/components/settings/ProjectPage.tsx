@@ -3,50 +3,49 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { FolderIcon, PlusIcon, XIcon } from 'lucide-react';
 import { Alert, AlertAction, AlertDescription, Badge, Button, Card, CardContent, FieldGroup, Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@ui';
-import { ButtonMenu, type Item } from '../Menus';
+import { ButtonMenu } from '../Menus';
 import { agentMark } from '../AgentMark';
 import { SignIn } from '../SignIn';
 import { ErrorBar } from '../ErrorBar';
 import { AddInPlace, ProfileAvatar, Section, Setting, Things } from './kit';
 import { useChanged } from './changed';
+import type { MenuItem as Item } from '../../lib/menu';
 import { refused, type Result } from '../../../shared/result';
 import type { ProjectAgent, ProjectFolder, ProjectGitHub, ProjectProfile, ProjectSettings } from '../../../shared/types';
 
 const base = (f: string) => f.split(/[\\/]/).pop()!;
 
-// first: what Settings fetched before it showed (Settings.tsx), its page filled from the start; fetched again here.
+// first: what Settings fetched just before it showed (Settings.tsx), its page filled from the start.
 export function ProjectPage({ id, first, onSaved, saveRef }: { id: string; first?: ProjectSettings; onSaved: () => void; saveRef: { current: () => Promise<void> } }) {
+  // The project as the main process has it; its name and local addresses as typed (saved), never replaced by a read.
   const [s, setS] = useState<ProjectSettings | null>(first ?? null);
+  const patch = (p: Partial<ProjectSettings>) => setS((x) => x && { ...x, ...p });
+  const folders = s?.folders ?? [], mine = s?.projectAgents ?? [], profiles = s?.profiles ?? [], others = s?.others ?? [];
   const [name, setName] = useState(first?.name ?? ''), [local, setLocal] = useState<string[]>(first?.local || []), [host, setHost] = useState(''), [error, setError] = useState('');
-  const [folders, setFolders] = useState<ProjectFolder[]>(first?.folders ?? []), [github, setGithub] = useState<ProjectGitHub | null>(null);
-  const [mine, setMine] = useState<ProjectAgent[]>(first?.projectAgents ?? []), [profiles, setProfiles] = useState<ProjectProfile[]>(first?.profiles ?? []), [others, setOthers] = useState<ProjectProfile[]>(first?.others ?? []);
+  const [github, setGithub] = useState<ProjectGitHub | null>(null);
   const [adding, setAdding] = useState<'' | 'clone' | 'profile'>(''), [text, setText] = useState(''), [cloning, setCloning] = useState(false);
   const [errors, setErrors] = useState({ folders: '', agents: '', profiles: '' });
   const [signing, setSigning] = useState<{ id: string; name: string } | null>(null); // New Account…: the agent it is of, while signing in
   const saved = useRef(first ? JSON.stringify({ name: first.name.trim(), local: first.local || [] }) : '');
+  const filled = useRef(!!first);
 
   const githubNow = useCallback(async (answer?: Promise<Result<ProjectGitHub>>) => {
     const r = await (answer ?? kulisa.invoke('project:github-get', { id }));
     if (refused(r)) setErrors((e) => ({ ...e, folders: r.error })); else setGithub(r);
   }, [id]);
-  // The accounts to add as they are now (one made, or deleted in Settings → Agents, meanwhile), and the project's own.
-  const agentsNow = async () => {
+  // Read again: an account made, or one deleted in Settings → Agents, meanwhile; the profiles changed elsewhere. The
+  // first read (none given) fills the name and local addresses too.
+  const reload = useCallback(async () => {
     const c = await kulisa.invoke('project:settings-get', { id });
-    if (!refused(c)) { setS(c); setMine(c.projectAgents); }
-  };
-  useEffect(() => {
-    void kulisa.invoke('project:settings-get', { id }).then((c) => {
-      if (refused(c)) return;
-      setS(c); setName(c.name); setLocal(c.local || []); setFolders(c.folders); setMine(c.projectAgents);
-      setProfiles(c.profiles); setOthers(c.others);
-      saved.current = JSON.stringify({ name: c.name.trim(), local: c.local || [] });
-      void githubNow();
-    });
-  }, [id, githubNow]);
-  useChanged(useCallback(async () => {
-    const c = await kulisa.invoke('project:settings-get', { id });
-    if (!refused(c)) { setProfiles(c.profiles); setOthers(c.others); }
-  }, [id]));
+    if (refused(c)) return;
+    setS(c);
+    if (filled.current) return;
+    filled.current = true;
+    setName(c.name); setLocal(c.local || []);
+    saved.current = JSON.stringify({ name: c.name.trim(), local: c.local || [] });
+  }, [id]);
+  useEffect(() => { void (filled.current ? githubNow() : reload().then(() => githubNow())); }, [reload, githubNow]);
+  useChanged(reload);
 
   // Its name saved on Enter, on leaving it, and before Settings closes or another page shows; its local addresses as one
   // is added or removed (a host typed: on Enter, a space or a comma, or leaving it).
@@ -66,7 +65,7 @@ export function ProjectPage({ id, first, onSaved, saveRef }: { id: string; first
   async function changeFolders(answer: Promise<Result<{ folders?: ProjectFolder[] }>>) {
     setErrors((e) => ({ ...e, folders: '' }));
     const r = await answer;
-    if (refused(r)) setErrors((e) => ({ ...e, folders: r.error })); else if (r.folders) { setFolders(r.folders); void githubNow(); }
+    if (refused(r)) setErrors((e) => ({ ...e, folders: r.error })); else if (r.folders) { patch({ folders: r.folders }); void githubNow(); }
     return r;
   }
   const removeFolder = (f: string) => changeFolders(kulisa.invoke('project:folder-remove', { id, folder: f }));
@@ -81,7 +80,7 @@ export function ProjectPage({ id, first, onSaved, saveRef }: { id: string; first
   async function agents(answer: Promise<Result<{ agents: ProjectAgent[] }>>) {
     setErrors((e) => ({ ...e, agents: '' }));
     const r = await answer;
-    if (refused(r)) setErrors((e) => ({ ...e, agents: r.error })); else setMine(r.agents);
+    if (refused(r)) setErrors((e) => ({ ...e, agents: r.error })); else patch({ projectAgents: r.agents });
   }
   const isDefault = (a?: string) => !!a && !!mine.find((m) => m.id === a)?.default;
   const defaultAgent = (a: string | null) => agents(kulisa.invoke('project:agent-default', { id, agent: a }));
@@ -94,7 +93,7 @@ export function ProjectPage({ id, first, onSaved, saveRef }: { id: string; first
   async function profileChange(answer: Promise<Result<{ profiles: ProjectProfile[]; others: ProjectProfile[] }>>) {
     setErrors((e) => ({ ...e, profiles: '' }));
     const r = await answer;
-    if (refused(r)) setErrors((e) => ({ ...e, profiles: r.error })); else { setProfiles(r.profiles); setOthers(r.others); onSaved(); }
+    if (refused(r)) setErrors((e) => ({ ...e, profiles: r.error })); else { patch({ profiles: r.profiles, others: r.others }); onSaved(); }
     return r;
   }
   const removeProfile = (p: string) => profileChange(kulisa.invoke('project:profile-remove', { id, profile: p }));
@@ -170,7 +169,7 @@ export function ProjectPage({ id, first, onSaved, saveRef }: { id: string; first
         things={mine.map((a) => { const Mark = agentMark(a.cli); return { key: a.id, name: a.agent, media: <Mark className="size-6" />,
           data: { 'data-agent': a.id }, badges: a.default && <Badge variant="secondary">Default</Badge>, description: a.email ?? undefined }; })} />
       {signing && <SignIn project={id} agent={signing} onClose={() => setSigning(null)}
-        onDone={(r) => { setSigning(null); if (r.agents) setMine(r.agents); void agentsNow(); }} />}
+        onDone={(r) => { setSigning(null); if (r.agents) patch({ projectAgents: r.agents }); void reload(); }} />}
       {err(errors.agents)}
     </Section>
 

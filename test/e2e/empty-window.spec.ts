@@ -4,7 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import { test, expect } from './fixtures.ts';
 import type { Locator, Page } from '@playwright/test';
-import { ipcSettled, menu, choose, projectTabs, showProject, invoke, typeIn, notLoading, projectMenu, fromSidebar, sidebar, removed, answer, termKeys } from './helpers.ts';
+import { ipcSettled, menu, choose, tabProjects, showProject, invoke, typeIn, notLoading, projectMenu, fromSidebar, sidebar, removed, answer, termKeys } from './helpers.ts';
 import { begin, bothOn, taskShown, taskTab, deleteProfile } from './tasks-helpers.ts';
 
 // The keyboard taken from whatever has it.
@@ -26,7 +26,7 @@ test("the empty window: Close All Tasks in the project's submenu; links in ☰ o
   await expect(sub.getByRole('menuitem').last()).toHaveAccessibleName('Close All Tasks');
   await choose(ui, 'Close All Tasks', sub);
   await expect.poll(() => core((k) => k.shell.task === null && !k.shell.current)).toBe(true);
-  await expect(ui.locator('html')).toHaveAttribute('data-empty');
+  await expect(ui.locator('html')).toHaveAttribute('data-page', /^(sidebar|welcome)$/);
   await ui.locator('#windowMenu').click();
   await expect(menu(ui)).toMatchAriaSnapshot(`
     - /children: contain
@@ -46,7 +46,7 @@ test("the empty window: Close All Tasks in the project's submenu; links in ☰ o
   await ipcSettled(ui); // what it told the window is there
   await expect(ui.locator('html'), 'projects there: nothing').toHaveAttribute('data-page', 'sidebar');
   await expect(sidebar(ui)).toBeVisible();
-  const gear = ui.locator('#manageProjects');
+  const gear = ui.locator('#settingsButton');
   await expect(gear).toBeVisible();
   await core((k) => {
     const s = k.shell;
@@ -237,7 +237,7 @@ test("the empty window: Close All Tasks in the project's submenu; links in ☰ o
   await fromSidebar(ui, 'project', 'task-1'); // a closed task in the sidebar: opened again
   await expect.poll(() => core((k, f) => k.shell.current?.folder === f && k.shell.task?.name === 'task-1' && !!k.shell.task.loaded && !!k.shell.pty, files.project)).toBe(true);
   await core((k) => k.watchPty(k.shell.pty));
-  await expect(ui.locator('html')).not.toHaveAttribute('data-empty');
+  await expect(ui.locator('html')).toHaveAttribute('data-page', 'task');
   await notLoading(ui);
   await bothOn(core, ui, files);
   // Feature-X, closed with the others, opened again from the sidebar over the grid.
@@ -246,17 +246,17 @@ test("the empty window: Close All Tasks in the project's submenu; links in ☰ o
   await taskTab(ui, files.tkey('project', 1)).click();
   await taskShown(core, files.tkey('project', 1));
   await notLoading(ui);
-  expect(await projectTabs(ui, files)).toEqual(['shop', 'project *', 'project']);
+  expect(await tabProjects(ui, files)).toEqual(['shop', 'project *', 'project']);
   // Another project's task: a click shows it.
   const shopTask = files.tkey('shop', 1);
-  await ui.locator(`#projectTabs [data-task="${shopTask}"]`).click();
+  await ui.locator(`#taskTabs [data-task="${shopTask}"]`).click();
   await expect.poll(() => core((k, a) => k.shell.current?.id === a.id && k.shell.task?.key === a.task && k.settled(), { id: shopId, task: shopTask })).toBe(true);
   await notLoading(ui);
-  expect(await projectTabs(ui, files)).toEqual(['shop *', 'project', 'project']);
+  expect(await tabProjects(ui, files)).toEqual(['shop *', 'project', 'project']);
   await showProject(ui, files, 'project');
   await expect.poll(() => core((k, id) => k.shell.current?.id === id && !!k.shell.task.loaded, files.pid('project'))).toBe(true);
   // A tab in the background has its × too: the last one of its project lets the project go.
-  await ui.locator(`#projectTabs [data-task="${shopTask}"] [aria-label="Close"]`).click();
+  await ui.locator(`#taskTabs [data-task="${shopTask}"] [aria-label="Close"]`).click();
   await expect.poll(() => core((k, id) => !k.shell.open.has(id), shopId)).toBe(true);
   expect(await core((k) => k.shell.current?.id), 'the shown project stays').toBe(files.pid('project'));
 

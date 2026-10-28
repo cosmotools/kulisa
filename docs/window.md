@@ -144,9 +144,9 @@ following it when it changes). Saved (`settings.json`), the same in every window
 - Only Kulisa's own UI changes: the profiles' pages keep the OS's light or dark (`prefers-color-scheme`), so a site
   under test looks as its users see it. So Kulisa does not set `nativeTheme.themeSource` (it would change every page's
   scheme); System reads `nativeTheme.shouldUseDarkColors` and its `updated` event.
-- shadcn's theme does it ([ui.md](ui.md), The theme): the root's `.dark` class and its `color-scheme`
-  (`lib/theme.ts`), so the browser's own controls (scrollbars) follow; the grid takes dockview's colors from the same
-  variables (`Grid.css`), a terminal its colors (`termStyle`). The choice comes in the page's URL (`data-theme` on its root), set before the first paint, so a
+- shadcn's theme does it ([ui.md](ui.md), shadcn in Kulisa): the root's `.dark` class and its `color-scheme`
+  (`public/theme.js`), so the browser's own controls (scrollbars) follow; the grid takes dockview's colors from the same
+  variables (`Grid.css`), a terminal its colors (`termStyle`). The choice comes in the page's URL, set before the first paint, so a
   light window never flashes dark.
 - What CSS does not paint follows from the main process: the window's background and the OS buttons' strip
   (`window.ts`).
@@ -175,7 +175,7 @@ built: [ui.md](ui.md), Menus):
 - a task tab's right-click menu ([tasks.md](tasks.md), Projects, "A tab's right-click menu"), a project's and a task's
   row's in the sidebar ([tasks.md](tasks.md), The sidebar), ☰ (as Chrome's ⋮, each row with its icon: the zoom row;
   Theme, Tasks bar and Language, rows each opening a menu beside it, the choice at the row's end; Arrange panels,
-  Keyboard Shortcuts, the links (Documentation, the user guide on kulisa.app; GitHub; one list in `lib/common.ts`),
+  Keyboard Shortcuts, the links (Documentation, the user guide on kulisa.app; GitHub; one list in `TopBar.tsx`),
   Report a Problem… (Settings at its Log page: not everyone has a GitHub account, and an issue without the log says
   little), About Kulisa (below), and Exit, which quits as the last window's × does; not on macOS, where Cmd+Q and the
   app's menu quit);
@@ -541,6 +541,6 @@ window it comes from (`event.sender`); one change to the open tasks after anothe
 | `src/renderer/components/Grid.tsx`, `components/grid/`, `lib/grid.ts` | the grid (dockview), the panes and their headers, the terminals (`grid/Terminals.tsx`: `Terminals`, its row of tabs `TerminalsHeader`), the closed profiles' buttons over it (`ClosedProfiles`, `Grid.tsx`), Arrange panels |
 | `src/renderer/components/grid/Resources.tsx` | Resources next to the terminal: the shown task's resources (its worktree(s) or the main working tree) and its artifacts, each with its actions (tasks.md) |
 | `src/renderer/components/TopBar.tsx`, `ProjectIcon.tsx` | the title bar, ☰ and its own rows; the logo, a project's icon |
-| `src/renderer/components/Menus.tsx`, `PointMenu.tsx`, `Ask.tsx`, `lib/menu.ts`, `cover.ts`, `views.ts`, `ask.ts`, `terminals.ts` | the menus, the dialogs and questions (shadcn's: `cover.ts`), the pages under them in a tasks' window (`views.ts`), a tasks' window's terminals (`terminals.ts`) |
+| `src/renderer/components/Menus.tsx`, `Ask.tsx`, `lib/menu.ts`, `project-menu.ts`, `cover.ts`, `views.ts`, `ask.ts`, `terminals.ts` | the menus (`project-menu.ts`: a project's, the sidebar's and a tab's), the dialogs and questions (shadcn's: `cover.ts`), the pages under them in a tasks' window (`views.ts`), a tasks' window's terminals (`terminals.ts`) |
 | `src/renderer/lib/keys.ts`, `components/Shortcuts.tsx` | where the keyboard is, the commands the keys run; Keyboard Shortcuts |
 | `test/e2e/window.spec.ts`, `grid*.spec.ts`, `keys.spec.ts`, `log.spec.ts`, `zoom-and-closing.spec.ts`, `test/unit/keys.test.ts` | the tests |

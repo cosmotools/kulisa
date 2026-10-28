@@ -3,7 +3,6 @@
 import './window.css';
 import { createRoot } from 'react-dom/client';
 import { App } from './components/App';
-import './lib/theme';
 import './lib/names';
 import './lib/keys';
 import './lib/test-hooks';

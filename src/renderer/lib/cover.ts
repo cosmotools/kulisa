@@ -6,9 +6,11 @@
 //   then marked data-ready (the tests' handle);
 // - Settings, no Radix layer, says so itself (coverPage).
 // closeLayers closes them as Esc does (the grid taken down, the window left).
+import { createStore } from 'zustand';
 import './cover.css';
 
 const HIDE = '[data-slot$="-overlay"][data-state="open"]';
+// cover.css cuts away the same layers until they are marked data-ready.
 const PICTURES = '[data-radix-popper-content-wrapper] > [data-state="open"]:not([data-slot="tooltip-content"])';
 
 // What a page has under its menus and dialogs: hidden while a dialog is open; still while a menu is (frozen).
@@ -17,18 +19,16 @@ let under: Under | null = null;
 export const coverUnder = (u: Under) => { under = u; };
 
 // The dialogs open now (Settings counted): the keys are theirs then (keys.ts).
-let dialogs = 0, pages = 0;
-const dialogListeners = new Set<() => void>();
-export const dialogsShown = () => dialogs;
-export const onDialogs = (l: () => void) => { dialogListeners.add(l); return () => { dialogListeners.delete(l); }; };
+const dialogs = createStore(() => 0);
+let pages = 0;
+export const dialogsShown = () => dialogs.getState();
+export const onDialogs = (l: () => void) => dialogs.subscribe(() => l());
 
 let menus = false, pictures = false; // a menu is open; the pages under it are pictures
 function seen() {
-  const d = document.querySelectorAll(HIDE).length + pages;
-  if (d !== dialogs) {
-    const was = dialogs;
-    dialogs = d;
-    for (const l of dialogListeners) l();
+  const d = document.querySelectorAll(HIDE).length + pages, was = dialogs.getState();
+  if (d !== was) {
+    dialogs.setState(d, true);
     if (!was !== !d) void under?.hide(d > 0);
   }
   const open = document.querySelectorAll<HTMLElement>(PICTURES);
@@ -60,8 +60,8 @@ export async function closeLayers(only?: 'menus') {
     await new Promise(requestAnimationFrame);
   }
 }
-// Leaving the window closes a menu, as the OS's own menus close. The main process says so, not the page's own blur: that
-// came also when a profile's page in it took the keyboard as it loaded (macOS), a menu gone under the human's hand;
-// nothing else takes it while a menu is open (the pages under it are pictures). Its message comes after the blur: a
-// window that has the keyboard again by then (a menu just opened in it) keeps it.
+// Leaving the window closes a menu, as the OS's own menus close. The main process says so, not the page's own blur: a
+// blur comes also when a profile's page in it takes the keyboard as it loads (macOS), which would close a menu under
+// the human's hand; nothing else takes it while a menu is open (the pages under it are pictures). Its message comes
+// after the blur: a window that has the keyboard again by then (a menu just opened in it) keeps it.
 kulisa.on('window:blur', () => { if (!document.hasFocus()) void closeLayers('menus'); });

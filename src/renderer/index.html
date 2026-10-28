@@ -2,12 +2,10 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
+  <!-- Inline styles: React's style attributes. Images: the pages' favicons (http, https), pictures (data:) -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: http: https:">
   <title>Kulisa</title>
-  <!-- The theme (dark, light, system: lib/theme.ts; shadcn's dark class) and where the tasks' bar is (top, bottom) come in the URL, set
-       before the first paint (window.ts, load) -->
-  <script>{ const q = new URLSearchParams(location.search), root = document.documentElement, theme = q.get('theme') || 'dark';
-    root.dataset.theme = theme; root.dataset.bar = q.get('bar') || 'bottom';
-    root.classList.toggle('dark', theme === 'dark' || (theme === 'system' && matchMedia('(prefers-color-scheme: dark)').matches)); }</script>
+  <script src="/theme.js"></script>
   <script type="module" src="./main.tsx"></script>
 </head>
 <body>

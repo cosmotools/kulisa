@@ -107,12 +107,10 @@ export function LogPage() {
     <div className="flex flex-wrap items-center gap-2">
       <Input type="search" className="w-64" value={filter} placeholder="Filter: a task, wc=1, [mcp]…" aria-label="Filter" spellCheck={false}
         onChange={(e) => setFilter(e.target.value)} />
-      <div role="toolbar" aria-label="Show">
-        <ToggleGroup type="single" size="sm" value={show} onValueChange={(v) => { if (v) setShow(v as Show); }}>
-          {/* the tip on a box around the item: as its trigger, the tooltip's data-state would take the place of the item's */}
-          {SHOW.map((s) => <Tip key={s.id} text={s.hint}><span><ToggleGroupItem value={s.id}>{s.label}</ToggleGroupItem></span></Tip>)}
-        </ToggleGroup>
-      </div>
+      <ToggleGroup type="single" size="sm" aria-label="Show" value={show} onValueChange={(v) => { if (v) setShow(v as Show); }}>
+        {/* the tip on a box around the item: as its trigger, the tooltip's data-state would take the place of the item's */}
+        {SHOW.map((s) => <Tip key={s.id} text={s.hint}><span><ToggleGroupItem value={s.id}>{s.label}</ToggleGroupItem></span></Tip>)}
+      </ToggleGroup>
       <div className="ms-auto flex items-center gap-2">
         <Switch id={followId} checked={follow} onCheckedChange={(on) => { setFollow(on); if (on) toEnd(); }} />
         <Label htmlFor={followId}>Follow</Label>
