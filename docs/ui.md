@@ -44,7 +44,7 @@ the main process after every grid change ([window.md](window.md), The grid).
 - **Not Lucide's icons**: the agents' marks (`AgentMark.tsx`: the makers' own, in their colors, 1em), the logo
   (`Logo`, `ProjectIcon.tsx`: its curtain in `currentColor`) and the profiles' pictures (`avatarSrc` in an `Avatar`).
 - **No CSS Modules, no second UI library.** A plain `.css` only for what classes cannot say, with its reason: what is
-  the document's (a view transition and its keyframes, `Grid.css`), Radix's layers (`lib/cover.css`).
+  dockview's own elements (`Grid.css`), Radix's layers (`lib/cover.css`).
 - **A component missing**: `npm run ui -- <name>` adds it, without asking whether to; nothing in shadcn fits: say so
   before building one of our own.
 - **`npm run lint` refuses** in the window a raw `button`, `input`, `select` or `textarea`, a `className` on a
@@ -102,9 +102,8 @@ Settings, the tasks' bar's + (`side`: over or under it are the pages). The nativ
 - on a row (of a list, a nav) and on a text that cuts: a tooltip of the window's over a row covers the row above;
 - on a line of the log (Settings → Log, its date): a tooltip per line would be thousands of components.
 
-A tooltip is gone at once as it closes (a fading one would be frozen into the slide's picture of the window), and its
-text is not hoverable: the pointer leaving onto a page moves on no more in the window, and Radix's grace area would keep
-it open. A dialog whose first control has one gives the keyboard to itself (`Shortcuts.tsx`): the tooltip opened by
+A tooltip's text is not hoverable: the pointer leaving onto a page moves on no more in the window, and Radix's grace
+area would keep it open. A dialog whose first control has one gives the keyboard to itself (`Shortcuts.tsx`): the tooltip opened by
 that focus would take the dialog's Esc.
 
 A command with a key says it at the end of its tooltip, as Chrome's toolbar: `withKeys('Reload', 'tab.reload')` →
@@ -189,8 +188,7 @@ is Radix's own. A Radix menu of a part's own only for a row's own menu inside on
 
 What is drawn or moved here rather than by shadcn, each for a reason at it:
 
-- the grid's slide between tasks (a view transition of `#dock`, `Grid.css`): pictures, so the compositor moves them;
-  dockview's look, its variables set from the theme's (`Grid.css`);
+- dockview's look, its variables set from the theme's (`Grid.css`);
 - the dictation's pill with its wave bars, read from the microphone (`src/dictation/`, its `README.md`); its motions and
   the microphone's ring are Tailwind's and tw-animate-css';
 - the strips (`lib/strip.ts`, its classes on the element `useStrip` is given): the fades tied to the scroll; a tab

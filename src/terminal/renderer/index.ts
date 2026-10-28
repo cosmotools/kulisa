@@ -203,11 +203,8 @@ export class View {
   // Its size sent once it is on screen, laid out: an agent starts at the first size sent for its terminal
   // (main/index.ts) and draws its prompt for it. Not yet measured (xterm has not measured its characters, or the
   // panel is not laid out): again a moment later, so the agent gets its real size, never xterm's default.
-  // Measured in a frame about to be drawn, never between: a task's slide (a view transition) builds the next grid while
-  // nothing is drawn, and its room then is passing (954 px for 293), while no ResizeObserver tells of the room it ends
-  // with, the same as before: the agent would keep 52 rows in a panel of 16.
-  // A hidden page draws no frames, and no transition runs in it: measured at once then. Windows hides a window that
-  // others cover, as one opening behind them, which would otherwise start its agents only once someone looks at it.
+  // Measured in a frame about to be drawn (README.md, Fitted in a frame about to be drawn); in a hidden page, which draws
+  // no frames, at once.
   private fitTimer = 0;
   private fitSoon(tries = 50) {
     clearTimeout(this.fitTimer);

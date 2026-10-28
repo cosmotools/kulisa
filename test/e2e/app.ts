@@ -18,7 +18,7 @@ declare global { var __kulisa: Kulisa | undefined }
 // A site that is not local (local.ts) for the tests of real accounts' sign-ins kept in step (cookie-sync.ts): the test
 // site under a name of its own.
 app.commandLine.appendSwitch('host-resolver-rules', 'MAP shop.example 127.0.0.1');
-// The motion the tests check (a tab growing in, the grid's slide) whatever the OS's setting: a CI machine may reduce
+// The motion the tests check (a tab growing in) whatever the OS's setting: a CI machine may reduce
 // motion, and nothing moves then. Reduced motion is checked where it matters, emulated.
 app.commandLine.appendSwitch('force-prefers-no-reduced-motion');
 

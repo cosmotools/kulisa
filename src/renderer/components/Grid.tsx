@@ -39,8 +39,8 @@ export function Grid() {
   const folded = useWindow((s) => !!s.current && !s.profiles.length && s.terminals.list.length > 0);
   // #grid: dockview's room (lib/grid.ts, room), under the closed profiles' row
   // min-w-0: a row wider than the window (many closed profiles) would stretch the window's column, the terminal and the
-  // tasks' bar past its edge.
-  return <main id="dock" className="flex min-h-0 min-w-0 flex-col" aria-busy={loading || undefined}>
+  // tasks' bar past its edge. Not shown until it is laid out (lib/grid.ts, reveal).
+  return <main id="dock" className="flex min-h-0 min-w-0 flex-col aria-busy:opacity-0" aria-busy={loading || undefined}>
     {folded && <ClosedProfiles />}
     <div id="grid" className="min-h-0 flex-1">
       <DockviewReact theme={kulisaTheme} disableFloatingGroups singleTabMode="fullwidth" components={components}

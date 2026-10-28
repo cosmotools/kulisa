@@ -40,10 +40,8 @@ export const uiZoom = (core: Core) => core((k) => k.shell.win.webContents.getZoo
 // refused).
 export const invoke = (page: Page, channel: string, arg?: unknown) => page.evaluate(([c, a]) => (window as any).kulisa.invoke(c, a), [channel, arg] as const);
 export const act = (page: Page, channel: string, arg: unknown) => page.evaluate(([c, a]) => (window as any).act(c, a), [channel, arg] as const);
-// The window done building what it shows (a project, a task: the grid's region busy; none before the window is up), and
-// its grid done sliding to another task (a view transition: a key or a click meanwhile goes to the grid being left).
+// The window done building what it shows (a project, a task: the grid's region busy; none before the window is up).
 export const notLoading = (page: Page) => expect(page.locator('#dock:not([aria-busy])')).toHaveCount(1);
-export const noSlide = (page: Page) => expect(page.locator(':root:active-view-transition')).toHaveCount(0);
 // That nothing happened is checked once what would have made it is done (docs/testing.md, Writing an e2e test): each
 // of these waits for a proof of that, never for a time.
 // The page drew what its last changes made: React's updates, a ResizeObserver's, what waits for a frame.
@@ -73,10 +71,8 @@ export async function echoed(core: Core, { shows, send }: Echo = {}) {
 }
 
 // A press on an element as the hand makes it (CDP's input), dated a second back, and its release when called: the
-// page's events carry the time, so a hold is told from a click without waiting for one. After the grid's slide: while
-// it runs every event goes to the page's root, and CDP's input has no Playwright check that the target receives it.
+// page's events carry the time, so a hold is told from a click without waiting for one.
 export async function holdPointer(page: Page, target: Locator) {
-  await noSlide(page);
   const b = await target.boundingBox(), x = b.x + b.width / 2, y = b.y + b.height / 2;
   const cdp = await page.context().newCDPSession(page);
   await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y });

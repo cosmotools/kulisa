@@ -5,7 +5,7 @@ import { store } from './store';
 import { scheduleLayout } from './grid';
 import { coverUnder, dialogsShown } from './cover';
 
-// A menu or a drag too (frozen): the pages stay pictures until it ends (unfreeze), or a task's slide ending under a
+// A menu or a drag too (frozen): the pages stay pictures until it ends (unfreeze), or the next task's grid shown under a
 // menu would show them over it.
 const viewsCovered = () => dialogsShown() > 0 || store.getState().loading || !!frozen;
 export const showViews = () => kulisa.invoke('views:hidden', viewsCovered());
@@ -23,7 +23,7 @@ export async function unfreeze() {
   await livePages();
 }
 // The pages live again in place of their pictures, unless a menu or a drag has them (it does so when it ends).
-export async function livePages() {
+async function livePages() {
   if (frozen) return;
   store.setState({ pictures: {} });
   await showViews();
