@@ -119,10 +119,10 @@ repositories (git worktrees), so the project's folders stay the human's. Its dat
     files git lists in each of its repositories, the default first (new ones too, not ignored ones: no library's
     favicon from `node_modules`); a folder without git read a few levels down, without hidden folders,
     `node_modules`, `dist`, `build`, `vendor`. Of several: the nearest to the top, then svg, png, ico, then a favicon
-    before an icon, then by name (`apps/admin` before `apps/shop`). Looked for once, without holding the window up;
-    again as its settings open, so a favicon changed meanwhile shows. A picture up to 128 KB is shown as it is; a
-    larger PNG or JPEG made 64 px wide (`nativeImage` reads only those two on every OS); another larger one is not
-    shown (the curtain).
+    before an icon, then by name (`apps/admin` before `apps/shop`). Looked for once, again as its settings open (a
+    favicon changed meanwhile), never holding up the window or Settings; the windows are sent it only when it changed.
+    A picture up to 128 KB is shown as it is; a larger PNG or JPEG made 64 px wide (`nativeImage` reads only those two
+    on every OS); another larger one is not shown (the curtain).
   - **The color: its favicon's hue** (`renderer/lib/project-color.ts`), read in the window, where Chromium draws any
     favicon on a 32 px canvas, by colorthief (MIT, the most used of its kind; its palette with each color's share, its
     filters of transparent, white and gray pixels): the hue of the largest colored part, near-black left out (HSV

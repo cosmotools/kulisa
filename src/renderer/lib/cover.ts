@@ -43,11 +43,10 @@ function seen() {
 }
 new MutationObserver(seen).observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['data-state'] });
 
-// Settings shown or put away: done once the pages are hidden (it is drawn only then).
-export async function coverPage(open: boolean) {
+// Settings shown or put away. Covering once it is drawn, the panes go from the pages straight to it.
+export function coverPage(open: boolean) {
   pages += open ? 1 : -1;
   seen();
-  if (open) await under?.hide(true);
 }
 
 // The layer on top: the last open one Radix drew (its portals go to the body's end in the order they open).

@@ -281,13 +281,23 @@ test("projects: the title bar's gear shows Settings over the window at the shown
   const closed = path.join(files.root, 'closed');
   fs.mkdirSync(closed, { recursive: true });
   const closedId = await core((k, f) => { const p = k.shell.store.projectFor(f); k.shell.sendProjects(); return p.id; }, closed);
-  // Shown once it is filled (its page, the agents found): as it came, it jumped.
+  // The pages hidden once, when it is drawn: hidden before, their panes show empty until it comes.
+  await core((k) => {
+    const w = k.shell.windows[0], hide = w.hideViews.bind(w);
+    k.stash.drawn = [];
+    w.hideViews = async (hidden: boolean, o: unknown) => {
+      if (hidden) k.stash.drawn.push(await w.win.webContents.executeJavaScript('!!document.getElementById("settings")'));
+      return hide(hidden, o);
+    };
+  });
+  // Shown once it is filled (its page): as it came, it jumped.
   await ui.locator('#settingsButton').click();
   const s = await sui();
   expect(await s.locator('#settings main [data-row]').count() > 0).toBe(true);
   await pageOf(s, 'project');
   // The pages hidden under it, as under a dialog (they draw above the window's HTML).
   await expect.poll(() => core((k) => k.profile('Sam.admin').get().view.getVisible())).toBe(false);
+  expect(await core((k) => { delete k.shell.windows[0].hideViews; return k.stash.drawn; }), 'once, Settings drawn').toEqual([true]);
   // The other project is closed: its configuration all the same; a profile made and let go there (asked first).
   await openThing(s, 'projects', closedId);
   await pageOf(s, 'closed');

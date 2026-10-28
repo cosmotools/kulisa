@@ -32,7 +32,8 @@ export function agentList(opts: { details?: boolean; installed: (a: AgentInfo) =
   const fetchAgents = async (cached = false, again = false) => {
     const r = await kulisa.invoke('agents:list', { ...(opts.details ? { details: true } : { check: true }), cached });
     if (!r.list || (again && get().installing)) return false;
-    set({ agents: r.list, home: r.home });
+    // As found before (most looks), the store kept: its lists are not drawn again.
+    if (r.home !== get().home || JSON.stringify(r.list) !== JSON.stringify(get().agents)) set({ agents: r.list, home: r.home });
     return true;
   };
   // The dialog opens with the list in it, not with a line that flips to it at once: what was found last time, then

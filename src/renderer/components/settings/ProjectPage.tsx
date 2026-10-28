@@ -120,7 +120,9 @@ export function ProjectPage({ id, first, onSaved, saveRef }: { id: string; first
   const add = (label: string, items: () => Item[], disabled?: boolean) =>
     <ButtonMenu end items={items}><Button variant="outline" size="sm" disabled={disabled}><PlusIcon data-icon="inline-start" />{label}</Button></ButtonMenu>;
   const muted = (t: string) => <span className="text-sm text-muted-foreground">{t}</span>;
-  const account = (f: string) => { const g = githubOf(f);
+  const account = (f: ProjectFolder) => { const g = githubOf(f.folder);
+    // GitHub not answered yet (a request per account): the room its Select takes, so the cards under it stay.
+    if (!github && f.remote) return <Select disabled><SelectTrigger size="sm" className="w-48" aria-label="GitHub account"><SelectValue placeholder="GitHub account…" /></SelectTrigger></Select>;
     if (!g?.remote) return null;
     if (g.state === 'not-github') return muted('Not a GitHub address');
     if (!github!.accounts.length) return muted('No GitHub account');
@@ -159,7 +161,7 @@ export function ProjectPage({ id, first, onSaved, saveRef }: { id: string; first
         description: f.folder, data: { 'data-folder': f.folder },
         badges: <>{f.folder === folders[0]?.folder && folders.length > 1 && <Badge variant="secondary">Default</Badge>}
           {f.git !== 'ok' && <Badge variant="outline"><span className="text-warning">{f.git === 'none' ? 'No git' : 'No commit yet'}</span></Badge>}</>,
-        control: account(f.folder) }))} />
+        control: account(f) }))} />
       {adding === 'clone' && <AddInPlace label="Repository URL" placeholder="git@github.com:me/shop.git" value={text} onChange={setText} go={() => void clone()} stop={stop}
         ok={cloning ? 'Cloning…' : 'Clone'} busy={cloning} error={errors.folders || undefined} />}
       {github?.repos.filter((g) => g.why).map((g) => <Alert key={g.folder}>

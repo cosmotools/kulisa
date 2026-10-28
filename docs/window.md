@@ -237,8 +237,9 @@ Code's settings are a page of their window: the window it is opened in is the on
   its own. No gear while Settings would be empty (no project, no account, no profile, as at the first start, where the
   welcome makes them); it comes with the first account signed in to. An account or a profile left after the last
   project is deleted keeps it: Settings is where they are removed (`settings` in the projects' news).
-- **Shown in one go**, once its page is filled and the profiles' pages are hidden: until then the window stays as it
-  was (`coverPage`, `lib/cover.ts`).
+- **Shown in one go**, once its page is filled (not the agents: looked for again once it is drawn, the Agents page
+  saying so while it has none); until then the window stays as it was. The profiles' pages are hidden once it is drawn
+  under them (`coverPage`, `lib/cover.ts`): hidden before, the panes show empty until it comes.
 - **The grid stays under it**, laid out and hidden (dockview's sizes, the terminals), its agents working on; the
   profiles' pages are hidden as under a dialog (`coverPage`, `lib/cover.ts`), and the keys are its own. A
   grid changed underneath (a task shown by the agent, the shown project deleted) leaves it open. The agent's questions
@@ -252,7 +253,7 @@ Code's settings are a page of their window: the window it is opened in is the on
 - **Settings only**: a project is made in a tasks' window (New Project: the empty window with no project, New Project…
   at the sidebar's foot), which opens its first task: one way to open each.
 - **Its code is a chunk of its own** (`components/settings/`, reached only by `import()` of its `index.ts`: `npm run
-  deps`), read as Settings is first shown: a window never showing it never parses it. A module is never unloaded, so
+  deps`), read as Settings is first asked for: a window never showing it never parses it. A module is never unloaded, so
   once shown it stays in that window's memory: about 7 MB of its renderer (PSS), against some 80 MB for a window of its
   own.
 

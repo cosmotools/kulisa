@@ -187,6 +187,31 @@ test("GitHub: a repository's row: the account that reaches its remote suggested 
   } finally { await removeProject(core, id); }
 });
 
+test("GitHub: a repository's row keeps its account's room while GitHub is asked: the rows under it stay", async ({ core, ui, sui, files }) => {
+  await clean(core, ui);
+  await annAndBob(core, sui);
+  const { id } = await ghProject(core, files);
+  // GitHub answering once the test says so.
+  await core((k) => {
+    const g = k.shell.github, repo = g.repo.bind(g);
+    k.stash.answer = new Promise((ok) => { k.stash.answerNow = ok; });
+    g.repo = async (key: string | null, bound: string | null) => { await k.stash.answer; return repo(key, bound); };
+  });
+  try {
+    const s = await settings(core, sui, { section: 'projects', id });
+    const shop = listRow(s, 'Folders', 'shop');
+    await expect(shop.getByRole('combobox', { name: 'GitHub account' })).toBeDisabled();
+    const before = await shop.boundingBox();
+    await core((k) => { k.stash.answerNow(); });
+    await expect(shop.getByRole('combobox', { name: 'GitHub account of acme/shop' })).toHaveText('bob (token)');
+    expect(await shop.boundingBox(), 'its room as it was').toEqual(before);
+    await closeSettings(core, ui, sui);
+  } finally {
+    await core((k) => { delete k.shell.github.repo; k.stash.answerNow?.(); });
+    await removeProject(core, id);
+  }
+});
+
 test('GitHub: signed out (a refresh refused): said on the account and on its repositories; Sign in Again with a new token', async ({ core, ui, sui, files }) => {
   await clean(core, ui);
   const { s: page, bob } = await annAndBob(core, sui);

@@ -46,16 +46,24 @@ export function Settings({ at, className }: { at: SettingsAt; className?: string
   const save = useRef(async () => {});
   // The page read again each time Settings is asked for one, or one is chosen in its nav (the same one too).
   const [shown, setShown] = useState(0);
-  // The pages of the profiles hidden while it is shown, the keys its own, as a dialog's. Hidden as it is filled, not
-  // before: the window stays as it is until Settings is drawn in one go. Closed, the keyboard goes back where it was.
+  // The pages of the profiles hidden while it is shown, the keys its own, as a dialog's. Hidden once its first frame is
+  // drawn under them (a frame, then a turn: the frame is out), not before: the window stays as it is until Settings is
+  // drawn in one go, the panes never empty between. Closed, the keyboard goes back where it was.
+  // The agents looked for again then too (the user's shell, each one's --version): before, they slow its first frame.
   const covered = useRef(false);
   useEffect(() => {
     const before = document.activeElement as HTMLElement | null;
     return () => {
-      if (covered.current) { covered.current = false; void coverPage(false); }
+      if (covered.current) { covered.current = false; coverPage(false); }
       if (before?.isConnected) before.focus();
     };
   }, []);
+  useEffect(() => {
+    if (!loaded || covered.current) return;
+    let timer = 0;
+    const frame = requestAnimationFrame(() => { timer = window.setTimeout(() => { covered.current = true; coverPage(true); void agentList.look(false); }); });
+    return () => { cancelAnimationFrame(frame); clearTimeout(timer); };
+  }, [loaded]);
 
   const lists = useCallback(async () => {
     const [list, p] = await Promise.all([kulisa.invoke('projects:list'), kulisa.invoke('profiles:list')]);
@@ -78,21 +86,19 @@ export function Settings({ at, className }: { at: SettingsAt; className?: string
     const n = ++asked.current;
     await save.current();
     const { list, profiles: all } = await lists();
-    // As last found, looked for again behind them; never looked for yet (nothing in the window has asked), the first
-    // look is waited for: a nav shown with its agents coming after jumps.
+    // As last found (looked for again once it is drawn): only the Agents page lists them, saying so while there is no
+    // list yet.
     const cached = agentList.look(true);
     void loadAccounts();
     // the gear: the window's project; Profiles from a task: their list
     const project = at.section === 'projects' ? (at.id ?? list.project ?? null) : null;
-    // Its page waited for too, as the agents are: shown as it comes, it jumps.
-    const page = project ? kulisa.invoke('project:settings-get', { id: project }) : null;
-    if (!await cached) await agentList.look(false); else void agentList.look(false);
-    const filled = page && await page;
+    // Its page waited for: shown as it comes, it jumps.
+    const filled = project && await kulisa.invoke('project:settings-get', { id: project });
+    await cached;
     if (n !== asked.current) return;
     setFirst(project && filled && !refused(filled) ? { id: project, page: filled } : null);
     setPlace({ section: at.section, id: at.section === 'projects' ? project : at.section === 'profiles' && all.some((p) => p.id === at.id) ? at.id : undefined });
     setShown((n) => n + 1);
-    if (!covered.current) { covered.current = true; await coverPage(true); }
     setLoaded(true);
   })(); }, [at, lists]);
   useChanged(lists);
