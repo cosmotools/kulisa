@@ -4,15 +4,13 @@
 built as shadcn's examples build it. **A component of `src/ui` takes only where it sits and its size** (layout and size
 classes: `w-64`, `flex-1`, `ms-auto`; its variants and sizes for the rest); **its look is the theme's alone**
 (`src/ui/theme.css`; Kulisa's own variables in `src/renderer/window.css`); a part with a role of its own may look a
-little different (the tasks' bar's tabs), its reason at it. Variables
-passed to a component configure it (`[--muted:transparent]`, or in `style`): its own classes still draw it. `src/ui`
-itself is never edited. What shadcn
+little different. Variables passed to a component configure it (`[--muted:transparent]`, or in `style`); `src/ui` itself is never edited. What shadcn
 has no component for (a layout, a frame, the log) is a div or span with Tailwind's classes around shadcn's components,
 not on them (Own drawing). How a component is used: shadcn's documentation
 (`https://ui.shadcn.com/docs/components/radix/<name>`) and its generated file, read rather than remembered; here only
 what shadcn cannot know (the native pages, the desktop) and the choices it leaves. Nothing of ours where shadcn or
 Radix has a component, a prop or a pattern: their keyboard, focus and accessibility are maintained upstream. A
-deviation gets a comment at it saying why, and a line here. Tests find a part as the human does (role and name, label,
+deviation gets a comment at it saying why. Tests find a part as the human does (role and name, label,
 `data-*`; never a class: [testing.md](testing.md)).
 
 The grid is dockview's (`dockview-react`): its API before layout code of our own. State is zustand's; the terminal is
@@ -45,7 +43,7 @@ the main process after every grid change ([window.md](window.md), The grid).
 - **A color is the theme's** (`bg-muted`, `text-destructive`, `var(--card)`), never Tailwind's palette nor written
   out: one palette, dark and light. A literal color only where none can be: the marks.
 - **Not Lucide's icons**: the agents' marks (`AgentMark.tsx`: the makers' own, in their colors, 1em), the logo
-  (`Logo`, `ProjectIcon.tsx`: its curtain in `currentColor`) and the profiles' pictures (`avatarSrc` in an `Avatar`).
+  (`Logo`, `ProjectIcon.tsx`: its curtain in the color given) and the profiles' pictures (`avatarSrc` in an `Avatar`).
 - **No CSS Modules, no second UI library.** A plain `.css` only for what classes cannot say, with its reason: what is
   dockview's own elements (`Grid.css`), Radix's layers (`lib/cover.css`).
 - **A component missing**: `npm run ui -- <name>` adds it, without asking whether to; nothing in shadcn fits: say so
@@ -99,7 +97,7 @@ frames, pills, rows that show their buttons only under the pointer: those read a
 ## Tooltips
 
 `Tip` (`Tip.tsx`, shadcn's `Tooltip`) on a control where it opens over no page: the title bar, the sidebar, dialogs,
-Settings, the tasks' bar's + (`side`: over or under it are the pages). The native `title` elsewhere:
+Settings, the tasks' bar's buttons (`side`: over or under them are the pages). The native `title` elsewhere:
 - in the grid, over and next to the pages (a pane's tabs, toolbar and header; the terminals' header; the microphone),
   and on a master's bar: the OS draws it above the native views, which would cover the window's;
 - on a row (of a list, a nav) and on a text that cuts: a tooltip of the window's over a row covers the row above;
@@ -174,10 +172,7 @@ is Radix's own. A Radix menu of a part's own only for a row's own menu inside on
   (elsewhere in a tasks' window the pages would cover it), at the bottom left, over the nav's empty foot: at the right
   are a page's buttons (the log's).
 - **Tabs** are shadcn's `Tabs` as browser tabs, which shadcn does not have (`BrowserTabs.tsx`: `TabStrip`,
-  `BrowserTab`): the tasks' bar, a pane's tabs, the terminals'. The tasks' bar's are tabs of their own kind (`bar`):
-  on the bar, the chosen one filled (`--muted`, `--background`), taller; shadcn's look, a segmented control with the
-  tabs in a pill, is the other two's. A tab is chosen on the press, as a browser's (not on its ×); the tasks' bar's is not ringed
-  by it (Radix focuses it by `focus()`, which Chromium rings as the keyboard's). Its × is on every tab, always, as Chrome's: inside the tab, so not a button (a button holds none) but a
+  `BrowserTab`): the tasks' bar, a pane's tabs, the terminals'. A tab is chosen on the press, as a browser's (not on its ×). Its × is on every tab, always, as Chrome's: inside the tab, so not a button (a button holds none) but a
   `role="button"` span that takes its own click and never the tab's press; a terminal's agent mark (Change Agent)
   likewise. A task's tab keeps its width whichever is shown, so none moves under the mouse ([window.md](window.md),
   The tasks' bar). A pane's tabs shrink to their icon and ×; a terminal's never shrinks (the agents' marks look alike).

@@ -1,4 +1,4 @@
-// The title bar and its ☰ (docs/window.md, The title bar, Menus): the logo, the sidebar's button, the tasks' bar when
+// The title bar and its ☰ (docs/window.md, The title bar, Menus): the logo, the tasks' bar when
 // it is here, the Kulisa zoom when not 100%, Settings, ☰; its room beside the OS window buttons (env(titlebar-area-*):
 // titleBarOverlay in window.ts, 44 px there). No logo on macOS: its apps show their icon in the Dock; Exit only where
 // the OS has no menu bar with Quit (macOS: Cmd+Q).
@@ -10,7 +10,6 @@ import { Button, DropdownMenuItem, DropdownMenuRadioGroup, DropdownMenuRadioItem
 import { ButtonMenu } from './Menus';
 import { Tip } from './Tip';
 import { Logo } from './ProjectIcon';
-import { SidebarToggle } from './Sidebar';
 import { useWindow } from '../lib/store';
 import { keyText, withKeys } from '../lib/common';
 import { applyPreset } from '../lib/grid';
@@ -117,8 +116,7 @@ export function TopBar({ children }: { children?: ReactNode }) {
   return <header id="topbar" className="flex h-11 w-[calc(env(titlebar-area-x,0px)+env(titlebar-area-width,100%))] min-w-0 items-center gap-2
     ps-[calc(env(titlebar-area-x,0px)+--spacing(2))] [-webkit-app-region:drag]">
     {children}
-    {!mac && <span data-testid="title-logo" className="-order-2 flex [-webkit-app-region:drag]"><Logo color="var(--project, var(--foreground))" size={24} /></span>}
-    <span className="-order-1 flex [-webkit-app-region:no-drag]">{!shown && <SidebarToggle />}</span>
+    {!mac && <span data-testid="title-logo" className="-order-1 flex [-webkit-app-region:drag]"><Logo color="var(--project, var(--foreground))" size={24} /></span>}
     <span data-testid="drag-area" className="grow shrink-0 basis-10 self-stretch [-webkit-app-region:drag]" />
     <span className="me-2 flex gap-1 [-webkit-app-region:no-drag]">
       {zoom !== 1 && <Tip text={`Kulisa's zoom. Click to reset (${keyText('zoom.reset')})`}>

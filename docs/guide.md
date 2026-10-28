@@ -64,7 +64,7 @@ project, and those you closed, are in the sidebar (Tasks, below).
 ## The window
 
 - **The title bar**: the Kulisa logo in the shown project's color (not on a Mac, where Kulisa's icon is in the Dock),
-  the sidebar's button (every project with its tasks: Tasks, below), **Settings** (the gear; not at the very first
+  the tasks' bar if you put it there, **Settings** (the gear; not at the very first
   start, while there is nothing to set yet), and **☰**, the window's menu: zoom, theme, where the tasks' bar is,
   language, Arrange panels, Keyboard Shortcuts, links, About Kulisa, Exit. On a Mac there is no Exit: **⌘Q** quits
   Kulisa, and closing the last window only hides it, while your agents go on working; click Kulisa's icon in the Dock
@@ -80,8 +80,8 @@ project, and those you closed, are in the sidebar (Tasks, below).
   when. A click opens one; a right-click shows it in its folder or deletes it. The heading says how much room they take;
   its 🗑 deletes them all. The agent sees the same: ask it what is there, or to clean them up. Past 100 MB a task's oldest
   go by themselves. Drag the line beside it to resize it, as any pane.
-- **The tasks' bar**, under the grid (or in the title bar, as a browser's tabs: **☰ → Tasks bar**): a tab per open
-  task, of any project, with its project's icon and its agent's state, the shown one filled; **+** after them makes a new task, asking which project when there are several. When there are more tabs than fit, the mouse
+- **The tasks' bar**, under the grid (or in the title bar, as a browser's tabs: **☰ → Tasks bar**): first the
+  sidebar's button (every project with its tasks: Tasks, below), then a tab per open task, of any project, with its project's icon and its agent's state, the shown one filled; **+** after them makes a new task, asking which project when there are several. When there are more tabs than fit, the mouse
   wheel over the bar scrolls them, and a faded edge shows that more are past it.
 - **No task open** (after you close the last task): the sidebar stays open at the window's left, every project with
   its tasks (Tasks, below). At the very first start, with no project yet, it shows what Kulisa does, then New Project.
@@ -210,7 +210,7 @@ it ends: the question links the GitHub page where you revoke it at once.
 
 ## Tasks
 
-- **The sidebar** (the button at the title bar's left, or Ctrl+Shift+A; with no task open it is always there): every
+- **The sidebar** (the button at the start of the tasks' bar, or Ctrl+Shift+A; with no task open it is always there): every
   project with its tasks, the one you worked in last first. Open tasks come first, showing what their agent is doing
   (or "open" when they are in another window), then the closed ones, with when you closed them, and "merged" once
   their work is merged. Click a task (or Enter) to switch to it or open it again; its trash can (or the Delete key)

@@ -1,11 +1,11 @@
-// The tasks' bar (docs/window.md, The tasks' bar; docs/tasks.md, Projects): a tab per open task, in the bar's order,
-// then + (a new task: of which project, a menu asks when there are several). A tab stands for itself: its project is its icon, in the project's
+// The tasks' bar (docs/window.md, The tasks' bar; docs/tasks.md, Projects): the sidebar's button, a tab per open task, in
+// the bar's order, then + (a new task: of which project, a menu asks when there are several). A tab stands for itself: its project is its icon, in the project's
 // color, which also marks the shown tab (the author's choice). Every tab keeps its width whichever task is shown, so
 // showing one moves none (tabs moving under the mouse make the human miss). Where a dragged tab is let go outside every
 // Kulisa window, the main process says (the page does not know where the pointer is then).
 import { flushSync } from 'react-dom';
 import { useRef, useState, type DragEvent, type MouseEvent } from 'react';
-import { PlusIcon } from 'lucide-react';
+import { PanelLeftIcon, PlusIcon } from 'lucide-react';
 import { Button } from '@ui';
 import { ButtonMenu, RightClickMenu } from './Menus';
 import { BrowserTab, TabStrip } from './BrowserTabs';
@@ -20,6 +20,7 @@ import { lastWorked, projectMenu } from '../lib/project-menu';
 import { profilesMenu } from '../lib/profiles';
 import { terminalsOf } from '../lib/terminals';
 import { useStrip } from '../lib/strip';
+import { toggleSidebar } from '../lib/sidebar';
 import type { MenuItem } from '../lib/menu';
 import type { ProjectEntry, TaskInfo } from '../../shared/types';
 
@@ -96,9 +97,9 @@ export function TaskBar() {
     await showing.current.catch(() => {});
     void rename(at.t.key, at.t.name);
   };
-  // The +'s menu: every project, as the sidebar orders them; Ctrl+Shift+N's is the shown task's.
+  // The +'s menu: every project, as the sidebar orders them.
   const projectsMenu = (): MenuItem[] => [...all.projects].sort((a, b) => lastWorked(b) - lastWorked(a)).map((p) => ({ label: p.name,
-    project: { favicon: p.favicon, color: projectColor(p) }, keys: p.id === all.project ? keyText('task.new') : undefined,
+    project: { favicon: p.favicon, color: projectColor(p) },
     run: () => kulisa.invoke('task:new', { project: p.id }) }));
   const menu = (e: globalThis.MouseEvent): MenuItem[] | null => {
     const at = tabAt(e);
@@ -154,16 +155,21 @@ export function TaskBar() {
   };
 
   return <nav id="taskbar" aria-label="Open tasks" data-top={top || undefined}
-    className={top ? 'flex min-w-0 items-center gap-1 [-webkit-app-region:no-drag]' : 'flex min-w-0 max-w-full items-center gap-1 justify-self-center px-2 py-1'}>
-    {/* In the title bar the tabs are no handle to drag the window by (TopBar.tsx drags after them). */}
-    <RightClickMenu items={menu} className="flex min-w-0">
+    className={top ? 'flex min-w-0 items-center gap-1 [-webkit-app-region:no-drag]' : 'flex w-full min-w-0 items-center gap-1 px-2 py-1'}>
+    {/* Its tooltip beside it, as the +'s: above or under, it would open over the pages. */}
+    <Tip text="Projects and tasks" side="right">
+      <Button variant="ghost" size="icon-sm" aria-label="Projects and tasks" onClick={toggleSidebar}><PanelLeftIcon /></Button>
+    </Tip>
+    {/* In the title bar the tabs are no handle to drag the window by (TopBar.tsx drags after them). Under the grid,
+        centered between the bar's two buttons at its ends. */}
+    <RightClickMenu items={menu} className="mx-auto flex min-w-0">
       <TabStrip id="taskTabs" bar stripRef={strip} label="Open tasks" value={current ?? ''} onChoose={onTabSelect}
         onAuxClick={onAuxClick} onDoubleClick={onDoubleClick} {...drag}>
         {tabs.map(({ t, p }) => {
           const color = projectColor(p), at = mark?.key === t.key ? mark.side : undefined;
           // Every tab keeps its width whichever is shown, so none moves under the mouse; at its narrowest about ten letters.
           return <BrowserTab key={t.key} value={t.key} data-task={t.key} data-project={p.id} draggable aria-label={t.name}
-            dragging={dragged === t.key} drop={at} className="min-w-40 flex-initial basis-50" onMouseDown={unringed}
+            dragging={dragged === t.key} drop={at} className="mx-1 min-w-40 flex-initial basis-50" onMouseDown={unringed}
             title={`${p.name}\n${t.branch ? `branch ${t.branch} in ${t.folder}` : `in the project's folder ${t.folder} (no git: no copy of its own)`}`}
             icon={<><ProjectIcon p={{ favicon: p.favicon, color }} size={16} /><AgentState state={t.state} /></>}
             close={{ title: 'Close the task: its agent stops, all else stays (open it again from the sidebar)', run: () => void kulisa.invoke('task:close', t.key) }}>
@@ -172,7 +178,7 @@ export function TaskBar() {
         })}
       </TabStrip>
     </RightClickMenu>
-    {/* beside the +: above or under it, the tooltip would open over the pages, which cover it. The + takes no keyboard:
+    {/* Its tooltip beside the +: above or under it, the tooltip would open over the pages, which cover it. The + takes no keyboard:
         its focus would show the tooltip again once pressed. */}
     <Tip text="New task" side="right">
       {one ? plus : <ButtonMenu items={projectsMenu}>{plus}</ButtonMenu>}

@@ -430,7 +430,7 @@ test("the app icon: in the top bar (not on macOS: the Dock's), and every file th
     await expect(drawn).toHaveCount(1);
     const b = await logo.boundingBox();
     expect(b.width >= 16 && b.height >= 16, JSON.stringify(b)).toBe(true);
-    await expect(drawn, "the curtain is in the project's color (#4a7bd0, the first one)").toHaveCSS('color', 'rgb(74, 123, 208)');
+    await expect(drawn.locator('path').first(), "the curtain is in the project's color (#4a7bd0, the first one)").toHaveCSS('fill', 'rgb(74, 123, 208)');
   }
   const icons = [forge.packagerConfig.icon + '.png', forge.packagerConfig.icon + '.ico', forge.packagerConfig.icon + '.icns',
     ...(forge.makers as { config?: { setupIcon?: string; icon?: string; options?: { icon?: string } } }[]).flatMap((m) => [m.config?.setupIcon, m.config?.icon, m.config?.options?.icon]).filter(Boolean)];
@@ -768,7 +768,13 @@ test("tooltips of the title bar and the tasks' bar open beside their buttons, ne
   };
   for (const bar of ['bottom', 'top']) {
     if (bar === 'top') { await (await windowSubmenu(ui, 'Tasks bar')).locator('[data-bar="top"]').click(); await ui.keyboard.press('Escape'); await closeMenu(ui); }
-    for (const button of [ui.locator('#newTask'), ui.locator('#zoomReset'), ui.locator('#settingsButton'), ui.getByRole('button', { name: /^Projects and tasks/ })])
+    // The sidebar's button wherever the tasks' bar is, its tooltip without the key (the sidebar's heading shows it).
+    const sidebarButton = ui.locator('#taskbar').getByRole('button', { name: 'Projects and tasks' });
+    await sidebarButton.hover();
+    await expect(ui.getByRole('tooltip')).toHaveText('Projects and tasks');
+    await ui.mouse.move(0, 300);
+    await expect(ui.getByRole('tooltip')).toHaveCount(0);
+    for (const button of [ui.locator('#newTask'), ui.locator('#zoomReset'), ui.locator('#settingsButton'), sidebarButton])
       expect(await over(button), `${button}, the bar ${bar}`).toBe(false);
   }
   await invoke(ui, 'zoom:ui', 0);

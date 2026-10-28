@@ -152,7 +152,7 @@ repositories (git worktrees), so the project's folders stay the human's. Its dat
   reaches or whose account is signed out ([src/github](../src/github/README.md), A repository's account).
 - **The sidebar** (`components/Sidebar.tsx`, `lib/sidebar.ts`): every project with its tasks, a tree, any task one
   click away, the project worked in last first (`lastWorked`). Docked in the empty window; over the
-  grid while a task is shown (the title bar's button, Ctrl+Shift+A), covering the pages as a dialog does, closed by a
+  grid while a task is shown (its button at the tasks' bar's start, Ctrl+Shift+A), covering the pages as a dialog does, closed by a
   choice, Esc or the same again.
   - **A project's row**: its icon, its name, its tasks under it (folded by its arrow); **+** under the pointer, a new
     task with its default agent; its right-click: New Task, Project Settings…, Show Data Folder and Delete Merged Tasks…
