@@ -91,7 +91,7 @@ recording reads as a glitch; until then it is drawn as recording.
 
 `Pill.tsx`, over the top of the terminal, in its middle (the terminals' pane places it): what the dictation does, so it is
 seen where the eye is, not only at the row's end. Over the terminal, not above it: the terminal keeps its size (Claude
-Code redraws badly after a resize), and the pointer goes through it. It springs in as a recording starts and grows or
+Code redraws badly after a resize), and the pointer goes through it. It comes in from above as a recording starts and grows or
 shrinks to what it says:
 
 - **Getting ready…** (starting, once slow): a spinner.
@@ -103,7 +103,7 @@ shrinks to what it says:
 - **In <agent>'s input**: transcribing ended with the task's agent unchanged; a check, the done green, for 1.6 s, then
   it goes.
 
-With reduced motion, no spring, ping or wave running; the heard wave stays, being what is heard. Its check icon is the
+With reduced motion, no coming in, ping or wave running; the heard wave stays, being what is heard. Its check icon is the
 caller's (`children`).
 
 ## Its channels

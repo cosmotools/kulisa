@@ -12,8 +12,8 @@ const VARIANT = { getting: 'secondary', listening: 'destructive', transcribing: 
 
 // None of its motions with reduced motion (the heard wave stays, being what is heard): Tailwind's and tw-animate-css'.
 const still = matchMedia('(prefers-reduced-motion: reduce)');
-// It springs in as a recording starts (a spring's overshoot), and fades up as it goes: tw-animate-css, shadcn's motion.
-const ARRIVE = 'animate-in fade-in zoom-in-60 slide-in-from-top-4 blur-in-xs duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)]';
+// It comes in from above as a recording starts, and fades up as it goes: tw-animate-css, shadcn's motion.
+const ARRIVE = 'animate-in fade-in zoom-in-60 slide-in-from-top-4 blur-in-xs duration-500 ease-out';
 const LEAVE = 'animate-out fade-out zoom-out-85 slide-out-to-top-2.5 blur-out-xs duration-300 ease-in fill-mode-forwards';
 
 export function Pill({ task, children }: { task: string | null; children?: ReactNode }) {
