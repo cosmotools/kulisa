@@ -1,6 +1,6 @@
 // xterm.js in the renderer, node-pty here running the agent CLI unchanged. A task's terminals (tasks.ts) are
 // "<task key>#<id>". The window shows the shown task's, the others keep running (and the window keeps their output).
-import { on } from '../../main/ipc.ts';
+import { handle, on } from '../../main/ipc.ts';
 import { log } from '../../main/log.ts';
 import type { TerminalEvents } from '../ipc.ts';
 import fs from 'fs';
@@ -10,11 +10,11 @@ import pty from 'node-pty';
 import type { IPty } from 'node-pty';
 import xterm from '@xterm/headless';
 import type { Terminal } from '@xterm/headless';
-import { shellLine } from './shell-quote.ts';
+import { quotePaths, shellLine } from './shell-quote.ts';
 
 interface Size { cols: number; rows: number }
 // A terminal's process, with what Kulisa keeps of it.
-type Pty = IPty & { spawnSize: Size; spawnArgs: string[]; key: string; screen?: Terminal; stopped?: boolean; typed: Promise<void> };
+type Pty = IPty & { spawnSize: Size; spawnArgs: string[]; key: string; shell: string; screen?: Terminal; stopped?: boolean; typed: Promise<void> };
 // How a terminal starts (startTerminal).
 interface TerminalConfig {
   command?: string | null; args?: string[]; cwd?: string; env?: Record<string, string | undefined>;
@@ -52,6 +52,13 @@ const onEscape = (fn: (key: string) => void) => { escapes.push(fn); };
 on('pty:in', (_e, { task, data }) => {
   terms.get(task)?.pty?.write(data);
   if (data === '\x1b') for (const fn of escapes) fn(task);
+});
+
+handle('pty:quote-paths', (_e, { task, paths }) => {
+  const p = terms.get(task)?.pty;
+  if (!p || p.stopped) return null;
+  log.info(`[terminal] ${task} file drop (${paths.length} paths)`);
+  return quotePaths(p.shell, paths);
 });
 
 // The user's shell as a terminal app starts it (login shell on macOS, as Terminal and VS Code do). An app started
@@ -98,6 +105,7 @@ async function startTerminal(send: Send, cfg: TerminalConfig, key: string): Prom
   p.spawnSize = { cols: p.cols, rows: p.rows };
   p.spawnArgs = cfg.args || [];
   p.key = key;
+  p.shell = sh?.command || userShell().command;
   // An agent that was replaced says nothing more in the window.
   if (cfg.screen) p.screen = new xterm.Terminal({ cols: p.cols, rows: p.rows, scrollback: cfg.screen, allowProposedApi: true });
   const out = (data: string) => { p.screen?.write(data); if (t.pty === p) send('pty:out', { task: key, data }); };

@@ -7,7 +7,7 @@ import url from 'url';
 import type { Locator, Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
-import { SITE, MAC, WIN, frames, seen, ipcSettled, echoed, menu, anyMenu, item, choose, closeMenu, rightClick, focusWindow, pageBox, viewOn, answer, removed, termKeys, shortcutsDialog } from './helpers.ts';
+import { SITE, MAC, WIN, frames, seen, ipcSettled, echoed, menu, anyMenu, item, choose, closeMenu, rightClick, focusWindow, pageBox, viewOn, answer, removed, termKeys, termText, shortcutsDialog } from './helpers.ts';
 import { SAM, ELON, begin } from './tasks-helpers.ts';
 
 const menuOpen = (ui: Page) => menu(ui).isVisible();
@@ -451,4 +451,32 @@ test("menus with the mouse and the keyboard, as the OS's: a press on ☰, a drag
   await core((k) => k.shell.win.focus());
   await expect.poll(() => core((k) => k.shell.win.isFocused())).toBe(true);
   await focusWindow(core, ui);
+});
+
+test('files dropped onto a terminal paste their disk paths once without sending the prompt', async ({ core, ui, files }) => {
+  await begin(core, ui, files);
+  const paths = ['plain.png', "image with spaces & 'quote'.png"].map((name) => path.join(files.project, name));
+  for (const file of paths) fs.writeFileSync(file, 'image');
+  const before = await core((k) => k.ptyOutput()), pageUrl = ui.url();
+  const at = await center(ui.getByTestId('terminal'));
+  // Native disk-backed Files are required by webUtils; a JavaScript File has no disk path.
+  const cdp = await ui.context().newCDPSession(ui);
+  try {
+    for (const type of ['dragEnter', 'dragOver', 'drop'] as const) {
+      await cdp.send('Input.dispatchDragEvent', { type, ...at, data: { items: [], files: paths, dragOperationsMask: 1 } });
+    }
+    // The fake agent runs in bash on every OS; Windows paths need quotes around their backslashes too.
+    const expected = `${WIN ? `'${paths[0]}'` : paths[0]} '${paths[1].replace(/'/g, `'\\''`)}'`;
+    await expect.poll(() => termText(ui)).toContain(expected);
+    await sentAll(core, ui);
+    const typed = await termText(ui);
+    for (const p of paths) expect(typed.split(path.basename(p).split("'")[0]).length - 1, 'each path pasted once').toBe(1);
+    if (!WIN) {
+      const output = (await core((k) => k.ptyOutput())).slice(before.length);
+      expect(output, 'the prompt is not submitted').not.toContain('\r');
+      expect(output, 'the prompt is not submitted').not.toContain('\n');
+    }
+    expect(ui.url()).toBe(pageUrl);
+    await expect(termKeys(ui)).toBeFocused();
+  } finally { await cdp.detach(); }
 });

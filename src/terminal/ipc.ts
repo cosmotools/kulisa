@@ -19,3 +19,7 @@ export interface TerminalEvents {
   'terminals:gone': string[];
   'pty:out': { task: string; data: string };
 }
+
+export interface TerminalInvoke {
+  'pty:quote-paths': { args: [{ task: string; paths: string[] }]; result: string | null };
+}

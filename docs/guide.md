@@ -371,6 +371,8 @@ profile's menu, also on a right-click) and **×**. Under it, a tab strip, then b
   agent's tab shows "Starting…" for a moment while its agent starts.
 - Copy and paste as in your OS's terminal: Ctrl+Shift+C / Ctrl+Shift+V on Linux, Ctrl+C / Ctrl+V on Windows, ⌘C / ⌘V
   on macOS.
+- Drop files onto a terminal to put their paths into your message, quoted where needed and separated by spaces.
+  This also works for an image saved on your computer. Press Enter when your message is ready.
 - Ctrl+click a link to open it: Kulisa asks where, in one of the task's profiles or in your own browser.
 - A file or folder named in the terminal (a screenshot the agent saved, a file it changed) is a link too: Ctrl+click it
   to open it in its app or show it in its folder. A program or script is only shown in its folder, never run.

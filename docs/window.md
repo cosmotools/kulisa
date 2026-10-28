@@ -293,6 +293,9 @@ Cancel), the tab goes. A task opening sends its tabs with its first state, each 
 `Task.loadTerminals`), so the folded panel's buttons do not show while the agents are looked for. A pick or a
 dictation meanwhile goes nowhere: the human gives it again.
 
+Files dropped onto a terminal insert their paths, quoted for its shell and separated by spaces, without Enter
+([src/terminal](../src/terminal/README.md)).
+
 The terminal itself (a pty in the user's shell, its output in a buffer, one xterm a place that shows it, the keys of the
 OS's own terminal, its size) is a Kulisa package, `src/terminal/` ([packages.md](packages.md); its
 [README](../src/terminal/README.md)). The panel is the task's: its tabs, its agents, its shells.
