@@ -461,6 +461,7 @@ with its gaps named.
 | `conversation` | its conversation read by the next agent (`task_history`) | its transcript | its transcript (summaries encrypted) |
 | `forget` | a deleted task leaves nothing of it in the agent's data | yes | yes |
 | `voice` | dictation by the key held, or the microphone | its voice mode | none |
+| `imagePaste` | a clipboard image pasted with the OS's shortcut or Paste menu | Ctrl+V (Alt+V on Windows) | Ctrl+V |
 | `language` | ☰ → Language: the language it dictates and answers in | its `language` setting | none |
 
 ## Several agents in a task

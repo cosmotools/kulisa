@@ -98,6 +98,7 @@ export interface Invoke extends TerminalInvoke, ThumbnailInvoke, GitHubInvoke, D
   'terminal:open': I<[OnTask & { agent?: string; own?: boolean }], Result<{ id: number } | { none: true }>>;
   'terminal:show': I<[OnTask & { id: number }]>;
   'terminal:close': I<[OnTask & { id: number }]>;
+  'terminal:paste-image': I<[OnTask & { id: number }]>;
   'terminal:files': I<[OnTask & { paths: string[] }], Result<(FileLink | null)[]>>;
   'file:open': I<[string]>;
   'file:show': I<[string]>;

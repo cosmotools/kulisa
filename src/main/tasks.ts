@@ -573,6 +573,12 @@ class Task {
     const t = this.terminal(which);
     return refused(t) ? t : { text: t.pty ? terminalTail(t.pty, lines) : '' };
   }
+  pasteImage(id: number) {
+    const t = this.terminals.get(id), key = t?.agent?.imagePaste;
+    if (!key || !t?.pty || t.pty.stopped) return;
+    log.info(`[terminal] ${t.key} clipboard image paste`);
+    t.pty.write(key);
+  }
   closeTerminal(which: number | string): Result<{ id: number }> {
     const t = this.terminal(which);
     if (refused(t)) return t;

@@ -46,6 +46,7 @@ export const termHooks: {
   open: (e: MouseEvent, uri: string) => void;
   files?: (key: string, paths: string[]) => Promise<(FileLink | null)[]>;
   openFile?: (e: MouseEvent, path: string) => void;
+  pasteImage?: (key: string) => void;
 } = {
   open: (_e, uri) => { window.open(uri); },
 };
@@ -165,6 +166,12 @@ export class View {
       });
     });
     t.onData((data) => { if (this.key) kulisa.send('pty:in', { task: this.key, data }); });
+    this.host.addEventListener('paste', (e) => {
+      if (!this.key || !termHooks.pasteImage || ![...e.clipboardData?.items ?? []].some((i) => i.type.startsWith('image/'))) return;
+      e.preventDefault();
+      e.stopPropagation();
+      termHooks.pasteImage(this.key);
+    }, true);
     t.attachCustomKeyEventHandler((e) => {
       const does = e.type === 'keydown' && clipboardKey(e, kulisa.platform, t.hasSelection());
       if (does === 'copy') { termCopy(t); if (kulisa.platform === 'win32') t.clearSelection(); }
@@ -290,4 +297,13 @@ export function clipboardKey(e: KeyboardEvent, platform: string, selected: boole
 // Nothing selected, nothing copied: the clipboard keeps what is there (an agent selecting with its own mouse, as
 // Claude Code does, puts its text there itself), as GNOME Terminal does.
 export function termCopy(t: Terminal) { if (t.hasSelection()) void navigator.clipboard.writeText(t.getSelection()); }
-export function termPaste(t: Terminal) { void navigator.clipboard.readText().then((text) => t.paste(text)); }
+export function termPaste(t: Terminal) {
+  const view = [...views].find((v) => v.term === t), key = view?.key;
+  void navigator.clipboard.read().then(async (items) => {
+    if (!key || view?.key !== key || !views.has(view)) return;
+    if (items.some((i) => i.types.some((type) => type.startsWith('image/'))) && termHooks.pasteImage) return termHooks.pasteImage(key);
+    const item = items.find((i) => i.types.includes('text/plain'));
+    const text = item ? await (await item.getType('text/plain')).text() : '';
+    if (view.key === key && views.has(view)) t.paste(text);
+  });
+}

@@ -30,6 +30,10 @@ termHooks.open = (e, uri) => menuAt(e, [{ heading: uri }, ...store.getState().pr
 // would run when opened, shown only. Asked again on the click: the file may be gone, or changed, since the hover.
 const filesOf = (task: string | null, paths: string[]) => kulisa.invoke('terminal:files', { task, paths }).then((r) => (refused(r) ? paths.map(() => null) : r));
 termHooks.files = (key, paths) => filesOf(key.slice(0, key.lastIndexOf('#')), paths);
+termHooks.pasteImage = (key) => {
+  const at = key.lastIndexOf('#');
+  void kulisa.invoke('terminal:paste-image', { task: key.slice(0, at), id: Number(key.slice(at + 1)) });
+};
 termHooks.openFile = (e, path) => void filesOf(store.getState().current, [path]).then(([file]) => file && menuAt(e, [
   ...file.executable ? [] : [{ label: 'Open', run: () => kulisa.invoke('file:open', file.path) }],
   { label: 'Show in Folder', run: () => kulisa.invoke('file:show', file.path) }]));

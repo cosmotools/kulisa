@@ -92,6 +92,7 @@ const claude: Agent = {
   // input for the human to send. Not its tap mode (a tap starts, another stops): it records only with the input
   // empty (its code), so a second sentence cannot be added.
   voice: CLAUDE_VOICE,
+  imagePaste: process.platform === 'win32' ? '\x1bv' : '\x16',
   // Its `language` setting: the language it dictates in and answers in (and may write comments in: the project's
   // CLAUDE.md decides that). Read again at each recording, and the settings file is read again when it changes, so a
   // language set holds at once in every session of the account. Kulisa's instruction to answer
