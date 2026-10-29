@@ -435,7 +435,8 @@ its settings. Usually:
 ### Reporting a problem
 
 When something goes wrong, **☰ → Report a Problem…** opens Settings at its **Log** page: what Kulisa did, line by
-line, as it happens (**Follow** keeps the end in view). **Errors** shows the warnings and errors alone; **Agent**,
+line, as it happens (**Follow** keeps the end in view). Scroll up to read older entries; turn **Follow** on to return
+to the latest. Searching covers the whole log. **Errors** shows the warnings and errors alone; **Agent**,
 **Human** and **Tasks** what the agent did, what you did, and tasks and windows opened and closed; the field beside
 them narrows it further (a task's name, a word). The log holds your project and task folders, profile names and the
 pages' addresses without their queries; never what you typed, passwords, tokens or cookies. Then pass it on any way

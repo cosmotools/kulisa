@@ -14,7 +14,7 @@ deviation gets a comment at it saying why. Tests find a part as the human does (
 `data-*`; never a class: [testing.md](testing.md)).
 
 The grid is dockview's (`dockview-react`): its API before layout code of our own. State is zustand's; the terminal is
-xterm's (`src/terminal/`).
+xterm's (`src/terminal/`). The Log page uses TanStack Virtual for its scrollable rows ([window.md](window.md), The log).
 
 **The profiles' pages are native views, drawn above the window's HTML**, so whatever HTML covers the panes hides the
 pages or puts pictures of them in their place (Layers, below; a tasks' window's pages under it: `lib/views.ts`); while
