@@ -6,11 +6,13 @@ import type { Core } from './fixtures.ts';
 import { SITE, viewOn } from './helpers.ts';
 
 // A tab of Sam's set as the sweep would find it after the time: off screen since long, its profile's last command long
-// ago (the sweep's clock is minutes). The sweep then: how many tabs it unloads.
-const age = (core: Core, tab: string) => core((k, id) => {
+// ago (the sweep's clock is minutes). Sweep in the same turn when requested: Playwright attaching to a new tab
+// sends commands that refresh busyAt, including after its navigation commits.
+const age = (core: Core, tab: string, sweep = false) => core((k, a) => {
   const sam = k.profile('Sam'), long = Date.now() - 10 * 60_000;
-  sam.tabs.find((t) => t.id === id).offScreenSince = long; sam.busyAt = long;
-}, tab);
+  sam.tabs.find((t) => t.id === a.tab).offScreenSince = long; sam.busyAt = long;
+  return a.sweep ? k.shell.discard.sweep() : undefined;
+}, { tab, sweep });
 const sweep = (core: Core) => core((k) => k.shell.discard.sweep());
 const tab = (core: Core, id: string) => core((k, i) => {
   const t = k.profile('Sam').tabs.find((x) => x.id === i);
@@ -37,8 +39,7 @@ test('a tab no one looks at loses its process after the time; the strip and the 
   expect(await core((k, a) => { const ts = k.profile('Sam').tabs; return [!!ts.find((t) => t.id === a.board).offScreenSince, !!ts.find((t) => t.id === a.form).offScreenSince]; }, { board, form }),
     'the inactive tab is dated, the active one not').toEqual([true, false]);
   // After the time, the inactive tab alone, its process gone.
-  await age(core, board);
-  expect(await sweep(core)).toBe(1);
+  expect(await age(core, board, true)).toBe(1);
   await expect.poll(() => tab(core, board)).toMatchObject({ discarded: true, destroyed: true, url: `${SITE}/board`, title: 'board' });
   expect(await core((k) => k.webContents()), 'its process is gone').toBe(n - 1);
   expect((await tab(core, form)).discarded || (await tab(core, first)).discarded, 'the active tab stays; the others were dated only now').toBe(false);
@@ -51,8 +52,7 @@ test('a tab no one looks at loses its process after the time; the strip and the 
   expect(await tab(core, board), 'loaded again at its address').toMatchObject({ discarded: false, destroyed: false, url: `${SITE}/board` });
   expect(await core((k) => k.profile('Sam').active), 'the active tab is still the one the human had').toBe(form);
   // The human: a click on its tab in the strip brings it back on screen.
-  await age(core, board);
-  expect(await sweep(core)).toBe(1);
+  expect(await age(core, board, true)).toBe(1);
   await expect.poll(async () => (await tab(core, board)).discarded).toBe(true);
   await ui.locator(`[role="region"][data-profile="${sam}"] [data-tab="${board}"]`).click();
   await expect.poll(() => core((k) => k.profile('Sam').active)).toBe(board);
@@ -60,8 +60,7 @@ test('a tab no one looks at loses its process after the time; the strip and the 
   await expect.poll(() => viewOn(core, ui, files, 'Sam')).toBe(true);
   // Closed while discarded (the agent's or the human's ×): gone from the strip, nothing to close.
   await core((k, id) => k.profile('Sam').activate(id), form);
-  await age(core, board);
-  expect(await sweep(core)).toBe(1);
+  expect(await age(core, board, true)).toBe(1);
   await expect.poll(async () => (await tab(core, board)).discarded).toBe(true);
   await call('browser_tab_close', { profile: 'Sam', tab: board });
   expect(await tab(core, board)).toBeUndefined();
