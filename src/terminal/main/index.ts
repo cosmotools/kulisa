@@ -208,3 +208,5 @@ async function sendToPrompt(p: Pty, text: string, confirm?: string) {
 
 export type { Pty };
 export { startTerminal, stopTerminal, stopAllTerminals, forgetTerminal, terminalTail, typeIntoPrompt, eraseInPrompt, sendToPrompt, interrupt, typeLine, onEscape };
+
+export { quotePaths } from './shell-quote.ts';

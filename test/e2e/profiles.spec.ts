@@ -3,7 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import type { Locator, Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
-import { SITE, PORT, logged, ipcSettled, who, menu, choose, closeMenu, rightClick, manageProfiles, closeSettings, chooseProfile, navRow, thingRow, pathOf, settingsMenu, termText, invoke, answer, typeIn } from './helpers.ts';
+import { SITE, PORT, WIN, logged, ipcSettled, who, menu, choose, closeMenu, rightClick, manageProfiles, closeSettings, chooseProfile, navRow, thingRow, pathOf, settingsMenu, termText, invoke, answer, typeIn } from './helpers.ts';
 import { profileId, deleteProfile } from './tasks-helpers.ts';
 
 // A PNG's size in pixels, from its header.
@@ -368,7 +368,7 @@ test('a screenshot shows its thumbnail in its pane\'s corner: a click opens it, 
     await expect.poll(() => core(async (k) => (await k.electron.clipboard.read())[0]?.types ?? [])).toContain('image/png');
     await thumbMenu('Send to Agent');
     // The screen's text, not the output: Windows' ConPTY sends a line again as it redraws it (point and tell).
-    await expect.poll(() => termText(ui)).toContain(`'${file}'`);
+    await expect.poll(() => termText(ui)).toContain(WIN ? `'${file}'` : file);
     await core((k) => k.shell.pty.write('\x15')); // Ctrl+U: the line cleared
     await thumbMenu('Delete');
     await expect.poll(async () => !fs.existsSync(file) && await core((k) => !k.shell.windows[0].thumbnails.file) && await thumbGone()).toBe(true);

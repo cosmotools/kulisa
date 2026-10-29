@@ -50,9 +50,9 @@ an agent's prompt (Ctrl+V); dragging the thumbnail into a folder keeps a copy ou
 Electron's clipboard is the W3C Clipboard API's (`clipboard.write([new ClipboardItem({ 'image/png': blob })])`;
 `breaking-changes.md`): it has no `writeImage`.
 
-### The thumbnail
+## The thumbnail
 
-As macOS shows one in the screen's corner: the picture just taken, in the bottom right corner of its pane, 20 CSS
+For screenshots taken by the human or agent, as macOS shows one in the screen's corner: the picture just taken, in the bottom right corner of its pane, 20 CSS
 pixels from its edges, at most 240 × 180 (a taller picture, as a whole page, its top only), framed by a thin ring and a
 shadow so that it stands out of the page under it, for about 5 s; the pointer over it, or its menu open, holds it. One a window (`Thumbnails`, `main/thumbnail.ts`): the next takes its
 place. The window makes it and tells it three things: where its panes are after every change of the grid (`place`,
@@ -60,15 +60,14 @@ with `AppWindow.paneBox`), that its pages are covered (`setHidden`), and that a 
 pane is off screen.
 
 - It fades in, and out when it goes by itself, by its × (in its top left corner, while the pointer is over it) or by
-  its menu's Close or Delete (`fade`: its page's `thumbnail:fade`, then its view goes after `FADE`); taken away by
-  Kulisa (the next picture, its pane off screen, its task going) it goes at once.
+  its menu's Close (`fade`: its page's `thumbnail:fade`, then its view goes after `FADE`); taken away by
+  Kulisa (the next picture, its artifact deleted, its pane off screen, its task going) it goes at once.
 - A click opens the file in the OS's app for it (`shell.openPath`).
 - Dragged, it carries the file itself (`webContents.startDrag`, as Electron's `tutorial/native-file-drag-drop.md`):
   into a messenger, a mail, the file manager.
-- Its right-click menu: Show in Folder (`shell.showItemInFolder`), Copy (again: the clipboard may hold something else
-  since), Send to Agent (the path, quoted as a file dropped onto a terminal is, given to the window's `send`, which
-  types it into the prompt of the task's agent as Pick's reference: `Task.typeForAgent`; Claude Code takes an image by
-  its path), Delete (the caller's `Task.deleteArtifacts`, as in Resources), Close.
+- Its right-click menu: Show in Folder (`shell.showItemInFolder`), Copy (as PNG, including a JPEG screenshot),
+  Send to Agent (the caller's `Task.sendArtifact`, as Resources: a shell-quoted path typed without Enter),
+  Delete (the caller's `Task.deleteArtifacts`, as in Resources), Close.
 
 **How it is drawn.** The pages are native views above the window's HTML (docs/ui.md), so the thumbnail is a
 `WebContentsView` of its own page (`renderer/thumbnail.ts`; its `src/renderer/thumbnail.html` only loads it: Vite
@@ -113,7 +112,7 @@ Outside, using it: `Profile.screenshot` (`src/main/profiles.ts`), `browser_scree
 (`src/main/kulisa-plugin/tools/browser.ts`), `takenByHuman` in `ghost.ts`; the human's `tab:screenshot`
 (`src/main/ipc/panes.ts`), `chooseElement` (`picker.ts`), the key (`keys.ts`), ⋮ → Screenshot (`src/renderer/components/grid/ProfilePane.tsx`) and
 `screenshot` (`src/renderer/lib/store.ts`); the window's `thumbnails` (`window.ts`: made, placed, hidden, closed),
-`<Thumbnail />` and `thumbnailMenu(menuAtPoint)` (`components/App.tsx`), `Task.typeForAgent` (Send to Agent, as Pick), the page's
+`<Thumbnail />` and `thumbnailMenu(menuAtPoint)` (`components/App.tsx`), `Task.sendArtifact` (Send to Agent, as Resources), the page's
 shell `src/renderer/thumbnail.html` (`vite.config.mts`). Its e2e tests, on the test site's `/tall`:
 `test/e2e/agent-tools.spec.ts` ("agent: screenshots of an element, …"), `profiles.spec.ts` ("a pane's ⋮ → Screenshot …", "a screenshot shows its
 thumbnail …").

@@ -77,7 +77,9 @@ project, and those you closed, are in the sidebar (Tasks, below).
 - **Resources**, next to the terminal (beside it, or under it when the terminal is on the right): what the task works in (its copy of the code, or your project's folder until
   it has one), a click opens its folder; and under **Artifacts**, what you and the agent kept of the pages:
   screenshots (with a small picture), snapshots of a page, the bodies of requests, the newest first, with whose page and
-  when. A click opens one; a right-click shows it in its folder or deletes it. The heading says how much room they take;
+  when. A click opens one; a right-click offers **Open**, **Show in Folder**, **Send to Agent** and **Delete**.
+  Drag one into the agent’s input to add its path; sending or dropping it leaves the prompt for you to finish.
+  The heading says how much room they take;
   its 🗑 deletes them all. The agent sees the same: ask it what is there, or to clean them up. Past 100 MB a task's oldest
   go by themselves. Drag the line beside it to resize it, as any pane.
 - **The tasks' bar**, under the grid (or in the title bar, as a browser's tabs: **☰ → Tasks bar**): first the
@@ -329,8 +331,8 @@ profile's menu, also on a right-click) and **×**. Under it, a tab strip, then b
   or from its thumbnail; deleting the task removes it too. Past 100 MB the task's oldest artifacts go by themselves.
   To keep a picture outside the task, drag its thumbnail into a folder.
 
-  A **thumbnail** of the picture shows in the pane's corner for a few seconds, as on a Mac; it stays while the pointer
-  is over it. Click it to open the picture; drag it into a message, a mail or a folder; right-click it for **Show in
+  A screenshot taken by you or the agent shows a **thumbnail** in the pane's corner for a few seconds, as on a Mac;
+  it stays while the pointer is over it. Click it to open the picture; drag it into a message, a mail or a folder; right-click it for **Show in
   Folder**, **Copy**, **Send to Agent** (the picture into the agent's input), **Delete** and **Close**. The × in its
   corner, shown while the pointer is over it, closes it at once.
 - A page's alert or confirm shows in its pane, as in Chrome. A page that does not load says why, as Chrome's error

@@ -4,7 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import { test, expect } from './fixtures.ts';
 import type { Call } from './fixtures.ts';
-import { SITE, PORT, upTo, attr, menu, choose, rightClick, invoke } from './helpers.ts';
+import { SITE, PORT, upTo, attr, menu, choose, rightClick, invoke, termText, termKeys, WIN } from './helpers.ts';
 import { profiles, opened } from './agent-helpers.ts';
 
 // A snapshot and a response body too large for an answer, each a file of the task's, as an agent leaves them; the tab
@@ -182,13 +182,78 @@ test("Resources: the agent's artifacts listed as it makes them, the newest first
     - menu:
       - menuitem "Open"
       - menuitem "Show in Folder"
+      - menuitem "Send to Agent"
       - menuitem "Delete"
   `);
+  await choose(ui, 'Send to Agent');
+  await expect.poll(() => termText(ui)).toContain(shot);
+  await expect(termKeys(ui)).toBeFocused();
+  await core((k) => k.shell.pty.write('\x15'));
+  await rightClick(ui, '#resources [data-file]');
   await choose(ui, 'Delete');
   await expect(row(shot)).toHaveCount(0);
   await expect.poll(() => fs.existsSync(shot)).toBe(false);
   expect((await invoke(ui, 'task:artifacts-delete', { key: await core((k) => k.shell.task.key), files: [path.join(files.root, 'package.json')] })).error,
     'only a file of the task\'s own folder').toMatch(/not an artifact/);
+});
+
+test('screenshots from the agent show the same thumbnail, copy JPEG as PNG, and close when deleted from Resources', async ({ core, ui, call }) => {
+  await profiles(core);
+  const file = (await call('browser_screenshot', { profile: 'Elon.buyer' })).text.match(/^Saved as (.+\.jpg)$/)[1];
+  await expect.poll(() => core((k) => k.shell.windows[0].thumbnails.file)).toBe(file);
+  await expect(ui.locator('#shotthumb')).toHaveCount(1);
+  await invoke(ui, 'thumbnail:act', { action: 'copy' });
+  const image = await core(async (k) => {
+    const item = (await k.electron.clipboard.read())[0];
+    const png = Buffer.from(await (await item.getType('image/png')).arrayBuffer());
+    return k.electron.nativeImage.createFromBuffer(png).getSize();
+  });
+  expect(image.width).toBeGreaterThan(0);
+  expect(image.height).toBeGreaterThan(0);
+  await rightClick(ui, '#resources [data-file]');
+  await choose(ui, 'Delete');
+  await expect.poll(() => core((k) => k.shell.windows[0].thumbnails.file)).toBeNull();
+  await expect(ui.locator('#shotthumb')).toHaveCount(0);
+  expect(fs.existsSync(file)).toBe(false);
+});
+
+test('Resources artifacts drag as disk files into the terminal without sending the prompt', async ({ core, ui, call, files }) => {
+  await profiles(core);
+  await largeFiles(call);
+  const screenshot = (await call('browser_screenshot', { profile: 'Elon.buyer' })).text.match(/^Saved as (.+\.jpg)$/)[1];
+  const snapshot = await ui.locator('#resources [data-file$="-snapshot.yml"]').first().getAttribute('data-file');
+  await core((k) => {
+    const wc = k.shell.windows[0].win.webContents;
+    k.stash.startDrag = wc.startDrag;
+    k.stash.dragged = [];
+    // Native OS dragging is outside CDP: record its disk file, then deliver a disk-backed drop through CDP below.
+    wc.startDrag = (item) => { k.stash.dragged.push({ file: item.file, icon: typeof item.icon === 'string' ? !item.icon : item.icon.isEmpty() }); };
+  });
+  const terminal = ui.getByTestId('terminal');
+  const cdp = await ui.context().newCDPSession(ui);
+  try {
+    for (const file of [screenshot, snapshot]) {
+      const before = await core((k) => k.ptyOutput());
+      await ui.locator(`#resources ${attr('data-file', file)}`).dragTo(terminal);
+      await expect.poll(() => core((k) => k.stash.dragged.at(-1))).toEqual({ file, icon: false });
+      const box = await terminal.boundingBox();
+      for (const type of ['dragEnter', 'dragOver', 'drop'] as const) {
+        await cdp.send('Input.dispatchDragEvent', { type, x: box.x + box.width / 2, y: box.y + box.height / 2,
+          data: { items: [], files: [file], dragOperationsMask: 1 } });
+      }
+      await expect.poll(() => termText(ui)).toContain(file);
+      await expect(termKeys(ui)).toBeFocused();
+      if (!WIN) expect((await core((k) => k.ptyOutput())).slice(before.length), 'the prompt is not submitted').not.toMatch(/[\r\n]/);
+      await core((k) => k.shell.pty.write('\x15'));
+    }
+    const key = await core((k) => k.shell.task.key);
+    for (const channel of ['task:artifact-drag', 'task:artifact-send'] as const) {
+      expect((await invoke(ui, channel, { key, file: path.join(files.project, 'package.json') })).error).toMatch(/not an artifact/);
+    }
+  } finally {
+    await cdp.detach();
+    await core((k) => { k.shell.windows[0].win.webContents.startDrag = k.stash.startDrag; });
+  }
 });
 
 test("artifacts: what they take, in Resources' heading and for the agent, which explains and deletes them as the human does with Delete All", async ({ core, ui, call, files }) => {

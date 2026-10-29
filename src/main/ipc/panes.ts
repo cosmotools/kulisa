@@ -77,7 +77,6 @@ export function registerPanes(ipc: Ipc) {
       const png = await r.profile.screenshot(r.tab, { ...chosen && { element: () => chosen }, fullPage: kind === 'full', scale: 'device', type: 'png', by: 'human' });
       const file = await owner!.saveArtifact(r.profile.id, r.tab.id, 'screenshot.png', png);
       await copy(png);
-      w!.thumbnails.show(r.profile.id, file, png, w!.paneBox(r.profile.id));
       return { file };
     } catch (err) { return { error: (err as Error).message }; }
   });

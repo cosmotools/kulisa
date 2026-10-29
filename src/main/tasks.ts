@@ -9,7 +9,7 @@ import path from 'path';
 import { Profile, wipeSession } from './profiles.ts';
 import { ProjectProfiles } from './project-profiles.ts';
 import { installSigninPause } from './signin-pause.ts';
-import { startTerminal, stopTerminal, forgetTerminal, terminalTail, sendToPrompt, typeIntoPrompt, eraseInPrompt, typeLine, interrupt } from '../terminal/main/index.ts';
+import { startTerminal, stopTerminal, forgetTerminal, terminalTail, sendToPrompt, typeIntoPrompt, eraseInPrompt, typeLine, interrupt, quotePaths } from '../terminal/main/index.ts';
 import { READ_MAX } from './kulisa-plugin/tools/terminal.ts';
 import { listArtifacts, saveArtifact } from './artifacts.ts';
 import { copyProfile, worktreesOf, ownWorktree, folderOf, branchOf, taskKey } from './store.ts';
@@ -780,7 +780,24 @@ class Task {
   async saveArtifact(profile: string, tab: string, kind: string, content: string | Buffer) {
     const file = await saveArtifact(this.store.artifacts, `${profile}-${tab}-${kind}`, content);
     this.artifactsChanged();
+    if (kind.startsWith('screenshot.') && Buffer.isBuffer(content) && this.shown()) {
+      const w = this.window!;
+      w.thumbnails.show(profile, file, content, w.paneBox(profile));
+    }
     return file;
+  }
+  async findArtifact(file: string) {
+    const artifact = (await listArtifacts(this.store.artifacts)).find((a) => a.file === path.resolve(file));
+    return artifact ? { artifact } : { error: `not an artifact of this task: ${file}` };
+  }
+  async sendArtifact(file: string): Promise<Result> {
+    const r = await this.findArtifact(file);
+    if (refused(r)) return r;
+    if (!this.shown()) return { error: 'that task is not on screen' };
+    const to = this.promptTarget();
+    if (!to?.pty) return { error: 'Open an agent terminal to send it an artifact.' };
+    this.typeForAgent(`${quotePaths(to.pty.shell, [r.artifact.file])} `);
+    return {};
   }
   // The files kept of its pages (artifacts.ts), as the Resources panel lists them. A
   // screenshot's small picture is made here once and kept while the task is loaded: the window never decodes the

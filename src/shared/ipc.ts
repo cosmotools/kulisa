@@ -85,6 +85,8 @@ export interface Invoke extends TerminalInvoke, ThumbnailInvoke, GitHubInvoke, D
   'task:show-folder': I<[key: string]>;
   'task:open-folder': I<[{ key: string; folder: string }]>; // a resource's folder (Resources.tsx), checked to be the task's
   'task:artifacts': I<[string]>; // the task's artifacts sent again (Resources.tsx: the task shown)
+  'task:artifact-send': I<[{ key: string; file: string }], Result>;
+  'task:artifact-drag': I<[{ key: string; file: string }], Result>;
   'task:artifacts-delete': I<[{ key: string; files: string[] | null }], Result>; // null: all
   'app:quit': I<[]>;
   'agents:list': I<[{ check?: boolean; details?: boolean; cached?: boolean }?], { list: AgentInfo[]; home: string } | { list: null }>; // null: not looked for yet (cached)

@@ -92,7 +92,7 @@ class AppWindow {
     if (maximized) win.maximize();
     this.place = this.where();
     // Send to Agent: its file's path into the prompt of the shown task's agent.
-    this.thumbnails = new Thumbnails(win, { page: page('thumbnail.html'), preload: PRELOAD, send: (text) => this.task?.typeForAgent(text),
+    this.thumbnails = new Thumbnails(win, { page: page('thumbnail.html'), preload: PRELOAD, send: async (file) => { const r = await this.task?.sendArtifact(file); if (r?.error) throw new Error(r.error); },
       remove: async (file) => { const r = await this.task?.deleteArtifacts([file]); if (r?.error) throw new Error(r.error); } });
     // Electron's default File/Edit/View/Window menu adds a row on Linux and Windows and gives nothing (its Ctrl+R
     // reloads the shell). On macOS the menu lives in the system bar and stays (Cmd+C/V need its Edit roles).
