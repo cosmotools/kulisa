@@ -485,6 +485,8 @@ issue #73) is where the human reads it and passes it on, by any means: not every
   once, so what came since is read from the file at the end of the same tick and sent, a burst of lines as one
   (`readLog` in `log.ts`; the last page that read is the one followed). The file turned over under it (shorter than
   what was read): the page reads it again. Nothing of this is logged: a line of its own would send it again.
+- TanStack Virtual draws the visible entries with a buffer; wrapped entries are measured, and the whole log scrolls
+  continuously. Filters search the whole log before virtualization. Stable entry ids keep measurements across filters.
 - A line each with its time (the date in its tooltip) and its tag, the tag in the color of who acted (the theme's: success the agent, warning the human,
   the text's the tasks), warnings and errors in red; what is not a line of that shape (an object's lines under an
   `[electron]` event) hangs under the line before it. **Follow** keeps the end in view, as a terminal does, lets go when the log is scrolled up, and

@@ -9,22 +9,23 @@ test("☰ → Report a Problem… opens Settings at the Log page: the log so far
   await expect(menu(ui)).toBeVisible();
   await choose(ui, 'Report a Problem…');
   const s = await sui();
-  const log = s.getByRole('log', { name: 'Log' }), line = log.locator(':scope > div'), lines = () => line.allTextContents();
+  const log = s.getByRole('log', { name: 'Log' }), line = log.locator('[data-tag]'), lines = () => line.allTextContents();
   await expect(s.locator('[data-key="log"]'), 'the Log page chosen in the nav').toHaveAttribute('aria-current', 'page');
   await expect(line.first()).toBeVisible();
   expect(await line.first().textContent(), 'the time and the tag').toMatch(/^\d\d:\d\d:\d\d\.\d{3}\[kulisa\]start \d+\.\d+\.\d+, electron /);
   await expect(line.first(), 'the date and the time zone in its tooltip').toHaveAttribute('title', /^\d{4}-\d\d-\d\d [+-]\d\d:\d\d$/);
-  await expect(log.locator(':scope > div[data-tag="kulisa"]').first(), "the tag in its group's color").toHaveAttribute('data-group', 'tasks');
+  await expect(log.locator('[data-tag="kulisa"]').first(), "the tag in its group's color").toHaveAttribute('data-group', 'tasks');
   // Live: what is logged now comes at the end, Follow keeping it in view.
   const theme = await core((k) => k.electron.nativeTheme.themeSource);
   await invoke(ui, 'theme:set', 'dark');
   await expect.poll(async () => (await lines()).at(-1)).toContain('[ipc]theme:set wc=');
   await expect(line.last(), 'the end in view').toBeInViewport();
   // Scrolled up, Follow lets go; checked again, back to the end. Lines logged until there is somewhere to scroll: Settings
-  // takes the whole window; more than the 4 px the page takes as still at the end (LogPage.tsx, scrolled).
+  // takes the whole window; more than the 4 px threshold for following the end.
   while (await log.evaluate((b) => b.scrollHeight - b.clientHeight < 40)) await invoke(ui, 'theme:set', 'dark');
   const follow = s.getByRole('switch', { name: 'Follow' });
-  await log.evaluate((b) => { b.scrollTop = 0; b.dispatchEvent(new Event('scroll')); });
+  await log.hover();
+  await s.mouse.wheel(0, -100000);
   await expect(follow).not.toBeChecked();
   await follow.check();
   await expect(line.last()).toBeInViewport();
@@ -37,7 +38,7 @@ test("☰ → Report a Problem… opens Settings at the Log page: the log so far
   await expect(s.getByRole('radio', { name: 'Errors', exact: true })).toBeChecked();
   await expect(line.filter({ hasText: 'boom-for-the-log' })).not.toHaveCount(0);
   await expect(line.and(s.locator(':not([data-bad])')), 'errors alone').toHaveCount(0);
-  await expect(log.locator(':scope > div[data-tag="page"]').first(), 'in red').toHaveAttribute('data-bad');
+  await expect(log.locator('[data-tag="page"]').first(), 'in red').toHaveAttribute('data-bad');
   // A filter of who acted, and the text filter on top of it; nothing left says so.
   await showOnly('Tasks');
   await typeFilter('[kulisa] start');
@@ -98,4 +99,50 @@ test("☰ → Report a Problem… opens Settings at the Log page: the log so far
   expect(fs.readFileSync(path.join(CHECKOUT, '.github', 'ISSUE_TEMPLATE', 'bug.yml'), 'utf8'), 'the template with that field').toMatch(/id: environment/);
   await closeSettings(core, ui, sui);
   await invoke(ui, 'theme:set', theme);
+});
+
+test('a large log scrolls through every entry with few rendered rows; filtering and Copy All reach the whole log', async ({ core, ui, sui, files }, testInfo) => {
+  const file = path.join(files.userData, 'logs', 'kulisa.log');
+  const text = Array.from({ length: 1600 }, (_, i) => `[2026-01-01T12:00:00.000+00:00] [info] [task] virtual-entry-${String(i).padStart(4, '0')}${i % 7 === 0 ? ' wrapped words'.repeat(30) : ''}`).join('\n') + '\n';
+  fs.appendFileSync(file, text);
+  await ui.locator('#windowMenu').click();
+  await choose(ui, 'Report a Problem…');
+  const s = await sui(), log = s.getByRole('log', { name: 'Log' });
+  const rows = log.locator('[data-tag]');
+  const entry = (n: string) => rows.filter({ hasText: `virtual-entry-${n}` });
+  await expect(entry('1599')).toBeInViewport();
+  await expect.poll(() => rows.count()).toBeLessThan(100);
+  await s.getByRole('searchbox', { name: 'Filter' }).fill('virtual-entry-');
+  await expect(entry('1599')).toBeInViewport();
+  await log.hover();
+  await s.mouse.wheel(0, -100000);
+  await expect(entry('0000')).toBeInViewport();
+  await expect(s.getByRole('switch', { name: 'Follow' })).not.toBeChecked();
+  await expect.poll(() => rows.count()).toBeLessThan(100);
+  const before = await entry('0000').boundingBox();
+  await ui.evaluate(() => console.error('virtual-live-after-pause'));
+  await expect.poll(() => fs.readFileSync(file, 'utf8')).toContain('virtual-live-after-pause');
+  await expect(entry('0000')).toBeInViewport();
+  expect((await entry('0000').boundingBox()).y).toBeCloseTo(before.y, 0);
+  await s.getByRole('searchbox', { name: 'Filter' }).fill('');
+  await s.getByRole('switch', { name: 'Follow' }).check();
+  await expect(rows.filter({ hasText: 'virtual-live-after-pause' })).toBeInViewport();
+  await s.getByRole('searchbox', { name: 'Filter' }).fill('virtual-entry-0000');
+  await expect(rows).toHaveCount(1);
+  await expect(entry('0000')).toBeInViewport();
+  await s.getByRole('radio', { name: 'Errors', exact: true }).click();
+  await expect(log.getByText('Nothing matches.', { exact: true })).toBeVisible();
+  await s.getByRole('radio', { name: 'Tasks', exact: true }).click();
+  await expect(entry('0000')).toBeInViewport();
+  await s.getByRole('button', { name: 'Copy All' }).click();
+  await expect.poll(() => core((k) => k.electron.clipboard.readText())).toContain('virtual-entry-0000');
+  const copied = await core((k) => k.electron.clipboard.readText());
+  expect(copied).toContain('virtual-entry-0000');
+  expect(copied).toContain('virtual-entry-1599');
+  await s.getByRole('searchbox', { name: 'Filter' }).fill('');
+  await s.getByRole('radio', { name: 'All', exact: true }).click();
+  await expect(rows.filter({ hasText: 'virtual-live-after-pause' })).toBeInViewport();
+  await expect.poll(() => rows.count()).toBeLessThan(100);
+  await core((k, f) => k.shot(f), testInfo.outputPath('log-virtual.png'));
+  await closeSettings(core, ui, sui);
 });

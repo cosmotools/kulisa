@@ -1,6 +1,7 @@
 // The Log page of Settings (docs/window.md, The log): the log read whole and followed as it grows, filtered, passed on.
 // Read as the page is shown, not as Settings opens (a megabyte for nothing otherwise), and let go as it is left.
-import { memo, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
+import { useCallback, memo, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { ChevronDownIcon, CircleAlertIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button, Input, Label, Switch, ToggleGroup, ToggleGroupItem, Alert, AlertDescription } from '@ui';
@@ -13,7 +14,8 @@ import { refused } from '../../../shared/result';
 // one before it. The tag's group is the filter that shows it.
 type Group = 'agent' | 'human' | 'tasks';
 type Show = 'all' | 'errors' | Group;
-interface Line { date: string; time: string; offset: string; level: string; tag: string; text: string; raw: string; group: Group | null; bad: boolean }
+interface Line { id: number; date: string; time: string; offset: string; level: string; tag: string; text: string; raw: string; group: Group | null; bad: boolean }
+let nextLineId = 0;
 const GROUPS: Record<string, Group> = { mcp: 'agent', hook: 'agent', terminal: 'agent', ipc: 'human', key: 'human', settings: 'human', task: 'tasks', window: 'tasks', kulisa: 'tasks' };
 const SHOW: { id: Show; label: string; hint: string }[] = [
   { id: 'all', label: 'All', hint: 'Every line' },
@@ -34,7 +36,7 @@ function parse(text: string, into: Line[], rest: { text: string }) {
     const m = LINE.exec(raw), last = into.length - 1;
     if (m) {
       const [, date, time, offset = '', level, tag = '', body] = m as unknown as string[];
-      into.push({ date: date!, time: time!, offset, level: level!, tag, text: body!, raw, group: GROUPS[tag] ?? null, bad: isBad(level!, tag, body!) });
+      into.push({ id: nextLineId++, date: date!, time: time!, offset, level: level!, tag, text: body!, raw, group: GROUPS[tag] ?? null, bad: isBad(level!, tag, body!) });
     } else if (last >= 0) {
       const l = into[last]!, body = `${l.text}\n${raw}`;
       into[last] = { ...l, text: body, raw: `${l.raw}\n${raw}`, bad: isBad(l.level, l.tag, body) };
@@ -88,10 +90,24 @@ export function LogPage() {
     const q = filter.trim().toLowerCase();
     return (lines ?? []).filter((l) => (show === 'all' || (show === 'errors' ? l.bad : l.group === show)) && (!q || l.raw.toLowerCase().includes(q)));
   }, [lines, show, filter]);
-  // Follow keeps the end in view, as a terminal does; scrolling up lets go of it, checking it again goes back to the end.
-  const toEnd = () => { const b = box.current; if (b) b.scrollTop = b.scrollHeight; };
-  useLayoutEffect(() => { if (follow) toEnd(); }, [shown, follow]);
-  const scrolled = () => { const b = box.current!; setFollow(b.scrollHeight - b.scrollTop - b.clientHeight < 4); };
+  const virtualizer = useVirtualizer({
+    count: shown.length,
+    getScrollElement: () => box.current,
+    estimateSize: () => 20,
+    getItemKey: useCallback((i: number) => shown[i]!.id, [shown]),
+    overscan: 8,
+    directDomUpdates: true,
+    paddingStart: 6,
+    paddingEnd: 6,
+    anchorTo: 'end',
+    followOnAppend: follow,
+    scrollEndThreshold: 4,
+    onChange: (v, scrolling) => {
+      if (scrolling && v.scrollDirection === 'backward' && !v.isAtEnd()) setFollow(false);
+    },
+  });
+  useLayoutEffect(() => { virtualizer.scrollToOffset(0); }, [show, filter, virtualizer]);
+  useLayoutEffect(() => { if (follow && shown.length) virtualizer.scrollToEnd(); }, [shown, follow, virtualizer]);
 
   const kb = (n: number) => `${Math.max(1, Math.round(n / 1024))} KB`;
   const copy = async () => { await navigator.clipboard.writeText((lines ?? []).map((l) => l.raw).join('\n')); setError(''); toast.success('Copied'); };
@@ -111,14 +127,20 @@ export function LogPage() {
         {SHOW.map((s) => <Tip key={s.id} text={s.hint}><span><ToggleGroupItem value={s.id}>{s.label}</ToggleGroupItem></span></Tip>)}
       </ToggleGroup>
       <div className="ms-auto flex items-center gap-2">
-        <Switch id={followId} checked={follow} onCheckedChange={(on) => { setFollow(on); if (on) toEnd(); }} />
+        <Switch id={followId} checked={follow} onCheckedChange={setFollow} />
         <Label htmlFor={followId}>Follow</Label>
       </div>
     </div>
-    <div ref={box} role="log" aria-label="Log" data-selectable onScroll={scrolled}
-      className="min-h-0 flex-1 cursor-text overflow-auto rounded-lg border bg-card px-2 py-1.5 font-mono text-xs leading-5 text-card-foreground">
-      {shown.map((l, i) => <Row key={i} l={l} />)}
-      {lines && !shown.length && <p className="text-muted-foreground">Nothing matches.</p>}
+    <div ref={box} role="log" aria-label="Log" data-selectable
+      onWheel={() => virtualizer.cancelScroll()} onPointerDown={() => virtualizer.cancelScroll()} onKeyDown={() => virtualizer.cancelScroll()}
+      className="min-h-0 flex-1 cursor-text overflow-auto rounded-lg border bg-card px-2 font-mono text-xs leading-5 text-card-foreground [overflow-anchor:none]">
+      <div ref={virtualizer.containerRef} className="relative w-full">
+        {virtualizer.getVirtualItems().map((v) => <div key={v.key} data-index={v.index} ref={virtualizer.measureElement}
+          className="absolute left-0 top-0 w-full">
+          <Row l={shown[v.index]!} />
+        </div>)}
+      </div>
+      {lines && !shown.length && <p className="py-1.5 text-muted-foreground">Nothing matches.</p>}
     </div>
     <p className="text-xs text-muted-foreground">
       kulisa.log, {kb(info.size)} of {Math.round(info.max / 1024 / 1024)} MB{info.old ? `; kulisa.old.log from ${info.old.slice(0, 10)}` : ''}. Never here: what you typed,
