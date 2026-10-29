@@ -53,7 +53,7 @@ async function screen(): Promise<{ display: string; stop: () => void }> {
 async function launch(file: string, display: string | null, automation: boolean, restart?: string): Promise<Running> {
   const root = restart ?? path.join(BASE, `${path.basename(file, '.spec.ts')}-${process.pid}-${crypto.randomBytes(3).toString('hex')}`);
   fs.mkdirSync(root, { recursive: true });
-  const env: Record<string, string> = { ...process.env as Record<string, string>, KULISA_TEST_ROOT: root, KULISA_SCREENSHOTS: path.join(root, 'screenshots') };
+  const env: Record<string, string> = { ...process.env as Record<string, string>, KULISA_TEST_ROOT: root };
   if (restart) env.KULISA_RESTART = '1';
   // On Xvfb, X11's: Electron takes Wayland wherever WAYLAND_DISPLAY is set, and would open on the human's screen.
   if (display) { env.DISPLAY = display; delete env.WAYLAND_DISPLAY; env.XDG_SESSION_TYPE = 'x11'; }

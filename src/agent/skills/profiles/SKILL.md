@@ -81,7 +81,7 @@ tab reads "New Task" until it is named. You see only your task's profiles.
   (Kulisa assigns none; another task or the human may hold the usual one): through `PORT`, a `--port` flag,
   `.env.local`, or the published ports of `docker compose`. Point the profiles' tabs at it with `browser_navigate`;
   they stay signed in (cookies do not depend on the port).
-- **Artifacts**: the screenshots, snapshots and bodies your tools keep of the pages gather in the task's folder of
+- **Artifacts**: the screenshots the human or you take, and snapshots and bodies your tools keep of the pages gather in the task's folder of
   them, which the human sees with its size. Asked what is there or how much room it takes, list them with
   `task_artifacts` and read the files you need to say what they show, in the human's words. Asked to clean up,
   delete what they want gone with `task_artifacts_delete` (when unsure which, say what you would delete and ask).

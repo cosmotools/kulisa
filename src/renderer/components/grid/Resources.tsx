@@ -23,7 +23,7 @@ export function Resources() {
   const artifacts = useWindow((s) => (s.artifacts.task === key ? s.artifacts.list : null)) ?? [];
   const bytes = useWindow((s) => s.artifacts.bytes);
   const names = useWindow(useShallow((s) => Object.fromEntries([...s.profiles, ...s.closedProfiles].map((p) => [p.id, p.name]))));
-  // The list comes when the task is shown and whenever its agent keeps one (window.ts, sendArtifacts).
+  // The list comes when the task is shown and whenever the human or agent keeps one (window.ts, sendArtifacts).
   useEffect(() => { if (key) void kulisa.invoke('task:artifacts', key); }, [key]);
   if (!task) return null;
   const open = (folder: string) => kulisa.invoke('task:open-folder', { key: task.key, folder });

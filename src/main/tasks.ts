@@ -11,7 +11,7 @@ import { ProjectProfiles } from './project-profiles.ts';
 import { installSigninPause } from './signin-pause.ts';
 import { startTerminal, stopTerminal, forgetTerminal, terminalTail, sendToPrompt, typeIntoPrompt, eraseInPrompt, typeLine, interrupt } from '../terminal/main/index.ts';
 import { READ_MAX } from './kulisa-plugin/tools/terminal.ts';
-import { listArtifacts } from './kulisa-plugin/artifacts.ts';
+import { listArtifacts, saveArtifact } from './artifacts.ts';
 import { copyProfile, worktreesOf, ownWorktree, folderOf, branchOf, taskKey } from './store.ts';
 import { renameBranch } from './worktrees.ts';
 import { extendTrust } from './agents/index.ts';
@@ -776,7 +776,13 @@ class Task {
       : { kind: r.kind, label: path.basename(r.repo), folder: r.folder, branch: r.branch, removable: i > 0 }));
   }
 
-  // The files the agent's tools kept of its pages (kulisa-plugin/artifacts.ts), as the Resources panel lists them. A
+  // Both handles keep page files here so their numbering, limit and Resources updates agree.
+  async saveArtifact(profile: string, tab: string, kind: string, content: string | Buffer) {
+    const file = await saveArtifact(this.store.artifacts, `${profile}-${tab}-${kind}`, content);
+    this.artifactsChanged();
+    return file;
+  }
+  // The files kept of its pages (artifacts.ts), as the Resources panel lists them. A
   // screenshot's small picture is made here once and kept while the task is loaded: the window never decodes the
   // files themselves (a page's picture is megabytes once decoded, a hundred of them a lot of a window's memory).
   private thumbs = new Map<string, string>(); // '' where none could be made
@@ -818,6 +824,7 @@ class Task {
     const stranger = files?.find((_f, i) => !chosen[i]);
     if (stranger !== undefined) return { error: `not an artifact of this task: ${stranger}` };
     for (const a of chosen) await fs.promises.rm(a!.file, { force: true });
+    if (chosen.some((a) => a!.file === this.window?.thumbnails.file)) this.window?.thumbnails.close();
     this.artifactsChanged();
     return { deleted: chosen.length, bytes: chosen.reduce((sum, a) => sum + a!.bytes, 0) };
   }

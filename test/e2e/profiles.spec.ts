@@ -3,7 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import type { Locator, Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
-import { SITE, PORT, logged, ipcSettled, who, menu, choose, closeMenu, rightClick, manageProfiles, closeSettings, chooseProfile, navRow, thingRow, pathOf, settingsMenu, termText, invoke, answer, typeIn, removed } from './helpers.ts';
+import { SITE, PORT, logged, ipcSettled, who, menu, choose, closeMenu, rightClick, manageProfiles, closeSettings, chooseProfile, navRow, thingRow, pathOf, settingsMenu, termText, invoke, answer, typeIn } from './helpers.ts';
 import { profileId, deleteProfile } from './tasks-helpers.ts';
 
 // A PNG's size in pixels, from its header.
@@ -210,12 +210,11 @@ test("DevTools in a pane's ⋮ menu opens and closes the DevTools of its active 
   await expect.poll(opened).toBe(false);
 });
 
-// The human's pictures (src/screenshots): on the clipboard and in the OS's folder of screenshots (the test's folder
-// here: KULISA_SCREENSHOTS), at the screen's density, an element chosen as Pick chooses; not the agent's action.
-test("a pane's ⋮ → Screenshot takes an element, the visible part or the whole page, to the clipboard and the folder of screenshots", async ({ core, ui, files }) => {
+// Human and agent screenshots share the task's artifacts; the human also gets the clipboard and thumbnail.
+test("a pane's ⋮ → Screenshot takes an element, the visible part or the whole page, to the clipboard and Resources as task artifacts", async ({ core, ui, call }) => {
   const id = await core(async (k, url) => (await k.ensureProfile('Sam.admin', url)).id, `${SITE}/app`);
-  const dir = path.join(files.root, 'screenshots');
-  await removed(dir);
+  const dir = await core((k) => k.shell.task.store.artifacts);
+  await core((k) => k.shell.task.deleteArtifacts(null));
   const shots = () => (fs.existsSync(dir) ? fs.readdirSync(dir).sort() : []);
   const { was, dpr, tall } = await core(async (k, url) => {
     const page = await k.profile('Sam.admin').page(), was = page.url();
@@ -243,7 +242,12 @@ test("a pane's ⋮ → Screenshot takes an element, the visible part or the whol
   await fromMenu('Full Page');
   await expect.poll(() => shots().length).toBe(1);
   const [full] = shots();
-  expect(full).toMatch(/^Kulisa Sam\.admin \d{4}-\d\d-\d\d \d\d\.\d\d\.\d\d\.png$/);
+  expect(full).toMatch(new RegExp(`^\\d+-${id}-.+-screenshot\\.png$`));
+  const resource = ui.locator('#resources [data-file]').first();
+  await expect(resource).toHaveAttribute('data-file', path.join(dir, full));
+  await expect(resource).toHaveAttribute('aria-label', 'Screenshot');
+  await expect(resource.locator('img')).toHaveCount(1);
+  expect((await call('task_artifacts', {})).text).toContain(path.join(dir, full));
   const fullSize = pngSize(path.join(dir, full));
   expect(fullSize.height > 3000 * dpr - 1, `the whole page (${fullSize.height})`).toBe(true);
   const types = await core(async (k) => (await k.electron.clipboard.read())[0]?.types ?? []);
@@ -295,22 +299,22 @@ test("a pane's ⋮ → Screenshot takes an element, the visible part or the whol
   // Back by the tab's own page: Profile.page() would look among the pages while the closed tab's is still going.
   await core(async (k, a) => { const p = k.profile('Sam.admin'); p.closeTab(a.blank); await p.get(a.tall).wc.loadURL(a.was); }, { blank, was, tall });
   await expect(ui.locator(`[role="region"][data-profile="${id}"] [aria-label="Pick an element"]`), 'a page again: Pick on').toBeEnabled();
-  await removed(dir);
+  await ui.getByRole('button', { name: 'Delete All Artifacts', exact: true }).click();
+  await expect(ui.locator('#resources [data-file]')).toHaveCount(0);
+  await expect.poll(shots).toEqual([]);
 });
 
 // The thumbnail (src/screenshots, The thumbnail): what the OS would do with the file is stubbed (a file manager, an
-// app, the trash: outside the tests' folder).
-test('a screenshot shows its thumbnail in its pane\'s corner: a click opens it, it drags out, its menu shows, copies, sends it to the agent, deletes; its × closes it; it fades in and out; it goes by itself unless the pointer is over it', async ({ core, ui, files }) => {
+// app: outside the tests' folder).
+test('a screenshot shows its thumbnail in its pane\'s corner: a click opens it, it drags out, its menu shows, copies, sends it to the agent, deletes; its × closes it; it fades in and out; it goes by itself unless the pointer is over it', async ({ core, ui }) => {
   const id = await core(async (k, url) => (await k.ensureProfile('Sam.admin', url)).id, `${SITE}/app`);
-  const dir = path.join(files.root, 'screenshots');
   const was = await core(async (k, url) => { const page = await k.profile('Sam.admin').page(), w = page.url(); await page.goto(url); return w; }, `${SITE}/tall`);
   await core((k) => {
-    const g = k.stash, shell = k.electron.shell, fs = process.getBuiltinModule('fs');
+    const g = k.stash, shell = k.electron.shell;
     g.did = [];
-    g.real = { openPath: shell.openPath, showItemInFolder: shell.showItemInFolder, trashItem: shell.trashItem };
+    g.real = { openPath: shell.openPath, showItemInFolder: shell.showItemInFolder };
     shell.openPath = async (f) => { g.did.push(`open ${f}`); return ''; };
     shell.showItemInFolder = (f) => { g.did.push(`show ${f}`); };
-    shell.trashItem = async (f) => { g.did.push(`trash ${f}`); fs.rmSync(f); };
   });
   const did = () => core((k) => k.stash.did as string[]);
   // The thumbnail's page (one at a time: the last one gone before the next is taken), once Playwright has it.
@@ -367,7 +371,8 @@ test('a screenshot shows its thumbnail in its pane\'s corner: a click opens it, 
     await expect.poll(() => termText(ui)).toContain(`'${file}'`);
     await core((k) => k.shell.pty.write('\x15')); // Ctrl+U: the line cleared
     await thumbMenu('Delete');
-    await expect.poll(async () => (await did()).includes(`trash ${file}`) && await core((k) => !k.shell.windows[0].thumbnails.file) && await thumbGone()).toBe(true);
+    await expect.poll(async () => !fs.existsSync(file) && await core((k) => !k.shell.windows[0].thumbnails.file) && await thumbGone()).toBe(true);
+    await expect(ui.locator('#resources [data-file]').filter({ hasText: 'Screenshot' })).toHaveCount(0);
     await expect(shown).toHaveCount(0);
     // Its ×: it fades out first, then goes.
     await take();
@@ -393,7 +398,7 @@ test('a screenshot shows its thumbnail in its pane\'s corner: a click opens it, 
   } finally {
     await core((k) => { Object.assign(k.electron.shell, k.stash.real); });
     await core(async (k, url) => { await (await k.profile('Sam.admin').page()).goto(url); }, was);
-    await removed(dir);
+    await core((k) => k.shell.task.deleteArtifacts(null));
   }
 });
 

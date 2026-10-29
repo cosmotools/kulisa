@@ -5,7 +5,7 @@ import type { IConfiguration } from 'dependency-cruiser';
 
 // Layers 1 and 2 are lists of src/main's files, layer 3 a folder. A file in none of them is the window's (layer 4).
 // Base: git and what is local, used by every layer; nothing of src/main above them.
-const base = '^src/main/(worktrees|remotes|local|log|remove)\\.ts$';
+const base = '^src/main/(worktrees|remotes|local|log|remove|artifacts)\\.ts$';
 const layer1 = '^src/main/(profiles|page-focus|project-profiles|profile-store|store|session-cookies|cookie-sync|signin-[a-z]+)\\.ts$';
 const layer2 = '^src/main/(cdp-proxy|local-only)\\.ts$';
 const layer3 = '^src/main/kulisa-plugin/';

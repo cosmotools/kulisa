@@ -92,7 +92,8 @@ class AppWindow {
     if (maximized) win.maximize();
     this.place = this.where();
     // Send to Agent: its file's path into the prompt of the shown task's agent.
-    this.thumbnails = new Thumbnails(win, { page: page('thumbnail.html'), preload: PRELOAD, send: (text) => this.task?.typeForAgent(text) });
+    this.thumbnails = new Thumbnails(win, { page: page('thumbnail.html'), preload: PRELOAD, send: (text) => this.task?.typeForAgent(text),
+      remove: async (file) => { const r = await this.task?.deleteArtifacts([file]); if (r?.error) throw new Error(r.error); } });
     // Electron's default File/Edit/View/Window menu adds a row on Linux and Windows and gives nothing (its Ctrl+R
     // reloads the shell). On macOS the menu lives in the system bar and stays (Cmd+C/V need its Edit roles).
     win.removeMenu();
@@ -172,7 +173,7 @@ class AppWindow {
       ({ id: cfg.id, name: cfg.name, avatar: cfg.avatar, description: cfg.description ?? '', tabs: tabs.urls.length })));
     task.list.saveTabs();
   }
-  // The shown task's artifacts (Resources.tsx): when it is shown, and when its agent makes one.
+  // The shown task's artifacts (Resources.tsx): when it is shown, and when either the human or agent makes one.
   async sendArtifacts(task = this.task) {
     if (!task || task !== this.task) return;
     const [list, { bytes }] = await Promise.all([task.artifacts(), task.artifactsUsage()]);

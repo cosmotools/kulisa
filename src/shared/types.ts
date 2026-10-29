@@ -37,8 +37,7 @@ export interface TaskResource {
   branch: string | null; // a worktree's branch; none for the main working tree
   removable: boolean; // an added repository's worktree (task_remove_repository); not the task's own or the main tree
 }
-// A task, for its tab (Task.info).
-// A file the agent's tools kept of a page (kulisa-plugin/artifacts.ts), as the Resources panel lists it.
+// A file the human or agent kept of a page (artifacts.ts), as the Resources panel lists it.
 export interface Artifact {
   file: string;
   profile: string; // the id of the profile it came from

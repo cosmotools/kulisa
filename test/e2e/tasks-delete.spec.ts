@@ -5,7 +5,7 @@ import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
 import type { Core, Call } from './fixtures.ts';
 import type { Files } from './data.ts';
-import { WIN, choose, rightClick, fromSidebar, sidebar, taskRow, rowButton, invoke, notLoading, answer, projectMenu, removed } from './helpers.ts';
+import { SITE, WIN, choose, rightClick, fromSidebar, sidebar, taskRow, rowButton, invoke, notLoading, answer, projectMenu, removed } from './helpers.ts';
 import { git, rand, hasDirenv, isNth, nthShown, taskTab, taskTabs, reportSession, newTask, openFolder, begin } from './tasks-helpers.ts';
 
 // A repository with a remote, as a clone of one is, opened as a project (its folder named name-<random>); its first
@@ -40,6 +40,10 @@ test('tasks: Delete Task… asks first, saying what goes and any work not in mai
   // A task with its own worktree and its agent's session (a transcript of its own), nothing changed in it.
   const empty = await newTask(core, ui);
   await call('task_worktree', {}, { task: empty });
+  const profile = await core(async (k, url) => (await k.ensureProfile('Sam.admin', url)).id, `${SITE}/app`);
+  const shot = await ui.evaluate(async (id) => (window as any).act('tab:screenshot', { profile: id, kind: 'visible' }), profile);
+  expect(shot.error).toBeUndefined();
+  expect(fs.existsSync(shot.file)).toBe(true);
   const transcript = path.join(files.root, 'task-3-transcript.jsonl');
   fs.writeFileSync(transcript, '');
   await reportSession(core, empty, 's-3', transcript);
@@ -56,6 +60,7 @@ test('tasks: Delete Task… asks first, saying what goes and any work not in mai
   const deleted = path.join(files.userData, 'deleted-folders.json');
   const marked = () => fs.existsSync(deleted) && JSON.parse(fs.readFileSync(deleted, 'utf8')).includes(dir);
   await expect.poll(() => !fs.existsSync(`${project}@task-3`) && marked() && (WIN || !fs.existsSync(dir))).toBe(true);
+  await expect.poll(() => fs.existsSync(shot.file)).toBe(false);
   // direnv's permission for its .envrc: no record of the task's folder left.
   const allow = path.join(files.root, 'xdg-data', 'direnv', 'allow');
   if (hasDirenv) expect((fs.existsSync(allow) ? fs.readdirSync(allow) : []).some((f) => fs.readFileSync(path.join(allow, f), 'utf8').includes(`${project}@task-3`))).toBe(false);

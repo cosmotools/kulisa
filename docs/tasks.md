@@ -253,13 +253,13 @@ Next to the terminal, the task's **resources** (what it has, uses or created), e
 - The **main working tree** until the task makes its own worktree of the default repository: the project's folder (the
   human's) it opened in, opened with a click, never removed. A task on a folder without git stays here. Kept as a
   resource, not worked out from the project: the default repository may change while the task works there.
-- **Artifacts**, under them: the files the agent's tools kept of its pages (`artifacts/`, What is on the computer),
+- **Artifacts**, under them: the files the human or agent kept of its pages (`artifacts/`, What is on the computer),
   the newest first: their kind (Screenshot, Snapshot, Request or Response body), profile and time, read from the file's
-  name and time (`listArtifacts`, `kulisa-plugin/artifacts.ts`; no list beside the files to go stale). A screenshot
+  name and time (`listArtifacts`, `artifacts.ts`; no list beside the files to go stale). A screenshot
   shows a small picture of itself, made by the main process and kept in memory while the task is loaded
   (`Task.artifacts`): the window never decodes the pictures, megabytes each. Made in the background one at a time
   (`makeThumbs`), the list sent again when they are: a whole page's takes tens of milliseconds, and many would hold up
-  the task's terminals starting. The list comes when the task is shown and whenever the agent keeps one
+  the task's terminals starting. The list comes when the task is shown and whenever the human or agent keeps one
   (`Task.artifactsChanged`, the window's `artifacts`). A click opens the file in the OS's app; its menu: Open, Show in
   Folder, Delete (no question: Kulisa's data, not the human's work). Their heading says what they take, from the
   activity monitor ([src/activity-monitor](../src/activity-monitor/README.md); `Task.artifactsUsage`), so the human
@@ -632,7 +632,7 @@ projects/<project id>/            a project's data, by its id (projects.json), g
                                   (Several agents in a task), kept with the task
     terminals.json                { front, list: [{ id, name, by } | { id, conversation }] }: its terminals' tabs, opened
                                   again when it loads; one goes when closed; an empty list: the panel folded
-    artifacts/                    what the agent's tools keep of its pages (profiles.md, What the agent does): a snapshot
+    artifacts/                    what the human or agent keep of its pages (profiles.md, What the agent does): a snapshot
                                   or a body too large for an answer, a screenshot; <n>-<profile id>-<tab id>-<kind>, n in
                                   the order made, never replaced; past 100 MB the oldest go; kept with the task
     <id>/                         its copy of a master, named by the profile's id, made at its first open here: a Chromium profile

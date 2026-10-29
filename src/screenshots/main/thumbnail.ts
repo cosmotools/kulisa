@@ -2,7 +2,7 @@
 import electron from 'electron';
 import { handle, on } from '../../main/ipc.ts';
 import { log } from '../../main/log.ts';
-import { copyFile } from './folder.ts';
+import { copyFile } from './clipboard.ts';
 import type { BrowserWindow, Rectangle, WebContents, WebContentsView } from 'electron';
 import type { ThumbnailAction } from '../ipc.ts';
 
@@ -24,14 +24,14 @@ interface Shown { owner: string; file: string; view: WebContentsView; src: strin
 // A window's thumbnail: one at a time, the next taking its place. The window says where its panes are (place) and
 // when its pages are covered (setHidden); the rest is here.
 class Thumbnails {
-  private win: BrowserWindow; private page: string; private preload: string; private send: (text: string) => void;
+  private win: BrowserWindow; private page: string; private preload: string; private send: (text: string) => void; private remove: (file: string) => Promise<unknown>;
   private shown: Shown | null = null; private hidden = false; private timer?: NodeJS.Timeout; private over = false; private held = false;
 
   // page: its page's file; preload: the windows'; send: words for the agent's prompt (Send to Agent: the agents are
-  // the window's tasks', not the package's).
-  constructor(win: BrowserWindow, { page, preload, send }: { page: string; preload: string; send: (text: string) => void }) {
+  // the window's tasks', not the package's); remove: the task's artifact deletion, as in Resources.
+  constructor(win: BrowserWindow, { page, preload, send, remove }: { page: string; preload: string; send: (text: string) => void; remove: (file: string) => Promise<unknown> }) {
     install();
-    this.win = win; this.page = page; this.preload = preload; this.send = send;
+    this.win = win; this.page = page; this.preload = preload; this.send = send; this.remove = remove;
     byWindow.set(win.webContents, this);
   }
   get file() { return this.shown?.file ?? null; }
@@ -114,7 +114,7 @@ class Thumbnails {
     else if (action === 'close') this.fade();
     else if (action === 'send') this.send(agentText(s.file));
     else if (action === 'delete') {
-      try { await electron.shell.trashItem(s.file); } catch (e) { log.info(`[screenshot] not moved to the trash: ${(e as Error).message}`); }
+      try { await this.remove(s.file); } catch (e) { log.info(`[screenshot] not deleted: ${(e as Error).message}`); }
       if (this.shown === s) this.fade();
     }
   }

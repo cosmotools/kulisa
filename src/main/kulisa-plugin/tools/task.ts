@@ -3,7 +3,7 @@
 // tool is designed: ../CLAUDE.md.
 import { z } from 'zod';
 import { historyPart } from '../history.ts';
-import { listArtifacts, ARTIFACTS_LIMIT } from '../artifacts.ts';
+import { listArtifacts, ARTIFACTS_LIMIT } from '../../artifacts.ts';
 import { sizeText } from '../../../shared/bytes.ts';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { Handles } from './handles.ts';
