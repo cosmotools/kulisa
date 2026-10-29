@@ -16,7 +16,12 @@ function remove(p: string) {
   let st: fs.Stats;
   try { st = fs.lstatSync(p); } catch (e) { if ((e as NodeJS.ErrnoException).code === 'ENOENT') return; throw e; }
   if (st.isDirectory()) {
-    for (const f of fs.readdirSync(p)) remove(path.join(p, f));
+    // A session can hold one file open until exit; its unlocked siblings can still go now.
+    let failure: unknown;
+    for (const f of fs.readdirSync(p)) {
+      try { remove(path.join(p, f)); } catch (e) { failure ??= e; }
+    }
+    if (failure) throw failure;
     fs.rmdirSync(p);
     return;
   }
