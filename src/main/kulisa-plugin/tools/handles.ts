@@ -37,7 +37,7 @@ function handles(task: Task, t: TaskTerminal | null) {
     if (ref) return page.locator(`aria-ref=${ref}`);
     if (!locator) throw new Error('pass ref (from browser_snapshot) or locator');
     // A Playwright locator expression as the picker prints it, e.g. getByRole('button', { name: 'Pay now' }).
-    if (!/^(getBy\w+|locator)\(/.test(locator)) throw new Error('locator must start with getBy*( or locator(');
+    if (!/^(getBy\w+|locator)\(/.test(locator)) throw new Error("Pass a full Playwright locator expression, e.g. locator('button') or getByRole('button', { name: 'Save' }). Copy the expression from Pick unchanged; do not extract the CSS selector.");
     return vm.runInNewContext(`page.${locator}`, { page }, { timeout: 100 });
   };
   const target = async (page: Page, { ref, locator }: Element) => {
@@ -47,7 +47,7 @@ function handles(task: Task, t: TaskTerminal | null) {
     }
     return loc;
   };
-  const element = { ref: z.string().optional(), locator: z.string().optional() };
+  const element = { ref: z.string().optional(), locator: z.string().optional().describe("Full Playwright locator expression, e.g. locator('button') or getByRole('button', { name: 'Save' }). Copy the expression from Pick unchanged; do not extract the CSS selector.") };
   // Dialogs (alert, confirm; Electron shows no prompt()) an action of the agent opens are answered as it asks, else
   // dismissed, which is safe: the agent reads what was asked and can repeat the action with accept. The tab answers
   // them (Profile._dialog); others stay for the human, in the pane.

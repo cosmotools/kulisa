@@ -82,6 +82,18 @@ test('agent: an element that is not there fails fast, with what to do instead', 
   }
 });
 
+test('agent: a bare CSS selector explains how to pass the full Pick expression', async ({ core, call }) => {
+  await profiles(core);
+  await call('browser_navigate', { profile: 'Sam.seller', url: `${SITE}/app` });
+  for (const tool of ['browser_snapshot', 'browser_screenshot']) {
+    await expect(call(tool, { profile: 'Sam.seller', locator: 'button' }))
+      .rejects.toThrow("locator('button')");
+    const result = await call(tool, { profile: 'Sam.seller', locator: "locator('button').first()" });
+    if (tool === 'browser_snapshot') expect(result.text).toContain('Sign in');
+    else expect(result.content.some((c) => c.type === 'image')).toBe(true);
+  }
+});
+
 // Each action of the agent waits while it is shown in the page (0.5 s, ghost.ts): the agent's tests take seconds.
 test('agent: navigate, snapshot, type by ref, click by locator; the click shown where it went', async ({ core, call }) => {
   await profiles(core);

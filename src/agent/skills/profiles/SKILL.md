@@ -118,8 +118,10 @@ the human's message, and they write around it what they want, e.g.:
 ```
 
 - After `pick:` come the profile's name, the tab and a Playwright locator for the element. Pass the tab as `tab` and the
-  locator as `locator` to the browser tools (the human may have switched to another tab since), or use the locator
-  to find the element in the app's source code.
+  locator as `locator` to the browser tools (the human may have switched to another tab since). Copy the whole
+  expression unchanged, including `locator(...)` or `getByRole(...)`; do not extract the CSS selector. For example,
+  `locator('.image > a')` goes as `"locator": "locator('.image > a')"`. You can also use the locator to find the
+  element in the app's source code.
 - Look at the element on the live page before changing code: `browser_snapshot` of that tab, `browser_screenshot`
   when the look matters, and when something does not work, `browser_console_messages` (`level: error`) and
   `browser_network_requests` (`onlyFailed`) of that tab.

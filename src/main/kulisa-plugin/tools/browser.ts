@@ -157,7 +157,7 @@ function browserTools(server: McpServer, h: Handles) {
     inputSchema: {
       profile: profileArg, tab: onTab,
       elements: z.array(z.object({
-        ref: z.string().optional(), locator: z.string().optional(),
+        ...element,
         label: z.string().optional().describe('A few words about the element'),
       })).describe('Elements by ref (from browser_snapshot) or Playwright locator'),
     },
