@@ -24,7 +24,8 @@ After each change, restart it without asking, so the author sees it (the author 
    `kill -9`, `taskkill /F` or `Stop-Process`, never `pkill -f` (it matches the shell running it).
 2. `.agents/skills/run-kulisa/kulisa.sh start`. It runs without the parent Claude session's `CLAUDE_*` variables
    (except `CLAUDE_CONFIG_DIR`), or the `claude` inside would take itself for a child session.
-   In the foreground, on every OS. The app is its own, not the terminal's: an agent session's terminal closed takes no
+   Color overrides (`NO_COLOR`, `FORCE_COLOR`, `CLICOLOR`, `CLICOLOR_FORCE`) are cleared before launch so the app's
+   terminals use their own shell preferences. In the foreground, on every OS. The app is its own, not the terminal's: an agent session's terminal closed takes no
    Kulisa with it (its SIGHUP would end it unsaved). Linux: in a session of its own (`setsid`). macOS: through
    LaunchServices (`open`), so the screen recording permission, `KULISA_SHOT`, is its own too (`docs/testing.md`, "On
    macOS"), and without the terminal's variables either (`TERM_PROGRAM` makes zsh in its terminals load Terminal.app's
