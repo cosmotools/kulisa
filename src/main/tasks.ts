@@ -776,14 +776,19 @@ class Task {
       : { kind: r.kind, label: path.basename(r.repo), folder: r.folder, branch: r.branch, removable: i > 0 }));
   }
 
+  async screenshot(profile: string, tab: string | undefined, shot: Parameters<Profile['screenshot']>[1]) {
+    const r = this.findTab(profile, tab);
+    if (refused(r)) throw new Error(r.error);
+    const buf = await r.profile.screenshot(r.tab, shot);
+    const file = await this.saveArtifact(r.profile.id, r.tab.id, `screenshot.${shot.type === 'jpeg' ? 'jpg' : 'png'}`, buf);
+    const w = this.window;
+    if (w && this.shown()) w.thumbnails.show(r.profile.id, file, buf, w.paneBox(r.profile.id));
+    return { buf, file };
+  }
   // Both handles keep page files here so their numbering, limit and Resources updates agree.
   async saveArtifact(profile: string, tab: string, kind: string, content: string | Buffer) {
     const file = await saveArtifact(this.store.artifacts, `${profile}-${tab}-${kind}`, content);
     this.artifactsChanged();
-    if (kind.startsWith('screenshot.') && Buffer.isBuffer(content) && this.shown()) {
-      const w = this.window!;
-      w.thumbnails.show(profile, file, content, w.paneBox(profile));
-    }
     return file;
   }
   async findArtifact(file: string) {

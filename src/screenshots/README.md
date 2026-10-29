@@ -5,10 +5,10 @@ whole page down to its end (the OS's tools take pixels of the screen only). The 
 or to show the agent; the agent to check its work. Decided in issues #102 and #264; what is left: masking (issue #106), a native
 thumbnail (issue #107).
 
-It knows nothing of profiles, tasks or agents: it is given a Playwright page. The core's action is
-`Profile.screenshot` (`src/main/profiles.ts`): its checks, then the tab's page passed here, and a line in the log;
-the agent's `browser_screenshot` and the human's ⋮ → Screenshot both call it, so a check is written once (AGENTS.md,
-"One core").
+It knows nothing of profiles, tasks or agents: it is given a Playwright page. Both the agent's `browser_screenshot`
+and the human's ⋮ → Screenshot call `Task.screenshot`: capture, save the artifact and show its thumbnail.
+`Profile.screenshot` checks the tab, passes its page here and logs the capture; `Task.saveArtifact` keeps the file
+under the task's limit and updates Resources. The handles adapt their inputs and outputs (AGENTS.md, "One core").
 
 ## What is taken
 

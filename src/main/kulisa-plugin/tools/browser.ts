@@ -372,10 +372,8 @@ function browserTools(server: McpServer, h: Handles) {
     if (ref && also.length) throw new Error('A ref is one page\'s: with also, pass a locator');
     // At CSS pixels: at a screen's density the picture is several times larger and costs the agent's context for nothing.
     const shoot = async (id: string, tabId?: string) => {
-      const found = tabOf(id, tabId);
       const el = ref || locator ? { element: (page: Page) => target(page, { ref, locator }) } : {};
-      const buf = await found.profile.screenshot(found.tab, { ...el, fullPage, scale: 'css', type: 'jpeg', by: 'agent' });
-      return { buf, file: await toFile(id, tabId, 'screenshot.jpg', buf) };
+      return task.screenshot(profileOf(id).id, tabId, { ...el, fullPage, scale: 'css', type: 'jpeg', by: 'agent' });
     };
     const image = (buf: Buffer) => ({ type: 'image' as const, data: buf.toString('base64'), mimeType: 'image/jpeg' });
     if (!also.length) {
