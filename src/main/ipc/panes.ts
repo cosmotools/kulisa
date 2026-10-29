@@ -38,6 +38,7 @@ export function registerPanes(ipc: Ipc) {
   });
   handle('terminal:show', (e, { task, id }) => onScreen(e, task)?.show(id) || noTask);
   handle('terminal:close', (e, { task, id }) => onScreen(e, task)?.closeTab(id) || noTask);
+  handle('terminal:paste-image', (e, { task, id }) => onScreen(e, task)?.pasteImage(id));
   // The paths a terminal names, relative to the task's folder; one Ctrl+clicked, opened or shown (file-links.ts).
   handle('terminal:files', (e, { task, paths }) => { const w = onScreen(e, task); return w ? filesIn(w.folder, paths) : noTask; });
   handle('file:open', (_e, file) => openFile(file));

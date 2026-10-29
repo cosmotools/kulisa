@@ -85,7 +85,9 @@ Copy and paste take the keys of the OS's own terminal, so hands need nothing new
 Konsole); on Windows also Ctrl+V, and Ctrl+C copies a selection, else interrupts (Windows Terminal); on macOS ⌘C / ⌘V
 (the app menu's). xterm leaves those keys to the app, as VS Code sets its own; otherwise Ctrl+C and Ctrl+V go to the
 agent (Claude Code pastes an image with Ctrl+V, with Alt+V on Windows). The paste itself is Chromium's, which xterm
-takes (pasting again from Kulisa would double it). With nothing selected in xterm, copying keeps the clipboard: Claude
+takes (pasting again from Kulisa would double it). An image in a paste event goes to `termHooks.pasteImage`, with the
+terminal's key; the caller chooses what it means. The menu's `termPaste` reads clipboard types and takes the same
+image hook or pastes text. A reply is used only while the same terminal is shown. With nothing selected in xterm, copying keeps the clipboard: Claude
 Code's fullscreen rendering selects with its own mouse and copies on release itself (an empty copy would wipe it); Shift held while dragging selects in xterm instead. Keys are known by `keyCode` too, as
 ibus with a Cyrillic layout leaves `code` out.
 

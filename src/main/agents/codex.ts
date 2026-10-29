@@ -38,6 +38,7 @@ const codex: Agent = {
     '-c', 'mcp_servers.kulisa.default_tools_approval_mode="approve"',
     ...KULISA_ASKS.flatMap((t) => ['-c', `mcp_servers.kulisa.tools.${t}.approval_mode="prompt"`])],
   hooks: CODEX_HOOKS,
+  imagePaste: '\x16',
   // A project's own config of it (repository-scoped): a task's copy gets it when git ignores it.
   localFiles: ['/.codex/config.toml'],
   // Its skills: <CODEX_HOME>/skills/<name>/SKILL.md, the same format as Claude Code's.

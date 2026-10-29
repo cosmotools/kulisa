@@ -51,6 +51,7 @@
 //   voice                    dictation, when the agent has its own (the window's microphone button; none without):
 //                            key, repeat  what is typed into its terminal again and again while it records, every
 //                                  repeat ms, as a held key repeats (a terminal tells no key's release)
+//   imagePaste               its clipboard-image shortcut, sent for an image in the OS's Paste action
 //   recognizer               its dictation recognizing speech for agents without one (src/dictation, the hidden
 //                            session): available(dir), whether an account's sign-in gives it; args, its arguments for
 //                            that, its text posted to KULISA_URL's hooks/prompt (hookCommand) and blocked there; env(env)
@@ -97,6 +98,7 @@ interface Agent {
   skills?: string;
   config?: { env: string; home: () => string; login: () => string[]; status: string[]; email: (out: string, dir: string) => string | null; logout: string[] };
   voice?: { key: string; repeat: number };
+  imagePaste?: string;
   recognizer?: { available: (dir: string) => boolean; args: () => string[]; env: (env: NodeJS.ProcessEnv) => Record<string, string | undefined>; key: string; repeat: number; clear: string; submit: string };
   language?: { languages: string[]; set: (dir: string, code: string) => { error?: string } };
   shell?: { command: string; args?: string[] };

@@ -324,7 +324,7 @@ profile's menu, also on a right-click) and **×**. Under it, a tab strip, then b
     apps) gives what is visible; take that box as an element instead. Pictures further down may still be empty if
     the page loads them only when you scroll there.
 
-  The picture goes both to the clipboard (paste it into a message, or into the agent's input with Ctrl+V) and as a
+  The picture goes both to the clipboard (paste it into a message, or into the agent's input with Paste) and as a
   file into your computer's own folder of screenshots: Pictures/Screenshots on Windows and Linux, on a Mac the folder
   chosen for screenshots (the Desktop unless you changed it). The agent's marks are not in it. They are your files:
   Kulisa does not delete them.
@@ -370,7 +370,7 @@ profile's menu, also on a right-click) and **×**. Under it, a tab strip, then b
 - Terminals come back after a restart in their tabs: an agent continues its conversation, a shell starts fresh. An
   agent's tab shows "Starting…" for a moment while its agent starts.
 - Copy and paste as in your OS's terminal: Ctrl+Shift+C / Ctrl+Shift+V on Linux, Ctrl+C / Ctrl+V on Windows, ⌘C / ⌘V
-  on macOS.
+  on macOS. Paste also attaches clipboard images in Claude Code and Codex, including from the right-click menu.
 - Drop files onto a terminal to put their paths into your message, quoted where needed and separated by spaces.
   This also works for an image saved on your computer. Press Enter when your message is ready.
 - Ctrl+click a link to open it: Kulisa asks where, in one of the task's profiles or in your own browser.

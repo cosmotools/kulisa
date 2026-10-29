@@ -296,6 +296,10 @@ dictation meanwhile goes nowhere: the human gives it again.
 Files dropped onto a terminal insert their paths, quoted for its shell and separated by spaces, without Enter
 ([src/terminal](../src/terminal/README.md)).
 
+A clipboard image pasted through the OS's Paste action or the terminal's menu sends the agent's `imagePaste`
+shortcut (`Task.pasteImage`); the agent reads the clipboard itself. Shells and agents without that shortcut receive
+no image input. The terminal's image hook knows only its key; the agent's definition owns the shortcut.
+
 The terminal itself (a pty in the user's shell, its output in a buffer, one xterm a place that shows it, the keys of the
 OS's own terminal, its size) is a Kulisa package, `src/terminal/` ([packages.md](packages.md); its
 [README](../src/terminal/README.md)). The panel is the task's: its tabs, its agents, its shells.
