@@ -28,7 +28,7 @@ for (const menu of [false, true]) {
         // macOS runs the Edit menu's role outside page key events; paste() is that role's action.
         await core((k) => k.shell.win.webContents.paste());
       }
-      await expect.poll(() => core((k) => k.stash.input)).toEqual(['\x16']);
+      await expect.poll(() => core((k) => k.stash.input.join(''))).toBe('\x16');
     } finally {
       await core((k) => { k.shell.pty.write = k.stash.write; });
     }
