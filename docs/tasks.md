@@ -253,19 +253,20 @@ Next to the terminal, the task's **resources** (what it has, uses or created), e
 - The **main working tree** until the task makes its own worktree of the default repository: the project's folder (the
   human's) it opened in, opened with a click, never removed. A task on a folder without git stays here. Kept as a
   resource, not worked out from the project: the default repository may change while the task works there.
-- **Artifacts**, under them: the files the agent's tools kept of its pages (`artifacts/`, What is on the computer),
+- **Artifacts**, under them: the files the human or agent kept of its pages (`artifacts/`, What is on the computer),
   the newest first: their kind (Screenshot, Snapshot, Request or Response body), profile and time, read from the file's
-  name and time (`listArtifacts`, `kulisa-plugin/artifacts.ts`; no list beside the files to go stale). A screenshot
+  name and time (`listArtifacts`, `artifacts.ts`; no list beside the files to go stale). A screenshot
   shows a small picture of itself, made by the main process and kept in memory while the task is loaded
   (`Task.artifacts`): the window never decodes the pictures, megabytes each. Made in the background one at a time
   (`makeThumbs`), the list sent again when they are: a whole page's takes tens of milliseconds, and many would hold up
-  the task's terminals starting. The list comes when the task is shown and whenever the agent keeps one
+  the task's terminals starting. The list comes when the task is shown and whenever the human or agent keeps one
   (`Task.artifactsChanged`, the window's `artifacts`). A click opens the file in the OS's app; its menu: Open, Show in
-  Folder, Delete (no question: Kulisa's data, not the human's work). Their heading says what they take, from the
+  Folder, Send to Agent (`Task.sendArtifact`, the shell-quoted path typed without Enter), Delete (no question: Kulisa's data, not the human's work). Their heading says what they take, from the
   activity monitor ([src/activity-monitor](../src/activity-monitor/README.md); `Task.artifactsUsage`), so the human
   sees a task gather them; its 🗑 deletes them all. The agent: `task_artifacts` lists them with their sizes (or each
   task's total), `task_artifacts_delete` deletes some or all, of its own task only (another task's agent may be
-  reading its own).
+  reading its own). Dragging a row starts Electron's native file drag, checked by `Task.findArtifact`; the terminal's
+  file drop inserts its path into the chosen terminal without submitting (window.md, The terminal).
 
 The panel shows the resources as `tasks.json` keeps them, the first where it works (`store.ts`, `Resource`): the
 task's folder, branch and folder of copies are worked out from them, never kept twice. Ownership decides the actions
@@ -318,6 +319,7 @@ to the human; the window's IPC (`ipc/`) and the MCP tools are handles on it:
 | Open a resource's folder | a click on its row in the Resources panel | none: the agent opens folders through its own tools | `task:open-folder` (`ipc/tasks.ts`) |
 | Open an artifact, show it in its folder | a click on its row in the Resources panel, its menu | none: the tools' answers give the agent its path | `file:open`, `file:show` (`file-links.ts`) |
 | See what the artifacts take | the Artifacts heading in the Resources panel (the shown task's) | `task_artifacts`: its task's files, or each task's total | `Task.artifactsUsage` (src/activity-monitor) |
+| Send an artifact to the agent | Send to Agent in its row’s or screenshot thumbnail’s menu; drag onto a terminal | none: preparing the human’s next message | `Task.sendArtifact`; terminal file drop |
 | Delete artifacts | Delete in a row's menu; the heading's 🗑, all | `task_artifacts_delete`: some or all of its task's | `Task.deleteArtifacts` |
 | Make the task's worktree | none: its agent makes it before writing code | `task_worktree` | `Task.makeWorktree`, `Project.ensureWorktree` |
 | Add, clone, make the default, remove a project's folder | the project's page | none: what the project is made of is the human's | `addFolder`, `cloneRepo`, `defaultFolder`, `removeFolder` (`projects.ts`) |
@@ -632,7 +634,7 @@ projects/<project id>/            a project's data, by its id (projects.json), g
                                   (Several agents in a task), kept with the task
     terminals.json                { front, list: [{ id, name, by } | { id, conversation }] }: its terminals' tabs, opened
                                   again when it loads; one goes when closed; an empty list: the panel folded
-    artifacts/                    what the agent's tools keep of its pages (profiles.md, What the agent does): a snapshot
+    artifacts/                    what the human or agent keep of its pages (profiles.md, What the agent does): a snapshot
                                   or a body too large for an answer, a screenshot; <n>-<profile id>-<tab id>-<kind>, n in
                                   the order made, never replaced; past 100 MB the oldest go; kept with the task
     <id>/                         its copy of a master, named by the profile's id, made at its first open here: a Chromium profile

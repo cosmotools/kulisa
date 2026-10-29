@@ -157,7 +157,7 @@ class Store {
   // A task's data folder; taskOf makes it, taskDir only names it (an id still to be found free: Project.createTask).
   taskDir(p: { id: string }, id: string) { return path.join(this.dir, 'projects', p.id, id); }
   taskOf(p: { id: string }, id: string) { return new TaskStore(this.taskDir(p, id), this); }
-  // A task's folder of what the agent's tools keep of its pages (kulisa-plugin/artifacts.ts).
+  // A task's folder of what the human or agent keep of its pages (artifacts.ts).
   artifactsOf(p: { id: string }, id: string) { return path.join(this.taskDir(p, id), ARTIFACTS); }
   // Every task's, as a glob: what an agent is let read there (agents/claude.ts).
   artifactsGlob() { return this.artifactsOf({ id: '*' }, '*'); }
@@ -195,7 +195,7 @@ class TaskStore {
   constructor(dir: string, store: Store) { this.dir = dir; this.store = store; fs.mkdirSync(dir, { recursive: true }); }
   file(name: string) { return path.join(this.dir, name); }
   profileDir(id: string) { return path.join(this.dir, id); }
-  // What the agent's tools keep of its pages: large snapshots and bodies, screenshots (kulisa-plugin/artifacts.ts).
+  // What the human or agent keep of its pages: large snapshots and bodies, screenshots (artifacts.ts).
   get artifacts() { return path.join(this.dir, ARTIFACTS); }
   // What the task has of its project's profiles (project-profiles.ts): [{ id, zoom, closed }] (who a profile is:
   // profile-store.ts); null before the task first loads.

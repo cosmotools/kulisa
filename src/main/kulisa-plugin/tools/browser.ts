@@ -5,7 +5,6 @@ import { z } from 'zod';
 import path from 'path';
 import { toUrl } from '../../profiles.ts';
 import { MARK } from '../ghost.ts';
-import { saveArtifact } from '../artifacts.ts';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { ConsoleMessage, Page, Request } from 'playwright-core';
 import type { Tab } from '../../profiles.ts';
@@ -118,13 +117,11 @@ const bodyOf = (b: Buffer, type = '') => ` (${b.length} bytes${type ? `, ${type}
 
 function browserTools(server: McpServer, h: Handles) {
   const { task, profileArg, text, done, idOf, profileOf, tabOf, pageOf, locate, target, element, dialogArg, answering, tabArg, onTab } = h;
-  // Into the task's artifacts (../artifacts.ts), never the project's folder: nothing of Kulisa's in the agent's git
+  // Into the task's artifacts (Task.saveArtifact), never the project's folder: nothing of Kulisa's in the agent's git
   // status. Named by the profile and tab it came from.
   const toFile = async (profile: string, tabId: string | undefined, kind: string, content: string | Buffer) => {
     const { profile: p, tab: t } = tabOf(profile, tabId);
-    const file = await saveArtifact(task.store.artifacts, `${p.id}-${t.id}-${kind}`, content);
-    task.artifactsChanged();
-    return file;
+    return task.saveArtifact(p.id, t.id, kind, content);
   };
 
   server.registerTool('browser_tab_new', {
@@ -375,10 +372,8 @@ function browserTools(server: McpServer, h: Handles) {
     if (ref && also.length) throw new Error('A ref is one page\'s: with also, pass a locator');
     // At CSS pixels: at a screen's density the picture is several times larger and costs the agent's context for nothing.
     const shoot = async (id: string, tabId?: string) => {
-      const found = tabOf(id, tabId);
       const el = ref || locator ? { element: (page: Page) => target(page, { ref, locator }) } : {};
-      const buf = await found.profile.screenshot(found.tab, { ...el, fullPage, scale: 'css', type: 'jpeg', by: 'agent' });
-      return { buf, file: await toFile(id, tabId, 'screenshot.jpg', buf) };
+      return task.screenshot(profileOf(id).id, tabId, { ...el, fullPage, scale: 'css', type: 'jpeg', by: 'agent' });
     };
     const image = (buf: Buffer) => ({ type: 'image' as const, data: buf.toString('base64'), mimeType: 'image/jpeg' });
     if (!also.length) {

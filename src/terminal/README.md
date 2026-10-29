@@ -94,7 +94,8 @@ ibus with a Cyrillic layout leaves `code` out.
 Files dropped onto a View are disk paths from the preload's `webUtils.getPathForFile`, quoted for that terminal's
 shell (`pty:quote-paths`, `quotePaths`), separated by spaces and pasted through xterm, without Enter. A reply is used
 only while the same terminal is shown. JavaScript-created Files have no disk path and are ignored. The drop cancels
-Chromium's navigation; the log records the terminal and file count, never the paths.
+Chromium's navigation; the log records the terminal and file count, never the paths. The main entry exports
+`quotePaths` for the caller's Send to Agent actions to use the same shell literals.
 
 Links (OSC 8, as Claude Code marks them, and addresses in plain text: xterm's web-links addon) open with Ctrl+click (⌘
 on macOS), `http` and `https` only, the address shown on hover, through `termHooks.open`, which the terminals' panel

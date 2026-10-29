@@ -119,7 +119,7 @@ export async function togglePick(profile: string) {
   setCaption(profile, res && res.error ? `Pick failed: ${res.error}` : '');
 }
 
-// Screenshot (⋮ → Screenshot; its key: Element): the picture goes to the clipboard and the OS's folder of screenshots
+// Screenshot (⋮ → Screenshot; its key: Element): the picture goes to the clipboard and the task's artifacts in Resources
 // (src/screenshots/README.md). Element: chosen as Pick chooses; Esc, Pick or the key again cancels.
 export async function screenshot(profile: string, kind: 'element' | 'visible' | 'full') {
   if (get().picking[profile]) return kulisa.invoke('pick:cancel', { profile });

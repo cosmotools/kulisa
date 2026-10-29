@@ -23,7 +23,7 @@ export function Resources() {
   const artifacts = useWindow((s) => (s.artifacts.task === key ? s.artifacts.list : null)) ?? [];
   const bytes = useWindow((s) => s.artifacts.bytes);
   const names = useWindow(useShallow((s) => Object.fromEntries([...s.profiles, ...s.closedProfiles].map((p) => [p.id, p.name]))));
-  // The list comes when the task is shown and whenever its agent keeps one (window.ts, sendArtifacts).
+  // The list comes when the task is shown and whenever the human or agent keeps one (window.ts, sendArtifacts).
   useEffect(() => { if (key) void kulisa.invoke('task:artifacts', key); }, [key]);
   if (!task) return null;
   const open = (folder: string) => kulisa.invoke('task:open-folder', { key: task.key, folder });
@@ -31,7 +31,8 @@ export function Resources() {
   const deleteArtifacts = (files: string[] | null) => kulisa.invoke('task:artifacts-delete', { key: task.key, files });
   const menu = (e: MouseEvent): MenuItem[] | null => {
     const file = (e.target as Element).closest<HTMLElement>('[data-file]')?.dataset.file;
-    return file ? [{ label: 'Open', run: () => openFile(file) }, { label: 'Show in Folder', run: () => kulisa.invoke('file:show', file) }, '-',
+    return file ? [{ label: 'Open', run: () => openFile(file) }, { label: 'Show in Folder', run: () => kulisa.invoke('file:show', file) },
+      { label: 'Send to Agent', run: () => kulisa.invoke('task:artifact-send', { key: task.key, file }) }, '-',
       { label: 'Delete', run: () => deleteArtifacts([file]) }] : null;
   };
   // A row: its icon, its name and a muted line under it, as a task's in the sidebar.
@@ -62,9 +63,10 @@ export function Resources() {
                 <SidebarMenu aria-label="Artifacts">
                   {artifacts.map((a) => <SidebarMenuItem key={a.file}>
                     <SidebarMenuButton data-file={a.file} aria-label={kindOf(a.kind)} title={`Open: ${a.file} (${sizeText(a.bytes)})`} className="h-auto"
+                      draggable onDragStart={(e) => { e.preventDefault(); void kulisa.invoke('task:artifact-drag', { key: task.key, file: a.file }); }}
                       onClick={() => void openFile(a.file)}>
                       {/* a page's head: where its picture is cut */}
-                      {a.thumb ? <img src={a.thumb} alt="" className="size-8 rounded-sm border object-cover object-top" /> : <FileIcon />}
+                      {a.thumb ? <img src={a.thumb} draggable={false} alt="" className="size-8 rounded-sm border object-cover object-top" /> : <FileIcon />}
                       {lines(kindOf(a.kind), [names[a.profile], when(a.time)].filter(Boolean).join(' · '))}
                     </SidebarMenuButton>
                   </SidebarMenuItem>)}

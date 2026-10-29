@@ -151,7 +151,7 @@ What the tools are for, beyond acting as one user:
   "Saving the agent's context"). `browser_snapshot` takes a part: an element (ref or locator, its subtree:
   `locator.ariaSnapshot()`), a depth, or `find`, the lines that match under their ancestors. One larger than about
   10k tokens (Claude Code warns of a tool's answer from there) goes to a file in the task's `artifacts/` (tasks.md, What
-  is on the computer), each its own, never replaced, so two can be compared (`kulisa-plugin/artifacts.ts`); the answer
+  is on the computer), each its own, never replaced, so two can be compared (`artifacts.ts`); the answer
   gives its path and its top levels. A screenshot is kept there too, its path beside the picture. Claude Code is let
   read there in its settings (`agents/claude.ts`), or it would ask each time; Codex reads the whole disk. What a
   page reported is Playwright's (`page.consoleMessages()`, `pageErrors()`, `requests()`: the last 200, 200 and 100):
@@ -225,7 +225,7 @@ methods; who a profile is changes and is checked in the store (`ProfileStore.ren
 | DevTools | ⋮, F12; Inspect in a page's right-click menu (at the element) | none: the agent has console and network tools | `Profile.toggleDevTools`, `inspect` |
 | Point at an element | Pick, Ctrl+Shift+C (into the agent's prompt) | `browser_highlight` (outlined for the human) | `picker.ts`; the MCP server |
 | Read a page | looks at it | `browser_snapshot`, `browser_screenshot`, console, network | Playwright |
-| Take a screenshot (an element, the visible part, the whole page) | ⋮ → Screenshot, Ctrl+Shift+S (an element); to the clipboard and the OS's folder of screenshots | `browser_screenshot` (`ref`/`locator`, `fullPage`, `also`) | `Profile.screenshot`, the screenshots' Kulisa package ([README](../src/screenshots/README.md)) |
+| Take a screenshot (an element, the visible part, the whole page) | ⋮ → Screenshot, Ctrl+Shift+S (an element); to the clipboard and the task's artifacts in Resources | `browser_screenshot` (`ref`/`locator`, `fullPage`, `also`) | `Task.screenshot`, `Profile.screenshot`, the screenshots' Kulisa package ([README](../src/screenshots/README.md)) |
 | Act in a page | mouse, keyboard | `browser_click`, `browser_type`, `browser_press_key`, `browser_hover`, `browser_select_option`, `browser_file_upload`, `browser_evaluate` | the page itself; Playwright over the proxy |
 | Answer a dialog | the dialog in the pane | `dialog` on the action that opened it | `Profile._dialog`, `answerDialog` |
 | Sign in | by hand, in its master (Sign In to Master…) or a task's pane | never (Rules); asks with `profile_ask_signin` | `master.ts`; the sign-in pause |
@@ -429,7 +429,7 @@ space (issue #113, a task manager).
 | `src/main/discard.ts` | tabs no one looks at losing their process: the rule, the sweep (`Profile.discard`, `load` in `profiles.ts`) |
 | `src/main/kulisa-plugin/mcp-server.ts` | the agent's MCP server: a URL per task, its instructions, every call logged |
 | `src/main/kulisa-plugin/tools/` | the agent's tools, a file a group: `profile.ts`, `browser.ts` (the pages), `task.ts` (its repositories: [tasks.md](tasks.md), Tasks; its history: [transcripts.md](transcripts.md)), `terminal.ts` ([window.md](window.md), The terminal); `handles.ts`, what they share |
-| `src/main/kulisa-plugin/artifacts.ts` | what the tools keep of the pages in the task's `artifacts/`: numbered files, the oldest gone past 100 MB; listed with their sizes for the Resources panel and `task_artifacts` |
+| `src/main/artifacts.ts` | what the human and agent keep of the pages in the task's `artifacts/`: numbered files, the oldest gone past 100 MB; listed with their sizes for the Resources panel and `task_artifacts` |
 | `src/main/kulisa-plugin/ghost.ts`; `src/main/picker.ts` | the agent's actions shown in the page; point and tell |
 | `src/agent/skills/profiles/SKILL.md`, `src/agent/claude-plugin/` | the profiles skill, every agent's; Claude Code's plugin (`.mcp.json`: the task's MCP URL) |
 | `src/renderer/components/grid/ProfilePane.tsx` (the pane, `ProfileHeader`), `lib/profiles.ts`; `components/settings/ProfilePage.tsx` | the panes and the profiles' menu (a task tab's right-click); a profile's page in Settings and its pictures |

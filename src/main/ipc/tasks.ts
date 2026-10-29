@@ -1,6 +1,6 @@
 // The windows' handles on the open tasks (docs/tasks.md; the core: open-tasks.ts): open, show, create, move, close and
 // delete them; a task's own actions (rename, its repositories).
-import { shell as electronShell } from 'electron';
+import { app, nativeImage, shell as electronShell } from 'electron';
 import path from 'path';
 import fs from 'fs';
 import { deleteClosedTask } from '../projects.ts';
@@ -84,6 +84,19 @@ export function registerTasks(ipc: Ipc) {
     return task && task.resources().some((r) => r.folder === folder) ? electronShell.openPath(folder) : undefined;
   });
   handle('task:artifacts', (e, key) => { const w = at(e); return w?.task?.key === key ? w.sendArtifacts() : undefined; });
+  handle('task:artifact-send', (_e, { key, file }) => taskAt(key, (task) => task.sendArtifact(file)));
+  handle('task:artifact-drag', async (e, { key, file }) => {
+    const w = at(e), task = w?.task;
+    if (!task || task.key !== key) return { error: 'that task is not on screen' };
+    const r = await task.findArtifact(file);
+    if (refused(r)) return r;
+    const artifact = r.artifact;
+    const thumb = (await task.artifacts()).find((a) => a.file === artifact.file)?.thumb;
+    const icon = thumb ? nativeImage.createFromDataURL(thumb) : await app.getFileIcon(artifact.file, { size: 'small' });
+    if (w?.task !== task || e.sender.isDestroyed()) return { error: 'that task is not on screen' };
+    e.sender.startDrag({ file: artifact.file, icon });
+    return {};
+  });
   handle('task:artifacts-delete', (_e, { key, files }) => taskAt(key, (task) => task.deleteArtifacts(files)));
   handle('tasks:get', (e) => at(e)?.sendProjects());
 

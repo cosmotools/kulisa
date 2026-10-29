@@ -75,9 +75,11 @@ project, and those you closed, are in the sidebar (Tasks, below).
   lines. Drag a pane by its header to move it, onto another pane to stack them as tabs; drag the line between two to
   resize them. **☰ → Arrange panels** offers ready-made arrangements. Each task keeps its own grid.
 - **Resources**, next to the terminal (beside it, or under it when the terminal is on the right): what the task works in (its copy of the code, or your project's folder until
-  it has one), a click opens its folder; and under **Artifacts**, what the agent kept of the pages as it worked:
+  it has one), a click opens its folder; and under **Artifacts**, what you and the agent kept of the pages:
   screenshots (with a small picture), snapshots of a page, the bodies of requests, the newest first, with whose page and
-  when. A click opens one; a right-click shows it in its folder or deletes it. The heading says how much room they take;
+  when. A click opens one; a right-click offers **Open**, **Show in Folder**, **Send to Agent** and **Delete**.
+  Drag one into the agent’s input to add its path; sending or dropping it leaves the prompt for you to finish.
+  The heading says how much room they take;
   its 🗑 deletes them all. The agent sees the same: ask it what is there, or to clean them up. Past 100 MB a task's oldest
   go by themselves. Drag the line beside it to resize it, as any pane.
 - **The tasks' bar**, under the grid (or in the title bar, as a browser's tabs: **☰ → Tasks bar**): first the
@@ -324,13 +326,13 @@ profile's menu, also on a right-click) and **×**. Under it, a tab strip, then b
     apps) gives what is visible; take that box as an element instead. Pictures further down may still be empty if
     the page loads them only when you scroll there.
 
-  The picture goes both to the clipboard (paste it into a message, or into the agent's input with Paste) and as a
-  file into your computer's own folder of screenshots: Pictures/Screenshots on Windows and Linux, on a Mac the folder
-  chosen for screenshots (the Desktop unless you changed it). The agent's marks are not in it. They are your files:
-  Kulisa does not delete them.
+  The picture goes to the clipboard (paste it into a message, or into the agent's input with Paste) and to the task's
+  **Artifacts** in **Resources**, as screenshots the agent takes do. The agent's marks are not in it. Delete it there
+  or from its thumbnail; deleting the task removes it too. Past 100 MB the task's oldest artifacts go by themselves.
+  To keep a picture outside the task, drag its thumbnail into a folder.
 
-  A **thumbnail** of the picture shows in the pane's corner for a few seconds, as on a Mac; it stays while the pointer
-  is over it. Click it to open the picture; drag it into a message, a mail or a folder; right-click it for **Show in
+  A screenshot taken by you or the agent shows a **thumbnail** in the pane's corner for a few seconds, as on a Mac;
+  it stays while the pointer is over it. Click it to open the picture; drag it into a message, a mail or a folder; right-click it for **Show in
   Folder**, **Copy**, **Send to Agent** (the picture into the agent's input), **Delete** and **Close**. The × in its
   corner, shown while the pointer is over it, closes it at once.
 - A page's alert or confirm shows in its pane, as in Chrome. A page that does not load says why, as Chrome's error
@@ -426,8 +428,7 @@ its settings. Usually:
   **Show Data Folder** in a project's right-click menu in the sidebar, or in a task tab's under the project's name, opens that
   project's.
 - Deleting a task, a profile or a project removes what Kulisa made for it.
-- Screenshots you take are yours, in your computer's folder of screenshots (A profile's pane, above): Kulisa does
-  not remove them.
+- Screenshots you or the agent take belong to the task: its artifacts in Resources. Deleting the task removes them.
 - Kulisa keeps a log of what it did (the buttons and tools used, tasks opened and closed, errors), never what you
   typed or your passwords: the `logs` folder in the data folder, two files of 1 MB at most. Read it in **Settings →
   Log** (below, Reporting a problem).

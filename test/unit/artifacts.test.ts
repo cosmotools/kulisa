@@ -1,11 +1,11 @@
-// What the agent's tools keep of the pages (kulisa-plugin/artifacts.ts): numbered files, the oldest gone past a limit.
+// What the human and agent keep of the pages (artifacts.ts): numbered files, the oldest gone past a limit.
 // Plain Node (npm run test:unit), in a temporary folder of its own.
 import { test, after } from 'node:test';
 import assert from 'assert/strict';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { listArtifacts, saveArtifact } from '../../src/main/kulisa-plugin/artifacts.ts';
+import { listArtifacts, saveArtifact } from '../../src/main/artifacts.ts';
 
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'kulisa-artifacts-'));
 after(() => fs.rmSync(root, { recursive: true, force: true }));

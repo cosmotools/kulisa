@@ -1,9 +1,7 @@
-// What the agent's tools keep of the pages (snapshots, bodies, screenshots): files in the task's artifacts folder
-// (TaskStore.artifacts), each its own, numbered in the order made, so one never replaces another (two snapshots to
-// compare). The oldest go past a limit. How a tool is designed: CLAUDE.md here.
+// The task's page artifacts: numbered files under a size limit (docs/tasks.md, The Resources panel).
 import fs from 'fs';
 import path from 'path';
-import { folderUsage } from '../../activity-monitor/main/index.ts';
+import { folderUsage } from '../activity-monitor/main/index.ts';
 
 const LIMIT = 100 * 1024 * 1024;
 const next = new Map<string, number>(); // by folder: the next number
@@ -20,7 +18,7 @@ async function saveArtifact(dir: string, name: string, content: string | Buffer,
   return file;
 }
 
-// The oldest removed until the folder is within the limit; the one just written stays.
+// The oldest go to keep the folder within the limit; the one just written stays.
 async function prune(dir: string, limit: number, keep: string) {
   let { bytes: total, entries } = await folderUsage(dir);
   for (const x of entries.sort((a, b) => numberOf(a.name) - numberOf(b.name))) {
