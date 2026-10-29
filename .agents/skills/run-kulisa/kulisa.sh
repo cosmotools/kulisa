@@ -89,6 +89,8 @@ case "${1:-}" in
     cd "$repo" || exit 1
     npx vite build --logLevel warn || exit 1 # what npm start builds first
     log="$repo/dist/kulisa.log"; : > "$log"
+    # Agent command runners set these for captured output; Kulisa's terminals have their own display and shell preferences.
+    unset NO_COLOR FORCE_COLOR CLICOLOR CLICOLOR_FORCE
     unclaude=$(env | grep -o '^CLAUDE[A-Z_]*' | grep -v '^CLAUDE_CONFIG_DIR$' | sed 's/^/-u /')
     if $mac; then
       env $(env | grep -oE '^(CLAUDE[A-Z_]*|TERM_PROGRAM[A-Z_]*|TERM_SESSION_ID)' | grep -v '^CLAUDE_CONFIG_DIR$' | sed 's/^/-u /') \
