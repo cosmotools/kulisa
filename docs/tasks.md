@@ -683,7 +683,8 @@ its profiles, then deletes:
 - direnv's permission for its `.envrc`: the records in `<XDG data>/direnv/allow/` naming it (`worktrees.ts`; not
   `direnv deny`, which newer direnv records too);
 - its data folder `projects/<project id>/<task id>/`, profiles with their sign-ins (also listed in
-  `deleted-folders.json`, removed at the next start if a file was still open);
+  `deleted-folders.json`): every accessible file goes at once, including artifacts; a file held open and its parent
+  folders go at the next start (`removeTree` visits siblings before reporting an error);
 - what its agents keep of the task's folders (`agents/`, each agent's `forget`, `forgetFolder` in `projects.ts`;
   undocumented layouts, so what is not found is skipped): its own folder's conversations and records, and the other
   copies' records (their trust); a copy removed from a task alone (Remove Repository) loses the same:

@@ -9,6 +9,35 @@ import path from 'path';
 import { pathToFileURL } from 'url';
 import electron from 'electron';
 import { createPackage } from '@electron/asar';
+import { removeTree } from '../../src/main/remove.ts';
+
+test('remove: a locked profile file leaves only the locked part; artifacts and unlocked siblings go, and retry removes the rest', (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'kulisa-remove-'));
+  const dir = path.join(root, 'task'), profile = path.join(dir, '0-profile'), artifacts = path.join(dir, 'artifacts');
+  fs.mkdirSync(profile, { recursive: true });
+  fs.mkdirSync(artifacts);
+  const locked = path.join(profile, '0-journal'), unlocked = path.join(profile, '1-cache'), shot = path.join(artifacts, 'screenshot.png');
+  for (const file of [locked, unlocked, shot]) fs.writeFileSync(file, 'x');
+  const busy = Object.assign(new Error('file is locked'), { code: 'EBUSY', path: locked });
+  const unlink = fs.unlinkSync;
+  const lock = t.mock.method(fs, 'unlinkSync', (file: fs.PathLike) => {
+    if (file === locked) throw busy;
+    return unlink(file);
+  });
+  try {
+    assert.throws(() => removeTree(dir), (e) => e === busy);
+    assert.ok(!fs.existsSync(shot), 'the locked profile does not keep task artifacts');
+    assert.ok(!fs.existsSync(unlocked), 'unlocked files inside the profile go too');
+    assert.ok(fs.existsSync(locked), 'the locked file stays for retry');
+    lock.mock.restore();
+    removeTree(dir);
+    removeTree(dir);
+    assert.ok(!fs.existsSync(dir), 'retry removes the remaining task data');
+  } finally {
+    lock.mock.restore();
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
 
 test('remove: a folder with a read-only file in it goes; a link in it goes as a link, not into what it points to; an .asar as a file', async () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'kulisa-remove-'));
