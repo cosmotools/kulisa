@@ -1,6 +1,6 @@
 {
   "name": "kulisa",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Integrate the agent with Kulisa: drive its signed-in browser profiles (the panes above the terminal), set up and run the task (its worktree, repositories and dev server), and read its history.",
   "author": {
     "name": "Kulisa contributors"
