@@ -8,7 +8,7 @@ the store: every task of every project, open or not, since a task not loaded kee
 Its callers:
 - the Resources panel's heading over the artifacts, what they take (`Task.artifactsUsage`; docs/tasks.md, The
   Resources panel);
-- the agent's `task_artifacts`: its task's, its project's or every task's (`kulisa-plugin/tools/task.ts`);
+- the agent's `task_artifacts`: its task's, its project's or every task's (`kulisa-plugin/main/tools/task.ts`);
 - the artifacts themselves: listed and kept under their limit from its folder's usage (`artifacts.ts`),
   so a figure, a list and the limit come from one reading of the disk.
 

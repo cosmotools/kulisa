@@ -15,7 +15,7 @@ import path from 'path';
 import { removeTree } from './remove.ts';
 import { newId, writeFileAtomic } from './store.ts';
 import { log, shortEmail } from './log.ts';
-import type { Agent } from './agents/index.ts';
+import type { Agent } from '../kulisa-plugin/main/index.ts';
 
 interface Stored { id: string; agent: string; email: string | null }
 // An agent itself (own) or one of its accounts, as all() lists them.

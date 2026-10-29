@@ -6,6 +6,6 @@ import path from 'path';
 
 const root = path.join(import.meta.dirname, '..');
 const { version } = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
-const manifest = path.join(root, 'src/agent/claude-plugin/.claude-plugin/plugin.json');
+const manifest = path.join(root, 'src/kulisa-plugin/resources/claude-plugin/.claude-plugin/plugin.json');
 fs.writeFileSync(manifest, JSON.stringify({ ...JSON.parse(fs.readFileSync(manifest, 'utf8')), version }, null, 2) + '\n');
 console.log(`plugin.json: ${version}`);

@@ -8,9 +8,9 @@
 // names (browser_click …) and their own "profiles" at session start; this says which browser is the human's. Told to
 // every agent in the MCP server's instructions, and again next to the profiles at session start.
 import type { IncomingMessage, ServerResponse } from 'http';
-import type { Task, TaskTerminal } from '../tasks.ts';
-import { log } from '../log.ts';
-import type { HookEvent } from '../agents/index.ts';
+import type { TaskAccess as Task, TerminalAccess as TaskTerminal } from './core.ts';
+import { log } from '../../main/log.ts';
+import type { HookEvent } from './agents/index.ts';
 
 // A hook's input: the agent's JSON (Claude Code's shape; Codex's hooks take it too).
 type Input = { session_id?: string; transcript_path?: string; prompt?: string } | null;
@@ -24,10 +24,10 @@ const ONLY_BROWSER = 'Kulisa profiles are the only browser here: drive them with
 // Each profile with who it is (its description, the human's words) or that it is not said: the agent then asks.
 const who = ({ name, description }: { name: string; description?: string }) => `- ${name}: ${description ? description.replace(/\s+/g, ' ') : 'who it is is not said'}`;
 function sessionStart(task: Task, t: TaskTerminal | null, input: Input) {
-  if (input?.session_id && t) task.saveSession(t, { sessionId: input.session_id, transcript: input.transcript_path });
-  if (t) void task.noteAutoTitle(t); // a resumed conversation already has its auto-title
+  if (input?.session_id && t) t.saveSession({ sessionId: input.session_id, transcript: input.transcript_path });
+  if (t) void t.noteAutoTitle(); // a resumed conversation already has its auto-title
   const lines = [...task.profiles.values()].map((p) => {
-    const tabs = p.tabs.filter((t) => t.discarded || !t.wc.isDestroyed()).map((t) =>
+    const tabs = p.tabs.filter((t) => t.alive).map((t) =>
       `    - tab ${t.id}${t.id === p.active ? ' (active)' : ''}: "${t.title}" ${t.url}`);
     return [`${who(p)}${p.signinMode ? '; the human is signing in right now' : ''}`, ...tabs].join('\n');
   });
@@ -48,13 +48,13 @@ function sessionStart(task: Task, t: TaskTerminal | null, input: Input) {
 // "come and see" (Codex ends a session after 30 minutes idle). No agent tells when the human answered a permission:
 // a tool finished (tool-done) is the first sign it works again, so waiting goes back to working there.
 type State = TaskTerminal['state'];
-const state = (s: State, when: (t: TaskTerminal) => boolean = () => true) => (task: Task, t: TaskTerminal | null) => { if (t && when(t)) task.setState(t, s); return {}; };
+const state = (s: State, when: (t: TaskTerminal) => boolean = () => true) => (_task: Task, t: TaskTerminal | null) => { if (t && when(t)) t.setState(s); return {}; };
 const handlers: Record<HookEvent, (task: Task, t: TaskTerminal | null, input: Input) => object | Promise<object>> = {
   'session-start': sessionStart,
   prompt: state('working'),
   waiting: state('waiting'),
   'tool-done': state('working', (t) => t.state === 'waiting'),
-  stop: (task, t) => { if (t) { task.setState(t, 'done'); task.followAutoTitle(t); } return {}; },
+  stop: (_task, t) => { if (t) { t.setState('done'); t.followAutoTitle(); } return {}; },
   interrupt: state(null),
   'session-end': state(null, (t) => t.state !== 'done'),
 };

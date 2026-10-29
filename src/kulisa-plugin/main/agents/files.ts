@@ -2,7 +2,7 @@
 // cannot be read is left as it is.
 import fs from 'fs';
 import path from 'path';
-import { writeFileAtomic } from '../store.ts';
+import { writeFileAtomic } from '../../../main/store.ts';
 
 const readJSON = (file: string) => { try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return null; } };
 
@@ -26,7 +26,7 @@ function rewriteLines(file: string, keep: (line: string) => boolean) {
   if (kept.length !== lines.length) writeFileAtomic(file, kept.join('\n'), { mode: fs.statSync(file).mode });
 }
 
-// Kulisa's profiles skill (src/agent/skills/profiles/, one text for every agent) written into an agent's config folder,
+// Kulisa's profiles skill (resources/skills/profiles/, one text for every agent) written into an agent's config folder,
 // where it reads its own skills (an entry's skills): at each start, so it follows Kulisa's version, and only when it
 // changed; it goes with the account. Under a name of Kulisa's (kulisa-profiles), apart from the human's own skills.
 function installSkill(packages: string, folder: string) {

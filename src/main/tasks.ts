@@ -10,12 +10,12 @@ import { Profile, wipeSession } from './profiles.ts';
 import { ProjectProfiles } from './project-profiles.ts';
 import { installSigninPause } from './signin-pause.ts';
 import { startTerminal, stopTerminal, forgetTerminal, terminalTail, sendToPrompt, typeIntoPrompt, eraseInPrompt, typeLine, interrupt, quotePaths } from '../terminal/main/index.ts';
-import { READ_MAX } from './kulisa-plugin/tools/terminal.ts';
+import { READ_MAX } from '../kulisa-plugin/main/index.ts';
 import { listArtifacts, saveArtifact } from './artifacts.ts';
 import { copyProfile, worktreesOf, ownWorktree, folderOf, branchOf, taskKey } from './store.ts';
 import { renameBranch } from './worktrees.ts';
-import { extendTrust } from './agents/index.ts';
-import { installSkill } from './agents/index.ts';
+import { extendTrust } from '../kulisa-plugin/main/index.ts';
+import { installSkill } from '../kulisa-plugin/main/index.ts';
 import { labelError } from '../shared/names.ts';
 import { loginAllowed } from './local.ts';
 import { log } from './log.ts';
@@ -691,7 +691,7 @@ class Task {
     return (['waiting', 'working', 'done'] as const).find((s) => states.includes(s)) ?? null;
   }
 
-  // Profiles and their tabs: the one core the human (the window, ipc/) and the agent (kulisa-plugin/tools/) both act on.
+  // Profiles and their tabs: the one core the human (the window, ipc/) and the agent (kulisa-plugin/main/tools/) both act on.
   // Each side only translates (CLAUDE.md, Architecture): the checks, the questions and what an action does are here
   // and in Profile, so both get the same. A refusal is { error } saying why. Closed profiles stay closed across
   // restarts. A profile is its id here; the agent names it (named), and what is refused names it as the agent does.

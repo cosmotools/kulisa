@@ -1,6 +1,6 @@
 // The agent's side of Kulisa: the MCP server and its local-only checks, the Claude Code plugin, the session-start hook,
 // one core under the window and the agent, task_history, @playwright/mcp through the CDP proxy
-// (src/main/kulisa-plugin/CLAUDE.md, docs/profiles.md, docs/transcripts.md).
+// (src/kulisa-plugin/AGENTS.md, docs/profiles.md, docs/transcripts.md).
 import { spawnSync, spawn } from 'child_process';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
@@ -11,7 +11,7 @@ import http from 'http';
 import WebSocket from 'ws';
 import { test, expect } from './fixtures.ts';
 import { SITE, act, invoke } from './helpers.ts';
-import { hookCommand } from '../../src/main/agents/agent.ts';
+import { hookCommand } from '../../src/kulisa-plugin/main/agents/agent.ts';
 import { profiles, signIn, opened } from './agent-helpers.ts';
 
 test('web pages cannot reach the MCP server, its hooks or the CDP proxy (Host and Origin checks)', async ({ core, files }) => {

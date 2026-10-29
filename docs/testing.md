@@ -13,7 +13,7 @@ Kulisa's own rules for tests; the rest is [Playwright Test](https://playwright.d
   the focus, takes its features' files too); `KULISA_SHOT` or the author's Kulisa (`run-kulisa`). `npm run knip` once a
   step, not after every change.
 - **The full `npm test` (~3 min) once, before the push**, when the author says the work is done; fix and rerun. A
-  failure found on the CI costs a push and a run, and only the author can re-run a job. Not for docs alone.
+  failure found on the CI costs a push and a run. Not for docs alone.
 
 ## Agent completion checks
 
@@ -150,7 +150,7 @@ file is an entry in `knip.jsonc` with why; `ignore` last, with its reason. Invis
 ## Layers
 
 `npm run deps` (in `npm run lint`; rules with reasons in `.dependency-cruiser.ts`). A new lower-layer file goes into
-its list. A refused import is moved, not allowed: the need goes below, or the core says it on `shell.bus`.
+its list. Kulisa package boundaries include type imports; cycle checks concern runtime dependencies. A refused import is moved, not allowed: the need goes below, or the core says it on `shell.bus`.
 
 ## Lint
 

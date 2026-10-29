@@ -8,7 +8,7 @@ All of the dictation: a Kulisa package (`docs/packages.md`: what one is, its rul
 - It knows nothing of tasks, agents or the window: they tell it facts (the agent in front, the key, a task gone) and
   draw what it sends. Which agent the key speaks to is the task's (`Task.holdKey`); the key and how it is changed are
   the window's (`keys.ts`, `shortcuts.ts`); what an agent's own dictation is (its key, its settings) is its entry's in
-  `src/main/agents/`.
+  `src/kulisa-plugin/main/agents/`.
 - Its unit tests are here (`dictation.test.ts`, a fake recognizer); its e2e tests in `test/e2e/window.spec.ts` and
   `agents.spec.ts` (README, The code).
 - Which account recognizes for an agent without dictation, and how it is started, is the caller's

@@ -13,7 +13,7 @@ implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 details.
 
 It covers everything in this repository unless a file says otherwise: the app (`src/main`, `src/renderer`,
-`src/preload`), its MCP server and CDP proxy, the Kulisa plugin for Claude Code (`src/agent/claude-plugin`), the
+`src/preload`), its MCP server and CDP proxy, the Kulisa plugin for Claude Code (`src/kulisa-plugin/resources/claude-plugin`), the
 tests, the scripts and the docs.
 
 ## What is a separate program, under its own license

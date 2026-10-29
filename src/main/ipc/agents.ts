@@ -2,13 +2,13 @@
 // account's sign-in, Choose the Agent, the installer.
 import { app } from 'electron';
 import { addAgent, deleteAccount } from '../projects.ts';
-import { findAgent, accountEmail, signOut, agentVersion, installLine, installAgent } from '../agents/index.ts';
+import { findAgent, accountEmail, signOut, agentVersion, installLine, installAgent } from '../../kulisa-plugin/main/index.ts';
 import { startTerminal, stopTerminal, forgetTerminal } from '../../terminal/main/index.ts';
 import { refused } from '../../shared/result.ts';
 import { handle, on } from '../ipc.ts';
 import type { Ipc } from '../ipc.ts';
 import type { Shell, AgentChoice } from '../shell.ts';
-import type { Agent } from '../agents/index.ts';
+import type { Agent } from '../../kulisa-plugin/main/index.ts';
 import type { Task } from '../tasks.ts';
 import type { Pty } from '../../terminal/main/index.ts';
 import type * as Sent from '../../shared/types.ts'; // what the window gets: its one definition
@@ -83,7 +83,7 @@ export function registerAgents(ipc: Ipc) {
   // each agent's --version, tenths of a second or more (the list should come at once): with
   // cached, what the last look in this folder found, kept in memory, or { list: null } before the first; the window
   // shows it and looks again.
-  const seen = new Map<string, { found: import('../agents/index.ts').Found | null; version?: string | null }>(); // `${agent id}\n${folder}` -> { found, version }
+  const seen = new Map<string, { found: import('../../kulisa-plugin/main/index.ts').Found | null; version?: string | null }>(); // `${agent id}\n${folder}` -> { found, version }
   const look = async (a: Agent, cwd: string, details?: boolean) => {
     const found = await findAgent(a, cwd), old = seen.get(`${a.id}\n${cwd}`);
     const s = { found, version: details ? await agentVersion(found) : old?.version };

@@ -347,31 +347,10 @@ never assumes one is installed.
   keyboard (`Task.ownAgent`, `openOwn`); a project with no agents starts the terminal only. An agent to open that is
   not there (an account let go, an agent not on the computer) asks, in a dialog, among the project's accounts and the
   terminal only, with Install and Cancel (none opens). `KULISA_AGENT` forces one command everywhere, without asking.
-- **Install** (Settings → Agents) runs the maker's own native installer (no Node, no sudo, they update themselves),
-  the command shown before, its output streamed while it runs, so people who are not programmers type nothing; once
-  over, the answer brings the whole output (Electron keeps no order between the stream's channel and the answer's: the
-  last line may come after "Installed"). Claude Code `curl -fsSL https://claude.ai/install.sh | bash`, Codex `curl
-  -fsSL https://chatgpt.com/codex/install.sh | sh` (`install.ps1` on Windows). On Windows the installer gets the
-  system's own programs first in its `PATH`: they call `tar` by name, and Kulisa started from Git Bash has Git's GNU
-  tar first, which reads `C:\…` as a remote host. Kulisa does not remove or update agents: they are the user's
-  programs.
-- Each agent is one entry in `agents/`: how to find, install, start (Claude Code with the Kulisa plugin; Codex with
-  the MCP server and its hooks as config overrides, `-c mcp_servers.kulisa.url=…`, `-c hooks=…`), resume (`claude
-  --resume` and `codex resume` with the session the `SessionStart` hook reported; else `codex resume --last`) and
-  forget a deleted task's folder.
-- **Dictation** ([src/dictation](../src/dictation/README.md)): where the agent has its own (its entry's `voice`: its
-  key and how often it is typed; Claude Code's voice mode, which needs a Claude.ai account), Kulisa holds its key; for
-  one without (Codex has only a realtime voice conversation), another agent's dictation recognizes in a session no one
-  sees (its entry's `recognizer`: Claude Code's, in hold mode with `autoSubmit`, its text posted by its
-  `UserPromptSubmit` hook and blocked there). Kulisa turns it on for its own sessions (Claude Code: `--settings` with
-  `voice: { enabled, mode: "hold", autoSubmit: false }`, not the user's settings). Not `tap` mode: it records only with
-  the input empty, so no second sentence can be added.
-- **Language**, where the agent has a setting (its entry's `language`: the codes it takes, and how one is written into
-  an account's folder): Kulisa's one language (☰ → Language, [window.md](window.md), Language) goes into every
-  account. Claude Code's is its `language` setting, which it dictates and answers in, written where its `/config`
-  puts it (`<config dir>/settings.json`, the language's English name), the rest of the file kept, not written when it
-  says so already, never into a file that is not JSON. Claude Code reads that file again when it changes, so it holds
-  at once in every session; a `--settings` file would not (read once).
+- Agent discovery, installation, CLI configuration and transcript readers belong to the
+  [Kulisa plugin](../src/kulisa-plugin/README.md#agent-adapters); the core owns accounts and running tasks.
+- **Dictation**: [src/dictation](../src/dictation/README.md).
+- **Language**: [window.md](window.md), Language.
 - **Settings → Agents** (`components/settings/AgentPage.tsx`), as JetBrains' list of SDKs: the agents in the nav (not the terminal only;
   "not installed" at a row's end), the chosen one's page: its maker and website, what it needs, its status (its
   `--version`, and its folder, marked when not on the user's `PATH`: Kulisa runs it from there; Install for the
@@ -419,25 +398,7 @@ never assumes one is installed.
 - The dialogs are part of the window, not windows (no extra process). Choosing (`components/AgentPicker.tsx`), New
   Project and Settings → Agents keep their agents and an install under way apart from the page shown (`lib/agents.ts`;
   Settings' `components/settings/agents.ts`, so an install goes on behind a project's page); choosing draws them as radios.
-- **An agent's state on the tabs** comes from its hooks, each agent's at its own terminal's URL ("Several agents in a
-  task"). Kulisa's events (`agent-hooks.ts`): `prompt` working, `waiting` for the human, `tool-done` working again
-  after waiting, `stop` done, `interrupt` and `session-end` unknown (a session ending after a done turn keeps done).
-  No agent tells when the human answered a permission, so the first tool to finish after it (`PostToolUse`) is the
-  sign it works again. Which hook sends which is a table in the agent's file (`agents/claude.ts`, `codex.ts`:
-  `hooks`), each running one command (`hookCommand`, `agents/agent.ts`):
-  - Claude Code, in `--settings` with its plugin: `UserPromptSubmit`, `Stop`, waiting when it asks for a permission
-    or a question (`Notification` matched to `permission_prompt`, `elicitation_*`) or a turn ends with an API error
-    (`StopFailure`: a limit, a sign-in); `PostToolUse`; `SessionEnd` (`/exit`, `/clear`). Not `idle_prompt`, sent a
-    minute after an answer. Esc ends a turn without any hook, so Kulisa takes an Esc typed into an agent's terminal
-    for the interrupt: working or waiting become unknown (`Task.interrupted`; also an Esc that only closed a menu,
-    until the next hook).
-  - Codex, as a config override (`-c hooks=…`): `UserPromptSubmit`, `PermissionRequest` waiting (its MCP tools'
-    questions too), `PostToolUse`, `Stop`, `Interrupt` (Esc), `SessionEnd` (also after 30 minutes idle), and
-    `SessionStart`, which gives it the open profiles as Claude Code gets them and the session to resume. Codex runs a
-    hook only once the human has trusted it (`/hooks`), kept per event under one key for every task
-    (`/<session-flags>/config.toml:<event>`), so once is enough, and again only when Kulisa changes a hook. Kulisa
-    never bypasses that, which would run any project's hooks unreviewed too. Interrupt's and SessionEnd's timeouts
-    are at most 3 s (Codex cuts a longer one and warns at every start).
+- **An agent's state on the tabs** comes from the [Kulisa plugin's hooks](../src/kulisa-plugin/README.md#hooks).
 
   Done means "come and see": once the human sees that agent's tab (in front in the shown task, Kulisa's window in
   focus; at once when it was on screen) its tab and its task's show nothing (`seen`, `Task.tabState`), the agent still
@@ -445,9 +406,7 @@ never assumes one is installed.
 
 ## What each agent can do
 
-What Kulisa does with an agent is a field of its entry (`agents/agent.ts`, `CAPABILITIES`): an agent has it or says
-why not (`lacks`, with the reason); a unit test fails for an agent that leaves one out silently, so a new agent comes
-with its gaps named.
+The [Kulisa plugin](../src/kulisa-plugin/README.md#agent-adapters) checks that each agent supports a capability or names its gap.
 
 | Capability | What the human gets | Claude Code | Codex |
 |---|---|---|---|
@@ -797,7 +756,7 @@ rm -rf ~/.config/Kulisa/projects/<project id>   # all its tasks with their profi
 | `src/main/projects.ts` | a loaded project: its tasks; making, closing, opening again, deleting one (with the question); making a project (`createProject`), deleting a project's data |
 | `src/main/tasks.ts` | a task: its profiles, its terminals and agents (open, hand over, close, environment), naming, its worktree on demand and resources, its artifacts (what they take, deleting them), copies of its profiles for a new task |
 | `src/main/worktrees.ts` | git: a task's worktree and branch, files outside git, direnv, changes, renaming the branch, removal |
-| `src/main/agents/` | the agents to choose from: find, install, start, resume; a folder's trust carried to a task's copy |
+| `src/kulisa-plugin/` | agent integration ([README](../src/kulisa-plugin/README.md)) |
 | `src/main/store.ts` | the data folder above |
 | `src/terminal/` | the terminals: their ptys, buffers and the xterm shown ([README](../src/terminal/README.md)) |
 | `src/renderer/components/TaskBar.tsx`, `components/Empty.tsx`, `components/settings/ProjectPage.tsx` | the tasks' bar (a tab per open task); the grid's place when no task's grid is shown (the window's pages: the sidebar docked, the welcome); a project's page in Settings |

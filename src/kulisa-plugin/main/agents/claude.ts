@@ -3,10 +3,10 @@
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import { removeTree } from '../remove.ts';
-import { writeFileAtomic } from '../store.ts';
-import { cut, ownTool, lines, tailLines } from '../kulisa-plugin/transcripts.ts';
-import type { Conversation, Entry } from '../kulisa-plugin/transcripts.ts';
+import { removeTree } from '../../../main/remove.ts';
+import { writeFileAtomic } from '../../../main/store.ts';
+import { cut, ownTool, lines, tailLines } from '../transcripts.ts';
+import type { Conversation, Entry } from '../transcripts.ts';
 import { readJSON, headLines, rewriteLines, writeChanged } from './files.ts';
 import { KULISA_ASKS, hookCommand, hookSeconds } from './agent.ts';
 import type { Agent, Hook, Where, ForgetContext } from './agent.ts';

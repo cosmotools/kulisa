@@ -1,5 +1,5 @@
 // The agent's tools on the profiles as things: list, open, close, create, rename, describe, remove, sign-ins. How a
-// tool is designed: ../CLAUDE.md.
+// tool is designed: ../../README.md, Tool design.
 import { z } from 'zod';
 import { refused } from '../../../shared/result.ts';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -16,7 +16,7 @@ function profileTools(server: McpServer, { task, profileArg, text, done, idOf, p
     async () => text(JSON.stringify([
       ...[...task.profiles.values()].map(({ name, description, avatar, login, hasPassword, signinMode, active, tabs }) =>
         ({ name, description: description || null, avatar, ...(login && { testLogin: login, testPassword: hasPassword }), signinMode, active,
-          tabs: tabs.filter((t) => t.discarded || !t.wc.isDestroyed()).map((t) => ({ id: t.id, title: t.title, url: t.url })) })),
+          tabs: tabs.filter((t) => t.alive).map((t) => ({ id: t.id, title: t.title, url: t.url })) })),
       ...[...task.closed.values()].map(({ cfg, tabs }) => ({ name: cfg.name, description: cfg.description || null, avatar: cfg.avatar,
         ...(cfg.login && { testLogin: cfg.login, testPassword: cfg.hasPassword }),
         closed: true, tabs: tabs.urls.length })),
@@ -43,7 +43,7 @@ function profileTools(server: McpServer, { task, profileArg, text, done, idOf, p
     description: "Remove a profile from this project: its copies in the project's tasks go (their tabs, and what was signed in only there); the profile itself stays, with its sign-ins, in Kulisa's Settings → Profiles, where only the human deletes profiles. The human is asked to confirm. Only when the human asks, or a profile you created is no longer needed.",
     inputSchema: { profile: z.string().describe("The profile's name, open or closed") },
   }, async ({ profile }) => {
-    done(await task.deleteProfile(idOf(profile), 'agent'));
+    done(await task.deleteProfile(idOf(profile)));
     return text(`Removed profile ${profile} from the project; it stays in Settings → Profiles.`);
   });
 
@@ -89,24 +89,22 @@ function profileTools(server: McpServer, { task, profileArg, text, done, idOf, p
     if (!ask || Date.now() - ask.at > 10 * 60_000) {
       if (url) {
         // The window's way, not Playwright's: a sign-in page puts the profile in sign-in mode, which cuts Playwright off.
-        const wc = p.get()!.wc;
-        p.navigate(undefined, url);
-        await new Promise<void>((ok) => { wc.once('did-stop-loading', () => ok()); setTimeout(ok, 10_000); });
+        await p.navigate(url);
       }
-      ask = { at: Date.now(), page: pageKey(p.get()!.wc.getURL()), wentIn: p.signinMode };
+      ask = { at: Date.now(), page: pageKey(p.currentUrl), wentIn: p.signinMode };
       signinAsks.set(key, ask);
     }
     task.caption(p.id, `sign in, please${why ? `: ${why}` : ''}`, true);
     for (const until = Date.now() + 45_000; Date.now() < until; await new Promise((ok) => setTimeout(ok, 300))) {
       if (p.deleted) throw new Error(`Profile ${profile} was deleted.`);
       if (p.signinMode || p.resuming) { ask.wentIn = true; continue; }
-      if (ask.wentIn || pageKey(p.get()!.wc.getURL()) !== ask.page) {
+      if (ask.wentIn || pageKey(p.currentUrl) !== ask.page) {
         signinAsks.delete(key);
         task.caption(p.id, '');
-        return text(`The human is through: ${profile} is at ${p.get()!.wc.getURL()}. Check with browser_snapshot that it is signed in.`);
+        return text(`The human is through: ${profile} is at ${p.currentUrl}. Check with browser_snapshot that it is signed in.`);
       }
     }
-    return text(`Not yet: ${profile} is still at ${p.get()!.wc.getURL()}. Call profile_ask_signin again to keep waiting, or go on with something else.`);
+    return text(`Not yet: ${profile} is still at ${p.currentUrl}. Call profile_ask_signin again to keep waiting, or go on with something else.`);
   });
 
   server.registerTool('profile_set_login', {

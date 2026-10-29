@@ -1,4 +1,4 @@
-// The agent's browser tools on the profiles' pages (src/main/kulisa-plugin/tools/, docs/profiles.md, The agent's
+// The agent's browser tools on the profiles' pages (src/kulisa-plugin/main/tools/, docs/profiles.md, The agent's
 // tools): tabs, highlights, acting by ref and locator (the ghost showing where), screenshots, typing, dialogs,
 // waiting, several profiles at once.
 import fs from 'fs';
@@ -6,7 +6,7 @@ import path from 'path';
 import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
 import { SITE, PORT, CHECKOUT, act } from './helpers.ts';
-import { MARK } from '../../src/main/kulisa-plugin/ghost.ts';
+import { MARK } from '../../src/kulisa-plugin/main/index.ts';
 import { profiles, signIn, opened } from './agent-helpers.ts';
 
 

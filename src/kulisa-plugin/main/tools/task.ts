@@ -1,9 +1,8 @@
 // The agent's tools on its task: its name, worktree and repositories, its history, its artifacts, the agent's own
 // conversation. How a
-// tool is designed: ../CLAUDE.md.
+// tool is designed: ../../README.md, Tool design.
 import { z } from 'zod';
 import { historyPart } from '../history.ts';
-import { listArtifacts, ARTIFACTS_LIMIT } from '../../artifacts.ts';
 import { sizeText } from '../../../shared/bytes.ts';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { Handles } from './handles.ts';
@@ -49,14 +48,14 @@ function taskTools(server: McpServer, { task, t, text, done }: Handles) {
     },
   }, async ({ conversation, part = 1 }) => {
     const r = done(await historyPart(task, part, conversation));
-    if (t && conversation) task.historyRead(t, conversation, part, r.parts);
+    if (t && conversation) t.historyRead(conversation, part, r.parts);
     return text(r.text);
   });
 
   const KINDS: Record<string, string> = { screenshot: 'screenshot', snapshot: 'snapshot', request: 'request body', response: 'response body' };
   const profileName = (id: string) => task.profiles.get(id)?.name ?? task.closed.get(id)?.cfg.name ?? `profile ${id} (deleted)`;
   server.registerTool('task_artifacts', {
-    description: `What the task's artifacts take and what they are: the files Kulisa's tools kept of its pages (screenshots, snapshots and bodies too large for an answer), in a folder of Kulisa's (never the project's). Past ${sizeText(ARTIFACTS_LIMIT)} a task's oldest go by themselves. Use it when the human asks what they are, how much room they take, or to clean them up (task_artifacts_delete). Each file with its path (read it to say what it shows), its kind, its profile, when and its size, the newest first. scope "project" or "all" gives each task's total instead.`,
+    description: `What the task's artifacts take and what they are: the files Kulisa's tools kept of its pages (screenshots, snapshots and bodies too large for an answer), in a folder of Kulisa's (never the project's). Past ${sizeText(task.artifactLimit)} a task's oldest go by themselves. Use it when the human asks what they are, how much room they take, or to clean them up (task_artifacts_delete). Each file with its path (read it to say what it shows), its kind, its profile, when and its size, the newest first. scope "project" or "all" gives each task's total instead.`,
     inputSchema: {
       scope: z.enum(['task', 'project', 'all']).optional().describe("Whose: this task's files (the default), or the totals of each task of the project or of every project"),
       limit: z.number().int().min(1).optional().describe('How many files at most, the newest first (default 50)'),
@@ -67,7 +66,7 @@ function taskTools(server: McpServer, { task, t, text, done }: Handles) {
       return text(`Artifacts: ${sizeText(usage.bytes)} in ${usage.tasks.length} task(s)${scope === 'project' ? ' of this project' : ''}.\n${usage.tasks.sort((a, b) => b.bytes - a.bytes)
         .map((u) => `- ${u.project} / ${u.name}${u.key === task.key ? ' (this task)' : ''}: ${sizeText(u.bytes)}`).join('\n')}`);
     }
-    const list = await listArtifacts(task.store.artifacts);
+    const list = await task.artifacts();
     const when = (ms: number) => new Date(ms).toLocaleString('sv').slice(0, 16);
     return text(`This task's artifacts: ${sizeText(usage.bytes)} in ${list.length} file(s).${list.slice(0, limit)
       .map((a) => `\n- ${a.file}: ${KINDS[a.kind] ?? a.kind}, ${profileName(a.profile)}, ${when(a.time)}, ${sizeText(a.bytes)}`).join('')}${list.length > limit ? `\n${list.length - limit} older not listed (limit).` : ''}`);
@@ -90,7 +89,7 @@ function taskTools(server: McpServer, { task, t, text, done }: Handles) {
       description: 'Name your conversation in 1 to 3 words once you know what it is about, e.g. "Checkout discounts": the name of your tab in Kulisa, by which the human and other agents tell it from the others (task_history lists it so). Name it again when the work turns to something else.',
       inputSchema: { name: z.string().describe('1 to 3 words') },
     }, async ({ name }) => {
-      const r = done(task.nameConversation(t, name));
+      const r = done(t.nameConversation(name));
       return text(`Your conversation is now "${r.name}".`);
     });
   }

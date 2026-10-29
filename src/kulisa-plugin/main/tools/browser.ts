@@ -1,23 +1,21 @@
 // The agent's tools in a profile's pages: tabs, reading, acting, pointing, what the page reported. Through playwright-core
 // over the CDP proxy, so the human sees every action (ghost.ts) and the sign-in pause holds. How a tool is designed:
-// ../CLAUDE.md.
+// ../../README.md, Tool design.
 import { z } from 'zod';
 import path from 'path';
-import { toUrl } from '../../profiles.ts';
 import { MARK } from '../ghost.ts';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { ConsoleMessage, Page, Request } from 'playwright-core';
-import type { Tab } from '../../profiles.ts';
 import type { Handles } from './handles.ts';
 
 // The agent's highlights per profile (by '<task key>/<profile id>'): { disposables, tab, onInput }; kept across MCP
 // requests (a server is built per request). They go when replaced, cleared, or on the first click or key press in
 // that tab.
-const highlights = new Map<string, { disposables: AsyncDisposable[]; tab: Tab; onInput: (e: Electron.Event, input: Electron.InputEvent) => void }>();
+const highlights = new Map<string, { disposables: AsyncDisposable[]; off: () => void }>();
 async function clearHighlights(profile: string) {
   const h = highlights.get(profile); if (!h) return;
   highlights.delete(profile);
-  if (!h.tab.wc.isDestroyed()) h.tab.wc.off('input-event', h.onInput);
+  h.off();
   for (const d of h.disposables) await Promise.resolve(d[Symbol.asyncDispose]()).catch(() => {});
 }
 
@@ -41,7 +39,7 @@ function found(yaml: string, pattern: RegExp) {
   return [...keep].sort((a, b) => a - b).map((i) => lines[i]).join('\n');
 }
 
-// A snapshot or a body larger than this goes to a file (../CLAUDE.md, "Large goes to disk"): about 10k tokens, where
+// A snapshot or a body larger than this goes to a file (../../README.md, Tool design, "Large goes to disk"): about 10k tokens, where
 // Claude Code starts to warn of a tool's answer. The answer then gives its outline, the snapshot's top levels.
 const LARGE = 40_000, OUTLINE = 4_000;
 function outline(yaml: string) {
@@ -174,12 +172,11 @@ function browserTools(server: McpServer, h: Handles) {
     }
     if (shown.length) {
       const { tab } = tabOf(profile, tabId);
-      const onInput = (_e: Electron.Event, input: Electron.InputEvent) => {
-        if (!['mouseDown', 'keyDown', 'rawKeyDown'].includes(input.type)) return;
+      const onInput = (type: string) => {
+        if (!['mouseDown', 'keyDown', 'rawKeyDown'].includes(type)) return;
         void clearHighlights(hkey); task.caption(id, '');
       };
-      tab.wc.on('input-event', onInput);
-      highlights.set(hkey, { disposables: shown, tab, onInput });
+      highlights.set(hkey, { disposables: shown, off: tab.onInput(onInput) });
     }
     task.caption(id, elements.length ? `points at: ${elements.map((e, i) => e.label || `${i + 1}`).join(' · ')}` : '', elements.length > 0);
     return text(elements.length ? `Highlighted ${elements.length} element(s) in ${profile}` : `Cleared highlights in ${profile}`);
@@ -195,12 +192,12 @@ function browserTools(server: McpServer, h: Handles) {
   }, async ({ profile, url, go, dialog }) => {
     if (!url === !go) throw new Error('pass url or go');
     const page = await pageOf(profile);
-    const { tab } = tabOf(profile), history = tab.wc.navigationHistory;
+    const { tab } = tabOf(profile), history = tab;
     if (go === 'back' ? !history.canGoBack() : go === 'forward' && !history.canGoForward()) return text(`Nowhere to go ${go} in ${profile}'s tab; still at ${page.url()}.`);
     await mark(page);
     const said = await answering(tab, dialog, async () => {
       const opts = { waitUntil: 'domcontentloaded' as const };
-      await (url ? page.goto(toUrl(url), opts) : go === 'back' ? page.goBack(opts) : go === 'forward' ? page.goForward(opts) : page.reload(opts));
+      await (url ? page.goto(task.toUrl(url), opts) : go === 'back' ? page.goBack(opts) : go === 'forward' ? page.goForward(opts) : page.reload(opts));
     });
     return text(`${go ? `Went ${go}` : 'Navigated'}: ${profile} is at ${page.url()} — "${await page.title()}".${said}${await signals(page)}`);
   });
@@ -266,15 +263,16 @@ function browserTools(server: McpServer, h: Handles) {
     description: "Type a test user's saved login or password into a field (by ref or locator), replacing what it holds, to sign in to the app under test: only on a local page (localhost, *.test, a private network, the project's own list) or one the tab reached from it, never on Google, Microsoft or another account provider. You never see the password. The pair is saved by the human (Settings → Profiles) or by you (profile_set_login).",
     inputSchema: { profile: profileArg, tab: onTab, ...element, field: z.enum(['login', 'password']), submit: z.boolean().optional(), dialog: dialogArg },
   }, async ({ profile, tab, ref, locator, field, submit, dialog }) => {
-    const r = done(task.loginFor(idOf(profile), tab, field));
-    const page = await pageOf(profile, tab);
-    const loc = await target(page, { ref, locator });
-    const key = `${task.key}/${r.profile.id}`;
-    await mark(page);
-    task.shell.typingSecret.add(key);
-    try { await loc.fill(r.value, { timeout: 5000 }); } finally { task.shell.typingSecret.delete(key); }
-    const said = submit ? await answering(r.tab, dialog, () => loc.press('Enter')) : '';
-    return text(`Typed ${r.profile.name}'s ${field} into ${locator || ref}.${said}${await signals(page)}`);
+    const r = done(await task.typeLogin(idOf(profile), tab, field, async (value) => {
+      const page = await pageOf(profile, tab);
+      const loc = await target(page, { ref, locator });
+      await mark(page);
+      await loc.fill(value, { timeout: 5000 });
+      return { page, loc };
+    }));
+    const { page, loc } = r.result;
+    const said = submit ? await answering(tabOf(profile, tab).tab, dialog, () => loc.press('Enter')) : '';
+    return text(`Typed ${r.name}'s ${field} into ${locator || ref}.${said}${await signals(page)}`);
   });
 
   server.registerTool('browser_press_key', {

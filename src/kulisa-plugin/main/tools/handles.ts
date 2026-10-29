@@ -1,11 +1,11 @@
 // The agent's handles on the core, shared by every group of tools: profiles and tabs found as the window finds them
-// (tasks.ts), and the arguments the tools take alike. How a tool is designed: ../CLAUDE.md.
+// (tasks.ts), and the arguments the tools take alike. How a tool is designed: ../../README.md, Tool design.
 import { z } from 'zod';
 import vm from 'vm';
 import { refused, type Result } from '../../../shared/result.ts';
 import type { Locator, Page } from 'playwright-core';
-import type { Task, TaskTerminal } from '../../tasks.ts';
-import type { Tab } from '../../profiles.ts';
+import type { TaskAccess as Task, TerminalAccess as TaskTerminal } from '../core.ts';
+import type { TabAccess as Tab } from '../core.ts';
 
 type Element = { ref?: string; locator?: string };
 

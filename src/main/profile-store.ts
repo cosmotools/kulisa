@@ -73,7 +73,7 @@ class ProfileStore {
     log.info(`[profiles] made ${this.label(id)}`);
     return project ? this.addTo(p.id, project) : p;
   }
-  // A name is unique within a project, whatever its case: the agent names a profile by it (kulisa-plugin/tools/). Why a name
+  // A name is unique within a project, whatever its case: the agent names a profile by it (kulisa-plugin/main/tools/). Why a name
   // cannot be in these projects (but for the profile except), or null.
   nameTaken(name: string, projects: string[], except?: string) {
     const lower = name.toLowerCase();

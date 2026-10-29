@@ -29,7 +29,7 @@ Code that is *about* the thing but knows the rest stays outside, using the packa
 panel (`components/grid/Terminals.tsx`, `lib/terminals.ts`: its agents' buttons, the closed profiles' tiles, Change
 agent…, the project's accounts in its +), the agents in terminals (`tasks.ts`: conversations, handing over, the
 agent's state) and the agent's tools (`terminal_run`, `terminal_read`, `terminal_stop` in
-`kulisa-plugin/tools/terminal.ts`: what the agent sees lives in the Kulisa plugin, AGENTS.md, Architecture). Inside,
+`kulisa-plugin/main/tools/terminal.ts`: what the agent sees lives in the Kulisa plugin, AGENTS.md, Architecture). Inside,
 the terminals' panel would pull half of `src/renderer/lib` with it, and the boundary would mean nothing.
 
 **The caller stays thin: it states facts, the package does the work.** What the package's things are and do (their
@@ -128,6 +128,7 @@ silently skips one is fixed in the config for every package, not for that one.
 
 | Folder | What | Its main half uses |
 |---|---|---|
+| `src/kulisa-plugin/` | agent integration: tools, hooks, shared skills, CLI adapters and transcript readers ([README](../src/kulisa-plugin/README.md)) | `log.ts`, `store.ts` (`writeFileAtomic`), `remove.ts` |
 | `src/terminal/` | a terminal: its pty in the user's shell, its buffers and the xterm a place shows ([README](../src/terminal/README.md)) | `ipc.ts`, `log.ts` |
 | `src/screenshots/` | a picture of a page (an element, the visible part, the whole page), kept as the human's, its thumbnail ([README](../src/screenshots/README.md)) | `ipc.ts`, `log.ts` |
 | `src/dictation/` | speaking to the agent: what each task's microphone shows, and recording ([README](../src/dictation/README.md)) | `ipc.ts`, `log.ts` |

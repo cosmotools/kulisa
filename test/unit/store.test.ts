@@ -150,7 +150,7 @@ test('profiles: one store, a profile in several projects or none, each project l
   assert.equal(cy.name, 'Cy', 'trimmed');
 });
 
-// The agent names a profile by its name (kulisa-plugin/tools/): two of one name in a project could not be told apart.
+// The agent names a profile by its name (kulisa-plugin/main/tools/): two of one name in a project could not be told apart.
 test('profiles: a name is unique within a project, whatever its case, on create, rename and adding it to a project', () => {
   const all = profileStore(path.join(root, 'unique-data'), 'shop', 'blog');
   const ann = all.create('shop', { name: 'ann@shop.com' }) as StoredProfile;
