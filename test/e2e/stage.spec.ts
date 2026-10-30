@@ -1,6 +1,6 @@
 // The testing stage owns profile layout and visibility independently of development panels.
 import { test, expect } from './fixtures.ts';
-import { notLoading, SITE } from './helpers.ts';
+import { notLoading, SITE, rightClick } from './helpers.ts';
 
 test('the stage hides when empty and hides browser views when stacked behind a development panel', async ({ core, ui, call }) => {
   await notLoading(ui);
@@ -62,6 +62,8 @@ test('stage arrangements are shared by human and agent and independent of worksp
     await call('stage_arrange', { layout });
     await expect.poll(() => ui.evaluate(() => (window as any).__stage.groups.length)).toBe(layout === 'tabs' ? 1 : 2);
   }
+  await rightClick(ui, '[data-panel="stage"]');
+  await ui.getByRole('menuitem', { name: 'Tabs', exact: true }).click();
   await expect.poll(() => core((k) => (k.shell.task.store.layout() as any)?.stageLayout)).toBe('tabs');
   const next = await restart();
   await notLoading(next);

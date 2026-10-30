@@ -4,7 +4,7 @@ import { DockviewReact, type DockviewApi } from 'dockview-react';
 import { LayoutDashboardIcon, PanelsTopLeftIcon, PlusIcon, Rows3Icon, Columns3Icon } from 'lucide-react';
 import { Button } from '@ui';
 import { ProfilePane, ProfileHeader } from './ProfilePane';
-import { ButtonMenu } from '../Menus';
+import { ButtonMenu, RightClickMenu } from '../Menus';
 import { stageMounted, stageUnmounted, scheduleLayout } from '../../lib/grid';
 import { environmentItems } from '../../lib/environments';
 import { act, useWindow } from '../../lib/store';
@@ -38,9 +38,11 @@ const arrangements = (): MenuItem[] => [
   { label: 'Row', icon: Columns3Icon, run: () => act('stage:arrange', { layout: 'row' }) },
 ];
 export function StageHeader() {
-  return <div data-panel="stage" className="flex h-full min-w-0 items-center gap-1 px-2">
+  return <RightClickMenu items={() => [{ heading: 'Arrange stage' }, ...arrangements(), '-', { submenu: 'Open an environment', items: environmentItems() }]} className="h-full">
+  <div data-panel="stage" className="flex h-full min-w-0 items-center gap-1 px-2">
     <span className="flex-1 text-sm font-medium">Stage</span>
     <ButtonMenu items={arrangements} end><Button variant="ghost" size="icon-xs" aria-label="Arrange stage" title="Arrange stage"><LayoutDashboardIcon /></Button></ButtonMenu>
     <ButtonMenu items={environmentItems} end><Button variant="ghost" size="icon-xs" aria-label="Open an environment" title="Open an environment"><PlusIcon /></Button></ButtonMenu>
-  </div>;
+  </div>
+  </RightClickMenu>;
 }
