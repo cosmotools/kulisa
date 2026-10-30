@@ -21,6 +21,7 @@ function programFolder(): string {
 
 export function registerWindow(ipc: Ipc) {
   const { shell, at } = ipc;
+  handle('window:focused', (e) => at(e)?.win.isFocused() ?? false);
   handle('zoom:get', () => shell.uiZoom);
   // About Kulisa: the versions (Electron's and Chromium's for a bug report and What sites see) and the folders Kulisa
   // writes in, so the exact ones are in the app, whatever the OS and its variables make of them (docs/guide.md, Where

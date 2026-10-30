@@ -124,6 +124,7 @@ export interface Invoke extends TerminalInvoke, ThumbnailInvoke, GitHubInvoke, D
   // A picture of the tab, on the clipboard and in the task's artifacts (src/screenshots): its file; null when
   // no element was chosen (Esc).
   'tab:screenshot': I<[OnTab & { kind: 'element' | 'visible' | 'full' }], Result<{ file: string | null }>>;
+  'window:focused': I<[], boolean>;
   'zoom:get': I<[], number>;
   'about:get': I<[], AboutInfo>;
   'about:show-folder': I<[id: AboutFolder]>;

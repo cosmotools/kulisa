@@ -127,7 +127,9 @@ is Radix's own. A Radix menu of a part's own only for a row's own menu inside on
   as a menu bar's. Leaving the window closes it: the window's blur from the main process (`window:blur`), not its
   page's, which Radix would close it on (a profile's page taking the keyboard as it loads, on macOS, would close a
   menu under the hand). Closed, it gives the keyboard back where it was before it opened (the terminal, a field), not
-  to its button.
+  to its button. A delayed close leaves the keyboard with any menu opened meanwhile.
+  A blur checks the native window's current focus (`window:focused`): the page's focus can lag the OS's, and a stale
+  notification must leave a window that has focus again alone.
 - Gone at once as it closes, not faded: a fading menu keeps the keyboard, taking it back from a dialog its row opened
   under the pointer, and takes the next Esc.
 - It shows once the pages under it are pictures (Layers); then its list is `[role="menu"][data-ready]` (the tests'
