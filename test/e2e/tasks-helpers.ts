@@ -109,7 +109,7 @@ export const projectShown = (core: Core, id: string) => expect.poll(() => core((
 export const bothOn = (core: Core, ui: Page, files: Files) => expect.poll(async () => (await viewOn(core, ui, files, SAM)) && viewOn(core, ui, files, ELON)).toBe(true);
 
 type Begin = {
-  // Sam and Elon side by side (the Columns preset), each page on its pane.
+  // Sam and Elon side by side, each page on its pane.
   columns?: boolean;
   // Feature-X, the project's second task, open beside task-1: in the project's folder (true), or, given the agent's
   // tools, in a worktree of its own as its agent makes one (task_worktree), with Sam and Elon open there too.
@@ -151,10 +151,10 @@ export async function begin(core: Core, ui: Page, files: Files, { columns = fals
   }, only);
   if (columns) await expect(ui.locator('[data-panel^="profile:"]')).toHaveCount(2); // a pane stacked behind another has no .pane drawn
   await notLoading(ui);
-  // Columns first: a page stacked behind another's tab is never laid out, and ensureProfile waits for that.
+  // Unstack first: a page stacked behind another's tab is never laid out, and ensureProfile waits for that.
   const arrangeProfiles = async () => {
     await arrange(ui, 'columns');
-    await invoke(ui, 'stage:arrange', { task: await core((k) => k.shell.task.key), layout: 'column' });
+    await invoke(ui, 'stage:arrange', { task: await core((k) => k.shell.task.key), layout: 'vertical' });
     // The fixture's two panes side by side: Dockview's move is also covered by the grid drag tests.
     await stageDock(ui, (api, ids) => api.getPanel(ids[1]).api.moveTo({ group: api.getPanel(ids[0]).group, position: 'right' }), [files.panel(SAM), files.panel(ELON)]);
   };

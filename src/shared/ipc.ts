@@ -21,7 +21,7 @@ export type OnTab = OnProfile & { tab?: string | null }; // none: the active one
 export type PageLayout = Partial<{ x: number; y: number; width: number; height: number }> & { shown?: boolean; clip?: { x: number; y: number; width: number; height: number } };
 type Grid = Record<string, PageLayout>;
 export type Theme = 'dark' | 'light' | 'system';
-export type StageLayout = 'column' | 'tabs' | 'row';
+export type StageLayout = 'vertical' | 'tabs' | 'horizontal';
 export type Bar = 'top' | 'bottom';
 // Where Settings opens (components/settings): a project's page (none: the shown task's), a profile's, the
 // log (☰ → Report a Problem…), About (☰ → About Kulisa; macOS's app menu).

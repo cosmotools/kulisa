@@ -236,13 +236,13 @@ test('the agent arranges terminal-only environments as a column, tabs or a scrol
   expect(await core((k) => k.shell.task.profiles.size)).toBe(0);
   await call('application_create', { name: 'Layout first' });
   await call('application_create', { name: 'Layout second' });
-  await call('stage_arrange', { layout: 'column' });
+  await call('stage_arrange', { layout: 'vertical' });
   await expect.poll(() => ui.evaluate(() => (window as any).__stage.groups.length)).toBe(2);
   await call('stage_arrange', { layout: 'tabs' });
   await expect.poll(() => ui.evaluate(() => (window as any).__stage.groups.length)).toBe(1);
   await ui.locator('#windowMenu').click();
   await ui.getByRole('menuitem', { name: 'Stage beside', exact: true }).click();
-  await call('stage_arrange', { layout: 'row', overflow: true });
+  await call('stage_arrange', { layout: 'horizontal', overflow: true });
   await expect.poll(() => ui.locator('[data-stage-viewport]').evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(true);
   await call('stage_arrange', { overflow: false });
   await expect.poll(() => ui.locator('[data-stage-viewport]').evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);

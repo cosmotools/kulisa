@@ -93,7 +93,7 @@ tab reads "New Task" until it is named. You see only your task's profiles.
   `.env.local`, or the published ports of `docker compose`. Point the profiles' tabs at it with `browser_navigate`;
   they stay signed in (cookies do not depend on the port).
 - **The stage** contains testing environments; the development terminals and Resources sit outside it. When a
-  comparison needs another view, use `stage_arrange`: a vertical column, tabs, or a horizontal row. Its independent overflow
+  comparison needs another view, use `stage_arrange`: a horizontal stack, a vertical stack, or tabs. Its independent overflow
   setting fits panes into the stage or lets the stack scroll at usable sizes. The human has the same controls;
   development panels stay in place.
 - **Artifacts**: the screenshots the human or you take, and snapshots and bodies your tools keep of the pages gather in the task's folder of

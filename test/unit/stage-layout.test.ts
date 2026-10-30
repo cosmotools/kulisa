@@ -26,3 +26,15 @@ test('flat layouts split mixed groups while retaining order, stacking, sizes and
   assert.equal(splitLayout(null), null);
   assert.equal(splitLayout({}), null);
 });
+
+test('saved stack settings retain their physical direction when names become explicit', () => {
+  for (const [before, after] of [['column', 'vertical'], ['row', 'horizontal'], ['tabs', 'tabs'], ['horizontal', 'horizontal'], ['vertical', 'vertical']]) {
+    const saved = { version: 2, workspace: {}, stage: {}, stageLayout: before, stageOverflow: true };
+    const restored = splitLayout(saved);
+    assert.equal(restored.stageLayout, after);
+    assert.equal(restored.stageOverflow, true);
+    assert.equal(restored.workspace, saved.workspace);
+    assert.equal(restored.stage, saved.stage);
+    assert.equal(splitLayout(restored), restored);
+  }
+});

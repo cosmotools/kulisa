@@ -109,8 +109,8 @@ function addEnvironment(id: string, reference?: string, direction: 'right' | 'be
 function constrainStage() {
   const { stageLayout: mode, stageOverflow: overflow } = store.getState();
   for (const group of stage?.groups ?? []) group.api.setConstraints({
-    minimumWidth: overflow && mode !== 'tabs' && mode !== 'column' ? environmentMinimum.width : 0,
-    minimumHeight: overflow && mode === 'column' ? environmentMinimum.height : 0,
+    minimumWidth: overflow && mode !== 'tabs' && mode !== 'vertical' ? environmentMinimum.width : 0,
+    minimumHeight: overflow && mode === 'vertical' ? environmentMinimum.height : 0,
   });
 }
 function arrangeStage() {
@@ -118,7 +118,7 @@ function arrangeStage() {
   stage.clear();
   const ids = environmentIds();
   const mode = store.getState().stageLayout;
-  ids.forEach((id, i) => addEnvironment(id, i ? ids[i - 1] : undefined, mode === 'tabs' ? 'within' : mode === 'column' ? 'below' : 'right', mode === 'tabs' && i > 0));
+  ids.forEach((id, i) => addEnvironment(id, i ? ids[i - 1] : undefined, mode === 'tabs' ? 'within' : mode === 'vertical' ? 'below' : 'right', mode === 'tabs' && i > 0));
 }
 function syncStage() {
   if (!stage) return;
@@ -126,7 +126,7 @@ function syncStage() {
   for (const p of stage.panels) if (!ids.includes(p.id)) stage.removePanel(p);
   for (const id of ids) if (!stage.getPanel(id)) {
     const mode = store.getState().stageLayout;
-    addEnvironment(id, stage.panels.at(-1)?.id, mode === 'tabs' ? 'within' : mode === 'column' ? 'below' : 'right');
+    addEnvironment(id, stage.panels.at(-1)?.id, mode === 'tabs' ? 'within' : mode === 'vertical' ? 'below' : 'right');
   }
 }
 function syncGrid() {

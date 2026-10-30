@@ -27,9 +27,9 @@ export function Stage() {
   const mounted = useRef<DockviewApi | null>(null);
   useEffect(() => () => stageUnmounted(mounted.current), []);
   return <section aria-label="Stage" className="h-full min-h-0 min-w-0" data-testid="stage">
-    <div ref={viewport} data-stage-viewport className={`h-full ${overflow && mode !== 'tabs' ? mode === 'column' ? 'overflow-x-hidden overflow-y-auto' : 'overflow-x-auto overflow-y-hidden' : 'overflow-hidden'}`} onScroll={scheduleLayout}>
-      <div className="h-full" style={{ width: overflow && mode !== 'tabs' && mode !== 'column' ? Math.max(size.width, count * environmentMinimum.width + Math.max(0, count - 1) * (dockTheme.gap ?? 0)) : '100%',
-        height: overflow && mode === 'column' ? Math.max(size.height, count * environmentMinimum.height + Math.max(0, count - 1) * (dockTheme.gap ?? 0)) : '100%' }}>
+    <div ref={viewport} data-stage-viewport className={`h-full ${overflow && mode !== 'tabs' ? mode === 'vertical' ? 'overflow-x-hidden overflow-y-auto' : 'overflow-x-auto overflow-y-hidden' : 'overflow-hidden'}`} onScroll={scheduleLayout}>
+      <div className="h-full" style={{ width: overflow && mode !== 'tabs' && mode !== 'vertical' ? Math.max(size.width, count * environmentMinimum.width + Math.max(0, count - 1) * (dockTheme.gap ?? 0)) : '100%',
+        height: overflow && mode === 'vertical' ? Math.max(size.height, count * environmentMinimum.height + Math.max(0, count - 1) * (dockTheme.gap ?? 0)) : '100%' }}>
         <DockviewReact theme={dockTheme} disableFloatingGroups singleTabMode="fullwidth" components={components} tabComponents={tabComponents}
           onReady={({ api }) => { mounted.current = api; stageMounted(api); }} />
       </div>
@@ -37,9 +37,9 @@ export function Stage() {
   </section>;
 }
 const arrangements = (): MenuItem[] => [
-  { label: 'Columns', icon: Rows3Icon, run: () => act('stage:arrange', { layout: 'column' }) },
+  { label: 'Horizontal stack', icon: Columns3Icon, run: () => act('stage:arrange', { layout: 'horizontal' }) },
+  { label: 'Vertical stack', icon: Rows3Icon, run: () => act('stage:arrange', { layout: 'vertical' }) },
   { label: 'Tabs', icon: PanelsTopLeftIcon, run: () => act('stage:arrange', { layout: 'tabs' }) },
-  { label: 'Rows', icon: Columns3Icon, run: () => act('stage:arrange', { layout: 'row' }) },
   { component: Overflow },
 ];
 function Overflow() {

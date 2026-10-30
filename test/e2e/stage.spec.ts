@@ -50,6 +50,18 @@ test('stage arrangements are shared by human and agent and independent of worksp
     return strip((window as any)[key].toJSON().grid.root);
   }, which);
   const workspace = await shape('__dock');
+  const positions = () => ui.getByTestId('stage').getByTestId('page').evaluateAll((pages) => pages.map((p) => {
+    const r = p.getBoundingClientRect(); return { x: r.x, y: r.y };
+  }));
+  for (const name of ['Horizontal stack', 'Vertical stack']) {
+    await ui.getByRole('button', { name: 'Arrange stage', exact: true }).click();
+    await ui.getByRole('menuitem', { name, exact: true }).click();
+    await expect.poll(async () => {
+      const p = await positions();
+      return p.length === 2 && (name === 'Horizontal stack' ? p[0].x < p[1].x && p[0].y === p[1].y : p[0].y < p[1].y && p[0].x === p[1].x);
+    }).toBe(true);
+    expect(await shape('__dock')).toEqual(workspace);
+  }
   await ui.getByRole('button', { name: 'Arrange stage', exact: true }).click();
   await ui.getByRole('menuitem', { name: 'Tabs', exact: true }).click();
   await expect.poll(() => ui.evaluate(() => (window as any).__stage.groups.length)).toBe(1);
@@ -58,7 +70,7 @@ test('stage arrangements are shared by human and agent and independent of worksp
   await ui.locator('#windowMenu').click();
   await ui.getByRole('menuitem', { name: 'Stage beside', exact: true }).click();
   await expect.poll(() => shape('__stage')).toEqual(stage);
-  for (const layout of ['column', 'row', 'tabs']) {
+  for (const layout of ['vertical', 'horizontal', 'tabs']) {
     await call('stage_arrange', { layout });
     await expect.poll(() => ui.evaluate(() => (window as any).__stage.groups.length)).toBe(layout === 'tabs' ? 1 : 2);
   }
@@ -73,27 +85,27 @@ test('stage arrangements are shared by human and agent and independent of worksp
   await notLoading(next);
   await expect.poll(() => next.evaluate(() => (window as any).__stage.groups.length)).toBe(1);
   expect(await core((k) => (k.shell.task.store.layout() as any).stageOverflow)).toBe(true);
-  await call('stage_arrange', { layout: 'row' });
+  await call('stage_arrange', { layout: 'horizontal' });
   await expect.poll(() => next.locator('[data-stage-viewport]').evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(true);
   await call('stage_arrange', { overflow: false });
   await expect.poll(() => next.locator('[data-stage-viewport]').evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
   await call('profile_close', { profile: 'Arrange.first' });
   await call('profile_close', { profile: 'Arrange.second' });
-  await expect(call('stage_arrange', { layout: 'column' })).rejects.toThrow(/open.*environment/i);
+  await expect(call('stage_arrange', { layout: 'vertical' })).rejects.toThrow(/open.*environment/i);
 });
 
 
-test('a row scrolls horizontally, clips native pages, and preserves their viewport widths', async ({ core, ui, call }, info) => {
+test('a horizontal stack scrolls, clips native pages, and preserves their viewport widths', async ({ core, ui, call }, info) => {
   for (const name of ['Row.first', 'Row.second', 'Row.third']) {
     await call('profile_create', { name });
     await call('browser_navigate', { profile: name, url: `${SITE}/app` });
   }
-  await call('stage_arrange', { layout: 'column' });
+  await call('stage_arrange', { layout: 'vertical' });
   const pageBoxes = () => ui.getByTestId('stage').getByTestId('page').evaluateAll((pages) => pages.map((p) => { const r = p.getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width }; }));
   await expect.poll(async () => { const b = await pageBoxes(); return b.length === 3 && b[0].x === b[1].x && b[1].y > b[0].y && b[2].y > b[1].y; }).toBe(true);
   await ui.locator('#windowMenu').click();
   await ui.getByRole('menuitem', { name: 'Stage beside', exact: true }).click();
-  await call('stage_arrange', { layout: 'row', overflow: false });
+  await call('stage_arrange', { layout: 'horizontal', overflow: false });
   const viewport = ui.locator('[data-stage-viewport]');
   await expect.poll(() => viewport.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
   await ui.getByRole('button', { name: 'Arrange stage', exact: true }).click();
@@ -127,11 +139,11 @@ test('a row scrolls horizontally, clips native pages, and preserves their viewpo
 });
 
 
-test('column overflow scrolls vertically without rebuilding panes and clips native pages', async ({ core, ui, call }) => {
+test('a vertical stack scrolls without rebuilding panes and clips native pages', async ({ core, ui, call }) => {
   for (const name of ['Column.first', 'Column.second', 'Column.third']) await call('profile_create', { name });
   await ui.locator('#windowMenu').click();
   await ui.getByRole('menuitem', { name: 'Stage above', exact: true }).click();
-  await call('stage_arrange', { layout: 'column', overflow: false });
+  await call('stage_arrange', { layout: 'vertical', overflow: false });
   const viewport = ui.locator('[data-stage-viewport]');
   await expect.poll(() => viewport.evaluate((el) => el.scrollHeight <= el.clientHeight)).toBe(true);
   const groups = await ui.evaluate(() => (window as any).__stage.groups.map((g: any) => g.id));
