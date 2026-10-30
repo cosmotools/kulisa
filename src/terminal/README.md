@@ -62,9 +62,10 @@ Chromium's software GPU, 609 → 234 MB. (VS Code keeps an xterm a terminal.)
 
 **Fitted in a frame about to be drawn.** A terminal is put in at its buffer's size, and the xterm and the buffer get
 the room laid out only from the fit, measured in `requestAnimationFrame`: fitted at once in a window just opened, its
-grid not laid out, the buffer would be wrapped at 9 columns. Resized after that frame: a resize clears WebGL's canvas,
-which xterm draws again in the next frame, so one resized in a frame is drawn empty. A hidden page draws no frames, so there it is measured at
-once: Windows hides a window other windows cover (one opening behind
+grid not laid out, the buffer would be wrapped at 9 columns. A place whose DOM size trails its layout supplies
+`View.isLaidOut`: fitting waits for it before measuring and before sending the size. Resized after that frame: a resize
+clears WebGL's canvas, which xterm draws again in the next frame, so one resized in a frame is drawn empty. A hidden
+page draws no frames, so there it is measured at once: Windows hides a window other windows cover (one opening behind
 them too), whose agents would otherwise start only once someone looks at it.
 
 Serializing leaves out the cursor's visibility (`?25`) and the mouse's encoding (`?1006`, `?1015`, `?1016`: Claude

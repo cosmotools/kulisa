@@ -13,7 +13,7 @@ Kulisa's own rules for tests; the rest is [Playwright Test](https://playwright.d
   the focus, takes its features' files too); `KULISA_SHOT` or the author's Kulisa (`run-kulisa`). `npm run knip` once a
   step, not after every change.
 - **The full `npm test` (~3 min) once, before the push**, when the author says the work is done; fix and rerun. A
-  failure found on the CI costs a push and a run, and only the author can re-run a job. Not for docs alone.
+  failure found on the CI costs a push and a run. Not for docs alone.
 
 ## Agent completion checks
 

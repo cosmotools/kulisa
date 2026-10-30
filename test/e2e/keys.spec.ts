@@ -34,6 +34,8 @@ test("keys in a profile's page are Chrome's, for its pane: Ctrl+T a tab with the
   await expect.poll(async () => (await tabs()) === 1 && await firstFocused()).toBe(true);
   await core((k) => k.press(k.profile('Sam').tabs[0].wc, 'T', k.CMD, 'shift'));
   await expect.poll(() => core((k) => { const sam = k.profile('Sam'); return sam.tabs.length === 2 && sam.get().wc.getURL().endsWith('?second'); })).toBe(true);
+  // Tab shortcuts read the window's list; wait for it to show the reopened tab too.
+  await expect(ui.locator(`[role="region"][data-profile="${id}"]`).getByRole('tab')).toHaveCount(2);
   // Ctrl+1 the first tab, Ctrl+Tab the next; the keyboard stays in the pages.
   await core(async (k) => { const t = k.profile('Sam').get(); await t.ready; t.wc.focus(); k.press(t.wc, '1', k.CMD); });
   await expect.poll(() => core((k) => { const sam = k.profile('Sam'); return sam.active === sam.tabs[0].id && sam.tabs[0].wc.isFocused(); })).toBe(true);
