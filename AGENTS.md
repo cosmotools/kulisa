@@ -275,25 +275,17 @@ profiles' pictures, `Result`).
 1. **Profiles**: browser profiles, their tabs and storage. Knows nothing about agents, MCP or the window UI.
 2. **Automation access** (`cdp-proxy.ts`, `local-only.ts`): the only way anything automated reaches a profile's pages, and where
    sign-in mode is enforced.
-3. **Kulisa plugin** (its code one folder, `src/main/kulisa-plugin/`):
-   everything that lets an unchanged agent CLI understand and use profiles: tools, knowledge (skill) and hooks, the
-   same for every agent.
-   - The MCP server is the functional part and is agent-agnostic: any capability for the agent is an MCP tool
-     (`tools/`, a file a group; the server `mcp-server.ts`), so Codex and other CLIs get it too. One URL per task
-     (`/task/<project>/<task>/mcp`). How a tool is designed: `src/main/kulisa-plugin/AGENTS.md`.
-   - The profiles skill, `src/agent/skills/profiles/SKILL.md`, is one text for every agent: change it when a tool or
-     a rule changes.
-   - Each agent's hooks are a table in its file (`agents/claude.ts`, `codex.ts`), given at its start, never written
-     into its config.
-   - Do not add agent-facing behavior elsewhere (e.g. in `profiles.ts` or the renderer); what the agent sees of
-     Kulisa lives in `src/agent/` (the skill, Claude Code's plugin: packaged as resources), its code in this folder.
+3. **Kulisa plugin**, a Kulisa package (`src/kulisa-plugin/`; its README and AGENTS.md): MCP tools, shared instructions,
+   hooks, CLI adapters and transcript readers. The core supplies actions and facts through the Kulisa package's
+   contracts (`src/main/plugin.ts`); the Kulisa package imports no core domain code or types. Agent-facing behavior
+   belongs here; every agent gets the same tools and skill, CLI-specific behavior stays in its adapter.
 4. **Window** (every other file of `src/main`, and `src/renderer/`): what the human sees and does.
 
 **One core, with handles for the human and for the agent.** The human (the window) and the agent (the Kulisa
 plugin) do the same things to profiles, tabs and tasks: open a tab, go to an address, close or delete a profile.
 Each such action is written once, in the core (`Task`: `find`, `findTab`, `createProfile`, `deleteProfile` …;
 `Profile`: `newTab`, `navigate`, `closeTab` …), with its checks, its questions to the human and its rules. The
-windows' IPC (`ipc/`) and the agent's MCP tools (`kulisa-plugin/tools/`) are handles on it: each finds what to act on
+windows' IPC (`ipc/`) and the agent's MCP tools (`kulisa-plugin/main/tools/`) are handles on it: each finds what to act on
 through the core, calls it, and translates the answer (`{ error }` for the window, an error the agent reads). A
 check, a rule or a way of doing an action is never written in a handle, nor twice.
 
@@ -315,7 +307,7 @@ its own checks and rules; what Kulisa does not do is decide the agent's way thro
 
 Where a kind of code goes:
 
-- Agent-specific code goes into its agent's file in `agents/` (`claude.ts`, `codex.ts`: everything Kulisa knows of
+- Agent-specific code goes into its agent's file in `src/kulisa-plugin/main/agents/` (`claude.ts`, `codex.ts`: everything Kulisa knows of
   that agent, its transcript's reader too), nowhere else; a new agent is a new file there.
 - Git for tasks is the user's git, never a shell (`worktrees.ts`); an agent is typed into the user's shell in its
   folder, so the project's own environment applies (direnv, nvm, mise; `src/terminal/`).

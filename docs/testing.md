@@ -150,7 +150,7 @@ file is an entry in `knip.jsonc` with why; `ignore` last, with its reason. Invis
 ## Layers
 
 `npm run deps` (in `npm run lint`; rules with reasons in `.dependency-cruiser.ts`). A new lower-layer file goes into
-its list. A refused import is moved, not allowed: the need goes below, or the core says it on `shell.bus`.
+its list. Kulisa package boundaries include type imports; cycle checks concern runtime dependencies. A refused import is moved, not allowed: the need goes below, or the core says it on `shell.bus`.
 
 ## Lint
 

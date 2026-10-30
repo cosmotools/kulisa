@@ -11,13 +11,12 @@ import { profileTools } from './tools/profile.ts';
 import { taskTools } from './tools/task.ts';
 import { browserTools, clearHighlights } from './tools/browser.ts';
 import { terminalTools } from './tools/terminal.ts';
-import { fromLocalTool } from '../local-only.ts';
 import pkg from '../../../package.json' with { type: 'json' };
 import type { AddressInfo } from 'net';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
-import type { Shell } from '../shell.ts';
-import type { Task, TaskTerminal } from '../tasks.ts';
-import { bare, log, summary } from '../log.ts';
+import type { PluginHost } from './core.ts';
+import type { TaskAccess as Task, TerminalAccess as TaskTerminal } from './core.ts';
+import { bare, log, summary } from '../../main/log.ts';
 
 // For every agent, those without the profiles skill too (one run by hand): what it must know before the first call.
 const INSTRUCTIONS = 'Kulisa profiles are the users of the app under test, each a browser profile the human signed in to by hand. ' +
@@ -53,19 +52,19 @@ function buildServer(task: Task, t: TaskTerminal | null) {
 
 const safeDecode = (s: string) => { try { return decodeURIComponent(s); } catch { return ''; } };
 
-async function startMcpServer(shell: Shell, cfg: { port?: number }) {
+async function startMcpServer(host: PluginHost, cfg: { port?: number }) {
   // The core says when a profile is unloaded (tasks.ts) and does not reach into its agent's handle.
-  shell.bus.on('profile-unloading', (key: string) => void clearHighlights(key));
+  host.onProfileUnloading((key) => void clearHighlights(key));
   const srv = http.createServer(async (req, res) => {
-    if (!fromLocalTool(req)) { res.writeHead(403); return res.end(); }
-    if (handleDictationHook((text) => shell.dictation.dictated(text), req.url!, req, res)) return;
+    if (!host.allowRequest(req)) { res.writeHead(403); return res.end(); }
+    if (handleDictationHook((text) => host.dictated(text), req.url!, req, res)) return;
     // /task/<project>/<task id>[/t/<terminal id>]/…: a task of an open project, loaded; an agent's terminal of it.
     const m = req.url!.match(/^\/task\/([^/]+)\/([^/]+)(?:\/t\/(\d+))?(\/.*)$/);
-    const task = m && shell.taskOf(safeDecode(m[1]!), safeDecode(m[2]!));
-    if (!task?.loaded) { res.writeHead(404); return res.end(); }
-    const t = (m![3] && task.terminals.get(Number(m![3]))) || null;
-    if (handleHookRequest(task, t, m![4]!, req, res)) return;
-    if (!m![4]!.startsWith('/mcp')) { res.writeHead(404); return res.end(); }
+    const found = m && host.resolve(safeDecode(m[1]!), safeDecode(m[2]!), m[3] ? Number(m[3]) : undefined);
+    if (!found) { res.writeHead(404); return res.end(); }
+    const { task, terminal: t } = found;
+    if (handleHookRequest(task, t, m[4]!, req, res)) return;
+    if (!m[4]!.startsWith('/mcp')) { res.writeHead(404); return res.end(); }
     // The transport reads the body itself (with a size limit) and answers a malformed one.
     const server = buildServer(task, t);
     const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });

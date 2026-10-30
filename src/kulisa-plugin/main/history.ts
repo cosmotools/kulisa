@@ -2,9 +2,8 @@
 // conversations, each agent's, with what each was about; then one conversation, read from its transcript on disk
 // (transcripts.ts), the latest chapter first, in parts. Kulisa keeps no copy: the agents' transcripts are the one record.
 import fs from 'fs';
-import { progress } from '../worktrees.ts';
-import type { Task } from '../tasks.ts';
-import type { Conversation as Saved } from '../store.ts';
+import type { TaskAccess as Task } from './core.ts';
+import type { SavedConversation as Saved } from './core.ts';
 import type { Conversation, Entry } from './transcripts.ts';
 import { refused } from '../../shared/result.ts';
 import type { Result } from '../../shared/result.ts';
@@ -25,8 +24,8 @@ const quote = (s: string) => JSON.stringify(s.length > QUOTE ? `${s.slice(0, QUO
 async function standing(task: Task) {
   const lines = [`# Where the task stands (from Kulisa)`, '',
     `The task "${task.name}", in ${task.folder}${task.branch ? `, on branch ${task.branch}` : ''}.`];
-  for (const c of task.worktrees) {
-    const { log, status, stat } = await progress(c);
+  for (const c of await task.codeProgress()) {
+    const { log, status, stat } = c;
     lines.push('', `## The code: ${c.folder} (a copy of ${c.repo})`,
       `Commits since the task started:\n${log || '(none)'}`,
       `Not committed:\n${status || '(nothing)'}`,
@@ -42,14 +41,11 @@ async function standing(task: Task) {
 
 // A conversation read: its agent's name, its tab's name, and what was said, or why it cannot be read.
 function read(task: Task, c: Saved, i: number): { name: string; tab: string; open: boolean; conv?: Conversation; why?: string } {
-  const agent = task.shell.agentFor(c.agent, { any: true });
-  const name = agent?.name || c.agent || 'an agent';
-  const t = c.terminal === undefined ? undefined : task.terminals.get(c.terminal);
-  const tab = t ? task.label(t) : c.title || agent?.cli || name;
-  const base = { name, tab, open: !!t };
-  if (!agent?.conversation) return { ...base, why: "Kulisa does not read this agent's transcripts yet" };
+  const { name, tab, open } = c;
+  const base = { name, tab, open };
+  if (!c.read) return { ...base, why: "Kulisa does not read this agent's transcripts yet" };
   if (!c.transcript || !fs.existsSync(c.transcript)) return { ...base, why: i === task.conversations().length - 1 ? 'nothing said yet' : 'its transcript is gone' };
-  try { return { ...base, conv: agent.conversation(c.transcript) }; } catch (e) {
+  try { return { ...base, conv: c.read(c.transcript) }; } catch (e) {
     console.warn('[history]', c.transcript, (e as Error).message);
     return { ...base, why: 'its transcript could not be read' };
   }

@@ -200,7 +200,7 @@ test("tasks: × closes a task: its agent stops and its tabs close, all else stay
   await reportSession(core, task, 's-3', transcript);
   expect(await core(async (k, a) => {
     const t = k.shell.taskByKey(a.task);
-    return k.agentHooks.sessionStart(t, t.promptTarget(), { session_id: 's-3', transcript_path: a.transcript }).hookSpecificOutput.additionalContext;
+    return k.agentHooks.sessionStart(k.taskAccess(t), k.terminalAccess(t, t.promptTarget()), { session_id: 's-3', transcript_path: a.transcript }).hookSpecificOutput.additionalContext;
   }, { task, transcript }), 'where it works, at the session start too').toMatch(/task "task-3": a git worktree of its own, .*project@task-3, on branch task-3.*free port you pick/s);
   // Working: the human is asked, and may keep it.
   const state = () => core((k, key) => k.shell.taskByKey(key).promptTarget()?.state, task);

@@ -7,7 +7,7 @@ import type { CookieSync } from './cookie-sync.ts';
 import type { SessionCookies } from './session-cookies.ts';
 import type { CdpProxy } from './cdp-proxy.ts';
 import type { Accounts, Account } from './accounts.ts';
-import type { Agent, Found } from './agents/index.ts';
+import type { Agent, Found } from '../kulisa-plugin/main/index.ts';
 import type { Profile, Tab } from './profiles.ts';
 import type { Project } from './projects.ts';
 import type { Task } from './tasks.ts';

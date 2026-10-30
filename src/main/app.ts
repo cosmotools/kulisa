@@ -20,12 +20,11 @@ import { recognizer } from './recognizer.ts';
 import { COLORS } from './window.ts';
 import type { AppWindow } from './window.ts';
 import { findFavicon } from './favicons.ts';
-import { AGENTS, findAgent, signOut } from './agents/index.ts';
+import { AGENTS, findAgent, signOut, startMcpServer, installGhost } from '../kulisa-plugin/main/index.ts';
 import { onEscape, stopAllTerminals } from '../terminal/main/index.ts';
-import { startMcpServer } from './kulisa-plugin/mcp-server.ts';
+import { pluginHost } from './plugin.ts';
 import { installPicker } from './picker.ts';
 import { installPageMenu } from './page-menu.ts';
-import { installGhost } from './kulisa-plugin/ghost.ts';
 import { startDiscarding } from './discard.ts';
 import { installMasters } from './master.ts';
 import { openTasks } from './open-tasks.ts';
@@ -40,7 +39,7 @@ import { registerPanes } from './ipc/panes.ts';
 import { registerWindow } from './ipc/window.ts';
 import type { Ipc, IpcEvent } from './ipc.ts';
 import type { Shell } from './shell.ts';
-import type { Agent } from './agents/index.ts';
+import type { Agent } from '../kulisa-plugin/main/index.ts';
 import type { ProjectEntry } from './store.ts';
 
 // What start takes (below).
@@ -57,10 +56,8 @@ process.on('unhandledRejection', (e) => console.error('[kulisa] unhandled reject
 
 const NONE = new Map<string, never>(); // the tasks and profiles when no project is open
 
-// Kulisa's packages for the agents (CLAUDE.md, Architecture, layer 3: Claude Code's plugin, claude-plugin/), each agent
-// finding its own there (agents/). Outside the asar archive when packaged (forge.config.ts, extraResource), because the
-// agents read them from disk.
-const AGENT_PACKAGES = app.isPackaged ? process.resourcesPath : path.join(import.meta.dirname, '..', 'agent');
+// Agent resources sit beside the archive so unchanged CLIs can read them (src/kulisa-plugin/README.md).
+const AGENT_PACKAGES = app.isPackaged ? process.resourcesPath : path.join(import.meta.dirname, '..', 'kulisa-plugin', 'resources');
 
 // options:
 //   userData   folder for Kulisa's data and browser profiles
@@ -151,7 +148,7 @@ function start(options: Options = {}) {
     if (password.length > 500) return { error: 'a password is at most 500 characters' };
     return { secret: shell.secrets.encrypt(password) };
   };
-  // Profiles whose test password is being typed (kulisa-plugin/tools/browser.ts, browser_type_login): ghost.ts shows no text for them.
+  // Profiles whose test password is being typed (kulisa-plugin/main/tools/browser.ts, browser_type_login): ghost.ts shows no text for them.
   shell.typingSecret = new Set<string>();
   // Settings too, shown in any window (components/settings).
   shell.profilesChanged = (from) => {
@@ -366,10 +363,10 @@ function start(options: Options = {}) {
     unloadIdle();
     for (const win of windows) win.shown ||= win.w.tabs[0] || null;
     await windows[0]!.w.load(windows[0]!.shown);
-    shell.mcp = await startMcpServer(shell, { port: options.mcpPort ?? 4450 });
+    shell.mcp = await startMcpServer(pluginHost(shell), { port: options.mcpPort ?? 4450 });
     installPicker(shell);
     installPageMenu(shell);
-    installGhost(shell);
+    installGhost(pluginHost(shell));
     installMasters(shell, { preload: path.join(import.meta.dirname, '..', 'preload', 'index.cjs'), colors: () => COLORS[shell.shade()] });
 
     for (const [i, { w, shown }] of windows.entries()) {

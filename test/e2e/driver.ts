@@ -9,8 +9,9 @@ import type { Shell } from '../../src/main/shell.ts';
 // The app's own instances (app.ts loads the same files): what a test reaches beyond the shell, imported here so that
 // core's functions, which are eval'd and cannot import, get them by k.
 import * as pageMenu from '../../src/main/page-menu.ts';
-import * as agentHooks from '../../src/main/kulisa-plugin/agent-hooks.ts';
-import * as browserTools from '../../src/main/kulisa-plugin/tools/browser.ts';
+import { taskAccess, terminalAccess } from '../../src/main/plugin.ts';
+import * as agentHooks from '../../src/kulisa-plugin/main/agent-hooks.ts';
+import * as browserTools from '../../src/kulisa-plugin/main/tools/browser.ts';
 import { removeTree } from '../../src/main/remove.ts';
 import { worktreesOf } from '../../src/main/store.ts';
 import { log } from '../../src/main/log.ts';
@@ -87,7 +88,7 @@ export function driver(shell: Shell, openedExternally: string[]) {
   log.hooks.push((m, _t, name) => { if (name === 'file') logged.push(m.data.map(String).join(' ')); return m; });
   const k = {
     // Electron's module, for what a test does in the main process beyond Kulisa's own (its menus, the theme, the app).
-    electron, shell, CMD, press, profile, watchPty, openedExternally, pageMenu, agentHooks, browserTools, removeTree, worktreesOf,
+    electron, shell, CMD, press, profile, watchPty, openedExternally, pageMenu, agentHooks, taskAccess, terminalAccess, browserTools, removeTree, worktreesOf,
     logged, clock: clock(),
     ptyOutput: () => pty,
     // The focus guard's next decision about a page's own focus (page-focus.ts), its log line: given back, or left. One

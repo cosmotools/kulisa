@@ -44,7 +44,7 @@ task (`send`, given by the caller).
 `main/hidden.ts`: an agent's own dictation in a terminal no one sees, recognizing for the agent in front. Which
 account and how it starts is the caller's (`Recognizer`; `src/main/recognizer.ts`: the first account, in Settings →
 Agents' order, of an agent whose entry has a `recognizer` and whose sign-in gives it, Claude Code's with a Claude.ai
-sign-in; its settings and keys are its entry's, `src/main/agents/claude.ts`). The package starts it, holds its key and
+sign-in; its settings and keys are its entry's, `src/kulisa-plugin/main/agents/claude.ts`). The package starts it, holds its key and
 gets its text, knowing no agent by name.
 
 - **One session for the whole of Kulisa**, started at the first dictation (~1 s; the microphone **starting** until it

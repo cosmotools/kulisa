@@ -5,9 +5,9 @@ import assert from 'assert/strict';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { CUT } from '../../src/main/kulisa-plugin/transcripts.ts';
-import { claude, claudeConversation } from '../../src/main/agents/claude.ts';
-import { codex, codexConversation } from '../../src/main/agents/codex.ts';
+import { CUT } from './main/transcripts.ts';
+import { claude, claudeConversation } from './main/agents/claude.ts';
+import { codex, codexConversation } from './main/agents/codex.ts';
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'kulisa-unit-'));
 after(() => fs.rmSync(root, { recursive: true, force: true }));
 
@@ -61,14 +61,14 @@ test("history: a Claude Code transcript gives the human's words, the agent's ans
   assert.equal(t[3], 'Edit /p/cart.ts\n--- old\nred\n--- new\ngreen');
   assert.equal(t[5], 'and the cancel one gray', 'typed while the agent worked: the human\'s; a task\'s notice is not');
   assert.equal(t[6], 'Bash: npm test');
-  assert.match(t[7], /^a{2048}\n… \[10000 characters cut\] …\nz{2048}$/, 'a long output: its start and end');
+  assert.match(t[7]!, /^a{2048}\n… \[10000 characters cut\] …\nz{2048}$/, 'a long output: its start and end');
   assert.equal(t[9], 'lint: 3 errors', 'an error whole');
-  assert.match(t[10], /^This session is being continued/);
+  assert.match(t[10]!, /^This session is being continued/);
   assert.equal(t[12], 'like this', 'the picture left out');
   assert.ok(!t.some((x) => /secret|Kulisa profiles open now|task_history|Part 1 of 1|permission/.test(x)), 'reasoning, hooks, its own history and the CLI\'s records left out');
   assert.equal(c.plan, '[completed] pay green\n[in_progress] cancel gray', 'the last plan');
   assert.equal(c.stopped, null, 'the last turn ended');
-  assert.match(c.memory, /^### MEMORY\.md\n- \[Colors\]\(colors\.md\)\n\n### colors\.md\nButtons take their color/, 'its memory, the index first');
+  assert.match(c.memory!, /^### MEMORY\.md\n- \[Colors\]\(colors\.md\)\n\n### colors\.md\nButtons take their color/, 'its memory, the index first');
 });
 
 test('history: where a Claude Code turn stopped: a call with no result, or the human unanswered', () => {
@@ -119,9 +119,9 @@ test("history: a Codex transcript gives the human's words, the agent's answers, 
   const t = c.entries.map((e) => e.text);
   assert.equal(t[0], 'Make the pay button green', "Codex's environment and the project's AGENTS.md are not the human's");
   assert.equal(t[2], 'exec: text(await tools.exec_command({cmd: "npm test"}))', 'a call is the script it ran');
-  assert.match(t[3], /^Script completed\na{2031}\n… \[\d+ characters cut\] …\nz{2048}$/, 'what it printed, its start and end');
-  assert.match(t[4], /^apply_patch: \*\*\* Begin Patch/, 'an edit whole');
-  assert.match(t[6], /encrypted/, 'a chapter starts where it compacted, its summary not readable');
+  assert.match(t[3]!, /^Script completed\na{2031}\n… \[\d+ characters cut\] …\nz{2048}$/, 'what it printed, its start and end');
+  assert.match(t[4]!, /^apply_patch: \*\*\* Begin Patch/, 'an edit whole');
+  assert.match(t[6]!, /encrypted/, 'a chapter starts where it compacted, its summary not readable');
   assert.equal(t[8], 'wait: {"cell_id":"7"}');
   assert.ok(!t.some((x) => /secret|only browser|task_history|Part 1 of 1|Plan updated/.test(x)), 'reasoning, its instructions, its own history and the plan\'s call left out');
   assert.equal(c.plan, '[completed] pay green\n[in_progress] cancel gray', 'the last plan');
@@ -146,12 +146,12 @@ test("title: Claude Code's own ai-title names the conversation, the last one win
     assistant({ type: 'text', text: 'ok' }),
     { type: 'ai-title', aiTitle: 'Refactor checkout', sessionId: 's' }, // regenerated: the last wins
   ]);
-  assert.equal(await claude.title({ transcript }), 'Refactor checkout');
+  assert.equal(await claude.title!({ transcript }), 'Refactor checkout');
   // A long transcript: only its end is read, the record cut there skipped.
   const long = write('claude-long', [user('x'.repeat(3 << 20)), { type: 'ai-title', aiTitle: 'Late title', sessionId: 's' }, assistant({ type: 'text', text: 'y'.repeat(1000) })]);
-  assert.equal(await claude.title({ transcript: long }), 'Late title');
+  assert.equal(await claude.title!({ transcript: long }), 'Late title');
   // No ai-title, or an empty one: nothing to show.
-  assert.equal(await claude.title({ transcript: write('claude-none', [user('hi'), { type: 'ai-title', aiTitle: '', sessionId: 's' }]) }), null);
+  assert.equal(await claude.title!({ transcript: write('claude-none', [user('hi'), { type: 'ai-title', aiTitle: '', sessionId: 's' }]) }), null);
 });
 
 test("title: Codex's thread_name in its session_index.jsonl next to the transcript's sessions/, the session's last one winning", async () => {
@@ -160,13 +160,13 @@ test("title: Codex's thread_name in its session_index.jsonl next to the transcri
   const transcript = path.join(day, 'rollout-2026-10-23T19-24-49-a1.jsonl');
   fs.writeFileSync(transcript, `${JSON.stringify({ type: 'session_meta', payload: { id: 'a1' } })}\n`);
   const index = (records: object[]) => fs.writeFileSync(path.join(home, 'session_index.jsonl'), records.map((r) => `${JSON.stringify(r)}\n`).join(''));
-  assert.equal(await codex.title({ transcript, sessionId: 'a1' }), null, 'no index yet');
+  assert.equal(await codex.title!({ transcript, sessionId: 'a1' }), null, 'no index yet');
   index([
     { id: 'a1', thread_name: 'Answer a question', updated_at: '2026-10-23T16:24:57Z' },
     { id: 'b2', thread_name: 'Another session', updated_at: '2026-10-23T16:25:00Z' },
     { id: 'a1', thread_name: 'Fix the header', updated_at: '2026-10-23T16:30:00Z' }, // renamed: the last wins
   ]);
-  assert.equal(await codex.title({ transcript, sessionId: 'a1' }), 'Fix the header');
-  assert.equal(await codex.title({ transcript, sessionId: 'c3' }), null, 'not named');
-  assert.equal(await codex.title({ transcript }), null, 'no session id: nothing to look for');
+  assert.equal(await codex.title!({ transcript, sessionId: 'a1' }), 'Fix the header');
+  assert.equal(await codex.title!({ transcript, sessionId: 'c3' }), null, 'not named');
+  assert.equal(await codex.title!({ transcript }), null, 'no session id: nothing to look for');
 });

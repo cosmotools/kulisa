@@ -101,94 +101,19 @@ A profile is an Electron session on a folder of its own (`session.fromPath`), la
 
 ## What the agent does
 
-Through Kulisa's MCP server. A tool takes a profile by its name, which the handle turns into its id
-(`Task.named`), and one acting in a page an optional `tab`. What each tool does is its description in the server's
-listing, the one source; how a tool is designed: [src/main/kulisa-plugin/AGENTS.md](../src/main/kulisa-plugin/AGENTS.md).
+The [Kulisa plugin](../src/kulisa-plugin/README.md#browser-tools) supplies every agent with the same profile and browser
+tools, instructions, and action annotations. Tools call the core actions listed below.
 
-**The agent does not ask the human before Kulisa's tools**: it works in the profiles while the
-human watches or is away, and a question at every click undoes that; what acts on real accounts asks in Kulisa itself
-(`profile_delete`, the sign-in pause). But two keep the agent's own approval (`KULISA_ASKS`, `agents/`):
-`terminal_run`, any command in the human's shell, which would get around the agent's approval of commands (and
-Codex's sandbox: the command runs in Kulisa's terminal); `browser_file_upload`, a file of the disk sent to a site, what
-a prompt injection would use. A new tool runs without a question unless it is added there. Through the start's
-arguments, as the MCP server and the hooks are, not the agents' own config files: Claude Code's `permissions` in
-`--settings` (allow the plugin's server, `mcp__plugin_kulisa_kulisa`; ask the two: an ask rule wins), Codex's
-`mcp_servers.kulisa.default_tools_approval_mode="approve"` and `prompt` for the two.
+## Page dialogs
 
-What the tools are for, beyond acting as one user:
+A page's alert or confirm appears inside its pane, over a dimmed picture: "<site> says", its message, OK and Cancel
+for confirm, Enter and Esc. A background tab's dialog appears when that tab is chosen. Electron's `prompt()` throws
+in the page. The native dialog would obscure which page asked, so `Profile._dialog` handles Electron's internal
+`-run-dialog` event ([testing.md](testing.md), Upgrading Electron).
 
-- **Choosing the profile** by who it is, as cast did: `profile_list` and the session's start give each profile's
-  description, or say it is not said. The agent chooses by it, never guessing a role from a name; when none or several
-  fit, it asks the human once and saves their answer (`profile_describe`), so no one asks again. The rule is in the
-  MCP server's `instructions` too, so agents without the profiles skill (one run by hand in the terminal) get it.
-- **Several users at once.** `browser_wait_for` waits in any profile, so the agent acts as one user and waits for
-  the effect as another (a message, an invite), up to 45 s a call (Codex gives an MCP tool 60 s).
-  `browser_snapshot` with `also` reads several profiles' active tabs in one call, to compare what each user sees.
-- **Dialogs** (alert, confirm). A page's dialog is shown in its pane, as Chrome shows it in the page: "<site> says",
-  the message, OK (and Cancel for confirm), at the top of a dimmed picture of the page (a page is still while its
-  dialog is open), Enter and Esc as in Chrome. Electron's own message box, in the middle of the window, does not say
-  which page asked; its handler is a listener of an internal event (`-run-dialog`), replaced for every
-  tab (`Profile._dialog`; [testing.md](testing.md), Upgrading Electron). A dialog of a tab in the background shows when the
-  tab is chosen. Electron has no `prompt()` (it throws in the page). Starting a navigation (the address bar, reload)
-  dismisses an open dialog, as Chrome does: Chromium holds the navigation until it is answered. The dialogs an
-  agent's click, key or navigation opens are answered as it asks (`dialog: accept`), else dismissed, the safe
-  answer, and none is shown; the result says what the page asked. Others stay for the human; one answered over CDP
-  by another client (an agent's own script) leaves the pane too. While one is open the page does nothing (its JS waits,
-  as in Chrome), so the agent's tools on that tab say so at once instead of waiting for it. Its look is Chrome's,
-  not Kulisa's dialogs': it is the page's.
-- **Signing in stays the human's** (Rules): `profile_ask_signin` shows the request over the pane ("sign in,
-  please: …"), optionally opens the app's sign-in page first (the window's way, `Profile.navigate`: a sign-in page
-  puts the profile in sign-in mode, which cuts Playwright off), and waits until the human is through: the profile
-  went through sign-in mode and left it, or its page is no longer the one it was asked on (origin and path). The
-  agent's turn goes on instead of ending at "please sign in". Up to 45 s a call; where it was asked is kept across
-  calls (10 minutes). A sign-in on the same address (a dialog in the page) is not seen: the human then tells the
-  agent.
-- **`browser_evaluate`** runs a function the agent writes in the page: made there from its source (no eval in the
-  main process; CDP's evaluation is not held to the page's CSP) and called with the element, if one is given. It may
-  read anything the page holds, as any script of it: Kulisa does not restrict the agent, and the profile's CDP proxy
-  is open to local processes anyway (issue #90). `@playwright/mcp` works too, through the profile's CDP proxy (below).
-- **Reading a page without filling the agent's context** ([the tools' design](../src/main/kulisa-plugin/AGENTS.md),
-  "Saving the agent's context"). `browser_snapshot` takes a part: an element (ref or locator, its subtree:
-  `locator.ariaSnapshot()`), a depth, or `find`, the lines that match under their ancestors. One larger than about
-  10k tokens (Claude Code warns of a tool's answer from there) goes to a file in the task's `artifacts/` (tasks.md, What
-  is on the computer), each its own, never replaced, so two can be compared (`artifacts.ts`); the answer
-  gives its path and its top levels. A screenshot is kept there too, its path beside the picture. Claude Code is let
-  read there in its settings (`agents/claude.ts`), or it would ask each time; Codex reads the whole disk. What a
-  page reported is Playwright's (`page.consoleMessages()`, `pageErrors()`, `requests()`: the last 200, 200 and 100):
-  the console by level, the requests without the static files that loaded, by address, numbered (a request keeps its
-  number), one whole by its number (`browser_network_request`: headers and bodies, a large body to a file as a
-  snapshot; cookie and credential headers hidden, as Rules says). An action of the agent marks its page: its answer
-  counts the console errors and failed requests since, and `since: action` reads only those; a request still waiting
-  for its answer is pending, never waited for.
-
-**The agent points back**: `browser_highlight` outlines elements on a profile's page (Playwright's
-`locator.highlight()`, following the element; it works on Trusted Types pages too) and shows its labels in the pane
-header, until the human clicks or types in that tab.
-
-**The agent types as a person does**: `browser_type` clears the field and types its text key by key (Playwright's
-`pressSequentially`), 40 ms a key, faster for a longer text (about 1.5 s at most), so the human sees it typed and the
-page gets the keys typing sends (suggestions, checks as one types). A text over 300 characters (a pasted paragraph)
-is filled at once (`TYPED_MAX`, `kulisa-plugin/tools/browser.ts`). Letters not on a US keyboard come as typed text, without key codes
-(Playwright's way).
-
-The agent learns how to work with profiles from the Kulisa plugin: the profiles skill (`src/agent/skills/profiles/SKILL.md`; keep it in step with the tools), one text for every agent,
-written into each account's folder where its agent reads its skills (`kulisa-profiles`), and for Claude Code a plugin
-with the MCP config (`src/agent/claude-plugin/`, `claude --plugin-dir`). Every agent gets Kulisa's hooks at its start (a table in
-its file, `agents/`), among them `SessionStart`, which tells the agent which profiles are open and tells Kulisa its
-session (to resume it). The user's own MCP servers stay available
-(no `--strict-mcp-config`). Some of them may drive another browser with tools of the same names (cast's,
-Playwright MCP's `browser_click` …), and an agent has no priority among MCP servers: it chooses by names and
-descriptions. So every agent is told, in the MCP server's `instructions` and again at the session's start next to the
-profiles (`ONLY_BROWSER`, `agent-hooks.ts`), that the profiles are the only browser here, and why: another browser is
-not the one the human sees, and not signed in. Not blocked (`--disallowedTools` would need every such server's name,
-and would refuse it also when the human asks for it). Codex gets the MCP server and the hooks as config overrides (its `SessionStart` brings the open profiles).
-
-The human sees what the agent does (`ghost.ts`): Playwright's action annotations in the page, each shown 500 ms,
-which every action waits for (so it is kept short: a longer one adds up over an agent's clicks): a mark at the action
-point, the element outlined, and the agent's own pointer, moving from one action to the next and staying at the last
-(Playwright's `cursor: 'pointer'`; not the OS's: the human's mouse stays theirs; no test of its pixels, Playwright
-draws it); and a caption over the pane for every command through the proxy. The marks and
-`browser_highlight`'s outlines are in Kulisa's accent in every profile (`MARK`): the pane says whose page it is.
+Navigation dismisses the dialog because Chromium holds navigation while it is open. A dialog answered through CDP
+also leaves the pane. The [Kulisa plugin](../src/kulisa-plugin/README.md#browser-tools) handles dialogs opened by
+agent actions and reports a dialog that needs the human's answer before attempting another action.
 
 **Point and tell** (`picker.ts`): Pick, then a click on an element (Playwright's `page.pickLocator()`; Esc or Pick
 again cancels). `[kulisa pick: <profile> tab <tab> <locator>]` is typed without Enter into the prompt of the agent in
@@ -424,13 +349,10 @@ space (issue #113, a task manager).
 | `src/main/signin-pages.ts`, `signin-pause.ts` | sign-in pages; the pause |
 | `src/main/cdp-proxy.ts` | the CDP endpoint per profile |
 | `src/main/local-only.ts` | refusing web pages' requests to the MCP server, the hooks and the proxy (Host, Origin) |
-| `src/main/kulisa-plugin/agent-hooks.ts` | the answers to the agents' hooks: the open profiles, the session, the agent's state |
+| `src/kulisa-plugin/` | agent tools, hooks, instructions and action annotations ([README](../src/kulisa-plugin/README.md)) |
 | `src/main/page-focus.ts` | the keyboard stays where the human put it: a page taking it by itself gives it back ([window.md](window.md), Keys) |
 | `src/main/discard.ts` | tabs no one looks at losing their process: the rule, the sweep (`Profile.discard`, `load` in `profiles.ts`) |
-| `src/main/kulisa-plugin/mcp-server.ts` | the agent's MCP server: a URL per task, its instructions, every call logged |
-| `src/main/kulisa-plugin/tools/` | the agent's tools, a file a group: `profile.ts`, `browser.ts` (the pages), `task.ts` (its repositories: [tasks.md](tasks.md), Tasks; its history: [transcripts.md](transcripts.md)), `terminal.ts` ([window.md](window.md), The terminal); `handles.ts`, what they share |
 | `src/main/artifacts.ts` | what the human and agent keep of the pages in the task's `artifacts/`: numbered files, the oldest gone past 100 MB; listed with their sizes for the Resources panel and `task_artifacts` |
-| `src/main/kulisa-plugin/ghost.ts`; `src/main/picker.ts` | the agent's actions shown in the page; point and tell |
-| `src/agent/skills/profiles/SKILL.md`, `src/agent/claude-plugin/` | the profiles skill, every agent's; Claude Code's plugin (`.mcp.json`: the task's MCP URL) |
+| `src/main/picker.ts` | point and tell |
 | `src/renderer/components/grid/ProfilePane.tsx` (the pane, `ProfileHeader`), `lib/profiles.ts`; `components/settings/ProfilePage.tsx` | the panes and the profiles' menu (a task tab's right-click); a profile's page in Settings and its pictures |
 | `test/e2e/agent-*.spec.ts`, `profiles.spec.ts`, `discard.spec.ts`, `zoom-and-closing.spec.ts`, `test/unit/store.test.ts`, `unit/discard.test.ts` | the tests |

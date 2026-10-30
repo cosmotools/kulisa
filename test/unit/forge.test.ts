@@ -19,7 +19,7 @@ test("node-pty's spawn-helper is kept outside the archive, on both of macOS's ar
 // (scripts/version.ts), not a number of its own that goes stale.
 test("Claude Code's plugin manifest carries Kulisa's version", () => {
   const read = (f: string) => JSON.parse(fs.readFileSync(path.join(import.meta.dirname, '../..', f), 'utf8')).version;
-  assert.equal(read('src/agent/claude-plugin/.claude-plugin/plugin.json'), read('package.json'));
+  assert.equal(read('src/kulisa-plugin/resources/claude-plugin/.claude-plugin/plugin.json'), read('package.json'));
 });
 
 // The id macOS keeps the app's preferences, caches and permissions by: Kulisa's own, not Packager's default

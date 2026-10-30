@@ -42,14 +42,14 @@ const config: ForgeConfig = {
     icon: 'assets/icon',
     // Kulisa's packages for the agents are read from disk (by `claude`, or copied into an account's folder), so they sit
     // next to the asar: resources/claude-plugin, resources/skills (app.ts, AGENT_PACKAGES).
-    extraResource: ['src/agent/claude-plugin', 'src/agent/skills'],
+    extraResource: ['src/kulisa-plugin/resources/claude-plugin', 'src/kulisa-plugin/resources/skills'],
     // macOS asks for the microphone on Kulisa's behalf when the agent in its terminal records (dictation).
     extendInfo: { NSMicrophoneUsageDescription: 'The agent in Kulisa\'s terminal listens when you dictate a task to it.' },
     // Only what the app runs; Forge also leaves out devDependencies, which is where the window's libraries are (Vite
     // bundles them into dist/renderer; the main process imports none of them, @xterm/headless apart). The window is its
     // build (dist/renderer), not its sources (src/renderer, a Kulisa package's renderer/), without source maps; a Kulisa
     // package without its tests and docs (docs/packages.md).
-    ignore: [/^\/(test|docs|out|scripts)(\/|$)/, /^\/\.kulisa(\/|$)/, /^\/src\/([^/]+\/)?renderer(\/|$)/, /\.test\.ts$/, /^\/src\/[^/]+\/(README|CLAUDE)\.md$/, /^\/(forge\.config\.ts|vite\.config\.mts|tsconfig\.json|knip\.jsonc|\.dependency-cruiser\.ts)$/, /\.map$/],
+    ignore: [/^\/(test|docs|out|scripts)(\/|$)/, /^\/\.kulisa(\/|$)/, /^\/src\/([^/]+\/)?renderer(\/|$)/, /\.test\.ts$/, /^\/src\/[^/]+\/resources(\/|$)/, /^\/src\/[^/]+\/(README|AGENTS|CLAUDE)\.md$/, /^\/(forge\.config\.ts|vite\.config\.mts|tsconfig\.json|knip\.jsonc|\.dependency-cruiser\.ts)$/, /\.map$/],
   },
   makers: [
     { name: '@electron-forge/maker-squirrel', platforms: ['win32'], config: { setupIcon: 'assets/icon.ico' } },

@@ -7,9 +7,9 @@ import net from 'net';
 import path from 'path';
 import readline from 'readline';
 import { start } from '../../src/main/app.ts';
-import { claudeConversation } from '../../src/main/agents/claude.ts';
-import { AGENTS } from '../../src/main/agents/index.ts';
-import type { Agent } from '../../src/main/agents/index.ts';
+import { claudeConversation } from '../../src/kulisa-plugin/main/agents/claude.ts';
+import { AGENTS } from '../../src/kulisa-plugin/main/index.ts';
+import type { Agent } from '../../src/kulisa-plugin/main/index.ts';
 import { driver } from './driver.ts';
 import type { Kulisa } from './driver.ts';
 

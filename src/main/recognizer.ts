@@ -6,7 +6,7 @@
 import fs from 'fs';
 import path from 'path';
 import { removeTree } from './remove.ts';
-import { findAgent } from './agents/index.ts';
+import { findAgent } from '../kulisa-plugin/main/index.ts';
 import type { Recognizer } from '../dictation/main/index.ts';
 import type { Shell } from './shell.ts';
 

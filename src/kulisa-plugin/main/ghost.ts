@@ -9,28 +9,28 @@
 const MARK = '#3574f0';
 import { takenByHuman } from '../../screenshots/main/index.ts';
 import type { Page } from 'playwright-core';
-import type { Shell } from '../shell.ts';
-import type { Command } from '../cdp-proxy.ts';
-import type { Profile } from '../profiles.ts';
+import type { PluginHost } from './core.ts';
+import type { Command } from './core.ts';
+import type { BrowserContext } from 'playwright-core';
 
 // What the window shows of an action over the pane: its caption, where it was.
 interface Action { caption: string; x?: number; y?: number }
 
-function installGhost(shell: Shell) {
-  const send = (a: Action & { task: string; profile: string }) => shell.taskByKey(a.task)?.window?.send('agent', a);
-  shell.bus.on('agent-command', (c: Command) => {
+function installGhost(host: PluginHost) {
+  const send = host.showAction;
+  host.onCommand((c: Command) => {
     // A test user's password being typed (browser_type_login): that something is typed, not what.
-    const secret = shell.typingSecret?.has(`${c.task}/${c.profile}`) && /^Input\.(insertText|dispatchKeyEvent)$/.test(c.method);
+    const secret = host.typingSecret(`${c.task}/${c.profile}`) && /^Input\.(insertText|dispatchKeyEvent)$/.test(c.method);
     // The human's screenshot goes through the same connection: not the agent's action.
     if (c.method === 'Page.captureScreenshot' && takenByHuman(`${c.task}/${c.profile}`)) return;
     const a: Action | null = secret ? (c.method === 'Input.insertText' || c.params.type === 'keyDown' ? { caption: 'type ••••••' } : null) : describe(c);
     if (!a) return;
     send({ task: c.task, profile: c.profile, ...a });
-    shell.bus.emit('agent-action', { task: c.task, profile: c.profile, t: Date.now(), ...a });
+    host.noteAction({ task: c.task, profile: c.profile, t: Date.now(), ...a });
   });
   // On every connection of the shell (a new one after sign-in mode), for every page in it.
-  const annotate = (profile: Profile) => {
-    const ctx = profile.context; if (!ctx) return;
+  const annotate = (ctx: BrowserContext | null) => {
+    if (!ctx) return;
     // The agent's own pointer, moving from one action to the next, so the human sees where it acts (it stays at the
     // last action point); the rest fades out after `duration`. Each action waits that long, so
     // it is Playwright's default, 500 ms: 1200 would cost every click 1.2 s.
@@ -41,8 +41,8 @@ function installGhost(shell: Shell) {
     } }).catch(() => {});
     ctx.pages().forEach(on); ctx.on('page', on);
   };
-  for (const project of shell.open.values()) for (const task of project.tasks.values()) for (const p of task.profiles.values()) annotate(p);
-  shell.bus.on('profile-added', annotate);
+  host.contexts().forEach(annotate);
+  host.onContext(annotate);
 }
 
 let lastMove = 0;

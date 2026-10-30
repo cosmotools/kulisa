@@ -1,5 +1,5 @@
 // The agent's tools on the shells next to its terminal (Task.openTerminal): what keeps running, where the human sees
-// it. How a tool is designed: ../CLAUDE.md.
+// it. How a tool is designed: ../../README.md, Tool design.
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { Handles } from './handles.ts';
