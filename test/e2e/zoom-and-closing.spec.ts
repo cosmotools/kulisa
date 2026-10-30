@@ -361,6 +361,11 @@ test("test users' sign-ins: the agent saves a pair and signs in with it on a loc
   // Nothing of a profile's page: an address that fails to load leaves no line with it (electron-log's events are named
   // one by one: log.ts); what the agent types into a page is left out; an address is logged without its query.
   await call('browser_type', { profile: 'Tess', locator: "locator('body')", text: 'typed-by-agent' }).catch(() => {});
+  // The failure and its log are under test, not the runner's DNS resolver or its response time.
+  await core(async (k) => {
+    const page = await k.profile('Tess').page();
+    await page.route('http://nowhere.invalid/**', (route) => route.abort('namenotresolved'), { times: 1 });
+  });
   await call('browser_navigate', { profile: 'Tess', url: 'http://nowhere.invalid/x?code=abc' }).catch(() => {});
   // But that it would not load, the address bare (the page says so after the tool has answered; Electron's own warning
   // of it, with the address in full, comes just before).

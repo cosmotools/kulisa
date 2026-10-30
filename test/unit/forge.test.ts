@@ -5,7 +5,35 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import { execFileSync } from 'child_process';
+import MakerRpm from '@electron-forge/maker-rpm';
+import type { ResolvedForgeConfig } from '@electron-forge/shared-types';
+import electronPackage from 'electron/package.json' with { type: 'json' };
 import forge, { prunePrebuilds } from '../../forge.config.ts';
+
+test('the RPM maker packages its staged files and keeps the sandbox helper setuid', async (t) => {
+  if (process.platform !== 'linux') return t.skip('RPM builds on Linux');
+  const definition = forge.makers.find((m) => 'name' in m && m.name === '@electron-forge/maker-rpm');
+  assert.ok(definition && 'config' in definition);
+  const maker = new MakerRpm(definition.config);
+  if (!maker.externalBinariesExist()) return t.skip('requires rpmbuild (apt install rpm)');
+  await maker.prepareConfig('x64');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'kulisa-rpm-'));
+  try {
+    const app = path.join(dir, 'app'), resources = path.join(app, 'resources/app');
+    fs.mkdirSync(resources, { recursive: true });
+    const pkg = { name: 'kulisa', version: '0.0.0', description: 'RPM fixture', author: 'Kulisa', license: 'GPL-3.0-or-later', homepage: 'https://kulisa.app' };
+    fs.writeFileSync(path.join(resources, 'package.json'), JSON.stringify(pkg));
+    fs.writeFileSync(path.join(app, 'version'), electronPackage.version);
+    fs.writeFileSync(path.join(app, 'LICENSE'), pkg.license);
+    for (const name of ['kulisa', 'chrome-sandbox']) fs.writeFileSync(path.join(app, name), '#!/bin/sh\nexit 0\n', { mode: 0o755 });
+    const [rpm] = await maker.make({ dir: app, makeDir: path.join(dir, 'make'), appName: 'Kulisa', targetPlatform: 'linux', targetArch: 'x64',
+      forgeConfig: forge as ResolvedForgeConfig, packageJSON: pkg });
+    const files = execFileSync('rpm', ['-qpl', rpm], { encoding: 'utf8' });
+    for (const f of ['/usr/bin/kulisa', '/usr/lib/kulisa/kulisa', '/usr/share/applications/kulisa.desktop', '/usr/share/pixmaps/kulisa.png']) assert.ok(files.split('\n').includes(f), f);
+    const dump = execFileSync('rpm', ['-qp', '--dump', rpm], { encoding: 'utf8' });
+    assert.match(dump, /\/usr\/lib\/kulisa\/chrome-sandbox \S+ \S+ \S+ 0104755 root root/);
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});
 
 // node-pty starts a shell through its spawn-helper, run from app.asar.unpacked: inside the archive, a packaged
 // Kulisa's terminal fails on macOS (posix_spawnp failed).
