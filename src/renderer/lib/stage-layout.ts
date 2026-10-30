@@ -20,7 +20,10 @@ function filterLayout(layout: SerializedDockview, keep: (id: string) => boolean)
 export function splitLayout(saved: unknown): TaskLayout | null {
   if (!saved || typeof saved !== 'object') return null;
   const value = saved as TaskLayout & SerializedDockview;
-  if (value.version === 2) return value;
+  if (value.version === 2) {
+    const mode = (saved as { stageLayout?: unknown }).stageLayout;
+    return mode === 'column' || mode === 'row' ? { ...value, stageLayout: mode === 'column' ? 'vertical' : 'horizontal' } : value;
+  }
   if (!value.grid || !value.panels) return null;
   return { version: 2, workspace: filterLayout(value, (id) => id === 'terminal' || id === 'resources'), stage: filterLayout(value, (id) => id.startsWith('profile:')) };
 }

@@ -83,7 +83,7 @@ class Task {
   }
   arrangeStage(layout?: StageLayout, overflow?: boolean): Result {
     if (layout === undefined && overflow === undefined) return { error: 'choose a stage layout or set overflow' };
-    if (layout !== undefined && !['column', 'tabs', 'row'].includes(layout)) return { error: 'unknown stage layout' };
+    if (layout !== undefined && !['vertical', 'tabs', 'horizontal'].includes(layout)) return { error: 'unknown stage layout' };
     if (overflow !== undefined && typeof overflow !== 'boolean') return { error: 'overflow must be true or false' };
     if (!this.shown()) return { error: 'this task is not on screen; ask the human to show it before arranging its stage' };
     if (!this.profiles.size) return { error: 'open an environment before arranging the stage' };

@@ -9,9 +9,9 @@ import type { Handles } from './handles.ts';
 
 function taskTools(server: McpServer, { task, t, text, done }: Handles) {
   server.registerTool('stage_arrange', {
-    description: 'Arrange this task’s open testing environments: column stacks them vertically, row stacks them horizontally, tabs shows one at a time. Independently set overflow: false fits all panes into the stage; true keeps usable pane sizes and scrolls in the stack direction. Overflow is ignored in tabs but remembered. Omitted settings stay unchanged. Preserves development terminals and Resources. The task must be on screen with an open environment. Requests the same action as the human’s Arrange stage menu.',
+    description: 'Arrange this task’s open testing environments: horizontal puts them side by side, vertical puts them one above another, tabs shows one at a time. Independently set overflow: false fits all panes into the stage; true keeps usable pane sizes and scrolls in the stack direction. Overflow is ignored in tabs but remembered. Omitted settings stay unchanged. Preserves development terminals and Resources. The task must be on screen with an open environment. Requests the same action as the human’s Arrange stage menu.',
     inputSchema: {
-      layout: z.enum(['column', 'tabs', 'row']).optional().describe('column: vertical stack; row: horizontal stack; tabs: one at a time'),
+      layout: z.enum(['horizontal', 'vertical', 'tabs']).optional().describe('horizontal: side by side; vertical: one above another; tabs: one at a time'),
       overflow: z.boolean().optional().describe('false: fit all panes; true: scroll the stack at usable pane sizes; supply layout, overflow, or both'),
     },
   }, async ({ layout, overflow }) => {

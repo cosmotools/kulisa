@@ -64,14 +64,14 @@ panels in the workspace. The empty stage is absent; opening the first profile ad
 A new task opens only its default development terminal.
 
 **☰ → Arrange workspace** places the stage above development terminals with Resources beside them, or beside
-them with Resources below. It preserves the stage's layout. **Arrange stage** in its header offers **Columns**
-(vertical stack), **Tabs** (one environment at a time), and **Rows** (horizontal stack),
+them with Resources below. It preserves the stage's layout. **Arrange stage** in its header offers **Horizontal stack**
+(side by side), **Vertical stack** (one above another), and **Tabs** (one environment at a time),
 preserving the workspace. Resources keeps at least its header's height so it can fold with the development terminal.
 The human's `stage:arrange` IPC and the agent's `stage_arrange` tool call `Task.arrangeStage`: only the shown task
 with an open environment can be arranged; the task-scoped event reaches that window's stage.
 
-**Allow overflow** is independent of the layout, off by default: panes fit the stage. On, Rows allocates 600 CSS
-pixels of width per environment, Columns 300 pixels of height, plus Dockview’s gaps; the stack scrolls on that axis.
+**Allow overflow** is independent of the layout, off by default: panes fit the stage. On, Horizontal stack allocates 600 CSS
+pixels of width per environment, Vertical stack 300 pixels of height, plus Dockview’s gaps; the stack scrolls on that axis.
 Tabs hides the toggle and ignores overflow while preserving its value. `stage_arrange` accepts either setting or
 both; omitted settings stay unchanged. Changing only overflow preserves the panes and active tab. `Stage.tsx` sizes
 the inner grid inside its scroll viewport. Its scroll and both grids' layout changes report page bounds and their visible
@@ -82,7 +82,7 @@ pages into pictures for HTML drop targets.
 
 `layout.json` keeps both grids (`version: 2`, `workspace`, `stage`, `stageLayout`, `stageOverflow`), saved 300 ms after a change and flushed when the
 task is left. `lib/stage-layout.ts` separates a flat saved layout into development and testing groups, retaining
-panel order, stacking and sizes. An invalid grid falls back to its default arrangement.
+panel order, stacking and sizes. Saved stack settings normalize to explicit horizontal and vertical directions without moving panes. An invalid grid falls back to its default arrangement.
 
 **No profile open, a development terminal open**: a row above the workspace offers the closed profiles
 (`ClosedProfiles`, `Grid.tsx`). With no development terminal either, the same choices sit under the agents' launchers.
