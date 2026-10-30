@@ -20,15 +20,13 @@ import { recognizer } from './recognizer.ts';
 import { COLORS } from './window.ts';
 import type { AppWindow } from './window.ts';
 import { findFavicon } from './favicons.ts';
-import { AGENTS, findAgent, signOut } from './agents/index.ts';
-import { onEscape, stopTerminal } from '../terminal/main/index.ts';
-import { startMcpServer } from './kulisa-plugin/mcp-server.ts';
+import { AGENTS, findAgent, signOut, startMcpServer, installGhost } from '../kulisa-plugin/main/index.ts';
+import { onEscape, stopAllTerminals } from '../terminal/main/index.ts';
+import { pluginHost } from './plugin.ts';
 import { installPicker } from './picker.ts';
 import { installPageMenu } from './page-menu.ts';
-import { installGhost } from './kulisa-plugin/ghost.ts';
 import { startDiscarding } from './discard.ts';
 import { installMasters } from './master.ts';
-import { installSettings } from './settings-window.ts';
 import { openTasks } from './open-tasks.ts';
 import { environment, log, startLog } from './log.ts';
 import { updateNotices } from './updates.ts';
@@ -41,12 +39,12 @@ import { registerPanes } from './ipc/panes.ts';
 import { registerWindow } from './ipc/window.ts';
 import type { Ipc, IpcEvent } from './ipc.ts';
 import type { Shell } from './shell.ts';
-import type { Agent } from './agents/index.ts';
+import type { Agent } from '../kulisa-plugin/main/index.ts';
 import type { ProjectEntry } from './store.ts';
 
 // What start takes (below).
 interface Options {
-  userData?: string; project?: string; projectsHome?: string; mcpPort?: number; signinHosts?: string[];
+  userData?: string; project?: string; projectsHome?: string; mcpPort?: number; signinHosts?: string[]; quit?: boolean;
   appDevTools?: boolean; agents?: Agent[]; installed?: string;
   agent?: { name?: string; command: string; args?: string[]; resume?: (sessionId: string) => string[]; shell?: Agent['shell']; voice?: Agent['voice']; conversation?: Agent['conversation'] };
 }
@@ -58,10 +56,8 @@ process.on('unhandledRejection', (e) => console.error('[kulisa] unhandled reject
 
 const NONE = new Map<string, never>(); // the tasks and profiles when no project is open
 
-// Kulisa's packages for the agents (CLAUDE.md, Architecture, layer 3: Claude Code's plugin, claude-plugin/), each agent
-// finding its own there (agents/). Outside the asar archive when packaged (forge.config.ts, extraResource), because the
-// agents read them from disk.
-const AGENT_PACKAGES = app.isPackaged ? process.resourcesPath : path.join(import.meta.dirname, '..', 'agent');
+// Agent resources sit beside the archive so unchanged CLIs can read them (src/kulisa-plugin/README.md).
+const AGENT_PACKAGES = app.isPackaged ? process.resourcesPath : path.join(import.meta.dirname, '..', 'kulisa-plugin', 'resources');
 
 // options:
 //   userData   folder for Kulisa's data and browser profiles
@@ -75,6 +71,7 @@ const AGENT_PACKAGES = app.isPackaged ? process.resourcesPath : path.join(import
 //              Kulisa's own on Linux, none otherwise (tests)
 //   mcpPort    port of the MCP server (default 4450)
 //   signinHosts  extra sign-in hosts (sign-in pause, tab restore)
+//   quit       only ask the Kulisa running on userData to quit (KULISA_QUIT: askToQuit), and go
 function start(options: Options = {}) {
   // direnv's state from where Kulisa was started (a terminal in a folder direnv had loaded) is not Kulisa's: a task's
   // shell would take the task's folder for that folder left and undo its .envrc's changes, an agent's account variable
@@ -82,10 +79,12 @@ function start(options: Options = {}) {
   // in each terminal starts clean and loads the task's own .envrc; git and direnv run by Kulisa too.
   for (const k of Object.keys(process.env)) if (k.startsWith('DIRENV_')) delete process.env[k];
   // What sites see (docs/profiles.md): Kulisa on Chromium, without Electron's word. Teams takes a Mac's or Windows'
-  // Electron for its own retired desktop app and shows "Classic Teams is no longer available".
+  // Electron for its own retired desktop app and shows "Classic Teams is no longer available". Never as Google Chrome:
+  // Google refuses to sign in a profile that presents as Chrome ("This browser or app may not be secure").
   app.userAgentFallback = app.userAgentFallback.replace(/ Electron\/\S+/, '');
   const userData = options.userData || path.join(app.getPath('appData'), 'Kulisa');
   app.setPath('userData', userData);
+  if (options.quit) return askToQuit(userData);
   const { previousRunQuit } = startLog(userData, app.isPackaged);
   log.info(`[kulisa] start ${environment()}, data ${userData}`);
   // A crash of the main process writes no line: Crashpad keeps its minidump in crashDumps (Crashpad prunes them itself:
@@ -113,7 +112,11 @@ function start(options: Options = {}) {
   // task's project, that task, its open and closed profiles by id, its agent a pick goes to (Task.promptTarget).
   const shell = { bus, store, proxy: null, mcp: null, open: new Map(), windows: [], signin: signinPages(options.signinHosts || []) } as unknown as Shell;
   const first = () => shell.windows[0] ?? null;
-  app.on('second-instance', () => first()?.focus());
+  app.on('second-instance', (_e, _argv, _cwd, data) => {
+    if (!(data as { quit?: boolean } | null)?.quit) return first()?.focus();
+    log.info('[kulisa] asked to quit by another start (KULISA_QUIT)');
+    app.quit();
+  });
   app.on('activate', () => first()?.focus()); // macOS: the Dock clicked, the last window hidden by its × (open-tasks.ts)
   // The profiles and their masters (profile-store.ts); after who one is changed, or a project got or let go of one,
   // every loaded task shows it (project-profiles.ts, refresh), but the one it was changed in, which did.
@@ -145,12 +148,12 @@ function start(options: Options = {}) {
     if (password.length > 500) return { error: 'a password is at most 500 characters' };
     return { secret: shell.secrets.encrypt(password) };
   };
-  // Profiles whose test password is being typed (kulisa-plugin/tools/browser.ts, browser_type_login): ghost.ts shows no text for them.
+  // Profiles whose test password is being typed (kulisa-plugin/main/tools/browser.ts, browser_type_login): ghost.ts shows no text for them.
   shell.typingSecret = new Set<string>();
-  // Settings too: not modal, it is open beside the windows where profiles are made and let go (settings-window.ts).
+  // Settings too, shown in any window (components/settings).
   shell.profilesChanged = (from) => {
     for (const p of shell.open.values()) for (const t of p.tasks.values()) if (t.loaded && t !== from) { t.list.refresh(); shell.taskChanged(t, true); }
-    shell.settings?.send('settings:changed');
+    for (const w of shell.windows) w.send('settings:changed');
   };
   // Where new projects go, and the folders of copies of tasks with several repositories (projects.ts).
   // New projects' place, and the folders of copies of tasks of several repositories: KulisaProjects, as JetBrains'
@@ -180,15 +183,16 @@ function start(options: Options = {}) {
     return null;
   };
   const at = (e: IpcEvent) => shell.windowOf(e.sender);
-  // The tasks' window a message is about: its own, or for Settings (settings-window.ts) the tasks' window last in front:
-  // its shown task's project and folder. Where a question about it is asked: in the window it came from, Settings' too.
-  const fromSettings = (e: IpcEvent) => !!shell.settings && shell.settings.win.webContents === e.sender;
-  const owner = (e: IpcEvent) => at(e) ?? (fromSettings(e) ? shell.front() : null);
-  const asker = (e: IpcEvent) => at(e) ?? (fromSettings(e) ? shell.settings : null);
-  // Clicked, or brought up by the keyboard or the OS: the window Settings acts for and the macOS menu's Settings… opens for.
+  // Clicked, or brought up by the keyboard or the OS: the window the macOS menu's Settings… and Quit act in.
   let front: AppWindow | null = null;
   app.on('browser-window-focus', (_e, win) => { front = shell.windows.find((w) => w.win === win) ?? front; });
   shell.front = () => (front && shell.windows.includes(front) && !front.win.isDestroyed() ? front : first());
+  shell.openSettings = (at, w = shell.front()) => {
+    if (!w) return;
+    log.info(`[settings] shown at ${at.section}${at.id ? ` ${at.id}` : ''}`);
+    w.send('settings:show', at);
+    w.focus();
+  };
   const appDevTools = options.appDevTools ?? !app.isPackaged;
   let quitting = false; // from before-quit on (below): closing a window asks nothing, tabs closing save nothing
   Object.defineProperty(shell, 'quitting', { get: () => quitting });
@@ -204,12 +208,14 @@ function start(options: Options = {}) {
   const favicons = new Map<string, string | null>(); // a project's id: its favicon's file
   const pictures = new Map<string, string | null>(); // a file: its picture
   const looking = new Set<string>();
+  // Whether its picture changed: the windows are sent the projects only then.
   const lookForFavicon = async (p: ProjectEntry) => {
     looking.add(p.id);
     try {
-      const file = await findFavicon(p.folders);
+      const file = await findFavicon(p.folders), had = favicons.has(p.id), was = favicons.get(p.id), before = was ? pictures.get(was) : null;
       favicons.set(p.id, file);
       if (file) pictures.delete(file);
+      return !had || file !== was || (!!file && picture(file) !== before);
     } finally { looking.delete(p.id); }
   };
   const picture = (file: string) => (pictures.has(file) ? pictures.get(file) : pictures.set(file, pictureOf(file)).get(file)) ?? null;
@@ -221,7 +227,7 @@ function start(options: Options = {}) {
     const file = favicons.get(p.id);
     return file ? picture(file) : null;
   };
-  // And its tasks (the board lists them: newtab/): those open, as made, then the closed ones, the one closed last first.
+  // And its tasks (the sidebar lists them: components/Sidebar.tsx): those open, as made, then the closed ones, the one closed last first.
   const tasksOf = (p: ProjectEntry) => {
     const list = store.tasksOf(p).list.map((e) => ({ id: e.id, name: e.name, branch: branchOf(e), closed: !!e.closed, closedAt: e.closedAt, merged: !!e.merged }));
     return [...list.filter((t) => !t.closed), ...list.filter((t) => t.closed).sort((a, b) => (b.closedAt || 0) - (a.closedAt || 0))];
@@ -230,9 +236,8 @@ function start(options: Options = {}) {
     const favicon = faviconPicture(p);
     return { ...p, ...(favicon && { favicon }), tasks: tasksOf(p) };
   });
-  // A question asked where its action was done (a tasks' window, Settings: window.ts, Asker), the first window when none
-  // is named: askWhich gives the button clicked ('ok', 'other') or null; ask whether it was ok. Through shell: the
-  // tests answer it.
+  // A question asked in the window where its action was done, the first window when none is named: askWhich gives
+  // the button clicked ('ok', 'other') or null; ask whether it was ok. Through shell: the tests answer it.
   shell.askWhich = (q, w) => (w ?? first())?.ask(q) ?? Promise.resolve(null);
   shell.ask = async (q, w) => (await shell.askWhich(q, w)) === 'ok';
   shell.saveWindows = () => store.saveWindows(shell.windows.map((w) => w.saved()));
@@ -249,21 +254,21 @@ function start(options: Options = {}) {
     z = Math.min(z, UI_ZOOM_MAX);
     shell.uiZoom = z;
     for (const w of shell.windows) w.setZoom(z);
-    shell.settings?.setZoom(z);
     for (const p of allProfiles()) p.setBaseZoom(z);
     store.saveSettings({ ...store.settings(), uiZoom: z });
   };
   // The theme of Kulisa's own UI: 'dark' (the default, as JetBrains'), 'light', or 'system' (the OS's, followed as it
-  // changes). Only the windows' UI, by CSS (tokens.css): nativeTheme.themeSource stays the OS's, so the profiles'
+  // changes). Only the windows' UI (its theme: src/renderer/lib/theme.ts): nativeTheme.themeSource stays the OS's, so the profiles'
   // pages keep the OS's scheme, as without Kulisa, and a site under test looks as its users see it. shade(): 'dark'
-  // or 'light', what is shown, for what CSS does not paint (the window's background, the OS buttons).
+  // or 'light', what is shown, for what the page does not paint (the window's background, the OS buttons).
   shell.theme = store.settings().theme || 'dark';
   shell.shade = () => (shell.theme === 'system' ? (nativeTheme.shouldUseDarkColors ? 'dark' : 'light') : shell.theme);
   shell.setTheme = (theme) => {
     if (theme) { shell.theme = theme; store.saveSettings({ ...store.settings(), theme }); }
     for (const w of shell.windows) w.setTheme(shell.theme, shell.shade());
-    shell.settings?.setTheme(shell.theme, shell.shade());
+    for (const p of allProfiles()) p.setBlank(shell.blankColor());
   };
+  shell.blankColor = () => COLORS[shell.shade()].page;
   nativeTheme.on('updated', () => { if (shell.theme === 'system') shell.setTheme(); });
   // The language the human speaks with the agents (☰ → Language; docs/window.md, Language): Kulisa's one, written into
   // each agent's own language setting (agents/, language) in every account of it, here and at an agent's start
@@ -304,7 +309,7 @@ function start(options: Options = {}) {
   const { serial, newWindow, loadProject, unloadIdle, openProject } = tasks;
   updateNotices(shell, options.installed);
   // The windows' handles (ipc/): each message acts in the window it comes from.
-  const ipc: Ipc = { shell, at, owner, asker, serial, tasks };
+  const ipc: Ipc = { shell, at, serial, tasks };
   registerTasks(ipc);
   // Esc typed into an agent's terminal (its key: "<task>#<id>"): the agent's turn ended (Task.interrupted).
   onEscape((key) => shell.taskByKey(key.split('#')[0]!)?.interrupted(key));
@@ -313,7 +318,7 @@ function start(options: Options = {}) {
   registerAgents(ipc);
   registerPanes(ipc);
   registerWindow(ipc);
-  installGitHub(shell.github, { usedBy: (id) => githubUsers(shell, id), remove: (e, id) => deleteGitHub(shell, id, asker(e)),
+  installGitHub(shell.github, { usedBy: (id) => githubUsers(shell, id), remove: (e, id) => deleteGitHub(shell, id, at(e)),
     open: (url) => { void electronShell.openExternal(url); } });
   installDictation(shell.dictation);
   const ready = app.whenReady().then(async () => {
@@ -328,7 +333,7 @@ function start(options: Options = {}) {
     // (onKey). Elsewhere the windows have no menu (window.ts). Its app menu as Electron's own, Settings… added
     // (tutorial/application-menu.md).
     if (process.platform === 'darwin') {
-      // At the project of the tasks' window last in front (shell.front), Settings' own in front too.
+      // In the tasks' window last in front (shell.front), at its project.
       const settings = () => shell.openSettings({ section: 'projects', id: null });
       Menu.setApplicationMenu(Menu.buildFromTemplate([
         { role: 'appMenu', submenu: [{ label: 'About Kulisa', click: () => shell.openSettings({ section: 'about', id: null }) }, { type: 'separator' }, { label: 'Settings…', accelerator: 'Command+,', click: settings },
@@ -358,12 +363,11 @@ function start(options: Options = {}) {
     unloadIdle();
     for (const win of windows) win.shown ||= win.w.tabs[0] || null;
     await windows[0]!.w.load(windows[0]!.shown);
-    shell.mcp = await startMcpServer(shell, { port: options.mcpPort ?? 4450 });
+    shell.mcp = await startMcpServer(pluginHost(shell), { port: options.mcpPort ?? 4450 });
     installPicker(shell);
     installPageMenu(shell);
-    installGhost(shell);
+    installGhost(pluginHost(shell));
     installMasters(shell, { preload: path.join(import.meta.dirname, '..', 'preload', 'index.cjs'), colors: () => COLORS[shell.shade()] });
-    installSettings(shell, { preload: path.join(import.meta.dirname, '..', 'preload', 'index.cjs'), appDevTools });
 
     for (const [i, { w, shown }] of windows.entries()) {
       if (i) await w.load(shown);
@@ -390,7 +394,7 @@ function start(options: Options = {}) {
 
   // ---------- agents ----------
   // A task's agents are the human's choice, each in a terminal of its own (agents/; tasks.ts). One not chosen yet or
-  // not installed: the window asks (AgentPicker.vue), installing it with its maker's installer if the human wants.
+  // not installed: the window asks (components/AgentPicker.tsx), installing it with its maker's installer if the human wants.
   // Every agent learns where Kulisa is from the environment, set per task (tasks.ts): its MCP server from KULISA_MCP_URL
   // (Claude Code's plugin's .mcp.json), its hooks from KULISA_URL.
   shell.packages = AGENT_PACKAGES;
@@ -453,7 +457,7 @@ function start(options: Options = {}) {
       await shell.sessionCookies?.persist(p);
       await p.disconnect();
     }
-    for (const task of allTasks()) for (const t of task.terminals.values()) if (t.pty) stopTerminal(t.pty);
+    await stopAllTerminals(); // the dictation's and the sign-ins' too
   }
   process.on('SIGINT', () => app.quit());
   process.on('SIGTERM', () => app.quit());
@@ -461,4 +465,14 @@ function start(options: Options = {}) {
   return ready;
 }
 
-export { start, AGENT_PACKAGES };
+// The Kulisa running on this data quits as at SIGINT, its tabs and sign-ins saved: Windows has no signal for it (a
+// console's Ctrl+C reaches npm start's node, not Electron, a GUI program: scripts/electron.ts). Through Electron's lock,
+// and before the log is started, so that this short run leaves no start in it (log.ts, quitSaid).
+function askToQuit(userData: string) {
+  const running = !app.requestSingleInstanceLock({ quit: true });
+  console.log(running ? `[kulisa] asked the one running with ${userData} to quit` : `[kulisa] none running with ${userData}`);
+  app.quit();
+  return new Promise<never>(() => {});
+}
+
+export { start };

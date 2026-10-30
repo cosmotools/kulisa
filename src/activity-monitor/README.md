@@ -6,10 +6,10 @@ of tasks only what the caller tells it: each task's key, its project and its fol
 the store: every task of every project, open or not, since a task not loaded keeps its files too).
 
 Its callers:
-- the Resources island's heading over the artifacts, what they take (`Task.artifactsUsage`; docs/tasks.md, The
-  Resources island);
-- the agent's `task_artifacts`: its task's, its project's or every task's (`kulisa-plugin/tools/task.ts`);
-- the artifacts themselves: listed and kept under their limit from its folder's usage (`kulisa-plugin/artifacts.ts`),
+- the Resources panel's heading over the artifacts, what they take (`Task.artifactsUsage`; docs/tasks.md, The
+  Resources panel);
+- the agent's `task_artifacts`: its task's, its project's or every task's (`kulisa-plugin/main/tools/task.ts`);
+- the artifacts themselves: listed and kept under their limit from its folder's usage (`artifacts.ts`),
   so a figure, a list and the limit come from one reading of the disk.
 
 ## Disk (`main/disk.ts`)
@@ -22,7 +22,7 @@ agent works.
 
 `ActivityMonitor.query({ tasks, projects, metrics, entries })` answers for every task, one, a project's or any group
 (a task in `tasks` or in `projects` is taken), with every metric or the ones named: each task's figures and their
-total. `entries` adds each metric's files; by default only the figures, so the island's heading reads no list it does
+total. `entries` adds each metric's files; by default only the figures, so the panel's heading reads no list it does
 not show. Measured at each query, nothing kept: a folder's size is a readdir and a stat per file, and a figure kept
 would go stale as the agent works.
 
@@ -39,4 +39,4 @@ is a metric of its own way of measuring.
 | `main/monitor.ts` | the query over the tasks |
 | `monitor.test.ts` | its unit tests |
 
-Its e2e test is in `test/agent.ts` ("artifacts: what they take …").
+Its e2e test is in `test/e2e/agent-reports.spec.ts` ("artifacts: what they take …").

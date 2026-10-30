@@ -16,7 +16,7 @@
 //                            resources what it has (TaskEntry), the first where it works
 //     <task id>/             a task (TaskStore): profiles.json (what it has of its project's profiles: id, sites'
 //                            zoom, closed), layout.json (the window's grid), agent.json (its agents' conversations,
-//                            to resume and read them), terminals.json (its island's tabs), and a copy of a profile's
+//                            to resume and read them), terminals.json (its terminals' tabs), and a copy of a profile's
 //                            master per profile opened here, named by the profile's id:
 //       <id>/                a Chromium profile (session.fromPath) with Kulisa's own files in it: Kulisa Tabs.json
 //                            (its tabs' URLs), Kulisa Session Cookies.bin (session-cookies.ts)
@@ -26,6 +26,7 @@
 // Nothing goes into the project's own folder: sign-ins must not end up in its git.
 import fs from 'fs';
 import path from 'path';
+import { removeTree } from './remove.ts';
 import { randomInt } from 'crypto';
 import { log } from './log.ts';
 
@@ -47,7 +48,8 @@ const ARTIFACTS = 'artifacts';
 const taskKey = (p: { id: string }, id: string) => `${p.id}/${id}`;
 const SESSION_COOKIES_FILE = 'Kulisa Session Cookies.bin';
 // Chromium's caches inside a profile: rebuilt by themselves, so a copy of a profile goes without them.
-const CACHES = new Set(['Cache', 'Code Cache', 'GPUCache', 'DawnGraphiteCache', 'DawnWebGPUCache', 'GrShaderCache', 'ShaderCache']);
+const CACHES = ['Cache', 'Code Cache', 'GPUCache', 'DawnGraphiteCache', 'DawnWebGPUCache', 'GrShaderCache', 'ShaderCache'];
+const NOT_COPIED = new Set([...CACHES, 'Network/Cookies', 'Network/Cookies-journal']);
 
 // A profile's tabs as saved: their URLs, in the strip's order, and the place of the one in front.
 interface SavedTabs { urls: string[]; active: number }
@@ -59,7 +61,7 @@ interface ProjectEntry {
 }
 // A task's copy of one repository (worktrees.ts, createWorktree).
 interface Copy { repo: string; worktree: string; branch: string; base: string | null; folder: string }
-// What a task has (docs/tasks.md, The Resources island), the first where it works: the project's folder it opened in
+// What a task has (docs/tasks.md, The Resources panel), the first where it works: the project's folder it opened in
 // (maintree: the human's, kept as it was then, though the project's default may change), until its own worktree takes
 // that place (task_worktree); then the worktrees of the other repositories it added. More kinds come over time.
 type Resource = { kind: 'maintree'; folder: string } | ({ kind: 'worktree' } & Copy);
@@ -78,18 +80,17 @@ const branchOf = (e: TaskEntry) => ownWorktree(e)?.branch ?? null;
 // Its folder of copies (<projects' home>/<project>@<branch>/, projects.ts), or null: the folder holding a copy that is
 // not beside its repository (<repo>@<branch>). Its repository's top: the copy's folder is the same subfolder of both.
 const homeOf = (e: TaskEntry) => {
-  const inHome = worktreesOf(e).find((c) => path.dirname(c.worktree) !== path.dirname(path.resolve(c.repo, path.relative(c.folder, c.worktree))));
+  const inHome = worktreesOf(e).find((c) => path.dirname(path.resolve(c.worktree)) !== path.dirname(path.resolve(c.repo, path.relative(c.folder, c.worktree))));
   return inHome ? path.dirname(inHome.worktree) : null;
 };
 interface TasksFile { list: TaskEntry[] }
 // A window as settings.json keeps it: its tasks by key ("<project id>/<task id>", tasks.ts) in the bar's order, the shown
 // one.
 interface SavedWindow { tabs: string[]; shown: string | null; bounds?: Electron.Rectangle; maximized?: boolean }
-interface Settings { uiZoom?: number; theme?: 'dark' | 'light' | 'system'; bar?: 'top' | 'bottom'; language?: string; keys?: Record<string, string>; windows?: SavedWindow[];
-  settingsWindow?: Electron.Rectangle } // where Settings' window was (settings-window.ts)
+interface Settings { uiZoom?: number; theme?: 'dark' | 'light' | 'system'; bar?: 'top' | 'bottom'; language?: string; keys?: Record<string, string>; windows?: SavedWindow[] }
 // A profile as a task keeps it in profiles.json (project-profiles.ts).
 interface TaskProfile { id: string; zoom?: Record<string, number>; closed?: boolean }
-// A task's agents (tasks.ts): the one it was made with (opened when its island has never had a terminal), and every
+// A task's agents (tasks.ts): the one it was made with (opened when it has never had a terminal), and every
 // conversation an agent had in it, oldest first, numbered from 1 in task_history: its account, its session as its
 // hooks reported it (agent-hooks.ts), when, the name the agent gave it (title) or its own auto-title read from its
 // transcript (autoTitle, shown until title is given), and the terminal it is open in (none: closed).
@@ -97,7 +98,7 @@ interface Conversation {
   agent: string; sessionId?: string; transcript?: string; started?: boolean; from: number; to?: number; title?: string; autoTitle?: string; terminal?: number;
 }
 interface AgentFile { agent?: string | null; conversations?: Conversation[] }
-// Its island's terminals, in their tabs' order, and the one in front (tasks.ts): a shell has its name; an agent's, its
+// Its terminals, in their tabs' order, and the one in front (tasks.ts): a shell has its name; an agent's, its
 // conversation's index in agent.json.
 interface SavedTerminal { id: number; name?: string; by?: 'human' | 'agent'; conversation?: number }
 interface TerminalsFile { front?: number | null; list: SavedTerminal[] }
@@ -132,7 +133,7 @@ class Store {
   nextColor() { return nextColor(this.projects()); }
   // The projects that have an agent's account or a profile (by its id).
   projectsWith(list: 'agents' | 'profiles', item: string) { return this.projects().filter((p) => p[list]?.includes(item)); }
-  // A project's name, agents or repositories changed (the projects' manager); its id stays.
+  // A project's name, agents or repositories changed (Settings); its id stays.
   // null fields go.
   updateProject(id: string, fields: { [K in keyof ProjectEntry]?: ProjectEntry[K] | null }): ProjectEntry | null {
     const list = this.projects(), i = list.findIndex((p) => p.id === id);
@@ -156,7 +157,7 @@ class Store {
   // A task's data folder; taskOf makes it, taskDir only names it (an id still to be found free: Project.createTask).
   taskDir(p: { id: string }, id: string) { return path.join(this.dir, 'projects', p.id, id); }
   taskOf(p: { id: string }, id: string) { return new TaskStore(this.taskDir(p, id), this); }
-  // A task's folder of what the agent's tools keep of its pages (kulisa-plugin/artifacts.ts).
+  // A task's folder of what the human or agent keep of its pages (artifacts.ts).
   artifactsOf(p: { id: string }, id: string) { return path.join(this.taskDir(p, id), ARTIFACTS); }
   // Every task's, as a glob: what an agent is let read there (agents/claude.ts).
   artifactsGlob() { return this.artifactsOf({ id: '*' }, '*'); }
@@ -170,7 +171,7 @@ class Store {
     this.saveWindows(this.windows().map((w) => ({ ...w, tabs: w.tabs.filter((key) => !its(key)), shown: w.shown && !its(w.shown) ? w.shown : null })));
     const dir = path.join(this.dir, 'projects', p.id);
     this.markDeleted(dir);
-    try { fs.rmSync(dir, { recursive: true, force: true }); } catch (e) { console.warn('[store]', (e as Error).message); }
+    try { removeTree(dir); } catch (e) { console.warn('[store]', (e as Error).message); }
   }
 
   // Folders to remove at the next start, before any session opens them; only inside the data folder.
@@ -179,7 +180,7 @@ class Store {
   purgeDeleted() {
     for (const d of this.deleted()) {
       const rel = path.relative(this.dir, d);
-      if (rel && !rel.startsWith('..') && !path.isAbsolute(rel)) fs.rmSync(d, { recursive: true, force: true });
+      if (rel && !rel.startsWith('..') && !path.isAbsolute(rel)) removeTree(d);
     }
     fs.rmSync(this.deletedFile, { force: true });
   }
@@ -194,7 +195,7 @@ class TaskStore {
   constructor(dir: string, store: Store) { this.dir = dir; this.store = store; fs.mkdirSync(dir, { recursive: true }); }
   file(name: string) { return path.join(this.dir, name); }
   profileDir(id: string) { return path.join(this.dir, id); }
-  // What the agent's tools keep of its pages: large snapshots and bodies, screenshots (kulisa-plugin/artifacts.ts).
+  // What the human or agent keep of its pages: large snapshots and bodies, screenshots (artifacts.ts).
   get artifacts() { return path.join(this.dir, ARTIFACTS); }
   // What the task has of its project's profiles (project-profiles.ts): [{ id, zoom, closed }] (who a profile is:
   // profile-store.ts); null before the task first loads.
@@ -218,33 +219,34 @@ class TaskStore {
     if (saved) this.saveProfiles(saved.filter((x) => x.id !== id));
     if (!fs.existsSync(this.profileDir(id))) return;
     this.markDeleted(id);
-    fs.rmSync(this.profileDir(id), { recursive: true, force: true });
+    removeTree(this.profileDir(id));
   }
   // The window's grid as dockview serializes it (the renderer's lib/grid.ts).
   layout(): unknown { return readJSON(this.file('layout.json')); }
   saveLayout(layout: unknown) { writeJSON(this.file('layout.json'), layout); }
   agent(): AgentFile { return readJSON(this.file('agent.json')) || {}; }
   saveAgent(a: AgentFile) { writeJSON(this.file('agent.json'), a); }
-  // null: the island never had a terminal (a new task: its agent opens).
+  // null: the task never had a terminal (a new task: its agent opens).
   terminals(): TerminalsFile | null { const t = readJSON(this.file('terminals.json')); return Array.isArray(t?.list) ? t : null; }
   saveTerminals(t: TerminalsFile) { writeJSON(this.file('terminals.json'), t); }
 }
 
-// Copy a profile's folder without its caches. An open profile can be copied once its data is flushed
+// Copy a profile's folder without its caches and its cookies: those come through its session (cookie-sync.ts, copy),
+// as Windows keeps an open session's cookie database locked. An open profile can be copied once its data is flushed
 // (tasks.ts); a file that cannot be read (locked on Windows) is left out and logged.
 async function copyProfile(from: string, to: string) {
-  const walk = async (src: string, dst: string, top: boolean) => {
+  const walk = async (src: string, dst: string, rel: string) => {
     await fs.promises.mkdir(dst, { recursive: true });
     for (const e of await fs.promises.readdir(src, { withFileTypes: true })) {
-      if (top && CACHES.has(e.name)) continue;
+      if (NOT_COPIED.has(rel + e.name)) continue;
       const s = path.join(src, e.name), d = path.join(dst, e.name);
       try {
-        if (e.isDirectory()) await walk(s, d, false);
+        if (e.isDirectory()) await walk(s, d, `${rel}${e.name}/`);
         else if (e.isFile()) await fs.promises.copyFile(s, d);
       } catch (err) { console.error('[store] not copied:', s, (err as NodeJS.ErrnoException).code || (err as Error).message); }
     }
   };
-  await walk(from, to, true);
+  await walk(from, to, '');
 }
 
 const nextColor = (list: ProjectEntry[]) => PROJECT_COLORS.find((c) => !list.some((p) => p.color === c)) || PROJECT_COLORS[list.length % PROJECT_COLORS.length]!;
@@ -272,4 +274,4 @@ function writeFileAtomic(file: string, data: string | Uint8Array, options?: { mo
 }
 
 export { Store, newId, copyProfile, writeFileAtomic, readTabs, writeTabs, SESSION_COOKIES_FILE, PROJECT_COLORS, worktreesOf, ownWorktree, folderOf, branchOf, homeOf, taskKey };
-export type { SavedTabs, TaskStore, ProjectEntry, TaskEntry, Copy, Worktree, TaskProfile, TasksFile, Conversation };
+export type { SavedTabs, TaskStore, ProjectEntry, TaskEntry, Copy, Worktree, TaskProfile, Conversation };

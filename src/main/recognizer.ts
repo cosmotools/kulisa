@@ -5,7 +5,8 @@
 // there).
 import fs from 'fs';
 import path from 'path';
-import { findAgent } from './agents/index.ts';
+import { removeTree } from './remove.ts';
+import { findAgent } from '../kulisa-plugin/main/index.ts';
 import type { Recognizer } from '../dictation/main/index.ts';
 import type { Shell } from './shell.ts';
 
@@ -17,7 +18,7 @@ function recognizer(shell: Shell, userData: string): Recognizer & { clean(): voi
   const forget = (id: string) => {
     const a = accounts().find((x) => x.id === id);
     if (a) a.agent.forget?.({ folder, configDir: a.dir });
-    fs.rmSync(folder, { recursive: true, force: true });
+    removeTree(folder);
   };
   return {
     clean: () => { if (fs.existsSync(folder)) for (const a of accounts()) forget(a.id); },

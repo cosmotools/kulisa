@@ -6,6 +6,7 @@
 import { app, nativeImage } from 'electron';
 import fs from 'fs';
 import path from 'path';
+import { removeTree } from './remove.ts';
 import { Task } from './tasks.ts';
 import { freeBranch, createWorktree, removeWorktree, merged, repoOf, changes, clone } from './worktrees.ts';
 import { originKey } from './remotes.ts';
@@ -18,7 +19,7 @@ import { newId, worktreesOf, ownWorktree, folderOf, branchOf, homeOf } from './s
 import type { ProjectEntry, TaskEntry, Copy, Worktree, Store } from './store.ts';
 import type { StoredProfile } from './profile-store.ts';
 import type { ProfileConfig } from './profiles.ts';
-import type { AppWindow, Asker } from './window.ts';
+import type { AppWindow } from './window.ts';
 import type { Question, ProjectAgent, ProjectGitHub, ProjectFolder, NewProjectSetup } from '../shared/types.ts';
 import type { GitError } from './worktrees.ts';
 
@@ -41,13 +42,13 @@ class Project {
   }
   // A window of one of its open tasks, for a question about the project (none: the app's first).
   get window(): AppWindow | null { return this.open().find((t) => t.window)?.window ?? null; }
-  // Its name, agents and repositories, as the projects' manager left them (store.ts, updateProject).
+  // Its name, agents and repositories, as Settings left them (store.ts, updateProject).
   // folder: its default repository (or folder), where its tasks' agents start.
   update(entry: ProjectEntry) { this.entry = entry; this.name = entry.name; this.folder = entry.folders[0]!; }
   folders() { return this.entry.folders; }
   // The agents' accounts its tasks run, the default first.
   agents() { return agentsOf(this.shell, this.entry); }
-  // The one a new task starts; none: its tasks start with nothing open (the island's buttons, Terminals.vue).
+  // The one a new task starts; none: its tasks start with nothing open (the terminals' buttons, Terminals.tsx).
   defaultAgent() { return defaultOf(this.shell, this.entry); }
   // Its open tasks, in the order they were made (the bar's); the closed ones, the one closed last first.
   open() { return [...this.tasks.values()].filter((t) => !t.entry.closed); }
@@ -66,8 +67,8 @@ class Project {
   // A new task, "New Task" until the agent or the human names it. It opens with no worktree: its terminal starts in
   // the project's folder (the human's), and its agent makes the task its own git worktree with task_worktree
   // (ensureWorktree) when it reaches code — or the human has it work right in the folder. A project without git works
-  // in its folder as it is. Made from the project's configuration alone (the projects' manager), nothing from the task
-  // on screen: its agent the project's default one; none: nothing starts, the island shows what can. No profile opens
+  // in its folder as it is. Made from the project's configuration alone (Settings), nothing from the task
+  // on screen: its agent the project's default one; none: nothing starts, the terminals' panel shows what can. No profile opens
   // by itself: all its project's are listed closed, and the agent (profile_open) or the human (a task tab's menu)
   // opens one when it is needed, a copy of its master made then. The new Task, or { error }.
   async createTask(): Promise<Result<Task>> {
@@ -172,7 +173,7 @@ class Project {
     if (found) this.save();
     return found;
   }
-  // A closed task opened again (the bar's +), to be shown: it loads then, its agent resumed.
+  // A closed task opened again (the sidebar), to be shown: it loads then, its agent resumed.
   reopen(task: Task) {
     delete task.entry.closed; delete task.entry.closedAt; delete task.entry.merged;
     this.save();
@@ -209,7 +210,7 @@ const changesOf = async (copies: Copy[]) => (await Promise.all(copies.map((c) =>
 
 // Deleting a task asks first, told what goes for good, with the work not in its repositories' main branches and not
 // pushed that goes with it. folder: where it works (Task.folder).
-async function askDeleteTask(shell: Shell, entry: TaskEntry, folder: string, w: Asker | null) {
+async function askDeleteTask(shell: Shell, entry: TaskEntry, folder: string, w: AppWindow | null) {
   const copies = worktreesOf(entry);
   const what = changesText(await changesOf(copies));
   const goes = [...copies.map((c) => `its folder ${c.worktree}, its branch ${c.branch}`), 'its profiles with their sign-ins',
@@ -217,7 +218,7 @@ async function askDeleteTask(shell: Shell, entry: TaskEntry, folder: string, w: 
   return shell.ask(deleteQuestion({ message: `Delete the task ${entry.name}?`, ok: 'Delete', goes, notInMain: what ? [what] : [],
     stays: !copies.length && `It worked in ${folder}: its files stay, and so does its agent's conversation there.` }), w);
 }
-// A closed task of a project not loaded (the bar's + lists them): nothing of it is loaded, its entry is all there is.
+// A closed task of a project not loaded (the sidebar lists them): nothing of it is loaded, its entry is all there is.
 async function deleteClosedTask(shell: Shell, p: ProjectEntry, id: string, w: AppWindow): Promise<Result<{ id: string }>> {
   const entry = shell.store.tasksOf(p).list.find((e) => e.id === id && e.closed);
   if (!entry) return { error: `no closed task ${id}` };
@@ -254,11 +255,11 @@ async function deleteTask(shell: Shell, p: ProjectEntry, entry: TaskEntry) {
   const data = store.taskOf(p, entry.id);
   const copies = worktreesOf(entry), home = homeOf(entry);
   for (const c of copies) await removeWorktree(c);
-  if (home) fs.rmSync(home, { recursive: true, force: true });
+  if (home) removeTree(home);
   for (const c of copies) forgetFolder(shell, p, entry, c.folder);
   // Its profiles' sessions stay open in Electron until Kulisa quits: whatever cannot go now goes at the next start.
   store.markDeleted(data.dir);
-  try { fs.rmSync(data.dir, { recursive: true, force: true }); } catch (e) { console.warn('[tasks]', (e as Error).message); }
+  try { removeTree(data.dir); } catch (e) { console.warn('[tasks]', (e as Error).message); }
 }
 
 // A project's folders (Project Settings…), repositories or not, whether it is open or not: added, cloned, made the
@@ -291,7 +292,7 @@ async function cloneRepo(shell: Shell, id: string, url: string): Promise<Result<
   if (!name) return { error: 'not a repository URL' };
   const into = path.join(path.dirname(p.folders[0]!), name);
   if (fs.existsSync(into)) return { error: `${into} is already there` };
-  try { await clone(url.trim(), into); } catch (e) { fs.rmSync(into, { recursive: true, force: true }); return { error: (e as GitError).stderr || (e as Error).message }; }
+  try { await clone(url.trim(), into); } catch (e) { removeTree(into); return { error: (e as GitError).stderr || (e as Error).message }; }
   return addFolder(shell, id, into);
 }
 // Made the default (new tasks' agents start in its copy), or removed: only when no task has a copy of it or works in
@@ -317,7 +318,7 @@ async function removeFolder(shell: Shell, id: string, folder: string): Promise<R
 // A profile a project lets go (− on its page, the agent's profile_delete), whether it is open or not: asked first,
 // saying what goes: its copies in the project's tasks. The profile stays, with its master (its sign-ins): Settings →
 // Profiles deletes it (deleteProfile). w: the window that asks.
-function askDropProfile(shell: Shell, entry: ProjectEntry, p: Named, by: 'human' | 'agent', w?: Asker | null) {
+function askDropProfile(shell: Shell, entry: ProjectEntry, p: Named, by: 'human' | 'agent', w?: AppWindow | null) {
   const agent = by === 'agent';
   return shell.ask({ ok: 'Remove', danger: true, message: `${agent ? 'The agent asks to remove' : 'Remove'} the profile ${p.name} from ${entry.name}${agent ? '.' : '?'}`,
     detail: "Its copies in this project's tasks go, with their tabs and what was signed in only there. The profile stays, with its sign-ins: Settings → Profiles deletes it." }, w);
@@ -332,7 +333,7 @@ async function dropProfile(shell: Shell, entry: ProjectEntry, id: string) {
 }
 // Deleting a profile (Settings → Profiles), after a question: its copies in every project's tasks, then its master
 // (its window first) with its sign-ins, for good. { ok }, or { error: null } when the human says no.
-async function deleteProfile(shell: Shell, id: string, w: Asker | null): Promise<{ ok: true; error?: undefined } | { error: string | null; ok?: undefined }> {
+async function deleteProfile(shell: Shell, id: string, w: AppWindow | null): Promise<{ ok: true; error?: undefined } | { error: string | null; ok?: undefined }> {
   const g = shell.profileStore.get(id);
   if (!g) return { error: `no profile ${id}` };
   const projects = shell.store.projectsWith('profiles', id);
@@ -348,8 +349,8 @@ async function deleteProfile(shell: Shell, id: string, w: Asker | null): Promise
   return { ok: true };
 }
 
-// The agents' accounts a project's tasks run (the projects' manager), whether it is open or not: added, made the
-// default (+ runs it) or none the default (its tasks start with the island's buttons), removed.
+// The agents' accounts a project's tasks run (Settings), whether it is open or not: added, made the
+// default (+ runs it) or none the default (its tasks start with the terminals' buttons), removed.
 // The default is the first, unless noDefaultAgent; with no agents left, the next one added is the default. A task keeps
 // the agent it started with. The accounts' store (accounts.ts) lists the projects each is in. { agents } or { error }.
 function changeAgents(shell: Shell, id: string, list: string[], noDefault?: boolean) {
@@ -426,8 +427,8 @@ async function createProject(shell: Shell, { from = 'new', name, location, folde
         try { await clone(u, intos[i]!); } catch (e) {
           const err = e as GitError;
           // None of it kept: a project with half its code would look made.
-          for (const f of intos.slice(0, i + 1)) if (f !== folder || there.state === 'new') fs.rmSync(f, { recursive: true, force: true });
-          if (there.state === 'new') fs.rmSync(folder, { recursive: true, force: true });
+          for (const f of intos.slice(0, i + 1)) if (f !== folder || there.state === 'new') removeTree(f);
+          if (there.state === 'new') removeTree(folder);
           return { error: `${u}: ${err.stderr || err.message}` };
         }
       }
@@ -479,7 +480,7 @@ function removeAgent(shell: Shell, id: string, agent: string): Result<{ agents: 
 // Delete Account… (Settings → Agents): only while no task, of any project, open or closed, runs it (its conversation is
 // in its folder); asked first, naming the projects it is in; let go by them, signed out with its agent's own command,
 // its folder gone. w: the window that asks. { ok } or { error }.
-async function deleteAccount(shell: Shell, agent: string, w: Asker | null): Promise<{ ok: true; error?: undefined } | { error: string | null; ok?: undefined }> {
+async function deleteAccount(shell: Shell, agent: string, w: AppWindow | null): Promise<{ ok: true; error?: undefined } | { error: string | null; ok?: undefined }> {
   const a = shell.accounts.find(agent);
   if (!a || a.own) return { error: `no account ${agent}` };
   const using = shell.store.projects().flatMap((p) => shell.store.tasksOf(p).list
@@ -495,9 +496,12 @@ async function deleteAccount(shell: Shell, agent: string, w: Asker | null): Prom
   return { ok: true };
 }
 
-// What the projects' manager shows of them: each with whether it is in git.
+// What Settings shows of them: each with whether it is in git.
 async function foldersInfo(p: ProjectEntry): Promise<{ folders: ProjectFolder[] }> {
-  return { folders: await Promise.all(p.folders.map(async (folder): Promise<ProjectFolder> => ({ folder, git: await gitOf(folder) }))) };
+  return { folders: await Promise.all(p.folders.map(async (folder): Promise<ProjectFolder> => {
+    const [git, remote] = await Promise.all([gitOf(folder), originKey(folder)]);
+    return { folder, git, remote };
+  })) };
 }
 
 // Its repositories' GitHub accounts (src/github/README.md, A repository's account), whether it is open or not: each
@@ -533,7 +537,7 @@ const githubUsers = (shell: Shell, account: string) => shell.store.projects().fi
 // A GitHub account deleted (Settings → GitHub), after a question: its tokens forgotten, its projects let go of it. GitHub's
 // API to revoke them needs the App's secret, which Kulisa has not, so the question links the page where the human
 // revokes it (src/github/README.md, Deleting). w: the window that asks.
-async function deleteGitHub(shell: Shell, id: string, w: Asker | null): Promise<Result<{ ok: true }, string | null>> {
+async function deleteGitHub(shell: Shell, id: string, w: AppWindow | null): Promise<Result<{ ok: true }, string | null>> {
   const a = shell.github.accounts.get(id);
   if (!a) return { error: `no account ${id}` };
   const projects = shell.store.projects().filter((p) => Object.values(p.github || {}).includes(id));
@@ -550,7 +554,7 @@ async function deleteGitHub(shell: Shell, id: string, w: Asker | null): Promise<
 // Removing a project: the question first, told what goes and which tasks have work not in main (the window closes the
 // project if it is open in between), then each of its tasks deleted and what is the project's as a whole (store.ts:
 // its entry, its data folder). Never the project's own folder. p: its entry; w: the window that asks.
-async function askDeleteProject(shell: Shell, p: ProjectEntry, w: Asker | null) {
+async function askDeleteProject(shell: Shell, p: ProjectEntry, w: AppWindow | null) {
   const withCopies = shell.store.tasksOf(p).list.filter((e) => worktreesOf(e).length);
   const changed = [];
   for (const e of withCopies) {

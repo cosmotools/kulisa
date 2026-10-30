@@ -7,6 +7,7 @@ import os from 'os';
 import path from 'path';
 import elog from 'electron-log/main';
 import pkg from '../../package.json' with { type: 'json' };
+import { tilde as homeAsTilde } from '../shared/paths.ts';
 
 const SECRET_KEY = /pass|secret|token|cookie|credential/i;
 const TYPED_KEY = /^(text|values)$/; // what the agent types into a page (browser_type, browser_fill_form)
@@ -27,8 +28,7 @@ export const shortEmail = (email: string) => {
   const at = email.lastIndexOf('@'), name = email.slice(0, Math.max(at, 0));
   return at < 1 ? '…' : `${name.slice(0, Math.min(3, Math.ceil(name.length / 2)))}…${email.slice(at)}`;
 };
-// A folder with the home folder as ~: a user's log shared holds their name less often.
-export const tilde = (p: string, home = os.homedir()) => (p === home || p.startsWith(home + path.sep) ? `~${p.slice(home.length)}` : p);
+export const tilde = (p: string, home = os.homedir()) => homeAsTilde(p, home, path.sep);
 
 export const log = elog;
 let file = '', packaged = false;
@@ -102,7 +102,7 @@ export function electronEvent({ eventName, event, args }: { eventName: string; e
   return [`[electron] ${eventName}${where}`, ...(details ? [details] : [])];
 }
 
-// The Log page (settings/LogPage.vue) reads the file whole (1 MB at most) and then follows it: a hook runs before the
+// The Log page (components/settings/LogPage.tsx) reads the file whole (1 MB at most) and then follows it: a hook runs before the
 // file transport, which writes at once, so what came since goes to the page at the end of the same tick, a burst of
 // lines as one. One page follows: the last that read. The file shorter than what was read (turned over at 1 MB): the
 // page is told to read it again. Nothing of this is logged: no line of the page's own to send it again.

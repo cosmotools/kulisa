@@ -1,6 +1,6 @@
 # A merge into main (a pull request from develop, its version raised: test.yml's version job) is a release: the
 # installers built on each OS into one draft, the installed app started, then the draft published (CLAUDE.md,
-# Releases; docs/window.md, "The app icon, installers and updates"). macOS joins once the Apple secrets are set.
+# Releases; docs/releases.md, Publishing a release). macOS joins once the Apple secrets are set.
 name: release
 on:
   push:
@@ -60,7 +60,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       # Each file's provenance, signed (Sigstore) and kept by GitHub: that this workflow built it from this commit, for
-      # whoever asks where an installer came from (docs/window.md, "The app icon, installers and updates"). The
+      # whoever asks where an installer came from (docs/releases.md, Publishing a release). The
       # updater's .nupkg too. Not a release asset: `gh attestation verify <file> -R cosmotools/kulisa` reads it.
       - uses: actions/attest@v4
         with:

@@ -6,7 +6,9 @@ import { spawn } from 'child_process';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
+import { pathToFileURL } from 'url';
 import { electronEvent, environment, issueUrl, quitSaid, stamp, summary } from '../../src/main/log.ts';
+import { tilde } from '../../src/shared/paths.ts';
 
 test('log: summary leaves out secrets, typed text and addresses\' queries, and cuts the rest short', () => {
   assert.equal(summary({ profile: 'tess', user: 'tess', password: 'secret-tess' }), '{"profile":"tess","user":"tess","password":"…"}');
@@ -21,6 +23,13 @@ test('log: summary leaves out secrets, typed text and addresses\' queries, and c
   assert.equal(summary({ a: 'x'.repeat(60), b: 'y'.repeat(60), c: 'z'.repeat(60) }, 100).length, 101);
   assert.equal(summary(undefined), '');
   assert.equal(summary(['shop/1', { n: 2 }]), '["shop/1",{"n":2}]');
+});
+
+test('paths: the home folder as ~ by the OS\'s separator, Windows\' too; a folder only beginning with its name is not in it', () => {
+  assert.equal(tilde('/home/ann/kulisa/bin', '/home/ann', '/'), '~/kulisa/bin');
+  assert.equal(tilde('C:\\Users\\ann\\.local\\bin\\claude.exe', 'C:\\Users\\ann', '\\'), '~\\.local\\bin\\claude.exe');
+  assert.equal(tilde('/home/anna/x', '/home/ann', '/'), '/home/anna/x');
+  assert.equal(tilde('/home/ann', '/home/ann', '/'), '~');
 });
 
 test("log: Electron's events as a line of ours, the page's address bare, nothing appended by electron-log", () => {
@@ -58,7 +67,7 @@ test('log: the time as ISO 8601 with the offset; whether the run before said it 
 test('log: a console whose reader is gone does not hang the app; the file goes on', async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'kulisa-log-'));
   const script = `
-    import { startLog } from ${JSON.stringify(path.resolve('src/main/log.ts'))};
+    import { startLog } from ${JSON.stringify(pathToFileURL(path.resolve('src/main/log.ts')).href)};
     startLog(${JSON.stringify(dir)}, false);
     process.on('uncaughtException', (e) => console.error('[kulisa] uncaught', e));
     let n = 0;
@@ -72,6 +81,7 @@ test('log: a console whose reader is gone does not hang the app; the file goes o
   const log = fs.readFileSync(path.join(dir, 'logs', 'kulisa.log'), 'utf8');
   fs.rmSync(dir, { recursive: true });
   assert.equal(code, 0, 'the child ended by itself (null: killed, looping on the dead console)');
-  assert.match(log, /line 39\n.*\[kulisa\] quitting\n$/s, 'the file got every line after the console went');
+  // Lines end as the OS's do (electron-log writes os.EOL): CRLF on Windows.
+  assert.match(log, /line 39\r?\n.*\[kulisa\] quitting\r?\n$/s,'the file got every line after the console went');
   assert.doesNotMatch(log, /uncaught/, 'no error reached the uncaught handler');
 });

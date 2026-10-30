@@ -1,47 +1,67 @@
-// Menus and dialogs over a page: one menu at a time, as the OS's; every layer closed at once (a grid taken down, the
-// window left). What lies under them is the page's own: in a tasks' window the profiles' native views, which draw
-// above its HTML (views.ts plugs them in: under); Settings' window has none (docs/ui.md, Menus and dialogs).
-//   covered('hide')       a dialog's open state (v-model:open of Reka's Dialog)
-//   covered('pictures')   a menu's; ready once what is under it allows it to show (pictures of the pages)
-import { computed, shallowRef } from 'vue';
+// What covers the profiles' pages, which are native views drawn above the window's HTML (docs/ui.md, Layers;
+// views.ts plugs them in: under). Seen in the document as Radix draws its layers, so no component knows of the pages:
+// - a layer with an overlay (a dialog, a question, the sidebar over the grid) hides them while it is open, and the
+//   keys are its (keys.ts);
+// - a popper's layer (a menu, a popover, a list) opens over pictures of them: it is drawn once they are pictures,
+//   then marked data-ready (the tests' handle);
+// - Settings, no Radix layer, says so itself (coverPage).
+// closeLayers closes them as Esc does (the grid taken down, the window left).
+import { createStore } from 'zustand';
+import './cover.css';
 
-// The dialogs open now (the keys are theirs then: keys.ts).
-export const dialogsOpen = shallowRef(0);
-const dialogs = new Set<() => void>(), menus = new Set<() => void>();
+const HIDE = '[data-slot$="-overlay"][data-state="open"]';
+// cover.css cuts away the same layers until they are marked data-ready.
+const PICTURES = '[data-radix-popper-content-wrapper] > [data-state="open"]:not([data-slot="tooltip-content"])';
 
 // What a page has under its menus and dialogs: hidden while a dialog is open; still while a menu is (frozen).
-interface Under { hide(hidden: boolean): void; freeze(): Promise<void>; unfreeze(): Promise<void> }
+interface Under { hide(hidden: boolean): Promise<unknown>; freeze(): Promise<void>; unfreeze(): Promise<void> }
 let under: Under | null = null;
 export const coverUnder = (u: Under) => { under = u; };
 
-// Opened at once, as Reka expects (a right-click menu takes the pointer's place in the same turn); what is under it
-// follows. However it closes (Esc, a click outside, a choice, the window), that comes back.
-export function covered(how: 'hide' | 'pictures') {
-  const open = shallowRef(false), ready = shallowRef(how === 'hide');
-  const close = () => { model.value = false; };
-  const model = computed({
-    get: () => open.value,
-    set(v: boolean) {
-      if (v === open.value) return;
-      open.value = v;
-      const set = how === 'hide' ? dialogs : menus;
-      if (v) set.add(close); else set.delete(close);
-      if (v && how === 'pictures') for (const other of [...menus]) if (other !== close) other(); // one menu at a time, as the OS's
-      if (how === 'hide') {
-        dialogsOpen.value += v ? 1 : -1;
-        under?.hide(v);
-      } else if (v) {
-        if (under) void under.freeze().then(() => { ready.value = open.value; }); else ready.value = true;
-      } else { ready.value = false; if (!menus.size) void under?.unfreeze(); } // not when another menu has opened already
-    },
-  });
-  return { open: model, ready };
+// The dialogs open now (Settings counted): the keys are theirs then (keys.ts).
+const dialogs = createStore(() => 0);
+let pages = 0;
+export const dialogsShown = () => dialogs.getState();
+export const onDialogs = (l: () => void) => dialogs.subscribe(() => l());
+
+let menus = false, pictures = false; // a menu is open; the pages under it are pictures
+function seen() {
+  const d = document.querySelectorAll(HIDE).length + pages, was = dialogs.getState();
+  if (d !== was) {
+    dialogs.setState(d, true);
+    if (!was !== !d) void under?.hide(d > 0);
+  }
+  const open = document.querySelectorAll<HTMLElement>(PICTURES);
+  if (open.length && !menus) {
+    menus = true;
+    void (under?.freeze() ?? Promise.resolve()).then(() => { if (menus) { pictures = true; seen(); } });
+  } else if (!open.length && menus) {
+    menus = pictures = false;
+    void under?.unfreeze();
+  }
+  if (pictures) for (const m of open) m.setAttribute('data-ready', '');
 }
-const closeMenus = () => { for (const close of [...menus]) close(); };
-export const closeLayers = () => { closeMenus(); for (const close of [...dialogs]) close(); };
-// Leaving the window closes a menu, as the OS's own menus close. A tasks' window (with what is under: views.ts) says so
-// from the main process: its page's own blur came also when a profile's page in it took the keyboard as it loaded
-// (macOS), a menu gone under the human's hand; nothing else takes it while a menu is open (the pages under it are
-// pictures). Settings' window has nothing under it: its page's blur is the window's.
-addEventListener('blur', () => { if (!under) closeMenus(); });
-kulisa.on('window:blur', closeMenus);
+new MutationObserver(seen).observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['data-state'] });
+
+// Settings shown or put away. Covering once it is drawn, the panes go from the pages straight to it.
+export function coverPage(open: boolean) {
+  pages += open ? 1 : -1;
+  seen();
+}
+
+// The layer on top: the last open one Radix drew (its portals go to the body's end in the order they open).
+const top = () => [...document.querySelectorAll<HTMLElement>(`${HIDE}, ${PICTURES}`)].at(-1);
+// Every layer closed (only: menus alone) as Esc closes the top one, until none is left or one keeps its place (a
+// question waiting for an answer takes no Esc). One a frame: Radix knows its new top layer once React has drawn.
+export async function closeLayers(only?: 'menus') {
+  for (let layer = top(), last: HTMLElement | undefined; layer && layer !== last && !(only && !layer.matches(PICTURES)); last = layer, layer = top()) {
+    document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+    await new Promise(requestAnimationFrame);
+  }
+}
+// Leaving the window closes a menu, as the OS's own menus close. The main process says so, not the page's own blur: a
+// blur comes also when a profile's page in it takes the keyboard as it loads (macOS), which would close a menu under
+// the human's hand; nothing else takes it while a menu is open (the pages under it are pictures). Its message comes
+// after the blur: a window that has the keyboard again by then (a menu just opened in it) keeps it. The page's
+// document.hasFocus() can still be true after the OS window has lost focus, so ask the native window.
+kulisa.on('window:blur', async () => { if (!await kulisa.invoke('window:focused')) void closeLayers('menus'); });

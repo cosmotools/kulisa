@@ -31,7 +31,8 @@ interface Tab {
   // the address it comes back to, while its page may still hold its unload; offScreenSince: since when no one sees it
   // (discard.ts).
   discarded?: boolean; discarding?: string; offScreenSince?: number;
-  // The agent's own action answers the dialogs it opens (kulisa-plugin/tools/handles.ts, answering).
+  blankCss?: string; // the color put on its empty page (_paintBlank), taken off when the color changes
+  // The agent's own action answers the dialogs it opens (kulisa-plugin/main/tools/handles.ts, answering).
   agentDialogs?: { asked: string[]; accept: boolean };
 }
 // Who a profile is and where its data is (project-profiles.ts; master.ts: a session of its own).
@@ -67,11 +68,10 @@ const LAYOUT_WAIT = 3000; // ms a screenshot waits for a pane just opened to be 
 let dialogs = 0; // pages' dialogs, numbered: the human's answer goes to the one they saw
 // What Electron gives a page's dialog (its internal -run-dialog event).
 interface DialogInfo { dialogType: 'alert' | 'confirm'; messageText: string; frame: { url: string; parent: unknown } }
-const PAGE_RADIUS = 8; // a little less than the island's corners, which the page reaches (the renderer's ProfilePane.vue, .content)
 
 class Profile extends EventEmitter {
   win: BrowserWindow; id: string; name: string; avatar: string; description: string; login: string; hasPassword: boolean;
-  dir: string; task: string; baseZoom: number; siteZoom: Record<string, number>; session: Session;
+  dir: string; task: string; baseZoom: number; blank: string; siteZoom: Record<string, number>; session: Session;
   tabs: Tab[]; active: string | null; closedUrls: string[]; bounds: Bounds;
   browser: Browser | null; context: BrowserContext | null; endpoint: string | null; signinMode: boolean; resuming?: boolean;
   hidden: boolean; shown: boolean; deleted: boolean;
@@ -88,6 +88,7 @@ class Profile extends EventEmitter {
     // Page zoom: pages follow the Kulisa zoom (baseZoom, set by the window); a site the human zoomed with Ctrl + / -
     // in a page keeps its own factor on top of it, per host, in this profile only (saved in profiles.json).
     this.baseZoom = 1;
+    this.blank = ''; // an empty tab's color (setBlank, by the window); none: Chromium's white
     this.siteZoom = { ...(cfg.zoom || {}) };
     this.session = cfg.session || session.fromPath(this.dir); // a session of its own: one in memory (master.ts)
     this.tabs = []; this.active = null; this.closedUrls = []; this.bounds = { x: 0, y: 0, width: 0, height: 0 };
@@ -104,7 +105,7 @@ class Profile extends EventEmitter {
     this.browser = await chromium.connectOverCDP(endpoint);
     this.context = this.browser.contexts()[0]!; // connectOverCDP's default context, always there
     // With no listener Playwright dismisses every dialog (alert, confirm), the human's too; with one they stay for
-    // the human. The agent's tools answer those its own actions open (kulisa-plugin/tools/handles.ts, answering).
+    // the human. The agent's tools answer those its own actions open (kulisa-plugin/main/tools/handles.ts, answering).
     this.context.on('dialog', () => {});
   }
   async disconnect() {
@@ -121,7 +122,8 @@ class Profile extends EventEmitter {
     if (tab.discarded) await this.load(tab);
     const id = await ensureTarget(tab);
     for (let i = 0; i < 50; i++) {
-      for (const p of this.context.pages()) if ((await targetIdOf(p)) === id) return p;
+      // A page still closing (a tab closed a moment ago) has no target left to ask: not this one.
+      for (const p of this.context.pages()) if ((await targetIdOf(p).catch((): null => null)) === id) return p;
       await new Promise((r) => setTimeout(r, 100));
     }
     throw new Error(`no Playwright page for tab ${id}`);
@@ -223,8 +225,7 @@ class Profile extends EventEmitter {
 
   // The tab's webContents as Kulisa watches it: a new tab's, or the new one of a discarded tab (load).
   _bind(tab: Tab) {
-    const { view, wc } = tab;
-    view.setBorderRadius(PAGE_RADIUS);
+    const { wc } = tab;
     // The keyboard stays where the human put it in the window: the page takes it only from them (page-focus.ts).
     guardFocus(wc, () => this.win);
     const update = () => {
@@ -236,7 +237,7 @@ class Profile extends EventEmitter {
       this.emit('changed');
     };
     for (const e of ['did-start-loading', 'did-stop-loading', 'page-title-updated', 'did-navigate', 'did-navigate-in-page']) (wc as unknown as Internal).on(e, update);
-    wc.on('did-navigate', () => this._applyZoom(tab));
+    wc.on('did-navigate', () => { this._applyZoom(tab); this._paintBlank(tab); });
     // -3: replaced by another navigation. A page that would not load is a common report (a white pane), so it is logged,
     // its address bare (log.ts): the one kind of line about a profile's page.
     wc.on('did-fail-load', (_e, code, desc, url, mainFrame) => {
@@ -253,7 +254,7 @@ class Profile extends EventEmitter {
     // the window, which did not say which page asked (Electron shows no prompt(): it throws in the page). Electron's
     // handler is a listener of its internal event (lib/browser/api/web-contents.ts), replaced here: check
     // it at every Electron upgrade (docs/testing.md, "Upgrading Electron"). Answered by the human (answerDialog), by
-    // an action of the agent (tab.agentDialogs, kulisa-plugin/tools/handles.ts), or by another client over CDP. Chromium holds a
+    // an action of the agent (tab.agentDialogs, kulisa-plugin/main/tools/handles.ts), or by another client over CDP. Chromium holds a
     // navigation while a dialog is open; as Chrome does, it is dismissed when one starts (the address bar, reload).
     const internal = wc as unknown as Internal;
     internal.removeAllListeners('-run-dialog');
@@ -493,6 +494,15 @@ class Profile extends EventEmitter {
   pageZoom(tab: Tab) { return this.siteZoom[this._host(tab)] ?? 1; }
   _applyZoom(tab: Tab) { if (!tab.wc.isDestroyed()) tab.wc.setZoomFactor(this.baseZoom * this.pageZoom(tab)); }
   setBaseZoom(z: number) { this.baseZoom = z; for (const t of this.tabs) this._applyZoom(t); }
+  // An empty tab (about:blank) in the window's color, not a white page in a dark window.
+  _paintBlank(tab: Tab) {
+    const wc = tab.wc;
+    if (wc.isDestroyed()) return;
+    if (tab.blankCss) void wc.removeInsertedCSS(tab.blankCss).catch(() => {});
+    tab.blankCss = undefined;
+    if (this.blank && wc.getURL() === 'about:blank') wc.insertCSS(`html { background: ${this.blank} }`).then((k) => { tab.blankCss = k; }, () => {});
+  }
+  setBlank(color: string) { this.blank = color; for (const t of this.tabs) this._paintBlank(t); }
   // Zoom the site of a tab in this profile: dir 1, -1, or 0 (back to the Kulisa zoom). Emits 'zoom' to be saved.
   zoomSite(id: string | null | undefined, dir: number) {
     const tab = this.get(id); const host = tab && this._host(tab);
@@ -535,7 +545,7 @@ function showError(wc: WebContents, desc: string, url: string) {
 // A closed profile's caches gone: HTTP, compiled code, shaders, and the sites' Cache API (their service workers' copies
 // of their own bundles: Chromium counts it as storage, and it was the largest part of a copy, 200 MB for Teams). Sign-ins
 // and the sites' other storage stay. Chromium sets the HTTP cache's limit itself from the free disk space; profiles set
-// aside should not keep theirs (ROADMAP, "Profiles' caches").
+// aside should not keep theirs.
 async function clearCaches(sess: Session) {
   await sess.clearCache();
   await sess.clearCodeCaches({});
@@ -549,7 +559,7 @@ async function wipeSession(sess: Session) {
   await sess.clearAuthCache();
 }
 
-// Attach the tab's debugger once and learn its real Chrome target id (the proxy reports it: CLAUDE.md, Hard-won facts).
+// Attach the tab's debugger once and learn its real Chrome target id (the proxy reports it: cdp-proxy.ts).
 async function ensureTarget(tab: Tab): Promise<string> {
   if (tab.targetId) return tab.targetId;
   if (!tab.wc.debugger.isAttached()) tab.wc.debugger.attach('1.3');

@@ -1,5 +1,5 @@
 // A Kulisa window. Usually there is one; Move to New Window puts a task into a window of its own (e.g. on a second
-// monitor). Each window has a tab per task open in it (an island in its tasks' bar, in the bar's order, of any
+// monitor). Each window has a tab per task open in it (in its tasks' bar, in the bar's order, of any
 // projects), shows one of them (its grid and terminal), and asks its questions in its own dialog; the tasks behind its
 // other tabs keep running. What a window shows and asks is here. What the app has once (the store, the CDP proxy, the MCP server, the
 // agents, the windows) is app.ts's, the open tasks with their one change after another (serial) open-tasks.ts's; what happens to projects and tasks,
@@ -9,6 +9,7 @@ import path from 'path';
 import fs from 'fs';
 import { page } from './pages.ts';
 import { log } from './log.ts';
+import { focusWindow } from './page-focus.ts';
 import { Thumbnails } from '../screenshots/main/index.ts';
 import type { Rectangle, Point } from 'electron';
 import type { Shell } from './shell.ts';
@@ -22,11 +23,13 @@ type Question = Sent.Question;
 interface Place { bounds?: Rectangle | null; maximized?: boolean; near?: Electron.BrowserWindow; at?: Point }
 type Shade = 'dark' | 'light';
 
-const TITLE_BAR_HEIGHT = 44; // --title in tokens.css: keep in step
+const TITLE_BAR_HEIGHT = 44; // the title bar's (components/TopBar.tsx): keep in step
 // macOS's window buttons: their height and Electron's place for them from the left, in pt (measured).
 const MAC_BUTTONS = { height: 14, x: 7 };
-// The window's background and the OS buttons' strip, in each theme: --window and --text in tokens.css.
-const COLORS: Record<Shade, { window: string; text: string }> = { dark: { window: '#2b2d30', text: '#dfe1e5' }, light: { window: '#ebecf0', text: '#1e1f22' } };
+// The window's background and the OS buttons' strip, in each theme: --background and --foreground of src/ui/theme.css;
+// page: an empty tab's, as the pane's box under it (--card).
+const COLORS: Record<Shade, { window: string; text: string; page: string }> = {
+  dark: { window: '#0a0a0a', text: '#fafafa', page: '#171717' }, light: { window: '#ffffff', text: '#0a0a0a', page: '#ffffff' } };
 // The smallest window whose UI still works (the top bar with the OS buttons, ☰ and a task's tab, something under
 // it), as VS Code's: fixed, times the Kulisa zoom, in DIP. Not the grid's own minimum: with five profiles in a row it
 // would keep the window from half a screen next to the human's IDE. The OS holds it for the human's drag only;
@@ -40,7 +43,7 @@ let windows = 0;
 const PRELOAD = path.join(import.meta.dirname, '..', 'preload', 'index.cjs');
 
 class AppWindow {
-  shell: Shell; id: number; tabs: Task[]; current: Task | null; viewsHidden: boolean; switching: boolean;
+  shell: Shell; id: number; tabs: Task[]; current: Task | null; viewsHidden: boolean; switching: boolean; leaving: Profile[];
   stateTimer: NodeJS.Timeout | undefined; picking: Map<string, { profile: Profile; page: import('playwright-core').Page; cancel: () => unknown }>;
   questions: Questions; loaded: boolean; pending: [string, unknown[]][]; keyZone: string;
   thumbnails: Thumbnails; // a screenshot's, in its pane's corner (src/screenshots)
@@ -55,6 +58,8 @@ class AppWindow {
     this.current = null; // the one shown
     // True until the page has laid out the shown task's grid (the renderer then shows the views).
     this.viewsHidden = true;
+    // The pages of the task left for another, on screen until the page has the next grid laid out (hideViews).
+    this.leaving = [];
     // From leaving a task until the next one's profiles are all loaded: nothing is saved, and the page gets no
     // state (a partial one would build a grid other than the saved one).
     this.switching = true;
@@ -87,7 +92,8 @@ class AppWindow {
     if (maximized) win.maximize();
     this.place = this.where();
     // Send to Agent: its file's path into the prompt of the shown task's agent.
-    this.thumbnails = new Thumbnails(win, { page: page('thumbnail.html'), preload: PRELOAD, send: (text) => this.task?.typeForAgent(text) });
+    this.thumbnails = new Thumbnails(win, { page: page('thumbnail.html'), preload: PRELOAD, send: async (file) => { const r = await this.task?.sendArtifact(file); if (r?.error) throw new Error(r.error); },
+      remove: async (file) => { const r = await this.task?.deleteArtifacts([file]); if (r?.error) throw new Error(r.error); } });
     // Electron's default File/Edit/View/Window menu adds a row on Linux and Windows and gives nothing (its Ctrl+R
     // reloads the shell). On macOS the menu lives in the system bar and stays (Cmd+C/V need its Edit roles).
     win.removeMenu();
@@ -143,7 +149,7 @@ class AppWindow {
   }
 
   // The projects (store.ts), its tabs in order (each task with what its agent does), the one shown (shown: the one
-  // about to be) and its project, the loaded projects' agents (the island's +), and the other windows (to move a
+  // about to be) and its project, the loaded projects' agents (the terminals' +), and the other windows (to move a
   // task to: their id and how each is named).
   info(shown = this.current): Sent.ProjectsInfo {
     const { shell } = this;
@@ -167,7 +173,7 @@ class AppWindow {
       ({ id: cfg.id, name: cfg.name, avatar: cfg.avatar, description: cfg.description ?? '', tabs: tabs.urls.length })));
     task.list.saveTabs();
   }
-  // The shown task's artifacts (Resources.vue): when it is shown, and when its agent makes one.
+  // The shown task's artifacts (Resources.tsx): when it is shown, and when either the human or agent makes one.
   async sendArtifacts(task = this.task) {
     if (!task || task !== this.task) return;
     const [list, { bytes }] = await Promise.all([task.artifacts(), task.artifactsUsage()]);
@@ -197,12 +203,12 @@ class AppWindow {
     this.shell.saveWindows();
     this.sendProjects();
   }
-  // Another task on screen: the grid slides towards its tab (none: the window showed no task), then its profiles
-  // and terminals come.
+  // Another task on screen: the grid on screen goes at once, as a browser's tab (none: the window showed no task), then
+  // its profiles and terminals come.
   async show(task: Task) {
     log.info(`[window] wc=${this.win.webContents.id} shows ${task.key}`);
     if (task === this.current) return;
-    if (this.current) await this.leaveGrid(Math.sign(this.tabs.indexOf(task) - this.tabs.indexOf(this.current)));
+    if (this.current) this.leaveGrid(true);
     this.current = task;
     this.shell.saveWindows();
     this.win.setTitle(`${task.displayName} · ${task.project.name} — Kulisa`);
@@ -211,40 +217,39 @@ class AppWindow {
     await this.showLoaded();
   }
   // The shown task: its profiles loaded (the first time it is shown), the page's grid built from its state
-  // (the terminals' island included, even with no profiles; its tabs too, each starting), then its terminals started at
-  // the island's size.
+  // (the terminals' panel included, even with no profiles; its tabs too, each starting), then its terminals started at
+  // the terminals' size.
   async showLoaded() {
     const task = this.task!;
     if (!task.loaded) task.loadProfiles();
     this.switching = false;
     // Not waited for: the human may first have to choose the agent (or switch away meanwhile). Its tabs come at once,
-    // each starting, so the grid comes with them, not with the island's buttons.
+    // each starting, so the grid comes with them, not with the terminals' buttons.
     const terminals = task.loadTerminals();
     this.pushState();
     this.seen();
     terminals.catch((e) => console.error('[agent]', e));
   }
-  // The page takes the grid down; it gets the next task's state once its profiles are loaded. dir: where the
-  // next one is (1 right, -1 left, in the tasks' bar; 0 none, the window is left with no task), for the page
-  // to slide that way. Pictures of its pages come along, for the page to show them meanwhile (and when it comes
-  // back).
-  async leaveGrid(dir: number) {
+  // The page takes the grid down; it gets the next task's state once its profiles are loaded. Left for another task
+  // (next), the grid and its pages stay on screen until the next one is laid out, as a browser keeps a tab's page until
+  // the next one's is drawn: nothing empty between them.
+  leaveGrid(next = false) {
     this.pushState(); // saves the tabs
     this.switching = true;
     clearTimeout(this.stateTimer);
     for (const { cancel } of this.picking.values()) cancel();
     this.thumbnails.close(); // its pane goes
-    const pics = dir ? await this.pictures() : null;
     this.viewsHidden = true;
-    for (const p of this.profiles.values()) p.setHidden(true);
-    this.send('grid:closing', { dir, task: this.task?.key, pics });
+    if (next) this.leaving.push(...this.profiles.values());
+    else for (const p of this.profiles.values()) p.setHidden(true);
+    this.send('grid:closing', next);
   }
   // Before a task's tab goes (the task closes, or moves to another window): the tab next to it is shown, or the
-  // window is left with none (an empty island in the grid's place).
+  // window is left with none (the empty window).
   async leave(task: Task) {
     if (task !== this.current) return;
     const i = this.tabs.indexOf(task), next = this.tabs[i + 1] || this.tabs[i - 1];
-    if (next) await this.show(next); else await this.leaveGrid(0);
+    if (next) await this.show(next); else this.leaveGrid();
   }
   // Then the tab goes, and the page forgets the task (terminals, pictures).
   drop(task: Task) {
@@ -272,18 +277,24 @@ class AppWindow {
   // place ({ profile id: data URL }).
   async hideViews(hidden: boolean, { snapshots = false } = {}) {
     const pics = hidden && snapshots ? await this.pictures() : {};
+    for (const p of this.leaving.splice(0)) p.setHidden(true);
     // While a task is being switched they stay hidden, whatever comes (a closing menu shows them
     // again); the page shows them once it has the next grid laid out.
     this.viewsHidden = !!hidden || this.switching;
+    // A dialog over the pages (hidden, no pictures): a page that had the keyboard keeps it unseen, and the dialog's focus
+    // trap (Radix's) works in a page that has the keyboard, its keys going nowhere else: the window's page takes it. Menus
+    // (pictures) put the keyboard back themselves as they close.
+    const from = hidden && !snapshots && [...this.profiles.values()].some((p) => { const wc = p.get()?.wc; return wc && !wc.isDestroyed() && wc.isFocused(); });
     for (const p of this.profiles.values()) p.setHidden(this.viewsHidden);
     this.thumbnails.setHidden(this.viewsHidden);
+    if (from) focusWindow(this.win.webContents);
     return pics;
   }
-  // JPEG: a picture shown for a moment, encoded three times faster than PNG. A page that draws no
-  // frame (covered, the monitor off, busy) gives none: its pane is empty meanwhile. Waiting for it would hold every menu
-  // after it closed, and a task's slide after the click. How long a picture takes is the computer's (a few ms, or
-  // over a hundred on a loaded one, where a fixed tenth of a second leaves every pane empty), so the pages set the pace: once the first has
-  // answered, the rest get three times as long, a tenth of a second at least; none answering, half a second.
+  // JPEG: a picture shown for a moment, encoded three times faster than PNG. A page that draws no frame (covered, the
+  // monitor off, busy) gives none: its pane is empty meanwhile. Waiting for it would hold every menu after it closed.
+  // How long a picture takes is the computer's (a few ms, or over a hundred on a loaded one, where a fixed tenth of a
+  // second leaves every pane empty), so the pages set the pace: once the first has answered, the rest get three times as
+  // long, a tenth of a second at least; none answering, half a second.
   async pictures() {
     const pics: Record<string, string> = {}, t0 = Date.now();
     let giveUp = () => {}, paced = false;
@@ -334,7 +345,7 @@ class AppWindow {
     else this.win.setWindowButtonPosition({ x: MAC_BUTTONS.x, y: Math.max(0, Math.min(Math.round((bar - MAC_BUTTONS.height) / 2), this.barHeight - MAC_BUTTONS.height)) });
     this.send('zoom', z);
   }
-  // The theme (app.ts): the page's colors (tokens.css: theme, as chosen), the window's background and the OS buttons'
+  // The theme (app.ts): the page's colors (its theme, as chosen), the window's background and the OS buttons'
   // symbols in the colors shown (shade: dark or light); their strip is see-through (CLEAR).
   setTheme(theme: string, shade: Shade) {
     if (this.win.isDestroyed()) return;
@@ -368,18 +379,16 @@ class AppWindow {
 
 // A question in a window's own dialog (the renderer's lib/ask.ts), as all of Kulisa's dialogs look: a button that does
 // it (ok), maybe a second way (other, as New Window next to This Window), and Cancel. The button clicked: 'ok' or
-// 'other'; null for Cancel, or no answer (the page gone). A tasks' window's, Settings' (settings-window.ts).
+// 'other'; null for Cancel, or no answer (the page gone).
 let asked = 0;
-// Where a question is asked: a tasks' window, or Settings' (settings-window.ts).
-interface Asker { ask(q: Question): Promise<string | null> }
 class Questions {
   send: (q: Question & { id: number }) => void; answers = new Map<number, (answer: string | null) => void>();
   constructor(send: (q: Question & { id: number }) => void) { this.send = send; }
-  ask({ message, detail, ok, other, danger, link }: Question) {
+  ask({ message, detail, ok, other, cancel, danger, link }: Question) {
     return new Promise<string | null>((resolve) => {
       const id = ++asked;
       this.answers.set(id, resolve);
-      this.send({ id, message, detail, ok, other, danger, link });
+      this.send({ id, message, detail, ok, other, cancel, danger, link });
     });
   }
   answer(id: number, answer: string) { this.answers.get(id)?.(answer === 'ok' || answer === 'other' ? answer : null); this.answers.delete(id); }
@@ -394,9 +403,11 @@ function keepPage(win: Electron.BrowserWindow) {
     return { action: 'deny' };
   });
   win.webContents.on('will-navigate', (e) => e.preventDefault());
-  // What the page says is wrong (an uncaught error, a warning of its own), in the log with the main process's lines.
+  // What the page says is wrong (an uncaught error, a warning of its own), in the log with the main process's lines;
+  // also as the window closes, its BrowserWindow already destroyed.
+  const id = win.webContents.id;
   win.webContents.on('console-message', (d) => {
-    if (d.level === 'error' || d.level === 'warning') log.warn(`[page wc=${win.webContents.id}] ${d.message} (${d.sourceId}:${d.lineNumber})`);
+    if (d.level === 'error' || d.level === 'warning') log.warn(`[page wc=${id}] ${d.message} (${d.sourceId}:${d.lineNumber})`);
   });
 }
 
@@ -405,5 +416,5 @@ function onScreen(b: Rectangle) {
   return screen.getAllDisplays().some(({ workArea: a }) => b.x < a.x + a.width && b.x + b.width > a.x && b.y < a.y + a.height && b.y + b.height > a.y);
 }
 
-export type { Asker, Place };
-export { AppWindow, COLORS, Questions, keepPage, onScreen };
+export type { Place };
+export { AppWindow, COLORS };

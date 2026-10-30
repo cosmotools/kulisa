@@ -4,18 +4,16 @@ The human's GitHub accounts, signed in to Kulisa, several of them (work, persona
 and which account each repository of a project goes as. A Kulisa package ([docs/packages.md](../../docs/packages.md)):
 it knows nothing of projects, tasks or the window; the main process gives it its data folder, the OS keyring and a
 fetch, and tells it what only the rest knows (which projects use an account, deleting one: its question and its
-projects). Only GitHub,
-not GitLab or another host: another would be a package of its own.
+projects). Only GitHub: another host would be a package of its own.
 
-Kulisa holds the tokens; the agent never gets one. The agent reads pages strangers write (issues, comments, the
-profiles' pages), and a token in its reach could be sent away by a text that tells it to: the same principle as a
-test user's password (docs/profiles.md, "Test users' sign-ins"): the agent acts, Kulisa keeps the secret. The agent
-has no tool of it yet: what is here is the sign-in and the accounts.
+Kulisa holds the tokens; the agent never gets one: it reads pages strangers write (issues, comments, the profiles'
+pages), and a text there could tell it to send a token away (as a test user's password: docs/profiles.md, "Test users'
+sign-ins"). The agent has no tool of it yet: what is here is the sign-in and the accounts.
 
 ## Why a GitHub App
 
-Kulisa App (https://github.com/apps/kulisa-app, owned by `cosmotools`) signs the human in with GitHub's device flow,
-as an agent's own sign-in does (a code, the user's browser). Its token reaches only the repositories the App is
+Kulisa App (https://github.com/apps/kulisa-app, owned by `cosmotools`) signs the human in with GitHub's device flow (a
+code, the user's browser). Its token reaches only the repositories the App is
 installed on, with only its permissions (Contents read; Pull requests and Issues read and write; Checks, Commit
 statuses and Actions read; Metadata), and GitHub shows what it does as the human's with the App's mark. Not an OAuth
 App nor a classic token: their `repo` scope reaches every private repository of the user, as `gh`'s token does, which
@@ -25,8 +23,7 @@ the agent may still use itself (Kulisa neither blocks it nor takes its token). I
 A **fine-grained token** the human makes and pastes is the other way, for an organization that will not install the
 App: a member may only request its installation, its owner decides. Such a token reaches one owner's repositories,
 with the permissions chosen when it is made (the page links GitHub's form: `NEW_TOKEN`); an organization may have to
-approve it. A classic token (`ghp_`) is refused: it reaches every
-repository.
+approve it. A classic token (`ghp_`) is refused: it reaches every repository.
 
 ## How it signs in (`main/github.ts`, `main/api.ts`)
 
@@ -54,14 +51,12 @@ As GitHub's docs say it ("Generating a user access token for a GitHub App", "Ref
   sign in as the same login; for a token, a new token pasted. A new device flow for a login that has an account already
   is that account (GitHub gives a user one authorization of an app); a token is an account of its own even for the same
   login, as each token is for one owner.
-- Requests go through Electron's `net.fetch` (Chromium's network: the system's proxy, as the profiles' pages have it).
-  They are made with `@octokit/request`, GitHub's own (`request('GET /repos/{owner}/{repo}', …)`, typed), REST rather
-  than GraphQL: what Kulisa will watch on GitHub (a task's pull request, its comments) is asked again and again, and a
-  REST answer with an ETag costs nothing of the hourly limit when nothing changed. Not `@octokit/rest`: its table of
-  every endpoint is loaded whole for the few Kulisa asks. Not `@octokit/oauth-methods`: its refresh requires the client
-  secret, which a device flow's token does without, so the device flow and the refresh are the few lines of
-  `main/api.ts`.
-  `KULISA_GITHUB`, for the tests only, puts github.com and api.github.com (under `/api`) on the test site's fake GitHub.
+- Requests go through Electron's `net.fetch` (Chromium's network: the system's proxy, as the profiles' pages have it),
+  with `@octokit/request`, GitHub's own (typed). REST, not GraphQL: what Kulisa will watch (a task's pull request, its
+  comments) is asked again and again, and a REST answer with an ETag costs nothing of the hourly limit when nothing
+  changed. Not `@octokit/rest`: its table of every endpoint is loaded whole for the few Kulisa asks. Not
+  `@octokit/oauth-methods`: its refresh requires the client secret, which a device flow's token does without, so the
+  device flow and the refresh are the few lines of `main/api.ts`. `KULISA_GITHUB`, for the tests only, puts github.com and api.github.com (under `/api`) on the test site's fake GitHub.
 
 ## The accounts (`main/accounts.ts`)
 
@@ -91,9 +86,9 @@ points to, the host and `owner/repo` (`remotes.ts` in the base, `remoteKey`: low
 or `.git`; an SSH host alias asked of `ssh -G`, a user or token in the address dropped at once). The binding is in the
 project's entry in `projects.json`, `github: { "github.com/acme/shop": "<account id>" }`: by remote, not by folder, so
 it is the same on every computer and survives the folder moving; it goes with its account, and with the repository
-leaving the project unless another of its repositories has the same remote (`removeRepo`). With none bound, the first account that reaches it
-(`GET /repos/{owner}/{repo}` as the account answers 200) is suggested and bound, so the account a repository's work goes
-as stays the same whatever accounts come later, until the human chooses another on its row (Reka's Select). The row
+leaving the project unless another of its repositories has the same remote (`removeRepo`). With none bound, the
+first account that reaches it (`GET /repos/{owner}/{repo}` as the account answers 200) is suggested and bound, so the account a repository's work goes
+as stays the same whatever accounts come later, until the human chooses another on its row. The row
 says why none can: not a GitHub address (another host, or an SSH alias ssh cannot name); Kulisa App is not installed
 on its owner, linking where it is installed or requested; a token that does not reach it; signed out; GitHub not
 reached. The words are the core's (`why`), so the window and the agent say the same. The core of it is `GitHub.repo`
@@ -101,13 +96,15 @@ reached. The words are the core's (`why`), so the window and the agent say the s
 
 ## The window
 
-**Settings → GitHub** (`settings/GitHubPage.vue`, a page of Settings' tree after Agents), built as an agent's accounts
-are: a `.list` of the accounts, a column each for its login, where Kulisa App is installed (`GET /user/installations`,
-asked as the page is shown), the projects using it and when its sign-in ends (a refresh token's, a token's own), or
-signed out. **+** adds one, With GitHub… or With a Token…; **−** and Delete delete the selected one, after the
-question; its right-click: Sign in Again…, Delete…. A repository's row on a project's page has its account
-(`settings/RepoAccount.vue`) and, under the list, a line for each that needs the human. Both are the window's (the
-settings cluster): they use its components (menus, lists, the question), which a package's window half may not.
+**Settings → GitHub** (`components/settings/GitHubPage.tsx`, a page of Settings' nav after Agents): a card of the accounts, a list
+with a column each for its login, where Kulisa App is installed (`GET /user/installations`, asked as the page is
+shown), the projects using it and when its sign-in ends (a refresh token's, a token's own), or signed out. **+** adds
+one, With GitHub… or With a Token…, either replacing one under way; **−** and Delete delete the selected one, after the
+question; its right-click: Sign in Again…, Delete…. Leaving the page while its code is shown cancels the sign-in: a code
+no longer on screen is not to be entered. A repository's row on a project's page has its account (a `Select` in
+`components/settings/ProjectPage.tsx`, its room kept, disabled, while GitHub is asked) and, under the list, a line for
+each that needs the human. Both are Settings': they use its parts (menus, lists, the question), which a package's
+window half may not.
 
 ## Its channels (`ipc.ts`)
 
@@ -131,6 +128,6 @@ repositories' accounts are the window's channels, about a project: `project:gith
 Outside it, each because it knows the rest: `src/main/remotes.ts` (a remote's key: the base, for #127's import too),
 `projects.ts` (`githubOf`, `setGitHub`, `githubUsers`, `deleteGitHub`: the bindings in `projects.json`), `app.ts`
 (making it: the keyring, `net.fetch`, `openExternal`), `ipc/projects.ts` (the project's channels),
-`settings/GitHubPage.vue` and `RepoAccount.vue`, `ProjectEditor.vue` (the tree's node, the rows), `Ask.vue` (a
-question's link). Its e2e tests are in `test/github.ts` (the profiles group), against the test site's fake GitHub
-(`test/fixtures/site.ts`, `/github`), and `restart-profiles.ts` (a sign-in kept with the keyring).
+`components/settings/GitHubPage.tsx`, `ProjectPage.tsx` (the rows), `Settings.tsx` (the nav's item), `Ask.tsx` (a question's
+link). Its e2e tests are in `test/e2e/github.spec.ts`, against the test site's fake GitHub
+(`test/fixtures/site.ts`, `/github`), a sign-in kept with the keyring after a restart too.

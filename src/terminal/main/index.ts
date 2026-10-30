@@ -1,19 +1,20 @@
 // xterm.js in the renderer, node-pty here running the agent CLI unchanged. A task's terminals (tasks.ts) are
 // "<task key>#<id>". The window shows the shown task's, the others keep running (and the window keeps their output).
-import { on } from '../../main/ipc.ts';
+import { handle, on } from '../../main/ipc.ts';
 import { log } from '../../main/log.ts';
 import type { TerminalEvents } from '../ipc.ts';
+import fs from 'fs';
 import os from 'os';
+import path from 'path';
 import pty from 'node-pty';
 import type { IPty } from 'node-pty';
 import xterm from '@xterm/headless';
 import type { Terminal } from '@xterm/headless';
-import { shellQuote } from './shell-quote.ts';
-
+import { quotePaths, shellLine } from './shell-quote.ts';
 
 interface Size { cols: number; rows: number }
 // A terminal's process, with what Kulisa keeps of it.
-type Pty = IPty & { spawnSize: Size; spawnArgs: string[]; key: string; screen?: Terminal; stopped?: boolean; typed: Promise<void> };
+type Pty = IPty & { spawnSize: Size; spawnArgs: string[]; key: string; shell: string; screen?: Terminal; stopped?: boolean; typed: Promise<void> };
 // How a terminal starts (startTerminal).
 interface TerminalConfig {
   command?: string | null; args?: string[]; cwd?: string; env?: Record<string, string | undefined>;
@@ -23,9 +24,9 @@ interface TerminalConfig {
 type Send = (channel: 'pty:out', data: TerminalEvents['pty:out']) => void;
 interface Term { pty: Pty | null; size: Size | null; firstSize: Promise<void>; sized: () => void }
 
-// The terminal's size as the window measures it, per terminal and per task (its island's, which all its terminals
+// The terminal's size as the window measures it, per terminal and per task (its panel's, which all its terminals
 // share: one is shown at a time). An agent starts only once its size is known: Claude Code draws its prompt for the
-// size it starts with and does not fully redraw on the first resize. However long the window takes to lay the island
+// size it starts with and does not fully redraw on the first resize. However long the window takes to lay the panel
 // out: a loaded machine lays it out slower than any fixed wait would allow for.
 // The size comes: a task loads its terminals when it is first shown (docs/tasks.md). Listening from require time, so
 // a size sent while the window loads is not missed.
@@ -39,10 +40,12 @@ const termOf = (key: string) => {
   return terms.get(key)!;
 };
 on('pty:resize', (_e, { task, cols, rows }) => {
-  const t = termOf(task), island = termOf(task.split('#')[0]!);
-  t.size = island.size = { cols, rows }; t.sized(); island.sized();
+  const t = termOf(task), panel = termOf(task.split('#')[0]!);
+  t.size = panel.size = { cols, rows }; t.sized(); panel.sized();
   try { t.pty?.resize(cols, rows); t.pty?.screen?.resize(cols, rows); } catch {}
 });
+// Every terminal's process until it has exited (stopAllTerminals).
+const running = new Map<Pty, Promise<void>>();
 // Esc typed by the human into a terminal (its key): what it means is the caller's (an agent's turn ended: tasks.ts).
 const escapes: ((key: string) => void)[] = [];
 const onEscape = (fn: (key: string) => void) => { escapes.push(fn); };
@@ -51,46 +54,64 @@ on('pty:in', (_e, { task, data }) => {
   if (data === '\x1b') for (const fn of escapes) fn(task);
 });
 
+handle('pty:quote-paths', (_e, { task, paths }) => {
+  const p = terms.get(task)?.pty;
+  if (!p || p.stopped) return null;
+  log.info(`[terminal] ${task} file drop (${paths.length} paths)`);
+  return quotePaths(p.shell, paths);
+});
+
 // The user's shell as a terminal app starts it (login shell on macOS, as Terminal and VS Code do). An app started
-// from the Dock or a menu may have no SHELL; the account's shell is the same then.
-const userShell = () => (process.platform === 'win32' ? null
+// from the Dock or a menu may have no SHELL; the account's shell is the same then. Windows: PowerShell, as Windows
+// Terminal opens it: PowerShell 7 when installed, else the system's Windows PowerShell.
+const userShell = () => (process.platform === 'win32' ? { command: programPath('pwsh') || 'powershell.exe', args: ['-NoLogo'] }
   : { command: process.env.SHELL || os.userInfo().shell || '/bin/sh', args: process.platform === 'darwin' ? ['-l'] : [] });
+
+// A program by name, found in PATH as Windows' shells find it, by the extensions of PATHEXT (node-pty takes a name
+// only with its extension: `claude` is claude.exe or claude.cmd); a path, or a name not found, as it is. Elsewhere
+// the name as it is: the system finds it.
+function programPath(name: string, env: Record<string, string | undefined> = process.env) {
+  if (process.platform !== 'win32' || path.isAbsolute(name) || /[\\/]/.test(name)) return name;
+  const exts = path.extname(name) ? [''] : (env.PATHEXT || '.COM;.EXE;.BAT;.CMD').split(';');
+  for (const dir of (env.PATH || env.Path || '').split(';').filter(Boolean)) {
+    for (const ext of exts) { const f = path.join(dir, name + ext); if (fs.existsSync(f) && fs.statSync(f).isFile()) return f; }
+  }
+  return null;
+}
 
 // cfg: { command, args, cwd, env, shell, line, size, sizeOf }. The agent is typed into the user's shell started in cwd, as if the human
 // opened a terminal in the project and ran it: the shell's startup sets the project's environment (direnv's .envrc,
 // nvm, mise …), which Kulisa's own environment (where Kulisa was started) is not. When the agent exits, the shell
-// stays. shell: { command, args } instead of the user's, or false to start the agent directly (as on Windows).
+// stays. shell: { command, args } instead of the user's, or false to start the agent directly (a sign-in's).
 // pinned: variables of env the shell's startup must not change, typed before the command too (`VAR=… cmd`: bash, zsh,
-// fish 3.1+): the task's account, which a project's .envrc setting CLAUDE_CONFIG_DIR would replace.
-// line: a command line typed into the shell as it is (a shell's; none: the shell alone), on Windows into cmd. size:
-// start at it rather than wait for the window's; sizeOf: or at that key's (the task's island: a terminal behind another
+// fish 3.1+; PowerShell's $env:VAR=…): the task's account, which a project's .envrc setting CLAUDE_CONFIG_DIR would replace.
+// line: a command line typed into the shell as it is (a shell's; none: the shell alone). size:
+// start at it rather than wait for the window's; sizeOf: or at that key's (the task's terminals' panel: a terminal behind another
 // tab has none of its own), whichever comes first. screen: its last lines kept for the agent to read (a shell's). key: the terminal's; the window sends its input and size, and gets
 // its output, under it. send(channel, data): to the task's window, whichever it is then.
 async function startTerminal(send: Send, cfg: TerminalConfig, key: string): Promise<Pty> {
   const t = termOf(key), like = cfg.sizeOf ? termOf(cfg.sizeOf) : null;
   if (!cfg.size) await Promise.race([t.firstSize, ...(like ? [like.firstSize] : [])]);
   const { cols, rows } = (t.size || cfg.size || like?.size)!; // one of them: given, or waited for
-  const sh: { command: string; args?: string[] } | null = cfg.shell === false ? null : cfg.shell || userShell() || (cfg.line !== undefined ? { command: process.env.COMSPEC || 'cmd.exe' } : null);
-  const command = cfg.command || (process.platform === 'win32' ? process.env.COMSPEC || 'cmd.exe' : process.env.SHELL || 'bash');
-  const p = pty.spawn(sh ? sh.command : command, sh ? sh.args || [] : cfg.args || [], {
-    name: 'xterm-256color', cols, rows, cwd: cfg.cwd || process.cwd(),
-    env: { ...process.env, COLORTERM: 'truecolor', ...(cfg.env || {}) },
+  const sh = cfg.shell === false ? null : cfg.shell || userShell();
+  const env = { ...process.env, COLORTERM: 'truecolor', ...(cfg.env || {}) };
+  const program = sh ? sh.command : cfg.command || userShell().command;
+  const p = pty.spawn(programPath(program, env) || program, sh ? sh.args || [] : cfg.args || [], {
+    name: 'xterm-256color', cols, rows, cwd: cfg.cwd || process.cwd(), env,
   }) as Pty;
   p.typed = Promise.resolve();
   if (cfg.line) p.typed = typeWhenReady(p, `${cfg.line}\r`);
-  else if (sh && cfg.command) {
-    const quote = (a: string) => shellQuote(sh.command, a);
-    const vars = Object.entries(cfg.pinned || {}).map(([k, v]) => `${k}=${quote(v)}`);
-    p.typed = typeWhenReady(p, ` ${[...vars, ...[cfg.command, ...(cfg.args || [])].map(quote)].join(' ')}\r`);
-  }
+  else if (sh && cfg.command) p.typed = typeWhenReady(p, ` ${shellLine(sh.command, cfg.command, cfg.args || [], cfg.pinned)}\r`);
   p.spawnSize = { cols: p.cols, rows: p.rows };
   p.spawnArgs = cfg.args || [];
   p.key = key;
+  p.shell = sh?.command || userShell().command;
   // An agent that was replaced says nothing more in the window.
   if (cfg.screen) p.screen = new xterm.Terminal({ cols: p.cols, rows: p.rows, scrollback: cfg.screen, allowProposedApi: true });
   const out = (data: string) => { p.screen?.write(data); if (t.pty === p) send('pty:out', { task: key, data }); };
   p.onData(out);
   p.onExit(({ exitCode }) => { log.info(`[terminal] ${key} exited ${exitCode}`); out(`\r\n[process exited ${exitCode}]\r\n`); });
+  running.set(p, new Promise((r) => p.onExit(() => { running.delete(p); r(); })));
   t.pty = p;
   return p;
 }
@@ -99,15 +120,17 @@ async function startTerminal(send: Send, cfg: TerminalConfig, key: string): Prom
 // before, then the shell shows it again). A shell reading a line turns bracketed paste on (bash, zsh, fish); for
 // other shells, once the output has been quiet for a moment. A leading space keeps it out of the shell's history
 // (bash's default ignorespace). Once typed, the promise: what is sent to the agent comes after it (sendToPrompt).
-function typeWhenReady(p: IPty, line: string) {
+const typeWhenReady = (p: IPty, line: string) => readsLine(p).then(() => p.write(line));
+// Once the shell reads its input line again (above).
+function readsLine(p: IPty) {
   return new Promise<void>((resolve) => {
     let done = false, quiet: NodeJS.Timeout | undefined;
-    const type = () => { if (done) return; done = true; sub.dispose(); clearTimeout(quiet); clearTimeout(limit); p.write(line); resolve(); };
+    const ready = () => { if (done) return; done = true; sub.dispose(); clearTimeout(quiet); clearTimeout(limit); resolve(); };
     const sub = p.onData((d) => {
-      if (d.includes('\x1b[?2004h')) return type();
-      clearTimeout(quiet); quiet = setTimeout(type, 500);
+      if (d.includes('\x1b[?2004h')) return ready();
+      clearTimeout(quiet); quiet = setTimeout(ready, 500);
     });
-    const limit = setTimeout(type, 5000);
+    const limit = setTimeout(ready, 5000);
   });
 }
 
@@ -118,6 +141,14 @@ function stopTerminal(p: Pty) {
   if (t?.pty === p) t.pty = null;
   try { p.kill(); } catch {}
   p.screen?.dispose(); p.screen = undefined;
+}
+
+// Every terminal stopped, as Kulisa quits, and their processes waited for, 3 s at most: on Windows node-pty ends a
+// ConPTY on threads and a helper process of its own, and an app exiting before they are done may end with an uncaught
+// C++ exception.
+async function stopAllTerminals() {
+  const exits = [...running].map(([p, exited]) => { stopTerminal(p); return exited; });
+  await Promise.race([Promise.all(exits), new Promise((r) => setTimeout(r, 3000))]);
 }
 
 // A terminal closed, or its task gone (its project closed, a task deleted): its size too. Opened again, the window
@@ -134,10 +165,15 @@ function terminalTail(p: Pty, lines: number) {
   return rows.map((l) => l.trimEnd()).join('\n').trimEnd().split('\n').slice(-lines).join('\n');
 }
 
-// Ctrl+C, as the human would press it: what runs there stops, the shell stays.
-const interrupt = (p: IPty) => p.write('\x03');
-// A command line typed into the shell and run, as the human would type it.
-const typeLine = (p: IPty, line: string) => p.write(`${line}\r`);
+// Ctrl+C, as the human would press it: what runs there stops, the shell stays. What is typed next waits until the shell
+// reads its line again: Windows' console drops the input that comes before (PowerShell lost a command typed at once).
+function interrupt(p: Pty) {
+  const back = readsLine(p);
+  p.write('\x03');
+  p.typed = p.typed.then(() => back);
+}
+// A command line typed into the shell and run, as the human would type it; after what is being typed already.
+const typeLine = (p: Pty, line: string) => { p.typed = p.typed.then(() => p.write(`${line}\r`)); };
 
 // Put text into the agent's prompt as a paste (bracketed: one block, nothing in it is taken as a key), not sent.
 function typeIntoPrompt(p: IPty, text: string) {
@@ -171,4 +207,6 @@ async function sendToPrompt(p: Pty, text: string, confirm?: string) {
 }
 
 export type { Pty };
-export { startTerminal, stopTerminal, forgetTerminal, terminalTail, typeIntoPrompt, eraseInPrompt, sendToPrompt, interrupt, typeLine, onEscape };
+export { startTerminal, stopTerminal, stopAllTerminals, forgetTerminal, terminalTail, typeIntoPrompt, eraseInPrompt, sendToPrompt, interrupt, typeLine, onEscape };
+
+export { quotePaths } from './shell-quote.ts';

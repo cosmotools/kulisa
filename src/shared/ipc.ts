@@ -3,7 +3,7 @@
 // act). docs/window.md, IPC. An answer the window does not read is `void`: the main process may answer anything there
 // (the tests read some).
 import type { Result } from './result.ts';
-import type { FileLink, TerminalContents, TerminalEvents, TerminalSend } from '../terminal/ipc.ts';
+import type { FileLink, TerminalContents, TerminalEvents, TerminalInvoke, TerminalSend } from '../terminal/ipc.ts';
 import type { ThumbnailEvents, ThumbnailInvoke, ThumbnailSend } from '../screenshots/ipc.ts';
 import type { GitHubInvoke } from '../github/ipc.ts';
 import type { DictationEvents, DictationInvoke } from '../dictation/ipc.ts';
@@ -20,7 +20,7 @@ export type OnTab = OnProfile & { tab?: string | null }; // none: the active one
 type Grid = Record<string, Partial<{ x: number; y: number; width: number; height: number }> & { shown?: boolean }>;
 export type Theme = 'dark' | 'light' | 'system';
 export type Bar = 'top' | 'bottom';
-// Where Settings opens (its window: main/settings-window.ts): a project's page (none: the shown task's), a profile's, the
+// Where Settings opens (components/settings): a project's page (none: the shown task's), a profile's, the
 // log (☰ → Report a Problem…), About (☰ → About Kulisa; macOS's app menu).
 export type SettingsAt = { section: 'projects' | 'profiles' | 'log' | 'about'; id?: string | null };
 // A project's folders as its manager shows them (projects.ts, foldersInfo).
@@ -31,10 +31,10 @@ type Profiles = { profiles: SettingsProfile[] };
 
 // ipcRenderer.invoke / ipcMain.handle: args, the answer.
 type I<A extends unknown[], R = void> = { args: A; result: R };
-export interface Invoke extends ThumbnailInvoke, GitHubInvoke, DictationInvoke {
+export interface Invoke extends TerminalInvoke, ThumbnailInvoke, GitHubInvoke, DictationInvoke {
   'projects:list': I<[], ProjectsInfo | undefined>;
   'tasks:get': I<[]>;
-  'project:open': I<[{ id?: string; folder?: string; task?: string }]>;
+  'project:open': I<[{ folder: string; task?: string } | { id: string; task: string }]>;
   'project:new-defaults': I<[], ProjectChoices & { location: string; sep: string }>;
   'project:pick-location': I<[{ location?: string; existing?: boolean }], string | null>;
   'project:folder-state': I<[{ from?: string; location?: string; name?: string; folder?: string }], { folder: string; state: string; project?: string } | null>;
@@ -83,8 +83,10 @@ export interface Invoke extends ThumbnailInvoke, GitHubInvoke, DictationInvoke {
   'task:add-repo': I<[{ key: string; repo: string }]>;
   'task:remove-repo': I<[{ key: string; repo: string }]>;
   'task:show-folder': I<[key: string]>;
-  'task:open-folder': I<[{ key: string; folder: string }]>; // a resource's folder (Resources.vue), checked to be the task's
-  'task:artifacts': I<[string]>; // the task's artifacts sent again (Resources.vue: the task shown)
+  'task:open-folder': I<[{ key: string; folder: string }]>; // a resource's folder (Resources.tsx), checked to be the task's
+  'task:artifacts': I<[string]>; // the task's artifacts sent again (Resources.tsx: the task shown)
+  'task:artifact-send': I<[{ key: string; file: string }], Result>;
+  'task:artifact-drag': I<[{ key: string; file: string }], Result>;
   'task:artifacts-delete': I<[{ key: string; files: string[] | null }], Result>; // null: all
   'app:quit': I<[]>;
   'agents:list': I<[{ check?: boolean; details?: boolean; cached?: boolean }?], { list: AgentInfo[]; home: string } | { list: null }>; // null: not looked for yet (cached)
@@ -98,6 +100,7 @@ export interface Invoke extends ThumbnailInvoke, GitHubInvoke, DictationInvoke {
   'terminal:open': I<[OnTask & { agent?: string; own?: boolean }], Result<{ id: number } | { none: true }>>;
   'terminal:show': I<[OnTask & { id: number }]>;
   'terminal:close': I<[OnTask & { id: number }]>;
+  'terminal:paste-image': I<[OnTask & { id: number }]>;
   'terminal:files': I<[OnTask & { paths: string[] }], Result<(FileLink | null)[]>>;
   'file:open': I<[string]>;
   'file:show': I<[string]>;
@@ -115,9 +118,10 @@ export interface Invoke extends ThumbnailInvoke, GitHubInvoke, DictationInvoke {
   'tab:dialog': I<[OnTab & { dialog: number; ok: boolean }]>;
   'tab:devtools': I<[OnTab]>;
   'tab:zoom': I<[OnTab & { dir: number }]>;
-  // A picture of the tab, on the clipboard and in the OS's folder of screenshots (src/screenshots): its file; null when
+  // A picture of the tab, on the clipboard and in the task's artifacts (src/screenshots): its file; null when
   // no element was chosen (Esc).
   'tab:screenshot': I<[OnTab & { kind: 'element' | 'visible' | 'full' }], Result<{ file: string | null }>>;
+  'window:focused': I<[], boolean>;
   'zoom:get': I<[], number>;
   'about:get': I<[], AboutInfo>;
   'about:show-folder': I<[id: AboutFolder]>;
@@ -149,9 +153,8 @@ export interface Send extends TerminalSend, ThumbnailSend {
   'ask:answer': { id: number; answer: string };
   'agent:chosen': { task: string | null; id: string | null };
   'keys:zone': string;
-  'settings:open': SettingsAt;
-  'settings:close': void; // its page has saved what was typed
-  'settings:ready': void; // its page is filled: the window is shown
+  'settings:open': SettingsAt; // shown in the window asking (shell.openSettings)
+  'settings:close': void; // left, what was typed saved
 }
 
 // webContents.send (AppWindow.send) / the window's kulisa.on: what the main process tells a window.
@@ -162,7 +165,7 @@ export interface Events extends TerminalEvents, ThumbnailEvents, DictationEvents
   'terminals': Terminals;
   'artifacts': { task: string; list: Artifact[]; bytes: number }; // bytes: all of them (Task.artifactsUsage)
   'terminal:focus': void;
-  'grid:closing': { dir: number; task?: string; pics: Record<string, string> | null };
+  'grid:closing': boolean; // another task's grid follows
   'tasks:closed': string[];
   'zoom': number;
   'theme': string;
@@ -178,8 +181,7 @@ export interface Events extends TerminalEvents, ThumbnailEvents, DictationEvents
   'project:new': void;
   'master:url': string;
   'settings:show': SettingsAt;
-  'settings:closing': void; // asked to close (its ×): its page saves, then closes it
-  'settings:changed': void; // the profiles changed elsewhere (a tasks' window, the agent): its lists read again
+  'settings:changed': void; // the profiles changed elsewhere (another window, the agent): Settings' lists read again
   'log:lines': { text: string } | { reset: true }; // what the log got since it was read; turned over: read it again
   'window:blur': void; // a tasks' window left (another window, another app): its menus close (lib/cover.ts)
 }

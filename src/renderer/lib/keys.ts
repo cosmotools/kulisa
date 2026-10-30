@@ -1,22 +1,22 @@
 // Keyboard shortcuts in the window (main/keys.ts has the table and takes the keys; docs/window.md, Keys). The main
 // process has to know where the keyboard is in this page to know whose a key is; it sends the commands back here, with
 // the profile and tab they act on.
-import { watch } from 'vue';
 import { act, screenshot, store } from './store';
 import { panes } from './grid';
 import { shownTerm } from './terminals';
 import { dialog } from './dialogs';
-import { dialogsOpen } from './cover';
+import { toggleSidebar } from './sidebar';
+import { dialogsShown, onDialogs } from './cover';
 import type { Profile } from '../../shared/types';
 import { refused } from '../../shared/result';
 
 let zone = 'window';
 let lastPane: string | null = null; // the profile whose page or pane had the keyboard last: where Ctrl+` goes back to
 const zoneOf = (el: Element | null) => {
-  if (dialogsOpen.value) return 'dialog'; // its keys are its own, wherever its focus is
+  if (dialogsShown()) return 'dialog'; // its keys are its own, wherever its focus is
   if (!el || el === document.body) return 'window';
-  if (el.closest('.xterm')) return 'terminal';
-  const pane = el.closest<HTMLElement>('.pane');
+  if (el.closest('[data-zone="terminal"]')) return 'terminal';
+  const pane = el.closest<HTMLElement>('[role="region"][data-profile]');
   return pane ? `pane:${pane.dataset.profile}` : 'window';
 };
 const report = () => {
@@ -26,28 +26,33 @@ const report = () => {
 };
 document.addEventListener('focusin', report);
 document.addEventListener('focusout', () => setTimeout(report)); // where it went is known after the event
-watch(dialogsOpen, report); // a dialog opened or closed
+onDialogs(report); // a dialog opened or closed
 
-// The folded island: the task's agent; a task with none (its project had no default) leaves the choice to the human,
-// the keyboard on the island's buttons (Terminals.vue), or its + opened.
+// The folded terminals' panel: the task's agent; a task with none (its project had no default) leaves the choice to the
+// human, the keyboard on the panel's big buttons (components/grid/Terminals.tsx), or its + opened.
 const openOwn = async () => {
   const r = await act('terminal:open', { own: true });
   if (refused(r) || !('none' in r)) return;
-  const first = document.querySelector<HTMLElement>('.launch .launcher');
-  if (first) first.focus(); else document.getElementById('termUnfold')?.click();
+  const first = document.querySelector<HTMLElement>('[data-launcher]');
+  if (first) { first.focus(); return; }
+  // Its menu opens on a press or a key (Radix's), not on a click
+  const plus = document.querySelector<HTMLElement>('[data-unfold]');
+  plus?.focus();
+  plus?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
 };
-// A task's tab in the tasks' bar shown, as a click on it does (TaskTab.vue).
-const showTask = (tab?: Element) => { const key = (tab as HTMLElement | undefined)?.dataset.task; if (key && key !== store.current) void kulisa.invoke('task:show', key); };
+// The tasks' bar's tabs, in its order; one shown, as a click on it does.
+const taskTabs = () => [...document.querySelectorAll<HTMLElement>('#taskTabs [role="tab"]')];
+const showTask = (tab?: HTMLElement) => { const key = tab?.dataset.task; if (key && key !== store.getState().current) void kulisa.invoke('task:show', key); };
 interface Command { n?: number; page?: boolean; p?: Profile; tab?: string }
 // What each command does. page: the key was typed in the profile's page, so the keyboard stays in its pages.
 const run: Record<string, (c: Command) => unknown> = {
-  'terminal.focus': () => (!store.terminals.list.length ? openOwn() : zone === 'terminal' && lastPane ? focusPage(lastPane) : shownTerm()?.focus()),
+  'terminal.focus': () => (!store.getState().terminals.list.length ? openOwn() : zone === 'terminal' && lastPane ? focusPage(lastPane) : shownTerm()?.focus()),
   'terminal.new': () => act('terminal:open'),
-  'task.n': ({ n }) => showTask(document.querySelectorAll('#projectTabs .tasktab')[n! - 1]),
+  'task.n': ({ n }) => showTask(taskTabs()[n! - 1]),
   'task.next': () => stepTask(1),
   'task.previous': () => stepTask(-1),
   'task.new': () => kulisa.invoke('task:new'),
-  'task.menu': () => document.getElementById('newTask')?.click(), // the bar's + menu (ButtonMenu: Reka's trigger opens on the click too)
+  'task.menu': () => toggleSidebar(),
   shortcuts: async () => (await dialog('shortcuts')).showShortcuts(),
   'tab.new': ({ p }) => panes.get(p!.id)?.newTab(),
   'tab.close': ({ p, tab, page }) => act('tab:close', { profile: p!.id, tab, focus: page }),
@@ -61,25 +66,23 @@ const run: Record<string, (c: Command) => unknown> = {
   'tab.previous': (c) => toTab(c, (i, n) => (i - 1 + n) % n),
   'tab.n': (c) => toTab(c, (_i, n) => (c.n! <= n ? c.n! - 1 : -1)),
   'tab.last': (c) => toTab(c, (_i, n) => n - 1),
-  // As a click on Pick: off on an empty tab; again cancels.
-  pick: ({ p }) => document.querySelector<HTMLButtonElement>(`.pane[data-profile="${CSS.escape(p!.id)}"] .pick`)?.click(),
+  pick: ({ p }) => panes.get(p!.id)?.pick(),
   screenshot: ({ p }) => screenshot(p!.id, 'element'),
 };
-// The bar's tasks, in its order.
 function stepTask(dir: number) {
-  const all = [...document.querySelectorAll<HTMLElement>('#projectTabs .tasktab')];
-  const i = all.findIndex((t) => t.dataset.task === store.current);
+  const all = taskTabs();
+  const i = all.findIndex((t) => t.dataset.task === store.getState().current);
   if (all.length > 1) showTask(all[(i + dir + all.length) % all.length]);
 }
 function toTab({ p, tab, page }: Command, to: (i: number, n: number) => number) {
   const i = to(p!.tabs.findIndex((t) => t.id === tab), p!.tabs.length);
   if (p!.tabs[i] && p!.tabs[i].id !== tab) void act('tab:activate', { profile: p!.id, tab: p!.tabs[i].id, focus: page });
 }
-const focusPage = (id: string) => { const p = store.profiles.find((x) => x.id === id); if (p) void act('tab:focus', { profile: id, tab: p.active }); };
+const focusPage = (id: string) => { const p = store.getState().profiles.find((x) => x.id === id); if (p) void act('tab:focus', { profile: id, tab: p.active }); };
 
 kulisa.on('command', ({ id, n, profile, tab, task, page }) => {
-  if (task !== store.current || !run[id]) return; // a key typed as another task was coming
-  const p = profile ? store.profiles.find((x) => x.id === profile) : undefined;
+  if (task !== store.getState().current || !run[id]) return; // a key typed as another task was coming
+  const p = profile ? store.getState().profiles.find((x) => x.id === profile) : undefined;
   if (profile && (!p || !panes.get(profile))) return;
   if (page) lastPane = profile!;
   run[id]({ n, page, p, tab: tab || p?.active || undefined });

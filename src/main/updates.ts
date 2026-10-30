@@ -1,5 +1,5 @@
-// Kulisa's releases updating themselves, Forge's way: Squirrel's events, update.electronjs.org. docs/window.md,
-// "The app icon, installers and updates".
+// Kulisa's releases updating themselves, Forge's way: Squirrel's events, update.electronjs.org. docs/releases.md,
+// Updates.
 import electron from 'electron';
 import path from 'path';
 import squirrelStarted from 'electron-squirrel-startup';

@@ -1,7 +1,8 @@
 // The tests: as strict as the code (tsconfig.json), but for null: a test counts on what it checks being there (the task
-// shown, a profile by its id), and when it is not, the test fails, which is what it is for.
+// shown, a profile by its id), and when it is not, the test fails, which is what it is for. RegExp.escape (Node 24,
+// Electron's too): a path in a pattern, whose backslashes on Windows are taken for escapes otherwise.
 {
   "extends": "../tsconfig.json",
-  "compilerOptions": { "strictNullChecks": false },
+  "compilerOptions": { "strictNullChecks": false, "lib": ["ES2024", "ES2025.RegExp", "DOM"] },
   "include": ["."]
 }

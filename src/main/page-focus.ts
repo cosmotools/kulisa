@@ -3,6 +3,7 @@
 // (allow: a tab chosen by a key, a dialog answered, Pick, an address from its pane's bar); a page taking it by itself
 // (loading, a tab the agent opened: on macOS every one did) gives it back to where it was in its window.
 import type { BrowserWindow, WebContents } from 'electron';
+import { log } from './log.ts';
 
 // A real click's order on macOS: the page's focus, then its mouseDown
 // 2 ms later (input sent to a page, as the tests do, comes before). So the human's input in that page within this
@@ -13,12 +14,17 @@ const allowed = new WeakSet<WebContents>();
 // Per window (its page's webContents), where the human left the keyboard: its page, or a profile's page.
 const held = new WeakMap<WebContents, WebContents>();
 const watched = new WeakSet<WebContents>();
+// Per profile's page, its focuses and Kulisa's gifts of it, counted: a focus the page took by itself is given back only
+// if nothing came after it, not over a later one given for the human.
+const turns = new WeakMap<WebContents, number>();
+const turn = (wc: WebContents) => { const n = (turns.get(wc) ?? 0) + 1; turns.set(wc, n); return n; };
 
 // Kulisa gives a page the keyboard for the human: its next focus is theirs.
-export function allowFocus(wc: WebContents) { allowed.add(wc); }
+export function allowFocus(wc: WebContents) { allowed.add(wc); turn(wc); }
 
-// Kulisa gives the window's own page the keyboard for the human (the address of a tab they open, ProfilePane.vue): a
-// page taking it next gives it back there, not to the page the human was in (Ctrl+T from it, Linux).
+// Kulisa gives the window's own page the keyboard for the human (the address of a tab they open,
+// components/grid/ProfilePane.tsx): a page taking it next gives it back there, not to the page the human was in (Ctrl+T
+// from it, Linux).
 export function focusWindow(page: WebContents) { watchWindow(page); held.set(page, page); page.focus(); }
 
 // A profile's page, in the window win() is (a profile moves between windows).
@@ -31,14 +37,19 @@ export function guardFocus(wc: WebContents, win: () => BrowserWindow) {
   wc.on('focus', () => {
     const page = own();
     if (!page) return;
+    const n = turn(wc);
     if (allowed.delete(wc)) { held.set(page, wc); return; }
     const at = Date.now();
     setTimeout(() => {
-      if (wc.isDestroyed() || page.isDestroyed() || input >= at - GRACE || !wc.isFocused()) return; // the human's, or gone on
+      if (wc.isDestroyed() || page.isDestroyed()) return;
+      const kept = turns.get(wc) !== n ? 'a later focus' : input >= at - GRACE ? "the human's" : !wc.isFocused() ? 'gone on' : null;
+      // Each decision leaves a line, kept or not: where the keyboard went is what a bug about it is read from.
+      if (kept) { log.info(`[focus] page ${wc.id} took the keyboard: left (${kept})`); return; }
       const back = held.get(page);
       const to = back && !back.isDestroyed() && back !== wc ? back : page;
       if (to !== page) allowed.add(to);
       to.focus();
+      log.info(`[focus] page ${wc.id} took the keyboard: given back to ${to === page ? 'the window' : `page ${to.id}`}`);
     }, GRACE);
   });
 }

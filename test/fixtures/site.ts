@@ -12,7 +12,7 @@
 //   /headers  echoes the User-Agent and Sec-CH-UA* request headers as JSON
 //   /draft    a page that holds its unload (beforeunload), as a form with unsaved changes does: never discarded
 //   /menu     a link, a field, an empty place and a block with its own right-click menu (as Teams has)
-//   /github   a fake GitHub (KULISA_GITHUB, run.ts), as Kulisa asks it: the device flow, a refresh, who a token is, a
+//   /github   a fake GitHub (KULISA_GITHUB, test/e2e/app.ts), as Kulisa asks it: the device flow, a refresh, who a token is, a
 //             repository reached, Kulisa App's installations (github, below)
 // It runs in its own process: inside Electron's main process it can deadlock, because a synchronous Electron call
 // waits for a renderer that waits for a response from this (then blocked) server.
@@ -89,8 +89,10 @@ function handler(req: IncomingMessage, res: ServerResponse) {
   if (u.pathname === '/app/login') {
     const name = (u.searchParams.get('name') || '').replace(/[^\w-]/g, '');
     // A session cookie (no Max-Age/Expires), like many sign-ins (Entra's ESTSAUTH): it must survive a Kulisa restart
-    // the way it survives a Chrome restart with "continue where you left off".
-    return send(302, '', 'text/plain', { 'set-cookie': `user=${name}; Path=/; SameSite=Lax`, location: '/app' });
+    // the way it survives a Chrome restart with "continue where you left off". kept: a lasting one too, kept in the
+    // profile's cookie database.
+    const kept = u.searchParams.has('kept') ? [`kept=${name}; Path=/; Max-Age=86400; SameSite=Lax`] : [];
+    return send(302, '', 'text/plain', { 'set-cookie': [`user=${name}; Path=/; SameSite=Lax`, ...kept], location: '/app' });
   }
   // A test user's sign-in with a password (a profile's pair, browser_type_login): the password is "secret-<name>".
   if (u.pathname === '/app/logout') return send(302, '', 'text/plain', { 'set-cookie': 'user=; Path=/; Max-Age=0', location: '/app' });

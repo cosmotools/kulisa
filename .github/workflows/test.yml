@@ -1,6 +1,7 @@
-# npm test on every pull request into develop or main and every push to develop, on each OS Kulisa targets
-# (docs/testing.md, CI). Linux: Ubuntu, Xvfb and openbox. A pull request into main also
-# needs its version raised: a merge into main is a release (CLAUDE.md, Releases).
+# npm test's parts on every pull request into develop or main and every push to develop, on each OS Kulisa targets
+# (docs/testing.md, CI and Speed): per OS the checks once, the e2e tests in shards, each on a runner of its own, and
+# test (<os>), the name the rulesets require, green when all of that OS's are. Linux: Ubuntu, Xvfb and openbox. A pull
+# request into main also needs its version raised: a merge into main is a release (CLAUDE.md, Releases).
 name: test
 on:
   push:
@@ -13,6 +14,7 @@ concurrency:
   cancel-in-progress: true
 permissions:
   contents: read
+  actions: read # test (<os>) reads its OS's jobs of the run
 jobs:
   # main's version and the pull request's: higher, or the same while that one was never released (the first release).
   version:
@@ -45,32 +47,112 @@ jobs:
             GPL-3.0-or-later, GPL-3.0-only, GPL-2.0-or-later, LGPL-2.1-or-later, LGPL-3.0-or-later, MIT, ISC, 0BSD,
             BSD-2-Clause, BSD-3-Clause, Apache-2.0, MPL-2.0, BlueOak-1.0.0, Unlicense, CC0-1.0, Zlib, BSL-1.0,
             Python-2.0, OFL-1.1
-  test:
+  # What needs no screen, once per OS: the unit tests, knip, ESLint and the layers, the types; src/ui as shadcn's CLI
+  # writes it and actionlint on Linux.
+  checks:
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
+    name: checks (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
-    # Windows is not passing yet (ROADMAP, "Windows is untested; macOS has gaps left"): its runs report, but do not mark main red.
-    # It comes off this once its first run passes.
-    continue-on-error: ${{ matrix.os == 'windows-latest' }}
-    timeout-minutes: 30
+    timeout-minutes: 20
     defaults:
       run:
         shell: bash
     steps:
       - uses: actions/checkout@v7
-      # The test folders in one known place on every OS (os.tmpdir() reads these), for the artifact below. Through
-      # GITHUB_ENV: the job's env cannot read the runner context (GitHub refuses the whole file).
-      - run: printf 'TMPDIR=%s\nTEMP=%s\nTMP=%s\n' "$RUNNER_TEMP" "$RUNNER_TEMP" "$RUNNER_TEMP" >> "$GITHUB_ENV"
       - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm
-      # gnome-keyring and D-Bus: a keyring, as a desktop has, or safeStorage encrypts nothing and Kulisa keeps no
-      # session cookies and no test password (they are never written in the clear).
+      # No app is started here: no install script is run (node-pty is not built). Electron's binary is fetched once all
+      # the same, as the postinstall does it: unit tests run it, and its first import fetches it, which several test
+      # processes at once do together (a file exists, EBUSY).
+      - run: npm ci --ignore-scripts
+      - run: node -e "require('electron')"
+      - run: npm run test:unit
+      - run: npm run knip
+      - run: npm run lint
+      - run: npx tsc -p . && npx tsc -p test && npx tsc --noEmit -p src/renderer
+      # src/ui as shadcn's CLI writes it, never edited by hand (src/ui/README.md): made again, no difference. Once, on
+      # Linux, on a pull request that changes src/ui (or by hand): the CLI fetches shadcn's registry, so its outage or a
+      # change there fails no other pull request. A difference says what to do, to whoever reads it (an agent too).
+      - if: runner.os == 'Linux' && github.event_name != 'push'
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
+            git fetch --depth=1 origin "$GITHUB_BASE_REF"
+            if git diff --quiet FETCH_HEAD -- src/ui components.json; then echo "src/ui unchanged"; exit 0; fi
+          fi
+          npm run ui && git add -N src/ui
+          if ! git diff --stat --exit-code -- src/ui components.json; then
+            echo "::error title=src/ui differs from what npm run ui makes::A file of src/ui edited by hand: undo it; a look is a theme's variable (src/renderer/window.css), a component missing is npm run ui -- <name> (src/ui/README.md). A file this pull request did not touch: shadcn's registry changed; run npm run ui and commit what it makes, a commit of its own."
+            exit 1
+          fi
+      # A Go program with no maintained npm package: its release, by its own script at the same version.
       - if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y xvfb openbox gnome-keyring dbus-x11 libsecret-1-0
+        run: |
+          bash <(curl -sSf https://raw.githubusercontent.com/rhysd/actionlint/v1.7.12/scripts/download-actionlint.bash) 1.7.12
+          ./actionlint -color
+  # The e2e tests in shards: each a runner of its own, with its own screen and focus, the one way to run Kulisas side
+  # by side on macOS and Windows. Its report a blob, merged in test (<os>).
+  e2e:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        shard: [1, 2, 3]
+    name: e2e (${{ matrix.os }}, ${{ matrix.shard }}/3)
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+      # The test folders in one known place on every OS (os.tmpdir() reads these), and Electron's download kept there
+      # by the cache below. Through GITHUB_ENV: the job's env cannot read the runner context (GitHub refuses the whole
+      # file).
+      - run: |
+          {
+            printf 'TMPDIR=%s\nTEMP=%s\nTMP=%s\nelectron_config_cache=%s\n' "$RUNNER_TEMP" "$RUNNER_TEMP" "$RUNNER_TEMP" "$RUNNER_TEMP/electron"
+            echo "ELECTRON_VERSION=$(node -p "require('./package-lock.json').packages['node_modules/electron'].version")"
+            echo "RUNNER_IMAGE=$ImageOS-$ImageVersion"
+          } >> "$GITHUB_ENV"
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - uses: actions/cache@v6
+        with:
+          path: ${{ runner.temp }}/electron
+          key: electron-${{ runner.os }}-${{ env.ELECTRON_VERSION }}
+      # gnome-keyring and D-Bus: a keyring, as a desktop has, or safeStorage encrypts nothing and Kulisa keeps no
+      # session cookies and no test password (they are never written in the clear). Installed by apt each time (a cache
+      # of the installed packages, cache-apt-pkgs-action, does not bring gnome-keyring-daemon back), without what they
+      # only recommend (fonts, GStreamer's plugins, IBus: 18 of 65 packages), from .deb files kept between runs: the Ubuntu
+      # mirror is at times slow, the cache is not. A cache is never overwritten, so its key names the runner's image:
+      # a new image saves the .debs it needs, starting from the last image's.
+      - if: runner.os == 'Linux'
+        uses: actions/cache@v6
+        with:
+          path: ${{ runner.temp }}/apt
+          key: apt-${{ env.RUNNER_IMAGE }}-xvfb-openbox-gnome-keyring-dbus-x11-libsecret
+          restore-keys: apt-
+      # The image's package lists first: with the cached .debs nothing is downloaded. Updated only when they no longer
+      # name those versions; a mirror that stops answering fails the step in minutes, not the whole job.
+      - if: runner.os == 'Linux'
+        timeout-minutes: 8
+        run: |
+          mkdir -p "$RUNNER_TEMP/apt/partial"
+          apt=(-y --no-install-recommends -o Dir::Cache::Archives="$RUNNER_TEMP/apt" -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30)
+          pkgs=(xvfb openbox gnome-keyring dbus-x11 libsecret-1-0)
+          if ! sudo apt-get install "${apt[@]}" "${pkgs[@]}"; then
+            sudo apt-get update -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30
+            sudo apt-get install "${apt[@]}" "${pkgs[@]}"
+          fi
+          sudo apt-get autoclean -o Dir::Cache::Archives="$RUNNER_TEMP/apt" # the versions no mirror has any more
+          sudo chown -R "$(id -u)" "$RUNNER_TEMP/apt"
       - run: npm ci
       # The macOS runner's screen is 1024×768, smaller than a laptop's: the tests' windows do not fit as they lay them
       # out. Its virtual screen has 1920×1080, as Linux's Xvfb (displayplacer, MIT: the runner's only).
@@ -79,21 +161,74 @@ jobs:
           brew tap jakehilborn/jakehilborn && brew install displayplacer
           displayplacer "id:$(displayplacer list | awk '/^Persistent screen id:/ { print $4; exit }') res:1920x1080"
           displayplacer list | grep -m1 '^Resolution:'
+      # The Windows runner's is 1024×768 too: Windows Server's own setting.
+      - if: runner.os == 'Windows'
+        shell: pwsh
+        run: Set-DisplayResolution -Width 1920 -Height 1080 -Force; Get-DisplayResolution
       # Tasks commit in their test repositories (worktrees.ts): git needs a name.
       - run: git config --global user.name "Kulisa tests" && git config --global user.email "tests@kulisa.app"
+      # The window built (its types are the checks'), then this shard's share of the files.
+      - run: npx vite build --logLevel warn
       - if: runner.os != 'Linux'
-        run: npm test
+        run: KULISA_SHARD=${{ matrix.shard }}/3 npx playwright test
       # On Linux in a D-Bus session with a keyring made and unlocked: its password is any but empty (an empty one makes
       # none, and libsecret then waits on a prompt nobody answers); the runner is thrown away after. Chromium takes
       # the keyring by the desktop's name, and a desktop it does not know gets none (basic_text: nothing encrypted).
       - if: runner.os == 'Linux'
         env:
           XDG_CURRENT_DESKTOP: GNOME
-        run: dbus-run-session -- sh -c 'echo ci | gnome-keyring-daemon --unlock --components=secrets >/dev/null && npm test'
-      # A failed group keeps its folder, its screenshots in it (docs/testing.md); a week, then GitHub removes it.
-      - if: failure()
+        run: dbus-run-session -- sh -c 'echo ci | gnome-keyring-daemon --unlock --components=secrets >/dev/null && KULISA_SHARD=${{ matrix.shard }}/3 npx playwright test'
+      - if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v7
         with:
-          name: test-folders-${{ matrix.os }}
-          path: ${{ runner.temp }}/kulisa-test-*
+          name: blob-${{ matrix.os }}-${{ matrix.shard }}
+          path: blob-report
+          if-no-files-found: ignore
+          retention-days: 1
+  # The name the rulesets require, per OS: green when its checks and every shard of it are. needs waits for every OS
+  # (a matrix job's result is all its OSes'), so this OS's own are read from the run's jobs. Its report: the shards'
+  # merged, Playwright Test's HTML (a failed test's trace, picture and log) and test-results/junit.xml, also from a
+  # run that passed, where it shows the flaky tests a retry passed (docs/testing.md, Flaky tests).
+  test:
+    needs: [checks, e2e]
+    if: ${{ always() }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: blob-${{ matrix.os }}-*
+          path: all-blob
+          merge-multiple: true
+      - if: ${{ hashFiles('all-blob/**') != '' }}
+        env:
+          PLAYWRIGHT_JUNIT_OUTPUT_FILE: test-results/junit.xml
+        run: npx playwright merge-reports --reporter html,junit all-blob
+      - uses: actions/upload-artifact@v7
+        with:
+          name: e2e-report-${{ matrix.os }}
+          path: |
+            playwright-report
+            test-results/junit.xml
+          if-no-files-found: ignore
           retention-days: 7
+      - env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OS: ${{ matrix.os }}
+        run: |
+          jobs=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/attempts/$GITHUB_RUN_ATTEMPT/jobs?per_page=100" \
+            --jq ".jobs[] | select(.name | startswith(\"checks ($OS)\") or startswith(\"e2e ($OS,\")) | \"\(.conclusion) \(.name)\"")
+          echo "$jobs"
+          if [ "$(echo "$jobs" | grep -c .)" != 4 ] || echo "$jobs" | grep -qv '^success '; then
+            echo "::error::$OS: not every check and shard passed"; exit 1
+          fi

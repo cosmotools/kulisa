@@ -6,6 +6,7 @@ import { execFile } from 'child_process';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
+import { removeTree } from './remove.ts';
 import { slugOf } from '../shared/names.ts';
 import type { Copy } from './store.ts';
 
@@ -24,6 +25,9 @@ function git(cwd: string, args: string[], { timeout = 30000, input }: { timeout?
   });
 }
 const ok = (p: Promise<unknown>) => p.then(() => true, () => false);
+// A folder's real path as the OS gives it, as git's is: Node's own keeps a Windows short name (C:\Users\COSMOT~1),
+// which git writes long.
+const realpath = (p: string) => new Promise<string>((resolve, reject) => fs.realpath.native(p, (e, r) => (e ? reject(e) : resolve(r))));
 
 // The repository the folder is in: { top (its root), sub (the folder inside it), commit (has one) }; null without git.
 // git answers with the real path, and the folder may be named through a symlink (macOS's /var and /tmp are
@@ -33,9 +37,9 @@ const ok = (p: Promise<unknown>) => p.then(() => true, () => false);
 async function repoOf(folder: string) {
   const out = await git(folder, ['rev-parse', '--show-toplevel']).catch((): null => null);
   if (!out) return null;
-  const top = path.resolve(out), real = await fs.promises.realpath(folder).catch(() => path.resolve(folder));
+  const top = path.resolve(out), real = await realpath(folder).catch(() => path.resolve(folder));
   const named = path.resolve(folder, path.relative(real, top));
-  const same = await fs.promises.realpath(named).then((r) => r === top, () => false);
+  const same = await realpath(named).then((r) => r === top, () => false);
   return { top: same ? named : top, sub: path.relative(top, real), commit: await ok(git(folder, ['rev-parse', '--verify', 'HEAD^{commit}'])) };
 }
 
@@ -177,7 +181,7 @@ async function removeWorktree({ repo, worktree, branch }: Copy) {
   forgetEnvrc(worktree);
   await git(repo, ['worktree', 'remove', '--force', '--force', worktree]).catch(async (e: GitError) => {
     console.warn('[worktrees] remove:', e.stderr || e.message);
-    fs.rmSync(worktree, { recursive: true, force: true });
+    removeTree(worktree);
     await git(repo, ['worktree', 'prune']).catch(() => {});
   });
   await git(repo, ['branch', '-D', branch]).catch((e: GitError) => console.warn('[worktrees] branch:', e.stderr || e.message));

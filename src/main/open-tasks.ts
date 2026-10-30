@@ -8,7 +8,7 @@ import { refused } from '../shared/result.ts';
 import type { Shell } from './shell.ts';
 import type { ProjectEntry } from './store.ts';
 import type { Task } from './tasks.ts';
-import type { Asker, Place } from './window.ts';
+import type { Place } from './window.ts';
 import type { Result } from '../shared/result.ts';
 import type { TerminalContents } from '../terminal/ipc.ts';
 
@@ -35,7 +35,7 @@ export function openTasks(shell: Shell, { appDevTools }: { appDevTools: boolean 
   // A project with no open task left is let go: nothing of it runs.
   const unloadIdle = () => { for (const [id, p] of shell.open) if (!p.open().length) shell.open.delete(id); };
   const openTasksOf = (project: Project, w: AppWindow) => w.tabs.filter((t) => t.project === project);
-  // Task id of project p shown (the bar's +), opened again if it was closed; none: a new task of it. In the window it
+  // Task id of project p shown (the sidebar), opened again if it was closed; none: a new task of it. In the window it
   // is open in, brought to the front; a closed or new one at the end of window w's bar.
   async function openProject(p: ProjectEntry, w: AppWindow, id?: string | null): Promise<Result<{ id: string; key: string }>> {
     log.info(`[task] open ${p.id}${id != null ? `/${id}` : ''} wc=${w.win.webContents.id}`);
@@ -56,7 +56,7 @@ export function openTasks(shell: Shell, { appDevTools }: { appDevTools: boolean 
   // window's ×): one function, so one rule. The human is asked first in their window w, only when an agent works (a
   // window's ×: always; asked: already). Each closes as × on it would (projects.ts, closeTask: its agent stopped,
   // its profiles saved and closed, all kept to open again), its tab goes; the one on screen goes last, so the one
-  // next to it is shown, or none is left: an empty island in the grid's place, or the window closes when there is
+  // next to it is shown, or none is left: the empty window, or the window closes when there is
   // another (as a browser's). A project with no open task left is let go.
   async function closeTasks(w: AppWindow, tasks: Task[], { asked = false, window = false } = {}): Promise<Result<{ keys: string[] }>> {
     if (!asked && !await askClosing(w, tasks, { window })) return { error: 'the human said no' };
@@ -87,7 +87,7 @@ export function openTasks(shell: Shell, { appDevTools }: { appDevTools: boolean 
     if (!window) {
       const what = tasks.length === 1 ? `the task ${tasks[0]!.name}` : `the ${tasks.length} tasks of ${[...projects].map((p) => p.name).join(', ')}`;
       return !working || shell.ask({ message: `Close ${what}?`, ok: 'Close',
-        detail: `${stillWorking(tasks, 'closing')}${tasks.length === 1 ? 'Its conversation, code and profiles stay' : 'Their conversations, code and profiles stay'}: open ${tasks.length === 1 ? 'it' : 'them'} again from the bar's +.` }, w);
+        detail: `${stillWorking(tasks, 'closing')}${tasks.length === 1 ? 'Its conversation, code and profiles stay' : 'Their conversations, code and profiles stay'}: open ${tasks.length === 1 ? 'it' : 'them'} again from the sidebar.` }, w);
     }
     return shell.ask({ message: 'Close the window?', ok: 'Close',
       detail: `Its tasks close: ${tasks.map(named).join(', ')}. ${stillWorking(tasks, 'closing')}`
@@ -103,7 +103,7 @@ export function openTasks(shell: Shell, { appDevTools }: { appDevTools: boolean 
     if (!task || !from) return { error: 'the task is not open' };
     if (to === from) return { key: task.key };
     if (!to && from.tabs.length < 2) return { error: 'the task is the only one in its window' };
-    shell.chooseAgent.cancel(task); // none opens: the island's + there
+    shell.chooseAgent.cancel(task); // none opens: the terminals' + there
     await from.leave(task);
     from.drop(task);
     const target = to || newWindow({ near: from.win, at });
@@ -152,8 +152,8 @@ export function openTasks(shell: Shell, { appDevTools }: { appDevTools: boolean 
   }
   // A tab let go where no Kulisa window took it: outside them all, a new window there; on one (cancelled, or let go
   // elsewhere in a window), nothing.
-  // The first start (no project yet: nothing to do in Kulisa without one): the projects' manager opens by itself on New
-  // Project, over the empty window (Empty.vue).
+  // The first start (no project yet: nothing to do in Kulisa without one): New Project opens by itself, over the empty
+  // window (components/Empty.tsx).
   shell.firstStart = (w) => { if (!store.projects().length) w.send('project:new'); };
   shell.pointer = () => screen.getCursorScreenPoint(); // where the pointer is on the screen (the tests set it)
   async function dragOut(task: Task | null, terminals: TerminalContents): Promise<Result<{ key?: string }>> {
@@ -246,7 +246,7 @@ export function openTasks(shell: Shell, { appDevTools }: { appDevTools: boolean 
   }
   // Removing a project, from wherever a window asks for it (w): the human confirms, then its open tasks are closed
   // in every window, and its data deleted (projects.ts).
-  async function deleteProject(id: string, w: Asker | null) {
+  async function deleteProject(id: string, w: AppWindow | null) {
     const p = store.projects().find((x) => x.id === id);
     if (!p) return { error: `no project ${id}` };
     const open = shell.open.get(id);

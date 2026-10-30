@@ -11,11 +11,11 @@ import type { ProjectEntry } from '../store.ts';
 import type { StoredProfile } from '../profile-store.ts';
 import type { Result } from '../../shared/result.ts';
 
-export function registerProjects(ipc: Ipc, { lookForFavicon }: { lookForFavicon: (p: ProjectEntry) => Promise<void> }) {
-  const { shell, at, asker, serial } = ipc;
+export function registerProjects(ipc: Ipc, { lookForFavicon }: { lookForFavicon: (p: ProjectEntry) => Promise<boolean> }) {
+  const { shell, at, serial } = ipc;
   const store = shell.store;
   const sendProjects = () => shell.sendProjects();
-  // New Project (projects.ts, createProject); the window then opens its first task (project:open).
+  // New Project (projects.ts, createProject); the window then opens its first task (task:new).
   // agents: every account, the agents' own first; clis: the agents a new account can be made of (New Account…).
   const choices = () => {
     const all = shell.accounts.all().filter((a) => !a.agent.custom);
@@ -32,18 +32,18 @@ export function registerProjects(ipc: Ipc, { lookForFavicon }: { lookForFavicon:
   handle('project:folder-state', (_e, args) => folderStateOf(shell, args));
   handle('project:new', async (_e, spec) => {
     const r = await createProject(shell, spec);
-    if (!refused(r)) sendProjects(); // the board lists it
+    if (!refused(r)) sendProjects(); // the sidebar lists it
     return r;
   });
-  // A project's configuration in the projects' manager (ProjectEditor.vue): its name, agents,
+  // A project's configuration in Settings (components/settings/ProjectPage.tsx): its name, agents,
   // repositories, profiles and local addresses; its folder is shown, not changed (its tasks' copies are made from it).
   // Open or not.
   handle('project:settings-get', async (_e, { id }) => {
     const p = store.projects().find((x) => x.id === id);
     if (!p) return { error: `no project ${id}` };
     const r = await foldersInfo(p);
-    await lookForFavicon(p);
-    sendProjects();
+    // Not waited for: the page comes at once, its icon in the windows when it changed.
+    lookForFavicon(p).then((changed) => changed && sendProjects(), (err) => console.error('[favicon]', err));
     return { name: p.name, projectAgents: agentsInfo(shell, p), local: p.local || [], ...r, ...profilesOf(id), ...choices() };
   });
   // Its profiles (profile-store.ts): those it has, and those of other projects it can take. A new one comes closed in
@@ -70,7 +70,7 @@ export function registerProjects(ipc: Ipc, { lookForFavicon }: { lookForFavicon:
   handle('project:profile-remove', (e, { id, profile }) => serial(async () => {
     const entry = store.projects().find((x) => x.id === id), g = shell.profileStore.get(profile);
     if (!entry || !g) return { error: entry ? `no profile ${profile}` : `no project ${id}` };
-    if (!await askDropProfile(shell, entry, g, 'human', asker(e))) return { error: 'the human said no' };
+    if (!await askDropProfile(shell, entry, g, 'human', at(e))) return { error: 'the human said no' };
     await dropProfile(shell, entry, g.id);
     return profilesOf(id);
   }));

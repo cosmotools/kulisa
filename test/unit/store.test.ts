@@ -150,7 +150,7 @@ test('profiles: one store, a profile in several projects or none, each project l
   assert.equal(cy.name, 'Cy', 'trimmed');
 });
 
-// The agent names a profile by its name (kulisa-plugin/tools/): two of one name in a project could not be told apart.
+// The agent names a profile by its name (kulisa-plugin/main/tools/): two of one name in a project could not be told apart.
 test('profiles: a name is unique within a project, whatever its case, on create, rename and adding it to a project', () => {
   const all = profileStore(path.join(root, 'unique-data'), 'shop', 'blog');
   const ann = all.create('shop', { name: 'ann@shop.com' }) as StoredProfile;
@@ -254,7 +254,7 @@ test("a task's folder, branch and folder of copies are its resources': the first
   assert.equal(folderOf({ id: 't2', name: 'x' }, '/src/web'), '/src/web');
   // Beside its repository (<repo>@<branch>): no folder of copies, even for a repository in a subfolder of its git.
   const beside: TaskEntry = { id: 't3', name: 'Fix', resources: [wt('/src/api', '/src/api@fix')] };
-  assert.deepEqual([folderOf(beside, ''), branchOf(beside), homeOf(beside)], ['/src/api@fix', 'fix', null]);
+  assert.deepEqual([folderOf(beside, ''), branchOf(beside), homeOf(beside)], [path.join('/src/api@fix'), 'fix', null]);
   assert.equal(homeOf({ id: 't4', name: 'Fix', resources: [wt('/src/mono', '/src/mono@fix', 'app')] }), null, 'never /src');
   // In a folder of copies, its own and one added; an added one beside a worktree made beside its repository.
   const home: TaskEntry = { id: 't5', name: 'Fix', resources: [wt('/src/api', '/home/K/shop@fix/api'), wt('/src/web', '/home/K/shop@fix/web')] };

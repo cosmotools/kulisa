@@ -3,11 +3,17 @@
 import { spawn } from 'child_process';
 import electron from 'electron';
 
-const child = spawn(electron as unknown as string, [...(process.platform === 'linux' ? ['--no-sandbox'] : []), ...process.argv.slice(2)],
-  { stdio: 'inherit', windowsHide: false });
+const argv = [...(process.platform === 'linux' ? ['--no-sandbox'] : []), ...process.argv.slice(2)];
+const child = spawn(electron as unknown as string, argv, { stdio: 'inherit', windowsHide: false });
 child.on('close', (code, signal) => {
   if (code === null) console.error(`Electron exited with ${signal}`);
   process.exit(code ?? 1);
 });
-// Ctrl+C or a kill of npm stops Kulisa as it quits (app.ts saves session cookies and tabs on SIGINT and SIGTERM).
-for (const signal of ['SIGINT', 'SIGTERM'] as const) process.on(signal, () => { if (child.exitCode === null) child.kill(signal); });
+// Ctrl+C or a kill of npm stops Kulisa as it quits (app.ts saves session cookies and tabs on SIGINT and SIGTERM). On
+// Windows a signal to the child ends it at once, unsaved, so it is asked by a second start instead (KULISA_QUIT, app.ts).
+const stop = (signal: NodeJS.Signals) => {
+  if (child.exitCode !== null) return;
+  if (process.platform !== 'win32') child.kill(signal);
+  else spawn(electron as unknown as string, argv, { stdio: 'inherit', env: { ...process.env, KULISA_QUIT: '1' } });
+};
+for (const signal of ['SIGINT', 'SIGTERM'] as const) process.on(signal, stop);

@@ -1,8 +1,8 @@
 // What is "local" (profiles.md, "Test users' sign-ins"): the one definition in the core of an address on the
 // developer's own machine or network, where the app under test runs, for where a test user's login-password pair may be
-// typed (and, later, which sites' cookies stay each task's own: ROADMAP, step 6). localhost and its subdomains, the
-// names kept for testing and local networks (*.test, *.local), loopback and private addresses, plus a project's own
-// list (a tunnel such as ngrok, its dev domains). An address left out is safe the other way: a pair is not typed there.
+// typed. localhost and its subdomains, the names kept for testing and local networks (*.test, *.local), loopback and
+// private addresses, plus a project's own list (a tunnel such as ngrok, its dev domains). An address left
+// out is safe the other way: a pair is not typed there.
 // Plain Node: unit-tested.
 import ipaddr from 'ipaddr.js';
 

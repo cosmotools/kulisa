@@ -13,6 +13,7 @@
 //   profiles/<id>/        its master
 import fs from 'fs';
 import path from 'path';
+import { removeTree } from './remove.ts';
 import { nameError } from '../shared/names.ts';
 import { newId, writeFileAtomic } from './store.ts';
 import { log } from './log.ts';
@@ -72,7 +73,7 @@ class ProfileStore {
     log.info(`[profiles] made ${this.label(id)}`);
     return project ? this.addTo(p.id, project) : p;
   }
-  // A name is unique within a project, whatever its case: the agent names a profile by it (kulisa-plugin/tools/). Why a name
+  // A name is unique within a project, whatever its case: the agent names a profile by it (kulisa-plugin/main/tools/). Why a name
   // cannot be in these projects (but for the profile except), or null.
   nameTaken(name: string, projects: string[], except?: string) {
     const lower = name.toLowerCase();
@@ -155,7 +156,7 @@ class ProfileStore {
     this.save(list.filter((x) => x !== p));
     const dir = this.masterDir(id);
     this.store.markDeleted(dir);
-    try { fs.rmSync(dir, { recursive: true, force: true }); } catch (e) { console.warn('[profiles]', (e as Error).message); }
+    try { removeTree(dir); } catch (e) { console.warn('[profiles]', (e as Error).message); }
     return { profile: p };
   }
 }

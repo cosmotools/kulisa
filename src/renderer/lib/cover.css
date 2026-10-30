@@ -1,0 +1,4 @@
+/* A menu over the pages is drawn once they are pictures (cover.ts): until then cut away whole, not hidden, so it keeps
+   the keyboard Radix gives it as it opens (a hidden element takes none) and its motion runs as it shows. The selector is
+   cover.ts's PICTURES: change both. */
+[data-radix-popper-content-wrapper] > [data-state="open"]:not([data-ready], [data-slot="tooltip-content"]) { clip-path: inset(50%); }

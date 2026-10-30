@@ -1,10 +1,10 @@
 // The window's handles on its shown task's panes (docs/profiles.md, the table of actions): profiles, tabs, terminals,
-// the grid's layout. Each only translates to the task's own (tasks.ts), as the agent's tools do (kulisa-plugin/tools/).
+// the grid's layout. Each only translates to the task's own (tasks.ts), as the agent's tools do (kulisa-plugin/main/tools/).
 import { refused } from '../../shared/result.ts';
 import { handle, on } from '../ipc.ts';
 import { focusWindow } from '../page-focus.ts';
 import { chooseElement } from '../picker.ts';
-import { keep } from '../../screenshots/main/index.ts';
+import { copy } from '../../screenshots/main/index.ts';
 import { filesIn, openFile, showFile } from '../file-links.ts';
 import type { Ipc, IpcEvent } from '../ipc.ts';
 import type { IpcMainInvokeEvent } from 'electron';
@@ -14,7 +14,7 @@ import type { OnProfile, OnTab } from '../../shared/ipc.ts';
 export function registerPanes(ipc: Ipc) {
   const { at } = ipc;
   // A window's handles on the profiles of its shown task (the editor, the panes): each only translates to the
-  // task's own (tasks.ts), the same the agent's tools use (kulisa-plugin/tools/). A refusal answers { error }.
+  // task's own (tasks.ts), the same the agent's tools use (kulisa-plugin/main/tools/). A refusal answers { error }.
   // Each names its task (renderer, tasks.ts: act): one sent just as the human switches tasks or
   // projects is refused, not done in the task shown by then.
   const noTask = { error: 'that task is not on screen' };
@@ -29,8 +29,8 @@ export function registerPanes(ipc: Ipc) {
   handle('layout:load', (e, { task }) => onScreen(e, task)?.store.layout());
   // A profile's master, to sign in to (master.ts), and its cookies brought to this task's copy (tasks.ts).
   handle('profile:master', (e, { task, profile }) => onScreen(e, task)?.openMaster(profile) || noTask);
-  // The island's tabs (Terminals.vue): + (an agent of the project, a new conversation; or a shell; own: the task's own
-  // agent, Ctrl+` on the folded island), the one in front,
+  // The terminals' tabs (Terminals.tsx): + (an agent of the project, a new conversation; or a shell; own: the task's own
+  // agent, Ctrl+` on the folded terminals), the one in front,
   // ×, an agent's tab handed over to another agent (Task.handOver).
   handle('terminal:open', (e, { task, agent, own }) => {
     const w = onScreen(e, task);
@@ -38,6 +38,7 @@ export function registerPanes(ipc: Ipc) {
   });
   handle('terminal:show', (e, { task, id }) => onScreen(e, task)?.show(id) || noTask);
   handle('terminal:close', (e, { task, id }) => onScreen(e, task)?.closeTab(id) || noTask);
+  handle('terminal:paste-image', (e, { task, id }) => onScreen(e, task)?.pasteImage(id));
   // The paths a terminal names, relative to the task's folder; one Ctrl+clicked, opened or shown (file-links.ts).
   handle('terminal:files', (e, { task, paths }) => { const w = onScreen(e, task); return w ? filesIn(w.folder, paths) : noTask; });
   handle('file:open', (_e, file) => openFile(file));
@@ -47,8 +48,8 @@ export function registerPanes(ipc: Ipc) {
   on('layout:save', (e, { task, layout }) => at(e)?.saveLayout(task, layout));
   on('layout', (e, { task, rects }) => at(e)?.layout(task, rects));
 
-  // A tab the human opens (+): the window keeps the keys for its address (ProfilePane.vue); its page taking them as it
-  // loads gives them back (page-focus.ts).
+  // A tab the human opens (+): the window keeps the keys for its address (components/grid/ProfilePane.tsx); its page taking
+  // them as it loads gives them back (page-focus.ts).
   handle('tab:new', onProfile((p, { url }) => { focusWindow(p.win.webContents); return p.newTab(url || 'about:blank').id; }));
   // focus: the keyboard was in the tab's page (a key closed or switched it): it goes to the page shown next, as in Chrome.
   handle('tab:close', onTab((p, t, { focus }) => {
@@ -66,17 +67,15 @@ export function registerPanes(ipc: Ipc) {
   handle('tab:dialog', onTab((p, t, { dialog, ok }) => p.answerDialog(t.id, dialog, ok)));
   handle('tab:devtools', onTab((p, t) => p.toggleDevTools(t.id)));
   handle('tab:zoom', onTab((p, t, { dir }) => p.zoomSite(t.id, dir)));
-  // Screenshot (⋮, its key): the core's picture (Profile.screenshot), at the screen's density, kept as the human's
-  // (src/screenshots); an element chosen as Pick chooses.
+  // The task's artifact is also copied for pasting; choosing an element shares Pick's picker.
   handle('tab:screenshot', async (e, { task, profile, tab, kind }) => {
-    const w = at(e), r = (w && onScreen(e, task)?.findTab(profile, tab)) || noTask;
+    const w = at(e), owner = onScreen(e, task), r = (w && owner?.findTab(profile, tab)) || noTask;
     if (refused(r)) return r;
     try {
       const chosen = kind === 'element' ? await chooseElement(w!, r.profile, r.tab) : null;
       if (kind === 'element' && !chosen) return { file: null };
-      const png = await r.profile.screenshot(r.tab, { ...chosen && { element: () => chosen }, fullPage: kind === 'full', scale: 'device', type: 'png', by: 'human' });
-      const file = await keep(png, r.profile.name);
-      w!.thumbnails.show(r.profile.id, file, png, w!.paneBox(r.profile.id));
+      const { buf: png, file } = await owner!.screenshot(r.profile.id, r.tab.id, { ...chosen && { element: () => chosen }, fullPage: kind === 'full', scale: 'device', type: 'png', by: 'human' });
+      await copy(png);
       return { file };
     } catch (err) { return { error: (err as Error).message }; }
   });

@@ -1,0 +1,17 @@
+/* The grid (Grid.tsx): dockview's look, its variables from the theme's. Plain CSS: dockview's own elements, which no
+   utility reaches. */
+#dock {
+  --dv-group-view-background-color: var(--card); --dv-tabs-and-actions-container-background-color: var(--card);
+  --dv-tabs-and-actions-container-height: calc(var(--spacing) * 9); --dv-tab-font-size: var(--text-sm);
+  --dv-activegroup-visiblepanel-tab-background-color: transparent; --dv-inactivegroup-visiblepanel-tab-background-color: transparent;
+  --dv-activegroup-hiddenpanel-tab-background-color: transparent; --dv-inactivegroup-hiddenpanel-tab-background-color: transparent;
+  --dv-activegroup-visiblepanel-tab-color: var(--foreground); --dv-inactivegroup-visiblepanel-tab-color: var(--muted-foreground);
+  --dv-activegroup-hiddenpanel-tab-color: var(--muted-foreground); --dv-inactivegroup-hiddenpanel-tab-color: var(--muted-foreground);
+  --dv-separator-border: var(--border); --dv-paneview-header-border-color: var(--border);
+  --dv-tab-divider-color: transparent; --dv-active-sash-color: var(--ring);
+  --dv-drag-over-background-color: var(--accent); --dv-drag-over-border-color: var(--ring);
+}
+/* A pane narrower than its header: dockview's tab shrinks with it (else it runs past the pane, its × out of sight and
+   dockview's list of hidden tabs shown for it; the terminals' row would run past their panel, + and the microphone
+   with it). */
+#dock .dv-tab { min-width: 0; flex-shrink: 1; }

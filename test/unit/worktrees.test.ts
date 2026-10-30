@@ -16,7 +16,7 @@ test('a repository named through a symlink: its top as the folder is named, the 
   const real = path.join(dir, 'real'), link = path.join(dir, 'link');
   fs.mkdirSync(path.join(real, 'web'), { recursive: true });
   execFileSync('git', ['init', '-q', real]);
-  fs.symlinkSync(real, link);
+  fs.symlinkSync(real, link, 'junction'); // a junction on Windows: a symlink there needs a privilege
   assert.deepEqual(await repoOf(link), { top: link, sub: '', commit: false });
   assert.deepEqual(await repoOf(path.join(link, 'web')), { top: link, sub: 'web', commit: false });
 });
@@ -27,10 +27,10 @@ test('a folder linked into a repository: its real top, the folder inside it', as
   const mono = path.join(dir, 'mono'), app = path.join(dir, 'app');
   fs.mkdirSync(path.join(mono, 'apps', 'web'), { recursive: true });
   execFileSync('git', ['init', '-q', mono]);
-  fs.symlinkSync(path.join(mono, 'apps', 'web'), app);
-  const top = fs.realpathSync(mono);
+  fs.symlinkSync(path.join(mono, 'apps', 'web'), app, 'junction');
+  const top = fs.realpathSync.native(mono);
   assert.deepEqual(await repoOf(app), { top, sub: path.join('apps', 'web'), commit: false });
-  fs.symlinkSync(path.join(mono, 'apps', 'web'), path.join(mono, 'web'));
+  fs.symlinkSync(path.join(mono, 'apps', 'web'), path.join(mono, 'web'), 'junction');
   assert.deepEqual(await repoOf(path.join(mono, 'web')), { top, sub: path.join('apps', 'web'), commit: false });
 });
 

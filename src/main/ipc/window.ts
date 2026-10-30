@@ -5,7 +5,7 @@ import fs from 'fs';
 import path from 'path';
 import { stepZoom } from '../profiles.ts';
 import { handle, on } from '../ipc.ts';
-import { LOG_MAX, environment, issueUrl, logFile, readLog } from '../log.ts';
+import { LOG_MAX, environment, issueUrl, log, logFile, readLog } from '../log.ts';
 import type { Ipc } from '../ipc.ts';
 import pkg from '../../../package.json' with { type: 'json' };
 import type { AboutFolder } from '../../shared/types.ts';
@@ -21,6 +21,7 @@ function programFolder(): string {
 
 export function registerWindow(ipc: Ipc) {
   const { shell, at } = ipc;
+  handle('window:focused', (e) => at(e)?.win.isFocused() ?? false);
   handle('zoom:get', () => shell.uiZoom);
   // About Kulisa: the versions (Electron's and Chromium's for a bug report and What sites see) and the folders Kulisa
   // writes in, so the exact ones are in the app, whatever the OS and its variables make of them (docs/guide.md, Where
@@ -51,5 +52,7 @@ export function registerWindow(ipc: Ipc) {
   handle('bar:set', (_e, bar) => ['top', 'bottom'].includes(bar) && shell.setBar(bar));
   handle('zoom:ui', (_e, dir) => shell.setUiZoom(stepZoom(shell.uiZoom, dir)));
   handle('views:hidden', (e, hidden, opts?) => at(e)?.hideViews(hidden, opts));
-  on('ask:answer', (e, { id, answer }) => at(e)?.answer(id, answer));
+  on('ask:answer', (e, { id, answer }) => at(e)?.answer(id, answer)); // where it was asked
+  on('settings:open', (e, a) => { const w = at(e); if (w) shell.openSettings(a, w); });
+  on('settings:close', () => log.info('[settings] closed'));
 }

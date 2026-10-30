@@ -1,16 +1,13 @@
 # Kulisa packages
 
 A **Kulisa package** is a part of Kulisa that does one thing and knows nothing of the core (other Kulisa packages only
-by their entries), with all of it in one folder `src/<package>/`, reached from outside only through its entries. The term follows "Kulisa plugin": an npm
-package's idea (one folder, its own doc, a public API and nothing else seen) in Kulisa's own context. Always the two
-words: a bare "package" is an npm package (a dependency) or the app's package (Forge's build, the installers). Not a
-cluster (a folder of the window's components, [ui.md](ui.md), Clusters). The first is the terminal, `src/terminal/` (its
-[README](../src/terminal/README.md)): the example this doc points to.
+by their entries), all of it in one folder `src/<package>/`, reached from outside only through its entries (the term:
+AGENTS.md, Conventions; not a cluster, [ui.md](ui.md), Clusters). The example this doc points to is the terminal,
+`src/terminal/` (its [README](../src/terminal/README.md)).
 
-Why: code smeared over `src/` is hard to keep in hand. In one folder a part is read, changed
-and reviewed in one place; its boundary is checked, not remembered; and Claude Code, working in it, reads its own
-`CLAUDE.md` by itself. Kulisa moves to it gradually: a part at a time, when it is worked on and found self-contained;
-no big move.
+Why: in one folder a part is read, changed and reviewed in one place, its boundary is checked rather than remembered,
+and each folder keeps its own agent instructions in `AGENTS.md`. Code moves into one a part at a time, when it is
+worked on and found self-contained; no big move.
 
 ## What makes code one
 
@@ -28,18 +25,18 @@ any caller, in that package's own terms; not a crutch shaped for this one caller
 the same thing worked out again beside it. Where it is not clear which of the two an extension is, the author decides
 before it is built.
 
-Code that is *about* the thing but knows the rest stays outside, using the package: for the terminal, the island
-(`Terminals.vue`, `TerminalTabs.vue`, `lib/terminals.ts`: its agents' buttons, the closed profiles' tiles, Change
+Code that is *about* the thing but knows the rest stays outside, using the package: for the terminal, the terminals'
+panel (`components/grid/Terminals.tsx`, `lib/terminals.ts`: its agents' buttons, the closed profiles' tiles, Change
 agent…, the project's accounts in its +), the agents in terminals (`tasks.ts`: conversations, handing over, the
-agent's state) and the agent's tools (`terminal_run`, `terminal_read`, `terminal_stop` in `kulisa-plugin/tools/terminal.ts`:
-what the agent sees lives in the Kulisa plugin, CLAUDE.md, Architecture). Drawn so, the island would have pulled half
-of `src/renderer/lib` into the folder, and the boundary would have meant nothing.
+agent's state) and the agent's tools (`terminal_run`, `terminal_read`, `terminal_stop` in
+`kulisa-plugin/main/tools/terminal.ts`: what the agent sees lives in the Kulisa plugin, AGENTS.md, Architecture). Inside,
+the terminals' panel would pull half of `src/renderer/lib` with it, and the boundary would mean nothing.
 
 **The caller stays thin: it states facts, the package does the work.** What the package's things are and do (their
 life, their timers, their views, their places, their files) is the package's, behind a small API; the code outside
-gives it what only the rest knows and calls it. The screenshots' thumbnail, for one: the window makes it
-(`new Thumbnails(win, …)`) and says three things, where its panes are after a change of the grid (`place`), that its
-pages are covered (`setHidden`), that a task goes (`close`). What only the rest can do comes in as a function:
+gives it what only the rest knows and calls it. The screenshots' thumbnail: the window makes it (`new Thumbnails(win,
+…)`) and says where its panes are after a change of the grid (`place`), that its pages are covered (`setHidden`), that
+a task goes (`close`). What only the rest can do comes in as a function:
 - the window's own components (its menus, dialogs: one set of components, `docs/ui.md`): the window passes the opener
   (`thumbnailMenu(menuAtPoint)`), the package gives the rows and what they do;
 - what belongs to tasks or agents (Send to Agent: `send`, the window's `Task.typeForAgent`).
@@ -52,15 +49,16 @@ it touched is listed with why that line cannot be in the package (the screenshot
 
 ```
 src/<package>/
-  CLAUDE.md          working in it: its entries, its rules, what stays outside, where its tests are
+  CLAUDE.md          imports the adjacent AGENTS.md for Claude Code (`@AGENTS.md`)
+  AGENTS.md          working in it: its entries, its rules, what stays outside, where its tests are
   README.md          how it works and why, as docs/ does for the rest; its last section "The code"
   ipc.ts             its channels' types (<Name>Send, <Name>Events, …), joined in src/shared/ipc.ts
   main/index.ts      the main process's half: its entry
   main/…             its other files
   renderer/index.ts  the window's half: its entry
-  renderer/…         its other files (.ts; .vue when it has parts of the window of its own; a page of its own,
-                     as the screenshots' thumbnail: its script here, its .html a shell in src/renderer that only
-                     loads it, as Vite builds no page outside its root)
+  renderer/…         its other files (.ts; .tsx for parts of the window of its own; a page of its own, as the
+                     screenshots' thumbnail: its script here, its .html a shell in src/renderer that only loads
+                     it, as Vite builds no page outside its root)
   renderer/tsconfig.json   extends src/renderer's; ESLint finds the half's types by it
   *.test.ts          its unit tests, plain Node (docs/testing.md)
 ```
@@ -74,8 +72,7 @@ listens to a package's channel. A channel of a pane or a task that only calls th
 Node's ES modules resolve no folder to its `index` (`ERR_UNSUPPORTED_DIR_IMPORT`). The window's side goes through Vite,
 which does (`'../../terminal/renderer'`).
 
-A half it does not have is left out. Its e2e tests stay in `test/`, in the group whose state they need (a group is one
-app: [testing.md](testing.md)); its README names which files.
+A half it does not have is left out. Its e2e tests stay in `test/e2e/` with the others ([testing.md](testing.md)); its README names which files.
 
 ## Its rules, and what checks them
 
@@ -86,28 +83,28 @@ app: [testing.md](testing.md)); its README names which files.
 - A unit test may load its main half (`profiles.ts` imports the screenshots' `Profile.screenshot`'s capture; the unit
   tests load `profiles.ts`): its files and what they import from `src/main` (`ipc.ts`, `log.ts`) take Electron's
   objects from the module, not by name (docs/testing.md). `npm run test:unit` fails at load otherwise.
-- `tsc` and `vue-tsc` check both halves: `tsconfig.json` takes every `src/*/main`, `src/*/ipc.ts` and
+- `tsc` checks both halves: `tsconfig.json` takes every `src/*/main`, `src/*/ipc.ts` and
   `src/*/*.test.ts`, `src/renderer/tsconfig.json` every `src/*/renderer` (the window's build imports it anyway).
 - `npm run test:unit` and `npm test` run `src/*/*.test.ts` (`package.json`, `test/start.ts`: the same two globs).
 - The app's package (`forge.config.ts`, `ignore`) keeps a package's `main/` and `ipc.ts`, which the main process runs
   from source, and leaves out its `renderer/` (Vite builds it into `dist/renderer`), its tests and its docs.
 
-These are written for any `src/<package>/`: a new one needs only its line in `.dependency-cruiser.ts`. When one of
-them does not take it (a check that silently skips it is the danger), fix the config for every package, not for one.
+These are written for any `src/<package>/`: a new one needs only its line in `.dependency-cruiser.ts`. A check that
+silently skips one is fixed in the config for every package, not for that one.
 
 ## Its docs
 
 - `README.md`: what it is and who uses it (and that it knows nothing of them), how each half works and why, its
-  channels, "The code" (its files, its e2e test files), as the docs in `docs/` are written (CLAUDE.md, Conventions).
+  channels, "The code" (its files, its e2e test files), as the docs in `docs/` are written (AGENTS.md, Conventions).
   The paragraphs of `docs/` about it move there; `docs/` keeps a sentence and a link where the topic was.
 - **Outside the package, only what a reader outside needs, never a retelling**: the guide (`docs/guide.md`: for the
   user, and it may not link to other docs), the lists that hold all of a kind with a word and a link each (the table
   of actions in `profiles.md`, the keys in `window.md`, the environment variables in the README, "The code" tables,
-  the ROADMAP's platform gaps), and a sentence where a doc's topic leads into the package. How it works and why is
+  the manual checks' issues, #193, #194, #205), and a sentence where a doc's topic leads into the package. How it works and why is
   only in its README.
-- `CLAUDE.md`, short: that it is a Kulisa package (and this doc), its entries and what its halves may use, what stays
-  outside and so where a rule about that belongs, where its tests are. Claude Code reads a folder's `CLAUDE.md` when
-  it reads the folder's files; other agents read the root one, which points here.
+- `AGENTS.md`, short: that it is a Kulisa package (and this doc), its entries and what its halves may use, what stays
+  outside and so where a rule about that belongs, where its tests are. `CLAUDE.md` contains only `@AGENTS.md`,
+  so both agents use the same rules.
 
 ## Moving code into one, step by step
 
@@ -118,8 +115,8 @@ them does not take it (a check that silently skips it is the danger), fix the co
 3. **Its channels** into `ipc.ts`, `src/shared/ipc.ts` extending its interfaces.
 4. **Its line in `.dependency-cruiser.ts`**, then check each rule fires: put a forbidden import in a scratch file,
    see `npm run deps` refuse it, remove it.
-5. **Its docs**: `README.md` from the paragraphs of `docs/`, a link left there; `CLAUDE.md`; "The code" tables of the
-   other docs; the old paths searched for in `docs/`, `CLAUDE.md`, `README.md` and the code's comments.
+5. **Its docs**: `README.md` from the paragraphs of `docs/`, a link left there; `AGENTS.md` and its `CLAUDE.md` import;
+   "The code" tables of the other docs; the old paths searched for in `docs/`, `AGENTS.md`, `README.md` and the code's comments.
 6. **Its unit tests** into the folder; then the full `npm test`, and the number of unit tests the same as before (a glob
    of its own in `test/start.ts` would miss them).
 7. **What is left outside**: each file outside the package that it touches, and why that line is not in it (the
@@ -131,8 +128,10 @@ them does not take it (a check that silently skips it is the danger), fix the co
 
 | Folder | What | Its main half uses |
 |---|---|---|
+| `src/kulisa-plugin/` | agent integration: tools, hooks, shared skills, CLI adapters and transcript readers ([README](../src/kulisa-plugin/README.md)) | `log.ts`, `store.ts` (`writeFileAtomic`), `remove.ts` |
 | `src/terminal/` | a terminal: its pty in the user's shell, its buffers and the xterm a place shows ([README](../src/terminal/README.md)) | `ipc.ts`, `log.ts` |
 | `src/screenshots/` | a picture of a page (an element, the visible part, the whole page), kept as the human's, its thumbnail ([README](../src/screenshots/README.md)) | `ipc.ts`, `log.ts` |
 | `src/dictation/` | speaking to the agent: what each task's microphone shows, and recording ([README](../src/dictation/README.md)) | `ipc.ts`, `log.ts` |
 | `src/github/` | the GitHub accounts: Kulisa App's device flow or a fine-grained token, their tokens kept with the keyring, a repository's account ([README](../src/github/README.md)) | `ipc.ts`, `log.ts`, `store.ts` (`newId`, `writeFileAtomic`) |
 | `src/activity-monitor/` | what Kulisa takes on the computer: the tasks' artifacts on the disk, every task's or some ([README](../src/activity-monitor/README.md)) | nothing |
+| `src/ui/` | shadcn/ui's components as its CLI writes them, and their theme: the window's alone, through `index.ts` ([README](../src/ui/README.md)) | (no main half) |

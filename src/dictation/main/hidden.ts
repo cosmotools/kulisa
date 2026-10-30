@@ -12,7 +12,7 @@ const TEXT = 4_000; // let go, no text by then: nothing was heard
 // Its screen: wide, so its input is one line (its clear key deletes a line).
 const COLS = 500, ROWS = 50;
 
-// How the caller starts it: an account of an agent whose dictation recognizes (its entry's recognizer, src/main/agents).
+// How the caller starts it: an account of an agent whose dictation recognizes (its entry's recognizer, src/kulisa-plugin/main/agents).
 interface Spec {
   id: string; // the account, which forget gets back
   command: string; args: string[]; env: Record<string, string | undefined>; cwd: string;
