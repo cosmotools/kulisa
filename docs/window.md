@@ -71,7 +71,7 @@ The task-scoped event reaches that window.
 
 **Allow overflow** is independent of the layout, off by default: panes fit the stage. On, Horizontal stack allocates 600 CSS
 pixels of width per environment, Vertical stack 300 pixels of height, plus Dockview’s gaps; the stack scrolls on that axis.
-Tabs hides the toggle and ignores overflow while preserving its value. `stage_arrange` accepts any combination of position, view and overflow; omitted settings stay unchanged. Changing only overflow preserves the panes and active tab. `Stage.tsx` sizes
+Tabs hides the toggle and ignores overflow while preserving its value. Group minimums read the shared settings during layout, so every pane releases its minimum together. `stage_arrange` accepts any combination of position, view and overflow; omitted settings stay unchanged. Changing only overflow preserves the panes and active tab. `Stage.tsx` sizes
 the inner grid inside its scroll viewport. Its scroll and all layout changes report page bounds and their visible
 intersection (`lib/grid.ts`). `Profile` puts a partially visible page inside a native `View` at that intersection;
 the child keeps its full viewport, offset within the parent. Fully offscreen pages are hidden. The clipping parent

@@ -313,6 +313,22 @@ test("tasks: a double click on a task's tab is its Rename…, the shown one's an
   }
 });
 
+test('the title bar keeps a full task tab beside Stage in the room left by window controls', async ({ core, ui, files }) => {
+  await begin(core, ui, files, { columns: true, featureX: true });
+  const before = await resize(core, { width: 640 });
+  try {
+    await invoke(ui, 'bar:set', 'top');
+    // Caption buttons reduce the HTML title bar independently of the window's content width.
+    await ui.locator('#topbar').evaluate((el) => { el.style.width = '480px'; });
+    await expect(chosen(ui)).toBeInViewport({ ratio: 1 });
+    await expect(ui.getByRole('button', { name: 'Stage', exact: true })).toBeVisible();
+  } finally {
+    await ui.locator('#topbar').evaluate((el) => el.style.removeProperty('width'));
+    await invoke(ui, 'bar:set', 'bottom');
+    await resize(core, before);
+  }
+});
+
 test('menus: one longer than the window has stays in it and scrolls', async ({ core, ui }) => {
   // Language has enough choices to overflow the minimum-height window independently of the window menu's rows.
   const before = await resize(core, { height: 400 });

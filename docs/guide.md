@@ -64,7 +64,7 @@ project, and those you closed, are in the sidebar (Tasks, below).
 ## The window
 
 - **The title bar**: the Kulisa logo in the shown project's color (not on a Mac, where Kulisa's icon is in the Dock),
-  the tasks' bar if you put it there, **Stage** while a task is open, **Settings** (the gear; not at the very first
+  the tasks' bar if you put it there, **Stage** (the layout icon) while a task is open, **Settings** (the gear; not at the very first
   start, while there is nothing to set yet), and **☰**, the window's menu: zoom, theme, where the tasks' bar is,
   language, Keyboard Shortcuts, links, About Kulisa, Exit. On a Mac there is no Exit: **⌘Q** quits
   Kulisa, and closing the last window only hides it, while your agents go on working; click Kulisa's icon in the Dock

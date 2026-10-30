@@ -39,5 +39,5 @@ const items = (): MenuItem[] => [
   '-', { submenu: 'Open an environment', items: environmentItems() },
 ];
 export function StageMenu() {
-  return <ButtonMenu items={items} end><Button variant="ghost" aria-label="Stage" title="Stage: position, view and environments"><LayoutDashboardIcon />Stage</Button></ButtonMenu>;
+  return <ButtonMenu items={items} end><Button variant="ghost" size="icon" aria-label="Stage" title="Stage: position, view and environments"><LayoutDashboardIcon /></Button></ButtonMenu>;
 }

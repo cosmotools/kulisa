@@ -1,6 +1,6 @@
 // The task's outer workspace and nested testing stage (docs/window.md, The grid).
 import { Orientation } from 'dockview-react';
-import type { DockviewApi, SerializedDockview, GridviewApi } from 'dockview-react';
+import type { DockviewApi, SerializedDockview, GridviewApi, GridviewPanelApi } from 'dockview-react';
 import type { PageLayout } from '../../shared/ipc';
 import type { Profile, Terminals } from '../../shared/types';
 import { act, setCaption, store } from './store';
@@ -117,11 +117,15 @@ function addEnvironment(id: string, reference?: string, direction: 'right' | 'be
     ...(reference && { position: { referencePanel: reference, direction } }), inactive });
 }
 function constrainStage() {
-  const { stageLayout: mode, stageOverflow: overflow } = store.getState();
-  for (const group of stage?.groups ?? []) group.api.setConstraints({
-    minimumWidth: overflow && mode !== 'tabs' && mode !== 'vertical' ? environmentMinimum.width : 0,
-    minimumHeight: overflow && mode === 'vertical' ? environmentMinimum.height : 0,
-  });
+  // Every group must see the same settings while constraints trigger layout, including peers not yet notified.
+  const minimum = (vertical: boolean) => {
+    const { stageLayout: mode, stageOverflow: overflow } = store.getState();
+    return overflow && mode !== 'tabs' && (mode === 'vertical') === vertical ? vertical ? environmentMinimum.height : environmentMinimum.width : 0;
+  };
+  for (const group of stage?.groups ?? []) {
+    const api: GridviewPanelApi = group.api;
+    api.setConstraints({ minimumWidth: () => minimum(false), minimumHeight: () => minimum(true) });
+  }
 }
 function arrangeStage() {
   if (!stage) return;
