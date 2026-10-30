@@ -51,11 +51,7 @@ export function Terminals({ api, containerApi }: IDockviewPanelProps) {
   // The task from the terminals' own message (docs/window.md, The terminal).
   const task = useWindow((s) => s.terminals.task ?? null), front = useWindow((s) => s.terminals.front);
   const folded = useWindow((s) => !s.terminals.list.length);
-  // No profile's pane in the grid: as dockview has them, so it folds against the grid as it is laid out.
-  const alone = useSyncExternalStore(useCallback((changed: () => void) => {
-    const subs = [containerApi.onDidAddPanel(changed), containerApi.onDidRemovePanel(changed)];
-    return () => { for (const s of subs) s.dispose(); };
-  }, [containerApi]), () => !containerApi.panels.some((p) => p.id === 'stage'));
+  const alone = useWindow((s) => !s.profiles.length);
   const loading = useWindow((s) => s.loading);
   // The tab in front before its program has started (an agent's is looked for first): a loader over its terminal, which
   // stays laid out meanwhile (the program starts at its size).
@@ -63,11 +59,11 @@ export function Terminals({ api, containerApi }: IDockviewPanelProps) {
   const shown = task !== null && front !== null ? `${task}#${front}` : null;
 
   useLayoutEffect(() => {
-    // Dockview's retained panel catches up to its layout in a later frame; the program must start at that size.
+    // Retained panels catch up in a later frame; DOM client/offset dimensions round Dockview's fractional CSS pixels.
     panelView.isLaidOut = () => {
       const grid = document.getElementById('grid');
-      return grid?.clientWidth === containerApi.width && grid?.clientHeight === containerApi.height
-        && host.current?.offsetWidth === api.width && host.current?.offsetHeight === api.height;
+      return grid?.clientWidth === Math.round(containerApi.width) && grid?.clientHeight === Math.round(containerApi.height)
+        && host.current?.offsetWidth === Math.round(api.width) && host.current?.offsetHeight === Math.round(api.height);
     };
     return () => { panelView.isLaidOut = undefined; };
   }, [api, containerApi]);
@@ -100,7 +96,23 @@ export function Terminals({ api, containerApi }: IDockviewPanelProps) {
       before.current = null;
     };
   }, [api, containerApi, groupId]);
-  useEffect(() => fold(api, containerApi, before, folded, alone), [api, containerApi, groupId, folded, alone]);
+  useEffect(() => {
+    fold(api, containerApi, before, folded, alone);
+    let frame = 0;
+    const shape = () => JSON.stringify(containerApi.toJSON().grid, (key, value) => ['size', 'width', 'height', 'hideHeader', 'activeView'].includes(key) ? undefined : value);
+    let previous = shape();
+    const rearranged = () => {
+      const next = shape();
+      if (!folded || next === previous) return;
+      previous = next;
+      // A peer moved across the terminal changes the folding axis without moving this panel's group.
+      fold(api, containerApi, before, false, alone);
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => fold(api, containerApi, before, folded, alone));
+    };
+    const changed = containerApi.onDidLayoutChange(rearranged);
+    return () => { cancelAnimationFrame(frame); changed.dispose(); };
+  }, [api, containerApi, groupId, folded, alone]);
 
   // The big buttons, each a Tab stop (Tab to the next, Enter opens it): the first, the project's default agent, gets the
   // keyboard when the keyboard was in the terminal just closed or nowhere (not taken from a field or a dialog). No keys

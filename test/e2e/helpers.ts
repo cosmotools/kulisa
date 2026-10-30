@@ -207,10 +207,10 @@ export async function taskMenu(ui: Page) {
   return menu(ui);
 }
 
-// The panels arranged as the human does it: ☰ → Arrange workspace.
-export async function arrange(ui: Page, preset: 'columns' | 'grid') {
-  await ui.locator('#windowMenu').click();
-  await menu(ui).locator(`[data-preset="${preset}"]`).click();
+// Stage placed relative to development panels through the title-bar menu.
+export async function arrange(ui: Page, position: 'above' | 'left' | 'right') {
+  await ui.getByRole('button', { name: 'Stage', exact: true }).click();
+  await ui.getByRole('menuitemradio', { name: position[0].toUpperCase() + position.slice(1), exact: true }).click();
 }
 // The window resized as the human drags its edge (by its page's size), its size before given back.
 export const resize = (core: Core, size: { width?: number; height?: number }) => core((k, s) => {

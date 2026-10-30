@@ -26,7 +26,7 @@ export function registerPanes(ipc: Ipc) {
   handle('profile:open', (e, { task, profile }) => onScreen(e, task)?.openProfile(profile) || noTask);
   // Let go by the task's project (projects.ts, askDropProfile): Remove from Project… in its pane's menu.
   handle('profile:delete', (e, { task, profile }) => onScreen(e, task)?.deleteProfile(profile, 'human') || noTask);
-  handle('stage:arrange', (e, { task, layout, overflow }) => onScreen(e, task)?.arrangeStage(layout, overflow) || noTask);
+  handle('stage:arrange', (e, { task, layout, overflow, position }) => onScreen(e, task)?.arrangeStage(layout, overflow, position) || noTask);
   handle('layout:load', (e, { task }) => onScreen(e, task)?.store.layout());
   // A profile's master, to sign in to (master.ts), and its cookies brought to this task's copy (tasks.ts).
   handle('profile:master', (e, { task, profile }) => onScreen(e, task)?.openMaster(profile) || noTask);

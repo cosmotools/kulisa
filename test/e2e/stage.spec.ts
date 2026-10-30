@@ -1,24 +1,46 @@
 // The testing stage owns profile layout and visibility independently of development panels.
 import { test, expect } from './fixtures.ts';
-import { notLoading, SITE, rightClick, closeMenu, frames, ipcSettled } from './helpers.ts';
+import { notLoading, SITE, arrange, closeMenu, frames, ipcSettled } from './helpers.ts';
 
-test('the stage hides when empty and hides browser views when stacked behind a development panel', async ({ core, ui, call }) => {
+test('Stage has fixed positions, keeps development panels together and stays hidden when empty', async ({ core, ui, call, restart }) => {
   await notLoading(ui);
   await expect(ui.getByTestId('stage')).toHaveCount(0);
+  await arrange(ui, 'right');
   await call('profile_create', { name: 'Stage.browser' });
-  await expect(ui.getByTestId('stage')).toBeVisible();
-  await expect.poll(() => core((k) => k.profile('Stage.browser').get().view.getVisible())).toBe(true);
-  // Dockview's API performs the same move as dropping the outer stage header onto the terminal's group.
-  await ui.evaluate(() => {
-    const api = (window as any).__dock;
-    api.getPanel('stage').api.moveTo({ group: api.getPanel('terminal').group, position: 'center' });
-    api.getPanel('terminal').api.setActive();
-  });
-  await expect.poll(() => core((k) => k.profile('Stage.browser').get().view.getVisible())).toBe(false);
-  await ui.locator('[data-panel="stage"]').getByText('Stage', { exact: true }).click();
-  await expect.poll(() => core((k) => k.profile('Stage.browser').get().view.getVisible())).toBe(true);
+  const stage = ui.getByTestId('stage'), development = ui.locator('#grid');
+  await expect(stage).toBeVisible();
+  await expect(ui.locator('[data-panel="stage"]')).toHaveCount(0);
+  const panels = await ui.evaluate(() => (window as any).__dock.panels.map((p: any) => p.id).sort());
+  expect(panels).toEqual(['resources', 'terminal']);
+  const identity = await ui.evaluateHandle(() => (window as any).__dock.getPanel('terminal'));
+  for (const position of ['left', 'right', 'above'] as const) {
+    await arrange(ui, position);
+    await expect.poll(async () => {
+      const s = await stage.boundingBox(), d = await development.boundingBox();
+      return position === 'left' ? s.x + s.width <= d.x + 1 : position === 'right' ? d.x + d.width <= s.x + 1 : s.y + s.height <= d.y + 1;
+    }).toBe(true);
+    expect(await ui.evaluate((panel) => panel === (window as any).__dock.getPanel('terminal'), identity), 'moving Stage retains the development terminal panel').toBe(true);
+    await expect.poll(() => core((k) => k.profile('Stage.browser').get().view.getVisible())).toBe(true);
+  }
+  await arrange(ui, 'right');
+  const before = await stage.boundingBox();
+  await ui.mouse.move(before.x, before.y + 18);
+  await ui.mouse.down();
+  await ui.mouse.move(before.x - 100, before.y + 18, { steps: 8 });
+  await ui.mouse.up();
+  await expect.poll(async () => (await stage.boundingBox()).width).toBeGreaterThan(before.width + 90);
+  const resizedWidth = (await stage.boundingBox()).width;
+  const share = resizedWidth / (await ui.locator('#workspace').boundingBox()).width;
+  await expect.poll(() => core((k) => (k.shell.task.store.layout() as any)?.stageShare)).toBeCloseTo(share, 3);
+  const next = await restart();
+  await notLoading(next);
+  await expect.poll(async () => {
+    const s = await next.getByTestId('stage').boundingBox(), d = await next.locator('#grid').boundingBox();
+    return d.x + d.width <= s.x + 1;
+  }).toBe(true);
+  expect(Math.abs((await next.getByTestId('stage').boundingBox()).width - resizedWidth)).toBeLessThanOrEqual(3);
   await call('profile_close', { profile: 'Stage.browser' });
-  await expect(ui.getByTestId('stage')).toHaveCount(0);
+  await expect(next.getByTestId('stage')).toHaveCount(0);
 });
 
 test('flat saved layouts restore browser panes inside the stage and development panels outside it', async ({ core, ui, call, restart }) => {
@@ -26,16 +48,14 @@ test('flat saved layouts restore browser panes inside the stage and development 
   await expect(ui.locator('[data-panel^="profile:"]')).toHaveCount(1);
   const legacy = await ui.evaluate(() => {
     const w = (window as any).__dock.toJSON(), s = (window as any).__stage.toJSON();
-    const replace = (n: any): any => n.type === 'branch' ? { ...n, data: n.data.map(replace) } : n.data.views.includes('stage') ? { ...s.grid.root, size: n.size } : n;
-    const panels = { ...w.panels, ...s.panels }; delete panels.stage;
-    return { grid: { ...w.grid, root: replace(w.grid.root) }, panels };
+    return { grid: { ...w.grid, orientation: 'VERTICAL', root: { type: 'branch', data: [s.grid.root, w.grid.root] } }, panels: { ...w.panels, ...s.panels } };
   });
-  await expect.poll(() => core((k) => (k.shell.task.store.layout() as { version?: number })?.version)).toBe(2);
+  await expect.poll(() => core((k) => (k.shell.task.store.layout() as { version?: number })?.version)).toBe(3);
   await core((k, saved) => k.shell.task.store.saveLayout(saved), legacy);
   const next = await restart();
   await notLoading(next);
   await expect(next.getByTestId('stage').locator('[data-panel^="profile:"]')).toHaveCount(1);
-  expect(await next.evaluate(() => (window as any).__dock.panels.map((p: any) => p.id).sort())).toEqual(['resources', 'stage', 'terminal']);
+  expect(await next.evaluate(() => (window as any).__dock.panels.map((p: any) => p.id).sort())).toEqual(['resources', 'terminal']);
   expect(await next.evaluate(() => (window as any).__stage.panels.every((p: any) => p.id.startsWith('profile:')))).toBe(true);
   await expect.poll(() => core((k) => k.profile('Layout.browser').get().view.getVisible())).toBe(true);
   await call('profile_close', { profile: 'Layout.browser' });
@@ -54,32 +74,31 @@ test('stage arrangements are shared by human and agent and independent of worksp
     const r = p.getBoundingClientRect(); return { x: r.x, y: r.y };
   }));
   for (const name of ['Horizontal stack', 'Vertical stack']) {
-    await ui.getByRole('button', { name: 'Arrange stage', exact: true }).click();
-    await ui.getByRole('menuitem', { name, exact: true }).click();
+    await ui.getByRole('button', { name: 'Stage', exact: true }).click();
+    await ui.getByRole('menuitemradio', { name, exact: true }).click();
     await expect.poll(async () => {
       const p = await positions();
       return p.length === 2 && (name === 'Horizontal stack' ? p[0].x < p[1].x && p[0].y === p[1].y : p[0].y < p[1].y && p[0].x === p[1].x);
     }).toBe(true);
     expect(await shape('__dock')).toEqual(workspace);
   }
-  await ui.getByRole('button', { name: 'Arrange stage', exact: true }).click();
-  await ui.getByRole('menuitem', { name: 'Tabs', exact: true }).click();
+  await ui.getByRole('button', { name: 'Stage', exact: true }).click();
+  await ui.getByRole('menuitemradio', { name: 'Tabs', exact: true }).click();
   await expect.poll(() => ui.evaluate(() => (window as any).__stage.groups.length)).toBe(1);
   expect(await shape('__dock')).toEqual(workspace);
   const stage = await shape('__stage');
-  await ui.locator('#windowMenu').click();
-  await ui.getByRole('menuitem', { name: 'Stage beside', exact: true }).click();
+  await arrange(ui, 'left');
   await expect.poll(() => shape('__stage')).toEqual(stage);
   for (const layout of ['vertical', 'horizontal', 'tabs']) {
     await call('stage_arrange', { layout });
     await expect.poll(() => ui.evaluate(() => (window as any).__stage.groups.length)).toBe(layout === 'tabs' ? 1 : 2);
   }
   await call('stage_arrange', { overflow: true });
-  await ui.getByRole('button', { name: 'Arrange stage', exact: true }).click();
+  await ui.getByRole('button', { name: 'Stage', exact: true }).click();
   await expect(ui.getByRole('menuitemcheckbox', { name: 'Allow overflow', exact: true })).toHaveCount(0);
   await closeMenu(ui);
-  await rightClick(ui, '[data-panel="stage"]');
-  await ui.getByRole('menuitem', { name: 'Tabs', exact: true }).click();
+  await ui.getByRole('button', { name: 'Stage', exact: true }).click();
+  await ui.getByRole('menuitemradio', { name: 'Tabs', exact: true }).click();
   await expect.poll(() => core((k) => (k.shell.task.store.layout() as any)?.stageLayout)).toBe('tabs');
   const next = await restart();
   await notLoading(next);
@@ -91,7 +110,8 @@ test('stage arrangements are shared by human and agent and independent of worksp
   await expect.poll(() => next.locator('[data-stage-viewport]').evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
   await call('profile_close', { profile: 'Arrange.first' });
   await call('profile_close', { profile: 'Arrange.second' });
-  await expect(call('stage_arrange', { layout: 'vertical' })).rejects.toThrow(/open.*environment/i);
+  await call('stage_arrange', { layout: 'vertical', position: 'above' });
+  await expect(next.getByTestId('stage')).toHaveCount(0);
 });
 
 
@@ -103,12 +123,11 @@ test('a horizontal stack scrolls, clips native pages, and preserves their viewpo
   await call('stage_arrange', { layout: 'vertical' });
   const pageBoxes = () => ui.getByTestId('stage').getByTestId('page').evaluateAll((pages) => pages.map((p) => { const r = p.getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width }; }));
   await expect.poll(async () => { const b = await pageBoxes(); return b.length === 3 && b[0].x === b[1].x && b[1].y > b[0].y && b[2].y > b[1].y; }).toBe(true);
-  await ui.locator('#windowMenu').click();
-  await ui.getByRole('menuitem', { name: 'Stage beside', exact: true }).click();
+  await arrange(ui, 'left');
   await call('stage_arrange', { layout: 'horizontal', overflow: false });
   const viewport = ui.locator('[data-stage-viewport]');
   await expect.poll(() => viewport.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
-  await ui.getByRole('button', { name: 'Arrange stage', exact: true }).click();
+  await ui.getByRole('button', { name: 'Stage', exact: true }).click();
   await ui.getByRole('menuitemcheckbox', { name: 'Allow overflow', exact: true }).click();
   await closeMenu(ui);
   await expect.poll(() => viewport.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(true);
@@ -141,8 +160,7 @@ test('a horizontal stack scrolls, clips native pages, and preserves their viewpo
 
 test('a vertical stack scrolls without rebuilding panes and clips native pages', async ({ core, ui, call }) => {
   for (const name of ['Column.first', 'Column.second', 'Column.third']) await call('profile_create', { name });
-  await ui.locator('#windowMenu').click();
-  await ui.getByRole('menuitem', { name: 'Stage above', exact: true }).click();
+  await arrange(ui, 'above');
   await call('stage_arrange', { layout: 'vertical', overflow: false });
   const viewport = ui.locator('[data-stage-viewport]');
   await expect.poll(() => viewport.evaluate((el) => el.scrollHeight <= el.clientHeight)).toBe(true);

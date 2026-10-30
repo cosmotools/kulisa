@@ -85,7 +85,7 @@ prompt; the human writes the rest of the message around it.
   exception, the terms here: the word earlier commits used, so that they can be read.
 - **Terminology: "environment"** for where the application under development runs and the human and agent interact
   with it. Browser profiles are environments. **Stage** is the working name for their nested testing grid;
-  development terminals and Resources stay in the outer workspace (`docs/window.md`, The grid).
+  development terminals and Resources share a separate grid (`docs/window.md`, The grid).
 - **Terminology: "profile"**, the word Chrome uses, for one embedded browser identity (cookies, storage, tabs) and
   its pane. Not "persona", "user" or "account" (an account is what a profile signs in to). Early commits and
   experiments said "persona".

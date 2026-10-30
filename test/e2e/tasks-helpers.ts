@@ -153,7 +153,7 @@ export async function begin(core: Core, ui: Page, files: Files, { columns = fals
   await notLoading(ui);
   // Unstack first: a page stacked behind another's tab is never laid out, and ensureProfile waits for that.
   const arrangeProfiles = async () => {
-    await arrange(ui, 'columns');
+    await arrange(ui, 'above');
     await invoke(ui, 'stage:arrange', { task: await core((k) => k.shell.task.key), layout: 'vertical' });
     // The fixture's two panes side by side: Dockview's move is also covered by the grid drag tests.
     await stageDock(ui, (api, ids) => api.getPanel(ids[1]).api.moveTo({ group: api.getPanel(ids[0]).group, position: 'right' }), [files.panel(SAM), files.panel(ELON)]);

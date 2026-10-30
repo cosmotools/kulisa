@@ -302,7 +302,7 @@ ${names.map((x) => `      - menuitem ${JSON.stringify(`Open in ${x}`)}`).join('\
   }
 });
 
-test('the window menu: its rows and icons, Arrange panels, links in the browser and Exit asking before stopping an agent', async ({ core, ui, files }) => {
+test('the window menu: its rows and icons, links in the browser and Exit asking before stopping an agent', async ({ core, ui, files }) => {
   await begin(core, ui, files, { columns: true });
   const opened = () => core((k) => [...k.openedExternally]);
   const wasOpened = (await opened()).length;
@@ -319,9 +319,6 @@ test('the window menu: its rows and icons, Arrange panels, links in the browser 
       - menuitem "Theme"
       - menuitem "Tasks bar"
       - menuitem "Language"
-      - text: Arrange workspace
-      - menuitem "Stage above"
-      - menuitem "Stage beside"
       - menuitem "Keyboard Shortcuts"
       - menuitem "Documentation"
       - menuitem "GitHub"
@@ -329,10 +326,7 @@ test('the window menu: its rows and icons, Arrange panels, links in the browser 
       - menuitem "About Kulisa"${MAC ? '' : `
       - menuitem "Exit"`}`);
   expect(await menu(ui).getByRole('menuitem').evaluateAll((rs) => rs.filter((r) => !r.querySelector('svg')).map((r) => r.ariaLabel || r.textContent)), 'each row with its icon').toEqual([]);
-  const presets = menu(ui).locator('[data-preset]');
-  expect(await presets.evaluateAll((bs) => bs.map((b) => !!(b as HTMLElement).title && !!b.querySelector('svg'))), 'a tooltip and an icon each').toEqual([true, true]);
-  await anyMenu(ui).locator('[data-preset="columns"]').click();
-  await expect(anyMenu(ui), 'a choice closes the menu').toHaveCount(0);
+  await closeMenu(ui);
   await bothOn(core, ui, files);
   // ☰'s links open in the user's browser.
   await ui.locator('#windowMenu').click();
