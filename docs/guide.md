@@ -71,9 +71,11 @@ project, and those you closed, are in the sidebar (Tasks, below).
   to bring it back.
 - **Settings** (on a Mac also ⌘, or Kulisa → Settings… in the menu bar) fills the window, over your task, and shows that task's project: set what you need and close it (**Esc**,
   the ← arrow at its top left, or the gear again; what you typed is saved as you go). Your task goes on meanwhile, and is there as you left it.
-- **The grid**: the shown task's panes (one per open profile) and its terminals, flat side by side, split by thin
-  lines. Drag a pane by its header to move it, onto another pane to stack them as tabs; drag the line between two to
-  resize them. **☰ → Arrange panels** offers ready-made arrangements. Each task keeps its own grid.
+- **The grid** separates development from testing: your agents' terminals and Resources sit beside the **stage**,
+  where browser profiles show the app being tested. Drag headers to move or stack panes within the stage, or move
+  the stage itself beside your development panels. Drag a line to resize panes. **☰ → Arrange panels** offers
+  ready-made arrangements. Each task keeps both layouts. The empty stage stays hidden; you or your agent opens a
+  profile when needed.
 - **Resources**, next to the terminal (beside it, or under it when the terminal is on the right): what the task works in (its copy of the code, or your project's folder until
   it has one), a click opens its folder; and under **Artifacts**, what you and the agent kept of the pages:
   screenshots (with a small picture), snapshots of a page, the bodies of requests, the newest first, with whose page and

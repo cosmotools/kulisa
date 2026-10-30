@@ -292,6 +292,11 @@ export async function dock<A, R>(ui: Page, fn: (api: any, arg: A) => R, arg?: A)
   const api = await ui.evaluateHandle(() => (window as any).__dock);
   try { return await api.evaluate(fn as (api: any, arg: unknown) => R, arg); } finally { await api.dispose(); }
 }
+// The independent testing grid; development panels stay in dock().
+export async function stageDock<A, R>(ui: Page, fn: (api: any, arg: A) => R, arg?: A) {
+  const api = await ui.evaluateHandle(() => (window as any).__stage);
+  try { return await api.evaluate(fn as (api: any, arg: unknown) => R, arg); } finally { await api.dispose(); }
+}
 // The Resources panel's height on screen (its group in the grid: lib/grid.ts).
 export const resourcesHeight = (ui: Page) => ui.evaluate(() => Math.round(document.getElementById('resources').closest('.dv-groupview').getBoundingClientRect().height));
 

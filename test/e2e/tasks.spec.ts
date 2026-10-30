@@ -319,7 +319,7 @@ test("tasks: an agent's tab closes after a question, always (Cancel keeps it); t
     await expect(launchers).toMatchAriaSnapshot(`
       - navigation "New terminal":
         - button "Terminal"
-      - navigation "Open a profile":
+      - navigation "Open an environment":
         - button "Sam.admin"
         - button "Elon.buyer"
         - button "Dora"
@@ -360,14 +360,15 @@ test("tasks: an agent's tab closes after a question, always (Cancel keeps it); t
     // terminal and the tasks' bar stretched past its edge, the last profiles out of reach. Its tiles copied: sixteen
     // profiles more would take seconds to make and delete, and the row's scroll is its CSS's whatever the tiles are (the
     // narrowest window is no way: the grid's own minimum is wider, and the row with it).
-    await tiles.evaluate((s) => { for (let i = 0; i < 20; i++) s.append(s.querySelector('button').cloneNode(true)); });
+    const originalTiles = await tiles.locator('button').count();
+    await tiles.evaluate((s) => { for (let i = 0; i < 20; i++) s.append(s.querySelector('[data-profile]').cloneNode(true)); });
     await expect(tiles).toHaveAttribute('data-past-end');
     // Scrolled, the page not wider than the window: Playwright reads no scroll.
     expect(await tiles.evaluate((t) => t.scrollWidth > t.clientWidth), 'the row scrolls').toBe(true);
     expect(await ui.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'the window not wider').toBe(true);
     const width = await ui.evaluate(() => innerWidth), t = await tiles.boundingBox(), i = await panel.boundingBox();
     expect([t.x + t.width <= width, i.x + i.width <= width]).toEqual([true, true]);
-    await tiles.evaluate((s, n) => s.querySelectorAll('button').forEach((b, j) => { if (j >= n) b.remove(); }), 4);
+    await tiles.evaluate((s, n) => s.querySelectorAll('button').forEach((b, j) => { if (j >= n) b.remove(); }), originalTiles);
   } finally { await deleteProfile(core, ui, LONG); }
   await tiles.locator(`[data-profile="${SAM}"]`).click();
   await expect.poll(() => core((k, a) => k.shell.taskByKey(a.task).profiles.has(a.SAM), { task, SAM })).toBe(true);
@@ -402,7 +403,9 @@ test("tasks: an agent's tab closes after a question, always (Cancel keeps it); t
   // The preset "grid": right of the profiles, Resources under it in its column: folded along its height, a strip of its
   // + over Resources.
   await arrange(ui, 'grid');
-  await expect.poll(async () => (await size(group)).height <= 40 && (await middle()) && (await size(resources)).height > 300).toBe(true);
+  await expect.poll(async () => ({ height: (await size(group)).height, centered: await middle(), resourcesHeight: (await size(resources)).height })).toMatchObject({ height: expect.any(Number), centered: true, resourcesHeight: expect.any(Number) });
+  expect((await size(group)).height).toBeLessThanOrEqual(40);
+  await expect.poll(async () => (await size(resources)).height).toBeGreaterThan(300);
   await unfold.click();
   await choose(ui, 'Terminal');
   await expect.poll(terminals).toBe(1);
@@ -411,7 +414,7 @@ test("tasks: an agent's tab closes after a question, always (Cancel keeps it); t
   // As tall as the grid (Resources moved under the pages): folded along the grid's width instead, a strip of its + as
   // tall as the grid; its + unfolds it to a width of its own, and the last terminal closed folds it again. Moved by
   // dockview's API: a drag of a panel between groups is the OS's drag and drop.
-  await ui.evaluate((id) => { const d = (window as any).__dock; d.getPanel('resources').api.moveTo({ group: d.getPanel(`profile:${id}`).group, position: 'bottom' }); }, SAM);
+  await ui.evaluate(() => { const d = (window as any).__dock; d.getPanel('resources').api.moveTo({ group: d.getPanel('stage').group, position: 'bottom' }); });
   await closeTab();
   await expect.poll(async () => { const r = await size(group); return (await terminals()) === 0 && r.width <= 40 && r.height > 100 && (await middle()); }).toBe(true);
   await unfold.click();
@@ -517,12 +520,12 @@ test('the CDP proxy takes ids in any letters (percent-encoded in its URLs); the 
   // longer there is not restored at all). The grid's shape, its sizes aside.
   const task = await core((k) => k.shell.task.key), other = await keyAt(core, 2);
   const shape = (root: unknown) => JSON.stringify(root, (key, v) => (key === 'size' ? undefined : v));
-  const saved = async () => shape(await core((k, key) => (k.shell.taskByKey(key).store.layout() as { grid: { root: unknown } }).grid.root, task));
+  const saved = async () => shape(await core((k, key) => (k.shell.taskByKey(key).store.layout() as { workspace: { grid: unknown } }).workspace.grid, task));
   // Left two frames after the change (dockview tells of it on a frame), well within the 300 ms.
   // Applied and left by a script: from the test, the two frames would be over before the task is left. dockview's API
   // gives the grid's shape.
   const columns = await ui.evaluate((o) => { (window as any).__layoutPreset('columns'); return new Promise<string>((r) => requestAnimationFrame(() => requestAnimationFrame(() => {
-    r(JSON.stringify((window as any).__dock.toJSON().grid.root)); void (window as any).kulisa.invoke('task:show', o);
+    r(JSON.stringify((window as any).__dock.toJSON().grid)); void (window as any).kulisa.invoke('task:show', o);
   }))); }, other);
   await expect.poll(() => core((k, key) => k.shell.task?.key === key && k.shell.task.loaded, other)).toBe(true);
   await expect.poll(saved).toBe(shape(JSON.parse(columns))); // saved as it was left: it comes as the grid is taken down
@@ -530,7 +533,7 @@ test('the CDP proxy takes ids in any letters (percent-encoded in its URLs); the 
   await invoke(ui, 'task:show', task);
   await expect.poll(() => core((k, key) => k.shell.task?.key === key, task)).toBe(true);
   await notLoading(ui);
-  await expect.poll(async () => shape(JSON.parse(await ui.evaluate(() => JSON.stringify((window as any).__dock.toJSON().grid.root))))).toBe(shape(JSON.parse(columns)));
+  await expect.poll(async () => shape(JSON.parse(await ui.evaluate(() => JSON.stringify((window as any).__dock.toJSON().grid))))).toBe(shape(JSON.parse(columns)));
   await arrange(ui, 'grid');
   await expect.poll(saved).not.toBe(shape(JSON.parse(columns)));
 });

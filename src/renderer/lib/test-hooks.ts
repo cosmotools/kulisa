@@ -3,12 +3,13 @@
 import { act, store } from './store';
 import { clipboardKey, termLinks } from '../../terminal/renderer';
 import { keyText } from './common';
-import { applyPreset, dockApi } from './grid';
+import { applyPreset, dockApi, stageApi } from './grid';
 import { panelView, shownTerm } from './terminals';
 
 Object.assign(window, { act, clipboardKey, termLinks, keyText, __layoutPreset: applyPreset });
 Object.defineProperty(window, 'state', { get: () => store.getState().profiles });
 Object.defineProperty(window, 'tasks', { value: { get current() { return store.getState().current; } } });
 Object.defineProperty(window, '__dock', { get: dockApi });
+Object.defineProperty(window, '__stage', { get: stageApi });
 Object.defineProperty(window, '__term', { get: shownTerm });
 Object.defineProperty(window, '__termRenderer', { get: () => shownTerm() && panelView.renderer });

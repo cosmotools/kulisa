@@ -55,7 +55,7 @@ export function Terminals({ api, containerApi }: IDockviewPanelProps) {
   const alone = useSyncExternalStore(useCallback((changed: () => void) => {
     const subs = [containerApi.onDidAddPanel(changed), containerApi.onDidRemovePanel(changed)];
     return () => { for (const s of subs) s.dispose(); };
-  }, [containerApi]), () => !containerApi.panels.some((p) => p.id.startsWith('profile:')));
+  }, [containerApi]), () => !containerApi.panels.some((p) => p.id === 'stage'));
   const loading = useWindow((s) => s.loading);
   // The tab in front before its program has started (an agent's is looked for first): a loader over its terminal, which
   // stays laid out meanwhile (the program starts at its size).
@@ -84,8 +84,23 @@ export function Terminals({ api, containerApi }: IDockviewPanelProps) {
     if (task === before.task && front !== before.front && front !== null && !dialogsShown()) void termFocus(`${task}#${front}`);
   }, [task, front]);
 
+  const groupId = useSyncExternalStore(useCallback((changed: () => void) => {
+    const sub = api.onDidGroupChange(changed);
+    return () => sub.dispose();
+  }, [api]), () => api.group?.id ?? '');
   const before = useRef<Size | null>(null);
-  useEffect(() => fold(api, containerApi, before, folded, alone), [api, containerApi, folded, alone]);
+  useEffect(() => {
+    const group = api.group;
+    return () => {
+      // Constraints belong to the group: moving the panel must leave its peers free to resize.
+      if (group && containerApi.groups.includes(group)) {
+        group.header.hidden = false;
+        group.api.setConstraints({ minimumHeight: 0, maximumHeight: Number.MAX_SAFE_INTEGER, minimumWidth: 0, maximumWidth: Number.MAX_SAFE_INTEGER });
+      }
+      before.current = null;
+    };
+  }, [api, containerApi, groupId]);
+  useEffect(() => fold(api, containerApi, before, folded, alone), [api, containerApi, groupId, folded, alone]);
 
   // The big buttons, each a Tab stop (Tab to the next, Enter opens it): the first, the project's default agent, gets the
   // keyboard when the keyboard was in the terminal just closed or nowhere (not taken from a field or a dialog). No keys
@@ -139,7 +154,7 @@ function Launchers({ ref }: { ref: Ref<HTMLDivElement> }) {
           <ItemContent className="min-w-0"><ItemTitle>{l.name}</ItemTitle>{l.sub && <ItemDescription>{l.sub}</ItemDescription>}</ItemContent></Item>
       </Button>)}
     </nav>
-    <nav aria-label="Open a profile" className="flex flex-wrap justify-center gap-3">
+    <nav aria-label="Open an environment" className="flex flex-wrap justify-center gap-3">
       {profileLaunchers(closed).map((p) => <Button key={p.id} data-launcher data-profile={p.id} variant="outline" aria-label={p.name} title={p.title}
         className="h-auto w-60 justify-start" onClick={() => void p.run()}>
         <Item size="sm"><ItemMedia>{p.avatar ? <Avatar size="lg" aria-hidden><AvatarImage src={avatarSrc(p.avatar)} alt="" /></Avatar> : <PlusIcon className="size-8" />}</ItemMedia>

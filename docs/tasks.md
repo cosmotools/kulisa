@@ -189,7 +189,7 @@ repositories (git worktrees), so the project's folders stay the human's. Its dat
 ## Tasks
 
 A **task** (AGENTS.md, Terminology) is one line of work in a project: its own copy of the code on a branch, browser
-profiles, a grid of panels and agents in terminals, so several agents build several features of one project at once.
+profiles in a testing stage, development panels and agents in terminals, so several agents build several features of one project at once.
 
 - **Always a copy.** With git (and a first commit), a task's work is in a git worktree of the default repository on a
   branch of its own, the first task's too, made when its agent asks ("Making the task's worktree"): next to the
@@ -587,7 +587,7 @@ projects/<project id>/            a project's data, by its id (projects.json), g
                                   folder, branch and folder of copies are its resources' (store.ts)
   1/, 2/ …                        a task
     profiles.json                 what it has of its project's profiles, in order: id, sites' zoom, closed
-    layout.json                   its grid (dockview)
+    layout.json                   its workspace and testing-stage grids (dockview; window.md, The grid)
     agent.json                    { agent, conversations: [{ agent, sessionId, transcript, started, from, to, title,
                                   terminal }] }: the agent it was made with; every conversation an agent had in it
                                   (Several agents in a task), kept with the task

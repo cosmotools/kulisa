@@ -63,7 +63,7 @@ export function data(root: string) {
     // The Resources panel's height as the task's grid is saved (dockview keeps a panel's size along its column).
     savedResourcesHeight: () => {
       const leaf = (n: GridNode): GridNode | undefined => (n.type === 'leaf' ? (n.data.views.includes('resources') ? n : undefined) : n.data.map(leaf).find(Boolean));
-      return leaf(json(pfile('layout.json')).grid.root)?.size;
+      return leaf(json(pfile('layout.json')).workspace.grid.root)?.size;
     },
   };
 }

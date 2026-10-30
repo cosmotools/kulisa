@@ -60,7 +60,7 @@ test('after a restart: the grid is as it was left (preset "grid")', async ({ cor
   // the grid's shape from dockview's API.
   await expect.poll(async () => {
     const now = JSON.stringify(await ui.evaluate(() => (window as any).__dock.toJSON().grid));
-    try { return JSON.stringify(files.json(files.pfile('layout.json')).grid) === now; } catch { return false; }
+    try { return JSON.stringify(files.json(files.pfile('layout.json')).workspace.grid) === now; } catch { return false; }
   }).toBe(true);
 
   const ui2 = await restart();

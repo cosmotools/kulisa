@@ -83,9 +83,9 @@ function LanguageRow() {
 
 // The ready-made arrangements of the panels (lib/grid.ts, presets).
 const PRESETS = [
-  { preset: 'columns', label: 'Columns', title: 'Profiles in columns, terminal below', icon: Columns3Icon },
-  { preset: 'grid', label: 'Two by two', title: 'Profiles two by two, terminal right', icon: Grid2x2Icon },
-  { preset: 'focus', label: 'One at a time', title: 'One profile at a time (the others as tabs), terminal below', icon: SquareIcon },
+  { preset: 'columns', label: 'Columns', title: 'Environments in columns, development terminal below', icon: Columns3Icon },
+  { preset: 'grid', label: 'Two by two', title: 'Environments two by two, development terminal right', icon: Grid2x2Icon },
+  { preset: 'focus', label: 'One at a time', title: 'One environment at a time (the others as tabs), development terminal below', icon: SquareIcon },
 ] as const;
 const ArrangeRows = () => PRESETS.map(({ preset, label, title, icon: Icon }) =>
   <DropdownMenuItem key={preset} data-preset={preset} title={title} onSelect={() => applyPreset(preset)}><Icon />{label}</DropdownMenuItem>);

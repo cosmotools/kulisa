@@ -57,24 +57,27 @@ A press on a tab not shown shows its task at once, as Chrome's; the tab is lit o
 
 ## The grid
 
-A task's profiles' panes and its terminals' panel are peer panels in a grid (dockview), flat, split by a gap
-(`Grid.tsx`): dragged by the header to another place or onto another panel (stacked as tabs), resized by the line
-between them. A profile's page is square, as its pane is. A panel stacked behind another hides its page until chosen
-(and later unloads it: [profiles.md](profiles.md), "Tabs unloaded"). **☰ → Arrange panels** offers ready-made
-arrangements, a row each with its icon (the whole in its tooltip): profiles in columns with the terminal below, two by
-two with the terminal on the right, one profile at a time; the Resources panel beside the terminal, or under it when
-the terminal is on the right. Each fits the window with nothing cut off, the terminal a third of it (`TERMINAL_SHARE`,
-`lib/grid.ts`): the pages are what is looked at. The first profile opened over the terminal alone keeps that share too
-(dockview's own would halve the room). The grid is saved per task (`layout.json`) 300 ms after its last change, and at
-once when the task is left; a saved grid naming a profile deleted since is not restored, the default arrangement takes
-its place. The terminals are one panel however many there are (The terminal).
+A task has two independent dockview grids (`Grid.tsx`, `grid/Stage.tsx`): the outer workspace holds development
+terminals, Resources and the **stage**; the stage holds browser profiles as testing **environments**. Drag a header to
+move or stack panels within its grid; drag a sash to resize them. Profile panes stay in the stage, development
+panels in the workspace. The empty stage is absent; opening the first profile adds it, closing the last removes it.
+A new task opens only its default development terminal.
 
-**The Resources panel** (`grid/Resources.tsx`, its header `ResourcesHeader` there; what it lists:
-[tasks.md](tasks.md), The Resources panel) is a panel next to the terminal (`addResources`, `lib/grid.ts`; the
-author's choice): right of it, a quarter of the grid's width, when the terminal is under the pages; under it, a third
-of the grid's height, when the terminal is on the right. It resizes, is saved and follows the window's size as any
-panel. It is as low as its header (`minimumHeight`), so the terminal's row folds with the terminal to its +, Resources
-with it; under the terminal, it takes the room the terminal folding leaves.
+**☰ → Arrange panels** places profiles in columns above the development terminal, two by two beside it, or stacked
+as tabs above it. Resources sits beside the development terminal, or under it when the terminal is on the right.
+It keeps at least its header's height, so it can fold with the development terminal's row. A hidden stage or profile
+panel hides its native browser views; both grids' layout and visibility changes report the profile content boxes
+to the main process (`lib/grid.ts`). Dragging in either grid turns pages into pictures for HTML drop targets.
+
+`layout.json` keeps both grids (`version: 2`, `workspace`, `stage`), saved 300 ms after a change and flushed when the
+task is left. `lib/stage-layout.ts` separates a flat saved layout into development and testing groups, retaining
+panel order, stacking and sizes. An invalid grid falls back to its default arrangement.
+
+**No profile open, a development terminal open**: a row above the workspace offers the closed profiles
+(`ClosedProfiles`, `Grid.tsx`). With no development terminal either, the same choices sit under the agents' launchers.
+More than fit scroll (`useStrip`); `#dock` keeps `min-width: 0` so these choices cannot stretch the window. The stage's
+**+** opens profiles while the stage is shown. Signing in and browser behavior remain the profiles' own
+([profiles.md](profiles.md)).
 
 A window made narrower or wider changes every panel in its share, as VS Code's and JetBrains' do (dockview's
 `proportionalLayout`; it needs dockview 8.6.0 or later:
@@ -84,15 +87,6 @@ A pane's header (`ProfileHeader`, `components/grid/ProfilePane.tsx`): its profil
 the agent does in it (or that it is paused on a sign-in page), ⋯ (its menu, as a right-click on the header: Menus) and
 ×. It shrinks with the pane: the caption first, then the name, cut with … (the whole and the profile's description in
 its tooltip); ⋯ and × stay. Under it the pane's tabs and its toolbar, ⋮ at its end ([profiles.md](profiles.md), Tabs).
-
-**No profile open, a terminal open**: the profiles' room folds to a row of buttons over the grid (`ClosedProfiles` in `Grid.tsx`,
-`#closedprofiles`): a button per closed profile, its picture and name (who it is in its tooltip); a click
-opens it over the terminal, and the row goes. A project with no profiles has one, Add Profile… (its page in Settings).
-The row is outside dockview: the grid's room is what is left under it (`room()`, `lib/grid.ts`). More than fit scroll
-(`useStrip`, `lib/strip.ts`; `#dock` keeps `min-width: 0`, or many profiles stretch the window's column, the terminal
-and the tasks' bar past its edge). With no terminal either, they are the second row of the big buttons (The terminal).
-Nothing opens by itself: the agent opens a profile when it needs it (`profile_open`). Not on the task's tab (no place
-for profiles), nor in the terminals' row (it folds with the terminals).
 
 The window itself never scrolls, also not from a script (`overflow` on `html` and `body`, `App.tsx`): a panel stacked
 behind another is laid out below the grid (dockview), making the page taller than the window, and the tasks' bar
