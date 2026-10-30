@@ -173,6 +173,11 @@ test('a vertical stack scrolls without rebuilding panes and clips native pages',
   await expect.poll(() => core((k) => !!k.profile('Column.first').clipView && k.profile('Column.first').get().view.getBounds().y < 0)).toBe(true);
   await call('stage_arrange', { overflow: false });
   await expect.poll(() => viewport.evaluate((el) => el.scrollHeight <= el.clientHeight && el.scrollTop === 0)).toBe(true);
+  // Fitting the container must resize every pane, not collapse one against its peers' old minimums.
+  await expect.poll(() => ui.evaluate(() => {
+    const grid = (window as any).__stage;
+    return grid.groups.every((g: any) => g.api.height > grid.height / 4);
+  })).toBe(true);
   await expect.poll(() => core((k) => !k.profile('Column.first').clipView && k.profile('Column.first').get().view.getVisible())).toBe(true);
   for (const name of ['Column.first', 'Column.second', 'Column.third']) await call('profile_close', { profile: name });
 });

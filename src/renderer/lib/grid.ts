@@ -1,6 +1,6 @@
 // The task's outer workspace and nested testing stage (docs/window.md, The grid).
 import { Orientation } from 'dockview-react';
-import type { DockviewApi, SerializedDockview, GridviewApi, GridviewPanelApi } from 'dockview-react';
+import type { DockviewApi, SerializedDockview, GridviewApi } from 'dockview-react';
 import type { PageLayout } from '../../shared/ipc';
 import type { Profile, Terminals } from '../../shared/types';
 import { act, setCaption, store } from './store';
@@ -60,7 +60,7 @@ export function stageMounted(a: DockviewApi) {
   if (!a.panels.length) arrangeStage(); else syncStage();
   building = wasBuilding;
   watch(a);
-  a.onDidAddGroup(constrainStage); constrainStage(); changed();
+  a.onDidAddGroup(() => constrainStage()); constrainStage(); changed();
   scheduleLayout();
 }
 export function stageUnmounted(a: DockviewApi | null) { if (stage === a) stage = null; }
@@ -116,17 +116,20 @@ function addEnvironment(id: string, reference?: string, direction: 'right' | 'be
     title: store.getState().profiles.find((p) => panelId(p.id) === id)?.name,
     ...(reference && { position: { referencePanel: reference, direction } }), inactive });
 }
-function constrainStage() {
-  // Every group must see the same settings while constraints trigger layout, including peers not yet notified.
-  const minimum = (vertical: boolean) => {
-    const { stageLayout: mode, stageOverflow: overflow } = store.getState();
-    return overflow && mode !== 'tabs' && (mode === 'vertical') === vertical ? vertical ? environmentMinimum.height : environmentMinimum.width : 0;
-  };
-  for (const group of stage?.groups ?? []) {
-    const api: GridviewPanelApi = group.api;
-    api.setConstraints({ minimumWidth: () => minimum(false), minimumHeight: () => minimum(true) });
-  }
+function constrainStage(mode = store.getState().stageLayout, overflow = store.getState().stageOverflow) {
+  if (!stage) return;
+  const scrolling = overflow && mode !== 'tabs';
+  const minimumWidth = scrolling && mode !== 'vertical' ? environmentMinimum.width : 0;
+  const minimumHeight = scrolling && mode === 'vertical' ? environmentMinimum.height : 0;
+  const { width, height } = stage;
+  // Dockview applies each group's constraints synchronously. Its canvas may still be smaller than the
+  // scrolling DOM until ResizeObserver runs: give old and new minima room before changing any group.
+  stage.layout(Math.max(width, stage.minimumWidth, minimumWidth * stage.groups.length),
+    Math.max(height, stage.minimumHeight, minimumHeight * stage.groups.length), true);
+  for (const group of stage.groups) group.api.setConstraints({ minimumWidth, minimumHeight });
+  stage.layout(width, height, true);
 }
+
 function arrangeStage() {
   if (!stage) return;
   stage.clear();
@@ -203,10 +206,11 @@ async function restoreGrid() { const a = await apiReady.promise; building = true
 kulisa.on('stage:arrange', ({ task, layout, overflow, position }) => {
   if (task !== store.getState().current) return;
   building = true;
+  // React can shrink the scroll container synchronously on store.setState.
+  constrainStage(layout ?? store.getState().stageLayout, overflow ?? store.getState().stageOverflow);
   store.setState({ ...(position !== undefined && { stagePosition: position }), ...(layout !== undefined && { stageLayout: layout }), ...(overflow !== undefined && { stageOverflow: overflow }) });
   if (position !== undefined) placeStage();
   if (layout !== undefined) arrangeStage();
-  constrainStage();
   building = false; changed();
 });
 export const dockApi = () => api;
