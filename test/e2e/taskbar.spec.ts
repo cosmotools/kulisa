@@ -149,6 +149,7 @@ test('tasks: switching shows the other grid at once, its pages live once it is l
   await invoke(ui, 'task:show', second);
   await expect.poll(live).toBe(true);
   expect(await ui.evaluate(() => { const w = window as any; w.__watching = false; return w.__empty; }), 'frames with no grid').toBe(0);
+  await bothOn(core, ui, files);
   // A page that draws no frame (busy, covered) holds a menu's pictures no longer than three times what the others
   // take (a tenth of a second at least), its pane then empty: half a second is felt after each click.
   // Their pace, not a fixed time: a loaded machine takes over a tenth of a second for a picture.
