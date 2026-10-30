@@ -133,7 +133,7 @@ test('browser and terminal environments share the stage; hiding the outer stage 
   });
   await expect.poll(() => core((k) => k.profile('Stage.browser').get().view.getVisible())).toBe(false);
   expect(JSON.parse((await call('application_read', { name: 'Alongside browser' })).text).terminal.status).toBe('running');
-  await ui.locator('[data-panel="stage"]').click();
+  await ui.locator('[data-panel="stage"]').getByText('Stage', { exact: true }).click();
   await expect.poll(() => core((k) => k.profile('Stage.browser').get().view.getVisible())).toBe(true);
   await call('application_close', { name: 'Alongside browser' });
   await expect(ui.getByTestId('stage')).toBeVisible();
@@ -229,4 +229,22 @@ test('a background terminal answers device queries and keeps Unicode cursor widt
   const r = await read();
   expect(r.cursor.column).toBe(5);
   await call('application_close', { name: 'Query' });
+});
+
+
+test('the agent arranges terminal-only environments as a column, tabs or a scrolling row', async ({ core, ui, call }) => {
+  expect(await core((k) => k.shell.task.profiles.size)).toBe(0);
+  await call('application_create', { name: 'Layout first' });
+  await call('application_create', { name: 'Layout second' });
+  await call('stage_arrange', { layout: 'column' });
+  await expect.poll(() => ui.evaluate(() => (window as any).__stage.groups.length)).toBe(2);
+  await call('stage_arrange', { layout: 'tabs' });
+  await expect.poll(() => ui.evaluate(() => (window as any).__stage.groups.length)).toBe(1);
+  await ui.locator('#windowMenu').click();
+  await ui.getByRole('menuitem', { name: 'Stage beside', exact: true }).click();
+  await call('stage_arrange', { layout: 'row' });
+  await expect.poll(() => ui.locator('[data-stage-viewport]').evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(true);
+  expect(await core((k) => k.shell.task.profiles.size)).toBe(0);
+  await call('application_close', { name: 'Layout first' });
+  await call('application_close', { name: 'Layout second' });
 });

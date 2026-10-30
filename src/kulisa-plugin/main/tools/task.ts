@@ -8,6 +8,14 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { Handles } from './handles.ts';
 
 function taskTools(server: McpServer, { task, t, text, done }: Handles) {
+  server.registerTool('stage_arrange', {
+    description: 'Arrange the open testing environments inside this task’s stage: column stacks them vertically, tabs shows one at a time, and row puts them side by side with horizontal scrolling. Preserves development terminals and Resources. The task must be on screen and have an open environment. This requests the same layout action as the human’s Arrange stage menu.',
+    inputSchema: { layout: z.enum(['column', 'tabs', 'row']).describe('column: vertical stack; tabs: one at a time; row: side by side with horizontal scrolling') },
+  }, async ({ layout }) => {
+    done(task.arrangeStage(layout));
+    return text(`Requested stage layout: ${layout}.`);
+  });
+
   server.registerTool('task_rename', {
     description: 'Name your Kulisa task once you know what it is about (it starts as "New Task"), silently: never ask the human for a name or mention it. Its name on its tab changes, and its git branch, which takes a slug of the name. Its folder stays. A short readable label, e.g. "Fix header".',
     inputSchema: { name: z.string().describe('The new name, a short readable label, e.g. "Fix header"') },

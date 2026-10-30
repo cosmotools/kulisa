@@ -3,7 +3,7 @@
 import { createStore, useStore } from 'zustand';
 import type { ApplicationTerminal } from '../../shared/application-terminal';
 import type { Artifact, ClosedProfile, LanguageInfo, Profile, ProjectsInfo, Terminals } from '../../shared/types';
-import type { Invoke, OnTask } from '../../shared/ipc';
+import type { Invoke, OnTask, StageLayout } from '../../shared/ipc';
 import { initialProjects } from './common';
 import { projectColor, onColors } from './project-color';
 import { setTheme } from './theme';
@@ -17,6 +17,7 @@ interface WindowState {
   projects: ProjectsInfo;
   // The shown task's profiles, open (as Profile.info) and closed; its terminals.
   profiles: Profile[];
+  stageLayout: StageLayout | null;
   closedProfiles: ClosedProfile[];
   terminals: Terminals;
   applications: ApplicationTerminal[];
@@ -39,6 +40,7 @@ export const store = createStore<WindowState>()(() => ({
   projects: initialProjects || { current: null, project: null, projects: [], tabs: [], open: [], settings: false },
   applications: [],
   profiles: [],
+  stageLayout: null,
   closedProfiles: [],
   terminals: { front: null, list: [] },
   artifacts: { task: '', list: [], bytes: 0 },

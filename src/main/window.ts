@@ -4,6 +4,7 @@
 // other tabs keep running. What a window shows and asks is here. What the app has once (the store, the CDP proxy, the MCP server, the
 // agents, the windows) is app.ts's, the open tasks with their one change after another (serial) open-tasks.ts's; what happens to projects and tasks,
 // whichever window shows them, is the core's (projects.ts, tasks.ts).
+import type { PageLayout } from '../shared/ipc.ts';
 import { BrowserWindow, desktopCapturer, screen, shell as electronShell } from 'electron';
 import path from 'path';
 import fs from 'fs';
@@ -317,14 +318,15 @@ class AppWindow {
   }
   // Where the grid puts each pane's page (key: the task the page laid out), in CSS pixels; the views are placed
   // in window pixels.
-  layout(key: string | null, rects: Record<string, Partial<Bounds> & { shown?: boolean }>) {
+  layout(key: string | null, rects: Record<string, PageLayout>) {
     if (key !== this.task?.key) return; // a task no longer on screen
     const z = this.win.webContents.getZoomFactor();
-    for (const [id, r] of Object.entries(rects)) this.profiles.get(id)?.layout(r.shown === false ? r : Object.fromEntries(Object.entries(r).map(([k, v]) => [k, Math.round((v as number) * z)])));
+    const scale = (r: Partial<Bounds>): Bounds => ({ x: Math.round((r.x ?? 0) * z), y: Math.round((r.y ?? 0) * z), width: Math.round((r.width ?? 0) * z), height: Math.round((r.height ?? 0) * z) });
+    for (const [id, { clip, ...r }] of Object.entries(rects)) this.profiles.get(id)?.layout(r.shown === false ? r : { ...scale(r), ...(clip && { clip: scale(clip) }) });
     this.thumbnails.place(this.paneBox);
   }
   // Where a profile's pane shows its page in the window; null: not on screen.
-  paneBox = (id: string) => { const p = this.profiles.get(id); return p?.shown ? p.bounds : null; };
+  paneBox = (id: string) => { const p = this.profiles.get(id); return p?.shown ? p.clip ?? p.bounds : null; };
   // Any loaded task of this window: the grid's last change comes as it is taken down, and reaches here once the window
   // shows the next task.
   saveLayout(key: string | null, layout: unknown) {

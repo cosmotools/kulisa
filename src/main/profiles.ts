@@ -73,6 +73,7 @@ class Profile extends EventEmitter {
   win: BrowserWindow; id: string; name: string; avatar: string; description: string; login: string; hasPassword: boolean;
   dir: string; task: string; baseZoom: number; blank: string; siteZoom: Record<string, number>; session: Session;
   tabs: Tab[]; active: string | null; closedUrls: string[]; bounds: Bounds;
+  clip?: Bounds; clipView?: Electron.View;
   browser: Browser | null; context: BrowserContext | null; endpoint: string | null; signinMode: boolean; resuming?: boolean;
   hidden: boolean; shown: boolean; deleted: boolean;
   busyAt: number; // when automation last sent this profile a command (cdp-proxy.ts): its tabs are in use (discard.ts)
@@ -279,7 +280,7 @@ class Profile extends EventEmitter {
   _removed(tab: Tab) {
     if (tab.discarding !== undefined) return this._discarded(tab);
     const i = this.tabs.indexOf(tab); if (i < 0) return;
-    try { this.win.contentView.removeChildView(tab.view); } catch {}
+    try { this.win.contentView.removeChildView(tab.view); this.clipView?.removeChildView(tab.view); } catch {}
     this._dropped(tab, i);
     this.emit('tab-closed', tab); this.emit('changed');
     // Its last tab closed (closeTab: the human's ×, the agent's browser_tab_close), the profile still open: an empty
@@ -310,7 +311,7 @@ class Profile extends EventEmitter {
     tab.discarding = undefined;
     this.emit('tab-closed', tab); // the proxy: its target is gone
     Object.assign(tab, { discarded: true, url, targetId: null, pendingUrl: null, dialog: null, loading: false, canBack: false, canFwd: false });
-    try { this.win.contentView.removeChildView(tab.view); } catch {}
+    try { this.win.contentView.removeChildView(tab.view); this.clipView?.removeChildView(tab.view); } catch {}
     this.emit('changed');
   }
   // Its page back, its process with it: a new view bound as a new tab's, opened at the address kept, the proxy told
@@ -379,8 +380,7 @@ class Profile extends EventEmitter {
     for (const t of this.tabs) {
       if (t.wc.isDestroyed()) continue;
       if (t.id === id) {
-        if (!this.win.contentView.children.includes(t.view)) this.win.contentView.addChildView(t.view);
-        t.view.setBounds(this.bounds); t.view.setVisible(this.visible(t));
+        this._place(t); t.view.setVisible(this.visible(t));
       } else t.view.setVisible(false);
     }
     this.active = id; this._show(); this.emit('changed');
@@ -395,6 +395,7 @@ class Profile extends EventEmitter {
     const t = this.get(); if (!t) return;
     if (t.discarded) { if (this.visible(t)) setImmediate(() => { if (t.discarded && this.get() === t && this.visible(t)) void this.load(t); }); return; }
     if (!t.wc.isDestroyed()) t.view.setVisible(this.visible(t));
+    this.clipView?.setVisible(this.visible(t));
   }
 
   // Close (the human closed the profile, or another project is opened): stop automation and close the tabs; the
@@ -402,6 +403,7 @@ class Profile extends EventEmitter {
   async close() {
     this.deleted = true; // nothing more happens to it
     await this.disconnect();
+    this._clearClip();
     await Promise.all([...this.tabs].map((t) => new Promise<void>((resolve) => {
       try { this.win.contentView.removeChildView(t.view); } catch {}
       if (t.wc.isDestroyed()) return resolve();
@@ -423,8 +425,9 @@ class Profile extends EventEmitter {
 
   // Its pages into another window (its project moved there), hidden until that window lays them out.
   moveTo(win: BrowserWindow) {
+    this._clearClip();
     for (const t of this.tabs) try { this.win.contentView.removeChildView(t.view); } catch {}
-    this.win = win; this.hidden = true;
+    this.win = win; this.hidden = true; this.clip = undefined;
     if (this.active) this.activate(this.active);
   }
 
@@ -445,9 +448,29 @@ class Profile extends EventEmitter {
   }
 
   // Where the window's grid puts the pane's page; { shown: false } when the pane is not on screen.
-  layout({ shown = true, ...bounds }: Partial<Bounds> & { shown?: boolean }) {
+  _clearClip() {
+    if (!this.clipView) return;
+    if (this.win.isDestroyed()) { this.clipView = undefined; return; }
+    for (const child of this.clipView.children) this.win.contentView.addChildView(child);
+    this.win.contentView.removeChildView(this.clipView); this.clipView = undefined;
+  }
+  _place(tab: Tab) {
+    if (this.clip) {
+      // A native parent clips the page without changing its viewport as the stage scrolls.
+      this.clipView ??= new electron.View();
+      if (!this.win.contentView.children.includes(this.clipView)) this.win.contentView.addChildView(this.clipView);
+      this.clipView.setBounds(this.clip);
+      if (!this.clipView.children.includes(tab.view)) this.clipView.addChildView(tab.view);
+      tab.view.setBounds({ ...this.bounds, x: this.bounds.x - this.clip.x, y: this.bounds.y - this.clip.y });
+    } else {
+      this._clearClip();
+      if (!this.win.contentView.children.includes(tab.view)) this.win.contentView.addChildView(tab.view);
+      tab.view.setBounds(this.bounds);
+    }
+  }
+  layout({ shown = true, clip, ...bounds }: Partial<Bounds> & { shown?: boolean; clip?: Bounds }) {
     this.shown = shown;
-    if (shown) { this.bounds = bounds as Bounds; const t = this.get(); if (t) t.view.setBounds(this.bounds); }
+    if (shown) { this.bounds = bounds as Bounds; this.clip = clip; const t = this.get(); if (t && !t.discarded) this._place(t); }
     this._show();
     if (this.bounds.width) this.emit('laid-out');
   }

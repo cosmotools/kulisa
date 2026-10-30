@@ -1,5 +1,6 @@
 // The task's outer workspace and nested testing stage (docs/window.md, The grid).
 import type { DockviewApi, SerializedDockview } from 'dockview-react';
+import type { PageLayout } from '../../shared/ipc';
 import type { Profile, Terminals } from '../../shared/types';
 import type { ApplicationTerminal } from '../../shared/application-terminal';
 import { act, setCaption, store } from './store';
@@ -15,7 +16,7 @@ let api: DockviewApi | null = null, stage: DockviewApi | null = null;
 let apiReady = Promise.withResolvers<DockviewApi>();
 let gridReady: Promise<void> | null = null;
 let pendingStage: SerializedDockview | null = null;
-let preset: 'columns' | 'grid' | 'focus' = 'columns';
+let preset: 'columns' | 'grid' = 'columns';
 let replacing = false, building = false, rebuilding: Promise<void> | null = null;
 let nextTerminals: Terminals | null = null, nextApplications: ApplicationTerminal[] | null = null;
 let saveTimer = 0, save: (() => void) | null = null;
@@ -27,7 +28,7 @@ function changed() {
   const task = store.getState().current;
   save = () => {
     save = null;
-    if (api) kulisa.send('layout:save', { task, layout: { version: 2, workspace: api.toJSON(), stage: stage?.toJSON() ?? pendingStage } satisfies TaskLayout });
+    if (api) kulisa.send('layout:save', { task, layout: { version: 2, workspace: api.toJSON(), stage: stage?.toJSON() ?? pendingStage, stageLayout: store.getState().stageLayout } satisfies TaskLayout });
   };
   saveTimer = window.setTimeout(() => save?.(), 300);
 }
@@ -82,12 +83,18 @@ function reveal() {
 let layoutFrame = 0;
 export function scheduleLayout() { cancelAnimationFrame(layoutFrame); layoutFrame = requestAnimationFrame(sendLayout); }
 function sendLayout() {
-  const rects: Record<string, { shown: false } | { x: number; y: number; width: number; height: number }> = {};
+  const rects: Record<string, PageLayout> = {};
+  const viewport = document.querySelector('[data-stage-viewport]');
+  const v = viewport?.getBoundingClientRect();
   for (const p of store.getState().profiles) {
     const panel = stage?.getPanel(panelId(p.id)), c = panes.get(p.id)?.content;
     if (!api?.getPanel('stage')?.api.isVisible || !panel?.api.isVisible || !c?.isConnected || !c.checkVisibility() || !c.offsetWidth) { rects[p.id] = { shown: false }; continue; }
     const r = c.getBoundingClientRect();
-    rects[p.id] = { x: Math.round(r.x), y: Math.round(r.y), width: Math.round(r.width), height: Math.round(r.height) };
+    const x = Math.max(r.x, v?.x ?? r.x), y = Math.max(r.y, v?.y ?? r.y);
+    const right = Math.min(r.right, v ? v.x + viewport!.clientWidth : r.right), bottom = Math.min(r.bottom, v ? v.y + viewport!.clientHeight : r.bottom);
+    if (right <= x || bottom <= y) { rects[p.id] = { shown: false }; continue; }
+    rects[p.id] = { x: Math.round(r.x), y: Math.round(r.y), width: Math.round(r.width), height: Math.round(r.height),
+      ...(Math.round(x) > Math.round(r.x) || Math.round(y) > Math.round(r.y) || Math.round(right) < Math.round(r.right) || Math.round(bottom) < Math.round(r.bottom) ? { clip: { x: Math.round(x), y: Math.round(y), width: Math.round(right - x), height: Math.round(bottom - y) } } : {}) };
   }
   kulisa.send('layout', { task: store.getState().current, rects });
 }
@@ -102,16 +109,17 @@ function arrangeStage() {
   if (!stage) return;
   stage.clear();
   const ids = environmentIds();
-  ids.forEach((id, i) => {
-    const ref = i ? ids[preset === 'focus' ? 0 : preset === 'grid' && i > 1 ? i - 2 : i - 1] : undefined;
-    addEnvironment(id, ref, preset === 'focus' ? 'within' : preset === 'grid' && i > 1 ? 'below' : 'right', preset === 'focus' && i > 0);
-  });
+  const mode = store.getState().stageLayout;
+  ids.forEach((id, i) => addEnvironment(id, i ? ids[i - 1] : undefined, mode === 'tabs' ? 'within' : mode === 'column' ? 'below' : 'right', mode === 'tabs' && i > 0));
 }
 function syncStage() {
   if (!stage) return;
   const ids = environmentIds();
   for (const p of stage.panels) if (!ids.includes(p.id)) stage.removePanel(p);
-  for (const id of ids) if (!stage.getPanel(id)) addEnvironment(id, stage.panels.at(-1)?.id);
+  for (const id of ids) if (!stage.getPanel(id)) {
+    const mode = store.getState().stageLayout;
+    addEnvironment(id, stage.panels.at(-1)?.id, mode === 'tabs' ? 'within' : mode === 'column' ? 'below' : 'right');
+  }
 }
 function syncGrid() {
   if (!api) return;
@@ -138,6 +146,7 @@ function restore(a: DockviewApi, saved: SerializedDockview | null, known: string
 function buildGrid(a: DockviewApi, saved: unknown) {
   const layout = splitLayout(saved);
   preset = 'columns'; pendingStage = layout?.stage ?? null;
+  store.setState({ stageLayout: layout?.stageLayout ?? null });
   restore(a, layout?.workspace ?? null, ['terminal', 'resources', 'stage']);
   if (!a.getPanel('terminal') || !a.getPanel('resources')) {
     a.clear();
@@ -148,9 +157,9 @@ function buildGrid(a: DockviewApi, saved: unknown) {
   syncGrid();
 }
 async function restoreGrid() { const a = await apiReady.promise; building = true; buildGrid(a, await act('layout:load')); building = false; }
-export function applyPreset(name: 'columns' | 'grid' | 'focus') {
+export function applyPreset(name: 'columns' | 'grid') {
   if (!api) return;
-  building = true; preset = name; pendingStage = null; stage = null;
+  building = true; preset = name; pendingStage = stage?.toJSON() ?? pendingStage; stage = null;
   // Processes and buffers belong to their environments, so rebuilding a layout never restarts an application.
   api.clear();
   api.addPanel({ id: 'terminal', component: 'terminal', tabComponent: 'terminal', title: 'Terminal', renderer: 'always' });
@@ -160,6 +169,10 @@ export function applyPreset(name: 'columns' | 'grid' | 'focus') {
   api.getPanel('resources')!.group.api.setSize(name === 'grid' ? { height: Math.round(api.height / 3) } : { width: Math.round(api.width / 4) });
   building = false; changed();
 }
+kulisa.on('stage:arrange', ({ task, layout }) => {
+  if (task !== store.getState().current || !stage || !api?.getPanel('stage')) return;
+  building = true; store.setState({ stageLayout: layout }); arrangeStage(); building = false; changed();
+});
 export const dockApi = () => api;
 export const stageApi = () => stage;
 

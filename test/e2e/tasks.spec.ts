@@ -313,7 +313,7 @@ test("tasks: an agent's tab closes after a question, always (Cancel keeps it); t
       && near(Math.max(t.y + t.height, r.y + r.height), g.y + g.height) && (r.x >= t.x + t.width || r.y >= t.y + t.height);
   };
   const launchers = ui.getByTestId('launchers'), newTerminal = launchers.getByRole('navigation', { name: 'New terminal' }).getByRole('button');
-  for (const preset of ['grid', 'focus', 'columns'] as const) {
+  for (const preset of ['grid', 'columns'] as const) {
     await arrange(ui, preset);
     await expect.poll(async () => (await launchers.count()) > 0 && (await fills()) && centred(launchers, panel), { timeout: 3000 }).toBe(true);
     await expect(launchers).toMatchAriaSnapshot(`

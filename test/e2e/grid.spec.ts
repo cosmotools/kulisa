@@ -127,7 +127,7 @@ test('grid: while a pane is dragged, pages are pictures (drop targets are HTML),
   await expect(ui.getByTestId('page').getByTestId('snapshot')).toHaveCount(0);
 });
 
-test('grid presets: columns, grid, focus; each fits the window, nothing cut off', async ({ core, ui, files }) => {
+test('workspace and stage presets each fit the window without changing the other layout', async ({ core, ui, files }) => {
   await begin(core, ui, files, { columns: true });
   const at = async () => ({ sam: await pageBox(ui, files, SAM), elon: await pageBox(ui, files, ELON), term: await box(ui, '[data-testid="terminal"]') });
   // Every panel inside the grid's room (#dock less its padding): none cut off at the right or the bottom.
@@ -140,9 +140,10 @@ test('grid presets: columns, grid, focus; each fits the window, nothing cut off'
     }
     expect(cut, 'panels cut off').toEqual([]);
   };
-  // An arrangement chosen in ☰ (Arrange panels).
-  const preset = async (name: 'Columns' | 'Two by two' | 'One at a time') => { await ui.locator('#windowMenu').click(); await choose(ui, name); };
-  await preset('Columns');
+  // An arrangement chosen in ☰ (Arrange workspace).
+  const preset = async (name: 'Stage above' | 'Stage beside') => { await ui.locator('#windowMenu').click(); await choose(ui, name); };
+  const stagePreset = async (name: string) => { await ui.getByRole('button', { name: 'Arrange stage', exact: true }).click(); await choose(ui, name); };
+  await preset('Stage above');
   await expect.poll(() => viewOn(core, ui, files, ELON)).toBe(true);
   await fits();
   let b = await at();
@@ -167,17 +168,18 @@ test('grid presets: columns, grid, focus; each fits the window, nothing cut off'
   await expect.poll(kept, { timeout: 3000, message: 'the terminal and Resources keep their shares' }).toBe(true);
   await core((k, s) => k.shell.win.setSize(s[0], s[1]), size);
   await expect.poll(async () => { b = await at(); return !!b.sam && !!b.elon && Math.abs(share(b) - was) < 0.02 && viewOn(core, ui, files, ELON); }).toBe(true);
-  await preset('One at a time');
+  await stagePreset('Tabs');
   await expect.poll(() => viewOn(core, ui, files, SAM)).toBe(true);
   await fits();
   b = await at();
   expect(b.elon, 'Elon is a tab behind Sam').toBe(null);
   expect(b.term.y > b.sam.y + b.sam.height - 1).toBe(true);
-  await preset('Two by two');
+  await stagePreset('Column');
+  await preset('Stage beside');
   await bothOn(core, ui, files);
   await fits();
   b = await at();
-  expect(b.sam.x < b.elon.x && b.term.x > b.elon.x + b.elon.width - 1, 'profiles in a row of two, terminal on the right').toBe(true);
+  expect(b.sam.y < b.elon.y && b.term.x > b.sam.x + b.sam.width - 1, 'profiles in a column, terminal on the right').toBe(true);
   // Resources under the terminal, in its column; made taller, as its gap does: kept with the grid.
   const res = await box(ui, '#resources'), term = await box(ui, 'nav[aria-label="Terminals"]');
   expect(res.y > term.y && Math.abs(res.x - term.x) < 20, 'Resources under the terminal').toBe(true);

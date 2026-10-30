@@ -45,7 +45,7 @@ test('Kulisa zoom: Ctrl+= outside the pages scales the whole UI, pages follow, p
       - menuitem "Theme"
       - menuitem "Tasks bar"
       - menuitem "Language"
-      - text: Arrange panels
+      - text: Arrange workspace
   `);
   await expect(menu(ui).getByTestId('zoom-row')).toContainText('110%');
   await menu(ui).getByRole('menuitem', { name: 'Zoom in' }).click(); // − 110% + in the menu, as in Chrome
