@@ -318,8 +318,8 @@ test('the title bar keeps a full task tab beside Stage in the room left by windo
   const before = await resize(core, { width: 640 });
   try {
     await invoke(ui, 'bar:set', 'top');
-    // Caption buttons reduce the HTML title bar independently of the window's content width.
-    await ui.locator('#topbar').evaluate((el) => { el.style.width = '480px'; });
+    // The available title-bar width excludes the left caption-button inset.
+    await ui.locator('#topbar').evaluate((el) => { el.style.width = 'calc(env(titlebar-area-x, 0px) + 480px)'; });
     await expect(chosen(ui)).toBeInViewport({ ratio: 1 });
     await expect(ui.getByRole('button', { name: 'Stage', exact: true })).toBeVisible();
   } finally {
