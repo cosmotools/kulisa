@@ -174,7 +174,7 @@ test('workspace and stage presets each fit the window without changing the other
   b = await at();
   expect(b.elon, 'Elon is a tab behind Sam').toBe(null);
   expect(b.term.y > b.sam.y + b.sam.height - 1).toBe(true);
-  await stagePreset('Column');
+  await stagePreset('Columns');
   await preset('Stage beside');
   await bothOn(core, ui, files);
   await fits();

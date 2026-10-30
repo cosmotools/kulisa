@@ -1,7 +1,8 @@
 // Split a saved flat grid into development and testing layouts; prune absent panels without resetting peers.
 import type { StageLayout } from '../../shared/ipc.ts';
 import type { SerializedDockview } from 'dockview-react';
-export interface TaskLayout { version: 2; workspace: SerializedDockview; stage: SerializedDockview | null; stageLayout?: StageLayout | null }
+export const environmentMinimum = { width: 600, height: 300 } as const;
+export interface TaskLayout { version: 2; workspace: SerializedDockview; stage: SerializedDockview | null; stageLayout?: StageLayout | null; stageOverflow?: boolean }
 type Node = SerializedDockview['grid']['root'];
 type Group = { id: string; views: string[]; activeView?: string };
 function filterLayout(layout: SerializedDockview, keep: (id: string) => boolean): SerializedDockview {

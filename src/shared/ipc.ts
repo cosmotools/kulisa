@@ -98,7 +98,7 @@ export interface Invoke extends TerminalInvoke, ThumbnailInvoke, GitHubInvoke, D
   'profile:delete': I<[OnProfile]>;
   'profile:master': I<[OnProfile]>;
   'views:hidden': I<[hidden: boolean, opts?: { snapshots?: boolean }], Record<string, string> | undefined>;
-  'stage:arrange': I<[OnTask & { layout: StageLayout }], Result>;
+  'stage:arrange': I<[OnTask & { layout?: StageLayout; overflow?: boolean }], Result>;
   'layout:load': I<[OnTask], unknown>; // the grid as the window saved it (layout:save)
   'terminal:open': I<[OnTask & { agent?: string; own?: boolean }], Result<{ id: number } | { none: true }>>;
   'terminal:show': I<[OnTask & { id: number }]>;
@@ -167,7 +167,7 @@ export interface Events extends TerminalEvents, ThumbnailEvents, DictationEvents
   'terminals': Terminals;
   'artifacts': { task: string; list: Artifact[]; bytes: number }; // bytes: all of them (Task.artifactsUsage)
   'terminal:focus': void;
-  'stage:arrange': { task: string; layout: StageLayout };
+  'stage:arrange': { task: string; layout?: StageLayout; overflow?: boolean };
   'grid:closing': boolean; // another task's grid follows
   'tasks:closed': string[];
   'zoom': number;

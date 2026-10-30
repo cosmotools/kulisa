@@ -6,7 +6,7 @@ import { act, setCaption, store } from './store';
 import { forgetFrozen, freeze, showViews, unfreeze } from './views';
 import { closeLayers } from './cover';
 import { forgetTerminals } from '../../terminal/renderer';
-import { splitLayout, type TaskLayout } from './stage-layout';
+import { environmentMinimum, splitLayout, type TaskLayout } from './stage-layout';
 
 interface PaneHandle { content: HTMLElement; focusAddress(): void; newTab(): void; pick(): void }
 export const panes = new Map<string, PaneHandle>();
@@ -27,7 +27,7 @@ function changed() {
   const task = store.getState().current;
   save = () => {
     save = null;
-    if (api) kulisa.send('layout:save', { task, layout: { version: 2, workspace: api.toJSON(), stage: stage?.toJSON() ?? pendingStage, stageLayout: store.getState().stageLayout } satisfies TaskLayout });
+    if (api) kulisa.send('layout:save', { task, layout: { version: 2, workspace: api.toJSON(), stage: stage?.toJSON() ?? pendingStage, stageLayout: store.getState().stageLayout, stageOverflow: store.getState().stageOverflow } satisfies TaskLayout });
   };
   saveTimer = window.setTimeout(() => save?.(), 300);
 }
@@ -47,7 +47,8 @@ export function stageMounted(a: DockviewApi) {
   restore(a, pendingStage, environmentIds()); pendingStage = null;
   if (!a.panels.length) arrangeStage(); else syncStage();
   building = wasBuilding;
-  watch(a); changed();
+  watch(a);
+  a.onDidAddGroup(constrainStage); constrainStage(); changed();
   scheduleLayout();
 }
 export function stageUnmounted(a: DockviewApi | null) { if (stage === a) stage = null; }
@@ -103,6 +104,13 @@ function addEnvironment(id: string, reference?: string, direction: 'right' | 'be
     title: store.getState().profiles.find((p) => panelId(p.id) === id)?.name,
     ...(reference && { position: { referencePanel: reference, direction } }), inactive });
 }
+function constrainStage() {
+  const { stageLayout: mode, stageOverflow: overflow } = store.getState();
+  for (const group of stage?.groups ?? []) group.api.setConstraints({
+    minimumWidth: overflow && mode !== 'tabs' && mode !== 'column' ? environmentMinimum.width : 0,
+    minimumHeight: overflow && mode === 'column' ? environmentMinimum.height : 0,
+  });
+}
 function arrangeStage() {
   if (!stage) return;
   stage.clear();
@@ -144,7 +152,7 @@ function restore(a: DockviewApi, saved: SerializedDockview | null, known: string
 function buildGrid(a: DockviewApi, saved: unknown) {
   const layout = splitLayout(saved);
   preset = 'columns'; pendingStage = layout?.stage ?? null;
-  store.setState({ stageLayout: layout?.stageLayout ?? null });
+  store.setState({ stageLayout: layout?.stageLayout ?? null, stageOverflow: layout?.stageOverflow ?? false });
   restore(a, layout?.workspace ?? null, ['terminal', 'resources', 'stage']);
   if (!a.getPanel('terminal') || !a.getPanel('resources')) {
     a.clear();
@@ -167,9 +175,13 @@ export function applyPreset(name: 'columns' | 'grid') {
   api.getPanel('resources')!.group.api.setSize(name === 'grid' ? { height: Math.round(api.height / 3) } : { width: Math.round(api.width / 4) });
   building = false; changed();
 }
-kulisa.on('stage:arrange', ({ task, layout }) => {
+kulisa.on('stage:arrange', ({ task, layout, overflow }) => {
   if (task !== store.getState().current || !stage || !api?.getPanel('stage')) return;
-  building = true; store.setState({ stageLayout: layout }); arrangeStage(); building = false; changed();
+  building = true;
+  store.setState({ ...(layout !== undefined && { stageLayout: layout }), ...(overflow !== undefined && { stageOverflow: overflow }) });
+  if (layout !== undefined) arrangeStage();
+  constrainStage();
+  building = false; changed();
 });
 export const dockApi = () => api;
 export const stageApi = () => stage;

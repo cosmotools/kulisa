@@ -17,6 +17,7 @@ interface WindowState {
   // The shown task's profiles, open (as Profile.info) and closed; its terminals.
   profiles: Profile[];
   stageLayout: StageLayout | null;
+  stageOverflow: boolean;
   closedProfiles: ClosedProfile[];
   terminals: Terminals;
   // The files the agent's tools kept of a task's pages, the newest first (Resources), of the task named.
@@ -38,6 +39,7 @@ export const store = createStore<WindowState>()(() => ({
   projects: initialProjects || { current: null, project: null, projects: [], tabs: [], open: [], settings: false },
   profiles: [],
   stageLayout: null,
+  stageOverflow: false,
   closedProfiles: [],
   terminals: { front: null, list: [] },
   artifacts: { task: '', list: [], bytes: 0 },

@@ -74,9 +74,10 @@ project, and those you closed, are in the sidebar (Tasks, below).
 - **The grid** separates development from testing: your agents' terminals and Resources sit beside the **stage**,
   where browser profiles show the app being tested. Drag headers to move or stack panes within the stage, or move
   the stage itself beside your development panels. Drag a line to resize panes. **☰ → Arrange workspace** places the stage above or beside your development panels.
-  **Arrange stage** in the stage header (also in its right-click menu) offers **Column** (a vertical stack), **Tabs** (one environment at a time),
-  and **Row** (side by side with horizontal scrolling). Your agent can arrange the stage too. Each task keeps both
-  layouts and its stage mode. The empty stage stays hidden; you or your agent can open a
+  **Arrange stage** in the stage header (also in its right-click menu) offers **Columns** (a vertical stack), **Tabs** (one environment at a time),
+  and **Rows** (a horizontal stack). **Allow overflow** keeps panes at a usable size and adds scrolling in the stack’s direction;
+  turned off, all panes fit inside the stage. Tabs hides this setting. Your agent can change both settings too.
+  Each task keeps both layouts, its stage mode and the overflow setting. The empty stage stays hidden; you or your agent can open a
   profile when needed.
 - **Resources**, next to the terminal (beside it, or under it when the terminal is on the right): what the task works in (its copy of the code, or your project's folder until
   it has one), a click opens its folder; and under **Artifacts**, what you and the agent kept of the pages:
