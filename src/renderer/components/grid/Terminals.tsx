@@ -51,11 +51,7 @@ export function Terminals({ api, containerApi }: IDockviewPanelProps) {
   // The task from the terminals' own message (docs/window.md, The terminal).
   const task = useWindow((s) => s.terminals.task ?? null), front = useWindow((s) => s.terminals.front);
   const folded = useWindow((s) => !s.terminals.list.length);
-  // No profile's pane in the grid: as dockview has them, so it folds against the grid as it is laid out.
-  const alone = useSyncExternalStore(useCallback((changed: () => void) => {
-    const subs = [containerApi.onDidAddPanel(changed), containerApi.onDidRemovePanel(changed)];
-    return () => { for (const s of subs) s.dispose(); };
-  }, [containerApi]), () => !containerApi.panels.some((p) => p.id.startsWith('profile:')));
+  const alone = useWindow((s) => !s.profiles.length);
   const loading = useWindow((s) => s.loading);
   // The tab in front before its program has started (an agent's is looked for first): a loader over its terminal, which
   // stays laid out meanwhile (the program starts at its size).
@@ -63,11 +59,11 @@ export function Terminals({ api, containerApi }: IDockviewPanelProps) {
   const shown = task !== null && front !== null ? `${task}#${front}` : null;
 
   useLayoutEffect(() => {
-    // Dockview's retained panel catches up to its layout in a later frame; the program must start at that size.
+    // Retained panels catch up in a later frame; DOM client/offset dimensions round Dockview's fractional CSS pixels.
     panelView.isLaidOut = () => {
       const grid = document.getElementById('grid');
-      return grid?.clientWidth === containerApi.width && grid?.clientHeight === containerApi.height
-        && host.current?.offsetWidth === api.width && host.current?.offsetHeight === api.height;
+      return grid?.clientWidth === Math.round(containerApi.width) && grid?.clientHeight === Math.round(containerApi.height)
+        && host.current?.offsetWidth === Math.round(api.width) && host.current?.offsetHeight === Math.round(api.height);
     };
     return () => { panelView.isLaidOut = undefined; };
   }, [api, containerApi]);
@@ -84,8 +80,39 @@ export function Terminals({ api, containerApi }: IDockviewPanelProps) {
     if (task === before.task && front !== before.front && front !== null && !dialogsShown()) void termFocus(`${task}#${front}`);
   }, [task, front]);
 
+  const groupId = useSyncExternalStore(useCallback((changed: () => void) => {
+    const sub = api.onDidGroupChange(changed);
+    return () => sub.dispose();
+  }, [api]), () => api.group?.id ?? '');
   const before = useRef<Size | null>(null);
-  useEffect(() => fold(api, containerApi, before, folded, alone), [api, containerApi, folded, alone]);
+  useEffect(() => {
+    const group = api.group;
+    return () => {
+      // Constraints belong to the group: moving the panel must leave its peers free to resize.
+      if (group && containerApi.groups.includes(group)) {
+        group.header.hidden = false;
+        group.api.setConstraints({ minimumHeight: 0, maximumHeight: Number.MAX_SAFE_INTEGER, minimumWidth: 0, maximumWidth: Number.MAX_SAFE_INTEGER });
+      }
+      before.current = null;
+    };
+  }, [api, containerApi, groupId]);
+  useEffect(() => {
+    fold(api, containerApi, before, folded, alone);
+    let frame = 0;
+    const shape = () => JSON.stringify(containerApi.toJSON().grid, (key, value) => ['size', 'width', 'height', 'hideHeader', 'activeView'].includes(key) ? undefined : value);
+    let previous = shape();
+    const rearranged = () => {
+      const next = shape();
+      if (!folded || next === previous) return;
+      previous = next;
+      // A peer moved across the terminal changes the folding axis without moving this panel's group.
+      fold(api, containerApi, before, false, alone);
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => fold(api, containerApi, before, folded, alone));
+    };
+    const changed = containerApi.onDidLayoutChange(rearranged);
+    return () => { cancelAnimationFrame(frame); changed.dispose(); };
+  }, [api, containerApi, groupId, folded, alone]);
 
   // The big buttons, each a Tab stop (Tab to the next, Enter opens it): the first, the project's default agent, gets the
   // keyboard when the keyboard was in the terminal just closed or nowhere (not taken from a field or a dialog). No keys
@@ -139,7 +166,7 @@ function Launchers({ ref }: { ref: Ref<HTMLDivElement> }) {
           <ItemContent className="min-w-0"><ItemTitle>{l.name}</ItemTitle>{l.sub && <ItemDescription>{l.sub}</ItemDescription>}</ItemContent></Item>
       </Button>)}
     </nav>
-    <nav aria-label="Open a profile" className="flex flex-wrap justify-center gap-3">
+    <nav aria-label="Open an environment" className="flex flex-wrap justify-center gap-3">
       {profileLaunchers(closed).map((p) => <Button key={p.id} data-launcher data-profile={p.id} variant="outline" aria-label={p.name} title={p.title}
         className="h-auto w-60 justify-start" onClick={() => void p.run()}>
         <Item size="sm"><ItemMedia>{p.avatar ? <Avatar size="lg" aria-hidden><AvatarImage src={avatarSrc(p.avatar)} alt="" /></Avatar> : <PlusIcon className="size-8" />}</ItemMedia>

@@ -239,9 +239,9 @@ test('tasks: Move to New Window puts a task in a window of its own, still runnin
   expect(await tabProjects(ui, files)).toEqual(['project *']);
   await expect.poll(() => tabProjects(ui2, files)).toEqual(['other *']);
   expect(await core((k, id) => {
-    const g = k.stash.grid, view = g.seller.get().view;
+    const g = k.stash.grid;
     return { window: g.moved.window === g.second, title: g.second.win.getTitle(), agent: g.moved.pty === g.pty, profile: g.moved.profiles.get(id) === g.seller,
-      page: g.second.win.contentView.children.includes(view) && !g.first.win.contentView.children.includes(view) };
+      page: k.viewIn(g.seller.get().view, g.second.win) && !k.viewIn(g.seller.get().view, g.first.win) };
   }, ids.seller)).toEqual({ window: true, title: 'New Task · other — Kulisa', agent: true, profile: true, page: true }); // the same agent, the same profile, its page moved
   await expect.poll(async () => {
     const b = await box(ui2, `[role="region"][data-profile="${ids.seller}"] [data-testid="page"]`);
@@ -309,7 +309,7 @@ test('tasks: Move to New Window puts a task in a window of its own, still runnin
   await expect.poll(() => core((k) => { const g = k.stash.grid; return k.shell.windows.length === 1 && k.shell.task === g.moved && !g.first.switching; })).toBe(true);
   expect(await core((k) => {
     const g = k.stash.grid;
-    return { gone: g.second.win.isDestroyed(), agent: g.moved.pty === g.pty, page: g.first.win.contentView.children.includes(g.seller.get().view) };
+    return { gone: g.second.win.isDestroyed(), agent: g.moved.pty === g.pty, page: k.viewIn(g.seller.get().view, g.first.win) };
   })).toEqual({ gone: true, agent: true, page: true }); // the same agent, its page back
   await expect.poll(async () => (await viewOn(core, ui, files, 'Sam.seller')) && (await termText(ui)).includes('moved along')).toBe(true);
   expect(await tabProjects(ui, files)).toEqual(['project', 'other *']);

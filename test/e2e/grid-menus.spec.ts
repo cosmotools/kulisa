@@ -7,8 +7,8 @@ import url from 'url';
 import type { Locator, Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
-import { SITE, MAC, WIN, frames, seen, ipcSettled, echoed, menu, anyMenu, item, choose, closeMenu, rightClick, focusWindow, pageBox, viewOn, answer, removed, termKeys, termText, shortcutsDialog } from './helpers.ts';
-import { SAM, ELON, begin } from './tasks-helpers.ts';
+import { SITE, MAC, WIN, frames, seen, ipcSettled, echoed, menu, anyMenu, item, choose, closeMenu, rightClick, focusWindow, answer, removed, termKeys, termText, shortcutsDialog } from './helpers.ts';
+import { ELON, begin, bothOn } from './tasks-helpers.ts';
 
 const menuOpen = (ui: Page) => menu(ui).isVisible();
 // The middle of an element, where the hand presses it with Playwright's mouse (a press and a release apart, which a
@@ -312,13 +312,12 @@ ${names.map((x) => `      - menuitem ${JSON.stringify(`Open in ${x}`)}`).join('\
   }
 });
 
-test('the window menu: its rows and icons, Arrange panels, links in the browser and Exit asking before stopping an agent', async ({ core, ui, files }) => {
+test('the window menu: its rows and icons, links in the browser and Exit asking before stopping an agent', async ({ core, ui, files }) => {
   await begin(core, ui, files, { columns: true });
   const opened = () => core((k) => [...k.openedExternally]);
   const wasOpened = (await opened()).length;
   await ui.locator('#windowMenu').click();
-  // Theme, Tasks bar and Language each a menu beside its row (helpers.ts, windowSubmenu); the arrangements a row each,
-  // the full words in the tooltip. No Exit on macOS: ⌘Q and the app menu's Quit there (components/TopBar.tsx).
+  // macOS puts Quit in the app menu (⌘Q), so the window menu has no Exit row.
   await expect(menu(ui)).toMatchAriaSnapshot(`
     - menu:
       - group "Zoom":
@@ -329,10 +328,6 @@ test('the window menu: its rows and icons, Arrange panels, links in the browser 
       - menuitem "Theme"
       - menuitem "Tasks bar"
       - menuitem "Language"
-      - text: Arrange panels
-      - menuitem "Columns"
-      - menuitem "Two by two"
-      - menuitem "One at a time"
       - menuitem "Keyboard Shortcuts"
       - menuitem "Documentation"
       - menuitem "GitHub"
@@ -340,11 +335,8 @@ test('the window menu: its rows and icons, Arrange panels, links in the browser 
       - menuitem "About Kulisa"${MAC ? '' : `
       - menuitem "Exit"`}`);
   expect(await menu(ui).getByRole('menuitem').evaluateAll((rs) => rs.filter((r) => !r.querySelector('svg')).map((r) => r.ariaLabel || r.textContent)), 'each row with its icon').toEqual([]);
-  const presets = menu(ui).locator('[data-preset]');
-  expect(await presets.evaluateAll((bs) => bs.map((b) => !!(b as HTMLElement).title && !!b.querySelector('svg'))), 'a tooltip and an icon each').toEqual([true, true, true]);
-  await anyMenu(ui).locator('[data-preset="focus"]').click();
-  await expect(anyMenu(ui), 'a choice closes the menu').toHaveCount(0);
-  await expect.poll(async () => (await pageBox(ui, files, ELON)) === null && viewOn(core, ui, files, SAM)).toBe(true);
+  await closeMenu(ui);
+  await bothOn(core, ui, files);
   // ☰'s links open in the user's browser.
   await ui.locator('#windowMenu').click();
   await expect(menu(ui)).toBeVisible();

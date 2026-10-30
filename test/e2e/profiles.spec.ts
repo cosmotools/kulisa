@@ -272,6 +272,8 @@ test("a pane's ⋮ → Screenshot takes an element, the visible part or the whol
     }
     await expect.poll(() => shots().length, { timeout: 500 }).toBe(2);
   }).toPass({ timeout: 10000 });
+  // The file can appear before writeFile finishes; Resources is notified after the save completes.
+  await expect(ui.locator('#resources [data-file]')).toHaveCount(2);
   expect(pngSize(path.join(dir, shots().find((f) => f !== full))), 'the element alone, at the screen\'s density').toEqual({ width: Math.round(200 * dpr), height: Math.round(120 * dpr) });
   // Esc while choosing: nothing taken.
   await core((k) => k.press(k.profile('Sam.admin').get().wc, 'S', k.CMD, 'shift'));
@@ -385,6 +387,11 @@ test('a screenshot shows its thumbnail in its pane\'s corner: a click opens it, 
     const STAYS = 5000, FADE = 200; // src/screenshots/main/thumbnail.ts
     await core((k, ms) => k.clock.hold(ms), FADE);
     await take();
+    // Native bounds precede the thumbnail's script and hover listeners. Start outside its ready page so this
+    // movement produces an entry even when the OS leaves the pointer over the previous thumbnail's close button.
+    await state('in');
+    await tp.mouse.move(-1, -1);
+    await ipcSettled(tp);
     const from = await core((k) => k.logged.length);
     await tp.mouse.move(20, 10);
     await expect.poll(() => core((k, i) => k.logged.slice(i).some((l) => l.includes('thumbnail:hover')), from)).toBe(true); // heard

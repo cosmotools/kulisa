@@ -9,7 +9,7 @@ import { expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import type { Core, Call } from './fixtures.ts';
 import type { Files } from './data.ts';
-import { SITE, answer, invoke, notLoading, viewOn, arrange } from './helpers.ts';
+import { SITE, answer, invoke, notLoading, viewOn, arrange, stageDock } from './helpers.ts';
 
 export const SAM = 'Sam.admin', ELON = 'Elon.buyer';
 export const rand = () => crypto.randomBytes(3).toString('hex');
@@ -109,7 +109,7 @@ export const projectShown = (core: Core, id: string) => expect.poll(() => core((
 export const bothOn = (core: Core, ui: Page, files: Files) => expect.poll(async () => (await viewOn(core, ui, files, SAM)) && viewOn(core, ui, files, ELON)).toBe(true);
 
 type Begin = {
-  // Sam and Elon side by side (the Columns preset), each page on its pane.
+  // Sam and Elon side by side, each page on its pane.
   columns?: boolean;
   // Feature-X, the project's second task, open beside task-1: in the project's folder (true), or, given the agent's
   // tools, in a worktree of its own as its agent makes one (task_worktree), with Sam and Elon open there too.
@@ -151,8 +151,14 @@ export async function begin(core: Core, ui: Page, files: Files, { columns = fals
   }, only);
   if (columns) await expect(ui.locator('[data-panel^="profile:"]')).toHaveCount(2); // a pane stacked behind another has no .pane drawn
   await notLoading(ui);
-  // Columns first: a page stacked behind another's tab is never laid out, and ensureProfile waits for that.
-  if (columns) await arrange(ui, 'columns');
+  // Unstack first: a page stacked behind another's tab is never laid out, and ensureProfile waits for that.
+  const arrangeProfiles = async () => {
+    await arrange(ui, 'above');
+    await invoke(ui, 'stage:arrange', { task: await core((k) => k.shell.task.key), layout: 'vertical' });
+    // The fixture's two panes side by side: Dockview's move is also covered by the grid drag tests.
+    await stageDock(ui, (api, ids) => api.getPanel(ids[1]).api.moveTo({ group: api.getPanel(ids[0]).group, position: 'right' }), [files.panel(SAM), files.panel(ELON)]);
+  };
+  if (columns) await arrangeProfiles();
   const ids = await core(async (k, site) => ({
     sam: (await k.ensureProfile('Sam.admin', `${site}/app/login?name=sam`)).id,
     elon: (await k.ensureProfile('Elon.buyer', `${site}/app`)).id,
@@ -167,6 +173,7 @@ export async function begin(core: Core, ui: Page, files: Files, { columns = fals
     for (const profile of call ? [SAM, ELON] : []) {
       if (await core((k, a) => [...k.shell.taskByKey(a.fx).closed.values()].some((c) => c.cfg.name === a.profile), { fx, profile })) await call('profile_open', { profile }, { task: fx });
     }
+    if (columns && call) await arrangeProfiles();
     await showTask(core, ui, shown === 1 ? first : fx);
   }
   await notLoading(ui);

@@ -207,10 +207,10 @@ export async function taskMenu(ui: Page) {
   return menu(ui);
 }
 
-// The panels arranged as the human does it: ☰ → Arrange panels.
-export async function arrange(ui: Page, preset: 'columns' | 'grid' | 'focus') {
-  await ui.locator('#windowMenu').click();
-  await menu(ui).locator(`[data-preset="${preset}"]`).click();
+// Stage placed relative to development panels through the title-bar menu.
+export async function arrange(ui: Page, position: 'above' | 'left' | 'right') {
+  await ui.getByRole('button', { name: 'Stage', exact: true }).click();
+  await ui.getByRole('menuitemradio', { name: position[0].toUpperCase() + position.slice(1), exact: true }).click();
 }
 // The window resized as the human drags its edge (by its page's size), its size before given back.
 export const resize = (core: Core, size: { width?: number; height?: number }) => core((k, s) => {
@@ -290,6 +290,11 @@ export const viewOn = async (core: Core, ui: Page, files: Files, name: string) =
 // not eval: the window's Content-Security-Policy refuses eval.
 export async function dock<A, R>(ui: Page, fn: (api: any, arg: A) => R, arg?: A) {
   const api = await ui.evaluateHandle(() => (window as any).__dock);
+  try { return await api.evaluate(fn as (api: any, arg: unknown) => R, arg); } finally { await api.dispose(); }
+}
+// The independent testing grid; development panels stay in dock().
+export async function stageDock<A, R>(ui: Page, fn: (api: any, arg: A) => R, arg?: A) {
+  const api = await ui.evaluateHandle(() => (window as any).__stage);
   try { return await api.evaluate(fn as (api: any, arg: unknown) => R, arg); } finally { await api.dispose(); }
 }
 // The Resources panel's height on screen (its group in the grid: lib/grid.ts).

@@ -1,7 +1,7 @@
 // The grid of panels: panes and their pages, presets, a menu over pages that give no picture (docs/window.md, The grid).
 import { test, expect } from './fixtures.ts';
 import type { Page } from '@playwright/test';
-import { menu, choose, closeMenu, rightClick, box, pageBox, viewOn, resourcesHeight, dock } from './helpers.ts';
+import { menu, closeMenu, rightClick, box, pageBox, viewOn, resourcesHeight, dock, stageDock } from './helpers.ts';
 import { SAM, ELON, begin, bothOn } from './tasks-helpers.ts';
 
 // A pane's tab dragged by the hand onto a place of a target (dockview's drop zones: its edges, its middle).
@@ -32,11 +32,11 @@ test("grid: a pane narrower than its profile's name: the name cut with …, its 
   await begin(core, ui, files, { columns: true });
   const panel = files.panel(SAM);
   // A name as long as names go (64: names have no spaces to wrap at), Sam renamed so, in a pane narrower than it.
-  const id = files.idOf(SAM), width = await dock(ui, (api, p) => api.getPanel(p).group.api.width, panel);
+  const id = files.idOf(SAM), width = await stageDock(ui, (api, p) => api.getPanel(p).group.api.width, panel);
   await core((k, a) => k.shell.task.renameProfile(a.id, a.name), { id, name: 'administrator.international-tenant@enterprise-customers.example.org'.slice(0, 64) });
   try {
-    await dock(ui, (api, a) => api.getPanel(a.panel).group.api.setSize({ width: a.w }), { panel, w: 300 });
-    const header = ui.locator(`[data-panel="${panel}"]`), group = ui.locator('.dv-groupview').filter({ has: header }), name = header.getByTestId('profile-name');
+    await stageDock(ui, (api, a) => api.getPanel(a.panel).group.api.setSize({ width: a.w }), { panel, w: 300 });
+    const header = ui.locator(`[data-panel="${panel}"]`), group = ui.getByTestId('stage').locator('.dv-groupview').filter({ has: header }), name = header.getByTestId('profile-name');
     await expect(name).toHaveCSS('text-overflow', 'ellipsis');
     // Cut: wider than it shows (no assertion for that in Playwright).
     await expect.poll(() => name.evaluate((n) => n.scrollWidth > n.clientWidth), { timeout: 3000 }).toBe(true);
@@ -45,23 +45,25 @@ test("grid: a pane narrower than its profile's name: the name cut with …, its 
     await expect(group.locator('.dv-tabs-overflow-dropdown-root'), 'no list of hidden tabs').toBeHidden();
   } finally {
     await core((k, a) => k.shell.task.renameProfile(a.id, a.name), { id, name: SAM });
-    await dock(ui, (api, a) => api.getPanel(a.panel).group.api.setSize({ width: a.width }), { panel, width });
+    await stageDock(ui, (api, a) => api.getPanel(a.panel).group.api.setSize({ width: a.width }), { panel, width });
   }
 });
 
-test('grid: a pane moved next to the terminal takes its page along', async ({ core, ui, files }) => {
+test('grid: environment panes stay in the stage when dragged onto a development terminal', async ({ core, ui, files }) => {
   await begin(core, ui, files, { columns: true });
   await drag(ui, files.panel(SAM), '[data-testid="terminal"]', 'right');
   await expect.poll(() => viewOn(core, ui, files, SAM)).toBe(true);
   await expect.poll(() => viewOn(core, ui, files, ELON)).toBe(true);
   const sam = await pageBox(ui, files, SAM), term = await box(ui, '[data-testid="terminal"]');
-  expect(sam.x > term.x + term.width - 1 && sam.y + sam.height > term.y, 'Sam is right of the terminal').toBe(true);
+  expect(sam.y + sam.height <= term.y, 'Sam stays in the testing stage above the development terminal').toBe(true);
+  expect(await stageDock(ui, (api, id) => !!api.getPanel(id), files.panel(SAM))).toBe(true);
+  expect(await dock(ui, (api, id) => !!api.getPanel(id), files.panel(SAM))).toBe(false);
 });
 
 test("grid: a narrow pane's bar gives up Back and Forward, then Reload, into ⋮; Pick and ⋮ stay in it down to dockview's narrowest", async ({ core, ui, files }) => {
   await begin(core, ui, files, { columns: true });
   const panel = files.panel(SAM), pane = `[role="region"][data-profile="${files.idOf(SAM)}"]`;
-  const width = await dock(ui, (api, p) => api.getPanel(p).group.api.width, panel);
+  const width = await stageDock(ui, (api, p) => api.getPanel(p).group.api.width, panel);
   // The bar's controls shown, each its name, ' out' when it is not inside the pane. Read at once, in one
   // layout: a locator's readings one by one could straddle a resize.
   const bar = () => ui.evaluate((sel) => {
@@ -77,7 +79,7 @@ test("grid: a narrow pane's bar gives up Back and Forward, then Reload, into ⋮
     await closeMenu(ui);
   };
   const at = async (w: number, shown: string[]) => {
-    await dock(ui, (api, a) => api.getPanel(a.panel).group.api.setSize({ width: a.w }), { panel, w });
+    await stageDock(ui, (api, a) => api.getPanel(a.panel).group.api.setSize({ width: a.w }), { panel, w });
     await expect.poll(bar, { timeout: 3000, message: `${w} px` }).toEqual(shown);
   };
   await at(400, ['Back', 'Forward', 'Reload', 'Address', 'Pick an element', 'More']);
@@ -96,7 +98,7 @@ test("grid: a narrow pane's bar gives up Back and Forward, then Reload, into ⋮
       - menuitem /^Back/
       - menuitem /^Forward/
       - menuitem /^Reload/ ${shots}`);
-  await dock(ui, (api, a) => api.getPanel(a.panel).group.api.setSize({ width: a.width }), { panel, width });
+  await stageDock(ui, (api, a) => api.getPanel(a.panel).group.api.setSize({ width: a.width }), { panel, width });
 });
 
 test('grid: a pane stacked behind another as a tab hides its page until chosen', async ({ core, ui, files }) => {
@@ -125,7 +127,40 @@ test('grid: while a pane is dragged, pages are pictures (drop targets are HTML),
   await expect(ui.getByTestId('page').getByTestId('snapshot')).toHaveCount(0);
 });
 
-test('grid presets: columns, grid, focus; each fits the window, nothing cut off', async ({ core, ui, files }) => {
+test('resizing Resources updates the agent terminal at fractional widths and heights', async ({ core, ui, files }) => {
+  await begin(core, ui, files, { columns: true });
+  const terminalSize = () => ui.evaluate(() => { const t = (window as any).__term; return { cols: t.cols, rows: t.rows }; });
+  const fitted = () => ui.getByTestId('terminal').evaluate((el) => {
+    const host = el.querySelector('.xterm').parentElement, screen = el.querySelector('.xterm-screen');
+    return Math.abs(host.clientWidth - screen.clientWidth) < 30 && Math.abs(host.clientHeight - screen.clientHeight) < 30;
+  });
+  const workspace = await dock(ui, (api) => api.toJSON());
+  try {
+    // Dockview preserves fractional sash positions; its API supplies the same size deterministically on every OS.
+    await dock(ui, (api) => {
+      api.getPanel('resources').api.moveTo({ group: api.getPanel('terminal').group, position: 'right' });
+      api.getPanel('resources').group.api.setSize({ width: Math.round(api.width / 3) });
+    });
+    await expect.poll(fitted).toBe(true);
+    const before = await terminalSize();
+    await dock(ui, (api) => api.getPanel('resources').group.api.setSize({ width: Math.round(api.width / 3) - 160.25 }));
+    await expect.poll(async () => (await terminalSize()).cols).toBeGreaterThan(before.cols);
+    await dock(ui, (api) => api.getPanel('resources').group.api.setSize({ width: Math.round(api.width / 3) + 160.75 }));
+    await expect.poll(async () => (await terminalSize()).cols).toBeLessThan(before.cols);
+    await dock(ui, (api) => {
+      api.getPanel('resources').api.moveTo({ group: api.getPanel('terminal').group, position: 'bottom' });
+      api.getPanel('resources').group.api.setSize({ height: Math.round(api.height / 3) });
+    });
+    await expect.poll(fitted).toBe(true);
+    const rows = (await terminalSize()).rows;
+    await dock(ui, (api) => api.getPanel('resources').group.api.setSize({ height: Math.round(api.height / 3) + 70.25 }));
+    await expect.poll(async () => (await terminalSize()).rows).toBeLessThan(rows);
+    await expect.poll(fitted).toBe(true);
+    await expect.poll(() => core((k) => ({ cols: k.shell.pty.cols, rows: k.shell.pty.rows }))).toEqual(await terminalSize());
+  } finally { await dock(ui, (api, saved) => api.fromJSON(saved), workspace); }
+});
+
+test('workspace and stage presets each fit the window without changing the other layout', async ({ core, ui, files }) => {
   await begin(core, ui, files, { columns: true });
   const at = async () => ({ sam: await pageBox(ui, files, SAM), elon: await pageBox(ui, files, ELON), term: await box(ui, '[data-testid="terminal"]') });
   // Every panel inside the grid's room (#dock less its padding): none cut off at the right or the bottom.
@@ -138,9 +173,10 @@ test('grid presets: columns, grid, focus; each fits the window, nothing cut off'
     }
     expect(cut, 'panels cut off').toEqual([]);
   };
-  // An arrangement chosen in ☰ (Arrange panels).
-  const preset = async (name: 'Columns' | 'Two by two' | 'One at a time') => { await ui.locator('#windowMenu').click(); await choose(ui, name); };
-  await preset('Columns');
+  // Stage position and view are independent choices in its title-bar menu.
+  const preset = async (name: 'Above' | 'Left') => { await ui.getByRole('button', { name: 'Stage', exact: true }).click(); await ui.getByRole('menuitemradio', { name, exact: true }).click(); };
+  const stagePreset = async (name: string) => { await ui.getByRole('button', { name: 'Stage', exact: true }).click(); await ui.getByRole('menuitemradio', { name, exact: true }).click(); };
+  await preset('Above');
   await expect.poll(() => viewOn(core, ui, files, ELON)).toBe(true);
   await fits();
   let b = await at();
@@ -165,20 +201,22 @@ test('grid presets: columns, grid, focus; each fits the window, nothing cut off'
   await expect.poll(kept, { timeout: 3000, message: 'the terminal and Resources keep their shares' }).toBe(true);
   await core((k, s) => k.shell.win.setSize(s[0], s[1]), size);
   await expect.poll(async () => { b = await at(); return !!b.sam && !!b.elon && Math.abs(share(b) - was) < 0.02 && viewOn(core, ui, files, ELON); }).toBe(true);
-  await preset('One at a time');
+  await stagePreset('Tabs');
   await expect.poll(() => viewOn(core, ui, files, SAM)).toBe(true);
   await fits();
   b = await at();
   expect(b.elon, 'Elon is a tab behind Sam').toBe(null);
   expect(b.term.y > b.sam.y + b.sam.height - 1).toBe(true);
-  await preset('Two by two');
+  await stagePreset('Vertical stack');
+  await preset('Left');
   await bothOn(core, ui, files);
   await fits();
   b = await at();
-  expect(b.sam.x < b.elon.x && b.term.x > b.elon.x + b.elon.width - 1, 'profiles in a row of two, terminal on the right').toBe(true);
-  // Resources under the terminal, in its column; made taller, as its gap does: kept with the grid.
+  expect(b.sam.y < b.elon.y && b.term.x > b.sam.x + b.sam.width - 1, 'profiles in a vertical stack, terminal on the right').toBe(true);
+  // Moving Stage preserves Resources beside the terminal; its own docking stays independent.
   const res = await box(ui, '#resources'), term = await box(ui, 'nav[aria-label="Terminals"]');
-  expect(res.y > term.y && Math.abs(res.x - term.x) < 20, 'Resources under the terminal').toBe(true);
+  expect(res.x > term.x && Math.abs(res.y - term.y) < 40, 'Resources beside the terminal').toBe(true);
+  await dock(ui, (api) => api.getPanel('resources').api.moveTo({ group: api.getPanel('terminal').group, position: 'bottom' }));
   // Sized by dockview's API, as a drag of its sash sizes it: the sash is a bare element with no name to find it by.
   await dock(ui, (api) => api.getPanel('resources').group.api.setSize({ height: 300 }));
   await expect.poll(async () => { const h = await resourcesHeight(ui); return h > 280 && files.savedResourcesHeight() === h; }).toBe(true);

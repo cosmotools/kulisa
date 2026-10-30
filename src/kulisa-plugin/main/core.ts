@@ -1,6 +1,7 @@
 // The facts and actions supplied by the caller. The Kulisa package owns no tasks, profiles or terminals.
 import type { IncomingMessage } from 'http';
 import type { BrowserContext, Page } from 'playwright-core';
+import type { StageLayout, StagePosition } from '../../shared/ipc.ts';
 import type { Result } from '../../shared/result.ts';
 import type { Shot } from '../../screenshots/main/index.ts';
 import type { Conversation } from './transcripts.ts';
@@ -48,6 +49,7 @@ interface TaskAccess {
   readonly profiles: ReadonlyMap<string, ProfileAccess>;
   readonly closed: ReadonlyMap<string, { cfg: ProfileInfo; tabs: { urls: string[] } }>;
   readonly artifactLimit: number;
+  arrangeStage(layout?: StageLayout, overflow?: boolean, position?: StagePosition): Result;
   dirs(): string[];
   addable(): string[];
   inGit(): boolean;

@@ -1,0 +1,57 @@
+// A saved layout keeps development panels and browser profiles in their independent grids.
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { splitLayout } from '../../src/renderer/lib/stage-layout.ts';
+
+test('flat layouts split mixed groups while retaining order, stacking, sizes and active views', () => {
+  const panels = Object.fromEntries(['terminal', 'resources', 'profile:a', 'profile:b', 'profile:c'].map((id) => [id, { id, contentComponent: id.startsWith('profile:') ? 'profile' : id }]));
+  const layout = {
+    grid: { width: 1000, height: 800, orientation: 'HORIZONTAL', root: { type: 'branch', data: [
+      { type: 'leaf', size: 600, data: { id: '1', views: ['profile:b', 'terminal', 'profile:a'], activeView: 'terminal' } },
+      { type: 'branch', size: 400, data: [
+        { type: 'leaf', size: 500, data: { id: '2', views: ['profile:c'], activeView: 'profile:c' } },
+        { type: 'leaf', size: 300, data: { id: '3', views: ['resources'], activeView: 'resources' } },
+      ] },
+    ] } }, panels,
+  };
+  const split = splitLayout(layout);
+  assert.deepEqual(Object.keys(split.workspace.panels), ['terminal', 'resources']);
+  assert.deepEqual(Object.keys(split.stage.panels), ['profile:a', 'profile:b', 'profile:c']);
+  const stage = split.stage.grid.root.data as Array<{ size: number; data: { views: string[]; activeView: string } }>;
+  assert.equal(stage[0].size, 600);
+  assert.deepEqual(stage[0].data.views, ['profile:b', 'profile:a']);
+  assert.equal(stage[0].data.activeView, 'profile:b');
+  assert.deepEqual((layout.grid.root.data[0].data as { views: string[] }).views, ['profile:b', 'terminal', 'profile:a'], 'the saved value is not mutated');
+  assert.equal(splitLayout(split), split);
+  assert.equal(splitLayout(null), null);
+  assert.equal(splitLayout({}), null);
+});
+
+test('saved stack settings retain their physical direction when names become explicit', () => {
+  for (const [before, after] of [['column', 'vertical'], ['row', 'horizontal'], ['tabs', 'tabs'], ['horizontal', 'horizontal'], ['vertical', 'vertical']]) {
+    const saved = { version: 2, workspace: { grid: { orientation: 'HORIZONTAL', root: { type: 'branch', data: [] as unknown[] } }, panels: {} }, stage: {}, stageLayout: before, stageOverflow: true };
+    const restored = splitLayout(saved);
+    assert.equal(restored.stageLayout, after);
+    assert.equal(restored.stageOverflow, true);
+    assert.deepEqual(restored.workspace, saved.workspace);
+    assert.equal(restored.stage, saved.stage);
+    assert.equal(splitLayout(restored), restored);
+  }
+});
+
+test('a fixed Stage keeps development panels together and retains the saved Stage side', () => {
+  const leaf = (id: string) => ({ type: 'leaf', size: 400, data: { id, views: [id] } });
+  for (const [orientation, ids, position] of [
+    ['HORIZONTAL', ['stage', 'terminal', 'resources'], 'left'],
+    ['HORIZONTAL', ['terminal', 'resources', 'stage'], 'right'],
+    ['VERTICAL', ['stage', 'terminal', 'resources'], 'above'],
+  ] as const) {
+    const workspace = { grid: { orientation, root: { type: 'branch', data: ids.map(leaf) } }, panels: Object.fromEntries(ids.map((id) => [id, { id }])) };
+    const result = splitLayout({ version: 2, workspace, stage: null });
+    assert.equal(result.stagePosition, position);
+    assert.equal(result.stageShare, 1 / 3);
+    assert.deepEqual(Object.keys(result.workspace.panels).sort(), ['resources', 'terminal']);
+    assert.equal((result.workspace.grid.root.data as unknown[]).length, 2);
+    assert.equal(workspace.grid.root.data.length, 3);
+  }
+});

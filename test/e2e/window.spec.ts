@@ -756,7 +756,7 @@ test('a new version installed while Kulisa runs is offered once, in its own dial
 
 test("tooltips of the title bar and the tasks' bar open beside their buttons, never over the pages, which would cover them", async ({ core, ui, files }) => {
   await sam(core);
-  await arrange(ui, 'grid'); // the page down to the tasks' bar
+  await arrange(ui, 'left'); // the page down to the tasks' bar
   await invoke(ui, 'zoom:ui', 1); // the zoom's reset shown
   await expect(ui.locator('#zoomReset')).toBeVisible();
   const over = async (button: Locator) => {

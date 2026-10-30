@@ -313,13 +313,13 @@ test("tasks: an agent's tab closes after a question, always (Cancel keeps it); t
       && near(Math.max(t.y + t.height, r.y + r.height), g.y + g.height) && (r.x >= t.x + t.width || r.y >= t.y + t.height);
   };
   const launchers = ui.getByTestId('launchers'), newTerminal = launchers.getByRole('navigation', { name: 'New terminal' }).getByRole('button');
-  for (const preset of ['grid', 'focus', 'columns'] as const) {
+  for (const preset of ['left', 'above'] as const) {
     await arrange(ui, preset);
     await expect.poll(async () => (await launchers.count()) > 0 && (await fills()) && centred(launchers, panel), { timeout: 3000 }).toBe(true);
     await expect(launchers).toMatchAriaSnapshot(`
       - navigation "New terminal":
         - button "Terminal"
-      - navigation "Open a profile":
+      - navigation "Open an environment":
         - button "Sam.admin"
         - button "Elon.buyer"
         - button "Dora"
@@ -360,14 +360,15 @@ test("tasks: an agent's tab closes after a question, always (Cancel keeps it); t
     // terminal and the tasks' bar stretched past its edge, the last profiles out of reach. Its tiles copied: sixteen
     // profiles more would take seconds to make and delete, and the row's scroll is its CSS's whatever the tiles are (the
     // narrowest window is no way: the grid's own minimum is wider, and the row with it).
-    await tiles.evaluate((s) => { for (let i = 0; i < 20; i++) s.append(s.querySelector('button').cloneNode(true)); });
+    const originalTiles = await tiles.locator('button').count();
+    await tiles.evaluate((s) => { for (let i = 0; i < 20; i++) s.append(s.querySelector('[data-profile]').cloneNode(true)); });
     await expect(tiles).toHaveAttribute('data-past-end');
     // Scrolled, the page not wider than the window: Playwright reads no scroll.
     expect(await tiles.evaluate((t) => t.scrollWidth > t.clientWidth), 'the row scrolls').toBe(true);
     expect(await ui.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'the window not wider').toBe(true);
     const width = await ui.evaluate(() => innerWidth), t = await tiles.boundingBox(), i = await panel.boundingBox();
     expect([t.x + t.width <= width, i.x + i.width <= width]).toEqual([true, true]);
-    await tiles.evaluate((s, n) => s.querySelectorAll('button').forEach((b, j) => { if (j >= n) b.remove(); }), 4);
+    await tiles.evaluate((s, n) => s.querySelectorAll('button').forEach((b, j) => { if (j >= n) b.remove(); }), originalTiles);
   } finally { await deleteProfile(core, ui, LONG); }
   await tiles.locator(`[data-profile="${SAM}"]`).click();
   await expect.poll(() => core((k, a) => k.shell.taskByKey(a.task).profiles.has(a.SAM), { task, SAM })).toBe(true);
@@ -378,11 +379,11 @@ test("tasks: an agent's tab closes after a question, always (Cancel keeps it); t
   await expect.poll(terminals).toBe(0);
   await expect(launchers).toHaveCount(1);
   await expect(tiles).toHaveCount(0);
-  // With a profile open (its tile among the big buttons): folded to a strip of its +, along the grid's height (the
-  // terminals are under the grid); kept so.
+  // Resources below the terminal: the empty terminal folds along the development area's height.
+  await ui.evaluate(() => { const d = (window as any).__dock; d.getPanel('resources').api.moveTo({ group: d.getPanel('terminal').group, position: 'bottom' }); });
   await launchers.locator(`[data-profile="${SAM}"]`).click();
   await expect.poll(async () => (await size(group)).height <= 40 && (await middle())).toBe(true);
-  expect(Math.abs((await size(group)).width - before.width), 'as wide as before (Resources beside it takes its share as the grid changes)').toBeLessThanOrEqual(5);
+  expect((await size(group)).width, 'spans the development area').toBeGreaterThan(before.width);
   // Its + opens a terminal: the terminals' panel unfolds.
   await unfold.click();
   await expect(menu(ui)).toMatchAriaSnapshot(`
@@ -399,19 +400,20 @@ test("tasks: an agent's tab closes after a question, always (Cancel keeps it); t
   await folded(true);
   await expect.poll(async () => (await size(group)).height).toBeLessThanOrEqual(40);
   await noQuestion(ui);
-  // The preset "grid": right of the profiles, Resources under it in its column: folded along its height, a strip of its
-  // + over Resources.
-  await arrange(ui, 'grid');
-  await expect.poll(async () => (await size(group)).height <= 40 && (await middle()) && (await size(resources)).height > 300).toBe(true);
+  // Moving Stage left preserves Resources under the folded terminal.
+  await arrange(ui, 'left');
+  await expect.poll(async () => ({ height: (await size(group)).height, centered: await middle(), resourcesHeight: (await size(resources)).height })).toMatchObject({ height: expect.any(Number), centered: true, resourcesHeight: expect.any(Number) });
+  expect((await size(group)).height).toBeLessThanOrEqual(40);
+  await expect.poll(async () => (await size(resources)).height).toBeGreaterThan(300);
   await unfold.click();
   await choose(ui, 'Terminal');
   await expect.poll(terminals).toBe(1);
   await folded(false);
   await expect.poll(async () => (await size(group)).height).toBeGreaterThanOrEqual(150);
-  // As tall as the grid (Resources moved under the pages): folded along the grid's width instead, a strip of its + as
-  // tall as the grid; its + unfolds it to a width of its own, and the last terminal closed folds it again. Moved by
+  // Resources beside the terminal: folded along the development area's width, a strip of its + as
+  // tall as the area; its + unfolds it to a width of its own, and the last terminal closed folds it again. Moved by
   // dockview's API: a drag of a panel between groups is the OS's drag and drop.
-  await ui.evaluate((id) => { const d = (window as any).__dock; d.getPanel('resources').api.moveTo({ group: d.getPanel(`profile:${id}`).group, position: 'bottom' }); }, SAM);
+  await ui.evaluate(() => { const d = (window as any).__dock; d.getPanel('resources').api.moveTo({ group: d.getPanel('terminal').group, position: 'right' }); });
   await closeTab();
   await expect.poll(async () => { const r = await size(group); return (await terminals()) === 0 && r.width <= 40 && r.height > 100 && (await middle()); }).toBe(true);
   await unfold.click();
@@ -423,8 +425,9 @@ test("tasks: an agent's tab closes after a question, always (Cancel keeps it); t
   await expect.poll(terminals).toBe(0);
   await folded(true);
   await expect.poll(async () => (await size(group)).width).toBeLessThanOrEqual(40);
-  await arrange(ui, 'columns');
-  await expect.poll(async () => (await size(group)).height <= 40 && (await middle())).toBe(true);
+  await arrange(ui, 'above');
+  await ui.evaluate(() => { const d = (window as any).__dock; d.getPanel('resources').api.moveTo({ group: d.getPanel('terminal').group, position: 'bottom' }); });
+  await expect.poll(async () => ({ folded: (await size(group)).height <= 40, centered: await middle() })).toMatchObject({ folded: true, centered: true });
   // Ctrl+` there: the task's agent, a new conversation.
   await focusWindow(core, ui);
   await core((k) => k.press(k.shell.win.webContents, '`', 'control'));
@@ -516,21 +519,16 @@ test('the CDP proxy takes ids in any letters (percent-encoded in its URLs); the 
   // must not drop it: a pane of a profile deleted just before would stay there, and a saved grid naming a profile no
   // longer there is not restored at all). The grid's shape, its sizes aside.
   const task = await core((k) => k.shell.task.key), other = await keyAt(core, 2);
-  const shape = (root: unknown) => JSON.stringify(root, (key, v) => (key === 'size' ? undefined : v));
-  const saved = async () => shape(await core((k, key) => (k.shell.taskByKey(key).store.layout() as { grid: { root: unknown } }).grid.root, task));
-  // Left two frames after the change (dockview tells of it on a frame), well within the 300 ms.
-  // Applied and left by a script: from the test, the two frames would be over before the task is left. dockview's API
-  // gives the grid's shape.
-  const columns = await ui.evaluate((o) => { (window as any).__layoutPreset('columns'); return new Promise<string>((r) => requestAnimationFrame(() => requestAnimationFrame(() => {
-    r(JSON.stringify((window as any).__dock.toJSON().grid.root)); void (window as any).kulisa.invoke('task:show', o);
+  const saved = () => core((k, key) => (k.shell.taskByKey(key).store.layout() as { stagePosition: string }).stagePosition, task);
+  // Core requests the same event as the menu; leaving within two frames precedes the debounced save.
+  await ui.evaluate((o) => { void (window as any).act('stage:arrange', { position: 'right' }).then(() => requestAnimationFrame(() => requestAnimationFrame(() => {
+    void (window as any).kulisa.invoke('task:show', o);
   }))); }, other);
   await expect.poll(() => core((k, key) => k.shell.task?.key === key && k.shell.task.loaded, other)).toBe(true);
-  await expect.poll(saved).toBe(shape(JSON.parse(columns))); // saved as it was left: it comes as the grid is taken down
-  // Back: built again as it was left.
+  await expect.poll(saved).toBe('right');
   await invoke(ui, 'task:show', task);
   await expect.poll(() => core((k, key) => k.shell.task?.key === key, task)).toBe(true);
   await notLoading(ui);
-  await expect.poll(async () => shape(JSON.parse(await ui.evaluate(() => JSON.stringify((window as any).__dock.toJSON().grid.root))))).toBe(shape(JSON.parse(columns)));
-  await arrange(ui, 'grid');
-  await expect.poll(saved).not.toBe(shape(JSON.parse(columns)));
+  await arrange(ui, 'left');
+  await expect.poll(saved).toBe('left');
 });

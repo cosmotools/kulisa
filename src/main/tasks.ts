@@ -29,6 +29,7 @@ import type { GitError } from './worktrees.ts';
 import type { Shell, AgentChoice } from './shell.ts';
 import type * as Sent from '../shared/types.ts'; // what the window gets: its one definition
 import { refused } from '../shared/result.ts';
+import type { StageLayout, StagePosition } from '../shared/ipc.ts';
 import type { Result } from '../shared/result.ts';
 
 type AgentState = 'working' | 'waiting' | 'done' | null;
@@ -79,6 +80,15 @@ class Task {
     this.front = null; this.lastAgent = null;
     this.list = new ProjectProfiles(this.store, shell.profileStore, project.id, this._profileHooks());
     this.profiles = this.list.profiles; this.closed = this.list.closed;
+  }
+  arrangeStage(layout?: StageLayout, overflow?: boolean, position?: StagePosition): Result {
+    if (layout === undefined && overflow === undefined && position === undefined) return { error: 'choose a stage position, layout or overflow' };
+    if (layout !== undefined && !['vertical', 'tabs', 'horizontal'].includes(layout)) return { error: 'unknown stage layout' };
+    if (overflow !== undefined && typeof overflow !== 'boolean') return { error: 'overflow must be true or false' };
+    if (!this.shown()) return { error: 'this task is not on screen; ask the human to show it before arranging its stage' };
+    if (position !== undefined && !['left', 'right', 'above'].includes(position)) return { error: 'unknown stage position' };
+    this.window!.send('stage:arrange', { task: this.key, layout, overflow, position });
+    return {};
   }
   shown() { return this.window?.task === this; }
   // Into another window (app.ts, Move to New Window), running: its profiles' pages go there, hidden until that window

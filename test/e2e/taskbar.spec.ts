@@ -2,7 +2,7 @@
 import path from 'path';
 import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
-import { MAC, frames, ipcSettled, menu, item, choose, closeMenu, rightClick, fromSidebar, openSidebar, closeSidebar, sidebar, taskRow, rowButton, focusWindow, viewOn, termShows, invoke, notLoading, answer, removed, termKeys, resize } from './helpers.ts';
+import { MAC, frames, ipcSettled, menu, item, choose, closeMenu, rightClick, fromSidebar, openSidebar, closeSidebar, sidebar, taskRow, rowButton, focusWindow, viewOn, termShows, invoke, notLoading, answer, removed, termKeys, resize, windowSubmenu } from './helpers.ts';
 import { committed, rand, keyAt, isNth, nthShown, taskTab, hook, begin, bothOn, newTask } from './tasks-helpers.ts';
 
 // The tab chosen (lit) in the bar.
@@ -149,6 +149,7 @@ test('tasks: switching shows the other grid at once, its pages live once it is l
   await invoke(ui, 'task:show', second);
   await expect.poll(live).toBe(true);
   expect(await ui.evaluate(() => { const w = window as any; w.__watching = false; return w.__empty; }), 'frames with no grid').toBe(0);
+  await bothOn(core, ui, files);
   // A page that draws no frame (busy, covered) holds a menu's pictures no longer than three times what the others
   // take (a tenth of a second at least), its pane then empty: half a second is felt after each click.
   // Their pace, not a fixed time: a loaded machine takes over a tenth of a second for a picture.
@@ -312,16 +313,38 @@ test("tasks: a double click on a task's tab is its Rename…, the shown one's an
   }
 });
 
+test('the title bar keeps a full task tab beside Stage in the room left by window controls', async ({ core, ui, files }) => {
+  await begin(core, ui, files, { columns: true, featureX: true });
+  const before = await resize(core, { width: 640 });
+  try {
+    await invoke(ui, 'bar:set', 'top');
+    // The available title-bar width excludes the left caption-button inset.
+    await ui.locator('#topbar').evaluate((el) => { el.style.width = 'calc(env(titlebar-area-x, 0px) + 480px)'; });
+    await expect(chosen(ui)).toBeInViewport({ ratio: 1 });
+    await expect(ui.getByRole('button', { name: 'Stage', exact: true })).toBeVisible();
+  } finally {
+    await ui.locator('#topbar').evaluate((el) => el.style.removeProperty('width'));
+    await invoke(ui, 'bar:set', 'bottom');
+    await resize(core, before);
+  }
+});
+
 test('menus: one longer than the window has stays in it and scrolls', async ({ core, ui }) => {
-  // A menu longer than the window (thirty closed tasks) must not run past its edge, its first rows out of reach
-  // above. Any menu: ☰'s here, in the lowest window.
+  // Language has enough choices to overflow the minimum-height window independently of the window menu's rows.
   const before = await resize(core, { height: 400 });
   try {
     await expect.poll(() => ui.evaluate(() => innerHeight)).toBeLessThanOrEqual(400); // Playwright knows no viewport here (noDefaults)
-    await ui.locator('#windowMenu').click();
-    await expect(menu(ui)).toBeInViewport({ ratio: 1 });
-    // Its rows scroll, in the menu itself (Playwright reads no scroll).
-    expect(await menu(ui).evaluate((m) => m.scrollHeight > m.clientHeight)).toBe(true);
+    const languages = await windowSubmenu(ui, 'Language');
+    await expect(languages).toBeInViewport({ ratio: 1 });
+    await ui.keyboard.press('Home');
+    const choices = languages.getByRole('menuitemradio');
+    await expect(choices.first()).toBeInViewport({ ratio: 1 });
+    await expect(choices.last()).not.toBeInViewport();
+    await ui.keyboard.press('End');
+    await expect(choices.last()).toBeInViewport({ ratio: 1 });
+    await ui.keyboard.press('Home');
+    await expect(choices.first()).toBeInViewport({ ratio: 1 });
+    await ui.keyboard.press('Escape');
     await closeMenu(ui);
   } finally { await resize(core, before); }
 });
