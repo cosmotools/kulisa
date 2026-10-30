@@ -5,9 +5,9 @@
 import type { ComponentType, ReactNode } from 'react';
 import { BookOpenIcon, BugIcon, GitBranchIcon, InfoIcon, KeyboardIcon, LanguagesIcon, LogOutIcon, MenuIcon,
   MinusIcon, PanelBottomIcon, PlusIcon, SettingsIcon, SunMoonIcon, ZoomInIcon } from 'lucide-react';
-import { Button, DropdownMenuItem, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuShortcut, DropdownMenuSub, DropdownMenuSubContent,
+import { Button, DropdownMenuItem, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuShortcut, DropdownMenuSub,
   DropdownMenuSubTrigger, Toggle, Item, ItemContent, ItemDescription, ItemTitle } from '@ui';
-import { ButtonMenu } from './Menus';
+import { ButtonMenu, SubmenuContent } from './Menus';
 import { Tip } from './Tip';
 import { Logo } from './ProjectIcon';
 import { useWindow } from '../lib/store';
@@ -43,14 +43,14 @@ function ChoiceRow({ name, icon: Icon, label, title, choices, chosen, choose }: 
     <DropdownMenuSubTrigger aria-label={label} title={title} data-testid={`${name}-row`}>
       <Icon />{label}<DropdownMenuShortcut>{choices.find((c) => c.value === chosen)?.label}</DropdownMenuShortcut>
     </DropdownMenuSubTrigger>
-    <DropdownMenuSubContent aria-label={label}>
+    <SubmenuContent aria-label={label}>
       <DropdownMenuRadioGroup value={chosen} onValueChange={(v) => void choose(v)}>
         {choices.map((c) => <DropdownMenuRadioItem key={c.value} value={c.value} title={c.title} aria-label={c.label} {...{ [`data-${name}`]: c.value }}
           onSelect={(e) => e.preventDefault()}>
           {c.sub ? <Item size="xs"><ItemContent><ItemTitle>{c.label}</ItemTitle><ItemDescription>{c.sub}</ItemDescription></ItemContent></Item> : c.label}
         </DropdownMenuRadioItem>)}
       </DropdownMenuRadioGroup>
-    </DropdownMenuSubContent>
+    </SubmenuContent>
   </DropdownMenuSub>;
 }
 

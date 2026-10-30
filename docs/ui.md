@@ -112,6 +112,8 @@ A command with a key says it at the end of its tooltip, as Chrome's toolbar: `wi
 
 ## Menus
 
+`SubmenuContent` includes the component's padding in Radix's available-height limit so long choices scroll inside the window.
+
 `Menus.tsx`, on shadcn's `DropdownMenu`: a button's (`ButtonMenu`: `items` built as it opens; `end`: its end edge at
 the button's), an area's right-click menu at the pointer (`RightClickMenu`: `items(e)` the rows for what was
 right-clicked, or `null`), one at a point (`menuAt(e, items)`, `lib/menu.ts`: a link in the terminal, a screenshot's

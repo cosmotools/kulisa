@@ -317,8 +317,7 @@ test('the window menu: its rows and icons, links in the browser and Exit asking 
   const opened = () => core((k) => [...k.openedExternally]);
   const wasOpened = (await opened()).length;
   await ui.locator('#windowMenu').click();
-  // Theme, Tasks bar and Language each a menu beside its row (helpers.ts, windowSubmenu); the arrangements a row each,
-  // the full words in the tooltip. No Exit on macOS: ⌘Q and the app menu's Quit there (components/TopBar.tsx).
+  // macOS puts Quit in the app menu (⌘Q), so the window menu has no Exit row.
   await expect(menu(ui)).toMatchAriaSnapshot(`
     - menu:
       - group "Zoom":

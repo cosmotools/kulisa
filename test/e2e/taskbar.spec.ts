@@ -2,7 +2,7 @@
 import path from 'path';
 import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
-import { MAC, frames, ipcSettled, menu, item, choose, closeMenu, rightClick, fromSidebar, openSidebar, closeSidebar, sidebar, taskRow, rowButton, focusWindow, viewOn, termShows, invoke, notLoading, answer, removed, termKeys, resize } from './helpers.ts';
+import { MAC, frames, ipcSettled, menu, item, choose, closeMenu, rightClick, fromSidebar, openSidebar, closeSidebar, sidebar, taskRow, rowButton, focusWindow, viewOn, termShows, invoke, notLoading, answer, removed, termKeys, resize, windowSubmenu } from './helpers.ts';
 import { committed, rand, keyAt, isNth, nthShown, taskTab, hook, begin, bothOn, newTask } from './tasks-helpers.ts';
 
 // The tab chosen (lit) in the bar.
@@ -314,15 +314,21 @@ test("tasks: a double click on a task's tab is its Rename…, the shown one's an
 });
 
 test('menus: one longer than the window has stays in it and scrolls', async ({ core, ui }) => {
-  // A menu longer than the window (thirty closed tasks) must not run past its edge, its first rows out of reach
-  // above. Any menu: ☰'s here, in the lowest window.
+  // Language has enough choices to overflow the minimum-height window independently of the window menu's rows.
   const before = await resize(core, { height: 400 });
   try {
     await expect.poll(() => ui.evaluate(() => innerHeight)).toBeLessThanOrEqual(400); // Playwright knows no viewport here (noDefaults)
-    await ui.locator('#windowMenu').click();
-    await expect(menu(ui)).toBeInViewport({ ratio: 1 });
-    // Its rows scroll, in the menu itself (Playwright reads no scroll).
-    expect(await menu(ui).evaluate((m) => m.scrollHeight > m.clientHeight)).toBe(true);
+    const languages = await windowSubmenu(ui, 'Language');
+    await expect(languages).toBeInViewport({ ratio: 1 });
+    await ui.keyboard.press('Home');
+    const choices = languages.getByRole('menuitemradio');
+    await expect(choices.first()).toBeInViewport({ ratio: 1 });
+    await expect(choices.last()).not.toBeInViewport();
+    await ui.keyboard.press('End');
+    await expect(choices.last()).toBeInViewport({ ratio: 1 });
+    await ui.keyboard.press('Home');
+    await expect(choices.first()).toBeInViewport({ ratio: 1 });
+    await ui.keyboard.press('Escape');
     await closeMenu(ui);
   } finally { await resize(core, before); }
 });
