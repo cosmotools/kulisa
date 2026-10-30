@@ -33,14 +33,24 @@ test('context menus: a pane\'s header, a tab, the terminal; pages are pictures w
       - menuitem "Sign In to Master…"
       - menuitem "Close profile"
       - menuitem "Remove from Project…"`;
-  await rightClick(ui, header);
-  await expect(menu(ui)).toMatchAriaSnapshot(headerMenu);
-  const h = await ui.locator(header).boundingBox(), m = await menu(ui).boundingBox();
-  // Its list inset by the menu's padding and ring.
-  expect(Math.abs(m.x - (h.x + h.width / 2)) <= 8 && Math.abs(m.y - (h.y + h.height / 2)) <= 8, 'at the pointer').toBe(true);
-  // The pages are native views above the menu: pictures of them stand in meanwhile.
-  expect(await elonVisible()).toBe(false);
-  await expect(ui.locator(`[role="region"][data-profile="${elonId}"] [data-testid="page"] [data-testid="snapshot"]`)).toHaveCount(1);
+  // Exercise a capture that answers within the menu's budget; grid.spec.ts covers pages that give no picture.
+  await core(async (k) => {
+    const wc = k.profile('Elon.buyer').get().wc, capture = wc.capturePage, picture = await wc.capturePage();
+    k.stash.restoreCapture = () => { wc.capturePage = capture; };
+    wc.capturePage = async () => picture;
+  });
+  try {
+    await rightClick(ui, header);
+    await expect(menu(ui)).toMatchAriaSnapshot(headerMenu);
+    const h = await ui.locator(header).boundingBox(), m = await menu(ui).boundingBox();
+    // Its list inset by the menu's padding and ring.
+    expect(Math.abs(m.x - (h.x + h.width / 2)) <= 8 && Math.abs(m.y - (h.y + h.height / 2)) <= 8, 'at the pointer').toBe(true);
+    // The pages are native views above the menu: pictures of them stand in meanwhile.
+    expect(await elonVisible()).toBe(false);
+    await expect(ui.locator(`[role="region"][data-profile="${elonId}"] [data-testid="page"] [data-testid="snapshot"]`)).toHaveCount(1);
+  } finally {
+    await core((k) => { k.stash.restoreCapture(); delete k.stash.restoreCapture; });
+  }
   // Another menu right from this one: the pages stay pictures.
   await ui.locator('#windowMenu').click();
   await expect(menu(ui).getByTestId('zoom-row')).toBeVisible();
