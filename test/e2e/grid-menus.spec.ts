@@ -7,8 +7,8 @@ import url from 'url';
 import type { Locator, Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
-import { SITE, MAC, WIN, frames, seen, ipcSettled, echoed, menu, anyMenu, item, choose, closeMenu, rightClick, focusWindow, pageBox, viewOn, answer, removed, termKeys, termText, shortcutsDialog } from './helpers.ts';
-import { SAM, ELON, begin } from './tasks-helpers.ts';
+import { SITE, MAC, WIN, frames, seen, ipcSettled, echoed, menu, anyMenu, item, choose, closeMenu, rightClick, focusWindow, answer, removed, termKeys, termText, shortcutsDialog } from './helpers.ts';
+import { ELON, begin, bothOn } from './tasks-helpers.ts';
 
 const menuOpen = (ui: Page) => menu(ui).isVisible();
 // The middle of an element, where the hand presses it with Playwright's mouse (a press and a release apart, which a
@@ -22,7 +22,7 @@ async function sentAll(core: Core, ui: Page) {
   await echoed(core, { send: (mark) => ui.evaluate(async ([t, m]) => { await navigator.clipboard.readText().catch(() => ''); (window as any).kulisa.send('pty:in', { task: t, data: m }); }, [task, mark]) });
 }
 
-test('context menus: a pane\'s header, a tab, the terminal; pages are pictures while a menu is open; Arrange panels in ☰; Exit', async ({ core, ui, files }) => {
+test('context menus: a pane\'s header, a tab, the terminal; pages are pictures while a menu is open; Arrange workspace in ☰; Exit', async ({ core, ui, files }) => {
   await begin(core, ui, files, { columns: true });
   const elonId = files.idOf(ELON), header = `[data-panel="${files.panel(ELON)}"]`;
   const elonVisible = () => core((k) => k.profile('Elon.buyer').get().view.getVisible());
@@ -311,10 +311,9 @@ ${names.map((x) => `      - menuitem ${JSON.stringify(`Open in ${x}`)}`).join('\
       - menuitem "Theme"
       - menuitem "Tasks bar"
       - menuitem "Language"
-      - text: Arrange panels
-      - menuitem "Columns"
-      - menuitem "Two by two"
-      - menuitem "One at a time"
+      - text: Arrange workspace
+      - menuitem "Stage above"
+      - menuitem "Stage beside"
       - menuitem "Keyboard Shortcuts"
       - menuitem "Documentation"
       - menuitem "GitHub"
@@ -323,10 +322,10 @@ ${names.map((x) => `      - menuitem ${JSON.stringify(`Open in ${x}`)}`).join('\
       - menuitem "Exit"`}`);
   expect(await menu(ui).getByRole('menuitem').evaluateAll((rs) => rs.filter((r) => !r.querySelector('svg')).map((r) => r.ariaLabel || r.textContent)), 'each row with its icon').toEqual([]);
   const presets = menu(ui).locator('[data-preset]');
-  expect(await presets.evaluateAll((bs) => bs.map((b) => !!(b as HTMLElement).title && !!b.querySelector('svg'))), 'a tooltip and an icon each').toEqual([true, true, true]);
-  await anyMenu(ui).locator('[data-preset="focus"]').click();
+  expect(await presets.evaluateAll((bs) => bs.map((b) => !!(b as HTMLElement).title && !!b.querySelector('svg'))), 'a tooltip and an icon each').toEqual([true, true]);
+  await anyMenu(ui).locator('[data-preset="columns"]').click();
   await expect(anyMenu(ui), 'a choice closes the menu').toHaveCount(0);
-  await expect.poll(async () => (await pageBox(ui, files, ELON)) === null && viewOn(core, ui, files, SAM)).toBe(true);
+  await bothOn(core, ui, files);
   // ☰'s links open in the user's browser.
   await ui.locator('#windowMenu').click();
   await expect(menu(ui)).toBeVisible();

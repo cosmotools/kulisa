@@ -207,8 +207,8 @@ export async function taskMenu(ui: Page) {
   return menu(ui);
 }
 
-// The panels arranged as the human does it: ☰ → Arrange panels.
-export async function arrange(ui: Page, preset: 'columns' | 'grid' | 'focus') {
+// The panels arranged as the human does it: ☰ → Arrange workspace.
+export async function arrange(ui: Page, preset: 'columns' | 'grid') {
   await ui.locator('#windowMenu').click();
   await menu(ui).locator(`[data-preset="${preset}"]`).click();
 }

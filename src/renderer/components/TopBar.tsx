@@ -3,8 +3,8 @@
 // titleBarOverlay in window.ts, 44 px there). No logo on macOS: its apps show their icon in the Dock; Exit only where
 // the OS has no menu bar with Quit (macOS: Cmd+Q).
 import type { ComponentType, ReactNode } from 'react';
-import { BookOpenIcon, BugIcon, Columns3Icon, GitBranchIcon, Grid2x2Icon, InfoIcon, KeyboardIcon, LanguagesIcon, LayoutDashboardIcon, LogOutIcon, MenuIcon,
-  MinusIcon, PanelBottomIcon, PlusIcon, SettingsIcon, SquareIcon, SunMoonIcon, ZoomInIcon } from 'lucide-react';
+import { BookOpenIcon, BugIcon, GitBranchIcon, InfoIcon, KeyboardIcon, LanguagesIcon, LayoutDashboardIcon, LogOutIcon, MenuIcon,
+  MinusIcon, PanelBottomIcon, PanelLeftIcon, PlusIcon, SettingsIcon, SunMoonIcon, ZoomInIcon } from 'lucide-react';
 import { Button, DropdownMenuItem, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuShortcut, DropdownMenuSub, DropdownMenuSubContent,
   DropdownMenuSubTrigger, Toggle, Item, ItemContent, ItemDescription, ItemTitle } from '@ui';
 import { ButtonMenu } from './Menus';
@@ -83,9 +83,8 @@ function LanguageRow() {
 
 // The ready-made arrangements of the panels (lib/grid.ts, presets).
 const PRESETS = [
-  { preset: 'columns', label: 'Columns', title: 'Environments in columns, development terminal below', icon: Columns3Icon },
-  { preset: 'grid', label: 'Two by two', title: 'Environments two by two, development terminal right', icon: Grid2x2Icon },
-  { preset: 'focus', label: 'One at a time', title: 'One environment at a time (the others as tabs), development terminal below', icon: SquareIcon },
+  { preset: 'columns', label: 'Stage above', title: 'Stage above development terminals and Resources', icon: PanelBottomIcon },
+  { preset: 'grid', label: 'Stage beside', title: 'Stage left of development terminals and Resources', icon: PanelLeftIcon },
 ] as const;
 const ArrangeRows = () => PRESETS.map(({ preset, label, title, icon: Icon }) =>
   <DropdownMenuItem key={preset} data-preset={preset} title={title} onSelect={() => applyPreset(preset)}><Icon />{label}</DropdownMenuItem>);
@@ -97,7 +96,7 @@ const LINKS = [
 ];
 const windowMenu = (): MenuItem[] => [
   { component: ZoomRow }, { component: ThemeRow }, { component: BarRow }, { component: LanguageRow },
-  '-', { heading: 'Arrange panels', icon: LayoutDashboardIcon }, { component: ArrangeRows },
+  '-', { heading: 'Arrange workspace', icon: LayoutDashboardIcon }, { component: ArrangeRows },
   '-', { label: 'Keyboard Shortcuts', icon: KeyboardIcon, keys: keyText('shortcuts'), run: async () => (await dialog('shortcuts')).showShortcuts() },
   '-', ...LINKS.map((l) => ({ label: l.label, icon: l.icon, run: () => { open(l.href); } })),
   { label: 'Report a Problem…', icon: BugIcon, title: 'The log of what Kulisa did, and how to send it', run: () => openSettings('log') },

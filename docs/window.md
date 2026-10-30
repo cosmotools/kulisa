@@ -63,13 +63,21 @@ move or stack panels within its grid; drag a sash to resize them. Profile panes 
 panels in the workspace. The empty stage is absent; opening the first profile adds it, closing the last removes it.
 A new task opens only its default development terminal.
 
-**☰ → Arrange panels** places profiles in columns above the development terminal, two by two beside it, or stacked
-as tabs above it. Resources sits beside the development terminal, or under it when the terminal is on the right.
-It keeps at least its header's height, so it can fold with the development terminal's row. A hidden stage or profile
-panel hides its native browser views; both grids' layout and visibility changes report the profile content boxes
-to the main process (`lib/grid.ts`). Dragging in either grid turns pages into pictures for HTML drop targets.
+**☰ → Arrange workspace** places the stage above development terminals with Resources beside them, or beside
+them with Resources below. It preserves the stage's layout. **Arrange stage** in its header offers **Column**
+(vertical stack), **Tabs** (one environment at a time), and **Row** (side by side with horizontal scrolling),
+preserving the workspace. Resources keeps at least its header's height so it can fold with the development terminal.
+The human's `stage:arrange` IPC and the agent's `stage_arrange` tool call `Task.arrangeStage`: only the shown task
+with an open environment can be arranged; the task-scoped event reaches that window's stage.
 
-`layout.json` keeps both grids (`version: 2`, `workspace`, `stage`), saved 300 ms after a change and flushed when the
+Row allocates at least 600 CSS pixels per environment; Dockview's sashes resize the panes. `Stage.tsx` sizes the inner
+grid inside a horizontal viewport. Its scroll and both grids' layout changes report page bounds and their visible
+intersection (`lib/grid.ts`). `Profile` puts a partially visible page inside a native `View` at that intersection;
+the child keeps its full viewport, offset within the parent. Fully offscreen pages are hidden. The clipping parent
+is removed when the page fits, the profile closes, or it moves to another window. Dragging in either grid turns
+pages into pictures for HTML drop targets.
+
+`layout.json` keeps both grids (`version: 2`, `workspace`, `stage`, `stageLayout`), saved 300 ms after a change and flushed when the
 task is left. `lib/stage-layout.ts` separates a flat saved layout into development and testing groups, retaining
 panel order, stacking and sizes. An invalid grid falls back to its default arrangement.
 
@@ -165,7 +173,7 @@ built: [ui.md](ui.md), Menus):
 
 - a task tab's right-click menu ([tasks.md](tasks.md), Projects, "A tab's right-click menu"), a project's and a task's
   row's in the sidebar ([tasks.md](tasks.md), The sidebar), ☰ (as Chrome's ⋮, each row with its icon: the zoom row;
-  Theme, Tasks bar and Language, rows each opening a menu beside it, the choice at the row's end; Arrange panels,
+  Theme, Tasks bar and Language, rows each opening a menu beside it, the choice at the row's end; Arrange workspace,
   Keyboard Shortcuts, the links (Documentation, the user guide on kulisa.app; GitHub; one list in `TopBar.tsx`),
   Report a Problem… (Settings at its Log page: not everyone has a GitHub account, and an issue without the log says
   little), About Kulisa (below), and Exit, which quits as the last window's × does; not on macOS, where Cmd+Q and the
@@ -544,7 +552,7 @@ window it comes from (`event.sender`); one change to the open tasks after anothe
 | `src/main/keys.ts` | the keyboard shortcuts: the table, which key an input event is; `shortcuts.ts` takes them (Keys) |
 | `src/terminal/` | the terminal, a Kulisa package: its pty, its buffers, the xterm shown ([README](../src/terminal/README.md)) |
 | `src/main/file-links.ts` | the paths a terminal names: which exist, opening one or showing it in its folder (The terminal) |
-| `src/renderer/components/Grid.tsx`, `components/grid/`, `lib/grid.ts` | the grid (dockview), the panes and their headers, the terminals (`grid/Terminals.tsx`: `Terminals`, its row of tabs `TerminalsHeader`), the closed profiles' buttons over it (`ClosedProfiles`, `Grid.tsx`), Arrange panels |
+| `src/renderer/components/Grid.tsx`, `components/grid/`, `lib/grid.ts` | the grid (dockview), the panes and their headers, the terminals (`grid/Terminals.tsx`: `Terminals`, its row of tabs `TerminalsHeader`), the closed profiles' buttons over it (`ClosedProfiles`, `Grid.tsx`), Arrange workspace |
 | `src/renderer/components/grid/Resources.tsx` | Resources next to the terminal: the shown task's resources (its worktree(s) or the main working tree) and its artifacts, each with its actions (tasks.md) |
 | `src/renderer/components/TopBar.tsx`, `ProjectIcon.tsx` | the title bar, ☰ and its own rows; the logo, a project's icon |
 | `src/renderer/components/Menus.tsx`, `Ask.tsx`, `lib/menu.ts`, `project-menu.ts`, `cover.ts`, `views.ts`, `ask.ts`, `terminals.ts` | the menus (`project-menu.ts`: a project's, the sidebar's and a tab's), the dialogs and questions (shadcn's: `cover.ts`), the pages under them in a tasks' window (`views.ts`), a tasks' window's terminals (`terminals.ts`) |

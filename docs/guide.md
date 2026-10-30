@@ -66,15 +66,17 @@ project, and those you closed, are in the sidebar (Tasks, below).
 - **The title bar**: the Kulisa logo in the shown project's color (not on a Mac, where Kulisa's icon is in the Dock),
   the tasks' bar if you put it there, **Settings** (the gear; not at the very first
   start, while there is nothing to set yet), and **☰**, the window's menu: zoom, theme, where the tasks' bar is,
-  language, Arrange panels, Keyboard Shortcuts, links, About Kulisa, Exit. On a Mac there is no Exit: **⌘Q** quits
+  language, Arrange workspace, Keyboard Shortcuts, links, About Kulisa, Exit. On a Mac there is no Exit: **⌘Q** quits
   Kulisa, and closing the last window only hides it, while your agents go on working; click Kulisa's icon in the Dock
   to bring it back.
 - **Settings** (on a Mac also ⌘, or Kulisa → Settings… in the menu bar) fills the window, over your task, and shows that task's project: set what you need and close it (**Esc**,
   the ← arrow at its top left, or the gear again; what you typed is saved as you go). Your task goes on meanwhile, and is there as you left it.
 - **The grid** separates development from testing: your agents' terminals and Resources sit beside the **stage**,
   where browser profiles show the app being tested. Drag headers to move or stack panes within the stage, or move
-  the stage itself beside your development panels. Drag a line to resize panes. **☰ → Arrange panels** offers
-  ready-made arrangements. Each task keeps both layouts. The empty stage stays hidden; you or your agent opens a
+  the stage itself beside your development panels. Drag a line to resize panes. **☰ → Arrange workspace** places the stage above or beside your development panels.
+  **Arrange stage** in the stage header offers **Column** (a vertical stack), **Tabs** (one environment at a time),
+  and **Row** (side by side with horizontal scrolling). Your agent can arrange the stage too. Each task keeps both
+  layouts and its stage mode. The empty stage stays hidden; you or your agent opens a
   profile when needed.
 - **Resources**, next to the terminal (beside it, or under it when the terminal is on the right): what the task works in (its copy of the code, or your project's folder until
   it has one), a click opens its folder; and under **Artifacts**, what you and the agent kept of the pages:

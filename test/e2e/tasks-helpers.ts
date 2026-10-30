@@ -9,7 +9,7 @@ import { expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import type { Core, Call } from './fixtures.ts';
 import type { Files } from './data.ts';
-import { SITE, answer, invoke, notLoading, viewOn, arrange } from './helpers.ts';
+import { SITE, answer, invoke, notLoading, viewOn, arrange, stageDock } from './helpers.ts';
 
 export const SAM = 'Sam.admin', ELON = 'Elon.buyer';
 export const rand = () => crypto.randomBytes(3).toString('hex');
@@ -152,7 +152,12 @@ export async function begin(core: Core, ui: Page, files: Files, { columns = fals
   if (columns) await expect(ui.locator('[data-panel^="profile:"]')).toHaveCount(2); // a pane stacked behind another has no .pane drawn
   await notLoading(ui);
   // Columns first: a page stacked behind another's tab is never laid out, and ensureProfile waits for that.
-  if (columns) await arrange(ui, 'columns');
+  if (columns) {
+    await arrange(ui, 'columns');
+    await invoke(ui, 'stage:arrange', { task: await core((k) => k.shell.task.key), layout: 'column' });
+    // The fixture's two panes side by side: Dockview's move is also covered by the grid drag tests.
+    await stageDock(ui, (api, ids) => api.getPanel(ids[1]).api.moveTo({ group: api.getPanel(ids[0]).group, position: 'right' }), [files.panel(SAM), files.panel(ELON)]);
+  }
   const ids = await core(async (k, site) => ({
     sam: (await k.ensureProfile('Sam.admin', `${site}/app/login?name=sam`)).id,
     elon: (await k.ensureProfile('Elon.buyer', `${site}/app`)).id,

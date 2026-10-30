@@ -159,6 +159,8 @@ draws it); and a caption over the pane for every command through the proxy. The 
 
 ## Task history
 
+Stage arrangements use the caller’s task action through `stage_arrange` (`tools/task.ts`); the human’s stage menu calls the same action.
+
 **`task_history(conversation, part)`**, a tool of Kulisa's MCP server (`tools/task.ts`, `history.ts`), gives a text
 in parts of about 40,000 characters (10,000 tokens: under what agents take from one tool's result). Part 1 says how
 many there are. The whole text is made at part 1 and kept in memory with the task, so the next parts stay the same
