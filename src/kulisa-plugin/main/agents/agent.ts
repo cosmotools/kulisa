@@ -62,13 +62,6 @@
 //                            codes it takes; set(dir, code), into an account's config folder
 import type { Conversation } from '../transcripts.ts';
 
-// Kulisa's MCP tools that keep the agent's own approval (docs/profiles.md, The agent's tools):
-// shell_run runs any command in the human's shell, around the agent's approval of commands (and Codex's sandbox);
-// Application launch/restart and input can run commands through a CLI too;
-// browser_file_upload sends a file of the disk to a site, what a prompt injection would use. Every other tool runs
-// without a question, a new one too unless it is added here: what acts on real accounts asks the human in Kulisa itself.
-const KULISA_ASKS = ['shell_run', 'browser_file_upload', 'terminal_run', 'terminal_input'];
-
 // A conversation as agent.json keeps it: its session as the agent's hooks reported it (agent-hooks.ts), and its
 // account's folder.
 interface Saved { sessionId?: string; transcript?: string; started?: boolean; configDir?: string | null }
@@ -122,4 +115,4 @@ const CAPABILITIES = ['config', 'hooks', 'skills', 'resume', 'prompt', 'dirs', '
 type Capability = typeof CAPABILITIES[number];
 
 export type { Agent, Found, Where, ForgetContext, Hook, HookEvent };
-export { KULISA_ASKS, CAPABILITIES, hookSeconds, hookCommand };
+export { CAPABILITIES, hookSeconds, hookCommand };

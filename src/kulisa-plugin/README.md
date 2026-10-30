@@ -37,13 +37,9 @@ listing, the one source; how a tool is designed: [Tool design](#tool-design).
 
 **The agent does not ask the human before Kulisa's tools**: it works in the profiles while the
 human watches or is away, and a question at every click undoes that; what acts on real accounts asks in Kulisa itself
-(`profile_delete`, the sign-in pause). Command execution and file upload keep the agent's own approval (`KULISA_ASKS`, `agents/`):
-`shell_run`, `terminal_run` and `terminal_input`, commands in the human's shell or an application CLI, which would get around the agent's approval of commands (and
-Codex's sandbox: the command runs in Kulisa's terminal); `browser_file_upload`, a file of the disk sent to a site, what
-a prompt injection would use. A new tool runs without a question unless it is added there. Through the start's
-arguments, as the MCP server and the hooks are, not the agents' own config files: Claude Code's `permissions` in
-`--settings` (allow the plugin's server, `mcp__plugin_kulisa_kulisa`; ask these tools: an ask rule wins), Codex's
-`mcp_servers.kulisa.default_tools_approval_mode="approve"` and `prompt` for these tools.
+(`profile_delete`, the sign-in pause). All Kulisa tools are approved through the agent’s launch arguments, including command execution, terminal input and file upload.
+Claude Code’s `--settings` allows the plugin’s server (`mcp__plugin_kulisa_kulisa`); Codex receives
+`mcp_servers.kulisa.default_tools_approval_mode="approve"`. These overrides are scoped to Kulisa sessions.
 
 What the tools are for, beyond acting as one user:
 
@@ -305,8 +301,8 @@ A new tool, or a change to one, meets all of these:
   up").
 - **Clear when it fails.** The error says what is wrong and what to do: which profiles there are, that the human is
   signing in.
-- **Safe.** It acts within its task only. Where it reaches the disk or a shell, the agent's own approval applies
-  (`KULISA_ASKS`, [profiles.md](../../docs/profiles.md)); where it changes real accounts, Kulisa asks the human.
+- **Safe.** It acts within its task only. Core ownership and checks apply to both window and agent actions;
+  where it changes real accounts, Kulisa asks the human.
 - **Tested.** Its behavior has a test ([testing.md](../../docs/testing.md)). Its log line needs no code: `registerTool` writes it.
 
 ### Saving the agent's context

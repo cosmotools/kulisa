@@ -248,6 +248,7 @@ it ends: the question links the GitHub page where you revoke it at once.
 - **Its name** is `task-1`, `task-2` … until the agent names it, by itself and without a word about it, once your
   message says what the task is about, or you do (**Rename…** in its tab's right-click menu, or a double click on its tab). The branch takes the name too. Until it has a name,
   holding the pointer over its tab (or its row among the closed tasks) shows your first message in it.
+- **Using Kulisa’s tools.** Your agent can operate browsers, run commands, send terminal input and upload files without a tool approval prompt from Kulisa.
 - **Its state** on its tab: working (a spinner), waiting for you (an exclamation mark: a question, a permission, a
   limit), done (a check, until you look at the task).
 - **Switch** by clicking a tab, of any project. The other tasks keep running: their agents and pages go on.

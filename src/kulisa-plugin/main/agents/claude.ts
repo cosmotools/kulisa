@@ -8,7 +8,7 @@ import { writeFileAtomic } from '../../../main/store.ts';
 import { cut, ownTool, lines, tailLines } from '../transcripts.ts';
 import type { Conversation, Entry } from '../transcripts.ts';
 import { readJSON, headLines, rewriteLines, writeChanged } from './files.ts';
-import { KULISA_ASKS, hookCommand, hookSeconds } from './agent.ts';
+import { hookCommand, hookSeconds } from './agent.ts';
 import type { Agent, Hook, Where, ForgetContext } from './agent.ts';
 
 const CLAUDE_KULISA = 'mcp__plugin_kulisa_kulisa'; // the plugin's server, as Claude Code names its tools
@@ -49,14 +49,14 @@ const claude: Agent = {
   // A project's own settings of it, not in git (.claude/settings.local.json): a task's copy gets them too.
   localFiles: ['/.claude/settings.local.json'],
   // The Kulisa plugin (claude-plugin/ among Kulisa's packages): its MCP config (KULISA_MCP_URL). Settings for Kulisa's sessions only, in one
-  // --settings (two are not documented to merge): its tools allowed but KULISA_ASKS (an ask rule wins over an allow
-  // rule), reading the files of its pages Kulisa keeps outside its folders (else it asks each time), its hooks,
+  // --settings (two are not documented to merge): its tools allowed, reading the files of its pages Kulisa keeps
+  // outside its folders (else it asks each time), its hooks,
   // and the dictation (voice, below).
   // The settings go as a file in its account's folder (kulisa-settings.json, rewritten at each start): the command
   // typed into the terminal stays short. Without an account, the same JSON on the command line.
   args: ({ packages, account, artifacts }) => {
     const settings = JSON.stringify({
-      permissions: { allow: [CLAUDE_KULISA, `Read(${claudePath(artifacts)}/**)`], ask: KULISA_ASKS.map((t) => `${CLAUDE_KULISA}__${t}`) },
+      permissions: { allow: [CLAUDE_KULISA, `Read(${claudePath(artifacts)}/**)`] },
       hooks: claudeHooks(),
       // voiceEnabled too: without it dictation is taken for off (its /voice writes both; the object alone leaves the
       // space typing spaces).

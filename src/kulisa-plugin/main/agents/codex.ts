@@ -7,7 +7,7 @@ import { writeFileAtomic } from '../../../main/store.ts';
 import { cut, ownTool, lines } from '../transcripts.ts';
 import type { Conversation, Entry } from '../transcripts.ts';
 import { headLines, rewriteLines } from './files.ts';
-import { KULISA_ASKS, hookCommand, hookSeconds } from './agent.ts';
+import { hookCommand, hookSeconds } from './agent.ts';
 import type { Agent, Hook, Where } from './agent.ts';
 
 // Codex's hooks (its docs, learn.chatgpt.com/docs/hooks), as config overrides. Codex
@@ -33,10 +33,9 @@ const codex: Agent = {
   // install.ps1's folder on Windows, added to the user's PATH for later sessions only.
   ...(process.platform === 'win32' && { installDirs: [path.join(process.env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local'), 'Programs', 'OpenAI', 'Codex', 'bin')] }),
   // Kulisa's MCP server and hooks as config overrides (TOML values), not written into the user's ~/.codex/config.toml;
-  // its tools approved but KULISA_ASKS (its MCP docs: `approve` runs a tool without a question).
+  // its tools approved for autonomous work through Kulisa.
   args: ({ env }) => ['-c', `mcp_servers.kulisa.url="${env.KULISA_MCP_URL}"`, '-c', `hooks=${codexHooks()}`,
-    '-c', 'mcp_servers.kulisa.default_tools_approval_mode="approve"',
-    ...KULISA_ASKS.flatMap((t) => ['-c', `mcp_servers.kulisa.tools.${t}.approval_mode="prompt"`])],
+    '-c', 'mcp_servers.kulisa.default_tools_approval_mode="approve"'],
   hooks: CODEX_HOOKS,
   imagePaste: '\x16',
   // A project's own config of it (repository-scoped): a task's copy gets it when git ignores it.
