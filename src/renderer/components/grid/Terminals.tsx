@@ -1,6 +1,6 @@
 // The shown task's terminals, a panel of the grid, and its header (docs/window.md, The terminal). The xterms live as long
 // as their terminals (lib/terminals.ts), not as the panel: it shows the shown task's.
-import { createElement, useCallback, useEffect, useRef, useSyncExternalStore, type DragEvent, type Ref } from 'react';
+import { createElement, useCallback, useEffect, useLayoutEffect, useRef, useSyncExternalStore, type DragEvent, type Ref } from 'react';
 import { CheckIcon, PlusIcon } from 'lucide-react';
 import type { IDockviewPanelHeaderProps, IDockviewPanelProps } from 'dockview-react';
 import { Avatar, AvatarImage, Button, Item, ItemContent, ItemDescription, ItemMedia, ItemTitle, Spinner } from '@ui';
@@ -62,6 +62,15 @@ export function Terminals({ api, containerApi }: IDockviewPanelProps) {
   const starting = useWindow((s) => s.terminals.list.find((t) => t.id === s.terminals.front && t.starting)?.name);
   const shown = task !== null && front !== null ? `${task}#${front}` : null;
 
+  useLayoutEffect(() => {
+    // Dockview's retained panel catches up to its layout in a later frame; the program must start at that size.
+    panelView.isLaidOut = () => {
+      const grid = document.getElementById('grid');
+      return grid?.clientWidth === containerApi.width && grid?.clientHeight === containerApi.height
+        && host.current?.offsetWidth === api.width && host.current?.offsetHeight === api.height;
+    };
+    return () => { panelView.isLaidOut = undefined; };
+  }, [api, containerApi]);
   useEffect(() => { host.current!.append(panelView.el); }, []);
   useEffect(() => panelView.show(shown), [shown]);
   // The terminal in the panel's own color (the grid's: Grid.css), again when the shade changes.

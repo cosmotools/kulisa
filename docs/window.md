@@ -258,6 +258,9 @@ Code's settings are a page of their window: the window it is opened in is the on
 
 ## The terminal
 
+A terminal sends its first size once dockview's grid matches its current room and the retained panel's DOM matches
+its layout, so the program starts at the room it will keep when the panel is drawn.
+
 A task's terminals are one **panel** of the grid: the terminal in front, a **row of tabs** over it, the panel's header
 (`TerminalsHeader` and `Terminals` in `grid/Terminals.tsx`). One terminal is shown at a time, none
 split off into a panel of its own. Each is the user's shell in the task's folder (`src/terminal/`), an agent the human
