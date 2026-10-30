@@ -1,14 +1,14 @@
 // The task workspace: development terminals, Resources and a nested testing stage (docs/window.md, The grid).
 import { useEffect, useRef } from 'react';
-import { DockviewReact } from 'dockview-react';
+import { DockviewReact, GridviewReact, Orientation } from 'dockview-react';
 import 'dockview-react/dist/styles/dockview.css';
 import { TerminalSquareIcon, PlusIcon } from 'lucide-react';
 import { Avatar, AvatarImage, Button } from '@ui';
-import { Stage, StageHeader } from './grid/Stage';
+import { Stage } from './grid/Stage';
 import { dockTheme } from '../lib/dock-theme';
 import { Terminals, TerminalsHeader } from './grid/Terminals';
 import { Resources, ResourcesHeader } from './grid/Resources';
-import { gridMounted, gridUnmounted } from '../lib/grid';
+import { gridMounted, gridUnmounted, workspaceMounted } from '../lib/grid';
 import { useWindow } from '../lib/store';
 import { profileLaunchers } from '../lib/profiles';
 import { useStrip } from '../lib/strip';
@@ -16,11 +16,18 @@ import { avatarSrc } from '../lib/common';
 import { newApplication } from '../lib/environments';
 import './Grid.css';
 
-const components = { stage: Stage, terminal: Terminals, resources: Resources };
-const tabComponents = { stage: StageHeader, terminal: TerminalsHeader, resources: ResourcesHeader };
+const components = { terminal: Terminals, resources: Resources };
+const tabComponents = { terminal: TerminalsHeader, resources: ResourcesHeader };
 
-// The profiles' room folded to a row of buttons that open them, where the first one opens (above the terminal). With
-// no terminal either, they are the launchers' second row (grid/Terminals.tsx). More than fit scroll, as a strip of tabs.
+function Development() {
+  return <div id="grid" className="h-full min-h-0 min-w-0">
+    <DockviewReact theme={dockTheme} disableFloatingGroups singleTabMode="fullwidth" components={components}
+      tabComponents={tabComponents} onReady={(e) => gridMounted(e.api)} />
+  </div>;
+}
+const areas = { development: Development, stage: Stage };
+
+// Closed profiles stay reachable while a running terminal occupies the empty workspace.
 function ClosedProfiles() {
   const closed = useWindow((s) => s.closedProfiles), row = useRef<HTMLElement>(null);
   useStrip(row, null); // no button is the active one
@@ -37,14 +44,13 @@ export function Grid() {
   useEffect(() => gridUnmounted, []);
   const loading = useWindow((s) => s.loading);
   const folded = useWindow((s) => !!s.current && !s.profiles.length && !s.applications.length && s.terminals.list.length > 0);
-  // #grid: dockview's room (lib/grid.ts, room), under the closed profiles' row
   // min-w-0: a row wider than the window (many closed profiles) would stretch the window's column, the terminal and the
   // tasks' bar past its edge. Not shown until it is laid out (lib/grid.ts, reveal).
   return <main id="dock" className="flex min-h-0 min-w-0 flex-col aria-busy:opacity-0" aria-busy={loading || undefined}>
     {folded && <ClosedProfiles />}
-    <div id="grid" className="min-h-0 flex-1">
-      <DockviewReact theme={dockTheme} disableFloatingGroups singleTabMode="fullwidth" components={components}
-        tabComponents={tabComponents} onReady={(e) => gridMounted(e.api)} />
+    <div id="workspace" className="min-h-0 flex-1">
+      <GridviewReact components={areas} orientation={Orientation.VERTICAL} proportionalLayout
+        onReady={(e) => workspaceMounted(e.api)} />
     </div>
   </main>;
 }

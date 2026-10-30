@@ -64,22 +64,21 @@ project, and those you closed, are in the sidebar (Tasks, below).
 ## The window
 
 - **The title bar**: the Kulisa logo in the shown project's color (not on a Mac, where Kulisa's icon is in the Dock),
-  the tasks' bar if you put it there, **Settings** (the gear; not at the very first
+  the tasks' bar if you put it there, **Stage** (the layout icon) while a task is open, **Settings** (the gear; not at the very first
   start, while there is nothing to set yet), and **☰**, the window's menu: zoom, theme, where the tasks' bar is,
-  language, Arrange workspace, Keyboard Shortcuts, links, About Kulisa, Exit. On a Mac there is no Exit: **⌘Q** quits
+  language, Keyboard Shortcuts, links, About Kulisa, Exit. On a Mac there is no Exit: **⌘Q** quits
   Kulisa, and closing the last window only hides it, while your agents go on working; click Kulisa's icon in the Dock
   to bring it back.
 - **Settings** (on a Mac also ⌘, or Kulisa → Settings… in the menu bar) fills the window, over your task, and shows that task's project: set what you need and close it (**Esc**,
   the ← arrow at its top left, or the gear again; what you typed is saved as you go). Your task goes on meanwhile, and is there as you left it.
 - **The grid** separates development from testing: your agents' terminals and Resources sit beside the **stage**,
-  where browser profiles and application terminals show the app being tested. Drag headers to move or stack panes within the stage, or move
-  the stage itself beside your development panels. Drag a line to resize panes. **☰ → Arrange workspace** places the stage above or beside your development panels.
-  **Arrange stage** in the stage header (also in its right-click menu) offers **Horizontal stack** (side by side),
+  where browser profiles and application terminals show the app being tested. Drag headers to move or stack panes within each area. Drag a line to resize panes.
+  **Stage** in the title bar places the stage **Left**, **Right**, or **Above** the agent terminal and Resources together. Its **View** choices are **Horizontal stack** (side by side),
   **Vertical stack** (one above another), and **Tabs** (one environment at a time). **Allow overflow** keeps panes at a usable size and adds scrolling in the stack’s direction;
-  turned off, all panes fit inside the stage. Tabs hides this setting. Your agent can change both settings too.
-  Each task keeps both layouts, its stage mode and the overflow setting. The empty stage stays hidden; you or your agent can open an
-  environment when needed.
-- **Resources**, next to the terminal (beside it, or under it when the terminal is on the right): what the task works in (its copy of the code, or your project's folder until
+  turned off, all panes fit inside the stage. Tabs hides this setting. Your agent can change the position, view and overflow too.
+  Each task keeps both layouts, its stage position, size, view and overflow setting. The empty stage stays hidden; you or your agent can open a
+  environment when needed through **Stage → Open an environment**.
+- **Resources**, beside or under the terminal: what the task works in (its copy of the code, or your project's folder until
   it has one), a click opens its folder; and under **Artifacts**, what you and the agent kept of the pages:
   screenshots (with a small picture), snapshots of a page, the bodies of requests, the newest first, with whose page and
   when. A click opens one; a right-click offers **Open**, **Show in Folder**, **Send to Agent** and **Delete**.
@@ -388,7 +387,7 @@ profile's menu, also on a right-click) and **×**. Under it, a tab strip, then b
 
 ## Testing a command-line application
 
-Open **Application Terminal** above the development terminal, or from the stage's **+**. Give it a name and launch
+Open **Application Terminal** above the development terminal, or from **Stage → Open an environment** in the title bar. Give it a name and launch
 command, then press **Start**. Your CLI or interactive terminal app runs visibly in the task's working folder; you
 can type, paste and use its keyboard shortcuts. Your coding agent can inspect the same screen, operate the app,
 change its code and run it again. Large terminal reads appear as Terminal screen artifacts in Resources.

@@ -1,7 +1,7 @@
 // The grid of panels: panes and their pages, presets, a menu over pages that give no picture (docs/window.md, The grid).
 import { test, expect } from './fixtures.ts';
 import type { Page } from '@playwright/test';
-import { menu, choose, closeMenu, rightClick, box, pageBox, viewOn, resourcesHeight, dock, stageDock } from './helpers.ts';
+import { menu, closeMenu, rightClick, box, pageBox, viewOn, resourcesHeight, dock, stageDock } from './helpers.ts';
 import { SAM, ELON, begin, bothOn } from './tasks-helpers.ts';
 
 // A pane's tab dragged by the hand onto a place of a target (dockview's drop zones: its edges, its middle).
@@ -127,6 +127,39 @@ test('grid: while a pane is dragged, pages are pictures (drop targets are HTML),
   await expect(ui.getByTestId('page').getByTestId('snapshot')).toHaveCount(0);
 });
 
+test('resizing Resources updates the agent terminal at fractional widths and heights', async ({ core, ui, files }) => {
+  await begin(core, ui, files, { columns: true });
+  const terminalSize = () => ui.evaluate(() => { const t = (window as any).__term; return { cols: t.cols, rows: t.rows }; });
+  const fitted = () => ui.getByTestId('terminal').evaluate((el) => {
+    const host = el.querySelector('.xterm').parentElement, screen = el.querySelector('.xterm-screen');
+    return Math.abs(host.clientWidth - screen.clientWidth) < 30 && Math.abs(host.clientHeight - screen.clientHeight) < 30;
+  });
+  const workspace = await dock(ui, (api) => api.toJSON());
+  try {
+    // Dockview preserves fractional sash positions; its API supplies the same size deterministically on every OS.
+    await dock(ui, (api) => {
+      api.getPanel('resources').api.moveTo({ group: api.getPanel('terminal').group, position: 'right' });
+      api.getPanel('resources').group.api.setSize({ width: Math.round(api.width / 3) });
+    });
+    await expect.poll(fitted).toBe(true);
+    const before = await terminalSize();
+    await dock(ui, (api) => api.getPanel('resources').group.api.setSize({ width: Math.round(api.width / 3) - 160.25 }));
+    await expect.poll(async () => (await terminalSize()).cols).toBeGreaterThan(before.cols);
+    await dock(ui, (api) => api.getPanel('resources').group.api.setSize({ width: Math.round(api.width / 3) + 160.75 }));
+    await expect.poll(async () => (await terminalSize()).cols).toBeLessThan(before.cols);
+    await dock(ui, (api) => {
+      api.getPanel('resources').api.moveTo({ group: api.getPanel('terminal').group, position: 'bottom' });
+      api.getPanel('resources').group.api.setSize({ height: Math.round(api.height / 3) });
+    });
+    await expect.poll(fitted).toBe(true);
+    const rows = (await terminalSize()).rows;
+    await dock(ui, (api) => api.getPanel('resources').group.api.setSize({ height: Math.round(api.height / 3) + 70.25 }));
+    await expect.poll(async () => (await terminalSize()).rows).toBeLessThan(rows);
+    await expect.poll(fitted).toBe(true);
+    await expect.poll(() => core((k) => ({ cols: k.shell.pty.cols, rows: k.shell.pty.rows }))).toEqual(await terminalSize());
+  } finally { await dock(ui, (api, saved) => api.fromJSON(saved), workspace); }
+});
+
 test('workspace and stage presets each fit the window without changing the other layout', async ({ core, ui, files }) => {
   await begin(core, ui, files, { columns: true });
   const at = async () => ({ sam: await pageBox(ui, files, SAM), elon: await pageBox(ui, files, ELON), term: await box(ui, '[data-testid="terminal"]') });
@@ -140,10 +173,10 @@ test('workspace and stage presets each fit the window without changing the other
     }
     expect(cut, 'panels cut off').toEqual([]);
   };
-  // An arrangement chosen in ☰ (Arrange workspace).
-  const preset = async (name: 'Stage above' | 'Stage beside') => { await ui.locator('#windowMenu').click(); await choose(ui, name); };
-  const stagePreset = async (name: string) => { await ui.getByRole('button', { name: 'Arrange stage', exact: true }).click(); await choose(ui, name); };
-  await preset('Stage above');
+  // Stage position and view are independent choices in its title-bar menu.
+  const preset = async (name: 'Above' | 'Left') => { await ui.getByRole('button', { name: 'Stage', exact: true }).click(); await ui.getByRole('menuitemradio', { name, exact: true }).click(); };
+  const stagePreset = async (name: string) => { await ui.getByRole('button', { name: 'Stage', exact: true }).click(); await ui.getByRole('menuitemradio', { name, exact: true }).click(); };
+  await preset('Above');
   await expect.poll(() => viewOn(core, ui, files, ELON)).toBe(true);
   await fits();
   let b = await at();
@@ -175,14 +208,15 @@ test('workspace and stage presets each fit the window without changing the other
   expect(b.elon, 'Elon is a tab behind Sam').toBe(null);
   expect(b.term.y > b.sam.y + b.sam.height - 1).toBe(true);
   await stagePreset('Vertical stack');
-  await preset('Stage beside');
+  await preset('Left');
   await bothOn(core, ui, files);
   await fits();
   b = await at();
   expect(b.sam.y < b.elon.y && b.term.x > b.sam.x + b.sam.width - 1, 'profiles in a vertical stack, terminal on the right').toBe(true);
-  // Resources under the terminal, in its column; made taller, as its gap does: kept with the grid.
+  // Moving Stage preserves Resources beside the terminal; its own docking stays independent.
   const res = await box(ui, '#resources'), term = await box(ui, 'nav[aria-label="Terminals"]');
-  expect(res.y > term.y && Math.abs(res.x - term.x) < 20, 'Resources under the terminal').toBe(true);
+  expect(res.x > term.x && Math.abs(res.y - term.y) < 40, 'Resources beside the terminal').toBe(true);
+  await dock(ui, (api) => api.getPanel('resources').api.moveTo({ group: api.getPanel('terminal').group, position: 'bottom' }));
   // Sized by dockview's API, as a drag of its sash sizes it: the sash is a bare element with no name to find it by.
   await dock(ui, (api) => api.getPanel('resources').group.api.setSize({ height: 300 }));
   await expect.poll(async () => { const h = await resourcesHeight(ui); return h > 280 && files.savedResourcesHeight() === h; }).toBe(true);

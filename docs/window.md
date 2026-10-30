@@ -57,37 +57,38 @@ A press on a tab not shown shows its task at once, as Chrome's; the tab is lit o
 
 ## The grid
 
-A task has two independent dockview grids (`Grid.tsx`, `grid/Stage.tsx`): the outer workspace holds development
-terminals, Resources and the **stage**; the stage holds testing **environments**, browser profiles and application
-terminals. Drag a header to move or stack panels within its grid; drag a sash to resize them. Environments stay in
-the stage, development panels in the workspace. The empty stage is absent; opening the first environment adds it,
-closing the last removes it. A new task opens only its default development terminal.
+A task has two independent Dockview grids (`Grid.tsx`, `grid/Stage.tsx`): development terminals with Resources,
+and the **stage** of browser profiles and application terminals as testing **environments**. A headerless Gridview splits their areas; its
+sash resizes them. Headers move or stack panels within their own grid. The empty stage is absent; opening the first
+environment adds it, closing the last removes it. A new task opens only its default development terminal.
 
-**☰ → Arrange workspace** places the stage above development terminals with Resources beside them, or beside
-them with Resources below. It preserves the stage's layout. **Arrange stage** in its header offers **Horizontal stack**
-(side by side), **Vertical stack** (one above another), and **Tabs** (one environment at a time),
-preserving the workspace. Resources keeps at least its header's height so it can fold with the development terminal.
-The human's `stage:arrange` IPC and the agent's `stage_arrange` tool call `Task.arrangeStage`: only the shown task
-with an open environment can be arranged; the task-scoped event reaches that window's stage.
+**Stage** in the title bar offers **Position: Left, Right, Above** the development area, **View: Horizontal stack**
+(side by side), **Vertical stack** (one above another), **Tabs** (one environment at a time), and **Open an environment**.
+Moving Stage preserves the development grid and its panels; Terminal and Resources stay together. Resources keeps at
+least its header's height so it can fold with the development terminal. The human's `stage:arrange` IPC and the agent's
+`stage_arrange` tool call `Task.arrangeStage`: the task must be shown, and settings apply with an empty Stage too.
+The task-scoped event reaches that window.
 
 **Allow overflow** is independent of the layout, off by default: panes fit the stage. On, Horizontal stack allocates 600 CSS
 pixels of width per environment, Vertical stack 300 pixels of height, plus Dockview’s gaps; the stack scrolls on that axis.
-Tabs hides the toggle and ignores overflow while preserving its value. `stage_arrange` accepts either setting or
-both; omitted settings stay unchanged. Changing only overflow preserves the panes and active tab. `Stage.tsx` sizes
-the inner grid inside its scroll viewport. Its scroll and both grids' layout changes report page bounds and their visible
+Tabs hides the toggle and ignores overflow while preserving its value. Constraint changes give Dockview room for
+both old and new group minimums before restoring its size; its resize observer can lag behind the scroll container.
+`stage_arrange` accepts any combination of position, view and overflow; omitted settings stay unchanged. Changing
+only overflow preserves the panes and active tab. `Stage.tsx` sizes
+the inner grid inside its scroll viewport. Its scroll and all layout changes report page bounds and their visible
 intersection (`lib/grid.ts`). `Profile` puts a partially visible page inside a native `View` at that intersection;
 the child keeps its full viewport, offset within the parent. Fully offscreen pages are hidden. The clipping parent
 is removed when the page fits, the profile closes, or it moves to another window. Dragging in either grid turns
 pages into pictures for HTML drop targets.
 
-`layout.json` keeps both grids (`version: 2`, `workspace`, `stage`, `stageLayout`, `stageOverflow`), saved 300 ms after a change and flushed when the
+`layout.json` keeps both grids (`version: 3`, `workspace`, `stage`, `stageLayout`, `stageOverflow`, `stagePosition`, `stageShare`), saved 300 ms after a change and flushed when the
 task is left. `lib/stage-layout.ts` separates a flat saved layout into development and testing groups, retaining
-panel order, stacking and sizes. Saved stack settings normalize to explicit horizontal and vertical directions without moving panes. An invalid grid falls back to its default arrangement.
+panel order, stacking and sizes; development panels share an area, separate from Stage. Saved stack settings normalize to explicit horizontal and vertical directions without moving panes. An invalid grid falls back to its default arrangement.
 
 **No environment open, a development terminal open**: a row above the workspace offers **Application Terminal** and
 the closed profiles (`ClosedProfiles`, `Grid.tsx`). With no development terminal either, the same choices sit under
 the agents' launchers. More than fit scroll (`useStrip`); `#dock` keeps `min-width: 0` so these choices cannot stretch
-the window. The stage's **+** opens the same environments while the stage is shown.
+the window. The title bar's **Stage → Open an environment** opens the same environments.
 
 ### Application terminals
 
@@ -109,7 +110,7 @@ not separate identities. Real-account sign-in stays the human's.
 
 | Action | The human | The agent | The core |
 |---|---|---|---|
-| Create | Application Terminal; stage's + | `application_create` | `ApplicationTerminals.create` |
+| Create | Application Terminal; Stage → Open an environment | `application_create` | `ApplicationTerminals.create` |
 | Save name, command or size | fields; Resize, Auto | `application_configure` | `configure` |
 | Start, stop, restart | buttons; pane's menu | `application_start`, `application_stop`, `application_restart` | `start`, `stop`, `restart` |
 | Inspect screen and status | visible terminal and status | `application_read` | `read`, `info` |
@@ -202,7 +203,7 @@ built: [ui.md](ui.md), Menus):
 
 - a task tab's right-click menu ([tasks.md](tasks.md), Projects, "A tab's right-click menu"), a project's and a task's
   row's in the sidebar ([tasks.md](tasks.md), The sidebar), ☰ (as Chrome's ⋮, each row with its icon: the zoom row;
-  Theme, Tasks bar and Language, rows each opening a menu beside it, the choice at the row's end; Arrange workspace,
+  Theme, Tasks bar and Language, rows each opening a menu beside it, the choice at the row's end;
   Keyboard Shortcuts, the links (Documentation, the user guide on kulisa.app; GitHub; one list in `TopBar.tsx`),
   Report a Problem… (Settings at its Log page: not everyone has a GitHub account, and an issue without the log says
   little), About Kulisa (below), and Exit, which quits as the last window's × does; not on macOS, where Cmd+Q and the
@@ -290,7 +291,8 @@ Code's settings are a page of their window: the window it is opened in is the on
 ## The terminal
 
 A terminal sends its first size once dockview's grid matches its current room and the retained panel's DOM matches
-its layout, so the program starts at the room it will keep when the panel is drawn.
+its layout, so the program starts at the room it will keep when the panel is drawn. The comparison rounds Dockview's
+fractional CSS dimensions to match DOM client/offset sizes; the same readiness check gates later resizes.
 
 A task's terminals are one **panel** of the grid: the terminal in front, a **row of tabs** over it, the panel's header
 (`TerminalsHeader` and `Terminals` in `grid/Terminals.tsx`). One terminal is shown at a time, none
@@ -581,7 +583,7 @@ window it comes from (`event.sender`); one change to the open tasks after anothe
 | `src/main/keys.ts` | the keyboard shortcuts: the table, which key an input event is; `shortcuts.ts` takes them (Keys) |
 | `src/terminal/` | the terminal, a Kulisa package: its pty, its buffers, the xterm shown ([README](../src/terminal/README.md)) |
 | `src/main/file-links.ts` | the paths a terminal names: which exist, opening one or showing it in its folder (The terminal) |
-| `src/renderer/components/Grid.tsx`, `components/grid/`, `lib/grid.ts` | the grid (dockview), the panes and their headers, the terminals (`grid/Terminals.tsx`: `Terminals`, its row of tabs `TerminalsHeader`), the closed profiles' buttons over it (`ClosedProfiles`, `Grid.tsx`), Arrange workspace |
+| `src/renderer/components/Grid.tsx`, `components/grid/`, `lib/grid.ts` | the grid (dockview), the panes and their headers, the terminals (`grid/Terminals.tsx`: `Terminals`, its row of tabs `TerminalsHeader`), the closed profiles' buttons over it (`ClosedProfiles`, `Grid.tsx`), the title-bar Stage menu (`StageMenu.tsx`) |
 | `src/renderer/components/grid/Resources.tsx` | Resources next to the terminal: the shown task's resources (its worktree(s) or the main working tree) and its artifacts, each with its actions (tasks.md) |
 | `src/renderer/components/TopBar.tsx`, `ProjectIcon.tsx` | the title bar, ☰ and its own rows; the logo, a project's icon |
 | `src/renderer/components/Menus.tsx`, `Ask.tsx`, `lib/menu.ts`, `project-menu.ts`, `cover.ts`, `views.ts`, `ask.ts`, `terminals.ts` | the menus (`project-menu.ts`: a project's, the sidebar's and a tab's), the dialogs and questions (shadcn's: `cover.ts`), the pages under them in a tasks' window (`views.ts`), a tasks' window's terminals (`terminals.ts`) |

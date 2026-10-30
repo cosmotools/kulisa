@@ -211,6 +211,7 @@ answers (10 s).
 
 - Linux: e2e in a D-Bus session with gnome-keyring unlocked and `XDG_CURRENT_DESKTOP=GNOME` (else `safeStorage`
   encrypts nothing). Test folders are under home: paths show as `~`.
+- Linux's checks install `rpm` for the RPM maker's fixture build (`forge.test.ts`); locally it skips without `rpmbuild`.
 - macOS and Windows runners are 1024×768; the CI sets 1920×1080.
 - LF everywhere (`.gitattributes`), else file comparisons fail on Windows.
 
@@ -234,7 +235,8 @@ env -i PATH=$(dirname $(which node)):/usr/bin:/bin HOME=$H TMPDIR=$H XDG_CURRENT
   `--shard` does (`KULISA_SHARD=i/n`, `shards.ts`, seconds per file in `timings.json`; an unknown file counts as the
   mean). A file is never split, so the slowest file bounds a shard: a much heavier one is split by topic
   (`projects*.spec.ts`, `tasks*.spec.ts`). `test (<os>)` keeps the required name, passes only when its OS's checks and
-  shards do, and merges their blob reports.
+  shards do, and merges their blob reports. Partial reruns use each job’s latest result across attempts; the aggregate
+  retries transient API failures and rejects failed, pending or missing jobs.
 - **Caches** (a shard's setup under a minute): npm, Electron's download (by its version in `package-lock.json`), the
   apt .deb files (the Ubuntu mirror is at times slow; a cache of installed packages loses `gnome-keyring-daemon`).
   macOS's `displayplacer` comes from brew each time.

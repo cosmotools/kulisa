@@ -30,6 +30,9 @@ it loads only its own platform's, on Linux the one built at install; the archive
 whose native parts npm builds at install with the Command Line Tools: without a working compiler it is left out, and
 `npm run package` (the app in `out/`) or the `.zip` do.
 
+The RPM spec (`assets/linux.spec.ejs`) copies from the maker's absolute staging path: RPM chooses its own build
+directory. Its regression builds a small installer and checks its files and the sandbox helper's setuid mode.
+
 On Windows, Squirrel starts the app while installing, updating and removing it (`--squirrel-install` …), to make or
 remove its shortcuts: `electron-squirrel-startup` does that and Kulisa quits without starting (Forge's Squirrel.Windows
 maker). Its first run after installing checks nothing (Squirrel holds a lock then), and the app's id is the one its
@@ -99,6 +102,6 @@ the windows and their tasks come back in the new version. Later: nothing more; t
 | File | What |
 |---|---|
 | `assets/icon.svg`, `scripts/icons.ts` (`npm run icons`) | the app icon and its renderings for each OS |
-| `forge.config.ts`, `assets/linux.desktop.ejs`, `assets/deb/` | the installers: what the package holds, the `.desktop` entry, the `.deb`'s apt repository |
+| `forge.config.ts`, `assets/linux.desktop.ejs`, `assets/linux.spec.ejs`, `assets/deb/` | the installers: what the package holds, the `.desktop` entry, the RPM spec, the `.deb`'s apt repository |
 | `.github/workflows/release.yml` | a merge into `main` built, attested, checked and published; the apt repository's index |
 | `src/main/updates.ts`, `installed.ts` | updates, Squirrel's events, a new version ready while Kulisa runs (the version installed on disk) |

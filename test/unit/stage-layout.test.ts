@@ -29,12 +29,29 @@ test('flat layouts split mixed groups while retaining order, stacking, sizes and
 
 test('saved stack settings retain their physical direction when names become explicit', () => {
   for (const [before, after] of [['column', 'vertical'], ['row', 'horizontal'], ['tabs', 'tabs'], ['horizontal', 'horizontal'], ['vertical', 'vertical']]) {
-    const saved = { version: 2, workspace: {}, stage: {}, stageLayout: before, stageOverflow: true };
+    const saved = { version: 2, workspace: { grid: { orientation: 'HORIZONTAL', root: { type: 'branch', data: [] as unknown[] } }, panels: {} }, stage: {}, stageLayout: before, stageOverflow: true };
     const restored = splitLayout(saved);
     assert.equal(restored.stageLayout, after);
     assert.equal(restored.stageOverflow, true);
-    assert.equal(restored.workspace, saved.workspace);
+    assert.deepEqual(restored.workspace, saved.workspace);
     assert.equal(restored.stage, saved.stage);
     assert.equal(splitLayout(restored), restored);
+  }
+});
+
+test('a fixed Stage keeps development panels together and retains the saved Stage side', () => {
+  const leaf = (id: string) => ({ type: 'leaf', size: 400, data: { id, views: [id] } });
+  for (const [orientation, ids, position] of [
+    ['HORIZONTAL', ['stage', 'terminal', 'resources'], 'left'],
+    ['HORIZONTAL', ['terminal', 'resources', 'stage'], 'right'],
+    ['VERTICAL', ['stage', 'terminal', 'resources'], 'above'],
+  ] as const) {
+    const workspace = { grid: { orientation, root: { type: 'branch', data: ids.map(leaf) } }, panels: Object.fromEntries(ids.map((id) => [id, { id }])) };
+    const result = splitLayout({ version: 2, workspace, stage: null });
+    assert.equal(result.stagePosition, position);
+    assert.equal(result.stageShare, 1 / 3);
+    assert.deepEqual(Object.keys(result.workspace.panels).sort(), ['resources', 'terminal']);
+    assert.equal((result.workspace.grid.root.data as unknown[]).length, 2);
+    assert.equal(workspace.grid.root.data.length, 3);
   }
 });

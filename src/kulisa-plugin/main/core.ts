@@ -3,7 +3,7 @@ import type { IncomingMessage } from 'http';
 import type { BrowserContext, Page } from 'playwright-core';
 import type { ApplicationTerminal, ApplicationScreen, ApplicationKey, TerminalSize } from '../../shared/application-terminal.ts';
 import type { ArtifactSource } from '../../shared/types.ts';
-import type { StageLayout } from '../../shared/ipc.ts';
+import type { StageLayout, StagePosition } from '../../shared/ipc.ts';
 import type { Result } from '../../shared/result.ts';
 import type { Shot } from '../../screenshots/main/index.ts';
 import type { Conversation } from './transcripts.ts';
@@ -63,7 +63,7 @@ interface TaskAccess {
   readonly profiles: ReadonlyMap<string, ProfileAccess>;
   readonly closed: ReadonlyMap<string, { cfg: ProfileInfo; tabs: { urls: string[] } }>;
   readonly artifactLimit: number;
-  arrangeStage(layout?: StageLayout, overflow?: boolean): Result;
+  arrangeStage(layout?: StageLayout, overflow?: boolean, position?: StagePosition): Result;
   dirs(): string[];
   addable(): string[];
   inGit(): boolean;

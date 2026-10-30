@@ -33,14 +33,24 @@ test('context menus: a pane\'s header, a tab, the terminal; pages are pictures w
       - menuitem "Sign In to Master…"
       - menuitem "Close profile"
       - menuitem "Remove from Project…"`;
-  await rightClick(ui, header);
-  await expect(menu(ui)).toMatchAriaSnapshot(headerMenu);
-  const h = await ui.locator(header).boundingBox(), m = await menu(ui).boundingBox();
-  // Its list inset by the menu's padding and ring.
-  expect(Math.abs(m.x - (h.x + h.width / 2)) <= 8 && Math.abs(m.y - (h.y + h.height / 2)) <= 8, 'at the pointer').toBe(true);
-  // The pages are native views above the menu: pictures of them stand in meanwhile.
-  expect(await elonVisible()).toBe(false);
-  await expect(ui.locator(`[role="region"][data-profile="${elonId}"] [data-testid="page"] [data-testid="snapshot"]`)).toHaveCount(1);
+  // Exercise a capture that answers within the menu's budget; grid.spec.ts covers pages that give no picture.
+  await core(async (k) => {
+    const wc = k.profile('Elon.buyer').get().wc, capture = wc.capturePage, picture = await wc.capturePage();
+    k.stash.restoreCapture = () => { wc.capturePage = capture; };
+    wc.capturePage = async () => picture;
+  });
+  try {
+    await rightClick(ui, header);
+    await expect(menu(ui)).toMatchAriaSnapshot(headerMenu);
+    const h = await ui.locator(header).boundingBox(), m = await menu(ui).boundingBox();
+    // Its list inset by the menu's padding and ring.
+    expect(Math.abs(m.x - (h.x + h.width / 2)) <= 8 && Math.abs(m.y - (h.y + h.height / 2)) <= 8, 'at the pointer').toBe(true);
+    // The pages are native views above the menu: pictures of them stand in meanwhile.
+    expect(await elonVisible()).toBe(false);
+    await expect(ui.locator(`[role="region"][data-profile="${elonId}"] [data-testid="page"] [data-testid="snapshot"]`)).toHaveCount(1);
+  } finally {
+    await core((k) => { k.stash.restoreCapture(); delete k.stash.restoreCapture; });
+  }
   // Another menu right from this one: the pages stay pictures.
   await ui.locator('#windowMenu').click();
   await expect(menu(ui).getByTestId('zoom-row')).toBeVisible();
@@ -302,13 +312,12 @@ ${names.map((x) => `      - menuitem ${JSON.stringify(`Open in ${x}`)}`).join('\
   }
 });
 
-test('the window menu: its rows and icons, Arrange panels, links in the browser and Exit asking before stopping an agent', async ({ core, ui, files }) => {
+test('the window menu: its rows and icons, links in the browser and Exit asking before stopping an agent', async ({ core, ui, files }) => {
   await begin(core, ui, files, { columns: true });
   const opened = () => core((k) => [...k.openedExternally]);
   const wasOpened = (await opened()).length;
   await ui.locator('#windowMenu').click();
-  // Theme, Tasks bar and Language each a menu beside its row (helpers.ts, windowSubmenu); the arrangements a row each,
-  // the full words in the tooltip. No Exit on macOS: ⌘Q and the app menu's Quit there (components/TopBar.tsx).
+  // macOS puts Quit in the app menu (⌘Q), so the window menu has no Exit row.
   await expect(menu(ui)).toMatchAriaSnapshot(`
     - menu:
       - group "Zoom":
@@ -319,9 +328,6 @@ test('the window menu: its rows and icons, Arrange panels, links in the browser 
       - menuitem "Theme"
       - menuitem "Tasks bar"
       - menuitem "Language"
-      - text: Arrange workspace
-      - menuitem "Stage above"
-      - menuitem "Stage beside"
       - menuitem "Keyboard Shortcuts"
       - menuitem "Documentation"
       - menuitem "GitHub"
@@ -329,10 +335,7 @@ test('the window menu: its rows and icons, Arrange panels, links in the browser 
       - menuitem "About Kulisa"${MAC ? '' : `
       - menuitem "Exit"`}`);
   expect(await menu(ui).getByRole('menuitem').evaluateAll((rs) => rs.filter((r) => !r.querySelector('svg')).map((r) => r.ariaLabel || r.textContent)), 'each row with its icon').toEqual([]);
-  const presets = menu(ui).locator('[data-preset]');
-  expect(await presets.evaluateAll((bs) => bs.map((b) => !!(b as HTMLElement).title && !!b.querySelector('svg'))), 'a tooltip and an icon each').toEqual([true, true]);
-  await anyMenu(ui).locator('[data-preset="columns"]').click();
-  await expect(anyMenu(ui), 'a choice closes the menu').toHaveCount(0);
+  await closeMenu(ui);
   await bothOn(core, ui, files);
   // ☰'s links open in the user's browser.
   await ui.locator('#windowMenu').click();

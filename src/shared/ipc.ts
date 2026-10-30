@@ -21,6 +21,7 @@ export type OnTab = OnProfile & { tab?: string | null }; // none: the active one
 export type PageLayout = Partial<{ x: number; y: number; width: number; height: number }> & { shown?: boolean; clip?: { x: number; y: number; width: number; height: number } };
 type Grid = Record<string, PageLayout>;
 export type Theme = 'dark' | 'light' | 'system';
+export type StagePosition = 'left' | 'right' | 'above';
 export type StageLayout = 'vertical' | 'tabs' | 'horizontal';
 export type Bar = 'top' | 'bottom';
 // Where Settings opens (components/settings): a project's page (none: the shown task's), a profile's, the
@@ -99,7 +100,7 @@ export interface Invoke extends TerminalInvoke, ThumbnailInvoke, GitHubInvoke, D
   'profile:delete': I<[OnProfile]>;
   'profile:master': I<[OnProfile]>;
   'views:hidden': I<[hidden: boolean, opts?: { snapshots?: boolean }], Record<string, string> | undefined>;
-  'stage:arrange': I<[OnTask & { layout?: StageLayout; overflow?: boolean }], Result>;
+  'stage:arrange': I<[OnTask & { layout?: StageLayout; overflow?: boolean; position?: StagePosition }], Result>;
   'layout:load': I<[OnTask], unknown>; // the grid as the window saved it (layout:save)
   'application:create': I<[OnTask & { name?: string; command?: string }], Result<ApplicationTerminal>>;
   'application:configure': I<[OnTask & { id: number; name?: string; command?: string; size?: TerminalSize | null }], Result<ApplicationTerminal>>;
@@ -178,7 +179,7 @@ export interface Events extends TerminalEvents, ThumbnailEvents, DictationEvents
   'applications': ApplicationTerminals;
   'artifacts': { task: string; list: Artifact[]; bytes: number }; // bytes: all of them (Task.artifactsUsage)
   'terminal:focus': void;
-  'stage:arrange': { task: string; layout?: StageLayout; overflow?: boolean };
+  'stage:arrange': { task: string; layout?: StageLayout; overflow?: boolean; position?: StagePosition };
   'grid:closing': boolean; // another task's grid follows
   'tasks:closed': string[];
   'zoom': number;

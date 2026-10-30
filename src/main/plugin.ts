@@ -73,7 +73,7 @@ function taskAccess(task: Task): TaskAccess {
       cfg: { id, name: cfg.name, avatar: cfg.avatar, description: cfg.description, login: cfg.login, hasPassword: cfg.hasPassword },
       tabs: { urls: tabs.urls },
     }])); }, artifactLimit: ARTIFACTS_LIMIT,
-    arrangeStage: (layout, overflow) => task.arrangeStage(layout, overflow),
+    arrangeStage: (layout, overflow, position) => task.arrangeStage(layout, overflow, position),
     dirs: () => task.dirs(), addable: () => task.addable(), inGit: () => task.inGit(),
     named: (name) => task.named(name),
     find: (id) => { const r = task.find(id); return refused(r) ? r : { profile: profileAccess(r.profile) }; },

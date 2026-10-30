@@ -118,22 +118,30 @@ test('closing a terminal stops its process and removes its saved configuration a
   await expect(ui.getByTestId('stage')).toHaveCount(0);
 });
 
-test('browser and terminal environments share the stage; hiding the outer stage hides native browser views', async ({ core, ui, files, call }) => {
+test('browser and terminal environments share Stage positions and tabs without restarting the application', async ({ core, ui, files, call }) => {
   fs.writeFileSync(path.join(files.project, 'application-stage.cjs'), tui);
   await call('application_create', { name: 'Alongside browser', command: 'node application-stage.cjs' });
   await call('application_start', { name: 'Alongside browser' });
   await call('profile_create', { name: 'Stage.browser' });
   await expect(ui.locator('[data-panel^="profile:"]')).toHaveCount(1);
   await expect.poll(() => core((k) => k.profile('Stage.browser').get().view.getVisible())).toBe(true);
-  // Dockview's API moves the outer panel as a header drop would; its nested grid stays independent.
-  await ui.evaluate(() => {
-    const api = (window as any).__dock;
-    api.getPanel('stage').api.moveTo({ group: api.getPanel('terminal').group, position: 'center' });
-    api.getPanel('terminal').api.setActive();
-  });
+  const read = async () => JSON.parse((await call('application_read', { name: 'Alongside browser' })).text);
+  await expect.poll(async () => (await read()).text).toMatch(/PID \d+/);
+  const pid = (await read()).text.match(/PID \d+/)![0];
+  for (const position of ['left', 'right', 'above']) {
+    await call('stage_arrange', { position });
+    await expect.poll(() => core((k) => k.profile('Stage.browser').get().view.getVisible())).toBe(true);
+    const stage = await ui.getByTestId('stage').boundingBox(), terminal = await ui.getByTestId('terminal').boundingBox();
+    expect(stage).toBeTruthy(); expect(terminal).toBeTruthy();
+    expect(position === 'above' ? stage.y < terminal.y : position === 'left' ? stage.x < terminal.x : stage.x > terminal.x).toBe(true);
+  }
+  await call('stage_arrange', { layout: 'tabs' });
+  await expect.poll(() => ui.evaluate(() => (window as any).__stage.groups.length)).toBe(1);
+  await ui.locator('[data-panel^="application:"]').getByText('Alongside browser', { exact: true }).click();
   await expect.poll(() => core((k) => k.profile('Stage.browser').get().view.getVisible())).toBe(false);
-  expect(JSON.parse((await call('application_read', { name: 'Alongside browser' })).text).terminal.status).toBe('running');
-  await ui.locator('[data-panel="stage"]').getByText('Stage', { exact: true }).click();
+  expect((await read()).terminal.status).toBe('running');
+  expect((await read()).text).toContain(pid);
+  await ui.locator('[data-panel^="profile:"]').getByText('Stage.browser', { exact: true }).click();
   await expect.poll(() => core((k) => k.profile('Stage.browser').get().view.getVisible())).toBe(true);
   await call('application_close', { name: 'Alongside browser' });
   await expect(ui.getByTestId('stage')).toBeVisible();
@@ -232,7 +240,7 @@ test('a background terminal answers device queries and keeps Unicode cursor widt
 });
 
 
-test('the agent arranges terminal-only environments as a column, tabs or a scrolling row', async ({ core, ui, call }) => {
+test('the agent arranges terminal-only environments as vertical stacks, tabs or scrolling horizontal stacks', async ({ core, ui, call }) => {
   expect(await core((k) => k.shell.task.profiles.size)).toBe(0);
   await call('application_create', { name: 'Layout first' });
   await call('application_create', { name: 'Layout second' });
@@ -240,8 +248,8 @@ test('the agent arranges terminal-only environments as a column, tabs or a scrol
   await expect.poll(() => ui.evaluate(() => (window as any).__stage.groups.length)).toBe(2);
   await call('stage_arrange', { layout: 'tabs' });
   await expect.poll(() => ui.evaluate(() => (window as any).__stage.groups.length)).toBe(1);
-  await ui.locator('#windowMenu').click();
-  await ui.getByRole('menuitem', { name: 'Stage beside', exact: true }).click();
+  await ui.getByRole('button', { name: 'Stage', exact: true }).click();
+  await ui.getByRole('menuitemradio', { name: 'Left', exact: true }).click();
   await call('stage_arrange', { layout: 'horizontal', overflow: true });
   await expect.poll(() => ui.locator('[data-stage-viewport]').evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(true);
   await call('stage_arrange', { overflow: false });

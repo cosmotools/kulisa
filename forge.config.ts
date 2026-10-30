@@ -1,7 +1,7 @@
 // Electron Forge: packages Kulisa, builds installers for macOS, Windows and Linux, publishes a release.
 //   npm run package   the app folder for this platform, in out/
 //   npm run make      installers for this platform, in out/make/ (Linux: rpmbuild for the .rpm, `apt install rpm`)
-//   npm run publish   made and uploaded to a draft release on GitHub (GITHUB_TOKEN; the CI does it on a tag)
+//   npm run publish   made and uploaded to a draft release on GitHub (GITHUB_TOKEN; a merge into main runs the CI)
 // Each platform's installers are built on that platform. docs/releases.md, Installers.
 import { execSync } from 'child_process';
 import fs from 'fs';
@@ -57,9 +57,10 @@ const config: ForgeConfig = {
     { name: '@electron-forge/maker-zip', platforms: ['darwin'], config: {} },
     // The .deb adds Kulisa's apt repository, which updates it (assets/deb).
     { name: '@electron-forge/maker-deb', platforms: ['linux'], config: { options: { ...linux, scripts: { postinst: 'assets/deb/postinst', postrm: 'assets/deb/postrm' } } } },
-    { name: '@electron-forge/maker-rpm', platforms: ['linux'], config: { options: linux } },
+    // An absolute staging path: RPM chooses its own working directory (electron-installer-redhat#343).
+    { name: '@electron-forge/maker-rpm', platforms: ['linux'], config: { options: { ...linux, specTemplate: 'assets/linux.spec.ejs' } } },
   ],
-  // A draft: the author publishes it, and update.electronjs.org takes only published releases (update-electron-app).
+  // The release workflow publishes the draft once its installers build and the installed app starts.
   publishers: [{ name: '@electron-forge/publisher-github', config: { repository: { owner: 'cosmotools', name: 'kulisa' }, draft: true } }],
   // The window built (type checked, then Vite: vite.config.mts) before it is packaged.
   hooks: {

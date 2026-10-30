@@ -3,16 +3,16 @@
 // titleBarOverlay in window.ts, 44 px there). No logo on macOS: its apps show their icon in the Dock; Exit only where
 // the OS has no menu bar with Quit (macOS: Cmd+Q).
 import type { ComponentType, ReactNode } from 'react';
-import { BookOpenIcon, BugIcon, GitBranchIcon, InfoIcon, KeyboardIcon, LanguagesIcon, LayoutDashboardIcon, LogOutIcon, MenuIcon,
-  MinusIcon, PanelBottomIcon, PanelLeftIcon, PlusIcon, SettingsIcon, SunMoonIcon, ZoomInIcon } from 'lucide-react';
-import { Button, DropdownMenuItem, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuShortcut, DropdownMenuSub, DropdownMenuSubContent,
+import { BookOpenIcon, BugIcon, GitBranchIcon, InfoIcon, KeyboardIcon, LanguagesIcon, LogOutIcon, MenuIcon,
+  MinusIcon, PanelBottomIcon, PlusIcon, SettingsIcon, SunMoonIcon, ZoomInIcon } from 'lucide-react';
+import { Button, DropdownMenuItem, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuShortcut, DropdownMenuSub,
   DropdownMenuSubTrigger, Toggle, Item, ItemContent, ItemDescription, ItemTitle } from '@ui';
-import { ButtonMenu } from './Menus';
+import { ButtonMenu, SubmenuContent } from './Menus';
 import { Tip } from './Tip';
 import { Logo } from './ProjectIcon';
 import { useWindow } from '../lib/store';
 import { keyText, withKeys } from '../lib/common';
-import { applyPreset } from '../lib/grid';
+import { StageMenu } from './StageMenu';
 import { ask } from '../lib/ask';
 import { dialog } from '../lib/dialogs';
 import { leaveSettings, openSettings, useSettings } from '../lib/settings';
@@ -43,14 +43,14 @@ function ChoiceRow({ name, icon: Icon, label, title, choices, chosen, choose }: 
     <DropdownMenuSubTrigger aria-label={label} title={title} data-testid={`${name}-row`}>
       <Icon />{label}<DropdownMenuShortcut>{choices.find((c) => c.value === chosen)?.label}</DropdownMenuShortcut>
     </DropdownMenuSubTrigger>
-    <DropdownMenuSubContent aria-label={label}>
+    <SubmenuContent aria-label={label}>
       <DropdownMenuRadioGroup value={chosen} onValueChange={(v) => void choose(v)}>
         {choices.map((c) => <DropdownMenuRadioItem key={c.value} value={c.value} title={c.title} aria-label={c.label} {...{ [`data-${name}`]: c.value }}
           onSelect={(e) => e.preventDefault()}>
           {c.sub ? <Item size="xs"><ItemContent><ItemTitle>{c.label}</ItemTitle><ItemDescription>{c.sub}</ItemDescription></ItemContent></Item> : c.label}
         </DropdownMenuRadioItem>)}
       </DropdownMenuRadioGroup>
-    </DropdownMenuSubContent>
+    </SubmenuContent>
   </DropdownMenuSub>;
 }
 
@@ -81,14 +81,6 @@ function LanguageRow() {
     choices={order.map((code) => ({ value: code, label: languageName(code), sub: languageName(code, 'en') === languageName(code) ? undefined : languageName(code, 'en') }))} />;
 }
 
-// The ready-made arrangements of the panels (lib/grid.ts, presets).
-const PRESETS = [
-  { preset: 'columns', label: 'Stage above', title: 'Stage above development terminals and Resources', icon: PanelBottomIcon },
-  { preset: 'grid', label: 'Stage beside', title: 'Stage left of development terminals and Resources', icon: PanelLeftIcon },
-] as const;
-const ArrangeRows = () => PRESETS.map(({ preset, label, title, icon: Icon }) =>
-  <DropdownMenuItem key={preset} data-preset={preset} title={title} onSelect={() => applyPreset(preset)}><Icon />{label}</DropdownMenuItem>);
-
 // They open in the user's browser (window.ts).
 const LINKS = [
   { label: 'Documentation', href: 'https://kulisa.app/docs', icon: BookOpenIcon },
@@ -96,7 +88,6 @@ const LINKS = [
 ];
 const windowMenu = (): MenuItem[] => [
   { component: ZoomRow }, { component: ThemeRow }, { component: BarRow }, { component: LanguageRow },
-  '-', { heading: 'Arrange workspace', icon: LayoutDashboardIcon }, { component: ArrangeRows },
   '-', { label: 'Keyboard Shortcuts', icon: KeyboardIcon, keys: keyText('shortcuts'), run: async () => (await dialog('shortcuts')).showShortcuts() },
   '-', ...LINKS.map((l) => ({ label: l.label, icon: l.icon, run: () => { open(l.href); } })),
   { label: 'Report a Problem…', icon: BugIcon, title: 'The log of what Kulisa did, and how to send it', run: () => openSettings('log') },
@@ -105,6 +96,7 @@ const windowMenu = (): MenuItem[] => [
 ];
 
 export function TopBar({ children }: { children?: ReactNode }) {
+  const current = useWindow((s) => s.current);
   const zoom = useWindow((s) => s.zoom), settings = useWindow((s) => s.projects.settings), shown = !!useSettings();
   const toggle = <Toggle id="settingsButton" aria-label="Settings" pressed={shown} onPressedChange={() => (shown ? void leaveSettings() : openSettings())}>
     <SettingsIcon /></Toggle>;
@@ -120,6 +112,7 @@ export function TopBar({ children }: { children?: ReactNode }) {
     <span className="me-2 flex gap-1 [-webkit-app-region:no-drag]">
       {zoom !== 1 && <Tip text={`Kulisa's zoom. Click to reset (${keyText('zoom.reset')})`}>
         <Button id="zoomReset" variant="ghost" onClick={() => kulisa.invoke('zoom:ui', 0)}>{Math.round(zoom * 100)}%</Button></Tip>}
+      {current && !shown && <StageMenu />}
       {/* No tooltip while Settings is shown: one under the pointer would take its first Esc */}
       {shown ? toggle : settings && <Tip text="Settings: projects, agents, profiles">{toggle}</Tip>}
       <ButtonMenu items={windowMenu} end><Button id="windowMenu" variant="ghost" size="icon" aria-label="Menu"><MenuIcon /></Button></ButtonMenu>

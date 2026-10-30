@@ -3,7 +3,7 @@
 import { createStore, useStore } from 'zustand';
 import type { ApplicationTerminal } from '../../shared/application-terminal';
 import type { Artifact, ClosedProfile, LanguageInfo, Profile, ProjectsInfo, Terminals } from '../../shared/types';
-import type { Invoke, OnTask, StageLayout } from '../../shared/ipc';
+import type { Invoke, OnTask, StageLayout, StagePosition } from '../../shared/ipc';
 import { initialProjects } from './common';
 import { projectColor, onColors } from './project-color';
 import { setTheme } from './theme';
@@ -19,6 +19,7 @@ interface WindowState {
   profiles: Profile[];
   stageLayout: StageLayout | null;
   stageOverflow: boolean;
+  stagePosition: StagePosition;
   closedProfiles: ClosedProfile[];
   terminals: Terminals;
   applications: ApplicationTerminal[];
@@ -43,6 +44,7 @@ export const store = createStore<WindowState>()(() => ({
   profiles: [],
   stageLayout: null,
   stageOverflow: false,
+  stagePosition: 'above',
   closedProfiles: [],
   terminals: { front: null, list: [] },
   artifacts: { task: '', list: [], bytes: 0 },

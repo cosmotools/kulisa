@@ -86,7 +86,7 @@ element) puts a reference with a Playwright locator into the agent's prompt; the
 - **Terminology: "environment"** for where the application under development runs and the human and agent interact
   with it: browser profiles and application terminals. Not an agent's MCP tool, nor a promise of machine or credential
   isolation. **Stage** is the working name for their nested testing grid; development terminals and Resources stay
-  in the outer workspace. Their behavior and lifecycle: `docs/window.md`, The grid.
+  in a separate development grid. Their behavior and lifecycle: `docs/window.md`, The grid.
 - **Terminology: "profile"**, the word Chrome uses, for one embedded browser identity (cookies, storage, tabs) and
   its pane. Not "persona", "user" or "account" (an account is what a profile signs in to). Early commits and
   experiments said "persona".
