@@ -470,13 +470,13 @@ profiles.
   a question. The last one closed folds the terminals' panel to its +.
 - **After a restart** each tab comes back where it was, the one in front too: an agent's conversation resumed
   (`--resume`, `resume`), a shell with nothing running.
-- **Its terminal tools reach shells only**: `terminal_run`, `terminal_read`, `terminal_stop` refuse another agent's
+- **Its terminal tools reach shells only**: `shell_run`, `shell_read`, `shell_stop` refuse another agent's
   tab (a command typed there would be a message to that agent, Ctrl+C would stop it); what an agent did is read in
   `task_history`.
 - Deleting the task forgets each conversation in its own account's folder (`forget`).
 
 What does not move to another agent: its hidden reasoning, permissions given in its session, one account's settings
-(its MCP servers, skills). What runs in the task's shells (`terminal_run`) goes on: they are the task's.
+(its MCP servers, skills). What runs in the task's shells (`shell_run`) goes on: they are the task's.
 
 Whether an account has tokens left is not asked first: no CLI says it to a program (`/usage`, `/status` are the
 human's). It shows at its first answer.

@@ -34,9 +34,9 @@ export class ApplicationTerminals {
   }
   private find(which: number | string): Application | { error: string } {
     const app = typeof which === 'number' ? this.list.get(which) : [...this.list.values()].find((a) => a.name.toLowerCase() === which.trim().toLowerCase());
-    return app || { error: `No application terminal "${which}". Open: ${this.info().map((a) => a.name).join(', ') || 'none'}. Create one with application_create.` };
+    return app || { error: `No application terminal "${which}". Open: ${this.info().map((a) => a.name).join(', ') || 'none'}. Run a command in a named terminal first.` };
   }
-  create(name?: string, command = ''): Result<ApplicationTerminal> {
+  create(name?: string, command = '', size: TerminalSize | null = null): Result<ApplicationTerminal> {
     if (!this.task.loaded) return { error: 'The task is not open.' };
     name = name?.trim();
     if (!name) for (let n = 1; !name; n++) { const candidate = `Application ${n}`; if ('error' in this.find(candidate)) name = candidate; }
@@ -44,7 +44,8 @@ export class ApplicationTerminals {
     if (bad) return { error: bad };
     if (!('error' in this.find(name))) return { error: `An application terminal "${name}" already exists.` };
     if (command.length > 8192) return { error: 'A launch command may have at most 8192 characters.' };
-    const app = this.make({ id: ++this.seq, name, command, size: null });
+    if (size && !validTerminalSize(size)) return { error: 'Terminal size must be 2–500 columns and 2–200 rows.' };
+    const app = this.make({ id: ++this.seq, name, command, size });
     this.list.set(app.id, app);
     log.info(`[application] ${app.key} created`);
     this.changed(true);
@@ -64,11 +65,10 @@ export class ApplicationTerminals {
     this.changed(true);
     return this.snapshot(a);
   }
-  async start(which: number | string, command?: string): Promise<Result<ApplicationTerminal>> {
+  private async start(which: number): Promise<Result<ApplicationTerminal>> {
     const a = this.find(which); if ('error' in a) return a;
     if (!this.task.loaded) return { error: 'The task is not open.' };
     if (a.status === 'running' || a.pending) return { error: 'The application is running or starting. Stop or restart it first.' };
-    if (command !== undefined) { const r = this.configure(a.id, { command }); if ('error' in r) return r; }
     if (!a.command.trim()) return { error: 'Set a launch command before starting the application.' };
     // A fresh buffer per run; an exited program's final screen remains readable until the next run.
     if (a.pty) stopTerminal(a.pty);
@@ -113,12 +113,18 @@ export class ApplicationTerminals {
     this.changed();
     return this.snapshot(a);
   }
-  async restart(which: number | string, command?: string): Promise<Result<ApplicationTerminal>> {
-    const a = this.find(which); if ('error' in a) return a;
-    const pending = a.pending;
+  async run(which: number | string, command?: string, size?: TerminalSize | null): Promise<Result<ApplicationTerminal>> {
+    if (!this.task.loaded) return { error: 'The task is not open.' };
+    const found = this.find(which);
+    if ('error' in found && typeof which === 'number') return found;
+    if (!(command ?? ('error' in found ? '' : found.command)).trim()) return { error: 'Supply a command to run.' };
+    const configured = 'error' in found ? this.create(String(which), command, size)
+      : this.configure(found.id, { ...(command !== undefined && { command }), ...(size !== undefined && { size }) });
+    if ('error' in configured) return configured;
+    const a = this.list.get(configured.id)!, pending = a.pending;
     this.stop(a.id);
     if (pending) await pending;
-    return this.start(a.id, command);
+    return this.start(a.id);
   }
   close(which: number | string): Result<{ id: number }> {
     const a = this.find(which); if ('error' in a) return a;

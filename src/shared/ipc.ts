@@ -3,7 +3,7 @@
 // act). docs/window.md, IPC. An answer the window does not read is `void`: the main process may answer anything there
 // (the tests read some).
 import type { Result } from './result.ts';
-import type { ApplicationTerminal, ApplicationTerminals, ApplicationKey, ApplicationScreen, TerminalSize } from './application-terminal.ts';
+import type { ApplicationTerminal, ApplicationTerminals, TerminalSize } from './application-terminal.ts';
 import type { FileLink, TerminalContents, TerminalEvents, TerminalInvoke, TerminalSend } from '../terminal/ipc.ts';
 import type { ThumbnailEvents, ThumbnailInvoke, ThumbnailSend } from '../screenshots/ipc.ts';
 import type { GitHubInvoke } from '../github/ipc.ts';
@@ -104,12 +104,9 @@ export interface Invoke extends TerminalInvoke, ThumbnailInvoke, GitHubInvoke, D
   'layout:load': I<[OnTask], unknown>; // the grid as the window saved it (layout:save)
   'application:create': I<[OnTask & { name?: string; command?: string }], Result<ApplicationTerminal>>;
   'application:configure': I<[OnTask & { id: number; name?: string; command?: string; size?: TerminalSize | null }], Result<ApplicationTerminal>>;
-  'application:start': I<[OnTask & { id: number; command?: string }], Result<ApplicationTerminal>>;
-  'application:restart': I<[OnTask & { id: number; command?: string }], Result<ApplicationTerminal>>;
+  'application:run': I<[OnTask & { id: number; command?: string }], Result<ApplicationTerminal>>;
   'application:stop': I<[OnTask & { id: number }], Result<ApplicationTerminal>>;
   'application:close': I<[OnTask & { id: number }], Result<{ id: number }>>;
-  'application:read': I<[OnTask & { id: number; lines?: number; screenOnly?: boolean }], Result<ApplicationScreen>>;
-  'application:input': I<[OnTask & { id: number; text?: string; paste?: boolean; key?: ApplicationKey }], Result<{ id: number }>>;
   'terminal:open': I<[OnTask & { agent?: string; own?: boolean }], Result<{ id: number } | { none: true }>>;
   'terminal:show': I<[OnTask & { id: number }]>;
   'terminal:close': I<[OnTask & { id: number }]>;

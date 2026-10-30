@@ -17,8 +17,8 @@ test("projects: another tab left in the background, with a terminal its agent ra
   await begin(core, ui, files, { featureX: true });
   const other = path.join(files.root, 'other');
   await openFolder(core, ui, other);
-  await call('terminal_run', { name: 'dev server', command: 'echo "served before"; sleep 60' });
-  await expect.poll(async () => (await call('terminal_read', { name: 'dev server' })).text).toMatch(/^served before$/m);
+  await call('shell_run', { name: 'dev server', command: 'echo "served before"; sleep 60' });
+  await expect.poll(async () => (await call('shell_read', { name: 'dev server' })).text).toMatch(/^served before$/m);
   await backTo(core, ui, files, 'project');
   expect(await tabProjects(ui, files)).toEqual(['project *', 'project', 'other']);
 
@@ -37,8 +37,8 @@ test("projects: another tab left in the background, with a terminal its agent ra
   // A command typed into its shell runs after anything typed there before it: what it prints says the shell got
   // nothing else first (the one before it, sleeping a minute, would hold it).
   await core((k, t) => (k.shell.taskByKey(t).terminal('dev server') as { pty: { write(s: string): void } }).pty.write('echo kl-shell-free\r'), key);
-  await expect.poll(async () => (await call('terminal_read', { name: 'dev server' })).text).toMatch(/^kl-shell-free$/m);
-  expect((await call('terminal_read', { name: 'dev server' })).text, 'nothing runs there').not.toContain('served before');
+  await expect.poll(async () => (await call('shell_read', { name: 'dev server' })).text).toMatch(/^kl-shell-free$/m);
+  expect((await call('shell_read', { name: 'dev server' })).text, 'nothing runs there').not.toContain('served before');
 });
 
 test('projects: one left in a window of its own comes back after a restart where it was, with its project shown; saved smaller than the minimum, at the minimum', async ({ core, ui, files, restart }) => {

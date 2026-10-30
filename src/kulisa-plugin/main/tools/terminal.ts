@@ -1,43 +1,41 @@
-// The agent's tools on the shells next to its terminal (Task.openTerminal): what keeps running, where the human sees
-// it. How a tool is designed: ../../README.md, Tool design.
+// Agent handles on application terminal environments; actions and validation belong to the task's core.
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { terminalKeys } from '../../../terminal/ipc.ts';
 import { TERMINAL_LINES } from '../../../shared/application-terminal.ts';
 import type { Handles } from './handles.ts';
 
-// What an agent can read back of a shell (terminal_read; terminalTail in src/terminal/main): its last lines as the screen shows them, kept
-// by a terminal without a window (xterm's own parser), so lines a program redraws in place (a progress, a container's
-// state) are what they became; the output with its codes left out had every frame. Its scrollback is what the agent
-// may ask for at most: the memory is lines × columns × 12 bytes (about 1 MB at 200 columns). Its buffer is a proposed
-// API in the headless build (allowProposedApi), the one xterm's serialize addon reads too.
-const READ_MAX = TERMINAL_LINES;
-
-function terminalTools(server: McpServer, { task, text, done }: Handles) {
-  const nameArg = z.string().describe('The terminal\'s name, e.g. "dev server"');
+export function terminalTools(server: McpServer, { task, text, done }: Handles) {
+  const nameArg = z.string().trim().min(1).describe('Name of the terminal in Stage, separate from development shells');
+  const size = z.object({ cols: z.number().int(), rows: z.number().int() }).nullable().describe('Fixed columns/rows, or null to fit the pane');
   server.registerTool('terminal_run', {
-    description: "Run a command that keeps running (the app's dev server, docker compose up, a watcher) in a terminal of its own next to yours, where the human sees it: the user's shell in the task's folder, with your environment. A terminal of that name already open gets the command typed in: stop what runs there first (terminal_stop). Then read its output with terminal_read.",
-    inputSchema: { name: nameArg, command: z.string().describe('A command line for the user\'s shell (PowerShell on Windows), e.g. "npm run dev -- --port 3100"') },
-  }, async ({ name, command }) => {
-    const r = done(await task.runInTerminal(name, command));
-    return text(`${r.again ? 'Typed into' : 'Started in'} terminal "${r.name}": ${command}. Read its output with terminal_read.`);
-  });
-  server.registerTool('terminal_read', {
-    description: 'The last lines a terminal next to yours shows, as plain text (a server\'s errors, the address it listens on). Without a name: the terminals open.',
-    inputSchema: { name: nameArg.optional(), lines: z.number().int().min(1).max(READ_MAX).optional().describe('Default 50') },
-  }, async ({ name, lines }) => {
-    if (!name) {
-      const list = task.terminalsInfo().list.filter((x) => !x.agent);
-      return text(list.length ? list.map((x) => `"${x.name}" (${x.by === 'agent' ? "an agent's" : "the human's"})${x.command ? `: ${x.command}` : ''}`).join('\n') : 'No terminals open besides the agents\'.');
-    }
-    return text(done(task.readTerminal(name, lines)).text || '(nothing yet)');
-  });
+    description: 'Run your command in a visible interactive terminal in Stage, shared with the human. Creates the named terminal if needed; otherwise stops its previous process and runs the supplied command with a fresh screen. Uses the user’s shell in this task’s working folder. Build the app and choose the command yourself. Shells share the human’s home and credentials. Omitted size preserves the current size; new terminals fit the pane.',
+    inputSchema: { name: nameArg, command: z.string().min(1).max(8192), size: size.optional() },
+  }, async ({ name, command, size }) => text(JSON.stringify(done(await task.applications.run(name, command, size)))));
+  server.registerTool('terminal_resize', {
+    description: 'Resize an interactive terminal in Stage: 2–500 columns and 2–200 rows, or size: null to fit its pane. Preserves the running process.',
+    inputSchema: { name: nameArg, size },
+  }, async ({ name, size }) => text(JSON.stringify(done(task.applications.resize(name, size)))));
   server.registerTool('terminal_stop', {
-    description: 'Stop what runs in a terminal next to yours (Ctrl+C); close: true closes the terminal too. The human\'s own terminals: only when they ask.',
-    inputSchema: { name: nameArg, close: z.boolean().optional() },
-  }, async ({ name, close }) => {
-    done(close ? task.closeTerminal(name) : task.interruptTerminal(name));
-    return text(close ? `Closed terminal "${name}".` : `Pressed Ctrl+C in terminal "${name}".`);
+    description: 'End the process in a Stage terminal, keeping its final screen and setup. Use input with Ctrl+C for a normal keyboard interrupt instead.',
+    inputSchema: { name: nameArg },
+  }, async ({ name }) => text(JSON.stringify(done(task.applications.stop(name)))));
+  server.registerTool('terminal_close', {
+    description: 'Close a Stage terminal: stop its process and remove its pane, saved setup and screen buffers. Source files and saved artifacts stay.',
+    inputSchema: { name: nameArg },
+  }, async ({ name }) => text(JSON.stringify(done(task.applications.close(name)))));
+  server.registerTool('terminal_read', {
+    description: 'Inspect an application terminal: current rendered screen by default, including alternate-screen TUIs and cursor position; scrollback: true reads its last lines (default 50, max 500). Without name lists environments and process/exit status. Large output goes to a task artifact; the answer gives its path and a preview. Output is bounded and reflects cursor redraws rather than raw stdout.',
+    inputSchema: { name: nameArg.optional(), scrollback: z.boolean().optional(), lines: z.number().int().min(1).max(TERMINAL_LINES).optional() },
+  }, async ({ name, scrollback, lines }) => {
+    if (!name) return text(JSON.stringify(task.applications.info()));
+    const r = done(await task.applications.read(name, lines, !scrollback));
+    if (r.text.length <= 40000) return text(JSON.stringify(r));
+    const file = await task.saveArtifact({ kind: 'application', id: r.terminal.id }, 'terminal.txt', r.text);
+    return text(JSON.stringify({ terminal: r.terminal, size: r.size, cursor: r.cursor, file, characters: r.text.length, text: r.text.slice(0, 2000), note: 'Full terminal text is in the task artifact. Read the part needed from that file.' }));
   });
+  server.registerTool('terminal_input', {
+    description: 'Operate a running application terminal. Send text (max 16384 characters), paste: true for a paste respecting bracketed-paste mode, or one named key. Enter submits separately. Never automate real-account sign-in: ask the human to take over the visible terminal.',
+    inputSchema: { name: nameArg, text: z.string().max(16384).optional(), paste: z.boolean().optional(), key: z.enum(Object.keys(terminalKeys) as [string, ...string[]]).optional() },
+  }, async ({ name, ...input }) => text(JSON.stringify(done(task.applications.input(name, input)))));
 }
-
-export { terminalTools };

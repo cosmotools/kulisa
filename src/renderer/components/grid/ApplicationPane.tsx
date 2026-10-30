@@ -17,9 +17,8 @@ function useDraft(source: string): [string, (value: string) => void] {
 const idOf = (id: string) => Number(id.slice('application:'.length));
 const useApplication = (id: number) => useWindow((s) => s.applications.find((a) => a.id === id));
 const actions = (app: ApplicationTerminal): MenuItem[] => [
-  { label: 'Start', enabled: app.status !== 'running' && app.status !== 'starting', run: () => act('application:start', { id: app.id }) },
+  { label: app.status === 'running' || app.status === 'starting' ? 'Restart' : 'Start', enabled: !!app.command.trim(), run: () => act('application:run', { id: app.id }) },
   { label: 'Stop', enabled: app.status === 'running' || app.status === 'starting', run: () => act('application:stop', { id: app.id }) },
-  { label: 'Restart', run: () => act('application:restart', { id: app.id }) },
   '-',
   { label: 'Fit to pane', run: () => act('application:configure', { id: app.id, size: null }) },
   { label: 'Close application terminal', run: () => act('application:close', { id: app.id }) },
@@ -46,7 +45,7 @@ export function ApplicationPane({ api }: IDockviewPanelProps) {
   if (!app) return null;
   const running = app.status === 'running' || app.status === 'starting';
   const saveCommand = () => command !== app.command && perform(act('application:configure', { id, command }));
-  const start = () => void perform(act(running ? 'application:restart' : 'application:start', { id, command })).then((ok) => { if (ok) view.current?.term.focus(); });
+  const start = () => void perform(act('application:run', { id, command })).then((ok) => { if (ok) view.current?.term.focus(); });
   const menu = (): MenuItem[] => [
     { label: 'Copy', enabled: view.current?.term.hasSelection() ?? false, run: () => { if (view.current) termCopy(view.current.term); } },
     { label: 'Paste', enabled: app.status === 'running', run: () => { if (view.current) termPaste(view.current.term); } },

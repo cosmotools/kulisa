@@ -91,7 +91,7 @@ test("agents: Claude Code's dictation is on in its sessions only, Kulisa's tools
   assert.deepEqual(JSON.parse(fs.readFileSync(withAccount[3], 'utf8')), JSON.parse(args[3]!));
   assert.ok(hooks);
   assert.deepEqual(given, { voiceEnabled: true, voice: { enabled: true, mode: 'hold', autoSubmit: false }, permissions: {
-    allow: ['mcp__plugin_kulisa_kulisa', 'Read(//data/projects/*/*/artifacts/**)'], ask: ['mcp__plugin_kulisa_kulisa__terminal_run', 'mcp__plugin_kulisa_kulisa__browser_file_upload', 'mcp__plugin_kulisa_kulisa__application_start', 'mcp__plugin_kulisa_kulisa__application_restart', 'mcp__plugin_kulisa_kulisa__application_input'] } });
+    allow: ['mcp__plugin_kulisa_kulisa', 'Read(//data/projects/*/*/artifacts/**)'], ask: ['mcp__plugin_kulisa_kulisa__shell_run', 'mcp__plugin_kulisa_kulisa__browser_file_upload', 'mcp__plugin_kulisa_kulisa__terminal_run', 'mcp__plugin_kulisa_kulisa__terminal_input'] } });
   // Its language setting in an account's folder, as its /config writes it; the rest of the file kept.
   const dir = path.join(root, 'claude-language'), settings = path.join(dir, 'settings.json');
   assert.deepEqual(claude.language!.set(dir, 'de'), {});
@@ -157,8 +157,8 @@ test("tasks: a deleted task leaves nothing in Claude Code's and Codex's data; th
   const hooks = codexArgs('http://127.0.0.1:1/task/a/1/mcp')[3];
   // Command execution, terminal input and upload retain the agent's approval.
   assert.deepEqual(codexArgs('http://x').slice(4), ['-c', 'mcp_servers.kulisa.default_tools_approval_mode="approve"',
-    '-c', 'mcp_servers.kulisa.tools.terminal_run.approval_mode="prompt"', '-c', 'mcp_servers.kulisa.tools.browser_file_upload.approval_mode="prompt"',
-    '-c', 'mcp_servers.kulisa.tools.application_start.approval_mode="prompt"', '-c', 'mcp_servers.kulisa.tools.application_restart.approval_mode="prompt"', '-c', 'mcp_servers.kulisa.tools.application_input.approval_mode="prompt"']);
+    '-c', 'mcp_servers.kulisa.tools.shell_run.approval_mode="prompt"', '-c', 'mcp_servers.kulisa.tools.browser_file_upload.approval_mode="prompt"',
+    '-c', 'mcp_servers.kulisa.tools.terminal_run.approval_mode="prompt"', '-c', 'mcp_servers.kulisa.tools.terminal_input.approval_mode="prompt"']);
   assert.equal(hooks, codexArgs('http://127.0.0.1:2/task/b/2/mcp')[3]);
   assert.deepEqual([...hooks!.matchAll(/(\w+)=\[\{hooks=\[\{[^}]*hooks\/([\w-]+)/g)].map((m) => `${m[1]} ${m[2]}`),
     ['SessionStart session-start', 'UserPromptSubmit prompt', 'PermissionRequest waiting', 'PostToolUse tool-done', 'Stop stop', 'Interrupt interrupt', 'SessionEnd session-end']);

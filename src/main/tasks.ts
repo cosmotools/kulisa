@@ -296,10 +296,10 @@ class Task {
 
   // Its terminals' panel (docs/window.md, The terminal): the terminals in tabs, one shown at a time. Each the user's shell in the
   // task's folder, with an agent started in it or not. A shell is for what keeps running where the human sees it (the
-  // human's own, the agent's terminal_run: the app's dev server), rather than in the background of the agent's own
+  // human's own, the agent's shell_run: the app's dev server), rather than in the background of the agent's own
   // shell, which some agents cannot do and the human does not see. As in an IDE they are kept: when the task loads
   // again (a restart, its project opened again) each comes back in its tab, an agent's conversation resumed, a shell
-  // with nothing running (the agent runs its command again). They go when closed (×, terminal_stop) or their shell exits.
+  // with nothing running (the agent runs its command again). They go when closed (×, shell_stop) or their shell exits.
   // A task that never had one opens its agent (none: nothing, the terminals' buttons instead); the last one closed leaves
   // the terminals folded to their + (terminals.json says so).
   async loadTerminals() {
@@ -545,7 +545,7 @@ class Task {
     }
     return { error: `no terminal "${which}"; open now: ${shells.map((x) => `"${x.name}"`).join(', ') || 'none'}` };
   }
-  // A shell: the human's (+, in front) or the agent's (terminal_run, behind the tab in front: the human goes on
+  // A shell: the human's (+, in front) or the agent's (shell_run, behind the tab in front: the human goes on
   // watching the agent).
   async openTerminal({ id, name, command = '', by = 'human', front = by === 'human' }: { id?: number; name?: string; command?: string; by?: 'human' | 'agent'; front?: boolean } = {}): Promise<Result<{ id: number; name: string }>> {
     if (!this.loaded) return { error: 'the task is not open' };

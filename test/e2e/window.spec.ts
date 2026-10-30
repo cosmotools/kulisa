@@ -261,7 +261,7 @@ test("the terminals' panel: its terminals in tabs over them, one shown, flat as 
     for (let x: Element | null = e; x; x = x.parentElement) { const c = getComputedStyle(x).backgroundColor; if (c !== 'rgba(0, 0, 0, 0)') return c; }
     return '';
   });
-  expect((await mcp()).getInstructions()).toMatch(/terminal_run, not in your own shell.*This is the Kulisa task "task-1", working right in the project's folder .* \(no git, so no worktree of its own\)\. Run the app under test on a free port you pick \(Kulisa assigns none\).*Name the task with task_rename once you know what it is about, silently: never ask the human for a name or mention it\. These notes are for you/s);
+  expect((await mcp()).getInstructions()).toMatch(/shell_run, not in your own shell.*This is the Kulisa task "task-1", working right in the project's folder .* \(no git, so no worktree of its own\)\. Run the app under test on a free port you pick \(Kulisa assigns none\).*Name the task with task_rename once you know what it is about, silently: never ask the human for a name or mention it\. These notes are for you/s);
   expect(await tabs(), "the agent's tab, named after its agent").toEqual(['bash *']);
   // Flat, as a profile's pane: the row and the terminal on one background; the row and its tab in front a pane's tabs' own.
   const front = 'nav[aria-label="Terminals"] [role="tab"][aria-selected="true"]';
@@ -296,9 +296,9 @@ test("the terminals' panel: its terminals in tabs over them, one shown, flat as 
 
   // The agent's: its environment (KULISA_TASK), behind (the human watches what is in front), read back as plain text.
   const ready = WIN ? 'echo "ready in $env:KULISA_TASK"; sleep 30' : 'echo "ready in $KULISA_TASK"; sleep 30';
-  expect((await call('terminal_run', { name: 'dev server', command: ready })).text).toMatch(/^Started in terminal "dev server"/);
+  expect((await call('shell_run', { name: 'dev server', command: ready })).text).toMatch(/^Started in terminal "dev server"/);
   const dev = await terminal(core, 'dev server');
-  await expect.poll(async () => (await call('terminal_read', { name: 'dev server' })).text).toContain('ready in task-1');
+  await expect.poll(async () => (await call('shell_read', { name: 'dev server' })).text).toContain('ready in task-1');
   expect(await tabs(), 'behind').toEqual(['bash', 'Terminal *', 'dev server']);
   expect(await shown()).toBe(1);
   // Laid out while behind, it does not make the window scrollable: the agent's state on its tab (the tasks' bar brings
@@ -307,10 +307,10 @@ test("the terminals' panel: its terminals in tabs over them, one shown, flat as 
   // leaves a tab already in view.
   await ui.locator('#taskTabs [role="tab"]').first().evaluate((t) => t.scrollIntoView());
   expect(await ui.evaluate(() => [document.documentElement.scrollTop, document.documentElement.scrollHeight <= innerHeight])).toEqual([0, true]);
-  expect((await call('terminal_read', {})).text).toBe(`"Terminal" (the human's)\n"dev server" (an agent's): ${ready}`);
-  await expect(call('terminal_stop', { name: 'nope' })).rejects.toThrow(/no terminal "nope"; open now: "Terminal", "dev server"/);
+  expect((await call('shell_read', {})).text).toBe(`"Terminal" (the human's)\n"dev server" (an agent's): ${ready}`);
+  await expect(call('shell_stop', { name: 'nope' })).rejects.toThrow(/no terminal "nope"; open now: "Terminal", "dev server"/);
   // An agent's tab is no terminal to run in, read or stop: a command there would be a message to that agent.
-  for (const [tool, args] of [['terminal_run', { command: 'hi' }], ['terminal_read', {}], ['terminal_stop', { close: true }]] as const) {
+  for (const [tool, args] of [['shell_run', { command: 'hi' }], ['shell_read', {}], ['shell_stop', { close: true }]] as const) {
     await expect(call(tool, { name: 'bash', ...args })).rejects.toThrow(/"bash" is an agent's tab, not a terminal to run in: read what it did in task_history/);
   }
   expect(await tabs()).toEqual(['bash', 'Terminal *', 'dev server']);
@@ -345,26 +345,26 @@ test("the terminals' panel: its terminals in tabs over them, one shown, flat as 
   await expect(nav.locator('[role="tab"]')).toHaveCount(had);
   // Stopped: Ctrl+C, the shell stays; the same name again types into it (PowerShell shows no ^C: its answer at once,
   // not after the sleep, says the command stopped).
-  await call('terminal_stop', { name: 'dev server' });
-  if (!WIN) await expect.poll(async () => (await call('terminal_read', { name: 'dev server', lines: 3 })).text).toContain('^C');
-  expect((await call('terminal_run', { name: 'Dev Server', command: 'echo again' })).text).toMatch(/^Typed into terminal "dev server"/);
-  await expect.poll(async () => (await call('terminal_read', { name: 'dev server' })).text).toMatch(/^again$/m);
+  await call('shell_stop', { name: 'dev server' });
+  if (!WIN) await expect.poll(async () => (await call('shell_read', { name: 'dev server', lines: 3 })).text).toContain('^C');
+  expect((await call('shell_run', { name: 'Dev Server', command: 'echo again' })).text).toMatch(/^Typed into terminal "dev server"/);
+  await expect.poll(async () => (await call('shell_read', { name: 'dev server' })).text).toMatch(/^again$/m);
   // Read as the screen shows it: lines a program redraws in place (a progress, a container's state) are what they
   // became. Read from the output with its codes left out, every frame was there, and filled the lines asked for.
-  await call('terminal_run', { name: 'dev server', command: WIN ? 'Write-Host "bundle 30%`nwrite`n$([char]27)[2A$([char]27)[2Kbundle done`n$([char]27)[2Kwritten"'
+  await call('shell_run', { name: 'dev server', command: WIN ? 'Write-Host "bundle 30%`nwrite`n$([char]27)[2A$([char]27)[2Kbundle done`n$([char]27)[2Kwritten"'
     : String.raw`printf 'bundle 30%%\nwrite\n\033[2A\033[2Kbundle done\n\033[2Kwritten\n'` });
-  await expect.poll(async () => (await call('terminal_read', { name: 'dev server' })).text).toMatch(/^written$/m);
-  expect((await call('terminal_read', { name: 'dev server' })).text).not.toMatch(/^(bundle 30%|write)$/m);
+  await expect.poll(async () => (await call('shell_read', { name: 'dev server' })).text).toMatch(/^written$/m);
+  expect((await call('shell_read', { name: 'dev server' })).text).not.toMatch(/^(bundle 30%|write)$/m);
   // A click on a tab brings it to the front.
   await ui.locator(`nav[aria-label="Terminals"] [data-id="${dev.id}"]`).click();
   await expect.poll(tabs).toEqual(['bash', 'Terminal', 'dev server *']);
   // Closed by the agent: its tab and its process go; the tab next to it comes to the front.
   const pid = await core((k) => (k.shell.task.terminal('dev server') as TaskTerminal).pty.pid);
-  await call('terminal_stop', { name: 'dev server', close: true });
+  await call('shell_stop', { name: 'dev server', close: true });
   await expect.poll(tabs).toEqual(['bash', 'Terminal *']);
   await expect.poll(() => { try { process.kill(pid, 0); return false; } catch { return true; } }).toBe(true);
   // A shell that exits closes its terminal; × closes the human's.
-  await call('terminal_run', { name: 'once', command: 'exit' });
+  await call('shell_run', { name: 'once', command: 'exit' });
   await expect.poll(() => core((k) => !!(k.shell.task.terminal('once') as TaskTerminal).error && k.shell.task.terminals.size === 2)).toBe(true);
   await ui.locator(`nav[aria-label="Terminals"] [data-id="${human.id}"] [title^="Close"]`).click();
   await expect.poll(() => terminals(core)).toBe(1);

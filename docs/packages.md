@@ -28,7 +28,7 @@ before it is built.
 Code that is *about* the thing but knows the rest stays outside, using the package: for the terminal, the terminals'
 panel (`components/grid/Terminals.tsx`, `lib/terminals.ts`: its agents' buttons, the closed profiles' tiles, Change
 agent…, the project's accounts in its +), the agents in terminals (`tasks.ts`: conversations, handing over, the
-agent's state) and the agent's tools (`terminal_run`, `terminal_read`, `terminal_stop` in
+agent's state) and the agent's tools (`shell_run`, `shell_read`, `shell_stop` in
 `kulisa-plugin/main/tools/terminal.ts`: what the agent sees lives in the Kulisa plugin, AGENTS.md, Architecture). Inside,
 the terminals' panel would pull half of `src/renderer/lib` with it, and the boundary would mean nothing.
 

@@ -47,11 +47,9 @@ interface SavedConversation {
 interface Artifact { file: string; source: ArtifactSource; kind: string; time: number; bytes: number }
 interface ApplicationAccess {
   info(): ApplicationTerminal[];
-  create(name?: string, command?: string): Result<ApplicationTerminal>;
-  configure(which: number | string, change: { name?: string; command?: string; size?: TerminalSize | null }): Result<ApplicationTerminal>;
-  start(which: number | string, command?: string): Promise<Result<ApplicationTerminal>>;
+  run(name: string, command: string, size?: TerminalSize | null): Promise<Result<ApplicationTerminal>>;
+  resize(which: number | string, size: TerminalSize | null): Result<ApplicationTerminal>;
   stop(which: number | string): Result<ApplicationTerminal>;
-  restart(which: number | string, command?: string): Promise<Result<ApplicationTerminal>>;
   close(which: number | string): Result<{ id: number }>;
   read(which: number | string, lines?: number, screenOnly?: boolean): Promise<Result<ApplicationScreen>>;
   input(which: number | string, input: { text?: string; paste?: boolean; key?: ApplicationKey }): Result<{ id: number }>;

@@ -39,12 +39,9 @@ export function registerPanes(ipc: Ipc) {
   });
   handle('application:create', (e, { task, name, command }) => onScreen(e, task)?.applications.create(name, command) || noTask);
   handle('application:configure', (e, { task, id, ...change }) => onScreen(e, task)?.applications.configure(id, change) || noTask);
-  handle('application:start', (e, { task, id, command }) => onScreen(e, task)?.applications.start(id, command) || noTask);
-  handle('application:restart', (e, { task, id, command }) => onScreen(e, task)?.applications.restart(id, command) || noTask);
+  handle('application:run', (e, { task, id, command }) => onScreen(e, task)?.applications.run(id, command) || noTask);
   handle('application:stop', (e, { task, id }) => onScreen(e, task)?.applications.stop(id) || noTask);
   handle('application:close', (e, { task, id }) => onScreen(e, task)?.applications.close(id) || noTask);
-  handle('application:read', (e, { task, id, lines, screenOnly }) => onScreen(e, task)?.applications.read(id, lines, screenOnly) || noTask);
-  handle('application:input', (e, { task, id, ...input }) => onScreen(e, task)?.applications.input(id, input) || noTask);
   handle('terminal:show', (e, { task, id }) => onScreen(e, task)?.show(id) || noTask);
   handle('terminal:close', (e, { task, id }) => onScreen(e, task)?.closeTab(id) || noTask);
   handle('terminal:paste-image', (e, { task, id }) => onScreen(e, task)?.pasteImage(id));

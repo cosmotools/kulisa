@@ -94,8 +94,11 @@ the window. The title bar's **Stage → Open an environment** opens the same env
 
 An application terminal (`grid/ApplicationPane.tsx`) is the CLI or TUI under test, in its own stage pane. Its name,
 launch command and optional fixed columns/rows are saved per task; configuration restores with no process started.
-Start, Stop, Restart and Close are the task's `ApplicationTerminals` actions (`main/application-terminals.ts`),
-shared by the window's IPC and agent-agnostic `application_*` MCP tools. Launch uses the user's shell in the task's
+The task’s `ApplicationTerminals` actions (`main/application-terminals.ts`) serve the window and agent.
+`terminal_run(name, command, size?)` creates a Stage terminal or reruns the supplied command in that named terminal;
+validation precedes stopping the previous process. The agent builds the app and chooses its command.
+`terminal_read`, `terminal_input`, `terminal_resize`, `terminal_stop` and `terminal_close` provide the interactive bridge.
+Development shells use `shell_run`, `shell_read` and `shell_stop` beside the coding agent. Launch uses the user's shell in the task's
 current working folder, with shell startup settings; the process's exit code and final screen stay visible after
 exit. Start and Restart clear the previous run's screen. Stop ends the session and keeps its final screen readable; Close also removes its setup and buffers. Closing a task stops its applications and keeps their setup for reopening.
 
@@ -110,12 +113,14 @@ not separate identities. Real-account sign-in stays the human's.
 
 | Action | The human | The agent | The core |
 |---|---|---|---|
-| Create | Application Terminal; Stage → Open an environment | `application_create` | `ApplicationTerminals.create` |
-| Save name, command or size | fields; Resize, Auto | `application_configure` | `configure` |
-| Start, stop, restart | buttons; pane's menu | `application_start`, `application_stop`, `application_restart` | `start`, `stop`, `restart` |
-| Inspect screen and status | visible terminal and status | `application_read` | `read`, `info` |
-| Type, paste, keys | terminal input; right-click Paste | `application_input` | terminal Kulisa package's input; `input` |
-| Close | ×; pane's menu | `application_close` | `close` |
+| Open empty setup | Application Terminal; Stage → Open an environment | part of `terminal_run`; agents supply a command | `ApplicationTerminals.create` |
+| Save name and command | fields | command supplied with each `terminal_run`; the pane name selects the session | `configure` |
+| Run or rerun | Start / Restart | `terminal_run` | `run` |
+| Resize or fit to pane | Resize, Auto | `terminal_resize`; optional size on `terminal_run` | `configure` |
+| Stop process, keep final screen | Stop | `terminal_stop` | `stop` |
+| Inspect screen and status | visible terminal and status | `terminal_read` | `read`, `info` |
+| Type, paste, keys | terminal input; right-click Paste | `terminal_input` | terminal Kulisa package's input; `input` |
+| Close | ×; pane's menu | `terminal_close` | `close` |
 
 A window made narrower or wider changes every panel in its share, as VS Code's and JetBrains' do (dockview's
 `proportionalLayout`; it needs dockview 8.6.0 or later:
@@ -341,15 +346,15 @@ OS's own terminal, its size) is a Kulisa package, `src/terminal/` ([packages.md]
 [README](../src/terminal/README.md)). The panel is the task's: its tabs, its agents, its shells.
 
 **Shells**: the human's (+ → Terminal, `Terminal`, `Terminal 2` …) and what an agent keeps running for the human to see
-(`terminal_run`: the app's dev server, `docker compose up`), behind the tab in front so the human goes on watching the
+(`shell_run`: the app's dev server, `docker compose up`), behind the tab in front so the human goes on watching the
 agent. Each is the user's shell in the task's folder with the agent's environment (`KULISA_MCP_URL`, `KULISA_URL`,
 `KULISA_TASK`), the command typed in, so the human can stop it, type into it and read it; an agent reads its last lines
-as the screen shows them (`terminal_read`, colors left out) and presses Ctrl+C (`terminal_stop`), in shells only, never
+as the screen shows them (`shell_read`, colors left out) and presses Ctrl+C (`shell_stop`), in shells only, never
 another agent's tab. Not the agent's own background shell: some agents cannot keep a process running (Codex waits on
 it), and the human does not see what runs there. The task closing ends what runs in it. As in an IDE, the terminals are
 kept (`terminals.json`): when the task loads again (a restart, the task opened again) each comes back in its tab, the
 one in front too, an agent's conversation resumed, a shell with nothing running; the agent runs its command again. ×,
-the menu's Close, `terminal_stop` with close, or the shell's `exit` ends one for good (`Task.openTerminal`,
+the menu's Close, `shell_stop` with close, or the shell's `exit` ends one for good (`Task.openTerminal`,
 `openAgent`, `runInTerminal`, `interruptTerminal`, `readTerminal`, `closeTab`).
 
 **Dictation**, where the agent in front has its own ([tasks.md](tasks.md), "Choosing the agent"), is a key held: the

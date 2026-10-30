@@ -156,9 +156,9 @@ methods; who a profile is changes and is checked in the store (`ProfileStore.ren
 | Sign in | by hand, in its master (Sign In to Master…) or a task's pane | never (Rules); asks with `profile_ask_signin` | `master.ts`; the sign-in pause |
 | Save a test user's pair | Settings → Profiles' Test login and Test password | `profile_set_login` | `ProfileStore.setLogin`, `Task.setLogin` (encrypted: `shell.loginSecret`) |
 | Sign in as a test user | types it | `browser_type_login` (never sees the password) | `Task.loginFor`, `local.ts` |
-| Open a shell in the task's terminals, run in it | the terminals' + → Terminal, then types | `terminal_run` (a name and a command; never in another agent's tab) | `Task.openTerminal`, `runInTerminal` |
-| Read a terminal, stop what runs there | looks at it, Ctrl+C | `terminal_read`, `terminal_stop` | `Task.readTerminal`, `interruptTerminal` |
-| Close a terminal | ×, Close in its menu, `exit` | `terminal_stop` with `close` | `Task.closeTerminal`; a shell's exit too |
+| Open a shell in the task's terminals, run in it | the terminals' + → Terminal, then types | `shell_run` (a name and a command; never in another agent's tab) | `Task.openTerminal`, `runInTerminal` |
+| Read a terminal, stop what runs there | looks at it, Ctrl+C | `shell_read`, `shell_stop` | `Task.readTerminal`, `interruptTerminal` |
+| Close a terminal | ×, Close in its menu, `exit` | `shell_stop` with `close` | `Task.closeTerminal`; a shell's exit too |
 
 ## Sign-ins kept in step
 

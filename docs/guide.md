@@ -390,7 +390,8 @@ profile's menu, also on a right-click) and **×**. Under it, a tab strip, then b
 Open **Application Terminal** above the development terminal, or from **Stage → Open an environment** in the title bar. Give it a name and launch
 command, then press **Start**. Your CLI or interactive terminal app runs visibly in the task's working folder; you
 can type, paste and use its keyboard shortcuts. Your coding agent can inspect the same screen, operate the app,
-change its code and run it again. Large terminal reads appear as Terminal screen artifacts in Resources.
+change its code and run it again. You can also ask your agent to run a command directly in a Stage terminal;
+it opens the pane for you. Large terminal reads appear as Terminal screen artifacts in Resources.
 Browser profiles are optional for a CLI task.
 
 **Stop** ends the process; **Restart** runs the command again with a fresh screen. The status shows whether it is

@@ -43,7 +43,7 @@ terminals), with their own Views and saved sizes. Their task-level lifecycle and
   (`@xterm/headless`, xterm's own parser), its last `screen` lines (500 for shell and application reads),
   with Unicode 11 widths matching the visible View, so what a program
   redraws in place (a progress, a container's state) is read as it became, not as every frame it went through. About
-  1 MB a shell at 200 columns; an agent's terminal keeps none (`terminal_read` does not read it). `terminalTail` gives its last lines.
+  1 MB a shell at 200 columns; an agent's terminal keeps none (`shell_read` does not read it). `terminalTail` gives its last lines.
 - **Typing to an agent.** `typeIntoPrompt` pastes text into its prompt (bracketed: nothing in it is taken as a key),
   not sent; `eraseInPrompt` deletes the last characters before the cursor, as Backspace (the dictation's words
   corrected as they are heard); `sendToPrompt` sends a line as the human would, once its command was typed, and answers

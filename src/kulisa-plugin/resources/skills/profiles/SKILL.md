@@ -52,9 +52,12 @@ task). This skill is how they fit together; what each one does is in its own des
 ## Application terminal environments
 
 For a CLI or TUI under development, use an application terminal in the testing stage. Your development terminal
-stays separate. Open an environment with its launch command, explicitly start it, inspect its rendered screen before
-acting, and operate it with text, paste or named keys. Restart it after changes to check the result. Read scrollback
-when diagnosing earlier output. No browser profile is needed for a CLI task.
+stays separate. Build the app yourself, then call `terminal_run` with a name and your command: it opens a terminal
+and runs the command. Run again with the same name to replace its process after code changes. `terminal_read` shows
+the rendered screen and status (without a name, lists Stage terminals); inspect it before sending text, paste or
+named keys with `terminal_input`. Use `terminal_resize` for fixed columns/rows or null to fit the pane.
+`terminal_stop` ends the process and keeps its screen; `terminal_close` removes the pane and saved setup.
+Read scrollback when diagnosing earlier output. No browser profile is needed for a CLI task.
 
 The human sees and can operate the same session. Let them take over for real-account sign-in; never type their
 passwords or codes. Terminal environments share the human's home and credentials. Restored setup starts stopped;
@@ -88,7 +91,7 @@ tab reads "New Task" until it is named. You see only your task's profiles.
   uncommitted changes, stop and tell them rather than merging over their work. Or open a pull request, if asked.
 - A fresh worktree has the project's files in git and `.env*`, but no installed dependencies: install them first
   (`npm install`, `pip install`, …) before running anything.
-- Run the app under test with `terminal_run`, not in your own shell or its background, on a **free port you pick**
+- Run the web app’s server with `shell_run`, not in your own shell or its background, on a **free port you pick**
   (Kulisa assigns none; another task or the human may hold the usual one): through `PORT`, a `--port` flag,
   `.env.local`, or the published ports of `docker compose`. Point the profiles' tabs at it with `browser_navigate`;
   they stay signed in (cookies do not depend on the port).

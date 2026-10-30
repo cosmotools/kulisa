@@ -10,7 +10,7 @@ import { handles } from './tools/handles.ts';
 import { profileTools } from './tools/profile.ts';
 import { taskTools } from './tools/task.ts';
 import { browserTools, clearHighlights } from './tools/browser.ts';
-import { applicationTools } from './tools/application.ts';
+import { shellTools } from './tools/shell.ts';
 import { terminalTools } from './tools/terminal.ts';
 import pkg from '../../../package.json' with { type: 'json' };
 import type { AddressInfo } from 'net';
@@ -27,9 +27,9 @@ const INSTRUCTIONS = 'Kulisa profiles are the users of the app under test, each 
   'Never sign in to a real account, type its password or a one-time code, or read cookies or tokens: ask the human ' +
   'with profile_ask_signin. A test user of the app under test on this computer with a saved pair (testLogin in ' +
   'profile_list) you sign in to yourself, with browser_type_login (you never see its password). ' +
-  'Run what keeps running (the app\'s dev server, docker compose up, a watcher) with terminal_run, not in your own ' +
-  'shell or its background: the human sees it in a terminal next to yours, and you read its output with terminal_read. ' +
-  'Test interactive CLI and TUI apps in application terminal environments in the stage: create and explicitly start one, read its rendered screen, send input, then restart after code changes. Your own development terminal stays separate. ' +
+  'Run what keeps running (the app\'s dev server, docker compose up, a watcher) with shell_run, not in your own ' +
+  'shell or its background: the human sees it in a terminal next to yours, and you read its output with shell_read. ' +
+  'Run interactive CLI and TUI apps with terminal_run in Stage: supply the command, read the rendered screen with terminal_read, and send keys or text with terminal_input. Run again in the same named terminal after code changes. Your own development terminal stays separate. ' +
   'What was said and done in this task, by you or other agents (each conversation an agent had in it), is in ' +
   'task_history: read the one the human points you to ("go on with what Claude did") before anything else, and read ' +
   'yours when you need details your context lost. Name your conversation with conversation_rename once you know what ' +
@@ -49,7 +49,7 @@ function buildServer(task: Task, t: TaskTerminal | null) {
   taskTools(server, h);
   browserTools(server, h);
   terminalTools(server, h);
-  applicationTools(server, h);
+  shellTools(server, h);
   return server;
 }
 

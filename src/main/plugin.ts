@@ -60,10 +60,9 @@ function taskAccess(task: Task): TaskAccess {
   if (access) return access;
   access = {
     applications: {
-      info: () => task.applications.info(), create: (name, command) => task.applications.create(name, command),
-      configure: (which, change) => task.applications.configure(which, change),
-      start: (which, command) => task.applications.start(which, command), stop: (which) => task.applications.stop(which),
-      restart: (which, command) => task.applications.restart(which, command), close: (which) => task.applications.close(which),
+      info: () => task.applications.info(), run: (name, command, size) => task.applications.run(name, command, size),
+      resize: (which, size) => task.applications.configure(which, { size }),
+      stop: (which) => task.applications.stop(which), close: (which) => task.applications.close(which),
       read: (which, lines, screenOnly) => task.applications.read(which, lines, screenOnly), input: (which, input) => task.applications.input(which, input),
     },
     get key() { return task.key; }, get name() { return task.name; }, get folder() { return task.folder; },
