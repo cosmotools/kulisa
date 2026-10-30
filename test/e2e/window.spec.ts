@@ -321,11 +321,16 @@ test("the terminals' panel: its terminals in tabs over them, one shown, flat as 
   const ids = () => core((k) => [...k.shell.task.terminals.values()].map((t) => t.id));
   const before = await ids();
   const strip = nav.getByRole('tablist');
+  // A growing tab can overflow the strip before its name has reached its full width.
+  await expect(nav.locator('[role="tab"]')).toHaveCount(had);
+  await expect(nav.locator('[role="tab"][data-opening]')).toHaveCount(0);
+  await frames(ui);
   while (await strip.getAttribute('data-past-end') === null && await strip.getAttribute('data-past-start') === null) {
     const n = await terminals(core);
     expect(n, 'the row fills').toBeLessThan(had + 40);
     await ui.evaluate(() => (window as any).act('terminal:open'));
     await expect.poll(() => terminals(core)).toBe(n + 1);
+    await expect(nav.locator('[role="tab"]')).toHaveCount(n + 1);
     await expect(nav.locator('[role="tab"][data-opening]')).toHaveCount(0);
     await frames(ui);
   }

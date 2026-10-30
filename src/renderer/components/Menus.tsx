@@ -64,6 +64,8 @@ function useMenu() {
   const close = useCallback(() => { if (!blurring()) setOpen(false); }, []);
   const onCloseAutoFocus = useCallback((e: Event) => {
     e.preventDefault();
+    // Radix returns focus on a later turn; a menu opened meanwhile owns it already.
+    if (document.querySelector('[role="menu"][data-state="open"]')) return;
     const was = before.current, at = document.activeElement;
     before.current = null;
     if (was instanceof HTMLElement && was.isConnected && was !== document.body && (at === document.body || at?.closest('[role="menu"]'))) was.focus();
