@@ -64,20 +64,23 @@ the stage, development panels in the workspace. The empty stage is absent; openi
 closing the last removes it. A new task opens only its default development terminal.
 
 **☰ → Arrange workspace** places the stage above development terminals with Resources beside them, or beside
-them with Resources below. It preserves the stage's layout. **Arrange stage** in its header offers **Column**
-(vertical stack), **Tabs** (one environment at a time), and **Row** (side by side with horizontal scrolling),
+them with Resources below. It preserves the stage's layout. **Arrange stage** in its header offers **Columns**
+(vertical stack), **Tabs** (one environment at a time), and **Rows** (horizontal stack),
 preserving the workspace. Resources keeps at least its header's height so it can fold with the development terminal.
 The human's `stage:arrange` IPC and the agent's `stage_arrange` tool call `Task.arrangeStage`: only the shown task
 with an open environment can be arranged; the task-scoped event reaches that window's stage.
 
-Row allocates at least 600 CSS pixels per environment; Dockview's sashes resize the panes. `Stage.tsx` sizes the inner
-grid inside a horizontal viewport. Its scroll and both grids' layout changes report page bounds and their visible
+**Allow overflow** is independent of the layout, off by default: panes fit the stage. On, Rows allocates 600 CSS
+pixels of width per environment, Columns 300 pixels of height, plus Dockview’s gaps; the stack scrolls on that axis.
+Tabs hides the toggle and ignores overflow while preserving its value. `stage_arrange` accepts either setting or
+both; omitted settings stay unchanged. Changing only overflow preserves the panes and active tab. `Stage.tsx` sizes
+the inner grid inside its scroll viewport. Its scroll and both grids' layout changes report page bounds and their visible
 intersection (`lib/grid.ts`). `Profile` puts a partially visible page inside a native `View` at that intersection;
 the child keeps its full viewport, offset within the parent. Fully offscreen pages are hidden. The clipping parent
 is removed when the page fits, the profile closes, or it moves to another window. Dragging in either grid turns
 pages into pictures for HTML drop targets.
 
-`layout.json` keeps both grids (`version: 2`, `workspace`, `stage`, `stageLayout`), saved 300 ms after a change and flushed when the
+`layout.json` keeps both grids (`version: 2`, `workspace`, `stage`, `stageLayout`, `stageOverflow`), saved 300 ms after a change and flushed when the
 task is left. `lib/stage-layout.ts` separates a flat saved layout into development and testing groups, retaining
 panel order, stacking and sizes. An invalid grid falls back to its default arrangement.
 

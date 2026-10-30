@@ -63,7 +63,7 @@ interface TaskAccess {
   readonly profiles: ReadonlyMap<string, ProfileAccess>;
   readonly closed: ReadonlyMap<string, { cfg: ProfileInfo; tabs: { urls: string[] } }>;
   readonly artifactLimit: number;
-  arrangeStage(layout: StageLayout): Result;
+  arrangeStage(layout?: StageLayout, overflow?: boolean): Result;
   dirs(): string[];
   addable(): string[];
   inGit(): boolean;

@@ -84,11 +84,13 @@ class Task {
     this.list = new ProjectProfiles(this.store, shell.profileStore, project.id, this._profileHooks());
     this.profiles = this.list.profiles; this.closed = this.list.closed;
   }
-  arrangeStage(layout: StageLayout): Result {
-    if (!['column', 'tabs', 'row'].includes(layout)) return { error: 'unknown stage layout' };
+  arrangeStage(layout?: StageLayout, overflow?: boolean): Result {
+    if (layout === undefined && overflow === undefined) return { error: 'choose a stage layout or set overflow' };
+    if (layout !== undefined && !['column', 'tabs', 'row'].includes(layout)) return { error: 'unknown stage layout' };
+    if (overflow !== undefined && typeof overflow !== 'boolean') return { error: 'overflow must be true or false' };
     if (!this.shown()) return { error: 'this task is not on screen; ask the human to show it before arranging its stage' };
     if (!this.profiles.size && !this.applications.info().length) return { error: 'open an environment before arranging the stage' };
-    this.window!.send('stage:arrange', { task: this.key, layout });
+    this.window!.send('stage:arrange', { task: this.key, layout, overflow });
     return {};
   }
   shown() { return this.window?.task === this; }

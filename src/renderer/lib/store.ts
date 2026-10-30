@@ -18,6 +18,7 @@ interface WindowState {
   // The shown task's profiles, open (as Profile.info) and closed; its terminals.
   profiles: Profile[];
   stageLayout: StageLayout | null;
+  stageOverflow: boolean;
   closedProfiles: ClosedProfile[];
   terminals: Terminals;
   applications: ApplicationTerminal[];
@@ -41,6 +42,7 @@ export const store = createStore<WindowState>()(() => ({
   applications: [],
   profiles: [],
   stageLayout: null,
+  stageOverflow: false,
   closedProfiles: [],
   terminals: { front: null, list: [] },
   artifacts: { task: '', list: [], bytes: 0 },
