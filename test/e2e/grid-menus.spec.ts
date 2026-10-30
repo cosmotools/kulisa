@@ -22,7 +22,7 @@ async function sentAll(core: Core, ui: Page) {
   await echoed(core, { send: (mark) => ui.evaluate(async ([t, m]) => { await navigator.clipboard.readText().catch(() => ''); (window as any).kulisa.send('pty:in', { task: t, data: m }); }, [task, mark]) });
 }
 
-test('context menus: a pane\'s header, a tab, the terminal; pages are pictures while a menu is open; Arrange panels in ☰; Exit', async ({ core, ui, files }) => {
+test('context menus: a pane\'s header, a tab, the terminal; pages are pictures while a menu is open; terminal copy and paste', async ({ core, ui, files }) => {
   await begin(core, ui, files, { columns: true });
   const elonId = files.idOf(ELON), header = `[data-panel="${files.panel(ELON)}"]`;
   const elonVisible = () => core((k) => k.profile('Elon.buyer').get().view.getVisible());
@@ -153,7 +153,10 @@ test('context menus: a pane\'s header, a tab, the terminal; pages are pictures w
     .toEqual(['paste', 'copy', null, null, 'paste', 'copy', null, 'paste', null, null, 'paste']);
   expect(await ui.evaluate(() => [(window as any).keyText('terminal.copy'), (window as any).keyText('terminal.paste')]), "the menu's keys for this OS (main/keys.ts)")
     .toEqual(MAC ? ['⌘C', '⌘V'] : WIN ? ['Ctrl+C', 'Ctrl+V'] : ['Ctrl+Shift+C', 'Ctrl+Shift+V']);
+});
 
+test('terminal links: Ctrl+click asks where to open an address or a file, with the full path on hover', async ({ core, ui, files }) => {
+  await begin(core, ui, files, { columns: true });
   // Links in the terminal, marked by the agent (OSC 8) or in plain text: Ctrl+click asks where, at the pointer: a tab of
   // one of the open profiles, or the user's browser. A plain click, or an address that is not http(s), does nothing.
   const write = (text: string) => ui.evaluate((t) => new Promise((r) => (window as any).__term.write(t, r)), text);
@@ -297,7 +300,12 @@ ${names.map((x) => `      - menuitem ${JSON.stringify(`Open in ${x}`)}`).join('\
     await core((k) => { const g = k.stash.links; Object.assign(k.electron.shell, { openPath: g.openPath, showItemInFolder: g.showItemInFolder }); });
     await removed(dir);
   }
+});
 
+test('the window menu: its rows and icons, Arrange panels, links in the browser and Exit asking before stopping an agent', async ({ core, ui, files }) => {
+  await begin(core, ui, files, { columns: true });
+  const opened = () => core((k) => [...k.openedExternally]);
+  const wasOpened = (await opened()).length;
   await ui.locator('#windowMenu').click();
   // Theme, Tasks bar and Language each a menu beside its row (helpers.ts, windowSubmenu); the arrangements a row each,
   // the full words in the tooltip. No Exit on macOS: ⌘Q and the app menu's Quit there (components/TopBar.tsx).
@@ -331,7 +339,7 @@ ${names.map((x) => `      - menuitem ${JSON.stringify(`Open in ${x}`)}`).join('\
   await ui.locator('#windowMenu').click();
   await expect(menu(ui)).toBeVisible();
   await choose(ui, 'GitHub');
-  await expect.poll(async () => (await opened()).slice(wasOpened)).toEqual(['https://example.com/docs', 'https://github.com/cosmotools/kulisa']);
+  await expect.poll(async () => (await opened()).slice(wasOpened)).toEqual(['https://github.com/cosmotools/kulisa']);
 
   // Exit quits as the last window's × does: asked only when an agent works. On macOS the app menu's Quit (⌘Q) does
   // (no Exit there: above), its hidden window shown for the question.
@@ -350,6 +358,40 @@ ${names.map((x) => `      - menuitem ${JSON.stringify(`Open in ${x}`)}`).join('\
   expect((await answer(ui, false)).message).toBe('Quit Kulisa?');
   expect(await core((k) => !k.shell.win.isDestroyed() && k.shell.open.size > 0), 'Kulisa goes on when the human says no').toBe(true);
   await core((k) => { k.shell.task.promptTarget().state = null; });
+});
+
+test('a reopened menu keeps the keyboard when its previous close finishes late', async ({ core, ui, files }) => {
+  await begin(core, ui, files, { columns: true });
+  const trigger = ui.locator('#windowMenu');
+  await trigger.focus();
+  await ui.keyboard.press('Enter');
+  await expect(menu(ui)).toBeVisible();
+  // Radix returns focus from a zero-delay timer. Hold that turn to reproduce a busy page reopening first.
+  await ui.evaluate(() => {
+    const w: Window = window, timeout = w.setTimeout, held: (() => void)[] = [];
+    w.setTimeout = (handler, ms, ...args) => {
+      if (ms || typeof handler !== 'function') return timeout(handler, ms, ...args);
+      return timeout(() => held.push(() => handler(...args)), ms);
+    };
+    (window as any).__heldMenuFocus = held;
+    (window as any).__resumeMenuTimers = () => { w.setTimeout = timeout; };
+    (window as any).__releaseMenuFocus = () => { w.setTimeout = timeout; for (const run of held.splice(0)) run(); };
+  });
+  try {
+    await trigger.click();
+    await expect(anyMenu(ui)).toHaveCount(0);
+    await expect.poll(() => ui.evaluate(() => (window as any).__heldMenuFocus.length)).toBeGreaterThan(0);
+    await ui.evaluate(() => (window as any).__resumeMenuTimers());
+    await trigger.focus();
+    await ui.keyboard.press('Enter');
+    await expect(ui.locator('[role="menu"][data-ready]:focus-within')).toHaveCount(1);
+    await ui.evaluate(() => (window as any).__releaseMenuFocus());
+    await expect(ui.locator('[role="menu"][data-ready]:focus-within')).toHaveCount(1);
+  } finally {
+    await ui.evaluate(() => (window as any).__releaseMenuFocus());
+  }
+  await closeMenu(ui);
+  await expect(trigger).toBeFocused();
 });
 
 test("menus with the mouse and the keyboard, as the OS's: a press on ☰, a drag to a row and the release there chooses it; a click opens, the next closes; a right-click's release over a row chooses nothing; Enter and the arrows; the keyboard back where it was; leaving the window closes it", async ({ core, ui, files }) => {
@@ -436,15 +478,35 @@ test("menus with the mouse and the keyboard, as the OS's: a press on ☰, a drag
   // Leaving the window (another one takes the focus) closes a menu, as the OS's own menus close.
   await clickMenuButton();
   await expect(menu(ui)).toBeVisible();
+  // A stale native blur arriving after focus returned must leave this menu open.
+  await core((k) => k.shell.windowOf(k.shell.win.webContents).send('window:blur'));
+  await ipcSettled(ui);
+  await frames(ui);
+  await expect(menu(ui)).toBeVisible();
+  // Chromium can report focus after the native window lost it; hold that value through the notification.
+  await ui.evaluate(() => {
+    const focus = document.hasFocus;
+    document.hasFocus = () => true;
+    (window as any).__restoreDocumentFocus = () => { document.hasFocus = focus; };
+  });
   try {
-    await core((k) => {
+    await core(async (k) => {
       const e = k.electron, other = k.stash.otherWindow = new e.BrowserWindow({ width: 300, height: 200, show: false });
-      // macOS makes a window key only in the active app, and the tests run while another one (the terminal) may be.
-      if (process.platform === 'darwin') e.app.focus({ steal: true });
-      other.show(); other.focus();
+      await other.loadURL('about:blank');
+      other.show();
+      k.focus(other);
     });
+    // The trigger is a different window's page taking the keyboard, after its renderer and OS window are ready.
+    await expect.poll(() => core((k) => {
+      const other = k.stash.otherWindow;
+      k.focus(other);
+      return other.isFocused() && other.webContents.isFocused();
+    })).toBe(true);
     await expect(anyMenu(ui)).toHaveCount(0);
-  } finally { await core((k) => { k.stash.otherWindow?.destroy(); }); }
+  } finally {
+    await ui.evaluate(() => (window as any).__restoreDocumentFocus());
+    await core((k) => { k.stash.otherWindow?.destroy(); });
+  }
   // The window has the keyboard again before the tests after: a menu opened while it has not closes at once. The
   // OS's focus waited for too: the page had it at once and the window manager's came later, its blur closing the
   // menu the next test opens (on a loaded machine).

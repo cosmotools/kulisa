@@ -62,5 +62,6 @@ export async function closeLayers(only?: 'menus') {
 // Leaving the window closes a menu, as the OS's own menus close. The main process says so, not the page's own blur: a
 // blur comes also when a profile's page in it takes the keyboard as it loads (macOS), which would close a menu under
 // the human's hand; nothing else takes it while a menu is open (the pages under it are pictures). Its message comes
-// after the blur: a window that has the keyboard again by then (a menu just opened in it) keeps it.
-kulisa.on('window:blur', () => { if (!document.hasFocus()) void closeLayers('menus'); });
+// after the blur: a window that has the keyboard again by then (a menu just opened in it) keeps it. The page's
+// document.hasFocus() can still be true after the OS window has lost focus, so ask the native window.
+kulisa.on('window:blur', async () => { if (!await kulisa.invoke('window:focused')) void closeLayers('menus'); });
