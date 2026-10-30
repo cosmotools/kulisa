@@ -25,9 +25,9 @@ export class ApplicationTerminals {
     }
   }
   private make(c: ApplicationConfig): Application {
-    return { ...c, size: c.size || null, key: `${this.task.key}#app-${c.id}`, status: 'stopped', exitCode: null };
+    return { ...c, size: c.size || null, key: `${this.task.key}#app-${c.id}`, status: 'stopped', exitCode: null, session: null };
   }
-  info(): ApplicationTerminal[] { return [...this.list.values()].map(({ id, name, command, size, key, status, exitCode }) => ({ id, name, command, size, key, status, exitCode })); }
+  info(): ApplicationTerminal[] { return [...this.list.values()].map(({ id, name, command, size, key, status, exitCode, session, launchError }) => ({ id, name, command, size, key, status, exitCode, session, ...(launchError ? { launchError } : {}) })); }
   private changed(save = false) {
     if (save) this.task.store.saveApplications({ next: this.seq + 1, list: this.info().map(({ id, name, command, size }) => ({ id, name, command, size })) });
     if (this.task.shown()) this.task.window?.send('applications', { task: this.task.key, list: this.info() });
@@ -36,7 +36,7 @@ export class ApplicationTerminals {
     const app = typeof which === 'number' ? this.list.get(which) : [...this.list.values()].find((a) => a.name.toLowerCase() === which.trim().toLowerCase());
     return app || { error: `No application terminal "${which}". Open: ${this.info().map((a) => a.name).join(', ') || 'none'}. Run a command in a named terminal first.` };
   }
-  create(name?: string, command = '', size: TerminalSize | null = null): Result<ApplicationTerminal> {
+  private create(name?: string, command = '', size: TerminalSize | null = null): Result<ApplicationTerminal> {
     if (!this.task.loaded) return { error: 'The task is not open.' };
     name = name?.trim();
     if (!name) for (let n = 1; !name; n++) { const candidate = `Application ${n}`; if ('error' in this.find(candidate)) name = candidate; }
@@ -50,6 +50,16 @@ export class ApplicationTerminals {
     log.info(`[application] ${app.key} created`);
     this.changed(true);
     return this.snapshot(app);
+  }
+  async open(name?: string): Promise<Result<ApplicationTerminal>> {
+    const created = this.create(name);
+    return 'error' in created ? created : this.run(created.id);
+  }
+  async restoreShells() {
+    await Promise.all([...this.list.values()].filter((a) => a.status === 'stopped').map(async (a) => {
+      const result = await this.start(a.id, true);
+      if (result.error) log.warn(`[application] ${a.key} shell restore failed: ${result.error}`);
+    }));
   }
   private snapshot(app: Application): ApplicationTerminal { return this.info().find((a) => a.id === app.id)!; }
   configure(which: number | string, change: { name?: string; command?: string; size?: TerminalSize | null }): Result<ApplicationTerminal> {
@@ -65,27 +75,28 @@ export class ApplicationTerminals {
     this.changed(true);
     return this.snapshot(a);
   }
-  private async start(which: number): Promise<Result<ApplicationTerminal>> {
+  private async start(which: number, shellOnly = false): Promise<Result<ApplicationTerminal>> {
     const a = this.find(which); if ('error' in a) return a;
     if (!this.task.loaded) return { error: 'The task is not open.' };
     if (a.status === 'running' || a.pending) return { error: 'The application is running or starting. Stop or restart it first.' };
-    if (!a.command.trim()) return { error: 'Set a launch command before starting the application.' };
     // A fresh buffer per run; an exited program's final screen remains readable until the next run.
     if (a.pty) stopTerminal(a.pty);
     a.pty = undefined;
     this.task.window?.send('terminals:gone', [a.key]);
-    a.status = 'starting'; a.exitCode = null;
+    const command = shellOnly ? '' : a.command;
+    a.session = command.trim() ? 'app' : 'shell';
+    a.status = 'starting'; a.exitCode = null; delete a.launchError;
     log.info(`[application] ${a.key} starting`);
     this.changed();
-    const launch = this.launch(a);
+    const launch = this.launch(a, command);
     a.pending = launch;
     try { return await launch; } finally { if (a.pending === launch) a.pending = undefined; }
   }
-  private async launch(a: Application): Promise<Result<ApplicationTerminal>> {
+  private async launch(a: Application, command: string): Promise<Result<ApplicationTerminal>> {
     try {
       setTerminalSize(a.key, a.size);
       const p = await startTerminal((channel, data) => this.task.window?.send(channel, data),
-        { execute: a.command, cwd: this.task.folder, env: this.task.env(), size: a.size || { cols: 80, rows: 24 }, screen: TERMINAL_LINES }, a.key);
+        { execute: command.trim() ? command : undefined, cwd: this.task.folder, env: this.task.env(), size: a.size || { cols: 80, rows: 24 }, screen: TERMINAL_LINES }, a.key);
       if (this.list.get(a.id) !== a || a.status !== 'starting' || !this.task.loaded) { stopTerminal(p); return { error: 'The application was stopped or closed while starting.' }; }
       a.pty = p;
       p.onExit(({ exitCode }) => {
@@ -100,9 +111,12 @@ export class ApplicationTerminals {
       this.changed();
       return this.snapshot(a);
     } catch (e) {
+      if (a.pty) stopTerminal(a.pty, { keepScreen: true });
       a.status = 'stopped';
+      a.launchError = `Could not start terminal: ${(e as Error).message}`;
+      log.warn(`[application] ${a.key} launch failed: ${(e as Error).message}`);
       this.changed();
-      return { error: `Could not start application: ${(e as Error).message}` };
+      return { error: a.launchError };
     }
   }
   stop(which: number | string): Result<ApplicationTerminal> {
@@ -117,7 +131,7 @@ export class ApplicationTerminals {
     if (!this.task.loaded) return { error: 'The task is not open.' };
     const found = this.find(which);
     if ('error' in found && typeof which === 'number') return found;
-    if (!(command ?? ('error' in found ? '' : found.command)).trim()) return { error: 'Supply a command to run.' };
+    if (command !== undefined && !command.trim()) return { error: 'Supply a command to run.' };
     const configured = 'error' in found ? this.create(String(which), command, size)
       : this.configure(found.id, { ...(command !== undefined && { command }), ...(size !== undefined && { size }) });
     if ('error' in configured) return configured;

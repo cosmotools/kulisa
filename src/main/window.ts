@@ -139,7 +139,7 @@ class AppWindow {
   // the keyboard shortcuts (keys.ts: for menus and tooltips) come along in the URL, so the window is drawn right at once. The profiles' views stay hidden until the renderer has the grid laid out (views:hidden).
   async load(shown: Task | null) {
     await this.win.loadFile(page('index.html'), { query: {
-      theme: this.shell.theme, bar: this.shell.bar, keys: JSON.stringify(this.shell.keys()),
+      theme: this.shell.theme, bar: this.shell.bar, stageFollow: String(this.shell.stageFollow), keys: JSON.stringify(this.shell.keys()),
       projects: JSON.stringify(this.info(shown)) } });
     this.loaded = true;
     for (const [channel, data] of this.pending.splice(0)) this.win.webContents.send(channel, ...data);

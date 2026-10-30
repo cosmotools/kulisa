@@ -415,7 +415,7 @@ The [Kulisa plugin](../src/kulisa-plugin/README.md#agent-adapters) checks that e
 | Capability | What the human gets | Claude Code | Codex |
 |---|---|---|---|
 | `config` | accounts: several sign-ins side by side, each its own folder | `CLAUDE_CONFIG_DIR` | `CODEX_HOME` |
-| `skills` | the profiles skill: how to work with the profiles | its account's `skills/kulisa-profiles/` | its account's `skills/kulisa-profiles/` |
+| `skills` | the Kulisa skill: how to work with Kulisa | its account's `skills/kulisa/` | its account's `skills/kulisa/` |
 | `hooks` | the agent's state on its tab; its session to resume; the open profiles at its start | in `--settings` | `-c hooks=…` (trusted once) |
 | `resume` | a closed task, or a restart, goes on with the conversation | `--resume` | `resume` |
 | `prompt` | handing the task over: the new agent starts with what to read | an argument | an argument |
@@ -568,14 +568,14 @@ github.json                       the GitHub accounts (src/github): { list: [{ i
                                   tokens encrypted with the OS keyring, none without one (kept in memory then) or when
                                   signed out; an account goes when the human deletes it (Settings → GitHub)
 agents/<agent>-<id>/              an account's config folder (CLAUDE_CONFIG_DIR, CODEX_HOME): its sign-in, settings,
-                                  conversations; Kulisa's profiles skill (skills/kulisa-profiles/) and Claude Code's
+                                  conversations; Kulisa's shared skill (skills/kulisa/) and Claude Code's
                                   settings for Kulisa (kulisa-settings.json), written at each start; gone, signed out first, when the human deletes it (Settings →
                                   Agents); one a sign-in left
                                   unfinished (Kulisa quit meanwhile) goes at the next start
 dictation/                        the folder the hidden session runs in (src/dictation: another agent's dictation
                                   recognizing for one without), empty; it and what that session kept of it in its
                                   account (its conversation, its trust) go when the session ends, or at the next start
-settings.json                     the Kulisa zoom, the theme, where the tasks' bar is, the language; the windows: each one's
+settings.json                     the Kulisa zoom, the theme, where the tasks' bar is, Follow agent, the language; the windows: each one's
                                   tasks by key (in the bar's order), the one shown, where it was
 logs/kulisa.log                   what happened and who asked (window.md, The log), for a bug report; at 1 MB it becomes
 logs/kulisa.old.log               kulisa.old.log and a new one starts: 2 MB at most

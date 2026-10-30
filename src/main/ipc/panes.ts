@@ -37,7 +37,8 @@ export function registerPanes(ipc: Ipc) {
     const w = onScreen(e, task);
     return !w ? noTask : own ? w.openOwn() : agent ? w.openAgent(agent) : w.openTerminal();
   });
-  handle('application:create', (e, { task, name, command }) => onScreen(e, task)?.applications.create(name, command) || noTask);
+  handle('selection:send', (e, { task, source, text }) => onScreen(e, task)?.sendSelection(source, text) || noTask);
+  handle('application:open', (e, { task, name }) => onScreen(e, task)?.applications.open(name) || noTask);
   handle('application:configure', (e, { task, id, ...change }) => onScreen(e, task)?.applications.configure(id, change) || noTask);
   handle('application:run', (e, { task, id, command }) => onScreen(e, task)?.applications.run(id, command) || noTask);
   handle('application:stop', (e, { task, id }) => onScreen(e, task)?.applications.stop(id) || noTask);

@@ -19,10 +19,14 @@ interface WindowState {
   profiles: Profile[];
   stageLayout: StageLayout | null;
   stageOverflow: boolean;
+  stageFollow: boolean;
+  stageFollowPaused: boolean;
+  stageActivity: string | null;
   stagePosition: StagePosition;
   closedProfiles: ClosedProfile[];
   terminals: Terminals;
   applications: ApplicationTerminal[];
+  applicationFocus: { task: string | null; key: string | null } | null;
   // The files the agent's tools kept of a task's pages, the newest first (Resources), of the task named.
   artifacts: { task: string; list: Artifact[]; bytes: number };
   zoom: number; // the Kulisa zoom
@@ -41,9 +45,13 @@ export const store = createStore<WindowState>()(() => ({
   current: null,
   projects: initialProjects || { current: null, project: null, projects: [], tabs: [], open: [], settings: false },
   applications: [],
+  applicationFocus: null,
   profiles: [],
   stageLayout: null,
   stageOverflow: false,
+  stageFollow: query.get('stageFollow') === 'true',
+  stageFollowPaused: false,
+  stageActivity: null,
   stagePosition: 'above',
   closedProfiles: [],
   terminals: { front: null, list: [] },

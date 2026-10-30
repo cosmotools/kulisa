@@ -5,7 +5,7 @@ export interface ApplicationConfig {
   id: number; name: string; command: string; size: TerminalSize | null;
 }
 export interface ApplicationTerminal extends ApplicationConfig {
-  key: string; status: 'stopped' | 'starting' | 'running' | 'exited'; exitCode: number | null;
+  key: string; status: 'stopped' | 'starting' | 'running' | 'exited'; exitCode: number | null; session: 'shell' | 'app' | null; launchError?: string;
 }
 export interface ApplicationTerminals { task: string; list: ApplicationTerminal[] }
 export type { TerminalKey as ApplicationKey } from '../terminal/ipc.ts';

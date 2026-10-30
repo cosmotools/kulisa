@@ -19,7 +19,7 @@ import type { PluginHost } from './core.ts';
 import type { TaskAccess as Task, TerminalAccess as TaskTerminal } from './core.ts';
 import { bare, log, summary } from '../../main/log.ts';
 
-// For every agent, those without the profiles skill too (one run by hand): what it must know before the first call.
+// For every agent, those without the Kulisa skill too (one run by hand): what it must know before the first call.
 const INSTRUCTIONS = 'Kulisa profiles are the users of the app under test, each a browser profile the human signed in to by hand. ' +
   ONLY_BROWSER + ' ' +
   'Choose a profile by its description (profile_list), not by guessing from its name: when no description tells ' +
@@ -30,6 +30,7 @@ const INSTRUCTIONS = 'Kulisa profiles are the users of the app under test, each 
   'Run what keeps running (the app\'s dev server, docker compose up, a watcher) with shell_run, not in your own ' +
   'shell or its background: the human sees it in a terminal next to yours, and you read its output with shell_read. ' +
   'Run interactive CLI and TUI apps with terminal_run in Stage: supply the command, read the rendered screen with terminal_read, and send keys or text with terminal_input. Run again in the same named terminal after code changes. Your own development terminal stays separate. ' +
+  'After testing, leave the final app ready for human review: keep interactive Stage terminals at their input prompt, and web result pages and their servers open. Preserve the final screen for commands that naturally exit; do not repeat operations with side effects just for display. Close only temporary testing environments you opened; leave the human’s environments alone unless asked. ' +
   'What was said and done in this task, by you or other agents (each conversation an agent had in it), is in ' +
   'task_history: read the one the human points you to ("go on with what Claude did") before anything else, and read ' +
   'yours when you need details your context lost. Name your conversation with conversation_rename once you know what ' +
@@ -37,12 +38,28 @@ const INSTRUCTIONS = 'Kulisa profiles are the users of the app under test, each 
 // task: the task (tasks.ts) whose profiles the tools act on; t: the agent's terminal, when it came by its own URL.
 function buildServer(task: Task, t: TaskTerminal | null) {
   const server = new McpServer({ name: 'kulisa', version: pkg.version }, { instructions: `${INSTRUCTIONS} ${taskContext(task)}` });
+  const activity = (name: string, args: unknown) => {
+    if (!args || typeof args !== 'object') return;
+    if (name.startsWith('browser_') && 'profile' in args && typeof args.profile === 'string') {
+      const found = task.named(args.profile);
+      if (!('error' in found) && task.profiles.has(found.id)) task.environmentUsed(`profile:${found.id}`);
+    } else if (name.startsWith('terminal_') && name !== 'terminal_close' && 'name' in args && typeof args.name === 'string') {
+      const target = args.name.trim().toLowerCase();
+      const app = task.applications.info().find((a) => a.name.toLowerCase() === target);
+      if (app) task.environmentUsed(`application:${app.id}`);
+    }
+  };
   // Every tool call is logged (its name, the task, a summary of its first argument), as the core's actions are.
   type Handler = (...a: unknown[]) => Promise<CallToolResult>;
   const register = server.registerTool.bind(server) as unknown as (name: string, config: object, cb: Handler) => unknown;
   server.registerTool = ((name: string, config: object, cb: Handler) => register(name, config, async (...a) => {
     log.info(`[mcp] ${name} ${task.key}${t ? `#${t.id}` : ''} ${summary(a[0])}`);
-    try { return await cb(...a); } catch (e) { log.info(`[mcp] ${name} failed: ${bare((e as Error).message)}`); throw e; }
+    if (name !== 'terminal_run') activity(name, a[0]);
+    try {
+      const result = await cb(...a);
+      if (name === 'terminal_run' && !result.isError) activity(name, a[0]);
+      return result;
+    } catch (e) { log.info(`[mcp] ${name} failed: ${bare((e as Error).message)}`); throw e; }
   })) as unknown as typeof server.registerTool;
   const h = handles(task, t);
   profileTools(server, h);

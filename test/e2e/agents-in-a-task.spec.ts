@@ -60,7 +60,7 @@ test("+ opens any of the project's accounts, a new conversation in a tab of its 
   await choose(ui, 'Fake agent · a@switch.test');
   await expect.poll(async () => JSON.stringify(await tabs()) === '["bash","Fake agent *"]' && (await newest()).pty, { timeout: 20000 }).toBe(true);
   expect(JSON.parse(fs.readFileSync(path.join(a.dir, '.claude.json'), 'utf8')).projects[copy]?.hasTrustDialogAccepted).toBe(true);
-  expect(fs.existsSync(path.join(a.dir, 'skills', 'kulisa-profiles', 'SKILL.md')), "Kulisa's skill in the account's folder").toBe(true);
+  expect(fs.existsSync(path.join(a.dir, 'skills', 'kulisa', 'SKILL.md')), "Kulisa's skill in the account's folder").toBe(true);
   const fake = (await newest()).id;
   await expect(ui.locator(`nav[aria-label="Terminals"] [data-id="${fake}"]`).getByRole('button', { name: /: change agent…$/ }).locator('svg'), 'an agent without a mark of its own: the generic one').toHaveAttribute('data-mark', 'generic');
   expect(conversations().map((c: { agent: string; terminal: number }) => [c.agent, c.terminal])).toEqual([['custom', bash], [a.id, fake]]);

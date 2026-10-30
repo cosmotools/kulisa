@@ -60,10 +60,13 @@ terminals), with their own Views and saved sizes. Their task-level lifecycle and
 
 ## The window (`renderer/`)
 
+`termFocus(key, wanted?)` waits for the bundled font and checks the caller’s optional predicate before focusing;
+an asynchronous launch can cancel its request when the human puts the keyboard elsewhere.
+
 **One xterm a place**: every terminal's output goes into a buffer of its own, an xterm never opened (its text,
 scrollback and modes, no renderer: about 0.6 MB full), and each place that shows a terminal, the terminals' panel and an
-account's sign-in, has one shown xterm (`View`) with a renderer. A View can select DOM rendering (`webgl: false`) and fixed dimensions
-(`setSize`); the defaults fit its pane and use WebGL. Showing another terminal there writes
+account's sign-in and each Stage terminal, has one shown xterm (`View`) with a WebGL renderer, falling back to DOM
+when WebGL is unavailable or its context is lost. A View fits its pane or uses fixed dimensions (`setSize`). Showing another terminal there writes
 that one's buffer into it (`serialize`, after a reset, RIS, in the same write: xterm parses a write at once, so the
 one shown before stays drawn until the other's is in, no frame empty between), its scroll put back, in about 15 ms; its
 selection is lost, as when another tab is shown. While shown, a terminal's output goes into both, at one size, so leaving it costs
@@ -140,6 +143,10 @@ main-process parser retains screen text and modes for reads and input encoding; 
 `pty:quote-paths` (invoke: shell literals for dropped files), `pty:in` (keys), `pty:resize` (the size shown), `pty:out` (output, to the window of the task it is in),
 `terminals:restore` (a task's terminals' contents, written into the buffers of the window it moves to),
 `terminals:gone` (their buffers dropped). `src/shared/ipc.ts` joins them into all of the window's channels.
+
+`View.find(text, previous, incremental)` lazily loads xterm's MIT-licensed search addon and searches the shown
+terminal's buffer, including wrapped lines and scrollback. `clearSearch()` removes its selection. Resize and parsed output refresh an open search; `onSearchResult` reports whether it matches. The window owns
+the search controls and their keyboard shortcuts; no extra output buffer is kept.
 
 ## The code
 

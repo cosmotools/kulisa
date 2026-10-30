@@ -88,7 +88,7 @@ interface TasksFile { list: TaskEntry[] }
 // A window as settings.json keeps it: its tasks by key ("<project id>/<task id>", tasks.ts) in the bar's order, the shown
 // one.
 interface SavedWindow { tabs: string[]; shown: string | null; bounds?: Electron.Rectangle; maximized?: boolean }
-interface Settings { uiZoom?: number; theme?: 'dark' | 'light' | 'system'; bar?: 'top' | 'bottom'; language?: string; keys?: Record<string, string>; windows?: SavedWindow[] }
+interface Settings { stageFollow?: boolean; uiZoom?: number; theme?: 'dark' | 'light' | 'system'; bar?: 'top' | 'bottom'; language?: string; keys?: Record<string, string>; windows?: SavedWindow[] }
 // A profile as a task keeps it in profiles.json (project-profiles.ts).
 interface TaskProfile { id: string; zoom?: Record<string, number>; closed?: boolean }
 // A task's agents (tasks.ts): the one it was made with (opened when it has never had a terminal), and every
@@ -185,7 +185,7 @@ class Store {
     }
     fs.rmSync(this.deletedFile, { force: true });
   }
-  // Kulisa's own settings: { uiZoom, theme, bar, windows }.
+  // Kulisa's own settings: { uiZoom, theme, bar, stageFollow, windows }.
   settings(): Settings { return readJSON(this.settingsFile) || {}; }
   saveSettings(s: Settings) { writeJSON(this.settingsFile, s); }
 }

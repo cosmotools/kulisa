@@ -31,7 +31,7 @@
 //                            has not built): the human gets the same Kulisa with every agent, so a gap is said, never
 //                            left out silently (test/unit/agents.test.ts; docs/tasks.md, "What each agent can do")
 //   skills                   where in its config folder it reads its own skills ('skills': <dir>/skills/<name>/SKILL.md):
-//                            Kulisa's profiles skill (how to work with the profiles) goes there, into its account's
+//                            Kulisa's shared skill (how to work with Kulisa) goes there, into its account's
 //                            folder only, never the human's own (installSkill)
 //   prompt(text)             the arguments that start it with a first message (the task handed to it: tasks.ts, handOver)
 //   conversation(transcript) its transcript read as the task's history (task_history; the entries: transcripts.ts): { entries,

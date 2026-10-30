@@ -16,6 +16,7 @@ import { panes, scheduleLayout } from '../../lib/grid';
 import { grow, useStrip } from '../../lib/strip';
 import { openSettings } from '../../lib/settings';
 import { deleteProfile } from '../../lib/profiles';
+import { EnvironmentFocus, environmentFocusItem } from './EnvironmentFocus';
 
 const profileOf = (panel: string) => panel.slice('profile:'.length);
 const useProfile = (id: string) => useWindow((s) => s.profiles.find((p) => p.id === id));
@@ -221,11 +222,13 @@ function PageDialog({ from, message, confirm, answer }: { from: string; message:
 // A profile's panel's header: its picture and name, what the agent does in it (or that it is paused on a sign-in
 // page), its menu (⋯, and a right-click on the header), ×. A pane narrower than its name: the name cut with …, ⋯ and ×
 // kept.
-export function ProfileHeader({ api }: IDockviewPanelHeaderProps) {
+export function ProfileHeader({ api, containerApi }: IDockviewPanelHeaderProps) {
+  const activity = useWindow((s) => s.stageActivity === api.id);
   const id = profileOf(api.id), profile = useProfile(id);
   const caption = useWindow((s) => s.captions[id] || '');
   const menu = (): MenuItem[] => [
     { label: 'New tab', keys: keyText('tab.new'), run: () => panes.get(id)?.newTab() },
+    environmentFocusItem(api),
     { label: 'About this profile…', run: () => openSettings('profiles', id) },
     { label: 'Sign In to Master…', run: () => act('profile:master', { profile: id }) },
     { label: 'Close profile', run: () => act('profile:close', { profile: id }) },
@@ -233,7 +236,7 @@ export function ProfileHeader({ api }: IDockviewPanelHeaderProps) {
     { label: 'Remove from Project…', run: () => deleteProfile(id) },
   ];
   return <RightClickMenu items={() => (profile ? menu() : null)} className="h-full min-w-0">
-    <div className="flex h-full min-w-0 items-center gap-1.5 px-2" data-panel={api.id}>
+    <div className="flex h-full min-w-0 items-center gap-1.5 px-2 data-[agent-active=true]:bg-accent" data-panel={api.id} data-agent-active={activity || undefined}>
       {profile && <>
         <Avatar aria-hidden className="size-5"><AvatarImage src={avatarSrc(profile.avatar)} alt="" /></Avatar>
         <span data-testid="profile-name" className="min-w-0 flex-[0_1_auto] truncate font-medium"
@@ -241,6 +244,7 @@ export function ProfileHeader({ api }: IDockviewPanelHeaderProps) {
         <span role="status" className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
           {profile.signinMode ? <Badge variant="outline"><LockIcon className="text-warning" />Sign-in page · agent paused</Badge> : caption}
         </span>
+        <EnvironmentFocus api={api} containerApi={containerApi} />
         <ButtonMenu items={menu} end>
           <Button variant="ghost" size="icon-xs" title="Profile" aria-label="Profile menu"><EllipsisIcon /></Button>
         </ButtonMenu>

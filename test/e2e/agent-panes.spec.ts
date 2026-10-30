@@ -215,7 +215,7 @@ test("a right-click in a page shows Chrome's menu for what is under it; a site's
     await menuAt('#link');
     // macOS selects the word under a right-click, and a selection has its Copy, as in Chrome there.
     const selected = await inMenus(core, (_m, page) => page.evaluate(() => !!getSelection().toString()));
-    expect(await rows()).toEqual(['link.open', 'link.copy', '-', ...(selected ? ['copy', '-'] : []), 'pick', 'screenshot', '-', 'inspect']);
+    expect(await rows()).toEqual(['link.open', 'link.copy', '-', ...(selected ? ['copy', 'selection.send', '-'] : []), 'pick', 'screenshot', '-', 'inspect']);
     const was = await elon();
     await choose('Open Link in New Tab'); // the row's action, as its click: the menu itself stays until closed
     await close();
@@ -226,7 +226,8 @@ test("a right-click in a page shows Chrome's menu for what is under it; a site's
     await core((k, id) => k.profile('Elon.buyer').closeTab(id), added);
 
     await menuAt('#field');
-    expect(await rows()).toEqual(['undo', 'redo', '-', 'cut', 'copy', 'paste', 'selectAll', '-', 'pick', 'screenshot', '-', 'inspect']);
+    const fieldSelected = await inMenus(core, (_m, page) => page.locator('#field').evaluate((e: HTMLInputElement) => e.selectionStart !== e.selectionEnd));
+    expect(await rows()).toEqual(['undo', 'redo', '-', 'cut', 'copy', 'paste', 'selectAll', ...(fieldSelected ? ['selection.send'] : []), '-', 'pick', 'screenshot', '-', 'inspect']);
     await close();
 
     await menuAt('#blank');

@@ -76,6 +76,12 @@ project, and those you closed, are in the sidebar (Tasks, below).
   **Stage** in the title bar places the stage **Left**, **Right**, or **Above** the agent terminal and Resources together. Its **View** choices are **Horizontal stack** (side by side),
   **Vertical stack** (one above another), and **Tabs** (one environment at a time). **Allow overflow** keeps panes at a usable size and adds scrolling in the stack’s direction;
   turned off, all panes fit inside the stage. Tabs hides this setting. Your agent can change the position, view and overflow too.
+  Use **Maximize environment** in a profile or terminal header to fill Stage with that group; **Restore environment** brings back the arrangement.
+  The agent terminal and Resources stay visible. A group’s tabs remain available, and overflow resumes when you restore.
+  Enable **Stage → Follow agent** to follow the environment your agent uses: select its tab or scroll it into view.
+  Its header briefly highlights activity. Selecting or interacting with Stage pauses following; choose
+  **Follow agent (paused)** to resume. Your layout and maximized environment stay as you chose them.
+  Follow agent is shared by all tasks and windows and remembered when you restart Kulisa. Manual pauses are temporary.
   Each task keeps both layouts, its stage position, size, view and overflow setting. The empty stage stays hidden; you or your agent can open a
   environment when needed through **Stage → Open an environment**.
 - **Resources**, beside or under the terminal: what the task works in (its copy of the code, or your project's folder until
@@ -353,6 +359,9 @@ profile's menu, also on a right-click) and **×**. Under it, a tab strip, then b
   keyboard: what you type to the agent in the terminal stays there. A click in a page gives it the keyboard, as always.
 - **You see what it does.** Each of its actions is marked in the page (where it clicks, the element outlined, its own
   pointer), and a caption over the pane says what it is doing.
+- **Share selected text.** Select text in a browser page or Stage terminal, then right-click **Send selection to agent**.
+  The selected text and its environment name go into your agent’s message draft. Add your question, review it and
+  send when ready. You need an open agent terminal.
 - **Point and tell.** Click **Pick** (the arrow icon at the end of the address bar, or Ctrl+Shift+C), then an element
   on the page. A reference to it goes into the agent's input; write the rest of the message around it ("this button
   does nothing") and send. Picks from several panes can go into one message. Esc cancels.
@@ -388,19 +397,31 @@ profile's menu, also on a right-click) and **×**. Under it, a tab strip, then b
 
 ## Testing a command-line application
 
-Open **Application Terminal** above the development terminal, or from **Stage → Open an environment** in the title bar. Give it a name and launch
-command, then press **Start**. Your CLI or interactive terminal app runs visibly in the task's working folder; you
-can type, paste and use its keyboard shortcuts. Your coding agent can inspect the same screen, operate the app,
+Open **Application Terminal** above the development terminal, or from **Stage → Open an environment** in the title
+bar. It opens your usual shell in the task’s working folder, ready for you to type a command such as
+`python3 calculator.py`. You can type, paste and use keyboard shortcuts. When a command you typed finishes, you
+return to the shell prompt. Opening or starting a terminal puts the cursor there so you can type immediately.
+If you click or type elsewhere while it starts, the keyboard stays where you put it. Your agent’s actions and
+Follow agent keep your keyboard focus. In **⋯ → Settings…**, you can change the name and optionally save a launch command for
+the run button; leave it empty to start your shell. Your coding agent can inspect the same screen, operate the app,
 change its code and run it again. You can also ask your agent to run a command directly in a Stage terminal;
 it opens the pane for you. Large terminal reads appear as Terminal screen artifacts in Resources.
-Browser profiles are optional for a CLI task.
+Browser profiles are optional for a CLI task. After testing, your agent leaves the final app open for you to try;
+interactive apps wait for input, while commands that finish keep their output and exit code. Temporary testing
+environments are closed.
 
-**Stop** ends the process; **Restart** runs the command again with a fresh screen. The status shows whether it is
-running or has exited, including its exit code. Use columns and rows with **Resize** to test a fixed terminal size,
-or **Auto** to follow the pane. Right-click for the same actions, copy, paste and select all.
+The terminal header offers **Run app** when a shell is open and a launch command is saved,
+**Restart app** while the app runs, and **Run again** after it exits. Each starts with a fresh screen.
+A terminal without a launch command offers **Restart shell**. The **⋯** menu offers these actions and **Stop** to end the process. Its header shows whether the terminal session is running or has exited, including its exit code. In **Settings…**, set columns
+and rows to test a fixed terminal size, or leave both empty to follow the pane. **Fit to pane** in the menu also
+restores automatic sizing. Right-click for the same actions, copy, paste and select all. If the shell cannot
+start, its error appears in the pane; the next launch attempt clears it.
 
-Closing a task keeps the application terminal's name, command and size. Reopening restores its setup with the
-process stopped; press Start when you need it. The pane's **×** stops it and removes its saved setup. Application
+To search a Stage terminal's retained output, press **Ctrl+Shift+F** (**⌘+Shift+F** on macOS),
+or right-click and choose **Find…**. Enter moves to the next match; Shift+Enter moves to the previous one.
+Escape closes search and returns the keyboard to the terminal.
+
+Closing a task keeps the application terminal's name, command and size. Reopening starts a fresh shell in every terminal. Saved app commands wait for you to press Run app. The pane's **×** stops it and removes its saved setup. Application
 terminals share your home folder and credentials; sign in to real accounts yourself when needed.
 
 ## Look and zoom

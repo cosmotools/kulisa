@@ -3,6 +3,7 @@ import { LayoutDashboardIcon, Columns3Icon, Rows3Icon, PanelsTopLeftIcon, PanelL
 import { Button, DropdownMenuCheckboxItem, DropdownMenuRadioGroup, DropdownMenuRadioItem } from '@ui';
 import { ButtonMenu } from './Menus';
 import { act, useWindow } from '../lib/store';
+import { setStageFollowing } from '../lib/grid';
 import { environmentItems } from '../lib/environments';
 import type { MenuItem } from '../lib/menu';
 import type { StageLayout, StagePosition } from '../../shared/ipc';
@@ -34,9 +35,14 @@ function Overflow() {
   return mode === 'tabs' ? null : <DropdownMenuCheckboxItem checked={checked} onCheckedChange={(overflow) => void act('stage:arrange', { overflow })}
     onSelect={(e) => e.preventDefault()}>Allow overflow</DropdownMenuCheckboxItem>;
 }
+function Follow() {
+  const enabled = useWindow((s) => s.stageFollow), paused = useWindow((s) => s.stageFollowPaused);
+  return <DropdownMenuCheckboxItem checked={enabled && !paused} onCheckedChange={setStageFollowing}
+    onSelect={(e) => e.preventDefault()}>{enabled && paused ? 'Follow agent (paused)' : 'Follow agent'}</DropdownMenuCheckboxItem>;
+}
 const items = (): MenuItem[] => [
   { heading: 'Position' }, { component: Position }, '-', { heading: 'View' }, { component: View }, { component: Overflow },
-  '-', { submenu: 'Open an environment', items: environmentItems() },
+  '-', { component: Follow }, '-', { submenu: 'Open an environment', items: environmentItems() },
 ];
 export function StageMenu() {
   return <ButtonMenu items={items} end><Button variant="ghost" size="icon" aria-label="Stage" title="Stage: position, view and environments"><LayoutDashboardIcon /></Button></ButtonMenu>;

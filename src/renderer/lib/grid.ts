@@ -61,6 +61,8 @@ export function stageMounted(a: DockviewApi) {
   if (!a.panels.length) arrangeStage(); else syncStage();
   building = wasBuilding;
   watch(a);
+  a.onDidActivePanelChange(({ origin }) => { if (origin === 'user') pauseStageFollowing(); });
+  a.onDidMaximizedGroupChange(() => { constrainStage(); scheduleLayout(); });
   a.onDidAddGroup(() => constrainStage()); constrainStage(); changed();
   scheduleLayout();
 }
@@ -120,7 +122,7 @@ function addEnvironment(id: string, reference?: string, direction: 'right' | 'be
 }
 function constrainStage(mode = store.getState().stageLayout, overflow = store.getState().stageOverflow) {
   if (!stage) return;
-  const scrolling = overflow && mode !== 'tabs';
+  const scrolling = overflow && mode !== 'tabs' && !stage.hasMaximizedGroup();
   const minimumWidth = scrolling && mode !== 'vertical' ? environmentMinimum.width : 0;
   const minimumHeight = scrolling && mode === 'vertical' ? environmentMinimum.height : 0;
   const { width, height } = stage;
@@ -193,7 +195,7 @@ function buildGrid(a: DockviewApi, saved: unknown) {
   const layout = splitLayout(saved);
   stageShare = layout?.stageShare && layout.stageShare > 0 && layout.stageShare < 1 ? layout.stageShare : 0.65;
   pendingStage = layout?.stage ?? null;
-  store.setState({ stageLayout: layout?.stageLayout ?? null, stageOverflow: layout?.stageOverflow ?? false, stagePosition: layout?.stagePosition ?? 'above' });
+  store.setState({ stageLayout: layout?.stageLayout ?? null, stageOverflow: layout?.stageOverflow ?? false, stageFollowPaused: false, stageActivity: null, stagePosition: layout?.stagePosition ?? 'above' });
   placeStage();
   restore(a, layout?.workspace ?? null, ['terminal', 'resources']);
   if (!a.getPanel('terminal') || !a.getPanel('resources')) {
@@ -215,10 +217,56 @@ kulisa.on('stage:arrange', ({ task, layout, overflow, position }) => {
   if (layout !== undefined) arrangeStage();
   building = false; changed();
 });
+let activityTimer = 0, followFrame = 0;
+let lastEnvironment: string | null = null;
+function followEnvironment(environment: string) {
+  cancelAnimationFrame(followFrame);
+  const task = store.getState().current;
+  followFrame = requestAnimationFrame(() => {
+    const state = store.getState();
+    if (state.current !== task || !state.stageFollow || state.stageFollowPaused || state.loading) return;
+    const panel = stage?.getPanel(environment);
+    if (!panel || (stage!.hasMaximizedGroup() && !panel.api.isMaximized())) return;
+    const focused = document.activeElement;
+    if (!panel.api.isVisible) panel.api.setActive();
+    if (focused instanceof HTMLElement && focused.isConnected && document.activeElement !== focused) focused.focus({ preventScroll: true });
+    panel.group.element.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    scheduleLayout();
+  });
+}
+function environmentActivity(environment: string) {
+  lastEnvironment = environment;
+  clearTimeout(activityTimer);
+  store.setState({ stageActivity: environment });
+  activityTimer = window.setTimeout(() => store.setState({ stageActivity: null }), 2000);
+  followEnvironment(environment);
+}
+export async function setStageFollowing(follow: boolean) {
+  await kulisa.invoke('stage:follow:set', follow);
+  store.setState({ stageFollowPaused: false });
+  if (follow && lastEnvironment) followEnvironment(lastEnvironment);
+}
+kulisa.on('stage:follow', (follow) => {
+  store.setState({ stageFollow: follow, stageFollowPaused: false });
+  if (follow && lastEnvironment) followEnvironment(lastEnvironment);
+});
+export function pauseStageFollowing() {
+  if (store.getState().stageFollow) store.setState({ stageFollowPaused: true });
+  cancelAnimationFrame(followFrame);
+}
+kulisa.on('stage:activity', ({ task, environment }) => {
+  if (task === store.getState().current && !replacing && !rebuilding) environmentActivity(environment);
+});
+// Browser actions through CDP also cover clients using the profiles outside Kulisa's MCP tools.
+kulisa.on('agent', ({ task, profile, caption }) => {
+  if (task === store.getState().current && caption && !replacing && !rebuilding) environmentActivity(panelId(profile));
+});
 export const dockApi = () => api;
 export const stageApi = () => stage;
 
 kulisa.on('grid:closing', (next) => {
+  clearTimeout(activityTimer); cancelAnimationFrame(followFrame); lastEnvironment = null;
+  store.setState({ stageActivity: null, stageFollowPaused: false, applicationFocus: null });
   void closeLayers(); forgetFrozen(); clearTimeout(saveTimer); save?.();
   if (next) { replacing = true; return; }
   replacing = false; nextTerminals = nextApplications = null;

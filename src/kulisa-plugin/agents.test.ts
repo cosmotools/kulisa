@@ -28,16 +28,24 @@ test("agents: each can do every capability Kulisa has, or says why not", () => {
   assert.equal(AGENTS.find((a) => a.id === 'claude')!.lacks, undefined);
 });
 
-// Every agent gets Kulisa's profiles skill in its account's folder, where it reads its own skills: one text, written
+// Every agent gets Kulisa's shared skill in its account's folder, where it reads its own skills: one text, written
 // again only when it changed.
-test("agents: Claude Code's and Codex's accounts get the profiles skill, one text", () => {
+test("agents: Claude Code's and Codex's accounts get the Kulisa skill, one text", () => {
   const packages = path.join(import.meta.dirname, 'resources');
-  const source = fs.readFileSync(path.join(packages, 'skills', 'profiles', 'SKILL.md'), 'utf8');
-  assert.match(source, /^---\nname: kulisa-profiles\n/, "a name of Kulisa's, apart from the human's own skills");
+  const source = fs.readFileSync(path.join(packages, 'skills', 'kulisa', 'SKILL.md'), 'utf8');
+  assert.match(source, /^---\nname: kulisa\n/, "a name of Kulisa's, apart from the human's own skills");
   for (const id of ['claude', 'codex']) {
     const skills = path.join(root, `${id}-skill`, AGENTS.find((a) => a.id === id)!.skills!);
+    const previous = path.join(skills, 'kulisa-profiles');
+    fs.mkdirSync(previous, { recursive: true });
+    fs.writeFileSync(path.join(previous, 'SKILL.md'), 'name: kulisa-profiles');
+    const personal = path.join(skills, 'personal', 'SKILL.md');
+    fs.mkdirSync(path.dirname(personal), { recursive: true });
+    fs.writeFileSync(personal, 'Personal instructions');
     installSkill(packages, skills);
-    const file = path.join(skills, 'kulisa-profiles', 'SKILL.md');
+    assert.equal(fs.existsSync(previous), false, 'one generated skill is discoverable');
+    assert.equal(fs.readFileSync(personal, 'utf8'), 'Personal instructions');
+    const file = path.join(skills, 'kulisa', 'SKILL.md');
     assert.equal(fs.readFileSync(file, 'utf8'), source, id);
     const at = fs.statSync(file).mtimeMs;
     installSkill(packages, skills);

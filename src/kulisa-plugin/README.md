@@ -17,10 +17,14 @@ The caller keeps core checks, questions, ownership and platform objects. The Kul
 agent instructions, sign-in waiting, highlights, action annotations and transcript formatting. Browser actions use
 Playwright through the caller's CDP connection, preserving the sign-in pause.
 
-`resources/` holds the shared profiles skill and Claude Code's plugin format (`claude-plugin/.claude-plugin/`),
+`resources/` holds the shared Kulisa skill and Claude Code's plugin format (`claude-plugin/.claude-plugin/`),
 whose manifest names `kulisa`. Codex receives the same MCP server through its launch configuration. Forge copies the
 resources beside the app archive for CLIs to read; the resources are excluded from the archive. The app version is
 passed to the Claude manifest by `scripts/version.ts` at `npm version`.
+
+The plugin reports the environment used by browser tools and named Stage-terminal tools through
+`TaskAccess.environmentUsed`. The window owns Follow agent: tab selection, scrolling, activity highlighting and
+manual pause. CDP clients also report browser activity through the action captions.
 
 ## MCP transport
 
@@ -46,7 +50,7 @@ What the tools are for, beyond acting as one user:
 - **Choosing the profile** by who it is, as cast did: `profile_list` and the session's start give each profile's
   description, or say it is not said. The agent chooses by it, never guessing a role from a name; when none or several
   fit, it asks the human once and saves their answer (`profile_describe`), so no one asks again. The rule is in the
-  MCP server's `instructions` too, so agents without the profiles skill (one run by hand in the terminal) get it.
+  MCP server's `instructions` too, so agents without the Kulisa skill (one run by hand in the terminal) get it.
 - **Several users at once.** `browser_wait_for` waits in any profile, so the agent acts as one user and waits for
   the effect as another (a message, an invite), up to 45 s a call (Codex gives an MCP tool 60 s).
   `browser_snapshot` with `also` reads several profiles' active tabs in one call, to compare what each user sees.
@@ -87,8 +91,10 @@ page gets the keys typing sends (suggestions, checks as one types). A text over 
 is filled at once (`TYPED_MAX`, `main/tools/browser.ts`). Letters not on a US keyboard come as typed text, without key codes
 (Playwright's way).
 
-The agent learns how to work with profiles from the Kulisa plugin: the profiles skill (`resources/skills/profiles/SKILL.md`; keep it in step with the tools), one text for every agent,
-written into each account's folder where its agent reads its skills (`kulisa-profiles`), and for Claude Code a plugin
+The agent learns how to work with tasks, browser profiles and Stage terminals from the Kulisa plugin: the Kulisa skill (`resources/skills/kulisa/SKILL.md`; keep it in step with the tools), one text for every agent,
+written into each account's folder where its agent reads its skills (`kulisa`). Installation keeps one generated
+skill copy in that account. The skill and MCP instructions leave the final app ready for human review and close
+only temporary testing environments. Claude Code also gets a plugin
 with the MCP config (`resources/claude-plugin/`, `claude --plugin-dir`). Every agent gets Kulisa's hooks at its start (a table in
 its file, `agents/`), among them `SessionStart`, which tells the agent which profiles are open and tells Kulisa its
 session (to resume it). The user's own MCP servers stay available

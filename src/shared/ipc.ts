@@ -9,7 +9,7 @@ import type { ThumbnailEvents, ThumbnailInvoke, ThumbnailSend } from '../screens
 import type { GitHubInvoke } from '../github/ipc.ts';
 import type { DictationEvents, DictationInvoke } from '../dictation/ipc.ts';
 import type {
-  AboutFolder, AboutInfo, Artifact, AccountsInfo, AgentInfo, ClosedProfile, LanguageInfo, LogInfo, NewProjectSetup, Profile, ProjectAgent, ProjectChoices, ProjectGitHub, ProjectProfile, ProjectFolder,
+  AboutFolder, AboutInfo, Artifact, EnvironmentSource, AccountsInfo, AgentInfo, ClosedProfile, LanguageInfo, LogInfo, NewProjectSetup, Profile, ProjectAgent, ProjectChoices, ProjectGitHub, ProjectProfile, ProjectFolder,
   ProjectSettings, ProjectsInfo, Question, SettingsProfile, Shortcut, SignedIn, Terminals,
 } from './types.ts';
 
@@ -102,7 +102,8 @@ export interface Invoke extends TerminalInvoke, ThumbnailInvoke, GitHubInvoke, D
   'views:hidden': I<[hidden: boolean, opts?: { snapshots?: boolean }], Record<string, string> | undefined>;
   'stage:arrange': I<[OnTask & { layout?: StageLayout; overflow?: boolean; position?: StagePosition }], Result>;
   'layout:load': I<[OnTask], unknown>; // the grid as the window saved it (layout:save)
-  'application:create': I<[OnTask & { name?: string; command?: string }], Result<ApplicationTerminal>>;
+  'selection:send': I<[OnTask & { source: EnvironmentSource; text: string }], Result>;
+  'application:open': I<[OnTask & { name?: string }], Result<ApplicationTerminal>>;
   'application:configure': I<[OnTask & { id: number; name?: string; command?: string; size?: TerminalSize | null }], Result<ApplicationTerminal>>;
   'application:run': I<[OnTask & { id: number; command?: string }], Result<ApplicationTerminal>>;
   'application:stop': I<[OnTask & { id: number }], Result<ApplicationTerminal>>;
@@ -146,6 +147,7 @@ export interface Invoke extends TerminalInvoke, ThumbnailInvoke, GitHubInvoke, D
   'language:set': I<[code: string], Result<{ language: string }>>;
   'theme:set': I<[theme: Theme]>;
   'bar:set': I<[bar: Bar]>;
+  'stage:follow:set': I<[follow: boolean]>;
   'keys:set': I<[{ id: string; code: string }], Result<{ keys: Shortcut[] }>>;
   'pick:start': I<[{ profile: string }], Result | undefined>;
   'pick:cancel': I<[{ profile: string }]>;
@@ -186,6 +188,8 @@ export interface Events extends TerminalEvents, ThumbnailEvents, DictationEvents
   'keys': Shortcut[];
   'ask': Question & { id: number };
   'command': { id: string; n?: number; profile: string | null; tab: string | null; task: string | null; page: boolean };
+  'stage:follow': boolean;
+  'stage:activity': { task: string; environment: string };
   'agent': { task: string; profile: string; caption: string | null; sticky?: boolean };
   'agent:choose': { task: string; selected: string | null };
   'agents:install-log': string;

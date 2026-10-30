@@ -300,6 +300,12 @@ function start(options: Options = {}) {
     shell.bar = bar; store.saveSettings({ ...store.settings(), bar });
     for (const w of shell.windows) w.send('bar', bar);
   };
+  shell.stageFollow = store.settings().stageFollow ?? false;
+  shell.setStageFollow = (follow) => {
+    if (shell.stageFollow === follow) return;
+    shell.stageFollow = follow; store.saveSettings({ ...store.settings(), stageFollow: follow });
+    for (const w of shell.windows) w.send('stage:follow', follow);
+  };
   const allTasks = () => [...shell.open.values()].flatMap((p) => [...p.tasks.values()]);
   // Every open profile: the tasks' copies, and the masters open to sign in to (master.ts).
   const allProfiles = () => [...allTasks().flatMap((task) => [...task.profiles.values()]), ...[...(shell.masters?.values() || [])].map((m) => m.profile)];

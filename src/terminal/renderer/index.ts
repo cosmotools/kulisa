@@ -13,6 +13,7 @@ import { FitAddon } from '@xterm/addon-fit';
 import { Unicode11Addon } from '@xterm/addon-unicode11';
 import { WebglAddon } from '@xterm/addon-webgl';
 import { SerializeAddon } from '@xterm/addon-serialize';
+import { SearchAddon } from '@xterm/addon-search';
 import { WebLinksAddon } from '@xterm/addon-web-links';
 import { fileOf, pathsAt } from './paths';
 import type { FileLink } from '../ipc';
@@ -142,12 +143,38 @@ export class View {
   private host = Object.assign(document.createElement('div'), { className: 'xterm-host',
     style: 'height: 100%; display: flex; flex-direction: column; justify-content: center' });
   private fit = new FitAddon();
+  private search?: SearchAddon;
+  private searchText = '';
+  private searchRefreshQueued = false;
+  onSearchResult?: (found: boolean) => void;
+  find(text: string, previous = false, incremental = false) {
+    if (!text) { this.clearSearch(); return false; }
+    this.searchText = text;
+    if (!this.search) {
+      this.search = new SearchAddon(); this.term.loadAddon(this.search);
+      // xterm's selection service clears after public resize listeners; refresh after all resize handlers finish.
+      const refresh = () => {
+        if (this.searchRefreshQueued) return;
+        this.searchRefreshQueued = true;
+        queueMicrotask(() => {
+          this.searchRefreshQueued = false;
+          if (views.has(this) && this.searchText) this.find(this.searchText, false, true);
+        });
+      };
+      this.term.onResize(refresh);
+      this.term.onWriteParsed(refresh);
+    }
+    const found = previous ? this.search.findPrevious(text) : this.search.findNext(text, { incremental });
+    this.onSearchResult?.(found);
+    return found;
+  }
+  clearSearch() { this.searchText = ''; this.search?.clearDecorations(); this.term.clearSelection(); this.onSearchResult?.(false); }
   private fixed: { cols: number; rows: number } | null = null;
   setSize(size: { cols: number; rows: number } | null) { this.fixed = size; this.host.style.justifyContent = size ? 'flex-start' : 'center'; this.fitSoon(); }
   private opened = false;
   private seen = new ResizeObserver(() => this.fitSoon());
   private pending: string[] | null = null; // output that came while the buffer was being put in
-  constructor({ colors, fontSize, webgl = true }: TermStyle & { webgl?: boolean }) {
+  constructor({ colors, fontSize }: TermStyle) {
     this.el.append(this.host);
     const t = this.term = new Terminal({ fontSize, fontFamily: '"JetBrains Mono", monospace', cursorBlink: true,
       allowProposedApi: true, theme: xtermTheme(colors), minimumContrastRatio: 4.5, linkHandler: termLinks });
@@ -168,7 +195,7 @@ export class View {
       if (!views.has(this)) return; // disposed meanwhile
       t.open(this.host);
       this.renderer = 'dom';
-      if (webgl) try {
+      try {
         const addon = new WebglAddon();
         addon.onContextLoss(() => { addon.dispose(); this.renderer = 'dom'; }); // back to the DOM renderer
         t.loadAddon(addon);
@@ -315,7 +342,9 @@ export function forgetTerminals(keys: string[]) {
 }
 kulisa.on('pty:out', ({ task, data, cols, rows }) => output(task, data, { cols, rows }));
 // The keyboard to a terminal shown somewhere, once its xterm is open (a new one opens when its font is there).
-export const termFocus = (key: string) => termFont.then(() => { for (const v of views) if (v.key === key) v.term.focus(); });
+export const termFocus = (key: string, wanted: () => boolean = () => true) => termFont.then(() => {
+  if (wanted()) for (const v of views) if (v.key === key) v.term.focus();
+});
 
 // Copy and paste as the OS's own terminal does, so hands need nothing new (xterm leaves the keys to the app, as VS Code
 // sets its own): Ctrl+Shift+C / V everywhere (GNOME Terminal, Konsole); on Windows also Ctrl+V, and Ctrl+C copies a

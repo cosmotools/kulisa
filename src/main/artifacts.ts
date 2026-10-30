@@ -1,6 +1,6 @@
 // The task's environment artifacts: numbered files under a size limit (docs/tasks.md, The Resources panel).
 import fs from 'fs';
-import type { ArtifactSource } from '../shared/types.ts';
+import type { EnvironmentSource } from '../shared/types.ts';
 import path from 'path';
 import { folderUsage } from '../activity-monitor/main/index.ts';
 
@@ -35,7 +35,7 @@ async function listArtifacts(dir: string) {
   return (await folderUsage(dir)).entries.flatMap((e) => {
     const m = /^\d+-([^-]+)-([^-]+)-(\w+)\.\w+$/.exec(e.name);
     if (!m) return [];
-    const source: ArtifactSource = m[1] === 'application' && m[3] === 'terminal'
+    const source: EnvironmentSource = m[1] === 'application' && m[3] === 'terminal'
       ? { kind: 'application', id: Number(m[2]) } : { kind: 'profile', id: m[1]!, tab: m[2]! };
     return [{ file: path.join(dir, e.name), source, kind: m[3]!, time: e.time, bytes: e.bytes }];
   }).sort((a, b) => numberOf(path.basename(b.file)) - numberOf(path.basename(a.file)));

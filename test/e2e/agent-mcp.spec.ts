@@ -46,7 +46,7 @@ test('agent bridge: the Claude Code plugin is valid and points at this MCP serve
   const { packages, url, base } = await core((k) => ({ packages: k.shell.packages, url: k.shell.task.env().KULISA_MCP_URL, base: k.shell.mcp.base }));
   const plugin = path.join(packages, 'claude-plugin');
   expect(fs.existsSync(path.join(plugin, '.claude-plugin', 'plugin.json'))).toBe(true);
-  expect(fs.existsSync(path.join(packages, 'skills', 'profiles', 'SKILL.md')), "the profiles skill, every agent's").toBe(true);
+  expect(fs.existsSync(path.join(packages, 'skills', 'kulisa', 'SKILL.md')), "the Kulisa skill, every agent's").toBe(true);
   const mcp = JSON.parse(fs.readFileSync(path.join(plugin, '.mcp.json'), 'utf8'));
   expect(mcp.mcpServers.kulisa.url).toBe('${KULISA_MCP_URL}');
   expect(url).toBe(`${base}/task/${files.tkey('project', 1)}/mcp`);

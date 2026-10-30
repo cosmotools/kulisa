@@ -1,0 +1,75 @@
+// Stage terminal controls operate the visible terminal without sending search keys to its app.
+import { test, expect } from './fixtures.ts';
+import { focusWindow, notLoading } from './helpers.ts';
+
+test('terminal search selects output, navigates matches, and returns keyboard focus without typing into the app', async ({ core, ui, call }) => {
+  await notLoading(ui);
+  await call('terminal_run', { name: 'Search', command: 'node -e "console.log(\'marker-one marker-two\'); setInterval(()=>{},1000)"' });
+  const read = async () => JSON.parse((await call('terminal_read', { name: 'Search' })).text).text;
+  await expect.poll(read).toContain('marker-one marker-two');
+  await focusWindow(core, ui);
+  const pane = ui.locator('[data-application]');
+  const input = pane.locator('.xterm-helper-textarea');
+  await input.focus();
+  await input.press('Control+Shift+F');
+  const query = pane.getByRole('textbox', { name: 'Find in terminal', exact: true });
+  await expect(query).toBeFocused();
+  await query.fill('marker');
+  const height = (await pane.locator('.xterm-screen').boundingBox()).height;
+  await call('terminal_resize', { name: 'Search', size: { cols: 60, rows: 5 } });
+  await expect.poll(async () => (await pane.locator('.xterm-screen').boundingBox()).height).toBeLessThan(height);
+  const copySelection = async () => {
+    await input.focus();
+    await input.press('Control+Shift+C');
+    await expect.poll(() => core((k) => k.electron.clipboard.readText())).toBe('marker');
+  };
+  await copySelection();
+  await query.focus();
+  await query.press('Enter');
+  await copySelection();
+  await query.focus();
+  await query.press('Shift+Enter');
+  await query.fill('no-such-output');
+  await expect(pane.getByRole('status')).toHaveText('No matches');
+  await query.press('Escape');
+  await expect(query).toHaveCount(0);
+  await expect(input).toBeFocused();
+  expect(await read()).not.toContain('no-such-output');
+  await call('terminal_close', { name: 'Search' });
+});
+
+test('Stage maximizes a terminal and follows agent activity without taking the agent keyboard focus', async ({ core, ui, call }) => {
+  await notLoading(ui);
+  const first = JSON.parse((await call('terminal_run', { name: 'First', command: 'node -e "setInterval(()=>{},1000)"' })).text);
+  const second = JSON.parse((await call('terminal_run', { name: 'Second', command: 'node -e "setInterval(()=>{},1000)"' })).text);
+  await call('stage_arrange', { layout: 'horizontal', overflow: true });
+  const header = ui.locator(`[data-panel="application:${first.id}"]`);
+  await header.getByRole('button', { name: 'Maximize environment', exact: true }).click();
+  await expect(ui.locator(`[data-application="${second.id}"]`)).toBeHidden();
+  await expect(ui.locator(`[data-application="${first.id}"]`)).toBeVisible();
+  await expect(ui.getByTestId('terminal')).toBeVisible();
+  await header.getByRole('button', { name: 'Restore environment', exact: true }).click();
+  await expect(ui.locator(`[data-application="${second.id}"]`)).toBeVisible();
+  await call('stage_arrange', { layout: 'tabs' });
+  await ui.locator(`[data-panel="application:${second.id}"]`).getByText('Second', { exact: true }).click();
+  await ui.getByRole('button', { name: 'Stage', exact: true }).click();
+  await ui.getByRole('menuitemcheckbox', { name: 'Follow agent', exact: true }).click();
+  await ui.keyboard.press('Escape');
+  await focusWindow(core, ui);
+  const agentInput = ui.getByTestId('terminal').locator('.xterm-helper-textarea');
+  await agentInput.focus();
+  await call('terminal_read', { name: 'First' });
+  await expect(ui.locator(`[data-application="${first.id}"]`)).toBeVisible();
+  await expect(agentInput).toBeFocused();
+  await ui.locator(`[data-panel="application:${second.id}"]`).getByText('Second', { exact: true }).click();
+  await call('terminal_read', { name: 'First' });
+  await expect(header).toHaveAttribute('data-agent-active', 'true');
+  await expect(ui.locator(`[data-application="${second.id}"]`)).toBeVisible();
+  await ui.getByRole('button', { name: 'Stage', exact: true }).click();
+  await expect(ui.getByRole('menuitemcheckbox', { name: 'Follow agent (paused)', exact: true })).not.toBeChecked();
+  await ui.getByRole('menuitemcheckbox', { name: 'Follow agent (paused)', exact: true }).click();
+  await ui.getByRole('menuitemcheckbox', { name: 'Follow agent', exact: true }).click();
+  await ui.keyboard.press('Escape');
+  await call('terminal_close', { name: 'First' });
+  await call('terminal_close', { name: 'Second' });
+});

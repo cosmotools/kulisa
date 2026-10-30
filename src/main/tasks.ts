@@ -292,6 +292,7 @@ class Task {
     this.gitChecked = this.project.checkGit().then(() => this.shell.sendProjects(), (e: Error) => console.error('[git]', e));
     this.list.load();
     this.loaded = true;
+    void this.applications.restoreShells().catch((e: Error) => log.warn(`[application] ${this.key} shell restore failed: ${e.message}`));
   }
 
   // Its terminals' panel (docs/window.md, The terminal): the terminals in tabs, one shown at a time. Each the user's shell in the
@@ -436,7 +437,7 @@ class Task {
     for (const c of worktreesOf(this.entry)) {
       extendTrust(a, where, c.folder, [c.repo, ...copies.filter((o) => o.repo === c.repo && o.folder !== c.folder).map((o) => o.folder)]);
     }
-    // Kulisa's profiles skill where the agent reads it, and Kulisa's language (☰ → Language: app.ts, setLanguage) in its
+    // Kulisa's shared skill where the agent reads it, and Kulisa's language (☰ → Language: app.ts, setLanguage) in its
     // own setting, in its account's folder only (never the human's own).
     if (a.configDir && Object.keys(a.env).length) {
       try { if (a.skills) installSkill(shell.packages, path.join(a.configDir, a.skills)); } catch (e) { console.warn('[agents] skill:', (e as Error).message); }
@@ -741,6 +742,7 @@ class Task {
     await this.project.dropProfile(id);
     return { id };
   }
+  environmentUsed(environment: string) { this.window?.send('stage:activity', { task: this.key, environment }); }
   // A caption over a profile's pane (ghost.ts, browser_highlight); sticky ones stay until the next caption.
   caption(profile: string, caption: string | null, sticky = false) { this.window?.send('agent', { task: this.key, profile, caption, sticky }); }
 
@@ -800,7 +802,7 @@ class Task {
     return { buf, file };
   }
   // Both handles keep environment files here so their numbering, limit and Resources updates agree.
-  async saveArtifact(source: Sent.ArtifactSource, kind: string, content: string | Buffer) {
+  async saveArtifact(source: Sent.EnvironmentSource, kind: string, content: string | Buffer) {
     const from = source.kind === 'profile' ? `${source.id}-${source.tab}` : `application-${source.id}`;
     const file = await saveArtifact(this.store.artifacts, `${from}-${kind}`, content);
     this.artifactsChanged();
@@ -809,6 +811,26 @@ class Task {
   async findArtifact(file: string) {
     const artifact = (await listArtifacts(this.store.artifacts)).find((a) => a.file === path.resolve(file));
     return artifact ? { artifact } : { error: `not an artifact of this task: ${file}` };
+  }
+  sendSelection(source: Sent.EnvironmentSource, text: string): Result {
+    if (!this.shown()) return { error: 'that task is not on screen' };
+    let label: string;
+    if (source.kind === 'profile') {
+      const found = this.findTab(source.id, source.tab);
+      if (refused(found)) return found;
+      label = `profile ${JSON.stringify(found.profile.name)} tab ${found.tab.id}`;
+    } else {
+      const app = this.applications.info().find((a) => a.id === source.id);
+      if (!app) return { error: 'that terminal is closed' };
+      label = `terminal ${JSON.stringify(app.name)}`;
+    }
+    // Selected page text must not break out of the terminal's bracketed paste or send control keys.
+    const selected = text.replace(/\r\n?/g, '\n').replace(/[\u0000-\u0008\u000b-\u001f\u007f-\u009f]/g, '');
+    if (!selected.trim()) return { error: 'Select text to send to the agent.' };
+    const quoted = selected.split('\n').map((line) => `> ${line}`).join('\n');
+    if (!this.typeForAgent(`\n[kulisa selection: ${label}]\n${quoted}\n\n`)) return { error: 'Open an agent terminal to send it a selection.' };
+    log.info(`[selection] ${this.key} ${source.kind} ${source.id} added to agent draft`);
+    return {};
   }
   async sendArtifact(file: string): Promise<Result> {
     const r = await this.findArtifact(file);

@@ -60,6 +60,7 @@ interface Shell {
   sendProjects(): void;
   uiZoom: number; setUiZoom(z: number): void;
   theme: 'dark' | 'light' | 'system'; shade(): 'dark' | 'light'; blankColor(): string; setTheme(theme?: 'dark' | 'light' | 'system'): void;
+  stageFollow: boolean; setStageFollow(follow: boolean): void;
   bar: 'top' | 'bottom'; setBar(bar: 'top' | 'bottom'): void;
   language: string; languageInfo(): LanguageInfo; setLanguage(code: string): Result<{ language: string }>;
   keys(): Shortcut[]; // the keyboard shortcuts as shown, the human's hold keys in (keys.ts)

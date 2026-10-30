@@ -2,9 +2,11 @@
 // App.tsx from the start and registers what it does once mounted (registerDialog). Not loaded when first opened: the
 // window's code is one bundle read from disk, a dialog's part of it a few KB.
 
+import type { ApplicationTerminal } from '../../shared/application-terminal';
 import type { Terminal } from '../../shared/types';
 
 interface Dialogs {
+  applicationsettings: { open(app: ApplicationTerminal): void };
   taskrename: { rename(key: string, name: string): void };
   // New Project (components/NewProject.tsx).
   newproject: { open(): Promise<void> };

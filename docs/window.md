@@ -69,6 +69,19 @@ least its header's height so it can fold with the development terminal. The huma
 `stage_arrange` tool call `Task.arrangeStage`: the task must be shown, and settings apply with an empty Stage too.
 The task-scoped event reaches that window.
 
+Each environment header offers **Maximize environment** and **Restore environment**, also in its menu
+(`grid/EnvironmentFocus.tsx`). Dockview maximizes its group inside Stage, retaining its tabs and split sizes;
+development stays visible. A maximized group fits the Stage viewport with overflow suspended. Restoring resumes
+the stack and overflow setting.
+
+**Follow agent** in the Stage menu is opt-in, saved globally in `settings.json` (`stageFollow`) and shared by
+all tasks and windows. Browser MCP calls, CDP actions and named
+Stage-terminal calls report the environment used (`stage:activity`; the plugin reports, the window follows).
+`lib/grid.ts` selects a hidden tab and scrolls its group into view; visible groups keep their selection. Both
+profile and terminal headers highlight activity for two seconds. Selecting or interacting with Stage pauses
+following; **Follow agent (paused)** resumes it. A maximized group stays maximized, and background tasks never
+move the shown Stage. Pause state and activity are transient in each window; the global preference resumes when another task opens.
+
 **Allow overflow** is independent of the layout, off by default: panes fit the stage. On, Horizontal stack allocates 600 CSS
 pixels of width per environment, Vertical stack 300 pixels of height, plus Dockview’s gaps; the stack scrolls on that axis.
 Tabs hides the toggle and ignores overflow while preserving its value. Constraint changes give Dockview room for
@@ -93,31 +106,49 @@ the window. The title bar's **Stage → Open an environment** opens the same env
 ### Application terminals
 
 An application terminal (`grid/ApplicationPane.tsx`) is the CLI or TUI under test, in its own stage pane. Its name,
-launch command and optional fixed columns/rows are saved per task; configuration restores with no process started.
+optional launch command and fixed columns/rows are saved per task; every terminal starts a fresh shell when its task loads; saved app commands run through Run app. The pane’s Find… context-menu action and Ctrl+Shift+F (⌘+Shift+F on macOS) open an inline search bar; xterm’s search addon selects matches in retained output, with Enter/Shift+Enter navigation and Escape returning focus to the terminal. Search keys stay in the window. Runtime session kind records whether Kulisa launched a shell or app, independently of changes to the saved command. The header holds its status, Start, Run app, Restart app, Restart shell or Run again, Maximize/Restore, a **⋯** menu and Close;
+the terminal fills the pane below it. Opening a terminal starts the user’s shell in the task folder.
+A blank launch command starts a shell; a supplied command runs as the application session and keeps its final screen on exit. **Settings…** in the menu opens `ApplicationSettings.tsx` for the saved name,
+command and dimensions; empty dimensions fit the pane.
 The task’s `ApplicationTerminals` actions (`main/application-terminals.ts`) serve the window and agent.
 `terminal_run(name, command, size?)` creates a Stage terminal or reruns the supplied command in that named terminal;
 validation precedes stopping the previous process. The agent builds the app and chooses its command.
 `terminal_read`, `terminal_input`, `terminal_resize`, `terminal_stop` and `terminal_close` provide the interactive bridge.
 Development shells use `shell_run`, `shell_read` and `shell_stop` beside the coding agent. Launch uses the user's shell in the task's
 current working folder, with shell startup settings; the process's exit code and final screen stay visible after
-exit. Start and Restart clear the previous run's screen. Stop ends the session and keeps its final screen readable; Close also removes its setup and buffers. Closing a task stops its applications and keeps their setup for reopening.
+exit. Launch actions clear the previous run's screen. Stop ends the session and keeps its final screen readable; Close also removes its setup and buffers. Closing a task stops its applications and keeps their setup for reopening.
+
+A shell launch failure stays in the terminal’s runtime state (`launchError`) and appears as a selectable error
+in its pane. A new launch attempt clears it; it is omitted from saved configuration.
+
+**Send selection to agent** in a Stage terminal’s right-click menu captures xterm’s selected text when the menu
+opens. A browser page uses Electron’s `selectionText` from its native context menu, except in password fields.
+Both call `Task.sendSelection`: validate the source in the shown task, quote the text with its environment name
+and browser tab, and use `typeForAgent` to append it to the draft without Enter. Terminal control characters
+are removed before pasting; selected text is omitted from logs and saved nowhere. An open agent terminal is
+required.
+
+Manual Open and launch actions request keyboard focus for that terminal after a successful launch.
+`lib/environments.ts` keeps one pending request; newer pointer or keyboard input, window blur or a task switch
+cancels it. The pane applies it after its View and font are ready. Agent launches and Follow agent preserve the
+existing keyboard focus.
 
 The human types and pastes in the same PTY the agent operates. Screen reads flush xterm's parser and return the
 current normal or alternate screen; scrollback reads are limited to 500 lines. Reads over 40,000 characters go to
 bounded task artifacts with a short preview; Resources identifies their application source. Fixed dimensions are 2–500 columns
 and 2–200 rows; Auto follows the pane. Application sizes are independent of development terminals. The shared
 terminal Kulisa package owns the PTY, headless parser and visible View ([README](../src/terminal/README.md)); each
-visible application uses its DOM renderer to avoid a GPU atlas per environment. Hidden environments keep their
+visible application uses WebGL with DOM fallback when WebGL is unavailable or its context is lost. Hidden environments keep their
 process and bounded buffers. Shells share home directories, credentials and settings: these are execution places,
 not separate identities. Real-account sign-in stays the human's.
 
 | Action | The human | The agent | The core |
 |---|---|---|---|
-| Open empty setup | Application Terminal; Stage → Open an environment | part of `terminal_run`; agents supply a command | `ApplicationTerminals.create` |
-| Save name and command | fields | command supplied with each `terminal_run`; the pane name selects the session | `configure` |
-| Run or rerun | Start / Restart | `terminal_run` | `run` |
-| Resize or fit to pane | Resize, Auto | `terminal_resize`; optional size on `terminal_run` | `configure` |
-| Stop process, keep final screen | Stop | `terminal_stop` | `stop` |
+| Open a shell | Application Terminal; Stage → Open an environment | type a shell command through `terminal_input` in an open terminal; `terminal_run` requires a command | `ApplicationTerminals.open` |
+| Save name and command | ⋯ → Settings… | command supplied with each `terminal_run`; the pane name selects the session | `configure` |
+| Run or rerun | header launch button; pane menu | `terminal_run` | `run` |
+| Resize or fit to pane | ⋯ → Settings…; Fit to pane | `terminal_resize`; optional size on `terminal_run` | `configure` |
+| Stop process, keep final screen | ⋯ → Stop | `terminal_stop` | `stop` |
 | Inspect screen and status | visible terminal and status | `terminal_read` | `read`, `info` |
 | Type, paste, keys | terminal input; right-click Paste | `terminal_input` | terminal Kulisa package's input; `input` |
 | Close | ×; pane's menu | `terminal_close` | `close` |
@@ -235,7 +266,7 @@ lists the usual places for whoever reads it after uninstalling.
 `tutorial/context-menu.md`): drawn above the pages by the OS, it needs no pictures of them, as a page's menu in Chrome.
 Its rows are Chrome's for what is under the pointer (the `context-menu` event's `params`): a link (Open Link in New
 Tab, behind, in the same profile; Copy Link Address), an image (Open Image in New Tab, Copy Image), a field (Undo, Redo,
-Cut, Copy, Paste, Select All: Electron's roles), a selection (Copy; macOS selects the word under a right-click, so a
+Cut, Copy, Paste, Select All: Electron's roles), a selection (Copy and Send selection to agent; macOS selects the word under a right-click, so a
 link's menu has it there, as Chrome's), else the page's (Back, Forward, Reload); then Pick an Element for the Agent and
 Screenshot of an Element (they start choosing an element, as their keys do), and Inspect (the element in the tab's
 DevTools, `Profile.inspect`). Back, Forward, Reload, Pick and the screenshot are sent to the window as their keys'

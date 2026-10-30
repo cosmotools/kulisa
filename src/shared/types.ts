@@ -37,11 +37,12 @@ export interface TaskResource {
   branch: string | null; // a worktree's branch; none for the main working tree
   removable: boolean; // an added repository's worktree (task_remove_repository); not the task's own or the main tree
 }
-// A file the human or agent kept of a page (artifacts.ts), as the Resources panel lists it.
-export type ArtifactSource = { kind: 'profile'; id: string; tab: string } | { kind: 'application'; id: number };
+// An environment in the task’s Stage, naming a browser tab when relevant.
+export type EnvironmentSource = { kind: 'profile'; id: string; tab: string } | { kind: 'application'; id: number };
+// A file the human or agent kept of an environment, as Resources lists it.
 export interface Artifact {
   file: string;
-  source: ArtifactSource;
+  source: EnvironmentSource;
   kind: string; // screenshot, snapshot, request or response (a body)
   time: number;
   bytes: number;

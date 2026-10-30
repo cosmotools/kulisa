@@ -2,7 +2,7 @@
 import type { IncomingMessage } from 'http';
 import type { BrowserContext, Page } from 'playwright-core';
 import type { ApplicationTerminal, ApplicationScreen, ApplicationKey, TerminalSize } from '../../shared/application-terminal.ts';
-import type { ArtifactSource } from '../../shared/types.ts';
+import type { EnvironmentSource } from '../../shared/types.ts';
 import type { StageLayout, StagePosition } from '../../shared/ipc.ts';
 import type { Result } from '../../shared/result.ts';
 import type { Shot } from '../../screenshots/main/index.ts';
@@ -44,7 +44,7 @@ interface SavedConversation {
   name: string; tab: string; open: boolean;
   read?: (file: string) => Conversation;
 }
-interface Artifact { file: string; source: ArtifactSource; kind: string; time: number; bytes: number }
+interface Artifact { file: string; source: EnvironmentSource; kind: string; time: number; bytes: number }
 interface ApplicationAccess {
   info(): ApplicationTerminal[];
   run(name: string, command: string, size?: TerminalSize | null): Promise<Result<ApplicationTerminal>>;
@@ -76,10 +76,11 @@ interface TaskAccess {
   deleteProfile(id: string): Promise<Result>;
   setLogin(id: string, login: string, password: string): Result;
   typeLogin<T>(id: string, tab: string | undefined, field: 'login' | 'password', fill: (value: string) => Promise<T>): Promise<Result<{ name: string; result: T }>>;
+  environmentUsed(environment: string): void;
   caption(profile: string, caption: string, sticky?: boolean): void;
   toUrl(address: string): string;
   screenshot(profile: string, tab: string | undefined, shot: Omit<Shot, 'human'> & { by: 'agent' }): Promise<{ buf: Buffer; file: string }>;
-  saveArtifact(source: ArtifactSource, kind: string, content: string | Buffer): Promise<string>;
+  saveArtifact(source: EnvironmentSource, kind: string, content: string | Buffer): Promise<string>;
   artifacts(): Promise<Artifact[]>;
   artifactsUsage(scope?: 'task' | 'project' | 'all'): Promise<{ bytes: number; tasks: { key: string; name: string; project: string; bytes: number }[] }>;
   deleteArtifacts(files: string[] | null): Promise<Result<{ deleted: number; bytes: number }>>;
