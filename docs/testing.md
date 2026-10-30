@@ -211,6 +211,7 @@ answers (10 s).
 
 - Linux: e2e in a D-Bus session with gnome-keyring unlocked and `XDG_CURRENT_DESKTOP=GNOME` (else `safeStorage`
   encrypts nothing). Test folders are under home: paths show as `~`.
+- Linux's checks install `rpm` for the RPM maker's fixture build (`forge.test.ts`); locally it skips without `rpmbuild`.
 - macOS and Windows runners are 1024×768; the CI sets 1920×1080.
 - LF everywhere (`.gitattributes`), else file comparisons fail on Windows.
 

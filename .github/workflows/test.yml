@@ -71,6 +71,9 @@ jobs:
       # processes at once do together (a file exists, EBUSY).
       - run: npm ci --ignore-scripts
       - run: node -e "require('electron')"
+      # The RPM regression builds a small fixture with the runner's current rpmbuild before a release uses it.
+      - if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y rpm
       - run: npm run test:unit
       - run: npm run knip
       - run: npm run lint

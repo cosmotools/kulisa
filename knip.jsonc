@@ -22,7 +22,8 @@
   // actionlint: the developer's own, npm test runs it when installed (docs/testing.md, Workflows).
   // where.exe: Windows' own, finding a shell the quoting test runs.
   // Xvfb, openbox: the e2e tests' screen on Linux, the system's (docs/testing.md).
-  "ignoreBinaries": ["direnv", "actionlint", "where.exe", "Xvfb", "openbox"],
+  // rpm: the system's, querying the RPM maker's fixture (docs/testing.md, CI).
+  "ignoreBinaries": ["direnv", "actionlint", "where.exe", "Xvfb", "openbox", "rpm"],
   // Forge's makers, publisher and plugins, named by strings in forge.config.ts. The language server,
   // run by Claude Code's kulisa-dev plugin (.claude/dev-plugins; README, Developing with Claude Code).
   "ignoreDependencies": ["@electron-forge/maker-.*", "@electron-forge/publisher-github", "@electron-forge/plugin-auto-unpack-natives",
