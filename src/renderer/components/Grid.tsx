@@ -2,7 +2,7 @@
 import { useEffect, useRef } from 'react';
 import { DockviewReact } from 'dockview-react';
 import 'dockview-react/dist/styles/dockview.css';
-import { PlusIcon } from 'lucide-react';
+import { TerminalSquareIcon, PlusIcon } from 'lucide-react';
 import { Avatar, AvatarImage, Button } from '@ui';
 import { Stage, StageHeader } from './grid/Stage';
 import { dockTheme } from '../lib/dock-theme';
@@ -13,6 +13,7 @@ import { useWindow } from '../lib/store';
 import { profileLaunchers } from '../lib/profiles';
 import { useStrip } from '../lib/strip';
 import { avatarSrc } from '../lib/common';
+import { newApplication } from '../lib/environments';
 import './Grid.css';
 
 const components = { stage: Stage, terminal: Terminals, resources: Resources };
@@ -24,6 +25,7 @@ function ClosedProfiles() {
   const closed = useWindow((s) => s.closedProfiles), row = useRef<HTMLElement>(null);
   useStrip(row, null); // no button is the active one
   return <nav ref={row} id="closedprofiles" data-testid="closed-profiles" aria-label="Open an environment" className="flex flex-none gap-1 border-b bg-card px-2 py-1">
+    <Button variant="ghost" size="sm" onClick={() => void newApplication()} aria-label="Application Terminal"><TerminalSquareIcon />Application Terminal</Button>
     {profileLaunchers(closed).map((p) => <Button key={p.id} variant="ghost" size="sm" data-profile={p.id} aria-label={p.name} title={p.title}
       className="max-w-72 flex-none" onClick={() => void p.run()}>
       {p.avatar && <Avatar className="size-5"><AvatarImage src={avatarSrc(p.avatar)} alt="" /></Avatar>}<span className="min-w-0 truncate">{p.name}</span><PlusIcon />
@@ -34,7 +36,7 @@ function ClosedProfiles() {
 export function Grid() {
   useEffect(() => gridUnmounted, []);
   const loading = useWindow((s) => s.loading);
-  const folded = useWindow((s) => !!s.current && !s.profiles.length && s.terminals.list.length > 0);
+  const folded = useWindow((s) => !!s.current && !s.profiles.length && !s.applications.length && s.terminals.list.length > 0);
   // #grid: dockview's room (lib/grid.ts, room), under the closed profiles' row
   // min-w-0: a row wider than the window (many closed profiles) would stretch the window's column, the terminal and the
   // tasks' bar past its edge. Not shown until it is laid out (lib/grid.ts, reveal).

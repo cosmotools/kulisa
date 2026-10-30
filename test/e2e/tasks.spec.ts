@@ -320,6 +320,7 @@ test("tasks: an agent's tab closes after a question, always (Cancel keeps it); t
       - navigation "New terminal":
         - button "Terminal"
       - navigation "Open an environment":
+        - button "Application Terminal"
         - button "Sam.admin"
         - button "Elon.buyer"
         - button "Dora"
@@ -336,6 +337,7 @@ test("tasks: an agent's tab closes after a question, always (Cancel keeps it); t
   // the row goes.
   const tiles = ui.getByTestId('closed-profiles');
   await expect(tiles).toMatchAriaSnapshot(`
+    - button "Application Terminal"
     - button "Sam.admin"
     - button "Elon.buyer"
     - button "Dora"

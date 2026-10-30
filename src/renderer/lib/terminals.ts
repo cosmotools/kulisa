@@ -17,6 +17,8 @@ const frontKey = () => { const { task, front } = store.getState().terminals; ret
 export const panelView = new View(termStyle());
 export const shownTerm = () => (panelView.key && panelView.key === frontKey() ? panelView.term : null);
 
+termHooks.colors = () => termStyle().colors;
+
 // Links in the terminal: those an agent marks (OSC 8, as Claude Code does) and addresses in plain text (the web-links
 // addon). Ctrl+click (⌘ on macOS) asks where, in a menu at the pointer: a tab of one of the shown task's open
 // profiles, or the user's browser. Always asked, so a link never opens somewhere unexpected (the author's choice:

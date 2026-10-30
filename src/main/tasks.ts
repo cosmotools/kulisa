@@ -6,11 +6,12 @@
 import { nativeImage, session } from 'electron';
 import fs from 'fs';
 import path from 'path';
+import { ApplicationTerminals } from './application-terminals.ts';
 import { Profile, wipeSession } from './profiles.ts';
 import { ProjectProfiles } from './project-profiles.ts';
 import { installSigninPause } from './signin-pause.ts';
 import { startTerminal, stopTerminal, forgetTerminal, terminalTail, sendToPrompt, typeIntoPrompt, eraseInPrompt, typeLine, interrupt, quotePaths } from '../terminal/main/index.ts';
-import { READ_MAX } from '../kulisa-plugin/main/index.ts';
+import { TERMINAL_LINES } from '../shared/application-terminal.ts';
 import { listArtifacts, saveArtifact } from './artifacts.ts';
 import { copyProfile, worktreesOf, ownWorktree, folderOf, branchOf, taskKey } from './store.ts';
 import { renameBranch } from './worktrees.ts';
@@ -54,6 +55,7 @@ const HANDOVER = (n: number, name: string) => `Go on with the work of conversati
 const THUMB_WIDTH = 128;
 
 class Task {
+  applications: ApplicationTerminals;
   shell: Shell; project: Project; entry: TaskEntry; id: string; key: string; store: TaskStore;
   window: AppWindow | null; // the one whose tab it is (window.ts)
   loaded: boolean; terminalsLoaded: boolean;
@@ -76,6 +78,7 @@ class Task {
     this.store = shell.store.taskOf(project, this.id);
     this.loaded = false; this.terminalsLoaded = false; this.gitChecked = Promise.resolve(); this._copying = Promise.resolve();
     this.terminals = new Map(); this.terminalSeq = 0; // its terminals, by id, in their tabs' order
+    this.applications = new ApplicationTerminals(this);
     this.front = null; this.lastAgent = null;
     this.list = new ProjectProfiles(this.store, shell.profileStore, project.id, this._profileHooks());
     this.profiles = this.list.profiles; this.closed = this.list.closed;
@@ -544,7 +547,7 @@ class Task {
     this.terminals.set(id, t);
     if (front || this.front === null) this.show(id); else { this.saveTerminals(); this.changedTerminals(); }
     t.pty = await startTerminal((channel, data) => this.window?.send(channel, data),
-      { line: command, cwd: this.folder, env: this.env(), sizeOf: this.key, screen: READ_MAX }, t.key);
+      { line: command, cwd: this.folder, env: this.env(), sizeOf: this.key, screen: TERMINAL_LINES }, t.key);
     if (this.terminals.get(id) !== t) { stopTerminal(t.pty); return { error: 'the terminal was closed' }; }
     t.pty.onExit(() => { if (!t.pty!.stopped) this.dropTerminal(t); });
     log.info(`[terminal] ${t.key} started: a shell${by === 'agent' ? " (the agent's)" : ''}`);
@@ -652,6 +655,7 @@ class Task {
   // is deleted). Its tabs are saved first, as they are: closing them one by one changes the profiles, and nothing is
   // saved then.
   async unload() {
+    this.applications.unload();
     this.shell.chooseAgent.cancel?.(this);
     this.shell.dictation.gone(this.key);
     for (const t of this.terminals.values()) { if (t.pty) stopTerminal(t.pty); forgetTerminal(t.key); }
@@ -780,14 +784,15 @@ class Task {
     const r = this.findTab(profile, tab);
     if (refused(r)) throw new Error(r.error);
     const buf = await r.profile.screenshot(r.tab, shot);
-    const file = await this.saveArtifact(r.profile.id, r.tab.id, `screenshot.${shot.type === 'jpeg' ? 'jpg' : 'png'}`, buf);
+    const file = await this.saveArtifact({ kind: 'profile', id: r.profile.id, tab: r.tab.id }, `screenshot.${shot.type === 'jpeg' ? 'jpg' : 'png'}`, buf);
     const w = this.window;
     if (w && this.shown()) w.thumbnails.show(r.profile.id, file, buf, w.paneBox(r.profile.id));
     return { buf, file };
   }
-  // Both handles keep page files here so their numbering, limit and Resources updates agree.
-  async saveArtifact(profile: string, tab: string, kind: string, content: string | Buffer) {
-    const file = await saveArtifact(this.store.artifacts, `${profile}-${tab}-${kind}`, content);
+  // Both handles keep environment files here so their numbering, limit and Resources updates agree.
+  async saveArtifact(source: Sent.ArtifactSource, kind: string, content: string | Buffer) {
+    const from = source.kind === 'profile' ? `${source.id}-${source.tab}` : `application-${source.id}`;
+    const file = await saveArtifact(this.store.artifacts, `${from}-${kind}`, content);
     this.artifactsChanged();
     return file;
   }

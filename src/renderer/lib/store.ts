@@ -1,6 +1,7 @@
 // The window's state, as the main process sends it (window.ts), for the components to draw: read in a component with
 // useWindow(selector), elsewhere with store.getState().
 import { createStore, useStore } from 'zustand';
+import type { ApplicationTerminal } from '../../shared/application-terminal';
 import type { Artifact, ClosedProfile, LanguageInfo, Profile, ProjectsInfo, Terminals } from '../../shared/types';
 import type { Invoke, OnTask } from '../../shared/ipc';
 import { initialProjects } from './common';
@@ -18,6 +19,7 @@ interface WindowState {
   profiles: Profile[];
   closedProfiles: ClosedProfile[];
   terminals: Terminals;
+  applications: ApplicationTerminal[];
   // The files the agent's tools kept of a task's pages, the newest first (Resources), of the task named.
   artifacts: { task: string; list: Artifact[]; bytes: number };
   zoom: number; // the Kulisa zoom
@@ -35,6 +37,7 @@ interface WindowState {
 export const store = createStore<WindowState>()(() => ({
   current: null,
   projects: initialProjects || { current: null, project: null, projects: [], tabs: [], open: [], settings: false },
+  applications: [],
   profiles: [],
   closedProfiles: [],
   terminals: { front: null, list: [] },

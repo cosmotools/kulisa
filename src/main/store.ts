@@ -25,6 +25,7 @@
 //                            its files open while Kulisa runs)
 // Nothing goes into the project's own folder: sign-ins must not end up in its git.
 import fs from 'fs';
+import type { ApplicationConfig } from '../shared/application-terminal.ts';
 import path from 'path';
 import { removeTree } from './remove.ts';
 import { randomInt } from 'crypto';
@@ -221,6 +222,11 @@ class TaskStore {
     this.markDeleted(id);
     removeTree(this.profileDir(id));
   }
+  applications(): { next: number; list: ApplicationConfig[] } {
+    const a = readJSON(this.file('applications.json'));
+    return { next: Number.isSafeInteger(a?.next) && a.next > 0 ? a.next : 1, list: Array.isArray(a?.list) ? a.list : [] };
+  }
+  saveApplications(a: { next: number; list: ApplicationConfig[] }) { writeJSON(this.file('applications.json'), a); }
   // The window's grid as dockview serializes it (the renderer's lib/grid.ts).
   layout(): unknown { return readJSON(this.file('layout.json')); }
   saveLayout(layout: unknown) { writeJSON(this.file('layout.json'), layout); }

@@ -1,12 +1,12 @@
 # Kulisa
 
-Desktop app (Electron) where the AI agent the human chooses works in their signed-in browser profiles, side by side:
-it builds, checks the result as every user, fixes, and goes again until it works, while the human watches or takes a
-break. Made first for developing and testing web apps with several users at once. Each **profile** is an
-embedded browser profile (own cookies, storage, tabs) shown as a pane. The human signs in by hand in a pane; a
-coding agent the human chooses (Claude Code, Codex: the unchanged CLI) runs in the built-in terminal and drives
-profiles through Kulisa's MCP server. Tasks run several agents on one project at once. Point-and-tell (Pick, then click an element) puts a reference with a Playwright locator into the agent's
-prompt; the human writes the rest of the message around it.
+Desktop app (Electron) where the AI agent the human chooses develops and tests web and command-line apps while the
+human watches or takes a break. The coding agent (Claude Code, Codex: the unchanged CLI) works in a development
+terminal and drives built-in **environments** through Kulisa's MCP server: signed-in browser profiles for web apps,
+application terminals for CLIs and TUIs. Each **profile** is an embedded browser identity (own cookies, storage, tabs)
+shown as a pane; the human signs in by hand. Environments appear in the **stage**, a nested grid distinct from the
+agent's development panels. Tasks run several agents on one project at once. Point-and-tell (Pick, then click an
+element) puts a reference with a Playwright locator into the agent's prompt; the human writes the rest around it.
 
 - **Ideas and bugs go to GitHub issues** (`enhancement`, `bug`; GitHub's API below), not into the repository. Before
   building something, look for its issue: it may have been put off, with the reason. Once built, close it.
@@ -84,8 +84,9 @@ prompt; the human writes the rest of the message around it.
   must stay true (a version Kulisa requires, `>=`, is a constraint, not a record). The one
   exception, the terms here: the word earlier commits used, so that they can be read.
 - **Terminology: "environment"** for where the application under development runs and the human and agent interact
-  with it. Browser profiles are environments. **Stage** is the working name for their nested testing grid;
-  development terminals and Resources stay in the outer workspace (`docs/window.md`, The grid).
+  with it: browser profiles and application terminals. Not an agent's MCP tool, nor a promise of machine or credential
+  isolation. **Stage** is the working name for their nested testing grid; development terminals and Resources stay
+  in the outer workspace. Their behavior and lifecycle: `docs/window.md`, The grid.
 - **Terminology: "profile"**, the word Chrome uses, for one embedded browser identity (cookies, storage, tabs) and
   its pane. Not "persona", "user" or "account" (an account is what a profile signs in to). Early commits and
   experiments said "persona".

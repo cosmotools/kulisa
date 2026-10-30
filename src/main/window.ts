@@ -168,6 +168,7 @@ class AppWindow {
     const task = this.task;
     if (!task || this.switching) return;
     this.sendTerminals();
+    this.send('applications', { task: task.key, list: task.applications.info() });
     this.send('state', [...task.profiles.values()].map((p) => p.info()));
     this.send('closed-profiles', [...task.closed.values()].map(({ cfg, tabs }): Sent.ClosedProfile =>
       ({ id: cfg.id, name: cfg.name, avatar: cfg.avatar, description: cfg.description ?? '', tabs: tabs.urls.length })));

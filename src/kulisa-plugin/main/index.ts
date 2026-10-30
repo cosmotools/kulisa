@@ -4,4 +4,3 @@ export type { Agent, Found } from './agents/index.ts';
 export type { PluginHost, TaskAccess, ProfileAccess, TabAccess, TerminalAccess } from './core.ts';
 export { startMcpServer } from './mcp-server.ts';
 export { installGhost, MARK } from './ghost.ts';
-export { READ_MAX } from './tools/terminal.ts';

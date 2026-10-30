@@ -10,6 +10,7 @@ import { handles } from './tools/handles.ts';
 import { profileTools } from './tools/profile.ts';
 import { taskTools } from './tools/task.ts';
 import { browserTools, clearHighlights } from './tools/browser.ts';
+import { applicationTools } from './tools/application.ts';
 import { terminalTools } from './tools/terminal.ts';
 import pkg from '../../../package.json' with { type: 'json' };
 import type { AddressInfo } from 'net';
@@ -28,6 +29,7 @@ const INSTRUCTIONS = 'Kulisa profiles are the users of the app under test, each 
   'profile_list) you sign in to yourself, with browser_type_login (you never see its password). ' +
   'Run what keeps running (the app\'s dev server, docker compose up, a watcher) with terminal_run, not in your own ' +
   'shell or its background: the human sees it in a terminal next to yours, and you read its output with terminal_read. ' +
+  'Test interactive CLI and TUI apps in application terminal environments in the stage: create and explicitly start one, read its rendered screen, send input, then restart after code changes. Your own development terminal stays separate. ' +
   'What was said and done in this task, by you or other agents (each conversation an agent had in it), is in ' +
   'task_history: read the one the human points you to ("go on with what Claude did") before anything else, and read ' +
   'yours when you need details your context lost. Name your conversation with conversation_rename once you know what ' +
@@ -47,6 +49,7 @@ function buildServer(task: Task, t: TaskTerminal | null) {
   taskTools(server, h);
   browserTools(server, h);
   terminalTools(server, h);
+  applicationTools(server, h);
   return server;
 }
 

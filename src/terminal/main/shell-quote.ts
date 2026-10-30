@@ -47,4 +47,15 @@ function quotePaths(shell: string, paths: string[]) {
   return paths.map((p) => ps ? `'${p.replace(/'/g, "''")}'` : shellQuote(shell, p)).join(' ');
 }
 
-export { shellQuote, shellLine, quotePaths };
+// Run after the shell's first prompt hooks (direnv, mise), then leave with the application's status.
+function executionLine(shell: string, line: string) {
+  const name = shellName(shell);
+  if (name === 'pwsh' || name === 'powershell') {
+    const command = `'${line.replace(/'/g, "''")}'`;
+    // -Command normalizes native failures to 1; an explicit exit preserves the application's code.
+    return `$global:LASTEXITCODE=$null; Invoke-Expression ${command}; $kulisaSucceeded=$?; if ($null -ne $LASTEXITCODE) { exit $LASTEXITCODE }; if ($kulisaSucceeded) { exit 0 } else { exit 1 }`;
+  }
+  return `eval ${shellQuote(shell, line)}; exit ${name === 'fish' ? '$status' : '$?'}`;
+}
+
+export { shellQuote, shellLine, quotePaths, executionLine };

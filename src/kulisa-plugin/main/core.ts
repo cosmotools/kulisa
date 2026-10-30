@@ -1,6 +1,8 @@
 // The facts and actions supplied by the caller. The Kulisa package owns no tasks, profiles or terminals.
 import type { IncomingMessage } from 'http';
 import type { BrowserContext, Page } from 'playwright-core';
+import type { ApplicationTerminal, ApplicationScreen, ApplicationKey, TerminalSize } from '../../shared/application-terminal.ts';
+import type { ArtifactSource } from '../../shared/types.ts';
 import type { Result } from '../../shared/result.ts';
 import type { Shot } from '../../screenshots/main/index.ts';
 import type { Conversation } from './transcripts.ts';
@@ -41,8 +43,20 @@ interface SavedConversation {
   name: string; tab: string; open: boolean;
   read?: (file: string) => Conversation;
 }
-interface Artifact { file: string; profile: string; kind: string; time: number; bytes: number }
+interface Artifact { file: string; source: ArtifactSource; kind: string; time: number; bytes: number }
+interface ApplicationAccess {
+  info(): ApplicationTerminal[];
+  create(name?: string, command?: string): Result<ApplicationTerminal>;
+  configure(which: number | string, change: { name?: string; command?: string; size?: TerminalSize | null }): Result<ApplicationTerminal>;
+  start(which: number | string, command?: string): Promise<Result<ApplicationTerminal>>;
+  stop(which: number | string): Result<ApplicationTerminal>;
+  restart(which: number | string, command?: string): Promise<Result<ApplicationTerminal>>;
+  close(which: number | string): Result<{ id: number }>;
+  read(which: number | string, lines?: number, screenOnly?: boolean): Promise<Result<ApplicationScreen>>;
+  input(which: number | string, input: { text?: string; paste?: boolean; key?: ApplicationKey }): Result<{ id: number }>;
+}
 interface TaskAccess {
+  readonly applications: ApplicationAccess;
   readonly key: string; readonly name: string; readonly folder: string; readonly branch: string | null;
   readonly worktrees: { folder: string; repo: string; branch: string }[];
   readonly profiles: ReadonlyMap<string, ProfileAccess>;
@@ -65,7 +79,7 @@ interface TaskAccess {
   caption(profile: string, caption: string, sticky?: boolean): void;
   toUrl(address: string): string;
   screenshot(profile: string, tab: string | undefined, shot: Omit<Shot, 'human'> & { by: 'agent' }): Promise<{ buf: Buffer; file: string }>;
-  saveArtifact(profile: string, tab: string, kind: string, content: string | Buffer): Promise<string>;
+  saveArtifact(source: ArtifactSource, kind: string, content: string | Buffer): Promise<string>;
   artifacts(): Promise<Artifact[]>;
   artifactsUsage(scope?: 'task' | 'project' | 'all'): Promise<{ bytes: number; tasks: { key: string; name: string; project: string; bytes: number }[] }>;
   deleteArtifacts(files: string[] | null): Promise<Result<{ deleted: number; bytes: number }>>;

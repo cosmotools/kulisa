@@ -64,9 +64,10 @@ import type { Conversation } from '../transcripts.ts';
 
 // Kulisa's MCP tools that keep the agent's own approval (docs/profiles.md, The agent's tools):
 // terminal_run runs any command in the human's shell, around the agent's approval of commands (and Codex's sandbox);
+// Application launch/restart and input can run commands through a CLI too;
 // browser_file_upload sends a file of the disk to a site, what a prompt injection would use. Every other tool runs
 // without a question, a new one too unless it is added here: what acts on real accounts asks the human in Kulisa itself.
-const KULISA_ASKS = ['terminal_run', 'browser_file_upload'];
+const KULISA_ASKS = ['terminal_run', 'browser_file_upload', 'application_start', 'application_restart', 'application_input'];
 
 // A conversation as agent.json keeps it: its session as the agent's hooks reported it (agent-hooks.ts), and its
 // account's folder.

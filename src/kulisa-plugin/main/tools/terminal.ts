@@ -2,6 +2,7 @@
 // it. How a tool is designed: ../../README.md, Tool design.
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { TERMINAL_LINES } from '../../../shared/application-terminal.ts';
 import type { Handles } from './handles.ts';
 
 // What an agent can read back of a shell (terminal_read; terminalTail in src/terminal/main): its last lines as the screen shows them, kept
@@ -9,7 +10,7 @@ import type { Handles } from './handles.ts';
 // state) are what they became; the output with its codes left out had every frame. Its scrollback is what the agent
 // may ask for at most: the memory is lines × columns × 12 bytes (about 1 MB at 200 columns). Its buffer is a proposed
 // API in the headless build (allowProposedApi), the one xterm's serialize addon reads too.
-const READ_MAX = 500;
+const READ_MAX = TERMINAL_LINES;
 
 function terminalTools(server: McpServer, { task, text, done }: Handles) {
   const nameArg = z.string().describe('The terminal\'s name, e.g. "dev server"');
@@ -39,4 +40,4 @@ function terminalTools(server: McpServer, { task, text, done }: Handles) {
   });
 }
 
-export { terminalTools, READ_MAX };
+export { terminalTools };

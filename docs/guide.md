@@ -72,10 +72,10 @@ project, and those you closed, are in the sidebar (Tasks, below).
 - **Settings** (on a Mac also ⌘, or Kulisa → Settings… in the menu bar) fills the window, over your task, and shows that task's project: set what you need and close it (**Esc**,
   the ← arrow at its top left, or the gear again; what you typed is saved as you go). Your task goes on meanwhile, and is there as you left it.
 - **The grid** separates development from testing: your agents' terminals and Resources sit beside the **stage**,
-  where browser profiles show the app being tested. Drag headers to move or stack panes within the stage, or move
-  the stage itself beside your development panels. Drag a line to resize panes. **☰ → Arrange panels** offers
-  ready-made arrangements. Each task keeps both layouts. The empty stage stays hidden; you or your agent opens a
-  profile when needed.
+  where browser profiles and application terminals show the app being tested. Drag headers to move or stack panes
+  within the stage, or move the stage itself beside your development panels. Drag a line to resize panes.
+  **☰ → Arrange panels** offers ready-made arrangements. Each task keeps both layouts. The empty stage stays hidden;
+  you or your agent opens an environment when needed.
 - **Resources**, next to the terminal (beside it, or under it when the terminal is on the right): what the task works in (its copy of the code, or your project's folder until
   it has one), a click opens its folder; and under **Artifacts**, what you and the agent kept of the pages:
   screenshots (with a small picture), snapshots of a page, the bodies of requests, the newest first, with whose page and
@@ -367,8 +367,8 @@ profile's menu, also on a right-click) and **×**. Under it, a tab strip, then b
   tab shows the agent's icon, its name and what it is doing (working, waiting for you, done).
 - **+** at the row's end opens one of the project's agents, a new conversation, or **Terminal**, a shell. Closing an
   agent's tab (**×**) asks first; its conversation stays in the task's history. A shell closes at once, or with `exit`.
-- Close the last one and the panel folds to a thin strip with **+** in its middle, which opens one again (Ctrl+`
-  opens the task's agent). With no profile open either, big buttons in the middle of the window do what **+** does:
+- Close the last development terminal and the panel folds to a thin strip with **+** in its middle, which opens one again (Ctrl+`
+  opens the task's agent). With no testing environment open either, big buttons in the middle of the window do what **+** does:
   one for each of the project's agents, then **Terminal**. Tab moves between them and Enter opens one. Under them, a
   button for each of the project's profiles opens it.
 - Terminals come back after a restart in their tabs: an agent continues its conversation, a shell starts fresh. An
@@ -382,6 +382,22 @@ profile's menu, also on a right-click) and **×**. Under it, a tab strip, then b
   to open it in its app or show it in its folder. A program or script is only shown in its folder, never run.
 - Right-click: Copy, Paste, Select all, Clear; in an agent's, Change agent… (the same as its icon) and New
   Conversation (the same agent, from nothing); Close.
+
+## Testing a command-line application
+
+Open **Application Terminal** above the development terminal, or from the stage's **+**. Give it a name and launch
+command, then press **Start**. Your CLI or interactive terminal app runs visibly in the task's working folder; you
+can type, paste and use its keyboard shortcuts. Your coding agent can inspect the same screen, operate the app,
+change its code and run it again. Large terminal reads appear as Terminal screen artifacts in Resources.
+Browser profiles are optional for a CLI task.
+
+**Stop** ends the process; **Restart** runs the command again with a fresh screen. The status shows whether it is
+running or has exited, including its exit code. Use columns and rows with **Resize** to test a fixed terminal size,
+or **Auto** to follow the pane. Right-click for the same actions, copy, paste and select all.
+
+Closing a task keeps the application terminal's name, command and size. Reopening restores its setup with the
+process stopped; press Start when you need it. The pane's **×** stops it and removes its saved setup. Application
+terminals share your home folder and credentials; sign in to real accounts yourself when needed.
 
 ## Look and zoom
 

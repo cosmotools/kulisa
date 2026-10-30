@@ -69,7 +69,7 @@ function taskTools(server: McpServer, { task, t, text, done }: Handles) {
     const list = await task.artifacts();
     const when = (ms: number) => new Date(ms).toLocaleString('sv').slice(0, 16);
     return text(`This task's artifacts: ${sizeText(usage.bytes)} in ${list.length} file(s).${list.slice(0, limit)
-      .map((a) => `\n- ${a.file}: ${KINDS[a.kind] ?? a.kind}, ${profileName(a.profile)}, ${when(a.time)}, ${sizeText(a.bytes)}`).join('')}${list.length > limit ? `\n${list.length - limit} older not listed (limit).` : ''}`);
+      .map((a) => `\n- ${a.file}: ${KINDS[a.kind] ?? a.kind}, ${a.source.kind === 'profile' ? profileName(a.source.id) : task.applications.info().find((t) => t.id === a.source.id)?.name ?? `application ${a.source.id} (closed)`}, ${when(a.time)}, ${sizeText(a.bytes)}`).join('')}${list.length > limit ? `\n${list.length - limit} older not listed (limit).` : ''}`);
   });
 
   server.registerTool('task_artifacts_delete', {

@@ -58,26 +58,52 @@ A press on a tab not shown shows its task at once, as Chrome's; the tab is lit o
 ## The grid
 
 A task has two independent dockview grids (`Grid.tsx`, `grid/Stage.tsx`): the outer workspace holds development
-terminals, Resources and the **stage**; the stage holds browser profiles as testing **environments**. Drag a header to
-move or stack panels within its grid; drag a sash to resize them. Profile panes stay in the stage, development
-panels in the workspace. The empty stage is absent; opening the first profile adds it, closing the last removes it.
-A new task opens only its default development terminal.
+terminals, Resources and the **stage**; the stage holds testing **environments**, browser profiles and application
+terminals. Drag a header to move or stack panels within its grid; drag a sash to resize them. Environments stay in
+the stage, development panels in the workspace. The empty stage is absent; opening the first environment adds it,
+closing the last removes it. A new task opens only its default development terminal.
 
-**☰ → Arrange panels** places profiles in columns above the development terminal, two by two beside it, or stacked
-as tabs above it. Resources sits beside the development terminal, or under it when the terminal is on the right.
-It keeps at least its header's height, so it can fold with the development terminal's row. A hidden stage or profile
-panel hides its native browser views; both grids' layout and visibility changes report the profile content boxes
-to the main process (`lib/grid.ts`). Dragging in either grid turns pages into pictures for HTML drop targets.
+**☰ → Arrange panels** places environments in columns above the development terminal, two by two beside it, or
+stacked as tabs above it. Resources sits beside the development terminal, or under it when the terminal is on the
+right. It keeps at least its header's height, so it can fold with the development terminal's row. A hidden stage or
+profile panel hides its native browser views; both grids' layout and visibility changes report the profile content
+boxes to the main process (`lib/grid.ts`). Dragging in either grid turns pages into pictures for the HTML drop targets.
 
 `layout.json` keeps both grids (`version: 2`, `workspace`, `stage`), saved 300 ms after a change and flushed when the
 task is left. `lib/stage-layout.ts` separates a flat saved layout into development and testing groups, retaining
 panel order, stacking and sizes. An invalid grid falls back to its default arrangement.
 
-**No profile open, a development terminal open**: a row above the workspace offers the closed profiles
-(`ClosedProfiles`, `Grid.tsx`). With no development terminal either, the same choices sit under the agents' launchers.
-More than fit scroll (`useStrip`); `#dock` keeps `min-width: 0` so these choices cannot stretch the window. The stage's
-**+** opens profiles while the stage is shown. Signing in and browser behavior remain the profiles' own
-([profiles.md](profiles.md)).
+**No environment open, a development terminal open**: a row above the workspace offers **Application Terminal** and
+the closed profiles (`ClosedProfiles`, `Grid.tsx`). With no development terminal either, the same choices sit under
+the agents' launchers. More than fit scroll (`useStrip`); `#dock` keeps `min-width: 0` so these choices cannot stretch
+the window. The stage's **+** opens the same environments while the stage is shown.
+
+### Application terminals
+
+An application terminal (`grid/ApplicationPane.tsx`) is the CLI or TUI under test, in its own stage pane. Its name,
+launch command and optional fixed columns/rows are saved per task; configuration restores with no process started.
+Start, Stop, Restart and Close are the task's `ApplicationTerminals` actions (`main/application-terminals.ts`),
+shared by the window's IPC and agent-agnostic `application_*` MCP tools. Launch uses the user's shell in the task's
+current working folder, with shell startup settings; the process's exit code and final screen stay visible after
+exit. Start and Restart clear the previous run's screen. Stop ends the session and keeps its final screen readable; Close also removes its setup and buffers. Closing a task stops its applications and keeps their setup for reopening.
+
+The human types and pastes in the same PTY the agent operates. Screen reads flush xterm's parser and return the
+current normal or alternate screen; scrollback reads are limited to 500 lines. Reads over 40,000 characters go to
+bounded task artifacts with a short preview; Resources identifies their application source. Fixed dimensions are 2–500 columns
+and 2–200 rows; Auto follows the pane. Application sizes are independent of development terminals. The shared
+terminal Kulisa package owns the PTY, headless parser and visible View ([README](../src/terminal/README.md)); each
+visible application uses its DOM renderer to avoid a GPU atlas per environment. Hidden environments keep their
+process and bounded buffers. Shells share home directories, credentials and settings: these are execution places,
+not separate identities. Real-account sign-in stays the human's.
+
+| Action | The human | The agent | The core |
+|---|---|---|---|
+| Create | Application Terminal; stage's + | `application_create` | `ApplicationTerminals.create` |
+| Save name, command or size | fields; Resize, Auto | `application_configure` | `configure` |
+| Start, stop, restart | buttons; pane's menu | `application_start`, `application_stop`, `application_restart` | `start`, `stop`, `restart` |
+| Inspect screen and status | visible terminal and status | `application_read` | `read`, `info` |
+| Type, paste, keys | terminal input; right-click Paste | `application_input` | terminal Kulisa package's input; `input` |
+| Close | ×; pane's menu | `application_close` | `close` |
 
 A window made narrower or wider changes every panel in its share, as VS Code's and JetBrains' do (dockview's
 `proportionalLayout`; it needs dockview 8.6.0 or later:

@@ -1,6 +1,6 @@
 ---
 name: kulisa-profiles
-description: You are running inside Kulisa, a window for building and testing web apps as several users at once. This skill is how you work through Kulisa. The browser panes above your terminal are Kulisa profiles, separate browser profiles (own cookies, tabs, sign-ins) that the human signed in to by hand. Use it whenever you open, read, click or type in a web app, check something as one user or several, or a message holds [kulisa pick: …] (an element the human pointed at); and whenever you set up or run the task (its git worktree, repositories, the app's dev server) or read what was done in it before. Use its browser tools instead of any other browser tool.
+description: You are running inside Kulisa, a window for building and testing web and command-line apps. This skill is how you work through Kulisa. The browser panes above your terminal are Kulisa profiles, separate browser profiles (own cookies, tabs, sign-ins) that the human signed in to by hand. Use it whenever you open, read, click or type in a web app, check something as one user or several, or a message holds [kulisa pick: …] (an element the human pointed at); and whenever you set up or run the task (its git worktree, repositories, the app's dev server) or read what was done in it before. Use its browser tools instead of any other browser tool.
 ---
 
 # Working with Kulisa profiles
@@ -48,6 +48,17 @@ task). This skill is how they fit together; what each one does is in its own des
 - **Closed profiles** are users set aside to save memory; they are still signed in. A new task starts with all of
   them closed. Open one with `profile_open` when the task needs that user, not to look around, and close what you
   opened when you are done with it. Close a profile the human opened only when they ask.
+
+## Application terminal environments
+
+For a CLI or TUI under development, use an application terminal in the testing stage. Your development terminal
+stays separate. Open an environment with its launch command, explicitly start it, inspect its rendered screen before
+acting, and operate it with text, paste or named keys. Restart it after changes to check the result. Read scrollback
+when diagnosing earlier output. No browser profile is needed for a CLI task.
+
+The human sees and can operate the same session. Let them take over for real-account sign-in; never type their
+passwords or codes. Terminal environments share the human's home and credentials. Restored setup starts stopped;
+launch only when the work needs it. Stop or close environments you opened when finished, leaving the human's alone.
 
 ## Tasks
 

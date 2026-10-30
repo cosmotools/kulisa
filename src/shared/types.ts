@@ -38,9 +38,10 @@ export interface TaskResource {
   removable: boolean; // an added repository's worktree (task_remove_repository); not the task's own or the main tree
 }
 // A file the human or agent kept of a page (artifacts.ts), as the Resources panel lists it.
+export type ArtifactSource = { kind: 'profile'; id: string; tab: string } | { kind: 'application'; id: number };
 export interface Artifact {
   file: string;
-  profile: string; // the id of the profile it came from
+  source: ArtifactSource;
   kind: string; // screenshot, snapshot, request or response (a body)
   time: number;
   bytes: number;

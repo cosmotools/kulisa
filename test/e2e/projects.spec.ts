@@ -227,7 +227,7 @@ test("projects: the projects' manager (Project Settings…) changes its name and
   `);
   // A project with no profiles: one tile, Add Profile…, its page in Settings.
   const launchProfiles = ui.locator('#dock').getByRole('navigation', { name: 'Open an environment' });
-  await expect(launchProfiles.getByRole('button')).toHaveText(['Add Profile…']);
+  await expect(launchProfiles.getByRole('button')).toHaveText(['Application Terminal', 'Add Profile…']);
   await launchProfiles.getByRole('button', { name: 'Add Profile…', exact: true }).click();
   s = await sui();
   await expect(pathOf(s)).toHaveText(/^Projects\s*/);

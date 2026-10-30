@@ -38,7 +38,15 @@ test('artifacts: listed the newest first, whose and what each is from its name, 
   await saveArtifact(dir, 'p1-k1-screenshot.jpg', 'x');
   await saveArtifact(dir, 'p2-k3-snapshot.yml', 'y');
   fs.writeFileSync(path.join(dir, 'notes.txt'), '');
-  assert.deepEqual((await listArtifacts(dir)).map(({ file, profile, kind, bytes }) => [path.basename(file), profile, kind, bytes]),
+  assert.deepEqual((await listArtifacts(dir)).map(({ file, source, kind, bytes }) => [path.basename(file), source.id, kind, bytes]),
     [['2-p2-k3-snapshot.yml', 'p2', 'snapshot', 1], ['1-p1-k1-screenshot.jpg', 'p1', 'screenshot', 1]]);
   assert.deepEqual(await listArtifacts(path.join(root, 'none')), [], 'no folder yet: none');
+});
+
+test('artifacts identify application terminal screens separately from browser profiles', async () => {
+  const dir = path.join(root, 'sources');
+  await saveArtifact(dir, 'application-3-terminal.txt', 'terminal screen');
+  await saveArtifact(dir, 'application-t1-screenshot.jpg', 'browser picture');
+  const list = await listArtifacts(dir);
+  assert.deepEqual(list.map((a) => a.source), [{ kind: 'profile', id: 'application', tab: 't1' }, { kind: 'application', id: 3 }]);
 });

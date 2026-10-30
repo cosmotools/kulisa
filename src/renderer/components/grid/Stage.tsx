@@ -4,13 +4,14 @@ import { DockviewReact, type DockviewApi } from 'dockview-react';
 import { PlusIcon } from 'lucide-react';
 import { Button } from '@ui';
 import { ProfilePane, ProfileHeader } from './ProfilePane';
+import { ApplicationPane, ApplicationHeader } from './ApplicationPane';
 import { ButtonMenu } from '../Menus';
 import { stageMounted, stageUnmounted } from '../../lib/grid';
 import { environmentItems } from '../../lib/environments';
 import { dockTheme } from '../../lib/dock-theme';
 
-const components = { profile: ProfilePane };
-const tabComponents = { profile: ProfileHeader };
+const components = { profile: ProfilePane, application: ApplicationPane };
+const tabComponents = { profile: ProfileHeader, application: ApplicationHeader };
 export function Stage() {
   const mounted = useRef<DockviewApi | null>(null);
   useEffect(() => () => stageUnmounted(mounted.current), []);

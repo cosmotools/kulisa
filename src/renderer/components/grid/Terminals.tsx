@@ -16,6 +16,7 @@ import { dialog } from '../../lib/dialogs';
 import { avatarSrc, useShortcuts, withKeys } from '../../lib/common';
 import { grow, useStrip } from '../../lib/strip';
 import { dialogsShown } from '../../lib/cover';
+import { newApplication } from '../../lib/environments';
 import { termFocus } from '../../../terminal/renderer';
 import { Dictation, Pill } from '../../../dictation/renderer';
 import type { Terminal } from '../../../shared/types';
@@ -155,6 +156,7 @@ function Launchers({ ref }: { ref: Ref<HTMLDivElement> }) {
       </Button>)}
     </nav>
     <nav aria-label="Open an environment" className="flex flex-wrap justify-center gap-3">
+      <Button variant="outline" className="h-auto w-60 justify-start" onClick={() => void newApplication()}><PlusIcon />Application Terminal</Button>
       {profileLaunchers(closed).map((p) => <Button key={p.id} data-launcher data-profile={p.id} variant="outline" aria-label={p.name} title={p.title}
         className="h-auto w-60 justify-start" onClick={() => void p.run()}>
         <Item size="sm"><ItemMedia>{p.avatar ? <Avatar size="lg" aria-hidden><AvatarImage src={avatarSrc(p.avatar)} alt="" /></Avatar> : <PlusIcon className="size-8" />}</ItemMedia>

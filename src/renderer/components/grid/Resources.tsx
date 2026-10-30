@@ -10,7 +10,7 @@ import { shownTask, useWindow } from '../../lib/store';
 import type { MenuItem } from '../../lib/menu';
 import { sizeText } from '../../../shared/bytes';
 
-const KINDS: Record<string, string> = { screenshot: 'Screenshot', snapshot: 'Snapshot', request: 'Request body', response: 'Response body' };
+const KINDS: Record<string, string> = { screenshot: 'Screenshot', snapshot: 'Snapshot', request: 'Request body', response: 'Response body', terminal: 'Terminal screen' };
 const kindOf = (kind: string) => KINDS[kind] ?? kind;
 const day = (t: number) => new Date(t).toDateString();
 const when = (t: number) => (day(t) === day(Date.now()) ? new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -23,6 +23,7 @@ export function Resources() {
   const artifacts = useWindow((s) => (s.artifacts.task === key ? s.artifacts.list : null)) ?? [];
   const bytes = useWindow((s) => s.artifacts.bytes);
   const names = useWindow(useShallow((s) => Object.fromEntries([...s.profiles, ...s.closedProfiles].map((p) => [p.id, p.name]))));
+  const applications = useWindow(useShallow((s) => Object.fromEntries(s.applications.map((a) => [a.id, a.name]))));
   // The list comes when the task is shown and whenever the human or agent keeps one (window.ts, sendArtifacts).
   useEffect(() => { if (key) void kulisa.invoke('task:artifacts', key); }, [key]);
   if (!task) return null;
@@ -67,7 +68,7 @@ export function Resources() {
                       onClick={() => void openFile(a.file)}>
                       {/* a page's head: where its picture is cut */}
                       {a.thumb ? <img src={a.thumb} draggable={false} alt="" className="size-8 rounded-sm border object-cover object-top" /> : <FileIcon />}
-                      {lines(kindOf(a.kind), [names[a.profile], when(a.time)].filter(Boolean).join(' · '))}
+                      {lines(kindOf(a.kind), [a.source.kind === 'profile' ? names[a.source.id] : applications[a.source.id], when(a.time)].filter(Boolean).join(' · '))}
                     </SidebarMenuButton>
                   </SidebarMenuItem>)}
                 </SidebarMenu>
