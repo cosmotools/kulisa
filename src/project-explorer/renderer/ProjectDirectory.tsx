@@ -1,9 +1,10 @@
 // shadcn File Tree composition and expanded-directory lifecycle (../README.md).
 import { useEffect, useState } from 'react';
-import { ChevronRightIcon, FileIcon, FolderIcon } from 'lucide-react';
+import { ChevronRightIcon } from 'lucide-react';
 import { Alert, AlertDescription, Collapsible, CollapsibleContent, CollapsibleTrigger, Button } from '@ui';
 import type { ProjectFile } from '../ipc';
 import type { ExplorerActions } from './actions';
+import { FileIcon } from './FileIcon';
 
 export function ProjectDirectory({ actions, folder }: { actions: ExplorerActions; folder: string }) {
   const [entries, setEntries] = useState<ProjectFile[]>([]);
@@ -40,11 +41,11 @@ function ProjectEntry({ actions, entry }: { actions: ExplorerActions; entry: Pro
     const result = await actions.openFile(entry.path);
     setError(result.error ?? '');
   };
-  const row = <Button variant="ghost" size="sm" className="w-full justify-start" aria-label={entry.name} title={entry.path}
+  const row = <Button variant="ghost" className="h-7 w-full justify-start" aria-label={entry.name} title={entry.path}
     onDoubleClick={entry.directory ? undefined : () => void open()}
     onKeyDown={(e) => { if (!entry.directory && e.key === 'Enter') { e.preventDefault(); void open(); } }}>
     {entry.directory ? <ChevronRightIcon className={expanded ? 'size-4 rotate-90' : 'size-4'} /> : <span className="size-4 shrink-0" />}
-    {entry.directory ? <FolderIcon /> : <FileIcon />}<span className="truncate">{entry.name}</span>
+    <FileIcon path={entry.path} directory={entry.directory} expanded={expanded} /><span className="truncate">{entry.name}</span>
   </Button>;
   return <div>
     <div onContextMenu={(e) => {

@@ -86,7 +86,7 @@ project, and those you closed, are in the sidebar (Tasks, below).
   environment when needed through **Stage → Open an environment**.
 - **Resources**, to the left of the terminal by default: switch between **Project** and **Artifacts** tabs.
   **Project** opens first: browse the active task’s folders (its copy of the code, or your project’s folder until
-  it has one). Click a folder to expand it; double-click a file to open it in your system’s default application,
+  it has one). Icons identify file types and common folders. Click a folder to expand it; double-click a file to open it in your system’s default application,
   or press Enter or right-click and choose **Open**. Switching tasks shows that task’s folders, across projects too.
   **Artifacts** holds what you and the agent kept of the pages:
   screenshots (with a small picture), snapshots of a page, the bodies of requests, the newest first, with whose page and

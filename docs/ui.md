@@ -43,7 +43,8 @@ the main process after every grid change ([window.md](window.md), The grid).
 - **A color is the theme's** (`bg-muted`, `text-destructive`, `var(--card)`), never Tailwind's palette nor written
   out: one palette, dark and light. A literal color only where none can be: the marks.
 - **Not Lucide's icons**: the agents' marks (`AgentMark.tsx`: the makers' own, in their colors, 1em), the logo
-  (`Logo`, `ProjectIcon.tsx`: its curtain in the color given) and the profiles' pictures (`avatarSrc` in an `Avatar`).
+  (`Logo`, `ProjectIcon.tsx`: its curtain in the color given), the profiles' pictures (`avatarSrc` in an `Avatar`),
+  and Project Explorer's file-type and folder marks ([its README](../src/project-explorer/README.md)).
 - **No CSS Modules, no second UI library.** A plain `.css` only for what classes cannot say, with its reason: what is
   dockview's own elements (`Grid.css`), Radix's layers (`lib/cover.css`).
 - **A component missing**: `npm run ui -- <name>` adds it, without asking whether to; nothing in shadcn fits: say so
