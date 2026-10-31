@@ -63,13 +63,17 @@ export function Resources() {
               <RightClickMenu items={menu}>
                 <SidebarMenu aria-label="Artifacts">
                   {artifacts.map((a) => <SidebarMenuItem key={a.file}>
-                    <SidebarMenuButton data-file={a.file} aria-label={kindOf(a.kind)} title={`Open: ${a.file} (${sizeText(a.bytes)})`} className="h-auto"
-                      draggable onDragStart={(e) => { e.preventDefault(); void kulisa.invoke('task:artifact-drag', { key: task.key, file: a.file }); }}
-                      onClick={() => void openFile(a.file)}>
-                      {/* a page's head: where its picture is cut */}
-                      {a.thumb ? <img src={a.thumb} draggable={false} alt="" className="size-8 rounded-sm border object-cover object-top" /> : <FileIcon />}
-                      {lines(kindOf(a.kind), [a.source.kind === 'profile' ? names[a.source.id] : applications[a.source.id], when(a.time)].filter(Boolean).join(' · '))}
-                    </SidebarMenuButton>
+                    <div className="rounded-md hover:bg-sidebar-accent">
+                      <SidebarMenuButton data-file={a.file} aria-label={kindOf(a.kind)} title={`Open: ${a.file} (${sizeText(a.bytes)})`} className="h-auto"
+                        draggable onDragStart={(e) => { e.preventDefault(); void kulisa.invoke('task:artifact-drag', { key: task.key, file: a.file }); }}
+                        onClick={() => void openFile(a.file)}>
+                        {/* a page's head: where its picture is cut */}
+                        {a.thumb ? <img src={a.thumb} draggable={false} alt="" className="size-8 rounded-sm border object-cover object-top" /> : <FileIcon />}
+                        {lines(kindOf(a.kind), [a.source.kind === 'profile' ? names[a.source.id] : applications[a.source.id], when(a.time), sizeText(a.bytes)].filter(Boolean).join(' · '))}
+                      </SidebarMenuButton>
+                      <SidebarMenuAction showOnHover className="!top-0 bottom-0 my-auto size-5" aria-label={`Delete ${kindOf(a.kind)}`} title={`Delete ${kindOf(a.kind)}`}
+                        onClick={() => void deleteArtifacts([a.file])}><Trash2Icon /></SidebarMenuAction>
+                    </div>
                   </SidebarMenuItem>)}
                 </SidebarMenu>
               </RightClickMenu>

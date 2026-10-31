@@ -1,6 +1,7 @@
 // Human and agent operate the same interactive application in the testing stage.
 import fs from 'fs';
 import path from 'path';
+import { sizeText } from '../../src/shared/bytes.ts';
 import { test, expect } from './fixtures.ts';
 import { newTask } from './tasks-helpers.ts';
 import { invoke, answer, choose, frames, notLoading, focusWindow } from './helpers.ts';
@@ -234,9 +235,13 @@ test('input follows terminal modes and large reads become bounded task artifacts
   expect(fs.readFileSync(result.file, 'utf8')).toContain('row 499:');
   const source = await core(async (k, file) => (await k.shell.task.findArtifact(file) as { artifact: { source: unknown } }).artifact.source, result.file);
   expect(source).toMatchObject({ kind: 'application' });
-  await expect(ui.locator('#resources').getByRole('button', { name: 'Terminal screen', exact: true })).toBeVisible();
-  await call('task_artifacts_delete', { files: [result.file] });
-  expect(fs.existsSync(result.file)).toBe(false);
+  const artifact = ui.locator('#resources').getByRole('button', { name: 'Terminal screen', exact: true });
+  await expect(artifact).toBeVisible();
+  await expect(artifact).toContainText('Large');
+  await expect(artifact).toContainText(sizeText(fs.statSync(result.file).size));
+  await artifact.hover();
+  await ui.locator('#resources').getByRole('button', { name: 'Delete Terminal screen', exact: true }).click();
+  await expect.poll(() => fs.existsSync(result.file)).toBe(false);
   await call('terminal_close', { name: 'Large' });
 });
 
