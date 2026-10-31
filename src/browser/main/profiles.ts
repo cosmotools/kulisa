@@ -9,12 +9,12 @@ import type { Browser, BrowserContext, Page } from 'playwright-core';
 import type { BrowserWindow, Rectangle, Session, WebContents, WebContentsView as View } from 'electron';
 import fs from 'fs';
 import path from 'path';
-import type { SavedTabs } from './store.ts';
-import type * as Sent from '../shared/types.ts'; // what the window gets: its one definition
+import type { SavedTabs } from './storage.ts';
+import type * as Sent from '../ipc.ts';
 import { allowFocus, guardFocus } from './page-focus.ts';
-import { bare, log } from './log.ts';
-import { capture } from '../screenshots/main/index.ts';
-import type { Shot } from '../screenshots/main/index.ts';
+import { bare, log } from '../../main/log.ts';
+import { capture } from '../../screenshots/main/index.ts';
+import type { Shot } from '../../screenshots/main/index.ts';
 // Taken from the module, not imported by name: unit tests load this in plain Node, where 'electron' is only a path
 // (docs/testing.md, Two layers).
 const { session, WebContentsView } = electron;

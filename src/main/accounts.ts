@@ -13,7 +13,8 @@
 import fs from 'fs';
 import path from 'path';
 import { removeTree } from './remove.ts';
-import { newId, writeFileAtomic } from './store.ts';
+import { newId } from './store.ts';
+import { writeFileAtomic } from './files.ts';
 import { log, shortEmail } from './log.ts';
 import type { Agent } from '../kulisa-plugin/main/index.ts';
 

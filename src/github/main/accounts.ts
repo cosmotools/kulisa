@@ -5,7 +5,8 @@
 //                 without one (kept), nor when signed out
 import fs from 'fs';
 import path from 'path';
-import { newId, writeFileAtomic } from '../../main/store.ts';
+import { newId } from '../../main/store.ts';
+import { writeFileAtomic } from '../../main/files.ts';
 import { log } from '../../main/log.ts';
 import { refresh } from './api.ts';
 import type { Fetch, Tokens } from './api.ts';

@@ -3,17 +3,7 @@ import type { GitHubKind, RepoGitHub } from '../github/ipc.ts';
 // What the main process sends the window (window.ts, profiles.ts, tasks.ts), as the window uses it: the one
 // definition, which the main process's answers are typed with too; the channels it comes by: ipc.ts.
 
-// A page's alert or confirm (profiles.ts, Profile._dialog), shown in its pane.
-interface PageDialog { id: number; type: 'alert' | 'confirm'; message: string; from: string; picture: string | null }
-interface Tab {
-  id: string; title: string; url: string; favicon: string | null; loading: boolean; canBack?: boolean; canFwd?: boolean;
-  zoom: number; dialog?: PageDialog | null;
-}
-// An open profile of the shown task (Profile.info).
-export interface Profile {
-  id: string; name: string; avatar: string; description: string | null; login: string | null;
-  hasPassword: boolean; active: string | null; signinMode: boolean; tabs: Tab[];
-}
+export type { Profile } from '../browser/ipc.ts';
 // A closed one (window.ts, pushState): tabs is how many it had.
 export interface ClosedProfile { id: string; name: string; avatar: string; description: string | null; tabs: number }
 export type AgentState = 'working' | 'waiting' | 'done' | null;

@@ -12,8 +12,9 @@ import { ProjectProfiles } from '../../src/main/project-profiles.ts';
 import { AVATARS, nextAvatar } from '../../src/shared/avatars.ts';
 import { drawing } from './drawing.ts';
 import type { StoredProfile } from '../../src/main/profile-store.ts';
-import type { Profile, ProfileConfig } from '../../src/main/profiles.ts';
-import type { SavedTabs, TaskProfile, TaskStore } from '../../src/main/store.ts';
+import type { Profile, ProfileConfig } from '../../src/browser/main/index.ts';
+import type { TaskProfile, TaskStore } from '../../src/main/store.ts';
+import type { SavedTabs } from '../../src/browser/main/index.ts';
 
 // What the tests make for a profile instead of a Profile (no Electron here): its settings and the tabs it opened.
 type Fake = Profile & { saved: SavedTabs };

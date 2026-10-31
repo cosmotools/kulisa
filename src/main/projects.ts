@@ -18,7 +18,7 @@ import type { Shell } from './shell.ts';
 import { newId, worktreesOf, ownWorktree, folderOf, branchOf, homeOf } from './store.ts';
 import type { ProjectEntry, TaskEntry, Copy, Worktree, Store } from './store.ts';
 import type { StoredProfile } from './profile-store.ts';
-import type { ProfileConfig } from './profiles.ts';
+import type { ProfileConfig } from '../browser/main/index.ts';
 import type { AppWindow } from './window.ts';
 import type { Question, ProjectAgent, ProjectGitHub, ProjectFolder, NewProjectSetup } from '../shared/types.ts';
 import type { GitError } from './worktrees.ts';

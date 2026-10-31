@@ -108,7 +108,7 @@ same connection, are not captioned: `ghost.ts` asks `takenByHuman`.
 | `renderer/thumbnail.ts` | the thumbnail's own page: the picture, a click, a drag, a right-click, the pointer |
 | `ipc.ts` | its channels |
 
-Outside, using it: `Profile.screenshot` (`src/main/profiles.ts`), `browser_screenshot`
+Outside, using it: `Profile.screenshot` (`src/browser/main/profiles.ts`), `browser_screenshot`
 (`src/kulisa-plugin/main/tools/browser.ts`), `takenByHuman` in `ghost.ts`; the human's `tab:screenshot`
 (`src/main/ipc/panes.ts`), `chooseElement` (`picker.ts`), the key (`keys.ts`), ⋮ → Screenshot (`src/renderer/components/grid/ProfilePane.tsx`) and
 `screenshot` (`src/renderer/lib/store.ts`); the window's `thumbnails` (`window.ts`: made, placed, hidden, closed),

@@ -11,8 +11,8 @@ import http from 'http';
 import type { WebSocket } from 'ws';
 import type { AddressInfo } from 'net';
 import { fromLocalTool } from './local-only.ts';
-import { ensureTarget } from './profiles.ts';
-import type { Profile, Tab } from './profiles.ts';
+import { ensureTarget } from '../browser/main/index.ts';
+import type { Profile, Tab } from '../browser/main/index.ts';
 
 // CDP's params and results: JSON the proxy passes on as it is.
 type Json = Record<string, any>;

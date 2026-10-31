@@ -110,11 +110,12 @@ Development skills live in `.agents/skills/`, with Claude Code entrypoints in `.
 
 | Folder | What |
 |---|---|
-| `src/main/` | the Electron main process: profiles, tasks, agents, the MCP server, the windows; `index.ts` starts it |
+| `src/main/` | the Electron main process: task and window integration; `index.ts` starts it |
 | `src/renderer/` | the window's UI: React and shadcn/ui (Radix, Tailwind) in TypeScript, built by Vite (`vite.config.mts`) into `dist/renderer` (not in git) |
 | `src/preload/` | the window's bridge to the main process |
 | `src/shared/` | what the main process and the window both import: the shapes and channels they send, names, `Result` |
 | `src/kulisa-plugin/` | agent integration: MCP tools, shared skills, CLI adapters and transcript readers ([README](src/kulisa-plugin/README.md)) |
+| `src/browser/` | browser sessions, tabs, navigation, cookies, storage and native views ([README](src/browser/README.md)) |
 | `src/terminal/` | the terminal, a Kulisa package: both its halves, its channels, its doc (docs/packages.md) |
 | `src/github/` | the GitHub accounts, a Kulisa package (docs/packages.md) |
 | `src/activity-monitor/` | what Kulisa takes on the computer, a Kulisa package (docs/packages.md) |

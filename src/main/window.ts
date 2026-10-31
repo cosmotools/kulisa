@@ -10,12 +10,12 @@ import path from 'path';
 import fs from 'fs';
 import { page } from './pages.ts';
 import { log } from './log.ts';
-import { focusWindow } from './page-focus.ts';
+import { focusWindow } from '../browser/main/index.ts';
 import { Thumbnails } from '../screenshots/main/index.ts';
 import type { Rectangle, Point } from 'electron';
 import type { Shell } from './shell.ts';
 import type { Task } from './tasks.ts';
-import type { Profile, Bounds } from './profiles.ts';
+import type { Profile, Bounds } from '../browser/main/index.ts';
 import type * as Sent from '../shared/types.ts'; // what the window gets: its one definition
 import type { Arg, Events } from '../shared/ipc.ts';
 type Question = Sent.Question;
