@@ -3,7 +3,7 @@
 import fs from 'fs';
 import path from 'path';
 import { test, expect } from './fixtures.ts';
-import { SITE, who, box, resourcesHeight, invoke, notLoading, arrange } from './helpers.ts';
+import { SITE, who, box, resourcesHeight, invoke, notLoading } from './helpers.ts';
 import { SAM, ELON, committed, begin, bothOn, newTask, showTask } from './tasks-helpers.ts';
 
 test('after a restart: the other task waits in the bar with its tabs, loads when shown, still signed in; a closed one stays closed', async ({ core, ui, call, files, restart }) => {
@@ -55,7 +55,25 @@ test('after a restart: the other task waits in the bar with its tabs, loads when
 
 test('after a restart: Stage stays left and both grids keep their saved sizes', async ({ core, ui, files, restart }) => {
   await begin(core, ui, files, { featureX: true });
-  await arrange(ui, 'left');
+  // Delay animation frames past the save debounce: Dockview delivers nested resizes on a frame.
+  const held = await ui.evaluateHandle(() => {
+    const request = window.requestAnimationFrame, cancel = window.cancelAnimationFrame;
+    const frames = new Map<number, FrameRequestCallback>();
+    let next = -1;
+    window.requestAnimationFrame = (fn) => { const id = next--; frames.set(id, fn); return id; };
+    window.cancelAnimationFrame = (id) => { if (id < 0) frames.delete(id); else cancel(id); };
+    return { release() {
+      window.requestAnimationFrame = request; window.cancelAnimationFrame = cancel;
+      for (const fn of frames.values()) request(fn);
+      frames.clear();
+    } };
+  });
+  try {
+    await invoke(ui, 'stage:arrange', { task: await core((k) => k.shell.task.key), position: 'left' });
+    await expect.poll(() => files.json(files.pfile('task.json')).workspace.stagePosition).toBe('left');
+  } finally {
+    await held.evaluate((h) => h.release()); await held.dispose();
+  }
   // Saved as laid out (the task's task.json, 300 ms after the grid's last change: lib/grid.ts), before the restart;
   // the grid's shape from dockview's API.
   await expect(async () => {

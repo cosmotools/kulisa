@@ -36,6 +36,9 @@ function changed() {
 }
 function watch(a: DockviewApi) {
   a.onDidLayoutChange(changed);
+  // Container resizes reach nested grids after the outer layout event and do not emit it themselves.
+  const resized = (group: DockviewApi['groups'][number]) => { group.api.onDidDimensionsChange(changed); };
+  a.groups.forEach(resized); a.onDidAddGroup(resized);
   a.onDidActivePanelChange(scheduleLayout);
   a.onWillDragPanel(freeze); a.onWillDragGroup(freeze); a.onDidDrop(unfreeze);
 }
