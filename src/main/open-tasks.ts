@@ -98,7 +98,7 @@ export function openTasks(shell: Shell, { appDevTools }: { appDevTools: boolean 
   // again), what its terminals showed (terminals: { terminal key: its contents }, from the window it leaves). The
   // only tab of a window goes to a new one never (nothing would change); into another window, its window closes after
   // it.
-  async function moveTask(task: Task | null | undefined, terminals: TerminalContents = {}, to: AppWindow | null = null, { index, at }: { index?: number; at?: Electron.Point } = {}): Promise<Result<{ key: string }>> {
+  async function moveTask(task: Task | null | undefined, terminalContents: TerminalContents = {}, to: AppWindow | null = null, { index, at }: { index?: number; at?: Electron.Point } = {}): Promise<Result<{ key: string }>> {
     const from = task?.window;
     if (!task || !from) return { error: 'the task is not open' };
     if (to === from) return { key: task.key };
@@ -110,7 +110,7 @@ export function openTasks(shell: Shell, { appDevTools }: { appDevTools: boolean 
     target.add(task, index);
     task.moveTo(target);
     if (!from.tabs.length) dropWindow(from); // after its pages have left it
-    target.send('terminals:restore', ownTerminals(terminals, task)); // before any more output (window.ts: sent once the page has loaded)
+    target.send('terminals:restore', ownTerminals(terminalContents, task)); // before any more output (window.ts: sent once the page has loaded)
     if (to) {
       to.focus();
       await to.show(task);
@@ -119,17 +119,17 @@ export function openTasks(shell: Shell, { appDevTools }: { appDevTools: boolean 
     } else await showInNew(target, task);
     return { key: task.key };
   }
-  // A task's terminals among those a window sent ("<task key>#<id>": renderer/lib/terminals.ts).
-  const ownTerminals = (terminals: TerminalContents, task: Task) => Object.fromEntries(Object.entries(terminals).filter(([key]) => key.startsWith(`${task.key}#`)));
+  // A task's terminals among those a window sent ("<task key>#<id>": renderer/lib/development-terminals.ts).
+  const ownTerminals = (terminalContents: TerminalContents, task: Task) => Object.fromEntries(Object.entries(terminalContents).filter(([key]) => key.startsWith(`${task.key}#`)));
   // Move All Tasks to …: a project's open tasks of window w, one after another, into window to (none: a new window,
   // made for the first, the others following it).
-  async function moveAll(project: Project | undefined, w: AppWindow | null, terminals: TerminalContents, to: AppWindow | null): Promise<Result<{ keys: string[] }>> {
+  async function moveAll(project: Project | undefined, w: AppWindow | null, terminalContents: TerminalContents, to: AppWindow | null): Promise<Result<{ keys: string[] }>> {
     if (!project || !w) return { error: 'the project is not open' };
     const tasks = openTasksOf(project, w);
     if (to === w) return { keys: tasks.map((t) => t.key) };
     let target = to;
     for (const task of tasks) {
-      const r = await moveTask(task, terminals, target);
+      const r = await moveTask(task, terminalContents, target);
       if (refused(r)) return r;
       target = task.window;
     }
@@ -144,9 +144,9 @@ export function openTasks(shell: Shell, { appDevTools }: { appDevTools: boolean 
   }
   // A task's tab dragged and let go on window w's tabs (index: where): from w, it changes their order; from another
   // window, the task moves to w.
-  function dropTask(task: Task | null, w: AppWindow | null, index: number, terminals: TerminalContents) {
+  function dropTask(task: Task | null, w: AppWindow | null, index: number, terminalContents: TerminalContents) {
     if (!task?.window || !w) return { error: 'the task is not open' };
-    if (task.window !== w) return moveTask(task, terminals, w, { index });
+    if (task.window !== w) return moveTask(task, terminalContents, w, { index });
     w.reorder(task, index);
     return { key: task.key };
   }
@@ -156,9 +156,9 @@ export function openTasks(shell: Shell, { appDevTools }: { appDevTools: boolean 
   // window (components/Empty.tsx).
   shell.firstStart = (w) => { if (!store.projects().length) w.send('project:new'); };
   shell.pointer = () => screen.getCursorScreenPoint(); // where the pointer is on the screen (the tests set it)
-  async function dragOut(task: Task | null, terminals: TerminalContents): Promise<Result<{ key?: string }>> {
+  async function dragOut(task: Task | null, terminalContents: TerminalContents): Promise<Result<{ key?: string }>> {
     const at = shell.pointer();
-    return shell.windows.some((w) => w.contains(at)) ? { key: task?.key } : moveTask(task, terminals, null, { at });
+    return shell.windows.some((w) => w.contains(at)) ? { key: task?.key } : moveTask(task, terminalContents, null, { at });
   }
   // The OS's × of a window. The last one closes and Kulisa quits: its tabs open again at the next start (asked first
   // only when an agent works). Another one closes its tasks, as closing their tabs would.

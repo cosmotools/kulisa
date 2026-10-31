@@ -7,7 +7,7 @@ import { createPackage } from '@electron/asar';
 import electronPath from 'electron';
 import type { Locator, Page } from '@playwright/test';
 import forge from '../../forge.config.ts';
-import type { TaskTerminal } from '../../src/main/tasks.ts';
+import type { DevelopmentTerminal } from '../../src/main/tasks.ts';
 import type { Question } from '../../src/shared/types.ts';
 import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
@@ -18,10 +18,10 @@ const NO_SHOT = 'macOS: the app that started the tests (the terminal) may not re
 const sam = (core: Core) => core(async (k, url) => (await k.ensureProfile('Sam', url)).id, `${SITE}/app`);
 // The terminal named so, once its shell runs: its id and key.
 const terminal = async (core: Core, name: string) => {
-  await expect.poll(() => core((k, n) => !!(k.shell.task.terminal(n) as TaskTerminal)?.pty, name)).toBe(true);
-  return core((k, n) => { const t = k.shell.task.terminal(n) as TaskTerminal; return { id: t.id, key: t.key }; }, name);
+  await expect.poll(() => core((k, n) => !!(k.shell.task.terminal(n) as DevelopmentTerminal)?.pty, name)).toBe(true);
+  return core((k, n) => { const t = k.shell.task.terminal(n) as DevelopmentTerminal; return { id: t.id, key: t.key }; }, name);
 };
-const terminals = (core: Core) => core((k) => k.shell.task.terminals.size);
+const developmentTerminals = (core: Core) => core((k) => k.shell.task.developmentTerminals.size);
 // The terminals' row's +.
 const termAdd = (ui: Page) => ui.getByTestId('terminal-tabs').getByRole('button', { name: 'New terminal', exact: true });
 const term = (ui: Page) => ui.evaluate(() => {
@@ -68,10 +68,10 @@ test('terminal: Unicode 11 widths (cursor stays put after emoji), bundled font, 
 test('terminal: one xterm shows the terminal in front; another shown and back keeps its text, its scroll and the modes serializing leaves out, with no frame empty between', async ({ core, ui }) => {
   // An xterm each cost its renderer and a WebGL context, of which Chromium keeps 16 a page: the 17th takes the
   // oldest terminal's, which then draws slower for good, silently (src/terminal/README.md).
-  const agent = await core((k) => [...k.shell.task.terminals.values()][0].id);
+  const agent = await core((k) => [...k.shell.task.developmentTerminals.values()][0].id);
   // Opened as the terminals' + does, without its menu: a menu's pictures of the pages, put back late on a slow machine,
   // took the keyboard from the page the next test had put it in.
-  await ui.evaluate(() => (window as any).act('terminal:open'));
+  await ui.evaluate(() => (window as any).act('development-terminal:open'));
   const sh = await terminal(core, 'Terminal');
   await expect(ui.locator('.xterm'), 'one xterm for both terminals').toHaveCount(1);
   // The mouse in SGR and the cursor hidden, as Claude Code's fullscreen has them: serializing leaves both out.
@@ -97,28 +97,28 @@ test('terminal: one xterm shows the terminal in front; another shown and back ke
     };
     tick.port2.postMessage(0);
   });
-  await ui.evaluate((id) => (window as any).act('terminal:show', { id }), agent);
+  await ui.evaluate((id) => (window as any).act('development-terminal:show', { id }), agent);
   await expect.poll(async () => { const t = await termText(ui); return t.includes('agent: rc of') && !t.includes('shell-marker'); }).toBe(true);
   expect(await ui.evaluate(() => { const w = window as any; w.__watching = false; return w.__blank; }), 'turns with no text').toBe(0);
   expect(await modes(), "the agent's own, not the shell's").toEqual({ mouse: 'none', encoding: 'DEFAULT', hidden: false });
-  await ui.evaluate((id) => (window as any).act('terminal:show', { id }), sh.id);
+  await ui.evaluate((id) => (window as any).act('development-terminal:show', { id }), sh.id);
   await expect.poll(() => termText(ui)).toContain('shell-marker');
   await expect.poll(() => ui.evaluate(() => (window as any).__term.buffer.active.viewportY)).toBe(5);
   expect(await modes(), 'the modes are back').toEqual(set);
   await ui.locator(`nav[aria-label="Terminals"] [data-id="${sh.id}"] [title^="Close"]`).click();
-  await expect.poll(() => terminals(core)).toBe(1);
+  await expect.poll(() => developmentTerminals(core)).toBe(1);
 });
 
 test('terminal: one opened in a hidden window starts at once, at its room: a hidden page draws no frames (Windows hides a window others cover)', async ({ core, ui }) => {
   await core((k) => k.shell.win.minimize()); // hidden as covered: shown again, Windows would leave a hidden window behind the others
   try {
     await expect.poll(() => ui.evaluate(() => document.hidden)).toBe(true);
-    await ui.evaluate(() => (window as any).act('terminal:open'));
+    await ui.evaluate(() => (window as any).act('development-terminal:open'));
     const sh = await terminal(core, 'Terminal');
-    expect(await core((k) => { const p = (k.shell.task.terminal('Terminal') as TaskTerminal).pty; return { cols: p.cols, rows: p.rows }; })).toEqual(await term(ui));
+    expect(await core((k) => { const p = (k.shell.task.terminal('Terminal') as DevelopmentTerminal).pty; return { cols: p.cols, rows: p.rows }; })).toEqual(await term(ui));
     // A click event, not a click: Playwright's click waits for frames, which a hidden page does not draw.
     await ui.locator(`nav[aria-label="Terminals"] [data-id="${sh.id}"] [title^="Close"]`).dispatchEvent('click');
-    await expect.poll(() => terminals(core)).toBe(1);
+    await expect.poll(() => developmentTerminals(core)).toBe(1);
   } finally { await core((k) => k.shell.win.restore()); }
   await expect.poll(() => ui.evaluate(() => document.hidden)).toBe(false);
   await focusWindow(core, ui);
@@ -218,7 +218,7 @@ test("terminal: dictation where the agent has its own: the right Ctrl held anywh
   await stopped('shell in front');
   const human = await terminal(core, 'Terminal');
   await ui.locator(`nav[aria-label="Terminals"] [data-id="${human.id}"] [title^="Close"]`).click();
-  await expect.poll(() => terminals(core)).toBe(1);
+  await expect.poll(() => developmentTerminals(core)).toBe(1);
   // The human's own key instead (Keyboard Shortcuts: Change, then the key): one that types is refused, saying so; the
   // row, the tooltip and settings.json have the new one, which works at once; the old one is the usual key again.
   await ui.locator('#windowMenu').click();
@@ -265,7 +265,7 @@ test("the terminals' panel: its terminals in tabs over them, one shown, flat as 
   expect(await tabs(), "the agent's tab, named after its agent").toEqual(['bash *']);
   // Flat, as a profile's pane: the row and the terminal on one background; the row and its tab in front a pane's tabs' own.
   const front = 'nav[aria-label="Terminals"] [role="tab"][aria-selected="true"]';
-  expect(await color('[data-testid="terminal-tabs"]')).toBe(await color('[data-testid="terminals"]'));
+  expect(await color('[data-testid="terminal-tabs"]')).toBe(await color('[data-testid="development-terminals"]'));
   expect([await color('[data-testid="terminal-tabs"]'), await color(front)]).toEqual([await color('[role="region"][data-profile] nav[aria-label="Tabs"]'), await color('[role="region"][data-profile] [role="tab"][aria-selected="true"]')]);
   // + is the panel's, not a tab's: its menu has the project's agents (none here) and Terminal. The tab growing in is
   // an attribute there for a moment: an observer notes it (an assertion could look after it went).
@@ -284,7 +284,7 @@ test("the terminals' panel: its terminals in tabs over them, one shown, flat as 
   await expect.poll(() => ui.evaluate(() => (window as any).__grew.length)).toBe(2);
   await expect(ui.locator('[role="tab"][data-opening]')).toHaveCount(0);
   const human = await terminal(core, 'Terminal');
-  expect(await core((k) => (k.shell.task.terminal('Terminal') as TaskTerminal).by)).toBe('human');
+  expect(await core((k) => (k.shell.task.terminal('Terminal') as DevelopmentTerminal).by)).toBe('human');
   // A shell in front: no dictation (it is the shown agent's), the bar kept, its microphone disabled saying why; a pick
   // still goes to the agent shown last.
   const mic = ui.locator('[aria-label="Speak to the agent"]');
@@ -317,8 +317,8 @@ test("the terminals' panel: its terminals in tabs over them, one shown, flat as 
   // More than fit: the row scrolls, its end faded; each tab its name whole; + and the microphone at its end stay in the
   // panel, not cut off past it; its tabs do not shrink to no name. The human's shells opened as + opens them until the
   // row is past its end, then closed with their ×.
-  const nav = ui.locator('nav[aria-label="Terminals"]'), had = await terminals(core);
-  const ids = () => core((k) => [...k.shell.task.terminals.values()].map((t) => t.id));
+  const nav = ui.locator('nav[aria-label="Terminals"]'), had = await developmentTerminals(core);
+  const ids = () => core((k) => [...k.shell.task.developmentTerminals.values()].map((t) => t.id));
   const before = await ids();
   const strip = nav.getByRole('tablist');
   // A growing tab can overflow the strip before its name has reached its full width.
@@ -326,10 +326,10 @@ test("the terminals' panel: its terminals in tabs over them, one shown, flat as 
   await expect(nav.locator('[role="tab"][data-opening]')).toHaveCount(0);
   await frames(ui);
   while (await strip.getAttribute('data-past-end') === null && await strip.getAttribute('data-past-start') === null) {
-    const n = await terminals(core);
+    const n = await developmentTerminals(core);
     expect(n, 'the row fills').toBeLessThan(had + 40);
-    await ui.evaluate(() => (window as any).act('terminal:open'));
-    await expect.poll(() => terminals(core)).toBe(n + 1);
+    await ui.evaluate(() => (window as any).act('development-terminal:open'));
+    await expect.poll(() => developmentTerminals(core)).toBe(n + 1);
     await expect(nav.locator('[role="tab"]')).toHaveCount(n + 1);
     await expect(nav.locator('[role="tab"][data-opening]')).toHaveCount(0);
     await frames(ui);
@@ -341,7 +341,7 @@ test("the terminals' panel: its terminals in tabs over them, one shown, flat as 
   expect(await strip.evaluate((n) => [n.scrollWidth > n.clientWidth, [...n.querySelectorAll('[role="tab"]')].map((t) => [...t.querySelectorAll('span')].find((e) => e.textContent === t.getAttribute('aria-label'))).every((x) => x && x.scrollWidth <= x.clientWidth)]))
     .toEqual([true, true]);
   for (const id of (await ids()).filter((i) => !before.includes(i))) await nav.locator(`[data-id="${id}"] [title^="Close"]`).click();
-  await expect.poll(() => terminals(core)).toBe(had);
+  await expect.poll(() => developmentTerminals(core)).toBe(had);
   await expect(nav.locator('[role="tab"]')).toHaveCount(had);
   // Stopped: Ctrl+C, the shell stays; the same name again types into it (PowerShell shows no ^C: its answer at once,
   // not after the sleep, says the command stopped).
@@ -359,15 +359,15 @@ test("the terminals' panel: its terminals in tabs over them, one shown, flat as 
   await ui.locator(`nav[aria-label="Terminals"] [data-id="${dev.id}"]`).click();
   await expect.poll(tabs).toEqual(['bash', 'Terminal', 'dev server *']);
   // Closed by the agent: its tab and its process go; the tab next to it comes to the front.
-  const pid = await core((k) => (k.shell.task.terminal('dev server') as TaskTerminal).pty.pid);
+  const pid = await core((k) => (k.shell.task.terminal('dev server') as DevelopmentTerminal).pty.pid);
   await call('shell_stop', { name: 'dev server', close: true });
   await expect.poll(tabs).toEqual(['bash', 'Terminal *']);
   await expect.poll(() => { try { process.kill(pid, 0); return false; } catch { return true; } }).toBe(true);
   // A shell that exits closes its terminal; × closes the human's.
   await call('shell_run', { name: 'once', command: 'exit' });
-  await expect.poll(() => core((k) => !!(k.shell.task.terminal('once') as TaskTerminal).error && k.shell.task.terminals.size === 2)).toBe(true);
+  await expect.poll(() => core((k) => !!(k.shell.task.terminal('once') as DevelopmentTerminal).error && k.shell.task.developmentTerminals.size === 2)).toBe(true);
   await ui.locator(`nav[aria-label="Terminals"] [data-id="${human.id}"] [title^="Close"]`).click();
-  await expect.poll(() => terminals(core)).toBe(1);
+  await expect.poll(() => developmentTerminals(core)).toBe(1);
   await expect.poll(tabs).toEqual(['bash *']);
   expect(await core((k) => k.shell.task.promptTarget().pty === k.shell.pty), "the agent's in front again, still running").toBe(true);
   await expect(mic).toBeEnabled();

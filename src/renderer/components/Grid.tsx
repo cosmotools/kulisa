@@ -6,18 +6,18 @@ import { TerminalSquareIcon, PlusIcon } from 'lucide-react';
 import { Avatar, AvatarImage, Button } from '@ui';
 import { Stage } from './grid/Stage';
 import { dockTheme } from '../lib/dock-theme';
-import { Terminals, TerminalsHeader } from './grid/Terminals';
+import { DevelopmentTerminals, DevelopmentTerminalsHeader } from './grid/DevelopmentTerminals';
 import { Resources, ResourcesHeader } from './grid/Resources';
 import { gridMounted, gridUnmounted, workspaceMounted } from '../lib/grid';
 import { useWindow } from '../lib/store';
 import { profileLaunchers } from '../lib/profiles';
 import { useStrip } from '../lib/strip';
 import { avatarSrc } from '../lib/common';
-import { newApplication } from '../lib/environments';
+import { newStageTerminal } from '../lib/environments';
 import './Grid.css';
 
-const components = { terminal: Terminals, resources: Resources };
-const tabComponents = { terminal: TerminalsHeader, resources: ResourcesHeader };
+const components = { terminal: DevelopmentTerminals, resources: Resources };
+const tabComponents = { terminal: DevelopmentTerminalsHeader, resources: ResourcesHeader };
 
 function Development() {
   return <div id="grid" className="h-full min-h-0 min-w-0">
@@ -32,7 +32,7 @@ function ClosedProfiles() {
   const closed = useWindow((s) => s.closedProfiles), row = useRef<HTMLElement>(null);
   useStrip(row, null); // no button is the active one
   return <nav ref={row} id="closedprofiles" data-testid="closed-profiles" aria-label="Open an environment" className="flex flex-none gap-1 border-b bg-card px-2 py-1">
-    <Button variant="ghost" size="sm" onClick={() => void newApplication()} aria-label="Application Terminal"><TerminalSquareIcon />Application Terminal</Button>
+    <Button variant="ghost" size="sm" onClick={() => void newStageTerminal()} aria-label="Stage Terminal"><TerminalSquareIcon />Stage Terminal</Button>
     {profileLaunchers(closed).map((p) => <Button key={p.id} variant="ghost" size="sm" data-profile={p.id} aria-label={p.name} title={p.title}
       className="max-w-72 flex-none" onClick={() => void p.run()}>
       {p.avatar && <Avatar className="size-5"><AvatarImage src={avatarSrc(p.avatar)} alt="" /></Avatar>}<span className="min-w-0 truncate">{p.name}</span><PlusIcon />
@@ -43,7 +43,7 @@ function ClosedProfiles() {
 export function Grid() {
   useEffect(() => gridUnmounted, []);
   const loading = useWindow((s) => s.loading);
-  const folded = useWindow((s) => !!s.current && !s.profiles.length && !s.applications.length && s.terminals.list.length > 0);
+  const folded = useWindow((s) => !!s.current && !s.profiles.length && !s.stageTerminals.length && s.developmentTerminals.list.length > 0);
   // min-w-0: a row wider than the window (many closed profiles) would stretch the window's column, the terminal and the
   // tasks' bar past its edge. Not shown until it is laid out (lib/grid.ts, reveal).
   return <main id="dock" className="flex min-h-0 min-w-0 flex-col aria-busy:opacity-0" aria-busy={loading || undefined}>

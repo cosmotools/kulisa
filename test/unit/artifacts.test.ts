@@ -43,10 +43,11 @@ test('artifacts: listed the newest first, whose and what each is from its name, 
   assert.deepEqual(await listArtifacts(path.join(root, 'none')), [], 'no folder yet: none');
 });
 
-test('artifacts identify application terminal screens separately from browser profiles', async () => {
+test('artifacts identify Stage terminal screens separately from browser profiles', async () => {
   const dir = path.join(root, 'sources');
   await saveArtifact(dir, 'application-3-terminal.txt', 'terminal screen');
+  await saveArtifact(dir, 'terminal-4-terminal.txt', 'new terminal screen');
   await saveArtifact(dir, 'application-t1-screenshot.jpg', 'browser picture');
   const list = await listArtifacts(dir);
-  assert.deepEqual(list.map((a) => a.source), [{ kind: 'profile', id: 'application', tab: 't1' }, { kind: 'application', id: 3 }]);
+  assert.deepEqual(list.map((a) => a.source), [{ kind: 'profile', id: 'application', tab: 't1' }, { kind: 'stage-terminal', id: 4 }, { kind: 'stage-terminal', id: 3 }]);
 });

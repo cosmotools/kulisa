@@ -39,17 +39,17 @@ export function registerTasks(ipc: Ipc) {
   }));
   // to: the id of the window it goes to (window.ts), none for a new one.
   const windowById = (to?: number | null) => (to ? shell.windows.find((w) => w.id === to) : null);
-  handle('task:move', (_e, { key, to, terminals }) => serial(() => {
+  handle('task:move', (_e, { key, to, terminalContents }) => serial(() => {
     const target = windowById(to);
-    return to && !target ? { error: 'that window is closed' } : moveTask(shell.taskByKey(key), terminals, target);
+    return to && !target ? { error: 'that window is closed' } : moveTask(shell.taskByKey(key), terminalContents, target);
   }));
-  handle('project:move-all', (e, { id, to, terminals }) => serial(() => {
+  handle('project:move-all', (e, { id, to, terminalContents }) => serial(() => {
     const target = windowById(to);
-    return to && !target ? { error: 'that window is closed' } : moveAll(shell.open.get(id), at(e), terminals, target ?? null);
+    return to && !target ? { error: 'that window is closed' } : moveAll(shell.open.get(id), at(e), terminalContents, target ?? null);
   }));
   // A task's tab dragged (components/TaskBar.tsx): let go on this window's tabs, or where no window took it.
-  handle('task:drop', (e, { key, index, terminals }) => serial(() => dropTask(shell.taskByKey(key), at(e), index, terminals)));
-  handle('task:drag-out', (_e, { key, terminals }) => serial(() => dragOut(shell.taskByKey(key), terminals)));
+  handle('task:drop', (e, { key, index, terminalContents }) => serial(() => dropTask(shell.taskByKey(key), at(e), index, terminalContents)));
+  handle('task:drag-out', (_e, { key, terminalContents }) => serial(() => dragOut(shell.taskByKey(key), terminalContents)));
   handle('app:quit', (e) => serial(() => quit(at(e))));
   handle('project:delete', (e, { id }) => serial(() => deleteProject(id, at(e))));
   // A task of any project (the bar shows every open task).

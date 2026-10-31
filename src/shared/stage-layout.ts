@@ -5,6 +5,20 @@ export const environmentMinimum = { width: 600, height: 300 } as const;
 export interface TaskLayout { version: 3; workspace: SerializedDockview; stage: SerializedDockview | null; stageLayout?: StageLayout | null; stageOverflow?: boolean; stagePosition?: StagePosition; stageShare?: number }
 type Node = SerializedDockview['grid']['root'];
 type Group = { id: string; views: string[]; activeView?: string };
+// Saved pane IDs are translated at the layout boundary so environment names remain user data.
+function canonicalStage(layout: SerializedDockview | null): SerializedDockview | null {
+  if (!layout?.panels || !Object.keys(layout.panels).some((id) => id.startsWith('application:'))) return layout;
+  const idOf = (id: string) => id.replace(/^application:/, 'stage-terminal:');
+  function visit(n: Node): Node {
+    if (n.type === 'branch') return { ...n, data: (n.data as Node[]).map(visit) };
+    const g = n.data as Group;
+    return { ...n, data: { ...g, views: g.views.map(idOf), ...(g.activeView && { activeView: idOf(g.activeView) }) } };
+  }
+  return { ...layout, grid: { ...layout.grid, root: visit(layout.grid.root) },
+    panels: Object.fromEntries(Object.entries(layout.panels).map(([id, p]) => [idOf(id), { ...p, id: idOf(p.id),
+      contentComponent: p.contentComponent === 'application' ? 'stage-terminal' : p.contentComponent,
+      tabComponent: p.tabComponent === 'application' ? 'stage-terminal' : p.tabComponent }])) };
+}
 export function filterLayout(layout: SerializedDockview, keep: (id: string) => boolean): SerializedDockview {
   const panels = Object.fromEntries(Object.entries(layout.panels).filter(([id]) => keep(id)));
   function visit(n: Node): Node | null {
@@ -34,7 +48,7 @@ function placementOf(layout: SerializedDockview): Pick<TaskLayout, 'stagePositio
 export function splitLayout(saved: unknown): TaskLayout | null {
   if (!saved || typeof saved !== 'object') return null;
   const value = saved as TaskLayout & SerializedDockview;
-  if (value.version === 3) return value;
+  if (value.version === 3) { const stage = canonicalStage(value.stage); return stage === value.stage ? value : { ...value, stage }; }
   if ((saved as { version?: number }).version === 2) {
     if (!value.workspace?.grid?.root || !value.workspace.panels) return null;
     const mode = (saved as { stageLayout?: unknown }).stageLayout;

@@ -3,14 +3,14 @@
 // act). docs/window.md, IPC. An answer the window does not read is `void`: the main process may answer anything there
 // (the tests read some).
 import type { Result } from './result.ts';
-import type { ApplicationTerminal, ApplicationTerminals, TerminalSize } from './application-terminal.ts';
+import type { StageTerminal, StageTerminalsState, TerminalSize } from './stage-terminal.ts';
 import type { FileLink, TerminalContents, TerminalEvents, TerminalInvoke, TerminalSend } from '../terminal/ipc.ts';
 import type { ThumbnailEvents, ThumbnailInvoke, ThumbnailSend } from '../screenshots/ipc.ts';
 import type { GitHubInvoke } from '../github/ipc.ts';
 import type { DictationEvents, DictationInvoke } from '../dictation/ipc.ts';
 import type {
   AboutFolder, AboutInfo, Artifact, EnvironmentSource, AccountsInfo, AgentInfo, ClosedProfile, LanguageInfo, LogInfo, NewProjectSetup, Profile, ProjectAgent, ProjectChoices, ProjectGitHub, ProjectProfile, ProjectFolder,
-  ProjectSettings, ProjectsInfo, Question, SettingsProfile, Shortcut, SignedIn, Terminals,
+  ProjectSettings, ProjectsInfo, Question, SettingsProfile, Shortcut, SignedIn, DevelopmentTerminalsState,
 } from './types.ts';
 
 // What a message about the shown task's profiles and tabs names (renderer's act: refused when that task is no longer
@@ -59,7 +59,7 @@ export interface Invoke extends TerminalInvoke, ThumbnailInvoke, GitHubInvoke, D
   'project:github-get': I<[{ id: string }], Result<ProjectGitHub>>;
   'project:github-set': I<[{ id: string; remote: string; account: string | null }], Result<ProjectGitHub>>;
   'project:close-tasks': I<[{ id: string }]>;
-  'project:move-all': I<[{ id: string; to?: number | null; terminals: TerminalContents }]>;
+  'project:move-all': I<[{ id: string; to?: number | null; terminalContents: TerminalContents }]>;
   'project:show-data': I<[{ id: string }]>;
   'project:delete': I<[{ id: string }], Result<{ id: string }>>;
   'project:delete-merged': I<[{ id: string }]>;
@@ -75,9 +75,9 @@ export interface Invoke extends TerminalInvoke, ThumbnailInvoke, GitHubInvoke, D
   'profiles:login': I<[{ profile: string; user?: string; password?: string }], Result<Profiles & { id: string }>>;
   'profiles:master': I<[{ profile: string }], Result | undefined>;
   'profiles:delete': I<[{ profile: string }], Result<Profiles, string | null>>;
-  'task:move': I<[{ key: string; to?: number | null; terminals: TerminalContents }]>;
-  'task:drop': I<[{ key: string; index: number; terminals: TerminalContents }]>;
-  'task:drag-out': I<[{ key: string; terminals: TerminalContents }]>;
+  'task:move': I<[{ key: string; to?: number | null; terminalContents: TerminalContents }]>;
+  'task:drop': I<[{ key: string; index: number; terminalContents: TerminalContents }]>;
+  'task:drag-out': I<[{ key: string; terminalContents: TerminalContents }]>;
   'task:show': I<[key: string], { error: string } | void>; // { error }: no such task (ipc/tasks.ts, taskAt)
   'task:new': I<[{ project?: string }?]>;
   'task:close': I<[key: string]>;
@@ -103,15 +103,15 @@ export interface Invoke extends TerminalInvoke, ThumbnailInvoke, GitHubInvoke, D
   'stage:arrange': I<[OnTask & { layout?: StageLayout; overflow?: boolean; position?: StagePosition }], Result>;
   'layout:load': I<[OnTask], unknown>; // the grid as the window saved it (layout:save)
   'selection:send': I<[OnTask & { source: EnvironmentSource; text: string }], Result>;
-  'application:open': I<[OnTask & { name?: string }], Result<ApplicationTerminal>>;
-  'application:configure': I<[OnTask & { id: number; name?: string; command?: string; size?: TerminalSize | null }], Result<ApplicationTerminal>>;
-  'application:run': I<[OnTask & { id: number; command?: string }], Result<ApplicationTerminal>>;
-  'application:stop': I<[OnTask & { id: number }], Result<ApplicationTerminal>>;
-  'application:close': I<[OnTask & { id: number }], Result<{ id: number }>>;
-  'terminal:open': I<[OnTask & { agent?: string; own?: boolean }], Result<{ id: number } | { none: true }>>;
-  'terminal:show': I<[OnTask & { id: number }]>;
-  'terminal:close': I<[OnTask & { id: number }]>;
-  'terminal:paste-image': I<[OnTask & { id: number }]>;
+  'stage-terminal:open': I<[OnTask & { name?: string }], Result<StageTerminal>>;
+  'stage-terminal:configure': I<[OnTask & { id: number; name?: string; command?: string; size?: TerminalSize | null }], Result<StageTerminal>>;
+  'stage-terminal:run': I<[OnTask & { id: number; command?: string }], Result<StageTerminal>>;
+  'stage-terminal:stop': I<[OnTask & { id: number }], Result<StageTerminal>>;
+  'stage-terminal:close': I<[OnTask & { id: number }], Result<{ id: number }>>;
+  'development-terminal:open': I<[OnTask & { agent?: string; own?: boolean }], Result<{ id: number } | { none: true }>>;
+  'development-terminal:show': I<[OnTask & { id: number }]>;
+  'development-terminal:close': I<[OnTask & { id: number }]>;
+  'development-terminal:paste-image': I<[OnTask & { id: number }]>;
   'terminal:files': I<[OnTask & { paths: string[] }], Result<(FileLink | null)[]>>;
   'file:open': I<[string]>;
   'file:show': I<[string]>;
@@ -174,10 +174,10 @@ export interface Events extends TerminalEvents, ThumbnailEvents, DictationEvents
   'projects': ProjectsInfo;
   'state': Profile[];
   'closed-profiles': ClosedProfile[];
-  'terminals': Terminals;
-  'applications': ApplicationTerminals;
+  'development-terminals': DevelopmentTerminalsState;
+  'stage-terminals': StageTerminalsState;
   'artifacts': { task: string; list: Artifact[]; bytes: number }; // bytes: all of them (Task.artifactsUsage)
-  'terminal:focus': void;
+  'development-terminal:focus': void;
   'stage:arrange': { task: string; layout?: StageLayout; overflow?: boolean; position?: StagePosition };
   'grid:closing': boolean; // another task's grid follows
   'tasks:closed': string[];

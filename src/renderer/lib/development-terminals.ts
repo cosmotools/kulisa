@@ -1,5 +1,5 @@
 // A tasks' window's terminals (docs/window.md, The terminal): the terminals themselves are src/terminal's, keyed
-// "<task>#<id>" as in the main process; here the terminals' side: the shown task's terminal in front (components/grid/Terminals.tsx),
+// "<task>#<id>" as in the main process; here the terminals' side: the shown task's terminal in front (components/grid/DevelopmentTerminals.tsx),
 // links into its profiles, terminals moving to another window, their menus.
 import { act, store } from './store';
 import { termStyle } from './theme';
@@ -8,11 +8,11 @@ import { menuAt, type MenuItem } from './menu';
 import { dialog } from './dialogs';
 import { refused } from '../../shared/result';
 import { restoreTerminal, serialized, termCopy, termHooks, termPaste, View, xtermKeys } from '../../terminal/renderer';
-import type { Terminal as TerminalInfo } from '../../shared/types';
+import type { DevelopmentTerminalInfo } from '../../shared/types';
 
 // The terminal in front of the shown task's terminals: where the keyboard goes (Ctrl+`), what the tests read.
-const frontKey = () => { const { task, front } = store.getState().terminals; return task && front !== null ? `${task}#${front}` : null; };
-// The terminals' panel's xterm, one for the window: components/grid/Terminals.tsx puts it in whichever grid is shown and
+const frontKey = () => { const { task, front } = store.getState().developmentTerminals; return task && front !== null ? `${task}#${front}` : null; };
+// The terminals' panel's xterm, one for the window: components/grid/DevelopmentTerminals.tsx puts it in whichever grid is shown and
 // gives it the theme's colors.
 export const panelView = new View(termStyle());
 export const shownTerm = () => (panelView.key && panelView.key === frontKey() ? panelView.term : null);
@@ -34,7 +34,7 @@ const filesOf = (task: string | null, paths: string[]) => kulisa.invoke('termina
 termHooks.files = (key, paths) => filesOf(key.slice(0, key.lastIndexOf('#')), paths);
 termHooks.pasteImage = (key) => {
   const at = key.lastIndexOf('#');
-  void kulisa.invoke('terminal:paste-image', { task: key.slice(0, at), id: Number(key.slice(at + 1)) });
+  void kulisa.invoke('development-terminal:paste-image', { task: key.slice(0, at), id: Number(key.slice(at + 1)) });
 };
 termHooks.openFile = (e, path) => void filesOf(store.getState().current, [path]).then(([file]) => file && menuAt(e, [
   ...file.executable ? [] : [{ label: 'Open', run: () => kulisa.invoke('file:open', file.path) }],
@@ -48,9 +48,9 @@ export const terminalsOf = (task: string) => Object.fromEntries([...xtermKeys()]
   .map((key) => [key, serialized(key)!]));
 kulisa.on('terminals:restore', (list) => { for (const [key, t] of Object.entries(list)) restoreTerminal(key, t); });
 
-kulisa.on('terminal:focus', () => shownTerm()?.focus());
+kulisa.on('development-terminal:focus', () => shownTerm()?.focus());
 
-// The right-click menu of a terminal (its key): an agent's ends with what its tab's menu has (components/grid/Terminals.tsx), a
+// The right-click menu of a terminal (its key): an agent's ends with what its tab's menu has (components/grid/DevelopmentTerminals.tsx), a
 // shell's with Close.
 export function terminalMenu(key: string, more: MenuItem[]): MenuItem[] | null {
   const t = panelView.key === key ? panelView.term : null;
@@ -66,29 +66,29 @@ export function terminalMenu(key: string, more: MenuItem[]): MenuItem[] | null {
   ];
 }
 
-// The terminals' menus (components/grid/Terminals.tsx). The shown task's project's agents (its accounts), the default first; the terminal
+// The terminals' menus (components/grid/DevelopmentTerminals.tsx). The shown task's project's agents (its accounts), the default first; the terminal
 // only is the Terminal row.
 const projectAgents = () => { const { projects } = store.getState(); return (projects.open.find((o) => o.id === projects.project)?.agents || []).filter((a) => a.cli !== 'shell'); };
 // The same as big buttons, the terminals alone in the grid: an account's name is its agent's · its email, on two lines.
 export const launchers = () => [
   ...projectAgents().map((a) => {
     const [name, sub = ''] = a.name.split(' · ');
-    return { id: a.id, name, sub, cli: a.cli, title: a.name, run: () => act('terminal:open', { agent: a.id }) };
+    return { id: a.id, name, sub, cli: a.cli, title: a.name, run: () => act('development-terminal:open', { agent: a.id }) };
   }),
-  { id: 'shell', name: 'Terminal', sub: '', cli: 'shell', title: 'Terminal', run: () => act('terminal:open') },
+  { id: 'shell', name: 'Terminal', sub: '', cli: 'shell', title: 'Terminal', run: () => act('development-terminal:open') },
 ];
 // +: a new conversation of one of them, or a shell.
 export const newTerminalItems = (): MenuItem[] => [
-  ...projectAgents().map((a) => ({ label: a.name, agent: a.cli, run: () => act('terminal:open', { agent: a.id }) })),
+  ...projectAgents().map((a) => ({ label: a.name, agent: a.cli, run: () => act('development-terminal:open', { agent: a.id }) })),
   ...(projectAgents().length ? ['-' as const] : []),
-  { label: 'Terminal', agent: 'shell', keys: keyText('terminal.new'), run: () => act('terminal:open') },
+  { label: 'Terminal', agent: 'shell', keys: keyText('terminal.new'), run: () => act('development-terminal:open') },
 ];
 // What a tab's menu and its terminal's end with.
-export const tabItems = (t: TerminalInfo): MenuItem[] => [
+export const tabItems = (t: DevelopmentTerminalInfo): MenuItem[] => [
   ...(t.agent ? [
     { label: 'Change agent…', run: () => { void dialog('handover').then((d) => d.open(t)); } },
     { label: 'New Conversation', run: () => act('agent:new-conversation', { id: t.id }) },
     '-' as const,
   ] : []),
-  { label: 'Close', run: () => act('terminal:close', { id: t.id }) },
+  { label: 'Close', run: () => act('development-terminal:close', { id: t.id }) },
 ];

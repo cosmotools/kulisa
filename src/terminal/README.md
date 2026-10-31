@@ -2,14 +2,14 @@
 
 A terminal as Kulisa has it, the same wherever it is shown: a pty running the user's shell (an agent typed into it, a
 command, or nothing), its output kept in the window, and an xterm that shows it. A Kulisa package
-([docs/packages.md](../../docs/packages.md)), used by the task's terminals' panel (`components/grid/Terminals.tsx`,
-`lib/terminals.ts`: its tabs, its agents' launchers and menus; docs/window.md, The terminal), an account's sign-in
+([docs/packages.md](../../docs/packages.md)), used by the task's terminals' panel (`components/grid/DevelopmentTerminals.tsx`,
+`lib/development-terminals.ts`: its tabs, its agents' launchers and menus; docs/window.md, The terminal), an account's sign-in
 (`components/SignIn.tsx` through `components/Terminal.tsx`: Settings' and New Project's) and the task's agents
 (`tasks.ts`: which agent, its conversation, what is typed to it). It knows nothing of them, nor of the window's look: a
 terminal is a key, `<task key>#<id>` for a task's, any string for a sign-in's; its colors and font size are the
 caller's.
 
-Application environments use the same runtime (`main/application-terminals.ts`; docs/window.md, Application
+Stage terminal environments use the same runtime (`main/stage-terminals.ts`; docs/window.md, Stage
 terminals), with their own Views and saved sizes. Their task-level lifecycle and commands stay outside this package.
 
 ## The main process (`main/`)
@@ -154,7 +154,7 @@ Development terminals and Stage terminals use the same `startTerminal`, input, s
 `TerminalConfig` describes launch options; `TerminalOutput` delivers output to the caller’s current window. Neither
 contains task, agent or Stage types. The caller owns persistence, terminal keys and when to stop or forget a session.
 
-`main/tasks.ts` owns development terminals and agent conversations. `main/application-terminals.ts` owns Stage
+`main/tasks.ts` owns development terminals and agent conversations. `main/stage-terminals.ts` owns Stage
 launch setup and run state through an explicit host contract; `Task` supplies current folder/environment, saved
 setup and window notifications. Their rules stay outside this Kulisa package. Window components own layouts,
 menus and search controls; the package owns terminal rendering and matching.
@@ -174,4 +174,4 @@ menus and search controls; the package owns terminal rendering and matching.
 
 Its e2e tests are in `test/e2e/` with the others: `window.spec.ts` (the xterm's set-up; one xterm for the terminals'
 panel, switching), `grid*.spec.ts` (copy and paste, links, moving to another window), `tasks.spec.ts` (the terminals'
-panel, shells), `application-terminals.spec.ts` (interactive applications, screen parsing, restore and process cleanup).
+panel, shells), `stage-terminals.spec.ts` (interactive applications, screen parsing, restore and process cleanup).

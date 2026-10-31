@@ -23,7 +23,7 @@ export function Resources() {
   const artifacts = useWindow((s) => (s.artifacts.task === key ? s.artifacts.list : null)) ?? [];
   const bytes = useWindow((s) => s.artifacts.bytes);
   const names = useWindow(useShallow((s) => Object.fromEntries([...s.profiles, ...s.closedProfiles].map((p) => [p.id, p.name]))));
-  const applications = useWindow(useShallow((s) => Object.fromEntries(s.applications.map((a) => [a.id, a.name]))));
+  const stageTerminals = useWindow(useShallow((s) => Object.fromEntries(s.stageTerminals.map((a) => [a.id, a.name]))));
   // The list comes when the task is shown and whenever the human or agent keeps one (window.ts, sendArtifacts).
   useEffect(() => { if (key) void kulisa.invoke('task:artifacts', key); }, [key]);
   if (!task) return null;
@@ -69,7 +69,7 @@ export function Resources() {
                         onClick={() => void openFile(a.file)}>
                         {/* a page's head: where its picture is cut */}
                         {a.thumb ? <img src={a.thumb} draggable={false} alt="" className="size-8 rounded-sm border object-cover object-top" /> : <FileIcon />}
-                        {lines(kindOf(a.kind), [a.source.kind === 'profile' ? names[a.source.id] : applications[a.source.id], when(a.time), sizeText(a.bytes)].filter(Boolean).join(' · '))}
+                        {lines(kindOf(a.kind), [a.source.kind === 'profile' ? names[a.source.id] : stageTerminals[a.source.id], when(a.time), sizeText(a.bytes)].filter(Boolean).join(' · '))}
                       </SidebarMenuButton>
                       <SidebarMenuAction showOnHover className="!top-0 bottom-0 my-auto size-5" aria-label={`Delete ${kindOf(a.kind)}`} title={`Delete ${kindOf(a.kind)}`}
                         onClick={() => void deleteArtifacts([a.file])}><Trash2Icon /></SidebarMenuAction>

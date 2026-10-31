@@ -24,9 +24,9 @@
 //                            its files open while Kulisa runs)
 // Nothing goes into the project's own folder: sign-ins must not end up in its git.
 import fs from 'fs';
-import { validTerminalSize } from '../shared/application-terminal.ts';
+import { validTerminalSize } from '../shared/stage-terminal.ts';
 import { labelError } from '../shared/names.ts';
-import type { ApplicationConfig } from '../shared/application-terminal.ts';
+import type { StageTerminalConfig } from '../shared/stage-terminal.ts';
 import path from 'path';
 import { removeTree } from './remove.ts';
 import { randomInt, randomUUID } from 'crypto';
@@ -205,7 +205,7 @@ interface TaskDocument {
   version: 2;
   agents: { agent?: string | null; conversations: (Conversation & { id: string })[] };
   development: { front?: number | null; list: (Omit<SavedTerminal, 'conversation'> & { conversation?: string })[] } | null;
-  stage: { profilesInitialized: boolean; items: (({ type: 'profile' } & TaskProfile) | ({ type: 'terminal' } & ApplicationConfig))[];
+  stage: { profilesInitialized: boolean; items: (({ type: 'profile' } & TaskProfile) | ({ type: 'terminal' } & StageTerminalConfig))[];
     nextTerminalId: number; view: TaskLayout['stageLayout']; overflow: boolean; layout: TaskLayout['stage'] };
   workspace: { stagePosition: TaskLayout['stagePosition']; stageShare?: number; developmentLayout: TaskLayout['workspace'] | null };
 }
@@ -271,19 +271,19 @@ class TaskStore {
   private document(): TaskDocument {
     let current = strictJSON(this.file('task.json'));
     if ((current as { version?: number } | null)?.version === 1) {
-      const old = current as { stage: { initialized: boolean; items: { type: 'profile' | 'terminal'; config: TaskProfile | ApplicationConfig }[] } };
+      const old = current as { stage: { initialized: boolean; items: { type: 'profile' | 'terminal'; config: TaskProfile | StageTerminalConfig }[] } };
       const { initialized, items, ...stage } = old.stage;
       current = { ...old, version: 2, stage: { ...stage, profilesInitialized: initialized,
         items: items.map(({ type, config }) => ({ ...config, type })) } };
       this.writeDocument(current as TaskDocument);
     }
     if (current !== undefined) { validateTask(current); this.cleanLegacy(); return current; }
-    const [agent, terminals, profiles, applications, layout] = taskFiles.map((f) => strictJSON(this.file(f)));
-    const a = (agent ?? {}) as AgentFile, t = terminals as TerminalsFile | undefined, p = profiles as TaskProfile[] | undefined;
-    const apps = applications as { next: number; list: ApplicationConfig[] } | undefined;
+    const [agent, developmentTerminals, profiles, stageTerminals, layout] = taskFiles.map((f) => strictJSON(this.file(f)));
+    const a = (agent ?? {}) as AgentFile, t = developmentTerminals as TerminalsFile | undefined, p = profiles as TaskProfile[] | undefined;
+    const apps = stageTerminals as { next: number; list: StageTerminalConfig[] } | undefined;
     if (agent !== undefined && (!agent || typeof agent !== 'object' || a.conversations !== undefined && !Array.isArray(a.conversations))
-      || terminals !== undefined && (!t || !Array.isArray(t.list)) || profiles !== undefined && !Array.isArray(p)
-      || applications !== undefined && (!apps || !Array.isArray(apps.list))) throw new Error('Invalid legacy task data');
+      || developmentTerminals !== undefined && (!t || !Array.isArray(t.list)) || profiles !== undefined && !Array.isArray(p)
+      || stageTerminals !== undefined && (!apps || !Array.isArray(apps.list))) throw new Error('Invalid legacy task data');
     const conversations = (a.conversations ?? []).map(({ terminal: _terminal, ...c }) => ({ ...c, id: c.id ?? randomUUID() }));
     const split = splitLayout(layout);
     const d: TaskDocument = {
@@ -312,11 +312,11 @@ class TaskStore {
     validateTask(strictJSON(this.file('task.json')));
   }
   private update(change: (d: TaskDocument) => void) { const d = this.document(); change(d); this.writeDocument(d); }
-  applications(): { next: number; list: ApplicationConfig[] } {
+  stageTerminals(): { next: number; list: StageTerminalConfig[] } {
     const s = this.document().stage;
     return { next: s.nextTerminalId, list: s.items.filter((i) => i.type === 'terminal').map(({ type: _type, ...config }) => config) };
   }
-  saveApplications(a: { next: number; list: ApplicationConfig[] }) {
+  saveStageTerminals(a: { next: number; list: StageTerminalConfig[] }) {
     this.update((d) => { d.stage.nextTerminalId = a.next; d.stage.items = [...d.stage.items.filter((i) => i.type !== 'terminal'), ...a.list.map((config) => ({ ...config, type: 'terminal' as const }))]; });
   }
   layout(): unknown {
@@ -337,12 +337,12 @@ class TaskStore {
     this.update((d) => { d.agents = { ...(a.agent !== undefined && { agent: a.agent }),
       conversations: (a.conversations ?? []).map(({ terminal: _terminal, ...c }) => ({ ...c, id: c.id ?? randomUUID() })) }; });
   }
-  terminals(): TerminalsFile | null {
+  developmentTerminals(): TerminalsFile | null {
     const d = this.document(), t = d.development;
     return t ? { front: t.front, list: t.list.map(({ conversation, ...rest }) => ({ ...rest,
       ...(conversation !== undefined && { conversation: d.agents.conversations.findIndex((c) => c.id === conversation) }) })) } : null;
   }
-  saveTerminals(t: TerminalsFile) {
+  saveDevelopmentTerminals(t: TerminalsFile) {
     this.update((d) => { d.development = { front: t.front, list: t.list.map(({ conversation, ...rest }) => ({ ...rest,
       ...(conversation !== undefined && { conversation: d.agents.conversations[conversation]?.id ?? 'invalid-reference' }) })) }; });
   }

@@ -1,4 +1,4 @@
-// A visible application under test, separate from development terminals (docs/window.md, Application terminals).
+// A visible application under test, separate from development terminals (docs/window.md, Stage terminals).
 import { useEffect, useRef, useState } from 'react';
 import type { IDockviewPanelHeaderProps, IDockviewPanelProps } from 'dockview-react';
 import { ArrowDownIcon, ArrowUpIcon, CircleAlertIcon, EllipsisIcon, PlayIcon, RotateCwIcon, TerminalSquareIcon, XIcon } from 'lucide-react';
@@ -6,33 +6,33 @@ import { Alert, AlertDescription, Button, Input } from '@ui';
 import { ButtonMenu, RightClickMenu } from '../Menus';
 import { act, store, useWindow } from '../../lib/store';
 import { dialog } from '../../lib/dialogs';
-import { focusApplication } from '../../lib/environments';
+import { focusStageTerminal } from '../../lib/environments';
 import { EnvironmentFocus, environmentFocusItem } from './EnvironmentFocus';
 import { termStyle, useShade } from '../../lib/theme';
 import { View, termCopy, termPaste, termFocus } from '../../../terminal/renderer';
 import type { MenuItem } from '../../lib/menu';
-import type { ApplicationTerminal } from '../../../shared/application-terminal';
+import type { StageTerminal } from '../../../shared/stage-terminal';
 
-const idOf = (id: string) => Number(id.slice('application:'.length));
-const useApplication = (id: number) => useWindow((s) => s.applications.find((a) => a.id === id));
-const status = (app: ApplicationTerminal) => app.status === 'exited' ? `Exited (${app.exitCode})` : app.status === 'stopped' ? 'Stopped' : app.status === 'starting' ? 'Starting…' : app.session === 'shell' ? 'Shell' : 'Running';
-const runAction = (app: ApplicationTerminal) => ({
+const idOf = (id: string) => Number(id.slice('stage-terminal:'.length));
+const useStageTerminal = (id: number) => useWindow((s) => s.stageTerminals.find((a) => a.id === id));
+const status = (app: StageTerminal) => app.status === 'exited' ? `Exited (${app.exitCode})` : app.status === 'stopped' ? 'Stopped' : app.status === 'starting' ? 'Starting…' : app.session === 'shell' ? 'Shell' : 'Running';
+const runAction = (app: StageTerminal) => ({
   label: app.status === 'exited' ? 'Run again'
     : app.status === 'stopped' ? 'Start'
       : app.session === 'shell' ? app.command.trim() ? 'Run app' : 'Restart shell' : 'Restart app',
   enabled: app.status !== 'starting',
-  run: () => focusApplication(() => act('application:run', { id: app.id })),
+  run: () => focusStageTerminal(() => act('stage-terminal:run', { id: app.id })),
 });
-const actions = (app: ApplicationTerminal): MenuItem[] => [
+const actions = (app: StageTerminal): MenuItem[] => [
   runAction(app),
-  { label: 'Stop', enabled: app.status === 'running' || app.status === 'starting', run: () => act('application:stop', { id: app.id }) },
+  { label: 'Stop', enabled: app.status === 'running' || app.status === 'starting', run: () => act('stage-terminal:stop', { id: app.id }) },
   '-',
-  { label: 'Settings…', run: async () => (await dialog('applicationsettings')).open(app) },
-  { label: 'Fit to pane', run: () => act('application:configure', { id: app.id, size: null }) },
-  { label: 'Close application terminal', run: () => act('application:close', { id: app.id }) },
+  { label: 'Settings…', run: async () => (await dialog('stageTerminalSettings')).open(app) },
+  { label: 'Fit to pane', run: () => act('stage-terminal:configure', { id: app.id, size: null }) },
+  { label: 'Close Stage terminal', run: () => act('stage-terminal:close', { id: app.id }) },
 ];
-export function ApplicationPane({ api }: IDockviewPanelProps) {
-  const id = idOf(api.id), app = useApplication(id), shade = useShade(), host = useRef<HTMLDivElement>(null);
+export function StageTerminalPane({ api }: IDockviewPanelProps) {
+  const id = idOf(api.id), app = useStageTerminal(id), shade = useShade(), host = useRef<HTMLDivElement>(null);
   const view = useRef<View | null>(null);
   const [searching, setSearching] = useState(false), [query, setQuery] = useState(''), [found, setFound] = useState(true);
   const searchInput = useRef<HTMLInputElement>(null);
@@ -46,8 +46,8 @@ export function ApplicationPane({ api }: IDockviewPanelProps) {
   useEffect(() => {
     if (searching) setFound(view.current?.find(query, false, true) ?? false);
   }, [query, searching, app?.key, app?.status]);
-  const focus = useWindow((s) => s.applicationFocus);
-  const hasAgent = useWindow((s) => s.terminals.list.some((t) => !!t.agent && !t.starting));
+  const focus = useWindow((s) => s.stageTerminalFocus);
+  const hasAgent = useWindow((s) => s.developmentTerminals.list.some((t) => !!t.agent && !t.starting));
   useEffect(() => {
     const v = view.current = new View(termStyle());
     v.onSearchResult = setFound;
@@ -61,9 +61,9 @@ export function ApplicationPane({ api }: IDockviewPanelProps) {
     if (!focus?.key || focus.key !== app?.key) return;
     let cancelled = false;
     const attempt = () => {
-      void termFocus(focus.key!, () => !cancelled && store.getState().applicationFocus === focus
+      void termFocus(focus.key!, () => !cancelled && store.getState().stageTerminalFocus === focus
         && store.getState().current === focus.task && api.isVisible && document.hasFocus()).then(() => {
-        if (!cancelled && store.getState().applicationFocus === focus && view.current?.el.contains(document.activeElement)) store.setState({ applicationFocus: null });
+        if (!cancelled && store.getState().stageTerminalFocus === focus && view.current?.el.contains(document.activeElement)) store.setState({ stageTerminalFocus: null });
       });
     };
     const visible = api.onDidVisibilityChange(attempt);
@@ -75,14 +75,14 @@ export function ApplicationPane({ api }: IDockviewPanelProps) {
   const menu = (): MenuItem[] => {
     const selection = view.current?.term.getSelection() ?? '', task = store.getState().current;
     return [
-      { label: 'Send selection to agent', enabled: !!selection.trim() && hasAgent, run: () => kulisa.invoke('selection:send', { task, source: { kind: 'application', id }, text: selection }) },
+      { label: 'Send selection to agent', enabled: !!selection.trim() && hasAgent, run: () => kulisa.invoke('selection:send', { task, source: { kind: 'stage-terminal', id }, text: selection }) },
       { label: 'Copy', enabled: view.current?.term.hasSelection() ?? false, run: () => { if (view.current) termCopy(view.current.term); } },
       { label: 'Paste', enabled: app.status === 'running', run: () => { if (view.current) termPaste(view.current.term); } },
       { label: 'Select all', run: () => view.current?.term.selectAll() },
       { label: 'Find…', run: () => setSearching(true) }, '-', environmentFocusItem(api), ...actions(app),
     ];
   };
-  return <section role="region" aria-label={app.name} data-application={id} data-state={app.status} className="flex h-full min-w-0 flex-col bg-card" onKeyDownCapture={(e) => {
+  return <section role="region" aria-label={app.name} data-stage-terminal={id} data-state={app.status} className="flex h-full min-w-0 flex-col bg-card" onKeyDownCapture={(e) => {
     if ((e.ctrlKey || kulisa.platform === 'darwin' && e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'f') {
       e.preventDefault(); e.stopPropagation(); setSearching(true); searchInput.current?.focus(); searchInput.current?.select();
     } else if (searching && e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeSearch(); }
@@ -104,9 +104,9 @@ export function ApplicationPane({ api }: IDockviewPanelProps) {
     </RightClickMenu>
   </section>;
 }
-export function ApplicationHeader({ api, containerApi }: IDockviewPanelHeaderProps) {
+export function StageTerminalHeader({ api, containerApi }: IDockviewPanelHeaderProps) {
   const activity = useWindow((s) => s.stageActivity === api.id);
-  const id = idOf(api.id), app = useApplication(id);
+  const id = idOf(api.id), app = useStageTerminal(id);
   const launch = app && runAction(app);
   return <RightClickMenu items={() => app ? [environmentFocusItem(api), ...actions(app)] : null} className="h-full min-w-0">
     <div data-panel={api.id} data-agent-active={activity || undefined} className="flex h-full min-w-0 items-center gap-1 px-2 data-[agent-active=true]:bg-accent">
@@ -119,7 +119,7 @@ export function ApplicationHeader({ api, containerApi }: IDockviewPanelHeaderPro
       <ButtonMenu items={() => app ? [environmentFocusItem(api), ...actions(app)] : []} end>
         <Button variant="ghost" size="icon-xs" aria-label="Terminal menu" title="Terminal menu"><EllipsisIcon /></Button>
       </ButtonMenu>
-      <Button variant="ghost" size="icon-xs" aria-label="Close application terminal" title="Close application terminal" onClick={() => void act('application:close', { id })}><XIcon /></Button>
+      <Button variant="ghost" size="icon-xs" aria-label="Close Stage terminal" title="Close Stage terminal" onClick={() => void act('stage-terminal:close', { id })}><XIcon /></Button>
     </div>
   </RightClickMenu>;
 }

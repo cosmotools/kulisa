@@ -11,7 +11,7 @@ import { TaskBar } from './TaskBar';
 import { Ask } from './Ask';
 import { NewProject } from './NewProject';
 import { AgentPicker } from './AgentPicker';
-import { ApplicationSettings } from './ApplicationSettings';
+import { StageTerminalSettings } from './StageTerminalSettings';
 import { TaskRename } from './TaskRename';
 import { Shortcuts } from './Shortcuts';
 import { PointMenu } from './Menus';
@@ -46,7 +46,7 @@ export function App() {
       {settings && Settings && <Settings at={settings} className="[grid-area:2/1/-1]" />}
       <NewProject />
       <TaskRename />
-      <ApplicationSettings />
+      <StageTerminalSettings />
       <AgentPicker />
       <HandOver />
       <Shortcuts />

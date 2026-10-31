@@ -24,21 +24,21 @@ process.stdout.on('resize', draw);
 draw();
 `;
 
-test('a CLI task needs no browser: human and agent see, operate, resize and restart an application terminal', async ({ core, ui, files, call }, info) => {
+test('a CLI task needs no browser: human and agent see, operate, resize and restart an Stage terminal', async ({ core, ui, files, call }, info) => {
   await notLoading(ui);
   expect(await core((k) => k.shell.task.profiles.size)).toBe(0);
   await expect(ui.getByTestId('stage')).toHaveCount(0);
   const agent = await core((k) => k.shell.task.front);
   fs.writeFileSync(path.join(files.project, 'application-tui.cjs'), tui);
   await focusWindow(core, ui);
-  await ui.getByRole('button', { name: 'Application Terminal', exact: true }).click();
-  const pane = ui.locator('[data-application]');
+  await ui.getByRole('button', { name: 'Stage Terminal', exact: true }).click();
+  const pane = ui.locator('[data-stage-terminal]');
   await expect(ui.getByTestId('stage')).toBeVisible();
   await expect(pane).toHaveAttribute('data-state', 'running');
   await expect(pane.locator('.xterm-helper-textarea')).toBeFocused();
   await pane.locator('.xterm-helper-textarea').pressSequentially('echo stage-shell-ready');
   await pane.locator('.xterm-helper-textarea').press('Enter');
-  await expect.poll(async () => JSON.parse((await call('terminal_read', { name: 'Application 1' })).text).text).toMatch(/(^|\n)stage-shell-ready(\r?\n|$)/);
+  await expect.poll(async () => JSON.parse((await call('terminal_read', { name: 'Terminal 1' })).text).text).toMatch(/(^|\n)stage-shell-ready(\r?\n|$)/);
   await ui.getByRole('button', { name: 'Terminal menu' }).click();
   await choose(ui, 'Settings…');
   const settings = ui.getByRole('dialog', { name: 'Terminal Settings' });
@@ -47,16 +47,16 @@ test('a CLI task needs no browser: human and agent see, operate, resize and rest
   await ui.getByRole('button', { name: 'Terminal menu' }).click();
   await choose(ui, 'Run app');
   await expect(pane.locator('.xterm-helper-textarea')).toBeFocused();
-  const screen = async () => JSON.parse((await call('terminal_read', { name: 'Application 1' })).text);
+  const screen = async () => JSON.parse((await call('terminal_read', { name: 'Terminal 1' })).text);
   await expect.poll(async () => (await screen()).text).toContain('Choice 1');
   await expect(ui.getByRole('button', { name: 'Restart app', exact: true })).toBeVisible();
-  await call('terminal_input', { name: 'Application 1', key: 'ArrowDown' });
+  await call('terminal_input', { name: 'Terminal 1', key: 'ArrowDown' });
   await expect.poll(async () => (await screen()).text).toContain('Choice 2');
   await pane.locator('.xterm-helper-textarea').press('ArrowUp');
   await expect.poll(async () => (await screen()).text).toContain('Choice 1');
-  await call('terminal_input', { name: 'Application 1', text: 'hello', paste: true });
+  await call('terminal_input', { name: 'Terminal 1', text: 'hello', paste: true });
   await expect.poll(async () => (await screen()).text).toContain('Choice 42');
-  await call('terminal_resize', { name: 'Application 1', size: { cols: 60, rows: 12 } });
+  await call('terminal_resize', { name: 'Terminal 1', size: { cols: 60, rows: 12 } });
   await expect.poll(async () => (await screen()).text).toContain('Size 60x12');
   await ui.getByRole('button', { name: 'Terminal menu' }).click();
   await choose(ui, 'Settings…');
@@ -65,24 +65,24 @@ test('a CLI task needs no browser: human and agent see, operate, resize and rest
   await settings.getByRole('button', { name: 'Cancel', exact: true }).click();
   const screenHeight = async () => (await pane.locator('.xterm-screen').boundingBox()).height;
   const twelveRows = await screenHeight();
-  await call('terminal_resize', { name: 'Application 1', size: { cols: 60, rows: 24 } });
+  await call('terminal_resize', { name: 'Terminal 1', size: { cols: 60, rows: 24 } });
   await expect.poll(screenHeight).toBeCloseTo(twelveRows * 2, 0);
-  await call('terminal_resize', { name: 'Application 1', size: { cols: 60, rows: 12 } });
+  await call('terminal_resize', { name: 'Terminal 1', size: { cols: 60, rows: 12 } });
   await expect.poll(screenHeight).toBeCloseTo(twelveRows, 0);
   await frames(ui);
   const shot = info.outputPath('application-stage.png');
   await core((k, file) => k.shot(file), shot);
   await info.attach('application stage', { path: shot, contentType: 'image/png' });
-  await call('terminal_stop', { name: 'Application 1' });
+  await call('terminal_stop', { name: 'Terminal 1' });
   expect((await screen()).terminal.status).toBe('stopped');
   expect((await screen()).text).toContain('Choice 42');
-  await call('terminal_run', { name: 'Application 1', command: 'node application-tui.cjs' });
+  await call('terminal_run', { name: 'Terminal 1', command: 'node application-tui.cjs' });
   await expect.poll(async () => (await screen()).text).toContain('Choice 1');
-  await call('terminal_input', { name: 'Application 1', key: 'Enter' });
+  await call('terminal_input', { name: 'Terminal 1', key: 'Enter' });
   await expect.poll(async () => (await screen()).terminal.exitCode).toBe(7);
-  await expect(ui.locator('[data-panel^="application:"]').getByRole('status')).toHaveText('Exited (7)');
+  await expect(ui.locator('[data-panel^="stage-terminal:"]').getByRole('status')).toHaveText('Exited (7)');
   expect(await core((k) => k.shell.task.front), 'development terminal stays selected').toBe(agent);
-  await call('terminal_close', { name: 'Application 1' });
+  await call('terminal_close', { name: 'Terminal 1' });
   await expect(ui.getByTestId('stage')).toHaveCount(0);
 });
 
@@ -98,7 +98,7 @@ test('selected Stage output is pasted into the agent draft with its terminal nam
     pty.write = (text) => { k.stash.selectionWrites.push(text); };
   });
   try {
-    const pane = ui.locator('[data-application]');
+    const pane = ui.locator('[data-stage-terminal]');
     await pane.click({ button: 'right' });
     await choose(ui, 'Select all');
     await pane.click({ button: 'right' });
@@ -116,17 +116,17 @@ test('selected Stage output is pasted into the agent draft with its terminal nam
 
 test('a manually opened Stage shell comes back ready for commands after restarting Kulisa', async ({ ui, call, restart }) => {
   await notLoading(ui);
-  await ui.getByRole('button', { name: 'Application Terminal', exact: true }).click();
-  await expect(ui.locator('[data-application]')).toHaveAttribute('data-state', 'running');
+  await ui.getByRole('button', { name: 'Stage Terminal', exact: true }).click();
+  await expect(ui.locator('[data-stage-terminal]')).toHaveAttribute('data-state', 'running');
   const next = await restart();
   await notLoading(next);
-  await expect(next.locator('[data-application]')).toHaveAttribute('data-state', 'running');
-  const read = async () => JSON.parse((await call('terminal_read', { name: 'Application 1' })).text);
+  await expect(next.locator('[data-stage-terminal]')).toHaveAttribute('data-state', 'running');
+  const read = async () => JSON.parse((await call('terminal_read', { name: 'Terminal 1' })).text);
   await expect.poll(async () => (await read()).text.trim()).not.toBe('');
-  await call('terminal_input', { name: 'Application 1', text: 'node -e "console.log(6*7)"' });
-  await call('terminal_input', { name: 'Application 1', key: 'Enter' });
+  await call('terminal_input', { name: 'Terminal 1', text: 'node -e "console.log(6*7)"' });
+  await call('terminal_input', { name: 'Terminal 1', key: 'Enter' });
   await expect.poll(async () => (await read()).text).toMatch(/(^|\n)42(\r?\n|$)/);
-  await call('terminal_close', { name: 'Application 1' });
+  await call('terminal_close', { name: 'Terminal 1' });
 });
 
 test('reopening restores launch setup and fixed size without running the application', async ({ files, call, restart }) => {
@@ -135,7 +135,7 @@ test('reopening restores launch setup and fixed size without running the applica
   await expect.poll(async () => JSON.parse((await call('terminal_read', { name: 'Once' })).text).terminal.exitCode).toBe(9);
   const next = await restart();
   await notLoading(next);
-  await expect(next.locator('[data-application]')).toHaveAttribute('data-state', 'running');
+  await expect(next.locator('[data-stage-terminal]')).toHaveAttribute('data-state', 'running');
   const list = JSON.parse((await call('terminal_read')).text);
   expect(list).toHaveLength(1);
   expect(list[0]).toMatchObject({ name: 'Once', command: 'node application-once.cjs', size: { cols: 72, rows: 18 }, status: 'running', exitCode: null, session: 'shell' });
@@ -162,7 +162,7 @@ test('screen parsing keeps redraws, bounds scrollback, and refuses input into de
   expect(r.text).not.toMatch(/^line 0$/m);
   expect(r.text.split('\n').length).toBeLessThanOrEqual(500);
   const own = await core((k) => k.shell.task.label(k.shell.task.promptTarget()));
-  await expect(call('terminal_input', { name: own, text: 'wrong target' })).rejects.toThrow(/No application terminal/);
+  await expect(call('terminal_input', { name: own, text: 'wrong target' })).rejects.toThrow(/No Stage terminal/);
   await expect(call('terminal_resize', { name: 'Output', size: { cols: 10000, rows: 30 } })).rejects.toThrow(/Terminal size/);
   await expect(call('terminal_input', { name: 'Output', key: 'Enter' })).rejects.toThrow(/not running/);
   await call('terminal_close', { name: 'Output' });
@@ -175,7 +175,7 @@ test('closing a terminal stops its process and removes its saved configuration a
   await expect.poll(async () => { pid = Number(JSON.parse((await call('terminal_read', { name: 'Process' })).text).text.match(/PID (\d+)/)?.[1]); return pid > 0; }).toBe(true);
   await call('terminal_close', { name: 'Process' });
   await expect.poll(() => { try { process.kill(pid, 0); return true; } catch { return false; } }).toBe(false);
-  expect(await core((k) => k.shell.task.store.applications().list)).toEqual([]);
+  expect(await core((k) => k.shell.task.store.stageTerminals().list)).toEqual([]);
   await expect(ui.getByTestId('stage')).toHaveCount(0);
 });
 
@@ -197,7 +197,7 @@ test('browser and terminal environments share Stage positions and tabs without r
   }
   await call('stage_arrange', { layout: 'tabs' });
   await expect.poll(() => ui.evaluate(() => (window as any).__stage.groups.length)).toBe(1);
-  await ui.locator('[data-panel^="application:"]').getByText('Alongside browser', { exact: true }).click();
+  await ui.locator('[data-panel^="stage-terminal:"]').getByText('Alongside browser', { exact: true }).click();
   await expect.poll(() => core((k) => k.profile('Stage.browser').get().view.getVisible())).toBe(false);
   expect((await read()).terminal.status).toBe('running');
   expect((await read()).text).toContain(pid);
@@ -234,7 +234,7 @@ test('input follows terminal modes and large reads become bounded task artifacts
   expect(result.text.length).toBeLessThanOrEqual(2000);
   expect(fs.readFileSync(result.file, 'utf8')).toContain('row 499:');
   const source = await core(async (k, file) => (await k.shell.task.findArtifact(file) as { artifact: { source: unknown } }).artifact.source, result.file);
-  expect(source).toMatchObject({ kind: 'application' });
+  expect(source).toMatchObject({ kind: 'stage-terminal' });
   const artifact = ui.locator('#resources').getByRole('button', { name: 'Terminal screen', exact: true });
   await expect(artifact).toBeVisible();
   await expect(artifact).toContainText('Large');
@@ -281,7 +281,7 @@ test('a background terminal answers device queries and keeps Unicode cursor widt
   await expect.poll(async () => (await read()).text).toContain('reply 1');
   await expect.poll(async () => (await read()).text).toContain('color 1');
   await invoke(ui, 'task:show', first);
-  await expect(ui.locator('[data-application]')).toHaveCount(1);
+  await expect(ui.locator('[data-stage-terminal]')).toHaveCount(1);
   await call('terminal_input', { name: 'Query', text: 'ask' });
   await expect.poll(async () => (await read()).text).toContain('reply 2');
   await expect.poll(async () => (await read()).text).toContain('color 2');
@@ -291,7 +291,7 @@ test('a background terminal answers device queries and keeps Unicode cursor widt
   fs.writeFileSync(path.join(files.project, 'application-unicode.cjs'), `process.stdout.write('\\x1b[H\\x1b[2J✅⏵✻'); process.stdin.resume();`);
   await call('terminal_run', { name: 'Query', command: 'node application-unicode.cjs' });
   await expect.poll(async () => (await read()).text).toContain('✅⏵✻');
-  const visible = await ui.locator('[data-application]').getAttribute('data-application');
+  const visible = await ui.locator('[data-stage-terminal]').getAttribute('data-stage-terminal');
   expect(visible).toBeTruthy();
   const r = await read();
   expect(r.cursor.column).toBe(5);
@@ -333,7 +333,7 @@ test('run creates or reuses a named terminal and validates before replacing its 
   expect((await read()).text).toContain(`PID ${pid} old`);
   const second = JSON.parse((await call('terminal_run', { name: 'rerun', command: 'node application-rerun.cjs new' })).text);
   expect(second).toMatchObject({ id: first.id, size: { cols: 64, rows: 12 } });
-  await expect(ui.locator('[data-application]')).toHaveCount(1);
+  await expect(ui.locator('[data-stage-terminal]')).toHaveCount(1);
   await expect.poll(async () => (await read()).text).toMatch(/PID \d+ new/);
   expect((await read()).text).not.toContain(`PID ${pid} old`);
   await expect.poll(() => { try { process.kill(pid, 0); return true; } catch { return false; } }).toBe(false);

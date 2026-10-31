@@ -26,7 +26,7 @@ the same thing worked out again beside it. Where it is not clear which of the tw
 before it is built.
 
 Code that is *about* the thing but knows the rest stays outside, using the package: for the terminal, the terminals'
-panel (`components/grid/Terminals.tsx`, `lib/terminals.ts`: its agents' buttons, the closed profiles' tiles, Change
+panel (`components/grid/DevelopmentTerminals.tsx`, `lib/development-terminals.ts`: its agents' buttons, the closed profiles' tiles, Change
 agent…, the project's accounts in its +), the agents in terminals (`tasks.ts`: conversations, handing over, the
 agent's state) and the agent's tools (`shell_run`, `shell_read`, `shell_stop` in
 `kulisa-plugin/main/tools/terminal.ts`: what the agent sees lives in the Kulisa plugin, AGENTS.md, Architecture). Inside,

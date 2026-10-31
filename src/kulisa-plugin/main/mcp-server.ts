@@ -16,7 +16,7 @@ import pkg from '../../../package.json' with { type: 'json' };
 import type { AddressInfo } from 'net';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import type { PluginHost } from './core.ts';
-import type { TaskAccess as Task, TerminalAccess as TaskTerminal } from './core.ts';
+import type { TaskAccess as Task, DevelopmentTerminalAccess as DevelopmentTerminal } from './core.ts';
 import { bare, log, summary } from '../../main/log.ts';
 
 // For every agent, those without the Kulisa skill too (one run by hand): what it must know before the first call.
@@ -36,7 +36,7 @@ const INSTRUCTIONS = 'Kulisa profiles are the users of the app under test, each 
   'yours when you need details your context lost. Name your conversation with conversation_rename once you know what ' +
   'it is about.';
 // task: the task (tasks.ts) whose profiles the tools act on; t: the agent's terminal, when it came by its own URL.
-function buildServer(task: Task, t: TaskTerminal | null) {
+function buildServer(task: Task, t: DevelopmentTerminal | null) {
   const server = new McpServer({ name: 'kulisa', version: pkg.version }, { instructions: `${INSTRUCTIONS} ${taskContext(task)}` });
   const activity = (name: string, args: unknown) => {
     if (!args || typeof args !== 'object') return;
@@ -45,8 +45,8 @@ function buildServer(task: Task, t: TaskTerminal | null) {
       if (!('error' in found) && task.profiles.has(found.id)) task.environmentUsed(`profile:${found.id}`);
     } else if (name.startsWith('terminal_') && name !== 'terminal_close' && 'name' in args && typeof args.name === 'string') {
       const target = args.name.trim().toLowerCase();
-      const app = task.applications.info().find((a) => a.name.toLowerCase() === target);
-      if (app) task.environmentUsed(`application:${app.id}`);
+      const app = task.stageTerminals.info().find((a) => a.name.toLowerCase() === target);
+      if (app) task.environmentUsed(`stage-terminal:${app.id}`);
     }
   };
   // Every tool call is logged (its name, the task, a summary of its first argument), as the core's actions are.

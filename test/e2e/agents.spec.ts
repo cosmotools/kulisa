@@ -299,7 +299,7 @@ test("dictation: an agent without its own is recognized for by another agent's d
   await expect.poll(() => core((k, key) => k.shell.dictation.state(key).state, task), { timeout: 15000 }).toBe('recording');
   expect(`${await mic.getAttribute('data-state')} ${await pill.getAttribute('data-state')}`).toBe('recording listening');
   // Drawn as the package's classes say (Tailwind's @source, window.css): over the terminal's middle, its wave's bars seen.
-  const [p, t] = await Promise.all([pill.boundingBox(), ui.getByTestId('terminals').boundingBox()]);
+  const [p, t] = await Promise.all([pill.boundingBox(), ui.getByTestId('development-terminals').boundingBox()]);
   expect(Math.abs(p.x + p.width / 2 - (t.x + t.width / 2)), 'the pill in the middle').toBeLessThan(2);
   expect((await pill.locator('i').first().boundingBox()).width, "a bar's width").toBeGreaterThan(0);
   await letGo();

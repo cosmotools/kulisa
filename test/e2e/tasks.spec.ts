@@ -268,8 +268,8 @@ test("tasks: an agent's tab closes after a question, always (Cancel keeps it); t
   await begin(core, ui, files, { only: true, columns: true, featureX: call });
   const SAM = files.idOf('Sam.admin');
   const task = await newTask(core, ui), agent = await core((k, key) => k.shell.taskByKey(key).promptTarget().id, task);
-  const terminals = () => core((k, key) => k.shell.taskByKey(key).terminals.size, task);
-  const panel = ui.getByTestId('terminals'), strip = ui.getByTestId('terminal-tabs');
+  const developmentTerminals = () => core((k, key) => k.shell.taskByKey(key).developmentTerminals.size, task);
+  const panel = ui.getByTestId('development-terminals'), strip = ui.getByTestId('terminal-tabs');
   const folded = async (yes: boolean) => {
     await (yes ? expect(panel).toHaveAttribute('data-folded') : expect(panel).not.toHaveAttribute('data-folded'));
     await (yes ? expect(strip).toBeHidden() : expect(strip).toBeVisible());
@@ -287,10 +287,10 @@ test("tasks: an agent's tab closes after a question, always (Cancel keeps it); t
   const q = await answer(ui, false);
   expect(q.message).toBe('Close bash?');
   expect(q.detail).toMatch(/^bash stops\. Its conversation stays in the task's history, where any agent of the task can read it\.$/);
-  expect(await core((k, a) => k.shell.taskByKey(a.task).terminals.has(a.agent), { task, agent }), 'kept when the human says no').toBe(true);
+  expect(await core((k, a) => k.shell.taskByKey(a.task).developmentTerminals.has(a.agent), { task, agent }), 'kept when the human says no').toBe(true);
   await closeTab();
   await answer(ui);
-  await expect.poll(terminals).toBe(0);
+  await expect.poll(developmentTerminals).toBe(0);
   // No profile open: the +'s rows as big buttons in its middle, whatever the arrangement.
   await folded(true);
   expect(saved()).toEqual({ front: null, list: [] });
@@ -320,7 +320,7 @@ test("tasks: an agent's tab closes after a question, always (Cancel keeps it); t
       - navigation "New terminal":
         - button "Terminal"
       - navigation "Open an environment":
-        - button "Application Terminal"
+        - button "Stage Terminal"
         - button "Sam.admin"
         - button "Elon.buyer"
         - button "Dora"
@@ -331,13 +331,13 @@ test("tasks: an agent's tab closes after a question, always (Cancel keeps it); t
   }
   // One opens what its row in + does: a terminal; closed, the buttons are back.
   await newTerminal.first().click();
-  await expect.poll(terminals).toBe(1);
+  await expect.poll(developmentTerminals).toBe(1);
   await folded(false);
   // A terminal and no profile: the profiles' room a row of buttons over it, one for each; one opens its profile, and
   // the row goes.
   const tiles = ui.getByTestId('closed-profiles');
   await expect(tiles).toMatchAriaSnapshot(`
-    - button "Application Terminal"
+    - button "Stage Terminal"
     - button "Sam.admin"
     - button "Elon.buyer"
     - button "Dora"
@@ -378,7 +378,7 @@ test("tasks: an agent's tab closes after a question, always (Cancel keeps it); t
   await call('profile_close', { profile: 'Sam.admin' }, { task });
   await expect(tiles).toHaveCount(1);
   await closeTab();
-  await expect.poll(terminals).toBe(0);
+  await expect.poll(developmentTerminals).toBe(0);
   await expect(launchers).toHaveCount(1);
   await expect(tiles).toHaveCount(0);
   // Resources below the terminal: the empty terminal folds along the development area's height.
@@ -393,12 +393,12 @@ test("tasks: an agent's tab closes after a question, always (Cancel keeps it); t
       - menuitem "Terminal"
   `);
   await choose(ui, 'Terminal');
-  await expect.poll(terminals).toBe(1);
+  await expect.poll(developmentTerminals).toBe(1);
   await folded(false);
   await expect.poll(async () => (await size(group)).height).toBeGreaterThanOrEqual(150);
   // A shell closes without a question; folded again.
   await closeTab();
-  await expect.poll(terminals).toBe(0);
+  await expect.poll(developmentTerminals).toBe(0);
   await folded(true);
   await expect.poll(async () => (await size(group)).height).toBeLessThanOrEqual(40);
   await noQuestion(ui);
@@ -409,7 +409,7 @@ test("tasks: an agent's tab closes after a question, always (Cancel keeps it); t
   await expect.poll(async () => (await size(resources)).height).toBeGreaterThan(300);
   await unfold.click();
   await choose(ui, 'Terminal');
-  await expect.poll(terminals).toBe(1);
+  await expect.poll(developmentTerminals).toBe(1);
   await folded(false);
   await expect.poll(async () => (await size(group)).height).toBeGreaterThanOrEqual(150);
   // Resources beside the terminal: folded along the development area's width, a strip of its + as
@@ -417,14 +417,14 @@ test("tasks: an agent's tab closes after a question, always (Cancel keeps it); t
   // dockview's API: a drag of a panel between groups is the OS's drag and drop.
   await ui.evaluate(() => { const d = (window as any).__dock; d.getPanel('resources').api.moveTo({ group: d.getPanel('terminal').group, position: 'right' }); });
   await closeTab();
-  await expect.poll(async () => { const r = await size(group); return (await terminals()) === 0 && r.width <= 40 && r.height > 100 && (await middle()); }).toBe(true);
+  await expect.poll(async () => { const r = await size(group); return (await developmentTerminals()) === 0 && r.width <= 40 && r.height > 100 && (await middle()); }).toBe(true);
   await unfold.click();
   await choose(ui, 'Terminal');
-  await expect.poll(terminals).toBe(1);
+  await expect.poll(developmentTerminals).toBe(1);
   await folded(false);
   await expect.poll(async () => (await size(group)).width).toBeGreaterThanOrEqual(200);
   await closeTab();
-  await expect.poll(terminals).toBe(0);
+  await expect.poll(developmentTerminals).toBe(0);
   await folded(true);
   await expect.poll(async () => (await size(group)).width).toBeLessThanOrEqual(40);
   await arrange(ui, 'above');

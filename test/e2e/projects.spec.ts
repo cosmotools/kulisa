@@ -227,24 +227,24 @@ test("projects: the projects' manager (Project Settings…) changes its name and
   `);
   // A project with no profiles: one tile, Add Profile…, its page in Settings.
   const launchProfiles = ui.locator('#dock').getByRole('navigation', { name: 'Open an environment' });
-  await expect(launchProfiles.getByRole('button')).toHaveText(['Application Terminal', 'Add Profile…']);
+  await expect(launchProfiles.getByRole('button')).toHaveText(['Stage Terminal', 'Add Profile…']);
   await launchProfiles.getByRole('button', { name: 'Add Profile…', exact: true }).click();
   s = await sui();
   await expect(pathOf(s)).toHaveText(/^Projects\s*/);
   await expect(field(s, 'Name')).toHaveValue((await entryOf()).name);
   await closeSettings(core, ui, sui);
-  const terminals = () => core((k, key) => k.shell.taskByKey(key).terminals.size, bare);
-  expect(await terminals()).toBe(0);
+  const developmentTerminals = () => core((k, key) => k.shell.taskByKey(key).developmentTerminals.size, bare);
+  expect(await developmentTerminals()).toBe(0);
   expect(agentOf(bare)).toBe(null);
   if (await ui.locator(':focus').count()) await ui.locator(':focus').blur();
   await focusWindow(core, ui);
   // Ctrl+` gives the launcher the keyboard. Opens nothing: no agent.
   await core((k) => k.press(k.shell.win.webContents, '`', 'control'));
   await expect(ui.getByRole('navigation', { name: 'New terminal' }).getByRole('button').first()).toBeFocused();
-  expect(await terminals(), 'nothing opened').toBe(0);
+  expect(await developmentTerminals(), 'nothing opened').toBe(0);
   // With a profile open, the terminals' panel is a strip: Ctrl+` opens its +.
   await call('profile_create', { name: 'Bo.bare' }, { task: bare });
-  await expect(ui.getByTestId('terminals').locator('[data-unfold]')).toHaveCount(1);
+  await expect(ui.getByTestId('development-terminals').locator('[data-unfold]')).toHaveCount(1);
   await expect(ui.getByRole('navigation', { name: 'New terminal' })).toHaveCount(0);
   await focusWindow(core, ui);
   await core((k) => k.press(k.shell.win.webContents, '`', 'control'));
@@ -254,7 +254,7 @@ test("projects: the projects' manager (Project Settings…) changes its name and
     - menuitem "Terminal"
   `);
   await closeMenu(ui);
-  expect(await terminals(), 'nothing opened').toBe(0);
+  expect(await developmentTerminals(), 'nothing opened').toBe(0);
   const bo = files.idOf('Bo.bare');
   const droppedBo = act(ui, 'profile:delete', { profile: bo });
   await answer(ui);
@@ -267,7 +267,7 @@ test("projects: the projects' manager (Project Settings…) changes its name and
   expect((await entryOf()).agents, 'none left').toBeUndefined();
   expect(await core((k, a) => k.shell.store.projectsWith('agents', a).map((p) => p.id), ann)).toEqual([]);
   expect(await core((k, key) => k.shell.taskByKey(key).promptTarget().agent.id, annTask)).toBe(ann);
-  expect(await core((k, key) => [...k.shell.taskByKey(key).terminals.values()].map((t) => [t.name, !!t.agent]), before), 'the terminal only: a shell').toEqual([['Terminal', false]]);
+  expect(await core((k, key) => [...k.shell.taskByKey(key).developmentTerminals.values()].map((t) => [t.name, !!t.agent]), before), 'the terminal only: a shell').toEqual([['Terminal', false]]);
   await invoke(ui, 'project:close-tasks', { id });
   await expect.poll(() => core((k, i) => !k.shell.open.has(i), id)).toBe(true);
   // What it made gone, for a test after it.
@@ -327,7 +327,7 @@ test("projects: Settings is its window's, at that window's project, its question
   const fourth = path.join(files.root, 'fourth');
   await openFolder(core, ui, fourth);
   const key = files.tkey('fourth', 1);
-  await invoke(ui, 'task:move', { key, terminals: {} });
+  await invoke(ui, 'task:move', { key, terminalContents: {} });
   await expect.poll(() => core((k, t) => k.shell.windows[1]?.current?.key === t && k.settled(false, k.shell.windows[1]), key)).toBe(true);
   await backTo(core, ui, files, 'project');
   const there = await otherPage(ui);

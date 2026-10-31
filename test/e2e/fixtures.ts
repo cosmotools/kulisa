@@ -226,7 +226,7 @@ export const test = base.extend<Fixtures, { display: string | null; running: { c
       const k = running.current;
       const url = await k.core((d, a) => {
         const t = a.task ? d.shell.taskByKey(a.task) : d.shell.task;
-        return t.env(a.terminal === undefined ? undefined : t.terminals.get(a.terminal)).KULISA_MCP_URL;
+        return t.env(a.terminal === undefined ? undefined : t.developmentTerminals.get(a.terminal)).KULISA_MCP_URL;
       }, { task, terminal });
       let c = k.clients.get(url);
       if (!c) {

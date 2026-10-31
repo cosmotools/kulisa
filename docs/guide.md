@@ -72,7 +72,7 @@ project, and those you closed, are in the sidebar (Tasks, below).
 - **Settings** (on a Mac also ⌘, or Kulisa → Settings… in the menu bar) fills the window, over your task, and shows that task's project: set what you need and close it (**Esc**,
   the ← arrow at its top left, or the gear again; what you typed is saved as you go). Your task goes on meanwhile, and is there as you left it.
 - **The grid** separates development from testing: your agents' terminals and Resources sit beside the **stage**,
-  where browser profiles and application terminals show the app being tested. Drag headers to move or stack panes within each area. Drag a line to resize panes.
+  where browser profiles and Stage terminals show the app being tested. Drag headers to move or stack panes within each area. Drag a line to resize panes.
   **Stage** in the title bar places the stage **Left**, **Right**, or **Above** the agent terminal and Resources together. Its **View** choices are **Horizontal stack** (side by side),
   **Vertical stack** (one above another), and **Tabs** (one environment at a time). **Allow overflow** keeps panes at a usable size and adds scrolling in the stack’s direction;
   turned off, all panes fit inside the stage. Tabs hides this setting. Your agent can change the position, view and overflow too.
@@ -397,7 +397,7 @@ profile's menu, also on a right-click) and **×**. Under it, a tab strip, then b
 
 ## Testing a command-line application
 
-Open **Application Terminal** above the development terminal, or from **Stage → Open an environment** in the title
+Open **Stage Terminal** above the development terminal, or from **Stage → Open an environment** in the title
 bar. It opens your usual shell in the task’s working folder, ready for you to type a command such as
 `python3 calculator.py`. You can type, paste and use keyboard shortcuts. When a command you typed finishes, you
 return to the shell prompt. Opening or starting a terminal puts the cursor there so you can type immediately.
@@ -421,7 +421,7 @@ To search a Stage terminal's retained output, press **Ctrl+Shift+F** (**⌘+Shif
 or right-click and choose **Find…**. Enter moves to the next match; Shift+Enter moves to the previous one.
 Escape closes search and returns the keyboard to the terminal.
 
-Closing a task keeps the application terminal's name, command and size. Reopening starts a fresh shell in every terminal. Saved app commands wait for you to press Run app. The pane's **×** stops it and removes its saved setup. Application
+Closing a task keeps the Stage terminal's name, command and size. Reopening starts a fresh shell in every terminal. Saved app commands wait for you to press Run app. The pane's **×** stops it and removes its saved setup. Stage
 terminals share your home folder and credentials; sign in to real accounts yourself when needed.
 
 ## Look and zoom

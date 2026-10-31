@@ -6,7 +6,7 @@ description: Work inside Kulisa to develop and test web, CLI and TUI application
 # Working with Kulisa
 
 Kulisa separates development from testing: your coding terminal and development shells sit beside **Stage**,
-where browser profiles and interactive application terminals show the result. Open only the environments the task
+where browser profiles and interactive Stage terminals show the result. Open only the environments the task
 needs. A CLI task needs no browser profile. A **profile** is an embedded browser identity with its own cookies,
 storage and tabs; the human sees your browser actions in its pane.
 
@@ -60,9 +60,9 @@ opened, and stop only temporary processes you started. Leave the human’s envir
   them closed. Open one with `profile_open` when the task needs that user. Keep profiles showing the final result
   open for review; close other temporary profiles you opened. Close a profile the human opened only when they ask.
 
-## Application terminal environments
+## Stage terminal environments
 
-For a CLI or TUI under development, use an application terminal in the testing stage. Your development terminal
+For a CLI or TUI under development, use an Stage terminal in the testing stage. Your development terminal
 stays separate. Build the app yourself, then call `terminal_run` with a name and your command: it opens a terminal
 and runs the command. Run again with the same name to replace its process after code changes. `terminal_read` shows
 the rendered screen and status (without a name, lists Stage terminals); inspect it before sending text, paste or

@@ -168,8 +168,8 @@ class AppWindow {
   pushState() {
     const task = this.task;
     if (!task || this.switching) return;
-    this.sendTerminals();
-    this.send('applications', { task: task.key, list: task.applications.info() });
+    this.sendDevelopmentTerminals();
+    this.send('stage-terminals', { task: task.key, list: task.stageTerminals.info() });
     this.send('state', [...task.profiles.values()].map((p) => p.info()));
     this.send('closed-profiles', [...task.closed.values()].map(({ cfg, tabs }): Sent.ClosedProfile =>
       ({ id: cfg.id, name: cfg.name, avatar: cfg.avatar, description: cfg.description ?? '', tabs: tabs.urls.length })));
@@ -181,13 +181,13 @@ class AppWindow {
     const [list, { bytes }] = await Promise.all([task.artifacts(), task.artifactsUsage()]);
     if (task === this.task) this.send('artifacts', { task: task.key, list, bytes });
   }
-  sendTerminals() { if (this.task && !this.switching) this.send('terminals', { task: this.task.key, ...this.task.terminalsInfo() }); }
+  sendDevelopmentTerminals() { if (this.task && !this.switching) this.send('development-terminals', { task: this.task.key, ...this.task.developmentTerminalsInfo() }); }
   scheduleState() { clearTimeout(this.stateTimer); this.stateTimer = setTimeout(() => this.pushState(), 30); }
   // A task of its tabs changed: its profiles (now: right away), or its agent's state (shown on its tab).
   changed(task: Task, now?: boolean, agentState?: boolean) {
     if (agentState) {
       if (task === this.task && this.win.isFocused()) task.see(); // done before the human's eyes: nothing to come and see
-      if (task === this.task) this.sendTerminals();
+      if (task === this.task) this.sendDevelopmentTerminals();
       return this.sendProjects();
     }
     if (task !== this.task) return task.loaded && task.list.saveTabs(); // not one being unloaded
@@ -227,10 +227,10 @@ class AppWindow {
     this.switching = false;
     // Not waited for: the human may first have to choose the agent (or switch away meanwhile). Its tabs come at once,
     // each starting, so the grid comes with them, not with the terminals' buttons.
-    const terminals = task.loadTerminals();
+    const developmentTerminals = task.loadDevelopmentTerminals();
     this.pushState();
     this.seen();
-    terminals.catch((e) => console.error('[agent]', e));
+    developmentTerminals.catch((e) => console.error('[agent]', e));
   }
   // The page takes the grid down; it gets the next task's state once its profiles are loaded. Left for another task
   // (next), the grid and its pages stay on screen until the next one is laid out, as a browser keeps a tab's page until
@@ -265,7 +265,7 @@ class AppWindow {
     this.send('tasks:closed', [task.key]);
   }
   // The human sees the shown task: an agent done there has nothing more to show (its ✓ says "come and see").
-  seen() { if (this.task?.see()) { this.sendTerminals(); this.sendProjects(); } }
+  seen() { if (this.task?.see()) { this.sendDevelopmentTerminals(); this.sendProjects(); } }
   // Whether a point on the screen is on it (a tab let go there: app.ts, dragOut).
   contains({ x, y }: Point) {
     if (this.win.isDestroyed() || this.win.isMinimized()) return false;

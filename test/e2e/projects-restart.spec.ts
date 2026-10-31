@@ -28,8 +28,8 @@ test("projects: another tab left in the background, with a terminal its agent ra
   await showProject(ui2, files, 'other');
   await expect.poll(() => core((k, id) => k.shell.current?.id === id && !!k.shell.task?.loaded, files.pid('other'))).toBe(true);
   const key = await core((k) => k.shell.task.key);
-  const terminals = () => core((k, t) => k.shell.taskByKey(t).terminalsInfo().list.map(({ name, by, command, agent }) => ({ name, by, command, agent: agent?.account ?? null })), key);
-  await expect.poll(terminals, { timeout: 10000 }).toEqual([{ name: 'bash', by: 'human', command: '', agent: 'custom' }, { name: 'dev server', by: 'agent', command: '', agent: null }]);
+  const developmentTerminals = () => core((k, t) => k.shell.taskByKey(t).developmentTerminalsInfo().list.map(({ name, by, command, agent }) => ({ name, by, command, agent: agent?.account ?? null })), key);
+  await expect.poll(developmentTerminals, { timeout: 10000 }).toEqual([{ name: 'bash', by: 'human', command: '', agent: 'custom' }, { name: 'dev server', by: 'agent', command: '', agent: null }]);
   await expect.poll(() => termTabs(ui2))
     .toEqual(['bash *', 'dev server']);
   await expect.poll(() => core((k, t) => { const task = k.shell.taskByKey(t), dev = task.terminal('dev server') as { pty?: unknown }; return !!dev.pty && !!task.promptTarget()?.pty; }, key)).toBe(true);
@@ -46,7 +46,7 @@ test('projects: one left in a window of its own comes back after a restart where
   const third = path.join(files.root, 'third');
   await openFolder(core, ui, third);
   const key = files.tkey('third', 1);
-  await invoke(ui, 'task:move', { key, terminals: {} });
+  await invoke(ui, 'task:move', { key, terminalContents: {} });
   await expect.poll(() => core((k, t) => k.shell.windows[1]?.current?.key === t && k.settled(false, k.shell.windows[1]), key)).toBe(true);
   // Smaller than the window's minimum (setBounds passes below it, the human's drag does not): it comes back at it.
   await core((k) => k.shell.windows[1].win.setBounds({ x: 40, y: 50, width: 10, height: 10 }));

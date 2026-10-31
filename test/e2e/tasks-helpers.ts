@@ -85,7 +85,7 @@ export async function newTask(core: Core, ui: Page, name?: string | null, projec
   const made = invoke(ui, 'task:new', { project: id });
   if (shares) await answer(ui, 'Create Anyway');
   await made;
-  await expect.poll(() => core((k, b) => { const t = k.shell.task; return !!t && t.key !== b && [...t.terminals.values()].some((x) => !!x.pty) && k.settled(); }, before), { timeout: 20000 }).toBe(true);
+  await expect.poll(() => core((k, b) => { const t = k.shell.task; return !!t && t.key !== b && [...t.developmentTerminals.values()].some((x) => !!x.pty) && k.settled(); }, before), { timeout: 20000 }).toBe(true);
   return core(async (k, n) => {
     const t = k.shell.task;
     if (n !== null) await t.rename(n ?? `task-${[...t.project.tasks.values()].indexOf(t) + 1}`);

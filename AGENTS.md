@@ -3,7 +3,7 @@
 Desktop app (Electron) where the AI agent the human chooses develops and tests web and command-line apps while the
 human watches or takes a break. The coding agent (Claude Code, Codex: the unchanged CLI) works in a development
 terminal and drives built-in **environments** through Kulisa's MCP server: signed-in browser profiles for web apps,
-application terminals for CLIs and TUIs. Each **profile** is an embedded browser identity (own cookies, storage, tabs)
+Stage terminals for CLIs and TUIs. Each **profile** is an embedded browser identity (own cookies, storage, tabs)
 shown as a pane; the human signs in by hand. Environments appear in the **stage**, a nested grid distinct from the
 agent's development panels. Tasks run several agents on one project at once. Point-and-tell (Pick, then click an
 element) puts a reference with a Playwright locator into the agent's prompt; the human writes the rest around it.
@@ -84,7 +84,7 @@ element) puts a reference with a Playwright locator into the agent's prompt; the
   must stay true (a version Kulisa requires, `>=`, is a constraint, not a record). The one
   exception, the terms here: the word earlier commits used, so that they can be read.
 - **Terminology: "environment"** for where the application under development runs and the human and agent interact
-  with it: browser profiles and application terminals. Not an agent's MCP tool, nor a promise of machine or credential
+  with it: browser profiles and Stage terminals. Not an agent's MCP tool, nor a promise of machine or credential
   isolation. **Stage** is the working name for their nested testing grid; development terminals and Resources stay
   in a separate development grid. Their behavior and lifecycle: `docs/window.md`, The grid.
 - **Terminology: "profile"**, the word Chrome uses, for one embedded browser identity (cookies, storage, tabs) and

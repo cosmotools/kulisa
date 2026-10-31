@@ -31,13 +31,13 @@ test('task migration preserves history, setup and stable links, removes legacy f
     assert.equal(d.development.list[0].conversation, id);
     assert.equal('terminal' in d.agents.conversations[0], false);
     assert.equal(f.task.profiles()[0].closed, true);
-    assert.equal(f.task.applications().next, 10);
-    for (const name of ['agent', 'terminals', 'profiles', 'applications', 'layout']) assert.equal(fs.existsSync(f.task.file(name+'.json')), false);
+    assert.equal(f.task.stageTerminals().next, 10);
+    for (const name of ['agent', 'development-terminals', 'profiles', 'stage-terminals', 'layout']) assert.equal(fs.existsSync(f.task.file(name+'.json')), false);
     f.task.saveProfiles([]);
-    assert.deepEqual(f.task.applications().list, d.stage.items.filter((i: { type: string }) => i.type === 'terminal').map(({ type: _type, ...config }: { type: string; [key: string]: unknown }) => config));
-    f.task.saveApplications({ next: 11, list: [] });
+    assert.deepEqual(f.task.stageTerminals().list, d.stage.items.filter((i: { type: string }) => i.type === 'terminal').map(({ type: _type, ...config }: { type: string; [key: string]: unknown }) => config));
+    f.task.saveStageTerminals({ next: 11, list: [] });
     assert.equal(f.task.agent().conversations[0].id, id);
-    f.task.saveTerminals({ front: null, list: [] });
+    f.task.saveDevelopmentTerminals({ front: null, list: [] });
     assert.equal(f.task.agent().conversations[0].terminal, undefined);
     assert.equal(f.task.agent().conversations[0].sessionId, 'resume');
     f.write('agent.json', { agent: 'stale' });
@@ -50,15 +50,15 @@ test('new and deliberately empty tasks remain distinct; stable references surviv
   const f = fixture();
   try {
     assert.equal(f.task.profiles(), null);
-    assert.equal(f.task.terminals(), null);
+    assert.equal(f.task.developmentTerminals(), null);
     f.task.saveProfiles([]);
     f.task.saveAgent({ conversations: [{ agent: 'a', from: 1 }, { agent: 'b', from: 2 }] });
-    f.task.saveTerminals({ front: 4, list: [{ id: 4, conversation: 0 }] });
+    f.task.saveDevelopmentTerminals({ front: 4, list: [{ id: 4, conversation: 0 }] });
     const a = f.task.agent(); a.conversations.reverse(); f.task.saveAgent(a);
-    assert.equal(f.task.terminals().list[0].conversation, 1);
-    f.task.saveTerminals({ front: null, list: [] });
+    assert.equal(f.task.developmentTerminals().list[0].conversation, 1);
+    f.task.saveDevelopmentTerminals({ front: null, list: [] });
     assert.deepEqual(f.task.profiles(), []);
-    assert.deepEqual(f.task.terminals(), { front: null, list: [] });
+    assert.deepEqual(f.task.developmentTerminals(), { front: null, list: [] });
   } finally { f.close(); }
 });
 
@@ -85,7 +85,7 @@ test('version 1 task documents upgrade flat Stage items without changing IDs, la
   const f = fixture();
   try {
     f.task.saveProfiles([{ id: 'browser', closed: true }]);
-    f.task.saveApplications({ next: 8, list: [{ id: 7, name: 'CLI', command: 'node cli.js', size: null }] });
+    f.task.saveStageTerminals({ next: 8, list: [{ id: 7, name: 'CLI', command: 'node cli.js', size: null }] });
     const current = f.read();
     const { profilesInitialized, items, ...stage } = current.stage;
     f.write('task.json', { ...current, version: 1, stage: { ...stage, initialized: profilesInitialized,

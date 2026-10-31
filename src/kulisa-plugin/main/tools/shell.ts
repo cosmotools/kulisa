@@ -2,7 +2,7 @@
 // it. How a tool is designed: ../../README.md, Tool design.
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { TERMINAL_LINES } from '../../../shared/application-terminal.ts';
+import { TERMINAL_LINES } from '../../../shared/stage-terminal.ts';
 import type { Handles } from './handles.ts';
 
 // What an agent can read back of a shell (shell_read; terminalTail in src/terminal/main): its last lines as the screen shows them, kept
@@ -26,7 +26,7 @@ function shellTools(server: McpServer, { task, text, done }: Handles) {
     inputSchema: { name: nameArg.optional(), lines: z.number().int().min(1).max(READ_MAX).optional().describe('Default 50') },
   }, async ({ name, lines }) => {
     if (!name) {
-      const list = task.terminalsInfo().list.filter((x) => !x.agent);
+      const list = task.developmentTerminalsInfo().list.filter((x) => !x.agent);
       return text(list.length ? list.map((x) => `"${x.name}" (${x.by === 'agent' ? "an agent's" : "the human's"})${x.command ? `: ${x.command}` : ''}`).join('\n') : 'No terminals open besides the agents\'.');
     }
     return text(done(task.readTerminal(name, lines)).text || '(nothing yet)');

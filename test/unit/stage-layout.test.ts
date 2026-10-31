@@ -55,3 +55,14 @@ test('a fixed Stage keeps development panels together and retains the saved Stag
     assert.equal(workspace.grid.root.data.length, 3);
   }
 });
+
+
+test('saved application pane IDs restore as Stage terminals without renaming user titles', () => {
+  const stage = { grid: { width: 800, height: 600, orientation: 'HORIZONTAL', root: { type: 'leaf', data: { id: 'g', views: ['application:7'], activeView: 'application:7' } } },
+    panels: { 'application:7': { id: 'application:7', contentComponent: 'application', tabComponent: 'application', title: 'application' } } };
+  const saved = { version: 3, workspace: { grid: { root: { type: 'branch', data: [] as unknown[] } }, panels: {} }, stage };
+  const result = splitLayout(saved);
+  assert.deepEqual(result.stage.panels['stage-terminal:7'], { id: 'stage-terminal:7', contentComponent: 'stage-terminal', tabComponent: 'stage-terminal', title: 'application' });
+  assert.deepEqual(result.stage.grid.root.data, { id: 'g', views: ['stage-terminal:7'], activeView: 'stage-terminal:7' });
+  assert.equal(saved.stage.panels['application:7'].id, 'application:7');
+});

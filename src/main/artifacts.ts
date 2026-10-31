@@ -30,13 +30,13 @@ async function prune(dir: string, limit: number, keep: string) {
 }
 
 // The folder's files, the newest first: whose and what each is from its name (saveArtifact's
-// <n>-<profile>-<tab>-<kind>.<ext>, or <n>-application-<id>-terminal.txt), when and its size from the file.
+// <n>-<profile>-<tab>-<kind>.<ext>, or <n>-terminal-<id>-terminal.txt), when and its size from the file.
 async function listArtifacts(dir: string) {
   return (await folderUsage(dir)).entries.flatMap((e) => {
     const m = /^\d+-([^-]+)-([^-]+)-(\w+)\.\w+$/.exec(e.name);
     if (!m) return [];
-    const source: EnvironmentSource = m[1] === 'application' && m[3] === 'terminal'
-      ? { kind: 'application', id: Number(m[2]) } : { kind: 'profile', id: m[1]!, tab: m[2]! };
+    const source: EnvironmentSource = (m[1] === 'application' || m[1] === 'terminal') && m[3] === 'terminal'
+      ? { kind: 'stage-terminal', id: Number(m[2]) } : { kind: 'profile', id: m[1]!, tab: m[2]! };
     return [{ file: path.join(dir, e.name), source, kind: m[3]!, time: e.time, bytes: e.bytes }];
   }).sort((a, b) => numberOf(path.basename(b.file)) - numberOf(path.basename(a.file)));
 }

@@ -1,17 +1,17 @@
 // Testing environments in an independent Dockview instance (docs/window.md, The grid).
 import { useEffect, useRef, useState } from 'react';
 import { DockviewReact, type DockviewApi } from 'dockview-react';
-import { ApplicationPane, ApplicationHeader } from './ApplicationPane';
+import { StageTerminalPane, StageTerminalHeader } from './StageTerminalPane';
 import { ProfilePane, ProfileHeader } from './ProfilePane';
 import { stageMounted, stageUnmounted, scheduleLayout, pauseStageFollowing } from '../../lib/grid';
 import { useWindow } from '../../lib/store';
 import { environmentMinimum } from '../../../shared/stage-layout';
 import { dockTheme } from '../../lib/dock-theme';
 
-const components = { profile: ProfilePane, application: ApplicationPane };
-const tabComponents = { profile: ProfileHeader, application: ApplicationHeader };
+const components = { profile: ProfilePane, 'stage-terminal': StageTerminalPane };
+const tabComponents = { profile: ProfileHeader, 'stage-terminal': StageTerminalHeader };
 export function Stage() {
-  const mode = useWindow((s) => s.stageLayout), overflow = useWindow((s) => s.stageOverflow), count = useWindow((s) => s.profiles.length + s.applications.length);
+  const mode = useWindow((s) => s.stageLayout), overflow = useWindow((s) => s.stageOverflow), count = useWindow((s) => s.profiles.length + s.stageTerminals.length);
   const [maximized, setMaximized] = useState(false);
   const scrolling = overflow && mode !== 'tabs' && !maximized;
   const viewport = useRef<HTMLDivElement>(null), [size, setSize] = useState({ width: 0, height: 0 });

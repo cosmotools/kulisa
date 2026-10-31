@@ -2,8 +2,8 @@
 import { Orientation } from 'dockview-react';
 import type { DockviewApi, SerializedDockview, GridviewApi } from 'dockview-react';
 import type { PageLayout } from '../../shared/ipc';
-import type { Profile, Terminals } from '../../shared/types';
-import type { ApplicationTerminal } from '../../shared/application-terminal';
+import type { Profile, DevelopmentTerminalsState } from '../../shared/types';
+import type { StageTerminal } from '../../shared/stage-terminal';
 import { act, setCaption, store } from './store';
 import { forgetFrozen, freeze, showViews, unfreeze } from './views';
 import { closeLayers } from './cover';
@@ -20,7 +20,7 @@ let pendingStage: SerializedDockview | null = null;
 let workspace: GridviewApi | null = null;
 let stageShare = 0.65;
 let replacing = false, building = false, rebuilding: Promise<void> | null = null;
-let nextTerminals: Terminals | null = null, nextApplications: ApplicationTerminal[] | null = null;
+let nextDevelopmentTerminals: DevelopmentTerminalsState | null = null, nextStageTerminals: StageTerminal[] | null = null;
 let saveTimer = 0, save: (() => void) | null = null;
 
 function changed() {
@@ -86,8 +86,8 @@ kulisa.on('state', async (s) => {
 async function replaceGrid(s: Profile[]) {
   const a = await apiReady.promise, saved = await act('layout:load');
   building = true; removeStage(); a.clear();
-  store.setState({ profiles: s, applications: nextApplications ?? [], pictures: {}, captions: {}, picking: {}, ...(nextTerminals && { terminals: nextTerminals }) });
-  nextTerminals = nextApplications = null;
+  store.setState({ profiles: s, stageTerminals: nextStageTerminals ?? [], pictures: {}, captions: {}, picking: {}, ...(nextDevelopmentTerminals && { developmentTerminals: nextDevelopmentTerminals }) });
+  nextDevelopmentTerminals = nextStageTerminals = null;
   buildGrid(a, saved); building = false; gridReady = Promise.resolve(); scheduleLayout(); reveal();
 }
 function reveal() {
@@ -113,11 +113,11 @@ function sendLayout() {
   }
   kulisa.send('layout', { task: store.getState().current, rects });
 }
-const environmentIds = () => [...store.getState().profiles.map((p) => panelId(p.id)), ...store.getState().applications.map((a) => `application:${a.id}`)];
+const environmentIds = () => [...store.getState().profiles.map((p) => panelId(p.id)), ...store.getState().stageTerminals.map((a) => `stage-terminal:${a.id}`)];
 function addEnvironment(id: string, reference?: string, direction: 'right' | 'below' | 'within' = 'right', inactive = false) {
   const profile = id.startsWith('profile:');
-  stage!.addPanel({ id, component: profile ? 'profile' : 'application', tabComponent: profile ? 'profile' : 'application',
-    title: profile ? store.getState().profiles.find((p) => panelId(p.id) === id)?.name : store.getState().applications.find((a) => `application:${a.id}` === id)?.name,
+  stage!.addPanel({ id, component: profile ? 'profile' : 'stage-terminal', tabComponent: profile ? 'profile' : 'stage-terminal',
+    title: profile ? store.getState().profiles.find((p) => panelId(p.id) === id)?.name : store.getState().stageTerminals.find((a) => `stage-terminal:${a.id}` === id)?.name,
     ...(!profile && { renderer: 'always' as const }), ...(reference && { position: { referencePanel: reference, direction } }), inactive });
 }
 function constrainStage(mode = store.getState().stageLayout, overflow = store.getState().stageOverflow) {
@@ -265,23 +265,23 @@ export const stageApi = () => stage;
 
 kulisa.on('grid:closing', (next) => {
   clearTimeout(activityTimer); cancelAnimationFrame(followFrame); lastEnvironment = null;
-  store.setState({ stageActivity: null, stageFollowPaused: false, applicationFocus: null });
+  store.setState({ stageActivity: null, stageFollowPaused: false, stageTerminalFocus: null });
   void closeLayers(); forgetFrozen(); clearTimeout(saveTimer); save?.();
   if (next) { replacing = true; return; }
-  replacing = false; nextTerminals = nextApplications = null;
+  replacing = false; nextDevelopmentTerminals = nextStageTerminals = null;
   store.setState({ loading: true }); removeStage(); api?.clear();
-  store.setState({ profiles: [], applications: [], pictures: {}, captions: {}, picking: {}, terminals: { front: null, list: [] } });
+  store.setState({ profiles: [], stageTerminals: [], pictures: {}, captions: {}, picking: {}, developmentTerminals: { front: null, list: [] } });
   gridReady = null;
 });
 kulisa.on('tasks:closed', forgetTerminals);
-kulisa.on('terminals', (t) => {
+kulisa.on('development-terminals', (t) => {
   if (t.task !== store.getState().current) return;
-  if (replacing || rebuilding) nextTerminals = t; else store.setState({ terminals: t });
+  if (replacing || rebuilding) nextDevelopmentTerminals = t; else store.setState({ developmentTerminals: t });
 });
-kulisa.on('applications', (t) => {
+kulisa.on('stage-terminals', (t) => {
   if (t.task !== store.getState().current) return;
-  if (replacing || rebuilding) nextApplications = t.list;
-  else { store.setState({ applications: t.list }); if (gridReady) void gridReady.then(syncGrid); }
+  if (replacing || rebuilding) nextStageTerminals = t.list;
+  else { store.setState({ stageTerminals: t.list }); if (gridReady) void gridReady.then(syncGrid); }
 });
 kulisa.on('terminals:gone', forgetTerminals);
 export const showPane = (id: string) => { stage?.getPanel(panelId(id))?.api.setActive(); };

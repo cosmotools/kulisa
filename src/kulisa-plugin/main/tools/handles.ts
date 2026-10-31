@@ -4,13 +4,13 @@ import { z } from 'zod';
 import vm from 'vm';
 import { refused, type Result } from '../../../shared/result.ts';
 import type { Locator, Page } from 'playwright-core';
-import type { TaskAccess as Task, TerminalAccess as TaskTerminal } from '../core.ts';
+import type { TaskAccess as Task, DevelopmentTerminalAccess as DevelopmentTerminal } from '../core.ts';
 import type { TabAccess as Tab } from '../core.ts';
 
 type Element = { ref?: string; locator?: string };
 
 // task: the task (tasks.ts) whose profiles the tools act on; t: the agent's terminal, when it came by its own URL.
-function handles(task: Task, t: TaskTerminal | null) {
+function handles(task: Task, t: DevelopmentTerminal | null) {
   // Profiles can be created while the agent runs, so this is a string checked at call time, not an enum.
   const closed = [...task.closed.values()].map(({ cfg }) => `${cfg.name} (closed)`);
   const profileArg = z.string().describe(`The profile's name. Current: ${[...[...task.profiles.values()].map((p) => p.name), ...closed].join(', ') || 'none yet'}; call profile_list for the live list`);

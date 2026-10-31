@@ -189,7 +189,7 @@ repositories (git worktrees), so the project's folders stay the human's. Its dat
 ## Tasks
 
 A **task** (AGENTS.md, Terminology) is one line of work in a project: its own copy of the code on a branch, browser
-profiles and application terminal environments in a testing stage, development panels and agents in terminals, so
+profiles and Stage terminal environments in a testing stage, development panels and agents in terminals, so
 several agents build several features of one project at once.
 
 - **Always a copy.** With git (and a first commit), a task's work is in a git worktree of the default repository on a
@@ -273,8 +273,8 @@ The panel shows the resources as `tasks.json` keeps them, the first where it wor
 task's folder, branch and folder of copies are worked out from them, never kept twice. Ownership decides the actions
 and the cleanup: the main working tree is the human's, never removed; a worktree the task made goes with the task.
 
-Application terminal environments belong to the task (`Task.applications`): their actions and UI are described in
-[window.md](window.md), Application terminals. Browser environments retain their own lifecycle in `ProjectProfiles`.
+Stage terminal environments belong to the task (`Task.stageTerminals`): their actions and UI are described in
+[window.md](window.md), Stage terminals. Browser environments retain their own lifecycle in `ProjectProfiles`.
 
 ## What the human does
 
@@ -436,7 +436,7 @@ next to Codex, two accounts of one, or the same agent twice ([window.md](window.
 **+** (the project's accounts, the default first) opens always a **new conversation**. Each sees the task's code and
 profiles.
 
-- **One kind of terminal.** A task's terminals are one list (`Task.terminals`): each the user's shell in the task's
+- **One kind of terminal.** A task's terminals are one list (`Task.developmentTerminals`): each the user's shell in the task's
   folder, an agent started in it or not. An agent's has its conversation (a stable ID in the task's `task.json`: its
   account, its session as its hooks report it, when, its name, its terminal); a shell has its name and the command
   typed in.
@@ -598,7 +598,7 @@ projects/<project id>/            a project's data, by its id (projects.json), g
                                   buffers stay in memory. File and owned environment data go with the task/project.
     artifacts/                    what the human or agent keep of its environments: a snapshot
                                   or a body too large for an answer, a screenshot; <n>-<profile id>-<tab id>-<kind>, n in
-                                  the order made; application terminal text: <n>-application-<id>-terminal.txt; never replaced,
+                                  the order made; Stage terminal text: <n>-application-<id>-terminal.txt; never replaced,
                                   past 100 MB the oldest go; kept with the task
     <id>/                         its copy of a master, named by the profile's id, made at its first open here: a Chromium profile
                                   (session.fromPath), with Kulisa's own files in it:
@@ -759,7 +759,7 @@ rm -rf ~/.config/Kulisa/projects/<project id>   # all its tasks with their profi
 | `src/main/window.ts` | a window: its tabs (tasks), show one, the grid's state, its questions |
 | `src/main/projects.ts` | a loaded project: its tasks; making, closing, opening again, deleting one (with the question); making a project (`createProject`), deleting a project's data |
 | `src/main/tasks.ts` | a task: its profiles, its terminals and agents (open, hand over, close, environment), naming, its worktree on demand and resources, its artifacts (what they take, deleting them), copies of its profiles for a new task |
-| `src/main/application-terminals.ts` | the task’s application terminal setup and process lifecycle, shared actions for the window and MCP |
+| `src/main/stage-terminals.ts` | the task’s Stage terminal setup and process lifecycle, shared actions for the window and MCP |
 | `src/main/worktrees.ts` | git: a task's worktree and branch, files outside git, direnv, changes, renaming the branch, removal |
 | `src/kulisa-plugin/` | agent integration ([README](../src/kulisa-plugin/README.md)) |
 | `src/main/store.ts` | the data folder above |

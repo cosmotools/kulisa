@@ -17,9 +17,9 @@ export interface Profile {
 // A closed one (window.ts, pushState): tabs is how many it had.
 export interface ClosedProfile { id: string; name: string; avatar: string; description: string | null; tabs: number }
 export type AgentState = 'working' | 'waiting' | 'done' | null;
-// A tab of the task's terminals' panel (Task.terminalsInfo): a shell (the human's, or what the agent runs: by, its command) or an
+// A tab of the task's terminals' panel (Task.developmentTerminalsInfo): a shell (the human's, or what the agent runs: by, its command) or an
 // agent (its account; cli: its agent, for its icon), with its state.
-export interface Terminal {
+export interface DevelopmentTerminalInfo {
   id: number; name: string; command: string; by: 'human' | 'agent'; state: AgentState;
   agent: { account: string; cli: string; name: string } | null;
   starting: boolean; // its program not started yet (an agent's looked for): a loader in its place
@@ -27,7 +27,7 @@ export interface Terminal {
 // The terminals: their tabs in order, the one in front (none: no terminal, the terminals folded to their +).
 // Kulisa's language (☰ → Language): the codes the agents' own settings take, and which agents have one.
 export interface LanguageInfo { language: string; languages: string[]; agents: { name: string; has: boolean }[] }
-export interface Terminals { task?: string; front: number | null; list: Terminal[] }
+export interface DevelopmentTerminalsState { task?: string; front: number | null; list: DevelopmentTerminalInfo[] }
 // Something the task has, uses or created, a row in the Resources panel (Resources.tsx): a repository's worktree, or
 // the main working tree it works in before it makes one. More kinds come over time (the app's URL, a pull request).
 export interface TaskResource {
@@ -38,7 +38,7 @@ export interface TaskResource {
   removable: boolean; // an added repository's worktree (task_remove_repository); not the task's own or the main tree
 }
 // An environment in the task’s Stage, naming a browser tab when relevant.
-export type EnvironmentSource = { kind: 'profile'; id: string; tab: string } | { kind: 'application'; id: number };
+export type EnvironmentSource = { kind: 'profile'; id: string; tab: string } | { kind: 'stage-terminal'; id: number };
 // A file the human or agent kept of an environment, as Resources lists it.
 export interface Artifact {
   file: string;
