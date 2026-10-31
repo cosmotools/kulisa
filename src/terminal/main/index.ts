@@ -23,7 +23,7 @@ interface TerminalConfig {
   shell?: { command: string; args?: string[] } | false | null; line?: string; execute?: string; size?: Size | null; sizeOf?: string;
   pinned?: Record<string, string>; screen?: number;
 }
-type Send = (channel: 'pty:out', data: TerminalEvents['pty:out']) => void;
+type TerminalOutput = (channel: 'pty:out', data: TerminalEvents['pty:out']) => void;
 interface Term { pty: Pty | null; size: Size | null; firstSize: Promise<void>; sized: () => void; sizeOf?: string; fixed?: Size | null }
 
 // The terminal's size as the window measures it, per terminal and per task (its panel's, which all its terminals
@@ -92,7 +92,7 @@ function programPath(name: string, env: Record<string, string | undefined> = pro
 // start at it rather than wait for the window's; sizeOf: or at that key's (the task's terminals' panel: a terminal behind another
 // tab has none of its own), whichever comes first. screen: its last lines kept for the agent to read (a shell's). key: the terminal's; the window sends its input and size, and gets
 // its output, under it. send(channel, data): to the task's window, whichever it is then.
-async function startTerminal(send: Send, cfg: TerminalConfig, key: string): Promise<Pty> {
+async function startTerminal(send: TerminalOutput, cfg: TerminalConfig, key: string): Promise<Pty> {
   const t = termOf(key), like = cfg.sizeOf ? termOf(cfg.sizeOf) : null;
   t.sizeOf = cfg.sizeOf;
   if (t.size && like) { like.size = t.size; like.sized(); }
@@ -249,7 +249,7 @@ async function sendToPrompt(p: Pty, text: string, confirm?: string) {
   if (asked && await asked) p.write('\r');
 }
 
-export type { Pty };
+export type { Pty, TerminalConfig, TerminalOutput };
 export { startTerminal, stopTerminal, stopAllTerminals, forgetTerminal, terminalTail, typeIntoPrompt, eraseInPrompt, sendToPrompt, interrupt, typeLine, onEscape, terminalScreen, setTerminalSize, pressTerminalKey, pasteTerminal };
 
 export { quotePaths } from './shell-quote.ts';

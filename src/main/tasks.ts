@@ -79,7 +79,14 @@ class Task {
     this.store = shell.store.taskOf(project, this.id);
     this.loaded = false; this.terminalsLoaded = false; this.gitChecked = Promise.resolve(); this._copying = Promise.resolve();
     this.terminals = new Map(); this.terminalSeq = 0; // its terminals, by id, in their tabs' order
-    this.applications = new ApplicationTerminals(this);
+    this.applications = new ApplicationTerminals({
+      key: this.key, saved: this.store.applications(), isOpen: () => this.loaded,
+      launchContext: () => ({ cwd: this.folder, env: this.env() }),
+      save: (value) => this.store.saveApplications(value),
+      changed: (list) => { if (this.shown()) this.window?.send('applications', { task: this.key, list }); },
+      output: (channel, data) => this.window?.send(channel, data),
+      forget: (key) => this.window?.send('terminals:gone', [key]),
+    });
     this.front = null; this.lastAgent = null;
     this.list = new ProjectProfiles(this.store, shell.profileStore, project.id, this._profileHooks());
     this.profiles = this.list.profiles; this.closed = this.list.closed;

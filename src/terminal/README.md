@@ -148,6 +148,17 @@ main-process parser retains screen text and modes for reads and input encoding; 
 terminal's buffer, including wrapped lines and scrollback. `clearSearch()` removes its selection. Resize and parsed output refresh an open search; `onSearchResult` reports whether it matches. The window owns
 the search controls and their keyboard shortcuts; no extra output buffer is kept.
 
+## Callers and ownership
+
+Development terminals and Stage terminals use the same `startTerminal`, input, screen, sizing and cleanup APIs.
+`TerminalConfig` describes launch options; `TerminalOutput` delivers output to the caller’s current window. Neither
+contains task, agent or Stage types. The caller owns persistence, terminal keys and when to stop or forget a session.
+
+`main/tasks.ts` owns development terminals and agent conversations. `main/application-terminals.ts` owns Stage
+launch setup and run state through an explicit host contract; `Task` supplies current folder/environment, saved
+setup and window notifications. Their rules stay outside this Kulisa package. Window components own layouts,
+menus and search controls; the package owns terminal rendering and matching.
+
 ## The code
 
 | File | What |

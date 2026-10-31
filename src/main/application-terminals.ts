@@ -1,21 +1,32 @@
 // The task's application terminal environments: saved launch setup, explicit processes, shared human/agent actions.
 import { startTerminal, stopTerminal, forgetTerminal, terminalScreen, setTerminalSize, pressTerminalKey, pasteTerminal } from '../terminal/main/index.ts';
-import type { Pty } from '../terminal/main/index.ts';
+import type { Pty, TerminalConfig, TerminalOutput } from '../terminal/main/index.ts';
 import { TERMINAL_LINES, validTerminalSize } from '../shared/application-terminal.ts';
 import type { ApplicationConfig, ApplicationKey, ApplicationTerminal, ApplicationScreen, TerminalSize } from '../shared/application-terminal.ts';
 import type { Result } from '../shared/result.ts';
 import { labelError } from '../shared/names.ts';
 import { log } from './log.ts';
-import type { Task } from './tasks.ts';
+
+interface SavedApplications { next: number; list: ApplicationConfig[] }
+export interface ApplicationTerminalHost {
+  key: string;
+  saved: SavedApplications;
+  isOpen(): boolean;
+  launchContext(): Pick<TerminalConfig, 'cwd' | 'env'>;
+  save(value: SavedApplications): void;
+  changed(list: ApplicationTerminal[]): void;
+  output: TerminalOutput;
+  forget(key: string): void;
+}
 
 type Application = ApplicationTerminal & { pty?: Pty; pending?: Promise<Result<ApplicationTerminal>> };
 export class ApplicationTerminals {
   private list = new Map<number, Application>();
   private seq = 0;
-  private task: Task;
-  constructor(task: Task) {
-    this.task = task;
-    const saved = task.store.applications();
+  private host: ApplicationTerminalHost;
+  constructor(host: ApplicationTerminalHost) {
+    this.host = host;
+    const saved = host.saved;
     this.seq = saved.next - 1;
     for (const c of saved.list) {
       if (!c || !Number.isSafeInteger(c.id) || c.id < 1 || labelError(c.name) || typeof c.command !== 'string' || c.command.length > 8192 || c.size && !validTerminalSize(c.size)) continue;
@@ -25,19 +36,19 @@ export class ApplicationTerminals {
     }
   }
   private make(c: ApplicationConfig): Application {
-    return { ...c, size: c.size || null, key: `${this.task.key}#app-${c.id}`, status: 'stopped', exitCode: null, session: null };
+    return { ...c, size: c.size || null, key: `${this.host.key}#app-${c.id}`, status: 'stopped', exitCode: null, session: null };
   }
   info(): ApplicationTerminal[] { return [...this.list.values()].map(({ id, name, command, size, key, status, exitCode, session, launchError }) => ({ id, name, command, size, key, status, exitCode, session, ...(launchError ? { launchError } : {}) })); }
   private changed(save = false) {
-    if (save) this.task.store.saveApplications({ next: this.seq + 1, list: this.info().map(({ id, name, command, size }) => ({ id, name, command, size })) });
-    if (this.task.shown()) this.task.window?.send('applications', { task: this.task.key, list: this.info() });
+    if (save) this.host.save({ next: this.seq + 1, list: this.info().map(({ id, name, command, size }) => ({ id, name, command, size })) });
+    this.host.changed(this.info());
   }
   private find(which: number | string): Application | { error: string } {
     const app = typeof which === 'number' ? this.list.get(which) : [...this.list.values()].find((a) => a.name.toLowerCase() === which.trim().toLowerCase());
     return app || { error: `No application terminal "${which}". Open: ${this.info().map((a) => a.name).join(', ') || 'none'}. Run a command in a named terminal first.` };
   }
   private create(name?: string, command = '', size: TerminalSize | null = null): Result<ApplicationTerminal> {
-    if (!this.task.loaded) return { error: 'The task is not open.' };
+    if (!this.host.isOpen()) return { error: 'The task is not open.' };
     name = name?.trim();
     if (!name) for (let n = 1; !name; n++) { const candidate = `Application ${n}`; if ('error' in this.find(candidate)) name = candidate; }
     const bad = labelError(name);
@@ -77,12 +88,12 @@ export class ApplicationTerminals {
   }
   private async start(which: number, shellOnly = false): Promise<Result<ApplicationTerminal>> {
     const a = this.find(which); if ('error' in a) return a;
-    if (!this.task.loaded) return { error: 'The task is not open.' };
+    if (!this.host.isOpen()) return { error: 'The task is not open.' };
     if (a.status === 'running' || a.pending) return { error: 'The application is running or starting. Stop or restart it first.' };
     // A fresh buffer per run; an exited program's final screen remains readable until the next run.
     if (a.pty) stopTerminal(a.pty);
     a.pty = undefined;
-    this.task.window?.send('terminals:gone', [a.key]);
+    this.host.forget(a.key);
     const command = shellOnly ? '' : a.command;
     a.session = command.trim() ? 'app' : 'shell';
     a.status = 'starting'; a.exitCode = null; delete a.launchError;
@@ -95,9 +106,9 @@ export class ApplicationTerminals {
   private async launch(a: Application, command: string): Promise<Result<ApplicationTerminal>> {
     try {
       setTerminalSize(a.key, a.size);
-      const p = await startTerminal((channel, data) => this.task.window?.send(channel, data),
-        { execute: command.trim() ? command : undefined, cwd: this.task.folder, env: this.task.env(), size: a.size || { cols: 80, rows: 24 }, screen: TERMINAL_LINES }, a.key);
-      if (this.list.get(a.id) !== a || a.status !== 'starting' || !this.task.loaded) { stopTerminal(p); return { error: 'The application was stopped or closed while starting.' }; }
+      const p = await startTerminal(this.host.output,
+        { ...this.host.launchContext(), execute: command.trim() ? command : undefined, size: a.size || { cols: 80, rows: 24 }, screen: TERMINAL_LINES }, a.key);
+      if (this.list.get(a.id) !== a || a.status !== 'starting' || !this.host.isOpen()) { stopTerminal(p); return { error: 'The application was stopped or closed while starting.' }; }
       a.pty = p;
       p.onExit(({ exitCode }) => {
         if (a.pty !== p || p.stopped) return;
@@ -105,7 +116,7 @@ export class ApplicationTerminals {
         this.changed();
       });
       await p.typed;
-      if (a.pty !== p || p.stopped || !this.task.loaded) return { error: 'The application was stopped or closed while starting.' };
+      if (a.pty !== p || p.stopped || !this.host.isOpen()) return { error: 'The application was stopped or closed while starting.' };
       if (a.status === 'starting') a.status = 'running';
       log.info(`[application] ${a.key} started`);
       this.changed();
@@ -128,7 +139,7 @@ export class ApplicationTerminals {
     return this.snapshot(a);
   }
   async run(which: number | string, command?: string, size?: TerminalSize | null): Promise<Result<ApplicationTerminal>> {
-    if (!this.task.loaded) return { error: 'The task is not open.' };
+    if (!this.host.isOpen()) return { error: 'The task is not open.' };
     const found = this.find(which);
     if ('error' in found && typeof which === 'number') return found;
     if (command !== undefined && !command.trim()) return { error: 'Supply a command to run.' };
@@ -145,7 +156,7 @@ export class ApplicationTerminals {
     this.stop(a.id);
     if (a.pty) stopTerminal(a.pty);
     a.pty = undefined; this.list.delete(a.id); forgetTerminal(a.key);
-    this.task.window?.send('terminals:gone', [a.key]);
+    this.host.forget(a.key);
     log.info(`[application] ${a.key} closed`);
     this.changed(true);
     return { id: a.id };

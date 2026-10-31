@@ -111,6 +111,9 @@ the terminal fills the pane below it. Opening a terminal starts the user’s she
 A blank launch command starts a shell; a supplied command runs as the application session and keeps its final screen on exit. **Settings…** in the menu opens `ApplicationSettings.tsx` for the saved name,
 command and dimensions; empty dimensions fit the pane.
 The task’s `ApplicationTerminals` actions (`main/application-terminals.ts`) serve the window and agent.
+Its host contract supplies a terminal key, saved setup, availability, current launch context, persistence and window
+notifications. `Task` wires these callbacks; dependency rules forbid the controller from importing task, window or
+store types. Agent conversations and accounts stay in `Task`; Stage layout, menus and focus stay in the window.
 `terminal_run(name, command, size?)` creates a Stage terminal or reruns the supplied command in that named terminal;
 validation precedes stopping the previous process. The agent builds the app and chooses its command.
 `terminal_read`, `terminal_input`, `terminal_resize`, `terminal_stop` and `terminal_close` provide the interactive bridge.

@@ -56,6 +56,9 @@ const config: IConfiguration = {
       from: { path: '^src/renderer/' }, to: { preCompilationOnly: false, path: '^src/(main|preload)/' } },
     { name: 'main-not-page', severity: 'error', comment: 'The main process takes only types of the window\'s page.',
       from: { path: '^src/main/' }, to: { preCompilationOnly: false, path: '^src/renderer/' } },
+    { name: 'application-terminal-host', severity: 'error', comment: 'Stage terminal lifecycle uses an explicit host contract; it imports no task, window or store, including their types.',
+      from: { path: '^src/main/application-terminals\\.ts$' },
+      to: { path: '^src/main/', pathNot: '^src/main/log\\.ts$' } },
     ...Object.entries(packages).flatMap(([name, p]) => packageRules(name, p)),
     // src/ui, shadcn's components as its CLI makes them (src/ui/README.md): reached through its entry, using nothing of Kulisa.
     { name: 'ui-entry', severity: 'error', comment: 'src/ui is reached from outside through its index.ts only.',
