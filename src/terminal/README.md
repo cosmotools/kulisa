@@ -2,12 +2,15 @@
 
 A terminal as Kulisa has it, the same wherever it is shown: a pty running the user's shell (an agent typed into it, a
 command, or nothing), its output kept in the window, and an xterm that shows it. A Kulisa package
-([docs/packages.md](../../docs/packages.md)), used by the task's terminals' panel (`components/grid/Terminals.tsx`,
-`lib/terminals.ts`: its tabs, its agents' launchers and menus; docs/window.md, The terminal), an account's sign-in
+([docs/packages.md](../../docs/packages.md)), used by the task's terminals' panel (`components/grid/DevelopmentTerminals.tsx`,
+`lib/development-terminals.ts`: its tabs, its agents' launchers and menus; docs/window.md, The terminal), an account's sign-in
 (`components/SignIn.tsx` through `components/Terminal.tsx`: Settings' and New Project's) and the task's agents
 (`tasks.ts`: which agent, its conversation, what is typed to it). It knows nothing of them, nor of the window's look: a
 terminal is a key, `<task key>#<id>` for a task's, any string for a sign-in's; its colors and font size are the
 caller's.
+
+Stage terminal environments use the same runtime (`main/stage-terminals.ts`; docs/window.md, Stage
+terminals), with their own Views and saved sizes. Their task-level lifecycle and commands stay outside this package.
 
 ## The main process (`main/`)
 
@@ -26,13 +29,23 @@ caller's.
   program's runtime reads its command line back, one with a space in quotes of its own (left to PowerShell, 5.1 and 7
   differ on the backslashes before the quote they add); the command in PowerShell's `'…'` alone. A program is
   found by name as Windows' shells find it (`PATHEXT`: `claude` may be a `.cmd`), which node-pty does not do.
-- **At its real size.** It starts only once the window has sent its size (`pty:resize`), or its panel's (`sizeOf`: a
+- **Windows uses node-pty's bundled ConPTY**, which forwards device and color queries to xterm; the system's
+  ConPTY consumes queries before Kulisa can answer them.
+- **An executable command line** (`execute`) is typed after the user's shell reads its first prompt, so
+  prompt hooks such as direnv apply; the shell exits with the application's status after the command.
+  Its caller owns stopped/running/exited state.
+  `pressTerminalKey` encodes named keys according to terminal modes; `pasteTerminal` respects bracketed paste.
+  `setTerminalSize` locks a session to a requested size or releases it to its View; `terminalScreen` flushes the
+  parser (bounded to a second) and reads the current screen or tail. `sizeOf` is an explicit shared-size key:
+  independent sessions never overwrite the size another place starts at.
+- **At its real size.** Without an explicit size, it starts once the window has sent its size (`pty:resize`), or its panel's (`sizeOf`: a
   terminal behind another tab has none of its own), however long that takes: an agent draws its prompt for the size
   it starts with and does not fully redraw on the first resize.
 - **What the agent reads of a shell.** It keeps a shell's screen, in memory: a terminal without a window
-  (`@xterm/headless`, xterm's own parser), its last `screen` lines (the MCP server's `READ_MAX`, 500), so what a program
+  (`@xterm/headless`, xterm's own parser), its last `screen` lines (the shared `TERMINAL_LINES` default in `ipc.ts` bounds shell and Stage reads),
+  with Unicode 11 widths matching the visible View, so what a program
   redraws in place (a progress, a container's state) is read as it became, not as every frame it went through. About
-  1 MB a shell at 200 columns; an agent's terminal keeps none (`terminal_read` does not read it). `terminalTail` gives its last lines.
+  1 MB a shell at 200 columns; an agent's terminal keeps none (`shell_read` does not read it). `terminalTail` gives its last lines.
 - **Typing to an agent.** `typeIntoPrompt` pastes text into its prompt (bracketed: nothing in it is taken as a key),
   not sent; `eraseInPrompt` deletes the last characters before the cursor, as Backspace (the dictation's words
   corrected as they are heard); `sendToPrompt` sends a line as the human would, once its command was typed, and answers
@@ -42,15 +55,20 @@ caller's.
   agent's command waits at the start): Windows' console drops the input that comes before.
 - **Esc typed by the human** reaches whoever asked (`onEscape`, with the terminal's key): what it means is theirs (an
   agent's turn ended: `Task.interrupted`, docs/tasks.md). Nothing outside listens to `pty:in` itself.
-- `stopTerminal` ends it (its output reaches no window after); `forgetTerminal` drops its size once it is gone.
+- `stopTerminal` ends a live process once (ConPTY handles cannot be killed twice); `keepScreen` retains its headless screen for the caller
+  to read, disposed by a later stop without that option; `forgetTerminal` drops its size once it is gone.
   `stopAllTerminals`, as Kulisa quits: every one, their processes waited for (3 s at most; on Windows node-pty ends a
   ConPTY on threads of its own, and an app exiting before may end with an uncaught C++ exception).
 
 ## The window (`renderer/`)
 
+`termFocus(key, wanted?)` waits for the bundled font and checks the caller’s optional predicate before focusing;
+an asynchronous launch can cancel its request when the human puts the keyboard elsewhere.
+
 **One xterm a place**: every terminal's output goes into a buffer of its own, an xterm never opened (its text,
 scrollback and modes, no renderer: about 0.6 MB full), and each place that shows a terminal, the terminals' panel and an
-account's sign-in, has one shown xterm (`View`), the only one with a renderer. Showing another terminal there writes
+account's sign-in and each Stage terminal, has one shown xterm (`View`) with a WebGL renderer, falling back to DOM
+when WebGL is unavailable or its context is lost. A View fits its pane or uses fixed dimensions (`setSize`). Showing another terminal there writes
 that one's buffer into it (`serialize`, after a reset, RIS, in the same write: xterm parses a write at once, so the
 one shown before stays drawn until the other's is in, no frame empty between), its scroll put back, in about 15 ms; its
 selection is lost, as when another tab is shown. While shown, a terminal's output goes into both, at one size, so leaving it costs
@@ -115,11 +133,33 @@ hover. A file an agent marks as a link (OSC 8) goes to `openFile` too: Claude Co
 `file://` address. xterm drops an OSC 8 link that is not `http(s)` unless `allowNonHttpProtocols` is set, so it is, and
 `termLinks.activate` keeps only those two and paths (`javascript:` and the like go nowhere).
 
+**One protocol responder per terminal.** Its unopened renderer buffer answers xterm's device, status and color
+queries even for a hidden task; each visible View consumes those queries through xterm's parser hooks so replies are
+not doubled. `termHooks.colors` supplies the caller's palette for color queries; a single detached 2 × 1 xterm
+initializes xterm's theme service for those replies without a renderer per buffer. Every output packet carries the
+PTY's columns and rows, so a buffer created for a background session starts at its actual dimensions. The headless
+main-process parser retains screen text and modes for reads and input encoding; its generated replies stay unused.
+
 ## Its channels (`ipc.ts`)
 
 `pty:quote-paths` (invoke: shell literals for dropped files), `pty:in` (keys), `pty:resize` (the size shown), `pty:out` (output, to the window of the task it is in),
 `terminals:restore` (a task's terminals' contents, written into the buffers of the window it moves to),
 `terminals:gone` (their buffers dropped). `src/shared/ipc.ts` joins them into all of the window's channels.
+
+`View.find(text, previous, incremental)` lazily loads xterm's MIT-licensed search addon and searches the shown
+terminal's buffer, including wrapped lines and scrollback. `clearSearch()` removes its selection. Resize and parsed output refresh an open search; `onSearchResult` reports whether it matches. The window owns
+the search controls and their keyboard shortcuts; no extra output buffer is kept.
+
+## Callers and ownership
+
+Development terminals and Stage terminals use the same `startTerminal`, input, screen, sizing and cleanup APIs.
+`TerminalConfig` describes launch options; `TerminalOutput` delivers output to the caller’s current window. Neither
+contains task, agent or Stage types. The caller owns persistence, terminal keys and when to stop or forget a session.
+
+`main/tasks.ts` owns development terminals and agent conversations. `main/stage-terminals.ts` owns Stage
+launch setup and run state through an explicit host contract; `Task` supplies current folder/environment, saved
+setup and window notifications. Their rules stay outside this Kulisa package. Window components own layouts,
+menus and search controls; the package owns terminal rendering and matching.
 
 ## The code
 
@@ -136,4 +176,4 @@ hover. A file an agent marks as a link (OSC 8) goes to `openFile` too: Claude Co
 
 Its e2e tests are in `test/e2e/` with the others: `window.spec.ts` (the xterm's set-up; one xterm for the terminals'
 panel, switching), `grid*.spec.ts` (copy and paste, links, moving to another window), `tasks.spec.ts` (the terminals'
-panel, shells).
+panel, shells), `stage-terminals.spec.ts` (interactive applications, screen parsing, restore and process cleanup).

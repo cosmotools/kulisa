@@ -46,7 +46,7 @@ test('agent bridge: the Claude Code plugin is valid and points at this MCP serve
   const { packages, url, base } = await core((k) => ({ packages: k.shell.packages, url: k.shell.task.env().KULISA_MCP_URL, base: k.shell.mcp.base }));
   const plugin = path.join(packages, 'claude-plugin');
   expect(fs.existsSync(path.join(plugin, '.claude-plugin', 'plugin.json'))).toBe(true);
-  expect(fs.existsSync(path.join(packages, 'skills', 'profiles', 'SKILL.md')), "the profiles skill, every agent's").toBe(true);
+  expect(fs.existsSync(path.join(packages, 'skills', 'kulisa', 'SKILL.md')), "the Kulisa skill, every agent's").toBe(true);
   const mcp = JSON.parse(fs.readFileSync(path.join(plugin, '.mcp.json'), 'utf8'));
   expect(mcp.mcpServers.kulisa.url).toBe('${KULISA_MCP_URL}');
   expect(url).toBe(`${base}/task/${files.tkey('project', 1)}/mcp`);
@@ -94,10 +94,10 @@ test('agent bridge: at session start the plugin hook tells the agent which profi
     c.stdin.end(input);
   });
   // The agent's terminal's own environment: its conversation's.
-  const { env, terminal } = await core((k) => { const agent = k.shell.task.promptTarget(); return { env: k.shell.task.env(agent), terminal: agent.id }; });
+  const { env } = await core((k) => { const agent = k.shell.task.promptTarget(); return { env: k.shell.task.env(agent), terminal: agent.id }; });
   const inKulisa = await run(env);
-  expect(files.json(files.pfile('agent.json')).conversations.map(({ from, ...c }: { from: number }) => c))
-    .toEqual([{ agent: 'custom', started: true, terminal, sessionId: 'session-1', transcript }]);
+  expect(files.json(files.pfile('task.json')).agents.conversations.map(({ from, id, ...c }: { from: number; id: string }) => c))
+    .toEqual([{ agent: 'custom', started: true, sessionId: 'session-1', transcript }]);
   expect(inKulisa.code).toBe(0);
   const context = JSON.parse(inKulisa.out).hookSpecificOutput.additionalContext;
   expect(context).toMatch(/- Sam\.seller: seller in the test shop/);

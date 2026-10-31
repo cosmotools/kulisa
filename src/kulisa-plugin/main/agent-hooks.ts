@@ -8,7 +8,7 @@
 // names (browser_click …) and their own "profiles" at session start; this says which browser is the human's. Told to
 // every agent in the MCP server's instructions, and again next to the profiles at session start.
 import type { IncomingMessage, ServerResponse } from 'http';
-import type { TaskAccess as Task, TerminalAccess as TaskTerminal } from './core.ts';
+import type { TaskAccess as Task, DevelopmentTerminalAccess as DevelopmentTerminal } from './core.ts';
 import { log } from '../../main/log.ts';
 import type { HookEvent } from './agents/index.ts';
 
@@ -23,7 +23,7 @@ const ONLY_BROWSER = 'Kulisa profiles are the only browser here: drive them with
 // session, so that opening the project again resumes it (tasks.ts).
 // Each profile with who it is (its description, the human's words) or that it is not said: the agent then asks.
 const who = ({ name, description }: { name: string; description?: string }) => `- ${name}: ${description ? description.replace(/\s+/g, ' ') : 'who it is is not said'}`;
-function sessionStart(task: Task, t: TaskTerminal | null, input: Input) {
+function sessionStart(task: Task, t: DevelopmentTerminal | null, input: Input) {
   if (input?.session_id && t) t.saveSession({ sessionId: input.session_id, transcript: input.transcript_path });
   if (t) void t.noteAutoTitle(); // a resumed conversation already has its auto-title
   const lines = [...task.profiles.values()].map((p) => {
@@ -47,9 +47,9 @@ function sessionStart(task: Task, t: TaskTerminal | null, input: Input) {
 // once the human interrupted it (interrupt: they are there) or its session ended (session-end), but a done one keeps
 // "come and see" (Codex ends a session after 30 minutes idle). No agent tells when the human answered a permission:
 // a tool finished (tool-done) is the first sign it works again, so waiting goes back to working there.
-type State = TaskTerminal['state'];
-const state = (s: State, when: (t: TaskTerminal) => boolean = () => true) => (_task: Task, t: TaskTerminal | null) => { if (t && when(t)) t.setState(s); return {}; };
-const handlers: Record<HookEvent, (task: Task, t: TaskTerminal | null, input: Input) => object | Promise<object>> = {
+type State = DevelopmentTerminal['state'];
+const state = (s: State, when: (t: DevelopmentTerminal) => boolean = () => true) => (_task: Task, t: DevelopmentTerminal | null) => { if (t && when(t)) t.setState(s); return {}; };
+const handlers: Record<HookEvent, (task: Task, t: DevelopmentTerminal | null, input: Input) => object | Promise<object>> = {
   'session-start': sessionStart,
   prompt: state('working'),
   waiting: state('waiting'),
@@ -61,7 +61,7 @@ const handlers: Record<HookEvent, (task: Task, t: TaskTerminal | null, input: In
 
 // Route /hooks/<event> of a task's agent's terminal t (none: an agent of a Kulisa before tasks had several, or a shell:
 // nothing to note); returns false for other paths.
-function handleHookRequest(task: Task, t: TaskTerminal | null, url: string, req: IncomingMessage, res: ServerResponse) {
+function handleHookRequest(task: Task, t: DevelopmentTerminal | null, url: string, req: IncomingMessage, res: ServerResponse) {
   const m = url.match(/^\/hooks\/([\w-]+)$/);
   if (!m) return false;
   const handler = Object.hasOwn(handlers, m[1]!) ? handlers[m[1] as HookEvent] : null;

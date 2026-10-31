@@ -4,7 +4,7 @@ import { act, store } from './store';
 import { clipboardKey, termLinks } from '../../terminal/renderer';
 import { keyText } from './common';
 import { dockApi, stageApi } from './grid';
-import { panelView, shownTerm } from './terminals';
+import { panelView, shownTerm } from './development-terminals';
 
 Object.assign(window, { act, clipboardKey, termLinks, keyText });
 Object.defineProperty(window, 'state', { get: () => store.getState().profiles });

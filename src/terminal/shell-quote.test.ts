@@ -1,8 +1,8 @@
 // An agent's arguments typed into the user's shell (shell-quote.ts) arrive as they were, in each shell installed here.
 import { test } from 'node:test';
 import assert from 'assert/strict';
-import { execFileSync } from 'child_process';
-import { shellLine, shellQuote, quotePaths } from './main/shell-quote.ts';
+import { execFileSync, spawnSync } from 'child_process';
+import { shellLine, shellQuote, quotePaths, executionLine } from './main/shell-quote.ts';
 
 const ARGS = ['plain', '', 'two words', "it's", '$HOME', '*', '!x', '{"a":"b \\"c\\""}', 'back\\slash', 'back\\\\two',
   "q\\'x", 'end\\', "'", 'line\nbreak', 'café ✓'];
@@ -52,10 +52,23 @@ for (const name of ['sh', 'bash', 'zsh', 'fish', 'powershell', 'pwsh']) {
   test(`dropped paths stay literal: ${name}`, { skip: !shell ? `no ${name}` : false }, () => {
     const paths = ['plain.png', "a b/it's $HOME; & (image).png", 'café.png', 'back\\slash.png'];
     const ps = ['powershell', 'pwsh'].includes(name);
-    const command = ps ? `& { ConvertTo-Json -Compress -InputObject @($args) } ${quotePaths(shell, paths)}`
+    // PowerShell 5 writes JSON in the console's code page; this fixture reads UTF-8.
+    const command = ps ? `[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new(); & { ConvertTo-Json -Compress -InputObject @($args) } ${quotePaths(shell, paths)}`
       : `printf '%s\\0' ${quotePaths(shell, paths)}`;
     const out = execFileSync(shell, ps ? ['-NoLogo', '-NoProfile', '-Command', command]
       : name === 'fish' ? ['--no-config', '-c', command] : ['-c', command], { encoding: 'utf8' });
     assert.deepEqual(ps ? JSON.parse(out) : out.split('\0').slice(0, -1), paths);
+  });
+}
+
+for (const name of ['sh', 'bash', 'zsh', 'fish', 'powershell', 'pwsh']) {
+  const shell = where(name);
+  test(`application launch preserves output and native exit status: ${name}`, { skip: !shell ? `no ${name}` : false }, () => {
+    const command = shellLine(shell, process.execPath, ['-e', "process.stdout.write('application output');process.exit(7)"]);
+    const line = executionLine(shell, command);
+    const ps = ['powershell', 'pwsh'].includes(name);
+    const r = spawnSync(shell, ps ? ['-NoLogo', '-NoProfile', '-Command', line] : ['-c', line], { encoding: 'utf8' });
+    assert.equal(r.status, 7, r.stderr);
+    assert.equal(r.stdout, 'application output');
   });
 }

@@ -6,11 +6,12 @@
 import { nativeImage, session } from 'electron';
 import fs from 'fs';
 import path from 'path';
+import { StageTerminals } from './stage-terminals.ts';
 import { Profile, wipeSession } from './profiles.ts';
 import { ProjectProfiles } from './project-profiles.ts';
 import { installSigninPause } from './signin-pause.ts';
 import { startTerminal, stopTerminal, forgetTerminal, terminalTail, sendToPrompt, typeIntoPrompt, eraseInPrompt, typeLine, interrupt, quotePaths } from '../terminal/main/index.ts';
-import { READ_MAX } from '../kulisa-plugin/main/index.ts';
+import { TERMINAL_LINES } from '../terminal/ipc.ts';
 import { listArtifacts, saveArtifact } from './artifacts.ts';
 import { copyProfile, worktreesOf, ownWorktree, folderOf, branchOf, taskKey } from './store.ts';
 import { renameBranch } from './worktrees.ts';
@@ -34,9 +35,9 @@ import type { Result } from '../shared/result.ts';
 
 type AgentState = 'working' | 'waiting' | 'done' | null;
 // A terminal of the task, a tab of its terminals: the user's shell in its folder, with an agent started in it (agent,
-// its conversation: an index in agent.json; its state as its hooks report it, seen: the human has seen it since) or
+// its conversation: a history index in memory (stable ID on disk); its state as its hooks report it, seen: the human has seen it since) or
 // not (a shell: its name, the command typed in, by whom).
-interface TaskTerminal {
+interface DevelopmentTerminal {
   id: number; key: string; name: string; command: string; by: 'human' | 'agent'; pty?: Pty;
   agent?: AgentChoice; conversation?: number; state: AgentState; seen: boolean; error?: undefined;
   handedFrom?: number; // the conversation it was handed (handOver), its number from 1, while it reads it
@@ -55,12 +56,13 @@ const HANDOVER = (n: number, name: string) => `Go on with the work of conversati
 const THUMB_WIDTH = 128;
 
 class Task {
+  stageTerminals: StageTerminals;
   shell: Shell; project: Project; entry: TaskEntry; id: string; key: string; store: TaskStore;
   window: AppWindow | null; // the one whose tab it is (window.ts)
   loaded: boolean; terminalsLoaded: boolean;
   gitChecked: Promise<void>; // its project's repositories looked at as it loads (Project.checkGit), awaited by its agents
   _copying: Promise<unknown>; // its copies made one at a time (copying)
-  terminals: Map<number, TaskTerminal>; terminalSeq: number; list: ProjectProfiles;
+  developmentTerminals: Map<number, DevelopmentTerminal>; developmentTerminalSeq: number; list: ProjectProfiles;
   profiles: ProjectProfiles['profiles']; closed: ProjectProfiles['closed'];
   front: number | null; lastAgent: number | null; // the terminals' tab in front; the agent's tab in front last
   resumedSession?: string | null;
@@ -76,7 +78,15 @@ class Task {
     this.key = taskKey(project, this.id);
     this.store = shell.store.taskOf(project, this.id);
     this.loaded = false; this.terminalsLoaded = false; this.gitChecked = Promise.resolve(); this._copying = Promise.resolve();
-    this.terminals = new Map(); this.terminalSeq = 0; // its terminals, by id, in their tabs' order
+    this.developmentTerminals = new Map(); this.developmentTerminalSeq = 0; // its terminals, by id, in their tabs' order
+    this.stageTerminals = new StageTerminals({
+      key: this.key, saved: this.store.stageTerminals(), isOpen: () => this.loaded,
+      launchContext: () => ({ cwd: this.folder, env: this.env() }),
+      save: (value) => this.store.saveStageTerminals(value),
+      changed: (list) => { if (this.shown()) this.window?.send('stage-terminals', { task: this.key, list }); },
+      output: (channel, data) => this.window?.send(channel, data),
+      forget: (key) => this.window?.send('terminals:gone', [key]),
+    });
     this.front = null; this.lastAgent = null;
     this.list = new ProjectProfiles(this.store, shell.profileStore, project.id, this._profileHooks());
     this.profiles = this.list.profiles; this.closed = this.list.closed;
@@ -271,11 +281,11 @@ class Task {
   // turn too: it runs at once, its question over the turn, which goes on; others get a line saying so once
   // the turn is over (agents/, addDir). A copy removed: a line for every agent, once its turn is over (no agent has a
   // command to drop a folder). A draft the human is typing there then gets the line too.
-  async giveDirs(t: TaskTerminal) {
+  async giveDirs(t: DevelopmentTerminal) {
     if (t.giving) return;
     t.giving = true;
     const busy = () => t.state === 'waiting' || (t.state === 'working' && (!t.agent!.addDir || !!t.newDirs?.[0]?.removed));
-    while (t.pty && this.terminals.get(t.id) === t && t.newDirs?.length && !busy()) {
+    while (t.pty && this.developmentTerminals.get(t.id) === t && t.newDirs?.length && !busy()) {
       const { copy: c, removed } = t.newDirs.shift()!, add = removed ? undefined : t.agent!.addDir;
       await sendToPrompt(t.pty, removed ? `Kulisa removed ${c.folder} from this task, with its branch ${c.branch}: work no more there. Nothing to do about it now.`
         : add ? add.command(c.folder) : `Kulisa added ${c.folder} to this task: a copy of the project's repository ${c.repo}, on branch ${c.branch}. Nothing to do about it now.`, add?.confirm);
@@ -289,23 +299,24 @@ class Task {
     this.gitChecked = this.project.checkGit().then(() => this.shell.sendProjects(), (e: Error) => console.error('[git]', e));
     this.list.load();
     this.loaded = true;
+    void this.stageTerminals.restoreShells().catch((e: Error) => log.warn(`[stage-terminal] ${this.key} shell restore failed: ${e.message}`));
   }
 
   // Its terminals' panel (docs/window.md, The terminal): the terminals in tabs, one shown at a time. Each the user's shell in the
   // task's folder, with an agent started in it or not. A shell is for what keeps running where the human sees it (the
-  // human's own, the agent's terminal_run: the app's dev server), rather than in the background of the agent's own
+  // human's own, the agent's shell_run: the app's dev server), rather than in the background of the agent's own
   // shell, which some agents cannot do and the human does not see. As in an IDE they are kept: when the task loads
   // again (a restart, its project opened again) each comes back in its tab, an agent's conversation resumed, a shell
-  // with nothing running (the agent runs its command again). They go when closed (×, terminal_stop) or their shell exits.
+  // with nothing running (the agent runs its command again). They go when closed (×, shell_stop) or their shell exits.
   // A task that never had one opens its agent (none: nothing, the terminals' buttons instead); the last one closed leaves
-  // the terminals folded to their + (terminals.json says so).
-  async loadTerminals() {
+  // the terminals folded to their + (task.json says so).
+  async loadDevelopmentTerminals() {
     if (this.terminalsLoaded || !this.loaded) return;
     this.terminalsLoaded = true;
-    const saved = this.store.terminals();
+    const saved = this.store.developmentTerminals();
     if (!saved) {
       const own = this.ownAgent();
-      if (own !== null) await this.openAgent(own); else this.saveTerminals();
+      if (own !== null) await this.openAgent(own); else this.saveDevelopmentTerminals();
       return;
     }
     this.front = saved.front ?? null;
@@ -315,8 +326,8 @@ class Task {
       .catch((e: Error) => console.error('[terminal]', e))));
     // In their tabs' order again: an agent's comes once its program is found, after the shells.
     const order = saved.list.map((t) => t.id), rank = (id: number) => (order.includes(id) ? order.indexOf(id) : order.length);
-    this.terminals = new Map([...this.terminals].sort(([a], [b]) => rank(a) - rank(b)));
-    this.changedTerminals();
+    this.developmentTerminals = new Map([...this.developmentTerminals].sort(([a], [b]) => rank(a) - rank(b)));
+    this.changedDevelopmentTerminals();
   }
   conversations() { return this.store.agent().conversations || []; }
   updateConversation(i: number, change: Partial<Conversation>) {
@@ -335,17 +346,17 @@ class Task {
     const own = this.ownAgent();
     return own === null ? { none: true } : this.openAgent(own);
   }
-  saveTerminals() {
+  saveDevelopmentTerminals() {
     // An agent's tab still looking for its program, a new conversation not made yet: not a shell to bring back.
-    this.store.saveTerminals({ front: this.front, list: [...this.terminals.values()].filter((t) => !t.agent || t.conversation !== undefined).map(({ id, name, by, conversation }) =>
+    this.store.saveDevelopmentTerminals({ front: this.front, list: [...this.developmentTerminals.values()].filter((t) => !t.agent || t.conversation !== undefined).map(({ id, name, by, conversation }) =>
       (conversation === undefined ? { id, name, by } : { id, conversation })) });
   }
-  agentTerminals() { return [...this.terminals.values()].filter((t) => t.agent); }
+  agentTerminals() { return [...this.developmentTerminals.values()].filter((t) => t.agent); }
   // The agent shown, where the dictation goes; none when the tab in front is a shell.
-  shownAgent() { const t = this.front === null ? null : this.terminals.get(this.front); return t?.agent ? t : null; }
+  shownAgent() { const t = this.front === null ? null : this.developmentTerminals.get(this.front); return t?.agent ? t : null; }
   // Where a pick goes: the agent shown, else the one shown last, else the last opened.
   promptTarget() {
-    const last = this.lastAgent === null ? null : this.terminals.get(this.lastAgent);
+    const last = this.lastAgent === null ? null : this.developmentTerminals.get(this.lastAgent);
     return this.shownAgent() || (last?.agent ? last : null) || this.agentTerminals().at(-1) || null;
   }
   get pty() { return this.promptTarget()?.pty || null; }
@@ -357,18 +368,18 @@ class Task {
     typeIntoPrompt(to.pty, text);
     if (to.id !== this.front) this.show(to.id);
     const w = this.window;
-    if (w && !w.win.isDestroyed()) { w.win.webContents.focus(); w.send('terminal:focus'); }
+    if (w && !w.win.isDestroyed()) { w.win.webContents.focus(); w.send('development-terminal:focus'); }
     return true;
   }
   // An agent conversation's name: the one it was given (conversation_rename), else its own auto-title read from the
   // transcript (noteAutoTitle); null when it has neither.
-  conversationName(t: TaskTerminal) {
+  conversationName(t: DevelopmentTerminal) {
     const c = this.conversations()[t.conversation!];
     return c?.title || c?.autoTitle || null;
   }
   // A tab's name: a shell's own; an agent's, its conversation's name, else its agent's, numbered when another agent's
   // tab has it too.
-  label(t: TaskTerminal) {
+  label(t: DevelopmentTerminal) {
     if (!t.agent) return t.name;
     const own = this.conversationName(t);
     if (own) return own;
@@ -387,16 +398,16 @@ class Task {
     let agent: AgentChoice | null = shell.agentFor(account);
     if (!agent && !account && !this.project.agents().length) agent = shell.agentFor('shell');
     const place = (agent: AgentChoice) => {
-      const tab: TaskTerminal = { id: id = this.terminalId(id), key: `${this.key}#${id}`, name: '', command: '', by: 'human', agent, conversation, state: null, seen: true };
-      this.terminals.set(tab.id, tab);
-      if (front) this.show(tab.id); else { if (this.front === tab.id) this.lastAgent = tab.id; this.saveTerminals(); this.changedTerminals(); }
+      const tab: DevelopmentTerminal = { id: id = this.terminalId(id), key: `${this.key}#${id}`, name: '', command: '', by: 'human', agent, conversation, state: null, seen: true };
+      this.developmentTerminals.set(tab.id, tab);
+      if (front) this.show(tab.id); else { if (this.front === tab.id) this.lastAgent = tab.id; this.saveDevelopmentTerminals(); this.changedDevelopmentTerminals(); }
       return tab;
     };
     // Its tab at once, starting (terminalsInfo), while its program is looked for in the user's login shell: a task
     // opening showed the terminals' buttons for that second (docs/window.md, A tab comes before its program).
     let t = agent?.command ? place(agent) : null;
     let found = agent && await shell.findAgent(agent, this.folder);
-    if (t && this.terminals.get(t.id) !== t) return { error: 'the terminal was closed' };
+    if (t && this.developmentTerminals.get(t.id) !== t) return { error: 'the terminal was closed' };
     if (!found) {
       const chosen = await shell.chooseAgent(this, agent);
       found = chosen && this.loaded ? await shell.findAgent(chosen, this.folder) : null;
@@ -410,7 +421,7 @@ class Task {
     }
     const a = agent!;
     if (!a.command) return this.openTerminal({ id, front });
-    if (t && this.terminals.get(t.id) !== t) return { error: 'the terminal was closed' };
+    if (t && this.developmentTerminals.get(t.id) !== t) return { error: 'the terminal was closed' };
     t ??= place(a);
     const list = this.store.agent();
     const conversations = list.conversations || [];
@@ -421,8 +432,8 @@ class Task {
     conversations[conversation]!.terminal = t.id;
     this.store.saveAgent({ ...list, conversations });
     Object.assign(t, { agent: a, conversation }); // the one chosen in its place, if another
-    this.saveTerminals();
-    this.changedTerminals();
+    this.saveDevelopmentTerminals();
+    this.changedDevelopmentTerminals();
     const saved = this.conversations()[conversation]!;
     const resume = (a.resume && a.resume(saved)) || null;
     this.resumedSession = resume ? saved.sessionId ?? null : null;
@@ -433,7 +444,7 @@ class Task {
     for (const c of worktreesOf(this.entry)) {
       extendTrust(a, where, c.folder, [c.repo, ...copies.filter((o) => o.repo === c.repo && o.folder !== c.folder).map((o) => o.folder)]);
     }
-    // Kulisa's profiles skill where the agent reads it, and Kulisa's language (☰ → Language: app.ts, setLanguage) in its
+    // Kulisa's shared skill where the agent reads it, and Kulisa's language (☰ → Language: app.ts, setLanguage) in its
     // own setting, in its account's folder only (never the human's own).
     if (a.configDir && Object.keys(a.env).length) {
       try { if (a.skills) installSkill(shell.packages, path.join(a.configDir, a.skills)); } catch (e) { console.warn('[agents] skill:', (e as Error).message); }
@@ -441,24 +452,24 @@ class Task {
       if (r?.error) console.warn('[agents] language:', r.error);
     }
     await Promise.all([this.gitChecked, this.list.started]); // its profiles ready, told at its start what it may add (agent-hooks.ts)
-    if (this.terminals.get(t.id) !== t) return { error: 'the terminal was closed' };
+    if (this.developmentTerminals.get(t.id) !== t) return { error: 'the terminal was closed' };
     // The program by name, as the human would type it, unless the shell does not find it yet (just installed).
     const command = found.onPath ? a.command : found.path;
     t.pty = await startTerminal((channel, data) => this.window?.send(channel, data), { command, shell: a.shell, cwd: this.folder,
       env: { ...env, ...more.env, ...a.env }, pinned: a.env, sizeOf: this.key,
       args: [...(resume || []), ...(a.args?.({ env, packages: shell.packages, account: Object.keys(a.env).length ? a.configDir : null, artifacts: shell.store.artifactsGlob() }) || []), ...(more.args || []), ...((!resume && first && a.prompt?.(first)) || [])] }, t.key);
-    if (this.terminals.get(t.id) !== t) { stopTerminal(t.pty); return { error: 'the terminal was closed' }; }
+    if (this.developmentTerminals.get(t.id) !== t) { stopTerminal(t.pty); return { error: 'the terminal was closed' }; }
     // Its shell exited by itself (exit), not stopped by Kulisa (closing, quitting: the terminal is kept then).
     t.pty.onExit(() => { if (!t.pty!.stopped) this.dropTerminal(t); });
     log.info(`[terminal] ${t.key} started ${shell.accounts.label(a.id)}${resume ? ' (resumed)' : ''}: ${command}`);
-    this.changedTerminals(); // started
+    this.changedDevelopmentTerminals(); // started
     this.updateConversation(conversation, { started: true });
     this.voiceShown();
     return { id: t.id };
   }
   // The same agent from nothing (New Conversation, or + with it): a new tab; the one before stays.
   newConversation(id: number) {
-    const t = this.terminals.get(id);
+    const t = this.developmentTerminals.get(id);
     return t?.agent ? this.openAgent(t.agent.id) : Promise.resolve({ error: `no agent's terminal ${id}` });
   }
   // The task handed to an agent (the agent's icon on its tab, Change agent…): it opens in a new tab, told to go on with
@@ -466,31 +477,31 @@ class Task {
   // HandOver.tsx). In front from its start, under the dialog: a tab behind has no size, and its xterm laid out what the
   // agent drew for the terminals' size in 80 columns. The tab it came from stays: the human closes it.
   async handOver(id: number, account: string): Promise<Result<{ id: number }>> {
-    const t = this.terminals.get(id);
+    const t = this.developmentTerminals.get(id);
     if (!t?.agent) return { error: `no agent's terminal ${id}` };
     const n = t.conversation! + 1, r = await this.openAgent(account, { first: HANDOVER(n, this.label(t)) });
-    const handed = !refused(r) && this.terminals.get(r.id);
+    const handed = !refused(r) && this.developmentTerminals.get(r.id);
     if (handed) handed.handedFrom = n;
     return r;
   }
   // An agent read a part of a conversation in task_history: the one it was handed, shown as it goes (HandOver.tsx).
-  historyRead(t: TaskTerminal, conversation: number, part: number, parts: number) {
+  historyRead(t: DevelopmentTerminal, conversation: number, part: number, parts: number) {
     if (t.handedFrom !== conversation) return;
     if (part >= parts) t.handedFrom = undefined;
     this.window?.send('handover:read', { task: this.key, id: t.id, part, parts });
   }
   // The name an agent gives its conversation (conversation_rename): its tab's, in 1–3 words.
-  nameConversation(t: TaskTerminal, name: string | undefined): Result<{ name: string }> {
+  nameConversation(t: DevelopmentTerminal, name: string | undefined): Result<{ name: string }> {
     const words = name?.trim().split(/\s+/).filter(Boolean) || [];
     if (!words.length || words.length > 3 || words.join(' ').length > 40) return { error: 'a name of 1 to 3 words, at most 40 characters' };
     this.updateConversation(t.conversation!, { title: words.join(' ') });
-    this.changedTerminals();
+    this.changedDevelopmentTerminals();
     return { name: words.join(' ') };
   }
   // The agent's own auto-title for a conversation, read where its agent keeps it at session start and at a turn's end
   // (agent-hooks.ts): shown on its tab, and on the task's tab while the task is unnamed, until a name is given
   // explicitly. Best effort: never stored as the task's name, never a branch slug. True when it changed.
-  async noteAutoTitle(t: TaskTerminal) {
+  async noteAutoTitle(t: DevelopmentTerminal) {
     const n = t.conversation, c = n === undefined ? null : this.conversations()[n];
     if (!t.agent?.title || !c || c.title || !c.transcript) return false; // an explicit name wins; nothing to read yet
     let title: string | null = null;
@@ -498,18 +509,18 @@ class Task {
     const now = this.conversations()[n!];
     if (!title || !now || now.title || title === now.autoTitle) return false;
     this.updateConversation(n!, { autoTitle: title });
-    this.changedTerminals();
+    this.changedDevelopmentTerminals();
     this.window?.sendProjects();
     return true;
   }
   // At a turn's end: its auto-title read then, and again a few times after until it changes, since an agent may name
   // the session only once its turn is over (Codex: seconds after its Stop hook). Another turn's end starts over.
-  followAutoTitle(t: TaskTerminal) {
+  followAutoTitle(t: DevelopmentTerminal) {
     clearTimeout(t.titleTimer);
     const at = [0, 5000, 15000, 30000];
     const next = (i: number) => {
       t.titleTimer = setTimeout(async () => {
-        if (this.terminals.get(t.id) !== t || await this.noteAutoTitle(t)) return;
+        if (this.developmentTerminals.get(t.id) !== t || await this.noteAutoTitle(t)) return;
         if (i + 1 < at.length) next(i + 1);
       }, at[i]! - (at[i - 1] ?? 0));
     };
@@ -518,23 +529,23 @@ class Task {
 
   // The tab in front, chosen by the human, or a new one they opened.
   show(id: number): Result<{ id: number }> {
-    const t = this.terminals.get(id);
+    const t = this.developmentTerminals.get(id);
     if (!t) return { error: `no terminal ${id}` };
     this.front = id;
     if (t.agent) this.lastAgent = id;
-    this.saveTerminals();
+    this.saveDevelopmentTerminals();
     this.see();
-    this.changedTerminals();
+    this.changedDevelopmentTerminals();
     this.voiceShown();
     return { id };
   }
   // The terminals' tabs changed (opened, closed, in front, named, an agent's state): the window draws them, the task's tab
   // its state.
-  changedTerminals() { this.shell.taskChanged(this, true); this.shell.taskChanged(this, false, true); }
+  changedDevelopmentTerminals() { this.shell.taskChanged(this, true); this.shell.taskChanged(this, false, true); }
   // A shell by its name (as the agent knows it) or id (as the window does); never an agent's: its conversation is read in
   // task_history, and a command typed there would be a message to it.
-  terminal(which: number | string): TaskTerminal | { error: string; agent?: boolean } {
-    const shells = [...this.terminals.values()].filter((t) => !t.agent), name = String(which).trim().toLowerCase();
+  terminal(which: number | string): DevelopmentTerminal | { error: string; agent?: boolean } {
+    const shells = [...this.developmentTerminals.values()].filter((t) => !t.agent), name = String(which).trim().toLowerCase();
     const t = typeof which === 'number' ? shells.find((x) => x.id === which) : shells.find((x) => x.name.toLowerCase() === name);
     if (t) return t;
     if (typeof which === 'string' && this.agentTerminals().some((x) => this.label(x).toLowerCase() === name)) {
@@ -542,7 +553,7 @@ class Task {
     }
     return { error: `no terminal "${which}"; open now: ${shells.map((x) => `"${x.name}"`).join(', ') || 'none'}` };
   }
-  // A shell: the human's (+, in front) or the agent's (terminal_run, behind the tab in front: the human goes on
+  // A shell: the human's (+, in front) or the agent's (shell_run, behind the tab in front: the human goes on
   // watching the agent).
   async openTerminal({ id, name, command = '', by = 'human', front = by === 'human' }: { id?: number; name?: string; command?: string; by?: 'human' | 'agent'; front?: boolean } = {}): Promise<Result<{ id: number; name: string }>> {
     if (!this.loaded) return { error: 'the task is not open' };
@@ -550,26 +561,26 @@ class Task {
     if (name && !this.terminal(name).error) return { error: `there is a terminal "${name}" already` };
     for (let n = 1; !name; n++) if (this.terminal(n > 1 ? `Terminal ${n}` : 'Terminal').error) name = n > 1 ? `Terminal ${n}` : 'Terminal';
     id = this.terminalId(id);
-    const t: TaskTerminal = { id, key: `${this.key}#${id}`, name, command, by, state: null, seen: true };
-    this.terminals.set(id, t);
-    if (front || this.front === null) this.show(id); else { this.saveTerminals(); this.changedTerminals(); }
+    const t: DevelopmentTerminal = { id, key: `${this.key}#${id}`, name, command, by, state: null, seen: true };
+    this.developmentTerminals.set(id, t);
+    if (front || this.front === null) this.show(id); else { this.saveDevelopmentTerminals(); this.changedDevelopmentTerminals(); }
     t.pty = await startTerminal((channel, data) => this.window?.send(channel, data),
-      { line: command, cwd: this.folder, env: this.env(), sizeOf: this.key, screen: READ_MAX }, t.key);
-    if (this.terminals.get(id) !== t) { stopTerminal(t.pty); return { error: 'the terminal was closed' }; }
+      { line: command, cwd: this.folder, env: this.env(), sizeOf: this.key, screen: TERMINAL_LINES }, t.key);
+    if (this.developmentTerminals.get(id) !== t) { stopTerminal(t.pty); return { error: 'the terminal was closed' }; }
     t.pty.onExit(() => { if (!t.pty!.stopped) this.dropTerminal(t); });
     log.info(`[terminal] ${t.key} started: a shell${by === 'agent' ? " (the agent's)" : ''}`);
-    this.changedTerminals(); // started
+    this.changedDevelopmentTerminals(); // started
     return { id, name };
   }
   // A terminal's id: the one it had (coming back after a restart), else the next.
-  terminalId(id?: number) { id ??= this.terminalSeq + 1; this.terminalSeq = Math.max(this.terminalSeq, id); return id; }
+  terminalId(id?: number) { id ??= this.developmentTerminalSeq + 1; this.developmentTerminalSeq = Math.max(this.developmentTerminalSeq, id); return id; }
   // A command typed into a terminal already open (its last one stopped first: interruptTerminal), or into a new one.
   async runInTerminal(name: string, command: string): Promise<Result<{ id: number; name: string; again?: boolean }>> {
     const t = this.terminal(name);
     if (refused(t)) return t.agent ? t : this.openTerminal({ name, command, by: 'agent' });
     t.command = command;
     if (t.pty) typeLine(t.pty, command);
-    this.changedTerminals();
+    this.changedDevelopmentTerminals();
     return { id: t.id, name: t.name, again: true };
   }
   // Ctrl+C, as the human would press it: what runs there stops, the shell stays.
@@ -584,7 +595,7 @@ class Task {
     return refused(t) ? t : { text: t.pty ? terminalTail(t.pty, lines) : '' };
   }
   pasteImage(id: number) {
-    const t = this.terminals.get(id), key = t?.agent?.imagePaste;
+    const t = this.developmentTerminals.get(id), key = t?.agent?.imagePaste;
     if (!key || !t?.pty || t.pty.stopped) return;
     log.info(`[terminal] ${t.key} clipboard image paste`);
     t.pty.write(key);
@@ -598,7 +609,7 @@ class Task {
   // × on a tab, or Close in its menu. An agent's asks first, always: it stops, whatever it is doing (its conversation
   // stays in the task's history).
   async closeTab(id: number): Promise<Result<{ id: number }>> {
-    const t = this.terminals.get(id);
+    const t = this.developmentTerminals.get(id);
     if (!t) return { error: `no terminal ${id}` };
     if (t.agent && !await this.shell.ask({ message: `Close ${this.label(t)}?`, ok: 'Close',
       detail: `${t.agent.cli} stops${t.state === 'working' ? ' in the middle of its work' : ''}. Its conversation stays in the task's history, where any agent of the task can read it.` }, this.window)) {
@@ -608,10 +619,10 @@ class Task {
     return { id };
   }
   // A tab gone: what runs there stops; the tab next to it comes to the front.
-  dropTerminal(t: TaskTerminal) {
-    if (this.terminals.get(t.id) !== t) return;
-    const order = [...this.terminals.keys()], i = order.indexOf(t.id);
-    this.terminals.delete(t.id);
+  dropTerminal(t: DevelopmentTerminal) {
+    if (this.developmentTerminals.get(t.id) !== t) return;
+    const order = [...this.developmentTerminals.keys()], i = order.indexOf(t.id);
+    this.developmentTerminals.delete(t.id);
     log.info(`[terminal] ${t.key} gone`);
     if (t.pty) stopTerminal(t.pty);
     forgetTerminal(t.key);
@@ -621,15 +632,15 @@ class Task {
     if (this.front === t.id) {
       const next = order[i + 1] ?? order[i - 1];
       this.front = next ?? null;
-      if (next !== undefined && this.terminals.get(next)?.agent) this.lastAgent = next;
+      if (next !== undefined && this.developmentTerminals.get(next)?.agent) this.lastAgent = next;
     }
-    this.saveTerminals();
-    this.changedTerminals();
+    this.saveDevelopmentTerminals();
+    this.changedDevelopmentTerminals();
     this.voiceShown();
   }
   // The terminals' tabs, for the window.
-  terminalsInfo(): Sent.Terminals {
-    return { front: this.front, list: [...this.terminals.values()].map((t) => ({ id: t.id, name: this.label(t), command: t.command, by: t.by,
+  developmentTerminalsInfo(): Sent.DevelopmentTerminalsState {
+    return { front: this.front, list: [...this.developmentTerminals.values()].map((t) => ({ id: t.id, name: this.label(t), command: t.command, by: t.by,
       agent: t.agent ? { account: t.agent.id, cli: t.agent.agentId, name: t.agent.name } : null, starting: !t.pty,
       state: t.state === 'done' && t.seen ? null : t.state })) };
   }
@@ -654,7 +665,7 @@ class Task {
   // What its terminals get in their environment: where Kulisa's MCP server and hooks are for this task (the Kulisa
   // plugin reads them, other agent CLIs can too), and its name. An agent's terminal has URLs of its own (t), so its
   // hooks report its own state and it names its own tab.
-  env(t?: TaskTerminal) {
+  env(t?: DevelopmentTerminal) {
     const base = `${this.shell.mcp.base}/task/${encodeURIComponent(this.project.id)}/${this.id}${t ? `/t/${t.id}` : ''}`;
     return { KULISA_MCP_URL: `${base}/mcp`, KULISA_URL: base, KULISA_TASK: this.name };
   }
@@ -662,10 +673,11 @@ class Task {
   // is deleted). Its tabs are saved first, as they are: closing them one by one changes the profiles, and nothing is
   // saved then.
   async unload() {
+    this.stageTerminals.unload();
     this.shell.chooseAgent.cancel?.(this);
     this.shell.dictation.gone(this.key);
-    for (const t of this.terminals.values()) { if (t.pty) stopTerminal(t.pty); forgetTerminal(t.key); }
-    this.terminals.clear();
+    for (const t of this.developmentTerminals.values()) { if (t.pty) stopTerminal(t.pty); forgetTerminal(t.key); }
+    this.developmentTerminals.clear();
     forgetTerminal(this.key);
     this.terminalsLoaded = false; this.front = null; this.lastAgent = null;
     if (this.loaded) this.list.saveTabs();
@@ -673,22 +685,22 @@ class Task {
     await this.list.unloadAll();
   }
   // An agent's session, as its hooks report it (agent-hooks.ts).
-  saveSession(t: TaskTerminal, s: { sessionId?: string; transcript?: string }) { if (this.terminals.get(t.id) === t) this.updateConversation(t.conversation!, s); }
-  setState(t: TaskTerminal, state: AgentState) {
+  saveSession(t: DevelopmentTerminal, s: { sessionId?: string; transcript?: string }) { if (this.developmentTerminals.get(t.id) === t) this.updateConversation(t.conversation!, s); }
+  setState(t: DevelopmentTerminal, state: AgentState) {
     t.state = state;
     t.seen = state !== 'done' || (this.front === t.id && this.shown() && !!this.window?.win.isFocused());
-    this.changedTerminals();
+    this.changedDevelopmentTerminals();
     if (state !== 'working' && state !== 'waiting') void this.giveDirs(t);
   }
   // Esc in an agent's terminal: a turn stopped so reports nothing (Claude Code runs no Stop hook then), so working or
   // waiting is no longer known; the human is there. An Esc that only closed a menu clears it too, until the next hook.
   interrupted(key: string) {
-    const t = [...this.terminals.values()].find((x) => x.key === key);
+    const t = [...this.developmentTerminals.values()].find((x) => x.key === key);
     if (t && (t.state === 'working' || t.state === 'waiting')) this.setState(t, null);
   }
   // The human sees the tab in front (the task shown, its window in focus); true when that changes what its tab shows.
   see() {
-    const was = this.tabState, t = this.front === null ? null : this.terminals.get(this.front);
+    const was = this.tabState, t = this.front === null ? null : this.developmentTerminals.get(this.front);
     if (t) t.seen = true;
     return this.tabState !== was;
   }
@@ -737,6 +749,7 @@ class Task {
     await this.project.dropProfile(id);
     return { id };
   }
+  environmentUsed(environment: string) { this.window?.send('stage:activity', { task: this.key, environment }); }
   // A caption over a profile's pane (ghost.ts, browser_highlight); sticky ones stay until the next caption.
   caption(profile: string, caption: string | null, sticky = false) { this.window?.send('agent', { task: this.key, profile, caption, sticky }); }
 
@@ -774,7 +787,7 @@ class Task {
 
   info(): Sent.TaskInfo {
     const { id, key, displayName: name, tabState: state, folder } = this;
-    return { id, key, project: this.project.id, name, state, folder, branch: this.branch, closed: !!this.entry.closed, merged: !!this.entry.merged,
+    return { id, key, project: this.project.id, name, state, folder, branch: this.branch, closed: this.entry.closedAt !== undefined, merged: !!this.entry.merged,
       repos: this.addable(), resources: this.resources() };
   }
   // Its resources as the Resources panel (Resources.tsx) shows them: the first, where it works, is not removed there
@@ -790,20 +803,41 @@ class Task {
     const r = this.findTab(profile, tab);
     if (refused(r)) throw new Error(r.error);
     const buf = await r.profile.screenshot(r.tab, shot);
-    const file = await this.saveArtifact(r.profile.id, r.tab.id, `screenshot.${shot.type === 'jpeg' ? 'jpg' : 'png'}`, buf);
+    const file = await this.saveArtifact({ kind: 'profile', id: r.profile.id, tab: r.tab.id }, `screenshot.${shot.type === 'jpeg' ? 'jpg' : 'png'}`, buf);
     const w = this.window;
     if (w && this.shown()) w.thumbnails.show(r.profile.id, file, buf, w.paneBox(r.profile.id));
     return { buf, file };
   }
-  // Both handles keep page files here so their numbering, limit and Resources updates agree.
-  async saveArtifact(profile: string, tab: string, kind: string, content: string | Buffer) {
-    const file = await saveArtifact(this.store.artifacts, `${profile}-${tab}-${kind}`, content);
+  // Both handles keep environment files here so their numbering, limit and Resources updates agree.
+  async saveArtifact(source: Sent.EnvironmentSource, kind: string, content: string | Buffer) {
+    const from = source.kind === 'profile' ? `${source.id}-${source.tab}` : `terminal-${source.id}`;
+    const file = await saveArtifact(this.store.artifacts, `${from}-${kind}`, content);
     this.artifactsChanged();
     return file;
   }
   async findArtifact(file: string) {
     const artifact = (await listArtifacts(this.store.artifacts)).find((a) => a.file === path.resolve(file));
     return artifact ? { artifact } : { error: `not an artifact of this task: ${file}` };
+  }
+  sendSelection(source: Sent.EnvironmentSource, text: string): Result {
+    if (!this.shown()) return { error: 'that task is not on screen' };
+    let label: string;
+    if (source.kind === 'profile') {
+      const found = this.findTab(source.id, source.tab);
+      if (refused(found)) return found;
+      label = `profile ${JSON.stringify(found.profile.name)} tab ${found.tab.id}`;
+    } else {
+      const terminal = this.stageTerminals.info().find((a) => a.id === source.id);
+      if (!terminal) return { error: 'that terminal is closed' };
+      label = `terminal ${JSON.stringify(terminal.name)}`;
+    }
+    // Selected page text must not break out of the terminal's bracketed paste or send control keys.
+    const selected = text.replace(/\r\n?/g, '\n').replace(/[\u0000-\u0008\u000b-\u001f\u007f-\u009f]/g, '');
+    if (!selected.trim()) return { error: 'Select text to send to the agent.' };
+    const quoted = selected.split('\n').map((line) => `> ${line}`).join('\n');
+    if (!this.typeForAgent(`\n[kulisa selection: ${label}]\n${quoted}\n\n`)) return { error: 'Open an agent terminal to send it a selection.' };
+    log.info(`[selection] ${this.key} ${source.kind} ${source.id} added to agent draft`);
+    return {};
   }
   async sendArtifact(file: string): Promise<Result> {
     const r = await this.findArtifact(file);
@@ -862,5 +896,5 @@ class Task {
   }
 }
 
-export type { TaskTerminal };
+export type { DevelopmentTerminal };
 export { Task };

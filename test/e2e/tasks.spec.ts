@@ -148,7 +148,7 @@ test('tasks: + opens a task in the project\'s main working tree ("New Task", no 
   }, { first, SAM })).toEqual([true, false, `${SITE}/app?task`]);
   expect((await call('browser_snapshot', { profile: 'Sam.admin' }, { task: first })).text).toMatch(/URL: .*\/app\?task/);
   expect(await core((k, key) => { const f = k.shell.taskByKey(key); return !!f.pty && f.pty !== k.shell.pty; }, first)).toBe(true);
-  expect(files.json(files.pfile('agent.json', 2)).conversations[0].agent, "no agent in the project: the one there is (the tests' own)").toBe('custom');
+  expect(files.json(files.pfile('task.json', 2)).agents.conversations[0].agent, "no agent in the project: the one there is (the tests' own)").toBe('custom');
 
   // The window: the task's grid with its panes; the bar shows it, "New Task" until it is named.
   await expect(taskTab(ui, task)).toHaveText('New Task');
@@ -226,14 +226,14 @@ test("tasks: × closes a task: its agent stops and its tabs close, all else stay
   expect(fs.readdirSync(artifacts)).toHaveLength(1);
   await taskTab(ui, task).getByRole('button', { name: 'Close' }).click();
   // Its agent and tabs gone.
-  await expect.poll(async () => (await core((k, key) => { const t = k.shell.taskByKey(key); return !!t.entry.closed && !t.pty && k.stash.sam.tabs.every((x: { wc: { isDestroyed(): boolean } }) => x.wc.isDestroyed()); }, task)) && isNth(core, 2)).toBe(true);
+  await expect.poll(async () => (await core((k, key) => { const t = k.shell.taskByKey(key); return t.entry.closedAt !== undefined && !t.pty && k.stash.sam.tabs.every((x: { wc: { isDestroyed(): boolean } }) => x.wc.isDestroyed()); }, task)) && isNth(core, 2)).toBe(true);
   // Its profiles' caches cleared, as a profile closed alone (zoom-and-closing): kept, they stayed until it was deleted.
   await expect.poll(() => core((k) => k.stash.sam.session.getCacheSize())).toBe(0);
   expect(fs.readdirSync(artifacts), "the agent's screenshot kept").toHaveLength(1);
   await noQuestion(ui, 'not asked: nothing is lost');
   const { folder, id } = await core((k, key) => { const t = k.shell.taskByKey(key); return { folder: t.folder, id: t.id }; }, task);
   expect(fs.existsSync(folder) && !!git(files.project, 'branch', '--list', 'task-3') && fs.existsSync(path.join(files.userData, 'projects', files.pid('project'), id)), 'its code and data stay').toBe(true);
-  expect(files.tasksOf(files.pid('project')).find((e) => e.id === id).closed).toBe(true);
+  expect(files.tasksOf(files.pid('project')).find((e) => e.id === id).closedAt !== undefined).toBe(true);
   await expect.poll(() => taskTabs(ui)).toEqual(['task-1', 'Feature-X *']);
   // The sidebar lists it under its project, after the open ones; opening it shows it again, its agent resuming the
   // conversation.
@@ -261,15 +261,15 @@ test("tasks: × closes a task: its agent stops and its tabs close, all else stay
   await core((k) => k.watchPty(k.shell.pty));
   expect(await core((k) => k.shell.resumedSession)).toBe('s-3');
   await expect.poll(() => taskTabs(ui)).toEqual(['task-1', 'Feature-X', 'task-3 *']);
-  expect(files.tasksOf(files.pid('project')).find((e) => e.id === id).closed).toBe(undefined);
+  expect(files.tasksOf(files.pid('project')).find((e) => e.id === id).closedAt).toBe(undefined);
 });
 
 test("tasks: an agent's tab closes after a question, always (Cancel keeps it); the last terminal closed folds the terminals' panel to its +, which opens one again; Ctrl+` there opens the task's agent, a new conversation", async ({ core, ui, files, call }) => {
   await begin(core, ui, files, { only: true, columns: true, featureX: call });
   const SAM = files.idOf('Sam.admin');
   const task = await newTask(core, ui), agent = await core((k, key) => k.shell.taskByKey(key).promptTarget().id, task);
-  const terminals = () => core((k, key) => k.shell.taskByKey(key).terminals.size, task);
-  const panel = ui.getByTestId('terminals'), strip = ui.getByTestId('terminal-tabs');
+  const developmentTerminals = () => core((k, key) => k.shell.taskByKey(key).developmentTerminals.size, task);
+  const panel = ui.getByTestId('development-terminals'), strip = ui.getByTestId('terminal-tabs');
   const folded = async (yes: boolean) => {
     await (yes ? expect(panel).toHaveAttribute('data-folded') : expect(panel).not.toHaveAttribute('data-folded'));
     await (yes ? expect(strip).toBeHidden() : expect(strip).toBeVisible());
@@ -277,8 +277,8 @@ test("tasks: an agent's tab closes after a question, always (Cancel keeps it); t
   // The terminals' panel's group (its content is laid over it: dockview's renderer 'always').
   const group = ui.locator('.dv-groupview', { has: strip });
   const size = async (l: Locator) => { const b = await l.boundingBox(); return { width: Math.round(b.width), height: Math.round(b.height) }; };
-  const saved = () => files.json(files.pfile('terminals.json', task.split('/')[1]));
-  const conversations = () => files.json(files.pfile('agent.json', task.split('/')[1])).conversations;
+  const saved = () => files.json(files.pfile('task.json', task.split('/')[1])).development;
+  const conversations = () => files.json(files.pfile('task.json', task.split('/')[1])).agents.conversations;
   const closeTab = () => ui.locator('nav[aria-label="Terminals"] [role="tab"]').first().getByTitle(/^Close/).click();
   await expect(ui.locator('nav[aria-label="Terminals"] [role="tab"]')).not.toHaveCount(0);
   const before = await size(group);
@@ -287,10 +287,10 @@ test("tasks: an agent's tab closes after a question, always (Cancel keeps it); t
   const q = await answer(ui, false);
   expect(q.message).toBe('Close bash?');
   expect(q.detail).toMatch(/^bash stops\. Its conversation stays in the task's history, where any agent of the task can read it\.$/);
-  expect(await core((k, a) => k.shell.taskByKey(a.task).terminals.has(a.agent), { task, agent }), 'kept when the human says no').toBe(true);
+  expect(await core((k, a) => k.shell.taskByKey(a.task).developmentTerminals.has(a.agent), { task, agent }), 'kept when the human says no').toBe(true);
   await closeTab();
   await answer(ui);
-  await expect.poll(terminals).toBe(0);
+  await expect.poll(developmentTerminals).toBe(0);
   // No profile open: the +'s rows as big buttons in its middle, whatever the arrangement.
   await folded(true);
   expect(saved()).toEqual({ front: null, list: [] });
@@ -320,6 +320,7 @@ test("tasks: an agent's tab closes after a question, always (Cancel keeps it); t
       - navigation "New terminal":
         - button "Terminal"
       - navigation "Open an environment":
+        - button "Stage Terminal"
         - button "Sam.admin"
         - button "Elon.buyer"
         - button "Dora"
@@ -330,12 +331,13 @@ test("tasks: an agent's tab closes after a question, always (Cancel keeps it); t
   }
   // One opens what its row in + does: a terminal; closed, the buttons are back.
   await newTerminal.first().click();
-  await expect.poll(terminals).toBe(1);
+  await expect.poll(developmentTerminals).toBe(1);
   await folded(false);
   // A terminal and no profile: the profiles' room a row of buttons over it, one for each; one opens its profile, and
   // the row goes.
   const tiles = ui.getByTestId('closed-profiles');
   await expect(tiles).toMatchAriaSnapshot(`
+    - button "Stage Terminal"
     - button "Sam.admin"
     - button "Elon.buyer"
     - button "Dora"
@@ -376,7 +378,7 @@ test("tasks: an agent's tab closes after a question, always (Cancel keeps it); t
   await call('profile_close', { profile: 'Sam.admin' }, { task });
   await expect(tiles).toHaveCount(1);
   await closeTab();
-  await expect.poll(terminals).toBe(0);
+  await expect.poll(developmentTerminals).toBe(0);
   await expect(launchers).toHaveCount(1);
   await expect(tiles).toHaveCount(0);
   // Resources below the terminal: the empty terminal folds along the development area's height.
@@ -391,12 +393,12 @@ test("tasks: an agent's tab closes after a question, always (Cancel keeps it); t
       - menuitem "Terminal"
   `);
   await choose(ui, 'Terminal');
-  await expect.poll(terminals).toBe(1);
+  await expect.poll(developmentTerminals).toBe(1);
   await folded(false);
   await expect.poll(async () => (await size(group)).height).toBeGreaterThanOrEqual(150);
   // A shell closes without a question; folded again.
   await closeTab();
-  await expect.poll(terminals).toBe(0);
+  await expect.poll(developmentTerminals).toBe(0);
   await folded(true);
   await expect.poll(async () => (await size(group)).height).toBeLessThanOrEqual(40);
   await noQuestion(ui);
@@ -407,7 +409,7 @@ test("tasks: an agent's tab closes after a question, always (Cancel keeps it); t
   await expect.poll(async () => (await size(resources)).height).toBeGreaterThan(300);
   await unfold.click();
   await choose(ui, 'Terminal');
-  await expect.poll(terminals).toBe(1);
+  await expect.poll(developmentTerminals).toBe(1);
   await folded(false);
   await expect.poll(async () => (await size(group)).height).toBeGreaterThanOrEqual(150);
   // Resources beside the terminal: folded along the development area's width, a strip of its + as
@@ -415,14 +417,14 @@ test("tasks: an agent's tab closes after a question, always (Cancel keeps it); t
   // dockview's API: a drag of a panel between groups is the OS's drag and drop.
   await ui.evaluate(() => { const d = (window as any).__dock; d.getPanel('resources').api.moveTo({ group: d.getPanel('terminal').group, position: 'right' }); });
   await closeTab();
-  await expect.poll(async () => { const r = await size(group); return (await terminals()) === 0 && r.width <= 40 && r.height > 100 && (await middle()); }).toBe(true);
+  await expect.poll(async () => { const r = await size(group); return (await developmentTerminals()) === 0 && r.width <= 40 && r.height > 100 && (await middle()); }).toBe(true);
   await unfold.click();
   await choose(ui, 'Terminal');
-  await expect.poll(terminals).toBe(1);
+  await expect.poll(developmentTerminals).toBe(1);
   await folded(false);
   await expect.poll(async () => (await size(group)).width).toBeGreaterThanOrEqual(200);
   await closeTab();
-  await expect.poll(terminals).toBe(0);
+  await expect.poll(developmentTerminals).toBe(0);
   await folded(true);
   await expect.poll(async () => (await size(group)).width).toBeLessThanOrEqual(40);
   await arrange(ui, 'above');
@@ -433,10 +435,11 @@ test("tasks: an agent's tab closes after a question, always (Cancel keeps it); t
   await core((k) => k.press(k.shell.win.webContents, '`', 'control'));
   await expect.poll(() => core((k, key) => !!k.shell.taskByKey(key).promptTarget()?.pty, task), { timeout: 20000 }).toBe(true);
   expect(conversations()).toHaveLength(2);
-  expect([conversations()[1].agent, conversations()[1].terminal]).toEqual(['custom', await core((k, key) => k.shell.taskByKey(key).promptTarget().id, task)]);
+  expect(conversations()[1].agent).toBe('custom');
+  expect(saved().list.find((t: { id: number; conversation: string }) => t.conversation === conversations()[1].id).id).toBe(await core((k, key) => k.shell.taskByKey(key).promptTarget().id, task));
   // Its × closes it without a question: nothing works in it.
   await taskTab(ui, task).getByRole('button', { name: 'Close' }).click();
-  await expect.poll(async () => (await core((k, key) => { const t = k.shell.taskByKey(key); return !!t.entry.closed && !t.loaded; }, task)) && isNth(core, 2)).toBe(true);
+  await expect.poll(async () => (await core((k, key) => { const t = k.shell.taskByKey(key); return t.entry.closedAt !== undefined && !t.loaded; }, task)) && isNth(core, 2)).toBe(true);
   await noQuestion(ui);
 });
 
@@ -445,11 +448,11 @@ test('tasks: × on the last open task of a project lets the project go, nothing 
   // A third task, closed (the sidebar lists it with the others).
   const third = await newTask(core, ui);
   await invoke(ui, 'task:close', third);
-  await expect.poll(() => core((k, key) => !!k.shell.taskByKey(key).entry.closed, third)).toBe(true);
+  await expect.poll(() => core((k, key) => k.shell.taskByKey(key).entry.closedAt !== undefined, third)).toBe(true);
   const pid = files.pid('project'), first = await keyAt(core, 1), second = await keyAt(core, 2);
   await expect.poll(() => taskTabs(ui)).toEqual(['task-1', 'Feature-X *']);
   await taskTab(ui, first).getByRole('button', { name: 'Close' }).click();
-  await expect.poll(() => core((k, a) => { const f = k.shell.taskByKey(a.first); return !!f.entry.closed && !f.loaded && k.shell.task?.key === a.second; }, { first, second })).toBe(true);
+  await expect.poll(() => core((k, a) => { const f = k.shell.taskByKey(a.first); return f.entry.closedAt !== undefined && !f.loaded && k.shell.task?.key === a.second; }, { first, second })).toBe(true);
   await expect.poll(() => taskTabs(ui)).toEqual(['Feature-X *']);
   await noQuestion(ui);
   await core((k, key) => { k.stash.second = k.shell.taskByKey(key); }, second);
@@ -459,7 +462,7 @@ test('tasks: × on the last open task of a project lets the project go, nothing 
   await expect.poll(() => core((k, p) => k.shell.task === null && !k.shell.current && !k.shell.open.has(p), pid), { timeout: 15000 }).toBe(true);
   await noQuestion(ui, 'no agent works: nothing asked');
   expect(await core((k) => { const s = k.stash.second; return s.profiles.size === 0 && !s.pty; }), 'every task of the project stopped').toBe(true);
-  expect(files.tasksOf(files.pid('project')).map((e) => [e.name, !!e.closed])).toEqual([['task-1', true], ['Feature-X', true], ['task-3', true]]);
+  expect(files.tasksOf(files.pid('project')).map((e) => [e.name, e.closedAt !== undefined])).toEqual([['task-1', true], ['Feature-X', true], ['task-3', true]]);
   await expect(ui.locator('html')).toHaveAttribute('data-page', /^(sidebar|welcome)$/);
   // The empty window, projects there: the sidebar docked, every project with its tasks; no tasks' bar.
   await expect(ui.locator('html')).toHaveAttribute('data-page', 'sidebar');
@@ -470,7 +473,7 @@ test('tasks: × on the last open task of a project lets the project go, nothing 
   expect(files.savedWindows(), 'the window opens so next time').toEqual([{ tabs: [], shown: null }]);
   // Each project: its icon, its name, + (a new task of it) under the pointer; its tasks, the one closed last first (all
   // are closed here), each when it was closed. The project worked in last first.
-  const byClosing = files.tasksOf(files.pid('project')).filter((e) => e.closed).sort((a, b) => (b.closedAt ?? 0) - (a.closedAt ?? 0)).map((e) => e.name);
+  const byClosing = files.tasksOf(files.pid('project')).filter((e) => e.closedAt !== undefined).sort((a, b) => (b.closedAt ?? 0) - (a.closedAt ?? 0)).map((e) => e.name);
   await expect(sidebar(ui).locator('[data-project]').first(), 'worked in last').toHaveAccessibleName('project');
   expect(await sidebarTasks(ui, 'project')).toEqual(byClosing);
   expect(byClosing[0]).toBe('Feature-X');

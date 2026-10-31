@@ -129,7 +129,7 @@ test('page zoom: Ctrl+= in a page zooms that site in that profile only, shows on
   for (const z of await core((k) => k.profile('Elon.buyer').tabs.map((t) => t.wc.getZoomFactor()))) expect(near(z, 1.25), 'other profiles keep the Kulisa zoom').toBe(true);
   const shown = ui.locator(`[role="region"][data-profile="${sam}"]`).getByTitle(/^This site's zoom/);
   await expect(shown).toHaveText('110%');
-  const saved = files.json(files.pfile('profiles.json')).find((p: { id: string }) => p.id === sam);
+  const saved = files.json(files.pfile('task.json')).stage.items.filter((i: { type: string }) => i.type === 'profile').find((p: { id: string }) => p.id === sam);
   expect(saved.zoom).toEqual({ [`127.0.0.1:${PORT}`]: 1.1 });
   await ctrl(core, 'Sam.admin', '0');
   await expect.poll(async () => near(await zoom(), 1.25)).toBe(true);
@@ -165,7 +165,7 @@ test('tabs on sign-in pages are saved as where the sign-in started', async ({ co
 
 test('close a profile (its × or the agent) and open it again (👥 or the agent): signed in, same tabs; the agent removes it from the project only when the human confirms', async ({ core, ui, call, files }) => {
   await deleteProfile(core, ui, 'Cleo');
-  const saved = (f: string): { id: string; closed?: boolean }[] => files.json(files.pfile(f));
+  const saved = (): { id: string; closed?: boolean }[] => files.json(files.pfile('task.json')).stage.items.filter((i: { type: string }) => i.type === 'profile');
   await call('profile_create', { name: 'Cleo' });
   const cleo = await profileId(core, 'Cleo');
   const header = ui.locator(`[data-panel="profile:${cleo}"]`);
@@ -186,7 +186,7 @@ test('close a profile (its × or the agent) and open it again (👥 or the agent
   await expect.poll(cacheSize).toBe(0); // a closed profile keeps no cache
   await expect.poll(() => cacheStorageFiles(cleoDir)).toBe(0);
   await expect(header).toHaveCount(0);
-  expect(saved('profiles.json').find((p) => p.id === cleo).closed).toBe(true);
+  expect(saved().find((p) => p.id === cleo).closed).toBe(true);
   await expect.poll(() => files.savedTabs(cleo).length).toBe(2);
   const listed = JSON.parse((await call('profile_list', {})).text).find((p: { name: string }) => p.name === 'Cleo');
   expect(listed).toEqual({ name: 'Cleo', description: null, avatar, closed: true, tabs: 2 });
@@ -250,7 +250,7 @@ test('close a profile (its × or the agent) and open it again (👥 or the agent
   await answer(ui);
   await removed;
   expect(await core((k, id) => !k.shell.profiles.has(id) && !k.shell.closed.has(id), cleo)).toBe(true);
-  expect(saved('profiles.json').some((p) => p.id === cleo)).toBe(false);
+  expect(saved().some((p) => p.id === cleo)).toBe(false);
   expect(files.json('deleted-folders.json')).toContain(cleoDir);
   expect(await core((k, id) => k.shell.profileStore.projectsOf(k.shell.profileStore.get(id)), cleo), 'kept, in no project').toEqual([]);
   // Deleted for good, as Settings does: the file's next runs make a Cleo again.
@@ -388,7 +388,7 @@ test('after a restart: the Kulisa zoom and a site\'s page zoom are as they were 
   await core(async (k, url) => { await k.ensureProfile('Sam.admin', url); }, `${SITE}/app`);
   await zoomAt(core, 1.25);
   const sam = await core((k) => k.profile('Sam.admin').id);
-  const siteZoom = () => files.json(files.pfile('profiles.json')).find((p: { id: string }) => p.id === sam).zoom?.[`127.0.0.1:${PORT}`];
+  const siteZoom = () => files.json(files.pfile('task.json')).stage.items.filter((i: { type: string }) => i.type === 'profile').find((p: { id: string }) => p.id === sam).zoom?.[`127.0.0.1:${PORT}`];
   const zoom = () => core((k) => k.profile('Sam.admin').get().wc.getZoomFactor());
   await ctrl(core, 'Sam.admin', '0'); // the site at the Kulisa zoom, then zoomed
   await expect.poll(async () => near(await zoom(), 1.25)).toBe(true);

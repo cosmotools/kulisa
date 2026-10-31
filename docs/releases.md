@@ -20,8 +20,8 @@ Linux (the `.deb` checked: it installs `chrome-sandbox` setuid root, a menu entr
 `.dmg` and `.zip` on macOS (signed and notarized when the Apple secrets are set; without them unsigned, which runs on
 the Mac it was built on; for users: #206). On macOS and Windows node-pty is not built again:
 its own prebuilt binary is packaged (N-API, the one `npm start` loads), so no compiler is needed; on macOS its
-`spawn-helper`, the program it starts a shell with, is kept outside the archive, where it runs it from (in it, a
-packaged Kulisa's terminal fails). **What the package holds** is what the main process runs: its `dependencies`, the
+`spawn-helper` stays outside the archive so it can be executed. Windows's bundled `conpty.dll` and
+`OpenConsole.exe` stay beside the native module outside the archive so the native loader can find them. **What the package holds** is what the main process runs: its `dependencies`, the
 window's build (`dist/renderer`, 3 MB) and the agents' packages. The window's libraries (React, Radix, Tailwind, Lucide's
 icons, xterm and its addons, the fonts) are `devDependencies`, which Forge leaves out: Vite bundles them, and the main
 process imports none of them (but `@xterm/headless`, which keeps each shell's screen). node-pty's prebuilt binaries for

@@ -2,7 +2,7 @@
 // "Choosing the agent"): an entry each, in a file of its own (claude.ts, codex.ts), listed in index.ts. Everything
 // Kulisa needs to know about one agent is its entry: who makes it and what it needs, how to find it, how to install
 // it (its maker's own installer, run by Kulisa for the human), how to start it connected to Kulisa and how to continue
-// a conversation. Kulisa's core calls agents through it alone. Each conversation in a task is kept in its agent.json
+// a conversation. Kulisa's core calls agents through it alone. Each conversation in a task is kept in its task.json
 // (store.ts).
 //   id, name, maker, needs   shown in the window when the human chooses
 //   site                     the maker's page of it (the Agents window links to it)
@@ -14,7 +14,7 @@
 //                            account (its account's folder, Kulisa's: where it may keep what it is started with) }
 //   localFiles               its settings a project keeps out of git (gitignore patterns from its top): copied into a
 //                            task's copy when git ignores them (worktrees.ts)
-//   resume(saved)            arguments that continue a conversation (saved: as agent.json keeps it), or nothing
+//   resume(saved)            arguments that continue a conversation (saved: as task.json keeps it), or nothing
 //   dirs(folders)            the task's other folders (its copies of the project's other repositories): { args, env }
 //                            that give them to it; without, it learns of them from the MCP server's instructions
 //   addDir                   how it gets a folder the task gets while it runs, sent by Kulisa even in its turn (never
@@ -31,7 +31,7 @@
 //                            has not built): the human gets the same Kulisa with every agent, so a gap is said, never
 //                            left out silently (test/unit/agents.test.ts; docs/tasks.md, "What each agent can do")
 //   skills                   where in its config folder it reads its own skills ('skills': <dir>/skills/<name>/SKILL.md):
-//                            Kulisa's profiles skill (how to work with the profiles) goes there, into its account's
+//                            Kulisa's shared skill (how to work with Kulisa) goes there, into its account's
 //                            folder only, never the human's own (installSkill)
 //   prompt(text)             the arguments that start it with a first message (the task handed to it: tasks.ts, handOver)
 //   conversation(transcript) its transcript read as the task's history (task_history; the entries: transcripts.ts): { entries,
@@ -62,13 +62,7 @@
 //                            codes it takes; set(dir, code), into an account's config folder
 import type { Conversation } from '../transcripts.ts';
 
-// Kulisa's MCP tools that keep the agent's own approval (docs/profiles.md, The agent's tools):
-// terminal_run runs any command in the human's shell, around the agent's approval of commands (and Codex's sandbox);
-// browser_file_upload sends a file of the disk to a site, what a prompt injection would use. Every other tool runs
-// without a question, a new one too unless it is added here: what acts on real accounts asks the human in Kulisa itself.
-const KULISA_ASKS = ['terminal_run', 'browser_file_upload'];
-
-// A conversation as agent.json keeps it: its session as the agent's hooks reported it (agent-hooks.ts), and its
+// A conversation as task.json keeps it: its session as the agent's hooks reported it (agent-hooks.ts), and its
 // account's folder.
 interface Saved { sessionId?: string; transcript?: string; started?: boolean; configDir?: string | null }
 // Where an agent's program is (findAgent).
@@ -121,4 +115,4 @@ const CAPABILITIES = ['config', 'hooks', 'skills', 'resume', 'prompt', 'dirs', '
 type Capability = typeof CAPABILITIES[number];
 
 export type { Agent, Found, Where, ForgetContext, Hook, HookEvent };
-export { KULISA_ASKS, CAPABILITIES, hookSeconds, hookCommand };
+export { CAPABILITIES, hookSeconds, hookCommand };

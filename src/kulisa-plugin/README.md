@@ -17,10 +17,14 @@ The caller keeps core checks, questions, ownership and platform objects. The Kul
 agent instructions, sign-in waiting, highlights, action annotations and transcript formatting. Browser actions use
 Playwright through the caller's CDP connection, preserving the sign-in pause.
 
-`resources/` holds the shared profiles skill and Claude Code's plugin format (`claude-plugin/.claude-plugin/`),
+`resources/` holds the shared Kulisa skill and Claude Code's plugin format (`claude-plugin/.claude-plugin/`),
 whose manifest names `kulisa`. Codex receives the same MCP server through its launch configuration. Forge copies the
 resources beside the app archive for CLIs to read; the resources are excluded from the archive. The app version is
 passed to the Claude manifest by `scripts/version.ts` at `npm version`.
+
+The plugin reports the environment used by browser tools and named Stage-terminal tools through
+`TaskAccess.environmentUsed`. The window owns Follow agent: tab selection, scrolling, activity highlighting and
+manual pause. CDP clients also report browser activity through the action captions.
 
 ## MCP transport
 
@@ -37,20 +41,16 @@ listing, the one source; how a tool is designed: [Tool design](#tool-design).
 
 **The agent does not ask the human before Kulisa's tools**: it works in the profiles while the
 human watches or is away, and a question at every click undoes that; what acts on real accounts asks in Kulisa itself
-(`profile_delete`, the sign-in pause). But two keep the agent's own approval (`KULISA_ASKS`, `agents/`):
-`terminal_run`, any command in the human's shell, which would get around the agent's approval of commands (and
-Codex's sandbox: the command runs in Kulisa's terminal); `browser_file_upload`, a file of the disk sent to a site, what
-a prompt injection would use. A new tool runs without a question unless it is added there. Through the start's
-arguments, as the MCP server and the hooks are, not the agents' own config files: Claude Code's `permissions` in
-`--settings` (allow the plugin's server, `mcp__plugin_kulisa_kulisa`; ask the two: an ask rule wins), Codex's
-`mcp_servers.kulisa.default_tools_approval_mode="approve"` and `prompt` for the two.
+(`profile_delete`, the sign-in pause). All Kulisa tools are approved through the agent’s launch arguments, including command execution, terminal input and file upload.
+Claude Code’s `--settings` allows the plugin’s server (`mcp__plugin_kulisa_kulisa`); Codex receives
+`mcp_servers.kulisa.default_tools_approval_mode="approve"`. These overrides are scoped to Kulisa sessions.
 
 What the tools are for, beyond acting as one user:
 
 - **Choosing the profile** by who it is, as cast did: `profile_list` and the session's start give each profile's
   description, or say it is not said. The agent chooses by it, never guessing a role from a name; when none or several
   fit, it asks the human once and saves their answer (`profile_describe`), so no one asks again. The rule is in the
-  MCP server's `instructions` too, so agents without the profiles skill (one run by hand in the terminal) get it.
+  MCP server's `instructions` too, so agents without the Kulisa skill (one run by hand in the terminal) get it.
 - **Several users at once.** `browser_wait_for` waits in any profile, so the agent acts as one user and waits for
   the effect as another (a message, an invite), up to 45 s a call (Codex gives an MCP tool 60 s).
   `browser_snapshot` with `also` reads several profiles' active tabs in one call, to compare what each user sees.
@@ -91,8 +91,10 @@ page gets the keys typing sends (suggestions, checks as one types). A text over 
 is filled at once (`TYPED_MAX`, `main/tools/browser.ts`). Letters not on a US keyboard come as typed text, without key codes
 (Playwright's way).
 
-The agent learns how to work with profiles from the Kulisa plugin: the profiles skill (`resources/skills/profiles/SKILL.md`; keep it in step with the tools), one text for every agent,
-written into each account's folder where its agent reads its skills (`kulisa-profiles`), and for Claude Code a plugin
+The agent learns how to work with tasks, browser profiles and Stage terminals from the Kulisa plugin: the Kulisa skill (`resources/skills/kulisa/SKILL.md`; keep it in step with the tools), one text for every agent,
+written into each account's folder where its agent reads its skills (`kulisa`). Installation keeps one generated
+skill copy in that account. The skill and MCP instructions leave the final app ready for human review and close
+only temporary testing environments. Claude Code also gets a plugin
 with the MCP config (`resources/claude-plugin/`, `claude --plugin-dir`). Every agent gets Kulisa's hooks at its start (a table in
 its file, `agents/`), among them `SessionStart`, which tells the agent which profiles are open and tells Kulisa its
 session (to resume it). The user's own MCP servers stay available
@@ -169,7 +171,7 @@ while the agent's own transcript grows.
 - **Without a conversation**: **where the task stands** (Kulisa's part, what no transcript says): the task, its
   folder and branch; for each copy of the code, its commits since the task started, the files not committed and
   `diff --stat` against its start (`progress` in `worktrees.ts`); the profiles open and closed; the shells and what
-  runs there. Then **its conversations**, oldest first, numbered from 1 (each an agent's, `agent.json`: tasks.md,
+  runs there. Then **its conversations**, oldest first, numbered from 1 (each an agent's, `task.json`: tasks.md,
   "Several agents in a task"): its tab's name (the one its agent gave it), its agent and account, open in its tab or
   closed, from when to when, the human's first and last request in it (200 characters at most), and how its last turn
   ended (a tool call with no result: cut off, by a limit or the human; or the human's last message with no answer).
@@ -305,8 +307,8 @@ A new tool, or a change to one, meets all of these:
   up").
 - **Clear when it fails.** The error says what is wrong and what to do: which profiles there are, that the human is
   signing in.
-- **Safe.** It acts within its task only. Where it reaches the disk or a shell, the agent's own approval applies
-  (`KULISA_ASKS`, [profiles.md](../../docs/profiles.md)); where it changes real accounts, Kulisa asks the human.
+- **Safe.** It acts within its task only. Core ownership and checks apply to both window and agent actions;
+  where it changes real accounts, Kulisa asks the human.
 - **Tested.** Its behavior has a test ([testing.md](../../docs/testing.md)). Its log line needs no code: `registerTool` writes it.
 
 ### Saving the agent's context

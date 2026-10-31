@@ -51,8 +51,8 @@ class Project {
   // The one a new task starts; none: its tasks start with nothing open (the terminals' buttons, Terminals.tsx).
   defaultAgent() { return defaultOf(this.shell, this.entry); }
   // Its open tasks, in the order they were made (the bar's); the closed ones, the one closed last first.
-  open() { return [...this.tasks.values()].filter((t) => !t.entry.closed); }
-  closedTasks() { return [...this.tasks.values()].filter((t) => t.entry.closed).sort((a, b) => (b.entry.closedAt ?? 0) - (a.entry.closedAt ?? 0)); }
+  open() { return [...this.tasks.values()].filter((t) => t.entry.closedAt === undefined); }
+  closedTasks() { return [...this.tasks.values()].filter((t) => t.entry.closedAt !== undefined).sort((a, b) => (b.entry.closedAt ?? 0) - (a.entry.closedAt ?? 0)); }
   // Its task with this key ("<project id>/<task id>", tasks.ts), or null.
   taskByKey(key: string) { return [...this.tasks.values()].find((t) => t.key === key) || null; }
   // A conversation of one of its tasks with a transcript: where its agents keep their data (agents/: Claude's config).
@@ -156,7 +156,7 @@ class Project {
   // × on its tab: its agent stops and its tabs close; everything else stays, and it is listed as closed. Once it is
   // not shown.
   async closeTask(task: Task) {
-    task.entry.closed = true; task.entry.closedAt = Date.now();
+    task.entry.closedAt = Date.now();
     this.save();
     await task.unload();
   }
@@ -175,7 +175,7 @@ class Project {
   }
   // A closed task opened again (the sidebar), to be shown: it loads then, its agent resumed.
   reopen(task: Task) {
-    delete task.entry.closed; delete task.entry.closedAt; delete task.entry.merged;
+    delete task.entry.closedAt; delete task.entry.merged;
     this.save();
   }
   askDeleteTask(task: Task) { return askDeleteTask(this.shell, task.entry, task.folder, task.window || this.window); }
@@ -220,7 +220,7 @@ async function askDeleteTask(shell: Shell, entry: TaskEntry, folder: string, w: 
 }
 // A closed task of a project not loaded (the sidebar lists them): nothing of it is loaded, its entry is all there is.
 async function deleteClosedTask(shell: Shell, p: ProjectEntry, id: string, w: AppWindow): Promise<Result<{ id: string }>> {
-  const entry = shell.store.tasksOf(p).list.find((e) => e.id === id && e.closed);
+  const entry = shell.store.tasksOf(p).list.find((e) => e.id === id && e.closedAt !== undefined);
   if (!entry) return { error: `no closed task ${id}` };
   if (!await askDeleteTask(shell, entry, folderOf(entry, p.folders[0]!), w)) return { error: 'the human said no' };
   await deleteTask(shell, p, entry);

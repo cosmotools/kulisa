@@ -2,6 +2,7 @@
 // "<task key>#<id>". The window shows the shown task's, the others keep running (and the window keeps their output).
 import { handle, on } from '../../main/ipc.ts';
 import { log } from '../../main/log.ts';
+import { terminalKeys } from '../ipc.ts';
 import type { TerminalEvents } from '../ipc.ts';
 import fs from 'fs';
 import os from 'os';
@@ -9,8 +10,9 @@ import path from 'path';
 import pty from 'node-pty';
 import type { IPty } from 'node-pty';
 import xterm from '@xterm/headless';
+import { Unicode11Addon } from '@xterm/addon-unicode11';
 import type { Terminal } from '@xterm/headless';
-import { quotePaths, shellLine } from './shell-quote.ts';
+import { quotePaths, shellLine, executionLine } from './shell-quote.ts';
 
 interface Size { cols: number; rows: number }
 // A terminal's process, with what Kulisa keeps of it.
@@ -18,11 +20,11 @@ type Pty = IPty & { spawnSize: Size; spawnArgs: string[]; key: string; shell: st
 // How a terminal starts (startTerminal).
 interface TerminalConfig {
   command?: string | null; args?: string[]; cwd?: string; env?: Record<string, string | undefined>;
-  shell?: { command: string; args?: string[] } | false | null; line?: string; size?: Size | null; sizeOf?: string;
+  shell?: { command: string; args?: string[] } | false | null; line?: string; execute?: string; size?: Size | null; sizeOf?: string;
   pinned?: Record<string, string>; screen?: number;
 }
-type Send = (channel: 'pty:out', data: TerminalEvents['pty:out']) => void;
-interface Term { pty: Pty | null; size: Size | null; firstSize: Promise<void>; sized: () => void }
+type TerminalOutput = (channel: 'pty:out', data: TerminalEvents['pty:out']) => void;
+interface Term { pty: Pty | null; size: Size | null; firstSize: Promise<void>; sized: () => void; sizeOf?: string; fixed?: Size | null }
 
 // The terminal's size as the window measures it, per terminal and per task (its panel's, which all its terminals
 // share: one is shown at a time). An agent starts only once its size is known: Claude Code draws its prompt for the
@@ -40,9 +42,10 @@ const termOf = (key: string) => {
   return terms.get(key)!;
 };
 on('pty:resize', (_e, { task, cols, rows }) => {
-  const t = termOf(task), panel = termOf(task.split('#')[0]!);
-  t.size = panel.size = { cols, rows }; t.sized(); panel.sized();
-  try { t.pty?.resize(cols, rows); t.pty?.screen?.resize(cols, rows); } catch {}
+  const t = termOf(task), size = t.fixed || { cols, rows };
+  t.size = size; t.sized();
+  if (t.sizeOf) { const panel = termOf(t.sizeOf); panel.size = size; panel.sized(); }
+  try { t.pty?.resize(size.cols, size.rows); t.pty?.screen?.resize(size.cols, size.rows); } catch {}
 });
 // Every terminal's process until it has exited (stopAllTerminals).
 const running = new Map<Pty, Promise<void>>();
@@ -89,8 +92,10 @@ function programPath(name: string, env: Record<string, string | undefined> = pro
 // start at it rather than wait for the window's; sizeOf: or at that key's (the task's terminals' panel: a terminal behind another
 // tab has none of its own), whichever comes first. screen: its last lines kept for the agent to read (a shell's). key: the terminal's; the window sends its input and size, and gets
 // its output, under it. send(channel, data): to the task's window, whichever it is then.
-async function startTerminal(send: Send, cfg: TerminalConfig, key: string): Promise<Pty> {
+async function startTerminal(send: TerminalOutput, cfg: TerminalConfig, key: string): Promise<Pty> {
   const t = termOf(key), like = cfg.sizeOf ? termOf(cfg.sizeOf) : null;
+  t.sizeOf = cfg.sizeOf;
+  if (t.size && like) { like.size = t.size; like.sized(); }
   if (!cfg.size) await Promise.race([t.firstSize, ...(like ? [like.firstSize] : [])]);
   const { cols, rows } = (t.size || cfg.size || like?.size)!; // one of them: given, or waited for
   const sh = cfg.shell === false ? null : cfg.shell || userShell();
@@ -98,17 +103,23 @@ async function startTerminal(send: Send, cfg: TerminalConfig, key: string): Prom
   const program = sh ? sh.command : cfg.command || userShell().command;
   const p = pty.spawn(programPath(program, env) || program, sh ? sh.args || [] : cfg.args || [], {
     name: 'xterm-256color', cols, rows, cwd: cfg.cwd || process.cwd(), env,
+    ...(process.platform === 'win32' && { useConptyDll: true }),
   }) as Pty;
   p.typed = Promise.resolve();
-  if (cfg.line) p.typed = typeWhenReady(p, `${cfg.line}\r`);
+  if (cfg.execute && sh) p.typed = typeWhenReady(p, ` ${executionLine(sh.command, cfg.execute)}\r`);
+  else if (cfg.line) p.typed = typeWhenReady(p, `${cfg.line}\r`);
   else if (sh && cfg.command) p.typed = typeWhenReady(p, ` ${shellLine(sh.command, cfg.command, cfg.args || [], cfg.pinned)}\r`);
   p.spawnSize = { cols: p.cols, rows: p.rows };
   p.spawnArgs = cfg.args || [];
   p.key = key;
   p.shell = sh?.command || userShell().command;
   // An agent that was replaced says nothing more in the window.
-  if (cfg.screen) p.screen = new xterm.Terminal({ cols: p.cols, rows: p.rows, scrollback: cfg.screen, allowProposedApi: true });
-  const out = (data: string) => { p.screen?.write(data); if (t.pty === p) send('pty:out', { task: key, data }); };
+  if (cfg.screen) {
+    p.screen = new xterm.Terminal({ cols: p.cols, rows: p.rows, scrollback: cfg.screen, allowProposedApi: true });
+    p.screen.loadAddon(new Unicode11Addon());
+    p.screen.unicode.activeVersion = '11';
+  }
+  const out = (data: string) => { p.screen?.write(data); if (t.pty === p) send('pty:out', { task: key, data, cols: p.cols, rows: p.rows }); };
   p.onData(out);
   p.onExit(({ exitCode }) => { log.info(`[terminal] ${key} exited ${exitCode}`); out(`\r\n[process exited ${exitCode}]\r\n`); });
   running.set(p, new Promise((r) => p.onExit(() => { running.delete(p); r(); })));
@@ -120,7 +131,7 @@ async function startTerminal(send: Send, cfg: TerminalConfig, key: string): Prom
 // before, then the shell shows it again). A shell reading a line turns bracketed paste on (bash, zsh, fish); for
 // other shells, once the output has been quiet for a moment. A leading space keeps it out of the shell's history
 // (bash's default ignorespace). Once typed, the promise: what is sent to the agent comes after it (sendToPrompt).
-const typeWhenReady = (p: IPty, line: string) => readsLine(p).then(() => p.write(line));
+const typeWhenReady = (p: IPty & { stopped?: boolean }, line: string) => readsLine(p).then(() => { if (!p.stopped) p.write(line); });
 // Once the shell reads its input line again (above).
 function readsLine(p: IPty) {
   return new Promise<void>((resolve) => {
@@ -135,12 +146,14 @@ function readsLine(p: IPty) {
 }
 
 // Stop the agent; its output no longer reaches the window. The terminal's size is kept for the next agent there.
-function stopTerminal(p: Pty) {
+function stopTerminal(p: Pty, { keepScreen = false }: { keepScreen?: boolean } = {}) {
+  // ConPTY's native handle may only be killed once, even when the caller retains its screen.
+  const active = !p.stopped && running.has(p);
   p.stopped = true;
   const t = terms.get(p.key);
   if (t?.pty === p) t.pty = null;
-  try { p.kill(); } catch {}
-  p.screen?.dispose(); p.screen = undefined;
+  if (active) try { p.kill(); } catch {}
+  if (!keepScreen) { p.screen?.dispose(); p.screen = undefined; }
 }
 
 // Every terminal stopped, as Kulisa quits, and their processes waited for, 3 s at most: on Windows node-pty ends a
@@ -154,6 +167,27 @@ async function stopAllTerminals() {
 // A terminal closed, or its task gone (its project closed, a task deleted): its size too. Opened again, the window
 // measures it anew.
 const forgetTerminal = (key: string) => terms.delete(key);
+
+// Flush xterm's queued parser before an interactive screen is inspected.
+async function terminalScreen(p: Pty, lines: number, screenOnly = false) {
+  const term = p.screen;
+  if (!term) return '';
+  await new Promise<void>((resolve) => {
+    const timer = setTimeout(resolve, 1000);
+    term.write('', () => { clearTimeout(timer); resolve(); });
+  });
+  if (p.screen !== term) return '';
+  if (!screenOnly) return terminalTail(p, lines);
+  const b = term.buffer.active;
+  return Array.from({ length: term.rows }, (_, i) => b.getLine(b.baseY + i)?.translateToString(true) || '').join('\n').trimEnd();
+}
+function setTerminalSize(key: string, size: Size | null) {
+  const t = termOf(key);
+  t.fixed = size;
+  if (!size) return;
+  t.size = size; t.sized();
+  try { t.pty?.resize(size.cols, size.rows); t.pty?.screen?.resize(size.cols, size.rows); } catch {}
+}
 
 // The last lines of a shell as plain text, as its screen shows them; a line the screen wrapped at its width is one.
 function terminalTail(p: Pty, lines: number) {
@@ -174,6 +208,18 @@ function interrupt(p: Pty) {
 }
 // A command line typed into the shell and run, as the human would type it; after what is being typed already.
 const typeLine = (p: Pty, line: string) => { p.typed = p.typed.then(() => p.write(`${line}\r`)); };
+
+function pressTerminalKey(p: Pty, key: string) {
+  let data = terminalKeys[key];
+  if (typeof data !== 'string') return false;
+  if (/^(Arrow|Home$|End$)/.test(key) && p.screen?.modes.applicationCursorKeysMode) data = data.replace('\x1b[', '\x1bO');
+  p.write(data);
+  return true;
+}
+function pasteTerminal(p: Pty, text: string, paste: boolean) {
+  const data = text.replace(/\x1b/g, '').replace(/\r?\n/g, '\r');
+  p.write(paste && p.screen?.modes.bracketedPasteMode ? `\x1b[200~${data}\x1b[201~` : data);
+}
 
 // Put text into the agent's prompt as a paste (bracketed: one block, nothing in it is taken as a key), not sent.
 function typeIntoPrompt(p: IPty, text: string) {
@@ -206,7 +252,7 @@ async function sendToPrompt(p: Pty, text: string, confirm?: string) {
   if (asked && await asked) p.write('\r');
 }
 
-export type { Pty };
-export { startTerminal, stopTerminal, stopAllTerminals, forgetTerminal, terminalTail, typeIntoPrompt, eraseInPrompt, sendToPrompt, interrupt, typeLine, onEscape };
+export type { Pty, TerminalConfig, TerminalOutput };
+export { startTerminal, stopTerminal, stopAllTerminals, forgetTerminal, terminalTail, typeIntoPrompt, eraseInPrompt, sendToPrompt, interrupt, typeLine, onEscape, terminalScreen, setTerminalSize, pressTerminalKey, pasteTerminal };
 
 export { quotePaths } from './shell-quote.ts';

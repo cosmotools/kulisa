@@ -2,12 +2,13 @@
 import { Orientation } from 'dockview-react';
 import type { DockviewApi, SerializedDockview, GridviewApi } from 'dockview-react';
 import type { PageLayout } from '../../shared/ipc';
-import type { Profile, Terminals } from '../../shared/types';
+import type { Profile, DevelopmentTerminalsState } from '../../shared/types';
+import type { StageTerminal } from '../../shared/stage-terminal';
 import { act, setCaption, store } from './store';
 import { forgetFrozen, freeze, showViews, unfreeze } from './views';
 import { closeLayers } from './cover';
 import { forgetTerminals } from '../../terminal/renderer';
-import { environmentMinimum, splitLayout, type TaskLayout } from './stage-layout';
+import { environmentMinimum, filterLayout, splitLayout, type TaskLayout } from '../../shared/stage-layout';
 
 interface PaneHandle { content: HTMLElement; focusAddress(): void; newTab(): void; pick(): void }
 export const panes = new Map<string, PaneHandle>();
@@ -19,7 +20,7 @@ let pendingStage: SerializedDockview | null = null;
 let workspace: GridviewApi | null = null;
 let stageShare = 0.65;
 let replacing = false, building = false, rebuilding: Promise<void> | null = null;
-let nextTerminals: Terminals | null = null;
+let nextDevelopmentTerminals: DevelopmentTerminalsState | null = null, nextStageTerminals: StageTerminal[] | null = null;
 let saveTimer = 0, save: (() => void) | null = null;
 
 function changed() {
@@ -60,6 +61,8 @@ export function stageMounted(a: DockviewApi) {
   if (!a.panels.length) arrangeStage(); else syncStage();
   building = wasBuilding;
   watch(a);
+  a.onDidActivePanelChange(({ origin }) => { if (origin === 'user') pauseStageFollowing(); });
+  a.onDidMaximizedGroupChange(() => { constrainStage(); scheduleLayout(); });
   a.onDidAddGroup(() => constrainStage()); constrainStage(); changed();
   scheduleLayout();
 }
@@ -83,8 +86,8 @@ kulisa.on('state', async (s) => {
 async function replaceGrid(s: Profile[]) {
   const a = await apiReady.promise, saved = await act('layout:load');
   building = true; removeStage(); a.clear();
-  store.setState({ profiles: s, pictures: {}, captions: {}, picking: {}, ...(nextTerminals && { terminals: nextTerminals }) });
-  nextTerminals = null;
+  store.setState({ profiles: s, stageTerminals: nextStageTerminals ?? [], pictures: {}, captions: {}, picking: {}, ...(nextDevelopmentTerminals && { developmentTerminals: nextDevelopmentTerminals }) });
+  nextDevelopmentTerminals = nextStageTerminals = null;
   buildGrid(a, saved); building = false; gridReady = Promise.resolve(); scheduleLayout(); reveal();
 }
 function reveal() {
@@ -110,15 +113,16 @@ function sendLayout() {
   }
   kulisa.send('layout', { task: store.getState().current, rects });
 }
-const environmentIds = () => store.getState().profiles.map((p) => panelId(p.id));
+const environmentIds = () => [...store.getState().profiles.map((p) => panelId(p.id)), ...store.getState().stageTerminals.map((a) => `stage-terminal:${a.id}`)];
 function addEnvironment(id: string, reference?: string, direction: 'right' | 'below' | 'within' = 'right', inactive = false) {
-  stage!.addPanel({ id, component: 'profile', tabComponent: 'profile',
-    title: store.getState().profiles.find((p) => panelId(p.id) === id)?.name,
-    ...(reference && { position: { referencePanel: reference, direction } }), inactive });
+  const profile = id.startsWith('profile:');
+  stage!.addPanel({ id, component: profile ? 'profile' : 'stage-terminal', tabComponent: profile ? 'profile' : 'stage-terminal',
+    title: profile ? store.getState().profiles.find((p) => panelId(p.id) === id)?.name : store.getState().stageTerminals.find((a) => `stage-terminal:${a.id}` === id)?.name,
+    ...(!profile && { renderer: 'always' as const }), ...(reference && { position: { referencePanel: reference, direction } }), inactive });
 }
 function constrainStage(mode = store.getState().stageLayout, overflow = store.getState().stageOverflow) {
   if (!stage) return;
-  const scrolling = overflow && mode !== 'tabs';
+  const scrolling = overflow && mode !== 'tabs' && !stage.hasMaximizedGroup();
   const minimumWidth = scrolling && mode !== 'vertical' ? environmentMinimum.width : 0;
   const minimumHeight = scrolling && mode === 'vertical' ? environmentMinimum.height : 0;
   const { width, height } = stage;
@@ -183,15 +187,14 @@ function syncGrid() {
 function restore(a: DockviewApi, saved: SerializedDockview | null, known: string[]) {
   if (!saved) return;
   try {
-    if (!Object.keys(saved.panels).every((id) => known.includes(id))) return;
-    a.fromJSON(saved);
+    a.fromJSON(filterLayout(saved, (id) => known.includes(id)));
   } catch (e) { console.warn('[layout] saved grid not restored:', (e as Error).message); a.clear(); }
 }
 function buildGrid(a: DockviewApi, saved: unknown) {
   const layout = splitLayout(saved);
   stageShare = layout?.stageShare && layout.stageShare > 0 && layout.stageShare < 1 ? layout.stageShare : 0.65;
   pendingStage = layout?.stage ?? null;
-  store.setState({ stageLayout: layout?.stageLayout ?? null, stageOverflow: layout?.stageOverflow ?? false, stagePosition: layout?.stagePosition ?? 'above' });
+  store.setState({ stageLayout: layout?.stageLayout ?? null, stageOverflow: layout?.stageOverflow ?? false, stageFollowPaused: false, stageActivity: null, stagePosition: layout?.stagePosition ?? 'above' });
   placeStage();
   restore(a, layout?.workspace ?? null, ['terminal', 'resources']);
   if (!a.getPanel('terminal') || !a.getPanel('resources')) {
@@ -213,21 +216,72 @@ kulisa.on('stage:arrange', ({ task, layout, overflow, position }) => {
   if (layout !== undefined) arrangeStage();
   building = false; changed();
 });
+let activityTimer = 0, followFrame = 0;
+let lastEnvironment: string | null = null;
+function followEnvironment(environment: string) {
+  cancelAnimationFrame(followFrame);
+  const task = store.getState().current;
+  followFrame = requestAnimationFrame(() => {
+    const state = store.getState();
+    if (state.current !== task || !state.stageFollow || state.stageFollowPaused || state.loading) return;
+    const panel = stage?.getPanel(environment);
+    if (!panel || (stage!.hasMaximizedGroup() && !panel.api.isMaximized())) return;
+    const focused = document.activeElement;
+    if (!panel.api.isVisible) panel.api.setActive();
+    if (focused instanceof HTMLElement && focused.isConnected && document.activeElement !== focused) focused.focus({ preventScroll: true });
+    panel.group.element.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    scheduleLayout();
+  });
+}
+function environmentActivity(environment: string) {
+  lastEnvironment = environment;
+  clearTimeout(activityTimer);
+  store.setState({ stageActivity: environment });
+  activityTimer = window.setTimeout(() => store.setState({ stageActivity: null }), 2000);
+  followEnvironment(environment);
+}
+export async function setStageFollowing(follow: boolean) {
+  await kulisa.invoke('stage:follow:set', follow);
+  store.setState({ stageFollowPaused: false });
+  if (follow && lastEnvironment) followEnvironment(lastEnvironment);
+}
+kulisa.on('stage:follow', (follow) => {
+  store.setState({ stageFollow: follow, stageFollowPaused: false });
+  if (follow && lastEnvironment) followEnvironment(lastEnvironment);
+});
+export function pauseStageFollowing() {
+  if (store.getState().stageFollow) store.setState({ stageFollowPaused: true });
+  cancelAnimationFrame(followFrame);
+}
+kulisa.on('stage:activity', ({ task, environment }) => {
+  if (task === store.getState().current && !replacing && !rebuilding) environmentActivity(environment);
+});
+// Browser actions through CDP also cover clients using the profiles outside Kulisa's MCP tools.
+kulisa.on('agent', ({ task, profile, caption }) => {
+  if (task === store.getState().current && caption && !replacing && !rebuilding) environmentActivity(panelId(profile));
+});
 export const dockApi = () => api;
 export const stageApi = () => stage;
 
 kulisa.on('grid:closing', (next) => {
+  clearTimeout(activityTimer); cancelAnimationFrame(followFrame); lastEnvironment = null;
+  store.setState({ stageActivity: null, stageFollowPaused: false, stageTerminalFocus: null });
   void closeLayers(); forgetFrozen(); clearTimeout(saveTimer); save?.();
   if (next) { replacing = true; return; }
-  replacing = false; nextTerminals = null;
+  replacing = false; nextDevelopmentTerminals = nextStageTerminals = null;
   store.setState({ loading: true }); removeStage(); api?.clear();
-  store.setState({ profiles: [], pictures: {}, captions: {}, picking: {}, terminals: { front: null, list: [] } });
+  store.setState({ profiles: [], stageTerminals: [], pictures: {}, captions: {}, picking: {}, developmentTerminals: { front: null, list: [] } });
   gridReady = null;
 });
 kulisa.on('tasks:closed', forgetTerminals);
-kulisa.on('terminals', (t) => {
+kulisa.on('development-terminals', (t) => {
   if (t.task !== store.getState().current) return;
-  if (replacing || rebuilding) nextTerminals = t; else store.setState({ terminals: t });
+  if (replacing || rebuilding) nextDevelopmentTerminals = t; else store.setState({ developmentTerminals: t });
+});
+kulisa.on('stage-terminals', (t) => {
+  if (t.task !== store.getState().current) return;
+  if (replacing || rebuilding) nextStageTerminals = t.list;
+  else { store.setState({ stageTerminals: t.list }); if (gridReady) void gridReady.then(syncGrid); }
 });
 kulisa.on('terminals:gone', forgetTerminals);
 export const showPane = (id: string) => { stage?.getPanel(panelId(id))?.api.setActive(); };

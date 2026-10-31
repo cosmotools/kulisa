@@ -16,8 +16,8 @@ of other Kulisa packages (their entries, never their other files), and of the re
 infrastructure its line in `.dependency-cruiser.ts` names (the terminal's main half: the main process's `ipc.ts`, for
 its channels, and `log.ts`); the packages it uses do not use it back, so no cycle forms. Of what is not a package
 (tasks, agents, profiles, the window's state: the core) it imports nothing; they use it. What it needs from them comes
-in through its API, passed by the caller (the terminal's screen size: `screen` in `startTerminal`, the MCP server's
-`READ_MAX` passed by `tasks.ts`), or as a small interface the package declares and the caller implements; once that
+in through its API, passed by the caller (the terminal's retained screen lines: `screen` passed to `startTerminal`
+by `tasks.ts`), or as a small interface the package declares and the caller implements; once that
 part is a package of its own, the package uses its API instead.
 
 **A package it uses lacks something:** that package's API is extended, when the extension is a general one, of use to
@@ -26,10 +26,10 @@ the same thing worked out again beside it. Where it is not clear which of the tw
 before it is built.
 
 Code that is *about* the thing but knows the rest stays outside, using the package: for the terminal, the terminals'
-panel (`components/grid/Terminals.tsx`, `lib/terminals.ts`: its agents' buttons, the closed profiles' tiles, Change
+panel (`components/grid/DevelopmentTerminals.tsx`, `lib/development-terminals.ts`: its agents' buttons, the closed profiles' tiles, Change
 agent…, the project's accounts in its +), the agents in terminals (`tasks.ts`: conversations, handing over, the
-agent's state) and the agent's tools (`terminal_run`, `terminal_read`, `terminal_stop` in
-`kulisa-plugin/main/tools/terminal.ts`: what the agent sees lives in the Kulisa plugin, AGENTS.md, Architecture). Inside,
+agent's state) and the agent's tools (`shell_run`, `shell_read`, `shell_stop` in
+`kulisa-plugin/main/tools/shell.ts`: what the agent sees lives in the Kulisa plugin, AGENTS.md, Architecture). Inside,
 the terminals' panel would pull half of `src/renderer/lib` with it, and the boundary would mean nothing.
 
 **The caller stays thin: it states facts, the package does the work.** What the package's things are and do (their

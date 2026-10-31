@@ -31,9 +31,9 @@ test("+ opens any of the project's accounts, a new conversation in a tab of its 
   // A terminal's tab's state, and the task's tab's.
   const tabIs = (id: number, state: string) => expect(ui.locator(`nav[aria-label="Terminals"] [data-id="${id}"] [data-state]`)).toHaveAttribute('data-state', state);
   const taskIs = (state: string) => expect(ui.locator(`#taskTabs [data-task="${key}"] [data-state]`)).toHaveAttribute('data-state', state);
-  const conversations = () => files.json(files.pfile('agent.json', taskId)).conversations;
+  const conversations = () => files.json(files.pfile('task.json', taskId)).agents.conversations;
   type Term = { id: number; agent: string | undefined; pty: boolean };
-  const terms = () => core((k, t) => [...k.shell.taskByKey(t).terminals.values()].map((x): Term => ({ id: x.id, agent: x.agent?.id, pty: !!x.pty })), key);
+  const terms = () => core((k, t) => [...k.shell.taskByKey(t).developmentTerminals.values()].map((x): Term => ({ id: x.id, agent: x.agent?.id, pty: !!x.pty })), key);
   const newest = async () => (await terms()).at(-1);
   const target = () => core((k, t) => k.shell.taskByKey(t).promptTarget()?.id, key);
   await expect.poll(tabs).toEqual(['bash *']);
@@ -60,15 +60,16 @@ test("+ opens any of the project's accounts, a new conversation in a tab of its 
   await choose(ui, 'Fake agent · a@switch.test');
   await expect.poll(async () => JSON.stringify(await tabs()) === '["bash","Fake agent *"]' && (await newest()).pty, { timeout: 20000 }).toBe(true);
   expect(JSON.parse(fs.readFileSync(path.join(a.dir, '.claude.json'), 'utf8')).projects[copy]?.hasTrustDialogAccepted).toBe(true);
-  expect(fs.existsSync(path.join(a.dir, 'skills', 'kulisa-profiles', 'SKILL.md')), "Kulisa's skill in the account's folder").toBe(true);
+  expect(fs.existsSync(path.join(a.dir, 'skills', 'kulisa', 'SKILL.md')), "Kulisa's skill in the account's folder").toBe(true);
   const fake = (await newest()).id;
   await expect(ui.locator(`nav[aria-label="Terminals"] [data-id="${fake}"]`).getByRole('button', { name: /: change agent…$/ }).locator('svg'), 'an agent without a mark of its own: the generic one').toHaveAttribute('data-mark', 'generic');
-  expect(conversations().map((c: { agent: string; terminal: number }) => [c.agent, c.terminal])).toEqual([['custom', bash], [a.id, fake]]);
+  expect(conversations().map((c: { agent: string }) => c.agent)).toEqual(['custom', a.id]);
+  expect(files.json(files.pfile('task.json', taskId)).development.list.map((t: { id: number }) => t.id)).toEqual([bash, fake]);
   expect(await target(), 'a pick goes to the agent shown').toBe(fake);
 
   // Each its own state, from its own hooks; the task's tab shows the most urgent: waiting, then working.
   const hook = async (terminal: number, event: string, body = '{}') => {
-    const url = await core((k, w) => { const t = k.shell.taskByKey(w.key); return t.env(t.terminals.get(w.terminal)).KULISA_URL; }, { key, terminal });
+    const url = await core((k, w) => { const t = k.shell.taskByKey(w.key); return t.env(t.developmentTerminals.get(w.terminal)).KULISA_URL; }, { key, terminal });
     await new Promise((r) => http.request(`${url}/hooks/${event}`, { method: 'POST' }, (res) => { res.resume(); res.on('end', r); }).end(body));
   };
   await hook(fake, 'prompt');
@@ -89,7 +90,7 @@ test("+ opens any of the project's accounts, a new conversation in a tab of its 
   await tabIs(bash, 'done');
   await tabIs(fake, '');
   await hook(bash, 'tool-done');
-  expect(await core((k, w) => k.shell.taskByKey(w.key).terminals.get(w.bash).state, { key, bash }), 'a tool finished after the turn ended changes nothing').toBe('done');
+  expect(await core((k, w) => k.shell.taskByKey(w.key).developmentTerminals.get(w.bash).state, { key, bash }), 'a tool finished after the turn ended changes nothing').toBe('done');
   await ui.locator(`nav[aria-label="Terminals"] [data-id="${bash}"]`).click();
   await tabIs(bash, '');
   await taskIs('');
@@ -124,7 +125,7 @@ test("+ opens any of the project's accounts, a new conversation in a tab of its 
   await dialog.getByRole('button', { name: 'Hand over' }).click();
   await expect.poll(async () => JSON.stringify(await tabs()) === '["bash","Pay with cards","Fake agent *"]' && (await newest()).pty, { timeout: 20000 }).toBe(true);
   const handed = (await newest()).id;
-  const pty = await core((k, w) => { const t = k.shell.taskByKey(w.key).terminals.get(w.id); return { agent: t.agent.id, cols: t.pty.spawnSize.cols, last: t.pty.spawnArgs.at(-1) }; }, { key, id: handed });
+  const pty = await core((k, w) => { const t = k.shell.taskByKey(w.key).developmentTerminals.get(w.id); return { agent: t.agent.id, cols: t.pty.spawnSize.cols, last: t.pty.spawnArgs.at(-1) }; }, { key, id: handed });
   // In front under the dialog from its start, as + opens one: a tab behind has no size, and its xterm would lay out what
   // the agent drew for the terminals' size in 80 columns, broken.
   await expect.poll(() => ui.evaluate(() => (window as any).__term?.cols)).toBe(pty.cols); // xterm's own: its canvas has no text to read
@@ -136,7 +137,7 @@ test("+ opens any of the project's accounts, a new conversation in a tab of its 
   await call('task_history', { conversation: 2 }, where(handed));
   await expect(dialog).toHaveCount(0);
   await expect.poll(tabs).toEqual(['bash', 'Pay with cards', 'Fake agent *']);
-  expect(await core((k, w) => !!k.shell.taskByKey(w.key).terminals.get(w.fake)?.pty, { key, fake }), 'the tab it came from stays').toBe(true);
+  expect(await core((k, w) => !!k.shell.taskByKey(w.key).developmentTerminals.get(w.fake)?.pty, { key, fake }), 'the tab it came from stays').toBe(true);
   // Change agent… (a tab's or a terminal's menu) opens it too. An agent that waits for the human (its hooks: a
   // permission, a sign-in, a limit) is shown at once; Show now shows it before it has read. Closing an agent's tab
   // asks: answered yes.
@@ -158,7 +159,7 @@ test("+ opens any of the project's accounts, a new conversation in a tab of its 
     if (how === 'waiting') await hook(next, 'waiting'); else await dialog.getByRole('button', { name: 'Show now' }).click();
     await expect(dialog).toHaveCount(0);
     await expect.poll(async () => (await tabs()).at(-1).endsWith(' *')).toBe(true);
-    const closed = act(ui, 'terminal:close', { id: next });
+    const closed = act(ui, 'development-terminal:close', { id: next });
     await answer(ui);
     await closed;
     await expect.poll(async () => (await tabs()).length).toBe(3);
@@ -172,7 +173,7 @@ test("+ opens any of the project's accounts, a new conversation in a tab of its 
   const bin = fakeBin(files);
   await renamed(bin, `${bin}.away`);
   try {
-    const opened = act(ui, 'terminal:open', { agent: a.id }); // it answers once the human has chosen
+    const opened = act(ui, 'development-terminal:open', { agent: a.id }); // it answers once the human has chosen
     await expect(ui.getByRole('status').filter({ hasText: /^Starting / }), "numbered: a's other tab is open").toHaveText('Starting Fake agent 2…');
     const choose = ui.getByRole('dialog', { name: 'Choose the Agent' });
     await expect(choose).toBeVisible();
@@ -185,7 +186,7 @@ test("+ opens any of the project's accounts, a new conversation in a tab of its 
   // the keyboard, Tab moves to the next, Enter opens it.
   // Each an agent's: asked first.
   for (const t of await terms()) {
-    const closed = act(ui, 'terminal:close', { id: t.id });
+    const closed = act(ui, 'development-terminal:close', { id: t.id });
     await answer(ui);
     await closed;
   }
@@ -197,7 +198,7 @@ test("+ opens any of the project's accounts, a new conversation in a tab of its 
     await expect(launchers.nth(i)).toHaveAttribute('title', title);
   }
   // Under them the project's profiles, a button each.
-  await expect(ui.locator('#dock').getByRole('navigation', { name: 'Open an environment' }).getByRole('button')).toHaveText(['Sam.admin', 'Elon.buyer', 'Dora']);
+  await expect(ui.locator('#dock').getByRole('navigation', { name: 'Open an environment' }).getByRole('button')).toHaveText(['Stage Terminal', 'Sam.admin', 'Elon.buyer', 'Dora']);
   await expect(launchers.first()).toBeFocused();
   await focusWindow(core, ui);
   await ui.keyboard.press('Tab');

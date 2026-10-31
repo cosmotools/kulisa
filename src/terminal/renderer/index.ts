@@ -13,6 +13,7 @@ import { FitAddon } from '@xterm/addon-fit';
 import { Unicode11Addon } from '@xterm/addon-unicode11';
 import { WebglAddon } from '@xterm/addon-webgl';
 import { SerializeAddon } from '@xterm/addon-serialize';
+import { SearchAddon } from '@xterm/addon-search';
 import { WebLinksAddon } from '@xterm/addon-web-links';
 import { fileOf, pathsAt } from './paths';
 import type { FileLink } from '../ipc';
@@ -47,6 +48,7 @@ export const termHooks: {
   files?: (key: string, paths: string[]) => Promise<(FileLink | null)[]>;
   openFile?: (e: MouseEvent, path: string) => void;
   pasteImage?: (key: string) => void;
+  colors?: () => TermColors;
 } = {
   open: (_e, uri) => { window.open(uri); },
 };
@@ -95,9 +97,28 @@ function bufferOf(key: string, size?: { cols: number; rows: number }): Buffer {
       return false;
     });
   }
+  // The unopened buffer answers even for hidden tasks; visible Views consume queries without a second reply.
+  term.onData((data) => kulisa.send('pty:in', { task: key, data }));
+  for (const ident of [4, 10, 11, 12]) term.parser.registerOscHandler(ident, (data) => data.includes('?') ? answerColor(key, ident, data) : false);
   buffers.set(key, b = { term, serialize, modes });
   return b;
 }
+// xterm initializes its palette only on open. One tiny detached renderer supplies color-query replies for all
+// buffers, through xterm's parser rather than a second implementation of its color protocol.
+let palette: Terminal | null = null;
+let paletteReady = Promise.resolve();
+function answerColor(key: string, ident: number, data: string) {
+  const answered = paletteReady.then(() => new Promise<void>((resolve) => {
+    if (!palette) { palette = new Terminal({ cols: 2, rows: 1, scrollback: 0 }); palette.open(document.createElement('div')); }
+    const colors = termHooks.colors?.();
+    if (colors) palette.options.theme = xtermTheme(colors);
+    const sub = palette.onData((reply) => kulisa.send('pty:in', { task: key, data: reply }));
+    palette.write(`\x1b]${ident};${data}\x07`, () => { sub.dispose(); resolve(); });
+  }));
+  paletteReady = answered.catch(() => {});
+  return answered.then(() => true);
+}
+
 // What another xterm is given to show the same: the serialized buffer and the modes it leaves out.
 export function serialized(key: string) {
   const b = buffers.get(key);
@@ -122,6 +143,34 @@ export class View {
   private host = Object.assign(document.createElement('div'), { className: 'xterm-host',
     style: 'height: 100%; display: flex; flex-direction: column; justify-content: center' });
   private fit = new FitAddon();
+  private search?: SearchAddon;
+  private searchText = '';
+  private searchRefreshQueued = false;
+  onSearchResult?: (found: boolean) => void;
+  find(text: string, previous = false, incremental = false) {
+    if (!text) { this.clearSearch(); return false; }
+    this.searchText = text;
+    if (!this.search) {
+      this.search = new SearchAddon(); this.term.loadAddon(this.search);
+      // xterm's selection service clears after public resize listeners; refresh after all resize handlers finish.
+      const refresh = () => {
+        if (this.searchRefreshQueued) return;
+        this.searchRefreshQueued = true;
+        queueMicrotask(() => {
+          this.searchRefreshQueued = false;
+          if (views.has(this) && this.searchText) this.find(this.searchText, false, true);
+        });
+      };
+      this.term.onResize(refresh);
+      this.term.onWriteParsed(refresh);
+    }
+    const found = previous ? this.search.findPrevious(text) : this.search.findNext(text, { incremental });
+    this.onSearchResult?.(found);
+    return found;
+  }
+  clearSearch() { this.searchText = ''; this.search?.clearDecorations(); this.term.clearSelection(); this.onSearchResult?.(false); }
+  private fixed: { cols: number; rows: number } | null = null;
+  setSize(size: { cols: number; rows: number } | null) { this.fixed = size; this.host.style.justifyContent = size ? 'flex-start' : 'center'; this.fitSoon(); }
   private opened = false;
   private seen = new ResizeObserver(() => this.fitSoon());
   private pending: string[] | null = null; // output that came while the buffer was being put in
@@ -132,6 +181,12 @@ export class View {
     t.loadAddon(new Unicode11Addon());
     t.unicode.activeVersion = '11';
     t.loadAddon(this.fit);
+    // xterm's buffer owns protocol replies; the View owns keyboard, paste and mouse input.
+    for (const id of [{ final: 'c' }, { prefix: '>', final: 'c' }, { final: 'n' }, { prefix: '?', final: 'n' },
+      { intermediates: '$', final: 'p' }, { prefix: '?', intermediates: '$', final: 'p' }]) t.parser.registerCsiHandler(id, () => true);
+    t.parser.registerCsiHandler({ final: 't' }, (p) => [14, 16, 18].includes(Number(p[0])));
+    t.parser.registerDcsHandler({ intermediates: '$', final: 'q' }, () => true);
+    for (const ident of [4, 10, 11, 12]) t.parser.registerOscHandler(ident, (data) => data.includes('?'));
     t.loadAddon(new WebLinksAddon(termLinks.activate, termLinks));
     t.registerLinkProvider({ provideLinks: (y, done) => fileLinks(t, this.key, y, done) });
     views.add(this);
@@ -141,9 +196,9 @@ export class View {
       t.open(this.host);
       this.renderer = 'dom';
       try {
-        const webgl = new WebglAddon();
-        webgl.onContextLoss(() => { webgl.dispose(); this.renderer = 'dom'; }); // back to the DOM renderer
-        t.loadAddon(webgl);
+        const addon = new WebglAddon();
+        addon.onContextLoss(() => { addon.dispose(); this.renderer = 'dom'; }); // back to the DOM renderer
+        t.loadAddon(addon);
         this.renderer = 'webgl';
       } catch (e) { console.warn('[terminal] WebGL renderer unavailable:', (e as Error).message); }
       this.opened = true;
@@ -219,10 +274,11 @@ export class View {
     if (colors) this.term.options.theme = xtermTheme(colors);
     if (fontSize !== undefined && fontSize !== this.term.options.fontSize) { this.term.options.fontSize = fontSize; this.fitSoon(); }
   }
-  dispose() { views.delete(this); this.seen.disconnect(); this.term.dispose(); this.el.remove(); }
+  dispose() { clearTimeout(this.fitTimer); views.delete(this); this.seen.disconnect(); this.term.dispose(); this.el.remove(); }
   // The size it has room for, once it is on screen and xterm has measured its characters.
   private size() {
     if (!this.opened || !this.el.offsetWidth) return null;
+    if (this.fixed) return this.fixed;
     const d = this.fit.proposeDimensions();
     return d?.cols ? { cols: d.cols, rows: d.rows } : null;
   }
@@ -266,8 +322,13 @@ export function restoreTerminal(key: string, { data, cols, rows }: { data: strin
   for (const v of views) v.sized(key, cols, rows);
   output(key, data);
 }
-function output(key: string, data: string) {
-  bufferOf(key).term.write(data);
+function output(key: string, data: string, size?: { cols: number; rows: number }) {
+  const b = bufferOf(key, size);
+  if (size && (b.term.cols !== size.cols || b.term.rows !== size.rows)) {
+    b.term.resize(size.cols, size.rows);
+    for (const v of views) v.sized(key, size.cols, size.rows);
+  }
+  b.term.write(data);
   for (const v of views) v.write(key, data);
 }
 // Terminals gone: of tasks gone (their project closed or moved, a task deleted: their keys), or closed (a terminal's
@@ -279,9 +340,11 @@ export function forgetTerminals(keys: string[]) {
     buffers.delete(key);
   }
 }
-kulisa.on('pty:out', ({ task, data }) => output(task, data));
+kulisa.on('pty:out', ({ task, data, cols, rows }) => output(task, data, { cols, rows }));
 // The keyboard to a terminal shown somewhere, once its xterm is open (a new one opens when its font is there).
-export const termFocus = (key: string) => termFont.then(() => { for (const v of views) if (v.key === key) v.term.focus(); });
+export const termFocus = (key: string, wanted: () => boolean = () => true) => termFont.then(() => {
+  if (wanted()) for (const v of views) if (v.key === key) v.term.focus();
+});
 
 // Copy and paste as the OS's own terminal does, so hands need nothing new (xterm leaves the keys to the app, as VS Code
 // sets its own): Ctrl+Shift+C / V everywhere (GNOME Terminal, Konsole); on Windows also Ctrl+V, and Ctrl+C copies a

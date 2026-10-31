@@ -189,7 +189,8 @@ repositories (git worktrees), so the project's folders stay the human's. Its dat
 ## Tasks
 
 A **task** (AGENTS.md, Terminology) is one line of work in a project: its own copy of the code on a branch, browser
-profiles in a testing stage, development panels and agents in terminals, so several agents build several features of one project at once.
+profiles and Stage terminal environments in a testing stage, development panels and agents in terminals, so
+several agents build several features of one project at once.
 
 - **Always a copy.** With git (and a first commit), a task's work is in a git worktree of the default repository on a
   branch of its own, the first task's too, made when its agent asks ("Making the task's worktree"): next to the
@@ -272,6 +273,9 @@ The panel shows the resources as `tasks.json` keeps them, the first where it wor
 task's folder, branch and folder of copies are worked out from them, never kept twice. Ownership decides the actions
 and the cleanup: the main working tree is the human's, never removed; a worktree the task made goes with the task.
 
+Stage terminal environments belong to the task (`Task.stageTerminals`): their actions and UI are described in
+[window.md](window.md), Stage terminals. Browser environments retain their own lifecycle in `ProjectProfiles`.
+
 ## What the human does
 
 - **Its tab**: its project's icon, the agent's state (working, waiting for you, done; from its hooks: "Choosing the
@@ -342,7 +346,7 @@ A task's agents are the human's choice: its project's accounts of Claude Code (A
 the task's folder: an agent Kulisa does not know is run there by hand, `KULISA_MCP_URL` in its environment). Kulisa
 never assumes one is installed.
 
-- **A new task** opens its project's default agent, its own (`agent` in its `agent.json`); a project with no default
+- **A new task** opens its project's default agent, its own (`agent` in its `task.json`); a project with no default
   (`agent: null`) starts nothing, without asking: the terminals' buttons in the empty grid, Ctrl+` gives them the
   keyboard (`Task.ownAgent`, `openOwn`); a project with no agents starts the terminal only. An agent to open that is
   not there (an account let go, an agent not on the computer) asks, in a dialog, among the project's accounts and the
@@ -392,7 +396,7 @@ never assumes one is installed.
   - **An account lives until the human deletes it** (a sign-in is made again only by signing in again). − on a
     project's account lets go of it at once, nothing asked: a task running it keeps it; deleting a project does the
     same. In Settings → Agents each account says its projects ("in no project"); − deletes it: refused while any task,
-    open or closed, has it open in a tab (from their `agent.json`; its conversation is in its folder), naming them;
+    open or closed, has it open in a tab (from their `task.json`; its conversation is in its folder), naming them;
     else after a question ("Delete the account …?", naming its projects): signed out with its agent's command (`auth
     logout`: the Keychain's entry on macOS goes too), then its folder, with its sign-in, settings and conversations.
 - The dialogs are part of the window, not windows (no extra process). Choosing (`components/AgentPicker.tsx`), New
@@ -411,7 +415,7 @@ The [Kulisa plugin](../src/kulisa-plugin/README.md#agent-adapters) checks that e
 | Capability | What the human gets | Claude Code | Codex |
 |---|---|---|---|
 | `config` | accounts: several sign-ins side by side, each its own folder | `CLAUDE_CONFIG_DIR` | `CODEX_HOME` |
-| `skills` | the profiles skill: how to work with the profiles | its account's `skills/kulisa-profiles/` | its account's `skills/kulisa-profiles/` |
+| `skills` | the Kulisa skill: how to work with Kulisa | its account's `skills/kulisa/` | its account's `skills/kulisa/` |
 | `hooks` | the agent's state on its tab; its session to resume; the open profiles at its start | in `--settings` | `-c hooks=…` (trusted once) |
 | `resume` | a closed task, or a restart, goes on with the conversation | `--resume` | `resume` |
 | `prompt` | handing the task over: the new agent starts with what to read | an argument | an argument |
@@ -432,8 +436,8 @@ next to Codex, two accounts of one, or the same agent twice ([window.md](window.
 **+** (the project's accounts, the default first) opens always a **new conversation**. Each sees the task's code and
 profiles.
 
-- **One kind of terminal.** A task's terminals are one list (`Task.terminals`): each the user's shell in the task's
-  folder, an agent started in it or not. An agent's has its conversation (an index into the task's `agent.json`: its
+- **One kind of terminal.** A task's terminals are one list (`Task.developmentTerminals`): each the user's shell in the task's
+  folder, an agent started in it or not. An agent's has its conversation (a stable ID in the task's `task.json`: its
   account, its session as its hooks report it, when, its name, its terminal); a shell has its name and the command
   typed in.
 - **Each agent reports for itself.** Its terminal has URLs of its own under the task's
@@ -466,13 +470,13 @@ profiles.
   a question. The last one closed folds the terminals' panel to its +.
 - **After a restart** each tab comes back where it was, the one in front too: an agent's conversation resumed
   (`--resume`, `resume`), a shell with nothing running.
-- **Its terminal tools reach shells only**: `terminal_run`, `terminal_read`, `terminal_stop` refuse another agent's
+- **Its terminal tools reach shells only**: `shell_run`, `shell_read`, `shell_stop` refuse another agent's
   tab (a command typed there would be a message to that agent, Ctrl+C would stop it); what an agent did is read in
   `task_history`.
 - Deleting the task forgets each conversation in its own account's folder (`forget`).
 
 What does not move to another agent: its hidden reasoning, permissions given in its session, one account's settings
-(its MCP servers, skills). What runs in the task's shells (`terminal_run`) goes on: they are the task's.
+(its MCP servers, skills). What runs in the task's shells (`shell_run`) goes on: they are the task's.
 
 Whether an account has tokens left is not asked first: no CLI says it to a program (`/usage`, `/status` are the
 human's). It shows at its first answer.
@@ -564,14 +568,14 @@ github.json                       the GitHub accounts (src/github): { list: [{ i
                                   tokens encrypted with the OS keyring, none without one (kept in memory then) or when
                                   signed out; an account goes when the human deletes it (Settings → GitHub)
 agents/<agent>-<id>/              an account's config folder (CLAUDE_CONFIG_DIR, CODEX_HOME): its sign-in, settings,
-                                  conversations; Kulisa's profiles skill (skills/kulisa-profiles/) and Claude Code's
+                                  conversations; Kulisa's shared skill (skills/kulisa/) and Claude Code's
                                   settings for Kulisa (kulisa-settings.json), written at each start; gone, signed out first, when the human deletes it (Settings →
                                   Agents); one a sign-in left
                                   unfinished (Kulisa quit meanwhile) goes at the next start
 dictation/                        the folder the hidden session runs in (src/dictation: another agent's dictation
                                   recognizing for one without), empty; it and what that session kept of it in its
                                   account (its conversation, its trust) go when the session ends, or at the next start
-settings.json                     the Kulisa zoom, the theme, where the tasks' bar is, the language; the windows: each one's
+settings.json                     the Kulisa zoom, the theme, where the tasks' bar is, Follow agent, the language; the windows: each one's
                                   tasks by key (in the bar's order), the one shown, where it was
 logs/kulisa.log                   what happened and who asked (window.md, The log), for a bug report; at 1 MB it becomes
 logs/kulisa.old.log               kulisa.old.log and a new one starts: 2 MB at most
@@ -579,23 +583,23 @@ Crashpad/                         Electron's crash dumps (crashReporter, no serv
                                   after a crash; Crashpad prunes them itself (90 days, 128 MB)
 deleted-folders.json              folders to remove at the next start (a session keeps its files open)
 projects/<project id>/            a project's data, by its id (projects.json), gone with the project
-  tasks.json                      { next, list: [{ n, name, named, resources, closed, closedAt, merged }] }; name "New
+  tasks.json                      { list: [{ id, name, named, resources, closedAt, merged }] }; name "New
                                   Task" and named unset until it is named; resources what it has, the first where it
                                   works: { kind: "maintree", folder } (the project's folder it opened in) until its own
                                   { kind: "worktree", repo, worktree, branch, base, folder } takes its place, then the
                                   worktrees of repositories it added; base: the commit a worktree started from. Its
                                   folder, branch and folder of copies are its resources' (store.ts)
-  1/, 2/ …                        a task
-    profiles.json                 what it has of its project's profiles, in order: id, sites' zoom, closed
-    layout.json                   its workspace and testing-stage grids (dockview; window.md, The grid)
-    agent.json                    { agent, conversations: [{ agent, sessionId, transcript, started, from, to, title,
-                                  terminal }] }: the agent it was made with; every conversation an agent had in it
-                                  (Several agents in a task), kept with the task
-    terminals.json                { front, list: [{ id, name, by } | { id, conversation }] }: its terminals' tabs, opened
-                                  again when it loads; one goes when closed; an empty list: the panel folded
-    artifacts/                    what the human or agent keep of its pages (profiles.md, What the agent does): a snapshot
+  <task id>/                      a task
+    task.json                     versioned task state, owned by TaskStore: agents (initial choice and conversation
+                                  metadata with stable IDs), development (open tabs and active tab), stage (profile
+                                  settings, CLI launch setup, next terminal ID, view and Dockview layout), workspace
+                                  (development layout, Stage position and share). Terminal conversation references
+                                  use stable IDs; history numbers follow conversation order. Live processes and screen
+                                  buffers stay in memory. File and owned environment data go with the task/project.
+    artifacts/                    what the human or agent keep of its environments: a snapshot
                                   or a body too large for an answer, a screenshot; <n>-<profile id>-<tab id>-<kind>, n in
-                                  the order made, never replaced; past 100 MB the oldest go; kept with the task
+                                  the order made; Stage terminal text: <n>-terminal-<id>-terminal.txt; never replaced,
+                                  past 100 MB the oldest go; kept with the task
     <id>/                         its copy of a master, named by the profile's id, made at its first open here: a Chromium profile
                                   (session.fromPath), with Kulisa's own files in it:
       Kulisa Tabs.json              the URLs of its tabs and which is in front
@@ -755,6 +759,7 @@ rm -rf ~/.config/Kulisa/projects/<project id>   # all its tasks with their profi
 | `src/main/window.ts` | a window: its tabs (tasks), show one, the grid's state, its questions |
 | `src/main/projects.ts` | a loaded project: its tasks; making, closing, opening again, deleting one (with the question); making a project (`createProject`), deleting a project's data |
 | `src/main/tasks.ts` | a task: its profiles, its terminals and agents (open, hand over, close, environment), naming, its worktree on demand and resources, its artifacts (what they take, deleting them), copies of its profiles for a new task |
+| `src/main/stage-terminals.ts` | the task’s Stage terminal setup and process lifecycle, shared actions for the window and MCP |
 | `src/main/worktrees.ts` | git: a task's worktree and branch, files outside git, direnv, changes, renaming the branch, removal |
 | `src/kulisa-plugin/` | agent integration ([README](../src/kulisa-plugin/README.md)) |
 | `src/main/store.ts` | the data folder above |
@@ -772,3 +777,15 @@ rm -rf ~/.config/Kulisa/projects/<project id>   # all its tasks with their profi
 | `src/main/recognizer.ts` | which account recognizes speech for an agent without dictation of its own ([src/dictation](../src/dictation/README.md)), its session's folder |
 | `src/renderer/lib/grid.ts`, `components/Grid.tsx` | building a task's grid, taking it down when another is shown |
 | `test/e2e/tasks*.spec.ts`, `taskbar.spec.ts`, `projects*.spec.ts`, `project-repositories.spec.ts`, `empty-window.spec.ts`, `agents*.spec.ts`, `masters.spec.ts`; `test/unit/agents.test.ts` | the tests |
+
+Task state is replaced atomically after validation; each section update reads the current document and preserves
+its peers. Layout changes are debounced and flushed when leaving the task; pruning closed panes preserves the active group when it survives. A new task retains uninitialized
+profiles/development separately from deliberately empty collections. Legacy task files are imported only when
+`task.json` is absent; a verified document is authoritative, and leftover source files are cleaned on reopening.
+Malformed source data stops migration with an error and retains the source files. Browser storage, profile tabs,
+transcripts and artifacts keep their own formats and owners.
+
+Task indexes use `closedAt` as the closed-state marker; absence means open, and zero means a closed task whose
+closing time is unknown. Task documents use format version 2, flat Stage items and `profilesInitialized` to preserve
+first-load behavior independently of terminal environments. Each TaskStore cleans legacy files once, after the
+current document is validated; a new store retries cleanup left incomplete by an error.

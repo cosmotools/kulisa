@@ -58,9 +58,9 @@ A press on a tab not shown shows its task at once, as Chrome's; the tab is lit o
 ## The grid
 
 A task has two independent Dockview grids (`Grid.tsx`, `grid/Stage.tsx`): development terminals with Resources,
-and the **stage** of browser profiles as testing **environments**. A headerless Gridview splits their areas; its
+and the **stage** of browser profiles and Stage terminals as testing **environments**. A headerless Gridview splits their areas; its
 sash resizes them. Headers move or stack panels within their own grid. The empty stage is absent; opening the first
-profile adds it, closing the last removes it. A new task opens only its default development terminal.
+environment adds it, closing the last removes it. A new task opens only its default development terminal.
 
 **Stage** in the title bar offers **Position: Left, Right, Above** the development area, **View: Horizontal stack**
 (side by side), **Vertical stack** (one above another), **Tabs** (one environment at a time), and **Open an environment**.
@@ -68,6 +68,19 @@ Moving Stage preserves the development grid and its panels; Terminal and Resourc
 least its header's height so it can fold with the development terminal. The human's `stage:arrange` IPC and the agent's
 `stage_arrange` tool call `Task.arrangeStage`: the task must be shown, and settings apply with an empty Stage too.
 The task-scoped event reaches that window.
+
+Each environment header offers **Maximize environment** and **Restore environment**, also in its menu
+(`grid/EnvironmentFocus.tsx`). Dockview maximizes its group inside Stage, retaining its tabs and split sizes;
+development stays visible. A maximized group fits the Stage viewport with overflow suspended. Restoring resumes
+the stack and overflow setting.
+
+**Follow agent** in the Stage menu is opt-in, saved globally in `settings.json` (`stageFollow`) and shared by
+all tasks and windows. Browser MCP calls, CDP actions and named
+Stage-terminal calls report the environment used (`stage:activity`; the plugin reports, the window follows).
+`lib/grid.ts` selects a hidden tab and scrolls its group into view; visible groups keep their selection. Both
+profile and terminal headers highlight activity for two seconds. Selecting or interacting with Stage pauses
+following; **Follow agent (paused)** resumes it. A maximized group stays maximized, and background tasks never
+move the shown Stage. Pause state and activity are transient in each window; the global preference resumes when another task opens.
 
 **Allow overflow** is independent of the layout, off by default: panes fit the stage. On, Horizontal stack allocates 600 CSS
 pixels of width per environment, Vertical stack 300 pixels of height, plus Dockview’s gaps; the stack scrolls on that axis.
@@ -81,15 +94,67 @@ the child keeps its full viewport, offset within the parent. Fully offscreen pag
 is removed when the page fits, the profile closes, or it moves to another window. Dragging in either grid turns
 pages into pictures for HTML drop targets.
 
-`layout.json` keeps both grids (`version: 3`, `workspace`, `stage`, `stageLayout`, `stageOverflow`, `stagePosition`, `stageShare`), saved 300 ms after a change and flushed when the
-task is left. `lib/stage-layout.ts` separates a flat saved layout into development and testing groups, retaining
+`task.json` keeps Stage view/overflow/layout in `stage`, and development layout, Stage position/share in `workspace`, saved 300 ms after a change and flushed when the
+task is left. `shared/stage-layout.ts` separates a flat saved layout into development and testing groups, retaining
 panel order, stacking and sizes; development panels share an area, separate from Stage. Saved stack settings normalize to explicit horizontal and vertical directions without moving panes. An invalid grid falls back to its default arrangement.
 
-**No profile open, a development terminal open**: a row above the workspace offers the closed profiles
-(`ClosedProfiles`, `Grid.tsx`). With no development terminal either, the same choices sit under the agents' launchers.
-More than fit scroll (`useStrip`); `#dock` keeps `min-width: 0` so these choices cannot stretch the window. The title bar's
-**Stage → Open an environment** opens profiles. Signing in and browser behavior remain the profiles' own
-([profiles.md](profiles.md)).
+**No environment open, a development terminal open**: a row above the workspace offers **Stage Terminal** and
+the closed profiles (`ClosedProfiles`, `Grid.tsx`). With no development terminal either, the same choices sit under
+the agents' launchers. More than fit scroll (`useStrip`); `#dock` keeps `min-width: 0` so these choices cannot stretch
+the window. The title bar's **Stage → Open an environment** opens the same environments.
+
+### Stage terminals
+
+A Stage terminal (`grid/StageTerminalPane.tsx`) is the CLI or TUI under test, in its own stage pane. Its name,
+optional launch command and fixed columns/rows are saved per task; every terminal starts a fresh shell when its task loads; saved app commands run through Run app. The pane’s Find… context-menu action and Ctrl+Shift+F (⌘+Shift+F on macOS) open an inline search bar; xterm’s search addon selects matches in retained output, with Enter/Shift+Enter navigation and Escape returning focus to the terminal. Search keys stay in the window. Runtime session kind records whether Kulisa launched a shell or app, independently of changes to the saved command. The header holds its status, Start, Run app, Restart app, Restart shell or Run again, Maximize/Restore, a **⋯** menu and Close;
+the terminal fills the pane below it. Opening a terminal starts the user’s shell in the task folder.
+A blank launch command starts a shell; a supplied command runs as the app session and keeps its final screen on exit. **Settings…** in the menu opens `StageTerminalSettings.tsx` for the saved name,
+command and dimensions; empty dimensions fit the pane.
+The task’s `StageTerminals` actions (`main/stage-terminals.ts`) serve the window and agent.
+Its host contract supplies a terminal key, saved setup, availability, current launch context, persistence and window
+notifications. `Task` wires these callbacks; dependency rules forbid the controller from importing task, window or
+store types. Agent conversations and accounts stay in `Task`; Stage layout, menus and focus stay in the window.
+`terminal_run(name, command, size?)` creates a Stage terminal or reruns the supplied command in that named terminal;
+validation precedes stopping the previous process. The agent builds the app and chooses its command.
+`terminal_read`, `terminal_input`, `terminal_resize`, `terminal_stop` and `terminal_close` provide the interactive bridge.
+Development shells use `shell_run`, `shell_read` and `shell_stop` beside the coding agent. Launch uses the user's shell in the task's
+current working folder, with shell startup settings; the process's exit code and final screen stay visible after
+exit. Launch actions clear the previous run's screen. Stop cancels pending restarts, ends the session and keeps its final screen readable; Close also removes its setup and buffers. Closing a task stops its Stage terminals and keeps their setup for reopening.
+
+A shell launch failure stays in the terminal’s runtime state (`launchError`) and appears as a selectable error
+in its pane. A new launch attempt clears it; it is omitted from saved configuration.
+
+**Send selection to agent** in a Stage terminal’s right-click menu captures xterm’s selected text when the menu
+opens. A browser page uses Electron’s `selectionText` from its native context menu, except in password fields.
+Both call `Task.sendSelection`: validate the source in the shown task, quote the text with its environment name
+and browser tab, and use `typeForAgent` to append it to the draft without Enter. Terminal control characters
+are removed before pasting; selected text is omitted from logs and saved nowhere. An open agent terminal is
+required.
+
+Manual Open and launch actions request keyboard focus for that terminal after a successful launch.
+`lib/environments.ts` keeps one pending request; newer pointer or keyboard input, window blur or a task switch
+cancels it. The pane applies it after its View and font are ready. Agent launches and Follow agent preserve the
+existing keyboard focus.
+
+The human types and pastes in the same PTY the agent operates. Screen reads flush xterm's parser and return the
+current normal or alternate screen; scrollback reads are limited to 500 lines. Reads over 40,000 characters go to
+bounded task artifacts with a short preview; Resources identifies their terminal source. Fixed dimensions are 2–500 columns
+and 2–200 rows; Auto follows the pane. Stage terminal sizes are independent of development terminals. The shared
+terminal Kulisa package owns the PTY, headless parser and visible View ([README](../src/terminal/README.md)); each
+visible terminal uses WebGL with DOM fallback when WebGL is unavailable or its context is lost. Hidden environments keep their
+process and bounded buffers. Shells share home directories, credentials and settings: these are execution places,
+not separate identities. Real-account sign-in stays the human's.
+
+| Action | The human | The agent | The core |
+|---|---|---|---|
+| Open a shell | Stage Terminal; Stage → Open an environment | type a shell command through `terminal_input` in an open terminal; `terminal_run` requires a command | `StageTerminals.open` |
+| Save name and command | ⋯ → Settings… | command supplied with each `terminal_run`; the pane name selects the session | `configure` |
+| Run or rerun | header launch button; pane menu | `terminal_run` | `run` |
+| Resize or fit to pane | ⋯ → Settings…; Fit to pane | `terminal_resize`; optional size on `terminal_run` | `configure` |
+| Stop process, keep final screen | ⋯ → Stop | `terminal_stop` | `stop` |
+| Inspect screen and status | visible terminal and status | `terminal_read` | `read`, `info` |
+| Type, paste, keys | terminal input; right-click Paste | `terminal_input` | terminal Kulisa package's input; `input` |
+| Close | ×; pane's menu | `terminal_close` | `close` |
 
 A window made narrower or wider changes every panel in its share, as VS Code's and JetBrains' do (dockview's
 `proportionalLayout`; it needs dockview 8.6.0 or later:
@@ -204,7 +269,7 @@ lists the usual places for whoever reads it after uninstalling.
 `tutorial/context-menu.md`): drawn above the pages by the OS, it needs no pictures of them, as a page's menu in Chrome.
 Its rows are Chrome's for what is under the pointer (the `context-menu` event's `params`): a link (Open Link in New
 Tab, behind, in the same profile; Copy Link Address), an image (Open Image in New Tab, Copy Image), a field (Undo, Redo,
-Cut, Copy, Paste, Select All: Electron's roles), a selection (Copy; macOS selects the word under a right-click, so a
+Cut, Copy, Paste, Select All: Electron's roles), a selection (Copy and Send selection to agent; macOS selects the word under a right-click, so a
 link's menu has it there, as Chrome's), else the page's (Back, Forward, Reload); then Pick an Element for the Agent and
 Screenshot of an Element (they start choosing an element, as their keys do), and Inspect (the element in the tab's
 DevTools, `Profile.inspect`). Back, Forward, Reload, Pick and the screenshot are sent to the window as their keys'
@@ -269,7 +334,7 @@ its layout, so the program starts at the room it will keep when the panel is dra
 fractional CSS dimensions to match DOM client/offset sizes; the same readiness check gates later resizes.
 
 A task's terminals are one **panel** of the grid: the terminal in front, a **row of tabs** over it, the panel's header
-(`TerminalsHeader` and `Terminals` in `grid/Terminals.tsx`). One terminal is shown at a time, none
+(`TerminalsHeader` and `Terminals` in `grid/DevelopmentTerminals.tsx`). One terminal is shown at a time, none
 split off into a panel of its own. Each is the user's shell in the task's folder (`src/terminal/`), an agent the human
 chose started in it ([tasks.md](tasks.md), "Several agents in a task") or not. Each tab: the agent's icon (a shell's,
 for a shell), its name whole, its state (an agent's: working, waiting for you, done), ×; more than fit scroll
@@ -315,15 +380,15 @@ OS's own terminal, its size) is a Kulisa package, `src/terminal/` ([packages.md]
 [README](../src/terminal/README.md)). The panel is the task's: its tabs, its agents, its shells.
 
 **Shells**: the human's (+ → Terminal, `Terminal`, `Terminal 2` …) and what an agent keeps running for the human to see
-(`terminal_run`: the app's dev server, `docker compose up`), behind the tab in front so the human goes on watching the
+(`shell_run`: the app's dev server, `docker compose up`), behind the tab in front so the human goes on watching the
 agent. Each is the user's shell in the task's folder with the agent's environment (`KULISA_MCP_URL`, `KULISA_URL`,
 `KULISA_TASK`), the command typed in, so the human can stop it, type into it and read it; an agent reads its last lines
-as the screen shows them (`terminal_read`, colors left out) and presses Ctrl+C (`terminal_stop`), in shells only, never
+as the screen shows them (`shell_read`, colors left out) and presses Ctrl+C (`shell_stop`), in shells only, never
 another agent's tab. Not the agent's own background shell: some agents cannot keep a process running (Codex waits on
 it), and the human does not see what runs there. The task closing ends what runs in it. As in an IDE, the terminals are
-kept (`terminals.json`): when the task loads again (a restart, the task opened again) each comes back in its tab, the
+kept (`task.json`): when the task loads again (a restart, the task opened again) each comes back in its tab, the
 one in front too, an agent's conversation resumed, a shell with nothing running; the agent runs its command again. ×,
-the menu's Close, `terminal_stop` with close, or the shell's `exit` ends one for good (`Task.openTerminal`,
+the menu's Close, `shell_stop` with close, or the shell's `exit` ends one for good (`Task.openTerminal`,
 `openAgent`, `runInTerminal`, `interruptTerminal`, `readTerminal`, `closeTab`).
 
 **Dictation**, where the agent in front has its own ([tasks.md](tasks.md), "Choosing the agent"), is a key held: the
@@ -557,7 +622,7 @@ window it comes from (`event.sender`); one change to the open tasks after anothe
 | `src/main/keys.ts` | the keyboard shortcuts: the table, which key an input event is; `shortcuts.ts` takes them (Keys) |
 | `src/terminal/` | the terminal, a Kulisa package: its pty, its buffers, the xterm shown ([README](../src/terminal/README.md)) |
 | `src/main/file-links.ts` | the paths a terminal names: which exist, opening one or showing it in its folder (The terminal) |
-| `src/renderer/components/Grid.tsx`, `components/grid/`, `lib/grid.ts` | the grid (dockview), the panes and their headers, the terminals (`grid/Terminals.tsx`: `Terminals`, its row of tabs `TerminalsHeader`), the closed profiles' buttons over it (`ClosedProfiles`, `Grid.tsx`), the title-bar Stage menu (`StageMenu.tsx`) |
+| `src/renderer/components/Grid.tsx`, `components/grid/`, `lib/grid.ts` | the grid (dockview), the panes and their headers, the terminals (`grid/DevelopmentTerminals.tsx`: `Terminals`, its row of tabs `TerminalsHeader`), the closed profiles' buttons over it (`ClosedProfiles`, `Grid.tsx`), the title-bar Stage menu (`StageMenu.tsx`) |
 | `src/renderer/components/grid/Resources.tsx` | Resources next to the terminal: the shown task's resources (its worktree(s) or the main working tree) and its artifacts, each with its actions (tasks.md) |
 | `src/renderer/components/TopBar.tsx`, `ProjectIcon.tsx` | the title bar, ☰ and its own rows; the logo, a project's icon |
 | `src/renderer/components/Menus.tsx`, `Ask.tsx`, `lib/menu.ts`, `project-menu.ts`, `cover.ts`, `views.ts`, `ask.ts`, `terminals.ts` | the menus (`project-menu.ts`: a project's, the sidebar's and a tab's), the dialogs and questions (shadcn's: `cover.ts`), the pages under them in a tasks' window (`views.ts`), a tasks' window's terminals (`terminals.ts`) |

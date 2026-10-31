@@ -68,7 +68,7 @@ export const reportSession = (core: Core, task: string, id: string, transcript: 
 export async function showTask(core: Core, ui: Page, key: string) {
   const [id, task] = key.split('/');
   if (await core((k, t) => k.shell.task?.key !== t, key)) {
-    if (await core((k, t) => { const x = k.shell.taskByKey(t); return !!x?.loaded && !x.entry.closed; }, key)) await invoke(ui, 'task:show', key);
+    if (await core((k, t) => { const x = k.shell.taskByKey(t); return !!x?.loaded && x.entry.closedAt === undefined; }, key)) await invoke(ui, 'task:show', key);
     else await invoke(ui, 'project:open', { id, task });
   }
   await taskShown(core, key);
@@ -85,7 +85,7 @@ export async function newTask(core: Core, ui: Page, name?: string | null, projec
   const made = invoke(ui, 'task:new', { project: id });
   if (shares) await answer(ui, 'Create Anyway');
   await made;
-  await expect.poll(() => core((k, b) => { const t = k.shell.task; return !!t && t.key !== b && [...t.terminals.values()].some((x) => !!x.pty) && k.settled(); }, before), { timeout: 20000 }).toBe(true);
+  await expect.poll(() => core((k, b) => { const t = k.shell.task; return !!t && t.key !== b && [...t.developmentTerminals.values()].some((x) => !!x.pty) && k.settled(); }, before), { timeout: 20000 }).toBe(true);
   return core(async (k, n) => {
     const t = k.shell.task;
     if (n !== null) await t.rename(n ?? `task-${[...t.project.tasks.values()].indexOf(t) + 1}`);

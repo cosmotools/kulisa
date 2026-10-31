@@ -30,16 +30,22 @@ export function registerPanes(ipc: Ipc) {
   handle('layout:load', (e, { task }) => onScreen(e, task)?.store.layout());
   // A profile's master, to sign in to (master.ts), and its cookies brought to this task's copy (tasks.ts).
   handle('profile:master', (e, { task, profile }) => onScreen(e, task)?.openMaster(profile) || noTask);
-  // The terminals' tabs (Terminals.tsx): + (an agent of the project, a new conversation; or a shell; own: the task's own
+  // The terminals' tabs (DevelopmentTerminals.tsx): + (an agent of the project, a new conversation; or a shell; own: the task's own
   // agent, Ctrl+` on the folded terminals), the one in front,
   // ×, an agent's tab handed over to another agent (Task.handOver).
-  handle('terminal:open', (e, { task, agent, own }) => {
+  handle('development-terminal:open', (e, { task, agent, own }) => {
     const w = onScreen(e, task);
     return !w ? noTask : own ? w.openOwn() : agent ? w.openAgent(agent) : w.openTerminal();
   });
-  handle('terminal:show', (e, { task, id }) => onScreen(e, task)?.show(id) || noTask);
-  handle('terminal:close', (e, { task, id }) => onScreen(e, task)?.closeTab(id) || noTask);
-  handle('terminal:paste-image', (e, { task, id }) => onScreen(e, task)?.pasteImage(id));
+  handle('selection:send', (e, { task, source, text }) => onScreen(e, task)?.sendSelection(source, text) || noTask);
+  handle('stage-terminal:open', (e, { task, name }) => onScreen(e, task)?.stageTerminals.open(name) || noTask);
+  handle('stage-terminal:configure', (e, { task, id, ...change }) => onScreen(e, task)?.stageTerminals.configure(id, change) || noTask);
+  handle('stage-terminal:run', (e, { task, id, command }) => onScreen(e, task)?.stageTerminals.run(id, command) || noTask);
+  handle('stage-terminal:stop', (e, { task, id }) => onScreen(e, task)?.stageTerminals.stop(id) || noTask);
+  handle('stage-terminal:close', (e, { task, id }) => onScreen(e, task)?.stageTerminals.close(id) || noTask);
+  handle('development-terminal:show', (e, { task, id }) => onScreen(e, task)?.show(id) || noTask);
+  handle('development-terminal:close', (e, { task, id }) => onScreen(e, task)?.closeTab(id) || noTask);
+  handle('development-terminal:paste-image', (e, { task, id }) => onScreen(e, task)?.pasteImage(id));
   // The paths a terminal names, relative to the task's folder; one Ctrl+clicked, opened or shown (file-links.ts).
   handle('terminal:files', (e, { task, paths }) => { const w = onScreen(e, task); return w ? filesIn(w.folder, paths) : noTask; });
   handle('file:open', (_e, file) => openFile(file));

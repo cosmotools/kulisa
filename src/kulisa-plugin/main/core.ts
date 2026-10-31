@@ -1,6 +1,8 @@
 // The facts and actions supplied by the caller. The Kulisa package owns no tasks, profiles or terminals.
 import type { IncomingMessage } from 'http';
 import type { BrowserContext, Page } from 'playwright-core';
+import type { StageTerminal, StageTerminalScreen, StageTerminalKey, TerminalSize } from '../../shared/stage-terminal.ts';
+import type { EnvironmentSource } from '../../shared/types.ts';
 import type { StageLayout, StagePosition } from '../../shared/ipc.ts';
 import type { Result } from '../../shared/result.ts';
 import type { Shot } from '../../screenshots/main/index.ts';
@@ -28,11 +30,11 @@ interface ProfileAccess extends ProfileInfo {
   closeTab(id: string): void;
   page(id: string): Promise<Page>;
 }
-interface TerminalAccess {
+interface DevelopmentTerminalAccess {
   readonly id: number; readonly agent: boolean; readonly state: 'working' | 'waiting' | 'done' | null;
   saveSession(session: { sessionId: string; transcript?: string }): void;
   noteAutoTitle(): Promise<unknown>;
-  setState(state: TerminalAccess['state']): void;
+  setState(state: DevelopmentTerminalAccess['state']): void;
   followAutoTitle(): void;
   historyRead(conversation: number, part: number, parts: number): void;
   nameConversation(name: string): Result<{ name: string }>;
@@ -42,8 +44,18 @@ interface SavedConversation {
   name: string; tab: string; open: boolean;
   read?: (file: string) => Conversation;
 }
-interface Artifact { file: string; profile: string; kind: string; time: number; bytes: number }
+interface Artifact { file: string; source: EnvironmentSource; kind: string; time: number; bytes: number }
+interface StageTerminalAccess {
+  info(): StageTerminal[];
+  run(name: string, command: string, size?: TerminalSize | null): Promise<Result<StageTerminal>>;
+  resize(which: number | string, size: TerminalSize | null): Result<StageTerminal>;
+  stop(which: number | string): Result<StageTerminal>;
+  close(which: number | string): Result<{ id: number }>;
+  read(which: number | string, lines?: number, screenOnly?: boolean): Promise<Result<StageTerminalScreen>>;
+  input(which: number | string, input: { text?: string; paste?: boolean; key?: StageTerminalKey }): Result<{ id: number }>;
+}
 interface TaskAccess {
+  readonly stageTerminals: StageTerminalAccess;
   readonly key: string; readonly name: string; readonly folder: string; readonly branch: string | null;
   readonly worktrees: { folder: string; repo: string; branch: string }[];
   readonly profiles: ReadonlyMap<string, ProfileAccess>;
@@ -64,10 +76,11 @@ interface TaskAccess {
   deleteProfile(id: string): Promise<Result>;
   setLogin(id: string, login: string, password: string): Result;
   typeLogin<T>(id: string, tab: string | undefined, field: 'login' | 'password', fill: (value: string) => Promise<T>): Promise<Result<{ name: string; result: T }>>;
+  environmentUsed(environment: string): void;
   caption(profile: string, caption: string, sticky?: boolean): void;
   toUrl(address: string): string;
   screenshot(profile: string, tab: string | undefined, shot: Omit<Shot, 'human'> & { by: 'agent' }): Promise<{ buf: Buffer; file: string }>;
-  saveArtifact(profile: string, tab: string, kind: string, content: string | Buffer): Promise<string>;
+  saveArtifact(source: EnvironmentSource, kind: string, content: string | Buffer): Promise<string>;
   artifacts(): Promise<Artifact[]>;
   artifactsUsage(scope?: 'task' | 'project' | 'all'): Promise<{ bytes: number; tasks: { key: string; name: string; project: string; bytes: number }[] }>;
   deleteArtifacts(files: string[] | null): Promise<Result<{ deleted: number; bytes: number }>>;
@@ -77,7 +90,7 @@ interface TaskAccess {
   removeRepository(repository: string): Promise<Result<{ folder: string }>>;
   codeProgress(): Promise<{ folder: string; repo: string; log: string; status: string; stat: string }[]>;
   conversations(): SavedConversation[];
-  terminalsInfo(): { list: { name: string; agent: boolean; by: string; command?: string }[] };
+  developmentTerminalsInfo(): { list: { name: string; agent: boolean; by: string; command?: string }[] };
   runInTerminal(name: string, command: string): Promise<Result<{ name: string; again?: boolean }>>;
   readTerminal(name: string, lines?: number): Result<{ text: string }>;
   closeTerminal(name: string): Result;
@@ -86,7 +99,7 @@ interface TaskAccess {
 interface Command { task: string; profile: string; method: string; params: Record<string, any> }
 interface Action { caption: string; x?: number; y?: number; task: string; profile: string }
 interface PluginHost {
-  resolve(project: string, task: string, terminal?: number): { task: TaskAccess; terminal: TerminalAccess | null } | null;
+  resolve(project: string, task: string, terminal?: number): { task: TaskAccess; terminal: DevelopmentTerminalAccess | null } | null;
   allowRequest(req: IncomingMessage): boolean;
   dictated(text: string): void;
   onProfileUnloading(listener: (key: string) => void): void;
@@ -98,4 +111,4 @@ interface PluginHost {
   noteAction(action: Action & { t: number }): void;
 }
 
-export type { TaskAccess, ProfileAccess, TabAccess, TerminalAccess, SavedConversation, PluginHost, Command };
+export type { TaskAccess, ProfileAccess, TabAccess, DevelopmentTerminalAccess, SavedConversation, PluginHost, Command };

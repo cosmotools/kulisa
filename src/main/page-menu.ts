@@ -10,7 +10,7 @@ import type { Command } from './cdp-proxy.ts';
 type Row = { id: string; label: string; enabled?: boolean } | { role: 'undo' | 'redo' | 'cut' | 'copy' | 'paste' | 'selectAll'; enabled: boolean } | { type: 'separator' };
 
 // The rows for a right-click: the link, the image, the field or the selection under it, else the page's own.
-function rowsFor(p: ContextMenuParams, nav: { canBack: boolean; canFwd: boolean }): Row[] {
+function rowsFor(p: ContextMenuParams, nav: { canBack: boolean; canFwd: boolean }, canSend: boolean): Row[] {
   const rows: Row[] = [];
   const line = () => { if (rows.length) rows.push({ type: 'separator' }); };
   if (p.linkURL) rows.push({ id: 'link.open', label: 'Open Link in New Tab' }, { id: 'link.copy', label: 'Copy Link Address' });
@@ -21,6 +21,7 @@ function rowsFor(p: ContextMenuParams, nav: { canBack: boolean; canFwd: boolean 
     rows.push({ role: 'undo', enabled: f.canUndo }, { role: 'redo', enabled: f.canRedo }, { type: 'separator' },
       { role: 'cut', enabled: f.canCut }, { role: 'copy', enabled: f.canCopy }, { role: 'paste', enabled: f.canPaste }, { role: 'selectAll', enabled: f.canSelectAll });
   } else if (p.selectionText) { line(); rows.push({ role: 'copy', enabled: f.canCopy }); }
+  if (p.selectionText.trim() && p.formControlType !== 'input-password') rows.push({ id: 'selection.send', label: 'Send selection to agent', enabled: canSend });
   if (!rows.length) rows.push({ id: 'tab.back', label: 'Back', enabled: nav.canBack }, { id: 'tab.forward', label: 'Forward', enabled: nav.canFwd }, { id: 'tab.reload', label: 'Reload' });
   line();
   rows.push({ id: 'pick', label: 'Pick an Element for the Agent' }, { id: 'screenshot', label: 'Screenshot of an Element' }, { type: 'separator' }, { id: 'inspect', label: 'Inspect' });
@@ -47,9 +48,15 @@ function installPageMenu(shell: Shell) {
       if (!t) return;
       const { w, profile, tab } = t, now = Date.now();
       if (now - (agentPressed.get(`${profile.task} ${profile.id}`) ?? 0) < SINCE) return;
-      const rows = rowsFor(p, { canBack: !!tab.canBack, canFwd: !!tab.canFwd });
+      const task = shell.taskByKey(profile.task);
+      const rows = rowsFor(p, { canBack: !!tab.canBack, canFwd: !!tab.canFwd }, !!task?.promptTarget()?.pty);
       const run = (id: string) => {
         log.info(`[page-menu] ${id} ${profile.id} ${tab.id}`);
+        if (id === 'selection.send') {
+          const result = task?.sendSelection({ kind: 'profile', id: profile.id, tab: tab.id }, p.selectionText);
+          if (result?.error) log.info(`[page-menu] selection refused: ${result.error}`);
+          return;
+        }
         if (id === 'link.open') { profile.newTab(p.linkURL, { activate: false }); return; }
         if (id === 'link.copy') return clipboard.writeText(p.linkURL);
         if (id === 'image.open') { profile.newTab(p.srcURL, { activate: false }); return; }

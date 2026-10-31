@@ -49,6 +49,7 @@ export function registerWindow(ipc: Ipc) {
   handle('language:get', () => shell.languageInfo());
   handle('language:set', (_e, code) => shell.setLanguage(code));
   handle('theme:set', (_e, theme) => ['dark', 'light', 'system'].includes(theme) && shell.setTheme(theme));
+  handle('stage:follow:set', (_e, follow) => { if (typeof follow === 'boolean') shell.setStageFollow(follow); });
   handle('bar:set', (_e, bar) => ['top', 'bottom'].includes(bar) && shell.setBar(bar));
   handle('zoom:ui', (_e, dir) => shell.setUiZoom(stepZoom(shell.uiZoom, dir)));
   handle('views:hidden', (e, hidden, opts?) => at(e)?.hideViews(hidden, opts));

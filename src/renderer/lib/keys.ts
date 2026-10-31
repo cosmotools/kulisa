@@ -3,7 +3,7 @@
 // the profile and tab they act on.
 import { act, screenshot, store } from './store';
 import { panes } from './grid';
-import { shownTerm } from './terminals';
+import { shownTerm } from './development-terminals';
 import { dialog } from './dialogs';
 import { toggleSidebar } from './sidebar';
 import { dialogsShown, onDialogs } from './cover';
@@ -29,9 +29,9 @@ document.addEventListener('focusout', () => setTimeout(report)); // where it wen
 onDialogs(report); // a dialog opened or closed
 
 // The folded terminals' panel: the task's agent; a task with none (its project had no default) leaves the choice to the
-// human, the keyboard on the panel's big buttons (components/grid/Terminals.tsx), or its + opened.
+// human, the keyboard on the panel's big buttons (components/grid/DevelopmentTerminals.tsx), or its + opened.
 const openOwn = async () => {
-  const r = await act('terminal:open', { own: true });
+  const r = await act('development-terminal:open', { own: true });
   if (refused(r) || !('none' in r)) return;
   const first = document.querySelector<HTMLElement>('[data-launcher]');
   if (first) { first.focus(); return; }
@@ -46,8 +46,8 @@ const showTask = (tab?: HTMLElement) => { const key = tab?.dataset.task; if (key
 interface Command { n?: number; page?: boolean; p?: Profile; tab?: string }
 // What each command does. page: the key was typed in the profile's page, so the keyboard stays in its pages.
 const run: Record<string, (c: Command) => unknown> = {
-  'terminal.focus': () => (!store.getState().terminals.list.length ? openOwn() : zone === 'terminal' && lastPane ? focusPage(lastPane) : shownTerm()?.focus()),
-  'terminal.new': () => act('terminal:open'),
+  'terminal.focus': () => (!store.getState().developmentTerminals.list.length ? openOwn() : zone === 'terminal' && lastPane ? focusPage(lastPane) : shownTerm()?.focus()),
+  'terminal.new': () => act('development-terminal:open'),
   'task.n': ({ n }) => showTask(taskTabs()[n! - 1]),
   'task.next': () => stepTask(1),
   'task.previous': () => stepTask(-1),

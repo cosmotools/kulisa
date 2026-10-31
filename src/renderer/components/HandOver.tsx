@@ -13,12 +13,12 @@ import { act, shownTask, store, useWindow } from '../lib/store';
 import { registerDialog } from '../lib/dialogs';
 import { avatarSrc, plural } from '../lib/common';
 import { refused } from '../../shared/result';
-import type { Terminal } from '../../shared/types';
+import type { DevelopmentTerminalInfo } from '../../shared/types';
 
 // No part read for this long: an agent that thinks before it reads, or never does.
 const IDLE = 30_000;
 interface HandOverState {
-  from: Terminal | null; chosen: string | undefined; going: boolean; error: string;
+  from: DevelopmentTerminalInfo | null; chosen: string | undefined; going: boolean; error: string;
   handed: number | null; // the new agent's tab once open
   read: { part: number; parts: number } | null; // what it has read
 }
@@ -48,7 +48,7 @@ const waitIdle = () => { clearTimeout(idle); idle = window.setTimeout(show, IDLE
 function show() {
   clearTimeout(idle);
   const { handed } = state.getState();
-  if (handed !== null && store.getState().current === inTask) void act('terminal:show', { id: handed });
+  if (handed !== null && store.getState().current === inTask) void act('development-terminal:show', { id: handed });
   state.setState({ handed: null, going: false });
   close();
 }
@@ -62,7 +62,7 @@ kulisa.on('handover:read', ({ task, id, part, parts: all }) => {
 store.subscribe((s) => {
   const { handed } = state.getState();
   if (handed === null) return;
-  const t = s.terminals.list.find((x) => x.id === handed);
+  const t = s.developmentTerminals.list.find((x) => x.id === handed);
   if (t) seen = true;
   if (t?.state === 'waiting' || (!t && seen && s.current === inTask)) show();
 });
@@ -72,7 +72,7 @@ export function HandOver() {
   const [open, setOpen] = useState(false);
   const { from, chosen, going, error, read } = useStore(state);
   const agents = useWindow(useShallow((s) => agentsOf(s))), profiles = useWindow((s) => s.profiles);
-  const branch = useWindow((s) => shownTask(s)?.branch), shells = useWindow((s) => s.terminals.list).filter((t) => !t.agent);
+  const branch = useWindow((s) => shownTask(s)?.branch), shells = useWindow((s) => s.developmentTerminals.list).filter((t) => !t.agent);
   useEffect(() => {
     close = () => setOpen(false);
     registerDialog('handover', {
