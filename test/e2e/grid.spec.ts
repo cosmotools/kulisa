@@ -112,19 +112,42 @@ test('grid: a pane stacked behind another as a tab hides its page until chosen',
   await expect.poll(() => core((k) => k.profile('Sam.admin').get().view.getVisible())).toBe(false);
 });
 
-test('grid: while a pane is dragged, pages are pictures (drop targets are HTML), live again after the drop', async ({ core, ui, files }) => {
+for (const count of [2, 1, 0]) test(`grid: while a pane is dragged, ${count} page pictures cover hidden views; both pages live again after the drop`, async ({ core, ui, files }) => {
   await begin(core, ui, files, { columns: true });
-  // Pressed on Elon's tab and moved: the drag begins; let go where it began (on its own tab: nowhere to go).
-  const b = await ui.locator(`[data-panel="${files.panel(ELON)}"]`).boundingBox(), at = { x: b.x + b.width / 2, y: b.y + b.height / 2 };
-  await ui.mouse.move(at.x, at.y);
-  await ui.mouse.down();
-  await ui.mouse.move(at.x + 40, at.y + 40, { steps: 4 });
-  await expect.poll(() => core((k) => [...k.shell.profiles.values()].every((p) => !p.get().view.getVisible()))).toBe(true);
-  await expect(ui.getByTestId('page').getByTestId('snapshot')).toHaveCount(2);
-  await ui.mouse.move(at.x, at.y, { steps: 4 });
-  await ui.mouse.up();
-  await bothOn(core, ui, files);
-  await expect(ui.getByTestId('page').getByTestId('snapshot')).toHaveCount(0);
+  // Capture deadlines are checked in taskbar.spec.ts. Supply their possible results here, so Chromium's frame
+  // delivery cannot decide whether the drag covers both pages, one, or neither.
+  const image = await core(async (k, count) => {
+    const pages = ['Sam.admin', 'Elon.buyer'].map((name) => k.profile(name).get().wc);
+    const image = await pages[0].capturePage(), captures = pages.map((wc) => Object.getOwnPropertyDescriptor(wc, 'capturePage'));
+    k.stash.restoreCaptures = () => pages.forEach((wc, i) => {
+      if (captures[i]) Object.defineProperty(wc, 'capturePage', captures[i]); else Reflect.deleteProperty(wc, 'capturePage');
+    });
+    pages.forEach((wc, i) => { wc.capturePage = () => i < count ? Promise.resolve(image) : Promise.reject(new Error('capture unavailable')); });
+    return `data:image/jpeg;base64,${image.toJPEG(90).toString('base64')}`;
+  }, count);
+  try {
+    // Let go on the same tab: the drag ends without changing the arrangement.
+    const b = await ui.locator(`[data-panel="${files.panel(ELON)}"]`).boundingBox(), at = { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+    await ui.mouse.move(at.x, at.y);
+    await ui.mouse.down();
+    await ui.mouse.move(at.x + 40, at.y + 40, { steps: 4 });
+    await expect.poll(() => core((k) => [...k.shell.profiles.values()].every((p) => !p.get().view.getVisible()))).toBe(true);
+    for (const [i, name] of [SAM, ELON].entries()) {
+      const picture = ui.locator(`[role="region"][data-profile="${files.idOf(name)}"]`).getByTestId('snapshot');
+      await expect(picture).toHaveCount(i < count ? 1 : 0);
+      if (i < count) {
+        await expect(picture).toBeVisible();
+        await expect(picture).toHaveAttribute('src', image);
+      }
+    }
+    await ui.mouse.move(at.x, at.y, { steps: 4 });
+    await ui.mouse.up();
+    await bothOn(core, ui, files);
+    await expect(ui.getByTestId('page').getByTestId('snapshot')).toHaveCount(0);
+  } finally {
+    await ui.mouse.up();
+    await core((k) => { k.stash.restoreCaptures(); delete k.stash.restoreCaptures; });
+  }
 });
 
 test('resizing Resources updates the agent terminal at fractional widths and heights', async ({ core, ui, files }) => {
