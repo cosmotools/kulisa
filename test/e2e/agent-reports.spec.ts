@@ -2,6 +2,7 @@
 // an answer, and the artifacts this leaves, in Resources and for the agent (docs/profiles.md, The agent's tools).
 import fs from 'fs';
 import path from 'path';
+import { sizeText } from '../../src/shared/bytes.ts';
 import { test, expect } from './fixtures.ts';
 import type { Call } from './fixtures.ts';
 import { SITE, PORT, upTo, attr, menu, choose, rightClick, invoke, termText, termKeys, WIN } from './helpers.ts';
@@ -161,6 +162,9 @@ test("Resources: the agent's artifacts listed as it makes them, the newest first
     await expect(r.locator('img')).toHaveCount(0);
   }
   await expect(list.first(), 'whose, and when').toHaveText(/^ScreenshotElon\.buyer · /);
+  for (const file of await listed()) {
+    await expect(row(file)).toContainText(sizeText(fs.statSync(file).size));
+  }
   // What the OS would open it with: noted, not opened.
   await core((k) => {
     const { shell } = k.electron;
@@ -193,6 +197,18 @@ test("Resources: the agent's artifacts listed as it makes them, the newest first
   await choose(ui, 'Delete');
   await expect(row(shot)).toHaveCount(0);
   await expect.poll(() => fs.existsSync(shot)).toBe(false);
+  const next = (await listed())[0];
+  const nextRow = row(next).locator('..'), deleteButton = nextRow.getByRole('button', { name: /^Delete / });
+  await ui.locator('#resources').getByRole('button', { name: 'Delete All Artifacts' }).hover();
+  await expect(deleteButton).toHaveCSS('opacity', '0');
+  await nextRow.hover();
+  await expect(deleteButton).toHaveCSS('opacity', '1');
+  const highlight = await row(next).evaluate((el) => getComputedStyle(el).backgroundColor);
+  await deleteButton.hover();
+  await expect(nextRow).toHaveCSS('background-color', highlight);
+  await deleteButton.click();
+  await expect(row(next)).toHaveCount(0);
+  await expect.poll(() => fs.existsSync(next)).toBe(false);
   expect((await invoke(ui, 'task:artifacts-delete', { key: await core((k) => k.shell.task.key), files: [path.join(files.root, 'package.json')] })).error,
     'only a file of the task\'s own folder').toMatch(/not an artifact/);
 });

@@ -81,7 +81,7 @@ project, and those you closed, are in the sidebar (Tasks, below).
 - **Resources**, beside or under the terminal: what the task works in (its copy of the code, or your project's folder until
   it has one), a click opens its folder; and under **Artifacts**, what you and the agent kept of the pages:
   screenshots (with a small picture), snapshots of a page, the bodies of requests, the newest first, with whose page and
-  when. A click opens one; a right-click offers **Open**, **Show in Folder**, **Send to Agent** and **Delete**.
+  when, and each file’s size. Hover a row to show its 🗑, which deletes that file. A click opens one; a right-click offers **Open**, **Show in Folder**, **Send to Agent** and **Delete**.
   Drag one into the agent’s input to add its path; sending or dropping it leaves the prompt for you to finish.
   The heading says how much room they take;
   its 🗑 deletes them all. The agent sees the same: ask it what is there, or to clean them up. Past 100 MB a task's oldest
