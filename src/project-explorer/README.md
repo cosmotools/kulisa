@@ -21,6 +21,13 @@ Button triggers and ghost Button files. Each expanded directory reads on mount a
 clears its timer and ignores late replies. Collapsed folders and background tasks keep no watchers. The caller
 unmounts the tree when hidden or when its owner changes, so state and timers belong to the visible tree.
 
+File and folder icons are [Material Icon Theme](https://github.com/material-extensions/vscode-material-icon-theme)'s.
+`vite.config.mts` generates case-insensitive associations without a framework-specific icon pack, emits referenced
+SVGs as separate assets, and includes their MIT license. The renderer receives associations and asset URLs only.
+Exact filenames take precedence over compound extensions, longest first; parent-folder associations take precedence
+at each match. Unknown entries use the theme's generic icons. CSS selects the light or dark asset and loads only
+that shade; expanded folders use their open icon. Icon selection depends on paths, independent of any editor.
+
 ## Contracts
 
 `ipc.ts` declares the directory-entry shape shared by both halves. Task-specific channels (`task:files`,
@@ -36,8 +43,10 @@ The renderer receives those actions as callbacks, with no channels or task keys 
 | `renderer/index.ts` | renderer entry |
 | `renderer/actions.ts` | file and desktop callbacks |
 | `renderer/ProjectDirectory.tsx` | directory loading, refresh, expansion, file interactions and menu rows |
+| `renderer/FileIcon.tsx`, `icon.ts`, `icons.d.ts` | theme-aware assets, association matching and the build module's contract |
 | `ipc.ts` | directory-entry contract |
 | `files.test.ts` | shallow reads, ordering, refresh, multiple roots, missing paths and symbolic-link containment |
+| `icons.test.ts` | upstream icon associations, match precedence, path formats and theme fallbacks |
 
 Outside callers and integration:
 
@@ -46,6 +55,7 @@ Outside callers and integration:
 - `src/renderer/components/grid/Resources.tsx`: task selection, repository root labels and grouping, repository removal,
   tabs, artifacts, and callback bindings to the window's IPC and menu opener.
 - `.dependency-cruiser.ts`: entry and dependency enforcement; `docs/packages.md`, `docs/tasks.md` and `docs/ui.md`: integration links.
+- `vite.config.mts`: dependency assets and generated associations enter through Vite's build, outside either process.
 - `src/shared/types.ts`: the core's task and resource shapes; explorer entries are declared in this Kulisa package's contract.
 
 End-to-end tests stay in `test/e2e/resources.spec.ts` (expansion, file opening and project switching) and

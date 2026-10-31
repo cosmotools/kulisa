@@ -7,16 +7,49 @@
 //   npm run watch   builds again on every change (then reload the window: Ctrl+R in its DevTools, or restart)
 // Not Electron Forge's Vite plugin: it packages only what Vite built (.vite/), the main process included, and
 // Kulisa's main process is not bundled (node-pty is native; playwright-core and the MCP SDK read their own files).
-import { defineConfig } from 'vite';
+import { defineConfig, normalizePath, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
-import { resolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { generateManifest, type Manifest } from 'material-icon-theme';
+
+// Only associations and asset URLs reach the window; SVG contents and the generator stay out of its JavaScript.
+function fileIcons(): Plugin {
+  const module = 'virtual:project-file-icons';
+  const root = dirname(fileURLToPath(import.meta.resolve('material-icon-theme/package.json')));
+  return {
+    name: 'project-file-icons',
+    resolveId(id) { if (id === module) return `\0${module}`; },
+    load(id) {
+      if (id !== `\0${module}`) return;
+      const source = generateManifest({ activeIconPack: '' });
+      const lower = (map?: Record<string, string>) => Object.fromEntries(Object.entries(map ?? {}).map(([key, value]) => [key.toLowerCase(), value]));
+      const associations = ({ file, folder, folderExpanded, fileNames, fileExtensions, folderNames, folderNamesExpanded }: Manifest) =>
+        ({ file, folder, folderExpanded, fileNames: lower(fileNames), fileExtensions: lower(fileExtensions),
+          folderNames: lower(folderNames), folderNamesExpanded: lower(folderNamesExpanded) });
+      const base = associations(source), light = associations(source.light ?? {});
+      const manifest = { ...base, light };
+      const referenced = new Set([base, light].flatMap((theme) => Object.values(theme)
+        .flatMap((value) => typeof value === 'string' ? [value] : Object.values(value ?? {}))));
+      const imports: string[] = [], urls: string[] = [];
+      for (const [index, icon] of [...referenced].entries()) {
+        const path = normalizePath(resolve(root, 'dist', source.iconDefinitions![icon]!.iconPath));
+        imports.push(`import icon${index} from ${JSON.stringify(`${path}?no-inline`)};`);
+        urls.push(`${JSON.stringify(icon)}: icon${index}`);
+      }
+      this.emitFile({ type: 'asset', fileName: 'material-icon-theme-LICENSE.txt', source: readFileSync(resolve(root, 'LICENSE'), 'utf8') });
+      return `${imports.join('\n')}\nexport const icons = {${urls.join(',')}};\nexport const manifest = ${JSON.stringify(manifest)};`;
+    },
+  };
+}
 
 const renderer = resolve(import.meta.dirname, 'src/renderer');
 export default defineConfig({
   root: renderer,
   base: './', // loaded from file://
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss(), fileIcons()],
   resolve: { alias: { '@ui': resolve(import.meta.dirname, 'src/ui') } }, // src/ui's own imports (components.json, aliases)
   build: {
     outDir: resolve(import.meta.dirname, 'dist/renderer'),
