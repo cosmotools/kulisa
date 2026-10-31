@@ -58,10 +58,12 @@ test('after a restart: Stage stays left and both grids keep their saved sizes', 
   await arrange(ui, 'left');
   // Saved as laid out (the task's task.json, 300 ms after the grid's last change: lib/grid.ts), before the restart;
   // the grid's shape from dockview's API.
-  await expect.poll(async () => {
-    const now = JSON.stringify(await ui.evaluate(() => (window as any).__dock.toJSON().grid));
-    try { const saved = files.json(files.pfile('task.json')).workspace; return saved.stagePosition === 'left' && JSON.stringify(saved.developmentLayout.grid) === now; } catch { return false; }
-  }).toBe(true);
+  await expect(async () => {
+    const now = await ui.evaluate(() => (window as any).__dock.toJSON().grid);
+    const saved = files.json(files.pfile('task.json')).workspace;
+    expect(saved.stagePosition).toBe('left');
+    expect(saved.developmentLayout.grid).toEqual(now);
+  }).toPass({ timeout: 5000 });
 
   const saved = await resourcesHeight(ui);
   const ui2 = await restart();
