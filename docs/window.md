@@ -64,7 +64,7 @@ environment adds it, closing the last removes it. A new task opens only its defa
 
 **Stage** in the title bar offers **Position: Left, Right, Above** the development area, **View: Horizontal stack**
 (side by side), **Vertical stack** (one above another), **Tabs** (one environment at a time), and **Open an environment**.
-Moving Stage preserves the development grid and its panels; Terminal and Resources stay together. Resources keeps at
+Moving Stage preserves the development grid and its panels; Terminal and Resources stay together. Resources starts to the left of the terminal; saved layouts keep their placement. It keeps at
 least its header's height so it can fold with the development terminal. The human's `stage:arrange` IPC and the agent's
 `stage_arrange` tool call `Task.arrangeStage`: the task must be shown, and settings apply with an empty Stage too.
 The task-scoped event reaches that window.

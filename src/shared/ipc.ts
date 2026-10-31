@@ -9,7 +9,7 @@ import type { ThumbnailEvents, ThumbnailInvoke, ThumbnailSend } from '../screens
 import type { GitHubInvoke } from '../github/ipc.ts';
 import type { DictationEvents, DictationInvoke } from '../dictation/ipc.ts';
 import type {
-  AboutFolder, AboutInfo, Artifact, EnvironmentSource, AccountsInfo, AgentInfo, ClosedProfile, LanguageInfo, LogInfo, NewProjectSetup, Profile, ProjectAgent, ProjectChoices, ProjectGitHub, ProjectProfile, ProjectFolder,
+  ProjectFile, AboutFolder, AboutInfo, Artifact, EnvironmentSource, AccountsInfo, AgentInfo, ClosedProfile, LanguageInfo, LogInfo, NewProjectSetup, Profile, ProjectAgent, ProjectChoices, ProjectGitHub, ProjectProfile, ProjectFolder,
   ProjectSettings, ProjectsInfo, Question, SettingsProfile, Shortcut, SignedIn, DevelopmentTerminalsState,
 } from './types.ts';
 
@@ -88,6 +88,8 @@ export interface Invoke extends TerminalInvoke, ThumbnailInvoke, GitHubInvoke, D
   'task:remove-repo': I<[{ key: string; repo: string }]>;
   'task:show-folder': I<[key: string]>;
   'task:open-folder': I<[{ key: string; folder: string }]>; // a resource's folder (Resources.tsx), checked to be the task's
+  'task:files': I<[{ key: string; folder: string }], Result<{ entries: ProjectFile[] }>>;
+  'task:file-open': I<[{ key: string; file: string }], Result>;
   'task:artifacts': I<[string]>; // the task's artifacts sent again (Resources.tsx: the task shown)
   'task:artifact-send': I<[{ key: string; file: string }], Result>;
   'task:artifact-drag': I<[{ key: string; file: string }], Result>;

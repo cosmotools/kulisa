@@ -20,6 +20,8 @@ import { extendTrust } from '../kulisa-plugin/main/index.ts';
 import { installSkill } from '../kulisa-plugin/main/index.ts';
 import { labelError } from '../shared/names.ts';
 import { loginAllowed } from './local.ts';
+import { resourcePath, listResourceFiles } from './resource-files.ts';
+import { openFile } from './file-links.ts';
 import { log } from './log.ts';
 import type { Tab } from '../browser/main/index.ts';
 import type { Entry, Hooks } from './project-profiles.ts';
@@ -798,6 +800,16 @@ class Task {
     return (this.entry.resources || []).map((r, i): Sent.TaskResource => (r.kind === 'maintree'
       ? { kind: r.kind, label: path.basename(r.folder), folder: r.folder, branch: null, removable: false }
       : { kind: r.kind, label: path.basename(r.repo), folder: r.folder, branch: r.branch, removable: i > 0 }));
+  }
+
+  async files(folder: string) {
+    return listResourceFiles(this.resources().map((r) => r.folder), folder);
+  }
+  async openProjectFile(file: string): Promise<Result> {
+    const found = await resourcePath(this.resources().map((r) => r.folder), file);
+    if (refused(found)) return found;
+    await openFile(found.path);
+    return {};
   }
 
   async screenshot(profile: string, tab: string | undefined, shot: Parameters<Profile['screenshot']>[1]) {

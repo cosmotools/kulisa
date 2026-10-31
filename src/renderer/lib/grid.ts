@@ -200,7 +200,7 @@ function buildGrid(a: DockviewApi, saved: unknown) {
   if (!a.getPanel('terminal') || !a.getPanel('resources')) {
     a.clear();
     a.addPanel({ id: 'terminal', component: 'terminal', tabComponent: 'terminal', title: 'Terminal', renderer: 'always' });
-    a.addPanel({ id: 'resources', component: 'resources', tabComponent: 'resources', title: 'Resources', minimumHeight: 36, position: { referencePanel: 'terminal', direction: 'right' } });
+    a.addPanel({ id: 'resources', component: 'resources', tabComponent: 'resources', title: 'Resources', minimumHeight: 36, position: { referencePanel: 'terminal', direction: 'left' } });
     a.getPanel('resources')!.group.api.setSize({ width: Math.round(a.width / 4) });
   }
   syncGrid();

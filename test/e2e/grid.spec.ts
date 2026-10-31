@@ -181,13 +181,13 @@ test('workspace and stage presets each fit the window without changing the other
   await fits();
   let b = await at();
   expect(b.sam.x < b.elon.x && b.sam.y === b.elon.y && b.term.y > b.sam.y + b.sam.height - 1, 'profiles side by side, terminal below').toBe(true);
-  // Resources right of the terminal, in its row, a quarter of the grid (laid out maybe a frame after the pages).
+  // Resources left of the terminal, in its row, a quarter of the grid (laid out maybe a frame after the pages).
   const resources = () => box(ui, '#resources');
   const placed = async () => {
     const r = await resources(), t = await box(ui, '[data-testid="terminal"]');
-    return r.x > t.x + t.width - 1 && r.y > b.sam.y + b.sam.height - 1 && Math.abs(r.width / await dock(ui, (api) => api.width) - 0.25) < 0.02;
+    return r.x + r.width <= t.x + 1 && r.y > b.sam.y + b.sam.height - 1 && Math.abs(r.width / await dock(ui, (api) => api.width) - 0.25) < 0.02;
   };
-  await expect.poll(placed, { timeout: 3000, message: 'Resources right of the terminal, a quarter of the grid' }).toBe(true);
+  await expect.poll(placed, { timeout: 3000, message: 'Resources left of the terminal, a quarter of the grid' }).toBe(true);
   const side = await resources();
   b = await at();
   // A narrower window takes from every panel in its share, not from the last one alone; wider gives back the same way.
@@ -215,7 +215,7 @@ test('workspace and stage presets each fit the window without changing the other
   expect(b.sam.y < b.elon.y && b.term.x > b.sam.x + b.sam.width - 1, 'profiles in a vertical stack, terminal on the right').toBe(true);
   // Moving Stage preserves Resources beside the terminal; its own docking stays independent.
   const res = await box(ui, '#resources'), term = await box(ui, 'nav[aria-label="Terminals"]');
-  expect(res.x > term.x && Math.abs(res.y - term.y) < 40, 'Resources beside the terminal').toBe(true);
+  expect(res.x < term.x && Math.abs(res.y - term.y) < 40, 'Resources beside the terminal').toBe(true);
   await dock(ui, (api) => api.getPanel('resources').api.moveTo({ group: api.getPanel('terminal').group, position: 'bottom' }));
   // Sized by dockview's API, as a drag of its sash sizes it: the sash is a bare element with no name to find it by.
   await dock(ui, (api) => api.getPanel('resources').group.api.setSize({ height: 300 }));
