@@ -3,7 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import type { Locator, Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
-import { SITE, PORT, WIN, logged, ipcSettled, who, menu, choose, closeMenu, rightClick, manageProfiles, closeSettings, chooseProfile, navRow, thingRow, pathOf, settingsMenu, termText, invoke, answer, typeIn } from './helpers.ts';
+import { showResources, SITE, PORT, WIN, logged, ipcSettled, who, menu, choose, closeMenu, rightClick, manageProfiles, closeSettings, chooseProfile, navRow, thingRow, pathOf, settingsMenu, termText, invoke, answer, typeIn } from './helpers.ts';
 import { profileId, deleteProfile } from './tasks-helpers.ts';
 
 // A PNG's size in pixels, from its header.
@@ -243,7 +243,7 @@ test("a pane's ⋮ → Screenshot takes an element, the visible part or the whol
   await expect.poll(() => shots().length).toBe(1);
   const [full] = shots();
   expect(full).toMatch(new RegExp(`^\\d+-${id}-.+-screenshot\\.png$`));
-  await ui.getByRole('tab', { name: 'Artifacts', exact: true }).click();
+  await showResources(ui, 'Artifacts');
   const resource = ui.locator('#resources [data-file]').first();
   await expect(resource).toHaveAttribute('data-file', path.join(dir, full));
   await expect(resource).toHaveAttribute('aria-label', 'Screenshot');
@@ -375,7 +375,7 @@ test('a screenshot shows its thumbnail in its pane\'s corner: a click opens it, 
     await core((k) => k.shell.pty.write('\x15')); // Ctrl+U: the line cleared
     await thumbMenu('Delete');
     await expect.poll(async () => !fs.existsSync(file) && await core((k) => !k.shell.windows[0].thumbnails.file) && await thumbGone()).toBe(true);
-  await ui.getByRole('tab', { name: 'Artifacts', exact: true }).click();
+  await showResources(ui, 'Artifacts');
     await expect(ui.locator('#resources [data-file]').filter({ hasText: 'Screenshot' })).toHaveCount(0);
     await expect(shown).toHaveCount(0);
     // Its ×: it fades out first, then goes.

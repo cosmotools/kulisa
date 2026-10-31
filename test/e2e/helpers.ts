@@ -10,6 +10,11 @@ import type { Core, Call, Where } from './fixtures.ts';
 import { removeTree } from '../../src/main/remove.ts';
 import type { Files } from './data.ts';
 
+export async function showResources(ui: Page, section: 'Project' | 'Artifacts') {
+  const icon = ui.getByRole('navigation', { name: 'Resources', exact: true }).getByRole('button', { name: section, exact: true });
+  if (await icon.getAttribute('aria-expanded') !== 'true') await icon.click();
+}
+
 // The run's test site (global-setup.ts), on a free port: never a literal port (CLAUDE.md, Hard-won facts).
 export const SITE = process.env.KULISA_TEST_SITE;
 export const PORT = SITE && new URL(SITE).port; // none while Playwright only lists the tests (no global setup)

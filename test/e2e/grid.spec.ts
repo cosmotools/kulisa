@@ -256,3 +256,27 @@ test('a menu opens even when a page gives no picture (a page that draws no frame
     await expect(menu(ui)).toHaveCount(0);
   } finally { await core((k) => { delete k.profile('Elon.buyer').get().wc.capturePage; }); }
 });
+
+test('the Resources grip freezes profile views during a move and restores them on drop or cancellation', async ({ core, ui, files }) => {
+  await begin(core, ui, files, { columns: true });
+  const grip = ui.getByRole('button', { name: 'Move Resources panel', exact: true });
+  const start = async () => {
+    const r = await grip.boundingBox();
+    await ui.mouse.move(r.x + r.width / 2, r.y + r.height / 2);
+    await ui.mouse.down();
+    await ui.mouse.move(r.x + r.width / 2 + 40, r.y + r.height / 2 - 40, { steps: 4 });
+    await expect(ui.getByTestId('page').getByTestId('snapshot').first()).toBeVisible();
+  };
+  const terminal = ui.locator('#grid .dv-groupview').filter({ has: ui.locator('[data-panel="terminal"]') });
+  await start();
+  const target = await terminal.boundingBox();
+  await ui.mouse.move(target.x + target.width - 12, target.y + target.height / 2, { steps: 8 });
+  await ui.mouse.up();
+  await bothOn(core, ui, files);
+  await expect.poll(async () => (await box(ui, '#resources')).x > (await terminal.boundingBox()).x + (await terminal.boundingBox()).width).toBe(true);
+  await start();
+  await ui.keyboard.press('Escape');
+  await ui.mouse.up();
+  await bothOn(core, ui, files);
+  await expect.poll(async () => (await box(ui, '#resources')).x > (await terminal.boundingBox()).x + (await terminal.boundingBox()).width).toBe(true);
+});

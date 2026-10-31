@@ -1,6 +1,6 @@
 // The shown task's terminals, a panel of the grid, and its header (docs/window.md, The terminal). The xterms live as long
 // as their terminals (lib/development-terminals.ts), not as the panel: it shows the shown task's.
-import { createElement, useCallback, useEffect, useLayoutEffect, useRef, useSyncExternalStore, type DragEvent, type Ref } from 'react';
+import { createElement, useEffect, useLayoutEffect, useRef, type DragEvent, type Ref } from 'react';
 import { CheckIcon, PlusIcon } from 'lucide-react';
 import type { IDockviewPanelHeaderProps, IDockviewPanelProps } from 'dockview-react';
 import { Avatar, AvatarImage, Button, Item, ItemContent, ItemDescription, ItemMedia, ItemTitle, Spinner } from '@ui';
@@ -22,31 +22,6 @@ import { Dictation, Pill } from '../../../dictation/renderer';
 import type { DevelopmentTerminalInfo } from '../../../shared/types';
 
 const NEW_TITLE = 'New conversation of an agent, or a terminal';
-// The header's height (Grid.tsx): the folded panel is one button of it.
-const STRIP = 36;
-
-// Folding: the group held at one button's size along the grid's axis it lies across (dockview's constraints), its
-// header gone; its size before (before), given back when it unfolds.
-type Size = { width?: number; height?: number };
-function fold(api: IDockviewPanelProps['api'], grid: IDockviewPanelProps['containerApi'], before: { current: Size | null }, folded: boolean, alone: boolean) {
-  const group = api.group;
-  if (!group) return;
-  group.header.hidden = folded;
-  if (folded && !alone) {
-    if (before.current) return;
-    const box = group.api.boundingBox;
-    const across = !box || box.height < grid.height - 1; // a panel over or under it: folded by its height
-    before.current = across ? { height: group.api.height } : { width: group.api.width };
-    group.api.setConstraints(across ? { minimumHeight: STRIP, maximumHeight: STRIP } : { minimumWidth: STRIP, maximumWidth: STRIP });
-    group.api.setSize(across ? { height: STRIP } : { width: STRIP });
-  } else if (before.current) {
-    const b = before.current;
-    before.current = null;
-    group.api.setConstraints({ minimumHeight: 0, maximumHeight: Number.MAX_SAFE_INTEGER, minimumWidth: 0, maximumWidth: Number.MAX_SAFE_INTEGER });
-    group.api.setSize(b.height ? { height: Math.max(b.height, 150) } : { width: Math.max(b.width!, 200) });
-  }
-}
-
 export function DevelopmentTerminals({ api, containerApi }: IDockviewPanelProps) {
   const host = useRef<HTMLDivElement>(null), launch = useRef<HTMLDivElement>(null), shade = useShade();
   // The task from the terminals' own message (docs/window.md, The terminal).
@@ -80,40 +55,6 @@ export function DevelopmentTerminals({ api, containerApi }: IDockviewPanelProps)
     was.current = { task, front };
     if (task === before.task && front !== before.front && front !== null && !dialogsShown()) void termFocus(`${task}#${front}`);
   }, [task, front]);
-
-  const groupId = useSyncExternalStore(useCallback((changed: () => void) => {
-    const sub = api.onDidGroupChange(changed);
-    return () => sub.dispose();
-  }, [api]), () => api.group?.id ?? '');
-  const before = useRef<Size | null>(null);
-  useEffect(() => {
-    const group = api.group;
-    return () => {
-      // Constraints belong to the group: moving the panel must leave its peers free to resize.
-      if (group && containerApi.groups.includes(group)) {
-        group.header.hidden = false;
-        group.api.setConstraints({ minimumHeight: 0, maximumHeight: Number.MAX_SAFE_INTEGER, minimumWidth: 0, maximumWidth: Number.MAX_SAFE_INTEGER });
-      }
-      before.current = null;
-    };
-  }, [api, containerApi, groupId]);
-  useEffect(() => {
-    fold(api, containerApi, before, folded, alone);
-    let frame = 0;
-    const shape = () => JSON.stringify(containerApi.toJSON().grid, (key, value) => ['size', 'width', 'height', 'hideHeader', 'activeView'].includes(key) ? undefined : value);
-    let previous = shape();
-    const rearranged = () => {
-      const next = shape();
-      if (!folded || next === previous) return;
-      previous = next;
-      // A peer moved across the terminal changes the folding axis without moving this panel's group.
-      fold(api, containerApi, before, false, alone);
-      cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(() => fold(api, containerApi, before, folded, alone));
-    };
-    const changed = containerApi.onDidLayoutChange(rearranged);
-    return () => { cancelAnimationFrame(frame); changed.dispose(); };
-  }, [api, containerApi, groupId, folded, alone]);
 
   // The big buttons, each a Tab stop (Tab to the next, Enter opens it): the first, the project's default agent, gets the
   // keyboard when the keyboard was in the terminal just closed or nowhere (not taken from a field or a dialog). No keys

@@ -46,7 +46,7 @@ export function Grid() {
   const folded = useWindow((s) => !!s.current && !s.profiles.length && !s.stageTerminals.length && s.developmentTerminals.list.length > 0);
   // min-w-0: a row wider than the window (many closed profiles) would stretch the window's column, the terminal and the
   // tasks' bar past its edge. Not shown until it is laid out (lib/grid.ts, reveal).
-  return <main id="dock" className="flex min-h-0 min-w-0 flex-col aria-busy:opacity-0" aria-busy={loading || undefined}>
+  return <main id="dock" className="isolate flex min-h-0 min-w-0 flex-col aria-busy:opacity-0" aria-busy={loading || undefined}>
     {folded && <ClosedProfiles />}
     <div id="workspace" className="min-h-0 flex-1">
       <GridviewReact components={areas} orientation={Orientation.VERTICAL} proportionalLayout

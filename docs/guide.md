@@ -84,9 +84,16 @@ project, and those you closed, are in the sidebar (Tasks, below).
   Follow agent is shared by all tasks and windows and remembered when you restart Kulisa. Manual pauses are temporary.
   Each task keeps both layouts, its stage position, size, view and overflow setting. The empty stage stays hidden; you or your agent can open a
   environment when needed through **Stage → Open an environment**.
-- **Resources**, to the left of the terminal by default: switch between **Project** and **Artifacts** tabs.
-  **Project** opens first: browse the active task’s folders (its copy of the code, or your project’s folder until
-  it has one). Icons identify file types and common folders. Click a folder to expand it; double-click a file to open it in your system’s default application,
+- **Resources panel**, to the left of the terminal by default: choose the **Project** or **Artifacts** section
+  from the **Resources bar**, the icons on its left. The area on the right is **Resources content**.
+  Click the selected icon again to close Resources content and give the terminal more room; the Resources bar stays visible, with no resize divider beside it.
+  Click either icon to reopen Resources content at its previous size.
+  Drag the grip at the bottom of the Resources bar to move the whole panel beside or below the terminal, or into its tabs.
+  Beside the terminal, the Resources bar follows the outer edge: left on the left, right on the right.
+  A group shared with terminal tabs stays resizable; its Resources tab stays available.
+  The expanded panel stays at least 300 pixels wide and 120 pixels tall, keeping both section icons and the grip reachable. Each task keeps its selection and size.
+  **Project** opens first in a new task: use **Project Explorer** to browse the active task’s folders (its copy of the code, or your project’s folder until
+  it has one). Icons identify file types; folders share one icon. Click a folder to expand it; double-click a file to open it in your system’s default application,
   or press Enter or right-click and choose **Open**. Switching tasks shows that task’s folders, across projects too.
   **Artifacts** holds what you and the agent kept of the pages:
   screenshots (with a small picture), snapshots of a page, the bodies of requests, the newest first, with whose page and
