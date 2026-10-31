@@ -26,9 +26,8 @@ function fileIcons(): Plugin {
       if (id !== `\0${module}`) return;
       const source = generateManifest({ activeIconPack: '' });
       const lower = (map?: Record<string, string>) => Object.fromEntries(Object.entries(map ?? {}).map(([key, value]) => [key.toLowerCase(), value]));
-      const associations = ({ file, folder, folderExpanded, fileNames, fileExtensions, folderNames, folderNamesExpanded }: Manifest) =>
-        ({ file, folder, folderExpanded, fileNames: lower(fileNames), fileExtensions: lower(fileExtensions),
-          folderNames: lower(folderNames), folderNamesExpanded: lower(folderNamesExpanded) });
+      const associations = ({ file, fileNames, fileExtensions }: Manifest) =>
+        ({ file, fileNames: lower(fileNames), fileExtensions: lower(fileExtensions) });
       const base = associations(source), light = associations(source.light ?? {});
       const manifest = { ...base, light };
       const referenced = new Set([base, light].flatMap((theme) => Object.values(theme)

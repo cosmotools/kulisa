@@ -1,15 +1,16 @@
-// The Resources panel of the grid, and its header (docs/tasks.md, The Resources panel).
-import { useEffect, useMemo } from 'react';
-import { ChevronRightIcon, FileIcon, FolderIcon, GitBranchIcon, Trash2Icon } from 'lucide-react';
-import type { IDockviewPanelHeaderProps } from 'dockview-react';
+// The Resources panel of the grid (docs/tasks.md, The Resources panel).
+import { useEffect, useMemo, useState } from 'react';
+import { ChevronRightIcon, FileIcon, FilesIcon, FolderIcon, FolderTreeIcon, GripVerticalIcon, GitBranchIcon, Trash2Icon } from 'lucide-react';
+import type { IDockviewPanelProps, IDockviewPanelHeaderProps } from 'dockview-react';
 import { useShallow } from 'zustand/react/shallow';
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupAction, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuAction,
-  Button, Tabs, TabsList, TabsTrigger, TabsContent, Collapsible, CollapsibleTrigger, CollapsibleContent, SidebarMenuButton, SidebarMenuItem, SidebarProvider } from '@ui';
+  Button, Collapsible, CollapsibleTrigger, CollapsibleContent, SidebarMenuButton, SidebarMenuItem, SidebarProvider } from '@ui';
 import { ProjectDirectory, type ExplorerActions } from '../../../project-explorer/renderer';
 import { menuAt } from '../../lib/menu';
 import { RightClickMenu } from '../Menus';
 import { shownTask, useWindow } from '../../lib/store';
 import type { MenuItem } from '../../lib/menu';
+import { startResourceDrag, selectResource, type ResourceParams } from '../../lib/grid';
 import { sizeText } from '../../../shared/bytes';
 
 const KINDS: Record<string, string> = { screenshot: 'Screenshot', snapshot: 'Snapshot', request: 'Request body', response: 'Response body', terminal: 'Terminal screen' };
@@ -19,12 +20,36 @@ const when = (t: number) => (day(t) === day(Date.now()) ? new Date(t).toLocaleTi
   : new Date(t).toLocaleDateString([], { day: 'numeric', month: 'short' }));
 const openFile = (file: string) => kulisa.invoke('file:open', file);
 
-export function Resources() {
+export function Resources({ api, params, containerApi }: IDockviewPanelProps<ResourceParams>) {
   const key = useWindow((s) => shownTask(s)?.key);
-  return key ? <TaskResources key={key} taskKey={key} /> : null;
+  const section = params.section === undefined ? 'project' : params.section;
+  const [barSide, setBarSide] = useState<'left' | 'right'>('left');
+  useEffect(() => {
+    const update = () => {
+      const resources = api.group.api.boundingBox, terminal = containerApi.getPanel('terminal')?.group.api.boundingBox;
+      setBarSide(resources && terminal && resources.left >= terminal.left + terminal.width ? 'right' : 'left');
+    };
+    const layout = containerApi.onDidLayoutChange(update);
+    update();
+    return () => layout.dispose();
+  }, [api, containerApi]);
+  return <aside id="resources" aria-label="The task's resources" data-bar-side={barSide} className="flex h-full min-h-0 min-w-0 data-[bar-side=right]:flex-row-reverse">
+    <nav aria-label="Resources" className={`flex w-10 shrink-0 flex-col items-center gap-1 py-2 ${barSide === 'right' ? 'border-l' : 'border-r'}`}>
+      {([['project', 'Project', FolderTreeIcon], ['artifacts', 'Artifacts', FilesIcon]] as const).map(([value, label, Icon]) =>
+        <Button key={value} variant="ghost" size="icon" aria-label={label} title={label}
+          aria-expanded={section === value} aria-controls="resource-content" onClick={() => selectResource(api, params, value)}><Icon /></Button>)}
+      <div className="mt-auto [&_button]:cursor-grab [&_button]:active:cursor-grabbing">
+        <Button variant="ghost" size="icon" draggable aria-label="Move Resources panel" title="Move Resources panel"
+          onDragStart={(e) => startResourceDrag(api, e.nativeEvent)}><GripVerticalIcon /></Button>
+      </div>
+    </nav>
+    {section && key && <div id="resource-content" role="region" aria-label={section === 'project' ? 'Project' : 'Artifacts'} className="min-h-0 min-w-0 flex-1">
+      <TaskResources key={key} taskKey={key} section={section} />
+    </div>}
+  </aside>;
 }
 
-function TaskResources({ taskKey: key }: { taskKey: string }) {
+function TaskResources({ taskKey: key, section }: { taskKey: string; section: 'project' | 'artifacts' }) {
   const task = useWindow((s) => shownTask(s));
   const explorer = useMemo<ExplorerActions>(() => ({
     readFolder: (folder) => kulisa.invoke('task:files', { key, folder }),
@@ -52,12 +77,9 @@ function TaskResources({ taskKey: key }: { taskKey: string }) {
   const lines = (name: string, line: string) => <span className="flex min-w-0 flex-1 flex-col text-start">
     <span className="truncate">{name}</span><span className="truncate text-xs text-muted-foreground">{line}</span>
   </span>;
-  return <aside id="resources" aria-label="The task's resources" className="h-full min-h-0">
-    <SidebarProvider className="h-full min-h-0">
+  return <SidebarProvider className="h-full min-h-0">
       <Sidebar collapsible="none" className="h-full w-full">
-        <Tabs defaultValue="project" className="h-full min-h-0">
-          <TabsList aria-label="Resources" variant="line" className="w-full shrink-0"><TabsTrigger value="project">Project</TabsTrigger><TabsTrigger value="artifacts">Artifacts</TabsTrigger></TabsList>
-          <TabsContent value="project" className="min-h-0"><div className="h-full overflow-auto"><SidebarContent>
+        {section === 'project' && <div className="h-full overflow-auto"><SidebarContent>
           <SidebarGroup><SidebarGroupContent>
             <SidebarMenu aria-label="Folders">
               {task.resources.map((r) => <SidebarMenuItem key={r.folder}><RightClickMenu items={() => [{ label: 'Open Folder', run: () => open(r.folder) }, ...(r.removable ? [{ label: 'Remove Repository', run: () => remove(r.folder) }] : [])]}><Collapsible defaultOpen>
@@ -72,8 +94,8 @@ function TaskResources({ taskKey: key }: { taskKey: string }) {
               </Collapsible></RightClickMenu></SidebarMenuItem>)}
             </SidebarMenu>
           </SidebarGroupContent></SidebarGroup>
-          </SidebarContent></div></TabsContent>
-          <TabsContent value="artifacts" className="min-h-0"><div className="h-full overflow-auto"><SidebarContent>
+          </SidebarContent></div>}
+          {section === 'artifacts' && <div className="h-full overflow-auto"><SidebarContent>
           {artifacts.length === 0 && <p className="p-3 text-sm text-muted-foreground">No artifacts yet</p>}
           {artifacts.length > 0 && <SidebarGroup>
             <SidebarGroupLabel>Artifacts ·&nbsp;<span data-testid="artifacts-size">{sizeText(bytes)}</span></SidebarGroupLabel>
@@ -98,13 +120,11 @@ function TaskResources({ taskKey: key }: { taskKey: string }) {
               </RightClickMenu>
             </SidebarGroupContent>
           </SidebarGroup>}
-        </SidebarContent></div></TabsContent></Tabs>
+        </SidebarContent></div>}
       </Sidebar>
-    </SidebarProvider>
-  </aside>;
+    </SidebarProvider>;
 }
 
-// The panel is dragged by its header.
 export function ResourcesHeader({ api }: IDockviewPanelHeaderProps) {
   return <div data-panel={api.id} className="flex h-full min-w-0 items-center px-2">
     <span className="min-w-0 truncate">{api.title}</span>

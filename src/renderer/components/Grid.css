@@ -15,3 +15,6 @@
    dockview's list of hidden tabs shown for it; the terminals' row would run past their panel, + and the microphone
    with it). */
 #dock .dv-tab { min-width: 0; flex-shrink: 1; }
+/* A fixed Resources bar has no resize affordance or split border. */
+#grid .dv-sash.dv-disabled { display: none; }
+#grid:has(.dv-sash.dv-disabled) { --dv-separator-border: transparent; }

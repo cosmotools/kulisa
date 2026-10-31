@@ -1,12 +1,13 @@
 // The task's outer workspace and nested testing stage (docs/window.md, The grid).
-import { Orientation } from 'dockview-react';
-import type { DockviewApi, SerializedDockview, GridviewApi } from 'dockview-react';
+import { Orientation, LocalSelectionTransfer, PanelTransfer } from 'dockview-react';
+import type { DockviewApi, DockviewPanelApi, SerializedDockview, GridviewApi } from 'dockview-react';
 import type { PageLayout } from '../../shared/ipc';
 import type { Profile, DevelopmentTerminalsState } from '../../shared/types';
 import type { StageTerminal } from '../../shared/stage-terminal';
 import { act, setCaption, store } from './store';
 import { forgetFrozen, freeze, showViews, unfreeze } from './views';
 import { closeLayers } from './cover';
+import { dockTheme } from './dock-theme';
 import { forgetTerminals } from '../../terminal/renderer';
 import { environmentMinimum, filterLayout, splitLayout, type TaskLayout } from '../../shared/stage-layout';
 
@@ -22,6 +23,116 @@ let stageShare = 0.65;
 let replacing = false, building = false, rebuilding: Promise<void> | null = null;
 let nextDevelopmentTerminals: DevelopmentTerminalsState | null = null, nextStageTerminals: StageTerminal[] | null = null;
 let saveTimer = 0, save: (() => void) | null = null;
+
+let resourceDragging = false;
+
+export function startResourceDrag(panel: DockviewPanelApi, event: DragEvent) {
+  if (!api || !event.dataTransfer) { event.preventDefault(); return; }
+  // The headerless Resources bar is a Dockview drag source through its public transfer contract.
+  LocalSelectionTransfer.getInstance<PanelTransfer>().setData([new PanelTransfer(api.id, panel.group.id, panel.id)], PanelTransfer.prototype);
+  resourceDragging = true;
+  event.dataTransfer.effectAllowed = 'move';
+  event.dataTransfer.setData('text/plain', '');
+  void freeze();
+}
+function finishResourceDrag() {
+  if (!resourceDragging) return;
+  resourceDragging = false;
+  LocalSelectionTransfer.getInstance<PanelTransfer>().clearData(PanelTransfer.prototype);
+}
+
+export interface ResourceParams { section?: 'project' | 'artifacts' | null; expandedWidth?: number; expandedHeight?: number }
+const resourceMinimumWidth = 300, resourceRailWidth = 40, resourceBarHeight = 120;
+let developmentGap = dockTheme.gap ?? 0;
+
+export function selectResource(panel: DockviewPanelApi, params: ResourceParams, section: 'project' | 'artifacts') {
+  const current = params.section === undefined ? 'project' : params.section;
+  const next = current === section ? null : section;
+  const inset = developmentInsets().get(panel.group.id);
+  const expandedWidth = current && !inset?.vertical ? panel.width : params.expandedWidth;
+  const expandedHeight = current && inset?.vertical ? panel.height : params.expandedHeight;
+  const updated = { section: next, expandedWidth, expandedHeight };
+  panel.updateParameters(updated);
+  constrainDevelopment();
+  if (!current || !next) sizeResources(panel, updated);
+  changed();
+}
+function sizeResources(panel: DockviewPanelApi, params: ResourceParams) {
+  // A shared tab group keeps the room its other panels need.
+  if (panel.group.panels.length !== 1) return;
+  const inset = developmentInsets().get(panel.group.id) ?? { width: 0, height: 0, vertical: false };
+  const open = params.section !== null;
+  if (inset.vertical) panel.setSize({ height: (open ? params.expandedHeight ?? api!.height / 2 : resourceBarHeight) + inset.height });
+  else panel.setSize({ width: (open ? Math.max(resourceMinimumWidth, params.expandedWidth ?? resourceMinimumWidth) : resourceRailWidth) + inset.width });
+}
+
+// Dockview subtracts each split's share of the theme gap after applying its constraints and requested size.
+function developmentInsets() {
+  const insets = new Map<string, { width: number; height: number; vertical: boolean }>(), grid = api?.toJSON().grid;
+  if (!grid) return insets;
+  function visit(node: SerializedDockview['grid']['root'], horizontal: boolean, inset: { width: number; height: number; vertical: boolean }) {
+    if (!Array.isArray(node.data)) { insets.set(node.data.id, inset); return; }
+    const share = developmentGap * (node.data.length - 1) / node.data.length;
+    const next = { ...inset, [horizontal ? 'width' : 'height']: share, vertical: !horizontal };
+    node.data.forEach((child) => visit(child, !horizontal, next));
+  }
+  visit(grid.root, grid.orientation === Orientation.HORIZONTAL, { width: 0, height: 0, vertical: false });
+  return insets;
+}
+
+let terminalFold: { group: DockviewApi['groups'][number]; vertical: boolean; size: number } | null = null;
+function restoreTerminalSize() {
+  const before = terminalFold; terminalFold = null;
+  if (!before || !api?.groups.includes(before.group)) return;
+  before.group.api.setConstraints({ minimumWidth: 0, maximumWidth: Infinity, minimumHeight: 0, maximumHeight: Infinity });
+  before.group.api.setSize(before.vertical ? { height: Math.max(before.size, 150) } : { width: Math.max(before.size, 200) });
+}
+
+// Groups own constraints: Resources and terminal folding share one policy so neither can override the other.
+function constrainDevelopment() {
+  const resources = api?.getPanel('resources'), terminal = api?.getPanel('terminal');
+  const gap = resources?.params?.section === null && resources.group.panels.length === 1 ? 0 : dockTheme.gap ?? 0;
+  if (developmentGap !== gap) {
+    developmentGap = gap;
+    api?.updateOptions({ theme: { ...dockTheme, gap } });
+  }
+  if (terminalFold && terminalFold.group !== terminal?.group) restoreTerminalSize();
+  const insets = developmentInsets();
+  const state = store.getState(), emptyTerminal = !state.developmentTerminals.list.length;
+  let constrained = false;
+  for (const group of api?.groups ?? []) {
+    const resource = group.panels.some((p) => p.id === 'resources');
+    const hasTerminal = group.panels.some((p) => p.id === 'terminal');
+    const standalone = group.panels.length === 1;
+    const hiddenHeader = standalone && (resource || (hasTerminal && emptyTerminal));
+    if (group.header.hidden !== hiddenHeader) group.header.hidden = hiddenHeader;
+    const inset = insets.get(group.id) ?? { width: 0, height: 0, vertical: false };
+    const closed = resource && resources?.params?.section === null;
+    const fixedWidth = standalone && closed && !inset.vertical;
+    const fixedHeight = standalone && closed && inset.vertical;
+    const foldTerminal = standalone && hasTerminal && emptyTerminal && state.profiles.length > 0;
+    const previous = terminalFold?.group === group ? terminalFold : null;
+    if (previous && (!foldTerminal || previous.vertical !== inset.vertical)) {
+      restoreTerminalSize();
+      // An axis change needs the restored layout before measuring the terminal's new expanded size.
+      if (foldTerminal) { scheduleLayout(); continue; }
+    }
+    const beginFold = foldTerminal && !terminalFold;
+    if (beginFold) terminalFold = { group, vertical: inset.vertical, size: inset.vertical ? group.api.height : group.api.width };
+    const foldedWidth = foldTerminal && !inset.vertical, foldedHeight = foldTerminal && inset.vertical;
+    const minimumWidth = foldedWidth ? 36 : resource ? (closed ? standalone ? resourceRailWidth : 100 : resourceMinimumWidth) + inset.width : 100;
+    const minimumHeight = foldedHeight ? 36 : resource ? resourceBarHeight + (standalone ? 0 : 36) + inset.height : 100;
+    const maximumWidth = fixedWidth || foldedWidth ? minimumWidth : Infinity;
+    const maximumHeight = fixedHeight || foldedHeight ? minimumHeight : Infinity;
+    if (group.minimumWidth !== minimumWidth || group.maximumWidth !== maximumWidth || group.minimumHeight !== minimumHeight || group.maximumHeight !== maximumHeight) {
+      group.api.setConstraints({ minimumWidth, maximumWidth, minimumHeight, maximumHeight });
+      constrained = true;
+    }
+    if (beginFold) group.api.setSize(inset.vertical ? { height: 36 } : { width: 36 });
+  }
+  // Dockview publishes a constraint change before storing its explicit group limits.
+  if (constrained && api) api.layout(api.width, api.height, true);
+}
 
 function changed() {
   scheduleLayout();
@@ -52,8 +163,9 @@ export function workspaceMounted(a: GridviewApi) {
   a.onDidLayoutChange(() => { if (!building && !store.getState().loading) stageShare = currentShare(); changed(); });
   a.addPanel({ id: 'development', component: 'development', minimumWidth: 100, minimumHeight: 100 });
 }
-export function gridMounted(a: DockviewApi) { api = a; watch(a); apiReady.resolve(a); }
+export function gridMounted(a: DockviewApi) { api = a; developmentGap = dockTheme.gap ?? 0; watch(a); apiReady.resolve(a); }
 export function gridUnmounted() {
+  finishResourceDrag(); terminalFold = null;
   clearTimeout(saveTimer); save = null; api = stage = null; workspace = null;
   apiReady = Promise.withResolvers(); gridReady = null;
 }
@@ -70,8 +182,8 @@ export function stageMounted(a: DockviewApi) {
   scheduleLayout();
 }
 export function stageUnmounted(a: DockviewApi | null) { if (stage === a) stage = null; }
-document.addEventListener('dragend', unfreeze, true);
-document.addEventListener('drop', () => setTimeout(unfreeze), true);
+document.addEventListener('dragend', () => { finishResourceDrag(); void unfreeze(); }, true);
+document.addEventListener('drop', () => setTimeout(() => { finishResourceDrag(); void unfreeze(); }), true);
 
 kulisa.on('state', async (s) => {
   if (replacing) {
@@ -101,6 +213,7 @@ function reveal() {
 let layoutFrame = 0;
 export function scheduleLayout() { cancelAnimationFrame(layoutFrame); layoutFrame = requestAnimationFrame(sendLayout); }
 function sendLayout() {
+  constrainDevelopment();
   const rects: Record<string, PageLayout> = {};
   const viewport = document.querySelector('[data-stage-viewport]');
   const v = viewport?.getBoundingClientRect();
@@ -190,7 +303,9 @@ function syncGrid() {
 function restore(a: DockviewApi, saved: SerializedDockview | null, known: string[]) {
   if (!saved) return;
   try {
-    a.fromJSON(filterLayout(saved, (id) => known.includes(id)));
+    const filtered = filterLayout(saved, (id) => known.includes(id));
+    if (filtered.panels.resources) filtered.panels.resources = { ...filtered.panels.resources, tabComponent: 'resources', minimumHeight: resourceBarHeight };
+    a.fromJSON(filtered);
   } catch (e) { console.warn('[layout] saved grid not restored:', (e as Error).message); a.clear(); }
 }
 function buildGrid(a: DockviewApi, saved: unknown) {
@@ -203,9 +318,13 @@ function buildGrid(a: DockviewApi, saved: unknown) {
   if (!a.getPanel('terminal') || !a.getPanel('resources')) {
     a.clear();
     a.addPanel({ id: 'terminal', component: 'terminal', tabComponent: 'terminal', title: 'Terminal', renderer: 'always' });
-    a.addPanel({ id: 'resources', component: 'resources', tabComponent: 'resources', title: 'Resources', minimumHeight: 36, position: { referencePanel: 'terminal', direction: 'left' } });
+    a.addPanel({ id: 'resources', component: 'resources', tabComponent: 'resources', title: 'Resources', minimumHeight: resourceBarHeight, position: { referencePanel: 'terminal', direction: 'left' } });
     a.getPanel('resources')!.group.api.setSize({ width: Math.round(a.width / 4) });
   }
+  constrainDevelopment();
+  const resources = a.getPanel('resources')!;
+  // Restoring a group applies Dockview's default minimum before its runtime constraints.
+  if (resources.params?.section === null) sizeResources(resources.api, resources.params);
   syncGrid();
 }
 async function restoreGrid() { const a = await apiReady.promise; building = true; buildGrid(a, await act('layout:load')); building = false; }
@@ -279,7 +398,8 @@ kulisa.on('grid:closing', (next) => {
 kulisa.on('tasks:closed', forgetTerminals);
 kulisa.on('development-terminals', (t) => {
   if (t.task !== store.getState().current) return;
-  if (replacing || rebuilding) nextDevelopmentTerminals = t; else store.setState({ developmentTerminals: t });
+  if (replacing || rebuilding) nextDevelopmentTerminals = t;
+  else { store.setState({ developmentTerminals: t }); scheduleLayout(); }
 });
 kulisa.on('stage-terminals', (t) => {
   if (t.task !== store.getState().current) return;

@@ -245,10 +245,21 @@ then named "Checkout redesign":
 
 ### The Resources panel
 
-To the left of the terminal by default, the task’s **resources** have **Project** and **Artifacts** tabs.
-**Project** opens first and follows the shown task across projects; each resource is a root, with folders before files.
+The **Resources panel** sits to the left of the development terminal by default. Its **Resources bar** selects
+the **Project** or **Artifacts** section in **Resources content**.
+Clicking the selected icon closes Resources content and leaves the Resources bar visible; either icon reopens
+Resources content at the expanded size.
+The standalone panel has no header. The grip at the bottom of the Resources bar moves the panel within the
+development grid, with Resources content open or closed. Switching sections preserves its width.
+The Resources bar keeps at least 120 CSS pixels of height, below any shared header, so every control stays reachable. With Resources
+content open, its minimum width is 300 CSS pixels. With content closed, a standalone
+panel is fixed at 40 CSS pixels wide beside the terminal or 120 CSS pixels tall above or below it, with no
+gap or resize divider. Shared tabs keep their group resizable and Resources nonclosable. Reopening restores the expanded size. The Resources bar follows the outer edge beside
+the terminal: left when docked left, right when docked right; above, below and shared tabs use the left edge.
+The selected section, collapsed state and expanded size belong to the task’s saved layout.
+**Project** opens first in a new task; each resource is a root, with folders before files.
 Browsing is the [Project Explorer Kulisa package](../src/project-explorer/README.md); the task supplies its roots and
-protected desktop opening action (window.md, The terminal). Resources owns the tabs and repository actions.
+protected desktop opening action (window.md, The terminal). The Resources panel owns the Resources bar and repository actions.
 The roots are the task’s **resources** (what it has, uses or created), each with its actions
 (`grid/Resources.tsx`, a panel of the grid: [window.md](window.md), The grid; `Task.resources`, in the task's info):
 
@@ -324,7 +335,7 @@ to the human; the window's IPC (`ipc/`) and the MCP tools are handles on it:
 | Read what was said and done in the task before | its terminal, scrolled back | `task_history` ([transcripts.md](transcripts.md)) | `historyPart` (`history.ts`) |
 | Delete a task | Delete Task… in its tab's menu; its 🗑 in the sidebar | none: it deletes work and sign-ins, the human's to decide | `askDeleteTask`, `deleteTask`, `deleteClosedTask` (`projects.ts`) |
 | Show a task | a click on its tab, of any project | none: what the human looks at is theirs | `AppWindow.show` (`window.ts`) |
-| Browse a task’s folders, open a file | Project tab in Resources; double-click or Enter on a file, its Open menu | the agent reads and opens files through its own tools | `task:files`, `task:file-open` (`Task.files`, `Task.openProjectFile`; Project Explorer confines reads to its roots) |
+| Browse a task’s folders, open a file | Project section in Resources content; double-click or Enter on a file, its Open menu | the agent reads and opens files through its own tools | `task:files`, `task:file-open` (`Task.files`, `Task.openProjectFile`; Project Explorer confines reads to its roots) |
 | Open a resource's folder | double-click its root in Resources, or Open Folder in its menu | none: the agent opens folders through its own tools | `task:open-folder` (`ipc/tasks.ts`) |
 | Open an artifact, show it in its folder | a click on its row in the Resources panel, its menu | none: the tools' answers give the agent its path | `file:open`, `file:show` (`file-links.ts`) |
 | See what the artifacts take | the Artifacts heading in the Resources panel (the shown task's) | `task_artifacts`: its task's files, or each task's total | `Task.artifactsUsage` (src/activity-monitor) |

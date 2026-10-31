@@ -4,7 +4,7 @@ import path from 'path';
 import { sizeText } from '../../src/shared/bytes.ts';
 import { test, expect } from './fixtures.ts';
 import { newTask } from './tasks-helpers.ts';
-import { invoke, answer, choose, frames, notLoading, focusWindow } from './helpers.ts';
+import { showResources, invoke, answer, choose, frames, notLoading, focusWindow } from './helpers.ts';
 
 const tui = `
 process.stdin.setRawMode(true);
@@ -247,7 +247,7 @@ test('input follows terminal modes and large reads become bounded task artifacts
   expect(fs.readFileSync(result.file, 'utf8')).toContain('row 499:');
   const source = await core(async (k, file) => (await k.shell.task.findArtifact(file) as { artifact: { source: unknown } }).artifact.source, result.file);
   expect(source).toMatchObject({ kind: 'stage-terminal' });
-  await ui.getByRole('tab', { name: 'Artifacts', exact: true }).click();
+  await showResources(ui, 'Artifacts');
   const artifact = ui.locator('#resources').getByRole('button', { name: 'Terminal screen', exact: true });
   await expect(artifact).toBeVisible();
   await expect(artifact).toContainText('Large');

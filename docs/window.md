@@ -59,13 +59,14 @@ A press on a tab not shown shows its task at once, as Chrome's; the tab is lit o
 
 A task has two independent Dockview grids (`Grid.tsx`, `grid/Stage.tsx`): development terminals with Resources,
 and the **stage** of browser profiles and Stage terminals as testing **environments**. A headerless Gridview splits their areas; its
-sash resizes them. Headers move or stack panels within their own grid. The empty stage is absent; opening the first
+sash resizes them. Headers and the Resources bar’s grip move or stack panels within their own grid. The empty stage is absent; opening the first
 environment adds it, closing the last removes it. A new task opens only its default development terminal.
 
 **Stage** in the title bar offers **Position: Left, Right, Above** the development area, **View: Horizontal stack**
 (side by side), **Vertical stack** (one above another), **Tabs** (one environment at a time), and **Open an environment**.
-Moving Stage preserves the development grid and its panels; Terminal and Resources stay together. Resources starts to the left of the terminal; saved layouts keep their placement. It keeps at
-least its header's height so it can fold with the development terminal. The human's `stage:arrange` IPC and the agent's
+Moving Stage preserves the development grid and its panels; Terminal and Resources stay together. Resources starts to the left of the terminal; saved layouts keep their placement. The Resources bar and Resources content: [tasks.md](tasks.md), The Resources panel. Its standalone group has no header; a shared group keeps its nonclosable Resources tab.
+Resources keeps at least 120 CSS pixels of height so its sections and grip stay reachable. `lib/grid.ts` owns
+development-group constraints, including the empty terminal’s folded size and its restoration. The human's `stage:arrange` IPC and the agent's
 `stage_arrange` tool call `Task.arrangeStage`: the task must be shown, and settings apply with an empty Stage too.
 The task-scoped event reaches that window.
 

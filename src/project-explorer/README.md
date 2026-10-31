@@ -22,12 +22,12 @@ directory reads on mount and every three seconds; unmounting
 clears its timer and ignores late replies. Collapsed folders and background tasks keep no watchers. The caller
 unmounts the tree when hidden or when its owner changes, so state and timers belong to the visible tree.
 
-File and folder icons are [Material Icon Theme](https://github.com/material-extensions/vscode-material-icon-theme)'s.
+Folders share Lucide's folder icon, open or closed. File icons are [Material Icon Theme](https://github.com/material-extensions/vscode-material-icon-theme)'s.
 `vite.config.mts` generates case-insensitive associations without a framework-specific icon pack, emits referenced
 SVGs as separate assets, and includes their MIT license. The renderer receives associations and asset URLs only.
 Exact filenames take precedence over compound extensions, longest first; parent-folder associations take precedence
 at each match. Unknown entries use the theme's generic icons. CSS selects the light or dark asset and loads only
-that shade; expanded folders use their open icon. Icon selection depends on paths, independent of any editor.
+that shade. File icon selection depends on paths, independent of any editor.
 
 ## Contracts
 
@@ -54,7 +54,7 @@ Outside callers and integration:
 - `src/main/tasks.ts`: resource ownership, roots and the existing protected desktop opening action.
 - `src/main/ipc/tasks.ts`: task-specific IPC handles; `src/shared/ipc.ts`: their typed contracts.
 - `src/renderer/components/grid/Resources.tsx`: task selection, repository root labels and grouping, repository removal,
-  tabs, artifacts, and callback bindings to the window's IPC and menu opener.
+  the Resources bar, Resources content, artifacts, and callback bindings to the window's IPC and menu opener.
 - `.dependency-cruiser.ts`: entry and dependency enforcement; `docs/packages.md`, `docs/tasks.md` and `docs/ui.md`: integration links.
 - `vite.config.mts`: dependency assets and generated associations enter through Vite's build, outside either process.
 - `src/shared/types.ts`: the core's task and resource shapes; explorer entries are declared in this Kulisa package's contract.
