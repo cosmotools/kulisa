@@ -95,7 +95,8 @@ is removed when the page fits, the profile closes, or it moves to another window
 pages into pictures for HTML drop targets.
 
 `task.json` keeps Stage view/overflow/layout in `stage`, and development layout, Stage position/share in `workspace`, saved 300 ms after a change and flushed when the
-task is left. `shared/stage-layout.ts` separates a flat saved layout into development and testing groups, retaining
+task is left. Nested grids' group dimension changes schedule a save too, so delayed container resizes persist their
+completed sizes. `shared/stage-layout.ts` separates a flat saved layout into development and testing groups, retaining
 panel order, stacking and sizes; development panels share an area, separate from Stage. Saved stack settings normalize to explicit horizontal and vertical directions without moving panes. An invalid grid falls back to its default arrangement.
 
 **No environment open, a development terminal open**: a row above the workspace offers **Stage Terminal** and
