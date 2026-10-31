@@ -1,18 +1,18 @@
-// shadcn File Tree composition; directory loading: docs/tasks.md, The Resources panel.
+// shadcn File Tree composition and expanded-directory lifecycle (../README.md).
 import { useEffect, useState } from 'react';
 import { ChevronRightIcon, FileIcon, FolderIcon } from 'lucide-react';
 import { Alert, AlertDescription, Collapsible, CollapsibleContent, CollapsibleTrigger, Button } from '@ui';
-import type { ProjectFile } from '../../../shared/types';
-import { RightClickMenu } from '../Menus';
+import type { ProjectFile } from '../ipc';
+import type { ExplorerActions } from './actions';
 
-export function ProjectDirectory({ task, folder }: { task: string; folder: string }) {
+export function ProjectDirectory({ actions, folder }: { actions: ExplorerActions; folder: string }) {
   const [entries, setEntries] = useState<ProjectFile[]>([]);
   const [error, setError] = useState('');
   const [loaded, setLoaded] = useState(false);
   useEffect(() => {
     let active = true;
     const read = async () => {
-      const result = await kulisa.invoke('task:files', { key: task, folder });
+      const result = await actions.readFolder(folder);
       if (!active) return;
       setLoaded(true);
       if (result.error !== undefined) setError(result.error);
@@ -22,22 +22,22 @@ export function ProjectDirectory({ task, folder }: { task: string; folder: strin
     // Only mounted, expanded folders poll; no recursive watchers or background-project scans.
     const timer = setInterval(() => void read(), 3000);
     return () => { active = false; clearInterval(timer); };
-  }, [task, folder]);
+  }, [actions, folder]);
   return <>
     {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
     {!loaded && <p role="status" className="px-2 text-xs text-muted-foreground">Loading…</p>}
     {loaded && !error && entries.length === 0 && <p className="px-2 text-xs text-muted-foreground">Empty folder</p>}
     <div aria-label={folder} className="flex flex-col">
-      {entries.map((entry) => <ProjectEntry key={entry.path} task={task} entry={entry} />)}
+      {entries.map((entry) => <ProjectEntry key={entry.path} actions={actions} entry={entry} />)}
     </div>
   </>;
 }
 
-function ProjectEntry({ task, entry }: { task: string; entry: ProjectFile }) {
+function ProjectEntry({ actions, entry }: { actions: ExplorerActions; entry: ProjectFile }) {
   const [expanded, setExpanded] = useState(false);
   const [error, setError] = useState('');
   const open = async () => {
-    const result = await kulisa.invoke('task:file-open', { key: task, file: entry.path });
+    const result = await actions.openFile(entry.path);
     setError(result.error ?? '');
   };
   const row = <Button variant="ghost" size="sm" className="w-full justify-start" aria-label={entry.name} title={entry.path}
@@ -47,13 +47,17 @@ function ProjectEntry({ task, entry }: { task: string; entry: ProjectFile }) {
     {entry.directory ? <FolderIcon /> : <FileIcon />}<span className="truncate">{entry.name}</span>
   </Button>;
   return <div>
-    <RightClickMenu items={() => [{ label: 'Open', run: () => entry.directory ? setExpanded(true) : open() },
-      { label: 'Show in Folder', run: () => kulisa.invoke('file:show', entry.path) }]}>
+    <div onContextMenu={(e) => {
+      if (e.defaultPrevented) return;
+      e.preventDefault();
+      actions.showMenu(e.nativeEvent, [{ label: 'Open', run: () => entry.directory ? setExpanded(true) : open() },
+        { label: 'Show in Folder', run: () => actions.showFile(entry.path) }]);
+    }}>
       {entry.directory ? <Collapsible open={expanded} onOpenChange={setExpanded}>
         <CollapsibleTrigger asChild>{row}</CollapsibleTrigger>
-        <CollapsibleContent><div className="ms-4">{expanded && <ProjectDirectory task={task} folder={entry.path} />}</div></CollapsibleContent>
+        <CollapsibleContent><div className="ms-4">{expanded && <ProjectDirectory actions={actions} folder={entry.path} />}</div></CollapsibleContent>
       </Collapsible> : row}
-    </RightClickMenu>
+    </div>
     {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
   </div>;
 }

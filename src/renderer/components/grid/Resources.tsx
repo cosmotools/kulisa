@@ -1,11 +1,12 @@
 // The Resources panel of the grid, and its header (docs/tasks.md, The Resources panel).
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { ChevronRightIcon, FileIcon, FolderIcon, GitBranchIcon, Trash2Icon } from 'lucide-react';
 import type { IDockviewPanelHeaderProps } from 'dockview-react';
 import { useShallow } from 'zustand/react/shallow';
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupAction, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuAction,
   Button, Tabs, TabsList, TabsTrigger, TabsContent, Collapsible, CollapsibleTrigger, CollapsibleContent, SidebarMenuButton, SidebarMenuItem, SidebarProvider } from '@ui';
-import { ProjectDirectory } from './ProjectTree';
+import { ProjectDirectory, type ExplorerActions } from '../../../project-explorer/renderer';
+import { menuAt } from '../../lib/menu';
 import { RightClickMenu } from '../Menus';
 import { shownTask, useWindow } from '../../lib/store';
 import type { MenuItem } from '../../lib/menu';
@@ -20,12 +21,17 @@ const openFile = (file: string) => kulisa.invoke('file:open', file);
 
 export function Resources() {
   const key = useWindow((s) => shownTask(s)?.key);
-  return key ? <TaskResources key={key} /> : null;
+  return key ? <TaskResources key={key} taskKey={key} /> : null;
 }
 
-function TaskResources() {
+function TaskResources({ taskKey: key }: { taskKey: string }) {
   const task = useWindow((s) => shownTask(s));
-  const key = task?.key;
+  const explorer = useMemo<ExplorerActions>(() => ({
+    readFolder: (folder) => kulisa.invoke('task:files', { key, folder }),
+    openFile: (file) => kulisa.invoke('task:file-open', { key, file }),
+    showFile: (file) => kulisa.invoke('file:show', file),
+    showMenu: menuAt,
+  }), [key]);
   const artifacts = useWindow((s) => (s.artifacts.task === key ? s.artifacts.list : null)) ?? [];
   const bytes = useWindow((s) => s.artifacts.bytes);
   const names = useWindow(useShallow((s) => Object.fromEntries([...s.profiles, ...s.closedProfiles].map((p) => [p.id, p.name]))));
@@ -62,7 +68,7 @@ function TaskResources() {
                 </Button></CollapsibleTrigger>
                 {r.removable && <SidebarMenuAction showOnHover aria-label="Remove Repository" title="Remove Repository" onClick={() => void remove(r.folder)}>
                   <Trash2Icon /></SidebarMenuAction>}
-                <CollapsibleContent><div className="ms-4"><ProjectDirectory task={task.key} folder={r.folder} /></div></CollapsibleContent>
+                <CollapsibleContent><div className="ms-4"><ProjectDirectory actions={explorer} folder={r.folder} /></div></CollapsibleContent>
               </Collapsible></RightClickMenu></SidebarMenuItem>)}
             </SidebarMenu>
           </SidebarGroupContent></SidebarGroup>

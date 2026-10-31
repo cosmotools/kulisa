@@ -1,9 +1,9 @@
-// Directory reads stay within a task's resource roots (docs/tasks.md, The Resources panel).
+// Directory reads stay within the roots the caller supplies (../README.md).
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import type { Result } from '../shared/result.ts';
-import type { ProjectFile } from '../shared/types.ts';
-import { refused } from '../shared/result.ts';
+import type { Result } from '../../shared/result.ts';
+import type { ProjectFile } from '../ipc.ts';
+import { refused } from '../../shared/result.ts';
 
 export async function resourcePath(roots: string[], file: string): Promise<Result<{ path: string }>> {
   try {

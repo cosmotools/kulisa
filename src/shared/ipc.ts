@@ -2,6 +2,7 @@
 // Both ends are checked against it (main/ipc.ts: handle, on, AppWindow.send; the window's bridge: renderer/env.d.ts,
 // act). docs/window.md, IPC. An answer the window does not read is `void`: the main process may answer anything there
 // (the tests read some).
+import type { ProjectFile } from '../project-explorer/ipc.ts';
 import type { Result } from './result.ts';
 import type { StageTerminal, StageTerminalsState, TerminalSize } from './stage-terminal.ts';
 import type { FileLink, TerminalContents, TerminalEvents, TerminalInvoke, TerminalSend } from '../terminal/ipc.ts';
@@ -9,7 +10,7 @@ import type { ThumbnailEvents, ThumbnailInvoke, ThumbnailSend } from '../screens
 import type { GitHubInvoke } from '../github/ipc.ts';
 import type { DictationEvents, DictationInvoke } from '../dictation/ipc.ts';
 import type {
-  ProjectFile, AboutFolder, AboutInfo, Artifact, EnvironmentSource, AccountsInfo, AgentInfo, ClosedProfile, LanguageInfo, LogInfo, NewProjectSetup, Profile, ProjectAgent, ProjectChoices, ProjectGitHub, ProjectProfile, ProjectFolder,
+  AboutFolder, AboutInfo, Artifact, EnvironmentSource, AccountsInfo, AgentInfo, ClosedProfile, LanguageInfo, LogInfo, NewProjectSetup, Profile, ProjectAgent, ProjectChoices, ProjectGitHub, ProjectProfile, ProjectFolder,
   ProjectSettings, ProjectsInfo, Question, SettingsProfile, Shortcut, SignedIn, DevelopmentTerminalsState,
 } from './types.ts';
 

@@ -1,0 +1,4 @@
+{
+  "extends": "../../renderer/tsconfig.json",
+  "include": [".", "../ipc.ts", "../../renderer/env.d.ts"]
+}

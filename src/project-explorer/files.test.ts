@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { refused } from '../../src/shared/result.ts';
-import { listResourceFiles, resourcePath } from '../../src/main/resource-files.ts';
+import { refused } from '../shared/result.ts';
+import { listResourceFiles, resourcePath } from './main/index.ts';
 
 test('resource directories are shallow, sorted, refreshed and confined to their task', async () => {
   const temp = await fs.mkdtemp(path.join(os.tmpdir(), 'kulisa-tree-'));
