@@ -171,7 +171,7 @@ while the agent's own transcript grows.
 - **Without a conversation**: **where the task stands** (Kulisa's part, what no transcript says): the task, its
   folder and branch; for each copy of the code, its commits since the task started, the files not committed and
   `diff --stat` against its start (`progress` in `worktrees.ts`); the profiles open and closed; the shells and what
-  runs there. Then **its conversations**, oldest first, numbered from 1 (each an agent's, `agent.json`: tasks.md,
+  runs there. Then **its conversations**, oldest first, numbered from 1 (each an agent's, `task.json`: tasks.md,
   "Several agents in a task"): its tab's name (the one its agent gave it), its agent and account, open in its tab or
   closed, from when to when, the human's first and last request in it (200 characters at most), and how its last turn
   ended (a tool call with no result: cut off, by a limit or the human; or the human's last message with no answer).

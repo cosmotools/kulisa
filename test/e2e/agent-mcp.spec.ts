@@ -94,10 +94,10 @@ test('agent bridge: at session start the plugin hook tells the agent which profi
     c.stdin.end(input);
   });
   // The agent's terminal's own environment: its conversation's.
-  const { env, terminal } = await core((k) => { const agent = k.shell.task.promptTarget(); return { env: k.shell.task.env(agent), terminal: agent.id }; });
+  const { env } = await core((k) => { const agent = k.shell.task.promptTarget(); return { env: k.shell.task.env(agent), terminal: agent.id }; });
   const inKulisa = await run(env);
-  expect(files.json(files.pfile('agent.json')).conversations.map(({ from, ...c }: { from: number }) => c))
-    .toEqual([{ agent: 'custom', started: true, terminal, sessionId: 'session-1', transcript }]);
+  expect(files.json(files.pfile('task.json')).agents.conversations.map(({ from, id, ...c }: { from: number; id: string }) => c))
+    .toEqual([{ agent: 'custom', started: true, sessionId: 'session-1', transcript }]);
   expect(inKulisa.code).toBe(0);
   const context = JSON.parse(inKulisa.out).hookSpecificOutput.additionalContext;
   expect(context).toMatch(/- Sam\.seller: seller in the test shop/);

@@ -14,10 +14,9 @@
 //     tasks.json             the project's tasks: { list: [{ id, name, named, resources, closed, closedAt,
 //                            merged }] }; name "New Task" and named unset until the agent or the human names it;
 //                            resources what it has (TaskEntry), the first where it works
-//     <task id>/             a task (TaskStore): profiles.json (what it has of its project's profiles: id, sites'
-//                            zoom, closed), layout.json (the window's grid), agent.json (its agents' conversations,
-//                            to resume and read them), terminals.json (its terminals' tabs), and a copy of a profile's
-//                            master per profile opened here, named by the profile's id:
+//     <task id>/             a task (TaskStore): task.json owns conversation metadata, development tabs,
+//                            Stage environments and both layouts; a copy of each opened profile's master
+//                            is named by the profile's id:
 //       <id>/                a Chromium profile (session.fromPath) with Kulisa's own files in it: Kulisa Tabs.json
 //                            (its tabs' URLs), Kulisa Session Cookies.bin (session-cookies.ts)
 //   profiles.json, profiles/ the profiles and their masters (profile-store.ts)
@@ -25,11 +24,15 @@
 //                            its files open while Kulisa runs)
 // Nothing goes into the project's own folder: sign-ins must not end up in its git.
 import fs from 'fs';
+import { validTerminalSize } from '../shared/application-terminal.ts';
+import { labelError } from '../shared/names.ts';
 import type { ApplicationConfig } from '../shared/application-terminal.ts';
 import path from 'path';
 import { removeTree } from './remove.ts';
-import { randomInt } from 'crypto';
+import { randomInt, randomUUID } from 'crypto';
 import { log } from './log.ts';
+import { splitLayout } from '../shared/stage-layout.ts';
+import type { TaskLayout } from '../shared/stage-layout.ts';
 
 // Muted, to sit on the dark window; a new project takes the first one no project has (its favicon's own hue, in their
 // lightness and chroma, replaces it in the window: renderer/lib/project-color.ts).
@@ -89,18 +92,18 @@ interface TasksFile { list: TaskEntry[] }
 // one.
 interface SavedWindow { tabs: string[]; shown: string | null; bounds?: Electron.Rectangle; maximized?: boolean }
 interface Settings { stageFollow?: boolean; uiZoom?: number; theme?: 'dark' | 'light' | 'system'; bar?: 'top' | 'bottom'; language?: string; keys?: Record<string, string>; windows?: SavedWindow[] }
-// A profile as a task keeps it in profiles.json (project-profiles.ts).
+// A profile as a task keeps it in task.json (project-profiles.ts).
 interface TaskProfile { id: string; zoom?: Record<string, number>; closed?: boolean }
 // A task's agents (tasks.ts): the one it was made with (opened when it has never had a terminal), and every
 // conversation an agent had in it, oldest first, numbered from 1 in task_history: its account, its session as its
 // hooks reported it (agent-hooks.ts), when, the name the agent gave it (title) or its own auto-title read from its
-// transcript (autoTitle, shown until title is given), and the terminal it is open in (none: closed).
+// transcript (autoTitle, shown until title is given); terminal is derived from development tabs.
 interface Conversation {
-  agent: string; sessionId?: string; transcript?: string; started?: boolean; from: number; to?: number; title?: string; autoTitle?: string; terminal?: number;
+  id?: string; agent: string; sessionId?: string; transcript?: string; started?: boolean; from: number; to?: number; title?: string; autoTitle?: string; terminal?: number;
 }
 interface AgentFile { agent?: string | null; conversations?: Conversation[] }
 // Its terminals, in their tabs' order, and the one in front (tasks.ts): a shell has its name; an agent's, its
-// conversation's index in agent.json.
+// conversation's history number in memory; task.json stores its stable ID.
 interface SavedTerminal { id: number; name?: string; by?: 'human' | 'agent'; conversation?: number }
 interface TerminalsFile { front?: number | null; list: SavedTerminal[] }
 
@@ -191,6 +194,42 @@ class Store {
 }
 
 // One task's data: its profiles (each a folder, named by its id), grid and agent session.
+interface TaskDocument {
+  version: 1;
+  agents: { agent?: string | null; conversations: (Conversation & { id: string })[] };
+  development: { front?: number | null; list: (Omit<SavedTerminal, 'conversation'> & { conversation?: string })[] } | null;
+  stage: { initialized: boolean; items: ({ type: 'profile'; config: TaskProfile } | { type: 'terminal'; config: ApplicationConfig })[];
+    nextTerminalId: number; view: TaskLayout['stageLayout']; overflow: boolean; layout: TaskLayout['stage'] };
+  workspace: { stagePosition: TaskLayout['stagePosition']; stageShare?: number; developmentLayout: TaskLayout['workspace'] | null };
+}
+const taskFiles = ['agent.json', 'terminals.json', 'profiles.json', 'applications.json', 'layout.json'];
+function strictJSON(file: string): unknown {
+  try { return JSON.parse(fs.readFileSync(file, 'utf8')); }
+  catch (e) { if ((e as NodeJS.ErrnoException).code === 'ENOENT') return undefined; throw new Error(`Cannot read task data ${file}: ${(e as Error).message}`); }
+}
+function validateTask(value: unknown): asserts value is TaskDocument {
+  const d = value as TaskDocument;
+  if (!d || d.version !== 1 || !Array.isArray(d.agents?.conversations) || !Array.isArray(d.stage?.items)
+    || typeof d.stage.initialized !== 'boolean' || !Number.isSafeInteger(d.stage.nextTerminalId) || d.stage.nextTerminalId < 1
+    || !d.workspace || d.development !== null && !Array.isArray(d.development?.list)) throw new Error('Invalid task.json format');
+  const ids = new Set<string>();
+  for (const c of d.agents.conversations) {
+    if (!c || typeof c.id !== 'string' || !c.id || ids.has(c.id) || typeof c.agent !== 'string' || typeof c.from !== 'number') throw new Error('Invalid task conversation');
+    ids.add(c.id);
+  }
+  for (const t of d.development?.list ?? []) if (!Number.isSafeInteger(t.id) || t.id < 1 || t.conversation !== undefined && !ids.has(t.conversation)) throw new Error('Invalid terminal conversation reference');
+  if (new Set(d.development?.list.map((t) => t.id)).size !== (d.development?.list.length ?? 0)) throw new Error('Duplicate development terminal');
+  const environments = new Set<string>();
+  for (const item of d.stage.items) {
+    const c = item?.config, key = `${item?.type}:${c?.id}`;
+    if (!c || environments.has(key) || (item.type === 'profile' ? typeof c.id !== 'string'
+      : item.type !== 'terminal' || !Number.isSafeInteger(c.id) || typeof item.config.name !== 'string' || typeof item.config.command !== 'string')) throw new Error('Invalid Stage environment');
+    if (item.type === 'terminal' && (item.config.id < 1 || labelError(item.config.name) || item.config.command.length > 8192 || item.config.size && !validTerminalSize(item.config.size))) throw new Error('Invalid Stage terminal setup');
+    if (item.type === 'profile' && (!item.config.id || item.config.closed !== undefined && typeof item.config.closed !== 'boolean')) throw new Error('Invalid Stage profile');
+    environments.add(key);
+  }
+}
+
 class TaskStore {
   dir: string; store: Store; saved?: Map<string, string>;
   constructor(dir: string, store: Store) { this.dir = dir; this.store = store; fs.mkdirSync(dir, { recursive: true }); }
@@ -200,9 +239,9 @@ class TaskStore {
   get artifacts() { return path.join(this.dir, ARTIFACTS); }
   // What the task has of its project's profiles (project-profiles.ts): [{ id, zoom, closed }] (who a profile is:
   // profile-store.ts); null before the task first loads.
-  profiles(): TaskProfile[] | null { return readJSON(this.file('profiles.json')); }
+  profiles(): TaskProfile[] | null { const s = this.document().stage; return s.initialized ? s.items.filter((i) => i.type === 'profile').map((i) => i.config) : null; }
   saveProfiles(list: TaskProfile[]) {
-    writeJSON(this.file('profiles.json'), list.map(({ id, zoom, closed }) => ({ id, zoom, ...(closed && { closed }) })));
+    this.update((d) => { d.stage.initialized = true; d.stage.items = [...d.stage.items.filter((i) => i.type !== 'profile'), ...list.map((config) => ({ type: 'profile' as const, config }))]; });
   }
   // A profile's tabs, in its own folder.
   tabs(id: string): SavedTabs { return readTabs(this.profileDir(id)); }
@@ -222,19 +261,72 @@ class TaskStore {
     this.markDeleted(id);
     removeTree(this.profileDir(id));
   }
-  applications(): { next: number; list: ApplicationConfig[] } {
-    const a = readJSON(this.file('applications.json'));
-    return { next: Number.isSafeInteger(a?.next) && a.next > 0 ? a.next : 1, list: Array.isArray(a?.list) ? a.list : [] };
+  private document(): TaskDocument {
+    const current = strictJSON(this.file('task.json'));
+    if (current !== undefined) { validateTask(current); this.cleanLegacy(); return current; }
+    const [agent, terminals, profiles, applications, layout] = taskFiles.map((f) => strictJSON(this.file(f)));
+    const a = (agent ?? {}) as AgentFile, t = terminals as TerminalsFile | undefined, p = profiles as TaskProfile[] | undefined;
+    const apps = applications as { next: number; list: ApplicationConfig[] } | undefined;
+    if (agent !== undefined && (!agent || typeof agent !== 'object' || a.conversations !== undefined && !Array.isArray(a.conversations))
+      || terminals !== undefined && (!t || !Array.isArray(t.list)) || profiles !== undefined && !Array.isArray(p)
+      || applications !== undefined && (!apps || !Array.isArray(apps.list))) throw new Error('Invalid legacy task data');
+    const conversations = (a.conversations ?? []).map(({ terminal: _terminal, ...c }) => ({ ...c, id: c.id ?? randomUUID() }));
+    const split = splitLayout(layout);
+    const d: TaskDocument = {
+      version: 1, agents: { ...(a.agent !== undefined && { agent: a.agent }), conversations },
+      development: t ? { front: t.front, list: t.list.map(({ conversation, ...rest }) => ({ ...rest,
+        ...(conversation !== undefined && { conversation: conversations[conversation]?.id ?? 'invalid-reference' }) })) } : null,
+      stage: { initialized: p !== undefined, nextTerminalId: apps?.next ?? 1,
+        items: [...(p ?? []).map((config) => ({ type: 'profile' as const, config })), ...(apps?.list ?? []).map((config) => ({ type: 'terminal' as const, config }))],
+        view: split?.stageLayout ?? null, overflow: split?.stageOverflow ?? false, layout: split?.stage ?? null },
+      workspace: { stagePosition: split?.stagePosition ?? 'above', stageShare: split?.stageShare, developmentLayout: split?.workspace ?? null },
+    };
+    this.writeDocument(d);
+    this.cleanLegacy();
+    log.info('[store] task data initialized');
+    return d;
   }
-  saveApplications(a: { next: number; list: ApplicationConfig[] }) { writeJSON(this.file('applications.json'), a); }
-  // The window's grid as dockview serializes it (the renderer's lib/grid.ts).
-  layout(): unknown { return readJSON(this.file('layout.json')); }
-  saveLayout(layout: unknown) { writeJSON(this.file('layout.json'), layout); }
-  agent(): AgentFile { return readJSON(this.file('agent.json')) || {}; }
-  saveAgent(a: AgentFile) { writeJSON(this.file('agent.json'), a); }
-  // null: the task never had a terminal (a new task: its agent opens).
-  terminals(): TerminalsFile | null { const t = readJSON(this.file('terminals.json')); return Array.isArray(t?.list) ? t : null; }
-  saveTerminals(t: TerminalsFile) { writeJSON(this.file('terminals.json'), t); }
+  private cleanLegacy() { for (const f of taskFiles) fs.rmSync(this.file(f), { force: true }); }
+  private writeDocument(d: TaskDocument) {
+    validateTask(d);
+    writeFileAtomic(this.file('task.json'), JSON.stringify(d, null, 2));
+    validateTask(strictJSON(this.file('task.json')));
+  }
+  private update(change: (d: TaskDocument) => void) { const d = this.document(); change(d); this.writeDocument(d); }
+  applications(): { next: number; list: ApplicationConfig[] } {
+    const s = this.document().stage;
+    return { next: s.nextTerminalId, list: s.items.filter((i) => i.type === 'terminal').map((i) => i.config) };
+  }
+  saveApplications(a: { next: number; list: ApplicationConfig[] }) {
+    this.update((d) => { d.stage.nextTerminalId = a.next; d.stage.items = [...d.stage.items.filter((i) => i.type !== 'terminal'), ...a.list.map((config) => ({ type: 'terminal' as const, config }))]; });
+  }
+  layout(): unknown {
+    const d = this.document();
+    return d.workspace.developmentLayout ? { version: 3, workspace: d.workspace.developmentLayout, stage: d.stage.layout,
+      stageLayout: d.stage.view, stageOverflow: d.stage.overflow, stagePosition: d.workspace.stagePosition, stageShare: d.workspace.stageShare } : null;
+  }
+  saveLayout(layout: unknown) {
+    const l = splitLayout(layout);
+    this.update((d) => { d.workspace.developmentLayout = l?.workspace ?? null; d.workspace.stagePosition = l?.stagePosition ?? 'above';
+      d.workspace.stageShare = l?.stageShare; d.stage.layout = l?.stage ?? null; d.stage.view = l?.stageLayout ?? null; d.stage.overflow = l?.stageOverflow ?? false; });
+  }
+  agent(): AgentFile {
+    const d = this.document();
+    return { ...d.agents, conversations: d.agents.conversations.map((c) => ({ ...c, terminal: d.development?.list.find((t) => t.conversation === c.id)?.id })) };
+  }
+  saveAgent(a: AgentFile) {
+    this.update((d) => { d.agents = { ...(a.agent !== undefined && { agent: a.agent }),
+      conversations: (a.conversations ?? []).map(({ terminal: _terminal, ...c }) => ({ ...c, id: c.id ?? randomUUID() })) }; });
+  }
+  terminals(): TerminalsFile | null {
+    const d = this.document(), t = d.development;
+    return t ? { front: t.front, list: t.list.map(({ conversation, ...rest }) => ({ ...rest,
+      ...(conversation !== undefined && { conversation: d.agents.conversations.findIndex((c) => c.id === conversation) }) })) } : null;
+  }
+  saveTerminals(t: TerminalsFile) {
+    this.update((d) => { d.development = { front: t.front, list: t.list.map(({ conversation, ...rest }) => ({ ...rest,
+      ...(conversation !== undefined && { conversation: d.agents.conversations[conversation]?.id ?? 'invalid-reference' }) })) }; });
+  }
 }
 
 // Copy a profile's folder without its caches and its cookies: those come through its session (cookie-sync.ts, copy),

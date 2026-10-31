@@ -31,7 +31,7 @@ test("+ opens any of the project's accounts, a new conversation in a tab of its 
   // A terminal's tab's state, and the task's tab's.
   const tabIs = (id: number, state: string) => expect(ui.locator(`nav[aria-label="Terminals"] [data-id="${id}"] [data-state]`)).toHaveAttribute('data-state', state);
   const taskIs = (state: string) => expect(ui.locator(`#taskTabs [data-task="${key}"] [data-state]`)).toHaveAttribute('data-state', state);
-  const conversations = () => files.json(files.pfile('agent.json', taskId)).conversations;
+  const conversations = () => files.json(files.pfile('task.json', taskId)).agents.conversations;
   type Term = { id: number; agent: string | undefined; pty: boolean };
   const terms = () => core((k, t) => [...k.shell.taskByKey(t).terminals.values()].map((x): Term => ({ id: x.id, agent: x.agent?.id, pty: !!x.pty })), key);
   const newest = async () => (await terms()).at(-1);
@@ -63,7 +63,8 @@ test("+ opens any of the project's accounts, a new conversation in a tab of its 
   expect(fs.existsSync(path.join(a.dir, 'skills', 'kulisa', 'SKILL.md')), "Kulisa's skill in the account's folder").toBe(true);
   const fake = (await newest()).id;
   await expect(ui.locator(`nav[aria-label="Terminals"] [data-id="${fake}"]`).getByRole('button', { name: /: change agent…$/ }).locator('svg'), 'an agent without a mark of its own: the generic one').toHaveAttribute('data-mark', 'generic');
-  expect(conversations().map((c: { agent: string; terminal: number }) => [c.agent, c.terminal])).toEqual([['custom', bash], [a.id, fake]]);
+  expect(conversations().map((c: { agent: string }) => c.agent)).toEqual(['custom', a.id]);
+  expect(files.json(files.pfile('task.json', taskId)).development.list.map((t: { id: number }) => t.id)).toEqual([bash, fake]);
   expect(await target(), 'a pick goes to the agent shown').toBe(fake);
 
   // Each its own state, from its own hooks; the task's tab shows the most urgent: waiting, then working.

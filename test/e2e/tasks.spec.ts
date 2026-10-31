@@ -148,7 +148,7 @@ test('tasks: + opens a task in the project\'s main working tree ("New Task", no 
   }, { first, SAM })).toEqual([true, false, `${SITE}/app?task`]);
   expect((await call('browser_snapshot', { profile: 'Sam.admin' }, { task: first })).text).toMatch(/URL: .*\/app\?task/);
   expect(await core((k, key) => { const f = k.shell.taskByKey(key); return !!f.pty && f.pty !== k.shell.pty; }, first)).toBe(true);
-  expect(files.json(files.pfile('agent.json', 2)).conversations[0].agent, "no agent in the project: the one there is (the tests' own)").toBe('custom');
+  expect(files.json(files.pfile('task.json', 2)).agents.conversations[0].agent, "no agent in the project: the one there is (the tests' own)").toBe('custom');
 
   // The window: the task's grid with its panes; the bar shows it, "New Task" until it is named.
   await expect(taskTab(ui, task)).toHaveText('New Task');
@@ -277,8 +277,8 @@ test("tasks: an agent's tab closes after a question, always (Cancel keeps it); t
   // The terminals' panel's group (its content is laid over it: dockview's renderer 'always').
   const group = ui.locator('.dv-groupview', { has: strip });
   const size = async (l: Locator) => { const b = await l.boundingBox(); return { width: Math.round(b.width), height: Math.round(b.height) }; };
-  const saved = () => files.json(files.pfile('terminals.json', task.split('/')[1]));
-  const conversations = () => files.json(files.pfile('agent.json', task.split('/')[1])).conversations;
+  const saved = () => files.json(files.pfile('task.json', task.split('/')[1])).development;
+  const conversations = () => files.json(files.pfile('task.json', task.split('/')[1])).agents.conversations;
   const closeTab = () => ui.locator('nav[aria-label="Terminals"] [role="tab"]').first().getByTitle(/^Close/).click();
   await expect(ui.locator('nav[aria-label="Terminals"] [role="tab"]')).not.toHaveCount(0);
   const before = await size(group);
@@ -435,7 +435,8 @@ test("tasks: an agent's tab closes after a question, always (Cancel keeps it); t
   await core((k) => k.press(k.shell.win.webContents, '`', 'control'));
   await expect.poll(() => core((k, key) => !!k.shell.taskByKey(key).promptTarget()?.pty, task), { timeout: 20000 }).toBe(true);
   expect(conversations()).toHaveLength(2);
-  expect([conversations()[1].agent, conversations()[1].terminal]).toEqual(['custom', await core((k, key) => k.shell.taskByKey(key).promptTarget().id, task)]);
+  expect(conversations()[1].agent).toBe('custom');
+  expect(saved().list.find((t: { id: number; conversation: string }) => t.conversation === conversations()[1].id).id).toBe(await core((k, key) => k.shell.taskByKey(key).promptTarget().id, task));
   // Its × closes it without a question: nothing works in it.
   await taskTab(ui, task).getByRole('button', { name: 'Close' }).click();
   await expect.poll(async () => (await core((k, key) => { const t = k.shell.taskByKey(key); return !!t.entry.closed && !t.loaded; }, task)) && isNth(core, 2)).toBe(true);

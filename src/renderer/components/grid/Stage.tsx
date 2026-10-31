@@ -5,7 +5,7 @@ import { ApplicationPane, ApplicationHeader } from './ApplicationPane';
 import { ProfilePane, ProfileHeader } from './ProfilePane';
 import { stageMounted, stageUnmounted, scheduleLayout, pauseStageFollowing } from '../../lib/grid';
 import { useWindow } from '../../lib/store';
-import { environmentMinimum } from '../../lib/stage-layout';
+import { environmentMinimum } from '../../../shared/stage-layout';
 import { dockTheme } from '../../lib/dock-theme';
 
 const components = { profile: ProfilePane, application: ApplicationPane };

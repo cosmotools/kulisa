@@ -76,7 +76,7 @@ test('store: a write cut short leaves the file as it was', async () => {
   task.saveProfiles([{ id: 'sam' }]);
   const writeFileSync = fs.writeFileSync;
   fs.writeFileSync = ((f: number, data: string) => { writeFileSync(f, String(data).slice(0, 10)); throw new Error('the computer went off'); }) as typeof fs.writeFileSync;
-  try { task.saveProfiles([{ id: 'ann' }]); } finally { fs.writeFileSync = writeFileSync; }
+  try { assert.throws(() => task.saveProfiles([{ id: 'ann' }]), /computer went off/); } finally { fs.writeFileSync = writeFileSync; }
   assert.deepEqual(task.profiles().map((p) => p.id), ['sam']);
   assert.deepEqual(fs.readdirSync(task.dir).filter((f) => f.endsWith('.tmp')), [], 'no half-written file left');
 });

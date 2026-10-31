@@ -2,7 +2,7 @@
 // "Choosing the agent"): an entry each, in a file of its own (claude.ts, codex.ts), listed in index.ts. Everything
 // Kulisa needs to know about one agent is its entry: who makes it and what it needs, how to find it, how to install
 // it (its maker's own installer, run by Kulisa for the human), how to start it connected to Kulisa and how to continue
-// a conversation. Kulisa's core calls agents through it alone. Each conversation in a task is kept in its agent.json
+// a conversation. Kulisa's core calls agents through it alone. Each conversation in a task is kept in its task.json
 // (store.ts).
 //   id, name, maker, needs   shown in the window when the human chooses
 //   site                     the maker's page of it (the Agents window links to it)
@@ -14,7 +14,7 @@
 //                            account (its account's folder, Kulisa's: where it may keep what it is started with) }
 //   localFiles               its settings a project keeps out of git (gitignore patterns from its top): copied into a
 //                            task's copy when git ignores them (worktrees.ts)
-//   resume(saved)            arguments that continue a conversation (saved: as agent.json keeps it), or nothing
+//   resume(saved)            arguments that continue a conversation (saved: as task.json keeps it), or nothing
 //   dirs(folders)            the task's other folders (its copies of the project's other repositories): { args, env }
 //                            that give them to it; without, it learns of them from the MCP server's instructions
 //   addDir                   how it gets a folder the task gets while it runs, sent by Kulisa even in its turn (never
@@ -62,7 +62,7 @@
 //                            codes it takes; set(dir, code), into an account's config folder
 import type { Conversation } from '../transcripts.ts';
 
-// A conversation as agent.json keeps it: its session as the agent's hooks reported it (agent-hooks.ts), and its
+// A conversation as task.json keeps it: its session as the agent's hooks reported it (agent-hooks.ts), and its
 // account's folder.
 interface Saved { sessionId?: string; transcript?: string; started?: boolean; configDir?: string | null }
 // Where an agent's program is (findAgent).

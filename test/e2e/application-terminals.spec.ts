@@ -246,7 +246,7 @@ test('deleting a task stops its applications and removes their configuration', a
   await call('terminal_run', { name: 'Owned process', command: 'node application-cleanup.cjs' });
   let pid = 0;
   await expect.poll(async () => { pid = Number(JSON.parse((await call('terminal_read', { name: 'Owned process' })).text).text.match(/PID (\d+)/)?.[1]); return pid > 0; }).toBe(true);
-  const config = await core((k) => k.shell.task.store.file('applications.json'));
+  const config = await core((k) => k.shell.task.store.file('task.json'));
   expect(fs.existsSync(config)).toBe(true);
   const deletion = invoke(ui, 'task:delete', key);
   await answer(ui);

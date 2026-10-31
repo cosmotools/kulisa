@@ -85,7 +85,7 @@ test("delete a profile in Settings (its page's ⋯, its row's right-click): sign
     return { tabs: temp.tabs.length, cookies: await temp.session.cookies.get({}) };
   })).toEqual({ tabs: 0, cookies: [] });
   expect(fs.existsSync(cookiesFile)).toBe(false);
-  const savedIds = () => files.json(files.pfile('profiles.json')).map((p: { id: string }) => p.id);
+  const savedIds = () => files.json(files.pfile('task.json')).stage.items.filter((i: { type: string }) => i.type === 'profile').map((i: { config: any }) => i.config).map((p: { id: string }) => p.id);
   await expect.poll(savedIds).toEqual(others);
   expect(await core((k, p) => k.shell.profileStore.get(p), tempId), 'gone from the store').toBeNull();
   // Its task's copy and its master.

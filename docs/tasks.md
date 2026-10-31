@@ -346,7 +346,7 @@ A task's agents are the human's choice: its project's accounts of Claude Code (A
 the task's folder: an agent Kulisa does not know is run there by hand, `KULISA_MCP_URL` in its environment). Kulisa
 never assumes one is installed.
 
-- **A new task** opens its project's default agent, its own (`agent` in its `agent.json`); a project with no default
+- **A new task** opens its project's default agent, its own (`agent` in its `task.json`); a project with no default
   (`agent: null`) starts nothing, without asking: the terminals' buttons in the empty grid, Ctrl+` gives them the
   keyboard (`Task.ownAgent`, `openOwn`); a project with no agents starts the terminal only. An agent to open that is
   not there (an account let go, an agent not on the computer) asks, in a dialog, among the project's accounts and the
@@ -396,7 +396,7 @@ never assumes one is installed.
   - **An account lives until the human deletes it** (a sign-in is made again only by signing in again). − on a
     project's account lets go of it at once, nothing asked: a task running it keeps it; deleting a project does the
     same. In Settings → Agents each account says its projects ("in no project"); − deletes it: refused while any task,
-    open or closed, has it open in a tab (from their `agent.json`; its conversation is in its folder), naming them;
+    open or closed, has it open in a tab (from their `task.json`; its conversation is in its folder), naming them;
     else after a question ("Delete the account …?", naming its projects): signed out with its agent's command (`auth
     logout`: the Keychain's entry on macOS goes too), then its folder, with its sign-in, settings and conversations.
 - The dialogs are part of the window, not windows (no extra process). Choosing (`components/AgentPicker.tsx`), New
@@ -437,7 +437,7 @@ next to Codex, two accounts of one, or the same agent twice ([window.md](window.
 profiles.
 
 - **One kind of terminal.** A task's terminals are one list (`Task.terminals`): each the user's shell in the task's
-  folder, an agent started in it or not. An agent's has its conversation (an index into the task's `agent.json`: its
+  folder, an agent started in it or not. An agent's has its conversation (a stable ID in the task's `task.json`: its
   account, its session as its hooks report it, when, its name, its terminal); a shell has its name and the command
   typed in.
 - **Each agent reports for itself.** Its terminal has URLs of its own under the task's
@@ -590,17 +590,12 @@ projects/<project id>/            a project's data, by its id (projects.json), g
                                   worktrees of repositories it added; base: the commit a worktree started from. Its
                                   folder, branch and folder of copies are its resources' (store.ts)
   1/, 2/ …                        a task
-    profiles.json                 what it has of its project's profiles, in order: id, sites' zoom, closed
-    layout.json                   its workspace and testing-stage grids (dockview; window.md, The grid)
-    agent.json                    { agent, conversations: [{ agent, sessionId, transcript, started, from, to, title,
-                                  terminal }] }: the agent it was made with; every conversation an agent had in it
-                                  (Several agents in a task), kept with the task
-    terminals.json                { front, list: [{ id, name, by } | { id, conversation }] }: its terminals' tabs, opened
-                                  again when it loads; one goes when closed; an empty list: the panel folded
-    applications.json             { next, list: [{ id, name, command, size }] }: application terminal setup (window.md); rewritten on
-                                  configuration changes, an entry removed on Close, file gone with its task or project;
-                                  ids grow so saved artifacts keep their source; screen buffers stay in memory,
-                                  processes stop with the terminal or task
+    task.json                     versioned task state, owned by TaskStore: agents (initial choice and conversation
+                                  metadata with stable IDs), development (open tabs and active tab), stage (profile
+                                  settings, CLI launch setup, next terminal ID, view and Dockview layout), workspace
+                                  (development layout, Stage position and share). Terminal conversation references
+                                  use stable IDs; history numbers follow conversation order. Live processes and screen
+                                  buffers stay in memory. File and owned environment data go with the task/project.
     artifacts/                    what the human or agent keep of its environments: a snapshot
                                   or a body too large for an answer, a screenshot; <n>-<profile id>-<tab id>-<kind>, n in
                                   the order made; application terminal text: <n>-application-<id>-terminal.txt; never replaced,
@@ -782,3 +777,10 @@ rm -rf ~/.config/Kulisa/projects/<project id>   # all its tasks with their profi
 | `src/main/recognizer.ts` | which account recognizes speech for an agent without dictation of its own ([src/dictation](../src/dictation/README.md)), its session's folder |
 | `src/renderer/lib/grid.ts`, `components/Grid.tsx` | building a task's grid, taking it down when another is shown |
 | `test/e2e/tasks*.spec.ts`, `taskbar.spec.ts`, `projects*.spec.ts`, `project-repositories.spec.ts`, `empty-window.spec.ts`, `agents*.spec.ts`, `masters.spec.ts`; `test/unit/agents.test.ts` | the tests |
+
+Task state is replaced atomically after validation; each section update reads the current document and preserves
+its peers. Layout changes are debounced and flushed when leaving the task. A new task retains uninitialized
+profiles/development separately from deliberately empty collections. Legacy task files are imported only when
+`task.json` is absent; a verified document is authoritative, and leftover source files are cleaned on reopening.
+Malformed source data stops migration with an error and retains the source files. Browser storage, profile tabs,
+transcripts and artifacts keep their own formats and owners.

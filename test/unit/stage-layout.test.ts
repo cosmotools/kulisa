@@ -1,7 +1,7 @@
 // A saved layout keeps development panels and browser profiles in their independent grids.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { splitLayout } from '../../src/renderer/lib/stage-layout.ts';
+import { splitLayout } from '../../src/shared/stage-layout.ts';
 
 test('flat layouts split mixed groups while retaining order, stacking, sizes and active views', () => {
   const panels = Object.fromEntries(['terminal', 'resources', 'profile:a', 'profile:b', 'profile:c'].map((id) => [id, { id, contentComponent: id.startsWith('profile:') ? 'profile' : id }]));

@@ -60,11 +60,16 @@ export function ApplicationPane({ api }: IDockviewPanelProps) {
   useEffect(() => {
     if (!focus?.key || focus.key !== app?.key) return;
     let cancelled = false;
-    void termFocus(focus.key, () => !cancelled && store.getState().applicationFocus === focus
-      && store.getState().current === focus.task && api.isVisible && document.hasFocus()).then(() => {
-      if (store.getState().applicationFocus === focus) store.setState({ applicationFocus: null });
-    });
-    return () => { cancelled = true; };
+    const attempt = () => {
+      void termFocus(focus.key!, () => !cancelled && store.getState().applicationFocus === focus
+        && store.getState().current === focus.task && api.isVisible && document.hasFocus()).then(() => {
+        if (!cancelled && store.getState().applicationFocus === focus && view.current?.el.contains(document.activeElement)) store.setState({ applicationFocus: null });
+      });
+    };
+    const visible = api.onDidVisibilityChange(attempt);
+    const frame = requestAnimationFrame(attempt);
+    attempt();
+    return () => { cancelled = true; cancelAnimationFrame(frame); visible.dispose(); };
   }, [focus, app?.key, api]);
   if (!app) return null;
   const menu = (): MenuItem[] => {

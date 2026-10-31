@@ -8,7 +8,7 @@ import { act, setCaption, store } from './store';
 import { forgetFrozen, freeze, showViews, unfreeze } from './views';
 import { closeLayers } from './cover';
 import { forgetTerminals } from '../../terminal/renderer';
-import { environmentMinimum, splitLayout, type TaskLayout } from './stage-layout';
+import { environmentMinimum, filterLayout, splitLayout, type TaskLayout } from '../../shared/stage-layout';
 
 interface PaneHandle { content: HTMLElement; focusAddress(): void; newTab(): void; pick(): void }
 export const panes = new Map<string, PaneHandle>();
@@ -187,8 +187,7 @@ function syncGrid() {
 function restore(a: DockviewApi, saved: SerializedDockview | null, known: string[]) {
   if (!saved) return;
   try {
-    if (!Object.keys(saved.panels).every((id) => known.includes(id))) return;
-    a.fromJSON(saved);
+    a.fromJSON(filterLayout(saved, (id) => known.includes(id)));
   } catch (e) { console.warn('[layout] saved grid not restored:', (e as Error).message); a.clear(); }
 }
 function buildGrid(a: DockviewApi, saved: unknown) {

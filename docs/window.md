@@ -94,8 +94,8 @@ the child keeps its full viewport, offset within the parent. Fully offscreen pag
 is removed when the page fits, the profile closes, or it moves to another window. Dragging in either grid turns
 pages into pictures for HTML drop targets.
 
-`layout.json` keeps both grids (`version: 3`, `workspace`, `stage`, `stageLayout`, `stageOverflow`, `stagePosition`, `stageShare`), saved 300 ms after a change and flushed when the
-task is left. `lib/stage-layout.ts` separates a flat saved layout into development and testing groups, retaining
+`task.json` keeps Stage view/overflow/layout in `stage`, and development layout, Stage position/share in `workspace`, saved 300 ms after a change and flushed when the
+task is left. `shared/stage-layout.ts` separates a flat saved layout into development and testing groups, retaining
 panel order, stacking and sizes; development panels share an area, separate from Stage. Saved stack settings normalize to explicit horizontal and vertical directions without moving panes. An invalid grid falls back to its default arrangement.
 
 **No environment open, a development terminal open**: a row above the workspace offers **Application Terminal** and
@@ -386,7 +386,7 @@ agent. Each is the user's shell in the task's folder with the agent's environmen
 as the screen shows them (`shell_read`, colors left out) and presses Ctrl+C (`shell_stop`), in shells only, never
 another agent's tab. Not the agent's own background shell: some agents cannot keep a process running (Codex waits on
 it), and the human does not see what runs there. The task closing ends what runs in it. As in an IDE, the terminals are
-kept (`terminals.json`): when the task loads again (a restart, the task opened again) each comes back in its tab, the
+kept (`task.json`): when the task loads again (a restart, the task opened again) each comes back in its tab, the
 one in front too, an agent's conversation resumed, a shell with nothing running; the agent runs its command again. ×,
 the menu's Close, `shell_stop` with close, or the shell's `exit` ends one for good (`Task.openTerminal`,
 `openAgent`, `runInTerminal`, `interruptTerminal`, `readTerminal`, `closeTab`).

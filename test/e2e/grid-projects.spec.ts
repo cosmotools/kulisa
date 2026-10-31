@@ -37,11 +37,11 @@ test('projects: another folder opens in a tab of its own, with its own profiles 
   await forgetOther(core, ui, files);
   // The agent reported its session (its SessionStart hook, as Claude Code sends it): Kulisa resumes it when the project
   // opens again.
-  if (files.json(files.pfile('agent.json')).conversations?.[0]?.sessionId !== 'session-1') {
+  if (files.json(files.pfile('task.json')).agents.conversations?.[0]?.sessionId !== 'session-1') {
     const transcript = path.join(files.project, 'transcript.jsonl');
     fs.writeFileSync(transcript, '');
     await reportSession(core, await core((k) => k.shell.task.key), 'session-1', transcript);
-    await expect.poll(() => files.json(files.pfile('agent.json')).conversations[0].sessionId).toBe('session-1');
+    await expect.poll(() => files.json(files.pfile('task.json')).agents.conversations[0].sessionId).toBe('session-1');
   }
   const other = otherFolder(files), project = files.project;
   fs.mkdirSync(other, { recursive: true });

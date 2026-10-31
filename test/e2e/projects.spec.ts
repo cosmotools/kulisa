@@ -202,7 +202,7 @@ test("projects: the projects' manager (Project Settings…) changes its name and
   await closeSettings(core, ui, sui);
   // + makes a task with the default one (the first kept the one it started with). No git: a second task in the folder,
   // after the question.
-  const agentOf = (key: string) => files.json('projects', key.replace('/', path.sep), 'agent.json').agent;
+  const agentOf = (key: string) => files.json('projects', key.replace('/', path.sep), 'task.json').agents.agent;
   const before = await newTask(core, ui, id);
   expect(agentOf(before)).toBe('shell');
   // Another agent: made the default on the project's page (Make Default), + runs it.

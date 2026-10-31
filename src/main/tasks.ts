@@ -35,7 +35,7 @@ import type { Result } from '../shared/result.ts';
 
 type AgentState = 'working' | 'waiting' | 'done' | null;
 // A terminal of the task, a tab of its terminals: the user's shell in its folder, with an agent started in it (agent,
-// its conversation: an index in agent.json; its state as its hooks report it, seen: the human has seen it since) or
+// its conversation: a history index in memory (stable ID on disk); its state as its hooks report it, seen: the human has seen it since) or
 // not (a shell: its name, the command typed in, by whom).
 interface TaskTerminal {
   id: number; key: string; name: string; command: string; by: 'human' | 'agent'; pty?: Pty;
@@ -309,7 +309,7 @@ class Task {
   // again (a restart, its project opened again) each comes back in its tab, an agent's conversation resumed, a shell
   // with nothing running (the agent runs its command again). They go when closed (×, shell_stop) or their shell exits.
   // A task that never had one opens its agent (none: nothing, the terminals' buttons instead); the last one closed leaves
-  // the terminals folded to their + (terminals.json says so).
+  // the terminals folded to their + (task.json says so).
   async loadTerminals() {
     if (this.terminalsLoaded || !this.loaded) return;
     this.terminalsLoaded = true;
