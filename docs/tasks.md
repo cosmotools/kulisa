@@ -779,7 +779,7 @@ rm -rf ~/.config/Kulisa/projects/<project id>   # all its tasks with their profi
 | `test/e2e/tasks*.spec.ts`, `taskbar.spec.ts`, `projects*.spec.ts`, `project-repositories.spec.ts`, `empty-window.spec.ts`, `agents*.spec.ts`, `masters.spec.ts`; `test/unit/agents.test.ts` | the tests |
 
 Task state is replaced atomically after validation; each section update reads the current document and preserves
-its peers. Layout changes are debounced and flushed when leaving the task. A new task retains uninitialized
+its peers. Layout changes are debounced and flushed when leaving the task; pruning closed panes preserves the active group when it survives. A new task retains uninitialized
 profiles/development separately from deliberately empty collections. Legacy task files are imported only when
 `task.json` is absent; a verified document is authoritative, and leftover source files are cleaned on reopening.
 Malformed source data stops migration with an error and retains the source files. Browser storage, profile tabs,

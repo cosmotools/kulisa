@@ -32,7 +32,7 @@ test('task migration preserves history, setup and stable links, removes legacy f
     assert.equal('terminal' in d.agents.conversations[0], false);
     assert.equal(f.task.profiles()[0].closed, true);
     assert.equal(f.task.stageTerminals().next, 10);
-    for (const name of ['agent', 'development-terminals', 'profiles', 'stage-terminals', 'layout']) assert.equal(fs.existsSync(f.task.file(name+'.json')), false);
+    for (const name of ['agent', 'terminals', 'profiles', 'applications', 'layout']) assert.equal(fs.existsSync(f.task.file(name+'.json')), false);
     f.task.saveProfiles([]);
     assert.deepEqual(f.task.stageTerminals().list, d.stage.items.filter((i: { type: string }) => i.type === 'terminal').map(({ type: _type, ...config }: { type: string; [key: string]: unknown }) => config));
     f.task.saveStageTerminals({ next: 11, list: [] });

@@ -1,7 +1,8 @@
 // The task's Stage terminal environments: saved launch setup, explicit processes, shared human/agent actions.
 import { startTerminal, stopTerminal, forgetTerminal, terminalScreen, setTerminalSize, pressTerminalKey, pasteTerminal } from '../terminal/main/index.ts';
 import type { Pty, TerminalConfig, TerminalOutput } from '../terminal/main/index.ts';
-import { TERMINAL_LINES, validTerminalSize } from '../shared/stage-terminal.ts';
+import { TERMINAL_LINES } from '../terminal/ipc.ts';
+import { validTerminalSize } from '../shared/stage-terminal.ts';
 import type { StageTerminalConfig, StageTerminalKey, StageTerminal, StageTerminalScreen, TerminalSize } from '../shared/stage-terminal.ts';
 import type { Result } from '../shared/result.ts';
 import { labelError } from '../shared/names.ts';
@@ -19,7 +20,7 @@ export interface StageTerminalHost {
   forget(key: string): void;
 }
 
-type StageSession = StageTerminal & { pty?: Pty; pending?: Promise<Result<StageTerminal>> };
+type StageSession = StageTerminal & { pty?: Pty; pending?: Promise<Result<StageTerminal>>; restart?: object };
 export class StageTerminals {
   private list = new Map<number, StageSession>();
   private seq = 0;
@@ -38,14 +39,15 @@ export class StageTerminals {
   private make(c: StageTerminalConfig): StageSession {
     return { ...c, size: c.size || null, key: `${this.host.key}#stage-terminal-${c.id}`, status: 'stopped', exitCode: null, session: null };
   }
-  info(): StageTerminal[] { return [...this.list.values()].map(({ id, name, command, size, key, status, exitCode, session, launchError }) => ({ id, name, command, size, key, status, exitCode, session, ...(launchError ? { launchError } : {}) })); }
+  info(): StageTerminal[] { return [...this.list.values()].map((terminal) => this.snapshot(terminal)); }
   private changed(save = false) {
-    if (save) this.host.save({ next: this.seq + 1, list: this.info().map(({ id, name, command, size }) => ({ id, name, command, size })) });
-    this.host.changed(this.info());
+    const list = this.info();
+    if (save) this.host.save({ next: this.seq + 1, list: list.map(({ id, name, command, size }) => ({ id, name, command, size })) });
+    this.host.changed(list);
   }
   private find(which: number | string): StageSession | { error: string } {
-    const app = typeof which === 'number' ? this.list.get(which) : [...this.list.values()].find((a) => a.name.toLowerCase() === which.trim().toLowerCase());
-    return app || { error: `No Stage terminal "${which}". Open: ${this.info().map((a) => a.name).join(', ') || 'none'}. Run a command in a named terminal first.` };
+    const terminal = typeof which === 'number' ? this.list.get(which) : [...this.list.values()].find((a) => a.name.toLowerCase() === which.trim().toLowerCase());
+    return terminal || { error: `No Stage terminal "${which}". Open: ${this.info().map((a) => a.name).join(', ') || 'none'}. Run a command in a named terminal first.` };
   }
   private create(name?: string, command = '', size: TerminalSize | null = null): Result<StageTerminal> {
     if (!this.host.isOpen()) return { error: 'The task is not open.' };
@@ -56,11 +58,11 @@ export class StageTerminals {
     if (!('error' in this.find(name))) return { error: `A Stage terminal "${name}" already exists.` };
     if (command.length > 8192) return { error: 'A launch command may have at most 8192 characters.' };
     if (size && !validTerminalSize(size)) return { error: 'Terminal size must be 2–500 columns and 2–200 rows.' };
-    const app = this.make({ id: ++this.seq, name, command, size });
-    this.list.set(app.id, app);
-    log.info(`[stage-terminal] ${app.key} created`);
+    const terminal = this.make({ id: ++this.seq, name, command, size });
+    this.list.set(terminal.id, terminal);
+    log.info(`[stage-terminal] ${terminal.key} created`);
     this.changed(true);
-    return this.snapshot(app);
+    return this.snapshot(terminal);
   }
   async open(name?: string): Promise<Result<StageTerminal>> {
     const created = this.create(name);
@@ -72,7 +74,9 @@ export class StageTerminals {
       if (result.error) log.warn(`[stage-terminal] ${a.key} shell restore failed: ${result.error}`);
     }));
   }
-  private snapshot(app: StageSession): StageTerminal { return this.info().find((a) => a.id === app.id)!; }
+  private snapshot({ id, name, command, size, key, status, exitCode, session, launchError }: StageSession): StageTerminal {
+    return { id, name, command, size, key, status, exitCode, session, ...(launchError ? { launchError } : {}) };
+  }
   configure(which: number | string, change: { name?: string; command?: string; size?: TerminalSize | null }): Result<StageTerminal> {
     const a = this.find(which); if ('error' in a) return a;
     const name = change.name?.trim() ?? a.name, bad = labelError(name);
@@ -132,6 +136,7 @@ export class StageTerminals {
   }
   stop(which: number | string): Result<StageTerminal> {
     const a = this.find(which); if ('error' in a) return a;
+    delete a.restart;
     if (a.pty) stopTerminal(a.pty, { keepScreen: true });
     a.status = 'stopped'; a.exitCode = null;
     log.info(`[stage-terminal] ${a.key} stopped`);
@@ -148,7 +153,11 @@ export class StageTerminals {
     if ('error' in configured) return configured;
     const a = this.list.get(configured.id)!, pending = a.pending;
     this.stop(a.id);
+    // A newer Run or Stop wins while the previous shell is still finishing startup.
+    const restart = a.restart = {};
     if (pending) await pending;
+    if (a.restart !== restart) return { error: 'The terminal restart was cancelled.' };
+    delete a.restart;
     return this.start(a.id);
   }
   close(which: number | string): Result<{ id: number }> {

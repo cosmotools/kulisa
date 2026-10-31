@@ -40,7 +40,7 @@ terminals), with their own Views and saved sizes. Their task-level lifecycle and
   terminal behind another tab has none of its own), however long that takes: an agent draws its prompt for the size
   it starts with and does not fully redraw on the first resize.
 - **What the agent reads of a shell.** It keeps a shell's screen, in memory: a terminal without a window
-  (`@xterm/headless`, xterm's own parser), its last `screen` lines (500 for shell and application reads),
+  (`@xterm/headless`, xterm's own parser), its last `screen` lines (the shared `TERMINAL_LINES` default in `ipc.ts` bounds shell and Stage reads),
   with Unicode 11 widths matching the visible View, so what a program
   redraws in place (a progress, a container's state) is read as it became, not as every frame it went through. About
   1 MB a shell at 200 columns; an agent's terminal keeps none (`shell_read` does not read it). `terminalTail` gives its last lines.

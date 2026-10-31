@@ -24,7 +24,7 @@ process.stdout.on('resize', draw);
 draw();
 `;
 
-test('a CLI task needs no browser: human and agent see, operate, resize and restart an Stage terminal', async ({ core, ui, files, call }, info) => {
+test('a CLI task needs no browser: human and agent see, operate, resize and restart a Stage terminal', async ({ core, ui, files, call }, info) => {
   await notLoading(ui);
   expect(await core((k) => k.shell.task.profiles.size)).toBe(0);
   await expect(ui.getByTestId('stage')).toHaveCount(0);
@@ -340,4 +340,22 @@ test('run creates or reuses a named terminal and validates before replacing its 
   await call('terminal_resize', { name: 'Rerun', size: null });
   expect((await read()).terminal.size).toBe(null);
   await call('terminal_close', { name: 'Rerun' });
+});
+
+
+test('Stop cancels a restart waiting for shell startup', async ({ core, call }) => {
+  // Keep these requests in one main-process turn so even a fast shell is still starting at Stop.
+  const results = await core(async (k) => {
+    const terminals = k.shell.task.stageTerminals;
+    const first = terminals.run('Cancelled restart', 'echo first-launch');
+    const restart = terminals.run('Cancelled restart', 'echo unwanted-restart');
+    terminals.stop('Cancelled restart');
+    return Promise.all([first, restart]);
+  });
+  expect(results[0]).toHaveProperty('error');
+  expect(results[1]).toHaveProperty('error');
+  const result = JSON.parse((await call('terminal_read', { name: 'Cancelled restart' })).text);
+  expect(result.terminal.status).toBe('stopped');
+  expect(result.text).not.toContain('unwanted-restart');
+  await call('terminal_close', { name: 'Cancelled restart' });
 });

@@ -1,5 +1,4 @@
 // Stage terminal configuration and bounded input, shared by its two handles.
-export const TERMINAL_LINES = 500;
 export interface TerminalSize { cols: number; rows: number }
 export interface StageTerminalConfig {
   id: number; name: string; command: string; size: TerminalSize | null;

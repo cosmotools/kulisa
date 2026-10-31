@@ -11,7 +11,7 @@ import { Profile, wipeSession } from './profiles.ts';
 import { ProjectProfiles } from './project-profiles.ts';
 import { installSigninPause } from './signin-pause.ts';
 import { startTerminal, stopTerminal, forgetTerminal, terminalTail, sendToPrompt, typeIntoPrompt, eraseInPrompt, typeLine, interrupt, quotePaths } from '../terminal/main/index.ts';
-import { TERMINAL_LINES } from '../shared/stage-terminal.ts';
+import { TERMINAL_LINES } from '../terminal/ipc.ts';
 import { listArtifacts, saveArtifact } from './artifacts.ts';
 import { copyProfile, worktreesOf, ownWorktree, folderOf, branchOf, taskKey } from './store.ts';
 import { renameBranch } from './worktrees.ts';

@@ -1,6 +1,9 @@
 // The terminal's channels between a window's page and the main process, joined into all of them in src/shared/ipc.ts.
 // Keyed by the terminal's key ("<task key>#<id>", or a sign-in's).
 
+// Shared read limit for callers retaining a headless terminal screen.
+export const TERMINAL_LINES = 500;
+
 // The terminals' contents a window sends when a task moves, by key, to the window it goes to.
 export type TerminalContents = Record<string, { data: string; cols: number; rows: number }>;
 

@@ -2,15 +2,8 @@
 // it. How a tool is designed: ../../README.md, Tool design.
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { TERMINAL_LINES } from '../../../shared/stage-terminal.ts';
+import { TERMINAL_LINES } from '../../../terminal/ipc.ts';
 import type { Handles } from './handles.ts';
-
-// What an agent can read back of a shell (shell_read; terminalTail in src/terminal/main): its last lines as the screen shows them, kept
-// by a terminal without a window (xterm's own parser), so lines a program redraws in place (a progress, a container's
-// state) are what they became; the output with its codes left out had every frame. Its scrollback is what the agent
-// may ask for at most: the memory is lines × columns × 12 bytes (about 1 MB at 200 columns). Its buffer is a proposed
-// API in the headless build (allowProposedApi), the one xterm's serialize addon reads too.
-const READ_MAX = TERMINAL_LINES;
 
 function shellTools(server: McpServer, { task, text, done }: Handles) {
   const nameArg = z.string().describe('The terminal\'s name, e.g. "dev server"');
@@ -23,7 +16,7 @@ function shellTools(server: McpServer, { task, text, done }: Handles) {
   });
   server.registerTool('shell_read', {
     description: 'The last lines a terminal next to yours shows, as plain text (a server\'s errors, the address it listens on). Without a name: the terminals open.',
-    inputSchema: { name: nameArg.optional(), lines: z.number().int().min(1).max(READ_MAX).optional().describe('Default 50') },
+    inputSchema: { name: nameArg.optional(), lines: z.number().int().min(1).max(TERMINAL_LINES).optional().describe('Default 50') },
   }, async ({ name, lines }) => {
     if (!name) {
       const list = task.developmentTerminalsInfo().list.filter((x) => !x.agent);

@@ -105,7 +105,7 @@ the window. The title bar's **Stage → Open an environment** opens the same env
 
 ### Stage terminals
 
-An Stage terminal (`grid/StageTerminalPane.tsx`) is the CLI or TUI under test, in its own stage pane. Its name,
+A Stage terminal (`grid/StageTerminalPane.tsx`) is the CLI or TUI under test, in its own stage pane. Its name,
 optional launch command and fixed columns/rows are saved per task; every terminal starts a fresh shell when its task loads; saved app commands run through Run app. The pane’s Find… context-menu action and Ctrl+Shift+F (⌘+Shift+F on macOS) open an inline search bar; xterm’s search addon selects matches in retained output, with Enter/Shift+Enter navigation and Escape returning focus to the terminal. Search keys stay in the window. Runtime session kind records whether Kulisa launched a shell or app, independently of changes to the saved command. The header holds its status, Start, Run app, Restart app, Restart shell or Run again, Maximize/Restore, a **⋯** menu and Close;
 the terminal fills the pane below it. Opening a terminal starts the user’s shell in the task folder.
 A blank launch command starts a shell; a supplied command runs as the application session and keeps its final screen on exit. **Settings…** in the menu opens `StageTerminalSettings.tsx` for the saved name,
@@ -119,7 +119,7 @@ validation precedes stopping the previous process. The agent builds the app and 
 `terminal_read`, `terminal_input`, `terminal_resize`, `terminal_stop` and `terminal_close` provide the interactive bridge.
 Development shells use `shell_run`, `shell_read` and `shell_stop` beside the coding agent. Launch uses the user's shell in the task's
 current working folder, with shell startup settings; the process's exit code and final screen stay visible after
-exit. Launch actions clear the previous run's screen. Stop ends the session and keeps its final screen readable; Close also removes its setup and buffers. Closing a task stops its Stage terminals and keeps their setup for reopening.
+exit. Launch actions clear the previous run's screen. Stop cancels pending restarts, ends the session and keeps its final screen readable; Close also removes its setup and buffers. Closing a task stops its Stage terminals and keeps their setup for reopening.
 
 A shell launch failure stays in the terminal’s runtime state (`launchError`) and appears as a selectable error
 in its pane. A new launch attempt clears it; it is omitted from saved configuration.

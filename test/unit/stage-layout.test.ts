@@ -1,7 +1,7 @@
 // A saved layout keeps development panels and browser profiles in their independent grids.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { splitLayout } from '../../src/shared/stage-layout.ts';
+import { filterLayout, splitLayout } from '../../src/shared/stage-layout.ts';
 
 test('flat layouts split mixed groups while retaining order, stacking, sizes and active views', () => {
   const panels = Object.fromEntries(['terminal', 'resources', 'profile:a', 'profile:b', 'profile:c'].map((id) => [id, { id, contentComponent: id.startsWith('profile:') ? 'profile' : id }]));
@@ -65,4 +65,20 @@ test('saved application pane IDs restore as Stage terminals without renaming use
   assert.deepEqual(result.stage.panels['stage-terminal:7'], { id: 'stage-terminal:7', contentComponent: 'stage-terminal', tabComponent: 'stage-terminal', title: 'application' });
   assert.deepEqual(result.stage.grid.root.data, { id: 'g', views: ['stage-terminal:7'], activeView: 'stage-terminal:7' });
   assert.equal(saved.stage.panels['application:7'].id, 'application:7');
+});
+
+
+test('pruning closed environments retains the active group when it survives', () => {
+  const layout = splitLayout({
+    grid: { width: 800, height: 600, orientation: 'HORIZONTAL', root: { type: 'branch', data: [
+      { type: 'leaf', data: { id: 'first', views: ['profile:a'], activeView: 'profile:a' } },
+      { type: 'leaf', data: { id: 'second', views: ['profile:b', 'profile:c'], activeView: 'profile:c' } },
+    ] } },
+    panels: Object.fromEntries(['profile:a', 'profile:b', 'profile:c'].map((id) => [id, { id, contentComponent: 'profile' }])),
+    activeGroup: 'second',
+  }).stage;
+  assert.equal(layout.activeGroup, 'second');
+  const pruned = filterLayout(layout, (id) => id !== 'profile:b');
+  assert.equal(pruned.activeGroup, 'second');
+  assert.equal(filterLayout(layout, (id) => id === 'profile:a').activeGroup, undefined);
 });

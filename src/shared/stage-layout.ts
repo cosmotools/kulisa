@@ -21,15 +21,18 @@ function canonicalStage(layout: SerializedDockview | null): SerializedDockview |
 }
 export function filterLayout(layout: SerializedDockview, keep: (id: string) => boolean): SerializedDockview {
   const panels = Object.fromEntries(Object.entries(layout.panels).filter(([id]) => keep(id)));
+  let activeGroup: string | undefined;
   function visit(n: Node): Node | null {
     if (n.type === 'branch') {
       const data = (n.data as Node[]).map(visit).filter((c): c is Node => !!c);
       return data.length ? { ...n, data } : null;
     }
     const g = n.data as Group, views = g.views.filter((v) => v in panels);
+    if (views.length && g.id === layout.activeGroup) activeGroup = g.id;
     return views.length ? { ...n, data: { ...g, views, activeView: views.includes(g.activeView!) ? g.activeView : views[0] } } : null;
   }
-  return { grid: { ...layout.grid, root: visit(layout.grid.root) || { type: 'branch', data: [] } }, panels };
+  const root = visit(layout.grid.root) || { type: 'branch' as const, data: [] };
+  return { grid: { ...layout.grid, root }, panels, ...(activeGroup && { activeGroup }) };
 }
 // Find the common split of Stage and Terminal; nested branches alternate orientation.
 function placementOf(layout: SerializedDockview): Pick<TaskLayout, 'stagePosition' | 'stageShare'> {
