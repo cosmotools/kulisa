@@ -52,7 +52,8 @@ for (const name of ['sh', 'bash', 'zsh', 'fish', 'powershell', 'pwsh']) {
   test(`dropped paths stay literal: ${name}`, { skip: !shell ? `no ${name}` : false }, () => {
     const paths = ['plain.png', "a b/it's $HOME; & (image).png", 'café.png', 'back\\slash.png'];
     const ps = ['powershell', 'pwsh'].includes(name);
-    const command = ps ? `& { ConvertTo-Json -Compress -InputObject @($args) } ${quotePaths(shell, paths)}`
+    // PowerShell 5 writes JSON in the console's code page; this fixture reads UTF-8.
+    const command = ps ? `[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new(); & { ConvertTo-Json -Compress -InputObject @($args) } ${quotePaths(shell, paths)}`
       : `printf '%s\\0' ${quotePaths(shell, paths)}`;
     const out = execFileSync(shell, ps ? ['-NoLogo', '-NoProfile', '-Command', command]
       : name === 'fish' ? ['--no-config', '-c', command] : ['-c', command], { encoding: 'utf8' });
