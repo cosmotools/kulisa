@@ -179,6 +179,18 @@ test('closing a terminal stops its process and removes its saved configuration a
   await expect(ui.getByTestId('stage')).toHaveCount(0);
 });
 
+test('Stop is repeatable and a stopped terminal keeps its screen until closed', async ({ call }) => {
+  await call('terminal_run', { name: 'Stop twice', command: 'node -e "console.log(\'still readable\'); process.stdin.resume()"' });
+  const read = async () => JSON.parse((await call('terminal_read', { name: 'Stop twice' })).text);
+  await expect.poll(async () => (await read()).text).toContain('still readable');
+  await call('terminal_stop', { name: 'Stop twice' });
+  await call('terminal_stop', { name: 'Stop twice' });
+  expect((await read()).terminal.status).toBe('stopped');
+  expect((await read()).text).toContain('still readable');
+  await call('terminal_close', { name: 'Stop twice' });
+  expect(JSON.parse((await call('terminal_read')).text)).toEqual([]);
+});
+
 test('browser and terminal environments share Stage positions and tabs without restarting the CLI', async ({ core, ui, files, call }) => {
   fs.writeFileSync(path.join(files.project, 'terminal-stage.cjs'), tui);
   await call('terminal_run', { name: 'Alongside browser', command: 'node terminal-stage.cjs' });

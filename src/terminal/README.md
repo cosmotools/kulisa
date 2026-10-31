@@ -29,6 +29,8 @@ terminals), with their own Views and saved sizes. Their task-level lifecycle and
   program's runtime reads its command line back, one with a space in quotes of its own (left to PowerShell, 5.1 and 7
   differ on the backslashes before the quote they add); the command in PowerShell's `'…'` alone. A program is
   found by name as Windows' shells find it (`PATHEXT`: `claude` may be a `.cmd`), which node-pty does not do.
+- **Windows uses node-pty's bundled ConPTY**, which forwards device and color queries to xterm; the system's
+  ConPTY consumes queries before Kulisa can answer them.
 - **An executable command line** (`execute`) is typed after the user's shell reads its first prompt, so
   prompt hooks such as direnv apply; the shell exits with the application's status after the command.
   Its caller owns stopped/running/exited state.
@@ -53,7 +55,7 @@ terminals), with their own Views and saved sizes. Their task-level lifecycle and
   agent's command waits at the start): Windows' console drops the input that comes before.
 - **Esc typed by the human** reaches whoever asked (`onEscape`, with the terminal's key): what it means is theirs (an
   agent's turn ended: `Task.interrupted`, docs/tasks.md). Nothing outside listens to `pty:in` itself.
-- `stopTerminal` ends it (its output reaches no window after); `keepScreen` retains its headless screen for the caller
+- `stopTerminal` ends a live process once (ConPTY handles cannot be killed twice); `keepScreen` retains its headless screen for the caller
   to read, disposed by a later stop without that option; `forgetTerminal` drops its size once it is gone.
   `stopAllTerminals`, as Kulisa quits: every one, their processes waited for (3 s at most; on Windows node-pty ends a
   ConPTY on threads of its own, and an app exiting before may end with an uncaught C++ exception).

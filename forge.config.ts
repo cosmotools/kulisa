@@ -35,9 +35,9 @@ const config: ForgeConfig = {
     // macOS's id of the app (the author's choice), its helpers' after it (app.kulisa.helper …): what the OS keys
     // the app's preferences, caches, permissions (the microphone) and signing by. Packager's default is com.electron.kulisa.
     appBundleId: 'app.kulisa',
-    // node-pty starts a shell through its spawn-helper, a program run from outside the archive (unixTerminal.js:
-    // app.asar.unpacked); in it, the terminal failed (posix_spawnp failed). The plugin below adds the .node files.
-    asar: { unpack: '**/node_modules/node-pty/prebuilds/*/spawn-helper' },
+    // Native loaders need real files: macOS's spawn-helper and Windows's bundled ConPTY and console host.
+    // The plugin below adds the .node files.
+    asar: { unpack: '**/node_modules/node-pty/prebuilds/*/{spawn-helper,conpty/{conpty.dll,OpenConsole.exe}}' },
     // The app icon, rendered from assets/icon.svg (npm run icons); Forge adds .icns on macOS, .ico on Windows.
     icon: 'assets/icon',
     // Kulisa's packages for the agents are read from disk (by `claude`, or copied into an account's folder), so they sit

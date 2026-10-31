@@ -103,6 +103,7 @@ async function startTerminal(send: TerminalOutput, cfg: TerminalConfig, key: str
   const program = sh ? sh.command : cfg.command || userShell().command;
   const p = pty.spawn(programPath(program, env) || program, sh ? sh.args || [] : cfg.args || [], {
     name: 'xterm-256color', cols, rows, cwd: cfg.cwd || process.cwd(), env,
+    ...(process.platform === 'win32' && { useConptyDll: true }),
   }) as Pty;
   p.typed = Promise.resolve();
   if (cfg.execute && sh) p.typed = typeWhenReady(p, ` ${executionLine(sh.command, cfg.execute)}\r`);
@@ -146,10 +147,12 @@ function readsLine(p: IPty) {
 
 // Stop the agent; its output no longer reaches the window. The terminal's size is kept for the next agent there.
 function stopTerminal(p: Pty, { keepScreen = false }: { keepScreen?: boolean } = {}) {
+  // ConPTY's native handle may only be killed once, even when the caller retains its screen.
+  const active = !p.stopped && running.has(p);
   p.stopped = true;
   const t = terms.get(p.key);
   if (t?.pty === p) t.pty = null;
-  try { p.kill(); } catch {}
+  if (active) try { p.kill(); } catch {}
   if (!keepScreen) { p.screen?.dispose(); p.screen = undefined; }
 }
 
