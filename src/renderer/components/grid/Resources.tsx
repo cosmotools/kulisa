@@ -61,7 +61,7 @@ function TaskResources({ taskKey: key }: { taskKey: string }) {
           <SidebarGroup><SidebarGroupContent>
             <SidebarMenu aria-label="Folders">
               {task.resources.map((r) => <SidebarMenuItem key={r.folder}><RightClickMenu items={() => [{ label: 'Open Folder', run: () => open(r.folder) }, ...(r.removable ? [{ label: 'Remove Repository', run: () => remove(r.folder) }] : [])]}><Collapsible defaultOpen>
-                <CollapsibleTrigger asChild><Button variant="ghost" size="sm" aria-label={r.label} title={r.folder} className="h-auto w-full justify-start" onDoubleClick={() => void open(r.folder)}>
+                <CollapsibleTrigger asChild><Button variant="ghost" aria-label={r.label} title={r.folder} className="h-auto w-full justify-start" onDoubleClick={() => void open(r.folder)}>
                   <ChevronRightIcon className="group-aria-expanded/button:rotate-90" />
                   {r.kind === 'maintree' ? <FolderIcon /> : <GitBranchIcon />}
                   {lines(r.label, r.branch ? `branch ${r.branch}` : 'main working tree')}

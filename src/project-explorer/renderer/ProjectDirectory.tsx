@@ -41,7 +41,7 @@ function ProjectEntry({ actions, entry }: { actions: ExplorerActions; entry: Pro
     const result = await actions.openFile(entry.path);
     setError(result.error ?? '');
   };
-  const row = <Button variant="ghost" size="sm" className="w-full justify-start" aria-label={entry.name} title={entry.path}
+  const row = <Button variant="ghost" className="h-7 w-full justify-start" aria-label={entry.name} title={entry.path}
     onDoubleClick={entry.directory ? undefined : () => void open()}
     onKeyDown={(e) => { if (!entry.directory && e.key === 'Enter') { e.preventDefault(); void open(); } }}>
     {entry.directory ? <ChevronRightIcon className={expanded ? 'size-4 rotate-90' : 'size-4'} /> : <span className="size-4 shrink-0" />}
