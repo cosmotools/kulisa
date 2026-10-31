@@ -7,7 +7,7 @@ their implementations or types.
 
 ## Boundary
 
-`main/index.ts` is its entry. The main half uses `log.ts` for action logs, `store.ts`'s atomic writer for agent files,
+`main/index.ts` is its entry. The main half uses `log.ts` for action logs, `files.ts`'s atomic writer for agent files,
 and `remove.ts` for removal with Windows retries. Other Kulisa packages are reached through their entries:
 screenshots supplies capture options and identifies the human's captures. `PluginHost` supplies request admission,
 context and lifecycle events, captions and task lookup. `TaskAccess`, `ProfileAccess`, `TabAccess` and `TerminalAccess`

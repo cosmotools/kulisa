@@ -3,7 +3,7 @@
 // (allow: a tab chosen by a key, a dialog answered, Pick, an address from its pane's bar); a page taking it by itself
 // (loading, a tab the agent opened: on macOS every one did) gives it back to where it was in its window.
 import type { BrowserWindow, WebContents } from 'electron';
-import { log } from './log.ts';
+import { log } from '../../main/log.ts';
 
 // A real click's order on macOS: the page's focus, then its mouseDown
 // 2 ms later (input sent to a page, as the tests do, comes before). So the human's input in that page within this

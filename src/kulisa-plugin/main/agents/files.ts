@@ -2,7 +2,7 @@
 // cannot be read is left as it is.
 import fs from 'fs';
 import path from 'path';
-import { writeFileAtomic } from '../../../main/store.ts';
+import { writeFileAtomic } from '../../../main/files.ts';
 import { removeTree } from '../../../main/remove.ts';
 
 const readJSON = (file: string) => { try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return null; } };

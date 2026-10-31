@@ -78,7 +78,7 @@ A half it does not have is left out. Its e2e tests stay in `test/e2e/` with the 
 
 - From outside only through `main/index.ts`, `renderer/index.ts` and `ipc.ts`; the window takes its `renderer/`, the
   main process its `main/`; its two halves share only types (they run in two processes); its `main/` uses of
-  `src/main` only what its line allows; its `renderer/` nothing of the window or the main process. `npm run deps`
+  `src/main` only what its line allows, nothing of the window; `ipc.ts` imports no core domain types; its `renderer/` nothing of the window or the main process. `npm run deps`
   (`packages` in `.dependency-cruiser.ts`: a new package is a line there, what its main half may use).
 - A unit test may load its main half (`profiles.ts` imports the screenshots' `Profile.screenshot`'s capture; the unit
   tests load `profiles.ts`): its files and what they import from `src/main` (`ipc.ts`, `log.ts`) take Electron's
@@ -128,10 +128,11 @@ silently skips one is fixed in the config for every package, not for that one.
 
 | Folder | What | Its main half uses |
 |---|---|---|
-| `src/kulisa-plugin/` | agent integration: tools, hooks, shared skills, CLI adapters and transcript readers ([README](../src/kulisa-plugin/README.md)) | `log.ts`, `store.ts` (`writeFileAtomic`), `remove.ts` |
+| `src/kulisa-plugin/` | agent integration: tools, hooks, shared skills, CLI adapters and transcript readers ([README](../src/kulisa-plugin/README.md)) | `log.ts`, `store.ts`, `files.ts` (atomic writes), `remove.ts` |
+| `src/browser/` | browser sessions, tabs, navigation, cookies, storage and native views ([README](../src/browser/README.md)) | `log.ts`, `files.ts`, `local.ts` |
 | `src/terminal/` | a terminal: its pty in the user's shell, its buffers and the xterm a place shows ([README](../src/terminal/README.md)) | `ipc.ts`, `log.ts` |
 | `src/screenshots/` | a picture of a page (an element, the visible part, the whole page), kept as the human's, its thumbnail ([README](../src/screenshots/README.md)) | `ipc.ts`, `log.ts` |
 | `src/dictation/` | speaking to the agent: what each task's microphone shows, and recording ([README](../src/dictation/README.md)) | `ipc.ts`, `log.ts` |
-| `src/github/` | the GitHub accounts: Kulisa App's device flow or a fine-grained token, their tokens kept with the keyring, a repository's account ([README](../src/github/README.md)) | `ipc.ts`, `log.ts`, `store.ts` (`newId`, `writeFileAtomic`) |
+| `src/github/` | the GitHub accounts: Kulisa App's device flow or a fine-grained token, their tokens kept with the keyring, a repository's account ([README](../src/github/README.md)) | `ipc.ts`, `log.ts`, `store.ts` (`newId`), `files.ts` (atomic writes) |
 | `src/activity-monitor/` | what Kulisa takes on the computer: the tasks' artifacts on the disk, every task's or some ([README](../src/activity-monitor/README.md)) | nothing |
 | `src/ui/` | shadcn/ui's components as its CLI writes them, and their theme: the window's alone, through `index.ts` ([README](../src/ui/README.md)) | (no main half) |

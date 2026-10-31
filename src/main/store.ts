@@ -24,6 +24,9 @@
 //                            its files open while Kulisa runs)
 // Nothing goes into the project's own folder: sign-ins must not end up in its git.
 import fs from 'fs';
+import { writeFileAtomic } from './files.ts';
+import { readTabs, writeTabs } from '../browser/main/index.ts';
+import type { SavedTabs } from '../browser/main/index.ts';
 import { validTerminalSize } from '../shared/stage-terminal.ts';
 import { labelError } from '../shared/names.ts';
 import type { StageTerminalConfig } from '../shared/stage-terminal.ts';
@@ -45,18 +48,10 @@ function newId(taken: (id: string) => boolean) {
   do id = Array.from({ length: 6 }, () => ID_CHARS[randomInt(ID_CHARS.length)]).join(''); while (taken(id));
   return id;
 }
-const TABS_FILE = 'Kulisa Tabs.json';
 const ARTIFACTS = 'artifacts';
 // A task among all of every project ("<project id>/<task id>"): the windows, the terminals, the CDP proxy and the MCP
 // server's URLs know it by that.
 const taskKey = (p: { id: string }, id: string) => `${p.id}/${id}`;
-const SESSION_COOKIES_FILE = 'Kulisa Session Cookies.bin';
-// Chromium's caches inside a profile: rebuilt by themselves, so a copy of a profile goes without them.
-const CACHES = ['Cache', 'Code Cache', 'GPUCache', 'DawnGraphiteCache', 'DawnWebGPUCache', 'GrShaderCache', 'ShaderCache'];
-const NOT_COPIED = new Set([...CACHES, 'Network/Cookies', 'Network/Cookies-journal']);
-
-// A profile's tabs as saved: their URLs, in the strip's order, and the place of the one in front.
-interface SavedTabs { urls: string[]; active: number }
 // A project in projects.json. folders: its folders (Project Settings' Folders), repositories or not, the default first: new
 // tasks start in it.
 interface ProjectEntry {
@@ -348,47 +343,10 @@ class TaskStore {
   }
 }
 
-// Copy a profile's folder without its caches and its cookies: those come through its session (cookie-sync.ts, copy),
-// as Windows keeps an open session's cookie database locked. An open profile can be copied once its data is flushed
-// (tasks.ts); a file that cannot be read (locked on Windows) is left out and logged.
-async function copyProfile(from: string, to: string) {
-  const walk = async (src: string, dst: string, rel: string) => {
-    await fs.promises.mkdir(dst, { recursive: true });
-    for (const e of await fs.promises.readdir(src, { withFileTypes: true })) {
-      if (NOT_COPIED.has(rel + e.name)) continue;
-      const s = path.join(src, e.name), d = path.join(dst, e.name);
-      try {
-        if (e.isDirectory()) await walk(s, d, `${rel}${e.name}/`);
-        else if (e.isFile()) await fs.promises.copyFile(s, d);
-      } catch (err) { console.error('[store] not copied:', s, (err as NodeJS.ErrnoException).code || (err as Error).message); }
-    }
-  };
-  await walk(from, to, '');
-}
-
 const nextColor = (list: ProjectEntry[]) => PROJECT_COLORS.find((c) => !list.some((p) => p.color === c)) || PROJECT_COLORS[list.length % PROJECT_COLORS.length]!;
 const samePath = (a: string, b: string) => (process.platform === 'linux' ? path.resolve(a) === path.resolve(b) : path.resolve(a).toLowerCase() === path.resolve(b).toLowerCase());
-// A profile's tabs (Kulisa Tabs.json, in its folder: a master's and a task's copy alike), to open them again.
-function readTabs(dir: string): SavedTabs {
-  const v = readJSON(path.join(dir, TABS_FILE));
-  return Array.isArray(v?.urls) ? { urls: v.urls, active: Number.isInteger(v.active) ? v.active : 0 } : { urls: [], active: 0 };
-}
-function writeTabs(dir: string, tabs: SavedTabs) { fs.mkdirSync(dir, { recursive: true }); writeJSON(path.join(dir, TABS_FILE), tabs); }
 function readJSON(f: string) { try { return JSON.parse(fs.readFileSync(f, 'utf8')); } catch { return null; } }
 function writeJSON(f: string, v: unknown) { try { writeFileAtomic(f, JSON.stringify(v, null, 2)); } catch (e) { console.error('[store]', (e as Error).message); } }
-// Written whole or not at all: to a file next to it, then renamed over it. Kulisa may be killed or the computer lose
-// power while it writes (the tabs and session cookies are saved every few seconds); a half-written profiles.json
-// would lose the list of the profiles, a half-written session cookies file the sign-ins. The data reaches the disk
-// (fsync) before the rename: otherwise after a power loss the rename may be there and the data not (an empty file).
-// Not the write-file-atomic package: it brings signal-exit, which hooks SIGINT and SIGTERM, and the app handles them.
-function writeFileAtomic(file: string, data: string | Uint8Array, options?: { mode?: number }) {
-  const tmp = `${file}.${process.pid}.tmp`;
-  try {
-    const fd = fs.openSync(tmp, 'w', options?.mode);
-    try { fs.writeFileSync(fd, data); fs.fsyncSync(fd); } finally { fs.closeSync(fd); }
-    fs.renameSync(tmp, file);
-  } catch (e) { fs.rmSync(tmp, { force: true }); throw e; }
-}
 
-export { Store, newId, copyProfile, writeFileAtomic, readTabs, writeTabs, SESSION_COOKIES_FILE, PROJECT_COLORS, worktreesOf, ownWorktree, folderOf, branchOf, homeOf, taskKey };
-export type { SavedTabs, TaskStore, ProjectEntry, TaskEntry, Copy, Worktree, TaskProfile, Conversation };
+export { Store, newId, PROJECT_COLORS, worktreesOf, ownWorktree, folderOf, branchOf, homeOf, taskKey };
+export type { TaskStore, ProjectEntry, TaskEntry, Copy, Worktree, TaskProfile, Conversation };

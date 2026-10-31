@@ -2,10 +2,10 @@
 // The core layers check runtime imports; Kulisa packages check type dependencies too (docs/packages.md).
 import type { IConfiguration } from 'dependency-cruiser';
 
-// Layers 1 and 2 are lists of src/main's files; the Kulisa plugin is a Kulisa package. A file in none of them is the window's (layer 4).
+// The core profile integration and automation access are lists of src/main's files; the Kulisa plugin is a Kulisa package. A file in none of them is the window's (layer 4).
 // Base: git and what is local, used by every layer; nothing of src/main above them.
-const base = '^src/main/(worktrees|remotes|local|log|remove|artifacts)\\.ts$';
-const layer1 = '^src/main/(profiles|page-focus|project-profiles|profile-store|store|session-cookies|cookie-sync|signin-[a-z]+)\\.ts$';
+const base = '^src/main/(worktrees|remotes|local|log|files|remove|artifacts)\\.ts$';
+const layer1 = '^src/main/(project-profiles|profile-store|store|signin-[a-z]+)\\.ts$';
 const layer2 = '^src/main/(cdp-proxy|local-only)\\.ts$';
 const main = '^src/main/';
 const settings = '^src/renderer/components/settings/';
@@ -18,11 +18,12 @@ const only = (name: string, from: string, allowed: string[], comment: string) =>
 // through its entries (other packages' too); its main process half uses of src/main only what its line names, its window
 // half nothing of the window. A new Kulisa package is a line here.
 const packages: Record<string, { main: string[] }> = {
-  'kulisa-plugin': { main: ['log', 'store', 'remove'] },
+  'kulisa-plugin': { main: ['log', 'store', 'files', 'remove'] },
+  browser: { main: ['log', 'files', 'local'] },
   terminal: { main: ['ipc', 'log'] }, // a terminal: its pty, its buffers and the xterm shown
   screenshots: { main: ['ipc', 'log'] }, // a picture of a page: an element, the visible part, the whole page
-  // GitHub accounts and their sign-ins; store for its file's id and its atomic write, the data folder's own.
-  github: { main: ['ipc', 'log', 'store'] },
+  // GitHub accounts and their sign-ins; store supplies ids, files supplies atomic writes.
+  github: { main: ['ipc', 'log', 'store', 'files'] },
   'activity-monitor': { main: [] }, // what Kulisa takes on the computer; told of the tasks by the caller
   dictation: { main: ['ipc', 'log'] }, // dictation: what each task's microphone shows, and recording
 };
@@ -32,7 +33,9 @@ const packageRules = (name: string, { main: uses }: { main: string[] }) => {
     { name: `${name}-entries`, severity: 'error' as const, comment: `${name}/ is reached through main/index.ts, renderer/index.ts and ipc.ts only.`,
       from: { pathNot: dir }, to: { path: dir, pathNot: `${dir}(main/index|renderer/index|ipc)\\.ts$` } },
     { name: `${name}-main`, severity: 'error' as const, comment: `${name}/main uses nothing of src/main but ${uses.join(', ')}.`,
-      from: { path: `${dir}main/` }, to: { path: main, pathNot: `^src/main/(${uses.join('|')})\\.ts$` } },
+      from: { path: `${dir}main/` }, to: { path: '^src/(main|renderer|preload)/', pathNot: `^src/main/(${uses.join('|')})\\.ts$` } },
+    { name: `${name}-contracts`, severity: 'error' as const, comment: `${name}/ipc.ts declares contracts without core domain dependencies.`,
+      from: { path: `${dir}ipc\\.ts$` }, to: { path: '^src/(main|renderer|preload)/' } },
     { name: `${name}-renderer`, severity: 'error' as const, comment: `${name}/renderer uses nothing of the window, nor of the main process.`,
       from: { path: `${dir}renderer/` }, to: { path: '^src/(renderer|main|preload)/' } },
     { name: `${name}-sides`, severity: 'error' as const, comment: `${name}'s two halves run in two processes: only types between them.`,

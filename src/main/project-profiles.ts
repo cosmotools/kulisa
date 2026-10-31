@@ -15,9 +15,10 @@
 //   changed()                   after any change: the window's state and the tabs are saved
 //   everywhere()                who a profile is changed in the store: every task shows it
 import fs from 'fs';
-import { clearCaches } from './profiles.ts';
-import type { Profile, ProfileConfig } from './profiles.ts';
-import type { SavedTabs, TaskStore, TaskProfile } from './store.ts';
+import { clearCaches } from '../browser/main/index.ts';
+import type { Profile, ProfileConfig } from '../browser/main/index.ts';
+import type { TaskStore, TaskProfile } from './store.ts';
+import type { SavedTabs } from '../browser/main/index.ts';
 import type { ProfileStore, StoredProfile } from './profile-store.ts';
 import type { Result } from '../shared/result.ts';
 import { refused } from '../shared/result.ts';

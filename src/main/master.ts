@@ -7,8 +7,8 @@
 // One window per master; asked again, it comes to the front. Closed, its tabs and sign-ins are saved.
 import { BrowserWindow } from 'electron';
 import { handle } from './ipc.ts';
-import { Profile, toUrl } from './profiles.ts';
-import { readTabs, writeTabs } from './store.ts';
+import { Profile, toUrl } from '../browser/main/index.ts';
+import { readTabs, writeTabs } from '../browser/main/index.ts';
 import { page } from './pages.ts';
 import type { Shell } from './shell.ts';
 

@@ -435,10 +435,7 @@ Who gets a key depends on where the keyboard is, and **the keyboard stays where 
 takes it only from the human (a click or a key in it), or from Kulisa for them (a tab chosen by a key, Ctrl+`, their
 dialog answered, Pick, an address from its pane's bar). A page taking it by itself, as one loading does (a tab the agent
 opened, a redirect: on macOS every one does, and the next keys typed to the agent would go to the site), gives it back
-to where it was in its window (`page-focus.ts`). On macOS a real click is the page's focus, then the click 2 ms later: a
-page's focus is the human's when their input in it comes within 150 ms of it, before or after. A focus given back
-150 ms later is not given back over Kulisa's gift of it since (Ctrl+` at once after a page loaded). Each decision is a
-line in the log (`[focus]`): given back, or left and why.
+through the [Browser Kulisa package](../src/browser/README.md#focus).
 
 - **In a profile's page, or its pane** (its address bar, its toolbar): Chrome's keys, for that pane: Ctrl+T a new tab
   with the address to type in, Ctrl+W, Ctrl+Shift+T (the tab closed last: its address, kept in memory, ten at most),
@@ -617,6 +614,7 @@ window it comes from (`event.sender`); one change to the open tasks after anothe
 | `src/main/window.ts` | a window: its BrowserWindow, the native views' places, its questions, screenshot |
 | `src/renderer/components/settings/`, `lib/settings.ts` | Settings: its nav and its pages, a chunk of its own; shown and closed (Settings) |
 | `src/preload/index.cjs` | the window's bridge to the main process: the windows' pages are sandboxed (no Node: about 15 MB less a window, PSS), so it is a few lines of plain JavaScript; the window imports what it shares with the main process from `src/shared/` (`names.ts`, `avatars.ts`, `result.ts`) |
+| `src/main/files.ts` | atomic file writes shared by core and Kulisa packages |
 | `src/main/log.ts` | the log: the file (electron-log), `summary` of an action's arguments, the Log page's reading and following of it, the issue's address (The log) |
 | `components/settings/LogPage.tsx`, `AboutPage.tsx` | the Log and About pages of Settings (The log; Menus, About Kulisa) |
 | `src/main/keys.ts` | the keyboard shortcuts: the table, which key an input event is; `shortcuts.ts` takes them (Keys) |

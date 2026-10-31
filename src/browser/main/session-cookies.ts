@@ -3,12 +3,14 @@
 // live in session cookies (Entra's ESTSAUTH, federation IdPs), so without this every restart signs the profiles out.
 // Each profile's session cookies are saved encrypted with the OS keyring (safeStorage) in its own folder, on quit and
 // every 30 s (a crash loses at most that much), and restored into the profile before its first tab loads.
-import { safeStorage } from 'electron';
+import electron from 'electron';
 import type { Session, CookiesSetDetails } from 'electron';
 import fs from 'fs';
 import path from 'path';
-import { SESSION_COOKIES_FILE, writeFileAtomic } from './store.ts';
+import { SESSION_COOKIES_FILE } from './storage.ts';
+import { writeFileAtomic } from '../../main/files.ts';
 
+const { safeStorage } = electron;
 const SAVE_EVERY_MS = 30000;
 
 // What has cookies to keep: a profile (profiles.ts), or a master kept in step ({ session, dir }: cookie-sync.ts).

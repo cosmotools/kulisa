@@ -1,8 +1,8 @@
 // Supplies core actions and current facts to the Kulisa plugin (src/kulisa-plugin/README.md).
 import type { Shell } from './shell.ts';
 import type { Task, DevelopmentTerminal } from './tasks.ts';
-import { toUrl } from './profiles.ts';
-import type { Profile, Tab } from './profiles.ts';
+import { toUrl } from '../browser/main/index.ts';
+import type { Profile, Tab } from '../browser/main/index.ts';
 import { progress } from './worktrees.ts';
 import { ARTIFACTS_LIMIT, listArtifacts } from './artifacts.ts';
 import { fromLocalTool } from './local-only.ts';

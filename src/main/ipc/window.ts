@@ -3,7 +3,7 @@
 import { app, BrowserWindow, dialog, shell as electronShell } from 'electron';
 import fs from 'fs';
 import path from 'path';
-import { stepZoom } from '../profiles.ts';
+import { stepZoom } from '../../browser/main/index.ts';
 import { handle, on } from '../ipc.ts';
 import { LOG_MAX, environment, issueUrl, log, logFile, readLog } from '../log.ts';
 import type { Ipc } from '../ipc.ts';

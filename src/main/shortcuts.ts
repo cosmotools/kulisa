@@ -1,7 +1,7 @@
 // Kulisa's keyboard shortcuts as they are typed (docs/window.md, Keys; the table: keys.ts): every key in a window or
 // a profile's page comes here first; the hold keys the human changes.
 import { app } from 'electron';
-import { stepZoom } from './profiles.ts';
+import { stepZoom } from '../browser/main/index.ts';
 import type { AppWindow } from './window.ts';
 import { held, holdable, keymap, list as keyList, match } from './keys.ts';
 import { handle, on } from './ipc.ts';

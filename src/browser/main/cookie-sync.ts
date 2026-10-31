@@ -7,7 +7,7 @@
 // (MSAL's localStorage) is not brought. Electron is required only when a group is made: the rules load in plain Node.
 import electron from 'electron';
 import type { Session, Cookie, CookiesSetDetails } from 'electron';
-import { isLocal } from './local.ts';
+import { isLocal } from '../../main/local.ts';
 import type { Holder } from './session-cookies.ts';
 // Taken from the module, not imported by name: unit tests load this in plain Node, where 'electron' is only a path
 // (docs/testing.md, Two layers).

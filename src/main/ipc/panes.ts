@@ -2,13 +2,13 @@
 // the grid's layout. Each only translates to the task's own (tasks.ts), as the agent's tools do (kulisa-plugin/main/tools/).
 import { refused } from '../../shared/result.ts';
 import { handle, on } from '../ipc.ts';
-import { focusWindow } from '../page-focus.ts';
+import { focusWindow } from '../../browser/main/index.ts';
 import { chooseElement } from '../picker.ts';
 import { copy } from '../../screenshots/main/index.ts';
 import { filesIn, openFile, showFile } from '../file-links.ts';
 import type { Ipc, IpcEvent } from '../ipc.ts';
 import type { IpcMainInvokeEvent } from 'electron';
-import type { Profile, Tab } from '../profiles.ts';
+import type { Profile, Tab } from '../../browser/main/index.ts';
 import type { OnProfile, OnTab } from '../../shared/ipc.ts';
 
 export function registerPanes(ipc: Ipc) {

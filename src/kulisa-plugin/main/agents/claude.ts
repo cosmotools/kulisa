@@ -4,7 +4,7 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { removeTree } from '../../../main/remove.ts';
-import { writeFileAtomic } from '../../../main/store.ts';
+import { writeFileAtomic } from '../../../main/files.ts';
 import { cut, ownTool, lines, tailLines } from '../transcripts.ts';
 import type { Conversation, Entry } from '../transcripts.ts';
 import { readJSON, headLines, rewriteLines, writeChanged } from './files.ts';

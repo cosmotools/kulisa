@@ -276,7 +276,7 @@ Layers, each using only the ones below it. Which file is in which layer is `.dep
 git and what is local; `src/shared/` what the main process and the window both import (the rule for names, the
 profiles' pictures, `Result`).
 
-1. **Profiles**: browser profiles, their tabs and storage. Knows nothing about agents, MCP or the window UI.
+1. **Browser Kulisa package** (`src/browser/`; its README and AGENTS.md): browser profiles, their tabs and storage. Knows nothing about agents, MCP or the window UI.
 2. **Automation access** (`cdp-proxy.ts`, `local-only.ts`): the only way anything automated reaches a profile's pages, and where
    sign-in mode is enforced.
 3. **Kulisa plugin**, a Kulisa package (`src/kulisa-plugin/`; its README and AGENTS.md): MCP tools, shared instructions,
