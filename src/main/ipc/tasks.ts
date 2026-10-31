@@ -83,6 +83,14 @@ export function registerTasks(ipc: Ipc) {
     const task = shell.taskByKey(key); // only a folder the task owns (a resource), not any path the renderer names
     return task && task.resources().some((r) => r.folder === folder) ? electronShell.openPath(folder) : undefined;
   });
+  handle('task:files', (_e, { key, folder }) => {
+    const task = shell.taskByKey(key);
+    return task ? task.files(folder) : { error: 'the task is closed' };
+  });
+  handle('task:file-open', (_e, { key, file }) => {
+    const task = shell.taskByKey(key);
+    return task ? task.openProjectFile(file) : { error: 'the task is closed' };
+  });
   handle('task:artifacts', (e, key) => { const w = at(e); return w?.task?.key === key ? w.sendArtifacts() : undefined; });
   handle('task:artifact-send', (_e, { key, file }) => taskAt(key, (task) => task.sendArtifact(file)));
   handle('task:artifact-drag', async (e, { key, file }) => {

@@ -1,10 +1,12 @@
 // The Resources panel of the grid, and its header (docs/tasks.md, The Resources panel).
-import { useEffect } from 'react';
-import { FileIcon, FolderIcon, GitBranchIcon, Trash2Icon } from 'lucide-react';
+import { useEffect, useMemo } from 'react';
+import { ChevronRightIcon, FileIcon, FolderIcon, GitBranchIcon, Trash2Icon } from 'lucide-react';
 import type { IDockviewPanelHeaderProps } from 'dockview-react';
 import { useShallow } from 'zustand/react/shallow';
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupAction, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuAction,
-  SidebarMenuButton, SidebarMenuItem, SidebarProvider } from '@ui';
+  Button, Tabs, TabsList, TabsTrigger, TabsContent, Collapsible, CollapsibleTrigger, CollapsibleContent, SidebarMenuButton, SidebarMenuItem, SidebarProvider } from '@ui';
+import { ProjectDirectory, type ExplorerActions } from '../../../project-explorer/renderer';
+import { menuAt } from '../../lib/menu';
 import { RightClickMenu } from '../Menus';
 import { shownTask, useWindow } from '../../lib/store';
 import type { MenuItem } from '../../lib/menu';
@@ -18,8 +20,18 @@ const when = (t: number) => (day(t) === day(Date.now()) ? new Date(t).toLocaleTi
 const openFile = (file: string) => kulisa.invoke('file:open', file);
 
 export function Resources() {
+  const key = useWindow((s) => shownTask(s)?.key);
+  return key ? <TaskResources key={key} taskKey={key} /> : null;
+}
+
+function TaskResources({ taskKey: key }: { taskKey: string }) {
   const task = useWindow((s) => shownTask(s));
-  const key = task?.key;
+  const explorer = useMemo<ExplorerActions>(() => ({
+    readFolder: (folder) => kulisa.invoke('task:files', { key, folder }),
+    openFile: (file) => kulisa.invoke('task:file-open', { key, file }),
+    showFile: (file) => kulisa.invoke('file:show', file),
+    showMenu: menuAt,
+  }), [key]);
   const artifacts = useWindow((s) => (s.artifacts.task === key ? s.artifacts.list : null)) ?? [];
   const bytes = useWindow((s) => s.artifacts.bytes);
   const names = useWindow(useShallow((s) => Object.fromEntries([...s.profiles, ...s.closedProfiles].map((p) => [p.id, p.name]))));
@@ -37,25 +49,32 @@ export function Resources() {
       { label: 'Delete', run: () => deleteArtifacts([file]) }] : null;
   };
   // A row: its icon, its name and a muted line under it, as a task's in the sidebar.
-  const lines = (name: string, line: string) => <span className="flex min-w-0 flex-1 flex-col">
+  const lines = (name: string, line: string) => <span className="flex min-w-0 flex-1 flex-col text-start">
     <span className="truncate">{name}</span><span className="truncate text-xs text-muted-foreground">{line}</span>
   </span>;
   return <aside id="resources" aria-label="The task's resources" className="h-full min-h-0">
     <SidebarProvider className="h-full min-h-0">
       <Sidebar collapsible="none" className="h-full w-full">
-        <SidebarContent>
+        <Tabs defaultValue="project" className="h-full min-h-0">
+          <TabsList aria-label="Resources" variant="line" className="w-full shrink-0"><TabsTrigger value="project">Project</TabsTrigger><TabsTrigger value="artifacts">Artifacts</TabsTrigger></TabsList>
+          <TabsContent value="project" className="min-h-0"><div className="h-full overflow-auto"><SidebarContent>
           <SidebarGroup><SidebarGroupContent>
             <SidebarMenu aria-label="Folders">
-              {task.resources.map((r) => <SidebarMenuItem key={r.folder}>
-                <SidebarMenuButton aria-label={r.label} title={`Open Folder: ${r.folder}`} className="h-auto" onClick={() => void open(r.folder)}>
+              {task.resources.map((r) => <SidebarMenuItem key={r.folder}><RightClickMenu items={() => [{ label: 'Open Folder', run: () => open(r.folder) }, ...(r.removable ? [{ label: 'Remove Repository', run: () => remove(r.folder) }] : [])]}><Collapsible defaultOpen>
+                <CollapsibleTrigger asChild><Button variant="ghost" size="sm" aria-label={r.label} title={r.folder} className="h-auto w-full justify-start" onDoubleClick={() => void open(r.folder)}>
+                  <ChevronRightIcon className="group-aria-expanded/button:rotate-90" />
                   {r.kind === 'maintree' ? <FolderIcon /> : <GitBranchIcon />}
                   {lines(r.label, r.branch ? `branch ${r.branch}` : 'main working tree')}
-                </SidebarMenuButton>
+                </Button></CollapsibleTrigger>
                 {r.removable && <SidebarMenuAction showOnHover aria-label="Remove Repository" title="Remove Repository" onClick={() => void remove(r.folder)}>
                   <Trash2Icon /></SidebarMenuAction>}
-              </SidebarMenuItem>)}
+                <CollapsibleContent><div className="ms-4"><ProjectDirectory actions={explorer} folder={r.folder} /></div></CollapsibleContent>
+              </Collapsible></RightClickMenu></SidebarMenuItem>)}
             </SidebarMenu>
           </SidebarGroupContent></SidebarGroup>
+          </SidebarContent></div></TabsContent>
+          <TabsContent value="artifacts" className="min-h-0"><div className="h-full overflow-auto"><SidebarContent>
+          {artifacts.length === 0 && <p className="p-3 text-sm text-muted-foreground">No artifacts yet</p>}
           {artifacts.length > 0 && <SidebarGroup>
             <SidebarGroupLabel>Artifacts ·&nbsp;<span data-testid="artifacts-size">{sizeText(bytes)}</span></SidebarGroupLabel>
             <SidebarGroupAction aria-label="Delete All Artifacts" title="Delete All Artifacts" onClick={() => void deleteArtifacts(null)}><Trash2Icon /></SidebarGroupAction>
@@ -79,7 +98,7 @@ export function Resources() {
               </RightClickMenu>
             </SidebarGroupContent>
           </SidebarGroup>}
-        </SidebarContent>
+        </SidebarContent></div></TabsContent></Tabs>
       </Sidebar>
     </SidebarProvider>
   </aside>;

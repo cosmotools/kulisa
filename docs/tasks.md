@@ -245,16 +245,20 @@ then named "Checkout redesign":
 
 ### The Resources panel
 
-Next to the terminal, the task's **resources** (what it has, uses or created), each a row with its actions
+To the left of the terminal by default, the task’s **resources** have **Project** and **Artifacts** tabs.
+**Project** opens first and follows the shown task across projects; each resource is a root, with folders before files.
+Browsing is the [Project Explorer Kulisa package](../src/project-explorer/README.md); the task supplies its roots and
+protected desktop opening action (window.md, The terminal). Resources owns the tabs and repository actions.
+The roots are the task’s **resources** (what it has, uses or created), each with its actions
 (`grid/Resources.tsx`, a panel of the grid: [window.md](window.md), The grid; `Task.resources`, in the task's info):
 
 - A **worktree** per repository the task has made its own (`task_worktree` for the default one,
-  `task_add_repository` for another): its name and branch; a click opens its folder. An added repository's is removed
+  `task_add_repository` for another): its name and branch; a click expands its folder, a double-click opens it in the OS. An added repository's is removed
   with its 🗑 (`task_remove_repository`); the task's own goes only with the task.
 - The **main working tree** until the task makes its own worktree of the default repository: the project's folder (the
-  human's) it opened in, opened with a click, never removed. A task on a folder without git stays here. Kept as a
+  human's) it opened in, expanded with a click, never removed. A task on a folder without git stays here. Kept as a
   resource, not worked out from the project: the default repository may change while the task works there.
-- **Artifacts**, under them: the files the human or agent kept of its pages (`artifacts/`, What is on the computer),
+- **Artifacts**, in their tab: the files the human or agent kept of its pages (`artifacts/`, What is on the computer),
   the newest first: their kind (Screenshot, Snapshot, Request or Response body), profile, time and size, read from the file's
   name and metadata (`listArtifacts`, `artifacts.ts`; no list beside the files to go stale). A screenshot
   shows a small picture of itself, made by the main process and kept in memory while the task is loaded
@@ -320,7 +324,8 @@ to the human; the window's IPC (`ipc/`) and the MCP tools are handles on it:
 | Read what was said and done in the task before | its terminal, scrolled back | `task_history` ([transcripts.md](transcripts.md)) | `historyPart` (`history.ts`) |
 | Delete a task | Delete Task… in its tab's menu; its 🗑 in the sidebar | none: it deletes work and sign-ins, the human's to decide | `askDeleteTask`, `deleteTask`, `deleteClosedTask` (`projects.ts`) |
 | Show a task | a click on its tab, of any project | none: what the human looks at is theirs | `AppWindow.show` (`window.ts`) |
-| Open a resource's folder | a click on its row in the Resources panel | none: the agent opens folders through its own tools | `task:open-folder` (`ipc/tasks.ts`) |
+| Browse a task’s folders, open a file | Project tab in Resources; double-click or Enter on a file, its Open menu | the agent reads and opens files through its own tools | `task:files`, `task:file-open` (`Task.files`, `Task.openProjectFile`; Project Explorer confines reads to its roots) |
+| Open a resource's folder | double-click its root in Resources, or Open Folder in its menu | none: the agent opens folders through its own tools | `task:open-folder` (`ipc/tasks.ts`) |
 | Open an artifact, show it in its folder | a click on its row in the Resources panel, its menu | none: the tools' answers give the agent its path | `file:open`, `file:show` (`file-links.ts`) |
 | See what the artifacts take | the Artifacts heading in the Resources panel (the shown task's) | `task_artifacts`: its task's files, or each task's total | `Task.artifactsUsage` (src/activity-monitor) |
 | Send an artifact to the agent | Send to Agent in its row’s or screenshot thumbnail’s menu; drag onto a terminal | none: preparing the human’s next message | `Task.sendArtifact`; terminal file drop |

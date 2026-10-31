@@ -30,7 +30,7 @@ test('projects: several repositories: a task works in the main tree until it mak
   const of = (key: string) => core((k, t) => { const x = k.shell.taskByKey(t); return { folder: x.folder, worktrees: x.worktrees.map((c) => ({ repo: c.repo, folder: c.folder, branch: c.branch })), addable: x.addable(), dirs: x.dirs() }; }, key);
   // The Resources panel (Resources.tsx): each row its label, its branch line (or 'main working tree'), and whether it
   // can be removed (an added repository's worktree can; the main tree and the task's own worktree cannot).
-  const resources = ui.locator('#resources').getByRole('list', { name: 'Folders' }).getByRole('listitem');
+  const resources = ui.locator('#resources').getByRole('list', { name: 'Folders' }).locator(':scope > li');
   const rows = async (want: [string, string, boolean][]) => {
     await expect(resources).toHaveCount(want.length);
     for (const [i, [label, line, removable]] of want.entries()) {

@@ -146,6 +146,7 @@ test("Resources: the agent's artifacts listed as it makes them, the newest first
   await profiles(core);
   await largeFiles(call);
   const dir = await core((k) => k.shell.task.store.artifacts), number = (f: string) => Number(path.basename(f).split('-')[0]);
+  await ui.getByRole('tab', { name: 'Artifacts', exact: true }).click();
   const list = ui.locator('#resources [data-file]'), row = (file: string) => ui.locator(`#resources ${attr('data-file', file)}`);
   const listed = async () => Promise.all((await list.all()).map((r) => r.getAttribute('data-file')));
   const saved = () => fs.readdirSync(dir).map((f) => path.join(dir, f)).sort((a, b) => number(b) - number(a));
@@ -226,6 +227,7 @@ test('screenshots from the agent show the same thumbnail, copy JPEG as PNG, and 
   });
   expect(image.width).toBeGreaterThan(0);
   expect(image.height).toBeGreaterThan(0);
+  await ui.getByRole('tab', { name: 'Artifacts', exact: true }).click();
   await rightClick(ui, '#resources [data-file]');
   await choose(ui, 'Delete');
   await expect.poll(() => core((k) => k.shell.windows[0].thumbnails.file)).toBeNull();
@@ -237,6 +239,7 @@ test('Resources artifacts drag as disk files into the terminal without sending t
   await profiles(core);
   await largeFiles(call);
   const screenshot = (await call('browser_screenshot', { profile: 'Elon.buyer' })).text.match(/^Saved as (.+\.jpg)$/)[1];
+  await ui.getByRole('tab', { name: 'Artifacts', exact: true }).click();
   const snapshot = await ui.locator('#resources [data-file$="-snapshot.yml"]').first().getAttribute('data-file');
   await core((k) => {
     const wc = k.shell.windows[0].win.webContents;
@@ -292,6 +295,7 @@ test("artifacts: what they take, in Resources' heading and for the agent, which 
   expect((await call('task_artifacts_delete', { files: [shot] })).text).toMatch(/^Deleted 1 file\(s\), \S+ [KMG]B; \S+ [KMG]B left\.$/);
   expect(fs.existsSync(shot)).toBe(false);
   await expect(call('task_artifacts_delete', { files: [path.join(files.root, 'package.json')] })).rejects.toThrow(/not an artifact of this task/);
+  await ui.getByRole('tab', { name: 'Artifacts', exact: true }).click();
   await ui.locator('#resources').getByRole('button', { name: 'Delete All Artifacts' }).click();
   await expect(heading).toHaveCount(0);
   await expect.poll(() => fs.readdirSync(dir).length).toBe(0);

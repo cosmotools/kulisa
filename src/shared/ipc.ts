@@ -2,6 +2,7 @@
 // Both ends are checked against it (main/ipc.ts: handle, on, AppWindow.send; the window's bridge: renderer/env.d.ts,
 // act). docs/window.md, IPC. An answer the window does not read is `void`: the main process may answer anything there
 // (the tests read some).
+import type { ProjectFile } from '../project-explorer/ipc.ts';
 import type { Result } from './result.ts';
 import type { StageTerminal, StageTerminalsState, TerminalSize } from './stage-terminal.ts';
 import type { FileLink, TerminalContents, TerminalEvents, TerminalInvoke, TerminalSend } from '../terminal/ipc.ts';
@@ -88,6 +89,8 @@ export interface Invoke extends TerminalInvoke, ThumbnailInvoke, GitHubInvoke, D
   'task:remove-repo': I<[{ key: string; repo: string }]>;
   'task:show-folder': I<[key: string]>;
   'task:open-folder': I<[{ key: string; folder: string }]>; // a resource's folder (Resources.tsx), checked to be the task's
+  'task:files': I<[{ key: string; folder: string }], Result<{ entries: ProjectFile[] }>>;
+  'task:file-open': I<[{ key: string; file: string }], Result>;
   'task:artifacts': I<[string]>; // the task's artifacts sent again (Resources.tsx: the task shown)
   'task:artifact-send': I<[{ key: string; file: string }], Result>;
   'task:artifact-drag': I<[{ key: string; file: string }], Result>;

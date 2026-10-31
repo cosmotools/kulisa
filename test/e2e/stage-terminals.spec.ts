@@ -247,6 +247,7 @@ test('input follows terminal modes and large reads become bounded task artifacts
   expect(fs.readFileSync(result.file, 'utf8')).toContain('row 499:');
   const source = await core(async (k, file) => (await k.shell.task.findArtifact(file) as { artifact: { source: unknown } }).artifact.source, result.file);
   expect(source).toMatchObject({ kind: 'stage-terminal' });
+  await ui.getByRole('tab', { name: 'Artifacts', exact: true }).click();
   const artifact = ui.locator('#resources').getByRole('button', { name: 'Terminal screen', exact: true });
   await expect(artifact).toBeVisible();
   await expect(artifact).toContainText('Large');
