@@ -194,10 +194,10 @@ test("DevTools in a pane's ⋮ menu opens and closes the DevTools of its active 
     const left = async (l: Locator) => Math.round((await l.boundingBox()).x - group.x);
     const right = async (l: Locator) => { const r = await l.boundingBox(); return Math.round(group.x + group.width - (r.x + r.width)); };
     const page = pane.getByTestId('page'), pageBox = await page.boundingBox();
-    const inset = { avatar: await left(header.locator('img')), tab: await left(pane.getByRole('tablist').first()), back: await left(pane.locator('[aria-label="Back"]')),
+    const inset = { tab: await left(pane.getByRole('tablist').first()), back: await left(pane.locator('[aria-label="Back"]')),
       page: await left(page), close: await right(header.locator('[aria-label="Close profile"]')), more: await right(pane.locator('[aria-label="More"]')),
       pageRight: await right(page), pageBottom: Math.round(group.y + group.height - (pageBox.y + pageBox.height)) };
-    expect(inset).toEqual({ avatar: 8, tab: 8, back: 8, page: 0, close: 8, more: 8, pageRight: 0, pageBottom: 0 });
+    expect(inset).toEqual({ tab: 8, back: 8, page: 0, close: 8, more: 8, pageRight: 0, pageBottom: 0 });
     await choose(ui, 'DevTools');
   };
   await click();

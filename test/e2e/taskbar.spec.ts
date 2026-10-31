@@ -118,7 +118,7 @@ test("tasks: switching shows the other grid and terminal; the one left keeps run
   await state('done', 'the session ending after a done turn: it stays');
   await core((k, a) => k.shell.taskByKey(a.second).caption(a.SAM, 'from the second task'), { second, SAM });
   await ipcSettled(ui);
-  await expect(ui.locator(`[data-panel="profile:${SAM}"] [role="status"]`), 'not on the first task\'s pane').toHaveText('');
+  await expect(ui.locator(`[data-panel="profile:${SAM}"] [role="status"]`), 'not on the first task\'s pane').toHaveText('Idle');
   // Done says "come and see" until the human sees that task.
   await post('stop');
   await state('done');

@@ -160,10 +160,12 @@ A window made narrower or wider changes every panel in its share, as VS Code's a
 `proportionalLayout`; it needs dockview 8.6.0 or later:
 [1691](https://github.com/dockview/dockview/issues/1691), [1692](https://github.com/dockview/dockview/issues/1692)).
 
-A pane's header (`ProfileHeader`, `components/grid/ProfilePane.tsx`): its profile's picture and name, a caption of what
-the agent does in it (or that it is paused on a sign-in page), ⋯ (its menu, as a right-click on the header: Menus) and
-×. It shrinks with the pane: the caption first, then the name, cut with … (the whole and the profile's description in
-its tooltip); ⋯ and × stay. Under it the pane's tabs and its toolbar, ⋮ at its end ([profiles.md](profiles.md), Tabs).
+A pane's header (`ProfileHeader`, `components/grid/ProfilePane.tsx`): a centered notch holds its profile's picture,
+name and status (the agent's caption or sign-in pause). Below 480 px, the status is an icon with its text on hover;
+the name truncates with its whole text and description on hover. The left corner holds ⋯ (its menu, also on a
+right-click), the right Maximize/Restore and ×. Stacked tabs reserve an intrinsic width of 20rem so size containment
+keeps the name reachable. Under it the pane's tabs and toolbar, ⋮ at its end
+([profiles.md](profiles.md), Tabs).
 
 The window itself never scrolls, also not from a script (`overflow` on `html` and `body`, `App.tsx`): a panel stacked
 behind another is laid out below the grid (dockview), making the page taller than the window, and the tasks' bar

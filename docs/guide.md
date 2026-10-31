@@ -316,9 +316,10 @@ profile there to see its page.
 
 ## A profile's pane
 
-A pane is a small Chrome. Its header shows the profile's picture and name, what the agent is doing in it, **⋯** (the
-profile's menu, also on a right-click) and **×**. Under it, a tab strip, then back, forward, reload, the address bar,
-**Pick** and **⋮**.
+A pane is a small Chrome. A notch at the top centers the profile's picture, name and what the agent is doing. In a
+narrow pane, point at the status icon for details. **⋯** at the left opens the profile's menu (also on a right-click);
+Maximize/Restore and **×** are at the right. Under the header, a tab strip, then back, forward, reload, the address
+bar, **Pick** and **⋮**.
 
 - A new tab is empty, in Kulisa's colors, with the keyboard in the address bar: type an address, or words to search
   Google for.

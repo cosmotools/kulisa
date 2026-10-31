@@ -329,7 +329,7 @@ test('point and tell: Pick again or Esc in the page cancels it; nothing goes to 
     else await core((k) => { const wc = k.profile('Elon.buyer').get().wc; wc.focus(); k.press(wc, 'Escape'); });
     await expect(button).toHaveAttribute('aria-pressed', 'false');
     await expect.poll(picking).toBe(false);
-    await expect(ui.locator(`[data-panel="profile:${elon}"] [role="status"]`), cancel).toHaveText('');
+    await expect(ui.locator(`[data-panel="profile:${elon}"] [role="status"]`), cancel).toHaveText('Idle');
   }
   // A pick types its reference as it ends (picker.ts), before Kulisa says it no longer picks: echoed before what is
   // typed after.
