@@ -4,9 +4,9 @@
 // pane's and its header's hints are the OS's (title): a tooltip of the window's would be covered.
 import { useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type MouseEvent } from 'react';
 import type { IDockviewPanelHeaderProps, IDockviewPanelProps } from 'dockview-react';
-import { ArrowLeftIcon, ArrowRightIcon, EllipsisIcon, EllipsisVerticalIcon, GlobeIcon, LockIcon, PlusIcon, RotateCwIcon, SquareMousePointerIcon,
+import { ArrowLeftIcon, ArrowRightIcon, CircleDotIcon, CircleIcon, EllipsisIcon, EllipsisVerticalIcon, GlobeIcon, LockIcon, PlusIcon, RotateCwIcon, SquareMousePointerIcon,
   XIcon } from 'lucide-react';
-import { Avatar, AvatarImage, Badge, Button, Card, CardContent, CardFooter, CardHeader, CardTitle, Input, Toggle } from '@ui';
+import { Avatar, AvatarImage, Button, Card, CardContent, CardFooter, CardHeader, CardTitle, Input, Toggle } from '@ui';
 import { ButtonMenu, RightClickMenu } from '../Menus';
 import { BrowserTab, TabStrip } from '../BrowserTabs';
 import { act, screenshot, store, togglePick, useWindow } from '../../lib/store';
@@ -17,6 +17,7 @@ import { grow, useStrip } from '../../lib/strip';
 import { openSettings } from '../../lib/settings';
 import { deleteProfile } from '../../lib/profiles';
 import { EnvironmentFocus, environmentFocusItem } from './EnvironmentFocus';
+import './ProfilePane.css';
 
 const profileOf = (panel: string) => panel.slice('profile:'.length);
 const useProfile = (id: string) => useWindow((s) => s.profiles.find((p) => p.id === id));
@@ -219,13 +220,12 @@ function PageDialog({ from, message, confirm, answer }: { from: string; message:
   </div>;
 }
 
-// A profile's panel's header: its picture and name, what the agent does in it (or that it is paused on a sign-in
-// page), its menu (⋯, and a right-click on the header), ×. A pane narrower than its name: the name cut with …, ⋯ and ×
-// kept.
 export function ProfileHeader({ api, containerApi }: IDockviewPanelHeaderProps) {
   const activity = useWindow((s) => s.stageActivity === api.id);
   const id = profileOf(api.id), profile = useProfile(id);
   const caption = useWindow((s) => s.captions[id] || '');
+  const status = profile?.signinMode ? 'Sign-in page · agent paused' : caption || (activity ? 'Agent active' : 'Idle');
+  const StatusIcon = profile?.signinMode ? LockIcon : activity || caption ? CircleDotIcon : CircleIcon;
   const menu = (): MenuItem[] => [
     { label: 'New tab', keys: keyText('tab.new'), run: () => panes.get(id)?.newTab() },
     environmentFocusItem(api),
@@ -235,21 +235,29 @@ export function ProfileHeader({ api, containerApi }: IDockviewPanelHeaderProps) 
     '-',
     { label: 'Remove from Project…', run: () => deleteProfile(id) },
   ];
+  // Size containment needs an intrinsic width for Dockview's stacked tabs to keep the name reachable.
   return <RightClickMenu items={() => (profile ? menu() : null)} className="h-full min-w-0">
-    <div className="flex h-full min-w-0 items-center gap-1.5 px-2 data-[agent-active=true]:bg-accent" data-panel={api.id} data-agent-active={activity || undefined}>
+    <div className="@container grid h-full min-w-0 [contain-intrinsic-inline-size:20rem] grid-cols-[3rem_minmax(0,1fr)_3rem] items-center px-2 data-[agent-active=true]:bg-accent" data-panel={api.id} data-agent-active={activity || undefined}>
       {profile && <>
-        <Avatar aria-hidden className="size-5"><AvatarImage src={avatarSrc(profile.avatar)} alt="" /></Avatar>
-        <span data-testid="profile-name" className="min-w-0 flex-[0_1_auto] truncate font-medium"
-          title={[profile.name, profile.description].filter(Boolean).join('\n')}>{profile.name}</span>
-        <span role="status" className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
-          {profile.signinMode ? <Badge variant="outline"><LockIcon className="text-warning" />Sign-in page · agent paused</Badge> : caption}
-        </span>
-        <EnvironmentFocus api={api} containerApi={containerApi} />
-        <ButtonMenu items={menu} end>
-          <Button variant="ghost" size="icon-xs" title="Profile" aria-label="Profile menu"><EllipsisIcon /></Button>
-        </ButtonMenu>
-        <Button variant="ghost" size="icon-xs" title="Close profile: its tabs go, its sign-ins stay (open it again in Profiles)" aria-label="Close profile"
-          onClick={() => void act('profile:close', { profile: id })}><XIcon /></Button>
+        <div className="flex">
+          <ButtonMenu items={menu}>
+            <Button variant="ghost" size="icon-xs" title="Profile" aria-label="Profile menu"><EllipsisIcon /></Button>
+          </ButtonMenu>
+        </div>
+        <div data-profile-notch className="relative mx-auto flex h-8 min-w-0 max-w-full items-center gap-2 self-start rounded-b-xl bg-(--notch) px-3 text-background [--notch:var(--foreground)] dark:text-foreground dark:[--notch:var(--background)]">
+          <Avatar aria-hidden className="size-5"><AvatarImage src={avatarSrc(profile.avatar)} alt="" /></Avatar>
+          <span data-testid="profile-name" className="min-w-0 max-w-48 truncate font-medium"
+            title={[profile.name, profile.description].filter(Boolean).join('\n')}>{profile.name}</span>
+          <span role="status" title={status} className="flex min-w-0 shrink-0 items-center gap-1.5 text-xs">
+            <StatusIcon aria-hidden className={profile.signinMode ? 'size-3.5 shrink-0 text-warning' : 'size-3.5 shrink-0 opacity-70'} />
+            <span className="sr-only opacity-70 @min-[480px]:not-sr-only @min-[480px]:max-w-40 @min-[480px]:truncate">{status}</span>
+          </span>
+        </div>
+        <div className="flex justify-end">
+          <EnvironmentFocus api={api} containerApi={containerApi} />
+          <Button variant="ghost" size="icon-xs" title="Close profile: its tabs go, its sign-ins stay (open it again in Profiles)" aria-label="Close profile"
+            onClick={() => void act('profile:close', { profile: id })}><XIcon /></Button>
+        </div>
       </>}
     </div>
   </RightClickMenu>;

@@ -194,6 +194,7 @@ is Radix's own. A Radix menu of a part's own only for a row's own menu inside on
 What is drawn or moved here rather than by shadcn, each for a reason at it:
 
 - dockview's look, its variables set from the theme's (`Grid.css`);
+- the profile notch's concave shoulders (`grid/ProfilePane.css`): masked corners attach its identity to the top edge;
 - the dictation's pill with its wave bars, read from the microphone (`src/dictation/`, its `README.md`); its motions and
   the microphone's ring are Tailwind's and tw-animate-css';
 - the strips (`lib/strip.ts`, its classes on the element `useStrip` is given): the fades tied to the scroll; a tab

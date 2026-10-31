@@ -166,7 +166,7 @@ test('agent: rename a profile; ask the human to sign one in and wait until they 
   expect(await core((k) => k.profile('Elon.buyer').get().wc.getURL()), 'the sign-in page opened').toMatch(/\/form$/);
   await core((k, url) => { void k.profile('Elon.buyer').get().wc.loadURL(url); }, back); // the human signs in and lands elsewhere
   expect((await asking).text).toMatch(/The human is through/);
-  await expect(caption).toHaveText('');
+  await expect(caption).toHaveText('Idle');
 });
 
 test('profiles are isolated', async ({ core, call }) => {
