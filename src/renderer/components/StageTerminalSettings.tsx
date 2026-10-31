@@ -5,9 +5,9 @@ import { registerDialog } from '../lib/dialogs';
 import { store } from '../lib/store';
 import type { StageTerminal } from '../../shared/stage-terminal';
 
-function Configuration({ app, task, close }: { app: StageTerminal; task: string | null; close: () => void }) {
-  const [name, setName] = useState(app.name), [command, setCommand] = useState(app.command);
-  const [cols, setCols] = useState(String(app.size?.cols ?? '')), [rows, setRows] = useState(String(app.size?.rows ?? ''));
+function Configuration({ terminal, task, close }: { terminal: StageTerminal; task: string | null; close: () => void }) {
+  const [name, setName] = useState(terminal.name), [command, setCommand] = useState(terminal.command);
+  const [cols, setCols] = useState(String(terminal.size?.cols ?? '')), [rows, setRows] = useState(String(terminal.size?.rows ?? ''));
   const [error, setError] = useState(''), [saving, setSaving] = useState(false);
   const save = async (e: FormEvent) => {
     e.preventDefault();
@@ -15,7 +15,7 @@ function Configuration({ app, task, close }: { app: StageTerminal; task: string 
     setSaving(true);
     try {
       const result = await kulisa.invoke('stage-terminal:configure', {
-        task, id: app.id, name, command,
+        task, id: terminal.id, name, command,
         size: cols || rows ? { cols: Number(cols), rows: Number(rows) } : null,
       });
       if (result.error) setError(result.error); else close();
@@ -54,13 +54,13 @@ function Configuration({ app, task, close }: { app: StageTerminal; task: string 
 }
 
 export function StageTerminalSettings() {
-  const [editing, setEditing] = useState<{ app: StageTerminal; task: string | null } | null>(null);
+  const [editing, setEditing] = useState<{ terminal: StageTerminal; task: string | null } | null>(null);
   useEffect(() => registerDialog('stageTerminalSettings', {
-    open(app) { setEditing({ app, task: store.getState().current }); },
+    open(terminal) { setEditing({ terminal, task: store.getState().current }); },
   }), []);
   return <Dialog open={!!editing} onOpenChange={(open) => { if (!open) setEditing(null); }}>
     <DialogContent aria-describedby={undefined}>
-      {editing && <Configuration app={editing.app} task={editing.task} close={() => setEditing(null)} />}
+      {editing && <Configuration terminal={editing.terminal} task={editing.task} close={() => setEditing(null)} />}
     </DialogContent>
   </Dialog>;
 }

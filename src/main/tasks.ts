@@ -827,9 +827,9 @@ class Task {
       if (refused(found)) return found;
       label = `profile ${JSON.stringify(found.profile.name)} tab ${found.tab.id}`;
     } else {
-      const app = this.stageTerminals.info().find((a) => a.id === source.id);
-      if (!app) return { error: 'that terminal is closed' };
-      label = `terminal ${JSON.stringify(app.name)}`;
+      const terminal = this.stageTerminals.info().find((a) => a.id === source.id);
+      if (!terminal) return { error: 'that terminal is closed' };
+      label = `terminal ${JSON.stringify(terminal.name)}`;
     }
     // Selected page text must not break out of the terminal's bracketed paste or send control keys.
     const selected = text.replace(/\r\n?/g, '\n').replace(/[\u0000-\u0008\u000b-\u001f\u007f-\u009f]/g, '');

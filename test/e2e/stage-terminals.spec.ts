@@ -1,4 +1,4 @@
-// Human and agent operate the same interactive application in the testing stage.
+// Human and agent operate the same interactive CLI in Stage.
 import fs from 'fs';
 import path from 'path';
 import { sizeText } from '../../src/shared/bytes.ts';
@@ -29,7 +29,7 @@ test('a CLI task needs no browser: human and agent see, operate, resize and rest
   expect(await core((k) => k.shell.task.profiles.size)).toBe(0);
   await expect(ui.getByTestId('stage')).toHaveCount(0);
   const agent = await core((k) => k.shell.task.front);
-  fs.writeFileSync(path.join(files.project, 'application-tui.cjs'), tui);
+  fs.writeFileSync(path.join(files.project, 'terminal-tui.cjs'), tui);
   await focusWindow(core, ui);
   await ui.getByRole('button', { name: 'Stage Terminal', exact: true }).click();
   const pane = ui.locator('[data-stage-terminal]');
@@ -42,7 +42,7 @@ test('a CLI task needs no browser: human and agent see, operate, resize and rest
   await ui.getByRole('button', { name: 'Terminal menu' }).click();
   await choose(ui, 'Settings…');
   const settings = ui.getByRole('dialog', { name: 'Terminal Settings' });
-  await settings.getByRole('textbox', { name: 'Launch command' }).fill('node application-tui.cjs');
+  await settings.getByRole('textbox', { name: 'Launch command' }).fill('node terminal-tui.cjs');
   await settings.getByRole('button', { name: 'Save', exact: true }).click();
   await ui.getByRole('button', { name: 'Terminal menu' }).click();
   await choose(ui, 'Run app');
@@ -70,13 +70,13 @@ test('a CLI task needs no browser: human and agent see, operate, resize and rest
   await call('terminal_resize', { name: 'Terminal 1', size: { cols: 60, rows: 12 } });
   await expect.poll(screenHeight).toBeCloseTo(twelveRows, 0);
   await frames(ui);
-  const shot = info.outputPath('application-stage.png');
+  const shot = info.outputPath('terminal-stage.png');
   await core((k, file) => k.shot(file), shot);
-  await info.attach('application stage', { path: shot, contentType: 'image/png' });
+  await info.attach('terminal stage', { path: shot, contentType: 'image/png' });
   await call('terminal_stop', { name: 'Terminal 1' });
   expect((await screen()).terminal.status).toBe('stopped');
   expect((await screen()).text).toContain('Choice 42');
-  await call('terminal_run', { name: 'Terminal 1', command: 'node application-tui.cjs' });
+  await call('terminal_run', { name: 'Terminal 1', command: 'node terminal-tui.cjs' });
   await expect.poll(async () => (await screen()).text).toContain('Choice 1');
   await call('terminal_input', { name: 'Terminal 1', key: 'Enter' });
   await expect.poll(async () => (await screen()).terminal.exitCode).toBe(7);
@@ -129,30 +129,30 @@ test('a manually opened Stage shell comes back ready for commands after restarti
   await call('terminal_close', { name: 'Terminal 1' });
 });
 
-test('reopening restores launch setup and fixed size without running the application', async ({ files, call, restart }) => {
-  fs.writeFileSync(path.join(files.project, 'application-once.cjs'), `require('fs').appendFileSync('application-starts.txt', 'start\\n'); console.log('finished'); process.exit(9);`);
-  await call('terminal_run', { name: 'Once', command: 'node application-once.cjs', size: { cols: 72, rows: 18 } });
+test('reopening restores launch setup and fixed size without running the CLI', async ({ files, call, restart }) => {
+  fs.writeFileSync(path.join(files.project, 'terminal-once.cjs'), `require('fs').appendFileSync('terminal-starts.txt', 'start\\n'); console.log('finished'); process.exit(9);`);
+  await call('terminal_run', { name: 'Once', command: 'node terminal-once.cjs', size: { cols: 72, rows: 18 } });
   await expect.poll(async () => JSON.parse((await call('terminal_read', { name: 'Once' })).text).terminal.exitCode).toBe(9);
   const next = await restart();
   await notLoading(next);
   await expect(next.locator('[data-stage-terminal]')).toHaveAttribute('data-state', 'running');
   const list = JSON.parse((await call('terminal_read')).text);
   expect(list).toHaveLength(1);
-  expect(list[0]).toMatchObject({ name: 'Once', command: 'node application-once.cjs', size: { cols: 72, rows: 18 }, status: 'running', exitCode: null, session: 'shell' });
-  expect(fs.readFileSync(path.join(files.project, 'application-starts.txt'), 'utf8')).toBe('start\n');
+  expect(list[0]).toMatchObject({ name: 'Once', command: 'node terminal-once.cjs', size: { cols: 72, rows: 18 }, status: 'running', exitCode: null, session: 'shell' });
+  expect(fs.readFileSync(path.join(files.project, 'terminal-starts.txt'), 'utf8')).toBe('start\n');
   await call('terminal_input', { name: 'Once', text: 'node -e "console.log(6*7)"' });
   await call('terminal_input', { name: 'Once', key: 'Enter' });
   await expect.poll(async () => JSON.parse((await call('terminal_read', { name: 'Once' })).text).text).toMatch(/(^|\n)42(\r?\n|$)/);
   await next.getByRole('button', { name: 'Terminal menu' }).click();
   await choose(next, 'Run app');
   await expect.poll(async () => JSON.parse((await call('terminal_read', { name: 'Once' })).text).terminal.exitCode).toBe(9);
-  expect(fs.readFileSync(path.join(files.project, 'application-starts.txt'), 'utf8')).toBe('start\nstart\n');
+  expect(fs.readFileSync(path.join(files.project, 'terminal-starts.txt'), 'utf8')).toBe('start\nstart\n');
   await call('terminal_close', { name: 'Once' });
 });
 
 test('screen parsing keeps redraws, bounds scrollback, and refuses input into development terminals', async ({ core, files, call }) => {
-  fs.writeFileSync(path.join(files.project, 'application-output.cjs'), `for (let i=0; i<800; i++) console.log('line ' + i); process.stdout.write('old progress\\rnew progress');`);
-  await call('terminal_run', { name: 'Output', command: 'node application-output.cjs' });
+  fs.writeFileSync(path.join(files.project, 'terminal-output.cjs'), `for (let i=0; i<800; i++) console.log('line ' + i); process.stdout.write('old progress\\rnew progress');`);
+  await call('terminal_run', { name: 'Output', command: 'node terminal-output.cjs' });
   const read = async () => JSON.parse((await call('terminal_read', { name: 'Output', scrollback: true, lines: 500 })).text);
   await expect.poll(async () => (await read()).terminal.status).toBe('exited');
   const r = await read();
@@ -169,8 +169,8 @@ test('screen parsing keeps redraws, bounds scrollback, and refuses input into de
 });
 
 test('closing a terminal stops its process and removes its saved configuration and buffers', async ({ core, ui, files, call }) => {
-  fs.writeFileSync(path.join(files.project, 'application-process.cjs'), `console.log('PID ' + process.pid); setInterval(() => {}, 1000);`);
-  await call('terminal_run', { name: 'Process', command: 'node application-process.cjs' });
+  fs.writeFileSync(path.join(files.project, 'terminal-process.cjs'), `console.log('PID ' + process.pid); setInterval(() => {}, 1000);`);
+  await call('terminal_run', { name: 'Process', command: 'node terminal-process.cjs' });
   let pid = 0;
   await expect.poll(async () => { pid = Number(JSON.parse((await call('terminal_read', { name: 'Process' })).text).text.match(/PID (\d+)/)?.[1]); return pid > 0; }).toBe(true);
   await call('terminal_close', { name: 'Process' });
@@ -179,9 +179,9 @@ test('closing a terminal stops its process and removes its saved configuration a
   await expect(ui.getByTestId('stage')).toHaveCount(0);
 });
 
-test('browser and terminal environments share Stage positions and tabs without restarting the application', async ({ core, ui, files, call }) => {
-  fs.writeFileSync(path.join(files.project, 'application-stage.cjs'), tui);
-  await call('terminal_run', { name: 'Alongside browser', command: 'node application-stage.cjs' });
+test('browser and terminal environments share Stage positions and tabs without restarting the CLI', async ({ core, ui, files, call }) => {
+  fs.writeFileSync(path.join(files.project, 'terminal-stage.cjs'), tui);
+  await call('terminal_run', { name: 'Alongside browser', command: 'node terminal-stage.cjs' });
   await call('profile_create', { name: 'Stage.browser' });
   await expect(ui.locator('[data-panel^="profile:"]')).toHaveCount(1);
   await expect.poll(() => core((k) => k.profile('Stage.browser').get().view.getVisible())).toBe(true);
@@ -210,12 +210,12 @@ test('browser and terminal environments share Stage positions and tabs without r
 });
 
 test('input follows terminal modes and large reads become bounded task artifacts', async ({ core, ui, files, call }) => {
-  fs.writeFileSync(path.join(files.project, 'application-keys.cjs'), `
+  fs.writeFileSync(path.join(files.project, 'terminal-keys.cjs'), `
     process.stdin.setRawMode(true); process.stdin.resume();
     process.stdout.write('\\x1b[?1hREADY');
     process.stdin.on('data', d => console.log('key:' + d.toString('hex')));
   `);
-  await call('terminal_run', { name: 'Keys', command: 'node application-keys.cjs' });
+  await call('terminal_run', { name: 'Keys', command: 'node terminal-keys.cjs' });
   const read = async () => JSON.parse((await call('terminal_read', { name: 'Keys' })).text);
   await expect.poll(async () => (await read()).text).toContain('READY');
   await call('terminal_input', { name: 'Keys', key: 'ArrowDown' });
@@ -226,8 +226,8 @@ test('input follows terminal modes and large reads become bounded task artifacts
   await expect.poll(async () => (await read()).text).toContain('key:1b4f51');
   expect((await read()).cursor).toMatchObject({ column: expect.any(Number), row: expect.any(Number) });
   await call('terminal_close', { name: 'Keys' });
-  fs.writeFileSync(path.join(files.project, 'application-large.cjs'), `for(let i=0;i<500;i++) console.log('row ' + i + ': ' + 'x'.repeat(190));`);
-  await call('terminal_run', { name: 'Large', command: 'node application-large.cjs', size: { cols: 220, rows: 24 } });
+  fs.writeFileSync(path.join(files.project, 'terminal-large.cjs'), `for(let i=0;i<500;i++) console.log('row ' + i + ': ' + 'x'.repeat(190));`);
+  await call('terminal_run', { name: 'Large', command: 'node terminal-large.cjs', size: { cols: 220, rows: 24 } });
   await expect.poll(async () => JSON.parse((await call('terminal_read', { name: 'Large' })).text).terminal.status).toBe('exited');
   const result = JSON.parse((await call('terminal_read', { name: 'Large', scrollback: true, lines: 500 })).text);
   expect(result.file).toBeTruthy();
@@ -245,10 +245,10 @@ test('input follows terminal modes and large reads become bounded task artifacts
   await call('terminal_close', { name: 'Large' });
 });
 
-test('deleting a task stops its applications and removes their configuration', async ({ core, ui, files, call }) => {
-  const key = await newTask(core, ui, 'application-cleanup');
-  fs.writeFileSync(path.join(files.project, 'application-cleanup.cjs'), `console.log('PID ' + process.pid); setInterval(() => {}, 1000);`);
-  await call('terminal_run', { name: 'Owned process', command: 'node application-cleanup.cjs' });
+test('deleting a task stops its Stage terminals and removes their configuration', async ({ core, ui, files, call }) => {
+  const key = await newTask(core, ui, 'terminal-cleanup');
+  fs.writeFileSync(path.join(files.project, 'terminal-cleanup.cjs'), `console.log('PID ' + process.pid); setInterval(() => {}, 1000);`);
+  await call('terminal_run', { name: 'Owned process', command: 'node terminal-cleanup.cjs' });
   let pid = 0;
   await expect.poll(async () => { pid = Number(JSON.parse((await call('terminal_read', { name: 'Owned process' })).text).text.match(/PID (\d+)/)?.[1]); return pid > 0; }).toBe(true);
   const config = await core((k) => k.shell.task.store.file('task.json'));
@@ -262,7 +262,7 @@ test('deleting a task stops its applications and removes their configuration', a
 
 test('a background terminal answers device queries and keeps Unicode cursor widths when shown', async ({ core, ui, files, call }) => {
   const first = await core((k) => k.shell.task.key);
-  fs.writeFileSync(path.join(files.project, 'application-query.cjs'), `
+  fs.writeFileSync(path.join(files.project, 'terminal-query.cjs'), `
     process.stdin.setRawMode(true); process.stdin.resume(); let replies = 0, colors = 0;
     process.stdin.on('data', d => {
       const s = d.toString();
@@ -276,7 +276,7 @@ test('a background terminal answers device queries and keeps Unicode cursor widt
     process.stdout.write('\\x1b[5n\\x1b]11;?\\x07');
   `);
   await newTask(core, ui, 'other-task');
-  await call('terminal_run', { name: 'Query', command: 'node application-query.cjs' }, { task: first });
+  await call('terminal_run', { name: 'Query', command: 'node terminal-query.cjs' }, { task: first });
   const read = async () => JSON.parse((await call('terminal_read', { name: 'Query' }, { task: first })).text);
   await expect.poll(async () => (await read()).text).toContain('reply 1');
   await expect.poll(async () => (await read()).text).toContain('color 1');
@@ -288,8 +288,8 @@ test('a background terminal answers device queries and keeps Unicode cursor widt
   await call('terminal_input', { name: 'Query', text: 'finished' });
   await expect.poll(async () => (await read()).terminal.status).toBe('exited');
   expect((await read()).text).toContain('final replies 2, colors 2');
-  fs.writeFileSync(path.join(files.project, 'application-unicode.cjs'), `process.stdout.write('\\x1b[H\\x1b[2J✅⏵✻'); process.stdin.resume();`);
-  await call('terminal_run', { name: 'Query', command: 'node application-unicode.cjs' });
+  fs.writeFileSync(path.join(files.project, 'terminal-unicode.cjs'), `process.stdout.write('\\x1b[H\\x1b[2J✅⏵✻'); process.stdin.resume();`);
+  await call('terminal_run', { name: 'Query', command: 'node terminal-unicode.cjs' });
   await expect.poll(async () => (await read()).text).toContain('✅⏵✻');
   const visible = await ui.locator('[data-stage-terminal]').getAttribute('data-stage-terminal');
   expect(visible).toBeTruthy();
@@ -319,19 +319,19 @@ test('the agent arranges terminal-only environments as vertical stacks, tabs or 
 });
 
 test('run creates or reuses a named terminal and validates before replacing its process', async ({ ui, files, call }) => {
-  fs.writeFileSync(path.join(files.project, 'application-rerun.cjs'), `console.log('PID ' + process.pid + ' ' + process.argv[2]); process.stdin.resume();`);
+  fs.writeFileSync(path.join(files.project, 'terminal-rerun.cjs'), `console.log('PID ' + process.pid + ' ' + process.argv[2]); process.stdin.resume();`);
   await expect(call('terminal_run', { name: 'Rerun', command: '   ' })).rejects.toThrow(/Supply a command/);
-  await expect(call('terminal_run', { name: 'Rerun', command: 'node application-rerun.cjs old', size: { cols: 1, rows: 10 } })).rejects.toThrow(/Terminal size/);
+  await expect(call('terminal_run', { name: 'Rerun', command: 'node terminal-rerun.cjs old', size: { cols: 1, rows: 10 } })).rejects.toThrow(/Terminal size/);
   expect(JSON.parse((await call('terminal_read')).text)).toEqual([]);
-  const first = JSON.parse((await call('terminal_run', { name: 'Rerun', command: 'node application-rerun.cjs old', size: { cols: 64, rows: 12 } })).text);
+  const first = JSON.parse((await call('terminal_run', { name: 'Rerun', command: 'node terminal-rerun.cjs old', size: { cols: 64, rows: 12 } })).text);
   const read = async () => JSON.parse((await call('terminal_read', { name: 'Rerun' })).text);
   await expect.poll(async () => (await read()).text).toMatch(/PID \d+ old/);
   const pid = Number((await read()).text.match(/PID (\d+) old/)![1]);
   await expect(call('terminal_run', { name: 'Rerun', command: '   ' })).rejects.toThrow(/Supply a command/);
-  await expect(call('terminal_run', { name: 'Rerun', command: 'node application-rerun.cjs new', size: { cols: 1, rows: 10 } })).rejects.toThrow(/Terminal size/);
-  expect((await read()).terminal).toMatchObject({ command: 'node application-rerun.cjs old', status: 'running' });
+  await expect(call('terminal_run', { name: 'Rerun', command: 'node terminal-rerun.cjs new', size: { cols: 1, rows: 10 } })).rejects.toThrow(/Terminal size/);
+  expect((await read()).terminal).toMatchObject({ command: 'node terminal-rerun.cjs old', status: 'running' });
   expect((await read()).text).toContain(`PID ${pid} old`);
-  const second = JSON.parse((await call('terminal_run', { name: 'rerun', command: 'node application-rerun.cjs new' })).text);
+  const second = JSON.parse((await call('terminal_run', { name: 'rerun', command: 'node terminal-rerun.cjs new' })).text);
   expect(second).toMatchObject({ id: first.id, size: { cols: 64, rows: 12 } });
   await expect(ui.locator('[data-stage-terminal]')).toHaveCount(1);
   await expect.poll(async () => (await read()).text).toMatch(/PID \d+ new/);

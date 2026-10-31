@@ -45,8 +45,8 @@ function buildServer(task: Task, t: DevelopmentTerminal | null) {
       if (!('error' in found) && task.profiles.has(found.id)) task.environmentUsed(`profile:${found.id}`);
     } else if (name.startsWith('terminal_') && name !== 'terminal_close' && 'name' in args && typeof args.name === 'string') {
       const target = args.name.trim().toLowerCase();
-      const app = task.stageTerminals.info().find((a) => a.name.toLowerCase() === target);
-      if (app) task.environmentUsed(`stage-terminal:${app.id}`);
+      const terminal = task.stageTerminals.info().find((a) => a.name.toLowerCase() === target);
+      if (terminal) task.environmentUsed(`stage-terminal:${terminal.id}`);
     }
   };
   // Every tool call is logged (its name, the task, a summary of its first argument), as the core's actions are.

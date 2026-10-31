@@ -598,7 +598,7 @@ projects/<project id>/            a project's data, by its id (projects.json), g
                                   buffers stay in memory. File and owned environment data go with the task/project.
     artifacts/                    what the human or agent keep of its environments: a snapshot
                                   or a body too large for an answer, a screenshot; <n>-<profile id>-<tab id>-<kind>, n in
-                                  the order made; Stage terminal text: <n>-application-<id>-terminal.txt; never replaced,
+                                  the order made; Stage terminal text: <n>-terminal-<id>-terminal.txt; never replaced,
                                   past 100 MB the oldest go; kept with the task
     <id>/                         its copy of a master, named by the profile's id, made at its first open here: a Chromium profile
                                   (session.fromPath), with Kulisa's own files in it:

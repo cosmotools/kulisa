@@ -280,18 +280,18 @@ class TaskStore {
     if (current !== undefined) { validateTask(current); this.cleanLegacy(); return current; }
     const [agent, developmentTerminals, profiles, stageTerminals, layout] = taskFiles.map((f) => strictJSON(this.file(f)));
     const a = (agent ?? {}) as AgentFile, t = developmentTerminals as TerminalsFile | undefined, p = profiles as TaskProfile[] | undefined;
-    const apps = stageTerminals as { next: number; list: StageTerminalConfig[] } | undefined;
+    const savedStageTerminals = stageTerminals as { next: number; list: StageTerminalConfig[] } | undefined;
     if (agent !== undefined && (!agent || typeof agent !== 'object' || a.conversations !== undefined && !Array.isArray(a.conversations))
       || developmentTerminals !== undefined && (!t || !Array.isArray(t.list)) || profiles !== undefined && !Array.isArray(p)
-      || stageTerminals !== undefined && (!apps || !Array.isArray(apps.list))) throw new Error('Invalid legacy task data');
+      || stageTerminals !== undefined && (!savedStageTerminals || !Array.isArray(savedStageTerminals.list))) throw new Error('Invalid legacy task data');
     const conversations = (a.conversations ?? []).map(({ terminal: _terminal, ...c }) => ({ ...c, id: c.id ?? randomUUID() }));
     const split = splitLayout(layout);
     const d: TaskDocument = {
       version: 2, agents: { ...(a.agent !== undefined && { agent: a.agent }), conversations },
       development: t ? { front: t.front, list: t.list.map(({ conversation, ...rest }) => ({ ...rest,
         ...(conversation !== undefined && { conversation: conversations[conversation]?.id ?? 'invalid-reference' }) })) } : null,
-      stage: { profilesInitialized: p !== undefined, nextTerminalId: apps?.next ?? 1,
-        items: [...(p ?? []).map((config) => ({ ...config, type: 'profile' as const })), ...(apps?.list ?? []).map((config) => ({ ...config, type: 'terminal' as const }))],
+      stage: { profilesInitialized: p !== undefined, nextTerminalId: savedStageTerminals?.next ?? 1,
+        items: [...(p ?? []).map((config) => ({ ...config, type: 'profile' as const })), ...(savedStageTerminals?.list ?? []).map((config) => ({ ...config, type: 'terminal' as const }))],
         view: split?.stageLayout ?? null, overflow: split?.stageOverflow ?? false, layout: split?.stage ?? null },
       workspace: { stagePosition: split?.stagePosition ?? 'above', stageShare: split?.stageShare, developmentLayout: split?.workspace ?? null },
     };

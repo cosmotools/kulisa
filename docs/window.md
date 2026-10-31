@@ -108,7 +108,7 @@ the window. The title bar's **Stage → Open an environment** opens the same env
 A Stage terminal (`grid/StageTerminalPane.tsx`) is the CLI or TUI under test, in its own stage pane. Its name,
 optional launch command and fixed columns/rows are saved per task; every terminal starts a fresh shell when its task loads; saved app commands run through Run app. The pane’s Find… context-menu action and Ctrl+Shift+F (⌘+Shift+F on macOS) open an inline search bar; xterm’s search addon selects matches in retained output, with Enter/Shift+Enter navigation and Escape returning focus to the terminal. Search keys stay in the window. Runtime session kind records whether Kulisa launched a shell or app, independently of changes to the saved command. The header holds its status, Start, Run app, Restart app, Restart shell or Run again, Maximize/Restore, a **⋯** menu and Close;
 the terminal fills the pane below it. Opening a terminal starts the user’s shell in the task folder.
-A blank launch command starts a shell; a supplied command runs as the application session and keeps its final screen on exit. **Settings…** in the menu opens `StageTerminalSettings.tsx` for the saved name,
+A blank launch command starts a shell; a supplied command runs as the app session and keeps its final screen on exit. **Settings…** in the menu opens `StageTerminalSettings.tsx` for the saved name,
 command and dimensions; empty dimensions fit the pane.
 The task’s `StageTerminals` actions (`main/stage-terminals.ts`) serve the window and agent.
 Its host contract supplies a terminal key, saved setup, availability, current launch context, persistence and window
@@ -138,10 +138,10 @@ existing keyboard focus.
 
 The human types and pastes in the same PTY the agent operates. Screen reads flush xterm's parser and return the
 current normal or alternate screen; scrollback reads are limited to 500 lines. Reads over 40,000 characters go to
-bounded task artifacts with a short preview; Resources identifies their application source. Fixed dimensions are 2–500 columns
+bounded task artifacts with a short preview; Resources identifies their terminal source. Fixed dimensions are 2–500 columns
 and 2–200 rows; Auto follows the pane. Stage terminal sizes are independent of development terminals. The shared
 terminal Kulisa package owns the PTY, headless parser and visible View ([README](../src/terminal/README.md)); each
-visible application uses WebGL with DOM fallback when WebGL is unavailable or its context is lost. Hidden environments keep their
+visible terminal uses WebGL with DOM fallback when WebGL is unavailable or its context is lost. Hidden environments keep their
 process and bounded buffers. Shells share home directories, credentials and settings: these are execution places,
 not separate identities. Real-account sign-in stays the human's.
 
