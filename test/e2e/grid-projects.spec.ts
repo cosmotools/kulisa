@@ -183,7 +183,7 @@ test('projects: another folder opens in a tab of its own, with its own profiles 
   await closeProject(ui, files, 'project');
   await expect.poll(() => core((k, a) => k.shell.current?.folder === a.other && !k.shell.open.has(a.id), { other, id: ids.project })).toBe(true);
   await expect(ui.getByRole('alertdialog'), 'nothing asked').toHaveCount(0);
-  expect(await core((k, id) => ({ closed: k.shell.store.tasksOf({ id } as any).list.every((e) => e.closed),
+  expect(await core((k, id) => ({ closed: k.shell.store.tasksOf({ id } as any).list.every((e) => e.closedAt !== undefined),
     tabs: k.stash.grid.sam.tabs.every((t: any) => t.wc.isDestroyed()) }), ids.project)).toEqual({ closed: true, tabs: true }); // its tasks closed; the closed project's tabs are closed
   expect(await tabProjects(ui, files)).toEqual(['other *']);
   // Opened again from the sidebar, on its task: the conversation goes on, the profiles signed in.

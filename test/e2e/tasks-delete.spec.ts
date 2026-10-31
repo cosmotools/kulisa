@@ -122,7 +122,7 @@ test("tasks: a closed task whose PR is merged on the remote is marked in its gro
   git(folders[0].folder, 'push', '-q', 'origin', `${folders[0].branch}:main`);
   fs.writeFileSync(path.join(folders[1].folder, 'c.txt'), 'c'); git(folders[1].folder, 'add', '-A'); git(folders[1].folder, 'commit', '-qm', 'c');
   await taskTab(ui, first).getByRole('button', { name: 'Close' }).click();
-  await expect.poll(() => core((k, key) => { const t = k.shell.taskByKey(key); return !!t.entry.closed && !!t.entry.merged; }, first), { timeout: 10000 }).toBe(true); // a fetch from the remote
+  await expect.poll(() => core((k, key) => { const t = k.shell.taskByKey(key); return t.entry.closedAt !== undefined && !!t.entry.merged; }, first), { timeout: 10000 }).toBe(true); // a fetch from the remote
   await choose(ui, 'Delete Merged Tasks…', await projectMenu(ui));
   expect((await answer(ui)).message).toBe('Delete the task task-1?');
   await expect.poll(async () => !(await core((k, key) => k.shell.current.tasks.has(key.split('/')[1]), first)) && !fs.existsSync(folders[0].folder)).toBe(true);

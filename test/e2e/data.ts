@@ -19,7 +19,7 @@ export function data(root: string) {
     return found[0].id;
   };
   // A project's tasks as tasks.json keeps them.
-  const tasksOf = (id: string): { id: string; name: string; named?: boolean; closed?: boolean; closedAt?: number }[] => json('projects', id, 'tasks.json').list;
+  const tasksOf = (id: string): { id: string; name: string; named?: boolean; closedAt?: number }[] => json('projects', id, 'tasks.json').list;
   // A task's id by its place (from 1) among its project's tasks, as made; its key (`<project>/<task>`, as the core
   // knows it).
   const tid = (folder: string, i: number) => {

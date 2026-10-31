@@ -68,7 +68,7 @@ export const reportSession = (core: Core, task: string, id: string, transcript: 
 export async function showTask(core: Core, ui: Page, key: string) {
   const [id, task] = key.split('/');
   if (await core((k, t) => k.shell.task?.key !== t, key)) {
-    if (await core((k, t) => { const x = k.shell.taskByKey(t); return !!x?.loaded && !x.entry.closed; }, key)) await invoke(ui, 'task:show', key);
+    if (await core((k, t) => { const x = k.shell.taskByKey(t); return !!x?.loaded && x.entry.closedAt === undefined; }, key)) await invoke(ui, 'task:show', key);
     else await invoke(ui, 'project:open', { id, task });
   }
   await taskShown(core, key);

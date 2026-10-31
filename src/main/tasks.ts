@@ -787,7 +787,7 @@ class Task {
 
   info(): Sent.TaskInfo {
     const { id, key, displayName: name, tabState: state, folder } = this;
-    return { id, key, project: this.project.id, name, state, folder, branch: this.branch, closed: !!this.entry.closed, merged: !!this.entry.merged,
+    return { id, key, project: this.project.id, name, state, folder, branch: this.branch, closed: this.entry.closedAt !== undefined, merged: !!this.entry.merged,
       repos: this.addable(), resources: this.resources() };
   }
   // Its resources as the Resources panel (Resources.tsx) shows them: the first, where it works, is not removed there

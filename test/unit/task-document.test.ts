@@ -34,7 +34,7 @@ test('task migration preserves history, setup and stable links, removes legacy f
     assert.equal(f.task.applications().next, 10);
     for (const name of ['agent', 'terminals', 'profiles', 'applications', 'layout']) assert.equal(fs.existsSync(f.task.file(name+'.json')), false);
     f.task.saveProfiles([]);
-    assert.deepEqual(f.task.applications().list, d.stage.items.filter((i: { type: string }) => i.type === 'terminal').map((i: { config: unknown }) => i.config));
+    assert.deepEqual(f.task.applications().list, d.stage.items.filter((i: { type: string }) => i.type === 'terminal').map(({ type: _type, ...config }: { type: string; [key: string]: unknown }) => config));
     f.task.saveApplications({ next: 11, list: [] });
     assert.equal(f.task.agent().conversations[0].id, id);
     f.task.saveTerminals({ front: null, list: [] });
@@ -77,5 +77,41 @@ test('malformed source and failed atomic migration preserve original data', () =
     f.write('task.json', { version: 99 });
     assert.throws(() => f.task.agent(), /Invalid task/);
     assert.equal(fs.existsSync(f.task.file('agent.json')), true);
+  } finally { f.close(); }
+});
+
+
+test('version 1 task documents upgrade flat Stage items without changing IDs, layout or history', () => {
+  const f = fixture();
+  try {
+    f.task.saveProfiles([{ id: 'browser', closed: true }]);
+    f.task.saveApplications({ next: 8, list: [{ id: 7, name: 'CLI', command: 'node cli.js', size: null }] });
+    const current = f.read();
+    const { profilesInitialized, items, ...stage } = current.stage;
+    f.write('task.json', { ...current, version: 1, stage: { ...stage, initialized: profilesInitialized,
+      items: items.map(({ type, ...config }: { type: string; [key: string]: unknown }) => ({ type, config })) } });
+    assert.equal(f.task.profiles()[0].id, 'browser');
+    assert.deepEqual(f.read(), current);
+    f.write('agent.json', { agent: 'stale' });
+    f.task.agent();
+    assert.equal(fs.existsSync(f.task.file('agent.json')), true, 'cleanup is done once by this store');
+    f.store.taskOf({ id: 'project' }, 'task').agent();
+    assert.equal(fs.existsSync(f.task.file('agent.json')), false, 'reopening cleans leftover legacy data');
+  } finally { f.close(); }
+});
+
+test('task index migrates closure into one timestamp, preserving open tasks and unknown closing times', () => {
+  const f = fixture();
+  try {
+    const file = path.join(f.task.dir, '..', 'tasks.json');
+    fs.writeFileSync(file, JSON.stringify({ list: [
+      { id: 'open', name: 'Open', closed: false },
+      { id: 'closed', name: 'Closed', closed: true, closedAt: 123, merged: true },
+      { id: 'unknown', name: 'Unknown', closed: true },
+    ] }));
+    const expected = { list: [{ id: 'open', name: 'Open' }, { id: 'closed', name: 'Closed', merged: true, closedAt: 123 }, { id: 'unknown', name: 'Unknown', closedAt: 0 }] };
+    assert.deepEqual(f.store.tasksOf({ id: 'project' }), expected);
+    assert.deepEqual(JSON.parse(fs.readFileSync(file, 'utf8')), expected);
+    assert.deepEqual(f.store.tasksOf({ id: 'project' }), expected);
   } finally { f.close(); }
 });

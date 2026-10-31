@@ -67,7 +67,7 @@ export function registerTasks(ipc: Ipc) {
   // 🗑 on a closed task's row (the sidebar): its project need not be loaded.
   handle('task:delete-closed', (e, { project, id }) => serial(async () => {
     const open = shell.open.get(project)?.tasks.get(id);
-    if (open) return open.entry.closed ? deleteTask(open) : { error: `task ${id} is open` };
+    if (open) return open.entry.closedAt !== undefined ? deleteTask(open) : { error: `task ${id} is open` };
     const p = store.projects().find((x) => x.id === project);
     if (!p) return { error: 'no such project' };
     const r = await deleteClosedTask(shell, p, id, at(e)!);

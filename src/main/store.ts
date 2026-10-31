@@ -11,7 +11,7 @@
 //                            "github.com/acme/shop" -> an account's id, src/github). What a project is made of is said
 //                            here alone
 //   projects/<id>/
-//     tasks.json             the project's tasks: { list: [{ id, name, named, resources, closed, closedAt,
+//     tasks.json             the project's tasks: { list: [{ id, name, named, resources, closedAt,
 //                            merged }] }; name "New Task" and named unset until the agent or the human names it;
 //                            resources what it has (TaskEntry), the first where it works
 //     <task id>/             a task (TaskStore): task.json owns conversation metadata, development tabs,
@@ -72,7 +72,7 @@ type Resource = { kind: 'maintree'; folder: string } | ({ kind: 'worktree' } & C
 // A task in its project's tasks.json. Where it works, its branch and its folder of copies are its resources'.
 interface TaskEntry {
   id: string; name: string; named?: boolean; resources?: Resource[];
-  closed?: boolean; closedAt?: number; merged?: boolean;
+  closedAt?: number; merged?: boolean;
 }
 type Worktree = Extract<Resource, { kind: 'worktree' }>;
 const worktreesOf = (e: TaskEntry) => (e.resources || []).filter((r): r is Worktree => r.kind === 'worktree');
@@ -155,7 +155,14 @@ class Store {
 
   // A project's tasks (tasks.json) and each one's data.
   tasksOf(p: { id: string }): TasksFile {
-    return readJSON(path.join(this.dir, 'projects', p.id, 'tasks.json')) || { list: [] };
+    const file = path.join(this.dir, 'projects', p.id, 'tasks.json');
+    const tasks = (readJSON(file) || { list: [] }) as { list: (TaskEntry & { closed?: boolean })[] };
+    if (tasks.list.some((e) => 'closed' in e)) {
+      tasks.list = tasks.list.map(({ closed, closedAt, ...entry }) => ({ ...entry,
+        ...((closed === true || closed === undefined && closedAt !== undefined) && { closedAt: closedAt ?? 0 }) }));
+      writeFileAtomic(file, JSON.stringify(tasks, null, 2));
+    }
+    return tasks;
   }
   saveTasksOf(p: { id: string }, w: TasksFile) { writeJSON(path.join(this.dirOf(p), 'tasks.json'), w); }
   // A task's data folder; taskOf makes it, taskDir only names it (an id still to be found free: Project.createTask).
@@ -195,10 +202,10 @@ class Store {
 
 // One task's data: its profiles (each a folder, named by its id), grid and agent session.
 interface TaskDocument {
-  version: 1;
+  version: 2;
   agents: { agent?: string | null; conversations: (Conversation & { id: string })[] };
   development: { front?: number | null; list: (Omit<SavedTerminal, 'conversation'> & { conversation?: string })[] } | null;
-  stage: { initialized: boolean; items: ({ type: 'profile'; config: TaskProfile } | { type: 'terminal'; config: ApplicationConfig })[];
+  stage: { profilesInitialized: boolean; items: (({ type: 'profile' } & TaskProfile) | ({ type: 'terminal' } & ApplicationConfig))[];
     nextTerminalId: number; view: TaskLayout['stageLayout']; overflow: boolean; layout: TaskLayout['stage'] };
   workspace: { stagePosition: TaskLayout['stagePosition']; stageShare?: number; developmentLayout: TaskLayout['workspace'] | null };
 }
@@ -209,8 +216,8 @@ function strictJSON(file: string): unknown {
 }
 function validateTask(value: unknown): asserts value is TaskDocument {
   const d = value as TaskDocument;
-  if (!d || d.version !== 1 || !Array.isArray(d.agents?.conversations) || !Array.isArray(d.stage?.items)
-    || typeof d.stage.initialized !== 'boolean' || !Number.isSafeInteger(d.stage.nextTerminalId) || d.stage.nextTerminalId < 1
+  if (!d || d.version !== 2 || !Array.isArray(d.agents?.conversations) || !Array.isArray(d.stage?.items)
+    || typeof d.stage.profilesInitialized !== 'boolean' || !Number.isSafeInteger(d.stage.nextTerminalId) || d.stage.nextTerminalId < 1
     || !d.workspace || d.development !== null && !Array.isArray(d.development?.list)) throw new Error('Invalid task.json format');
   const ids = new Set<string>();
   for (const c of d.agents.conversations) {
@@ -221,11 +228,11 @@ function validateTask(value: unknown): asserts value is TaskDocument {
   if (new Set(d.development?.list.map((t) => t.id)).size !== (d.development?.list.length ?? 0)) throw new Error('Duplicate development terminal');
   const environments = new Set<string>();
   for (const item of d.stage.items) {
-    const c = item?.config, key = `${item?.type}:${c?.id}`;
+    const c = item, key = `${item?.type}:${c?.id}`;
     if (!c || environments.has(key) || (item.type === 'profile' ? typeof c.id !== 'string'
-      : item.type !== 'terminal' || !Number.isSafeInteger(c.id) || typeof item.config.name !== 'string' || typeof item.config.command !== 'string')) throw new Error('Invalid Stage environment');
-    if (item.type === 'terminal' && (item.config.id < 1 || labelError(item.config.name) || item.config.command.length > 8192 || item.config.size && !validTerminalSize(item.config.size))) throw new Error('Invalid Stage terminal setup');
-    if (item.type === 'profile' && (!item.config.id || item.config.closed !== undefined && typeof item.config.closed !== 'boolean')) throw new Error('Invalid Stage profile');
+      : item.type !== 'terminal' || !Number.isSafeInteger(c.id) || typeof item.name !== 'string' || typeof item.command !== 'string')) throw new Error('Invalid Stage environment');
+    if (item.type === 'terminal' && (item.id < 1 || labelError(item.name) || item.command.length > 8192 || item.size && !validTerminalSize(item.size))) throw new Error('Invalid Stage terminal setup');
+    if (item.type === 'profile' && (!item.id || item.closed !== undefined && typeof item.closed !== 'boolean')) throw new Error('Invalid Stage profile');
     environments.add(key);
   }
 }
@@ -239,9 +246,9 @@ class TaskStore {
   get artifacts() { return path.join(this.dir, ARTIFACTS); }
   // What the task has of its project's profiles (project-profiles.ts): [{ id, zoom, closed }] (who a profile is:
   // profile-store.ts); null before the task first loads.
-  profiles(): TaskProfile[] | null { const s = this.document().stage; return s.initialized ? s.items.filter((i) => i.type === 'profile').map((i) => i.config) : null; }
+  profiles(): TaskProfile[] | null { const s = this.document().stage; return s.profilesInitialized ? s.items.filter((i) => i.type === 'profile').map(({ type: _type, ...config }) => config) : null; }
   saveProfiles(list: TaskProfile[]) {
-    this.update((d) => { d.stage.initialized = true; d.stage.items = [...d.stage.items.filter((i) => i.type !== 'profile'), ...list.map((config) => ({ type: 'profile' as const, config }))]; });
+    this.update((d) => { d.stage.profilesInitialized = true; d.stage.items = [...d.stage.items.filter((i) => i.type !== 'profile'), ...list.map((config) => ({ ...config, type: 'profile' as const }))]; });
   }
   // A profile's tabs, in its own folder.
   tabs(id: string): SavedTabs { return readTabs(this.profileDir(id)); }
@@ -262,7 +269,14 @@ class TaskStore {
     removeTree(this.profileDir(id));
   }
   private document(): TaskDocument {
-    const current = strictJSON(this.file('task.json'));
+    let current = strictJSON(this.file('task.json'));
+    if ((current as { version?: number } | null)?.version === 1) {
+      const old = current as { stage: { initialized: boolean; items: { type: 'profile' | 'terminal'; config: TaskProfile | ApplicationConfig }[] } };
+      const { initialized, items, ...stage } = old.stage;
+      current = { ...old, version: 2, stage: { ...stage, profilesInitialized: initialized,
+        items: items.map(({ type, config }) => ({ ...config, type })) } };
+      this.writeDocument(current as TaskDocument);
+    }
     if (current !== undefined) { validateTask(current); this.cleanLegacy(); return current; }
     const [agent, terminals, profiles, applications, layout] = taskFiles.map((f) => strictJSON(this.file(f)));
     const a = (agent ?? {}) as AgentFile, t = terminals as TerminalsFile | undefined, p = profiles as TaskProfile[] | undefined;
@@ -273,11 +287,11 @@ class TaskStore {
     const conversations = (a.conversations ?? []).map(({ terminal: _terminal, ...c }) => ({ ...c, id: c.id ?? randomUUID() }));
     const split = splitLayout(layout);
     const d: TaskDocument = {
-      version: 1, agents: { ...(a.agent !== undefined && { agent: a.agent }), conversations },
+      version: 2, agents: { ...(a.agent !== undefined && { agent: a.agent }), conversations },
       development: t ? { front: t.front, list: t.list.map(({ conversation, ...rest }) => ({ ...rest,
         ...(conversation !== undefined && { conversation: conversations[conversation]?.id ?? 'invalid-reference' }) })) } : null,
-      stage: { initialized: p !== undefined, nextTerminalId: apps?.next ?? 1,
-        items: [...(p ?? []).map((config) => ({ type: 'profile' as const, config })), ...(apps?.list ?? []).map((config) => ({ type: 'terminal' as const, config }))],
+      stage: { profilesInitialized: p !== undefined, nextTerminalId: apps?.next ?? 1,
+        items: [...(p ?? []).map((config) => ({ ...config, type: 'profile' as const })), ...(apps?.list ?? []).map((config) => ({ ...config, type: 'terminal' as const }))],
         view: split?.stageLayout ?? null, overflow: split?.stageOverflow ?? false, layout: split?.stage ?? null },
       workspace: { stagePosition: split?.stagePosition ?? 'above', stageShare: split?.stageShare, developmentLayout: split?.workspace ?? null },
     };
@@ -286,7 +300,12 @@ class TaskStore {
     log.info('[store] task data initialized');
     return d;
   }
-  private cleanLegacy() { for (const f of taskFiles) fs.rmSync(this.file(f), { force: true }); }
+  private legacyCleaned = false;
+  private cleanLegacy() {
+    if (this.legacyCleaned) return;
+    for (const f of taskFiles) fs.rmSync(this.file(f), { force: true });
+    this.legacyCleaned = true;
+  }
   private writeDocument(d: TaskDocument) {
     validateTask(d);
     writeFileAtomic(this.file('task.json'), JSON.stringify(d, null, 2));
@@ -295,10 +314,10 @@ class TaskStore {
   private update(change: (d: TaskDocument) => void) { const d = this.document(); change(d); this.writeDocument(d); }
   applications(): { next: number; list: ApplicationConfig[] } {
     const s = this.document().stage;
-    return { next: s.nextTerminalId, list: s.items.filter((i) => i.type === 'terminal').map((i) => i.config) };
+    return { next: s.nextTerminalId, list: s.items.filter((i) => i.type === 'terminal').map(({ type: _type, ...config }) => config) };
   }
   saveApplications(a: { next: number; list: ApplicationConfig[] }) {
-    this.update((d) => { d.stage.nextTerminalId = a.next; d.stage.items = [...d.stage.items.filter((i) => i.type !== 'terminal'), ...a.list.map((config) => ({ type: 'terminal' as const, config }))]; });
+    this.update((d) => { d.stage.nextTerminalId = a.next; d.stage.items = [...d.stage.items.filter((i) => i.type !== 'terminal'), ...a.list.map((config) => ({ ...config, type: 'terminal' as const }))]; });
   }
   layout(): unknown {
     const d = this.document();

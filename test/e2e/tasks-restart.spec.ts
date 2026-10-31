@@ -26,13 +26,13 @@ test('after a restart: the other task waits in the bar with its tabs, loads when
   // A third task, closed.
   const third = await newTask(core, ui, undefined, pid);
   await invoke(ui, 'task:close', third);
-  await expect.poll(() => core((k, key) => !!k.shell.store.tasksOf({ id: key.split('/')[0] }).list.find((e) => key.endsWith(`/${e.id}`))?.closed, third)).toBe(true);
+  await expect.poll(() => core((k, key) => k.shell.store.tasksOf({ id: key.split('/')[0] }).list.find((e) => key.endsWith(`/${e.id}`))?.closedAt !== undefined, third)).toBe(true);
   await showTask(core, ui, first);
   await notLoading(ui);
 
   const ui2 = await restart();
   await expect(ui2.locator(`#taskTabs [data-project="${pid}"]`)).toHaveText(['task-1', 'Feature-X']);
-  expect(await core((k, id) => [...k.shell.taskByKey(id).project.tasks.values()][2].entry.closed, first)).toBe(true);
+  expect(await core((k, id) => [...k.shell.taskByKey(id).project.tasks.values()][2].entry.closedAt !== undefined, first)).toBe(true);
   expect(await core((k, key) => k.shell.taskByKey(key).loaded, second)).toBe(false);
   // Left loaded in the background: its tabs saved as Kulisa quit, not again as they closed (none left at last).
   const secondDir = path.join(files.userData, 'projects', pid, files.tid('project', 2));

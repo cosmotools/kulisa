@@ -46,7 +46,7 @@ export function openTasks(shell: Shell, { appDevTools }: { appDevTools: boolean 
       unloadIdle();
       return r;
     }
-    if (task.entry.closed) project.reopen(task);
+    if (task.entry.closedAt !== undefined) project.reopen(task);
     if (!task.window) w.add(task);
     await showTask(task);
     sendProjects();

@@ -229,7 +229,7 @@ function start(options: Options = {}) {
   };
   // And its tasks (the sidebar lists them: components/Sidebar.tsx): those open, as made, then the closed ones, the one closed last first.
   const tasksOf = (p: ProjectEntry) => {
-    const list = store.tasksOf(p).list.map((e) => ({ id: e.id, name: e.name, branch: branchOf(e), closed: !!e.closed, closedAt: e.closedAt, merged: !!e.merged }));
+    const list = store.tasksOf(p).list.map((e) => ({ id: e.id, name: e.name, branch: branchOf(e), closed: e.closedAt !== undefined, closedAt: e.closedAt, merged: !!e.merged }));
     return [...list.filter((t) => !t.closed), ...list.filter((t) => t.closed).sort((a, b) => (b.closedAt || 0) - (a.closedAt || 0))];
   };
   shell.projects = () => store.projects().map((p) => {
@@ -358,12 +358,12 @@ function start(options: Options = {}) {
     const projectOf = (key: string) => { const p = store.projects().find((x) => key.startsWith(`${x.id}/`)); return p && loadProject(p); };
     const windows = saved.map((s) => {
       const w = newWindow(s);
-      for (const key of s.tabs) { const task = projectOf(key)?.taskByKey(key); if (task && !task.entry.closed && !task.window) w.add(task); }
+      for (const key of s.tabs) { const task = projectOf(key)?.taskByKey(key); if (task && task.entry.closedAt === undefined && !task.window) w.add(task); }
       return { w, shown: (s.shown && w.tabs.find((t) => t.key === s.shown)) || w.tabs[0] || null };
     });
     if (!windows.length) windows.push({ w: newWindow({}), shown: null });
     for (const p of store.projects()) {
-      const open = store.tasksOf(p).list.filter((t) => !t.closed);
+      const open = store.tasksOf(p).list.filter((t) => t.closedAt === undefined);
       if (open.length) for (const task of loadProject(p).open()) if (!task.window) windows[0]!.w.add(task);
     }
     unloadIdle();

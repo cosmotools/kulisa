@@ -195,13 +195,13 @@ test("projects: Delete Project… (in Settings alone) asks, closes the project w
   await choose(ui, 'Close All Tasks', await projectMenu(ui, projectTabSel(files, 'project')));
   await expect.poll(() => core((k) => k.shell.task === null && k.shell.open.size === 0)).toBe(true);
   await expect(ui.locator('html')).toHaveAttribute('data-page', /^(sidebar|welcome)$/);
-  expect(await core((k, i) => k.shell.store.tasksOf({ id: i }).list.every((e) => e.closed), files.pid('project')), 'its tasks closed').toBe(true);
+  expect(await core((k, i) => k.shell.store.tasksOf({ id: i }).list.every((e) => e.closedAt !== undefined), files.pid('project')), 'its tasks closed').toBe(true);
 
   // A closed task opened again from the sidebar (the empty window's), a tab at the end; another from it over the grid after.
   const first = files.tkey('project', 1);
   await taskRow(ui, 'project', 'task-1').click();
   await taskShown(core, first);
-  expect(await core((k) => !k.shell.task.entry.closed), 'open again').toBe(true);
+  expect(await core((k) => !k.shell.task.entry.closedAt !== undefined), 'open again').toBe(true);
   await notLoading(ui);
   await fromSidebar(ui, 'project', 'Feature-X');
   await expect.poll(() => core((k) => k.shell.task?.name === 'Feature-X' && k.settled(true))).toBe(true);

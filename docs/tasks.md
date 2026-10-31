@@ -583,13 +583,13 @@ Crashpad/                         Electron's crash dumps (crashReporter, no serv
                                   after a crash; Crashpad prunes them itself (90 days, 128 MB)
 deleted-folders.json              folders to remove at the next start (a session keeps its files open)
 projects/<project id>/            a project's data, by its id (projects.json), gone with the project
-  tasks.json                      { next, list: [{ n, name, named, resources, closed, closedAt, merged }] }; name "New
+  tasks.json                      { list: [{ id, name, named, resources, closedAt, merged }] }; name "New
                                   Task" and named unset until it is named; resources what it has, the first where it
                                   works: { kind: "maintree", folder } (the project's folder it opened in) until its own
                                   { kind: "worktree", repo, worktree, branch, base, folder } takes its place, then the
                                   worktrees of repositories it added; base: the commit a worktree started from. Its
                                   folder, branch and folder of copies are its resources' (store.ts)
-  1/, 2/ …                        a task
+  <task id>/                      a task
     task.json                     versioned task state, owned by TaskStore: agents (initial choice and conversation
                                   metadata with stable IDs), development (open tabs and active tab), stage (profile
                                   settings, CLI launch setup, next terminal ID, view and Dockview layout), workspace
@@ -784,3 +784,8 @@ profiles/development separately from deliberately empty collections. Legacy task
 `task.json` is absent; a verified document is authoritative, and leftover source files are cleaned on reopening.
 Malformed source data stops migration with an error and retains the source files. Browser storage, profile tabs,
 transcripts and artifacts keep their own formats and owners.
+
+Task indexes use `closedAt` as the closed-state marker; absence means open, and zero means a closed task whose
+closing time is unknown. Task documents use format version 2, flat Stage items and `profilesInitialized` to preserve
+first-load behavior independently of terminal environments. Each TaskStore cleans legacy files once, after the
+current document is validated; a new store retries cleanup left incomplete by an error.
