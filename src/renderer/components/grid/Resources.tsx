@@ -1,6 +1,6 @@
 // The Resources panel of the grid (docs/tasks.md, The Resources panel).
 import { useEffect, useMemo, useState } from 'react';
-import { ChevronRightIcon, FileIcon, FilesIcon, FolderIcon, FolderTreeIcon, GripVerticalIcon, GitBranchIcon, TerminalSquareIcon, Trash2Icon } from 'lucide-react';
+import { ChevronRightIcon, FileIcon, FilesIcon, FolderIcon, FolderTreeIcon, GripVerticalIcon, GitBranchIcon, GitCompareArrowsIcon, TerminalSquareIcon, Trash2Icon } from 'lucide-react';
 import type { IDockviewPanelProps } from 'dockview-react';
 import { useShallow } from 'zustand/react/shallow';
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupAction, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuAction,
@@ -14,8 +14,9 @@ import { startResourceDrag, selectResource, type ResourceParams } from '../../li
 import { sizeText } from '../../../shared/bytes';
 import { Dictation } from '../../../dictation/renderer';
 import { useShortcuts } from '../../lib/common';
-import { showDevelopmentTerminal } from '../../lib/development-terminals';
+import { focusDevelopmentTerminal, showDevelopmentTerminal } from '../../lib/development-terminals';
 import { DevelopmentTerminalList } from './DevelopmentTerminalList';
+import { TaskDiffTree } from '../Diff';
 
 const language = new Intl.DisplayNames(['en'], { type: 'language' });
 const KINDS: Record<string, string> = { screenshot: 'Screenshot', snapshot: 'Snapshot', request: 'Request body', response: 'Response body', terminal: 'Terminal screen' };
@@ -42,9 +43,12 @@ export function Resources({ api, params, containerApi }: IDockviewPanelProps<Res
   }, [api, containerApi]);
   return <aside id="resources" aria-label="The task's resources" data-bar-side={barSide} className="flex h-full min-h-0 min-w-0 data-[bar-side=right]:flex-row-reverse">
     <nav aria-label="Resources" className={`flex w-10 shrink-0 flex-col items-center gap-1 py-2 ${barSide === 'right' ? 'border-l' : 'border-r'}`}>
-      {([['terminals', 'Agents', TerminalSquareIcon], ['project', 'Project', FolderTreeIcon], ['artifacts', 'Artifacts', FilesIcon]] as const).map(([value, label, Icon]) =>
+      {([['terminals', 'Agents', TerminalSquareIcon], ['project', 'Project', FolderTreeIcon], ['diff', 'Diff', GitCompareArrowsIcon], ['artifacts', 'Artifacts', FilesIcon]] as const).map(([value, label, Icon]) =>
         <Button key={value} variant="ghost" size="icon-sm" aria-label={label} title={label}
-          aria-expanded={section === value} aria-controls="resource-content" onClick={() => selectResource(api, params, value)}><Icon /></Button>)}
+          aria-expanded={section === value} aria-controls="resource-content" onClick={() => {
+            selectResource(api, params, value);
+            if (value === 'terminals') focusDevelopmentTerminal();
+          }}><Icon /></Button>)}
       <div className="mt-auto flex flex-col items-center gap-1">
         <Dictation task={key ?? null} keyName={hold} language={lang ? language.of(lang) ?? '' : ''}
           onDone={() => { if (front !== null) void showDevelopmentTerminal(front); }} />
@@ -54,7 +58,7 @@ export function Resources({ api, params, containerApi }: IDockviewPanelProps<Res
         </div>
       </div>
     </nav>
-    {section && key && <div id="resource-content" role="region" aria-label={section === 'project' ? 'Project' : section === 'artifacts' ? 'Artifacts' : 'Agents'} className="min-h-0 min-w-0 flex-1">
+    {section && key && <div id="resource-content" role="region" aria-label={section === 'project' ? 'Project' : section === 'artifacts' ? 'Artifacts' : section === 'diff' ? 'Diff' : 'Agents'} className="min-h-0 min-w-0 flex-1">
       <TaskResources key={key} taskKey={key} section={section} />
     </div>}
   </aside>;
@@ -91,15 +95,16 @@ function TaskResources({ taskKey: key, section }: { taskKey: string; section: No
   return <SidebarProvider className="h-full min-h-0">
       <Sidebar collapsible="none" className="h-full w-full">
         {section === 'terminals' && <DevelopmentTerminalList />}
+        {section === 'diff' && <TaskDiffTree task={key} roots={task.resources} />}
         {section === 'project' && <div className="h-full overflow-auto"><SidebarContent>
           <SidebarGroup><SidebarGroupContent>
             <SidebarMenu aria-label="Folders">
               {task.resources.map((r) => <SidebarMenuItem key={r.folder}><RightClickMenu items={() => [{ label: 'Open Folder', run: () => open(r.folder) }, ...(r.removable ? [{ label: 'Remove Repository', run: () => remove(r.folder) }] : [])]}><Collapsible defaultOpen>
-                <CollapsibleTrigger asChild><Button variant="ghost" aria-label={r.label} title={r.folder} className="h-auto w-full justify-start" onDoubleClick={() => void open(r.folder)}>
+                <div className="not-hover:[--muted:transparent]"><CollapsibleTrigger asChild><Button variant="ghost" aria-label={r.label} title={r.folder} className="h-auto w-full justify-start" onDoubleClick={() => void open(r.folder)}>
                   <ChevronRightIcon className="group-aria-expanded/button:rotate-90" />
                   {r.kind === 'maintree' ? <FolderIcon /> : <GitBranchIcon />}
                   {lines(r.label, r.branch ? `branch ${r.branch}` : 'main working tree')}
-                </Button></CollapsibleTrigger>
+                </Button></CollapsibleTrigger></div>
                 {r.removable && <SidebarMenuAction showOnHover aria-label="Remove Repository" title="Remove Repository" onClick={() => void remove(r.folder)}>
                   <Trash2Icon /></SidebarMenuAction>}
                 <CollapsibleContent><div className="ms-4"><ProjectDirectory actions={explorer} folder={r.folder} /></div></CollapsibleContent>

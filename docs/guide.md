@@ -84,14 +84,46 @@ project, and those you closed, are in the sidebar (Tasks, below).
   Follow agent is shared by all tasks and windows and remembered when you restart Kulisa. Manual pauses are temporary.
   Each task keeps both layouts, its stage position, size, view and overflow setting. The empty stage stays hidden; you or your agent can open a
   environment when needed through **Stage → Open an environment**.
-- **Resources panel**, to the left of the terminal by default: choose the **Agents**, **Project** or **Artifacts** section
+- **Resources panel**, to the left of the terminal by default: choose the **Agents**, **Project**, **Diff** or **Artifacts** section
   from the **Resources bar**, the icons on its left. The area on the right is **Resources content**.
   Click the selected icon again to close Resources content and give the terminal more room; the Resources bar stays visible, with no resize divider beside it.
   Click any section icon to reopen Resources content at its previous size.
+  **Diff** shows changed files as a folder tree, grouped by repository, with their status and added or removed line
+  counts. GitHub-style status icons mark added files in green and deleted files in red, with distinct modified and
+  renamed markers and aligned folder and file rows. Diff and Project share the Resources palette;
+  expanded folders keep a plain background, and pointing at a row highlights it.
+  **Diff** and **Agents** switch the development area between the review and your terminal.
+  Returning to Diff keeps your repository, comparison, filter and selected file.
+  Opening Diff reads the current files from your computer. The tree appears as soon as the file list is ready,
+  while the review content loads separately. Diff refreshes while the review is open.
+  A task with one repository shows From/To and the tree directly; tasks with several repositories show a
+  collapsible heading for each. Opening Diff shows the repository's review in the development area.
+  Filter by a path to narrow both the tree and review, and expand folders to navigate. Use the arrow keys to navigate
+  and Enter to select a file. Selecting a file jumps to it. Parent folders stay visible at the top of the tree as you scroll.
+  The review loads as one document. Large files and reviews show **Load diff** where you choose what to load.
+  All changed files appear in one scrolling
+  document, each in a bordered block with its path and change counts above its diff. Gaps separate the files.
+  Use the arrow in a file header to collapse or expand its diff. Collapsed files stay collapsed as changes refresh.
+  Long lines wrap within each file. Point at a line to highlight it and its number; drag along the line numbers to select a range.
+  Scrolling through the review marks the current file
+  in the tree. Choose
+  **Unified** or **Split** for the comparison layout. The review header shows the added and deleted line totals for
+  the files in the document. The review follows Kulisa's global zoom, text size and light or dark palette.
+  Each repository shows **From → To**. **From** displays your task's worktree and current branch as plain text,
+  including local edits. **To** starts with the repository's default branch; changing it opens
+  that comparison. Choose the current branch under **To** to review only uncommitted edits in your worktree.
+  Selecting a target keeps your checked-out code intact.
+  New files are included in worktree comparisons and ignored files stay out. Diff refreshes as your agent works,
+  without needing a GitHub pull request.
+  The terminal keeps running while you review. Click **Agents** in the Resources bar to return to your last active
+  terminal, or select another agent from its list. The terminal focus shortcut also returns to
+  the last active terminal. Stage keeps its position and size. The review is read-only; binary and large
+  files show an explanation. Switching tasks or restarting Kulisa restores that task's selected screen, with its
+  comparison, file filter and selected file.
   Drag the grip at the bottom of the Resources bar to move the whole panel beside or below the terminal, or into its tabs.
   Beside the terminal, the Resources bar follows the outer edge: left on the left, right on the right.
   A group shared with terminal tabs stays resizable; its Resources tab stays available.
-  The expanded panel stays at least 300 pixels wide and 172 pixels tall, keeping all section icons and the grip reachable. Each task keeps its selection and size.
+  The expanded panel stays at least 300 pixels wide and 204 pixels tall, keeping all section icons and the grip reachable. Each task keeps its selection and size.
   **Project** opens first in a new task: use **Project Explorer** to browse the active task’s folders (its copy of the code, or your project’s folder until
   it has one). Icons identify file types; folders share one icon. Click a folder to expand it; double-click a file to open it in your system’s default application,
   or press Enter or right-click and choose **Open**. Switching tasks shows that task’s folders, across projects too.

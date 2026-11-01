@@ -104,6 +104,8 @@ computer).
 Start with [AGENTS.md](AGENTS.md): the shared rules for Codex and Claude Code, including worktrees and pull requests.
 Each directory's `AGENTS.md` holds its local rules; `CLAUDE.md` imports the adjacent file for Claude Code.
 Development skills live in `.agents/skills/`, with Claude Code entrypoints in `.claude/skills/`.
+Run `npx skills experimental_install` from the checkout root to restore third-party skills from `skills-lock.json`.
+For Claude Code, run `npx skills add pierrecomputer/pierre --skill diffs trees --agent claude-code` to create its skill links.
 [Testing](docs/testing.md) covers completion checks, code analysis and Claude Code's optional LSP setup and Stop hook.
 
 ## Code
@@ -118,6 +120,7 @@ Development skills live in `.agents/skills/`, with Claude Code entrypoints in `.
 | `src/browser/` | browser sessions, tabs, navigation, cookies, storage and native views ([README](src/browser/README.md)) |
 | `src/terminal/` | the terminal, a Kulisa package: both its halves, its channels, its doc (docs/packages.md) |
 | `src/github/` | the GitHub accounts, a Kulisa package (docs/packages.md) |
+| `src/diff/` | local Git comparison, changed-file tree and virtualized review, a Kulisa package ([README](src/diff/README.md)) |
 | `src/activity-monitor/` | what Kulisa takes on the computer, a Kulisa package (docs/packages.md) |
 | `src/dictation/` | speaking to the agent instead of typing, a Kulisa package (docs/packages.md) |
 | `src/screenshots/` | a picture of a profile's page, a Kulisa package (docs/packages.md) |

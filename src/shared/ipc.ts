@@ -4,6 +4,7 @@
 // (the tests read some).
 import type { ProjectFile } from '../project-explorer/ipc.ts';
 import type { Result } from './result.ts';
+import type { DiffOptions, Diff, FileDiff, Review } from '../diff/ipc.ts';
 import type { StageTerminal, StageTerminalsState, TerminalSize } from './stage-terminal.ts';
 import type { FileLink, TerminalContents, TerminalEvents, TerminalInvoke, TerminalSend } from '../terminal/ipc.ts';
 import type { ThumbnailEvents, ThumbnailInvoke, ThumbnailSend } from '../screenshots/ipc.ts';
@@ -90,6 +91,10 @@ export interface Invoke extends TerminalInvoke, ThumbnailInvoke, GitHubInvoke, D
   'task:show-folder': I<[key: string]>;
   'task:open-folder': I<[{ key: string; folder: string }]>; // a resource's folder (Resources.tsx), checked to be the task's
   'task:files': I<[{ key: string; folder: string }], Result<{ entries: ProjectFile[] }>>;
+  'task:diff:list': I<[{ key: string; folder: string; options: DiffOptions }], Result<Diff>>;
+  'task:diff:targets': I<[{ key: string; folder: string }], Result<{ branches: string[] }>>;
+  'task:diff:review': I<[{ key: string; folder: string; options: DiffOptions; load?: string[]; request?: string }], Result<Review>>;
+  'task:diff:contents': I<[{ key: string; folder: string; path: string; options: DiffOptions }], Result<FileDiff>>;
   'task:file-open': I<[{ key: string; file: string }], Result>;
   'task:artifacts': I<[string]>; // the task's artifacts sent again (Resources.tsx: the task shown)
   'task:artifact-send': I<[{ key: string; file: string }], Result>;
@@ -179,6 +184,7 @@ export interface Events extends TerminalEvents, ThumbnailEvents, DictationEvents
   'closed-profiles': ClosedProfile[];
   'development-terminals': DevelopmentTerminalsState;
   'stage-terminals': StageTerminalsState;
+  'task:diff:summary': { request: string; summary: Diff };
   'artifacts': { task: string; list: Artifact[]; bytes: number }; // bytes: all of them (Task.artifactsUsage)
   'development-terminal:focus': void;
   'stage:arrange': { task: string; layout?: StageLayout; overflow?: boolean; position?: StagePosition };

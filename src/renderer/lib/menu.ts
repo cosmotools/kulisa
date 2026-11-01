@@ -23,7 +23,7 @@ type AtPoint = { x: number; y: number; items: MenuItem[] } | null;
 const pointMenu = createStore<AtPoint>()(() => null);
 export const usePointMenu = () => useStore(pointMenu);
 export const closePointMenu = () => pointMenu.setState(null, true);
-export const menuAt = (e: MouseEvent, items: MenuItem[]) => pointMenu.setState({ x: e.clientX, y: e.clientY, items }, true);
+export const menuAt = (e: Pick<MouseEvent, 'clientX' | 'clientY'>, items: MenuItem[]) => pointMenu.setState({ x: e.clientX, y: e.clientY, items }, true);
 // The same at a point the main process names (a screenshot's thumbnail, a native view of its own): done once it closes.
 export const menuAtPoint = (x: number, y: number, items: MenuItem[]) => new Promise<void>((closed) => {
   pointMenu.setState({ x, y, items }, true);

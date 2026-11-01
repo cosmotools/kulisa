@@ -39,6 +39,12 @@ BSD, Apache-2.0; shadcn/ui's components, Radix and Lucide's icons, MIT and ISC),
 `src/renderer/public/avatars/` with their license (Apache-2.0), the fonts Geist and JetBrains Mono (SIL Open Font
 License) and Chromium's licenses (in Electron; packaged builds carry `LICENSE` and `LICENSES.chromium.html`).
 Project Explorer's Material Icon Theme SVGs carry their MIT license in `dist/renderer/material-icon-theme-LICENSE.txt`.
+The shared Git client uses simple-git under MIT.
+The @pierre/diffs review renderer carries its Apache-2.0 license in `dist/renderer/pierre-diffs-LICENSE.txt`.
+The @pierre/trees navigation and @pierre/theming carry Apache-2.0 licenses in `dist/renderer/pierre-*-LICENSE.txt`,
+with Trees' attribution in `pierre-trees-NOTICE.txt`. Preact and its string renderer carry MIT licenses in
+`dist/renderer/preact*-LICENSE`; the Lucide sprite carries ISC in `dist/renderer/lucide-LICENSE`.
+TanStack Query and its core carry their MIT licenses in `dist/renderer/tanstack-*-LICENSE.txt`.
 
 A new dependency must have a license compatible with GPL-3.0. The CI checks it (`dependencies` in
 `.github/workflows/test.yml`, GitHub's dependency review): a pull request whose lockfile brings a package under a

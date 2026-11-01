@@ -134,6 +134,7 @@ silently skips one is fixed in the config for every package, not for that one.
 | `src/screenshots/` | a picture of a page (an element, the visible part, the whole page), kept as the human's, its thumbnail ([README](../src/screenshots/README.md)) | `ipc.ts`, `log.ts` |
 | `src/dictation/` | speaking to the agent: what each task's microphone shows, and recording ([README](../src/dictation/README.md)) | `ipc.ts`, `log.ts` |
 | `src/github/` | the GitHub accounts: Kulisa App's device flow or a fine-grained token, their tokens kept with the keyring, a repository's account ([README](../src/github/README.md)) | `ipc.ts`, `log.ts`, `store.ts` (`newId`), `files.ts` (atomic writes) |
+| `src/diff/` | local Git comparison and virtualized file review ([README](../src/diff/README.md)) | `worktrees.ts` (shared Git client) |
 | `src/project-explorer/` | directory reads and a folder tree; roots, file actions and menus supplied by the caller ([README](../src/project-explorer/README.md)) | nothing |
 | `src/activity-monitor/` | what Kulisa takes on the computer: the tasks' artifacts on the disk, every task's or some ([README](../src/activity-monitor/README.md)) | nothing |
 | `src/ui/` | shadcn/ui's components as its CLI writes them, and their theme: the window's alone, through `index.ts` ([README](../src/ui/README.md)) | (no main half) |

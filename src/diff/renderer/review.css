@@ -1,0 +1,20 @@
+/* Shadow DOM inherits the window's palette; CodeView measures rows using these font metrics. */
+.diff-review {
+  --diffs-font-family: 'JetBrains Mono', monospace;
+  --diffs-header-font-family: inherit;
+  --diffs-gap-block: 0px;
+  --diffs-overflow-override: clip;
+  --diffs-addition-color-override: var(--success);
+  --diffs-deletion-color-override: var(--destructive);
+  --diffs-modified-color-override: var(--primary);
+  --diffs-selection-color-override: var(--ring);
+  --diffs-bg-selection-override: color-mix(in oklch, var(--ring) 20%, var(--card));
+  --diffs-fg-number-override: var(--muted-foreground);
+}
+
+/* Outlines frame files without changing CodeView's measured layout. */
+.diff-review diffs-container[role="article"] {
+  border-radius: var(--radius);
+  outline: 1px solid var(--border);
+  overflow: clip;
+}

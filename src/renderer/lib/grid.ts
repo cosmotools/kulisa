@@ -4,7 +4,7 @@ import type { DockviewApi, DockviewPanelApi, SerializedDockview, GridviewApi } f
 import type { PageLayout } from '../../shared/ipc';
 import type { Profile, DevelopmentTerminalsState } from '../../shared/types';
 import type { StageTerminal } from '../../shared/stage-terminal';
-import { act, setCaption, store } from './store';
+import { act, setCaption, shownTask, store, type DevelopmentDiff } from './store';
 import { forgetFrozen, freeze, showViews, unfreeze } from './views';
 import { closeLayers } from './cover';
 import { dockTheme } from './dock-theme';
@@ -41,8 +41,9 @@ function finishResourceDrag() {
   LocalSelectionTransfer.getInstance<PanelTransfer>().clearData(PanelTransfer.prototype);
 }
 
-export interface ResourceParams { section?: 'project' | 'artifacts' | 'terminals' | null; expandedWidth?: number; expandedHeight?: number }
-const resourceMinimumWidth = 300, resourceRailWidth = 40, resourceBarHeight = 172;
+export interface ResourceParams { section?: 'project' | 'artifacts' | 'terminals' | 'diff' | null; expandedWidth?: number; expandedHeight?: number }
+export interface DevelopmentParams { screen?: 'agents' | 'diff'; review?: Omit<DevelopmentDiff, 'task' | 'navigation'> }
+const resourceMinimumWidth = 300, resourceRailWidth = 40, resourceBarHeight = 204;
 let developmentGap = dockTheme.gap ?? 0;
 
 export function selectResource(panel: DockviewPanelApi, params: ResourceParams, section: NonNullable<ResourceParams['section']>) {
@@ -53,6 +54,7 @@ export function selectResource(panel: DockviewPanelApi, params: ResourceParams, 
   const expandedHeight = current && inset?.vertical ? panel.height : params.expandedHeight;
   const updated = { section: next, expandedWidth, expandedHeight };
   panel.updateParameters(updated);
+  if (next === 'diff') openDiff();
   constrainDevelopment();
   if (!current || !next) sizeResources(panel, updated);
   changed();
@@ -111,7 +113,7 @@ function constrainDevelopment() {
     const closed = resource && resources?.params?.section === null;
     const fixedWidth = standalone && closed && !inset.vertical;
     const fixedHeight = standalone && closed && inset.vertical;
-    const foldTerminal = standalone && hasTerminal && emptyTerminal && state.profiles.length > 0;
+    const foldTerminal = standalone && hasTerminal && emptyTerminal && developmentScreen() === 'agents' && state.profiles.length > 0;
     const previous = terminalFold?.group === group ? terminalFold : null;
     if (previous && (!foldTerminal || previous.vertical !== inset.vertical)) {
       restoreTerminalSize();
@@ -324,6 +326,8 @@ function buildGrid(a: DockviewApi, saved: unknown) {
   }
   constrainDevelopment();
   const resources = a.getPanel('resources')!;
+  const development = (a.getPanel('terminal')!.params ?? {}) as DevelopmentParams;
+  if (development.screen === 'diff' || (!development.screen && resources.params?.section === 'diff')) openDiff(false);
   // Restoring a group applies Dockview's default minimum before its runtime constraints.
   if (resources.params?.section === null) sizeResources(resources.api, resources.params);
   syncGrid();
@@ -384,11 +388,42 @@ kulisa.on('agent', ({ task, profile, caption }) => {
   if (task === store.getState().current && caption && !replacing && !rebuilding) environmentActivity(panelId(profile));
 });
 export const dockApi = () => api;
+export const developmentScreen = (): 'agents' | 'diff' => api?.getPanel('terminal')?.params?.screen === 'diff' ? 'diff' : 'agents';
+let reviewNavigation = 0;
+function openDiff(activate = true) {
+  const task = shownTask(), selected = store.getState().developmentDiff;
+  const saved = api?.getPanel('terminal')?.params?.review as DevelopmentParams['review'];
+  const review = selected?.task === task?.key ? selected : saved;
+  const root = task?.resources.find((resource) => resource.folder === review?.folder) ?? task?.resources[0];
+  if (task && root) showDevelopmentDiff(review?.folder === root.folder ? { ...review, task: task.key }
+    : { task: task.key, folder: root.folder, path: '', options: {} }, activate);
+  else showDevelopmentAgents();
+}
+export function showDevelopmentAgents() {
+  api?.getPanel('terminal')?.api.updateParameters({ screen: 'agents' } satisfies DevelopmentParams);
+  changed();
+}
+export function showDevelopmentDiff(selection: DevelopmentDiff, activate = true) {
+  if (selection.task !== store.getState().current) return;
+  const { folder, path, filter } = selection, options = { to: selection.options.to };
+  api?.getPanel('terminal')?.api.updateParameters({ screen: 'diff', review: { folder, path, options, filter } } satisfies DevelopmentParams);
+  store.setState({ developmentDiff: { ...selection, options, navigation: ++reviewNavigation } });
+  if (activate) api?.getPanel('terminal')?.api.setActive();
+  changed();
+}
+export function selectDevelopmentFile(path: string, navigation: number | undefined) {
+  const current = store.getState().developmentDiff;
+  if (!current || current.navigation !== navigation || current.path === path) return;
+  store.setState({ developmentDiff: { ...current, path } });
+  const terminal = api?.getPanel('terminal'), review = terminal?.params?.review as DevelopmentParams['review'];
+  if (review) terminal?.api.updateParameters({ review: { ...review, path } } satisfies DevelopmentParams);
+  changed();
+}
 export const stageApi = () => stage;
 
 kulisa.on('grid:closing', (next) => {
   clearTimeout(activityTimer); cancelAnimationFrame(followFrame); lastEnvironment = null;
-  store.setState({ stageActivity: null, stageFollowPaused: false, stageTerminalFocus: null });
+  store.setState({ stageActivity: null, stageFollowPaused: false, stageTerminalFocus: null, developmentDiff: null });
   void closeLayers(); forgetFrozen(); clearTimeout(saveTimer); save?.();
   if (next) { replacing = true; return; }
   replacing = false; nextDevelopmentTerminals = nextStageTerminals = null;

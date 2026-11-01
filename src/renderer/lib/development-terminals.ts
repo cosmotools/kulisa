@@ -6,7 +6,7 @@ import { termStyle } from './theme';
 import { keyText } from './common';
 import { menuAt, type MenuItem } from './menu';
 import { dialog } from './dialogs';
-import { dockApi } from './grid';
+import { developmentScreen, dockApi, selectResource, showDevelopmentAgents } from './grid';
 import { dialogsShown } from './cover';
 import { refused } from '../../shared/result';
 import { restoreTerminal, serialized, termCopy, termHooks, termPaste, View, xtermKeys } from '../../terminal/renderer';
@@ -17,12 +17,23 @@ const frontKey = () => { const { task, front } = store.getState().developmentTer
 // The terminals' panel's xterm, one for the window: components/grid/DevelopmentTerminals.tsx puts it in whichever grid is shown and
 // gives it the theme's colors.
 export const panelView = new View(termStyle());
-export const shownTerm = () => (panelView.key && panelView.key === frontKey() ? panelView.term : null);
+export const shownTerm = () => (developmentScreen() === 'agents' && panelView.key && panelView.key === frontKey() ? panelView.term : null);
+
+export function focusDevelopmentTerminal() {
+  const task = store.getState().current;
+  showDevelopmentAgents();
+  const resources = dockApi()?.getPanel('resources');
+  if (resources?.params?.section === 'diff') selectResource(resources.api, resources.params, 'terminals');
+  dockApi()?.getPanel('terminal')?.api.setActive();
+  requestAnimationFrame(() => {
+    if (store.getState().current === task && developmentScreen() === 'agents' && !dialogsShown()) shownTerm()?.focus();
+  });
+}
 
 export async function showDevelopmentTerminal(id: number) {
   const task = store.getState().current;
   // A stacked terminal must be visible before its new buffer takes keyboard focus.
-  dockApi()?.getPanel('terminal')?.api.setActive();
+  focusDevelopmentTerminal();
   await act('development-terminal:show', { id });
   // Dockview reattaches retained content when a stacked panel opens; detached inputs cannot take focus.
   requestAnimationFrame(() => {
@@ -61,7 +72,7 @@ export const terminalsOf = (task: string) => Object.fromEntries([...xtermKeys()]
   .map((key) => [key, serialized(key)!]));
 kulisa.on('terminals:restore', (list) => { for (const [key, t] of Object.entries(list)) restoreTerminal(key, t); });
 
-kulisa.on('development-terminal:focus', () => shownTerm()?.focus());
+kulisa.on('development-terminal:focus', focusDevelopmentTerminal);
 
 // The right-click menu of a terminal (its key): an agent's ends with what its Resources row's menu has, a
 // shell's with Close.

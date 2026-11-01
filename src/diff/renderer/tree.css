@@ -1,0 +1,27 @@
+/* Trees' supported Shadow DOM overrides keep review navigation in the window palette. */
+:host {
+  --trees-font-family-override: var(--font-sans);
+  --trees-font-size-override: var(--text-sm);
+  --trees-padding-inline-override: 8px;
+  --trees-fg-override: var(--sidebar-foreground);
+  --trees-fg-muted-override: var(--muted-foreground);
+  --trees-bg-override: var(--sidebar);
+  --trees-bg-muted-override: var(--sidebar-accent);
+  --trees-accent-override: var(--sidebar-ring);
+  --trees-selected-bg-override: var(--sidebar-accent);
+  --trees-selected-fg-override: var(--sidebar-accent-foreground);
+  --trees-indent-guide-bg-override: transparent;
+  --trees-focus-ring-width-override: 0px;
+  --trees-status-added-override: var(--success);
+  --trees-status-deleted-override: var(--destructive);
+  --trees-status-modified-override: var(--muted-foreground);
+  --trees-status-renamed-override: var(--muted-foreground);
+  --diff-icon-modified: block;
+}
+[data-item-git-status="added"] { --diff-icon-modified: none; --diff-icon-added: block; }
+[data-item-git-status="deleted"] { --diff-icon-modified: none; --diff-icon-deleted: block; }
+[data-item-git-status="renamed"] { --diff-icon-modified: none; --diff-icon-renamed: block; }
+[data-item-section="content"] { color: var(--sidebar-foreground); }
+[data-item-section="git"] { display: none; }
+[data-item-section="decoration"] { flex: none; margin-inline-start: auto; font-variant-numeric: tabular-nums; }
+[data-item-section="decoration"] > span { white-space: pre; }

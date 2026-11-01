@@ -7,7 +7,7 @@ import { TerminalSquareIcon, PlusIcon } from 'lucide-react';
 import { Avatar, AvatarImage, Button } from '@ui';
 import { Stage } from './grid/Stage';
 import { dockTheme } from '../lib/dock-theme';
-import { DevelopmentTerminals } from './grid/DevelopmentTerminals';
+import { DevelopmentContent } from './grid/DevelopmentContent';
 import { Resources } from './grid/Resources';
 import { gridMounted, gridUnmounted, workspaceMounted } from '../lib/grid';
 import { useWindow } from '../lib/store';
@@ -17,7 +17,7 @@ import { avatarSrc } from '../lib/common';
 import { newStageTerminal } from '../lib/environments';
 import './Grid.css';
 
-const components = { terminal: DevelopmentTerminals, resources: Resources };
+const components = { terminal: DevelopmentContent, resources: Resources };
 const tabComponents = { terminal: DevelopmentPanelHeader, resources: DevelopmentPanelHeader };
 
 function DevelopmentPanelHeader({ api }: IDockviewPanelHeaderProps) {

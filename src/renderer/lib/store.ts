@@ -2,6 +2,7 @@
 // useWindow(selector), elsewhere with store.getState().
 import { createStore, useStore } from 'zustand';
 import type { StageTerminal } from '../../shared/stage-terminal';
+import type { DiffSelection } from '../../diff/ipc';
 import type { Artifact, ClosedProfile, LanguageInfo, Profile, ProjectsInfo, DevelopmentTerminalsState } from '../../shared/types';
 import type { Invoke, OnTask, StageLayout, StagePosition } from '../../shared/ipc';
 import { initialProjects } from './common';
@@ -10,6 +11,8 @@ import { setTheme } from './theme';
 import { refused } from '../../shared/result';
 
 const root = document.documentElement, query = new URLSearchParams(location.search);
+export interface DevelopmentDiff extends DiffSelection { task: string }
+
 interface WindowState {
   // The shown task's key ("<project id>/<task id>"); null with no task open (the empty window).
   current: string | null;
@@ -25,6 +28,7 @@ interface WindowState {
   stagePosition: StagePosition;
   closedProfiles: ClosedProfile[];
   developmentTerminals: DevelopmentTerminalsState;
+  developmentDiff: DevelopmentDiff | null;
   stageTerminals: StageTerminal[];
   stageTerminalFocus: { task: string | null; key: string | null } | null;
   // The files the agent's tools kept of a task's pages, the newest first (Resources), of the task named.
@@ -55,6 +59,7 @@ export const store = createStore<WindowState>()(() => ({
   stagePosition: 'above',
   closedProfiles: [],
   developmentTerminals: { front: null, list: [] },
+  developmentDiff: null,
   artifacts: { task: '', list: [], bytes: 0 },
   zoom: 1,
   theme: query.get('theme') || 'dark',

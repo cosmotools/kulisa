@@ -55,7 +55,8 @@ function ProjectEntry({ actions, entry }: { actions: ExplorerActions; entry: Pro
         { label: 'Show in Folder', run: () => actions.showFile(entry.path) }]);
     }}>
       {entry.directory ? <Collapsible open={expanded} onOpenChange={setExpanded}>
-        <CollapsibleTrigger asChild>{row}</CollapsibleTrigger>
+        {/* An expanded folder is a disclosure, so its resting background stays clear. */}
+        <div className="not-hover:[--muted:transparent]"><CollapsibleTrigger asChild>{row}</CollapsibleTrigger></div>
         <CollapsibleContent><div className="ms-4">{expanded && <ProjectDirectory actions={actions} folder={entry.path} />}</div></CollapsibleContent>
       </Collapsible> : row}
     </div>
