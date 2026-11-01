@@ -111,10 +111,13 @@ async function launch(file: string, display: string | null, automation: boolean,
 }
 async function ready(k: Pick<Running, 'file' | 'automation' | 'child' | 'exited' | 'output' | 'root' | 'core'>, endpoint: string | null): Promise<Running> {
   const { core } = k;
-  await expect.poll(() => core((d) => !!d?.shell.task?.loaded && !!d.shell.pty), { timeout: 30000 }).toBe(true);
-  await core((d) => d.watchPty(d.shell.pty));
+  await expect.poll(() => core((d) => !!d?.shell.task?.loaded), { timeout: 30000 }).toBe(true);
   const errors: string[] = [];
-  if (!endpoint) return { ...k, browser: null, context: null, ui: null, errors, clients: new Map() };
+  if (!endpoint) {
+    await expect.poll(() => core((d) => !!d.shell.pty), { timeout: 30000 }).toBe(true);
+    await core((d) => d.watchPty(d.shell.pty));
+    return { ...k, browser: null, context: null, ui: null, errors, clients: new Map() };
+  }
   // Its traces in the test's folder, which goes with it (close): in the OS's temporary folder, Playwright's own was left
   // behind by the worker's end.
   const browser = await chromium.connectOverCDP(endpoint, { noDefaults: true, artifactsDir: path.join(k.root, 'playwright') });
@@ -136,6 +139,9 @@ async function ready(k: Pick<Running, 'file' | 'automation' | 'child' | 'exited'
   };
   let ui: Page | undefined;
   await expect.poll(async () => { for (const p of context.pages()) if (await first(p).catch(() => false)) ui = p; return !!ui; }, { timeout: 30000 }).toBe(true);
+  // Restoring Diff can leave an agent waiting for its terminal's first visible size.
+  await expect.poll(async () => await core((d) => !!d.shell.pty) || await ui.getByRole('region', { name: 'Diff review', exact: true }).isVisible(), { timeout: 30000 }).toBe(true);
+  await core((d) => { if (d.shell.pty) d.watchPty(d.shell.pty); });
   await context.tracing.start({ screenshots: true, snapshots: true });
   return { ...k, browser, context, ui, errors, clients: new Map() };
 }

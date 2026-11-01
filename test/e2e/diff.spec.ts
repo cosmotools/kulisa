@@ -62,8 +62,13 @@ test('Diff groups files into folders and switches the development area without m
     const g = k.stash, task = k.shell.task;
     g.reviewTask = task; g.reviewOriginal = task.review;
     g.reviewStarted = false;
-    const pending = new Promise<void>((resolve) => { g.finishReview = resolve; });
-    task.review = async (...args: Parameters<typeof task.review>) => { g.reviewStarted = true; await pending; return g.reviewOriginal.apply(task, args); };
+    const pending = new Promise<void>((resolve) => { g.startReview = resolve; });
+    const prepared = new Promise<void>((resolve) => { g.finishReview = resolve; });
+    task.review = async (...args: Parameters<typeof task.review>) => {
+      g.reviewStarted = true; await pending;
+      const result = await g.reviewOriginal.apply(task, args);
+      await prepared; return result;
+    };
   });
   try {
     await showResources(ui, 'Diff');
@@ -72,10 +77,14 @@ test('Diff groups files into folders and switches the development area without m
     await expect(ui.getByLabel('Code comparison: checkout.ts', { exact: true })).toHaveCount(0);
     await expect(tree.locator('[role="treeitem"][data-item-path="src/orders/stock.ts"]')).toHaveCount(0);
     await expect(tree.getByRole('status')).toContainText('Loading diff');
+    await core((k) => k.stash.startReview());
+    await expect(tree.locator('[role="treeitem"][data-item-path="src/orders/stock.ts"]')).toBeVisible();
+    await expect(ui.getByLabel('Code comparison: checkout.ts', { exact: true })).toHaveCount(0);
+    await expect(diff.getByText('Loading diff…', { exact: true })).toBeVisible();
   } finally {
     await core((k) => {
       const g = k.stash;
-      g.reviewTask.review = g.reviewOriginal; g.finishReview();
+      g.reviewTask.review = g.reviewOriginal; g.startReview(); g.finishReview();
     });
   }
   await expect(ui.getByLabel('Code comparison: checkout.ts', { exact: true })).toContainText('fresh-marker');
@@ -105,12 +114,17 @@ test('Review refreshes file contents, supports split view, and releases the diff
   await ui.getByRole('radio', { name: 'Split diff', exact: true }).click();
   await expect(ui.getByRole('radio', { name: 'Split diff', exact: true })).toHaveAttribute('aria-checked', 'true');
   await expect(code).toContainText('old-marker');
-  const originalCode = code.getByRole('code').first();
-  const modifiedCode = code.getByRole('code').last();
+  const originalCode = code.getByRole('code').first().locator('[data-line]').first();
+  const modifiedCode = code.getByRole('code').last().locator('[data-line]').first();
   await expect(originalCode).toBeVisible(); await expect(modifiedCode).toBeVisible();
   expect((await modifiedCode.boundingBox()).x).toBeGreaterThan((await originalCode.boundingBox()).x);
-  fs.writeFileSync(file, 'export const value = "live-marker";\n');
-  await expect(code).toContainText('live-marker', { timeout: 10000 });
+  await ui.getByRole('button', { name: 'Collapse diff for file.ts', exact: true }).click();
+  await expect(code).toHaveCount(0);
+  fs.writeFileSync(file, 'export const value = "live-marker";\nexport const ready = true;\n');
+  await expect(tree.locator('[role="treeitem"][data-item-path="file.ts"]')).toContainText('+2', { timeout: 10000 });
+  await expect(code).toHaveCount(0);
+  await ui.getByRole('button', { name: 'Expand diff for file.ts', exact: true }).click();
+  await expect(code).toContainText('live-marker');
   await tree.locator('[role="treeitem"][data-item-path="image.bin"]').click();
   await expect(ui.getByRole('region', { name: 'Diff review', exact: true }).getByRole('alert')).toContainText('Binary or non-UTF-8');
   await expect(code).toContainText('live-marker');

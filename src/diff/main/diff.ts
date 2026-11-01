@@ -11,6 +11,8 @@ const automaticLimit = 128 << 10, automaticLines = 2000;
 const largeDiff = 'This file is large. Load its diff when you need it.';
 const plain = ['--no-ext-diff', '--no-textconv', '--no-color', '--find-renames', '--relative', '-z'];
 const errorText = (e: unknown) => (e as Error).message;
+// Git can abbreviate origin/HEAD to origin, hiding the default-branch alias.
+const shortRef = (ref: string) => ref.replace(/^refs\/(?:heads|remotes)\//, '');
 function countLines(text: string) {
   let lines = Number(!!text && !text.endsWith('\n'));
   for (let i = text.indexOf('\n'); i >= 0; i = text.indexOf('\n', i + 1)) lines++;
@@ -25,15 +27,16 @@ function decode(buffer: Buffer): { text: string; notice?: string } {
 
 async function comparison(folder: string, options: DiffOptions, start?: string | null) {
   const [listing, branch, head] = await Promise.all([
-    git(folder, ['for-each-ref', '--format=%(refname:short)%00%(objectname)%00%(symref:short)', ...(options.to ? [`refs/heads/${options.to}`, `refs/remotes/${options.to}`] : ['refs/remotes/origin/HEAD', 'refs/remotes/origin/main', 'refs/remotes/origin/master', 'refs/heads/main', 'refs/heads/master'])], { maxBuffer: 8 << 20 }).catch((): null => null),
+    git(folder, ['for-each-ref', '--format=%(refname)%00%(objectname)%00%(symref)', ...(options.to ? [`refs/heads/${options.to}`, `refs/remotes/${options.to}`] : ['refs/remotes/origin/HEAD', 'refs/remotes/origin/main', 'refs/remotes/origin/master', 'refs/heads/main', 'refs/heads/master'])], { maxBuffer: 8 << 20 }).catch((): null => null),
     git(folder, ['symbolic-ref', '--quiet', '--short', 'HEAD']).catch((): null => null),
     git(folder, ['rev-parse', '--verify', '--quiet', 'HEAD^{commit}']).catch((): null => null),
   ]);
   if (listing === null) return null;
   const records = listing.split('\n').filter(Boolean).map((line) => line.split('\0'));
-  const refs = new Map(records.filter(([name]) => !name!.endsWith('/HEAD')).map(([name, commit]) => [name!, commit!]));
-  const remote = records.find(([name]) => name === 'origin/HEAD')?.[2] ?? '';
-  if (remote) refs.set(remote, records.find(([name]) => name === 'origin/HEAD')![1]!);
+  const refs = new Map(records.filter(([, , symbolic]) => !symbolic).map(([name, commit]) => [shortRef(name!), commit!]));
+  const remoteHead = records.find(([name]) => name === 'refs/remotes/origin/HEAD');
+  const remote = shortRef(remoteHead?.[2] ?? '');
+  if (remote) refs.set(remote, remoteHead![1]!);
   const branches = [...refs.keys(), ...(head ? ['HEAD'] : [])];
   const defaultBranch = [remote, 'origin/main', 'origin/master', 'main', 'master'].find((name) => branches.includes(name));
   const to = options.to ?? defaultBranch ?? (start ? 'Task start' : head ? 'HEAD' : 'Empty tree');
@@ -141,9 +144,9 @@ async function committedText(folder: string, revision: string, file: string): Pr
 
 export async function listDiffTargets(folder: string, start?: string | null): Promise<Result<{ branches: string[] }>> {
   try {
-    const refs = await git(folder, ['for-each-ref', '--format=%(refname:short)', 'refs/heads', 'refs/remotes']);
+    const refs = await git(folder, ['for-each-ref', '--format=%(refname)%00%(symref)', 'refs/heads', 'refs/remotes']);
     const head = await git(folder, ['rev-parse', '--verify', '--quiet', 'HEAD^{commit}']).catch((): null => null);
-    return { branches: [...refs.split('\n').filter((name) => name && !name.endsWith('/HEAD')), ...(head ? ['HEAD'] : ['Empty tree']), ...(start ? ['Task start'] : [])] };
+    return { branches: [...refs.split('\n').filter(Boolean).map((line) => line.split('\0')).filter(([, symbolic]) => !symbolic).map(([name]) => shortRef(name!)), ...(head ? ['HEAD'] : ['Empty tree']), ...(start ? ['Task start'] : [])] };
   } catch (e) { return { error: errorText(e) }; }
 }
 

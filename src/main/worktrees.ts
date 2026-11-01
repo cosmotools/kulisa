@@ -27,7 +27,10 @@ async function runGit(cwd: string, args: string[], { timeout = 30000, input, max
   for (const key of ['GIT_PAGER', 'PAGER', 'GIT_EDITOR', 'GIT_SEQUENCE_EDITOR', 'EDITOR', 'VISUAL']) delete env[key];
   const client = simpleGit({ baseDir: cwd, trimmed: false, abort: abort.signal,
     allowEnvironment: [...Object.keys(process.env), 'GIT_TERMINAL_PROMPT'],
-    input: () => input,
+    // Quiet Git checks signal a missing ref through the exit code alone.
+    errors: (error, { exitCode }) => error ?? (exitCode ? new Error(`Git exited with code ${exitCode}.`) : undefined),
+    // The input plugin skips an empty string; a zero-byte buffer still closes stdin.
+    input: () => input === '' ? Buffer.alloc(0) : input,
     timeout: { block: timeout, stdOut: false, stdErr: false },
   }).env(env);
   client.outputHandler((_command, stdout, stderr) => {

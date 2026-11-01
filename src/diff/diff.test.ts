@@ -92,7 +92,8 @@ test('From is the current worktree and To uses the remote default branch ahead o
   assert.deepEqual(result.files.map((f) => f.path), ['feature.txt']);
   run(dir, 'branch', 'other');
   const targets = await listDiffTargets(dir); assert(!refused(targets), targets.error);
-  assert(targets.branches.includes('other'));
+  assert(targets.branches.includes('other')); assert(targets.branches.includes('origin/trunk'));
+  assert(!targets.branches.includes('origin'));
 });
 
 test('subdirectory resources cannot list or read neighboring files', async () => {

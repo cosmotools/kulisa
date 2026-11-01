@@ -90,6 +90,8 @@ test('merged: a rebase merge on the remote; not with a file of the task uncommit
 test('Git client preserves binary input/output, whitespace, errors and output limits', async () => {
   const folder = fs.mkdtempSync(path.join(dir, 'client-'));
   execFileSync('git', ['init', '-q', folder]);
+  await assert.rejects(git(folder, ['rev-parse', '--verify', '--quiet', 'refs/heads/missing']));
+  assert.equal(await git(folder, ['patch-id', '--stable'], { input: '', timeout: 500 }), '');
   const oid = await git(folder, ['hash-object', '-w', '--stdin'], { input: ' leading\ntrailing \n' });
   const bytes = await gitBuffer(folder, ['cat-file', '--batch'], { input: `${oid}\n` });
   assert(bytes.includes(Buffer.from(' leading\ntrailing \n')));
