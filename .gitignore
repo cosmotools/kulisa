@@ -19,7 +19,6 @@ playwright-report/
 .claude/settings.local.json
 .claude/worktrees/
 
-# Third-party agent instructions and installer metadata
+# Third-party agent instructions installed by Skills CLI
 .agents/skills/diffs/
 .claude/skills/diffs
-skills-lock.json
