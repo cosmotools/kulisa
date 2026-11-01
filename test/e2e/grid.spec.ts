@@ -1,7 +1,7 @@
 // The grid of panels: panes and their pages, presets, a menu over pages that give no picture (docs/window.md, The grid).
 import { test, expect } from './fixtures.ts';
 import type { Page } from '@playwright/test';
-import { developmentBox, menu, closeMenu, rightClick, box, pageBox, viewOn, resourcesHeight, dock, stageDock } from './helpers.ts';
+import { arrange, developmentBox, menu, closeMenu, rightClick, box, pageBox, viewOn, resourcesHeight, dock, stageDock } from './helpers.ts';
 import { SAM, ELON, begin, bothOn } from './tasks-helpers.ts';
 
 // A pane's tab dragged by the hand onto a place of a target (dockview's drop zones: its edges, its middle).
@@ -170,6 +170,8 @@ test('resizing Resources updates the agent terminal at fractional widths and hei
     await expect.poll(async () => (await terminalSize()).cols).toBeGreaterThan(before.cols);
     await dock(ui, (api) => api.getPanel('resources').group.api.setSize({ width: Math.round(api.width / 3) + 160.75 }));
     await expect.poll(async () => (await terminalSize()).cols).toBeLessThan(before.cols);
+    // Vertical resizing needs room above the terminal's minimum height.
+    await arrange(ui, 'left');
     await dock(ui, (api) => {
       api.getPanel('resources').api.moveTo({ group: api.getPanel('terminal').group, position: 'bottom' });
       api.getPanel('resources').group.api.setSize({ height: Math.round(api.height / 3) });
@@ -183,7 +185,10 @@ test('resizing Resources updates the agent terminal at fractional widths and hei
     await expect.poll(async () => (await terminalSize()).rows).toBeLessThan(rows);
     await expect.poll(fitted).toBe(true);
     await expect.poll(() => core((k) => ({ cols: k.shell.pty.cols, rows: k.shell.pty.rows }))).toEqual(await terminalSize());
-  } finally { await dock(ui, (api, saved) => api.fromJSON(saved), workspace); }
+  } finally {
+    await arrange(ui, 'above');
+    await dock(ui, (api, saved) => api.fromJSON(saved), workspace);
+  }
 });
 
 test('workspace and stage presets each fit the window without changing the other layout', async ({ core, ui, files }) => {
