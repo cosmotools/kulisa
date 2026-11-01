@@ -2,6 +2,7 @@
 :host {
   --trees-font-family-override: var(--font-sans);
   --trees-font-size-override: var(--text-sm);
+  --trees-padding-inline-override: 8px;
   --trees-fg-override: var(--sidebar-foreground);
   --trees-fg-muted-override: var(--muted-foreground);
   --trees-bg-override: var(--sidebar);

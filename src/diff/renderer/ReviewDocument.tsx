@@ -71,8 +71,8 @@ function ReviewContent({ session, selection, shade, fontSize }: DiffPanelProps) 
     </div>;
   }, [load]);
   const viewOptions = useMemo<CodeViewReactOptions<Notice, undefined>>(() => ({ theme: 'kulisa-review', themeType: shade === 'dark' ? 'dark' : 'light', diffStyle: mode, stickyHeaders: true,
-    diffIndicators: 'classic' as const, hunkSeparators: 'line-info-basic' as const, overflow: 'scroll' as const,
-    itemMetrics: { lineHeight, diffHeaderHeight: 36 }, layout: { paddingTop: 16, paddingBottom: 16, gap: 16 },
+    diffIndicators: 'classic' as const, hunkSeparators: 'line-info-basic' as const, overflow: 'wrap' as const,
+    itemMetrics: { lineHeight, diffHeaderHeight: 36, spacing: 0 }, layout: { paddingTop: 16, paddingBottom: 16, gap: 16 },
     onPostRender(node, _instance, phase, context) {
       if (phase === 'unmount') return;
       // The component's public lifecycle supplies accessible names for its custom-element root and code region.
@@ -97,7 +97,7 @@ function ReviewContent({ session, selection, shade, fontSize }: DiffPanelProps) 
     return () => { root?.removeEventListener('wheel', manual); root?.removeEventListener('pointerdown', manual); root?.removeEventListener('keydown', manual); };
   }, []);
   return <section aria-label="Diff review" data-zone="editor" className="flex h-full min-h-0 min-w-0 flex-col bg-card">
-    <header className="flex min-h-9 flex-wrap items-center gap-2 border-b px-2 py-1 text-sm">
+    <header className="flex min-h-9 flex-wrap items-center gap-2 border-b px-4 py-1 text-sm">
       <GitCompareArrowsIcon className="size-4 shrink-0" /><span>Diff{data ? ` · ${files.length} files` : ''}</span>
       {data && <div role="group" aria-label="Change summary"><DiffCounts {...counts} /></div>}
       <div className="flex-1" />
@@ -113,6 +113,6 @@ function ReviewContent({ session, selection, shade, fontSize }: DiffPanelProps) 
         renderCustomHeader={renderHeader} renderAnnotation={renderAnnotation} className="diff-review h-full overflow-auto px-4"
         style={{ '--diffs-font-size': `${fontSize}px`, '--diffs-line-height': `${lineHeight}px` } as CSSProperties} />
     </div>
-    <footer className="flex gap-2 border-t px-3 py-1 text-xs text-muted-foreground"><span className="min-w-0 truncate">{data ? `${data.from} → ${data.to}` : 'From → To'}</span><span className="ms-auto shrink-0">Read only</span></footer>
+    <footer className="flex gap-2 border-t px-4 py-1 text-xs text-muted-foreground"><span className="min-w-0 truncate">{data ? `${data.from} → ${data.to}` : 'From → To'}</span><span className="ms-auto shrink-0">Read only</span></footer>
   </section>;
 }

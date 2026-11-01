@@ -102,6 +102,7 @@ project, and those you closed, are in the sidebar (Tasks, below).
   The review loads as one document. Large files and reviews show **Load diff** where you choose what to load.
   All changed files appear in one scrolling
   document, each in a bordered block with its path and change counts above its diff. Gaps separate the files.
+  Long lines wrap within each file.
   Scrolling through the review marks the current file
   in the tree. Choose
   **Unified** or **Split** for the comparison layout. The review header shows the added and deleted line totals for
