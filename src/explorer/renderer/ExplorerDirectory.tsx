@@ -2,12 +2,12 @@
 import { useEffect, useState } from 'react';
 import { ChevronRightIcon, FolderIcon } from 'lucide-react';
 import { Alert, AlertDescription, Collapsible, CollapsibleContent, CollapsibleTrigger, Button } from '@ui';
-import type { ProjectFile } from '../ipc';
+import type { ExplorerFile } from '../ipc';
 import type { ExplorerActions } from './actions';
 import { FileIcon } from './FileIcon';
 
-export function ProjectDirectory({ actions, folder }: { actions: ExplorerActions; folder: string }) {
-  const [entries, setEntries] = useState<ProjectFile[]>([]);
+export function ExplorerDirectory({ actions, folder }: { actions: ExplorerActions; folder: string }) {
+  const [entries, setEntries] = useState<ExplorerFile[]>([]);
   const [error, setError] = useState('');
   const [loaded, setLoaded] = useState(false);
   useEffect(() => {
@@ -29,12 +29,12 @@ export function ProjectDirectory({ actions, folder }: { actions: ExplorerActions
     {!loaded && <p role="status" className="px-2 text-xs text-muted-foreground">Loading…</p>}
     {loaded && !error && entries.length === 0 && <p className="px-2 text-xs text-muted-foreground">Empty folder</p>}
     <div aria-label={folder} className="flex flex-col">
-      {entries.map((entry) => <ProjectEntry key={entry.path} actions={actions} entry={entry} />)}
+      {entries.map((entry) => <ExplorerEntry key={entry.path} actions={actions} entry={entry} />)}
     </div>
   </>;
 }
 
-function ProjectEntry({ actions, entry }: { actions: ExplorerActions; entry: ProjectFile }) {
+function ExplorerEntry({ actions, entry }: { actions: ExplorerActions; entry: ExplorerFile }) {
   const [expanded, setExpanded] = useState(false);
   const [error, setError] = useState('');
   const open = async () => {
@@ -57,7 +57,7 @@ function ProjectEntry({ actions, entry }: { actions: ExplorerActions; entry: Pro
       {entry.directory ? <Collapsible open={expanded} onOpenChange={setExpanded}>
         {/* An expanded folder is a disclosure, so its resting background stays clear. */}
         <div className="not-hover:[--muted:transparent]"><CollapsibleTrigger asChild>{row}</CollapsibleTrigger></div>
-        <CollapsibleContent><div className="ms-4">{expanded && <ProjectDirectory actions={actions} folder={entry.path} />}</div></CollapsibleContent>
+        <CollapsibleContent><div className="ms-4">{expanded && <ExplorerDirectory actions={actions} folder={entry.path} />}</div></CollapsibleContent>
       </Collapsible> : row}
     </div>
     {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}

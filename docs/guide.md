@@ -124,7 +124,7 @@ project, and those you closed, are in the sidebar (Tasks, below).
   Beside the terminal, the Resources bar follows the outer edge: left on the left, right on the right.
   A group shared with terminal tabs stays resizable; its Resources tab stays available.
   The expanded panel stays at least 300 pixels wide and 204 pixels tall, keeping all section icons and the grip reachable. Each task keeps its selection and size.
-  **Project** opens first in a new task: use **Project Explorer** to browse the active task’s folders (its copy of the code, or your project’s folder until
+  **Project** opens first in a new task: use **Explorer** to browse the active task’s folders (its copy of the code, or your project’s folder until
   it has one). Icons identify file types; folders share one icon. Click a folder to expand it; double-click a file to open it in your system’s default application,
   or press Enter or right-click and choose **Open**. Switching tasks shows that task’s folders, across projects too.
   **Artifacts** holds what you and the agent kept of the pages:

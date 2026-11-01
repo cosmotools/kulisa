@@ -5,7 +5,7 @@ import type { IDockviewPanelProps } from 'dockview-react';
 import { useShallow } from 'zustand/react/shallow';
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupAction, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuAction,
   Button, Collapsible, CollapsibleTrigger, CollapsibleContent, SidebarMenuButton, SidebarMenuItem, SidebarProvider } from '@ui';
-import { ProjectDirectory, type ExplorerActions } from '../../../project-explorer/renderer';
+import { ExplorerDirectory, type ExplorerActions } from '../../../explorer/renderer';
 import { menuAt } from '../../lib/menu';
 import { RightClickMenu } from '../Menus';
 import { shownTask, useWindow } from '../../lib/store';
@@ -107,7 +107,7 @@ function TaskResources({ taskKey: key, section }: { taskKey: string; section: No
                 </Button></CollapsibleTrigger></div>
                 {r.removable && <SidebarMenuAction showOnHover aria-label="Remove Repository" title="Remove Repository" onClick={() => void remove(r.folder)}>
                   <Trash2Icon /></SidebarMenuAction>}
-                <CollapsibleContent><div className="ms-4"><ProjectDirectory actions={explorer} folder={r.folder} /></div></CollapsibleContent>
+                <CollapsibleContent><div className="ms-4"><ExplorerDirectory actions={explorer} folder={r.folder} /></div></CollapsibleContent>
               </Collapsible></RightClickMenu></SidebarMenuItem>)}
             </SidebarMenu>
           </SidebarGroupContent></SidebarGroup>

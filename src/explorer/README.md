@@ -1,4 +1,4 @@
-# Project Explorer
+# Explorer
 
 A folder browser, a Kulisa package ([packages.md](../../docs/packages.md)): directory reads and a shadcn File Tree,
 independent of tasks, projects, agents and the window's store. It writes no files and starts no processes.
@@ -12,7 +12,7 @@ entries; directory links are not expanded. Opening files is the caller's desktop
 
 ## Tree
 
-`renderer/index.ts` exports `ProjectDirectory` and `ExplorerActions`. A caller supplies the root folder and callbacks
+`renderer/index.ts` exports `ExplorerDirectory` and `ExplorerActions`. A caller supplies the root folder and callbacks
 to read a directory, open and reveal a file, and show menu rows through the window's menu opener. The tree supplies
 the Open and Show in Folder rows. Double-click or Enter opens a file.
 
@@ -44,7 +44,7 @@ The renderer receives those actions as callbacks, with no channels or task keys 
 | `main/files.ts` | path containment and shallow directory reads |
 | `renderer/index.ts` | renderer entry |
 | `renderer/actions.ts` | file and desktop callbacks |
-| `renderer/ProjectDirectory.tsx` | directory loading, refresh, expansion, file interactions and menu rows |
+| `renderer/ExplorerDirectory.tsx` | directory loading, refresh, expansion, file interactions and menu rows |
 | `renderer/FileIcon.tsx`, `icon.ts`, `icons.d.ts` | theme-aware assets, association matching and the build module's contract |
 | `ipc.ts` | directory-entry contract |
 | `files.test.ts` | shallow reads, ordering, refresh, multiple roots, missing paths and symbolic-link containment |

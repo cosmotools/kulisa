@@ -2,7 +2,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import type { Result } from '../../shared/result.ts';
-import type { ProjectFile } from '../ipc.ts';
+import type { ExplorerFile } from '../ipc.ts';
 import { refused } from '../../shared/result.ts';
 
 export async function resourcePath(roots: string[], file: string): Promise<Result<{ path: string }>> {
@@ -16,7 +16,7 @@ export async function resourcePath(roots: string[], file: string): Promise<Resul
   } catch (error) { return { error: (error as Error).message }; }
 }
 
-export async function listResourceFiles(roots: string[], folder: string): Promise<Result<{ entries: ProjectFile[] }>> {
+export async function listResourceFiles(roots: string[], folder: string): Promise<Result<{ entries: ExplorerFile[] }>> {
   const found = await resourcePath(roots, folder);
   if (refused(found)) return found;
   try {

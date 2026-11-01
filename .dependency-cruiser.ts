@@ -22,7 +22,7 @@ const packages: Record<string, { main: string[] }> = {
   browser: { main: ['log', 'files', 'local'] },
   terminal: { main: ['ipc', 'log'] }, // a terminal: its pty, its buffers and the xterm shown
   diff: { main: ['worktrees'] }, // local Git review; task ownership and window state are supplied by callers
-  'project-explorer': { main: [] }, // a folder browser; roots and desktop actions come from the caller
+  explorer: { main: [] }, // a folder browser; roots and desktop actions come from the caller
   screenshots: { main: ['ipc', 'log'] }, // a picture of a page: an element, the visible part, the whole page
   // GitHub accounts and their sign-ins; store supplies ids, files supplies atomic writes.
   github: { main: ['ipc', 'log', 'store', 'files'] },

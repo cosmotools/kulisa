@@ -262,7 +262,7 @@ when the panels share a tab group. The selected row stays marked; the list scrol
 it (an agent asks first); its right-click menu offers Change agent…, New Conversation and Close for an agent,
 Close for a shell. The section's + opens an agent or shell through the terminal's shared creation menu.
 **Project** opens first in a new task; each resource is a root, with folders before files.
-Browsing is the [Project Explorer Kulisa package](../src/project-explorer/README.md); the task supplies its roots and
+Browsing is the [Explorer Kulisa package](../src/explorer/README.md); the task supplies its roots and
 protected desktop opening action (window.md, The terminal). The Resources panel owns the Resources bar and repository actions.
 The roots are the task’s **resources** (what it has, uses or created), each with its actions
 (`grid/Resources.tsx`, a panel of the grid: [window.md](window.md), The grid; `Task.resources`, in the task's info):
@@ -348,7 +348,7 @@ to the human; the window's IPC (`ipc/`) and the MCP tools are handles on it:
 | Read what was said and done in the task before | its terminal, scrolled back | `task_history` ([transcripts.md](transcripts.md)) | `historyPart` (`history.ts`) |
 | Delete a task | Delete Task… in its tab's menu; its 🗑 in the sidebar | none: it deletes work and sign-ins, the human's to decide | `askDeleteTask`, `deleteTask`, `deleteClosedTask` (`projects.ts`) |
 | Show a task | a click on its tab, of any project | none: what the human looks at is theirs | `AppWindow.show` (`window.ts`) |
-| Browse a task’s folders, open a file | Project section in Resources content; double-click or Enter on a file, its Open menu | the agent reads and opens files through its own tools | `task:files`, `task:file-open` (`Task.files`, `Task.openProjectFile`; Project Explorer confines reads to its roots) |
+| Browse a task’s folders, open a file | Project section in Resources content; double-click or Enter on a file, its Open menu | the agent reads and opens files through its own tools | `task:files`, `task:file-open` (`Task.files`, `Task.openProjectFile`; Explorer confines reads to its roots) |
 | Review local code changes | Diff section, continuous file diffs; Unified or Split | the agent reads its Git repository through its own tools | `task:diff:list`, `task:diff:targets`, `task:diff:review`, `task:diff:contents` (`Task.diff`, `Task.diffTargets`, `Task.review`, `Task.diffContents`) |
 | Open a resource's folder | double-click its root in Resources, or Open Folder in its menu | none: the agent opens folders through its own tools | `task:open-folder` (`ipc/tasks.ts`) |
 | Open an artifact, show it in its folder | a click on its row in the Resources panel, its menu | none: the tools' answers give the agent its path | `file:open`, `file:show` (`file-links.ts`) |

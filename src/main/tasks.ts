@@ -22,7 +22,7 @@ import { extendTrust } from '../kulisa-plugin/main/index.ts';
 import { installSkill } from '../kulisa-plugin/main/index.ts';
 import { labelError } from '../shared/names.ts';
 import { loginAllowed } from './local.ts';
-import { resourcePath, listResourceFiles } from '../project-explorer/main/index.ts';
+import { resourcePath, listResourceFiles } from '../explorer/main/index.ts';
 import { openFile } from './file-links.ts';
 import { log } from './log.ts';
 import type { Tab } from '../browser/main/index.ts';

@@ -1,4 +1,4 @@
-# Project Explorer
+# Explorer
 
 A Kulisa package: `docs/packages.md`; behavior and integration: `README.md`.
 
