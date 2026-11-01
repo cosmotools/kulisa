@@ -210,7 +210,7 @@ test("Resources: the agent's artifacts listed as it makes them, the newest first
   await deleteButton.click();
   await expect(row(next)).toHaveCount(0);
   await expect.poll(() => fs.existsSync(next)).toBe(false);
-  expect((await invoke(ui, 'task:artifacts-delete', { key: await core((k) => k.shell.task.key), files: [path.join(files.root, 'package.json')] })).error,
+  expect((await invoke(ui, 'task:artifact:delete', { key: await core((k) => k.shell.task.key), files: [path.join(files.root, 'package.json')] })).error,
     'only a file of the task\'s own folder').toMatch(/not an artifact/);
 });
 
@@ -266,7 +266,7 @@ test('Resources artifacts drag as disk files into the terminal without sending t
       await core((k) => k.shell.pty.write('\x15'));
     }
     const key = await core((k) => k.shell.task.key);
-    for (const channel of ['task:artifact-drag', 'task:artifact-send'] as const) {
+    for (const channel of ['task:artifact:drag', 'task:artifact:send'] as const) {
       expect((await invoke(ui, channel, { key, file: path.join(files.project, 'package.json') })).error).toMatch(/not an artifact/);
     }
   } finally {

@@ -280,7 +280,7 @@ The roots are the task’s **resources** (what it has, uses or created), each wi
   (`Task.artifacts`): the window never decodes the pictures, megabytes each. Made in the background one at a time
   (`makeThumbs`), the list sent again when they are: a whole page's takes tens of milliseconds, and many would hold up
   the task's terminals starting. The list comes when the task is shown and whenever the human or agent keeps one
-  (`Task.artifactsChanged`, the window's `artifacts`). A click opens the file in the OS's app; its menu: Open, Show in
+  (`Task.artifactsChanged`, the window's `task:artifact:state`). A click opens the file in the OS's app; its menu: Open, Show in
   Folder, Send to Agent (`Task.sendArtifact`, the shell-quoted path typed without Enter), Delete (no question: Kulisa's data, not the human's work). Each row’s 🗑, shown on hover or keyboard focus, deletes its file. Their heading says what they take, from the
   activity monitor ([src/activity-monitor](../src/activity-monitor/README.md); `Task.artifactsUsage`), so the human
   sees a task gather them; its 🗑 deletes them all. The agent: `task_artifacts` lists them with their sizes (or each
@@ -348,7 +348,7 @@ to the human; the window's IPC (`ipc/`) and the MCP tools are handles on it:
 | Read what was said and done in the task before | its terminal, scrolled back | `task_history` ([transcripts.md](transcripts.md)) | `historyPart` (`history.ts`) |
 | Delete a task | Delete Task… in its tab's menu; its 🗑 in the sidebar | none: it deletes work and sign-ins, the human's to decide | `askDeleteTask`, `deleteTask`, `deleteClosedTask` (`projects.ts`) |
 | Show a task | a click on its tab, of any project | none: what the human looks at is theirs | `AppWindow.show` (`window.ts`) |
-| Browse a task’s folders, open a file | Project section in Resources content; double-click or Enter on a file, its Open menu | the agent reads and opens files through its own tools | `task:files`, `task:file-open` (`Task.files`, `Task.openProjectFile`; Project Explorer confines reads to its roots) |
+| Browse a task’s folders, open a file | Project section in Resources content; double-click or Enter on a file, its Open menu | the agent reads and opens files through its own tools | `task:file:list`, `task:file:open` (`Task.files`, `Task.openProjectFile`; Project Explorer confines reads to its roots) |
 | Review local code changes | Diff section, continuous file diffs; Unified or Split | the agent reads its Git repository through its own tools | `task:diff:list`, `task:diff:targets`, `task:diff:review`, `task:diff:contents` (`Task.diff`, `Task.diffTargets`, `Task.review`, `Task.diffContents`) |
 | Open a resource's folder | double-click its root in Resources, or Open Folder in its menu | none: the agent opens folders through its own tools | `task:open-folder` (`ipc/tasks.ts`) |
 | Open an artifact, show it in its folder | a click on its row in the Resources panel, its menu | none: the tools' answers give the agent its path | `file:open`, `file:show` (`file-links.ts`) |
@@ -360,7 +360,7 @@ to the human; the window's IPC (`ipc/`) and the MCP tools are handles on it:
 | Add a project's repository to a task | Add Repository in its tab's menu | `task_add_repository`, once the human agreed in the conversation | `Task.addRepository`, `Project.addCopy` |
 | Remove one added | Remove Repository in its tab's menu, or on its chip | `task_remove_repository`, once the human agreed | `Task.removeRepository`, `Project.askRemoveCopy`, `removeCopy` |
 | Add, make the default (or none the default), remove an agent of the project | the project's page | none: what the project is made of is the human's | `addAgent`, `defaultAgent`, `removeAgent` (`projects.ts`) |
-| Make an account of an agent | New Account… in Settings → Agents or a project's page | none: signing in is the human's (Rules) | `account:signin` (`app.ts`), `Accounts.prepare`, `create` |
+| Make an account of an agent | New Account… in Settings → Agents or a project's page | none: signing in is the human's (Rules) | `account:signin:start` (`app.ts`), `Accounts.prepare`, `create` |
 | Delete an account | − in Settings → Agents | none: it deletes a sign-in and conversations, the human's to decide | `deleteAccount` (`projects.ts`), `shell.dropAccount` |
 | Add a GitHub account, sign it in again, delete it | Settings → GitHub | none: signing in is the human's (Rules) | `GitHub.startFlow`, `addToken`, `deleteGitHub` (`projects.ts`; [src/github](../src/github/README.md)) |
 | Choose a repository's GitHub account | its row on the project's page | none: what the project is made of is the human's | `setGitHub` (`projects.ts`) |
@@ -394,7 +394,7 @@ never assumes one is installed.
   (`command -v`: Kulisa started from a menu has a shorter `PATH`; on Windows `where.exe`, the first match Windows runs:
   an npm-installed agent is a `.cmd`, run through `cmd.exe`) and each one's `--version`, tenths of a second or more
   with a heavy `.bashrc`. So the window first shows what the last look found, kept in the main process's memory
-  (`agents:list`, `cached`; nothing on disk: the computer's state changes without Kulisa), and looks again behind it.
+  (`agent:list`, `cached`; nothing on disk: the computer's state changes without Kulisa), and looks again behind it.
   Only the first time after Kulisa starts does it wait.
 - **Accounts** (`accounts.ts`): an agent with a sign-in of its own, so one human runs a work and a personal Claude side
   by side. Each is the agent with its own config folder, given by its variable (`CLAUDE_CONFIG_DIR`, `CODEX_HOME`:
@@ -488,7 +488,7 @@ profiles.
   project's accounts (the same one too, "afresh"; another agent's first: a limit is the usual reason) and what stays
   behind. Hand over: the one chosen opens in a new tab, in front under the dialog (a tab behind has no size, and its
   terminal broke what the agent drew). The dialog stays while it reads, a progress bar of its real progress ("part 2
-  of 5": its `task_history` calls of that conversation, `Task.historyRead` → `handover:read`). It goes once the last
+  of 5": its `task_history` calls of that conversation, `Task.historyRead` → `agent:handover:progress`). It goes once the last
   part is read, or at once when the agent waits for the human (its hooks: a permission, a sign-in, a limit), its tab
   is gone, or 30 s pass with no part read (an agent without hooks waiting); Show now and × any time. Its first
   message, as if the human typed it (a command-line argument, `prompt` in its entry): go on with the work of

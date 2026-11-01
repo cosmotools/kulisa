@@ -26,7 +26,7 @@ test("+ opens any of the project's accounts, a new conversation in a tab of its 
     k.shell.accounts.create(r.id, 'fake', `${x}@switch.test`);
     return { id: r.id, dir: r.dir };
   }));
-  for (const x of [a, b]) await invoke(ui, 'project:agent-add', { id: files.pid('project'), agent: x.id });
+  for (const x of [a, b]) await invoke(ui, 'project:agent:add', { id: files.pid('project'), agent: x.id });
   await showResources(ui, 'Agents');
   const tabs = () => terminalRows(ui);
   // A terminal's tab's state, and the task's tab's.
@@ -214,7 +214,7 @@ test("+ opens any of the project's accounts, a new conversation in a tab of its 
   await deleted;
   await expect.poll(() => core((k, t) => !k.shell.taskByKey(t), key)).toBe(true);
   expect(fs.existsSync(file), "the fake agent's, in its account").toBe(false);
-  for (const x of [a, b]) await invoke(ui, 'project:agent-remove', { id: files.pid('project'), agent: x.id });
+  for (const x of [a, b]) await invoke(ui, 'project:agent:remove', { id: files.pid('project'), agent: x.id });
   await core(async (k, ids) => {
     for (const x of ids) { k.shell.accounts.drop(x.id); k.removeTree(x.dir); }
   }, [a, b]);

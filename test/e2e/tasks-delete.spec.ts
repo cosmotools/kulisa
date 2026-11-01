@@ -127,7 +127,7 @@ test("tasks: a closed task whose PR is merged on the remote is marked in its gro
   expect((await answer(ui)).message).toBe('Delete the task task-1?');
   await expect.poll(async () => !(await core((k, key) => k.shell.current.tasks.has(key.split('/')[1]), first)) && !fs.existsSync(folders[0].folder)).toBe(true);
   expect(await core((k, key) => k.shell.current.tasks.has(key.split('/')[1]) && !k.shell.taskByKey(key).entry.merged, second), 'one not merged stays').toBe(true);
-  await invoke(ui, 'project:close-tasks', { id });
+  await invoke(ui, 'project:task:close-all', { id });
   await expect.poll(() => core((k, p) => !k.shell.open.has(p), id)).toBe(true);
   await dropProject(core, ui, id, [dir, origin]);
 });
@@ -143,7 +143,7 @@ test("tasks: a closed task is deleted from its row, 🗑 or Delete, in the sideb
   await expect.poll(() => core((k, key) => !k.shell.current.tasks.has(key.split('/')[1]), first)).toBe(true);
   const made = await core((k, key) => k.shell.taskByKey(key).folder, second);
   fs.writeFileSync(path.join(made, 'c.txt'), 'c'); git(made, 'add', '-A'); git(made, 'commit', '-qm', 'c');
-  await invoke(ui, 'project:close-tasks', { id });
+  await invoke(ui, 'project:task:close-all', { id });
   await expect.poll(() => core((k, p) => !k.shell.open.has(p), id)).toBe(true);
   const entry = (name: string) => core((k, a) => k.shell.store.tasksOf(k.shell.store.projects().find((x) => x.id === a.id)).list.find((e) => e.name === a.name) ?? null, { id, name });
   // A task's row under its project in the sidebar.
@@ -151,7 +151,7 @@ test("tasks: a closed task is deleted from its row, 🗑 or Delete, in the sideb
   const row = (name: string) => taskRow(ui, project, name);
   const folder = (await entry('task-2')).resources[0].folder;
   // The sidebar docked, the empty window's: close the open tasks to get there.
-  for (const open of await core((k) => [...k.shell.open.keys()])) await invoke(ui, 'project:close-tasks', { id: open });
+  for (const open of await core((k) => [...k.shell.open.keys()])) await invoke(ui, 'project:task:close-all', { id: open });
   await expect.poll(() => core((k) => k.shell.open.size)).toBe(0);
   await expect(ui.locator('html')).toHaveAttribute('data-page', /^(sidebar|welcome)$/);
   await expect(sidebar(ui)).toBeVisible();

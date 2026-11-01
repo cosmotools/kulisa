@@ -10,4 +10,4 @@ export const agents = agentList({ details: true, installed: (a) => `${a.name} is
 const accounts = createStore<{ accounts: Account[]; clis: string[] }>()(() => ({ accounts: [], clis: [] }));
 export const useAccounts = () => useStore(accounts);
 export const showAccounts = (r: Partial<AccountsInfo>) => accounts.setState({ ...(r.accounts && { accounts: r.accounts }), ...(r.clis && { clis: r.clis }) });
-export const loadAccounts = async () => showAccounts(await kulisa.invoke('accounts:list'));
+export const loadAccounts = async () => showAccounts(await kulisa.invoke('account:list'));

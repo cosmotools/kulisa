@@ -61,7 +61,7 @@ export interface ProjectsInfo {
 }
 // A project's page in Settings (main/ipc/projects.ts): what a project may be, its folders, its profiles, its configuration.
 // agents: every account (main/accounts.ts); clis: the agents a new account can be made of.
-// An agent's account (Settings → Agents: main/app.ts, accounts:list), with the names of the projects it is in.
+// An agent's account (Settings → Agents: main/app.ts, account:list), with the names of the projects it is in.
 // A profile in Settings → Profiles (main/ipc/profiles.ts): who it is, its test login (never its password), its projects.
 export interface SettingsProfile { id: string; name: string; avatar: string; description: string; login: string; hasPassword: boolean; projects: string[] }
 export interface Account { id: string; agent: string; name: string; email: string | null; projects: string[] }

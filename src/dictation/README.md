@@ -109,7 +109,7 @@ caller's (`children`).
 ## Its channels
 
 `ipc.ts`: `voice:get` (a task's microphone, read as the task is shown), `voice:record` (the microphone's click or
-press), `voice` (a task's microphone changed).
+press), `voice:state` (a task's microphone changed).
 
 ## The code
 

@@ -39,10 +39,10 @@ const taskMenu = ({ key, name, repos, resources }: TaskInfo): MenuItem[] => [
   ...(key === store.getState().current ? [{ heading: 'Profiles' }, ...profilesMenu(), '-' as const] : []),
   // The project's repositories it has no copy of, one added when its work needs it (tasks.md, Tasks).
   ...(repos.length ? [{ heading: 'Add Repository' }, ...repos.map((r) => ({ label: r.split(/[\\/]/).pop()!, title: r,
-    run: () => kulisa.invoke('task:add-repo', { key, repo: r }) })), '-' as const] : []),
+    run: () => kulisa.invoke('task:repo:add', { key, repo: r }) })), '-' as const] : []),
   // Those added (removable resources), not the task's own worktree or the main tree: those are not removed here.
   ...(resources.some((r) => r.removable) ? [{ heading: 'Remove Repository' }, ...resources.filter((r) => r.removable)
-    .map((r) => ({ label: r.label, title: r.folder, run: () => kulisa.invoke('task:remove-repo', { key, repo: r.folder }) })), '-' as const] : []),
+    .map((r) => ({ label: r.label, title: r.folder, run: () => kulisa.invoke('task:repo:remove', { key, repo: r.folder }) })), '-' as const] : []),
   { label: 'Rename…', run: () => rename(key, name) },
   { label: 'Show Folder', run: () => kulisa.invoke('task:show-folder', key) },
   '-', ...moveRows((to) => kulisa.invoke('task:move', { key, to, terminalContents: terminalsOf(key) })),
@@ -54,7 +54,7 @@ function projectItems(p: ProjectEntry): MenuItem[] {
   const { projects } = store.getState(), id = p.id, mine = projects.tabs.filter((t) => t.project === id);
   const terminalContents = () => Object.assign({}, ...mine.map((t) => terminalsOf(t.key)));
   return projectMenu(p, { newTask: () => kulisa.invoke('task:new', { project: id }), keys: id === projects.project ? keyText('task.new') : undefined,
-    move: moveRows((to) => kulisa.invoke('project:move-all', { id, to, terminalContents: terminalContents() }), { enabled: mine.length < projects.tabs.length, label: 'Move All Tasks to' }) });
+    move: moveRows((to) => kulisa.invoke('project:task:move-all', { id, to, terminalContents: terminalContents() }), { enabled: mine.length < projects.tabs.length, label: 'Move All Tasks to' }) });
 }
 
 // HTML drag and drop, which also crosses windows. The tab carries its task and what its terminals show (the window it

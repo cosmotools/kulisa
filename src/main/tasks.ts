@@ -88,9 +88,9 @@ class Task {
       key: this.key, saved: this.store.stageTerminals(), isOpen: () => this.loaded,
       launchContext: () => ({ cwd: this.folder, env: this.env() }),
       save: (value) => this.store.saveStageTerminals(value),
-      changed: (list) => { if (this.shown()) this.window?.send('stage-terminals', { task: this.key, list }); },
+      changed: (list) => { if (this.shown()) this.window?.send('stage-terminal:state', { task: this.key, list }); },
       output: (channel, data) => this.window?.send(channel, data),
-      forget: (key) => this.window?.send('terminals:gone', [key]),
+      forget: (key) => this.window?.send('terminal:gone', [key]),
     });
     this.front = null; this.lastAgent = null;
     this.list = new ProjectProfiles(this.store, shell.profileStore, project.id, this._profileHooks());
@@ -493,7 +493,7 @@ class Task {
   historyRead(t: DevelopmentTerminal, conversation: number, part: number, parts: number) {
     if (t.handedFrom !== conversation) return;
     if (part >= parts) t.handedFrom = undefined;
-    this.window?.send('handover:read', { task: this.key, id: t.id, part, parts });
+    this.window?.send('agent:handover:progress', { task: this.key, id: t.id, part, parts });
   }
   // The name an agent gives its conversation (conversation_rename): its tab's, in 1–3 words.
   nameConversation(t: DevelopmentTerminal, name: string | undefined): Result<{ name: string }> {
@@ -631,7 +631,7 @@ class Task {
     log.info(`[terminal] ${t.key} gone`);
     if (t.pty) stopTerminal(t.pty);
     forgetTerminal(t.key);
-    this.window?.send('terminals:gone', [t.key]);
+    this.window?.send('terminal:gone', [t.key]);
     if (t.conversation !== undefined) this.updateConversation(t.conversation, { terminal: undefined, to: Date.now() });
     if (this.lastAgent === t.id) this.lastAgent = null;
     if (this.front === t.id) {
@@ -756,7 +756,7 @@ class Task {
   }
   environmentUsed(environment: string) { this.window?.send('stage:activity', { task: this.key, environment }); }
   // A caption over a profile's pane (ghost.ts, browser_highlight); sticky ones stay until the next caption.
-  caption(profile: string, caption: string | null, sticky = false) { this.window?.send('agent', { task: this.key, profile, caption, sticky }); }
+  caption(profile: string, caption: string | null, sticky = false) { this.window?.send('agent:caption', { task: this.key, profile, caption, sticky }); }
 
   // A test user's pair (profiles.md, "Test users' sign-ins"): set by the human (Settings → Profiles) or the agent
   // (profile_set_login, e.g. after it signed that user up). The password is kept encrypted with the OS keyring, never

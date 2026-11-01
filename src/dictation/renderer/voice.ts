@@ -39,7 +39,7 @@ function set(task: string, voice: Voice) {
   }
   store.setState({ voices: { ...s.voices, [task]: voice }, slow, done });
 }
-kulisa.on('voice', ({ task, voice }) => set(task, voice));
+kulisa.on('voice:state', ({ task, voice }) => set(task, voice));
 
 export const recording = (v: Voice | undefined) => v?.state === 'recording' || v?.state === 'starting';
 export async function record(task: string, on: boolean) {

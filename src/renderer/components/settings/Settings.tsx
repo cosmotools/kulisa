@@ -66,7 +66,7 @@ export function Settings({ at, className }: { at: SettingsAt; className?: string
   }, [loaded]);
 
   const lists = useCallback(async () => {
-    const [list, p] = await Promise.all([kulisa.invoke('projects:list'), kulisa.invoke('profiles:list')]);
+    const [list, p] = await Promise.all([kulisa.invoke('project:list'), kulisa.invoke('profiles:list')]);
     setProjects(list!.projects); setProfiles(p.profiles);
     return { list: list!, profiles: p.profiles };
   }, []);
@@ -93,7 +93,7 @@ export function Settings({ at, className }: { at: SettingsAt; className?: string
     // the gear: the window's project; Profiles from a task: their list
     const project = at.section === 'projects' ? (at.id ?? list.project ?? null) : null;
     // Its page waited for: shown as it comes, it jumps.
-    const filled = project && await kulisa.invoke('project:settings-get', { id: project });
+    const filled = project && await kulisa.invoke('project:settings:get', { id: project });
     await cached;
     if (n !== asked.current) return;
     setFirst(project && filled && !refused(filled) ? { id: project, page: filled } : null);

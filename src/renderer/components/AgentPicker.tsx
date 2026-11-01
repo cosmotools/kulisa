@@ -13,11 +13,11 @@ const list = agentList({ installed: (a) => `${a.name} is installed. Start it; it
 let asking: string | null = null; // the task asked for
 let show: ((open: boolean) => void) | null = null; // the dialog's, once mounted
 
-kulisa.on('agent:choose', async ({ task, selected }) => {
+kulisa.on('agent:choice:show', async ({ task, selected }) => {
   asking = task;
   await list.load(selected ?? undefined, () => show?.(true));
 });
-const answer = (id: string | null) => { const task = asking; asking = null; kulisa.send('agent:chosen', { task, id }); };
+const answer = (id: string | null) => { const task = asking; asking = null; kulisa.send('agent:choice:submit', { task, id }); };
 
 // An install under way or done: a line saying so, the installer's own output under Details (written for programmers:
 // opened by itself only when it fails), the error.

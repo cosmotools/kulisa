@@ -108,9 +108,9 @@ window half may not.
 
 ## Its channels (`ipc.ts`)
 
-`github:accounts` (the list), `github:signin`, `github:signin-wait`, `github:signin-cancel` (the device flow: the code,
-then waiting for it to be entered), `github:token` (a token pasted), `github:delete` (after the question). The
-repositories' accounts are the window's channels, about a project: `project:github-get`, `project:github-set`
+`github:account:list` (the list), `github:signin:start`, `github:signin:wait`, `github:signin:cancel` (the device flow: the code,
+then waiting for it to be entered), `github:signin:token` (a token pasted), `github:account:delete` (after the question). The
+repositories' accounts are the window's channels, about a project: `project:github:get`, `project:github:set`
 (`src/shared/ipc.ts`, `ipc/projects.ts`). `ipc.ts` also holds the pages of GitHub both halves name (`INSTALL`,
 `REVOKE`, `NEW_TOKEN`).
 

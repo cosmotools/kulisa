@@ -27,17 +27,17 @@ export function GitHubPage() {
   // Shown: read again (an account's projects and sign-in change elsewhere). Left: a code no longer on screen is not to
   // be entered, so its sign-in ends.
   useEffect(() => {
-    void kulisa.invoke('github:accounts').then(show);
-    return () => { if (code.current) { code.current = null; void kulisa.invoke('github:signin-cancel'); } };
+    void kulisa.invoke('github:account:list').then(show);
+    return () => { if (code.current) { code.current = null; void kulisa.invoke('github:signin:cancel'); } };
   }, []);
 
-  async function cancelSignin() { code.current = null; setSigning(null); await kulisa.invoke('github:signin-cancel'); }
+  async function cancelSignin() { code.current = null; setSigning(null); await kulisa.invoke('github:signin:cancel'); }
   async function withGitHub(again: string | null = null) {
     setError(''); setPasting(null);
-    const r = await kulisa.invoke('github:signin', { again });
+    const r = await kulisa.invoke('github:signin:start', { again });
     if (refused(r)) { setError(r.error); return; }
     code.current = r.code; setSigning({ again, ...r });
-    const done = await kulisa.invoke('github:signin-wait');
+    const done = await kulisa.invoke('github:signin:wait');
     if (code.current !== r.code) return; // cancelled, or another begun
     code.current = null; setSigning(null);
     if (refused(done)) { setError(done.error ?? ''); return; }
@@ -49,14 +49,14 @@ export function GitHubPage() {
   }
   async function addToken() {
     if (!token.trim()) return;
-    const r = await kulisa.invoke('github:token', { token, again: pasting?.again ?? null });
+    const r = await kulisa.invoke('github:signin:token', { token, again: pasting?.again ?? null });
     if (refused(r)) { setTokenError(r.error); return; }
     setPasting(null); setToken(''); show(r);
   }
   const again = (a: GitHubAccount | undefined) => a && (a.kind === 'app' ? withGitHub(a.id) : withToken(a.id));
   async function remove(id: string) {
     setError('');
-    const r = await kulisa.invoke('github:delete', { id });
+    const r = await kulisa.invoke('github:account:delete', { id });
     if (refused(r)) { setError(r.error ?? ''); return; } // null: the human said no
     show(r);
   }

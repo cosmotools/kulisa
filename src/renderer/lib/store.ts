@@ -86,20 +86,20 @@ type Rest<C extends OnTaskChannel> = Omit<Invoke[C]['args'][0], 'task'>;
 export const act = <C extends OnTaskChannel>(channel: C, ...args: {} extends Rest<C> ? [Rest<C>?] : [Rest<C>]) =>
   kulisa.invoke(channel, ...([{ ...args[0], task: get().current }] as Invoke[C]['args']));
 
-kulisa.on('projects', (info) => set({ projects: info, current: info.current }));
+kulisa.on('project:state', (info) => set({ projects: info, current: info.current }));
 
 // What the window shows in the grid's place, one page at a time (docs/tasks.md, The window's pages): the shown task's
 // grid; with no task open, the sidebar of every project's tasks; with no project at all, the welcome. Its own switch,
 // not a router's: what is shown is the main process's (current).
 export type Page = 'task' | 'sidebar' | 'welcome';
 export const pageOf = (s: WindowState): Page => (s.current === null ? (s.projects.projects.length ? 'sidebar' : 'welcome') : 'task');
-kulisa.on('closed-profiles', (list) => set({ closedProfiles: list }));
-kulisa.on('artifacts', (a) => set({ artifacts: a }));
-kulisa.on('zoom', (z) => set({ zoom: z }));
+kulisa.on('profile:closed', (list) => set({ closedProfiles: list }));
+kulisa.on('task:artifact:state', (a) => set({ artifacts: a }));
+kulisa.on('zoom:state', (z) => set({ zoom: z }));
 void kulisa.invoke('zoom:get').then((z) => set({ zoom: z }));
-kulisa.on('theme', (theme) => { set({ theme }); setTheme(theme); });
-kulisa.on('bar', (bar) => set({ bar }));
-kulisa.on('language', (info) => set({ language: info }));
+kulisa.on('theme:state', (theme) => { set({ theme }); setTheme(theme); });
+kulisa.on('bar:state', (bar) => set({ bar }));
+kulisa.on('language:state', (info) => set({ language: info }));
 void kulisa.invoke('language:get').then((info) => set({ language: info }));
 
 // On the root, for CSS and the tests: the page shown, the shown task's project's color (--project; none: Kulisa's own).
@@ -122,7 +122,7 @@ function brief(profile: string, caption: string, sticky?: boolean) {
 
 // The agent's activity: a caption over the pane (the cursor itself is drawn inside the page, ghost.ts), sticky for what
 // highlighted elements are. Not over a sign-in page, which says the agent is paused.
-kulisa.on('agent', (a) => {
+kulisa.on('agent:caption', (a) => {
   if (a.task !== get().current) return; // a task in the background
   const p = get().profiles.find((x) => x.id === a.profile);
   if (!p || p.signinMode) return;

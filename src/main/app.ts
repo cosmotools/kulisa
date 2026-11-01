@@ -136,7 +136,7 @@ function start(options: Options = {}) {
   // Speaking to the agent (src/dictation); for an agent without dictation of its own, another agent's account
   // recognizes (recognizer.ts).
   const speech = recognizer(shell, userData);
-  shell.dictation = new Dictation((task, voice) => shell.taskByKey(task)?.window?.send('voice', { task, voice }), { recognizer: speech });
+  shell.dictation = new Dictation((task, voice) => shell.taskByKey(task)?.window?.send('voice:state', { task, voice }), { recognizer: speech });
   shell.github = new GitHub({ dir: userData, fetch: (url, init) => net.fetch(url, init), secrets: shell.secrets });
   shell.github.accounts.logAll();
   // What Kulisa takes on the computer (src/activity-monitor), told where every task's data is.
@@ -290,7 +290,7 @@ function start(options: Options = {}) {
       const r = !a.own && a.dir ? a.agent.language?.set(a.dir, code) : null;
       if (r?.error) console.warn('[agents] language:', r.error);
     }
-    for (const w of shell.windows) w.send('language', shell.languageInfo());
+    for (const w of shell.windows) w.send('language:state', shell.languageInfo());
     return { language: code };
   };
   // Where the bar of the open projects and their tasks is: 'bottom' (the default: by the terminal, where the hand
@@ -298,13 +298,13 @@ function start(options: Options = {}) {
   shell.bar = store.settings().bar || 'bottom';
   shell.setBar = (bar) => {
     shell.bar = bar; store.saveSettings({ ...store.settings(), bar });
-    for (const w of shell.windows) w.send('bar', bar);
+    for (const w of shell.windows) w.send('bar:state', bar);
   };
   shell.stageFollow = store.settings().stageFollow ?? false;
   shell.setStageFollow = (follow) => {
     if (shell.stageFollow === follow) return;
     shell.stageFollow = follow; store.saveSettings({ ...store.settings(), stageFollow: follow });
-    for (const w of shell.windows) w.send('stage:follow', follow);
+    for (const w of shell.windows) w.send('stage:follow:state', follow);
   };
   const allTasks = () => [...shell.open.values()].flatMap((p) => [...p.tasks.values()]);
   // Every open profile: the tasks' copies, and the masters open to sign in to (master.ts).

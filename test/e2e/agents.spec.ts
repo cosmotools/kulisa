@@ -22,7 +22,7 @@ async function fresh(core: Core, ui: Page, files: Files) {
     await deleted;
   }
   await expect.poll(() => core((k, f) => k.shell.current.tasks.size === 1 && k.shell.task?.key === f && k.settled(), first), { timeout: 20000 }).toBe(true);
-  for (const id of await core((k) => k.shell.accounts.stored().map((a) => a.id))) await invoke(ui, 'project:agent-remove', { id: pid, agent: id });
+  for (const id of await core((k) => k.shell.accounts.stored().map((a) => a.id))) await invoke(ui, 'project:agent:remove', { id: pid, agent: id });
   await core(async (k) => {
     for (const a of k.shell.accounts.stored()) { k.shell.accounts.drop(a.id); k.removeTree(k.shell.accounts.folderOf(a)); }
   });
@@ -44,7 +44,7 @@ async function workAccount(core: Core, ui: Page, files: Files) {
     return r.id;
   });
   fs.writeFileSync(path.join(accountDir(files, work), 'account'), 'work@shop.com'); // signed in, as its own sign-in leaves it (fixtures/fake-agent.sh)
-  await invoke(ui, 'project:agent-add', { id: files.pid('project'), agent: work });
+  await invoke(ui, 'project:agent:add', { id: files.pid('project'), agent: work });
   const task = await newTask(core, ui, null, files.pid('project'));
   await expect.poll(() => core((k) => k.shell.task.promptTarget()?.agent.id), { timeout: 20000 }).toBe(work); // the project's default: its one account
   return { work, task };
@@ -163,7 +163,7 @@ test('once installed, the Agents window shows its version and where it is', asyn
 test('the list comes at once with what the last look found, then looks again: an agent removed meanwhile shows so', async ({ core, ui, sui, files }) => {
   await fakeAgent(ui, files);
   const bin = fakeBin(files), away = `${bin}.away`;
-  const fake = (cached: boolean) => invoke(ui, 'agents:list', { details: true, cached }).then((r: any) => r.list?.find((a: any) => a.id === 'fake'));
+  const fake = (cached: boolean) => invoke(ui, 'agent:list', { details: true, cached }).then((r: any) => r.list?.find((a: any) => a.id === 'fake'));
   expect((await fake(true)).version, "the last look's, nothing run").toBe('1.2.3');
   await renamed(bin, away); // the look just made may still run its .cmd, holding it
   try {

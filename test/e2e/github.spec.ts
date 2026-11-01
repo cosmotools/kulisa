@@ -99,7 +99,7 @@ async function ghProject(core: Core, files: Files) {
 }
 const github = (core: Core, id: string) => core((k, p) => k.shell.store.projects().find((x) => x.id === p).github, id);
 const removeProject = (core: Core, id: string) => core((k, p) => { const x = k.shell.store.projects().find((y) => y.id === p); if (x) k.shell.store.removeProject(x); }, id);
-const bind = (s: Page, a: { id: string; remote: string; account: string }) => invoke(s, 'project:github-set', a);
+const bind = (s: Page, a: { id: string; remote: string; account: string }) => invoke(s, 'project:github:set', a);
 
 test('GitHub: signing in with Kulisa App, Kulisa shows the code itself and opens GitHub\'s page; the account comes once it is entered there, no token on disk or in the log', async ({ core, ui, sui, files }) => {
   await clean(core, ui);
@@ -179,7 +179,7 @@ test("GitHub: a repository's row: the account that reaches its remote suggested 
     expect((await github(core, id))['github.com/acme/shop']).toBe(ann);
     // A repository leaving the project takes its binding along, but not while another of its repositories has its remote.
     await core((k, a) => k.shell.store.updateProject(a.id, { folders: [a.f.shop, a.f.site, a.f.lab, a.f.beta, a.f.again] }), { id, f: folders });
-    const removeFolder = (folder: string) => invoke(s, 'project:folder-remove', { id, folder });
+    const removeFolder = (folder: string) => invoke(s, 'project:folder:remove', { id, folder });
     expect((await removeFolder(folders.site)).error).toBeUndefined();
     expect((await removeFolder(folders.shop)).error).toBeUndefined();
     expect(await github(core, id)).toEqual({ 'github.com/acme/shop': ann });

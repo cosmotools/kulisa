@@ -46,7 +46,7 @@ export function installShortcuts(shell: Shell, { appDevTools }: { appDevTools: b
     if (hit.id === 'devtools.app') return win.toggleDevTools();
     if (hit.id === 'devtools.tab') return t && t.profile.toggleDevTools(t.tab.id);
     if (hit.window) win.win.webContents.focus();
-    win.send('command', { id: hit.id, n: hit.n, profile: t ? t.profile.id : pane, tab: t ? t.tab.id : null, task: win.task?.key ?? null, page: !!t });
+    win.send('command:run', { id: hit.id, n: hit.n, profile: t ? t.profile.id : pane, tab: t ? t.tab.id : null, task: win.task?.key ?? null, page: !!t });
   }
   app.on('web-contents-created', (_e, wc) => wc.on('before-input-event', (e, input) => onKey(wc, e, input)));
   on('keys:zone', (e, zone) => { const w = at(e); if (w) w.keyZone = String(zone); });
@@ -58,7 +58,7 @@ export function installShortcuts(shell: Shell, { appDevTools }: { appDevTools: b
     const keys = { ...store.settings().keys, [id]: code };
     store.saveSettings({ ...store.settings(), keys });
     table = keymap(undefined, keys);
-    for (const w of shell.windows) w.send('keys', shell.keys());
+    for (const w of shell.windows) w.send('keys:state', shell.keys());
     return { keys: shell.keys() };
   });
 

@@ -90,7 +90,7 @@ Serializing leaves out the cursor's visibility (`?25`) and the mouse's encoding 
 Code's fullscreen clicks), so each buffer follows them (`registerCsiHandler`, not taking them) and they are written
 after it, every one with its value: the reset leaves a hidden cursor hidden in the next terminal shown, and turning an
 encoding off sets the default one, so those off go first (`serialized`). A task moving to another window takes its
-terminals' buffers the same way (`terminals:restore`), at the same size, also when its page showed the task first.
+terminals' buffers the same way (`terminal:restore`), at the same size, also when its page showed the task first.
 
 Set up as VS Code's: Unicode 11 widths (Claude Code draws ✅ ⏵ ✻; with Unicode 6 the cursor drifts a cell after each),
 a bundled font (JetBrains Mono, which it imports with xterm's stylesheet, so any page that shows a terminal has them),
@@ -143,8 +143,8 @@ main-process parser retains screen text and modes for reads and input encoding; 
 ## Its channels (`ipc.ts`)
 
 `pty:quote-paths` (invoke: shell literals for dropped files), `pty:in` (keys), `pty:resize` (the size shown), `pty:out` (output, to the window of the task it is in),
-`terminals:restore` (a task's terminals' contents, written into the buffers of the window it moves to),
-`terminals:gone` (their buffers dropped). `src/shared/ipc.ts` joins them into all of the window's channels.
+`terminal:restore` (a task's terminals' contents, written into the buffers of the window it moves to),
+`terminal:gone` (their buffers dropped). `src/shared/ipc.ts` joins them into all of the window's channels.
 
 `View.find(text, previous, incremental)` lazily loads xterm's MIT-licensed search addon and searches the shown
 terminal's buffer, including wrapped lines and scrollback. `clearSearch()` removes its selection. Resize and parsed output refresh an open search; `onSearchResult` reports whether it matches. The window owns

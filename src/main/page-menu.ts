@@ -63,7 +63,7 @@ function installPageMenu(shell: Shell) {
         if (id === 'image.copy') return wc.copyImageAt(p.x, p.y);
         if (id === 'inspect') return profile.inspect(tab.id, p.x, p.y);
         // The rest as their keys do them (keys.ts): back, forward, reload, Pick, a screenshot of an element.
-        w.send('command', { id, profile: profile.id, tab: tab.id, task: w.task?.key ?? null, page: true });
+        w.send('command:run', { id, profile: profile.id, tab: tab.id, task: w.task?.key ?? null, page: true });
       };
       const items = rows.map((r): MenuItemConstructorOptions => ('id' in r ? { label: r.label, enabled: r.enabled ?? true, click: () => run(r.id) } : r));
       const menu = Menu.buildFromTemplate(items);

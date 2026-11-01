@@ -21,16 +21,16 @@ export const shortPath = (p: string, home: string | null) => (home ? tilde(p, ho
 
 // The installer's output goes to the list that runs it.
 let logTo: ((data: string) => void) | null = null;
-kulisa.on('agents:install-log', (data) => logTo?.(data));
+kulisa.on('agent:install:output', (data) => logTo?.(data));
 
 export function agentList(opts: { details?: boolean; installed: (a: AgentInfo) => string }) {
   const store = createStore<AgentListState>()(() => ({ agents: [], selected: undefined, home: null, installing: false, looking: false,
     progress: '', log: '', error: '', showDetails: false, detailsOpen: false }));
   const get = store.getState, set = store.setState;
-  // cached: what the main process found last time, if it has looked yet (main/ipc/agents.ts, agents:list).
+  // cached: what the main process found last time, if it has looked yet (main/ipc/agents.ts, agent:list).
   // again: a look behind a list already shown, dropped when an install began meanwhile (it marks its own row).
   const fetchAgents = async (cached = false, again = false) => {
-    const r = await kulisa.invoke('agents:list', { ...(opts.details ? { details: true } : { check: true }), cached });
+    const r = await kulisa.invoke('agent:list', { ...(opts.details ? { details: true } : { check: true }), cached });
     if (!r.list || (again && get().installing)) return false;
     // As found before (most looks), the store kept: its lists are not drawn again.
     if (r.home !== get().home || JSON.stringify(r.list) !== JSON.stringify(get().agents)) set({ agents: r.list, home: r.home });
@@ -72,7 +72,7 @@ export function agentList(opts: { details?: boolean; installed: (a: AgentInfo) =
     if (!a || get().installing) return false;
     set({ selected: id, installing: true, showDetails: true, detailsOpen: false, log: '', error: '', progress: `Installing ${a.name}…` });
     logTo = (data) => set({ log: get().log + data });
-    const r = await kulisa.invoke('agents:install', { id });
+    const r = await kulisa.invoke('agent:install:start', { id });
     logTo = null;
     const installed = !refused(r) && r.installed;
     set({ installing: false, agents: get().agents.map((x) => (x.id === id ? { ...x, installed } : x)),
