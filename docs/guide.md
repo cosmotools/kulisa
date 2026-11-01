@@ -101,7 +101,8 @@ project, and those you closed, are in the sidebar (Tasks, below).
   and Enter to select a file. Selecting a file jumps to it.
   The review loads as one document. Large files and reviews show **Load diff** where you choose what to load.
   All changed files appear in one scrolling
-  document, each with its path and change counts above its diff. Scrolling through the review marks the current file
+  document, each in a bordered block with its path and change counts above its diff. Gaps separate the files.
+  Scrolling through the review marks the current file
   in the tree. Choose
   **Unified** or **Split** for the comparison layout. The review header shows the added and deleted line totals for
   the files in the document. The review follows Kulisa's global zoom, text size and light or dark palette.

@@ -56,7 +56,7 @@ function ReviewContent({ session, selection, shade, fontSize }: DiffPanelProps) 
   }, [session, selection.navigation]);
   const renderHeader = useCallback((item: CodeViewItem<Notice>) => {
     const file = byPath.get(item.id);
-    return <header role="heading" aria-level={3} aria-label={item.id} className="flex h-9 items-center gap-2 border-y bg-card px-3 text-sm">
+    return <header role="heading" aria-level={3} aria-label={item.id} className="flex h-9 items-center gap-2 border-b bg-muted px-3 text-sm">
       <span className="min-w-0 flex-1 truncate" title={file?.previousPath ? `${file.previousPath} → ${item.id}` : item.id}>{file?.previousPath ? `${file.previousPath} → ${item.id}` : item.id}</span>
       {file && <><DiffStatus status={file.status} /><DiffCounts additions={file.additions} deletions={file.deletions} /></>}
     </header>;
@@ -72,7 +72,7 @@ function ReviewContent({ session, selection, shade, fontSize }: DiffPanelProps) 
   }, [load]);
   const viewOptions = useMemo<CodeViewReactOptions<Notice, undefined>>(() => ({ theme: 'kulisa-review', themeType: shade === 'dark' ? 'dark' : 'light', diffStyle: mode, stickyHeaders: true,
     diffIndicators: 'classic' as const, hunkSeparators: 'line-info-basic' as const, overflow: 'scroll' as const,
-    itemMetrics: { lineHeight, diffHeaderHeight: 36 }, layout: { paddingTop: 0, paddingBottom: 12, gap: 12 },
+    itemMetrics: { lineHeight, diffHeaderHeight: 36 }, layout: { paddingTop: 16, paddingBottom: 16, gap: 24 },
     onPostRender(node, _instance, phase, context) {
       if (phase === 'unmount') return;
       // The component's public lifecycle supplies accessible names for its custom-element root and code region.
@@ -110,7 +110,7 @@ function ReviewContent({ session, selection, shade, fontSize }: DiffPanelProps) 
       {error && <div className="absolute inset-0 z-10 bg-card p-3"><Alert variant="destructive"><AlertDescription>{error.message}</AlertDescription></Alert></div>}
       {data && !files.length && <p className="absolute inset-0 z-10 bg-card p-3 text-sm text-muted-foreground">{!data.git ? 'This folder is not a Git repository.' : data.files.length ? 'No files match' : 'No changes'}</p>}
       <CodeView ref={viewer} containerRef={viewport} items={items} options={viewOptions} onScroll={onScroll}
-        renderCustomHeader={renderHeader} renderAnnotation={renderAnnotation} className="diff-review h-full overflow-auto"
+        renderCustomHeader={renderHeader} renderAnnotation={renderAnnotation} className="diff-review h-full overflow-auto px-4"
         style={{ '--diffs-font-size': `${fontSize}px`, '--diffs-line-height': `${lineHeight}px` } as CSSProperties} />
     </div>
     <footer className="flex gap-2 border-t px-3 py-1 text-xs text-muted-foreground"><span className="min-w-0 truncate">{data ? `${data.from} → ${data.to}` : 'From → To'}</span><span className="ms-auto shrink-0">Read only</span></footer>

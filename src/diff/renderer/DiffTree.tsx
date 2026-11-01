@@ -29,9 +29,8 @@ export function DiffTree({ session, files, selected, choose }: {
     renderRowDecoration: ({ item }) => {
       const file = latest.current.input.files.get(item.path);
       if (!file) return null;
-      return { text: file.status, title: `${file.previousPath ? `${file.previousPath} → ` : ''}${file.path}\n${diffLabel(file.status)}`,
+      return { text: '', title: `${file.previousPath ? `${file.previousPath} → ` : ''}${file.path}\n${diffLabel(file.status)}`,
         parts: [
-          { text: `${file.status}  `, color: file.status === 'U' ? 'var(--warning)' : 'var(--muted-foreground)' },
           { text: file.additions === null ? '— ' : `+${file.additions} `, color: file.additions === null ? 'var(--muted-foreground)' : 'var(--success)' },
           { text: file.deletions === null ? '—' : `−${file.deletions}`, color: file.deletions === null ? 'var(--muted-foreground)' : 'var(--destructive)' },
         ] };
