@@ -1,10 +1,10 @@
-// Read-only local Git comparisons for a task's resource folder (docs/tasks.md, Changes).
+// Read-only local Git comparisons (../README.md).
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
-import { git, gitBuffer } from './worktrees.ts';
-import { compareChangePaths, type ChangedFile, type ChangeOptions, type Changes, type FileDiff, type Review } from '../shared/changes.ts';
-import { refused, type Result } from '../shared/result.ts';
+import { git, gitBuffer } from '../../main/worktrees.ts';
+import type { ChangedFile, ChangeOptions, Changes, FileDiff, Review } from '../ipc.ts';
+import { refused, type Result } from '../../shared/result.ts';
 
 const limit = 2 << 20;
 const automaticLimit = 128 << 10, automaticLines = 2000;
@@ -270,4 +270,13 @@ export async function readDiff(folder: string, file: string, options: ChangeOpti
     return { from: c.from, to: c.to, path: file, previousPath: entry.previousPath,
       original: notice ? '' : original.text, modified: notice ? '' : current.text, ...(notice && { notice }) };
   } catch (e) { return { error: errorText(e) }; }
+}
+
+function compareChangePaths(a: string, b: string): number {
+  const left = a.split('/'), right = b.split('/');
+  for (let i = 0; i < Math.min(left.length, right.length); i++) {
+    if (left[i] === right[i]) continue;
+    return Number(i < right.length - 1) - Number(i < left.length - 1) || left[i]!.localeCompare(right[i]!);
+  }
+  return left.length - right.length;
 }

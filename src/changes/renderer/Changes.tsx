@@ -1,42 +1,37 @@
-// The task's local review navigation (docs/tasks.md, Changes).
+// Local review navigation and comparison controls (../README.md).
 import { useEffect, useState } from 'react';
 import { useStore } from 'zustand';
 import { ArrowRightIcon, ChevronRightIcon, FolderIcon, GitBranchIcon } from 'lucide-react';
 import { Alert, AlertDescription, Button, Collapsible, CollapsibleContent, CollapsibleTrigger, Input,
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SidebarMenu, SidebarMenuItem } from '@ui';
-import type { ChangedFile, ChangeOptions } from '../../../shared/changes';
-import { refused } from '../../../shared/result';
-import { store, useWindow } from '../../lib/store';
-import { developmentScreen, showDevelopmentDiff } from '../../lib/grid';
-import { RightClickMenu } from '../Menus';
+import type { ChangedFile, ChangeOptions, ChangeSelection } from '../ipc';
+import { refused } from '../../shared/result';
 import { ChangeCounts } from './ChangeCounts';
 import { changeLabel, ChangeStatus } from './ChangeStatus';
-import { changeListings, comparisonKey, observeChanges, publishChanges, reviewActivity } from './changes-state';
+import { comparisonKey, type ChangesSession } from './session';
 
-export function Changes({ task, roots }: { task: string; roots: { folder: string; label: string }[] }) {
-  useEffect(observeChanges, []);
-  const [filter, setFilter] = useState(() => {
-    const selected = store.getState().developmentDiff;
-    return selected?.task === task ? selected.filter ?? '' : '';
-  });
+type ChangesProps = { session: ChangesSession; roots: { folder: string; label: string }[]; selection: ChangeSelection | null; reviewing: boolean };
+export function Changes({ session, roots, selection, reviewing }: ChangesProps) {
+  useEffect(() => session.observe(), [session]);
+  const [filter, setFilter] = useState(() => selection?.filter ?? '');
   return <section aria-label="Changed files" className="flex h-full min-h-0 flex-col">
     <header className="px-3 py-2 text-sm font-medium">Changes</header>
     <div className="flex flex-col gap-2 px-3 pb-3">
       <Input aria-label="Filter changed files" placeholder="Filter files…" value={filter} onChange={(e) => {
         const value = e.target.value;
         setFilter(value);
-        const selected = store.getState().developmentDiff;
-        if (selected?.task === task) showDevelopmentDiff({ ...selected, filter: value });
+        if (selection) session.actions.select({ ...selection, filter: value });
       }} />
     </div>
     <div className="min-h-0 flex-1 overflow-auto px-1 pb-2">
-      {roots.map((root) => <RepositoryChanges key={root.folder} task={task} root={root} grouped={roots.length > 1} filter={filter} />)}
+      {roots.map((root) => <RepositoryChanges key={root.folder} session={session} selected={selection} reviewing={reviewing} root={root} grouped={roots.length > 1} filter={filter} />)}
     </div>
   </section>;
 }
 
-function RepositoryChanges({ task, root, grouped, filter }: {
-  task: string; root: { folder: string; label: string }; grouped: boolean; filter: string;
+function RepositoryChanges({ session, selected, reviewing: activeReview, root, grouped, filter }: {
+  session: ChangesSession; selected: ChangeSelection | null; reviewing: boolean;
+  root: { folder: string; label: string }; grouped: boolean; filter: string;
 }) {
   const [choosingTarget, setChoosingTarget] = useState(false);
   const [targets, setTargets] = useState<string[]>([]);
@@ -44,43 +39,41 @@ function RepositoryChanges({ task, root, grouped, filter }: {
   useEffect(() => {
     if (!choosingTarget) return;
     let active = true;
-    void kulisa.invoke('task:change-targets', { key: task, folder: root.folder }).then((response) => {
+    void session.actions.targets(root.folder).then((response) => {
       if (!active) return;
       if (refused(response)) setTargetError(response.error);
       else { setTargets(response.branches); setTargetError(null); }
     }, (e: Error) => { if (active) setTargetError(e.message); });
     return () => { active = false; };
-  }, [choosingTarget, task, root.folder]);
+  }, [choosingTarget, session, root.folder]);
   const [options, setOptions] = useState<ChangeOptions>(() => {
-    const selected = store.getState().developmentDiff;
-    return selected?.task === task && selected.folder === root.folder ? { to: selected.options.to } : changeListings.getState().get(root.folder)?.options ?? {};
+    return selected?.folder === root.folder ? { to: selected.options.to } : session.listings.getState().get(root.folder)?.options ?? {};
   });
-  const comparison = { task, folder: root.folder, options }, query = comparisonKey(comparison);
-  const loaded = useStore(changeListings, (s) => s.get(root.folder));
+  const comparison = { folder: root.folder, options }, query = comparisonKey(comparison);
+  const loaded = useStore(session.listings, (s) => s.get(root.folder));
   const result = loaded?.query === query ? loaded.result : null;
-  const selected = useWindow((s) => s.developmentDiff);
-  const reader = useStore(reviewActivity);
-  const reviewing = reader === query || (!!selected && comparisonKey(selected) === query && developmentScreen() === 'changes');
+  const reader = useStore(session.activity);
+  const reviewing = reader === query || (!!selected && comparisonKey(selected) === query && activeReview);
   useEffect(() => {
     if (reviewing) return;
     let active = true, timer = 0;
     const read = async () => {
       try {
-        const response = await kulisa.invoke('task:changes', { key: task, folder: root.folder, options });
-        if (active) publishChanges({ task, folder: root.folder, options }, response);
-      } catch (e) { if (active) publishChanges({ task, folder: root.folder, options }, { error: (e as Error).message }); }
+        const response = await session.actions.list(root.folder, options);
+        if (active) session.publish({ folder: root.folder, options }, response);
+      } catch (e) { if (active) session.publish({ folder: root.folder, options }, { error: (e as Error).message }); }
       if (active) timer = window.setTimeout(() => void read(), 3000);
     };
     void read();
     return () => { active = false; clearTimeout(timer); };
-  }, [task, root.folder, options, reviewing]);
+  }, [session, root.folder, options, reviewing]);
   const data = result && !refused(result) ? result : null;
   // Keep selectors usable when an agent renames or removes a selected branch.
   const metadata = data ?? loaded?.metadata;
-  const choose = (file: ChangedFile) => showDevelopmentDiff({ task, folder: root.folder, path: file.path, options, filter });
+  const choose = (file: ChangedFile) => session.actions.select({ folder: root.folder, path: file.path, options, filter });
   const compare = (next: ChangeOptions) => {
     setOptions(next);
-    showDevelopmentDiff({ task, folder: root.folder, path: selected?.task === task && selected.folder === root.folder ? selected.path : '', options: next, filter });
+    session.actions.select({ folder: root.folder, path: selected?.folder === root.folder ? selected.path : '', options: next, filter });
   };
   const error = result?.error;
   const content = <>
@@ -109,8 +102,8 @@ function RepositoryChanges({ task, root, grouped, filter }: {
           </div>
         </div>
         {data && !data.files.length && <p className="p-2 text-xs text-muted-foreground">No changes</p>}
-        {!!data?.files.length && <ChangeTree files={data.files.filter((f) => `${f.path}\n${f.previousPath ?? ''}`.toLowerCase().includes(filter.toLowerCase()))}
-          selected={selected?.task === task && selected.folder === root.folder ? selected.path : null} choose={choose} />}
+        {!!data?.files.length && <ChangeTree session={session} files={data.files.filter((f) => `${f.path}\n${f.previousPath ?? ''}`.toLowerCase().includes(filter.toLowerCase()))}
+          selected={selected?.folder === root.folder ? selected.path : null} choose={choose} />}
       </>}
   </>;
   if (!grouped) return content;
@@ -123,7 +116,7 @@ function RepositoryChanges({ task, root, grouped, filter }: {
   </Collapsible>;
 }
 
-function ChangeTree({ files, selected, choose, prefix = '' }: { files: ChangedFile[]; selected: string | null; choose(file: ChangedFile): void; prefix?: string }) {
+function ChangeTree({ session, files, selected, choose, prefix = '' }: { session: ChangesSession; files: ChangedFile[]; selected: string | null; choose(file: ChangedFile): void; prefix?: string }) {
   const folders = new Map<string, ChangedFile[]>(), leaves: ChangedFile[] = [];
   for (const file of files) {
     const rest = file.path.slice(prefix.length), slash = rest.indexOf('/');
@@ -139,16 +132,20 @@ function ChangeTree({ files, selected, choose, prefix = '' }: { files: ChangedFi
       <div className="not-hover:[--muted:transparent]"><CollapsibleTrigger asChild><Button variant="ghost" className="h-7 w-full justify-start" aria-label={prefix + name}>
         <ChevronRightIcon className="group-aria-expanded/button:rotate-90" /><FolderIcon /><span className="min-w-0 truncate">{name}</span>
       </Button></CollapsibleTrigger></div>
-      <CollapsibleContent><div className="ms-4"><ChangeTree files={children} selected={selected} choose={choose} prefix={`${prefix}${name}/`} /></div></CollapsibleContent>
+      <CollapsibleContent><div className="ms-4"><ChangeTree session={session} files={children} selected={selected} choose={choose} prefix={`${prefix}${name}/`} /></div></CollapsibleContent>
     </SidebarMenuItem></Collapsible>)}
-    {leaves.sort((a, b) => a.path.localeCompare(b.path)).map((file) => <SidebarMenuItem key={file.path}><RightClickMenu items={() => [{ label: 'View diff', run: () => choose(file) }]}>
+    {leaves.sort((a, b) => a.path.localeCompare(b.path)).map((file) => <SidebarMenuItem key={file.path}><div onContextMenu={(e) => {
+      if (e.defaultPrevented) return;
+      e.preventDefault();
+      session.actions.showMenu(e.nativeEvent, [{ label: 'View diff', run: () => choose(file) }]);
+    }}>
         <Button variant={selected === file.path ? 'secondary' : 'ghost'} className="h-7 w-full justify-start" aria-current={selected === file.path ? 'true' : undefined}
           aria-label={file.path} title={`${file.previousPath ? `${file.previousPath} → ` : ''}${file.path}\n${changeLabel(file.status)}`}
           onClick={() => choose(file)}>
           <span className="size-4 shrink-0" /><ChangeStatus status={file.status} iconOnly /><span className="min-w-0 flex-1 truncate text-start">{file.path.slice(prefix.length)}</span>
           <span className="text-xs text-muted-foreground" title={changeLabel(file.status)}>{file.status}</span><ChangeCounts additions={file.additions} deletions={file.deletions} />
         </Button>
-    </RightClickMenu></SidebarMenuItem>)}
+    </div></SidebarMenuItem>)}
     {!files.length && <SidebarMenuItem><p className="p-2 text-xs text-muted-foreground">No files match</p></SidebarMenuItem>}
   </SidebarMenu>;
 }

@@ -1,9 +1,9 @@
-// One review request and one visible document snapshot (docs/tasks.md, Changes).
+// One review request and one visible document snapshot (../README.md).
 import { useEffect, useState } from 'react';
 import { parseDiffFromFile, parsePatchFiles, type CodeViewItem } from '@pierre/diffs';
-import type { ChangeSelection, Review } from '../../../shared/changes';
-import { refused } from '../../../shared/result';
-import { comparisonKey, observeChanges, publishChanges, reviewActivity } from './changes-state';
+import type { ChangeSelection, Review } from '../ipc';
+import { refused } from '../../shared/result';
+import { comparisonKey, type ChangesSession } from './session';
 
 export type Notice = { kind: 'loading' | 'deferred' | 'notice' | 'error'; text: string };
 export const loading: Notice = { kind: 'loading', text: 'Loading diff…' };
@@ -13,19 +13,19 @@ export function placeholder(path: string, notice: Notice, version = 0): CodeView
 type Entry = { signature: string; item: CodeViewItem<Notice> };
 type Snapshot = { answer: Review | null; error: string | null; entries: Map<string, Entry> };
 
-export function useReview(selection: ChangeSelection) {
+export function useReview(session: ChangesSession, selection: ChangeSelection) {
   const [snapshot, setSnapshot] = useState<Snapshot>({ answer: null, error: null, entries: new Map() });
   const [loaded, setLoaded] = useState<string[]>([]);
-  const { task, folder } = selection, target = selection.options.to, query = comparisonKey(selection);
+  const { folder } = selection, target = selection.options.to, query = comparisonKey(selection);
   useEffect(() => {
     let active = true, timer = 0;
-    const stopObserving = observeChanges(), options = { to: target };
-    reviewActivity.setState(query, true);
+    const stopObserving = session.observe(), options = { to: target };
+    session.activity.setState(query, true);
     const read = async () => {
       try {
-        const response = await kulisa.invoke('task:review', { key: task, folder, options, load: loaded });
+        const response = await session.actions.review(folder, options, loaded);
         if (!active) return;
-        publishChanges({ task, folder, options }, response);
+        session.publish({ folder, options }, response);
         if (refused(response)) setSnapshot((previous) => ({ ...previous, error: response.error }));
         else {
           // Release patch strings after parsing; only the current document's models remain alive.
@@ -61,8 +61,8 @@ export function useReview(selection: ChangeSelection) {
     void read();
     return () => {
       active = false; clearTimeout(timer); stopObserving();
-      if (reviewActivity.getState() === query) reviewActivity.setState(null, true);
+      if (session.activity.getState() === query) session.activity.setState(null, true);
     };
-  }, [task, folder, target, query, loaded]);
+  }, [session, folder, target, query, loaded]);
   return { ...snapshot, load: (path: string) => setLoaded((previous) => [...previous.filter((p) => p !== path).slice(-3), path]) };
 }

@@ -1,4 +1,4 @@
-// The review's palette and shared highlighting worker (docs/ui.md).
+// The review's palette and shared highlighting worker (../README.md).
 import { registerCustomCSSVariableTheme } from '@pierre/diffs';
 import ReviewWorker from '@pierre/diffs/worker/worker.js?worker';
 

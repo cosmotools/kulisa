@@ -3,9 +3,8 @@ import { Orientation, LocalSelectionTransfer, PanelTransfer } from 'dockview-rea
 import type { DockviewApi, DockviewPanelApi, SerializedDockview, GridviewApi } from 'dockview-react';
 import type { PageLayout } from '../../shared/ipc';
 import type { Profile, DevelopmentTerminalsState } from '../../shared/types';
-import type { ChangeSelection } from '../../shared/changes';
 import type { StageTerminal } from '../../shared/stage-terminal';
-import { act, setCaption, shownTask, store } from './store';
+import { act, setCaption, shownTask, store, type DevelopmentDiff } from './store';
 import { forgetFrozen, freeze, showViews, unfreeze } from './views';
 import { closeLayers } from './cover';
 import { dockTheme } from './dock-theme';
@@ -43,7 +42,7 @@ function finishResourceDrag() {
 }
 
 export interface ResourceParams { section?: 'project' | 'artifacts' | 'terminals' | 'changes' | null; expandedWidth?: number; expandedHeight?: number }
-export interface DevelopmentParams { screen?: 'agents' | 'changes'; review?: Omit<ChangeSelection, 'task' | 'navigation'> }
+export interface DevelopmentParams { screen?: 'agents' | 'changes'; review?: Omit<DevelopmentDiff, 'task' | 'navigation'> }
 const resourceMinimumWidth = 300, resourceRailWidth = 40, resourceBarHeight = 204;
 let developmentGap = dockTheme.gap ?? 0;
 
@@ -404,7 +403,7 @@ export function showDevelopmentAgents() {
   api?.getPanel('terminal')?.api.updateParameters({ screen: 'agents' } satisfies DevelopmentParams);
   changed();
 }
-export function showDevelopmentDiff(selection: ChangeSelection, activate = true) {
+export function showDevelopmentDiff(selection: DevelopmentDiff, activate = true) {
   if (selection.task !== store.getState().current) return;
   const { folder, path, filter } = selection, options = { to: selection.options.to };
   api?.getPanel('terminal')?.api.updateParameters({ screen: 'changes', review: { folder, path, options, filter } } satisfies DevelopmentParams);

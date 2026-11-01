@@ -120,6 +120,7 @@ For Claude Code, select it with `npx skills add pierrecomputer/pierre --skill di
 | `src/browser/` | browser sessions, tabs, navigation, cookies, storage and native views ([README](src/browser/README.md)) |
 | `src/terminal/` | the terminal, a Kulisa package: both its halves, its channels, its doc (docs/packages.md) |
 | `src/github/` | the GitHub accounts, a Kulisa package (docs/packages.md) |
+| `src/changes/` | local Git comparison, changed-file tree and virtualized review, a Kulisa package ([README](src/changes/README.md)) |
 | `src/activity-monitor/` | what Kulisa takes on the computer, a Kulisa package (docs/packages.md) |
 | `src/dictation/` | speaking to the agent instead of typing, a Kulisa package (docs/packages.md) |
 | `src/screenshots/` | a picture of a profile's page, a Kulisa package (docs/packages.md) |

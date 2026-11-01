@@ -4,7 +4,7 @@
 // (the tests read some).
 import type { ProjectFile } from '../project-explorer/ipc.ts';
 import type { Result } from './result.ts';
-import type { ChangeOptions, Changes, FileDiff, Review } from './changes.ts';
+import type { ChangeOptions, Changes, FileDiff, Review } from '../changes/ipc.ts';
 import type { StageTerminal, StageTerminalsState, TerminalSize } from './stage-terminal.ts';
 import type { FileLink, TerminalContents, TerminalEvents, TerminalInvoke, TerminalSend } from '../terminal/ipc.ts';
 import type { ThumbnailEvents, ThumbnailInvoke, ThumbnailSend } from '../screenshots/ipc.ts';

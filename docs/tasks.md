@@ -294,76 +294,12 @@ and the cleanup: the main working tree is the human's, never removed; a worktree
 
 #### Changes
 
-**Changes** lists changed files in a collapsible folder tree per resource, folders first, with status, additions and
-deletions. Repository headings group tasks with several resources; one resource shows its comparison and tree directly.
-Folders and files use Project's compact Button row layout: equal heights, disclosure and icon columns, and indentation.
-Lucide's file-status icons distinguish added (green), deleted (red), renamed and modified files; the tree and diff headers
-share status labels and palette colors. Added files include untracked files and additions relative to the comparison base.
-The selected file uses the secondary variant; folder Buttons set `--muted` to transparent while unhovered, keeping
-expanded folders plain with hover and keyboard focus feedback.
-Opening Changes starts the first repository's review in the development area's terminal location; reopening keeps
-the selected repository, comparison, filter and file when returning from Agents. The development panel's saved
-Dockview parameters own its screen and comparison selection, restored after building the task's layout, including
-when Resources content is closed. Each section selects its own screen
-in the development area. Filter files matches current and previous paths in the tree and document.
-A file's click, Enter or View diff menu scrolls to that file's header. All
-changed files belong to the same document, with sticky path, status and line-count headers; manual scrolling marks
-the visible file in the tree. The review header shows the document's added/deleted line totals; filtering updates
-the totals, with unavailable counts noted in their title. Unified/Split applies to the whole review. The Agents icon and terminal focus shortcut
-return to the last active terminal. Stage keeps its layout and size. Task switches and app restarts restore each
-task's selected development screen.
-
-Each repository has side-by-side **From → To** fields; changing **To** opens that repository's review.
-**From** is plain text showing the task resource's worktree and current branch,
-including committed, staged, unstaged and untracked changes against the comparison base.
-**To** defaults to the remote's default branch, else an available main/master branch, the task's starting commit,
-or HEAD. An **Empty tree** target is available before a first commit. The comparison starts at the source and target's
-merge base, as a pull request does. Worktree → its current branch (or HEAD) shows only uncommitted changes.
-Ignored files stay out. A non-Git resource says so. The view works locally, fetches no remotes and changes no Git state.
-
-`Task.changes`, `Task.changeTargets`, `Task.review` and `Task.diffContents` confine requests to task resources.
-`changes.ts` uses the shared simple-git client in `worktrees.ts`, running the user's installed Git with NUL listings, rename detection and external
-diffs/text conversion disabled. Reads stay inside the resource; symlinks show their link text. Text sides are limited
-to 2 MiB; binary, non-UTF-8 patches, larger and non-file entries show a notice. Listings are limited to 8 MiB.
-
-Opening Changes imports the renderer and requests one complete review through `Task.review`. `loadReview` resolves
-the comparison and reads its summary once, then obtains a bounded patch batch. The reply contains the complete file
-tree, ordinary patches and **Load diff** notices. React publishes the document as one snapshot. Opening **To**
-requests and mounts the complete branch list; the selected label stays outside Radix's closed item collection.
-
-Automatic loading includes up to 32 files and 8,000 changed lines, with a 128 KiB/2,000-line limit per file.
-`ls-tree` sizes and worktree stats defer larger files before patch generation. Git's summary still computes tracked
-line counts. Up to four explicitly loaded files join the automatic allowance, within its 32-file bound. Choosing
-another explicit file keeps the latest four choices. Tracked patches use one `git diff --raw -z --patch`, bounded
-to 24 MiB; NUL headers associate patches with paths for per-patch UTF-8 validation and hashing. Untracked additions
-use bounded reads, four at a time. Complete tracked contents load only for explicit context expansion through
-`task:diff-contents`. Agents read Git through their own tools.
-
-`use-review.ts` owns one React snapshot and a refresh effect, running three seconds after the previous request.
-Unchanged patch versions retain their models and expanded context. Explicit loads repeat the same review request;
-cleanup ignores stale replies. The tree and document share the review's metadata; inactive repository trees read
-their own summaries. Every reopening reads fresh data. Closing the review releases its models and highlighting
-worker; closing the last tree or review releases shared metadata. Review data stays off disk.
-
-The diff stack keeps Git computation in the installed Git through simple-git (MIT), and review rendering in
-@pierre/diffs (Apache-2.0). CodeView accepts Git patches and owns file/line virtualization, avoiding a separate
-editor instance per changed file. `diffSummary` cannot parse NUL-delimited paths; summaries use raw Git output so
-tabs, newlines and rename pairs remain unambiguous. Editor-specific features belong to the future editor surface.
-The shared Git adapter retains stdin, byte output, absolute timeouts, per-stream output limits and the app's
-inherited Git environment without interactive pager/editor variables; simple-git supplies process execution, cancellation and error handling.
-
-@pierre/diffs CodeView owns one scroll container, file and line virtualization, sticky headers and scroll anchoring.
-File clicks carry a navigation sequence; scrolling marks the visible file without Git requests. The highlighting
-pool has one worker and four entries per AST cache. Task switches clear listings.
-Transient read errors retain the document's file list and models for recovery. Removing the selected file selects
-the first remaining match. Tree grouping appends to each folder's list so large folders take linear grouping work.
-`task:diff-contents` rechecks ownership and text limits before context expansion.
-
-`review-theme.ts` maps syntax colors to the window's palette; `review.css` maps additions, deletions, gutters and
-selection. CodeView uses the window's text size and JetBrains Mono, with matching line metrics; Chromium applies
-Kulisa's global zoom to the whole review. `DevelopmentContent.tsx`
-retains the running terminal beside the conditionally mounted review;
-`ChangeCounts.tsx` supplies line counts; `ChangeStatus.tsx` supplies file-status icons and labels.
+Resources → Changes opens a local Git review through the [Changes Kulisa package](../src/changes/README.md).
+`Task.changes`, `Task.changeTargets`, `Task.review` and `Task.diffContents` confine its reads to task resources and
+supply each worktree's starting commit. The task's development panel owns the saved screen, repository, comparison,
+filter and file in its Dockview parameters; restoring the layout restores this selection even with Resources content
+closed. Each section selects its own development screen. Agents and the terminal focus shortcut return to the last
+active terminal; Stage keeps its layout and size.
 
 Stage terminal environments belong to the task (`Task.stageTerminals`): their actions and UI are described in
 [window.md](window.md), Stage terminals. Browser environments retain their own lifecycle in `ProjectProfiles`.
@@ -854,7 +790,7 @@ rm -rf ~/.config/Kulisa/projects/<project id>   # all its tasks with their profi
 | `src/main/projects.ts` | a loaded project: its tasks; making, closing, opening again, deleting one (with the question); making a project (`createProject`), deleting a project's data |
 | `src/main/tasks.ts` | a task: its profiles, its terminals and agents (open, hand over, close, environment), naming, its worktree on demand and resources, its artifacts (what they take, deleting them), copies of its profiles for a new task |
 | `src/main/stage-terminals.ts` | the task’s Stage terminal setup and process lifecycle, shared actions for the window and MCP |
-| `src/main/changes.ts` | bounded local Git listings and file comparisons for Resources → Changes |
+| `src/changes/` | local Git comparison, changed-file navigation and virtualized review ([README](../src/changes/README.md)) |
 | `src/main/worktrees.ts` | git: a task's worktree and branch, files outside git, direnv, changes, renaming the branch, removal |
 | `src/kulisa-plugin/` | agent integration ([README](../src/kulisa-plugin/README.md)) |
 | `src/main/store.ts` | the data folder above |

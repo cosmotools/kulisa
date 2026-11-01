@@ -16,7 +16,7 @@ import { Dictation } from '../../../dictation/renderer';
 import { useShortcuts } from '../../lib/common';
 import { focusDevelopmentTerminal, showDevelopmentTerminal } from '../../lib/development-terminals';
 import { DevelopmentTerminalList } from './DevelopmentTerminalList';
-import { Changes } from '../changes/Changes';
+import { TaskChanges } from '../Changes';
 
 const language = new Intl.DisplayNames(['en'], { type: 'language' });
 const KINDS: Record<string, string> = { screenshot: 'Screenshot', snapshot: 'Snapshot', request: 'Request body', response: 'Response body', terminal: 'Terminal screen' };
@@ -95,7 +95,7 @@ function TaskResources({ taskKey: key, section }: { taskKey: string; section: No
   return <SidebarProvider className="h-full min-h-0">
       <Sidebar collapsible="none" className="h-full w-full">
         {section === 'terminals' && <DevelopmentTerminalList />}
-        {section === 'changes' && <Changes task={key} roots={task.resources} />}
+        {section === 'changes' && <TaskChanges task={key} roots={task.resources} />}
         {section === 'project' && <div className="h-full overflow-auto"><SidebarContent>
           <SidebarGroup><SidebarGroupContent>
             <SidebarMenu aria-label="Folders">

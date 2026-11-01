@@ -1,13 +1,12 @@
-// One virtualized review document, with bounded loading (docs/tasks.md, Changes).
+// One virtualized review document, with bounded loading (../README.md).
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import type { CodeViewItem, FileDiffMetadata } from '@pierre/diffs';
 import { CodeView, WorkerPoolContextProvider, type CodeViewHandle, type CodeViewProps, type CodeViewReactOptions } from '@pierre/diffs/react';
 import { GitCompareArrowsIcon } from 'lucide-react';
 import { Alert, AlertDescription, Button, Spinner, ToggleGroup, ToggleGroupItem } from '@ui';
-import type { ChangedFile, ChangeSelection } from '../../../shared/changes';
-import { refused } from '../../../shared/result';
-import { selectDevelopmentFile } from '../../lib/grid';
-import { uiTextSize, useShade } from '../../lib/theme';
+import type { ChangedFile, ChangeSelection } from '../ipc';
+import { refused } from '../../shared/result';
+import type { DiffPanelProps } from './DiffPanel';
 import { ChangeCounts } from './ChangeCounts';
 import { ChangeStatus } from './ChangeStatus';
 import { highlighterOptions, poolOptions } from './review-theme';
@@ -16,19 +15,17 @@ import './review.css';
 
 const empty: ChangedFile[] = [];
 
-type ReviewProps = { selection: ChangeSelection };
-export default function ReviewDocument({ selection }: ReviewProps) {
+export default function ReviewDocument(props: DiffPanelProps) {
   return <WorkerPoolContextProvider poolOptions={poolOptions} highlighterOptions={highlighterOptions}>
-    <ReviewContent selection={selection} />
+    <ReviewContent {...props} />
   </WorkerPoolContextProvider>;
 }
 
-function ReviewContent({ selection }: ReviewProps) {
-  const { task, folder } = selection, shade = useShade();
-  const fontSize = useMemo(() => uiTextSize(), []), lineHeight = Math.ceil(fontSize * 1.5);
+function ReviewContent({ session, selection, shade, fontSize }: DiffPanelProps) {
+  const { folder } = selection, lineHeight = Math.ceil(fontSize * 1.5);
   const optionsKey = JSON.stringify(selection.options);
   const options = useMemo(() => JSON.parse(optionsKey) as ChangeSelection['options'], [optionsKey]);
-  const { answer: data, error, entries, load } = useReview(selection);
+  const { answer: data, error, entries, load } = useReview(session, selection);
   const [mode, setMode] = useState<'unified' | 'split'>('unified');
   const viewer = useRef<CodeViewHandle<Notice, undefined>>(null), viewport = useRef<HTMLDivElement>(null);
   const navigation = useRef<number | null>(null), userScroll = useRef(false);
@@ -48,16 +45,16 @@ function ReviewContent({ selection }: ReviewProps) {
     if (!files.length || (navigation.current === token && byPath.has(selection.path))) return;
     navigation.current = token; userScroll.current = false;
     const path = byPath.has(selection.path) ? selection.path : files[0]!.path;
-    selectDevelopmentFile(path, selection.navigation);
+    session.actions.selectFile(path, selection.navigation);
     viewer.current?.scrollTo({ type: 'item', id: path, align: 'start', behavior: 'instant' });
-  }, [selection.navigation, selection.path, files, byPath]);
+  }, [session, selection.navigation, selection.path, files, byPath]);
   const onScroll: NonNullable<CodeViewProps<Notice, undefined>['onScroll']> = useCallback((_top, instance) => {
     const top = instance.getContainerElement()?.getBoundingClientRect().top ?? 0;
     const rendered = instance.getRenderedItems().map((item) => ({ id: item.id, bounds: item.element.getBoundingClientRect() })).sort((a, b) => a.bounds.top - b.bounds.top);
     const path = rendered.find((item) => item.bounds.bottom > top + 36)?.id;
     if (!path) return;
-    if (userScroll.current) selectDevelopmentFile(path, selection.navigation);
-  }, [selection.navigation]);
+    if (userScroll.current) session.actions.selectFile(path, selection.navigation);
+  }, [session, selection.navigation]);
   const renderHeader = useCallback((item: CodeViewItem<Notice>) => {
     const file = byPath.get(item.id);
     return <header role="heading" aria-level={3} aria-label={item.id} className="flex h-9 items-center gap-2 border-y bg-card px-3 text-sm">
@@ -86,13 +83,13 @@ function ReviewContent({ selection }: ReviewProps) {
 
     },
     loadDiffFiles: async (file: FileDiffMetadata) => {
-      const response = await kulisa.invoke('task:diff-contents', { key: task, folder, path: file.name, options });
+      const response = await session.actions.contents(folder, file.name, options);
       if (refused(response)) throw new Error(response.error);
       if (response.notice) throw new Error(response.notice);
       return { oldFile: file.type === 'rename-pure' ? null : { name: response.previousPath ?? response.path, contents: response.original },
         newFile: { name: response.path, contents: response.modified } };
     },
-  }), [shade, mode, lineHeight, task, folder, options]);
+  }), [shade, mode, lineHeight, session, folder, options]);
   useEffect(() => {
     const root = viewport.current;
     // CodeView's scroll root has no ARIA props in its React API.

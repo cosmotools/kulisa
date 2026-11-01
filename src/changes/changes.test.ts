@@ -5,8 +5,8 @@ import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { refused } from '../../src/shared/result.ts';
-import { listChanges, listChangeTargets, readDiff, readReview, loadReview } from '../../src/main/changes.ts';
+import { refused } from '../shared/result.ts';
+import { listChanges, listChangeTargets, readDiff, readReview, loadReview } from './main/changes.ts';
 
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'kulisa-changes-'));
 after(() => fs.rmSync(root, { recursive: true, force: true }));
@@ -224,9 +224,9 @@ test('large diffs defer patch generation until explicitly loaded', async () => {
 test('patch versions retain unaffected files and distinguish additions from modifications', async () => {
   const { dir, write, commit } = repo();
   const read = async () => {
-    const summary = await listChanges(dir, working); assert(!refused(summary)); if (refused(summary)) throw new Error(summary.error);
-    const review = await readReview(dir, summary.revision, summary.files); assert(!refused(review)); if (refused(review)) throw new Error(review.error);
-    return review.diffs.map((d) => { assert(!refused(d.result)); if (refused(d.result)) throw new Error(d.result.error); return d.result; });
+    const summary = await listChanges(dir, working); if (refused(summary)) throw new Error(summary.error);
+    const review = await readReview(dir, summary.revision, summary.files); if (refused(review)) throw new Error(review.error);
+    return review.diffs.map((d) => { if (refused(d.result)) throw new Error(d.result.error); return d.result; });
   };
   write('new.txt', 'new contents\n');
   const [addition] = await read(); assert.equal(addition?.addition, 'new contents\n');
