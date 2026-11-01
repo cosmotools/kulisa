@@ -6,6 +6,8 @@ import { termStyle } from './theme';
 import { keyText } from './common';
 import { menuAt, type MenuItem } from './menu';
 import { dialog } from './dialogs';
+import { dockApi } from './grid';
+import { dialogsShown } from './cover';
 import { refused } from '../../shared/result';
 import { restoreTerminal, serialized, termCopy, termHooks, termPaste, View, xtermKeys } from '../../terminal/renderer';
 import type { DevelopmentTerminalInfo } from '../../shared/types';
@@ -16,6 +18,17 @@ const frontKey = () => { const { task, front } = store.getState().developmentTer
 // gives it the theme's colors.
 export const panelView = new View(termStyle());
 export const shownTerm = () => (panelView.key && panelView.key === frontKey() ? panelView.term : null);
+
+export async function showDevelopmentTerminal(id: number) {
+  const task = store.getState().current;
+  // A stacked terminal must be visible before its new buffer takes keyboard focus.
+  dockApi()?.getPanel('terminal')?.api.setActive();
+  await act('development-terminal:show', { id });
+  // Dockview reattaches retained content when a stacked panel opens; detached inputs cannot take focus.
+  requestAnimationFrame(() => {
+    if (store.getState().current === task && store.getState().developmentTerminals.front === id && !dialogsShown()) shownTerm()?.focus();
+  });
+}
 
 termHooks.colors = () => termStyle().colors;
 
@@ -50,7 +63,7 @@ kulisa.on('terminals:restore', (list) => { for (const [key, t] of Object.entries
 
 kulisa.on('development-terminal:focus', () => shownTerm()?.focus());
 
-// The right-click menu of a terminal (its key): an agent's ends with what its tab's menu has (components/grid/DevelopmentTerminals.tsx), a
+// The right-click menu of a terminal (its key): an agent's ends with what its Resources row's menu has, a
 // shell's with Close.
 export function terminalMenu(key: string, more: MenuItem[]): MenuItem[] | null {
   const t = panelView.key === key ? panelView.term : null;
@@ -66,7 +79,7 @@ export function terminalMenu(key: string, more: MenuItem[]): MenuItem[] | null {
   ];
 }
 
-// The terminals' menus (components/grid/DevelopmentTerminals.tsx). The shown task's project's agents (its accounts), the default first; the terminal
+// The terminal creation menus. The shown task's project's agents (its accounts), the default first; the terminal
 // only is the Terminal row.
 const projectAgents = () => { const { projects } = store.getState(); return (projects.open.find((o) => o.id === projects.project)?.agents || []).filter((a) => a.cli !== 'shell'); };
 // The same as big buttons, the terminals alone in the grid: an account's name is its agent's · its email, on two lines.
@@ -83,8 +96,8 @@ export const newTerminalItems = (): MenuItem[] => [
   ...(projectAgents().length ? ['-' as const] : []),
   { label: 'Terminal', agent: 'shell', keys: keyText('terminal.new'), run: () => act('development-terminal:open') },
 ];
-// What a tab's menu and its terminal's end with.
-export const tabItems = (t: DevelopmentTerminalInfo): MenuItem[] => [
+// Shared actions in a terminal’s Resources row and screen menu.
+export const terminalItems = (t: DevelopmentTerminalInfo): MenuItem[] => [
   ...(t.agent ? [
     { label: 'Change agent…', run: () => { void dialog('handover').then((d) => d.open(t)); } },
     { label: 'New Conversation', run: () => act('agent:new-conversation', { id: t.id }) },

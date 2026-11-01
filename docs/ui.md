@@ -29,7 +29,7 @@ the main process after every grid change ([window.md](window.md), The grid).
 |---|---|
 | `src/renderer/index.html`, `main.tsx`; `master.html`, `master.tsx`; `public/theme.js` | a tasks' window's page and a master's window's: the theme from the URL before the first paint (`theme.js`), then the app |
 | `src/renderer/window.css` | Tailwind and shadcn's theme for the window, Kulisa's own variables (`--warning`, `--success`), the few global rules (text selection, the cursor, no scrolling) |
-| `src/renderer/components/` | the parts. `App.tsx` a tasks' window; `Menus.tsx` the menus; `Tip.tsx` a tooltip; `BrowserTabs.tsx` the browser tabs; `Ask.tsx` the questions; `TopBar.tsx`, `TaskBar.tsx`, `Sidebar.tsx`, `Empty.tsx`, `Welcome.tsx`; `Grid.tsx` (`Grid.css`) and `grid/` (`ProfilePane.tsx`, `StageTerminalPane.tsx` (including its inline terminal search), `Terminals.tsx`, `Resources.tsx` (Resources bar (its docking grip) and Resources content, Project Explorer: directory browsing through its renderer entry): a panel and its header each; `Stage.tsx`: the nested testing grid, its scroll viewport; `EnvironmentFocus.tsx`: shared maximize/restore; `StageMenu.tsx`: the title-bar position, view, Follow agent and environment menu); the dialogs `NewProject.tsx` (also `Wizard`, the welcome's), `TaskRename.tsx`, `StageTerminalSettings.tsx` (a Stage terminal’s saved configuration), `AgentPicker.tsx`, `HandOver.tsx`, `Shortcuts.tsx`; `settings/` Settings, its own chunk (`index.ts` its one entry, loaded by `import()`: `npm run deps`): `Settings.tsx`, `kit.tsx` (what its pages are built of) and its pages (`ProjectPage.tsx`, `AgentPage.tsx`, `ProfilePage.tsx`, `GitHubPage.tsx`, `LogPage.tsx`, `AboutPage.tsx`; `agents.ts`, `changed.ts` theirs); `SignIn.tsx` a new account's sign-in (Settings', New Project's); `AgentMark.tsx`, `ProjectIcon.tsx` the marks; `Terminal.tsx` a terminal in a page; `Master.tsx` a master's bar |
+| `src/renderer/components/` | the parts. `App.tsx` a tasks' window; `Menus.tsx` the menus; `Tip.tsx` a tooltip; `BrowserTabs.tsx` the browser tabs; `Ask.tsx` the questions; `TopBar.tsx`, `TaskBar.tsx`, `Sidebar.tsx`, `Empty.tsx`, `Welcome.tsx`; `Grid.tsx` (`Grid.css`) and `grid/` (`ProfilePane.tsx`, `StageTerminalPane.tsx` (including its inline terminal search), `DevelopmentTerminals.tsx`, `DevelopmentTerminalList.tsx` (Resources’ terminal rows), `Resources.tsx` (Resources bar (its docking grip) and Resources content, Project Explorer: directory browsing through its renderer entry): a panel and its header each; `Stage.tsx`: the nested testing grid, its scroll viewport; `EnvironmentFocus.tsx`: shared maximize/restore; `StageMenu.tsx`: the title-bar position, view, Follow agent and environment menu); the dialogs `NewProject.tsx` (also `Wizard`, the welcome's), `TaskRename.tsx`, `StageTerminalSettings.tsx` (a Stage terminal’s saved configuration), `AgentPicker.tsx`, `HandOver.tsx`, `Shortcuts.tsx`; `settings/` Settings, its own chunk (`index.ts` its one entry, loaded by `import()`: `npm run deps`): `Settings.tsx`, `kit.tsx` (what its pages are built of) and its pages (`ProjectPage.tsx`, `AgentPage.tsx`, `ProfilePage.tsx`, `GitHubPage.tsx`, `LogPage.tsx`, `AboutPage.tsx`; `agents.ts`, `changed.ts` theirs); `SignIn.tsx` a new account's sign-in (Settings', New Project's); `AgentMark.tsx`, `ProjectIcon.tsx` the marks; `Terminal.tsx` a terminal in a page; `Master.tsx` a master's bar |
 | `src/renderer/lib/` | what parts share or what outlives a component, no component, UI library or icon (`npm run deps`): `store.ts` (the window's state as the main process sends it: `useWindow(selector)` in a component, `store.getState()` elsewhere; `act`), `theme.ts`, `cover.ts` (and `cover.css`), `views.ts`, `menu.ts` (what a menu holds, the menu at a point), `project-menu.ts` (a project's, the sidebar's and a tab's), `dialogs.ts`, `settings.ts` (Settings shown, at what), `ask.ts`, `strip.ts`, `keys.ts`, `sidebar.ts`, `grid.ts`, `dock-theme.ts`, `environments.ts` (Stage launch choices and manual terminal focus requests), `terminals.ts`, `agents.ts`, `new-project.ts`, `profiles.ts`, `project-color.ts`, `common.ts`, `names.ts` (name fields: `data-name`), `test-hooks.ts` |
 | `src/shared/types.ts`, `ipc.ts`, `stage-layout.ts` (saved-grid normalization and pruning); `src/renderer/env.d.ts` | the shapes the main process sends and the channels they come by ([window.md](window.md), IPC); the bridge (`kulisa`) typed by them |
 | `src/renderer/public/avatars/` | the profiles' pictures (Noto Emoji), copied as they are |
@@ -87,7 +87,7 @@ frames, pills, rows that show their buttons only under the pointer: those read a
   words); **the arrow over buttons, tabs and menus' rows**, as in Chrome (`window.css`). The window never scrolls
   (`overflow: clip`); a part scrolls inside.
 - **An agent's state is an icon each**, not a color alone (some people do not tell yellow from green): one component
-  (`AgentState.tsx`) on a task's tab, its row in the sidebar, a terminal's tab.
+  (`AgentState.tsx`) on a task's tab, its row in the sidebar, a terminal's Resources row.
 - **Explanations are a card's line, an empty list's line, a field's `FieldDescription` and tooltips**, not a paragraph
   per section: that reads as documentation.
 - **A dialog asks one thing**; what is browsed (Settings) is a nav of categories (shadcn's `Sidebar`) and a page under
@@ -101,7 +101,7 @@ frames, pills, rows that show their buttons only under the pointer: those read a
 
 `Tip` (`Tip.tsx`, shadcn's `Tooltip`) on a control where it opens over no page: the title bar, the sidebar, dialogs,
 Settings, the tasks' bar's buttons (`side`: over or under them are the pages). The native `title` elsewhere:
-- in the grid, over and next to the pages (a pane's tabs, toolbar and header; the terminals' header; the microphone),
+- in the grid, over and next to the pages (a pane's tabs, toolbar and header; the Resources bar and its microphone),
   and on a master's bar: the OS draws it above the native views, which would cover the window's;
 - on a row (of a list, a nav) and on a text that cuts: a tooltip of the window's over a row covers the row above;
 - on a line of the log (Settings → Log, its date): a tooltip per line would be thousands of components.
@@ -179,11 +179,10 @@ is Radix's own. A Radix menu of a part's own only for a row's own menu inside on
   (elsewhere in a tasks' window the pages would cover it), at the bottom left, over the nav's empty foot: at the right
   are a page's buttons (the log's).
 - **Tabs** are shadcn's `Tabs` as browser tabs, which shadcn does not have (`BrowserTabs.tsx`: `TabStrip`,
-  `BrowserTab`): the tasks' bar, a pane's tabs, the terminals'. A tab is chosen on the press, as a browser's (not on its ×). Its × is on every tab, always, as Chrome's: inside the tab, so not a button (a button holds none) but a
-  `role="button"` span that takes its own click and never the tab's press; a terminal's agent mark (Change Agent)
-  likewise. A task's tab keeps its width whichever is shown, so none moves under the mouse ([window.md](window.md),
-  The tasks' bar). A pane's tabs shrink to their icon and ×; a terminal's never shrinks (the agents' marks look alike).
-- **A strip of tabs that do not all fit** (those three, the closed profiles' buttons) shrinks, then scrolls: `useStrip`
+  `BrowserTab`): the tasks' bar and a pane's tabs. A tab is chosen on the press, as a browser's (not on its ×). Its × is on every tab, always, as Chrome's: inside the tab, so not a button (a button holds none) but a
+  `role="button"` span that takes its own click and never the tab's press. A task's tab keeps its width whichever is shown, so none moves under the mouse ([window.md](window.md),
+  The tasks' bar). A pane's tabs shrink to their icon and ×. Development terminals switch through Resources’ named sidebar rows.
+- **A strip of tabs that do not all fit** (the tasks' bar, a pane's tabs, the closed profiles' buttons) shrinks, then scrolls: `useStrip`
   (`lib/strip.ts`), not tabs moved past the end into a menu, which pushes others under the mouse (Office's model, not
   Chrome's): no scrollbar; a mouse's wheel scrolls it sideways; an edge with tabs past it fades (`data-past-start`,
   `data-past-end`); the chosen tab is brought into sight only when another is chosen, a tab grows in (`grow`) or the

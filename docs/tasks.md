@@ -197,8 +197,7 @@ several agents build several features of one project at once.
   repository (`myshop@task-k3x9q2`), or with several repositories in one folder of the task's
   (`~/KulisaProjects/<project>@<branch>/<repo>/`, one place to see and delete), where the others' copies go too.
 - **Another repository when the work needs it** (a task on the backend may need the frontend; a copy no task needs is
-  made for nothing). The ones a task has are named at the end of its terminals' row ([window.md](window.md), The
-  terminal). The project's other repositories are added one at a time: by the human, Add Repository in its tab's
+  made for nothing). Its repositories appear in Resources → Project. The project's other repositories are added one at a time: by the human, Add Repository in its tab's
   menu; by the agent, `task_add_repository`, once the human agreed in the conversation (the skill and the MCP
   server's instructions say so; no question of Kulisa's: the author's choice). A copy on the task's branch in its
   folder of copies (`Task.addRepository`, `Project.addCopy`; a task in a folder without git has no worktree: its first
@@ -246,17 +245,22 @@ then named "Checkout redesign":
 ### The Resources panel
 
 The **Resources panel** sits to the left of the development terminal by default. Its **Resources bar** selects
-the **Project** or **Artifacts** section in **Resources content**.
-Clicking the selected icon closes Resources content and leaves the Resources bar visible; either icon reopens
+the **Agents**, **Project** or **Artifacts** section in **Resources content**.
+Clicking the selected icon closes Resources content and leaves the Resources bar visible; any section icon reopens
 Resources content at the expanded size.
-The standalone panel has no header. The grip at the bottom of the Resources bar moves the panel within the
+The standalone development panels have no header. The Resources bar holds the dictation microphone above its grip. The grip at the bottom of the Resources bar moves the panel within the
 development grid, with Resources content open or closed. Switching sections preserves its width.
-The Resources bar keeps at least 120 CSS pixels of height, below any shared header, so every control stays reachable. With Resources
+The Resources bar keeps at least 172 CSS pixels of height, below any shared header, so every control stays reachable. With Resources
 content open, its minimum width is 300 CSS pixels. With content closed, a standalone
-panel is fixed at 40 CSS pixels wide beside the terminal or 120 CSS pixels tall above or below it, with no
+panel is fixed at 40 CSS pixels wide beside the terminal or 172 CSS pixels tall above or below it, with no
 gap or resize divider. Shared tabs keep their group resizable and Resources nonclosable. Reopening restores the expanded size. The Resources bar follows the outer edge beside
 the terminal: left when docked left, right when docked right; above, below and shared tabs use the left edge.
 The selected section, collapsed state and expanded size belong to the task’s saved layout.
+**Agents** lists the task's agents and development terminals: name, agent state, account or shell command when
+available. Selecting a row shows and focuses its terminal in the separate development terminal panel, including
+when the panels share a tab group. The selected row stays marked; the list scrolls vertically. Each row's × closes
+it (an agent asks first); its right-click menu offers Change agent…, New Conversation and Close for an agent,
+Close for a shell. The section's + opens an agent or shell through the terminal's shared creation menu.
 **Project** opens first in a new task; each resource is a root, with folders before files.
 Browsing is the [Project Explorer Kulisa package](../src/project-explorer/README.md); the task supplies its roots and
 protected desktop opening action (window.md, The terminal). The Resources panel owns the Resources bar and repository actions.
@@ -313,8 +317,8 @@ Stage terminal environments belong to the task (`Task.stageTerminals`): their ac
   commits there: they count by their changes, git's patch ids (each of the branch's commits has its like there, or the
   branch's whole change is one commit there), so a change made after the merge keeps the task unmerged. Its row in the
   sidebar says "merged"; the project's menus have **Delete Merged Tasks…**, one question naming them.
-- **The terminals' +** opens another of the project's agents, a new conversation in a tab of its own, or a shell; **the
-  agent's icon on its tab** hands the task to another agent ("Several agents in a task").
+- **The terminals' +** opens another of the project's agents, a new conversation in a terminal of its own, or a shell; **the
+  agent's Change agent… row menu** hands the task to another agent ("Several agents in a task").
 
 ## Actions: the human's and the agent's
 
@@ -350,10 +354,10 @@ to the human; the window's IPC (`ipc/`) and the MCP tools are handles on it:
 | Delete an account | − in Settings → Agents | none: it deletes a sign-in and conversations, the human's to decide | `deleteAccount` (`projects.ts`), `shell.dropAccount` |
 | Add a GitHub account, sign it in again, delete it | Settings → GitHub | none: signing in is the human's (Rules) | `GitHub.startFlow`, `addToken`, `deleteGitHub` (`projects.ts`; [src/github](../src/github/README.md)) |
 | Choose a repository's GitHub account | its row on the project's page | none: what the project is made of is the human's | `setGitHub` (`projects.ts`) |
-| Open an agent in the task, a new conversation | the terminals' +, New Conversation (a tab's menu), Ctrl+` on the folded terminals | none: which agents work is the human's | `Task.openAgent`, `newConversation` |
-| Hand the task to an agent, the work kept | the agent's icon on its tab, Change agent… (a tab's menu) | none: the human's choice | `Task.handOver` |
-| Close an agent's tab | × on it, Close in its menu (asked first) | none: it would stop another agent | `Task.closeTab` |
-| Name an agent's conversation (its tab) | none: the agent knows what it is about | `conversation_rename` | `Task.nameConversation` |
+| Open an agent in the task, a new conversation | the terminals' +, New Conversation (a terminal's Resources row menu), Ctrl+` on the folded terminals | none: which agents work is the human's | `Task.openAgent`, `newConversation` |
+| Hand the task to an agent, the work kept | Change agent… in the agent's Resources row menu | none: the human's choice | `Task.handOver` |
+| Close an agent's terminal | × on its Resources row, Close in its menu (asked first) | none: it would stop another agent | `Task.closeTab` |
+| Name an agent's conversation (its Resources row) | none: the agent knows what it is about | `conversation_rename` | `Task.nameConversation` |
 
 ## Choosing the agent
 
@@ -447,7 +451,7 @@ The [Kulisa plugin](../src/kulisa-plugin/README.md#agent-adapters) checks that e
 
 ## Several agents in a task
 
-A task may hold several agents at once, each in a tab of its terminals with a conversation of its own: Claude Code
+A task may hold several agents at once, each in a terminal with a conversation of its own: Claude Code
 next to Codex, two accounts of one, or the same agent twice ([window.md](window.md), The terminal). The terminals'
 **+** (the project's accounts, the default first) opens always a **new conversation**. Each sees the task's code and
 profiles.

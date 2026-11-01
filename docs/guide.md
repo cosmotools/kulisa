@@ -84,14 +84,14 @@ project, and those you closed, are in the sidebar (Tasks, below).
   Follow agent is shared by all tasks and windows and remembered when you restart Kulisa. Manual pauses are temporary.
   Each task keeps both layouts, its stage position, size, view and overflow setting. The empty stage stays hidden; you or your agent can open a
   environment when needed through **Stage → Open an environment**.
-- **Resources panel**, to the left of the terminal by default: choose the **Project** or **Artifacts** section
+- **Resources panel**, to the left of the terminal by default: choose the **Agents**, **Project** or **Artifacts** section
   from the **Resources bar**, the icons on its left. The area on the right is **Resources content**.
   Click the selected icon again to close Resources content and give the terminal more room; the Resources bar stays visible, with no resize divider beside it.
-  Click either icon to reopen Resources content at its previous size.
+  Click any section icon to reopen Resources content at its previous size.
   Drag the grip at the bottom of the Resources bar to move the whole panel beside or below the terminal, or into its tabs.
   Beside the terminal, the Resources bar follows the outer edge: left on the left, right on the right.
   A group shared with terminal tabs stays resizable; its Resources tab stays available.
-  The expanded panel stays at least 300 pixels wide and 120 pixels tall, keeping both section icons and the grip reachable. Each task keeps its selection and size.
+  The expanded panel stays at least 300 pixels wide and 172 pixels tall, keeping all section icons and the grip reachable. Each task keeps its selection and size.
   **Project** opens first in a new task: use **Project Explorer** to browse the active task’s folders (its copy of the code, or your project’s folder until
   it has one). Icons identify file types; folders share one icon. Click a folder to expand it; double-click a file to open it in your system’s default application,
   or press Enter or right-click and choose **Open**. Switching tasks shows that task’s folders, across projects too.
@@ -179,7 +179,7 @@ Make one with **New Account** on the Agents page (then the agent), **Add Account
 project's page. Each account starts clean: your own settings of the
 agent outside Kulisa are not used. It is shown by its email, and stays until you delete it here (its **⋯** → Delete…).
 
-A task may have several agents at once, each in a tab of its own (Terminals, below): Claude Code next to Codex, two of
+A task may have several agents at once, each in a terminal of its own (Terminals, below): Claude Code next to Codex, two of
 your accounts, or one agent twice. Each starts a new conversation and names its tab in a few words once it knows what
 it works on. To pass the work on (when one runs out of its limit, or for a fresh start), click the agent's icon on its
 tab (or **Change agent…** in its right-click menu). **Change Agent** shows what goes along to the next one: the task's
@@ -191,7 +191,7 @@ simply tell an agent "go on with what Claude did": every agent of the task can r
 
 **Dictation**: hold the **right Ctrl** key (the right ⌘ on a Mac) while you speak, wherever you are in Kulisa, a page
 or the terminal, and let go; or press it once to start and once more to stop. The text goes into the agent's input for
-you to read and send. It hears the language chosen in **☰ → Language**. The microphone at the end of the terminals' row
+you to read and send. It hears the language chosen in **☰ → Language**. The microphone in the Resources bar
 shows that it is listening, and works the same way by the mouse: hold it, or click to start and again to stop. While
 you speak, a capsule at the top of the terminal shows your voice as a wave and how long you have spoken; when you let
 go it says it is transcribing, then that the text is in the agent's input. Claude
@@ -381,21 +381,24 @@ bar, **Pick** and **⋮**.
 - **Several users at once**: the agent acts as one profile and checks the effect as another ("Sam sends an invite,
   Ann receives it").
 - **Its own terminals.** What keeps running (your app's dev server, `docker compose up`) the agent starts in a
-  terminal of its own, a tab behind the one you look at, so you see it, stop it and type into it.
+  terminal of its own in the background, so you see it, stop it and type into it.
 
 ## Terminals
 
-- A task's terminals are tabs of one panel, one shown at a time, the tabs in a row over it. Each is your own shell in
-  the task's folder, an agent started in it or not, as if you had typed it: your project's environment applies. Its
-  tab shows the agent's icon, its name and what it is doing (working, waiting for you, done).
-- **+** at the row's end opens one of the project's agents, a new conversation, or **Terminal**, a shell. Closing an
-  agent's tab (**×**) asks first; its conversation stays in the task's history. A shell closes at once, or with `exit`.
+- **Resources → Agents** lists the task's agents and development terminals, with their names, status, and account
+  or command details when available. Click a row to show that terminal and type into it. One terminal is shown at a
+  time in the development terminal pane. Each is your own shell in the task's folder, with your project's environment.
+- **+** in the Agents list opens one of the project's
+  agents, a new conversation, or **Terminal**, a shell. Each list row has **×**: closing an agent asks first and keeps
+  its conversation in the task's history; a shell closes at once, or with `exit`. Right-click an agent's row for
+  **Change agent…**, **New Conversation**, and **Close**. Clicking the selected Agents icon closes Resources content,
+  as Project and Artifacts do; the terminal keeps running.
 - Close the last development terminal and the panel folds to a thin strip with **+** in its middle, which opens one again (Ctrl+`
   opens the task's agent). With no testing environment open either, big buttons in the middle of the window do what **+** does:
   one for each of the project's agents, then **Terminal**. Tab moves between them and Enter opens one. Under them, a
   button for each of the project's profiles opens it.
-- Terminals come back after a restart in their tabs: an agent continues its conversation, a shell starts fresh. An
-  agent's tab shows "Starting…" for a moment while its agent starts.
+- Terminals come back after a restart in the Resources list: an agent continues its conversation, a shell starts fresh. An
+  agent's row shows "Starting…" for a moment while its agent starts.
 - Copy and paste as in your OS's terminal: Ctrl+Shift+C / Ctrl+Shift+V on Linux, Ctrl+C / Ctrl+V on Windows, ⌘C / ⌘V
   on macOS. Paste also attaches clipboard images in Claude Code and Codex, including from the right-click menu.
 - Drop files onto a terminal to put their paths into your message, quoted where needed and separated by spaces.
@@ -403,7 +406,7 @@ bar, **Pick** and **⋮**.
 - Ctrl+click a link to open it: Kulisa asks where, in one of the task's profiles or in your own browser.
 - A file or folder named in the terminal (a screenshot the agent saved, a file it changed) is a link too: Ctrl+click it
   to open it in its app or show it in its folder. A program or script is only shown in its folder, never run.
-- Right-click: Copy, Paste, Select all, Clear; in an agent's, Change agent… (the same as its icon) and New
+- Right-click: Copy, Paste, Select all, Clear; in an agent's, Change agent… and New
   Conversation (the same agent, from nothing); Close.
 
 ## Testing a command-line application

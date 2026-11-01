@@ -2,7 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { test, expect } from './fixtures.ts';
-import { showResources, dock, box, invoke, windowSubmenu, choose, closeMenu, frames } from './helpers.ts';
+import { showResources, developmentBox, terminalRows, termKeys, act, dock, box, invoke, windowSubmenu, choose, closeMenu, frames, rightClick, menu } from './helpers.ts';
 import { openFolder, showTask } from './tasks-helpers.ts';
 
 test('Resources starts with Project, expands folders, opens files and follows projects', async ({ core, ui, files }) => {
@@ -88,7 +88,10 @@ test('Resources icons toggle content, restore its width and enforce its minimum'
   const nav = ui.getByRole('navigation', { name: 'Resources', exact: true });
   const project = nav.getByRole('button', { name: 'Project', exact: true });
   const artifacts = nav.getByRole('button', { name: 'Artifacts', exact: true });
+  const t = await nav.getByRole('button', { name: 'Agents', exact: true }).boundingBox();
   const p = await project.boundingBox(), a = await artifacts.boundingBox();
+  expect(t.x).toBe(p.x);
+  expect(t.y).toBeLessThan(p.y);
   expect(a.x).toBe(p.x);
   expect(a.y).toBeGreaterThan(p.y);
   await dock(ui, (api) => api.getPanel('resources').api.setSize({ width: 10 }));
@@ -101,7 +104,8 @@ test('Resources icons toggle content, restore its width and enforce its minimum'
   await project.click();
   await expect.poll(async () => (await resources.boundingBox()).width).toBe(expandedWidth);
   const terminal = await box(ui, '[data-testid="terminal"]');
-  for (const icon of [project, artifacts]) {
+  const terminals = nav.getByRole('button', { name: 'Agents', exact: true });
+  for (const icon of [project, artifacts, terminals]) {
     if (await icon.getAttribute('aria-expanded') !== 'true') await icon.click();
     await icon.click();
     await expect(icon).toHaveAttribute('aria-expanded', 'false');
@@ -152,17 +156,17 @@ test('the Resources bar grip docks the panel while open, closed and sharing term
   await showResources(ui, 'Project');
   const grip = ui.getByRole('button', { name: 'Move Resources panel', exact: true });
   const resources = ui.locator('#resources');
-  const terminal = ui.locator('#grid .dv-groupview').filter({ has: ui.locator('[data-panel="terminal"]') });
+  const terminal = () => developmentBox(ui);
   const move = async (where: 'right' | 'bottom' | 'center') => {
-    const target = await terminal.boundingBox();
+    const target = await terminal(), grid = await ui.locator('#grid').boundingBox();
     // Dockview's terminal overlay receives pointer events beside the group's DOM subtree.
-    await grip.dragTo(terminal, { force: true, targetPosition: {
-      x: where === 'right' ? target.width - 12 : target.width / 2,
-      y: where === 'bottom' ? target.height - 12 : target.height / 2,
+    await grip.dragTo(ui.locator('#grid'), { force: true, targetPosition: {
+      x: target.x - grid.x + (where === 'right' ? target.width - 12 : target.width / 2),
+      y: target.y - grid.y + (where === 'bottom' ? target.height - 12 : target.height / 2),
     } });
   };
   await move('right');
-  await expect.poll(async () => (await resources.boundingBox()).x > (await terminal.boundingBox()).x + (await terminal.boundingBox()).width).toBe(true);
+  await expect.poll(async () => (await resources.boundingBox()).x > (await terminal()).x + (await terminal()).width).toBe(true);
   await expect(resources).toHaveAttribute('data-bar-side', 'right');
   await expect.poll(async () => { const panel = await resources.boundingBox(), bar = await resources.getByRole('navigation', { name: 'Resources', exact: true }).boundingBox(); return bar.x + bar.width - panel.x - panel.width; }).toBe(0);
   await frames(ui);
@@ -174,17 +178,17 @@ test('the Resources bar grip docks the panel while open, closed and sharing term
   fs.mkdirSync(other);
   await openFolder(core, ui, other);
   await showTask(core, ui, original);
-  await expect.poll(async () => (await resources.boundingBox()).x > (await terminal.boundingBox()).x + (await terminal.boundingBox()).width).toBe(true);
+  await expect.poll(async () => (await resources.boundingBox()).x > (await terminal()).x + (await terminal()).width).toBe(true);
   await expect(resources).toHaveAttribute('data-bar-side', 'right');
   await ui.getByRole('navigation', { name: 'Resources', exact: true }).getByRole('button', { name: 'Project', exact: true }).click();
   await move('bottom');
-  await expect.poll(async () => (await resources.boundingBox()).y >= (await terminal.boundingBox()).y + (await terminal.boundingBox()).height).toBe(true);
+  await expect.poll(async () => (await resources.boundingBox()).y >= (await terminal()).y + (await terminal()).height).toBe(true);
   await expect(resources.getByRole('region')).toHaveCount(0);
   await expect(resources).toHaveAttribute('data-bar-side', 'left');
   await dock(ui, (api) => api.getPanel('resources').api.setSize({ height: 400 }));
-  await expect.poll(async () => (await resources.boundingBox()).height).toBe(120);
+  await expect.poll(async () => (await resources.boundingBox()).height).toBe(172);
   await showResources(ui, 'Artifacts');
-  await expect.poll(async () => (await resources.boundingBox()).height).toBeGreaterThan(120);
+  await expect.poll(async () => (await resources.boundingBox()).height).toBeGreaterThan(172);
   await move('center');
   await expect.poll(() => dock(ui, (api) => api.getPanel('resources').group.id === api.getPanel('terminal').group.id)).toBe(true);
   await move('right');
@@ -199,7 +203,6 @@ test('Resources stays nonclosable when sharing terminal tabs, including after re
   const tab = ui.getByRole('tab', { name: 'Resources', exact: true });
   await expect(tab).toBeVisible();
   await expect(ui.getByRole('button', { name: 'Close Resources', exact: true })).toHaveCount(0);
-  // The terminal tab's middle contains its agent and close actions.
   await ui.getByRole('tab', { name: 'Terminal', exact: true }).click({ position: { x: 2, y: 2 } });
   await tab.click();
   await expect(ui.getByRole('button', { name: 'Project', exact: true })).toBeVisible();
@@ -215,16 +218,16 @@ test('Resources stays nonclosable when sharing terminal tabs, including after re
   await expect(next.getByRole('button', { name: 'Project', exact: true })).toBeVisible();
 });
 
-test('the Resources bar keeps both sections and its grip reachable at minimum height', async ({ ui }) => {
+test('the Resources bar keeps all sections and its grip reachable at minimum height', async ({ ui }) => {
   await showResources(ui, 'Project');
   await dock(ui, (api) => {
     api.getPanel('resources').api.moveTo({ group: api.getPanel('terminal').group, position: 'bottom' });
     api.getPanel('resources').api.setSize({ height: 10 });
   });
   const resources = ui.locator('#resources');
-  await expect.poll(async () => (await resources.boundingBox()).height).toBeGreaterThanOrEqual(120);
+  await expect.poll(async () => (await resources.boundingBox()).height).toBeGreaterThanOrEqual(172);
   const bounds = await resources.boundingBox();
-  for (const name of ['Project', 'Artifacts', 'Move Resources panel']) {
+  for (const name of ['Project', 'Artifacts', 'Agents', 'Speak to the agent', 'Move Resources panel']) {
     const control = resources.getByRole('button', { name, exact: true });
     const rect = await control.boundingBox();
     expect(rect.y).toBeGreaterThanOrEqual(bounds.y);
@@ -232,4 +235,77 @@ test('the Resources bar keeps both sections and its grip reachable at minimum he
   }
   await resources.getByRole('button', { name: 'Artifacts', exact: true }).click();
   await expect(resources.getByRole('region', { name: 'Artifacts', exact: true })).toBeVisible();
+});
+
+test('The Agents section lists agents and shells, selects and focuses them, and keeps its section across tasks and restart', async ({ ui, core, call, files, restart }) => {
+  await showResources(ui, 'Agents');
+  const section = ui.getByRole('region', { name: 'Agents', exact: true });
+  const row = (name: string) => section.locator('[data-terminal]').filter({ has: ui.getByRole('button', { name, exact: true }) });
+  await expect.poll(() => terminalRows(ui)).toEqual(['bash *']);
+  await expect(ui.getByTestId('terminal-header')).toHaveCount(0);
+  const display = ui.getByTestId('development-terminals');
+  const terminal = await display.boundingBox(), group = await developmentBox(ui);
+  expect(Math.abs(terminal.y - group.y), 'the terminal fills its pane without a header').toBeLessThanOrEqual(1);
+  await call('shell_run', { name: 'dev server', command: 'echo resources-command' });
+  await expect(row('dev server')).toContainText('echo resources-command');
+  await expect.poll(() => terminalRows(ui)).toEqual(['bash *', 'dev server']);
+  await row('dev server').getByRole('button', { name: 'dev server', exact: true }).click();
+  await expect.poll(() => terminalRows(ui)).toEqual(['bash', 'dev server *']);
+  await expect(termKeys(ui)).toBeFocused();
+  // Selecting the current row returns the keyboard too.
+  await row('dev server').getByRole('button', { name: 'dev server', exact: true }).click();
+  await expect(termKeys(ui)).toBeFocused();
+  await rightClick(ui, row('bash'));
+  await expect(menu(ui)).toMatchAriaSnapshot(`
+    - menu:
+      - menuitem "Change agent…"
+      - menuitem "New Conversation"
+      - menuitem "Close"
+  `);
+  await closeMenu(ui);
+  await showResources(ui, 'Project');
+  await showResources(ui, 'Agents');
+  await expect.poll(() => terminalRows(ui)).toEqual(['bash', 'dev server *']);
+  const original = await core((k) => k.shell.task.key);
+  const other = path.join(files.root, 'terminal-list-project');
+  fs.mkdirSync(other);
+  await openFolder(core, ui, other);
+  await showTask(core, ui, original);
+  await expect(section).toBeVisible();
+  await expect.poll(() => terminalRows(ui)).toEqual(['bash', 'dev server *']);
+  const next = await restart();
+  await expect(next.getByRole('region', { name: 'Agents', exact: true })).toBeVisible();
+  await expect.poll(() => terminalRows(next)).toEqual(['bash', 'dev server *']);
+  await next.locator('#resources [data-terminal]').filter({ has: next.getByRole('button', { name: 'dev server', exact: true }) }).getByRole('button', { name: 'Close dev server', exact: true }).click();
+  await expect.poll(() => terminalRows(next)).toEqual(['bash *']);
+});
+
+test('a long terminal list scrolls within Resources and selection opens a stacked terminal panel', async ({ ui, core, files }) => {
+  await showResources(ui, 'Agents');
+  const section = ui.getByRole('region', { name: 'Agents', exact: true });
+  for (let i = 0; i < 8; i++) await act(ui, 'development-terminal:open', {});
+  await expect(section.locator('[data-terminal]')).toHaveCount(9);
+  await dock(ui, (api) => {
+    api.getPanel('resources').api.moveTo({ group: api.getPanel('terminal').group, position: 'bottom' });
+    api.getPanel('resources').api.setSize({ height: 220 });
+  });
+  const last = section.locator('[data-terminal]').last();
+  const name = await last.getAttribute('aria-label');
+  await last.getByRole('button', { name, exact: true }).click();
+  await expect(termKeys(ui)).toBeFocused();
+  // Scroll positions have no Playwright assertion.
+  await expect.poll(() => section.locator('[data-sidebar="content"]').evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+  await dock(ui, (api) => {
+    api.getPanel('resources').api.moveTo({ group: api.getPanel('terminal').group, position: 'left' });
+    api.getPanel('resources').api.setSize({ width: 300 });
+  });
+  const screenshot = path.join(files.root, 'terminal-list.png');
+  await core((k, file) => k.shot(file), screenshot);
+  await test.info().attach('Terminal list', { path: screenshot, contentType: 'image/png' });
+  await dock(ui, (api) => api.getPanel('resources').api.moveTo({ group: api.getPanel('terminal').group, position: 'center' }));
+  await ui.getByRole('tab', { name: 'Resources', exact: true }).click();
+  await section.getByRole('button', { name: 'bash', exact: true }).click();
+  await expect(ui.getByTestId('terminal')).toBeVisible();
+  await expect(termKeys(ui)).toBeFocused();
+  for (const id of await core((k) => [...k.shell.task.developmentTerminals.values()].filter((t) => !t.agent).map((t) => t.id))) await act(ui, 'development-terminal:close', { id });
 });

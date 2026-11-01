@@ -1,6 +1,6 @@
 // The dictation's microphone (../README.md, The microphone): the key's indicator, lit while it records, and a way for
 // the mouse. The trigger is a key held anywhere in the window (the main process). It stays when the agent in front has
-// none, disabled: a button that came and went would resize the terminal, and Claude Code redraws badly after one.
+// none, disabled, so its position stays fixed as the human switches terminals.
 import { useEffect, useRef, type PointerEvent } from 'react';
 import { MicIcon } from 'lucide-react';
 import { Button } from '@ui';
@@ -42,7 +42,7 @@ export function Dictation({ task, keyName, language, onDone }: { task: string | 
     : v.state === 'starting' ? 'Getting ready to listen: speak once the microphone is red'
     : recording ? `Recording: let go of ${keyName}, or click to stop`
     : `Speak to the agent${language ? ` in ${language}` : ''}: hold ${keyName} anywhere, or press it once and again; or this button the same way`;
-  // The pane is not dragged by its row's buttons. The tooltip is the native title, also on the box around: a disabled
+  // The tooltip is the native title, also on the box around: a disabled
   // button gets no pointer events, and its tooltip says why it is disabled.
   const variant = state === 'recording' || state === 'starting' ? VARIANT[state] : 'ghost';
   // Red while it records, a ring pinging out of it behind (Tailwind's animate-ping), so the eye catches from across the

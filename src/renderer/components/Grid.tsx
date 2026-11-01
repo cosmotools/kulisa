@@ -1,13 +1,14 @@
 // The task workspace: development terminals, Resources and a nested testing stage (docs/window.md, The grid).
 import { useEffect, useRef } from 'react';
 import { DockviewReact, GridviewReact, Orientation } from 'dockview-react';
+import type { IDockviewPanelHeaderProps } from 'dockview-react';
 import 'dockview-react/dist/styles/dockview.css';
 import { TerminalSquareIcon, PlusIcon } from 'lucide-react';
 import { Avatar, AvatarImage, Button } from '@ui';
 import { Stage } from './grid/Stage';
 import { dockTheme } from '../lib/dock-theme';
-import { DevelopmentTerminals, DevelopmentTerminalsHeader } from './grid/DevelopmentTerminals';
-import { Resources, ResourcesHeader } from './grid/Resources';
+import { DevelopmentTerminals } from './grid/DevelopmentTerminals';
+import { Resources } from './grid/Resources';
 import { gridMounted, gridUnmounted, workspaceMounted } from '../lib/grid';
 import { useWindow } from '../lib/store';
 import { profileLaunchers } from '../lib/profiles';
@@ -17,7 +18,11 @@ import { newStageTerminal } from '../lib/environments';
 import './Grid.css';
 
 const components = { terminal: DevelopmentTerminals, resources: Resources };
-const tabComponents = { terminal: DevelopmentTerminalsHeader, resources: ResourcesHeader };
+const tabComponents = { terminal: DevelopmentPanelHeader, resources: DevelopmentPanelHeader };
+
+function DevelopmentPanelHeader({ api }: IDockviewPanelHeaderProps) {
+  return <div data-panel={api.id} className="flex h-full min-w-0 items-center px-2"><span className="min-w-0 truncate">{api.title}</span></div>;
+}
 
 function Development() {
   return <div id="grid" className="h-full min-h-0 min-w-0">
