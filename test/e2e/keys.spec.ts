@@ -53,6 +53,11 @@ test("keys in the terminal are the agent's, but Kulisa's own: Ctrl+T reaches the
   const tabsBefore = await core((k) => k.profile('Sam').tabs.length);
   await termKeys(ui).focus();
   await expect.poll(() => core((k) => k.shell.windows[0].keyZone)).toBe('terminal');
+  // Windows echoes input before the fake agent reads it: wait for the agent's reply too.
+  if (WIN) {
+    await core((k) => k.shell.pty.write('terminal-ready\r'));
+    await expect.poll(() => termText(ui)).toContain('terminal-ready\nterminal-ready');
+  }
   await core((k) => { k.press(k.shell.win.webContents, 'T', 'control'); k.press(k.shell.win.webContents, 'Enter'); });
   // The fake agent (cat -v) shows what it got once its line is sent (Windows' console echoes a control key as it is,
   // which draws nothing); on macOS the terminal's own line discipline takes Ctrl+T first (BSD's status key, SIGINFO)
