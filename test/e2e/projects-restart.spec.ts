@@ -4,7 +4,7 @@ import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
 import type { Files } from './data.ts';
-import { termTabs, tabProjects, showProject, invoke, notLoading, otherPage } from './helpers.ts';
+import { showResources, terminalRows, tabProjects, showProject, invoke, notLoading, otherPage } from './helpers.ts';
 import { begin, openFolder, projectShown } from './tasks-helpers.ts';
 
 // A project the window has no task of shown again as the human does it (its tab), once it is.
@@ -30,7 +30,8 @@ test("projects: another tab left in the background, with a terminal its agent ra
   const key = await core((k) => k.shell.task.key);
   const developmentTerminals = () => core((k, t) => k.shell.taskByKey(t).developmentTerminalsInfo().list.map(({ name, by, command, agent }) => ({ name, by, command, agent: agent?.account ?? null })), key);
   await expect.poll(developmentTerminals, { timeout: 10000 }).toEqual([{ name: 'bash', by: 'human', command: '', agent: 'custom' }, { name: 'dev server', by: 'agent', command: '', agent: null }]);
-  await expect.poll(() => termTabs(ui2))
+  await showResources(ui2, 'Agents');
+  await expect.poll(() => terminalRows(ui2))
     .toEqual(['bash *', 'dev server']);
   await expect.poll(() => core((k, t) => { const task = k.shell.taskByKey(t), dev = task.terminal('dev server') as { pty?: unknown }; return !!dev.pty && !!task.promptTarget()?.pty; }, key)).toBe(true);
   expect(await core((k, t) => (k.shell.taskByKey(t).terminal('dev server') as { by: string }).by, key)).toBe('agent');

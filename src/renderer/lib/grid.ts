@@ -41,11 +41,11 @@ function finishResourceDrag() {
   LocalSelectionTransfer.getInstance<PanelTransfer>().clearData(PanelTransfer.prototype);
 }
 
-export interface ResourceParams { section?: 'project' | 'artifacts' | null; expandedWidth?: number; expandedHeight?: number }
-const resourceMinimumWidth = 300, resourceRailWidth = 40, resourceBarHeight = 120;
+export interface ResourceParams { section?: 'project' | 'artifacts' | 'terminals' | null; expandedWidth?: number; expandedHeight?: number }
+const resourceMinimumWidth = 300, resourceRailWidth = 40, resourceBarHeight = 172;
 let developmentGap = dockTheme.gap ?? 0;
 
-export function selectResource(panel: DockviewPanelApi, params: ResourceParams, section: 'project' | 'artifacts') {
+export function selectResource(panel: DockviewPanelApi, params: ResourceParams, section: NonNullable<ResourceParams['section']>) {
   const current = params.section === undefined ? 'project' : params.section;
   const next = current === section ? null : section;
   const inset = developmentInsets().get(panel.group.id);
@@ -104,7 +104,7 @@ function constrainDevelopment() {
     const resource = group.panels.some((p) => p.id === 'resources');
     const hasTerminal = group.panels.some((p) => p.id === 'terminal');
     const standalone = group.panels.length === 1;
-    const hiddenHeader = standalone && (resource || (hasTerminal && emptyTerminal));
+    const hiddenHeader = standalone && (resource || hasTerminal);
     if (group.header.hidden !== hiddenHeader) group.header.hidden = hiddenHeader;
     const inset = insets.get(group.id) ?? { width: 0, height: 0, vertical: false };
     const closed = resource && resources?.params?.section === null;

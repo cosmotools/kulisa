@@ -7,7 +7,7 @@ import type { Locator, Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
 import type { Files } from './data.ts';
-import { SITE, menu, choose, openSidebar, closeSidebar, fromSidebar, sidebar, taskRow, rowButton, sidebarTasks, focusWindow, viewOn, who, invoke, notLoading, answer, removed, arrange } from './helpers.ts';
+import { showResources, SITE, menu, choose, openSidebar, closeSidebar, fromSidebar, sidebar, taskRow, rowButton, sidebarTasks, focusWindow, viewOn, who, invoke, notLoading, answer, removed, arrange } from './helpers.ts';
 import { git, rand, hasDirenv, keyAt, isNth, taskTab, taskTabs, hook, reportSession, newTask, projectShown, begin, bothOn, deleteProfile } from './tasks-helpers.ts';
 
 // No question of Kulisa's asked in the window.
@@ -269,18 +269,18 @@ test("tasks: an agent's tab closes after a question, always (Cancel keeps it); t
   const SAM = files.idOf('Sam.admin');
   const task = await newTask(core, ui), agent = await core((k, key) => k.shell.taskByKey(key).promptTarget().id, task);
   const developmentTerminals = () => core((k, key) => k.shell.taskByKey(key).developmentTerminals.size, task);
-  const panel = ui.getByTestId('development-terminals'), strip = ui.getByTestId('terminal-tabs');
+  const panel = ui.getByTestId('development-terminals');
   const folded = async (yes: boolean) => {
     await (yes ? expect(panel).toHaveAttribute('data-folded') : expect(panel).not.toHaveAttribute('data-folded'));
-    await (yes ? expect(strip).toBeHidden() : expect(strip).toBeVisible());
   };
   // The terminals' panel's group (its content is laid over it: dockview's renderer 'always').
-  const group = ui.locator('.dv-groupview', { has: strip });
+  const group = ui.getByRole('region', { name: 'Terminal', exact: true });
   const size = async (l: Locator) => { const b = await l.boundingBox(); return { width: Math.round(b.width), height: Math.round(b.height) }; };
   const saved = () => files.json(files.pfile('task.json', task.split('/')[1])).development;
   const conversations = () => files.json(files.pfile('task.json', task.split('/')[1])).agents.conversations;
-  const closeTab = () => ui.locator('nav[aria-label="Terminals"] [role="tab"]').first().getByTitle(/^Close/).click();
-  await expect(ui.locator('nav[aria-label="Terminals"] [role="tab"]')).not.toHaveCount(0);
+  await showResources(ui, 'Agents');
+  const closeTab = () => ui.locator('#resources [data-terminal]').first().getByTitle(/^Close/).click();
+  await expect(ui.locator('#resources [data-terminal]')).not.toHaveCount(0);
   const before = await size(group);
   // × on an agent's tab asks, whatever it is doing; Cancel keeps it.
   await closeTab();

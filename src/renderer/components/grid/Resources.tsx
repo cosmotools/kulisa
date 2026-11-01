@@ -1,7 +1,7 @@
 // The Resources panel of the grid (docs/tasks.md, The Resources panel).
 import { useEffect, useMemo, useState } from 'react';
-import { ChevronRightIcon, FileIcon, FilesIcon, FolderIcon, FolderTreeIcon, GripVerticalIcon, GitBranchIcon, Trash2Icon } from 'lucide-react';
-import type { IDockviewPanelProps, IDockviewPanelHeaderProps } from 'dockview-react';
+import { ChevronRightIcon, FileIcon, FilesIcon, FolderIcon, FolderTreeIcon, GripVerticalIcon, GitBranchIcon, TerminalSquareIcon, Trash2Icon } from 'lucide-react';
+import type { IDockviewPanelProps } from 'dockview-react';
 import { useShallow } from 'zustand/react/shallow';
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupAction, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuAction,
   Button, Collapsible, CollapsibleTrigger, CollapsibleContent, SidebarMenuButton, SidebarMenuItem, SidebarProvider } from '@ui';
@@ -12,7 +12,12 @@ import { shownTask, useWindow } from '../../lib/store';
 import type { MenuItem } from '../../lib/menu';
 import { startResourceDrag, selectResource, type ResourceParams } from '../../lib/grid';
 import { sizeText } from '../../../shared/bytes';
+import { Dictation } from '../../../dictation/renderer';
+import { useShortcuts } from '../../lib/common';
+import { showDevelopmentTerminal } from '../../lib/development-terminals';
+import { DevelopmentTerminalList } from './DevelopmentTerminalList';
 
+const language = new Intl.DisplayNames(['en'], { type: 'language' });
 const KINDS: Record<string, string> = { screenshot: 'Screenshot', snapshot: 'Snapshot', request: 'Request body', response: 'Response body', terminal: 'Terminal screen' };
 const kindOf = (kind: string) => KINDS[kind] ?? kind;
 const day = (t: number) => new Date(t).toDateString();
@@ -22,6 +27,8 @@ const openFile = (file: string) => kulisa.invoke('file:open', file);
 
 export function Resources({ api, params, containerApi }: IDockviewPanelProps<ResourceParams>) {
   const key = useWindow((s) => shownTask(s)?.key);
+  const front = useWindow((s) => s.developmentTerminals.front), lang = useWindow((s) => s.language?.language);
+  const hold = useShortcuts().find((s) => s.id === 'voice.hold')?.keys[0] || '';
   const section = params.section === undefined ? 'project' : params.section;
   const [barSide, setBarSide] = useState<'left' | 'right'>('left');
   useEffect(() => {
@@ -35,21 +42,25 @@ export function Resources({ api, params, containerApi }: IDockviewPanelProps<Res
   }, [api, containerApi]);
   return <aside id="resources" aria-label="The task's resources" data-bar-side={barSide} className="flex h-full min-h-0 min-w-0 data-[bar-side=right]:flex-row-reverse">
     <nav aria-label="Resources" className={`flex w-10 shrink-0 flex-col items-center gap-1 py-2 ${barSide === 'right' ? 'border-l' : 'border-r'}`}>
-      {([['project', 'Project', FolderTreeIcon], ['artifacts', 'Artifacts', FilesIcon]] as const).map(([value, label, Icon]) =>
-        <Button key={value} variant="ghost" size="icon" aria-label={label} title={label}
+      {([['terminals', 'Agents', TerminalSquareIcon], ['project', 'Project', FolderTreeIcon], ['artifacts', 'Artifacts', FilesIcon]] as const).map(([value, label, Icon]) =>
+        <Button key={value} variant="ghost" size="icon-sm" aria-label={label} title={label}
           aria-expanded={section === value} aria-controls="resource-content" onClick={() => selectResource(api, params, value)}><Icon /></Button>)}
-      <div className="mt-auto [&_button]:cursor-grab [&_button]:active:cursor-grabbing">
-        <Button variant="ghost" size="icon" draggable aria-label="Move Resources panel" title="Move Resources panel"
-          onDragStart={(e) => startResourceDrag(api, e.nativeEvent)}><GripVerticalIcon /></Button>
+      <div className="mt-auto flex flex-col items-center gap-1">
+        <Dictation task={key ?? null} keyName={hold} language={lang ? language.of(lang) ?? '' : ''}
+          onDone={() => { if (front !== null) void showDevelopmentTerminal(front); }} />
+        <div className="[&_button]:cursor-grab [&_button]:active:cursor-grabbing">
+          <Button variant="ghost" size="icon-sm" draggable aria-label="Move Resources panel" title="Move Resources panel"
+            onDragStart={(e) => startResourceDrag(api, e.nativeEvent)}><GripVerticalIcon /></Button>
+        </div>
       </div>
     </nav>
-    {section && key && <div id="resource-content" role="region" aria-label={section === 'project' ? 'Project' : 'Artifacts'} className="min-h-0 min-w-0 flex-1">
+    {section && key && <div id="resource-content" role="region" aria-label={section === 'project' ? 'Project' : section === 'artifacts' ? 'Artifacts' : 'Agents'} className="min-h-0 min-w-0 flex-1">
       <TaskResources key={key} taskKey={key} section={section} />
     </div>}
   </aside>;
 }
 
-function TaskResources({ taskKey: key, section }: { taskKey: string; section: 'project' | 'artifacts' }) {
+function TaskResources({ taskKey: key, section }: { taskKey: string; section: NonNullable<ResourceParams['section']> }) {
   const task = useWindow((s) => shownTask(s));
   const explorer = useMemo<ExplorerActions>(() => ({
     readFolder: (folder) => kulisa.invoke('task:files', { key, folder }),
@@ -79,6 +90,7 @@ function TaskResources({ taskKey: key, section }: { taskKey: string; section: 'p
   </span>;
   return <SidebarProvider className="h-full min-h-0">
       <Sidebar collapsible="none" className="h-full w-full">
+        {section === 'terminals' && <DevelopmentTerminalList />}
         {section === 'project' && <div className="h-full overflow-auto"><SidebarContent>
           <SidebarGroup><SidebarGroupContent>
             <SidebarMenu aria-label="Folders">
@@ -123,10 +135,4 @@ function TaskResources({ taskKey: key, section }: { taskKey: string; section: 'p
         </SidebarContent></div>}
       </Sidebar>
     </SidebarProvider>;
-}
-
-export function ResourcesHeader({ api }: IDockviewPanelHeaderProps) {
-  return <div data-panel={api.id} className="flex h-full min-w-0 items-center px-2">
-    <span className="min-w-0 truncate">{api.title}</span>
-  </div>;
 }

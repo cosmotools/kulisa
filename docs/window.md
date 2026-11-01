@@ -65,7 +65,7 @@ environment adds it, closing the last removes it. A new task opens only its defa
 **Stage** in the title bar offers **Position: Left, Right, Above** the development area, **View: Horizontal stack**
 (side by side), **Vertical stack** (one above another), **Tabs** (one environment at a time), and **Open an environment**.
 Moving Stage preserves the development grid and its panels; Terminal and Resources stay together. Resources starts to the left of the terminal; saved layouts keep their placement. The Resources bar and Resources content: [tasks.md](tasks.md), The Resources panel. Its standalone group has no header; a shared group keeps its nonclosable Resources tab.
-Resources keeps at least 120 CSS pixels of height so its sections and grip stay reachable. `lib/grid.ts` owns
+Resources keeps at least 172 CSS pixels of height so its sections and grip stay reachable. `lib/grid.ts` owns
 development-group constraints, including the empty terminal’s folded size and its restoration. The human's `stage:arrange` IPC and the agent's
 `stage_arrange` tool call `Task.arrangeStage`: the task must be shown, and settings apply with an empty Stage too.
 The task-scoped event reaches that window.
@@ -181,7 +181,7 @@ every one after it. How long is the pages' own pace: once the first has answered
 tenth of a second at least (a live page answers in a few milliseconds on a fast machine, over a hundred on a slow
 one); none answering, half a second (`AppWindow.pictures`).
 
-A pane's tab strip and toolbar move as Chrome's, the terminals' tabs too: a tab opened grows in from the left
+A pane's tab strip and toolbar move as Chrome's: a tab opened grows in from the left
 (`data-opening`, `useStrip` in `lib/strip.ts`; the strip keeps its tabs' elements by id, so only a new one animates),
 the address's hover fades in. Not with reduced motion.
 
@@ -253,8 +253,8 @@ built: [ui.md](ui.md), Menus):
   app's menu quit);
 - right-click on a pane's header or its ⋯ (New tab, About this profile… (Settings at it), Sign In to Master…, Close
   profile, Remove from Project…), a pane's ⋮ ([profiles.md](profiles.md), Tabs), a tab (Reload, Duplicate, Close tab,
-  Close other tabs), a terminal (Copy, Paste, Select all, Clear; then its tab's) and a terminal's tab (Change agent…,
-  the dialog its icon opens, and New Conversation in an agent's; Close).
+  Close other tabs), a terminal (Copy, Paste, Select all, Clear; then its Resources row's) and a terminal's Resources row (Change agent…,
+  New Conversation in an agent's; Close).
 
 A row whose command has a key shows it at its end (Keys). The window's menus are not native: a native menu has rows of
 text only, no buttons in a row.
@@ -337,23 +337,18 @@ A terminal sends its first size once dockview's grid matches its current room an
 its layout, so the program starts at the room it will keep when the panel is drawn. The comparison rounds Dockview's
 fractional CSS dimensions to match DOM client/offset sizes; the same readiness check gates later resizes.
 
-A task's terminals are one **panel** of the grid: the terminal in front, a **row of tabs** over it, the panel's header
-(`TerminalsHeader` and `Terminals` in `grid/DevelopmentTerminals.tsx`). One terminal is shown at a time, none
-split off into a panel of its own. Each is the user's shell in the task's folder (`src/terminal/`), an agent the human
-chose started in it ([tasks.md](tasks.md), "Several agents in a task") or not. Each tab: the agent's icon (a shell's,
-for a shell), its name whole, its state (an agent's: working, waiting for you, done), ×; more than fit scroll
-(`useStrip`, `lib/strip.ts`; dockview's tab keeps `min-width: 0`, or it grows to its content and the tabs run past the
-panel, + and the microphone with them). After the tabs, the panel's own **+** (a menu of the project's accounts, the
-default first, each a new conversation; then Terminal, a shell); last, the dictation's microphone (Dictation, below).
-The task's repositories are in the Resources panel, not in this row. The agent's icon opens **Change Agent**, a dialog
-(the project's accounts: the one chosen opens in a new tab, told to go on with this conversation, a progress bar of
-the parts of it read; [tasks.md](tasks.md), "Several agents in a task"). An agent's × asks first; a shell's closes it.
+A task's terminals share one **panel** of the grid (`DevelopmentTerminals` in `grid/DevelopmentTerminals.tsx`),
+one shown at a time. Each is the user's shell in the task's folder (`src/terminal/`), with an agent chosen by the
+human or without one. **Resources → Agents** switches between them ([tasks.md](tasks.md), The Resources panel).
+The standalone terminal panel is headerless; a shared Dockview group has a plain Terminal tab for selecting its panel.
+Resources’ terminal list owns creation, switching and closing; an agent's row menu opens Change Agent or a new
+conversation. The Resources bar holds the dictation microphone, beside the terminal with every section selected.
 The terminal in front is named by the task and the tab from one message (`terminals`), not the task from the window's
 shown task: that comes in another message, and between the two a terminal that does not exist would be shown.
 
 **The last terminal closed folds the panel** to a strip of one button, + in its middle, as JetBrains' tool windows go
 but with their button kept in place (the author's choice): by its height under or over the grid, by its width at a side
-(dockview's constraints hold it there; the row goes). Alone in the grid (no profile open), the +'s rows are big buttons
+(dockview's constraints hold it there). Alone in the grid (no profile open), the +'s rows are big buttons
 in a line in the grid's middle, whatever the arrangement (its group fills the grid there, its header hidden): a
 `data-launcher` button each, the agent's icon beside its name, an account's email under it, no keys (Ctrl+` opens the task's agent,
 which the window does not show: a key on one of them would read as a mistake). Each is a Tab stop, Enter opens it; the
@@ -364,13 +359,12 @@ the task's agent; a task with none (its project had no default agent: [tasks.md]
 gives the keyboard to the buttons, or opens the +. A task that never had a terminal opens its agent, or nothing (the
 buttons).
 
-**A tab comes before its program.** An agent's tab is there at once, before its program is looked for (the user's
-login shell, its `--version`: a second or so): until it starts, a status over its terminal, a spinner and "Starting
-Claude Code…" (`starting` in `Sent.Terminals`, the tab without its `pty`). Its terminal stays
-laid out under it, so the program starts at its size. Not found and none chosen in its place (Choose the Agent,
-Cancel), the tab goes. A task opening sends its tabs with its first state, each starting (`Window.showLoaded`, then
-`Task.loadTerminals`), so the folded panel's buttons do not show while the agents are looked for. A pick or a
-dictation meanwhile goes nowhere: the human gives it again.
+**A terminal row precedes its program.** The row appears while Kulisa looks for the program through the user's
+login shell and its `--version`. A spinner and “Starting Claude Code…” cover the terminal (`starting` in
+`Sent.DevelopmentTerminalsState`); the terminal stays laid out so the program starts at its size. Choosing Cancel
+in Choose the Agent removes the row. Opening a task sends its terminal list before restoring the programs
+(`Task.loadDevelopmentTerminals`), so launchers stay hidden while agents start. Pick and dictation require a running
+agent; the human gives either again after it starts.
 
 Files dropped onto a terminal insert their paths, quoted for its shell and separated by spaces, without Enter
 ([src/terminal](../src/terminal/README.md)).
@@ -407,7 +401,7 @@ key not Kulisa's, Insert, Pause or Scroll Lock; a key that types is refused, say
 (`keys`), every window told (`keys:set`, `shell.keys()`; `Shortcuts.tsx`). With a shell in front, the key brings the
 agent the prompt goes to in front first (`Task.holdKey`, `promptTarget`): it always means "speak to the agent".
 
-The key's indicator, and the way by the mouse, is the round microphone at the end of the terminals' row of tabs
+The key's indicator, and the way by the mouse, is the round microphone in the Resources bar
 ([src/dictation](../src/dictation/README.md), The microphone); what the dictation does meanwhile is the pill at the
 terminal's top, a badge (the same, The pill). The agent hears through its own program (Claude Code: its audio
 module, or `arecord`/SoX on Linux); on macOS the system asks for the microphone on Kulisa's behalf
@@ -624,7 +618,7 @@ window it comes from (`event.sender`); one change to the open tasks after anothe
 | `src/main/keys.ts` | the keyboard shortcuts: the table, which key an input event is; `shortcuts.ts` takes them (Keys) |
 | `src/terminal/` | the terminal, a Kulisa package: its pty, its buffers, the xterm shown ([README](../src/terminal/README.md)) |
 | `src/main/file-links.ts` | the paths a terminal names: which exist, opening one or showing it in its folder (The terminal) |
-| `src/renderer/components/Grid.tsx`, `components/grid/`, `lib/grid.ts` | the grid (dockview), the panes and their headers, the terminals (`grid/DevelopmentTerminals.tsx`: `Terminals`, its row of tabs `TerminalsHeader`), the closed profiles' buttons over it (`ClosedProfiles`, `Grid.tsx`), the title-bar Stage menu (`StageMenu.tsx`) |
+| `src/renderer/components/Grid.tsx`, `components/grid/`, `lib/grid.ts` | the grid (dockview), the panes and their headers, the terminals (`grid/DevelopmentTerminals.tsx`: `DevelopmentTerminals`, `grid/DevelopmentTerminalList.tsx`: switching in Resources), the closed profiles' buttons over it (`ClosedProfiles`, `Grid.tsx`), the title-bar Stage menu (`StageMenu.tsx`) |
 | `src/renderer/components/grid/Resources.tsx` | Resources next to the terminal: the shown task's resources (its worktree(s) or the main working tree) and its artifacts, each with its actions (tasks.md) |
 | `src/renderer/components/TopBar.tsx`, `ProjectIcon.tsx` | the title bar, ☰ and its own rows; the logo, a project's icon |
 | `src/renderer/components/Menus.tsx`, `Ask.tsx`, `lib/menu.ts`, `project-menu.ts`, `cover.ts`, `views.ts`, `ask.ts`, `terminals.ts` | the menus (`project-menu.ts`: a project's, the sidebar's and a tab's), the dialogs and questions (shadcn's: `cover.ts`), the pages under them in a tasks' window (`views.ts`), a tasks' window's terminals (`terminals.ts`) |

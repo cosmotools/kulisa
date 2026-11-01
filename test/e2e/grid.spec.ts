@@ -1,7 +1,7 @@
 // The grid of panels: panes and their pages, presets, a menu over pages that give no picture (docs/window.md, The grid).
 import { test, expect } from './fixtures.ts';
 import type { Page } from '@playwright/test';
-import { menu, closeMenu, rightClick, box, pageBox, viewOn, resourcesHeight, dock, stageDock } from './helpers.ts';
+import { developmentBox, menu, closeMenu, rightClick, box, pageBox, viewOn, resourcesHeight, dock, stageDock } from './helpers.ts';
 import { SAM, ELON, begin, bothOn } from './tasks-helpers.ts';
 
 // A pane's tab dragged by the hand onto a place of a target (dockview's drop zones: its edges, its middle).
@@ -176,7 +176,10 @@ test('resizing Resources updates the agent terminal at fractional widths and hei
     });
     await expect.poll(fitted).toBe(true);
     const rows = (await terminalSize()).rows;
-    await dock(ui, (api) => api.getPanel('resources').group.api.setSize({ height: Math.round(api.height / 3) + 70.25 }));
+    await dock(ui, (api) => {
+      const group = api.getPanel('resources').group.api;
+      group.setSize({ height: group.height + 70.25 });
+    });
     await expect.poll(async () => (await terminalSize()).rows).toBeLessThan(rows);
     await expect.poll(fitted).toBe(true);
     await expect.poll(() => core((k) => ({ cols: k.shell.pty.cols, rows: k.shell.pty.rows }))).toEqual(await terminalSize());
@@ -237,7 +240,7 @@ test('workspace and stage presets each fit the window without changing the other
   b = await at();
   expect(b.sam.y < b.elon.y && b.term.x > b.sam.x + b.sam.width - 1, 'profiles in a vertical stack, terminal on the right').toBe(true);
   // Moving Stage preserves Resources beside the terminal; its own docking stays independent.
-  const res = await box(ui, '#resources'), term = await box(ui, 'nav[aria-label="Terminals"]');
+  const res = await box(ui, '#resources'), term = await box(ui, '[data-testid="development-terminals"]');
   expect(res.x < term.x && Math.abs(res.y - term.y) < 40, 'Resources beside the terminal').toBe(true);
   await dock(ui, (api) => api.getPanel('resources').api.moveTo({ group: api.getPanel('terminal').group, position: 'bottom' }));
   // Sized by dockview's API, as a drag of its sash sizes it: the sash is a bare element with no name to find it by.
@@ -267,16 +270,16 @@ test('the Resources grip freezes profile views during a move and restores them o
     await ui.mouse.move(r.x + r.width / 2 + 40, r.y + r.height / 2 - 40, { steps: 4 });
     await expect(ui.getByTestId('page').getByTestId('snapshot').first()).toBeVisible();
   };
-  const terminal = ui.locator('#grid .dv-groupview').filter({ has: ui.locator('[data-panel="terminal"]') });
+  const terminal = () => developmentBox(ui);
   await start();
-  const target = await terminal.boundingBox();
+  const target = await terminal();
   await ui.mouse.move(target.x + target.width - 12, target.y + target.height / 2, { steps: 8 });
   await ui.mouse.up();
   await bothOn(core, ui, files);
-  await expect.poll(async () => (await box(ui, '#resources')).x > (await terminal.boundingBox()).x + (await terminal.boundingBox()).width).toBe(true);
+  await expect.poll(async () => (await box(ui, '#resources')).x > (await terminal()).x + (await terminal()).width).toBe(true);
   await start();
   await ui.keyboard.press('Escape');
   await ui.mouse.up();
   await bothOn(core, ui, files);
-  await expect.poll(async () => (await box(ui, '#resources')).x > (await terminal.boundingBox()).x + (await terminal.boundingBox()).width).toBe(true);
+  await expect.poll(async () => (await box(ui, '#resources')).x > (await terminal()).x + (await terminal()).width).toBe(true);
 });

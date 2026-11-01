@@ -75,12 +75,12 @@ gets its text, knowing no agent by name.
 
 ## The microphone
 
-`Dictation.tsx`, at the end of the terminals' row of tabs (the terminals' pane places it): the key's indicator, and the
+`Dictation.tsx`, in the Resources bar (the window places it): the key's indicator, and the
 way by the mouse. Its tooltip names the key and the language the agent hears (Kulisa's one, ☰ → Language); getting
 ready (once slow, below) it is lit in the main button's color, while it records red, a ring pinging out of it (not with reduced
 motion), so the eye catches from across the window that the agent is listening. It works as a voice message's button too: held, or a click to start and another to
 stop; let go, the keyboard goes back to the terminal (`onDone`). Disabled when the task's dictation is none, its tooltip
-saying why: a button that came and went would resize the terminal, and Claude Code redraws badly after one. The window
+saying why; its position stays fixed as the human switches terminals. The window
 gives it the task shown, the key's name and the language.
 
 Starting is drawn as such (the microphone lit, not red yet, the pill's Getting ready…) only once it has lasted 300 ms
@@ -90,7 +90,7 @@ recording reads as a glitch; until then it is drawn as recording.
 ## The pill
 
 `Pill.tsx`, over the top of the terminal, in its middle (the terminals' pane places it): what the dictation does, so it is
-seen where the eye is, not only at the row's end. Over the terminal, not above it: the terminal keeps its size (Claude
+seen where the eye is, beside the microphone in the Resources bar. Over the terminal, not above it: the terminal keeps its size (Claude
 Code redraws badly after a resize), and the pointer goes through it. It springs in as a recording starts and grows or
 shrinks to what it says:
 

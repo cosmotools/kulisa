@@ -12,8 +12,7 @@
   --dv-drag-over-background-color: var(--accent); --dv-drag-over-border-color: var(--ring);
 }
 /* A pane narrower than its header: dockview's tab shrinks with it (else it runs past the pane, its × out of sight and
-   dockview's list of hidden tabs shown for it; the terminals' row would run past their panel, + and the microphone
-   with it). */
+   dockview's list of hidden tabs shown for it). */
 #dock .dv-tab { min-width: 0; flex-shrink: 1; }
 /* A fixed Resources bar has no resize affordance or split border. */
 #grid .dv-sash.dv-disabled { display: none; }

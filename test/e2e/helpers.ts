@@ -10,7 +10,7 @@ import type { Core, Call, Where } from './fixtures.ts';
 import { removeTree } from '../../src/main/remove.ts';
 import type { Files } from './data.ts';
 
-export async function showResources(ui: Page, section: 'Project' | 'Artifacts') {
+export async function showResources(ui: Page, section: 'Project' | 'Artifacts' | 'Agents') {
   const icon = ui.getByRole('navigation', { name: 'Resources', exact: true }).getByRole('button', { name: section, exact: true });
   if (await icon.getAttribute('aria-expanded') !== 'true') await icon.click();
 }
@@ -151,8 +151,8 @@ export async function focusWindow(core: Core, ui: Page) {
 
 // The tasks' bar's tabs (one per open task): each its project, by its folder's name, the shown one with ' *'.
 export const tabProjects = async (ui: Page, files: Files) => (await ui.locator('#taskTabs [role="tab"]').evaluateAll((ts) => ts.map((t) => (t as HTMLElement).dataset.project + (t.ariaSelected === 'true' ? ' *' : '')))).map(files.named);
-// The terminals' tabs: each its name, the one in front with ' *'.
-export const termTabs = (ui: Page) => ui.locator('nav[aria-label="Terminals"] [role="tab"]').evaluateAll((ts) => ts.map((t) => t.textContent.trim() + (t.ariaSelected === 'true' ? ' *' : '')));
+// Resources’ terminal rows: each its name, the one in front with ' *'.
+export const terminalRows = (ui: Page) => ui.locator('#resources [data-terminal] [data-sidebar="menu-button"]').evaluateAll((ts) => ts.map((t) => t.getAttribute('aria-label') + (t.getAttribute('aria-current') === 'true' ? ' *' : '')));
 // A project's first tab in the bar; the project shown again as the human does it, a click on it; its open tasks
 // closed with the middle button on each tab.
 // As a selector, for a script in the page.
@@ -297,6 +297,12 @@ export async function dock<A, R>(ui: Page, fn: (api: any, arg: A) => R, arg?: A)
   const api = await ui.evaluateHandle(() => (window as any).__dock);
   try { return await api.evaluate(fn as (api: any, arg: unknown) => R, arg); } finally { await api.dispose(); }
 }
+// Retained terminal content sits outside Dockview’s group DOM; the API owns its group’s box.
+export const developmentBox = (ui: Page) => dock(ui, (api) => {
+  const { left: x, top: y, width, height } = api.getPanel('terminal').group.api.boundingBox;
+  const grid = document.getElementById('grid').getBoundingClientRect();
+  return { x: grid.x + x, y: grid.y + y, width, height };
+});
 // The independent testing grid; development panels stay in dock().
 export async function stageDock<A, R>(ui: Page, fn: (api: any, arg: A) => R, arg?: A) {
   const api = await ui.evaluateHandle(() => (window as any).__stage);
