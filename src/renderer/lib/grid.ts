@@ -308,11 +308,6 @@ function restore(a: DockviewApi, saved: SerializedDockview | null, known: string
   try {
     const filtered = filterLayout(saved, (id) => known.includes(id));
     if (filtered.panels.resources) filtered.panels.resources = { ...filtered.panels.resources, tabComponent: 'resources', minimumHeight: resourceBarHeight };
-    // Normalize saved section names before Dockview mounts their content.
-    for (const [id, key] of [['resources', 'section'], ['terminal', 'screen']] as const) {
-      const panel = filtered.panels[id];
-      if (panel && ['changes', 'diffs'].includes(panel.params?.[key])) filtered.panels[id] = { ...panel, params: { ...panel.params, [key]: 'diff' } };
-    }
     a.fromJSON(filtered);
   } catch (e) { console.warn('[layout] saved grid not restored:', (e as Error).message); a.clear(); }
 }
