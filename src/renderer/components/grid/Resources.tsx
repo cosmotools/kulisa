@@ -16,7 +16,7 @@ import { Dictation } from '../../../dictation/renderer';
 import { useShortcuts } from '../../lib/common';
 import { focusDevelopmentTerminal, showDevelopmentTerminal } from '../../lib/development-terminals';
 import { DevelopmentTerminalList } from './DevelopmentTerminalList';
-import { TaskDiffs } from '../Diffs';
+import { TaskDiffTree } from '../Diff';
 
 const language = new Intl.DisplayNames(['en'], { type: 'language' });
 const KINDS: Record<string, string> = { screenshot: 'Screenshot', snapshot: 'Snapshot', request: 'Request body', response: 'Response body', terminal: 'Terminal screen' };
@@ -43,7 +43,7 @@ export function Resources({ api, params, containerApi }: IDockviewPanelProps<Res
   }, [api, containerApi]);
   return <aside id="resources" aria-label="The task's resources" data-bar-side={barSide} className="flex h-full min-h-0 min-w-0 data-[bar-side=right]:flex-row-reverse">
     <nav aria-label="Resources" className={`flex w-10 shrink-0 flex-col items-center gap-1 py-2 ${barSide === 'right' ? 'border-l' : 'border-r'}`}>
-      {([['terminals', 'Agents', TerminalSquareIcon], ['project', 'Project', FolderTreeIcon], ['diffs', 'Diffs', GitCompareArrowsIcon], ['artifacts', 'Artifacts', FilesIcon]] as const).map(([value, label, Icon]) =>
+      {([['terminals', 'Agents', TerminalSquareIcon], ['project', 'Project', FolderTreeIcon], ['diff', 'Diff', GitCompareArrowsIcon], ['artifacts', 'Artifacts', FilesIcon]] as const).map(([value, label, Icon]) =>
         <Button key={value} variant="ghost" size="icon-sm" aria-label={label} title={label}
           aria-expanded={section === value} aria-controls="resource-content" onClick={() => {
             selectResource(api, params, value);
@@ -58,7 +58,7 @@ export function Resources({ api, params, containerApi }: IDockviewPanelProps<Res
         </div>
       </div>
     </nav>
-    {section && key && <div id="resource-content" role="region" aria-label={section === 'project' ? 'Project' : section === 'artifacts' ? 'Artifacts' : section === 'diffs' ? 'Diffs' : 'Agents'} className="min-h-0 min-w-0 flex-1">
+    {section && key && <div id="resource-content" role="region" aria-label={section === 'project' ? 'Project' : section === 'artifacts' ? 'Artifacts' : section === 'diff' ? 'Diff' : 'Agents'} className="min-h-0 min-w-0 flex-1">
       <TaskResources key={key} taskKey={key} section={section} />
     </div>}
   </aside>;
@@ -95,7 +95,7 @@ function TaskResources({ taskKey: key, section }: { taskKey: string; section: No
   return <SidebarProvider className="h-full min-h-0">
       <Sidebar collapsible="none" className="h-full w-full">
         {section === 'terminals' && <DevelopmentTerminalList />}
-        {section === 'diffs' && <TaskDiffs task={key} roots={task.resources} />}
+        {section === 'diff' && <TaskDiffTree task={key} roots={task.resources} />}
         {section === 'project' && <div className="h-full overflow-auto"><SidebarContent>
           <SidebarGroup><SidebarGroupContent>
             <SidebarMenu aria-label="Folders">

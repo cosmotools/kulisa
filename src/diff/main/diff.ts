@@ -3,7 +3,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { git, gitBuffer } from '../../main/worktrees.ts';
-import type { DiffFile, DiffOptions, Diffs, FileDiff, Review } from '../ipc.ts';
+import type { DiffFile, DiffOptions, Diff, FileDiff, Review } from '../ipc.ts';
 import { refused, type Result } from '../../shared/result.ts';
 
 const limit = 2 << 20;
@@ -120,7 +120,7 @@ async function changedFiles(folder: string, revision: string | null, wanted?: Se
   return files.sort((a, b) => compareDiffPaths(a.path, b.path));
 }
 
-export async function listDiffs(folder: string, options: DiffOptions, start?: string | null): Promise<Result<Diffs>> {
+export async function listDiff(folder: string, options: DiffOptions, start?: string | null): Promise<Result<Diff>> {
   try {
     const c = await comparison(folder, options, start);
     if (!c) return { git: false, revision: null, from: '', to: '', branch: null, branches: [], files: [] };
@@ -175,7 +175,7 @@ export async function listDiffTargets(folder: string, start?: string | null): Pr
 
 // One bounded review snapshot; files outside the automatic allowance have an explicit load action.
 export async function loadReview(folder: string, options: DiffOptions, start?: string | null, load: string[] = []): Promise<Result<Review>> {
-  const summary = await listDiffs(folder, options, start);
+  const summary = await listDiff(folder, options, start);
   if (refused(summary)) return summary;
   if (load.length > 4) return { error: 'Load at most four large diffs at once.' };
   const selected = summary.files.filter((file) => load.includes(file.path));

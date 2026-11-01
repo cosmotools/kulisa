@@ -68,7 +68,7 @@ Moving Stage preserves the development grid and its panels; Terminal and Resourc
 Resources keeps at least 204 CSS pixels of height so its sections and grip stay reachable. `lib/grid.ts` owns
 development-group constraints, including the empty terminal’s folded size and its restoration. Restoring a folded
 terminal compensates Dockview’s split gap to preserve its expanded size; available room can limit it with Resources
-below. A selected diff keeps the development area expanded even with every terminal closed ([tasks.md](tasks.md), Diffs).
+below. A selected diff keeps the development area expanded even with every terminal closed ([tasks.md](tasks.md), Diff).
 The human's `stage:arrange` IPC and the agent's
 `stage_arrange` tool call `Task.arrangeStage`: the task must be shown, and settings apply with an empty Stage too.
 The task-scoped event reaches that window.

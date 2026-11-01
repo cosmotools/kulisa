@@ -2,7 +2,7 @@
 // useWindow(selector), elsewhere with store.getState().
 import { createStore, useStore } from 'zustand';
 import type { StageTerminal } from '../../shared/stage-terminal';
-import type { DiffSelection } from '../../diffs/ipc';
+import type { DiffSelection } from '../../diff/ipc';
 import type { Artifact, ClosedProfile, LanguageInfo, Profile, ProjectsInfo, DevelopmentTerminalsState } from '../../shared/types';
 import type { Invoke, OnTask, StageLayout, StagePosition } from '../../shared/ipc';
 import { initialProjects } from './common';

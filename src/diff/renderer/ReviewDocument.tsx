@@ -99,9 +99,9 @@ function ReviewContent({ session, selection, shade, fontSize }: DiffPanelProps) 
     root?.addEventListener('wheel', manual, { passive: true }); root?.addEventListener('pointerdown', manual); root?.addEventListener('keydown', manual);
     return () => { root?.removeEventListener('wheel', manual); root?.removeEventListener('pointerdown', manual); root?.removeEventListener('keydown', manual); };
   }, []);
-  return <section aria-label="Diffs review" data-zone="editor" className="flex h-full min-h-0 min-w-0 flex-col bg-card">
+  return <section aria-label="Diff review" data-zone="editor" className="flex h-full min-h-0 min-w-0 flex-col bg-card">
     <header className="flex min-h-9 flex-wrap items-center gap-2 border-b px-2 py-1 text-sm">
-      <GitCompareArrowsIcon className="size-4 shrink-0" /><span>Diffs{data ? ` · ${files.length} files` : ''}</span>
+      <GitCompareArrowsIcon className="size-4 shrink-0" /><span>Diff{data ? ` · ${files.length} files` : ''}</span>
       {data && <div role="group" aria-label="Change summary"><DiffCounts {...counts} /></div>}
       <div className="flex-1" />
       <ToggleGroup type="single" size="sm" variant="outline" spacing={0} value={mode} onValueChange={(value) => { if (value === 'unified' || value === 'split') setMode(value); }} aria-label="Diff layout">
@@ -109,11 +109,11 @@ function ReviewContent({ session, selection, shade, fontSize }: DiffPanelProps) 
       </ToggleGroup>
     </header>
     <div className="relative min-h-0 flex-1">
-      {!data && !error && <div role="status" className="absolute inset-0 z-10 flex items-center justify-center gap-2 bg-card text-sm text-muted-foreground"><Spinner />Loading diffs…</div>}
+      {!data && !error && <div role="status" className="absolute inset-0 z-10 flex items-center justify-center gap-2 bg-card text-sm text-muted-foreground"><Spinner />Loading diff…</div>}
       {error && <div className="absolute inset-0 z-10 bg-card p-3"><Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert></div>}
       {data && !files.length && <p className="absolute inset-0 z-10 bg-card p-3 text-sm text-muted-foreground">{!data.git ? 'This folder is not a Git repository.' : data.files.length ? 'No files match' : 'No changes'}</p>}
       <CodeView ref={viewer} containerRef={viewport} items={items} options={viewOptions} onScroll={onScroll}
-        renderCustomHeader={renderHeader} renderAnnotation={renderAnnotation} className="diffs-review h-full overflow-auto"
+        renderCustomHeader={renderHeader} renderAnnotation={renderAnnotation} className="diff-review h-full overflow-auto"
         style={{ '--diffs-font-size': `${fontSize}px`, '--diffs-line-height': `${lineHeight}px` } as CSSProperties} />
     </div>
     <footer className="flex gap-2 border-t px-3 py-1 text-xs text-muted-foreground"><span className="min-w-0 truncate">{data ? `${data.from} → ${data.to}` : 'From → To'}</span><span className="ms-auto shrink-0">Read only</span></footer>

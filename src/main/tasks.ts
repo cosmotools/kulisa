@@ -16,8 +16,8 @@ import { listArtifacts, saveArtifact } from './artifacts.ts';
 import { worktreesOf, ownWorktree, folderOf, branchOf, taskKey } from './store.ts';
 import { copyProfile } from '../browser/main/index.ts';
 import { renameBranch } from './worktrees.ts';
-import { listDiffs, listDiffTargets, readDiff, loadReview } from '../diffs/main/index.ts';
-import type { DiffOptions } from '../diffs/ipc.ts';
+import { listDiff, listDiffTargets, readDiff, loadReview } from '../diff/main/index.ts';
+import type { DiffOptions } from '../diff/ipc.ts';
 import { extendTrust } from '../kulisa-plugin/main/index.ts';
 import { installSkill } from '../kulisa-plugin/main/index.ts';
 import { labelError } from '../shared/names.ts';
@@ -807,9 +807,9 @@ class Task {
   async files(folder: string) {
     return listResourceFiles(this.resources().map((r) => r.folder), folder);
   }
-  async diffs(folder: string, options: DiffOptions) {
+  async diff(folder: string, options: DiffOptions) {
     if (!this.resources().some((r) => r.folder === folder)) return { error: 'This folder is not a resource of this task.' };
-    return listDiffs(folder, options, this.worktrees.find((c) => c.folder === folder)?.base);
+    return listDiff(folder, options, this.worktrees.find((c) => c.folder === folder)?.base);
   }
   async diffTargets(folder: string) {
     if (!this.resources().some((r) => r.folder === folder)) return { error: 'This folder is not a resource of this task.' };

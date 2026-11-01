@@ -1,4 +1,4 @@
-# Diffs
+# Diff
 
 Read-only local Git comparisons for the Resources tree and development review.
 

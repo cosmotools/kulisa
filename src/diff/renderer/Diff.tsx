@@ -8,14 +8,14 @@ import type { DiffFile, DiffOptions, DiffSelection } from '../ipc';
 import { refused } from '../../shared/result';
 import { DiffCounts } from './DiffCounts';
 import { diffLabel, DiffStatus } from './DiffStatus';
-import { comparisonKey, type DiffsSession } from './session';
+import { comparisonKey, type DiffSession } from './session';
 
-type DiffsProps = { session: DiffsSession; roots: { folder: string; label: string }[]; selection: DiffSelection | null; reviewing: boolean };
-export function Diffs({ session, roots, selection, reviewing }: DiffsProps) {
+type DiffProps = { session: DiffSession; roots: { folder: string; label: string }[]; selection: DiffSelection | null; reviewing: boolean };
+export function Diff({ session, roots, selection, reviewing }: DiffProps) {
   useEffect(() => session.observe(), [session]);
   const [filter, setFilter] = useState(() => selection?.filter ?? '');
   return <section aria-label="Changed files" className="flex h-full min-h-0 flex-col">
-    <header className="px-3 py-2 text-sm font-medium">Diffs</header>
+    <header className="px-3 py-2 text-sm font-medium">Diff</header>
     <div className="flex flex-col gap-2 px-3 pb-3">
       <Input aria-label="Filter changed files" placeholder="Filter files…" value={filter} onChange={(e) => {
         const value = e.target.value;
@@ -24,13 +24,13 @@ export function Diffs({ session, roots, selection, reviewing }: DiffsProps) {
       }} />
     </div>
     <div className="min-h-0 flex-1 overflow-auto px-1 pb-2">
-      {roots.map((root) => <RepositoryDiffs key={root.folder} session={session} selected={selection} reviewing={reviewing} root={root} grouped={roots.length > 1} filter={filter} />)}
+      {roots.map((root) => <RepositoryDiff key={root.folder} session={session} selected={selection} reviewing={reviewing} root={root} grouped={roots.length > 1} filter={filter} />)}
     </div>
   </section>;
 }
 
-function RepositoryDiffs({ session, selected, reviewing: activeReview, root, grouped, filter }: {
-  session: DiffsSession; selected: DiffSelection | null; reviewing: boolean;
+function RepositoryDiff({ session, selected, reviewing: activeReview, root, grouped, filter }: {
+  session: DiffSession; selected: DiffSelection | null; reviewing: boolean;
   root: { folder: string; label: string }; grouped: boolean; filter: string;
 }) {
   const [choosingTarget, setChoosingTarget] = useState(false);
@@ -77,7 +77,7 @@ function RepositoryDiffs({ session, selected, reviewing: activeReview, root, gro
   };
   const error = result?.error;
   const content = <>
-      {!result && <p role="status" className="p-2 text-xs text-muted-foreground">Loading diffs…</p>}
+      {!result && <p role="status" className="p-2 text-xs text-muted-foreground">Loading diff…</p>}
       {targetError && <Alert variant="destructive"><AlertDescription>{targetError}</AlertDescription></Alert>}
       {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
       {data && !data.git && <p className="p-2 text-xs text-muted-foreground">This folder is not a Git repository.</p>}
@@ -116,7 +116,7 @@ function RepositoryDiffs({ session, selected, reviewing: activeReview, root, gro
   </Collapsible>;
 }
 
-function DiffTree({ session, files, selected, choose, prefix = '' }: { session: DiffsSession; files: DiffFile[]; selected: string | null; choose(file: DiffFile): void; prefix?: string }) {
+function DiffTree({ session, files, selected, choose, prefix = '' }: { session: DiffSession; files: DiffFile[]; selected: string | null; choose(file: DiffFile): void; prefix?: string }) {
   const folders = new Map<string, DiffFile[]>(), leaves: DiffFile[] = [];
   for (const file of files) {
     const rest = file.path.slice(prefix.length), slash = rest.indexOf('/');

@@ -6,9 +6,9 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { refused } from '../shared/result.ts';
-import { listDiffs, listDiffTargets, readDiff, readReview, loadReview } from './main/diffs.ts';
+import { listDiff, listDiffTargets, readDiff, readReview, loadReview } from './main/diff.ts';
 
-const root = fs.mkdtempSync(path.join(os.tmpdir(), 'kulisa-diffs-'));
+const root = fs.mkdtempSync(path.join(os.tmpdir(), 'kulisa-diff-'));
 after(() => fs.rmSync(root, { recursive: true, force: true }));
 const run = (cwd: string, ...args: string[]) => execFileSync('git', args, { cwd, encoding: 'utf8' }).trim();
 const working = { to: 'HEAD' } as const, task = { to: 'main' } as const;
@@ -29,10 +29,10 @@ test('worktree against a target includes committed and local files; worktree aga
   write('staged.txt', 'staged\n'); run(dir, 'add', 'staged.txt');
   write('src/a.ts', '  after\n\n'); write('untracked.txt', 'new\n'); write('ignored', 'secret');
   fs.rmSync(path.join(dir, 'delete.txt'));
-  const all = await listDiffs(dir, task); assert.equal(all.error, undefined); if (refused(all)) return;
+  const all = await listDiff(dir, task); assert.equal(all.error, undefined); if (refused(all)) return;
   assert.deepEqual(all.files.map((f) => f.path).sort(), ['committed.txt', 'delete.txt', 'src/a.ts', 'staged.txt', 'untracked.txt']);
   assert.deepEqual(all.files.find((f) => f.path === 'src/a.ts'), { path: 'src/a.ts', status: 'M', additions: 1, deletions: 1 });
-  const local = await listDiffs(dir, working); assert.equal(local.error, undefined); if (refused(local)) return;
+  const local = await listDiff(dir, working); assert.equal(local.error, undefined); if (refused(local)) return;
   assert(!local.files.some((f) => f.path === 'committed.txt'));
   const diff = await readDiff(dir, 'src/a.ts', task); assert.equal(diff.error, undefined); if (refused(diff)) return;
   assert.equal(diff.original, '  before\n\n'); assert.equal(diff.modified, '  after\n\n');
@@ -46,7 +46,7 @@ test('rename pairs, whitespace in filenames, and added/deleted empty files remai
   run(dir, 'mv', 'src/a.ts', 'src/renamed file.ts');
   write(' empty added.txt ', ''); fs.rmSync(path.join(dir, 'empty.txt'));
   if (process.platform !== 'win32') write('tab\tand\nnewline.txt', 'new\n');
-  const result = await listDiffs(dir, working); assert.equal(result.error, undefined); if (refused(result)) return;
+  const result = await listDiff(dir, working); assert.equal(result.error, undefined); if (refused(result)) return;
   assert.deepEqual(result.files.find((f) => f.path === 'src/renamed file.ts'), { path: 'src/renamed file.ts', previousPath: 'src/a.ts', status: 'R', additions: 0, deletions: 0 });
   assert(result.files.some((f) => f.path === ' empty added.txt '));
   assert(result.files.some((f) => f.path === 'empty.txt' && f.status === 'D'));
@@ -61,14 +61,14 @@ test('merge-base comparison excludes independent updates on the base branch', as
   run(dir, 'checkout', '-qb', 'task'); write('own.txt', 'own\n'); commit();
   run(dir, 'checkout', '-q', 'main'); write('others.txt', 'other work\n'); commit();
   run(dir, 'checkout', '-q', 'task');
-  const result = await listDiffs(dir, task); assert.equal(result.error, undefined); if (refused(result)) return;
+  const result = await listDiff(dir, task); assert.equal(result.error, undefined); if (refused(result)) return;
   assert.deepEqual(result.files.map((f) => f.path), ['own.txt']);
-  const fallback = await listDiffs(dir, {}, start); assert.equal(fallback.error, undefined); if (refused(fallback)) return;
+  const fallback = await listDiff(dir, {}, start); assert.equal(fallback.error, undefined); if (refused(fallback)) return;
   assert.equal(fallback.to, 'main'); assert.deepEqual(fallback.files.map((f) => f.path), ['own.txt']);
   run(dir, 'branch', '-m', 'main', 'integration');
-  const initial = await listDiffs(dir, {}, start); assert.equal(initial.error, undefined); if (refused(initial)) return;
+  const initial = await listDiff(dir, {}, start); assert.equal(initial.error, undefined); if (refused(initial)) return;
   assert.equal(initial.to, 'Task start');
-  assert((await listDiffs(dir, { to: '--output=unsafe' })).error);
+  assert((await listDiff(dir, { to: '--output=unsafe' })).error);
 });
 
 test('From is the current worktree and To uses the remote default branch ahead of local main', async () => {
@@ -77,7 +77,7 @@ test('From is the current worktree and To uses the remote default branch ahead o
   run(dir, 'update-ref', 'refs/remotes/origin/trunk', start);
   run(dir, 'symbolic-ref', 'refs/remotes/origin/HEAD', 'refs/remotes/origin/trunk');
   run(dir, 'checkout', '-qb', 'feature'); write('feature.txt', 'feature\n'); commit();
-  const result = await listDiffs(dir, {}, start); assert.equal(result.error, undefined); if (refused(result)) return;
+  const result = await listDiff(dir, {}, start); assert.equal(result.error, undefined); if (refused(result)) return;
   assert.equal(result.from, 'feature (worktree)'); assert.equal(result.branch, 'feature'); assert.equal(result.to, 'origin/trunk');
   assert.deepEqual(result.files.map((f) => f.path), ['feature.txt']);
 });
@@ -90,7 +90,7 @@ test('a saved From branch cannot override the task worktree in listings, review 
   run(dir, 'checkout', '-q', 'main');
   write('src/a.ts', 'local worktree\n'); write('untracked.txt', 'local file\n');
   const options = { from: 'feature', to: 'main' };
-  const result = await listDiffs(dir, options); assert.equal(result.error, undefined); if (refused(result)) return;
+  const result = await listDiff(dir, options); assert.equal(result.error, undefined); if (refused(result)) return;
   assert.equal(result.from, 'main (worktree)'); assert.equal(result.branch, 'main');
   assert.deepEqual(result.files.map((f) => f.path).sort(), ['src/a.ts', 'untracked.txt']);
   const diff = await readDiff(dir, 'src/a.ts', options); assert.equal(diff.error, undefined); if (refused(diff)) return;
@@ -106,7 +106,7 @@ test('subdirectory resources cannot list or read neighboring files', async () =>
   const { dir, write } = repo();
   write('outside.txt', 'outside'); write('src/a.ts', 'inside\n');
   const folder = path.join(dir, 'src');
-  const result = await listDiffs(folder, working); assert.equal(result.error, undefined); if (refused(result)) return;
+  const result = await listDiff(folder, working); assert.equal(result.error, undefined); if (refused(result)) return;
   assert.deepEqual(result.files.map((f) => f.path), ['a.ts']);
   const diff = await readDiff(folder, 'a.ts', working); assert.equal(diff.error, undefined); if (refused(diff)) return;
   assert.equal(diff.original, '  before\n\n');
@@ -127,9 +127,9 @@ test('binary and oversized files return a bounded notice, and missing files cann
 
 test('unborn and non-Git folders have explicit review states', async () => {
   const dir = fs.mkdtempSync(path.join(root, 'unborn-'));
-  assert.deepEqual(await listDiffs(dir, working), { git: false, revision: null, from: '', to: '', branch: null, branches: [], files: [] });
+  assert.deepEqual(await listDiff(dir, working), { git: false, revision: null, from: '', to: '', branch: null, branches: [], files: [] });
   run(dir, 'init', '-q'); fs.writeFileSync(path.join(dir, 'first.txt'), 'first\n'); run(dir, 'add', '-A');
-  const result = await listDiffs(dir, {}); assert.equal(result.error, undefined); if (refused(result)) return;
+  const result = await listDiff(dir, {}); assert.equal(result.error, undefined); if (refused(result)) return;
   assert.deepEqual(result.files, [{ path: 'first.txt', status: 'A', untracked: true, additions: 1, deletions: 0 }]);
   const diff = await readDiff(dir, 'first.txt', {}); assert.equal(diff.error, undefined); if (refused(diff)) return;
   assert.equal(diff.original, ''); assert.equal(diff.modified, 'first\n');
@@ -160,7 +160,7 @@ test('a summary feeds a bulk patch request without rescanning Git or reading com
   commit();
   for (let i = 0; i < 80; i++) write(`file-${String(i).padStart(2, '0')}.txt`, `after ${i}\n`);
   write('untracked.txt', 'untracked\n');
-  const summary = await listDiffs(dir, working); assert(!refused(summary)); if (refused(summary)) return;
+  const summary = await listDiff(dir, working); assert(!refused(summary)); if (refused(summary)) return;
   assert.equal(summary.files.length, 81);
   const trace = path.join(root, 'batch-trace.log'), prior = process.env.GIT_TRACE;
   process.env.GIT_TRACE = trace.replaceAll('\\', '/');
@@ -193,7 +193,7 @@ test('a summary feeds a bulk patch request without rescanning Git or reading com
 test('branch choices are independent of the comparison summary', async () => {
   const { dir } = repo();
   run(dir, 'branch', 'other');
-  const summary = await listDiffs(dir, working); assert(!refused(summary)); if (refused(summary)) return;
+  const summary = await listDiff(dir, working); assert(!refused(summary)); if (refused(summary)) return;
   assert(!summary.branches.includes('other'));
   const targets = await listDiffTargets(dir); assert(!refused(targets)); if (refused(targets)) return;
   assert(targets.branches.includes('other'));
@@ -205,7 +205,7 @@ test('large diffs defer patch generation until explicitly loaded', async () => {
   write('large.txt', content); commit();
   write('large.txt', content.replace('unchanged', 'changed'));
   write('new-large.txt', content);
-  const summary = await listDiffs(dir, working); assert(!refused(summary)); if (refused(summary)) return;
+  const summary = await listDiff(dir, working); assert(!refused(summary)); if (refused(summary)) return;
   const review = await readReview(dir, summary.revision, summary.files);
   assert(!refused(review)); if (refused(review)) return;
   assert.equal(review.patch, '');
@@ -224,7 +224,7 @@ test('large diffs defer patch generation until explicitly loaded', async () => {
 test('patch versions retain unaffected files and distinguish additions from modifications', async () => {
   const { dir, write, commit } = repo();
   const read = async () => {
-    const summary = await listDiffs(dir, working); if (refused(summary)) throw new Error(summary.error);
+    const summary = await listDiff(dir, working); if (refused(summary)) throw new Error(summary.error);
     const review = await readReview(dir, summary.revision, summary.files); if (refused(review)) throw new Error(review.error);
     return review.diffs.map((d) => { if (refused(d.result)) throw new Error(d.result.error); return d.result; });
   };
@@ -247,7 +247,7 @@ test('a patch batch preserves renames and deletions and isolates invalid encodin
   if (process.platform !== 'win32') {
     write('tab\tand\nnewline.txt', 'before\n'); run(dir, 'add', 'tab\tand\nnewline.txt');
   }
-  const summary = await listDiffs(dir, working); assert(!refused(summary)); if (refused(summary)) return;
+  const summary = await listDiff(dir, working); assert(!refused(summary)); if (refused(summary)) return;
   const review = await readReview(dir, summary.revision, summary.files); assert(!refused(review)); if (refused(review)) return;
   assert.match(review.patch, /-deleted/); assert.match(review.patch, /rename to src\/renamed file.ts/);
   const invalid = review.diffs.find((d) => d.path === 'invalid.txt')?.result;

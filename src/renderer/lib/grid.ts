@@ -41,8 +41,8 @@ function finishResourceDrag() {
   LocalSelectionTransfer.getInstance<PanelTransfer>().clearData(PanelTransfer.prototype);
 }
 
-export interface ResourceParams { section?: 'project' | 'artifacts' | 'terminals' | 'diffs' | null; expandedWidth?: number; expandedHeight?: number }
-export interface DevelopmentParams { screen?: 'agents' | 'diffs'; review?: Omit<DevelopmentDiff, 'task' | 'navigation'> }
+export interface ResourceParams { section?: 'project' | 'artifacts' | 'terminals' | 'diff' | null; expandedWidth?: number; expandedHeight?: number }
+export interface DevelopmentParams { screen?: 'agents' | 'diff'; review?: Omit<DevelopmentDiff, 'task' | 'navigation'> }
 const resourceMinimumWidth = 300, resourceRailWidth = 40, resourceBarHeight = 204;
 let developmentGap = dockTheme.gap ?? 0;
 
@@ -54,7 +54,7 @@ export function selectResource(panel: DockviewPanelApi, params: ResourceParams, 
   const expandedHeight = current && inset?.vertical ? panel.height : params.expandedHeight;
   const updated = { section: next, expandedWidth, expandedHeight };
   panel.updateParameters(updated);
-  if (next === 'diffs') openDiffs();
+  if (next === 'diff') openDiff();
   constrainDevelopment();
   if (!current || !next) sizeResources(panel, updated);
   changed();
@@ -311,7 +311,7 @@ function restore(a: DockviewApi, saved: SerializedDockview | null, known: string
     // Normalize saved section names before Dockview mounts their content.
     for (const [id, key] of [['resources', 'section'], ['terminal', 'screen']] as const) {
       const panel = filtered.panels[id];
-      if (panel?.params?.[key] === 'changes') filtered.panels[id] = { ...panel, params: { ...panel.params, [key]: 'diffs' } };
+      if (panel && ['changes', 'diffs'].includes(panel.params?.[key])) filtered.panels[id] = { ...panel, params: { ...panel.params, [key]: 'diff' } };
     }
     a.fromJSON(filtered);
   } catch (e) { console.warn('[layout] saved grid not restored:', (e as Error).message); a.clear(); }
@@ -332,7 +332,7 @@ function buildGrid(a: DockviewApi, saved: unknown) {
   constrainDevelopment();
   const resources = a.getPanel('resources')!;
   const development = (a.getPanel('terminal')!.params ?? {}) as DevelopmentParams;
-  if (development.screen === 'diffs' || (!development.screen && resources.params?.section === 'diffs')) openDiffs(false);
+  if (development.screen === 'diff' || (!development.screen && resources.params?.section === 'diff')) openDiff(false);
   // Restoring a group applies Dockview's default minimum before its runtime constraints.
   if (resources.params?.section === null) sizeResources(resources.api, resources.params);
   syncGrid();
@@ -393,9 +393,9 @@ kulisa.on('agent', ({ task, profile, caption }) => {
   if (task === store.getState().current && caption && !replacing && !rebuilding) environmentActivity(panelId(profile));
 });
 export const dockApi = () => api;
-export const developmentScreen = (): 'agents' | 'diffs' => api?.getPanel('terminal')?.params?.screen === 'diffs' ? 'diffs' : 'agents';
+export const developmentScreen = (): 'agents' | 'diff' => api?.getPanel('terminal')?.params?.screen === 'diff' ? 'diff' : 'agents';
 let reviewNavigation = 0;
-function openDiffs(activate = true) {
+function openDiff(activate = true) {
   const task = shownTask(), selected = store.getState().developmentDiff;
   const saved = api?.getPanel('terminal')?.params?.review as DevelopmentParams['review'];
   const review = selected?.task === task?.key ? selected : saved;
@@ -411,7 +411,7 @@ export function showDevelopmentAgents() {
 export function showDevelopmentDiff(selection: DevelopmentDiff, activate = true) {
   if (selection.task !== store.getState().current) return;
   const { folder, path, filter } = selection, options = { to: selection.options.to };
-  api?.getPanel('terminal')?.api.updateParameters({ screen: 'diffs', review: { folder, path, options, filter } } satisfies DevelopmentParams);
+  api?.getPanel('terminal')?.api.updateParameters({ screen: 'diff', review: { folder, path, options, filter } } satisfies DevelopmentParams);
   store.setState({ developmentDiff: { ...selection, options, navigation: ++reviewNavigation } });
   if (activate) api?.getPanel('terminal')?.api.setActive();
   changed();

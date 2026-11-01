@@ -89,7 +89,7 @@ element) puts a reference with a Playwright locator into the agent's prompt; the
   in a separate development grid. Their behavior and lifecycle: `docs/window.md`, The grid.
 - **Terminology: "Resources panel"** for the whole panel beside the development terminal. **Resources bar** is its
   vertical icon bar on the left; **Resources content** is the area on the right, which can close while the bar stays
-  visible. **Agents**, **Project**, **Diffs** and **Artifacts** are its sections; **Project Explorer** is the folder and file tree inside
+  visible. **Agents**, **Project**, **Diff** and **Artifacts** are its sections; **Project Explorer** is the folder and file tree inside
   Project. Behavior: `docs/tasks.md`, The Resources panel.
 - **Terminology: "profile"**, the word Chrome uses, for one embedded browser identity (cookies, storage, tabs) and
   its pane. Not "persona", "user" or "account" (an account is what a profile signs in to). Early commits and

@@ -2,9 +2,9 @@
 import { useEffect, useState } from 'react';
 import { Alert, AlertDescription, Spinner } from '@ui';
 import type { DiffSelection } from '../ipc';
-import { comparisonKey, type DiffsSession } from './session';
+import { comparisonKey, type DiffSession } from './session';
 
-export type DiffPanelProps = { session: DiffsSession; selection: DiffSelection; shade: 'dark' | 'light'; fontSize: number };
+export type DiffPanelProps = { session: DiffSession; selection: DiffSelection; shade: 'dark' | 'light'; fontSize: number };
 export function DiffPanel(props: DiffPanelProps) {
   const { selection } = props;
   const [loaded, setLoaded] = useState<typeof import('./ReviewDocument') | null>(null);

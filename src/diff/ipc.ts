@@ -10,7 +10,7 @@ export interface DiffFile {
   deferred?: string;
   untracked?: boolean;
 }
-export interface Diffs {
+export interface Diff {
   git: boolean;
   revision: string | null;
   from: string;
@@ -30,4 +30,4 @@ export interface FileDiff {
   notice?: string;
 }
 interface ReviewFile { version?: string; addition?: string; notice?: string; deferred?: string }
-export interface Review extends Diffs { patch: string; diffs: { path: string; result: Result<ReviewFile> }[] }
+export interface Review extends Diff { patch: string; diffs: { path: string; result: Result<ReviewFile> }[] }

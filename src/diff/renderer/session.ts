@@ -1,14 +1,14 @@
 // A visible comparison's metadata and reader coordination (../README.md).
 import { createStore } from 'zustand';
-import type { DiffOptions, DiffSelection, Diffs } from '../ipc';
+import type { DiffOptions, DiffSelection, Diff } from '../ipc';
 import { refused, type Result } from '../../shared/result';
-import type { DiffsActions } from './actions';
+import type { DiffActions } from './actions';
 
 type Comparison = Pick<DiffSelection, 'folder' | 'options'>;
-type Listing = { query: string; options: DiffOptions; result: Result<Diffs>; metadata: Diffs | null };
+type Listing = { query: string; options: DiffOptions; result: Result<Diff>; metadata: Diff | null };
 export const comparisonKey = ({ folder, options }: Comparison) => JSON.stringify({ folder, to: options.to });
 
-export function createDiffs(actions: DiffsActions) {
+export function createDiff(actions: DiffActions) {
   const listings = createStore(() => new Map<string, Listing>());
   const activity = createStore<string | null>(() => null);
   let readers = 0;
@@ -18,7 +18,7 @@ export function createDiffs(actions: DiffsActions) {
       readers++;
       return () => { if (--readers === 0) listings.setState(new Map(), true); };
     },
-    publish(comparison: Comparison, result: Result<Diffs>) {
+    publish(comparison: Comparison, result: Result<Diff>) {
       const previous = listings.getState().get(comparison.folder);
       if (!refused(result)) {
         const { git, revision, from, to, branch, branches, files } = result;
@@ -30,4 +30,4 @@ export function createDiffs(actions: DiffsActions) {
     },
   };
 }
-export type DiffsSession = ReturnType<typeof createDiffs>;
+export type DiffSession = ReturnType<typeof createDiff>;

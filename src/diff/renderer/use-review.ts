@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { parseDiffFromFile, parsePatchFiles, type CodeViewItem } from '@pierre/diffs';
 import type { DiffSelection, Review } from '../ipc';
 import { refused } from '../../shared/result';
-import { comparisonKey, type DiffsSession } from './session';
+import { comparisonKey, type DiffSession } from './session';
 
 export type Notice = { kind: 'loading' | 'deferred' | 'notice' | 'error'; text: string };
 export const loading: Notice = { kind: 'loading', text: 'Loading diff…' };
@@ -13,7 +13,7 @@ export function placeholder(path: string, notice: Notice, version = 0): CodeView
 type Entry = { signature: string; item: CodeViewItem<Notice> };
 type Snapshot = { answer: Review | null; error: string | null; entries: Map<string, Entry> };
 
-export function useReview(session: DiffsSession, selection: DiffSelection) {
+export function useReview(session: DiffSession, selection: DiffSelection) {
   const [snapshot, setSnapshot] = useState<Snapshot>({ answer: null, error: null, entries: new Map() });
   const [loaded, setLoaded] = useState<string[]>([]);
   const { folder } = selection, target = selection.options.to, query = comparisonKey(selection);
