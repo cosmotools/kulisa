@@ -9,10 +9,10 @@ import { SITE, PORT, MAC, WIN, near, uiZoom, who, menu, item, choose, closeMenu,
 import { profileId, deleteProfile } from './tasks-helpers.ts';
 
 // Files of the sites' Cache API in a profile's folder, wherever Chromium's layout puts them (`WebStorage/<bucket>/CacheStorage/`).
-// A folder Chromium removes while it is read is not counted yet (NaN): asked again.
+// Chromium changes the tree during a scan; Windows denies access to directories pending deletion.
 const cacheStorageFiles = (dir: string) => {
   try { return fs.readdirSync(dir, { recursive: true, withFileTypes: true }).filter((f) => f.isFile() && f.parentPath.includes('CacheStorage')).length; }
-  catch (e) { if ((e as NodeJS.ErrnoException).code === 'ENOENT') return NaN; throw e; }
+  catch (e) { const { code } = e as NodeJS.ErrnoException; if (code === 'ENOENT' || (WIN && code === 'EPERM')) return NaN; throw e; }
 };
 // The tabs saved for a profile of the first task, by its id (a name may be made again here).
 // Ctrl+ a key (⌘ on macOS) where the keyboard is put first: Kulisa's window, or a profile's tab (its active one).
