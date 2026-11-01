@@ -23,7 +23,7 @@ export function focusDevelopmentTerminal() {
   const task = store.getState().current;
   showDevelopmentAgents();
   const resources = dockApi()?.getPanel('resources');
-  if (resources?.params?.section === 'changes') selectResource(resources.api, resources.params, 'terminals');
+  if (resources?.params?.section === 'diff') selectResource(resources.api, resources.params, 'terminals');
   dockApi()?.getPanel('terminal')?.api.setActive();
   requestAnimationFrame(() => {
     if (store.getState().current === task && developmentScreen() === 'agents' && !dialogsShown()) shownTerm()?.focus();
