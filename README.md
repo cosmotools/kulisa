@@ -105,7 +105,7 @@ Start with [AGENTS.md](AGENTS.md): the shared rules for Codex and Claude Code, i
 Each directory's `AGENTS.md` holds its local rules; `CLAUDE.md` imports the adjacent file for Claude Code.
 Development skills live in `.agents/skills/`, with Claude Code entrypoints in `.claude/skills/`.
 Run `npx skills experimental_install` from the checkout root to restore third-party skills from `skills-lock.json`.
-For Claude Code, select it with `npx skills add pierrecomputer/pierre --skill diffs --agent claude-code` to create its skill link.
+For Claude Code, run `npx skills add pierrecomputer/pierre --skill diffs trees --agent claude-code` to create its skill links.
 [Testing](docs/testing.md) covers completion checks, code analysis and Claude Code's optional LSP setup and Stop hook.
 
 ## Code

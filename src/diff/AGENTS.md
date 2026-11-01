@@ -7,6 +7,6 @@ A Kulisa package: `docs/packages.md`; behavior and integration: `README.md`.
   Keep resource ownership checks and task starting commits in `Task`.
 - The renderer takes resource access, selection and menu callbacks through `DiffActions`; the caller supplies
   theme shade and text size. It imports no window state, Dockview or task IPC.
-- Keep one bounded review snapshot and one CodeView scroll document. Read the installed official `diffs` skill
-  before changing Pierre rendering; installed dependency types decide the available API.
+- Keep one bounded review snapshot and one CodeView scroll document. Read the installed official `diffs` or `trees`
+  skill before changing its Pierre renderer; installed dependency types decide the available API.
 - Unit tests live in `diff.test.ts`; end-to-end tests stay in `test/e2e/diff.spec.ts` and Resources' files.

@@ -12,7 +12,8 @@ import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { dirname, resolve } from 'node:path';
 import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
+import { findPackageJSON } from 'node:module';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { generateManifest, type Manifest } from 'material-icon-theme';
 
 // Only associations and asset URLs reach the window; SVG contents and the generator stay out of its JavaScript.
@@ -56,6 +57,14 @@ export default defineConfig({
       for (const name of ['react-query', 'query-core']) {
         const root = dirname(fileURLToPath(import.meta.resolve(`@tanstack/${name}/package.json`)));
         this.emitFile({ type: 'asset', fileName: `tanstack-${name}-LICENSE.txt`, source: readFileSync(resolve(root, 'LICENSE'), 'utf8') });
+      }
+      const trees = findPackageJSON('@pierre/trees', import.meta.url)!;
+      for (const [name, files] of [
+        ['@pierre/trees', ['LICENSE.md', 'NOTICE.md']], ['@pierre/theming', ['LICENSE.md']],
+        ['preact', ['LICENSE']], ['preact-render-to-string', ['LICENSE']], ['lucide', ['LICENSE']],
+      ] as const) {
+        const root = dirname(findPackageJSON(name, pathToFileURL(trees))!);
+        for (const file of files) this.emitFile({ type: 'asset', fileName: `${name.replace('@', '').replace('/', '-')}-${file.replace(/\.md$/, '.txt')}`, source: readFileSync(resolve(root, file), 'utf8') });
       }
     },
   }],

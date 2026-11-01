@@ -9,5 +9,5 @@ export interface DiffActions {
   contents(folder: string, path: string, options: DiffOptions): Promise<Result<FileDiff>>;
   select(selection: DiffSelection): void;
   selectFile(path: string, navigation: number | undefined): void;
-  showMenu(event: MouseEvent, rows: { label: string; run: () => unknown }[]): void;
+  showMenu(point: { clientX: number; clientY: number }, rows: { label: string; run: () => unknown }[]): void;
 }

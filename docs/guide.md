@@ -97,7 +97,8 @@ project, and those you closed, are in the sidebar (Tasks, below).
   Opening Diff reads the current files from your computer. Diff refreshes while the review is open.
   A task with one repository shows From/To and the tree directly; tasks with several repositories show a
   collapsible heading for each. Opening Diff shows the repository's review in the development area.
-  Filter by a path to narrow both the tree and review, and expand folders to navigate. Selecting a file jumps to it.
+  Filter by a path to narrow both the tree and review, and expand folders to navigate. Use the arrow keys to navigate
+  and Enter to select a file. Selecting a file jumps to it.
   The review loads as one document. Large files and reviews show **Load diff** where you choose what to load.
   All changed files appear in one scrolling
   document, each with its path and change counts above its diff. Scrolling through the review marks the current file

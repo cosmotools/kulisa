@@ -22,3 +22,5 @@ playwright-report/
 # Third-party agent instructions installed by Skills CLI
 .agents/skills/diffs/
 .claude/skills/diffs
+.agents/skills/trees/
+.claude/skills/trees

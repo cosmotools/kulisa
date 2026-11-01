@@ -17,7 +17,8 @@ The grid's stacking context keeps Dockview's resize dividers beneath window menu
 divider and use a zero development-grid gap.
 The grids and their headerless split are Dockview's (`dockview-react`): its API before layout code of our own. State is zustand's; the terminal is
 xterm's (`src/terminal/`); read-only code comparisons use @pierre/diffs CodeView for continuous file and line virtualization
-([README](../src/diff/README.md)). The Log page uses TanStack Virtual for its scrollable rows ([window.md](window.md), The log).
+([README](../src/diff/README.md)); its changed-file navigation uses @pierre/trees with Lucide status icons and window palette overrides.
+The Log page uses TanStack Virtual for its scrollable rows ([window.md](window.md), The log).
 
 **The profiles' pages are native views, drawn above the window's HTML**, so whatever HTML covers the panes hides the
 pages or puts pictures of them in their place (Layers, below; a tasks' window's pages under it: `lib/views.ts`); while

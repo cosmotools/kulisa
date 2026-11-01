@@ -1,13 +1,12 @@
 // Local review navigation and comparison controls (../README.md).
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowRightIcon, ChevronRightIcon, FolderIcon, GitBranchIcon } from 'lucide-react';
+import { ArrowRightIcon, ChevronRightIcon, GitBranchIcon } from 'lucide-react';
 import { Alert, AlertDescription, Button, Collapsible, CollapsibleContent, CollapsibleTrigger, Input,
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SidebarMenu, SidebarMenuItem } from '@ui';
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@ui';
 import type { DiffFile, DiffOptions, DiffSelection } from '../ipc';
 import { refused } from '../../shared/result';
-import { DiffCounts } from './DiffCounts';
-import { diffLabel, DiffStatus } from './DiffStatus';
+import { DiffTree } from './DiffTree';
 import { useDiff, type DiffSession } from './session';
 
 type DiffProps = { session: DiffSession; roots: { folder: string; label: string }[]; selection: DiffSelection | null; reviewing: boolean };
@@ -22,7 +21,7 @@ export function Diff({ session, roots, selection, reviewing }: DiffProps) {
         if (selection) session.actions.select({ ...selection, filter: value });
       }} />
     </div>
-    <div className="min-h-0 flex-1 overflow-auto px-1 pb-2">
+    <div className="flex min-h-0 flex-1 flex-col overflow-auto px-1 pb-2">
       {roots.map((root) => <RepositoryDiff key={root.folder} session={session} selected={selection} reviewing={reviewing} root={root} grouped={roots.length > 1} filter={filter} />)}
     </div>
   </section>;
@@ -44,12 +43,13 @@ function RepositoryDiff({ session, selected, reviewing: activeReview, root, grou
   const reviewing = activeReview && selected?.folder === root.folder && selected.options.to === options.to;
   const { data: snapshot, error } = useDiff(session, { folder: root.folder, options }, reviewing);
   const data = snapshot?.data;
+  const files = useMemo(() => data?.files.filter((file) => `${file.path}\n${file.previousPath ?? ''}`.toLowerCase().includes(filter.toLowerCase())) ?? [], [data?.files, filter]);
   const choose = (file: DiffFile) => session.actions.select({ folder: root.folder, path: file.path, options, filter });
   const compare = (next: DiffOptions) => {
     setOptions(next);
     session.actions.select({ folder: root.folder, path: selected?.folder === root.folder ? selected.path : '', options: next, filter });
   };
-  const content = <>
+  const content = <div className="flex min-h-40 flex-1 flex-col">
       {!data && !error && <p role="status" className="p-2 text-xs text-muted-foreground">Loading diff…</p>}
       {targets.error && <Alert variant="destructive"><AlertDescription>{targets.error.message}</AlertDescription></Alert>}
       {error && <Alert variant="destructive"><AlertDescription>{error.message}</AlertDescription></Alert>}
@@ -75,50 +75,16 @@ function RepositoryDiff({ session, selected, reviewing: activeReview, root, grou
           </div>
         </div>
         {data && !data.files.length && <p className="p-2 text-xs text-muted-foreground">No changes</p>}
-        {!!data?.files.length && <DiffTree session={session} files={data.files.filter((f) => `${f.path}\n${f.previousPath ?? ''}`.toLowerCase().includes(filter.toLowerCase()))}
+        {!!data?.files.length && <DiffTree session={session} files={files}
           selected={selected?.folder === root.folder ? selected.path : null} choose={choose} />}
       </>}
-  </>;
+  </div>;
   if (!grouped) return content;
-  return <Collapsible defaultOpen>
+  return <Collapsible defaultOpen asChild><div className="flex min-h-48 flex-1 flex-col data-[state=closed]:min-h-0 data-[state=closed]:flex-none">
     <div className="not-hover:[--muted:transparent]"><CollapsibleTrigger asChild><Button variant="ghost" className="h-8 w-full justify-start" aria-label={`Repository ${root.label}`} title={root.folder}>
       <ChevronRightIcon className="group-aria-expanded/button:rotate-90" /><GitBranchIcon /><span className="min-w-0 flex-1 truncate text-start">{root.label}</span>
       {data && <span className="text-xs text-muted-foreground">{data.files.length}</span>}
     </Button></CollapsibleTrigger></div>
-    <CollapsibleContent>{content}</CollapsibleContent>
-  </Collapsible>;
-}
-
-function DiffTree({ session, files, selected, choose, prefix = '' }: { session: DiffSession; files: DiffFile[]; selected: string | null; choose(file: DiffFile): void; prefix?: string }) {
-  const folders = new Map<string, DiffFile[]>(), leaves: DiffFile[] = [];
-  for (const file of files) {
-    const rest = file.path.slice(prefix.length), slash = rest.indexOf('/');
-    if (slash < 0) leaves.push(file);
-    else {
-      const name = rest.slice(0, slash), children = folders.get(name);
-      if (children) children.push(file); else folders.set(name, [file]);
-    }
-  }
-  return <SidebarMenu aria-label={prefix || 'Changed file tree'}>
-    {[...folders].sort(([a], [b]) => a.localeCompare(b)).map(([name, children]) => <Collapsible defaultOpen key={name} asChild><SidebarMenuItem>
-      {/* An expanded folder is a disclosure, so its resting background stays clear. */}
-      <div className="not-hover:[--muted:transparent]"><CollapsibleTrigger asChild><Button variant="ghost" className="h-7 w-full justify-start" aria-label={prefix + name}>
-        <ChevronRightIcon className="group-aria-expanded/button:rotate-90" /><FolderIcon /><span className="min-w-0 truncate">{name}</span>
-      </Button></CollapsibleTrigger></div>
-      <CollapsibleContent><div className="ms-4"><DiffTree session={session} files={children} selected={selected} choose={choose} prefix={`${prefix}${name}/`} /></div></CollapsibleContent>
-    </SidebarMenuItem></Collapsible>)}
-    {leaves.sort((a, b) => a.path.localeCompare(b.path)).map((file) => <SidebarMenuItem key={file.path}><div onContextMenu={(e) => {
-      if (e.defaultPrevented) return;
-      e.preventDefault();
-      session.actions.showMenu(e.nativeEvent, [{ label: 'View diff', run: () => choose(file) }]);
-    }}>
-        <Button variant={selected === file.path ? 'secondary' : 'ghost'} className="h-7 w-full justify-start" aria-current={selected === file.path ? 'true' : undefined}
-          aria-label={file.path} title={`${file.previousPath ? `${file.previousPath} → ` : ''}${file.path}\n${diffLabel(file.status)}`}
-          onClick={() => choose(file)}>
-          <span className="size-4 shrink-0" /><DiffStatus status={file.status} iconOnly /><span className="min-w-0 flex-1 truncate text-start">{file.path.slice(prefix.length)}</span>
-          <span className="text-xs text-muted-foreground" title={diffLabel(file.status)}>{file.status}</span><DiffCounts additions={file.additions} deletions={file.deletions} />
-        </Button>
-    </div></SidebarMenuItem>)}
-    {!files.length && <SidebarMenuItem><p className="p-2 text-xs text-muted-foreground">No files match</p></SidebarMenuItem>}
-  </SidebarMenu>;
+    <CollapsibleContent asChild><div className="flex min-h-0 flex-1 flex-col">{content}</div></CollapsibleContent>
+  </div></Collapsible>;
 }
