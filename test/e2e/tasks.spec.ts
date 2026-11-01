@@ -7,7 +7,7 @@ import type { Locator, Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
 import type { Files } from './data.ts';
-import { showResources, SITE, menu, choose, openSidebar, closeSidebar, fromSidebar, sidebar, taskRow, rowButton, sidebarTasks, focusWindow, viewOn, who, invoke, notLoading, answer, removed, arrange } from './helpers.ts';
+import { showResources, frames, SITE, menu, choose, openSidebar, closeSidebar, fromSidebar, sidebar, taskRow, rowButton, sidebarTasks, focusWindow, viewOn, who, invoke, notLoading, answer, removed, arrange } from './helpers.ts';
 import { git, rand, hasDirenv, keyAt, isNth, taskTab, taskTabs, hook, reportSession, newTask, projectShown, begin, bothOn, deleteProfile } from './tasks-helpers.ts';
 
 // No question of Kulisa's asked in the window.
@@ -265,6 +265,12 @@ test("tasks: × closes a task: its agent stops and its tabs close, all else stay
 });
 
 test("tasks: an agent's tab closes after a question, always (Cancel keeps it); the last terminal closed folds the terminals' panel to its +, which opens one again; Ctrl+` there opens the task's agent, a new conversation", async ({ core, ui, files, call }) => {
+  // A short development area must share its room with Resources when the terminal unfolds.
+  const bounds = await core((k) => {
+    const bounds = k.shell.win.getBounds();
+    k.shell.win.setBounds({ height: 960 });
+    return bounds;
+  });
   await begin(core, ui, files, { only: true, columns: true, featureX: call });
   const SAM = files.idOf('Sam.admin');
   const task = await newTask(core, ui), agent = await core((k, key) => k.shell.taskByKey(key).promptTarget().id, task);
@@ -395,7 +401,8 @@ test("tasks: an agent's tab closes after a question, always (Cancel keeps it); t
   await choose(ui, 'Terminal');
   await expect.poll(developmentTerminals).toBe(1);
   await folded(false);
-  await expect.poll(async () => (await size(group)).height).toBeGreaterThanOrEqual(150);
+  await expect.poll(async () => (await size(group)).height).toBeGreaterThan(40);
+  await expect(panel.locator('.xterm-screen')).toBeVisible();
   // A shell closes without a question; folded again.
   await closeTab();
   await expect.poll(developmentTerminals).toBe(0);
@@ -416,6 +423,8 @@ test("tasks: an agent's tab closes after a question, always (Cancel keeps it); t
   // tall as the area; its + unfolds it to a width of its own, and the last terminal closed folds it again. Moved by
   // dockview's API: a drag of a panel between groups is the OS's drag and drop.
   await ui.evaluate(() => { const d = (window as any).__dock; d.getPanel('resources').api.moveTo({ group: d.getPanel('terminal').group, position: 'right' }); });
+  await frames(ui);
+  const expandedWidth = (await size(group)).width;
   await closeTab();
   await expect.poll(async () => { const r = await size(group); return (await developmentTerminals()) === 0 && r.width <= 40 && r.height > 100 && (await middle()); }).toBe(true);
   await unfold.click();
@@ -423,6 +432,7 @@ test("tasks: an agent's tab closes after a question, always (Cancel keeps it); t
   await expect.poll(developmentTerminals).toBe(1);
   await folded(false);
   await expect.poll(async () => (await size(group)).width).toBeGreaterThanOrEqual(200);
+  await expect.poll(async () => Math.abs((await size(group)).width - expandedWidth)).toBeLessThanOrEqual(1);
   await closeTab();
   await expect.poll(developmentTerminals).toBe(0);
   await folded(true);
@@ -441,6 +451,7 @@ test("tasks: an agent's tab closes after a question, always (Cancel keeps it); t
   await taskTab(ui, task).getByRole('button', { name: 'Close' }).click();
   await expect.poll(async () => (await core((k, key) => { const t = k.shell.taskByKey(key); return t.entry.closedAt !== undefined && !t.loaded; }, task)) && isNth(core, 2)).toBe(true);
   await noQuestion(ui);
+  await core((k, bounds) => k.shell.win.setBounds(bounds), bounds);
 });
 
 test('tasks: × on the last open task of a project lets the project go, nothing asked: the empty window; a task of it opens it again', async ({ core, ui, files, call }) => {

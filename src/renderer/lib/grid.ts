@@ -85,7 +85,8 @@ function restoreTerminalSize() {
   const before = terminalFold; terminalFold = null;
   if (!before || !api?.groups.includes(before.group)) return;
   before.group.api.setConstraints({ minimumWidth: 0, maximumWidth: Infinity, minimumHeight: 0, maximumHeight: Infinity });
-  before.group.api.setSize(before.vertical ? { height: Math.max(before.size, 150) } : { width: Math.max(before.size, 200) });
+  const inset = developmentInsets().get(before.group.id) ?? { width: 0, height: 0 };
+  before.group.api.setSize(before.vertical ? { height: Math.max(before.size, 150) + inset.height } : { width: Math.max(before.size, 200) + inset.width });
 }
 
 // Groups own constraints: Resources and terminal folding share one policy so neither can override the other.
