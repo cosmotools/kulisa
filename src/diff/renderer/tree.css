@@ -10,6 +10,7 @@
   --trees-selected-bg-override: var(--sidebar-accent);
   --trees-selected-fg-override: var(--sidebar-accent-foreground);
   --trees-indent-guide-bg-override: transparent;
+  --trees-focus-ring-width-override: 0px;
   --trees-status-added-override: var(--success);
   --trees-status-deleted-override: var(--destructive);
   --trees-status-modified-override: var(--muted-foreground);
