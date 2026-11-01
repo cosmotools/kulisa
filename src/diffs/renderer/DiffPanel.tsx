@@ -1,10 +1,10 @@
 // The review renderer loads only while its document is mounted (../README.md).
 import { useEffect, useState } from 'react';
 import { Alert, AlertDescription, Spinner } from '@ui';
-import type { ChangeSelection } from '../ipc';
-import { comparisonKey, type ChangesSession } from './session';
+import type { DiffSelection } from '../ipc';
+import { comparisonKey, type DiffsSession } from './session';
 
-export type DiffPanelProps = { session: ChangesSession; selection: ChangeSelection; shade: 'dark' | 'light'; fontSize: number };
+export type DiffPanelProps = { session: DiffsSession; selection: DiffSelection; shade: 'dark' | 'light'; fontSize: number };
 export function DiffPanel(props: DiffPanelProps) {
   const { selection } = props;
   const [loaded, setLoaded] = useState<typeof import('./ReviewDocument') | null>(null);

@@ -4,18 +4,18 @@ import { useStore } from 'zustand';
 import { ArrowRightIcon, ChevronRightIcon, FolderIcon, GitBranchIcon } from 'lucide-react';
 import { Alert, AlertDescription, Button, Collapsible, CollapsibleContent, CollapsibleTrigger, Input,
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SidebarMenu, SidebarMenuItem } from '@ui';
-import type { ChangedFile, ChangeOptions, ChangeSelection } from '../ipc';
+import type { DiffFile, DiffOptions, DiffSelection } from '../ipc';
 import { refused } from '../../shared/result';
-import { ChangeCounts } from './ChangeCounts';
-import { changeLabel, ChangeStatus } from './ChangeStatus';
-import { comparisonKey, type ChangesSession } from './session';
+import { DiffCounts } from './DiffCounts';
+import { diffLabel, DiffStatus } from './DiffStatus';
+import { comparisonKey, type DiffsSession } from './session';
 
-type ChangesProps = { session: ChangesSession; roots: { folder: string; label: string }[]; selection: ChangeSelection | null; reviewing: boolean };
-export function Changes({ session, roots, selection, reviewing }: ChangesProps) {
+type DiffsProps = { session: DiffsSession; roots: { folder: string; label: string }[]; selection: DiffSelection | null; reviewing: boolean };
+export function Diffs({ session, roots, selection, reviewing }: DiffsProps) {
   useEffect(() => session.observe(), [session]);
   const [filter, setFilter] = useState(() => selection?.filter ?? '');
   return <section aria-label="Changed files" className="flex h-full min-h-0 flex-col">
-    <header className="px-3 py-2 text-sm font-medium">Changes</header>
+    <header className="px-3 py-2 text-sm font-medium">Diffs</header>
     <div className="flex flex-col gap-2 px-3 pb-3">
       <Input aria-label="Filter changed files" placeholder="Filter files…" value={filter} onChange={(e) => {
         const value = e.target.value;
@@ -24,13 +24,13 @@ export function Changes({ session, roots, selection, reviewing }: ChangesProps) 
       }} />
     </div>
     <div className="min-h-0 flex-1 overflow-auto px-1 pb-2">
-      {roots.map((root) => <RepositoryChanges key={root.folder} session={session} selected={selection} reviewing={reviewing} root={root} grouped={roots.length > 1} filter={filter} />)}
+      {roots.map((root) => <RepositoryDiffs key={root.folder} session={session} selected={selection} reviewing={reviewing} root={root} grouped={roots.length > 1} filter={filter} />)}
     </div>
   </section>;
 }
 
-function RepositoryChanges({ session, selected, reviewing: activeReview, root, grouped, filter }: {
-  session: ChangesSession; selected: ChangeSelection | null; reviewing: boolean;
+function RepositoryDiffs({ session, selected, reviewing: activeReview, root, grouped, filter }: {
+  session: DiffsSession; selected: DiffSelection | null; reviewing: boolean;
   root: { folder: string; label: string }; grouped: boolean; filter: string;
 }) {
   const [choosingTarget, setChoosingTarget] = useState(false);
@@ -46,7 +46,7 @@ function RepositoryChanges({ session, selected, reviewing: activeReview, root, g
     }, (e: Error) => { if (active) setTargetError(e.message); });
     return () => { active = false; };
   }, [choosingTarget, session, root.folder]);
-  const [options, setOptions] = useState<ChangeOptions>(() => {
+  const [options, setOptions] = useState<DiffOptions>(() => {
     return selected?.folder === root.folder ? { to: selected.options.to } : session.listings.getState().get(root.folder)?.options ?? {};
   });
   const comparison = { folder: root.folder, options }, query = comparisonKey(comparison);
@@ -70,14 +70,14 @@ function RepositoryChanges({ session, selected, reviewing: activeReview, root, g
   const data = result && !refused(result) ? result : null;
   // Keep selectors usable when an agent renames or removes a selected branch.
   const metadata = data ?? loaded?.metadata;
-  const choose = (file: ChangedFile) => session.actions.select({ folder: root.folder, path: file.path, options, filter });
-  const compare = (next: ChangeOptions) => {
+  const choose = (file: DiffFile) => session.actions.select({ folder: root.folder, path: file.path, options, filter });
+  const compare = (next: DiffOptions) => {
     setOptions(next);
     session.actions.select({ folder: root.folder, path: selected?.folder === root.folder ? selected.path : '', options: next, filter });
   };
   const error = result?.error;
   const content = <>
-      {!result && <p role="status" className="p-2 text-xs text-muted-foreground">Loading changes…</p>}
+      {!result && <p role="status" className="p-2 text-xs text-muted-foreground">Loading diffs…</p>}
       {targetError && <Alert variant="destructive"><AlertDescription>{targetError}</AlertDescription></Alert>}
       {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
       {data && !data.git && <p className="p-2 text-xs text-muted-foreground">This folder is not a Git repository.</p>}
@@ -102,7 +102,7 @@ function RepositoryChanges({ session, selected, reviewing: activeReview, root, g
           </div>
         </div>
         {data && !data.files.length && <p className="p-2 text-xs text-muted-foreground">No changes</p>}
-        {!!data?.files.length && <ChangeTree session={session} files={data.files.filter((f) => `${f.path}\n${f.previousPath ?? ''}`.toLowerCase().includes(filter.toLowerCase()))}
+        {!!data?.files.length && <DiffTree session={session} files={data.files.filter((f) => `${f.path}\n${f.previousPath ?? ''}`.toLowerCase().includes(filter.toLowerCase()))}
           selected={selected?.folder === root.folder ? selected.path : null} choose={choose} />}
       </>}
   </>;
@@ -116,8 +116,8 @@ function RepositoryChanges({ session, selected, reviewing: activeReview, root, g
   </Collapsible>;
 }
 
-function ChangeTree({ session, files, selected, choose, prefix = '' }: { session: ChangesSession; files: ChangedFile[]; selected: string | null; choose(file: ChangedFile): void; prefix?: string }) {
-  const folders = new Map<string, ChangedFile[]>(), leaves: ChangedFile[] = [];
+function DiffTree({ session, files, selected, choose, prefix = '' }: { session: DiffsSession; files: DiffFile[]; selected: string | null; choose(file: DiffFile): void; prefix?: string }) {
+  const folders = new Map<string, DiffFile[]>(), leaves: DiffFile[] = [];
   for (const file of files) {
     const rest = file.path.slice(prefix.length), slash = rest.indexOf('/');
     if (slash < 0) leaves.push(file);
@@ -132,7 +132,7 @@ function ChangeTree({ session, files, selected, choose, prefix = '' }: { session
       <div className="not-hover:[--muted:transparent]"><CollapsibleTrigger asChild><Button variant="ghost" className="h-7 w-full justify-start" aria-label={prefix + name}>
         <ChevronRightIcon className="group-aria-expanded/button:rotate-90" /><FolderIcon /><span className="min-w-0 truncate">{name}</span>
       </Button></CollapsibleTrigger></div>
-      <CollapsibleContent><div className="ms-4"><ChangeTree session={session} files={children} selected={selected} choose={choose} prefix={`${prefix}${name}/`} /></div></CollapsibleContent>
+      <CollapsibleContent><div className="ms-4"><DiffTree session={session} files={children} selected={selected} choose={choose} prefix={`${prefix}${name}/`} /></div></CollapsibleContent>
     </SidebarMenuItem></Collapsible>)}
     {leaves.sort((a, b) => a.path.localeCompare(b.path)).map((file) => <SidebarMenuItem key={file.path}><div onContextMenu={(e) => {
       if (e.defaultPrevented) return;
@@ -140,10 +140,10 @@ function ChangeTree({ session, files, selected, choose, prefix = '' }: { session
       session.actions.showMenu(e.nativeEvent, [{ label: 'View diff', run: () => choose(file) }]);
     }}>
         <Button variant={selected === file.path ? 'secondary' : 'ghost'} className="h-7 w-full justify-start" aria-current={selected === file.path ? 'true' : undefined}
-          aria-label={file.path} title={`${file.previousPath ? `${file.previousPath} → ` : ''}${file.path}\n${changeLabel(file.status)}`}
+          aria-label={file.path} title={`${file.previousPath ? `${file.previousPath} → ` : ''}${file.path}\n${diffLabel(file.status)}`}
           onClick={() => choose(file)}>
-          <span className="size-4 shrink-0" /><ChangeStatus status={file.status} iconOnly /><span className="min-w-0 flex-1 truncate text-start">{file.path.slice(prefix.length)}</span>
-          <span className="text-xs text-muted-foreground" title={changeLabel(file.status)}>{file.status}</span><ChangeCounts additions={file.additions} deletions={file.deletions} />
+          <span className="size-4 shrink-0" /><DiffStatus status={file.status} iconOnly /><span className="min-w-0 flex-1 truncate text-start">{file.path.slice(prefix.length)}</span>
+          <span className="text-xs text-muted-foreground" title={diffLabel(file.status)}>{file.status}</span><DiffCounts additions={file.additions} deletions={file.deletions} />
         </Button>
     </div></SidebarMenuItem>)}
     {!files.length && <SidebarMenuItem><p className="p-2 text-xs text-muted-foreground">No files match</p></SidebarMenuItem>}

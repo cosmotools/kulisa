@@ -4,7 +4,7 @@
 // (the tests read some).
 import type { ProjectFile } from '../project-explorer/ipc.ts';
 import type { Result } from './result.ts';
-import type { ChangeOptions, Changes, FileDiff, Review } from '../changes/ipc.ts';
+import type { DiffOptions, Diffs, FileDiff, Review } from '../diffs/ipc.ts';
 import type { StageTerminal, StageTerminalsState, TerminalSize } from './stage-terminal.ts';
 import type { FileLink, TerminalContents, TerminalEvents, TerminalInvoke, TerminalSend } from '../terminal/ipc.ts';
 import type { ThumbnailEvents, ThumbnailInvoke, ThumbnailSend } from '../screenshots/ipc.ts';
@@ -91,10 +91,10 @@ export interface Invoke extends TerminalInvoke, ThumbnailInvoke, GitHubInvoke, D
   'task:show-folder': I<[key: string]>;
   'task:open-folder': I<[{ key: string; folder: string }]>; // a resource's folder (Resources.tsx), checked to be the task's
   'task:files': I<[{ key: string; folder: string }], Result<{ entries: ProjectFile[] }>>;
-  'task:changes': I<[{ key: string; folder: string; options: ChangeOptions }], Result<Changes>>;
-  'task:change-targets': I<[{ key: string; folder: string }], Result<{ branches: string[] }>>;
-  'task:review': I<[{ key: string; folder: string; options: ChangeOptions; load?: string[] }], Result<Review>>;
-  'task:diff-contents': I<[{ key: string; folder: string; path: string; options: ChangeOptions }], Result<FileDiff>>;
+  'task:diffs:list': I<[{ key: string; folder: string; options: DiffOptions }], Result<Diffs>>;
+  'task:diffs:targets': I<[{ key: string; folder: string }], Result<{ branches: string[] }>>;
+  'task:diffs:review': I<[{ key: string; folder: string; options: DiffOptions; load?: string[] }], Result<Review>>;
+  'task:diffs:contents': I<[{ key: string; folder: string; path: string; options: DiffOptions }], Result<FileDiff>>;
   'task:file-open': I<[{ key: string; file: string }], Result>;
   'task:artifacts': I<[string]>; // the task's artifacts sent again (Resources.tsx: the task shown)
   'task:artifact-send': I<[{ key: string; file: string }], Result>;

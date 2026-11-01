@@ -91,19 +91,19 @@ export function registerTasks(ipc: Ipc) {
     const task = shell.taskByKey(key);
     return task ? task.openProjectFile(file) : { error: 'the task is closed' };
   });
-  handle('task:changes', (_e, { key, folder, options }) => {
+  handle('task:diffs:list', (_e, { key, folder, options }) => {
     const task = shell.taskByKey(key);
-    return task ? task.changes(folder, options) : { error: 'The task is closed.' };
+    return task ? task.diffs(folder, options) : { error: 'The task is closed.' };
   });
-  handle('task:change-targets', (_e, { key, folder }) => {
+  handle('task:diffs:targets', (_e, { key, folder }) => {
     const task = shell.taskByKey(key);
-    return task ? task.changeTargets(folder) : { error: 'The task is closed.' };
+    return task ? task.diffTargets(folder) : { error: 'The task is closed.' };
   });
-  handle('task:review', (_e, { key, folder, options, load }) => {
+  handle('task:diffs:review', (_e, { key, folder, options, load }) => {
     const task = shell.taskByKey(key);
     return task ? task.review(folder, options, load) : { error: 'The task is closed.' };
   });
-  handle('task:diff-contents', (_e, { key, folder, path, options }) => {
+  handle('task:diffs:contents', (_e, { key, folder, path, options }) => {
     const task = shell.taskByKey(key);
     return task ? task.diffContents(folder, path, options) : { error: 'The task is closed.' };
   });

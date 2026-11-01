@@ -84,19 +84,19 @@ project, and those you closed, are in the sidebar (Tasks, below).
   Follow agent is shared by all tasks and windows and remembered when you restart Kulisa. Manual pauses are temporary.
   Each task keeps both layouts, its stage position, size, view and overflow setting. The empty stage stays hidden; you or your agent can open a
   environment when needed through **Stage → Open an environment**.
-- **Resources panel**, to the left of the terminal by default: choose the **Agents**, **Project**, **Changes** or **Artifacts** section
+- **Resources panel**, to the left of the terminal by default: choose the **Agents**, **Project**, **Diffs** or **Artifacts** section
   from the **Resources bar**, the icons on its left. The area on the right is **Resources content**.
   Click the selected icon again to close Resources content and give the terminal more room; the Resources bar stays visible, with no resize divider beside it.
   Click any section icon to reopen Resources content at its previous size.
-  **Changes** shows changed files as a folder tree, grouped by repository, with their status and added or removed line
+  **Diffs** shows changed files as a folder tree, grouped by repository, with their status and added or removed line
   counts. GitHub-style status icons mark added files in green and deleted files in red, with distinct modified and
-  renamed markers and aligned folder and file rows. Expanded folders in Changes and
+  renamed markers and aligned folder and file rows. Expanded folders in Diffs and
   Project keep a plain background; pointing at a row highlights it.
-  **Changes** and **Agents** switch the development area between the review and your terminal.
-  Returning to Changes keeps your repository, comparison, filter and selected file.
-  Opening Changes reads the current files from your computer. Changes refreshes while the review is open.
+  **Diffs** and **Agents** switch the development area between the review and your terminal.
+  Returning to Diffs keeps your repository, comparison, filter and selected file.
+  Opening Diffs reads the current files from your computer. Diffs refreshes while the review is open.
   A task with one repository shows From/To and the tree directly; tasks with several repositories show a
-  collapsible heading for each. Opening Changes shows the repository's review in the development area.
+  collapsible heading for each. Opening Diffs shows the repository's review in the development area.
   Filter by a path to narrow both the tree and review, and expand folders to navigate. Selecting a file jumps to it.
   The review loads as one document. Large files and reviews show **Load diff** where you choose what to load.
   All changed files appear in one scrolling
@@ -108,7 +108,7 @@ project, and those you closed, are in the sidebar (Tasks, below).
   including local edits. **To** starts with the repository's default branch; changing it opens
   that comparison. Choose the current branch under **To** to review only uncommitted edits in your worktree.
   Selecting a target keeps your checked-out code intact.
-  New files are included in worktree comparisons and ignored files stay out. Changes refreshes as your agent works,
+  New files are included in worktree comparisons and ignored files stay out. Diffs refreshes as your agent works,
   without needing a GitHub pull request.
   The terminal keeps running while you review. Click **Agents** in the Resources bar to return to your last active
   terminal, or select another agent from its list. The terminal focus shortcut also returns to

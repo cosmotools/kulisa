@@ -1,7 +1,7 @@
 // Local Git review contracts (README.md).
 import type { Result } from '../shared/result.ts';
-export interface ChangeOptions { to?: string }
-export interface ChangedFile {
+export interface DiffOptions { to?: string }
+export interface DiffFile {
   path: string;
   previousPath?: string;
   status: string;
@@ -10,16 +10,16 @@ export interface ChangedFile {
   deferred?: string;
   untracked?: boolean;
 }
-export interface Changes {
+export interface Diffs {
   git: boolean;
   revision: string | null;
   from: string;
   to: string;
   branch: string | null;
   branches: string[];
-  files: ChangedFile[];
+  files: DiffFile[];
 }
-export interface ChangeSelection { folder: string; path: string; options: ChangeOptions; filter?: string; navigation?: number }
+export interface DiffSelection { folder: string; path: string; options: DiffOptions; filter?: string; navigation?: number }
 export interface FileDiff {
   from: string;
   to: string;
@@ -30,4 +30,4 @@ export interface FileDiff {
   notice?: string;
 }
 interface ReviewFile { version?: string; addition?: string; notice?: string; deferred?: string }
-export interface Review extends Changes { patch: string; diffs: { path: string; result: Result<ReviewFile> }[] }
+export interface Review extends Diffs { patch: string; diffs: { path: string; result: Result<ReviewFile> }[] }

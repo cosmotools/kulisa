@@ -1,9 +1,9 @@
 // One review request and one visible document snapshot (../README.md).
 import { useEffect, useState } from 'react';
 import { parseDiffFromFile, parsePatchFiles, type CodeViewItem } from '@pierre/diffs';
-import type { ChangeSelection, Review } from '../ipc';
+import type { DiffSelection, Review } from '../ipc';
 import { refused } from '../../shared/result';
-import { comparisonKey, type ChangesSession } from './session';
+import { comparisonKey, type DiffsSession } from './session';
 
 export type Notice = { kind: 'loading' | 'deferred' | 'notice' | 'error'; text: string };
 export const loading: Notice = { kind: 'loading', text: 'Loading diff…' };
@@ -13,7 +13,7 @@ export function placeholder(path: string, notice: Notice, version = 0): CodeView
 type Entry = { signature: string; item: CodeViewItem<Notice> };
 type Snapshot = { answer: Review | null; error: string | null; entries: Map<string, Entry> };
 
-export function useReview(session: ChangesSession, selection: ChangeSelection) {
+export function useReview(session: DiffsSession, selection: DiffSelection) {
   const [snapshot, setSnapshot] = useState<Snapshot>({ answer: null, error: null, entries: new Map() });
   const [loaded, setLoaded] = useState<string[]>([]);
   const { folder } = selection, target = selection.options.to, query = comparisonKey(selection);

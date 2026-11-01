@@ -10,7 +10,7 @@ import type { Core, Call, Where } from './fixtures.ts';
 import { removeTree } from '../../src/main/remove.ts';
 import type { Files } from './data.ts';
 
-export async function showResources(ui: Page, section: 'Project' | 'Artifacts' | 'Agents' | 'Changes') {
+export async function showResources(ui: Page, section: 'Project' | 'Artifacts' | 'Agents' | 'Diffs') {
   const icon = ui.getByRole('navigation', { name: 'Resources', exact: true }).getByRole('button', { name: section, exact: true });
   if (await icon.getAttribute('aria-expanded') !== 'true') await icon.click();
 }

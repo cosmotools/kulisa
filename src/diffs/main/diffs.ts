@@ -3,7 +3,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { git, gitBuffer } from '../../main/worktrees.ts';
-import type { ChangedFile, ChangeOptions, Changes, FileDiff, Review } from '../ipc.ts';
+import type { DiffFile, DiffOptions, Diffs, FileDiff, Review } from '../ipc.ts';
 import { refused, type Result } from '../../shared/result.ts';
 
 const limit = 2 << 20;
@@ -23,7 +23,7 @@ function decode(buffer: Buffer): { text: string; notice?: string } {
   } catch { return { text: '', notice: 'Binary or non-UTF-8 file. Text comparison is unavailable.' }; }
 }
 
-async function comparison(folder: string, options: ChangeOptions, start?: string | null) {
+async function comparison(folder: string, options: DiffOptions, start?: string | null) {
   const [listing, branch, head] = await Promise.all([
     git(folder, ['for-each-ref', '--format=%(refname:short)%00%(objectname)%00%(symref:short)', ...(options.to ? [`refs/heads/${options.to}`, `refs/remotes/${options.to}`] : ['refs/remotes/origin/HEAD', 'refs/remotes/origin/main', 'refs/remotes/origin/master', 'refs/heads/main', 'refs/heads/master'])], { maxBuffer: 8 << 20 }).catch((): null => null),
     git(folder, ['symbolic-ref', '--quiet', '--short', 'HEAD']).catch((): null => null),
@@ -46,8 +46,8 @@ async function comparison(folder: string, options: ChangeOptions, start?: string
 }
 
 // Git's NUL records preserve tabs, newlines and rename pairs in file names.
-function parseDiff(output: string): ChangedFile[] {
-  const parts = output.split('\0'), files = new Map<string, ChangedFile>();
+function parseDiff(output: string): DiffFile[] {
+  const parts = output.split('\0'), files = new Map<string, DiffFile>();
   let i = 0;
   while (parts[i]?.startsWith(':')) {
     const status = parts[i++]!.split(' ').at(-1)!.slice(0, 1);
@@ -102,25 +102,25 @@ async function workingText(folder: string, file: string, maxBytes = limit): Prom
 }
 
 async function changedFiles(folder: string, revision: string | null, wanted?: Set<string>) {
-  const [changes, others] = await Promise.all([
+  const [diffs, others] = await Promise.all([
     revision ? git(folder, ['diff', '--raw', '--numstat', ...plain, revision, '--', '.'], { trim: false, maxBuffer: 8 << 20 }) : '',
     git(folder, ['ls-files', '-z', '--others', '--exclude-standard', ...(!revision ? ['--cached'] : []), '--', '.'], { trim: false, maxBuffer: 8 << 20 }),
   ]);
-  const tracked = parseDiff(changes);
+  const tracked = parseDiff(diffs);
   const files = wanted ? tracked.filter((f) => wanted.has(f.path)) : tracked;
   const untracked = others.split('\0').filter(Boolean);
   const additions = [...new Set(untracked)].filter((file) => !wanted || wanted.has(file));
   for (let i = 0; i < additions.length; i += 4) {
-    files.push(...await Promise.all(additions.slice(i, i + 4).map(async (file): Promise<ChangedFile> => {
+    files.push(...await Promise.all(additions.slice(i, i + 4).map(async (file): Promise<DiffFile> => {
       const content: Text = await workingText(folder, file, automaticLimit).catch(() => ({ text: '', notice: 'File unavailable' }));
       return { path: file, status: 'A', untracked: true, additions: content.notice || content.deferred ? null : countLines(content.text), deletions: content.notice ? null : 0,
         ...(content.deferred && { deferred: content.deferred }) };
     })));
   }
-  return files.sort((a, b) => compareChangePaths(a.path, b.path));
+  return files.sort((a, b) => compareDiffPaths(a.path, b.path));
 }
 
-export async function listChanges(folder: string, options: ChangeOptions, start?: string | null): Promise<Result<Changes>> {
+export async function listDiffs(folder: string, options: DiffOptions, start?: string | null): Promise<Result<Diffs>> {
   try {
     const c = await comparison(folder, options, start);
     if (!c) return { git: false, revision: null, from: '', to: '', branch: null, branches: [], files: [] };
@@ -165,7 +165,7 @@ async function committedText(folder: string, groups: { revision: string; paths: 
   };
 }
 
-export async function listChangeTargets(folder: string, start?: string | null): Promise<Result<{ branches: string[] }>> {
+export async function listDiffTargets(folder: string, start?: string | null): Promise<Result<{ branches: string[] }>> {
   try {
     const refs = await git(folder, ['for-each-ref', '--format=%(refname:short)', 'refs/heads', 'refs/remotes']);
     const head = await git(folder, ['rev-parse', '--verify', '--quiet', 'HEAD^{commit}']).catch((): null => null);
@@ -174,8 +174,8 @@ export async function listChangeTargets(folder: string, start?: string | null): 
 }
 
 // One bounded review snapshot; files outside the automatic allowance have an explicit load action.
-export async function loadReview(folder: string, options: ChangeOptions, start?: string | null, load: string[] = []): Promise<Result<Review>> {
-  const summary = await listChanges(folder, options, start);
+export async function loadReview(folder: string, options: DiffOptions, start?: string | null, load: string[] = []): Promise<Result<Review>> {
+  const summary = await listDiffs(folder, options, start);
   if (refused(summary)) return summary;
   if (load.length > 4) return { error: 'Load at most four large diffs at once.' };
   const selected = summary.files.filter((file) => load.includes(file.path));
@@ -194,7 +194,7 @@ export async function loadReview(folder: string, options: ChangeOptions, start?:
 }
 
 // A batch uses the listing's immutable base; it never rescans the repository or reads tracked text twice.
-export async function readReview(folder: string, revision: string | null, files: ChangedFile[], load: string[] = []): Promise<Result<Pick<Review, 'patch' | 'diffs'>>> {
+export async function readReview(folder: string, revision: string | null, files: DiffFile[], load: string[] = []): Promise<Result<Pick<Review, 'patch' | 'diffs'>>> {
   try {
     if (files.length > 32) throw new Error('A review reads at most 32 files at once.');
     if (load.length > 4) throw new Error('Load at most four large diffs at once.');
@@ -255,7 +255,7 @@ export async function readReview(folder: string, revision: string | null, files:
   } catch (e) { return { error: errorText(e) }; }
 }
 
-export async function readDiff(folder: string, file: string, options: ChangeOptions, start?: string | null): Promise<Result<FileDiff>> {
+export async function readDiff(folder: string, file: string, options: DiffOptions, start?: string | null): Promise<Result<FileDiff>> {
   try {
     const c = await comparison(folder, options, start);
     if (!c) return { error: 'This folder is not a Git repository.' };
@@ -272,7 +272,7 @@ export async function readDiff(folder: string, file: string, options: ChangeOpti
   } catch (e) { return { error: errorText(e) }; }
 }
 
-function compareChangePaths(a: string, b: string): number {
+function compareDiffPaths(a: string, b: string): number {
   const left = a.split('/'), right = b.split('/');
   for (let i = 0; i < Math.min(left.length, right.length); i++) {
     if (left[i] === right[i]) continue;

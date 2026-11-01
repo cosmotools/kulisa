@@ -245,7 +245,7 @@ then named "Checkout redesign":
 ### The Resources panel
 
 The **Resources panel** sits to the left of the development terminal by default. Its **Resources bar** selects
-the **Agents**, **Project**, **Changes** or **Artifacts** section in **Resources content**.
+the **Agents**, **Project**, **Diffs** or **Artifacts** section in **Resources content**.
 Clicking the selected icon closes Resources content and leaves the Resources bar visible; any section icon reopens
 Resources content at the expanded size.
 The standalone development panels have no header. The Resources bar holds the dictation microphone above its grip. The grip at the bottom of the Resources bar moves the panel within the
@@ -292,10 +292,10 @@ The panel shows the resources as `tasks.json` keeps them, the first where it wor
 task's folder, branch and folder of copies are worked out from them, never kept twice. Ownership decides the actions
 and the cleanup: the main working tree is the human's, never removed; a worktree the task made goes with the task.
 
-#### Changes
+#### Diffs
 
-Resources → Changes opens a local Git review through the [Changes Kulisa package](../src/changes/README.md).
-`Task.changes`, `Task.changeTargets`, `Task.review` and `Task.diffContents` confine its reads to task resources and
+Resources → Diffs opens a local Git review through the [Diffs Kulisa package](../src/diffs/README.md).
+`Task.diffs`, `Task.diffTargets`, `Task.review` and `Task.diffContents` confine its reads to task resources and
 supply each worktree's starting commit. The task's development panel owns the saved screen, repository, comparison,
 filter and file in its Dockview parameters; restoring the layout restores this selection even with Resources content
 closed. Each section selects its own development screen. Agents and the terminal focus shortcut return to the last
@@ -349,7 +349,7 @@ to the human; the window's IPC (`ipc/`) and the MCP tools are handles on it:
 | Delete a task | Delete Task… in its tab's menu; its 🗑 in the sidebar | none: it deletes work and sign-ins, the human's to decide | `askDeleteTask`, `deleteTask`, `deleteClosedTask` (`projects.ts`) |
 | Show a task | a click on its tab, of any project | none: what the human looks at is theirs | `AppWindow.show` (`window.ts`) |
 | Browse a task’s folders, open a file | Project section in Resources content; double-click or Enter on a file, its Open menu | the agent reads and opens files through its own tools | `task:files`, `task:file-open` (`Task.files`, `Task.openProjectFile`; Project Explorer confines reads to its roots) |
-| Review local code changes | Changes section, continuous file diffs; Unified or Split | the agent reads its Git repository through its own tools | `task:changes`, `task:change-targets`, `task:review`, `task:diff-contents` (`Task.changes`, `Task.changeTargets`, `Task.review`, `Task.diffContents`) |
+| Review local code changes | Diffs section, continuous file diffs; Unified or Split | the agent reads its Git repository through its own tools | `task:diffs:list`, `task:diffs:targets`, `task:diffs:review`, `task:diffs:contents` (`Task.diffs`, `Task.diffTargets`, `Task.review`, `Task.diffContents`) |
 | Open a resource's folder | double-click its root in Resources, or Open Folder in its menu | none: the agent opens folders through its own tools | `task:open-folder` (`ipc/tasks.ts`) |
 | Open an artifact, show it in its folder | a click on its row in the Resources panel, its menu | none: the tools' answers give the agent its path | `file:open`, `file:show` (`file-links.ts`) |
 | See what the artifacts take | the Artifacts heading in the Resources panel (the shown task's) | `task_artifacts`: its task's files, or each task's total | `Task.artifactsUsage` (src/activity-monitor) |
@@ -790,7 +790,7 @@ rm -rf ~/.config/Kulisa/projects/<project id>   # all its tasks with their profi
 | `src/main/projects.ts` | a loaded project: its tasks; making, closing, opening again, deleting one (with the question); making a project (`createProject`), deleting a project's data |
 | `src/main/tasks.ts` | a task: its profiles, its terminals and agents (open, hand over, close, environment), naming, its worktree on demand and resources, its artifacts (what they take, deleting them), copies of its profiles for a new task |
 | `src/main/stage-terminals.ts` | the task’s Stage terminal setup and process lifecycle, shared actions for the window and MCP |
-| `src/changes/` | local Git comparison, changed-file navigation and virtualized review ([README](../src/changes/README.md)) |
+| `src/diffs/` | local Git comparison, changed-file navigation and virtualized review ([README](../src/diffs/README.md)) |
 | `src/main/worktrees.ts` | git: a task's worktree and branch, files outside git, direnv, changes, renaming the branch, removal |
 | `src/kulisa-plugin/` | agent integration ([README](../src/kulisa-plugin/README.md)) |
 | `src/main/store.ts` | the data folder above |

@@ -2,7 +2,7 @@
 // useWindow(selector), elsewhere with store.getState().
 import { createStore, useStore } from 'zustand';
 import type { StageTerminal } from '../../shared/stage-terminal';
-import type { ChangeSelection } from '../../changes/ipc';
+import type { DiffSelection } from '../../diffs/ipc';
 import type { Artifact, ClosedProfile, LanguageInfo, Profile, ProjectsInfo, DevelopmentTerminalsState } from '../../shared/types';
 import type { Invoke, OnTask, StageLayout, StagePosition } from '../../shared/ipc';
 import { initialProjects } from './common';
@@ -11,7 +11,7 @@ import { setTheme } from './theme';
 import { refused } from '../../shared/result';
 
 const root = document.documentElement, query = new URLSearchParams(location.search);
-export interface DevelopmentDiff extends ChangeSelection { task: string }
+export interface DevelopmentDiff extends DiffSelection { task: string }
 
 interface WindowState {
   // The shown task's key ("<project id>/<task id>"); null with no task open (the empty window).
