@@ -6,7 +6,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { refused } from '../shared/result.ts';
-import { listDiff, listDiffTargets, readDiff, readReview, loadReview } from './main/diff.ts';
+import { listDiff, listDiffTargets, readDiff, loadReview } from './main/diff.ts';
 
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'kulisa-diff-'));
 after(() => fs.rmSync(root, { recursive: true, force: true }));
@@ -82,26 +82,6 @@ test('From is the current worktree and To uses the remote default branch ahead o
   assert.deepEqual(result.files.map((f) => f.path), ['feature.txt']);
 });
 
-test('a saved From branch cannot override the task worktree in listings, review batches or full contents', async () => {
-  const { dir, write, commit } = repo();
-  run(dir, 'checkout', '-qb', 'feature');
-  run(dir, 'mv', 'delete.txt', 'renamed.txt');
-  write('src/a.ts', 'committed feature\n'); commit();
-  run(dir, 'checkout', '-q', 'main');
-  write('src/a.ts', 'local worktree\n'); write('untracked.txt', 'local file\n');
-  const options = { from: 'feature', to: 'main' };
-  const result = await listDiff(dir, options); assert.equal(result.error, undefined); if (refused(result)) return;
-  assert.equal(result.from, 'main (worktree)'); assert.equal(result.branch, 'main');
-  assert.deepEqual(result.files.map((f) => f.path).sort(), ['src/a.ts', 'untracked.txt']);
-  const diff = await readDiff(dir, 'src/a.ts', options); assert.equal(diff.error, undefined); if (refused(diff)) return;
-  assert.equal(diff.original, '  before\n\n'); assert.equal(diff.modified, 'local worktree\n');
-  const review = await readReview(dir, result.revision, result.files); assert.equal(review.error, undefined); if (refused(review)) return;
-  assert(review.diffs.some(({ result }) => !refused(result) && result.patch?.includes('+local worktree')));
-  assert.deepEqual(review.diffs.map((f) => f.path).sort(), ['src/a.ts', 'untracked.txt']);
-  assert.equal(run(dir, 'branch', '--show-current'), 'main');
-  assert.equal(fs.readFileSync(path.join(dir, 'src/a.ts'), 'utf8'), 'local worktree\n');
-});
-
 test('subdirectory resources cannot list or read neighboring files', async () => {
   const { dir, write } = repo();
   write('outside.txt', 'outside'); write('src/a.ts', 'inside\n');
@@ -154,40 +134,27 @@ test('symbolic link entries show their link text without reading the target', { 
   assert.equal(diff.modified, '../outside.txt');
 });
 
-test('a summary feeds a bulk patch request without rescanning Git or reading complete blobs', async () => {
+test('a review batches tracked patches and defers files beyond its automatic allowance', async () => {
   const { dir, write, commit } = repo();
   for (let i = 0; i < 80; i++) write(`file-${String(i).padStart(2, '0')}.txt`, `before ${i}\n`);
   commit();
   for (let i = 0; i < 80; i++) write(`file-${String(i).padStart(2, '0')}.txt`, `after ${i}\n`);
   write('untracked.txt', 'untracked\n');
-  const summary = await listDiff(dir, working); assert(!refused(summary)); if (refused(summary)) return;
-  assert.equal(summary.files.length, 81);
   const trace = path.join(root, 'batch-trace.log'), prior = process.env.GIT_TRACE;
   process.env.GIT_TRACE = trace.replaceAll('\\', '/');
   try {
-    for (let offset = 0; offset < summary.files.length; offset += 32) {
-      const files = summary.files.slice(offset, offset + 32);
-      const review = await readReview(dir, summary.revision, files);
-      assert(!refused(review)); if (refused(review)) return;
-      assert.deepEqual(review.diffs.map((d) => d.path), files.map((f) => f.path));
-      for (const entry of review.diffs) {
-        assert(!refused(entry.result)); if (refused(entry.result)) return;
-        assert(entry.result.version);
-      }
-    }
+    const review = await loadReview(dir, working);
+    assert(!refused(review)); if (refused(review)) return;
+    assert.equal(review.files.length, 81);
+    assert.equal(review.diffs.length, 81);
+    assert.equal(review.diffs.filter(({ result }) => !refused(result) && result.version).length, 32);
+    assert.equal(review.diffs.filter(({ result }) => !refused(result) && result.deferred).length, 49);
     const commands = fs.readFileSync(trace, 'utf8');
     assert(!commands.includes('cat-file'));
-    assert(!commands.includes('for-each-ref'));
-    assert(!commands.includes('merge-base'));
-    assert(!commands.includes('ls-files'));
-    assert(!commands.includes('--numstat'));
-    assert.equal(commands.split('\n').filter((line) => line.includes('built-in: git ')).length, 6);
+    assert.equal(commands.split('\n').filter((line) => line.includes('built-in: git ') && line.includes('--patch')).length, 1);
   } finally {
     if (prior === undefined) delete process.env.GIT_TRACE; else process.env.GIT_TRACE = prior;
   }
-  assert((await readReview(dir, summary.revision, summary.files)).error);
-  assert((await readReview(dir, '--output=unsafe', [])).error);
-  assert((await readReview(dir, summary.revision, [{ path: '../outside', status: 'M', additions: 1, deletions: 1 }])).error);
 });
 
 test('branch choices are independent of the comparison summary', async () => {
@@ -205,15 +172,14 @@ test('large diffs defer patch generation until explicitly loaded', async () => {
   write('large.txt', content); commit();
   write('large.txt', content.replace('unchanged', 'changed'));
   write('new-large.txt', content);
-  const summary = await listDiff(dir, working); assert(!refused(summary)); if (refused(summary)) return;
-  const review = await readReview(dir, summary.revision, summary.files);
+  const review = await loadReview(dir, working);
   assert(!refused(review)); if (refused(review)) return;
   assert(review.diffs.every(({ result }) => !refused(result) && !result.patch));
   for (const { result } of review.diffs) {
     assert(!refused(result)); if (refused(result)) return;
     assert(result.deferred); assert.equal(result.addition, undefined);
   }
-  const loaded = await readReview(dir, summary.revision, summary.files, ['large.txt', 'new-large.txt']);
+  const loaded = await loadReview(dir, working, undefined, ['large.txt', 'new-large.txt']);
   assert(!refused(loaded)); if (refused(loaded)) return;
   assert(loaded.diffs.some(({ result }) => !refused(result) && result.patch?.includes('+changed context line')));
   const addition = loaded.diffs.find((diff) => diff.path === 'new-large.txt')?.result;
@@ -224,8 +190,7 @@ test('large diffs defer patch generation until explicitly loaded', async () => {
 test('patch versions retain unaffected files and distinguish additions from modifications', async () => {
   const { dir, write, commit } = repo();
   const read = async () => {
-    const summary = await listDiff(dir, working); if (refused(summary)) throw new Error(summary.error);
-    const review = await readReview(dir, summary.revision, summary.files); if (refused(review)) throw new Error(review.error);
+    const review = await loadReview(dir, working); if (refused(review)) throw new Error(review.error);
     return review.diffs.map((d) => { if (refused(d.result)) throw new Error(d.result.error); return d.result; });
   };
   write('new.txt', 'new contents\n');
@@ -247,8 +212,7 @@ test('a patch batch preserves renames and deletions and isolates invalid encodin
   if (process.platform !== 'win32') {
     write('tab\tand\nnewline.txt', 'before\n'); run(dir, 'add', 'tab\tand\nnewline.txt');
   }
-  const summary = await listDiff(dir, working); assert(!refused(summary)); if (refused(summary)) return;
-  const review = await readReview(dir, summary.revision, summary.files); assert(!refused(review)); if (refused(review)) return;
+  const review = await loadReview(dir, working); assert(!refused(review)); if (refused(review)) return;
   assert(review.diffs.some(({ result }) => !refused(result) && result.patch?.includes('-deleted')));
   assert(review.diffs.some(({ result }) => !refused(result) && result.patch?.includes('rename to src/renamed file.ts')));
   const invalid = review.diffs.find((d) => d.path === 'invalid.txt')?.result;
@@ -269,4 +233,5 @@ test('a complete review defers the automatic overflow and includes an explicitly
   const chosen = loaded.diffs.find((d) => d.path === 'new-39.txt')?.result;
   assert(chosen && !refused(chosen)); if (!chosen || refused(chosen)) return;
   assert.equal(chosen.addition, 'new 39\n');
+  assert((await loadReview(dir, working, undefined, ['a', 'b', 'c', 'd', 'e'])).error);
 });

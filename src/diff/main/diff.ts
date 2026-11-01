@@ -150,31 +150,19 @@ export async function listDiffTargets(folder: string, start?: string | null): Pr
 
 // One bounded review snapshot; files outside the automatic allowance have an explicit load action.
 export async function loadReview(folder: string, options: DiffOptions, start?: string | null, load: string[] = []): Promise<Result<Review>> {
-  const summary = await listDiff(folder, options, start);
-  if (refused(summary)) return summary;
-  if (load.length > 4) return { error: 'Load at most four large diffs at once.' };
-  const selected = summary.files.filter((file) => load.includes(file.path));
-  let lines = 0;
-  for (const file of summary.files) {
-    if (selected.includes(file) || selected.length >= 32) continue;
-    const count = (file.additions ?? 0) + (file.deletions ?? 0);
-    if (file.deferred || count > automaticLines || lines + count > 8000) continue;
-    lines += count; selected.push(file);
-  }
-  const result = await readReview(folder, summary.revision, selected, load);
-  if (refused(result)) return result;
-  const byPath = new Map(result.diffs.map((diff) => [diff.path, diff]));
-  return { ...summary, diffs: summary.files.map((file) => byPath.get(file.path)
-    ?? { path: file.path, result: { deferred: largeDiff } }) };
-}
-
-// A batch uses the listing's immutable base; it never rescans the repository or reads tracked text twice.
-export async function readReview(folder: string, revision: string | null, files: DiffFile[], load: string[] = []): Promise<Result<Pick<Review, 'diffs'>>> {
   try {
-    if (files.length > 32) throw new Error('A review reads at most 32 files at once.');
-    if (load.length > 4) throw new Error('Load at most four large diffs at once.');
-    if (revision !== null && !/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/.test(revision)) throw new Error('Invalid comparison base.');
-    for (const file of files) for (const name of [file.path, ...(file.previousPath ? [file.previousPath] : [])]) validatePath(name);
+    if (load.length > 4) return { error: 'Load at most four large diffs at once.' };
+    const summary = await listDiff(folder, options, start);
+    if (refused(summary)) return summary;
+    const files = summary.files.filter((file) => load.includes(file.path));
+    let lines = 0;
+    for (const file of summary.files) {
+      if (files.includes(file) || files.length >= 32) continue;
+      const count = (file.additions ?? 0) + (file.deletions ?? 0);
+      if (file.deferred || count > automaticLines || lines + count > 8000) continue;
+      lines += count; files.push(file);
+    }
+    const revision = summary.revision;
     const forced = new Set(load), sizes = new Map<string, number>();
     const originals = files.filter((f) => !f.untracked && f.status !== 'A').map((f) => f.previousPath ?? f.path);
     if (revision && originals.length) {
@@ -187,6 +175,11 @@ export async function readReview(folder: string, revision: string | null, files:
     const diffs: Review['diffs'] = [], tracked: string[] = [];
     for (let i = 0; i < files.length; i += 4) diffs.push(...await Promise.all(files.slice(i, i + 4).map(async (entry) => {
       try {
+        if (entry.untracked || !revision) {
+          const text = await workingText(folder, entry.path, forced.has(entry.path) ? limit : automaticLimit);
+          if (text.notice || text.deferred) return { path: entry.path, result: { notice: text.notice, deferred: text.deferred } };
+          return { path: entry.path, result: { version: createHash('sha256').update('A\0').update(text.text).digest('hex'), addition: text.text } };
+        }
         const stat = entry.status === 'D' ? null : await fs.lstat(await confinedPath(folder, entry.path));
         const originalSize = sizes.get(entry.previousPath ?? entry.path) ?? 0;
         const size = Math.max(originalSize, stat?.size ?? 0);
@@ -194,17 +187,12 @@ export async function readReview(folder: string, revision: string | null, files:
         if (!forced.has(entry.path) && (size > automaticLimit || (entry.additions ?? 0) + (entry.deletions ?? 0) > automaticLines || entry.deferred)) {
           return { path: entry.path, result: { deferred: largeDiff } };
         }
-        if (entry.untracked || !revision) {
-          const text = await workingText(folder, entry.path, forced.has(entry.path) ? limit : automaticLimit);
-          if (text.notice || text.deferred) return { path: entry.path, result: { notice: text.notice, deferred: text.deferred } };
-          return { path: entry.path, result: { version: createHash('sha256').update('A\0').update(text.text).digest('hex'), addition: text.text } };
-        }
         if (entry.additions === null || entry.deletions === null) return { path: entry.path, result: { notice: 'Binary file. Text comparison is unavailable.' } };
         tracked.push(entry.path, ...(entry.previousPath ? [entry.previousPath] : []));
         return { path: entry.path, result: {} };
       } catch (e) { return { path: entry.path, result: { error: errorText(e) } }; }
     })));
-    const output = tracked.length ? await gitBuffer(folder, ['--literal-pathspecs', '-c', 'core.quotePath=true', 'diff', ...plain.filter((f) => f !== '-z'), '--raw', '-z', '--patch', '--unified=3',
+    const output = tracked.length ? await gitBuffer(folder, ['--literal-pathspecs', '-c', 'core.quotePath=true', 'diff', ...plain, '--raw', '--patch', '--unified=3',
       '--src-prefix=a/', '--dst-prefix=b/', revision!, '--', ...new Set(tracked)], { maxBuffer: 24 << 20 }) : Buffer.alloc(0);
     const separator = output.indexOf(Buffer.from([0, 0]));
     if (output.length && separator < 0) throw new Error('Git returned an incomplete patch batch.');
@@ -225,7 +213,9 @@ export async function readReview(folder: string, revision: string | null, files:
     for (const diff of diffs) if (tracked.includes(diff.path) && !Object.keys(diff.result).length) {
       diff.result = { notice: 'The file changed while loading. Refreshing will try again.' };
     }
-    return { diffs };
+    const byPath = new Map(diffs.map((diff) => [diff.path, diff]));
+    return { ...summary, diffs: summary.files.map((file) => byPath.get(file.path)
+      ?? { path: file.path, result: { deferred: largeDiff } }) };
   } catch (e) { return { error: errorText(e) }; }
 }
 
