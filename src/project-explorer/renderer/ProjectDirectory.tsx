@@ -41,8 +41,7 @@ function ProjectEntry({ actions, entry }: { actions: ExplorerActions; entry: Pro
     const result = await actions.openFile(entry.path);
     setError(result.error ?? '');
   };
-  // An expanded folder is a disclosure, so its resting background stays clear.
-  const row = <Button variant="ghost" className="h-7 w-full justify-start not-hover:[--muted:transparent]" aria-label={entry.name} title={entry.path}
+  const row = <Button variant="ghost" className="h-7 w-full justify-start" aria-label={entry.name} title={entry.path}
     onDoubleClick={entry.directory ? undefined : () => void open()}
     onKeyDown={(e) => { if (!entry.directory && e.key === 'Enter') { e.preventDefault(); void open(); } }}>
     {entry.directory ? <ChevronRightIcon className={expanded ? 'size-4 rotate-90' : 'size-4'} /> : <span className="size-4 shrink-0" />}
@@ -56,7 +55,8 @@ function ProjectEntry({ actions, entry }: { actions: ExplorerActions; entry: Pro
         { label: 'Show in Folder', run: () => actions.showFile(entry.path) }]);
     }}>
       {entry.directory ? <Collapsible open={expanded} onOpenChange={setExpanded}>
-        <CollapsibleTrigger asChild>{row}</CollapsibleTrigger>
+        {/* An expanded folder is a disclosure, so its resting background stays clear. */}
+        <div className="not-hover:[--muted:transparent]"><CollapsibleTrigger asChild>{row}</CollapsibleTrigger></div>
         <CollapsibleContent><div className="ms-4">{expanded && <ProjectDirectory actions={actions} folder={entry.path} />}</div></CollapsibleContent>
       </Collapsible> : row}
     </div>

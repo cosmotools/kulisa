@@ -17,8 +17,8 @@ to read a directory, open and reveal a file, and show menu rows through the wind
 the Open and Show in Folder rows. Double-click or Enter opens a file.
 
 The UI follows [shadcn's File Tree](https://ui.shadcn.com/docs/ai-elements/radix/file-tree): Collapsible folders with
-Button triggers and ghost Button files, using the window's normal control text in compact rows. Unhovered rows set
-`--muted` to transparent so expanded folders keep a plain background; hover and focus feedback follow the theme. Each expanded
+Button triggers and ghost Button files, using the window's normal control text in compact rows. Each folder trigger's wrapper sets
+`--muted` to transparent when unhovered so expanded folders keep a plain background; hover and focus feedback follow the theme. Each expanded
 directory reads on mount and every three seconds; unmounting
 clears its timer and ignores late replies. Collapsed folders and background tasks keep no watchers. The caller
 unmounts the tree when hidden or when its owner changes, so state and timers belong to the visible tree.

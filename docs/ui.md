@@ -4,7 +4,7 @@
 built as shadcn's examples build it. **A component of `src/ui` takes only where it sits and its size** (layout and size
 classes: `w-64`, `flex-1`, `ms-auto`; its variants and sizes for the rest); **its look is the theme's alone**
 (`src/ui/theme.css`; Kulisa's own variables in `src/renderer/window.css`); a part with a role of its own may look a
-little different. Variables passed to a component configure it (`not-hover:[--muted:transparent]`, or in `style`); `src/ui` itself is never edited. What shadcn
+little different. Variables passed to a component configure it (`[--muted:transparent]`, or in `style`); `src/ui` itself is never edited. What shadcn
 has no component for (a layout, a frame, the log) is a div or span with Tailwind's classes around shadcn's components,
 not on them (Own drawing). How a component is used: shadcn's documentation
 (`https://ui.shadcn.com/docs/components/radix/<name>`) and its generated file, read rather than remembered; here only

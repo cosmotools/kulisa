@@ -115,10 +115,10 @@ function RepositoryChanges({ task, root, grouped, filter }: {
   </>;
   if (!grouped) return content;
   return <Collapsible defaultOpen>
-    <CollapsibleTrigger asChild><Button variant="ghost" className="h-8 w-full justify-start not-hover:[--muted:transparent]" aria-label={`Repository ${root.label}`} title={root.folder}>
+    <div className="not-hover:[--muted:transparent]"><CollapsibleTrigger asChild><Button variant="ghost" className="h-8 w-full justify-start" aria-label={`Repository ${root.label}`} title={root.folder}>
       <ChevronRightIcon className="group-aria-expanded/button:rotate-90" /><GitBranchIcon /><span className="min-w-0 flex-1 truncate text-start">{root.label}</span>
       {data && <span className="text-xs text-muted-foreground">{data.files.length}</span>}
-    </Button></CollapsibleTrigger>
+    </Button></CollapsibleTrigger></div>
     <CollapsibleContent>{content}</CollapsibleContent>
   </Collapsible>;
 }
@@ -136,9 +136,9 @@ function ChangeTree({ files, selected, choose, prefix = '' }: { files: ChangedFi
   return <SidebarMenu aria-label={prefix || 'Changed file tree'}>
     {[...folders].sort(([a], [b]) => a.localeCompare(b)).map(([name, children]) => <Collapsible defaultOpen key={name} asChild><SidebarMenuItem>
       {/* An expanded folder is a disclosure, so its resting background stays clear. */}
-      <CollapsibleTrigger asChild><Button variant="ghost" className="h-7 w-full justify-start not-hover:[--muted:transparent]" aria-label={prefix + name}>
+      <div className="not-hover:[--muted:transparent]"><CollapsibleTrigger asChild><Button variant="ghost" className="h-7 w-full justify-start" aria-label={prefix + name}>
         <ChevronRightIcon className="group-aria-expanded/button:rotate-90" /><FolderIcon /><span className="min-w-0 truncate">{name}</span>
-      </Button></CollapsibleTrigger>
+      </Button></CollapsibleTrigger></div>
       <CollapsibleContent><div className="ms-4"><ChangeTree files={children} selected={selected} choose={choose} prefix={`${prefix}${name}/`} /></div></CollapsibleContent>
     </SidebarMenuItem></Collapsible>)}
     {leaves.sort((a, b) => a.path.localeCompare(b.path)).map((file) => <SidebarMenuItem key={file.path}><RightClickMenu items={() => [{ label: 'View diff', run: () => choose(file) }]}>

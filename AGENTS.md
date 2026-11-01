@@ -234,13 +234,6 @@ element) puts a reference with a Playwright locator into the agent's prompt; the
 
 ## Commands
 
-- **Diff renderer skill**: Pierre's [official diffs skill](https://github.com/pierrecomputer/pierre/tree/main/skills/diffs)
-  covers `@pierre/diffs` rendering, CodeView, themes and workers. Before changing them, read
-  `.agents/skills/diffs/SKILL.md` and the relevant references. If missing, restore it from the shared
-  `skills-lock.json` with `npx skills experimental_install` from the checkout root. Downloaded instructions stay
-  local. To select agents, including Claude Code's skill link, run `npx skills add pierrecomputer/pierre --skill diffs`.
-  Installed dependency types decide which APIs this checkout supports.
-
 - **Development skills**: `.agents/skills/run-kulisa/SKILL.md` for starting, stopping or restarting the app;
   `.agents/skills/debug-kulisa/SKILL.md` for diagnosing the running app. Instructions and scripts live there;
   `.claude/skills/` contains Claude Code entrypoints to the same skills. Run their commands from the checkout root.
