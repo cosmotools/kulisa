@@ -20,7 +20,7 @@ export function DiffTree({ session, files, selected, choose }: {
   }), [files]);
   const latest = useRef({ input, choose, session, syncing: false, selected: undefined as string | null | undefined });
   const { model } = useFileTree({
-    paths: input.paths, gitStatus: input.gitStatus, presorted: true, flattenEmptyDirectories: false, initialExpansion: 'open', itemHeight: 28,
+    paths: input.paths, gitStatus: input.gitStatus, presorted: true, flattenEmptyDirectories: false, initialExpansion: 'open', itemHeight: 28, stickyFolders: true,
     icons: treeIcons, unsafeCSS: treeCSS,
     onSelectionChange: (selectedPaths) => {
       const file = latest.current.input.files.get(selectedPaths.at(-1) ?? '');

@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import type { CodeViewItem, FileDiffMetadata } from '@pierre/diffs';
 import { CodeView, WorkerPoolContextProvider, type CodeViewHandle, type CodeViewProps, type CodeViewReactOptions } from '@pierre/diffs/react';
-import { GitCompareArrowsIcon } from 'lucide-react';
+import { ChevronRightIcon, GitCompareArrowsIcon } from 'lucide-react';
 import { Alert, AlertDescription, Button, Spinner, ToggleGroup, ToggleGroupItem } from '@ui';
 import type { DiffFile } from '../ipc';
 import { refused } from '../../shared/result';
@@ -27,6 +27,7 @@ function ReviewContent({ session, selection, shade, fontSize }: DiffPanelProps) 
   const { data: snapshot, error, load } = useDiff(session, selection, true);
   const data = snapshot?.data;
   const [mode, setMode] = useState<'unified' | 'split'>('unified');
+  const [collapseVersions, setCollapseVersions] = useState<Map<string, number>>(() => new Map());
   const viewer = useRef<CodeViewHandle<Notice, undefined>>(null), viewport = useRef<HTMLDivElement>(null);
   const navigation = useRef<number | null>(null), userScroll = useRef(false);
   const files = useMemo(() => {
@@ -38,7 +39,13 @@ function ReviewContent({ session, selection, shade, fontSize }: DiffPanelProps) 
     partial: sum.partial || file.additions === null || file.deletions === null,
   }), { additions: 0, deletions: 0, partial: false }), [files]);
   const byPath = useMemo(() => new Map(files.map((file) => [file.path, file])), [files]);
-  const items = useMemo(() => files.flatMap((file) => snapshot?.entries.get(file.path)?.item ?? []), [files, snapshot?.entries]);
+  const items = useMemo(() => files.flatMap((file) => {
+    const item = snapshot?.entries.get(file.path)?.item;
+    if (!item) return [];
+    const revision = collapseVersions.get(file.path) ?? 0;
+    // Both content updates and collapse toggles must advance CodeView's version.
+    return [{ ...item, collapsed: revision % 2 === 1, version: (item.version ?? 0) + revision }];
+  }), [files, snapshot?.entries, collapseVersions]);
 
   useLayoutEffect(() => {
     const token = selection.navigation ?? 0;
@@ -56,7 +63,10 @@ function ReviewContent({ session, selection, shade, fontSize }: DiffPanelProps) 
   }, [session, selection.navigation]);
   const renderHeader = useCallback((item: CodeViewItem<Notice>) => {
     const file = byPath.get(item.id);
+    const action = `${item.collapsed ? 'Expand' : 'Collapse'} diff for ${item.id}`;
     return <header role="heading" aria-level={3} aria-label={item.id} className="flex h-9 items-center gap-2 border-b bg-muted px-3 text-sm">
+      <Button variant="ghost" size="icon-xs" aria-label={action} title={action} aria-expanded={!item.collapsed} onClick={() => setCollapseVersions((current) =>
+        new Map(current).set(item.id, (current.get(item.id) ?? 0) + 1))}><ChevronRightIcon className={item.collapsed ? '' : 'rotate-90'} /></Button>
       <span className="min-w-0 flex-1 truncate" title={file?.previousPath ? `${file.previousPath} → ${item.id}` : item.id}>{file?.previousPath ? `${file.previousPath} → ${item.id}` : item.id}</span>
       {file && <><DiffStatus status={file.status} /><DiffCounts additions={file.additions} deletions={file.deletions} /></>}
     </header>;
@@ -70,7 +80,7 @@ function ReviewContent({ session, selection, shade, fontSize }: DiffPanelProps) 
         </AlertDescription></Alert>
     </div>;
   }, [load]);
-  const viewOptions = useMemo<CodeViewReactOptions<Notice, undefined>>(() => ({ theme: 'kulisa-review', themeType: shade === 'dark' ? 'dark' : 'light', diffStyle: mode, stickyHeaders: true,
+  const viewOptions = useMemo<CodeViewReactOptions<Notice, undefined>>(() => ({ theme: 'kulisa-review', themeType: shade === 'dark' ? 'dark' : 'light', diffStyle: mode, stickyHeaders: true, enableLineSelection: true, lineHoverHighlight: 'both',
     diffIndicators: 'classic' as const, hunkSeparators: 'line-info-basic' as const, overflow: 'wrap' as const,
     itemMetrics: { lineHeight, diffHeaderHeight: 36, spacing: 0 }, layout: { paddingTop: 16, paddingBottom: 16, gap: 16 },
     onPostRender(node, _instance, phase, context) {

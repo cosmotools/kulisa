@@ -98,11 +98,12 @@ project, and those you closed, are in the sidebar (Tasks, below).
   A task with one repository shows From/To and the tree directly; tasks with several repositories show a
   collapsible heading for each. Opening Diff shows the repository's review in the development area.
   Filter by a path to narrow both the tree and review, and expand folders to navigate. Use the arrow keys to navigate
-  and Enter to select a file. Selecting a file jumps to it.
+  and Enter to select a file. Selecting a file jumps to it. Parent folders stay visible at the top of the tree as you scroll.
   The review loads as one document. Large files and reviews show **Load diff** where you choose what to load.
   All changed files appear in one scrolling
   document, each in a bordered block with its path and change counts above its diff. Gaps separate the files.
-  Long lines wrap within each file.
+  Use the arrow in a file header to collapse or expand its diff. Collapsed files stay collapsed as changes refresh.
+  Long lines wrap within each file. Point at a line to highlight it and its number; drag along the line numbers to select a range.
   Scrolling through the review marks the current file
   in the tree. Choose
   **Unified** or **Split** for the comparison layout. The review header shows the added and deleted line totals for
