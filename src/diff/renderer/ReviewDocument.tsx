@@ -72,7 +72,7 @@ function ReviewContent({ session, selection, shade, fontSize }: DiffPanelProps) 
   }, [load]);
   const viewOptions = useMemo<CodeViewReactOptions<Notice, undefined>>(() => ({ theme: 'kulisa-review', themeType: shade === 'dark' ? 'dark' : 'light', diffStyle: mode, stickyHeaders: true,
     diffIndicators: 'classic' as const, hunkSeparators: 'line-info-basic' as const, overflow: 'scroll' as const,
-    itemMetrics: { lineHeight, diffHeaderHeight: 36 }, layout: { paddingTop: 16, paddingBottom: 16, gap: 24 },
+    itemMetrics: { lineHeight, diffHeaderHeight: 36 }, layout: { paddingTop: 16, paddingBottom: 16, gap: 16 },
     onPostRender(node, _instance, phase, context) {
       if (phase === 'unmount') return;
       // The component's public lifecycle supplies accessible names for its custom-element root and code region.
