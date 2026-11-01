@@ -10,3 +10,5 @@ Read-only local Git comparisons for the Resources tree and development review.
 - Patch batches and Load diff bound memory; full file contents load only for explicit context expansion.
 - Publishing complete snapshots avoids incremental layout shifts. Stable CodeView path IDs and content versions
   preserve unchanged models and expanded context across refreshes.
+- TanStack Query shares each visible comparison between the tree and document; zero inactive retention makes
+  reopening read Git again. Patches are parsed only for files whose version changes.

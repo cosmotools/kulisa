@@ -1,4 +1,4 @@
-// The review renderer loads only while its document is mounted (../README.md).
+// Load the renderer explicitly to avoid Suspense's minimum fallback delay (../README.md).
 import { useEffect, useState } from 'react';
 import { Alert, AlertDescription, Spinner } from '@ui';
 import type { DiffSelection } from '../ipc';

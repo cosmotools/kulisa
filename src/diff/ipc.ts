@@ -29,5 +29,5 @@ export interface FileDiff {
   modified: string;
   notice?: string;
 }
-interface ReviewFile { version?: string; addition?: string; notice?: string; deferred?: string }
-export interface Review extends Diff { patch: string; diffs: { path: string; result: Result<ReviewFile> }[] }
+interface ReviewFile { version?: string; patch?: string; addition?: string; notice?: string; deferred?: string }
+export interface Review extends Diff { diffs: { path: string; result: Result<ReviewFile> }[] }

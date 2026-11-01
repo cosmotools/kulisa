@@ -130,39 +130,14 @@ export async function listDiff(folder: string, options: DiffOptions, start?: str
 }
 
 type Text = { text: string; notice?: string; deferred?: string };
-async function committedText(folder: string, groups: { revision: string; paths: string[] }[], maxBytes: (file: string) => number = () => limit) {
-  const entries = new Map<string, { id: string; size: number }>(), texts = new Map<string, Text>();
-  for (const group of groups) {
-    if (!group.paths.length) continue;
-    const listing = await git(folder, ['--literal-pathspecs', 'ls-tree', '-rlz', group.revision, '--', ...group.paths], { trim: false, maxBuffer: 8 << 20 });
-    for (const record of listing.split('\0').filter(Boolean)) {
-      const tab = record.indexOf('\t'), [, type, id, size] = record.slice(0, tab).trim().split(/\s+/);
-      const key = `${group.revision}:${record.slice(tab + 1)}`;
-      if (type !== 'blob') texts.set(key, { text: '', notice: 'This entry is not a text file.' });
-      else if (Number(size) > limit) texts.set(key, { text: '', notice: 'File exceeds the 2 MiB text comparison limit.' });
-      else if (Number(size) > maxBytes(record.slice(tab + 1))) texts.set(key, { text: '', deferred: largeDiff });
-      else entries.set(key, { id: id!, size: Number(size) });
-    }
-  }
-  const objects = new Map([...entries.values()].map((e) => [e.id, e.size])), decoded = new Map<string, Text>();
-  if (objects.size) {
-    const output = await gitBuffer(folder, ['cat-file', '--batch'], { input: [...objects.keys()].join('\n') + '\n',
-      maxBuffer: [...objects.values()].reduce((sum, size) => sum + size + 128, 0) });
-    let offset = 0;
-    // Object IDs keep input unambiguous; byte lengths preserve binary contents and paths containing newlines.
-    for (const [id, size] of objects) {
-      const end = output.indexOf(10, offset), header = output.subarray(offset, end).toString('ascii');
-      if (end < offset || header !== `${id} blob ${size}` || output[end + size + 1] !== 10) throw new Error('Git returned an incomplete file batch.');
-      decoded.set(id, decode(output.subarray(end + 1, end + size + 1)));
-      offset = end + size + 2;
-    }
-  }
-  for (const [key, entry] of entries) texts.set(key, decoded.get(entry.id)!);
-  return (revision: string, file: string) => {
-    const text = texts.get(`${revision}:${file}`);
-    if (!text) throw new Error('The committed file is unavailable. Refreshing will try again.');
-    return text;
-  };
+async function committedText(folder: string, revision: string, file: string): Promise<Text> {
+  const listing = await git(folder, ['--literal-pathspecs', 'ls-tree', '-lz', revision, '--', file], { trim: false, maxBuffer: 8 << 20 });
+  const record = listing.split('\0').find((record) => record.slice(record.indexOf('\t') + 1) === file);
+  if (!record) throw new Error('The committed file is unavailable. Refreshing will try again.');
+  const [, type, id, size] = record.slice(0, record.indexOf('\t')).trim().split(/\s+/);
+  if (type !== 'blob') return { text: '', notice: 'This entry is not a text file.' };
+  if (Number(size) > limit) return { text: '', notice: 'File exceeds the 2 MiB text comparison limit.' };
+  return decode(await gitBuffer(folder, ['cat-file', 'blob', id!], { maxBuffer: limit }));
 }
 
 export async function listDiffTargets(folder: string, start?: string | null): Promise<Result<{ branches: string[] }>> {
@@ -189,12 +164,12 @@ export async function loadReview(folder: string, options: DiffOptions, start?: s
   const result = await readReview(folder, summary.revision, selected, load);
   if (refused(result)) return result;
   const byPath = new Map(result.diffs.map((diff) => [diff.path, diff]));
-  return { ...summary, patch: result.patch, diffs: summary.files.map((file) => byPath.get(file.path)
+  return { ...summary, diffs: summary.files.map((file) => byPath.get(file.path)
     ?? { path: file.path, result: { deferred: largeDiff } }) };
 }
 
 // A batch uses the listing's immutable base; it never rescans the repository or reads tracked text twice.
-export async function readReview(folder: string, revision: string | null, files: DiffFile[], load: string[] = []): Promise<Result<Pick<Review, 'patch' | 'diffs'>>> {
+export async function readReview(folder: string, revision: string | null, files: DiffFile[], load: string[] = []): Promise<Result<Pick<Review, 'diffs'>>> {
   try {
     if (files.length > 32) throw new Error('A review reads at most 32 files at once.');
     if (load.length > 4) throw new Error('Load at most four large diffs at once.');
@@ -231,7 +206,7 @@ export async function readReview(folder: string, revision: string | null, files:
     })));
     const output = tracked.length ? await gitBuffer(folder, ['--literal-pathspecs', '-c', 'core.quotePath=true', 'diff', ...plain.filter((f) => f !== '-z'), '--raw', '-z', '--patch', '--unified=3',
       '--src-prefix=a/', '--dst-prefix=b/', revision!, '--', ...new Set(tracked)], { maxBuffer: 24 << 20 }) : Buffer.alloc(0);
-    const separator = output.indexOf(Buffer.from([0, 0])), patches: string[] = [];
+    const separator = output.indexOf(Buffer.from([0, 0]));
     if (output.length && separator < 0) throw new Error('Git returned an incomplete patch batch.');
     if (separator >= 0) {
       const changed = parseDiff(output.subarray(0, separator + 1).toString('utf8'));
@@ -244,14 +219,13 @@ export async function readReview(folder: string, revision: string | null, files:
         const diff = diffs.find((d) => d.path === file.path);
         if (!diff) continue;
         const chunk = chunks[i]!, decoded = decode(chunk);
-        diff.result = decoded.notice ? { notice: decoded.notice } : { version: createHash('sha256').update(chunk).digest('hex') };
-        if (!decoded.notice) patches.push(decoded.text);
+        diff.result = decoded.notice ? { notice: decoded.notice } : { version: createHash('sha256').update(chunk).digest('hex'), patch: decoded.text };
       }
     }
     for (const diff of diffs) if (tracked.includes(diff.path) && !Object.keys(diff.result).length) {
       diff.result = { notice: 'The file changed while loading. Refreshing will try again.' };
     }
-    return { patch: patches.join(''), diffs };
+    return { diffs };
   } catch (e) { return { error: errorText(e) }; }
 }
 
@@ -261,10 +235,7 @@ export async function readDiff(folder: string, file: string, options: DiffOption
     if (!c) return { error: 'This folder is not a Git repository.' };
     const entry = (await changedFiles(folder, c.revision, new Set([file]))).find((f) => f.path === file);
     if (!entry) return { error: 'This file has no changes in the selected comparison.' };
-    const blob = await committedText(folder, [
-      ...(c.revision && entry.status !== 'A' ? [{ revision: c.revision, paths: [entry.previousPath ?? file] }] : []),
-    ]);
-    const original = c.revision && entry.status !== 'A' ? blob(c.revision, entry.previousPath ?? file) : { text: '' };
+    const original = c.revision && entry.status !== 'A' ? await committedText(folder, c.revision, entry.previousPath ?? file) : { text: '' };
     const current = entry.status === 'D' ? { text: '' } : await workingText(folder, file);
     const notice = original.notice ?? current.notice;
     return { from: c.from, to: c.to, path: file, previousPath: entry.previousPath,

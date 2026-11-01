@@ -4,13 +4,14 @@ import type { CodeViewItem, FileDiffMetadata } from '@pierre/diffs';
 import { CodeView, WorkerPoolContextProvider, type CodeViewHandle, type CodeViewProps, type CodeViewReactOptions } from '@pierre/diffs/react';
 import { GitCompareArrowsIcon } from 'lucide-react';
 import { Alert, AlertDescription, Button, Spinner, ToggleGroup, ToggleGroupItem } from '@ui';
-import type { DiffFile, DiffSelection } from '../ipc';
+import type { DiffFile } from '../ipc';
 import { refused } from '../../shared/result';
 import type { DiffPanelProps } from './DiffPanel';
 import { DiffCounts } from './DiffCounts';
 import { DiffStatus } from './DiffStatus';
 import { highlighterOptions, poolOptions } from './review-theme';
-import { loading, placeholder, useReview, type Notice } from './use-review';
+import { useDiff } from './session';
+import type { Notice } from './review';
 import './review.css';
 
 const empty: DiffFile[] = [];
@@ -23,9 +24,10 @@ export default function ReviewDocument(props: DiffPanelProps) {
 
 function ReviewContent({ session, selection, shade, fontSize }: DiffPanelProps) {
   const { folder } = selection, lineHeight = Math.ceil(fontSize * 1.5);
-  const optionsKey = JSON.stringify(selection.options);
-  const options = useMemo(() => JSON.parse(optionsKey) as DiffSelection['options'], [optionsKey]);
-  const { answer: data, error, entries, load } = useReview(session, selection);
+  const target = selection.options.to;
+  const options = useMemo(() => ({ to: target }), [target]);
+  const { data: snapshot, error, load } = useDiff(session, selection, true);
+  const data = snapshot?.data;
   const [mode, setMode] = useState<'unified' | 'split'>('unified');
   const viewer = useRef<CodeViewHandle<Notice, undefined>>(null), viewport = useRef<HTMLDivElement>(null);
   const navigation = useRef<number | null>(null), userScroll = useRef(false);
@@ -38,7 +40,7 @@ function ReviewContent({ session, selection, shade, fontSize }: DiffPanelProps) 
     partial: sum.partial || file.additions === null || file.deletions === null,
   }), { additions: 0, deletions: 0, partial: false }), [files]);
   const byPath = useMemo(() => new Map(files.map((file) => [file.path, file])), [files]);
-  const items = useMemo(() => files.map((file) => entries.get(file.path)?.item ?? placeholder(file.path, loading)), [files, entries]);
+  const items = useMemo(() => files.flatMap((file) => snapshot?.entries.get(file.path)?.item ?? []), [files, snapshot?.entries]);
 
   useLayoutEffect(() => {
     const token = selection.navigation ?? 0;
@@ -65,11 +67,10 @@ function ReviewContent({ session, selection, shade, fontSize }: DiffPanelProps) 
   const renderAnnotation: NonNullable<CodeViewProps<Notice, undefined>['renderAnnotation']> = useCallback((annotation, _file, item) => {
     const notice = annotation.metadata;
     return <div className="p-3">
-      {notice.kind === 'loading' ? <div role="status" className="flex items-center gap-2 text-sm text-muted-foreground"><Spinner />{notice.text}</div>
-        : <Alert variant={notice.kind === 'error' ? 'destructive' : 'default'}><AlertDescription>
+      <Alert variant={notice.kind === 'error' ? 'destructive' : 'default'}><AlertDescription>
           <span>{notice.text}</span>
           {notice.kind === 'deferred' && <Button variant="outline" size="sm" aria-label={`Load diff for ${item.id}`} onClick={() => load(item.id)}>Load diff</Button>}
-        </AlertDescription></Alert>}
+        </AlertDescription></Alert>
     </div>;
   }, [load]);
   const viewOptions = useMemo<CodeViewReactOptions<Notice, undefined>>(() => ({ theme: 'kulisa-review', themeType: shade === 'dark' ? 'dark' : 'light', diffStyle: mode, stickyHeaders: true,
@@ -110,7 +111,7 @@ function ReviewContent({ session, selection, shade, fontSize }: DiffPanelProps) 
     </header>
     <div className="relative min-h-0 flex-1">
       {!data && !error && <div role="status" className="absolute inset-0 z-10 flex items-center justify-center gap-2 bg-card text-sm text-muted-foreground"><Spinner />Loading diff…</div>}
-      {error && <div className="absolute inset-0 z-10 bg-card p-3"><Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert></div>}
+      {error && <div className="absolute inset-0 z-10 bg-card p-3"><Alert variant="destructive"><AlertDescription>{error.message}</AlertDescription></Alert></div>}
       {data && !files.length && <p className="absolute inset-0 z-10 bg-card p-3 text-sm text-muted-foreground">{!data.git ? 'This folder is not a Git repository.' : data.files.length ? 'No files match' : 'No changes'}</p>}
       <CodeView ref={viewer} containerRef={viewport} items={items} options={viewOptions} onScroll={onScroll}
         renderCustomHeader={renderHeader} renderAnnotation={renderAnnotation} className="diff-review h-full overflow-auto"

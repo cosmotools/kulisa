@@ -53,6 +53,10 @@ export default defineConfig({
     name: 'review-licenses',
     generateBundle() {
       this.emitFile({ type: 'asset', fileName: 'pierre-diffs-LICENSE.txt', source: readFileSync(resolve(diffsRoot, 'LICENSE.md'), 'utf8') });
+      for (const name of ['react-query', 'query-core']) {
+        const root = dirname(fileURLToPath(import.meta.resolve(`@tanstack/${name}/package.json`)));
+        this.emitFile({ type: 'asset', fileName: `tanstack-${name}-LICENSE.txt`, source: readFileSync(resolve(root, 'LICENSE'), 'utf8') });
+      }
     },
   }],
   resolve: { alias: { '@ui': resolve(import.meta.dirname, 'src/ui') } }, // src/ui's own imports (components.json, aliases)

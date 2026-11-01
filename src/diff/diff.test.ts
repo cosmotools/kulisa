@@ -96,7 +96,7 @@ test('a saved From branch cannot override the task worktree in listings, review 
   const diff = await readDiff(dir, 'src/a.ts', options); assert.equal(diff.error, undefined); if (refused(diff)) return;
   assert.equal(diff.original, '  before\n\n'); assert.equal(diff.modified, 'local worktree\n');
   const review = await readReview(dir, result.revision, result.files); assert.equal(review.error, undefined); if (refused(review)) return;
-  assert.match(review.patch, /\+local worktree/);
+  assert(review.diffs.some(({ result }) => !refused(result) && result.patch?.includes('+local worktree')));
   assert.deepEqual(review.diffs.map((f) => f.path).sort(), ['src/a.ts', 'untracked.txt']);
   assert.equal(run(dir, 'branch', '--show-current'), 'main');
   assert.equal(fs.readFileSync(path.join(dir, 'src/a.ts'), 'utf8'), 'local worktree\n');
@@ -208,14 +208,14 @@ test('large diffs defer patch generation until explicitly loaded', async () => {
   const summary = await listDiff(dir, working); assert(!refused(summary)); if (refused(summary)) return;
   const review = await readReview(dir, summary.revision, summary.files);
   assert(!refused(review)); if (refused(review)) return;
-  assert.equal(review.patch, '');
+  assert(review.diffs.every(({ result }) => !refused(result) && !result.patch));
   for (const { result } of review.diffs) {
     assert(!refused(result)); if (refused(result)) return;
     assert(result.deferred); assert.equal(result.addition, undefined);
   }
   const loaded = await readReview(dir, summary.revision, summary.files, ['large.txt', 'new-large.txt']);
   assert(!refused(loaded)); if (refused(loaded)) return;
-  assert(loaded.patch.includes('+changed context line'));
+  assert(loaded.diffs.some(({ result }) => !refused(result) && result.patch?.includes('+changed context line')));
   const addition = loaded.diffs.find((diff) => diff.path === 'new-large.txt')?.result;
   assert(addition && !refused(addition)); if (!addition || refused(addition)) return;
   assert.equal(addition.addition, content);
@@ -249,7 +249,8 @@ test('a patch batch preserves renames and deletions and isolates invalid encodin
   }
   const summary = await listDiff(dir, working); assert(!refused(summary)); if (refused(summary)) return;
   const review = await readReview(dir, summary.revision, summary.files); assert(!refused(review)); if (refused(review)) return;
-  assert.match(review.patch, /-deleted/); assert.match(review.patch, /rename to src\/renamed file.ts/);
+  assert(review.diffs.some(({ result }) => !refused(result) && result.patch?.includes('-deleted')));
+  assert(review.diffs.some(({ result }) => !refused(result) && result.patch?.includes('rename to src/renamed file.ts')));
   const invalid = review.diffs.find((d) => d.path === 'invalid.txt')?.result;
   assert(invalid && !refused(invalid)); if (!invalid || refused(invalid)) return;
   assert(invalid.notice);
