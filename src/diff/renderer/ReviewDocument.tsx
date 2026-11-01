@@ -23,9 +23,7 @@ export default function ReviewDocument(props: DiffPanelProps) {
 }
 
 function ReviewContent({ session, selection, shade, fontSize }: DiffPanelProps) {
-  const { folder } = selection, lineHeight = Math.ceil(fontSize * 1.5);
-  const target = selection.options.to;
-  const options = useMemo(() => ({ to: target }), [target]);
+  const { folder } = selection, target = selection.options.to, lineHeight = Math.ceil(fontSize * 1.5);
   const { data: snapshot, error, load } = useDiff(session, selection, true);
   const data = snapshot?.data;
   const [mode, setMode] = useState<'unified' | 'split'>('unified');
@@ -51,11 +49,10 @@ function ReviewContent({ session, selection, shade, fontSize }: DiffPanelProps) 
     viewer.current?.scrollTo({ type: 'item', id: path, align: 'start', behavior: 'instant' });
   }, [session, selection.navigation, selection.path, files, byPath]);
   const onScroll: NonNullable<CodeViewProps<Notice, undefined>['onScroll']> = useCallback((_top, instance) => {
+    if (!userScroll.current) return;
     const top = instance.getContainerElement()?.getBoundingClientRect().top ?? 0;
-    const rendered = instance.getRenderedItems().map((item) => ({ id: item.id, bounds: item.element.getBoundingClientRect() })).sort((a, b) => a.bounds.top - b.bounds.top);
-    const path = rendered.find((item) => item.bounds.bottom > top + 36)?.id;
-    if (!path) return;
-    if (userScroll.current) session.actions.selectFile(path, selection.navigation);
+    const path = instance.getRenderedItems().find((item) => item.element.getBoundingClientRect().bottom > top + 36)?.id;
+    if (path) session.actions.selectFile(path, selection.navigation);
   }, [session, selection.navigation]);
   const renderHeader = useCallback((item: CodeViewItem<Notice>) => {
     const file = byPath.get(item.id);
@@ -81,16 +78,15 @@ function ReviewContent({ session, selection, shade, fontSize }: DiffPanelProps) 
       // The component's public lifecycle supplies accessible names for its custom-element root and code region.
       node.setAttribute('role', 'article'); node.setAttribute('aria-label', context.item.id);
       node.shadowRoot?.querySelector('pre')?.setAttribute('aria-label', `Code comparison: ${context.item.id}`);
-
     },
     loadDiffFiles: async (file: FileDiffMetadata) => {
-      const response = await session.actions.contents(folder, file.name, options);
+      const response = await session.actions.contents(folder, file.name, { to: target });
       if (refused(response)) throw new Error(response.error);
       if (response.notice) throw new Error(response.notice);
       return { oldFile: file.type === 'rename-pure' ? null : { name: response.previousPath ?? response.path, contents: response.original },
         newFile: { name: response.path, contents: response.modified } };
     },
-  }), [shade, mode, lineHeight, session, folder, options]);
+  }), [shade, mode, lineHeight, session, folder, target]);
   useEffect(() => {
     const root = viewport.current;
     // CodeView's scroll root has no ARIA props in its React API.

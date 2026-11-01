@@ -124,8 +124,7 @@ export async function listDiff(folder: string, options: DiffOptions, start?: str
   try {
     const c = await comparison(folder, options, start);
     if (!c) return { git: false, revision: null, from: '', to: '', branch: null, branches: [], files: [] };
-    const files = await changedFiles(folder, c.revision);
-    return { git: true, revision: c.revision, from: c.from, to: c.to, branch: c.branch, branches: c.branches, files };
+    return { git: true, ...c, files: await changedFiles(folder, c.revision) };
   } catch (e) { return { error: errorText(e) }; }
 }
 
@@ -228,8 +227,8 @@ export async function readDiff(folder: string, file: string, options: DiffOption
     const original = c.revision && entry.status !== 'A' ? await committedText(folder, c.revision, entry.previousPath ?? file) : { text: '' };
     const current = entry.status === 'D' ? { text: '' } : await workingText(folder, file);
     const notice = original.notice ?? current.notice;
-    return { from: c.from, to: c.to, path: file, previousPath: entry.previousPath,
-      original: notice ? '' : original.text, modified: notice ? '' : current.text, ...(notice && { notice }) };
+    return { path: file, previousPath: entry.previousPath, original: notice ? '' : original.text,
+      modified: notice ? '' : current.text, ...(notice && { notice }) };
   } catch (e) { return { error: errorText(e) }; }
 }
 

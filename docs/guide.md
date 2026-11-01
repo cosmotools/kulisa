@@ -90,8 +90,8 @@ project, and those you closed, are in the sidebar (Tasks, below).
   Click any section icon to reopen Resources content at its previous size.
   **Diff** shows changed files as a folder tree, grouped by repository, with their status and added or removed line
   counts. GitHub-style status icons mark added files in green and deleted files in red, with distinct modified and
-  renamed markers and aligned folder and file rows. Expanded folders in Diff and
-  Project keep a plain background; pointing at a row highlights it.
+  renamed markers and aligned folder and file rows. Diff and Project share the Resources palette;
+  expanded folders keep a plain background, and pointing at a row highlights it.
   **Diff** and **Agents** switch the development area between the review and your terminal.
   Returning to Diff keeps your repository, comparison, filter and selected file.
   Opening Diff reads the current files from your computer. Diff refreshes while the review is open.

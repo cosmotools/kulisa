@@ -8,8 +8,9 @@ type Entry = { signature: string; item: CodeViewItem<Notice> };
 export type Snapshot = { data: Diff; entries: Map<string, Entry>; loaded: string[] };
 
 export function reviewSnapshot(response: Review, previous: Snapshot | undefined, query: string): Snapshot {
+  const { diffs, ...data } = response;
   const entries = new Map<string, Entry>();
-  for (const { path, result } of response.diffs) {
+  for (const { path, result } of diffs) {
     const signature = JSON.stringify(refused(result) ? result : [result.version, result.notice, result.deferred]);
     const prior = previous?.entries.get(path);
     if (prior?.signature === signature) { entries.set(path, prior); continue; }
@@ -25,6 +26,5 @@ export function reviewSnapshot(response: Review, previous: Snapshot | undefined,
     entries.set(path, { signature, item: model ? { id: path, type: 'diff', version, fileDiff: model }
       : { id: path, type: 'file', version, file: { name: path, contents: '', lang: 'text' }, annotations: [{ lineNumber: 0, metadata: notice }] } });
   }
-  const { git, revision, from, to, branch, branches, files } = response;
-  return { data: { git, revision, from, to, branch, branches, files }, entries, loaded: previous?.loaded ?? [] };
+  return { data, entries, loaded: previous?.loaded ?? [] };
 }

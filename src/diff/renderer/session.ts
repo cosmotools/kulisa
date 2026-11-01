@@ -1,5 +1,6 @@
 // One shared request per visible comparison; results expire with their last observer (../README.md).
 import { QueryClient, useQuery } from '@tanstack/react-query';
+import { useCallback, useMemo } from 'react';
 import type { DiffSelection, Review } from '../ipc';
 import { refused } from '../../shared/result';
 import type { DiffActions } from './actions';
@@ -18,7 +19,7 @@ export type DiffSession = ReturnType<typeof createDiff>;
 
 export function useDiff(session: DiffSession, comparison: Comparison, reviewing: boolean) {
   const { folder, options } = comparison;
-  const queryKey = [folder, options.to ?? null, reviewing] as const;
+  const queryKey = useMemo(() => [folder, options.to ?? null, reviewing] as const, [folder, options.to, reviewing]);
   const result = useQuery({ queryKey, refetchInterval: 3000, queryFn: async ({ signal }): Promise<Snapshot> => {
     const previous = session.client.getQueryData<Snapshot>(queryKey), loaded = previous?.loaded ?? [];
     const [response, parser] = await Promise.all([
@@ -30,12 +31,11 @@ export function useDiff(session: DiffSession, comparison: Comparison, reviewing:
     if (!reviewing) return { data: response, entries: new Map(), loaded };
     return parser!.reviewSnapshot(response as Review, previous, comparisonKey(comparison));
   } }, session.client);
-  return { ...result, load: (path: string) => {
-    void session.client.cancelQueries({ queryKey }).then(() => {
-      session.client.setQueryData<Snapshot>(queryKey, (previous) => previous && {
-        ...previous, loaded: [...previous.loaded.filter((p) => p !== path).slice(-3), path],
-      });
-      return session.client.invalidateQueries({ queryKey });
+  const load = useCallback((path: string) => {
+    session.client.setQueryData<Snapshot>(queryKey, (previous) => previous && {
+      ...previous, loaded: [...previous.loaded.filter((p) => p !== path).slice(-3), path],
     });
-  } };
+    void session.client.invalidateQueries({ queryKey });
+  }, [session.client, queryKey]);
+  return { ...result, load };
 }

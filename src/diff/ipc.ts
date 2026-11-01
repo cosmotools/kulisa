@@ -21,8 +21,6 @@ export interface Diff {
 }
 export interface DiffSelection { folder: string; path: string; options: DiffOptions; filter?: string; navigation?: number }
 export interface FileDiff {
-  from: string;
-  to: string;
   path: string;
   previousPath?: string;
   original: string;
