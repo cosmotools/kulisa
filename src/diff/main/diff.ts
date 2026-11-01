@@ -148,11 +148,12 @@ export async function listDiffTargets(folder: string, start?: string | null): Pr
 }
 
 // One bounded review snapshot; files outside the automatic allowance have an explicit load action.
-export async function loadReview(folder: string, options: DiffOptions, start?: string | null, load: string[] = []): Promise<Result<Review>> {
+export async function loadReview(folder: string, options: DiffOptions, start?: string | null, load: string[] = [], onSummary?: (summary: Diff) => void): Promise<Result<Review>> {
   try {
     if (load.length > 4) return { error: 'Load at most four large diffs at once.' };
     const summary = await listDiff(folder, options, start);
     if (refused(summary)) return summary;
+    onSummary?.(summary);
     const files = summary.files.filter((file) => load.includes(file.path));
     let lines = 0;
     for (const file of summary.files) {

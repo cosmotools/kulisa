@@ -94,7 +94,8 @@ project, and those you closed, are in the sidebar (Tasks, below).
   expanded folders keep a plain background, and pointing at a row highlights it.
   **Diff** and **Agents** switch the development area between the review and your terminal.
   Returning to Diff keeps your repository, comparison, filter and selected file.
-  Opening Diff reads the current files from your computer. Diff refreshes while the review is open.
+  Opening Diff reads the current files from your computer. The tree appears as soon as the file list is ready,
+  while the review content loads separately. Diff refreshes while the review is open.
   A task with one repository shows From/To and the tree directly; tasks with several repositories show a
   collapsible heading for each. Opening Diff shows the repository's review in the development area.
   Filter by a path to narrow both the tree and review, and expand folders to navigate. Use the arrow keys to navigate

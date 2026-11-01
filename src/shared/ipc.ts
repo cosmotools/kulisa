@@ -93,7 +93,7 @@ export interface Invoke extends TerminalInvoke, ThumbnailInvoke, GitHubInvoke, D
   'task:files': I<[{ key: string; folder: string }], Result<{ entries: ProjectFile[] }>>;
   'task:diff:list': I<[{ key: string; folder: string; options: DiffOptions }], Result<Diff>>;
   'task:diff:targets': I<[{ key: string; folder: string }], Result<{ branches: string[] }>>;
-  'task:diff:review': I<[{ key: string; folder: string; options: DiffOptions; load?: string[] }], Result<Review>>;
+  'task:diff:review': I<[{ key: string; folder: string; options: DiffOptions; load?: string[]; request?: string }], Result<Review>>;
   'task:diff:contents': I<[{ key: string; folder: string; path: string; options: DiffOptions }], Result<FileDiff>>;
   'task:file-open': I<[{ key: string; file: string }], Result>;
   'task:artifacts': I<[string]>; // the task's artifacts sent again (Resources.tsx: the task shown)
@@ -184,6 +184,7 @@ export interface Events extends TerminalEvents, ThumbnailEvents, DictationEvents
   'closed-profiles': ClosedProfile[];
   'development-terminals': DevelopmentTerminalsState;
   'stage-terminals': StageTerminalsState;
+  'task:diff:summary': { request: string; summary: Diff };
   'artifacts': { task: string; list: Artifact[]; bytes: number }; // bytes: all of them (Task.artifactsUsage)
   'development-terminal:focus': void;
   'stage:arrange': { task: string; layout?: StageLayout; overflow?: boolean; position?: StagePosition };

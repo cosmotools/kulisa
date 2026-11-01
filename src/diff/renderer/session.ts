@@ -1,7 +1,7 @@
 // One shared request per visible comparison; results expire with their last observer (../README.md).
 import { QueryClient, useQuery } from '@tanstack/react-query';
 import { useCallback, useMemo } from 'react';
-import type { DiffSelection, Review } from '../ipc';
+import type { Diff, DiffSelection, Review } from '../ipc';
 import { refused } from '../../shared/result';
 import type { DiffActions } from './actions';
 import type { Snapshot } from './review';
@@ -22,13 +22,19 @@ export function useDiff(session: DiffSession, comparison: Comparison, reviewing:
   const queryKey = useMemo(() => [folder, options.to ?? null, reviewing] as const, [folder, options.to, reviewing]);
   const result = useQuery({ queryKey, refetchInterval: 3000, queryFn: async ({ signal }): Promise<Snapshot> => {
     const previous = session.client.getQueryData<Snapshot>(queryKey), loaded = previous?.loaded ?? [];
+    const onSummary = (data: Diff) => {
+      if (signal.aborted) return;
+      session.client.setQueryData<Snapshot>(queryKey, (current) => ({
+        data, entries: current?.entries ?? new Map(), loaded: current?.loaded ?? loaded, ready: current?.ready ?? false,
+      }));
+    };
     const [response, parser] = await Promise.all([
-      reviewing ? session.actions.review(folder, options, loaded) : session.actions.list(folder, options),
+      reviewing ? session.actions.review(folder, options, loaded, onSummary) : session.actions.list(folder, options),
       reviewing ? import('./review') : null,
     ]);
     signal.throwIfAborted();
     if (refused(response)) throw new Error(response.error);
-    if (!reviewing) return { data: response, entries: new Map(), loaded };
+    if (!reviewing) return { data: response, entries: new Map(), loaded, ready: false };
     return parser!.reviewSnapshot(response as Review, previous, comparisonKey(comparison));
   } }, session.client);
   const load = useCallback((path: string) => {

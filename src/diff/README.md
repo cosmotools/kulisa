@@ -9,7 +9,8 @@ Read-only local Git comparisons for the Resources tree and development review.
   Symlinks show link text; path containment checks confine reads to the supplied resource.
 - Patch batches and Load diff bound memory; full file contents load only for explicit context expansion.
 - Pierre Trees virtualizes changed-file navigation; presorted paths keep the tree in the review document's order.
-- Publishing complete snapshots avoids incremental layout shifts. Stable CodeView path IDs and content versions
-  preserve unchanged models and expanded context across refreshes.
+- The tree receives the listing before patches are loaded and parsed. Both phases share one listing;
+  request IDs isolate late responses.
+- Complete document snapshots and stable CodeView IDs and versions preserve expanded context across refreshes.
 - TanStack Query shares each visible comparison between the tree and document; zero inactive retention makes
   reopening read Git again. Patches are parsed only for files whose version changes.

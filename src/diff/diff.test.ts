@@ -149,14 +149,20 @@ test('review batches patches, defers automatic overflow and loads requested trac
   const trace = path.join(root, 'batch-trace.log'), prior = process.env.GIT_TRACE;
   process.env.GIT_TRACE = trace.replaceAll('\\', '/');
   try {
-    const review = await loadReview(dir, working);
+    let listed = 0;
+    const review = await loadReview(dir, working, undefined, [], (summary) => {
+      listed = summary.files.length;
+      assert(!fs.readFileSync(trace, 'utf8').includes('--patch'));
+    });
     assert(!refused(review), review.error);
+    assert.equal(listed, 41);
     assert.equal(review.files.length, 41);
     assert.equal(review.diffs.length, 41);
     assert.equal(review.diffs.filter(({ result }) => !refused(result) && result.version).length, 32);
     assert.equal(review.diffs.filter(({ result }) => !refused(result) && result.deferred).length, 9);
     const commands = fs.readFileSync(trace, 'utf8');
     assert(!commands.includes('cat-file'));
+    assert.equal(commands.split('\n').filter((line) => line.includes('built-in: git ') && line.includes('--numstat')).length, 1);
     assert.equal(commands.split('\n').filter((line) => line.includes('built-in: git ') && line.includes('--patch')).length, 1);
   } finally {
     if (prior === undefined) delete process.env.GIT_TRACE; else process.env.GIT_TRACE = prior;

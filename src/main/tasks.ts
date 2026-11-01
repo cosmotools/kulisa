@@ -17,7 +17,7 @@ import { worktreesOf, ownWorktree, folderOf, branchOf, taskKey } from './store.t
 import { copyProfile } from '../browser/main/index.ts';
 import { renameBranch } from './worktrees.ts';
 import { listDiff, listDiffTargets, readDiff, loadReview } from '../diff/main/index.ts';
-import type { DiffOptions } from '../diff/ipc.ts';
+import type { Diff, DiffOptions } from '../diff/ipc.ts';
 import { extendTrust } from '../kulisa-plugin/main/index.ts';
 import { installSkill } from '../kulisa-plugin/main/index.ts';
 import { labelError } from '../shared/names.ts';
@@ -815,9 +815,9 @@ class Task {
     if (!this.resources().some((r) => r.folder === folder)) return { error: 'This folder is not a resource of this task.' };
     return listDiffTargets(folder, this.worktrees.find((c) => c.folder === folder)?.base);
   }
-  async review(folder: string, options: DiffOptions, load: string[] = []) {
+  async review(folder: string, options: DiffOptions, load: string[] = [], onSummary?: (summary: Diff) => void) {
     if (!this.resources().some((r) => r.folder === folder)) return { error: 'This folder is not a resource of this task.' };
-    return loadReview(folder, options, this.worktrees.find((c) => c.folder === folder)?.base, load);
+    return loadReview(folder, options, this.worktrees.find((c) => c.folder === folder)?.base, load, onSummary);
   }
   async diffContents(folder: string, file: string, options: DiffOptions) {
     if (!this.resources().some((r) => r.folder === folder)) return { error: 'This folder is not a resource of this task.' };

@@ -99,9 +99,11 @@ export function registerTasks(ipc: Ipc) {
     const task = shell.taskByKey(key);
     return task ? task.diffTargets(folder) : { error: 'The task is closed.' };
   });
-  handle('task:diff:review', (_e, { key, folder, options, load }) => {
+  handle('task:diff:review', (e, { key, folder, options, load, request }) => {
     const task = shell.taskByKey(key);
-    return task ? task.review(folder, options, load) : { error: 'The task is closed.' };
+    return task ? task.review(folder, options, load, (summary) => {
+      if (request && !e.sender.isDestroyed()) e.sender.send('task:diff:summary', { request, summary });
+    }) : { error: 'The task is closed.' };
   });
   handle('task:diff:contents', (_e, { key, folder, path, options }) => {
     const task = shell.taskByKey(key);

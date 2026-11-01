@@ -49,12 +49,12 @@ function ReviewContent({ session, selection, shade, fontSize }: DiffPanelProps) 
 
   useLayoutEffect(() => {
     const token = selection.navigation ?? 0;
-    if (!files.length || (navigation.current === token && byPath.has(selection.path))) return;
+    if (!snapshot?.ready || !files.length || (navigation.current === token && byPath.has(selection.path))) return;
     navigation.current = token; userScroll.current = false;
     const path = byPath.has(selection.path) ? selection.path : files[0]!.path;
     session.actions.selectFile(path, selection.navigation);
     viewer.current?.scrollTo({ type: 'item', id: path, align: 'start', behavior: 'instant' });
-  }, [session, selection.navigation, selection.path, files, byPath]);
+  }, [session, selection.navigation, selection.path, files, byPath, snapshot?.ready]);
   const onScroll: NonNullable<CodeViewProps<Notice, undefined>['onScroll']> = useCallback((_top, instance) => {
     if (!userScroll.current) return;
     const top = instance.getContainerElement()?.getBoundingClientRect().top ?? 0;
@@ -116,7 +116,7 @@ function ReviewContent({ session, selection, shade, fontSize }: DiffPanelProps) 
       </ToggleGroup>
     </header>
     <div className="relative min-h-0 flex-1">
-      {!data && !error && <div role="status" className="absolute inset-0 z-10 flex items-center justify-center gap-2 bg-card text-sm text-muted-foreground"><Spinner />Loading diff…</div>}
+      {!snapshot?.ready && !error && <div role="status" className="absolute inset-0 z-10 flex items-center justify-center gap-2 bg-card text-sm text-muted-foreground"><Spinner />Loading diff…</div>}
       {error && <div className="absolute inset-0 z-10 bg-card p-3"><Alert variant="destructive"><AlertDescription>{error.message}</AlertDescription></Alert></div>}
       {data && !files.length && <p className="absolute inset-0 z-10 bg-card p-3 text-sm text-muted-foreground">{!data.git ? 'This folder is not a Git repository.' : data.files.length ? 'No files match' : 'No changes'}</p>}
       <CodeView ref={viewer} containerRef={viewport} items={items} options={viewOptions} onScroll={onScroll}
