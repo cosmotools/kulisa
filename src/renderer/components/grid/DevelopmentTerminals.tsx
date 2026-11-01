@@ -16,7 +16,7 @@ import { termFocus } from '../../../terminal/renderer';
 import { Pill } from '../../../dictation/renderer';
 
 const NEW_TITLE = 'New conversation of an agent, or a terminal';
-export function DevelopmentTerminals({ api, containerApi }: IDockviewPanelProps) {
+export function DevelopmentTerminals({ api, containerApi, reviewing }: IDockviewPanelProps & { reviewing: boolean }) {
   const host = useRef<HTMLDivElement>(null), launch = useRef<HTMLDivElement>(null), shade = useShade();
   // The task from the terminals' own message (docs/window.md, The terminal).
   const task = useWindow((s) => s.developmentTerminals.task ?? null), front = useWindow((s) => s.developmentTerminals.front);
@@ -26,7 +26,7 @@ export function DevelopmentTerminals({ api, containerApi }: IDockviewPanelProps)
   // The tab in front before its program has started (an agent's is looked for first): a loader over its terminal, which
   // stays laid out meanwhile (the program starts at its size).
   const starting = useWindow((s) => s.developmentTerminals.list.find((t) => t.id === s.developmentTerminals.front && t.starting)?.name);
-  const shown = task !== null && front !== null ? `${task}#${front}` : null;
+  const shown = !reviewing && task !== null && front !== null ? `${task}#${front}` : null;
 
   useLayoutEffect(() => {
     // Retained panels catch up in a later frame; DOM client/offset dimensions round Dockview's fractional CSS pixels.
@@ -47,13 +47,13 @@ export function DevelopmentTerminals({ api, containerApi }: IDockviewPanelProps)
   useEffect(() => {
     const before = was.current;
     was.current = { task, front };
-    if (task === before.task && front !== before.front && front !== null && !dialogsShown()) void termFocus(`${task}#${front}`);
-  }, [task, front]);
+    if (!reviewing && task === before.task && front !== before.front && front !== null && !dialogsShown()) void termFocus(`${task}#${front}`);
+  }, [task, front, reviewing]);
 
   // The big buttons, each a Tab stop (Tab to the next, Enter opens it): the first, the project's default agent, gets the
   // keyboard when the keyboard was in the terminal just closed or nowhere (not taken from a field or a dialog). No keys
   // on them: Ctrl+` opens the task's agent, which the window does not show.
-  const big = folded && alone && !loading;
+  const big = folded && alone && !loading && !reviewing;
   // A question open as they come (closing an agent's tab asks first): once it has gone, also from the page (a dialog
   // keeps the keyboard in it while it fades out, and gives it back as it goes).
   useEffect(() => {

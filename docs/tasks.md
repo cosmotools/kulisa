@@ -245,19 +245,19 @@ then named "Checkout redesign":
 ### The Resources panel
 
 The **Resources panel** sits to the left of the development terminal by default. Its **Resources bar** selects
-the **Agents**, **Project** or **Artifacts** section in **Resources content**.
+the **Agents**, **Project**, **Changes** or **Artifacts** section in **Resources content**.
 Clicking the selected icon closes Resources content and leaves the Resources bar visible; any section icon reopens
 Resources content at the expanded size.
 The standalone development panels have no header. The Resources bar holds the dictation microphone above its grip. The grip at the bottom of the Resources bar moves the panel within the
 development grid, with Resources content open or closed. Switching sections preserves its width.
-The Resources bar keeps at least 172 CSS pixels of height, below any shared header, so every control stays reachable. With Resources
+The Resources bar keeps at least 204 CSS pixels of height, below any shared header, so every control stays reachable. With Resources
 content open, its minimum width is 300 CSS pixels. With content closed, a standalone
-panel is fixed at 40 CSS pixels wide beside the terminal or 172 CSS pixels tall above or below it, with no
+panel is fixed at 40 CSS pixels wide beside the terminal or 204 CSS pixels tall above or below it, with no
 gap or resize divider. Shared tabs keep their group resizable and Resources nonclosable. Reopening restores the expanded size. The Resources bar follows the outer edge beside
 the terminal: left when docked left, right when docked right; above, below and shared tabs use the left edge.
 The selected section, collapsed state and expanded size belong to the task’s saved layout.
 **Agents** lists the task's agents and development terminals: name, agent state, account or shell command when
-available. Selecting a row shows and focuses its terminal in the separate development terminal panel, including
+available. Clicking the Agents icon shows and focuses the last active development terminal. Selecting a row shows and focuses its terminal in the development area, including
 when the panels share a tab group. The selected row stays marked; the list scrolls vertically. Each row's × closes
 it (an agent asks first); its right-click menu offers Change agent…, New Conversation and Close for an agent,
 Close for a shell. The section's + opens an agent or shell through the terminal's shared creation menu.
@@ -291,6 +291,79 @@ The roots are the task’s **resources** (what it has, uses or created), each wi
 The panel shows the resources as `tasks.json` keeps them, the first where it works (`store.ts`, `Resource`): the
 task's folder, branch and folder of copies are worked out from them, never kept twice. Ownership decides the actions
 and the cleanup: the main working tree is the human's, never removed; a worktree the task made goes with the task.
+
+#### Changes
+
+**Changes** lists changed files in a collapsible folder tree per resource, folders first, with status, additions and
+deletions. Repository headings group tasks with several resources; one resource shows its comparison and tree directly.
+Folders and files use Project's compact Button row layout: equal heights, disclosure and icon columns, and indentation.
+Lucide's file-status icons distinguish added (green), deleted (red), renamed and modified files; the tree and diff headers
+share status labels and palette colors. Added files include untracked files and additions relative to the comparison base.
+The selected file uses the secondary variant; folder Buttons set `--muted` to transparent while unhovered, keeping
+expanded folders plain with hover and keyboard focus feedback.
+Opening Changes starts the first repository's review in the development area's terminal location; reopening keeps
+the selected repository, comparison, filter and file when returning from Agents. The development panel's saved
+Dockview parameters own its screen and comparison selection, restored after building the task's layout, including
+when Resources content is closed. Each section selects its own screen
+in the development area. Filter files matches current and previous paths in the tree and document.
+A file's click, Enter or View diff menu scrolls to that file's header. All
+changed files belong to the same document, with sticky path, status and line-count headers; manual scrolling marks
+the visible file in the tree. The review header shows the document's added/deleted line totals; filtering updates
+the totals, with unavailable counts noted in their title. Unified/Split applies to the whole review. The Agents icon and terminal focus shortcut
+return to the last active terminal. Stage keeps its layout and size. Task switches and app restarts restore each
+task's selected development screen.
+
+Each repository has side-by-side **From → To** fields; changing **To** opens that repository's review.
+**From** is plain text showing the task resource's worktree and current branch,
+including committed, staged, unstaged and untracked changes against the comparison base.
+**To** defaults to the remote's default branch, else an available main/master branch, the task's starting commit,
+or HEAD. An **Empty tree** target is available before a first commit. The comparison starts at the source and target's
+merge base, as a pull request does. Worktree → its current branch (or HEAD) shows only uncommitted changes.
+Ignored files stay out. A non-Git resource says so. The view works locally, fetches no remotes and changes no Git state.
+
+`Task.changes`, `Task.changeTargets`, `Task.review` and `Task.diffContents` confine requests to task resources.
+`changes.ts` uses the shared simple-git client in `worktrees.ts`, running the user's installed Git with NUL listings, rename detection and external
+diffs/text conversion disabled. Reads stay inside the resource; symlinks show their link text. Text sides are limited
+to 2 MiB; binary, non-UTF-8 patches, larger and non-file entries show a notice. Listings are limited to 8 MiB.
+
+Opening Changes imports the renderer and requests one complete review through `Task.review`. `loadReview` resolves
+the comparison and reads its summary once, then obtains a bounded patch batch. The reply contains the complete file
+tree, ordinary patches and **Load diff** notices. React publishes the document as one snapshot. Opening **To**
+requests and mounts the complete branch list; the selected label stays outside Radix's closed item collection.
+
+Automatic loading includes up to 32 files and 8,000 changed lines, with a 128 KiB/2,000-line limit per file.
+`ls-tree` sizes and worktree stats defer larger files before patch generation. Git's summary still computes tracked
+line counts. Up to four explicitly loaded files join the automatic allowance, within its 32-file bound. Choosing
+another explicit file keeps the latest four choices. Tracked patches use one `git diff --raw -z --patch`, bounded
+to 24 MiB; NUL headers associate patches with paths for per-patch UTF-8 validation and hashing. Untracked additions
+use bounded reads, four at a time. Complete tracked contents load only for explicit context expansion through
+`task:diff-contents`. Agents read Git through their own tools.
+
+`use-review.ts` owns one React snapshot and a refresh effect, running three seconds after the previous request.
+Unchanged patch versions retain their models and expanded context. Explicit loads repeat the same review request;
+cleanup ignores stale replies. The tree and document share the review's metadata; inactive repository trees read
+their own summaries. Every reopening reads fresh data. Closing the review releases its models and highlighting
+worker; closing the last tree or review releases shared metadata. Review data stays off disk.
+
+The diff stack keeps Git computation in the installed Git through simple-git (MIT), and review rendering in
+@pierre/diffs (Apache-2.0). CodeView accepts Git patches and owns file/line virtualization, avoiding a separate
+editor instance per changed file. `diffSummary` cannot parse NUL-delimited paths; summaries use raw Git output so
+tabs, newlines and rename pairs remain unambiguous. Editor-specific features belong to the future editor surface.
+The shared Git adapter retains stdin, byte output, absolute timeouts, per-stream output limits and the app's
+inherited Git environment without interactive pager/editor variables; simple-git supplies process execution, cancellation and error handling.
+
+@pierre/diffs CodeView owns one scroll container, file and line virtualization, sticky headers and scroll anchoring.
+File clicks carry a navigation sequence; scrolling marks the visible file without Git requests. The highlighting
+pool has one worker and four entries per AST cache. Task switches clear listings.
+Transient read errors retain the document's file list and models for recovery. Removing the selected file selects
+the first remaining match. Tree grouping appends to each folder's list so large folders take linear grouping work.
+`task:diff-contents` rechecks ownership and text limits before context expansion.
+
+`review-theme.ts` maps syntax colors to the window's palette; `review.css` maps additions, deletions, gutters and
+selection. CodeView uses the window's text size and JetBrains Mono, with matching line metrics; Chromium applies
+Kulisa's global zoom to the whole review. `DevelopmentContent.tsx`
+retains the running terminal beside the conditionally mounted review;
+`ChangeCounts.tsx` supplies line counts; `ChangeStatus.tsx` supplies file-status icons and labels.
 
 Stage terminal environments belong to the task (`Task.stageTerminals`): their actions and UI are described in
 [window.md](window.md), Stage terminals. Browser environments retain their own lifecycle in `ProjectProfiles`.
@@ -340,6 +413,7 @@ to the human; the window's IPC (`ipc/`) and the MCP tools are handles on it:
 | Delete a task | Delete Task… in its tab's menu; its 🗑 in the sidebar | none: it deletes work and sign-ins, the human's to decide | `askDeleteTask`, `deleteTask`, `deleteClosedTask` (`projects.ts`) |
 | Show a task | a click on its tab, of any project | none: what the human looks at is theirs | `AppWindow.show` (`window.ts`) |
 | Browse a task’s folders, open a file | Project section in Resources content; double-click or Enter on a file, its Open menu | the agent reads and opens files through its own tools | `task:files`, `task:file-open` (`Task.files`, `Task.openProjectFile`; Project Explorer confines reads to its roots) |
+| Review local code changes | Changes section, continuous file diffs; Unified or Split | the agent reads its Git repository through its own tools | `task:changes`, `task:change-targets`, `task:review`, `task:diff-contents` (`Task.changes`, `Task.changeTargets`, `Task.review`, `Task.diffContents`) |
 | Open a resource's folder | double-click its root in Resources, or Open Folder in its menu | none: the agent opens folders through its own tools | `task:open-folder` (`ipc/tasks.ts`) |
 | Open an artifact, show it in its folder | a click on its row in the Resources panel, its menu | none: the tools' answers give the agent its path | `file:open`, `file:show` (`file-links.ts`) |
 | See what the artifacts take | the Artifacts heading in the Resources panel (the shown task's) | `task_artifacts`: its task's files, or each task's total | `Task.artifactsUsage` (src/activity-monitor) |
@@ -780,6 +854,7 @@ rm -rf ~/.config/Kulisa/projects/<project id>   # all its tasks with their profi
 | `src/main/projects.ts` | a loaded project: its tasks; making, closing, opening again, deleting one (with the question); making a project (`createProject`), deleting a project's data |
 | `src/main/tasks.ts` | a task: its profiles, its terminals and agents (open, hand over, close, environment), naming, its worktree on demand and resources, its artifacts (what they take, deleting them), copies of its profiles for a new task |
 | `src/main/stage-terminals.ts` | the task’s Stage terminal setup and process lifecycle, shared actions for the window and MCP |
+| `src/main/changes.ts` | bounded local Git listings and file comparisons for Resources → Changes |
 | `src/main/worktrees.ts` | git: a task's worktree and branch, files outside git, direnv, changes, renaming the branch, removal |
 | `src/kulisa-plugin/` | agent integration ([README](../src/kulisa-plugin/README.md)) |
 | `src/main/store.ts` | the data folder above |

@@ -1,0 +1,11 @@
+/* Shadow DOM inherits the window's palette; CodeView measures rows using these font metrics. */
+.changes-review {
+  --diffs-font-family: 'JetBrains Mono', monospace;
+  --diffs-header-font-family: inherit;
+  --diffs-addition-color-override: var(--success);
+  --diffs-deletion-color-override: var(--destructive);
+  --diffs-modified-color-override: var(--primary);
+  --diffs-selection-color-override: var(--ring);
+  --diffs-bg-selection-override: color-mix(in oklch, var(--ring) 20%, var(--card));
+  --diffs-fg-number-override: var(--muted-foreground);
+}

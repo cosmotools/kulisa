@@ -5,7 +5,7 @@ import { execFileSync } from 'child_process';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import { repoOf, merged } from '../../src/main/worktrees.ts';
+import { git, gitBuffer, repoOf, merged } from '../../src/main/worktrees.ts';
 
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'kulisa-worktrees-'));
 after(() => fs.rmSync(dir, { recursive: true, force: true }));
@@ -84,4 +84,20 @@ test('merged: a rebase merge on the remote; not with a file of the task uncommit
   assert.equal(await merged(copy), true);
   fs.writeFileSync(path.join(worktree, 'b.txt'), 'changed\n');
   assert.equal(await merged(copy), false);
+});
+
+// The Git client carries stdin and exact bytes for patches, ignored paths and blob batches.
+test('Git client preserves binary input/output, whitespace, errors and output limits', async () => {
+  const folder = fs.mkdtempSync(path.join(dir, 'client-'));
+  execFileSync('git', ['init', '-q', folder]);
+  const oid = await git(folder, ['hash-object', '-w', '--stdin'], { input: ' leading\ntrailing \n' });
+  const bytes = await gitBuffer(folder, ['cat-file', '--batch'], { input: `${oid}\n` });
+  assert(bytes.includes(Buffer.from(' leading\ntrailing \n')));
+  const text = await git(folder, ['cat-file', 'blob', oid], { trim: false });
+  assert.equal(text, ' leading\ntrailing \n');
+  const binary = Buffer.from([0, 0xff, 0xc0, 0x80, 10]);
+  const binaryOid = execFileSync('git', ['hash-object', '-w', '--stdin'], { cwd: folder, input: binary, encoding: 'utf8' }).trim();
+  assert.deepEqual(await gitBuffer(folder, ['cat-file', 'blob', binaryOid]), binary);
+  await assert.rejects(gitBuffer(folder, ['cat-file', 'blob', oid], { maxBuffer: 2 }), /output exceeds/);
+  await assert.rejects(git(folder, ['cat-file', 'blob', 'missing-object']), (e: Error & { stderr?: string }) => !!e.stderr);
 });

@@ -3,7 +3,7 @@
 // the profile and tab they act on.
 import { act, screenshot, store } from './store';
 import { panes } from './grid';
-import { shownTerm } from './development-terminals';
+import { focusDevelopmentTerminal } from './development-terminals';
 import { dialog } from './dialogs';
 import { toggleSidebar } from './sidebar';
 import { dialogsShown, onDialogs } from './cover';
@@ -46,7 +46,7 @@ const showTask = (tab?: HTMLElement) => { const key = tab?.dataset.task; if (key
 interface Command { n?: number; page?: boolean; p?: Profile; tab?: string }
 // What each command does. page: the key was typed in the profile's page, so the keyboard stays in its pages.
 const run: Record<string, (c: Command) => unknown> = {
-  'terminal.focus': () => (!store.getState().developmentTerminals.list.length ? openOwn() : zone === 'terminal' && lastPane ? focusPage(lastPane) : shownTerm()?.focus()),
+  'terminal.focus': () => (!store.getState().developmentTerminals.list.length ? openOwn() : zone === 'terminal' && lastPane ? focusPage(lastPane) : focusDevelopmentTerminal()),
   'terminal.new': () => act('development-terminal:open'),
   'task.n': ({ n }) => showTask(taskTabs()[n! - 1]),
   'task.next': () => stepTask(1),

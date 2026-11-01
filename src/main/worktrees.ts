@@ -3,6 +3,7 @@
 // in its folder.
 // Runs the user's git (a program on every OS), never a shell.
 import { execFile } from 'child_process';
+import { simpleGit } from 'simple-git';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
@@ -17,12 +18,46 @@ const COPIED = ['/.env*'];
 // A failed git command: its error with what git said.
 type GitError = Error & { stderr?: string };
 
-function git(cwd: string, args: string[], { timeout = 30000, input }: { timeout?: number; input?: string } = {}) {
-  return new Promise<string>((resolve, reject) => {
-    const c = execFile('git', args, { cwd, timeout, maxBuffer: 64 << 20, windowsHide: true, env: { ...process.env, GIT_TERMINAL_PROMPT: '0' } },
-      (e, out, err) => (e ? reject(Object.assign(e, { stderr: String(err).trim() })) : resolve(String(out).trim())));
-    if (input !== undefined) c.stdin!.end(input);
+type GitOptions = { timeout?: number; input?: string; maxBuffer?: number };
+async function runGit(cwd: string, args: string[], { timeout = 30000, input, maxBuffer = 64 << 20 }: GitOptions, binary: boolean) {
+  const abort = new AbortController(), output: Buffer[] = [], errors: Buffer[] = [];
+  let failure: Error | undefined;
+  // Git runs without an interactive pager or editor; terminal agents keep their own shell environment.
+  const env: NodeJS.ProcessEnv = { ...process.env, GIT_TERMINAL_PROMPT: '0' };
+  for (const key of ['GIT_PAGER', 'PAGER', 'GIT_EDITOR', 'GIT_SEQUENCE_EDITOR', 'EDITOR', 'VISUAL']) delete env[key];
+  const client = simpleGit({ baseDir: cwd, trimmed: false, abort: abort.signal,
+    allowEnvironment: [...Object.keys(process.env), 'GIT_TERMINAL_PROMPT'],
+    input: () => input,
+    timeout: { block: timeout, stdOut: false, stdErr: false },
+  }).env(env);
+  client.outputHandler((_command, stdout, stderr) => {
+    const collect = (stream: NodeJS.ReadableStream, chunks: Buffer[] | null) => {
+      let size = 0;
+      stream.on('data', (chunk: Buffer) => {
+        size += chunk.length;
+        if (size > maxBuffer) {
+          failure ??= new Error('Git output exceeds the configured limit.');
+          abort.abort();
+        } else chunks?.push(chunk);
+      });
+    };
+    // Byte buffers preserve Git's NUL records and blob encodings; text commands use the library's result.
+    collect(stdout, binary ? output : null); collect(stderr, errors);
   });
+  try {
+    const text = await (args[0] === 'diff' ? client.diff(args.slice(1)) : client.raw(args));
+    if (failure) throw failure;
+    return binary ? Buffer.concat(output) : text;
+  } catch (e) {
+    throw Object.assign(failure ?? (e as Error), { stderr: Buffer.concat(errors).toString('utf8').trim() });
+  }
+}
+async function gitBuffer(cwd: string, args: string[], options: GitOptions = {}) {
+  return await runGit(cwd, args, options, true) as Buffer;
+}
+async function git(cwd: string, args: string[], { trim = true, ...options }: GitOptions & { trim?: boolean } = {}) {
+  const out = await runGit(cwd, args, options, false) as string;
+  return trim ? out.trim() : out;
 }
 const ok = (p: Promise<unknown>) => p.then(() => true, () => false);
 // A folder's real path as the OS gives it, as git's is: Node's own keeps a Windows short name (C:\Users\COSMOT~1),
@@ -206,4 +241,4 @@ async function renameBranch(copies: Copy[], name: string) {
 const clone = (url: string, into: string) => git(path.dirname(into), ['clone', '--quiet', '--', url, into], { timeout: 10 * 60_000 });
 
 export type { GitError };
-export { git, repoOf, freeBranch, createWorktree, changes, progress, merged, renameBranch, removeWorktree, clone };
+export { git, gitBuffer, repoOf, freeBranch, createWorktree, changes, progress, merged, renameBranch, removeWorktree, clone };

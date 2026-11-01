@@ -89,7 +89,7 @@ element) puts a reference with a Playwright locator into the agent's prompt; the
   in a separate development grid. Their behavior and lifecycle: `docs/window.md`, The grid.
 - **Terminology: "Resources panel"** for the whole panel beside the development terminal. **Resources bar** is its
   vertical icon bar on the left; **Resources content** is the area on the right, which can close while the bar stays
-  visible. **Project** and **Artifacts** are its sections; **Project Explorer** is the folder and file tree inside
+  visible. **Agents**, **Project**, **Changes** and **Artifacts** are its sections; **Project Explorer** is the folder and file tree inside
   Project. Behavior: `docs/tasks.md`, The Resources panel.
 - **Terminology: "profile"**, the word Chrome uses, for one embedded browser identity (cookies, storage, tabs) and
   its pane. Not "persona", "user" or "account" (an account is what a profile signs in to). Early commits and
@@ -233,6 +233,10 @@ element) puts a reference with a Playwright locator into the agent's prompt; the
   4. After the merge, watch the release's run; tell the author when it is published, or what failed.
 
 ## Commands
+
+- **Diff renderer skill**: read `.agents/skills/diffs/SKILL.md` before changing `@pierre/diffs` rendering,
+  CodeView, themes or workers. Its references are the upstream API and recipes; installed dependency types decide
+  what this checkout supports. The shared copy is versioned with the project; `.claude/skills/diffs/` points to it.
 
 - **Development skills**: `.agents/skills/run-kulisa/SKILL.md` for starting, stopping or restarting the app;
   `.agents/skills/debug-kulisa/SKILL.md` for diagnosing the running app. Instructions and scripts live there;

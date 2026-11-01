@@ -16,6 +16,8 @@ import { listArtifacts, saveArtifact } from './artifacts.ts';
 import { worktreesOf, ownWorktree, folderOf, branchOf, taskKey } from './store.ts';
 import { copyProfile } from '../browser/main/index.ts';
 import { renameBranch } from './worktrees.ts';
+import { listChanges, listChangeTargets, readDiff, loadReview } from './changes.ts';
+import type { ChangeOptions } from '../shared/changes.ts';
 import { extendTrust } from '../kulisa-plugin/main/index.ts';
 import { installSkill } from '../kulisa-plugin/main/index.ts';
 import { labelError } from '../shared/names.ts';
@@ -804,6 +806,22 @@ class Task {
 
   async files(folder: string) {
     return listResourceFiles(this.resources().map((r) => r.folder), folder);
+  }
+  async changes(folder: string, options: ChangeOptions) {
+    if (!this.resources().some((r) => r.folder === folder)) return { error: 'This folder is not a resource of this task.' };
+    return listChanges(folder, options, this.worktrees.find((c) => c.folder === folder)?.base);
+  }
+  async changeTargets(folder: string) {
+    if (!this.resources().some((r) => r.folder === folder)) return { error: 'This folder is not a resource of this task.' };
+    return listChangeTargets(folder, this.worktrees.find((c) => c.folder === folder)?.base);
+  }
+  async review(folder: string, options: ChangeOptions, load: string[] = []) {
+    if (!this.resources().some((r) => r.folder === folder)) return { error: 'This folder is not a resource of this task.' };
+    return loadReview(folder, options, this.worktrees.find((c) => c.folder === folder)?.base, load);
+  }
+  async diffContents(folder: string, file: string, options: ChangeOptions) {
+    if (!this.resources().some((r) => r.folder === folder)) return { error: 'This folder is not a resource of this task.' };
+    return readDiff(folder, file, options, this.worktrees.find((c) => c.folder === folder)?.base);
   }
   async openProjectFile(file: string): Promise<Result> {
     const found = await resourcePath(this.resources().map((r) => r.folder), file);

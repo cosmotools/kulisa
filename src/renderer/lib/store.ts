@@ -2,6 +2,7 @@
 // useWindow(selector), elsewhere with store.getState().
 import { createStore, useStore } from 'zustand';
 import type { StageTerminal } from '../../shared/stage-terminal';
+import type { ChangeSelection } from '../../shared/changes';
 import type { Artifact, ClosedProfile, LanguageInfo, Profile, ProjectsInfo, DevelopmentTerminalsState } from '../../shared/types';
 import type { Invoke, OnTask, StageLayout, StagePosition } from '../../shared/ipc';
 import { initialProjects } from './common';
@@ -25,6 +26,7 @@ interface WindowState {
   stagePosition: StagePosition;
   closedProfiles: ClosedProfile[];
   developmentTerminals: DevelopmentTerminalsState;
+  developmentDiff: ChangeSelection | null;
   stageTerminals: StageTerminal[];
   stageTerminalFocus: { task: string | null; key: string | null } | null;
   // The files the agent's tools kept of a task's pages, the newest first (Resources), of the task named.
@@ -55,6 +57,7 @@ export const store = createStore<WindowState>()(() => ({
   stagePosition: 'above',
   closedProfiles: [],
   developmentTerminals: { front: null, list: [] },
+  developmentDiff: null,
   artifacts: { task: '', list: [], bytes: 0 },
   zoom: 1,
   theme: query.get('theme') || 'dark',

@@ -45,11 +45,18 @@ function fileIcons(): Plugin {
 }
 
 const renderer = resolve(import.meta.dirname, 'src/renderer');
+const diffsRoot = resolve(dirname(fileURLToPath(import.meta.resolve('@pierre/diffs'))), '..');
 export default defineConfig({
   root: renderer,
   base: './', // loaded from file://
-  plugins: [react(), tailwindcss(), fileIcons()],
+  plugins: [react(), tailwindcss(), fileIcons(), {
+    name: 'review-licenses',
+    generateBundle() {
+      this.emitFile({ type: 'asset', fileName: 'pierre-diffs-LICENSE.txt', source: readFileSync(resolve(diffsRoot, 'LICENSE.md'), 'utf8') });
+    },
+  }],
   resolve: { alias: { '@ui': resolve(import.meta.dirname, 'src/ui') } }, // src/ui's own imports (components.json, aliases)
+  worker: { format: 'es' },
   build: {
     outDir: resolve(import.meta.dirname, 'dist/renderer'),
     emptyOutDir: true,

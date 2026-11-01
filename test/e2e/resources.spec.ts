@@ -186,9 +186,9 @@ test('the Resources bar grip docks the panel while open, closed and sharing term
   await expect(resources.getByRole('region')).toHaveCount(0);
   await expect(resources).toHaveAttribute('data-bar-side', 'left');
   await dock(ui, (api) => api.getPanel('resources').api.setSize({ height: 400 }));
-  await expect.poll(async () => (await resources.boundingBox()).height).toBe(172);
+  await expect.poll(async () => (await resources.boundingBox()).height).toBe(204);
   await showResources(ui, 'Artifacts');
-  await expect.poll(async () => (await resources.boundingBox()).height).toBeGreaterThan(172);
+  await expect.poll(async () => (await resources.boundingBox()).height).toBeGreaterThan(204);
   await move('center');
   await expect.poll(() => dock(ui, (api) => api.getPanel('resources').group.id === api.getPanel('terminal').group.id)).toBe(true);
   await move('right');
@@ -225,7 +225,7 @@ test('the Resources bar keeps all sections and its grip reachable at minimum hei
     api.getPanel('resources').api.setSize({ height: 10 });
   });
   const resources = ui.locator('#resources');
-  await expect.poll(async () => (await resources.boundingBox()).height).toBeGreaterThanOrEqual(172);
+  await expect.poll(async () => (await resources.boundingBox()).height).toBeGreaterThanOrEqual(204);
   const bounds = await resources.boundingBox();
   for (const name of ['Project', 'Artifacts', 'Agents', 'Speak to the agent', 'Move Resources panel']) {
     const control = resources.getByRole('button', { name, exact: true });
