@@ -14,6 +14,8 @@
 
 /* Outlines frame files without changing CodeView's measured layout. */
 .diff-review diffs-container[role="article"] {
+  /* Code must opt out of the window's selection ban through its shadow host. */
+  user-select: text;
   border-radius: var(--radius);
   outline: 1px solid var(--border);
   overflow: clip;
