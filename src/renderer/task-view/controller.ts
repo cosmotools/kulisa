@@ -3,7 +3,7 @@ import { store } from '../lib/store';
 import { taskStore } from './state';
 import type { TaskGrid } from './grid';
 import { closeLayers } from '../lib/cover';
-import { forgetFrozen, onLivePages } from './views';
+import { forgetFrozen } from './views';
 import { forgetTerminals } from '../../terminal/renderer';
 import { panelId } from './layout';
 const grids = new Map<string, TaskGrid>();
@@ -14,8 +14,6 @@ export function registerTaskGrid(grid: TaskGrid) {
 export const taskGrid = (task: string | null) => grids.get(task ?? '');
 const current = () => taskGrid(store.getState().current);
 export const pane = (id: string) => current()?.panes.get(id);
-const scheduleLayout = () => current()?.scheduleLayout();
-onLivePages(scheduleLayout);
 export const dockApi = () => current()?.development.api ?? null;
 export const stageApi = () => current()?.stage.api ?? null;
 export const showPane = (task: string, id: string) => taskGrid(task)?.stage.api?.getPanel(panelId(id))?.api.setActive();

@@ -108,9 +108,10 @@ The screen's memo boundary keeps selection changes out of unchanged descendants.
 polling and dictation subscribe to task activity; the microphone owns its subscription within Resources.
 Each controller owns its profile-pane handles, so copies of the same profile address their own DOM and controls.
 Launchers use their task's project; terminal and profile menu actions capture their task key, so a delayed action cannot address another task.
-State messages carry their task key. Window and task state reuse equal objects through TanStack's structural sharing;
-the TaskView registry follows open tabs and first visits. Grid synchronization follows changes to environment panel IDs or whether the development
-terminal is empty; status and tab updates refresh their controls. Background terminal output continues into its own buffers.
+State messages carry their task key. Window and task state reuse equal objects through TanStack's structural sharing.
+The TaskView registry follows open tabs and first visits. Grid synchronization runs at initialization and when the
+environment panel IDs change or the development terminal folds or unfolds. Geometry frames size existing panels and
+report page bounds. Status and tab updates refresh their controls; background terminal output enters its own buffers.
 
 The outer Gridview observes available room; its panel dimension events size nested grids synchronously with their
 automatic resizing disabled. Each TaskView observes its host outside the skipped contents to keep hidden grids sized
@@ -118,7 +119,8 @@ when the window changes. Hidden grids publish their own page geometry on layout,
 Geometry reporting reads current dimensions because Dockview's resize observer runs in a later frame.
 Main applies `layout:apply` only to its owning task in that window; the first report makes its native pages ready.
 Selecting a prepared task shows its pages at their stored bounds and hides the outgoing pages in the same main-process
-turn. Menus and Settings cover pages independently of geometry; late captures cannot change another task's cover.
+turn. Menus and Settings cover pages independently of geometry; closing a menu reveals pages at their stored bounds.
+Late captures cannot change another task's cover.
 The shared development xterm moves into the
 active task's terminal host; its content appears after the selected buffer is drawn at the pane's size. Hidden Stage terminals retain their
 Views, processes and buffers. A task's open Diff retains its comparison, filter, document and scroll position.
@@ -213,7 +215,7 @@ bringing its tab into view (`scrollIntoView`) would move the whole grid up by a 
 
 The profiles' pages are native views above the window's HTML ([ui.md](ui.md)) and belong to their project's window
 (`Profile.moveTo`). While a panel is dragged, a menu is open or a dialog is shown, the pages are pictures of
-themselves (or hidden), so the HTML can be on top; live again once nothing covers them (`livePages`). A page that
+themselves (or hidden), so the HTML can be on top; live again once nothing covers them (`unfreeze`). A page that
 gives no picture (covered, the monitor off, busy) leaves its pane empty meanwhile: waiting would hold the menu and
 every one after it. How long is the pages' own pace: once the first has answered, the rest get three times as long, a
 tenth of a second at least (a live page answers in a few milliseconds on a fast machine, over a hundred on a slow

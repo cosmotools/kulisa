@@ -17,12 +17,7 @@ export class DevelopmentGrid {
   private terminalFold: { group: DockviewApi['groups'][number]; vertical: boolean; size: number } | null = null;
   private reviewNavigation = 0;
   private reviewSession: ReturnType<typeof createDiff> | null = null;
-  private stop: () => void;
-  constructor(private readonly store: TaskStore, private readonly changed: () => void, private readonly scheduleLayout: () => void) {
-    this.stop = store.subscribe((next, previous) => {
-      if (previous.developmentDiff && !next.developmentDiff) { this.reviewSession?.client.clear(); this.reviewSession = null; }
-    });
-  }
+  constructor(private readonly store: TaskStore, private readonly changed: () => void, private readonly scheduleLayout: () => void) {}
   get review() {
     const task = this.store.getState().key;
     return this.reviewSession ??= createDiff({
@@ -37,7 +32,7 @@ export class DevelopmentGrid {
   }
   screen = (): 'agents' | 'diff' => this.store.getState().developmentDiff ? 'diff' : 'agents';
   attach(api: DockviewApi) { this.api = api; this.developmentGap = dockTheme.gap ?? 0; }
-  dispose() { this.stop(); this.reviewSession?.client.clear(); this.reviewSession = null; this.api = null; this.terminalFold = null; }
+  dispose() { this.reviewSession?.client.clear(); this.reviewSession = null; this.api = null; this.terminalFold = null; }
   build(saved: SerializedDockview | null) {
     const a = this.api!;
     this.terminalFold = null;
@@ -153,6 +148,7 @@ export class DevelopmentGrid {
   };
 
   showAgents = () => {
+    this.reviewSession?.client.clear(); this.reviewSession = null;
     this.store.setState({ developmentDiff: null });
     this.changed();
   };

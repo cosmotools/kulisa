@@ -100,7 +100,7 @@ export function DevelopmentTerminals({ api, containerApi, reviewing }: IDockview
 // One width for all, so the rows line up.
 function Launchers({ ref }: { ref: Ref<HTMLDivElement> }) {
   const task = useTask((s) => s.key), closed = useTask((s) => s.closedProfiles);
-  useWindow((s) => s.projects); // the project's agents
+  useWindow((s) => s.projects.open); // the project's agents
   return <div ref={ref} data-testid="launchers" className="flex max-w-full flex-col gap-4 self-center justify-self-center p-3">
     <nav aria-label="New terminal" className="flex flex-wrap justify-center gap-3">
       {launchers(task).map((l) => <Button key={l.id} data-launcher variant="outline" aria-label={l.name} title={l.title} className="h-auto w-60 justify-start"

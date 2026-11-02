@@ -190,8 +190,6 @@ export class TaskGrid {
     if (this.disposed || !this.ready) return;
     this.frame = requestAnimationFrame(() => {
       if (this.disposed) return;
-      if (this.arrangement) { const pending = this.arrangement; this.arrangement = null; this.arrange(pending); }
-      this.mutate(() => flushSync(() => this.sync()));
       this.layout();
       kulisa.send('layout:apply', { task: this.key, rects: pageRects(this.stage.api, this.stage.viewport, this.state.getState().profiles, this.panes) });
     });

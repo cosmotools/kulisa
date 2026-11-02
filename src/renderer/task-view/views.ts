@@ -8,8 +8,6 @@ import { coverUnder, dialogsShown } from '../lib/cover';
 // menu would show them over it.
 const viewsCovered = () => dialogsShown() > 0 || !!frozen;
 export const showViews = () => kulisa.invoke('views:hidden', viewsCovered());
-let layout: (() => void) | null = null;
-export const onLivePages = (listener: () => void) => { layout = listener; };
 
 // Pictures of the pages for a menu or a drag; live again after.
 let frozen: Promise<void> | null = null;
@@ -28,14 +26,8 @@ export async function unfreeze() {
   frozen = null;
   await pending;
   if (frozen || owner !== taskStore()) return;
-  await livePages();
-}
-// The pages live again in place of their pictures, unless a menu or a drag has them (it does so when it ends).
-async function livePages() {
-  if (frozen) return;
-  taskStore().setState({ pictures: {} });
+  owner.setState({ pictures: {} });
   await showViews();
-  layout?.();
 }
 // A task switch forgets a capture still in progress (controller.ts).
 export const forgetFrozen = () => { frozen = null; };
