@@ -69,25 +69,27 @@ an asynchronous launch can cancel its request when the human puts the keyboard e
 scrollback and modes, no renderer: about 0.6 MB full), and each place that shows a terminal, the terminals' panel and an
 account's sign-in and each visible Stage terminal, has one shown xterm (`View`) with a WebGL renderer, falling back to DOM
 when WebGL is unavailable or its context is lost. A View fits its pane or uses fixed dimensions (`setSize`). Showing another terminal there writes
-that one's buffer into it (`serialize`, after a reset, RIS, in the same write: xterm parses a write at once, so the
-one shown before stays drawn until the other's is in, no frame empty between), its scroll put back, in about 15 ms; its
-selection is lost, as when another tab is shown. While shown, a terminal's output goes into both, at one size, so leaving it costs
+that one's buffer into it (`serialize`, after a reset, RIS, in the same write) and restores its scroll; its
+selection is lost, as when another tab is shown. Its content stays transparent through restoration and appears on
+`onRender` after the buffer and pane dimensions agree. Opacity preserves measurement and keyboard focus. While
+shown, a terminal's output goes into both, at one size, so leaving it costs
 nothing; output coming while a buffer is being put in waits after it (`pending`). Why one: an xterm shown has a WebGL
 context and its glyph atlas, and Chromium keeps 16 contexts a page: the 17th would take the oldest terminal's (often
 the first task's agent), which would fall back to the DOM renderer silently. With 20 terminals on a discrete GPU, the
 video memory 472 → 178 MB, the RAM about the same (on an integrated GPU, or a Mac's, that memory is the RAM); with
 Chromium's software GPU, 609 → 234 MB. (VS Code keeps an xterm a terminal.)
 
-The development View belongs to the window and moves into the active TaskView; switching buffers preserves the
-previous drawing until the next buffer is ready. Stage Views belong to their task's panes and remain mounted while
-the task is hidden. Closing a pane or task releases its Views.
+The development View belongs to the window and moves into the active TaskView. Stage Views belong to their task's
+panes and remain mounted while the task is hidden. Closing a pane or task releases its Views.
 
 **Fitted in a frame about to be drawn.** A terminal is put in at its buffer's size, and the xterm and the buffer get
 the room laid out only from the fit, measured in `requestAnimationFrame`: fitted at once in a window just opened, its
 grid not laid out, the buffer would be wrapped at 9 columns. A place whose DOM size trails its layout supplies
-`View.isLaidOut`: fitting waits for it before measuring and before sending the size. Resized after that frame: a resize
-clears WebGL's canvas, which xterm draws again in the next frame, so one resized in a frame is drawn empty. A hidden
-page draws no frames, so there it is measured at once: Windows hides a window other windows cover (one opening behind
+`View.isLaidOut`: fitting retries on following frames until it agrees, before measuring and before sending the size.
+Resize observations coalesce into one pending frame; disposal cancels both the frame and its deferred resize.
+Resized after that frame: a resize clears WebGL's canvas, which xterm draws again in the next frame, so one resized
+in a frame is drawn empty. A hidden page draws no frames, so there it is measured at once: Windows hides a window
+other windows cover (one opening behind
 them too), whose agents would otherwise start only once someone looks at it.
 
 Serializing leaves out the cursor's visibility (`?25`) and the mouse's encoding (`?1006`, `?1015`, `?1016`: Claude

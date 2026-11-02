@@ -8,7 +8,7 @@
 import '@xterm/xterm/css/xterm.css';
 import '@fontsource/jetbrains-mono/400.css';
 import '@fontsource/jetbrains-mono/700.css';
-import { Terminal, type ILink } from '@xterm/xterm';
+import { Terminal, type IDisposable, type ILink } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { Unicode11Addon } from '@xterm/addon-unicode11';
 import { WebglAddon } from '@xterm/addon-webgl';
@@ -141,7 +141,7 @@ export class View {
   // The rows that fit, in the middle: what is left under a whole row (the place's height is any) shared above and below,
   // so no edge gets a row's height of it and a pixel more or less never costs a row.
   private host = Object.assign(document.createElement('div'), { className: 'xterm-host',
-    style: 'height: 100%; display: flex; flex-direction: column; justify-content: center' });
+    style: 'height: 100%; display: flex; flex-direction: column; justify-content: center; opacity: 0' });
   private fit = new FitAddon();
   private search?: SearchAddon;
   private searchText = '';
@@ -174,6 +174,7 @@ export class View {
   private opened = false;
   private seen = new ResizeObserver(() => this.fitSoon());
   private pending: string[] | null = null; // output that came while the buffer was being put in
+  private paint?: IDisposable;
   constructor({ colors, fontSize }: TermStyle) {
     this.el.append(this.host);
     const t = this.term = new Terminal({ fontSize, fontFamily: '"JetBrains Mono", monospace', cursorBlink: true,
@@ -237,7 +238,12 @@ export class View {
   show(key: string | null) {
     if (key === this.key) return;
     const was = this.key && buffers.get(this.key), at = this.term.buffer.active;
-    if (was) was.scroll = at.viewportY === at.baseY ? undefined : at.viewportY; // at the end: kept at the end
+    if (was && !this.pending) was.scroll = at.viewportY === at.baseY ? undefined : at.viewportY; // at the end: kept at the end
+    this.paint?.dispose();
+    this.paint = undefined;
+    // Keep geometry and keyboard focus while asynchronous writes and resize can draw the preceding buffer.
+    this.host.style.opacity = '0';
+    this.pending = null;
     this.key = key;
     if (!key) return this.term.reset();
     const b = bufferOf(key, this.size() ?? undefined);
@@ -249,13 +255,14 @@ export class View {
       // At the buffer's own size: the fit (below) gives both the room laid out, as for any change of size. Fitted to
       // the room here, a window just opened, its grid not laid out, would wrap the buffer at 9 columns.
       this.term.resize(b.term.cols, b.term.rows);
-      // The reset (RIS) in the same write as the contents: one write is parsed at once, so no frame is drawn between
-      // them, and the terminal shown before stays on screen until then (one reset before it would be drawn empty).
-      this.term.write(`\x1bc${serialized(key)!.data}${pending.join('')}`, () => {
+      this.term.write(`\x1bc${serialized(key)!.data}${pending.splice(0).join('')}`, () => {
+        if (this.key !== key || this.pending !== pending) return;
         if (b.scroll !== undefined) this.term.scrollToLine(b.scroll);
+        this.pending = null;
+        if (pending.length) this.term.write(pending.join(''));
+        this.reveal();
+        this.fitSoon();
       });
-      this.pending = null;
-      this.fitSoon();
     });
   }
   // Its terminal's buffer given another size (restoreTerminal): at it too, then fitted to its room as after show.
@@ -274,7 +281,11 @@ export class View {
     if (colors) this.term.options.theme = xtermTheme(colors);
     if (fontSize !== undefined && fontSize !== this.term.options.fontSize) { this.term.options.fontSize = fontSize; this.fitSoon(); }
   }
-  dispose() { clearTimeout(this.fitTimer); views.delete(this); this.seen.disconnect(); this.term.dispose(); this.el.remove(); }
+  dispose() {
+    cancelAnimationFrame(this.fitFrame); clearTimeout(this.fitTimer); this.paint?.dispose();
+    this.pending = null;
+    views.delete(this); this.seen.disconnect(); this.term.dispose(); this.el.remove();
+  }
   // The size it has room for, once it is on screen and xterm has measured its characters.
   private size() {
     if (!this.opened || !this.el.offsetWidth) return null;
@@ -282,18 +293,34 @@ export class View {
     const d = this.fit.proposeDimensions();
     return d?.cols ? { cols: d.cols, rows: d.rows } : null;
   }
+  private reveal() {
+    const ready = () => {
+      if (this.pending || this.isLaidOut && !this.isLaidOut()) return false;
+      const size = this.size();
+      return size && this.term.cols === size.cols && this.term.rows === size.rows;
+    };
+    if (!this.host.style.opacity || this.paint || !ready()) return;
+    this.paint = this.term.onRender(() => {
+      if (!ready()) return;
+      this.paint?.dispose();
+      this.paint = undefined;
+      this.host.style.opacity = '';
+    });
+    this.term.refresh(0, this.term.rows - 1);
+  }
   // Its size sent once it is on screen, laid out: an agent starts at the first size sent for its terminal
   // (main/index.ts) and draws its prompt for it. Not yet measured (xterm has not measured its characters, or the
   // panel is not laid out): again a moment later, so the agent gets its real size, never xterm's default.
   // Measured in a frame about to be drawn (README.md, Fitted in a frame about to be drawn); in a hidden page, which draws
   // no frames, at once.
+  private fitFrame = 0;
   private fitTimer = 0;
   private fitSoon(tries = 50) {
+    cancelAnimationFrame(this.fitFrame);
     clearTimeout(this.fitTimer);
-    const inFrame = (f: () => void) => (document.hidden ? f() : requestAnimationFrame(f));
-    this.fitTimer = window.setTimeout(() => inFrame(() => {
+    const measure = () => {
       const key = this.key;
-      if (!key || this.pending || !this.opened || !this.el.offsetWidth) return; // not on screen: fitted when it comes
+      if (!views.has(this) || !key || this.pending || !this.opened || !this.el.offsetWidth) return;
       if (this.isLaidOut && !this.isLaidOut()) return tries && this.fitSoon(tries - 1);
       const size = this.size();
       if (!size) return tries && this.fitSoon(tries - 1);
@@ -304,12 +331,15 @@ export class View {
         const b = bufferOf(key, size);
         if (b.term.cols !== size.cols || b.term.rows !== size.rows) b.term.resize(size.cols, size.rows);
         kulisa.send('pty:resize', { task: key, ...size });
+        this.reveal();
       };
       // Resized after this frame: a resize clears WebGL's canvas and xterm draws it again in the next frame, so one
       // resized in a frame is drawn empty (README.md, Fitted in a frame about to be drawn).
       if (document.hidden) fit();
       else this.fitTimer = window.setTimeout(fit);
-    }), 100);
+    };
+    if (document.hidden) this.fitTimer = window.setTimeout(measure);
+    else this.fitFrame = requestAnimationFrame(measure);
   }
 }
 

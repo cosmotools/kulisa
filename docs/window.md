@@ -114,7 +114,7 @@ its environments without forcing a layout when its dimensions match. Geometry re
 because Dockview's resize observer runs in a later frame. Native pages stay hidden until `layout:apply` and
 `grid:ready` identify the selected task's geometry; late loads, captures and layout messages cannot reveal another
 task. The shared development xterm moves into the
-active task's terminal host and switches buffers without an intermediate reset. Hidden Stage terminals retain their
+active task's terminal host; its content appears after the selected buffer is drawn at the pane's size. Hidden Stage terminals retain their
 Views, processes and buffers. A task's open Diff retains its comparison, filter, document and scroll position.
 
 `task.json` keeps Stage view/overflow/layout in `stage`, and development layout, Stage position/share in `workspace`,
