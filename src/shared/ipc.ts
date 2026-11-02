@@ -107,7 +107,6 @@ export interface Invoke extends TerminalInvoke, ThumbnailInvoke, GitHubInvoke, D
   'profile:open': I<[OnProfile]>;
   'profile:delete': I<[OnProfile]>;
   'profile:master': I<[OnProfile]>;
-  'grid:ready': I<[{ task: string; hidden: boolean }], void>;
   'views:hidden': I<[hidden: boolean, opts?: { snapshots?: boolean }], Record<string, string> | undefined>;
   'stage:arrange': I<[OnTask & { layout?: StageLayout; overflow?: boolean; position?: StagePosition }], Result>;
   'layout:load': I<[OnTask], unknown>; // the grid as the window saved it (layout:save)

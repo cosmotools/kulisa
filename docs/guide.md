@@ -272,6 +272,7 @@ it ends: the question links the GitHub page where you revoke it at once.
 ## Tasks
 
 Switching tasks keeps each task’s panel arrangement, expanded Project folders and scroll positions while its tab stays open. Its agents keep working in the background.
+After a task has been shown, its browser panes return at their saved positions when you switch back.
 The agent terminal can briefly show its background while the selected task's text is prepared.
 
 - **The sidebar** (the button at the start of the tasks' bar, or Ctrl+Shift+A; with no task open it is always there): every

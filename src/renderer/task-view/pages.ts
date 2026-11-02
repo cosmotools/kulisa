@@ -3,14 +3,13 @@ import type { DockviewApi } from 'dockview-react';
 import type { PageLayout } from '../../shared/ipc';
 import type { Profile } from '../../shared/types';
 import { panelId } from './layout';
-interface PaneHandle { content: HTMLElement; focusAddress(): void; cancelAddress(): void; newTab(): void; pick(): void }
-export const panes = new Map<string, PaneHandle>();
-export function pageRects(stage: DockviewApi | null, viewport: HTMLElement | null, profiles: Profile[]) {
+export interface PaneHandle { content: HTMLElement; focusAddress(): void; cancelAddress(): void; newTab(): void; pick(): void }
+export function pageRects(stage: DockviewApi | null, viewport: HTMLElement | null, profiles: Profile[], panes: Map<string, PaneHandle>) {
   const rects: Record<string, PageLayout> = {};
   const v = viewport?.getBoundingClientRect();
   for (const p of profiles) {
     const panel = stage?.getPanel(panelId(p.id)), c = panes.get(p.id)?.content;
-    if (!panel?.api.isVisible || !c?.isConnected || !c.checkVisibility() || !c.offsetWidth) { rects[p.id] = { shown: false }; continue; }
+    if (!panel?.api.isVisible || !c?.isConnected || !c.offsetWidth) { rects[p.id] = { shown: false }; continue; }
     const r = c.getBoundingClientRect();
     const x = Math.max(r.x, v?.x ?? r.x), y = Math.max(r.y, v?.y ?? r.y);
     const right = Math.min(r.right, v ? v.x + viewport!.clientWidth : r.right), bottom = Math.min(r.bottom, v ? v.y + viewport!.clientHeight : r.bottom);

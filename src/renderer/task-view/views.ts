@@ -6,9 +6,8 @@ import { coverUnder, dialogsShown } from '../lib/cover';
 
 // A menu or a drag too (frozen): the pages stay pictures until it ends (unfreeze), or the next task's grid shown under a
 // menu would show them over it.
-const viewsCovered = () => dialogsShown() > 0 || taskStore().getState().loading || !!frozen;
-const showViews = () => kulisa.invoke('views:hidden', viewsCovered());
-export const revealGrid = (task: string) => kulisa.invoke('grid:ready', { task, hidden: viewsCovered() });
+const viewsCovered = () => dialogsShown() > 0 || !!frozen;
+export const showViews = () => kulisa.invoke('views:hidden', viewsCovered());
 let layout: (() => void) | null = null;
 export const onLivePages = (listener: () => void) => { layout = listener; };
 

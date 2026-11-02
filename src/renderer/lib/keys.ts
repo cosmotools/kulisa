@@ -2,7 +2,7 @@
 // process has to know where the keyboard is in this page to know whose a key is; it sends the commands back here, with
 // the profile and tab they act on.
 import { store } from './store';
-import { act, screenshot, taskStore, panes, focusDevelopmentTerminal } from '../task-view';
+import { act, screenshot, taskStore, pane, focusDevelopmentTerminal } from '../task-view';
 import { dialog } from './dialogs';
 import { toggleSidebar } from './sidebar';
 import { dialogsShown, onDialogs } from './cover';
@@ -53,10 +53,10 @@ const run: Record<string, (c: Command) => unknown> = {
   'task.new': () => kulisa.invoke('task:new'),
   'task.menu': () => toggleSidebar(),
   shortcuts: async () => (await dialog('shortcuts')).showShortcuts(),
-  'tab.new': ({ p }) => panes.get(p!.id)?.newTab(),
+  'tab.new': ({ p }) => pane(p!.id)?.newTab(),
   'tab.close': ({ p, tab, page }) => act('tab:close', { profile: p!.id, tab, focus: page }),
   'tab.reopen': ({ p }) => act('tab:reopen', { profile: p!.id }),
-  'tab.address': ({ p }) => panes.get(p!.id)?.focusAddress(),
+  'tab.address': ({ p }) => pane(p!.id)?.focusAddress(),
   'tab.reload': ({ p, tab }) => act('tab:reload', { profile: p!.id, tab }),
   'tab.reloadAll': ({ p, tab }) => act('tab:reload', { profile: p!.id, tab, ignoreCache: true }),
   'tab.back': ({ p, tab }) => act('tab:back', { profile: p!.id, tab }),
@@ -65,7 +65,7 @@ const run: Record<string, (c: Command) => unknown> = {
   'tab.previous': (c) => toTab(c, (i, n) => (i - 1 + n) % n),
   'tab.n': (c) => toTab(c, (_i, n) => (c.n! <= n ? c.n! - 1 : -1)),
   'tab.last': (c) => toTab(c, (_i, n) => n - 1),
-  pick: ({ p }) => panes.get(p!.id)?.pick(),
+  pick: ({ p }) => pane(p!.id)?.pick(),
   screenshot: ({ p }) => screenshot(p!.id, 'element'),
 };
 function stepTask(dir: number) {
@@ -82,7 +82,7 @@ const focusPage = (id: string) => { const p = taskStore().getState().profiles.fi
 kulisa.on('command:run', ({ id, n, profile, tab, task, page }) => {
   if (task !== store.getState().current || !run[id]) return; // a key typed as another task was coming
   const p = profile ? taskStore().getState().profiles.find((x) => x.id === profile) : undefined;
-  if (profile && (!p || !panes.get(profile))) return;
+  if (profile && (!p || !pane(profile))) return;
   if (page) lastPane = profile!;
   run[id]({ n, page, p, tab: tab || p?.active || undefined });
 });

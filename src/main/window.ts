@@ -44,8 +44,9 @@ let windows = 0;
 const PRELOAD = path.join(import.meta.dirname, '..', 'preload', 'index.cjs');
 
 class AppWindow {
-  shell: Shell; id: number; tabs: Task[]; current: Task | null; viewsHidden: boolean; switching: boolean;
-  private gridReady = false;
+  shell: Shell; id: number; tabs: Task[]; current: Task | null; switching: boolean;
+  private readonly laidOut = new Set<Task>();
+  private covered = false;
   private gridRevision = 0;
   stateTimer: NodeJS.Timeout | undefined; picking: Map<string, { profile: Profile; page: import('playwright-core').Page; cancel: () => unknown }>;
   questions: Questions; loaded: boolean; pending: [string, unknown[]][]; keyZone: string;
@@ -59,8 +60,6 @@ class AppWindow {
     this.id = ++windows; // for a page to name another window (task:move)
     this.tabs = []; // the tasks open in it (tasks.ts: Task), its tabs in order
     this.current = null; // the one shown
-    // True until the page has laid out the shown task's grid (the renderer then shows the views).
-    this.viewsHidden = true;
     // From leaving a task until the next one's profiles are all loaded: nothing is saved, and the page gets no
     // state (a partial one would build a grid other than the saved one).
     this.switching = true;
@@ -114,6 +113,7 @@ class AppWindow {
     win.on('blur', () => { if (this.task) this.shell.dictation.letGo(this.task.key); this.send('window:blur'); });
   }
   get task() { return this.current; }
+  get viewsHidden() { return this.covered || this.switching || !this.task || !this.laidOut.has(this.task); }
   get profiles(): Map<string, Profile> { return this.task?.profiles || NONE; }
   get closed(): Task['closed'] { return this.task?.closed || NONE; }
   where() { return { bounds: this.win.getNormalBounds(), maximized: this.win.isMaximized() }; }
@@ -205,8 +205,6 @@ class AppWindow {
     this.shell.saveWindows();
     this.sendProjects();
   }
-  // Another task on screen: the grid on screen goes at once, as a browser's tab (none: the window showed no task), then
-  // its profiles and terminals come.
   async show(task: Task) {
     log.info(`[window] wc=${this.win.webContents.id} shows ${task.key}`);
     if (task === this.current) return;
@@ -228,10 +226,10 @@ class AppWindow {
     const developmentTerminals = task.loadDevelopmentTerminals();
     this.pushState();
     this.seen();
+    this.updateViews();
     developmentTerminals.catch((e) => console.error('[agent]', e));
   }
-  // Native pages stay hidden until the selected TaskView has reported its geometry.
-  leaveGrid() {
+  private leaveGrid() {
     if (!this.current) return;
     this.gridRevision++;
     this.pushState(); // saves the tabs
@@ -239,18 +237,18 @@ class AppWindow {
     clearTimeout(this.stateTimer);
     for (const { cancel } of this.picking.values()) cancel();
     this.thumbnails.close(); // its pane goes
-    this.viewsHidden = true; this.gridReady = false;
-    for (const p of this.profiles.values()) p.setHidden(true);
   }
   // Before a task's tab goes (the task closes, or moves to another window): the tab next to it is shown, or the
   // window is left with none (the empty window).
   async leave(task: Task) {
     if (task !== this.current) return;
     const i = this.tabs.indexOf(task), next = this.tabs[i + 1] || this.tabs[i - 1];
-    if (next) await this.show(next); else this.leaveGrid();
+    if (next) await this.show(next);
+    else { this.leaveGrid(); this.updateViews(); }
   }
   // Then the tab goes, and the page forgets the task (terminals, pictures).
   drop(task: Task) {
+    this.laidOut.delete(task);
     this.tabs.splice(this.tabs.indexOf(task), 1);
     if (task.window === this) task.window = null;
     if (this.current === task) {
@@ -270,10 +268,11 @@ class AppWindow {
   }
 
   // ---------- the profiles' views ----------
-  async revealGrid(key: string, hidden: boolean) {
-    if (this.task?.key !== key) return;
-    this.gridReady = true;
-    await this.hideViews(hidden);
+  private updateViews() {
+    // One main-process turn avoids an empty native layer between prepared tasks.
+    for (const p of this.profiles.values()) p.setHidden(this.viewsHidden);
+    for (const task of this.tabs) if (task !== this.task) for (const p of task.profiles.values()) p.setHidden(true);
+    this.thumbnails.setHidden(this.viewsHidden);
   }
   // Settings and the grid's drop targets are HTML; the profiles' views are native and draw above it, so
   // they are hidden meanwhile. With snapshots: first a picture of each page on screen, for the page to show in its
@@ -282,15 +281,12 @@ class AppWindow {
     const owner = this.gridRevision;
     const pics = hidden && snapshots ? await this.pictures() : {};
     if (this.gridRevision !== owner) return {};
-    // While a task is being switched they stay hidden, whatever comes (a closing menu shows them
-    // again); the page shows them once it has the next grid laid out.
-    this.viewsHidden = !!hidden || this.switching || !this.gridReady;
+    this.covered = hidden;
     // A dialog over the pages (hidden, no pictures): a page that had the keyboard keeps it unseen, and the dialog's focus
     // trap (Radix's) works in a page that has the keyboard, its keys going nowhere else: the window's page takes it. Menus
     // (pictures) put the keyboard back themselves as they close.
     const from = hidden && !snapshots && [...this.profiles.values()].some((p) => { const wc = p.get()?.wc; return wc && !wc.isDestroyed() && wc.isFocused(); });
-    for (const p of this.profiles.values()) p.setHidden(this.viewsHidden);
-    this.thumbnails.setHidden(this.viewsHidden);
+    this.updateViews();
     if (from) focusWindow(this.win.webContents);
     return pics;
   }
@@ -321,11 +317,16 @@ class AppWindow {
   // Where the grid puts each pane's page (key: the task the page laid out), in CSS pixels; the views are placed
   // in window pixels.
   layout(key: string | null, rects: Record<string, PageLayout>) {
-    if (key !== this.task?.key) return; // a task no longer on screen
+    const task = this.tabs.find((t) => t.key === key);
+    if (!task?.loaded) return;
     const z = this.win.webContents.getZoomFactor();
     const scale = (r: Partial<Bounds>): Bounds => ({ x: Math.round((r.x ?? 0) * z), y: Math.round((r.y ?? 0) * z), width: Math.round((r.width ?? 0) * z), height: Math.round((r.height ?? 0) * z) });
-    for (const [id, { clip, ...r }] of Object.entries(rects)) this.profiles.get(id)?.layout(r.shown === false ? r : { ...scale(r), ...(clip && { clip: scale(clip) }) });
-    this.thumbnails.place(this.paneBox);
+    for (const [id, { clip, ...r }] of Object.entries(rects)) task.profiles.get(id)?.layout(r.shown === false ? r : { ...scale(r), ...(clip && { clip: scale(clip) }) });
+    if (!this.laidOut.has(task)) {
+      this.laidOut.add(task);
+      log.info(`[window] wc=${this.win.webContents.id} grid ready task=${task.key}`);
+    }
+    if (task === this.task) { this.updateViews(); this.thumbnails.place(this.paneBox); }
   }
   // Where a profile's pane shows its page in the window; null: not on screen.
   paneBox = (id: string) => { const p = this.profiles.get(id); return p?.shown ? p.clip ?? p.bounds : null; };

@@ -12,7 +12,6 @@ import { BrowserTab, TabStrip } from '../components/BrowserTabs';
 import { screenshot, togglePick, useTask, useTaskStore, useTaskActions, useTaskActive, useTaskGrid } from './state';
 import { avatarSrc, keyText, withKeys } from '../lib/common';
 import type { MenuItem } from '../lib/menu';
-import { panes } from './pages';
 import { grow, useStrip } from '../lib/strip';
 import { openSettings } from '../lib/settings';
 import { EnvironmentFocus, environmentFocusItem } from './EnvironmentFocus';
@@ -82,11 +81,11 @@ export function ProfilePane({ api }: IDockviewPanelProps) {
         if (owner.getState().picking[id] || !blank(activeTab(id)?.url)) void togglePick(id, owner);
       },
     };
-    panes.set(id, handle);
+    grid.panes.set(id, handle);
     const observer = new ResizeObserver(grid.scheduleLayout);
     observer.observe(content);
     grid.scheduleLayout();
-    return () => { observer.disconnect(); if (panes.get(id) === handle) panes.delete(id); };
+    return () => { observer.disconnect(); if (grid.panes.get(id) === handle) grid.panes.delete(id); };
   }, [id, content, editAddress, act, activeTab, owner, grid]);
 
   // The tab strip: a tab is chosen on the press, as in Chrome (not on its ×), or by Enter or Space. A tab opened grows
@@ -169,7 +168,7 @@ export function ProfilePane({ api }: IDockviewPanelProps) {
             </BrowserTab>)}
           </TabStrip>
         </RightClickMenu>
-        <Button variant="ghost" size="icon-sm" title={withKeys('New tab', 'tab.new')} aria-label="New tab" onClick={() => void panes.get(id)?.newTab()}>
+        <Button variant="ghost" size="icon-sm" title={withKeys('New tab', 'tab.new')} aria-label="New tab" onClick={() => void grid.panes.get(id)?.newTab()}>
           <PlusIcon />
         </Button>
       </nav>
@@ -223,14 +222,14 @@ function PageDialog({ from, message, confirm, answer }: { from: string; message:
 }
 
 export function ProfileHeader({ api, containerApi }: IDockviewPanelHeaderProps) {
-  const act = useTaskActions();
+  const act = useTaskActions(), grid = useTaskGrid();
   const activity = useTask((s) => s.stageActivity === api.id);
   const id = profileOf(api.id), profile = useProfile(id);
   const caption = useTask((s) => s.captions[id] || '');
   const status = profile?.signinMode ? 'Sign-in page · agent paused' : caption || (activity ? 'Agent active' : 'Idle');
   const StatusIcon = profile?.signinMode ? LockIcon : activity || caption ? CircleDotIcon : CircleIcon;
   const menu = (): MenuItem[] => [
-    { label: 'New tab', keys: keyText('tab.new'), run: () => panes.get(id)?.newTab() },
+    { label: 'New tab', keys: keyText('tab.new'), run: () => grid.panes.get(id)?.newTab() },
     environmentFocusItem(api),
     { label: 'About this profile…', run: () => openSettings('profiles', id) },
     { label: 'Sign In to Master…', run: () => act('profile:master', { profile: id }) },

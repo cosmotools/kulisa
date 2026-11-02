@@ -6,8 +6,6 @@ import { closeLayers } from '../lib/cover';
 import { forgetFrozen, onLivePages } from './views';
 import { forgetTerminals } from '../../terminal/renderer';
 import { panelId } from './layout';
-import { panes } from './pages';
-export { panes };
 const grids = new Map<string, TaskGrid>();
 export function registerTaskGrid(grid: TaskGrid) {
   grids.set(grid.key, grid);
@@ -15,6 +13,7 @@ export function registerTaskGrid(grid: TaskGrid) {
 }
 export const taskGrid = (task: string | null) => grids.get(task ?? '');
 const current = () => taskGrid(store.getState().current);
+export const pane = (id: string) => current()?.panes.get(id);
 const scheduleLayout = () => current()?.scheduleLayout();
 onLivePages(scheduleLayout);
 export const dockApi = () => current()?.development.api ?? null;
@@ -26,7 +25,7 @@ export async function setStageFollowing(follow: boolean) {
   if (follow) current()?.stage.follow();
 }
 kulisa.on('page:press', ({ task }) => {
-  if (task === store.getState().current) for (const profile of taskStore().getState().profiles) panes.get(profile.id)?.cancelAddress();
+  if (task === store.getState().current) for (const profile of taskStore().getState().profiles) pane(profile.id)?.cancelAddress();
 });
 kulisa.on('profile:state', ({ task, list }) => {
   const state = tasks.getState()[task];

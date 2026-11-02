@@ -8,16 +8,16 @@ import { splitLayout, type TaskLayout } from '../../shared/stage-layout';
 import type { Events } from '../../shared/ipc';
 import { DevelopmentGrid } from './development';
 import { StageGrid } from './stage';
-import { pageRects } from './pages';
-import { freeze, unfreeze, revealGrid } from './views';
+import { pageRects, type PaneHandle } from './pages';
+import { freeze, unfreeze, showViews } from './views';
 
 export class TaskGrid {
   readonly development: DevelopmentGrid;
   readonly stage: StageGrid;
+  readonly panes = new Map<string, PaneHandle>();
   private workspace: GridviewApi | null = null;
   private element: HTMLElement | null = null;
   private disposed = false;
-  private needsReveal = true;
   private mutations = 0;
   private dirty = false;
   private saveTimer = 0;
@@ -90,24 +90,24 @@ export class TaskGrid {
     this.changed();
   }
   activate() {
-    this.needsReveal = true;
-    this.scheduleLayout();
+    void showViews();
   }
   deactivate() {
     this.flush();
-    cancelAnimationFrame(this.frame); this.stage.reset(); this.finishDrag();
+    this.stage.reset(); this.finishDrag();
     this.state.setState({ stageTerminalFocus: null, pictures: {}, picking: {}, captions: {} });
   }
   dispose() {
     this.deactivate(); this.disposed = true;
+    cancelAnimationFrame(this.frame);
     for (const stop of this.subscriptions.values()) stop();
     this.subscriptions.clear(); this.stage.detach(); this.development.dispose();
-    this.workspace = null; this.element = null;
+    this.panes.clear(); this.workspace = null; this.element = null;
   }
   private mutate(fn: () => void) { this.mutations++; try { fn(); } finally { this.mutations--; } }
-  update() { if (this.ready && this.active) { this.mutate(() => this.sync()); this.changed(); } }
+  update() { if (this.ready && !this.disposed) { this.mutate(() => this.sync()); this.changed(); } }
   arrange(event: Events['stage:arrange']) {
-    if (!this.ready || !this.active) {
+    if (!this.ready) {
       this.arrangement = { ...this.arrangement, task: this.key, ...(event.layout !== undefined && { layout: event.layout }),
         ...(event.overflow !== undefined && { overflow: event.overflow }), ...(event.position !== undefined && { position: event.position }) };
       return;
@@ -140,8 +140,8 @@ export class TaskGrid {
     if (this.stage.api?.panels.length !== count) this.stage.layout();
   }
   private layout() {
-    if (!this.active || !this.element?.offsetWidth) return;
-    // Dockview's resize observer runs a frame later; native pages need current geometry before reveal.
+    if (this.disposed || !this.element?.offsetWidth) return;
+    // Following hidden grids avoids a geometry round trip when their task is selected.
     this.workspace?.layout(this.element.clientWidth, this.element.clientHeight);
     this.development.constrain();
   }
@@ -163,7 +163,7 @@ export class TaskGrid {
   }
   private changed = () => {
     this.scheduleLayout();
-    if (!this.ready || !this.active || this.mutations) return;
+    if (!this.ready || this.disposed || this.mutations) return;
     this.dirty = true; clearTimeout(this.saveTimer);
     this.saveTimer = window.setTimeout(() => this.flush(), 300);
   };
@@ -178,14 +178,13 @@ export class TaskGrid {
   }
   scheduleLayout = () => {
     cancelAnimationFrame(this.frame);
-    if (!this.active || !this.ready) return;
+    if (this.disposed || !this.ready) return;
     this.frame = requestAnimationFrame(() => {
-      if (!this.active) return;
+      if (this.disposed) return;
       if (this.arrangement) { const pending = this.arrangement; this.arrangement = null; this.arrange(pending); }
       this.mutate(() => flushSync(() => this.sync()));
       this.layout();
-      kulisa.send('layout:apply', { task: this.key, rects: pageRects(this.stage.api, this.stage.viewport, this.state.getState().profiles) });
-      if (this.needsReveal) { this.needsReveal = false; void revealGrid(this.key); }
+      kulisa.send('layout:apply', { task: this.key, rects: pageRects(this.stage.api, this.stage.viewport, this.state.getState().profiles, this.panes) });
     });
   };
   startResourceDrag(panel: DockviewPanelApi, event: DragEvent) {

@@ -104,16 +104,18 @@ Dockview instances and Stage terminal Views live until their task or panel close
 background polling; focus requests and dictation belong to the selected task. Closing the task unmounts its view
 and releases its controller. Selection changes deactivate the outgoing controller directly (`task-view/controller.ts`).
 Window controls address the selected task; panels read their permanent controller and task through one context.
+Each controller owns its profile-pane handles, so copies of the same profile address their own DOM and controls.
 Launchers use their task's project; terminal and profile menu actions capture their task key, so a delayed action cannot address another task.
-State messages carry their task key. Incoming state refreshes the selected task; background terminal output
+State messages carry their task key. Incoming state refreshes its owning TaskView; background terminal output
 continues into its own buffers.
 
 The outer Gridview observes available room; its panel dimension events size nested grids synchronously with their
-automatic resizing disabled. Hidden grids keep following window dimensions. Activating a retained task synchronizes
-its environments without forcing a layout when its dimensions match. Geometry reporting reads current dimensions
-because Dockview's resize observer runs in a later frame. Native pages stay hidden until `layout:apply` and
-`grid:ready` identify the selected task's geometry; late loads, captures and layout messages cannot reveal another
-task. The shared development xterm moves into the
+automatic resizing disabled. Hidden grids publish their own page geometry on layout, content-size and scroll changes.
+Geometry reporting reads current dimensions because Dockview's resize observer runs in a later frame.
+Main applies `layout:apply` only to its owning task in that window; the first report makes its native pages ready.
+Selecting a prepared task shows its pages at their stored bounds and hides the outgoing pages in the same main-process
+turn. Menus and Settings cover pages independently of geometry; late captures cannot change another task's cover.
+The shared development xterm moves into the
 active task's terminal host; its content appears after the selected buffer is drawn at the pane's size. Hidden Stage terminals retain their
 Views, processes and buffers. A task's open Diff retains its comparison, filter, document and scroll position.
 
