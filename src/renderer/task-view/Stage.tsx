@@ -3,8 +3,8 @@ import { useRef } from 'react';
 import { DockviewReact, type IGridviewPanelProps } from 'dockview-react';
 import { StageTerminalPane, StageTerminalHeader } from './StageTerminalPane';
 import { ProfilePane, ProfileHeader } from './ProfilePane';
-import { useTaskGrid } from './context';
-import { dockTheme } from '../../lib/dock-theme';
+import { useTaskGrid } from './state';
+import { dockTheme } from './dock-theme';
 const components = { profile: ProfilePane, 'stage-terminal': StageTerminalPane };
 const tabComponents = { profile: ProfileHeader, 'stage-terminal': StageTerminalHeader };
 export function Stage({ api }: IGridviewPanelProps) {

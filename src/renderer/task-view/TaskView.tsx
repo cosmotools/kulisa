@@ -1,21 +1,24 @@
 // A live screen per visited task, retained until its tab closes (docs/window.md, The grid).
 import { memo, useLayoutEffect, useState, useRef } from 'react';
+import { useStore } from 'zustand';
 import { DockviewReact, GridviewReact, Orientation, type IDockviewPanelHeaderProps, type IGridviewPanelProps } from 'dockview-react';
 import 'dockview-react/dist/styles/dockview.css';
 import { TerminalSquareIcon, PlusIcon } from 'lucide-react';
 import { Avatar, AvatarImage, Button } from '@ui';
-import { Stage } from './grid/Stage';
-import { DevelopmentContent } from './grid/DevelopmentContent';
-import { Resources } from './grid/Resources';
-import { dockTheme } from '../lib/dock-theme';
-import { createTaskGrid, registerTaskGrid, disposeTaskGrid } from '../lib/grid';
-import { GridContext, useTaskGrid } from './grid/context';
-import { TaskContext, useTask, useWindow, type TaskStore } from '../lib/store';
-import { profileLaunchers } from '../lib/profiles';
+import { Stage } from './Stage';
+import { DevelopmentContent } from './DevelopmentContent';
+import { Resources } from './Resources';
+import { dockTheme } from './dock-theme';
+import { registerTaskGrid } from './controller';
+import { TaskGrid } from './grid';
+import { useWindow } from '../lib/store';
+import { TaskContext, tasks, useTask, useTaskGrid, type TaskStore } from './state';
+import { profileLaunchers } from './profiles';
 import { useStrip } from '../lib/strip';
 import { avatarSrc } from '../lib/common';
-import { newStageTerminal } from '../lib/environments';
+import { newStageTerminal } from './environments';
 import './Grid.css';
+export { StageMenu } from './StageMenu';
 
 const components = { terminal: DevelopmentContent, resources: Resources };
 const tabComponents = { terminal: DevelopmentPanelHeader, resources: DevelopmentPanelHeader };
@@ -55,19 +58,17 @@ function Screen() {
   </section>;
 }
 const TaskView = memo(function TaskView({ state, active }: { state: TaskStore; active: boolean }) {
-  const [grid] = useState(() => createTaskGrid(state));
-  useLayoutEffect(() => { registerTaskGrid(grid); return () => disposeTaskGrid(grid); }, [grid]);
-  useLayoutEffect(() => { if (active) grid.activate(); else grid.deactivate(); }, [grid, active]);
+  const [grid] = useState(() => new TaskGrid(state));
+  useLayoutEffect(() => registerTaskGrid(grid), [grid]);
+  useLayoutEffect(() => { if (active) grid.activate(); }, [grid, active]);
   return <section data-task-view={grid.key} data-active={active || undefined} aria-hidden={!active || undefined}
     className="absolute inset-0" inert={!active || undefined}>
-    <TaskContext value={state}><GridContext value={grid}>
-      <Screen />
-    </GridContext></TaskContext>
+    <TaskContext value={grid}><Screen /></TaskContext>
   </section>;
 });
 export function TaskViews() {
-  const tasks = useWindow((s) => s.tasks), current = useWindow((s) => s.current), loading = useTask((s) => s.loading);
+  const retained = useStore(tasks), current = useWindow((s) => s.current), loading = useTask((s) => s.loading);
   return <main id="dock" className="relative isolate min-h-0 min-w-0" aria-busy={loading || undefined}>
-    {Object.entries(tasks).map(([key, state]) => <TaskView key={key} state={state} active={key === current} />)}
+    {Object.entries(retained).map(([key, state]) => <TaskView key={key} state={state} active={key === current} />)}
   </main>;
 }

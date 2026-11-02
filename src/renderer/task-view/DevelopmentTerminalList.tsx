@@ -2,12 +2,12 @@
 import { PlusIcon, XIcon } from 'lucide-react';
 import { SidebarContent, SidebarGroup, SidebarGroupAction, SidebarGroupContent, SidebarGroupLabel, SidebarMenu,
   SidebarMenuAction, SidebarMenuButton, SidebarMenuItem } from '@ui';
-import { useTaskActions, useTask } from '../../lib/store';
-import { newTerminalItems, showDevelopmentTerminal, terminalItems } from '../../lib/development-terminals';
-import { withKeys } from '../../lib/common';
-import { agentMark } from '../AgentMark';
-import { AgentState, STATES } from '../AgentState';
-import { ButtonMenu, RightClickMenu } from '../Menus';
+import { useTaskActions, useTask } from './state';
+import { newTerminalItems, showDevelopmentTerminal, terminalItems } from './terminals';
+import { withKeys } from '../lib/common';
+import { agentMark } from '../components/AgentMark';
+import { AgentState, STATES } from '../components/AgentState';
+import { ButtonMenu, RightClickMenu } from '../components/Menus';
 
 export function DevelopmentTerminalList() {
   const act = useTaskActions();

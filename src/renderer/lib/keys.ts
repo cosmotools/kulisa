@@ -1,9 +1,8 @@
 // Keyboard shortcuts in the window (main/keys.ts has the table and takes the keys; docs/window.md, Keys). The main
 // process has to know where the keyboard is in this page to know whose a key is; it sends the commands back here, with
 // the profile and tab they act on.
-import { act, screenshot, store, taskStore } from './store';
-import { panes } from './grid';
-import { focusDevelopmentTerminal } from './development-terminals';
+import { store } from './store';
+import { act, screenshot, taskStore, panes, focusDevelopmentTerminal } from '../task-view';
 import { dialog } from './dialogs';
 import { toggleSidebar } from './sidebar';
 import { dialogsShown, onDialogs } from './cover';
@@ -29,7 +28,7 @@ document.addEventListener('focusout', () => setTimeout(report)); // where it wen
 onDialogs(report); // a dialog opened or closed
 
 // The folded terminals' panel: the task's agent; a task with none (its project had no default) leaves the choice to the
-// human, the keyboard on the panel's big buttons (components/grid/DevelopmentTerminals.tsx), or its + opened.
+// human, the keyboard on the panel's big buttons (task-view/DevelopmentTerminals.tsx), or its + opened.
 const openOwn = async () => {
   const r = await act('development-terminal:open', { own: true });
   if (refused(r) || !('none' in r)) return;

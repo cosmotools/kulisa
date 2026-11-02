@@ -118,7 +118,7 @@ export function openTasks(shell: Shell, { appDevTools }: { appDevTools: boolean 
     } else await showInNew(target, task);
     return { key: task.key };
   }
-  // A task's terminals among those a window sent ("<task key>#<id>": renderer/lib/development-terminals.ts).
+  // A task's terminals among those a window sent ("<task key>#<id>": renderer/task-view/terminals.ts).
   const ownTerminals = (terminalContents: TerminalContents, task: Task) => Object.fromEntries(Object.entries(terminalContents).filter(([key]) => key.startsWith(`${task.key}#`)));
   // Move All Tasks to …: a project's open tasks of window w, one after another, into window to (none: a new window,
   // made for the first, the others following it).

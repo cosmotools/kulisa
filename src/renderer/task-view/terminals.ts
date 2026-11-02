@@ -1,20 +1,21 @@
 // A tasks' window's terminals (docs/window.md, The terminal): the terminals themselves are src/terminal's, keyed
-// "<task>#<id>" as in the main process; here the terminals' side: the shown task's terminal in front (components/grid/DevelopmentTerminals.tsx),
+// "<task>#<id>" as in the main process; here the terminals' side: the shown task's terminal in front (task-view/DevelopmentTerminals.tsx),
 // links into its profiles, terminals moving to another window, their menus.
-import { act, store, taskStore } from './store';
-import { termStyle } from './theme';
-import { keyText } from './common';
-import { menuAt, type MenuItem } from './menu';
-import { dialog } from './dialogs';
-import { developmentScreen, dockApi, selectResource, showDevelopmentAgents } from './grid';
-import { dialogsShown } from './cover';
+import { store } from '../lib/store';
+import { act, taskStore } from './state';
+import { termStyle } from '../lib/theme';
+import { keyText } from '../lib/common';
+import { menuAt, type MenuItem } from '../lib/menu';
+import { dialog } from '../lib/dialogs';
+import { developmentScreen, dockApi, selectResource, showDevelopmentAgents } from './controller';
+import { dialogsShown } from '../lib/cover';
 import { refused } from '../../shared/result';
 import { restoreTerminal, serialized, termCopy, termHooks, termPaste, View, xtermKeys } from '../../terminal/renderer';
 import type { DevelopmentTerminalInfo } from '../../shared/types';
 
 // The terminal in front of the shown task's terminals: where the keyboard goes (Ctrl+`), what the tests read.
 const frontKey = () => { const { task, front } = taskStore().getState().developmentTerminals; return task && front !== null ? `${task}#${front}` : null; };
-// The terminals' panel's xterm, one for the window: components/grid/DevelopmentTerminals.tsx puts it in whichever grid is shown and
+// The terminals' panel's xterm, one for the window: task-view/DevelopmentTerminals.tsx puts it in whichever grid is shown and
 // gives it the theme's colors.
 export const panelView = new View(termStyle());
 export const shownTerm = () => (developmentScreen() === 'agents' && panelView.key && panelView.key === frontKey() ? panelView.term : null);

@@ -1,8 +1,8 @@
 // The development area shows the selected terminal or file review (docs/window.md, The grid).
-import { useTask } from '../../lib/store';
+import { useTask } from './state';
 import { useEffect } from 'react';
 import { DevelopmentTerminals } from './DevelopmentTerminals';
-import { TaskDiff } from '../Diff';
+import { TaskDiff } from './Diff';
 import type { IDockviewPanelProps } from 'dockview-react';
 
 export function DevelopmentContent(props: IDockviewPanelProps) {

@@ -188,7 +188,6 @@ export interface Events extends TerminalEvents, ThumbnailEvents, DictationEvents
   'task:artifact:state': { task: string; list: Artifact[]; bytes: number }; // bytes: all of them (Task.artifactsUsage)
   'development-terminal:focus': void;
   'stage:arrange': { task: string; layout?: StageLayout; overflow?: boolean; position?: StagePosition };
-  'task:deactivated': string; // the task whose screen is being hidden
   'task:closed': string[];
   'zoom:state': number;
   'theme:state': string;

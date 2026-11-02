@@ -17,7 +17,7 @@ export function registerTasks(ipc: Ipc) {
   const { openProject, closeTasks, askClosing, moveTask, moveAll, dropTask, dragOut, quit, createTask, showTask, closeTask, deleteTask, deleteMerged, deleteProject, openTasksOf } = tasks;
   const sendProjects = () => shell.sendProjects();
   handle('project:list', (e) => at(e)?.info());
-  // The switch runs on its own; the window hears about it through task:deactivated, project:state and profile:state. No question
+  // The switch runs on its own; the window hears about it through project:state and profile:state. No question
   // where: a tab in this window, which Move to New Window takes away.
   const openLater = (p: ProjectEntry, w: AppWindow, task?: string) => {
     setImmediate(() => serial(() => (shell.windows.includes(w) ? openProject(p, w, task) : null)).catch((err) => console.error('[project:open]', err)));

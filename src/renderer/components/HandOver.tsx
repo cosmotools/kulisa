@@ -9,7 +9,8 @@ import { BookOpenIcon, GitBranchIcon, GlobeIcon, SquareTerminalIcon, CircleAlert
 import { Avatar, AvatarGroup, AvatarImage, Badge, Button, Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, Field, FieldContent,
   FieldDescription, FieldLabel, FieldTitle, Progress, RadioGroup, RadioGroupItem, Spinner, Alert, AlertDescription } from '@ui';
 import { agentMark } from './AgentMark';
-import { act, shownTask, store, useTask, useWindow } from '../lib/store';
+import { shownTask, store, useWindow } from '../lib/store';
+import { act, useTask } from '../task-view';
 import { registerDialog } from '../lib/dialogs';
 import { avatarSrc, plural } from '../lib/common';
 import { refused } from '../../shared/result';

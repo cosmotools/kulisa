@@ -1,8 +1,8 @@
 // The profiles' pages are native views above the window's HTML (docs/ui.md): they stay
 // hidden while a dialog is open or the grid is not laid out yet (the task loading), and become pictures of themselves
 // while a panel is dragged or a menu is open, so the HTML can be on top. The menus and dialogs themselves: cover.ts.
-import { taskStore } from './store';
-import { coverUnder, dialogsShown } from './cover';
+import { taskStore } from './state';
+import { coverUnder, dialogsShown } from '../lib/cover';
 
 // A menu or a drag too (frozen): the pages stay pictures until it ends (unfreeze), or the next task's grid shown under a
 // menu would show them over it.
@@ -38,7 +38,7 @@ async function livePages() {
   await showViews();
   layout?.();
 }
-// A grid leaving: a freeze under way is forgotten (grid.ts, task:deactivated).
+// A task switch forgets a capture still in progress (controller.ts).
 export const forgetFrozen = () => { frozen = null; };
 
 coverUnder({ hide: (hidden) => (hidden ? kulisa.invoke('views:hidden', true) : showViews()), freeze, unfreeze });

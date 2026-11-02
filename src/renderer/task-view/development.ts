@@ -1,9 +1,12 @@
 // Development layout, Resources constraints and review selection (docs/window.md, The grid).
 import { Orientation } from 'dockview-react';
 import type { DockviewApi, DockviewPanelApi, SerializedDockview } from 'dockview-react';
-import { store as windowStore, shownTask, type TaskStore, type DevelopmentDiff } from '../store';
-import { dockTheme } from '../dock-theme';
+import { store as windowStore, shownTask } from '../lib/store';
+import type { TaskStore, DevelopmentDiff } from './state';
+import { dockTheme } from './dock-theme';
 import { restoreDockview, resourceBarHeight } from './layout';
+import { createDiff } from '../../diff/renderer';
+import { menuAt } from '../lib/menu';
 
 export interface ResourceParams { section?: 'project' | 'artifacts' | 'terminals' | 'diff' | null; expandedWidth?: number; expandedHeight?: number }
 const resourceMinimumWidth = 300, resourceRailWidth = 40;
@@ -13,11 +16,28 @@ export class DevelopmentGrid {
   private developmentGap = dockTheme.gap ?? 0;
   private terminalFold: { group: DockviewApi['groups'][number]; vertical: boolean; size: number } | null = null;
   private reviewNavigation = 0;
-  constructor(private readonly store: TaskStore, private readonly changed: () => void, private readonly scheduleLayout: () => void) {}
+  private reviewSession: ReturnType<typeof createDiff> | null = null;
+  private stop: () => void;
+  constructor(private readonly store: TaskStore, private readonly changed: () => void, private readonly scheduleLayout: () => void) {
+    this.stop = store.subscribe((next, previous) => {
+      if (previous.developmentDiff && !next.developmentDiff) { this.reviewSession?.client.clear(); this.reviewSession = null; }
+    });
+  }
+  get review() {
+    const task = this.store.getState().key;
+    return this.reviewSession ??= createDiff({
+      list: (folder, options) => kulisa.invoke('task:diff:list', { key: task, folder, options }),
+      targets: (folder) => kulisa.invoke('task:diff:targets', { key: task, folder }),
+      review: (folder, options, load) => kulisa.invoke('task:diff:review', { key: task, folder, options, load }),
+      contents: (folder, path, options) => kulisa.invoke('task:diff:contents', { key: task, folder, path, options }),
+      select: (selection) => this.showDiff({ ...selection, task }),
+      selectFile: this.selectDevelopmentFile,
+      showMenu: menuAt,
+    });
+  }
   screen = (): 'agents' | 'diff' => this.store.getState().developmentDiff ? 'diff' : 'agents';
   attach(api: DockviewApi) { this.api = api; this.developmentGap = dockTheme.gap ?? 0; }
-  clear() { this.terminalFold = null; this.api?.clear(); }
-  dispose() { this.api = null; this.terminalFold = null; }
+  dispose() { this.stop(); this.reviewSession?.client.clear(); this.reviewSession = null; this.api = null; this.terminalFold = null; }
   build(saved: SerializedDockview | null) {
     const a = this.api!;
     this.terminalFold = null;

@@ -1,7 +1,7 @@
 // Browser-pane handles and native-page geometry (docs/window.md, The grid).
 import type { DockviewApi } from 'dockview-react';
-import type { PageLayout } from '../../../shared/ipc';
-import type { Profile } from '../../../shared/types';
+import type { PageLayout } from '../../shared/ipc';
+import type { Profile } from '../../shared/types';
 import { panelId } from './layout';
 interface PaneHandle { content: HTMLElement; focusAddress(): void; cancelAddress(): void; newTab(): void; pick(): void }
 export const panes = new Map<string, PaneHandle>();

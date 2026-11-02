@@ -95,10 +95,9 @@ repositories (git worktrees), so the project's folders stay the human's. Its dat
   - **Create**: one call (`project:new`), the core making it all (`createProject`, `projects.ts`: code, agents in
     order, profiles); what could not be added of the agents and profiles is logged, the project made all the same.
     Its first task opens in this window (`task:new`) with its default agent, nothing asked.
-- **Showing another task** replaces the grid at once, as a browser's tab (no motion: it is done tens of times a day):
-  the grid on screen, its pages too, stays until the next one is built and laid out, then gives way to it in one
-  frame, nothing empty between them (`lib/grid.ts`, `replaceGrid`; `AppWindow.leaving`). When a task closes, the one next to it is
-  shown, or the empty window after the last.
+- **Showing another task** reveals its retained screen; the first visit loads its saved grid (`task-view/`).
+  Native pages appear after the selected screen reports its geometry. Closing a task shows the adjacent tab, or the
+  empty window after the last.
 - **Move to New Window** puts the task into a window of its own next to this one (a second monitor); **Move to
   Window: …** into that window, as a browser moves a tab. It keeps running: its agents, its pages (moved, not loaded
   again), what its terminals showed. A window's only tab does not go to a new window; moved into another, its window
@@ -265,7 +264,7 @@ Close for a shell. The section's + opens an agent or shell through the terminal'
 Browsing is the [Project Explorer Kulisa package](../src/project-explorer/README.md); the task supplies its roots and
 protected desktop opening action (window.md, The terminal). The Resources panel owns the Resources bar and repository actions.
 The roots are the task’s **resources** (what it has, uses or created), each with its actions
-(`grid/Resources.tsx`, a panel of the grid: [window.md](window.md), The grid; `Task.resources`, in the task's info):
+(`task-view/Resources.tsx`, a panel of the grid: [window.md](window.md), The grid; `Task.resources`, in the task's info):
 
 - A **worktree** per repository the task has made its own (`task_worktree` for the default one,
   `task_add_repository` for another): its name and branch; a click expands its folder, a double-click opens it in the OS. An added repository's is removed
@@ -810,7 +809,7 @@ rm -rf ~/.config/Kulisa/projects/<project id>   # all its tasks with their profi
 | `src/shared/names.ts` | the rules for names (projects and profiles; a task's, a label) and slugs |
 | `src/main/accounts.ts`, `src/renderer/components/SignIn.tsx` | the agents' accounts, one store; a new one's sign-in in Settings (a project's page, or Agents), and New Project's |
 | `src/main/recognizer.ts` | which account recognizes speech for an agent without dictation of its own ([src/dictation](../src/dictation/README.md)), its session's folder |
-| `src/renderer/lib/grid.ts`, `lib/grid/`, `components/TaskView.tsx` | task-owned grids, retained screens and their activation ([window.md](window.md), The grid) |
+| `src/renderer/task-view/` | task-owned grids, retained screens and their activation ([window.md](window.md), The grid) |
 | `test/e2e/tasks*.spec.ts`, `taskbar.spec.ts`, `projects*.spec.ts`, `project-repositories.spec.ts`, `empty-window.spec.ts`, `agents*.spec.ts`, `masters.spec.ts`; `test/unit/agents.test.ts` | the tests |
 
 Task state is replaced atomically after validation; each section update reads the current document and preserves

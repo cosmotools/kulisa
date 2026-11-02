@@ -1,10 +1,10 @@
 // The shown task's profiles as a menu (docs/profiles.md). An open one brings its pane to the front: it may be stacked
 // behind another.
-import { act, taskStore } from './store';
-import { plural } from './common';
-import { showPane } from './grid';
-import { openSettings } from './settings';
-import type { MenuItem } from './menu';
+import { act, taskStore } from './state';
+import { plural } from '../lib/common';
+import { showPane } from './controller';
+import { openSettings } from '../lib/settings';
+import type { MenuItem } from '../lib/menu';
 
 export const profilesMenu = (): MenuItem[] => { const { profiles, closedProfiles } = taskStore().getState(); return [
   ...profiles.map((p) => ({ label: p.name, sub: p.description || plural(p.tabs.length, 'tab'), avatar: p.avatar,

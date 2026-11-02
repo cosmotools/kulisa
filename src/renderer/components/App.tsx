@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { TooltipProvider } from '@ui';
 import { useWindow } from '../lib/store';
 import { TopBar } from './TopBar';
-import { TaskViews } from './TaskView';
+import { TaskViews } from '../task-view/TaskView';
 import { Empty } from './Empty';
 import { Sidebar } from './Sidebar';
 import { TaskBar } from './TaskBar';

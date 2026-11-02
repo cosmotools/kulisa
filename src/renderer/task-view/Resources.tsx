@@ -5,18 +5,19 @@ import type { IDockviewPanelProps } from 'dockview-react';
 import { useShallow } from 'zustand/react/shallow';
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupAction, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuAction,
   Button, Collapsible, CollapsibleTrigger, CollapsibleContent, SidebarMenuButton, SidebarMenuItem, SidebarProvider } from '@ui';
-import { ProjectDirectory, type ExplorerActions } from '../../../project-explorer/renderer';
-import { menuAt } from '../../lib/menu';
-import { RightClickMenu } from '../Menus';
-import { shownTask, useWindow, useTask, useTaskActive } from '../../lib/store';
-import type { MenuItem } from '../../lib/menu';
-import { startResourceDrag, selectResource, type ResourceParams } from '../../lib/grid';
-import { sizeText } from '../../../shared/bytes';
-import { Dictation } from '../../../dictation/renderer';
-import { useShortcuts } from '../../lib/common';
-import { focusDevelopmentTerminal, showDevelopmentTerminal } from '../../lib/development-terminals';
+import { ProjectDirectory, type ExplorerActions } from '../../project-explorer/renderer';
+import { menuAt } from '../lib/menu';
+import { RightClickMenu } from '../components/Menus';
+import { shownTask, useWindow } from '../lib/store';
+import { useTask, useTaskActive, useTaskGrid } from './state';
+import type { MenuItem } from '../lib/menu';
+import type { ResourceParams } from './development';
+import { sizeText } from '../../shared/bytes';
+import { Dictation } from '../../dictation/renderer';
+import { useShortcuts } from '../lib/common';
+import { focusDevelopmentTerminal, showDevelopmentTerminal } from './terminals';
 import { DevelopmentTerminalList } from './DevelopmentTerminalList';
-import { TaskDiffTree } from '../Diff';
+import { TaskDiffTree } from './Diff';
 
 const language = new Intl.DisplayNames(['en'], { type: 'language' });
 const KINDS: Record<string, string> = { screenshot: 'Screenshot', snapshot: 'Snapshot', request: 'Request body', response: 'Response body', terminal: 'Terminal screen' };
@@ -27,6 +28,7 @@ const when = (t: number) => (day(t) === day(Date.now()) ? new Date(t).toLocaleTi
 const openFile = (file: string) => kulisa.invoke('file:open', file);
 
 export function Resources({ api, params, containerApi }: IDockviewPanelProps<ResourceParams>) {
+  const grid = useTaskGrid();
   const key = useTask((s) => s.key), contentId = useId();
   const active = useTaskActive();
   const front = useTask((s) => s.developmentTerminals.front), lang = useWindow((s) => s.language?.language);
@@ -47,7 +49,7 @@ export function Resources({ api, params, containerApi }: IDockviewPanelProps<Res
       {([['terminals', 'Agents', TerminalSquareIcon], ['project', 'Project', FolderTreeIcon], ['diff', 'Diff', GitCompareArrowsIcon], ['artifacts', 'Artifacts', FilesIcon]] as const).map(([value, label, Icon]) =>
         <Button key={value} variant="ghost" size="icon-sm" aria-label={label} title={label}
           aria-expanded={section === value} aria-controls={contentId} onClick={() => {
-            selectResource(api, params, value);
+            grid.development.selectResource(api, params, value);
             if (value === 'terminals') focusDevelopmentTerminal();
           }}><Icon /></Button>)}
       <div className="mt-auto flex flex-col items-center gap-1">
@@ -55,7 +57,7 @@ export function Resources({ api, params, containerApi }: IDockviewPanelProps<Res
           onDone={() => { if (front !== null) void showDevelopmentTerminal(front); }} />
         <div className="[&_button]:cursor-grab [&_button]:active:cursor-grabbing">
           <Button variant="ghost" size="icon-sm" draggable aria-label="Move Resources panel" title="Move Resources panel"
-            onDragStart={(e) => startResourceDrag(api, e.nativeEvent)}><GripVerticalIcon /></Button>
+            onDragStart={(e) => grid.startResourceDrag(api, e.nativeEvent)}><GripVerticalIcon /></Button>
         </div>
       </div>
     </nav>

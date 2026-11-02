@@ -2,24 +2,21 @@
 import { Orientation, LocalSelectionTransfer, PanelTransfer } from 'dockview-react';
 import type { DockviewApi, DockviewPanelApi, GridviewApi, GridviewPanelApi } from 'dockview-react';
 import { flushSync } from 'react-dom';
-import { store, type TaskStore } from '../store';
-import { splitLayout, type TaskLayout } from '../../../shared/stage-layout';
-import type { Events } from '../../../shared/ipc';
+import { store } from '../lib/store';
+import type { TaskStore } from './state';
+import { splitLayout, type TaskLayout } from '../../shared/stage-layout';
+import type { Events } from '../../shared/ipc';
 import { DevelopmentGrid } from './development';
 import { StageGrid } from './stage';
 import { pageRects } from './pages';
+import { freeze, unfreeze, revealGrid } from './views';
 
-interface Host { freeze(): Promise<void>; unfreeze(): Promise<void>; reveal(task: string): Promise<unknown> }
 export class TaskGrid {
   readonly development: DevelopmentGrid;
   readonly stage: StageGrid;
   private workspace: GridviewApi | null = null;
   private element: HTMLElement | null = null;
-  private initialized = false;
-  private initialization: Promise<void> | null = null;
   private disposed = false;
-  private visible = false;
-  private revision = 0;
   private needsReveal = true;
   private mutations = 0;
   private dirty = false;
@@ -29,16 +26,17 @@ export class TaskGrid {
   private subscriptions = new Map<object, () => void>();
   private dragging = false;
   private arrangement: Events['stage:arrange'] | null = null;
-  constructor(readonly state: TaskStore, private readonly host: Host) {
+  constructor(readonly state: TaskStore) {
     this.development = new DevelopmentGrid(state, this.changed, this.scheduleLayout);
     this.stage = new StageGrid(state, this.scheduleLayout);
   }
   get key() { return this.state.getState().key; }
-  private get active() { return !this.disposed && this.visible && store.getState().current === this.key; }
+  private get ready() { return !this.state.getState().loading; }
+  private get active() { return !this.disposed && store.getState().current === this.key; }
   mount(workspace: GridviewApi, element: HTMLElement) {
     this.workspace = workspace; this.element = element;
     const changed = workspace.onDidLayoutChange(() => {
-      if (!this.mutations && this.initialized && this.active) this.stageShare = this.currentShare();
+      if (!this.mutations && this.ready && this.active) this.stageShare = this.currentShare();
       this.changed();
     });
     this.subscriptions.set(workspace, () => changed.dispose());
@@ -48,7 +46,7 @@ export class TaskGrid {
     this.development.attach(api);
     this.watch(api, parent.onDidDimensionsChange(({ width, height }) => api.layout(width, height, true)));
     api.layout(parent.width, parent.height, true);
-    this.initialization ??= this.initialize();
+    void this.initialize();
   }
   mountStage(api: DockviewApi, parent: GridviewPanelApi, viewport: HTMLElement) {
     this.mutate(() => this.stage.attach(api, parent, viewport));
@@ -68,8 +66,8 @@ export class TaskGrid {
     api.groups.forEach(add);
     const events = [dimensions, api.onDidAddGroup(add), api.onDidRemoveGroup((group) => { groups.get(group.id)?.dispose(); groups.delete(group.id); }),
       api.onDidLayoutChange(this.changed), api.onDidActivePanelChange(this.scheduleLayout),
-      api.onWillDragPanel(() => { this.dragging = true; void this.host.freeze(); }),
-      api.onWillDragGroup(() => { this.dragging = true; void this.host.freeze(); }), api.onDidDrop(this.finishDrag)];
+      api.onWillDragPanel(() => { this.dragging = true; void freeze(); }),
+      api.onWillDragGroup(() => { this.dragging = true; void freeze(); }), api.onDidDrop(this.finishDrag)];
     this.subscriptions.set(api, () => { events.forEach((event) => event.dispose()); groups.forEach((event) => event.dispose()); });
   }
   private async initialize() {
@@ -87,18 +85,16 @@ export class TaskGrid {
       flushSync(() => { this.sync(); this.development.build(layout?.workspace ?? null); });
       this.layout();
     });
-    this.initialized = true;
     this.state.setState({ loading: false });
     this.arrangement = null;
     this.changed();
   }
   activate() {
-    this.visible = true; this.revision++; this.needsReveal = true;
+    this.needsReveal = true;
     this.scheduleLayout();
   }
   deactivate() {
-    if (!this.visible) return;
-    this.flush(); this.visible = false; this.revision++;
+    this.flush();
     cancelAnimationFrame(this.frame); this.stage.reset(); this.finishDrag();
     this.state.setState({ stageTerminalFocus: null, pictures: {}, picking: {}, captions: {} });
   }
@@ -109,9 +105,9 @@ export class TaskGrid {
     this.workspace = null; this.element = null;
   }
   private mutate(fn: () => void) { this.mutations++; try { fn(); } finally { this.mutations--; } }
-  update() { if (this.initialized && this.active) { this.mutate(() => this.sync()); this.changed(); } }
+  update() { if (this.ready && this.active) { this.mutate(() => this.sync()); this.changed(); } }
   arrange(event: Events['stage:arrange']) {
-    if (!this.initialized || !this.active) {
+    if (!this.ready || !this.active) {
       this.arrangement = { ...this.arrangement, task: this.key, ...(event.layout !== undefined && { layout: event.layout }),
         ...(event.overflow !== undefined && { overflow: event.overflow }), ...(event.position !== undefined && { position: event.position }) };
       return;
@@ -145,6 +141,7 @@ export class TaskGrid {
   }
   private layout() {
     if (!this.active || !this.element?.offsetWidth) return;
+    // Dockview's resize observer runs a frame later; native pages need current geometry before reveal.
     this.workspace?.layout(this.element.clientWidth, this.element.clientHeight);
     this.development.constrain();
   }
@@ -166,7 +163,7 @@ export class TaskGrid {
   }
   private changed = () => {
     this.scheduleLayout();
-    if (!this.initialized || !this.active || this.mutations) return;
+    if (!this.ready || !this.active || this.mutations) return;
     this.dirty = true; clearTimeout(this.saveTimer);
     this.saveTimer = window.setTimeout(() => this.flush(), 300);
   };
@@ -181,15 +178,14 @@ export class TaskGrid {
   }
   scheduleLayout = () => {
     cancelAnimationFrame(this.frame);
-    if (!this.active || !this.initialized) return;
-    const revision = this.revision;
+    if (!this.active || !this.ready) return;
     this.frame = requestAnimationFrame(() => {
-      if (!this.active || this.revision !== revision) return;
+      if (!this.active) return;
       if (this.arrangement) { const pending = this.arrangement; this.arrangement = null; this.arrange(pending); }
       this.mutate(() => flushSync(() => this.sync()));
       this.layout();
       kulisa.send('layout:apply', { task: this.key, rects: pageRects(this.stage.api, this.stage.viewport, this.state.getState().profiles) });
-      if (this.needsReveal) { this.needsReveal = false; void this.host.reveal(this.key); }
+      if (this.needsReveal) { this.needsReveal = false; void revealGrid(this.key); }
     });
   };
   startResourceDrag(panel: DockviewPanelApi, event: DragEvent) {
@@ -197,12 +193,12 @@ export class TaskGrid {
     if (!api || !event.dataTransfer) { event.preventDefault(); return; }
     LocalSelectionTransfer.getInstance<PanelTransfer>().setData([new PanelTransfer(api.id, panel.group.id, panel.id)], PanelTransfer.prototype);
     this.dragging = true; event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/plain', '');
-    void this.host.freeze();
+    void freeze();
   }
   finishDrag = () => {
     if (!this.dragging) return;
     this.dragging = false;
     LocalSelectionTransfer.getInstance<PanelTransfer>().clearData(PanelTransfer.prototype);
-    if (this.active) void this.host.unfreeze();
+    if (this.active) void unfreeze();
   };
 }

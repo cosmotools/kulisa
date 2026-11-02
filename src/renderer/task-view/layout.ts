@@ -1,7 +1,7 @@
 // Dockview saved dimensions and runtime split allocations (docs/window.md, The grid).
 import type { DockviewApi, SerializedDockview } from 'dockview-react';
-import { filterLayout } from '../../../shared/stage-layout';
-import { dockTheme } from '../dock-theme';
+import { filterLayout } from '../../shared/stage-layout';
+import { dockTheme } from './dock-theme';
 
 export const resourceBarHeight = 204;
 export const panelId = (id: string) => `profile:${id}`;

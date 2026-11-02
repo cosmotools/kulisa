@@ -232,8 +232,7 @@ class AppWindow {
   }
   // Native pages stay hidden until the selected TaskView has reported its geometry.
   leaveGrid() {
-    const key = this.current?.key;
-    if (!key) return;
+    if (!this.current) return;
     this.gridRevision++;
     this.pushState(); // saves the tabs
     this.switching = true;
@@ -242,7 +241,6 @@ class AppWindow {
     this.thumbnails.close(); // its pane goes
     this.viewsHidden = true; this.gridReady = false;
     for (const p of this.profiles.values()) p.setHidden(true);
-    this.send('task:deactivated', key);
   }
   // Before a task's tab goes (the task closes, or moves to another window): the tab next to it is shown, or the
   // window is left with none (the empty window).

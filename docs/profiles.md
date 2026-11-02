@@ -78,7 +78,7 @@ A profile is an Electron session on a folder of its own (`session.fromPath`), la
   (above); the profile stays. **Delete** in Settings (its page's ⋯ → Delete Profile…, its row's right-click, Delete), after a
   confirmation: its copies in every project's tasks and its master, with its sign-ins, storage and tabs, go for good
   (`projects.ts`, `deleteProfile`).
-- **Tabs and page controls** share one row per pane (`components/grid/ProfilePane.tsx`): back, forward, reload,
+- **Tabs and page controls** share one row per pane (`task-view/ProfilePane.tsx`): back, forward, reload,
   tabs and +, Pick, ⋮. A click chooses a tab; double-click or its right-click menu’s **Edit address…** opens its full
   address, selected, in place of the tabs and +. Ctrl+L does the same for the active tab. Enter navigates; Esc or
   leaving the field discards the edit and shows tabs. A tab opened with + gets its empty address ready to type in.
@@ -289,5 +289,5 @@ Browser memory and cache ownership: [Browser Kulisa package](../src/browser/READ
 | `src/main/discard.ts` | tabs no one looks at losing their process: the rule, the sweep (the Browser Kulisa package) |
 | `src/main/artifacts.ts` | what the human and agent keep of the pages in the task's `artifacts/`: numbered files, the oldest gone past 100 MB; listed with their sizes for the Resources panel and `task_artifacts` |
 | `src/main/picker.ts` | point and tell |
-| `src/renderer/components/grid/ProfilePane.tsx` (the pane, `ProfileHeader`), `lib/profiles.ts`; `components/settings/ProfilePage.tsx` | the panes and the profiles' menu (a task tab's right-click); a profile's page in Settings and its pictures |
+| `src/renderer/task-view/ProfilePane.tsx` (the pane, `ProfileHeader`), `task-view/profiles.ts`; `components/settings/ProfilePage.tsx` | the panes and the profiles' menu (a task tab's right-click); a profile's page in Settings and its pictures |
 | `test/e2e/agent-*.spec.ts`, `profiles.spec.ts`, `discard.spec.ts`, `zoom-and-closing.spec.ts`, `test/unit/store.test.ts`, `unit/discard.test.ts` | the tests |

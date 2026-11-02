@@ -54,7 +54,7 @@ Outside callers and integration:
 
 - `src/main/tasks.ts`: resource ownership, roots and the existing protected desktop opening action.
 - `src/main/ipc/tasks.ts`: task-specific IPC handles; `src/shared/ipc.ts`: their typed contracts.
-- `src/renderer/components/grid/Resources.tsx`: task selection, repository root labels and grouping, repository removal,
+- `src/renderer/task-view/Resources.tsx`: task selection, repository root labels and grouping, repository removal,
   the Resources bar, Resources content, artifacts, and callback bindings to the window's IPC and menu opener.
 - `.dependency-cruiser.ts`: entry and dependency enforcement; `docs/packages.md`, `docs/tasks.md` and `docs/ui.md`: integration links.
 - `vite.config.mts`: dependency assets and generated associations enter through Vite's build, outside either process.

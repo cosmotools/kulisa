@@ -3,17 +3,18 @@ import { createElement, useEffect, useLayoutEffect, useRef, type Ref } from 'rea
 import { CheckIcon, PlusIcon } from 'lucide-react';
 import type { IDockviewPanelProps } from 'dockview-react';
 import { Avatar, AvatarImage, Button, Item, ItemContent, ItemDescription, ItemMedia, ItemTitle, Spinner } from '@ui';
-import { ButtonMenu, RightClickMenu } from '../Menus';
-import { agentMark } from '../AgentMark';
-import { termStyle, useShade } from '../../lib/theme';
-import { useTask, useTaskActive, useTaskStore, useWindow } from '../../lib/store';
-import { profileLaunchers } from '../../lib/profiles';
-import { panelView, launchers, newTerminalItems, terminalItems, terminalMenu } from '../../lib/development-terminals';
-import { avatarSrc, withKeys } from '../../lib/common';
-import { dialogsShown } from '../../lib/cover';
-import { newStageTerminal } from '../../lib/environments';
-import { termFocus } from '../../../terminal/renderer';
-import { Pill } from '../../../dictation/renderer';
+import { ButtonMenu, RightClickMenu } from '../components/Menus';
+import { agentMark } from '../components/AgentMark';
+import { termStyle, useShade } from '../lib/theme';
+import { useWindow } from '../lib/store';
+import { useTask, useTaskActive, useTaskStore } from './state';
+import { profileLaunchers } from './profiles';
+import { panelView, launchers, newTerminalItems, terminalItems, terminalMenu } from './terminals';
+import { avatarSrc, withKeys } from '../lib/common';
+import { dialogsShown } from '../lib/cover';
+import { newStageTerminal } from './environments';
+import { termFocus } from '../../terminal/renderer';
+import { Pill } from '../../dictation/renderer';
 
 const NEW_TITLE = 'New conversation of an agent, or a terminal';
 export function DevelopmentTerminals({ api, containerApi, reviewing }: IDockviewPanelProps & { reviewing: boolean }) {

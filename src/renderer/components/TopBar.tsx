@@ -12,7 +12,7 @@ import { Tip } from './Tip';
 import { Logo } from './ProjectIcon';
 import { useWindow } from '../lib/store';
 import { keyText, withKeys } from '../lib/common';
-import { StageMenu } from './StageMenu';
+import { StageMenu } from '../task-view/TaskView';
 import { ask } from '../lib/ask';
 import { dialog } from '../lib/dialogs';
 import { leaveSettings, openSettings, useSettings } from '../lib/settings';

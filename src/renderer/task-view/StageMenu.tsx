@@ -1,10 +1,11 @@
 // Task-wide Stage settings in the title bar (docs/window.md, The grid).
 import { LayoutDashboardIcon, Columns3Icon, Rows3Icon, PanelsTopLeftIcon, PanelLeftIcon, PanelRightIcon, PanelTopIcon } from 'lucide-react';
 import { Button, DropdownMenuCheckboxItem, DropdownMenuRadioGroup, DropdownMenuRadioItem } from '@ui';
-import { ButtonMenu } from './Menus';
-import { act, useTask, useWindow } from '../lib/store';
-import { setStageFollowing } from '../lib/grid';
-import { environmentItems } from '../lib/environments';
+import { ButtonMenu } from '../components/Menus';
+import { useWindow } from '../lib/store';
+import { act, useTask } from './state';
+import { setStageFollowing } from './controller';
+import { environmentItems } from './environments';
 import type { MenuItem } from '../lib/menu';
 import type { StageLayout, StagePosition } from '../../shared/ipc';
 

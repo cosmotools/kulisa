@@ -1,8 +1,9 @@
 // Stage environments, overflow sizing and following (docs/window.md, The grid).
 import type { DockviewApi, GridviewPanelApi, SerializedDockview } from 'dockview-react';
-import { store as windowStore, type TaskStore } from '../store';
-import { environmentMinimum } from '../../../shared/stage-layout';
-import { dockTheme } from '../dock-theme';
+import { store as windowStore } from '../lib/store';
+import type { TaskStore } from './state';
+import { environmentMinimum } from '../../shared/stage-layout';
+import { dockTheme } from './dock-theme';
 import { restoreDockview, panelId } from './layout';
 
 export class StageGrid {
@@ -24,8 +25,7 @@ export class StageGrid {
     for (const group of api.groups) group.header.hidden = false;
     this.constrainStage(); this.layout();
   }
-  detach(api: DockviewApi | null = this.api) {
-    if (this.api !== api) return;
+  detach() {
     this.api = null; this.parent = null; this.viewport = null;
   }
   reset() {

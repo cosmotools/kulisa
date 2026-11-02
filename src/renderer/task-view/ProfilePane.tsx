@@ -1,5 +1,5 @@
 // A profile's pane, as a Chrome window, and its header in the grid (docs/profiles.md; docs/window.md, The grid). The
-// page itself is a native view the main process lays over the content box (lib/grid.ts tells it where); while a panel is
+// page itself is a native view the main process lays over the content box (pages.ts tells it where); while a panel is
 // dragged or a menu is open, a picture of the page stands in for it. The pages draw above the window's HTML, so the
 // pane's and its header's hints are the OS's (title): a tooltip of the window's would be covered.
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent } from 'react';
@@ -7,15 +7,15 @@ import type { IDockviewPanelHeaderProps, IDockviewPanelProps } from 'dockview-re
 import { ArrowLeftIcon, ArrowRightIcon, CircleDotIcon, CircleIcon, EllipsisIcon, EllipsisVerticalIcon, GlobeIcon, LockIcon, PlusIcon, RotateCwIcon, SquareMousePointerIcon,
   XIcon } from 'lucide-react';
 import { Avatar, AvatarImage, Button, Card, CardContent, CardFooter, CardHeader, CardTitle, Input, Toggle } from '@ui';
-import { ButtonMenu, RightClickMenu } from '../Menus';
-import { BrowserTab, TabStrip } from '../BrowserTabs';
-import { screenshot, togglePick, useTask, useTaskStore, useTaskActions, useTaskActive } from '../../lib/store';
-import { avatarSrc, keyText, withKeys } from '../../lib/common';
-import type { MenuItem } from '../../lib/menu';
-import { panes, scheduleLayout } from '../../lib/grid';
-import { grow, useStrip } from '../../lib/strip';
-import { openSettings } from '../../lib/settings';
-import { deleteProfile } from '../../lib/profiles';
+import { ButtonMenu, RightClickMenu } from '../components/Menus';
+import { BrowserTab, TabStrip } from '../components/BrowserTabs';
+import { screenshot, togglePick, useTask, useTaskStore, useTaskActions, useTaskActive, useTaskGrid } from './state';
+import { avatarSrc, keyText, withKeys } from '../lib/common';
+import type { MenuItem } from '../lib/menu';
+import { panes } from './pages';
+import { grow, useStrip } from '../lib/strip';
+import { openSettings } from '../lib/settings';
+import { deleteProfile } from './profiles';
 import { EnvironmentFocus, environmentFocusItem } from './EnvironmentFocus';
 import './ProfilePane.css';
 
@@ -26,7 +26,7 @@ const fullUrl = (u = '') => (u === 'about:blank' ? '' : u);
 const blank = (u?: string) => !fullUrl(u);
 
 export function ProfilePane({ api }: IDockviewPanelProps) {
-  const owner = useTaskStore(), act = useTaskActions();
+  const owner = useTaskStore(), act = useTaskActions(), grid = useTaskGrid();
   const taskActive = useTaskActive();
   // Its active tab as the store has it now, for what acts (a handler, not a render).
   const activeTab = useCallback((id: string) => { const p = owner.getState().profiles.find((x) => x.id === id); return p?.tabs.find((t) => t.id === p.active); }, [owner]);
@@ -84,11 +84,11 @@ export function ProfilePane({ api }: IDockviewPanelProps) {
       },
     };
     panes.set(id, handle);
-    const observer = new ResizeObserver(scheduleLayout);
+    const observer = new ResizeObserver(grid.scheduleLayout);
     observer.observe(content);
-    scheduleLayout();
+    grid.scheduleLayout();
     return () => { observer.disconnect(); if (panes.get(id) === handle) panes.delete(id); };
-  }, [id, content, editAddress, act, activeTab, owner]);
+  }, [id, content, editAddress, act, activeTab, owner, grid]);
 
   // The tab strip: a tab is chosen on the press, as in Chrome (not on its ×), or by Enter or Space. A tab opened grows
   // in, and the active tab is kept in sight (lib/strip.ts). Tabs are kept by id: an element stays as its tab does.

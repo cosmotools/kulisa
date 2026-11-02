@@ -1,9 +1,10 @@
 // The built-in environments a human can open in the testing stage.
-import { act, store, taskStore } from './store';
+import { store } from '../lib/store';
+import { act, taskStore } from './state';
 import { profileLaunchers } from './profiles';
 import type { StageTerminal } from '../../shared/stage-terminal';
 import { refused, type Result } from '../../shared/result';
-import type { MenuItem } from './menu';
+import type { MenuItem } from '../lib/menu';
 // The next human input wins over a launch still waiting for its shell or font.
 const cancelFocus = () => { if (taskStore().getState().stageTerminalFocus) taskStore().setState({ stageTerminalFocus: null }); };
 document.addEventListener('pointerdown', cancelFocus, true);
