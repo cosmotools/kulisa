@@ -97,7 +97,7 @@ repositories (git worktrees), so the project's folders stay the human's. Its dat
     Its first task opens in this window (`task:new`) with its default agent, nothing asked.
 - **Showing another task** replaces the grid at once, as a browser's tab (no motion: it is done tens of times a day):
   the grid on screen, its pages too, stays until the next one is built and laid out, then gives way to it in one
-  frame, nothing empty between them (`lib/grid.ts`, `replaceGrid`; `AppWindow.leaving`). When a task closes, the one next to it is
+  frame, nothing empty between them (`lib/grid/controller.ts`, `WindowGrid`; `AppWindow.leaving`). When a task closes, the one next to it is
   shown, or the empty window after the last.
 - **Move to New Window** puts the task into a window of its own next to this one (a second monitor); **Move to
   Window: …** into that window, as a browser moves a tab. It keeps running: its agents, its pages (moved, not loaded
@@ -809,7 +809,7 @@ rm -rf ~/.config/Kulisa/projects/<project id>   # all its tasks with their profi
 | `src/shared/names.ts` | the rules for names (projects and profiles; a task's, a label) and slugs |
 | `src/main/accounts.ts`, `src/renderer/components/SignIn.tsx` | the agents' accounts, one store; a new one's sign-in in Settings (a project's page, or Agents), and New Project's |
 | `src/main/recognizer.ts` | which account recognizes speech for an agent without dictation of its own ([src/dictation](../src/dictation/README.md)), its session's folder |
-| `src/renderer/lib/grid.ts`, `components/Grid.tsx` | building a task's grid, taking it down when another is shown |
+| `src/renderer/lib/grid.ts`, `lib/grid/`, `components/Grid.tsx` | a window's grid controller, task-scoped restoration, nested sizing and layout persistence ([window.md](window.md), The grid) |
 | `test/e2e/tasks*.spec.ts`, `taskbar.spec.ts`, `projects*.spec.ts`, `project-repositories.spec.ts`, `empty-window.spec.ts`, `agents*.spec.ts`, `masters.spec.ts`; `test/unit/agents.test.ts` | the tests |
 
 Task state is replaced atomically after validation; each section update reads the current document and preserves

@@ -37,7 +37,7 @@ interface WindowState {
   theme: string; // Dark, Light or System (shown before the first paint from the URL: public/theme.js)
   bar: string; // where the tasks' bar is
   language: LanguageInfo | null; // Kulisa's language (☰ → Language)
-  loading: boolean; // the grid not laid out yet: no grid shown, the pages kept hidden (grid.ts, reveal)
+  loading: boolean; // the grid not laid out yet: no grid shown, the pages kept hidden (grid/controller.ts)
   // Over each pane (by profile id): what the agent does (its caption), Pick's words; whose Pick is on.
   captions: Record<string, string>;
   picking: Record<string, boolean>;

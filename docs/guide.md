@@ -82,7 +82,8 @@ project, and those you closed, are in the sidebar (Tasks, below).
   Its header briefly highlights activity. Selecting or interacting with Stage pauses following; choose
   **Follow agent (paused)** to resume. Your layout and maximized environment stay as you chose them.
   Follow agent is shared by all tasks and windows and remembered when you restart Kulisa. Manual pauses are temporary.
-  Each task keeps both layouts, its stage position, size, view and overflow setting. The empty stage stays hidden; you or your agent can open a
+  Each task keeps both layouts, its stage position, size, view and overflow setting. Switching tasks restores the panes at their saved sizes.
+  The empty stage stays hidden; you or your agent can open an
   environment when needed through **Stage → Open an environment**.
 - **Resources panel**, to the left of the terminal by default: choose the **Agents**, **Project**, **Diff** or **Artifacts** section
   from the **Resources bar**, the icons on its left. The area on the right is **Resources content**.

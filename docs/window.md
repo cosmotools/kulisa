@@ -65,7 +65,7 @@ environment adds it, closing the last removes it. A new task opens only its defa
 **Stage** in the title bar offers **Position: Left, Right, Above** the development area, **View: Horizontal stack**
 (side by side), **Vertical stack** (one above another), **Tabs** (one environment at a time), and **Open an environment**.
 Moving Stage preserves the development grid and its panels; Terminal and Resources stay together. Resources starts to the left of the terminal; saved layouts keep their placement. The Resources bar and Resources content: [tasks.md](tasks.md), The Resources panel. Its standalone group has no header; a shared group keeps its nonclosable Resources tab.
-Resources keeps at least 204 CSS pixels of height so its sections and grip stay reachable. `lib/grid.ts` owns
+Resources keeps at least 204 CSS pixels of height so its sections and grip stay reachable. `lib/grid/development.ts` owns
 development-group constraints, including the empty terminal’s folded size and its restoration. Restoring a folded
 terminal compensates Dockview’s split gap to preserve its expanded size; available room can limit it with Resources
 below. A selected diff keeps the development area expanded even with every terminal closed ([tasks.md](tasks.md), Diff).
@@ -81,7 +81,7 @@ the stack and overflow setting.
 **Follow agent** in the Stage menu is opt-in, saved globally in `settings.json` (`stageFollow`) and shared by
 all tasks and windows. Browser MCP calls, CDP actions and named
 Stage-terminal calls report the environment used (`stage:activity`; the plugin reports, the window follows).
-`lib/grid.ts` selects a hidden tab and scrolls its group into view; visible groups keep their selection. Both
+`lib/grid/stage.ts` selects a hidden tab and scrolls its group into view; visible groups keep their selection. Both
 profile and terminal headers highlight activity for two seconds. Selecting or interacting with Stage pauses
 following; **Follow agent (paused)** resumes it. A maximized group stays maximized, and background tasks never
 move the shown Stage. Pause state and activity are transient in each window; the global preference resumes when another task opens.
@@ -89,18 +89,26 @@ move the shown Stage. Pause state and activity are transient in each window; the
 **Allow overflow** is independent of the layout, off by default: panes fit the stage. On, Horizontal stack allocates 600 CSS
 pixels of width per environment, Vertical stack 300 pixels of height, plus Dockview’s gaps; the stack scrolls on that axis.
 Tabs hides the toggle and ignores overflow while preserving its value. Constraint changes give Dockview room for
-both old and new group minimums before restoring its size; its resize observer can lag behind the scroll container.
+both old and new group minimums before restoring its size.
 `stage_arrange` accepts any combination of position, view and overflow; omitted settings stay unchanged. Changing
-only overflow preserves the panes and active tab. `Stage.tsx` sizes
-the inner grid inside its scroll viewport. Its scroll and all layout changes report page bounds and their visible
-intersection (`lib/grid.ts`). `Profile` puts a partially visible page inside a native `View` at that intersection;
+only overflow preserves the panes and active tab. `lib/grid/stage.ts` sizes the inner canvas inside `Stage.tsx`'s
+scroll viewport, allowing for the scrollbar on its cross axis. Scrolling and layout changes report page bounds and
+their visible intersection (`lib/grid/pages.ts`). `Profile` puts a partially visible page inside a native `View` at that intersection;
 the child keeps its full viewport, offset within the parent. Fully offscreen pages are hidden. The clipping parent
 is removed when the page fits, the profile closes, or it moves to another window. Dragging in either grid turns
 pages into pictures for HTML drop targets.
 
 `task.json` keeps Stage view/overflow/layout in `stage`, and development layout, Stage position/share in `workspace`, saved 300 ms after a change and flushed when the
-task is left. Nested grids' group dimension changes schedule a save too, so delayed container resizes persist their
-completed sizes. `shared/stage-layout.ts` separates a flat saved layout into development and testing groups, retaining
+task is left. `lib/grid.ts` dispatches window-lifetime messages to `WindowGrid` (`lib/grid/controller.ts`), which owns
+the mounted APIs, subscriptions, save timer and layout/reveal frames. Each restoration owns a task session; leaving
+it invalidates its pending loads and frames. Arrangements received during a load join that session. Unmounting
+releases subscriptions and deferred work; one set of grids serves the window.
+
+The outer Gridview observes the window's available room; its panel dimension events synchronously size development
+and Stage, whose automatic resizing is disabled. Switching tasks commits their controls before restoring their
+grids, so a completed layout reaches the next frame. Group dimension changes also save completed sizes.
+`lib/grid/layout.ts` adds each split's theme-gap share to Dockview's saved group sizes, preserving repeated restores.
+`shared/stage-layout.ts` separates a flat saved layout into development and testing groups, retaining
 panel order, stacking and sizes; development panels share an area, separate from Stage. Saved stack settings normalize to explicit horizontal and vertical directions without moving panes. An invalid grid falls back to its default arrangement.
 
 **No environment open, a development terminal open**: a row above the workspace offers **Stage Terminal** and
@@ -632,7 +640,7 @@ window it comes from (`event.sender`); one change to the open tasks after anothe
 | `src/main/keys.ts` | the keyboard shortcuts: the table, which key an input event is; `shortcuts.ts` takes them (Keys) |
 | `src/terminal/` | the terminal, a Kulisa package: its pty, its buffers, the xterm shown ([README](../src/terminal/README.md)) |
 | `src/main/file-links.ts` | the paths a terminal names: which exist, opening one or showing it in its folder (The terminal) |
-| `src/renderer/components/Grid.tsx`, `components/grid/`, `lib/grid.ts` | the grid (dockview), the panes and their headers, the terminals (`grid/DevelopmentTerminals.tsx`: `DevelopmentTerminals`, `grid/DevelopmentTerminalList.tsx`: switching in Resources), the closed profiles' buttons over it (`ClosedProfiles`, `Grid.tsx`), the title-bar Stage menu (`StageMenu.tsx`) |
+| `src/renderer/components/Grid.tsx`, `components/grid/`, `lib/grid.ts`, `lib/grid/` | the grid (Dockview), its controller and layout adapters; the panes and their headers, the terminals (`grid/DevelopmentTerminals.tsx`: `DevelopmentTerminals`, `grid/DevelopmentTerminalList.tsx`: switching in Resources), the closed profiles' buttons over it (`ClosedProfiles`, `Grid.tsx`), the title-bar Stage menu (`StageMenu.tsx`) |
 | `src/renderer/components/grid/Resources.tsx` | Resources next to the terminal: the shown task's resources (its worktree(s) or the main working tree) and its artifacts, each with its actions (tasks.md) |
 | `src/renderer/components/TopBar.tsx`, `ProjectIcon.tsx` | the title bar, ☰ and its own rows; the logo, a project's icon |
 | `src/renderer/components/Menus.tsx`, `Ask.tsx`, `lib/menu.ts`, `project-menu.ts`, `cover.ts`, `views.ts`, `ask.ts`, `terminals.ts` | the menus (`project-menu.ts`: a project's, the sidebar's and a tab's), the dialogs and questions (shadcn's: `cover.ts`), the pages under them in a tasks' window (`views.ts`), a tasks' window's terminals (`terminals.ts`) |

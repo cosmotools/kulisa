@@ -1,0 +1,152 @@
+// Development layout, Resources constraints and review selection (docs/window.md, The grid).
+import { Orientation } from 'dockview-react';
+import type { DockviewApi, DockviewPanelApi, SerializedDockview } from 'dockview-react';
+import { store, shownTask, type DevelopmentDiff } from '../store';
+import { dockTheme } from '../dock-theme';
+import { restoreDockview, resourceBarHeight } from './layout';
+
+export interface ResourceParams { section?: 'project' | 'artifacts' | 'terminals' | 'diff' | null; expandedWidth?: number; expandedHeight?: number }
+const resourceMinimumWidth = 300, resourceRailWidth = 40;
+
+export class DevelopmentGrid {
+  api: DockviewApi | null = null;
+  private developmentGap = dockTheme.gap ?? 0;
+  private terminalFold: { group: DockviewApi['groups'][number]; vertical: boolean; size: number } | null = null;
+  private reviewNavigation = 0;
+  constructor(private readonly changed: () => void, private readonly scheduleLayout: () => void) {}
+  screen = (): 'agents' | 'diff' => store.getState().developmentDiff ? 'diff' : 'agents';
+  attach(api: DockviewApi) { this.api = api; this.developmentGap = dockTheme.gap ?? 0; }
+  clear() { this.terminalFold = null; this.api?.clear(); }
+  dispose() { this.api = null; this.terminalFold = null; }
+  build(saved: SerializedDockview | null) {
+    const a = this.api!;
+    restoreDockview(a, saved, ['terminal', 'resources']);
+    if (!a.getPanel('terminal') || !a.getPanel('resources')) {
+      a.clear();
+      a.addPanel({ id: 'terminal', component: 'terminal', tabComponent: 'terminal', title: 'Terminal', renderer: 'always' });
+      a.addPanel({ id: 'resources', component: 'resources', tabComponent: 'resources', title: 'Resources', minimumHeight: resourceBarHeight, position: { referencePanel: 'terminal', direction: 'left' } });
+      a.getPanel('resources')!.group.api.setSize({ width: Math.round(a.width / 4) });
+    }
+    this.constrain();
+    const resources = a.getPanel('resources')!;
+    if (resources.params?.section === 'diff') this.openDiff(false);
+    else this.showAgents();
+    // Dockview applies its default minimum before runtime group constraints.
+    if (resources.params?.section === null) this.sizeResources(resources.api, resources.params);
+  }
+  selectResource = (panel: DockviewPanelApi, params: ResourceParams, section: NonNullable<ResourceParams['section']>) => {
+    const current = params.section === undefined ? 'project' : params.section;
+    const next = current === section ? null : section;
+    const inset = this.insets().get(panel.group.id);
+    const expandedWidth = current && !inset?.vertical ? panel.width : params.expandedWidth;
+    const expandedHeight = current && inset?.vertical ? panel.height : params.expandedHeight;
+    const updated = { section: next, expandedWidth, expandedHeight };
+    panel.updateParameters(updated);
+    if (next === 'diff') this.openDiff();
+    else if (current === 'diff') this.showAgents();
+    this.constrain();
+    if (!current || !next) this.sizeResources(panel, updated);
+    this.changed();
+  };
+
+  sizeResources = (panel: DockviewPanelApi, params: ResourceParams) => {
+    // A shared tab group keeps the room its other panels need.
+    if (panel.group.panels.length !== 1) return;
+    const inset = this.insets().get(panel.group.id) ?? { width: 0, height: 0, vertical: false };
+    const open = params.section !== null;
+    if (inset.vertical) panel.setSize({ height: (open ? params.expandedHeight ?? this.api!.height / 2 : resourceBarHeight) + inset.height });
+    else panel.setSize({ width: (open ? Math.max(resourceMinimumWidth, params.expandedWidth ?? resourceMinimumWidth) : resourceRailWidth) + inset.width });
+  };
+
+  insets = () => {
+    const insets = new Map<string, { width: number; height: number; vertical: boolean }>(), grid = this.api?.toJSON().grid;
+    if (!grid) return insets;
+    const gap = this.developmentGap;
+    function visit(node: SerializedDockview['grid']['root'], horizontal: boolean, inset: { width: number; height: number; vertical: boolean }) {
+      if (!Array.isArray(node.data)) { insets.set(node.data.id, inset); return; }
+      const share = gap * (node.data.length - 1) / node.data.length;
+      const next = { ...inset, [horizontal ? 'width' : 'height']: share, vertical: !horizontal };
+      node.data.forEach((child) => visit(child, !horizontal, next));
+    }
+    visit(grid.root, grid.orientation === Orientation.HORIZONTAL, { width: 0, height: 0, vertical: false });
+    return insets;
+  };
+
+  restoreTerminalSize = () => {
+    const before = this.terminalFold; this.terminalFold = null;
+    if (!before || !this.api?.groups.includes(before.group)) return;
+    before.group.api.setConstraints({ minimumWidth: 0, maximumWidth: Infinity, minimumHeight: 0, maximumHeight: Infinity });
+    const inset = this.insets().get(before.group.id) ?? { width: 0, height: 0 };
+    before.group.api.setSize(before.vertical ? { height: Math.max(before.size, 150) + inset.height } : { width: Math.max(before.size, 200) + inset.width });
+  };
+
+  constrain = () => {
+    const resources = this.api?.getPanel('resources'), terminal = this.api?.getPanel('terminal');
+    const gap = resources?.params?.section === null && resources.group.panels.length === 1 ? 0 : dockTheme.gap ?? 0;
+    if (this.developmentGap !== gap) {
+      this.developmentGap = gap;
+      this.api?.updateOptions({ theme: { ...dockTheme, gap } });
+    }
+    if (this.terminalFold && this.terminalFold.group !== terminal?.group) this.restoreTerminalSize();
+    const insets = this.insets();
+    const state = store.getState(), emptyTerminal = !state.developmentTerminals.list.length;
+    let constrained = false;
+    for (const group of this.api?.groups ?? []) {
+      const resource = group.panels.some((p) => p.id === 'resources');
+      const hasTerminal = group.panels.some((p) => p.id === 'terminal');
+      const standalone = group.panels.length === 1;
+      const hiddenHeader = standalone && (resource || hasTerminal);
+      if (group.header.hidden !== hiddenHeader) group.header.hidden = hiddenHeader;
+      const inset = insets.get(group.id) ?? { width: 0, height: 0, vertical: false };
+      const closed = resource && resources?.params?.section === null;
+      const fixedWidth = standalone && closed && !inset.vertical;
+      const fixedHeight = standalone && closed && inset.vertical;
+      const foldTerminal = standalone && hasTerminal && emptyTerminal && this.screen() === 'agents' && state.profiles.length > 0;
+      const previous = this.terminalFold?.group === group ? this.terminalFold : null;
+      if (previous && (!foldTerminal || previous.vertical !== inset.vertical)) {
+        this.restoreTerminalSize();
+        // An axis change needs the restored layout before measuring the terminal's new expanded size.
+        if (foldTerminal) { this.scheduleLayout(); continue; }
+      }
+      const beginFold = foldTerminal && !this.terminalFold;
+      if (beginFold) this.terminalFold = { group, vertical: inset.vertical, size: inset.vertical ? group.api.height : group.api.width };
+      const foldedWidth = foldTerminal && !inset.vertical, foldedHeight = foldTerminal && inset.vertical;
+      const minimumWidth = foldedWidth ? 36 : resource ? (closed ? standalone ? resourceRailWidth : 100 : resourceMinimumWidth) + inset.width : 100;
+      const minimumHeight = foldedHeight ? 36 : resource ? resourceBarHeight + (standalone ? 0 : 36) + inset.height : 100;
+      const maximumWidth = fixedWidth || foldedWidth ? minimumWidth : Infinity;
+      const maximumHeight = fixedHeight || foldedHeight ? minimumHeight : Infinity;
+      if (group.minimumWidth !== minimumWidth || group.maximumWidth !== maximumWidth || group.minimumHeight !== minimumHeight || group.maximumHeight !== maximumHeight) {
+        group.api.setConstraints({ minimumWidth, maximumWidth, minimumHeight, maximumHeight });
+        constrained = true;
+      }
+      if (beginFold) group.api.setSize(inset.vertical ? { height: 36 } : { width: 36 });
+    }
+    // Dockview publishes a constraint change before storing its explicit group limits.
+    if (constrained && this.api) this.api.layout(this.api.width, this.api.height, true);
+  };
+
+  openDiff = (activate = true) => {
+    const task = shownTask(), root = task?.resources[0];
+    if (task && root) this.showDiff({ task: task.key, folder: root.folder, path: '', options: {} }, activate);
+    else this.showAgents();
+  };
+
+  showAgents = () => {
+    store.setState({ developmentDiff: null });
+    this.changed();
+  };
+
+  showDiff = (selection: DevelopmentDiff, activate = true) => {
+    if (selection.task !== store.getState().current) return;
+    const options = { to: selection.options.to };
+    store.setState({ developmentDiff: { ...selection, options, navigation: ++this.reviewNavigation } });
+    if (activate) this.api?.getPanel('terminal')?.api.setActive();
+    this.changed();
+  };
+
+  selectDevelopmentFile = (path: string, navigation: number | undefined) => {
+    const current = store.getState().developmentDiff;
+    if (!current || current.navigation !== navigation || current.path === path) return;
+    store.setState({ developmentDiff: { ...current, path } });
+  };
+}

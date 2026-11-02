@@ -1,7 +1,7 @@
 // The task workspace: development terminals, Resources and a nested testing stage (docs/window.md, The grid).
 import { useEffect, useRef } from 'react';
 import { DockviewReact, GridviewReact, Orientation } from 'dockview-react';
-import type { IDockviewPanelHeaderProps } from 'dockview-react';
+import type { IDockviewPanelHeaderProps, IGridviewPanelProps } from 'dockview-react';
 import 'dockview-react/dist/styles/dockview.css';
 import { TerminalSquareIcon, PlusIcon } from 'lucide-react';
 import { Avatar, AvatarImage, Button } from '@ui';
@@ -24,10 +24,10 @@ function DevelopmentPanelHeader({ api }: IDockviewPanelHeaderProps) {
   return <div data-panel={api.id} className="flex h-full min-w-0 items-center px-2"><span className="min-w-0 truncate">{api.title}</span></div>;
 }
 
-function Development() {
+function Development({ api }: IGridviewPanelProps) {
   return <div id="grid" className="h-full min-h-0 min-w-0">
-    <DockviewReact theme={dockTheme} disableFloatingGroups singleTabMode="fullwidth" components={components}
-      tabComponents={tabComponents} onReady={(e) => gridMounted(e.api)} />
+    <DockviewReact theme={dockTheme} disableAutoResizing disableFloatingGroups singleTabMode="fullwidth" components={components}
+      tabComponents={tabComponents} onReady={(e) => gridMounted(e.api, api)} />
   </div>;
 }
 const areas = { development: Development, stage: Stage };
@@ -47,15 +47,16 @@ function ClosedProfiles() {
 
 export function Grid() {
   useEffect(() => gridUnmounted, []);
+  const workspace = useRef<HTMLDivElement>(null);
   const loading = useWindow((s) => s.loading);
   const folded = useWindow((s) => !!s.current && !s.profiles.length && !s.stageTerminals.length && s.developmentTerminals.list.length > 0);
   // min-w-0: a row wider than the window (many closed profiles) would stretch the window's column, the terminal and the
-  // tasks' bar past its edge. Not shown until it is laid out (lib/grid.ts, reveal).
+  // tasks' bar past its edge. The controller reveals it after layout (lib/grid/controller.ts).
   return <main id="dock" className="isolate flex min-h-0 min-w-0 flex-col aria-busy:opacity-0" aria-busy={loading || undefined}>
     {folded && <ClosedProfiles />}
-    <div id="workspace" className="min-h-0 flex-1">
+    <div ref={workspace} id="workspace" className="min-h-0 flex-1">
       <GridviewReact components={areas} orientation={Orientation.VERTICAL} proportionalLayout
-        onReady={(e) => workspaceMounted(e.api)} />
+        onReady={(e) => workspaceMounted(e.api, workspace.current!)} />
     </div>
   </main>;
 }
