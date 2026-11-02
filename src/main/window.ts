@@ -66,7 +66,7 @@ class AppWindow {
     this.switching = true;
     this.stateTimer = undefined;
     this.picking = new Map(); // profiles in pick mode (picker.ts), of the task on screen, by id
-    this.questions = new Questions((q) => this.send('ask', q));
+    this.questions = new Questions((q) => this.send('ask:show', q));
     this.loaded = false; this.pending = []; // what is sent before its page has loaded goes once it has
     // Where the keyboard is in its page, for the keys (shortcuts.ts, keys.ts): 'window', 'terminal', 'dialog', or
     // 'pane:<profile id>' (an address bar, a pane's toolbar), as the page tells.
@@ -162,16 +162,16 @@ class AppWindow {
       windows: others.map((w) => ({ id: w.id, name: w.label() })),
       settings: shell.projects().length > 0 || shell.accounts.all().some((a) => !a.own) || shell.profileStore.all().length > 0 };
   }
-  sendProjects() { this.send('projects', this.info()); }
+  sendProjects() { this.send('project:state', this.info()); }
   // The shown task's profiles, open and closed, and its terminals, for the page to build its grid from; their tabs
   // saved.
   pushState() {
     const task = this.task;
     if (!task || this.switching) return;
     this.sendDevelopmentTerminals();
-    this.send('stage-terminals', { task: task.key, list: task.stageTerminals.info() });
-    this.send('state', [...task.profiles.values()].map((p) => p.info()));
-    this.send('closed-profiles', [...task.closed.values()].map(({ cfg, tabs }): Sent.ClosedProfile =>
+    this.send('stage-terminal:state', { task: task.key, list: task.stageTerminals.info() });
+    this.send('profile:state', [...task.profiles.values()].map((p) => p.info()));
+    this.send('profile:closed', [...task.closed.values()].map(({ cfg, tabs }): Sent.ClosedProfile =>
       ({ id: cfg.id, name: cfg.name, avatar: cfg.avatar, description: cfg.description ?? '', tabs: tabs.urls.length })));
     task.list.saveTabs();
   }
@@ -179,9 +179,9 @@ class AppWindow {
   async sendArtifacts(task = this.task) {
     if (!task || task !== this.task) return;
     const [list, { bytes }] = await Promise.all([task.artifacts(), task.artifactsUsage()]);
-    if (task === this.task) this.send('artifacts', { task: task.key, list, bytes });
+    if (task === this.task) this.send('task:artifact:state', { task: task.key, list, bytes });
   }
-  sendDevelopmentTerminals() { if (this.task && !this.switching) this.send('development-terminals', { task: this.task.key, ...this.task.developmentTerminalsInfo() }); }
+  sendDevelopmentTerminals() { if (this.task && !this.switching) this.send('development-terminal:state', { task: this.task.key, ...this.task.developmentTerminalsInfo() }); }
   scheduleState() { clearTimeout(this.stateTimer); this.stateTimer = setTimeout(() => this.pushState(), 30); }
   // A task of its tabs changed: its profiles (now: right away), or its agent's state (shown on its tab).
   changed(task: Task, now?: boolean, agentState?: boolean) {
@@ -262,7 +262,7 @@ class AppWindow {
       this.win.setTitle('Kulisa');
     }
     this.sendProjects();
-    this.send('tasks:closed', [task.key]);
+    this.send('task:closed', [task.key]);
   }
   // The human sees the shown task: an agent done there has nothing more to show (its ✓ says "come and see").
   seen() { if (this.task?.see()) { this.sendDevelopmentTerminals(); this.sendProjects(); } }
@@ -346,7 +346,7 @@ class AppWindow {
     // macOS has no setTitleBarOverlay: the buttons' strip keeps the height the window was made with, and the buttons
     // stayed at its top as the bar grew. Moved to the bar's middle, but not below that strip: there they took no click.
     else this.win.setWindowButtonPosition({ x: MAC_BUTTONS.x, y: Math.max(0, Math.min(Math.round((bar - MAC_BUTTONS.height) / 2), this.barHeight - MAC_BUTTONS.height)) });
-    this.send('zoom', z);
+    this.send('zoom:state', z);
   }
   // The theme (app.ts): the page's colors (its theme, as chosen), the window's background and the OS buttons'
   // symbols in the colors shown (shade: dark or light); their strip is see-through (CLEAR).
@@ -354,7 +354,7 @@ class AppWindow {
     if (this.win.isDestroyed()) return;
     this.win.setBackgroundColor(COLORS[shade].window);
     if (process.platform !== 'darwin') this.win.setTitleBarOverlay({ symbolColor: COLORS[shade].text });
-    this.send('theme', theme);
+    this.send('theme:state', theme);
   }
 
   // Brought to the front with it while another of Kulisa's windows has the focus (Settings, another tasks' window): left

@@ -67,8 +67,8 @@ export function Resources({ api, params, containerApi }: IDockviewPanelProps<Res
 function TaskResources({ taskKey: key, section }: { taskKey: string; section: NonNullable<ResourceParams['section']> }) {
   const task = useWindow((s) => shownTask(s));
   const explorer = useMemo<ExplorerActions>(() => ({
-    readFolder: (folder) => kulisa.invoke('task:files', { key, folder }),
-    openFile: (file) => kulisa.invoke('task:file-open', { key, file }),
+    readFolder: (folder) => kulisa.invoke('task:file:list', { key, folder }),
+    openFile: (file) => kulisa.invoke('task:file:open', { key, file }),
     showFile: (file) => kulisa.invoke('file:show', file),
     showMenu: menuAt,
   }), [key]);
@@ -77,15 +77,15 @@ function TaskResources({ taskKey: key, section }: { taskKey: string; section: No
   const names = useWindow(useShallow((s) => Object.fromEntries([...s.profiles, ...s.closedProfiles].map((p) => [p.id, p.name]))));
   const stageTerminals = useWindow(useShallow((s) => Object.fromEntries(s.stageTerminals.map((a) => [a.id, a.name]))));
   // The list comes when the task is shown and whenever the human or agent keeps one (window.ts, sendArtifacts).
-  useEffect(() => { if (key) void kulisa.invoke('task:artifacts', key); }, [key]);
+  useEffect(() => { if (key) void kulisa.invoke('task:artifact:refresh', key); }, [key]);
   if (!task) return null;
   const open = (folder: string) => kulisa.invoke('task:open-folder', { key: task.key, folder });
-  const remove = (folder: string) => kulisa.invoke('task:remove-repo', { key: task.key, repo: folder });
-  const deleteArtifacts = (files: string[] | null) => kulisa.invoke('task:artifacts-delete', { key: task.key, files });
+  const remove = (folder: string) => kulisa.invoke('task:repo:remove', { key: task.key, repo: folder });
+  const deleteArtifacts = (files: string[] | null) => kulisa.invoke('task:artifact:delete', { key: task.key, files });
   const menu = (e: MouseEvent): MenuItem[] | null => {
     const file = (e.target as Element).closest<HTMLElement>('[data-file]')?.dataset.file;
     return file ? [{ label: 'Open', run: () => openFile(file) }, { label: 'Show in Folder', run: () => kulisa.invoke('file:show', file) },
-      { label: 'Send to Agent', run: () => kulisa.invoke('task:artifact-send', { key: task.key, file }) }, '-',
+      { label: 'Send to Agent', run: () => kulisa.invoke('task:artifact:send', { key: task.key, file }) }, '-',
       { label: 'Delete', run: () => deleteArtifacts([file]) }] : null;
   };
   // A row: its icon, its name and a muted line under it, as a task's in the sidebar.
@@ -123,7 +123,7 @@ function TaskResources({ taskKey: key, section }: { taskKey: string; section: No
                   {artifacts.map((a) => <SidebarMenuItem key={a.file}>
                     <div className="rounded-md hover:bg-sidebar-accent">
                       <SidebarMenuButton data-file={a.file} aria-label={kindOf(a.kind)} title={`Open: ${a.file} (${sizeText(a.bytes)})`} className="h-auto"
-                        draggable onDragStart={(e) => { e.preventDefault(); void kulisa.invoke('task:artifact-drag', { key: task.key, file: a.file }); }}
+                        draggable onDragStart={(e) => { e.preventDefault(); void kulisa.invoke('task:artifact:drag', { key: task.key, file: a.file }); }}
                         onClick={() => void openFile(a.file)}>
                         {/* a page's head: where its picture is cut */}
                         {a.thumb ? <img src={a.thumb} draggable={false} alt="" className="size-8 rounded-sm border object-cover object-top" /> : <FileIcon />}

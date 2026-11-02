@@ -31,13 +31,13 @@ export function ProjectPage({ id, first, onSaved, saveRef }: { id: string; first
   const filled = useRef(!!first);
 
   const githubNow = useCallback(async (answer?: Promise<Result<ProjectGitHub>>) => {
-    const r = await (answer ?? kulisa.invoke('project:github-get', { id }));
+    const r = await (answer ?? kulisa.invoke('project:github:get', { id }));
     if (refused(r)) setErrors((e) => ({ ...e, folders: r.error })); else setGithub(r);
   }, [id]);
   // Read again: an account made, or one deleted in Settings → Agents, meanwhile; the profiles changed elsewhere. The
   // first read (none given) fills the name and local addresses too.
   const reload = useCallback(async () => {
-    const c = await kulisa.invoke('project:settings-get', { id });
+    const c = await kulisa.invoke('project:settings:get', { id });
     if (refused(c)) return;
     setS(c);
     if (filled.current) return;
@@ -55,7 +55,7 @@ export function ProjectPage({ id, first, onSaved, saveRef }: { id: string; first
     const now = look(l);
     if (now === saved.current || !name.trim()) return;
     saved.current = now;
-    const r = await kulisa.invoke('project:settings', { id, ...JSON.parse(now) });
+    const r = await kulisa.invoke('project:settings:set', { id, ...JSON.parse(now) });
     setError(r?.error || '');
     if (r?.error) saved.current = ''; else onSaved();
   }
@@ -69,12 +69,12 @@ export function ProjectPage({ id, first, onSaved, saveRef }: { id: string; first
     if (refused(r)) setErrors((e) => ({ ...e, folders: r.error })); else if (r.folders) { patch({ folders: r.folders }); void githubNow(); }
     return r;
   }
-  const removeFolder = (f: string) => changeFolders(kulisa.invoke('project:folder-remove', { id, folder: f }));
-  const defaultFolder = (f: string) => changeFolders(kulisa.invoke('project:folder-default', { id, folder: f }));
+  const removeFolder = (f: string) => changeFolders(kulisa.invoke('project:folder:remove', { id, folder: f }));
+  const defaultFolder = (f: string) => changeFolders(kulisa.invoke('project:folder:set-default', { id, folder: f }));
   async function clone() {
     if (!text.trim()) return;
     setCloning(true);
-    if (!(await changeFolders(kulisa.invoke('project:folder-clone', { id, url: text })))?.error) { setText(''); setAdding(''); }
+    if (!(await changeFolders(kulisa.invoke('project:folder:clone', { id, url: text })))?.error) { setText(''); setAdding(''); }
     setCloning(false);
   }
 
@@ -84,10 +84,10 @@ export function ProjectPage({ id, first, onSaved, saveRef }: { id: string; first
     if (refused(r)) setErrors((e) => ({ ...e, agents: r.error })); else patch({ projectAgents: r.agents });
   }
   const isDefault = (a?: string) => !!a && !!mine.find((m) => m.id === a)?.default;
-  const defaultAgent = (a: string | null) => agents(kulisa.invoke('project:agent-default', { id, agent: a }));
-  const removeAgent = (a: string) => agents(kulisa.invoke('project:agent-remove', { id, agent: a }));
+  const defaultAgent = (a: string | null) => agents(kulisa.invoke('project:agent:set-default', { id, agent: a }));
+  const removeAgent = (a: string) => agents(kulisa.invoke('project:agent:remove', { id, agent: a }));
   const addable = (s?.agents ?? []).filter((x) => !mine.some((m) => m.id === x.id));
-  const agentMenu = (): Item[] => [...addable.map((x) => ({ label: x.name, run: () => agents(kulisa.invoke('project:agent-add', { id, agent: x.id })) })),
+  const agentMenu = (): Item[] => [...addable.map((x) => ({ label: x.name, run: () => agents(kulisa.invoke('project:agent:add', { id, agent: x.id })) })),
     ...(s?.clis.length ? [...(addable.length ? ['-' as const] : []), { heading: 'New Account' },
       ...s.clis.map((c) => ({ label: `${c.name}…`, agent: c.id, run: () => { setErrors((e) => ({ ...e, agents: '' })); setSigning(c); } }))] : [])];
 
@@ -97,14 +97,14 @@ export function ProjectPage({ id, first, onSaved, saveRef }: { id: string; first
     if (refused(r)) setErrors((e) => ({ ...e, profiles: r.error })); else { patch({ profiles: r.profiles, others: r.others }); onSaved(); }
     return r;
   }
-  const removeProfile = (p: string) => profileChange(kulisa.invoke('project:profile-remove', { id, profile: p }));
+  const removeProfile = (p: string) => profileChange(kulisa.invoke('project:profile:remove', { id, profile: p }));
   async function addProfile() {
     if (!text.trim()) return;
-    if (!(await profileChange(kulisa.invoke('project:profile-new', { id, name: text })))?.error) { setText(''); setAdding(''); }
+    if (!(await profileChange(kulisa.invoke('project:profile:new', { id, name: text })))?.error) { setText(''); setAdding(''); }
   }
   const profileMenu = (): Item[] => [{ label: 'New Profile…', run: () => { setText(''); setAdding('profile'); } },
     ...(others.length ? ['-' as const, { heading: 'Other Profiles' }, ...others.map((p) => ({ label: p.name, sub: p.also.join(', ') || 'in no project',
-      avatar: p.avatar, run: () => profileChange(kulisa.invoke('project:profile-add', { id, profile: p.id })) }))] : [])];
+      avatar: p.avatar, run: () => profileChange(kulisa.invoke('project:profile:add', { id, profile: p.id })) }))] : [])];
 
   const githubOf = (f: string) => github?.repos.find((g) => g.folder === f);
   const accountName = (a: ProjectGitHub['accounts'][number]) => (a.kind === 'pat' ? `${a.login} (token)` : a.login);
@@ -126,7 +126,7 @@ export function ProjectPage({ id, first, onSaved, saveRef }: { id: string; first
     if (!g?.remote) return null;
     if (g.state === 'not-github') return muted('Not a GitHub address');
     if (!github!.accounts.length) return muted('No GitHub account');
-    return <Select value={g.account ?? ''} onValueChange={(v) => void githubNow(kulisa.invoke('project:github-set', { id, remote: g.remote!, account: v }))}>
+    return <Select value={g.account ?? ''} onValueChange={(v) => void githubNow(kulisa.invoke('project:github:set', { id, remote: g.remote!, account: v }))}>
       <SelectTrigger size="sm" className="w-48" aria-label={`GitHub account of ${g.repo}`}><SelectValue placeholder="GitHub account…" /></SelectTrigger>
       <SelectContent>{github!.accounts.map((a) => <SelectItem key={a.id} value={a.id}>{accountName(a)}</SelectItem>)}</SelectContent>
     </Select>; };
@@ -155,7 +155,7 @@ export function ProjectPage({ id, first, onSaved, saveRef }: { id: string; first
       </Field>
     </FieldGroup></CardContent></Card>
 
-    <Card role="group" aria-label="Folders"><CardHeader><CardTitle>Folders</CardTitle><CardAction>{add('Add Folder', () => [{ label: 'Add Folder…', run: () => changeFolders(kulisa.invoke('project:folder-add', { id })) },
+    <Card role="group" aria-label="Folders"><CardHeader><CardTitle>Folders</CardTitle><CardAction>{add('Add Folder', () => [{ label: 'Add Folder…', run: () => changeFolders(kulisa.invoke('project:folder:add', { id })) },
       { label: 'Clone from URL…', run: () => { setText(''); setAdding('clone'); } }])}</CardAction></CardHeader><CardContent><div className="flex flex-col gap-3">
       <Things label="Folders" menu={folderMenu} things={folders.map((f) => ({ key: f.folder, name: base(f.folder), media: <FolderIcon className="size-5" />,
         description: f.folder, data: { 'data-folder': f.folder },

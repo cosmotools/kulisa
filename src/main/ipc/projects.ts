@@ -29,7 +29,7 @@ export function registerProjects(ipc: Ipc, { lookForFavicon }: { lookForFavicon:
       properties: existing ? ['openDirectory'] : ['openDirectory', 'createDirectory'] });
     return r.canceled ? null : r.filePaths[0] || null;
   });
-  handle('project:folder-state', (_e, args) => folderStateOf(shell, args));
+  handle('project:folder:state', (_e, args) => folderStateOf(shell, args));
   handle('project:new', async (_e, spec) => {
     const r = await createProject(shell, spec);
     if (!refused(r)) sendProjects(); // the sidebar lists it
@@ -38,7 +38,7 @@ export function registerProjects(ipc: Ipc, { lookForFavicon }: { lookForFavicon:
   // A project's configuration in Settings (components/settings/ProjectPage.tsx): its name, agents,
   // repositories, profiles and local addresses; its folder is shown, not changed (its tasks' copies are made from it).
   // Open or not.
-  handle('project:settings-get', async (_e, { id }) => {
+  handle('project:settings:get', async (_e, { id }) => {
     const p = store.projects().find((x) => x.id === id);
     if (!p) return { error: `no project ${id}` };
     const r = await foldersInfo(p);
@@ -54,20 +54,20 @@ export function registerProjects(ipc: Ipc, { lookForFavicon }: { lookForFavicon:
     const mine = shell.profileStore.of(id);
     return { profiles: mine.map(view), others: shell.profileStore.all().filter((g) => !mine.includes(g)).map(view) };
   };
-  handle('project:profile-new', (_e, { id, name }) => {
+  handle('project:profile:new', (_e, { id, name }) => {
     const g = shell.profileStore.create(id, { name: name ?? '' });
     if (refused(g)) return g;
     shell.profilesChanged();
     return profilesOf(id);
   });
-  handle('project:profile-add', (_e, { id, profile }) => {
+  handle('project:profile:add', (_e, { id, profile }) => {
     const r = shell.profileStore.addTo(profile, id);
     if (refused(r)) return r;
     shell.profilesChanged();
     return profilesOf(id);
   });
   // The project open or not (projects.ts, dropProfile); asked in the manager's window.
-  handle('project:profile-remove', (e, { id, profile }) => serial(async () => {
+  handle('project:profile:remove', (e, { id, profile }) => serial(async () => {
     const entry = store.projects().find((x) => x.id === id), g = shell.profileStore.get(profile);
     if (!entry || !g) return { error: entry ? `no profile ${profile}` : `no project ${id}` };
     if (!await askDropProfile(shell, entry, g, 'human', at(e))) return { error: 'the human said no' };
@@ -77,7 +77,7 @@ export function registerProjects(ipc: Ipc, { lookForFavicon }: { lookForFavicon:
   // Its repositories or folders (projects.ts): one picked in the OS's dialog (or given: the tests), cloned from a URL,
   // made the default, removed. Each answers with the project's settings as they are then.
   const settingsOf = async (id: string, r: Result) => (refused(r) ? r : { ...(await foldersInfo(store.projects().find((x) => x.id === id)!)) });
-  handle('project:folder-add', async (e, { id, folder }) => {
+  handle('project:folder:add', async (e, { id, folder }) => {
     if (!folder) {
       const r = await dialog.showOpenDialog(BrowserWindow.fromWebContents(e.sender)!, { title: 'Add a repository or folder to the project', properties: ['openDirectory'] });
       if (r.canceled || !r.filePaths[0]) return {};
@@ -85,18 +85,18 @@ export function registerProjects(ipc: Ipc, { lookForFavicon }: { lookForFavicon:
     }
     return serial(async () => settingsOf(id, await addFolder(shell, id, folder)));
   });
-  handle('project:folder-clone', (_e, { id, url }) => serial(async () => settingsOf(id, await cloneRepo(shell, id, url))));
-  handle('project:folder-default', (_e, { id, folder }) => serial(async () => settingsOf(id, await defaultFolder(shell, id, folder))));
-  handle('project:folder-remove', (_e, { id, folder }) => serial(async () => settingsOf(id, await removeFolder(shell, id, folder))));
+  handle('project:folder:clone', (_e, { id, url }) => serial(async () => settingsOf(id, await cloneRepo(shell, id, url))));
+  handle('project:folder:set-default', (_e, { id, folder }) => serial(async () => settingsOf(id, await defaultFolder(shell, id, folder))));
+  handle('project:folder:remove', (_e, { id, folder }) => serial(async () => settingsOf(id, await removeFolder(shell, id, folder))));
   // Its agents (projects.ts): one added, made the default (+ runs it), removed. At once, not on Save.
-  handle('project:agent-add', (_e, { id, agent }) => addAgent(shell, id, agent));
-  handle('project:agent-default', (_e, { id, agent }) => defaultAgent(shell, id, agent));
-  handle('project:agent-remove', (_e, { id, agent }) => removeAgent(shell, id, agent));
+  handle('project:agent:add', (_e, { id, agent }) => addAgent(shell, id, agent));
+  handle('project:agent:set-default', (_e, { id, agent }) => defaultAgent(shell, id, agent));
+  handle('project:agent:remove', (_e, { id, agent }) => removeAgent(shell, id, agent));
   // Its repositories' GitHub accounts (projects.ts, githubOf): asked of GitHub, after the page is shown.
-  handle('project:github-get', (_e, { id }) => githubOf(shell, id));
-  handle('project:github-set', (_e, { id, remote, account }) => setGitHub(shell, id, remote, account));
+  handle('project:github:get', (_e, { id }) => githubOf(shell, id));
+  handle('project:github:set', (_e, { id, remote, account }) => setGitHub(shell, id, remote, account));
   // Its name and local addresses.
-  handle('project:settings', (_e, { id, name, local = store.projects().find((p) => p.id === id)?.local }) => {
+  handle('project:settings:set', (_e, { id, name, local = store.projects().find((p) => p.id === id)?.local }) => {
     name = name?.trim();
     // Its own local addresses (local.ts): hosts, each with its subdomains (a tunnel, its dev domains).
     local = [...new Set((local || []).map((h) => String(h).trim().toLowerCase().replace(/^\*\./, '')).filter(Boolean))];

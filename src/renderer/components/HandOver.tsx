@@ -1,5 +1,5 @@
 // Change Agent: the task handed to another agent (docs/tasks.md, Several agents in a task). What goes along is shown
-// between the two, and how far the new one has read the conversation (task_history: handover:read, its real progress);
+// between the two, and how far the new one has read the conversation (task_history: agent:handover:progress, its real progress);
 // its tab, in front under the dialog, is shown once it has read it all, or at once when it needs the human or stops
 // reading: a dialog that never waits for an agent waiting for the human. Show now any time.
 import { createElement, useEffect, useState } from 'react';
@@ -35,7 +35,7 @@ async function hand() {
   if (!from || !chosen || going) return;
   state.setState({ going: true });
   inTask = store.getState().current;
-  const r = await act('agent:hand-over', { id: from.id, agent: chosen });
+  const r = await act('agent:handover:start', { id: from.id, agent: chosen });
   if (!state.getState().going) return; // closed meanwhile: the tab is there, behind
   if (refused(r)) { state.setState({ going: false, error: r.error || 'The agent did not start.' }); return; }
   seen = false;
@@ -52,7 +52,7 @@ function show() {
   state.setState({ handed: null, going: false });
   close();
 }
-kulisa.on('handover:read', ({ task, id, part, parts: all }) => {
+kulisa.on('agent:handover:progress', ({ task, id, part, parts: all }) => {
   if (task !== inTask || id !== state.getState().handed) return;
   state.setState({ read: { part, parts: all } });
   if (part >= all) show(); else waitIdle();

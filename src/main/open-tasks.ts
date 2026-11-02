@@ -110,7 +110,7 @@ export function openTasks(shell: Shell, { appDevTools }: { appDevTools: boolean 
     target.add(task, index);
     task.moveTo(target);
     if (!from.tabs.length) dropWindow(from); // after its pages have left it
-    target.send('terminals:restore', ownTerminals(terminalContents, task)); // before any more output (window.ts: sent once the page has loaded)
+    target.send('terminal:restore', ownTerminals(terminalContents, task)); // before any more output (window.ts: sent once the page has loaded)
     if (to) {
       to.focus();
       await to.show(task);

@@ -38,37 +38,37 @@ type Profiles = { profiles: SettingsProfile[] };
 // ipcRenderer.invoke / ipcMain.handle: args, the answer.
 type I<A extends unknown[], R = void> = { args: A; result: R };
 export interface Invoke extends TerminalInvoke, ThumbnailInvoke, GitHubInvoke, DictationInvoke {
-  'projects:list': I<[], ProjectsInfo | undefined>;
-  'tasks:get': I<[]>;
+  'project:list': I<[], ProjectsInfo | undefined>;
+  'project:refresh': I<[]>;
   'project:open': I<[{ folder: string; task?: string } | { id: string; task: string }]>;
   'project:new-defaults': I<[], ProjectChoices & { location: string; sep: string }>;
   'project:pick-location': I<[{ location?: string; existing?: boolean }], string | null>;
-  'project:folder-state': I<[{ from?: string; location?: string; name?: string; folder?: string }], { folder: string; state: string; project?: string } | null>;
+  'project:folder:state': I<[{ from?: string; location?: string; name?: string; folder?: string }], { folder: string; state: string; project?: string } | null>;
   'project:new': I<[{ from?: string; name?: string; location?: string; folders?: string[]; urls?: string[] } & NewProjectSetup], Result<{ id: string; problems?: string[] }>>;
-  'project:settings-get': I<[{ id: string }], Result<ProjectSettings>>;
-  'project:settings': I<[{ id: string; name?: string; local?: string[] }], Result<{ id: string }>>;
-  'project:profile-new': I<[{ id: string; name?: string }], Result<ProjectProfiles>>;
-  'project:profile-add': I<[{ id: string; profile: string }], Result<ProjectProfiles>>;
-  'project:profile-remove': I<[{ id: string; profile: string }], Result<ProjectProfiles>>;
-  'project:folder-add': I<[{ id: string; folder?: string }], Result<Partial<Folders>>>;
-  'project:folder-clone': I<[{ id: string; url: string }], Result<Folders>>;
-  'project:folder-default': I<[{ id: string; folder: string }], Result<Folders>>;
-  'project:folder-remove': I<[{ id: string; folder: string }], Result<Folders>>;
-  'project:agent-add': I<[{ id: string; agent: string }], Result<ProjectAgents>>;
-  'project:agent-default': I<[{ id: string; agent: string | null }], Result<ProjectAgents>>;
-  'project:agent-remove': I<[{ id: string; agent: string }], Result<ProjectAgents>>;
+  'project:settings:get': I<[{ id: string }], Result<ProjectSettings>>;
+  'project:settings:set': I<[{ id: string; name?: string; local?: string[] }], Result<{ id: string }>>;
+  'project:profile:new': I<[{ id: string; name?: string }], Result<ProjectProfiles>>;
+  'project:profile:add': I<[{ id: string; profile: string }], Result<ProjectProfiles>>;
+  'project:profile:remove': I<[{ id: string; profile: string }], Result<ProjectProfiles>>;
+  'project:folder:add': I<[{ id: string; folder?: string }], Result<Partial<Folders>>>;
+  'project:folder:clone': I<[{ id: string; url: string }], Result<Folders>>;
+  'project:folder:set-default': I<[{ id: string; folder: string }], Result<Folders>>;
+  'project:folder:remove': I<[{ id: string; folder: string }], Result<Folders>>;
+  'project:agent:add': I<[{ id: string; agent: string }], Result<ProjectAgents>>;
+  'project:agent:set-default': I<[{ id: string; agent: string | null }], Result<ProjectAgents>>;
+  'project:agent:remove': I<[{ id: string; agent: string }], Result<ProjectAgents>>;
   // Its repositories' GitHub accounts (src/github): read, and one bound to a repository's remote (null: none).
-  'project:github-get': I<[{ id: string }], Result<ProjectGitHub>>;
-  'project:github-set': I<[{ id: string; remote: string; account: string | null }], Result<ProjectGitHub>>;
-  'project:close-tasks': I<[{ id: string }]>;
-  'project:move-all': I<[{ id: string; to?: number | null; terminalContents: TerminalContents }]>;
+  'project:github:get': I<[{ id: string }], Result<ProjectGitHub>>;
+  'project:github:set': I<[{ id: string; remote: string; account: string | null }], Result<ProjectGitHub>>;
+  'project:task:close-all': I<[{ id: string }]>;
+  'project:task:move-all': I<[{ id: string; to?: number | null; terminalContents: TerminalContents }]>;
   'project:show-data': I<[{ id: string }]>;
   'project:delete': I<[{ id: string }], Result<{ id: string }>>;
-  'project:delete-merged': I<[{ id: string }]>;
-  'accounts:list': I<[], AccountsInfo>;
+  'project:task:delete-merged': I<[{ id: string }]>;
+  'account:list': I<[], AccountsInfo>;
   'account:delete': I<[{ id: string }], Result<AccountsInfo, string | null>>;
-  'account:signin': I<[{ id?: string | null; agent: string; key: string }], Result<SignedIn, string | null>>; // null: cancelled
-  'account:signin-cancel': I<[{ key: string }]>;
+  'account:signin:start': I<[{ id?: string | null; agent: string; key: string }], Result<SignedIn, string | null>>; // null: cancelled
+  'account:signin:cancel': I<[{ key: string }]>;
   'profiles:list': I<[], Profiles>;
   'profiles:new': I<[{ name: string }], Result<Profiles & { id: string }>>;
   'profiles:rename': I<[{ profile: string; name: string }], Result<Profiles & { id: string }>>;
@@ -86,23 +86,23 @@ export interface Invoke extends TerminalInvoke, ThumbnailInvoke, GitHubInvoke, D
   'task:delete': I<[key: string]>;
   'task:delete-closed': I<[{ project: string; id: string }]>;
   'task:rename': I<[{ key: string; name: string }], Result<{ name: string; branch: string | null }>>;
-  'task:add-repo': I<[{ key: string; repo: string }]>;
-  'task:remove-repo': I<[{ key: string; repo: string }]>;
+  'task:repo:add': I<[{ key: string; repo: string }]>;
+  'task:repo:remove': I<[{ key: string; repo: string }]>;
   'task:show-folder': I<[key: string]>;
   'task:open-folder': I<[{ key: string; folder: string }]>; // a resource's folder (Resources.tsx), checked to be the task's
-  'task:files': I<[{ key: string; folder: string }], Result<{ entries: ProjectFile[] }>>;
+  'task:file:list': I<[{ key: string; folder: string }], Result<{ entries: ProjectFile[] }>>;
   'task:diff:list': I<[{ key: string; folder: string; options: DiffOptions }], Result<Diff>>;
   'task:diff:targets': I<[{ key: string; folder: string }], Result<{ branches: string[] }>>;
   'task:diff:review': I<[{ key: string; folder: string; options: DiffOptions; load?: string[]; request?: string }], Result<Review>>;
   'task:diff:contents': I<[{ key: string; folder: string; path: string; options: DiffOptions }], Result<FileDiff>>;
-  'task:file-open': I<[{ key: string; file: string }], Result>;
-  'task:artifacts': I<[string]>; // the task's artifacts sent again (Resources.tsx: the task shown)
-  'task:artifact-send': I<[{ key: string; file: string }], Result>;
-  'task:artifact-drag': I<[{ key: string; file: string }], Result>;
-  'task:artifacts-delete': I<[{ key: string; files: string[] | null }], Result>; // null: all
+  'task:file:open': I<[{ key: string; file: string }], Result>;
+  'task:artifact:refresh': I<[string]>; // the task's artifacts sent again (Resources.tsx: the task shown)
+  'task:artifact:send': I<[{ key: string; file: string }], Result>;
+  'task:artifact:drag': I<[{ key: string; file: string }], Result>;
+  'task:artifact:delete': I<[{ key: string; files: string[] | null }], Result>; // null: all
   'app:quit': I<[]>;
-  'agents:list': I<[{ check?: boolean; details?: boolean; cached?: boolean }?], { list: AgentInfo[]; home: string } | { list: null }>; // null: not looked for yet (cached)
-  'agents:install': I<[{ id: string }], Result<{ code: number; installed: boolean; log: string }>>; // log: the whole output (the pieces streamed may still be on their way)
+  'agent:list': I<[{ check?: boolean; details?: boolean; cached?: boolean }?], { list: AgentInfo[]; home: string } | { list: null }>; // null: not looked for yet (cached)
+  'agent:install:start': I<[{ id: string }], Result<{ code: number; installed: boolean; log: string }>>; // log: the whole output (the pieces streamed may still be on their way)
   'profile:close': I<[OnProfile]>;
   'profile:open': I<[OnProfile]>;
   'profile:delete': I<[OnProfile]>;
@@ -124,7 +124,7 @@ export interface Invoke extends TerminalInvoke, ThumbnailInvoke, GitHubInvoke, D
   'file:open': I<[string]>;
   'file:show': I<[string]>;
   'agent:new-conversation': I<[OnTask & { id: number }]>;
-  'agent:hand-over': I<[OnTask & { id: number; agent: string }], Result<{ id: number }>>;
+  'agent:handover:start': I<[OnTask & { id: number; agent: string }], Result<{ id: number }>>;
   'tab:new': I<[OnProfile & { url?: string }], string | { error: string }>; // the new tab's id
   'tab:close': I<[OnTab & { focus?: boolean }]>;
   'tab:activate': I<[OnTab & { focus?: boolean }]>;
@@ -168,10 +168,10 @@ export interface Invoke extends TerminalInvoke, ThumbnailInvoke, GitHubInvoke, D
 
 // ipcRenderer.send / ipcMain.on: what is sent, no answer.
 export interface Send extends TerminalSend, ThumbnailSend {
-  'layout': { task: string | null; rects: Grid };
+  'layout:apply': { task: string | null; rects: Grid };
   'layout:save': { task: string | null; layout: unknown };
   'ask:answer': { id: number; answer: string };
-  'agent:chosen': { task: string | null; id: string | null };
+  'agent:choice:submit': { task: string | null; id: string | null };
   'keys:zone': string;
   'settings:open': SettingsAt; // shown in the window asking (shell.openSettings)
   'settings:close': void; // left, what was typed saved
@@ -179,30 +179,30 @@ export interface Send extends TerminalSend, ThumbnailSend {
 
 // webContents.send (AppWindow.send) / the window's kulisa.on: what the main process tells a window.
 export interface Events extends TerminalEvents, ThumbnailEvents, DictationEvents {
-  'projects': ProjectsInfo;
-  'state': Profile[];
-  'closed-profiles': ClosedProfile[];
-  'development-terminals': DevelopmentTerminalsState;
-  'stage-terminals': StageTerminalsState;
+  'project:state': ProjectsInfo;
+  'profile:state': Profile[];
+  'profile:closed': ClosedProfile[];
+  'development-terminal:state': DevelopmentTerminalsState;
+  'stage-terminal:state': StageTerminalsState;
   'task:diff:summary': { request: string; summary: Diff };
-  'artifacts': { task: string; list: Artifact[]; bytes: number }; // bytes: all of them (Task.artifactsUsage)
+  'task:artifact:state': { task: string; list: Artifact[]; bytes: number }; // bytes: all of them (Task.artifactsUsage)
   'development-terminal:focus': void;
   'stage:arrange': { task: string; layout?: StageLayout; overflow?: boolean; position?: StagePosition };
   'grid:closing': boolean; // another task's grid follows
-  'tasks:closed': string[];
-  'zoom': number;
-  'theme': string;
-  'bar': Bar;
-  'language': LanguageInfo;
-  'keys': Shortcut[];
-  'ask': Question & { id: number };
-  'command': { id: string; n?: number; profile: string | null; tab: string | null; task: string | null; page: boolean };
-  'stage:follow': boolean;
+  'task:closed': string[];
+  'zoom:state': number;
+  'theme:state': string;
+  'bar:state': Bar;
+  'language:state': LanguageInfo;
+  'keys:state': Shortcut[];
+  'ask:show': Question & { id: number };
+  'command:run': { id: string; n?: number; profile: string | null; tab: string | null; task: string | null; page: boolean };
+  'stage:follow:state': boolean;
   'stage:activity': { task: string; environment: string };
-  'agent': { task: string; profile: string; caption: string | null; sticky?: boolean };
-  'agent:choose': { task: string; selected: string | null };
-  'agents:install-log': string;
-  'handover:read': { task: string; id: number; part: number; parts: number };
+  'agent:caption': { task: string; profile: string; caption: string | null; sticky?: boolean };
+  'agent:choice:show': { task: string; selected: string | null };
+  'agent:install:output': string;
+  'agent:handover:progress': { task: string; id: number; part: number; parts: number };
   'project:new': void;
   'master:url': string;
   'settings:show': SettingsAt;

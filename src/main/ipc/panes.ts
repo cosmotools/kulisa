@@ -51,9 +51,9 @@ export function registerPanes(ipc: Ipc) {
   handle('file:open', (_e, file) => openFile(file));
   handle('file:show', (_e, file) => showFile(file));
   handle('agent:new-conversation', (e, { task, id }) => onScreen(e, task)?.newConversation(id) || noTask);
-  handle('agent:hand-over', (e, { task, id, agent }) => onScreen(e, task)?.handOver(id, agent) || noTask);
+  handle('agent:handover:start', (e, { task, id, agent }) => onScreen(e, task)?.handOver(id, agent) || noTask);
   on('layout:save', (e, { task, layout }) => at(e)?.saveLayout(task, layout));
-  on('layout', (e, { task, rects }) => at(e)?.layout(task, rects));
+  on('layout:apply', (e, { task, rects }) => at(e)?.layout(task, rects));
 
   // A tab the human opens (+): the window keeps the keys for its address (components/grid/ProfilePane.tsx); its page taking
   // them as it loads gives them back (page-focus.ts).

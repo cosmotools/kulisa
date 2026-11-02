@@ -32,15 +32,15 @@ export interface RepoGitHub { account: string | null; suggested: boolean; state:
 
 type I<A extends unknown[], R = void> = { args: A; result: R };
 export interface GitHubInvoke {
-  'github:accounts': I<[], GitHubInfo>;
+  'github:account:list': I<[], GitHubInfo>;
   // The device flow, in three: a code asked of GitHub and shown; then waited for (GitHub's page opened), until the human
   // has entered it (the account, new or signed in again: id), denied it or it expired, or it was cancelled (null).
   // again: the account to sign in again.
-  'github:signin': I<[{ again?: string | null }?], Result<GitHubCode>>;
-  'github:signin-wait': I<[], Result<GitHubInfo & { id: string }, string | null>>;
-  'github:signin-cancel': I<[]>;
+  'github:signin:start': I<[{ again?: string | null }?], Result<GitHubCode>>;
+  'github:signin:wait': I<[], Result<GitHubInfo & { id: string }, string | null>>;
+  'github:signin:cancel': I<[]>;
   // A fine-grained token pasted: a new account, or (again) a new token for one.
-  'github:token': I<[{ token: string; again?: string | null }], Result<GitHubInfo & { id: string }>>;
+  'github:signin:token': I<[{ token: string; again?: string | null }], Result<GitHubInfo & { id: string }>>;
   // Deleted after a question (null: the human said no).
-  'github:delete': I<[{ id: string }], Result<GitHubInfo, string | null>>;
+  'github:account:delete': I<[{ id: string }], Result<GitHubInfo, string | null>>;
 }

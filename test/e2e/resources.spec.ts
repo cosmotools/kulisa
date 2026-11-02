@@ -34,7 +34,7 @@ test('Resources starts with Project, expands folders, opens files and follows pr
   await expect(ui.getByRole('button', { name: 'Project', exact: true })).toHaveAttribute('aria-expanded', 'true');
   await expect(ui.locator('#resources').getByRole('button', { name: 'other.txt', exact: true })).toBeVisible();
   await expect(ui.locator('#resources').getByRole('button', { name: 'tree-example', exact: true })).toHaveCount(0);
-  expect((await invoke(ui, 'task:files', { key: await core((k) => k.shell.task.key), folder: first.folder })).error).toBeTruthy();
+  expect((await invoke(ui, 'task:file:list', { key: await core((k) => k.shell.task.key), folder: first.folder })).error).toBeTruthy();
   await showTask(core, ui, first.key);
   await expect(ui.getByRole('button', { name: 'Artifacts', exact: true })).toHaveAttribute('aria-expanded', 'true');
   await showResources(ui, 'Project');

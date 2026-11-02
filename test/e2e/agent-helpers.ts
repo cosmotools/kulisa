@@ -41,5 +41,5 @@ export async function fakeAgent(ui: Page, files: Files, installed = true) {
     if (WIN) fs.writeFileSync(`${program}.cmd`, '@bash "%~dp0kulisa-fake-agent" %*');
   }
   if (!installed) for (const f of [program, `${program}.cmd`]) fs.rmSync(f, { force: true });
-  await invoke(ui, 'agents:list', { details: true, cached: false });
+  await invoke(ui, 'agent:list', { details: true, cached: false });
 }

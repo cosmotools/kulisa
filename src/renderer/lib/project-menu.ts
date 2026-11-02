@@ -18,6 +18,6 @@ export function projectMenu(p: ProjectEntry, { newTask, keys, move = [], done = 
     '-', ...(move.length ? [...move, '-' as const] : []),
     { label: 'Project Settings…', run: () => { done(); openSettings('projects', id); } },
     { label: 'Show Data Folder', enabled: loaded, run: () => kulisa.invoke('project:show-data', { id }) },
-    ...(merged ? [{ label: 'Delete Merged Tasks…', run: () => kulisa.invoke('project:delete-merged', { id }) }] : []),
-    '-', { label: 'Close All Tasks', enabled: p.tasks.some((t) => !t.closed), run: () => kulisa.invoke('project:close-tasks', { id }) }];
+    ...(merged ? [{ label: 'Delete Merged Tasks…', run: () => kulisa.invoke('project:task:delete-merged', { id }) }] : []),
+    '-', { label: 'Close All Tasks', enabled: p.tasks.some((t) => !t.closed), run: () => kulisa.invoke('project:task:close-all', { id }) }];
 }

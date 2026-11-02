@@ -169,7 +169,7 @@ test('Changing another repository comparison opens that repository review immedi
     if (!('folder' in copy)) throw new Error(copy.error);
     return copy.folder;
   });
-  await invoke(ui, 'project:folder-add', { id: files.pid('review-primary'), folder: second });
+  await invoke(ui, 'project:folder:add', { id: files.pid('review-primary'), folder: second });
   const secondary = await core(async (k, folder) => {
     const copy = await k.shell.task.addRepository(folder);
     if (!('folder' in copy)) throw new Error(copy.error);

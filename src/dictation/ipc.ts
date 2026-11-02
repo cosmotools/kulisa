@@ -13,5 +13,5 @@ export interface DictationInvoke {
 
 // webContents.send / the window's kulisa.on: what the main process tells a window.
 export interface DictationEvents {
-  'voice': { task: string; voice: Voice };
+  'voice:state': { task: string; voice: Voice };
 }

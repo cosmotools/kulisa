@@ -32,8 +32,8 @@ that shade. File icon selection depends on paths, independent of any editor.
 
 ## Contracts
 
-`ipc.ts` declares the directory-entry shape shared by both halves. Task-specific channels (`task:files`,
-`task:file-open`) belong to the core: their handles find the task and its methods supply that task's resource roots.
+`ipc.ts` declares the directory-entry shape shared by both halves. Task-specific channels (`task:file:list`,
+`task:file:open`) belong to the core: their handles find the task and its methods supply that task's resource roots.
 The renderer receives those actions as callbacks, with no channels or task keys of its own.
 
 ## The code

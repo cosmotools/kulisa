@@ -53,9 +53,9 @@ test('projects: several repositories: a task works in the main tree until it mak
   expect(f.worktrees.length).toBe(1);
   await rows([['api', `branch ${b1}`, false]]);
   expect(f.addable).toEqual([]);
-  // A second repository added to the project (Project Settings…, project:folder-add): the task may add it, not copied
+  // A second repository added to the project (Project Settings…, project:folder:add): the task may add it, not copied
   // yet; its agent told it is there to read, to ask before changing it.
-  const added = await invoke(ui, 'project:folder-add', { id: pid, folder: web });
+  const added = await invoke(ui, 'project:folder:add', { id: pid, folder: web });
   expect(added.folders.map((r: { folder: string }) => r.folder)).toEqual([api, web]);
   f = await of(first);
   expect([f.dirs, f.addable]).toEqual([[], [web]]);
@@ -153,11 +153,11 @@ test('projects: several repositories: a task works in the main tree until it mak
   // Cloned from a URL (a local one here) next to the project's folder, offered to the first; made the default.
   const bare = path.join(root, 'docs.git');
   git(root, 'clone', '-q', '--bare', web, bare);
-  const cloned = await invoke(ui, 'project:folder-clone', { id: pid, url: bare });
+  const cloned = await invoke(ui, 'project:folder:clone', { id: pid, url: bare });
   expect(cloned.folders.map((r: { folder: string }) => r.folder)).toEqual([api, web, path.join(root, 'docs')]);
   expect((await of(first)).addable, 'web is addable again, and the clone').toEqual([web, path.join(root, 'docs')]);
   const inMain = await newTask(core, ui, undefined, pid); // in the main tree, api's, when web becomes the default: it stays there
-  expect((await invoke(ui, 'project:folder-default', { id: pid, folder: web })).folders[0].folder).toBe(web);
+  expect((await invoke(ui, 'project:folder:set-default', { id: pid, folder: web })).folders[0].folder).toBe(web);
   expect((await of(inMain)).folder, 'where it opened, though the default is web now').toBe(api);
   // The human adds web back on its tab, then removes it with a file not committed there: asked first, told what goes.
   await rightClick(ui, `#taskTabs [data-task="${first}"]`);
@@ -182,16 +182,16 @@ test('projects: several repositories: a task works in the main tree until it mak
   expect(fs.existsSync(webCopy2), 'kept when the human says no').toBe(true);
   await removeWeb(true);
   await expect.poll(() => !fs.existsSync(webCopy2) && git(web, 'branch', '--list', b1) === '').toBe(true); // the folder goes first, then the branch
-  await invoke(ui, 'project:close-tasks', { id: pid });
+  await invoke(ui, 'project:task:close-all', { id: pid });
   await expect.poll(() => core((k, i) => !k.shell.open.has(i), pid)).toBe(true);
   // A project without git, closed, getting repositories: its folder stays one of its folders, the default; a clone
   // goes next to it, not inside it.
   const plain = path.join(root, 'plain'), docs = path.join(root, 'docs'), notes = path.join(root, 'notes');
   fs.mkdirSync(plain);
   const plainId = await core((k, d) => { const p = k.shell.store.projectFor(d); k.shell.sendProjects(); return p.id; }, plain);
-  await invoke(ui, 'project:folder-add', { id: plainId, folder: docs });
+  await invoke(ui, 'project:folder:add', { id: plainId, folder: docs });
   git(root, 'clone', '-q', '--bare', web, `${notes}.git`);
-  const site = await invoke(ui, 'project:folder-clone', { id: plainId, url: `${notes}.git` });
+  const site = await invoke(ui, 'project:folder:clone', { id: plainId, url: `${notes}.git` });
   expect(site.folders.map((r: { folder: string; git: string }) => `${r.folder} ${r.git}`)).toEqual([`${plain} none`, `${docs} ok`, `${notes} ok`]);
   // Its task, working in that folder, adds a repository: a copy on a branch of its own, the task staying where it works.
   await invoke(ui, 'project:open', { folder: plain });
@@ -203,7 +203,7 @@ test('projects: several repositories: a task works in the main tree until it mak
   const p = await of(inPlain);
   expect([p.folder, p.worktrees.map((c) => c.repo), p.addable]).toEqual([plain, [docs], [notes]]);
   expect(git(docs, 'branch', '--list', p.worktrees[0].branch), 'its branch in docs').toBeTruthy();
-  await invoke(ui, 'project:close-tasks', { id: plainId });
+  await invoke(ui, 'project:task:close-all', { id: plainId });
   await expect.poll(() => core((k, i) => !k.shell.open.has(i), plainId)).toBe(true);
   // What it made gone, for a test after it: the projects with their tasks' copies, then the folders.
   for (const id of [pid, plainId]) {

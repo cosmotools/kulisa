@@ -190,7 +190,7 @@ test("the empty window: Close All Tasks in the project's submenu; links in ☰ o
   // Its agents: the accounts there are, to tick (none here: its tasks start with a terminal), and a new one of each
   // agent an account can be made of (its sign-in: the agents' tests).
   await step('Agents');
-  const accounts: string[] = (await invoke(ui, 'accounts:list')).accounts.map((a: { id: string }) => a.id);
+  const accounts: string[] = (await invoke(ui, 'account:list')).accounts.map((a: { id: string }) => a.id);
   const rows = np.getByRole('group', { name: 'Accounts' }).locator('[data-account]');
   await expect(rows).toHaveCount(accounts.length);
   for (const [i, id] of accounts.entries()) await expect(rows.nth(i)).toHaveAttribute('data-account', id);

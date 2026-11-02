@@ -126,7 +126,7 @@ type Begin = {
 export async function begin(core: Core, ui: Page, files: Files, { columns = false, featureX = false, only = false, shown = 1 }: Begin = {}) {
   const pid = files.pid('project'), call = typeof featureX === 'function' ? featureX : null;
   if ((only || call) && !fs.existsSync(path.join(files.project, '.git'))) gitProject(files.project);
-  if (only) for (const id of await core((k, p) => [...k.shell.open.keys()].filter((x) => x !== p), pid)) await invoke(ui, 'project:close-tasks', { id });
+  if (only) for (const id of await core((k, p) => [...k.shell.open.keys()].filter((x) => x !== p), pid)) await invoke(ui, 'project:task:close-all', { id });
   const first = files.tkey('project', 1);
   await showTask(core, ui, first);
   if (only) {

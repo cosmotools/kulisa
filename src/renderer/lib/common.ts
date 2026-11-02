@@ -9,7 +9,7 @@ export const initialProjects: ProjectsInfo | null = query.get('projects') ? JSON
 // Kulisa's keyboard shortcuts (main/keys.ts), as this OS shows them. keyText(id): a command's first key, for menus
 // and tooltips ("Reload (Ctrl+R)", as Chrome's toolbar says it: withKeys). Sent again when the human changes one.
 const shortcuts = createStore<Shortcut[]>()(() => JSON.parse(query.get('keys') || '[]'));
-kulisa.on('keys', (keys) => shortcuts.setState(keys, true));
+kulisa.on('keys:state', (keys) => shortcuts.setState(keys, true));
 export const useShortcuts = () => useStore(shortcuts);
 export const keyText = (id: string): string => shortcuts.getState().find((s) => s.id === id)?.keys[0] || '';
 export const withKeys = (title: string, id: string): string => (keyText(id) ? `${title} (${keyText(id)})` : title);

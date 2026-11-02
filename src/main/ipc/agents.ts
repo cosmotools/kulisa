@@ -22,7 +22,7 @@ export function registerAgents(ipc: Ipc) {
       projects: store.projectsWith('agents', id).map((p) => p.name) })),
     clis: shell.accounts.all().filter((a) => a.own && a.agent.config?.login).map((a) => a.id) };
   };
-  handle('accounts:list', () => accountsInfo());
+  handle('account:list', () => accountsInfo());
   // Delete Account… (projects.ts: refused while a task runs it, asked first). { accounts, clis } or { error }.
   handle('account:delete', (e, { id }) => serial(async () => {
     const r = await deleteAccount(shell, id, at(e));
@@ -39,7 +39,7 @@ export function registerAgents(ipc: Ipc) {
   // { accounts, clis }; or { error } (null: cancelled).
   const signins = shell.signins = new Map<string, Pty>(); // a sign-in terminal's key -> its pty
   const cancel = (key: string) => { const p = signins.get(key); signins.delete(key); if (p) stopTerminal(p); };
-  handle('account:signin', async (e, { id, agent: agentId, key }) => {
+  handle('account:signin:start', async (e, { id, agent: agentId, key }) => {
     const own = shell.accounts.find(agentId);
     if (id && !store.projects().some((x) => x.id === id)) return { error: `no project ${id}` };
     const config = own?.agent.config;
@@ -68,16 +68,16 @@ export function registerAgents(ipc: Ipc) {
     shell.sendProjects(); // the first account at the first start: Settings has it
     return id ? addAgent(shell, id, r.id) : accountsInfo();
   });
-  handle('account:signin-cancel', (_e, { key }) => cancel(key));
+  handle('account:signin:cancel', (_e, { key }) => cancel(key));
   const choosing = new Map<string, (agent: AgentChoice | null) => void>(); // task key -> resolve(agent or null)
   // Asked in the task's window; Cancel opens none.
   shell.chooseAgent = ((task: Task, agent: AgentChoice | null) => new Promise<AgentChoice | null>((resolve) => {
     choosing.get(task.key)?.(null);
     choosing.set(task.key, resolve);
-    task.window?.send('agent:choose', { task: task.key, selected: agent?.id ?? null });
+    task.window?.send('agent:choice:show', { task: task.key, selected: agent?.id ?? null });
   })) as Shell['chooseAgent'];
   shell.chooseAgent.cancel = (task: Task) => { choosing.get(task.key)?.(null); choosing.delete(task.key); };
-  on('agent:chosen', (_e, { task, id }) => { if (!task) return; const r = choosing.get(task); choosing.delete(task); r?.(id ? shell.agentFor(id) : null); });
+  on('agent:choice:submit', (_e, { task, id }) => { if (!task) return; const r = choosing.get(task); choosing.delete(task); r?.(id ? shell.agentFor(id) : null); });
   // The agents to choose from; with check, whether each is installed (for the task's folder: its environment);
   // with details (the Agents window), also where it is and its version. Finding them runs the user's login shell and
   // each agent's --version, tenths of a second or more (the list should come at once): with
@@ -91,7 +91,7 @@ export function registerAgents(ipc: Ipc) {
     return s;
   };
   const notYet: { list: null } = { list: null }; // not looked for in this folder yet
-  handle('agents:list', async (e, { check, details, cached } = {}) => {
+  handle('agent:list', async (e, { check, details, cached } = {}) => {
     const w = at(e), looks = new Map<string, ReturnType<typeof look>>(), cwd = w?.task?.folder || app.getPath('home'); // each agent looked for once, whatever its accounts
     // The project's agents first (Choose the Agent), in its order.
     const mine = w?.task?.project.agents() || [], rank = (id: string) => (mine.includes(id) ? mine.indexOf(id) : mine.length);
@@ -118,10 +118,10 @@ export function registerAgents(ipc: Ipc) {
     return { list, home: app.getPath('home') };
   });
   // The maker's installer, run when the human clicks Install (that is their go-ahead); its output goes to the window.
-  handle('agents:install', async (e, { id }) => {
+  handle('agent:install:start', async (e, { id }) => {
     const w = at(e), a = shell.agentFor(id, { any: true });
     if (!a?.install) return { error: `nothing to install for ${id}` };
-    const { code, log } = await installAgent(a, (data) => { if (!e.sender.isDestroyed()) e.sender.send('agents:install-log', data); });
+    const { code, log } = await installAgent(a, (data) => { if (!e.sender.isDestroyed()) e.sender.send('agent:install:output', data); });
     return { code, log, installed: !!(await look(a, w?.task?.folder || app.getPath('home'), true)).found };
   });
 

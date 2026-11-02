@@ -463,7 +463,7 @@ Ctrl stays the terminal's; tasks are ⌘⌥1…9 (⌘⇧3, 4, 5 are macOS's scre
 How: the main process sees every key of the window and of every tab before the page does (`before-input-event`, on
 every webContents as it is made: `shortcuts.ts`), and takes one of Kulisa's (`preventDefault`: the page never gets it)
 or leaves it untouched. Where the keyboard is in the window's own page, the page tells it (`keys:zone`: the terminal, a
-dialog, a pane; `src/renderer/lib/keys.ts`), which also runs the commands the main process sends back (`command`, with
+dialog, a pane; `src/renderer/lib/keys.ts`), which also runs the commands the main process sends back (`command:run`, with
 the profile and tab). Letters are matched by what they type on a Latin layout (Ctrl+W on an AZERTY keyboard is its W)
 and by their place on others (Ctrl+Е on a Russian one is Ctrl+T); digits and keys typed with Shift by their place. Keys
 are written as Electron's accelerators (`CommandOrControl+T`); a key held alone by its code (`ControlRight`, `F9`: `hold`
@@ -585,13 +585,18 @@ issue #73) is where the human reads it and passes it on, by any means: not every
 ## IPC
 
 A window's page and the main process talk by named channels: `invoke` (an answer comes back), `send` (none), and the
-main process's messages to a page. Each channel is declared once, in `src/shared/ipc.ts`: what it takes and what it
-answers (`Invoke`, `Send`, `Events`); `npm run build` checks both ends against it. The main process's end goes through
+main process's messages to a page. Each channel is declared once: core channels in `src/shared/ipc.ts`, Kulisa
+packages' in their own `ipc.ts`, joined into `Invoke`, `Send` and `Events`. `npm run build` checks both ends against
+their arguments and answers. The main process's end goes through
 `handle` and `on` (`src/main/ipc.ts`), in a file a domain (`src/main/ipc/`), and `AppWindow.send`; the page's through
 the bridge's types (`env.d.ts`) and `act`, which adds the task shown (a message about the shown task's profiles and
 tabs is refused once another is shown). A new channel is declared there first, then its two ends. A message acts in the
 window it comes from (`event.sender`); one change to the open tasks after another (`serial`).
 
+- Name channels `<domain>[:<subdomain>]:<action-or-event>`: a subgroup for related operations (`task:diff:review`,
+  `project:profile:add`, `account:signin:cancel`), simple families shallow (`tab:navigate`), compound actions
+  hyphenated (`project:folder:set-default`). Keep requests and notifications under the same domain and subgroup,
+  with consistent singular/plural choices; name what they do (`task:artifact:refresh` → `task:artifact:state`).
 - An answer the page does not read is `void`: the main process may answer anything there (the tests read some).
 - An answer that may be a refusal is a `Result` (`src/shared/result.ts`), read with `refused()`, so the types keep a
   page from reading `r.accounts` after a no (`{ error: null }`).

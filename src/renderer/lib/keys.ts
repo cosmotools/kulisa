@@ -80,7 +80,7 @@ function toTab({ p, tab, page }: Command, to: (i: number, n: number) => number) 
 }
 const focusPage = (id: string) => { const p = store.getState().profiles.find((x) => x.id === id); if (p) void act('tab:focus', { profile: id, tab: p.active }); };
 
-kulisa.on('command', ({ id, n, profile, tab, task, page }) => {
+kulisa.on('command:run', ({ id, n, profile, tab, task, page }) => {
   if (task !== store.getState().current || !run[id]) return; // a key typed as another task was coming
   const p = profile ? store.getState().profiles.find((x) => x.id === profile) : undefined;
   if (profile && (!p || !panes.get(profile))) return;

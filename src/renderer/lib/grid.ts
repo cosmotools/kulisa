@@ -188,7 +188,7 @@ export function stageUnmounted(a: DockviewApi | null) { if (stage === a) stage =
 document.addEventListener('dragend', () => { finishResourceDrag(); void unfreeze(); }, true);
 document.addEventListener('drop', () => setTimeout(() => { finishResourceDrag(); void unfreeze(); }), true);
 
-kulisa.on('state', async (s) => {
+kulisa.on('profile:state', async (s) => {
   if (replacing) {
     replacing = false;
     await (rebuilding = replaceGrid(s)); rebuilding = null; return;
@@ -230,7 +230,7 @@ function sendLayout() {
     rects[p.id] = { x: Math.round(r.x), y: Math.round(r.y), width: Math.round(r.width), height: Math.round(r.height),
       ...(Math.round(x) > Math.round(r.x) || Math.round(y) > Math.round(r.y) || Math.round(right) < Math.round(r.right) || Math.round(bottom) < Math.round(r.bottom) ? { clip: { x: Math.round(x), y: Math.round(y), width: Math.round(right - x), height: Math.round(bottom - y) } } : {}) };
   }
-  kulisa.send('layout', { task: store.getState().current, rects });
+  kulisa.send('layout:apply', { task: store.getState().current, rects });
 }
 const environmentIds = () => [...store.getState().profiles.map((p) => panelId(p.id)), ...store.getState().stageTerminals.map((a) => `stage-terminal:${a.id}`)];
 function addEnvironment(id: string, reference?: string, direction: 'right' | 'below' | 'within' = 'right', inactive = false) {
@@ -372,7 +372,7 @@ export async function setStageFollowing(follow: boolean) {
   store.setState({ stageFollowPaused: false });
   if (follow && lastEnvironment) followEnvironment(lastEnvironment);
 }
-kulisa.on('stage:follow', (follow) => {
+kulisa.on('stage:follow:state', (follow) => {
   store.setState({ stageFollow: follow, stageFollowPaused: false });
   if (follow && lastEnvironment) followEnvironment(lastEnvironment);
 });
@@ -384,7 +384,7 @@ kulisa.on('stage:activity', ({ task, environment }) => {
   if (task === store.getState().current && !replacing && !rebuilding) environmentActivity(environment);
 });
 // Browser actions through CDP also cover clients using the profiles outside Kulisa's MCP tools.
-kulisa.on('agent', ({ task, profile, caption }) => {
+kulisa.on('agent:caption', ({ task, profile, caption }) => {
   if (task === store.getState().current && caption && !replacing && !rebuilding) environmentActivity(panelId(profile));
 });
 export const dockApi = () => api;
@@ -431,16 +431,16 @@ kulisa.on('grid:closing', (next) => {
   store.setState({ profiles: [], stageTerminals: [], pictures: {}, captions: {}, picking: {}, developmentTerminals: { front: null, list: [] } });
   gridReady = null;
 });
-kulisa.on('tasks:closed', forgetTerminals);
-kulisa.on('development-terminals', (t) => {
+kulisa.on('task:closed', forgetTerminals);
+kulisa.on('development-terminal:state', (t) => {
   if (t.task !== store.getState().current) return;
   if (replacing || rebuilding) nextDevelopmentTerminals = t;
   else { store.setState({ developmentTerminals: t }); scheduleLayout(); }
 });
-kulisa.on('stage-terminals', (t) => {
+kulisa.on('stage-terminal:state', (t) => {
   if (t.task !== store.getState().current) return;
   if (replacing || rebuilding) nextStageTerminals = t.list;
   else { store.setState({ stageTerminals: t.list }); if (gridReady) void gridReady.then(syncGrid); }
 });
-kulisa.on('terminals:gone', forgetTerminals);
+kulisa.on('terminal:gone', forgetTerminals);
 export const showPane = (id: string) => { stage?.getPanel(panelId(id))?.api.setActive(); };

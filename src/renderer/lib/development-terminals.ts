@@ -70,7 +70,7 @@ termHooks.openFile = (e, path) => void filesOf(store.getState().current, [path])
 // would be cut and its prompt drawn in pieces.
 export const terminalsOf = (task: string) => Object.fromEntries([...xtermKeys()].filter((key) => key.startsWith(`${task}#`))
   .map((key) => [key, serialized(key)!]));
-kulisa.on('terminals:restore', (list) => { for (const [key, t] of Object.entries(list)) restoreTerminal(key, t); });
+kulisa.on('terminal:restore', (list) => { for (const [key, t] of Object.entries(list)) restoreTerminal(key, t); });
 
 kulisa.on('development-terminal:focus', focusDevelopmentTerminal);
 

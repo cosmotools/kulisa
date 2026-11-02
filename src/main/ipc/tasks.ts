@@ -16,8 +16,8 @@ export function registerTasks(ipc: Ipc) {
   const store = shell.store;
   const { openProject, closeTasks, askClosing, moveTask, moveAll, dropTask, dragOut, quit, createTask, showTask, closeTask, deleteTask, deleteMerged, deleteProject, openTasksOf } = tasks;
   const sendProjects = () => shell.sendProjects();
-  handle('projects:list', (e) => at(e)?.info());
-  // The switch runs on its own; the window hears about it through grid:closing, projects and state. No question
+  handle('project:list', (e) => at(e)?.info());
+  // The switch runs on its own; the window hears about it through grid:closing, project:state and profile:state. No question
   // where: a tab in this window, which Move to New Window takes away.
   const openLater = (p: ProjectEntry, w: AppWindow, task?: string) => {
     setImmediate(() => serial(() => (shell.windows.includes(w) ? openProject(p, w, task) : null)).catch((err) => console.error('[project:open]', err)));
@@ -29,7 +29,7 @@ export function registerTasks(ipc: Ipc) {
     return p ? openLater(p, at(e)!, a.task) : { error: 'no such project' };
   });
   // Close All Tasks (a project's menu): its open tasks in every window, asked once in the window it came from.
-  handle('project:close-tasks', (e, { id }) => serial(async () => {
+  handle('project:task:close-all', (e, { id }) => serial(async () => {
     const p = shell.open.get(id), w = at(e);
     if (!p || !w) return { error: 'the project is not open' };
     const tasks = p.open().filter((t) => t.window);
@@ -43,7 +43,7 @@ export function registerTasks(ipc: Ipc) {
     const target = windowById(to);
     return to && !target ? { error: 'that window is closed' } : moveTask(shell.taskByKey(key), terminalContents, target);
   }));
-  handle('project:move-all', (e, { id, to, terminalContents }) => serial(() => {
+  handle('project:task:move-all', (e, { id, to, terminalContents }) => serial(() => {
     const target = windowById(to);
     return to && !target ? { error: 'that window is closed' } : moveAll(shell.open.get(id), at(e), terminalContents, target ?? null);
   }));
@@ -75,19 +75,19 @@ export function registerTasks(ipc: Ipc) {
     return r;
   }));
   handle('task:rename', (_e, { key, name }) => taskAt(key, (task) => task.rename(name)));
-  handle('task:add-repo', (_e, { key, repo }) => taskAt(key, (task) => task.addRepository(repo)));
-  handle('task:remove-repo', (_e, { key, repo }) => taskAt(key, (task) => task.removeRepository(repo)));
-  handle('project:delete-merged', (e, { id }) => serial(() => { const p = shell.open.get(id); return p ? deleteMerged(p, at(e)) : { error: 'the project is not open' }; }));
+  handle('task:repo:add', (_e, { key, repo }) => taskAt(key, (task) => task.addRepository(repo)));
+  handle('task:repo:remove', (_e, { key, repo }) => taskAt(key, (task) => task.removeRepository(repo)));
+  handle('project:task:delete-merged', (e, { id }) => serial(() => { const p = shell.open.get(id); return p ? deleteMerged(p, at(e)) : { error: 'the project is not open' }; }));
   handle('task:show-folder', (_e, key) => { const task = shell.taskByKey(key); return task && electronShell.openPath(task.folder); });
   handle('task:open-folder', (_e, { key, folder }) => {
     const task = shell.taskByKey(key); // only a folder the task owns (a resource), not any path the renderer names
     return task && task.resources().some((r) => r.folder === folder) ? electronShell.openPath(folder) : undefined;
   });
-  handle('task:files', (_e, { key, folder }) => {
+  handle('task:file:list', (_e, { key, folder }) => {
     const task = shell.taskByKey(key);
     return task ? task.files(folder) : { error: 'the task is closed' };
   });
-  handle('task:file-open', (_e, { key, file }) => {
+  handle('task:file:open', (_e, { key, file }) => {
     const task = shell.taskByKey(key);
     return task ? task.openProjectFile(file) : { error: 'the task is closed' };
   });
@@ -109,9 +109,9 @@ export function registerTasks(ipc: Ipc) {
     const task = shell.taskByKey(key);
     return task ? task.diffContents(folder, path, options) : { error: 'The task is closed.' };
   });
-  handle('task:artifacts', (e, key) => { const w = at(e); return w?.task?.key === key ? w.sendArtifacts() : undefined; });
-  handle('task:artifact-send', (_e, { key, file }) => taskAt(key, (task) => task.sendArtifact(file)));
-  handle('task:artifact-drag', async (e, { key, file }) => {
+  handle('task:artifact:refresh', (e, key) => { const w = at(e); return w?.task?.key === key ? w.sendArtifacts() : undefined; });
+  handle('task:artifact:send', (_e, { key, file }) => taskAt(key, (task) => task.sendArtifact(file)));
+  handle('task:artifact:drag', async (e, { key, file }) => {
     const w = at(e), task = w?.task;
     if (!task || task.key !== key) return { error: 'that task is not on screen' };
     const r = await task.findArtifact(file);
@@ -123,7 +123,7 @@ export function registerTasks(ipc: Ipc) {
     e.sender.startDrag({ file: artifact.file, icon });
     return {};
   });
-  handle('task:artifacts-delete', (_e, { key, files }) => taskAt(key, (task) => task.deleteArtifacts(files)));
-  handle('tasks:get', (e) => at(e)?.sendProjects());
+  handle('task:artifact:delete', (_e, { key, files }) => taskAt(key, (task) => task.deleteArtifacts(files)));
+  handle('project:refresh', (e) => at(e)?.sendProjects());
 
 }

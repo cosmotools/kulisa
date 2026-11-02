@@ -18,8 +18,8 @@ export interface TerminalSend {
 
 // webContents.send / the window's kulisa.on: what the main process tells a window.
 export interface TerminalEvents {
-  'terminals:restore': TerminalContents;
-  'terminals:gone': string[];
+  'terminal:restore': TerminalContents;
+  'terminal:gone': string[];
   'pty:out': { task: string; data: string; cols: number; rows: number };
 }
 

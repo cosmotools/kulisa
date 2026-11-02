@@ -133,7 +133,7 @@ function pluginHost(shell: Shell): PluginHost {
     onContext: (listener) => { shell.bus.on('profile-added', (p: Profile) => listener(p.context)); },
     onCommand: (listener) => { shell.bus.on('agent-command', listener); },
     typingSecret: (key) => shell.typingSecret.has(key),
-    showAction: (action) => { shell.taskByKey(action.task)?.window?.send('agent', action); },
+    showAction: (action) => { shell.taskByKey(action.task)?.window?.send('agent:caption', action); },
     noteAction: (action) => { shell.bus.emit('agent-action', action); },
   };
 }

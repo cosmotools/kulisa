@@ -43,12 +43,12 @@ export function wizard(single: boolean) {
     if (s.from === 'new' || (s.name.trim() && s.name !== named)) return;
     set({ name: named = nameOf(s.from === 'folder' ? s.sources[0]?.folder : s.urls[0]) });
   };
-  // A new or cloned project's folder, and what it is (main/ipc/projects.ts, project:folder-state), asked again as it
+  // A new or cloned project's folder, and what it is (main/ipc/projects.ts, project:folder:state), asked again as it
   // is typed. What it is is kept with the folder it was asked for: until the answer for the folder typed comes, the one
   // before is not said of it (Shop "is a file, not a folder" for a moment, after a file named note).
   async function ask() {
     const s = get(), folder = thereOf(s).t;
-    const r = !folder ? null : await kulisa.invoke('project:folder-state', { location: s.place, name: s.name });
+    const r = !folder ? null : await kulisa.invoke('project:folder:state', { location: s.place, name: s.name });
     if (folder === thereOf(get()).t) set({ asked: r && { ...r, folder } });
   }
   const change = (c: Partial<WizardState>) => { set({ ...c, error: '' }); follow(); void ask(); };
@@ -67,7 +67,7 @@ export function wizard(single: boolean) {
     if (!v) { follow(); return true; }
     set({ error: '' });
     if (get().from === 'clone') { if (!get().urls.includes(v)) set({ urls: [...get().urls, v] }); follow(); void ask(); return true; }
-    const r = await kulisa.invoke('project:folder-state', { from: 'folder', folder: v });
+    const r = await kulisa.invoke('project:folder:state', { from: 'folder', folder: v });
     const why = !r ? `${v}: a full path, please` : r.state === 'new' ? `${r.folder} is not there` : folderIs[r.state]?.(r.folder, r.project);
     if (why) { set({ error: why, errorAt: 'source', ...(!get().typed && { typed: v }) }); return false; } // left to correct
     if (single && v !== get().typed.trim()) return true; // another typed meanwhile: its own answer comes
@@ -141,7 +141,7 @@ export function wizard(single: boolean) {
   }
   // Its defaults, and the accounts and profiles there are (as it is made).
   async function reset() {
-    const [c, a, p] = await Promise.all([kulisa.invoke('project:new-defaults'), kulisa.invoke('accounts:list'), kulisa.invoke('profiles:list')]);
+    const [c, a, p] = await Promise.all([kulisa.invoke('project:new-defaults'), kulisa.invoke('account:list'), kulisa.invoke('profiles:list')]);
     named = '';
     set({ from: 'new', name: '', place: c.location, sep: c.sep, sources: [], urls: [], typed: '', asked: null, step: 0, error: '', errorAt: '', nameTrouble: false,
       accounts: a.accounts, clis: a.clis, chosen: [], main: '', signing: null, others: p.profiles, taken: [], fresh: [], ready: true });
