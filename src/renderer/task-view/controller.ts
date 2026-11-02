@@ -25,7 +25,7 @@ export async function setStageFollowing(follow: boolean) {
 kulisa.on('page:press', ({ task }) => {
   if (task === store.getState().current) for (const profile of taskStore().getState().profiles) pane(profile.id)?.cancelAddress();
 });
-kulisa.on('stage:arrange', (event) => grids.get(event.task)?.arrange(event));
+kulisa.on('stage:arrange', (event) => { void grids.get(event.task)?.arrange(event); });
 store.subscribe((next, previous) => {
   if (previous.current && next.current !== previous.current) {
     grids.get(previous.current)?.deactivate();

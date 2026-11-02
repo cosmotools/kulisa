@@ -1,6 +1,6 @@
 // A task's retained grids and their visible work (docs/window.md, The grid).
 import { Orientation, DockviewCompositeDisposable } from 'dockview-react';
-import type { DockviewApi, DockviewIDisposable, GridviewApi, GridviewPanelApi } from 'dockview-react';
+import type { DockviewApi, DockviewIDisposable, GridviewApi, GridviewPanelApi, SerializedDockview } from 'dockview-react';
 import { store } from '../lib/store';
 import type { TaskStore } from './state';
 import { splitLayout, type TaskLayout } from '../../shared/stage-layout';
@@ -26,8 +26,8 @@ export class TaskGrid {
   private stageShare = 0.65;
   private subscriptions = new Map<object, DockviewIDisposable>();
   private dragging = false;
-  private arrangement: Events['stage:arrange'] | null = null;
-  private saved: TaskLayout | null = null;
+  private restoration: Promise<boolean> | null = null;
+  private savedDevelopment: SerializedDockview | null = null;
   private stop: () => void;
   constructor(readonly state: TaskStore) {
     this.development = new DevelopmentGrid(state, this.scheduleSave);
@@ -42,22 +42,21 @@ export class TaskGrid {
   get key() { return this.state.getState().key; }
   private get ready() { return !this.state.getState().loading; }
   private get active() { return !this.disposed && store.getState().current === this.key; }
-  async load() {
+  load() { return this.restoration ??= this.restore(); }
+  private async restore() {
     const saved = await kulisa.invoke('layout:load', { task: this.key }).catch((error: unknown) => {
       console.warn('[layout] saved grid unavailable:', error); return null;
     });
     if (this.disposed) return false;
-    this.saved = splitLayout(saved);
+    const layout = splitLayout(saved);
+    this.savedDevelopment = layout?.workspace ?? null;
+    this.stageShare = layout?.stageShare && layout.stageShare > 0 && layout.stageShare < 1 ? layout.stageShare : 0.65;
+    this.stage.saved = layout?.stage ?? null;
+    this.state.setState({ stageLayout: layout?.stageLayout ?? null, stageOverflow: layout?.stageOverflow ?? false,
+      stagePosition: layout?.stagePosition ?? 'above' });
     return true;
   }
   mount(workspace: GridviewApi, element: HTMLElement) {
-    const layout = this.saved;
-    this.stageShare = layout?.stageShare && layout.stageShare > 0 && layout.stageShare < 1 ? layout.stageShare : 0.65;
-    this.stage.saved = this.arrangement?.layout !== undefined ? null : layout?.stage ?? null;
-    this.state.setState({ stageLayout: this.arrangement?.layout ?? layout?.stageLayout ?? null,
-      stageOverflow: this.arrangement?.overflow ?? layout?.stageOverflow ?? false,
-      stagePosition: this.arrangement?.position ?? layout?.stagePosition ?? 'above' });
-    this.arrangement = null;
     this.workspace = workspace; this.element = element;
     this.subscriptions.set(workspace, workspace.onDidLayoutChange(() => {
       this.scheduleSave(); this.reportPages();
@@ -70,8 +69,8 @@ export class TaskGrid {
     this.development.attach(api, parent);
     this.watch(api, parent.onDidDimensionsChange(({ width, height }) => api.layout(width, height, true)));
     api.layout(parent.width, parent.height, true);
-    this.development.build(this.saved?.workspace ?? null);
-    this.saved = null;
+    this.development.build(this.savedDevelopment);
+    this.savedDevelopment = null;
     this.finishInitialization();
   }
   mountStage(api: DockviewApi, parent: GridviewPanelApi, viewport: HTMLElement) {
@@ -113,12 +112,9 @@ export class TaskGrid {
     this.subscriptions.clear(); this.stage.detach(); this.development.dispose();
     this.panes.clear(); this.workspace = null; this.element = null;
   }
-  arrange(event: Events['stage:arrange']) {
-    if (!this.workspace) {
-      this.arrangement = { ...this.arrangement, task: this.key, ...(event.layout !== undefined && { layout: event.layout }),
-        ...(event.overflow !== undefined && { overflow: event.overflow }), ...(event.position !== undefined && { position: event.position }) };
-      return;
-    }
+  async arrange(event: Events['stage:arrange']) {
+    if (!this.workspace) await this.load();
+    if (this.disposed) return;
     const { layout, overflow, position } = event, previousPosition = this.state.getState().stagePosition;
     if (layout !== undefined) this.stage.saved = null;
     this.state.setState({ ...(layout !== undefined && { stageLayout: layout }),
@@ -141,7 +137,7 @@ export class TaskGrid {
       this.workspace.addPanel({ id: 'stage', component: 'stage', minimumWidth: 100, minimumHeight: 100 });
       this.placeStage('above', this.stageShare);
     }
-    if (this.stage.syncStage()) this.stage.layout();
+    this.stage.syncStage();
     this.finishInitialization();
   }
   resize = () => {

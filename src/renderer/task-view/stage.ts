@@ -54,6 +54,7 @@ export class StageGrid {
   addEnvironment = (id: string, reference?: string, direction: 'right' | 'below' | 'within' = 'right', inactive = false) => {
     const profile = id.startsWith('profile:');
     this.api!.addPanel({ id, component: profile ? 'profile' : 'stage-terminal', tabComponent: profile ? 'profile' : 'stage-terminal',
+      minimumWidth: 0, minimumHeight: 0,
       title: profile ? this.store.getState().profiles.find((p) => panelId(p.id) === id)?.name : this.store.getState().stageTerminals.find((a) => `stage-terminal:${a.id}` === id)?.name,
       ...(!profile && { renderer: 'always' as const }), ...(reference && { position: { referencePanel: reference, direction } }), inactive });
   };
@@ -73,27 +74,24 @@ export class StageGrid {
     this.api.exitMaximizedGroup();
     const panels = this.environmentIds().map((id) => this.api!.getPanel(id)!), first = panels[0];
     if (!first) return;
-    // Collecting tabs first makes any nested arrangement a single stack without replacing its panels.
-    for (const panel of panels.slice(1)) panel.api.moveTo({ group: first.group, position: 'center', skipSetActive: true });
     const mode = this.store.getState().stageLayout;
-    if (mode !== 'tabs') for (let i = 1; i < panels.length; i++) {
-      const group = this.api.addGroup({ referenceGroup: panels[i - 1]!.group, direction: mode === 'vertical' ? 'below' : 'right', skipSetActive: true });
+    if (mode === 'tabs') for (const panel of panels.slice(1)) panel.api.moveTo({ group: first.group, position: 'center', skipSetActive: true });
+    else for (let i = 1; i < panels.length; i++) {
+      const group = this.api.addGroup({ referenceGroup: panels[i - 1]!.group, direction: mode === 'vertical' ? 'below' : 'right', skipSetActive: true,
+        constraints: { minimumWidth: 0, minimumHeight: 0 } });
       panels[i]!.api.moveTo({ group, skipSetActive: true });
     }
     (mode === 'tabs' ? first : panels.at(-1)!).api.setActive();
   };
 
   syncStage = () => {
-    if (!this.api) return false;
+    if (!this.api) return;
     const ids = this.environmentIds();
-    let changed = false;
-    for (const p of this.api.panels) if (!ids.includes(p.id)) { this.api.removePanel(p); changed = true; }
+    for (const p of this.api.panels) if (!ids.includes(p.id)) this.api.removePanel(p);
     for (const id of ids) if (!this.api.getPanel(id)) {
       const mode = this.store.getState().stageLayout;
       this.addEnvironment(id, this.api.panels.at(-1)?.id, mode === 'tabs' ? 'within' : mode === 'vertical' ? 'below' : 'right');
-      changed = true;
     }
-    return changed;
   };
 
   followEnvironment = (environment: string) => {

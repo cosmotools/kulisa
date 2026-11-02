@@ -71,6 +71,8 @@ The development grid disables drag and drop so its Resources group stays beside 
 Its minimum height is 204 CSS pixels to keep the Resources controls reachable. The Resources bar and Resources
 content: [tasks.md](tasks.md), The Resources panel.
 Changing Stage's view moves existing panels through Dockview; their contents and terminal search state stay mounted.
+Stacks move each panel directly into its distributed group; Dockview collapses the emptied branches. Tabs collects
+panels into the first environment's group.
 The human's `stage:arrange` IPC and the agent's
 `stage_arrange` tool call `Task.arrangeStage`: the task must be shown, and settings apply with an empty Stage too.
 The task-scoped event reaches that window.
@@ -134,8 +136,9 @@ Views, processes and buffers. A task's open Diff retains its comparison, filter,
 
 `task.json` keeps Stage view/overflow/layout in `stage`, and development layout, Stage position/share in `workspace`,
 saved 300 ms after a change and flushed when the task is hidden or closed. The saved layout loads once before a TaskView
-creates its grids, including after a restart or move to another window. Stage commands received during loading merge
-into the initial settings; loading completes when both required grids are mounted. Dockview owns the live geometry;
+creates its grids, including after a restart or move to another window. Stage commands received before mounting await
+the same restoration promise and update their task's settings in arrival order. Loading completes when both required
+grids are mounted. Dockview owns the live geometry;
 its layout events save completed arrangements. Stage position changes move the leading area before its peer using
 the previous position; its live panel dimensions supply the split ratio. The ratio is retained separately while Stage
 is empty. Development layouts use Dockview's `toJSON` / `fromJSON`, including edge-group sizes and collapse state.
