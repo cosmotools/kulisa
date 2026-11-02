@@ -198,6 +198,7 @@ export interface Events extends TerminalEvents, ThumbnailEvents, DictationEvents
   'command:run': { id: string; n?: number; profile: string | null; tab: string | null; task: string | null; page: boolean };
   'stage:follow:state': boolean;
   'stage:activity': { task: string; environment: string };
+  'page:press': { task: string };
   'agent:caption': { task: string; profile: string; caption: string | null; sticky?: boolean };
   'agent:choice:show': { task: string; selected: string | null };
   'agent:install:output': string;

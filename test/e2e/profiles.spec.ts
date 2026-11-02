@@ -156,7 +156,7 @@ test("DevTools in a pane's ⋮ menu opens and closes the DevTools of its active 
   const pane = ui.locator(`[role="region"][data-profile="${id}"]`);
   const opened = () => core((k) => k.profile('Sam.admin').get().wc.isDevToolsOpened());
   // ⋮ as tall as the bar's other buttons, its dots upright, its menu open or not.
-  const buttons = pane.locator('[role="group"][aria-label="Page"] button:visible');
+  const buttons = pane.locator('[role="group"][aria-label="Page"] button:visible:not([role="tab"])');
   const looks = async (what: string) => {
     for (const svg of await buttons.locator('svg').all()) await expect(svg, what).toHaveCSS('rotate', 'none');
     return Promise.all((await buttons.all()).map(async (b) => Math.round((await b.boundingBox()).height)));
@@ -178,7 +178,7 @@ test("DevTools in a pane's ⋮ menu opens and closes the DevTools of its active 
     const m = await menu(ui).boundingBox(), b = await pane.locator('[aria-label="More"]').boundingBox();
     expect(m.x + m.width <= b.x + b.width && b.x + b.width - (m.x + m.width) < 8 && m.y >= b.y + b.height - 1, JSON.stringify({ m, b })).toBe(true);
     // Back, forward, reload, Pick and ⋮ are icon buttons, as Chrome's: no border, no text, a name for screen readers.
-    const names = ['Back', 'Forward', 'Reload', 'Pick an element', 'More'];
+    const names = ['Back', 'Forward', 'Reload', 'New tab', 'Pick an element', 'More'];
     await expect(buttons).toHaveCount(names.length);
     for (const [i, name] of names.entries()) {
       const b = buttons.nth(i);
@@ -194,10 +194,10 @@ test("DevTools in a pane's ⋮ menu opens and closes the DevTools of its active 
     const left = async (l: Locator) => Math.round((await l.boundingBox()).x - group.x);
     const right = async (l: Locator) => { const r = await l.boundingBox(); return Math.round(group.x + group.width - (r.x + r.width)); };
     const page = pane.getByTestId('page'), pageBox = await page.boundingBox();
-    const inset = { tab: await left(pane.getByRole('tablist').first()), back: await left(pane.locator('[aria-label="Back"]')),
+    const inset = { back: await left(pane.locator('[aria-label="Back"]')),
       page: await left(page), close: await right(header.locator('[aria-label="Close profile"]')), more: await right(pane.locator('[aria-label="More"]')),
       pageRight: await right(page), pageBottom: Math.round(group.y + group.height - (pageBox.y + pageBox.height)) };
-    expect(inset).toEqual({ tab: 8, back: 8, page: 0, close: 8, more: 8, pageRight: 0, pageBottom: 0 });
+    expect(inset).toEqual({ back: 8, page: 0, close: 8, more: 8, pageRight: 0, pageBottom: 0 });
     await choose(ui, 'DevTools');
   };
   await click();

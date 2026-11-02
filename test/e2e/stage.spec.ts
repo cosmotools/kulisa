@@ -62,6 +62,29 @@ test('flat saved layouts restore browser panes inside the stage and development 
 });
 
 
+test('restored Stage headers stay visible when the saved layout hides them', async ({ core, ui, call, restart }) => {
+  await call('profile_create', { name: 'Header.browser' });
+  await expect.poll(() => core((k) => Object.keys((k.shell.task.store.layout() as any)?.stage?.panels ?? {}).length)).toBe(1);
+  const stage = await ui.evaluate(() => {
+    const saved = (window as any).__stage.toJSON();
+    const hide = (node: any) => {
+      if (node.type === 'leaf') node.data.hideHeader = true;
+      else node.data.forEach(hide);
+    };
+    hide(saved.grid.root);
+    return saved;
+  });
+  await core((k, stage) => {
+    const saved = k.shell.task.store.layout() as { stage: unknown };
+    k.shell.task.store.saveLayout({ ...saved, stage });
+  }, stage);
+  const next = await restart();
+  await notLoading(next);
+  await expect(next.locator('[data-profile-notch]')).toBeVisible();
+  await expect(next.getByRole('button', { name: 'Close profile', exact: true })).toBeVisible();
+  await call('profile_close', { profile: 'Header.browser' });
+});
+
 test('stage arrangements are shared by human and agent and independent of workspace arrangements', async ({ core, ui, call, restart }) => {
   await call('profile_create', { name: 'Arrange.first' });
   await call('profile_create', { name: 'Arrange.second' });

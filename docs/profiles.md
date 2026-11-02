@@ -78,17 +78,19 @@ A profile is an Electron session on a folder of its own (`session.fromPath`), la
   (above); the profile stays. **Delete** in Settings (its page's ⋯ → Delete Profile…, its row's right-click, Delete), after a
   confirmation: its copies in every project's tasks and its master, with its sign-ins, storage and tabs, go for good
   (`projects.ts`, `deleteProfile`).
-- **Tabs**: a tab strip and a toolbar per pane, as Chrome's (`components/grid/ProfilePane.tsx`): back, forward,
-  reload; the address without `https://` and `www.` until it is clicked, then all of it, selected; a tab opened with +
-  gets the focus in its empty address; many tabs shrink to their icon and × (each keeps its ×), then the strip scrolls
-  (`useStrip`, `lib/strip.ts`); `target=_blank` and `window.open` open tabs of the same profile. Right-click a tab:
-  reload, duplicate, close, close others. **⋮** at the toolbar's end, as Chrome's: Screenshot (Element, Visible Part,
-  Full Page) and DevTools (or F12). A narrow pane gives up back and forward, then reload, into ⋮ as they no longer
-  fit beside the address's least room, their keys staying; never Pick or ⋮ (container queries: [ui.md](ui.md), Controls).
-  Chrome's keys work in a page for its pane: Ctrl+T, Ctrl+W, Ctrl+Shift+T, Ctrl+L, Ctrl+Tab, Ctrl+1…9 and the rest
-  ([window.md](window.md), Keys).
+- **Tabs and page controls** share one row per pane (`components/grid/ProfilePane.tsx`): back, forward, reload,
+  tabs and +, Pick, ⋮. A click chooses a tab; double-click or its right-click menu’s **Edit address…** opens its full
+  address, selected, in place of the tabs and +. Ctrl+L does the same for the active tab. Enter navigates; Esc or
+  leaving the field discards the edit and shows tabs. A tab opened with + gets its empty address ready to type in.
+  Many tabs shrink to their icon and × (each keeps its ×), then the strip scrolls (`useStrip`, `lib/strip.ts`);
+  its elements stay mounted during editing. `target=_blank` and `window.open` open tabs of the same profile.
+  Right-click a tab: edit address, reload, duplicate, close, close others. **⋮** at the row’s end: Screenshot
+  (Element, Visible Part, Full Page) and DevTools (or F12). A narrow pane gives up back and forward, then reload,
+  into ⋮ as they stop fitting; never Pick or ⋮ (container queries: [ui.md](ui.md), Controls). Hover a tab for its full
+  address. Chrome’s keys work in a page for its pane: Ctrl+T, Ctrl+W, Ctrl+Shift+T, Ctrl+L, Ctrl+Tab, Ctrl+1…9
+  and the rest ([window.md](window.md), Keys).
 - **Zoom**: Ctrl + / − / 0 in a page zooms that site in that profile, on top of the Kulisa zoom (saved per profile,
-  shown in the address bar).
+  shown beside the tabs).
 - **An empty tab** (`about:blank`: a new one, the last one closed) is the pane's color in Kulisa's theme, not
   Chromium's white (`Profile.setBlank`, by the window; `COLORS.page`, `window.ts`); a page's own colors stay its own.
 - **A page that does not load** says why, as Chrome's error page does (Electron leaves it blank): the site cannot be
@@ -97,7 +99,7 @@ A profile is an Electron session on a folder of its own (`session.fromPath`), la
   agent's snapshot reads the same words (`error-page.html`, filled in by `profiles.ts`). A tab whose site refuses to connect
   (a new task's tabs on its ports before its dev server runs) is ready at once with that page, so its profile opens
   without waiting for it.
-- **Pick** (DevTools' inspect icon, at the end of the address bar): click an element on the page; a reference to it goes into the agent's prompt (below). Off on an empty tab (`about:blank`): nothing to point at.
+- **Pick** (DevTools' inspect icon, at the end of the controls row): click an element on the page; a reference to it goes into the agent's prompt (below). Off on an empty tab (`about:blank`): nothing to point at.
 
 ## What the agent does
 

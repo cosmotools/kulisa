@@ -48,7 +48,7 @@ test("keys in the terminal are the agent's, but Kulisa's own: Ctrl+T reaches the
   // Sam's pane used last (its address bar: the window knows only its own focus): Ctrl+` goes back to its page.
   const id = await core(async (k, url) => (await k.ensureProfile('Sam', url)).id, `${SITE}/app`);
   await core((k) => k.shell.win.webContents.focus());
-  await ui.locator(`[role="region"][data-profile="${id}"] [aria-label="Address"]`).focus();
+  await ui.locator(`[role="region"][data-profile="${id}"]`).getByRole('tab', { selected: true }).dblclick();
   await expect.poll(() => core((k) => k.shell.windows[0].keyZone)).toBe(`pane:${id}`);
   const tabsBefore = await core((k) => k.profile('Sam').tabs.length);
   await termKeys(ui).focus();

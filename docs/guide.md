@@ -364,18 +364,21 @@ profile there to see its page.
 
 A pane is a small Chrome. A notch at the top centers the profile's picture, name and what the agent is doing. In a
 narrow pane, point at the status icon for details. **⋯** at the left opens the profile's menu (also on a right-click);
-Maximize/Restore and **×** are at the right. Under the header, a tab strip, then back, forward, reload, the address
-bar, **Pick** and **⋮**.
+Maximize/Restore and **×** are at the right. Under the header, one row holds back, forward, reload, tabs and **+**,
+**Pick** and **⋮**.
 
+- **Change an address**: double-click a tab, right-click it → **Edit address…**, or press Ctrl+L for the active tab.
+  The full address appears selected in place of the tabs. Enter goes there; Esc or clicking outside cancels. Point at
+  a tab to see its full address without editing.
 - A new tab is empty, in Kulisa's colors, with the keyboard in the address bar: type an address, or words to search
   Google for.
-- `target=_blank` links and pop-ups open as tabs of the same profile. Right-click a tab: Reload, Duplicate, Close tab,
-  Close other tabs.
+- `target=_blank` links and pop-ups open as tabs of the same profile. Right-click a tab: Edit address…, Reload,
+  Duplicate, Close tab, Close other tabs.
 - In a narrow pane, back, forward and then reload move into the pane's ⋮ menu, so Pick and ⋮ stay in reach; their
   keys work as always (Alt+←, Alt+→, Ctrl+R).
 - Chrome's keys work in a page: Ctrl+T, Ctrl+W, Ctrl+Shift+T, Ctrl+L, Ctrl+Tab, Ctrl+1…9 (Keyboard shortcuts, below).
-- **Zoom** a site with Ctrl + / − / 0 in its page; it is kept for that site in that profile and shown in the address
-  bar (a click resets it).
+- **Zoom** a site with Ctrl + / − / 0 in its page; it is kept for that site in that profile and shown beside the tabs
+  (a click resets it).
 - **Right-click in a page** for Chrome's menu: open a link in a new tab of the same profile or copy its address, copy
   or open an image, cut, copy and paste in a field, back, forward and reload; Pick an element for the agent, a
   screenshot of an element, and Inspect. Sites with a menu of their own (Teams, Google Docs) show theirs.
@@ -412,8 +415,8 @@ bar, **Pick** and **⋮**.
 - **Share selected text.** Select text in a browser page or Stage terminal, then right-click **Send selection to agent**.
   The selected text and its environment name go into your agent’s message draft. Add your question, review it and
   send when ready. You need an open agent terminal.
-- **Point and tell.** Click **Pick** (the arrow icon at the end of the address bar, or Ctrl+Shift+C), then an element
-  on the page. A reference to it goes into the agent's input; write the rest of the message around it ("this button
+- **Point and tell.** Click **Pick** (the arrow icon at the end of the profile’s controls row, or Ctrl+Shift+C), then
+  an element on the page. A reference to it goes into the agent's input; write the rest of the message around it ("this button
   does nothing") and send. Picks from several panes can go into one message. Esc cancels.
 - **It points back.** Asked where something is, the agent outlines it in the page, with a label over the pane, until
   you click or type there.

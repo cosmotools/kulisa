@@ -39,6 +39,7 @@ test('Diff copies code and file paths in Unified and Split layouts while control
   await copy.click();
   await expect.poll(() => core((k) => k.electron.clipboard.readText())).toBe(file);
   await expect(heading.getByRole('button', { name: `Expand diff for ${file}`, exact: true })).toHaveAttribute('aria-expanded', 'false');
+  await showResources(ui, 'Agents');
 });
 
 test('Diff groups files into folders and switches the development area without moving Stage or stopping terminals', async ({ core, ui, files }) => {

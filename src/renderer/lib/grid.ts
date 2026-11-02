@@ -11,8 +11,9 @@ import { dockTheme } from './dock-theme';
 import { forgetTerminals } from '../../terminal/renderer';
 import { environmentMinimum, filterLayout, splitLayout, type TaskLayout } from '../../shared/stage-layout';
 
-interface PaneHandle { content: HTMLElement; focusAddress(): void; newTab(): void; pick(): void }
+interface PaneHandle { content: HTMLElement; focusAddress(): void; cancelAddress(): void; newTab(): void; pick(): void }
 export const panes = new Map<string, PaneHandle>();
+kulisa.on('page:press', ({ task }) => { if (task === store.getState().current) for (const pane of panes.values()) pane.cancelAddress(); });
 const panelId = (id: string) => `profile:${id}`;
 let api: DockviewApi | null = null, stage: DockviewApi | null = null;
 let apiReady = Promise.withResolvers<DockviewApi>();
@@ -177,6 +178,8 @@ export function stageMounted(a: DockviewApi) {
   const wasBuilding = building; building = true;
   restore(a, pendingStage, environmentIds()); pendingStage = null;
   if (!a.panels.length) arrangeStage(); else syncStage();
+  // Stage identities and pane controls need their headers, independently of saved visibility flags.
+  for (const group of a.groups) group.header.hidden = false;
   building = wasBuilding;
   watch(a);
   a.onDidActivePanelChange(({ origin }) => { if (origin === 'user') pauseStageFollowing(); });

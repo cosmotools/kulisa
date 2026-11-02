@@ -2,7 +2,7 @@
 // page itself is a native view the main process lays over the content box (lib/grid.ts tells it where); while a panel is
 // dragged or a menu is open, a picture of the page stands in for it. The pages draw above the window's HTML, so the
 // pane's and its header's hints are the OS's (title): a tooltip of the window's would be covered.
-import { useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type MouseEvent } from 'react';
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent } from 'react';
 import type { IDockviewPanelHeaderProps, IDockviewPanelProps } from 'dockview-react';
 import { ArrowLeftIcon, ArrowRightIcon, CircleDotIcon, CircleIcon, EllipsisIcon, EllipsisVerticalIcon, GlobeIcon, LockIcon, PlusIcon, RotateCwIcon, SquareMousePointerIcon,
   XIcon } from 'lucide-react';
@@ -23,9 +23,7 @@ const profileOf = (panel: string) => panel.slice('profile:'.length);
 const useProfile = (id: string) => useWindow((s) => s.profiles.find((p) => p.id === id));
 // Its active tab as the store has it now, for what acts (a handler, not a render).
 const activeTab = (id: string) => { const p = store.getState().profiles.find((x) => x.id === id); return p?.tabs.find((t) => t.id === p.active); };
-// An address as Chrome shows it in the omnibox when not editing: no http(s)://, no www., no lone trailing /.
 const fullUrl = (u = '') => (u === 'about:blank' ? '' : u);
-const shortUrl = (u?: string) => fullUrl(u).replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/^([^/?#]+)\/$/, '$1');
 // Nothing to pick or take on an empty tab.
 const blank = (u?: string) => !fullUrl(u);
 
@@ -35,34 +33,34 @@ export function ProfilePane({ api }: IDockviewPanelProps) {
   const [content, setContent] = useState<HTMLDivElement | null>(null);
   const addr = useRef<HTMLInputElement>(null), strip = useRef<HTMLDivElement>(null);
   const nav = useRef<HTMLSpanElement>(null), reload = useRef<HTMLSpanElement>(null);
-  const typeInto = useRef<string | null>(null), clickedIn = useRef(false);
+  const typeInto = useRef<string | null>(null), selectAll = useRef(false);
   const active = profile?.tabs.find((t) => t.id === profile.active);
   useStrip(strip, profile?.active);
   const tab = () => activeTab(id)?.id ?? '';
 
-  // A tab the human opened (+, New tab, Ctrl+T): the address gets the focus once the tab is the active one, as in
-  // Chrome (here, or in newTab when the state came first). The address: shown short unless being edited; getting the
-  // focus shows the whole address, selected; a click while editing places the caret, a drag selects. Enter goes there.
-  // editing: what is typed while it has the focus; selectAll: the whole selected once it shows it.
-  const [editing, setEditing] = useState<string | null>(null), selectAll = useRef(false);
-  useEffect(() => {
-    if (typeInto.current && typeInto.current === active?.id) { typeInto.current = null; addr.current?.focus(); }
-  }, [active?.id]);
-  useLayoutEffect(() => { if (selectAll.current) { selectAll.current = false; addr.current?.select(); } });
-  const addrFocus = () => {
+  // Bind the draft to its tab so switching tabs cannot navigate another tab with it. Requests for an inactive tab
+  // wait for its activation, including a human's new tab whose state can arrive before or after the IPC reply.
+  const [editing, setEditing] = useState<{ tab: string; value: string } | null>(null);
+  const editAddress = useCallback((target = activeTab(id)?.id) => {
+    const p = store.getState().profiles.find((x) => x.id === id), t = p?.tabs.find((x) => x.id === target);
+    if (!t) return;
+    if (p?.active !== t.id) { typeInto.current = t.id; void act('tab:activate', { profile: id, tab: t.id }); return; }
     selectAll.current = true;
-    setEditing(fullUrl(activeTab(id)?.url));
-  };
-  const addrDown = () => { clickedIn.current = document.activeElement !== addr.current; };
-  const addrUp = (e: MouseEvent) => {
-    const a = addr.current!;
-    if (clickedIn.current && a.selectionStart === a.selectionEnd) { e.preventDefault(); a.select(); }
-    clickedIn.current = false;
-  };
+    setEditing({ tab: t.id, value: fullUrl(t.url) });
+  }, [id]);
+  useEffect(() => {
+    if (typeInto.current && typeInto.current === active?.id) { typeInto.current = null; editAddress(); }
+    else setEditing((draft) => draft?.tab === activeTab(id)?.id ? draft : null);
+  }, [active?.id, editAddress, id]);
+  useLayoutEffect(() => {
+    if (selectAll.current && editing?.tab === active?.id) { selectAll.current = false; addr.current?.focus(); addr.current?.select(); }
+  });
   const go = (e: KeyboardEvent) => {
-    if (e.key !== 'Enter') return;
-    void act('tab:navigate', { profile: id, tab: tab(), url: editing ?? '' });
-    addr.current!.blur();
+    if (!editing || e.nativeEvent.isComposing || (e.key !== 'Enter' && e.key !== 'Escape')) return;
+    e.preventDefault();
+    setEditing(null);
+    if (e.key === 'Enter') void act('tab:navigate', { profile: id, tab: editing.tab, url: editing.value });
+    else void act('tab:focus', { profile: id, tab: editing.tab });
   };
 
   // What the window does with this pane (lib/keys.ts: New tab, the address, Pick by their keys).
@@ -70,11 +68,12 @@ export function ProfilePane({ api }: IDockviewPanelProps) {
     if (!content) return;
     const handle = {
       content,
-      focusAddress() { addr.current?.focus(); addr.current?.select(); },
+      focusAddress() { editAddress(); },
+      cancelAddress() { setEditing(null); },
       async newTab() {
         const r = await act('tab:new', { profile: id });
         typeInto.current = typeof r === 'string' ? r : null;
-        if (typeInto.current && typeInto.current === activeTab(id)?.id) { typeInto.current = null; addr.current?.focus(); }
+        if (typeInto.current && typeInto.current === activeTab(id)?.id) { typeInto.current = null; editAddress(); }
       },
       // As a click on Pick: off on an empty tab; again cancels.
       pick() {
@@ -86,7 +85,7 @@ export function ProfilePane({ api }: IDockviewPanelProps) {
     observer.observe(content);
     scheduleLayout();
     return () => { observer.disconnect(); if (panes.get(id) === handle) panes.delete(id); };
-  }, [id, content]);
+  }, [id, content, editAddress]);
 
   // The tab strip: a tab is chosen on the press, as in Chrome (not on its ×), or by Enter or Space. A tab opened grows
   // in, and the active tab is kept in sight (lib/strip.ts). Tabs are kept by id: an element stays as its tab does.
@@ -97,6 +96,7 @@ export function ProfilePane({ api }: IDockviewPanelProps) {
     if (!t || !p) return null;
     const url = p.tabs.find((x) => x.id === t)?.url;
     return [
+      { label: 'Edit address…', keys: keyText('tab.address'), run: () => editAddress(t) },
       { label: 'Reload', keys: keyText('tab.reload'), run: () => act('tab:reload', { profile: id, tab: t }) },
       { label: 'Duplicate', run: () => act('tab:new', { profile: id, url }) },
       '-',
@@ -140,26 +140,8 @@ export function ProfilePane({ api }: IDockviewPanelProps) {
 
   // @container: the pane's width decides which of the bar's buttons it keeps.
   return <div className="@container flex h-full min-w-0 flex-col bg-card" role="region" aria-label={profile.name} data-profile={id}>
-    {/* The tabs scroll in their strip; + is next to it, never over a tab, as in Chrome. */}
-    <nav aria-label="Tabs" className="flex flex-none items-center gap-1 px-2 pt-1">
-      <RightClickMenu items={tabMenu} className="flex min-w-0">
-        <TabStrip stripRef={strip} label="Open tabs" value={profile.active ?? ''} onChoose={activate}>
-          {/* their widths: docs/ui.md, Tabs */}
-          {profile.tabs.map((t) => <BrowserTab key={t.id} ref={grow} value={t.id} data-tab={t.id} aria-label={t.title || t.url || 'New tab'} title={t.url}
-            className="@container w-55 min-w-16 flex-initial"
-            icon={t.favicon ? <img data-testid="tab-icon" alt="" src={t.favicon} className="size-4" /> : <GlobeIcon data-testid="tab-icon" />}
-            close={{ title: 'Close tab', run: () => void act('tab:close', { profile: id, tab: t.id }) }}>
-            <span className="@max-[80px]:hidden">{t.title || t.url || 'New tab'}</span>
-          </BrowserTab>)}
-        </TabStrip>
-      </RightClickMenu>
-      <Button variant="ghost" size="icon-sm" title={withKeys('New tab', 'tab.new')} aria-label="New tab" onClick={() => void panes.get(id)?.newTab()}>
-        <PlusIcon />
-      </Button>
-    </nav>
-    {/* A narrow pane gives up Back and Forward, then Reload (into ⋮; their keys stay), never Pick or ⋮: in order, else
-        the buttons at the end go out of reach first. The address shrinks. */}
-    <div role="group" aria-label="Page" className="flex flex-none items-center gap-1 px-2 py-1">
+    {/* Navigation gives up room to tabs in narrow panes; Pick and ⋮ stay reachable. */}
+    <div role="group" aria-label="Page" className="flex h-8 flex-none items-center gap-1 px-2">
       {/* one: Back without Forward would be half a pair */}
       <span ref={nav} className="hidden gap-1 @2xs:flex">
         <Button variant="ghost" size="icon-sm" title={withKeys('Back', 'tab.back')} aria-label="Back" disabled={!active?.canBack} onClick={run('tab:back')}>
@@ -172,9 +154,27 @@ export function ProfilePane({ api }: IDockviewPanelProps) {
       <span ref={reload} className="hidden @3xs:flex">
         <Button variant="ghost" size="icon-sm" title={withKeys('Reload', 'tab.reload')} aria-label="Reload" onClick={run('tab:reload')}><RotateCwIcon /></Button>
       </span>
-      <Input ref={addr} aria-label="Address" placeholder="Search Google or type a URL" spellCheck={false} className="h-7 min-w-0 flex-1"
-        value={editing ?? shortUrl(active?.url)} onChange={(e) => setEditing(e.target.value)}
-        onKeyDown={go} onFocus={addrFocus} onBlur={() => setEditing(null)} onMouseDown={addrDown} onMouseUp={addrUp} />
+      <nav aria-label="Tabs" className={editing?.tab === active?.id ? 'hidden' : 'flex min-w-0 flex-1 items-center gap-1'}>
+        <RightClickMenu items={tabMenu} className="flex min-w-0">
+          <TabStrip stripRef={strip} label="Open tabs" value={profile.active ?? ''} onChoose={activate}>
+            {/* their widths: docs/ui.md, Tabs */}
+            {profile.tabs.map((t) => <BrowserTab key={t.id} ref={grow} value={t.id} data-tab={t.id} aria-label={t.title || t.url || 'New tab'} title={t.url}
+              onDoubleClick={(e) => { if (!(e.target as Element).closest('[data-close]')) editAddress(t.id); }}
+              className="@container w-55 min-w-16 flex-initial"
+              icon={t.favicon ? <img data-testid="tab-icon" alt="" src={t.favicon} className="size-4" /> : <GlobeIcon data-testid="tab-icon" />}
+              close={{ title: 'Close tab', run: () => void act('tab:close', { profile: id, tab: t.id }) }}>
+              <span className="@max-[80px]:hidden">{t.title || t.url || 'New tab'}</span>
+            </BrowserTab>)}
+          </TabStrip>
+        </RightClickMenu>
+        <Button variant="ghost" size="icon-sm" title={withKeys('New tab', 'tab.new')} aria-label="New tab" onClick={() => void panes.get(id)?.newTab()}>
+          <PlusIcon />
+        </Button>
+      </nav>
+      <Input ref={addr} aria-label="Address" placeholder="Search Google or type a URL" spellCheck={false} className="h-8 min-w-0 flex-1"
+        hidden={!editing || editing.tab !== active?.id} value={editing?.value ?? ''}
+        onChange={(e) => setEditing((draft) => draft && { ...draft, value: e.target.value })}
+        onKeyDown={go} onBlur={(e) => { if (e.relatedTarget || document.hasFocus()) setEditing(null); }} />
       {/* The site's own zoom in this profile, when it differs from the Kulisa zoom; a click resets it. */}
       {active && active.zoom !== 1 && <Button variant="ghost" size="sm" title="This site's zoom in this profile (Ctrl + / − / 0 in the page). Click to reset."
         onClick={() => void act('tab:zoom', { profile: id, tab: tab(), dir: 0 })}>{Math.round(active.zoom * 100)}%</Button>}
