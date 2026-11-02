@@ -19,6 +19,8 @@ import { profileLaunchers } from './profiles';
 import { useStrip } from '../lib/strip';
 import { avatarSrc } from '../lib/common';
 import { newStageTerminal } from './environments';
+import { panelView } from './terminals';
+import { termStyle, useShade } from '../lib/theme';
 import './Grid.css';
 export { StageMenu } from './StageMenu';
 
@@ -100,6 +102,8 @@ const TaskView = memo(function TaskView({ state, active }: { state: TaskStore; a
 });
 export function TaskViews() {
   const retained = useStore(tasks), current = useWindow((s) => s.current), loading = useTask((s) => s.loading);
+  const shade = useShade();
+  useEffect(() => panelView.restyle(termStyle()), [shade]);
   return <main id="dock" className="relative isolate min-h-0 min-w-0" aria-busy={loading || undefined}>
     {Object.entries(retained).map(([key, state]) => <TaskView key={key} state={state} active={key === current} />)}
   </main>;

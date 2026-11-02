@@ -5,7 +5,6 @@ import type { IDockviewPanelProps } from 'dockview-react';
 import { Avatar, AvatarImage, Button, Item, ItemContent, ItemDescription, ItemMedia, ItemTitle, Spinner } from '@ui';
 import { ButtonMenu, RightClickMenu } from '../components/Menus';
 import { agentMark } from '../components/AgentMark';
-import { termStyle, useShade } from '../lib/theme';
 import { useWindow } from '../lib/store';
 import { useTask, useTaskActive, useTaskStore } from './state';
 import { profileLaunchers } from './profiles';
@@ -18,8 +17,7 @@ import { Pill } from '../../dictation/renderer';
 
 const NEW_TITLE = 'New conversation of an agent, or a terminal';
 export function DevelopmentTerminals({ api, containerApi, reviewing }: IDockviewPanelProps & { reviewing: boolean }) {
-  const host = useRef<HTMLDivElement>(null), launch = useRef<HTMLDivElement>(null), shade = useShade();
-  // The task from the terminals' own message (docs/window.md, The terminal).
+  const host = useRef<HTMLDivElement>(null), launch = useRef<HTMLDivElement>(null);
   const owner = useTaskStore();
   const active = useTaskActive();
   const task = useTask((s) => s.key), front = useTask((s) => s.developmentTerminals.front);
@@ -33,29 +31,24 @@ export function DevelopmentTerminals({ api, containerApi, reviewing }: IDockview
 
   useLayoutEffect(() => {
     if (!active) return;
+    const el = host.current!;
     // Retained panels catch up in a later frame; DOM client/offset dimensions round Dockview's fractional CSS pixels.
     panelView.isLaidOut = () => {
       const grid = host.current?.closest('[data-development-grid]');
       return grid?.clientWidth === Math.round(containerApi.width) && grid?.clientHeight === Math.round(containerApi.height)
         && host.current?.offsetWidth === Math.round(api.width) && host.current?.offsetHeight === Math.round(api.height);
     };
-    return () => { panelView.isLaidOut = undefined; };
+    el.append(panelView.el);
+    return () => { panelView.isLaidOut = undefined; if (panelView.el.parentElement === el) panelView.el.remove(); };
   }, [api, containerApi, active]);
-  useLayoutEffect(() => {
-    if (!active) return;
-    const el = host.current!; el.append(panelView.el);
-    return () => { if (panelView.el.parentElement === el) panelView.el.remove(); };
-  }, [active]);
   useLayoutEffect(() => { if (active) panelView.show(shown); }, [active, shown]);
-  // The terminal in the panel's own color (the grid's: Grid.css), again when the shade changes.
-  useEffect(() => panelView.restyle(termStyle()), [shade]);
   // Another tab in front of the same task (chosen, or opened by the human): the keyboard goes to it. Not from a dialog
   // (Change Agent's tab comes in front under it): the dialog keeps the keyboard.
-  const was = useRef({ task, front });
+  const was = useRef(front);
   useEffect(() => {
     const before = was.current;
-    was.current = { task, front };
-    if (active && !reviewing && task === before.task && front !== before.front && front !== null && !dialogsShown()) void termFocus(`${task}#${front}`);
+    was.current = front;
+    if (active && !reviewing && front !== before && front !== null && !dialogsShown()) void termFocus(`${task}#${front}`);
   }, [task, front, reviewing, active]);
 
   // The big buttons, each a Tab stop (Tab to the next, Enter opens it): the first, the project's default agent, gets the

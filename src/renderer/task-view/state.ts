@@ -10,16 +10,14 @@ import { refused } from '../../shared/result';
 import { store, useWindow } from '../lib/store';
 import type { TaskGrid } from './grid';
 
-export interface DevelopmentDiff extends DiffSelection { task: string }
-
 export interface TaskState {
   key: string;
   profiles: Profile[];
   closedProfiles: ClosedProfile[];
   developmentTerminals: DevelopmentTerminalsState;
-  developmentDiff: DevelopmentDiff | null;
+  developmentDiff: DiffSelection | null;
   stageTerminals: StageTerminal[];
-  stageTerminalFocus: { task: string | null; key: string | null } | null;
+  stageTerminalFocus: { key: string | null } | null;
   stageLayout: StageLayout | null;
   stageOverflow: boolean;
   stageFollowPaused: boolean;

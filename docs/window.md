@@ -104,6 +104,7 @@ Dockview instances and Stage terminal Views live until their task or panel close
 background polling; focus requests and dictation belong to the selected task. Closing the task unmounts its view
 and releases its controller. Selection changes deactivate the outgoing controller directly (`task-view/controller.ts`).
 Window controls address the selected task; panels read their permanent controller and task through one context.
+Diff selection and terminal focus requests use this owner; IPC messages carry the task key for routing and validation.
 The screen's memo boundary keeps selection changes out of unchanged descendants. Pending address/search focus,
 polling and dictation subscribe to task activity; the microphone owns its subscription within Resources.
 Each controller owns its profile-pane handles, so copies of the same profile address their own DOM and controls.
@@ -122,7 +123,7 @@ Selecting a prepared task shows its pages at their stored bounds and hides the o
 turn. Menus and Settings cover pages independently of geometry; closing a menu reveals pages at their stored bounds.
 Late captures cannot change another task's cover.
 The shared development xterm moves into the
-active task's terminal host; its content appears after the selected buffer is drawn at the pane's size. Hidden Stage terminals retain their
+active task's terminal host; `TaskViews` applies its theme once per window. Its content appears after the selected buffer is drawn at the pane's size. Hidden Stage terminals retain their
 Views, processes and buffers. A task's open Diff retains its comparison, filter, document and scroll position.
 
 `task.json` keeps Stage view/overflow/layout in `stage`, and development layout, Stage position/share in `workspace`,
@@ -382,8 +383,8 @@ human or without one. **Resources → Agents** switches between them ([tasks.md]
 The standalone terminal panel is headerless; a shared Dockview group has a plain Terminal tab for selecting its panel.
 Resources’ terminal list owns creation, switching and closing; an agent's row menu opens Change Agent or a new
 conversation. The Resources bar holds the dictation microphone, beside the terminal with every section selected.
-The terminal in front is named by the task and the tab from one message (`terminals`), not the task from the window's
-shown task: that comes in another message, and between the two a terminal that does not exist would be shown.
+The terminal in front combines its TaskView's permanent task key with the front tab from that task's routed state;
+the window's selection cannot pair another task's terminal list with it.
 
 **The last terminal closed folds the panel** to a strip of one button, + in its middle, as JetBrains' tool windows go
 but with their button kept in place (the author's choice): by its height under or over the grid, by its width at a side

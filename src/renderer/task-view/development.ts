@@ -2,7 +2,8 @@
 import { Orientation } from 'dockview-react';
 import type { DockviewApi, DockviewPanelApi, SerializedDockview } from 'dockview-react';
 import { store as windowStore, shownTask } from '../lib/store';
-import type { TaskStore, DevelopmentDiff } from './state';
+import type { TaskStore } from './state';
+import type { DiffSelection } from '../../diff/ipc';
 import { dockTheme } from './dock-theme';
 import { restoreDockview, resourceBarHeight } from './layout';
 import { createDiff } from '../../diff/renderer';
@@ -25,7 +26,7 @@ export class DevelopmentGrid {
       targets: (folder) => kulisa.invoke('task:diff:targets', { key: task, folder }),
       review: (folder, options, load) => kulisa.invoke('task:diff:review', { key: task, folder, options, load }),
       contents: (folder, path, options) => kulisa.invoke('task:diff:contents', { key: task, folder, path, options }),
-      select: (selection) => this.showDiff({ ...selection, task }),
+      select: this.showDiff,
       selectFile: this.selectDevelopmentFile,
       showMenu: menuAt,
     });
@@ -143,7 +144,7 @@ export class DevelopmentGrid {
 
   openDiff = (activate = true) => {
     const task = shownTask(windowStore.getState(), this.store.getState().key), root = task?.resources[0];
-    if (task && root) this.showDiff({ task: task.key, folder: root.folder, path: '', options: {} }, activate);
+    if (root) this.showDiff({ folder: root.folder, path: '', options: {} }, activate);
     else this.showAgents();
   };
 
@@ -153,10 +154,8 @@ export class DevelopmentGrid {
     this.changed();
   };
 
-  showDiff = (selection: DevelopmentDiff, activate = true) => {
-    if (selection.task !== this.store.getState().key) return;
-    const options = { to: selection.options.to };
-    this.store.setState({ developmentDiff: { ...selection, options, navigation: ++this.reviewNavigation } });
+  private showDiff = (selection: DiffSelection, activate = true) => {
+    this.store.setState({ developmentDiff: { ...selection, navigation: ++this.reviewNavigation } });
     if (activate) this.api?.getPanel('terminal')?.api.setActive();
     this.changed();
   };

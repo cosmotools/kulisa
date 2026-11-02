@@ -66,7 +66,7 @@ export function StageTerminalPane({ api }: IDockviewPanelProps) {
     let cancelled = false;
     const attempt = () => {
       void termFocus(focus.key!, () => !cancelled && owner.getState().stageTerminalFocus === focus
-        && store.getState().current === focus.task && api.isVisible && document.hasFocus()).then(() => {
+        && store.getState().current === taskKey && api.isVisible && document.hasFocus()).then(() => {
         if (!cancelled && owner.getState().stageTerminalFocus === focus && view.current?.el.contains(document.activeElement)) owner.setState({ stageTerminalFocus: null });
       });
     };
@@ -74,7 +74,7 @@ export function StageTerminalPane({ api }: IDockviewPanelProps) {
     const frame = requestAnimationFrame(attempt);
     attempt();
     return () => { cancelled = true; cancelAnimationFrame(frame); visible.dispose(); };
-  }, [focus, terminal?.key, api, owner]);
+  }, [focus, terminal?.key, api, owner, taskKey]);
   if (!terminal) return null;
   const menu = (): MenuItem[] => {
     const selection = view.current?.term.getSelection() ?? '';

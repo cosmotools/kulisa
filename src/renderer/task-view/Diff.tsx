@@ -1,7 +1,8 @@
 // The window supplies task selection and typography to Diff (src/diff/README.md).
 import { useMemo } from 'react';
 import { Diff, DiffPanel } from '../../diff/renderer';
-import { useTask, useTaskActive, useTaskGrid, type DevelopmentDiff } from './state';
+import type { DiffSelection } from '../../diff/ipc';
+import { useTask, useTaskActive, useTaskGrid } from './state';
 import { uiTextSize, useShade } from '../lib/theme';
 
 export function TaskDiffTree({ roots }: { roots: { folder: string; label: string }[] }) {
@@ -12,7 +13,7 @@ export function TaskDiffTree({ roots }: { roots: { folder: string; label: string
   return <Diff session={session} roots={roots} selection={selection} reviewing />;
 }
 
-export function TaskDiff({ selection }: { selection: DevelopmentDiff }) {
+export function TaskDiff({ selection }: { selection: DiffSelection }) {
   const shade = useShade(), fontSize = useMemo(() => uiTextSize(), []);
   const active = useTaskActive();
   const grid = useTaskGrid(), session = useMemo(() => ({ ...grid.development.review, active }), [grid, active]);

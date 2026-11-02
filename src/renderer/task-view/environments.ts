@@ -11,12 +11,12 @@ document.addEventListener('pointerdown', cancelFocus, true);
 document.addEventListener('keydown', cancelFocus, true);
 window.addEventListener('blur', cancelFocus);
 export async function focusStageTerminal(task: string, launch: () => Promise<Result<StageTerminal>>) {
-  const owner = taskStore(task), request = { task, key: null };
+  const owner = taskStore(task), request = { key: null };
   owner.setState({ stageTerminalFocus: request });
   try {
     const result = await launch();
     if (owner.getState().stageTerminalFocus === request) {
-      owner.setState({ stageTerminalFocus: refused(result) || store.getState().current !== task ? null : { ...request, key: result.key } });
+      owner.setState({ stageTerminalFocus: refused(result) || store.getState().current !== task ? null : { key: result.key } });
     }
     return result;
   } catch (error) {
