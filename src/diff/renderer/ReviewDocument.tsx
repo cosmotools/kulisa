@@ -14,7 +14,7 @@ import { highlighterOptions, poolOptions } from './review-theme';
 import { useDiff } from './session';
 import type { Notice } from './review';
 import { Loading } from './Loading';
-import './review.css';
+import './ReviewDocument.css';
 
 const empty: DiffFile[] = [];
 
