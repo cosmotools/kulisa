@@ -3,7 +3,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 import type { CodeViewItem, FileDiffMetadata } from '@pierre/diffs';
 import { CodeView, WorkerPoolContextProvider, type CodeViewHandle, type CodeViewProps, type CodeViewReactOptions } from '@pierre/diffs/react';
 import { useIsFetching } from '@tanstack/react-query';
-import { ChevronRightIcon, GitCompareArrowsIcon } from 'lucide-react';
+import { CheckIcon, ChevronRightIcon, CopyIcon, GitCompareArrowsIcon } from 'lucide-react';
 import { Alert, AlertDescription, Button, ToggleGroup, ToggleGroupItem } from '@ui';
 import type { DiffFile } from '../ipc';
 import { refused } from '../../shared/result';
@@ -14,7 +14,7 @@ import { highlighterOptions, poolOptions } from './review-theme';
 import { useDiff } from './session';
 import type { Notice } from './review';
 import { Loading } from './Loading';
-import './review.css';
+import './ReviewDocument.css';
 
 const empty: DiffFile[] = [];
 
@@ -82,7 +82,10 @@ function ReviewContent({ session, selection, shade, fontSize }: DiffPanelProps) 
     return <header role="heading" aria-level={3} aria-label={item.id} className="flex h-9 items-center gap-2 border-b bg-muted px-3 text-sm">
       <Button variant="ghost" size="icon-xs" aria-label={action} title={action} aria-expanded={!item.collapsed} onClick={() => setCollapseVersions((current) =>
         new Map(current).set(item.id, (current.get(item.id) ?? 0) + 1))}><ChevronRightIcon className={item.collapsed ? '' : 'rotate-90'} /></Button>
-      <span className="min-w-0 flex-1 truncate" title={file?.previousPath ? `${file.previousPath} → ${item.id}` : item.id}>{file?.previousPath ? `${file.previousPath} → ${item.id}` : item.id}</span>
+      <div className="flex min-w-0 flex-1 items-center gap-1">
+        <span className="min-w-0 truncate" title={file?.previousPath ? `${file.previousPath} → ${item.id}` : item.id}>{file?.previousPath ? `${file.previousPath} → ${item.id}` : item.id}</span>
+        <CopyPath path={item.id} />
+      </div>
       {file && <><DiffStatus status={file.status} /><DiffCounts additions={file.additions} deletions={file.deletions} /></>}
     </header>;
   }, [byPath]);
@@ -96,6 +99,8 @@ function ReviewContent({ session, selection, shade, fontSize }: DiffPanelProps) 
     </div>;
   }, [load]);
   const viewOptions = useMemo<CodeViewReactOptions<Notice, undefined>>(() => ({ theme: 'kulisa-review', themeType: shade === 'dark' ? 'dark' : 'light', diffStyle: mode, stickyHeaders: true, enableLineSelection: true, lineHoverHighlight: 'both',
+    // Only shadow-root code opts out of the window's text-selection ban; slotted headers stay unselectable.
+    unsafeCSS: 'pre { user-select: text; }',
     diffIndicators: 'classic' as const, hunkSeparators: 'line-info-basic' as const, overflow: 'wrap' as const,
     itemMetrics: { lineHeight, diffHeaderHeight: 36, spacing: 0 }, layout: { paddingTop: 16, paddingBottom: 16, gap: 16 },
     onPostRender(node, _instance, phase, context) {
@@ -144,4 +149,17 @@ function ReviewContent({ session, selection, shade, fontSize }: DiffPanelProps) 
     <footer className="flex gap-2 border-t px-4 py-1 text-xs text-muted-foreground"><span className="min-w-0 truncate">{data ? `${data.from} → ${data.to}` : 'From → To'}</span><span className="ms-auto shrink-0">Read only</span></footer>
     </div>
   </section>;
+}
+
+function CopyPath({ path }: { path: string }) {
+  const [copiedAt, setCopiedAt] = useState<number | null>(null);
+  useEffect(() => {
+    if (copiedAt === null) return;
+    const timer = setTimeout(() => setCopiedAt(null), 1500);
+    return () => clearTimeout(timer);
+  }, [copiedAt]);
+  return <Button variant="ghost" size="icon-xs" aria-label={`Copy path for ${path}`} title={copiedAt === null ? 'Copy file path' : 'Copied'}
+    onClick={async () => { await navigator.clipboard.writeText(path); setCopiedAt(performance.now()); }}>
+    {copiedAt === null ? <CopyIcon /> : <CheckIcon className="text-success" />}
+  </Button>;
 }

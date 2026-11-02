@@ -5,6 +5,42 @@ import { test, expect } from './fixtures.ts';
 import { act, arrange, box, invoke, showResources, termKeys, termText } from './helpers.ts';
 import { committed, git, openFolder, showTask } from './tasks-helpers.ts';
 
+test('Diff copies code and file paths in Unified and Split layouts while controls stay unselectable', async ({ core, ui, files }) => {
+  const folder = path.join(files.root, 'review-copy'), file = 'src/file name.ts';
+  fs.mkdirSync(path.join(folder, 'src'), { recursive: true });
+  const repo = committed(folder, file, 'export const copyMarker = 1;\n');
+  git(repo, 'branch', '-M', 'main');
+  await openFolder(core, ui, repo);
+  fs.writeFileSync(path.join(repo, file), 'export const copyMarker = 2;\n');
+  await showResources(ui, 'Diff');
+  const code = ui.getByLabel(`Code comparison: ${file}`, { exact: true });
+  const heading = ui.getByRole('heading', { name: file, exact: true });
+  const collapse = heading.getByRole('button', { name: `Collapse diff for ${file}`, exact: true });
+  const copy = heading.getByRole('button', { name: `Copy path for ${file}`, exact: true });
+  for (const layout of ['Unified', 'Split']) {
+    await ui.getByRole('radio', { name: `${layout} diff`, exact: true }).click();
+    await expect(code).toHaveCSS('user-select', 'text');
+    await expect(code.locator('[data-column-number]').first()).toHaveCSS('user-select', 'none');
+    await expect(heading).toHaveCSS('user-select', 'none');
+    await expect(collapse).toHaveCSS('user-select', 'none');
+    await expect(copy).toHaveCSS('user-select', 'none');
+    await copy.click();
+    await expect.poll(() => core((k) => k.electron.clipboard.readText())).toBe(file);
+    await expect(collapse).toHaveAttribute('aria-expanded', 'true');
+    await code.getByText('copyMarker', { exact: true }).last().dblclick();
+    // Playwright has no selection getter; the native Copy action also covers shadow-root selections on macOS.
+    // Native Windows word selection includes the following space.
+    await expect.poll(() => ui.evaluate(() => getSelection()?.toString())).toMatch(/^copyMarker ?$/);
+    const selected = await ui.evaluate(() => getSelection()?.toString());
+    await core((k) => k.electron.webContents.getFocusedWebContents().copy());
+    await expect.poll(() => core((k) => k.electron.clipboard.readText())).toBe(selected);
+  }
+  await collapse.click();
+  await copy.click();
+  await expect.poll(() => core((k) => k.electron.clipboard.readText())).toBe(file);
+  await expect(heading.getByRole('button', { name: `Expand diff for ${file}`, exact: true })).toHaveAttribute('aria-expanded', 'false');
+});
+
 test('Diff groups files into folders and switches the development area without moving Stage or stopping terminals', async ({ core, ui, files }) => {
   const original = await core((k) => k.shell.task.key);
   const repo = committed(path.join(files.root, 'review-tree'), 'checkout.ts', 'export const label = "before-marker";\n');
