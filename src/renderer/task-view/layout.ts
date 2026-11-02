@@ -3,16 +3,12 @@ import type { DockviewApi, SerializedDockview } from 'dockview-react';
 import { filterLayout } from '../../shared/stage-layout';
 import { dockTheme } from './dock-theme';
 
-export const resourceBarHeight = 204;
 export const panelId = (id: string) => `profile:${id}`;
 export function restoreDockview(a: DockviewApi, saved: SerializedDockview | null, known: string[]) {
   if (!saved) return;
   try {
     const filtered = filterLayout(saved, (id) => known.includes(id));
-    if (filtered.panels.resources) filtered.panels.resources = { ...filtered.panels.resources, tabComponent: 'resources', minimumHeight: resourceBarHeight };
-    const standaloneResources = (node: SerializedDockview['grid']['root']): boolean => Array.isArray(node.data)
-      ? node.data.some(standaloneResources) : node.data.views.length === 1 && node.data.views[0] === 'resources';
-    const gap = filtered.panels.resources?.params?.section === null && standaloneResources(filtered.grid.root) ? 0 : dockTheme.gap ?? 0;
+    const gap = dockTheme.gap ?? 0;
     // Dockview serializes sizes after subtracting gaps, but restores them as split allocations before gaps.
     const allocations = (node: SerializedDockview['grid']['root']): SerializedDockview['grid']['root'] => {
       if (!Array.isArray(node.data)) return node;

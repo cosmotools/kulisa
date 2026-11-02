@@ -1,7 +1,7 @@
 // A live screen per visited task, retained until its tab closes (docs/window.md, The grid).
 import { memo, useEffect, useLayoutEffect, useState, useRef } from 'react';
 import { useStore } from 'zustand';
-import { DockviewReact, GridviewReact, Orientation, type IDockviewPanelHeaderProps, type IDockviewPanelProps, type IGridviewPanelProps } from 'dockview-react';
+import { DockviewReact, GridviewReact, Orientation, type IDockviewPanelProps, type IGridviewPanelProps } from 'dockview-react';
 import 'dockview-react/dist/styles/dockview.css';
 import { TerminalSquareIcon, PlusIcon } from 'lucide-react';
 import { Avatar, AvatarImage, Button } from '@ui';
@@ -9,7 +9,7 @@ import { DevelopmentTerminals } from './DevelopmentTerminals';
 import { TaskDiff } from './Diff';
 import { StageTerminalPane, StageTerminalHeader } from './StageTerminalPane';
 import { ProfilePane, ProfileHeader } from './ProfilePane';
-import { Resources } from './Resources';
+import { Resources, ResourceIcon, ResourceActions } from './Resources';
 import { dockTheme } from './dock-theme';
 import { registerTaskGrid } from './controller';
 import { TaskGrid } from './grid';
@@ -25,7 +25,7 @@ import './Grid.css';
 export { StageMenu } from './StageMenu';
 
 const components = { terminal: DevelopmentContent, resources: Resources };
-const tabComponents = { terminal: DevelopmentPanelHeader, resources: DevelopmentPanelHeader };
+const tabComponents = { resources: ResourceIcon };
 function DevelopmentContent(props: IDockviewPanelProps) {
   const diff = useTask((s) => s.developmentDiff);
   const reviewing = !!diff;
@@ -35,14 +35,12 @@ function DevelopmentContent(props: IDockviewPanelProps) {
     {reviewing && <TaskDiff selection={diff} />}
   </div>;
 }
-function DevelopmentPanelHeader({ api }: IDockviewPanelHeaderProps) {
-  return <div data-panel={api.id} className="flex h-full min-w-0 items-center px-2"><span className="min-w-0 truncate">{api.title}</span></div>;
-}
 function Development({ api }: IGridviewPanelProps) {
   const grid = useTaskGrid();
   return <div data-development-grid className="h-full min-h-0 min-w-0">
-    <DockviewReact theme={dockTheme} disableAutoResizing disableFloatingGroups singleTabMode="fullwidth" components={components}
-      tabComponents={tabComponents} onReady={(e) => grid.mountDevelopment(e.api, api)} />
+    <DockviewReact theme={dockTheme} disableAutoResizing disableFloatingGroups disableDnd components={components}
+      tabComponents={tabComponents} rightHeaderActionsComponent={ResourceActions}
+      onReady={(e) => grid.mountDevelopment(e.api, api)} />
   </div>;
 }
 const stageComponents = { profile: ProfilePane, 'stage-terminal': StageTerminalPane };
@@ -74,11 +72,11 @@ function ClosedProfiles() {
 const Screen = memo(function Screen() {
   const grid = useTaskGrid(), workspace = useRef<HTMLDivElement>(null);
   const loading = useTask((s) => s.loading);
-  const folded = useTask((s) => !s.profiles.length && !s.stageTerminals.length && s.developmentTerminals.list.length > 0);
-  useLayoutEffect(() => grid.resize(), [grid, folded]);
+  const showClosedProfiles = useTask((s) => !s.profiles.length && !s.stageTerminals.length && s.developmentTerminals.list.length > 0);
+  useLayoutEffect(() => grid.resize(), [grid, showClosedProfiles]);
   return <section data-task-screen className="absolute inset-0 flex min-h-0 min-w-0 flex-col aria-busy:opacity-0"
     aria-busy={loading || undefined} inert={loading || undefined}>
-    {folded && <ClosedProfiles />}
+    {showClosedProfiles && <ClosedProfiles />}
     <div ref={workspace} data-workspace className="min-h-0 flex-1">
       <GridviewReact components={areas} orientation={Orientation.VERTICAL} proportionalLayout
         onReady={(e) => grid.mount(e.api, workspace.current!)} />

@@ -133,7 +133,7 @@ test("terminal: dictation where the agent has its own: the right Ctrl held anywh
   await invoke(ui, 'keys:set', { id: 'voice.hold', code: MAC ? 'MetaRight' : 'ControlRight' });
   const mic = ui.locator('[aria-label="Speak to the agent"]');
   await expect(mic).toBeEnabled();
-  const bar = await ui.getByRole('navigation', { name: 'Resources', exact: true }).boundingBox(), m = await mic.boundingBox();
+  const bar = await ui.locator('[data-task-view][data-active]').getByTestId('dv-edge-group-resources').boundingBox(), m = await mic.boundingBox();
   expect(m.x >= bar.x && m.x + m.width <= bar.x + bar.width && m.y >= bar.y && m.y + m.height <= bar.y + bar.height, 'dictation stays in the Resources bar').toBe(true);
   const name = MAC ? 'Right ⌘' : 'Right Ctrl'; // Apple keyboards have no right Ctrl
   expect(await mic.getAttribute('title'), "in Kulisa's language (☰ → Language), with the key")

@@ -24,8 +24,7 @@ export function focusDevelopmentTerminal(task = store.getState().current) {
   const development = taskGrid(task)?.development;
   if (!development || store.getState().current !== task) return;
   development.showAgents();
-  const resources = development.api?.getPanel('resources');
-  if (resources?.params?.section === 'diff') development.selectResource(resources.api, resources.params, 'terminals');
+  if (development.resourceSection === 'diff') development.showResource('terminals');
   development.api?.getPanel('terminal')?.api.setActive();
   requestAnimationFrame(() => {
     if (store.getState().current === task && development.screen() === 'agents' && !dialogsShown()) shownTerm()?.focus();

@@ -1,11 +1,11 @@
 // A task's retained grids and their visible work (docs/window.md, The grid).
-import { Orientation, LocalSelectionTransfer, PanelTransfer, DockviewCompositeDisposable } from 'dockview-react';
-import type { DockviewApi, DockviewPanelApi, DockviewIDisposable, GridviewApi, GridviewPanelApi } from 'dockview-react';
+import { Orientation, DockviewCompositeDisposable } from 'dockview-react';
+import type { DockviewApi, DockviewIDisposable, GridviewApi, GridviewPanelApi } from 'dockview-react';
 import { store } from '../lib/store';
 import type { TaskStore } from './state';
 import { splitLayout, type TaskLayout } from '../../shared/stage-layout';
 import type { Events } from '../../shared/ipc';
-import { DevelopmentGrid } from './development';
+import { DevelopmentGrid, resourcesMinimumHeight } from './development';
 import { StageGrid } from './stage';
 import { pageRects, type PaneHandle } from './pages';
 import { freeze, unfreeze, showViews } from './views';
@@ -38,8 +38,6 @@ export class TaskGrid {
       if (!samePanels(next.profiles, previous.profiles) || !samePanels(next.stageTerminals, previous.stageTerminals)) {
         this.mutate(() => this.sync()); this.scheduleSave(); this.finishInitialization();
       }
-      if (this.ready && (!!next.profiles.length !== !!previous.profiles.length || !!next.developmentTerminals.list.length !== !!previous.developmentTerminals.list.length
-        || !!next.developmentDiff !== !!previous.developmentDiff)) this.development.constrain();
     });
   }
   get key() { return this.state.getState().key; }
@@ -67,13 +65,12 @@ export class TaskGrid {
       this.scheduleSave(); this.reportPages();
     }));
     this.resize();
-    workspace.addPanel({ id: 'development', component: 'development', minimumWidth: 100, minimumHeight: 100 });
+    workspace.addPanel({ id: 'development', component: 'development', minimumWidth: 100, minimumHeight: resourcesMinimumHeight });
     this.mutate(() => this.sync());
   }
   mountDevelopment(api: DockviewApi, parent: GridviewPanelApi) {
-    this.development.attach(api);
-    this.watch(api, parent.onDidDimensionsChange(({ width, height }) => api.layout(width, height, true)))
-      .addDisposables(api.onDidMutateLayout(() => { if (!this.mutations) this.development.constrain(); }));
+    this.development.attach(api, parent);
+    this.watch(api, parent.onDidDimensionsChange(({ width, height }) => api.layout(width, height, true)));
     api.layout(parent.width, parent.height, true);
     this.mutate(() => this.development.build(this.saved?.workspace ?? null));
     this.saved = null;
@@ -104,7 +101,6 @@ export class TaskGrid {
   private finishInitialization() {
     if (this.ready || this.disposed || !this.development.api || this.stage.environmentIds().length && !this.stage.api) return;
     this.state.setState({ loading: false });
-    this.development.constrain();
     this.resize(); this.scheduleSave(); this.reportPages();
   }
   activate() {
@@ -200,17 +196,9 @@ export class TaskGrid {
       kulisa.send('layout:apply', { task: this.key, rects: pageRects(this.stage.api, this.stage.viewport, this.state.getState().profiles, this.panes) });
     });
   };
-  startResourceDrag(panel: DockviewPanelApi, event: DragEvent) {
-    const api = this.development.api;
-    if (!api || !event.dataTransfer) { event.preventDefault(); return; }
-    LocalSelectionTransfer.getInstance<PanelTransfer>().setData([new PanelTransfer(api.id, panel.group.id, panel.id)], PanelTransfer.prototype);
-    this.dragging = true; event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/plain', '');
-    void freeze();
-  }
   finishDrag = () => {
     if (!this.dragging) return;
     this.dragging = false;
-    LocalSelectionTransfer.getInstance<PanelTransfer>().clearData(PanelTransfer.prototype);
     if (this.active) void unfreeze();
   };
 }

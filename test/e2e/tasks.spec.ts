@@ -7,7 +7,7 @@ import type { Locator, Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
 import type { Files } from './data.ts';
-import { showResources, frames, SITE, menu, choose, openSidebar, closeSidebar, fromSidebar, sidebar, taskRow, rowButton, sidebarTasks, focusWindow, viewOn, who, invoke, notLoading, answer, removed, arrange } from './helpers.ts';
+import { showResources, resourcesGroup, SITE, choose, openSidebar, closeSidebar, fromSidebar, sidebar, taskRow, rowButton, sidebarTasks, focusWindow, viewOn, who, invoke, notLoading, answer, removed, arrange } from './helpers.ts';
 import { git, rand, hasDirenv, keyAt, isNth, taskTab, taskTabs, hook, reportSession, newTask, projectShown, begin, bothOn, deleteProfile } from './tasks-helpers.ts';
 
 // No question of Kulisa's asked in the window.
@@ -264,8 +264,7 @@ test("tasks: × closes a task: its agent stops and its tabs close, all else stay
   expect(files.tasksOf(files.pid('project')).find((e) => e.id === id).closedAt).toBe(undefined);
 });
 
-test("tasks: an agent's tab closes after a question, always (Cancel keeps it); the last terminal closed folds the terminals' panel to its +, which opens one again; Ctrl+` there opens the task's agent, a new conversation", async ({ core, ui, files, call }) => {
-  // A short development area must share its room with Resources when the terminal unfolds.
+test("tasks: an agent's tab closes after a question, always (Cancel keeps it); the last terminal closed shows a centered + without shrinking its panel; Ctrl+` there opens the task's agent, a new conversation", async ({ core, ui, files, call }) => {
   const bounds = await core((k) => {
     const bounds = k.shell.win.getBounds();
     k.shell.win.setBounds({ height: 960 });
@@ -276,8 +275,8 @@ test("tasks: an agent's tab closes after a question, always (Cancel keeps it); t
   const task = await newTask(core, ui), agent = await core((k, key) => k.shell.taskByKey(key).promptTarget().id, task);
   const developmentTerminals = () => core((k, key) => k.shell.taskByKey(key).developmentTerminals.size, task);
   const panel = ui.locator('[data-task-view][data-active]').getByTestId('development-terminals');
-  const folded = async (yes: boolean) => {
-    await (yes ? expect(panel).toHaveAttribute('data-folded') : expect(panel).not.toHaveAttribute('data-folded'));
+  const expectEmpty = async (yes: boolean) => {
+    await (yes ? expect(panel).toHaveAttribute('data-empty') : expect(panel).not.toHaveAttribute('data-empty'));
   };
   // The terminals' panel's group (its content is laid over it: dockview's renderer 'always').
   const group = ui.getByRole('region', { name: 'Terminal', exact: true });
@@ -287,7 +286,6 @@ test("tasks: an agent's tab closes after a question, always (Cancel keeps it); t
   await showResources(ui, 'Agents');
   const closeTab = () => ui.locator('[data-task-view][data-active] [data-resources] [data-terminal]').first().getByTitle(/^Close/).click();
   await expect(ui.locator('[data-task-view][data-active] [data-resources] [data-terminal]')).not.toHaveCount(0);
-  const before = await size(group);
   // × on an agent's tab asks, whatever it is doing; Cancel keeps it.
   await closeTab();
   const q = await answer(ui, false);
@@ -298,7 +296,7 @@ test("tasks: an agent's tab closes after a question, always (Cancel keeps it); t
   await answer(ui);
   await expect.poll(developmentTerminals).toBe(0);
   // No profile open: the +'s rows as big buttons in its middle, whatever the arrangement.
-  await folded(true);
+  await expectEmpty(true);
   expect(saved()).toEqual({ front: null, list: [] });
   expect(conversations()[0].terminal).toBe(undefined);
   expect(conversations()[0].to, 'its conversation closed, kept for the history').toBeTruthy();
@@ -308,11 +306,11 @@ test("tasks: an agent's tab closes after a question, always (Cancel keeps it); t
     return Math.abs(Math.round(b.x + b.width / 2 - (r.x + r.width / 2))) <= 1 && Math.abs(Math.round(b.y + b.height / 2 - (r.y + r.height / 2))) <= 1;
   };
   // Its + from the middle of the terminals' panel (x), and from where a strip's middle would be.
-  const unfold = panel.getByRole('button', { name: 'New terminal' }), middle = () => centred(unfold, panel);
+  const createTerminal = panel.getByRole('button', { name: 'New terminal' }), middle = () => centred(createTerminal, panel);
   // The project's profiles, all closed: Sam.admin, Elon.buyer, Dora.
   // The terminals' panel and the Resources panel beside or under it fill the grid: dockview's room, the closed profiles' tiles no
   // longer over it.
-  const resources = ui.locator('[data-task-view][data-active] .dv-groupview', { has: ui.locator('[data-resources]') });
+  const resources = resourcesGroup(ui);
   const fills = async () => {
     const g = await ui.locator('[data-task-view][data-active] [data-development-grid]').boundingBox(), t = await group.boundingBox(), r = await resources.boundingBox(), near = (x: number, y: number) => Math.abs(x - y) <= 1;
     return near(Math.min(t.x, r.x), g.x) && near(Math.max(t.x + t.width, r.x + r.width), g.x + g.width) && near(Math.min(t.y, r.y), g.y)
@@ -333,12 +331,12 @@ test("tasks: an agent's tab closes after a question, always (Cancel keeps it); t
     `);
     const ys = new Set(await Promise.all((await newTerminal.all()).map(async (x) => Math.round((await x.boundingBox()).y))));
     expect(ys.size, 'in one line').toBe(1);
-    await expect(unfold).toHaveCount(0);
+    await expect(createTerminal).toHaveCount(0);
   }
   // One opens what its row in + does: a terminal; closed, the buttons are back.
   await newTerminal.first().click();
   await expect.poll(developmentTerminals).toBe(1);
-  await folded(false);
+  await expectEmpty(false);
   // A terminal and no profile: the profiles' room a row of buttons over it, one for each; one opens its profile, and
   // the row goes.
   const tiles = ui.getByTestId('closed-profiles');
@@ -387,59 +385,22 @@ test("tasks: an agent's tab closes after a question, always (Cancel keeps it); t
   await expect.poll(developmentTerminals).toBe(0);
   await expect(launchers).toHaveCount(1);
   await expect(tiles).toHaveCount(0);
-  // Resources below the terminal: the empty terminal folds along the development area's height.
-  await ui.evaluate(() => { const d = (window as any).__dock; d.getPanel('resources').api.moveTo({ group: d.getPanel('terminal').group, position: 'bottom' }); });
   await launchers.locator(`[data-profile="${SAM}"]`).click();
-  await expect.poll(async () => (await size(group)).height <= 40 && (await middle())).toBe(true);
-  expect((await size(group)).width, 'spans the development area').toBeGreaterThan(before.width);
-  // Its + opens a terminal: the terminals' panel unfolds.
-  await unfold.click();
-  await expect(menu(ui)).toMatchAriaSnapshot(`
-    - menu:
-      - menuitem "Terminal"
-  `);
+  await expect.poll(async () => (await middle()) && (await size(group)).width > 100 && (await size(group)).height > 100).toBe(true);
+  const emptySize = await size(group);
+  await createTerminal.click();
   await choose(ui, 'Terminal');
   await expect.poll(developmentTerminals).toBe(1);
-  await folded(false);
-  await expect.poll(async () => (await size(group)).height).toBeGreaterThan(40);
+  await expectEmpty(false);
   await expect(panel.locator('.xterm-screen')).toBeVisible();
-  // A shell closes without a question; folded again.
   await closeTab();
   await expect.poll(developmentTerminals).toBe(0);
-  await folded(true);
-  await expect.poll(async () => (await size(group)).height).toBeLessThanOrEqual(40);
+  await expectEmpty(true);
+  await expect.poll(async () => size(group)).toEqual(emptySize);
   await noQuestion(ui);
-  // Moving Stage left preserves Resources under the folded terminal.
   await arrange(ui, 'left');
-  await expect.poll(async () => ({ height: (await size(group)).height, centered: await middle(), resourcesHeight: (await size(resources)).height })).toMatchObject({ height: expect.any(Number), centered: true, resourcesHeight: expect.any(Number) });
-  expect((await size(group)).height).toBeLessThanOrEqual(40);
-  await expect.poll(async () => (await size(resources)).height).toBeGreaterThan(300);
-  await unfold.click();
-  await choose(ui, 'Terminal');
-  await expect.poll(developmentTerminals).toBe(1);
-  await folded(false);
-  await expect.poll(async () => (await size(group)).height).toBeGreaterThanOrEqual(150);
-  // Resources beside the terminal: folded along the development area's width, a strip of its + as
-  // tall as the area; its + unfolds it to a width of its own, and the last terminal closed folds it again. Moved by
-  // dockview's API: a drag of a panel between groups is the OS's drag and drop.
-  await ui.evaluate(() => { const d = (window as any).__dock; d.getPanel('resources').api.moveTo({ group: d.getPanel('terminal').group, position: 'right' }); });
-  await frames(ui);
-  const expandedWidth = (await size(group)).width;
-  await closeTab();
-  await expect.poll(async () => { const r = await size(group); return (await developmentTerminals()) === 0 && r.width <= 40 && r.height > 100 && (await middle()); }).toBe(true);
-  await unfold.click();
-  await choose(ui, 'Terminal');
-  await expect.poll(developmentTerminals).toBe(1);
-  await folded(false);
-  await expect.poll(async () => (await size(group)).width).toBeGreaterThanOrEqual(200);
-  await expect.poll(async () => Math.abs((await size(group)).width - expandedWidth)).toBeLessThanOrEqual(1);
-  await closeTab();
-  await expect.poll(developmentTerminals).toBe(0);
-  await folded(true);
-  await expect.poll(async () => (await size(group)).width).toBeLessThanOrEqual(40);
+  await expect.poll(async () => (await middle()) && (await size(group)).width > 100 && (await size(group)).height > 100).toBe(true);
   await arrange(ui, 'above');
-  await ui.evaluate(() => { const d = (window as any).__dock; d.getPanel('resources').api.moveTo({ group: d.getPanel('terminal').group, position: 'bottom' }); });
-  await expect.poll(async () => ({ folded: (await size(group)).height <= 40, centered: await middle() })).toMatchObject({ folded: true, centered: true });
   // Ctrl+` there: the task's agent, a new conversation.
   await focusWindow(core, ui);
   await core((k) => k.press(k.shell.win.webContents, '`', 'control'));

@@ -1,24 +1,21 @@
-// Development layout, Resources constraints and review selection (docs/window.md, The grid).
-import { Orientation } from 'dockview-react';
-import type { DockviewApi, DockviewPanelApi, SerializedDockview } from 'dockview-react';
+// Development content and the Resources edge group (docs/window.md, The grid).
+import { DockviewCompositeDisposable } from 'dockview-react';
+import type { DockviewApi, GridviewPanelApi, SerializedDockview } from 'dockview-react';
 import { store as windowStore, shownTask } from '../lib/store';
 import type { TaskStore } from './state';
 import type { DiffSelection } from '../../diff/ipc';
-import { dockTheme } from './dock-theme';
-import { restoreDockview, resourceBarHeight } from './layout';
 import { createDiff } from '../../diff/renderer';
 import { menuAt } from '../lib/menu';
+import { dockTheme } from './dock-theme';
 
-export interface ResourceParams { section?: 'project' | 'artifacts' | 'terminals' | 'diff' | null; expandedWidth?: number; expandedHeight?: number }
-const resourceMinimumWidth = 300, resourceRailWidth = 40;
-interface GroupInsets { width: number; height: number; axis: 'width' | 'height' }
-const emptyInsets: GroupInsets = { width: 0, height: 0, axis: 'width' };
+export const resourceSections = { terminals: 'Agents', project: 'Project', diff: 'Diff', artifacts: 'Artifacts' } as const;
+export type ResourceSection = keyof typeof resourceSections;
+export const resourcesMinimumHeight = 204;
 
 export class DevelopmentGrid {
   api: DockviewApi | null = null;
-  private developmentGap = dockTheme.gap ?? 0;
-  private terminalFold: { group: DockviewApi['groups'][number]; axis: GroupInsets['axis']; size: number } | null = null;
-  private frame = 0;
+  parent: GridviewPanelApi | null = null;
+  private subscriptions = new DockviewCompositeDisposable();
   private reviewNavigation = 0;
   private reviewSession: ReturnType<typeof createDiff> | null = null;
   constructor(private readonly store: TaskStore, private readonly changed: () => void) {}
@@ -35,125 +32,49 @@ export class DevelopmentGrid {
     });
   }
   screen = (): 'agents' | 'diff' => this.store.getState().developmentDiff ? 'diff' : 'agents';
-  attach(api: DockviewApi) { this.api = api; this.developmentGap = dockTheme.gap ?? 0; }
-  dispose() { cancelAnimationFrame(this.frame); this.reviewSession?.client.clear(); this.reviewSession = null; this.api = null; this.terminalFold = null; }
-  build(saved: SerializedDockview | null) {
-    const a = this.api!;
-    this.terminalFold = null;
-    restoreDockview(a, saved, ['terminal', 'resources']);
-    if (!a.getPanel('terminal') || !a.getPanel('resources')) {
-      a.clear();
-      a.addPanel({ id: 'terminal', component: 'terminal', tabComponent: 'terminal', title: 'Terminal', renderer: 'always' });
-      a.addPanel({ id: 'resources', component: 'resources', tabComponent: 'resources', title: 'Resources', minimumHeight: resourceBarHeight, position: { referencePanel: 'terminal', direction: 'left' } });
-      a.getPanel('resources')!.group.api.setSize({ width: Math.round(a.width / 4) });
-    }
-    this.constrain();
-    const resources = a.getPanel('resources')!;
-    if (resources.params?.section === 'diff') this.openDiff(false);
-    else this.showAgents();
-    // Dockview applies its default minimum before runtime group constraints.
-    if (resources.params?.section === null) this.sizeResources(resources.api, resources.params);
+  get resourceSection(): ResourceSection | null {
+    const group = this.api?.getGroup('resources');
+    return group && !group.api.isCollapsed() ? group.activePanel?.params?.section ?? null : null;
   }
-  selectResource = (panel: DockviewPanelApi, params: ResourceParams, section: NonNullable<ResourceParams['section']>) => {
-    const current = params.section === undefined ? 'project' : params.section;
-    const next = current === section ? null : section;
-    const updated = { ...params, section: next };
-    if (current) {
-      const axis = (this.insets().get(panel.group.id) ?? emptyInsets).axis;
-      if (axis === 'width') updated.expandedWidth = panel.width;
-      else updated.expandedHeight = panel.height;
+  attach(api: DockviewApi, parent: GridviewPanelApi) { this.api = api; this.parent = parent; }
+  dispose() { this.subscriptions.dispose(); this.reviewSession?.client.clear(); this.reviewSession = null; this.api = null; this.parent = null; }
+  build(saved: SerializedDockview | null) {
+    const api = this.api!;
+    if (saved?.edgeGroups?.left) {
+      try { api.fromJSON(saved); }
+      catch (error) { console.warn('[layout] saved development grid unavailable:', error); api.clear(); }
     }
-    panel.updateParameters(updated);
-    if (next === 'diff') this.openDiff();
-    else if (current === 'diff') this.showAgents();
-    this.constrain();
-    if (!current || !next) this.sizeResources(panel, updated);
+    if (!api.getPanel('terminal') || !api.getGroup('resources')) {
+      api.clear();
+      for (const edge of ['left', 'right', 'top', 'bottom'] as const) if (api.getEdgeGroup(edge)) api.removeEdgeGroup(edge);
+      api.addPanel({ id: 'terminal', component: 'terminal', title: 'Terminal', renderer: 'always' });
+      // Import the choices from a saved movable Resources panel.
+      const previous = saved?.panels.resources?.params;
+      const resources = api.addEdgeGroup('left', { id: 'resources', initialSize: previous?.expandedWidth ?? Math.round(api.width / 4),
+        minimumSize: 300, collapsedSize: 40 });
+      for (const [section, title] of Object.entries(resourceSections)) api.addPanel({ id: `resources:${section}`, component: 'resources',
+        tabComponent: 'resources', title, params: { section }, position: { referenceGroup: 'resources' }, inactive: true });
+      const section = previous?.section && Object.hasOwn(resourceSections, previous.section) ? previous.section : 'project';
+      api.getPanel(`resources:${section}`)!.api.setActive();
+      if (previous?.section === null) resources.collapse();
+    }
+    api.getPanel('terminal')!.group.header.hidden = true;
+    const resources = api.getEdgeGroup('left')!;
+    // The outer split must reserve room for the edge strip/content and the central terminal.
+    const constrainParent = () => this.parent!.setConstraints({ minimumWidth: (resources.isCollapsed() ? 40 : 300) + 100 + (dockTheme.gap ?? 0) });
+    constrainParent();
+    this.subscriptions.addDisposables(resources.onDidActivePanelChange(this.resourceChanged), resources.onDidCollapsedChange(constrainParent),
+      resources.onDidCollapsedChange(this.resourceChanged));
+    this.resourceChanged();
+  }
+  showResource(section: ResourceSection) {
+    this.api?.getPanel(`resources:${section}`)?.api.setActive();
+    this.api?.getEdgeGroup('left')?.expand();
+  }
+  private resourceChanged = () => {
+    if (this.resourceSection === 'diff') this.openDiff(false);
+    else if (this.store.getState().developmentDiff) this.showAgents();
     this.changed();
-  };
-
-  private sizeResources = (panel: DockviewPanelApi, params: ResourceParams) => {
-    // A shared tab group keeps the room its other panels need.
-    if (panel.group.panels.length !== 1) return;
-    const inset = this.insets().get(panel.group.id) ?? emptyInsets;
-    const open = params.section !== null;
-    if (inset.axis === 'height') panel.setSize({ height: (open ? params.expandedHeight ?? this.api!.height / 2 : resourceBarHeight) + inset.height });
-    else panel.setSize({ width: (open ? Math.max(resourceMinimumWidth, params.expandedWidth ?? resourceMinimumWidth) : resourceRailWidth) + inset.width });
-  };
-
-  private insets = () => {
-    const insets = new Map<string, GroupInsets>(), grid = this.api?.toJSON().grid;
-    if (!grid) return insets;
-    const gap = this.developmentGap;
-    function visit(node: SerializedDockview['grid']['root'], horizontal: boolean, inset: GroupInsets) {
-      if (!Array.isArray(node.data)) { insets.set(node.data.id, inset); return; }
-      const share = gap * (node.data.length - 1) / node.data.length;
-      const axis = horizontal ? 'width' : 'height';
-      const next: GroupInsets = { ...inset, [axis]: share, axis };
-      node.data.forEach((child) => visit(child, !horizontal, next));
-    }
-    visit(grid.root, grid.orientation === Orientation.HORIZONTAL, emptyInsets);
-    return insets;
-  };
-
-  private restoreTerminalSize = () => {
-    const before = this.terminalFold; this.terminalFold = null;
-    if (!before || !this.api?.groups.includes(before.group)) return;
-    before.group.api.setConstraints({ minimumWidth: 0, maximumWidth: Infinity, minimumHeight: 0, maximumHeight: Infinity });
-    const inset = this.insets().get(before.group.id) ?? emptyInsets;
-    const minimum = before.axis === 'height' ? 150 : 200;
-    before.group.api.setSize({ [before.axis]: Math.max(before.size, minimum) + inset[before.axis] });
-  };
-
-  constrain = () => {
-    cancelAnimationFrame(this.frame); this.frame = 0;
-    const resources = this.api?.getPanel('resources'), terminal = this.api?.getPanel('terminal');
-    const gap = resources?.params?.section === null && resources.group.panels.length === 1 ? 0 : dockTheme.gap ?? 0;
-    if (this.developmentGap !== gap) {
-      this.developmentGap = gap;
-      this.api?.updateOptions({ theme: { ...dockTheme, gap } });
-    }
-    if (this.terminalFold && this.terminalFold.group !== terminal?.group) this.restoreTerminalSize();
-    const insets = this.insets();
-    const state = this.store.getState(), emptyTerminal = !state.developmentTerminals.list.length;
-    let constrained = false;
-    for (const group of this.api?.groups ?? []) {
-      const resource = group.panels.some((p) => p.id === 'resources');
-      const hasTerminal = group.panels.some((p) => p.id === 'terminal');
-      const standalone = group.panels.length === 1;
-      const hiddenHeader = standalone && (resource || hasTerminal);
-      if (group.header.hidden !== hiddenHeader) group.header.hidden = hiddenHeader;
-      const inset = insets.get(group.id) ?? emptyInsets;
-      const closed = resource && resources?.params?.section === null;
-      const foldTerminal = standalone && hasTerminal && emptyTerminal && this.screen() === 'agents' && state.profiles.length > 0;
-      const previous = this.terminalFold?.group === group ? this.terminalFold : null;
-      if (previous && (!foldTerminal || previous.axis !== inset.axis)) {
-        this.restoreTerminalSize();
-        // An axis change needs the restored layout before measuring the terminal's new expanded size.
-        if (foldTerminal) { this.frame = requestAnimationFrame(this.constrain); continue; }
-      }
-      const beginFold = foldTerminal && !this.terminalFold;
-      if (beginFold) this.terminalFold = { group, axis: inset.axis, size: group.api[inset.axis] };
-
-      const minimum = { width: 100, height: 100 }, maximum = { width: Infinity, height: Infinity };
-      if (resource) {
-        minimum.width = (closed ? 100 : resourceMinimumWidth) + inset.width;
-        if (closed && standalone) minimum.width = resourceRailWidth + inset.width;
-        minimum.height = resourceBarHeight + inset.height;
-        if (!standalone) minimum.height += 36;
-      }
-      if (foldTerminal) minimum[inset.axis] = 36;
-      if (foldTerminal || standalone && closed) maximum[inset.axis] = minimum[inset.axis];
-
-      const minimumWidth = minimum.width, minimumHeight = minimum.height;
-      const maximumWidth = maximum.width, maximumHeight = maximum.height;
-      if (group.minimumWidth !== minimumWidth || group.maximumWidth !== maximumWidth || group.minimumHeight !== minimumHeight || group.maximumHeight !== maximumHeight) {
-        group.api.setConstraints({ minimumWidth, maximumWidth, minimumHeight, maximumHeight });
-        constrained = true;
-      }
-      if (beginFold) group.api.setSize({ [inset.axis]: 36 });
-    }
-    // Dockview publishes a constraint change before storing its explicit group limits.
-    if (constrained && this.api) this.api.layout(this.api.width, this.api.height, true);
   };
 
   openDiff = (activate = true) => {

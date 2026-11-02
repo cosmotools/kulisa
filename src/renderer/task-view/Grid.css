@@ -18,6 +18,6 @@
 /* A pane narrower than its header: dockview's tab shrinks with it (else it runs past the pane, its × out of sight and
    dockview's list of hidden tabs shown for it). */
 #dock .dv-tab { min-width: 0; flex-shrink: 1; }
-/* A fixed Resources bar has no resize affordance or split border. */
-[data-development-grid] .dv-sash.dv-disabled { display: none; }
-[data-development-grid]:has(.dv-sash.dv-disabled) { --dv-separator-border: transparent; }
+/* Icon tabs fit the collapsed Resources strip. */
+[data-development-grid] { --dv-tabs-and-actions-container-height: calc(var(--spacing) * 10); }
+[data-development-grid] .dv-tabs-container-vertical .dv-tab { padding: 0; }

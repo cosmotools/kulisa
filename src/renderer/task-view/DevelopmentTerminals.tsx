@@ -6,7 +6,7 @@ import { Avatar, AvatarImage, Button, Item, ItemContent, ItemDescription, ItemMe
 import { ButtonMenu, RightClickMenu } from '../components/Menus';
 import { agentMark } from '../components/AgentMark';
 import { useWindow } from '../lib/store';
-import { useTask, useTaskActive, useTaskStore } from './state';
+import { useTask, useTaskActive, useTaskStore, useTaskGrid } from './state';
 import { profileLaunchers } from './profiles';
 import { panelView, launchers, newTerminalItems, terminalItems, terminalMenu } from './terminals';
 import { avatarSrc, withKeys } from '../lib/common';
@@ -16,13 +16,14 @@ import { termFocus } from '../../terminal/renderer';
 import { Pill } from '../../dictation/renderer';
 
 const NEW_TITLE = 'New conversation of an agent, or a terminal';
-export function DevelopmentTerminals({ api, containerApi, reviewing }: IDockviewPanelProps & { reviewing: boolean }) {
+export function DevelopmentTerminals({ api, reviewing }: IDockviewPanelProps & { reviewing: boolean }) {
   const host = useRef<HTMLDivElement>(null), launch = useRef<HTMLDivElement>(null);
   const owner = useTaskStore();
+  const grid = useTaskGrid();
   const active = useTaskActive();
   const task = useTask((s) => s.key), front = useTask((s) => s.developmentTerminals.front);
-  const folded = useTask((s) => !s.developmentTerminals.list.length);
-  const alone = useTask((s) => !s.profiles.length);
+  const empty = useTask((s) => !s.developmentTerminals.list.length);
+  const alone = useTask((s) => !s.profiles.length && !s.stageTerminals.length);
   const loading = useTask((s) => s.loading);
   // The tab in front before its program has started (an agent's is looked for first): a loader over its terminal, which
   // stays laid out meanwhile (the program starts at its size).
@@ -34,13 +35,13 @@ export function DevelopmentTerminals({ api, containerApi, reviewing }: IDockview
     const el = host.current!;
     // Retained panels catch up in a later frame; DOM client/offset dimensions round Dockview's fractional CSS pixels.
     panelView.isLaidOut = () => {
-      const grid = host.current?.closest('[data-development-grid]');
-      return grid?.clientWidth === Math.round(containerApi.width) && grid?.clientHeight === Math.round(containerApi.height)
+      const area = host.current?.closest('[data-development-grid]'), parent = grid.development.parent;
+      return !!parent && area?.clientWidth === Math.round(parent.width) && area?.clientHeight === Math.round(parent.height)
         && host.current?.offsetWidth === Math.round(api.width) && host.current?.offsetHeight === Math.round(api.height);
     };
     el.append(panelView.el);
     return () => { panelView.isLaidOut = undefined; if (panelView.el.parentElement === el) panelView.el.remove(); };
-  }, [api, containerApi, active]);
+  }, [api, grid, active]);
   useLayoutEffect(() => { if (active) panelView.show(shown); }, [active, shown]);
   // Another tab in front of the same task (chosen, or opened by the human): the keyboard goes to it. Not from a dialog
   // (Change Agent's tab comes in front under it): the dialog keeps the keyboard.
@@ -54,7 +55,7 @@ export function DevelopmentTerminals({ api, containerApi, reviewing }: IDockview
   // The big buttons, each a Tab stop (Tab to the next, Enter opens it): the first, the project's default agent, gets the
   // keyboard when the keyboard was in the terminal just closed or nowhere (not taken from a field or a dialog). No keys
   // on them: Ctrl+` opens the task's agent, which the window does not show.
-  const big = folded && alone && !loading && !reviewing;
+  const big = empty && alone && !loading && !reviewing;
   // A question open as they come (closing an agent's tab asks first): once it has gone, also from the page (a dialog
   // keeps the keyboard in it while it fades out, and gives it back as it goes).
   useEffect(() => {
@@ -75,17 +76,16 @@ export function DevelopmentTerminals({ api, containerApi, reviewing }: IDockview
     return t && (e.target as Element).closest('[data-testid="terminal"]') ? terminalMenu(`${task}#${t.id}`, terminalItems(task, t)) : null;
   };
 
-  // One cell: the launchers or the folded +, and the terminal, take it in turn; the pill and the loader lie over it.
-  return <div data-testid='development-terminals' data-folded={folded || undefined} className="relative grid h-full grid-cols-[minmax(0,1fr)] grid-rows-[minmax(0,1fr)] bg-card">
+  return <div data-testid='development-terminals' data-empty={empty || undefined} className="relative grid h-full grid-cols-[minmax(0,1fr)] grid-rows-[minmax(0,1fr)] bg-card">
     {big ? <Launchers ref={launch} />
-      : folded ? <div className="grid place-items-center">
-        <ButtonMenu items={() => newTerminalItems(task)}><Button data-unfold variant="ghost" size="icon-sm" aria-label="New terminal"
+      : empty ? <div className="grid place-items-center">
+        <ButtonMenu items={() => newTerminalItems(task)}><Button variant="ghost" size="icon-sm" aria-label="New terminal"
           title={withKeys(NEW_TITLE, 'terminal.new')}><PlusIcon /></Button></ButtonMenu>
       </div> : null}
     <RightClickMenu items={menu}>
-      <div ref={host} data-testid="terminal" data-zone="terminal" hidden={folded} className="h-full py-0.5 ps-2 pe-1" />
+      <div ref={host} data-testid="terminal" data-zone="terminal" hidden={empty} className="h-full py-0.5 ps-2 pe-1" />
     </RightClickMenu>
-    {!folded && <Pill task={task}><CheckIcon className="size-3.5 text-success" /></Pill>}
+    {!empty && <Pill task={task}><CheckIcon className="size-3.5 text-success" /></Pill>}
     {starting && <div className="absolute inset-0 grid place-items-center bg-card text-sm"><div role="status" className="flex items-center gap-2 text-muted-foreground"><Spinner role={undefined} aria-hidden />Starting {starting}…</div></div>}
   </div>;
 }

@@ -62,8 +62,8 @@ test('Diff groups files into folders and switches the development area without m
   await expect(ui.getByRole('region', { name: 'Diff review', exact: true })).toBeVisible();
   await expect(ui.locator('[data-task-view][data-active]').getByLabel('Code comparison: docs/guide.md', { exact: true })).toContainText('Guide', { timeout: 15000 });
   await expect(ui.getByRole('region', { name: 'Changed file diffs', exact: true })).toHaveJSProperty('scrollTop', 0);
-  const nav = ui.getByRole('navigation', { name: 'Resources', exact: true });
-  const icons = await nav.getByRole('button').evaluateAll((buttons) => buttons.map((b) => b.getAttribute('aria-label')).filter((s) => ['Agents', 'Project', 'Diff', 'Artifacts'].includes(s)));
+  const nav = ui.locator('[data-task-view][data-active]').getByTestId('dv-edge-group-resources');
+  const icons = await nav.getByRole('tab').evaluateAll((buttons) => buttons.map((b) => b.getAttribute('aria-label')).filter((s) => ['Agents', 'Project', 'Diff', 'Artifacts'].includes(s)));
   expect(icons).toEqual(['Agents', 'Project', 'Diff', 'Artifacts']);
   const tree = ui.getByRole('region', { name: 'Diff', exact: true });
   const stock = tree.locator('[role="treeitem"][data-item-path="src/orders/stock.ts"]');
@@ -331,7 +331,7 @@ test('Leaving Diff and restarting reset the review; switching tasks preserves it
   for (const section of ['Project', 'Artifacts', 'Agents', null] as const) {
     await customize();
     if (section) await showResources(ui, section);
-    else await ui.getByRole('navigation', { name: 'Resources', exact: true }).getByRole('button', { name: 'Diff', exact: true }).click();
+    else await ui.getByRole('tab', { name: 'Diff', exact: true }).click();
     await expect(ui.getByRole('region', { name: 'Diff review', exact: true })).toHaveCount(0);
     await expect(termKeys(ui)).toBeVisible();
     await showResources(ui, 'Diff');

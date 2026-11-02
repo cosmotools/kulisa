@@ -243,18 +243,12 @@ then named "Checkout redesign":
 
 ### The Resources panel
 
-The **Resources panel** sits to the left of the development terminal by default. Its **Resources bar** selects
-the **Agents**, **Project**, **Diff** or **Artifacts** section in **Resources content**.
-Clicking the selected icon closes Resources content and leaves the Resources bar visible; any section icon reopens
-Resources content at the expanded size.
-The standalone development panels have no header. The Resources bar holds the dictation microphone above its grip. The grip at the bottom of the Resources bar moves the panel within the
-development grid, with Resources content open or closed. Switching sections preserves its width.
-The Resources bar keeps at least 204 CSS pixels of height, below any shared header, so every control stays reachable. With Resources
-content open, its minimum width is 300 CSS pixels. With content closed, a standalone
-panel is fixed at 40 CSS pixels wide beside the terminal or 204 CSS pixels tall above or below it, with no
-gap or resize divider. Shared tabs keep their group resizable and Resources nonclosable. Reopening restores the expanded size. The Resources bar follows the outer edge beside
-the terminal: left when docked left, right when docked right; above, below and shared tabs use the left edge.
-The selected section, collapsed state and expanded size belong to the task’s saved layout.
+The **Resources panel** is a Dockview edge group fixed to the left of the development terminal. Its **Resources bar**
+uses vertical icon tabs for **Agents**, **Project**, **Diff** and **Artifacts**, with the dictation microphone below.
+Clicking the selected tab closes Resources content; clicking any tab opens its section. Dockview restores the
+expanded width, shared by all sections. Open Resources is at least 300 CSS pixels wide; collapsed Resources is a
+40 CSS pixel strip. The development area is at least 204 CSS pixels tall so the controls stay reachable.
+Its tabs, size and collapsed state belong to the task's saved Dockview layout. The terminal keeps its size when empty.
 **Agents** lists the task's agents and development terminals: name, agent state, account or shell command when
 available. Clicking the Agents icon shows and focuses the last active development terminal. Selecting a row shows and focuses its terminal in the development area, including
 when the panels share a tab group. The selected row stays marked; the list scrolls vertically. Each row's × closes

@@ -72,7 +72,7 @@ project, and those you closed, are in the sidebar (Tasks, below).
 - **Settings** (on a Mac also ⌘, or Kulisa → Settings… in the menu bar) fills the window, over your task, and shows that task's project: set what you need and close it (**Esc**,
   the ← arrow at its top left, or the gear again; what you typed is saved as you go). Your task goes on meanwhile, and is there as you left it.
 - **The grid** separates development from testing: your agents' terminals and Resources sit beside the **stage**,
-  where browser profiles and Stage terminals show the app being tested. Drag headers to move or stack panes within each area. Drag a line to resize panes.
+  where browser profiles and Stage terminals show the app being tested. Drag Stage headers to move or stack environments. Resources stays beside the development terminal. Drag a line to resize panes.
   **Stage** in the title bar places the stage **Left**, **Right**, or **Above** the agent terminal and Resources together. Its **View** choices are **Horizontal stack** (side by side),
   **Vertical stack** (one above another), and **Tabs** (one environment at a time). **Allow overflow** keeps panes at a usable size and adds scrolling in the stack’s direction;
   turned off, all panes fit inside the stage. Tabs hides this setting. Changing View keeps each pane's contents and terminal search.
@@ -128,10 +128,10 @@ project, and those you closed, are in the sidebar (Tasks, below).
   the last active terminal. Stage keeps its position and size. The review is read-only; binary and large
   files show an explanation. Switching tasks keeps the review's comparison, filter and position. Restarting Kulisa
   restores that task's Resources section and opens a fresh review.
-  Drag the grip at the bottom of the Resources bar to move the whole panel beside or below the terminal, or into its tabs.
-  Beside the terminal, the Resources bar follows the outer edge: left on the left, right on the right.
-  A group shared with terminal tabs stays resizable; its Resources tab stays available.
-  The expanded panel stays at least 300 pixels wide and 204 pixels tall, keeping all section icons and the grip reachable. Each task keeps its selection and size.
+  Resources stays fixed to the left of the development terminal. Drag its divider to change its width;
+  clicking the selected section icon closes its content, and clicking any icon opens that section at the saved width.
+  The expanded panel stays at least 300 pixels wide; the development area stays at least 204 pixels tall to keep its controls reachable.
+  Each task keeps its selection, width and collapsed state.
   **Project** opens first in a new task: use **Project Explorer** to browse the active task’s folders (its copy of the code, or your project’s folder until
   it has one). Icons identify file types; folders share one icon. Click a folder to expand it; double-click a file to open it in your system’s default application,
   or press Enter or right-click and choose **Open**. Switching tasks shows that task’s folders, across projects too.
@@ -439,7 +439,7 @@ Maximize/Restore and **×** are at the right. Under the header, one row holds ba
   its conversation in the task's history; a shell closes at once, or with `exit`. Right-click an agent's row for
   **Change agent…**, **New Conversation**, and **Close**. Clicking the selected Agents icon closes Resources content,
   as Project and Artifacts do; the terminal keeps running.
-- Close the last development terminal and the panel folds to a thin strip with **+** in its middle, which opens one again (Ctrl+`
+- Close the last development terminal and its panel keeps its size, with **+** in the middle to open one again (Ctrl+`
   opens the task's agent). With no testing environment open either, big buttons in the middle of the window do what **+** does:
   one for each of the project's agents, then **Terminal**. Tab moves between them and Enter opens one. Under them, a
   button for each of the project's profiles opens it.

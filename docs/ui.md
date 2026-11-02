@@ -13,8 +13,8 @@ Radix has a component, a prop or a pattern: their keyboard, focus and accessibil
 deviation gets a comment at it saying why. Tests find a part as the human does (role and name, label,
 `data-*`; never a class: [testing.md](testing.md)).
 
-The grid's stacking context keeps Dockview's resize dividers beneath window menus; fixed Resources bars hide their
-divider and use a zero development-grid gap.
+The grid's stacking context keeps Dockview's resize dividers beneath window menus. Resources uses Dockview's left
+edge group, icon tab renderers and a header action for dictation; Dockview owns its collapse and sizing.
 The grids and their headerless split are Dockview's (`dockview-react`): its API before layout code of our own. State is zustand's; the terminal is
 xterm's (`src/terminal/`); read-only code comparisons use @pierre/diffs CodeView for continuous file and line virtualization
 ([README](../src/diff/README.md)); its changed-file navigation uses @pierre/trees with Lucide status icons and window palette overrides.

@@ -1,7 +1,7 @@
 // The Resources panel of the grid (docs/tasks.md, The Resources panel).
-import { useEffect, useId, useMemo, useState } from 'react';
-import { ChevronRightIcon, FileIcon, FilesIcon, FolderIcon, FolderTreeIcon, GripVerticalIcon, GitBranchIcon, GitCompareArrowsIcon, TerminalSquareIcon, Trash2Icon } from 'lucide-react';
-import type { IDockviewPanelProps } from 'dockview-react';
+import { useEffect, useMemo, useState } from 'react';
+import { ChevronRightIcon, FileIcon, FilesIcon, FolderIcon, FolderTreeIcon, GitBranchIcon, GitCompareArrowsIcon, TerminalSquareIcon, Trash2Icon } from 'lucide-react';
+import type { IDockviewPanelProps, IDockviewPanelHeaderProps, IDockviewHeaderActionsProps } from 'dockview-react';
 import { useShallow } from 'zustand/react/shallow';
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupAction, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuAction,
   Button, Collapsible, CollapsibleTrigger, CollapsibleContent, SidebarMenuButton, SidebarMenuItem, SidebarProvider } from '@ui';
@@ -9,9 +9,9 @@ import { ProjectDirectory, type ExplorerActions } from '../../project-explorer/r
 import { menuAt } from '../lib/menu';
 import { RightClickMenu } from '../components/Menus';
 import { shownTask, useWindow } from '../lib/store';
-import { useTask, useTaskActive, useTaskGrid } from './state';
+import { useTask, useTaskActive } from './state';
 import type { MenuItem } from '../lib/menu';
-import type { ResourceParams } from './development';
+import { resourceSections, type ResourceSection } from './development';
 import { sizeText } from '../../shared/bytes';
 import { Dictation } from '../../dictation/renderer';
 import { useShortcuts } from '../lib/common';
@@ -27,40 +27,35 @@ const when = (t: number) => (day(t) === day(Date.now()) ? new Date(t).toLocaleTi
   : new Date(t).toLocaleDateString([], { day: 'numeric', month: 'short' }));
 const openFile = (file: string) => kulisa.invoke('file:open', file);
 
-export function Resources({ api, params, containerApi }: IDockviewPanelProps<ResourceParams>) {
-  const grid = useTaskGrid();
-  const key = useTask((s) => s.key), contentId = useId();
-  const section = params.section === undefined ? 'project' : params.section;
-  const [barSide, setBarSide] = useState<'left' | 'right'>('left');
+export function ResourceIcon({ params }: IDockviewPanelHeaderProps<{ section: ResourceSection }>) {
+  const Icon = { terminals: TerminalSquareIcon, project: FolderTreeIcon, diff: GitCompareArrowsIcon, artifacts: FilesIcon }[params.section];
+  return <span title={resourceSections[params.section]} className="grid size-10 place-items-center"><Icon className="size-4" /></span>;
+}
+export function ResourceActions({ api, group, location }: IDockviewHeaderActionsProps) {
+  const key = useTask((s) => s.key);
   useEffect(() => {
-    const update = () => {
-      const resources = api.group.api.boundingBox, terminal = containerApi.getPanel('terminal')?.group.api.boundingBox;
-      setBarSide(resources && terminal && resources.left >= terminal.left + terminal.width ? 'right' : 'left');
-    };
-    const layout = containerApi.onDidLayoutChange(update);
+    if (location?.type !== 'edge') return;
+    void kulisa.invoke('task:artifact:refresh', key);
+    const focus = () => { if (!api.isCollapsed() && group.activePanel?.params?.section === 'terminals') focusDevelopmentTerminal(key); };
+    const selected = api.onDidActivePanelChange(({ panel, origin }) => {
+      if (origin === 'user' && panel?.params?.section === 'terminals') focusDevelopmentTerminal(key);
+    });
+    const expanded = api.onDidCollapsedChange(focus);
+    return () => { selected.dispose(); expanded.dispose(); };
+  }, [api, group, location?.type, key]);
+  return location?.type === 'edge' ? <div className="grid w-10 place-items-center py-1"><TaskDictation /></div> : null;
+}
+export function Resources({ api, params }: IDockviewPanelProps<{ section: ResourceSection }>) {
+  const [visible, setVisible] = useState(api.isVisible && !api.group.api.isCollapsed());
+  useEffect(() => {
+    const update = () => setVisible(api.isVisible && !api.group.api.isCollapsed());
+    const shown = api.onDidVisibilityChange(update), collapsed = api.group.api.onDidCollapsedChange(update);
     update();
-    return () => layout.dispose();
-  }, [api, containerApi]);
-  return <aside data-resources aria-label="The task's resources" data-bar-side={barSide} className="flex h-full min-h-0 min-w-0 data-[bar-side=right]:flex-row-reverse">
-    <nav aria-label="Resources" className={`flex w-10 shrink-0 flex-col items-center gap-1 py-2 ${barSide === 'right' ? 'border-l' : 'border-r'}`}>
-      {([['terminals', 'Agents', TerminalSquareIcon], ['project', 'Project', FolderTreeIcon], ['diff', 'Diff', GitCompareArrowsIcon], ['artifacts', 'Artifacts', FilesIcon]] as const).map(([value, label, Icon]) =>
-        <Button key={value} variant="ghost" size="icon-sm" aria-label={label} title={label}
-          aria-expanded={section === value} aria-controls={contentId} onClick={() => {
-            grid.development.selectResource(api, params, value);
-            if (value === 'terminals') focusDevelopmentTerminal(key);
-          }}><Icon /></Button>)}
-      <div className="mt-auto flex flex-col items-center gap-1">
-        <TaskDictation />
-        <div className="[&_button]:cursor-grab [&_button]:active:cursor-grabbing">
-          <Button variant="ghost" size="icon-sm" draggable aria-label="Move Resources panel" title="Move Resources panel"
-            onDragStart={(e) => grid.startResourceDrag(api, e.nativeEvent)}><GripVerticalIcon /></Button>
-        </div>
-      </div>
-    </nav>
-    {section && key && <div id={contentId} role="region" aria-label={section === 'project' ? 'Project' : section === 'artifacts' ? 'Artifacts' : section === 'diff' ? 'Diff' : 'Agents'} className="min-h-0 min-w-0 flex-1">
-      <TaskResources section={section} />
-    </div>}
-  </aside>;
+    return () => { shown.dispose(); collapsed.dispose(); };
+  }, [api]);
+  return visible ? <aside data-resources role="region" aria-label={resourceSections[params.section]} className="h-full min-h-0 min-w-0">
+    <TaskResources section={params.section} />
+  </aside> : null;
 }
 
 function TaskDictation() {
@@ -71,7 +66,7 @@ function TaskDictation() {
     onDone={() => { if (front !== null) void showDevelopmentTerminal(key, front); }} />;
 }
 
-function TaskResources({ section }: { section: NonNullable<ResourceParams['section']> }) {
+function TaskResources({ section }: { section: ResourceSection }) {
   const key = useTask((s) => s.key);
   const task = useWindow((s) => shownTask(s, key));
   const active = useTaskActive();
@@ -85,8 +80,6 @@ function TaskResources({ section }: { section: NonNullable<ResourceParams['secti
   const bytes = useTask((s) => s.artifacts.bytes);
   const names = useTask(useShallow((s) => Object.fromEntries([...s.profiles, ...s.closedProfiles].map((p) => [p.id, p.name]))));
   const stageTerminals = useTask(useShallow((s) => Object.fromEntries(s.stageTerminals.map((a) => [a.id, a.name]))));
-  // The list comes when the task is shown and whenever the human or agent keeps one (window.ts, sendArtifacts).
-  useEffect(() => { if (key) void kulisa.invoke('task:artifact:refresh', key); }, [key]);
   if (!task) return null;
   const open = (folder: string) => kulisa.invoke('task:open-folder', { key: task.key, folder });
   const remove = (folder: string) => kulisa.invoke('task:repo:remove', { key: task.key, repo: folder });

@@ -10,9 +10,11 @@ import type { Core, Call, Where } from './fixtures.ts';
 import { removeTree } from '../../src/main/remove.ts';
 import type { Files } from './data.ts';
 
+export const resourcesGroup = (ui: Page) => ui.locator('[data-task-view][data-active]').getByTestId('dv-edge-group-resources');
 export async function showResources(ui: Page, section: 'Project' | 'Artifacts' | 'Agents' | 'Diff') {
-  const icon = ui.getByRole('navigation', { name: 'Resources', exact: true }).getByRole('button', { name: section, exact: true });
-  if (await icon.getAttribute('aria-expanded') !== 'true') await icon.click();
+  const group = resourcesGroup(ui), icon = group.getByRole('tab', { name: section, exact: true });
+  if (await icon.getAttribute('aria-selected') !== 'true' || await group.locator(':scope.dv-edge-collapsed').count()) await icon.click();
+  await expect(ui.getByRole('region', { name: section, exact: true })).toBeVisible();
 }
 
 // The run's test site (global-setup.ts), on a free port: never a literal port (CLAUDE.md, Hard-won facts).
@@ -299,18 +301,14 @@ export async function dock<A, R>(ui: Page, fn: (api: any, arg: A) => R, arg?: A)
   try { return await api.evaluate(fn as (api: any, arg: unknown) => R, arg); } finally { await api.dispose(); }
 }
 // Retained terminal content sits outside Dockview’s group DOM; the API owns its group’s box.
-export const developmentBox = (ui: Page) => dock(ui, (api) => {
-  const { left: x, top: y, width, height } = api.getPanel('terminal').group.api.boundingBox;
-  const grid = document.querySelector('[data-task-view][data-active] [data-development-grid]').getBoundingClientRect();
-  return { x: grid.x + x, y: grid.y + y, width, height };
-});
+export const developmentBox = (ui: Page) => dock(ui, (api) => api.getPanel('terminal').group.element.getBoundingClientRect().toJSON());
 // The independent testing grid; development panels stay in dock().
 export async function stageDock<A, R>(ui: Page, fn: (api: any, arg: A) => R, arg?: A) {
   const api = await ui.evaluateHandle(() => (window as any).__stage);
   try { return await api.evaluate(fn as (api: any, arg: unknown) => R, arg); } finally { await api.dispose(); }
 }
-// The Resources panel's height on screen (its group in the grid: lib/grid.ts).
-export const resourcesHeight = (ui: Page) => ui.evaluate(() => Math.round(document.querySelector('[data-task-view][data-active] [data-resources]').closest('.dv-groupview').getBoundingClientRect().height));
+// The Resources edge group's height on screen.
+export const resourcesHeight = async (ui: Page) => Math.round((await resourcesGroup(ui).boundingBox()).height);
 
 // Who the test site says is signed in, in a profile's page, as the agent (of the window's task, or of where) reads it.
 export const who = async (call: Call, profile: string, where?: Where) => (await call('browser_snapshot', { profile }, where)).text.match(/Signed (in as \w+|out)/)?.[0];

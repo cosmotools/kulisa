@@ -59,19 +59,18 @@ A press on a tab not shown shows its task at once, as Chrome's; the tab is lit o
 
 A task has two independent Dockview grids (`task-view/TaskView.tsx`): development terminals or code review with Resources,
 and the **stage** of browser profiles and Stage terminals as testing **environments**. A headerless Gridview splits their areas; its
-sash resizes them. Headers and the Resources bar’s grip move or stack panels within their own grid. The empty stage is absent; opening the first
+sash resizes them. Stage headers move or stack environments within Stage; Resources is the development grid's left edge group. The empty stage is absent; opening the first
 environment adds it, closing the last removes it. A new task opens only its default development terminal.
 
 **Stage** in the title bar offers **Position: Left, Right, Above** the development area, **View: Horizontal stack**
 (side by side), **Vertical stack** (one above another), **Tabs** (one environment at a time), and **Open an environment**.
-Moving Stage preserves the development grid and its panels; Terminal and Resources stay together. Resources starts to the left of the terminal; saved layouts keep their placement. The Resources bar and Resources content: [tasks.md](tasks.md), The Resources panel. Its standalone group has no header; a shared group keeps its nonclosable Resources tab.
+Moving Stage preserves the development grid and its panels; Terminal and Resources stay together.
+Resources contains four Dockview panels in one left edge group, with vertical icon tabs and the microphone in its
+header actions (`task-view/Resources.tsx`). Dockview owns the selected tab, collapse state and expanded width.
+The development grid disables drag and drop so its Resources group stays beside the headerless terminal.
+Its minimum height is 204 CSS pixels to keep the Resources controls reachable. The Resources bar and Resources
+content: [tasks.md](tasks.md), The Resources panel.
 Changing Stage's view moves existing panels through Dockview; their contents and terminal search state stay mounted.
-Resources keeps at least 204 CSS pixels of height so its sections and grip stay reachable. `task-view/development.ts` owns
-development-group constraints, applied after structural grid mutations and changes to Resources, terminal availability or review visibility.
-They include the empty terminal's folded size and its restoration. Collapsed standalone
-groups fix only their split axis; shared tab groups keep room for their panels. Restoring a folded
-terminal compensates Dockview’s split gap to preserve its expanded size; available room can limit it with Resources
-below. A selected diff keeps the development area expanded even with every terminal closed ([tasks.md](tasks.md), Diff).
 The human's `stage:arrange` IPC and the agent's
 `stage_arrange` tool call `Task.arrangeStage`: the task must be shown, and settings apply with an empty Stage too.
 The task-scoped event reaches that window.
@@ -134,7 +133,8 @@ Views, processes and buffers. A task's open Diff retains its comparison, filter,
 saved 300 ms after a change and flushed when the task is hidden or closed. The saved layout loads once before a TaskView
 creates its grids, including after a restart or move to another window. Stage commands received during loading merge
 into the initial settings; loading completes when both required grids are mounted. Dockview owns the live geometry; group dimension changes save
-completed sizes. `task-view/layout.ts` converts saved sizes to split allocations including their theme-gap share.
+completed sizes. Development layouts use Dockview's `toJSON` / `fromJSON`, including edge-group sizes and collapse state.
+`task-view/layout.ts` converts saved Stage sizes to split allocations including their theme-gap share.
 `shared/stage-layout.ts` separates flat layouts into development and testing groups, retaining order, stacking and
 sizes. Saved stack settings normalize to explicit horizontal and vertical directions without moving panes.
 An unavailable or invalid saved grid uses the default arrangement.
@@ -385,21 +385,19 @@ fractional CSS dimensions to match DOM client/offset sizes; the same readiness c
 A task's terminals share one **panel** of the grid (`DevelopmentTerminals` in `task-view/DevelopmentTerminals.tsx`),
 one shown at a time. Each is the user's shell in the task's folder (`src/terminal/`), with an agent chosen by the
 human or without one. **Resources → Agents** switches between them ([tasks.md](tasks.md), The Resources panel).
-The standalone terminal panel is headerless; a shared Dockview group has a plain Terminal tab for selecting its panel.
+The terminal panel is headerless and fills the development area beside Resources.
 Resources’ terminal list owns creation, switching and closing; an agent's row menu opens Change Agent or a new
 conversation. The Resources bar holds the dictation microphone, beside the terminal with every section selected.
 The terminal in front combines its TaskView's permanent task key with the front tab from that task's routed state;
 the window's selection cannot pair another task's terminal list with it.
 
-**The last terminal closed folds the panel** to a strip of one button, + in its middle, as JetBrains' tool windows go
-but with their button kept in place (the author's choice): by its height under or over the grid, by its width at a side
-(dockview's constraints hold it there). Alone in the grid (no profile open), the +'s rows are big buttons
-in a line in the grid's middle, whatever the arrangement (its group fills the grid there, its header hidden): a
+**With every development terminal closed**, the panel keeps its size and shows a centered + button.
+With no environment open, it shows large launcher buttons in a centered row: a
 `data-launcher` button each, the agent's icon beside its name, an account's email under it, no keys (Ctrl+` opens the task's agent,
 which the window does not show: a key on one of them would read as a mistake). Each is a Tab stop, Enter opens it; the
 first, the project's default agent, gets the keyboard when they come, unless the keyboard is in something else (a
 field, a dialog). Under them, a second row: the task's closed profiles, a `data-launcher` each, its picture beside its name
-(The grid: No profile open). A terminal opened unfolds it to the size it had. Ctrl+` there opens a new conversation of
+(The grid: No environment open). Opening a terminal shows its buffer in the same panel. Ctrl+` there opens a new conversation of
 the task's agent; a task with none (its project had no default agent: [tasks.md](tasks.md), "Choosing the agent")
 gives the keyboard to the buttons, or opens the +. A task that never had a terminal opens its agent, or nothing (the
 buttons).
@@ -486,7 +484,7 @@ through the [Browser Kulisa package](../src/browser/README.md#focus).
   Ctrl+1…8, Ctrl+9; Ctrl+Shift+C for Pick (Chrome's Inspect), Ctrl+Shift+S for a screenshot of an element
   ([src/screenshots](../src/screenshots/README.md)). The site does not get them, as in Chrome. Closing or switching a
   tab from the page leaves the keyboard in the page shown next.
-- **Everywhere, the terminal too**: Ctrl+` to the terminal in front and back to the page used last (on the folded
+- **Everywhere, the terminal too**: Ctrl+` to the terminal in front and back to the page used last (on the empty
   terminals, a new conversation of the task's agent), Ctrl+Shift+` a new terminal, Ctrl+Shift+1…9 the bar's first to
   ninth tab, Ctrl+Shift+PgDn / PgUp the next or previous one (in the bar's order), Ctrl+Shift+N a new task of the shown
   task's project, Ctrl+Shift+A the sidebar (over the grid, again to close it; docked in the empty window, the keyboard

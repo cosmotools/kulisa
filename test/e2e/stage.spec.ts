@@ -11,7 +11,7 @@ test('Stage has fixed positions, keeps development panels together and stays hid
   await expect(stage).toBeVisible();
   await expect(ui.locator('[data-panel="stage"]')).toHaveCount(0);
   const panels = await ui.evaluate(() => (window as any).__dock.panels.map((p: any) => p.id).sort());
-  expect(panels).toEqual(['resources', 'terminal']);
+  expect(panels).toEqual(['resources:artifacts', 'resources:diff', 'resources:project', 'resources:terminals', 'terminal']);
   const identity = await ui.evaluateHandle(() => (window as any).__dock.getPanel('terminal'));
   for (const position of ['left', 'right', 'above'] as const) {
     await arrange(ui, position);
@@ -55,7 +55,7 @@ test('flat saved layouts restore browser panes inside the stage and development 
   const next = await restart();
   await notLoading(next);
   await expect(next.getByTestId('stage').locator('[data-panel^="profile:"]')).toHaveCount(1);
-  expect(await next.evaluate(() => (window as any).__dock.panels.map((p: any) => p.id).sort())).toEqual(['resources', 'terminal']);
+  expect(await next.evaluate(() => (window as any).__dock.panels.map((p: any) => p.id).sort())).toEqual(['resources:artifacts', 'resources:diff', 'resources:project', 'resources:terminals', 'terminal']);
   expect(await next.evaluate(() => (window as any).__stage.panels.every((p: any) => p.id.startsWith('profile:')))).toBe(true);
   await expect.poll(() => core((k) => k.profile('Layout.browser').get().view.getVisible())).toBe(true);
   await call('profile_close', { profile: 'Layout.browser' });
