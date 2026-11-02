@@ -1,5 +1,5 @@
 // The Resources panel of the grid (docs/tasks.md, The Resources panel).
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useSyncExternalStore } from 'react';
 import { ChevronRightIcon, FileIcon, FilesIcon, FolderIcon, FolderTreeIcon, GripVerticalIcon, GitBranchIcon, GitCompareArrowsIcon, TerminalSquareIcon, Trash2Icon } from 'lucide-react';
 import type { IDockviewPanelProps } from 'dockview-react';
 import { useShallow } from 'zustand/react/shallow';
@@ -31,16 +31,17 @@ export function Resources({ api, params, containerApi }: IDockviewPanelProps<Res
   const front = useWindow((s) => s.developmentTerminals.front), lang = useWindow((s) => s.language?.language);
   const hold = useShortcuts().find((s) => s.id === 'voice.hold')?.keys[0] || '';
   const section = params.section === undefined ? 'project' : params.section;
-  const [barSide, setBarSide] = useState<'left' | 'right'>('left');
-  useEffect(() => {
-    const update = () => {
+  const placement = useMemo(() => ({
+    subscribe(changed: () => void) {
+      const subscriptions = [containerApi.onDidLayoutChange(changed), api.onDidDimensionsChange(changed), api.onDidGroupChange(changed)];
+      return () => subscriptions.forEach((subscription) => subscription.dispose());
+    },
+    snapshot(): 'left' | 'right' {
       const resources = api.group.api.boundingBox, terminal = containerApi.getPanel('terminal')?.group.api.boundingBox;
-      setBarSide(resources && terminal && resources.left >= terminal.left + terminal.width ? 'right' : 'left');
-    };
-    const layout = containerApi.onDidLayoutChange(update);
-    update();
-    return () => layout.dispose();
-  }, [api, containerApi]);
+      return resources && terminal && resources.left >= terminal.left + terminal.width ? 'right' : 'left';
+    },
+  }), [api, containerApi]);
+  const barSide = useSyncExternalStore(placement.subscribe, placement.snapshot);
   return <aside id="resources" aria-label="The task's resources" data-bar-side={barSide} className="flex h-full min-h-0 min-w-0 data-[bar-side=right]:flex-row-reverse">
     <nav aria-label="Resources" className={`flex w-10 shrink-0 flex-col items-center gap-1 py-2 ${barSide === 'right' ? 'border-l' : 'border-r'}`}>
       {([['terminals', 'Agents', TerminalSquareIcon], ['project', 'Project', FolderTreeIcon], ['diff', 'Diff', GitCompareArrowsIcon], ['artifacts', 'Artifacts', FilesIcon]] as const).map(([value, label, Icon]) =>

@@ -11,5 +11,8 @@ interface KulisaBridge {
 
 declare const kulisa: KulisaBridge;
 
+// Chromium supports retained transitions; TypeScript's DOM declarations describe the Level 1 interface.
+interface ViewTransition { waitUntil(promise: Promise<unknown>): void }
+
 // The theme put on the page's root (public/theme.js, lib/theme.ts).
 declare function showTheme(theme: string): void;

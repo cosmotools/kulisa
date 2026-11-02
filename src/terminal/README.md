@@ -86,6 +86,10 @@ clears WebGL's canvas, which xterm draws again in the next frame, so one resized
 page draws no frames, so there it is measured at once: Windows hides a window other windows cover (one opening behind
 them too), whose agents would otherwise start only once someone looks at it.
 
+`renderTerminals` prepares connected, visible Views for an atomic reveal: each waits for its buffer's restoration,
+fits the completed layout, flushes parsing and waits for xterm's `onRender`. Switching a View or disposing it releases
+its pending render waits. The caller owns the retained picture; the terminal keeps one renderer per place.
+
 Serializing leaves out the cursor's visibility (`?25`) and the mouse's encoding (`?1006`, `?1015`, `?1016`: Claude
 Code's fullscreen clicks), so each buffer follows them (`registerCsiHandler`, not taking them) and they are written
 after it, every one with its value: the reset leaves a hidden cursor hidden in the next terminal shown, and turning an

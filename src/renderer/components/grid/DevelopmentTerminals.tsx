@@ -37,10 +37,10 @@ export function DevelopmentTerminals({ api, containerApi, reviewing }: IDockview
     };
     return () => { panelView.isLaidOut = undefined; };
   }, [api, containerApi]);
-  useEffect(() => { host.current!.append(panelView.el); }, []);
-  useEffect(() => panelView.show(shown), [shown]);
+  useLayoutEffect(() => { host.current!.append(panelView.el); }, []);
+  useLayoutEffect(() => panelView.show(shown), [shown]);
   // The terminal in the panel's own color (the grid's: Grid.css), again when the shade changes.
-  useEffect(() => panelView.restyle(termStyle()), [shade]);
+  useLayoutEffect(() => panelView.restyle(termStyle()), [shade]);
   // Another tab in front of the same task (chosen, or opened by the human): the keyboard goes to it. Not from a dialog
   // (Change Agent's tab comes in front under it): the dialog keeps the keyboard.
   const was = useRef({ task, front });

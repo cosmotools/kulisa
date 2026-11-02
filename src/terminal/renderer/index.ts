@@ -25,6 +25,7 @@ import type { FileLink } from '../ipc';
 interface Buffer { term: Terminal; serialize: SerializeAddon; modes: Map<number, boolean>; scroll?: number }
 const buffers = new Map<string, Buffer>(); // terminal key -> its buffer
 const views = new Set<View>();
+export const renderTerminals = async () => { await Promise.all([...views].map((view) => view.render())); };
 export const xtermKeys = () => buffers.keys();
 // xterm measures the cell size when it opens: once the font is loaded (any size loads the face). Output written before is kept.
 const termFont = Promise.all(['16px', 'bold 16px'].map((f) => document.fonts.load(`${f} "JetBrains Mono"`))).catch(() => {});
@@ -174,6 +175,9 @@ export class View {
   private opened = false;
   private seen = new ResizeObserver(() => this.fitSoon());
   private pending: string[] | null = null; // output that came while the buffer was being put in
+  private restored = Promise.resolve();
+  private restoreComplete: (() => void) | null = null;
+  private rendering = new Set<() => void>();
   constructor({ colors, fontSize }: TermStyle) {
     this.el.append(this.host);
     const t = this.term = new Terminal({ fontSize, fontFamily: '"JetBrains Mono", monospace', cursorBlink: true,
@@ -236,10 +240,14 @@ export class View {
   }
   show(key: string | null) {
     if (key === this.key) return;
+    this.restoreComplete?.();
+    for (const done of this.rendering) done();
     const was = this.key && buffers.get(this.key), at = this.term.buffer.active;
     if (was) was.scroll = at.viewportY === at.baseY ? undefined : at.viewportY; // at the end: kept at the end
     this.key = key;
     if (!key) return this.term.reset();
+    const restored = Promise.withResolvers<void>();
+    this.restored = restored.promise; this.restoreComplete = restored.resolve;
     const b = bufferOf(key, this.size() ?? undefined);
     // The buffer's own writes are queued: what is queued is parsed first, so the buffer is all its output so far.
     // Output coming meanwhile goes to the buffer after that mark, and here after it (pending).
@@ -252,11 +260,44 @@ export class View {
       // The reset (RIS) in the same write as the contents: one write is parsed at once, so no frame is drawn between
       // them, and the terminal shown before stays on screen until then (one reset before it would be drawn empty).
       this.term.write(`\x1bc${serialized(key)!.data}${pending.join('')}`, () => {
-        if (b.scroll !== undefined) this.term.scrollToLine(b.scroll);
+        if (this.key === key && b.scroll !== undefined) this.term.scrollToLine(b.scroll);
+        restored.resolve();
       });
       this.pending = null;
       this.fitSoon();
     });
+  }
+  // A caller holding the previous picture can reveal this View after parsing, fitting and drawing agree.
+  async render() {
+    const key = this.key;
+    await termFont;
+    await this.restored;
+    const current = () => views.has(this) && this.key === key && !!key && this.opened && this.el.checkVisibility();
+    if (!current()) return;
+    const frame = () => document.hidden ? Promise.resolve() : new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    for (let tries = 0; tries < 50; tries++) {
+      await frame();
+      if (!current()) return;
+      if (this.isLaidOut && !this.isLaidOut()) continue;
+      const size = this.size();
+      if (!size) continue;
+      // Preserve the after-frame resize used by normal fitting; the caller holds its picture meanwhile.
+      await new Promise<void>((resolve) => setTimeout(resolve));
+      if (!current()) return;
+      this.fitTo(key!, size);
+      await new Promise<void>((resolve) => {
+        const done = () => { this.rendering.delete(done); resolve(); };
+        this.rendering.add(done); this.term.write('', done);
+      });
+      if (!current() || document.hidden) return;
+      await new Promise<void>((resolve) => {
+        const done = () => { subscription.dispose(); this.rendering.delete(done); resolve(); };
+        const subscription = this.term.onRender(done);
+        this.rendering.add(done);
+        this.term.refresh(0, this.term.rows - 1);
+      });
+      return;
+    }
   }
   // Its terminal's buffer given another size (restoreTerminal): at it too, then fitted to its room as after show.
   // While the buffer is being put in, show's own resize takes it.
@@ -274,7 +315,11 @@ export class View {
     if (colors) this.term.options.theme = xtermTheme(colors);
     if (fontSize !== undefined && fontSize !== this.term.options.fontSize) { this.term.options.fontSize = fontSize; this.fitSoon(); }
   }
-  dispose() { clearTimeout(this.fitTimer); views.delete(this); this.seen.disconnect(); this.term.dispose(); this.el.remove(); }
+  dispose() {
+    clearTimeout(this.fitTimer); this.restoreComplete?.();
+    for (const done of this.rendering) done();
+    views.delete(this); this.seen.disconnect(); this.term.dispose(); this.el.remove();
+  }
   // The size it has room for, once it is on screen and xterm has measured its characters.
   private size() {
     if (!this.opened || !this.el.offsetWidth) return null;
@@ -288,6 +333,12 @@ export class View {
   // Measured in a frame about to be drawn (README.md, Fitted in a frame about to be drawn); in a hidden page, which draws
   // no frames, at once.
   private fitTimer = 0;
+  private fitTo(key: string, size: { cols: number; rows: number }) {
+    if (this.term.cols !== size.cols || this.term.rows !== size.rows) this.term.resize(size.cols, size.rows);
+    const b = bufferOf(key, size);
+    if (b.term.cols !== size.cols || b.term.rows !== size.rows) b.term.resize(size.cols, size.rows);
+    kulisa.send('pty:resize', { task: key, ...size });
+  }
   private fitSoon(tries = 50) {
     clearTimeout(this.fitTimer);
     const inFrame = (f: () => void) => (document.hidden ? f() : requestAnimationFrame(f));
@@ -300,10 +351,7 @@ export class View {
       const fit = () => {
         if (this.key !== key || this.pending || !views.has(this)) return; // another shown meanwhile (its own fit follows), or disposed
         if (this.isLaidOut && !this.isLaidOut()) return this.fitSoon(tries);
-        if (this.term.cols !== size.cols || this.term.rows !== size.rows) this.term.resize(size.cols, size.rows);
-        const b = bufferOf(key, size);
-        if (b.term.cols !== size.cols || b.term.rows !== size.rows) b.term.resize(size.cols, size.rows);
-        kulisa.send('pty:resize', { task: key, ...size });
+        this.fitTo(key, size);
       };
       // Resized after this frame: a resize clears WebGL's canvas and xterm draws it again in the next frame, so one
       // resized in a frame is drawn empty (README.md, Fitted in a frame about to be drawn).

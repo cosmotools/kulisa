@@ -2,6 +2,7 @@
 import { Orientation, LocalSelectionTransfer, PanelTransfer } from 'dockview-react';
 import type { DockviewApi, DockviewPanelApi, GridviewApi, GridviewPanelApi } from 'dockview-react';
 import { flushSync } from 'react-dom';
+import { renderTerminals } from '../../../terminal/renderer';
 import type { Profile, DevelopmentTerminalsState } from '../../../shared/types';
 import type { StageTerminal } from '../../../shared/stage-terminal';
 import type { Events } from '../../../shared/ipc';
@@ -37,7 +38,7 @@ export class WindowGrid {
   private saveTimer = 0;
   private dirty = false;
   private layoutFrame = 0;
-  private revealFrame = 0;
+  private transition: ViewTransition | null = null;
   private dropTimer = 0;
   private resourceDragging = false;
   private dragSession: TaskGrid | null = null;
@@ -135,29 +136,37 @@ export class WindowGrid {
     const saved = await kulisa.invoke('layout:load', { task: session.key });
     if (!this.owns(session)) return;
     const layout = splitLayout(saved);
-    this.mutate(() => {
-      // Task controls determine the outer room; commit them before restoring the nested grids.
-      flushSync(() => {
-        this.removeStage(); this.development.clear();
-        store.setState({ profiles: session.profiles, stageTerminals: session.terminals,
-          developmentTerminals: session.development ?? { task: session.key, front: null, list: [] }, pictures: {}, captions: {}, picking: {},
-          stageLayout: session.arrangement?.layout ?? layout?.stageLayout ?? null,
-          stageOverflow: session.arrangement?.overflow ?? layout?.stageOverflow ?? false,
-          stagePosition: session.arrangement?.position ?? layout?.stagePosition ?? 'above' });
+    const transition = this.transition = document.startViewTransition(() => {
+      if (!this.owns(session)) return;
+      this.mutate(() => {
+        // Task controls determine the outer room; commit them before restoring the nested grids.
+        flushSync(() => {
+          this.removeStage(); this.development.clear();
+          store.setState({ profiles: session.profiles, stageTerminals: session.terminals,
+            developmentTerminals: session.development ?? { task: session.key, front: null, list: [] }, pictures: {}, captions: {}, picking: {},
+            stageLayout: session.arrangement?.layout ?? layout?.stageLayout ?? null,
+            stageOverflow: session.arrangement?.overflow ?? layout?.stageOverflow ?? false,
+            stagePosition: session.arrangement?.position ?? layout?.stagePosition ?? 'above' });
+        });
+        this.stageShare = layout?.stageShare && layout.stageShare > 0 && layout.stageShare < 1 ? layout.stageShare : 0.65;
+        this.stage.saved = session.arrangement?.layout !== undefined ? null : layout?.stage ?? null;
+        flushSync(() => { this.sync(); this.layoutOuter(); this.development.build(layout?.workspace ?? null); });
+        this.layoutOuter(); this.stage.layout();
       });
-      this.stageShare = layout?.stageShare && layout.stageShare > 0 && layout.stageShare < 1 ? layout.stageShare : 0.65;
-      this.stage.saved = session.arrangement?.layout !== undefined ? null : layout?.stage ?? null;
-      flushSync(() => { this.sync(); this.layoutOuter(); this.development.build(layout?.workspace ?? null); });
-      this.layoutOuter(); this.stage.layout();
+      session.ready = true;
+      this.changed();
+      flushSync(() => store.setState({ loading: false }));
     });
-    session.ready = true;
-    this.changed();
-    this.revealFrame = requestAnimationFrame(() => {
-      this.revealFrame = requestAnimationFrame(() => {
-        if (!this.owns(session)) return;
-        store.setState({ loading: false }); this.changed(); void this.host.showViews();
-      });
+    const rendered = transition.ready.catch(() => {}).then(async () => {
+      if (!this.owns(session)) return;
+      await renderTerminals();
+      if (!this.owns(session)) return;
+      kulisa.send('layout:apply', { task: session.key, rects: pageRects(this.stage.api, this.stage.viewport, store.getState().profiles) });
+      await this.host.showViews();
     });
+    transition.waitUntil(rendered);
+    await Promise.all([rendered, transition.finished]);
+    if (this.transition === transition) this.transition = null;
   }
   leave(next: boolean) {
     this.flush(); this.cancelFrames(); this.session = null;
@@ -247,7 +256,10 @@ export class WindowGrid {
       kulisa.send('layout:apply', { task: session.key, rects: pageRects(this.stage.api, this.stage.viewport, store.getState().profiles) });
     });
   };
-  private cancelFrames() { clearTimeout(this.saveTimer); clearTimeout(this.dropTimer); this.dirty = false; this.dragSession = null; cancelAnimationFrame(this.layoutFrame); cancelAnimationFrame(this.revealFrame); }
+  private cancelFrames() {
+    clearTimeout(this.saveTimer); clearTimeout(this.dropTimer); this.dirty = false; this.dragSession = null;
+    cancelAnimationFrame(this.layoutFrame); this.transition?.skipTransition(); this.transition = null;
+  }
   startResourceDrag(panel: DockviewPanelApi, event: DragEvent) {
     const api = this.development.api;
     if (!api || !event.dataTransfer) { event.preventDefault(); return; }
