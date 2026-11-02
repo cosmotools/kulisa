@@ -5,7 +5,7 @@ import { ArrowDownIcon, ArrowUpIcon, CircleAlertIcon, EllipsisIcon, PlayIcon, Ro
 import { Alert, AlertDescription, Button, Input } from '@ui';
 import { ButtonMenu, RightClickMenu } from '../components/Menus';
 import { store } from '../lib/store';
-import { actionsFor, taskStore, useTask, useTaskActions, useTaskActive } from './state';
+import { actionsFor, useTaskStore, useTask, useTaskActions, useTaskActive } from './state';
 import { dialog } from '../lib/dialogs';
 import { focusStageTerminal } from './environments';
 import { EnvironmentFocus, environmentFocusItem } from './EnvironmentFocus';
@@ -22,17 +22,18 @@ const runAction = (terminal: StageTerminal, task: string) => ({
     : terminal.status === 'stopped' ? 'Start'
       : terminal.session === 'shell' ? terminal.command.trim() ? 'Run app' : 'Restart shell' : 'Restart app',
   enabled: terminal.status !== 'starting',
-  run: () => focusStageTerminal(() => actionsFor(task)('stage-terminal:run', { id: terminal.id })),
+  run: () => focusStageTerminal(task, () => actionsFor(task)('stage-terminal:run', { id: terminal.id })),
 });
 const actions = (terminal: StageTerminal, task: string): MenuItem[] => [
   runAction(terminal, task),
   { label: 'Stop', enabled: terminal.status === 'running' || terminal.status === 'starting', run: () => actionsFor(task)('stage-terminal:stop', { id: terminal.id }) },
   '-',
-  { label: 'Settings…', run: async () => (await dialog('stageTerminalSettings')).open(terminal) },
+  { label: 'Settings…', run: async () => { const d = await dialog('stageTerminalSettings'); if (store.getState().current === task) d.open(terminal); } },
   { label: 'Fit to pane', run: () => actionsFor(task)('stage-terminal:configure', { id: terminal.id, size: null }) },
   { label: 'Close Stage terminal', run: () => actionsFor(task)('stage-terminal:close', { id: terminal.id }) },
 ];
 export function StageTerminalPane({ api }: IDockviewPanelProps) {
+  const owner = useTaskStore();
   const taskKey = useTask((s) => s.key);
   const active = useTaskActive();
   const id = idOf(api.id), terminal = useStageTerminal(id), shade = useShade(), host = useRef<HTMLDivElement>(null);
@@ -64,21 +65,21 @@ export function StageTerminalPane({ api }: IDockviewPanelProps) {
     if (!focus?.key || focus.key !== terminal?.key) return;
     let cancelled = false;
     const attempt = () => {
-      void termFocus(focus.key!, () => !cancelled && taskStore().getState().stageTerminalFocus === focus
+      void termFocus(focus.key!, () => !cancelled && owner.getState().stageTerminalFocus === focus
         && store.getState().current === focus.task && api.isVisible && document.hasFocus()).then(() => {
-        if (!cancelled && taskStore().getState().stageTerminalFocus === focus && view.current?.el.contains(document.activeElement)) taskStore().setState({ stageTerminalFocus: null });
+        if (!cancelled && owner.getState().stageTerminalFocus === focus && view.current?.el.contains(document.activeElement)) owner.setState({ stageTerminalFocus: null });
       });
     };
     const visible = api.onDidVisibilityChange(attempt);
     const frame = requestAnimationFrame(attempt);
     attempt();
     return () => { cancelled = true; cancelAnimationFrame(frame); visible.dispose(); };
-  }, [focus, terminal?.key, api]);
+  }, [focus, terminal?.key, api, owner]);
   if (!terminal) return null;
   const menu = (): MenuItem[] => {
-    const selection = view.current?.term.getSelection() ?? '', task = store.getState().current;
+    const selection = view.current?.term.getSelection() ?? '';
     return [
-      { label: 'Send selection to agent', enabled: !!selection.trim() && hasAgent, run: () => kulisa.invoke('selection:send', { task, source: { kind: 'stage-terminal', id }, text: selection }) },
+      { label: 'Send selection to agent', enabled: !!selection.trim() && hasAgent, run: () => kulisa.invoke('selection:send', { task: taskKey, source: { kind: 'stage-terminal', id }, text: selection }) },
       { label: 'Copy', enabled: view.current?.term.hasSelection() ?? false, run: () => { if (view.current) termCopy(view.current.term); } },
       { label: 'Paste', enabled: terminal.status === 'running', run: () => { if (view.current) termPaste(view.current.term); } },
       { label: 'Select all', run: () => view.current?.term.selectAll() },

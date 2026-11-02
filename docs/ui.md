@@ -39,6 +39,7 @@ the main process after every grid change ([window.md](window.md), The grid).
 | `src/*/renderer/` | a Kulisa package's part of the window (the terminal, dictation, screenshots): its own `README.md` |
 
 The TaskView module is part of the window. Outside imports use its two entries; dependency-cruiser checks the boundary.
+`TaskView.tsx` defines the outer split, both nested grids and the Terminal/Diff content switch; pane components supply their contents.
 
 ## shadcn in Kulisa
 

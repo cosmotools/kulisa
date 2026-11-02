@@ -50,11 +50,11 @@ export function Resources({ api, params, containerApi }: IDockviewPanelProps<Res
         <Button key={value} variant="ghost" size="icon-sm" aria-label={label} title={label}
           aria-expanded={section === value} aria-controls={contentId} onClick={() => {
             grid.development.selectResource(api, params, value);
-            if (value === 'terminals') focusDevelopmentTerminal();
+            if (value === 'terminals') focusDevelopmentTerminal(key);
           }}><Icon /></Button>)}
       <div className="mt-auto flex flex-col items-center gap-1">
         <Dictation task={active ? key : null} keyName={hold} language={lang ? language.of(lang) ?? '' : ''}
-          onDone={() => { if (front !== null) void showDevelopmentTerminal(front); }} />
+          onDone={() => { if (front !== null) void showDevelopmentTerminal(key, front); }} />
         <div className="[&_button]:cursor-grab [&_button]:active:cursor-grabbing">
           <Button variant="ghost" size="icon-sm" draggable aria-label="Move Resources panel" title="Move Resources panel"
             onDragStart={(e) => grid.startResourceDrag(api, e.nativeEvent)}><GripVerticalIcon /></Button>
@@ -62,12 +62,13 @@ export function Resources({ api, params, containerApi }: IDockviewPanelProps<Res
       </div>
     </nav>
     {section && key && <div id={contentId} role="region" aria-label={section === 'project' ? 'Project' : section === 'artifacts' ? 'Artifacts' : section === 'diff' ? 'Diff' : 'Agents'} className="min-h-0 min-w-0 flex-1">
-      <TaskResources key={key} taskKey={key} section={section} />
+      <TaskResources section={section} />
     </div>}
   </aside>;
 }
 
-function TaskResources({ taskKey: key, section }: { taskKey: string; section: NonNullable<ResourceParams['section']> }) {
+function TaskResources({ section }: { section: NonNullable<ResourceParams['section']> }) {
+  const key = useTask((s) => s.key);
   const task = useWindow((s) => shownTask(s, key));
   const active = useTaskActive();
   const explorer = useMemo<ExplorerActions>(() => ({
@@ -76,7 +77,7 @@ function TaskResources({ taskKey: key, section }: { taskKey: string; section: No
     showFile: (file) => kulisa.invoke('file:show', file),
     showMenu: menuAt,
   }), [key]);
-  const artifacts = useTask((s) => (s.artifacts.task === key ? s.artifacts.list : null)) ?? [];
+  const artifacts = useTask((s) => s.artifacts.list);
   const bytes = useTask((s) => s.artifacts.bytes);
   const names = useTask(useShallow((s) => Object.fromEntries([...s.profiles, ...s.closedProfiles].map((p) => [p.id, p.name]))));
   const stageTerminals = useTask(useShallow((s) => Object.fromEntries(s.stageTerminals.map((a) => [a.id, a.name]))));
@@ -99,7 +100,7 @@ function TaskResources({ taskKey: key, section }: { taskKey: string; section: No
   return <SidebarProvider className="h-full min-h-0">
       <Sidebar collapsible="none" className="h-full w-full">
         {section === 'terminals' && <DevelopmentTerminalList />}
-        {section === 'diff' && <TaskDiffTree task={key} roots={task.resources} />}
+        {section === 'diff' && <TaskDiffTree roots={task.resources} />}
         {section === 'project' && <div className="h-full overflow-auto"><SidebarContent>
           <SidebarGroup><SidebarGroupContent>
             <SidebarMenu aria-label="Folders">

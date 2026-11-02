@@ -1,5 +1,4 @@
 // Task grids retained by their open TaskViews; window controls address the selected one.
-import type { DockviewPanelApi } from 'dockview-react';
 import { store } from '../lib/store';
 import { tasks, taskStore } from './state';
 import type { TaskGrid } from './grid';
@@ -7,7 +6,6 @@ import { closeLayers } from '../lib/cover';
 import { forgetFrozen, onLivePages } from './views';
 import { forgetTerminals } from '../../terminal/renderer';
 import { panelId } from './layout';
-import type { ResourceParams } from './development';
 import { panes } from './pages';
 export { panes };
 const grids = new Map<string, TaskGrid>();
@@ -15,15 +13,13 @@ export function registerTaskGrid(grid: TaskGrid) {
   grids.set(grid.key, grid);
   return () => { grids.delete(grid.key); grid.dispose(); };
 }
-const current = () => grids.get(store.getState().current ?? '');
+export const taskGrid = (task: string | null) => grids.get(task ?? '');
+const current = () => taskGrid(store.getState().current);
 const scheduleLayout = () => current()?.scheduleLayout();
 onLivePages(scheduleLayout);
 export const dockApi = () => current()?.development.api ?? null;
 export const stageApi = () => current()?.stage.api ?? null;
-export const developmentScreen = () => current()?.development.screen() ?? 'agents';
-export const showDevelopmentAgents = () => current()?.development.showAgents();
-export const selectResource = (panel: DockviewPanelApi, params: ResourceParams, section: NonNullable<ResourceParams['section']>) => current()?.development.selectResource(panel, params, section);
-export const showPane = (id: string) => current()?.stage.api?.getPanel(panelId(id))?.api.setActive();
+export const showPane = (task: string, id: string) => taskGrid(task)?.stage.api?.getPanel(panelId(id))?.api.setActive();
 export async function setStageFollowing(follow: boolean) {
   await kulisa.invoke('stage:follow:set', follow);
   taskStore().setState({ stageFollowPaused: false });

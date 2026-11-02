@@ -10,8 +10,6 @@ export function restoreDockview(a: DockviewApi, saved: SerializedDockview | null
   try {
     const filtered = filterLayout(saved, (id) => known.includes(id));
     if (filtered.panels.resources) filtered.panels.resources = { ...filtered.panels.resources, tabComponent: 'resources', minimumHeight: resourceBarHeight };
-    // Review state belongs to the active view; the layout keeps panel placement and the Resources section.
-    if (filtered.panels.terminal) filtered.panels.terminal = { ...filtered.panels.terminal, params: undefined };
     const standaloneResources = (node: SerializedDockview['grid']['root']): boolean => Array.isArray(node.data)
       ? node.data.some(standaloneResources) : node.data.views.length === 1 && node.data.views[0] === 'resources';
     const gap = filtered.panels.resources?.params?.section === null && standaloneResources(filtered.grid.root) ? 0 : dockTheme.gap ?? 0;

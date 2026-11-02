@@ -57,7 +57,7 @@ A press on a tab not shown shows its task at once, as Chrome's; the tab is lit o
 
 ## The grid
 
-A task has two independent Dockview grids (`task-view/TaskView.tsx`, `task-view/Stage.tsx`): development terminals or code review with Resources,
+A task has two independent Dockview grids (`task-view/TaskView.tsx`): development terminals or code review with Resources,
 and the **stage** of browser profiles and Stage terminals as testing **environments**. A headerless Gridview splits their areas; its
 sash resizes them. Headers and the Resources bar’s grip move or stack panels within their own grid. The empty stage is absent; opening the first
 environment adds it, closing the last removes it. A new task opens only its default development terminal.
@@ -104,6 +104,7 @@ Dockview instances and Stage terminal Views live until their task or panel close
 background polling; focus requests and dictation belong to the selected task. Closing the task unmounts its view
 and releases its controller. Selection changes deactivate the outgoing controller directly (`task-view/controller.ts`).
 Window controls address the selected task; panels read their permanent controller and task through one context.
+Launchers use their task's project; terminal and profile menu actions capture their task key, so a delayed action cannot address another task.
 State messages carry their task key. Incoming state refreshes the selected task; background terminal output
 continues into its own buffers.
 

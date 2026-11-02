@@ -1,6 +1,6 @@
 // The built-in environments a human can open in the testing stage.
 import { store } from '../lib/store';
-import { act, taskStore } from './state';
+import { actionsFor, taskStore } from './state';
 import { profileLaunchers } from './profiles';
 import type { StageTerminal } from '../../shared/stage-terminal';
 import { refused, type Result } from '../../shared/result';
@@ -10,23 +10,26 @@ const cancelFocus = () => { if (taskStore().getState().stageTerminalFocus) taskS
 document.addEventListener('pointerdown', cancelFocus, true);
 document.addEventListener('keydown', cancelFocus, true);
 window.addEventListener('blur', cancelFocus);
-export async function focusStageTerminal(launch: () => Promise<Result<StageTerminal>>) {
-  const request = { task: store.getState().current, key: null };
-  taskStore().setState({ stageTerminalFocus: request });
+export async function focusStageTerminal(task: string, launch: () => Promise<Result<StageTerminal>>) {
+  const owner = taskStore(task), request = { task, key: null };
+  owner.setState({ stageTerminalFocus: request });
   try {
     const result = await launch();
-    if (taskStore().getState().stageTerminalFocus === request) {
-      taskStore().setState({ stageTerminalFocus: refused(result) || store.getState().current !== request.task ? null : { ...request, key: result.key } });
+    if (owner.getState().stageTerminalFocus === request) {
+      owner.setState({ stageTerminalFocus: refused(result) || store.getState().current !== task ? null : { ...request, key: result.key } });
     }
     return result;
   } catch (error) {
-    if (taskStore().getState().stageTerminalFocus === request) cancelFocus();
+    if (owner.getState().stageTerminalFocus === request) owner.setState({ stageTerminalFocus: null });
     throw error;
   }
 }
-export const newStageTerminal = () => focusStageTerminal(() => act('stage-terminal:open', {}));
-export const environmentItems = (): MenuItem[] => [
-  { label: 'Stage Terminal', run: newStageTerminal },
-  '-',
-  ...profileLaunchers(taskStore().getState().closedProfiles).map((p) => ({ label: p.name, avatar: p.avatar ?? undefined, run: p.run })),
-];
+export const newStageTerminal = (task: string) => focusStageTerminal(task, () => actionsFor(task)('stage-terminal:open', {}));
+export const environmentItems = (): MenuItem[] => {
+  const { key, closedProfiles } = taskStore().getState();
+  return [
+    { label: 'Stage Terminal', run: () => newStageTerminal(key) },
+    '-',
+    ...profileLaunchers(key, closedProfiles).map((p) => ({ label: p.name, avatar: p.avatar ?? undefined, run: p.run })),
+  ];
+};

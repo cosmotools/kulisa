@@ -15,7 +15,6 @@ import type { MenuItem } from '../lib/menu';
 import { panes } from './pages';
 import { grow, useStrip } from '../lib/strip';
 import { openSettings } from '../lib/settings';
-import { deleteProfile } from './profiles';
 import { EnvironmentFocus, environmentFocusItem } from './EnvironmentFocus';
 import './ProfilePane.css';
 
@@ -237,7 +236,7 @@ export function ProfileHeader({ api, containerApi }: IDockviewPanelHeaderProps) 
     { label: 'Sign In to Master…', run: () => act('profile:master', { profile: id }) },
     { label: 'Close profile', run: () => act('profile:close', { profile: id }) },
     '-',
-    { label: 'Remove from Project…', run: () => deleteProfile(id) },
+    { label: 'Remove from Project…', run: () => act('profile:delete', { profile: id }) },
   ];
   // Size containment needs an intrinsic width for Dockview's stacked tabs to keep the name reachable.
   return <RightClickMenu items={() => (profile ? menu() : null)} className="h-full min-w-0">

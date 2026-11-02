@@ -1,13 +1,13 @@
 // A tasks' window's terminals (docs/window.md, The terminal): the terminals themselves are src/terminal's, keyed
 // "<task>#<id>" as in the main process; here the terminals' side: the shown task's terminal in front (task-view/DevelopmentTerminals.tsx),
 // links into its profiles, terminals moving to another window, their menus.
-import { store } from '../lib/store';
-import { act, taskStore } from './state';
+import { store, shownTask } from '../lib/store';
+import { actionsFor, taskStore } from './state';
 import { termStyle } from '../lib/theme';
 import { keyText } from '../lib/common';
 import { menuAt, type MenuItem } from '../lib/menu';
 import { dialog } from '../lib/dialogs';
-import { developmentScreen, dockApi, selectResource, showDevelopmentAgents } from './controller';
+import { taskGrid } from './controller';
 import { dialogsShown } from '../lib/cover';
 import { refused } from '../../shared/result';
 import { restoreTerminal, serialized, termCopy, termHooks, termPaste, View, xtermKeys } from '../../terminal/renderer';
@@ -18,24 +18,24 @@ const frontKey = () => { const { task, front } = taskStore().getState().developm
 // The terminals' panel's xterm, one for the window: task-view/DevelopmentTerminals.tsx puts it in whichever grid is shown and
 // gives it the theme's colors.
 export const panelView = new View(termStyle());
-export const shownTerm = () => (developmentScreen() === 'agents' && panelView.key && panelView.key === frontKey() ? panelView.term : null);
+export const shownTerm = () => (taskGrid(store.getState().current)?.development.screen() === 'agents' && panelView.key && panelView.key === frontKey() ? panelView.term : null);
 
-export function focusDevelopmentTerminal() {
-  const task = store.getState().current;
-  showDevelopmentAgents();
-  const resources = dockApi()?.getPanel('resources');
-  if (resources?.params?.section === 'diff') selectResource(resources.api, resources.params, 'terminals');
-  dockApi()?.getPanel('terminal')?.api.setActive();
+export function focusDevelopmentTerminal(task = store.getState().current) {
+  const development = taskGrid(task)?.development;
+  if (!development || store.getState().current !== task) return;
+  development.showAgents();
+  const resources = development.api?.getPanel('resources');
+  if (resources?.params?.section === 'diff') development.selectResource(resources.api, resources.params, 'terminals');
+  development.api?.getPanel('terminal')?.api.setActive();
   requestAnimationFrame(() => {
-    if (store.getState().current === task && developmentScreen() === 'agents' && !dialogsShown()) shownTerm()?.focus();
+    if (store.getState().current === task && development.screen() === 'agents' && !dialogsShown()) shownTerm()?.focus();
   });
 }
 
-export async function showDevelopmentTerminal(id: number) {
-  const task = store.getState().current;
+export async function showDevelopmentTerminal(task: string, id: number) {
   // A stacked terminal must be visible before its new buffer takes keyboard focus.
-  focusDevelopmentTerminal();
-  await act('development-terminal:show', { id });
+  focusDevelopmentTerminal(task);
+  await actionsFor(task)('development-terminal:show', { id });
   // Dockview reattaches retained content when a stacked panel opens; detached inputs cannot take focus.
   requestAnimationFrame(() => {
     if (store.getState().current === task && taskStore().getState().developmentTerminals.front === id && !dialogsShown()) shownTerm()?.focus();
@@ -48,9 +48,12 @@ termHooks.colors = () => termStyle().colors;
 // addon). Ctrl+click (⌘ on macOS) asks where, in a menu at the pointer: a tab of one of the shown task's open
 // profiles, or the user's browser. Always asked, so a link never opens somewhere unexpected (the author's choice:
 // which profile a link belongs to cannot be told).
-termHooks.open = (e, uri) => menuAt(e, [{ heading: uri }, ...taskStore().getState().profiles.map((p) => ({ label: `Open in ${p.name}`, avatar: p.avatar,
-  run: () => act('tab:new', { profile: p.id, url: uri }) })),
-'-', { label: 'Open in your browser', run: () => { window.open(uri); } }]);
+termHooks.open = (e, uri) => {
+  const { key, profiles } = taskStore().getState(), act = actionsFor(key);
+  menuAt(e, [{ heading: uri }, ...profiles.map((p) => ({ label: `Open in ${p.name}`, avatar: p.avatar,
+    run: () => act('tab:new', { profile: p.id, url: uri }) })),
+  '-', { label: 'Open in your browser', run: () => { window.open(uri); } }]);
+};
 
 // Paths in the terminal that exist (the task's folder is the main process's), as links, and the files an agent marks
 // as links: Ctrl+click asks what to do, in the same menu: open it in the OS's app, or show it in its folder; what
@@ -61,9 +64,12 @@ termHooks.pasteImage = (key) => {
   const at = key.lastIndexOf('#');
   void kulisa.invoke('development-terminal:paste-image', { task: key.slice(0, at), id: Number(key.slice(at + 1)) });
 };
-termHooks.openFile = (e, path) => void filesOf(store.getState().current, [path]).then(([file]) => file && menuAt(e, [
-  ...file.executable ? [] : [{ label: 'Open', run: () => kulisa.invoke('file:open', file.path) }],
-  { label: 'Show in Folder', run: () => kulisa.invoke('file:show', file.path) }]));
+termHooks.openFile = (e, path) => {
+  const task = store.getState().current;
+  void filesOf(task, [path]).then(([file]) => file && store.getState().current === task && menuAt(e, [
+    ...file.executable ? [] : [{ label: 'Open', run: () => kulisa.invoke('file:open', file.path) }],
+    { label: 'Show in Folder', run: () => kulisa.invoke('file:show', file.path) }]));
+};
 
 // Their contents as escape sequences (xterm's serialize addon, as VS Code keeps terminals across reloads), which
 // another window writes into new terminals: a project moving there keeps what its agents showed. Each with its size:
@@ -73,7 +79,7 @@ export const terminalsOf = (task: string) => Object.fromEntries([...xtermKeys()]
   .map((key) => [key, serialized(key)!]));
 kulisa.on('terminal:restore', (list) => { for (const [key, t] of Object.entries(list)) restoreTerminal(key, t); });
 
-kulisa.on('development-terminal:focus', focusDevelopmentTerminal);
+kulisa.on('development-terminal:focus', () => focusDevelopmentTerminal());
 
 // The right-click menu of a terminal (its key): an agent's ends with what its Resources row's menu has, a
 // shell's with Close.
@@ -91,29 +97,32 @@ export function terminalMenu(key: string, more: MenuItem[]): MenuItem[] | null {
   ];
 }
 
-// The terminal creation menus. The shown task's project's agents (its accounts), the default first; the terminal
+// The terminal creation menus. The owning task's project's agents (its accounts), the default first; the terminal
 // only is the Terminal row.
-const projectAgents = () => { const { projects } = store.getState(); return (projects.open.find((o) => o.id === projects.project)?.agents || []).filter((a) => a.cli !== 'shell'); };
+const projectAgents = (task: string) => {
+  const state = store.getState(), project = shownTask(state, task)?.project;
+  return (state.projects.open.find((o) => o.id === project)?.agents ?? []).filter((a) => a.cli !== 'shell');
+};
 // The same as big buttons, the terminals alone in the grid: an account's name is its agent's · its email, on two lines.
-export const launchers = () => [
-  ...projectAgents().map((a) => {
+export const launchers = (task: string) => [
+  ...projectAgents(task).map((a) => {
     const [name, sub = ''] = a.name.split(' · ');
-    return { id: a.id, name, sub, cli: a.cli, title: a.name, run: () => act('development-terminal:open', { agent: a.id }) };
+    return { id: a.id, name, sub, cli: a.cli, title: a.name, run: () => actionsFor(task)('development-terminal:open', { agent: a.id }) };
   }),
-  { id: 'shell', name: 'Terminal', sub: '', cli: 'shell', title: 'Terminal', run: () => act('development-terminal:open') },
+  { id: 'shell', name: 'Terminal', sub: '', cli: 'shell', title: 'Terminal', run: () => actionsFor(task)('development-terminal:open') },
 ];
 // +: a new conversation of one of them, or a shell.
-export const newTerminalItems = (): MenuItem[] => [
-  ...projectAgents().map((a) => ({ label: a.name, agent: a.cli, run: () => act('development-terminal:open', { agent: a.id }) })),
-  ...(projectAgents().length ? ['-' as const] : []),
-  { label: 'Terminal', agent: 'shell', keys: keyText('terminal.new'), run: () => act('development-terminal:open') },
+export const newTerminalItems = (task: string): MenuItem[] => [
+  ...projectAgents(task).map((a) => ({ label: a.name, agent: a.cli, run: () => actionsFor(task)('development-terminal:open', { agent: a.id }) })),
+  ...(projectAgents(task).length ? ['-' as const] : []),
+  { label: 'Terminal', agent: 'shell', keys: keyText('terminal.new'), run: () => actionsFor(task)('development-terminal:open') },
 ];
 // Shared actions in a terminal’s Resources row and screen menu.
-export const terminalItems = (t: DevelopmentTerminalInfo): MenuItem[] => [
+export const terminalItems = (task: string, t: DevelopmentTerminalInfo): MenuItem[] => [
   ...(t.agent ? [
-    { label: 'Change agent…', run: () => { void dialog('handover').then((d) => d.open(t)); } },
-    { label: 'New Conversation', run: () => act('agent:new-conversation', { id: t.id }) },
+    { label: 'Change agent…', run: async () => { const d = await dialog('handover'); if (store.getState().current === task) await d.open(t); } },
+    { label: 'New Conversation', run: () => actionsFor(task)('agent:new-conversation', { id: t.id }) },
     '-' as const,
   ] : []),
-  { label: 'Close', run: () => act('development-terminal:close', { id: t.id }) },
+  { label: 'Close', run: () => actionsFor(task)('development-terminal:close', { id: t.id }) },
 ];

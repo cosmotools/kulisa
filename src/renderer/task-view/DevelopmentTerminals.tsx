@@ -29,7 +29,7 @@ export function DevelopmentTerminals({ api, containerApi, reviewing }: IDockview
   // The tab in front before its program has started (an agent's is looked for first): a loader over its terminal, which
   // stays laid out meanwhile (the program starts at its size).
   const starting = useTask((s) => s.developmentTerminals.list.find((t) => t.id === s.developmentTerminals.front && t.starting)?.name);
-  const shown = !reviewing && task !== null && front !== null ? `${task}#${front}` : null;
+  const shown = !reviewing && front !== null ? `${task}#${front}` : null;
 
   useLayoutEffect(() => {
     if (!active) return;
@@ -79,14 +79,14 @@ export function DevelopmentTerminals({ api, containerApi, reviewing }: IDockview
 
   const menu = (e: MouseEvent) => {
     const { developmentTerminals } = owner.getState(), t = developmentTerminals.list.find((x) => x.id === developmentTerminals.front);
-    return t && task && (e.target as Element).closest('[data-testid="terminal"]') ? terminalMenu(`${task}#${t.id}`, terminalItems(t)) : null;
+    return t && (e.target as Element).closest('[data-testid="terminal"]') ? terminalMenu(`${task}#${t.id}`, terminalItems(task, t)) : null;
   };
 
   // One cell: the launchers or the folded +, and the terminal, take it in turn; the pill and the loader lie over it.
   return <div data-testid='development-terminals' data-folded={folded || undefined} className="relative grid h-full grid-cols-[minmax(0,1fr)] grid-rows-[minmax(0,1fr)] bg-card">
     {big ? <Launchers ref={launch} />
       : folded ? <div className="grid place-items-center">
-        <ButtonMenu items={newTerminalItems}><Button data-unfold variant="ghost" size="icon-sm" aria-label="New terminal"
+        <ButtonMenu items={() => newTerminalItems(task)}><Button data-unfold variant="ghost" size="icon-sm" aria-label="New terminal"
           title={withKeys(NEW_TITLE, 'terminal.new')}><PlusIcon /></Button></ButtonMenu>
       </div> : null}
     <RightClickMenu items={menu}>
@@ -99,11 +99,11 @@ export function DevelopmentTerminals({ api, containerApi, reviewing }: IDockview
 
 // One width for all, so the rows line up.
 function Launchers({ ref }: { ref: Ref<HTMLDivElement> }) {
-  const closed = useTask((s) => s.closedProfiles);
+  const task = useTask((s) => s.key), closed = useTask((s) => s.closedProfiles);
   useWindow((s) => s.projects); // the project's agents
   return <div ref={ref} data-testid="launchers" className="flex max-w-full flex-col gap-4 self-center justify-self-center p-3">
     <nav aria-label="New terminal" className="flex flex-wrap justify-center gap-3">
-      {launchers().map((l) => <Button key={l.id} data-launcher variant="outline" aria-label={l.name} title={l.title} className="h-auto w-60 justify-start"
+      {launchers(task).map((l) => <Button key={l.id} data-launcher variant="outline" aria-label={l.name} title={l.title} className="h-auto w-60 justify-start"
         onClick={() => void l.run()}>
         {/* shadcn's Item laid out in the button, as its examples put one in a menu's row */}
         <Item size="sm"><ItemMedia>{createElement(agentMark(l.cli), { className: 'size-8' })}</ItemMedia>
@@ -111,8 +111,8 @@ function Launchers({ ref }: { ref: Ref<HTMLDivElement> }) {
       </Button>)}
     </nav>
     <nav aria-label="Open an environment" className="flex flex-wrap justify-center gap-3">
-      <Button variant="outline" className="h-auto w-60 justify-start" onClick={() => void newStageTerminal()}><PlusIcon />Stage Terminal</Button>
-      {profileLaunchers(closed).map((p) => <Button key={p.id} data-launcher data-profile={p.id} variant="outline" aria-label={p.name} title={p.title}
+      <Button variant="outline" className="h-auto w-60 justify-start" onClick={() => void newStageTerminal(task)}><PlusIcon />Stage Terminal</Button>
+      {profileLaunchers(task, closed).map((p) => <Button key={p.id} data-launcher data-profile={p.id} variant="outline" aria-label={p.name} title={p.title}
         className="h-auto w-60 justify-start" onClick={() => void p.run()}>
         <Item size="sm"><ItemMedia>{p.avatar ? <Avatar size="lg" aria-hidden><AvatarImage src={avatarSrc(p.avatar)} alt="" /></Avatar> : <PlusIcon className="size-8" />}</ItemMedia>
           <ItemContent className="min-w-0"><ItemTitle>{p.name}</ItemTitle></ItemContent></Item>

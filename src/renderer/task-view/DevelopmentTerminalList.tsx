@@ -11,11 +11,12 @@ import { ButtonMenu, RightClickMenu } from '../components/Menus';
 
 export function DevelopmentTerminalList() {
   const act = useTaskActions();
+  const task = useTask((s) => s.key);
   const { list, front } = useTask((s) => s.developmentTerminals);
   return <SidebarContent>
     <SidebarGroup>
       <SidebarGroupLabel>Agents</SidebarGroupLabel>
-      <ButtonMenu items={newTerminalItems}><SidebarGroupAction aria-label="New terminal" title={withKeys('New conversation of an agent, or a terminal', 'terminal.new')}>
+      <ButtonMenu items={() => newTerminalItems(task)}><SidebarGroupAction aria-label="New terminal" title={withKeys('New conversation of an agent, or a terminal', 'terminal.new')}>
         <PlusIcon />
       </SidebarGroupAction></ButtonMenu>
       <SidebarGroupContent>
@@ -26,10 +27,10 @@ export function DevelopmentTerminalList() {
             const state = t.starting ? 'Starting…' : t.state ? `The agent ${STATES[t.state]}` : t.agent ? 'Agent' : 'Shell';
             const detail = t.agent?.name ?? t.command;
             return <SidebarMenuItem key={t.id} data-terminal={t.id} data-row aria-label={t.name}>
-              <RightClickMenu items={() => terminalItems(t)}>
+              <RightClickMenu items={() => terminalItems(task, t)}>
                 <SidebarMenuButton size="lg" isActive={front === t.id} aria-current={front === t.id ? 'true' : undefined}
                   aria-label={t.name} title={[t.name, detail, state].filter(Boolean).join('\n')}
-                  onClick={() => void showDevelopmentTerminal(t.id)}>
+                  onClick={() => void showDevelopmentTerminal(task, t.id)}>
                   <Mark />
                   <span className="flex min-w-0 flex-1 flex-col">
                     <span className="flex items-center gap-1.5"><span className="truncate">{t.name}</span><AgentState state={t.state} /></span>

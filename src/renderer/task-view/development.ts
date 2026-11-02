@@ -41,7 +41,6 @@ export class DevelopmentGrid {
   build(saved: SerializedDockview | null) {
     const a = this.api!;
     this.terminalFold = null;
-    if (!saved) a.clear();
     restoreDockview(a, saved, ['terminal', 'resources']);
     if (!a.getPanel('terminal') || !a.getPanel('resources')) {
       a.clear();
