@@ -65,11 +65,13 @@ test('context menus: a pane\'s header, a tab, the terminal; pages are pictures w
   await expect.poll(elonVisible).toBe(true);
   await expect(ui.locator('[data-testid="snapshot"]')).toHaveCount(0);
 
+  await ui.locator(`[role="region"][data-profile="${elonId}"] [aria-label="Address"]`).press('Escape');
   const tabs = ui.locator(`[role="region"][data-profile="${elonId}"] [role="tab"]`);
   await expect(tabs).toHaveCount(n + 1);
   await rightClick(ui, tabs);
   await expect(menu(ui)).toMatchAriaSnapshot(`
     - menu:
+      - menuitem "Edit address…"
       - menuitem "Reload"
       - menuitem "Duplicate"
       - menuitem "Close tab"

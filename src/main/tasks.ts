@@ -171,6 +171,13 @@ class Task {
         profile.setBlank(shell.blankColor());
         profile.on('changed', () => shell.taskChanged(this));
         profile.on('zoom', () => this.list.save());
+        profile.on('tab-added', (tab: Tab) => tab.wc.on('before-mouse-event', (_e, input) => {
+          if (input.type !== 'mouseDown') return;
+          // A native press can focus its view during dispatch; automation leaves an unfocused view unfocused.
+          setImmediate(() => {
+            if (!tab.wc.isDestroyed() && tab.wc.isFocused() && this.shown()) this.window?.send('page:press', { task: this.key });
+          });
+        }));
         installSigninPause(profile, shell.signin.isSigninUrl);
         return profile;
       },

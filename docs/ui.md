@@ -186,14 +186,16 @@ is Radix's own. A Radix menu of a part's own only for a row's own menu inside on
 - **Tabs** are shadcn's `Tabs` as browser tabs, which shadcn does not have (`BrowserTabs.tsx`: `TabStrip`,
   `BrowserTab`): the tasks' bar and a pane's tabs. A tab is chosen on the press, as a browser's (not on its ×). Its × is on every tab, always, as Chrome's: inside the tab, so not a button (a button holds none) but a
   `role="button"` span that takes its own click and never the tab's press. A task's tab keeps its width whichever is shown, so none moves under the mouse ([window.md](window.md),
-  The tasks' bar). A pane's tabs shrink to their icon and ×. Development terminals switch through Resources’ named sidebar rows.
+  The tasks' bar). A pane's tabs shrink to their icon and ×. They share a 32 px row with navigation and page controls; an
+  address editor occupies the tabs’ and + button’s space while editing, with the strip kept mounted to preserve its
+  elements. Development terminals switch through Resources’ named sidebar rows.
 - **A strip of tabs that do not all fit** (the tasks' bar, a pane's tabs, the closed profiles' buttons) shrinks, then scrolls: `useStrip`
   (`lib/strip.ts`), not tabs moved past the end into a menu, which pushes others under the mouse (Office's model, not
   Chrome's): no scrollbar; a mouse's wheel scrolls it sideways; an edge with tabs past it fades (`data-past-start`,
   `data-past-end`); the chosen tab is brought into sight only when another is chosen, a tab grows in (`grow`) or the
   strip is resized, so an update (a title, a page loading) leaves it where the human scrolled it.
 - **A narrow pane gives up its buttons in order** (Back and Forward, then Reload, into ⋮; never Pick or ⋮): container
-  queries on the pane (`@container`, `ProfilePane.tsx`); the address is no button, it shrinks.
+  queries on the pane (`@container`, `ProfilePane.tsx`); the tabs or address editor shrink.
 
 ## Own drawing
 
@@ -208,7 +210,7 @@ What is drawn or moved here rather than by shadcn, each for a reason at it:
 - the strips (`lib/strip.ts`, its classes on the element `useStrip` is given): the fades tied to the scroll; a tab
   growing in (`grow`, the Web Animations API); the marks and the logo;
 - the browser tabs' ×, drag and drop marks (`BrowserTabs.tsx`);
-- a page's alert or confirm placed in its pane under the address bar (`ProfilePane.tsx`): a dialog is placed over the
+- a page's alert or confirm placed in its pane under the controls row (`ProfilePane.tsx`): a dialog is placed over the
   window;
 - Settings' frame (`Settings.tsx`): the nav beside the page, the path over it, the page scrolling with its scrollbar
   at the window's edge;

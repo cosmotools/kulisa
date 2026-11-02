@@ -172,6 +172,13 @@ right-click), the right Maximize/Restore and ×. Stacked tabs reserve an intrins
 keeps the name reachable. Under it the pane's tabs and toolbar, ⋮ at its end
 ([profiles.md](profiles.md), Tabs).
 
+Stage restores every group's header as visible: its identity and pane controls must stay reachable independently
+of saved header-visibility flags (`stageMounted`, `lib/grid.ts`).
+
+An address draft survives the window's page losing focus: a loading native view can take it while the focus guard
+returns the keyboard. A different field taking focus or a press in a focused native page cancels the editor
+(`page:press`, `tasks.ts`); input in an unfocused page leaves it open for automation.
+
 The window itself never scrolls, also not from a script (`overflow` on `html` and `body`, `App.tsx`): a panel stacked
 behind another is laid out below the grid (dockview), making the page taller than the window, and the tasks' bar
 bringing its tab into view (`scrollIntoView`) would move the whole grid up by a window's height.
@@ -184,9 +191,8 @@ every one after it. How long is the pages' own pace: once the first has answered
 tenth of a second at least (a live page answers in a few milliseconds on a fast machine, over a hundred on a slow
 one); none answering, half a second (`AppWindow.pictures`).
 
-A pane's tab strip and toolbar move as Chrome's: a tab opened grows in from the left
-(`data-opening`, `useStrip` in `lib/strip.ts`; the strip keeps its tabs' elements by id, so only a new one animates),
-the address's hover fades in. Not with reduced motion.
+A pane’s new tab grows in from the left (`data-opening`, `useStrip` in `lib/strip.ts`); its tabs stay mounted during
+address editing, so only a new one animates. The address editor’s focus fades in. Not with reduced motion.
 
 ## The window's size
 
@@ -207,7 +213,7 @@ smaller again when it goes down).
   200%: the window's minimum grows with it, and at 300% it is past a laptop's screen; the OS's own magnification is
   there for more.
 - **A site's zoom**: the same keys in a page zoom that site in that profile on top of the Kulisa zoom, as in Chrome, to
-  300%; shown in the address bar (a click resets it).
+  300%; shown beside the tabs (a click resets it).
 
 Both are saved (`settings.json`; the profile's `profiles.json`).
 

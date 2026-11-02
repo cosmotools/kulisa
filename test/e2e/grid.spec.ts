@@ -68,7 +68,7 @@ test("grid: a narrow pane's bar gives up Back and Forward, then Reload, into ⋮
   // layout: a locator's readings one by one could straddle a resize.
   const bar = () => ui.evaluate((sel) => {
     const p = document.querySelector(sel).getBoundingClientRect();
-    return [...document.querySelectorAll(`${sel} [role="group"][aria-label="Page"] :is(button, input)`)].filter((e) => e.checkVisibility()).map((e) => {
+    return [...document.querySelectorAll(`${sel} [role="group"][aria-label="Page"] :is(button:not([role="tab"]), input)`)].filter((e) => e.checkVisibility()).map((e) => {
       const r = e.getBoundingClientRect();
       return e.getAttribute('aria-label') + (r.x >= p.x && r.right <= p.right ? '' : ' out');
     });
@@ -82,7 +82,7 @@ test("grid: a narrow pane's bar gives up Back and Forward, then Reload, into ⋮
     await stageDock(ui, (api, a) => api.getPanel(a.panel).group.api.setSize({ width: a.w }), { panel, w });
     await expect.poll(bar, { timeout: 3000, message: `${w} px` }).toEqual(shown);
   };
-  await at(400, ['Back', 'Forward', 'Reload', 'Address', 'Pick an element', 'More']);
+  await at(400, ['Back', 'Forward', 'Reload', 'New tab', 'Pick an element', 'More']);
   const shots = `
       - text: Screenshot
       - menuitem /^Element/
@@ -91,13 +91,19 @@ test("grid: a narrow pane's bar gives up Back and Forward, then Reload, into ⋮
       - menuitem /^DevTools/`;
   await more(`
     - menu: ${shots}`);
-  await at(272, ['Reload', 'Address', 'Pick an element', 'More']);
-  await at(100, ['Address', 'Pick an element', 'More']);
+  await at(272, ['Reload', 'New tab', 'Pick an element', 'More']);
+  await at(100, ['New tab', 'Pick an element', 'More']);
   await more(`
     - menu:
       - menuitem /^Back/
       - menuitem /^Forward/
       - menuitem /^Reload/ ${shots}`);
+  await at(400, ['Back', 'Forward', 'Reload', 'New tab', 'Pick an element', 'More']);
+  await ui.locator(pane).getByRole('tab', { selected: true }).dblclick();
+  await at(400, ['Back', 'Forward', 'Reload', 'Address', 'Pick an element', 'More']);
+  await at(272, ['Reload', 'Address', 'Pick an element', 'More']);
+  await at(100, ['Address', 'Pick an element', 'More']);
+  await ui.locator(`${pane} [aria-label="Address"]`).press('Escape');
   await stageDock(ui, (api, a) => api.getPanel(a.panel).group.api.setSize({ width: a.width }), { panel, width });
 });
 

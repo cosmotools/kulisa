@@ -5,7 +5,7 @@ import path from 'path';
 import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
 import type { Locator } from '@playwright/test';
-import { SITE, upTo, frames, echoed, focusWindow, pageBox, termText, termShows, act, invoke, termKeys } from './helpers.ts';
+import { SITE, upTo, frames, echoed, focusWindow, pageBox, rightClick, choose, termText, termShows, act, invoke, termKeys } from './helpers.ts';
 import { profiles, opened } from './agent-helpers.ts';
 
 // The shown terminal's keyboard (xterm's own field).
@@ -35,7 +35,7 @@ test('the keyboard stays where the human put it: a tab the agent opens, its page
 test('tab strip: + opens a tab with the focus in its empty address, a click on a tab makes it active, × closes it', async ({ core, ui }) => {
   const { elon } = await profiles(core);
   const state = () => core((k) => { const e = k.profile('Elon.buyer'); return { active: e.active, tabs: e.tabs.length }; });
-  const pane = ui.locator(`[role="region"][data-profile="${elon}"]`), strip = pane.getByRole('navigation', { name: 'Tabs' });
+  const pane = ui.locator(`[role="region"][data-profile="${elon}"]`), strip = pane.locator('nav[aria-label="Tabs"]');
   const { active: first, tabs: n } = await state();
   // Its element kept in the page, to tell it is the same one after (Playwright tells no element from another).
   await strip.locator(`[data-tab="${first}"]`).evaluate((t) => { (window as any).__firstTab = t; });
@@ -73,8 +73,8 @@ test('tab strip: + opens a tab with the focus in its empty address, a click on a
     return decided;
   }, added)).toBe("left (the human's)");
   expect(['page', 'another app'], 'the page keeps the focus once clicked').toContain(await keys());
-  await pane.locator('[aria-label="Address"]').blur();
-  await expect(strip.getByRole('tab')).toHaveCount(n + 1);
+  await expect(pane.locator('[aria-label="Address"]')).toBeHidden();
+  await expect(strip.locator('[role="tab"]')).toHaveCount(n + 1);
   await strip.locator(`[data-tab="${first}"]`).click();
   await expect.poll(async () => (await state()).active).toBe(first);
   await strip.getByRole('tab').last().getByTitle('Close tab').click();
@@ -158,29 +158,103 @@ test('back and forward buttons are enabled only when there is somewhere to go', 
   // The buttons change as the back navigation starts; it lands after, in the tab and in the pane (on a slow machine the
   // pane may show n=2 while the tab is on n=1).
   await expect.poll(() => core((k) => k.profile('Sam.seller').get().url)).toMatch(/n=1$/);
-  await expect(pane.locator('[aria-label="Address"]')).toHaveValue(/n=1$/);
+  await expect(pane.getByRole('tab', { selected: true })).toHaveAttribute('title', /n=1$/);
 });
 
-test('the address as in Chrome: shown without http(s)://, a click shows all of it selected; a second click places the caret', async ({ core, ui }) => {
+test('tabs share one row with controls; double-click edits a full selected address, Enter navigates and Escape or leaving cancels', async ({ core, ui, files }, info) => {
   const { sam } = await profiles(core);
-  const addr = ui.locator(`[role="region"][data-profile="${sam}"] [aria-label="Address"]`);
-  const b = await addr.boundingBox();
-  await core((k) => k.shell.win.webContents.focus()); // not in a page
-  const click = () => addr.click({ position: { x: Math.round(b.width / 3), y: Math.round(b.height / 2) } });
-  // What is selected in it: Playwright reads no selection.
-  const sel = () => addr.evaluate((a: HTMLInputElement) => [a.selectionStart, a.selectionEnd, a.value.length] as [number, number, number]);
-  const full = await core((k) => k.profile('Sam.seller').get().wc.getURL());
-  expect(full.startsWith('http://'), full).toBe(true);
-  await expect(addr).toHaveValue(full.replace('http://', ''));
-  await click();
+  const pane = ui.locator(`[role="region"][data-profile="${sam}"]`), addr = pane.getByRole('textbox', { name: 'Address' });
+  const tabs = pane.getByRole('tablist'), active = pane.getByRole('tab', { selected: true });
+  const full = await core((k) => k.profile('Sam.seller').get().url);
+  await expect(addr).toBeHidden();
+  const shot = async (name: string) => {
+    const file = path.join(files.root, `${name}.png`);
+    await core((k, f) => k.shot(f), file);
+    await info.attach(name, { path: file, contentType: 'image/png' });
+  };
+  await shot('combined-profile-row');
+  const before = await pageBox(ui, files, 'Sam.seller');
+  const boxes = await Promise.all([pane.getByRole('button', { name: 'Reload', exact: true }), tabs,
+    pane.getByRole('button', { name: 'New tab' }), pane.getByRole('button', { name: 'Pick an element' })].map((l) => l.boundingBox()));
+  expect(new Set(boxes.map((b) => b.y + b.height / 2)).size, 'one row').toBe(1);
+  await active.dblclick();
   await expect(addr).toBeFocused();
-  await expect.poll(async () => { const [start, end, n] = await sel(); return start === 0 && end === n && n > 0; }).toBe(true);
   await expect(addr).toHaveValue(full);
-  await click(); // a click of its own, not the second of a double-click: Playwright's clicks each say clickCount 1
-  await expect(addr).toBeFocused();
+  await expect(tabs).toBeHidden();
+  await expect(pane.getByRole('button', { name: 'New tab' })).toBeHidden();
+  // Playwright reads no input selection.
+  const sel = () => addr.evaluate((a: HTMLInputElement) => [a.selectionStart, a.selectionEnd, a.value.length]);
+  expect(await sel()).toEqual([0, full.length, full.length]);
+  await shot('profile-address-editor');
+  expect(await pageBox(ui, files, 'Sam.seller'), 'editing keeps the page in place').toEqual(before);
+  await addr.click();
   await expect.poll(async () => { const [start, end] = await sel(); return start === end; }).toBe(true);
-  await addr.blur();
-  await expect(addr).toHaveValue(full.replace('http://', ''));
+  await addr.fill(`${SITE}/app?discard`);
+  await addr.press('Escape');
+  await expect(addr).toBeHidden();
+  await expect(tabs).toBeVisible();
+  expect(await core((k) => k.profile('Sam.seller').get().url)).toBe(full);
+  await active.dblclick();
+  await expect(addr).toHaveValue(full);
+  await addr.fill(`${SITE}/app?discard-on-blur`);
+  await pane.getByRole('button', { name: 'More', exact: true }).focus();
+  await expect(addr).toBeHidden();
+  await active.dblclick();
+  await expect(addr).toHaveValue(full);
+  const url = `${SITE}/app?edited`;
+  await addr.fill(url);
+  await addr.press('Enter');
+  await expect(addr).toBeHidden();
+  await expect(active).toHaveAttribute('title', url);
+  await expect.poll(() => core((k) => k.profile('Sam.seller').get().url)).toBe(url);
+});
+
+test('automation preserves an address draft; a press in another profile cancels it', async ({ core, ui, call }) => {
+  const { sam } = await profiles(core);
+  const pane = ui.locator(`[role="region"][data-profile="${sam}"]`), addr = pane.getByRole('textbox', { name: 'Address' });
+  await pane.getByRole('tab', { selected: true }).dblclick();
+  await addr.fill('draft.example');
+  await call('browser_click', { profile: 'Sam.seller', locator: "locator('input')" });
+  await expect(addr).toBeFocused();
+  await expect(addr).toHaveValue('draft.example');
+  // Native views receive their pointer through Electron; Playwright drives only the window’s HTML here.
+  await core((k) => {
+    const p = k.profile('Elon.buyer'), t = p.get();
+    p.focusTab(t);
+    t.wc.sendInputEvent({ type: 'mouseDown', x: 20, y: 20, button: 'left', clickCount: 1 });
+    t.wc.sendInputEvent({ type: 'mouseUp', x: 20, y: 20, button: 'left', clickCount: 1 });
+  });
+  await expect(addr).toBeHidden();
+});
+
+test('Edit address targets an inactive tab; Ctrl+L selects the address and changing tabs discards its draft', async ({ core, ui }) => {
+  const { sam } = await profiles(core);
+  const second = await core(async (k, url) => {
+    const t = k.profile('Sam.seller').newTab(url); await t.ready; return t.id;
+  }, `${SITE}/app?second`);
+  const pane = ui.locator(`[role="region"][data-profile="${sam}"]`), addr = pane.getByRole('textbox', { name: 'Address' });
+  const first = pane.getByRole('tab').first();
+  const firstId = await first.getAttribute('data-tab');
+  await rightClick(ui, first);
+  await choose(ui, 'Edit address…');
+  await expect(addr).toBeFocused();
+  await expect(addr).toHaveValue(`${SITE}/app`);
+  await expect.poll(() => core((k) => k.profile('Sam.seller').active)).toBe(firstId);
+  await addr.fill(`${SITE}/app?discard`);
+  await core((k, id) => k.profile('Sam.seller').activate(id), second);
+  await expect(addr).toBeHidden();
+  await expect(pane.getByRole('tab', { selected: true })).toHaveAttribute('data-tab', second);
+  await core((k) => { const p = k.profile('Sam.seller'); p.focusTab(p.get()); k.press(p.get().wc, 'L', k.CMD); });
+  await expect(addr).toBeFocused();
+  await expect(addr).toHaveValue(`${SITE}/app?second`);
+  await core((k) => k.press(k.shell.win.webContents, 'L', k.CMD));
+  // Playwright reads no input selection.
+  expect(await addr.evaluate((a: HTMLInputElement) => [a.selectionStart, a.selectionEnd])).toEqual([0, `${SITE}/app?second`.length]);
+  await addr.press('Escape');
+  await core((k, id) => k.profile('Sam.seller').activate(id), firstId);
+  await first.dblclick();
+  await expect(addr).toHaveValue(`${SITE}/app`);
+  await addr.press('Escape');
 });
 
 // A function run in the main process with page-menu.ts's module, Elon's page (Kulisa's own Playwright on it) and its
