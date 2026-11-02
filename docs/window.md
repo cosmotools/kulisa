@@ -65,8 +65,10 @@ environment adds it, closing the last removes it. A new task opens only its defa
 **Stage** in the title bar offers **Position: Left, Right, Above** the development area, **View: Horizontal stack**
 (side by side), **Vertical stack** (one above another), **Tabs** (one environment at a time), and **Open an environment**.
 Moving Stage preserves the development grid and its panels; Terminal and Resources stay together. Resources starts to the left of the terminal; saved layouts keep their placement. The Resources bar and Resources content: [tasks.md](tasks.md), The Resources panel. Its standalone group has no header; a shared group keeps its nonclosable Resources tab.
+Changing Stage's view moves existing panels through Dockview; their contents and terminal search state stay mounted.
 Resources keeps at least 204 CSS pixels of height so its sections and grip stay reachable. `task-view/development.ts` owns
-development-group constraints, including the empty terminal’s folded size and its restoration. Collapsed standalone
+development-group constraints, applied after structural grid mutations and changes to Resources, terminal availability or review visibility.
+They include the empty terminal's folded size and its restoration. Collapsed standalone
 groups fix only their split axis; shared tab groups keep room for their panels. Restoring a folded
 terminal compensates Dockview’s split gap to preserve its expanded size; available room can limit it with Resources
 below. A selected diff keeps the development area expanded even with every terminal closed ([tasks.md](tasks.md), Diff).
@@ -112,14 +114,14 @@ polling and dictation subscribe to task activity; the microphone owns its subscr
 Each controller owns its profile-pane handles, so copies of the same profile address their own DOM and controls.
 Launchers use their task's project; terminal and profile menu actions capture their task key, so a delayed action cannot address another task.
 State messages carry their task key. Window and task state reuse equal objects through TanStack's structural sharing.
-The TaskView registry follows open tabs and first visits. Grid synchronization runs at initialization and when the
-environment panel IDs change or the development terminal folds or unfolds. Geometry frames size existing panels and
-report page bounds. Status and tab updates refresh their controls; background terminal output enters its own buffers.
+The TaskView registry follows open tabs and first visits. Grid synchronization runs at initialization and when
+environment panel IDs change. Status and tab updates refresh their controls; background terminal output enters its own buffers.
 
 The outer Gridview observes available room; its panel dimension events size nested grids synchronously with their
 automatic resizing disabled. Each TaskView observes its host outside the skipped contents to keep hidden grids sized
 when the window changes. Hidden grids publish their own page geometry on layout, content-size and scroll changes.
-Geometry reporting reads current dimensions because Dockview's resize observer runs in a later frame.
+The closed-environment row's appearance also updates the outer split's available room.
+Geometry reports coalesce in one animation frame and only read page bounds; resizing and layout saving have separate handlers.
 Main applies `layout:apply` only to its owning task in that window; the first report makes its native pages ready.
 Selecting a prepared task shows its pages at their stored bounds and hides the outgoing pages in the same main-process
 turn. Menus and Settings cover pages independently of geometry; closing a menu reveals pages at their stored bounds.
@@ -129,8 +131,9 @@ active task's terminal host; `TaskViews` applies its theme once per window. Its 
 Views, processes and buffers. A task's open Diff retains its comparison, filter, document and scroll position.
 
 `task.json` keeps Stage view/overflow/layout in `stage`, and development layout, Stage position/share in `workspace`,
-saved 300 ms after a change and flushed when the task is hidden or closed. The saved layout loads once per TaskView,
-including after a restart or move to another window. Dockview owns the live geometry; group dimension changes save
+saved 300 ms after a change and flushed when the task is hidden or closed. The saved layout loads once before a TaskView
+creates its grids, including after a restart or move to another window. Stage commands received during loading merge
+into the initial settings; loading completes when both required grids are mounted. Dockview owns the live geometry; group dimension changes save
 completed sizes. `task-view/layout.ts` converts saved sizes to split allocations including their theme-gap share.
 `shared/stage-layout.ts` separates flat layouts into development and testing groups, retaining order, stacking and
 sizes. Saved stack settings normalize to explicit horizontal and vertical directions without moving panes.

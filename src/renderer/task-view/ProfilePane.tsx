@@ -82,9 +82,9 @@ export function ProfilePane({ api }: IDockviewPanelProps) {
       },
     };
     grid.panes.set(id, handle);
-    const observer = new ResizeObserver(grid.scheduleLayout);
+    const observer = new ResizeObserver(grid.reportPages);
     observer.observe(content);
-    grid.scheduleLayout();
+    grid.reportPages();
     return () => { observer.disconnect(); if (grid.panes.get(id) === handle) grid.panes.delete(id); };
   }, [id, content, editAddress, act, activeTab, owner, grid]);
 

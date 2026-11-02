@@ -75,7 +75,8 @@ project, and those you closed, are in the sidebar (Tasks, below).
   where browser profiles and Stage terminals show the app being tested. Drag headers to move or stack panes within each area. Drag a line to resize panes.
   **Stage** in the title bar places the stage **Left**, **Right**, or **Above** the agent terminal and Resources together. Its **View** choices are **Horizontal stack** (side by side),
   **Vertical stack** (one above another), and **Tabs** (one environment at a time). **Allow overflow** keeps panes at a usable size and adds scrolling in the stack’s direction;
-  turned off, all panes fit inside the stage. Tabs hides this setting. Your agent can change the position, view and overflow too.
+  turned off, all panes fit inside the stage. Tabs hides this setting. Changing View keeps each pane's contents and terminal search.
+  Your agent can change the position, view and overflow too.
   Use **Maximize environment** in a profile or terminal header to fill Stage with that group; **Restore environment** brings back the arrangement.
   The agent terminal and Resources stay visible. A group’s tabs remain available, and overflow resumes when you restore.
   Enable **Stage → Follow agent** to follow the environment your agent uses: select its tab or scroll it into view.

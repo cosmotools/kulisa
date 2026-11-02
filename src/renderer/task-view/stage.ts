@@ -14,13 +14,15 @@ export class StageGrid {
   private activityTimer = 0;
   private followFrame = 0;
   private lastEnvironment: string | null = null;
-  constructor(private readonly store: TaskStore, private readonly scheduleLayout: () => void) {}
+  constructor(private readonly store: TaskStore, private readonly reportPages: () => void) {}
   environmentIds = () => [...this.store.getState().profiles.map((p) => panelId(p.id)), ...this.store.getState().stageTerminals.map((a) => `stage-terminal:${a.id}`)];
   attach(api: DockviewApi, parent: GridviewPanelApi, viewport: HTMLElement) {
     this.api = api; this.parent = parent; this.viewport = viewport;
     this.layout();
     restoreDockview(api, this.saved, this.environmentIds()); this.saved = null;
-    if (!api.panels.length) this.arrangeStage(); else this.syncStage();
+    const empty = !api.panels.length;
+    this.syncStage();
+    if (empty && this.store.getState().stageLayout === 'tabs') api.panels[0]?.api.setActive();
     // Stage identities and pane controls need their headers, independently of saved visibility flags.
     for (const group of api.groups) group.header.hidden = false;
     this.constrainStage(); this.layout();
@@ -59,6 +61,7 @@ export class StageGrid {
     const scrolling = overflow && mode !== 'tabs' && !this.api.hasMaximizedGroup();
     const minimumWidth = scrolling && mode !== 'vertical' ? environmentMinimum.width : 0;
     const minimumHeight = scrolling && mode === 'vertical' ? environmentMinimum.height : 0;
+    if (this.api.groups.every((group) => group.minimumWidth === minimumWidth && group.minimumHeight === minimumHeight)) return;
     const { width, height } = this.api;
     // Constraints apply per group: reserve room for both old and new minima before shrinking the canvas.
     this.api.layout(Math.max(width, this.api.minimumWidth, minimumWidth * this.api.groups.length),
@@ -69,20 +72,32 @@ export class StageGrid {
 
   arrangeStage = () => {
     if (!this.api) return;
-    this.api.clear();
-    const ids = this.environmentIds();
+    // Stack axes can change while panels move between groups.
+    this.constrainStage(null, false);
+    this.api.exitMaximizedGroup();
+    const panels = this.environmentIds().map((id) => this.api!.getPanel(id)!), first = panels[0];
+    if (!first) return;
+    // Collecting tabs first makes any nested arrangement a single stack without replacing its panels.
+    for (const panel of panels.slice(1)) panel.api.moveTo({ group: first.group, position: 'center', skipSetActive: true });
     const mode = this.store.getState().stageLayout;
-    ids.forEach((id, i) => this.addEnvironment(id, i ? ids[i - 1] : undefined, mode === 'tabs' ? 'within' : mode === 'vertical' ? 'below' : 'right', mode === 'tabs' && i > 0));
+    if (mode !== 'tabs') for (let i = 1; i < panels.length; i++) {
+      const group = this.api.addGroup({ referenceGroup: panels[i - 1]!.group, direction: mode === 'vertical' ? 'below' : 'right', skipSetActive: true });
+      panels[i]!.api.moveTo({ group, skipSetActive: true });
+    }
+    (mode === 'tabs' ? first : panels.at(-1)!).api.setActive();
   };
 
   syncStage = () => {
-    if (!this.api) return;
+    if (!this.api) return false;
     const ids = this.environmentIds();
-    for (const p of this.api.panels) if (!ids.includes(p.id)) this.api.removePanel(p);
+    let changed = false;
+    for (const p of this.api.panels) if (!ids.includes(p.id)) { this.api.removePanel(p); changed = true; }
     for (const id of ids) if (!this.api.getPanel(id)) {
       const mode = this.store.getState().stageLayout;
       this.addEnvironment(id, this.api.panels.at(-1)?.id, mode === 'tabs' ? 'within' : mode === 'vertical' ? 'below' : 'right');
+      changed = true;
     }
+    return changed;
   };
 
   followEnvironment = (environment: string) => {
@@ -97,7 +112,7 @@ export class StageGrid {
       if (!panel.api.isVisible) panel.api.setActive();
       if (focused instanceof HTMLElement && focused.isConnected && document.activeElement !== focused) focused.focus({ preventScroll: true });
       panel.group.element.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-      this.scheduleLayout();
+      this.reportPages();
     });
   };
 

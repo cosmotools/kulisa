@@ -18,9 +18,10 @@ export class DevelopmentGrid {
   api: DockviewApi | null = null;
   private developmentGap = dockTheme.gap ?? 0;
   private terminalFold: { group: DockviewApi['groups'][number]; axis: GroupInsets['axis']; size: number } | null = null;
+  private frame = 0;
   private reviewNavigation = 0;
   private reviewSession: ReturnType<typeof createDiff> | null = null;
-  constructor(private readonly store: TaskStore, private readonly changed: () => void, private readonly scheduleLayout: () => void) {}
+  constructor(private readonly store: TaskStore, private readonly changed: () => void) {}
   get review() {
     const task = this.store.getState().key;
     return this.reviewSession ??= createDiff({
@@ -35,7 +36,7 @@ export class DevelopmentGrid {
   }
   screen = (): 'agents' | 'diff' => this.store.getState().developmentDiff ? 'diff' : 'agents';
   attach(api: DockviewApi) { this.api = api; this.developmentGap = dockTheme.gap ?? 0; }
-  dispose() { this.reviewSession?.client.clear(); this.reviewSession = null; this.api = null; this.terminalFold = null; }
+  dispose() { cancelAnimationFrame(this.frame); this.reviewSession?.client.clear(); this.reviewSession = null; this.api = null; this.terminalFold = null; }
   build(saved: SerializedDockview | null) {
     const a = this.api!;
     this.terminalFold = null;
@@ -104,6 +105,7 @@ export class DevelopmentGrid {
   };
 
   constrain = () => {
+    cancelAnimationFrame(this.frame); this.frame = 0;
     const resources = this.api?.getPanel('resources'), terminal = this.api?.getPanel('terminal');
     const gap = resources?.params?.section === null && resources.group.panels.length === 1 ? 0 : dockTheme.gap ?? 0;
     if (this.developmentGap !== gap) {
@@ -127,7 +129,7 @@ export class DevelopmentGrid {
       if (previous && (!foldTerminal || previous.axis !== inset.axis)) {
         this.restoreTerminalSize();
         // An axis change needs the restored layout before measuring the terminal's new expanded size.
-        if (foldTerminal) { this.scheduleLayout(); continue; }
+        if (foldTerminal) { this.frame = requestAnimationFrame(this.constrain); continue; }
       }
       const beginFold = foldTerminal && !this.terminalFold;
       if (beginFold) this.terminalFold = { group, axis: inset.axis, size: group.api[inset.axis] };

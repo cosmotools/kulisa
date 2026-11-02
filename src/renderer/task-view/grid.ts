@@ -1,7 +1,6 @@
 // A task's retained grids and their visible work (docs/window.md, The grid).
 import { Orientation, LocalSelectionTransfer, PanelTransfer, DockviewCompositeDisposable } from 'dockview-react';
 import type { DockviewApi, DockviewPanelApi, DockviewIDisposable, GridviewApi, GridviewPanelApi } from 'dockview-react';
-import { flushSync } from 'react-dom';
 import { store } from '../lib/store';
 import type { TaskStore } from './state';
 import { splitLayout, type TaskLayout } from '../../shared/stage-layout';
@@ -29,72 +28,84 @@ export class TaskGrid {
   private subscriptions = new Map<object, DockviewIDisposable>();
   private dragging = false;
   private arrangement: Events['stage:arrange'] | null = null;
+  private saved: TaskLayout | null = null;
   private stop: () => void;
   constructor(readonly state: TaskStore) {
-    this.development = new DevelopmentGrid(state, this.changed, this.scheduleLayout);
-    this.stage = new StageGrid(state, this.scheduleLayout);
+    this.development = new DevelopmentGrid(state, this.scheduleSave);
+    this.stage = new StageGrid(state, this.reportPages);
     this.stop = state.subscribe((next, previous) => {
-      if (!samePanels(next.profiles, previous.profiles) || !samePanels(next.stageTerminals, previous.stageTerminals)
-        || !!next.developmentTerminals.list.length !== !!previous.developmentTerminals.list.length) this.update();
+      if (!this.workspace || this.disposed) return;
+      if (!samePanels(next.profiles, previous.profiles) || !samePanels(next.stageTerminals, previous.stageTerminals)) {
+        this.mutate(() => this.sync()); this.scheduleSave(); this.finishInitialization();
+      }
+      if (this.ready && (!!next.profiles.length !== !!previous.profiles.length || !!next.developmentTerminals.list.length !== !!previous.developmentTerminals.list.length
+        || !!next.developmentDiff !== !!previous.developmentDiff)) this.development.constrain();
     });
   }
   get key() { return this.state.getState().key; }
   private get ready() { return !this.state.getState().loading; }
   private get active() { return !this.disposed && store.getState().current === this.key; }
+  async load() {
+    const saved = await kulisa.invoke('layout:load', { task: this.key }).catch((error: unknown) => {
+      console.warn('[layout] saved grid unavailable:', error); return null;
+    });
+    if (this.disposed) return false;
+    this.saved = splitLayout(saved);
+    return true;
+  }
   mount(workspace: GridviewApi, element: HTMLElement) {
+    const layout = this.saved;
+    this.stageShare = layout?.stageShare && layout.stageShare > 0 && layout.stageShare < 1 ? layout.stageShare : 0.65;
+    this.stage.saved = this.arrangement?.layout !== undefined ? null : layout?.stage ?? null;
+    this.state.setState({ stageLayout: this.arrangement?.layout ?? layout?.stageLayout ?? null,
+      stageOverflow: this.arrangement?.overflow ?? layout?.stageOverflow ?? false,
+      stagePosition: this.arrangement?.position ?? layout?.stagePosition ?? 'above' });
+    this.arrangement = null;
     this.workspace = workspace; this.element = element;
     this.subscriptions.set(workspace, workspace.onDidLayoutChange(() => {
       if (!this.mutations && this.ready && this.active) this.stageShare = this.currentShare();
-      this.changed();
+      this.scheduleSave(); this.reportPages();
     }));
+    this.resize();
     workspace.addPanel({ id: 'development', component: 'development', minimumWidth: 100, minimumHeight: 100 });
+    this.mutate(() => this.sync());
   }
   mountDevelopment(api: DockviewApi, parent: GridviewPanelApi) {
     this.development.attach(api);
-    this.watch(api, parent.onDidDimensionsChange(({ width, height }) => api.layout(width, height, true)));
+    this.watch(api, parent.onDidDimensionsChange(({ width, height }) => api.layout(width, height, true)))
+      .addDisposables(api.onDidMutateLayout(() => { if (!this.mutations) this.development.constrain(); }));
     api.layout(parent.width, parent.height, true);
-    void this.initialize();
+    this.mutate(() => this.development.build(this.saved?.workspace ?? null));
+    this.saved = null;
+    this.finishInitialization();
   }
   mountStage(api: DockviewApi, parent: GridviewPanelApi, viewport: HTMLElement) {
     this.mutate(() => this.stage.attach(api, parent, viewport));
     const subscriptions = this.watch(api, parent.onDidDimensionsChange(this.stage.layout));
     subscriptions.addDisposables(api.onDidActivePanelChange(({ origin }) => { if (origin === 'user') this.stage.pauseStageFollowing(); }),
-      api.onDidMaximizedGroupChange(() => { this.stage.constrainStage(); this.stage.layout(); this.changed(); }),
-      api.onDidAddGroup(() => this.stage.constrainStage()));
-    this.scheduleLayout();
+      api.onDidMutateLayout(() => { if (!this.mutations) { this.stage.constrainStage(); this.stage.layout(); } }));
+    this.finishInitialization();
+    this.reportPages();
   }
   private watch(api: DockviewApi, dimensions: DockviewIDisposable) {
     const groups = new Map<string, DockviewIDisposable>();
     const add = (group: DockviewApi['groups'][number]) => {
-      groups.get(group.id)?.dispose(); groups.set(group.id, group.api.onDidDimensionsChange(this.changed));
+      groups.get(group.id)?.dispose(); groups.set(group.id, group.api.onDidDimensionsChange(() => { this.scheduleSave(); this.reportPages(); }));
     };
     api.groups.forEach(add);
     const subscriptions = new DockviewCompositeDisposable(dimensions, api.onDidAddGroup(add), api.onDidRemoveGroup((group) => { groups.get(group.id)?.dispose(); groups.delete(group.id); }),
-      api.onDidLayoutChange(this.changed), api.onDidActivePanelChange(this.scheduleLayout),
+      api.onDidLayoutChange(this.scheduleSave), api.onDidLayoutChange(this.reportPages), api.onDidActivePanelChange(this.reportPages),
       api.onWillDragPanel(() => { this.dragging = true; void freeze(); }),
       api.onWillDragGroup(() => { this.dragging = true; void freeze(); }), api.onDidDrop(this.finishDrag),
       { dispose: () => { for (const event of groups.values()) event.dispose(); groups.clear(); } });
     this.subscriptions.set(api, subscriptions);
     return subscriptions;
   }
-  private async initialize() {
-    const saved = await kulisa.invoke('layout:load', { task: this.key }).catch((error: unknown) => {
-      console.warn('[layout] saved grid unavailable:', error); return null;
-    });
-    if (this.disposed) return;
-    const layout = splitLayout(saved);
-    this.mutate(() => {
-      this.stageShare = layout?.stageShare && layout.stageShare > 0 && layout.stageShare < 1 ? layout.stageShare : 0.65;
-      this.stage.saved = this.arrangement?.layout !== undefined ? null : layout?.stage ?? null;
-      flushSync(() => this.state.setState({ stageLayout: this.arrangement?.layout ?? layout?.stageLayout ?? null,
-        stageOverflow: this.arrangement?.overflow ?? layout?.stageOverflow ?? false,
-        stagePosition: this.arrangement?.position ?? layout?.stagePosition ?? 'above' }));
-      flushSync(() => { this.sync(); this.development.build(layout?.workspace ?? null); });
-      this.layout();
-    });
+  private finishInitialization() {
+    if (this.ready || this.disposed || !this.development.api || this.stage.environmentIds().length && !this.stage.api) return;
     this.state.setState({ loading: false });
-    this.arrangement = null;
-    this.changed();
+    this.development.constrain();
+    this.resize(); this.scheduleSave(); this.reportPages();
   }
   activate() {
     void showViews();
@@ -113,23 +124,22 @@ export class TaskGrid {
     this.panes.clear(); this.workspace = null; this.element = null;
   }
   private mutate(fn: () => void) { this.mutations++; try { fn(); } finally { this.mutations--; } }
-  private update() { if (this.ready && !this.disposed) { this.mutate(() => this.sync()); this.changed(); } }
   arrange(event: Events['stage:arrange']) {
-    if (!this.ready) {
+    if (!this.workspace) {
       this.arrangement = { ...this.arrangement, task: this.key, ...(event.layout !== undefined && { layout: event.layout }),
         ...(event.overflow !== undefined && { overflow: event.overflow }), ...(event.position !== undefined && { position: event.position }) };
       return;
     }
     this.mutate(() => {
-      const { layout, overflow, position } = event, state = this.state.getState();
-      this.stage.constrainStage(layout ?? state.stageLayout, overflow ?? state.stageOverflow);
-      flushSync(() => this.state.setState({ ...(layout !== undefined && { stageLayout: layout }),
-        ...(overflow !== undefined && { stageOverflow: overflow }), ...(position !== undefined && { stagePosition: position }) }));
+      const { layout, overflow, position } = event;
+      if (layout !== undefined) this.stage.saved = null;
+      this.state.setState({ ...(layout !== undefined && { stageLayout: layout }),
+        ...(overflow !== undefined && { stageOverflow: overflow }), ...(position !== undefined && { stagePosition: position }) });
       if (position !== undefined) this.placeStage();
       if (layout !== undefined) this.stage.arrangeStage();
-      this.stage.layout();
+      this.stage.constrainStage(); this.stage.layout();
     });
-    this.changed();
+    this.scheduleSave(); this.reportPages();
   }
   private sync() {
     if (!this.workspace) return;
@@ -143,16 +153,15 @@ export class TaskGrid {
       this.workspace.addPanel({ id: 'stage', component: 'stage', minimumWidth: 100, minimumHeight: 100 });
       this.placeStage();
     }
-    const count = this.stage.api?.panels.length;
-    this.stage.syncStage();
-    if (this.stage.api?.panels.length !== count) this.stage.layout();
+    if (this.stage.syncStage()) { this.stage.constrainStage(); this.stage.layout(); }
   }
-  private layout() {
+  resize = () => {
     if (this.disposed || !this.element?.offsetWidth) return;
     // Following hidden grids avoids a geometry round trip when their task is selected.
-    this.workspace?.layout(this.element.clientWidth, this.element.clientHeight);
-    this.development.constrain();
-  }
+    const { clientWidth: width, clientHeight: height } = this.element;
+    this.workspace?.layout(width, height);
+    this.reportPages();
+  };
   private placeStage() {
     const workspace = this.workspace, panel = workspace?.getPanel('stage');
     if (!workspace || !panel) return;
@@ -169,8 +178,7 @@ export class TaskGrid {
     const total = vertical ? this.workspace?.height : this.workspace?.width;
     return panel && total ? (vertical ? panel.api.height : panel.api.width) / total : this.stageShare;
   }
-  private changed = () => {
-    this.scheduleLayout();
+  private scheduleSave = () => {
     if (!this.ready || this.disposed || this.mutations) return;
     this.dirty = true; clearTimeout(this.saveTimer);
     this.saveTimer = window.setTimeout(() => this.flush(), 300);
@@ -184,12 +192,11 @@ export class TaskGrid {
       stage: this.stage.api?.toJSON() ?? this.stage.saved, stageLayout: state.stageLayout, stageOverflow: state.stageOverflow,
       stagePosition: state.stagePosition, stageShare: this.currentShare() } satisfies TaskLayout });
   }
-  scheduleLayout = () => {
-    cancelAnimationFrame(this.frame);
-    if (this.disposed || !this.ready) return;
+  reportPages = () => {
+    if (this.disposed || !this.ready || this.frame) return;
     this.frame = requestAnimationFrame(() => {
+      this.frame = 0;
       if (this.disposed) return;
-      this.layout();
       kulisa.send('layout:apply', { task: this.key, rects: pageRects(this.stage.api, this.stage.viewport, this.state.getState().profiles, this.panes) });
     });
   };

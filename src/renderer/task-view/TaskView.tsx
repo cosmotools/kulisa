@@ -51,7 +51,7 @@ function Stage({ api }: IGridviewPanelProps) {
   const grid = useTaskGrid(), viewport = useRef<HTMLDivElement>(null);
   return <section aria-label="Stage" className="h-full min-h-0 min-w-0" data-testid="stage"
     onPointerDownCapture={grid.stage.pauseStageFollowing} onKeyDownCapture={grid.stage.pauseStageFollowing}>
-    <div ref={viewport} data-stage-viewport className="h-full overflow-hidden" onScroll={grid.scheduleLayout}>
+    <div ref={viewport} data-stage-viewport className="h-full overflow-hidden" onScroll={grid.reportPages}>
       <div className="h-full">
         <DockviewReact theme={dockTheme} disableAutoResizing disableFloatingGroups singleTabMode="fullwidth" components={stageComponents} tabComponents={stageTabComponents}
           onReady={(e) => grid.mountStage(e.api, api, viewport.current!)} />
@@ -75,6 +75,7 @@ const Screen = memo(function Screen() {
   const grid = useTaskGrid(), workspace = useRef<HTMLDivElement>(null);
   const loading = useTask((s) => s.loading);
   const folded = useTask((s) => !s.profiles.length && !s.stageTerminals.length && s.developmentTerminals.list.length > 0);
+  useLayoutEffect(() => grid.resize(), [grid, folded]);
   return <section data-task-screen className="absolute inset-0 flex min-h-0 min-w-0 flex-col aria-busy:opacity-0"
     aria-busy={loading || undefined} inert={loading || undefined}>
     {folded && <ClosedProfiles />}
@@ -86,18 +87,20 @@ const Screen = memo(function Screen() {
 });
 const TaskView = memo(function TaskView({ state, active }: { state: TaskStore; active: boolean }) {
   const [grid] = useState(() => new TaskGrid(state));
+  const [loaded, setLoaded] = useState(false);
   const host = useRef<HTMLElement>(null);
+  useEffect(() => { void grid.load().then((ready) => { if (ready) setLoaded(true); }); }, [grid]);
   useLayoutEffect(() => {
     const unregister = registerTaskGrid(grid);
     // The host remains observable while content-visibility skips the grids inside it.
-    const resized = new ResizeObserver(grid.scheduleLayout);
+    const resized = new ResizeObserver(grid.resize);
     resized.observe(host.current!);
     return () => { resized.disconnect(); unregister(); };
   }, [grid]);
   useLayoutEffect(() => { if (active) grid.activate(); }, [grid, active]);
   return <section ref={host} data-task-view={grid.key} data-active={active || undefined} aria-hidden={!active || undefined}
     className="absolute inset-0" inert={!active || undefined}>
-    <TaskContext value={grid}><Screen /></TaskContext>
+    <TaskContext value={grid}>{loaded && <Screen />}</TaskContext>
   </section>;
 });
 export function TaskViews() {
