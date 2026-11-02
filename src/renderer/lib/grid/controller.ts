@@ -12,7 +12,7 @@ import { DevelopmentGrid } from './development';
 import { StageGrid } from './stage';
 import { pageRects } from './pages';
 
-interface GridHost { freeze(): Promise<void>; unfreeze(): Promise<void>; forgetFrozen(): void; showViews(): Promise<unknown>; closeLayers(): Promise<void> }
+interface GridHost { freeze(): Promise<void>; unfreeze(): Promise<void>; forgetFrozen(): void; revealGrid(task: string): Promise<unknown>; closeLayers(): Promise<void> }
 interface TaskGrid {
   key: string;
   ready: boolean;
@@ -38,7 +38,6 @@ export class WindowGrid {
   private saveTimer = 0;
   private dirty = false;
   private layoutFrame = 0;
-  private transition: ViewTransition | null = null;
   private dropTimer = 0;
   private resourceDragging = false;
   private dragSession: TaskGrid | null = null;
@@ -136,46 +135,39 @@ export class WindowGrid {
     const saved = await kulisa.invoke('layout:load', { task: session.key });
     if (!this.owns(session)) return;
     const layout = splitLayout(saved);
-    const transition = this.transition = document.startViewTransition(() => {
-      if (!this.owns(session)) return;
-      this.mutate(() => {
-        // Task controls determine the outer room; commit them before restoring the nested grids.
-        flushSync(() => {
-          this.removeStage(); this.development.clear();
-          store.setState({ profiles: session.profiles, stageTerminals: session.terminals,
-            developmentTerminals: session.development ?? { task: session.key, front: null, list: [] }, pictures: {}, captions: {}, picking: {},
-            stageLayout: session.arrangement?.layout ?? layout?.stageLayout ?? null,
-            stageOverflow: session.arrangement?.overflow ?? layout?.stageOverflow ?? false,
-            stagePosition: session.arrangement?.position ?? layout?.stagePosition ?? 'above' });
-        });
-        this.stageShare = layout?.stageShare && layout.stageShare > 0 && layout.stageShare < 1 ? layout.stageShare : 0.65;
-        this.stage.saved = session.arrangement?.layout !== undefined ? null : layout?.stage ?? null;
-        flushSync(() => { this.sync(); this.layoutOuter(); this.development.build(layout?.workspace ?? null); });
-        this.layoutOuter(); this.stage.layout();
+    this.mutate(() => {
+      // Task controls determine the outer room; commit them before restoring the nested grids.
+      flushSync(() => {
+        this.removeStage(); this.development.clear();
+        store.setState({ profiles: session.profiles, stageTerminals: session.terminals,
+          developmentTerminals: session.development ?? { task: session.key, front: null, list: [] }, pictures: {}, captions: {}, picking: {},
+          stageLayout: session.arrangement?.layout ?? layout?.stageLayout ?? null,
+          stageOverflow: session.arrangement?.overflow ?? layout?.stageOverflow ?? false,
+          stagePosition: session.arrangement?.position ?? layout?.stagePosition ?? 'above' });
       });
-      session.ready = true;
-      this.changed();
-      flushSync(() => store.setState({ loading: false }));
+      this.stageShare = layout?.stageShare && layout.stageShare > 0 && layout.stageShare < 1 ? layout.stageShare : 0.65;
+      this.stage.saved = session.arrangement?.layout !== undefined ? null : layout?.stage ?? null;
+      flushSync(() => { this.sync(); this.layoutOuter(); this.development.build(layout?.workspace ?? null); });
+      this.layoutOuter(); this.stage.layout();
     });
-    const rendered = transition.ready.catch(() => {}).then(async () => {
-      if (!this.owns(session)) return;
-      await renderTerminals();
-      if (!this.owns(session)) return;
-      kulisa.send('layout:apply', { task: session.key, rects: pageRects(this.stage.api, this.stage.viewport, store.getState().profiles) });
-      await this.host.showViews();
-    });
-    transition.waitUntil(rendered);
-    await Promise.all([rendered, transition.finished]);
-    if (this.transition === transition) this.transition = null;
+    session.ready = true;
+    this.changed();
+    flushSync(() => store.setState({ gridPhase: 'rendering' }));
+    await renderTerminals();
+    if (!document.hidden) await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+    if (!this.owns(session)) return;
+    kulisa.send('layout:apply', { task: session.key, rects: pageRects(this.stage.api, this.stage.viewport, store.getState().profiles) });
+    await this.host.revealGrid(session.key);
+    if (this.owns(session)) { store.setState({ gridPhase: 'ready' }); this.changed(); }
   }
   leave(next: boolean) {
     this.flush(); this.cancelFrames(); this.session = null;
     this.stage.reset();
-    store.setState({ stageTerminalFocus: null, developmentDiff: null });
+    store.setState({ gridPhase: next ? 'rendering' : 'loading', stageTerminalFocus: null, developmentDiff: null });
     void this.host.closeLayers(); this.host.forgetFrozen(); this.finishResourceDrag();
     if (next) return;
     this.mutate(() => {
-      store.setState({ loading: true }); this.removeStage(); this.development.clear();
+      this.removeStage(); this.development.clear();
       store.setState({ profiles: [], stageTerminals: [], pictures: {}, captions: {}, picking: {}, developmentTerminals: { front: null, list: [] } });
     });
   }
@@ -234,7 +226,7 @@ export class WindowGrid {
   }
   private changed = () => {
     this.scheduleLayout(); clearTimeout(this.saveTimer);
-    if (this.mutations || !this.session?.ready || store.getState().loading) return;
+    if (this.mutations || !this.session?.ready || store.getState().gridPhase !== 'ready') return;
     this.dirty = true;
     this.saveTimer = window.setTimeout(() => this.flush(), 300);
   };
@@ -258,7 +250,7 @@ export class WindowGrid {
   };
   private cancelFrames() {
     clearTimeout(this.saveTimer); clearTimeout(this.dropTimer); this.dirty = false; this.dragSession = null;
-    cancelAnimationFrame(this.layoutFrame); this.transition?.skipTransition(); this.transition = null;
+    cancelAnimationFrame(this.layoutFrame);
   }
   startResourceDrag(panel: DockviewPanelApi, event: DragEvent) {
     const api = this.development.api;

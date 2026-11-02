@@ -48,11 +48,12 @@ function ClosedProfiles() {
 export function Grid() {
   useEffect(() => gridUnmounted, []);
   const workspace = useRef<HTMLDivElement>(null);
-  const loading = useWindow((s) => s.loading);
+  const phase = useWindow((s) => s.gridPhase);
   const folded = useWindow((s) => !!s.current && !s.profiles.length && !s.stageTerminals.length && s.developmentTerminals.list.length > 0);
   // min-w-0: a row wider than the window (many closed profiles) would stretch the window's column, the terminal and the
   // tasks' bar past its edge. The controller reveals it after layout (lib/grid/controller.ts).
-  return <main id="dock" className="isolate flex min-h-0 min-w-0 flex-col aria-busy:opacity-0" aria-busy={loading || undefined}>
+  return <main id="dock" className="isolate flex min-h-0 min-w-0 flex-col data-[phase=loading]:opacity-0" data-phase={phase}
+    aria-busy={phase !== 'ready' || undefined} inert={phase !== 'ready' || undefined}>
     {folded && <ClosedProfiles />}
     <div ref={workspace} id="workspace" className="min-h-0 flex-1">
       <GridviewReact components={areas} orientation={Orientation.VERTICAL} proportionalLayout

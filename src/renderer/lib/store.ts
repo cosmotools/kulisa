@@ -37,7 +37,7 @@ interface WindowState {
   theme: string; // Dark, Light or System (shown before the first paint from the URL: public/theme.js)
   bar: string; // where the tasks' bar is
   language: LanguageInfo | null; // Kulisa's language (☰ → Language)
-  loading: boolean; // the grid not laid out yet: no grid shown, the pages kept hidden (grid/controller.ts)
+  gridPhase: 'loading' | 'rendering' | 'ready';
   // Over each pane (by profile id): what the agent does (its caption), Pick's words; whose Pick is on.
   captions: Record<string, string>;
   picking: Record<string, boolean>;
@@ -65,7 +65,7 @@ export const store = createStore<WindowState>()(() => ({
   theme: query.get('theme') || 'dark',
   bar: query.get('bar') || 'bottom',
   language: null,
-  loading: true,
+  gridPhase: 'loading',
   captions: {},
   picking: {},
   pictures: {},

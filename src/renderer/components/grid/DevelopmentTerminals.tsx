@@ -22,7 +22,7 @@ export function DevelopmentTerminals({ api, containerApi, reviewing }: IDockview
   const task = useWindow((s) => s.developmentTerminals.task ?? null), front = useWindow((s) => s.developmentTerminals.front);
   const folded = useWindow((s) => !s.developmentTerminals.list.length);
   const alone = useWindow((s) => !s.profiles.length);
-  const loading = useWindow((s) => s.loading);
+  const phase = useWindow((s) => s.gridPhase);
   // The tab in front before its program has started (an agent's is looked for first): a loader over its terminal, which
   // stays laid out meanwhile (the program starts at its size).
   const starting = useWindow((s) => s.developmentTerminals.list.find((t) => t.id === s.developmentTerminals.front && t.starting)?.name);
@@ -53,11 +53,11 @@ export function DevelopmentTerminals({ api, containerApi, reviewing }: IDockview
   // The big buttons, each a Tab stop (Tab to the next, Enter opens it): the first, the project's default agent, gets the
   // keyboard when the keyboard was in the terminal just closed or nowhere (not taken from a field or a dialog). No keys
   // on them: Ctrl+` opens the task's agent, which the window does not show.
-  const big = folded && alone && !loading && !reviewing;
+  const big = folded && alone && phase !== 'loading' && !reviewing;
   // A question open as they come (closing an agent's tab asks first): once it has gone, also from the page (a dialog
   // keeps the keyboard in it while it fades out, and gives it back as it goes).
   useEffect(() => {
-    if (!big) return;
+    if (!big || phase !== 'ready') return;
     let frame = 0;
     const take = () => {
       if (dialogsShown() || document.querySelector('[role="dialog"], [role="alertdialog"]')) { frame = requestAnimationFrame(take); return; }
@@ -67,7 +67,7 @@ export function DevelopmentTerminals({ api, containerApi, reviewing }: IDockview
     };
     take();
     return () => cancelAnimationFrame(frame);
-  }, [big]);
+  }, [big, phase]);
 
   const menu = (e: MouseEvent) => {
     const { developmentTerminals } = store.getState(), t = developmentTerminals.list.find((x) => x.id === developmentTerminals.front);

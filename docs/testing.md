@@ -160,8 +160,11 @@ in Kulisa).
 
 ## Upgrading Electron
 
-Two Electron bugs are worked around; at each upgrade check whether each is still needed, and remove it if not.
+Electron workarounds are kept here; at each upgrade check whether each is still needed, and remove it if not.
 
+- A task-switch snapshot must draw on its own compositor layer above embedded `WebContentsView`s. `AppWindow.holdGrid`
+  calls `View.setBackgroundBlur(0)` to create that layer without blur (Electron's `View::GetLayer`). Check: remove
+  the call; `grid-paint.spec.ts` compares whole-window captures while the incoming grid waits to be revealed.
 - A view page's drag regions outlive the page in a frameless window and take clicks over the panes
   ([electron#54743](https://github.com/electron/electron/issues/54743); [window.md](window.md), The title bar).
   Workaround: `app-region: no-drag` in every profile page (`profiles.ts`, `_add`). Check: remove it, open Teams (or a

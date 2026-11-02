@@ -14,10 +14,6 @@
 /* A pane narrower than its header: dockview's tab shrinks with it (else it runs past the pane, its × out of sight and
    dockview's list of hidden tabs shown for it). */
 #dock .dv-tab { min-width: 0; flex-shrink: 1; }
-/* Task changes hold the previous picture while asynchronous terminal renderers prepare the next one. */
-::view-transition-group(root), ::view-transition-old(root), ::view-transition-new(root) { animation: none; }
-::view-transition-old(root) { opacity: 1; }
-::view-transition-new(root) { opacity: 0; }
 /* A fixed Resources bar has no resize affordance or split border. */
 #grid .dv-sash.dv-disabled { display: none; }
 #grid:has(.dv-sash.dv-disabled) { --dv-separator-border: transparent; }

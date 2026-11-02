@@ -5,7 +5,7 @@
 // agents, the windows) is app.ts's, the open tasks with their one change after another (serial) open-tasks.ts's; what happens to projects and tasks,
 // whichever window shows them, is the core's (projects.ts, tasks.ts).
 import type { PageLayout } from '../shared/ipc.ts';
-import { BrowserWindow, desktopCapturer, screen, shell as electronShell } from 'electron';
+import { BrowserWindow, ImageView, View, nativeImage, desktopCapturer, screen, shell as electronShell } from 'electron';
 import path from 'path';
 import fs from 'fs';
 import { page } from './pages.ts';
@@ -44,6 +44,9 @@ let windows = 0;
 const PRELOAD = path.join(import.meta.dirname, '..', 'preload', 'index.cjs');
 
 class AppWindow {
+  private showRevision = 0;
+  private holding: Promise<void> | null = null;
+  private gridPicture: { view: View; images: ImageView[] } | null = null;
   shell: Shell; id: number; tabs: Task[]; current: Task | null; viewsHidden: boolean; switching: boolean; leaving: Profile[];
   stateTimer: NodeJS.Timeout | undefined; picking: Map<string, { profile: Profile; page: import('playwright-core').Page; cancel: () => unknown }>;
   questions: Questions; loaded: boolean; pending: [string, unknown[]][]; keyZone: string;
@@ -109,7 +112,7 @@ class AppWindow {
     win.webContents.on('did-start-navigation', (d) => { if (d.isMainFrame && !d.isSameDocument) this.unanswered(); });
     // Where it was is kept for the next start; the app decides whether it closes now (app.ts, closeWindow).
     win.on('close', (e) => { this.place = this.where(); shell.windowClosing(this, e); });
-    win.on('closed', () => this.unanswered());
+    win.on('closed', () => { this.gridPicture = null; this.unanswered(); });
     win.on('focus', () => this.seen());
     win.on('blur', () => { if (this.task) this.shell.dictation.letGo(this.task.key); this.send('window:blur'); });
   }
@@ -210,6 +213,9 @@ class AppWindow {
   async show(task: Task) {
     log.info(`[window] wc=${this.win.webContents.id} shows ${task.key}`);
     if (task === this.current) return;
+    const revision = ++this.showRevision;
+    if (this.current) await this.holdGrid();
+    if (revision !== this.showRevision || this.win.isDestroyed()) return;
     if (this.current) this.leaveGrid(true);
     this.current = task;
     this.shell.saveWindows();
@@ -236,6 +242,7 @@ class AppWindow {
   // (next), the grid and its pages stay on screen until the next one is laid out, as a browser keeps a tab's page until
   // the next one's is drawn: nothing empty between them.
   leaveGrid(next = false) {
+    if (!next) { this.showRevision++; this.releaseGrid(); }
     this.pushState(); // saves the tabs
     this.switching = true;
     clearTimeout(this.stateTimer);
@@ -274,6 +281,49 @@ class AppWindow {
   }
 
   // ---------- the profiles' views ----------
+  // One native overlay holds every surface; HTML-only snapshots cannot cover WebContentsViews.
+  private holdGrid() {
+    if (this.gridPicture || this.win.isMinimized() || !this.win.isVisible()) return Promise.resolve();
+    if (this.holding) return this.holding;
+    const owner = this.current;
+    const profiles = [...this.profiles.values()].map((p) => ({ id: p.id, bounds: { ...p.bounds }, clip: p.clip && { ...p.clip } }));
+    const pending: Promise<void> = Promise.all([this.win.webContents.capturePage(), this.pictures()]).then(async ([window, pictures]) => {
+      if (this.win.isDestroyed() || this.current !== owner) return;
+      const view = new View(), images: ImageView[] = [];
+      // An independent compositor layer draws the images above embedded WebContentsViews.
+      view.setBackgroundBlur(0);
+      const { width, height } = this.win.getContentBounds();
+      view.setBounds({ x: 0, y: 0, width, height });
+      const background = new ImageView(); background.setImage(window);
+      background.setBounds({ x: 0, y: 0, width, height }); view.addChildView(background); images.push(background);
+      for (const p of profiles) {
+        const picture = pictures[p.id];
+        if (!picture) continue;
+        const clip = p.clip ?? p.bounds;
+        const frame = new View(); frame.setBounds(clip);
+        const image = new ImageView(); image.setImage(nativeImage.createFromDataURL(picture));
+        image.setBounds({ x: p.bounds.x - clip.x, y: p.bounds.y - clip.y, width: p.bounds.width, height: p.bounds.height });
+        frame.addChildView(image); view.addChildView(frame); images.push(image);
+      }
+      this.win.contentView.addChildView(view); this.gridPicture = { view, images };
+      await this.hideViews(true);
+      log.info(`[window] wc=${this.win.webContents.id} held grid ${owner?.key}`);
+    }).catch(() => log.warn(`[window] wc=${this.win.webContents.id} could not hold grid`)).finally(() => {
+      if (this.holding === pending) this.holding = null;
+    });
+    return this.holding = pending;
+  }
+  private releaseGrid() {
+    const picture = this.gridPicture; this.gridPicture = null;
+    if (!picture || this.win.isDestroyed()) return;
+    this.win.contentView.removeChildView(picture.view);
+    for (const image of picture.images) image.setImage(nativeImage.createEmpty());
+  }
+  async revealGrid(task: string | null, hidden: boolean) {
+    if (!task || this.task?.key !== task) return;
+    await this.hideViews(hidden);
+    if (this.task?.key === task) this.releaseGrid();
+  }
   // Settings and the grid's drop targets are HTML; the profiles' views are native and draw above it, so
   // they are hidden meanwhile. With snapshots: first a picture of each page on screen, for the page to show in its
   // place ({ profile id: data URL }).
@@ -324,6 +374,7 @@ class AppWindow {
     const scale = (r: Partial<Bounds>): Bounds => ({ x: Math.round((r.x ?? 0) * z), y: Math.round((r.y ?? 0) * z), width: Math.round((r.width ?? 0) * z), height: Math.round((r.height ?? 0) * z) });
     for (const [id, { clip, ...r }] of Object.entries(rects)) this.profiles.get(id)?.layout(r.shown === false ? r : { ...scale(r), ...(clip && { clip: scale(clip) }) });
     this.thumbnails.place(this.paneBox);
+    if (this.gridPicture) this.win.contentView.addChildView(this.gridPicture.view);
   }
   // Where a profile's pane shows its page in the window; null: not on screen.
   paneBox = (id: string) => { const p = this.profiles.get(id); return p?.shown ? p.clip ?? p.bounds : null; };

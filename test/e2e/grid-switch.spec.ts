@@ -147,6 +147,7 @@ test('a delayed menu snapshot cannot enter the next task', async ({ core, ui, ca
     const gate = new Promise<void>((r) => { release = r; });
     k.stash.delayedPictures = { window, pictures, release: () => release(), requested: false };
     window.pictures = async () => {
+      if (k.stash.delayedPictures.requested) return pictures();
       k.stash.delayedPictures.requested = true;
       await gate;
       return saved;

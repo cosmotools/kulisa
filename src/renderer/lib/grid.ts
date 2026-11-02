@@ -1,7 +1,7 @@
 // The window's grid handles and IPC dispatch (docs/window.md, The grid).
 import type { DockviewApi, DockviewPanelApi, GridviewApi, GridviewPanelApi } from 'dockview-react';
 import { store, type DevelopmentDiff } from './store';
-import { forgetFrozen, freeze, onLivePages, showViews, unfreeze } from './views';
+import { forgetFrozen, freeze, onLivePages, revealGrid, unfreeze } from './views';
 import { closeLayers } from './cover';
 import { forgetTerminals } from '../../terminal/renderer';
 import { WindowGrid } from './grid/controller';
@@ -10,7 +10,7 @@ import type { ResourceParams } from './grid/development';
 export type { ResourceParams } from './grid/development';
 export { panes } from './grid/pages';
 
-const grid = new WindowGrid({ freeze, unfreeze, forgetFrozen, showViews, closeLayers });
+const grid = new WindowGrid({ freeze, unfreeze, forgetFrozen, revealGrid, closeLayers });
 onLivePages(grid.scheduleLayout);
 export const scheduleLayout = grid.scheduleLayout;
 export const workspaceMounted = (api: GridviewApi, element: HTMLElement) => grid.mount(api, element);

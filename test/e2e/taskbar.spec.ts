@@ -141,7 +141,7 @@ test('tasks: switching shows the other grid at once, its pages live once it is l
     w.__empty = 0; w.__watching = true;
     const frame = () => {
       const dock = document.getElementById('dock');
-      if (!dock || dock.hasAttribute('aria-busy') || !dock.querySelector('[data-panel]')) w.__empty++;
+      if (!dock || dock.dataset.phase === 'loading' || !dock.querySelector('[data-panel]')) w.__empty++;
       if (w.__watching) requestAnimationFrame(frame);
     };
     requestAnimationFrame(frame);

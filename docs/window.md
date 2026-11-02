@@ -100,15 +100,17 @@ pages into pictures for HTML drop targets.
 
 `task.json` keeps Stage view/overflow/layout in `stage`, and development layout, Stage position/share in `workspace`, saved 300 ms after a change and flushed when the
 task is left. `lib/grid.ts` dispatches window-lifetime messages to `WindowGrid` (`lib/grid/controller.ts`), which owns
-the mounted APIs, subscriptions, save timer, layout frames and retained view transition. Each restoration owns a task session; leaving
-it invalidates its pending loads and frames and skips its transition. Arrangements received during a load join that session. Unmounting
+the mounted APIs, subscriptions, save timer and layout frames. Each restoration owns a task session; leaving
+it invalidates its pending loads and frames. Arrangements received during a load join that session. Unmounting
 releases subscriptions and deferred work; one set of grids serves the window.
 
 The outer Gridview observes the window's available room; its panel dimension events synchronously size development
 and Stage, whose automatic resizing is disabled. Switching tasks commits their controls before restoring their
-grids. A view transition holds the outgoing picture without animation; `waitUntil` retains it while
-`renderTerminals` waits for parsing, fitting and xterm's `onRender`. Native page bounds and visibility are applied
-before releasing the picture. Group dimension changes also save completed sizes.
+grids. `AppWindow` holds snapshots of the outgoing interface and visible pages in native `ImageView`s on one
+compositor layer above the window. `gridPhase` keeps the incoming grid busy and inert while it renders underneath;
+`renderTerminals` waits for parsing, fitting and xterm's `onRender`. `grid:ready` applies native page visibility and
+releases the pictures together. Snapshots live only during a switch, in memory; closing the last task releases them.
+Group dimension changes also save completed sizes.
 `lib/grid/layout.ts` adds each split's theme-gap share to Dockview's saved group sizes, preserving repeated restores.
 `shared/stage-layout.ts` separates a flat saved layout into development and testing groups, retaining
 panel order, stacking and sizes; development panels share an area, separate from Stage. Saved stack settings normalize to explicit horizontal and vertical directions without moving panes. An invalid grid falls back to its default arrangement.

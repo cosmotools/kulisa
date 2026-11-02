@@ -90,7 +90,7 @@ export class StageGrid {
     const task = store.getState().current;
     this.followFrame = requestAnimationFrame(() => {
       const state = store.getState();
-      if (state.current !== task || !state.stageFollow || state.stageFollowPaused || state.loading) return;
+      if (state.current !== task || !state.stageFollow || state.stageFollowPaused || state.gridPhase !== 'ready') return;
       const panel = this.api?.getPanel(environment);
       if (!panel || (this.api!.hasMaximizedGroup() && !panel.api.isMaximized())) return;
       const focused = document.activeElement;

@@ -1,13 +1,15 @@
 // The profiles' pages are native views above the window's HTML (docs/ui.md): they stay
-// hidden while a dialog is open or the grid is not laid out yet (store.loading), and become pictures of themselves
+// hidden while a dialog is open or the grid is preparing (store.gridPhase), and become pictures of themselves
 // while a panel is dragged or a menu is open, so the HTML can be on top. The menus and dialogs themselves: cover.ts.
 import { store } from './store';
 import { coverUnder, dialogsShown } from './cover';
 
 // A menu or a drag too (frozen): the pages stay pictures until it ends (unfreeze), or the next task's grid shown under a
 // menu would show them over it.
-const viewsCovered = () => dialogsShown() > 0 || store.getState().loading || !!frozen;
-export const showViews = () => kulisa.invoke('views:hidden', viewsCovered());
+const overlaysCoverPages = () => dialogsShown() > 0 || !!frozen;
+const viewsCovered = () => overlaysCoverPages() || store.getState().gridPhase !== 'ready';
+const showViews = () => kulisa.invoke('views:hidden', viewsCovered());
+export const revealGrid = (task: string) => kulisa.invoke('grid:ready', { task, hidden: overlaysCoverPages() });
 let layout: (() => void) | null = null;
 export const onLivePages = (listener: () => void) => { layout = listener; };
 

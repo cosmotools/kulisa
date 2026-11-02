@@ -1,76 +1,80 @@
-// A restored grid and its terminal content reach the screen together.
+// The whole native window stays on one task while the incoming grid prepares.
 import { test, expect } from './fixtures.ts';
-import { dock, frames, notLoading } from './helpers.ts';
+import { invoke, notLoading, frames } from './helpers.ts';
 import { newTask, showTask } from './tasks-helpers.ts';
 
-test('task switching paints the terminal belonging to the completed layout', async ({ core, ui }) => {
+test('task switching retains the outgoing window and page pictures until the next grid is ready', async ({ core, ui, call }) => {
   await notLoading(ui);
-  await ui.addStyleTag({ content: '#resources > nav { background: rgb(0, 0, 160) !important; }' });
-  await frames(ui);
   const first = await core((k) => k.shell.task.key);
-  const paint = async (color: number) => {
-    await expect.poll(() => ui.getByTestId('terminal').evaluate((el) => {
-      const term = (window as any).__term;
-      const screen = el.querySelector('.xterm-screen').getBoundingClientRect();
-      return el.clientHeight - screen.height < screen.height / term.rows + 5 && term.rows > 20;
-    })).toBe(true);
-    const size = await ui.evaluate(() => ({ cols: (window as any).__term.cols, rows: (window as any).__term.rows }));
-    // Distinct output makes stale terminal pixels detectable without reading text from an image.
-    await core((k, a) => k.shell.win.webContents.send('pty:out', { task: k.shell.task.promptTarget().key,
-      ...a.size, data: `\x1b[38;2;${a.color === 0xa00000 ? '160;0;0' : '0;160;0'};48;2;${a.color === 0xa00000 ? '160;0;0' : '0;160;0'}m\x1b[2J\x1b[H${Array(a.size.rows).fill('█'.repeat(a.size.cols - 1)).join('\r\n')}\x1b[H` }), { color, size });
-    await expect.poll(() => ui.evaluate(() => (window as any).__term.buffer.active.getLine(10).getCell(10).getBgColor())).toBe(color);
-    await frames(ui);
-  };
-  await dock(ui, (api) => api.getPanel('resources').api.setSize({ width: 380 }));
-  await paint(0xa00000);
+  await call('profile_create', { name: 'Paint.first' });
+  await call('profile_create', { name: 'Paint.second' });
+  await expect.poll(() => core((k) => [...k.shell.profiles.values()].filter((p) => p.visible() && p.bounds.height > 0).length)).toBe(2);
+  await core(async (k) => {
+    for (const p of k.shell.profiles.values()) await p.get().wc.executeJavaScript("document.body.style.backgroundColor = '#b000b0'");
+  });
+  await frames(ui);
   const second = await newTask(core, ui);
   await notLoading(ui);
-  await dock(ui, (api) => {
-    api.getPanel('resources').api.moveTo({ group: api.getPanel('terminal').group, position: 'right' });
-    api.getPanel('resources').api.setSize({ width: 300 });
-  });
-  await paint(0x00a000);
   await showTask(core, ui, first);
   await notLoading(ui);
-  await ui.evaluate(() => document.activeViewTransition?.finished);
-  await frames(ui);
-  const size = await ui.evaluate(() => ({ width: innerWidth, height: innerHeight }));
-  const images: Buffer[] = [];
-  const recording = await ui.screencast.start({ fps: 60, quality: 95, size, onFrame: ({ data }) => { images.push(data); } });
-  try {
-    for (let i = 0; i < 10; i++) {
-      await showTask(core, ui, i % 2 === 0 ? second : first);
-      await notLoading(ui);
-      await ui.evaluate(() => document.activeViewTransition?.finished);
-      await frames(ui);
-    }
-  } finally { await recording.dispose(); }
-  expect(images.length).toBeGreaterThan(3);
-  const pixels = await ui.evaluate(async ({ encoded, width, height }) => {
-    const canvas = new OffscreenCanvas(8, 8), context = canvas.getContext('2d');
-    const result: { left: number[]; middle: number[]; leftRail: number[]; rightRail: number[] }[] = [];
-    for (const data of encoded) {
-      const bytes = Uint8Array.from(atob(data), (c) => c.charCodeAt(0));
-      const image = await createImageBitmap(new Blob([bytes], { type: 'image/jpeg' }));
-      const sample = (x: number) => {
-        context.drawImage(image, x * image.width / width, image.height / 2, 8 * image.width / width, 8 * image.height / height, 0, 0, 8, 8);
-        const rgba = context.getImageData(0, 0, 8, 8).data, rgb = [0, 0, 0];
-        for (let i = 0; i < rgba.length; i += 4) for (let c = 0; c < 3; c++) rgb[c] += rgba[i + c] / 64;
-        return rgb.map(Math.round);
-      };
-      result.push({ left: sample(100), middle: sample(Math.round(width / 2)), leftRail: sample(10), rightRail: sample(width - 20) });
-      image.close();
-    }
-    return result;
-  }, { encoded: images.map((image) => image.toString('base64')), ...size });
-  const bad = pixels.flatMap((frame, i) => {
-    const red = (rgb: number[]) => rgb[0] > 110 && rgb[1] < 40;
-    const green = (rgb: number[]) => rgb[0] < 40 && rgb[1] > 110;
-    const dark = (rgb: number[]) => rgb[0] < 60 && rgb[1] < 60;
-    const blue = (rgb: number[]) => rgb[0] < 40 && rgb[1] < 40 && rgb[2] > 110;
-    return (dark(frame.left) && red(frame.middle) && blue(frame.leftRail))
-      || (green(frame.left) && green(frame.middle) && blue(frame.rightRail)) ? [] : [{ frame: i, ...frame }];
+  // Renderer screenshots omit native views; inspect the cover and its images through Electron's View API.
+  const cover = () => core((k) => {
+    const children = k.shell.win.contentView.children;
+    const view = children.find((v) => v.children.some((child) => child instanceof k.electron.ImageView));
+    if (!view) return null;
+    const count = (v: Electron.View): number => Number(v instanceof k.electron.ImageView) + v.children.reduce((n, child) => n + count(child), 0);
+    const { width, height } = k.shell.win.getContentBounds();
+    const bounds = view.getBounds();
+    return { images: count(view), topmost: children.at(-1) === view,
+      fillsWindow: bounds.x === 0 && bounds.y === 0 && bounds.width === width && bounds.height === height };
   });
-  for (const frame of bad.slice(0, 5)) await test.info().attach(`incomplete-frame-${frame.frame}`, { body: images[frame.frame], contentType: 'image/jpeg' });
-  expect(bad, 'each painted frame contains one task layout with its own terminal').toEqual([]);
+  for (const [target, images] of [[second, 3], [first, 1]] as const) {
+    await core(async (k) => {
+      const window = k.shell.windows[0], reveal = window.revealGrid.bind(window);
+      // The desktop capturer includes native pages and ImageViews; a renderer screenshot excludes both.
+      const capture = async () => {
+        const { width, height } = window.win.getContentBounds();
+        const sources = await k.electron.desktopCapturer.getSources({ types: ['window'], thumbnailSize: { width, height } });
+        return sources.find((source) => source.id === window.win.getMediaSourceId()).thumbnail.toBitmap();
+      };
+      const before = k.canShoot() ? await capture() : null;
+      let release: () => void;
+      const gate = new Promise<void>((resolve) => { release = resolve; });
+      k.stash.paintGrid = { window, reveal, capture, before, release: () => release(), requested: false };
+      window.revealGrid = async (task, hidden) => {
+        k.stash.paintGrid.requested = true;
+        await gate;
+        return reveal(task, hidden);
+      };
+    });
+    try {
+      await invoke(ui, 'task:show', target);
+      await expect.poll(() => core((k) => k.stash.paintGrid.requested)).toBe(true);
+      await expect.poll(cover).toEqual({ images, topmost: true, fillsWindow: true });
+      await expect(ui.locator('#dock')).toHaveAttribute('aria-busy', 'true');
+      await expect(ui.locator('#dock')).toHaveAttribute('inert', '');
+      if (await core((k) => k.canShoot())) {
+        const changed = await core(async (k) => {
+          const { before, capture } = k.stash.paintGrid, after = await capture();
+          if (before.length !== after.length) return 1;
+          let different = 0;
+          for (let i = 0; i < before.length; i += 4) {
+            if (Math.max(...[0, 1, 2].map((c) => Math.abs(before[i + c] - after[i + c]))) > 30) different++;
+          }
+          return different / (before.length / 4);
+        });
+        expect(changed, 'the prepared incoming grid stays behind the outgoing picture').toBeLessThan(0.02);
+      }
+      await core((k) => k.stash.paintGrid.release());
+      await notLoading(ui);
+      await expect.poll(cover).toBeNull();
+      await expect(ui.locator('#dock')).not.toHaveAttribute('inert');
+      await expect.poll(() => core((k) => [...k.shell.profiles.values()].filter((p) => p.visible()).length)).toBe(target === first ? 2 : 0);
+    } finally {
+      await core((k) => {
+        const held = k.stash.paintGrid;
+        held.window.revealGrid = held.reveal; held.release(); delete k.stash.paintGrid;
+      });
+    }
+  }
 });
