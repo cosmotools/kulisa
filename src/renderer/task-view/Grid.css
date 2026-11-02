@@ -11,9 +11,9 @@
   --dv-tab-divider-color: transparent; --dv-active-sash-color: var(--ring);
   --dv-drag-over-background-color: var(--accent); --dv-drag-over-border-color: var(--ring);
 }
-/* Keep hidden grids measurable; Dockview's sashes explicitly set their own visibility. */
-[data-task-view]:not([data-active]), [data-task-view]:not([data-active]) * {
-  visibility: hidden !important; transition: none !important;
+/* Container opacity keeps controls from animating inherited visibility when a task is shown. */
+[data-task-view]:not([data-active]) {
+  opacity: 0; pointer-events: none;
 }
 /* A pane narrower than its header: dockview's tab shrinks with it (else it runs past the pane, its × out of sight and
    dockview's list of hidden tabs shown for it). */

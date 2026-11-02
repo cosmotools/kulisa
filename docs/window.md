@@ -98,7 +98,7 @@ the child keeps its full viewport, offset within the parent. Fully offscreen pag
 is removed when the page fits, the profile closes, or it moves to another window. Dragging in either grid turns
 pages into pictures for HTML drop targets.
 
-Each visited task owns a live `TaskView`, its zustand store and a `TaskGrid` in `src/renderer/task-view/`. CSS visibility
+Each visited task owns a live `TaskView`, its zustand store and a `TaskGrid` in `src/renderer/task-view/`. Container opacity
 hides inactive screens while preserving their dimensions; `inert` excludes their controls from input. Components,
 Dockview instances and Stage terminal Views live until their task or panel closes. Project Explorer and Diff pause
 background polling; focus requests and dictation belong to the selected task. Closing the task unmounts its view
