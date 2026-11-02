@@ -14,7 +14,7 @@ import type { Task } from '../tasks.ts';
 export function registerTasks(ipc: Ipc) {
   const { shell, at, serial, tasks } = ipc;
   const store = shell.store;
-  const { openProject, closeTasks, askClosing, moveTask, moveAll, dropTask, dragOut, quit, createTask, showTask, closeTask, deleteTask, deleteMerged, deleteProject, openTasksOf } = tasks;
+  const { openProject, closeTasks, askClosing, moveTask, moveAll, dropTask, dragOut, quit, createTask, showTask, closeTask, deleteTask, deleteProject, openTasksOf } = tasks;
   const sendProjects = () => shell.sendProjects();
   handle('project:list', (e) => at(e)?.info());
   // The switch runs on its own; the window hears about it through project:state and profile:state. No question
@@ -77,7 +77,6 @@ export function registerTasks(ipc: Ipc) {
   handle('task:rename', (_e, { key, name }) => taskAt(key, (task) => task.rename(name)));
   handle('task:repo:add', (_e, { key, repo }) => taskAt(key, (task) => task.addRepository(repo)));
   handle('task:repo:remove', (_e, { key, repo }) => taskAt(key, (task) => task.removeRepository(repo)));
-  handle('project:task:delete-merged', (e, { id }) => serial(() => { const p = shell.open.get(id); return p ? deleteMerged(p, at(e)) : { error: 'the project is not open' }; }));
   handle('task:show-folder', (_e, key) => { const task = shell.taskByKey(key); return task && electronShell.openPath(task.folder); });
   handle('task:open-folder', (_e, { key, folder }) => {
     const task = shell.taskByKey(key); // only a folder the task owns (a resource), not any path the renderer names

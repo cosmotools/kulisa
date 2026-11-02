@@ -13,11 +13,9 @@ export const lastWorked = (p: ProjectEntry): number => (p.tasks.some((t) => !t.c
 export function projectMenu(p: ProjectEntry, { newTask, keys, move = [], done = () => {} }:
   { newTask: () => unknown; keys?: string; move?: MenuItem[]; done?: () => void }): MenuItem[] {
   const id = p.id, loaded = store.getState().projects.open.some((x) => x.id === id);
-  const merged = loaded && p.tasks.some((t) => t.closed && t.merged); // its PR merged, nothing uncommitted: deleting loses nothing (projects.ts, checkMerged)
   return [{ label: 'New Task', keys, run: () => { done(); return newTask(); } },
     '-', ...(move.length ? [...move, '-' as const] : []),
     { label: 'Project Settings…', run: () => { done(); openSettings('projects', id); } },
     { label: 'Show Data Folder', enabled: loaded, run: () => kulisa.invoke('project:show-data', { id }) },
-    ...(merged ? [{ label: 'Delete Merged Tasks…', run: () => kulisa.invoke('project:task:delete-merged', { id }) }] : []),
     '-', { label: 'Close All Tasks', enabled: p.tasks.some((t) => !t.closed), run: () => kulisa.invoke('project:task:close-all', { id }) }];
 }

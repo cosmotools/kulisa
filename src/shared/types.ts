@@ -40,13 +40,13 @@ export interface Artifact {
 }
 export interface TaskInfo {
   id: string; key: string; project: string; name: string; state: AgentState; folder: string; branch: string | null;
-  closed: boolean; merged: boolean;
+  closed: boolean;
   repos: string[]; // the project's repositories it may add (Add Repository)
   resources: TaskResource[]; // what the task has/created (Resources.tsx)
 }
 export interface ProjectEntry { id: string; name: string; folders: string[]; color: string; favicon?: string; tasks: ProjectTask[] }
 // A task of a project, open or not (app.ts, shell.projects): the sidebar lists the closed ones.
-export interface ProjectTask { id: string; name: string; branch?: string | null; closed: boolean; closedAt?: number; merged: boolean }
+export interface ProjectTask { id: string; name: string; branch?: string | null; closed: boolean; closedAt?: number }
 // The window's tasks' bar (AppWindow.info): every project, the window's tabs in the bar's order, the shown task (its
 // key) and its project (its id), the loaded projects' agents (the terminals' +), the other windows (Move to Window).
 export interface ProjectsInfo {

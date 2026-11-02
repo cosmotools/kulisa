@@ -28,7 +28,7 @@ repositories (git worktrees), so the project's folders stay the human's. Its dat
     Window**, **Move to Window: …** (one row per other window, named by the task it shows and how many more it holds:
     "task-3 (+2)"); Close; Delete Task…; then **the project's submenu** (`{ submenu }`, [ui.md](ui.md), Menus: the
     project has no tab of its own): New Task, **Move All Tasks to New Window / to Window: …** (its open tasks of this
-    window), Project Settings…, Show Data Folder, Delete Merged Tasks… (Tasks, below), **Close All Tasks** (its open
+    window), Project Settings…, Show Data Folder, **Close All Tasks** (its open
     tasks in every window, asked once when an agent works). The project's name is changed in Settings only.
   - **A task's tab shows nothing of its profiles**: Settings edits them, and how many are open says nothing.
   - **The + after the tabs** (`TaskBar.tsx`): a new task of the shown task's project, in one click.
@@ -154,10 +154,10 @@ repositories (git worktrees), so the project's folders stay the human's. Its dat
   grid while a task is shown (its button at the tasks' bar's start, Ctrl+Shift+A), covering the pages as a dialog does, closed by a
   choice, Esc or the same again.
   - **A project's row**: its icon, its name, its tasks under it (folded by its arrow); **+** under the pointer, a new
-    task with its default agent; its right-click: New Task, Project Settings…, Show Data Folder and Delete Merged Tasks…
-    (while it is loaded; the second when there are), Close All Tasks (when a task of it is open).
+    task with its default agent; its right-click: New Task, Project Settings…, Show Data Folder (while it is loaded),
+    Close All Tasks (when a task of it is open).
   - **A task's row**: the open first, then the closed, the one closed last first; its agent's state when it is open in
-    this window, "open" when in another, its branch (when its name is another), when it was closed, "merged". A click,
+    this window, "open" when in another, its branch (when its name is another), when it was closed. A click,
     Enter or Space shows it (its window brought to the front) or opens it again; its 🗑 (under the pointer or the
     keyboard) or Delete: Delete Task…'s question; its right-click: Show or Open, Close, Delete Task…. A project without
     tasks says so.
@@ -323,12 +323,6 @@ Stage terminal environments belong to the task (`Task.stageTerminals`): their ac
   conversations, and work not in main and not pushed (its own commits, uncommitted files). Without git its files stay
   in the project's folder. The same delete is on every task's row in the sidebar, a closed one's too, its project
   loaded or not.
-- **Merged tasks.** Closed tasks stay until the human deletes them; Kulisa offers it once a closed task's PR is merged:
-  each of its copies has commits of its own, all in its remote's default branch (`origin/HEAD`, fetched in the
-  background as the project is shown and as a task closes), and nothing uncommitted. A squash or rebase merge puts new
-  commits there: they count by their changes, git's patch ids (each of the branch's commits has its like there, or the
-  branch's whole change is one commit there), so a change made after the merge keeps the task unmerged. Its row in the
-  sidebar says "merged"; the project's menus have **Delete Merged Tasks…**, one question naming them.
 - **The terminals' +** opens another of the project's agents, a new conversation in a terminal of its own, or a shell; **the
   agent's Change agent… row menu** hands the task to another agent ("Several agents in a task").
 
@@ -616,7 +610,7 @@ Crashpad/                         Electron's crash dumps (crashReporter, no serv
                                   after a crash; Crashpad prunes them itself (90 days, 128 MB)
 deleted-folders.json              folders to remove at the next start (a session keeps its files open)
 projects/<project id>/            a project's data, by its id (projects.json), gone with the project
-  tasks.json                      { list: [{ id, name, named, resources, closedAt, merged }] }; name "New
+  tasks.json                      { list: [{ id, name, named, resources, closedAt }] }; name "New
                                   Task" and named unset until it is named; resources what it has, the first where it
                                   works: { kind: "maintree", folder } (the project's folder it opened in) until its own
                                   { kind: "worktree", repo, worktree, branch, base, folder } takes its place, then the

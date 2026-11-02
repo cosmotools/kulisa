@@ -214,7 +214,6 @@ class AppWindow {
     this.shell.saveWindows();
     this.win.setTitle(`${task.displayName} · ${task.project.name} — Kulisa`);
     this.sendProjects();
-    task.project.checkMerged().then((found) => found && this.shell.sendProjects()).catch(() => {}); // its closed tasks whose PR is merged
     await this.showLoaded();
   }
   // Publish task state before its programs start so terminals receive their laid-out size.

@@ -109,7 +109,7 @@ test('task index migrates closure into one timestamp, preserving open tasks and 
       { id: 'closed', name: 'Closed', closed: true, closedAt: 123, merged: true },
       { id: 'unknown', name: 'Unknown', closed: true },
     ] }));
-    const expected = { list: [{ id: 'open', name: 'Open' }, { id: 'closed', name: 'Closed', merged: true, closedAt: 123 }, { id: 'unknown', name: 'Unknown', closedAt: 0 }] };
+    const expected = { list: [{ id: 'open', name: 'Open' }, { id: 'closed', name: 'Closed', closedAt: 123 }, { id: 'unknown', name: 'Unknown', closedAt: 0 }] };
     assert.deepEqual(f.store.tasksOf({ id: 'project' }), expected);
     assert.deepEqual(JSON.parse(fs.readFileSync(file, 'utf8')), expected);
     assert.deepEqual(f.store.tasksOf({ id: 'project' }), expected);

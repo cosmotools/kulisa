@@ -209,9 +209,7 @@ export function openTasks(shell: Shell, { appDevTools }: { appDevTools: boolean 
   async function closeTask(task: Task): Promise<Result<{ keys: string[] }>> {
     const w = task.window;
     if (!w) return { error: 'the task is not open' };
-    const r = await closeTasks(w, [task]);
-    task.project.checkMerged().then((found) => found && sendProjects()).catch(() => {});
-    return r;
+    return closeTasks(w, [task]);
   }
   // Delete in a task's menu (open or closed), after the human says yes: everything of it goes (projects.ts). An open
   // one leaves its window first.
@@ -230,19 +228,6 @@ export function openTasks(shell: Shell, { appDevTools }: { appDevTools: boolean 
     sendProjects();
     return { id: task.id };
   }
-  // Delete Merged Tasks… (a project's menu, from window w): its closed tasks whose PR is merged, after one question naming them;
-  // nothing of them is lost (projects.ts, checkMerged).
-  async function deleteMerged(project: Project, w: AppWindow | null) {
-    const list = project.closedTasks().filter((t) => t.entry.merged);
-    if (!list.length) return { error: 'no closed task of it is merged' };
-    if (!await shell.ask({ message: `Delete ${list.length === 1 ? `the task ${list[0]!.name}` : `${list.length} merged tasks`}?`, ok: 'Delete', danger: true,
-      detail: `Merged on the remote, nothing uncommitted: ${list.map((t) => `${t.name} (${t.branch})`).join(', ')}. Their folders, branches, profiles' copies and agents' conversations go.` }, w)) {
-      return { error: 'the human said no' };
-    }
-    for (const t of list) await project.deleteTask(t);
-    sendProjects();
-    return { deleted: list.map((t) => t.id) };
-  }
   // Removing a project, from wherever a window asks for it (w): the human confirms, then its open tasks are closed
   // in every window, and its data deleted (projects.ts).
   async function deleteProject(id: string, w: AppWindow | null) {
@@ -255,7 +240,7 @@ export function openTasks(shell: Shell, { appDevTools }: { appDevTools: boolean 
     sendProjects();
     return { id };
   }
-  return { serial, newWindow, loadProject, unloadIdle, openTasksOf, openProject, closeTasks, askClosing, moveTask, moveAll, dropTask, dragOut, quit, createTask, showTask, closeTask, deleteTask, deleteMerged, deleteProject };
+  return { serial, newWindow, loadProject, unloadIdle, openTasksOf, openProject, closeTasks, askClosing, moveTask, moveAll, dropTask, dragOut, quit, createTask, showTask, closeTask, deleteTask, deleteProject };
 }
 export type OpenTasks = ReturnType<typeof openTasks>;
 

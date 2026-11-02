@@ -8,7 +8,7 @@ import fs from 'fs';
 import path from 'path';
 import { removeTree } from './remove.ts';
 import { Task } from './tasks.ts';
-import { freeBranch, createWorktree, removeWorktree, merged, repoOf, changes, clone } from './worktrees.ts';
+import { freeBranch, createWorktree, removeWorktree, repoOf, changes, clone } from './worktrees.ts';
 import { originKey } from './remotes.ts';
 import { REVOKE } from '../github/ipc.ts';
 import { nameError, repoName, slugOf } from '../shared/names.ts';
@@ -160,22 +160,9 @@ class Project {
     this.save();
     await task.unload();
   }
-  // Its closed tasks whose PR is merged (worktrees.ts, merged: each copy's commits all in its remote's default branch,
-  // nothing uncommitted): marked, for its menu to offer deleting them (nothing is lost). Checked as a task of it is
-  // shown and as one is closed, in the background (a fetch takes a moment). True when one was found.
-  async checkMerged() {
-    let found = false;
-    for (const t of this.closedTasks()) {
-      const copies = worktreesOf(t.entry);
-      if (t.entry.merged || !copies.length) continue;
-      if ((await Promise.all(copies.map((c) => merged(c)))).every(Boolean)) { t.entry.merged = true; found = true; }
-    }
-    if (found) this.save();
-    return found;
-  }
   // A closed task opened again (the sidebar), to be shown: it loads then, its agent resumed.
   reopen(task: Task) {
-    delete task.entry.closedAt; delete task.entry.merged;
+    delete task.entry.closedAt;
     this.save();
   }
   askDeleteTask(task: Task) { return askDeleteTask(this.shell, task.entry, task.folder, task.window || this.window); }

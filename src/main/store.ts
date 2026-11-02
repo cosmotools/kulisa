@@ -11,8 +11,8 @@
 //                            "github.com/acme/shop" -> an account's id, src/github). What a project is made of is said
 //                            here alone
 //   projects/<id>/
-//     tasks.json             the project's tasks: { list: [{ id, name, named, resources, closedAt,
-//                            merged }] }; name "New Task" and named unset until the agent or the human names it;
+//     tasks.json             the project's tasks: { list: [{ id, name, named, resources, closedAt }] };
+//                            name "New Task" and named unset until the agent or the human names it;
 //                            resources what it has (TaskEntry), the first where it works
 //     <task id>/             a task (TaskStore): task.json owns conversation metadata, development tabs,
 //                            Stage environments and both layouts; a copy of each opened profile's master
@@ -67,7 +67,7 @@ type Resource = { kind: 'maintree'; folder: string } | ({ kind: 'worktree' } & C
 // A task in its project's tasks.json. Where it works, its branch and its folder of copies are its resources'.
 interface TaskEntry {
   id: string; name: string; named?: boolean; resources?: Resource[];
-  closedAt?: number; merged?: boolean;
+  closedAt?: number;
 }
 type Worktree = Extract<Resource, { kind: 'worktree' }>;
 const worktreesOf = (e: TaskEntry) => (e.resources || []).filter((r): r is Worktree => r.kind === 'worktree');
@@ -151,9 +151,9 @@ class Store {
   // A project's tasks (tasks.json) and each one's data.
   tasksOf(p: { id: string }): TasksFile {
     const file = path.join(this.dir, 'projects', p.id, 'tasks.json');
-    const tasks = (readJSON(file) || { list: [] }) as { list: (TaskEntry & { closed?: boolean })[] };
-    if (tasks.list.some((e) => 'closed' in e)) {
-      tasks.list = tasks.list.map(({ closed, closedAt, ...entry }) => ({ ...entry,
+    const tasks = (readJSON(file) || { list: [] }) as { list: (TaskEntry & { closed?: boolean; merged?: boolean })[] };
+    if (tasks.list.some((e) => 'closed' in e || 'merged' in e)) {
+      tasks.list = tasks.list.map(({ closed, closedAt, merged: _, ...entry }) => ({ ...entry,
         ...((closed === true || closed === undefined && closedAt !== undefined) && { closedAt: closedAt ?? 0 }) }));
       writeFileAtomic(file, JSON.stringify(tasks, null, 2));
     }

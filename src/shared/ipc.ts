@@ -64,7 +64,6 @@ export interface Invoke extends TerminalInvoke, ThumbnailInvoke, GitHubInvoke, D
   'project:task:move-all': I<[{ id: string; to?: number | null; terminalContents: TerminalContents }]>;
   'project:show-data': I<[{ id: string }]>;
   'project:delete': I<[{ id: string }], Result<{ id: string }>>;
-  'project:task:delete-merged': I<[{ id: string }]>;
   'account:list': I<[], AccountsInfo>;
   'account:delete': I<[{ id: string }], Result<AccountsInfo, string | null>>;
   'account:signin:start': I<[{ id?: string | null; agent: string; key: string }], Result<SignedIn, string | null>>; // null: cancelled

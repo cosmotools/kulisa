@@ -277,10 +277,10 @@ The agent terminal can briefly show its background while the selected task's tex
 
 - **The sidebar** (the button at the start of the tasks' bar, or Ctrl+Shift+A; with no task open it is always there): every
   project with its tasks, the one you worked in last first. Open tasks come first, showing what their agent is doing
-  (or "open" when they are in another window), then the closed ones, with when you closed them, and "merged" once
-  their work is merged. Click a task (or Enter) to switch to it or open it again; its trash can (or the Delete key)
+  (or "open" when they are in another window), then the closed ones, with when you closed them.
+  Click a task (or Enter) to switch to it or open it again; its trash can (or the Delete key)
   deletes it. **+** on a project's row, shown under the pointer, starts a new task of it; a right-click on the project
-  has New Task, Project Settings…, Show Data Folder, Delete Merged Tasks… and Close All Tasks. **New Project…** is at
+  has New Task, Project Settings…, Show Data Folder and Close All Tasks. **New Project…** is at
   its foot. Over a task, it closes once you choose something (or with Esc).
 - **A new task**: **+** in the tasks' bar (with several projects it asks which one), Ctrl+Shift+N for the shown
   task's project, or **+** on a project's row in the sidebar. It runs the project's default agent with a new
@@ -316,10 +316,9 @@ The agent terminal can briefly show its background while the selected task's tex
   conversation.
 - **Delete Task…** (its tab's right-click menu) deletes it for good: its copy of the code, its branch, its profiles'
   copies, its conversation. The question says what would be lost (work not merged and not pushed). A task is
-  deleted from its row in the sidebar too: the trash can at the row's end (or the Delete key), open or closed. Once a
-  closed task's work is merged, its row says "merged", and the project's menus offer **Delete Merged Tasks…**.
+  deleted from its row in the sidebar too: the trash can at the row's end (or the Delete key), open or closed.
 - **The project's submenu**, at the end of a tab's right-click menu under the project's name: New Task, Move All
-  Tasks to New Window or to another window, Project Settings…, Show Data Folder, Delete Merged Tasks…, Close All
+  Tasks to New Window or to another window, Project Settings…, Show Data Folder, Close All
   Tasks (asks only when an agent is working).
 
 ### Several windows
