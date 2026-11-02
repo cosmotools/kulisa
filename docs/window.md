@@ -66,7 +66,8 @@ environment adds it, closing the last removes it. A new task opens only its defa
 (side by side), **Vertical stack** (one above another), **Tabs** (one environment at a time), and **Open an environment**.
 Moving Stage preserves the development grid and its panels; Terminal and Resources stay together. Resources starts to the left of the terminal; saved layouts keep their placement. The Resources bar and Resources content: [tasks.md](tasks.md), The Resources panel. Its standalone group has no header; a shared group keeps its nonclosable Resources tab.
 Resources keeps at least 204 CSS pixels of height so its sections and grip stay reachable. `task-view/development.ts` owns
-development-group constraints, including the empty terminal’s folded size and its restoration. Restoring a folded
+development-group constraints, including the empty terminal’s folded size and its restoration. Collapsed standalone
+groups fix only their split axis; shared tab groups keep room for their panels. Restoring a folded
 terminal compensates Dockview’s split gap to preserve its expanded size; available room can limit it with Resources
 below. A selected diff keeps the development area expanded even with every terminal closed ([tasks.md](tasks.md), Diff).
 The human's `stage:arrange` IPC and the agent's
@@ -102,7 +103,8 @@ Each visited task owns a live `TaskView`, its zustand store and a `TaskGrid` in 
 `content-visibility: hidden` skips inactive contents while retaining their DOM; `inert` excludes their controls from input. Components,
 Dockview instances and Stage terminal Views live until their task or panel closes. Project Explorer and Diff pause
 background polling; focus requests and dictation belong to the selected task. Closing the task unmounts its view
-and releases its controller. Selection changes deactivate the outgoing controller directly (`task-view/controller.ts`).
+and releases its controller. Each mounted grid owns one disposable set of subscriptions, including its group-size
+listeners; removing that grid disposes the set. Selection changes deactivate the outgoing controller directly (`task-view/controller.ts`).
 Window controls address the selected task; panels read their permanent controller and task through one context.
 Diff selection and terminal focus requests use this owner; IPC messages carry the task key for routing and validation.
 The screen's memo boundary keeps selection changes out of unchanged descendants. Pending address/search focus,

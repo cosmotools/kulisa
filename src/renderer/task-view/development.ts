@@ -11,11 +11,13 @@ import { menuAt } from '../lib/menu';
 
 export interface ResourceParams { section?: 'project' | 'artifacts' | 'terminals' | 'diff' | null; expandedWidth?: number; expandedHeight?: number }
 const resourceMinimumWidth = 300, resourceRailWidth = 40;
+interface GroupInsets { width: number; height: number; axis: 'width' | 'height' }
+const emptyInsets: GroupInsets = { width: 0, height: 0, axis: 'width' };
 
 export class DevelopmentGrid {
   api: DockviewApi | null = null;
   private developmentGap = dockTheme.gap ?? 0;
-  private terminalFold: { group: DockviewApi['groups'][number]; vertical: boolean; size: number } | null = null;
+  private terminalFold: { group: DockviewApi['groups'][number]; axis: GroupInsets['axis']; size: number } | null = null;
   private reviewNavigation = 0;
   private reviewSession: ReturnType<typeof createDiff> | null = null;
   constructor(private readonly store: TaskStore, private readonly changed: () => void, private readonly scheduleLayout: () => void) {}
@@ -54,10 +56,12 @@ export class DevelopmentGrid {
   selectResource = (panel: DockviewPanelApi, params: ResourceParams, section: NonNullable<ResourceParams['section']>) => {
     const current = params.section === undefined ? 'project' : params.section;
     const next = current === section ? null : section;
-    const inset = this.insets().get(panel.group.id);
-    const expandedWidth = current && !inset?.vertical ? panel.width : params.expandedWidth;
-    const expandedHeight = current && inset?.vertical ? panel.height : params.expandedHeight;
-    const updated = { section: next, expandedWidth, expandedHeight };
+    const updated = { ...params, section: next };
+    if (current) {
+      const axis = (this.insets().get(panel.group.id) ?? emptyInsets).axis;
+      if (axis === 'width') updated.expandedWidth = panel.width;
+      else updated.expandedHeight = panel.height;
+    }
     panel.updateParameters(updated);
     if (next === 'diff') this.openDiff();
     else if (current === 'diff') this.showAgents();
@@ -66,35 +70,37 @@ export class DevelopmentGrid {
     this.changed();
   };
 
-  sizeResources = (panel: DockviewPanelApi, params: ResourceParams) => {
+  private sizeResources = (panel: DockviewPanelApi, params: ResourceParams) => {
     // A shared tab group keeps the room its other panels need.
     if (panel.group.panels.length !== 1) return;
-    const inset = this.insets().get(panel.group.id) ?? { width: 0, height: 0, vertical: false };
+    const inset = this.insets().get(panel.group.id) ?? emptyInsets;
     const open = params.section !== null;
-    if (inset.vertical) panel.setSize({ height: (open ? params.expandedHeight ?? this.api!.height / 2 : resourceBarHeight) + inset.height });
+    if (inset.axis === 'height') panel.setSize({ height: (open ? params.expandedHeight ?? this.api!.height / 2 : resourceBarHeight) + inset.height });
     else panel.setSize({ width: (open ? Math.max(resourceMinimumWidth, params.expandedWidth ?? resourceMinimumWidth) : resourceRailWidth) + inset.width });
   };
 
-  insets = () => {
-    const insets = new Map<string, { width: number; height: number; vertical: boolean }>(), grid = this.api?.toJSON().grid;
+  private insets = () => {
+    const insets = new Map<string, GroupInsets>(), grid = this.api?.toJSON().grid;
     if (!grid) return insets;
     const gap = this.developmentGap;
-    function visit(node: SerializedDockview['grid']['root'], horizontal: boolean, inset: { width: number; height: number; vertical: boolean }) {
+    function visit(node: SerializedDockview['grid']['root'], horizontal: boolean, inset: GroupInsets) {
       if (!Array.isArray(node.data)) { insets.set(node.data.id, inset); return; }
       const share = gap * (node.data.length - 1) / node.data.length;
-      const next = { ...inset, [horizontal ? 'width' : 'height']: share, vertical: !horizontal };
+      const axis = horizontal ? 'width' : 'height';
+      const next: GroupInsets = { ...inset, [axis]: share, axis };
       node.data.forEach((child) => visit(child, !horizontal, next));
     }
-    visit(grid.root, grid.orientation === Orientation.HORIZONTAL, { width: 0, height: 0, vertical: false });
+    visit(grid.root, grid.orientation === Orientation.HORIZONTAL, emptyInsets);
     return insets;
   };
 
-  restoreTerminalSize = () => {
+  private restoreTerminalSize = () => {
     const before = this.terminalFold; this.terminalFold = null;
     if (!before || !this.api?.groups.includes(before.group)) return;
     before.group.api.setConstraints({ minimumWidth: 0, maximumWidth: Infinity, minimumHeight: 0, maximumHeight: Infinity });
-    const inset = this.insets().get(before.group.id) ?? { width: 0, height: 0 };
-    before.group.api.setSize(before.vertical ? { height: Math.max(before.size, 150) + inset.height } : { width: Math.max(before.size, 200) + inset.width });
+    const inset = this.insets().get(before.group.id) ?? emptyInsets;
+    const minimum = before.axis === 'height' ? 150 : 200;
+    before.group.api.setSize({ [before.axis]: Math.max(before.size, minimum) + inset[before.axis] });
   };
 
   constrain = () => {
@@ -114,29 +120,35 @@ export class DevelopmentGrid {
       const standalone = group.panels.length === 1;
       const hiddenHeader = standalone && (resource || hasTerminal);
       if (group.header.hidden !== hiddenHeader) group.header.hidden = hiddenHeader;
-      const inset = insets.get(group.id) ?? { width: 0, height: 0, vertical: false };
+      const inset = insets.get(group.id) ?? emptyInsets;
       const closed = resource && resources?.params?.section === null;
-      const fixedWidth = standalone && closed && !inset.vertical;
-      const fixedHeight = standalone && closed && inset.vertical;
       const foldTerminal = standalone && hasTerminal && emptyTerminal && this.screen() === 'agents' && state.profiles.length > 0;
       const previous = this.terminalFold?.group === group ? this.terminalFold : null;
-      if (previous && (!foldTerminal || previous.vertical !== inset.vertical)) {
+      if (previous && (!foldTerminal || previous.axis !== inset.axis)) {
         this.restoreTerminalSize();
         // An axis change needs the restored layout before measuring the terminal's new expanded size.
         if (foldTerminal) { this.scheduleLayout(); continue; }
       }
       const beginFold = foldTerminal && !this.terminalFold;
-      if (beginFold) this.terminalFold = { group, vertical: inset.vertical, size: inset.vertical ? group.api.height : group.api.width };
-      const foldedWidth = foldTerminal && !inset.vertical, foldedHeight = foldTerminal && inset.vertical;
-      const minimumWidth = foldedWidth ? 36 : resource ? (closed ? standalone ? resourceRailWidth : 100 : resourceMinimumWidth) + inset.width : 100;
-      const minimumHeight = foldedHeight ? 36 : resource ? resourceBarHeight + (standalone ? 0 : 36) + inset.height : 100;
-      const maximumWidth = fixedWidth || foldedWidth ? minimumWidth : Infinity;
-      const maximumHeight = fixedHeight || foldedHeight ? minimumHeight : Infinity;
+      if (beginFold) this.terminalFold = { group, axis: inset.axis, size: group.api[inset.axis] };
+
+      const minimum = { width: 100, height: 100 }, maximum = { width: Infinity, height: Infinity };
+      if (resource) {
+        minimum.width = (closed ? 100 : resourceMinimumWidth) + inset.width;
+        if (closed && standalone) minimum.width = resourceRailWidth + inset.width;
+        minimum.height = resourceBarHeight + inset.height;
+        if (!standalone) minimum.height += 36;
+      }
+      if (foldTerminal) minimum[inset.axis] = 36;
+      if (foldTerminal || standalone && closed) maximum[inset.axis] = minimum[inset.axis];
+
+      const minimumWidth = minimum.width, minimumHeight = minimum.height;
+      const maximumWidth = maximum.width, maximumHeight = maximum.height;
       if (group.minimumWidth !== minimumWidth || group.maximumWidth !== maximumWidth || group.minimumHeight !== minimumHeight || group.maximumHeight !== maximumHeight) {
         group.api.setConstraints({ minimumWidth, maximumWidth, minimumHeight, maximumHeight });
         constrained = true;
       }
-      if (beginFold) group.api.setSize(inset.vertical ? { height: 36 } : { width: 36 });
+      if (beginFold) group.api.setSize({ [inset.axis]: 36 });
     }
     // Dockview publishes a constraint change before storing its explicit group limits.
     if (constrained && this.api) this.api.layout(this.api.width, this.api.height, true);

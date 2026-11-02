@@ -1,6 +1,6 @@
 // A task's retained grids and their visible work (docs/window.md, The grid).
-import { Orientation, LocalSelectionTransfer, PanelTransfer } from 'dockview-react';
-import type { DockviewApi, DockviewPanelApi, GridviewApi, GridviewPanelApi } from 'dockview-react';
+import { Orientation, LocalSelectionTransfer, PanelTransfer, DockviewCompositeDisposable } from 'dockview-react';
+import type { DockviewApi, DockviewPanelApi, DockviewIDisposable, GridviewApi, GridviewPanelApi } from 'dockview-react';
 import { flushSync } from 'react-dom';
 import { store } from '../lib/store';
 import type { TaskStore } from './state';
@@ -26,7 +26,7 @@ export class TaskGrid {
   private saveTimer = 0;
   private frame = 0;
   private stageShare = 0.65;
-  private subscriptions = new Map<object, () => void>();
+  private subscriptions = new Map<object, DockviewIDisposable>();
   private dragging = false;
   private arrangement: Events['stage:arrange'] | null = null;
   private stop: () => void;
@@ -43,11 +43,10 @@ export class TaskGrid {
   private get active() { return !this.disposed && store.getState().current === this.key; }
   mount(workspace: GridviewApi, element: HTMLElement) {
     this.workspace = workspace; this.element = element;
-    const changed = workspace.onDidLayoutChange(() => {
+    this.subscriptions.set(workspace, workspace.onDidLayoutChange(() => {
       if (!this.mutations && this.ready && this.active) this.stageShare = this.currentShare();
       this.changed();
-    });
-    this.subscriptions.set(workspace, () => changed.dispose());
+    }));
     workspace.addPanel({ id: 'development', component: 'development', minimumWidth: 100, minimumHeight: 100 });
   }
   mountDevelopment(api: DockviewApi, parent: GridviewPanelApi) {
@@ -58,25 +57,25 @@ export class TaskGrid {
   }
   mountStage(api: DockviewApi, parent: GridviewPanelApi, viewport: HTMLElement) {
     this.mutate(() => this.stage.attach(api, parent, viewport));
-    this.watch(api, parent.onDidDimensionsChange(this.stage.layout));
-    const stop = this.subscriptions.get(api)!;
-    const events = [api.onDidActivePanelChange(({ origin }) => { if (origin === 'user') this.stage.pauseStageFollowing(); }),
+    const subscriptions = this.watch(api, parent.onDidDimensionsChange(this.stage.layout));
+    subscriptions.addDisposables(api.onDidActivePanelChange(({ origin }) => { if (origin === 'user') this.stage.pauseStageFollowing(); }),
       api.onDidMaximizedGroupChange(() => { this.stage.constrainStage(); this.stage.layout(); this.changed(); }),
-      api.onDidAddGroup(() => this.stage.constrainStage())];
-    this.subscriptions.set(api, () => { events.forEach((event) => event.dispose()); stop(); });
+      api.onDidAddGroup(() => this.stage.constrainStage()));
     this.scheduleLayout();
   }
-  private watch(api: DockviewApi, dimensions: { dispose(): void }) {
-    const groups = new Map<string, { dispose(): void }>();
+  private watch(api: DockviewApi, dimensions: DockviewIDisposable) {
+    const groups = new Map<string, DockviewIDisposable>();
     const add = (group: DockviewApi['groups'][number]) => {
       groups.get(group.id)?.dispose(); groups.set(group.id, group.api.onDidDimensionsChange(this.changed));
     };
     api.groups.forEach(add);
-    const events = [dimensions, api.onDidAddGroup(add), api.onDidRemoveGroup((group) => { groups.get(group.id)?.dispose(); groups.delete(group.id); }),
+    const subscriptions = new DockviewCompositeDisposable(dimensions, api.onDidAddGroup(add), api.onDidRemoveGroup((group) => { groups.get(group.id)?.dispose(); groups.delete(group.id); }),
       api.onDidLayoutChange(this.changed), api.onDidActivePanelChange(this.scheduleLayout),
       api.onWillDragPanel(() => { this.dragging = true; void freeze(); }),
-      api.onWillDragGroup(() => { this.dragging = true; void freeze(); }), api.onDidDrop(this.finishDrag)];
-    this.subscriptions.set(api, () => { events.forEach((event) => event.dispose()); groups.forEach((event) => event.dispose()); });
+      api.onWillDragGroup(() => { this.dragging = true; void freeze(); }), api.onDidDrop(this.finishDrag),
+      { dispose: () => { for (const event of groups.values()) event.dispose(); groups.clear(); } });
+    this.subscriptions.set(api, subscriptions);
+    return subscriptions;
   }
   private async initialize() {
     const saved = await kulisa.invoke('layout:load', { task: this.key }).catch((error: unknown) => {
@@ -109,7 +108,7 @@ export class TaskGrid {
     this.deactivate(); this.disposed = true;
     this.stop();
     cancelAnimationFrame(this.frame);
-    for (const stop of this.subscriptions.values()) stop();
+    for (const subscriptions of this.subscriptions.values()) subscriptions.dispose();
     this.subscriptions.clear(); this.stage.detach(); this.development.dispose();
     this.panes.clear(); this.workspace = null; this.element = null;
   }
@@ -137,7 +136,7 @@ export class TaskGrid {
     const has = this.stage.environmentIds().length > 0, panel = this.workspace.getPanel('stage');
     if (!has && panel) {
       const api = this.stage.api;
-      if (api) { this.subscriptions.get(api)?.(); this.subscriptions.delete(api); }
+      if (api) { this.subscriptions.get(api)?.dispose(); this.subscriptions.delete(api); }
       this.stage.detach(); this.stage.saved = null; this.workspace.removePanel(panel);
     }
     if (has && !panel) {
