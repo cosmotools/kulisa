@@ -82,9 +82,7 @@ const config: IConfiguration = {
     { name: 'settings-lazy', severity: 'error', comment: 'components/settings/ is imported from outside only by import() (App.tsx, lazy).',
       from: { pathNot: settings }, to: { preCompilationOnly: false, path: settings, dynamic: false } },
     { name: 'no-circular', severity: 'error', comment: 'A cycle at run time: one of its modules is loaded half done.',
-      // grid.ts and views.ts call each other's functions only after both have loaded (the pages live again, then
-      // the grid's boxes sent): a cycle without that danger, and passing one of them in would be code for the tool.
-      from: { pathNot: '^src/renderer/lib/(grid|views)\\.ts$' }, to: { preCompilationOnly: false, circular: true, viaOnly: { dependencyTypesNot: ['type-only'] } } },
+      from: {}, to: { preCompilationOnly: false, circular: true, viaOnly: { dependencyTypesNot: ['type-only'] } } },
   ],
   options: {
     tsPreCompilationDeps: 'specify',

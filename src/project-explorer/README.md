@@ -19,9 +19,9 @@ the Open and Show in Folder rows. Double-click or Enter opens a file.
 The UI follows [shadcn's File Tree](https://ui.shadcn.com/docs/ai-elements/radix/file-tree): Collapsible folders with
 Button triggers and ghost Button files, using the window's normal control text in compact rows. Each folder trigger's wrapper sets
 `--muted` to transparent when unhovered so expanded folders keep a plain background; hover and focus feedback follow the theme. Each expanded
-directory reads on mount and every three seconds; unmounting
-clears its timer and ignores late replies. Collapsed folders and background tasks keep no watchers. The caller
-unmounts the tree when hidden or when its owner changes, so state and timers belong to the visible tree.
+directory reads on mount and every three seconds while `active`; hiding it pauses polling and ignores late replies,
+preserving entries and expanded folders. The caller supplies visibility through `active`; unmounting clears its
+timer. Collapsed folders and background tasks keep no watchers.
 
 Folders share Lucide's folder icon, open or closed. File icons are [Material Icon Theme](https://github.com/material-extensions/vscode-material-icon-theme)'s.
 `vite.config.mts` generates case-insensitive associations without a framework-specific icon pack, emits referenced

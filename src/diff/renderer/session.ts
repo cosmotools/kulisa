@@ -15,12 +15,13 @@ export function createDiff(actions: DiffActions) {
     refetchOnMount: false, refetchOnWindowFocus: false, refetchOnReconnect: false,
   } } }) };
 }
-export type DiffSession = ReturnType<typeof createDiff>;
+export type DiffSession = ReturnType<typeof createDiff> & { active?: boolean };
 
 export function useDiff(session: DiffSession, comparison: Comparison, reviewing: boolean) {
   const { folder, options } = comparison;
   const queryKey = useMemo(() => [folder, options.to ?? null, reviewing] as const, [folder, options.to, reviewing]);
-  const result = useQuery({ queryKey, enabled: !!folder, refetchInterval: 3000, queryFn: async ({ signal }): Promise<Snapshot> => {
+  const active = session.active !== false;
+  const result = useQuery({ queryKey, enabled: !!folder && active, refetchInterval: active ? 3000 : false, queryFn: async ({ signal }): Promise<Snapshot> => {
     const previous = session.client.getQueryData<Snapshot>(queryKey), loaded = previous?.loaded ?? [];
     const openedAt = previous?.openedAt ?? performance.now();
     const [response, parser] = await Promise.all([

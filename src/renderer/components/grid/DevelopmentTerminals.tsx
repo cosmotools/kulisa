@@ -6,7 +6,7 @@ import { Avatar, AvatarImage, Button, Item, ItemContent, ItemDescription, ItemMe
 import { ButtonMenu, RightClickMenu } from '../Menus';
 import { agentMark } from '../AgentMark';
 import { termStyle, useShade } from '../../lib/theme';
-import { store, useWindow } from '../../lib/store';
+import { useTask, useTaskActive, useTaskStore, useWindow } from '../../lib/store';
 import { profileLaunchers } from '../../lib/profiles';
 import { panelView, launchers, newTerminalItems, terminalItems, terminalMenu } from '../../lib/development-terminals';
 import { avatarSrc, withKeys } from '../../lib/common';
@@ -19,26 +19,33 @@ const NEW_TITLE = 'New conversation of an agent, or a terminal';
 export function DevelopmentTerminals({ api, containerApi, reviewing }: IDockviewPanelProps & { reviewing: boolean }) {
   const host = useRef<HTMLDivElement>(null), launch = useRef<HTMLDivElement>(null), shade = useShade();
   // The task from the terminals' own message (docs/window.md, The terminal).
-  const task = useWindow((s) => s.developmentTerminals.task ?? null), front = useWindow((s) => s.developmentTerminals.front);
-  const folded = useWindow((s) => !s.developmentTerminals.list.length);
-  const alone = useWindow((s) => !s.profiles.length);
-  const loading = useWindow((s) => s.loading);
+  const owner = useTaskStore();
+  const active = useTaskActive();
+  const task = useTask((s) => s.key), front = useTask((s) => s.developmentTerminals.front);
+  const folded = useTask((s) => !s.developmentTerminals.list.length);
+  const alone = useTask((s) => !s.profiles.length);
+  const loading = useTask((s) => s.loading);
   // The tab in front before its program has started (an agent's is looked for first): a loader over its terminal, which
   // stays laid out meanwhile (the program starts at its size).
-  const starting = useWindow((s) => s.developmentTerminals.list.find((t) => t.id === s.developmentTerminals.front && t.starting)?.name);
+  const starting = useTask((s) => s.developmentTerminals.list.find((t) => t.id === s.developmentTerminals.front && t.starting)?.name);
   const shown = !reviewing && task !== null && front !== null ? `${task}#${front}` : null;
 
   useLayoutEffect(() => {
+    if (!active) return;
     // Retained panels catch up in a later frame; DOM client/offset dimensions round Dockview's fractional CSS pixels.
     panelView.isLaidOut = () => {
-      const grid = document.getElementById('grid');
+      const grid = host.current?.closest('[data-development-grid]');
       return grid?.clientWidth === Math.round(containerApi.width) && grid?.clientHeight === Math.round(containerApi.height)
         && host.current?.offsetWidth === Math.round(api.width) && host.current?.offsetHeight === Math.round(api.height);
     };
     return () => { panelView.isLaidOut = undefined; };
-  }, [api, containerApi]);
-  useEffect(() => { host.current!.append(panelView.el); }, []);
-  useEffect(() => panelView.show(shown), [shown]);
+  }, [api, containerApi, active]);
+  useLayoutEffect(() => {
+    if (!active) return;
+    const el = host.current!; el.append(panelView.el);
+    return () => { if (panelView.el.parentElement === el) panelView.el.remove(); };
+  }, [active]);
+  useLayoutEffect(() => { if (active) panelView.show(shown); }, [active, shown]);
   // The terminal in the panel's own color (the grid's: Grid.css), again when the shade changes.
   useEffect(() => panelView.restyle(termStyle()), [shade]);
   // Another tab in front of the same task (chosen, or opened by the human): the keyboard goes to it. Not from a dialog
@@ -47,8 +54,8 @@ export function DevelopmentTerminals({ api, containerApi, reviewing }: IDockview
   useEffect(() => {
     const before = was.current;
     was.current = { task, front };
-    if (!reviewing && task === before.task && front !== before.front && front !== null && !dialogsShown()) void termFocus(`${task}#${front}`);
-  }, [task, front, reviewing]);
+    if (active && !reviewing && task === before.task && front !== before.front && front !== null && !dialogsShown()) void termFocus(`${task}#${front}`);
+  }, [task, front, reviewing, active]);
 
   // The big buttons, each a Tab stop (Tab to the next, Enter opens it): the first, the project's default agent, gets the
   // keyboard when the keyboard was in the terminal just closed or nowhere (not taken from a field or a dialog). No keys
@@ -57,7 +64,7 @@ export function DevelopmentTerminals({ api, containerApi, reviewing }: IDockview
   // A question open as they come (closing an agent's tab asks first): once it has gone, also from the page (a dialog
   // keeps the keyboard in it while it fades out, and gives it back as it goes).
   useEffect(() => {
-    if (!big) return;
+    if (!active || !big) return;
     let frame = 0;
     const take = () => {
       if (dialogsShown() || document.querySelector('[role="dialog"], [role="alertdialog"]')) { frame = requestAnimationFrame(take); return; }
@@ -67,10 +74,10 @@ export function DevelopmentTerminals({ api, containerApi, reviewing }: IDockview
     };
     take();
     return () => cancelAnimationFrame(frame);
-  }, [big]);
+  }, [big, active]);
 
   const menu = (e: MouseEvent) => {
-    const { developmentTerminals } = store.getState(), t = developmentTerminals.list.find((x) => x.id === developmentTerminals.front);
+    const { developmentTerminals } = owner.getState(), t = developmentTerminals.list.find((x) => x.id === developmentTerminals.front);
     return t && task && (e.target as Element).closest('[data-testid="terminal"]') ? terminalMenu(`${task}#${t.id}`, terminalItems(t)) : null;
   };
 
@@ -91,7 +98,7 @@ export function DevelopmentTerminals({ api, containerApi, reviewing }: IDockview
 
 // One width for all, so the rows line up.
 function Launchers({ ref }: { ref: Ref<HTMLDivElement> }) {
-  const closed = useWindow((s) => s.closedProfiles);
+  const closed = useTask((s) => s.closedProfiles);
   useWindow((s) => s.projects); // the project's agents
   return <div ref={ref} data-testid="launchers" className="flex max-w-full flex-col gap-4 self-center justify-self-center p-3">
     <nav aria-label="New terminal" className="flex flex-wrap justify-center gap-3">

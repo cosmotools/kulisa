@@ -4,10 +4,10 @@ import { notLoading, SITE, arrange, closeMenu, frames, ipcSettled } from './help
 
 test('Stage has fixed positions, keeps development panels together and stays hidden when empty', async ({ core, ui, call, restart }) => {
   await notLoading(ui);
-  await expect(ui.getByTestId('stage')).toHaveCount(0);
+  await expect(ui.locator('[data-task-view][data-active]').getByTestId('stage')).toHaveCount(0);
   await arrange(ui, 'right');
   await call('profile_create', { name: 'Stage.browser' });
-  const stage = ui.getByTestId('stage'), development = ui.locator('#grid');
+  const stage = ui.locator('[data-task-view][data-active]').getByTestId('stage'), development = ui.locator('[data-task-view][data-active] [data-development-grid]');
   await expect(stage).toBeVisible();
   await expect(ui.locator('[data-panel="stage"]')).toHaveCount(0);
   const panels = await ui.evaluate(() => (window as any).__dock.panels.map((p: any) => p.id).sort());
@@ -30,12 +30,12 @@ test('Stage has fixed positions, keeps development panels together and stays hid
   await ui.mouse.up();
   await expect.poll(async () => (await stage.boundingBox()).width).toBeGreaterThan(before.width + 90);
   const resizedWidth = (await stage.boundingBox()).width;
-  const share = resizedWidth / (await ui.locator('#workspace').boundingBox()).width;
+  const share = resizedWidth / (await ui.locator('[data-task-view][data-active] [data-workspace]').boundingBox()).width;
   await expect.poll(() => core((k) => (k.shell.task.store.layout() as any)?.stageShare)).toBeCloseTo(share, 3);
   const next = await restart();
   await notLoading(next);
   await expect.poll(async () => {
-    const s = await next.getByTestId('stage').boundingBox(), d = await next.locator('#grid').boundingBox();
+    const s = await next.getByTestId('stage').boundingBox(), d = await next.locator('[data-task-view][data-active] [data-development-grid]').boundingBox();
     return d.x + d.width <= s.x + 1;
   }).toBe(true);
   expect(Math.abs((await next.getByTestId('stage').boundingBox()).width - resizedWidth)).toBeLessThanOrEqual(3);
@@ -45,7 +45,7 @@ test('Stage has fixed positions, keeps development panels together and stays hid
 
 test('flat saved layouts restore browser panes inside the stage and development panels outside it', async ({ core, ui, call, restart }) => {
   await call('profile_create', { name: 'Layout.browser' });
-  await expect(ui.locator('[data-panel^="profile:"]')).toHaveCount(1);
+  await expect(ui.locator('[data-task-view][data-active] [data-panel^="profile:"]')).toHaveCount(1);
   const legacy = await ui.evaluate(() => {
     const w = (window as any).__dock.toJSON(), s = (window as any).__stage.toJSON();
     return { grid: { ...w.grid, orientation: 'VERTICAL', root: { type: 'branch', data: [s.grid.root, w.grid.root] } }, panels: { ...w.panels, ...s.panels } };
@@ -93,7 +93,7 @@ test('stage arrangements are shared by human and agent and independent of worksp
     return strip((window as any)[key].toJSON().grid.root);
   }, which);
   const workspace = await shape('__dock');
-  const positions = () => ui.getByTestId('stage').getByTestId('page').evaluateAll((pages) => pages.map((p) => {
+  const positions = () => ui.locator('[data-task-view][data-active]').getByTestId('stage').getByTestId('page').evaluateAll((pages) => pages.map((p) => {
     const r = p.getBoundingClientRect(); return { x: r.x, y: r.y };
   }));
   for (const name of ['Horizontal stack', 'Vertical stack']) {
@@ -144,7 +144,7 @@ test('a horizontal stack scrolls, clips native pages, and preserves their viewpo
     await call('browser_navigate', { profile: name, url: `${SITE}/app` });
   }
   await call('stage_arrange', { layout: 'vertical' });
-  const pageBoxes = () => ui.getByTestId('stage').getByTestId('page').evaluateAll((pages) => pages.map((p) => { const r = p.getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width }; }));
+  const pageBoxes = () => ui.locator('[data-task-view][data-active]').getByTestId('stage').getByTestId('page').evaluateAll((pages) => pages.map((p) => { const r = p.getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width }; }));
   await expect.poll(async () => { const b = await pageBoxes(); return b.length === 3 && b[0].x === b[1].x && b[1].y > b[0].y && b[2].y > b[1].y; }).toBe(true);
   await arrange(ui, 'left');
   await call('stage_arrange', { layout: 'horizontal', overflow: false });
@@ -158,7 +158,7 @@ test('a horizontal stack scrolls, clips native pages, and preserves their viewpo
   await frames(ui);
   await ipcSettled(ui);
   await expect.poll(async () => {
-    const page = await ui.getByTestId('stage').getByTestId('page').first().boundingBox();
+    const page = await ui.locator('[data-task-view][data-active]').getByTestId('stage').getByTestId('page').first().boundingBox();
     return Math.round(page.width) === await core((k) => k.profile('Row.first').bounds.width);
   }).toBe(true);
   const firstWidth = await core((k) => k.profile('Row.first').bounds.width);

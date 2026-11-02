@@ -1,4 +1,4 @@
-/* The grid (Grid.tsx): dockview's look, its variables from the theme's. Plain CSS: dockview's own elements, which no
+/* Task grids (TaskView.tsx): dockview's look, its variables from the theme's. Plain CSS: dockview's own elements, which no
    utility reaches. */
 #dock {
   --dv-group-view-background-color: var(--card); --dv-tabs-and-actions-container-background-color: var(--card);
@@ -11,9 +11,13 @@
   --dv-tab-divider-color: transparent; --dv-active-sash-color: var(--ring);
   --dv-drag-over-background-color: var(--accent); --dv-drag-over-border-color: var(--ring);
 }
+/* Keep hidden grids measurable; Dockview's sashes explicitly set their own visibility. */
+[data-task-view]:not([data-active]), [data-task-view]:not([data-active]) * {
+  visibility: hidden !important; transition: none !important;
+}
 /* A pane narrower than its header: dockview's tab shrinks with it (else it runs past the pane, its × out of sight and
    dockview's list of hidden tabs shown for it). */
 #dock .dv-tab { min-width: 0; flex-shrink: 1; }
 /* A fixed Resources bar has no resize affordance or split border. */
-#grid .dv-sash.dv-disabled { display: none; }
-#grid:has(.dv-sash.dv-disabled) { --dv-separator-border: transparent; }
+[data-development-grid] .dv-sash.dv-disabled { display: none; }
+[data-development-grid]:has(.dv-sash.dv-disabled) { --dv-separator-border: transparent; }

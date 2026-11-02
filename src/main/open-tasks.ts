@@ -19,8 +19,7 @@ export function openTasks(shell: Shell, { appDevTools }: { appDevTools: boolean 
   // ---------- windows, projects and tasks ----------
   // A project is a folder with its tasks (store.ts); a task is open as a tab of a window, as a browser's. Each task has its profiles,
   // grid and agent (tasks.ts); a window shows one, the others keep running (their agents and pages), until the human
-  // closes their tab. Showing another task hides this one's pages, and the window builds the next grid in place
-  // (the page is not loaded again). A task loads (profiles, agent) the first time it is shown. A project is loaded
+  // closes their tab. Showing another task hides this one's pages and retains its TaskView in the window. A task loads (profiles, agent) the first time it is shown. A project is loaded
   // (shell.open) while a task of it is open in any window: its git, its agents' accounts.
   // Opening, showing, creating, moving and closing run one after another, in all windows.
   let queue: Promise<unknown> = Promise.resolve();

@@ -125,8 +125,8 @@ project, and those you closed, are in the sidebar (Tasks, below).
   The terminal keeps running while you review. Click **Agents** in the Resources bar to return to your last active
   terminal, or select another agent from its list. The terminal focus shortcut also returns to
   the last active terminal. Stage keeps its position and size. The review is read-only; binary and large
-  files show an explanation. Switching tasks or restarting Kulisa restores that task's Resources section;
-  Diff opens a fresh review.
+  files show an explanation. Switching tasks keeps the review's comparison, filter and position. Restarting Kulisa
+  restores that task's Resources section and opens a fresh review.
   Drag the grip at the bottom of the Resources bar to move the whole panel beside or below the terminal, or into its tabs.
   Beside the terminal, the Resources bar follows the outer edge: left on the left, right on the right.
   A group shared with terminal tabs stays resizable; its Resources tab stays available.
@@ -270,6 +270,8 @@ the page says so. **Delete…** (its **⋯**) deletes an account after a questio
 it ends: the question links the GitHub page where you revoke it at once.
 
 ## Tasks
+
+Switching tasks keeps each task’s panel arrangement, expanded Project folders and scroll positions while its tab stays open. Its agents keep working in the background.
 
 - **The sidebar** (the button at the start of the tasks' bar, or Ctrl+Shift+A; with no task open it is always there): every
   project with its tasks, the one you worked in last first. Open tasks come first, showing what their agent is doing

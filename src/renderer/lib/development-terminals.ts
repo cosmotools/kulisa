@@ -1,7 +1,7 @@
 // A tasks' window's terminals (docs/window.md, The terminal): the terminals themselves are src/terminal's, keyed
 // "<task>#<id>" as in the main process; here the terminals' side: the shown task's terminal in front (components/grid/DevelopmentTerminals.tsx),
 // links into its profiles, terminals moving to another window, their menus.
-import { act, store } from './store';
+import { act, store, taskStore } from './store';
 import { termStyle } from './theme';
 import { keyText } from './common';
 import { menuAt, type MenuItem } from './menu';
@@ -13,7 +13,7 @@ import { restoreTerminal, serialized, termCopy, termHooks, termPaste, View, xter
 import type { DevelopmentTerminalInfo } from '../../shared/types';
 
 // The terminal in front of the shown task's terminals: where the keyboard goes (Ctrl+`), what the tests read.
-const frontKey = () => { const { task, front } = store.getState().developmentTerminals; return task && front !== null ? `${task}#${front}` : null; };
+const frontKey = () => { const { task, front } = taskStore().getState().developmentTerminals; return task && front !== null ? `${task}#${front}` : null; };
 // The terminals' panel's xterm, one for the window: components/grid/DevelopmentTerminals.tsx puts it in whichever grid is shown and
 // gives it the theme's colors.
 export const panelView = new View(termStyle());
@@ -37,7 +37,7 @@ export async function showDevelopmentTerminal(id: number) {
   await act('development-terminal:show', { id });
   // Dockview reattaches retained content when a stacked panel opens; detached inputs cannot take focus.
   requestAnimationFrame(() => {
-    if (store.getState().current === task && store.getState().developmentTerminals.front === id && !dialogsShown()) shownTerm()?.focus();
+    if (store.getState().current === task && taskStore().getState().developmentTerminals.front === id && !dialogsShown()) shownTerm()?.focus();
   });
 }
 
@@ -47,7 +47,7 @@ termHooks.colors = () => termStyle().colors;
 // addon). Ctrl+click (⌘ on macOS) asks where, in a menu at the pointer: a tab of one of the shown task's open
 // profiles, or the user's browser. Always asked, so a link never opens somewhere unexpected (the author's choice:
 // which profile a link belongs to cannot be told).
-termHooks.open = (e, uri) => menuAt(e, [{ heading: uri }, ...store.getState().profiles.map((p) => ({ label: `Open in ${p.name}`, avatar: p.avatar,
+termHooks.open = (e, uri) => menuAt(e, [{ heading: uri }, ...taskStore().getState().profiles.map((p) => ({ label: `Open in ${p.name}`, avatar: p.avatar,
   run: () => act('tab:new', { profile: p.id, url: uri }) })),
 '-', { label: 'Open in your browser', run: () => { window.open(uri); } }]);
 

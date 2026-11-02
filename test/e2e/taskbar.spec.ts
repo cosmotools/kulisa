@@ -118,7 +118,7 @@ test("tasks: switching shows the other grid and terminal; the one left keeps run
   await state('done', 'the session ending after a done turn: it stays');
   await core((k, a) => k.shell.taskByKey(a.second).caption(a.SAM, 'from the second task'), { second, SAM });
   await ipcSettled(ui);
-  await expect(ui.locator(`[data-panel="profile:${SAM}"] [role="status"]`), 'not on the first task\'s pane').toHaveText('Idle');
+  await expect(ui.locator(`[data-task-view][data-active] [data-panel="profile:${SAM}"] [role="status"]`), 'not on the first task\'s pane').toHaveText('Idle');
   // Done says "come and see" until the human sees that task.
   await post('stop');
   await state('done');
@@ -200,7 +200,7 @@ test('tasks: switching shows the other grid at once, its pages live once it is l
   // test would come once the grid is laid out.
   await ui.evaluate(() => {
     let once = true;
-    (window as any).kulisa.on('grid:closing', () => {
+    (window as any).kulisa.on('task:deactivated', () => {
       if (once) document.getElementById('windowMenu').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, pointerType: 'mouse' }));
       once = false;
     });

@@ -9,7 +9,7 @@ import { BookOpenIcon, GitBranchIcon, GlobeIcon, SquareTerminalIcon, CircleAlert
 import { Avatar, AvatarGroup, AvatarImage, Badge, Button, Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, Field, FieldContent,
   FieldDescription, FieldLabel, FieldTitle, Progress, RadioGroup, RadioGroupItem, Spinner, Alert, AlertDescription } from '@ui';
 import { agentMark } from './AgentMark';
-import { act, shownTask, store, useWindow } from '../lib/store';
+import { act, shownTask, store, useTask, useWindow } from '../lib/store';
 import { registerDialog } from '../lib/dialogs';
 import { avatarSrc, plural } from '../lib/common';
 import { refused } from '../../shared/result';
@@ -59,20 +59,21 @@ kulisa.on('agent:handover:progress', ({ task, id, part, parts: all }) => {
 });
 // It needs the human (a permission, a sign-in, a limit: its hooks say it waits), or its tab is gone (once it was there:
 // the window may hear of it after the answer).
-store.subscribe((s) => {
+kulisa.on('development-terminal:state', (terminals) => {
   const { handed } = state.getState();
   if (handed === null) return;
-  const t = s.developmentTerminals.list.find((x) => x.id === handed);
+  if (terminals.task !== inTask) return;
+  const t = terminals.list.find((x) => x.id === handed);
   if (t) seen = true;
-  if (t?.state === 'waiting' || (!t && seen && s.current === inTask)) show();
+  if (t?.state === 'waiting' || (!t && seen && store.getState().current === inTask)) show();
 });
 
 
 export function HandOver() {
   const [open, setOpen] = useState(false);
   const { from, chosen, going, error, read } = useStore(state);
-  const agents = useWindow(useShallow((s) => agentsOf(s))), profiles = useWindow((s) => s.profiles);
-  const branch = useWindow((s) => shownTask(s)?.branch), shells = useWindow((s) => s.developmentTerminals.list).filter((t) => !t.agent);
+  const agents = useWindow(useShallow((s) => agentsOf(s))), profiles = useTask((s) => s.profiles);
+  const branch = useWindow((s) => shownTask(s)?.branch), shells = useTask((s) => s.developmentTerminals.list).filter((t) => !t.agent);
   useEffect(() => {
     close = () => setOpen(false);
     registerDialog('handover', {

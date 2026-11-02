@@ -1,0 +1,208 @@
+// A task's retained grids and their visible work (docs/window.md, The grid).
+import { Orientation, LocalSelectionTransfer, PanelTransfer } from 'dockview-react';
+import type { DockviewApi, DockviewPanelApi, GridviewApi, GridviewPanelApi } from 'dockview-react';
+import { flushSync } from 'react-dom';
+import { store, type TaskStore } from '../store';
+import { splitLayout, type TaskLayout } from '../../../shared/stage-layout';
+import type { Events } from '../../../shared/ipc';
+import { DevelopmentGrid } from './development';
+import { StageGrid } from './stage';
+import { pageRects } from './pages';
+
+interface Host { freeze(): Promise<void>; unfreeze(): Promise<void>; reveal(task: string): Promise<unknown> }
+export class TaskGrid {
+  readonly development: DevelopmentGrid;
+  readonly stage: StageGrid;
+  private workspace: GridviewApi | null = null;
+  private element: HTMLElement | null = null;
+  private initialized = false;
+  private initialization: Promise<void> | null = null;
+  private disposed = false;
+  private visible = false;
+  private revision = 0;
+  private needsReveal = true;
+  private mutations = 0;
+  private dirty = false;
+  private saveTimer = 0;
+  private frame = 0;
+  private stageShare = 0.65;
+  private subscriptions = new Map<object, () => void>();
+  private dragging = false;
+  private arrangement: Events['stage:arrange'] | null = null;
+  constructor(readonly state: TaskStore, private readonly host: Host) {
+    this.development = new DevelopmentGrid(state, this.changed, this.scheduleLayout);
+    this.stage = new StageGrid(state, this.scheduleLayout);
+  }
+  get key() { return this.state.getState().key; }
+  private get active() { return !this.disposed && this.visible && store.getState().current === this.key; }
+  mount(workspace: GridviewApi, element: HTMLElement) {
+    this.workspace = workspace; this.element = element;
+    const changed = workspace.onDidLayoutChange(() => {
+      if (!this.mutations && this.initialized && this.active) this.stageShare = this.currentShare();
+      this.changed();
+    });
+    this.subscriptions.set(workspace, () => changed.dispose());
+    workspace.addPanel({ id: 'development', component: 'development', minimumWidth: 100, minimumHeight: 100 });
+  }
+  mountDevelopment(api: DockviewApi, parent: GridviewPanelApi) {
+    this.development.attach(api);
+    this.watch(api, parent.onDidDimensionsChange(({ width, height }) => api.layout(width, height, true)));
+    api.layout(parent.width, parent.height, true);
+    this.initialization ??= this.initialize();
+  }
+  mountStage(api: DockviewApi, parent: GridviewPanelApi, viewport: HTMLElement) {
+    this.mutate(() => this.stage.attach(api, parent, viewport));
+    this.watch(api, parent.onDidDimensionsChange(this.stage.layout));
+    const stop = this.subscriptions.get(api)!;
+    const events = [api.onDidActivePanelChange(({ origin }) => { if (origin === 'user') this.stage.pauseStageFollowing(); }),
+      api.onDidMaximizedGroupChange(() => { this.stage.constrainStage(); this.stage.layout(); this.changed(); }),
+      api.onDidAddGroup(() => this.stage.constrainStage())];
+    this.subscriptions.set(api, () => { events.forEach((event) => event.dispose()); stop(); });
+    this.scheduleLayout();
+  }
+  private watch(api: DockviewApi, dimensions: { dispose(): void }) {
+    const groups = new Map<string, { dispose(): void }>();
+    const add = (group: DockviewApi['groups'][number]) => {
+      groups.get(group.id)?.dispose(); groups.set(group.id, group.api.onDidDimensionsChange(this.changed));
+    };
+    api.groups.forEach(add);
+    const events = [dimensions, api.onDidAddGroup(add), api.onDidRemoveGroup((group) => { groups.get(group.id)?.dispose(); groups.delete(group.id); }),
+      api.onDidLayoutChange(this.changed), api.onDidActivePanelChange(this.scheduleLayout),
+      api.onWillDragPanel(() => { this.dragging = true; void this.host.freeze(); }),
+      api.onWillDragGroup(() => { this.dragging = true; void this.host.freeze(); }), api.onDidDrop(this.finishDrag)];
+    this.subscriptions.set(api, () => { events.forEach((event) => event.dispose()); groups.forEach((event) => event.dispose()); });
+  }
+  private async initialize() {
+    const saved = await kulisa.invoke('layout:load', { task: this.key }).catch((error: unknown) => {
+      console.warn('[layout] saved grid unavailable:', error); return null;
+    });
+    if (this.disposed) return;
+    const layout = splitLayout(saved);
+    this.mutate(() => {
+      this.stageShare = layout?.stageShare && layout.stageShare > 0 && layout.stageShare < 1 ? layout.stageShare : 0.65;
+      this.stage.saved = this.arrangement?.layout !== undefined ? null : layout?.stage ?? null;
+      flushSync(() => this.state.setState({ stageLayout: this.arrangement?.layout ?? layout?.stageLayout ?? null,
+        stageOverflow: this.arrangement?.overflow ?? layout?.stageOverflow ?? false,
+        stagePosition: this.arrangement?.position ?? layout?.stagePosition ?? 'above' }));
+      flushSync(() => { this.sync(); this.development.build(layout?.workspace ?? null); });
+      this.layout();
+    });
+    this.initialized = true;
+    this.state.setState({ loading: false });
+    this.arrangement = null;
+    this.changed();
+  }
+  activate() {
+    this.visible = true; this.revision++; this.needsReveal = true;
+    this.scheduleLayout();
+  }
+  deactivate() {
+    if (!this.visible) return;
+    this.flush(); this.visible = false; this.revision++;
+    cancelAnimationFrame(this.frame); this.stage.reset(); this.finishDrag();
+    this.state.setState({ stageTerminalFocus: null, pictures: {}, picking: {}, captions: {} });
+  }
+  dispose() {
+    this.deactivate(); this.disposed = true;
+    for (const stop of this.subscriptions.values()) stop();
+    this.subscriptions.clear(); this.stage.detach(); this.development.dispose();
+    this.workspace = null; this.element = null;
+  }
+  private mutate(fn: () => void) { this.mutations++; try { fn(); } finally { this.mutations--; } }
+  update() { if (this.initialized && this.active) { this.mutate(() => this.sync()); this.changed(); } }
+  arrange(event: Events['stage:arrange']) {
+    if (!this.initialized || !this.active) {
+      this.arrangement = { ...this.arrangement, task: this.key, ...(event.layout !== undefined && { layout: event.layout }),
+        ...(event.overflow !== undefined && { overflow: event.overflow }), ...(event.position !== undefined && { position: event.position }) };
+      return;
+    }
+    this.mutate(() => {
+      const { layout, overflow, position } = event, state = this.state.getState();
+      this.stage.constrainStage(layout ?? state.stageLayout, overflow ?? state.stageOverflow);
+      flushSync(() => this.state.setState({ ...(layout !== undefined && { stageLayout: layout }),
+        ...(overflow !== undefined && { stageOverflow: overflow }), ...(position !== undefined && { stagePosition: position }) }));
+      if (position !== undefined) this.placeStage();
+      if (layout !== undefined) this.stage.arrangeStage();
+      this.stage.layout();
+    });
+    this.changed();
+  }
+  private sync() {
+    if (!this.workspace) return;
+    const has = this.stage.environmentIds().length > 0, panel = this.workspace.getPanel('stage');
+    if (!has && panel) {
+      const api = this.stage.api;
+      if (api) { this.subscriptions.get(api)?.(); this.subscriptions.delete(api); }
+      this.stage.detach(); this.stage.saved = null; this.workspace.removePanel(panel);
+    }
+    if (has && !panel) {
+      this.workspace.addPanel({ id: 'stage', component: 'stage', minimumWidth: 100, minimumHeight: 100 });
+      this.placeStage();
+    }
+    const count = this.stage.api?.panels.length;
+    this.stage.syncStage();
+    if (this.stage.api?.panels.length !== count) this.stage.layout();
+  }
+  private layout() {
+    if (!this.active || !this.element?.offsetWidth) return;
+    this.workspace?.layout(this.element.clientWidth, this.element.clientHeight);
+    this.development.constrain();
+  }
+  private placeStage() {
+    const workspace = this.workspace, panel = workspace?.getPanel('stage');
+    if (!workspace || !panel) return;
+    const position = this.state.getState().stagePosition;
+    workspace.orientation = position === 'above' ? Orientation.VERTICAL : Orientation.HORIZONTAL;
+    const root = workspace.toJSON().grid.root;
+    const firstPanel = (node: typeof root): string => Array.isArray(node.data) ? firstPanel(node.data[0]!) : node.data.id;
+    const first = firstPanel(root), wanted = position === 'right' ? 'development' : 'stage';
+    if (first !== wanted) workspace.movePanel(workspace.getPanel(wanted)!, { reference: first, direction: position === 'above' ? 'above' : 'left' });
+    panel.api.setSize(position === 'above' ? { height: Math.round(workspace.height * this.stageShare) } : { width: Math.round(workspace.width * this.stageShare) });
+  }
+  private currentShare() {
+    const panel = this.workspace?.getPanel('stage'), vertical = this.state.getState().stagePosition === 'above';
+    const total = vertical ? this.workspace?.height : this.workspace?.width;
+    return panel && total ? (vertical ? panel.api.height : panel.api.width) / total : this.stageShare;
+  }
+  private changed = () => {
+    this.scheduleLayout();
+    if (!this.initialized || !this.active || this.mutations) return;
+    this.dirty = true; clearTimeout(this.saveTimer);
+    this.saveTimer = window.setTimeout(() => this.flush(), 300);
+  };
+  private flush() {
+    clearTimeout(this.saveTimer);
+    if (!this.dirty || !this.development.api) return;
+    this.dirty = false;
+    const state = this.state.getState();
+    kulisa.send('layout:save', { task: this.key, layout: { version: 3, workspace: this.development.api.toJSON(),
+      stage: this.stage.api?.toJSON() ?? this.stage.saved, stageLayout: state.stageLayout, stageOverflow: state.stageOverflow,
+      stagePosition: state.stagePosition, stageShare: this.currentShare() } satisfies TaskLayout });
+  }
+  scheduleLayout = () => {
+    cancelAnimationFrame(this.frame);
+    if (!this.active || !this.initialized) return;
+    const revision = this.revision;
+    this.frame = requestAnimationFrame(() => {
+      if (!this.active || this.revision !== revision) return;
+      if (this.arrangement) { const pending = this.arrangement; this.arrangement = null; this.arrange(pending); }
+      this.mutate(() => flushSync(() => this.sync()));
+      this.layout();
+      kulisa.send('layout:apply', { task: this.key, rects: pageRects(this.stage.api, this.stage.viewport, this.state.getState().profiles) });
+      if (this.needsReveal) { this.needsReveal = false; void this.host.reveal(this.key); }
+    });
+  };
+  startResourceDrag(panel: DockviewPanelApi, event: DragEvent) {
+    const api = this.development.api;
+    if (!api || !event.dataTransfer) { event.preventDefault(); return; }
+    LocalSelectionTransfer.getInstance<PanelTransfer>().setData([new PanelTransfer(api.id, panel.group.id, panel.id)], PanelTransfer.prototype);
+    this.dragging = true; event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/plain', '');
+    void this.host.freeze();
+  }
+  finishDrag = () => {
+    if (!this.dragging) return;
+    this.dragging = false;
+    LocalSelectionTransfer.getInstance<PanelTransfer>().clearData(PanelTransfer.prototype);
+    if (this.active) void this.host.unfreeze();
+  };
+}

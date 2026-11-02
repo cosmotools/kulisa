@@ -67,7 +67,7 @@ an asynchronous launch can cancel its request when the human puts the keyboard e
 
 **One xterm a place**: every terminal's output goes into a buffer of its own, an xterm never opened (its text,
 scrollback and modes, no renderer: about 0.6 MB full), and each place that shows a terminal, the terminals' panel and an
-account's sign-in and each Stage terminal, has one shown xterm (`View`) with a WebGL renderer, falling back to DOM
+account's sign-in and each visible Stage terminal, has one shown xterm (`View`) with a WebGL renderer, falling back to DOM
 when WebGL is unavailable or its context is lost. A View fits its pane or uses fixed dimensions (`setSize`). Showing another terminal there writes
 that one's buffer into it (`serialize`, after a reset, RIS, in the same write: xterm parses a write at once, so the
 one shown before stays drawn until the other's is in, no frame empty between), its scroll put back, in about 15 ms; its
@@ -77,6 +77,10 @@ context and its glyph atlas, and Chromium keeps 16 contexts a page: the 17th wou
 the first task's agent), which would fall back to the DOM renderer silently. With 20 terminals on a discrete GPU, the
 video memory 472 → 178 MB, the RAM about the same (on an integrated GPU, or a Mac's, that memory is the RAM); with
 Chromium's software GPU, 609 → 234 MB. (VS Code keeps an xterm a terminal.)
+
+The development View belongs to the window and moves into the active TaskView; switching buffers preserves the
+previous drawing until the next buffer is ready. Stage Views belong to their task's panes and remain mounted while
+the task is hidden. Closing a pane or task releases its Views.
 
 **Fitted in a frame about to be drawn.** A terminal is put in at its buffer's size, and the xterm and the buffer get
 the room laid out only from the fit, measured in `requestAnimationFrame`: fitted at once in a window just opened, its

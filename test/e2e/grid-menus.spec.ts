@@ -47,7 +47,7 @@ test('context menus: a pane\'s header, a tab, the terminal; pages are pictures w
     expect(Math.abs(m.x - (h.x + h.width / 2)) <= 8 && Math.abs(m.y - (h.y + h.height / 2)) <= 8, 'at the pointer').toBe(true);
     // The pages are native views above the menu: pictures of them stand in meanwhile.
     expect(await elonVisible()).toBe(false);
-    await expect(ui.locator(`[role="region"][data-profile="${elonId}"] [data-testid="page"] [data-testid="snapshot"]`)).toHaveCount(1);
+    await expect(ui.locator(`[data-task-view][data-active] [role="region"][data-profile="${elonId}"] [data-testid="page"] [data-testid="snapshot"]`)).toHaveCount(1);
   } finally {
     await core((k) => { k.stash.restoreCapture(); delete k.stash.restoreCapture; });
   }
@@ -65,8 +65,11 @@ test('context menus: a pane\'s header, a tab, the terminal; pages are pictures w
   await expect.poll(elonVisible).toBe(true);
   await expect(ui.locator('[data-testid="snapshot"]')).toHaveCount(0);
 
-  await ui.locator(`[role="region"][data-profile="${elonId}"] [aria-label="Address"]`).press('Escape');
-  const tabs = ui.locator(`[role="region"][data-profile="${elonId}"] [role="tab"]`);
+  const address = ui.locator(`[data-task-view][data-active] [role="region"][data-profile="${elonId}"] [aria-label="Address"]`);
+  await expect(address).toBeFocused();
+  await address.press('Escape');
+  await expect(address).toBeHidden();
+  const tabs = ui.locator(`[data-task-view][data-active] [role="region"][data-profile="${elonId}"] [role="tab"]`);
   await expect(tabs).toHaveCount(n + 1);
   await rightClick(ui, tabs);
   await expect(menu(ui)).toMatchAriaSnapshot(`
@@ -83,7 +86,7 @@ test('context menus: a pane\'s header, a tab, the terminal; pages are pictures w
   await ui.evaluate(() => (window as any).__term.clearSelection());
   // A real right-click (press, release): the menu stays after the button is released. On Linux it opens on the
   // press, just below the pointer, so the release is outside it; on Windows on the release.
-  const term = await center(ui.getByTestId('terminal'));
+  const term = await center(ui.locator('[data-task-view][data-active]').getByTestId('terminal'));
   await ui.mouse.move(term.x, term.y);
   await ui.mouse.down({ button: 'right' });
   if (WIN) await ui.mouse.up({ button: 'right' });
@@ -524,7 +527,7 @@ test('files dropped onto a terminal paste their disk paths once without sending 
   const paths = ['plain.png', "image with spaces & 'quote'.png"].map((name) => path.join(files.project, name));
   for (const file of paths) fs.writeFileSync(file, 'image');
   const before = await core((k) => k.ptyOutput()), pageUrl = ui.url();
-  const at = await center(ui.getByTestId('terminal'));
+  const at = await center(ui.locator('[data-task-view][data-active]').getByTestId('terminal'));
   // Native disk-backed Files are required by webUtils; a JavaScript File has no disk path.
   const cdp = await ui.context().newCDPSession(ui);
   try {

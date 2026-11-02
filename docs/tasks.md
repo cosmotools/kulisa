@@ -296,8 +296,9 @@ and the cleanup: the main working tree is the human's, never removed; a worktree
 
 Resources → Diff opens a local Git review through the [Diff Kulisa package](../src/diff/README.md).
 `Task.diff`, `Task.diffTargets`, `Task.review` and `Task.diffContents` confine its reads to task resources and
-supply each worktree's starting commit. Review selection lives in the window store while Diff is open.
-Leaving Diff, closing Resources content or switching tasks releases its queries, models, worker and navigation state.
+supply each worktree's starting commit. Review selection and session belong to the TaskView while Diff is open.
+Switching tasks retains the review and pauses its polling. Leaving Diff, closing Resources content or closing the
+task releases its queries, models, worker and navigation state.
 Each opening starts at the first repository, its default comparison, an empty filter and the document start.
 The saved Resources section determines whether restoring the layout opens a fresh Diff.
 Other sections and the terminal focus shortcut return to the last active terminal; Stage keeps its layout and size.
@@ -714,7 +715,7 @@ accounts, let go of (Settings → Agents deletes one: "Choosing the agent", Acco
   without writing to the log (`askToQuit`): Windows has no signal for it. A console's Ctrl+C reaches `npm start`'s
   Node there, not Electron (a GUI program, without a console), and a signal sent to a child ends it at once, so
   `scripts/electron.ts` stops Kulisa by such a start.
-- Each window shows one of its tasks; the others, of every window, keep running, their pages hidden.
+- Each window shows one TaskView; visited tasks retain their grids and local UI while hidden ([window.md](window.md), The grid). Their agents and pages keep running.
 - A task loads (its profiles start, its agents start) the first time it is shown, also after a restart.
 - A task is known by its key, `<project id>/<task id>` (the window, the terminals); a task's id is six random letters
   and digits, as a project's and a profile's (`store.ts`, `newId`). Each has its own MCP URL,
@@ -809,7 +810,7 @@ rm -rf ~/.config/Kulisa/projects/<project id>   # all its tasks with their profi
 | `src/shared/names.ts` | the rules for names (projects and profiles; a task's, a label) and slugs |
 | `src/main/accounts.ts`, `src/renderer/components/SignIn.tsx` | the agents' accounts, one store; a new one's sign-in in Settings (a project's page, or Agents), and New Project's |
 | `src/main/recognizer.ts` | which account recognizes speech for an agent without dictation of its own ([src/dictation](../src/dictation/README.md)), its session's folder |
-| `src/renderer/lib/grid.ts`, `components/Grid.tsx` | building a task's grid, taking it down when another is shown |
+| `src/renderer/lib/grid.ts`, `lib/grid/`, `components/TaskView.tsx` | task-owned grids, retained screens and their activation ([window.md](window.md), The grid) |
 | `test/e2e/tasks*.spec.ts`, `taskbar.spec.ts`, `projects*.spec.ts`, `project-repositories.spec.ts`, `empty-window.spec.ts`, `agents*.spec.ts`, `masters.spec.ts`; `test/unit/agents.test.ts` | the tests |
 
 Task state is replaced atomically after validation; each section update reads the current document and preserves

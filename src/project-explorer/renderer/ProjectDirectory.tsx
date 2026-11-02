@@ -6,15 +6,16 @@ import type { ProjectFile } from '../ipc';
 import type { ExplorerActions } from './actions';
 import { FileIcon } from './FileIcon';
 
-export function ProjectDirectory({ actions, folder }: { actions: ExplorerActions; folder: string }) {
+export function ProjectDirectory({ actions, folder, active = true }: { actions: ExplorerActions; folder: string; active?: boolean }) {
   const [entries, setEntries] = useState<ProjectFile[]>([]);
   const [error, setError] = useState('');
   const [loaded, setLoaded] = useState(false);
   useEffect(() => {
-    let active = true;
+    if (!active) return;
+    let mounted = true;
     const read = async () => {
       const result = await actions.readFolder(folder);
-      if (!active) return;
+      if (!mounted) return;
       setLoaded(true);
       if (result.error !== undefined) setError(result.error);
       else { setError(''); setEntries(result.entries); }
@@ -22,19 +23,19 @@ export function ProjectDirectory({ actions, folder }: { actions: ExplorerActions
     void read();
     // Only mounted, expanded folders poll; no recursive watchers or background-project scans.
     const timer = setInterval(() => void read(), 3000);
-    return () => { active = false; clearInterval(timer); };
-  }, [actions, folder]);
+    return () => { mounted = false; clearInterval(timer); };
+  }, [actions, folder, active]);
   return <>
     {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
     {!loaded && <p role="status" className="px-2 text-sm text-muted-foreground">Loading…</p>}
     {loaded && !error && entries.length === 0 && <p className="px-2 text-sm text-muted-foreground">Empty folder</p>}
     <div aria-label={folder} className="flex flex-col">
-      {entries.map((entry) => <ProjectEntry key={entry.path} actions={actions} entry={entry} />)}
+      {entries.map((entry) => <ProjectEntry key={entry.path} actions={actions} entry={entry} active={active} />)}
     </div>
   </>;
 }
 
-function ProjectEntry({ actions, entry }: { actions: ExplorerActions; entry: ProjectFile }) {
+function ProjectEntry({ actions, entry, active }: { actions: ExplorerActions; entry: ProjectFile; active: boolean }) {
   const [expanded, setExpanded] = useState(false);
   const [error, setError] = useState('');
   const open = async () => {
@@ -57,7 +58,7 @@ function ProjectEntry({ actions, entry }: { actions: ExplorerActions; entry: Pro
       {entry.directory ? <Collapsible open={expanded} onOpenChange={setExpanded}>
         {/* An expanded folder is a disclosure, so its resting background stays clear. */}
         <div className="not-hover:[--muted:transparent]"><CollapsibleTrigger asChild>{row}</CollapsibleTrigger></div>
-        <CollapsibleContent><div className="ms-4">{expanded && <ProjectDirectory actions={actions} folder={entry.path} />}</div></CollapsibleContent>
+        <CollapsibleContent><div className="ms-4">{expanded && <ProjectDirectory actions={actions} folder={entry.path} active={active} />}</div></CollapsibleContent>
       </Collapsible> : row}
     </div>
     {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}

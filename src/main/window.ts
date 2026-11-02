@@ -44,7 +44,9 @@ let windows = 0;
 const PRELOAD = path.join(import.meta.dirname, '..', 'preload', 'index.cjs');
 
 class AppWindow {
-  shell: Shell; id: number; tabs: Task[]; current: Task | null; viewsHidden: boolean; switching: boolean; leaving: Profile[];
+  shell: Shell; id: number; tabs: Task[]; current: Task | null; viewsHidden: boolean; switching: boolean;
+  private gridReady = false;
+  private gridRevision = 0;
   stateTimer: NodeJS.Timeout | undefined; picking: Map<string, { profile: Profile; page: import('playwright-core').Page; cancel: () => unknown }>;
   questions: Questions; loaded: boolean; pending: [string, unknown[]][]; keyZone: string;
   thumbnails: Thumbnails; // a screenshot's, in its pane's corner (src/screenshots)
@@ -59,8 +61,6 @@ class AppWindow {
     this.current = null; // the one shown
     // True until the page has laid out the shown task's grid (the renderer then shows the views).
     this.viewsHidden = true;
-    // The pages of the task left for another, on screen until the page has the next grid laid out (hideViews).
-    this.leaving = [];
     // From leaving a task until the next one's profiles are all loaded: nothing is saved, and the page gets no
     // state (a partial one would build a grid other than the saved one).
     this.switching = true;
@@ -170,9 +170,9 @@ class AppWindow {
     if (!task || this.switching) return;
     this.sendDevelopmentTerminals();
     this.send('stage-terminal:state', { task: task.key, list: task.stageTerminals.info() });
-    this.send('profile:state', [...task.profiles.values()].map((p) => p.info()));
-    this.send('profile:closed', [...task.closed.values()].map(({ cfg, tabs }): Sent.ClosedProfile =>
-      ({ id: cfg.id, name: cfg.name, avatar: cfg.avatar, description: cfg.description ?? '', tabs: tabs.urls.length })));
+    this.send('profile:state', { task: task.key, list: [...task.profiles.values()].map((p) => p.info()) });
+    this.send('profile:closed', { task: task.key, list: [...task.closed.values()].map(({ cfg, tabs }): Sent.ClosedProfile =>
+      ({ id: cfg.id, name: cfg.name, avatar: cfg.avatar, description: cfg.description ?? '', tabs: tabs.urls.length })) });
     task.list.saveTabs();
   }
   // The shown task's artifacts (Resources.tsx): when it is shown, and when either the human or agent makes one.
@@ -210,7 +210,7 @@ class AppWindow {
   async show(task: Task) {
     log.info(`[window] wc=${this.win.webContents.id} shows ${task.key}`);
     if (task === this.current) return;
-    if (this.current) this.leaveGrid(true);
+    if (this.current) this.leaveGrid();
     this.current = task;
     this.shell.saveWindows();
     this.win.setTitle(`${task.displayName} · ${task.project.name} — Kulisa`);
@@ -218,9 +218,7 @@ class AppWindow {
     task.project.checkMerged().then((found) => found && this.shell.sendProjects()).catch(() => {}); // its closed tasks whose PR is merged
     await this.showLoaded();
   }
-  // The shown task: its profiles loaded (the first time it is shown), the page's grid built from its state
-  // (the terminals' panel included, even with no profiles; its tabs too, each starting), then its terminals started at
-  // the terminals' size.
+  // Publish task state before its programs start so terminals receive their laid-out size.
   async showLoaded() {
     const task = this.task!;
     if (!task.loaded) task.loadProfiles();
@@ -232,19 +230,19 @@ class AppWindow {
     this.seen();
     developmentTerminals.catch((e) => console.error('[agent]', e));
   }
-  // The page takes the grid down; it gets the next task's state once its profiles are loaded. Left for another task
-  // (next), the grid and its pages stay on screen until the next one is laid out, as a browser keeps a tab's page until
-  // the next one's is drawn: nothing empty between them.
-  leaveGrid(next = false) {
+  // Native pages stay hidden until the selected TaskView has reported its geometry.
+  leaveGrid() {
+    const key = this.current?.key;
+    if (!key) return;
+    this.gridRevision++;
     this.pushState(); // saves the tabs
     this.switching = true;
     clearTimeout(this.stateTimer);
     for (const { cancel } of this.picking.values()) cancel();
     this.thumbnails.close(); // its pane goes
-    this.viewsHidden = true;
-    if (next) this.leaving.push(...this.profiles.values());
-    else for (const p of this.profiles.values()) p.setHidden(true);
-    this.send('grid:closing', next);
+    this.viewsHidden = true; this.gridReady = false;
+    for (const p of this.profiles.values()) p.setHidden(true);
+    this.send('task:deactivated', key);
   }
   // Before a task's tab goes (the task closes, or moves to another window): the tab next to it is shown, or the
   // window is left with none (the empty window).
@@ -274,15 +272,21 @@ class AppWindow {
   }
 
   // ---------- the profiles' views ----------
+  async revealGrid(key: string, hidden: boolean) {
+    if (this.task?.key !== key) return;
+    this.gridReady = true;
+    await this.hideViews(hidden);
+  }
   // Settings and the grid's drop targets are HTML; the profiles' views are native and draw above it, so
   // they are hidden meanwhile. With snapshots: first a picture of each page on screen, for the page to show in its
   // place ({ profile id: data URL }).
   async hideViews(hidden: boolean, { snapshots = false } = {}) {
+    const owner = this.gridRevision;
     const pics = hidden && snapshots ? await this.pictures() : {};
-    for (const p of this.leaving.splice(0)) p.setHidden(true);
+    if (this.gridRevision !== owner) return {};
     // While a task is being switched they stay hidden, whatever comes (a closing menu shows them
     // again); the page shows them once it has the next grid laid out.
-    this.viewsHidden = !!hidden || this.switching;
+    this.viewsHidden = !!hidden || this.switching || !this.gridReady;
     // A dialog over the pages (hidden, no pictures): a page that had the keyboard keeps it unseen, and the dialog's focus
     // trap (Radix's) works in a page that has the keyboard, its keys going nowhere else: the window's page takes it. Menus
     // (pictures) put the keyboard back themselves as they close.

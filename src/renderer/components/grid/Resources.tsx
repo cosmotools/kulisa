@@ -1,5 +1,5 @@
 // The Resources panel of the grid (docs/tasks.md, The Resources panel).
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useState } from 'react';
 import { ChevronRightIcon, FileIcon, FilesIcon, FolderIcon, FolderTreeIcon, GripVerticalIcon, GitBranchIcon, GitCompareArrowsIcon, TerminalSquareIcon, Trash2Icon } from 'lucide-react';
 import type { IDockviewPanelProps } from 'dockview-react';
 import { useShallow } from 'zustand/react/shallow';
@@ -8,7 +8,7 @@ import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupAction, SidebarGroup
 import { ProjectDirectory, type ExplorerActions } from '../../../project-explorer/renderer';
 import { menuAt } from '../../lib/menu';
 import { RightClickMenu } from '../Menus';
-import { shownTask, useWindow } from '../../lib/store';
+import { shownTask, useWindow, useTask, useTaskActive } from '../../lib/store';
 import type { MenuItem } from '../../lib/menu';
 import { startResourceDrag, selectResource, type ResourceParams } from '../../lib/grid';
 import { sizeText } from '../../../shared/bytes';
@@ -27,8 +27,9 @@ const when = (t: number) => (day(t) === day(Date.now()) ? new Date(t).toLocaleTi
 const openFile = (file: string) => kulisa.invoke('file:open', file);
 
 export function Resources({ api, params, containerApi }: IDockviewPanelProps<ResourceParams>) {
-  const key = useWindow((s) => shownTask(s)?.key);
-  const front = useWindow((s) => s.developmentTerminals.front), lang = useWindow((s) => s.language?.language);
+  const key = useTask((s) => s.key), contentId = useId();
+  const active = useTaskActive();
+  const front = useTask((s) => s.developmentTerminals.front), lang = useWindow((s) => s.language?.language);
   const hold = useShortcuts().find((s) => s.id === 'voice.hold')?.keys[0] || '';
   const section = params.section === undefined ? 'project' : params.section;
   const [barSide, setBarSide] = useState<'left' | 'right'>('left');
@@ -41,16 +42,16 @@ export function Resources({ api, params, containerApi }: IDockviewPanelProps<Res
     update();
     return () => layout.dispose();
   }, [api, containerApi]);
-  return <aside id="resources" aria-label="The task's resources" data-bar-side={barSide} className="flex h-full min-h-0 min-w-0 data-[bar-side=right]:flex-row-reverse">
+  return <aside data-resources aria-label="The task's resources" data-bar-side={barSide} className="flex h-full min-h-0 min-w-0 data-[bar-side=right]:flex-row-reverse">
     <nav aria-label="Resources" className={`flex w-10 shrink-0 flex-col items-center gap-1 py-2 ${barSide === 'right' ? 'border-l' : 'border-r'}`}>
       {([['terminals', 'Agents', TerminalSquareIcon], ['project', 'Project', FolderTreeIcon], ['diff', 'Diff', GitCompareArrowsIcon], ['artifacts', 'Artifacts', FilesIcon]] as const).map(([value, label, Icon]) =>
         <Button key={value} variant="ghost" size="icon-sm" aria-label={label} title={label}
-          aria-expanded={section === value} aria-controls="resource-content" onClick={() => {
+          aria-expanded={section === value} aria-controls={contentId} onClick={() => {
             selectResource(api, params, value);
             if (value === 'terminals') focusDevelopmentTerminal();
           }}><Icon /></Button>)}
       <div className="mt-auto flex flex-col items-center gap-1">
-        <Dictation task={key ?? null} keyName={hold} language={lang ? language.of(lang) ?? '' : ''}
+        <Dictation task={active ? key : null} keyName={hold} language={lang ? language.of(lang) ?? '' : ''}
           onDone={() => { if (front !== null) void showDevelopmentTerminal(front); }} />
         <div className="[&_button]:cursor-grab [&_button]:active:cursor-grabbing">
           <Button variant="ghost" size="icon-sm" draggable aria-label="Move Resources panel" title="Move Resources panel"
@@ -58,24 +59,25 @@ export function Resources({ api, params, containerApi }: IDockviewPanelProps<Res
         </div>
       </div>
     </nav>
-    {section && key && <div id="resource-content" role="region" aria-label={section === 'project' ? 'Project' : section === 'artifacts' ? 'Artifacts' : section === 'diff' ? 'Diff' : 'Agents'} className="min-h-0 min-w-0 flex-1">
+    {section && key && <div id={contentId} role="region" aria-label={section === 'project' ? 'Project' : section === 'artifacts' ? 'Artifacts' : section === 'diff' ? 'Diff' : 'Agents'} className="min-h-0 min-w-0 flex-1">
       <TaskResources key={key} taskKey={key} section={section} />
     </div>}
   </aside>;
 }
 
 function TaskResources({ taskKey: key, section }: { taskKey: string; section: NonNullable<ResourceParams['section']> }) {
-  const task = useWindow((s) => shownTask(s));
+  const task = useWindow((s) => shownTask(s, key));
+  const active = useTaskActive();
   const explorer = useMemo<ExplorerActions>(() => ({
     readFolder: (folder) => kulisa.invoke('task:file:list', { key, folder }),
     openFile: (file) => kulisa.invoke('task:file:open', { key, file }),
     showFile: (file) => kulisa.invoke('file:show', file),
     showMenu: menuAt,
   }), [key]);
-  const artifacts = useWindow((s) => (s.artifacts.task === key ? s.artifacts.list : null)) ?? [];
-  const bytes = useWindow((s) => s.artifacts.bytes);
-  const names = useWindow(useShallow((s) => Object.fromEntries([...s.profiles, ...s.closedProfiles].map((p) => [p.id, p.name]))));
-  const stageTerminals = useWindow(useShallow((s) => Object.fromEntries(s.stageTerminals.map((a) => [a.id, a.name]))));
+  const artifacts = useTask((s) => (s.artifacts.task === key ? s.artifacts.list : null)) ?? [];
+  const bytes = useTask((s) => s.artifacts.bytes);
+  const names = useTask(useShallow((s) => Object.fromEntries([...s.profiles, ...s.closedProfiles].map((p) => [p.id, p.name]))));
+  const stageTerminals = useTask(useShallow((s) => Object.fromEntries(s.stageTerminals.map((a) => [a.id, a.name]))));
   // The list comes when the task is shown and whenever the human or agent keeps one (window.ts, sendArtifacts).
   useEffect(() => { if (key) void kulisa.invoke('task:artifact:refresh', key); }, [key]);
   if (!task) return null;
@@ -107,7 +109,7 @@ function TaskResources({ taskKey: key, section }: { taskKey: string; section: No
                 </Button></CollapsibleTrigger></div>
                 {r.removable && <SidebarMenuAction showOnHover aria-label="Remove Repository" title="Remove Repository" onClick={() => void remove(r.folder)}>
                   <Trash2Icon /></SidebarMenuAction>}
-                <CollapsibleContent><div className="ms-4"><ProjectDirectory actions={explorer} folder={r.folder} /></div></CollapsibleContent>
+                <CollapsibleContent><div className="ms-4"><ProjectDirectory actions={explorer} folder={r.folder} active={active} /></div></CollapsibleContent>
               </Collapsible></RightClickMenu></SidebarMenuItem>)}
             </SidebarMenu>
           </SidebarGroupContent></SidebarGroup>

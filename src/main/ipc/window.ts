@@ -52,6 +52,7 @@ export function registerWindow(ipc: Ipc) {
   handle('stage:follow:set', (_e, follow) => { if (typeof follow === 'boolean') shell.setStageFollow(follow); });
   handle('bar:set', (_e, bar) => ['top', 'bottom'].includes(bar) && shell.setBar(bar));
   handle('zoom:ui', (_e, dir) => shell.setUiZoom(stepZoom(shell.uiZoom, dir)));
+  handle('grid:ready', (e, { task, hidden }) => at(e)?.revealGrid(task, hidden));
   handle('views:hidden', (e, hidden, opts?) => at(e)?.hideViews(hidden, opts));
   on('ask:answer', (e, { id, answer }) => at(e)?.answer(id, answer)); // where it was asked
   on('settings:open', (e, a) => { const w = at(e); if (w) shell.openSettings(a, w); });

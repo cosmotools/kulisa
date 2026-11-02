@@ -154,12 +154,12 @@ test('tasks: + opens a task in the project\'s main working tree ("New Task", no 
   await expect(taskTab(ui, task)).toHaveText('New Task');
   await expect(taskTab(ui, task)).toHaveAttribute('aria-selected', 'true');
   await expect.poll(() => viewOn(core, ui, files, 'Sam.admin')).toBe(true);
-  await expect(ui.locator('[role="region"][data-profile]')).toHaveCount(2);
+  await expect(ui.locator('[data-task-view][data-active] [role="region"][data-profile]')).toHaveCount(2);
 
   // It makes its own worktree, naming the task in the same call (task_worktree's name, since it is still "New Task"):
   // the tab and the branch take the name, the folder becomes the worktree; the project's folder stays the human's.
   // The Resources panel: the main working tree until it has its own worktree, then the worktree on its branch.
-  const resources = ui.locator('#resources').getByRole('list', { name: 'Folders' }).locator(':scope > li').getByRole('button', { name: path.basename(project), exact: true });
+  const resources = ui.locator('[data-task-view][data-active] [data-resources]').getByRole('list', { name: 'Folders' }).locator(':scope > li').getByRole('button', { name: path.basename(project), exact: true });
   await expect(resources).toHaveText([`${path.basename(project)}main working tree`]);
   // Two of its agents at once (each a call) get the one worktree, not one each.
   const wt = `${project}@feature-x`, trees = () => git(project, 'worktree', 'list').split('\n').length, before = trees();
@@ -252,7 +252,7 @@ test("tasks: × closes a task: its agent stops and its tabs close, all else stay
     await fromSidebar(ui, 'project', 'task-3');
     await expect.poll(() => core((k, key) => k.shell.task?.key === key && k.settled(), task)).toBe(true); // its state sent to the window
     expect(await core((k) => k.stash.started), 'the grid before its profiles started').toBe(false);
-    await expect(ui.locator(`[role="region"][data-profile="${SAM}"]`)).toHaveCount(1);
+    await expect(ui.locator(`[data-task-view][data-active] [role="region"][data-profile="${SAM}"]`)).toHaveCount(1);
     await notLoading(ui);
     await core((k) => k.stash.answer());
     await expect.poll(() => core((k, key) => k.shell.taskByKey(key).loaded && !!k.shell.pty, task), { timeout: 10000 }).toBe(true);
@@ -275,7 +275,7 @@ test("tasks: an agent's tab closes after a question, always (Cancel keeps it); t
   const SAM = files.idOf('Sam.admin');
   const task = await newTask(core, ui), agent = await core((k, key) => k.shell.taskByKey(key).promptTarget().id, task);
   const developmentTerminals = () => core((k, key) => k.shell.taskByKey(key).developmentTerminals.size, task);
-  const panel = ui.getByTestId('development-terminals');
+  const panel = ui.locator('[data-task-view][data-active]').getByTestId('development-terminals');
   const folded = async (yes: boolean) => {
     await (yes ? expect(panel).toHaveAttribute('data-folded') : expect(panel).not.toHaveAttribute('data-folded'));
   };
@@ -285,8 +285,8 @@ test("tasks: an agent's tab closes after a question, always (Cancel keeps it); t
   const saved = () => files.json(files.pfile('task.json', task.split('/')[1])).development;
   const conversations = () => files.json(files.pfile('task.json', task.split('/')[1])).agents.conversations;
   await showResources(ui, 'Agents');
-  const closeTab = () => ui.locator('#resources [data-terminal]').first().getByTitle(/^Close/).click();
-  await expect(ui.locator('#resources [data-terminal]')).not.toHaveCount(0);
+  const closeTab = () => ui.locator('[data-task-view][data-active] [data-resources] [data-terminal]').first().getByTitle(/^Close/).click();
+  await expect(ui.locator('[data-task-view][data-active] [data-resources] [data-terminal]')).not.toHaveCount(0);
   const before = await size(group);
   // × on an agent's tab asks, whatever it is doing; Cancel keeps it.
   await closeTab();
@@ -312,13 +312,13 @@ test("tasks: an agent's tab closes after a question, always (Cancel keeps it); t
   // The project's profiles, all closed: Sam.admin, Elon.buyer, Dora.
   // The terminals' panel and the Resources panel beside or under it fill the grid: dockview's room, the closed profiles' tiles no
   // longer over it.
-  const resources = ui.locator('.dv-groupview', { has: ui.locator('#resources') });
+  const resources = ui.locator('[data-task-view][data-active] .dv-groupview', { has: ui.locator('[data-resources]') });
   const fills = async () => {
-    const g = await ui.locator('#grid').boundingBox(), t = await group.boundingBox(), r = await resources.boundingBox(), near = (x: number, y: number) => Math.abs(x - y) <= 1;
+    const g = await ui.locator('[data-task-view][data-active] [data-development-grid]').boundingBox(), t = await group.boundingBox(), r = await resources.boundingBox(), near = (x: number, y: number) => Math.abs(x - y) <= 1;
     return near(Math.min(t.x, r.x), g.x) && near(Math.max(t.x + t.width, r.x + r.width), g.x + g.width) && near(Math.min(t.y, r.y), g.y)
       && near(Math.max(t.y + t.height, r.y + r.height), g.y + g.height) && (r.x >= t.x + t.width || r.x + r.width <= t.x || r.y >= t.y + t.height);
   };
-  const launchers = ui.getByTestId('launchers'), newTerminal = launchers.getByRole('navigation', { name: 'New terminal' }).getByRole('button');
+  const launchers = ui.locator('[data-task-view][data-active]').getByTestId('launchers'), newTerminal = launchers.getByRole('navigation', { name: 'New terminal' }).getByRole('button');
   for (const preset of ['left', 'above'] as const) {
     await arrange(ui, preset);
     await expect.poll(async () => (await launchers.count()) > 0 && (await fills()) && centred(launchers, panel), { timeout: 3000 }).toBe(true);
