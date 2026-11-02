@@ -2,8 +2,9 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import type { CodeViewItem, FileDiffMetadata } from '@pierre/diffs';
 import { CodeView, WorkerPoolContextProvider, type CodeViewHandle, type CodeViewProps, type CodeViewReactOptions } from '@pierre/diffs/react';
+import { useIsFetching } from '@tanstack/react-query';
 import { ChevronRightIcon, GitCompareArrowsIcon } from 'lucide-react';
-import { Alert, AlertDescription, Button, Spinner, ToggleGroup, ToggleGroupItem } from '@ui';
+import { Alert, AlertDescription, Button, ToggleGroup, ToggleGroupItem } from '@ui';
 import type { DiffFile } from '../ipc';
 import { refused } from '../../shared/result';
 import type { DiffPanelProps } from './DiffPanel';
@@ -12,6 +13,7 @@ import { DiffStatus } from './DiffStatus';
 import { highlighterOptions, poolOptions } from './review-theme';
 import { useDiff } from './session';
 import type { Notice } from './review';
+import { Loading } from './Loading';
 import './review.css';
 
 const empty: DiffFile[] = [];
@@ -24,7 +26,10 @@ export default function ReviewDocument(props: DiffPanelProps) {
 
 function ReviewContent({ session, selection, shade, fontSize }: DiffPanelProps) {
   const { folder } = selection, target = selection.options.to, lineHeight = Math.ceil(fontSize * 1.5);
-  const { data: snapshot, error, load } = useDiff(session, selection, true);
+  const { data: snapshot, error, load, present } = useDiff(session, selection, true);
+  const fetching = useIsFetching({}, session.client);
+  const [rendered, setRendered] = useState(false);
+  const firstRender = useRef(false);
   const data = snapshot?.data;
   const [mode, setMode] = useState<'unified' | 'split'>('unified');
   const [collapseVersions, setCollapseVersions] = useState<Map<string, number>>(() => new Map());
@@ -47,13 +52,23 @@ function ReviewContent({ session, selection, shade, fontSize }: DiffPanelProps) 
     return [{ ...item, collapsed: revision % 2 === 1, version: (item.version ?? 0) + revision }];
   }), [files, snapshot?.entries, collapseVersions]);
 
+  useEffect(() => {
+    if (!snapshot?.ready || snapshot.presented || error || fetching || (files.length > 0 && !rendered)) return;
+    // Keep the loading state legible while preparing the document in parallel.
+    const timer = setTimeout(present, Math.max(0, 500 - (performance.now() - snapshot.openedAt!)));
+    return () => clearTimeout(timer);
+  }, [snapshot?.ready, snapshot?.presented, snapshot?.openedAt, error, fetching, files.length, rendered, present]);
+
   useLayoutEffect(() => {
     const token = selection.navigation ?? 0;
     if (!snapshot?.ready || !files.length || (navigation.current === token && byPath.has(selection.path))) return;
     navigation.current = token; userScroll.current = false;
     const path = byPath.has(selection.path) ? selection.path : files[0]!.path;
     session.actions.selectFile(path, selection.navigation);
-    viewer.current?.scrollTo({ type: 'item', id: path, align: 'start', behavior: 'instant' });
+    // The document start preserves the padding above the first file's header.
+    viewer.current?.scrollTo(path === files[0]!.path
+      ? { type: 'position', position: 0, behavior: 'instant' }
+      : { type: 'item', id: path, align: 'start', behavior: 'instant' });
   }, [session, selection.navigation, selection.path, files, byPath, snapshot?.ready]);
   const onScroll: NonNullable<CodeViewProps<Notice, undefined>['onScroll']> = useCallback((_top, instance) => {
     if (!userScroll.current) return;
@@ -88,6 +103,7 @@ function ReviewContent({ session, selection, shade, fontSize }: DiffPanelProps) 
       // The component's public lifecycle supplies accessible names for its custom-element root and code region.
       node.setAttribute('role', 'article'); node.setAttribute('aria-label', context.item.id);
       node.shadowRoot?.querySelector('pre')?.setAttribute('aria-label', `Code comparison: ${context.item.id}`);
+      if (!firstRender.current) { firstRender.current = true; setRendered(true); }
     },
     loadDiffFiles: async (file: FileDiffMetadata) => {
       const response = await session.actions.contents(folder, file.name, { to: target });
@@ -106,7 +122,10 @@ function ReviewContent({ session, selection, shade, fontSize }: DiffPanelProps) 
     root?.addEventListener('wheel', manual, { passive: true }); root?.addEventListener('pointerdown', manual); root?.addEventListener('keydown', manual);
     return () => { root?.removeEventListener('wheel', manual); root?.removeEventListener('pointerdown', manual); root?.removeEventListener('keydown', manual); };
   }, []);
-  return <section aria-label="Diff review" data-zone="editor" className="flex h-full min-h-0 min-w-0 flex-col bg-card">
+  const loading = !error && !snapshot?.presented;
+  return <section aria-label="Diff review" data-zone="editor" aria-busy={loading} className="relative flex h-full min-h-0 min-w-0 flex-col bg-card">
+    {loading && <div className="absolute inset-0 z-10 bg-card"><Loading /></div>}
+    <div inert={loading} className={`flex h-full min-h-0 flex-col ${loading ? 'invisible' : ''}`}>
     <header className="flex min-h-9 flex-wrap items-center gap-2 border-b px-4 py-1 text-sm">
       <GitCompareArrowsIcon className="size-4 shrink-0" /><span>Diff{data ? ` · ${files.length} files` : ''}</span>
       {data && <div role="group" aria-label="Change summary"><DiffCounts {...counts} /></div>}
@@ -116,7 +135,6 @@ function ReviewContent({ session, selection, shade, fontSize }: DiffPanelProps) 
       </ToggleGroup>
     </header>
     <div className="relative min-h-0 flex-1">
-      {!snapshot?.ready && !error && <div role="status" className="absolute inset-0 z-10 flex items-center justify-center gap-2 bg-card text-sm text-muted-foreground"><Spinner />Loading diff…</div>}
       {error && <div className="absolute inset-0 z-10 bg-card p-3"><Alert variant="destructive"><AlertDescription>{error.message}</AlertDescription></Alert></div>}
       {data && !files.length && <p className="absolute inset-0 z-10 bg-card p-3 text-sm text-muted-foreground">{!data.git ? 'This folder is not a Git repository.' : data.files.length ? 'No files match' : 'No changes'}</p>}
       <CodeView ref={viewer} containerRef={viewport} items={items} options={viewOptions} onScroll={onScroll}
@@ -124,5 +142,6 @@ function ReviewContent({ session, selection, shade, fontSize }: DiffPanelProps) 
         style={{ '--diffs-font-size': `${fontSize}px`, '--diffs-line-height': `${lineHeight}px` } as CSSProperties} />
     </div>
     <footer className="flex gap-2 border-t px-4 py-1 text-xs text-muted-foreground"><span className="min-w-0 truncate">{data ? `${data.from} → ${data.to}` : 'From → To'}</span><span className="ms-auto shrink-0">Read only</span></footer>
+    </div>
   </section>;
 }

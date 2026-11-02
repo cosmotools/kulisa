@@ -42,7 +42,6 @@ function finishResourceDrag() {
 }
 
 export interface ResourceParams { section?: 'project' | 'artifacts' | 'terminals' | 'diff' | null; expandedWidth?: number; expandedHeight?: number }
-export interface DevelopmentParams { screen?: 'agents' | 'diff'; review?: Omit<DevelopmentDiff, 'task' | 'navigation'> }
 const resourceMinimumWidth = 300, resourceRailWidth = 40, resourceBarHeight = 204;
 let developmentGap = dockTheme.gap ?? 0;
 
@@ -55,6 +54,7 @@ export function selectResource(panel: DockviewPanelApi, params: ResourceParams, 
   const updated = { section: next, expandedWidth, expandedHeight };
   panel.updateParameters(updated);
   if (next === 'diff') openDiff();
+  else if (current === 'diff') showDevelopmentAgents();
   constrainDevelopment();
   if (!current || !next) sizeResources(panel, updated);
   changed();
@@ -308,6 +308,8 @@ function restore(a: DockviewApi, saved: SerializedDockview | null, known: string
   try {
     const filtered = filterLayout(saved, (id) => known.includes(id));
     if (filtered.panels.resources) filtered.panels.resources = { ...filtered.panels.resources, tabComponent: 'resources', minimumHeight: resourceBarHeight };
+    // Review state belongs to the active view; the layout keeps only panel placement and the Resources section.
+    if (filtered.panels.terminal) filtered.panels.terminal = { ...filtered.panels.terminal, params: undefined };
     a.fromJSON(filtered);
   } catch (e) { console.warn('[layout] saved grid not restored:', (e as Error).message); a.clear(); }
 }
@@ -326,8 +328,8 @@ function buildGrid(a: DockviewApi, saved: unknown) {
   }
   constrainDevelopment();
   const resources = a.getPanel('resources')!;
-  const development = (a.getPanel('terminal')!.params ?? {}) as DevelopmentParams;
-  if (development.screen === 'diff' || (!development.screen && resources.params?.section === 'diff')) openDiff(false);
+  if (resources.params?.section === 'diff') openDiff(false);
+  else showDevelopmentAgents();
   // Restoring a group applies Dockview's default minimum before its runtime constraints.
   if (resources.params?.section === null) sizeResources(resources.api, resources.params);
   syncGrid();
@@ -388,25 +390,20 @@ kulisa.on('agent:caption', ({ task, profile, caption }) => {
   if (task === store.getState().current && caption && !replacing && !rebuilding) environmentActivity(panelId(profile));
 });
 export const dockApi = () => api;
-export const developmentScreen = (): 'agents' | 'diff' => api?.getPanel('terminal')?.params?.screen === 'diff' ? 'diff' : 'agents';
+export const developmentScreen = (): 'agents' | 'diff' => store.getState().developmentDiff ? 'diff' : 'agents';
 let reviewNavigation = 0;
 function openDiff(activate = true) {
-  const task = shownTask(), selected = store.getState().developmentDiff;
-  const saved = api?.getPanel('terminal')?.params?.review as DevelopmentParams['review'];
-  const review = selected?.task === task?.key ? selected : saved;
-  const root = task?.resources.find((resource) => resource.folder === review?.folder) ?? task?.resources[0];
-  if (task && root) showDevelopmentDiff(review?.folder === root.folder ? { ...review, task: task.key }
-    : { task: task.key, folder: root.folder, path: '', options: {} }, activate);
+  const task = shownTask(), root = task?.resources[0];
+  if (task && root) showDevelopmentDiff({ task: task.key, folder: root.folder, path: '', options: {} }, activate);
   else showDevelopmentAgents();
 }
 export function showDevelopmentAgents() {
-  api?.getPanel('terminal')?.api.updateParameters({ screen: 'agents' } satisfies DevelopmentParams);
+  store.setState({ developmentDiff: null });
   changed();
 }
 export function showDevelopmentDiff(selection: DevelopmentDiff, activate = true) {
   if (selection.task !== store.getState().current) return;
-  const { folder, path, filter } = selection, options = { to: selection.options.to };
-  api?.getPanel('terminal')?.api.updateParameters({ screen: 'diff', review: { folder, path, options, filter } } satisfies DevelopmentParams);
+  const options = { to: selection.options.to };
   store.setState({ developmentDiff: { ...selection, options, navigation: ++reviewNavigation } });
   if (activate) api?.getPanel('terminal')?.api.setActive();
   changed();
@@ -415,9 +412,6 @@ export function selectDevelopmentFile(path: string, navigation: number | undefin
   const current = store.getState().developmentDiff;
   if (!current || current.navigation !== navigation || current.path === path) return;
   store.setState({ developmentDiff: { ...current, path } });
-  const terminal = api?.getPanel('terminal'), review = terminal?.params?.review as DevelopmentParams['review'];
-  if (review) terminal?.api.updateParameters({ review: { ...review, path } } satisfies DevelopmentParams);
-  changed();
 }
 export const stageApi = () => stage;
 

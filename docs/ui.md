@@ -46,6 +46,8 @@ the main process after every grid change ([window.md](window.md), The grid).
   terminal) reads the theme's colors by `termStyle()`.
 - **A color is the theme's** (`bg-muted`, `text-destructive`, `var(--card)`), never Tailwind's palette nor written
   out: one palette, dark and light. A literal color only where none can be: the marks.
+- **Resources typography**: file names, loading and empty-state messages use `text-sm`; secondary captions, statuses
+  and metadata use `text-xs`. From/To captions are secondary; their values use the normal control text.
 - **Not Lucide's icons**: the agents' marks (`AgentMark.tsx`: the makers' own, in their colors, 1em), the logo
   (`Logo`, `ProjectIcon.tsx`: its curtain in the color given), the profiles' pictures (`avatarSrc` in an `Avatar`),
   and Project Explorer's file-type marks ([its README](../src/project-explorer/README.md)).
@@ -174,7 +176,8 @@ is Radix's own. A Radix menu of a part's own only for a row's own menu inside on
   choice cards (a `FieldLabel` around a horizontal `Field`: `AgentPicker.tsx`, `HandOver.tsx`); a checkbox's row a
   horizontal `Field`.
 - **Notices**: work under way (an install, a sign-in, a search) is a `Spinner` with its label, the line the `status`; a
-  `Progress` once how far it is is known (Change Agent's reading). An
+  `Progress` once how far it is is known (Change Agent's reading). Diff uses one indeterminate `Progress` in the review
+  while file rows and code prepare; its search and From/To controls stay visible. An
   error of a field is that `Field`'s `FieldError` (`data-invalid` on the field, `aria-invalid` on its control); any
   other error, a warning, a step to take or what is done is an `Alert` (`variant="destructive"` an error's, its text
   selectable). A confirmation that passes (Copied, Saved as) is a `toast` (sonner's `Toaster`), in Settings only
@@ -197,6 +200,8 @@ is Radix's own. A Radix menu of a part's own only for a row's own menu inside on
 What is drawn or moved here rather than by shadcn, each for a reason at it:
 
 - dockview's look, its variables set from the theme's (`Grid.css`);
+- Diff's indeterminate progress motion (`src/diff/renderer/loading.css`): shadcn supplies the bar and semantics;
+  a transform animates its indicator without layout work;
 - the profile notch's concave shoulders (`grid/ProfilePane.css`): masked corners attach its identity to the top edge;
 - the dictation's pill with its wave bars, read from the microphone (`src/dictation/`, its `README.md`); its motions and
   the microphone's ring are Tailwind's and tw-animate-css';
