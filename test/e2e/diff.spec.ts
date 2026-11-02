@@ -29,9 +29,11 @@ test('Diff copies code and file paths in Unified and Split layouts while control
     await expect(collapse).toHaveAttribute('aria-expanded', 'true');
     await code.getByText('copyMarker', { exact: true }).last().dblclick();
     // Playwright has no selection getter; the native Copy action also covers shadow-root selections on macOS.
-    await expect.poll(() => ui.evaluate(() => getSelection()?.toString())).toBe('copyMarker');
+    // Native Windows word selection includes the following space.
+    await expect.poll(() => ui.evaluate(() => getSelection()?.toString())).toMatch(/^copyMarker ?$/);
+    const selected = await ui.evaluate(() => getSelection()?.toString());
     await core((k) => k.electron.webContents.getFocusedWebContents().copy());
-    await expect.poll(() => core((k) => k.electron.clipboard.readText())).toBe('copyMarker');
+    await expect.poll(() => core((k) => k.electron.clipboard.readText())).toBe(selected);
   }
   await collapse.click();
   await copy.click();
