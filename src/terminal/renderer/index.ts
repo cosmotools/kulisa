@@ -246,7 +246,8 @@ export class View {
     this.pending = null;
     this.key = key;
     if (!key) return this.term.reset();
-    const b = bufferOf(key, this.size() ?? undefined);
+    // An existing buffer owns its size; measuring after a DOM move forces synchronous layout.
+    const b = buffers.get(key) ?? bufferOf(key, this.size() ?? undefined);
     // The buffer's own writes are queued: what is queued is parsed first, so the buffer is all its output so far.
     // Output coming meanwhile goes to the buffer after that mark, and here after it (pending).
     const pending: string[] = this.pending = [];
