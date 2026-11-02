@@ -11,6 +11,9 @@ import { StageGrid } from './stage';
 import { pageRects, type PaneHandle } from './pages';
 import { freeze, unfreeze, showViews } from './views';
 
+const samePanels = (a: { id: string | number }[], b: { id: string | number }[]) =>
+  a.length === b.length && a.every((panel, i) => panel.id === b[i]!.id);
+
 export class TaskGrid {
   readonly development: DevelopmentGrid;
   readonly stage: StageGrid;
@@ -26,9 +29,14 @@ export class TaskGrid {
   private subscriptions = new Map<object, () => void>();
   private dragging = false;
   private arrangement: Events['stage:arrange'] | null = null;
+  private stop: () => void;
   constructor(readonly state: TaskStore) {
     this.development = new DevelopmentGrid(state, this.changed, this.scheduleLayout);
     this.stage = new StageGrid(state, this.scheduleLayout);
+    this.stop = state.subscribe((next, previous) => {
+      if (!samePanels(next.profiles, previous.profiles) || !samePanels(next.stageTerminals, previous.stageTerminals)
+        || !!next.developmentTerminals.list.length !== !!previous.developmentTerminals.list.length) this.update();
+    });
   }
   get key() { return this.state.getState().key; }
   private get ready() { return !this.state.getState().loading; }
@@ -99,13 +107,14 @@ export class TaskGrid {
   }
   dispose() {
     this.deactivate(); this.disposed = true;
+    this.stop();
     cancelAnimationFrame(this.frame);
     for (const stop of this.subscriptions.values()) stop();
     this.subscriptions.clear(); this.stage.detach(); this.development.dispose();
     this.panes.clear(); this.workspace = null; this.element = null;
   }
   private mutate(fn: () => void) { this.mutations++; try { fn(); } finally { this.mutations--; } }
-  update() { if (this.ready && !this.disposed) { this.mutate(() => this.sync()); this.changed(); } }
+  private update() { if (this.ready && !this.disposed) { this.mutate(() => this.sync()); this.changed(); } }
   arrange(event: Events['stage:arrange']) {
     if (!this.ready) {
       this.arrangement = { ...this.arrangement, task: this.key, ...(event.layout !== undefined && { layout: event.layout }),

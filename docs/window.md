@@ -104,10 +104,12 @@ Dockview instances and Stage terminal Views live until their task or panel close
 background polling; focus requests and dictation belong to the selected task. Closing the task unmounts its view
 and releases its controller. Selection changes deactivate the outgoing controller directly (`task-view/controller.ts`).
 Window controls address the selected task; panels read their permanent controller and task through one context.
+The screen's memo boundary keeps selection changes out of unchanged descendants; panels subscribe to task activity where needed.
 Each controller owns its profile-pane handles, so copies of the same profile address their own DOM and controls.
 Launchers use their task's project; terminal and profile menu actions capture their task key, so a delayed action cannot address another task.
-State messages carry their task key. Incoming state refreshes its owning TaskView; background terminal output
-continues into its own buffers.
+State messages carry their task key. Incoming state reuses equal objects in its owning TaskView through TanStack's
+structural sharing. Grid synchronization follows changes to environment panel IDs or whether the development
+terminal is empty; status and tab updates refresh their controls. Background terminal output continues into its own buffers.
 
 The outer Gridview observes available room; its panel dimension events size nested grids synchronously with their
 automatic resizing disabled. Each TaskView observes its host outside the skipped contents to keep hidden grids sized

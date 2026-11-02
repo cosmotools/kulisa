@@ -1,5 +1,6 @@
 // State, actions and panel ownership of retained task screens (docs/window.md, The grid).
 import { createStore, useStore, type StoreApi } from 'zustand';
+import { replaceEqualDeep } from '@tanstack/react-query';
 import { createContext, useContext, useMemo } from 'react';
 import type { StageTerminal } from '../../shared/stage-terminal';
 import type { DiffSelection } from '../../diff/ipc';
@@ -82,8 +83,18 @@ export function useTaskActions() {
   return useMemo(() => actionsFor(key), [key]);
 }
 
-kulisa.on('profile:closed', ({ task, list }) => tasks.getState()[task]?.setState({ closedProfiles: list }));
-kulisa.on('task:artifact:state', (a) => tasks.getState()[a.task]?.setState({ artifacts: a }));
+// IPC copies objects; retaining equal parts keeps unchanged panels out of React's update path.
+function receive<K extends keyof TaskState>(task: string, field: K, value: TaskState[K]) {
+  tasks.getState()[task]?.setState((previous) => {
+    const next = replaceEqualDeep(previous[field], value);
+    return next === previous[field] ? previous : { ...previous, [field]: next };
+  });
+}
+kulisa.on('profile:state', ({ task, list }) => receive(task, 'profiles', list));
+kulisa.on('profile:closed', ({ task, list }) => receive(task, 'closedProfiles', list));
+kulisa.on('development-terminal:state', (state) => receive(state.task ?? '', 'developmentTerminals', state));
+kulisa.on('stage-terminal:state', ({ task, list }) => receive(task, 'stageTerminals', list));
+kulisa.on('task:artifact:state', (a) => receive(a.task, 'artifacts', a));
 
 // A caption that goes after 4 s, unless sticky: it stays until the next one.
 const captionTimers = new Map<string, number>();

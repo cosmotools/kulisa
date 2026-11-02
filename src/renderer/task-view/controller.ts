@@ -1,6 +1,6 @@
 // Task grids retained by their open TaskViews; window controls address the selected one.
 import { store } from '../lib/store';
-import { tasks, taskStore } from './state';
+import { taskStore } from './state';
 import type { TaskGrid } from './grid';
 import { closeLayers } from '../lib/cover';
 import { forgetFrozen, onLivePages } from './views';
@@ -26,18 +26,6 @@ export async function setStageFollowing(follow: boolean) {
 }
 kulisa.on('page:press', ({ task }) => {
   if (task === store.getState().current) for (const profile of taskStore().getState().profiles) pane(profile.id)?.cancelAddress();
-});
-kulisa.on('profile:state', ({ task, list }) => {
-  const state = tasks.getState()[task];
-  if (!state) return;
-  state.setState({ profiles: list }); grids.get(task)?.update();
-});
-kulisa.on('development-terminal:state', (developmentTerminals) => {
-  tasks.getState()[developmentTerminals.task ?? '']?.setState({ developmentTerminals });
-  grids.get(developmentTerminals.task ?? '')?.update();
-});
-kulisa.on('stage-terminal:state', ({ task, list }) => {
-  tasks.getState()[task]?.setState({ stageTerminals: list }); grids.get(task)?.update();
 });
 kulisa.on('stage:arrange', (event) => grids.get(event.task)?.arrange(event));
 store.subscribe((next, previous) => {

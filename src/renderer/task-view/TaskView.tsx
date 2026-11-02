@@ -69,7 +69,7 @@ function ClosedProfiles() {
     </Button>)}
   </nav>;
 }
-function Screen() {
+const Screen = memo(function Screen() {
   const grid = useTaskGrid(), workspace = useRef<HTMLDivElement>(null);
   const loading = useTask((s) => s.loading);
   const folded = useTask((s) => !s.profiles.length && !s.stageTerminals.length && s.developmentTerminals.list.length > 0);
@@ -81,7 +81,7 @@ function Screen() {
         onReady={(e) => grid.mount(e.api, workspace.current!)} />
     </div>
   </section>;
-}
+});
 const TaskView = memo(function TaskView({ state, active }: { state: TaskStore; active: boolean }) {
   const [grid] = useState(() => new TaskGrid(state));
   const host = useRef<HTMLElement>(null);
