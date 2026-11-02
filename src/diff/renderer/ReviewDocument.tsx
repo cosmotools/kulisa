@@ -3,7 +3,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 import type { CodeViewItem, FileDiffMetadata } from '@pierre/diffs';
 import { CodeView, WorkerPoolContextProvider, type CodeViewHandle, type CodeViewProps, type CodeViewReactOptions } from '@pierre/diffs/react';
 import { useIsFetching } from '@tanstack/react-query';
-import { ChevronRightIcon, GitCompareArrowsIcon } from 'lucide-react';
+import { ChevronRightIcon, CopyIcon, GitCompareArrowsIcon } from 'lucide-react';
 import { Alert, AlertDescription, Button, ToggleGroup, ToggleGroupItem } from '@ui';
 import type { DiffFile } from '../ipc';
 import { refused } from '../../shared/result';
@@ -82,7 +82,10 @@ function ReviewContent({ session, selection, shade, fontSize }: DiffPanelProps) 
     return <header role="heading" aria-level={3} aria-label={item.id} className="flex h-9 items-center gap-2 border-b bg-muted px-3 text-sm">
       <Button variant="ghost" size="icon-xs" aria-label={action} title={action} aria-expanded={!item.collapsed} onClick={() => setCollapseVersions((current) =>
         new Map(current).set(item.id, (current.get(item.id) ?? 0) + 1))}><ChevronRightIcon className={item.collapsed ? '' : 'rotate-90'} /></Button>
-      <span className="min-w-0 flex-1 truncate" title={file?.previousPath ? `${file.previousPath} → ${item.id}` : item.id}>{file?.previousPath ? `${file.previousPath} → ${item.id}` : item.id}</span>
+      <div className="flex min-w-0 flex-1 items-center gap-1">
+        <span className="min-w-0 truncate" title={file?.previousPath ? `${file.previousPath} → ${item.id}` : item.id}>{file?.previousPath ? `${file.previousPath} → ${item.id}` : item.id}</span>
+        <Button variant="ghost" size="icon-xs" aria-label={`Copy path for ${item.id}`} title="Copy file path" onClick={() => void navigator.clipboard.writeText(item.id)}><CopyIcon /></Button>
+      </div>
       {file && <><DiffStatus status={file.status} /><DiffCounts additions={file.additions} deletions={file.deletions} /></>}
     </header>;
   }, [byPath]);

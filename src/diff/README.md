@@ -11,6 +11,7 @@ Read-only local Git comparisons for the Resources tree and development review.
 - Pierre Trees virtualizes changed-file navigation; presorted paths keep the tree in the review document's order.
 - Tree and review use the window's `text-sm` size for file names, code and empty-state messages; code uses JetBrains Mono.
 - Code blocks allow native text selection and copying; file headers stay unselectable and Pierre owns line-number selection.
+- File headers copy the current repository-relative path, including for renamed and collapsed files.
 - Each opening reads Git afresh. Branch names, file rows and review share a loading state for at least 500 ms and appear together
   after the listings and the review's first rendered file are ready; empty comparisons need no file render.
 - Search, repository headings and empty From/To controls appear immediately; the comparison selector stays disabled during loading.
