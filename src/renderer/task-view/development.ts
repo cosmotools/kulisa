@@ -11,10 +11,11 @@ import { dockTheme } from './dock-theme';
 export const resourceSections = { terminals: 'Agents', project: 'Project', diff: 'Diff', artifacts: 'Artifacts' } as const;
 export type ResourceSection = keyof typeof resourceSections;
 export const resourcesMinimumHeight = 204;
+const resourcesEdge = { id: 'resources', minimumSize: 300, collapsedSize: 40 } as const;
 
 export class DevelopmentGrid {
   api: DockviewApi | null = null;
-  parent: GridviewPanelApi | null = null;
+  private parent: GridviewPanelApi | null = null;
   private subscriptions = new DockviewCompositeDisposable();
   private reviewNavigation = 0;
   private reviewSession: ReturnType<typeof createDiff> | null = null;
@@ -47,21 +48,23 @@ export class DevelopmentGrid {
     if (!api.getPanel('terminal') || !api.getGroup('resources')) {
       api.clear();
       for (const edge of ['left', 'right', 'top', 'bottom'] as const) if (api.getEdgeGroup(edge)) api.removeEdgeGroup(edge);
-      api.addPanel({ id: 'terminal', component: 'terminal', title: 'Terminal', renderer: 'always' });
+      api.addPanel({ id: 'terminal', component: 'terminal', title: 'Terminal' });
       // Import the choices from a saved movable Resources panel.
       const previous = saved?.panels.resources?.params;
-      const resources = api.addEdgeGroup('left', { id: 'resources', initialSize: previous?.expandedWidth ?? Math.round(api.width / 4),
-        minimumSize: 300, collapsedSize: 40 });
+      const resources = api.addEdgeGroup('left', { ...resourcesEdge, initialSize: previous?.expandedWidth ?? Math.round(api.width / 4) });
       for (const [section, title] of Object.entries(resourceSections)) api.addPanel({ id: `resources:${section}`, component: 'resources',
         tabComponent: 'resources', title, params: { section }, position: { referenceGroup: 'resources' }, inactive: true });
       const section = previous?.section && Object.hasOwn(resourceSections, previous.section) ? previous.section : 'project';
       api.getPanel(`resources:${section}`)!.api.setActive();
       if (previous?.section === null) resources.collapse();
     }
-    api.getPanel('terminal')!.group.header.hidden = true;
+    const terminal = api.getPanel('terminal')!;
+    terminal.api.setRenderer('onlyWhenVisible');
+    terminal.group.header.hidden = true;
     const resources = api.getEdgeGroup('left')!;
     // The outer split must reserve room for the edge strip/content and the central terminal.
-    const constrainParent = () => this.parent!.setConstraints({ minimumWidth: (resources.isCollapsed() ? 40 : 300) + 100 + (dockTheme.gap ?? 0) });
+    const constrainParent = () => this.parent!.setConstraints({ minimumWidth: api.minimumWidth
+      + (resources.isCollapsed() ? resourcesEdge.collapsedSize : resourcesEdge.minimumSize) + (dockTheme.gap ?? 0) });
     constrainParent();
     this.subscriptions.addDisposables(resources.onDidActivePanelChange(this.resourceChanged), resources.onDidCollapsedChange(constrainParent),
       resources.onDidCollapsedChange(this.resourceChanged));

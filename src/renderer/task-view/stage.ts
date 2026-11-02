@@ -3,7 +3,6 @@ import type { DockviewApi, GridviewPanelApi, SerializedDockview } from 'dockview
 import { store as windowStore } from '../lib/store';
 import type { TaskStore } from './state';
 import { environmentMinimum } from '../../shared/stage-layout';
-import { dockTheme } from './dock-theme';
 import { restoreDockview, panelId } from './layout';
 
 export class StageGrid {
@@ -25,7 +24,7 @@ export class StageGrid {
     if (empty && this.store.getState().stageLayout === 'tabs') api.panels[0]?.api.setActive();
     // Stage identities and pane controls need their headers, independently of saved visibility flags.
     for (const group of api.groups) group.header.hidden = false;
-    this.constrainStage(); this.layout();
+    this.layout();
   }
   detach() {
     this.api = null; this.parent = null; this.viewport = null;
@@ -38,15 +37,18 @@ export class StageGrid {
     const api = this.api, parent = this.parent, viewport = this.viewport;
     if (!api || !parent || !viewport) return;
     const { stageLayout: mode, stageOverflow: overflow } = this.store.getState();
-    const scrolling = overflow && mode !== 'tabs' && !api.hasMaximizedGroup(), count = this.environmentIds().length;
-    const gap = Math.max(0, count - 1) * (dockTheme.gap ?? 0);
+    const scrolling = overflow && mode !== 'tabs' && !api.hasMaximizedGroup();
+    const constraintsChanged = this.constrain(scrolling && mode !== 'vertical' ? environmentMinimum.width : 0,
+      scrolling && mode === 'vertical' ? environmentMinimum.height : 0);
     viewport.style.overflowX = scrolling && mode !== 'vertical' ? 'auto' : 'hidden';
     viewport.style.overflowY = scrolling && mode === 'vertical' ? 'auto' : 'hidden';
     const canvas = viewport.firstElementChild as HTMLElement;
     // The cross-axis percentage excludes the room the scroll bar takes inside the viewport.
-    canvas.style.width = scrolling && mode !== 'vertical' ? `${Math.max(parent.width, count * environmentMinimum.width + gap)}px` : '100%';
-    canvas.style.height = scrolling && mode === 'vertical' ? `${Math.max(parent.height, count * environmentMinimum.height + gap)}px` : '100%';
-    api.layout(canvas.clientWidth, canvas.clientHeight, true);
+    canvas.style.width = scrolling && mode !== 'vertical' ? `${Math.max(parent.width, api.minimumWidth)}px` : '100%';
+    canvas.style.height = scrolling && mode === 'vertical' ? `${Math.max(parent.height, api.minimumHeight)}px` : '100%';
+    const width = canvas.clientWidth, height = canvas.clientHeight;
+    // A group's explicit constraints settle after its constraint event; finish sizing with their final values.
+    if (constraintsChanged || width !== api.width || height !== api.height) api.layout(width, height);
   };
   follow() { if (this.lastEnvironment) this.followEnvironment(this.lastEnvironment); }
   addEnvironment = (id: string, reference?: string, direction: 'right' | 'below' | 'within' = 'right', inactive = false) => {
@@ -56,24 +58,18 @@ export class StageGrid {
       ...(!profile && { renderer: 'always' as const }), ...(reference && { position: { referencePanel: reference, direction } }), inactive });
   };
 
-  constrainStage = (mode = this.store.getState().stageLayout, overflow = this.store.getState().stageOverflow) => {
-    if (!this.api) return;
-    const scrolling = overflow && mode !== 'tabs' && !this.api.hasMaximizedGroup();
-    const minimumWidth = scrolling && mode !== 'vertical' ? environmentMinimum.width : 0;
-    const minimumHeight = scrolling && mode === 'vertical' ? environmentMinimum.height : 0;
-    if (this.api.groups.every((group) => group.minimumWidth === minimumWidth && group.minimumHeight === minimumHeight)) return;
-    const { width, height } = this.api;
-    // Constraints apply per group: reserve room for both old and new minima before shrinking the canvas.
-    this.api.layout(Math.max(width, this.api.minimumWidth, minimumWidth * this.api.groups.length),
-      Math.max(height, this.api.minimumHeight, minimumHeight * this.api.groups.length), true);
-    for (const group of this.api.groups) group.api.setConstraints({ minimumWidth, minimumHeight });
-    this.api.layout(width, height, true);
-  };
+  private constrain(minimumWidth: number, minimumHeight: number) {
+    let changed = false;
+    for (const group of this.api!.groups) if (group.minimumWidth !== minimumWidth || group.minimumHeight !== minimumHeight) {
+      group.api.setConstraints({ minimumWidth, minimumHeight }); changed = true;
+    }
+    return changed;
+  }
 
   arrangeStage = () => {
     if (!this.api) return;
     // Stack axes can change while panels move between groups.
-    this.constrainStage(null, false);
+    this.constrain(0, 0);
     this.api.exitMaximizedGroup();
     const panels = this.environmentIds().map((id) => this.api!.getPanel(id)!), first = panels[0];
     if (!first) return;

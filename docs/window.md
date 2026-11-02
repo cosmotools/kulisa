@@ -88,10 +88,11 @@ profile and terminal headers highlight activity for two seconds. Selecting or in
 following; **Follow agent (paused)** resumes it. A maximized group stays maximized, and background tasks never
 move the shown Stage. Pause state and activity are transient in each window; the global preference resumes when another task opens.
 
-**Allow overflow** is independent of the layout, off by default: panes fit the stage. On, Horizontal stack allocates 600 CSS
-pixels of width per environment, Vertical stack 300 pixels of height, plus Dockview’s gaps; the stack scrolls on that axis.
-Tabs hides the toggle and ignores overflow while preserving its value. Constraint changes give Dockview room for
-both old and new group minimums before restoring its size; its resize observer can lag behind the scroll container.
+**Allow overflow** is independent of the layout, off by default: panes fit the stage. On, Horizontal stack sets a 600 CSS
+pixel group minimum width, Vertical stack a 300 pixel group minimum height; Dockview computes the grid's minimum
+from its live groups, including nested or stacked panes. The scroll canvas fits that minimum and the available room.
+Tabs hides the toggle and ignores overflow while preserving its value. Each sizing pass applies changed group
+constraints before sizing the canvas, then lays out changed dimensions or constraints after their events.
 `stage_arrange` accepts any combination of position, view and overflow; omitted settings stay unchanged. Changing
 only overflow preserves the panes and active tab. `task-view/stage.ts` sizes
 the inner grid inside its scroll viewport. Its scroll and all layout changes report page bounds and their visible
@@ -104,8 +105,9 @@ Each visited task owns a live `TaskView`, its zustand store and a `TaskGrid` in 
 `content-visibility: hidden` skips inactive contents while retaining their DOM; `inert` excludes their controls from input. Components,
 Dockview instances and Stage terminal Views live until their task or panel closes. Project Explorer and Diff pause
 background polling; focus requests and dictation belong to the selected task. Closing the task unmounts its view
-and releases its controller. Each mounted grid owns one disposable set of subscriptions, including its group-size
-listeners; removing that grid disposes the set. Selection changes deactivate the outgoing controller directly (`task-view/controller.ts`).
+and releases its controller. Each mounted grid owns one disposable set of subscriptions; removing that grid disposes
+the set. Dockview's layout event coalesces compound moves in a microtask, then sizes Stage and schedules saving and
+page geometry. Selection changes deactivate the outgoing controller directly (`task-view/controller.ts`).
 Window controls address the selected task; panels read their permanent controller and task through one context.
 Diff selection and terminal focus requests use this owner; IPC messages carry the task key for routing and validation.
 The screen's memo boundary keeps selection changes out of unchanged descendants. Pending address/search focus,
@@ -126,14 +128,17 @@ Selecting a prepared task shows its pages at their stored bounds and hides the o
 turn. Menus and Settings cover pages independently of geometry; closing a menu reveals pages at their stored bounds.
 Late captures cannot change another task's cover.
 The shared development xterm moves into the
-active task's terminal host; `TaskViews` applies its theme once per window. Its content appears after the selected buffer is drawn at the pane's size. Hidden Stage terminals retain their
+active task's terminal host; `TaskViews` applies its theme once per window. Its sole central panel uses Dockview's
+inline renderer. Its content appears after the selected buffer is drawn at the pane's size. Hidden Stage terminals retain their
 Views, processes and buffers. A task's open Diff retains its comparison, filter, document and scroll position.
 
 `task.json` keeps Stage view/overflow/layout in `stage`, and development layout, Stage position/share in `workspace`,
 saved 300 ms after a change and flushed when the task is hidden or closed. The saved layout loads once before a TaskView
 creates its grids, including after a restart or move to another window. Stage commands received during loading merge
-into the initial settings; loading completes when both required grids are mounted. Dockview owns the live geometry; group dimension changes save
-completed sizes. Development layouts use Dockview's `toJSON` / `fromJSON`, including edge-group sizes and collapse state.
+into the initial settings; loading completes when both required grids are mounted. Dockview owns the live geometry;
+its layout events save completed arrangements. Stage position changes move the leading area before its peer using
+the previous position; its live panel dimensions supply the split ratio. The ratio is retained separately while Stage
+is empty. Development layouts use Dockview's `toJSON` / `fromJSON`, including edge-group sizes and collapse state.
 `task-view/layout.ts` converts saved Stage sizes to split allocations including their theme-gap share.
 `shared/stage-layout.ts` separates flat layouts into development and testing groups, retaining order, stacking and
 sizes. Saved stack settings normalize to explicit horizontal and vertical directions without moving panes.
@@ -378,9 +383,9 @@ Code's settings are a page of their window: the window it is opened in is the on
 
 ## The terminal
 
-A terminal sends its first size once dockview's grid matches its current room and the retained panel's DOM matches
-its layout, so the program starts at the room it will keep when the panel is drawn. The comparison rounds Dockview's
-fractional CSS dimensions to match DOM client/offset sizes; the same readiness check gates later resizes.
+A terminal measures its inline host in a frame before sending its first size, so the program starts at its pane's
+dimensions. The terminal component handles keyboard requests after React commits its host and selected buffer;
+font loading, task selection, request identity and dialogs guard delayed focus.
 
 A task's terminals share one **panel** of the grid (`DevelopmentTerminals` in `task-view/DevelopmentTerminals.tsx`),
 one shown at a time. Each is the user's shell in the task's folder (`src/terminal/`), with an agent chosen by the

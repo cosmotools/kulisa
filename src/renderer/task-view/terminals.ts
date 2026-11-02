@@ -8,7 +8,6 @@ import { keyText } from '../lib/common';
 import { menuAt, type MenuItem } from '../lib/menu';
 import { dialog } from '../lib/dialogs';
 import { taskGrid } from './controller';
-import { dialogsShown } from '../lib/cover';
 import { refused } from '../../shared/result';
 import { restoreTerminal, serialized, termCopy, termHooks, termPaste, View, xtermKeys } from '../../terminal/renderer';
 import type { DevelopmentTerminalInfo } from '../../shared/types';
@@ -26,19 +25,12 @@ export function focusDevelopmentTerminal(task = store.getState().current) {
   development.showAgents();
   if (development.resourceSection === 'diff') development.showResource('terminals');
   development.api?.getPanel('terminal')?.api.setActive();
-  requestAnimationFrame(() => {
-    if (store.getState().current === task && development.screen() === 'agents' && !dialogsShown()) shownTerm()?.focus();
-  });
+  taskStore(task).setState({ developmentTerminalFocus: {} });
 }
 
 export async function showDevelopmentTerminal(task: string, id: number) {
-  // A stacked terminal must be visible before its new buffer takes keyboard focus.
-  focusDevelopmentTerminal(task);
   await actionsFor(task)('development-terminal:show', { id });
-  // Dockview reattaches retained content when a stacked panel opens; detached inputs cannot take focus.
-  requestAnimationFrame(() => {
-    if (store.getState().current === task && taskStore().getState().developmentTerminals.front === id && !dialogsShown()) shownTerm()?.focus();
-  });
+  if (taskStore(task).getState().developmentTerminals.front === id) focusDevelopmentTerminal(task);
 }
 
 termHooks.colors = () => termStyle().colors;

@@ -1,12 +1,11 @@
 // The task’s development terminal panel (docs/window.md, The terminal); its shared View outlives the panel.
 import { createElement, useEffect, useLayoutEffect, useRef, type Ref } from 'react';
 import { CheckIcon, PlusIcon } from 'lucide-react';
-import type { IDockviewPanelProps } from 'dockview-react';
 import { Avatar, AvatarImage, Button, Item, ItemContent, ItemDescription, ItemMedia, ItemTitle, Spinner } from '@ui';
 import { ButtonMenu, RightClickMenu } from '../components/Menus';
 import { agentMark } from '../components/AgentMark';
-import { useWindow } from '../lib/store';
-import { useTask, useTaskActive, useTaskStore, useTaskGrid } from './state';
+import { store, useWindow } from '../lib/store';
+import { useTask, useTaskActive, useTaskStore } from './state';
 import { profileLaunchers } from './profiles';
 import { panelView, launchers, newTerminalItems, terminalItems, terminalMenu } from './terminals';
 import { avatarSrc, withKeys } from '../lib/common';
@@ -16,15 +15,15 @@ import { termFocus } from '../../terminal/renderer';
 import { Pill } from '../../dictation/renderer';
 
 const NEW_TITLE = 'New conversation of an agent, or a terminal';
-export function DevelopmentTerminals({ api, reviewing }: IDockviewPanelProps & { reviewing: boolean }) {
+export function DevelopmentTerminals({ reviewing }: { reviewing: boolean }) {
   const host = useRef<HTMLDivElement>(null), launch = useRef<HTMLDivElement>(null);
   const owner = useTaskStore();
-  const grid = useTaskGrid();
   const active = useTaskActive();
   const task = useTask((s) => s.key), front = useTask((s) => s.developmentTerminals.front);
   const empty = useTask((s) => !s.developmentTerminals.list.length);
   const alone = useTask((s) => !s.profiles.length && !s.stageTerminals.length);
   const loading = useTask((s) => s.loading);
+  const focus = useTask((s) => s.developmentTerminalFocus);
   // The tab in front before its program has started (an agent's is looked for first): a loader over its terminal, which
   // stays laid out meanwhile (the program starts at its size).
   const starting = useTask((s) => s.developmentTerminals.list.find((t) => t.id === s.developmentTerminals.front && t.starting)?.name);
@@ -33,15 +32,9 @@ export function DevelopmentTerminals({ api, reviewing }: IDockviewPanelProps & {
   useLayoutEffect(() => {
     if (!active) return;
     const el = host.current!;
-    // Retained panels catch up in a later frame; DOM client/offset dimensions round Dockview's fractional CSS pixels.
-    panelView.isLaidOut = () => {
-      const area = host.current?.closest('[data-development-grid]'), parent = grid.development.parent;
-      return !!parent && area?.clientWidth === Math.round(parent.width) && area?.clientHeight === Math.round(parent.height)
-        && host.current?.offsetWidth === Math.round(api.width) && host.current?.offsetHeight === Math.round(api.height);
-    };
     el.append(panelView.el);
-    return () => { panelView.isLaidOut = undefined; if (panelView.el.parentElement === el) panelView.el.remove(); };
-  }, [api, grid, active]);
+    return () => { if (panelView.el.parentElement === el) panelView.el.remove(); };
+  }, [active]);
   useLayoutEffect(() => { if (active) panelView.show(shown); }, [active, shown]);
   // Another tab in front of the same task (chosen, or opened by the human): the keyboard goes to it. Not from a dialog
   // (Change Agent's tab comes in front under it): the dialog keeps the keyboard.
@@ -49,8 +42,18 @@ export function DevelopmentTerminals({ api, reviewing }: IDockviewPanelProps & {
   useEffect(() => {
     const before = was.current;
     was.current = front;
-    if (active && !reviewing && front !== before && front !== null && !dialogsShown()) void termFocus(`${task}#${front}`);
-  }, [task, front, reviewing, active]);
+    if (!active || reviewing || front === null || !focus && front === before) return;
+    let cancelled = false;
+    const key = `${task}#${front}`;
+    void termFocus(key, () => {
+      const state = owner.getState();
+      return !cancelled && store.getState().current === task && state.developmentTerminals.front === front && !state.developmentDiff
+        && state.developmentTerminalFocus === focus && !dialogsShown() && !panelView.el.contains(document.activeElement);
+    }).then(() => {
+      if (!cancelled && focus && owner.getState().developmentTerminalFocus === focus) owner.setState({ developmentTerminalFocus: null });
+    });
+    return () => { cancelled = true; };
+  }, [task, owner, focus, front, reviewing, active]);
 
   // The big buttons, each a Tab stop (Tab to the next, Enter opens it): the first, the project's default agent, gets the
   // keyboard when the keyboard was in the terminal just closed or nowhere (not taken from a field or a dialog). No keys

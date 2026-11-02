@@ -137,7 +137,6 @@ export class View {
   el = Object.assign(document.createElement('div'), { className: 'term', style: 'height: 100%' });
   key: string | null = null;
   renderer?: 'dom' | 'webgl';
-  isLaidOut?: () => boolean;
   // The rows that fit, in the middle: what is left under a whole row (the place's height is any) shared above and below,
   // so no edge gets a row's height of it and a pixel more or less never costs a row.
   private host = Object.assign(document.createElement('div'), { className: 'xterm-host',
@@ -296,7 +295,7 @@ export class View {
   }
   private reveal() {
     const ready = () => {
-      if (this.pending || this.isLaidOut && !this.isLaidOut()) return false;
+      if (this.pending) return false;
       const size = this.size();
       return size && this.term.cols === size.cols && this.term.rows === size.rows;
     };
@@ -322,12 +321,10 @@ export class View {
     const measure = () => {
       const key = this.key;
       if (!views.has(this) || !key || this.pending || !this.opened || !this.el.offsetWidth) return;
-      if (this.isLaidOut && !this.isLaidOut()) return tries && this.fitSoon(tries - 1);
       const size = this.size();
       if (!size) return tries && this.fitSoon(tries - 1);
       const fit = () => {
         if (this.key !== key || this.pending || !views.has(this)) return; // another shown meanwhile (its own fit follows), or disposed
-        if (this.isLaidOut && !this.isLaidOut()) return this.fitSoon(tries);
         if (this.term.cols !== size.cols || this.term.rows !== size.rows) this.term.resize(size.cols, size.rows);
         const b = bufferOf(key, size);
         if (b.term.cols !== size.cols || b.term.rows !== size.rows) b.term.resize(size.cols, size.rows);

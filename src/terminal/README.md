@@ -84,9 +84,8 @@ panes and remain mounted while the task is hidden. Closing a pane or task releas
 
 **Fitted in a frame about to be drawn.** A terminal is put in at its buffer's size, and the xterm and the buffer get
 the room laid out only from the fit, measured in `requestAnimationFrame`: fitted at once in a window just opened, its
-grid not laid out, the buffer would be wrapped at 9 columns. A place whose DOM size trails its layout supplies
-`View.isLaidOut`: fitting retries on following frames until it agrees, before measuring and before sending the size.
-Resize observations coalesce into one pending frame; disposal cancels both the frame and its deferred resize.
+grid not laid out, the buffer would be wrapped at 9 columns. The host's DOM dimensions supply its size;
+resize observations coalesce into one pending frame. Disposal cancels both the frame and its deferred resize.
 Resized after that frame: a resize clears WebGL's canvas, which xterm draws again in the next frame, so one resized
 in a frame is drawn empty. A hidden page draws no frames, so there it is measured at once: Windows hides a window
 other windows cover (one opening behind

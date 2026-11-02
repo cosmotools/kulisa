@@ -31,7 +31,7 @@ function DevelopmentContent(props: IDockviewPanelProps) {
   const reviewing = !!diff;
   useEffect(() => { props.api.setTitle(reviewing ? 'Diff' : 'Terminal'); }, [props.api, reviewing]);
   return <div className="h-full min-h-0 min-w-0">
-    <div hidden={reviewing} className="h-full"><DevelopmentTerminals {...props} reviewing={reviewing} /></div>
+    <div hidden={reviewing} className="h-full"><DevelopmentTerminals reviewing={reviewing} /></div>
     {reviewing && <TaskDiff selection={diff} />}
   </div>;
 }

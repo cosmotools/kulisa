@@ -16,6 +16,7 @@ export interface TaskState {
   closedProfiles: ClosedProfile[];
   developmentTerminals: DevelopmentTerminalsState;
   developmentDiff: DiffSelection | null;
+  developmentTerminalFocus: object | null;
   stageTerminals: StageTerminal[];
   stageTerminalFocus: { key: string | null } | null;
   stageLayout: StageLayout | null;
@@ -32,7 +33,7 @@ export interface TaskState {
 export type TaskStore = StoreApi<TaskState>;
 const makeTask = (key: string) => createStore<TaskState>()(() => ({
   key, profiles: [], closedProfiles: [], developmentTerminals: { task: key, front: null, list: [] },
-  developmentDiff: null, stageTerminals: [], stageTerminalFocus: null, stageLayout: null, stageOverflow: false,
+  developmentDiff: null, developmentTerminalFocus: null, stageTerminals: [], stageTerminalFocus: null, stageLayout: null, stageOverflow: false,
   stageFollowPaused: false, stageActivity: null, stagePosition: 'above', artifacts: { task: key, list: [], bytes: 0 },
   loading: true, captions: {}, picking: {}, pictures: {},
 }));
