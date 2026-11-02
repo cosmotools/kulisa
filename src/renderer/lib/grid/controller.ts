@@ -132,13 +132,15 @@ export class WindowGrid {
   private async restore(session: TaskGrid) {
     const api = await this.ready.promise;
     if (!api || !this.owns(session)) return;
-    const saved = await kulisa.invoke('layout:load', { task: session.key });
+    const saved = await kulisa.invoke('layout:load', { task: session.key }).catch((error: unknown) => {
+      console.warn('[layout] saved grid unavailable:', error); return null;
+    });
     if (!this.owns(session)) return;
     const layout = splitLayout(saved);
     this.mutate(() => {
       // Task controls determine the outer room; commit them before restoring the nested grids.
       flushSync(() => {
-        this.removeStage(); this.development.clear();
+        this.removeStage();
         store.setState({ profiles: session.profiles, stageTerminals: session.terminals,
           developmentTerminals: session.development ?? { task: session.key, front: null, list: [] }, pictures: {}, captions: {}, picking: {},
           stageLayout: session.arrangement?.layout ?? layout?.stageLayout ?? null,
@@ -156,7 +158,7 @@ export class WindowGrid {
     await renderTerminals();
     if (!document.hidden) await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
     if (!this.owns(session)) return;
-    kulisa.send('layout:apply', { task: session.key, rects: pageRects(this.stage.api, this.stage.viewport, store.getState().profiles) });
+    this.applyLayout(session);
     await this.host.revealGrid(session.key);
     if (this.owns(session)) { store.setState({ gridPhase: 'ready' }); this.changed(); }
   }
@@ -245,9 +247,16 @@ export class WindowGrid {
     this.layoutFrame = requestAnimationFrame(() => {
       if (!session?.ready || !this.owns(session)) return;
       this.development.constrain();
-      kulisa.send('layout:apply', { task: session.key, rects: pageRects(this.stage.api, this.stage.viewport, store.getState().profiles) });
+      this.applyLayout(session);
     });
   };
+  private applyLayout(session: TaskGrid) {
+    const box = this.element?.parentElement?.getBoundingClientRect();
+    if (!box) return;
+    const { x, y, width, height } = box;
+    kulisa.send('layout:apply', { task: session.key, bounds: { x, y, width, height },
+      rects: pageRects(this.stage.api, this.stage.viewport, store.getState().profiles) });
+  }
   private cancelFrames() {
     clearTimeout(this.saveTimer); clearTimeout(this.dropTimer); this.dirty = false; this.dragSession = null;
     cancelAnimationFrame(this.layoutFrame);

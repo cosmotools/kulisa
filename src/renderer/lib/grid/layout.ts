@@ -23,6 +23,6 @@ export function restoreDockview(a: DockviewApi, saved: SerializedDockview | null
       return { ...node, data: node.data.map((child) => ({ ...allocations(child),
         ...(child.size !== undefined && child.visible !== false && { size: child.size + share }) })) };
     };
-    a.fromJSON({ ...filtered, grid: { ...filtered.grid, root: allocations(filtered.grid.root) } });
+    a.fromJSON({ ...filtered, grid: { ...filtered.grid, root: allocations(filtered.grid.root) } }, { reuseExistingPanels: true });
   } catch (e) { console.warn('[layout] saved grid not restored:', (e as Error).message); a.clear(); }
 }

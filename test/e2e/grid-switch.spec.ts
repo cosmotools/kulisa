@@ -173,3 +173,49 @@ test('a delayed menu snapshot cannot enter the next task', async ({ core, ui, ca
     });
   }
 });
+
+test('task switching reuses development panels and restores each Resources section', async ({ core, ui }) => {
+  await notLoading(ui);
+  const first = await core((k) => k.shell.task.key);
+  const second = await newTask(core, ui);
+  await notLoading(ui);
+  await ui.getByRole('navigation', { name: 'Resources', exact: true }).getByRole('button', { name: 'Artifacts', exact: true }).click();
+  await showTask(core, ui, first);
+  await notLoading(ui);
+  const resources = await ui.locator('#resources').elementHandle();
+  const terminal = await ui.getByTestId('development-terminals').elementHandle();
+  try {
+    for (const [target, section] of [[second, 'Artifacts'], [first, 'Project']] as const) {
+      await showTask(core, ui, target);
+      await notLoading(ui);
+      expect(await resources.evaluate((element) => element === document.getElementById('resources'))).toBe(true);
+      expect(await terminal.evaluate((element) => element.isConnected)).toBe(true);
+      await expect(ui.getByRole('navigation', { name: 'Resources', exact: true }).getByRole('button', { name: section, exact: true })).toHaveAttribute('aria-expanded', 'true');
+    }
+  } finally {
+    await resources.dispose(); await terminal.dispose();
+  }
+});
+
+test('a failed layout load shows a usable default grid', async ({ core, ui }) => {
+  await notLoading(ui);
+  const first = await core((k) => k.shell.task.key);
+  await newTask(core, ui);
+  await notLoading(ui);
+  await core((k, key) => {
+    const store = k.shell.taskByKey(key).store, read = store.layout.bind(store);
+    k.stash.failedLayout = { store, read };
+    store.layout = () => { throw new Error('test layout unavailable'); };
+  }, first);
+  try {
+    await invoke(ui, 'task:show', first);
+    await notLoading(ui);
+    await expect(ui.getByRole('navigation', { name: 'Resources', exact: true })).toBeVisible();
+    await expect(ui.locator('#dock')).not.toHaveAttribute('inert');
+  } finally {
+    await core((k) => {
+      const failed = k.stash.failedLayout;
+      failed.store.layout = failed.read; delete k.stash.failedLayout;
+    });
+  }
+});

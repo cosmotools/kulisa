@@ -106,10 +106,16 @@ releases subscriptions and deferred work; one set of grids serves the window.
 
 The outer Gridview observes the window's available room; its panel dimension events synchronously size development
 and Stage, whose automatic resizing is disabled. Switching tasks commits their controls before restoring their
-grids. `AppWindow` holds snapshots of the outgoing interface and visible pages in native `ImageView`s on one
-compositor layer above the window. `gridPhase` keeps the incoming grid busy and inert while it renders underneath;
+grids; Dockview reuses matching development panels while restoring their task's parameters and placement.
+`AppWindow` holds snapshots of the outgoing grid and visible pages in native `ImageView`s on one compositor layer.
+The grid's reported bounds keep the title bar and tasks' bar outside the snapshot. Native images pass directly
+to the views; JPEG encoding is for HTML menu and drag snapshots. Capture waits are bounded by the first page's
+response, with a half-second deadline when none responds; an unavailable capture lets switching continue.
+`gridPhase` keeps the incoming grid busy and inert while it renders underneath;
 `renderTerminals` waits for parsing, fitting and xterm's `onRender`. `grid:ready` applies native page visibility and
-releases the pictures together. Snapshots live only during a switch, in memory; closing the last task releases them.
+releases the pictures together. Snapshots live only during a switch, in memory; resizing, closing the last task or
+losing the window's renderer releases them. A capture completing across a window resize is discarded; changed grid
+bounds release a held picture. A failed saved-layout load builds the default grid.
 Group dimension changes also save completed sizes.
 `lib/grid/layout.ts` adds each split's theme-gap share to Dockview's saved group sizes, preserving repeated restores.
 `shared/stage-layout.ts` separates a flat saved layout into development and testing groups, retaining

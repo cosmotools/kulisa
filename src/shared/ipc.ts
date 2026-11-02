@@ -169,7 +169,7 @@ export interface Invoke extends TerminalInvoke, ThumbnailInvoke, GitHubInvoke, D
 
 // ipcRenderer.send / ipcMain.on: what is sent, no answer.
 export interface Send extends TerminalSend, ThumbnailSend {
-  'layout:apply': { task: string | null; rects: Grid };
+  'layout:apply': { task: string | null; rects: Grid; bounds: { x: number; y: number; width: number; height: number } };
   'layout:save': { task: string | null; layout: unknown };
   'ask:answer': { id: number; answer: string };
   'agent:choice:submit': { task: string | null; id: string | null };

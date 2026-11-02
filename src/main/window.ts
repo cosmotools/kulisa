@@ -44,8 +44,7 @@ let windows = 0;
 const PRELOAD = path.join(import.meta.dirname, '..', 'preload', 'index.cjs');
 
 class AppWindow {
-  private showRevision = 0;
-  private holding: Promise<void> | null = null;
+  private gridBounds: Rectangle | null = null;
   private gridPicture: { view: View; images: ImageView[] } | null = null;
   shell: Shell; id: number; tabs: Task[]; current: Task | null; viewsHidden: boolean; switching: boolean; leaving: Profile[];
   stateTimer: NodeJS.Timeout | undefined; picking: Map<string, { profile: Profile; page: import('playwright-core').Page; cancel: () => unknown }>;
@@ -108,11 +107,12 @@ class AppWindow {
     // Its title names the shown task (show), not the page's <title>, which may load after.
     win.on('page-title-updated', (e) => e.preventDefault());
     // Questions the page was asking go unanswered once it is gone or loaded again (ask).
-    win.webContents.on('render-process-gone', () => this.unanswered());
+    win.webContents.on('render-process-gone', () => { this.releaseGrid(); this.unanswered(); });
     win.webContents.on('did-start-navigation', (d) => { if (d.isMainFrame && !d.isSameDocument) this.unanswered(); });
     // Where it was is kept for the next start; the app decides whether it closes now (app.ts, closeWindow).
     win.on('close', (e) => { this.place = this.where(); shell.windowClosing(this, e); });
     win.on('closed', () => { this.gridPicture = null; this.unanswered(); });
+    win.on('resize', () => this.releaseGrid());
     win.on('focus', () => this.seen());
     win.on('blur', () => { if (this.task) this.shell.dictation.letGo(this.task.key); this.send('window:blur'); });
   }
@@ -213,9 +213,8 @@ class AppWindow {
   async show(task: Task) {
     log.info(`[window] wc=${this.win.webContents.id} shows ${task.key}`);
     if (task === this.current) return;
-    const revision = ++this.showRevision;
     if (this.current) await this.holdGrid();
-    if (revision !== this.showRevision || this.win.isDestroyed()) return;
+    if (this.win.isDestroyed()) return;
     if (this.current) this.leaveGrid(true);
     this.current = task;
     this.shell.saveWindows();
@@ -242,7 +241,7 @@ class AppWindow {
   // (next), the grid and its pages stay on screen until the next one is laid out, as a browser keeps a tab's page until
   // the next one's is drawn: nothing empty between them.
   leaveGrid(next = false) {
-    if (!next) { this.showRevision++; this.releaseGrid(); }
+    if (!next) { this.releaseGrid(); this.gridBounds = null; }
     this.pushState(); // saves the tabs
     this.switching = true;
     clearTimeout(this.stateTimer);
@@ -281,37 +280,36 @@ class AppWindow {
   }
 
   // ---------- the profiles' views ----------
-  // One native overlay holds every surface; HTML-only snapshots cannot cover WebContentsViews.
-  private holdGrid() {
-    if (this.gridPicture || this.win.isMinimized() || !this.win.isVisible()) return Promise.resolve();
-    if (this.holding) return this.holding;
-    const owner = this.current;
+  // Task operations are serial (open-tasks.ts); capture and native composition share their outgoing geometry.
+  private async holdGrid() {
+    if (this.gridPicture || !this.gridBounds || this.win.isMinimized() || !this.win.isVisible()) return;
+    const bounds = this.gridBounds, size = this.win.getContentBounds();
     const profiles = [...this.profiles.values()].map((p) => ({ id: p.id, bounds: { ...p.bounds }, clip: p.clip && { ...p.clip } }));
-    const pending: Promise<void> = Promise.all([this.win.webContents.capturePage(), this.pictures()]).then(async ([window, pictures]) => {
-      if (this.win.isDestroyed() || this.current !== owner) return;
+    try {
+      const pictures = await this.capturePages(bounds), background = pictures.get('');
+      if (this.win.isDestroyed()) return;
+      const now = this.win.getContentBounds();
+      if (now.width !== size.width || now.height !== size.height) return;
+      if (!background) { log.warn(`[window] wc=${this.win.webContents.id} grid capture unavailable`); return; }
       const view = new View(), images: ImageView[] = [];
       // An independent compositor layer draws the images above embedded WebContentsViews.
       view.setBackgroundBlur(0);
-      const { width, height } = this.win.getContentBounds();
-      view.setBounds({ x: 0, y: 0, width, height });
-      const background = new ImageView(); background.setImage(window);
-      background.setBounds({ x: 0, y: 0, width, height }); view.addChildView(background); images.push(background);
+      view.setBounds(bounds);
+      const image = new ImageView(); image.setImage(background);
+      image.setBounds({ x: 0, y: 0, width: bounds.width, height: bounds.height }); view.addChildView(image); images.push(image);
       for (const p of profiles) {
-        const picture = pictures[p.id];
+        const picture = pictures.get(p.id);
         if (!picture) continue;
         const clip = p.clip ?? p.bounds;
-        const frame = new View(); frame.setBounds(clip);
-        const image = new ImageView(); image.setImage(nativeImage.createFromDataURL(picture));
+        const frame = new View(); frame.setBounds({ ...clip, x: clip.x - bounds.x, y: clip.y - bounds.y });
+        const image = new ImageView(); image.setImage(picture);
         image.setBounds({ x: p.bounds.x - clip.x, y: p.bounds.y - clip.y, width: p.bounds.width, height: p.bounds.height });
         frame.addChildView(image); view.addChildView(frame); images.push(image);
       }
       this.win.contentView.addChildView(view); this.gridPicture = { view, images };
       await this.hideViews(true);
-      log.info(`[window] wc=${this.win.webContents.id} held grid ${owner?.key}`);
-    }).catch(() => log.warn(`[window] wc=${this.win.webContents.id} could not hold grid`)).finally(() => {
-      if (this.holding === pending) this.holding = null;
-    });
-    return this.holding = pending;
+      log.info(`[window] wc=${this.win.webContents.id} held grid ${this.current?.key}`);
+    } catch { this.releaseGrid(); log.warn(`[window] wc=${this.win.webContents.id} could not hold grid`); }
   }
   private releaseGrid() {
     const picture = this.gridPicture; this.gridPicture = null;
@@ -348,7 +346,10 @@ class AppWindow {
   // second leaves every pane empty), so the pages set the pace: once the first has answered, the rest get three times as
   // long, a tenth of a second at least; none answering, half a second.
   async pictures() {
-    const pics: Record<string, string> = {}, t0 = Date.now();
+    return Object.fromEntries([...(await this.capturePages())].map(([id, image]) => [id, `data:image/jpeg;base64,${image.toJPEG(90).toString('base64')}`]));
+  }
+  private async capturePages(bounds?: Rectangle) {
+    const pics = new Map<string, Electron.NativeImage>(), t0 = Date.now();
     let giveUp = () => {}, paced = false;
     const gaveUp = new Promise<null>((ok) => { giveUp = () => ok(null); });
     let timer = setTimeout(() => giveUp(), 500);
@@ -358,20 +359,26 @@ class AppWindow {
       const took = Date.now() - t0;
       timer = setTimeout(() => giveUp(), Math.max(100, 3 * took) - took);
     };
-    await Promise.all([...this.profiles.values()].filter((p) => p.visible() && p.get() && !p.get()!.discarded && !p.get()!.wc.isDestroyed()).map(async (p) => {
-      const img = await Promise.race([p.get()!.wc.capturePage().then((i) => { pace(); return i; }), gaveUp]).catch((): null => null);
-      if (!img) return;
-      pics[p.id] = `data:image/jpeg;base64,${img.toJPEG(90).toString('base64')}`;
-    }));
-    paced = true; clearTimeout(timer); // a picture given up on may still come
+    const pages = [...this.profiles.values()].filter((p) => p.visible() && p.get() && !p.get()!.discarded && !p.get()!.wc.isDestroyed())
+      .map((p) => ({ id: p.id, capture: () => p.get()!.wc.capturePage() }));
+    if (bounds) pages.push({ id: '', capture: () => this.win.webContents.capturePage(bounds) });
+    try {
+      await Promise.all(pages.map(async ({ id, capture }) => {
+        const img = await Promise.race([capture().then((i) => { if (id || pages.length === 1) pace(); return i; }), gaveUp]).catch((): null => null);
+        if (img && !img.isEmpty()) pics.set(id, img);
+      }));
+    } finally { paced = true; clearTimeout(timer); } // a picture given up on may still come
     return pics;
   }
   // Where the grid puts each pane's page (key: the task the page laid out), in CSS pixels; the views are placed
   // in window pixels.
-  layout(key: string | null, rects: Record<string, PageLayout>) {
+  layout(key: string | null, rects: Record<string, PageLayout>, bounds: Rectangle) {
     if (key !== this.task?.key) return; // a task no longer on screen
     const z = this.win.webContents.getZoomFactor();
     const scale = (r: Partial<Bounds>): Bounds => ({ x: Math.round((r.x ?? 0) * z), y: Math.round((r.y ?? 0) * z), width: Math.round((r.width ?? 0) * z), height: Math.round((r.height ?? 0) * z) });
+    this.gridBounds = scale(bounds);
+    const picture = this.gridPicture?.view.getBounds();
+    if (picture && (['x', 'y', 'width', 'height'] as const).some((key) => picture[key] !== this.gridBounds![key])) this.releaseGrid();
     for (const [id, { clip, ...r }] of Object.entries(rects)) this.profiles.get(id)?.layout(r.shown === false ? r : { ...scale(r), ...(clip && { clip: scale(clip) }) });
     this.thumbnails.place(this.paneBox);
     if (this.gridPicture) this.win.contentView.addChildView(this.gridPicture.view);
