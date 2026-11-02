@@ -5,7 +5,7 @@ import { refused } from '../../shared/result';
 
 export type Notice = { kind: 'deferred' | 'notice' | 'error'; text: string };
 type Entry = { signature: string; item: CodeViewItem<Notice> };
-export type Snapshot = { data: Diff; entries: Map<string, Entry>; loaded: string[]; ready: boolean };
+export type Snapshot = { data: Diff; entries: Map<string, Entry>; loaded: string[]; ready: boolean; openedAt?: number; presented?: boolean };
 
 export function reviewSnapshot(response: Review, previous: Snapshot | undefined, query: string): Snapshot {
   const { diffs, ...data } = response;

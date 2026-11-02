@@ -26,8 +26,8 @@ export function ProjectDirectory({ actions, folder }: { actions: ExplorerActions
   }, [actions, folder]);
   return <>
     {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
-    {!loaded && <p role="status" className="px-2 text-xs text-muted-foreground">Loading…</p>}
-    {loaded && !error && entries.length === 0 && <p className="px-2 text-xs text-muted-foreground">Empty folder</p>}
+    {!loaded && <p role="status" className="px-2 text-sm text-muted-foreground">Loading…</p>}
+    {loaded && !error && entries.length === 0 && <p className="px-2 text-sm text-muted-foreground">Empty folder</p>}
     <div aria-label={folder} className="flex flex-col">
       {entries.map((entry) => <ProjectEntry key={entry.path} actions={actions} entry={entry} />)}
     </div>

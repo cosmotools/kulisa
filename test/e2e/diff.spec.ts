@@ -24,6 +24,7 @@ test('Diff groups files into folders and switches the development area without m
   await expect(ui.locator('[role="treeitem"][data-item-path="checkout.ts"]')).toHaveAttribute('data-item-git-status', 'modified');
   await expect(ui.getByRole('region', { name: 'Diff review', exact: true })).toBeVisible();
   await expect(ui.getByLabel('Code comparison: docs/guide.md', { exact: true })).toContainText('Guide', { timeout: 15000 });
+  await expect(ui.getByRole('region', { name: 'Changed file diffs', exact: true })).toHaveJSProperty('scrollTop', 0);
   const nav = ui.getByRole('navigation', { name: 'Resources', exact: true });
   const icons = await nav.getByRole('button').evaluateAll((buttons) => buttons.map((b) => b.getAttribute('aria-label')).filter((s) => ['Agents', 'Project', 'Diff', 'Artifacts'].includes(s)));
   expect(icons).toEqual(['Agents', 'Project', 'Diff', 'Artifacts']);
@@ -76,11 +77,15 @@ test('Diff groups files into folders and switches the development area without m
     // Reopening waits for fresh Git data and never displays a previous visit's snapshot.
     await expect(ui.getByLabel('Code comparison: checkout.ts', { exact: true })).toHaveCount(0);
     await expect(tree.locator('[role="treeitem"][data-item-path="src/orders/stock.ts"]')).toHaveCount(0);
-    await expect(tree.getByRole('status')).toContainText('Loading diff');
+    await expect(tree.getByRole('textbox', { name: 'Filter changed files' })).toBeVisible();
+    await expect(tree.getByRole('group', { name: 'From for review-tree' })).toBeVisible();
+    await expect(tree.getByRole('combobox', { name: 'To for review-tree' })).toBeVisible();
+    await expect(tree.getByRole('combobox', { name: 'To for review-tree' })).toBeDisabled();
     await core((k) => k.stash.startReview());
-    await expect(tree.locator('[role="treeitem"][data-item-path="src/orders/stock.ts"]')).toBeVisible();
+    await expect(tree.locator('[role="treeitem"][data-item-path="src/orders/stock.ts"]')).toHaveCount(0);
     await expect(ui.getByLabel('Code comparison: checkout.ts', { exact: true })).toHaveCount(0);
-    await expect(diff.getByText('Loading diff…', { exact: true })).toBeVisible();
+    await expect(tree.getByRole('progressbar')).toHaveCount(0);
+    await expect(diff.getByRole('progressbar', { name: 'Loading diff' })).toBeVisible();
   } finally {
     await core((k) => {
       const g = k.stash;
@@ -245,7 +250,7 @@ test('Continuous review defers large diffs and virtualizes their lines in one do
   await showTask(core, ui, original);
 });
 
-test('Diff restores its review and comparison across task switches and app restarts', async ({ core, ui, files, restart }) => {
+test('Leaving Diff clears its review settings and position, including across task switches and app restarts', async ({ core, ui, files, restart }) => {
   const original = await core((k) => k.shell.task.key);
   const repo = committed(path.join(files.root, 'review-restore'), 'file.ts', 'export const value = "before";\n');
   git(repo, 'branch', '-M', 'main');
@@ -256,20 +261,41 @@ test('Diff restores its review and comparison across task switches and app resta
     return { folder: r.folder, key: k.shell.task.key };
   });
   fs.writeFileSync(path.join(copy.folder, 'file.ts'), 'export const value = "restored-review-marker";\n');
+  fs.writeFileSync(path.join(copy.folder, 'z-file.ts'), Array.from({ length: 120 }, (_, i) => `export const value${i} = ${i};\n`).join(''));
   await showResources(ui, 'Diff');
   const tree = ui.getByRole('region', { name: 'Diff', exact: true });
-  await tree.getByRole('combobox', { name: 'To for review-restore' }).click();
-  await ui.getByRole('option', { name: 'HEAD', exact: true }).click();
-  await tree.getByRole('textbox', { name: 'Filter changed files' }).fill('file.ts');
-  await tree.locator('[role="treeitem"][data-item-path="file.ts"]').click();
-  await expect(ui.getByLabel('Code comparison: file.ts', { exact: true })).toContainText('restored-review-marker');
+  const customize = async () => {
+    await tree.getByRole('combobox', { name: 'To for review-restore' }).click();
+    await ui.getByRole('option', { name: 'HEAD', exact: true }).click();
+    await tree.getByRole('textbox', { name: 'Filter changed files' }).fill('file.ts');
+    await tree.locator('[role="treeitem"][data-item-path="z-file.ts"]').click();
+    await expect(ui.getByLabel('Code comparison: z-file.ts', { exact: true })).toContainText('value0');
+    await ui.getByRole('radio', { name: 'Split diff', exact: true }).click();
+    await expect.poll(() => ui.getByRole('region', { name: 'Changed file diffs', exact: true }).evaluate((e) => e.scrollTop)).toBeGreaterThan(0);
+  };
+  const fresh = async (page = ui) => {
+    await expect(page.getByLabel('Code comparison: file.ts', { exact: true })).toContainText('restored-review-marker');
+    await expect(page.getByRole('textbox', { name: 'Filter changed files' })).toHaveValue('');
+    await expect(page.getByRole('combobox', { name: 'To for review-restore' })).toContainText('main');
+    await expect(page.getByRole('radio', { name: 'Unified diff', exact: true })).toHaveAttribute('aria-checked', 'true');
+    await expect(page.getByRole('region', { name: 'Changed file diffs', exact: true })).toHaveJSProperty('scrollTop', 0);
+  };
+  for (const section of ['Project', 'Artifacts', 'Agents', null] as const) {
+    await customize();
+    if (section) await showResources(ui, section);
+    else await ui.getByRole('navigation', { name: 'Resources', exact: true }).getByRole('button', { name: 'Diff', exact: true }).click();
+    await expect(ui.getByRole('region', { name: 'Diff review', exact: true })).toHaveCount(0);
+    await expect(termKeys(ui)).toBeVisible();
+    await showResources(ui, 'Diff');
+    await fresh();
+  }
+  await customize();
   await showTask(core, ui, original);
   await showTask(core, ui, copy.key);
-  await expect(ui.getByLabel('Code comparison: file.ts', { exact: true })).toContainText('restored-review-marker');
+  await fresh();
+  await customize();
   const next = await restart();
   await expect(next.getByRole('region', { name: 'Diff review', exact: true })).toBeVisible();
-  await expect(next.getByLabel('Code comparison: file.ts', { exact: true })).toContainText('restored-review-marker');
-  await expect(next.getByRole('textbox', { name: 'Filter changed files' })).toHaveValue('file.ts');
-  await expect(next.getByRole('combobox', { name: 'To for review-restore' })).toContainText('HEAD');
+  await fresh(next);
   await expect(next.getByTestId('terminal')).toBeHidden();
 });

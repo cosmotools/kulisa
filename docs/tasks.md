@@ -296,10 +296,13 @@ and the cleanup: the main working tree is the human's, never removed; a worktree
 
 Resources → Diff opens a local Git review through the [Diff Kulisa package](../src/diff/README.md).
 `Task.diff`, `Task.diffTargets`, `Task.review` and `Task.diffContents` confine its reads to task resources and
-supply each worktree's starting commit. The task's development panel owns the saved screen, repository, comparison,
-filter and file in its Dockview parameters; restoring the layout restores this selection even with Resources content
-closed. Each section selects its own development screen. Agents and the terminal focus shortcut return to the last
-active terminal; Stage keeps its layout and size.
+supply each worktree's starting commit. Review selection lives in the window store while Diff is open.
+Leaving Diff, closing Resources content or switching tasks releases its queries, models, worker and navigation state.
+Each opening starts at the first repository, its default comparison, an empty filter and the document start.
+The saved Resources section determines whether restoring the layout opens a fresh Diff.
+Other sections and the terminal focus shortcut return to the last active terminal; Stage keeps its layout and size.
+Opening reads Git afresh; search and empty From/To controls appear immediately. One progress bar in the review stays
+for at least 500 ms before branch names, file rows and review appear together.
 
 Stage terminal environments belong to the task (`Task.stageTerminals`): their actions and UI are described in
 [window.md](window.md), Stage terminals. Browser environments retain their own lifecycle in `ProjectProfiles`.

@@ -80,6 +80,6 @@ export function DiffTree({ session, files, selected, choose }: {
         const file = latest.current.input.files.get(model.getSelectedPaths()[0] ?? ''); if (file) choose(file);
       }
     }} />
-    {!files.length && <p className="p-2 text-xs text-muted-foreground">No files match</p>}
+    {!files.length && <p className="p-2 text-sm text-muted-foreground">No files match</p>}
   </div>;
 }

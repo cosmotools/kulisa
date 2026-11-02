@@ -9,8 +9,14 @@ Read-only local Git comparisons for the Resources tree and development review.
   Symlinks show link text; path containment checks confine reads to the supplied resource.
 - Patch batches and Load diff bound memory; full file contents load only for explicit context expansion.
 - Pierre Trees virtualizes changed-file navigation; presorted paths keep the tree in the review document's order.
-- The tree receives the listing before patches are loaded and parsed. Both phases share one listing;
-  request IDs isolate late responses.
+- Tree and review use the window's `text-sm` size for file names, code and empty-state messages; code uses JetBrains Mono.
+- Each opening reads Git afresh. Branch names, file rows and review share a loading state for at least 500 ms and appear together
+  after the listings and the review's first rendered file are ready; empty comparisons need no file render.
+- Search, repository headings and empty From/To controls appear immediately; the comparison selector stays disabled during loading.
+- Loading prepares the virtualized views with one indeterminate progress bar in the review; one timer controls their reveal.
+  Unmounting clears the timer, and aborted requests cannot publish results to another opening.
 - Complete document snapshots and stable CodeView IDs and versions preserve expanded context across refreshes.
+- First-file navigation targets the document start to preserve its top padding; other files target their headings.
 - TanStack Query shares each visible comparison between the tree and document; zero inactive retention makes
   reopening read Git again. Patches are parsed only for files whose version changes.
+- The caller clears its QueryClient and releases the session when the review closes; selection is scoped to that opening.

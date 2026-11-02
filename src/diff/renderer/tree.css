@@ -23,5 +23,5 @@
 [data-item-git-status="renamed"] { --diff-icon-modified: none; --diff-icon-renamed: block; }
 [data-item-section="content"] { color: var(--sidebar-foreground); }
 [data-item-section="git"] { display: none; }
-[data-item-section="decoration"] { flex: none; margin-inline-start: auto; font-variant-numeric: tabular-nums; }
+[data-item-section="decoration"] { flex: none; margin-inline-start: auto; font-size: var(--text-xs); font-variant-numeric: tabular-nums; }
 [data-item-section="decoration"] > span { white-space: pre; }

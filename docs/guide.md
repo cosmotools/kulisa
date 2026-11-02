@@ -92,14 +92,18 @@ project, and those you closed, are in the sidebar (Tasks, below).
   counts. GitHub-style status icons mark added files in green and deleted files in red, with distinct modified and
   renamed markers and aligned folder and file rows. Diff and Project share the Resources palette;
   expanded folders keep a plain background, and pointing at a row highlights it.
+  File names, loading messages and empty-state messages share the normal text size; captions and line counts use smaller text.
   **Diff** and **Agents** switch the development area between the review and your terminal.
-  Returning to Diff keeps your repository, comparison, filter and selected file.
-  Opening Diff reads the current files from your computer. The tree appears as soon as the file list is ready,
-  while the review content loads separately. Diff refreshes while the review is open.
+  Leaving Diff clears its review settings and position. Each opening starts at the first repository with its default
+  comparison, an empty filter and the top of the review.
+  Each opening of Diff reads the current files from your computer. Search and empty From/To fields appear immediately.
+  A progress bar in the review stays for at least half a second, then the branch names, file rows and review appear
+  together. Diff refreshes while the review is open.
   A task with one repository shows From/To and the tree directly; tasks with several repositories show a
   collapsible heading for each. Opening Diff shows the repository's review in the development area.
   Filter by a path to narrow both the tree and review, and expand folders to navigate. Use the arrow keys to navigate
-  and Enter to select a file. Selecting a file jumps to it. Parent folders stay visible at the top of the tree as you scroll.
+  and Enter to select a file. Selecting the first file returns to the top of the review; other files open at their
+  headings. Parent folders stay visible at the top of the tree as you scroll.
   The review loads as one document. Large files and reviews show **Load diff** where you choose what to load.
   All changed files appear in one scrolling
   document, each in a bordered block with its path and change counts above its diff. Gaps separate the files.
@@ -108,7 +112,7 @@ project, and those you closed, are in the sidebar (Tasks, below).
   Scrolling through the review marks the current file
   in the tree. Choose
   **Unified** or **Split** for the comparison layout. The review header shows the added and deleted line totals for
-  the files in the document. The review follows Kulisa's global zoom, text size and light or dark palette.
+  the files in the document. The review follows Kulisa's global zoom and light or dark palette.
   Each repository shows **From → To**. **From** displays your task's worktree and current branch as plain text,
   including local edits. **To** starts with the repository's default branch; changing it opens
   that comparison. Choose the current branch under **To** to review only uncommitted edits in your worktree.
@@ -118,8 +122,8 @@ project, and those you closed, are in the sidebar (Tasks, below).
   The terminal keeps running while you review. Click **Agents** in the Resources bar to return to your last active
   terminal, or select another agent from its list. The terminal focus shortcut also returns to
   the last active terminal. Stage keeps its position and size. The review is read-only; binary and large
-  files show an explanation. Switching tasks or restarting Kulisa restores that task's selected screen, with its
-  comparison, file filter and selected file.
+  files show an explanation. Switching tasks or restarting Kulisa restores that task's Resources section;
+  Diff opens a fresh review.
   Drag the grip at the bottom of the Resources bar to move the whole panel beside or below the terminal, or into its tabs.
   Beside the terminal, the Resources bar follows the outer edge: left on the left, right on the right.
   A group shared with terminal tabs stays resizable; its Resources tab stays available.
