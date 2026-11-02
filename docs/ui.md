@@ -88,7 +88,7 @@ frames, pills, rows that show their buttons only under the pointer: those read a
 - **Every object has a right-click menu with all its actions**, so the window shows one or two buttons. No swipes (a
   sideways swipe is the OS's and the pages' back and forward), nor a double-click as the only way to anything.
 - **Labels and buttons are not text to select, fields, errors and review code are** (`data-selectable` on a span of the error's
-  words; review code opts in through its shadow hosts); **the arrow over buttons, tabs and menus' rows**, as in Chrome (`window.css`). The window never scrolls
+  words; review code opts in inside its shadow root); **the arrow over buttons, tabs and menus' rows**, as in Chrome (`window.css`). The window never scrolls
   (`overflow: clip`); a part scrolls inside.
 - **An agent's state is an icon each**, not a color alone (some people do not tell yellow from green): one component
   (`AgentState.tsx`) on a task's tab, its row in the sidebar, a terminal's Resources row.

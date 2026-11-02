@@ -96,6 +96,8 @@ function ReviewContent({ session, selection, shade, fontSize }: DiffPanelProps) 
     </div>;
   }, [load]);
   const viewOptions = useMemo<CodeViewReactOptions<Notice, undefined>>(() => ({ theme: 'kulisa-review', themeType: shade === 'dark' ? 'dark' : 'light', diffStyle: mode, stickyHeaders: true, enableLineSelection: true, lineHoverHighlight: 'both',
+    // Only shadow-root code opts out of the window's text-selection ban; slotted headers stay unselectable.
+    unsafeCSS: 'pre { user-select: text; }',
     diffIndicators: 'classic' as const, hunkSeparators: 'line-info-basic' as const, overflow: 'wrap' as const,
     itemMetrics: { lineHeight, diffHeaderHeight: 36, spacing: 0 }, layout: { paddingTop: 16, paddingBottom: 16, gap: 16 },
     onPostRender(node, _instance, phase, context) {

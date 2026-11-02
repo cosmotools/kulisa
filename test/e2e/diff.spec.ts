@@ -15,13 +15,16 @@ test('Diff code supports native text selection and copying in Unified and Split 
   for (const layout of ['Unified', 'Split']) {
     await ui.getByRole('radio', { name: `${layout} diff`, exact: true }).click();
     await expect(code).toHaveCSS('user-select', 'text');
+    await expect(code.locator('[data-column-number]').first()).toHaveCSS('user-select', 'none');
+    const heading = ui.getByRole('heading', { name: 'file.ts', exact: true });
+    await expect(heading).toHaveCSS('user-select', 'none');
+    await expect(heading.getByRole('button')).toHaveCSS('user-select', 'none');
     await code.getByText('copyMarker', { exact: true }).last().dblclick();
     // Playwright has no selection getter; the native Copy action also covers shadow-root selections on macOS.
     await expect.poll(() => ui.evaluate(() => getSelection()?.toString())).toBe('copyMarker');
     await core((k) => k.electron.webContents.getFocusedWebContents().copy());
     await expect.poll(() => core((k) => k.electron.clipboard.readText())).toBe('copyMarker');
   }
-  await expect(ui.getByRole('heading', { name: 'file.ts', exact: true })).toHaveCSS('user-select', 'none');
 });
 
 test('Diff groups files into folders and switches the development area without moving Stage or stopping terminals', async ({ core, ui, files }) => {
