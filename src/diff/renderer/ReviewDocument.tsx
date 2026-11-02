@@ -3,7 +3,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 import type { CodeViewItem, FileDiffMetadata } from '@pierre/diffs';
 import { CodeView, WorkerPoolContextProvider, type CodeViewHandle, type CodeViewProps, type CodeViewReactOptions } from '@pierre/diffs/react';
 import { useIsFetching } from '@tanstack/react-query';
-import { ChevronRightIcon, CopyIcon, GitCompareArrowsIcon } from 'lucide-react';
+import { CheckIcon, ChevronRightIcon, CopyIcon, GitCompareArrowsIcon } from 'lucide-react';
 import { Alert, AlertDescription, Button, ToggleGroup, ToggleGroupItem } from '@ui';
 import type { DiffFile } from '../ipc';
 import { refused } from '../../shared/result';
@@ -84,7 +84,7 @@ function ReviewContent({ session, selection, shade, fontSize }: DiffPanelProps) 
         new Map(current).set(item.id, (current.get(item.id) ?? 0) + 1))}><ChevronRightIcon className={item.collapsed ? '' : 'rotate-90'} /></Button>
       <div className="flex min-w-0 flex-1 items-center gap-1">
         <span className="min-w-0 truncate" title={file?.previousPath ? `${file.previousPath} → ${item.id}` : item.id}>{file?.previousPath ? `${file.previousPath} → ${item.id}` : item.id}</span>
-        <Button variant="ghost" size="icon-xs" aria-label={`Copy path for ${item.id}`} title="Copy file path" onClick={() => void navigator.clipboard.writeText(item.id)}><CopyIcon /></Button>
+        <CopyPath path={item.id} />
       </div>
       {file && <><DiffStatus status={file.status} /><DiffCounts additions={file.additions} deletions={file.deletions} /></>}
     </header>;
@@ -149,4 +149,17 @@ function ReviewContent({ session, selection, shade, fontSize }: DiffPanelProps) 
     <footer className="flex gap-2 border-t px-4 py-1 text-xs text-muted-foreground"><span className="min-w-0 truncate">{data ? `${data.from} → ${data.to}` : 'From → To'}</span><span className="ms-auto shrink-0">Read only</span></footer>
     </div>
   </section>;
+}
+
+function CopyPath({ path }: { path: string }) {
+  const [copiedAt, setCopiedAt] = useState<number | null>(null);
+  useEffect(() => {
+    if (copiedAt === null) return;
+    const timer = setTimeout(() => setCopiedAt(null), 1500);
+    return () => clearTimeout(timer);
+  }, [copiedAt]);
+  return <Button variant="ghost" size="icon-xs" aria-label={`Copy path for ${path}`} title={copiedAt === null ? 'Copy file path' : 'Copied'}
+    onClick={async () => { await navigator.clipboard.writeText(path); setCopiedAt(performance.now()); }}>
+    {copiedAt === null ? <CopyIcon /> : <CheckIcon className="text-success" />}
+  </Button>;
 }

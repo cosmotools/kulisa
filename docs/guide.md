@@ -111,6 +111,7 @@ project, and those you closed, are in the sidebar (Tasks, below).
   Long lines wrap within each file. Point at a line to highlight it and its number; drag along the line numbers to select a range.
   Select code text with the mouse and copy it with Ctrl+C (⌘C on macOS).
   The copy button beside a file's path copies its current path relative to the repository, including when its diff is collapsed.
+  A checkmark confirms copying for a moment.
   Scrolling through the review marks the current file
   in the tree. Choose
   **Unified** or **Split** for the comparison layout. The review header shows the added and deleted line totals for
