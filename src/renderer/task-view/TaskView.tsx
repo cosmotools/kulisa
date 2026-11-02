@@ -84,9 +84,16 @@ function Screen() {
 }
 const TaskView = memo(function TaskView({ state, active }: { state: TaskStore; active: boolean }) {
   const [grid] = useState(() => new TaskGrid(state));
-  useLayoutEffect(() => registerTaskGrid(grid), [grid]);
+  const host = useRef<HTMLElement>(null);
+  useLayoutEffect(() => {
+    const unregister = registerTaskGrid(grid);
+    // The host remains observable while content-visibility skips the grids inside it.
+    const resized = new ResizeObserver(grid.scheduleLayout);
+    resized.observe(host.current!);
+    return () => { resized.disconnect(); unregister(); };
+  }, [grid]);
   useLayoutEffect(() => { if (active) grid.activate(); }, [grid, active]);
-  return <section data-task-view={grid.key} data-active={active || undefined} aria-hidden={!active || undefined}
+  return <section ref={host} data-task-view={grid.key} data-active={active || undefined} aria-hidden={!active || undefined}
     className="absolute inset-0" inert={!active || undefined}>
     <TaskContext value={grid}><Screen /></TaskContext>
   </section>;

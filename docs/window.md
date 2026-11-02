@@ -98,8 +98,8 @@ the child keeps its full viewport, offset within the parent. Fully offscreen pag
 is removed when the page fits, the profile closes, or it moves to another window. Dragging in either grid turns
 pages into pictures for HTML drop targets.
 
-Each visited task owns a live `TaskView`, its zustand store and a `TaskGrid` in `src/renderer/task-view/`. Container opacity
-hides inactive screens while preserving their dimensions; `inert` excludes their controls from input. Components,
+Each visited task owns a live `TaskView`, its zustand store and a `TaskGrid` in `src/renderer/task-view/`.
+`content-visibility: hidden` skips inactive contents while retaining their DOM; `inert` excludes their controls from input. Components,
 Dockview instances and Stage terminal Views live until their task or panel closes. Project Explorer and Diff pause
 background polling; focus requests and dictation belong to the selected task. Closing the task unmounts its view
 and releases its controller. Selection changes deactivate the outgoing controller directly (`task-view/controller.ts`).
@@ -110,7 +110,8 @@ State messages carry their task key. Incoming state refreshes its owning TaskVie
 continues into its own buffers.
 
 The outer Gridview observes available room; its panel dimension events size nested grids synchronously with their
-automatic resizing disabled. Hidden grids publish their own page geometry on layout, content-size and scroll changes.
+automatic resizing disabled. Each TaskView observes its host outside the skipped contents to keep hidden grids sized
+when the window changes. Hidden grids publish their own page geometry on layout, content-size and scroll changes.
 Geometry reporting reads current dimensions because Dockview's resize observer runs in a later frame.
 Main applies `layout:apply` only to its owning task in that window; the first report makes its native pages ready.
 Selecting a prepared task shows its pages at their stored bounds and hides the outgoing pages in the same main-process
