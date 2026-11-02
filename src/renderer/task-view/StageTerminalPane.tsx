@@ -35,10 +35,10 @@ const actions = (terminal: StageTerminal, task: string): MenuItem[] => [
 export function StageTerminalPane({ api }: IDockviewPanelProps) {
   const owner = useTaskStore();
   const taskKey = useTask((s) => s.key);
-  const active = useTaskActive();
   const id = idOf(api.id), terminal = useStageTerminal(id), shade = useShade(), host = useRef<HTMLDivElement>(null);
   const view = useRef<View | null>(null);
   const [searching, setSearching] = useState(false), [query, setQuery] = useState(''), [found, setFound] = useState(true);
+  const active = useTaskActive(searching);
   const searchInput = useRef<HTMLInputElement>(null);
   const find = (previous = false) => setFound(view.current?.find(query, previous) ?? false);
   const closeSearch = () => { setSearching(false); view.current?.clearSearch(); view.current?.term.focus(); };

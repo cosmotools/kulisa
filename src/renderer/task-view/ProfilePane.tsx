@@ -25,7 +25,6 @@ const blank = (u?: string) => !fullUrl(u);
 
 export function ProfilePane({ api }: IDockviewPanelProps) {
   const owner = useTaskStore(), act = useTaskActions(), grid = useTaskGrid();
-  const taskActive = useTaskActive();
   // Its active tab as the store has it now, for what acts (a handler, not a render).
   const activeTab = useCallback((id: string) => { const p = owner.getState().profiles.find((x) => x.id === id); return p?.tabs.find((t) => t.id === p.active); }, [owner]);
 
@@ -42,6 +41,7 @@ export function ProfilePane({ api }: IDockviewPanelProps) {
   // Bind the draft to its tab so switching tabs cannot navigate another tab with it. Requests for an inactive tab
   // wait for its activation, including a human's new tab whose state can arrive before or after the IPC reply.
   const [editing, setEditing] = useState<{ tab: string; value: string } | null>(null);
+  const taskActive = useTaskActive(!!editing);
   const editAddress = useCallback((target = activeTab(id)?.id) => {
     const p = owner.getState().profiles.find((x) => x.id === id), t = p?.tabs.find((x) => x.id === target);
     if (!t) return;

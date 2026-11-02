@@ -30,9 +30,6 @@ const openFile = (file: string) => kulisa.invoke('file:open', file);
 export function Resources({ api, params, containerApi }: IDockviewPanelProps<ResourceParams>) {
   const grid = useTaskGrid();
   const key = useTask((s) => s.key), contentId = useId();
-  const active = useTaskActive();
-  const front = useTask((s) => s.developmentTerminals.front), lang = useWindow((s) => s.language?.language);
-  const hold = useShortcuts().find((s) => s.id === 'voice.hold')?.keys[0] || '';
   const section = params.section === undefined ? 'project' : params.section;
   const [barSide, setBarSide] = useState<'left' | 'right'>('left');
   useEffect(() => {
@@ -53,8 +50,7 @@ export function Resources({ api, params, containerApi }: IDockviewPanelProps<Res
             if (value === 'terminals') focusDevelopmentTerminal(key);
           }}><Icon /></Button>)}
       <div className="mt-auto flex flex-col items-center gap-1">
-        <Dictation task={active ? key : null} keyName={hold} language={lang ? language.of(lang) ?? '' : ''}
-          onDone={() => { if (front !== null) void showDevelopmentTerminal(key, front); }} />
+        <TaskDictation />
         <div className="[&_button]:cursor-grab [&_button]:active:cursor-grabbing">
           <Button variant="ghost" size="icon-sm" draggable aria-label="Move Resources panel" title="Move Resources panel"
             onDragStart={(e) => grid.startResourceDrag(api, e.nativeEvent)}><GripVerticalIcon /></Button>
@@ -65,6 +61,14 @@ export function Resources({ api, params, containerApi }: IDockviewPanelProps<Res
       <TaskResources section={section} />
     </div>}
   </aside>;
+}
+
+function TaskDictation() {
+  const key = useTask((s) => s.key), front = useTask((s) => s.developmentTerminals.front);
+  const active = useTaskActive(), lang = useWindow((s) => s.language?.language);
+  const hold = useShortcuts().find((s) => s.id === 'voice.hold')?.keys[0] || '';
+  return <Dictation task={active ? key : null} keyName={hold} language={lang ? language.of(lang) ?? '' : ''}
+    onDone={() => { if (front !== null) void showDevelopmentTerminal(key, front); }} />;
 }
 
 function TaskResources({ section }: { section: NonNullable<ResourceParams['section']> }) {

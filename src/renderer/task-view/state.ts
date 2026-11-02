@@ -41,12 +41,15 @@ const makeTask = (key: string) => createStore<TaskState>()(() => ({
 export const tasks = createStore<Record<string, TaskStore>>(() => ({}));
 function syncTasks() {
   const { projects, current } = store.getState();
-  const next = Object.fromEntries(Object.entries(tasks.getState()).filter(([key]) => projects.tabs.some((t) => t.key === key)));
+  const open = new Set(projects.tabs.map((t) => t.key)), previous = tasks.getState();
+  const next = Object.fromEntries(Object.entries(previous).filter(([key]) => open.has(key)));
   if (current && !next[current]) next[current] = makeTask(current);
-  tasks.setState(next, true);
+  tasks.setState(replaceEqualDeep(previous, next), true);
 }
 syncTasks();
-store.subscribe((next, previous) => { if (next.projects !== previous.projects) syncTasks(); });
+store.subscribe((next, previous) => {
+  if (next.projects.tabs !== previous.projects.tabs || next.current && !tasks.getState()[next.current]) syncTasks();
+});
 
 // Window commands use the selected task; panels use the controller supplied by their TaskView.
 const emptyTask = makeTask('');
@@ -62,9 +65,9 @@ export function useTaskStore() {
   return owner?.state ?? taskStore(current);
 }
 export function useTask<T>(selector: (s: TaskState) => T) { return useStore(useTaskStore(), selector); }
-export function useTaskActive() {
+export function useTaskActive(enabled = true) {
   const key = useTask((s) => s.key);
-  return useWindow((s) => s.current === key);
+  return useWindow((s) => enabled && s.current === key);
 }
 const get = store.getState;
 

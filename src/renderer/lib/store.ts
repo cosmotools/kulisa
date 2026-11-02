@@ -1,5 +1,6 @@
 // Window-wide state (docs/window.md).
 import { createStore, useStore } from 'zustand';
+import { replaceEqualDeep } from '@tanstack/react-query';
 import type { LanguageInfo, ProjectsInfo } from '../../shared/types';
 import { initialProjects } from './common';
 import { projectColor, onColors } from './project-color';
@@ -26,7 +27,10 @@ export const useWindow = <T>(selector: (s: WindowState) => T) => useStore(store,
 // The shown task (TaskInfo) and its project, from the window's tabs.
 export const shownTask = (s = get(), key = s.current) => s.projects.tabs.find((t) => t.key === key);
 const shownProject = (s = get()) => s.projects.projects.find((p) => p.id === s.projects.project);
-kulisa.on('project:state', (info) => set({ projects: info, current: info.current }));
+kulisa.on('project:state', (info) => set((previous) => {
+  const projects = replaceEqualDeep(previous.projects, info);
+  return projects === previous.projects && info.current === previous.current ? previous : { projects, current: info.current };
+}));
 
 // What the window shows in the grid's place, one page at a time (docs/tasks.md, The window's pages): the shown task's
 // grid; with no task open, the sidebar of every project's tasks; with no project at all, the welcome. Its own switch,
@@ -47,5 +51,7 @@ const reflect = (s: WindowState) => {
   if (color) root.style.setProperty('--project', color); else root.style.removeProperty('--project');
 };
 reflect(get());
-store.subscribe(reflect);
+store.subscribe((next, previous) => {
+  if (pageOf(next) !== pageOf(previous) || shownProject(next) !== shownProject(previous)) reflect(next);
+});
 onColors(() => reflect(get())); // a favicon's color read

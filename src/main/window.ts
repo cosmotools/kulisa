@@ -166,6 +166,7 @@ class AppWindow {
   // The shown task's profiles, open and closed, and its terminals, for the page to build its grid from; their tabs
   // saved.
   pushState() {
+    clearTimeout(this.stateTimer); this.stateTimer = undefined;
     const task = this.task;
     if (!task || this.switching) return;
     this.sendDevelopmentTerminals();
@@ -232,9 +233,9 @@ class AppWindow {
   private leaveGrid() {
     if (!this.current) return;
     this.gridRevision++;
-    this.pushState(); // saves the tabs
+    if (this.stateTimer) this.pushState();
+    else if (!this.switching) this.current.list.saveTabs();
     this.switching = true;
-    clearTimeout(this.stateTimer);
     for (const { cancel } of this.picking.values()) cancel();
     this.thumbnails.close(); // its pane goes
   }
@@ -278,6 +279,7 @@ class AppWindow {
   // they are hidden meanwhile. With snapshots: first a picture of each page on screen, for the page to show in its
   // place ({ profile id: data URL }).
   async hideViews(hidden: boolean, { snapshots = false } = {}) {
+    if (!hidden && !this.covered) return {};
     const owner = this.gridRevision;
     const pics = hidden && snapshots ? await this.pictures() : {};
     if (this.gridRevision !== owner) return {};

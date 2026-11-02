@@ -12,7 +12,7 @@ import { pageRects, type PaneHandle } from './pages';
 import { freeze, unfreeze, showViews } from './views';
 
 const samePanels = (a: { id: string | number }[], b: { id: string | number }[]) =>
-  a.length === b.length && a.every((panel, i) => panel.id === b[i]!.id);
+  a === b || a.length === b.length && a.every((panel, i) => panel.id === b[i]!.id);
 
 export class TaskGrid {
   readonly development: DevelopmentGrid;
