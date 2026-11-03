@@ -1,6 +1,14 @@
 // A project's icon (docs/tasks.md, Projects): its site's favicon, or Kulisa's logo with its curtain in the project's
 // color. The logo is the app icon's drawing (assets/icon.svg), its curtain in any color; its folds a shadow over it.
 import { useId } from 'react';
+import appIcon from '../../../assets/icon.svg?no-inline';
+
+// App branding uses the original red asset; project identity below keeps its own color.
+export function AppLogo({ size = 32 }: { size?: number }) {
+  return <svg viewBox="100 100 824 824" width={size} height={size} aria-hidden="true" className="shrink-0" data-logo="">
+    <image href={appIcon} width="1024" height="1024" />
+  </svg>;
+}
 
 export function Logo({ color, size = 16, ...rest }: { color: string; size?: number; 'data-testid'?: string }) {
   const id = useId(), folds = `${id}f`, body = `${id}b`;

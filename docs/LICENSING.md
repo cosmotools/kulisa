@@ -54,6 +54,11 @@ SIL Open Font License. A license not on it is a conversation with the author: if
 added to the workflow and here. One the dependency graph cannot read (a `license` that is not an SPDX expression) is
 reported, not refused. The check covers changed dependencies; existing dependencies require separate review.
 
+The welcome's fictional shop includes three product photographs in `src/renderer/public/welcome/` under the
+[Unsplash License](https://unsplash.com/license), separately from Kulisa's code. Source URLs and terms are listed in
+that folder's `CREDITS.txt`, copied into the packaged renderer with the pictures. These are illustrative assets,
+not software dependencies; they are not relicensed under the GPL.
+
 ## Contributions
 
 Contributions use GPL-3.0-or-later ([CONTRIBUTING.md](../CONTRIBUTING.md)). Offering contributed code under additional

@@ -2,10 +2,10 @@
 
 ![Kulisa: three profiles of a shop (buyer, seller, admin) side by side, the agent outlining the buyer's new order in the seller's and the admin's, and Claude Code in the terminal below](images/kulisa.png)
 
-Kulisa is a desktop app where the AI agent you choose (Claude Code, Codex) works in your signed-in browser profiles,
-side by side. It builds, checks the result as every user of your app, fixes, and goes again until it works, while you
-watch every step or take a break. It is made first for developing web apps with several users at once (a buyer, a
-seller, an admin), and is good for any work in web apps: several clients' accounts, admin and support work.
+Kulisa is a desktop app where the coding agent you choose develops and checks web and command-line apps while
+you watch and try the result together. The agent works in a terminal, opens browser profiles to test a web app as
+its different users, and runs CLI apps in interactive terminals you can both operate. Several tasks let you work
+on different parts of a project at once.
 
 You sign in to your accounts yourself, by hand; the agent never does, except as test users of your own app on this
 computer. Everything stays on your computer.
@@ -15,9 +15,9 @@ computer. Everything stays on your computer.
 - **Profile**: one browser identity, as in Chrome: its own cookies, sign-ins and tabs. One profile is one user of
   your app ("ann, the seller"). It is shown as a pane with its tabs.
 - **Project**: what you work on: its code (a folder, or one or more git repositories), the agents that work in it,
-  and its profiles. A project is not opened or closed itself; its tasks are.
-- **Task**: one piece of work in a project: an agent in a terminal, its own copy of the code, the project's profiles,
-  and a grid of panes. Several tasks of one project run at once, each building something else.
+  and any browser profiles it needs. A project is not opened or closed itself; its tasks are.
+- **Task**: one piece of work in a project: an agent in a terminal, a branch and copy of the code when needed,
+  browser profiles and interactive terminals for checking the result. Several tasks of one project run at once, each building something else.
 - **Tab**: an open task in the tasks' bar (under the grid, or in the title bar), as a browser's tab; its project's icon is on it.
 
 ## Systems
@@ -51,19 +51,24 @@ Download Kulisa from its [latest release](https://github.com/cosmotools/kulisa/r
 Every installer is built by GitHub from Kulisa's published code, and GitHub keeps a signed record of it. To check a
 file you downloaded, with GitHub's command-line tool: `gh attestation verify <file> -R cosmotools/kulisa`.
 
-1. **Make a project.** At the first start Kulisa shows in three short slides what it does (**Skip** passes them),
-   then New Project, in three steps (below): its code, its agents, the users of your app. **Create** makes it and
-   opens its first task.
-2. **Tell the agent what to do** in the terminal. It opens the profiles it needs itself.
-3. **Sign in** where your app needs a real account: when the agent asks, or ahead of time with **Sign In…** in
-   Settings → Profiles. You sign in once, for every task.
+1. **Make a project.** The welcome shows an animated shop example in Customer and Admin browser profiles: the
+   red agent character scrolls, selects a product and places an order on the left, then moves to the administrator
+   on the right to check it. The left browser keeps its result while the terminal shows a familiar coding CLI:
+   your request, file edits, tool calls and their results. Choose your own CLI, such as Claude Code or Codex.
+   Use **Pause demonstration** to stop the animation, or switch to the CLI example. Then choose **Create a project**.
+   The project map brings together your code, agents and options for checking the result. **Create project** opens its first task.
+2. **Tell the agent what to do** in the terminal. It can open the browser profiles and interactive terminals it
+   needs as you work. You can use them too.
+3. **For web apps**, sign in where your app needs a real account: when the agent asks, or ahead of time with
+   **Sign In…** in Settings → Profiles. You sign in once, for every task.
 
 More tasks: **+** in the tasks' bar makes a new one in one click (with several projects, it asks which one first). Tasks of another
 project, and those you closed, are in the sidebar (Tasks, below).
 
 ## The window
 
-The title bar holds the project logo, **Stage**, **Settings** (gear) and **☰**. The menu includes zoom, theme,
+The title bar holds the project logo, **Stage**, **Settings** (gear) and **☰**. With no task open, it shows Kulisa's
+red logo. The menu includes zoom, theme,
 language, task-bar position, shortcuts, help and About. Settings saves as you edit; close it with Esc, its back
 arrow or the gear. Your task keeps running underneath.
 
@@ -142,19 +147,23 @@ With no task open, the project sidebar stays docked. With no projects, the welco
 
 ### New Project
 
-At first start, three skippable slides lead to New Project. Later use **New Project…** at the sidebar's foot.
-**Back** preserves input, **Next** checks each step, and **Create** makes the project and opens its first task.
+Choose **Create a project** on the welcome, or **New Project…** at the sidebar's foot later. Both show the same
+project map. Its parts stay visible together; you can fill them in any order.
 
-1. **Code**: create a new folder (default home/KulisaProjects), use existing folders, or clone repositories with
-   your git credentials. Existing code is preserved. New folders start without git; ask the agent to initialize it
-   if needed. The welcome takes one folder/repository; add others in Settings. Existing code supplies the project
-   name; new folders ask for one. Icon/color come from the app's favicon or Kulisa's default.
-2. **Agents**: select accounts and star the default (first selected initially). **Add account** signs in through
-   your browser, installing a missing CLI first; **Details** shows installation. With none selected, tasks start a shell.
-3. **Profiles**: add named users with role descriptions or select existing profiles. None is fine; the agent can
-   create needed profiles later. Sign in when asked or through Settings → Profiles.
+- **Your project**: give it a name. A folder or repository you add supplies its name until you choose another.
+- **Repositories & folders**: start in a new folder (by default under home/KulisaProjects), use folders on disk,
+  or clone repositories with your git credentials. **Add repository** opens the clone option; **Add folder** opens
+  the disk option. Switch to **New**, **On disk** or **Clone** within this part. You can add several disk folders or
+  several repository URLs; the first is the default. Existing code is preserved. New folders start without git;
+  ask the agent to initialize it if needed.
+- **Agents**: add an account or select accounts you already have. Adding one installs a missing CLI first; the
+  installer output is under **Details**. Star the agent a new task starts. With none selected, tasks start a shell.
+- **Run & check**: explains browser profiles for web apps and interactive terminals for CLI apps. No testing setup
+  is required before starting. Expand **Set up browser profiles now** if you want to name roles or select existing
+  profiles in advance. Sign in when needed. Terminals are opened in a task.
 
-All choices can be changed later in Settings.
+**Create project** checks the map, creates the project and opens its first task. All choices can be changed later
+in Settings. **Back** on the welcome returns to the introduction.
 
 ### A project's page
 

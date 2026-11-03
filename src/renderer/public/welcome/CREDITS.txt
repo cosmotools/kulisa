@@ -1,0 +1,19 @@
+Welcome storefront product photography
+
+These photographs are illustrative assets under the Unsplash License, not
+Kulisa's GPL-licensed code. They are bundled locally; the welcome never fetches
+images from Unsplash at runtime.
+
+License: https://unsplash.com/license
+The license permits downloading, copying, modifying and distributing the photos,
+including for commercial use. It does not permit selling unmodified photos or
+compiling a competing image service. Consult the linked license for its terms.
+
+tote.jpg
+https://images.unsplash.com/photo-1544816155-12df9643f363
+
+headphones.jpg
+https://images.unsplash.com/photo-1505740420928-5e560c06d30e
+
+bottle.jpg
+https://images.unsplash.com/photo-1602143407151-7111542de6e8

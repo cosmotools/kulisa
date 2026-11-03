@@ -1,0 +1,101 @@
+/* The welcome's shared demonstration clock (docs/ui.md, Own drawing). The one character visits each profile in
+   turn; each page holds its result while the other is used. Static defaults show a completed check. */
+.welcome-demo { --demo-duration: 20s; }
+.welcome-demo [data-demo-motion] {
+  animation-duration: var(--demo-duration);
+  animation-iteration-count: infinite;
+  animation-timing-function: linear;
+  animation-fill-mode: both;
+}
+.welcome-demo[data-paused="true"] [data-demo-motion] { animation-play-state: paused; }
+
+.welcome-agent { opacity: 0; animation-name: welcome-agent; }
+.welcome-demo .welcome-agent { animation-timing-function: ease-in-out; }
+.welcome-agent-click { opacity: 0; animation-name: welcome-click; }
+.welcome-agent-eyes { transform-origin: 24px 23px; animation-name: welcome-blink; }
+.welcome-web-profile-activity { opacity: 0; }
+.welcome-web-customer .welcome-web-profile-activity { animation-name: welcome-customer-active; }
+.welcome-web-admin .welcome-web-profile-activity { animation-name: welcome-admin-active; }
+.welcome-web-customer-before { opacity: 0; animation-name: welcome-customer-before; }
+.welcome-web-customer-after { opacity: 1; animation-name: welcome-customer-after; }
+.welcome-web-admin-before { opacity: 0; animation-name: welcome-admin-before; }
+.welcome-web-admin-after { opacity: 1; animation-name: welcome-admin-after; }
+.welcome-web-metric-before { opacity: 0; animation-name: welcome-metric-before; }
+.welcome-web-metric-after { opacity: 1; animation-name: welcome-metric-after; }
+.welcome-web-cart-empty { opacity: 1; animation-name: welcome-cart-empty; }
+.welcome-web-cart-full { opacity: 0; animation-name: welcome-cart-full; }
+.welcome-web-cart { opacity: 0; animation-name: welcome-cart; }
+.welcome-web-confirmation { opacity: 1; animation-name: welcome-confirmation; }
+.welcome-web-new-order { max-height: 100px; opacity: 1; overflow: hidden; animation-name: welcome-new-order; }
+.welcome-web-shop-scroll { transform: translateY(-90px); animation-name: welcome-shop-scroll; }
+.welcome-web-option { outline: 2px solid var(--destructive); animation-name: welcome-option; }
+.welcome-web-add { animation-name: welcome-add; }
+.welcome-web-checkout { animation-name: welcome-checkout; }
+.welcome-web-order-detail { opacity: 1; animation-name: welcome-order-detail; }
+.welcome-web-verified { opacity: 1; animation-name: welcome-verified; }
+.welcome-terminal-phase { opacity: 0; animation-name: welcome-terminal-phase; }
+.welcome-demo .welcome-terminal-phase,
+.welcome-demo .welcome-terminal-line { animation-delay: calc((var(--log-phase) - 5) * 4s); }
+.welcome-terminal-phase:last-child { opacity: 1; }
+.welcome-terminal-line-0 { animation-name: welcome-type-0; }
+.welcome-terminal-line-1 { animation-name: welcome-type-1; }
+.welcome-terminal-line-2 { animation-name: welcome-type-2; }
+.welcome-demo .welcome-terminal-line { animation-timing-function: steps(40, end); }
+.welcome-terminal-spinner { animation-name: welcome-terminal-spinner; }
+.welcome-demo .welcome-terminal-caret { animation: welcome-terminal-caret 1s steps(2, end) infinite; }
+
+/* Coordinates use the measured width of one desktop page; the 12 px gap and frame borders are added after crossing to Admin. */
+@keyframes welcome-agent {
+  0% { opacity: 0; transform: translate(calc(var(--page-width) * .48), calc(var(--page-width) * .62)); }
+  4% { opacity: 1; transform: translate(calc(var(--page-width) * .48), calc(var(--page-width) * .35)); }
+  8%, 11% { transform: translate(calc(var(--page-width) * .28), calc(var(--page-width) * .39)); }
+  17%, 19% { transform: translate(calc(var(--page-width) * .065), calc(var(--page-width) * .423)); }
+  23%, 25% { transform: translate(calc(var(--page-width) * .18), calc(var(--page-width) * .479)); }
+  29%, 31% { transform: translate(calc(var(--page-width) * .94), calc(var(--page-width) * .06)); }
+  35%, 37% { transform: translate(calc(var(--page-width) * .8), calc(var(--page-width) * .3)); }
+  41%, 44% { transform: translate(calc(var(--page-width) * .73), calc(var(--page-width) * .165)); }
+  51%, 54% { transform: translate(calc(var(--page-width) * 1.09 + 14px), calc(var(--page-width) * .17)); }
+  59%, 61% { transform: translate(calc(var(--page-width) * 1.42 + 14px), calc(var(--page-width) * .51)); }
+  67%, 69% { transform: translate(calc(var(--page-width) * 1.47 + 14px), calc(var(--page-width) * .397)); }
+  75%, 78% { transform: translate(calc(var(--page-width) * 1.82 + 14px), calc(var(--page-width) * .29)); }
+  84%, 88% { opacity: 1; transform: translate(calc(var(--page-width) * 1.8 + 14px), calc(var(--page-width) * .39)); }
+  93% { opacity: 1; transform: translate(calc(var(--page-width) * 1.5 + 14px), calc(var(--page-width) * .64)); }
+  96% { opacity: 0; transform: translate(calc(var(--page-width) * 1.5 + 14px), calc(var(--page-width) * .64)); }
+  100% { opacity: 0; transform: translate(calc(var(--page-width) * .48), calc(var(--page-width) * .62)); }
+}
+@keyframes welcome-click {
+  0%, 16%, 21%, 22%, 27%, 28%, 33%, 34%, 39%, 52%, 57%, 59%, 64%, 66%, 71%, 100% { opacity: 0; transform: scale(.3); }
+  18%, 24%, 30%, 36%, 54%, 61%, 68% { opacity: .85; transform: scale(1); }
+  20%, 26%, 32%, 38%, 56%, 63%, 70% { opacity: 0; transform: scale(1.8); }
+}
+@keyframes welcome-blink { 0%, 14%, 15%, 46%, 47%, 82%, 83%, 100% { transform: scaleY(1); } 14.5%, 46.5%, 82.5% { transform: scaleY(.1); } }
+@keyframes welcome-customer-active { 0%, 3%, 48%, 100% { opacity: 0; } 6%, 44% { opacity: .7; border-color: var(--destructive); } }
+@keyframes welcome-admin-active { 0%, 48%, 95%, 100% { opacity: 0; } 52%, 90% { opacity: .7; border-color: var(--destructive); } }
+@keyframes welcome-customer-before { 0%, 38% { opacity: 1; } 40%, 99.9% { opacity: 0; } 100% { opacity: 1; } }
+@keyframes welcome-customer-after { 0%, 38% { opacity: 0; } 40%, 99.9% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes welcome-admin-before { 0%, 79% { opacity: 1; } 81%, 99.9% { opacity: 0; } 100% { opacity: 1; } }
+@keyframes welcome-admin-after { 0%, 79% { opacity: 0; } 81%, 99.9% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes welcome-metric-before { 0%, 60% { opacity: 1; } 63%, 99.9% { opacity: 0; } 100% { opacity: 1; } }
+@keyframes welcome-metric-after { 0%, 60% { opacity: 0; } 63%, 99.9% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes welcome-shop-scroll { 0%, 10% { transform: translateY(0); } 15%, 99.9% { transform: translateY(-90px); } 100% { transform: translateY(0); } }
+@keyframes welcome-option { 0%, 17% { outline-color: transparent; } 18%, 99.9% { outline-color: var(--destructive); } 100% { outline-color: transparent; } }
+@keyframes welcome-cart-empty { 0%, 23%, 39%, 100% { opacity: 1; } 24%, 38% { opacity: 0; } }
+@keyframes welcome-cart-full { 0%, 23%, 39%, 100% { opacity: 0; } 24%, 38% { opacity: 1; } }
+@keyframes welcome-cart { 0%, 30% { opacity: 0; transform: translateX(20px); } 31%, 37% { opacity: 1; transform: translateX(0); } 39%, 100% { opacity: 0; transform: translateX(20px); } }
+@keyframes welcome-confirmation { 0%, 38% { opacity: 0; transform: translateY(8px); } 40%, 99.9% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(8px); } }
+@keyframes welcome-new-order { 0%, 60% { max-height: 0; opacity: 0; } 63%, 99.9% { max-height: 100px; opacity: 1; } 100% { max-height: 0; opacity: 0; } }
+@keyframes welcome-add { 0%, 23%, 27%, 100% { outline: 0 solid transparent; } 24%, 26% { outline: 4px solid var(--destructive); } }
+@keyframes welcome-checkout { 0%, 35%, 39%, 100% { outline: 0 solid transparent; } 36%, 38% { outline: 4px solid var(--destructive); } }
+@keyframes welcome-order-detail { 0%, 69% { opacity: 0; transform: translateX(35px); } 72%, 99.9% { opacity: 1; transform: translateX(0); } 100% { opacity: 0; transform: translateX(35px); } }
+@keyframes welcome-verified { 0%, 80% { opacity: 0; } 82%, 99.9% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes welcome-terminal-phase { 0%, 19.99% { opacity: 1; } 20%, 100% { opacity: 0; } }
+@keyframes welcome-type-0 { 0% { clip-path: inset(0 100% 0 0); } 6%, 100% { clip-path: inset(0); } }
+@keyframes welcome-type-1 { 0%, 6% { clip-path: inset(0 100% 0 0); } 12%, 100% { clip-path: inset(0); } }
+@keyframes welcome-type-2 { 0%, 12% { clip-path: inset(0 100% 0 0); } 19.99%, 100% { clip-path: inset(0); } }
+
+@keyframes welcome-terminal-spinner { to { transform: rotate(3600deg); } }
+@keyframes welcome-terminal-caret { 50% { opacity: 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .welcome-demo [data-demo-motion] { animation: none; }
+}

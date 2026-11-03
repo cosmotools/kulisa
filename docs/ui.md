@@ -38,6 +38,7 @@ region wrappers.
 - Use theme tokens, not literal colors/Tailwind palette. Kulisa-specific warning/success variables live in
   `window.css`. Brand marks are the color exception.
 - Resources uses `text-sm` for filenames/messages/controls, `text-xs` for captions/status/metadata.
+- App branding uses the original red `assets/icon.svg` through `AppLogo`; project icons keep their project color.
 - Use Lucide except maker marks (`AgentMark`), logo/project icon, profile avatars and file-type icons.
 - Add missing shadcn components with `npm run ui -- <name>`. Discuss custom components if none fits.
 - No CSS Modules or second UI library; standalone CSS needs a reason (Dockview/Radix layers).
@@ -124,9 +125,9 @@ is Radix's own. A Radix menu of a part's own only for a row's own menu inside on
   keyboard, Esc is Cancel, a click outside does nothing.
 - **A page's alert or confirm** (`ProfilePane.tsx`) is drawn in its pane, not modal, over a dimmed picture of the page,
   as Chrome shows it; the other panes go on.
-- **New Project** is `Wizard` (`NewProject.tsx`), shown by the dialog and by the welcome (`Welcome.tsx`, in a `Card`),
-  never a copy of the steps: it gives its parts (steps, error, Back, Next) to what shows it. A Create under way keeps
-  the dialog open however it would close.
+- **New Project** is `ProjectMap` (`NewProject.tsx`), shared by the dialog and the welcome (`Welcome.tsx`). Its
+  draft owns validation/creation; each node edits that draft. Its scrollable body keeps Create reachable. A Create
+  under way keeps the dialog open however it would close.
 
 ## Controls
 
@@ -180,7 +181,18 @@ What is drawn or moved here rather than by shadcn, each for a reason at it:
   at the window's edge;
 - the log's box of lines (`LogPage.tsx`): shadcn has no log view; its tags in the theme's colors; the installer's
   output (`AgentPage.tsx`, `AgentPicker.tsx`) a `role="log"` of monospace lines, as tall as what it says;
-- the steps' names of New Project (`StepNames`, `NewProject.tsx`) and the welcome's dots (`Dots`, `Welcome.tsx`):
-  shadcn has no stepper, and its `carousel` brings no dots;
-- the welcome's pictures (`Welcome.tsx`): a task's window drawn small in boxes of our own, its terminal's lines in a
-  terminal's colors.
+- the project's fixed map connectors (`NewProject.tsx`): decorative SVG between shadcn cards, hidden in the narrow
+  column layout; no graph editor or graph dependency;
+- the welcome's web/CLI examples (`Welcome.tsx`): switched through shadcn Tabs, with no real pages or terminal
+  processes. `WebExample.tsx` shows a fictional shop in Customer and Admin browser profiles side by side, linked by
+  order #1042. Both pages keep a 1120 × 656 desktop layout and scale into their frames with CSS. One ResizeObserver on the pair
+  updates their scale and the character’s coordinates, and disconnects on unmount. Pages stay light using theme token variants,
+  independently of browser chrome; product photos are bundled, never fetched at runtime.
+  `WelcomeDemo.css` owns one shared 20-second CSS cycle. A small red curtain character chooses a product,
+  scrolls and places an order in Customer, then moves across to Admin and opens the matching order. Customer
+  holds its result while Admin is used; Admin stays still until the character arrives. `AgentTerminal.tsx` draws
+  the user’s coding CLI with a request, file edits, indented tool results and a bottom prompt/status line. Its
+  animated transcript follows the cycle and its header names CLI examples, without presenting a Kulisa agent. This coordinated timeline needs named keyframes rather than independent utility animations. Pause
+  freezes the entire cycle; reduced motion shows its final result. Switching examples or leaving welcome unmounts
+  the animated elements; no JavaScript animation timer or running browser is retained. Photo sources and license
+  ship in `public/welcome/CREDITS.txt`.

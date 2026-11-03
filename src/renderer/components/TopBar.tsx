@@ -9,7 +9,7 @@ import { Button, DropdownMenuItem, DropdownMenuRadioGroup, DropdownMenuRadioItem
   DropdownMenuSubTrigger, Toggle, Item, ItemContent, ItemDescription, ItemTitle } from '@ui';
 import { ButtonMenu, SubmenuContent } from './Menus';
 import { Tip } from './Tip';
-import { Logo } from './ProjectIcon';
+import { AppLogo, Logo } from './ProjectIcon';
 import { useWindow } from '../lib/store';
 import { keyText, withKeys } from '../lib/common';
 import { StageMenu } from '../task-view/TaskView';
@@ -107,7 +107,7 @@ export function TopBar({ children }: { children?: ReactNode }) {
   return <header id="topbar" className="flex h-11 w-[calc(env(titlebar-area-x,0px)+env(titlebar-area-width,100%))] min-w-0 items-center gap-2
     ps-[calc(env(titlebar-area-x,0px)+--spacing(2))] [-webkit-app-region:drag]">
     {children}
-    {!mac && <span data-testid="title-logo" className="-order-1 flex [-webkit-app-region:drag]"><Logo color="var(--project, var(--foreground))" size={24} /></span>}
+    {!mac && <span data-testid="title-logo" className="-order-1 flex [-webkit-app-region:drag]">{current ? <Logo color="var(--project, var(--foreground))" size={24} /> : <AppLogo size={24} />}</span>}
     <span data-testid="drag-area" className="grow shrink-0 basis-10 self-stretch [-webkit-app-region:drag]" />
     <span className="me-2 flex gap-1 [-webkit-app-region:no-drag]">
       {zoom !== 1 && <Tip text={`Kulisa's zoom. Click to reset (${keyText('zoom.reset')})`}>

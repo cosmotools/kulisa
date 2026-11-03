@@ -1,112 +1,94 @@
-// The first start, no project at all (docs/tasks.md, The welcome): what Kulisa does in three slides, then New Project's
-// own steps under a question each. The slides' pictures are a task's window drawn small in boxes of our own: no
-// pictures to ship, the theme's colors.
+// First-start welcome (docs/tasks.md, The welcome): one introduction with web/CLI examples, then the shared project
+// map. The examples are drawings, not running environments; no hidden browser or terminal processes are started.
 import { useEffect, useRef, useState } from 'react';
-import { MousePointerClickIcon } from 'lucide-react';
-import { Avatar, AvatarImage, Button, Card, CardContent, CardFooter, CardHeader, CardTitle } from '@ui';
+import { ArrowRightIcon, GitBranchIcon, GlobeIcon, KeyboardIcon, MousePointer2Icon,
+  PanelTopIcon, PauseIcon, PlayIcon, SquareTerminalIcon } from 'lucide-react';
+import { Button, Tabs, TabsContent, TabsList, TabsTrigger } from '@ui';
+import { ProjectMap } from './NewProject';
+import { WebExample } from './WebExample';
+import { AgentTerminal } from './AgentTerminal';
+import './WelcomeDemo.css';
+import { AppLogo } from './ProjectIcon';
 import { agentMark } from './AgentMark';
-import { avatarSrc } from '../lib/common';
-import { Wizard } from './NewProject';
-import { wizard, type Wizard as W } from '../lib/new-project';
+import { projectDraft, type ProjectDraft } from '../lib/new-project';
 
-const SLIDES = [
-  { title: 'Your agent, in your browsers', text: 'Claude Code, Codex or another coding agent works in the terminal, and drives browsers you have signed in to yourself.' },
-  { title: 'It checks the result as every user', text: 'An admin, a customer, support: each is a browser profile of its own. The agent builds, checks as each of them, fixes, and goes again until it works.' },
-  { title: 'Point at it, and say what is wrong', text: 'Pick an element in a page, and the agent knows exactly which one you mean. Watch it work, or take a break.' },
-];
-const QUESTIONS = ['Where is the code?', 'Who writes the code?', 'Who uses your app?'];
-const PANES = [{ name: 'Admin', avatar: 'owl' }, { name: 'Customer', avatar: 'fox' }];
-const Claude = agentMark('claude');
-
-// The first start says so (shell.firstStart): the keyboard on the slides' Next, or the steps' first field.
 let focusNow: (() => void) | null = null, asked = false;
 kulisa.on('project:new', () => { if (focusNow) focusNow(); else asked = true; });
+const Claude = agentMark('claude'), Codex = agentMark('codex');
 
-// Steps or slides as dots, the ones before and the shown one filled. names: a click on one shows it (the slides').
-function Dots({ label, count, at, names, choose }: { label: string; count: number; at: number; names?: string[]; choose?: (i: number) => void }) {
-  return <ol aria-label={label} className="flex">
-    {Array.from({ length: count }, (_, i) => {
-      const dot = <span className={i <= at ? 'size-2 rounded-full bg-primary' : 'size-2 rounded-full border border-muted-foreground'} />;
-      return <li key={i} aria-current={i === at ? 'step' : undefined}>
-        {choose ? <Button variant="ghost" size="icon-xs" aria-label={names?.[i]} onClick={() => choose(i)}>{dot}</Button>
-          : <span className="grid size-6 place-items-center">{dot}</span>}
-      </li>;
-    })}
-  </ol>;
-}
-
-// A task: its agent's terminal, two profiles' panes; what the slide says lit in it. None in a tiny window: no room.
-function Picture({ slide }: { slide: number }) {
-  // A line in the terminal, fading in as the slide comes to it.
-  const line = (text: string, on: boolean, color = '') => <div className={`${color} transition-opacity duration-500 ${on ? 'opacity-100' : 'opacity-0'}`}>{text}</div>;
-  return <div aria-hidden="true" className="grid aspect-[16/10] w-full grid-cols-[1.1fr_1fr_1fr] gap-2 overflow-hidden rounded-xl border bg-muted p-2
-    [@media(max-height:640px)]:max-w-[calc((100vh-(--spacing(50)))*1.6)] [@media(max-height:640px)]:justify-self-center
-    max-md:[@media(max-height:640px)]:hidden">
-    <div className="flex min-w-0 flex-col gap-1 overflow-hidden rounded-lg border bg-card p-2 font-mono text-xs leading-snug">
-      <div className="flex items-center gap-1"><Claude className="size-3" /> claude</div>
-      {line('> does the checkout work for every user?', true)}
-      {line('⏺ Checking as Admin…', slide >= 1, 'text-muted-foreground')}
-      {line('⏺ Checking as Customer…', slide >= 1, 'text-muted-foreground')}
-      {line('✓ Fixed: works for both', slide >= 1, 'text-success')}
-    </div>
-    {PANES.map((p, i) => <div key={p.name} className={`relative flex min-w-0 flex-col gap-2 rounded-lg border bg-card p-2 transition-shadow ${slide === 1 ? 'ring-2 ring-primary' : ''}`}>
-      <div className="flex items-center gap-1.5 text-xs"><Avatar className="size-4"><AvatarImage src={avatarSrc(p.avatar)} alt="" /></Avatar>{p.name}</div>
-      <div className="grid gap-1.5">
-        <div className="h-2 rounded-sm bg-muted" />
-        <div className="h-2 w-[70%] rounded-sm bg-muted" />
-        <div className={slide === 2 && i === 1 ? 'grid h-5 w-[55%] place-items-center rounded-md border border-primary text-xs text-primary'
-          : 'grid h-5 w-[55%] place-items-center rounded-md bg-primary text-xs text-primary-foreground'}>Buy</div>
-        <div className="h-2 w-[45%] rounded-sm bg-muted" />
+function TerminalExample() {
+  return <div className="h-full p-4">
+    <div className="flex h-full flex-col overflow-hidden rounded-lg border bg-background font-mono text-xs">
+      <div className="flex items-center gap-2 border-b px-3 py-2 font-sans"><SquareTerminalIcon className="size-3" />taskboard<span className="ms-auto text-muted-foreground">80 × 24</span></div>
+      <div className="flex flex-1 flex-col gap-2 p-4 leading-relaxed">
+        <p className="text-muted-foreground">$ taskboard</p>
+        <p className="font-semibold">Your tasks, one command away.</p>
+        <div className="rounded-md border border-primary bg-primary/5 px-3 py-1.5">❯ Add a task</div>
+        <p className="px-3 text-muted-foreground">List tasks</p>
+        <p className="px-3 text-muted-foreground">Settings</p>
+        <div className="mt-auto flex flex-wrap items-center gap-x-4 gap-y-1 border-t pt-2 text-muted-foreground"><span>↑ ↓ move</span><span>enter select</span><span>esc back</span></div>
       </div>
-      {slide === 2 && i === 1 && <MousePointerClickIcon className="absolute top-[55%] right-[20%] size-5 text-warning" />}
-    </div>)}
+    </div>
   </div>;
 }
 
-// The slides, their dots (a click shows one); Back and Next as a teaching popover's footer has them.
-function Tour({ slide, setSlide, done, next }: { slide: number; setSlide: (n: number) => void; done: () => void; next: React.RefObject<HTMLButtonElement | null> }) {
-  const last = slide === SLIDES.length - 1, s = SLIDES[slide]!;
-  return <section aria-label="What Kulisa does" data-slide={slide} className="flex w-full max-w-240 flex-col gap-12 [@media(max-height:640px)]:gap-6">
-    <div aria-roledescription="slide" aria-label={s.title} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] items-center gap-12
-      max-md:grid-cols-1 [@media(max-height:640px)]:gap-6">
-      <div className="grid min-w-0 gap-4">
-        <h1 className="text-3xl font-semibold tracking-tight">{s.title}</h1>
-        <p className="max-w-[42ch] text-base text-muted-foreground">{s.text}</p>
-      </div>
-      <Picture slide={slide} />
+function Example() {
+  const [example, setExample] = useState('web'), [paused, setPaused] = useState(false), web = example === 'web';
+  return <Tabs value={example} onValueChange={setExample} className="min-w-0">
+    <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+      <span className="text-xs text-muted-foreground">{web ? 'One agent. Two browser profiles.' : 'See what you can build'}</span>
+      <TabsList aria-label="Example application">
+        <TabsTrigger value="web"><GlobeIcon />Web app</TabsTrigger>
+        <TabsTrigger value="cli"><SquareTerminalIcon />CLI app</TabsTrigger>
+      </TabsList>
     </div>
-    <div className="flex items-center gap-2">
-      <Dots label="Slides" count={SLIDES.length} at={slide} names={SLIDES.map((x) => x.title)} choose={setSlide} />
-      <span className="flex-1" />
-      <Button variant="outline" onClick={done}>Skip</Button>
-      {slide > 0 && <Button variant="outline" onClick={() => setSlide(slide - 1)}>Back</Button>}
-      <Button ref={next} onClick={() => (last ? done() : setSlide(slide + 1))}>{last ? 'Set Up a Project' : 'Next'}</Button>
+    {/* Draw the shared work area with theme tokens. Real environments here would start processes before setup. */}
+    <div data-paused={paused} className="welcome-demo overflow-hidden rounded-xl border bg-muted/40 shadow-sm">
+      <div className="flex h-9 items-center gap-2 border-b bg-card px-4 text-xs"><PanelTopIcon className="size-3.5 text-muted-foreground" />{web ? 'Build an online store' : 'Build a terminal task manager'}<span className="ms-auto flex items-center gap-1 text-muted-foreground"><GitBranchIcon className="size-3" />{web ? 'checkout' : 'keyboard-nav'}</span></div>
+      <TabsContent value="web"><WebExample /></TabsContent>
+      <TabsContent value="cli"><div className="aspect-[2/1]"><TerminalExample /></div></TabsContent>
+      <AgentTerminal web={web} controls={web && <Button type="button" variant="ghost" size="icon-xs" className="motion-reduce:hidden" aria-label={paused ? 'Play demonstration' : 'Pause demonstration'} title={paused ? 'Play demonstration' : 'Pause demonstration'} onClick={() => setPaused((x) => !x)}>{paused ? <PlayIcon /> : <PauseIcon />}</Button>} />
+    </div>
+    <p aria-live="polite" className="mt-2 flex items-center justify-center gap-2 text-xs text-muted-foreground">
+      {web ? <><MousePointer2Icon className="size-3.5 shrink-0" />Point to a page element to explain a change.</> : <><KeyboardIcon className="size-3.5 shrink-0" />You and your agent can use the same terminal.</>}
+    </p>
+  </Tabs>;
+}
+
+function Introduction({ start, button }: { start: () => void; button: React.RefObject<HTMLButtonElement | null> }) {
+  return <section aria-label="What Kulisa does" className="grid w-full max-w-7xl gap-12 [@media(max-height:850px)]:gap-6">
+    <div className="flex items-center gap-3 [@media(max-height:850px)]:hidden"><AppLogo size={32} /><span className="text-xl font-semibold tracking-tight">Kulisa</span></div>
+    <div className="grid items-center gap-12 lg:grid-cols-[.8fr_1.4fr] [@media(max-height:850px)]:gap-6">
+      <div className="flex flex-col items-start gap-6 [@media(max-height:850px)]:gap-4">
+        <h1 className="text-4xl leading-[1.12] font-semibold tracking-tight xl:text-5xl [@media(max-height:600px)]:text-3xl">Your agent builds.<br /><span className="text-muted-foreground">You see it work.</span></h1>
+        <p className="max-w-[40ch] text-base leading-relaxed text-muted-foreground [@media(max-height:600px)]:text-sm">Develop web and command-line apps with the coding agent you choose. Run, test and refine them together in one window.</p>
+        <div className="flex items-center gap-2 text-sm"><Claude className="size-5" /><Codex className="size-5" /><span className="ms-1 text-muted-foreground">Your agent. Your code. Your computer.</span></div>
+        <div className="mt-2 flex flex-col items-start gap-3">
+          <Button ref={button} size="lg" onClick={start}>Create a project<ArrowRightIcon /></Button>
+          <p className="text-xs text-muted-foreground">Start from an idea, a folder or a repository.</p>
+        </div>
+      </div>
+      <div className="min-w-0 max-lg:max-w-160 max-lg:justify-self-center max-lg:[@media(max-height:800px)]:hidden"><Example /></div>
+    </div>
+    <div className="grid grid-cols-3 gap-8 border-t pt-6 max-md:gap-4 [@media(max-height:850px)]:hidden">
+      <div><p className="mb-2 flex items-center gap-2 text-sm font-medium"><PlayIcon className="size-4" />Try the real app</p><p className="text-sm text-muted-foreground">Check web apps as different users. Test CLI apps in interactive terminals.</p></div>
+      <div><p className="mb-2 flex items-center gap-2 text-sm font-medium"><MousePointer2Icon className="size-4" />Work together</p><p className="text-sm text-muted-foreground">Watch the agent, try things yourself and show what needs to change.</p></div>
+      <div><p className="mb-2 flex items-center gap-2 text-sm font-medium"><GitBranchIcon className="size-4" />Keep work moving</p><p className="text-sm text-muted-foreground">Open several tasks, each with its own conversation and branch when needed.</p></div>
     </div>
   </section>;
 }
 
 export function Welcome() {
-  const [slide, setSlide] = useState(0), [w, setW] = useState<W | null>(null); // w: New Project's steps, shown
-  const next = useRef<HTMLButtonElement>(null);
+  const [draft, setDraft] = useState<ProjectDraft | null>(null), button = useRef<HTMLButtonElement>(null);
   useEffect(() => {
-    focusNow = () => next.current?.focus(); // the steps take it themselves, in their first field
+    focusNow = () => button.current?.focus();
     if (asked) { asked = false; focusNow(); }
     return () => { focusNow = null; };
   }, []);
-  return <div id="welcome" className="box-border grid min-h-0 flex-1 [place-items:safe_center] overflow-auto p-8">
-    {!w ? <Tour slide={slide} setSlide={setSlide} done={() => setW(wizard(true))} next={next} />
-      // New Project's steps in a Card, not a dialog: nothing else is in the window to cover
-      : <Card className="min-h-[min(--spacing(130),100%)] w-full max-w-190">
-        <Wizard w={w} leave={() => setW(null)} className="flex min-h-0 flex-1 flex-col gap-4">
-          {({ step, steps, error, back, go }) => <>
-            <CardHeader>
-              <CardTitle><h1 className="text-xl">{QUESTIONS[step]}</h1></CardTitle>
-              <Dots label="Steps" count={QUESTIONS.length} at={step} />
-            </CardHeader>
-            <CardContent className="min-h-0 flex-1"><div className="flex flex-col gap-4">{steps}{error}</div></CardContent>
-            <CardFooter>{back}<div className="ms-auto">{go}</div></CardFooter>
-          </>}
-        </Wizard>
-      </Card>}
+  return <div id="welcome" className="flex min-h-0 flex-1 flex-col overflow-auto p-6 lg:p-10 [@media(max-height:850px)]:p-6">
+    {draft ? <div className="mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col gap-6">
+      <div><h1 className="text-2xl font-semibold tracking-tight">Make room for your next project</h1><p className="mt-2 text-sm text-muted-foreground">Bring your code, choose an agent. Set up the rest as you work.</p></div>
+      <ProjectMap draft={draft} back={() => setDraft(null)} />
+    </div> : <div className="grid min-h-0 flex-1 [place-items:safe_center]"><Introduction start={() => setDraft(projectDraft())} button={button} /></div>}
   </div>;
 }
