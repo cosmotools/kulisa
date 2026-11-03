@@ -2,7 +2,7 @@
 // terminal keeps the agent's keys, Kulisa's own work everywhere, Keyboard Shortcuts lists them. Keys are sent as input
 // events into the page or the window, where the human's keyboard would put them.
 import { test, expect } from './fixtures.ts';
-import { SITE, MAC, WIN, termText, ipcSettled, item, termKeys, shortcutsDialog, shortcutKeys } from './helpers.ts';
+import { SITE, MAC, WIN, termText, ipcSettled, item, termKeys, shortcutsDialog, shortcutKeys, focusWindow } from './helpers.ts';
 
 test("keys in a profile's page are Chrome's, for its pane: Ctrl+T a tab with the address to type in, Ctrl+W, Ctrl+Shift+T, Ctrl+1 and Ctrl+Tab; the site never gets them", async ({ core, ui }) => {
   // What the site sees: keys with Ctrl (⌘ on macOS).
@@ -47,11 +47,14 @@ test("keys in a profile's page are Chrome's, for its pane: Ctrl+T a tab with the
 test("keys in the terminal are the agent's, but Kulisa's own: Ctrl+T reaches the agent; Ctrl+` goes to the page used last and back; Ctrl+Shift+/ lists the keys", async ({ core, ui }) => {
   // Sam's pane used last (its address bar: the window knows only its own focus): Ctrl+` goes back to its page.
   const id = await core(async (k, url) => (await k.ensureProfile('Sam', url)).id, `${SITE}/app`);
-  await core((k) => k.shell.win.webContents.focus());
+  await focusWindow(core, ui);
   await ui.locator(`[data-task-view][data-active] [role="region"][data-profile="${id}"]`).getByRole('tab', { selected: true }).dblclick();
+  // A tab button also reports the pane zone; the editor's deferred focus must finish before leaving it.
+  await expect(ui.locator(`[data-task-view][data-active] [data-profile="${id}"]`).getByRole('textbox', { name: 'Address', exact: true })).toBeFocused();
   await expect.poll(() => core((k) => k.shell.windows[0].keyZone)).toBe(`pane:${id}`);
   const tabsBefore = await core((k) => k.profile('Sam').tabs.length);
   await termKeys(ui).focus();
+  await expect(termKeys(ui)).toBeFocused();
   await expect.poll(() => core((k) => k.shell.windows[0].keyZone)).toBe('terminal');
   // Windows echoes input before the fake agent reads it: wait for the agent's reply too.
   if (WIN) {
