@@ -1,10 +1,11 @@
 # Project Explorer
 
-A Kulisa package: `docs/packages.md`; behavior and integration: `README.md`.
+Read `README.md` and `docs/packages.md`.
 
-- Outside callers use `main/index.ts`, `renderer/index.ts` and `ipc.ts` only.
-- Neither half imports core domain code. The main half takes folder roots; the renderer takes file-access and menu callbacks through `ExplorerActions`. Other Kulisa packages are reached through their entries.
-- Tasks, repository ownership and removal, root labels and grouping, the Resources bar and artifacts stay in the core/window. Task-specific IPC handles supply roots and call this Kulisa package.
-- Keep the shadcn File Tree composition: Collapsible folders and Button files; never edit `src/ui`.
-- Material Icon Theme owns file icon artwork and associations; folders share Lucide’s folder icon; its generator runs in Vite's build, never in the renderer. Keep icon matching independent of any editor.
-- Unit tests: `files.test.ts`, `icons.test.ts`. End-to-end tests: `test/e2e/resources.spec.ts`, `project-repositories.spec.ts`; the full suite also covers Resources layouts and artifacts.
+- Entries: `main/index.ts`, `renderer/index.ts`, `ipc.ts`; no core domain imports. Main receives roots; renderer
+  receives `ExplorerActions`. Other Kulisa packages are reached through entries.
+- Core/window own tasks, repository ownership/removal, labels/grouping, Resources and artifacts. Task IPC supplies roots.
+- Preserve shadcn File Tree composition; never hand-edit generated `src/ui` files.
+- Material Icon Theme owns file artwork/associations; Lucide owns folder icons. Generate assets in Vite, not renderer;
+  keep matching independent of editors.
+- Unit tests: `files.test.ts`, `icons.test.ts`; e2e: `resources.spec.ts`, `project-repositories.spec.ts` and Resources layouts.
