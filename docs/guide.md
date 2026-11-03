@@ -63,126 +63,89 @@ project, and those you closed, are in the sidebar (Tasks, below).
 
 ## The window
 
-- **The title bar**: the Kulisa logo in the shown project's color (not on a Mac, where Kulisa's icon is in the Dock),
-  the tasks' bar if you put it there, **Stage** (the layout icon) while a task is open, **Settings** (the gear; not at the very first
-  start, while there is nothing to set yet), and **☰**, the window's menu: zoom, theme, where the tasks' bar is,
-  language, Keyboard Shortcuts, links, About Kulisa, Exit. On a Mac there is no Exit: **⌘Q** quits
-  Kulisa, and closing the last window only hides it, while your agents go on working; click Kulisa's icon in the Dock
-  to bring it back.
-- **Settings** (on a Mac also ⌘, or Kulisa → Settings… in the menu bar) fills the window, over your task, and shows that task's project: set what you need and close it (**Esc**,
-  the ← arrow at its top left, or the gear again; what you typed is saved as you go). Your task goes on meanwhile, and is there as you left it.
-- **The grid** separates development from testing: your agents' terminals and Resources sit beside the **stage**,
-  where browser profiles and Stage terminals show the app being tested. Drag headers to move or stack panes within each area. Drag a line to resize panes.
-  **Stage** in the title bar places the stage **Left**, **Right**, or **Above** the agent terminal and Resources together. Its **View** choices are **Horizontal stack** (side by side),
-  **Vertical stack** (one above another), and **Tabs** (one environment at a time). **Allow overflow** keeps panes at a usable size and adds scrolling in the stack’s direction;
-  turned off, all panes fit inside the stage. Tabs hides this setting. Your agent can change the position, view and overflow too.
-  Use **Maximize environment** in a profile or terminal header to fill Stage with that group; **Restore environment** brings back the arrangement.
-  The agent terminal and Resources stay visible. A group’s tabs remain available, and overflow resumes when you restore.
-  Enable **Stage → Follow agent** to follow the environment your agent uses: select its tab or scroll it into view.
-  Its header briefly highlights activity. Selecting or interacting with Stage pauses following; choose
-  **Follow agent (paused)** to resume. Your layout and maximized environment stay as you chose them.
-  Follow agent is shared by all tasks and windows and remembered when you restart Kulisa. Manual pauses are temporary.
-  Each task keeps both layouts, its stage position, size, view and overflow setting. The empty stage stays hidden; you or your agent can open a
-  environment when needed through **Stage → Open an environment**.
-- **Resources panel**, to the left of the terminal by default: choose the **Agents**, **Project**, **Diff** or **Artifacts** section
-  from the **Resources bar**, the icons on its left. The area on the right is **Resources content**.
-  Click the selected icon again to close Resources content and give the terminal more room; the Resources bar stays visible, with no resize divider beside it.
-  Click any section icon to reopen Resources content at its previous size.
-  **Diff** shows changed files as a folder tree, grouped by repository, with their status and added or removed line
-  counts. GitHub-style status icons mark added files in green and deleted files in red, with distinct modified and
-  renamed markers and aligned folder and file rows. Diff and Project share the Resources palette;
-  expanded folders keep a plain background, and pointing at a row highlights it.
-  File names, loading messages and empty-state messages share the normal text size; captions and line counts use smaller text.
-  **Diff** and **Agents** switch the development area between the review and your terminal.
-  Leaving Diff clears its review settings and position. Each opening starts at the first repository with its default
-  comparison, an empty filter and the top of the review.
-  Each opening of Diff reads the current files from your computer. Search and empty From/To fields appear immediately.
-  A progress bar in the review stays for at least half a second, then the branch names, file rows and review appear
-  together. Diff refreshes while the review is open.
-  A task with one repository shows From/To and the tree directly; tasks with several repositories show a
-  collapsible heading for each. Opening Diff shows the repository's review in the development area.
-  Filter by a path to narrow both the tree and review, and expand folders to navigate. Use the arrow keys to navigate
-  and Enter to select a file. Selecting the first file returns to the top of the review; other files open at their
-  headings. Parent folders stay visible at the top of the tree as you scroll.
-  The review loads as one document. Large files and reviews show **Load diff** where you choose what to load.
-  All changed files appear in one scrolling
-  document, each in a bordered block with its path and change counts above its diff. Gaps separate the files.
-  Use the arrow in a file header to collapse or expand its diff. Collapsed files stay collapsed as changes refresh.
-  Long lines wrap within each file. Point at a line to highlight it and its number; drag along the line numbers to select a range.
-  Select code text with the mouse and copy it with Ctrl+C (⌘C on macOS).
-  The copy button beside a file's path copies its current path relative to the repository, including when its diff is collapsed.
-  A checkmark confirms copying for a moment.
-  Scrolling through the review marks the current file
-  in the tree. Choose
-  **Unified** or **Split** for the comparison layout. The review header shows the added and deleted line totals for
-  the files in the document. The review follows Kulisa's global zoom and light or dark palette.
-  Each repository shows **From → To**. **From** displays your task's worktree and current branch as plain text,
-  including local edits. **To** starts with the repository's default branch; changing it opens
-  that comparison. Choose the current branch under **To** to review only uncommitted edits in your worktree.
-  Selecting a target keeps your checked-out code intact.
-  New files are included in worktree comparisons and ignored files stay out. Diff refreshes as your agent works,
-  without needing a GitHub pull request.
-  The terminal keeps running while you review. Click **Agents** in the Resources bar to return to your last active
-  terminal, or select another agent from its list. The terminal focus shortcut also returns to
-  the last active terminal. Stage keeps its position and size. The review is read-only; binary and large
-  files show an explanation. Switching tasks or restarting Kulisa restores that task's Resources section;
-  Diff opens a fresh review.
-  Drag the grip at the bottom of the Resources bar to move the whole panel beside or below the terminal, or into its tabs.
-  Beside the terminal, the Resources bar follows the outer edge: left on the left, right on the right.
-  A group shared with terminal tabs stays resizable; its Resources tab stays available.
-  The expanded panel stays at least 300 pixels wide and 204 pixels tall, keeping all section icons and the grip reachable. Each task keeps its selection and size.
-  **Project** opens first in a new task: use **Project Explorer** to browse the active task’s folders (its copy of the code, or your project’s folder until
-  it has one). Icons identify file types; folders share one icon. Click a folder to expand it; double-click a file to open it in your system’s default application,
-  or press Enter or right-click and choose **Open**. Switching tasks shows that task’s folders, across projects too.
-  **Artifacts** holds what you and the agent kept of the pages:
-  screenshots (with a small picture), snapshots of a page, the bodies of requests, the newest first, with whose page and
-  when, and each file’s size. Hover a row to show its 🗑, which deletes that file. A click opens one; a right-click offers **Open**, **Show in Folder**, **Send to Agent** and **Delete**.
-  Drag one into the agent’s input to add its path; sending or dropping it leaves the prompt for you to finish.
-  The heading says how much room they take;
-  its 🗑 deletes them all. The agent sees the same: ask it what is there, or to clean them up. Past 100 MB a task's oldest
-  go by themselves. Drag the line beside it to resize it, as any pane.
-- **The tasks' bar**, under the grid (or in the title bar, as a browser's tabs: **☰ → Tasks bar**): first the
-  sidebar's button (every project with its tasks: Tasks, below), then a tab per open task, of any project, with its project's icon and its agent's state, the shown one filled; **+** after them makes a new task, asking which project when there are several. When there are more tabs than fit, the mouse
-  wheel over the bar scrolls them, and a faded edge shows that more are past it.
-- **No task open** (after you close the last task): the sidebar stays open at the window's left, every project with
-  its tasks (Tasks, below). At the very first start, with no project yet, it shows what Kulisa does, then New Project.
+The title bar holds the project logo, **Stage**, **Settings** (gear) and **☰**. The menu includes zoom, theme,
+language, task-bar position, shortcuts, help and About. Settings saves as you edit; close it with Esc, its back
+arrow or the gear. Your task keeps running underneath.
+
+On macOS, ⌘, opens Settings and ⌘Q quits. Closing the last window hides Kulisa while agents continue; the Dock icon
+brings it back.
+
+### Stage and development
+
+Your coding terminals and **Resources** occupy the development area; browser profiles and interactive terminals
+occupy **Stage**. Drag headers to arrange/stack panes within each area and dividers to resize.
+
+**Stage** in the title bar offers:
+
+- **Left**, **Right** or **Above** the development area.
+- **Horizontal stack**, **Vertical stack** or **Tabs**.
+- **Allow overflow** for scrolling stacks at usable pane sizes, or fit all panes; Tabs keeps this setting hidden.
+- **Open an environment** to add a profile or Stage terminal. An empty Stage stays hidden.
+- **Follow agent** to reveal its active environment and highlight activity. Your Stage input pauses following;
+  choose **Follow agent (paused)** to resume. The preference survives restart; pauses are temporary.
+
+**Maximize environment** fills Stage with that group while development remains visible. **Restore environment**
+returns its arrangement/overflow. The agent can arrange Stage too; each task remembers its layout and size.
+
+### Resources
+
+The **Resources bar** selects **Agents**, **Project**, **Diff** or **Artifacts**. Click the selected icon to collapse
+**Resources content**, leaving icons visible; select a section to restore its size.
+
+- **Agents** lists coding agents/development shells. Select a row to use its terminal.
+- **Project** starts selected in new tasks. Expand folders, double-click files or press Enter to open them in the
+  system app; right-click for Open/Show in Folder. It follows the current task's code folders.
+- **Artifacts** lists screenshots, page snapshots, request bodies and terminal screens, newest first with source,
+  time and size. Click to open; right-click to reveal, send to agent or delete. Hover/focus trash deletes one;
+  heading trash deletes all. Dragging/sending inserts a path without sending the message. Ask the agent to explain
+  or clean up files. Above 100 MB, oldest task artifacts are removed automatically.
+
+Drag the Resources bar's bottom grip to dock beside/below the terminal or into shared tabs. Its bar follows the
+outer edge beside terminals. Expanded minimum is 300 × 204 pixels; each task keeps section and size.
+
+### Reviewing changes
+
+**Diff** opens local, read-only Git review in place of the terminal, which keeps running. **Agents** or the terminal
+focus shortcut returns to it; Stage keeps its layout. Every opening reads current files and resets comparison,
+filter and position. Search/empty comparison controls appear first, followed together by branch names, tree and
+review after a short progress display. Open reviews refresh as the agent edits.
+
+**From** is the task branch/worktree including local edits. **To** defaults to the repository's default branch;
+choose the current branch to see uncommitted changes only. Selecting a target does not change checked-out code.
+New files are included; ignored files are excluded. Several repositories have collapsible headings.
+
+Filter paths to narrow tree and review. Arrow keys navigate; Enter selects. Changed-file status icons/counts
+identify additions, deletions, modifications and renames. Selecting the first file returns to the document top;
+other files jump to their headings. Scrolling highlights the current file in the tree.
+
+All files share one scrolling review with **Unified**/**Split** layouts and added/deleted totals. File-header arrows
+collapse diffs and keep that choice through refresh. The copy button copies the current repository-relative path,
+even when collapsed. Long lines wrap; select/copy code normally or drag line numbers for a range. Large reviews
+use **Load diff**; binary/unsupported content explains its limit. Review follows global zoom/theme.
+
+### Task navigation
+
+The tasks' bar sits below the grid or in the title bar (**☰ → Tasks bar**). It holds the sidebar button, task tabs
+with project icons/status, and **+**. Wheel over overflowing tabs to scroll; faded edges show hidden tabs.
+With no task open, the project sidebar stays docked. With no projects, the welcome leads to New Project.
 
 ## Projects
 
 ### New Project
 
-At the first start, with no project yet, the window is New Project after three slides of what Kulisa does (**Back** on
-the first step shows them again); later, **New Project…** at the foot of the sidebar. Three steps; **Next** goes on,
-**Back** goes back with what you typed kept, and nothing is made before **Create**.
+At first start, three skippable slides lead to New Project. Later use **New Project…** at the sidebar's foot.
+**Back** preserves input, **Next** checks each step, and **Create** makes the project and opens its first task.
 
-**1. Code.** Where its code comes from, in the tabs at the top:
+1. **Code**: create a new folder (default home/KulisaProjects), use existing folders, or clone repositories with
+   your git credentials. Existing code is preserved. New folders start without git; ask the agent to initialize it
+   if needed. The welcome takes one folder/repository; add others in Settings. Existing code supplies the project
+   name; new folders ask for one. Icon/color come from the app's favicon or Kulisa's default.
+2. **Agents**: select accounts and star the default (first selected initially). **Add account** signs in through
+   your browser, installing a missing CLI first; **Details** shows installation. With none selected, tasks start a shell.
+3. **Profiles**: add named users with role descriptions or select existing profiles. None is fine; the agent can
+   create needed profiles later. Sign in when asked or through Settings → Profiles.
 
-- **New folder**: a new, empty project. Kulisa makes the folder (in the KulisaProjects folder in your home folder unless you choose another place),
-  a plain folder: tasks work right in it. Want git? Ask the agent to set it up; the tasks you make after that each
-  get a copy of their own.
-- **Folders on disk**: code you already have, one folder or several (a frontend and a backend). Nothing in them is
-  changed.
-- **Clone from URL**: one repository or several, cloned with your own git (its keys and credentials).
-
-At the very first start it takes one folder or one repository; add the others (a frontend and a backend) later, in
-Settings. There the project is named after its folder or repository (the line under it says so; rename it in
-Settings); only a new folder asks for a name.
-
-The step says what will happen as you type. Its color and icon are not asked: Kulisa finds its site's favicon in
-its code and takes the color from it, so a red logo makes a red project. A project whose code has no favicon gets the
-curtain and a color of its own.
-
-**2. Agents.** Who works in its tasks: tick your agents' accounts, one or several; **★** marks the one a new task
-starts (the first you ticked, unless you star another). **Add account** → Claude Code or Codex signs in to a new one in
-your browser; an agent not on your computer yet is installed first, by itself (**Details** shows the installer at
-work). Tick none and its tasks start with a terminal, where you run what you like.
-
-**3. Profiles.** The users of your app: **Add Profile**, a name (`ann@shop.com`) and who it is ("seller; can approve
-refunds"): the agent chooses profiles by it. Tick any of your other profiles to have them here too. None now is fine:
-the agent makes those it needs.
-
-**Create** makes the project and opens its first task, its agent in the terminal. All of it can be changed later on
-its page in Settings.
+All choices can be changed later in Settings.
 
 ### A project's page
 
@@ -210,113 +173,70 @@ Everything is saved as you change it; there is no Save button.
 
 ## Agents and their accounts
 
-**Settings → Agents** lists the agents Kulisa knows (Claude Code, Codex): installed or not. Click
-one to see its version, its accounts, and **Install** if it is not installed. Kulisa never removes or updates an agent: its maker's installer updates it.
+**Settings → Agents** shows supported agents, versions, accounts and Install. Kulisa uses the maker's installer;
+it never removes or updates your CLIs itself.
 
-An **account** is an agent signed in to one of your subscriptions, so a work and a personal one can run side by side.
-Make one with **New Account** on the Agents page (then the agent), **Add Account** on the agent's page, or on a
-project's page. Each account starts clean: your own settings of the
-agent outside Kulisa are not used. It is shown by its email, and stays until you delete it here (its **⋯** → Delete…).
+An **account** is a separate sign-in/configuration for one subscription, so work and personal accounts can run side
+by side. Add through Agents, an agent's page, or a project. Accounts start clean, independent of your CLI settings
+outside Kulisa, and remain until deleted here.
 
-A task may have several agents at once, each in a terminal of its own (Terminals, below): Claude Code next to Codex, two of
-your accounts, or one agent twice. Each starts a new conversation and names its tab in a few words once it knows what
-it works on. To pass the work on (when one runs out of its limit, or for a fresh start), click the agent's icon on its
-tab (or **Change agent…** in its right-click menu). **Change Agent** shows what goes along to the next one: the task's
-branch, its profiles still signed in, their tabs, the terminals running, the whole conversation; and what stays
-behind. Choose the agent and **Hand over**: it reads what was said and done in that conversation while a bar shows how
-far it has read, then its tab opens and it tells you in a few lines where it stands. If it needs you first (a
-permission, a sign-in), its tab opens at once; **Show now** does not wait. The old tab stays until you close it. Or
-simply tell an agent "go on with what Claude did": every agent of the task can read the others' conversations.
+A task can have several agents/conversations. Use **Change agent…** to hand work over: choose an account, then
+**Hand over**. The next agent reads the conversation while progress is shown; branch, profiles and running shells
+stay available. Permissions/hidden reasoning and account settings do not transfer. **Show now** skips waiting;
+requests for your input reveal it immediately. The old conversation stays until you close it. You can also ask an
+agent to continue another's work directly.
 
-**Dictation**: hold the **right Ctrl** key (the right ⌘ on a Mac) while you speak, wherever you are in Kulisa, a page
-or the terminal, and let go; or press it once to start and once more to stop. The text goes into the agent's input for
-you to read and send. It hears the language chosen in **☰ → Language**. The microphone in the Resources bar
-shows that it is listening, and works the same way by the mouse: hold it, or click to start and again to stop. While
-you speak, a capsule at the top of the terminal shows your voice as a wave and how long you have spoken; when you let
-go it says it is transcribing, then that the text is in the agent's input. Claude
-Code listens itself; for Codex and any other agent without dictation of its own, Kulisa listens with Claude Code
-behind the scenes, so you need it installed and signed in with a Claude subscription (**Settings → Agents**); the
-words appear as you speak and are put right when you let go. The
-first time after a break, the capsule says **Getting ready…** for about a second (the microphone turns blue): speak once
-it shows the wave. With
-a terminal in front, the key brings the agent back in front. Greyed out, its tooltip says why. Another key instead of
-the right Ctrl: **☰ → Keyboard Shortcuts**, Change on its row, then press the key.
+**Dictation**: hold right Ctrl (right ⌘ on macOS), or tap to start/stop. The Resources microphone works the same way.
+Speak after the wave appears; text stays in the agent's input for review before sending. The capsule shows listening,
+elapsed time and transcription. Change the key in Keyboard Shortcuts; language comes from **☰ → Language**.
+With a shell active, dictation brings the agent forward.
+
+Claude Code recognizes speech natively. Codex uses a hidden Claude Code recognizer, requiring an installed,
+Claude-subscription account in Settings. First use after a break may show Getting ready for about a second.
+A disabled microphone explains why in its tooltip.
 
 ## GitHub
 
-**Settings → GitHub** holds your GitHub accounts, as many as you have (work, personal). Kulisa keeps their sign-ins
-itself, encrypted with your computer's keyring; your agents never see them. **Add Account** adds one, two ways:
+**Settings → GitHub** holds work/personal accounts. Kulisa keeps credentials encrypted with your computer's keyring;
+agents do not receive them. **Add Account** offers:
 
-- **With GitHub…**: Kulisa shows a code and opens GitHub's page in your browser; enter the code there and allow
-  **Kulisa App**. Then install Kulisa App on the accounts or organizations whose repositories you work on
-  (github.com/apps/kulisa-app): it reaches only those, and only what it asks for (reading code, pull requests and
-  issues, checks). **Enter a code on GitHub only when Kulisa has just shown it to you**: a code someone else gives you
-  would sign them in as you.
-- **With a Token…**, for an organization that does not install Kulisa App: make a fine-grained personal access token
-  on GitHub (the link there fills in the permissions Kulisa needs), choose the organization as its resource owner and
-  its repositories, and paste it. A classic token is refused: it reaches all of your repositories.
+- **With GitHub…**: enter Kulisa's displayed code in the browser, authorize Kulisa App and install it on needed
+  repositories. **Enter only codes Kulisa just displayed**; another person's code would authorize them as you.
+- **With a Token…**: create a fine-grained PAT using the linked permissions form, choose the organization/repositories,
+  then paste it. Broad classic tokens are refused.
 
-In an organization you are a member of, only its owner can install Kulisa App: GitHub lets you request it, and the
-owner decides. Ask them to install Kulisa App on the repositories you work on; or, if they will not, make a
-fine-grained token for the organization, which its owner may also have to approve (and, where the organization signs
-in through its company's single sign-on, authorize for it). A repository no account can reach says so on its row in
-the project, with a link to install Kulisa App.
+Organization owners approve App installation; members can request it. A fine-grained token may also need approval
+or company SSO authorization. Repository rows explain inaccessible accounts and link installation.
 
-The list shows each account, where Kulisa App is installed, the projects using it and until when it is signed in. A
-sign-in with GitHub lasts six months from the last time Kulisa used it; a token, until it ends. When one ends, or
-GitHub turns it down, the account says **Signed out**: **Sign in Again…** in its **⋯** or right-click menu. On a Linux computer
-without a keyring, Kulisa cannot keep a sign-in safely, so it keeps none: you sign in again after Kulisa restarts, and
-the page says so. **Delete…** (its **⋯**) deletes an account after a question; Kulisa forgets its sign-in, which GitHub still knows until
-it ends: the question links the GitHub page where you revoke it at once.
+Accounts show installations, projects and authentication expiry. **Sign in Again…** restores a signed-out account.
+Without a Linux keyring, sign-ins last only until restart; the page explains this. **Delete…** forgets credentials
+but does not revoke GitHub authorization; its confirmation links GitHub's revocation page.
 
 ## Tasks
 
-- **The sidebar** (the button at the start of the tasks' bar, or Ctrl+Shift+A; with no task open it is always there): every
-  project with its tasks, the one you worked in last first. Open tasks come first, showing what their agent is doing
-  (or "open" when they are in another window), then the closed ones, with when you closed them, and "merged" once
-  their work is merged. Click a task (or Enter) to switch to it or open it again; its trash can (or the Delete key)
-  deletes it. **+** on a project's row, shown under the pointer, starts a new task of it; a right-click on the project
-  has New Task, Project Settings…, Show Data Folder, Delete Merged Tasks… and Close All Tasks. **New Project…** is at
-  its foot. Over a task, it closes once you choose something (or with Esc).
-- **A new task**: **+** in the tasks' bar (with several projects it asks which one), Ctrl+Shift+N for the shown
-  task's project, or **+** on a project's row in the sidebar. It runs the project's default agent with a new
-  conversation; describe the task to it. With no
-  default agent, you choose one with the buttons in the middle (Ctrl+` puts the keyboard on them). Its profiles are
-  all closed: the agent opens those it needs, or you do: while none is open, each has a button over the terminal
-  (click it), and the task's tab lists them on a right-click. A project with no profiles has one button there,
-  **Add Profile…**.
-- **Its own copy of the code.** In a project with git, every task works in a copy of its own (a git worktree) on a
-  branch of its own, next to your project's folder (`myshop@task-2`). Your project's folder stays yours: the agent
-  merges its work into it only when you ask (and checks first that you have no unsaved changes there), or opens a pull
-  request. Files git ignores, such as `.env`, are copied into the task's copy too. Without git, tasks work right in
-  the project's folder; such a task still adds the project's repositories (below), each copy on a branch of its own.
-- **Several repositories.** In a project of several repositories (a frontend and a backend), a new task gets a copy
-  of the default one only. When the work needs another, add it: right-click the task's tab and choose it under **Add
-  Repository**. The agent may ask you for one too, and adds it once you agree; to only read another repository it
-  needs no copy. The repositories the task has are listed in Resources, next to the terminal. Kulisa gives the agent
-  the new folder itself (Claude Code at once, unless it is waiting for your
-  answer; other agents once they have finished what they are doing). One you no longer need goes the same way:
-  **Remove Repository** on the task's tab, or the trash can on its row in Resources (the agent may ask to remove one
-  too). Its copy and branch are deleted; when they hold work not pushed, Kulisa asks you first.
-- **Its own ports.** Each task runs your app on its own ports, the usual ones plus 100, 200, …, so several tasks run
-  the app at once. Its profiles' tabs on local addresses already point there, and stay signed in.
-- **Its name** is `task-1`, `task-2` … until the agent names it, by itself and without a word about it, once your
-  message says what the task is about, or you do (**Rename…** in its tab's right-click menu, or a double click on its tab). The branch takes the name too. Until it has a name,
-  holding the pointer over its tab (or its row among the closed tasks) shows your first message in it.
-- **Using Kulisa’s tools.** Your agent can operate browsers, run commands, send terminal input and upload files without a tool approval prompt from Kulisa.
-- **Its state** on its tab: working (a spinner), waiting for you (an exclamation mark: a question, a permission, a
-  limit), done (a check, until you look at the task).
-- **Switch** by clicking a tab, of any project. The other tasks keep running: their agents and pages go on.
-- **× closes a task** (or the middle button on its tab, or **Close** in its menu): its agent stops and its tabs close;
-  its code, branch, profiles and conversation stay. Open it again from the sidebar: the agent continues the
-  conversation.
-- **Delete Task…** (its tab's right-click menu) deletes it for good: its copy of the code, its branch, its profiles'
-  copies, its conversation. The question says what would be lost (work not merged and not pushed). A task is
-  deleted from its row in the sidebar too: the trash can at the row's end (or the Delete key), open or closed. Once a
-  closed task's work is merged, its row says "merged", and the project's menus offer **Delete Merged Tasks…**.
-- **The project's submenu**, at the end of a tab's right-click menu under the project's name: New Task, Move All
-  Tasks to New Window or to another window, Project Settings…, Show Data Folder, Delete Merged Tasks…, Close All
-  Tasks (asks only when an agent is working).
+- **Sidebar**: bar's first button or Ctrl+Shift+A; docked when no task is open. Projects sort by recent use, open
+  tasks before closed ones. Click/Enter shows or reopens a task. Project + creates one; trash/Delete removes it
+  after confirmation. Project menus include settings, data folder, closing tasks and deleting merged tasks.
+- **New task**: bar +, Ctrl+Shift+N for the current project, or project +. It starts the default agent; without a
+  default, choose a launcher. Profiles start closed: open needed users from their buttons/task menu or let the agent.
+- **Code**: when coding begins, the agent creates the task's git worktree/branch beside your repository, preserving
+  your folder. Selected ignored setup files, including `.env*`, are copied; dependencies need installation.
+  Without git/commits, work stays in your folder. Merging back requires your request and a check for local edits.
+- **Repositories**: tasks start with the default repository; **Add Repository** adds another task-owned copy when
+  needed, or the agent asks first. Reading other project repositories needs no copy. **Remove Repository** deletes
+  the added copy/branch, asking about unpushed work. Kulisa informs running agents when safe.
+- **Ports**: your agent chooses a free port for each running app and navigates profiles there. Kulisa assigns no
+  port offsets; cookies keep sign-ins across ports.
+- **Name**: starts as **New Task**; the agent names it once the work is clear, or use Rename/double-click. Until then
+  an agent's conversation title may appear. Branch follows an explicit name; the worktree folder stays fixed.
+- **Tools**: Kulisa sessions approve browser/terminal/command/file-upload tools; domain actions can still require
+  confirmation, such as removing a profile.
+- **Status**: spinner working, exclamation waiting for you, check done until viewed. Other tasks keep running when
+  you switch.
+- **Close** (×, middle-click, menu) stops agents/pages and preserves code, branch, profile copies and conversations.
+  Reopening resumes agents. **Delete Task…** permanently removes these after explaining unmerged/unpushed work.
+  Human project folders remain. Closed merged tasks are marked and can be deleted together from project menus.
+- A tab's project submenu includes New Task, Move All Tasks, Project Settings, Show Data Folder and Close All Tasks.
 
 ### Several windows
 
@@ -567,6 +487,6 @@ signs it out). Then uninstall the program and delete the data folder (above). Wh
   Access; on Linux in your keyring app (Passwords and Keys). On Linux and macOS also direnv's permissions for
   tasks' folders, if you use direnv.
 
-If you uninstall first, the tasks' copies of the code stay next to your repositories, each still a worktree and a
-branch of its repository: in a terminal, in the repository, `git worktree prune` and `git branch -D <branch>`
-remove them (the same on every OS).
+If you uninstall first, task copies and branches remain. Preserve any work you need, then run
+`git worktree remove <task-folder>` and `git branch -D <branch>` from the repository for each task. These commands
+work on every supported OS.

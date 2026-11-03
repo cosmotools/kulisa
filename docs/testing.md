@@ -1,7 +1,7 @@
 # Testing
 
-Kulisa's own rules for tests; the rest is [Playwright Test](https://playwright.dev/docs/test-intro)'s and `node:test`'s.
-**Read before writing or running a test.**
+Kulisa-specific checks and test conventions. Read before writing or running tests; use
+[Playwright Test](https://playwright.dev/docs/test-intro) and `node:test` for their APIs.
 
 ## What gets a test, and when to run what
 
@@ -17,24 +17,17 @@ Kulisa's own rules for tests; the rest is [Playwright Test](https://playwright.d
 
 ## Agent completion checks
 
-Before committing or ending a turn that changes code, tests, dependencies or configuration affecting them, run
-both from the worktree being changed:
+Before committing or ending a turn with code, test, dependency or related configuration changes, run in that worktree:
 
 ```sh
 npm run lint
 npm run test:unit
 ```
 
-- A successful run covers the checked state. Repeat a check only after a relevant change, a failure, or new evidence
-  that invalidates the result; committing the checked files does not require another run.
-- Fix failures caused by the change and rerun the affected checks. If a check remains blocked or fails for an
-  unrelated reason, report the command, the cause and what remains unverified; do not describe it as passing.
-- Report which checks passed and any not run, with the reason. For documentation-only changes, use
-  `git diff --check`; application checks are not required.
-- These checks supplement the type checks (Code analysis) and relevant e2e tests above; they do not replace them.
-- Codex follows this rule through the shared instructions. Claude Code's Stop hook below additionally runs checks
-  on uncommitted TypeScript changes; a commit or a change to another file type can bypass that trigger, so the
-  agent still completes these checks itself when needed.
+- Also run relevant type/e2e checks below. Hooks do not replace these obligations.
+- Repeat checks after relevant changes, failures or invalidating evidence; committing checked files needs no rerun.
+- Fix caused failures. Report blocked/unrelated failures with command, cause and remaining uncertainty.
+- Report passed and omitted checks. Documentation alone requires `git diff --check`, not application checks.
 
 ## Two layers
 
@@ -143,9 +136,8 @@ passes, alone and with its file.
 
 ## Dead code
 
-`npm run knip`. What it finds goes (the file, or the `export`); code for the next step waits for it. A path-loaded
-file is an entry in `knip.jsonc` with why; `ignore` last, with its reason. Invisible to knip: names joined as strings
-(IPC channels, CSS classes, the keys' table): check the other side by hand.
+Run `npm run knip`; remove unused files/exports. Declare path-loaded entries in `knip.jsonc` with reasons; use
+`ignore` only as a justified last resort. Manually check string-linked IPC names, CSS classes and key commands.
 
 ## Layers
 
@@ -154,9 +146,8 @@ its list. Kulisa package boundaries include type imports; cycle checks concern r
 
 ## Lint
 
-`npm run lint`: rules picked one by one in `eslint.config.ts`, no presets (thousands of `any` findings, no bugs). A
-promise is awaited, or `void` says it runs on its own. In the window, shadcn's parts as they ship, Lucide's icons, the theme's colors ([ui.md](ui.md), shadcn
-in Kulisa).
+`npm run lint` runs the selected rules in `eslint.config.ts` and dependency checks. Await promises or explicitly
+`void` independent work. Window components use shipped shadcn, Lucide and theme colors ([ui.md](ui.md)).
 
 ## Upgrading Electron
 

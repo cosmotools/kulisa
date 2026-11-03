@@ -52,11 +52,9 @@ license not on this list fails. The list: GPL-3.0, GPL-2.0-or-later, LGPL-2.1 an
 BSD-2-Clause, BSD-3-Clause, Apache-2.0, MPL-2.0, Blue Oak 1.0.0, Unlicense, CC0-1.0, Zlib, Boost, Python-2.0 and the
 SIL Open Font License. A license not on it is a conversation with the author: if compatible (the FSF's list), it is
 added to the workflow and here. One the dependency graph cannot read (a `license` that is not an SPDX expression) is
-reported, not refused. The check reads only what the pull request changes; what is already in the tree was looked
-over by hand.
+reported, not refused. The check covers changed dependencies; existing dependencies require separate review.
 
 ## Contributions
 
-Contributions are accepted under the same license (GPL-3.0-or-later): [CONTRIBUTING.md](../CONTRIBUTING.md). Should
-the author ever need to offer a contributed part under other terms as well (e.g. in a paid module), contributors will
-be asked to agree first (a contributor license agreement); nothing is assumed.
+Contributions use GPL-3.0-or-later ([CONTRIBUTING.md](../CONTRIBUTING.md)). Offering contributed code under additional
+terms requires the contributor's agreement.

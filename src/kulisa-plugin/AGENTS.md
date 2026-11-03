@@ -1,6 +1,6 @@
 # Kulisa plugin
 
-A Kulisa package: read [packages.md](../../docs/packages.md) and [README.md](README.md), including Tool design.
+Read [README.md](README.md), including Tool design, and [packages.md](../../docs/packages.md).
 
 - Entry: `main/index.ts`; runtime and type dependencies on core domain objects are forbidden. The allowed core
   infrastructure is listed in `.dependency-cruiser.ts`.

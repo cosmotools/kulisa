@@ -1,14 +1,10 @@
-# Screenshots: working in this folder
+# Screenshots
 
-All of the screenshots: a Kulisa package (`docs/packages.md`: what one is, its rules). How it works and why:
-`README.md`.
+Read `README.md` and `docs/packages.md`.
 
-- From outside only through `main/index.ts`, `renderer/index.ts` and `ipc.ts`. `main/` uses nothing of `src/main` but
-  `ipc.ts` and `log.ts`; `npm run deps` refuses any other import. The caller passes what it needs (a Playwright
-  page, who takes it, the callbacks for its file).
-- It knows nothing of profiles, tasks or agents: they use it. The checks of a tab (the sign-in pause, a dialog, an
-  empty tab) are the core's, `Profile.screenshot`; the agent's tool is in the Kulisa plugin (`tools/browser.ts`); the
-  human's ⋮ and key are the window's, choosing an element is Pick's (`picker.ts`). The thumbnail is all here; the
-  window only makes it, says where its panes are and when its pages are covered, and gives it a menu and the agent's
-  prompt (`window.ts`, `components/App.tsx`).
-- Its e2e tests are in `test/e2e/` (README, The code).
+- Entries: `main/index.ts`, `renderer/index.ts`, `ipc.ts`. Allowed core imports: `ipc.ts`, `log.ts`.
+- Callers supply the Playwright page, capture owner and file callbacks. Tab checks belong to `Profile.screenshot`;
+  MCP to `kulisa-plugin/main/tools/browser.ts`; human controls to the window; element selection to `picker.ts`.
+- Own the thumbnail's lifecycle, placement, UI and channels. The window supplies pane bounds, covered-page and
+  task-close events, menus and agent-prompt callbacks.
+- Integration tests: README, The code.
