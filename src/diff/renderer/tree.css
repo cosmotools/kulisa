@@ -16,12 +16,9 @@
   --trees-status-deleted-override: var(--destructive);
   --trees-status-modified-override: var(--muted-foreground);
   --trees-status-renamed-override: var(--muted-foreground);
-  --diff-icon-modified: block;
 }
-[data-item-git-status="added"] { --diff-icon-modified: none; --diff-icon-added: block; }
-[data-item-git-status="deleted"] { --diff-icon-modified: none; --diff-icon-deleted: block; }
-[data-item-git-status="renamed"] { --diff-icon-modified: none; --diff-icon-renamed: block; }
 [data-item-section="content"] { color: var(--sidebar-foreground); }
-[data-item-section="git"] { display: none; }
+/* Every folder in Diff already contains changed files. */
+[data-item-type="folder"] [data-item-section="git"] { visibility: hidden; }
 [data-item-section="decoration"] { flex: none; margin-inline-start: auto; font-size: var(--text-xs); font-variant-numeric: tabular-nums; }
 [data-item-section="decoration"] > span { white-space: pre; }

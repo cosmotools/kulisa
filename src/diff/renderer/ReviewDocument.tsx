@@ -9,7 +9,7 @@ import type { DiffFile } from '../ipc';
 import { refused } from '../../shared/result';
 import type { DiffPanelProps } from './DiffPanel';
 import { DiffCounts } from './DiffCounts';
-import { DiffStatus } from './DiffStatus';
+import { diffLabel, DiffStatus } from './DiffStatus';
 import { highlighterOptions, poolOptions } from './review-theme';
 import { useDiff } from './session';
 import type { Notice } from './review';
@@ -36,8 +36,9 @@ function ReviewContent({ session, selection, shade, fontSize }: DiffPanelProps) 
   const viewer = useRef<CodeViewHandle<Notice, undefined>>(null), viewport = useRef<HTMLDivElement>(null);
   const navigation = useRef<number | null>(null), userScroll = useRef(false);
   const files = useMemo(() => {
-    const query = selection.filter?.toLowerCase();
-    return query ? (data?.files ?? empty).filter((f) => `${f.path}\n${f.previousPath ?? ''}`.toLowerCase().includes(query)) : data?.files ?? empty;
+    // Mirror Trees' query normalization so the document and tree match the same current paths.
+    const query = selection.filter?.trim().replaceAll('\\', '/').toLowerCase();
+    return query ? (data?.files ?? empty).filter((f) => f.path.toLowerCase().includes(query)) : data?.files ?? empty;
   }, [data?.files, selection.filter]);
   const counts = useMemo(() => files.reduce((sum, file) => ({
     additions: sum.additions + (file.additions ?? 0), deletions: sum.deletions + (file.deletions ?? 0),
@@ -76,18 +77,23 @@ function ReviewContent({ session, selection, shade, fontSize }: DiffPanelProps) 
     const path = instance.getRenderedItems().find((item) => item.element.getBoundingClientRect().bottom > top + 36)?.id;
     if (path) session.actions.selectFile(path, selection.navigation);
   }, [session, selection.navigation]);
-  const renderHeader = useCallback((item: CodeViewItem<Notice>) => {
+  const renderHeaderPrefix = useCallback((item: CodeViewItem<Notice>) => {
     const file = byPath.get(item.id);
     const action = `${item.collapsed ? 'Expand' : 'Collapse'} diff for ${item.id}`;
-    return <header role="heading" aria-level={3} aria-label={item.id} className="flex h-9 items-center gap-2 border-b bg-muted px-3 text-sm">
+    return <span className="inline-flex min-w-0 items-center gap-2">
       <Button variant="ghost" size="icon-xs" aria-label={action} title={action} aria-expanded={!item.collapsed} onClick={() => setCollapseVersions((current) =>
         new Map(current).set(item.id, (current.get(item.id) ?? 0) + 1))}><ChevronRightIcon className={item.collapsed ? '' : 'rotate-90'} /></Button>
-      <div className="flex min-w-0 flex-1 items-center gap-1">
-        <span className="min-w-0 truncate" title={file?.previousPath ? `${file.previousPath} → ${item.id}` : item.id}>{file?.previousPath ? `${file.previousPath} → ${item.id}` : item.id}</span>
-        <CopyPath path={item.id} />
-      </div>
-      {file && <><DiffStatus status={file.status} /><DiffCounts additions={file.additions} deletions={file.deletions} /></>}
-    </header>;
+      {item.type === 'file' && file?.previousPath && <span className="truncate text-muted-foreground" title={file.previousPath}>{file.previousPath} →</span>}
+    </span>;
+  }, [byPath]);
+  const renderHeaderFilenameSuffix = useCallback((item: CodeViewItem<Notice>) => <CopyPath path={item.id} />, []);
+  const renderHeaderMetadata = useCallback((item: CodeViewItem<Notice>) => {
+    const file = byPath.get(item.id);
+    // Placeholder rows have no patch stats; copied, type-changed and unmerged files have no exact Pierre status.
+    if (!file || item.type === 'diff' && !['C', 'T', 'U'].includes(file.status)) return null;
+    return <span className="inline-flex items-center gap-2"><DiffStatus status={file.status} />
+      {item.type === 'file' && <DiffCounts additions={file.additions} deletions={file.deletions} />}
+    </span>;
   }, [byPath]);
   const renderAnnotation: NonNullable<CodeViewProps<Notice, undefined>['renderAnnotation']> = useCallback((annotation, _file, item) => {
     const notice = annotation.metadata;
@@ -99,14 +105,17 @@ function ReviewContent({ session, selection, shade, fontSize }: DiffPanelProps) 
     </div>;
   }, [load]);
   const viewOptions = useMemo<CodeViewReactOptions<Notice, undefined>>(() => ({ theme: 'kulisa-review', themeType: shade === 'dark' ? 'dark' : 'light', diffStyle: mode, stickyHeaders: true, enableLineSelection: true, lineHoverHighlight: 'both',
-    // Only shadow-root code opts out of the window's text-selection ban; slotted headers stay unselectable.
-    unsafeCSS: 'pre { user-select: text; }',
+    // Shadow-root code permits selection; headers keep the window's selection rule and measured 36 px height.
+    unsafeCSS: 'pre { user-select: text; } [data-diffs-header] { user-select: none; min-height: 36px; }',
     diffIndicators: 'classic' as const, hunkSeparators: 'line-info-basic' as const, overflow: 'wrap' as const,
     itemMetrics: { lineHeight, diffHeaderHeight: 36, spacing: 0 }, layout: { paddingTop: 16, paddingBottom: 16, gap: 16 },
     onPostRender(node, _instance, phase, context) {
       if (phase === 'unmount') return;
       // The component's public lifecycle supplies accessible names for its custom-element root and code region.
       node.setAttribute('role', 'article'); node.setAttribute('aria-label', context.item.id);
+      const header = node.shadowRoot?.querySelector('[data-diffs-header]'), file = byPath.get(context.item.id);
+      header?.setAttribute('role', 'heading'); header?.setAttribute('aria-level', '3'); header?.setAttribute('aria-label', context.item.id);
+      header?.setAttribute('title', `${file?.previousPath ? `${file.previousPath} → ` : ''}${context.item.id}${file ? `\n${diffLabel(file.status)}` : ''}`);
       node.shadowRoot?.querySelector('pre')?.setAttribute('aria-label', `Code comparison: ${context.item.id}`);
       if (!firstRender.current) { firstRender.current = true; setRendered(true); }
     },
@@ -117,7 +126,7 @@ function ReviewContent({ session, selection, shade, fontSize }: DiffPanelProps) 
       return { oldFile: file.type === 'rename-pure' ? null : { name: response.previousPath ?? response.path, contents: response.original },
         newFile: { name: response.path, contents: response.modified } };
     },
-  }), [shade, mode, lineHeight, session, folder, target]);
+  }), [shade, mode, lineHeight, session, folder, target, byPath]);
   useEffect(() => {
     const root = viewport.current;
     // CodeView's scroll root has no ARIA props in its React API.
@@ -132,7 +141,7 @@ function ReviewContent({ session, selection, shade, fontSize }: DiffPanelProps) 
     {loading && <div className="absolute inset-0 z-10 bg-card"><Loading /></div>}
     <div inert={loading} className={`flex h-full min-h-0 flex-col ${loading ? 'invisible' : ''}`}>
     <header className="flex min-h-9 flex-wrap items-center gap-2 border-b px-4 py-1 text-sm">
-      <GitCompareArrowsIcon className="size-4 shrink-0" /><span>Diff{data ? ` · ${files.length} files` : ''}</span>
+      <GitCompareArrowsIcon className="size-4 shrink-0" /><span>Diff{data ? ` · ${files.length}${selection.filter?.trim() ? ` of ${data.files.length}` : ''} files` : ''}</span>
       {data && <div role="group" aria-label="Change summary"><DiffCounts {...counts} /></div>}
       <div className="flex-1" />
       <ToggleGroup type="single" size="sm" variant="outline" spacing={0} value={mode} onValueChange={(value) => { if (value === 'unified' || value === 'split') setMode(value); }} aria-label="Diff layout">
@@ -143,7 +152,8 @@ function ReviewContent({ session, selection, shade, fontSize }: DiffPanelProps) 
       {error && <div className="absolute inset-0 z-10 bg-card p-3"><Alert variant="destructive"><AlertDescription>{error.message}</AlertDescription></Alert></div>}
       {data && !files.length && <p className="absolute inset-0 z-10 bg-card p-3 text-sm text-muted-foreground">{!data.git ? 'This folder is not a Git repository.' : data.files.length ? 'No files match' : 'No changes'}</p>}
       <CodeView ref={viewer} containerRef={viewport} items={items} options={viewOptions} onScroll={onScroll}
-        renderCustomHeader={renderHeader} renderAnnotation={renderAnnotation} className="diff-review h-full overflow-auto px-4"
+        renderHeaderPrefix={renderHeaderPrefix} renderHeaderFilenameSuffix={renderHeaderFilenameSuffix} renderHeaderMetadata={renderHeaderMetadata}
+        renderAnnotation={renderAnnotation} className="diff-review h-full overflow-auto px-4"
         style={{ '--diffs-font-size': `${fontSize}px`, '--diffs-line-height': `${lineHeight}px` } as CSSProperties} />
     </div>
     <footer className="flex gap-2 border-t px-4 py-1 text-xs text-muted-foreground"><span className="min-w-0 truncate">{data ? `${data.from} → ${data.to}` : 'From → To'}</span><span className="ms-auto shrink-0">Read only</span></footer>

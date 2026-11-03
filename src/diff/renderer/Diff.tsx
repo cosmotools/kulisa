@@ -1,8 +1,8 @@
 // Local review navigation and comparison controls (../README.md).
-import { useMemo, useState } from 'react';
+import { useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowRightIcon, ChevronRightIcon, GitBranchIcon } from 'lucide-react';
-import { Alert, AlertDescription, Button, Collapsible, CollapsibleContent, CollapsibleTrigger, Input,
+import { ArrowRightIcon, ChevronRightIcon, GitBranchIcon, XIcon } from 'lucide-react';
+import { Alert, AlertDescription, Button, Collapsible, CollapsibleContent, CollapsibleTrigger, InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput,
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@ui';
 import type { DiffFile, DiffOptions, DiffSelection } from '../ipc';
 import { refused } from '../../shared/result';
@@ -12,16 +12,22 @@ import { useDiff, type DiffSession } from './session';
 type DiffProps = { session: DiffSession; roots: { folder: string; label: string }[]; selection: DiffSelection | null; reviewing: boolean };
 export function Diff({ session, roots, selection, reviewing }: DiffProps) {
   const [filter, setFilter] = useState(() => selection?.filter ?? '');
+  const filterInput = useRef<HTMLInputElement>(null);
   const { data, error } = useDiff(session, selection ?? { folder: roots[0]?.folder ?? '', options: {} }, reviewing);
   const loading = roots.length > 0 && !error && !data?.presented;
+  const changeFilter = (value: string) => {
+    setFilter(value);
+    if (selection) session.actions.select({ ...selection, filter: value });
+  };
   return <section aria-label="Changed files" className="flex h-full min-h-0 flex-col">
     <header className="px-3 py-2 text-sm font-medium">Diff</header>
     <div className="flex flex-col gap-2 px-3 pb-3">
-      <Input aria-label="Filter changed files" placeholder="Filter files…" value={filter} onChange={(e) => {
-        const value = e.target.value;
-        setFilter(value);
-        if (selection) session.actions.select({ ...selection, filter: value });
-      }} />
+      <InputGroup>
+        <InputGroupInput ref={filterInput} aria-label="Filter changed files" placeholder="Filter files…" value={filter} onChange={(e) => changeFilter(e.target.value)} />
+        {filter && <InputGroupAddon align="inline-end"><InputGroupButton size="icon-xs" aria-label="Clear file filter" title="Clear filter" onClick={() => {
+          changeFilter(''); filterInput.current?.focus();
+        }}><XIcon /></InputGroupButton></InputGroupAddon>}
+      </InputGroup>
     </div>
     <div className="flex min-h-0 flex-1 flex-col overflow-auto px-1 pb-2" aria-busy={loading}>
       {roots.map((root) => <RepositoryDiff key={root.folder} session={session} selected={selection} reviewing={reviewing} loading={loading} root={root} grouped={roots.length > 1} filter={filter} />)}
@@ -47,7 +53,6 @@ function RepositoryDiff({ session, selected, reviewing: activeReview, loading, r
   const data = snapshot?.data;
   const from = loading ? '' : data?.from ?? '';
   const to = loading ? '' : options.to ?? data?.to ?? '';
-  const files = useMemo(() => data?.files.filter((file) => `${file.path}\n${file.previousPath ?? ''}`.toLowerCase().includes(filter.toLowerCase())) ?? [], [data?.files, filter]);
   const choose = (file: DiffFile) => session.actions.select({ folder: root.folder, path: file.path, options, filter });
   const compare = (next: DiffOptions) => {
     setOptions(next);
@@ -79,7 +84,7 @@ function RepositoryDiff({ session, selected, reviewing: activeReview, loading, r
         </div>
         <div inert={loading} className={`flex min-h-0 flex-1 flex-col ${loading ? 'invisible' : ''}`}>
           {data && !data.files.length && <p className="p-2 text-sm text-muted-foreground">No changes</p>}
-          {!!data?.files.length && <DiffTree session={session} files={files}
+          {!!data?.files.length && <DiffTree session={session} files={data.files} filter={filter}
             selected={selected?.folder === root.folder ? selected.path : null} choose={choose} />}
         </div>
       </>}
