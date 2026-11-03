@@ -6,6 +6,7 @@ import { ArrowRightIcon, GitBranchIcon, GlobeIcon, KeyboardIcon, MousePointer2Ic
 import { Button, Tabs, TabsContent, TabsList, TabsTrigger } from '@ui';
 import { ProjectMap } from './NewProject';
 import { WebExample } from './WebExample';
+import { CliExample } from './CliExample';
 import { AgentTerminal } from './AgentTerminal';
 import './WelcomeDemo.css';
 import { AppLogo } from './ProjectIcon';
@@ -16,27 +17,11 @@ let focusNow: (() => void) | null = null, asked = false;
 kulisa.on('project:new', () => { if (focusNow) focusNow(); else asked = true; });
 const Claude = agentMark('claude'), Codex = agentMark('codex');
 
-function TerminalExample() {
-  return <div className="h-full p-4">
-    <div className="flex h-full flex-col overflow-hidden rounded-lg border bg-background font-mono text-xs">
-      <div className="flex items-center gap-2 border-b px-3 py-2 font-sans"><SquareTerminalIcon className="size-3" />taskboard<span className="ms-auto text-muted-foreground">80 × 24</span></div>
-      <div className="flex flex-1 flex-col gap-2 p-4 leading-relaxed">
-        <p className="text-muted-foreground">$ taskboard</p>
-        <p className="font-semibold">Your tasks, one command away.</p>
-        <div className="rounded-md border border-primary bg-primary/5 px-3 py-1.5">❯ Add a task</div>
-        <p className="px-3 text-muted-foreground">List tasks</p>
-        <p className="px-3 text-muted-foreground">Settings</p>
-        <div className="mt-auto flex flex-wrap items-center gap-x-4 gap-y-1 border-t pt-2 text-muted-foreground"><span>↑ ↓ move</span><span>enter select</span><span>esc back</span></div>
-      </div>
-    </div>
-  </div>;
-}
-
 function Example() {
   const [example, setExample] = useState('web'), [paused, setPaused] = useState(false), web = example === 'web';
   return <Tabs value={example} onValueChange={setExample} className="min-w-0">
     <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-      <span className="text-xs text-muted-foreground">{web ? 'One agent. Two browser profiles.' : 'See what you can build'}</span>
+      <span className="text-xs text-muted-foreground">{web ? 'One agent. Two browser profiles.' : 'Build your own coding agent.'}</span>
       <TabsList aria-label="Example application">
         <TabsTrigger value="web"><GlobeIcon />Web app</TabsTrigger>
         <TabsTrigger value="cli"><SquareTerminalIcon />CLI app</TabsTrigger>
@@ -44,10 +29,10 @@ function Example() {
     </div>
     {/* Draw the shared work area with theme tokens. Real environments here would start processes before setup. */}
     <div data-paused={paused} className="welcome-demo overflow-hidden rounded-xl border bg-muted/40 shadow-sm">
-      <div className="flex h-9 items-center gap-2 border-b bg-card px-4 text-xs"><PanelTopIcon className="size-3.5 text-muted-foreground" />{web ? 'Build an online store' : 'Build a terminal task manager'}<span className="ms-auto flex items-center gap-1 text-muted-foreground"><GitBranchIcon className="size-3" />{web ? 'checkout' : 'keyboard-nav'}</span></div>
+      <div className="flex h-9 items-center gap-2 border-b bg-card px-4 text-xs"><PanelTopIcon className="size-3.5 text-muted-foreground" />{web ? 'Build an online store' : 'Build your own coding agent'}<span className="ms-auto flex items-center gap-1 text-muted-foreground"><GitBranchIcon className="size-3" />{web ? 'checkout' : 'agent-tools'}</span></div>
       <TabsContent value="web"><WebExample /></TabsContent>
-      <TabsContent value="cli"><div className="aspect-[2/1]"><TerminalExample /></div></TabsContent>
-      <AgentTerminal web={web} controls={web && <Button type="button" variant="ghost" size="icon-xs" className="motion-reduce:hidden" aria-label={paused ? 'Play demonstration' : 'Pause demonstration'} title={paused ? 'Play demonstration' : 'Pause demonstration'} onClick={() => setPaused((x) => !x)}>{paused ? <PlayIcon /> : <PauseIcon />}</Button>} />
+      <TabsContent value="cli"><CliExample /></TabsContent>
+      <AgentTerminal key={example} web={web} controls={<Button type="button" variant="ghost" size="icon-xs" className="motion-reduce:hidden" aria-label={paused ? 'Play demonstration' : 'Pause demonstration'} title={paused ? 'Play demonstration' : 'Pause demonstration'} onClick={() => setPaused((x) => !x)}>{paused ? <PlayIcon /> : <PauseIcon />}</Button>} />
     </div>
     <p aria-live="polite" className="mt-2 flex items-center justify-center gap-2 text-xs text-muted-foreground">
       {web ? <><MousePointer2Icon className="size-3.5 shrink-0" />Point to a page element to explain a change.</> : <><KeyboardIcon className="size-3.5 shrink-0" />You and your agent can use the same terminal.</>}

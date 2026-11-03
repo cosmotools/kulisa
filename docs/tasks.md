@@ -66,7 +66,9 @@ shows or reopens; trash/Delete asks before deleting. New Project is at the foot.
 **The empty window** docks the sidebar. With no projects, **the welcome** shows one introduction with switchable
 web/CLI examples, then the shared project map. The web example animates one red character working first in Customer, then Admin,
 linked by the same order, with a continuously typing transcript; its desktop pages scale with CSS. Pause stops the shared cycle; reduced motion shows
-its final result. The CLI example is a terminal drawing. Neither starts an environment.
+its final result. The CLI example animates a coding agent under development in a Stage terminal, with the
+chosen development CLI below: it launches the app, submits a coding task, watches file edits and checks the output.
+Neither starts an environment.
 Small/short windows omit the illustration and supporting feature row; the introduction fits 640 × 400. The map's
 body scrolls independently of its Create footer. Mount its content only while shown; first-start focus goes to
 Create a project, then the map's name field. Back returns to the introduction. Links/version remain in ☰.

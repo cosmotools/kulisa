@@ -192,7 +192,10 @@ What is drawn or moved here rather than by shadcn, each for a reason at it:
   scrolls and places an order in Customer, then moves across to Admin and opens the matching order. Customer
   holds its result while Admin is used; Admin stays still until the character arrives. `AgentTerminal.tsx` draws
   the user’s coding CLI with a request, file edits, indented tool results and a bottom prompt/status line. Its
-  animated transcript follows the cycle and its header names CLI examples, without presenting a Kulisa agent. This coordinated timeline needs named keyframes rather than independent utility animations. Pause
+  animated transcript follows the cycle and its header names CLI examples, without presenting a Kulisa agent.
+  `CliExample.tsx` shows a coding agent under development: shell launch, a typed request, file access, a diff and
+  a checked response. Its native 960 × 360 terminal scales with one ResizeObserver; `DemoAgent.tsx` is shared
+  by the web and CLI examples. The lower transcript remounts with the selected example so both clocks start together. This coordinated timeline needs named keyframes rather than independent utility animations. Pause
   freezes the entire cycle; reduced motion shows its final result. Switching examples or leaving welcome unmounts
   the animated elements; no JavaScript animation timer or running browser is retained. Photo sources and license
   ship in `public/welcome/CREDITS.txt`.

@@ -55,7 +55,8 @@ file you downloaded, with GitHub's command-line tool: `gh attestation verify <fi
    red agent character scrolls, selects a product and places an order on the left, then moves to the administrator
    on the right to check it. The left browser keeps its result while the terminal shows a familiar coding CLI:
    your request, file edits, tool calls and their results. Choose your own CLI, such as Claude Code or Codex.
-   Use **Pause demonstration** to stop the animation, or switch to the CLI example. Then choose **Create a project**.
+   Use **Pause demonstration** to stop the animation. The **CLI app** example shows your agent building and trying a coding agent of your own:
+   it launches in another terminal, receives a coding task, edits a file and checks the result. Then choose **Create a project**.
    The project map brings together your code, agents and options for checking the result. **Create project** opens its first task.
 2. **Tell the agent what to do** in the terminal. It can open the browser profiles and interactive terminals it
    needs as you work. You can use them too.

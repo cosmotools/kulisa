@@ -96,6 +96,52 @@
 @keyframes welcome-terminal-spinner { to { transform: rotate(3600deg); } }
 @keyframes welcome-terminal-caret { 50% { opacity: 0; } }
 
+/* The CLI cycle uses the same clock, including the lower development transcript. The page stays in native
+   terminal coordinates; only the character stays unscaled, with its positions derived from --cli-scale. */
+.welcome-cli-launch { opacity: 0; animation-name: welcome-cli-launch; }
+.welcome-cli-command { animation-name: welcome-cli-command; }
+.welcome-cli-session { opacity: 1; animation-name: welcome-cli-session; }
+.welcome-cli-request { opacity: 1; animation-name: welcome-cli-request; }
+.welcome-cli-thinking { opacity: 1; animation-name: welcome-cli-thinking; }
+.welcome-cli-read { opacity: 1; animation-name: welcome-cli-read; }
+.welcome-cli-edit { opacity: 1; animation-name: welcome-cli-edit; }
+.welcome-cli-run { opacity: 1; animation-name: welcome-cli-run; }
+.welcome-cli-done { opacity: 1; animation-name: welcome-cli-done; }
+.welcome-cli-input { opacity: 0; animation-name: welcome-cli-input; }
+.welcome-demo .welcome-cli-input { animation-timing-function: steps(23, end); }
+.welcome-cli-placeholder { opacity: 1; animation-name: welcome-cli-placeholder; }
+.welcome-cli-agent { opacity: 0; animation-name: welcome-cli-agent; }
+.welcome-demo .welcome-cli-agent { animation-timing-function: ease-in-out; }
+.welcome-cli-enter { opacity: 0; animation-name: welcome-cli-enter; }
+.welcome-cli-status-working { opacity: 0; animation-name: welcome-cli-status-working; }
+.welcome-cli-status-done { opacity: 1; animation-name: welcome-cli-status-done; }
+
+@keyframes welcome-cli-launch { 0%, 17% { opacity: 1; } 19%, 99.9% { opacity: 0; } 100% { opacity: 1; } }
+@keyframes welcome-cli-command { 0%, 5% { clip-path: inset(0 100% 0 0); } 13%, 100% { clip-path: inset(0); } }
+@keyframes welcome-cli-session { 0%, 18% { opacity: 0; } 20%, 99.9% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes welcome-cli-request { 0%, 35% { opacity: 0; } 36%, 99.9% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes welcome-cli-thinking { 0%, 38% { opacity: 0; } 40%, 99.9% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes welcome-cli-read { 0%, 45% { opacity: 0; } 47%, 99.9% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes welcome-cli-edit { 0%, 57% { opacity: 0; } 59%, 99.9% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes welcome-cli-run { 0%, 70% { opacity: 0; } 72%, 99.9% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes welcome-cli-done { 0%, 80% { opacity: 0; } 82%, 99.9% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes welcome-cli-input { 0%, 21% { opacity: 0; clip-path: inset(0 100% 0 0); } 22% { opacity: 1; } 33%, 34% { opacity: 1; clip-path: inset(0); } 35%, 100% { opacity: 0; clip-path: inset(0); } }
+@keyframes welcome-cli-placeholder { 0%, 21%, 35%, 100% { opacity: 1; } 22%, 34% { opacity: 0; } }
+@keyframes welcome-cli-status-working { 0%, 81% { opacity: 1; } 83%, 99.9% { opacity: 0; } 100% { opacity: 1; } }
+@keyframes welcome-cli-status-done { 0%, 81% { opacity: 0; } 83%, 99.9% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes welcome-cli-enter { 0%, 14%, 19%, 32%, 37%, 100% { opacity: 0; transform: translateY(3px); } 16%, 17%, 34%, 35% { opacity: 1; transform: translateY(0); } }
+@keyframes welcome-cli-agent {
+  0% { opacity: 0; transform: translate(calc(300px * var(--cli-scale)), calc(380px * var(--cli-scale))); }
+  5%, 16% { opacity: 1; transform: translate(calc(255px * var(--cli-scale)), calc(45px * var(--cli-scale))); }
+  22%, 35% { transform: translate(calc(400px * var(--cli-scale)), calc(308px * var(--cli-scale))); }
+  42% { transform: translate(calc(620px * var(--cli-scale)), calc(145px * var(--cli-scale))); }
+  49% { transform: translate(calc(610px * var(--cli-scale)), calc(168px * var(--cli-scale))); }
+  61%, 65% { transform: translate(calc(700px * var(--cli-scale)), calc(210px * var(--cli-scale))); }
+  75% { transform: translate(calc(820px * var(--cli-scale)), calc(240px * var(--cli-scale))); }
+  84%, 89% { opacity: 1; transform: translate(calc(730px * var(--cli-scale)), calc(265px * var(--cli-scale))); }
+  95%, 100% { opacity: 0; transform: translate(calc(730px * var(--cli-scale)), calc(380px * var(--cli-scale))); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .welcome-demo [data-demo-motion] { animation: none; }
 }
