@@ -29,7 +29,7 @@ const openFile = (file: string) => kulisa.invoke('file:open', file);
 
 export function ResourceIcon({ params }: IDockviewPanelHeaderProps<{ section: ResourceSection }>) {
   const Icon = { terminals: TerminalSquareIcon, project: FolderTreeIcon, diff: GitCompareArrowsIcon, artifacts: FilesIcon }[params.section];
-  return <span title={resourceSections[params.section]} className="grid size-10 place-items-center"><Icon className="size-4" /></span>;
+  return <span title={resourceSections[params.section]} className="grid h-10 place-items-center"><Icon className="size-4" /></span>;
 }
 export function ResourceActions({ api, group, location }: IDockviewHeaderActionsProps) {
   const key = useTask((s) => s.key);
@@ -43,7 +43,7 @@ export function ResourceActions({ api, group, location }: IDockviewHeaderActions
     const expanded = api.onDidCollapsedChange(focus);
     return () => { selected.dispose(); expanded.dispose(); };
   }, [api, group, location?.type, key]);
-  return location?.type === 'edge' ? <div className="grid w-10 place-items-center py-1"><TaskDictation /></div> : null;
+  return location?.type === 'edge' ? <div className="grid place-items-center py-1"><TaskDictation /></div> : null;
 }
 export function Resources({ api, params }: IDockviewPanelProps<{ section: ResourceSection }>) {
   const [visible, setVisible] = useState(api.isVisible && !api.group.api.isCollapsed());
@@ -53,7 +53,7 @@ export function Resources({ api, params }: IDockviewPanelProps<{ section: Resour
     update();
     return () => { shown.dispose(); collapsed.dispose(); };
   }, [api]);
-  return visible ? <aside data-resources role="region" aria-label={resourceSections[params.section]} className="h-full min-h-0 min-w-0">
+  return visible ? <aside data-resources role="region" aria-label={resourceSections[params.section]} className="h-full">
     <TaskResources section={params.section} />
   </aside> : null;
 }
@@ -95,10 +95,10 @@ function TaskResources({ section }: { section: ResourceSection }) {
     <span className="truncate">{name}</span><span className="truncate text-xs text-muted-foreground">{line}</span>
   </span>;
   return <SidebarProvider className="h-full min-h-0">
-      <Sidebar collapsible="none" className="h-full w-full">
+      <Sidebar collapsible="none" className="w-full">
         {section === 'terminals' && <DevelopmentTerminalList />}
         {section === 'diff' && <TaskDiffTree roots={task.resources} />}
-        {section === 'project' && <div className="h-full overflow-auto"><SidebarContent>
+        {section === 'project' && <SidebarContent>
           <SidebarGroup><SidebarGroupContent>
             <SidebarMenu aria-label="Folders">
               {task.resources.map((r) => <SidebarMenuItem key={r.folder}><RightClickMenu items={() => [{ label: 'Open Folder', run: () => open(r.folder) }, ...(r.removable ? [{ label: 'Remove Repository', run: () => remove(r.folder) }] : [])]}><Collapsible defaultOpen>
@@ -113,8 +113,8 @@ function TaskResources({ section }: { section: ResourceSection }) {
               </Collapsible></RightClickMenu></SidebarMenuItem>)}
             </SidebarMenu>
           </SidebarGroupContent></SidebarGroup>
-          </SidebarContent></div>}
-          {section === 'artifacts' && <div className="h-full overflow-auto"><SidebarContent>
+          </SidebarContent>}
+          {section === 'artifacts' && <SidebarContent>
           {artifacts.length === 0 && <p className="p-3 text-sm text-muted-foreground">No artifacts yet</p>}
           {artifacts.length > 0 && <SidebarGroup>
             <SidebarGroupLabel>Artifacts ·&nbsp;<span data-testid="artifacts-size">{sizeText(bytes)}</span></SidebarGroupLabel>
@@ -139,7 +139,7 @@ function TaskResources({ section }: { section: ResourceSection }) {
               </RightClickMenu>
             </SidebarGroupContent>
           </SidebarGroup>}
-        </SidebarContent></div>}
+        </SidebarContent>}
       </Sidebar>
     </SidebarProvider>;
 }

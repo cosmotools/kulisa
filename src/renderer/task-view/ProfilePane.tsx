@@ -140,7 +140,7 @@ export function ProfilePane({ api }: IDockviewPanelProps) {
   };
 
   // @container: the pane's width decides which of the bar's buttons it keeps.
-  return <div className="@container flex h-full min-w-0 flex-col bg-card" role="region" aria-label={profile.name} data-profile={id}>
+  return <div className="@container flex h-full flex-col bg-card" role="region" aria-label={profile.name} data-profile={id}>
     {/* Navigation gives up room to tabs in narrow panes; Pick and ⋮ stay reachable. */}
     <div role="group" aria-label="Page" className="flex h-8 flex-none items-center gap-1 px-2">
       {/* one: Back without Forward would be half a pair */}
@@ -212,10 +212,8 @@ function PageDialog({ from, message, confirm, answer }: { from: string; message:
       <CardHeader><CardTitle id={title}>{from}</CardTitle></CardHeader>
       <CardContent><p id={text} data-selectable className="whitespace-pre-wrap wrap-anywhere">{message}</p></CardContent>
       <CardFooter className="justify-end">
-        <div className="flex gap-2">
-          {confirm && <Button variant="outline" onClick={() => answer(false)}>Cancel</Button>}
-          <Button autoFocus onClick={() => answer(true)}>OK</Button>
-        </div>
+        {confirm && <Button variant="outline" onClick={() => answer(false)}>Cancel</Button>}
+        <Button autoFocus className="ms-2" onClick={() => answer(true)}>OK</Button>
       </CardFooter>
     </Card>
   </div>;

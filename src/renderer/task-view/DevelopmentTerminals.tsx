@@ -78,17 +78,16 @@ export function DevelopmentTerminals({ reviewing }: { reviewing: boolean }) {
     return t && (e.target as Element).closest('[data-testid="terminal"]') ? terminalMenu(`${task}#${t.id}`, terminalItems(task, t)) : null;
   };
 
-  return <div data-testid='development-terminals' data-empty={empty || undefined} className="relative grid h-full grid-cols-[minmax(0,1fr)] grid-rows-[minmax(0,1fr)] bg-card">
+  return <div data-testid='development-terminals' data-empty={empty || undefined} hidden={reviewing} className="relative grid h-full grid-cols-[minmax(0,1fr)] grid-rows-[minmax(0,1fr)] bg-card">
     {big ? <Launchers ref={launch} />
-      : empty ? <div className="grid place-items-center">
-        <ButtonMenu items={() => newTerminalItems(task)}><Button variant="ghost" size="icon-sm" aria-label="New terminal"
+      : empty ? <ButtonMenu items={() => newTerminalItems(task)}><Button variant="ghost" size="icon-sm" className="self-center justify-self-center" aria-label="New terminal"
           title={withKeys(NEW_TITLE, 'terminal.new')}><PlusIcon /></Button></ButtonMenu>
-      </div> : null}
+      : null}
     <RightClickMenu items={menu}>
       <div ref={host} data-testid="terminal" data-zone="terminal" hidden={empty} className="h-full py-0.5 ps-2 pe-1" />
     </RightClickMenu>
     {!empty && <Pill task={task}><CheckIcon className="size-3.5 text-success" /></Pill>}
-    {starting && <div className="absolute inset-0 grid place-items-center bg-card text-sm"><div role="status" className="flex items-center gap-2 text-muted-foreground"><Spinner role={undefined} aria-hidden />Starting {starting}…</div></div>}
+    {starting && <div role="status" className="absolute inset-0 flex items-center justify-center gap-2 bg-card text-sm text-muted-foreground"><Spinner role={undefined} aria-hidden />Starting {starting}…</div>}
   </div>;
 }
 

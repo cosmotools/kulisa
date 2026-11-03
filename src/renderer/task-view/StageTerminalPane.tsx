@@ -83,7 +83,7 @@ export function StageTerminalPane({ api }: IDockviewPanelProps) {
       { label: 'Find…', run: () => setSearching(true) }, '-', environmentFocusItem(api), ...actions(terminal, taskKey),
     ];
   };
-  return <section role="region" aria-label={terminal.name} data-stage-terminal={id} data-state={terminal.status} className="flex h-full min-w-0 flex-col bg-card" onKeyDownCapture={(e) => {
+  return <section role="region" aria-label={terminal.name} data-stage-terminal={id} data-state={terminal.status} className="flex h-full flex-col bg-card" onKeyDownCapture={(e) => {
     if ((e.ctrlKey || kulisa.platform === 'darwin' && e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'f') {
       e.preventDefault(); e.stopPropagation(); setSearching(true); searchInput.current?.focus(); searchInput.current?.select();
     } else if (searching && e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeSearch(); }

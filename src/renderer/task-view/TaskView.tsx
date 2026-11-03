@@ -30,14 +30,14 @@ function DevelopmentContent(props: IDockviewPanelProps) {
   const diff = useTask((s) => s.developmentDiff);
   const reviewing = !!diff;
   useEffect(() => { props.api.setTitle(reviewing ? 'Diff' : 'Terminal'); }, [props.api, reviewing]);
-  return <div className="h-full min-h-0 min-w-0">
-    <div hidden={reviewing} className="h-full"><DevelopmentTerminals reviewing={reviewing} /></div>
+  return <>
+    <DevelopmentTerminals reviewing={reviewing} />
     {reviewing && <TaskDiff selection={diff} />}
-  </div>;
+  </>;
 }
 function Development({ api }: IGridviewPanelProps) {
   const grid = useTaskGrid();
-  return <div data-development-grid className="h-full min-h-0 min-w-0">
+  return <div data-development-grid className="h-full">
     <DockviewReact theme={dockTheme} disableAutoResizing disableFloatingGroups disableDnd components={components}
       tabComponents={tabComponents} rightHeaderActionsComponent={ResourceActions}
       onReady={(e) => grid.mountDevelopment(e.api, api)} />
@@ -46,14 +46,12 @@ function Development({ api }: IGridviewPanelProps) {
 const stageComponents = { profile: ProfilePane, 'stage-terminal': StageTerminalPane };
 const stageTabComponents = { profile: ProfileHeader, 'stage-terminal': StageTerminalHeader };
 function Stage({ api }: IGridviewPanelProps) {
-  const grid = useTaskGrid(), viewport = useRef<HTMLDivElement>(null);
-  return <section aria-label="Stage" className="h-full min-h-0 min-w-0" data-testid="stage"
-    onPointerDownCapture={grid.stage.pauseStageFollowing} onKeyDownCapture={grid.stage.pauseStageFollowing}>
-    <div ref={viewport} data-stage-viewport className="h-full overflow-hidden" onScroll={grid.reportPages}>
-      <div className="h-full">
-        <DockviewReact theme={dockTheme} disableAutoResizing disableFloatingGroups singleTabMode="fullwidth" components={stageComponents} tabComponents={stageTabComponents}
-          onReady={(e) => grid.mountStage(e.api, api, viewport.current!)} />
-      </div>
+  const grid = useTaskGrid(), viewport = useRef<HTMLElement>(null);
+  return <section ref={viewport} aria-label="Stage" data-testid="stage" data-stage-viewport className="h-full overflow-hidden"
+    onPointerDownCapture={grid.stage.pauseStageFollowing} onKeyDownCapture={grid.stage.pauseStageFollowing} onScroll={grid.reportPages}>
+    <div className="h-full">
+      <DockviewReact theme={dockTheme} disableAutoResizing disableFloatingGroups singleTabMode="fullwidth" components={stageComponents} tabComponents={stageTabComponents}
+        onReady={(e) => grid.mountStage(e.api, api, viewport.current!)} />
     </div>
   </section>;
 }
@@ -74,7 +72,7 @@ const Screen = memo(function Screen() {
   const loading = useTask((s) => s.loading);
   const showClosedProfiles = useTask((s) => !s.profiles.length && !s.stageTerminals.length && s.developmentTerminals.list.length > 0);
   useLayoutEffect(() => grid.resize(), [grid, showClosedProfiles]);
-  return <section data-task-screen className="absolute inset-0 flex min-h-0 min-w-0 flex-col aria-busy:opacity-0"
+  return <section data-task-screen className="absolute inset-0 flex flex-col aria-busy:opacity-0"
     aria-busy={loading || undefined} inert={loading || undefined}>
     {showClosedProfiles && <ClosedProfiles />}
     <div ref={workspace} data-workspace className="min-h-0 flex-1">

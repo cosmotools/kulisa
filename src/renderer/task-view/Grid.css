@@ -7,7 +7,7 @@
   --dv-activegroup-hiddenpanel-tab-background-color: transparent; --dv-inactivegroup-hiddenpanel-tab-background-color: transparent;
   --dv-activegroup-visiblepanel-tab-color: var(--foreground); --dv-inactivegroup-visiblepanel-tab-color: var(--muted-foreground);
   --dv-activegroup-hiddenpanel-tab-color: var(--muted-foreground); --dv-inactivegroup-hiddenpanel-tab-color: var(--muted-foreground);
-  --dv-separator-border: var(--border); --dv-paneview-header-border-color: var(--border);
+  --dv-separator-border: var(--border);
   --dv-tab-divider-color: transparent; --dv-active-sash-color: var(--ring);
   --dv-drag-over-background-color: var(--accent); --dv-drag-over-border-color: var(--ring);
 }
