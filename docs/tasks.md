@@ -70,7 +70,8 @@ linked by the same order, with a continuously typing transcript; its desktop pag
 its final result. The CLI example animates a coding agent under development in a Stage terminal, with the
 chosen development CLI below: it launches the app, submits a coding task, watches file edits and checks the output.
 Neither starts an environment.
-Small/short windows omit the illustration and supporting feature row; the introduction fits 640 × 400. The map's
+Small/short windows omit the illustration and supporting feature row; windows up to 600 CSS px high keep a single
+introduction column at every width. The introduction fits 640 × 400. The map's
 body scrolls independently of its Create footer. Mount its content only while shown; first-start focus goes to
 Create a project, then the map's name field. Back returns to the introduction. Links/version remain in ☰.
 

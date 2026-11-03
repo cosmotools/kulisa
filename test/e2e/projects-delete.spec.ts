@@ -98,7 +98,8 @@ test("projects: Delete Project… (in Settings alone) asks, closes the project w
   const add = async (v: string) => { await typeIn(ui, source, v); await np.getByRole('button', { name: /^(Use this folder|Add repository URL)$/ }).click(); };
   await add(path.join(root, 'nowhere'));
   await expect(np.getByRole('alert')).toHaveText(`${path.join(root, 'nowhere')} is not there`);
-  const sources = np.getByRole('group', { name: 'Repositories & folders' }).getByRole('group');
+  // Fields are unnamed groups; only added sources have a name (their full path).
+  const sources = np.getByRole('group', { name: 'Repositories & folders', exact: true }).getByRole('group', { name: /./ });
   await expect(sources, 'not in the list').toHaveCount(0);
   expect(fs.existsSync(path.join(root, 'nowhere')), 'not made').toBe(false);
   await core((k, f) => {

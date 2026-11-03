@@ -59,6 +59,7 @@ file you downloaded, with GitHub's command-line tool: `gh attestation verify <fi
    Use **Pause demonstration** to stop the animation. The **CLI app** example shows your agent building and trying a coding agent of your own:
    it launches in another terminal, receives a coding task, edits a file and checks the result. Then choose **Create a project**.
    The project map brings together your code, agents and options for checking the result. **Create project** opens its first task.
+   Short windows show the introduction and **Create a project**; the animated examples appear when there is room.
 2. **Tell the agent what to do** in the terminal. It can open the browser profiles and interactive terminals it
    needs as you work. You can use them too.
 3. **For web apps**, sign in where your app needs a real account: when the agent asks, or ahead of time with

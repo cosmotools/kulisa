@@ -78,7 +78,7 @@ test("the empty window: Close All Tasks in the project's submenu; links in ☰ o
     // A low window, wide or at the least size: the introduction fits, nothing to scroll to (its top not cut off above the
     // window's edge, out of scrolling's reach).
     const size = await core((k) => k.shell.win.getContentSize());
-    for (const [w, h] of [[1100, 400], [640, 400]]) {
+    for (const [w, h] of [[1100, 400], [1600, 400], [640, 400]]) {
       await core((k, a) => k.shell.win.setContentSize(a[0], a[1]), [w, h]);
       // The page's own size and scroll: Playwright's viewportSize is the one it emulates, and it has no scroll reading.
       await expect.poll(() => ui.evaluate(() => [innerWidth, innerHeight])).toEqual([w, h]);
