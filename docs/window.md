@@ -133,6 +133,8 @@ The shared development xterm moves into the
 active task's terminal host; `TaskViews` applies its theme once per window. Its sole central panel uses Dockview's
 inline renderer. Its content appears after the selected buffer is drawn at the pane's size. Hidden Stage terminals retain their
 Views, processes and buffers. A task's open Diff retains its comparison, filter, document and scroll position.
+Stage panels use the inline renderer too: selecting another Stage tab detaches its content DOM while its React pane,
+terminal View and search state stay alive. Task switching keeps the selected Stage tab's DOM attached inside its TaskView.
 
 `task.json` keeps Stage view/overflow/layout in `stage`, and development layout, Stage position/share in `workspace`,
 saved 300 ms after a change and flushed when the task is hidden or closed. The saved layout loads once before a TaskView
@@ -182,7 +184,8 @@ required.
 
 Manual Open and launch actions request keyboard focus for that terminal after a successful launch.
 `task-view/environments.ts` keeps one pending request; newer pointer or keyboard input, window blur or a task switch
-cancels it. The pane applies it after its View and font are ready. Agent launches and Follow agent preserve the
+cancels it. The pane selects its Dockview panel and applies the request once its View and font are ready, with task,
+request identity, window focus and dialog guards. Agent launches and Follow agent preserve the
 existing keyboard focus.
 
 The human types and pastes in the same PTY the agent operates. Screen reads flush xterm's parser and return the

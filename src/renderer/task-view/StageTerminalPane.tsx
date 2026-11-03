@@ -7,6 +7,7 @@ import { ButtonMenu, RightClickMenu } from '../components/Menus';
 import { store } from '../lib/store';
 import { actionsFor, useTaskStore, useTask, useTaskActions, useTaskActive } from './state';
 import { dialog } from '../lib/dialogs';
+import { dialogsShown } from '../lib/cover';
 import { focusStageTerminal } from './environments';
 import { EnvironmentFocus, environmentFocusItem } from './EnvironmentFocus';
 import { termStyle, useShade } from '../lib/theme';
@@ -62,18 +63,14 @@ export function StageTerminalPane({ api }: IDockviewPanelProps) {
   useEffect(() => { view.current?.setSize(terminal?.size ?? null); }, [terminal?.size]);
   useEffect(() => { view.current?.restyle(termStyle()); }, [shade]);
   useEffect(() => {
-    if (!focus?.key || focus.key !== terminal?.key) return;
+    if (!focus?.key || focus.key !== terminal?.key || owner.getState().stageTerminalFocus !== focus || store.getState().current !== taskKey) return;
     let cancelled = false;
-    const attempt = () => {
-      void termFocus(focus.key!, () => !cancelled && owner.getState().stageTerminalFocus === focus
-        && store.getState().current === taskKey && api.isVisible && document.hasFocus()).then(() => {
-        if (!cancelled && owner.getState().stageTerminalFocus === focus && view.current?.el.contains(document.activeElement)) owner.setState({ stageTerminalFocus: null });
-      });
-    };
-    const visible = api.onDidVisibilityChange(attempt);
-    const frame = requestAnimationFrame(attempt);
-    attempt();
-    return () => { cancelled = true; cancelAnimationFrame(frame); visible.dispose(); };
+    api.setActive();
+    void termFocus(focus.key, () => !cancelled && owner.getState().stageTerminalFocus === focus
+      && store.getState().current === taskKey && api.isVisible && document.hasFocus() && !dialogsShown()).then(() => {
+      if (!cancelled && owner.getState().stageTerminalFocus === focus && view.current?.el.contains(document.activeElement)) owner.setState({ stageTerminalFocus: null });
+    });
+    return () => { cancelled = true; };
   }, [focus, terminal?.key, api, owner, taskKey]);
   if (!terminal) return null;
   const menu = (): MenuItem[] => {

@@ -22,6 +22,7 @@ export class StageGrid {
     const empty = !api.panels.length;
     this.syncStage();
     if (empty && this.store.getState().stageLayout === 'tabs') api.panels[0]?.api.setActive();
+    for (const panel of api.panels) panel.api.setRenderer('onlyWhenVisible');
     // Stage identities and pane controls need their headers, independently of saved visibility flags.
     for (const group of api.groups) group.header.hidden = false;
     this.layout();
@@ -56,7 +57,7 @@ export class StageGrid {
     this.api!.addPanel({ id, component: profile ? 'profile' : 'stage-terminal', tabComponent: profile ? 'profile' : 'stage-terminal',
       minimumWidth: 0, minimumHeight: 0,
       title: profile ? this.store.getState().profiles.find((p) => panelId(p.id) === id)?.name : this.store.getState().stageTerminals.find((a) => `stage-terminal:${a.id}` === id)?.name,
-      ...(!profile && { renderer: 'always' as const }), ...(reference && { position: { referencePanel: reference, direction } }), inactive });
+      ...(reference && { position: { referencePanel: reference, direction } }), inactive });
   };
 
   private constrain(minimumWidth: number, minimumHeight: number) {

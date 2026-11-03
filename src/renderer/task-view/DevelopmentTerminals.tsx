@@ -9,7 +9,7 @@ import { useTask, useTaskActive, useTaskStore } from './state';
 import { profileLaunchers } from './profiles';
 import { panelView, launchers, newTerminalItems, terminalItems, terminalMenu } from './terminals';
 import { avatarSrc, withKeys } from '../lib/common';
-import { dialogsShown } from '../lib/cover';
+import { dialogsShown, onDialogs } from '../lib/cover';
 import { newStageTerminal } from './environments';
 import { termFocus } from '../../terminal/renderer';
 import { Pill } from '../../dictation/renderer';
@@ -59,20 +59,19 @@ export function DevelopmentTerminals({ reviewing }: { reviewing: boolean }) {
   // keyboard when the keyboard was in the terminal just closed or nowhere (not taken from a field or a dialog). No keys
   // on them: Ctrl+` opens the task's agent, which the window does not show.
   const big = empty && alone && !loading && !reviewing;
-  // A question open as they come (closing an agent's tab asks first): once it has gone, also from the page (a dialog
-  // keeps the keyboard in it while it fades out, and gives it back as it goes).
   useEffect(() => {
     if (!active || !big) return;
-    let frame = 0;
     const take = () => {
-      if (dialogsShown() || document.querySelector('[role="dialog"], [role="alertdialog"]')) { frame = requestAnimationFrame(take); return; }
+      if (store.getState().current !== task || dialogsShown() || document.querySelector('[role="dialog"], [role="alertdialog"]')) return;
+      stop();
       const a = document.activeElement;
       if (a && a !== document.body && !host.current?.contains(a) && !launch.current?.contains(a)) return;
       launch.current?.querySelector<HTMLElement>('[data-launcher]')?.focus();
     };
+    const stop = onDialogs(take);
     take();
-    return () => cancelAnimationFrame(frame);
-  }, [big, active]);
+    return stop;
+  }, [big, active, task]);
 
   const menu = (e: MouseEvent) => {
     const { developmentTerminals } = owner.getState(), t = developmentTerminals.list.find((x) => x.id === developmentTerminals.front);

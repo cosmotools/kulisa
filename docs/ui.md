@@ -79,6 +79,9 @@ dialog's open state is a plain `useState`.
 - **Closing**: the grid taken down closes every layer, the window left closes its menus (`closeLayers`), both by the
   Esc Radix closes them on.
 
+The cover observer notifies focus listeners of open-overlay and mounted-dialog changes. Closing content remains
+mounted through its exit animation; a pending launcher focus waits for its removal and unsubscribes after one attempt.
+
 ## Desktop, not a web page
 
 Kulisa is a desktop app, an IDE: its window looks like one, JetBrains its model (not big titles, framed cards in
