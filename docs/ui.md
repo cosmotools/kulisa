@@ -15,6 +15,7 @@ deviation gets a comment at it saying why. Tests find a part as the human does (
 
 The grid's stacking context keeps Dockview's resize dividers beneath window menus. Resources uses Dockview's left
 edge group, icon tab renderers and a header action for dictation; Dockview owns its collapse and sizing.
+Pane content has zero minimum width and its own stacking context so lists can shrink and overlays stay below native separators.
 The grids and their headerless split are Dockview's (`dockview-react`): its API before layout code of our own. State is zustand's; the terminal is
 xterm's (`src/terminal/`); read-only code comparisons use @pierre/diffs CodeView for continuous file and line virtualization
 ([README](../src/diff/README.md)); its changed-file navigation uses @pierre/trees with Lucide status icons and window palette overrides.
@@ -89,6 +90,7 @@ frames, pills, rows that show their buttons only under the pointer: those read a
 
 - **Flat panes split by a gap** (dockview's `gap`: at 0 the native pages draw over a hairline).
   Edge shells share the pane background so their gaps show the same thin separator as the outer split.
+  Resources' vertical tab header has one shared right border for every section.
 - **The project's color only on its icon** and the title bar's logo (`--project` on the root, `lib/store.ts`; the
   author's choice). `projectColor` (`lib/project-color.ts`): a favicon's hue in Kulisa's lightness and chroma.
 - **The sidebar** is shadcn's `Sidebar`, docked in the empty window and in a `Sheet` over the grid (covering as a

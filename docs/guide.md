@@ -129,9 +129,10 @@ project, and those you closed, are in the sidebar (Tasks, below).
   the last active terminal. Stage keeps its position and size. The review is read-only; binary and large
   files show an explanation. Switching tasks keeps the review's comparison, filter and position. Restarting Kulisa
   restores that task's Resources section and opens a fresh review.
-  Resources stays fixed to the left of the development terminal. Drag its divider to change its width;
+  Resources stays fixed to the left of the development terminal, with thin lines separating its icon bar, content and development area. Drag its divider to change its width;
   clicking the selected section icon closes its content, and clicking any icon opens that section at the saved width.
   The expanded panel stays at least 300 pixels wide; the development area stays at least 204 pixels tall to keep its controls reachable.
+  Agent rows fit the panel at its minimum width, with their close buttons visible.
   Each task keeps its selection, width and collapsed state.
   **Project** opens first in a new task: use **Project Explorer** to browse the active task’s folders (its copy of the code, or your project’s folder until
   it has one). Icons identify file types; folders share one icon. Click a folder to expand it; double-click a file to open it in your system’s default application,
