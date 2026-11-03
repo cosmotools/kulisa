@@ -1,16 +1,11 @@
-# Dictation: working in this folder
+# Dictation
 
-All of the dictation: a Kulisa package (`docs/packages.md`: what one is, its rules). How it works and why:
-`README.md`. The plan and what is decided: issue #120.
+Read `README.md` and `docs/packages.md`. Design: #120.
 
-- From outside only through `main/index.ts`, `renderer/index.ts` and `ipc.ts`. `main/` uses nothing of `src/main` but
-  `ipc.ts` and `log.ts`; `renderer/` nothing of the window; `npm run deps` refuses any other import.
-- It knows nothing of tasks, agents or the window: they tell it facts (the agent in front, the key, a task gone) and
-  draw what it sends. Which agent the key speaks to is the task's (`Task.holdKey`); the key and how it is changed are
-  the window's (`keys.ts`, `shortcuts.ts`); what an agent's own dictation is (its key, its settings) is its entry's in
-  `src/kulisa-plugin/main/agents/`.
-- Its unit tests are here (`dictation.test.ts`, a fake recognizer); its e2e tests in `test/e2e/window.spec.ts` and
-  `agents.spec.ts` (README, The code).
-- Which account recognizes for an agent without dictation, and how it is started, is the caller's
-  (`src/main/recognizer.ts`, the agents' `recognizer`); the hidden session's hook comes through the Kulisa plugin
-  (`agent-hooks.ts`). Never the text heard in the log.
+- Entries: `main/index.ts`, `renderer/index.ts`, `ipc.ts`. Allowed core imports: `ipc.ts`, `log.ts`;
+  the renderer imports no window code.
+- Callers supply the active agent, key events and task/window lifecycle. Agent selection belongs to `Task.holdKey`;
+  key configuration to `keys.ts`/`shortcuts.ts`; CLI dictation settings to its `kulisa-plugin/main/agents/` adapter.
+- Recognizer accounts and launch configuration come from `src/main/recognizer.ts`; hooks from `agent-hooks.ts`.
+  Never log dictated text.
+- Tests: `dictation.test.ts` with a fake recognizer; `test/e2e/window.spec.ts`, `agents.spec.ts`.
