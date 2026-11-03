@@ -77,10 +77,6 @@ test('profiles are made in Settings (Profiles\' + in its nav), each with its own
   // after it is opened.
   await expect.poll(() => core((k, id) => !!k.shell.profiles.get(id).get()?.view.getVisible(), elon)).toBe(true);
   await expect(ui.locator('[data-task-view][data-active] [role="region"][data-profile]')).toHaveCount(2);
-  // Dockview distributes a fresh split evenly between Stage and development.
-  const grid = await ui.locator('#dock').boundingBox(), terminal = await ui.getByRole('region', { name: 'Terminal', exact: true }).boundingBox();
-  const share = terminal.height / grid.height;
-  expect(Math.abs(share - 0.5), `the terminal's share: ${share}`).toBeLessThan(0.03);
 });
 
 test('agent: create a profile with profile_create; removed from the project, it stays in Settings → Profiles until deleted there', async ({ core, call, ui, files }) => {

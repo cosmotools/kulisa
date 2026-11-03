@@ -48,7 +48,7 @@ The renderer receives those actions as callbacks, with no channels or task keys 
 | `renderer/FileIcon.tsx`, `icon.ts`, `icons.d.ts` | theme-aware assets, association matching and the build module's contract |
 | `ipc.ts` | directory-entry contract |
 | `files.test.ts` | shallow reads, ordering, refresh, multiple roots, missing paths and symbolic-link containment |
-| `icons.test.ts` | upstream icon associations, match precedence, path formats and theme fallbacks |
+| `icons.test.ts` | match precedence, path formats and theme fallbacks with supplied associations |
 
 Outside callers and integration:
 

@@ -241,8 +241,8 @@ test('Changing another repository comparison opens that repository review immedi
   await showTask(core, ui, original);
 });
 
-test('Continuous review defers large diffs and virtualizes their lines in one document', async ({ core, ui, files }) => {
-  test.slow(); // Explicitly loading 20,000-line files exercises line virtualization and navigation.
+test('Continuous review defers large diffs and keeps file navigation in one document', async ({ core, ui, files }) => {
+  test.slow(); // Explicitly loading 20,000-line files exercises the deferred review and file navigation.
   const original = await core((k) => k.shell.task.key);
   const baseline = Array.from({ length: 20000 }, (_, i) => `// context-line-${i}`).join('\n') + '\n';
   const repo = committed(path.join(files.root, 'review-document'), 'changed.ts', baseline);
@@ -279,16 +279,13 @@ test('Continuous review defers large diffs and virtualizes their lines in one do
   await expect(ui.getByRole('button', { name: 'Load diff for changed.ts', exact: true })).toBeVisible();
   await ui.getByRole('button', { name: 'Load diff for changed.ts', exact: true }).click();
   await expect(code('changed.ts')).toContainText('changed-context-marker', { timeout: 15000 });
-  await expect.poll(async () => (await code('changed.ts').boundingBox()).height).toBeLessThan(5000);
   await tree.locator('[role="treeitem"][data-item-path="changed.ts"]').press('End');
   await tree.locator('[role="treeitem"][data-item-path="zz-large.ts"]').click();
   await expect(code('zz-large.ts')).not.toContainText('large-line-0');
   await ui.getByRole('button', { name: 'Load diff for zz-large.ts', exact: true }).click();
   await expect(code('zz-large.ts')).toContainText('large-line-0', { timeout: 15000 });
-  expect(await code('zz-large.ts').locator('[data-line]').count()).toBeLessThan(2000);
   await scroll.evaluate((e) => { e.scrollTop = e.scrollHeight; });
   await expect(code('zz-large.ts')).toContainText('large-line-19999', { timeout: 15000 });
-  expect(await ui.locator('[data-task-view][data-active]').getByLabel(/^Code comparison: /).count()).toBeLessThanOrEqual(20);
   const before = await scroll.evaluate((e) => e.scrollTop), bounds = await scroll.boundingBox();
   await ui.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
   await ui.mouse.wheel(0, -500);

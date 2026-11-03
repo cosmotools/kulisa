@@ -94,10 +94,12 @@ test('an outgoing menu capture cannot hide a task after switching away and back'
     const window = k.shell.task.window, pictures = window.pictures;
     let release: () => void;
     const gate = new Promise<void>((resolve) => { release = resolve; });
-    k.stash.taskViewCapture = { window, pictures, release: () => release(), requested: false };
-    window.pictures = async () => { k.stash.taskViewCapture.requested = true; await gate; return {}; };
+    k.stash.taskViewCapture = { window, pictures, release: () => release(), requested: false, completed: false };
+    window.pictures = async () => {
+      k.stash.taskViewCapture.requested = true; await gate; k.stash.taskViewCapture.completed = true; return {};
+    };
   });
-  const pending = ui.evaluate(() => (window as any).kulisa.invoke('views:hidden', true, { snapshots: true }));
+  await ui.locator('#windowMenu').click();
   try {
     await expect.poll(() => core((k) => k.stash.taskViewCapture.requested)).toBe(true);
     await invoke(ui, 'task:show', second);
@@ -106,12 +108,12 @@ test('an outgoing menu capture cannot hide a task after switching away and back'
     await notLoading(ui);
     await expect.poll(() => core((k, id) => k.shell.task.profiles.get(id).get().view.getVisible(), profile)).toBe(true);
     await core((k) => k.stash.taskViewCapture.release());
-    await pending;
+    await expect.poll(() => core((k) => k.stash.taskViewCapture.completed)).toBe(true);
     await ipcSettled(ui);
+    await frames(ui);
     expect(await core((k) => k.shell.task.window.viewsHidden)).toBe(false);
   } finally {
     await core((k) => { const p = k.stash.taskViewCapture; p.release(); p.window.pictures = p.pictures; delete k.stash.taskViewCapture; });
-    await pending;
     await core((k, id) => k.shell.task.closeProfile(id), profile);
     await invoke(ui, 'task:close', second);
   }

@@ -235,8 +235,10 @@ bringing its tab into view (`scrollIntoView`) would move the whole grid up by a 
 
 The profiles' pages are native views above the window's HTML ([ui.md](ui.md)) and belong to their project's window
 (`Profile.moveTo`). While a panel is dragged, a menu is open or a dialog is shown, the pages are pictures of
-themselves (or hidden), so the HTML can be on top; live again once nothing covers them (`unfreeze`). A page that
-gives no picture (covered, the monitor off, busy) leaves its pane empty meanwhile: waiting would hold the menu and
+themselves (or hidden), so the HTML can be on top. The renderer decodes and paints the snapshots before hiding native
+pages; closing the cover restores native pages before removing their snapshots. Captures and delayed visibility
+commands belong to their task. A page that gives no picture (covered, the monitor off, busy) leaves its pane empty
+meanwhile: waiting would hold the menu and
 every one after it. How long is the pages' own pace: once the first has answered, the rest get three times as long, a
 tenth of a second at least (a live page answers in a few milliseconds on a fast machine, over a hundred on a slow
 one); none answering, half a second (`AppWindow.pictures`).

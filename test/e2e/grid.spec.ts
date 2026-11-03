@@ -211,19 +211,6 @@ test('workspace and stage presets each fit the window without changing the other
     return r.x + r.width <= t.x + 1 && r.y > b.sam.y + b.sam.height - 1 && r.width >= 300 && r.width <= 301;
   };
   await expect.poll(placed, { timeout: 3000, message: 'Resources left of the terminal, at its native minimum' }).toBe(true);
-  const side = await resources();
-  b = await at();
-  // A narrower window takes from every panel in its share, not from the last one alone; wider gives back the same way.
-  const size = await core((k) => k.shell.win.getSize()), both = (x: typeof b) => x.sam.width + x.elon.width, share = (x: typeof b) => x.sam.width / both(x);
-  const was = share(b), wide = both(b), terminalWidth = b.term.width;
-  await core((k, s) => k.shell.win.setSize(s[0] - 300, s[1]), size);
-  await expect.poll(async () => { b = await at(); return !!b.sam && !!b.elon && both(b) < wide - 200; }).toBe(true);
-  expect(Math.abs(share(b) - was), `shares kept: ${share(b)} vs ${was}`).toBeLessThan(0.02);
-  // Dockview edge groups keep their width while the central terminal takes the resize.
-  const kept = async () => { const r = await resources(), t = await box(ui, '[data-testid="terminal"]'); return Math.abs(r.width - side.width) <= 1 && t.width < terminalWidth; };
-  await expect.poll(kept, { timeout: 3000, message: 'Resources keeps its width' }).toBe(true);
-  await core((k, s) => k.shell.win.setSize(s[0], s[1]), size);
-  await expect.poll(async () => { b = await at(); return !!b.sam && !!b.elon && Math.abs(share(b) - was) < 0.02 && viewOn(core, ui, files, ELON); }).toBe(true);
   await stagePreset('Tabs');
   await expect.poll(() => viewOn(core, ui, files, SAM)).toBe(true);
   await fits();

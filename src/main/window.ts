@@ -47,7 +47,6 @@ class AppWindow {
   shell: Shell; id: number; tabs: Task[]; current: Task | null; switching: boolean;
   private readonly laidOut = new Set<Task>();
   private covered = false;
-  private gridRevision = 0;
   stateTimer: NodeJS.Timeout | undefined; picking: Map<string, { profile: Profile; page: import('playwright-core').Page; cancel: () => unknown }>;
   questions: Questions; loaded: boolean; pending: [string, unknown[]][]; keyZone: string;
   thumbnails: Thumbnails; // a screenshot's, in its pane's corner (src/screenshots)
@@ -231,7 +230,6 @@ class AppWindow {
   }
   private leaveGrid() {
     if (!this.current) return;
-    this.gridRevision++;
     if (this.stateTimer) this.pushState();
     else if (!this.switching) this.current.list.saveTabs();
     this.switching = true;
@@ -274,22 +272,16 @@ class AppWindow {
     for (const task of this.tabs) if (task !== this.task) for (const p of task.profiles.values()) p.setHidden(true);
     this.thumbnails.setHidden(this.viewsHidden);
   }
-  // Settings and the grid's drop targets are HTML; the profiles' views are native and draw above it, so
-  // they are hidden meanwhile. With snapshots: first a picture of each page on screen, for the page to show in its
-  // place ({ profile id: data URL }).
-  async hideViews(hidden: boolean, { snapshots = false } = {}) {
-    if (!hidden && !this.covered) return {};
-    const owner = this.gridRevision;
-    const pics = hidden && snapshots ? await this.pictures() : {};
-    if (this.gridRevision !== owner) return {};
+  // Capturing and covering are separate so the renderer can paint the replacement before hiding native pages.
+  hideViews(hidden: boolean, { focus = true, task }: { focus?: boolean; task?: string } = {}) {
+    if (task !== undefined && task !== this.task?.key || !hidden && !this.covered) return;
     this.covered = hidden;
     // A dialog over the pages (hidden, no pictures): a page that had the keyboard keeps it unseen, and the dialog's focus
     // trap (Radix's) works in a page that has the keyboard, its keys going nowhere else: the window's page takes it. Menus
     // (pictures) put the keyboard back themselves as they close.
-    const from = hidden && !snapshots && [...this.profiles.values()].some((p) => { const wc = p.get()?.wc; return wc && !wc.isDestroyed() && wc.isFocused(); });
+    const from = hidden && focus && [...this.profiles.values()].some((p) => { const wc = p.get()?.wc; return wc && !wc.isDestroyed() && wc.isFocused(); });
     this.updateViews();
     if (from) focusWindow(this.win.webContents);
-    return pics;
   }
   // JPEG: a picture shown for a moment, encoded three times faster than PNG. A page that draws no frame (covered, the
   // monitor off, busy) gives none: its pane is empty meanwhile. Waiting for it would hold every menu after it closed.

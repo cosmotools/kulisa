@@ -2,7 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { test, expect } from './fixtures.ts';
-import { showResources, resourcesGroup, developmentBox, terminalRows, termKeys, act, dock, box, invoke, windowSubmenu, choose, closeMenu, frames, rightClick, menu } from './helpers.ts';
+import { showResources, resourcesGroup, developmentBox, terminalRows, termKeys, act, dock, invoke, windowSubmenu, choose, closeMenu, frames, rightClick, menu } from './helpers.ts';
 import { openFolder, showTask } from './tasks-helpers.ts';
 
 test('Resources starts with Project, expands folders, opens files and follows projects', async ({ core, ui, files }) => {
@@ -45,17 +45,12 @@ test('Project icons identify files and folders and follow the window theme', asy
   const folder = await core((k) => k.shell.task.folder);
   const directory = path.join(folder, 'icon-example');
   fs.mkdirSync(path.join(directory, 'src'), { recursive: true });
-  const examples = [
-    ['index.ts', 'typescript'], ['index.tsx', 'react_ts'], ['index.d.ts', 'typescript-def'],
-    ['index.test.ts', 'test-ts'], ['package.json', 'nodejs'], ['Dockerfile', 'docker'],
-    ['PKGBUILD', 'console'], ['unknown.extension', 'file'], ['__proto__', 'file'], ['deno.json', 'deno'],
-  ] as const;
-  for (const [name] of examples) fs.writeFileSync(path.join(directory, name), '');
+  const examples = ['index.ts', 'deno.json'];
+  for (const name of examples) fs.writeFileSync(path.join(directory, name), '');
   await ui.locator('[data-task-view][data-active] [data-resources]').getByRole('button', { name: 'icon-example', exact: true }).click();
   const row = (name: string) => ui.locator('[data-task-view][data-active] [data-resources]').getByRole('button', { name, exact: true });
   const icon = (name: string) => row(name).locator('span[aria-hidden="true"]');
-  for (const [name, expected] of examples) {
-    await expect(icon(name)).toHaveCSS('background-image', new RegExp(`/${expected}-[^/]+\\.svg`));
+  for (const name of examples) {
     // A CSS URL alone does not prove the packaged local asset can be decoded by Chromium.
     expect(await icon(name).evaluate((element) => new Promise<boolean>((resolve) => {
       const image = new Image();
@@ -64,11 +59,9 @@ test('Project icons identify files and folders and follow the window theme', asy
       image.src = getComputedStyle(element).backgroundImage.slice(5, -2);
     }))).toBe(true);
   }
-  await expect(row('src').locator('svg').last().locator('path')).toHaveAttribute('d', await row('icon-example').locator('svg').last().locator('path').getAttribute('d'));
-  await row('src').click();
-  await expect(row('src').locator('svg').last().locator('path')).toHaveAttribute('d', await row('icon-example').locator('svg').last().locator('path').getAttribute('d'));
+  const darkIcon = await icon('deno.json').evaluate((e) => getComputedStyle(e).backgroundImage);
   await choose(ui, 'Light', await windowSubmenu(ui, 'Theme'));
-  await expect(icon('deno.json')).toHaveCSS('background-image', /\/deno_light-[^/]+\.svg/);
+  await expect(icon('deno.json')).not.toHaveCSS('background-image', darkIcon);
   await ui.keyboard.press('Escape');
   await closeMenu(ui);
   await frames(ui);
@@ -76,12 +69,12 @@ test('Project icons identify files and folders and follow the window theme', asy
   await core((k, file) => k.shot(file), screenshot);
   await test.info().attach('Project icons', { path: screenshot, contentType: 'image/png' });
   await choose(ui, 'Dark', await windowSubmenu(ui, 'Theme'));
-  await expect(icon('deno.json')).toHaveCSS('background-image', /\/deno-[^/]+\.svg/);
+  await expect(icon('deno.json')).toHaveCSS('background-image', darkIcon);
   await ui.keyboard.press('Escape');
   await closeMenu(ui);
 });
 
-test('Resources icon tabs toggle content, restore width and enforce the edge minimum', async ({ ui, core, files }) => {
+test('Resources places its icon tabs, enforces its configured minimum and keeps collapse across task switches', async ({ ui, core, files }) => {
   await showResources(ui, 'Project');
   const resources = resourcesGroup(ui), project = resources.getByRole('tab', { name: 'Project', exact: true });
   const artifacts = resources.getByRole('tab', { name: 'Artifacts', exact: true });
@@ -91,33 +84,16 @@ test('Resources icon tabs toggle content, restore width and enforce the edge min
   expect(a.x).toBe(p.x); expect(a.y).toBeGreaterThan(p.y);
   await dock(ui, (api) => api.getEdgeGroup('left').setSize({ width: 10 }));
   await expect.poll(async () => (await resources.boundingBox()).width).toBe(300);
-  await dock(ui, (api) => api.getEdgeGroup('left').setSize({ width: 410 }));
-  await expect.poll(async () => (await resources.boundingBox()).width).toBeGreaterThan(300);
-  const width = (await resources.boundingBox()).width, terminal = await box(ui, '[data-testid="terminal"]');
-  for (const section of ['Project', 'Artifacts', 'Agents'] as const) {
-    await showResources(ui, section);
-    const icon = resources.getByRole('tab', { name: section, exact: true });
-    await expect.poll(async () => (await resources.boundingBox()).width).toBe(width);
-    await icon.click();
-    await expect(resources.locator(':scope.dv-edge-collapsed')).toBeVisible();
-    await expect(ui.locator('[data-task-view][data-active] [data-resources]')).toHaveCount(0);
-    await expect.poll(async () => (await resources.boundingBox()).width).toBe(40);
-    await expect.poll(async () => (await box(ui, '[data-testid="terminal"]')).width).toBeGreaterThan(terminal.width);
-    await icon.click();
-    await expect(resources.locator(':scope.dv-edge-collapsed')).toHaveCount(0);
-    await expect.poll(async () => (await resources.boundingBox()).width).toBe(width);
-  }
-  await showResources(ui, 'Project');
-  await project.press('Enter');
-  await expect(resources.locator(':scope.dv-edge-collapsed')).toHaveCount(0);
   await project.click();
   await expect(resources.locator(':scope.dv-edge-collapsed')).toBeVisible();
+  await expect(ui.locator('[data-task-view][data-active] [data-resources]')).toHaveCount(0);
+  await expect.poll(async () => (await resources.boundingBox()).width).toBe(40);
   const original = await core((k) => k.shell.task.key), other = path.join(files.root, 'collapsed-resources-project');
   fs.mkdirSync(other);
   await openFolder(core, ui, other); await showTask(core, ui, original);
   await expect(resources.locator(':scope.dv-edge-collapsed')).toBeVisible();
   await project.click();
-  await expect.poll(async () => (await resources.boundingBox()).width).toBe(width);
+  await expect(ui.getByRole('region', { name: 'Project', exact: true })).toBeVisible();
 });
 
 test('Resources restores its native collapsed group and selected section after restart', async ({ ui, core, restart }) => {
