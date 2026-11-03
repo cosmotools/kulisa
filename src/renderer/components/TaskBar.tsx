@@ -17,8 +17,7 @@ import { useProjectColor } from '../lib/project-color';
 import { keyText } from '../lib/common';
 import { dialog } from '../lib/dialogs';
 import { lastWorked, projectMenu } from '../lib/project-menu';
-import { profilesMenu } from '../lib/profiles';
-import { terminalsOf } from '../lib/development-terminals';
+import { profilesMenu, terminalsOf } from '../task-view';
 import { useStrip } from '../lib/strip';
 import { toggleSidebar } from '../lib/sidebar';
 import type { MenuItem } from '../lib/menu';
@@ -75,8 +74,7 @@ export function TaskBar() {
   // More tabs than fit: the wheel scrolls them, the edges with tabs past them fade, the shown one stays in sight.
   useStrip(strip, current);
 
-  // The last choice's switch: done once the window has the task shown, its grid's grid:closing heard (the projects naming
-  // it come after it, in order; the invoke's answer may come before either).
+  // Task state follows deactivation in IPC order; the invoke's answer can arrive before that state.
   const showing = useRef<Promise<unknown>>(Promise.resolve());
   const tabAt = (e: { target: EventTarget | null }) => {
     const el = (e.target as Element).closest<HTMLElement>('[data-task]');

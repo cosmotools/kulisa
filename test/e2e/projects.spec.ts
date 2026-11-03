@@ -244,7 +244,7 @@ test("projects: the projects' manager (Project Settings…) changes its name and
   expect(await developmentTerminals(), 'nothing opened').toBe(0);
   // With a profile open, the terminals' panel is a strip: Ctrl+` opens its +.
   await call('profile_create', { name: 'Bo.bare' }, { task: bare });
-  await expect(ui.getByTestId('development-terminals').locator('[data-unfold]')).toHaveCount(1);
+  await expect(ui.locator('[data-task-view][data-active]').getByTestId('development-terminals').getByRole('button', { name: 'New terminal', exact: true })).toHaveCount(1);
   await expect(ui.getByRole('navigation', { name: 'New terminal' })).toHaveCount(0);
   await focusWindow(core, ui);
   await core((k) => k.press(k.shell.win.webContents, '`', 'control'));

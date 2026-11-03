@@ -2,19 +2,21 @@
 import { PlusIcon, XIcon } from 'lucide-react';
 import { SidebarContent, SidebarGroup, SidebarGroupAction, SidebarGroupContent, SidebarGroupLabel, SidebarMenu,
   SidebarMenuAction, SidebarMenuButton, SidebarMenuItem } from '@ui';
-import { act, useWindow } from '../../lib/store';
-import { newTerminalItems, showDevelopmentTerminal, terminalItems } from '../../lib/development-terminals';
-import { withKeys } from '../../lib/common';
-import { agentMark } from '../AgentMark';
-import { AgentState, STATES } from '../AgentState';
-import { ButtonMenu, RightClickMenu } from '../Menus';
+import { useTaskActions, useTask } from './state';
+import { newTerminalItems, showDevelopmentTerminal, terminalItems } from './terminals';
+import { withKeys } from '../lib/common';
+import { agentMark } from '../components/AgentMark';
+import { AgentState, STATES } from '../components/AgentState';
+import { ButtonMenu, RightClickMenu } from '../components/Menus';
 
 export function DevelopmentTerminalList() {
-  const { list, front } = useWindow((s) => s.developmentTerminals);
+  const act = useTaskActions();
+  const task = useTask((s) => s.key);
+  const { list, front } = useTask((s) => s.developmentTerminals);
   return <SidebarContent>
     <SidebarGroup>
       <SidebarGroupLabel>Agents</SidebarGroupLabel>
-      <ButtonMenu items={newTerminalItems}><SidebarGroupAction aria-label="New terminal" title={withKeys('New conversation of an agent, or a terminal', 'terminal.new')}>
+      <ButtonMenu items={() => newTerminalItems(task)}><SidebarGroupAction aria-label="New terminal" title={withKeys('New conversation of an agent, or a terminal', 'terminal.new')}>
         <PlusIcon />
       </SidebarGroupAction></ButtonMenu>
       <SidebarGroupContent>
@@ -25,10 +27,10 @@ export function DevelopmentTerminalList() {
             const state = t.starting ? 'Starting…' : t.state ? `The agent ${STATES[t.state]}` : t.agent ? 'Agent' : 'Shell';
             const detail = t.agent?.name ?? t.command;
             return <SidebarMenuItem key={t.id} data-terminal={t.id} data-row aria-label={t.name}>
-              <RightClickMenu items={() => terminalItems(t)}>
+              <RightClickMenu items={() => terminalItems(task, t)}>
                 <SidebarMenuButton size="lg" isActive={front === t.id} aria-current={front === t.id ? 'true' : undefined}
                   aria-label={t.name} title={[t.name, detail, state].filter(Boolean).join('\n')}
-                  onClick={() => void showDevelopmentTerminal(t.id)}>
+                  onClick={() => void showDevelopmentTerminal(task, t.id)}>
                   <Mark />
                   <span className="flex min-w-0 flex-1 flex-col">
                     <span className="flex items-center gap-1.5"><span className="truncate">{t.name}</span><AgentState state={t.state} /></span>

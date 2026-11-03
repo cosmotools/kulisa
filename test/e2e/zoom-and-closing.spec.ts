@@ -127,7 +127,7 @@ test('page zoom: Ctrl+= in a page zooms that site in that profile only, shows on
   await expect.poll(async () => near(await core((k, id) => k.profile('Sam.admin').get(id).wc.getZoomFactor(), other), 1.25 * 1.1), { timeout: 3000 }).toBe(true);
   await core((k, id) => k.profile('Sam.admin').get(id).wc.close(), other);
   for (const z of await core((k) => k.profile('Elon.buyer').tabs.map((t) => t.wc.getZoomFactor()))) expect(near(z, 1.25), 'other profiles keep the Kulisa zoom').toBe(true);
-  const shown = ui.locator(`[role="region"][data-profile="${sam}"]`).getByTitle(/^This site's zoom/);
+  const shown = ui.locator(`[data-task-view][data-active] [role="region"][data-profile="${sam}"]`).getByTitle(/^This site's zoom/);
   await expect(shown).toHaveText('110%');
   const saved = files.json(files.pfile('task.json')).stage.items.filter((i: { type: string }) => i.type === 'profile').find((p: { id: string }) => p.id === sam);
   expect(saved.zoom).toEqual({ [`127.0.0.1:${PORT}`]: 1.1 });
@@ -168,7 +168,7 @@ test('close a profile (its × or the agent) and open it again (👥 or the agent
   const saved = (): { id: string; closed?: boolean }[] => files.json(files.pfile('task.json')).stage.items.filter((i: { type: string }) => i.type === 'profile');
   await call('profile_create', { name: 'Cleo' });
   const cleo = await profileId(core, 'Cleo');
-  const header = ui.locator(`[data-panel="profile:${cleo}"]`);
+  const header = ui.locator(`[data-task-view][data-active] [data-panel="profile:${cleo}"]`);
   const { dir: cleoDir, cookies: cookiesFile, avatar } = await core((k) => { const p = k.profile('Cleo'); return { dir: p.dir, cookies: k.shell.sessionCookies.file(p), avatar: p.avatar }; });
   await call('browser_navigate', { profile: 'Cleo', url: `${SITE}/app/login?name=cleo` }); // a session cookie
   await call('browser_tab_new', { profile: 'Cleo', url: `${SITE}/app?second` });
@@ -294,7 +294,7 @@ test('closing the last tab of a profile leaves an empty tab, not a pane without 
   await deleteProfile(core, ui, 'Solo');
   await call('profile_create', { name: 'Solo' });
   const solo = await profileId(core, 'Solo');
-  const tabs = ui.locator(`[role="region"][data-profile="${solo}"] [role="tab"]`);
+  const tabs = ui.locator(`[data-task-view][data-active] [role="region"][data-profile="${solo}"] [role="tab"]`);
   for (const by of ['window', 'agent'] as const) {
     const only = await core((k) => k.profile('Solo').tabs[0].id);
     await call('browser_navigate', { profile: 'Solo', url: `${SITE}/app` });

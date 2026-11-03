@@ -1,22 +1,23 @@
 // The Resources panel of the grid (docs/tasks.md, The Resources panel).
 import { useEffect, useMemo, useState } from 'react';
-import { ChevronRightIcon, FileIcon, FilesIcon, FolderIcon, FolderTreeIcon, GripVerticalIcon, GitBranchIcon, GitCompareArrowsIcon, TerminalSquareIcon, Trash2Icon } from 'lucide-react';
-import type { IDockviewPanelProps } from 'dockview-react';
+import { ChevronRightIcon, FileIcon, FilesIcon, FolderIcon, FolderTreeIcon, GitBranchIcon, GitCompareArrowsIcon, TerminalSquareIcon, Trash2Icon } from 'lucide-react';
+import type { IDockviewPanelProps, IDockviewPanelHeaderProps, IDockviewHeaderActionsProps } from 'dockview-react';
 import { useShallow } from 'zustand/react/shallow';
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupAction, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuAction,
   Button, Collapsible, CollapsibleTrigger, CollapsibleContent, SidebarMenuButton, SidebarMenuItem, SidebarProvider } from '@ui';
-import { ProjectDirectory, type ExplorerActions } from '../../../project-explorer/renderer';
-import { menuAt } from '../../lib/menu';
-import { RightClickMenu } from '../Menus';
-import { shownTask, useWindow } from '../../lib/store';
-import type { MenuItem } from '../../lib/menu';
-import { startResourceDrag, selectResource, type ResourceParams } from '../../lib/grid';
-import { sizeText } from '../../../shared/bytes';
-import { Dictation } from '../../../dictation/renderer';
-import { useShortcuts } from '../../lib/common';
-import { focusDevelopmentTerminal, showDevelopmentTerminal } from '../../lib/development-terminals';
+import { ProjectDirectory, type ExplorerActions } from '../../project-explorer/renderer';
+import { menuAt } from '../lib/menu';
+import { RightClickMenu } from '../components/Menus';
+import { shownTask, useWindow } from '../lib/store';
+import { useTask, useTaskActive } from './state';
+import type { MenuItem } from '../lib/menu';
+import { resourceSections, type ResourceSection } from './development';
+import { sizeText } from '../../shared/bytes';
+import { Dictation } from '../../dictation/renderer';
+import { useShortcuts } from '../lib/common';
+import { focusDevelopmentTerminal, showDevelopmentTerminal } from './terminals';
 import { DevelopmentTerminalList } from './DevelopmentTerminalList';
-import { TaskDiffTree } from '../Diff';
+import { TaskDiffTree } from './Diff';
 
 const language = new Intl.DisplayNames(['en'], { type: 'language' });
 const KINDS: Record<string, string> = { screenshot: 'Screenshot', snapshot: 'Snapshot', request: 'Request body', response: 'Response body', terminal: 'Terminal screen' };
@@ -26,58 +27,57 @@ const when = (t: number) => (day(t) === day(Date.now()) ? new Date(t).toLocaleTi
   : new Date(t).toLocaleDateString([], { day: 'numeric', month: 'short' }));
 const openFile = (file: string) => kulisa.invoke('file:open', file);
 
-export function Resources({ api, params, containerApi }: IDockviewPanelProps<ResourceParams>) {
-  const key = useWindow((s) => shownTask(s)?.key);
-  const front = useWindow((s) => s.developmentTerminals.front), lang = useWindow((s) => s.language?.language);
-  const hold = useShortcuts().find((s) => s.id === 'voice.hold')?.keys[0] || '';
-  const section = params.section === undefined ? 'project' : params.section;
-  const [barSide, setBarSide] = useState<'left' | 'right'>('left');
+export function ResourceIcon({ params }: IDockviewPanelHeaderProps<{ section: ResourceSection }>) {
+  const Icon = { terminals: TerminalSquareIcon, project: FolderTreeIcon, diff: GitCompareArrowsIcon, artifacts: FilesIcon }[params.section];
+  return <span title={resourceSections[params.section]} className="grid h-10 w-full place-items-center"><Icon className="size-4" /></span>;
+}
+export function ResourceActions({ api, group, location }: IDockviewHeaderActionsProps) {
+  const key = useTask((s) => s.key);
   useEffect(() => {
-    const update = () => {
-      const resources = api.group.api.boundingBox, terminal = containerApi.getPanel('terminal')?.group.api.boundingBox;
-      setBarSide(resources && terminal && resources.left >= terminal.left + terminal.width ? 'right' : 'left');
-    };
-    const layout = containerApi.onDidLayoutChange(update);
+    if (location?.type !== 'edge') return;
+    void kulisa.invoke('task:artifact:refresh', key);
+    const focus = () => { if (!api.isCollapsed() && group.activePanel?.params?.section === 'terminals') focusDevelopmentTerminal(key); };
+    const selected = api.onDidActivePanelChange(({ panel, origin }) => {
+      if (origin === 'user' && panel?.params?.section === 'terminals') focusDevelopmentTerminal(key);
+    });
+    const expanded = api.onDidCollapsedChange(focus);
+    return () => { selected.dispose(); expanded.dispose(); };
+  }, [api, group, location?.type, key]);
+  return location?.type === 'edge' ? <div className="grid place-items-center py-1"><TaskDictation /></div> : null;
+}
+export function Resources({ api, params }: IDockviewPanelProps<{ section: ResourceSection }>) {
+  const [visible, setVisible] = useState(api.isVisible && !api.group.api.isCollapsed());
+  useEffect(() => {
+    const update = () => setVisible(api.isVisible && !api.group.api.isCollapsed());
+    const shown = api.onDidVisibilityChange(update), collapsed = api.group.api.onDidCollapsedChange(update);
     update();
-    return () => layout.dispose();
-  }, [api, containerApi]);
-  return <aside id="resources" aria-label="The task's resources" data-bar-side={barSide} className="flex h-full min-h-0 min-w-0 data-[bar-side=right]:flex-row-reverse">
-    <nav aria-label="Resources" className={`flex w-10 shrink-0 flex-col items-center gap-1 py-2 ${barSide === 'right' ? 'border-l' : 'border-r'}`}>
-      {([['terminals', 'Agents', TerminalSquareIcon], ['project', 'Project', FolderTreeIcon], ['diff', 'Diff', GitCompareArrowsIcon], ['artifacts', 'Artifacts', FilesIcon]] as const).map(([value, label, Icon]) =>
-        <Button key={value} variant="ghost" size="icon-sm" aria-label={label} title={label}
-          aria-expanded={section === value} aria-controls="resource-content" onClick={() => {
-            selectResource(api, params, value);
-            if (value === 'terminals') focusDevelopmentTerminal();
-          }}><Icon /></Button>)}
-      <div className="mt-auto flex flex-col items-center gap-1">
-        <Dictation task={key ?? null} keyName={hold} language={lang ? language.of(lang) ?? '' : ''}
-          onDone={() => { if (front !== null) void showDevelopmentTerminal(front); }} />
-        <div className="[&_button]:cursor-grab [&_button]:active:cursor-grabbing">
-          <Button variant="ghost" size="icon-sm" draggable aria-label="Move Resources panel" title="Move Resources panel"
-            onDragStart={(e) => startResourceDrag(api, e.nativeEvent)}><GripVerticalIcon /></Button>
-        </div>
-      </div>
-    </nav>
-    {section && key && <div id="resource-content" role="region" aria-label={section === 'project' ? 'Project' : section === 'artifacts' ? 'Artifacts' : section === 'diff' ? 'Diff' : 'Agents'} className="min-h-0 min-w-0 flex-1">
-      <TaskResources key={key} taskKey={key} section={section} />
-    </div>}
-  </aside>;
+    return () => { shown.dispose(); collapsed.dispose(); };
+  }, [api]);
+  return visible ? <TaskResources section={params.section} /> : null;
 }
 
-function TaskResources({ taskKey: key, section }: { taskKey: string; section: NonNullable<ResourceParams['section']> }) {
-  const task = useWindow((s) => shownTask(s));
+function TaskDictation() {
+  const key = useTask((s) => s.key), front = useTask((s) => s.developmentTerminals.front);
+  const active = useTaskActive(), lang = useWindow((s) => s.language?.language);
+  const hold = useShortcuts().find((s) => s.id === 'voice.hold')?.keys[0] || '';
+  return <Dictation task={active ? key : null} keyName={hold} language={lang ? language.of(lang) ?? '' : ''}
+    onDone={() => { if (front !== null) void showDevelopmentTerminal(key, front); }} />;
+}
+
+function TaskResources({ section }: { section: ResourceSection }) {
+  const key = useTask((s) => s.key);
+  const task = useWindow((s) => shownTask(s, key));
+  const active = useTaskActive();
   const explorer = useMemo<ExplorerActions>(() => ({
     readFolder: (folder) => kulisa.invoke('task:file:list', { key, folder }),
     openFile: (file) => kulisa.invoke('task:file:open', { key, file }),
     showFile: (file) => kulisa.invoke('file:show', file),
     showMenu: menuAt,
   }), [key]);
-  const artifacts = useWindow((s) => (s.artifacts.task === key ? s.artifacts.list : null)) ?? [];
-  const bytes = useWindow((s) => s.artifacts.bytes);
-  const names = useWindow(useShallow((s) => Object.fromEntries([...s.profiles, ...s.closedProfiles].map((p) => [p.id, p.name]))));
-  const stageTerminals = useWindow(useShallow((s) => Object.fromEntries(s.stageTerminals.map((a) => [a.id, a.name]))));
-  // The list comes when the task is shown and whenever the human or agent keeps one (window.ts, sendArtifacts).
-  useEffect(() => { if (key) void kulisa.invoke('task:artifact:refresh', key); }, [key]);
+  const artifacts = useTask((s) => s.artifacts.list);
+  const bytes = useTask((s) => s.artifacts.bytes);
+  const names = useTask(useShallow((s) => Object.fromEntries([...s.profiles, ...s.closedProfiles].map((p) => [p.id, p.name]))));
+  const stageTerminals = useTask(useShallow((s) => Object.fromEntries(s.stageTerminals.map((a) => [a.id, a.name]))));
   if (!task) return null;
   const open = (folder: string) => kulisa.invoke('task:open-folder', { key: task.key, folder });
   const remove = (folder: string) => kulisa.invoke('task:repo:remove', { key: task.key, repo: folder });
@@ -92,11 +92,11 @@ function TaskResources({ taskKey: key, section }: { taskKey: string; section: No
   const lines = (name: string, line: string) => <span className="flex min-w-0 flex-1 flex-col text-start">
     <span className="truncate">{name}</span><span className="truncate text-xs text-muted-foreground">{line}</span>
   </span>;
-  return <SidebarProvider className="h-full min-h-0">
-      <Sidebar collapsible="none" className="h-full w-full">
+  return <SidebarProvider data-resources className="h-full min-h-0">
+      <Sidebar collapsible="none" className="w-full">
         {section === 'terminals' && <DevelopmentTerminalList />}
-        {section === 'diff' && <TaskDiffTree task={key} roots={task.resources} />}
-        {section === 'project' && <div className="h-full overflow-auto"><SidebarContent>
+        {section === 'diff' && <TaskDiffTree roots={task.resources} />}
+        {section === 'project' && <SidebarContent>
           <SidebarGroup><SidebarGroupContent>
             <SidebarMenu aria-label="Folders">
               {task.resources.map((r) => <SidebarMenuItem key={r.folder}><RightClickMenu items={() => [{ label: 'Open Folder', run: () => open(r.folder) }, ...(r.removable ? [{ label: 'Remove Repository', run: () => remove(r.folder) }] : [])]}><Collapsible defaultOpen>
@@ -107,12 +107,12 @@ function TaskResources({ taskKey: key, section }: { taskKey: string; section: No
                 </Button></CollapsibleTrigger></div>
                 {r.removable && <SidebarMenuAction showOnHover aria-label="Remove Repository" title="Remove Repository" onClick={() => void remove(r.folder)}>
                   <Trash2Icon /></SidebarMenuAction>}
-                <CollapsibleContent><div className="ms-4"><ProjectDirectory actions={explorer} folder={r.folder} /></div></CollapsibleContent>
+                <CollapsibleContent><div className="ms-4"><ProjectDirectory actions={explorer} folder={r.folder} active={active} /></div></CollapsibleContent>
               </Collapsible></RightClickMenu></SidebarMenuItem>)}
             </SidebarMenu>
           </SidebarGroupContent></SidebarGroup>
-          </SidebarContent></div>}
-          {section === 'artifacts' && <div className="h-full overflow-auto"><SidebarContent>
+          </SidebarContent>}
+          {section === 'artifacts' && <SidebarContent>
           {artifacts.length === 0 && <p className="p-3 text-sm text-muted-foreground">No artifacts yet</p>}
           {artifacts.length > 0 && <SidebarGroup>
             <SidebarGroupLabel>Artifacts ·&nbsp;<span data-testid="artifacts-size">{sizeText(bytes)}</span></SidebarGroupLabel>
@@ -137,7 +137,7 @@ function TaskResources({ taskKey: key, section }: { taskKey: string; section: No
               </RightClickMenu>
             </SidebarGroupContent>
           </SidebarGroup>}
-        </SidebarContent></div>}
+        </SidebarContent>}
       </Sidebar>
     </SidebarProvider>;
 }

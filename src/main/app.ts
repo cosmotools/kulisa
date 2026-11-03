@@ -229,7 +229,7 @@ function start(options: Options = {}) {
   };
   // And its tasks (the sidebar lists them: components/Sidebar.tsx): those open, as made, then the closed ones, the one closed last first.
   const tasksOf = (p: ProjectEntry) => {
-    const list = store.tasksOf(p).list.map((e) => ({ id: e.id, name: e.name, branch: branchOf(e), closed: e.closedAt !== undefined, closedAt: e.closedAt, merged: !!e.merged }));
+    const list = store.tasksOf(p).list.map((e) => ({ id: e.id, name: e.name, branch: branchOf(e), closed: e.closedAt !== undefined, closedAt: e.closedAt }));
     return [...list.filter((t) => !t.closed), ...list.filter((t) => t.closed).sort((a, b) => (b.closedAt || 0) - (a.closedAt || 0))];
   };
   shell.projects = () => store.projects().map((p) => {

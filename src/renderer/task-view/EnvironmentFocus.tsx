@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import type { IDockviewPanelHeaderProps } from 'dockview-react';
 import { Maximize2Icon, Minimize2Icon } from 'lucide-react';
 import { Button } from '@ui';
-import type { MenuRow } from '../../lib/menu';
+import type { MenuRow } from '../lib/menu';
 
 export function environmentFocusItem(api: IDockviewPanelHeaderProps['api']): MenuRow {
   const maximized = api.isMaximized();

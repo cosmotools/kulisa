@@ -13,7 +13,7 @@ A project configures repositories/folders, agents and profiles, with ordered def
   closes. + creates a task, asking which project if several. Window pages are `task`, `sidebar` or `welcome`
   (`lib/store.ts`), following main-process state without a router.
 - **Task menu**: profiles/Manage Profiles, repository add/remove, Rename, Show Folder, move-window actions, Close,
-  Delete; project submenu: New Task, Move All, Project Settings, Show Data Folder, Delete Merged Tasks and Close All.
+  Delete; project submenu: New Task, Move All, Project Settings, Show Data Folder and Close All.
   Task tabs show no profile count. Project names change in Settings.
 - **Settings** edits project Name/Local addresses and Folders/Agents/Profiles sections. Fields save on Enter/blur,
   including page/window exit. Sections add items in place, Esc cancels input; rows share menu/right-click actions.
@@ -53,7 +53,7 @@ failed optional agent/profile additions are logged without discarding the projec
   ([GitHub](../src/github/README.md#a-repositorys-account)).
 
 **The sidebar** shows projects last-worked first, expandable task lists, New Task + and project/task menus.
-Open tasks precede closed tasks; closed tasks sort by closing time and show branch/time/merged state. Click/Enter/Space
+Open tasks precede closed tasks; closed tasks sort by closing time and show branch/time. Click/Enter/Space
 shows or reopens; trash/Delete asks before deleting. New Project is at the foot.
 
 **The empty window** docks the sidebar. With no projects, **the welcome** shows three skippable slides then wizard
@@ -62,7 +62,7 @@ wizard content only while shown; first-start focus goes to Next. Links/version r
 
 **Windows/startup**:
 
-- Switching keeps the old laid-out grid/pages until the new grid is ready, then swaps in one frame (`replaceGrid`).
+- TaskView retention, startup layout and native-page handoff: [window.md](window.md#the-grid).
 - Move task(s) or drag tabs within/between windows without restarting pages/agents; preserve terminal buffers/size.
   Dropping outside opens a window at release. Moving a sole task elsewhere closes its old window.
 - Closing a window asks once about its tasks; last-window quit asks only for working agents. On macOS last-window ×
@@ -99,15 +99,14 @@ Example: `~/IdeaProjects/myshop@task-k3x9q2/` can remain on disk while its branc
 
 ### The Resources panel
 
-Resources sits left of the development terminal by default. Its icon bar selects Agents, Project, Diff or Artifacts;
-clicking the selected icon collapses content, another reopens at saved size. Dictation sits above its docking grip.
-Sections share width. Task layout saves section, collapse state and expanded dimensions.
+Resources is a Dockview edge group fixed left of the development terminal. Vertical icon tabs select Agents,
+Project, Diff or Artifacts; clicking the selected tab collapses content, another reopens at saved width. Dictation
+sits below the tabs. Task layout saves selected tab, collapse state and shared expanded width.
 
-- Expanded minimum: 300 × 204 CSS px. Standalone collapse: fixed 40 px wide at a side, or 204 px tall above/below,
-  without gap/divider. Shared tab groups stay resizable with nonclosable Resources tab. Side docking puts the bar
-  at the outer edge; other placements use its left edge. Grip moves the whole panel.
+- Expanded minimum width is 300 CSS px; collapsed width is 40 px. Development minimum height is 204 px to keep
+  controls reachable. Empty development terminals: [window.md](window.md#the-terminal).
 - **Agents**: named agent/shell rows with state/account/command. Icon returns to the last development terminal;
-  row selection shows/focuses it even in shared tabs. + uses the shared launch menu; × asks for agents, closes shells
+  row selection shows/focuses it. + uses the shared launch menu; × asks for agents, closes shells
   immediately. Agent menu: Change agent, New Conversation, Close.
 - **Project**: initial section; [Project Explorer](../src/project-explorer/README.md) browses task resource roots.
   Core supplies roots, protected desktop opening and repository actions. Root click expands, double-click opens in
@@ -126,13 +125,10 @@ these fields. `maintree` is human-owned and never deleted; task-created `worktre
 #### Diff
 
 [Diff](../src/diff/README.md) reviews task resources through `Task.diff`, `diffTargets`, `review`, `diffContents`,
-with starting commits and ownership checks. While open, window state owns selection. Leaving, collapsing Resources
-or switching tasks releases queries/models/worker/navigation. Reopen at first repository/default comparison,
-empty filter/document start; saved Resources section can reopen a fresh review. Returning to a terminal preserves Stage.
-
-Read Git afresh. Show search/empty From/To immediately; hold one progress bar at least 500 ms, revealing branch names,
-rows and first rendered review together. Stage terminal lifecycle: [window.md](window.md#stage-terminals);
-browser lifecycle: `ProjectProfiles`.
+with starting commits and ownership checks. Its TaskView owns the selection/session: task switching preserves the
+comparison, filter, document and scroll position; leaving Diff, collapsing Resources or closing the task releases
+the session and navigation. Reopening or restarting starts at the first repository/default comparison with an empty
+filter and document start. Returning to a terminal preserves Stage. Loading and polling: [Diff](../src/diff/README.md).
 
 ## What the human does
 
@@ -141,9 +137,6 @@ browser lifecycle: `ProjectProfiles`.
 - Switch by tab; other tasks keep running. ×/middle-click/Close stops agents/pages and preserves code, branches,
   profile copies and conversations for reopening; ask only for working agents.
 - Delete asks what work/sign-ins/history disappear. Human project folders remain untouched.
-- Closed tasks show merged when every copy has task commits included in fetched remote default history and no
-  uncommitted changes. Compare patch IDs for squash/rebase equivalents, including whole-branch squash; later edits
-  prevent merged status. Fetch asynchronously on project display/task close. Delete Merged Tasks asks once.
 - Agents + opens another conversation or shell. Change agent hands over work as described below.
 
 ## Actions: the human's and the agent's
@@ -333,7 +326,7 @@ Crashpad/                         Electron's crash dumps (crashReporter, no serv
                                   after a crash; Crashpad prunes them itself (90 days, 128 MB)
 deleted-folders.json              folders to remove at the next start (a session keeps its files open)
 projects/<project id>/            a project's data, by its id (projects.json), gone with the project
-  tasks.json                      { list: [{ id, name, named, resources, closedAt, merged }] }; name "New
+  tasks.json                      { list: [{ id, name, named, resources, closedAt }] }; name "New
                                   Task" and named unset until it is named; resources what it has, the first where it
                                   works: { kind: "maintree", folder } (the project's folder it opened in) until its own
                                   { kind: "worktree", repo, worktree, branch, base, folder } takes its place, then the
@@ -343,7 +336,7 @@ projects/<project id>/            a project's data, by its id (projects.json), g
     task.json                     versioned task state, owned by TaskStore: agents (initial choice and conversation
                                   metadata with stable IDs), development (open tabs and active tab), stage (profile
                                   settings, CLI launch setup, next terminal ID, view and Dockview layout), workspace
-                                  (development layout, Stage position and share). Terminal conversation references
+                                  (development layout, Stage position and native outer split). Terminal conversation references
                                   use stable IDs; history numbers follow conversation order. Live processes and screen
                                   buffers stay in memory. File and owned environment data go with the task/project.
     artifacts/                    what the human or agent keep of its environments: a snapshot
@@ -431,7 +424,7 @@ accounts, let go of (Settings → Agents deletes one: "Choosing the agent", Acco
   without writing to the log (`askToQuit`): Windows has no signal for it. A console's Ctrl+C reaches `npm start`'s
   Node there, not Electron (a GUI program, without a console), and a signal sent to a child ends it at once, so
   `scripts/electron.ts` stops Kulisa by such a start.
-- Each window shows one of its tasks; the others, of every window, keep running, their pages hidden.
+- Each window shows one task; other tasks' agents/pages keep running. Renderer retention: [window.md](window.md#the-grid).
 - A task loads (its profiles start, its agents start) the first time it is shown, also after a restart.
 - A task is known by its key, `<project id>/<task id>` (the window, the terminals); a task's id is six random letters
   and digits, as a project's and a profile's (`store.ts`, `newId`). Each has its own MCP URL,
@@ -478,7 +471,7 @@ rm -rf ~/.config/Kulisa/projects/<project id>   # all its tasks with their profi
 - `src/main/ipc/`: thin window handles. Resources/File Explorer/Diff use task-scoped actions and resource roots.
 - Renderer task navigation, welcome and wizards live in `components/`; project/account configuration in
   `components/settings/`; non-UI coordination in `lib/`. `favicons.ts`/`lib/project-color.ts` derive project identity.
-- `src/shared/names.ts`: labels, names and branch slugs. Layout/restore belongs to renderer grid code.
+- `src/shared/names.ts`: labels, names and branch slugs. Renderer `task-view/` owns retained screens, grids and activation.
 - Coverage: task/project/account/repository/window e2e files; store/task-document/accounts/worktrees unit tests.
 
 Task state is written atomically after validation; each section update reads the current document and preserves

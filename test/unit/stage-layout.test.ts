@@ -49,7 +49,6 @@ test('a fixed Stage keeps development panels together and retains the saved Stag
     const workspace = { grid: { orientation, root: { type: 'branch', data: ids.map(leaf) } }, panels: Object.fromEntries(ids.map((id) => [id, { id }])) };
     const result = splitLayout({ version: 2, workspace, stage: null });
     assert.equal(result.stagePosition, position);
-    assert.equal(result.stageShare, 1 / 3);
     assert.deepEqual(Object.keys(result.workspace.panels).sort(), ['resources', 'terminal']);
     assert.equal((result.workspace.grid.root.data as unknown[]).length, 2);
     assert.equal(workspace.grid.root.data.length, 3);

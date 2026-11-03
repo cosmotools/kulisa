@@ -1,5 +1,5 @@
 // A profile's pane, as a Chrome window, and its header in the grid (docs/profiles.md; docs/window.md, The grid). The
-// page itself is a native view the main process lays over the content box (lib/grid.ts tells it where); while a panel is
+// page itself is a native view the main process lays over the content box (pages.ts tells it where); while a panel is
 // dragged or a menu is open, a picture of the page stands in for it. The pages draw above the window's HTML, so the
 // pane's and its header's hints are the OS's (title): a tooltip of the window's would be covered.
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent } from 'react';
@@ -7,29 +7,29 @@ import type { IDockviewPanelHeaderProps, IDockviewPanelProps } from 'dockview-re
 import { ArrowLeftIcon, ArrowRightIcon, CircleDotIcon, CircleIcon, EllipsisIcon, EllipsisVerticalIcon, GlobeIcon, LockIcon, PlusIcon, RotateCwIcon, SquareMousePointerIcon,
   XIcon } from 'lucide-react';
 import { Avatar, AvatarImage, Button, Card, CardContent, CardFooter, CardHeader, CardTitle, Input, Toggle } from '@ui';
-import { ButtonMenu, RightClickMenu } from '../Menus';
-import { BrowserTab, TabStrip } from '../BrowserTabs';
-import { act, screenshot, store, togglePick, useWindow } from '../../lib/store';
-import { avatarSrc, keyText, withKeys } from '../../lib/common';
-import type { MenuItem } from '../../lib/menu';
-import { panes, scheduleLayout } from '../../lib/grid';
-import { grow, useStrip } from '../../lib/strip';
-import { openSettings } from '../../lib/settings';
-import { deleteProfile } from '../../lib/profiles';
+import { ButtonMenu, RightClickMenu } from '../components/Menus';
+import { BrowserTab, TabStrip } from '../components/BrowserTabs';
+import { screenshot, togglePick, useTask, useTaskStore, useTaskActions, useTaskActive, useTaskGrid } from './state';
+import { avatarSrc, keyText, withKeys } from '../lib/common';
+import type { MenuItem } from '../lib/menu';
+import { grow, useStrip } from '../lib/strip';
+import { openSettings } from '../lib/settings';
 import { EnvironmentFocus, environmentFocusItem } from './EnvironmentFocus';
 import './ProfilePane.css';
 
 const profileOf = (panel: string) => panel.slice('profile:'.length);
-const useProfile = (id: string) => useWindow((s) => s.profiles.find((p) => p.id === id));
-// Its active tab as the store has it now, for what acts (a handler, not a render).
-const activeTab = (id: string) => { const p = store.getState().profiles.find((x) => x.id === id); return p?.tabs.find((t) => t.id === p.active); };
+const useProfile = (id: string) => useTask((s) => s.profiles.find((p) => p.id === id));
 const fullUrl = (u = '') => (u === 'about:blank' ? '' : u);
 // Nothing to pick or take on an empty tab.
 const blank = (u?: string) => !fullUrl(u);
 
 export function ProfilePane({ api }: IDockviewPanelProps) {
+  const owner = useTaskStore(), act = useTaskActions(), grid = useTaskGrid();
+  // Its active tab as the store has it now, for what acts (a handler, not a render).
+  const activeTab = useCallback((id: string) => { const p = owner.getState().profiles.find((x) => x.id === id); return p?.tabs.find((t) => t.id === p.active); }, [owner]);
+
   const id = profileOf(api.id), profile = useProfile(id);
-  const picking = useWindow((s) => !!s.picking[id]), picture = useWindow((s) => s.pictures[id]);
+  const picking = useTask((s) => !!s.picking[id]), picture = useTask((s) => s.pictures[id]);
   const [content, setContent] = useState<HTMLDivElement | null>(null);
   const addr = useRef<HTMLInputElement>(null), strip = useRef<HTMLDivElement>(null);
   const nav = useRef<HTMLSpanElement>(null), reload = useRef<HTMLSpanElement>(null);
@@ -41,19 +41,20 @@ export function ProfilePane({ api }: IDockviewPanelProps) {
   // Bind the draft to its tab so switching tabs cannot navigate another tab with it. Requests for an inactive tab
   // wait for its activation, including a human's new tab whose state can arrive before or after the IPC reply.
   const [editing, setEditing] = useState<{ tab: string; value: string } | null>(null);
+  const taskActive = useTaskActive(!!editing);
   const editAddress = useCallback((target = activeTab(id)?.id) => {
-    const p = store.getState().profiles.find((x) => x.id === id), t = p?.tabs.find((x) => x.id === target);
+    const p = owner.getState().profiles.find((x) => x.id === id), t = p?.tabs.find((x) => x.id === target);
     if (!t) return;
     if (p?.active !== t.id) { typeInto.current = t.id; void act('tab:activate', { profile: id, tab: t.id }); return; }
     selectAll.current = true;
     setEditing({ tab: t.id, value: fullUrl(t.url) });
-  }, [id]);
+  }, [id, owner, act, activeTab]);
   useEffect(() => {
     if (typeInto.current && typeInto.current === active?.id) { typeInto.current = null; editAddress(); }
     else setEditing((draft) => draft?.tab === activeTab(id)?.id ? draft : null);
-  }, [active?.id, editAddress, id]);
+  }, [active?.id, editAddress, id, activeTab]);
   useLayoutEffect(() => {
-    if (selectAll.current && editing?.tab === active?.id) { selectAll.current = false; addr.current?.focus(); addr.current?.select(); }
+    if (taskActive && selectAll.current && editing?.tab === active?.id) { selectAll.current = false; addr.current?.focus(); addr.current?.select(); }
   });
   const go = (e: KeyboardEvent) => {
     if (!editing || e.nativeEvent.isComposing || (e.key !== 'Enter' && e.key !== 'Escape')) return;
@@ -77,22 +78,22 @@ export function ProfilePane({ api }: IDockviewPanelProps) {
       },
       // As a click on Pick: off on an empty tab; again cancels.
       pick() {
-        if (store.getState().picking[id] || !blank(activeTab(id)?.url)) void togglePick(id);
+        if (owner.getState().picking[id] || !blank(activeTab(id)?.url)) void togglePick(id, owner);
       },
     };
-    panes.set(id, handle);
-    const observer = new ResizeObserver(scheduleLayout);
+    grid.panes.set(id, handle);
+    const observer = new ResizeObserver(grid.reportPages);
     observer.observe(content);
-    scheduleLayout();
-    return () => { observer.disconnect(); if (panes.get(id) === handle) panes.delete(id); };
-  }, [id, content, editAddress]);
+    grid.reportPages();
+    return () => { observer.disconnect(); if (grid.panes.get(id) === handle) grid.panes.delete(id); };
+  }, [id, content, editAddress, act, activeTab, owner, grid]);
 
   // The tab strip: a tab is chosen on the press, as in Chrome (not on its ×), or by Enter or Space. A tab opened grows
   // in, and the active tab is kept in sight (lib/strip.ts). Tabs are kept by id: an element stays as its tab does.
   const activate = (t: string) => { if (t !== tab()) void act('tab:activate', { profile: id, tab: t }); };
   // A tab's right-click menu (the strip's: for the tab it was on).
   function tabMenu(e: globalThis.MouseEvent): MenuItem[] | null {
-    const t = (e.target as Element).closest<HTMLElement>('[data-tab]')?.dataset.tab, p = store.getState().profiles.find((x) => x.id === id);
+    const t = (e.target as Element).closest<HTMLElement>('[data-tab]')?.dataset.tab, p = owner.getState().profiles.find((x) => x.id === id);
     if (!t || !p) return null;
     const url = p.tabs.find((x) => x.id === t)?.url;
     return [
@@ -131,15 +132,15 @@ export function ProfilePane({ api }: IDockviewPanelProps) {
     ];
     return [...given, ...given.length ? ['-' as const] : [],
       { heading: 'Screenshot' },
-      { label: 'Element', keys: keyText('screenshot'), enabled: !off, run: () => screenshot(id, 'element') },
-      { label: 'Visible Part', enabled: !off, run: () => screenshot(id, 'visible') },
-      { label: 'Full Page', enabled: !off, run: () => screenshot(id, 'full') },
+      { label: 'Element', keys: keyText('screenshot'), enabled: !off, run: () => screenshot(id, 'element', owner) },
+      { label: 'Visible Part', enabled: !off, run: () => screenshot(id, 'visible', owner) },
+      { label: 'Full Page', enabled: !off, run: () => screenshot(id, 'full', owner) },
       '-',
       { label: 'DevTools', keys: keyText('devtools.tab'), run: () => act('tab:devtools', { profile: id, tab: tab() }) }];
   };
 
   // @container: the pane's width decides which of the bar's buttons it keeps.
-  return <div className="@container flex h-full min-w-0 flex-col bg-card" role="region" aria-label={profile.name} data-profile={id}>
+  return <div className="@container flex h-full flex-col bg-card" role="region" aria-label={profile.name} data-profile={id}>
     {/* Navigation gives up room to tabs in narrow panes; Pick and ⋮ stay reachable. */}
     <div role="group" aria-label="Page" className="flex h-8 flex-none items-center gap-1 px-2">
       {/* one: Back without Forward would be half a pair */}
@@ -154,7 +155,7 @@ export function ProfilePane({ api }: IDockviewPanelProps) {
       <span ref={reload} className="hidden @3xs:flex">
         <Button variant="ghost" size="icon-sm" title={withKeys('Reload', 'tab.reload')} aria-label="Reload" onClick={run('tab:reload')}><RotateCwIcon /></Button>
       </span>
-      <nav aria-label="Tabs" className={editing?.tab === active?.id ? 'hidden' : 'flex min-w-0 flex-1 items-center gap-1'}>
+      <nav aria-label="Tabs" className={editing && editing.tab === active?.id ? 'hidden' : 'flex min-w-0 flex-1 items-center gap-1'}>
         <RightClickMenu items={tabMenu} className="flex min-w-0">
           <TabStrip stripRef={strip} label="Open tabs" value={profile.active ?? ''} onChoose={activate}>
             {/* their widths: docs/ui.md, Tabs */}
@@ -167,7 +168,7 @@ export function ProfilePane({ api }: IDockviewPanelProps) {
             </BrowserTab>)}
           </TabStrip>
         </RightClickMenu>
-        <Button variant="ghost" size="icon-sm" title={withKeys('New tab', 'tab.new')} aria-label="New tab" onClick={() => void panes.get(id)?.newTab()}>
+        <Button variant="ghost" size="icon-sm" hidden={!profile.tabs.length} title={withKeys('New tab', 'tab.new')} aria-label="New tab" onClick={() => void grid.panes.get(id)?.newTab()}>
           <PlusIcon />
         </Button>
       </nav>
@@ -180,7 +181,7 @@ export function ProfilePane({ api }: IDockviewPanelProps) {
         onClick={() => void act('tab:zoom', { profile: id, tab: tab(), dir: 0 })}>{Math.round(active.zoom * 100)}%</Button>}
       {/* Pick needs a page to point at: off on an empty tab, unless picking already. */}
       <Toggle size="sm" pressed={picking} aria-label="Pick an element" title={withKeys('Pick an element on the page to mention it to the agent (again or Esc: cancel)', 'pick')}
-        disabled={!picking && blank(active?.url)} onPressedChange={() => void togglePick(id)}><SquareMousePointerIcon /></Toggle>
+        disabled={!picking && blank(active?.url)} onPressedChange={() => void togglePick(id, owner)}><SquareMousePointerIcon /></Toggle>
       <ButtonMenu items={more} end>
         <Button variant="ghost" size="icon-sm" title="More: Screenshot, DevTools" aria-label="More"><EllipsisVerticalIcon /></Button>
       </ButtonMenu>
@@ -211,29 +212,28 @@ function PageDialog({ from, message, confirm, answer }: { from: string; message:
       <CardHeader><CardTitle id={title}>{from}</CardTitle></CardHeader>
       <CardContent><p id={text} data-selectable className="whitespace-pre-wrap wrap-anywhere">{message}</p></CardContent>
       <CardFooter className="justify-end">
-        <div className="flex gap-2">
-          {confirm && <Button variant="outline" onClick={() => answer(false)}>Cancel</Button>}
-          <Button autoFocus onClick={() => answer(true)}>OK</Button>
-        </div>
+        {confirm && <Button variant="outline" onClick={() => answer(false)}>Cancel</Button>}
+        <Button autoFocus className="ms-2" onClick={() => answer(true)}>OK</Button>
       </CardFooter>
     </Card>
   </div>;
 }
 
 export function ProfileHeader({ api, containerApi }: IDockviewPanelHeaderProps) {
-  const activity = useWindow((s) => s.stageActivity === api.id);
+  const act = useTaskActions(), grid = useTaskGrid();
+  const activity = useTask((s) => s.stageActivity === api.id);
   const id = profileOf(api.id), profile = useProfile(id);
-  const caption = useWindow((s) => s.captions[id] || '');
+  const caption = useTask((s) => s.captions[id] || '');
   const status = profile?.signinMode ? 'Sign-in page · agent paused' : caption || (activity ? 'Agent active' : 'Idle');
   const StatusIcon = profile?.signinMode ? LockIcon : activity || caption ? CircleDotIcon : CircleIcon;
   const menu = (): MenuItem[] => [
-    { label: 'New tab', keys: keyText('tab.new'), run: () => panes.get(id)?.newTab() },
+    { label: 'New tab', keys: keyText('tab.new'), run: () => grid.panes.get(id)?.newTab() },
     environmentFocusItem(api),
     { label: 'About this profile…', run: () => openSettings('profiles', id) },
     { label: 'Sign In to Master…', run: () => act('profile:master', { profile: id }) },
     { label: 'Close profile', run: () => act('profile:close', { profile: id }) },
     '-',
-    { label: 'Remove from Project…', run: () => deleteProfile(id) },
+    { label: 'Remove from Project…', run: () => act('profile:delete', { profile: id }) },
   ];
   // Size containment needs an intrinsic width for Dockview's stacked tabs to keep the name reachable.
   return <RightClickMenu items={() => (profile ? menu() : null)} className="h-full min-w-0">

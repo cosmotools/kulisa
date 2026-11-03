@@ -38,9 +38,10 @@ sign-in and Stage places own a visible `View`. Use WebGL with DOM fallback on un
 renderers exhaust Chromium's 16-context limit and retain unnecessary GPU memory.
 
 Switching resets/serializes the selected buffer in one write, restores scroll, loses selection and queues pending
-output. Visible output updates View and buffer at the same size. Fit in `requestAnimationFrame` after layout and
-optional `View.isLaidOut`; apply resize after that frame so clearing WebGL does not expose a blank canvas. Hidden
-pages fit immediately because Windows occlusion can suspend frames indefinitely.
+output. The View stays transparent through restoration and reveals on `onRender` after buffer/pane sizes agree;
+opacity preserves measurement and focus. Visible output updates View and buffer at the same size.
+Fit from host DOM dimensions, coalesced in `requestAnimationFrame`; apply resize after that frame so clearing WebGL
+does not expose a blank canvas. Hidden pages fit immediately because Windows occlusion can suspend frames indefinitely.
 
 Serialization omits cursor visibility and mouse encodings. Track `?25`, `?1006`, `?1015`, `?1016` through parser hooks,
 restore every value, and disable encodings before enabling the chosen one. Window moves use the same size-preserving

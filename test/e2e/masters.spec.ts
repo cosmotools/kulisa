@@ -17,7 +17,7 @@ async function closeMaster(core: Core) {
 
 test("Sign In to Master… opens its master in a window of its own, nothing automated on it; a task's copy made before keeps its own sign-in to a local app", async ({ core, ui, call, files }) => {
   const { sam } = await begin(core, ui, files);
-  await rightClick(ui, ui.locator(`[data-panel="profile:${sam}"]`).getByTestId('profile-name'));
+  await rightClick(ui, ui.locator(`[data-task-view][data-active] [data-panel="profile:${sam}"]`).getByTestId('profile-name'));
   await choose(ui, 'Sign In to Master…');
   await oneMaster(core);
   const m = await core(async (k) => {
@@ -41,7 +41,7 @@ test("Sign In to Master… opens its master in a window of its own, nothing auto
 
 test("About this profile… shows Settings at it, over the task's window (its pages hidden under it, back after); asked again, the other profile's; its Sign In… opens the same master window, once", async ({ core, ui, sui, files }) => {
   const { sam, elon } = await begin(core, ui, files);
-  await rightClick(ui, ui.locator(`[data-panel="profile:${sam}"]`).getByTestId('profile-name'));
+  await rightClick(ui, ui.locator(`[data-task-view][data-active] [data-panel="profile:${sam}"]`).getByTestId('profile-name'));
   await choose(ui, 'About this profile…');
   const s = await sui();
   const name = s.getByRole('textbox', { name: 'Name', exact: true });

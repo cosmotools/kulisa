@@ -1,11 +1,11 @@
-// Tasks deleted: Delete Task…, merged tasks, from the sidebar (docs/tasks.md).
+// Tasks deleted through Delete Task… and the sidebar (docs/tasks.md).
 import fs from 'fs';
 import path from 'path';
 import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
 import type { Core, Call } from './fixtures.ts';
 import type { Files } from './data.ts';
-import { SITE, WIN, choose, rightClick, fromSidebar, sidebar, taskRow, rowButton, invoke, notLoading, answer, projectMenu, removed } from './helpers.ts';
+import { SITE, WIN, choose, rightClick, fromSidebar, sidebar, taskRow, rowButton, invoke, notLoading, answer, removed } from './helpers.ts';
 import { git, rand, hasDirenv, isNth, nthShown, taskTab, taskTabs, reportSession, newTask, openFolder, begin } from './tasks-helpers.ts';
 
 // A repository with a remote, as a clone of one is, opened as a project (its folder named name-<random>); its first
@@ -19,7 +19,7 @@ async function remoteProject(core: Core, ui: Page, files: Files, call: Call, nam
   await openFolder(core, ui, dir);
   const id = files.pid(path.basename(dir));
   const first = await core((k) => k.shell.task.key);
-  await call('task_worktree', { name: 'task-1' }, { task: first }); // its own worktree and branch to push and merge
+  await call('task_worktree', { name: 'task-1' }, { task: first });
   const second = await newTask(core, ui);
   await call('task_worktree', {}, { task: second }); // branch task-2
   return { id, dir, origin, first, second };
@@ -111,25 +111,6 @@ test('tasks: Delete Task… asks first, saying what goes and any work not in mai
   await expect.poll(() => !fs.existsSync(folder) && git(project, 'branch', '--list', 'spike') === '').toBe(true);
   expect(files.tasksOf(files.pid('project')).map((e) => e.name)).toEqual(['task-1', 'Feature-X']);
   await removed(remote);
-});
-
-test("tasks: a closed task whose PR is merged on the remote is marked in its group's menu; Delete Merged Tasks… deletes it after one question", async ({ core, ui, files, call }) => {
-  await begin(core, ui, files, { only: true, columns: true, featureX: call });
-  const { id, dir, origin, first, second } = await remoteProject(core, ui, files, call, 'merge');
-  const folders = await core((k, keys) => keys.map((key) => { const t = k.shell.taskByKey(key); return { folder: t.folder, branch: t.branch }; }), [first, second]);
-  // task-1's work pushed, and merged into main on the remote; task-2 has a commit not merged.
-  fs.writeFileSync(path.join(folders[0].folder, 'b.txt'), 'b'); git(folders[0].folder, 'add', '-A'); git(folders[0].folder, 'commit', '-qm', 'b');
-  git(folders[0].folder, 'push', '-q', 'origin', `${folders[0].branch}:main`);
-  fs.writeFileSync(path.join(folders[1].folder, 'c.txt'), 'c'); git(folders[1].folder, 'add', '-A'); git(folders[1].folder, 'commit', '-qm', 'c');
-  await taskTab(ui, first).getByRole('button', { name: 'Close' }).click();
-  await expect.poll(() => core((k, key) => { const t = k.shell.taskByKey(key); return t.entry.closedAt !== undefined && !!t.entry.merged; }, first), { timeout: 10000 }).toBe(true); // a fetch from the remote
-  await choose(ui, 'Delete Merged Tasks…', await projectMenu(ui));
-  expect((await answer(ui)).message).toBe('Delete the task task-1?');
-  await expect.poll(async () => !(await core((k, key) => k.shell.current.tasks.has(key.split('/')[1]), first)) && !fs.existsSync(folders[0].folder)).toBe(true);
-  expect(await core((k, key) => k.shell.current.tasks.has(key.split('/')[1]) && !k.shell.taskByKey(key).entry.merged, second), 'one not merged stays').toBe(true);
-  await invoke(ui, 'project:task:close-all', { id });
-  await expect.poll(() => core((k, p) => !k.shell.open.has(p), id)).toBe(true);
-  await dropProject(core, ui, id, [dir, origin]);
 });
 
 test("tasks: a closed task is deleted from its row, 🗑 or Delete, in the sidebar, its project loaded or not, after the question Delete Task… asks", async ({ core, ui, files, call }) => {

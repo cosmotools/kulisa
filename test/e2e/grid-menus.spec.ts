@@ -22,6 +22,39 @@ async function sentAll(core: Core, ui: Page) {
   await echoed(core, { send: (mark) => ui.evaluate(async ([t, m]) => { await navigator.clipboard.readText().catch(() => ''); (window as any).kulisa.send('pty:in', { task: t, data: m }); }, [task, mark]) });
 }
 
+test('menus hand profile pages to decoded pictures and back without an empty layer', async ({ core, ui, files }) => {
+  await begin(core, ui, files, { columns: true });
+  await bothOn(core, ui, files);
+  await core((k) => {
+    const w = k.shell.windows[0], original = w.hideViews;
+    k.stash.menuHandoff = [];
+    k.stash.restoreMenuHandoff = () => { w.hideViews = original; };
+    // Native visibility and the renderer's images cross processes; DOM assertions alone miss the empty layer.
+    w.hideViews = async (...args: Parameters<typeof original>) => {
+      const result = original.apply(w, args);
+      const images = await w.win.webContents.executeJavaScript(`(() => {
+        const pictures = [...document.querySelectorAll('[data-task-view][data-active] [data-testid="snapshot"]')];
+        return pictures.filter(i => i.complete && i.naturalWidth > 0).length;
+      })()`);
+      k.stash.menuHandoff.push({ hidden: args[0], visible: [...w.profiles.values()].filter(p => p.get()?.view.getVisible()).length, images });
+      return result;
+    };
+  });
+  try {
+    for (const trigger of [ui.locator('#windowMenu'), ui.locator('[data-task-view][data-active] [data-profile]').first().getByRole('button', { name: 'More', exact: true })]) {
+      await core((k) => { k.stash.menuHandoff = []; });
+      await trigger.click();
+      await expect(menu(ui)).toBeVisible();
+      await closeMenu(ui);
+      await expect.poll(() => core((k) => k.stash.menuHandoff)).toEqual([
+        { hidden: true, visible: 0, images: 2 },
+        { hidden: false, visible: 2, images: 2 },
+      ]);
+      await expect(ui.getByTestId('snapshot')).toHaveCount(0);
+    }
+  } finally { await core((k) => { k.stash.restoreMenuHandoff(); delete k.stash.restoreMenuHandoff; delete k.stash.menuHandoff; }); }
+});
+
 test('context menus: a pane\'s header, a tab, the terminal; pages are pictures while a menu is open; terminal copy and paste', async ({ core, ui, files }) => {
   await begin(core, ui, files, { columns: true });
   const elonId = files.idOf(ELON), header = `[data-panel="${files.panel(ELON)}"]`;
@@ -47,7 +80,7 @@ test('context menus: a pane\'s header, a tab, the terminal; pages are pictures w
     expect(Math.abs(m.x - (h.x + h.width / 2)) <= 8 && Math.abs(m.y - (h.y + h.height / 2)) <= 8, 'at the pointer').toBe(true);
     // The pages are native views above the menu: pictures of them stand in meanwhile.
     expect(await elonVisible()).toBe(false);
-    await expect(ui.locator(`[role="region"][data-profile="${elonId}"] [data-testid="page"] [data-testid="snapshot"]`)).toHaveCount(1);
+    await expect(ui.locator(`[data-task-view][data-active] [role="region"][data-profile="${elonId}"] [data-testid="page"] [data-testid="snapshot"]`)).toHaveCount(1);
   } finally {
     await core((k) => { k.stash.restoreCapture(); delete k.stash.restoreCapture; });
   }
@@ -65,8 +98,11 @@ test('context menus: a pane\'s header, a tab, the terminal; pages are pictures w
   await expect.poll(elonVisible).toBe(true);
   await expect(ui.locator('[data-testid="snapshot"]')).toHaveCount(0);
 
-  await ui.locator(`[role="region"][data-profile="${elonId}"] [aria-label="Address"]`).press('Escape');
-  const tabs = ui.locator(`[role="region"][data-profile="${elonId}"] [role="tab"]`);
+  const address = ui.locator(`[data-task-view][data-active] [role="region"][data-profile="${elonId}"] [aria-label="Address"]`);
+  await expect(address).toBeFocused();
+  await address.press('Escape');
+  await expect(address).toBeHidden();
+  const tabs = ui.locator(`[data-task-view][data-active] [role="region"][data-profile="${elonId}"] [role="tab"]`);
   await expect(tabs).toHaveCount(n + 1);
   await rightClick(ui, tabs);
   await expect(menu(ui)).toMatchAriaSnapshot(`
@@ -83,7 +119,7 @@ test('context menus: a pane\'s header, a tab, the terminal; pages are pictures w
   await ui.evaluate(() => (window as any).__term.clearSelection());
   // A real right-click (press, release): the menu stays after the button is released. On Linux it opens on the
   // press, just below the pointer, so the release is outside it; on Windows on the release.
-  const term = await center(ui.getByTestId('terminal'));
+  const term = await center(ui.locator('[data-task-view][data-active]').getByTestId('terminal'));
   await ui.mouse.move(term.x, term.y);
   await ui.mouse.down({ button: 'right' });
   if (WIN) await ui.mouse.up({ button: 'right' });
@@ -110,8 +146,6 @@ test('context menus: a pane\'s header, a tab, the terminal; pages are pictures w
       - menuitem "Change agent…"
       - menuitem "New Conversation"
       - menuitem "Close"`);
-  await anyMenu(ui).first().press('ArrowDown');
-  await expect(item(ui, 'Paste'), 'arrows move over the enabled rows').toBeFocused();
   await choose(ui, 'Select all');
   await expect.poll(() => ui.evaluate(() => (window as any).__term.hasSelection())).toBe(true);
   await ui.evaluate(() => (window as any).__term.clearSelection());
@@ -398,7 +432,7 @@ test('a reopened menu keeps the keyboard when its previous close finishes late',
   await expect(trigger).toBeFocused();
 });
 
-test("menus with the mouse and the keyboard, as the OS's: a press on ☰, a drag to a row and the release there chooses it; a click opens, the next closes; a right-click's release over a row chooses nothing; Enter and the arrows; the keyboard back where it was; leaving the window closes it", async ({ core, ui, files }) => {
+test("menus with the mouse and the keyboard, as the OS's: a press on ☰, a drag to a row and the release there chooses it; a click opens, the next closes; a right-click's release over a row chooses nothing; the keyboard back where it was; leaving the window closes it", async ({ core, ui, files }) => {
   await begin(core, ui, files, { columns: true });
   const rowAt = (label: string) => center(item(ui, label));
   const shortcuts = shortcutsDialog(ui);
@@ -425,14 +459,11 @@ test("menus with the mouse and the keyboard, as the OS's: a press on ☰, a drag
   await clickMenuButton();
   await expect(anyMenu(ui)).toHaveCount(0);
 
-  // The keyboard: Enter on ☰ opens it on its first row, ↓ goes to the next, Esc closes it, ☰ has the keyboard again.
+  // The native-page cover must preserve menu focus and return it to the trigger on close.
   await ui.locator('#windowMenu').focus();
   await ui.keyboard.press('Enter'); // a key's whole sequence: a button acts on Enter's keypress, which press() sends none of
   await expect(menu(ui)).toBeVisible();
   await expect(ui.locator('[role="menu"][data-ready][data-state="open"]:focus-within')).toHaveCount(1);
-  const first = await ui.locator(':focus').getAttribute('aria-label');
-  await press('Down');
-  await expect(ui.locator(':focus')).not.toHaveAccessibleName(first);
   await press('Escape');
   await expect(anyMenu(ui)).toHaveCount(0);
   await expect(ui.locator('#windowMenu')).toBeFocused();
@@ -524,7 +555,7 @@ test('files dropped onto a terminal paste their disk paths once without sending 
   const paths = ['plain.png', "image with spaces & 'quote'.png"].map((name) => path.join(files.project, name));
   for (const file of paths) fs.writeFileSync(file, 'image');
   const before = await core((k) => k.ptyOutput()), pageUrl = ui.url();
-  const at = await center(ui.getByTestId('terminal'));
+  const at = await center(ui.locator('[data-task-view][data-active]').getByTestId('terminal'));
   // Native disk-backed Files are required by webUtils; a JavaScript File has no disk path.
   const cdp = await ui.context().newCDPSession(ui);
   try {

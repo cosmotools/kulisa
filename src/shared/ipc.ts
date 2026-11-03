@@ -64,7 +64,6 @@ export interface Invoke extends TerminalInvoke, ThumbnailInvoke, GitHubInvoke, D
   'project:task:move-all': I<[{ id: string; to?: number | null; terminalContents: TerminalContents }]>;
   'project:show-data': I<[{ id: string }]>;
   'project:delete': I<[{ id: string }], Result<{ id: string }>>;
-  'project:task:delete-merged': I<[{ id: string }]>;
   'account:list': I<[], AccountsInfo>;
   'account:delete': I<[{ id: string }], Result<AccountsInfo, string | null>>;
   'account:signin:start': I<[{ id?: string | null; agent: string; key: string }], Result<SignedIn, string | null>>; // null: cancelled
@@ -107,7 +106,8 @@ export interface Invoke extends TerminalInvoke, ThumbnailInvoke, GitHubInvoke, D
   'profile:open': I<[OnProfile]>;
   'profile:delete': I<[OnProfile]>;
   'profile:master': I<[OnProfile]>;
-  'views:hidden': I<[hidden: boolean, opts?: { snapshots?: boolean }], Record<string, string> | undefined>;
+  'views:pictures': I<[], Record<string, string> | undefined>;
+  'views:hidden': I<[hidden: boolean, opts?: { focus?: boolean; task?: string }]>;
   'stage:arrange': I<[OnTask & { layout?: StageLayout; overflow?: boolean; position?: StagePosition }], Result>;
   'layout:load': I<[OnTask], unknown>; // the grid as the window saved it (layout:save)
   'selection:send': I<[OnTask & { source: EnvironmentSource; text: string }], Result>;
@@ -180,14 +180,13 @@ export interface Send extends TerminalSend, ThumbnailSend {
 // webContents.send (AppWindow.send) / the window's kulisa.on: what the main process tells a window.
 export interface Events extends TerminalEvents, ThumbnailEvents, DictationEvents {
   'project:state': ProjectsInfo;
-  'profile:state': Profile[];
-  'profile:closed': ClosedProfile[];
+  'profile:state': { task: string; list: Profile[] };
+  'profile:closed': { task: string; list: ClosedProfile[] };
   'development-terminal:state': DevelopmentTerminalsState;
   'stage-terminal:state': StageTerminalsState;
   'task:artifact:state': { task: string; list: Artifact[]; bytes: number }; // bytes: all of them (Task.artifactsUsage)
   'development-terminal:focus': void;
   'stage:arrange': { task: string; layout?: StageLayout; overflow?: boolean; position?: StagePosition };
-  'grid:closing': boolean; // another task's grid follows
   'task:closed': string[];
   'zoom:state': number;
   'theme:state': string;

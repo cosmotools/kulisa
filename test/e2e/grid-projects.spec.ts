@@ -16,7 +16,7 @@ async function makeOther(core: Core, ui: Page, files: Files) {
   if (hasOther(files)) return;
   await openFolder(core, ui, otherFolder(files));
   await core((k) => k.shell.task.createProfile('Sam.seller'));
-  await expect(ui.locator('[role="region"][data-profile]')).toHaveCount(1);
+  await expect(ui.locator('[data-task-view][data-active] [role="region"][data-profile]')).toHaveCount(1);
   await closeProject(ui, files, 'other');
   await expect.poll(() => core((k, a) => !k.shell.open.has(a.other) && k.shell.current?.id === a.project && k.settled(),
     { other: files.pid('other'), project: files.pid('project') })).toBe(true);
@@ -58,8 +58,8 @@ test('projects: another folder opens in a tab of its own, with its own profiles 
       agent: [...k.shell.open.get(project).tasks.values()][0].pty === g.firstPty, title: k.shell.win.getTitle(), resumed: k.shell.resumedSession };
   }, ids.project)).toEqual({ profiles: 0, kept: true, agent: true, title: 'New Task · other — Kulisa', resumed: null }); // the first project's pages keep running, hidden, and its agent; a new project has no conversation to resume
   await expect.poll(() => tabProjects(ui, files)).toEqual(['project', 'other *']);
-  await expect(ui.getByTestId('terminal')).toHaveCount(1);
-  await expect(ui.locator('[role="region"][data-profile]')).toHaveCount(0);
+  await expect(ui.locator('[data-task-view][data-active]').getByTestId('terminal')).toHaveCount(1);
+  await expect(ui.locator('[data-task-view][data-active] [role="region"][data-profile]')).toHaveCount(0);
   // A tab per task, its project's icon on it, its name in its tooltip.
   const tabs = ui.locator('#taskTabs [role="tab"]');
   await expect(tabs).toHaveText(['task-1', 'New Task']);

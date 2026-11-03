@@ -73,13 +73,15 @@ brings it back.
 ### Stage and development
 
 Your coding terminals and **Resources** occupy the development area; browser profiles and interactive terminals
-occupy **Stage**. Drag headers to arrange/stack panes within each area and dividers to resize.
+occupy **Stage**. Drag Stage headers to arrange/stack environments and thin dividers to resize panes.
+Resources stays beside the development terminal.
 
 **Stage** in the title bar offers:
 
 - **Left**, **Right** or **Above** the development area.
-- **Horizontal stack**, **Vertical stack** or **Tabs**.
-- **Allow overflow** for scrolling stacks at usable pane sizes, or fit all panes; Tabs keeps this setting hidden.
+- **Horizontal stack**, **Vertical stack** or **Tabs**; changing the view preserves pane contents and terminal search.
+- **Allow overflow** for scrolling stacks at usable pane sizes, or fit all panes. Stacked tabs share an area;
+  Tabs keeps this setting hidden.
 - **Open an environment** to add a profile or Stage terminal. An empty Stage stays hidden.
 - **Follow agent** to reveal its active environment and highlight activity. Your Stage input pauses following;
   choose **Follow agent (paused)** to resume. The preference survives restart; pauses are temporary.
@@ -90,7 +92,7 @@ returns its arrangement/overflow. The agent can arrange Stage too; each task rem
 ### Resources
 
 The **Resources bar** selects **Agents**, **Project**, **Diff** or **Artifacts**. Click the selected icon to collapse
-**Resources content**, leaving icons visible; select a section to restore its size.
+**Resources content**, leaving icons visible; select a section to restore its width.
 
 - **Agents** lists coding agents/development shells. Select a row to use its terminal.
 - **Project** starts selected in new tasks. Expand folders, double-click files or press Enter to open them in the
@@ -100,8 +102,9 @@ The **Resources bar** selects **Agents**, **Project**, **Diff** or **Artifacts**
   heading trash deletes all. Dragging/sending inserts a path without sending the message. Ask the agent to explain
   or clean up files. Above 100 MB, oldest task artifacts are removed automatically.
 
-Drag the Resources bar's bottom grip to dock beside/below the terminal or into shared tabs. Its bar follows the
-outer edge beside terminals. Expanded minimum is 300 × 204 pixels; each task keeps section and size.
+Resources stays fixed to the terminal's left. Drag its divider to change width. Expanded minimum width is 300 pixels;
+the development area stays at least 204 pixels tall, keeping controls reachable. Each task keeps its section,
+width and collapsed state.
 
 ### Reviewing changes
 
@@ -109,6 +112,8 @@ outer edge beside terminals. Expanded minimum is 300 × 204 pixels; each task ke
 focus shortcut returns to it; Stage keeps its layout. Every opening reads current files and resets comparison,
 filter and position. Search/empty comparison controls appear first, followed together by branch names, tree and
 review after a short progress display. Open reviews refresh as the agent edits.
+Switching tasks preserves the review's comparison, filter and position. Restarting restores its Resources section
+with a fresh review.
 
 **From** is the task branch/worktree including local edits. **To** defaults to the repository's default branch;
 choose the current branch to see uncommitted changes only. Selecting a target does not change checked-out code.
@@ -214,9 +219,13 @@ but does not revoke GitHub authorization; its confirmation links GitHub's revoca
 
 ## Tasks
 
+Switching tasks preserves each open task's arrangement, expanded Project folders and scroll positions. The agent
+terminal can briefly show its background while its text is prepared. After restarting, panels restore saved positions
+while contents load.
+
 - **Sidebar**: bar's first button or Ctrl+Shift+A; docked when no task is open. Projects sort by recent use, open
   tasks before closed ones. Click/Enter shows or reopens a task. Project + creates one; trash/Delete removes it
-  after confirmation. Project menus include settings, data folder, closing tasks and deleting merged tasks.
+  after confirmation. Project menus include settings, data folder and closing tasks.
 - **New task**: bar +, Ctrl+Shift+N for the current project, or project +. It starts the default agent; without a
   default, choose a launcher. Profiles start closed: open needed users from their buttons/task menu or let the agent.
 - **Code**: when coding begins, the agent creates the task's git worktree/branch beside your repository, preserving
@@ -235,7 +244,7 @@ but does not revoke GitHub authorization; its confirmation links GitHub's revoca
   you switch.
 - **Close** (×, middle-click, menu) stops agents/pages and preserves code, branch, profile copies and conversations.
   Reopening resumes agents. **Delete Task…** permanently removes these after explaining unmerged/unpushed work.
-  Human project folders remain. Closed merged tasks are marked and can be deleted together from project menus.
+  Human project folders remain.
 - A tab's project submenu includes New Task, Move All Tasks, Project Settings, Show Data Folder and Close All Tasks.
 
 ### Several windows
@@ -355,7 +364,7 @@ Maximize/Restore and **×** are at the right. Under the header, one row holds ba
   its conversation in the task's history; a shell closes at once, or with `exit`. Right-click an agent's row for
   **Change agent…**, **New Conversation**, and **Close**. Clicking the selected Agents icon closes Resources content,
   as Project and Artifacts do; the terminal keeps running.
-- Close the last development terminal and the panel folds to a thin strip with **+** in its middle, which opens one again (Ctrl+`
+- Close the last development terminal and its panel keeps its size, with **+** in the middle to open one again (Ctrl+`
   opens the task's agent). With no testing environment open either, big buttons in the middle of the window do what **+** does:
   one for each of the project's agents, then **Terminal**. Tab moves between them and Enter opens one. Under them, a
   button for each of the project's profiles opens it.

@@ -30,7 +30,7 @@ test("+ opens any of the project's accounts, a new conversation in a tab of its 
   await showResources(ui, 'Agents');
   const tabs = () => terminalRows(ui);
   // A terminal's tab's state, and the task's tab's.
-  const tabIs = (id: number, state: string) => expect(ui.locator(`#resources [data-terminal="${id}"] [data-state]`)).toHaveAttribute('data-state', state);
+  const tabIs = (id: number, state: string) => expect(ui.locator(`[data-task-view][data-active] [data-resources] [data-terminal="${id}"] [data-state]`)).toHaveAttribute('data-state', state);
   const taskIs = (state: string) => expect(ui.locator(`#taskTabs [data-task="${key}"] [data-state]`)).toHaveAttribute('data-state', state);
   const conversations = () => files.json(files.pfile('task.json', taskId)).agents.conversations;
   type Term = { id: number; agent: string | undefined; pty: boolean };
@@ -63,7 +63,7 @@ test("+ opens any of the project's accounts, a new conversation in a tab of its 
   expect(JSON.parse(fs.readFileSync(path.join(a.dir, '.claude.json'), 'utf8')).projects[copy]?.hasTrustDialogAccepted).toBe(true);
   expect(fs.existsSync(path.join(a.dir, 'skills', 'kulisa', 'SKILL.md')), "Kulisa's skill in the account's folder").toBe(true);
   const fake = (await newest()).id;
-  await expect(ui.locator(`#resources [data-terminal="${fake}"] svg[data-mark="generic"]`), 'an agent without a mark of its own: the generic one').toHaveAttribute('data-mark', 'generic');
+  await expect(ui.locator(`[data-task-view][data-active] [data-resources] [data-terminal="${fake}"] svg[data-mark="generic"]`), 'an agent without a mark of its own: the generic one').toHaveAttribute('data-mark', 'generic');
   expect(conversations().map((c: { agent: string }) => c.agent)).toEqual(['custom', a.id]);
   expect(files.json(files.pfile('task.json', taskId)).development.list.map((t: { id: number }) => t.id)).toEqual([bash, fake]);
   expect(await target(), 'a pick goes to the agent shown').toBe(fake);
@@ -92,7 +92,7 @@ test("+ opens any of the project's accounts, a new conversation in a tab of its 
   await tabIs(fake, '');
   await hook(bash, 'tool-done');
   expect(await core((k, w) => k.shell.taskByKey(w.key).developmentTerminals.get(w.bash).state, { key, bash }), 'a tool finished after the turn ended changes nothing').toBe('done');
-  await ui.locator(`#resources [data-terminal="${bash}"]`).getByRole('button', { name: 'bash', exact: true }).click();
+  await ui.locator(`[data-task-view][data-active] [data-resources] [data-terminal="${bash}"]`).getByRole('button', { name: 'bash', exact: true }).click();
   await tabIs(bash, '');
   await taskIs('');
   expect(await target()).toBe(bash);
@@ -115,7 +115,7 @@ test("+ opens any of the project's accounts, a new conversation in a tab of its 
   // one chosen opens in a new tab, told to go on with this conversation. The dialog stays over it while it reads,
   // and goes once it has read the last part of it.
   const dialog = ui.getByRole('dialog', { name: 'Change Agent' }), progress = dialog.getByRole('status');
-  await rightClick(ui, `#resources [data-terminal="${fake}"]`);
+  await rightClick(ui, `[data-task-view][data-active] [data-resources] [data-terminal="${fake}"]`);
   await choose(ui, 'Change agent…');
   // The project's agents, as in +.
   const radios = dialog.getByRole('radio');
@@ -144,7 +144,7 @@ test("+ opens any of the project's accounts, a new conversation in a tab of its 
   // permission, a sign-in, a limit) is shown at once; Show now shows it before it has read. Closing an agent's tab
   // asks: answered yes.
   for (const how of ['waiting', 'show']) {
-    await rightClick(ui, `#resources [data-terminal="${fake}"]`);
+    await rightClick(ui, `[data-task-view][data-active] [data-resources] [data-terminal="${fake}"]`);
     await expect(menu(ui)).toMatchAriaSnapshot(`
       - menu:
         - menuitem "Change agent…"
@@ -167,7 +167,7 @@ test("+ opens any of the project's accounts, a new conversation in a tab of its 
     await expect.poll(async () => (await tabs()).length).toBe(3);
   }
   // New Conversation: the same agent from nothing, in a tab of its own.
-  await rightClick(ui, `#resources [data-terminal="${bash}"]`);
+  await rightClick(ui, `[data-task-view][data-active] [data-resources] [data-terminal="${bash}"]`);
   await choose(ui, 'New Conversation');
   await expect.poll(async () => JSON.stringify(await tabs()) === '["bash","Pay with cards","Fake agent","bash 2 *"]' && (await newest()).pty, { timeout: 20000 }).toBe(true);
   expect(conversations().map((c: { agent: string }) => c.agent)).toEqual(['custom', a.id, b.id, b.id, b.id, 'custom']);

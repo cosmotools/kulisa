@@ -19,8 +19,7 @@ export function openTasks(shell: Shell, { appDevTools }: { appDevTools: boolean 
   // ---------- windows, projects and tasks ----------
   // A project is a folder with its tasks (store.ts); a task is open as a tab of a window, as a browser's. Each task has its profiles,
   // grid and agent (tasks.ts); a window shows one, the others keep running (their agents and pages), until the human
-  // closes their tab. Showing another task hides this one's pages, and the window builds the next grid in place
-  // (the page is not loaded again). A task loads (profiles, agent) the first time it is shown. A project is loaded
+  // closes their tab. Showing another task hides this one's pages and retains its TaskView in the window. A task loads (profiles, agent) the first time it is shown. A project is loaded
   // (shell.open) while a task of it is open in any window: its git, its agents' accounts.
   // Opening, showing, creating, moving and closing run one after another, in all windows.
   let queue: Promise<unknown> = Promise.resolve();
@@ -119,7 +118,7 @@ export function openTasks(shell: Shell, { appDevTools }: { appDevTools: boolean 
     } else await showInNew(target, task);
     return { key: task.key };
   }
-  // A task's terminals among those a window sent ("<task key>#<id>": renderer/lib/development-terminals.ts).
+  // A task's terminals among those a window sent ("<task key>#<id>": renderer/task-view/terminals.ts).
   const ownTerminals = (terminalContents: TerminalContents, task: Task) => Object.fromEntries(Object.entries(terminalContents).filter(([key]) => key.startsWith(`${task.key}#`)));
   // Move All Tasks to …: a project's open tasks of window w, one after another, into window to (none: a new window,
   // made for the first, the others following it).
@@ -210,9 +209,7 @@ export function openTasks(shell: Shell, { appDevTools }: { appDevTools: boolean 
   async function closeTask(task: Task): Promise<Result<{ keys: string[] }>> {
     const w = task.window;
     if (!w) return { error: 'the task is not open' };
-    const r = await closeTasks(w, [task]);
-    task.project.checkMerged().then((found) => found && sendProjects()).catch(() => {});
-    return r;
+    return closeTasks(w, [task]);
   }
   // Delete in a task's menu (open or closed), after the human says yes: everything of it goes (projects.ts). An open
   // one leaves its window first.
@@ -231,19 +228,6 @@ export function openTasks(shell: Shell, { appDevTools }: { appDevTools: boolean 
     sendProjects();
     return { id: task.id };
   }
-  // Delete Merged Tasks… (a project's menu, from window w): its closed tasks whose PR is merged, after one question naming them;
-  // nothing of them is lost (projects.ts, checkMerged).
-  async function deleteMerged(project: Project, w: AppWindow | null) {
-    const list = project.closedTasks().filter((t) => t.entry.merged);
-    if (!list.length) return { error: 'no closed task of it is merged' };
-    if (!await shell.ask({ message: `Delete ${list.length === 1 ? `the task ${list[0]!.name}` : `${list.length} merged tasks`}?`, ok: 'Delete', danger: true,
-      detail: `Merged on the remote, nothing uncommitted: ${list.map((t) => `${t.name} (${t.branch})`).join(', ')}. Their folders, branches, profiles' copies and agents' conversations go.` }, w)) {
-      return { error: 'the human said no' };
-    }
-    for (const t of list) await project.deleteTask(t);
-    sendProjects();
-    return { deleted: list.map((t) => t.id) };
-  }
   // Removing a project, from wherever a window asks for it (w): the human confirms, then its open tasks are closed
   // in every window, and its data deleted (projects.ts).
   async function deleteProject(id: string, w: AppWindow | null) {
@@ -256,7 +240,7 @@ export function openTasks(shell: Shell, { appDevTools }: { appDevTools: boolean 
     sendProjects();
     return { id };
   }
-  return { serial, newWindow, loadProject, unloadIdle, openTasksOf, openProject, closeTasks, askClosing, moveTask, moveAll, dropTask, dragOut, quit, createTask, showTask, closeTask, deleteTask, deleteMerged, deleteProject };
+  return { serial, newWindow, loadProject, unloadIdle, openTasksOf, openProject, closeTasks, askClosing, moveTask, moveAll, dropTask, dragOut, quit, createTask, showTask, closeTask, deleteTask, deleteProject };
 }
 export type OpenTasks = ReturnType<typeof openTasks>;
 

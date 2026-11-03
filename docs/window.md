@@ -30,9 +30,26 @@ and use CSS `order` for their visual placement. Raised active tabs and bottom de
 
 ## The grid
 
-Two independent Dockviews: development terminals/review with Resources, and **Stage** browser/terminal environments.
-A headerless Gridview splits them. Empty Stage disappears; first environment restores it. Drag within each grid;
-development panels stay together. Resources constraints: [tasks.md](tasks.md#the-resources-panel).
+Each visited task retains a TaskView, store and controller until its tab closes. Two Dockviews hold development
+terminals/review with Resources and **Stage** browser/terminal environments; a headerless Gridview splits them.
+Stage headers move environments within Stage; development drag/drop is disabled. Resources uses a fixed left edge
+with native tabs and collapse; behavior and constraints: [tasks.md](tasks.md#the-resources-panel).
+The outer development minimum includes Resources because Dockview's central minimum excludes edges.
+
+Hidden TaskViews use `content-visibility: hidden`, `inert` and `aria-hidden` to retain UI state without rendering or
+accepting input. Window controls address the selected task; pane actions stay bound to their owning TaskView.
+Task switching cancels pending focus/drag requests; closing releases subscriptions and Stage terminal Views.
+Project Explorer and Diff receive the task's active state to pause background polling.
+
+The outer host stays observable outside skipped contents, keeping hidden grids sized with the window. Nested grids
+receive parent dimensions through `api.layout()` with autoresizing disabled to avoid waiting for hidden observers.
+Native-page geometry reports are task-scoped and coalesced per frame, independent of saving and menu coverage.
+The first report permits native pages to show; prepared tasks use stored bounds, swapping native visibility in one
+main-process turn to avoid an empty frame.
+
+One development xterm belongs to the window and moves into the selected TaskView; buffer rendering and sizing:
+[terminal](../src/terminal/README.md#the-window-renderer). Stage terminal Views stay with their panes. Inline renderers
+retain React state when Stage tabs detach inactive DOM; task switching retains each selected tab's DOM.
 
 - Stage menu: Left/Right/Above, Horizontal/Vertical stack or Tabs, Allow overflow, Follow agent, Open an environment.
   `stage:arrange` and MCP `stage_arrange` share `Task.arrangeStage`, requiring the shown task; settings apply even
@@ -43,14 +60,18 @@ development panels stay together. Resources constraints: [tasks.md](tasks.md#the
   `stage:activity`; the window selects hidden tabs, scrolls groups into view and highlights headers for 2 s.
   Human Stage input pauses following until resumed. Preserve maximization, ignore background activity, keep
   pause/activity transient per window and reset pause on task change.
-- Overflow defaults off. On, allocate 600 CSS px per horizontal environment or 300 px per vertical environment,
-  plus gaps. Tabs ignores/hides the toggle but retains it. Accommodate old/new minimums before restoring dimensions
-  because ResizeObserver delivery can lag.
+- Overflow defaults off. On, set group minimum width 600 CSS px for horizontal stacks or height 300 px for vertical
+  stacks. Dockview aggregates group minimums; CSS applies them to the scroll canvas so nested groups and shared tabs
+  determine its size. Apply constraints before layout. Tabs ignores/hides the toggle but retains it.
 - Stage scroll/layout reports native-page boxes and visible intersections. Clip partial pages in parent `View`s
   while retaining full child viewport; hide offscreen pages. Remove clipping on full visibility, close or move.
-- Save Stage view/overflow/layout and workspace development layout/position/share in `task.json`, debounced 300 ms
-  and flushed on task leave. Include delayed nested dimension events. `shared/stage-layout.ts` normalizes/prunes
-  saved layouts while retaining order/stack/sizes; invalid layouts use defaults.
+- Load saved settings before creating grids; early Stage commands await restoration and retain their order.
+  Reveal after both nested grids mount at their final dimensions, keeping content loading from shifting the layout.
+  Persist all three grids through `toJSON`/`fromJSON`, plus Stage view/overflow/position; debounce 300 ms and flush on
+  hide/close. Observe completed layouts/maximization and Resources edge dimensions, which central layout events omit.
+  Empty Stage stays mounted, hidden through Gridview's API to preserve its size. Position/view changes move native
+  panels/groups, retaining their contents. `shared/stage-layout.ts` imports flat layouts and legacy fractions;
+  `task-view/layout.ts` prunes closed panes while preserving active groups. Invalid layouts use defaults.
 - No environment: show Stage Terminal and closed-profile choices above development, or below empty-agent launchers.
   `useStrip` scrolls overflow; `#dock` keeps `min-width: 0`. Stage menu offers the same choices.
 
@@ -62,10 +83,12 @@ Preserve address drafts through unsolicited native-page focus; cancel for anothe
 page (`page:press`), not unfocused automation. Keep window `overflow: clip` so stacked offscreen panels cannot make
 `scrollIntoView` shift the whole grid.
 
-Native pages cover HTML: dragging/menus use snapshots, dialogs hide them (`livePages`). Capture has bounded fallback:
-after the first response allow others 3× that duration, at least 100 ms; no response gives 500 ms. Missing frames
-leave empty panes instead of blocking menus. New tabs grow without remounting the strip; address focus fades;
-suppress animations for reduced motion.
+Native pages cover HTML: dragging/menus use snapshots, dialogs hide them (`task-view/views.ts`). Capture without
+hiding; paint decoded snapshots before hiding native pages, and restore native pages before removing snapshots.
+This ordering prevents an empty frame during handoff. Captures and delayed visibility commands belong to their task;
+successive menus retain prepared images. An adaptive deadline bounds capture waits so unresponsive pages cannot block
+menus; missing frames leave empty panes. New tabs grow without remounting the strip; address focus fades; suppress
+animations for reduced motion.
 
 ### Stage terminals
 
@@ -82,7 +105,8 @@ state, the window owns layout/menu/focus.
   Close removes setup/buffers. Task close stops processes but preserves setup.
 - Keep launch failures selectable in transient `launchError`; clear on retry, never persist them.
 - Human Open/launch requests focus after success, View and font readiness. New input, blur or task switch cancels
-  `lib/environments.ts`'s pending request. Agent launch/Follow never steals focus.
+  `task-view/environments.ts`'s pending request; delayed selection also rechecks intent, window focus and dialogs.
+  Agent launch/Follow never steals focus.
 - `terminal_read` flushes parsing and reads normal/alternate screen, with scrollback limited to 500 lines. Over
   40,000 characters goes to bounded artifacts with preview. Fixed sizes: 2–500 columns, 2–200 rows, independent
   of development sizes. Visible Views use WebGL/DOM fallback; hidden sessions retain bounded buffers/processes.
@@ -207,12 +231,12 @@ Log and About below.
 
 ## The terminal
 
-Development terminals share one headerless Dockview panel, selected through Resources → Agents. Shared groups retain
-Terminal tabs. Send task and active-terminal identity together (`terminals`) to avoid combining asynchronous states.
+Development terminals share one headerless Dockview panel, selected through Resources → Agents. Send task and
+active-terminal identity together (`terminals`) to avoid combining asynchronous states.
 
 - Start/rescale only after Dockview and retained DOM dimensions agree, rounding fractional layout sizes.
-- Closing the last terminal folds to a + strip; reopening restores size with split-gap compensation. Diff keeps
-  development expanded. With no environments/terminals, show agent/shell launchers and closed-profile buttons.
+- Closing the last terminal keeps its panel's size, showing +. With no environments/terminals, show agent/shell
+  launchers and closed-profile buttons.
   Launchers are Tab/Enter targets; focus default only if no field/dialog already has it. Ctrl+` opens the task's
   agent or focuses no-default launchers.
 - **A terminal row precedes its program.** Send rows before discovery/launch, with Starting overlay at real size;
@@ -250,8 +274,8 @@ through the [Browser Kulisa package](../src/browser/README.md#focus).
   Ctrl+1…8, Ctrl+9; Ctrl+Shift+C for Pick (Chrome's Inspect), Ctrl+Shift+S for a screenshot of an element
   ([src/screenshots](../src/screenshots/README.md)). The site does not get them, as in Chrome. Closing or switching a
   tab from the page leaves the keyboard in the page shown next.
-- **Everywhere, the terminal too**: Ctrl+` to the terminal in front and back to the page used last (on the folded
-  terminals, a new conversation of the task's agent), Ctrl+Shift+` a new terminal, Ctrl+Shift+1…9 the bar's first to
+- **Everywhere, the terminal too**: Ctrl+` to the terminal in front and back to the page used last (with no development
+  terminal, a new conversation of the task's agent), Ctrl+Shift+` a new terminal, Ctrl+Shift+1…9 the bar's first to
   ninth tab, Ctrl+Shift+PgDn / PgUp the next or previous one (in the bar's order), Ctrl+Shift+N a new task of the shown
   task's project, Ctrl+Shift+A the sidebar (over the grid, again to close it; docked in the empty window, the keyboard
   to it), Ctrl+Shift+/ the list; the right Ctrl
@@ -412,9 +436,9 @@ window it comes from (`event.sender`); one change to the open tasks after anothe
   routing/table; `page-menu.ts` owns native page menus; `file-links.ts` protects desktop file opening.
 - `src/main/ipc/`, `ipc.ts`, `src/shared/ipc.ts`: handles and shared contracts. `src/preload/index.cjs` exposes the
   sandboxed window bridge without Node; shared helpers/types are imported from `src/shared/`.
-- Renderer `components/grid/` and `lib/grid.ts` coordinate Dockview, bounds, Resources and environments.
+- Renderer `task-view/` owns retained task screens, Dockview, bounds, Resources and environments.
   `components/settings/` is lazy-loaded through `index.ts`; UI structure: [ui.md](ui.md).
-- Renderer menus/dialogs and `lib/cover.ts`, `views.ts` coordinate native-page coverage. `lib/keys.ts` owns window
+- Renderer menus/dialogs, `lib/cover.ts` and `task-view/views.ts` coordinate native-page coverage. `lib/keys.ts` owns window
   keyboard zones; `src/terminal/` owns PTY/buffers/rendering.
 - `src/main/log.ts` owns logging, redaction, live reads and issue links; Settings' Log/About pages expose them.
   `files.ts` supplies shared atomic writes.

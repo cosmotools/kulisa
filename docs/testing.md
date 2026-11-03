@@ -6,6 +6,8 @@ Kulisa-specific checks and test conventions. Read before writing or running test
 ## What gets a test, and when to run what
 
 - What can break gets a test: a behavior, its logic, a fixed bug. Not a removal or a cosmetic change.
+- Test Kulisa's decisions and library integration; upstream defaults, algorithms and association tables belong to
+  the libraries' own tests.
 - A bug is first reproduced by a failing test, then fixed.
 - **While building, only what the change touches**: `npm run test:unit`; the changed part's e2e files (`npm test --
   e2e <file>…`, or `npx playwright test <file> -g "…"` after `npm run build`); `npx playwright test
@@ -47,6 +49,7 @@ Setup and what a test gets: `test/e2e/fixtures.ts`. What must not be undone:
 - **A file is one Kulisa, its tests independent**: each makes its own state, passes alone and in any order, cleans up
   what would disturb the others (an extra window or project). The test site is the run's own: `SITE`, `PORT`, never a
   literal port. Two runs in one checkout: an `--output` each.
+- Builds and app restarts run outside that checkout's e2e run: Vite clears the renderer output before writing it.
 - **Not Playwright's `_electron`**: it forces focus emulation (a minimized window's page never hides) and a light
   scheme. Kulisa is started as the human starts it, with a debugging port on 127.0.0.1 (the one place it has one),
   connected over CDP with `noDefaults`. `test.use({ automation: false })` for what an open port changes

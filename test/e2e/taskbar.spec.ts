@@ -118,7 +118,7 @@ test("tasks: switching shows the other grid and terminal; the one left keeps run
   await state('done', 'the session ending after a done turn: it stays');
   await core((k, a) => k.shell.taskByKey(a.second).caption(a.SAM, 'from the second task'), { second, SAM });
   await ipcSettled(ui);
-  await expect(ui.locator(`[data-panel="profile:${SAM}"] [role="status"]`), 'not on the first task\'s pane').toHaveText('Idle');
+  await expect(ui.locator(`[data-task-view][data-active] [data-panel="profile:${SAM}"] [role="status"]`), 'not on the first task\'s pane').toHaveText('Idle');
   // Done says "come and see" until the human sees that task.
   await post('stop');
   await state('done');
@@ -198,17 +198,18 @@ test('tasks: switching shows the other grid at once, its pages live once it is l
   // A menu opened as the grid left is taken down, before the next one is laid out, keeps the pages under it pictures,
   // not shown over it once the grid is. Pressed (a menu opens on the press) as the window hears of it: a click from the
   // test would come once the grid is laid out.
-  await ui.evaluate(() => {
+  await ui.evaluate((target) => {
     let once = true;
-    (window as any).kulisa.on('grid:closing', () => {
+    (window as any).kulisa.on('project:state', ({ current }: { current: string | null }) => {
+      if (current !== target) return;
       if (once) document.getElementById('windowMenu').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, pointerType: 'mouse' }));
       once = false;
     });
-  });
+  }, first);
   await invoke(ui, 'task:show', first);
   await expect(menu(ui)).toBeVisible();
   await notLoading(ui);
-  // What the grid laid out does (lib/grid.ts, reveal: the pages shown, unless a menu holds them) asks the main process:
+  // The laid-out task grid asks the main process to show its pages unless a menu covers them:
   // done once the window has drawn its frames and its channel gone there and back.
   await frames(ui);
   await ipcSettled(ui);

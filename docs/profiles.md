@@ -39,6 +39,7 @@ Browser sessions use `session.fromPath` with one `WebContentsView` per tab; no e
 - **Pane controls** share one row: Back, Forward, Reload, tabs/+, Pick, ⋮. Double-click a tab, Edit address or Ctrl+L
   opens its selected URL in place of tabs; Enter navigates, Esc/blur cancels. Keep tabs mounted. A new tab starts
   editing immediately. Overflowing tabs shrink to icon/× then scroll; popups stay in the same profile.
+  Reserve the tab area during restoration and show + with the restored tabs so controls keep their positions.
 - **Tab menu**: Edit address, Reload, Duplicate, Close, Close others. **⋮**: Screenshot and DevTools. Narrow panes
   move Back/Forward, then Reload into ⋮, preserving Pick/⋮. Hover shows the full address. Keys: [window.md](window.md), Keys.
 - **Site zoom**: Ctrl +/−/0, saved per site/profile above Kulisa zoom and shown beside tabs.
@@ -189,6 +190,6 @@ Browser memory and cache ownership: [Browser Kulisa package](../src/browser/READ
 - `src/main/cdp-proxy.ts`, `local-only.ts`, `signin-pages.ts`, `signin-pause.ts`: automation access and sign-in policy.
 - `src/main/discard.ts`, `artifacts.ts`, `picker.ts`: activity-based unloading, bounded artifacts and human selections.
 - `src/kulisa-plugin/`: agent handles/instructions ([README](../src/kulisa-plugin/README.md)).
-- Renderer profile panes/controls live in `components/grid/`; identity editing in `components/settings/ProfilePage.tsx`.
+- Renderer profile panes/controls live in `task-view/`; identity editing in `components/settings/ProfilePage.tsx`.
   Shared avatar definitions/assets provide consistent profile pictures.
 - Coverage: profile/agent/discard/restart/grid e2e files, plus store/discard unit tests.

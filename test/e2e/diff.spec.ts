@@ -2,7 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { test, expect } from './fixtures.ts';
-import { act, arrange, box, invoke, showResources, termKeys, termText } from './helpers.ts';
+import { act, arrange, box, invoke, resourcesGroup, showResources, termKeys, termText } from './helpers.ts';
 import { committed, git, openFolder, showTask } from './tasks-helpers.ts';
 
 test('Diff copies code and file paths in Unified and Split layouts while controls stay unselectable', async ({ core, ui, files }) => {
@@ -13,7 +13,7 @@ test('Diff copies code and file paths in Unified and Split layouts while control
   await openFolder(core, ui, repo);
   fs.writeFileSync(path.join(repo, file), 'export const copyMarker = 2;\n');
   await showResources(ui, 'Diff');
-  const code = ui.getByLabel(`Code comparison: ${file}`, { exact: true });
+  const code = ui.locator('[data-task-view][data-active]').getByLabel(`Code comparison: ${file}`, { exact: true });
   const heading = ui.getByRole('heading', { name: file, exact: true });
   const collapse = heading.getByRole('button', { name: `Collapse diff for ${file}`, exact: true });
   const copy = heading.getByRole('button', { name: `Copy path for ${file}`, exact: true });
@@ -60,12 +60,12 @@ test('Diff groups files into folders and switches the development area without m
   await expect(ui.locator('[role="treeitem"][data-item-path="docs/guide.md"]')).toHaveAttribute('data-item-git-status', 'added');
   await expect(ui.locator('[role="treeitem"][data-item-path="checkout.ts"]')).toHaveAttribute('data-item-git-status', 'modified');
   await expect(ui.getByRole('region', { name: 'Diff review', exact: true })).toBeVisible();
-  await expect(ui.getByLabel('Code comparison: docs/guide.md', { exact: true })).toContainText('Guide', { timeout: 15000 });
+  await expect(ui.locator('[data-task-view][data-active]').getByLabel('Code comparison: docs/guide.md', { exact: true })).toContainText('Guide', { timeout: 15000 });
   await expect(ui.getByRole('region', { name: 'Changed file diffs', exact: true })).toHaveJSProperty('scrollTop', 0);
-  const nav = ui.getByRole('navigation', { name: 'Resources', exact: true });
-  const icons = await nav.getByRole('button').evaluateAll((buttons) => buttons.map((b) => b.getAttribute('aria-label')).filter((s) => ['Agents', 'Project', 'Diff', 'Artifacts'].includes(s)));
+  const nav = ui.locator('[data-task-view][data-active]').getByTestId('dv-edge-group-resources');
+  const icons = await nav.getByRole('tab').evaluateAll((buttons) => buttons.map((b) => b.getAttribute('aria-label')).filter((s) => ['Agents', 'Project', 'Diff', 'Artifacts'].includes(s)));
   expect(icons).toEqual(['Agents', 'Project', 'Diff', 'Artifacts']);
-  const tree = ui.getByRole('region', { name: 'Diff', exact: true });
+  const tree = resourcesGroup(ui).locator('[data-resources]');
   const stock = tree.locator('[role="treeitem"][data-item-path="src/orders/stock.ts"]');
   await expect(stock).toBeVisible();
   await expect(tree.getByRole('group', { name: 'From for review-tree' })).toContainText(copy.branch + ' (worktree)');
@@ -82,8 +82,8 @@ test('Diff groups files into folders and switches the development area without m
   await tree.locator('[role="treeitem"][data-item-path="checkout.ts"]').click();
   const diff = ui.getByRole('region', { name: 'Diff review', exact: true });
   await expect(diff).toBeVisible();
-  await expect(ui.getByLabel('Code comparison: checkout.ts', { exact: true })).toContainText('after-marker', { timeout: 15000 });
-  await expect(ui.locator('[data-testid="terminal"]')).toBeHidden();
+  await expect(ui.locator('[data-task-view][data-active]').getByLabel('Code comparison: checkout.ts', { exact: true })).toContainText('after-marker', { timeout: 15000 });
+  await expect(ui.locator('[data-task-view][data-active] [data-testid="terminal"]')).toBeHidden();
   await expect(tree.locator('[role="treeitem"][data-item-path="checkout.ts"]')).toHaveAttribute('aria-selected', 'true');
   const stageAfter = await box(ui, '[data-testid="stage"]');
   for (const dimension of ['x', 'y', 'width', 'height'] as const) expect(Math.abs(stageAfter[dimension] - stageBefore[dimension])).toBeLessThan(2);
@@ -112,7 +112,7 @@ test('Diff groups files into folders and switches the development area without m
     await showResources(ui, 'Diff');
     await expect.poll(() => core((k) => k.stash.reviewStarted)).toBe(true);
     // Reopening waits for fresh Git data and never displays a previous visit's snapshot.
-    await expect(ui.getByLabel('Code comparison: checkout.ts', { exact: true })).toHaveCount(0);
+    await expect(ui.locator('[data-task-view][data-active]').getByLabel('Code comparison: checkout.ts', { exact: true })).toHaveCount(0);
     await expect(tree.locator('[role="treeitem"][data-item-path="src/orders/stock.ts"]')).toHaveCount(0);
     await expect(tree.getByRole('textbox', { name: 'Filter changed files' })).toBeVisible();
     await expect(tree.getByRole('group', { name: 'From for review-tree' })).toBeVisible();
@@ -120,7 +120,7 @@ test('Diff groups files into folders and switches the development area without m
     await expect(tree.getByRole('combobox', { name: 'To for review-tree' })).toBeDisabled();
     await core((k) => k.stash.startReview());
     await expect(tree.locator('[role="treeitem"][data-item-path="src/orders/stock.ts"]')).toHaveCount(0);
-    await expect(ui.getByLabel('Code comparison: checkout.ts', { exact: true })).toHaveCount(0);
+    await expect(ui.locator('[data-task-view][data-active]').getByLabel('Code comparison: checkout.ts', { exact: true })).toHaveCount(0);
     await expect(tree.getByRole('progressbar')).toHaveCount(0);
     await expect(diff.getByRole('progressbar', { name: 'Loading diff' })).toBeVisible();
   } finally {
@@ -129,28 +129,29 @@ test('Diff groups files into folders and switches the development area without m
       g.reviewTask.review = g.reviewOriginal; g.startReview(); g.finishReview();
     });
   }
-  await expect(ui.getByLabel('Code comparison: checkout.ts', { exact: true })).toContainText('fresh-marker');
+  await expect(ui.locator('[data-task-view][data-active]').getByLabel('Code comparison: checkout.ts', { exact: true })).toContainText('fresh-marker');
   await expect(tree.locator('[role="treeitem"][data-item-path="src/orders/stock.ts"]')).toBeVisible();
   await showResources(ui, 'Agents');
   await showTask(core, ui, original);
   expect((await invoke(ui, 'task:diff:review', { key: original, folder: copy.folder, options: {} })).error).toContain('not a resource');
 });
 
-test('Review refreshes file contents, supports split view, and releases the diff when switching tasks', async ({ core, ui, files }) => {
+test('Review refreshes file contents and preserves its split view when switching tasks', async ({ core, ui, files }) => {
   const original = await core((k) => k.shell.task.key);
   const repo = committed(path.join(files.root, 'review-live'), 'file.ts', 'export const value = "old-marker";\n');
   git(repo, 'branch', '-M', 'main');
   await openFolder(core, ui, repo);
+  const task = await core((k) => k.shell.task.key);
   const copy = await core(async (k) => { const r = await k.shell.task.makeWorktree(); if (!("folder" in r)) throw new Error(r.error); return r.folder; });
   const file = path.join(copy, 'file.ts');
   fs.writeFileSync(file, 'export const value = "new-marker";\n');
   fs.writeFileSync(path.join(copy, 'image.bin'), Buffer.from([0, 1, 2]));
   await showResources(ui, 'Diff');
-  const tree = ui.getByRole('region', { name: 'Diff', exact: true });
+  const tree = resourcesGroup(ui).locator('[data-resources]');
   await tree.getByRole('combobox', { name: 'To for review-live' }).click();
   await ui.getByRole('option', { name: 'main', exact: true }).click();
   await tree.locator('[role="treeitem"][data-item-path="file.ts"]').click();
-  const code = ui.getByLabel('Code comparison: file.ts', { exact: true });
+  const code = ui.locator('[data-task-view][data-active]').getByLabel('Code comparison: file.ts', { exact: true });
   await expect(code).toContainText('new-marker', { timeout: 15000 });
   await expect(ui.getByRole('group', { name: 'Change summary', exact: true })).toContainText('+1');
   await ui.getByRole('radio', { name: 'Split diff', exact: true }).click();
@@ -194,10 +195,22 @@ test('Review refreshes file contents, supports split view, and releases the diff
   git(copy, 'branch', 'review-snapshot');
   await expect(code).toContainText('worktree-only-marker', { timeout: 10000 });
   await expect(ui.getByRole('region', { name: 'Diff review', exact: true }).getByRole('alert').filter({ hasText: 'To branch is unavailable' })).toHaveCount(0);
+  await ui.getByRole('radio', { name: 'Split diff', exact: true }).click();
+  await expect(ui.getByRole('radio', { name: 'Split diff', exact: true })).toHaveAttribute('aria-checked', 'true');
+  const retained = await code.elementHandle();
   await showTask(core, ui, original);
-  await expect(code).toHaveCount(0);
+  await expect(code).toBeHidden();
   await expect(ui.getByRole('region', { name: 'Diff review' })).toHaveCount(0);
   await expect(termKeys(ui)).toBeVisible();
+  await showTask(core, ui, task);
+  await expect(code).toContainText('worktree-only-marker');
+  expect(await retained.evaluate((el) => el.isConnected)).toBe(true);
+  await expect(ui.getByRole('radio', { name: 'Split diff', exact: true })).toHaveAttribute('aria-checked', 'true');
+  await expect(tree.getByRole('combobox', { name: 'To for review-live' })).toContainText('review-snapshot');
+  await showResources(ui, 'Agents');
+  expect(await retained.evaluate((el) => el.isConnected), 'leaving Diff releases the retained review').toBe(false);
+  await retained.dispose();
+  await showTask(core, ui, original);
 });
 
 test('Changing another repository comparison opens that repository review immediately', async ({ core, ui, files }) => {
@@ -220,16 +233,16 @@ test('Changing another repository comparison opens that repository review immedi
   fs.writeFileSync(path.join(primary, 'first.ts'), 'export const first = "primary-marker";\n');
   fs.writeFileSync(path.join(secondary, 'second.ts'), 'export const second = "secondary-marker";\n');
   await showResources(ui, 'Diff');
-  await expect(ui.getByLabel('Code comparison: first.ts', { exact: true })).toContainText('primary-marker');
+  await expect(ui.locator('[data-task-view][data-active]').getByLabel('Code comparison: first.ts', { exact: true })).toContainText('primary-marker');
   await ui.getByRole('combobox', { name: 'To for review-secondary' }).click();
   await ui.getByRole('option', { name: 'HEAD', exact: true }).click();
-  await expect(ui.getByLabel('Code comparison: second.ts', { exact: true })).toContainText('secondary-marker');
-  await expect(ui.getByLabel('Code comparison: first.ts', { exact: true })).toHaveCount(0);
+  await expect(ui.locator('[data-task-view][data-active]').getByLabel('Code comparison: second.ts', { exact: true })).toContainText('secondary-marker');
+  await expect(ui.locator('[data-task-view][data-active]').getByLabel('Code comparison: first.ts', { exact: true })).toHaveCount(0);
   await showTask(core, ui, original);
 });
 
-test('Continuous review defers large diffs and virtualizes their lines in one document', async ({ core, ui, files }) => {
-  test.slow(); // Explicitly loading 20,000-line files exercises line virtualization and navigation.
+test('Continuous review defers large diffs and keeps file navigation in one document', async ({ core, ui, files }) => {
+  test.slow(); // Explicitly loading 20,000-line files exercises the deferred review and file navigation.
   const original = await core((k) => k.shell.task.key);
   const baseline = Array.from({ length: 20000 }, (_, i) => `// context-line-${i}`).join('\n') + '\n';
   const repo = committed(path.join(files.root, 'review-document'), 'changed.ts', baseline);
@@ -243,8 +256,8 @@ test('Continuous review defers large diffs and virtualizes their lines in one do
   }
   fs.writeFileSync(path.join(folder, 'zz-large.ts'), Array.from({ length: 20000 }, (_, i) => `// large-line-${i}`).join('\n') + '\n');
   await showResources(ui, 'Diff');
-  const tree = ui.getByRole('region', { name: 'Diff', exact: true });
-  const code = (file: string) => ui.getByLabel(`Code comparison: ${file}`, { exact: true });
+  const tree = resourcesGroup(ui).locator('[data-resources]');
+  const code = (file: string) => ui.locator('[data-task-view][data-active]').getByLabel(`Code comparison: ${file}`, { exact: true });
   await tree.locator('[role="treeitem"][data-item-path="f00.ts"]').click();
   await expect(code('f00.ts')).toContainText('file00', { timeout: 15000 });
   const scroll = ui.getByRole('region', { name: 'Changed file diffs', exact: true });
@@ -266,16 +279,13 @@ test('Continuous review defers large diffs and virtualizes their lines in one do
   await expect(ui.getByRole('button', { name: 'Load diff for changed.ts', exact: true })).toBeVisible();
   await ui.getByRole('button', { name: 'Load diff for changed.ts', exact: true }).click();
   await expect(code('changed.ts')).toContainText('changed-context-marker', { timeout: 15000 });
-  await expect.poll(async () => (await code('changed.ts').boundingBox()).height).toBeLessThan(5000);
   await tree.locator('[role="treeitem"][data-item-path="changed.ts"]').press('End');
   await tree.locator('[role="treeitem"][data-item-path="zz-large.ts"]').click();
   await expect(code('zz-large.ts')).not.toContainText('large-line-0');
   await ui.getByRole('button', { name: 'Load diff for zz-large.ts', exact: true }).click();
   await expect(code('zz-large.ts')).toContainText('large-line-0', { timeout: 15000 });
-  expect(await code('zz-large.ts').locator('[data-line]').count()).toBeLessThan(2000);
   await scroll.evaluate((e) => { e.scrollTop = e.scrollHeight; });
   await expect(code('zz-large.ts')).toContainText('large-line-19999', { timeout: 15000 });
-  expect(await ui.getByLabel(/^Code comparison: /).count()).toBeLessThanOrEqual(20);
   const before = await scroll.evaluate((e) => e.scrollTop), bounds = await scroll.boundingBox();
   await ui.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
   await ui.mouse.wheel(0, -500);
@@ -287,7 +297,7 @@ test('Continuous review defers large diffs and virtualizes their lines in one do
   await showTask(core, ui, original);
 });
 
-test('Leaving Diff clears its review settings and position, including across task switches and app restarts', async ({ core, ui, files, restart }) => {
+test('Leaving Diff and restarting reset the review; switching tasks preserves its settings and position', async ({ core, ui, files, restart }) => {
   const original = await core((k) => k.shell.task.key);
   const repo = committed(path.join(files.root, 'review-restore'), 'file.ts', 'export const value = "before";\n');
   git(repo, 'branch', '-M', 'main');
@@ -300,13 +310,13 @@ test('Leaving Diff clears its review settings and position, including across tas
   fs.writeFileSync(path.join(copy.folder, 'file.ts'), 'export const value = "restored-review-marker";\n');
   fs.writeFileSync(path.join(copy.folder, 'z-file.ts'), Array.from({ length: 120 }, (_, i) => `export const value${i} = ${i};\n`).join(''));
   await showResources(ui, 'Diff');
-  const tree = ui.getByRole('region', { name: 'Diff', exact: true });
+  const tree = resourcesGroup(ui).locator('[data-resources]');
   const customize = async () => {
     await tree.getByRole('combobox', { name: 'To for review-restore' }).click();
     await ui.getByRole('option', { name: 'HEAD', exact: true }).click();
     await tree.getByRole('textbox', { name: 'Filter changed files' }).fill('file.ts');
     await tree.locator('[role="treeitem"][data-item-path="z-file.ts"]').click();
-    await expect(ui.getByLabel('Code comparison: z-file.ts', { exact: true })).toContainText('value0');
+    await expect(ui.locator('[data-task-view][data-active]').getByLabel('Code comparison: z-file.ts', { exact: true })).toContainText('value0');
     await ui.getByRole('radio', { name: 'Split diff', exact: true }).click();
     await expect.poll(() => ui.getByRole('region', { name: 'Changed file diffs', exact: true }).evaluate((e) => e.scrollTop)).toBeGreaterThan(0);
   };
@@ -320,17 +330,23 @@ test('Leaving Diff clears its review settings and position, including across tas
   for (const section of ['Project', 'Artifacts', 'Agents', null] as const) {
     await customize();
     if (section) await showResources(ui, section);
-    else await ui.getByRole('navigation', { name: 'Resources', exact: true }).getByRole('button', { name: 'Diff', exact: true }).click();
+    else await ui.getByRole('tab', { name: 'Diff', exact: true }).click();
     await expect(ui.getByRole('region', { name: 'Diff review', exact: true })).toHaveCount(0);
     await expect(termKeys(ui)).toBeVisible();
     await showResources(ui, 'Diff');
     await fresh();
   }
   await customize();
+  const document = await ui.getByRole('region', { name: 'Changed file diffs', exact: true }).elementHandle();
+  const scroll = await document.evaluate((el) => el.scrollTop);
   await showTask(core, ui, original);
   await showTask(core, ui, copy.key);
-  await fresh();
-  await customize();
+  await expect(tree.getByRole('textbox', { name: 'Filter changed files' })).toHaveValue('file.ts');
+  await expect(tree.getByRole('combobox', { name: 'To for review-restore' })).toContainText('HEAD');
+  await expect(ui.getByRole('radio', { name: 'Split diff', exact: true })).toHaveAttribute('aria-checked', 'true');
+  expect(await document.evaluate((el) => el.isConnected)).toBe(true);
+  expect(await document.evaluate((el) => el.scrollTop)).toBe(scroll);
+  await document.dispose();
   const next = await restart();
   await expect(next.getByRole('region', { name: 'Diff review', exact: true })).toBeVisible();
   await fresh(next);

@@ -6,8 +6,10 @@ hand-edit generated `src/ui` files. Use wrappers for custom layout/drawing, not 
 Prefer upstream components/props/patterns; justify necessary deviations in comments.
 
 Dockview owns grids; zustand owns window state; xterm owns terminals; Pierre owns Diff/tree virtualization;
-TanStack Virtual owns log rows. Keep Dockview dividers below menus. Native browser views sit above HTML, so covered
-pages must hide or become snapshots; layout changes report pane bounds to main.
+TanStack Virtual owns log rows. Grid lifecycle and native-page geometry: [window.md](window.md#the-grid).
+Stage uses a 6 px gap for native pages; development uses gap 0. Resources' native vertical tab header owns its border,
+including when collapsed. Pane content can shrink and isolates stacking so overlays stay below Dockview separators;
+menus stay above them.
 
 ## The code
 
@@ -16,7 +18,7 @@ pages must hide or become snapshots; layout changes report pane bounds to main.
 | `src/renderer/*.html`, `main.tsx`, `master.tsx`, `public/theme.js` | Window/master entries; theme before first paint |
 | `src/renderer/window.css` | Global theme, selection, cursor and scroll rules |
 | `components/App.tsx`, title/task bars, sidebar, empty/welcome | Window frame and task navigation |
-| `components/Grid.tsx`, `grid/`, `lib/grid.ts` | Development and Stage grids, pane headers, Resources, native-view bounds |
+| `task-view/` | Retained task screens, both Dockviews and their outer split, pane controls, Resources, native-view bounds |
 | `components/settings/` | Lazy Settings chunk through its `index.ts`; shared page controls in `kit.tsx` |
 | `components/Menus.tsx`, dialogs, `lib/menu.ts`, `dialogs.ts`, `ask.ts` | Shared menus/questions/dialog opening |
 | `lib/` | Non-component state, actions, lifecycle and coordination; no UI library/icon imports |
@@ -24,7 +26,10 @@ pages must hide or become snapshots; layout changes report pane bounds to main.
 | `src/*/renderer/` | Kulisa package UI, documented by its README |
 | `public/avatars/` | Bundled Noto Emoji profile pictures |
 
-`lib/store.ts`: components use `useWindow(selector)`; other code uses `store.getState()` and `act`.
+`lib/store.ts`: components use `useWindow(selector)`; other code uses `store.getState()`.
+The `task-view/` module exposes actions/hooks through `index.ts` and UI through `TaskView.tsx`; dependency-cruiser
+protects these entries. Resources sections use SidebarContent scrolling inside Dockview's named region; avoid duplicate
+region wrappers.
 
 ## shadcn in Kulisa
 
@@ -50,8 +55,8 @@ dialog's open state is a plain `useState`.
   pictures (`lib/cover.css` keeps it clipped until then), then marked `data-ready` (the tests' handle). A tooltip is
   no layer: it opens over no page (Tooltips).
 - **Settings**, no Radix layer, says so itself (`coverPage(true)`, awaited before it is drawn; `coverPage(false)`).
-- **Closing**: the grid taken down closes every layer, the window left closes its menus (`closeLayers`), both by the
-  Esc Radix closes them on.
+- **Closing**: switching tasks closes every layer; leaving the window closes menus (`closeLayers`), using Radix's Esc
+  handling. Dialog content remains mounted through exit animations; focus handoffs wait for removal.
 
 ## Desktop, not a web page
 
@@ -163,7 +168,7 @@ What is drawn or moved here rather than by shadcn, each for a reason at it:
 - dockview's look, its variables set from the theme's (`Grid.css`);
 - Diff's indeterminate progress motion (`src/diff/renderer/loading.css`): shadcn supplies the bar and semantics;
   a transform animates its indicator without layout work;
-- the profile notch's concave shoulders (`grid/ProfilePane.css`): masked corners attach its identity to the top edge;
+- the profile notch's concave shoulders (`task-view/ProfilePane.css`): masked corners attach its identity to the top edge;
 - the dictation's pill with its wave bars, read from the microphone (`src/dictation/`, its `README.md`); its motions and
   the microphone's ring are Tailwind's and tw-animate-css';
 - the strips (`lib/strip.ts`, its classes on the element `useStrip` is given): the fades tied to the scroll; a tab

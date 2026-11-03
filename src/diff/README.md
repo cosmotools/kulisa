@@ -22,3 +22,5 @@ Read-only local Git comparisons for the Resources tree and development review.
 - TanStack Query shares each visible comparison between the tree and document; zero inactive retention makes
   reopening read Git again. Patches are parsed only for files whose version changes.
 - The caller clears its QueryClient and releases the session when the review closes; selection is scoped to that opening.
+- Callers set the session's `active` to false while a retained review is hidden, pausing polling without losing queries
+  or document state.

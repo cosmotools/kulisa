@@ -1,4 +1,4 @@
-/* The grid (Grid.tsx): dockview's look, its variables from the theme's. Plain CSS: dockview's own elements, which no
+/* Task grids (TaskView.tsx): dockview's look, its variables from the theme's. Plain CSS: dockview's own elements, which no
    utility reaches. */
 #dock {
   --dv-group-view-background-color: var(--card); --dv-tabs-and-actions-container-background-color: var(--card);
@@ -7,13 +7,22 @@
   --dv-activegroup-hiddenpanel-tab-background-color: transparent; --dv-inactivegroup-hiddenpanel-tab-background-color: transparent;
   --dv-activegroup-visiblepanel-tab-color: var(--foreground); --dv-inactivegroup-visiblepanel-tab-color: var(--muted-foreground);
   --dv-activegroup-hiddenpanel-tab-color: var(--muted-foreground); --dv-inactivegroup-hiddenpanel-tab-color: var(--muted-foreground);
-  --dv-separator-border: var(--border); --dv-paneview-header-border-color: var(--border);
+  --dv-separator-border: var(--border);
   --dv-tab-divider-color: transparent; --dv-active-sash-color: var(--ring);
   --dv-drag-over-background-color: var(--accent); --dv-drag-over-border-color: var(--ring);
+}
+/* Nested content must shrink with its group; its overlays stay below Dockview's separators. */
+#dock .dv-content-container { min-width: 0; isolation: isolate; }
+/* Skipping contents keeps controls from animating inherited visibility when a task is shown. */
+[data-task-view]:not([data-active]) {
+  content-visibility: hidden; pointer-events: none;
 }
 /* A pane narrower than its header: dockview's tab shrinks with it (else it runs past the pane, its × out of sight and
    dockview's list of hidden tabs shown for it). */
 #dock .dv-tab { min-width: 0; flex-shrink: 1; }
-/* A fixed Resources bar has no resize affordance or split border. */
-#grid .dv-sash.dv-disabled { display: none; }
-#grid:has(.dv-sash.dv-disabled) { --dv-separator-border: transparent; }
+/* Icon tabs fit the collapsed Resources strip. */
+[data-development-grid] { --dv-tabs-and-actions-container-height: calc(var(--spacing) * 10); }
+/* The collapsed strip supplies the border; the adjacent pane must not add another. */
+[data-development-grid]:has(.dv-edge-collapsed) { --dv-separator-border: transparent; }
+[data-development-grid] .dv-groupview-header-left > .dv-tabs-and-actions-container { border-right: 1px solid var(--border); }
+[data-development-grid] .dv-tabs-container-vertical .dv-tab { padding: 0; }
