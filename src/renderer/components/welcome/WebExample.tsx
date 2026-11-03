@@ -1,16 +1,19 @@
 // The welcome's two browser profiles (docs/ui.md, Own drawing): a customer places an order and the admin sees it.
-// The character, desktop pages and transcript share WelcomeDemo.css's clock; neither starts a real browser.
+// The character, desktop pages and transcript share animations.css's clock; neither starts a real browser.
 import { useEffect, useRef, type ReactNode } from 'react';
 import { ArrowLeftIcon, ArrowRightIcon, CheckIcon, ChevronDownIcon, GlobeIcon, HeartIcon, LockKeyholeIcon,
   RotateCwIcon, SearchIcon, ShoppingBagIcon, StarIcon, TruckIcon, UserRoundIcon, LayoutDashboardIcon, PackageIcon, SettingsIcon } from 'lucide-react';
-import { avatarSrc } from '../lib/common';
+import { avatarSrc } from '../../lib/common';
 import { DemoAgent } from './DemoAgent';
+import tote from './assets/tote.jpg';
+import headphones from './assets/headphones.jpg';
+import bottle from './assets/bottle.jpg';
 
 const WIDTH = 1120;
 const PRODUCTS = [
-  { name: 'Everyday tote', category: 'For wherever the day takes you', price: '$24', image: 'tote.jpg' },
-  { name: 'Wireless headphones', category: 'A little less noise. A lot more music.', price: '$89', image: 'headphones.jpg' },
-  { name: 'Daily bottle', category: 'Stay refreshed, wherever you go', price: '$32', image: 'bottle.jpg' },
+  { name: 'Everyday tote', category: 'For wherever the day takes you', price: '$24', image: tote },
+  { name: 'Wireless headphones', category: 'A little less noise. A lot more music.', price: '$89', image: headphones },
+  { name: 'Daily bottle', category: 'Stay refreshed, wherever you go', price: '$32', image: bottle },
 ];
 
 function ProfilePreview({ name, avatar, path, summary, children }: {
@@ -62,7 +65,7 @@ function Shop() {
     <div className="grid grid-cols-3 gap-6 px-12">
       {PRODUCTS.map((product, i) => <div key={product.name} className="min-w-0">
         <div className="relative h-60 overflow-hidden rounded-sm bg-muted dark:bg-primary">
-          <img src={`./welcome/${product.image}`} width={600} height={600} alt="" className="h-full w-full object-cover" />
+          <img src={product.image} width={600} height={600} alt="" className="h-full w-full object-cover" />
           <span className="absolute top-3 left-3 rounded-sm bg-primary-foreground px-2 py-1 text-[10px] font-medium text-primary dark:bg-foreground dark:text-background">{i === 0 ? 'Bestseller' : i === 1 ? 'New arrival' : 'Everyday favorite'}</span>
           <span className="absolute top-3 right-3 grid size-7 place-items-center rounded-full bg-primary-foreground text-primary dark:bg-foreground dark:text-background"><HeartIcon className="size-3.5" /></span>
         </div>
@@ -80,7 +83,7 @@ function Shop() {
     </div></div>
     <div data-demo-motion className="welcome-web-cart absolute top-18 right-5 z-10 w-96 rounded-lg border border-border bg-primary-foreground p-6 shadow-xl dark:border-muted-foreground/30 dark:bg-foreground">
       <p className="mb-5 text-2xl font-semibold">Your bag <span className="opacity-40">(1)</span></p>
-      <div className="flex items-center gap-4"><img src="./welcome/tote.jpg" width={80} height={80} alt="" className="size-20 rounded object-cover" /><div><p className="font-medium">Everyday tote</p><p className="mt-1 text-sm opacity-50">Natural · Qty 1</p></div><span className="ms-auto font-medium">$24</span></div>
+      <div className="flex items-center gap-4"><img src={tote} width={80} height={80} alt="" className="size-20 rounded object-cover" /><div><p className="font-medium">Everyday tote</p><p className="mt-1 text-sm opacity-50">Natural · Qty 1</p></div><span className="ms-auto font-medium">$24</span></div>
       <div className="mt-6 flex justify-between border-t border-border pt-4 font-semibold dark:border-muted-foreground/20"><span>Total</span><span>$24</span></div>
       <div data-demo-motion className="welcome-web-checkout mt-5 flex h-12 items-center justify-center rounded bg-primary font-medium text-primary-foreground dark:bg-background dark:text-foreground">Place order</div>
       <p className="mt-3 text-center text-xs opacity-50">Free returns within 30 days</p>
@@ -115,12 +118,12 @@ function Orders() {
         <div className="overflow-hidden rounded-lg border border-border dark:border-muted-foreground/20">
           <div className="grid grid-cols-[1fr_2.1fr_1fr_1fr] gap-3 border-b border-border bg-muted px-4 py-3 text-xs opacity-60 dark:border-muted-foreground/20 dark:bg-primary"><span>Order</span><span>Product</span><span>Payment</span><span className="text-right">Total</span></div>
           {[
-            { id: 1042, image: 'tote.jpg', product: 'Everyday tote', price: '$24', time: 'Just now' },
-            { id: 1041, image: 'headphones.jpg', product: 'Wireless headphones', price: '$89', time: '4 min ago' },
-            { id: 1040, image: 'bottle.jpg', product: 'Daily bottle', price: '$32', time: '12 min ago' },
+            { id: 1042, image: tote, product: 'Everyday tote', price: '$24', time: 'Just now' },
+            { id: 1041, image: headphones, product: 'Wireless headphones', price: '$89', time: '4 min ago' },
+            { id: 1040, image: bottle, product: 'Daily bottle', price: '$32', time: '12 min ago' },
           ].map((order, i) => <div key={order.id} data-demo-motion={i === 0 ? true : undefined} className={i === 0 ? 'welcome-web-new-order' : undefined}><div className={i === 0 ? 'grid grid-cols-[1fr_2.1fr_1fr_1fr] items-center gap-3 border-b border-success/30 bg-success/10 px-4 py-4' : 'grid grid-cols-[1fr_2.1fr_1fr_1fr] items-center gap-3 border-b border-border px-4 py-4 last:border-0 dark:border-muted-foreground/20'}>
             <div><p className="text-sm font-semibold">#{order.id}</p><p className="mt-1 text-[10px] opacity-50">{order.time}</p></div>
-            <div className="flex items-center gap-3"><img src={`./welcome/${order.image}`} width={38} height={38} alt="" className="size-10 rounded-sm object-cover" /><span className="text-xs">{order.product}</span></div>
+            <div className="flex items-center gap-3"><img src={order.image} width={38} height={38} alt="" className="size-10 rounded-sm object-cover" /><span className="text-xs">{order.product}</span></div>
             <span className="flex items-center gap-1 text-xs"><CheckIcon className="size-3 text-success" />Paid</span><span className="text-right text-sm font-medium">{order.price}</span>
           </div></div>)}
         </div>
@@ -130,7 +133,7 @@ function Orders() {
     <div data-demo-motion className="welcome-web-order-detail absolute top-18 right-0 bottom-0 z-10 w-96 border-l border-border bg-primary-foreground p-7 shadow-xl dark:border-muted-foreground/30 dark:bg-foreground">
       <p className="text-xs opacity-50">Order details</p><h3 className="mt-3 text-3xl font-semibold">#1042</h3>
       <p className="mt-4 flex items-center gap-2 text-sm text-success"><CheckIcon className="size-4" />Payment received</p>
-      <div className="mt-7 flex items-center gap-4 border-y border-border py-5 dark:border-muted-foreground/20"><img src="./welcome/tote.jpg" width={72} height={72} alt="" className="size-18 rounded object-cover" /><div><p className="text-sm font-medium">Everyday tote</p><p className="mt-2 text-xs opacity-50">Natural · Qty 1</p></div></div>
+      <div className="mt-7 flex items-center gap-4 border-y border-border py-5 dark:border-muted-foreground/20"><img src={tote} width={72} height={72} alt="" className="size-18 rounded object-cover" /><div><p className="text-sm font-medium">Everyday tote</p><p className="mt-2 text-xs opacity-50">Natural · Qty 1</p></div></div>
       <div className="mt-6 flex justify-between font-semibold"><span>Total paid</span><span>$24</span></div>
       <div data-demo-motion className="welcome-web-verified mt-8 flex items-center gap-2 rounded-md border border-success/30 bg-success/10 p-3 text-sm"><CheckIcon className="size-4 text-success" />Matches the customer’s order</div>
     </div>

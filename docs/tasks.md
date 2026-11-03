@@ -19,7 +19,8 @@ A project configures repositories/folders, agents and profiles, with ordered def
   including page/window exit. Sections add items in place, Esc cancels input; rows share menu/right-click actions.
   Global profile identity belongs to Settings → Profiles, not project membership controls.
 
-**New Project** (`NewProject.tsx`) shares one project map between welcome and the task-window dialog. Its draft
+**New Project** shares `components/project-map/ProjectMap.tsx` between the welcome and the task-window dialog
+(`NewProject.tsx`). Its draft
 (`lib/new-project.ts`) holds inputs independently of the nodes; there are no wizard steps or separate first-start
 validation rules. Nothing is created until Create project.
 
@@ -482,7 +483,9 @@ rm -rf ~/.config/Kulisa/projects/<project id>   # all its tasks with their profi
 - `src/main/accounts.ts`, `recognizer.ts`: account ownership and recognizer selection. CLI behavior belongs in
   [Kulisa plugin](../src/kulisa-plugin/README.md); terminal runtime in [terminal](../src/terminal/README.md).
 - `src/main/ipc/`: thin window handles. Resources/File Explorer/Diff use task-scoped actions and resource roots.
-- Renderer task navigation, welcome and project creation live in `components/`; project/account configuration in
+- Renderer task navigation lives in `components/`. `components/welcome/Welcome.tsx` owns the first-start screen,
+  examples and assets; `components/project-map/ProjectMap.tsx` owns the shared creation form, used by welcome and
+  the `NewProject.tsx` dialog wrapper. Project/account configuration lives in
   `components/settings/`; non-UI coordination in `lib/`. `favicons.ts`/`lib/project-color.ts` derive project identity.
 - `src/shared/names.ts`: labels, names and branch slugs. Renderer `task-view/` owns retained screens, grids and activation.
 - Coverage: task/project/account/repository/window e2e files; store/task-document/accounts/worktrees unit tests.

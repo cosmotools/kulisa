@@ -53,6 +53,7 @@ export default defineConfig({
   plugins: [react(), tailwindcss(), fileIcons(), {
     name: 'review-licenses',
     generateBundle() {
+      this.emitFile({ type: 'asset', fileName: 'welcome-photography-CREDITS.txt', source: readFileSync(resolve(renderer, 'components/welcome/assets/CREDITS.txt'), 'utf8') });
       this.emitFile({ type: 'asset', fileName: 'pierre-diffs-LICENSE.txt', source: readFileSync(resolve(diffsRoot, 'LICENSE.md'), 'utf8') });
       for (const name of ['react-query', 'query-core']) {
         const root = dirname(fileURLToPath(import.meta.resolve(`@tanstack/${name}/package.json`)));

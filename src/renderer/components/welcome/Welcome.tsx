@@ -4,15 +4,15 @@ import { useEffect, useRef, useState } from 'react';
 import { ArrowRightIcon, GitBranchIcon, GlobeIcon, KeyboardIcon, MousePointer2Icon,
   PanelTopIcon, PauseIcon, PlayIcon, SquareTerminalIcon } from 'lucide-react';
 import { Button, Tabs, TabsContent, TabsList, TabsTrigger } from '@ui';
-import { ProjectMap } from './NewProject';
+import { ProjectMap } from '../project-map/ProjectMap';
 import { WebExample } from './WebExample';
 import { CliExample } from './CliExample';
 import { AgentTerminal } from './AgentTerminal';
 import { CoffeeBreak } from './CoffeeBreak';
-import './WelcomeDemo.css';
-import { AppLogo } from './ProjectIcon';
-import { agentMark } from './AgentMark';
-import { projectDraft, type ProjectDraft } from '../lib/new-project';
+import './animations.css';
+import { AppLogo } from '../ProjectIcon';
+import { agentMark } from '../AgentMark';
+import { projectDraft, type ProjectDraft } from '../../lib/new-project';
 
 let focusNow: (() => void) | null = null, asked = false;
 kulisa.on('project:new', () => { if (focusNow) focusNow(); else asked = true; });
