@@ -143,8 +143,8 @@ saved 300 ms after a change and flushed when the task is hidden or closed. The s
 creates its grids, including after a restart or move to another window. Stage commands received before mounting await
 the same restoration promise and update their task's settings in arrival order. Loading completes after both required
 grids mount and the final layout pass supplies their dimensions, before the screen is shown. Dockview owns the live geometry;
-its layout and maximize events save completed arrangements. Stage position changes move the leading area before its
-peer using Gridview's API and the panel's native size. All three grids use their library's `toJSON` / `fromJSON`;
+its layout and maximize events save completed arrangements; Resources' edge dimensions save its width. Stage position
+changes move the leading area before its peer using Gridview's API and the panel's native size. All three grids use their library's `toJSON` / `fromJSON`;
 the outer snapshot includes Stage's cached hidden size, and development's includes Resources' edge state.
 `task-view/layout.ts` prunes closed environments before passing the saved Stage layout to Dockview.
 `shared/stage-layout.ts` separates flat layouts into development and testing groups, retaining order, stacking and

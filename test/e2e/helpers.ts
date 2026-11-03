@@ -14,7 +14,8 @@ export const resourcesGroup = (ui: Page) => ui.locator('[data-task-view][data-ac
 export async function showResources(ui: Page, section: 'Project' | 'Artifacts' | 'Agents' | 'Diff') {
   const group = resourcesGroup(ui), icon = group.getByRole('tab', { name: section, exact: true });
   if (await icon.getAttribute('aria-selected') !== 'true' || await group.locator(':scope.dv-edge-collapsed').count()) await icon.click();
-  await expect(ui.getByRole('region', { name: section, exact: true })).toBeVisible();
+  await expect(group).toHaveAccessibleName(section);
+  await expect(group.locator('[data-resources]')).toBeVisible();
 }
 
 // The run's test site (global-setup.ts), on a free port: never a literal port (CLAUDE.md, Hard-won facts).

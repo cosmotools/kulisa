@@ -240,7 +240,7 @@ test("a new account is made in the project's settings: the agent's own sign-in a
     expect(fs.readFileSync(`/proc/${pid}/environ`, 'utf8').split('\0').filter((v) => v.startsWith('DIRENV_'))).toEqual([]);
   }
   // Change agent… (the terminal's menu) hands the task to one of the project's accounts.
-  await rightClick(ui, '[data-testid="terminal"]');
+  await rightClick(ui, '[data-task-view][data-active] [data-testid="terminal"]');
   await choose(ui, 'Change agent…');
   const handover = ui.getByRole('dialog', { name: 'Change Agent' });
   await expect(handover.getByRole('radio')).toHaveCount(1);

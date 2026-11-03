@@ -2,7 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { test, expect } from './fixtures.ts';
-import { act, arrange, box, invoke, showResources, termKeys, termText } from './helpers.ts';
+import { act, arrange, box, invoke, resourcesGroup, showResources, termKeys, termText } from './helpers.ts';
 import { committed, git, openFolder, showTask } from './tasks-helpers.ts';
 
 test('Diff copies code and file paths in Unified and Split layouts while controls stay unselectable', async ({ core, ui, files }) => {
@@ -65,7 +65,7 @@ test('Diff groups files into folders and switches the development area without m
   const nav = ui.locator('[data-task-view][data-active]').getByTestId('dv-edge-group-resources');
   const icons = await nav.getByRole('tab').evaluateAll((buttons) => buttons.map((b) => b.getAttribute('aria-label')).filter((s) => ['Agents', 'Project', 'Diff', 'Artifacts'].includes(s)));
   expect(icons).toEqual(['Agents', 'Project', 'Diff', 'Artifacts']);
-  const tree = ui.getByRole('region', { name: 'Diff', exact: true });
+  const tree = resourcesGroup(ui).locator('[data-resources]');
   const stock = tree.locator('[role="treeitem"][data-item-path="src/orders/stock.ts"]');
   await expect(stock).toBeVisible();
   await expect(tree.getByRole('group', { name: 'From for review-tree' })).toContainText(copy.branch + ' (worktree)');
@@ -147,7 +147,7 @@ test('Review refreshes file contents and preserves its split view when switching
   fs.writeFileSync(file, 'export const value = "new-marker";\n');
   fs.writeFileSync(path.join(copy, 'image.bin'), Buffer.from([0, 1, 2]));
   await showResources(ui, 'Diff');
-  const tree = ui.getByRole('region', { name: 'Diff', exact: true });
+  const tree = resourcesGroup(ui).locator('[data-resources]');
   await tree.getByRole('combobox', { name: 'To for review-live' }).click();
   await ui.getByRole('option', { name: 'main', exact: true }).click();
   await tree.locator('[role="treeitem"][data-item-path="file.ts"]').click();
@@ -195,6 +195,8 @@ test('Review refreshes file contents and preserves its split view when switching
   git(copy, 'branch', 'review-snapshot');
   await expect(code).toContainText('worktree-only-marker', { timeout: 10000 });
   await expect(ui.getByRole('region', { name: 'Diff review', exact: true }).getByRole('alert').filter({ hasText: 'To branch is unavailable' })).toHaveCount(0);
+  await ui.getByRole('radio', { name: 'Split diff', exact: true }).click();
+  await expect(ui.getByRole('radio', { name: 'Split diff', exact: true })).toHaveAttribute('aria-checked', 'true');
   const retained = await code.elementHandle();
   await showTask(core, ui, original);
   await expect(code).toBeHidden();
@@ -254,7 +256,7 @@ test('Continuous review defers large diffs and virtualizes their lines in one do
   }
   fs.writeFileSync(path.join(folder, 'zz-large.ts'), Array.from({ length: 20000 }, (_, i) => `// large-line-${i}`).join('\n') + '\n');
   await showResources(ui, 'Diff');
-  const tree = ui.getByRole('region', { name: 'Diff', exact: true });
+  const tree = resourcesGroup(ui).locator('[data-resources]');
   const code = (file: string) => ui.locator('[data-task-view][data-active]').getByLabel(`Code comparison: ${file}`, { exact: true });
   await tree.locator('[role="treeitem"][data-item-path="f00.ts"]').click();
   await expect(code('f00.ts')).toContainText('file00', { timeout: 15000 });
@@ -311,7 +313,7 @@ test('Leaving Diff and restarting reset the review; switching tasks preserves it
   fs.writeFileSync(path.join(copy.folder, 'file.ts'), 'export const value = "restored-review-marker";\n');
   fs.writeFileSync(path.join(copy.folder, 'z-file.ts'), Array.from({ length: 120 }, (_, i) => `export const value${i} = ${i};\n`).join(''));
   await showResources(ui, 'Diff');
-  const tree = ui.getByRole('region', { name: 'Diff', exact: true });
+  const tree = resourcesGroup(ui).locator('[data-resources]');
   const customize = async () => {
     await tree.getByRole('combobox', { name: 'To for review-restore' }).click();
     await ui.getByRole('option', { name: 'HEAD', exact: true }).click();

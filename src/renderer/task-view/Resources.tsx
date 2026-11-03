@@ -53,9 +53,7 @@ export function Resources({ api, params }: IDockviewPanelProps<{ section: Resour
     update();
     return () => { shown.dispose(); collapsed.dispose(); };
   }, [api]);
-  return visible ? <aside data-resources role="region" aria-label={resourceSections[params.section]} className="h-full">
-    <TaskResources section={params.section} />
-  </aside> : null;
+  return visible ? <TaskResources section={params.section} /> : null;
 }
 
 function TaskDictation() {
@@ -94,7 +92,7 @@ function TaskResources({ section }: { section: ResourceSection }) {
   const lines = (name: string, line: string) => <span className="flex min-w-0 flex-1 flex-col text-start">
     <span className="truncate">{name}</span><span className="truncate text-xs text-muted-foreground">{line}</span>
   </span>;
-  return <SidebarProvider className="h-full min-h-0">
+  return <SidebarProvider data-resources className="h-full min-h-0">
       <Sidebar collapsible="none" className="w-full">
         {section === 'terminals' && <DevelopmentTerminalList />}
         {section === 'diff' && <TaskDiffTree roots={task.resources} />}

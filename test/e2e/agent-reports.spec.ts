@@ -288,6 +288,7 @@ test("artifacts: what they take, in Resources' heading and for the agent, which 
   const shot = listed.match(/^- (.+\.jpg): screenshot, Elon\.buyer, \d{4}-\d\d-\d\d \d\d:\d\d, \S+ [KMG]B$/m)?.[1];
   expect(shot && fs.existsSync(shot), `each file with its path, kind, profile, time and size: ${listed}`).toBe(true);
   expect(total()).toBeGreaterThan(0);
+  await showResources(ui, 'Artifacts');
   await expect(heading).toHaveText(size);
   expect((await call('task_artifacts', { scope: 'all' })).text, "every task's total").toMatch(new RegExp(`^- .+ / .+ \\(this task\\): ${size}$`, 'm'));
   expect((await call('task_artifacts', { limit: 1 })).text).toMatch(/older not listed \(limit\)\.$/);

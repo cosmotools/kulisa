@@ -42,6 +42,7 @@ the main process after every grid change ([window.md](window.md), The grid).
 The TaskView module is part of the window. Outside imports use its two entries; dependency-cruiser checks the boundary.
 `TaskView.tsx` defines the outer split, both nested grids and the Terminal/Diff content switch; pane components supply their contents.
 Stage's section is its scroll viewport, with one inner canvas for overflow; Resources sections use SidebarContent's own scrolling.
+Dockview supplies the Resources region and its selected section's accessible name; the section content has no nested region.
 
 ## shadcn in Kulisa
 

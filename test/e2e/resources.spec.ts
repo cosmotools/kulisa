@@ -109,12 +109,14 @@ test('Resources icon tabs toggle content, restore width and enforce the edge min
   }
   await showResources(ui, 'Project');
   await project.press('Enter');
+  await expect(resources.locator(':scope.dv-edge-collapsed')).toHaveCount(0);
+  await project.click();
   await expect(resources.locator(':scope.dv-edge-collapsed')).toBeVisible();
   const original = await core((k) => k.shell.task.key), other = path.join(files.root, 'collapsed-resources-project');
   fs.mkdirSync(other);
   await openFolder(core, ui, other); await showTask(core, ui, original);
   await expect(resources.locator(':scope.dv-edge-collapsed')).toBeVisible();
-  await project.press('Enter');
+  await project.click();
   await expect.poll(async () => (await resources.boundingBox()).width).toBe(width);
 });
 
@@ -123,7 +125,7 @@ test('Resources restores its native collapsed group and selected section after r
   await dock(ui, (api) => api.getEdgeGroup('left').setSize({ width: 420 }));
   const width = (await resourcesGroup(ui).boundingBox()).width;
   await resourcesGroup(ui).getByRole('tab', { name: 'Artifacts', exact: true }).click();
-  await expect.poll(() => core((k) => (k.shell.task.store.layout() as any)?.workspace.edgeGroups.left.collapsed)).toBe(true);
+  await expect.poll(() => core((k) => (k.shell.task.store.layout() as any)?.workspace.edgeGroups.left)).toMatchObject({ collapsed: true, size: width });
   const next = await restart(), resources = resourcesGroup(next);
   await expect(resources.locator(':scope.dv-edge-collapsed')).toBeVisible();
   await expect(resources.getByRole('tab')).toHaveCount(4);

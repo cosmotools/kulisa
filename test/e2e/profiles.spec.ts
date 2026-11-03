@@ -190,7 +190,7 @@ test("DevTools in a pane's ⋮ menu opens and closes the DevTools of its active 
     expect(await looks('its menu open'), 'its menu open').toEqual(closed);
     // The same inset from the pane's edges for the controls in it; the page reaches its edges (the author's choice).
     // The pane's group in dockview; its header the panel's tab there.
-    const group = await ui.locator('.dv-groupview').filter({ has: pane }).boundingBox(), header = ui.locator(`[data-task-view][data-active] [data-panel="profile:${id}"]`).first();
+    const group = await ui.locator('[data-task-view][data-active] .dv-groupview').filter({ has: ui.locator(`[data-profile="${id}"]`) }).boundingBox(), header = ui.locator(`[data-task-view][data-active] [data-panel="profile:${id}"]`).first();
     const left = async (l: Locator) => Math.round((await l.boundingBox()).x - group.x);
     const right = async (l: Locator) => { const r = await l.boundingBox(); return Math.round(group.x + group.width - (r.x + r.width)); };
     const page = pane.getByTestId('page'), pageBox = await page.boundingBox();

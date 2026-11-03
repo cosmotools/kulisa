@@ -80,7 +80,7 @@ export function DevelopmentTerminals({ reviewing }: { reviewing: boolean }) {
 
   return <div data-testid='development-terminals' data-empty={empty || undefined} hidden={reviewing} className="relative grid h-full grid-cols-[minmax(0,1fr)] grid-rows-[minmax(0,1fr)] bg-card">
     {big ? <Launchers ref={launch} />
-      : empty ? <ButtonMenu items={() => newTerminalItems(task)}><Button variant="ghost" size="icon-sm" className="self-center justify-self-center" aria-label="New terminal"
+      : empty ? <ButtonMenu items={() => newTerminalItems(task)}><Button data-unfold variant="ghost" size="icon-sm" className="self-center justify-self-center" aria-label="New terminal"
           title={withKeys(NEW_TITLE, 'terminal.new')}><PlusIcon /></Button></ButtonMenu>
       : null}
     <RightClickMenu items={menu}>

@@ -65,6 +65,8 @@ export class DevelopmentGrid {
     const constrainParent = () => this.parent!.setConstraints({ minimumWidth: api.minimumWidth
       + (resources.isCollapsed() ? resourcesEdge.collapsedSize : resourcesEdge.minimumSize) });
     constrainParent();
+    // Edge resizing is outside the central grid's layout event stream.
+    this.subscriptions.addDisposables(resources.onDidDimensionsChange(this.changed));
     this.subscriptions.addDisposables(resources.onDidActivePanelChange(this.resourceChanged), resources.onDidCollapsedChange(constrainParent),
       resources.onDidCollapsedChange(this.resourceChanged));
     this.resourceChanged();
