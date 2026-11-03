@@ -79,9 +79,9 @@ Resources stays beside the development terminal.
 **Stage** in the title bar offers:
 
 - **Left**, **Right** or **Above** the development area.
-- **Horizontal stack**, **Vertical stack** or **Tabs**.
-- **Allow overflow** for scrolling stacks at usable pane sizes, or fit all panes; stacked tabs share an area.
-  Tabs keeps this setting hidden. Changing View preserves pane contents and terminal search.
+- **Horizontal stack**, **Vertical stack** or **Tabs**; changing the view preserves pane contents and terminal search.
+- **Allow overflow** for scrolling stacks at usable pane sizes, or fit all panes. Stacked tabs share an area;
+  Tabs keeps this setting hidden.
 - **Open an environment** to add a profile or Stage terminal. An empty Stage stays hidden.
 - **Follow agent** to reveal its active environment and highlight activity. Your Stage input pauses following;
   choose **Follow agent (paused)** to resume. The preference survives restart; pauses are temporary.
@@ -92,8 +92,7 @@ returns its arrangement/overflow. The agent can arrange Stage too; each task rem
 ### Resources
 
 The **Resources bar** selects **Agents**, **Project**, **Diff** or **Artifacts**. Click the selected icon to collapse
-**Resources content**, leaving icons beside the terminal with a thin border and no empty gap; select a section
-to restore its width.
+**Resources content**, leaving icons visible; select a section to restore its width.
 
 - **Agents** lists coding agents/development shells. Select a row to use its terminal.
 - **Project** starts selected in new tasks. Expand folders, double-click files or press Enter to open them in the
@@ -104,8 +103,8 @@ to restore its width.
   or clean up files. Above 100 MB, oldest task artifacts are removed automatically.
 
 Resources stays fixed to the terminal's left. Drag its divider to change width. Expanded minimum width is 300 pixels;
-the development area stays at least 204 pixels tall, keeping controls reachable. Agent rows and close buttons fit
-at the minimum width. Each task keeps its section, width and collapsed state.
+the development area stays at least 204 pixels tall, keeping controls reachable. Each task keeps its section,
+width and collapsed state.
 
 ### Reviewing changes
 
@@ -220,9 +219,9 @@ but does not revoke GitHub authorization; its confirmation links GitHub's revoca
 
 ## Tasks
 
-Switching tasks keeps each visited task's arrangement, expanded Project folders and scroll positions while its
-tab stays open. Its browser panes return at their saved positions; the agent terminal can briefly show its background
-while its text is prepared. After restarting, panels restore saved positions while contents load.
+Switching tasks preserves each open task's arrangement, expanded Project folders and scroll positions. The agent
+terminal can briefly show its background while its text is prepared. After restarting, panels restore saved positions
+while contents load.
 
 - **Sidebar**: bar's first button or Ctrl+Shift+A; docked when no task is open. Projects sort by recent use, open
   tasks before closed ones. Click/Enter shows or reopens a task. Project + creates one; trash/Delete removes it

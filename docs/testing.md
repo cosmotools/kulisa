@@ -6,7 +6,8 @@ Kulisa-specific checks and test conventions. Read before writing or running test
 ## What gets a test, and when to run what
 
 - What can break gets a test: a behavior, its logic, a fixed bug. Not a removal or a cosmetic change.
-- Test Kulisa's decisions and integration with libraries; upstream defaults, algorithms and association tables belong to the libraries' own tests.
+- Test Kulisa's decisions and library integration; upstream defaults, algorithms and association tables belong to
+  the libraries' own tests.
 - A bug is first reproduced by a failing test, then fixed.
 - **While building, only what the change touches**: `npm run test:unit`; the changed part's e2e files (`npm test --
   e2e <file>…`, or `npx playwright test <file> -g "…"` after `npm run build`); `npx playwright test

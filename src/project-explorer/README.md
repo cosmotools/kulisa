@@ -16,8 +16,9 @@ entries; directory links are not expanded. Opening files is the caller's desktop
 Folder rows; double-click/Enter opens files.
 
 Use shadcn File Tree: Collapsible folders, Button triggers and ghost Button files. Expanded folders set `--muted`
-transparent while unhovered. Refresh mounted expanded directories every 3 s while `active`. Hiding pauses polling
-and ignores late replies, retaining entries/expansion; unmounting clears timers. Collapsed/background folders keep no watchers.
+transparent while unhovered. Refresh mounted expanded directories every 3 s while `active`; callers set it false
+for hidden trees to pause polling and ignore late replies while retaining entries/expansion. Unmounting clears timers;
+collapsed/background folders keep no watchers.
 
 Use Lucide folder icons and Material Icon Theme file icons. Vite generates case-insensitive associations, referenced
 SVGs and MIT attribution; renderer receives URLs/associations only. Match exact names before longest compound
@@ -37,5 +38,5 @@ The renderer receives those actions as callbacks, with no channels or task keys 
 - `renderer/FileIcon.tsx`, `icon.ts`, `icons.d.ts`: asset display, matching and Vite contract.
 - `ipc.ts`: directory-entry contract. Core task handles supply roots (`tasks.ts`, `ipc/tasks.ts`, `shared/ipc.ts`).
 - `task-view/Resources.tsx`: repository grouping/ownership, panel controls and action bindings.
-- `files.test.ts`, `icons.test.ts`: reads/containment, supplied-association matching, path formats and theme fallbacks. E2e:
+- `files.test.ts`, `icons.test.ts`: reads/containment and icon resolution from supplied manifests, including path/theme fallbacks. E2e:
   `test/e2e/resources.spec.ts`, `project-repositories.spec.ts`; containing layouts/artifacts use Resources tests.

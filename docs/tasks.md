@@ -62,9 +62,7 @@ wizard content only while shown; first-start focus goes to Next. Links/version r
 
 **Windows/startup**:
 
-- Switching reveals a retained TaskView; its first visit loads and sizes the saved grids before reveal. Native
-  pages become ready with their first geometry report; prepared tasks use stored bounds. Layout/ownership:
-  [window.md](window.md#the-grid).
+- TaskView retention, startup layout and native-page handoff: [window.md](window.md#the-grid).
 - Move task(s) or drag tabs within/between windows without restarting pages/agents; preserve terminal buffers/size.
   Dropping outside opens a window at release. Moving a sole task elsewhere closes its old window.
 - Closing a window asks once about its tasks; last-window quit asks only for working agents. On macOS last-window ×
@@ -105,8 +103,8 @@ Resources is a Dockview edge group fixed left of the development terminal. Verti
 Project, Diff or Artifacts; clicking the selected tab collapses content, another reopens at saved width. Dictation
 sits below the tabs. Task layout saves selected tab, collapse state and shared expanded width.
 
-- Expanded minimum width is 300 CSS px; collapsed width is 40 px, with the bar's border and no empty gap. Development
-  minimum height is 204 px to keep controls reachable. An empty terminal keeps its size and shows +.
+- Expanded minimum width is 300 CSS px; collapsed width is 40 px. Development minimum height is 204 px to keep
+  controls reachable. Empty development terminals: [window.md](window.md#the-terminal).
 - **Agents**: named agent/shell rows with state/account/command. Icon returns to the last development terminal;
   row selection shows/focuses it. + uses the shared launch menu; × asks for agents, closes shells
   immediately. Agent menu: Change agent, New Conversation, Close.
@@ -127,14 +125,10 @@ these fields. `maintree` is human-owned and never deleted; task-created `worktre
 #### Diff
 
 [Diff](../src/diff/README.md) reviews task resources through `Task.diff`, `diffTargets`, `review`, `diffContents`,
-with starting commits and ownership checks. While open, its TaskView owns selection/session. Switching tasks retains
-the review and pauses polling; leaving Diff, collapsing Resources or closing its task releases queries/models/worker/navigation.
-Reopen at first repository/default comparison,
-empty filter/document start; saved Resources section can reopen a fresh review. Returning to a terminal preserves Stage.
-
-Read Git afresh. Show search/empty From/To immediately; hold one progress bar at least 500 ms, revealing branch names,
-rows and first rendered review together. Stage terminal lifecycle: [window.md](window.md#stage-terminals);
-browser lifecycle: `ProjectProfiles`.
+with starting commits and ownership checks. Its TaskView owns the selection/session: task switching preserves the
+comparison, filter, document and scroll position; leaving Diff, collapsing Resources or closing the task releases
+the session and navigation. Reopening or restarting starts at the first repository/default comparison with an empty
+filter and document start. Returning to a terminal preserves Stage. Loading and polling: [Diff](../src/diff/README.md).
 
 ## What the human does
 
@@ -430,7 +424,7 @@ accounts, let go of (Settings → Agents deletes one: "Choosing the agent", Acco
   without writing to the log (`askToQuit`): Windows has no signal for it. A console's Ctrl+C reaches `npm start`'s
   Node there, not Electron (a GUI program, without a console), and a signal sent to a child ends it at once, so
   `scripts/electron.ts` stops Kulisa by such a start.
-- Each window shows one TaskView; visited tasks retain grids and local UI while hidden. Agents/pages keep running.
+- Each window shows one task; other tasks' agents/pages keep running. Renderer retention: [window.md](window.md#the-grid).
 - A task loads (its profiles start, its agents start) the first time it is shown, also after a restart.
 - A task is known by its key, `<project id>/<task id>` (the window, the terminals); a task's id is six random letters
   and digits, as a project's and a profile's (`store.ts`, `newId`). Each has its own MCP URL,

@@ -40,10 +40,8 @@ renderers exhaust Chromium's 16-context limit and retain unnecessary GPU memory.
 Switching resets/serializes the selected buffer in one write, restores scroll, loses selection and queues pending
 output. The View stays transparent through restoration and reveals on `onRender` after buffer/pane sizes agree;
 opacity preserves measurement and focus. Visible output updates View and buffer at the same size.
-The development View moves into the selected TaskView; Stage Views remain with task panes while hidden and are
-released on pane/task close. Fit from host DOM dimensions, coalesced in `requestAnimationFrame`; apply resize after
-that frame so clearing WebGL does not expose a blank canvas. Disposal cancels the frame and deferred resize.
-Hidden pages fit immediately because Windows occlusion can suspend frames indefinitely.
+Fit from host DOM dimensions, coalesced in `requestAnimationFrame`; apply resize after that frame so clearing WebGL
+does not expose a blank canvas. Hidden pages fit immediately because Windows occlusion can suspend frames indefinitely.
 
 Serialization omits cursor visibility and mouse encodings. Track `?25`, `?1006`, `?1015`, `?1016` through parser hooks,
 restore every value, and disable encodings before enabling the chosen one. Window moves use the same size-preserving

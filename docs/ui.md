@@ -6,11 +6,10 @@ hand-edit generated `src/ui` files. Use wrappers for custom layout/drawing, not 
 Prefer upstream components/props/patterns; justify necessary deviations in comments.
 
 Dockview owns grids; zustand owns window state; xterm owns terminals; Pierre owns Diff/tree virtualization;
-TanStack Virtual owns log rows. Keep Dockview dividers below menus. Native browser views sit above HTML, so covered
-pages must hide or become snapshots; layout changes report pane bounds to main.
-Stage uses a 6 px gap for native pages; development uses gap 0. Resources' native vertical tab header supplies one
-shared border, including when collapsed, with icons filling its width. Pane content has zero minimum width and an
-isolated stacking context so lists can shrink and overlays stay below separators.
+TanStack Virtual owns log rows. Grid lifecycle and native-page geometry: [window.md](window.md#the-grid).
+Stage uses a 6 px gap for native pages; development uses gap 0. Resources' native vertical tab header owns its border,
+including when collapsed. Pane content can shrink and isolates stacking so overlays stay below Dockview separators;
+menus stay above them.
 
 ## The code
 
@@ -27,12 +26,10 @@ isolated stacking context so lists can shrink and overlays stay below separators
 | `src/*/renderer/` | Kulisa package UI, documented by its README |
 | `public/avatars/` | Bundled Noto Emoji profile pictures |
 
-`lib/store.ts`: components use `useWindow(selector)`; other code uses `store.getState()`. Task actions/hooks use
-`task-view/index.ts`; its UI entry is `TaskView.tsx`. Dependency-cruiser enforces these module entries.
-`state.ts` owns task stores/context, `controller.ts` routes selection/messages, and `grid.ts`, `development.ts`,
-`stage.ts`, `layout.ts` own native grids and persistence. Panes read their permanent controller through context.
-Stage's section is its scroll viewport with an overflow canvas; Resources sections use SidebarContent scrolling.
-Dockview supplies the Resources region and selected section's accessible name.
+`lib/store.ts`: components use `useWindow(selector)`; other code uses `store.getState()`.
+The `task-view/` module exposes actions/hooks through `index.ts` and UI through `TaskView.tsx`; dependency-cruiser
+protects these entries. Resources sections use SidebarContent scrolling inside Dockview's named region; avoid duplicate
+region wrappers.
 
 ## shadcn in Kulisa
 
@@ -58,11 +55,8 @@ dialog's open state is a plain `useState`.
   pictures (`lib/cover.css` keeps it clipped until then), then marked `data-ready` (the tests' handle). A tooltip is
   no layer: it opens over no page (Tooltips).
 - **Settings**, no Radix layer, says so itself (`coverPage(true)`, awaited before it is drawn; `coverPage(false)`).
-- **Closing**: the grid taken down closes every layer, the window left closes its menus (`closeLayers`), both by the
-  Esc Radix closes them on.
-
-The cover observer reports both open overlays and mounted dialogs. Closing content remains mounted through exit
-animation; pending launcher focus waits for removal and unsubscribes after one attempt.
+- **Closing**: switching tasks closes every layer; leaving the window closes menus (`closeLayers`), using Radix's Esc
+  handling. Dialog content remains mounted through exit animations; focus handoffs wait for removal.
 
 ## Desktop, not a web page
 
