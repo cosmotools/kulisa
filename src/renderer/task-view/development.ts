@@ -6,7 +6,6 @@ import type { TaskStore } from './state';
 import type { DiffSelection } from '../../diff/ipc';
 import { createDiff } from '../../diff/renderer';
 import { menuAt } from '../lib/menu';
-import { dockTheme } from './dock-theme';
 
 export const resourceSections = { terminals: 'Agents', project: 'Project', diff: 'Diff', artifacts: 'Artifacts' } as const;
 export type ResourceSection = keyof typeof resourceSections;
@@ -64,7 +63,7 @@ export class DevelopmentGrid {
     const resources = api.getEdgeGroup('left')!;
     // The outer split must reserve room for the edge strip/content and the central terminal.
     const constrainParent = () => this.parent!.setConstraints({ minimumWidth: api.minimumWidth
-      + (resources.isCollapsed() ? resourcesEdge.collapsedSize : resourcesEdge.minimumSize) + (dockTheme.gap ?? 0) });
+      + (resources.isCollapsed() ? resourcesEdge.collapsedSize : resourcesEdge.minimumSize) });
     constrainParent();
     this.subscriptions.addDisposables(resources.onDidActivePanelChange(this.resourceChanged), resources.onDidCollapsedChange(constrainParent),
       resources.onDidCollapsedChange(this.resourceChanged));

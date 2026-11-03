@@ -88,7 +88,7 @@ project, and those you closed, are in the sidebar (Tasks, below).
   environment when needed through **Stage → Open an environment**.
 - **Resources panel**, to the left of the terminal by default: choose the **Agents**, **Project**, **Diff** or **Artifacts** section
   from the **Resources bar**, the icons on its left. The area on the right is **Resources content**.
-  Click the selected icon again to close Resources content and give the terminal more room; the Resources bar stays visible, with no resize divider beside it.
+  Click the selected icon again to close Resources content and give the terminal more room; the Resources bar stays beside the terminal with a thin border and no empty gap or resize divider.
   Click any section icon to reopen Resources content at its previous size.
   **Diff** shows changed files as a folder tree, grouped by repository, with their status and added or removed line
   counts. GitHub-style status icons mark added files in green and deleted files in red, with distinct modified and

@@ -11,8 +11,6 @@
   --dv-tab-divider-color: transparent; --dv-active-sash-color: var(--ring);
   --dv-drag-over-background-color: var(--accent); --dv-drag-over-border-color: var(--ring);
 }
-/* Edge-group gaps expose the shell, while central-grid gaps expose the pane background. */
-#dock .dv-shell { background-color: var(--dv-group-view-background-color); }
 /* Nested content must shrink with its group; its overlays stay below Dockview's separators. */
 #dock .dv-content-container { min-width: 0; isolation: isolate; }
 /* Skipping contents keeps controls from animating inherited visibility when a task is shown. */
@@ -24,5 +22,7 @@
 #dock .dv-tab { min-width: 0; flex-shrink: 1; }
 /* Icon tabs fit the collapsed Resources strip. */
 [data-development-grid] { --dv-tabs-and-actions-container-height: calc(var(--spacing) * 10); }
+/* The collapsed strip supplies the border; the adjacent pane must not add another. */
+[data-development-grid]:has(.dv-edge-collapsed) { --dv-separator-border: transparent; }
 [data-development-grid] .dv-groupview-header-left > .dv-tabs-and-actions-container { border-right: 1px solid var(--border); }
 [data-development-grid] .dv-tabs-container-vertical .dv-tab { padding: 0; }

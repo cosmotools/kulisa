@@ -89,8 +89,8 @@ mounted through its exit animation; a pending launcher focus waits for its remov
 Kulisa is a desktop app, an IDE: its window looks like one, JetBrains its model (not big titles, framed cards in
 frames, pills, rows that show their buttons only under the pointer: those read as a web page's).
 
-- **Flat panes split by a gap** (dockview's `gap`: at 0 the native pages draw over a hairline).
-  Edge shells share the pane background so their gaps show the same thin separator as the outer split.
+- **Flat panes**: Stage uses Dockview's gap because native pages draw over a hairline at 0; development uses gap 0.
+  Collapsed Resources uses the bar's border as its only separator.
   Resources' vertical tab header has one shared right border for every section; icon renderers fill their native tab's width.
 - **The project's color only on its icon** and the title bar's logo (`--project` on the root, `lib/store.ts`; the
   author's choice). `projectColor` (`lib/project-color.ts`): a favicon's hue in Kulisa's lightness and chroma.

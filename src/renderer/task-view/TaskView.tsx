@@ -10,7 +10,7 @@ import { TaskDiff } from './Diff';
 import { StageTerminalPane, StageTerminalHeader } from './StageTerminalPane';
 import { ProfilePane, ProfileHeader } from './ProfilePane';
 import { Resources, ResourceIcon, ResourceActions } from './Resources';
-import { dockTheme } from './dock-theme';
+import { developmentTheme, dockTheme } from './dock-theme';
 import { registerTaskGrid } from './controller';
 import { TaskGrid } from './grid';
 import { useWindow } from '../lib/store';
@@ -38,7 +38,7 @@ function DevelopmentContent(props: IDockviewPanelProps) {
 function Development({ api }: IGridviewPanelProps) {
   const grid = useTaskGrid();
   return <div data-development-grid className="h-full">
-    <DockviewReact theme={dockTheme} disableAutoResizing disableFloatingGroups disableDnd components={components}
+    <DockviewReact theme={developmentTheme} disableAutoResizing disableFloatingGroups disableDnd components={components}
       tabComponents={tabComponents} rightHeaderActionsComponent={ResourceActions}
       onReady={(e) => grid.mountDevelopment(e.api, api)} />
   </div>;
