@@ -141,8 +141,8 @@ terminal View and search state stay alive. Task switching keeps the selected Sta
 `task.json` keeps Stage view/overflow/layout in `stage`, and development layout, Stage position and native outer split in `workspace`,
 saved 300 ms after a change and flushed when the task is hidden or closed. The saved layout loads once before a TaskView
 creates its grids, including after a restart or move to another window. Stage commands received before mounting await
-the same restoration promise and update their task's settings in arrival order. Loading completes when both required
-grids are mounted. Dockview owns the live geometry;
+the same restoration promise and update their task's settings in arrival order. Loading completes after both required
+grids mount and the final layout pass supplies their dimensions, before the screen is shown. Dockview owns the live geometry;
 its layout and maximize events save completed arrangements. Stage position changes move the leading area before its
 peer using Gridview's API and the panel's native size. All three grids use their library's `toJSON` / `fromJSON`;
 the outer snapshot includes Stage's cached hidden size, and development's includes Resources' edge state.

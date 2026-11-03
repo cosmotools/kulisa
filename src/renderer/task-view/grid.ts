@@ -105,8 +105,9 @@ export class TaskGrid {
   }
   private finishInitialization() {
     if (this.ready || this.disposed || !this.development.api || !this.stage.api) return;
+    this.resize();
     this.state.setState({ loading: false });
-    this.resize(); this.scheduleSave(); this.reportPages();
+    this.scheduleSave(); this.reportPages();
   }
   activate() {
     void showViews();

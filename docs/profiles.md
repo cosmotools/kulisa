@@ -83,7 +83,8 @@ A profile is an Electron session on a folder of its own (`session.fromPath`), la
   address, selected, in place of the tabs and +. Ctrl+L does the same for the active tab. Enter navigates; Esc or
   leaving the field discards the edit and shows tabs. A tab opened with + gets its empty address ready to type in.
   Many tabs shrink to their icon and × (each keeps its ×), then the strip scrolls (`useStrip`, `lib/strip.ts`);
-  its elements stay mounted during editing. `target=_blank` and `window.open` open tabs of the same profile.
+  its area reserves room while tabs restore, and + appears with them. Its elements stay mounted during editing.
+  `target=_blank` and `window.open` open tabs of the same profile.
   Right-click a tab: edit address, reload, duplicate, close, close others. **⋮** at the row’s end: Screenshot
   (Element, Visible Part, Full Page) and DevTools (or F12). A narrow pane gives up back and forward, then reload,
   into ⋮ as they stop fitting; never Pick or ⋮ (container queries: [ui.md](ui.md), Controls). Hover a tab for its full

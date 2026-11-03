@@ -155,7 +155,7 @@ export function ProfilePane({ api }: IDockviewPanelProps) {
       <span ref={reload} className="hidden @3xs:flex">
         <Button variant="ghost" size="icon-sm" title={withKeys('Reload', 'tab.reload')} aria-label="Reload" onClick={run('tab:reload')}><RotateCwIcon /></Button>
       </span>
-      <nav aria-label="Tabs" className={editing?.tab === active?.id ? 'hidden' : 'flex min-w-0 flex-1 items-center gap-1'}>
+      <nav aria-label="Tabs" className={editing && editing.tab === active?.id ? 'hidden' : 'flex min-w-0 flex-1 items-center gap-1'}>
         <RightClickMenu items={tabMenu} className="flex min-w-0">
           <TabStrip stripRef={strip} label="Open tabs" value={profile.active ?? ''} onChoose={activate}>
             {/* their widths: docs/ui.md, Tabs */}
@@ -168,7 +168,7 @@ export function ProfilePane({ api }: IDockviewPanelProps) {
             </BrowserTab>)}
           </TabStrip>
         </RightClickMenu>
-        <Button variant="ghost" size="icon-sm" title={withKeys('New tab', 'tab.new')} aria-label="New tab" onClick={() => void grid.panes.get(id)?.newTab()}>
+        <Button variant="ghost" size="icon-sm" hidden={!profile.tabs.length} title={withKeys('New tab', 'tab.new')} aria-label="New tab" onClick={() => void grid.panes.get(id)?.newTab()}>
           <PlusIcon />
         </Button>
       </nav>
