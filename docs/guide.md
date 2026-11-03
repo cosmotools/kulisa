@@ -72,7 +72,7 @@ project, and those you closed, are in the sidebar (Tasks, below).
 - **Settings** (on a Mac also ⌘, or Kulisa → Settings… in the menu bar) fills the window, over your task, and shows that task's project: set what you need and close it (**Esc**,
   the ← arrow at its top left, or the gear again; what you typed is saved as you go). Your task goes on meanwhile, and is there as you left it.
 - **The grid** separates development from testing: your agents' terminals and Resources sit beside the **stage**,
-  where browser profiles and Stage terminals show the app being tested. Drag Stage headers to move or stack environments. Resources stays beside the development terminal. Drag a line to resize panes.
+  where browser profiles and Stage terminals show the app being tested. Drag Stage headers to move or stack environments. Resources stays beside the development terminal. Drag a thin separator line to resize panes.
   **Stage** in the title bar places the stage **Left**, **Right**, or **Above** the agent terminal and Resources together. Its **View** choices are **Horizontal stack** (side by side),
   **Vertical stack** (one above another), and **Tabs** (one environment at a time). **Allow overflow** keeps panes at a usable size and adds scrolling in the stack’s direction;
   turned off, all panes fit inside the stage. Panes stacked as tabs share one area when scrolling. Tabs hides this setting.

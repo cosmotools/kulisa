@@ -11,6 +11,8 @@
   --dv-tab-divider-color: transparent; --dv-active-sash-color: var(--ring);
   --dv-drag-over-background-color: var(--accent); --dv-drag-over-border-color: var(--ring);
 }
+/* Edge-group gaps expose the shell, while central-grid gaps expose the pane background. */
+#dock .dv-shell { background-color: var(--dv-group-view-background-color); }
 /* Skipping contents keeps controls from animating inherited visibility when a task is shown. */
 [data-task-view]:not([data-active]) {
   content-visibility: hidden; pointer-events: none;

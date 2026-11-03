@@ -88,6 +88,7 @@ Kulisa is a desktop app, an IDE: its window looks like one, JetBrains its model 
 frames, pills, rows that show their buttons only under the pointer: those read as a web page's).
 
 - **Flat panes split by a gap** (dockview's `gap`: at 0 the native pages draw over a hairline).
+  Edge shells share the pane background so their gaps show the same thin separator as the outer split.
 - **The project's color only on its icon** and the title bar's logo (`--project` on the root, `lib/store.ts`; the
   author's choice). `projectColor` (`lib/project-color.ts`): a favicon's hue in Kulisa's lightness and chroma.
 - **The sidebar** is shadcn's `Sidebar`, docked in the empty window and in a `Sheet` over the grid (covering as a
