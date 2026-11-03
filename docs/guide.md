@@ -119,14 +119,18 @@ with a fresh review.
 choose the current branch to see uncommitted changes only. Selecting a target does not change checked-out code.
 New files are included; ignored files are excluded. Several repositories have collapsible headings.
 
-Filter paths to narrow tree and review. Arrow keys navigate; Enter selects. Changed-file status icons/counts
-identify additions, deletions, modifications and renames. Selecting the first file returns to the document top;
-other files jump to their headings. Scrolling highlights the current file in the tree.
+Filter current file paths to narrow tree and review; search ignores case and accepts either slash as a separator.
+While filtering, the review heading shows matching files out of the total, such as **3 of 18 files**.
+The **×** at the field's end clears the filter and restores the tree's expanded folders. Arrow keys navigate;
+Enter selects. File icons identify file types; status badges and counts identify additions, deletions, modifications
+and renames. Selecting the first file returns to the document top; other files jump to their headings. Scrolling
+highlights the current file in the tree.
 
-All files share one scrolling review with **Unified**/**Split** layouts and added/deleted totals. File-header arrows
-collapse diffs and keep that choice through refresh. The copy button copies the current repository-relative path,
-even when collapsed. Long lines wrap; select/copy code normally or drag line numbers for a range. Large reviews
-use **Load diff**; binary/unsupported content explains its limit. Review follows global zoom/theme.
+All files share one scrolling review with **Unified**/**Split** layouts and added/deleted totals. File headers show
+paths, rename arrows, change icons and line counts. Their collapse arrows keep that choice through refresh.
+The copy button copies the current repository-relative path, even when collapsed. Long lines wrap; select/copy
+code normally or drag line numbers for a range. Large reviews use **Load diff**; binary/unsupported content
+explains its limit. Review follows global zoom/theme.
 
 ### Task navigation
 

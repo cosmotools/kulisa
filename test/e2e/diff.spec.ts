@@ -5,18 +5,23 @@ import { test, expect } from './fixtures.ts';
 import { act, arrange, box, invoke, resourcesGroup, showResources, termKeys, termText } from './helpers.ts';
 import { committed, git, openFolder, showTask } from './tasks-helpers.ts';
 
-test('Diff copies code and file paths in Unified and Split layouts while controls stay unselectable', async ({ core, ui, files }) => {
-  const folder = path.join(files.root, 'review-copy'), file = 'src/file name.ts';
+test('Diff copies code and renamed file paths in Unified and Split layouts while controls stay unselectable', async ({ core, ui, files }) => {
+  const folder = path.join(files.root, 'review-copy'), previous = 'src/old name.ts', file = 'src/file name.ts';
   fs.mkdirSync(path.join(folder, 'src'), { recursive: true });
-  const repo = committed(folder, file, 'export const copyMarker = 1;\n');
+  const before = 'export const copyMarker = 1;\n// Keep the surrounding context when the file is renamed.\nexport const ready = true;\n';
+  const repo = committed(folder, previous, before);
   git(repo, 'branch', '-M', 'main');
   await openFolder(core, ui, repo);
-  fs.writeFileSync(path.join(repo, file), 'export const copyMarker = 2;\n');
+  git(repo, 'mv', previous, file);
+  fs.writeFileSync(path.join(repo, file), before.replace('copyMarker = 1', 'copyMarker = 2'));
   await showResources(ui, 'Diff');
   const code = ui.locator('[data-task-view][data-active]').getByLabel(`Code comparison: ${file}`, { exact: true });
-  const heading = ui.getByRole('heading', { name: file, exact: true });
-  const collapse = heading.getByRole('button', { name: `Collapse diff for ${file}`, exact: true });
-  const copy = heading.getByRole('button', { name: `Copy path for ${file}`, exact: true });
+  const article = ui.getByRole('article', { name: file, exact: true });
+  const heading = article.getByRole('heading', { name: file, exact: true });
+  const collapse = article.getByRole('button', { name: `Collapse diff for ${file}`, exact: true });
+  const copy = article.getByRole('button', { name: `Copy path for ${file}`, exact: true });
+  await expect(heading).toContainText(previous);
+  await expect(heading).toContainText(file);
   for (const layout of ['Unified', 'Split']) {
     await ui.getByRole('radio', { name: `${layout} diff`, exact: true }).click();
     await expect(code).toHaveCSS('user-select', 'text');
@@ -35,10 +40,22 @@ test('Diff copies code and file paths in Unified and Split layouts while control
     await core((k) => k.electron.webContents.getFocusedWebContents().copy());
     await expect.poll(() => core((k) => k.electron.clipboard.readText())).toBe(selected);
   }
+  const filter = ui.getByRole('textbox', { name: 'Filter changed files' });
+  await filter.fill('old name');
+  await expect(ui.getByRole('region', { name: 'Changed files', exact: true })).toContainText('No files match');
+  await expect(ui.getByRole('region', { name: 'Diff review', exact: true })).toContainText('No files match');
+  await expect(article).toHaveCount(0);
+  await expect(ui.locator(`[role="treeitem"][data-item-path="${file}"]`)).toBeHidden();
+  await filter.fill(' SRC\\FILE NAME.TS ');
+  await expect(code).toContainText('copyMarker');
+  await expect(ui.locator(`[role="treeitem"][data-item-path="${file}"]`)).toBeVisible();
+  await ui.getByRole('button', { name: 'Clear file filter', exact: true }).click();
+  await expect(filter).toHaveValue('');
+  await expect(filter).toBeFocused();
   await collapse.click();
   await copy.click();
   await expect.poll(() => core((k) => k.electron.clipboard.readText())).toBe(file);
-  await expect(heading.getByRole('button', { name: `Expand diff for ${file}`, exact: true })).toHaveAttribute('aria-expanded', 'false');
+  await expect(article.getByRole('button', { name: `Expand diff for ${file}`, exact: true })).toHaveAttribute('aria-expanded', 'false');
   await showResources(ui, 'Agents');
 });
 
@@ -75,6 +92,7 @@ test('Diff groups files into folders and switches the development area without m
   await expect(stock).toBeHidden();
   await tree.locator('[role="treeitem"][data-item-path="src/"]').click();
   await expect(stock).toBeVisible();
+  await tree.locator('[role="treeitem"][data-item-path="src/"]').click();
   await tree.getByRole('textbox', { name: 'Filter changed files' }).fill('checkout');
   await expect(stock).toBeHidden();
   await expect(ui.getByRole('article', { name: 'src/orders/stock.ts', exact: true })).toHaveCount(0);
@@ -91,6 +109,9 @@ test('Diff groups files into folders and switches the development area without m
   expect(await core((k) => [...k.shell.task.developmentTerminals.values()].every((t) => !!t.pty))).toBe(true);
   await core((k) => k.shell.pty.write('review-background-marker\r'));
   await tree.getByRole('textbox', { name: 'Filter changed files' }).fill('');
+  await expect(stock).toBeHidden();
+  await tree.locator('[role="treeitem"][data-item-path="src/"]').click();
+  await expect(stock).toBeVisible();
   await showResources(ui, 'Agents');
   await expect(diff).toHaveCount(0);
   await expect(termKeys(ui)).toBeFocused();
@@ -170,6 +191,10 @@ test('Review refreshes file contents and preserves its split view when switching
   await expect(code).toContainText('live-marker');
   await tree.locator('[role="treeitem"][data-item-path="image.bin"]').click();
   await expect(ui.getByRole('region', { name: 'Diff review', exact: true }).getByRole('alert')).toContainText('Binary or non-UTF-8');
+  const binary = ui.getByRole('article', { name: 'image.bin', exact: true });
+  await expect(binary.getByTitle('Added', { exact: true })).toContainText('Added');
+  await expect(binary.getByTitle('Added line count unavailable', { exact: true })).toHaveText('—');
+  await expect(binary.getByTitle('Deleted line count unavailable', { exact: true })).toHaveText('—');
   await expect(code).toContainText('live-marker');
   await expect(ui.getByRole('article', { name: 'image.bin', exact: true })).toBeVisible();
   await tree.locator('[role="treeitem"][data-item-path="file.ts"]').click();
@@ -277,6 +302,10 @@ test('Continuous review defers large diffs and keeps file navigation in one docu
   await tree.locator('[role="treeitem"][data-item-path="f39.ts"]').press('Home');
   await tree.locator('[role="treeitem"][data-item-path="changed.ts"]').click();
   await expect(ui.getByRole('button', { name: 'Load diff for changed.ts', exact: true })).toBeVisible();
+  const deferred = ui.getByRole('article', { name: 'changed.ts', exact: true });
+  await expect(deferred.getByTitle('Modified', { exact: true })).toContainText('Modified');
+  await expect(deferred).toContainText('+1');
+  await expect(deferred).toContainText('−1');
   await ui.getByRole('button', { name: 'Load diff for changed.ts', exact: true }).click();
   await expect(code('changed.ts')).toContainText('changed-context-marker', { timeout: 15000 });
   await tree.locator('[role="treeitem"][data-item-path="changed.ts"]').press('End');

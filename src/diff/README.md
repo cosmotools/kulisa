@@ -9,9 +9,18 @@ Read-only local Git comparisons for the Resources tree and development review.
   Symlinks show link text; path containment checks confine reads to the supplied resource.
 - Patch batches and Load diff bound memory; full file contents load only for explicit context expansion.
 - Pierre Trees virtualizes changed-file navigation; presorted paths keep the tree in the review document's order.
+- The tree uses Pierre's complete built-in file-type icons and Git-status badges alongside added/deleted counts.
+  Folder status dots are hidden because every listed folder contains changed files.
+- One filter controls Trees' built-in search and the review's current-path matches, ignoring case, trimming outer
+  whitespace and accepting backslashes as separators. Previous rename paths remain display metadata, not search aliases.
+  Filtering keeps the complete tree model; clearing search restores its expansion state. No matches hides Trees'
+  unfiltered fallback and shows an empty result in both panes.
 - Tree and review use the window's `text-sm` size for file names, code and empty-state messages; code uses JetBrains Mono.
 - Code blocks allow native text selection and copying; file headers stay unselectable and Pierre owns line-number selection.
 - File headers copy the current repository-relative path, including for renamed and collapsed files.
+- Pierre's built-in headers own paths, rename arrows, change icons and patch counts; slots add collapse and Copy path.
+  Placeholder rows keep Git-supplied status and counts because they have no patch metadata; copied, type-changed and
+  unmerged files also keep their exact Git-status labels.
 - Each opening reads Git afresh. Branch names, file rows and review share a loading state for at least 500 ms and appear together
   after the listings and the review's first rendered file are ready; empty comparisons need no file render.
 - Search, repository headings and empty From/To controls appear immediately; the comparison selector stays disabled during loading.

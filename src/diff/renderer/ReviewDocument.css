@@ -1,7 +1,7 @@
 /* Shadow DOM inherits the window's palette; CodeView measures rows using these font metrics. */
 .diff-review {
   --diffs-font-family: 'JetBrains Mono', monospace;
-  --diffs-header-font-family: inherit;
+  --diffs-header-font-family: var(--font-sans);
   --diffs-gap-block: 0px;
   --diffs-overflow-override: clip;
   --diffs-addition-color-override: var(--success);
