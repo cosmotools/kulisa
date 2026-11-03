@@ -1,149 +1,77 @@
 # The terminal
 
-A terminal as Kulisa has it, the same wherever it is shown: a pty running the user's shell (an agent typed into it, a
-command, or nothing), its output kept in the window, and an xterm that shows it. A Kulisa package
-([docs/packages.md](../../docs/packages.md)), used by the task's terminals' panel (`task-view/DevelopmentTerminals.tsx`,
-`task-view/terminals.ts`: its tabs, its agents' launchers and menus; docs/window.md, The terminal), an account's sign-in
-(`components/SignIn.tsx` through `components/Terminal.tsx`: Settings' and New Project's) and the task's agents
-(`tasks.ts`: which agent, its conversation, what is typed to it). It knows nothing of them, nor of the window's look: a
-terminal is a key, `<task key>#<id>` for a task's, any string for a sign-in's; its colors and font size are the
-caller's.
-
-Stage terminal environments use the same runtime (`main/stage-terminals.ts`; docs/window.md, Stage
-terminals), with their own Views and saved sizes. Their task-level lifecycle and commands stay outside this package.
+Shared PTY, bounded screen buffers and xterm Views, a [Kulisa package](../../docs/packages.md). Callers own tasks,
+agents, sign-in and Stage lifecycle, terminal keys, typography and colors. Development terminals, account sign-in
+and Stage terminals use the same runtime.
 
 ## The main process (`main/`)
 
-- **In the user's shell.** `startTerminal` starts the user's shell (a login shell on macOS, as Terminal and VS Code
-  do; `SHELL`, else the account's: an app started from the Dock may have none; on Windows PowerShell, as Windows
-  Terminal opens it: `pwsh` when installed, else the system's `powershell.exe`) in the folder given, and types the
-  command into it once the shell reads its input line (it turns bracketed paste on; else after a quiet moment), with a
-  leading space, which keeps it out of the shell's history. The shell's startup sets the project's environment
-  (direnv's `.envrc`, nvm, mise), which Kulisa's own is not, and the shell stays when the command exits. Each argument
-  is quoted as that shell reads it (`shell-quote.ts`): the sh way for bash and zsh, fish's own for fish, which reads
-  `\\` and `\'` inside `'…'` (a prompt with `\'` quoted the sh way leaves the quote open, and the agent does not start).
-  `pinned` variables are typed before the command (`VAR=… cmd`), so a project's `.envrc` cannot change them (an
-  agent's account: else the task would run as the account the `.envrc` names). PowerShell gets a line of its own: the
-  variables set first (`$env:VAR=…`), then the command run by `&`, in a script block that sets PowerShell 7's passing
-  of arguments to Windows PowerShell 5.1's (`Legacy`), so one quoting serves both: each argument as a Windows
-  program's runtime reads its command line back, one with a space in quotes of its own (left to PowerShell, 5.1 and 7
-  differ on the backslashes before the quote they add); the command in PowerShell's `'…'` alone. A program is
-  found by name as Windows' shells find it (`PATHEXT`: `claude` may be a `.cmd`), which node-pty does not do.
-- **Windows uses node-pty's bundled ConPTY**, which forwards device and color queries to xterm; the system's
-  ConPTY consumes queries before Kulisa can answer them.
-- **An executable command line** (`execute`) is typed after the user's shell reads its first prompt, so
-  prompt hooks such as direnv apply; the shell exits with the application's status after the command.
-  Its caller owns stopped/running/exited state.
-  `pressTerminalKey` encodes named keys according to terminal modes; `pasteTerminal` respects bracketed paste.
-  `setTerminalSize` locks a session to a requested size or releases it to its View; `terminalScreen` flushes the
-  parser (bounded to a second) and reads the current screen or tail. `sizeOf` is an explicit shared-size key:
-  independent sessions never overwrite the size another place starts at.
-- **At its real size.** Without an explicit size, it starts once the window has sent its size (`pty:resize`), or its panel's (`sizeOf`: a
-  terminal behind another tab has none of its own), however long that takes: an agent draws its prompt for the size
-  it starts with and does not fully redraw on the first resize.
-- **What the agent reads of a shell.** It keeps a shell's screen, in memory: a terminal without a window
-  (`@xterm/headless`, xterm's own parser), its last `screen` lines (the shared `TERMINAL_LINES` default in `ipc.ts` bounds shell and Stage reads),
-  with Unicode 11 widths matching the visible View, so what a program
-  redraws in place (a progress, a container's state) is read as it became, not as every frame it went through. About
-  1 MB a shell at 200 columns; an agent's terminal keeps none (`shell_read` does not read it). `terminalTail` gives its last lines.
-- **Typing to an agent.** `typeIntoPrompt` pastes text into its prompt (bracketed: nothing in it is taken as a key),
-  not sent; `eraseInPrompt` deletes the last characters before the cursor, as Backspace (the dictation's words
-  corrected as they are heard); `sendToPrompt` sends a line as the human would, once its command was typed, and answers
-  the question the agent asks then (Claude Code's `/add-dir`).
-- **Typing to a shell.** `typeLine` types a command line and runs it; `interrupt` is Ctrl+C, as the human presses it
-  (what runs stops, the shell stays). A line typed after a Ctrl+C waits until the shell reads its line again (as the
-  agent's command waits at the start): Windows' console drops the input that comes before.
-- **Esc typed by the human** reaches whoever asked (`onEscape`, with the terminal's key): what it means is theirs (an
-  agent's turn ended: `Task.interrupted`, docs/tasks.md). Nothing outside listens to `pty:in` itself.
-- `stopTerminal` ends a live process once (ConPTY handles cannot be killed twice); `keepScreen` retains its headless screen for the caller
-  to read, disposed by a later stop without that option; `forgetTerminal` drops its size once it is gone.
-  `stopAllTerminals`, as Kulisa quits: every one, their processes waited for (3 s at most; on Windows node-pty ends a
-  ConPTY on threads of its own, and an app exiting before may end with an uncaught C++ exception).
+- `startTerminal` opens the user's shell in the supplied folder: macOS login shell (`SHELL` or account fallback),
+  Linux user's shell, Windows `pwsh` or `powershell.exe`. Shell startup applies project settings such as direnv.
+- Type launch commands once bracketed paste indicates prompt readiness, or after quiet fallback. Prefix with a space
+  to avoid history. Quote per shell (`shell-quote.ts`), including fish's backslash rules. Type pinned account
+  variables with the command so startup scripts cannot override them.
+- PowerShell sets `$env:…`, runs with `&`, and uses Legacy argument passing on PS7 for PS5.1 compatibility. Quote
+  arguments for the Windows runtime; resolve programs with `PATHEXT`. Use node-pty's bundled ConPTY so xterm receives
+  device/color queries.
+- `execute` waits for the first prompt, runs the command, then exits with its status. Callers own run state.
+- Wait for the first real `pty:resize` unless explicit dimensions exist; `sizeOf` names a shared panel size, and
+  independent sessions never overwrite it. An agent's first prompt can render incorrectly at a provisional size.
+- Shell/Stage reads use `@xterm/headless` with Unicode 11 and bounded `TERMINAL_LINES`, retaining rendered state,
+  not intermediate redraws. Agent terminals keep no main-process screen. `terminalScreen` flushes the parser with
+  a one-second bound; `terminalTail` returns the tail.
+- `typeIntoPrompt` pastes without sending; `eraseInPrompt` removes cursor-adjacent characters; `sendToPrompt` submits
+  once launch is ready and can answer a CLI directory question. `typeLine` runs shell commands; `interrupt` sends
+  Ctrl+C, then waits for prompt readiness before subsequent input, avoiding dropped Windows console input.
+- `pressTerminalKey` follows terminal modes; `pasteTerminal` honors bracketed paste. `setTerminalSize` locks dimensions
+  or releases fitting. Human Esc calls the supplied `onEscape`; outside code never listens directly to `pty:in`.
+- Stop a live process once: ConPTY handles reject double kills. `keepScreen` retains readable final output until a
+  later stop disposes it; `forgetTerminal` drops saved size. On quit, `stopAllTerminals` waits up to 3 s for ConPTY
+  cleanup threads to avoid C++ exceptions.
 
 ## The window (`renderer/`)
 
-`termFocus(key, wanted?)` waits for the bundled font and checks the caller’s optional predicate before focusing;
-an asynchronous launch can cancel its request when the human puts the keyboard elsewhere.
+`termFocus(key, wanted?)` waits for fonts and rechecks intent, preventing delayed focus theft.
 
-**One xterm a place**: every terminal's output goes into a buffer of its own, an xterm never opened (its text,
-scrollback and modes, no renderer: about 0.6 MB full), and each place that shows a terminal, the terminals' panel and an
-account's sign-in and each visible Stage terminal, has one shown xterm (`View`) with a WebGL renderer, falling back to DOM
-when WebGL is unavailable or its context is lost. A View fits its pane or uses fixed dimensions (`setSize`). Showing another terminal there writes
-that one's buffer into it (`serialize`, after a reset, RIS, in the same write) and restores its scroll; its
-selection is lost, as when another tab is shown. Its content stays transparent through restoration and appears on
-`onRender` after the buffer and pane dimensions agree. Opacity preserves measurement and keyboard focus. While
-shown, a terminal's output goes into both, at one size, so leaving it costs
-nothing; output coming while a buffer is being put in waits after it (`pending`). Why one: an xterm shown has a WebGL
-context and its glyph atlas, and Chromium keeps 16 contexts a page: the 17th would take the oldest terminal's (often
-the first task's agent), which would fall back to the DOM renderer silently. With 20 terminals on a discrete GPU, the
-video memory 472 → 178 MB, the RAM about the same (on an integrated GPU, or a Mac's, that memory is the RAM); with
-Chromium's software GPU, 609 → 234 MB. (VS Code keeps an xterm a terminal.)
+**One xterm per visible place.** Each session owns an unopened renderer buffer (~0.6 MB full); development,
+sign-in and Stage places own a visible `View`. Use WebGL with DOM fallback on unavailability/context loss. Per-terminal
+renderers exhaust Chromium's 16-context limit and retain unnecessary GPU memory.
 
-The development View belongs to the window and moves into the active TaskView. Stage Views belong to their task's
-panes and remain mounted while the task is hidden. Closing a pane or task releases its Views.
+Switching resets/serializes the selected buffer in one write, restores scroll, loses selection and queues pending
+output. The View stays transparent through restoration and reveals on `onRender` after buffer/pane sizes agree;
+opacity preserves measurement and focus. Visible output updates View and buffer at the same size.
+The development View moves into the selected TaskView; Stage Views remain with task panes while hidden and are
+released on pane/task close. Fit from host DOM dimensions, coalesced in `requestAnimationFrame`; apply resize after
+that frame so clearing WebGL does not expose a blank canvas. Disposal cancels the frame and deferred resize.
+Hidden pages fit immediately because Windows occlusion can suspend frames indefinitely.
 
-**Fitted in a frame about to be drawn.** A terminal is put in at its buffer's size, and the xterm and the buffer get
-the room laid out only from the fit, measured in `requestAnimationFrame`: fitted at once in a window just opened, its
-grid not laid out, the buffer would be wrapped at 9 columns. The host's DOM dimensions supply its size;
-resize observations coalesce into one pending frame. Disposal cancels both the frame and its deferred resize.
-Resized after that frame: a resize clears WebGL's canvas, which xterm draws again in the next frame, so one resized
-in a frame is drawn empty. A hidden page draws no frames, so there it is measured at once: Windows hides a window
-other windows cover (one opening behind
-them too), whose agents would otherwise start only once someone looks at it.
+Serialization omits cursor visibility and mouse encodings. Track `?25`, `?1006`, `?1015`, `?1016` through parser hooks,
+restore every value, and disable encodings before enabling the chosen one. Window moves use the same size-preserving
+`terminal:restore` path.
 
-Serializing leaves out the cursor's visibility (`?25`) and the mouse's encoding (`?1006`, `?1015`, `?1016`: Claude
-Code's fullscreen clicks), so each buffer follows them (`registerCsiHandler`, not taking them) and they are written
-after it, every one with its value: the reset leaves a hidden cursor hidden in the next terminal shown, and turning an
-encoding off sets the default one, so those off go first (`serialized`). A task moving to another window takes its
-terminals' buffers the same way (`terminal:restore`), at the same size, also when its page showed the task first.
+Use Unicode 11 widths and bundled JetBrains Mono/xterm CSS. Callers supply `TermStyle` through constructor/restyle;
+program colors use `minimumContrastRatio`. Center whole rows vertically to avoid inconsistent bottom gaps.
 
-Set up as VS Code's: Unicode 11 widths (Claude Code draws ✅ ⏵ ✻; with Unicode 6 the cursor drifts a cell after each),
-a bundled font (JetBrains Mono, which it imports with xterm's stylesheet, so any page that shows a terminal has them),
-the WebGL renderer. **Its look is the place's**: `new View({ colors, fontSize })` (`TermStyle`: the background, the
-text, selected text, as colors, not a window's tokens), and `restyle(…)` when the place's theme changes, so the package
-reads nothing of a window's CSS or theme. The programs' own colors stay xterm's, readable on either background by its
-`minimumContrastRatio`. The rows that fit sit in the middle of the xterm, what is left under a whole row shared above and below them, so two tasks whose grids differ by a pixel do
-not show a row's height under the agent's status line in one and nothing in the other.
+**Clipboard and drops.** Linux uses Ctrl+Shift+C/V; Windows additionally Ctrl+C copies a selection or interrupts,
+and Ctrl+V pastes; macOS uses Edit-menu ⌘C/V. Leave other keys to the program. Chromium owns paste delivery to xterm;
+image events call `termHooks.pasteImage`. Menu `termPaste` uses the same image/text decision. Preserve clipboard on
+empty copy; Shift-drag uses xterm selection. Match `keyCode` too for layouts where ibus omits `code`.
 
-Copy and paste take the keys of the OS's own terminal, so hands need nothing new: Ctrl+Shift+C / V (GNOME Terminal,
-Konsole); on Windows also Ctrl+V, and Ctrl+C copies a selection, else interrupts (Windows Terminal); on macOS ⌘C / ⌘V
-(the app menu's). xterm leaves those keys to the app, as VS Code sets its own; otherwise Ctrl+C and Ctrl+V go to the
-agent (Claude Code pastes an image with Ctrl+V, with Alt+V on Windows). The paste itself is Chromium's, which xterm
-takes (pasting again from Kulisa would double it). An image in a paste event goes to `termHooks.pasteImage`, with the
-terminal's key; the caller chooses what it means. The menu's `termPaste` reads clipboard types and takes the same
-image hook or pastes text. A reply is used only while the same terminal is shown. With nothing selected in xterm, copying keeps the clipboard: Claude
-Code's fullscreen rendering selects with its own mouse and copies on release itself (an empty copy would wipe it); Shift held while dragging selects in xterm instead. Keys are known by `keyCode` too, as
-ibus with a Cyrillic layout leaves `code` out.
+File drops use preload `webUtils.getPathForFile`, `pty:quote-paths`/`quotePaths`, and paste shell-quoted paths separated
+by spaces without Enter. Ignore synthetic Files with no path, cancel browser navigation, and apply asynchronous
+clipboard/drop replies only to the still-shown terminal. Log terminal/file count, never paths. Export quoting for
+caller Send to Agent actions.
 
-Files dropped onto a View are disk paths from the preload's `webUtils.getPathForFile`, quoted for that terminal's
-shell (`pty:quote-paths`, `quotePaths`), separated by spaces and pasted through xterm, without Enter. A reply is used
-only while the same terminal is shown. JavaScript-created Files have no disk path and are ignored. The drop cancels
-Chromium's navigation; the log records the terminal and file count, never the paths. The main entry exports
-`quotePaths` for the caller's Send to Agent actions to use the same shell literals.
+**Links.** Ctrl+click (⌘ on macOS) uses `termHooks.open`, with hover URL; never xterm's native-confirm handler.
+`renderer/paths.ts` also recognizes absolute/home/Windows/UNC/relative paths, optional `:line[:column]` and quoted
+spaces. Join wrapped rows and retain cell mappings for wide characters. Batch existence checks through
+`termHooks.files` on hover; `openFile` is caller-owned. Without hooks, paths are not links. Permit OSC 8 non-HTTP
+protocols only to receive file links, then allow only http(s) and paths, rejecting executable URL schemes.
 
-Links (OSC 8, as Claude Code marks them, and addresses in plain text: xterm's web-links addon) open with Ctrl+click (⌘
-on macOS), `http` and `https` only, the address shown on hover, through `termHooks.open`, which the terminals' panel
-sets (a menu: one of the task's profiles, or the user's browser; docs/window.md, The terminal), not xterm's own
-handler, which asks with the browser's `confirm()`, an OS dialog.
-
-A path is a link too, when it names a file or folder that exists (an agent's answer names its files): absolute (`/…`, `~/…`, `C:\…`, `\\server\share\…`) or relative (`src/main/tasks.ts`),
-a `:line[:column]` after it kept in the link and left out of the path, a quoted one with spaces in it. Finding the
-candidates in a line is here (`renderer/paths.ts`, xterm's `registerLinkProvider` beside the web-links addon), in the
-line as its program wrote it: the rows xterm wrapped it into joined (`isWrapped`), each character with its cell, so a
-path broken by the width is one link and wide characters before it (Claude Code's ⏺) do not shift it. xterm leaves
-this to the app (only the app knows the disk and the folder); the web-links addon does addresses only and exports
-nothing else. Whether one exists, and what is done with it, is the window's, through `termHooks.files` (a line's candidates asked at once, as the pointer comes
-over it; without the hook a path is no link) and `termHooks.openFile` (Ctrl+click, ⌘ on macOS); the full path shown on
-hover. A file an agent marks as a link (OSC 8) goes to `openFile` too: Claude Code gives its path as it is, others a
-`file://` address. xterm drops an OSC 8 link that is not `http(s)` unless `allowNonHttpProtocols` is set, so it is, and
-`termLinks.activate` keeps only those two and paths (`javascript:` and the like go nowhere).
-
-**One protocol responder per terminal.** Its unopened renderer buffer answers xterm's device, status and color
-queries even for a hidden task; each visible View consumes those queries through xterm's parser hooks so replies are
-not doubled. `termHooks.colors` supplies the caller's palette for color queries; a single detached 2 × 1 xterm
-initializes xterm's theme service for those replies without a renderer per buffer. Every output packet carries the
-PTY's columns and rows, so a buffer created for a background session starts at its actual dimensions. The headless
-main-process parser retains screen text and modes for reads and input encoding; its generated replies stay unused.
+**Protocol replies.** Only each unopened renderer buffer answers device/status/color queries, including hidden
+tasks; visible Views consume queries without replying. `termHooks.colors` supplies palette; one detached 2 × 1 xterm
+initializes theme services. PTY packets carry dimensions for background buffers. Main's headless parser retains
+screen/modes but sends no replies.
 
 ## Its channels (`ipc.ts`)
 
@@ -168,17 +96,8 @@ menus and search controls; the package owns terminal rendering and matching.
 
 ## The code
 
-| File | What |
-|---|---|
-| `main/index.ts` | the main process's entry: the pty, typed into the user's shell; its size; a shell's screen; typing to an agent or a shell; Esc |
-| `main/shell-quote.ts` | an argument quoted as the user's shell reads it (sh, fish) |
-| `renderer/index.ts` | the window's entry: the buffers, `View` (the xterm a place shows), copy and paste, links |
-| `renderer/paths.ts` | the paths a line may name, each where it is in the line |
-| `renderer/tsconfig.json` | the window half checked as the window is (ESLint finds it by it) |
-| `ipc.ts` | its channels |
-| `shell-quote.test.ts` | quoting, in each shell installed (`npm run test:unit`) |
-| `paths.test.ts` | the paths found in a line and their cells (in `@xterm/headless`), what is no path, an agent's link to a file |
-
-Its e2e tests are in `test/e2e/` with the others: `window.spec.ts` (the xterm's set-up; one xterm for the terminals'
-panel, switching), `grid*.spec.ts` (copy and paste, links, moving to another window), `tasks.spec.ts` (the terminals'
-panel, shells), `stage-terminals.spec.ts` (interactive applications, screen parsing, restore and process cleanup).
+- `main/index.ts`, `renderer/index.ts`, `ipc.ts`: public runtime/View entries and channel contracts.
+- `main/shell-quote.ts`: launch/path quoting per shell. `renderer/paths.ts`: candidate paths and wrapped/wide-cell maps.
+- `shell-quote.test.ts`, `paths.test.ts`: installed-shell quoting and parser/link cases.
+- E2e: `window.spec.ts`, `grid*.spec.ts`, `tasks.spec.ts`, `stage-terminals.spec.ts` cover switching, input/clipboard,
+  links, window moves, screen reads, restore and cleanup. Caller lifecycle is outside the package.

@@ -1,6 +1,6 @@
 # Diff
 
-A Kulisa package: `docs/packages.md`; behavior and integration: `README.md`.
+Read `README.md` and `docs/packages.md`.
 
 - Outside callers use `main/index.ts`, `renderer/index.ts` and `ipc.ts` only.
 - The main half reads a supplied resource folder through the shared Git client in `src/main/worktrees.ts`.

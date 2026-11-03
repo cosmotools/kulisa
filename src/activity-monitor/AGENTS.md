@@ -1,11 +1,9 @@
-# Activity monitor: working in this folder
+# Activity monitor
 
-What Kulisa takes on the computer: a Kulisa package (`docs/packages.md`: what one is, its rules). How it works and
-why: `README.md`. What is planned for it: issue #113.
+Read `README.md` and `docs/packages.md`. Planned work: #113.
 
-- From outside only through `main/index.ts`; it has no window half and no channels. `main/` uses nothing of
-  `src/main`; `npm run deps` refuses any import.
-- It knows of tasks only what the caller gives it (`Tasks`: `app.ts`, from the store). What a figure means to the
-  human or the agent, and deleting, are the callers': `Task.artifactsUsage`, `Task.deleteArtifacts`, the Resources
-  panel, `task_artifacts`.
-- Its unit tests are here (`monitor.test.ts`, `npm run test:unit`); its e2e test in `test/e2e/agent-reports.spec.ts`.
+- Entry: `main/index.ts`; no renderer or channels. Imports from `src/main` are forbidden.
+- Measure only caller-supplied tasks (`Tasks`, from `app.ts`), including unloaded tasks.
+- Presentation and deletion belong to callers: `Task.artifactsUsage`, `Task.deleteArtifacts`, Resources and
+  `task_artifacts`.
+- Tests: `monitor.test.ts`; integration: `test/e2e/agent-reports.spec.ts`.

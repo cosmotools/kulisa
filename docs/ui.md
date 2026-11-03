@@ -1,72 +1,51 @@
 # The window's UI
 
-**The window is shadcn/ui as it ships** (`src/ui`, a Kulisa package its CLI writes: [its README](../src/ui/README.md)),
-built as shadcn's examples build it. **A component of `src/ui` takes only where it sits and its size** (layout and size
-classes: `w-64`, `flex-1`, `ms-auto`; its variants and sizes for the rest); **its look is the theme's alone**
-(`src/ui/theme.css`; Kulisa's own variables in `src/renderer/window.css`); a part with a role of its own may look a
-little different. Variables passed to a component configure it (`[--muted:transparent]`, or in `style`); `src/ui` itself is never edited. What shadcn
-has no component for (a layout, a frame, the log) is a div or span with Tailwind's classes around shadcn's components,
-not on them (Own drawing). How a component is used: shadcn's documentation
-(`https://ui.shadcn.com/docs/components/radix/<name>`) and its generated file, read rather than remembered; here only
-what shadcn cannot know (the native pages, the desktop) and the choices it leaves. Nothing of ours where shadcn or
-Radix has a component, a prop or a pattern: their keyboard, focus and accessibility are maintained upstream. A
-deviation gets a comment at it saying why. Tests find a part as the human does (role and name, label,
-`data-*`; never a class: [testing.md](testing.md)).
+Use shipped shadcn/ui ([README](../src/ui/README.md)), following its current examples and generated source.
+Component callers pass layout/size classes, variants and custom properties; the theme owns appearance. Never
+hand-edit generated `src/ui` files. Use wrappers for custom layout/drawing, not styling patches on components.
+Prefer upstream components/props/patterns; justify necessary deviations in comments.
 
-The grid's stacking context keeps Dockview's resize dividers beneath window menus. Resources uses Dockview's left
-edge group, icon tab renderers and a header action for dictation; Dockview owns its collapse and sizing.
-Pane content has zero minimum width and its own stacking context so lists can shrink and overlays stay below native separators.
-The grids and their headerless split are Dockview's (`dockview-react`): its API before layout code of our own. State is zustand's; the terminal is
-xterm's (`src/terminal/`); read-only code comparisons use @pierre/diffs CodeView for continuous file and line virtualization
-([README](../src/diff/README.md)); its changed-file navigation uses @pierre/trees with Lucide status icons and window palette overrides.
-The Log page uses TanStack Virtual for its scrollable rows ([window.md](window.md), The log).
-
-**The profiles' pages are native views, drawn above the window's HTML**, so whatever HTML covers the panes hides the
-pages or puts pictures of them in their place (Layers, below; a tasks' window's pages under it: `task-view/views.ts`); while
-a panel is dragged, pictures stand in too. The renderer sends each pane's content box (or that it is off screen) to
-the main process after every grid change ([window.md](window.md), The grid).
+Dockview owns grids; zustand owns window state; xterm owns terminals; Pierre owns Diff/tree virtualization;
+TanStack Virtual owns log rows. Keep Dockview dividers below menus. Native browser views sit above HTML, so covered
+pages must hide or become snapshots; layout changes report pane bounds to main.
+Stage uses a 6 px gap for native pages; development uses gap 0. Resources' native vertical tab header supplies one
+shared border, including when collapsed, with icons filling its width. Pane content has zero minimum width and an
+isolated stacking context so lists can shrink and overlays stay below separators.
 
 ## The code
 
-| Where | What |
+| Area | Responsibility |
 |---|---|
-| `src/renderer/index.html`, `main.tsx`; `master.html`, `master.tsx`; `public/theme.js` | a tasks' window's page and a master's window's: the theme from the URL before the first paint (`theme.js`), then the app |
-| `src/renderer/window.css` | Tailwind and shadcn's theme for the window, Kulisa's own variables (`--warning`, `--success`), the few global rules (text selection, the cursor, no scrolling) |
-| `src/renderer/components/` | the parts. `App.tsx` a tasks' window; `Menus.tsx` the menus; `Tip.tsx` a tooltip; `BrowserTabs.tsx` the browser tabs; `Ask.tsx` the questions; `TopBar.tsx`, `TaskBar.tsx`, `Sidebar.tsx`, `Empty.tsx`, `Welcome.tsx`; the dialogs `NewProject.tsx` (also `Wizard`, the welcome's), `TaskRename.tsx`, `StageTerminalSettings.tsx` (a Stage terminal’s saved configuration), `AgentPicker.tsx`, `HandOver.tsx`, `Shortcuts.tsx`; `settings/` Settings, its own chunk (`index.ts` its one entry, loaded by `import()`: `npm run deps`): `Settings.tsx`, `kit.tsx` (what its pages are built of) and its pages (`ProjectPage.tsx`, `AgentPage.tsx`, `ProfilePage.tsx`, `GitHubPage.tsx`, `LogPage.tsx`, `AboutPage.tsx`; `agents.ts`, `changed.ts` theirs); `SignIn.tsx` a new account's sign-in (Settings', New Project's); `AgentMark.tsx`, `ProjectIcon.tsx` the marks; `Terminal.tsx` a terminal in a page; `Master.tsx` a master's bar |
-| `src/renderer/lib/` | window-wide state (`store.ts`, `useWindow`), theme, menus and dialogs, Settings, keyboard shortcuts, sidebar and project actions, shared controls and formatting; no components, UI libraries or icons (`npm run deps`) |
-| `src/renderer/task-view/` | task screens: `TaskView.tsx` is the UI entry (retained grids and title-bar `StageMenu`); `index.ts` exposes window commands and task hooks. `state.ts` owns task stores and context; `controller.ts` routes messages and selection changes; `grid.ts`, `development.ts`, `stage.ts`, `layout.ts` own live grids and saved layout. The pane components, Resources, Diff integration, terminal and profile actions, native-page geometry and covering live alongside them. |
-| `src/shared/types.ts`, `ipc.ts`, `stage-layout.ts` (saved-grid normalization and pruning); `src/renderer/env.d.ts` | the shapes the main process sends and the channels they come by ([window.md](window.md), IPC); the bridge (`kulisa`) typed by them |
-| `src/renderer/public/avatars/` | the profiles' pictures (Noto Emoji), copied as they are |
-| `src/*/renderer/` | a Kulisa package's part of the window (the terminal, dictation, screenshots): its own `README.md` |
+| `src/renderer/*.html`, `main.tsx`, `master.tsx`, `public/theme.js` | Window/master entries; theme before first paint |
+| `src/renderer/window.css` | Global theme, selection, cursor and scroll rules |
+| `components/App.tsx`, title/task bars, sidebar, empty/welcome | Window frame and task navigation |
+| `task-view/` | Retained task screens, both Dockviews and their outer split, pane controls, Resources, native-view bounds |
+| `components/settings/` | Lazy Settings chunk through its `index.ts`; shared page controls in `kit.tsx` |
+| `components/Menus.tsx`, dialogs, `lib/menu.ts`, `dialogs.ts`, `ask.ts` | Shared menus/questions/dialog opening |
+| `lib/` | Non-component state, actions, lifecycle and coordination; no UI library/icon imports |
+| `src/shared/`, `env.d.ts` | Main/renderer contracts and typed bridge |
+| `src/*/renderer/` | Kulisa package UI, documented by its README |
+| `public/avatars/` | Bundled Noto Emoji profile pictures |
 
-The TaskView module is part of the window. Outside imports use its two entries; dependency-cruiser checks the boundary.
-`TaskView.tsx` defines the outer split, both nested grids and the Terminal/Diff content switch; pane components supply their contents.
-Stage's section is its scroll viewport, with one inner canvas for overflow; Resources sections use SidebarContent's own scrolling.
-Dockview supplies the Resources region and its selected section's accessible name; the section content has no nested region.
+`lib/store.ts`: components use `useWindow(selector)`; other code uses `store.getState()`. Task actions/hooks use
+`task-view/index.ts`; its UI entry is `TaskView.tsx`. Dependency-cruiser enforces these module entries.
+`state.ts` owns task stores/context, `controller.ts` routes selection/messages, and `grid.ts`, `development.ts`,
+`stage.ts`, `layout.ts` own native grids and persistence. Panes read their permanent controller through context.
+Stage's section is its scroll viewport with an overflow canvas; Resources sections use SidebarContent scrolling.
+Dockview supplies the Resources region and selected section's accessible name.
 
 ## shadcn in Kulisa
 
-- **The theme** is shadcn's `neutral` (`src/ui/theme.css`), Geist and the terminal's JetBrains Mono bundled, so the
-  window looks the same on every OS. Kulisa's own colors where shadcn has none are variables beside it (`window.css`:
-  `--warning`, `--success`, used as `text-warning`). Dark, Light or System ([window.md](window.md), Theme) is `.dark`
-  on the root: `public/theme.js` puts it before the first paint, `lib/theme.ts` changes it; what draws outside CSS (a
-  terminal) reads the theme's colors by `termStyle()`.
-- **A color is the theme's** (`bg-muted`, `text-destructive`, `var(--card)`), never Tailwind's palette nor written
-  out: one palette, dark and light. A literal color only where none can be: the marks.
-- **Resources typography**: file names, loading and empty-state messages use `text-sm`; secondary captions, statuses
-  and metadata use `text-xs`. From/To captions are secondary; their values use the normal control text.
-- **Not Lucide's icons**: the agents' marks (`AgentMark.tsx`: the makers' own, in their colors, 1em), the logo
-  (`Logo`, `ProjectIcon.tsx`: its curtain in the color given), the profiles' pictures (`avatarSrc` in an `Avatar`),
-  and Project Explorer's file-type marks ([its README](../src/project-explorer/README.md)).
-- **No CSS Modules, no second UI library.** A plain `.css` only for what classes cannot say, with its reason: what is
-  dockview's own elements (`Grid.css`), Radix's layers (`lib/cover.css`).
-- **A component missing**: `npm run ui -- <name>` adds it, without asking whether to; nothing in shadcn fits: say so
-  before building one of our own.
-- **`npm run lint` refuses** in the window a raw `button`, `input`, `select` or `textarea`, a `className` on a
-  component of `src/ui` that is not a literal of layout and size classes and variables, a `style` on one that is not a size, a place
-  or a custom property (`kulisa/ui-as-shipped`), Tailwind's palette or a hex color (but the marks), a constant in
-  `style` but a variable (a class), `@fluentui` and a `*.module.css`; and React's hook rules (`eslint.config.ts`), not its memoization
-  ones: the window is not compiled by the React Compiler.
+- Use shadcn neutral, bundled Geist and JetBrains Mono. `.dark` controls window theme; `public/theme.js` applies it
+  before paint, `lib/theme.ts` updates it. Native drawings read `termStyle()`.
+- Use theme tokens, not literal colors/Tailwind palette. Kulisa-specific warning/success variables live in
+  `window.css`. Brand marks are the color exception.
+- Resources uses `text-sm` for filenames/messages/controls, `text-xs` for captions/status/metadata.
+- Use Lucide except maker marks (`AgentMark`), logo/project icon, profile avatars and file-type icons.
+- Add missing shadcn components with `npm run ui -- <name>`. Discuss custom components if none fits.
+- No CSS Modules or second UI library; standalone CSS needs a reason (Dockview/Radix layers).
+- ESLint enforces shipped UI styling, no raw form controls, theme colors, hook rules and no Fluent UI. React Compiler
+  memoization rules are not enabled.
 
 ## Layers over the pages
 
@@ -82,52 +61,31 @@ dialog's open state is a plain `useState`.
 - **Closing**: the grid taken down closes every layer, the window left closes its menus (`closeLayers`), both by the
   Esc Radix closes them on.
 
-The cover observer notifies focus listeners of open-overlay and mounted-dialog changes. Closing content remains
-mounted through its exit animation; a pending launcher focus waits for its removal and unsubscribes after one attempt.
+The cover observer reports both open overlays and mounted dialogs. Closing content remains mounted through exit
+animation; pending launcher focus waits for removal and unsubscribes after one attempt.
 
 ## Desktop, not a web page
 
-Kulisa is a desktop app, an IDE: its window looks like one, JetBrains its model (not big titles, framed cards in
-frames, pills, rows that show their buttons only under the pointer: those read as a web page's).
-
-- **Flat panes**: Stage uses Dockview's gap because native pages draw over a hairline at 0; development uses gap 0.
-  Collapsed Resources uses the bar's border as its only separator.
-  Resources' vertical tab header has one shared right border for every section; icon renderers fill their native tab's width.
-- **The project's color only on its icon** and the title bar's logo (`--project` on the root, `lib/store.ts`; the
-  author's choice). `projectColor` (`lib/project-color.ts`): a favicon's hue in Kulisa's lightness and chroma.
-- **The sidebar** is shadcn's `Sidebar`, docked in the empty window and in a `Sheet` over the grid (covering as a
-  dialog does), so the grid keeps its room.
-- **Every object has a right-click menu with all its actions**, so the window shows one or two buttons. No swipes (a
-  sideways swipe is the OS's and the pages' back and forward), nor a double-click as the only way to anything.
-- **Labels and buttons are not text to select, fields, errors and review code are** (`data-selectable` on a span of the error's
-  words; review code opts in inside its shadow root); **the arrow over buttons, tabs and menus' rows**, as in Chrome (`window.css`). The window never scrolls
-  (`overflow: clip`); a part scrolls inside.
-- **An agent's state is an icon each**, not a color alone (some people do not tell yellow from green): one component
-  (`AgentState.tsx`) on a task's tab, its row in the sidebar, a terminal's Resources row.
-- **Explanations are a card's line, an empty list's line, a field's `FieldDescription` and tooltips**, not a paragraph
-  per section: that reads as documentation.
-- **A dialog asks one thing**; what is browsed (Settings) is a nav of categories (shadcn's `Sidebar`) and a page under
-  its `Breadcrumb`, saved as it changes, no OK, as Windows' Settings: a project or a profile is a category's page, not
-  in the nav (it would grow with each). No search field over the nav (the author's choice). Back to the tasks is the
-  nav header's ←: a × at the nav's edge reads as closing the nav.
-- **It fits the smallest window** (640 × 400, or any at 200%): a dialog that keeps a height of its own (New Project)
-  gives it as `max-h-[70vh]` on our box inside it, so its buttons stay in the window.
+- Use flat Dockview panes and compact rows. Keep project color on its icon/title logo (`--project`, author's choice).
+- Sidebar docks in the empty window; over tasks it uses a Sheet without resizing the grid.
+- Give objects complete right-click menus and one or two visible actions. Avoid swipes and double-click-only actions.
+- Labels/buttons are unselectable; fields, errors (`data-selectable`) and review code permit selection. Use arrow
+  cursors on controls. The window never scrolls; parts own their scrolling.
+- Represent agent state with distinct icons (`AgentState`), not color alone.
+- Explain controls through field descriptions, tooltips and concise empty/status lines.
+- Dialogs ask one thing. Settings uses categories, breadcrumbs, immediate saving and a back arrow; entities open
+  within categories. No nav search (author's choice).
+- Fit 640 × 400 and 200% zoom; cap dialog content height, e.g. `max-h-[70vh]`, keeping buttons reachable.
 
 ## Tooltips
 
-`Tip` (`Tip.tsx`, shadcn's `Tooltip`) on a control where it opens over no page: the title bar, the sidebar, dialogs,
-Settings, the tasks' bar's buttons (`side`: over or under them are the pages). The native `title` elsewhere:
-- in the grid, over and next to the pages (a pane's tabs, toolbar and header; the Resources bar and its microphone),
-  and on a master's bar: the OS draws it above the native views, which would cover the window's;
-- on a row (of a list, a nav) and on a text that cuts: a tooltip of the window's over a row covers the row above;
-- on a line of the log (Settings → Log, its date): a tooltip per line would be thousands of components.
+Use `Tip` (shadcn Tooltip) only where it cannot overlap a native page: title/sidebar/dialogs/Settings and suitable
+task-bar buttons. Use native `title` on pane controls, Resources, master bars, list rows, clipped text and log lines:
+native views cover HTML tooltips, and per-log-line components are costly.
 
-A tooltip's text is not hoverable: the pointer leaving onto a page moves on no more in the window, and Radix's grace
-area would keep it open. A dialog whose first control has one gives the keyboard to itself (`Shortcuts.tsx`): the tooltip opened by
-that focus would take the dialog's Esc.
-
-A command with a key says it at the end of its tooltip, as Chrome's toolbar: `withKeys('Reload', 'tab.reload')` →
-"Reload (Ctrl+R)" (`lib/common.ts`). A disabled button has no tooltip: it gets no pointer events.
+Disable tooltip hoverability: crossing into a native page stops pointer events and can leave Radix's grace area
+open. Give dialog initial focus to the dialog itself if its first control has a tooltip, or Esc closes the tooltip.
+`withKeys('Reload', 'tab.reload')` appends the shortcut. Disabled buttons receive no pointer events/tooltips.
 
 ## Menus
 

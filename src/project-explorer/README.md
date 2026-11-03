@@ -1,7 +1,7 @@
 # Project Explorer
 
-A folder browser, a Kulisa package ([packages.md](../../docs/packages.md)): directory reads and a shadcn File Tree,
-independent of tasks, projects, agents and the window's store. It writes no files and starts no processes.
+Shallow directory browsing and a shadcn File Tree, a [Kulisa package](../../docs/packages.md). Callers own tasks,
+projects, roots and desktop actions; it writes no files or processes.
 
 ## Directory access
 
@@ -12,23 +12,17 @@ entries; directory links are not expanded. Opening files is the caller's desktop
 
 ## Tree
 
-`renderer/index.ts` exports `ProjectDirectory` and `ExplorerActions`. A caller supplies the root folder and callbacks
-to read a directory, open and reveal a file, and show menu rows through the window's menu opener. The tree supplies
-the Open and Show in Folder rows. Double-click or Enter opens a file.
+`ProjectDirectory` takes `ExplorerActions` for reads, open/reveal and shared menu opening. It supplies Open/Show in
+Folder rows; double-click/Enter opens files.
 
-The UI follows [shadcn's File Tree](https://ui.shadcn.com/docs/ai-elements/radix/file-tree): Collapsible folders with
-Button triggers and ghost Button files, using the window's normal control text in compact rows. Each folder trigger's wrapper sets
-`--muted` to transparent when unhovered so expanded folders keep a plain background; hover and focus feedback follow the theme. Each expanded
-directory reads on mount and every three seconds while `active`; hiding it pauses polling and ignores late replies,
-preserving entries and expanded folders. The caller supplies visibility through `active`; unmounting clears its
-timer. Collapsed folders and background tasks keep no watchers.
+Use shadcn File Tree: Collapsible folders, Button triggers and ghost Button files. Expanded folders set `--muted`
+transparent while unhovered. Refresh mounted expanded directories every 3 s while `active`. Hiding pauses polling
+and ignores late replies, retaining entries/expansion; unmounting clears timers. Collapsed/background folders keep no watchers.
 
-Folders share Lucide's folder icon, open or closed. File icons are [Material Icon Theme](https://github.com/material-extensions/vscode-material-icon-theme)'s.
-`vite.config.mts` generates case-insensitive associations without a framework-specific icon pack, emits referenced
-SVGs as separate assets, and includes their MIT license. The renderer receives associations and asset URLs only.
-Exact filenames take precedence over compound extensions, longest first; parent-folder associations take precedence
-at each match. Unknown entries use the theme's generic icons. CSS selects the light or dark asset and loads only
-that shade. File icon selection depends on paths, independent of any editor.
+Use Lucide folder icons and Material Icon Theme file icons. Vite generates case-insensitive associations, referenced
+SVGs and MIT attribution; renderer receives URLs/associations only. Match exact names before longest compound
+extensions, with parent-folder rules first at each match; unknown entries use generic icons. CSS loads only the
+active light/dark shade. Keep matching independent of editors.
 
 ## Contracts
 
@@ -38,28 +32,10 @@ The renderer receives those actions as callbacks, with no channels or task keys 
 
 ## The code
 
-| File | What |
-|---|---|
-| `main/index.ts` | main entry |
-| `main/files.ts` | path containment and shallow directory reads |
-| `renderer/index.ts` | renderer entry |
-| `renderer/actions.ts` | file and desktop callbacks |
-| `renderer/ProjectDirectory.tsx` | directory loading, refresh, expansion, file interactions and menu rows |
-| `renderer/FileIcon.tsx`, `icon.ts`, `icons.d.ts` | theme-aware assets, association matching and the build module's contract |
-| `ipc.ts` | directory-entry contract |
-| `files.test.ts` | shallow reads, ordering, refresh, multiple roots, missing paths and symbolic-link containment |
-| `icons.test.ts` | match precedence, path formats and theme fallbacks with supplied associations |
-
-Outside callers and integration:
-
-- `src/main/tasks.ts`: resource ownership, roots and the existing protected desktop opening action.
-- `src/main/ipc/tasks.ts`: task-specific IPC handles; `src/shared/ipc.ts`: their typed contracts.
-- `src/renderer/task-view/Resources.tsx`: task selection, repository root labels and grouping, repository removal,
-  the Resources bar, Resources content, artifacts, and callback bindings to the window's IPC and menu opener.
-- `.dependency-cruiser.ts`: entry and dependency enforcement; `docs/packages.md`, `docs/tasks.md` and `docs/ui.md`: integration links.
-- `vite.config.mts`: dependency assets and generated associations enter through Vite's build, outside either process.
-- `src/shared/types.ts`: the core's task and resource shapes; explorer entries are declared in this Kulisa package's contract.
-
-End-to-end tests stay in `test/e2e/resources.spec.ts` (expansion, file opening and project switching) and
-`test/e2e/project-repositories.spec.ts` (task worktrees and additional repositories). Resources layout and artifact
-tests cover the containing window panel.
+- `main/files.ts`, `main/index.ts`: confined shallow reads and public entry.
+- `renderer/ProjectDirectory.tsx`, `actions.ts`, `index.ts`: tree lifecycle, file/menu callbacks and entry.
+- `renderer/FileIcon.tsx`, `icon.ts`, `icons.d.ts`: asset display, matching and Vite contract.
+- `ipc.ts`: directory-entry contract. Core task handles supply roots (`tasks.ts`, `ipc/tasks.ts`, `shared/ipc.ts`).
+- `task-view/Resources.tsx`: repository grouping/ownership, panel controls and action bindings.
+- `files.test.ts`, `icons.test.ts`: reads/containment, supplied-association matching, path formats and theme fallbacks. E2e:
+  `test/e2e/resources.spec.ts`, `project-repositories.spec.ts`; containing layouts/artifacts use Resources tests.
