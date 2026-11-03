@@ -94,9 +94,10 @@ test('the window\'s minimum follows the Kulisa zoom; a window at the minimum gro
   await ui.getByRole('button', { name: 'New Project…' }).click();
   const np = ui.getByRole('dialog', { name: 'New Project' });
   await expect(np).toBeVisible();
-  await expect(np.getByRole('textbox', { name: 'Name', exact: true })).toHaveCount(1);
-  for (const from of ['New Folder', 'Folders on Disk', 'Clone from URL']) {
-    await np.getByRole('tab', { name: from }).click();
+  await expect(np.getByRole('textbox', { name: 'Project name', exact: true })).toHaveCount(1);
+  await np.getByRole('button', { name: 'Add folder', exact: true }).click();
+  for (const from of ['New', 'On disk', 'Clone']) {
+    await np.getByRole('tab', { name: from, exact: true }).click();
     await expect(np.getByRole('tab', { name: from })).toHaveAttribute('aria-selected', 'true');
     const d = await np.boundingBox(), height = await ui.evaluate(() => innerHeight);
     const inside = async (b: Locator) => {
@@ -104,8 +105,9 @@ test('the window\'s minimum follows the Kulisa zoom; a window at the minimum gro
       const r = await b.boundingBox();
       return r.x + r.width <= d.x + d.width && r.y + r.height <= d.y + d.height && d.y + d.height <= height;
     };
-    const fits = { create: await inside(np.getByRole('button', { name: 'Next' })), browse: await inside(np.getByRole('button', { name: 'Browse…' })) };
-    expect(fits, from).toEqual({ create: true, browse: from === 'Folders on Disk' ? null : true });
+    const browse = np.getByRole('button', { name: from === 'New' ? 'Browse location' : from === 'On disk' ? 'Browse folder' : 'Browse clone location', exact: true });
+    await browse.scrollIntoViewIfNeeded();
+    expect({ create: await inside(np.getByRole('button', { name: 'Create project', exact: true })), browse: await inside(browse) }, from).toEqual({ create: true, browse: true });
   }
   await np.getByRole('button', { name: 'Close' }).click();
   await expect(np).toHaveCount(0);

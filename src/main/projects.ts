@@ -374,9 +374,9 @@ function defaultAgent(shell: Shell, id: string, agent: string | null): Result<{ 
 // disk or at a URL already), one repository or several (a frontend and a backend): from
 // 'new', <location>/<name>, the location the projects' home (shell.projectsHome) unless the human picks another, so they know where the agent's files
 // are; 'folder', the folders given, nothing made, the first the project's; 'clone', one repository cloned into
-// <location>/<name>, several into <location>/<name>/<repo> each. git init when asked, with an empty first commit:
-// tasks get copies of their own (worktrees) from it. Then its agents (accounts, the first the default) and profiles
-// (made in it, or taken from the others), as New Project's steps chose them: what could not be done of those is logged
+// <location>/<name>, several into <location>/<name>/<repo> each. New folders stay without git. Then its agents
+// (accounts, the first the default) and profiles (made in it, or taken from the others), as the project map chose
+// them: what could not be done of those is logged
 // and said (problems), the rest done, the project being there already.
 type NewProject = { from?: string; name?: string; location?: string; folders?: string[]; urls?: string[] } & NewProjectSetup;
 async function createProject(shell: Shell, { from = 'new', name, location, folders = [], urls = [], agents = [], profiles = [] }: NewProject): Promise<Result<{ id: string; problems?: string[] }>> {

@@ -70,7 +70,7 @@ export interface AccountsInfo { accounts: Account[]; clis: string[] }
 // One of a project's agents (Settings, a project's page): an account (its agent, its email) or the terminal only.
 export interface ProjectAgent { id: string; name: string; agent: string; cli: string; email: string | null; default?: boolean }
 export interface SignedIn extends Partial<AccountsInfo> { agents?: ProjectAgent[] }
-// A new project's agents (accounts, the default first) and profiles (made in it, or taken from the others): New Project's steps.
+// The project map's agents (accounts, the default first) and profiles (made in it, or taken from the others).
 export interface NewProjectSetup { agents?: string[]; profiles?: ({ id: string } | { name: string; description?: string })[] }
 export interface ProjectChoices { agents: { id: string; name: string }[]; clis: { id: string; name: string }[] }
 // remote: its origin's key (remotes.ts), known before GitHub is asked (ProjectGitHub).

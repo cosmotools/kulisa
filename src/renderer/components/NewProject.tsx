@@ -51,7 +51,7 @@ function Repositories({ draft: d }: { draft: ProjectDraft }) {
         <Field data-invalid={!!error || undefined}>
           <FieldLabel htmlFor={`${id}-location`}>Create in</FieldLabel>
           <div className="flex gap-2">
-            <Input id={`${id}-location`} value={s.place} spellCheck={false} aria-invalid={!!error || undefined}
+            <Input id={`${id}-location`} value={s.place} spellCheck={false} aria-invalid={!!error || undefined} aria-describedby={error ? `${id}-error` : undefined}
               onChange={(e) => d.change({ place: e.target.value })} />
             <Button type="button" variant="outline" size="icon" aria-label="Browse location" onClick={() => void d.browse()}><FolderOpenIcon /></Button>
           </div>
@@ -60,7 +60,7 @@ function Repositories({ draft: d }: { draft: ProjectDraft }) {
       </> : <Field data-invalid={!!error || undefined}>
         <FieldLabel htmlFor={`${id}-source`}>{folder ? 'Folder on disk' : 'Repository URL'}</FieldLabel>
         <div className="flex gap-2">
-          <Input id={`${id}-source`} value={s.typed} spellCheck={false} aria-invalid={!!error || undefined}
+          <Input id={`${id}-source`} value={s.typed} spellCheck={false} aria-invalid={!!error || undefined} aria-describedby={error ? `${id}-error` : undefined}
             placeholder={folder ? 'Path to your code' : 'git@github.com:you/project.git'}
             onChange={(e) => d.set({ typed: e.target.value, error: '' })}
             onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void d.addSource(); } }} />
@@ -72,12 +72,12 @@ function Repositories({ draft: d }: { draft: ProjectDraft }) {
       {s.from === 'clone' && <Field>
         <FieldLabel htmlFor={`${id}-clone-location`}>Clone into</FieldLabel>
         <div className="flex gap-2">
-          <Input id={`${id}-clone-location`} value={s.place} spellCheck={false} onChange={(e) => d.change({ place: e.target.value })} />
+          <Input id={`${id}-clone-location`} value={s.place} spellCheck={false} aria-invalid={!!error || undefined} aria-describedby={error ? `${id}-error` : undefined} onChange={(e) => d.change({ place: e.target.value })} />
           <Button type="button" variant="outline" size="icon" aria-label="Browse clone location" onClick={() => void d.browse()}><FolderOpenIcon /></Button>
         </div>
       </Field>}
     </div>}
-    {s.from !== 'new' && rows.map((row, i) => <div key={row.value} className="flex min-w-0 items-start gap-2 rounded-lg border p-3">
+    {s.from !== 'new' && rows.map((row, i) => <div key={row.value} role="group" aria-label={row.value} className="flex min-w-0 items-start gap-2 rounded-lg border p-3">
       {row.git ? <FolderGit2Icon className="mt-0.5 size-4 shrink-0" /> : <FolderOpenIcon className="mt-0.5 size-4 shrink-0" />}
       <div className="min-w-0 flex-1"><p className="truncate text-sm font-medium" title={row.value}>{row.value.split(/[\\/]/).pop()}</p>
         <p className="truncate text-xs text-muted-foreground" title={row.value}>{row.value}</p>
@@ -87,7 +87,7 @@ function Repositories({ draft: d }: { draft: ProjectDraft }) {
       <Button type="button" variant="ghost" size="icon-xs" aria-label={`Leave out ${row.value}`} onClick={() => d.removeSource(row.value)}><XIcon /></Button>
     </div>)}
     {where && <p role="status" aria-label="What will happen" className="text-xs break-all text-muted-foreground">{where}</p>}
-    {error && <FieldError><span data-selectable>{error}</span></FieldError>}
+    {error && <FieldError id={`${id}-error`}><span data-selectable>{error}</span></FieldError>}
   </Node>;
 }
 
@@ -175,9 +175,9 @@ export function ProjectMap({ draft: d, back, done }: { draft: ProjectDraft; back
             <CardTitle>Your project</CardTitle><CardDescription>One place for everything you are building.</CardDescription></CardHeader>
             <CardContent><Field data-invalid={s.errorAt === 'name' || undefined}>
               <FieldLabel htmlFor={`${id}-name`}>Project name</FieldLabel>
-              <Input id={`${id}-name`} ref={nameRef} value={s.name} maxLength={64} spellCheck={false} placeholder="e.g. my-next-app" aria-invalid={s.errorAt === 'name' || undefined}
+              <Input id={`${id}-name`} ref={nameRef} value={s.name} maxLength={64} spellCheck={false} placeholder="e.g. my-next-app" aria-invalid={s.errorAt === 'name' || undefined} aria-describedby={s.errorAt === 'name' ? `${id}-name-error` : undefined}
                 onChange={(e) => d.change({ name: e.target.value, errorAt: '' })} />
-              {s.errorAt === 'name' && <FieldError><span data-selectable>{s.error}</span></FieldError>}
+              {s.errorAt === 'name' && <FieldError id={`${id}-name-error`}><span data-selectable>{s.error}</span></FieldError>}
             </Field></CardContent>
           </Card>
           <div aria-hidden="true" className="mx-auto -mb-5 hidden h-5 w-px bg-border lg:block" />

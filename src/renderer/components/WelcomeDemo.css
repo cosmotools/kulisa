@@ -142,6 +142,38 @@
   95%, 100% { opacity: 0; transform: translate(calc(730px * var(--cli-scale)), calc(380px * var(--cli-scale))); }
 }
 
+/* SVG joints stay attached while the person reclines and lifts the cup; all use the active demo's clock. */
+.welcome-human-recline { transform-origin: 82px 134px; transform: rotate(-4deg); animation-name: welcome-human-recline; }
+.welcome-human-coffee { transform-origin: 95px 117px; animation-name: welcome-human-coffee; }
+.welcome-human-head { transform-origin: 64px 78px; animation-name: welcome-human-head; }
+.welcome-human-steam { animation-name: welcome-human-steam; }
+.welcome-human-send { opacity: 0; animation-name: welcome-human-send; }
+.welcome-human-task { opacity: 0; animation-name: welcome-human-task; }
+.welcome-demo .welcome-human-recline,
+.welcome-demo .welcome-human-coffee,
+.welcome-demo .welcome-human-head { animation-timing-function: ease-in-out; }
+@keyframes welcome-human-recline {
+  0%, 5%, 100% { transform: rotate(6deg); }
+  13%, 23%, 50%, 76% { transform: rotate(-4deg); }
+  37%, 63% { transform: rotate(-5deg); }
+  86%, 91% { transform: rotate(-1deg); }
+}
+@keyframes welcome-human-coffee {
+  0%, 22%, 43%, 57%, 77%, 100% { transform: rotate(0); }
+  29%, 37%, 64%, 71% { transform: rotate(-78deg); }
+}
+@keyframes welcome-human-head {
+  0%, 78%, 86%, 94%, 100% { transform: rotate(0); }
+  82%, 90% { transform: rotate(7deg); }
+}
+@keyframes welcome-human-steam {
+  0%, 20%, 40%, 60%, 80%, 100% { opacity: 0; transform: translateY(0); }
+  8%, 28%, 48%, 68%, 88% { opacity: .8; }
+  19%, 39%, 59%, 79%, 99% { opacity: 0; transform: translateY(-5px); }
+}
+@keyframes welcome-human-send { 0%, 5%, 100% { opacity: 1; } 8%, 97% { opacity: 0; } }
+@keyframes welcome-human-task { 0%, 3%, 16%, 100% { opacity: 0; transform: translateX(0); } 6% { opacity: 1; } 14% { opacity: 0; transform: translateX(35px); } }
+
 @media (prefers-reduced-motion: reduce) {
   .welcome-demo [data-demo-motion] { animation: none; }
 }

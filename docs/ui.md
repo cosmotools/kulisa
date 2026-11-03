@@ -118,7 +118,7 @@ is Radix's own. A Radix menu of a part's own only for a row's own menu inside on
   anything opens one by name: `(await dialog('newproject')).open()` (`lib/dialogs.ts`). Settings is not a
   dialog: `openSettings(section, id)` (`lib/settings.ts`), through the main process, which logs it.
 - Its content is mounted only while it is open, so what must outlive it lives outside it: an agents' list and its
-  install (`lib/agents.ts`), New Project's steps (`lib/new-project.ts`), Change Agent's (a store in `HandOver.tsx`).
+  install (`lib/agents.ts`), New Project's draft (`lib/new-project.ts`), Change Agent's (a store in `HandOver.tsx`).
 - One that waits for an answer takes no click outside or × (`onInteractOutside`; `AgentPicker.tsx`); Esc cancels it.
 - **Questions** before something that cannot be undone, before closing, or between two ways to go are not new dialogs:
   `ask(q)` (`lib/ask.ts`) or the main process's `shell.ask` → `Ask.tsx`, an `AlertDialog`, queued: Cancel has the
@@ -197,5 +197,8 @@ What is drawn or moved here rather than by shadcn, each for a reason at it:
   a checked response. Its native 960 × 360 terminal scales with one ResizeObserver; `DemoAgent.tsx` is shared
   by the web and CLI examples. The lower transcript remounts with the selected example so both clocks start together. This coordinated timeline needs named keyframes rather than independent utility animations. Pause
   freezes the entire cycle; reduced motion shows its final result. Switching examples or leaving welcome unmounts
-  the animated elements; no JavaScript animation timer or running browser is retained. Photo sources and license
+  the animated elements. `CoffeeBreak.tsx` adds an SVG vignette beside the example on wide windows: a person
+  sends the task, reclines with coffee and nods at the result. Its upper body and chair back pivot at the hips;
+  the legs stay supported by an ottoman. The back, arm and head follow the same clock and
+  pause state; narrow or very short windows omit the vignette. No JavaScript animation timer or running browser is retained. Photo sources and license
   ship in `public/welcome/CREDITS.txt`.

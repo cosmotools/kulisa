@@ -1,5 +1,5 @@
 // The empty window (docs/tasks.md, The empty window): the sidebar with every project, the welcome at the first start,
-// New Project's steps there and in a dialog; the log a new project leaves.
+// the shared project map there and in a dialog; the log a new project leaves.
 import fs from 'fs';
 import path from 'path';
 import { test, expect } from './fixtures.ts';
@@ -11,7 +11,7 @@ import { begin, bothOn, taskShown, taskTab, deleteProfile } from './tasks-helper
 const blur = async (ui: Page) => { if (await ui.locator(':focus').count()) await ui.locator(':focus').blur(); };
 
 test("the empty window: Close All Tasks in the project's submenu; links in ☰ open in the browser; at the first start the welcome; New Project… in the sidebar asks where its folder goes", async ({ core, ui, files }) => {
-  test.slow(); // the welcome's slides, New Project's steps, and three tasks opened again
+  test.slow(); // the welcome, project creation, and three tasks opened again
   await begin(core, ui, files, { featureX: true });
   // A key taken and something typed into the terminal, for the log below.
   await core((k) => { const sam = k.profile('Sam.admin'); sam.focusTab(sam.get()); k.press(sam.get().wc, 'T', k.CMD); });
@@ -39,8 +39,8 @@ test("the empty window: Close All Tasks in the project's submenu; links in ☰ o
   await expect.poll(() => core((k, n) => k.openedExternally.slice(n), before), { message: 'the user guide on the website' }).toEqual(['https://kulisa.app/docs']);
   expect(ui.url().startsWith('file:') && await ui.locator('#empty').count(), 'the window stays on its page').toBe(1);
 
-  // With no project at all, the empty window is the welcome: what Kulisa does in three slides, the keyboard on Next
-  // at the first start; then New Project's steps, a question each. With projects, the sidebar, and nothing happens.
+  // With no project at all, the welcome introduces web and CLI work, then opens the shared project map.
+  // With projects, firstStart keeps the sidebar.
   await blur(ui);
   await core((k) => k.shell.firstStart(k.shell.windows[0]));
   await ipcSettled(ui); // what it told the window is there
@@ -57,7 +57,7 @@ test("the empty window: Close All Tasks in the project's submenu; links in ☰ o
   const button = (name: string, within: Locator = welcome) => within.getByRole('button', { name, exact: true });
   try {
     await core((k) => { k.shell.sendProjects(); k.shell.firstStart(k.shell.windows[0]); });
-    await expect(button('Next', tour)).toBeFocused();
+    await expect(button('Create a project', tour)).toBeFocused();
     await expect(ui.locator('html')).toHaveAttribute('data-page', 'welcome');
     await expect(sidebar(ui), 'nothing to list').toHaveCount(0);
     // Settings' gear: there while it has anything to show (an account, a profile left after their projects), none
@@ -69,68 +69,58 @@ test("the empty window: Close All Tasks in the project's submenu; links in ☰ o
       s.sendProjects();
     });
     await expect(gear).toBeHidden();
-    const slide = async (title: string, next: string) => {
-      await expect(tour.getByRole('heading', { level: 1 })).toHaveText(title);
-      await expect(tour.getByRole('button', { name: /^(Next|Set Up a Project)$/ })).toHaveText(next);
-    };
-    await slide('Your agent, in your browsers', 'Next');
-    await button('Next', tour).click();
-    await button('Next', tour).click();
-    await slide('Point at it, and say what is wrong', 'Set Up a Project');
-    await button('Back', tour).click();
-    await slide('It checks the result as every user', 'Next');
-    // A low window, wide or at the least size: the slide fits, nothing to scroll to (its top not cut off above the
+    await expect(tour.getByRole('heading', { level: 1 })).toHaveText(/Your agent builds.*You see it work/);
+    await expect(tour.getByRole('tab', { name: 'Web app', exact: true })).toHaveAttribute('aria-selected', 'true');
+    await tour.getByRole('tab', { name: 'CLI app', exact: true }).click();
+    await expect(tour.getByRole('img', { name: /^A coding agent you are building/ })).toBeVisible();
+    await tour.getByRole('tab', { name: 'Web app', exact: true }).click();
+    await expect(tour.getByRole('img', { name: /^Customer browser profile/ })).toBeVisible();
+    // A low window, wide or at the least size: the introduction fits, nothing to scroll to (its top not cut off above the
     // window's edge, out of scrolling's reach).
     const size = await core((k) => k.shell.win.getContentSize());
     for (const [w, h] of [[1100, 400], [640, 400]]) {
       await core((k, a) => k.shell.win.setContentSize(a[0], a[1]), [w, h]);
       // The page's own size and scroll: Playwright's viewportSize is the one it emulates, and it has no scroll reading.
       await expect.poll(() => ui.evaluate(() => [innerWidth, innerHeight])).toEqual([w, h]);
-      // Polled: the slide follows the window's size as its media queries change, a frame after the resize.
+      // Polled: the introduction follows the window's size as its media queries change, a frame after the resize.
       await expect.poll(() => ui.evaluate(() => {
         const e = document.getElementById('welcome'), t = document.querySelector('[aria-label="What Kulisa does"]');
         return e.scrollHeight <= e.clientHeight && t.getBoundingClientRect().top >= e.getBoundingClientRect().top;
-      }), `${w}×${h}: the slide fits`).toBe(true);
+      }), `${w}×${h}: the introduction fits`).toBe(true);
     }
     await core((k, s) => k.shell.win.setContentSize(s[0], s[1]), size);
-    await button('Skip', tour).click();
+    await button('Create a project', tour).click();
     const field = (name: string) => welcome.getByRole('textbox', { name, exact: true });
     await expect(field('Project name')).toBeFocused();
-    // A question, not the steps' names.
-    await expect(welcome.getByRole('heading', { level: 1 })).toHaveText('Where is the code?');
-    await expect(welcome.getByRole('list', { name: 'Steps' }).getByRole('listitem')).toHaveCount(3);
-    await expect(welcome.getByText('Agents', { exact: true }), "no steps' names").toHaveCount(0);
-    await expect(button('Next')).toBeVisible();
-    // Code from the disk or a URL: one folder or one URL, in a field, not a list (the others later, in Settings); its
-    // name the folder's or the repository's, no field for it unless it will not do. A new folder's is asked.
+    await expect(welcome.getByRole('heading', { level: 1 })).toHaveText('Make room for your next project');
+    for (const name of ['Repositories & folders', 'Agents', 'Run & check']) await expect(welcome.getByRole('group', { name, exact: true })).toBeVisible();
+    await expect(button('Create project')).toBeVisible();
     const kind = async (from: string) => {
-      await welcome.getByRole('tab', { name: from }).click();
-      await expect(welcome.getByRole('tab', { name: from })).toHaveAttribute('aria-selected', 'true');
+      await welcome.getByRole('tab', { name: from, exact: true }).click();
+      await expect(welcome.getByRole('tab', { name: from, exact: true })).toHaveAttribute('aria-selected', 'true');
     };
-    const where = welcome.getByRole('status', { name: 'What will happen' });
     const single = path.join(files.root, 'single', 'Shop');
     fs.mkdirSync(single, { recursive: true });
-    await kind('Folders on Disk');
-    await expect(welcome.getByRole('group', { name: 'Folders' })).toHaveCount(0);
-    await expect(welcome.getByText(/^A frontend and a backend\?/)).toHaveCount(1);
-    await typeIn(ui, field('Folder'), single, true);
-    await expect(where).toHaveText(`The project Shop takes ${single} as it is`);
-    await expect(field('Project name'), "its name: the folder's").toHaveCount(0);
-    await kind('Clone from URL');
-    // A clone whose folder is there already, with files: its name to change, in its field.
+    await button('Add folder').click();
+    await typeIn(ui, field('Folder on disk'), single, true);
+    await button('Use this folder').click();
+    await expect(welcome.getByRole('group', { name: single, exact: true })).toBeVisible();
+    await expect(field('Project name'), "its name follows the folder").toHaveValue('Shop');
+    await kind('Clone');
     const home = await core((k) => k.shell.projectsHome), taken = path.join(home, 'taken');
     fs.mkdirSync(taken, { recursive: true });
     fs.writeFileSync(path.join(taken, 'notes.txt'), '');
-    await typeIn(ui, field('URL'), 'https://example.com/me/taken.git', true);
+    await typeIn(ui, field('Repository URL'), 'https://example.com/me/taken.git', true);
+    await button('Add repository URL').click();
     await expect(field('Project name')).toHaveValue('taken');
-    await expect(field('Location'), 'refused at its field').toHaveAccessibleDescription(/is there already: choose another name or location/);
-    await kind('New Folder');
+    await expect(field('Clone into')).toHaveAccessibleDescription(/is there already: choose another name or location/);
+    await kind('New');
     await expect(field('Project name')).toHaveCount(1);
     // Once the git that looked at it (whether it is a repository) has left it: Windows does not remove a process's folder.
     await removed(taken);
-    // Back on the first step: the slides again, on the one left.
+    // Back returns to the introduction.
     await button('Back').click();
-    await expect(tour.getByRole('heading', { level: 1 })).toHaveText('It checks the result as every user');
+    await expect(button('Create a project', tour)).toBeVisible();
   } finally {
     await core((k) => {
       const s = k.shell, saved = k.stash.empty;
@@ -140,16 +130,16 @@ test("the empty window: Close All Tasks in the project's submenu; links in ☰ o
   }
   await expect(ui.locator('html')).toHaveAttribute('data-page', 'sidebar');
 
-  // New Project… at the sidebar's foot: the same steps in a dialog.
+  // New Project… at the sidebar's foot: the same map in a dialog.
   await ui.getByRole('button', { name: 'New Project…' }).click();
   const np = ui.getByRole('dialog', { name: 'New Project' });
   await expect(np).toBeVisible();
   const field = (name: string) => np.getByRole('textbox', { name, exact: true });
-  await expect(field('Name')).toHaveCount(1);
+  await expect(field('Project name')).toHaveCount(1);
 
   // Its code: a name and where its folder goes, the home folder unless another is chosen.
   const home = await core((k) => k.shell.projectsHome);
-  await expect(field('Location'), "every new project's place (~/KulisaProjects; the tests' own here)").toHaveValue(home);
+  await expect(field('Create in'), "every new project's place (~/KulisaProjects; the tests' own here)").toHaveValue(home);
   const color = await core((k) => k.shell.store.nextColor());
   const made = path.join(files.root, 'made');
   fs.mkdirSync(path.join(made, 'Taken'), { recursive: true });
@@ -160,23 +150,24 @@ test("the empty window: Close All Tasks in the project's submenu; links in ☰ o
     d.showOpenDialog = (async () => ({ canceled: false, filePaths: [f] }));
   }, made);
   try {
-    await np.getByRole('button', { name: 'Browse…' }).click();
-    await expect(field('Location')).toHaveValue(made);
+    await np.getByRole('button', { name: 'Browse location' }).click();
+    await expect(field('Create in')).toHaveValue(made);
   } finally { await core((k) => { k.electron.dialog.showOpenDialog = k.stash.open; }); }
-  // The step shown (its number, then its name); Next as the human goes on.
-  const step = (name: string) => expect(np.getByRole('list', { name: 'Steps' }).locator('[aria-current="step"]')).toHaveText(new RegExp(`^.${name}$`));
-  const next = () => np.getByRole('button', { name: /^(Next|Create)$/ }).click();
+  const create = () => np.getByRole('button', { name: 'Create project', exact: true }).click();
   const where = np.getByRole('status', { name: 'What will happen' }), error = np.getByRole('alert');
+  await create();
+  await expect(field('Project name')).toBeFocused();
+  await expect(field('Project name')).toHaveAccessibleDescription('Give your project a name');
   // A folder there already would be taken as it is (the form says so as it is typed); a file is refused at its field,
-  // and Next does not go on.
-  await typeIn(ui, field('Name'), 'Taken');
+  // and Create makes nothing.
+  await typeIn(ui, field('Project name'), 'Taken');
   await expect(where).toHaveText(`${path.join(made, 'Taken')} is there already: the project takes it as it is, its files kept`);
   fs.writeFileSync(path.join(made, 'note'), '');
-  await typeIn(ui, field('Name'), 'note');
-  await expect(field('Location')).toHaveAccessibleDescription(/is a file, not a folder/);
-  await next();
+  await typeIn(ui, field('Project name'), 'note');
+  await expect(field('Create in')).toHaveAccessibleDescription(/is a file, not a folder/);
+  await create();
   await expect(error).toContainText(/is a file, not a folder/);
-  await step('Code'); // not on
+  await expect(np).toBeVisible();
   // An error is text to copy and search for: it can be selected (the window's other words cannot). What is selected
   // read in the page: Playwright has no getter of the selection.
   const said = error.getByText(/is a file, not a folder/);
@@ -184,32 +175,20 @@ test("the empty window: Close All Tasks in the project's submenu; links in ☰ o
   await expect(np.getByRole('heading', { name: 'New Project' })).toHaveCSS('user-select', 'none');
   await said.selectText();
   expect(await ui.evaluate(() => getSelection().toString())).toBe(await said.textContent());
-  await typeIn(ui, field('Name'), 'Shop');
+  await typeIn(ui, field('Project name'), 'Shop');
   await expect(where).toHaveText(`The project will be created in ${path.join(made, 'Shop')}`);
-  await next();
-  // Its agents: the accounts there are, to tick (none here: its tasks start with a terminal), and a new one of each
-  // agent an account can be made of (its sign-in: the agents' tests).
-  await step('Agents');
-  const accounts: string[] = (await invoke(ui, 'account:list')).accounts.map((a: { id: string }) => a.id);
-  const rows = np.getByRole('group', { name: 'Accounts' }).locator('[data-account]');
-  await expect(rows).toHaveCount(accounts.length);
-  for (const [i, id] of accounts.entries()) await expect(rows.nth(i)).toHaveAttribute('data-account', id);
-  await expect.poll(() => np.locator('[data-add]').count()).toBeGreaterThan(0); // Add account: an agent to make one of, once they are found (behind the steps)
-  await np.getByRole('button', { name: 'Back' }).click();
-  await step('Code');
-  await expect(field('Name')).toHaveValue('Shop'); // Back: as it was
-  await next();
-  await step('Agents');
-  await next();
-  // Its profiles: a new one, named and said who it is; Create makes the project with it and opens its first task,
-  // nothing asked, no Settings.
-  await step('Profiles');
-  await expect(np.getByRole('button', { name: 'Create' })).toBeVisible();
-  await np.getByRole('button', { name: 'Add Profile' }).click();
-  const profiles = np.getByRole('group', { name: 'Profiles' });
-  await profiles.getByRole('textbox', { name: 'Name' }).fill('Shop-buyer');
-  await profiles.getByRole('textbox', { name: 'Who it is' }).fill('buys things');
-  await next();
+  // Accounts and optional profiles share the map; no agent is required to start with a shell.
+  const accounts: { name: string }[] = (await invoke(ui, 'account:list')).accounts;
+  const agents = np.getByRole('group', { name: 'Agents', exact: true });
+  await expect(agents.getByRole('checkbox')).toHaveCount(accounts.length);
+  for (const [i, account] of accounts.entries()) await expect(agents.getByRole('checkbox').nth(i)).toHaveAccessibleName(new RegExp(RegExp.escape(account.name)));
+  await expect.poll(() => agents.getByRole('button').count()).toBeGreaterThan(0);
+  await np.getByRole('button', { name: 'Set up browser profiles now' }).click();
+  await np.getByRole('button', { name: 'Add profile', exact: true }).click();
+  const profiles = np.getByRole('group', { name: 'Profiles', exact: true });
+  await profiles.getByRole('textbox', { name: 'Profile 1 name', exact: true }).fill('Shop-buyer');
+  await profiles.getByRole('textbox', { name: 'Profile 1 role', exact: true }).fill('buys things');
+  await create();
   const shopDir = path.join(made, 'Shop');
   await expect.poll(() => core((k, f) => k.shell.current?.folder === f && !!k.shell.task?.loaded && !!k.shell.pty, shopDir)).toBe(true);
   await expect(ui.getByRole('alertdialog'), 'nothing asked').toHaveCount(0);
