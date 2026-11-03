@@ -29,7 +29,7 @@ const openFile = (file: string) => kulisa.invoke('file:open', file);
 
 export function ResourceIcon({ params }: IDockviewPanelHeaderProps<{ section: ResourceSection }>) {
   const Icon = { terminals: TerminalSquareIcon, project: FolderTreeIcon, diff: GitCompareArrowsIcon, artifacts: FilesIcon }[params.section];
-  return <span title={resourceSections[params.section]} className="grid h-10 place-items-center"><Icon className="size-4" /></span>;
+  return <span title={resourceSections[params.section]} className="grid h-10 w-full place-items-center"><Icon className="size-4" /></span>;
 }
 export function ResourceActions({ api, group, location }: IDockviewHeaderActionsProps) {
   const key = useTask((s) => s.key);
