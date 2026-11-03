@@ -23,7 +23,7 @@ export class TaskGrid {
   private dirty = false;
   private saveTimer = 0;
   private frame = 0;
-  private stageShare = 0.65;
+  private savedSplit: { layout: TaskLayout['split']; position: StagePosition } | null = null;
   private subscriptions = new Map<object, DockviewIDisposable>();
   private dragging = false;
   private restoration: Promise<boolean> | null = null;
@@ -50,7 +50,7 @@ export class TaskGrid {
     if (this.disposed) return false;
     const layout = splitLayout(saved);
     this.savedDevelopment = layout?.workspace ?? null;
-    this.stageShare = layout?.stageShare && layout.stageShare > 0 && layout.stageShare < 1 ? layout.stageShare : 0.65;
+    this.savedSplit = { layout: layout?.split ?? null, position: layout?.stagePosition ?? 'above' };
     this.stage.saved = layout?.stage ?? null;
     this.state.setState({ stageLayout: layout?.stageLayout ?? null, stageOverflow: layout?.stageOverflow ?? false,
       stagePosition: layout?.stagePosition ?? 'above' });
@@ -62,7 +62,18 @@ export class TaskGrid {
       this.scheduleSave(); this.reportPages();
     }));
     this.resize();
-    workspace.addPanel({ id: 'development', component: 'development', minimumWidth: 100, minimumHeight: resourcesMinimumHeight });
+    if (this.savedSplit?.layout) {
+      try { workspace.fromJSON(this.savedSplit.layout); }
+      catch (error) { console.warn('[layout] saved split unavailable:', error); workspace.clear(); }
+    }
+    if (!workspace.getPanel('development') || !workspace.getPanel('stage')) {
+      workspace.clear();
+      workspace.addPanel({ id: 'development', component: 'development', minimumWidth: 100, minimumHeight: resourcesMinimumHeight });
+      workspace.addPanel({ id: 'stage', component: 'stage', minimumWidth: 100, minimumHeight: 100 });
+      this.placeStage('above');
+    } else if (this.savedSplit) this.placeStage(this.savedSplit.position);
+    workspace.getPanel('development')!.api.setConstraints({ minimumHeight: resourcesMinimumHeight });
+    this.savedSplit = null;
     this.sync();
   }
   mountDevelopment(api: DockviewApi, parent: GridviewPanelApi) {
@@ -74,7 +85,7 @@ export class TaskGrid {
     this.finishInitialization();
   }
   mountStage(api: DockviewApi, parent: GridviewPanelApi, viewport: HTMLElement) {
-    this.stage.attach(api, parent, viewport);
+    this.stage.attach(api, viewport);
     const subscriptions = this.watch(api, parent.onDidDimensionsChange(this.stage.layout));
     subscriptions.addDisposables(api.onDidActivePanelChange(({ origin }) => { if (origin === 'user') this.stage.pauseStageFollowing(); }));
     this.finishInitialization();
@@ -82,17 +93,18 @@ export class TaskGrid {
   }
   private watch(api: DockviewApi, dimensions: DockviewIDisposable) {
     // Dockview coalesces layout events in a microtask after compound panel moves finish.
-    const subscriptions = new DockviewCompositeDisposable(dimensions, api.onDidLayoutChange(() => {
+    const changed = () => {
       if (api === this.stage.api) this.stage.layout();
       this.scheduleSave(); this.reportPages();
-    }), api.onDidActivePanelChange(this.reportPages),
+    };
+    const subscriptions = new DockviewCompositeDisposable(dimensions, api.onDidLayoutChange(changed), api.onDidMaximizedGroupChange(changed), api.onDidActivePanelChange(this.reportPages),
       api.onWillDragPanel(() => { this.dragging = true; void freeze(); }),
       api.onWillDragGroup(() => { this.dragging = true; void freeze(); }), api.onDidDrop(this.finishDrag));
     this.subscriptions.set(api, subscriptions);
     return subscriptions;
   }
   private finishInitialization() {
-    if (this.ready || this.disposed || !this.development.api || this.stage.environmentIds().length && !this.stage.api) return;
+    if (this.ready || this.disposed || !this.development.api || !this.stage.api) return;
     this.state.setState({ loading: false });
     this.resize(); this.scheduleSave(); this.reportPages();
   }
@@ -126,17 +138,8 @@ export class TaskGrid {
   }
   private sync() {
     if (!this.workspace) return;
-    const has = this.stage.environmentIds().length > 0, panel = this.workspace.getPanel('stage');
-    if (!has && panel) {
-      this.stageShare = this.currentShare();
-      const api = this.stage.api;
-      if (api) { this.subscriptions.get(api)?.dispose(); this.subscriptions.delete(api); }
-      this.stage.detach(); this.stage.saved = null; this.workspace.removePanel(panel);
-    }
-    if (has && !panel) {
-      this.workspace.addPanel({ id: 'stage', component: 'stage', minimumWidth: 100, minimumHeight: 100 });
-      this.placeStage('above', this.stageShare);
-    }
+    const panel = this.workspace.getPanel('stage');
+    if (panel) panel.api.setVisible(this.stage.environmentIds().length > 0);
     this.stage.syncStage();
     this.finishInitialization();
   }
@@ -147,19 +150,21 @@ export class TaskGrid {
     this.workspace?.layout(width, height);
     this.reportPages();
   };
-  private placeStage(previousPosition: StagePosition, share = this.currentShare()) {
+  private placeStage(previousPosition: StagePosition) {
     const workspace = this.workspace, panel = workspace?.getPanel('stage');
     if (!workspace || !panel) return;
     const position = this.state.getState().stagePosition;
+    if (position === previousPosition) return;
+    const visible = panel.api.isVisible;
+    if (!visible) panel.api.setVisible(true);
     workspace.orientation = position === 'above' ? Orientation.VERTICAL : Orientation.HORIZONTAL;
     const first = previousPosition === 'right' ? 'development' : 'stage', wanted = position === 'right' ? 'development' : 'stage';
-    if (first !== wanted) workspace.movePanel(workspace.getPanel(wanted)!, { reference: first, direction: position === 'above' ? 'above' : 'left' });
-    panel.api.setSize(position === 'above' ? { height: Math.round(workspace.height * share) } : { width: Math.round(workspace.width * share) });
-  }
-  private currentShare() {
-    const panel = this.workspace?.getPanel('stage'), vertical = this.workspace?.orientation === Orientation.VERTICAL;
-    const total = vertical ? this.workspace?.height : this.workspace?.width;
-    return panel && total ? (vertical ? panel.api.height : panel.api.width) / total : this.stageShare;
+    if (first !== wanted) {
+      const moving = workspace.getPanel(wanted)!;
+      workspace.movePanel(moving, { reference: first, direction: position === 'above' ? 'above' : 'left',
+        size: position === 'above' ? moving.api.height : moving.api.width });
+    }
+    if (!visible) panel.api.setVisible(false);
   }
   private scheduleSave = () => {
     if (!this.ready || this.disposed) return;
@@ -172,8 +177,8 @@ export class TaskGrid {
     this.dirty = false;
     const state = this.state.getState();
     kulisa.send('layout:save', { task: this.key, layout: { version: 3, workspace: this.development.api.toJSON(),
-      stage: this.stage.api?.toJSON() ?? this.stage.saved, stageLayout: state.stageLayout, stageOverflow: state.stageOverflow,
-      stagePosition: state.stagePosition, stageShare: this.currentShare() } satisfies TaskLayout });
+      stage: this.stage.api?.toJSON() ?? this.stage.saved, split: this.workspace!.toJSON(), stageLayout: state.stageLayout, stageOverflow: state.stageOverflow,
+      stagePosition: state.stagePosition } satisfies TaskLayout });
   }
   reportPages = () => {
     if (this.disposed || !this.ready || this.frame) return;

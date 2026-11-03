@@ -204,13 +204,13 @@ test('workspace and stage presets each fit the window without changing the other
   await fits();
   let b = await at();
   expect(b.sam.x < b.elon.x && b.sam.y === b.elon.y && b.term.y > b.sam.y + b.sam.height - 1, 'profiles side by side, terminal below').toBe(true);
-  // Resources left of the terminal, in its row, a quarter of the grid (laid out maybe a frame after the pages).
+  // Resources uses its native edge minimum beside the terminal.
   const resources = () => resourcesGroup(ui).boundingBox();
   const placed = async () => {
     const r = await resources(), t = await box(ui, '[data-testid="terminal"]');
-    return r.x + r.width <= t.x + 1 && r.y > b.sam.y + b.sam.height - 1 && Math.abs(r.width / (await ui.locator('[data-task-view][data-active] [data-development-grid]').boundingBox()).width - 0.25) < 0.02;
+    return r.x + r.width <= t.x + 1 && r.y > b.sam.y + b.sam.height - 1 && r.width >= 300 && r.width <= 301;
   };
-  await expect.poll(placed, { timeout: 3000, message: 'Resources left of the terminal, a quarter of the grid' }).toBe(true);
+  await expect.poll(placed, { timeout: 3000, message: 'Resources left of the terminal, at its native minimum' }).toBe(true);
   const side = await resources();
   b = await at();
   // A narrower window takes from every panel in its share, not from the last one alone; wider gives back the same way.

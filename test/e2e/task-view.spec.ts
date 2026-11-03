@@ -63,7 +63,7 @@ for (const boundary of ['switch', 'close', 'arrange'] as const) test(`a first la
       const stage = await ui.locator('[data-task-view][data-active]').getByTestId('stage').boundingBox(), development = await ui.locator('[data-task-view][data-active] [data-development-grid]').boundingBox();
       expect(stage.x).toBeGreaterThanOrEqual(development.x + development.width - 1);
     } else {
-      await expect(ui.locator('[data-task-view][data-active]').getByTestId('stage')).toHaveCount(0);
+      await expect(ui.locator('[data-task-view][data-active]').getByTestId('stage')).toBeHidden();
       expect(await core((k) => k.shell.task.key)).toBe(second);
       if (boundary === 'close') await expect(ui.locator(`[data-task-view="${first}"]`)).toHaveCount(0);
       if (boundary === 'switch') {

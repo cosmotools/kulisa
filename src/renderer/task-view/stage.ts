@@ -1,5 +1,5 @@
 // Stage environments, overflow sizing and following (docs/window.md, The grid).
-import type { DockviewApi, GridviewPanelApi, SerializedDockview } from 'dockview-react';
+import type { DockviewApi, SerializedDockview } from 'dockview-react';
 import { store as windowStore } from '../lib/store';
 import type { TaskStore } from './state';
 import { environmentMinimum } from '../../shared/stage-layout';
@@ -9,14 +9,13 @@ export class StageGrid {
   api: DockviewApi | null = null;
   saved: SerializedDockview | null = null;
   viewport: HTMLElement | null = null;
-  private parent: GridviewPanelApi | null = null;
   private activityTimer = 0;
   private followFrame = 0;
   private lastEnvironment: string | null = null;
   constructor(private readonly store: TaskStore, private readonly reportPages: () => void) {}
   environmentIds = () => [...this.store.getState().profiles.map((p) => panelId(p.id)), ...this.store.getState().stageTerminals.map((a) => `stage-terminal:${a.id}`)];
-  attach(api: DockviewApi, parent: GridviewPanelApi, viewport: HTMLElement) {
-    this.api = api; this.parent = parent; this.viewport = viewport;
+  attach(api: DockviewApi, viewport: HTMLElement) {
+    this.api = api; this.viewport = viewport;
     this.layout();
     restoreDockview(api, this.saved, this.environmentIds()); this.saved = null;
     const empty = !api.panels.length;
@@ -28,15 +27,15 @@ export class StageGrid {
     this.layout();
   }
   detach() {
-    this.api = null; this.parent = null; this.viewport = null;
+    this.api = null; this.viewport = null;
   }
   reset() {
     clearTimeout(this.activityTimer); cancelAnimationFrame(this.followFrame); this.lastEnvironment = null;
     this.store.setState({ stageActivity: null, stageFollowPaused: false });
   }
   layout = () => {
-    const api = this.api, parent = this.parent, viewport = this.viewport;
-    if (!api || !parent || !viewport) return;
+    const api = this.api, viewport = this.viewport;
+    if (!api || !viewport) return;
     const { stageLayout: mode, stageOverflow: overflow } = this.store.getState();
     const scrolling = overflow && mode !== 'tabs' && !api.hasMaximizedGroup();
     const constraintsChanged = this.constrain(scrolling && mode !== 'vertical' ? environmentMinimum.width : 0,
@@ -44,9 +43,8 @@ export class StageGrid {
     viewport.style.overflowX = scrolling && mode !== 'vertical' ? 'auto' : 'hidden';
     viewport.style.overflowY = scrolling && mode === 'vertical' ? 'auto' : 'hidden';
     const canvas = viewport.firstElementChild as HTMLElement;
-    // The cross-axis percentage excludes the room the scroll bar takes inside the viewport.
-    canvas.style.width = scrolling && mode !== 'vertical' ? `${Math.max(parent.width, api.minimumWidth)}px` : '100%';
-    canvas.style.height = scrolling && mode === 'vertical' ? `${Math.max(parent.height, api.minimumHeight)}px` : '100%';
+    canvas.style.minWidth = scrolling && mode !== 'vertical' ? `${api.minimumWidth}px` : '0';
+    canvas.style.minHeight = scrolling && mode === 'vertical' ? `${api.minimumHeight}px` : '0';
     const width = canvas.clientWidth, height = canvas.clientHeight;
     // A group's explicit constraints settle after its constraint event; finish sizing with their final values.
     if (constraintsChanged || width !== api.width || height !== api.height) api.layout(width, height);

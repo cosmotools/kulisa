@@ -614,7 +614,7 @@ projects/<project id>/            a project's data, by its id (projects.json), g
     task.json                     versioned task state, owned by TaskStore: agents (initial choice and conversation
                                   metadata with stable IDs), development (open tabs and active tab), stage (profile
                                   settings, CLI launch setup, next terminal ID, view and Dockview layout), workspace
-                                  (development layout, Stage position and share). Terminal conversation references
+                                  (development layout, Stage position and native outer split). Terminal conversation references
                                   use stable IDs; history numbers follow conversation order. Live processes and screen
                                   buffers stay in memory. File and owned environment data go with the task/project.
     artifacts/                    what the human or agent keep of its environments: a snapshot

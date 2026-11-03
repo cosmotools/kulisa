@@ -1,10 +1,18 @@
 // Split a saved flat grid into development and testing layouts; prune absent panels without resetting peers.
 import type { StageLayout, StagePosition } from './ipc.ts';
-import type { SerializedDockview } from 'dockview-react';
+import type { SerializedDockview, SerializedGridviewComponent } from 'dockview-react';
 export const environmentMinimum = { width: 600, height: 300 } as const;
-export interface TaskLayout { version: 3; workspace: SerializedDockview; stage: SerializedDockview | null; stageLayout?: StageLayout | null; stageOverflow?: boolean; stagePosition?: StagePosition; stageShare?: number }
+export interface TaskLayout { version: 3; workspace: SerializedDockview; stage: SerializedDockview | null; split?: SerializedGridviewComponent | null; stageLayout?: StageLayout | null; stageOverflow?: boolean; stagePosition?: StagePosition }
 type Node = SerializedDockview['grid']['root'];
 type Group = { id: string; views: string[]; activeView?: string };
+// Import a legacy fraction into Gridview's descriptor so live sizing belongs to the library.
+function splitOf(position: StagePosition = 'above', share?: number): SerializedGridviewComponent | undefined {
+  if (!share || !Number.isFinite(share) || share <= 0 || share >= 1) return;
+  const leaf = (id: string, size: number) => ({ type: 'leaf' as const, size, data: { id, component: id, minimumWidth: 100, minimumHeight: 100 } });
+  const stage = leaf('stage', share * 1000), development = leaf('development', (1 - share) * 1000);
+  return { grid: { width: 1000, height: 1000, orientation: (position === 'above' ? 'VERTICAL' : 'HORIZONTAL') as SerializedGridviewComponent['grid']['orientation'],
+    root: { type: 'branch', size: 1000, data: position === 'right' ? [development, stage] : [stage, development] } } };
+}
 // Saved pane IDs are translated at the layout boundary so environment names remain user data.
 function canonicalStage(layout: SerializedDockview | null): SerializedDockview | null {
   if (!layout?.panels || !Object.keys(layout.panels).some((id) => id.startsWith('application:'))) return layout;
@@ -35,23 +43,28 @@ export function filterLayout(layout: SerializedDockview, keep: (id: string) => b
   return { grid: { ...layout.grid, root }, panels, ...(activeGroup && { activeGroup }) };
 }
 // Find the common split of Stage and Terminal; nested branches alternate orientation.
-function placementOf(layout: SerializedDockview): Pick<TaskLayout, 'stagePosition' | 'stageShare'> {
+function placementOf(layout: SerializedDockview): Pick<TaskLayout, 'stagePosition' | 'split'> {
   const contains = (n: Node, id: string): boolean => n.type === 'branch'
     ? (n.data as Node[]).some((c) => contains(c, id)) : (n.data as Group).views.includes(id);
-  function visit(n: Node, horizontal: boolean): Pick<TaskLayout, 'stagePosition' | 'stageShare'> | null {
+  function visit(n: Node, horizontal: boolean): Pick<TaskLayout, 'stagePosition' | 'split'> | null {
     if (n.type !== 'branch') return null;
     const nodes = n.data as Node[], s = nodes.findIndex((c) => contains(c, 'stage')), t = nodes.findIndex((c) => contains(c, 'terminal'));
     if (s < 0 || t < 0) return null;
     if (s === t) return visit(nodes[s]!, !horizontal);
-    const total = nodes.reduce((sum, c) => sum + (c.size ?? 0), 0);
-    return { stagePosition: horizontal ? s < t ? 'left' : 'right' : 'above', stageShare: total > 0 ? (nodes[s]!.size ?? 0) / total : undefined };
+    const stagePosition = horizontal ? s < t ? 'left' : 'right' : 'above';
+    const total = nodes.reduce((sum, child) => sum + (child.size ?? 0), 0);
+    return { stagePosition, split: splitOf(stagePosition, total > 0 ? (nodes[s]!.size ?? 0) / total : undefined) };
   }
   return visit(layout.grid.root, layout.grid.orientation === 'HORIZONTAL') ?? { stagePosition: 'above' };
 }
 export function splitLayout(saved: unknown): TaskLayout | null {
   if (!saved || typeof saved !== 'object') return null;
   const value = saved as TaskLayout & SerializedDockview;
-  if (value.version === 3) { const stage = canonicalStage(value.stage); return stage === value.stage ? value : { ...value, stage }; }
+  if (value.version === 3) {
+    const { stageShare, ...rest } = value as TaskLayout & { stageShare?: number };
+    const stage = canonicalStage(value.stage), split = value.split ?? splitOf(value.stagePosition, stageShare);
+    return stage === value.stage && split === value.split && !('stageShare' in value) ? value : { ...rest, stage, split };
+  }
   if ((saved as { version?: number }).version === 2) {
     if (!value.workspace?.grid?.root || !value.workspace.panels) return null;
     const mode = (saved as { stageLayout?: unknown }).stageLayout;

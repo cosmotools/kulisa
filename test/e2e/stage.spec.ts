@@ -4,7 +4,7 @@ import { notLoading, SITE, arrange, closeMenu, frames, ipcSettled } from './help
 
 test('Stage has fixed positions, keeps development panels together and stays hidden when empty', async ({ core, ui, call, restart }) => {
   await notLoading(ui);
-  await expect(ui.locator('[data-task-view][data-active]').getByTestId('stage')).toHaveCount(0);
+  await expect(ui.locator('[data-task-view][data-active]').getByTestId('stage')).toBeHidden();
   await arrange(ui, 'right');
   await call('profile_create', { name: 'Stage.browser' });
   const stage = ui.locator('[data-task-view][data-active]').getByTestId('stage'), development = ui.locator('[data-task-view][data-active] [data-development-grid]');
@@ -30,17 +30,16 @@ test('Stage has fixed positions, keeps development panels together and stays hid
   await ui.mouse.up();
   await expect.poll(async () => (await stage.boundingBox()).width).toBeGreaterThan(before.width + 90);
   const resizedWidth = (await stage.boundingBox()).width;
-  const share = resizedWidth / (await ui.locator('[data-task-view][data-active] [data-workspace]').boundingBox()).width;
-  await expect.poll(() => core((k) => (k.shell.task.store.layout() as any)?.stageShare)).toBeCloseTo(share, 3);
+  await expect.poll(() => core((k) => (k.shell.task.store.layout() as any)?.split?.grid.root.data.find((node: any) => node.data.id === 'stage')?.size)).toBeCloseTo(resizedWidth, 0);
   const next = await restart();
   await notLoading(next);
   await expect.poll(async () => {
-    const s = await next.getByTestId('stage').boundingBox(), d = await next.locator('[data-task-view][data-active] [data-development-grid]').boundingBox();
+    const s = await next.locator('[data-task-view][data-active]').getByTestId('stage').boundingBox(), d = await next.locator('[data-task-view][data-active] [data-development-grid]').boundingBox();
     return d.x + d.width <= s.x + 1;
   }).toBe(true);
-  expect(Math.abs((await next.getByTestId('stage').boundingBox()).width - resizedWidth)).toBeLessThanOrEqual(3);
+  expect(Math.abs((await next.locator('[data-task-view][data-active]').getByTestId('stage').boundingBox()).width - resizedWidth)).toBeLessThanOrEqual(3);
   await call('profile_close', { profile: 'Stage.browser' });
-  await expect(next.getByTestId('stage')).toHaveCount(0);
+  await expect(next.locator('[data-task-view][data-active]').getByTestId('stage')).toBeHidden();
 });
 
 test('flat saved layouts restore browser panes inside the stage and development panels outside it', async ({ core, ui, call, restart }) => {
@@ -54,7 +53,7 @@ test('flat saved layouts restore browser panes inside the stage and development 
   await core((k, saved) => k.shell.task.store.saveLayout(saved), legacy);
   const next = await restart();
   await notLoading(next);
-  await expect(next.getByTestId('stage').locator('[data-panel^="profile:"]')).toHaveCount(1);
+  await expect(next.locator('[data-task-view][data-active]').getByTestId('stage').locator('[data-panel^="profile:"]')).toHaveCount(1);
   expect(await next.evaluate(() => (window as any).__dock.panels.map((p: any) => p.id).sort())).toEqual(['resources:artifacts', 'resources:diff', 'resources:project', 'resources:terminals', 'terminal']);
   expect(await next.evaluate(() => (window as any).__stage.panels.every((p: any) => p.id.startsWith('profile:')))).toBe(true);
   await expect.poll(() => core((k) => k.profile('Layout.browser').get().view.getVisible())).toBe(true);
@@ -128,13 +127,13 @@ test('stage arrangements are shared by human and agent and independent of worksp
   await expect.poll(() => next.evaluate(() => (window as any).__stage.groups.length)).toBe(1);
   expect(await core((k) => (k.shell.task.store.layout() as any).stageOverflow)).toBe(true);
   await call('stage_arrange', { layout: 'horizontal' });
-  await expect.poll(() => next.locator('[data-stage-viewport]').evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(true);
+  await expect.poll(() => next.locator('[data-task-view][data-active] [data-stage-viewport]').evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(true);
   await call('stage_arrange', { overflow: false });
-  await expect.poll(() => next.locator('[data-stage-viewport]').evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+  await expect.poll(() => next.locator('[data-task-view][data-active] [data-stage-viewport]').evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
   await call('profile_close', { profile: 'Arrange.first' });
   await call('profile_close', { profile: 'Arrange.second' });
   await call('stage_arrange', { layout: 'vertical', position: 'above' });
-  await expect(next.getByTestId('stage')).toHaveCount(0);
+  await expect(next.locator('[data-task-view][data-active]').getByTestId('stage')).toBeHidden();
 });
 
 
@@ -148,7 +147,7 @@ test('a horizontal stack scrolls, clips native pages, and preserves their viewpo
   await expect.poll(async () => { const b = await pageBoxes(); return b.length === 3 && b[0].x === b[1].x && b[1].y > b[0].y && b[2].y > b[1].y; }).toBe(true);
   await arrange(ui, 'left');
   await call('stage_arrange', { layout: 'horizontal', overflow: false });
-  const viewport = ui.locator('[data-stage-viewport]');
+  const viewport = ui.locator('[data-task-view][data-active] [data-stage-viewport]');
   await expect.poll(() => viewport.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
   await ui.getByRole('button', { name: 'Stage', exact: true }).click();
   await ui.getByRole('menuitemcheckbox', { name: 'Allow overflow', exact: true }).click();
@@ -185,7 +184,7 @@ test('a vertical stack scrolls without rebuilding panes and clips native pages',
   for (const name of ['Column.first', 'Column.second', 'Column.third']) await call('profile_create', { name });
   await arrange(ui, 'above');
   await call('stage_arrange', { layout: 'vertical', overflow: false });
-  const viewport = ui.locator('[data-stage-viewport]');
+  const viewport = ui.locator('[data-task-view][data-active] [data-stage-viewport]');
   await expect.poll(() => viewport.evaluate((el) => el.scrollHeight <= el.clientHeight)).toBe(true);
   const groups = await ui.evaluate(() => (window as any).__stage.groups.map((g: any) => g.id));
   await call('stage_arrange', { overflow: true });

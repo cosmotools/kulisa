@@ -20,14 +20,19 @@ test('task migration preserves history, setup and stable links, removes legacy f
     f.write('agent.json', { agent: 'custom', conversations: [{ agent: 'custom', from: 123, sessionId: 'resume', terminal: 7 }] });
     f.write('terminals.json', { front: 7, list: [{ id: 7, conversation: 0 }] });
     f.write('profiles.json', [{ id: 'browser', closed: true, zoom: { localhost: 1.5 } }]);
-    f.write('layout.json', { version: 3, workspace: { grid: { root: { type: 'branch', data: [] } }, panels: {} }, stage: null, stagePosition: 'left', stageShare: 0.4, stageLayout: 'tabs' });
+    const split = { grid: { width: 1000, height: 1000, orientation: 'HORIZONTAL', root: { type: 'branch', size: 1000, data: [
+      { type: 'leaf', size: 400, data: { id: 'stage', component: 'stage', minimumWidth: 100, minimumHeight: 100 } },
+      { type: 'leaf', size: 600, data: { id: 'development', component: 'development', minimumWidth: 100, minimumHeight: 100 } },
+    ] } } };
+    f.write('layout.json', { version: 3, workspace: { grid: { root: { type: 'branch', data: [] } }, panels: {} }, stage: null, stageShare: 0.4, stagePosition: 'left', stageLayout: 'tabs' });
     f.write('applications.json', { next: 10, list: [{ id: 9, name: 'CLI', command: 'node cli.js', size: null }] });
     assert.equal(f.task.agent().conversations[0].terminal, 7);
     const d = f.read(), id = d.agents.conversations[0].id;
     assert.equal(typeof id, 'string');
-    assert.equal((f.task.layout() as { stagePosition: string; stageShare: number; stageLayout: string }).stagePosition, 'left');
-    assert.equal((f.task.layout() as { stagePosition: string; stageShare: number; stageLayout: string }).stageShare, 0.4);
-    assert.equal((f.task.layout() as { stagePosition: string; stageShare: number; stageLayout: string }).stageLayout, 'tabs');
+    const layout = f.task.layout() as { stagePosition: string; split: unknown; stageLayout: string };
+    assert.equal(layout.stagePosition, 'left');
+    assert.deepEqual(layout.split, split);
+    assert.equal(layout.stageLayout, 'tabs');
     assert.equal(d.development.list[0].conversation, id);
     assert.equal('terminal' in d.agents.conversations[0], false);
     assert.equal(f.task.profiles()[0].closed, true);

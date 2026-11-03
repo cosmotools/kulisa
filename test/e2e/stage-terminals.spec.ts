@@ -27,7 +27,7 @@ draw();
 test('a CLI task needs no browser: human and agent see, operate, resize and restart a Stage terminal', async ({ core, ui, files, call }, info) => {
   await notLoading(ui);
   expect(await core((k) => k.shell.task.profiles.size)).toBe(0);
-  await expect(ui.locator('[data-task-view][data-active]').getByTestId('stage')).toHaveCount(0);
+  await expect(ui.locator('[data-task-view][data-active]').getByTestId('stage')).toBeHidden();
   const agent = await core((k) => k.shell.task.front);
   fs.writeFileSync(path.join(files.project, 'terminal-tui.cjs'), tui);
   await focusWindow(core, ui);
@@ -83,7 +83,7 @@ test('a CLI task needs no browser: human and agent see, operate, resize and rest
   await expect(ui.locator('[data-panel^="stage-terminal:"]').getByRole('status')).toHaveText('Exited (7)');
   expect(await core((k) => k.shell.task.front), 'development terminal stays selected').toBe(agent);
   await call('terminal_close', { name: 'Terminal 1' });
-  await expect(ui.locator('[data-task-view][data-active]').getByTestId('stage')).toHaveCount(0);
+  await expect(ui.locator('[data-task-view][data-active]').getByTestId('stage')).toBeHidden();
 });
 
 test('selected Stage output is pasted into the agent draft with its terminal name and without submitting', async ({ core, ui, call }) => {
@@ -176,7 +176,7 @@ test('closing a terminal stops its process and removes its saved configuration a
   await call('terminal_close', { name: 'Process' });
   await expect.poll(() => { try { process.kill(pid, 0); return true; } catch { return false; } }).toBe(false);
   expect(await core((k) => k.shell.task.store.stageTerminals().list)).toEqual([]);
-  await expect(ui.locator('[data-task-view][data-active]').getByTestId('stage')).toHaveCount(0);
+  await expect(ui.locator('[data-task-view][data-active]').getByTestId('stage')).toBeHidden();
 });
 
 test('Stop is repeatable and a stopped terminal keeps its screen until closed', async ({ call }) => {
@@ -218,7 +218,7 @@ test('browser and terminal environments share Stage positions and tabs without r
   await call('terminal_close', { name: 'Alongside browser' });
   await expect(ui.locator('[data-task-view][data-active]').getByTestId('stage')).toBeVisible();
   await call('profile_close', { profile: 'Stage.browser' });
-  await expect(ui.locator('[data-task-view][data-active]').getByTestId('stage')).toHaveCount(0);
+  await expect(ui.locator('[data-task-view][data-active]').getByTestId('stage')).toBeHidden();
 });
 
 test('input follows terminal modes and large reads become bounded task artifacts', async ({ core, ui, files, call }) => {
@@ -323,9 +323,9 @@ test('the agent arranges terminal-only environments as vertical stacks, tabs or 
   await ui.getByRole('button', { name: 'Stage', exact: true }).click();
   await ui.getByRole('menuitemradio', { name: 'Left', exact: true }).click();
   await call('stage_arrange', { layout: 'horizontal', overflow: true });
-  await expect.poll(() => ui.locator('[data-stage-viewport]').evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(true);
+  await expect.poll(() => ui.locator('[data-task-view][data-active] [data-stage-viewport]').evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(true);
   await call('stage_arrange', { overflow: false });
-  await expect.poll(() => ui.locator('[data-stage-viewport]').evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+  await expect.poll(() => ui.locator('[data-task-view][data-active] [data-stage-viewport]').evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
   expect(await core((k) => k.shell.task.profiles.size)).toBe(0);
   await call('terminal_close', { name: 'Layout first' });
   await call('terminal_close', { name: 'Layout second' });

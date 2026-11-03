@@ -202,7 +202,7 @@ interface TaskDocument {
   development: { front?: number | null; list: (Omit<SavedTerminal, 'conversation'> & { conversation?: string })[] } | null;
   stage: { profilesInitialized: boolean; items: (({ type: 'profile' } & TaskProfile) | ({ type: 'terminal' } & StageTerminalConfig))[];
     nextTerminalId: number; view: TaskLayout['stageLayout']; overflow: boolean; layout: TaskLayout['stage'] };
-  workspace: { stagePosition: TaskLayout['stagePosition']; stageShare?: number; developmentLayout: TaskLayout['workspace'] | null };
+  workspace: { stagePosition: TaskLayout['stagePosition']; splitLayout?: TaskLayout['split']; developmentLayout: TaskLayout['workspace'] | null };
 }
 const taskFiles = ['agent.json', 'terminals.json', 'profiles.json', 'applications.json', 'layout.json'];
 function strictJSON(file: string): unknown {
@@ -288,7 +288,7 @@ class TaskStore {
       stage: { profilesInitialized: p !== undefined, nextTerminalId: savedStageTerminals?.next ?? 1,
         items: [...(p ?? []).map((config) => ({ ...config, type: 'profile' as const })), ...(savedStageTerminals?.list ?? []).map((config) => ({ ...config, type: 'terminal' as const }))],
         view: split?.stageLayout ?? null, overflow: split?.stageOverflow ?? false, layout: split?.stage ?? null },
-      workspace: { stagePosition: split?.stagePosition ?? 'above', stageShare: split?.stageShare, developmentLayout: split?.workspace ?? null },
+      workspace: { stagePosition: split?.stagePosition ?? 'above', splitLayout: split?.split ?? null, developmentLayout: split?.workspace ?? null },
     };
     this.writeDocument(d);
     this.cleanLegacy();
@@ -316,13 +316,14 @@ class TaskStore {
   }
   layout(): unknown {
     const d = this.document();
-    return d.workspace.developmentLayout ? { version: 3, workspace: d.workspace.developmentLayout, stage: d.stage.layout,
-      stageLayout: d.stage.view, stageOverflow: d.stage.overflow, stagePosition: d.workspace.stagePosition, stageShare: d.workspace.stageShare } : null;
+    return d.workspace.developmentLayout ? splitLayout({ version: 3, workspace: d.workspace.developmentLayout, stage: d.stage.layout,
+      split: d.workspace.splitLayout, stageLayout: d.stage.view, stageOverflow: d.stage.overflow, stagePosition: d.workspace.stagePosition,
+      stageShare: (d.workspace as { stageShare?: number }).stageShare }) : null;
   }
   saveLayout(layout: unknown) {
     const l = splitLayout(layout);
-    this.update((d) => { d.workspace.developmentLayout = l?.workspace ?? null; d.workspace.stagePosition = l?.stagePosition ?? 'above';
-      d.workspace.stageShare = l?.stageShare; d.stage.layout = l?.stage ?? null; d.stage.view = l?.stageLayout ?? null; d.stage.overflow = l?.stageOverflow ?? false; });
+    this.update((d) => { d.workspace = { developmentLayout: l?.workspace ?? null, stagePosition: l?.stagePosition ?? 'above', splitLayout: l?.split ?? null };
+      d.stage.layout = l?.stage ?? null; d.stage.view = l?.stageLayout ?? null; d.stage.overflow = l?.stageOverflow ?? false; });
   }
   agent(): AgentFile {
     const d = this.document();

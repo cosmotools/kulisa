@@ -59,8 +59,9 @@ A press on a tab not shown shows its task at once, as Chrome's; the tab is lit o
 
 A task has two independent Dockview grids (`task-view/TaskView.tsx`): development terminals or code review with Resources,
 and the **stage** of browser profiles and Stage terminals as testing **environments**. A headerless Gridview splits their areas; its
-sash resizes them. Stage headers move or stack environments within Stage; Resources is the development grid's left edge group. The empty stage is absent; opening the first
-environment adds it, closing the last removes it. A new task opens only its default development terminal.
+sash resizes them. Stage headers move or stack environments within Stage; Resources is the development grid's left edge group.
+The empty stage is hidden through Gridview's panel visibility API, retaining its cached size. Both nested grids live
+with their TaskView. A new task opens only its default development terminal.
 
 **Stage** in the title bar offers **Position: Left, Right, Above** the development area, **View: Horizontal stack**
 (side by side), **Vertical stack** (one above another), **Tabs** (one environment at a time), and **Open an environment**.
@@ -92,7 +93,8 @@ move the shown Stage. Pause state and activity are transient in each window; the
 
 **Allow overflow** is independent of the layout, off by default: panes fit the stage. On, Horizontal stack sets a 600 CSS
 pixel group minimum width, Vertical stack a 300 pixel group minimum height; Dockview computes the grid's minimum
-from its live groups, including nested or stacked panes. The scroll canvas fits that minimum and the available room.
+from its live groups, including nested or stacked panes. CSS `min-width` / `min-height` applies that minimum to a
+full-size scroll canvas; the browser supplies scrolling and cross-axis scrollbar space.
 Tabs hides the toggle and ignores overflow while preserving its value. Each sizing pass applies changed group
 constraints before sizing the canvas, then lays out changed dimensions or constraints after their events.
 `stage_arrange` accepts any combination of position, view and overflow; omitted settings stay unchanged. Changing
@@ -136,17 +138,18 @@ Views, processes and buffers. A task's open Diff retains its comparison, filter,
 Stage panels use the inline renderer too: selecting another Stage tab detaches its content DOM while its React pane,
 terminal View and search state stay alive. Task switching keeps the selected Stage tab's DOM attached inside its TaskView.
 
-`task.json` keeps Stage view/overflow/layout in `stage`, and development layout, Stage position/share in `workspace`,
+`task.json` keeps Stage view/overflow/layout in `stage`, and development layout, Stage position and native outer split in `workspace`,
 saved 300 ms after a change and flushed when the task is hidden or closed. The saved layout loads once before a TaskView
 creates its grids, including after a restart or move to another window. Stage commands received before mounting await
 the same restoration promise and update their task's settings in arrival order. Loading completes when both required
 grids are mounted. Dockview owns the live geometry;
-its layout events save completed arrangements. Stage position changes move the leading area before its peer using
-the previous position; its live panel dimensions supply the split ratio. The ratio is retained separately while Stage
-is empty. Development layouts use Dockview's `toJSON` / `fromJSON`, including edge-group sizes and collapse state.
-`task-view/layout.ts` converts saved Stage sizes to split allocations including their theme-gap share.
+its layout and maximize events save completed arrangements. Stage position changes move the leading area before its
+peer using Gridview's API and the panel's native size. All three grids use their library's `toJSON` / `fromJSON`;
+the outer snapshot includes Stage's cached hidden size, and development's includes Resources' edge state.
+`task-view/layout.ts` prunes closed environments before passing the saved Stage layout to Dockview.
 `shared/stage-layout.ts` separates flat layouts into development and testing groups, retaining order, stacking and
-sizes. Saved stack settings normalize to explicit horizontal and vertical directions without moving panes.
+sizes. Saved stack settings normalize to explicit horizontal and vertical directions without moving panes. Legacy
+Stage fractions import into a native outer split descriptor at this boundary.
 An unavailable or invalid saved grid uses the default arrangement.
 
 **No environment open, a development terminal open**: a row above the workspace offers **Stage Terminal** and

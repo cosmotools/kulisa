@@ -51,7 +51,7 @@ export class DevelopmentGrid {
       api.addPanel({ id: 'terminal', component: 'terminal', title: 'Terminal' });
       // Import the choices from a saved movable Resources panel.
       const previous = saved?.panels.resources?.params;
-      const resources = api.addEdgeGroup('left', { ...resourcesEdge, initialSize: previous?.expandedWidth ?? Math.round(api.width / 4) });
+      const resources = api.addEdgeGroup('left', { ...resourcesEdge, initialSize: previous?.expandedWidth });
       for (const [section, title] of Object.entries(resourceSections)) api.addPanel({ id: `resources:${section}`, component: 'resources',
         tabComponent: 'resources', title, params: { section }, position: { referenceGroup: 'resources' }, inactive: true });
       const section = previous?.section && Object.hasOwn(resourceSections, previous.section) ? previous.section : 'project';
