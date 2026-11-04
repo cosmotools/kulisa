@@ -36,6 +36,7 @@ import { randomInt, randomUUID } from 'crypto';
 import { log } from './log.ts';
 import { splitLayout } from '../shared/stage-layout.ts';
 import type { TaskLayout } from '../shared/stage-layout.ts';
+import { z } from 'zod';
 
 // Muted, to sit on the dark window; a new project takes the first one no project has (its favicon's own hue, in their
 // lightness and chroma, replaces it in the window: renderer/lib/project-color.ts).
@@ -88,19 +89,24 @@ interface TasksFile { list: TaskEntry[] }
 interface SavedWindow { tabs: string[]; shown: string | null; bounds?: Electron.Rectangle; maximized?: boolean }
 interface Settings { stageFollow?: boolean; uiZoom?: number; theme?: 'dark' | 'light' | 'system'; bar?: 'top' | 'bottom'; language?: string; keys?: Record<string, string>; windows?: SavedWindow[] }
 // A profile as a task keeps it in task.json (project-profiles.ts).
-interface TaskProfile { id: string; zoom?: Record<string, number>; closed?: boolean }
+const taskProfileSchema = z.object({ id: z.string(), zoom: z.record(z.string(), z.number()).optional(), closed: z.boolean().optional() });
+type TaskProfile = z.infer<typeof taskProfileSchema>;
 // A task's agents (tasks.ts): the one it was made with (opened when it has never had a terminal), and every
 // conversation an agent had in it, oldest first, numbered from 1 in task_history: its account, its session as its
 // hooks reported it (agent-hooks.ts), when, the name the agent gave it (title) or its own auto-title read from its
 // transcript (autoTitle, shown until title is given); terminal is derived from development tabs.
-interface Conversation {
-  id?: string; agent: string; sessionId?: string; transcript?: string; started?: boolean; from: number; to?: number; title?: string; autoTitle?: string; terminal?: number;
-}
-interface AgentFile { agent?: string | null; conversations?: Conversation[] }
+const conversationSchema = z.object({
+  id: z.string().optional(), agent: z.string(), sessionId: z.string().optional(), transcript: z.string().optional(), started: z.boolean().optional(),
+  from: z.number(), to: z.number().optional(), title: z.string().optional(), autoTitle: z.string().optional(), terminal: z.number().optional(),
+});
+type Conversation = z.infer<typeof conversationSchema>;
+const agentFileSchema = z.object({ agent: z.string().nullable().optional(), conversations: z.array(conversationSchema).optional() });
+type AgentFile = z.infer<typeof agentFileSchema>;
 // Its terminals, in their tabs' order, and the one in front (tasks.ts): a shell has its name; an agent's, its
 // conversation's history number in memory; task.json stores its stable ID.
-interface SavedTerminal { id: number; name?: string; by?: 'human' | 'agent'; conversation?: number }
-interface TerminalsFile { front?: number | null; list: SavedTerminal[] }
+const savedTerminalSchema = z.object({ id: z.int().positive(), name: z.string().optional(), by: z.enum(['human', 'agent']).optional(), conversation: z.number().optional() });
+const terminalsFileSchema = z.object({ front: z.number().nullable().optional(), list: z.array(savedTerminalSchema) });
+type TerminalsFile = z.infer<typeof terminalsFileSchema>;
 
 class Store {
   dir: string; projectsFile: string; deletedFile: string; settingsFile: string;
@@ -196,38 +202,51 @@ class Store {
 }
 
 // One task's data: its profiles (each a folder, named by its id), grid and agent session.
-interface TaskDocument {
-  version: 2;
-  agents: { agent?: string | null; conversations: (Conversation & { id: string })[] };
-  development: { front?: number | null; list: (Omit<SavedTerminal, 'conversation'> & { conversation?: string })[] } | null;
-  stage: { profilesInitialized: boolean; items: (({ type: 'profile' } & TaskProfile) | ({ type: 'terminal' } & StageTerminalConfig))[];
-    nextTerminalId: number; view: TaskLayout['stageLayout']; overflow: boolean; layout: TaskLayout['stage'] };
-  workspace: { stagePosition: TaskLayout['stagePosition']; splitLayout?: TaskLayout['split']; developmentLayout: TaskLayout['workspace'] | null };
-}
+const stageTerminalSchema = z.object({ id: z.int(), name: z.string(), command: z.string(), size: z.custom<StageTerminalConfig['size']>() });
+const taskDocumentSchema = z.object({
+  version: z.literal(2),
+  agents: agentFileSchema.extend({ conversations: z.array(conversationSchema.omit({ terminal: true }).extend({ id: z.string().min(1) })) }),
+  development: terminalsFileSchema.extend({ list: z.array(savedTerminalSchema.extend({ conversation: z.string().optional() })) }).nullable(),
+  stage: z.object({
+    profilesInitialized: z.boolean(), nextTerminalId: z.int().positive(),
+    items: z.array(z.discriminatedUnion('type', [taskProfileSchema.extend({ type: z.literal('profile') }),
+      stageTerminalSchema.extend({ type: z.literal('terminal') })])),
+    view: z.enum(['vertical', 'tabs', 'horizontal']).nullish(), overflow: z.boolean(),
+    // Dockview owns layout serialization; terminal sizes use the shared bounds in validateTask.
+    layout: z.custom<TaskLayout['stage']>(),
+  }),
+  workspace: z.object({ stagePosition: z.enum(['left', 'right', 'above']).optional(), splitLayout: z.custom<TaskLayout['split']>(),
+    developmentLayout: z.custom<TaskLayout['workspace'] | null>() }),
+});
+type TaskDocument = z.infer<typeof taskDocumentSchema>;
 const taskFiles = ['agent.json', 'terminals.json', 'profiles.json', 'applications.json', 'layout.json'];
+const legacyTaskSchema = z.tuple([agentFileSchema.optional(), terminalsFileSchema.optional(), z.array(taskProfileSchema).optional(),
+  z.object({ next: z.int().positive().nullish(), list: z.array(stageTerminalSchema) }).optional(), z.unknown()]);
 function strictJSON(file: string): unknown {
   try { return JSON.parse(fs.readFileSync(file, 'utf8')); }
   catch (e) { if ((e as NodeJS.ErrnoException).code === 'ENOENT') return undefined; throw new Error(`Cannot read task data ${file}: ${(e as Error).message}`); }
 }
 function validateTask(value: unknown): asserts value is TaskDocument {
-  const d = value as TaskDocument;
-  if (!d || d.version !== 2 || !Array.isArray(d.agents?.conversations) || !Array.isArray(d.stage?.items)
-    || typeof d.stage.profilesInitialized !== 'boolean' || !Number.isSafeInteger(d.stage.nextTerminalId) || d.stage.nextTerminalId < 1
-    || !d.workspace || d.development !== null && !Array.isArray(d.development?.list)) throw new Error('Invalid task.json format');
-  const ids = new Set<string>();
-  for (const c of d.agents.conversations) {
-    if (!c || typeof c.id !== 'string' || !c.id || ids.has(c.id) || typeof c.agent !== 'string' || typeof c.from !== 'number') throw new Error('Invalid task conversation');
-    ids.add(c.id);
+  // The type guard retains unknown metadata without cloning the document. Only invalid data needs error details.
+  if (!taskDocumentSchema.validate(value)) {
+    const [section, collection, index, field] = taskDocumentSchema.safeParse(value).error!.issues[0]!.path;
+    if (typeof index === 'number') {
+      if (section === 'agents' && collection === 'conversations') throw new Error('Invalid task conversation');
+      if (section === 'development' && collection === 'list') throw new Error('Invalid terminal conversation reference');
+      if (section === 'stage' && collection === 'items') throw new Error(field === 'closed' ? 'Invalid Stage profile' : 'Invalid Stage environment');
+    }
+    throw new Error('Invalid task.json format');
   }
-  for (const t of d.development?.list ?? []) if (!Number.isSafeInteger(t.id) || t.id < 1 || t.conversation !== undefined && !ids.has(t.conversation)) throw new Error('Invalid terminal conversation reference');
+  const d = value, ids = new Set(d.agents.conversations.map((c) => c.id));
+  if (ids.size !== d.agents.conversations.length) throw new Error('Invalid task conversation');
+  for (const t of d.development?.list ?? []) if (t.conversation !== undefined && !ids.has(t.conversation)) throw new Error('Invalid terminal conversation reference');
   if (new Set(d.development?.list.map((t) => t.id)).size !== (d.development?.list.length ?? 0)) throw new Error('Duplicate development terminal');
   const environments = new Set<string>();
   for (const item of d.stage.items) {
-    const c = item, key = `${item?.type}:${c?.id}`;
-    if (!c || environments.has(key) || (item.type === 'profile' ? typeof c.id !== 'string'
-      : item.type !== 'terminal' || !Number.isSafeInteger(c.id) || typeof item.name !== 'string' || typeof item.command !== 'string')) throw new Error('Invalid Stage environment');
+    const key = `${item.type}:${item.id}`;
+    if (environments.has(key)) throw new Error('Invalid Stage environment');
     if (item.type === 'terminal' && (item.id < 1 || labelError(item.name) || item.command.length > 8192 || item.size && !validTerminalSize(item.size))) throw new Error('Invalid Stage terminal setup');
-    if (item.type === 'profile' && (!item.id || item.closed !== undefined && typeof item.closed !== 'boolean')) throw new Error('Invalid Stage profile');
+    if (item.type === 'profile' && !item.id) throw new Error('Invalid Stage profile');
     environments.add(key);
   }
 }
@@ -270,15 +289,13 @@ class TaskStore {
       const { initialized, items, ...stage } = old.stage;
       current = { ...old, version: 2, stage: { ...stage, profilesInitialized: initialized,
         items: items.map(({ type, config }) => ({ ...config, type })) } };
-      this.writeDocument(current as TaskDocument);
+      this.writeDocument(current);
     }
     if (current !== undefined) { validateTask(current); this.cleanLegacy(); return current; }
-    const [agent, developmentTerminals, profiles, stageTerminals, layout] = taskFiles.map((f) => strictJSON(this.file(f)));
-    const a = (agent ?? {}) as AgentFile, t = developmentTerminals as TerminalsFile | undefined, p = profiles as TaskProfile[] | undefined;
-    const savedStageTerminals = stageTerminals as { next: number; list: StageTerminalConfig[] } | undefined;
-    if (agent !== undefined && (!agent || typeof agent !== 'object' || a.conversations !== undefined && !Array.isArray(a.conversations))
-      || developmentTerminals !== undefined && (!t || !Array.isArray(t.list)) || profiles !== undefined && !Array.isArray(p)
-      || stageTerminals !== undefined && (!savedStageTerminals || !Array.isArray(savedStageTerminals.list))) throw new Error('Invalid legacy task data');
+    const legacy = taskFiles.map((f) => strictJSON(this.file(f)));
+    if (!legacyTaskSchema.validate(legacy)) throw new Error('Invalid legacy task data');
+    const [agent, t, p, savedStageTerminals, layout] = legacy;
+    const a: AgentFile = agent ?? {};
     const conversations = (a.conversations ?? []).map(({ terminal: _terminal, ...c }) => ({ ...c, id: c.id ?? randomUUID() }));
     const split = splitLayout(layout);
     const d: TaskDocument = {
@@ -301,7 +318,7 @@ class TaskStore {
     for (const f of taskFiles) fs.rmSync(this.file(f), { force: true });
     this.legacyCleaned = true;
   }
-  private writeDocument(d: TaskDocument) {
+  private writeDocument(d: unknown) {
     validateTask(d);
     writeFileAtomic(this.file('task.json'), JSON.stringify(d, null, 2));
     validateTask(strictJSON(this.file('task.json')));

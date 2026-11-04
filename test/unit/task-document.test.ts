@@ -17,7 +17,7 @@ function fixture() {
 test('task migration preserves history, setup and stable links, removes legacy files, and preserves unrelated updates', () => {
   const f = fixture();
   try {
-    f.write('agent.json', { agent: 'custom', conversations: [{ agent: 'custom', from: 123, sessionId: 'resume', terminal: 7 }] });
+    f.write('agent.json', { agent: 'custom', conversations: [{ agent: 'custom', from: 123, sessionId: 'resume', terminal: 7, future: 'adapter metadata' }] });
     f.write('terminals.json', { front: 7, list: [{ id: 7, conversation: 0 }] });
     f.write('profiles.json', [{ id: 'browser', closed: true, zoom: { localhost: 1.5 } }]);
     const split = { grid: { width: 1000, height: 1000, orientation: 'HORIZONTAL', root: { type: 'branch', size: 1000, data: [
@@ -34,6 +34,7 @@ test('task migration preserves history, setup and stable links, removes legacy f
     assert.deepEqual(layout.split, split);
     assert.equal(layout.stageLayout, 'tabs');
     assert.equal(d.development.list[0].conversation, id);
+    assert.equal(d.agents.conversations[0].future, 'adapter metadata');
     assert.equal('terminal' in d.agents.conversations[0], false);
     assert.equal(f.task.profiles()[0].closed, true);
     assert.equal(f.task.stageTerminals().next, 10);
@@ -67,12 +68,69 @@ test('new and deliberately empty tasks remain distinct; stable references surviv
   } finally { f.close(); }
 });
 
+test('task validation preserves unknown fields and absent optional metadata when another section is saved', () => {
+  const f = fixture();
+  try {
+    f.task.saveAgent({ conversations: [{ agent: 'custom', from: 1 }] });
+    f.task.saveProfiles([{ id: 'browser' }]);
+    const current = f.read();
+    current.future = { enabled: true };
+    current.agents.future = 'agent metadata';
+    current.agents.conversations[0].future = { source: 'adapter' };
+    current.stage.future = 'Stage metadata';
+    current.stage.items[0].future = 'profile metadata';
+    current.workspace.future = 'layout metadata';
+    f.write('task.json', current);
+    assert.equal(f.task.agent().conversations[0].sessionId, undefined);
+    f.task.saveDevelopmentTerminals({ list: [] });
+    assert.deepEqual(f.read(), { ...current, development: { list: [] } });
+    assert.equal(f.task.profiles()[0].closed, undefined);
+  } finally { f.close(); }
+});
+
+test('invalid task records and cross-record links leave the document and legacy source untouched', () => {
+  const f = fixture();
+  try {
+    f.task.saveAgent({ conversations: [{ agent: 'custom', from: 1 }] });
+    f.task.saveDevelopmentTerminals({ list: [{ id: 1, conversation: 0 }] });
+    f.task.saveProfiles([{ id: 'browser' }]);
+    f.task.saveStageTerminals({ next: 2, list: [{ id: 1, name: 'CLI', command: 'node cli.js', size: null }] });
+    const valid = f.read();
+    const cases: [(d: typeof valid) => void, RegExp][] = [
+      [(d) => { d.stage.nextTerminalId = 0; }, /Invalid task.json format/],
+      [(d) => { d.agents.conversations[0].from = 'yesterday'; }, /Invalid task conversation/],
+      [(d) => { d.agents.conversations.push({ ...d.agents.conversations[0] }); }, /Invalid task conversation/],
+      [(d) => { d.development.list[0].conversation = 'missing'; }, /Invalid terminal conversation reference/],
+      [(d) => { d.development.list.push({ id: 1 }); }, /Duplicate development terminal/],
+      [(d) => { d.stage.items.push({ ...d.stage.items[0] }); }, /Invalid Stage environment/],
+      [(d) => { d.stage.items[0].closed = 'yes'; }, /Invalid Stage profile/],
+      [(d) => { d.stage.items[1].name = '\n'; }, /Invalid Stage terminal setup/],
+      [(d) => { d.stage.items[1].command = '😀'.repeat(4097); }, /Invalid Stage terminal setup/],
+      [(d) => { d.stage.items[1].size = { cols: 1, rows: 24 }; }, /Invalid Stage terminal setup/],
+    ];
+    for (const [change, error] of cases) {
+      const current = structuredClone(valid);
+      change(current);
+      f.write('task.json', current);
+      f.write('agent.json', { agent: 'legacy' });
+      const reopened = f.store.taskOf({ id: 'project' }, 'task');
+      assert.throws(() => reopened.agent(), error);
+      assert.deepEqual(f.read(), current);
+      assert.equal(fs.existsSync(f.task.file('agent.json')), true);
+    }
+  } finally { f.close(); }
+});
+
 test('malformed source and failed atomic migration preserve original data', () => {
   const f = fixture();
   try {
     fs.writeFileSync(f.task.file('agent.json'), '{bad');
     assert.throws(() => f.task.agent(), /Cannot read task data/);
     assert.equal(fs.existsSync(f.task.file('task.json')), false);
+    f.write('agent.json', { conversations: [{ agent: 'custom', from: 'invalid' }] });
+    assert.throws(() => f.task.agent(), /Invalid legacy task data/);
+    assert.equal(fs.existsSync(f.task.file('task.json')), false);
+    assert.equal(JSON.parse(fs.readFileSync(f.task.file('agent.json'), 'utf8')).conversations[0].from, 'invalid');
     f.write('agent.json', { agent: 'custom' });
     const write = fs.writeFileSync;
     fs.writeFileSync = () => { throw new Error('interrupted migration'); };

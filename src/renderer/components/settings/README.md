@@ -12,6 +12,11 @@ process; once loaded, the module stays in the window's memory.
 
 Load the requested page before revealing it; agent discovery can refresh independently. Save pending fields before
 navigation or closing. Changes from another window refresh lists without overwriting edits in progress.
+Projects come from the window's pushed state. Profiles use a Query client owned by this Settings instance: reads
+start on opening or a change event, with no polling, focus refresh or network-dependent waits. Concurrent reads
+share a request; change events and mutation responses cancel obsolete reads in the renderer. Main-process IPC
+still finishes. Closing Settings clears the cache and prevents late completions from starting more reads or
+restoring discarded data. The first profile list and requested page must be ready before covering native pages.
 The cover's back arrow closes Settings; entity navigation stays within categories. Navigation search is omitted
 (the author's choice).
 
@@ -33,6 +38,7 @@ log and installer owners instead of creating a component per line.
 ## The code
 
 - `index.ts` is the lazy entry; `Settings.tsx` owns the frame and page lifecycle.
+- `profiles-query.ts` owns profile requests and cache lifetime; `test/unit/settings-profiles.test.ts` covers races and cleanup.
 - Entity pages own editing state and translate results from core actions. `kit.tsx` owns shared row/addition UI.
 - `changed.ts` and account/discovery stores coordinate saving and updates across page lifetimes.
 - Coverage: settings scenarios in `test/e2e/projects.spec.ts`, `profiles.spec.ts`, `agents.spec.ts`, `github.spec.ts`

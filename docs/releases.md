@@ -58,7 +58,8 @@ manual installation; dnf repository: #207. Formats update only through their own
 
 `updateNotices` asks once per version in the foreground task window: Restart or Later, naming affected agents.
 Events come from `update-downloaded`, or Linux's archive-directory watcher (`installed.ts`). Read the on-disk
-version with `process.noAsar`, because Electron keeps the startup archive open.
+version with `@electron/asar`, which uses `original-fs` to bypass Electron's startup archive cache. Clear the
+library's header cache before and after each read so replacements are noticed and the header is not retained.
 
 Restart saves cookies, tabs and windows before `quitAndInstall` or `app.relaunch`. Set `quitting` first because
 Squirrel closes windows before `before-quit`. Later leaves the app running; next start uses the new version.
