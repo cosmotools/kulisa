@@ -93,7 +93,7 @@ const noKulisaClasses: Rule.RuleModule = {
 };
 
 export default tseslint.config(
-  { ignores: ['dist', 'out', '.claude/*', '!.claude/hooks', 'src/preload', 'src/ui/{components,hooks,lib}'] }, // src/ui's: shadcn's CLI's
+  { ignores: ['dist', 'out', '.claude/*', '!.claude/hooks', '.agents/skills/shadcn', 'src/preload', 'src/ui/{components,hooks,lib}'] }, // shadcn's skill examples and generated UI are upstream source
   { files: ['**/*.ts', '**/*.mts', '**/*.tsx'], languageOptions: { parser: tseslint.parser } },
   {
     files: ['**/*.ts', '**/*.mts', '**/*.tsx'],

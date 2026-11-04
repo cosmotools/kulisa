@@ -34,6 +34,15 @@ The human watches, signs in and points to page elements with Pick. Tasks let sev
   `git branch -D`, GitHub's API). Update the root checkout after a merge.
 - Use the `run-kulisa` skill from the worktree being reviewed, and from the root checkout after merge.
 
+### Development skills
+
+- Development skills live in `.agents/skills/`, with Claude Code entrypoints in `.claude/skills/`.
+- Use `find-skills` for skill discovery and installation. Install third-party development skills locally for Codex
+  and Claude Code; keep their records in `skills-lock.json` and ignore installed directories and links in `.gitignore`.
+  Keep downloaded skills unchanged; put project-specific rules in this file or the owning doc.
+- Run `npx skills experimental_install` from the checkout root to restore third-party skills from `skills-lock.json`.
+- Restore Claude Code's skill links with Skills CLI, using the sources and skill names in `skills-lock.json`.
+
 ### Sessions on different OSes
 
 - Share one PR. Fix only what the session can reproduce and test, including shared code. Describe problems needing
@@ -97,9 +106,9 @@ The human watches, signs in and points to page elements with Pick. Tasks let sev
   Read `node_modules/playwright-core/types/types.d.ts`; use existing picking, snapshots, highlights and action APIs.
 - Before touching Electron, read the installed version's docs at
   `https://raw.githubusercontent.com/electron/electron/v<version>/docs/` and `node_modules/electron/electron.d.ts`.
-- Before using shadcn/ui, read the installed `shadcn` skill, the component's
-  `https://ui.shadcn.com/docs/components/radix/<name>` page and its file in `src/ui/`.
-  Apply [Kulisa's UI integration rules](docs/ui.md#shadcn-in-kulisa).
+- Before using shadcn/ui, use the installed `shadcn` skill. Apply
+  [Kulisa's UI integration rules](docs/ui.md#shadcn-in-kulisa), which take precedence over its generic workflow,
+  and read the component's generated source in `src/ui/`.
 - Hand-written protocol code is limited to `cdp-proxy.ts`, which exposes `webContents.debugger` over CDP.
 - Prefer lower RAM use; measure rather than guess (`ps -eo pid,rss,args`). Discuss noticeable increases with the
   author before building, including extra processes, retained hidden views and large buffers.
