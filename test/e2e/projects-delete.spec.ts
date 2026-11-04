@@ -185,7 +185,7 @@ test("projects: Delete Project… (in Settings alone) asks, closes the project w
   const first = files.tkey('project', 1);
   await taskRow(ui, 'project', 'task-1').click();
   await taskShown(core, first);
-  expect(await core((k) => !k.shell.task.entry.closedAt !== undefined), 'open again').toBe(true);
+  expect(await core((k) => k.shell.task.entry.closedAt), 'open again').toBeUndefined();
   await notLoading(ui);
   await fromSidebar(ui, 'project', 'Feature-X');
   await expect.poll(() => core((k) => k.shell.task?.name === 'Feature-X' && k.settled(true))).toBe(true);

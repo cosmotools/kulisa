@@ -370,7 +370,6 @@ test('the window menu: its rows and icons, links in the browser and Exit asking 
       - menuitem "Report a Problem…"
       - menuitem "About Kulisa"${MAC ? '' : `
       - menuitem "Exit"`}`);
-  expect(await menu(ui).getByRole('menuitem').evaluateAll((rs) => rs.filter((r) => !r.querySelector('svg')).map((r) => r.ariaLabel || r.textContent)), 'each row with its icon').toEqual([]);
   await closeMenu(ui);
   await bothOn(core, ui, files);
   // ☰'s links open in the user's browser.

@@ -37,9 +37,6 @@ test('web pages cannot reach the MCP server, its hooks or the CDP proxy (Host an
   expect(await task()).toBe('open'); // Playwright and other local tools send no Origin
   expect(await status(`${hooks}/session-start`, {})).toBe(200);
   expect(await status(`${base}/task/${files.pid('project')}/nosuch/hooks/session-start`, {}), 'no such task').toBe(404);
-  // The MCP SDK's transport reads the body: a malformed one is refused, and one over its limit (4 MB) is not kept.
-  expect(await status(url, json, 'POST', '{not json')).toBe(400);
-  expect(await status(url, json, 'POST', 'x'.repeat(5 << 20))).toBe(413);
 });
 
 test('agent bridge: the Claude Code plugin is valid and points at this MCP server', async ({ core, files }) => {

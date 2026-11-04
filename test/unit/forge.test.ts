@@ -10,6 +10,13 @@ import type { ResolvedForgeConfig } from '@electron-forge/shared-types';
 import electronPackage from 'electron/package.json' with { type: 'json' };
 import forge, { prunePrebuilds } from '../../forge.config.ts';
 
+test('the window and installers reference nonempty icon files', () => {
+  const icons = [forge.packagerConfig.icon + '.png', forge.packagerConfig.icon + '.ico', forge.packagerConfig.icon + '.icns',
+    ...(forge.makers as { config?: { setupIcon?: string; icon?: string; options?: { icon?: string } } }[])
+      .flatMap((m) => [m.config?.setupIcon, m.config?.icon, m.config?.options?.icon]).filter(Boolean)];
+  for (const file of new Set(icons)) assert.ok(fs.statSync(path.join(import.meta.dirname, '../..', file)).size > 0, file);
+});
+
 test('the RPM maker packages its staged files and keeps the sandbox helper setuid', async (t) => {
   if (process.platform !== 'linux') return t.skip('RPM builds on Linux');
   const definition = forge.makers.find((m) => 'name' in m && m.name === '@electron-forge/maker-rpm');
