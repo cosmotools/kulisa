@@ -1,6 +1,5 @@
 // Settings: its nav, and a category's page or one thing's under its path (docs/window.md, Settings).
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import { isCancelledError, useQuery } from '@tanstack/react-query';
 import { avatarSrc } from '../../lib/common';
 import { ArrowLeftIcon, BotIcon, EllipsisIcon, GitBranchIcon, InfoIcon, LayoutGridIcon, PlusIcon, ScrollTextIcon, UsersIcon, CircleAlertIcon } from 'lucide-react';
 import { Badge, Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator, Button, Card, CardContent, Sidebar,
@@ -19,7 +18,6 @@ import { useChanged } from './changed';
 import { agents as agentList, loadAccounts, useAccounts } from './agents';
 import { useAgentList } from '../../lib/agents';
 import { store as windowStore, useWindow } from '../../lib/store';
-import { createSettingsQuery } from './query';
 import type { MenuItem } from '../../lib/menu';
 import { coverPage } from '../../lib/cover';
 import { useShade } from '../../lib/theme';
@@ -27,7 +25,7 @@ import { closeSettings, onLeaveSettings } from '../../lib/settings';
 import { agentMark } from '../AgentMark';
 import { ProjectIcon } from '../ProjectIcon';
 import { refused } from '../../../shared/result';
-import type { ProjectSettings } from '../../../shared/types';
+import type { ProjectSettings, SettingsProfile } from '../../../shared/types';
 import type { SettingsAt } from '../../../shared/ipc';
 
 const icons = { projects: LayoutGridIcon, agents: BotIcon, profiles: UsersIcon, github: GitBranchIcon, log: ScrollTextIcon, about: InfoIcon };
@@ -35,7 +33,6 @@ const names = { projects: 'Projects', agents: 'Agents', profiles: 'Profiles', gi
 type Section = keyof typeof names;
 // What is shown: a category's list without id, one thing's page with it.
 interface Place { section: Section; id?: string | null }
-const listError = (error: unknown) => { if (!isCancelledError(error)) console.error('[settings] profiles:', error); };
 
 export function Settings({ at, className }: { at: SettingsAt; className?: string }) {
   const [loaded, setLoaded] = useState(false);
@@ -45,12 +42,7 @@ export function Settings({ at, className }: { at: SettingsAt; className?: string
   const agents = useAgentList(agentList, (s) => s.agents), looking = useAgentList(agentList, (s) => s.looking);
   const installing = useAgentList(agentList, (s) => s.installing), { clis } = useAccounts();
   const [signing, setSigning] = useState<string | null>(null); // the agent a new account is signed in to on its page
-  const [profileQuery] = useState(() => createSettingsQuery(['profiles'], async () => (await kulisa.invoke('profiles:list')).profiles));
-  const { data: profiles } = useQuery({ ...profileQuery.options, enabled: false }, profileQuery.client);
-  const ready = loaded && profiles !== undefined;
-  const refreshProfiles = useCallback(() => profileQuery.refresh().catch(listError), [profileQuery]);
-  useChanged(refreshProfiles);
-  useEffect(() => () => { profileQuery.dispose(); }, [profileQuery]);
+  const [profiles, setProfiles] = useState<SettingsProfile[]>([]);
   const [newProfile, setNewProfile] = useState<string | null>(null), [profilesError, setProfilesError] = useState('');
   const save = useRef(async () => {});
   // The page read again each time Settings is asked for one, or one is chosen in its nav (the same one too).
@@ -68,12 +60,15 @@ export function Settings({ at, className }: { at: SettingsAt; className?: string
     };
   }, []);
   useEffect(() => {
-    if (!ready || covered.current) return;
+    if (!loaded || covered.current) return;
     let timer = 0;
     const frame = requestAnimationFrame(() => { timer = window.setTimeout(() => { covered.current = true; coverPage(true); void agentList.look(false); }); });
     return () => { cancelAnimationFrame(frame); clearTimeout(timer); };
-  }, [ready]);
+  }, [loaded]);
 
+  const lists = useCallback(async () => {
+    setProfiles((await kulisa.invoke('profiles:list')).profiles);
+  }, []);
   // Each page asked for, here or by the main process: one fetched after another was asked for shows nothing.
   const asked = useRef(0);
   const show = async (on: Section, id?: string) => {
@@ -86,11 +81,10 @@ export function Settings({ at, className }: { at: SettingsAt; className?: string
     setShown((s) => s + 1);
   };
   // Opened, or asked again, at a page (lib/settings.ts).
-  useEffect(() => { let cancelled = false; void (async () => {
+  useEffect(() => { void (async () => {
     const n = ++asked.current;
     await save.current();
-    if (cancelled || n !== asked.current) return;
-    void profileQuery.load().catch(listError);
+    await lists();
     // As last found (looked for again once it is drawn): only the Agents page lists them, saying so while there is no
     // list yet.
     const cached = agentList.look(true);
@@ -100,15 +94,16 @@ export function Settings({ at, className }: { at: SettingsAt; className?: string
     // Its page waited for: shown as it comes, it jumps.
     const filled = project && await kulisa.invoke('project:settings:get', { id: project });
     await cached;
-    if (cancelled || n !== asked.current) return;
+    if (n !== asked.current) return;
     setFirst(project && filled && !refused(filled) ? { id: project, page: filled } : null);
     setPlace({ section: at.section, id: at.section === 'projects' ? project : at.section === 'profiles' ? at.id : undefined });
     setShown((n) => n + 1);
     setLoaded(true);
-  })(); return () => { cancelled = true; }; }, [at, profileQuery]);
+  })(); }, [at, lists]);
+  useChanged(lists);
   // The one shown; none (or one gone: deleted here or elsewhere), its category's list.
   const shownOf = <T extends { id: string }>(on: Section, all: T[]) => (section === on && place.id ? all.find((x) => x.id === place.id) : undefined);
-  const shownProject = shownOf('projects', projects), shownAgent = shownOf('agents', agents), shownProfile = shownOf('profiles', profiles ?? []);
+  const shownProject = shownOf('projects', projects), shownAgent = shownOf('agents', agents), shownProfile = shownOf('profiles', profiles);
 
   // While an agent installs, it stays.
   const close = useCallback(async () => { if (agentList.store.getState().installing) return; await save.current(); closeSettings(); }, []);
@@ -132,10 +127,10 @@ export function Settings({ at, className }: { at: SettingsAt; className?: string
     if (!newProfile?.trim()) return;
     const r = await kulisa.invoke('profiles:new', { name: newProfile });
     if (refused(r)) { setProfilesError(r.error); return; }
-    profileQuery.update(r.profiles); setNewProfile(null); setProfilesError(''); void show('profiles', r.id);
+    setProfiles(r.profiles); setNewProfile(null); setProfilesError(''); void show('profiles', r.id);
   }
-  const deleteProject = async (id: string) => { const r = await kulisa.invoke('project:delete', { id }); if (!r?.error) { await refreshProfiles(); setPlace({ section: 'projects' }); } };
-  const deleteProfile = async (id: string) => { const r = await kulisa.invoke('profiles:delete', { profile: id }); if (refused(r)) setProfilesError(r.error ?? ''); else profileQuery.update(r.profiles); };
+  const deleteProject = async (id: string) => { const r = await kulisa.invoke('project:delete', { id }); if (!r?.error) { await lists(); setPlace({ section: 'projects' }); } };
+  const deleteProfile = async (id: string) => { const r = await kulisa.invoke('profiles:delete', { profile: id }); if (refused(r)) setProfilesError(r.error ?? ''); else setProfiles(r.profiles); };
   // A new account of an agent: signed in on its page.
   const signIn = async (id: string) => { await show('agents', id); setSigning(id); };
   const newAccount = (): MenuItem[] => [{ heading: 'New Account' }, ...agents.filter((a) => clis.includes(a.id))
@@ -150,7 +145,7 @@ export function Settings({ at, className }: { at: SettingsAt; className?: string
       { label: 'New Account…', enabled: clis.includes(a.id) && !!a.installed && !signing, run: () => signIn(a.id) }] : [];
   };
   const shade = useShade();
-  if (!ready) return null;
+  if (!loaded) return null;
   const one = shownProject ? { id: shownProject.id, name: shownProject.name, menu: projectMenu } : shownAgent ? { id: shownAgent.id, name: shownAgent.name, menu: agentMenu }
     : shownProfile ? { id: shownProfile.id, name: shownProfile.name, menu: profileMenu } : undefined;
 
@@ -165,7 +160,7 @@ export function Settings({ at, className }: { at: SettingsAt; className?: string
   </CardContent></Card>;
 
   const page = (): ReactNode => {
-    if (section === 'projects') return shownProject ? <ProjectPage key={`${shownProject.id}:${shown}`} id={shownProject.id} first={first?.id === shownProject.id ? first.page : undefined} saveRef={save} onSaved={() => void refreshProfiles()} />
+    if (section === 'projects') return shownProject ? <ProjectPage key={`${shownProject.id}:${shown}`} id={shownProject.id} first={first?.id === shownProject.id ? first.page : undefined} saveRef={save} onSaved={() => void lists()} />
       : list('Projects', projects.map((p) => ({ key: p.id, name: p.name, media: <ProjectIcon p={p} size={24} />,
         description: [`${p.folders.length} ${p.folders.length === 1 ? 'folder' : 'folders'}`, `${p.tasks.length} ${p.tasks.length === 1 ? 'task' : 'tasks'}`].join(' · ') })),
       projectMenu, 'No projects yet.');
@@ -175,7 +170,7 @@ export function Settings({ at, className }: { at: SettingsAt; className?: string
         description: a.installed ? [a.version, a.path].filter(Boolean).join(' · ') || undefined : a.maker }; }),
       agentMenu, looking ? <div role="status" className="flex items-center gap-2 text-muted-foreground"><Spinner role={undefined} aria-hidden />Looking for agents on this computer…</div> : 'No agents.');
     // Keyed by its id alone: a field being typed in stays as the profile changes (saved, or elsewhere).
-    if (section === 'profiles') return shownProfile ? <ProfilePage key={shownProfile.id} profile={shownProfile} onChanged={(r) => { profileQuery.update(r.profiles); if (r.id) setPlace({ section: 'profiles', id: r.id }); }} />
+    if (section === 'profiles') return shownProfile ? <ProfilePage key={shownProfile.id} profile={shownProfile} onChanged={(r) => { setProfiles(r.profiles); if (r.id) setPlace({ section: 'profiles', id: r.id }); }} />
       : <>
         {newProfile !== null && <Card><CardContent>
           <AddInPlace label="New profile" placeholder="Its name, e.g. ann@shop.com" value={newProfile} name ok="Create" error={profilesError || undefined}

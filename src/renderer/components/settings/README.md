@@ -12,16 +12,7 @@ process; once loaded, the module stays in the window's memory.
 
 Load the requested page before revealing it; agent discovery can refresh independently. Save pending fields before
 navigation or closing. Changes from another window refresh lists without overwriting edits in progress.
-Project lists come from the window's pushed state. Profiles use a Query client owned by this Settings instance;
-project details use one owned by their page. Reads start on opening or a change event, with no polling, focus
-refresh or network-dependent waits. Concurrent reads
-share a request; change events and mutation responses cancel obsolete reads in the renderer. Main-process IPC
-still finishes. Closing Settings clears the cache and prevents late completions from starting more reads or
-restoring discarded data. The first profile list and requested page must be ready before covering native pages.
-Project details seed the query with the opening snapshot when available, avoiding a duplicate read. Mutation
-responses cancel older reads before patching the current snapshot. The editing form mounts after the first
-snapshot and keeps its drafts across refreshes; only request data belongs to Query. Leaving the project page
-discards its query. GitHub binding requests and sign-in flows retain their existing owners.
+Project lists use the window's pushed state; profiles and project details are read when opened or changed.
 The cover's back arrow closes Settings; entity navigation stays within categories. Navigation search is omitted
 (the author's choice).
 
@@ -43,8 +34,6 @@ log and installer owners instead of creating a component per line.
 ## The code
 
 - `index.ts` is the lazy entry; `Settings.tsx` owns the frame and page lifecycle.
-- `query.ts` owns the shared request/cancellation policy; `test/unit/settings-query.test.ts` covers races and cleanup.
-- `ProjectPage.tsx` separates the project query from form drafts and applies mutation snapshots without reloading them.
 - Entity pages own editing state and translate results from core actions. `kit.tsx` owns shared row/addition UI.
 - `changed.ts` and account/discovery stores coordinate saving and updates across page lifetimes.
 - Coverage: settings scenarios in `test/e2e/projects.spec.ts`, `profiles.spec.ts`, `agents.spec.ts`, `github.spec.ts`

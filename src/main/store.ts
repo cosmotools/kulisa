@@ -227,16 +227,8 @@ function strictJSON(file: string): unknown {
   catch (e) { if ((e as NodeJS.ErrnoException).code === 'ENOENT') return undefined; throw new Error(`Cannot read task data ${file}: ${(e as Error).message}`); }
 }
 function validateTask(value: unknown): asserts value is TaskDocument {
-  // The type guard retains unknown metadata without cloning the document. Only invalid data needs error details.
-  if (!taskDocumentSchema.validate(value)) {
-    const [section, collection, index, field] = taskDocumentSchema.safeParse(value).error!.issues[0]!.path;
-    if (typeof index === 'number') {
-      if (section === 'agents' && collection === 'conversations') throw new Error('Invalid task conversation');
-      if (section === 'development' && collection === 'list') throw new Error('Invalid terminal conversation reference');
-      if (section === 'stage' && collection === 'items') throw new Error(field === 'closed' ? 'Invalid Stage profile' : 'Invalid Stage environment');
-    }
-    throw new Error('Invalid task.json format');
-  }
+  // Validate without parsing: preserve the original document and unknown metadata on section updates.
+  if (!taskDocumentSchema.validate(value)) throw new Error('Invalid task.json format');
   const d = value, ids = new Set(d.agents.conversations.map((c) => c.id));
   if (ids.size !== d.agents.conversations.length) throw new Error('Invalid task conversation');
   for (const t of d.development?.list ?? []) if (t.conversation !== undefined && !ids.has(t.conversation)) throw new Error('Invalid terminal conversation reference');

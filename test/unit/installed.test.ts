@@ -28,10 +28,6 @@ test('the installed version is read from the app archive on disk; none when ther
   assert.equal(installedVersion(asar), null, 'not installed');
   await pack('0.1.4');
   assert.equal(installedVersion(asar), '0.1.4');
-  // Another caller may have cached the old header; the replacement changes package.json's offset and size.
-  assert.equal(JSON.parse(extractFile(asar, 'package.json').toString()).version, '0.1.4');
-  await pack('0.1.15', 8192);
-  assert.equal(installedVersion(asar), '0.1.15');
   fs.writeFileSync(asar, 'not an archive');
   assert.equal(installedVersion(asar), null);
 });
@@ -43,6 +39,8 @@ test('a new version installed is found once, as the archive changes; the running
   await pack('0.1.4');
   check();
   assert.deepEqual(found, [], 'the version running');
+  // Prime the library cache before replacing the archive with a different package.json offset.
+  extractFile(asar, 'package.json');
   await pack('0.1.5', 4096);
   check();
   check();

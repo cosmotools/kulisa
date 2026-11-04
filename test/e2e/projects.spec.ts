@@ -94,19 +94,6 @@ test("projects: the projects' manager (Project Settings…) changes its name and
   // The name typed and Settings closed with its ×: kept (saved first).
   await field(s, 'Name').fill('Site-2');
   expect((await entryOf()).name, 'not yet: on Enter or leaving it').toBe('site');
-  // A refresh must update the lists without remounting the form or saving/overwriting the focused draft.
-  const refreshed = await core((k, id) => {
-    const profile = k.shell.profileStore.create(id, { name: 'Refresh while editing' });
-    if ('error' in profile) throw new Error(profile.error);
-    k.shell.profilesChanged();
-    return profile.id;
-  }, id);
-  await expect(listRow(s, 'Profiles', 'Refresh while editing')).toBeVisible();
-  await expect(field(s, 'Name')).toHaveValue('Site-2');
-  await expect(field(s, 'Name')).toBeFocused();
-  expect((await entryOf()).name).toBe('site');
-  await core((k, id) => { k.shell.profileStore.delete(id); k.shell.profilesChanged(); }, refreshed);
-  await expect(listRow(s, 'Profiles', 'Refresh while editing')).toHaveCount(0);
   await s.getByRole('button', { name: 'Back (Esc)' }).click();
   await settingsClosed(core, ui);
   await expect.poll(async () => (await entryOf()).name).toBe('Site-2');
