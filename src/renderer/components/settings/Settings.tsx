@@ -19,7 +19,7 @@ import { useChanged } from './changed';
 import { agents as agentList, loadAccounts, useAccounts } from './agents';
 import { useAgentList } from '../../lib/agents';
 import { store as windowStore, useWindow } from '../../lib/store';
-import { createProfilesQuery } from './profiles-query';
+import { createSettingsQuery } from './query';
 import type { MenuItem } from '../../lib/menu';
 import { coverPage } from '../../lib/cover';
 import { useShade } from '../../lib/theme';
@@ -45,7 +45,7 @@ export function Settings({ at, className }: { at: SettingsAt; className?: string
   const agents = useAgentList(agentList, (s) => s.agents), looking = useAgentList(agentList, (s) => s.looking);
   const installing = useAgentList(agentList, (s) => s.installing), { clis } = useAccounts();
   const [signing, setSigning] = useState<string | null>(null); // the agent a new account is signed in to on its page
-  const [profileQuery] = useState(() => createProfilesQuery(async () => (await kulisa.invoke('profiles:list')).profiles));
+  const [profileQuery] = useState(() => createSettingsQuery(['profiles'], async () => (await kulisa.invoke('profiles:list')).profiles));
   const { data: profiles } = useQuery({ ...profileQuery.options, enabled: false }, profileQuery.client);
   const ready = loaded && profiles !== undefined;
   const refreshProfiles = useCallback(() => profileQuery.refresh().catch(listError), [profileQuery]);

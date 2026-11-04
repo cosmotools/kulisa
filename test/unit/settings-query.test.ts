@@ -2,15 +2,15 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { isCancelledError, QueryObserver } from '@tanstack/react-query';
-import { createProfilesQuery } from '../../src/renderer/components/settings/profiles-query.ts';
-import type { SettingsProfile } from '../../src/shared/types.ts';
+import { createSettingsQuery } from '../../src/renderer/components/settings/query.ts';
+import type { ProjectSettings, SettingsProfile } from '../../src/shared/types.ts';
 
 const profile = (name: string): SettingsProfile => ({ id: 'profile', name, avatar: 'fox', description: '', login: '', hasPassword: false, projects: [] });
 function pending() {
   return Promise.withResolvers<SettingsProfile[]>();
 }
 function observed(read: () => Promise<SettingsProfile[]>) {
-  const session = createProfilesQuery(read);
+  const session = createSettingsQuery(['profiles'], read);
   const observer = new QueryObserver(session.client, { ...session.options, enabled: false });
   const unsubscribe = observer.subscribe(() => {});
   return { ...session, close: () => { unsubscribe(); session.dispose(); } };
@@ -70,4 +70,21 @@ test('closing Settings drops its cache and prevents late reads or mutation repli
   await assert.rejects(session.refresh(), isCancelledError);
   assert.equal(reads, 1);
   assert.deepEqual(session.client.getQueryCache().getAll(), []);
+});
+
+const project = (): ProjectSettings => ({ name: 'Project', local: ['shop.dev'], folders: [], projectAgents: [], profiles: [], others: [], agents: [], clis: [] });
+
+test('a prefetched project needs no second read; its first change event reads fresh data', async (t) => {
+  let reads = 0;
+  const first = project();
+  const changed: ProjectSettings = { ...first, profiles: [{ id: 'new', name: 'New', avatar: 'fox', also: [] }] };
+  const session = createSettingsQuery(['project', 'one'], async () => { ++reads; return changed; }, first);
+  const observer = new QueryObserver(session.client, session.options);
+  const unsubscribe = observer.subscribe(() => {});
+  t.after(() => { unsubscribe(); session.dispose(); });
+  assert.deepEqual(observer.getCurrentResult().data, first);
+  assert.equal(reads, 0, 'opening an already filled page does not repeat the IPC request');
+  await session.refresh();
+  assert.equal(reads, 1);
+  assert.deepEqual(session.client.getQueryData(session.options.queryKey), changed);
 });

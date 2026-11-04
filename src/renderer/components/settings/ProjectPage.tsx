@@ -1,6 +1,7 @@
 // A project's page in Settings (docs/tasks.md, Projects): its name, its local addresses, its Folders, Agents and Profiles;
 // saved as they change. Add Agent → New Account signs in to one there (SignIn.tsx), added to the project.
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { avatarSrc } from '../../lib/common';
 import { FolderIcon, PlusIcon, XIcon, CircleAlertIcon } from 'lucide-react';
 import { Alert, AlertAction, AlertDescription, Badge, Button, Card, CardContent, FieldGroup, Input, Select, SelectContent, SelectItem, SelectTrigger,
@@ -10,43 +11,46 @@ import { agentMark } from '../AgentMark';
 import { SignIn } from '../SignIn';
 import { AddInPlace, Things } from './kit';
 import { useChanged } from './changed';
+import { createSettingsQuery } from './query';
 import type { MenuItem as Item } from '../../lib/menu';
 import { refused, type Result } from '../../../shared/result';
 import type { ProjectAgent, ProjectFolder, ProjectGitHub, ProjectProfile, ProjectSettings } from '../../../shared/types';
 
 const base = (f: string) => f.split(/[\\/]/).pop()!;
+type PageProps = { id: string; first?: ProjectSettings; onSaved: () => void; saveRef: { current: () => Promise<void> } };
 
 // first: what Settings fetched just before it showed (Settings.tsx), its page filled from the start.
-export function ProjectPage({ id, first, onSaved, saveRef }: { id: string; first?: ProjectSettings; onSaved: () => void; saveRef: { current: () => Promise<void> } }) {
-  // The project as the main process has it; its name and local addresses as typed (saved), never replaced by a read.
-  const [s, setS] = useState<ProjectSettings | null>(first ?? null);
-  const patch = (p: Partial<ProjectSettings>) => setS((x) => x && { ...x, ...p });
-  const folders = s?.folders ?? [], mine = s?.projectAgents ?? [], profiles = s?.profiles ?? [], others = s?.others ?? [];
-  const [name, setName] = useState(first?.name ?? ''), [local, setLocal] = useState<string[]>(first?.local || []), [host, setHost] = useState(''), [error, setError] = useState('');
+export function ProjectPage({ first, ...props }: PageProps) {
+  const [query] = useState(() => createSettingsQuery(['project', props.id], async () => {
+    const result = await kulisa.invoke('project:settings:get', { id: props.id });
+    if (refused(result)) throw new Error(result.error);
+    return result;
+  }, first));
+  const { data, error } = useQuery(query.options, query.client);
+  // The observer owns read errors; refresh can also reject when a newer event cancels its reply.
+  const reload = useCallback(() => { void query.refresh().catch(() => {}); }, [query]);
+  useChanged(reload);
+  useEffect(() => { if (error) console.error('[settings] project:', error); }, [error]);
+  useEffect(() => () => { query.dispose(); }, [query]);
+  return data ? <ProjectFields {...props} s={data} reload={reload} patch={(p) => query.update((before) => before && { ...before, ...p })} /> : null;
+}
+
+// Mount only after the first snapshot: refreshing it must never initialize or overwrite the form's drafts.
+function ProjectFields({ id, s, patch, reload, onSaved, saveRef }: Omit<PageProps, 'first'> & {
+  s: ProjectSettings; patch: (fields: Partial<ProjectSettings>) => void; reload: () => void;
+}) {
+  const { folders, projectAgents: mine, profiles, others } = s;
+  const [name, setName] = useState(s.name), [local, setLocal] = useState<string[]>(s.local || []), [host, setHost] = useState(''), [error, setError] = useState('');
   const [github, setGithub] = useState<ProjectGitHub | null>(null);
   const [adding, setAdding] = useState<'' | 'clone' | 'profile'>(''), [text, setText] = useState(''), [cloning, setCloning] = useState(false);
   const [errors, setErrors] = useState({ folders: '', agents: '', profiles: '' });
   const [signing, setSigning] = useState<{ id: string; name: string } | null>(null); // New Account…: the agent it is of, while signing in
-  const saved = useRef(first ? JSON.stringify({ name: first.name.trim(), local: first.local || [] }) : '');
-  const filled = useRef(!!first);
+  const saved = useRef(JSON.stringify({ name: s.name.trim(), local: s.local || [] }));
 
-  const githubNow = useCallback(async (answer?: Promise<Result<ProjectGitHub>>) => {
-    const r = await (answer ?? kulisa.invoke('project:github:get', { id }));
+  const githubNow = useCallback((answer?: Promise<Result<ProjectGitHub>>) => (answer ?? kulisa.invoke('project:github:get', { id })).then((r) => {
     if (refused(r)) setErrors((e) => ({ ...e, folders: r.error })); else setGithub(r);
-  }, [id]);
-  // Read again: an account made, or one deleted in Settings → Agents, meanwhile; the profiles changed elsewhere. The
-  // first read (none given) fills the name and local addresses too.
-  const reload = useCallback(async () => {
-    const c = await kulisa.invoke('project:settings:get', { id });
-    if (refused(c)) return;
-    setS(c);
-    if (filled.current) return;
-    filled.current = true;
-    setName(c.name); setLocal(c.local || []);
-    saved.current = JSON.stringify({ name: c.name.trim(), local: c.local || [] });
-  }, [id]);
-  useEffect(() => { void (filled.current ? githubNow() : reload().then(() => githubNow())); }, [reload, githubNow]);
-  useChanged(reload);
+  }), [id]);
+  useEffect(() => { void githubNow(); }, [githubNow]);
 
   // Its name saved on Enter, on leaving it, and before Settings closes or another page shows; its local addresses as one
   // is added or removed (a host typed: on Enter, a space or a comma, or leaving it).
@@ -86,9 +90,9 @@ export function ProjectPage({ id, first, onSaved, saveRef }: { id: string; first
   const isDefault = (a?: string) => !!a && !!mine.find((m) => m.id === a)?.default;
   const defaultAgent = (a: string | null) => agents(kulisa.invoke('project:agent:set-default', { id, agent: a }));
   const removeAgent = (a: string) => agents(kulisa.invoke('project:agent:remove', { id, agent: a }));
-  const addable = (s?.agents ?? []).filter((x) => !mine.some((m) => m.id === x.id));
+  const addable = s.agents.filter((x) => !mine.some((m) => m.id === x.id));
   const agentMenu = (): Item[] => [...addable.map((x) => ({ label: x.name, run: () => agents(kulisa.invoke('project:agent:add', { id, agent: x.id })) })),
-    ...(s?.clis.length ? [...(addable.length ? ['-' as const] : []), { heading: 'New Account' },
+    ...(s.clis.length ? [...(addable.length ? ['-' as const] : []), { heading: 'New Account' },
       ...s.clis.map((c) => ({ label: `${c.name}…`, agent: c.id, run: () => { setErrors((e) => ({ ...e, agents: '' })); setSigning(c); } }))] : [])];
 
   async function profileChange(answer: Promise<Result<{ profiles: ProjectProfile[]; others: ProjectProfile[] }>>) {
@@ -111,7 +115,6 @@ export function ProjectPage({ id, first, onSaved, saveRef }: { id: string; first
   const stop = () => { setAdding(''); setText(''); };
   // A refusal not at a field (the field put away, or none).
   const err = (t: string) => t && <Alert variant="destructive"><CircleAlertIcon /><AlertDescription><span data-selectable>{t}</span></AlertDescription></Alert>;
-  if (!s) return null;
 
   const folderMenu = (f: string): Item[] => [{ label: 'Make Default', enabled: folders[0]?.folder !== f, run: () => defaultFolder(f) },
     { label: 'Remove from the Project', run: () => removeFolder(f) }];
