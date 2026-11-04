@@ -26,7 +26,7 @@ import type { Dictation } from '../dictation/main/index.ts';
 
 // An agent or account a task runs (shell.agentFor): its agent's entry, with the account's id, name and folder; cli:
 // its agent's own name.
-type AgentChoice = Agent & { agentId: string; cli: string; configDir: string | null; env: Record<string, string> };
+type AgentChoice = Agent & { agentId: string; cli: string; configOrigin?: 'kulisa' | 'external' | null; configDir: string | null; env: Record<string, string | undefined> };
 
 // The app: what app.ts makes and every module is given. win, current, task, profiles, closed, pty, resumedSession are the
 // first window's (the tests').

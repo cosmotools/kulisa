@@ -19,27 +19,22 @@ A project configures repositories/folders, agents and profiles, with ordered def
   including page/window exit. Sections add items in place, Esc cancels input; rows share menu/right-click actions.
   Global profile identity belongs to Settings → Profiles, not project membership controls.
 
-**New Project** shares `components/project-map/ProjectMap.tsx` between the welcome and the task-window dialog
-(`NewProject.tsx`). Its draft
-(`lib/new-project.ts`) holds inputs independently of the nodes; there are no wizard steps or separate first-start
-validation rules. Nothing is created until Create project.
+**New Project** uses a dedicated [UI module](../src/renderer/components/new-project/README.md) shared by the welcome
+and dialog. Its steps, draft lifecycle, discovery table and source controls belong there. Onboarding chooses one
+starting account and one source; the core project model continues to support several folders, accounts and profiles.
 
-- The project name is the center node. It follows the first folder/repository until the human edits it.
-- Repositories/folders sit on the left: New folder, On disk or Clone. Disk folders or clone URLs can be multiple;
-  first is default. Include pending typed entries at Create. Existing folders stay intact; new folders default to
-  `~/KulisaProjects/<name>` and do not initialize git. Multiple clones use `<location>/<name>/<repo>`; reject
-  nonempty targets and remove partial clones on failure. Show resulting path/status while typing.
-- Agents sit under the project: select accounts, first selected default unless another is starred. Add account
-  installs a missing CLI then signs in, with installer Details. Accounts made during setup live independently.
-  With no selected agents, tasks start a shell.
-- Run & check sits on the right. It explains browser profiles and interactive Stage terminals; neither must be
-  configured before creating a project. Profile creation/selection is collapsed and optional; sign-in happens
-  later. Stage terminals belong to tasks and are not created by this map.
+Project display names are labels, validated independently from physical destination names. Newly named project
+roots use 1–64 ASCII characters from A–Z, a–z, 0–9, hyphen, underscore and dot, starting with a letter or digit and
+never ending with a dot (the author's choice). Windows device basenames are rejected even with an extension.
+`shared/names.ts` owns this check for both the draft and `createProject`; profile names and existing paths retain
+their own rules. Existing code stays intact; new folders do not initialize git.
 
-The map has a fixed layout and decorative SVG connectors; at narrow widths it becomes a column with the project
-name first. No graph engine or running preview environments. Settings retains its own project editor.
-Create calls `createProject` once, then opens its first task. Failed optional agent/profile additions are logged
-without discarding the project.
+Core multi-folder creation accepts multiple clone URLs as `<location>/<directoryName>/<repo>`. New and cloned
+projects require an absent destination, including rejecting empty directories. `folderProblem` owns this policy
+for creation and draft checks. Creation reserves the destination with an exclusive mkdir after checking it,
+so a newly appeared directory is refused too. Open a folder is the only mode that reuses existing code. Failed
+clones remove the root created by that attempt, including completed repositories from a multi-repository clone.
+Failed optional core agent/profile additions are logged without discarding an already-created project.
 
 **Project identity** is automatic (`favicons.ts`, `lib/project-color.ts`):
 
@@ -64,16 +59,10 @@ without discarding the project.
 Open tasks precede closed tasks; closed tasks sort by closing time and show branch/time. Click/Enter/Space
 shows or reopens; trash/Delete asks before deleting. New Project is at the foot.
 
-**The empty window** docks the sidebar. With no projects, **the welcome** shows one introduction with switchable
-web/CLI examples, then the shared project map. The web example animates one red character working first in Customer, then Admin,
-linked by the same order, with a continuously typing transcript; its desktop pages scale with CSS. Pause stops the shared cycle; reduced motion shows
-its final result. The CLI example animates a coding agent under development in a Stage terminal, with the
-chosen development CLI below: it launches the app, submits a coding task, watches file edits and checks the output.
-Neither starts an environment.
-Small/short windows omit the illustration and supporting feature row; windows up to 600 CSS px high keep a single
-introduction column at every width. The introduction fits 640 × 400. The map's
-body scrolls independently of its Create footer. Mount its content only while shown; first-start focus goes to
-Create a project, then the map's name field. Back returns to the introduction. Links/version remain in ☰.
+**The empty window** docks the sidebar. With no projects, **the welcome** introduces Kulisa and embeds project
+creation. Its drawings, responsive layout and lifecycle belong to the
+[welcome UI](../src/renderer/components/welcome/README.md). First-start focus goes to Create a project; Back from
+creation returns to the introduction. Links/version remain in ☰.
 
 **Windows/startup**:
 
@@ -185,8 +174,9 @@ to the human; the window's IPC (`ipc/`) and the MCP tools are handles on it:
 | Add a project's repository to a task | Add Repository in its tab's menu | `task_add_repository`, once the human agreed in the conversation | `Task.addRepository`, `Project.addCopy` |
 | Remove one added | Remove Repository in its tab's menu, or on its chip | `task_remove_repository`, once the human agreed | `Task.removeRepository`, `Project.askRemoveCopy`, `removeCopy` |
 | Add, make the default (or none the default), remove an agent of the project | the project's page | none: what the project is made of is the human's | `addAgent`, `defaultAgent`, `removeAgent` (`projects.ts`) |
-| Make an account of an agent | New Account… in Settings → Agents or a project's page | none: signing in is the human's (Rules) | `account:signin:start` (`app.ts`), `Accounts.prepare`, `create` |
-| Delete an account | − in Settings → Agents | none: it deletes a sign-in and conversations, the human's to decide | `deleteAccount` (`projects.ts`), `shell.dropAccount` |
+| Make an account of an agent | Connect in New Project or Settings → Agents; New Account… on a project's page | none: signing in is the human's (Rules) | `account:signin:start` (`app.ts`), `Accounts.prepare`, `create` |
+| Delete or disconnect an account | its menu in Settings → Agents | none: it deletes a sign-in and conversations, the human's to decide | `deleteAccount` (`projects.ts`), `shell.dropAccount` |
+| Connect an external agent configuration | Use existing setup in New Project or Settings → Agents | none: account configuration and sign-in are the human's | `connectExisting` (`agent-connections.ts`); `Accounts.connect` |
 | Add a GitHub account, sign it in again, delete it | Settings → GitHub | none: signing in is the human's (Rules) | `GitHub.startFlow`, `addToken`, `deleteGitHub` (`projects.ts`; [src/github](../src/github/README.md)) |
 | Choose a repository's GitHub account | its row on the project's page | none: what the project is made of is the human's | `setGitHub` (`projects.ts`) |
 | Open an agent in the task, a new conversation | the terminals' +, New Conversation (a terminal's Resources row menu), Ctrl+` on the folded terminals | none: which agents work is the human's | `Task.openAgent`, `newConversation` |
@@ -205,16 +195,35 @@ Never assume any agent is installed. CLI discovery/configuration/transcript hand
 - Settings → Agents shows version/path, installation and accounts. Cache discovery only in main memory, show it
   immediately, then refresh through the user's login shell/`--version`; first lookup waits. Windows discovery uses
   `where.exe` and runs `.cmd` via `cmd.exe`.
-- Each account has a clean, immutable config folder (`agents/<agent>-<six-character id>/`) supplied through the
-  adapter's variable, independent of human global settings (author's choice). macOS keychain identity depends on
-  its path; do not rename it. Agents without per-account configuration are selected directly.
-- Add Account runs native CLI authentication in `SignIn.tsx`; Details stays closed unless failure. The system browser
-  receives the sign-in, with no `BROWSER` override; the CLI's localhost callback completes it.
-- Store email in `agents.json`: Claude `auth status`; Codex email only from `auth.json`'s ChatGPT ID-token field,
-  never expose the token; API-key accounts can lack email. Duplicate email reuses the account and removes the new
-  signed-out folder. Cancellation/incomplete sign-in leaves no account.
-- Projects reference account IDs in order. Removing membership or deleting a project keeps accounts; Settings
-  deletion refuses accounts used by open/closed task tabs, then confirms and signs out before removing their folders.
+- Connections explicitly record configuration ownership in `agents.json`. Records without an origin retain their
+  existing Kulisa-owned behavior. **Created in Kulisa** starts with an empty, immutable folder
+  (`agents/<agent>-<six-character id>/`); macOS keychain identity depends on its path, so never rename it.
+  **External configuration** references the adapter's existing home/environment-selected directory directly, with
+  its login, settings and skills shared with ordinary CLI sessions. Never copy configurations or credentials.
+- `agent-connections.ts` checks the installed CLI's native authentication status during discovery and again before
+  connection; installed alone is insufficient. Only metadata/email reaches the window. Same directory/mode reuses
+  its connection, including directory aliases; reject managed storage even through an alias. Discovery returns
+  the matching account ID so the table does not confuse configurations by path alone.
+  The same email in external and owned configurations does not merge them. Preserve whether the
+  configuration override was absent: explicitly setting Claude's default directory changes its metadata location.
+  Terminal pinning supports absent variables so shell startup cannot accidentally select another account.
+- Fresh sign-in runs native CLI authentication in `SignIn.tsx`; Details stays closed unless failure. The system
+  browser receives sign-in with no `BROWSER` override. Duplicate email reuses an owned account and removes the new,
+  signed-out folder. Cancellation/incomplete sign-in leaves no account; completed connections outlive project drafts.
+- Projects reference account IDs in order. Removing membership/deleting a project keeps accounts. Settings refuses
+  removal while open/closed task terminals use them, then confirms: owned accounts sign out and delete their folders;
+  external accounts disconnect only, preserving credentials, settings, conversations and other CLI sessions.
+- Settings shows each account's origin and selectable configuration directory, with Open Folder / Copy Path, distinct
+  from the installed executable path. Kulisa installs skills, persists language, carries trust and cleans native
+  conversations only in owned configurations. External sessions receive the same MCP/hooks/instructions at launch,
+  leave native trust prompts to the CLI, and retain their native histories/settings. Hidden dictation may use an
+  external connection only if it already trusts Kulisa's dictation folder; otherwise report the prerequisite before
+  starting a hidden process. Never grant it trust or delete its history/configuration. Kulisa's own dictation
+  workspace is still removed. Agent CLIs themselves may update their shared configuration during ordinary use.
+- Adapters receive the task's Kulisa-owned data directory for generated launch files, independent of account
+  configuration ownership. Claude's `--settings` names `claude-settings.json` there, keeping JSON out of the terminal
+  command. One file per task is refreshed at launch and removed with task/project data, including deferred removal
+  of locked files; no generated launch files are written to external configurations.
 - Dialogs share state outside mounted content so installation continues during navigation; no extra window process.
 - Hook state comes from the [plugin](../src/kulisa-plugin/README.md#hooks). Viewing a done agent in the focused task
   marks it `seen` and clears its badge, not its internal done state. Unsupported agent state: #212.
@@ -326,8 +335,7 @@ github.json                       the GitHub accounts (src/github): { list: [{ i
                                   tokens encrypted with the OS keyring, none without one (kept in memory then) or when
                                   signed out; an account goes when the human deletes it (Settings → GitHub)
 agents/<agent>-<id>/              an account's config folder (CLAUDE_CONFIG_DIR, CODEX_HOME): its sign-in, settings,
-                                  conversations; Kulisa's shared skill (skills/kulisa/) and Claude Code's
-                                  settings for Kulisa (kulisa-settings.json), written at each start; gone, signed out first, when the human deletes it (Settings →
+                                  conversations; Kulisa's shared skill (skills/kulisa/); gone, signed out first, when the human deletes it (Settings →
                                   Agents); one a sign-in left
                                   unfinished (Kulisa quit meanwhile) goes at the next start
 dictation/                        the folder the hidden session runs in (src/dictation: another agent's dictation
@@ -348,6 +356,8 @@ projects/<project id>/            a project's data, by its id (projects.json), g
                                   worktrees of repositories it added; base: the commit a worktree started from. Its
                                   folder, branch and folder of copies are its resources' (store.ts)
   <task id>/                      a task
+    claude-settings.json          Claude's launch settings for Kulisa (plugin permissions, hooks, voice), refreshed
+                                  at launch; shared by its Claude terminals, gone with the task
     task.json                     versioned task state, owned by TaskStore: agents (initial choice and conversation
                                   metadata with stable IDs), development (open tabs and active tab), stage (profile
                                   settings, CLI launch setup, next terminal ID, view and Dockview layout), workspace
@@ -485,9 +495,10 @@ rm -rf ~/.config/Kulisa/projects/<project id>   # all its tasks with their profi
   [Kulisa plugin](../src/kulisa-plugin/README.md); terminal runtime in [terminal](../src/terminal/README.md).
 - `src/main/ipc/`: thin window handles. Resources/File Explorer/Diff use task-scoped actions and resource roots.
 - Renderer task navigation lives in `components/`. `components/welcome/Welcome.tsx` owns the first-start screen,
-  examples and assets; `components/project-map/ProjectMap.tsx` owns the shared creation form, used by welcome and
-  the `NewProject.tsx` dialog wrapper. Project/account configuration lives in
-  `components/settings/`; non-UI coordination in `lib/`. `favicons.ts`/`lib/project-color.ts` derive project identity.
+  examples and assets; the [new-project UI module](../src/renderer/components/new-project/README.md) owns creation
+  and its draft behind `index.tsx`.
+  Project/account configuration lives in `components/settings/`; shared non-UI coordination in `lib/`.
+  `favicons.ts`/`lib/project-color.ts` derive project identity.
 - `src/shared/names.ts`: labels, names and branch slugs. Renderer `task-view/` owns retained screens, grids and activation.
 - Coverage: task/project/account/repository/window e2e files; store/task-document/accounts/worktrees unit tests.
 

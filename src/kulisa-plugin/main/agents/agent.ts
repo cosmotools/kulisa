@@ -11,7 +11,7 @@
 //   installDirs              where the installer puts the program (default ~/.local/bin, as the native installers)
 //   args(ctx)                arguments that connect it to Kulisa; ctx: { env (the task's, tasks.ts), packages (the folder of
 //                            agent resources: src/kulisa-plugin/resources, packaged beside the archive; e.g. claude-plugin/),
-//                            account (its account's folder, Kulisa's: where it may keep what it is started with) }
+//                            data (the task's Kulisa-owned data folder for generated launch files) }
 //   localFiles               its settings a project keeps out of git (gitignore patterns from its top): copied into a
 //                            task's copy when git ignores them (worktrees.ts)
 //   resume(saved)            arguments that continue a conversation (saved: as task.json keeps it), or nothing
@@ -69,9 +69,9 @@ interface Saved { sessionId?: string; transcript?: string; started?: boolean; co
 interface Found { path: string | null; onPath: boolean }
 // What a task tells its agent (tasks.ts): its environment, where Kulisa's packages for agents are.
 // artifacts: every task's folder of what the human or agent keep of its pages (a glob: TaskStore.artifacts).
-interface ArgsContext { env: Record<string, string | undefined>; packages: string; account?: string | null; artifacts: string }
+interface ArgsContext { env: Record<string, string | undefined>; packages: string; data: string; artifacts: string }
 // Where an agent's config is: its account's folder, else found from a conversation's transcript (Claude's).
-interface Where { configDir?: string | null; transcript?: string }
+interface Where { configDir?: string | null; transcript?: string; defaultConfig?: boolean }
 interface ForgetContext { folder: string; saved?: Saved; project?: { folder?: string; transcript?: string }; configDir?: string | null }
 interface Agent {
   id: string; name: string; maker: string; command: string | null; needs: string; site?: string; custom?: boolean;
@@ -93,7 +93,7 @@ interface Agent {
   config?: { env: string; home: () => string; login: () => string[]; status: string[]; email: (out: string, dir: string) => string | null; logout: string[] };
   voice?: { key: string; repeat: number };
   imagePaste?: string;
-  recognizer?: { available: (dir: string) => boolean; args: () => string[]; env: (env: NodeJS.ProcessEnv) => Record<string, string | undefined>; key: string; repeat: number; clear: string; submit: string };
+  recognizer?: { available: (dir: string, defaultConfig?: boolean) => boolean; args: () => string[]; env: (env: NodeJS.ProcessEnv) => Record<string, string | undefined>; key: string; repeat: number; clear: string; submit: string };
   language?: { languages: string[]; set: (dir: string, code: string) => { error?: string } };
   shell?: { command: string; args?: string[] };
 }

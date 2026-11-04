@@ -1,11 +1,12 @@
 // The empty window (docs/tasks.md, The empty window): the sidebar with every project, the welcome at the first start,
-// the shared project map there and in a dialog; the log a new project leaves.
+// the shared project flow there and in a dialog; the log a new project leaves.
 import fs from 'fs';
 import path from 'path';
+import { fakeAgent } from './agent-helpers.ts';
 import { test, expect } from './fixtures.ts';
 import type { Locator, Page } from '@playwright/test';
 import { ipcSettled, menu, choose, tabProjects, showProject, invoke, typeIn, notLoading, projectMenu, fromSidebar, sidebar, removed, answer, termKeys } from './helpers.ts';
-import { begin, bothOn, taskShown, taskTab, deleteProfile } from './tasks-helpers.ts';
+import { begin, bothOn, taskShown, taskTab } from './tasks-helpers.ts';
 
 // The keyboard taken from whatever has it.
 const blur = async (ui: Page) => { if (await ui.locator(':focus').count()) await ui.locator(':focus').blur(); };
@@ -39,7 +40,7 @@ test("the empty window: Close All Tasks in the project's submenu; links in ☰ o
   await expect.poll(() => core((k, n) => k.openedExternally.slice(n), before), { message: 'the user guide on the website' }).toEqual(['https://kulisa.app/docs']);
   expect(ui.url().startsWith('file:') && await ui.locator('#empty').count(), 'the window stays on its page').toBe(1);
 
-  // With no project at all, the welcome introduces web and CLI work, then opens the shared project map.
+  // With no project at all, the welcome introduces web and CLI work, then opens the shared project flow.
   // With projects, firstStart keeps the sidebar.
   await blur(ui);
   await core((k) => k.shell.firstStart(k.shell.windows[0]));
@@ -90,35 +91,10 @@ test("the empty window: Close All Tasks in the project's submenu; links in ☰ o
     }
     await core((k, s) => k.shell.win.setContentSize(s[0], s[1]), size);
     await button('Create a project', tour).click();
-    const field = (name: string) => welcome.getByRole('textbox', { name, exact: true });
-    await expect(field('Project name')).toBeFocused();
+    await expect(welcome.getByRole('heading', { name: 'Choose your agent' })).toBeFocused();
     await expect(welcome.getByRole('heading', { level: 1 })).toHaveText('Make room for your next project');
-    for (const name of ['Repositories & folders', 'Agents', 'Run & check']) await expect(welcome.getByRole('group', { name, exact: true })).toBeVisible();
-    await expect(button('Create project')).toBeVisible();
-    const kind = async (from: string) => {
-      await welcome.getByRole('tab', { name: from, exact: true }).click();
-      await expect(welcome.getByRole('tab', { name: from, exact: true })).toHaveAttribute('aria-selected', 'true');
-    };
-    const single = path.join(files.root, 'single', 'Shop');
-    fs.mkdirSync(single, { recursive: true });
-    await button('Add folder').click();
-    await typeIn(ui, field('Folder on disk'), single, true);
-    await button('Use this folder').click();
-    await expect(welcome.getByRole('group', { name: single, exact: true })).toBeVisible();
-    await expect(field('Project name'), "its name follows the folder").toHaveValue('Shop');
-    await kind('Clone');
-    const home = await core((k) => k.shell.projectsHome), taken = path.join(home, 'taken');
-    fs.mkdirSync(taken, { recursive: true });
-    fs.writeFileSync(path.join(taken, 'notes.txt'), '');
-    await typeIn(ui, field('Repository URL'), 'https://example.com/me/taken.git', true);
-    await button('Add repository URL').click();
-    await expect(field('Project name')).toHaveValue('taken');
-    await expect(field('Clone into')).toHaveAccessibleDescription(/is there already: choose another name or location/);
-    await kind('New');
-    await expect(field('Project name')).toHaveCount(1);
-    // Once the git that looked at it (whether it is a repository) has left it: Windows does not remove a process's folder.
-    await removed(taken);
-    // Back returns to the introduction.
+    await expect(button('Continue')).toBeDisabled();
+    await expect(welcome.getByRole('textbox', { name: 'Project name' })).toHaveCount(0);
     await button('Back').click();
     await expect(button('Create a project', tour)).toBeVisible();
   } finally {
@@ -130,71 +106,106 @@ test("the empty window: Close All Tasks in the project's submenu; links in ☰ o
   }
   await expect(ui.locator('html')).toHaveAttribute('data-page', 'sidebar');
 
-  // New Project… at the sidebar's foot: the same map in a dialog.
+  // Agent setup is independent of project creation and is covered in agents.spec.ts.
+  await fakeAgent(ui, files);
+  const account = await core((k) => {
+    const s = k.shell, r = s.accounts.prepare('fake') as { id: string; dir: string };
+    s.accounts.create(r.id, 'fake', 'onboarding@shop.com');
+    return r.id;
+  });
   await ui.getByRole('button', { name: 'New Project…' }).click();
   const np = ui.getByRole('dialog', { name: 'New Project' });
   await expect(np).toBeVisible();
+  await expect(np.getByRole('button', { name: 'Continue', exact: true })).toBeDisabled();
+  await np.getByRole('button', { name: /Use Fake agent · onboarding@shop.com/ }).click();
+  await expect(np.getByRole('radio', { name: /Start a new project/ })).toBeChecked();
   const field = (name: string) => np.getByRole('textbox', { name, exact: true });
-  await expect(field('Project name')).toHaveCount(1);
-
-  // Its code: a name and where its folder goes, the home folder unless another is chosen.
-  const home = await core((k) => k.shell.projectsHome);
-  await expect(field('Create in'), "every new project's place (~/KulisaProjects; the tests' own here)").toHaveValue(home);
-  const color = await core((k) => k.shell.store.nextColor());
+  const next = () => np.getByRole('button', { name: 'Continue', exact: true }).click();
+  const home = await core((k) => k.shell.projectsHome), color = await core((k) => k.shell.store.nextColor());
   const made = path.join(files.root, 'made');
-  fs.mkdirSync(path.join(made, 'Taken'), { recursive: true });
-  fs.writeFileSync(path.join(made, 'Taken', 'notes.txt'), '');
+  fs.mkdirSync(made, { recursive: true });
+  const create = () => np.getByRole('button', { name: 'Create project', exact: true }).click();
+  await next();
+  await expect(np.getByRole('alert')).toContainText('Enter a folder name.');
+  await expect(field('Create in')).toHaveValue(home);
   await core((k, f) => {
-    const d = k.electron.dialog;
-    k.stash.open = d.showOpenDialog;
-    d.showOpenDialog = (async () => ({ canceled: false, filePaths: [f] }));
+    k.stash.open = k.electron.dialog.showOpenDialog;
+    k.electron.dialog.showOpenDialog = (async () => ({ canceled: false, filePaths: [f] }));
   }, made);
   try {
     await np.getByRole('button', { name: 'Browse location' }).click();
     await expect(field('Create in')).toHaveValue(made);
   } finally { await core((k) => { k.electron.dialog.showOpenDialog = k.stash.open; }); }
-  const create = () => np.getByRole('button', { name: 'Create project', exact: true }).click();
-  const where = np.getByRole('status', { name: 'What will happen' }), error = np.getByRole('alert');
-  await create();
-  await expect(field('Project name')).toBeFocused();
-  await expect(field('Project name')).toHaveAccessibleDescription('Give your project a name');
-  // A folder there already would be taken as it is (the form says so as it is typed); a file is refused at its field,
-  // and Create makes nothing.
-  await typeIn(ui, field('Project name'), 'Taken');
-  await expect(where).toHaveText(`${path.join(made, 'Taken')} is there already: the project takes it as it is, its files kept`);
+  await typeIn(ui, field('Folder name'), 'CON.v2');
+  await next();
+  await expect(np.getByRole('alert')).toContainText('reserved by Windows');
+  expect((await invoke(ui, 'project:new', { from: 'new', name: 'Valid Label', directoryName: 'CON.v2', location: made })).error)
+    .toContain('reserved by Windows');
+  await typeIn(ui, field('Folder name'), 'shop.v2');
+  await np.getByRole('radio', { name: 'Clone a repository', exact: true }).check();
+  await field('Repository URL').fill('https://example.test/backend.git');
+  await field('Folder name').fill('backend.v2');
+  await np.getByRole('radio', { name: 'Start a new project', exact: true }).check();
+  await expect(field('Folder name')).toHaveValue('shop.v2');
+  await np.getByRole('radio', { name: 'Clone a repository', exact: true }).check();
+  await expect(field('Folder name')).toHaveValue('backend.v2');
+  await np.getByRole('radio', { name: 'Start a new project', exact: true }).check();
+  await next();
+  await expect(np.getByRole('heading', { name: 'Shop V2', exact: true })).toBeVisible();
+  expect(fs.existsSync(path.join(made, 'shop.v2')), 'Continue does not create the folder').toBe(false);
+  await np.getByRole('button', { name: 'Back', exact: true }).click();
+  const taken = path.join(made, 'taken');
+  fs.mkdirSync(taken);
+  await typeIn(ui, field('Folder name'), 'taken');
+  await next();
+  await expect(np.getByRole('alert')).toContainText('This folder already exists.');
+  for (const from of ['new', 'clone']) {
+    expect((await invoke(ui, 'project:new', { from, name: 'Taken', directoryName: 'taken', location: made })).error)
+      .toContain('This folder already exists.');
+    expect(fs.readdirSync(taken), `${from} leaves the existing empty folder intact`).toEqual([]);
+  }
+  fs.writeFileSync(path.join(taken, 'keep.txt'), 'keep');
+  expect((await invoke(ui, 'project:new', { name: 'Taken', directoryName: 'taken', location: made })).error)
+    .toContain('This folder already exists.');
+  expect(fs.readFileSync(path.join(taken, 'keep.txt'), 'utf8')).toBe('keep');
   fs.writeFileSync(path.join(made, 'note'), '');
-  await typeIn(ui, field('Project name'), 'note');
-  await expect(field('Create in')).toHaveAccessibleDescription(/is a file, not a folder/);
-  await create();
-  await expect(error).toContainText(/is a file, not a folder/);
-  await expect(np).toBeVisible();
-  // An error is text to copy and search for: it can be selected (the window's other words cannot). What is selected
-  // read in the page: Playwright has no getter of the selection.
-  const said = error.getByText(/is a file, not a folder/);
+  await typeIn(ui, field('Folder name'), 'note');
+  await next();
+  const error = np.getByRole('alert');
+  await expect(error).toContainText('This path is a file. Choose a folder.');
+  const said = error.getByText('This path is a file. Choose a folder.');
   await expect(said).toHaveCSS('user-select', 'text');
   await expect(np.getByRole('heading', { name: 'New Project' })).toHaveCSS('user-select', 'none');
   await said.selectText();
   expect(await ui.evaluate(() => getSelection().toString())).toBe(await said.textContent());
+  await typeIn(ui, field('Folder name'), 'Shop');
+  await next();
+  await expect(np.getByRole('heading', { name: 'Shop', exact: true })).toBeVisible();
+  await np.getByRole('button', { name: 'Edit name' }).click();
+  await field('Project name').fill('');
+  await create();
+  await expect(np.getByRole('alert')).toContainText('Give your project a name.');
+  await typeIn(ui, field('Project name'), 'My Shop');
+  await np.getByRole('button', { name: 'Back', exact: true }).click();
+  await expect(field('Folder name'), 'display name never renames the destination').toHaveValue('Shop');
+  await expect(field('Create in')).toHaveValue(made);
+  await next();
+  await expect(np.getByRole('heading', { name: 'My Shop', exact: true })).toBeVisible();
+  await np.getByRole('button', { name: 'Edit name' }).click();
   await typeIn(ui, field('Project name'), 'Shop');
-  await expect(where).toHaveText(`The project will be created in ${path.join(made, 'Shop')}`);
-  // Accounts and optional profiles share the map; no agent is required to start with a shell.
-  const accounts: { name: string }[] = (await invoke(ui, 'account:list')).accounts;
-  const agents = np.getByRole('group', { name: 'Agents', exact: true });
-  await expect(agents.getByRole('checkbox')).toHaveCount(accounts.length);
-  for (const [i, account] of accounts.entries()) await expect(agents.getByRole('checkbox').nth(i)).toHaveAccessibleName(new RegExp(RegExp.escape(account.name)));
-  await expect.poll(() => agents.getByRole('button').count()).toBeGreaterThan(0);
-  await np.getByRole('button', { name: 'Set up browser profiles now' }).click();
-  await np.getByRole('button', { name: 'Add profile', exact: true }).click();
-  const profiles = np.getByRole('group', { name: 'Profiles', exact: true });
-  await profiles.getByRole('textbox', { name: 'Profile 1 name', exact: true }).fill('Shop-buyer');
-  await profiles.getByRole('textbox', { name: 'Profile 1 role', exact: true }).fill('buys things');
+  await np.getByRole('radio', { name: 'CLI app', exact: true }).check();
+  await expect(np.getByText(/Help me build my own coding agent/)).toBeVisible();
+  await np.getByRole('button', { name: 'Back', exact: true }).click();
+  await next();
+  await expect(np.getByRole('heading', { name: 'Shop', exact: true })).toBeVisible();
+  await expect(np.getByRole('radio', { name: 'CLI app', exact: true })).toBeChecked();
   await create();
   const shopDir = path.join(made, 'Shop');
   await expect.poll(() => core((k, f) => k.shell.current?.folder === f && !!k.shell.task?.loaded && !!k.shell.pty, shopDir)).toBe(true);
   await expect(ui.getByRole('alertdialog'), 'nothing asked').toHaveCount(0);
   const shopId = files.pid('shop');
-  expect(await core((k, id) => k.shell.profileStore.of(id).map((p) => [p.name, p.description]), shopId)).toEqual([['Shop-buyer', 'buys things']]);
-  expect(fs.existsSync(path.join(shopDir, '.git')), 'a plain folder: Kulisa makes no repository').toBe(false);
+  expect(await core((k, id) => k.shell.profileStore.of(id).length, shopId)).toBe(0);
+  expect(fs.existsSync(path.join(shopDir, '.git')), 'a new folder stays without git').toBe(false);
   // The log (window.md, The log): the start, the task and the channel that made it, a key taken; nothing typed into a
   // terminal.
   const logged = files.log();
@@ -207,7 +218,7 @@ test("the empty window: Close All Tasks in the project's submenu; links in ☰ o
   expect(logged).toMatch(new RegExp(`\\[task\\] created ${shopId}/[a-z0-9]{6} \\(Shop\\) in \\S*Shop wc=\\d+`));
   expect(logged).toMatch(/\[key\] tab\.new zone=/);
   expect(logged, 'what is typed into a terminal is never logged').not.toMatch(/pty:in/);
-  expect(await core((k, id) => { const p = k.shell.store.projects().find((x) => x.id === id); return [p.color, p.agents ?? null]; }, shopId)).toEqual([color, null]);
+  expect(await core((k, id) => { const p = k.shell.store.projects().find((x) => x.id === id); return [p.color, p.agents ?? null]; }, shopId)).toEqual([color, [account]]);
   // No favicon in its code: the next free color, the window's too.
   await expect(ui.locator(':root')).toHaveCSS('--project', color);
   expect(await core((k) => k.shell.task.folder), 'its first task works in it').toBe(shopDir);
@@ -239,10 +250,10 @@ test("the empty window: Close All Tasks in the project's submenu; links in ☰ o
   await expect.poll(() => core((k, id) => !k.shell.open.has(id), shopId)).toBe(true);
   expect(await core((k) => k.shell.current?.id), 'the shown project stays').toBe(files.pid('project'));
 
-  // Shop and its profile gone, for the test run again in this Kulisa.
+  // Shop and its account gone, for the test run again in this Kulisa.
   const deleted = invoke(ui, 'project:delete', { id: shopId });
   await answer(ui);
   await deleted;
-  await deleteProfile(core, ui, 'Shop-buyer');
+  await core((k, id) => { const a = k.shell.accounts.find(id); k.shell.accounts.drop(id); k.shell.accounts.remove(a.dir); }, account);
   await removed(made);
 });

@@ -3,7 +3,7 @@
 import { BrowserWindow, dialog, shell as electronShell } from 'electron';
 import path from 'path';
 import { addFolder, cloneRepo, defaultFolder, removeFolder, foldersInfo, askDropProfile, dropProfile, agentsInfo, addAgent, defaultAgent, removeAgent, createProject, folderStateOf, githubOf, setGitHub } from '../projects.ts';
-import { nameError } from '../../shared/names.ts';
+import { labelError } from '../../shared/names.ts';
 import { refused } from '../../shared/result.ts';
 import { handle } from '../ipc.ts';
 import type { Ipc } from '../ipc.ts';
@@ -100,7 +100,7 @@ export function registerProjects(ipc: Ipc, { lookForFavicon }: { lookForFavicon:
     name = name?.trim();
     // Its own local addresses (local.ts): hosts, each with its subdomains (a tunnel, its dev domains).
     local = [...new Set((local || []).map((h) => String(h).trim().toLowerCase().replace(/^\*\./, '')).filter(Boolean))];
-    const bad = nameError(name) || local.find((h) => !/^[a-z0-9.-]+$/.test(h) || !h.includes('.')) && `not a host name: ${local.find((h) => !/^[a-z0-9.-]+$/.test(h) || !h.includes('.'))}`;
+    const bad = labelError(name) || local.find((h) => !/^[a-z0-9.-]+$/.test(h) || !h.includes('.')) && `not a host name: ${local.find((h) => !/^[a-z0-9.-]+$/.test(h) || !h.includes('.'))}`;
     if (bad) return { error: bad };
     const entry = store.updateProject(id, { name: name!, local: local.length ? local : null });
     if (!entry) return { error: `no project ${id}` };

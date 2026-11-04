@@ -135,7 +135,7 @@ export function ProjectPage({ id, first, onSaved, saveRef }: { id: string; first
     <Card><CardContent><FieldGroup>
       <Field data-invalid={error ? true : undefined}>
         <FieldLabel htmlFor="project-name">Name</FieldLabel>
-        <Input id="project-name" aria-invalid={error ? true : undefined} value={name} data-name maxLength={64} spellCheck={false} onChange={(e) => { setName(e.target.value); setError(''); }} onBlur={() => void save()}
+        <Input id="project-name" aria-invalid={error ? true : undefined} value={name} maxLength={64} spellCheck={false} onChange={(e) => { setName(e.target.value); setError(''); }} onBlur={() => void save()}
           onKeyDown={(e) => { if (e.key === 'Enter') void save(); }} />
         {error && <FieldError><span data-selectable>{error}</span></FieldError>}
       </Field>

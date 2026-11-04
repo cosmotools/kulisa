@@ -48,6 +48,8 @@ test('tasks: Delete Task… asks first, saying what goes and any work not in mai
   fs.writeFileSync(transcript, '');
   await reportSession(core, empty, 's-3', transcript);
   const dir = path.join(files.userData, 'projects', files.pid('project'), empty.split('/')[1]);
+  const launchSettings = path.join(dir, 'claude-settings.json');
+  fs.writeFileSync(launchSettings, '{"hooks":{}}');
   await rightClick(ui, taskTab(ui, empty));
   await choose(ui, 'Delete Task…');
   const q0 = await answer(ui);
@@ -61,6 +63,7 @@ test('tasks: Delete Task… asks first, saying what goes and any work not in mai
   const marked = () => fs.existsSync(deleted) && JSON.parse(fs.readFileSync(deleted, 'utf8')).includes(dir);
   await expect.poll(() => !fs.existsSync(`${project}@task-3`) && marked() && (WIN || !fs.existsSync(dir))).toBe(true);
   await expect.poll(() => fs.existsSync(shot.file)).toBe(false);
+  await expect.poll(() => fs.existsSync(launchSettings)).toBe(false);
   // direnv's permission for its .envrc: no record of the task's folder left.
   const allow = path.join(files.root, 'xdg-data', 'direnv', 'allow');
   if (hasDirenv) expect((fs.existsSync(allow) ? fs.readdirSync(allow) : []).some((f) => fs.readFileSync(path.join(allow, f), 'utf8').includes(`${project}@task-3`))).toBe(false);

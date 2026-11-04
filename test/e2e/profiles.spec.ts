@@ -36,7 +36,7 @@ test('names: typed, pasted, from the agent, checked where they are made (the rul
   await expect(call('profile_create', { name: '@' })).rejects.toThrow(/starting with a letter or a digit/);
   const current = await ui.evaluate(() => (window as any).tasks.current);
   expect((await invoke(ui, 'profiles:rename', { profile: id, name: 'Sam admin' })).error).toMatch(/only/);
-  expect((await invoke(ui, 'project:new', { name: '..' })).error).toMatch(/starting with a letter or a digit/);
+  expect((await invoke(ui, 'project:new', { name: '..' })).error).toMatch(/a letter or a digit/);
   expect((await invoke(ui, 'task:rename', { key: current, name: '@' })).error).toMatch(/a letter or a digit/);
   expect((await invoke(ui, 'task:rename', { key: current, name: 'a\nb' })).error).toMatch(/one line/);
   expect(await names(), 'none made').toEqual(before);

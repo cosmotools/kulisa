@@ -47,7 +47,7 @@ export function InstallProgress({ list: l }: { list: AgentList }) {
 // A row: who makes it and what it needs, whether it is on this computer; one not installed has Install (Kulisa runs its
 // maker's installer: the command line is shown, for the chosen one).
 function AgentRow({ a, chosen, installing, home }: { a: AgentInfo; chosen: boolean; installing: boolean; home: string | null }) {
-  const where = !list.details ? '' : a.account ? `its own sign-in, in ${shortPath(a.account, home)}`
+  const where = !list.details ? '' : a.account ? `configuration in ${shortPath(a.account, home)}`
     : a.path ? [a.version, shortPath(a.path, home), a.onPath === false && 'not on your PATH: Kulisa runs it from here'].filter(Boolean).join(' · ') : '';
   const installLine = chosen && a.install && !a.installed && !a.account ? `Install runs ${a.maker || 'its maker'}'s installer: ${a.install}` : '';
   const status = a.installed ? (a.install && !a.account ? 'Installed' : '') : 'Not installed';

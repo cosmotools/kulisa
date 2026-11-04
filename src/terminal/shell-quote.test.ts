@@ -72,3 +72,17 @@ for (const name of ['sh', 'bash', 'zsh', 'fish', 'powershell', 'pwsh']) {
     assert.equal(r.stdout, 'application output');
   });
 }
+
+test('an absent pinned variable stays absent after shell startup; other values and arguments keep their quoting', () => {
+  for (const shell of ['bash', 'zsh', 'fish']) {
+    const installed = process.platform === 'win32' ? '' : where(shell);
+    if (!installed) continue;
+    const line = shellLine(shell, process.execPath, ['-p', 'JSON.stringify([process.env.KULISA_ABSENT, process.env.KULISA_PRESENT])'], {
+      KULISA_ABSENT: undefined, KULISA_PRESENT: "a b'c",
+    });
+    const out = execFileSync(installed, ['-c', line], { env: { ...process.env, KULISA_ABSENT: 'startup override' }, encoding: 'utf8' });
+    assert.deepEqual(JSON.parse(out), [null, "a b'c"]);
+  }
+  const ps = shellLine('powershell.exe', 'node', [], { KULISA_ABSENT: undefined });
+  assert.match(ps, /\$env:KULISA_ABSENT=\$null;/);
+});

@@ -50,7 +50,8 @@ where required; tools do not ask at each click.
   human input. `browser_type` uses `pressSequentially` at 40 ms/key, faster for long text (about 1.5 s cap), and fill
   beyond `TYPED_MAX` 300 characters. Non-US characters use Playwright's text input.
 
-Install one generated shared skill per account. It teaches profiles/tasks/Stage and leaving the final app ready;
+Install one generated shared skill per Kulisa-owned account. External connections leave personal skills/settings untouched;
+the MCP instructions and launch-scoped plugin/hooks provide Kulisa integration. It teaches profiles/tasks/Stage and leaving the final app ready;
 Claude also loads `--plugin-dir`, Codex uses config overrides. `SessionStart` supplies open profiles/session IDs.
 Keep the user's other MCP servers enabled; `ONLY_BROWSER` instructions identify Kulisa profiles as the browser the
 human sees without blocking explicitly requested alternatives.
@@ -66,7 +67,9 @@ Each `agents/<cli>.ts` owns discovery, installation, launch, resume, hooks, capa
   because IPC stream/result ordering is not guaranteed. Claude/Codex use official install scripts, PowerShell on
   Windows. Prioritize system PATH over Git Bash's tar on Windows. Installed CLIs remain user-owned and self-update.
 - Claude launches with plugin/settings, Codex MCP/hooks as config overrides. Resume with reported session ID;
-  Codex can fall back to `resume --last`.
+  Codex can fall back to `resume --last`. Core supplies the task's Kulisa-owned data directory for generated launch
+  files, independently of account ownership; Claude passes a settings file there instead of inline JSON. The file is
+  refreshed at launch and core removes it with the task/project data (see [storage](../../docs/tasks.md#what-is-on-the-computer)).
 - `voice` config describes native hold/repeat behavior; `recognizer` describes hidden dictation/hook blocking
   ([dictation](../dictation/README.md)). Claude Kulisa sessions enable hold mode with `autoSubmit: false`; hidden
   recognizers enable it. Tap mode prevents appending a second sentence to existing input.

@@ -4,7 +4,7 @@ import { createStore, useStore } from 'zustand';
 import { agentList } from '../../lib/agents';
 import type { Account, AccountsInfo } from '../../../shared/types';
 
-export const agents = agentList({ details: true, installed: (a) => `${a.name} is installed. Make an account of it below: + under Accounts.` });
+export const agents = agentList({ details: true, installed: (a) => `${a.name} is installed. Connect a setup below under Accounts.` });
 
 // clis: the agents an account can be made of.
 const accounts = createStore<{ accounts: Account[]; clis: string[] }>()(() => ({ accounts: [], clis: [] }));

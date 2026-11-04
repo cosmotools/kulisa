@@ -1,4 +1,4 @@
-// The welcome's two browser profiles (docs/ui.md, Own drawing): a customer places an order and the admin sees it.
+// The welcome's two browser profiles (README.md, Demonstrations): a customer places an order and the admin sees it.
 // The character, desktop pages and transcript share animations.css's clock; neither starts a real browser.
 import { useEffect, useRef, type ReactNode } from 'react';
 import { ArrowLeftIcon, ArrowRightIcon, CheckIcon, ChevronDownIcon, GlobeIcon, HeartIcon, LockKeyholeIcon,

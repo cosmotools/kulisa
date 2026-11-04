@@ -1,4 +1,4 @@
-// The welcome's CLI application drawing (docs/ui.md, Own drawing): the user's coding agent builds another coding
+// The welcome's CLI application drawing (README.md, Demonstrations): the user's coding agent builds another coding
 // agent, then operates it through a Stage terminal. The shared CSS clock keeps its keystrokes and output together.
 import { useEffect, useRef } from 'react';
 import { CheckIcon, SquareTerminalIcon } from 'lucide-react';

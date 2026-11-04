@@ -10,7 +10,8 @@ and Stage terminals use the same runtime.
   Linux user's shell, Windows `pwsh` or `powershell.exe`. Shell startup applies project settings such as direnv.
 - Type launch commands once bracketed paste indicates prompt readiness, or after quiet fallback. Prefix with a space
   to avoid history. Quote per shell (`shell-quote.ts`), including fish's backslash rules. Type pinned account
-  variables with the command so startup scripts cannot override them.
+  variables with the command so startup scripts cannot override them. An undefined pinned value removes the variable
+  (POSIX `env -u`, PowerShell `$env:…=$null`), including overrides introduced by shell startup.
 - PowerShell sets `$env:…`, runs with `&`, and uses Legacy argument passing on PS7 for PS5.1 compatibility. Quote
   arguments for the Windows runtime; resolve programs with `PATHEXT`. Use node-pty's bundled ConPTY so xterm receives
   device/color queries.
