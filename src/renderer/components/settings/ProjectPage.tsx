@@ -2,22 +2,25 @@
 // saved as they change. Add Agent → New Account signs in to one there (SignIn.tsx), added to the project.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { avatarSrc } from '../../lib/common';
-import { FolderIcon, PlusIcon, XIcon, CircleAlertIcon } from 'lucide-react';
-import { Alert, AlertAction, AlertDescription, Badge, Button, Card, CardContent, FieldGroup, Input, Select, SelectContent, SelectItem, SelectTrigger,
-  SelectValue, Avatar, AvatarImage, AvatarFallback, CardHeader, CardTitle, CardAction, Field, FieldDescription, FieldError, FieldLabel } from '@ui';
+import { BotIcon, FolderIcon, PlusIcon, UsersIcon, XIcon, CircleAlertIcon } from 'lucide-react';
+import { Alert, AlertAction, AlertDescription, Badge, Button, Input, Select, SelectContent, SelectItem, SelectTrigger,
+  SelectValue, SelectGroup, Avatar, AvatarImage, AvatarFallback, Field, FieldContent, FieldDescription, FieldError, FieldLabel,
+  Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from '@ui';
 import { ButtonMenu } from '../Menus';
 import { agentMark } from '../AgentMark';
 import { SignIn } from '../SignIn';
-import { AddInPlace, Things } from './kit';
+import { ProjectIcon } from '../ProjectIcon';
+import { AddInPlace, Things, SettingsHeading, SettingsGroup, SettingsFields } from './kit';
 import { useChanged } from './changed';
-import type { MenuItem as Item } from '../../lib/menu';
+import type { MenuItem } from '../../lib/menu';
 import { refused, type Result } from '../../../shared/result';
-import type { ProjectAgent, ProjectFolder, ProjectGitHub, ProjectProfile, ProjectSettings } from '../../../shared/types';
+import type { ProjectAgent, ProjectEntry, ProjectFolder, ProjectGitHub, ProjectProfile, ProjectSettings } from '../../../shared/types';
 
 const base = (f: string) => f.split(/[\\/]/).pop()!;
 
 // first: what Settings fetched just before it showed (Settings.tsx), its page filled from the start.
-export function ProjectPage({ id, first, onSaved, saveRef }: { id: string; first?: ProjectSettings; onSaved: () => void; saveRef: { current: () => Promise<void> } }) {
+export function ProjectPage({ project, first, onSaved, saveRef }: { project: ProjectEntry; first?: ProjectSettings; onSaved: () => void; saveRef: { current: () => Promise<void> } }) {
+  const { id } = project;
   // The project as the main process has it; its name and local addresses as typed (saved), never replaced by a read.
   const [s, setS] = useState<ProjectSettings | null>(first ?? null);
   const patch = (p: Partial<ProjectSettings>) => setS((x) => x && { ...x, ...p });
@@ -87,7 +90,7 @@ export function ProjectPage({ id, first, onSaved, saveRef }: { id: string; first
   const defaultAgent = (a: string | null) => agents(kulisa.invoke('project:agent:set-default', { id, agent: a }));
   const removeAgent = (a: string) => agents(kulisa.invoke('project:agent:remove', { id, agent: a }));
   const addable = (s?.agents ?? []).filter((x) => !mine.some((m) => m.id === x.id));
-  const agentMenu = (): Item[] => [...addable.map((x) => ({ label: x.name, run: () => agents(kulisa.invoke('project:agent:add', { id, agent: x.id })) })),
+  const agentMenu = (): MenuItem[] => [...addable.map((x) => ({ label: x.name, run: () => agents(kulisa.invoke('project:agent:add', { id, agent: x.id })) })),
     ...(s?.clis.length ? [...(addable.length ? ['-' as const] : []), { heading: 'New Account' },
       ...s.clis.map((c) => ({ label: `${c.name}…`, agent: c.id, run: () => { setErrors((e) => ({ ...e, agents: '' })); setSigning(c); } }))] : [])];
 
@@ -102,7 +105,7 @@ export function ProjectPage({ id, first, onSaved, saveRef }: { id: string; first
     if (!text.trim()) return;
     if (!(await profileChange(kulisa.invoke('project:profile:new', { id, name: text })))?.error) { setText(''); setAdding(''); }
   }
-  const profileMenu = (): Item[] => [{ label: 'New Profile…', run: () => { setText(''); setAdding('profile'); } },
+  const profileMenu = (): MenuItem[] => [{ label: 'New Profile…', run: () => { setText(''); setAdding('profile'); } },
     ...(others.length ? ['-' as const, { heading: 'Other Profiles' }, ...others.map((p) => ({ label: p.name, sub: p.also.join(', ') || 'in no project',
       avatar: p.avatar, run: () => profileChange(kulisa.invoke('project:profile:add', { id, profile: p.id })) }))] : [])];
 
@@ -113,35 +116,83 @@ export function ProjectPage({ id, first, onSaved, saveRef }: { id: string; first
   const err = (t: string) => t && <Alert variant="destructive"><CircleAlertIcon /><AlertDescription><span data-selectable>{t}</span></AlertDescription></Alert>;
   if (!s) return null;
 
-  const folderMenu = (f: string): Item[] => [{ label: 'Make Default', enabled: folders[0]?.folder !== f, run: () => defaultFolder(f) },
+  const folderMenu = (f: string): MenuItem[] => [{ label: 'Make Default', enabled: folders[0]?.folder !== f, run: () => defaultFolder(f) },
     { label: 'Remove from the Project', run: () => removeFolder(f) }];
-  const agentRowMenu = (a: string): Item[] => [isDefault(a) ? { label: 'No Default', run: () => defaultAgent(null) } : { label: 'Make Default', run: () => defaultAgent(a) },
+  const agentRowMenu = (a: string): MenuItem[] => [isDefault(a) ? { label: 'No Default', run: () => defaultAgent(null) } : { label: 'Make Default', run: () => defaultAgent(a) },
     { label: 'Remove from the Project', run: () => removeAgent(a) }];
-  const add = (label: string, items: () => Item[], disabled?: boolean) =>
-    <ButtonMenu end items={items}><Button variant="outline" size="sm" disabled={disabled}><PlusIcon data-icon="inline-start" />{label}</Button></ButtonMenu>;
+  const add = (label: string, items: () => MenuItem[], disabled?: boolean) =>
+    <ButtonMenu end items={items}><Button variant="ghost" size="sm" disabled={disabled}><PlusIcon data-icon="inline-start" />{label}</Button></ButtonMenu>;
   const muted = (t: string) => <span className="text-sm text-muted-foreground">{t}</span>;
   const account = (f: ProjectFolder) => { const g = githubOf(f.folder);
-    // GitHub not answered yet (a request per account): the room its Select takes, so the cards under it stay.
-    if (!github && f.remote) return <Select disabled><SelectTrigger size="sm" className="w-48" aria-label="GitHub account"><SelectValue placeholder="GitHub account…" /></SelectTrigger></Select>;
+    // GitHub not answered yet (a request per account): the room its Select takes, so the sections below it stay in place.
+    if (!github && f.remote) return <Select disabled><SelectTrigger size="sm" className="w-48 min-w-0" aria-label="GitHub account"><SelectValue placeholder="GitHub account…" /></SelectTrigger></Select>;
     if (!g?.remote) return null;
     if (g.state === 'not-github') return muted('Not a GitHub address');
     if (!github!.accounts.length) return muted('No GitHub account');
     return <Select value={g.account ?? ''} onValueChange={(v) => void githubNow(kulisa.invoke('project:github:set', { id, remote: g.remote!, account: v }))}>
-      <SelectTrigger size="sm" className="w-48" aria-label={`GitHub account of ${g.repo}`}><SelectValue placeholder="GitHub account…" /></SelectTrigger>
-      <SelectContent>{github!.accounts.map((a) => <SelectItem key={a.id} value={a.id}>{accountName(a)}</SelectItem>)}</SelectContent>
+      <SelectTrigger size="sm" className="w-48 min-w-0" aria-label={`GitHub account of ${g.repo}`}><SelectValue placeholder="GitHub account…" /></SelectTrigger>
+      <SelectContent><SelectGroup>{github!.accounts.map((a) => <SelectItem key={a.id} value={a.id}>{accountName(a)}</SelectItem>)}</SelectGroup></SelectContent>
     </Select>; };
 
-  return <>
-    <Card><CardContent><FieldGroup>
-      <Field data-invalid={error ? true : undefined}>
-        <FieldLabel htmlFor="project-name">Name</FieldLabel>
-        <Input id="project-name" aria-invalid={error ? true : undefined} value={name} maxLength={64} spellCheck={false} onChange={(e) => { setName(e.target.value); setError(''); }} onBlur={() => void save()}
+  return <div className="flex flex-col gap-5">
+    <SettingsHeading title={project.name} description="Changes save automatically." media={<ProjectIcon p={project} size={32} />} />
+
+    <SettingsGroup><SettingsFields>
+      <Field orientation="responsive" data-invalid={error ? true : undefined}>
+        <FieldContent><FieldLabel htmlFor="project-name">Name</FieldLabel>
+          <FieldDescription>Shown in the project sidebar and task menus.</FieldDescription>
+          {error && <FieldError><span data-selectable>{error}</span></FieldError>}
+        </FieldContent>
+        <Input id="project-name" className="min-w-0 @md/field-group:w-64 @md/field-group:min-w-64 @md/field-group:max-w-64" aria-invalid={error ? true : undefined} value={name} maxLength={64} spellCheck={false} onChange={(e) => { setName(e.target.value); setError(''); }} onBlur={() => void save()}
           onKeyDown={(e) => { if (e.key === 'Enter') void save(); }} />
-        {error && <FieldError><span data-selectable>{error}</span></FieldError>}
       </Field>
-      <Field>
-        <FieldLabel htmlFor="project-local-addresses">Local addresses</FieldLabel>
-        <div className="flex flex-col gap-2">
+    </SettingsFields></SettingsGroup>
+
+    <SettingsGroup title="Folders" count={folders.length} description="New tasks start in the default folder."
+      action={add('Add Folder', () => [{ label: 'Add Folder…', run: () => changeFolders(kulisa.invoke('project:folder:add', { id })) },
+        { label: 'Clone from URL…', run: () => { setText(''); setAdding('clone'); } }])}>
+      <Things label="Folders" menu={folderMenu} empty={<Empty><EmptyHeader><EmptyMedia variant="icon"><FolderIcon /></EmptyMedia><EmptyTitle>No folders yet</EmptyTitle><EmptyDescription>Add a local folder or clone a repository to give your agents a place to work.</EmptyDescription></EmptyHeader></Empty>} things={folders.map((f) => ({ key: f.folder, name: base(f.folder), media: <FolderIcon className="size-5" />,
+        description: f.folder, data: { 'data-folder': f.folder },
+        badges: <>{f.folder === folders[0]?.folder && folders.length > 1 && <Badge variant="secondary">Default</Badge>}
+          {f.git !== 'ok' && <Badge variant="outline"><span className="text-warning">{f.git === 'none' ? 'No git' : 'No commit yet'}</span></Badge>}</>,
+        control: account(f) }))} />
+      {adding === 'clone' && <div className="p-3"><AddInPlace label="Repository URL" placeholder="git@github.com:me/shop.git" value={text} onChange={setText} go={() => void clone()} stop={stop}
+        ok={cloning ? 'Cloning…' : 'Clone'} busy={cloning} error={errors.folders || undefined} /></div>}
+      {github?.repos.filter((g) => g.why).map((g) => <Alert key={g.folder}>
+        <AlertDescription><span data-selectable>{base(g.folder)}: {g.why}{g.install && ' Install it, or ask its owner to.'}</span></AlertDescription>
+        {g.install && <AlertAction><Button variant="outline" size="sm" asChild><a href={g.install} target="_blank" rel="noreferrer">Install it on {g.owner}</a></Button></AlertAction>}
+      </Alert>)}
+      {adding !== 'clone' && err(errors.folders)}
+    </SettingsGroup>
+
+    <SettingsGroup title="Agents" count={mine.length} description="Accounts available to work on your tasks."
+      action={add('Add Agent', agentMenu, !!signing || (!addable.length && !s.clis.length))}>
+      <Things label="Agents" menu={agentRowMenu} empty={signing ? undefined : <Empty><EmptyHeader><EmptyMedia variant="icon"><BotIcon /></EmptyMedia><EmptyTitle>No agents added</EmptyTitle><EmptyDescription>Tasks start with a terminal. Add an agent to work with a coding assistant.</EmptyDescription></EmptyHeader></Empty>}
+        things={mine.map((a) => { const Mark = agentMark(a.cli); return { key: a.id, name: a.agent, media: <Mark className="size-6" />,
+          data: { 'data-agent': a.id }, badges: a.default && <Badge variant="secondary">Default</Badge>, description: a.email ?? undefined }; })} />
+      {signing && <SignIn project={id} agent={signing} onClose={() => setSigning(null)}
+        onDone={(r) => { setSigning(null); if (r.agents) patch({ projectAgents: r.agents }); void reload(); }} />}
+      {err(errors.agents)}
+    </SettingsGroup>
+
+    <SettingsGroup title="Profiles" count={profiles.length} description="Browser identities for testing. Sign in once for every task."
+      action={add('Add Profile', profileMenu)}>
+      <Things label="Profiles" menu={(p) => [{ label: 'Remove from the Project…', run: () => removeProfile(p) }]}
+        empty={adding === 'profile' ? undefined : <Empty><EmptyHeader><EmptyMedia variant="icon"><UsersIcon /></EmptyMedia><EmptyTitle>No profiles added</EmptyTitle><EmptyDescription>Add a profile to test your app as a signed-in user.</EmptyDescription></EmptyHeader></Empty>}
+        things={profiles.map((p) => ({ key: p.id, name: p.name, media: <Avatar size="sm"><AvatarImage src={avatarSrc(p.avatar)} alt="" /><AvatarFallback>{p.name.slice(0, 1).toUpperCase()}</AvatarFallback></Avatar>, data: { 'data-profile': p.id },
+          description: [p.description, p.also.length && `also in ${p.also.join(', ')}`].filter(Boolean).join(' · ') || undefined }))} />
+      {adding === 'profile' && <div className="p-3"><AddInPlace label="New profile" placeholder="Its name, e.g. ann@shop.com" value={text} onChange={setText} go={() => void addProfile()}
+        stop={stop} ok="Create" name error={errors.profiles || undefined} /></div>}
+      {adding !== 'profile' && err(errors.profiles)}
+    </SettingsGroup>
+
+    <SettingsGroup label="Local addresses"><SettingsFields>
+      <Field orientation="responsive">
+        <FieldContent>
+          <FieldLabel htmlFor="project-local-addresses">Local addresses</FieldLabel>
+          <FieldDescription>Additional addresses where agents may type saved test users' passwords, besides localhost and your network.</FieldDescription>
+        </FieldContent>
+        <div className="flex min-w-0 flex-col gap-2 @md/field-group:w-64 @md/field-group:min-w-64 @md/field-group:max-w-64">
           {local.length > 0 && <div role="list" aria-label="Local addresses kept" className="flex flex-wrap gap-1.5">
             {local.map((h) => <Badge key={h} role="listitem" variant="secondary">{h}
               <Button variant="ghost" size="icon-xs" className="-me-1 size-4" data-icon="inline-end" aria-label={`Remove ${h}`}
@@ -150,44 +201,9 @@ export function ProjectPage({ id, first, onSaved, saveRef }: { id: string; first
           </div>}
           <Input id="project-local-addresses" value={host} spellCheck={false} placeholder="abc.ngrok.app" onChange={(e) => setHost(e.target.value)} onBlur={addHost}
             onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ' || e.key === ',') { e.preventDefault(); addHost(); } }} />
+          <p className="text-xs text-muted-foreground">Press Enter to add an address.</p>
         </div>
-        <FieldDescription>Where saved test users' passwords may be typed besides localhost and your network</FieldDescription>
       </Field>
-    </FieldGroup></CardContent></Card>
-
-    <Card role="group" aria-label="Folders"><CardHeader><CardTitle>Folders</CardTitle><CardAction>{add('Add Folder', () => [{ label: 'Add Folder…', run: () => changeFolders(kulisa.invoke('project:folder:add', { id })) },
-      { label: 'Clone from URL…', run: () => { setText(''); setAdding('clone'); } }])}</CardAction></CardHeader><CardContent><div className="flex flex-col gap-3">
-      <Things label="Folders" menu={folderMenu} things={folders.map((f) => ({ key: f.folder, name: base(f.folder), media: <FolderIcon className="size-5" />,
-        description: f.folder, data: { 'data-folder': f.folder },
-        badges: <>{f.folder === folders[0]?.folder && folders.length > 1 && <Badge variant="secondary">Default</Badge>}
-          {f.git !== 'ok' && <Badge variant="outline"><span className="text-warning">{f.git === 'none' ? 'No git' : 'No commit yet'}</span></Badge>}</>,
-        control: account(f) }))} />
-      {adding === 'clone' && <AddInPlace label="Repository URL" placeholder="git@github.com:me/shop.git" value={text} onChange={setText} go={() => void clone()} stop={stop}
-        ok={cloning ? 'Cloning…' : 'Clone'} busy={cloning} error={errors.folders || undefined} />}
-      {github?.repos.filter((g) => g.why).map((g) => <Alert key={g.folder}>
-        <AlertDescription><span data-selectable>{base(g.folder)}: {g.why}{g.install && ' Install it, or ask its owner to.'}</span></AlertDescription>
-        {g.install && <AlertAction><Button variant="outline" size="sm" asChild><a href={g.install} target="_blank" rel="noreferrer">Install it on {g.owner}</a></Button></AlertAction>}
-      </Alert>)}
-      {adding !== 'clone' && err(errors.folders)}
-    </div></CardContent></Card>
-
-    <Card role="group" aria-label="Agents"><CardHeader><CardTitle>Agents</CardTitle><CardAction>{add('Add Agent', agentMenu, !!signing || (!addable.length && !s.clis.length))}</CardAction></CardHeader><CardContent><div className="flex flex-col gap-3">
-      <Things label="Agents" menu={agentRowMenu} empty={signing ? undefined : 'No agents: its tasks get the terminal only.'}
-        things={mine.map((a) => { const Mark = agentMark(a.cli); return { key: a.id, name: a.agent, media: <Mark className="size-6" />,
-          data: { 'data-agent': a.id }, badges: a.default && <Badge variant="secondary">Default</Badge>, description: a.email ?? undefined }; })} />
-      {signing && <SignIn project={id} agent={signing} onClose={() => setSigning(null)}
-        onDone={(r) => { setSigning(null); if (r.agents) patch({ projectAgents: r.agents }); void reload(); }} />}
-      {err(errors.agents)}
-    </div></CardContent></Card>
-
-    <Card role="group" aria-label="Profiles"><CardHeader><CardTitle>Profiles</CardTitle><CardAction>{add('Add Profile', profileMenu)}</CardAction></CardHeader><CardContent><div className="flex flex-col gap-3">
-      <Things label="Profiles" menu={(p) => [{ label: 'Remove from the Project…', run: () => removeProfile(p) }]}
-        empty={adding === 'profile' ? undefined : 'No profiles: the browser profiles its tasks test as, signed in once.'}
-        things={profiles.map((p) => ({ key: p.id, name: p.name, media: <Avatar size="sm"><AvatarImage src={avatarSrc(p.avatar)} alt="" /><AvatarFallback>{p.name.slice(0, 1).toUpperCase()}</AvatarFallback></Avatar>, data: { 'data-profile': p.id },
-          description: [p.description, p.also.length && `also in ${p.also.join(', ')}`].filter(Boolean).join(' · ') || undefined }))} />
-      {adding === 'profile' && <AddInPlace label="New profile" placeholder="Its name, e.g. ann@shop.com" value={text} onChange={setText} go={() => void addProfile()}
-        stop={stop} ok="Create" name error={errors.profiles || undefined} />}
-      {adding !== 'profile' && err(errors.profiles)}
-    </div></CardContent></Card>
-  </>;
+    </SettingsFields></SettingsGroup>
+  </div>;
 }

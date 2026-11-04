@@ -30,6 +30,22 @@ The window-wide restriction on toast placement is in [ui.md](../../../../docs/ui
 monospace `role="log"` surfaces; shadcn has no log-view component. Keep their rendering/retention bounded by the
 log and installer owners instead of creating a component per line.
 
+All Settings pages center a column capped at 680 px (the author's choice) within the content area. The log fills
+available height within that width; its filters/actions wrap and the page scrolls when space is limited. Navigation
+collapses to named icons below the small breakpoint. Field controls move below their labels in narrow groups.
+
+`kit.tsx` owns the shared heading, `SettingsGroup` boundary, `SettingsFields` and `Things`. Group headers sit above
+the surface. A wrapper owns the rounded border and clipping because `ItemGroup` has no surface variant. Lists use
+`Item`/`ItemGroup` with `ItemSeparator`s inset 16 px on each side and no inter-row gaps. Field rows use the same
+inset with `Separator`, keeping validation beside its field. Grouped rows paint hover/focus on a square wrapper;
+the outer group clips the first and last rows to its rounded corners. Preserve row actions and keyboard navigation.
+Account configuration details belong to the account's row, with connection controls below the list.
+
+The Settings cover scopes its neutral palette through `#settings` in `window.css`: navigation and canvas share
+one background, with a lighter surface for groups in dark mode. Hover/selection use a brighter tone;
+navigation shares the content's foreground and state tokens. Body and secondary text target WCAG AA contrast
+(at least 4.5:1) on surfaces and hover states. Light mode follows the same roles. Generated controls keep semantic tokens.
+
 ## The code
 
 - `index.ts` is the lazy entry; `Settings.tsx` owns the frame and page lifecycle.

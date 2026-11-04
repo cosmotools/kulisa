@@ -11,6 +11,36 @@
 .dark { --warning: oklch(0.8 0.15 80); --success: oklch(0.72 0.17 150); }
 @theme inline { --color-warning: var(--warning); --color-success: var(--success); }
 
+/* Settings uses a shared canvas and raised groups (components/settings/README.md).
+   Keep these reading surfaces local to the Settings cover. */
+#settings {
+  --background: oklch(0.97 0 0);
+  --sidebar: var(--background);
+  --card: oklch(1 0 0);
+  --foreground: oklch(0.2 0 0);
+  --muted: oklch(0.92 0 0);
+  --muted-foreground: oklch(0.5 0 0);
+  --secondary: var(--muted);
+  --secondary-foreground: var(--foreground);
+  --accent: var(--muted);
+  --accent-foreground: var(--foreground);
+  --ring: var(--muted-foreground);
+  --sidebar-foreground: var(--foreground);
+  --card-foreground: var(--foreground);
+  --sidebar-accent: var(--accent);
+  --sidebar-accent-foreground: var(--accent-foreground);
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--ring);
+}
+.dark #settings {
+  /* Navigation shares the canvas; brighter groups and interaction states keep attention on the settings. */
+  --background: oklch(0.27 0 0);
+  --card: oklch(0.31 0 0);
+  --foreground: oklch(0.94 0 0);
+  --muted: oklch(0.36 0 0);
+  --muted-foreground: oklch(0.77 0 0);
+}
+
 @layer base {
   /* A desktop app, not a web page: the window never scrolls, also not from a script (scrollIntoView); a part scrolls
      inside. Labels and buttons are no text to select, fields are. */

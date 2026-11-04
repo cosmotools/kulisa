@@ -5,6 +5,7 @@ import { useCallback, memo, useEffect, useId, useLayoutEffect, useMemo, useRef, 
 import { ChevronDownIcon, CircleAlertIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button, Input, Label, Switch, ToggleGroup, ToggleGroupItem, Alert, AlertDescription } from '@ui';
+import { SettingsHeading } from './kit';
 import { ButtonMenu } from '../Menus';
 import { Tip } from '../Tip';
 import { refused } from '../../../shared/result';
@@ -119,10 +120,11 @@ export function LogPage() {
   };
 
   return <div className="flex min-h-0 flex-1 flex-col gap-2">
+    <SettingsHeading title="Log" description="Find events, inspect errors and share a report." />
     <div className="flex flex-wrap items-center gap-2">
-      <Input type="search" className="w-64" value={filter} placeholder="Filter: a task, wc=1, [mcp]…" aria-label="Filter" spellCheck={false}
+      <Input type="search" className="min-w-0 flex-1 basis-56" value={filter} placeholder="Filter: a task, wc=1, [mcp]…" aria-label="Filter" spellCheck={false}
         onChange={(e) => setFilter(e.target.value)} />
-      <ToggleGroup type="single" size="sm" aria-label="Show" value={show} onValueChange={(v) => { if (v) setShow(v as Show); }}>
+      <ToggleGroup type="single" size="sm" className="max-w-full flex-wrap" aria-label="Show" value={show} onValueChange={(v) => { if (v) setShow(v as Show); }}>
         {/* the tip on a box around the item: as its trigger, the tooltip's data-state would take the place of the item's */}
         {SHOW.map((s) => <Tip key={s.id} text={s.hint}><span><ToggleGroupItem value={s.id}>{s.label}</ToggleGroupItem></span></Tip>)}
       </ToggleGroup>
@@ -133,7 +135,7 @@ export function LogPage() {
     </div>
     <div ref={box} role="log" aria-label="Log" data-selectable
       onWheel={() => virtualizer.cancelScroll()} onPointerDown={() => virtualizer.cancelScroll()} onKeyDown={() => virtualizer.cancelScroll()}
-      className="min-h-0 flex-1 cursor-text overflow-auto rounded-lg border bg-card px-2 font-mono text-xs leading-5 text-card-foreground [overflow-anchor:none]">
+      className="min-h-56 flex-1 cursor-text overflow-auto rounded-xl border bg-card px-2 font-mono text-xs leading-5 text-card-foreground [overflow-anchor:none]">
       <div ref={virtualizer.containerRef} className="relative w-full">
         {virtualizer.getVirtualItems().map((v) => <div key={v.key} data-index={v.index} ref={virtualizer.measureElement}
           className="absolute left-0 top-0 w-full">
@@ -147,7 +149,7 @@ export function LogPage() {
       passwords, tokens, cookies, the pages' queries.
     </p>
     {error && <Alert variant="destructive"><CircleAlertIcon /><AlertDescription><span data-selectable>{error}</span></AlertDescription></Alert>}
-    <div className="flex items-center justify-end gap-2">
+    <div className="flex flex-wrap items-center justify-end gap-2">
       <Tip text="The whole log, to paste anywhere"><Button variant="outline" onClick={() => void copy()}>Copy All</Button></Tip>
       <Tip text="The log as a file, to attach to a message or an issue"><Button variant="outline" onClick={() => void save()}>Save As…</Button></Tip>
       <Tip text="Its folder in your file manager"><Button variant="outline" onClick={() => void kulisa.invoke('log:show-folder')}>Open Folder</Button></Tip>

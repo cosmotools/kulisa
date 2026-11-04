@@ -1,8 +1,9 @@
 // A profile's page in Settings (docs/profiles.md): each field saved on Enter or leaving it.
 import { useState, type KeyboardEvent } from 'react';
 import { CircleAlertIcon } from 'lucide-react';
-import { Button, Card, CardContent, FieldGroup, Field, FieldContent, FieldDescription, FieldLabel, Input, Popover, PopoverContent, PopoverTrigger, Textarea,
-  ToggleGroup, ToggleGroupItem, Alert, AlertDescription, FieldTitle, CardHeader, CardTitle, FieldError } from '@ui';
+import { Avatar, AvatarImage, AvatarFallback, Button, Field, FieldContent, FieldDescription, FieldLabel, Input, Popover, PopoverContent, PopoverTrigger, Textarea,
+  ToggleGroup, ToggleGroupItem, Alert, AlertDescription, FieldTitle, FieldError } from '@ui';
+import { SettingsHeading, SettingsGroup, SettingsFields } from './kit';
 import { avatarSrc } from '../../lib/common';
 import { AVATARS } from '../../../shared/avatars';
 import { refused, type Result } from '../../../shared/result';
@@ -48,64 +49,69 @@ export function ProfilePage({ profile: p, onChanged }: { profile: SettingsProfil
   const refusal = (field: Part) => at(field) && <Alert variant="destructive"><CircleAlertIcon /><AlertDescription><span data-selectable>{at(field)}</span></AlertDescription></Alert>;
 
   return <>
-    <Card><CardContent><FieldGroup>
+    <SettingsHeading title={p.name} description="Changes save automatically."
+      media={<Avatar><AvatarImage src={avatarSrc(p.avatar)} alt="" /><AvatarFallback>{p.name.slice(0, 1).toUpperCase()}</AvatarFallback></Avatar>} />
+    <SettingsGroup><SettingsFields>
       <Field orientation="horizontal">
-        <FieldLabel>Picture</FieldLabel>
+        <FieldContent><FieldLabel>Picture</FieldLabel><FieldDescription>Recognize this profile in tasks and browser panes.</FieldDescription>{refusal('picture')}</FieldContent>
         <Popover open={picking} onOpenChange={setPicking}>
           {/* named for it and showing it: the tests' handle (its name and its img) */}
           <PopoverTrigger asChild>
             <Button variant="outline" size="icon-lg" aria-label="Picture"><img src={avatarSrc(p.avatar)} alt="" className="size-6" /></Button>
           </PopoverTrigger>
           <PopoverContent align="end" aria-label="Pictures" className="w-auto">
-            {/* in rows: our box inside the group, as a class on it would be a look of our own */}
-            <ToggleGroup type="single" size="lg" aria-label="Pictures" value={p.avatar} onValueChange={(a) => { if (a) void choose(a); }}>
-              <div className="grid grid-cols-8 gap-1">
-                {AVATARS.map((a) => <ToggleGroupItem key={a} value={a} aria-label={a}><img src={avatarSrc(a)} alt="" className="size-6" /></ToggleGroupItem>)}
-              </div>
-            </ToggleGroup>
+            <div className="max-h-[50vh] overflow-auto">
+              <ToggleGroup type="single" size="lg" aria-label="Pictures" value={p.avatar} onValueChange={(a) => { if (a) void choose(a); }}>
+                <div className="grid grid-cols-4 gap-1 sm:grid-cols-8">
+                  {AVATARS.map((a) => <ToggleGroupItem key={a} value={a} aria-label={a}><img src={avatarSrc(a)} alt="" className="size-6" /></ToggleGroupItem>)}
+                </div>
+              </ToggleGroup>
+            </div>
           </PopoverContent>
         </Popover>
       </Field>
-      {refusal('picture')}
-      <Field data-invalid={at('name') ? true : undefined}>
-        <FieldLabel htmlFor="profile-name">Name</FieldLabel>
-        <Input id="profile-name" aria-invalid={at('name') ? true : undefined} value={value('name')} data-name maxLength={64} spellCheck={false} onChange={type('name')} onBlur={rename} onKeyDown={enter(rename)} />
-        {at('name') && <FieldError><span data-selectable>{at('name')}</span></FieldError>}
+      <Field orientation="responsive" data-invalid={at('name') ? true : undefined}>
+        <FieldContent><FieldLabel htmlFor="profile-name">Name</FieldLabel>
+          {at('name') && <FieldError><span data-selectable>{at('name')}</span></FieldError>}
+        </FieldContent>
+        <Input id="profile-name" className="min-w-0 @md/field-group:w-64 @md/field-group:min-w-64 @md/field-group:max-w-64" aria-invalid={at('name') ? true : undefined} value={value('name')} data-name maxLength={64} spellCheck={false} onChange={type('name')} onBlur={rename} onKeyDown={enter(rename)} />
       </Field>
-      <Field data-invalid={at('about') ? true : undefined}>
-        <FieldLabel htmlFor="profile-about">About</FieldLabel>
-        <Textarea id="profile-about" aria-invalid={at('about') ? true : undefined} value={value('about')} rows={2} maxLength={500} placeholder="e.g. seller in the Acme shop; can approve refunds"
+      <Field orientation="responsive" data-invalid={at('about') ? true : undefined}>
+        <FieldContent><FieldLabel htmlFor="profile-about">About</FieldLabel>
+          <FieldDescription>The agent reads it to choose the profile for a task, and asks you when it is empty</FieldDescription>
+          {at('about') && <FieldError><span data-selectable>{at('about')}</span></FieldError>}
+        </FieldContent>
+        <Textarea id="profile-about" className="min-w-0 @md/field-group:w-64 @md/field-group:min-w-64 @md/field-group:max-w-64" aria-invalid={at('about') ? true : undefined} value={value('about')} rows={2} maxLength={500} placeholder="e.g. seller in the Acme shop; can approve refunds"
           onChange={type('about')} onBlur={describe} />
-        <FieldDescription>The agent reads it to choose the profile for a task, and asks you when it is empty</FieldDescription>
-        {at('about') && <FieldError><span data-selectable>{at('about')}</span></FieldError>}
       </Field>
-    </FieldGroup></CardContent></Card>
+    </SettingsFields></SettingsGroup>
 
-    <Card role="group" aria-label="Test user"><CardHeader><CardTitle>Test user</CardTitle></CardHeader><CardContent><div className="flex flex-col gap-3">
-      <Field data-invalid={at('login') ? true : undefined}>
-        <FieldLabel htmlFor="profile-test-login">Test login</FieldLabel>
-        <Input id="profile-test-login" aria-invalid={at('login') ? true : undefined} value={value('login')} maxLength={200} spellCheck={false} autoComplete="off" placeholder="e.g. seller@shop.test"
+    <SettingsGroup title="Test user"><SettingsFields>
+      <Field orientation="responsive" data-invalid={at('login') ? true : undefined}>
+        <FieldContent><FieldLabel htmlFor="profile-test-login">Test login</FieldLabel>
+          <FieldDescription>A test user of your local app (optional)</FieldDescription>
+          {at('login') && <FieldError><span data-selectable>{at('login')}</span></FieldError>}
+        </FieldContent>
+        <Input id="profile-test-login" className="min-w-0 @md/field-group:w-64 @md/field-group:min-w-64 @md/field-group:max-w-64" aria-invalid={at('login') ? true : undefined} value={value('login')} maxLength={200} spellCheck={false} autoComplete="off" placeholder="e.g. seller@shop.test"
           onChange={type('login')} onBlur={saveLogin} onKeyDown={enter(saveLogin)} />
-        <FieldDescription>A test user of your local app (optional)</FieldDescription>
-        {at('login') && <FieldError><span data-selectable>{at('login')}</span></FieldError>}
       </Field>
-      <Field data-invalid={at('password') ? true : undefined}>
-        <FieldLabel htmlFor="profile-test-password">Test password</FieldLabel>
-        <Input id="profile-test-password" aria-invalid={at('password') ? true : undefined} type="password" value={password} maxLength={500} autoComplete="new-password" disabled={!p.login}
+      <Field orientation="responsive" data-invalid={at('password') ? true : undefined}>
+        <FieldContent><FieldLabel htmlFor="profile-test-password">Test password</FieldLabel>
+          <FieldDescription>Kulisa types it itself, on local addresses only; the agent never sees it</FieldDescription>
+          {at('password') && <FieldError><span data-selectable>{at('password')}</span></FieldError>}
+        </FieldContent>
+        <Input id="profile-test-password" className="min-w-0 @md/field-group:w-64 @md/field-group:min-w-64 @md/field-group:max-w-64" aria-invalid={at('password') ? true : undefined} type="password" value={password} maxLength={500} autoComplete="new-password" disabled={!p.login}
           placeholder={p.hasPassword ? 'Kept (type to change it)' : 'Test password'} onChange={(e) => setPassword(e.target.value)} onBlur={savePassword}
           onKeyDown={enter(() => void savePassword())} />
-        <FieldDescription>Kulisa types it itself, on local addresses only; the agent never sees it</FieldDescription>
-        {at('password') && <FieldError><span data-selectable>{at('password')}</span></FieldError>}
       </Field>
-    </div></CardContent></Card>
+    </SettingsFields></SettingsGroup>
 
-    <Card role="group" aria-label="Sign-ins"><CardHeader><CardTitle>Sign-ins</CardTitle></CardHeader><CardContent><div className="flex flex-col gap-3">
-      <Field orientation="horizontal">
-        <FieldContent><FieldLabel>Its sites</FieldLabel><FieldDescription>Signed in to in a window of its own, once for every task of its projects</FieldDescription></FieldContent>
+    <SettingsGroup title="Sign-ins"><SettingsFields>
+      <Field orientation="responsive">
+        <FieldContent><FieldLabel>Its sites</FieldLabel><FieldDescription>Signed in to in a window of its own, once for every task of its projects</FieldDescription>{refusal('signins')}</FieldContent>
         <Button variant="outline" onClick={() => void signIn()}>Sign In…</Button>
       </Field>
-      {refusal('signins')}
       <Field><FieldTitle>Projects</FieldTitle><FieldDescription data-selectable>{p.projects.join(', ') || 'None: add it on a project\'s page'}</FieldDescription></Field>
-    </div></CardContent></Card>
+    </SettingsFields></SettingsGroup>
   </>;
 }

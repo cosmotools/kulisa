@@ -4,9 +4,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { PlusIcon, CircleAlertIcon } from 'lucide-react';
 import { toast } from 'sonner';
-import { Alert, AlertDescription, AlertTitle, Avatar, AvatarFallback, Badge, Button, Card, CardHeader, CardTitle, CardContent, CardAction } from '@ui';
+import { Alert, AlertDescription, AlertTitle, Avatar, AvatarFallback, Badge, Button } from '@ui';
 import { ButtonMenu } from '../Menus';
-import { AddInPlace, Things } from './kit';
+import { AddInPlace, Things, SettingsHeading, SettingsGroup, SettingsDivider } from './kit';
 import type { MenuItem } from '../../lib/menu';
 import { refused } from '../../../shared/result';
 import { NEW_TOKEN, type GitHubAccount, type GitHubInfo } from '../../../github/ipc';
@@ -68,11 +68,12 @@ export function GitHubPage() {
   if (!info) return null;
 
   return <>
+    <SettingsHeading title="GitHub" description="Accounts your agents use to work with project repositories." />
     {!info.kept && <Alert><AlertDescription>
       This computer has no keyring, so sign-ins are not kept: you sign in again after Kulisa restarts.</AlertDescription></Alert>}
 
     {/* never disabled: a new way replaces the one under way */}
-    <Card role="group" aria-label="Accounts"><CardHeader><CardTitle>Accounts</CardTitle><CardAction><ButtonMenu end items={addMenu}><Button variant="outline" size="sm"><PlusIcon data-icon="inline-start" />Add Account</Button></ButtonMenu></CardAction></CardHeader><CardContent><div className="flex flex-col gap-3">
+    <SettingsGroup title="Accounts" count={info.accounts.length} action={<ButtonMenu end items={addMenu}><Button variant="ghost" size="sm"><PlusIcon data-icon="inline-start" />Add Account</Button></ButtonMenu>}>
       <Things label="Accounts" menu={menu} empty="No accounts yet: your agents work on GitHub as one; each repository of a project goes as one of them."
         things={info.accounts.map((a) => ({ key: a.id, name: a.login, data: { 'data-github': a.id },
           media: <Avatar size="sm"><AvatarFallback>{a.login.slice(0, 1).toUpperCase()}</AvatarFallback></Avatar>,
@@ -80,28 +81,32 @@ export function GitHubPage() {
           description: [a.kind === 'pat' ? 'a token' : `Kulisa App on ${installed(a)}`, a.projects.length ? `in ${a.projects.join(', ')}` : 'in no project',
             a.signedIn && (a.ends === null ? 'signed in, no end' : `signed in until ${day(a.ends)}`)].filter(Boolean).join(' · ') }))} />
 
-      {signing && <div role="group" aria-label="Sign in with GitHub">
-        <Alert>
-          <AlertTitle>Sign in with GitHub</AlertTitle>
-          <AlertDescription>
-            <p>Enter this code on GitHub's page, which opened in your browser (<a href={signing.url} target="_blank" rel="noreferrer">open it again</a>):</p>
-            {/* GitHub's code in a monospace font: read and typed without a mistake (0 and O) */}
-            <p data-testid="code" data-selectable className="font-mono text-xl font-semibold text-foreground">{signing.code}</p>
-            <p>Enter a code on GitHub only when Kulisa has just shown it to you: a code someone else gives you signs them in as you.</p>
-            <div className="mt-2 flex gap-2">
-              <Button variant="outline" size="sm" onClick={() => void navigator.clipboard.writeText(signing.code).then(() => toast.success('Copied'))}>Copy</Button>
-              <Button variant="outline" size="sm" onClick={() => void cancelSignin()}>Cancel</Button>
-            </div>
-          </AlertDescription>
-        </Alert>
-      </div>}
+      {(signing || pasting || error) && <>
+        {info.accounts.length > 0 && <SettingsDivider />}
+        <div className="flex flex-col gap-3 p-4">
+          {signing && <div role="group" aria-label="Sign in with GitHub">
+            <Alert>
+              <AlertTitle>Sign in with GitHub</AlertTitle>
+              <AlertDescription>
+                <p>Enter this code on GitHub's page, which opened in your browser (<a href={signing.url} target="_blank" rel="noreferrer">open it again</a>):</p>
+                {/* GitHub's code in a monospace font: read and typed without a mistake (0 and O) */}
+                <p data-testid="code" data-selectable className="font-mono text-xl font-semibold text-foreground">{signing.code}</p>
+                <p>Enter a code on GitHub only when Kulisa has just shown it to you: a code someone else gives you signs them in as you.</p>
+                <div className="mt-2 flex gap-2">
+                  <Button variant="outline" size="sm" onClick={() => void navigator.clipboard.writeText(signing.code).then(() => toast.success('Copied'))}>Copy</Button>
+                  <Button variant="outline" size="sm" onClick={() => void cancelSignin()}>Cancel</Button>
+                </div>
+              </AlertDescription>
+            </Alert>
+          </div>}
 
-      {pasting && <AddInPlace label="Token" type="password" placeholder="github_pat_…" value={token} ok="Add" error={tokenError || undefined}
-        description={<>A fine-grained token: <a href={NEW_TOKEN} target="_blank" rel="noreferrer">make one on GitHub</a>, its resource owner the
-          organization or user of your repositories (an organization may have to approve it), then paste it here.</>}
-        onChange={(v) => { setToken(v); setTokenError(''); }} go={() => void addToken()} stop={() => setPasting(null)} />}
-      {/* a refusal not at the token's field */}
-      {error && <Alert variant="destructive"><CircleAlertIcon /><AlertDescription><span data-selectable>{error}</span></AlertDescription></Alert>}
-    </div></CardContent></Card>
+          {pasting && <AddInPlace label="Token" type="password" placeholder="github_pat_…" value={token} ok="Add" error={tokenError || undefined}
+            description={<>A fine-grained token: <a href={NEW_TOKEN} target="_blank" rel="noreferrer">make one on GitHub</a>, its resource owner the
+              organization or user of your repositories (an organization may have to approve it), then paste it here.</>}
+            onChange={(v) => { setToken(v); setTokenError(''); }} go={() => void addToken()} stop={() => setPasting(null)} />}
+          {/* a refusal not at the token's field */}
+          {error && <Alert variant="destructive"><CircleAlertIcon /><AlertDescription><span data-selectable>{error}</span></AlertDescription></Alert>}
+        </div></>}
+    </SettingsGroup>
   </>;
 }

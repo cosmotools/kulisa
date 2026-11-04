@@ -1,10 +1,11 @@
 // Settings: its nav, and a category's page or one thing's under its path (docs/window.md, Settings).
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { cn } from 'cn';
 import { avatarSrc } from '../../lib/common';
 import { ArrowLeftIcon, BotIcon, EllipsisIcon, GitBranchIcon, InfoIcon, LayoutGridIcon, PlusIcon, ScrollTextIcon, UsersIcon, CircleAlertIcon } from 'lucide-react';
-import { Badge, Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator, Button, Card, CardContent, Sidebar,
+import { Badge, Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator, Button, Sidebar,
   SidebarContent, SidebarGroup, SidebarGroupContent, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, Toaster, Spinner,
-  Alert, AlertDescription, Avatar, AvatarImage, AvatarFallback } from '@ui';
+  Alert, AlertDescription, Avatar, AvatarImage, AvatarFallback, Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from '@ui';
 import { ButtonMenu } from '../Menus';
 import { Tip } from '../Tip';
 import { ProjectPage } from './ProjectPage';
@@ -13,7 +14,7 @@ import { AboutPage } from './AboutPage';
 import { GitHubPage } from './GitHubPage';
 import { LogPage } from './LogPage';
 import { AgentPage } from './AgentPage';
-import { AddInPlace, Things, type Thing } from './kit';
+import { AddInPlace, Things, SettingsHeading, SettingsGroup, type Thing } from './kit';
 import { useChanged } from './changed';
 import { agents as agentList, loadAccounts, useAccounts } from './agents';
 import { useAgentList } from '../../lib/agents';
@@ -153,30 +154,41 @@ export function Settings({ at, className }: { at: SettingsAt; className?: string
   // At its path: one thing's ⋯; a category's button making one of its things (no New Project: docs/window.md).
   const make: ReactNode = one ? <ButtonMenu end items={() => one.menu(one.id)}><Button variant="ghost" size="icon-sm" aria-label="More"><EllipsisIcon /></Button></ButtonMenu>
     : section === 'agents' ? <ButtonMenu end items={newAccount}><Button variant="outline" disabled={!clis.length}><PlusIcon data-icon="inline-start" />New Account</Button></ButtonMenu>
-    : section === 'profiles' ? <Button onClick={() => setNewProfile('')}><PlusIcon data-icon="inline-start" />New Profile</Button> : null;
+    : section === 'profiles' ? <Button variant="outline" onClick={() => setNewProfile('')}><PlusIcon data-icon="inline-start" />New Profile</Button> : null;
 
-  // A category's things, each row going to its page; nothing to say of none, no card.
-  const list = (label: string, things: Omit<Thing, 'open'>[], menu: (id: string) => MenuItem[], empty: ReactNode) => (things.length > 0 || empty) && <Card><CardContent>
+  // Category lists share the same group boundary as detail pages.
+  const list = (label: string, things: Omit<Thing, 'open'>[], menu: (id: string) => MenuItem[], empty: ReactNode) => (things.length > 0 || empty) && <SettingsGroup>
     <Things label={label} menu={menu} empty={empty} things={things.map((t) => ({ ...t, open: () => void show(section, t.key) }))} />
-  </CardContent></Card>;
+  </SettingsGroup>;
 
   const page = (): ReactNode => {
-    if (section === 'projects') return shownProject ? <ProjectPage key={`${shownProject.id}:${shown}`} id={shownProject.id} first={first?.id === shownProject.id ? first.page : undefined} saveRef={save} onSaved={() => void lists()} />
-      : list('Projects', projects.map((p) => ({ key: p.id, name: p.name, media: <ProjectIcon p={p} size={24} />,
-        description: [`${p.folders.length} ${p.folders.length === 1 ? 'folder' : 'folders'}`, `${p.tasks.length} ${p.tasks.length === 1 ? 'task' : 'tasks'}`].join(' · ') })),
-      projectMenu, 'No projects yet.');
+    if (section === 'projects') return shownProject ? <ProjectPage key={`${shownProject.id}:${shown}`} project={shownProject} first={first?.id === shownProject.id ? first.page : undefined} saveRef={save} onSaved={() => void lists()} />
+      : <div className="flex flex-col gap-6">
+        <SettingsHeading title="Projects" description="Manage the folders, agents and browser profiles your tasks use." />
+        <SettingsGroup>
+          <Things label="Projects" menu={projectMenu} things={projects.map((p) => ({ key: p.id, name: p.name,
+            media: <ProjectIcon p={p} size={32} />, description: p.folders.join(' · ') || 'No folders added', open: () => void show('projects', p.id),
+            control: <span className="text-xs whitespace-nowrap text-muted-foreground">{p.folders.length} {p.folders.length === 1 ? 'folder' : 'folders'} · {p.tasks.length} {p.tasks.length === 1 ? 'task' : 'tasks'}</span> }))}
+            empty={<Empty><EmptyHeader><EmptyMedia variant="icon"><LayoutGridIcon /></EmptyMedia><EmptyTitle>No projects yet</EmptyTitle>
+              <EmptyDescription>Create a project from the project sidebar to get started.</EmptyDescription></EmptyHeader></Empty>} />
+        </SettingsGroup>
+      </div>;
     if (section === 'agents') return shownAgent ? <AgentPage key={shownAgent.id} agent={shownAgent} signing={signing === shownAgent.id} onSigning={(on) => setSigning(on ? shownAgent.id : null)} />
-      : list('Agents', agents.map((a) => { const Mark = agentMark(a.id); return { key: a.id, name: a.name, media: <Mark className="size-6" />,
+      : <>
+        <SettingsHeading title="Agents" description="Coding assistants installed on this computer and their connected accounts." />
+        {list('Agents', agents.map((a) => { const Mark = agentMark(a.id); return { key: a.id, name: a.name, media: <Mark className="size-6" />,
         badges: !a.installed && <Badge variant="secondary">Not installed</Badge>,
         description: a.installed ? [a.version, a.path].filter(Boolean).join(' · ') || undefined : a.maker }; }),
-      agentMenu, looking ? <div role="status" className="flex items-center gap-2 text-muted-foreground"><Spinner role={undefined} aria-hidden />Looking for agents on this computer…</div> : 'No agents.');
+      agentMenu, looking ? <div role="status" className="flex items-center gap-2 p-4 text-sm text-muted-foreground"><Spinner role={undefined} aria-hidden />Looking for agents on this computer…</div> : 'No agents.')}
+      </>;
     // Keyed by its id alone: a field being typed in stays as the profile changes (saved, or elsewhere).
     if (section === 'profiles') return shownProfile ? <ProfilePage key={shownProfile.id} profile={shownProfile} onChanged={(r) => { setProfiles(r.profiles); if (r.id) setPlace({ section: 'profiles', id: r.id }); }} />
       : <>
-        {newProfile !== null && <Card><CardContent>
+        <SettingsHeading title="Profiles" description="Browser identities for testing. Sign in once for every task." />
+        {newProfile !== null && <SettingsGroup><div className="p-4">
           <AddInPlace label="New profile" placeholder="Its name, e.g. ann@shop.com" value={newProfile} name ok="Create" error={profilesError || undefined}
             onChange={(v) => { setNewProfile(v); setProfilesError(''); }} go={() => void createProfile()} stop={() => { setNewProfile(null); setProfilesError(''); }} />
-        </CardContent></Card>}
+        </div></SettingsGroup>}
         {newProfile === null && profilesError && <Alert variant="destructive"><CircleAlertIcon /><AlertDescription><span data-selectable>{profilesError}</span></AlertDescription></Alert>}
         {list('Profiles', profiles.map((p) => ({ key: p.id, name: p.name, media: <Avatar size="sm"><AvatarImage src={avatarSrc(p.avatar)} alt="" /><AvatarFallback>{p.name.slice(0, 1).toUpperCase()}</AvatarFallback></Avatar>,
           description: [p.description, p.projects.length ? `in ${p.projects.join(', ')}` : 'in no project'].filter(Boolean).join(' · ') })),
@@ -185,12 +197,12 @@ export function Settings({ at, className }: { at: SettingsAt; className?: string
     return section === 'github' ? <GitHubPage key={shown} /> : section === 'log' ? <LogPage key={shown} /> : <AboutPage key={shown} />;
   };
 
-  // The log as wide and high as the window lets it; the other pages a column from the left, scrolling under the path.
-  const wide = section === 'log';
-  return <div id="settings" className={`flex min-h-0 min-w-0 border-t bg-background ${className ?? ''}`}>
+  // Every page shares a reading column; the log also fills the available height.
+  const log = section === 'log';
+  return <div id="settings" data-section={section} className={`flex min-h-0 min-w-0 border-t bg-background text-foreground ${className ?? ''}`}>
     {/* over the nav's empty foot: at the right the page's buttons are (the log's) */}
     <Toaster theme={shade} position="bottom-left" />
-    <div className="h-full w-60 flex-none border-e">
+    <div className="h-full w-14 flex-none border-e sm:w-60">
       <SidebarProvider className="h-full min-h-0">
         <Sidebar collapsible="none" className="h-full w-full">
           <SidebarHeader>
@@ -199,15 +211,15 @@ export function Settings({ at, className }: { at: SettingsAt; className?: string
               <Tip text="Back (Esc)" side="bottom">
                 <Button variant="ghost" size="icon-sm" aria-label="Back (Esc)" onClick={() => void close()}><ArrowLeftIcon /></Button>
               </Tip>
-              <span className="text-sm font-medium">Settings</span>
+              <span className="hidden text-sm font-medium sm:inline">Settings</span>
             </div>
           </SidebarHeader>
           <SidebarContent>
             <SidebarGroup><SidebarGroupContent>
               <nav aria-label="Settings"><SidebarMenu>
                 {(Object.keys(names) as Section[]).map((k) => { const Icon = icons[k]; return <SidebarMenuItem key={k}>
-                  <SidebarMenuButton data-key={k} isActive={section === k} aria-current={section === k ? 'page' : undefined} onClick={() => void show(k)}>
-                    <Icon />{names[k]}
+                  <SidebarMenuButton data-key={k} aria-label={names[k]} title={names[k]} isActive={section === k} aria-current={section === k ? 'page' : undefined} onClick={() => void show(k)}>
+                    <Icon /><span className="hidden sm:inline">{names[k]}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>; })}
               </SidebarMenu></nav>
@@ -218,21 +230,21 @@ export function Settings({ at, className }: { at: SettingsAt; className?: string
     </div>
 
     <main className="flex min-w-0 flex-1 flex-col">
-      <div className={`flex min-h-12 items-center justify-between gap-3 pt-6 pb-4 ${wide ? 'px-6' : 'max-w-230 px-10'}`}>
-        <Breadcrumb aria-label="Path">
+      <div className="mx-auto flex min-h-12 w-full max-w-180 flex-wrap items-center justify-between gap-3 px-5 pt-6 pb-4">
+        <Breadcrumb aria-label="Path" className="min-w-0 flex-1">
           <BreadcrumbList>
             {one ? <>
               <BreadcrumbItem><BreadcrumbLink href="#" onClick={(e) => { e.preventDefault(); void show(section); }}>{names[section]}</BreadcrumbLink></BreadcrumbItem>
               <BreadcrumbSeparator />
-              <BreadcrumbItem><BreadcrumbPage>{one.name}</BreadcrumbPage></BreadcrumbItem>
+              <BreadcrumbItem className="min-w-0"><BreadcrumbPage className="min-w-0"><span className="block truncate">{one.name}</span></BreadcrumbPage></BreadcrumbItem>
             </> : <BreadcrumbItem><BreadcrumbPage>{names[section]}</BreadcrumbPage></BreadcrumbItem>}
           </BreadcrumbList>
         </Breadcrumb>
         {make}
       </div>
       {/* padding, not a box's width: the page's scrollbar stays at the window's edge */}
-      <div className={`flex min-h-0 flex-1 flex-col overflow-auto pb-6 ${wide ? 'px-6' : 'px-10'}`}>
-        <div className={`flex flex-col gap-4 ${wide ? 'min-h-0 flex-1' : 'w-full max-w-210'}`}>{page()}</div>
+      <div className="flex min-h-0 flex-1 flex-col overflow-auto px-5 pb-6">
+        <div className={cn('@container/settings mx-auto flex w-full max-w-170 flex-col gap-5', log && 'min-h-0 flex-1')}>{page()}</div>
       </div>
     </main>
   </div>;
