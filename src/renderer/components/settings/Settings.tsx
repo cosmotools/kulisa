@@ -233,7 +233,7 @@ export function Settings({ at, className }: { at: SettingsAt; className?: string
       <div className={cn('flex min-h-12 w-full flex-wrap items-center justify-between gap-3 pt-6 pb-4', log ? 'px-6' : 'mx-auto max-w-180 px-5')}>
         <Breadcrumb aria-label="Path" className="min-w-0 flex-1">
           <BreadcrumbList>
-            {one ? <>
+            {log ? <BreadcrumbItem><h1 className="text-xl tracking-tight"><BreadcrumbPage><span className="font-semibold">Log</span></BreadcrumbPage></h1></BreadcrumbItem> : one ? <>
               <BreadcrumbItem><BreadcrumbLink href="#" onClick={(e) => { e.preventDefault(); void show(section); }}>{names[section]}</BreadcrumbLink></BreadcrumbItem>
               <BreadcrumbSeparator />
               <BreadcrumbItem className="min-w-0"><BreadcrumbPage className="min-w-0"><span className="block truncate">{one.name}</span></BreadcrumbPage></BreadcrumbItem>
