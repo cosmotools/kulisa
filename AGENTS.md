@@ -178,6 +178,7 @@ The human watches, signs in and points to page elements with Pick. Tasks let sev
 
 ## Commands and checks
 
+- When writing or changing E2E tests, follow [the E2E rules and harness reference](docs/testing.md#writing-an-e2e-test).
 - **Code intelligence.** Use an available language server for definitions, references and types; check `test/` too.
   Without one, use `rg` to find candidates, then read declarations, imports, re-exports and callers. Text matches
   alone do not establish symbol identity or all references. Validate type-sensitive changes with

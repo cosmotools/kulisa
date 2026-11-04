@@ -1,6 +1,6 @@
 # Testing
 
-Test harness, platform constraints and CI implementation. API references:
+E2E writing rules, test harness, platform constraints and CI implementation. API references:
 [Playwright Test](https://playwright.dev/docs/test-intro) and [node:test](https://nodejs.org/api/test.html).
 
 ## Two layers
@@ -34,6 +34,46 @@ Fixtures and app lifecycle live in `test/e2e/fixtures.ts`:
 - **A failure leaves** the window's picture (pages included), the trace, Kulisa's log and Electron's output; a Kulisa
   that never got ready says why.
 
+### Writing an e2e test
+
+- Check an observable outcome of a human or agent action through window controls or MCP (`call`). Internal calls
+  can prepare unrelated state or cover an integration with no UI; do not bypass the interaction being tested.
+- Use Playwright locator actions and web-first assertions (`toHaveText`, `toBeVisible`, `toHaveAttribute`). Use
+  `evaluate` or custom helpers where those APIs cannot reach, such as the main process, native input or xterm's
+  canvas; explain the boundary rather than recreating an available Playwright action.
+- Prefer role and accessible name, label or text. Use stable IDs or data attributes when needed; avoid Kulisa's
+  styling classes. Check semantic state through ARIA where applicable, otherwise a meaningful `data-*` attribute.
+- Wait for the expected state with web-first assertions or `expect.poll`. Use `toPass` only when repeating its
+  contents is safe. A fixed sleep cannot prove completion and becomes unreliable under load; increasing a timeout
+  needs evidence that the operation legitimately takes longer.
+- Each test creates its prerequisites and passes independently of earlier tests, including after a worker restart.
+  Keep writes under `files.root` (`files.userData`, `files.project` and additional fixture projects). Clean up state
+  such as windows and projects that could affect the next test; restore changed globals and mocks even on failure.
+  The fixture shares an app within a file.
+- Name the behavior and expected outcome. Make failures show the observed state (`termShows`, `termDump` for
+  terminals); keep assertions focused on that behavior rather than duplicating unrelated coverage.
+
+### Using Kulisa's harness
+
+- **Readiness:** after switching tasks, poll the requested task's identity together with `k.settled()` through
+  `core`, then use `notLoading(ui)` for the rendered grid before interacting with its controls. Locator
+  actionability alone does not establish that the requested task has finished loading. Use `focusWindow(core, ui)`
+  before input that depends on the task window having keyboard focus.
+- **Negative checks:** prove the triggering event reached the relevant completion boundary before asserting that
+  nothing changed. Depending on the operation, use `ipcSettled`, `frames`, `seen`, `echoed` or `k.focusDecided` from
+  `helpers.ts` and `driver.ts`. An IPC round trip does not wait for arbitrary asynchronous work; choose the boundary
+  that covers the effect being checked, then inspect the state or relevant log entries.
+- **Time:** `k.clock.hold(from)` holds main-process timeouts of at least `from` milliseconds;
+  `k.clock.advance(ms)` runs due callbacks and `release()` restores real timers. It does not change `Date.now()` or
+  renderer clocks. Use controlled timestamps or a mock released by the test when those are the behavior's inputs,
+  and restore timers in cleanup.
+- **Questions and window closure:** start an operation that asks a question, answer with `answer(page, …)` in the
+  window showing it, then await the operation. Do not await `evaluate` in a window that its script closes: the
+  reply can be lost. Use `closeSettings` and `settingsClosed` for Settings' save, closure and focus boundaries.
+- **Shared helpers:** reuse `helpers.ts` for menu readiness, sidebar navigation and Settings rows, and `driver.ts`
+  for main-process observations. Keep profile-page interaction on the core/proxy/MCP path described above; attach
+  observations before triggering events that could otherwise be missed.
+
 ### On macOS
 
 - The keyboard is the front app's: a click elsewhere during the run fails the focus tests.
@@ -62,6 +102,11 @@ By hand: issue #194.
 
 The CI retries a failure once; a subsequent pass is reported as flaky. A pull-request run stays green after that
 retry, while a develop run reports flakiness as a failure.
+
+Treat a flaky result as evidence to investigate, not proof that a retry fixed it. Use the trace, logs and runner's
+conditions to distinguish an application race from a test synchronization error. Fix the cause rather than hiding
+it with a longer sleep, a skipped scenario or an assertion removed from the behavior under test. Record unresolved
+causes as bug issues; repeated passes can provide evidence but do not establish the cause by themselves.
 
 ## Window captures
 

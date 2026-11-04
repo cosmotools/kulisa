@@ -92,7 +92,8 @@ computer).
 Start with [AGENTS.md](AGENTS.md): the shared rules for Codex and Claude Code, including worktrees, pull requests and
 [development skills](AGENTS.md#development-skills).
 Each directory's `AGENTS.md` holds its local rules; `CLAUDE.md` imports the adjacent file for Claude Code.
-[Testing](docs/testing.md) describes the test harness, code analysis and Claude Code's optional LSP setup and lint hook.
+[Testing](docs/testing.md) covers E2E writing rules, the test harness, code analysis and Claude Code's optional LSP setup
+and lint hook.
 
 ## Code
 
