@@ -216,18 +216,15 @@ close. OS dialogs are reserved for choosing folders; they cannot express Kulisa'
 
 Settings covers the task area below the title bar, preserving the laid-out grid and running work beneath it.
 Each window owns its instance; categories/pages: [tasks.md](tasks.md#projects), [GitHub](../src/github/README.md),
-Log and About below.
+Log and About below. UI ownership, page composition, loading/saving and cross-window updates:
+[Settings UI](../src/renderer/components/settings/README.md).
 
 - Open with gear, contextual settings actions or macOS ⌘,; choose the requested entity or current project. Hide gear
   only when there are no projects/accounts/profiles to edit.
-- Fill page state before revealing it; refresh agent discovery separately. Hide native pages after drawing the
-  cover (`coverPage`), not before. Task changes do not dismiss Settings; questions appear above it.
-- Close with Esc, back arrow or gear after saving fields; layers/fields consume Esc first. Installation prevents
+- Task changes do not dismiss Settings; questions appear above it. Native-page covering follows
+  [the shared layer contract](ui.md#layers-over-the-pages).
+- Close with Esc, back arrow or gear; layers/fields consume Esc first. Installation prevents
   closing. Restore prior keyboard focus.
-- `settings:changed` updates lists across windows without overwriting current edits. New Project remains in the
-  task window and opens its first task.
-- Lazy-load `components/settings/index.ts`; enforce its entry with dependency-cruiser. Loaded code remains in that
-  window's memory, avoiding a separate Settings renderer.
 
 ## The terminal
 

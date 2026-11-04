@@ -1,4 +1,4 @@
-// Shared welcome character (docs/ui.md, Own drawing); its eyes follow the active example’s CSS clock.
+// Shared welcome character (README.md, Demonstrations); its eyes follow the active example’s CSS clock.
 // A curtain-shaped body and two feet give Kulisa its own character without borrowing an agent's brand.
 export function DemoAgent({ className = '' }: { className?: string }) {
   return <svg viewBox="0 0 48 48" fill="none" aria-hidden="true" className={className}>

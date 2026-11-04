@@ -19,45 +19,22 @@ A project configures repositories/folders, agents and profiles, with ordered def
   including page/window exit. Sections add items in place, Esc cancels input; rows share menu/right-click actions.
   Global profile identity belongs to Settings → Profiles, not project membership controls.
 
-**New Project** owns its dialog, shared sequence, steps and draft in `components/new-project/`. Its only external
-entry is `index.tsx`: `NewProject` registers the dialog and `ProjectSetup` embeds creation in the welcome.
-Both own their draft; callers never inspect its state or import step components. `draft.ts` keeps inputs across
-Back/Continue; the bounded body scrolls independently of the footer. The steps are:
+**New Project** uses a dedicated [UI module](../src/renderer/components/new-project/README.md) shared by the welcome
+and dialog. Its steps, draft lifecycle, discovery table and source controls belong there. Onboarding chooses one
+starting account and one source; the core project model continues to support several folders, accounts and profiles.
 
-1. **Agents**: choose one starting account from a table. Ready external configurations appear directly as rows;
-   Use registers/selects that account and proceeds to Code. Each ready account shows its configuration directory.
-   Each provider also has a separate new-configuration row with Connect or Install. All ready rows use the same
-   Use control, whether already registered or detected locally. No local row is shown without an authenticated
-   configuration. One loading state precedes the complete table; native discovery results are committed together.
-   Columns have fixed widths; the table's height follows its rows, with scrolling owned by the step body.
-   More agents and accounts can join the project later.
-   Install missing CLIs with their maker's installer, connect a fresh account, or use an authenticated external setup
-   directly. Installation and completed connections persist globally even when the project draft is cancelled.
-2. **Code**: one new folder, existing disk folder or repository URL. The selected source card contains its fields;
-   new folders and clones expose the folder name, parent location picker and full destination here. A clone suggests
-   its folder name from the URL until the human edits it. Validate the source and destination before proceeding;
-   creation/cloning waits for Create. Do not expose multi-folder management here; a project can acquire more folders
-   through Settings. Existing code stays intact; new folders do not initialize git.
-   Newly named project roots use a portable ASCII subset: 1–64 characters from A–Z, a–z, 0–9, hyphen, underscore and
-   dot, starting with a letter or digit and never ending with a dot (the author's choice). Windows device basenames
-   are rejected even with an extension. `shared/names.ts` owns this check for both the draft and `createProject`;
-   it is separate from profile names, display labels and existing folder paths.
-3. **Start**: every source supplies a readable title-case display name until the human edits it: a new folder uses
-   its folder name, an existing folder its basename, and a clone its repository name. That name is a label, validated
-   independently of the destination's single folder name. Display-name edits never change the destination.
-   Web app / CLI app / Not sure yet changes only
-   the starter guidance shown here, for every source. It neither stores a project type nor limits capabilities,
-   opens environments, sends an agent prompt or requires browser profiles.
+Project display names are labels, validated independently from physical destination names. Newly named project
+roots use 1–64 ASCII characters from A–Z, a–z, 0–9, hyphen, underscore and dot, starting with a letter or digit and
+never ending with a dot (the author's choice). Windows device basenames are rejected even with an extension.
+`shared/names.ts` owns this check for both the draft and `createProject`; profile names and existing paths retain
+their own rules. Existing code stays intact; new folders do not initialize git.
 
-Create calls `createProject` once, then opens its first task with the selected starting account. No profiles or Stage
-terminals are made during onboarding. Core multi-folder creation remains available: multiple clone URLs use
-`<location>/<directoryName>/<repo>`. New and cloned projects require an absent destination, including rejecting
-empty directories. `folderProblem` owns this policy for creation and draft checks; the draft displays its error.
-Creation reserves the destination with an exclusive mkdir after checking it, so a newly appeared directory is
-refused too. Open a folder is the only mode that reuses existing code. Failed clones remove the root created by
-that attempt, including completed repositories from a multi-repository clone.
-Settings retains its own project editor. Failed optional core agent/profile additions are logged without discarding
-an already-created project.
+Core multi-folder creation accepts multiple clone URLs as `<location>/<directoryName>/<repo>`. New and cloned
+projects require an absent destination, including rejecting empty directories. `folderProblem` owns this policy
+for creation and draft checks. Creation reserves the destination with an exclusive mkdir after checking it,
+so a newly appeared directory is refused too. Open a folder is the only mode that reuses existing code. Failed
+clones remove the root created by that attempt, including completed repositories from a multi-repository clone.
+Failed optional core agent/profile additions are logged without discarding an already-created project.
 
 **Project identity** is automatic (`favicons.ts`, `lib/project-color.ts`):
 
@@ -82,16 +59,10 @@ an already-created project.
 Open tasks precede closed tasks; closed tasks sort by closing time and show branch/time. Click/Enter/Space
 shows or reopens; trash/Delete asks before deleting. New Project is at the foot.
 
-**The empty window** docks the sidebar. With no projects, **the welcome** shows one introduction with switchable
-web/CLI examples, then the shared project flow. The web example animates one red character working first in Customer, then Admin,
-linked by the same order, with a continuously typing transcript; its desktop pages scale with CSS. Pause stops the shared cycle; reduced motion shows
-its final result. The CLI example animates a coding agent under development in a Stage terminal, with the
-chosen development CLI below: it launches the app, submits a coding task, watches file edits and checks the output.
-Neither starts an environment.
-Small/short windows omit the illustration and supporting feature row; windows up to 600 CSS px high keep a single
-introduction column at every width. The introduction fits 640 × 400. The flow's
-body scrolls independently of its action footer. Mount its content only while shown; first-start focus goes to
-Create a project, then the Agents step's heading. Back on the first step returns to the introduction. Links/version remain in ☰.
+**The empty window** docks the sidebar. With no projects, **the welcome** introduces Kulisa and embeds project
+creation. Its drawings, responsive layout and lifecycle belong to the
+[welcome UI](../src/renderer/components/welcome/README.md). First-start focus goes to Create a project; Back from
+creation returns to the introduction. Links/version remain in ☰.
 
 **Windows/startup**:
 
@@ -524,7 +495,8 @@ rm -rf ~/.config/Kulisa/projects/<project id>   # all its tasks with their profi
   [Kulisa plugin](../src/kulisa-plugin/README.md); terminal runtime in [terminal](../src/terminal/README.md).
 - `src/main/ipc/`: thin window handles. Resources/File Explorer/Diff use task-scoped actions and resource roots.
 - Renderer task navigation lives in `components/`. `components/welcome/Welcome.tsx` owns the first-start screen,
-  examples and assets; `components/new-project/` owns the whole creation UI and its draft behind `index.tsx`.
+  examples and assets; the [new-project UI module](../src/renderer/components/new-project/README.md) owns creation
+  and its draft behind `index.tsx`.
   Project/account configuration lives in `components/settings/`; shared non-UI coordination in `lib/`.
   `favicons.ts`/`lib/project-color.ts` derive project identity.
 - `src/shared/names.ts`: labels, names and branch slugs. Renderer `task-view/` owns retained screens, grids and activation.

@@ -1,4 +1,4 @@
-// The welcome's coffee-break vignette (docs/ui.md, Own drawing). The upper body pivots at the hips while the
+// The welcome's coffee-break vignette (README.md, Demonstrations). The upper body pivots at the hips while the
 // feet stay on the ottoman; articulated SVG shares the demo clock and its Pause/reduced-motion behavior.
 export function CoffeeBreak() {
   return <svg viewBox="0 0 240 200" fill="none" aria-hidden="true" className="pointer-events-none absolute -bottom-2 -left-46 hidden w-44 overflow-visible text-muted-foreground xl:block [@media(max-height:750px)]:hidden">
