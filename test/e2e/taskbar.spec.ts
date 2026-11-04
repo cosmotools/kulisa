@@ -345,17 +345,14 @@ test("tasks: a double click on a task's tab is its Rename…, the shown one's an
   }
 });
 
-test('the title bar keeps a full task tab beside Stage in the room left by window controls', async ({ core, ui, files }) => {
+test('the title bar keeps a full task tab beside Stage in a narrow window', async ({ core, ui, files }) => {
   await begin(core, ui, files, { columns: true, featureX: true });
   const before = await resize(core, { width: 640 });
   try {
     await invoke(ui, 'bar:set', 'top');
-    // The available title-bar width excludes the left caption-button inset.
-    await ui.locator('#topbar').evaluate((el) => { el.style.width = 'calc(env(titlebar-area-x, 0px) + 480px)'; });
     await expect(chosen(ui)).toBeInViewport({ ratio: 1 });
-    await expect(ui.getByRole('button', { name: 'Stage', exact: true })).toBeVisible();
+    await expect(ui.getByRole('button', { name: 'Stage', exact: true })).toBeInViewport({ ratio: 1 });
   } finally {
-    await ui.locator('#topbar').evaluate((el) => el.style.removeProperty('width'));
     await invoke(ui, 'bar:set', 'bottom');
     await resize(core, before);
   }

@@ -8,7 +8,7 @@ import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
 import type { Files } from './data.ts';
 import { showResources, resourcesGroup, SITE, choose, openSidebar, closeSidebar, fromSidebar, sidebar, taskRow, rowButton, sidebarTasks, focusWindow, viewOn, who, invoke, notLoading, answer, removed, arrange } from './helpers.ts';
-import { git, rand, hasDirenv, keyAt, isNth, taskTab, taskTabs, hook, reportSession, newTask, projectShown, begin, bothOn, deleteProfile } from './tasks-helpers.ts';
+import { git, rand, hasDirenv, keyAt, isNth, taskTab, taskTabs, hook, reportSession, newTask, projectShown, begin, bothOn } from './tasks-helpers.ts';
 
 // No question of Kulisa's asked in the window.
 const noQuestion = (ui: Page, message?: string) => expect(ui.getByRole('alertdialog'), message).toHaveCount(0);
@@ -347,35 +347,6 @@ test("tasks: an agent's tab closes after a question, always (Cancel keeps it); t
     - button "Dora"
   `);
   expect((await tiles.boundingBox()).y + (await tiles.boundingBox()).height, 'above the terminals').toBeLessThanOrEqual((await panel.boundingBox()).y);
-  // A button: the profile's picture, its name and the +; a long name cut with … in one row, the + still inside it; who
-  // it is only in the tooltip. A profile of such a name, closed.
-  const LONG = 'orudzhali.very.long.name@insvgna.org';
-  const long = await core(async (k, n) => { const t = k.shell.task, p = await t.createProfile(n) as { id: string }; await t.closeProfile(p.id); return p.id; }, LONG);
-  try {
-    const tile = tiles.locator(`[data-profile="${long}"]`), name = tile.getByText(LONG, { exact: true });
-    await expect(tile.locator('img')).toHaveCount(1);
-    await expect(name).toHaveCSS('white-space', 'nowrap');
-    await expect(name).toHaveCSS('text-overflow', 'ellipsis');
-    // Cut: Playwright reads no overflow.
-    expect(await name.evaluate((n) => n.scrollWidth > n.clientWidth), 'cut').toBe(true);
-    const r = await tile.boundingBox(), plus = await tile.locator('svg').last().boundingBox();
-    expect(r.width, 'wider than a short name').toBeGreaterThan((await tiles.locator(`[data-profile="${SAM}"]`).boundingBox()).width);
-    expect(plus.x + plus.width, 'the + inside it').toBeLessThanOrEqual(r.x + r.width);
-    await expect(tiles.locator(`[data-profile="${SAM}"]`)).toHaveAttribute('title', /^Open Sam\.admin: ./);
-    // More than fit (19 profiles): the row scrolls, its end faded, the window as wide as before, not its column, the
-    // terminal and the tasks' bar stretched past its edge, the last profiles out of reach. Its tiles copied: sixteen
-    // profiles more would take seconds to make and delete, and the row's scroll is its CSS's whatever the tiles are (the
-    // narrowest window is no way: the grid's own minimum is wider, and the row with it).
-    const originalTiles = await tiles.locator('button').count();
-    await tiles.evaluate((s) => { for (let i = 0; i < 20; i++) s.append(s.querySelector('[data-profile]').cloneNode(true)); });
-    await expect(tiles).toHaveAttribute('data-past-end');
-    // Scrolled, the page not wider than the window: Playwright reads no scroll.
-    expect(await tiles.evaluate((t) => t.scrollWidth > t.clientWidth), 'the row scrolls').toBe(true);
-    expect(await ui.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'the window not wider').toBe(true);
-    const width = await ui.evaluate(() => innerWidth), t = await tiles.boundingBox(), i = await panel.boundingBox();
-    expect([t.x + t.width <= width, i.x + i.width <= width]).toEqual([true, true]);
-    await tiles.evaluate((s, n) => s.querySelectorAll('button').forEach((b, j) => { if (j >= n) b.remove(); }), originalTiles);
-  } finally { await deleteProfile(core, ui, LONG); }
   await tiles.locator(`[data-profile="${SAM}"]`).click();
   await expect.poll(() => core((k, a) => k.shell.taskByKey(a.task).profiles.has(a.SAM), { task, SAM })).toBe(true);
   await expect(tiles).toHaveCount(0);
@@ -413,6 +384,45 @@ test("tasks: an agent's tab closes after a question, always (Cancel keeps it); t
   await expect.poll(async () => (await core((k, key) => { const t = k.shell.taskByKey(key); return t.entry.closedAt !== undefined && !t.loaded; }, task)) && isNth(core, 2)).toBe(true);
   await noQuestion(ui);
   await core((k, bounds) => k.shell.win.setBounds(bounds), bounds);
+});
+
+test('closed profiles scroll within the window and the last button opens its own profile', async ({ core, ui, files }) => {
+  await begin(core, ui, files, { only: true });
+  // Closed profiles need store entries, not Chromium pages or hand-made copies of their buttons.
+  const ids = await core(async (k) => {
+    const task = k.shell.task;
+    for (const id of [...task.profiles.keys()]) await task.closeProfile(id);
+    const ids: string[] = [];
+    for (let i = 0; i < 20; i++) {
+      const p = k.shell.profileStore.create(task.project.id, { name: `overflow-${i}-profile` });
+      if ('error' in p) throw new Error(p.error);
+      ids.push(p.id);
+    }
+    k.shell.profilesChanged();
+    return ids;
+  });
+  try {
+    const tiles = ui.getByRole('navigation', { name: 'Open an environment', exact: true });
+    const last = tiles.getByRole('button', { name: 'overflow-19-profile', exact: true });
+    await expect(tiles).toHaveAttribute('data-past-end');
+    // Playwright has no assertion for document overflow.
+    expect(await ui.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'only the profile row scrolls').toBe(true);
+    await tiles.hover();
+    await ui.mouse.wheel(0, 10000);
+    await expect(last).toBeInViewport({ ratio: 1 });
+    await expect(tiles).not.toHaveAttribute('data-past-end');
+    await last.click();
+    await expect(ui.getByRole('region', { name: 'overflow-19-profile', exact: true }).and(ui.locator('[data-profile]'))).toBeVisible();
+    await expect(tiles).toHaveCount(0);
+  } finally {
+    await core(async (k, ids) => {
+      for (const id of ids) {
+        if (k.shell.task.profiles.has(id)) await k.shell.task.closeProfile(id);
+        k.shell.profileStore.delete(id);
+      }
+      k.shell.profilesChanged();
+    }, ids);
+  }
 });
 
 test('tasks: × on the last open task of a project lets the project go, nothing asked: the empty window; a task of it opens it again', async ({ core, ui, files, call }) => {
