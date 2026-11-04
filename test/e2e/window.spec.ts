@@ -371,9 +371,10 @@ test("one row on top: no menu bar, OS window buttons over the top bar; on macOS 
       const m = k.electron.Menu.getApplicationMenu(), item = m.items[0].submenu.items.find((i) => i.label === 'Settings…');
       return { roles: m.items.map((i) => i.role), accelerator: item?.accelerator };
     })).toEqual({ roles: ['appmenu', 'editmenu', 'windowmenu'], accelerator: 'Command+,' });
-    await core((k) => k.electron.Menu.getApplicationMenu().items[0].submenu.items.find((i) => i.label === 'Settings…').click(undefined, k.shell.win, undefined));
-    await expect((await sui()).getByRole('navigation', { name: 'Settings' })).toBeAttached();
-    await closeSettings(core, ui, sui);
+    try {
+      await core((k) => k.electron.Menu.getApplicationMenu().items[0].submenu.items.find((i) => i.label === 'Settings…').click(undefined, k.shell.win, undefined));
+      await expect((await sui()).getByRole('navigation', { name: 'Settings' })).toBeAttached();
+    } finally { await closeSettings(core, ui, sui); }
   } else expect(await core((k) => k.shell.win.isMenuBarVisible())).toBe(false);
   expect(await ui.evaluate(() => (navigator as any).windowControlsOverlay.visible)).toBe(true);
   const b = await ui.locator('#topbar').boundingBox(), bar = { top: b.y, height: b.height, right: b.x + b.width };
@@ -584,16 +585,10 @@ test("dialogs: shadcn's, in the page only while open, the pages hidden under the
   expect(await core((k) => k.stash.second as Promise<boolean | 'other'>), 'Cancel says no').toBe(false);
 });
 
-test("About Kulisa (☰; on macOS the app menu's) is a page of Settings: the versions, and the folders Kulisa writes in on this computer, each shown in the file manager, one not made yet told so", async ({ core, ui, sui, files }) => {
+test("About Kulisa (☰) is a page of Settings: the versions, and the folders Kulisa writes in on this computer, each shown in the file manager, one not made yet told so", async ({ core, ui, sui, files }) => {
   const pkg = JSON.parse(fs.readFileSync(path.join(CHECKOUT, 'package.json'), 'utf8'));
-  if (MAC) {
-    expect(await core((k) => k.electron.Menu.getApplicationMenu().items[0].submenu.items[0].label), 'first in the app menu, where Mac apps have it').toBe('About Kulisa');
-    await core((k) => k.electron.Menu.getApplicationMenu().items[0].submenu.items[0].click(undefined, k.shell.win, undefined));
-  } else {
-    await ui.locator('#windowMenu').click();
-    await expect(menu(ui)).toBeVisible();
-    await choose(ui, 'About Kulisa');
-  }
+  await ui.locator('#windowMenu').click();
+  await choose(ui, 'About Kulisa');
   const shown = async () => {
     const s = await sui();
     await expect(navRow(s, 'about')).toHaveAttribute('aria-current', 'page');
@@ -628,10 +623,13 @@ test("About Kulisa (☰; on macOS the app menu's) is a page of Settings: the ver
   } finally { await core((k) => { k.electron.shell.openPath = k.stash.openPath; }); }
   expect(await core((k) => k.stash.shownDirs)).toEqual([files.userData]);
   await closeSettings(core, ui, sui);
-  // The main process opens it too (macOS's menu, whichever OS): in the window, at that page.
-  await core((k) => k.shell.openSettings({ section: 'about', id: null }));
-  await shown();
-  await closeSettings(core, ui, sui);
+  if (MAC) {
+    expect(await core((k) => k.electron.Menu.getApplicationMenu().items[0].submenu.items[0].label), 'first in the app menu, where Mac apps have it').toBe('About Kulisa');
+    try {
+      await core((k) => k.electron.Menu.getApplicationMenu().items[0].submenu.items[0].click(undefined, k.shell.win, undefined));
+      await shown();
+    } finally { await closeSettings(core, ui, sui); }
+  }
 });
 
 // The app archive the test's Kulisa watches (app.ts, installed) replaced as apt does: a new one written beside and
