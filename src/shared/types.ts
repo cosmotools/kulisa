@@ -97,6 +97,7 @@ export interface AgentInfo {
   id: string; name: string; maker?: string; needs?: string; site?: string; install?: string | null; installed?: boolean;
   account?: string | null; agent?: string; path?: string | null; onPath?: boolean | null; version?: string | null;
 }
+export interface ListOptions { check?: boolean; details?: boolean; cached?: boolean }
 // About Kulisa (components/settings/AboutPage.tsx): the versions and the folders Kulisa writes in, each with whether it is there yet.
 export type AboutFolder = 'data' | 'projects' | 'program';
 export interface AboutInfo { version: string; electron: string; chrome: string; folders: { id: AboutFolder; path: string; exists: boolean }[] }

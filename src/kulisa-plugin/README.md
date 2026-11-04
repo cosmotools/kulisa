@@ -230,8 +230,8 @@ End-to-end coverage: `test/e2e/agent-*.spec.ts`, `agents-in-a-task.spec.ts`, `ta
 | `src/main/plugin.ts` | implements the contracts from core objects, native browser events, git and task records |
 | `src/main/app.ts` | starts the MCP server and annotations, locates packaged resources, supplies the available agents |
 | `src/main/tasks.ts` | owns terminal sessions, profiles, conversations and the task's files; invokes adapter operations |
-| `src/main/accounts.ts`, `shell.ts` | own account records and the application's agent choices |
-| `src/main/ipc/agents.ts` | supplies the window's agent/account actions and discovery cache |
+| `src/main/accounts.ts` | owns account records, discovery cache, installation and sign-in lifecycle ([tasks](../../docs/tasks.md#choosing-the-agent)) |
+| `src/main/ipc/agents.ts`, `shell.ts` | supply window/project context and the application's agent choices |
 | `src/main/recognizer.ts` | chooses an account for the dictation Kulisa package |
 | `forge.config.ts`, `scripts/version.ts` | build resources and synchronize the app's version |
 | `.dependency-cruiser.ts` | enforces entries, core independence and runtime cycles |

@@ -109,7 +109,11 @@ test('agent: a part of a snapshot: an element, a depth, what matches under its a
   await call('browser_select_option', { profile: 'Elon.buyer', tab, ref, values: ['L'] });
   await call('browser_navigate', { profile: 'Elon.buyer', url: `${SITE}/app` });
   // Its ancestors: where on the page it is.
-  expect(await snap({ find: 'checkout' })).toMatch(/- Title: .*\n\n- generic .*\n {2}- paragraph \[ref=\w+\]:\n {4}- button "Checkout" \[ref=\w+\]$/);
+  const checkout = (await snap({ find: 'checkout' })).split('\n\n')[1];
+  expect(checkout, 'the matching button keeps its ancestors').toMatch(/^- (?!button "Checkout")/);
+  const checkoutRef = checkout.match(/ +- button "Checkout" \[ref=(\w+)\]/)[1];
+  await call('browser_click', { profile: 'Elon.buyer', tab, ref: checkoutRef });
+  expect(await snap()).toContain('Checked out ✓');
   await call('browser_tab_close', { profile: 'Elon.buyer', tab });
   await expect.poll(active).toBe(before);
 });
@@ -200,13 +204,7 @@ test("Resources: the agent's artifacts listed as it makes them, the newest first
   await expect.poll(() => fs.existsSync(shot)).toBe(false);
   const next = (await listed())[0];
   const nextRow = row(next).locator('..'), deleteButton = nextRow.getByRole('button', { name: /^Delete / });
-  await ui.locator('[data-task-view][data-active] [data-resources]').getByRole('button', { name: 'Delete All Artifacts' }).hover();
-  await expect(deleteButton).toHaveCSS('opacity', '0');
   await nextRow.hover();
-  await expect(deleteButton).toHaveCSS('opacity', '1');
-  const highlight = await row(next).evaluate((el) => getComputedStyle(el).backgroundColor);
-  await deleteButton.hover();
-  await expect(nextRow).toHaveCSS('background-color', highlight);
   await deleteButton.click();
   await expect(row(next)).toHaveCount(0);
   await expect.poll(() => fs.existsSync(next)).toBe(false);

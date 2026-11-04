@@ -62,7 +62,7 @@ const PALETTE = String.raw`\b(?:bg|text|border|ring|fill|stroke|outline|from|via
 const COLORS = { selector: `Literal[value=/${PALETTE}/], TemplateElement[value.raw=/${PALETTE}/]`, message: "A color is the theme's (bg-muted, text-destructive), not Tailwind's palette (docs/ui.md)." };
 
 export default tseslint.config(
-  { ignores: ['dist', 'out', '.claude/*', '!.claude/hooks', 'src/preload', 'src/ui/{components,hooks,lib}'] }, // src/ui's: shadcn's CLI's
+  { ignores: ['dist', 'out', '.claude/*', '!.claude/hooks', '.agents/skills/shadcn', 'src/preload', 'src/ui/{components,hooks,lib}'] }, // shadcn's skill examples and generated UI are upstream source
   { files: ['**/*.ts', '**/*.mts', '**/*.tsx'], languageOptions: { parser: tseslint.parser } },
   {
     files: ['**/*.ts', '**/*.mts', '**/*.tsx'],

@@ -60,6 +60,38 @@ function setup(accounts = ['a1'], broken: string[] = [], heard: string[] = []) {
 }
 const held = async (d: Dictation, ms = 500) => { d.key('t', true); await sleep(ms); d.key('t', false); };
 
+test('own dictation repeats its key while held or toggled and stops on release or lost focus', (t) => {
+  t.mock.timers.enable({ apis: ['Date', 'setInterval', 'setTimeout'], now: 1000 });
+  const written: string[] = [], d = new Dictation(() => {});
+  t.after(() => d.close());
+  d.shown('t', { id: 'agent', name: 'Agent', voice: { key: '<v>', repeat: 50 },
+    input: { write: (text) => written.push(text) }, type() {}, erase() {} });
+  d.key('t', true);
+  t.mock.timers.tick(500);
+  assert.deepEqual(written, Array(10).fill('<v>'));
+  d.key('t', false);
+  assert.equal(d.recording('t'), false);
+  t.mock.timers.tick(1000);
+  assert.equal(written.length, 10, 'release stops writing to the agent');
+  assert.equal(d.state('t').state, 'ready');
+
+  d.key('t', true);
+  t.mock.timers.tick(100);
+  d.key('t', false);
+  t.mock.timers.tick(500);
+  assert.equal(d.recording('t'), true, 'a short press records until the next one');
+  d.key('t', true);
+  d.key('t', false);
+  assert.equal(d.recording('t'), false);
+  const before = written.length;
+  t.mock.timers.tick(1000);
+  assert.equal(written.length, before);
+
+  d.key('t', true);
+  d.letGo('t');
+  assert.equal(d.recording('t'), false, 'losing focus ends a held key without its release');
+});
+
 test('dictation: an agent without its own is recognized for by the hidden session: getting ready, then recording once it listens; let go, transcribing until the text it heard goes into that agent\'s input; its input emptied first', async () => {
   const { d, sessions, typed, state } = setup();
   after(() => d.close());

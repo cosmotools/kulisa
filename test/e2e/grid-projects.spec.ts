@@ -352,14 +352,17 @@ test('tasks: Move to New Window puts a task in a window of its own, still runnin
   // macOS: the last window's × hides it, as Mac apps' windows: Kulisa stays in the Dock, its
   // agents go on; a click on the Dock (activate) shows it again as it was. ⌘Q quits (the context menus' test).
   if (MAC) {
-    await core((k) => { k.shell.task.promptTarget().state = 'working'; k.stash.grid.pty = k.shell.task.pty; k.shell.win.close(); });
-    await expect.poll(() => core((k) => !k.shell.win.isVisible())).toBe(true);
-    expect(await core((k, id) => !k.shell.win.isDestroyed() && k.shell.open.has(id) && k.shell.task.pty === k.stash.grid.pty, ids.project),
-      'hidden, its agent goes on').toBe(true);
-    await expect(ui.getByRole('alertdialog'), 'nothing asked').toHaveCount(0);
-    await core((k) => { k.electron.app.emit('activate'); });
-    await expect.poll(() => core((k) => k.shell.win.isVisible())).toBe(true);
-    await core((k) => { k.shell.task.promptTarget().state = null; });
+    try {
+      await core((k) => { k.shell.task.promptTarget().state = 'working'; k.stash.grid.pty = k.shell.task.pty; k.shell.win.close(); });
+      await expect.poll(() => core((k) => !k.shell.win.isVisible())).toBe(true);
+      expect(await core((k, id) => !k.shell.win.isDestroyed() && k.shell.open.has(id) && k.shell.task.pty === k.stash.grid.pty, ids.project),
+        'hidden, its agent goes on').toBe(true);
+      await expect(ui.getByRole('alertdialog'), 'nothing asked').toHaveCount(0);
+      await core((k) => { k.electron.app.emit('activate'); });
+      await expect.poll(() => core((k) => k.shell.win.isVisible())).toBe(true);
+    } finally {
+      await core((k) => { k.shell.task.promptTarget().state = null; if (!k.shell.win.isVisible()) k.electron.app.emit('activate'); });
+    }
     return;
   }
   // The last window's × quits Kulisa (its projects come back at the next start): asked only when an agent works.

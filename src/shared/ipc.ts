@@ -12,7 +12,7 @@ import type { GitHubInvoke } from '../github/ipc.ts';
 import type { DictationEvents, DictationInvoke } from '../dictation/ipc.ts';
 import type {
   AboutFolder, AboutInfo, Artifact, EnvironmentSource, AccountsInfo, AgentInfo, ClosedProfile, LanguageInfo, LogInfo, NewProjectSetup, Profile, ProjectAgent, ProjectChoices, ProjectGitHub, ProjectProfile, ProjectFolder,
-  ProjectSettings, ProjectsInfo, Question, SettingsProfile, Shortcut, SignedIn, DevelopmentTerminalsState, ExistingAgentSetup,
+  ProjectSettings, ProjectsInfo, Question, SettingsProfile, Shortcut, SignedIn, DevelopmentTerminalsState, ExistingAgentSetup, ListOptions,
 } from './types.ts';
 
 // What a message about the shown task's profiles and tabs names (renderer's act: refused when that task is no longer
@@ -103,7 +103,7 @@ export interface Invoke extends TerminalInvoke, ThumbnailInvoke, GitHubInvoke, D
   'task:artifact:drag': I<[{ key: string; file: string }], Result>;
   'task:artifact:delete': I<[{ key: string; files: string[] | null }], Result>; // null: all
   'app:quit': I<[]>;
-  'agent:list': I<[{ check?: boolean; details?: boolean; cached?: boolean }?], { list: AgentInfo[]; home: string } | { list: null }>; // null: not looked for yet (cached)
+  'agent:list': I<[ListOptions?], { list: AgentInfo[]; home: string } | { list: null }>; // null: not looked for yet (cached)
   'agent:install:start': I<[{ id: string }], Result<{ code: number; installed: boolean; log: string }>>; // log: the whole output (the pieces streamed may still be on their way)
   'profile:close': I<[OnProfile]>;
   'profile:open': I<[OnProfile]>;

@@ -60,7 +60,10 @@ test('Kulisa zoom: Ctrl+= outside the pages scales the whole UI, pages follow, p
   // the window was made with, where they would not take a click (docs/window.md, The title bar).
   if (MAC) {
     expect(await core((k) => k.shell.win.getWindowButtonPosition()), '125%: a 55 pt bar').toEqual({ x: 7, y: 21 });
-    expect(await core((k) => { k.shell.setUiZoom(2); const at = k.shell.win.getWindowButtonPosition(); k.shell.setUiZoom(1.25); return at; }),
+    expect(await core((k) => {
+      try { k.shell.setUiZoom(2); return k.shell.win.getWindowButtonPosition(); }
+      finally { k.shell.setUiZoom(1.25); }
+    }),
       '200%: at the bottom of the 44 pt it was made with').toEqual({ x: 7, y: 30 });
   }
   // At most 200% (docs/window.md, Zoom): the window's minimum grows with it, and at 300% passed a laptop's screen.

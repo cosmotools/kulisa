@@ -11,7 +11,7 @@ These integration rules take precedence over generic skill instructions:
 - Run read-only CLI commands from the checkout root with the pinned
   `node node_modules/shadcn/dist/index.js <command>`, including `info --json` and `docs <name>`.
   Do not substitute a freshly downloaded CLI. Generate or update components through the
-  [repository generation workflow](../src/ui/README.md#generation).
+  [repository generation workflow](../src/ui/AGENTS.md#generation).
 - Outside `src/ui`, import only through `@ui`. Registry aliases reported by `info` describe generated internals;
   they do not replace this public entry.
 - Put Kulisa's theme variables in `src/renderer/window.css`. The CLI reports `src/ui/theme.css`, which is generated

@@ -67,7 +67,6 @@ interface Shell {
   firstStart(w: AppWindow): void;
   pointer(): Point;
   windowClosing(w: AppWindow, e: Electron.Event): void;
-  signins: Map<string, Pty>;
   stopAutosave?: () => void;
   discard: Discarder; // tabs no one looks at losing their process (discard.ts)
   screenshot(file: string): Promise<void>;

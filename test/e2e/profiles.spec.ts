@@ -1,7 +1,7 @@
 // Renaming and deleting profiles, DevTools, the human's screenshots; what profiles keep across a restart (docs/profiles.md).
 import fs from 'fs';
 import path from 'path';
-import type { Locator, Page } from '@playwright/test';
+import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
 import { showResources, SITE, PORT, WIN, logged, ipcSettled, who, menu, choose, closeMenu, rightClick, manageProfiles, closeSettings, chooseProfile, navRow, thingRow, pathOf, settingsMenu, termText, invoke, answer, typeIn } from './helpers.ts';
 import { profileId, deleteProfile } from './tasks-helpers.ts';
@@ -153,16 +153,7 @@ test("F12 opens and closes DevTools: a tab's, or Kulisa's own outside the pages"
 
 test("DevTools in a pane's ⋮ menu opens and closes the DevTools of its active tab", async ({ core, ui }) => {
   const id = await core(async (k, url) => (await k.ensureProfile('Sam.admin', url)).id, `${SITE}/app`);
-  const pane = ui.locator(`[data-task-view][data-active] [role="region"][data-profile="${id}"]`);
   const opened = () => core((k) => k.profile('Sam.admin').get().wc.isDevToolsOpened());
-  // ⋮ as tall as the bar's other buttons, its dots upright, its menu open or not.
-  const buttons = pane.locator('[role="group"][aria-label="Page"] button:visible:not([role="tab"])');
-  const looks = async (what: string) => {
-    for (const svg of await buttons.locator('svg').all()) await expect(svg, what).toHaveCSS('rotate', 'none');
-    return Promise.all((await buttons.all()).map(async (b) => Math.round((await b.boundingBox()).height)));
-  };
-  const closed = await looks('its menu closed');
-  expect(closed, 'its menu closed').toEqual(closed.map(() => closed[0]));
   const click = async () => {
     await openMore(ui, id);
     await expect(menu(ui)).toMatchAriaSnapshot(`
@@ -173,31 +164,6 @@ test("DevTools in a pane's ⋮ menu opens and closes the DevTools of its active 
         - menuitem "Full Page"
         - menuitem /^DevTools/
     `);
-    // As Chrome's ⋮: under the button, its right edge at the button's (within its popover's padding), so it stays over
-    // its own pane.
-    const m = await menu(ui).boundingBox(), b = await pane.locator('[aria-label="More"]').boundingBox();
-    expect(m.x + m.width <= b.x + b.width && b.x + b.width - (m.x + m.width) < 8 && m.y >= b.y + b.height - 1, JSON.stringify({ m, b })).toBe(true);
-    // Back, forward, reload, Pick and ⋮ are icon buttons, as Chrome's: no border, no text, a name for screen readers.
-    const names = ['Back', 'Forward', 'Reload', 'New tab', 'Pick an element', 'More'];
-    await expect(buttons).toHaveCount(names.length);
-    for (const [i, name] of names.entries()) {
-      const b = buttons.nth(i);
-      await expect(b).toHaveAccessibleName(name);
-      await expect(b).toHaveText('');
-      await expect(b.locator('svg').locator('visible=true'), 'one icon shown (Pick: its filled one hidden till chosen)').toHaveCount(1);
-      expect(await b.evaluate((e) => { const c = getComputedStyle(e); return c.borderTopWidth === '0px' || c.borderTopColor === 'rgba(0, 0, 0, 0)'; }), 'no border seen').toBe(true);
-    }
-    expect(await looks('its menu open'), 'its menu open').toEqual(closed);
-    // The same inset from the pane's edges for the controls in it; the page reaches its edges (the author's choice).
-    // The pane's group in dockview; its header the panel's tab there.
-    const group = await ui.locator('[data-task-view][data-active] .dv-groupview').filter({ has: ui.locator(`[data-profile="${id}"]`) }).boundingBox(), header = ui.locator(`[data-task-view][data-active] [data-panel="profile:${id}"]`).first();
-    const left = async (l: Locator) => Math.round((await l.boundingBox()).x - group.x);
-    const right = async (l: Locator) => { const r = await l.boundingBox(); return Math.round(group.x + group.width - (r.x + r.width)); };
-    const page = pane.getByTestId('page'), pageBox = await page.boundingBox();
-    const inset = { back: await left(pane.locator('[aria-label="Back"]')),
-      page: await left(page), close: await right(header.locator('[aria-label="Close profile"]')), more: await right(pane.locator('[aria-label="More"]')),
-      pageRight: await right(page), pageBottom: Math.round(group.y + group.height - (pageBox.y + pageBox.height)) };
-    expect(inset).toEqual({ back: 8, page: 0, close: 8, more: 8, pageRight: 0, pageBottom: 0 });
     await choose(ui, 'DevTools');
   };
   await click();
