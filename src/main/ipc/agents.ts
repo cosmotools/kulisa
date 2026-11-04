@@ -1,6 +1,7 @@
 // The windows' handles on the agents and their accounts (docs/tasks.md, Choosing the agent, Accounts): Settings → Agents, a new
 // account's sign-in, Choose the Agent, the installer.
-import { app } from 'electron';
+import { app, shell as electronShell } from 'electron';
+import { existingSetup, connectExisting } from '../agent-connections.ts';
 import { addAgent, deleteAccount } from '../projects.ts';
 import { findAgent, accountEmail, signOut, agentVersion, installLine, installAgent } from '../../kulisa-plugin/main/index.ts';
 import { startTerminal, stopTerminal, forgetTerminal } from '../../terminal/main/index.ts';
@@ -18,11 +19,22 @@ export function registerAgents(ipc: Ipc) {
   const store = shell.store;
   // The accounts (Settings → Agents), each with the projects it is in; clis: the agents an account can be made of.
   const accountsInfo = (): Sent.AccountsInfo => {
-    return { accounts: shell.accounts.all().filter((a) => !a.own).map(({ id, agent, name, email }) => ({ id, agent: agent.id, name, email: email ?? null,
+    return { accounts: shell.accounts.all().filter((a) => !a.own).map(({ id, agent, name, email, origin, dir }) => ({ id, agent: agent.id, name, email: email ?? null, origin: origin!, directory: dir!,
       projects: store.projectsWith('agents', id).map((p) => p.name) })),
     clis: shell.accounts.all().filter((a) => a.own && a.agent.config?.login).map((a) => a.id) };
   };
   handle('account:list', () => accountsInfo());
+  handle('account:existing', (_e, { agent }) => existingSetup(shell, agent));
+  handle('account:connect-existing', (_e, { agent }) => serial(async () => {
+    const r = await connectExisting(shell, agent);
+    return refused(r) ? r : { ...accountsInfo(), ...r };
+  }));
+  handle('account:show-folder', async (_e, { id }) => {
+    const a = shell.accounts.find(id);
+    if (!a?.dir) return { error: 'No configuration directory for this account' };
+    const error = await electronShell.openPath(a.dir);
+    return error ? { error } : {};
+  });
   // Delete Account… (projects.ts: refused while a task runs it, asked first). { accounts, clis } or { error }.
   handle('account:delete', (e, { id }) => serial(async () => {
     const r = await deleteAccount(shell, id, at(e));

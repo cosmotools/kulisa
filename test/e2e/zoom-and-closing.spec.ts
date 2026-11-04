@@ -2,6 +2,7 @@
 // profiles, test users' sign-ins (docs/profiles.md).
 import fs from 'fs';
 import path from 'path';
+import { fakeAgent } from './agent-helpers.ts';
 import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
 import type { Locator } from '@playwright/test';
@@ -89,28 +90,44 @@ test('the window\'s minimum follows the Kulisa zoom; a window at the minimum gro
   // The smallest window has 640×400 for the UI at any zoom: New Project keeps its buttons and Browse… in it, each kind.
   await core((k) => k.shell.win.setSize(800, 500));
   await expect.poll(() => ui.evaluate(() => innerHeight)).toBe(400);
-  // New Project… at the sidebar's foot.
+  // The sequence keeps its footer reachable, including at the minimum logical window size.
+  await fakeAgent(ui, files);
+  const account = await core((k) => {
+    const r = k.shell.accounts.prepare('fake') as { id: string };
+    k.shell.accounts.create(r.id, 'fake', 'layout@shop.com');
+    return r.id;
+  });
   await openSidebar(ui);
   await ui.getByRole('button', { name: 'New Project…' }).click();
   const np = ui.getByRole('dialog', { name: 'New Project' });
+  const next = np.getByRole('button', { name: 'Continue', exact: true });
+  const inside = async (control: Locator) => {
+    const d = await np.boundingBox(), r = await control.boundingBox(), height = await ui.evaluate(() => innerHeight);
+    return r.x + r.width <= d.x + d.width && r.y + r.height <= d.y + d.height && d.y + d.height <= height;
+  };
   await expect(np).toBeVisible();
-  await expect(np.getByRole('textbox', { name: 'Project name', exact: true })).toHaveCount(1);
-  await np.getByRole('button', { name: 'Add folder', exact: true }).click();
-  for (const from of ['New', 'On disk', 'Clone']) {
-    await np.getByRole('tab', { name: from, exact: true }).click();
-    await expect(np.getByRole('tab', { name: from })).toHaveAttribute('aria-selected', 'true');
-    const d = await np.boundingBox(), height = await ui.evaluate(() => innerHeight);
-    const inside = async (b: Locator) => {
-      if (!(await b.count())) return null;
-      const r = await b.boundingBox();
-      return r.x + r.width <= d.x + d.width && r.y + r.height <= d.y + d.height && d.y + d.height <= height;
-    };
-    const browse = np.getByRole('button', { name: from === 'New' ? 'Browse location' : from === 'On disk' ? 'Browse folder' : 'Browse clone location', exact: true });
-    await browse.scrollIntoViewIfNeeded();
-    expect({ create: await inside(np.getByRole('button', { name: 'Create project', exact: true })), browse: await inside(browse) }, from).toEqual({ create: true, browse: true });
+  expect(await inside(next)).toBe(true);
+  await np.getByRole('button', { name: /Use Fake agent · layout@shop.com/ }).click();
+  for (const source of ['Start a new project', 'Open a folder', 'Clone a repository']) {
+    await np.getByRole('radio', { name: new RegExp(source) }).check();
+    expect(await inside(next), source).toBe(true);
+    if (source === 'Open a folder') {
+      const browse = np.getByRole('button', { name: 'Browse folder' });
+      await browse.scrollIntoViewIfNeeded();
+      expect(await inside(browse)).toBe(true);
+    }
   }
+  await np.getByRole('radio', { name: /Start a new project/ }).check();
+  await np.getByRole('textbox', { name: 'Folder name', exact: true }).fill('layout');
+  const browse = np.getByRole('button', { name: 'Browse location' });
+  await browse.scrollIntoViewIfNeeded();
+  expect(await inside(browse)).toBe(true);
+  await next.click();
+  await expect(np.getByRole('heading', { name: 'Layout', exact: true })).toBeVisible();
+  expect(await inside(np.getByRole('button', { name: 'Create project', exact: true }))).toBe(true);
   await np.getByRole('button', { name: 'Close' }).click();
   await expect(np).toHaveCount(0);
+  await core((k, id) => { const a = k.shell.accounts.find(id); k.shell.accounts.drop(id); k.shell.accounts.remove(a.dir); }, account);
   await closeSidebar(ui);
   await core((k, s) => k.shell.win.setSize(s[0], s[1]), size);
   await expect.poll(async () => (await sizes()).size[0] === size[0] && await viewOn(core, ui, files, 'Sam.admin')).toBe(true);

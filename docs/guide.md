@@ -58,7 +58,7 @@ file you downloaded, with GitHub's command-line tool: `gh attestation verify <fi
    On a wide window, a small character relaxes with coffee while the agent works.
    Use **Pause demonstration** to stop the animation. The **CLI app** example shows your agent building and trying a coding agent of your own:
    it launches in another terminal, receives a coding task, edits a file and checks the result. Then choose **Create a project**.
-   The project map brings together your code, agents and options for checking the result. **Create project** opens its first task.
+   Connect an agent, choose where the code comes from and finish the project setup. **Create project** opens its first task.
    Short windows show the introduction and **Create a project**; the animated examples appear when there is room.
 2. **Tell the agent what to do** in the terminal. It can open the browser profiles and interactive terminals it
    needs as you work. You can use them too.
@@ -151,22 +151,32 @@ With no task open, the project sidebar stays docked. With no projects, the welco
 ### New Project
 
 Choose **Create a project** on the welcome, or **New Project…** at the sidebar's foot later. Both show the same
-project map. Its parts stay visible together; you can fill them in any order.
+three steps. **Back** keeps your choices; on the first step of the welcome it returns to the introduction.
 
-- **Your project**: give it a name. A folder or repository you add supplies its name until you choose another.
-- **Repositories & folders**: start in a new folder (by default under home/KulisaProjects), use folders on disk,
-  or clone repositories with your git credentials. **Add repository** opens the clone option; **Add folder** opens
-  the disk option. Switch to **New**, **On disk** or **Clone** within this part. You can add several disk folders or
-  several repository URLs; the first is the default. Existing code is preserved. New folders start without git;
-  ask the agent to initialize it if needed.
-- **Agents**: add an account or select accounts you already have. Adding one installs a missing CLI first; the
-  installer output is under **Details**. Star the agent a new task starts. With none selected, tasks start a shell.
-- **Run & check**: explains browser profiles for web apps and interactive terminals for CLI apps. No testing setup
-  is required before starting. Expand **Set up browser profiles now** if you want to name roles or select existing
-  profiles in advance. Sign in when needed. Terminals are opened in a task.
+1. **Agents — Choose your agent**: after checking the available configurations, the table appears with all choices. Choose one starting
+   agent. Each ready account shows where its configuration is stored.
+   **Use** selects it and takes you to the next step. An existing setup shares login, settings and skills with your
+   other CLI sessions. Each provider has a separate **New configuration** row: **Connect** starts with an empty
+   configuration in Kulisa and opens your browser to sign in; **Install** installs a missing CLI first. Nothing is copied.
+   Without an existing configuration, only the new-configuration row appears. Add more accounts, from the same
+   provider or others, after creating the project. Connected accounts remain available if you cancel creation.
+2. **Code**: start a new project folder, open a folder on disk or clone a repository using your git credentials.
+   The selected option expands to show its fields. For a new project, enter **Folder name** and choose its parent
+   folder in **Create in** with **Browse**. For a clone, enter **Repository URL**; its name suggests the new folder
+   name, which you can change along with the parent folder. Check the full destination before continuing.
+   New folder names use 1–64 characters: A–Z, a–z, 0–9, `-`, `_` and `.`. Start with a letter or digit and do not end
+   with a dot. Windows device names such as `CON` or `NUL.txt` cannot be used. Existing folders keep their names.
+   Folders and clones are created only when you finish setup. Existing code is kept; new folders start without git.
+   New projects and clones require a folder that does not exist yet, even if an existing folder is empty. Choose
+   another folder name or location; use **Open a folder** to work in an existing folder.
+   Start with one folder; add others to the project later, such as a frontend and backend.
+3. **Start**: the chosen folder or repository supplies a readable project name automatically: `my-shop` becomes
+   `My Shop`. Use **Edit name** to change it; the folder's name and location stay as they are.
+   **Web app / CLI app / Not sure yet** offers starting ideas for your first request. Every choice keeps access to
+   browser profiles and interactive terminals. No environment opens automatically and no request is sent for you.
 
-**Create project** checks the map, creates the project and opens its first task. All choices can be changed later
-in Settings. **Back** on the welcome returns to the introduction.
+**Create project** creates the project and opens its first task with the agent you chose. Add browser profiles
+and other folders when you need them. Project setup can be changed later in Settings.
 
 ### A project's page
 
@@ -197,9 +207,19 @@ Everything is saved as you change it; there is no Save button.
 **Settings → Agents** shows supported agents, versions, accounts and Install. Kulisa uses the maker's installer;
 it never removes or updates your CLIs itself.
 
-An **account** is a separate sign-in/configuration for one subscription, so work and personal accounts can run side
-by side. Add through Agents, an agent's page, or a project. Accounts start clean, independent of your CLI settings
-outside Kulisa, and remain until deleted here.
+Each connection uses one configuration of an agent. On its page, **Use existing setup** connects your signed-in
+CLI configuration directly; settings and login are shared with other sessions using it. **Connect** or **Create
+separate setup** starts an empty configuration in Kulisa for an independent work or personal account. Nothing is
+copied. Accounts remain available until you remove them here.
+
+Each account shows **External configuration** or **Created in Kulisa**, its configuration path, **Open Folder** and
+**Copy Path**. The agent's program path is shown separately above. **Disconnect…** leaves an external configuration
+and its sign-in on disk. **Delete…** signs out and removes a configuration created in Kulisa. First close any agent
+terminals using the account, including those in closed tasks. Kulisa keeps external settings and conversation files
+when tasks are deleted; the CLI itself can update them as you work.
+
+Claude's launch command refers to a settings file kept by Kulisa with the task, rather than displaying all its
+integration settings in the terminal. These settings apply to sessions launched by Kulisa.
 
 A task can have several agents/conversations. Use **Change agent…** to hand work over: choose an account, then
 **Hand over**. The next agent reads the conversation while progress is shown; branch, profiles and running shells
@@ -209,8 +229,11 @@ agent to continue another's work directly.
 
 **Dictation**: hold right Ctrl (right ⌘ on macOS), or tap to start/stop. The Resources microphone works the same way.
 Speak after the wave appears; text stays in the agent's input for review before sending. The capsule shows listening,
-elapsed time and transcription. Change the key in Keyboard Shortcuts; language comes from **☰ → Language**.
+elapsed time and transcription. Change the key in Keyboard Shortcuts; language comes from **☰ → Language** for setups created in Kulisa; external setups keep their own language setting.
 With a shell active, dictation brings the agent forward.
+
+For dictation in an agent without its own voice input, connect a separate Claude account in Kulisa if your external
+setup has not trusted Kulisa's dictation folder. Kulisa shows the reason instead of starting a hidden trust prompt.
 
 Claude Code recognizes speech natively. Codex uses a hidden Claude Code recognizer, requiring an installed,
 Claude-subscription account in Settings. First use after a break may show Getting ready for about a second.
@@ -502,8 +525,8 @@ brings it all back: your projects, tasks, profiles with their sign-ins, agents' 
 To remove everything, do it before uninstalling, in Kulisa, so that it cleans up after itself. First note the folders
 in **☰ → About Kulisa** (Settings → About): once the program is gone, nothing shows them. Then delete every project
 (**⋯ → Delete Project…** on its page: its tasks go with it, with their copies of the code and their branches),
-every profile (Settings → Profiles) and every agent's account (Settings → Agents: the account's ⋯ → Delete…, which
-signs it out). Then uninstall the program and delete the data folder (above). What remains and is yours to keep or remove:
+every profile (Settings → Profiles) and every agent connection (Settings → Agents: **Delete…** signs out and removes
+a setup created in Kulisa; **Disconnect…** leaves an external setup and its sign-in alone). Then uninstall the program and delete the data folder (above). What remains and is yours to keep or remove:
 
 - Agents Kulisa installed for you (Claude Code, Codex): programs of your own, updated by their makers. Settings →
   Agents shows where each one is; remove them their way.

@@ -36,7 +36,7 @@ function installSkill(packages: string, folder: string) {
   // Keep one instruction source in Kulisa-owned agent accounts.
   removeTree(path.join(folder, 'kulisa-profiles'));
 }
-// A file of Kulisa's in an agent's folder, written whole only when its text changed (an agent may be reading it).
+// A Kulisa-owned file, written whole only when its text changed (an agent may be reading it).
 function writeChanged(file: string, text: string) {
   let now: string | null = null;
   try { now = fs.readFileSync(file, 'utf8'); } catch {}

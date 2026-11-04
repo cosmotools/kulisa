@@ -12,7 +12,7 @@ import type { GitHubInvoke } from '../github/ipc.ts';
 import type { DictationEvents, DictationInvoke } from '../dictation/ipc.ts';
 import type {
   AboutFolder, AboutInfo, Artifact, EnvironmentSource, AccountsInfo, AgentInfo, ClosedProfile, LanguageInfo, LogInfo, NewProjectSetup, Profile, ProjectAgent, ProjectChoices, ProjectGitHub, ProjectProfile, ProjectFolder,
-  ProjectSettings, ProjectsInfo, Question, SettingsProfile, Shortcut, SignedIn, DevelopmentTerminalsState,
+  ProjectSettings, ProjectsInfo, Question, SettingsProfile, Shortcut, SignedIn, DevelopmentTerminalsState, ExistingAgentSetup,
 } from './types.ts';
 
 // What a message about the shown task's profiles and tabs names (renderer's act: refused when that task is no longer
@@ -43,8 +43,8 @@ export interface Invoke extends TerminalInvoke, ThumbnailInvoke, GitHubInvoke, D
   'project:open': I<[{ folder: string; task?: string } | { id: string; task: string }]>;
   'project:new-defaults': I<[], ProjectChoices & { location: string; sep: string }>;
   'project:pick-location': I<[{ location?: string; existing?: boolean }], string | null>;
-  'project:folder:state': I<[{ from?: string; location?: string; name?: string; folder?: string }], { folder: string; state: string; project?: string } | null>;
-  'project:new': I<[{ from?: string; name?: string; location?: string; folders?: string[]; urls?: string[] } & NewProjectSetup], Result<{ id: string; problems?: string[] }>>;
+  'project:folder:state': I<[{ from?: string; location?: string; name?: string; folder?: string }], { folder: string; state: string; project?: string; error: string | null } | null>;
+  'project:new': I<[{ from?: string; name?: string; directoryName?: string; location?: string; folders?: string[]; urls?: string[] } & NewProjectSetup], Result<{ id: string; problems?: string[] }>>;
   'project:settings:get': I<[{ id: string }], Result<ProjectSettings>>;
   'project:settings:set': I<[{ id: string; name?: string; local?: string[] }], Result<{ id: string }>>;
   'project:profile:new': I<[{ id: string; name?: string }], Result<ProjectProfiles>>;
@@ -65,6 +65,9 @@ export interface Invoke extends TerminalInvoke, ThumbnailInvoke, GitHubInvoke, D
   'project:show-data': I<[{ id: string }]>;
   'project:delete': I<[{ id: string }], Result<{ id: string }>>;
   'account:list': I<[], AccountsInfo>;
+  'account:existing': I<[{ agent: string }], Result<{ setup: ExistingAgentSetup | null }>>;
+  'account:connect-existing': I<[{ agent: string }], Result<AccountsInfo & { connected: string }>>;
+  'account:show-folder': I<[{ id: string }], Result>;
   'account:delete': I<[{ id: string }], Result<AccountsInfo, string | null>>;
   'account:signin:start': I<[{ id?: string | null; agent: string; key: string }], Result<SignedIn, string | null>>; // null: cancelled
   'account:signin:cancel': I<[{ key: string }]>;

@@ -21,7 +21,7 @@ type Pty = IPty & { spawnSize: Size; spawnArgs: string[]; key: string; shell: st
 interface TerminalConfig {
   command?: string | null; args?: string[]; cwd?: string; env?: Record<string, string | undefined>;
   shell?: { command: string; args?: string[] } | false | null; line?: string; execute?: string; size?: Size | null; sizeOf?: string;
-  pinned?: Record<string, string>; screen?: number;
+  pinned?: Record<string, string | undefined>; screen?: number;
 }
 type TerminalOutput = (channel: 'pty:out', data: TerminalEvents['pty:out']) => void;
 interface Term { pty: Pty | null; size: Size | null; firstSize: Promise<void>; sized: () => void; sizeOf?: string; fixed?: Size | null }
@@ -99,7 +99,7 @@ async function startTerminal(send: TerminalOutput, cfg: TerminalConfig, key: str
   if (!cfg.size) await Promise.race([t.firstSize, ...(like ? [like.firstSize] : [])]);
   const { cols, rows } = (t.size || cfg.size || like?.size)!; // one of them: given, or waited for
   const sh = cfg.shell === false ? null : cfg.shell || userShell();
-  const env = { ...process.env, COLORTERM: 'truecolor', ...(cfg.env || {}) };
+  const env = Object.fromEntries(Object.entries({ ...process.env, COLORTERM: 'truecolor', ...(cfg.env || {}) }).filter((entry): entry is [string, string] => entry[1] !== undefined));
   const program = sh ? sh.command : cfg.command || userShell().command;
   const p = pty.spawn(programPath(program, env) || program, sh ? sh.args || [] : cfg.args || [], {
     name: 'xterm-256color', cols, rows, cwd: cfg.cwd || process.cwd(), env,

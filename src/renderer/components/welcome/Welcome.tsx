@@ -1,10 +1,10 @@
 // First-start welcome (docs/tasks.md, The welcome): one introduction with web/CLI examples, then the shared project
-// map. The examples are drawings, not running environments; no hidden browser or terminal processes are started.
+// flow. The examples are drawings, not running environments; no hidden browser or terminal processes are started.
 import { useEffect, useRef, useState } from 'react';
 import { ArrowRightIcon, GitBranchIcon, GlobeIcon, KeyboardIcon, MousePointer2Icon,
   PanelTopIcon, PauseIcon, PlayIcon, SquareTerminalIcon } from 'lucide-react';
 import { Button, Tabs, TabsContent, TabsList, TabsTrigger } from '@ui';
-import { ProjectMap } from '../project-map/ProjectMap';
+import { ProjectFlow } from '../new-project/ProjectFlow';
 import { WebExample } from './WebExample';
 import { CliExample } from './CliExample';
 import { AgentTerminal } from './AgentTerminal';
@@ -74,9 +74,9 @@ export function Welcome() {
     return () => { focusNow = null; };
   }, []);
   return <div id="welcome" className="flex min-h-0 flex-1 flex-col overflow-auto p-6 lg:p-10 [@media(max-height:850px)]:p-6">
-    {draft ? <div className="mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col gap-6">
-      <div><h1 className="text-2xl font-semibold tracking-tight">Make room for your next project</h1><p className="mt-2 text-sm text-muted-foreground">Bring your code, choose an agent. Set up the rest as you work.</p></div>
-      <ProjectMap draft={draft} back={() => setDraft(null)} />
+    {draft ? <div className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col gap-6">
+      <div><h1 className="text-2xl font-semibold tracking-tight">Make room for your next project</h1><p className="mt-2 text-sm text-muted-foreground">Choose an agent, bring your code and start building.</p></div>
+      <ProjectFlow draft={draft} back={() => setDraft(null)} />
     </div> : <div className="grid min-h-0 flex-1 [place-items:safe_center]"><Introduction start={() => setDraft(projectDraft())} button={button} /></div>}
   </div>;
 }

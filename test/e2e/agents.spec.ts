@@ -120,15 +120,15 @@ test('Settings → Agents (not the terminal only): what is installed, installs t
   await expect(thingRow(s, 'shell'), 'not the terminal only: nothing of it to set up').toHaveCount(0);
   await showAgent(s, 'fake');
   await expect(s.getByRole('navigation', { name: 'Path' }).locator('[aria-current="page"]')).toHaveText('Fake agent');
-  const page = agentPage(s, 'fake'), newAccount = page.getByRole('button', { name: 'Add Account', exact: true });
+  const page = agentPage(s, 'fake'), newAccount = page.getByRole('button', { name: 'Connect', exact: true });
   await expect(page.getByText(/^No accounts yet/)).toBeVisible();
-  await expect(newAccount, 'not installed: no account yet').toBeDisabled();
+  await expect(newAccount, 'install before connecting').toHaveCount(0);
   await expect(page.getByRole('status').first()).toHaveText('Not installed');
   await expect(page.getByText(/^Runs Kulisa tests's installer: echo ["']installing the fake agent["']/)).toBeVisible();
   // Installed with its maker's installer; what it said only under Details.
   await page.getByRole('button', { name: 'Install', exact: true }).click();
   await expect(page.getByRole('status').first()).toHaveText('Installed', { timeout: 10000 });
-  await expect(page.getByText(/^Fake agent is installed\. Make an account of it below/)).toBeVisible();
+  await expect(page.getByText(/^Fake agent is installed\. Connect a setup below/)).toBeVisible();
   const details = page.getByRole('button', { name: 'Details' });
   await expect(details, "the installer's own output only under Details").toHaveAttribute('aria-expanded', 'false');
   await details.click();
@@ -387,4 +387,78 @@ test("an account lives until deleted in Settings → Agents: let go by its proje
   await answer(s);
   await expect.poll(async () => !fs.existsSync(accountDir(files, home)) && !(await core((k, id) => !!k.shell.accounts.find(id), home))).toBe(true);
   await closeSettings(core, ui, sui);
+});
+
+test('external setup: native status, direct use, configuration path and disconnect preserve files and login', async ({ core, ui, sui, files }) => {
+  await fakeAgent(ui, files);
+  const external = path.join(files.root, 'external-setup');
+  fs.mkdirSync(external, { recursive: true });
+  fs.writeFileSync(path.join(external, 'account'), 'external@shop.com');
+  fs.writeFileSync(path.join(external, 'settings.json'), '{"language":"French","personal":true}');
+  const previous = await core((k, dir) => {
+    k.stash.externalHome = k.shell.accounts.find('fake').agent.config.home;
+    k.shell.accounts.find('fake').agent.config.home = () => dir;
+    const old = process.env.FAKE_CONFIG_DIR;
+    process.env.FAKE_CONFIG_DIR = dir;
+    return { env: old, language: k.shell.language };
+  }, external);
+  let connected: string | undefined;
+  try {
+    const s = await openAgents(ui, sui);
+    await showAgent(s, 'fake');
+    const page = agentPage(s, 'fake');
+    await page.getByRole('button', { name: 'Use existing setup', exact: true }).click();
+    connected = (await invoke(s, 'account:list')).accounts.find((a: { email: string }) => a.email === 'external@shop.com').id;
+    expect((await invoke(s, 'account:existing', { agent: 'fake' })).setup.account).toBe(connected);
+    const configuration = page.getByRole('group', { name: 'Configuration for external@shop.com' });
+    await expect(configuration).toContainText('External configuration');
+    await expect(configuration).toContainText(external);
+    expect(await core((k, id) => k.shell.agentFor(id).configDir, connected)).toBe(external);
+    await invoke(s, 'language:set', 'ru');
+    expect(fs.readFileSync(path.join(external, 'settings.json'), 'utf8')).toBe('{"language":"French","personal":true}');
+    const recognition = await core((k, id) => {
+      const accounts = k.shell.accounts, all = accounts.all;
+      try {
+        accounts.all = () => all.call(accounts).filter((a) => a.id === id);
+        return k.shell.dictation.hidden.recognizer.available();
+      } finally { accounts.all = all; }
+    }, connected);
+    expect(recognition).toContain('has not trusted');
+    await onRow(s, connected, 'Disconnect…');
+    const question = await answer(s);
+    expect(question.detail).toMatch(/configuration, sign-in and conversations stay/);
+    await expect(thingRow(s, connected)).toHaveCount(0);
+    expect(fs.readFileSync(path.join(external, 'account'), 'utf8')).toBe('external@shop.com');
+    expect(logouts(files)).not.toContain(external);
+    await closeSettings(core, ui, sui);
+  } finally {
+    await core((k, a) => {
+      if (a.id && k.shell.accounts.find(a.id)) k.shell.accounts.drop(a.id);
+      k.shell.accounts.find('fake').agent.config.home = k.stash.externalHome;
+      if (a.previous.env === undefined) delete process.env.FAKE_CONFIG_DIR; else process.env.FAKE_CONFIG_DIR = a.previous.env;
+      k.shell.setLanguage(a.previous.language);
+    }, { id: connected, previous });
+    fs.rmSync(external, { recursive: true, force: true });
+  }
+});
+
+test('existing setup cannot reference Kulisa-managed storage through a directory alias', async ({ core, ui, files }) => {
+  const managed = path.join(files.userData, 'agents', 'unfinished-setup'), alias = path.join(files.root, 'managed-alias');
+  fs.mkdirSync(managed, { recursive: true });
+  fs.symlinkSync(managed, alias, WIN ? 'junction' : 'dir');
+  await core((k, dir) => {
+    const config = k.shell.accounts.find('fake').agent.config;
+    k.stash.aliasHome = config.home;
+    config.home = () => dir;
+  }, alias);
+  try {
+    for (const channel of ['account:existing', 'account:connect-existing'] as const) {
+      expect((await invoke(ui, channel, { agent: 'fake' })).error).toContain('managed by Kulisa');
+    }
+    expect(fs.existsSync(managed)).toBe(true);
+  } finally {
+    await core((k) => { k.shell.accounts.find('fake').agent.config.home = k.stash.aliasHome; });
+    fs.rmSync(alias, { recursive: true, force: true });
+    fs.rmSync(managed, { recursive: true, force: true });
+  }
 });

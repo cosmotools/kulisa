@@ -81,9 +81,9 @@ const config: IConfiguration = {
     { name: 'welcome-entry', severity: 'error', comment: 'The welcome owns its examples, animations and assets; outside callers use Welcome.tsx.',
       from: { pathNot: '^src/renderer/components/welcome/' },
       to: { path: '^src/renderer/components/welcome/', pathNot: '^src/renderer/components/welcome/Welcome\\.tsx$' } },
-    { name: 'project-map-entry', severity: 'error', comment: 'Welcome and New Project share the form through ProjectMap.tsx.',
-      from: { pathNot: '^src/renderer/components/project-map/' },
-      to: { path: '^src/renderer/components/project-map/', pathNot: '^src/renderer/components/project-map/ProjectMap\\.tsx$' } },
+    { name: 'new-project-entry', severity: 'error', comment: 'Welcome and New Project share the sequence through ProjectFlow.tsx.',
+      from: { pathNot: '^src/renderer/components/new-project/' },
+      to: { path: '^src/renderer/components/new-project/', pathNot: '^src/renderer/components/new-project/ProjectFlow\\.tsx$' } },
     // Settings is the window's chunk of its own, read as it is first shown (App.tsx): a static import pulls it into the
     // window's bundle.
     { name: 'settings-entry', severity: 'error', comment: 'components/settings/ is reached from outside only by import() of its index.ts.',

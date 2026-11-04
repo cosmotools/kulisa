@@ -154,7 +154,7 @@ terminal colors. Main updates native background/button colors.
 ## Language
 
 ☰ → Language selects one saved language for agent speech/answers, English default. Show supported settings in their
-native names, system language first. Sync each eligible account on change and launch, never the human's config.
+native names, system language first. Sync accounts created in Kulisa on change and launch; external connections retain their own language settings.
 Adapters own the setting; unsupported agents such as Codex stay unchanged and are named in the tooltip.
 
 Claude reads `settings.json.language` live; it governs speech/answers and can affect comments. Project instructions

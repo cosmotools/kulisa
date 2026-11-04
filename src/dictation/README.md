@@ -20,6 +20,8 @@ Failures fall through to the next account/method and are logged without dictated
 
 `main/hidden.ts` runs a caller-supplied `Recognizer`; it knows no agent names. Core chooses the first eligible
 account in Settings order (Claude.ai-authenticated Claude Code supports recognition for Codex).
+External configurations are eligible only if they already trust the recognizer's folder. Core reports missing
+trust without starting an invisible prompt; it never grants trust or cleans external account files.
 
 - One node-pty session for Kulisa, started on first dictation; a headless xterm reads readiness/live words. Release
   after ten idle minutes, freeing about 190 MB. All windows/tasks share it and Kulisa's recognition language.
@@ -33,8 +35,8 @@ account in Settings order (Claude.ai-authenticated Claude Code supports recognit
   After short dictation (under three words), submit explicitly if no hook arrives within a second.
 - Fail over if launch fails, no prompt appears in 15 s, or listening does not begin in 5 s. With no account left,
   disable until the idle timeout permits retry.
-- Store the hidden session in the data folder's `dictation/`; remove its folder, conversation and trust after exit
-  or quit, and at next startup after a crash.
+- Store the hidden session in the data folder's `dictation/`; remove its folder after exit or quit, and at next
+  startup after a crash. Core removes conversation and trust only from Kulisa-owned configurations.
 
 ## The microphone
 

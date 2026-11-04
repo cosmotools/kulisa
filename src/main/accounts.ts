@@ -1,15 +1,5 @@
-// The agents' accounts, one store as the profiles' (tasks.md, "Choosing the agent", Accounts): an account is an agent
-// CLI with a config folder of its own, where it keeps its sign-in, settings and conversations, given to it by its
-// variable (agents/, config: CLAUDE_CONFIG_DIR, CODEX_HOME), so one human can use a work and a personal Claude side
-// by side. Each is made with the agent's own sign-in, as /login (app.ts), in Settings → Agents or in a project, and
-// listed in the projects that have it (projects.json's agents: store.ts). It stays when its last project lets it go (a sign-in is the human's, made again
-// only by signing in again): it goes only when the human deletes it (Settings → Agents, Delete
-// Account…). Its id is six random characters, as a project's, and its folder its agent's and its id
-// (agents/claude-k3x9ab/), never renamed: Claude Code names its macOS Keychain entry after a hash of the folder's path,
-// so a folder renamed after the sign-in would lose it; the email it signed in to is kept here and shown. The human's own folder (~/.claude, ~/.codex) is no account: every one is made in Kulisa, each a clean
-// agent. An agent without accounts (the terminal only) is chosen as itself. Plain Node (no Electron): unit-tested.
-//   agents.json          { list: [{ id, agent, email }] }
-//   agents/<agent>-<id>/ an account's config folder
+// Agent connections and configuration ownership (docs/tasks.md, Accounts). Old records without an origin are
+// Kulisa-owned. External records reference the original directory; forgetting one never owns its files or login.
 import fs from 'fs';
 import path from 'path';
 import { removeTree } from './remove.ts';
@@ -18,10 +8,10 @@ import { writeFileAtomic } from './files.ts';
 import { log, shortEmail } from './log.ts';
 import type { Agent } from '../kulisa-plugin/main/index.ts';
 
-interface Stored { id: string; agent: string; email: string | null }
+interface Stored { id: string; agent: string; email: string | null; origin?: 'kulisa' | 'external'; directory?: string; defaultConfig?: boolean }
 // An agent itself (own) or one of its accounts, as all() lists them.
 interface Account {
-  id: string; agent: Agent; name: string; dir: string | null; own: boolean; choosable: boolean; email?: string | null;
+  id: string; agent: Agent; name: string; dir: string | null; own: boolean; choosable: boolean; email?: string | null; origin: 'kulisa' | 'external' | null; defaultConfig?: boolean;
 }
 
 class Accounts {
@@ -41,9 +31,9 @@ class Accounts {
   all(): Account[] {
     const stored = this.stored();
     return this.agents.flatMap((a) => [
-      { id: a.id, agent: a, name: a.name, dir: null as string | null, own: true, choosable: !a.config },
+      { id: a.id, agent: a, name: a.name, dir: null as string | null, own: true, origin: null as Account['origin'], choosable: !a.config },
       ...stored.filter((x) => x.agent === a.id).map((x) => ({ id: x.id, agent: a, name: `${a.name} · ${x.email || x.id}`, email: x.email,
-        dir: this.folderOf(x), own: false, choosable: true })),
+        dir: x.origin === 'external' ? x.directory! : this.folderOf(x), origin: x.origin ?? 'kulisa', defaultConfig: x.defaultConfig, own: false, choosable: true })),
     ]);
   }
   // The agents and accounts a task or a project may run.
@@ -54,8 +44,8 @@ class Accounts {
     const x = this.find(id);
     return !x ? id : x.own ? x.agent.name : `${id} (${x.agent.name}${x.email ? `, ${shortEmail(x.email)}` : ''})`;
   }
-  // The stored one of an agent signed in to this email, if any.
-  byEmail(agentId: string, email: string | null) { return (email && this.all().find((x) => !x.own && x.agent.id === agentId && x.email === email)) || null; }
+  // Native fresh sign-in reuses only an owned account of this email; external configurations remain independent.
+  byEmail(agentId: string, email: string | null) { return (email && this.all().find((x) => !x.own && x.agent.id === agentId && x.email === email && x.origin === 'kulisa')) || null; }
   // Before a sign-in: the folder a new account of the agent gets, empty, its id random: one no account has and no folder
   // has (a removed account's folder may wait for the next start to go, and a new one must not find it). { id, dir } or
   // { error }.
@@ -72,9 +62,23 @@ class Accounts {
   // Signed in (email: as its status says it, or null when it does not say): stored; a project it was made in lists it
   // (projects.ts, addAgent).
   create(id: string, agentId: string, email: string | null) {
-    this.save([...this.stored().filter((x) => x.id !== id), { id, agent: agentId, email: email || null }]);
+    this.save([...this.stored().filter((x) => x.id !== id), { id, agent: agentId, email: email || null, origin: 'kulisa' }]);
     log.info(`[accounts] made ${this.label(id)}`);
     return this.find(id);
+  }
+  connectionAt(agentId: string, directory: string, defaultConfig: boolean) {
+    const canonical = (dir: string) => { try { return fs.realpathSync(dir); } catch { return path.resolve(dir); } };
+    return this.all().find((a) => !a.own && a.agent.id === agentId && a.dir && canonical(a.dir) === canonical(directory) && (a.origin === 'kulisa' || !!a.defaultConfig === defaultConfig));
+  }
+  // Native status was checked by the core before registering a reference. Same directory/mode is one connection,
+  // even through a symlink. The core excludes the managed storage namespace before allowing an external reference.
+  connect(agentId: string, directory: string, email: string | null, defaultConfig = false) {
+    const same = this.connectionAt(agentId, directory, defaultConfig);
+    if (same) return same;
+    const id = newId((v) => !!this.find(v) || fs.existsSync(this.folderOf({ agent: agentId, id: v })));
+    this.save([...this.stored(), { id, agent: agentId, email, origin: 'external', directory, defaultConfig }]);
+    log.info(`[accounts] connected external ${this.label(id)}`);
+    return this.find(id)!;
   }
   // Deleted by the human: out of the store (its folder: remove, once its agent signed out of it).
   drop(id: string) {
@@ -89,7 +93,7 @@ class Accounts {
   // At start: what no account stores goes: a folder of a sign-in that did not end (Kulisa quit meanwhile), and the
   // accounts of the format before (accounts.json, named by hand; no migration: old data is deleted).
   clean() {
-    const keep = new Set(this.stored().map((x) => path.basename(this.folderOf(x))));
+    const keep = new Set(this.stored().filter((x) => x.origin !== 'external').map((x) => path.basename(this.folderOf(x))));
     fs.rmSync(path.join(this.dir, 'accounts.json'), { force: true });
     let folders: string[] = [];
     try { folders = fs.readdirSync(path.join(this.dir, 'agents')); } catch {}

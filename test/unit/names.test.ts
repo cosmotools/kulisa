@@ -1,8 +1,8 @@
 // The rules for names (names.ts): the characters of an email address, letters of any language; a task's, a label;
-// slugs for ids.
+// slugs for ids, and portable names for new project folders.
 import { test } from 'node:test';
 import assert from 'assert/strict';
-import { nameError, labelError, slugOf } from '../../src/shared/names.ts';
+import { nameError, folderNameError, labelError, slugOf } from '../../src/shared/names.ts';
 import { isLocal, loginAllowed } from '../../src/main/local.ts';
 
 test("names: the characters of an email address, letters of any language; a task's, any one line with a letter or a digit", () => {
@@ -12,6 +12,19 @@ test("names: the characters of an email address, letters of any language; a task
   for (const bad of ['', '--', '…', 'a\nb', 'a\tb', 'x'.repeat(65)]) assert.ok(labelError(bad), bad);
   assert.equal(slugOf('Fix header', 'p'), 'fix-header');
   assert.equal(slugOf('花子@Shop.com', 'p'), '花子-shop-com');
+});
+
+test('new project folders: portable ASCII names, including dots, without Windows device names or path traversal', () => {
+  for (const ok of ['shop.v2', 'My-Project_2026', '1', 'con-tools', 'null', 'report.con', 'x'.repeat(64)])
+    assert.equal(folderNameError(ok), null, ok);
+  for (const bad of ['', '.hidden', '-option', '_tools', '.', '..', '../shop', 'a/b', 'a\\b', 'shop.', 'shop ',
+    'my shop', 'shop@home', 'shop+tools', 'Магазин', '花子', 'x\ny', 'x\n', 'x\r', 'x\0y', 'x'.repeat(65)])
+    assert.ok(folderNameError(bad), bad);
+  for (const device of ['CON', 'PRN', 'AUX', 'NUL', ...Array.from({ length: 9 }, (_, i) => [`COM${i + 1}`, `LPT${i + 1}`]).flat()]) {
+    assert.ok(folderNameError(device), device);
+    assert.ok(folderNameError(`${device.toLowerCase()}.v2`), `${device}.v2`);
+  }
+  assert.equal(labelError('Мой магазин (v2)'), null, 'display names keep their own rules');
 });
 
 test('local addresses: a pair is typed on the developer\'s own machine or network, or a page a local one led to, never on a big provider', () => {
