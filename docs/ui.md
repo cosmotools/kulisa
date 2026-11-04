@@ -35,14 +35,9 @@ region wrappers.
 
 ## shadcn in Kulisa
 
-The upstream `shadcn` skill supplies component patterns. Kulisa's rules here take precedence:
-
-- Use the pinned CLI for read-only commands: `node node_modules/shadcn/dist/index.js <command>` in place of
-  `npx shadcn@latest`. Configuration is in `components.json`; imports outside `src/ui` go through `@ui`.
-- Generate components and theme through `npm run ui` (adding components below), as
-  [src/ui/README.md](../src/ui/README.md) describes. Keep generated source unchanged instead of applying the skill's
-  manual edits or smart merges. Kulisa's theme overrides belong in `src/renderer/window.css`.
-- Preserve the native-page layer, tooltip, menu and scrolling rules below when composing upstream components.
+Use the upstream `shadcn` skill for component patterns; Kulisa's generation and native-page rules here take precedence.
+Run read-only CLI commands with the pinned `node node_modules/shadcn/dist/index.js <command>`.
+Imports outside `src/ui` go through `@ui`; Kulisa's theme variables live in `src/renderer/window.css`.
 
 - Use shadcn neutral, bundled Geist and JetBrains Mono. `.dark` controls window theme; `public/theme.js` applies it
   before paint, `lib/theme.ts` updates it. Native drawings read `termStyle()`.

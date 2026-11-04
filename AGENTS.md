@@ -37,12 +37,11 @@ The human watches, signs in and points to page elements with Pick. Tasks let sev
 ### Development skills
 
 - Development skills live in `.agents/skills/`, with Claude Code entrypoints in `.claude/skills/`.
-- Install third-party skills with Skills CLI (`npx skills add <source> --skill <name> --agent codex claude-code -y`);
-  keep their records in `skills-lock.json` and ignore installed directories and links in `.gitignore`.
+- Use `find-skills` for skill discovery and installation. Install third-party development skills locally for Codex
+  and Claude Code; keep their records in `skills-lock.json` and ignore installed directories and links in `.gitignore`.
   Keep downloaded skills unchanged; put project-specific rules in this file or the owning doc.
 - Run `npx skills experimental_install` from the checkout root to restore third-party skills from `skills-lock.json`.
-- For Claude Code, run `npx skills add pierrecomputer/pierre --skill diffs trees --agent claude-code` to create its skill links.
-- Run `npx skills add shadcn-ui/ui --skill shadcn --agent codex claude-code -y` to install shadcn or restore its agent links.
+- Restore Claude Code's skill links with Skills CLI, using the sources and skill names in `skills-lock.json`.
 
 ### Sessions on different OSes
 
