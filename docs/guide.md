@@ -75,7 +75,8 @@ red logo. The menu includes zoom, theme,
 language, task-bar position, shortcuts, help and About. Settings saves as you edit; close it with Esc, its back
 arrow or the gear. Your task keeps running underneath.
 
-Settings pages share a narrow, centered column. Lists and fields sit in rounded, bordered groups with separators
+Settings pages share a narrow, centered column; Log fills the available area beside the menu.
+Lists and fields sit in rounded, bordered groups with separators
 inset from both edges. Highlighted rows have straight inner edges and follow the group's outer corners.
 In dark mode, the left menu and page share one gray background, with lighter groups. In a small window or at a
 large zoom, the menu shows icons and fields stack vertically.

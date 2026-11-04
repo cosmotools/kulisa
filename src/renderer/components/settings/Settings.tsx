@@ -197,7 +197,7 @@ export function Settings({ at, className }: { at: SettingsAt; className?: string
     return section === 'github' ? <GitHubPage key={shown} /> : section === 'log' ? <LogPage key={shown} /> : <AboutPage key={shown} />;
   };
 
-  // Every page shares a reading column; the log also fills the available height.
+  // The log fills the available area; the other pages share a reading column.
   const log = section === 'log';
   return <div id="settings" data-section={section} className={`flex min-h-0 min-w-0 border-t bg-background text-foreground ${className ?? ''}`}>
     {/* over the nav's empty foot: at the right the page's buttons are (the log's) */}
@@ -230,7 +230,7 @@ export function Settings({ at, className }: { at: SettingsAt; className?: string
     </div>
 
     <main className="flex min-w-0 flex-1 flex-col">
-      <div className="mx-auto flex min-h-12 w-full max-w-180 flex-wrap items-center justify-between gap-3 px-5 pt-6 pb-4">
+      <div className={cn('flex min-h-12 w-full flex-wrap items-center justify-between gap-3 pt-6 pb-4', log ? 'px-6' : 'mx-auto max-w-180 px-5')}>
         <Breadcrumb aria-label="Path" className="min-w-0 flex-1">
           <BreadcrumbList>
             {one ? <>
@@ -243,8 +243,8 @@ export function Settings({ at, className }: { at: SettingsAt; className?: string
         {make}
       </div>
       {/* padding, not a box's width: the page's scrollbar stays at the window's edge */}
-      <div className="flex min-h-0 flex-1 flex-col overflow-auto px-5 pb-6">
-        <div className={cn('@container/settings mx-auto flex w-full max-w-170 flex-col gap-5', log && 'min-h-0 flex-1')}>{page()}</div>
+      <div className={cn('flex min-h-0 flex-1 flex-col overflow-auto pb-6', log ? 'px-6' : 'px-5')}>
+        <div className={cn('@container/settings flex w-full flex-col gap-5', log ? 'min-h-0 flex-1' : 'mx-auto max-w-170')}>{page()}</div>
       </div>
     </main>
   </div>;

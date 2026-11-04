@@ -5,7 +5,6 @@ import { useCallback, memo, useEffect, useId, useLayoutEffect, useMemo, useRef, 
 import { ChevronDownIcon, CircleAlertIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button, Input, Label, Switch, ToggleGroup, ToggleGroupItem, Alert, AlertDescription } from '@ui';
-import { SettingsHeading } from './kit';
 import { ButtonMenu } from '../Menus';
 import { Tip } from '../Tip';
 import { refused } from '../../../shared/result';
@@ -120,9 +119,8 @@ export function LogPage() {
   };
 
   return <div className="flex min-h-0 flex-1 flex-col gap-2">
-    <SettingsHeading title="Log" description="Find events, inspect errors and share a report." />
     <div className="flex flex-wrap items-center gap-2">
-      <Input type="search" className="min-w-0 flex-1 basis-56" value={filter} placeholder="Filter: a task, wc=1, [mcp]…" aria-label="Filter" spellCheck={false}
+      <Input type="search" className="w-64 min-w-0 max-w-full" value={filter} placeholder="Filter: a task, wc=1, [mcp]…" aria-label="Filter" spellCheck={false}
         onChange={(e) => setFilter(e.target.value)} />
       <ToggleGroup type="single" size="sm" className="max-w-full flex-wrap" aria-label="Show" value={show} onValueChange={(v) => { if (v) setShow(v as Show); }}>
         {/* the tip on a box around the item: as its trigger, the tooltip's data-state would take the place of the item's */}
