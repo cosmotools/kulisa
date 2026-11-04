@@ -1,9 +1,8 @@
 # The window's UI
 
-Use shipped shadcn/ui ([README](../src/ui/README.md)), following its current examples and generated source.
-Component callers pass layout/size classes, variants and custom properties; the theme owns appearance. Never
-hand-edit generated `src/ui` files. Use wrappers for custom layout/drawing, not styling patches on components.
-Prefer upstream components/props/patterns; justify necessary deviations in comments.
+Kulisa-specific UI integration, desktop behavior and custom drawing. Generated-source ownership and regeneration:
+[src/ui/AGENTS.md](../src/ui/AGENTS.md#generation). Use wrappers for custom layout/drawing, not styling patches on
+components; justify necessary deviations from upstream in comments.
 
 Dockview owns grids; zustand owns window state; xterm owns terminals; Pierre owns Diff/tree virtualization;
 TanStack Virtual owns log rows. Grid lifecycle and native-page geometry: [window.md](window.md#the-grid).
@@ -40,12 +39,11 @@ Imports outside `src/ui` go through `@ui`; Kulisa's theme variables live in `src
 
 - Use shadcn neutral, bundled Geist and JetBrains Mono. `.dark` controls window theme; `public/theme.js` applies it
   before paint, `lib/theme.ts` updates it. Native drawings read `termStyle()`.
-- Use theme tokens, not literal colors/Tailwind palette. Kulisa-specific warning/success variables live in
-  `window.css`. Brand marks are the color exception.
+- Kulisa-specific warning/success variables live in `window.css`. Brand marks are the color exception.
 - Resources uses `text-sm` for filenames/messages/controls, `text-xs` for captions/status/metadata.
 - App branding uses the original red `assets/icon.svg` through `AppLogo`; project icons keep their project color.
 - Use Lucide except maker marks (`AgentMark`), logo/project icon, profile avatars and file-type icons.
-- Add missing shadcn components with `npm run ui -- <name>`. Discuss custom components if none fits.
+- Discuss custom components if no upstream component fits.
 - No CSS Modules or second UI library; standalone CSS needs a reason (Dockview/Radix layers).
 - ESLint enforces shipped UI styling, no raw form controls, theme colors, hook rules and no Fluent UI. React Compiler
   memoization rules are not enabled.
@@ -60,7 +58,8 @@ dialog's open state is a plain `useState`.
 - **A popper** (a menu, a `Popover`, a `Select`'s list) opens over pictures of the pages: it is drawn once they are
   pictures (`lib/cover.css` keeps it clipped until then), then marked `data-ready` (the tests' handle). A tooltip is
   no layer: it opens over no page (Tooltips).
-- **Settings**, no Radix layer, says so itself (`coverPage(true)`, awaited before it is drawn; `coverPage(false)`).
+- **Settings**, no Radix layer, calls `coverPage(true)` after its first frame is drawn, so the panes never show an
+  empty frame between the pages and Settings; cleanup calls `coverPage(false)`.
 - **Closing**: switching tasks closes every layer; leaving the window closes menus (`closeLayers`), using Radix's Esc
   handling. Dialog content remains mounted through exit animations; focus handoffs wait for removal.
 
@@ -118,7 +117,6 @@ is Radix's own. A Radix menu of a part's own only for a row's own menu inside on
 
 ## Dialogs
 
-- shadcn's `Dialog` (a question: `AlertDialog`), its open state a `useState`; the pages hidden under it (Layers).
 - Every dialog of a tasks' window is in `App.tsx` from the start and registers what it does (`registerDialog`);
   anything opens one by name: `(await dialog('newproject')).open()` (`lib/dialogs.ts`). Settings is not a
   dialog: `openSettings(section, id)` (`lib/settings.ts`), through the main process, which logs it.
@@ -143,15 +141,11 @@ is Radix's own. A Radix menu of a part's own only for a row's own menu inside on
   name), its actions its ⋯ and its right-click (the same rows); a row that opens a page ends in a chevron instead.
   What is added in place goes under the rows (`AddInPlace`: Enter takes it, Esc puts it away). A list of words
   (hosts) is a field and its words as `Badge`s with their ×.
-- **A section of a dialog** is a `FieldSet` under its `FieldLegend`; a choice of one agent a `RadioGroup` of shadcn's
-  choice cards (a `FieldLabel` around a horizontal `Field`: `AgentPicker.tsx`, `HandOver.tsx`); a checkbox's row a
-  horizontal `Field`.
-- **Notices**: work under way (an install, a sign-in, a search) is a `Spinner` with its label, the line the `status`; a
-  `Progress` once how far it is is known (Change Agent's reading). Diff uses one indeterminate `Progress` in the review
-  while file rows and code prepare; its search and From/To controls stay visible. An
-  error of a field is that `Field`'s `FieldError` (`data-invalid` on the field, `aria-invalid` on its control); any
-  other error, a warning, a step to take or what is done is an `Alert` (`variant="destructive"` an error's, its text
-  selectable). A confirmation that passes (Copied, Saved as) is a `toast` (sonner's `Toaster`), in Settings only
+- **Dialog choices**: a choice of one agent uses `RadioGroup` choice cards (a `FieldLabel` around a horizontal
+  `Field`: `AgentPicker.tsx`, `HandOver.tsx`); a checkbox's row is a horizontal `Field`.
+- **Notices**: label work under way (an install, a sign-in, a search) with `role="status"`. Diff uses one
+  indeterminate `Progress` in the review while file rows and code prepare; its search and From/To controls stay visible.
+  A confirmation that passes (Copied, Saved as) is a `toast` (sonner's `Toaster`), in Settings only
   (elsewhere in a tasks' window the pages would cover it), at the bottom left, over the nav's empty foot: at the right
   are a page's buttons (the log's).
 - **Tabs** are shadcn's `Tabs` as browser tabs, which shadcn does not have (`BrowserTabs.tsx`: `TabStrip`,

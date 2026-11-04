@@ -4,11 +4,7 @@ CLI-generated window components: `radix-nova`, Radix, Lucide, Geist, neutral bas
 through `index.ts` and imports no Kulisa code. Usage: [ui.md](../../docs/ui.md); boundaries:
 [packages.md](../../docs/packages.md).
 
-- Never hand-edit generated components, hooks, helpers or `theme.css`. `npm run ui` regenerates them; CI checks the
-  result. Settings are in root `components.json`.
-- `npm run ui -- <name>` adds a registry component; export it by name from `index.ts`.
-- `npm run ui` regenerates all components after a pinned `shadcn` or registry update. `scripts/ui.ts` adds them in
-  deterministic order and installs their dependencies as devDependencies.
+Generated-source ownership and generation commands: [AGENTS.md](AGENTS.md#generation).
 
 ## The code
 
