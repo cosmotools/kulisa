@@ -9,7 +9,7 @@ import { agentMark } from '../AgentMark';
 import { AgentSetup } from '../AgentSetup';
 import { toast } from 'sonner';
 import { InstallProgress } from '../AgentPicker';
-import { shortPath, useAgentList } from '../../lib/agents';
+import { shortPath, useAgentList } from '../../../agent-management/renderer';
 import { refused } from '../../../shared/result';
 import type { AgentInfo } from '../../../shared/types';
 

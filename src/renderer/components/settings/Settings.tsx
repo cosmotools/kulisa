@@ -16,7 +16,7 @@ import { AgentPage } from './AgentPage';
 import { AddInPlace, Things, type Thing } from './kit';
 import { useChanged } from './changed';
 import { agents as agentList, loadAccounts, useAccounts } from './agents';
-import { useAgentList } from '../../lib/agents';
+import { useAgentList } from '../../../agent-management/renderer';
 import type { MenuItem } from '../../lib/menu';
 import { coverPage } from '../../lib/cover';
 import { useShade } from '../../lib/theme';

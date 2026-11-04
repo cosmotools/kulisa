@@ -7,7 +7,7 @@ import path from 'path';
 import fs from 'fs';
 import { CdpProxy } from './cdp-proxy.ts';
 import { Store, branchOf } from './store.ts';
-import { Accounts } from './accounts.ts';
+import { Accounts } from '../agent-management/main/index.ts';
 import { ProfileStore } from './profile-store.ts';
 import { CookieSync } from '../browser/main/index.ts';
 import { signinPages } from './signin-pages.ts';
@@ -20,7 +20,7 @@ import { recognizer } from './recognizer.ts';
 import { COLORS } from './window.ts';
 import type { AppWindow } from './window.ts';
 import { findFavicon } from './favicons.ts';
-import { AGENTS, findAgent, signOut, startMcpServer, installGhost } from '../kulisa-plugin/main/index.ts';
+import { AGENTS, findAgent, startMcpServer, installGhost } from '../kulisa-plugin/main/index.ts';
 import { onEscape, stopAllTerminals } from '../terminal/main/index.ts';
 import { pluginHost } from './plugin.ts';
 import { installPicker } from './picker.ts';
@@ -321,7 +321,6 @@ function start(options: Options = {}) {
   onEscape((key) => shell.taskByKey(key.split('#')[0]!)?.interrupted(key));
   registerProjects(ipc, { lookForFavicon });
   registerProfiles(ipc);
-  registerAgents(ipc);
   registerPanes(ipc);
   registerWindow(ipc);
   installGitHub(shell.github, { usedBy: (id) => githubUsers(shell, id), remove: (e, id) => deleteGitHub(shell, id, at(e)),
@@ -410,17 +409,14 @@ function start(options: Options = {}) {
     resume: own.resume && (({ sessionId, transcript }) => sessionId && transcript && fs.existsSync(transcript) && own.resume!(sessionId)) };
   const known = [...(custom ? [custom] : []), ...(options.agents || AGENTS)];
   shell.agentFiles = [...new Set(known.flatMap((a) => a.localFiles || []))];
-  // The agents with their accounts (accounts.ts); an account is its agent with its config folder in its environment.
-  shell.accounts = new Accounts(userData, known, (dir) => store.markDeleted(dir));
+  // The agents with their accounts (src/agent-management); an account is its agent with its config folder in its environment.
+  shell.accounts = new Accounts(userData, known, (dir) => store.markDeleted(dir), { home: app.getPath('home') });
   speech.clean();
   shell.accounts.clean();
   // An account the human deleted (projects.ts, deleteAccount): signed out with its agent's own command (what it keeps outside
   // its folder goes too: Claude Code's Keychain entry on macOS), then its folder. External entries disconnect only.
   shell.dropAccount = async (a) => {
-    if (a.origin === 'kulisa') {
-      await signOut(a.agent, await findAgent(a.agent, app.getPath('home')), a.dir!);
-      shell.accounts.remove(a.dir!);
-    }
+    await shell.accounts.disposeAccount(a);
     shell.sendProjects(); // the last of all: nothing left for Settings
   };
   // An agent or account a task may run (any: also an agent itself that has accounts, as for installing it, or a task
@@ -432,6 +428,7 @@ function start(options: Options = {}) {
       env: a.own ? {} : { [a.agent.config!.env]: a.defaultConfig ? undefined : a.dir! } };
   };
   shell.findAgent = findAgent;
+  registerAgents(ipc);
   installShortcuts(shell, { appDevTools });
 
   // Save session cookies and flush persistent ones before quitting, so sign-ins survive a restart; the windows and

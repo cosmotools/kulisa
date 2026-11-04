@@ -95,17 +95,17 @@ async function signingIn(core: Core, files: Files) {
   return path.join(files.userData, 'agents', found[0]);
 }
 // Typed into the sign-in under way, as the human types in its terminal (a pty keeps what is typed until the agent reads it).
-const typeSignIn = (core: Core, text: string) => core((k, t) => { [...k.shell.signins.values()][0].write(t); }, text);
+const typeSignIn = (core: Core, text: string) => core((k, t) => { [...k.shell.accounts.signins.values()][0].write(t); }, text);
 // New Account… of the fake agent on a project's page: its own sign-in starts at once; resolves once its page is open
 // in the user's browser (the sign-in waiting for the human).
 async function newAccount(core: Core, s: Page, files: Files) {
-  await core((k) => k.shell.signins.clear());
+  await core((k) => k.shell.accounts.signins.clear());
   const before = browserOpened(files).length;
   await addAgent(s).click();
   // The agents that have accounts, under New Account after the ones to add.
   await expect(settingsMenu(s).getByText('New Account', { exact: true })).toBeVisible();
   await choose(s, 'Fake agent…', settingsMenu(s));
-  await expect.poll(() => core((k) => k.shell.signins.size)).toBeGreaterThan(0);
+  await expect.poll(() => core((k) => [...k.shell.accounts.signins.values()].filter(Boolean).length)).toBeGreaterThan(0);
   await expect.poll(() => browserOpened(files).length).toBe(before + 1);
   expect(browserOpened(files).at(-1)).toBe(`${SITE}/app?signin`);
 }
@@ -360,13 +360,13 @@ test("an account lives until deleted in Settings → Agents: let go by its proje
   await expect(row(s, work)).toHaveCount(0);
   expect(logouts(files), "signed out first, with its agent's own command").toContain(dir);
   expect(files.json('agents.json')).toEqual({ list: [] });
-  await core((k) => { k.shell.signins.clear(); });
+  await core((k) => { k.shell.accounts.signins.clear(); });
   // New Account on Agents' page, an agent: signed in on its page, in no project; a project's Add Agent takes it.
   await navRow(s, 'agents').click();
   await s.getByRole('button', { name: 'New Account', exact: true }).click();
   await choose(s, 'Fake agent…', settingsMenu(s));
   await expect(agentPage(s, 'fake')).toBeVisible();
-  await expect.poll(() => core((k) => k.shell.signins.size)).toBeGreaterThan(0);
+  await expect.poll(() => core((k) => [...k.shell.accounts.signins.values()].filter(Boolean).length)).toBeGreaterThan(0);
   const home = accountOf(await signingIn(core, files));
   await typeSignIn(core, 'home@shop.com\r'); // kept by the pty until the agent reads it
   await expect(row(s, home)).toBeVisible();

@@ -100,5 +100,5 @@ Outside callers stay in core for these reasons:
   layout facts and selections sent to agents.
 - `plugin.ts`: supplies core actions and facts to the Kulisa plugin.
 - `shared/types.ts`: joins the browser state to the window's state types.
-- `accounts.ts`, `github/main/accounts.ts`, `kulisa-plugin/main/agents/{claude,codex,files}.ts`: use the shared atomic
+- `agent-management/main/accounts.ts`, `github/main/accounts.ts`, `kulisa-plugin/main/agents/{claude,codex,files}.ts`: use the shared atomic
   file writer independently of browser storage.

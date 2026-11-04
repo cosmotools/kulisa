@@ -1,86 +1,45 @@
-// The windows' handles on the agents and their accounts (docs/tasks.md, Choosing the agent, Accounts): Settings → Agents, a new
-// account's sign-in, Choose the Agent, the installer.
-import { app, shell as electronShell } from 'electron';
-import { existingSetup, connectExisting } from '../agent-connections.ts';
+// Window handles for project membership and task agent choices (docs/tasks.md). Agent management owns discovery,
+// installation and sign-in lifecycle; core supplies project context and its account-removal rules.
+import { app } from 'electron';
 import { addAgent, deleteAccount } from '../projects.ts';
-import { findAgent, accountEmail, signOut, agentVersion, installLine, installAgent } from '../../kulisa-plugin/main/index.ts';
-import { startTerminal, stopTerminal, forgetTerminal } from '../../terminal/main/index.ts';
+import { installAgentManagement } from '../../agent-management/main/index.ts';
 import { refused } from '../../shared/result.ts';
 import { handle, on } from '../ipc.ts';
 import type { Ipc } from '../ipc.ts';
 import type { Shell, AgentChoice } from '../shell.ts';
-import type { Agent } from '../../kulisa-plugin/main/index.ts';
 import type { Task } from '../tasks.ts';
-import type { Pty } from '../../terminal/main/index.ts';
-import type * as Sent from '../../shared/types.ts'; // what the window gets: its one definition
 
 export function registerAgents(ipc: Ipc) {
-  const { shell, at, serial } = ipc;
+  const { shell, at, serial } = ipc, manager = shell.accounts;
   const store = shell.store;
-  // The accounts (Settings → Agents), each with the projects it is in; clis: the agents an account can be made of.
-  const accountsInfo = (): Sent.AccountsInfo => {
-    return { accounts: shell.accounts.all().filter((a) => !a.own).map(({ id, agent, name, email, origin, dir }) => ({ id, agent: agent.id, name, email: email ?? null, origin: origin!, directory: dir!,
-      projects: store.projectsWith('agents', id).map((p) => p.name) })),
-    clis: shell.accounts.all().filter((a) => a.own && a.agent.config?.login).map((a) => a.id) };
-  };
-  handle('account:list', () => accountsInfo());
-  handle('account:existing', (_e, { agent }) => existingSetup(shell, agent));
-  handle('account:connect-existing', (_e, { agent }) => serial(async () => {
-    const r = await connectExisting(shell, agent);
-    return refused(r) ? r : { ...accountsInfo(), ...r };
-  }));
-  handle('account:show-folder', async (_e, { id }) => {
-    const a = shell.accounts.find(id);
-    if (!a?.dir) return { error: 'No configuration directory for this account' };
-    const error = await electronShell.openPath(a.dir);
-    return error ? { error } : {};
+  const usedBy = (id: string) => store.projectsWith('agents', id).map((p) => p.name);
+  const info = () => manager.info(usedBy);
+  installAgentManagement(manager, {
+    usedBy, serial, changed: () => shell.sendProjects(),
+    choices: (e, details) => {
+      const w = at(e), mine = w?.task?.project.agents() || [];
+      const rank = (id: string) => mine.includes(id) ? mine.indexOf(id) : mine.length;
+      // Task choices are restricted to its project's accounts. Settings/onboarding list CLI providers only.
+      const accounts = shell.accounts.all().filter((a) => details ? a.own && a.agent.command : a.choosable && (a.own || mine.includes(a.id)))
+        .sort((x, y) => rank(x.id) - rank(y.id));
+      return { accounts, cwd: w?.task?.folder || app.getPath('home') };
+    },
   });
-  // Delete Account… (projects.ts: refused while a task runs it, asked first). { accounts, clis } or { error }.
   handle('account:delete', (e, { id }) => serial(async () => {
     const r = await deleteAccount(shell, id, at(e));
     if (refused(r)) return r;
-    shell.sendProjects(); // +'s right-click menu of the projects that had it
-    return accountsInfo();
+    shell.sendProjects();
+    return info();
   }));
-  // A new account of an agent, made in Settings → Agents or in a project (tasks.md, Accounts): a folder of its own
-  // (accounts.ts), then the agent's own sign-in in it, as /login, in a terminal of the window (key), which ends once signed
-  // in; its status says the email it signed in to. Its page opens in the user's own browser, the agent's default: Google
-  // refuses its sign-in in an embedded browser (tasks.md, Accounts). An email stored already is that
-  // account, added to the project. Not one change after another
-  // (serial): a sign-in takes minutes. In a project (id): { agents } (the project's); in Settings → Agents (no id):
-  // { accounts, clis }; or { error } (null: cancelled).
-  const signins = shell.signins = new Map<string, Pty>(); // a sign-in terminal's key -> its pty
-  const cancel = (key: string) => { const p = signins.get(key); signins.delete(key); if (p) stopTerminal(p); };
-  handle('account:signin:start', async (e, { id, agent: agentId, key }) => {
-    const own = shell.accounts.find(agentId);
+  // A sign-in takes minutes, so it runs outside the serialized project/window queue.
+  handle('account:signin:start', async (e, { id, agent, key }) => {
     if (id && !store.projects().some((x) => x.id === id)) return { error: `no project ${id}` };
-    const config = own?.agent.config;
-    if (!own?.own || !config?.login) return { error: `${own?.name || agentId} has no accounts` };
-    const found = await findAgent(own.agent, app.getPath('home'));
-    if (!found?.path) return { error: `${own.name} is not installed: install it in Settings → Agents` };
-    const r = shell.accounts.prepare(agentId);
+    const r = await manager.signIn(agent, key, (channel, data) => { if (!e.sender.isDestroyed()) e.sender.send(channel, data); });
     if (refused(r)) return r;
-    const p = await startTerminal((channel, data) => { if (!e.sender.isDestroyed()) e.sender.send(channel, data); }, { command: found.path, args: config.login(),
-      cwd: app.getPath('home'), env: { [config.env]: r.dir }, shell: false,
-      size: { cols: 100, rows: 8 } }, key); // its terminal is folded away, so no size would come
-    signins.set(key, p);
-    const code = await new Promise<number>((resolve) => p.onExit(({ exitCode }) => resolve(exitCode)));
-    const cancelled = !signins.delete(key);
-    forgetTerminal(key);
-    const got = await accountEmail(own.agent, found, r.dir);
-    // One it has already (the same email): that one; the new folder signed out and gone.
-    const existing = got && shell.accounts.byEmail(agentId, got.email);
-    if (cancelled || !got || existing) {
-      if (got) await signOut(own.agent, found, r.dir);
-      shell.accounts.remove(r.dir);
-      if (existing) return id ? addAgent(shell, id, existing.id) : { error: `${existing.name} is an account already` };
-      return { error: cancelled ? null : `Not signed in: ${own.name} ended with code ${code}.` };
-    }
-    shell.accounts.create(r.id, agentId, got.email);
-    shell.sendProjects(); // the first account at the first start: Settings has it
-    return id ? addAgent(shell, id, r.id) : accountsInfo();
+    if (r.existing && !id) return { error: `${shell.accounts.find(r.account)!.name} is an account already` };
+    shell.sendProjects();
+    return id ? addAgent(shell, id, r.account) : info();
   });
-  handle('account:signin:cancel', (_e, { key }) => cancel(key));
   const choosing = new Map<string, (agent: AgentChoice | null) => void>(); // task key -> resolve(agent or null)
   // Asked in the task's window; Cancel opens none.
   shell.chooseAgent = ((task: Task, agent: AgentChoice | null) => new Promise<AgentChoice | null>((resolve) => {
@@ -90,51 +49,4 @@ export function registerAgents(ipc: Ipc) {
   })) as Shell['chooseAgent'];
   shell.chooseAgent.cancel = (task: Task) => { choosing.get(task.key)?.(null); choosing.delete(task.key); };
   on('agent:choice:submit', (_e, { task, id }) => { if (!task) return; const r = choosing.get(task); choosing.delete(task); r?.(id ? shell.agentFor(id) : null); });
-  // The agents to choose from; with check, whether each is installed (for the task's folder: its environment);
-  // with details (the Agents window), also where it is and its version. Finding them runs the user's login shell and
-  // each agent's --version, tenths of a second or more (the list should come at once): with
-  // cached, what the last look in this folder found, kept in memory, or { list: null } before the first; the window
-  // shows it and looks again.
-  const seen = new Map<string, { found: import('../../kulisa-plugin/main/index.ts').Found | null; version?: string | null }>(); // `${agent id}\n${folder}` -> { found, version }
-  const look = async (a: Agent, cwd: string, details?: boolean) => {
-    const found = await findAgent(a, cwd), old = seen.get(`${a.id}\n${cwd}`);
-    const s = { found, version: details ? await agentVersion(found) : old?.version };
-    seen.set(`${a.id}\n${cwd}`, s);
-    return s;
-  };
-  const notYet: { list: null } = { list: null }; // not looked for in this folder yet
-  handle('agent:list', async (e, { check, details, cached } = {}) => {
-    const w = at(e), looks = new Map<string, ReturnType<typeof look>>(), cwd = w?.task?.folder || app.getPath('home'); // each agent looked for once, whatever its accounts
-    // The project's agents first (Choose the Agent), in its order.
-    const mine = w?.task?.project.agents() || [], rank = (id: string) => (mine.includes(id) ? mine.indexOf(id) : mine.length);
-    // Choosing a task's: the project's accounts, and the agents without accounts (the terminal only); never another
-    // project's account: it could go with that project while a task here runs it. The Agents window: the agents alone,
-    // not the terminal only: nothing of it to set up there.
-    const accounts = shell.accounts.all().filter((a) => (details ? a.own && a.agent.command : a.choosable && (a.own || mine.includes(a.id))))
-      .sort((x, y) => rank(x.id) - rank(y.id)); // stable: the others as they were
-    const of = (a: Agent) => {
-      if (cached) return seen.get(`${a.id}\n${cwd}`);
-      if (!looks.has(a.id)) looks.set(a.id, look(a, cwd, details));
-      return looks.get(a.id);
-    };
-    if (cached && (check || details) && accounts.some(({ agent: a }) => !of(a) || (details && (of(a) as { version?: string | null }).version === undefined))) return notYet;
-    const list = await Promise.all(accounts.map(async ({ id, agent: a, name, dir, own }) => {
-      const f = check || details ? (await of(a))!.found : null;
-      return {
-        id, agent: a.id, name, maker: a.maker, needs: a.needs, site: a.site, install: installLine(a),
-        account: own ? null : dir,
-        ...((check || details) && { installed: !!f }),
-        ...(details && { path: f?.path ?? null, onPath: f?.onPath ?? null, version: (await of(a))!.version }),
-      };
-    }));
-    return { list, home: app.getPath('home') };
-  });
-  // The maker's installer, run when the human clicks Install (that is their go-ahead); its output goes to the window.
-  handle('agent:install:start', async (e, { id }) => {
-    const w = at(e), a = shell.agentFor(id, { any: true });
-    if (!a?.install) return { error: `nothing to install for ${id}` };
-    const { code, log } = await installAgent(a, (data) => { if (!e.sender.isDestroyed()) e.sender.send('agent:install:output', data); });
-    return { code, log, installed: !!(await look(a, w?.task?.folder || app.getPath('home'), true)).found };
-  });
-
 }

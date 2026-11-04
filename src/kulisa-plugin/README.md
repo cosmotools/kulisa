@@ -63,9 +63,8 @@ pointer remains independent; pane identity distinguishes profiles. Keep skill an
 
 Each `agents/<cli>.ts` owns discovery, installation, launch, resume, hooks, capabilities and folder cleanup.
 
-- Settings Install shows/runs the maker's native installer and streams output; include full output in the result
-  because IPC stream/result ordering is not guaranteed. Claude/Codex use official install scripts, PowerShell on
-  Windows. Prioritize system PATH over Git Bash's tar on Windows. Installed CLIs remain user-owned and self-update.
+- [Agent management](../agent-management/README.md) owns installation/discovery UI lifecycle. Claude/Codex adapters
+  use official install scripts, PowerShell on Windows. Prioritize system PATH over Git Bash's tar on Windows.
 - Claude launches with plugin/settings, Codex MCP/hooks as config overrides. Resume with reported session ID;
   Codex can fall back to `resume --last`. Core supplies the task's Kulisa-owned data directory for generated launch
   files, independently of account ownership; Claude passes a settings file there instead of inline JSON. The file is
@@ -230,10 +229,11 @@ End-to-end coverage: `test/e2e/agent-*.spec.ts`, `agents-in-a-task.spec.ts`, `ta
 | `src/main/plugin.ts` | implements the contracts from core objects, native browser events, git and task records |
 | `src/main/app.ts` | starts the MCP server and annotations, locates packaged resources, supplies the available agents |
 | `src/main/tasks.ts` | owns terminal sessions, profiles, conversations and the task's files; invokes adapter operations |
-| `src/main/accounts.ts`, `shell.ts` | own account records and the application's agent choices |
-| `src/main/ipc/agents.ts` | supplies the window's agent/account actions and discovery cache |
+| `src/agent-management/` | owns connected configurations, discovery cache, installation and sign-in lifecycle |
+| `src/main/shell.ts` | defines the application's task agent choices |
+| `src/main/ipc/agents.ts` | supplies project context, membership and task choice handles |
 | `src/main/recognizer.ts` | chooses an account for the dictation Kulisa package |
 | `forge.config.ts`, `scripts/version.ts` | build resources and synchronize the app's version |
 | `.dependency-cruiser.ts` | enforces entries, core independence and runtime cycles |
-| `test/unit/accounts.test.ts`, `forge.test.ts` | core account ownership and packaging contracts |
+| `src/agent-management/accounts.test.ts`, `test/unit/forge.test.ts` | configuration ownership and packaging contracts |
 | `test/e2e/` | exercises the running app through MCP and the window |

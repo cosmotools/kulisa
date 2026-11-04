@@ -6,8 +6,7 @@ import { Button, Spinner, Table, TableBody, TableCell, TableHead, TableHeader, T
 import { agentMark } from '../AgentMark';
 import { SignIn } from '../SignIn';
 import { InstallProgress } from '../AgentPicker';
-import { useAgentList } from '../../lib/agents';
-import { useExistingSetups } from '../../lib/agent-setup';
+import { useAgentList, useExistingSetups } from '../../../agent-management/renderer';
 import { useProjectDraft, type ProjectDraft } from './draft';
 import { refused } from '../../../shared/result';
 import type { Account, AgentInfo } from '../../../shared/types';

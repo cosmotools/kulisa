@@ -6,7 +6,7 @@ import { Alert, AlertDescription, Button, Spinner } from '@ui';
 import { AgentsStep } from './AgentsStep';
 import { CodeStep } from './CodeStep';
 import { FinishStep } from './FinishStep';
-import { useAgentList } from '../../lib/agents';
+import { useAgentList } from '../../../agent-management/renderer';
 import { refusalOf, useProjectDraft, type ProjectDraft } from './draft';
 
 const steps = [

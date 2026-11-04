@@ -1,14 +1,9 @@
-// The agents Kulisa knows (main/agents/), for a list of them with Install in a tasks' window: choosing a task's agent
-// (components/AgentPicker.tsx: the project's accounts and the terminal only), New Project's agents and Settings' (the
-// agents alone, details). The state lives in the list, not in its dialog or page: a closed dialog's content is
-// unmounted, and an install it started goes on and shows when it opens again.
-//   const list = agentList({ details, installed })   installed(agent): what to say once it is installed
-//   list.load(selected, show) the agents, then await show() (opens its dialog); list.look(cached) without one
-//   useAgentList(list, selector) in a component
+// Shared agent lists for task choices, onboarding and Settings (../README.md). A list owns its state rather than
+// its dialog/page: unmounting a view must not lose an installation's progress.
 import { createStore, useStore } from 'zustand';
 import { refused } from '../../shared/result';
 import { tilde } from '../../shared/paths';
-import type { AgentInfo } from '../../shared/types';
+import type { AgentInfo } from '../ipc';
 
 export interface AgentListState {
   agents: AgentInfo[]; selected: string | undefined; home: string | null;
@@ -27,7 +22,7 @@ export function agentList(opts: { details?: boolean; installed: (a: AgentInfo) =
   const store = createStore<AgentListState>()(() => ({ agents: [], selected: undefined, home: null, installing: false, looking: false,
     progress: '', log: '', error: '', showDetails: false, detailsOpen: false }));
   const get = store.getState, set = store.setState;
-  // cached: what the main process found last time, if it has looked yet (main/ipc/agents.ts, agent:list).
+  // cached: what the main process found last time, if it has looked yet (agent-management/main/accounts.ts, agent:list).
   // again: a look behind a list already shown, dropped when an install began meanwhile (it marks its own row).
   const fetchAgents = async (cached = false, again = false) => {
     const r = await kulisa.invoke('agent:list', { ...(opts.details ? { details: true } : { check: true }), cached });

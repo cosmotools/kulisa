@@ -8,11 +8,12 @@ import type { DiffOptions, Diff, FileDiff, Review } from '../diff/ipc.ts';
 import type { StageTerminal, StageTerminalsState, TerminalSize } from './stage-terminal.ts';
 import type { FileLink, TerminalContents, TerminalEvents, TerminalInvoke, TerminalSend } from '../terminal/ipc.ts';
 import type { ThumbnailEvents, ThumbnailInvoke, ThumbnailSend } from '../screenshots/ipc.ts';
+import type { AgentManagementInvoke, AgentManagementEvents } from '../agent-management/ipc.ts';
 import type { GitHubInvoke } from '../github/ipc.ts';
 import type { DictationEvents, DictationInvoke } from '../dictation/ipc.ts';
 import type {
-  AboutFolder, AboutInfo, Artifact, EnvironmentSource, AccountsInfo, AgentInfo, ClosedProfile, LanguageInfo, LogInfo, NewProjectSetup, Profile, ProjectAgent, ProjectChoices, ProjectGitHub, ProjectProfile, ProjectFolder,
-  ProjectSettings, ProjectsInfo, Question, SettingsProfile, Shortcut, SignedIn, DevelopmentTerminalsState, ExistingAgentSetup,
+  AboutFolder, AboutInfo, Artifact, EnvironmentSource, AccountsInfo, ClosedProfile, LanguageInfo, LogInfo, NewProjectSetup, Profile, ProjectAgent, ProjectChoices, ProjectGitHub, ProjectProfile, ProjectFolder,
+  ProjectSettings, ProjectsInfo, Question, SettingsProfile, Shortcut, SignedIn, DevelopmentTerminalsState,
 } from './types.ts';
 
 // What a message about the shown task's profiles and tabs names (renderer's act: refused when that task is no longer
@@ -37,7 +38,7 @@ type Profiles = { profiles: SettingsProfile[] };
 
 // ipcRenderer.invoke / ipcMain.handle: args, the answer.
 type I<A extends unknown[], R = void> = { args: A; result: R };
-export interface Invoke extends TerminalInvoke, ThumbnailInvoke, GitHubInvoke, DictationInvoke {
+export interface Invoke extends TerminalInvoke, ThumbnailInvoke, GitHubInvoke, DictationInvoke, AgentManagementInvoke {
   'project:list': I<[], ProjectsInfo | undefined>;
   'project:refresh': I<[]>;
   'project:open': I<[{ folder: string; task?: string } | { id: string; task: string }]>;
@@ -64,13 +65,8 @@ export interface Invoke extends TerminalInvoke, ThumbnailInvoke, GitHubInvoke, D
   'project:task:move-all': I<[{ id: string; to?: number | null; terminalContents: TerminalContents }]>;
   'project:show-data': I<[{ id: string }]>;
   'project:delete': I<[{ id: string }], Result<{ id: string }>>;
-  'account:list': I<[], AccountsInfo>;
-  'account:existing': I<[{ agent: string }], Result<{ setup: ExistingAgentSetup | null }>>;
-  'account:connect-existing': I<[{ agent: string }], Result<AccountsInfo & { connected: string }>>;
-  'account:show-folder': I<[{ id: string }], Result>;
   'account:delete': I<[{ id: string }], Result<AccountsInfo, string | null>>;
   'account:signin:start': I<[{ id?: string | null; agent: string; key: string }], Result<SignedIn, string | null>>; // null: cancelled
-  'account:signin:cancel': I<[{ key: string }]>;
   'profiles:list': I<[], Profiles>;
   'profiles:new': I<[{ name: string }], Result<Profiles & { id: string }>>;
   'profiles:rename': I<[{ profile: string; name: string }], Result<Profiles & { id: string }>>;
@@ -103,8 +99,6 @@ export interface Invoke extends TerminalInvoke, ThumbnailInvoke, GitHubInvoke, D
   'task:artifact:drag': I<[{ key: string; file: string }], Result>;
   'task:artifact:delete': I<[{ key: string; files: string[] | null }], Result>; // null: all
   'app:quit': I<[]>;
-  'agent:list': I<[{ check?: boolean; details?: boolean; cached?: boolean }?], { list: AgentInfo[]; home: string } | { list: null }>; // null: not looked for yet (cached)
-  'agent:install:start': I<[{ id: string }], Result<{ code: number; installed: boolean; log: string }>>; // log: the whole output (the pieces streamed may still be on their way)
   'profile:close': I<[OnProfile]>;
   'profile:open': I<[OnProfile]>;
   'profile:delete': I<[OnProfile]>;
@@ -181,7 +175,7 @@ export interface Send extends TerminalSend, ThumbnailSend {
 }
 
 // webContents.send (AppWindow.send) / the window's kulisa.on: what the main process tells a window.
-export interface Events extends TerminalEvents, ThumbnailEvents, DictationEvents {
+export interface Events extends TerminalEvents, ThumbnailEvents, DictationEvents, AgentManagementEvents {
   'project:state': ProjectsInfo;
   'profile:state': { task: string; list: Profile[] };
   'profile:closed': { task: string; list: ClosedProfile[] };
@@ -203,7 +197,6 @@ export interface Events extends TerminalEvents, ThumbnailEvents, DictationEvents
   'page:press': { task: string };
   'agent:caption': { task: string; profile: string; caption: string | null; sticky?: boolean };
   'agent:choice:show': { task: string; selected: string | null };
-  'agent:install:output': string;
   'agent:handover:progress': { task: string; id: number; part: number; parts: number };
   'project:new': void;
   'master:url': string;

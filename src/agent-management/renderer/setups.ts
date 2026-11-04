@@ -1,8 +1,8 @@
-// Read-only discovery of a signed-in CLI setup (docs/tasks.md, Accounts). Both onboarding and Settings show the
+// Read-only discovery of a signed-in CLI setup (../README.md). Both onboarding and Settings show the
 // native status result, never infer authentication from an installed binary or the presence of a config folder.
 import { useEffect, useState } from 'react';
 import { refused } from '../../shared/result';
-import type { AgentInfo, ExistingAgentSetup } from '../../shared/types';
+import type { AgentInfo, ExistingAgentSetup } from '../ipc';
 
 interface SetupResult { setup: ExistingAgentSetup | null; error: string }
 
