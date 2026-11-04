@@ -151,8 +151,7 @@ export function openTasks(shell: Shell, { appDevTools }: { appDevTools: boolean 
   }
   // A tab let go where no Kulisa window took it: outside them all, a new window there; on one (cancelled, or let go
   // elsewhere in a window), nothing.
-  // The first start (no project yet: nothing to do in Kulisa without one): New Project opens by itself, over the empty
-  // window (components/Empty.tsx).
+  // The first start (no project yet): focus Create a project on the welcome (components/welcome/Welcome.tsx).
   shell.firstStart = (w) => { if (!store.projects().length) w.send('project:new'); };
   shell.pointer = () => screen.getCursorScreenPoint(); // where the pointer is on the screen (the tests set it)
   async function dragOut(task: Task | null, terminalContents: TerminalContents): Promise<Result<{ key?: string }>> {

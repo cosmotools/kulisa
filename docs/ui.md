@@ -18,6 +18,8 @@ menus stay above them.
 | `src/renderer/*.html`, `main.tsx`, `master.tsx`, `public/theme.js` | Window/master entries; theme before first paint |
 | `src/renderer/window.css` | Global theme, selection, cursor and scroll rules |
 | `components/App.tsx`, title/task bars, sidebar, empty/welcome | Window frame and task navigation |
+| `components/welcome/Welcome.tsx` | Welcome entry; its examples, SVG characters, animation CSS and assets stay in `welcome/` |
+| `components/project-map/ProjectMap.tsx`, `components/NewProject.tsx` | Shared project form and its dialog wrapper; the draft stays in `lib/new-project.ts` |
 | `task-view/` | Retained task screens, both Dockviews and their outer split, pane controls, Resources, native-view bounds |
 | `components/settings/` | Lazy Settings chunk through its `index.ts`; shared page controls in `kit.tsx` |
 | `components/Menus.tsx`, dialogs, `lib/menu.ts`, `dialogs.ts`, `ask.ts` | Shared menus/questions/dialog opening |
@@ -38,6 +40,7 @@ region wrappers.
 - Use theme tokens, not literal colors/Tailwind palette. Kulisa-specific warning/success variables live in
   `window.css`. Brand marks are the color exception.
 - Resources uses `text-sm` for filenames/messages/controls, `text-xs` for captions/status/metadata.
+- App branding uses the original red `assets/icon.svg` through `AppLogo`; project icons keep their project color.
 - Use Lucide except maker marks (`AgentMark`), logo/project icon, profile avatars and file-type icons.
 - Add missing shadcn components with `npm run ui -- <name>`. Discuss custom components if none fits.
 - No CSS Modules or second UI library; standalone CSS needs a reason (Dockview/Radix layers).
@@ -117,16 +120,17 @@ is Radix's own. A Radix menu of a part's own only for a row's own menu inside on
   anything opens one by name: `(await dialog('newproject')).open()` (`lib/dialogs.ts`). Settings is not a
   dialog: `openSettings(section, id)` (`lib/settings.ts`), through the main process, which logs it.
 - Its content is mounted only while it is open, so what must outlive it lives outside it: an agents' list and its
-  install (`lib/agents.ts`), New Project's steps (`lib/new-project.ts`), Change Agent's (a store in `HandOver.tsx`).
+  install (`lib/agents.ts`), New Project's draft (`lib/new-project.ts`), Change Agent's (a store in `HandOver.tsx`).
 - One that waits for an answer takes no click outside or × (`onInteractOutside`; `AgentPicker.tsx`); Esc cancels it.
 - **Questions** before something that cannot be undone, before closing, or between two ways to go are not new dialogs:
   `ask(q)` (`lib/ask.ts`) or the main process's `shell.ask` → `Ask.tsx`, an `AlertDialog`, queued: Cancel has the
   keyboard, Esc is Cancel, a click outside does nothing.
 - **A page's alert or confirm** (`ProfilePane.tsx`) is drawn in its pane, not modal, over a dimmed picture of the page,
   as Chrome shows it; the other panes go on.
-- **New Project** is `Wizard` (`NewProject.tsx`), shown by the dialog and by the welcome (`Welcome.tsx`, in a `Card`),
-  never a copy of the steps: it gives its parts (steps, error, Back, Next) to what shows it. A Create under way keeps
-  the dialog open however it would close.
+- **New Project** uses `project-map/ProjectMap.tsx`, shared by the dialog (`NewProject.tsx`) and the welcome
+  (`welcome/Welcome.tsx`). Its
+  draft owns validation/creation; each node edits that draft. Its scrollable body keeps Create reachable. A Create
+  under way keeps the dialog open however it would close.
 
 ## Controls
 
@@ -180,7 +184,26 @@ What is drawn or moved here rather than by shadcn, each for a reason at it:
   at the window's edge;
 - the log's box of lines (`LogPage.tsx`): shadcn has no log view; its tags in the theme's colors; the installer's
   output (`AgentPage.tsx`, `AgentPicker.tsx`) a `role="log"` of monospace lines, as tall as what it says;
-- the steps' names of New Project (`StepNames`, `NewProject.tsx`) and the welcome's dots (`Dots`, `Welcome.tsx`):
-  shadcn has no stepper, and its `carousel` brings no dots;
-- the welcome's pictures (`Welcome.tsx`): a task's window drawn small in boxes of our own, its terminal's lines in a
-  terminal's colors.
+- the project's fixed map connectors (`components/project-map/ProjectMap.tsx`): decorative SVG between shadcn cards, hidden in the narrow
+  column layout; no graph editor or graph dependency;
+- the welcome's web/CLI examples (`components/welcome/`, entered through `Welcome.tsx`): switched through shadcn Tabs, with no real pages or terminal
+  processes. `WebExample.tsx` shows a fictional shop in Customer and Admin browser profiles side by side, linked by
+  order #1042. Both pages keep a 1120 × 656 desktop layout and scale into their frames with CSS. One ResizeObserver on the pair
+  updates their scale and the character’s coordinates, and disconnects on unmount. Pages stay light using theme token variants,
+  independently of browser chrome; product photos are bundled, never fetched at runtime.
+  `animations.css` owns one shared 20-second CSS cycle. A small red curtain character chooses a product,
+  scrolls and places an order in Customer, then moves across to Admin and opens the matching order. Customer
+  holds its result while Admin is used; Admin stays still until the character arrives. `AgentTerminal.tsx` draws
+  the user’s coding CLI with a request, file edits, indented tool results and a bottom prompt/status line. Its
+  animated transcript follows the cycle and its header names CLI examples, without presenting a Kulisa agent.
+  `CliExample.tsx` shows a coding agent under development: shell launch, a typed request, file access, a diff and
+  a checked response. Its native 960 × 360 terminal scales with one ResizeObserver; `DemoAgent.tsx` is shared
+  by the web and CLI examples. The lower transcript remounts with the selected example so both clocks start together. This coordinated timeline needs named keyframes rather than independent utility animations. Pause
+  freezes the entire cycle; reduced motion shows its final result. Switching examples or leaving welcome unmounts
+  the animated elements. `CoffeeBreak.tsx` adds an SVG vignette beside the example on wide windows: a person
+  sends the task, reclines with coffee and nods at the result. Its upper body and chair back pivot at the hips;
+  the legs stay supported by an ottoman. The back, arm and head follow the same clock and
+  pause state; narrow or very short windows omit the vignette. No JavaScript animation timer or running browser is retained. Photo sources and license
+  live beside the photographs in `welcome/assets/CREDITS.txt`; the build emits them as `welcome-photography-CREDITS.txt`.
+  Vite imports the photographs from this folder. Outside callers use only `Welcome.tsx` and `ProjectMap.tsx`,
+  enforced by dependency-cruiser; the shared project draft and app branding stay outside these views.

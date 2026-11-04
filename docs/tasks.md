@@ -19,19 +19,27 @@ A project configures repositories/folders, agents and profiles, with ordered def
   including page/window exit. Sections add items in place, Esc cancels input; rows share menu/right-click actions.
   Global profile identity belongs to Settings → Profiles, not project membership controls.
 
-**New Project** (`NewProject.tsx`) shares one wizard between welcome and task-window dialog:
+**New Project** shares `components/project-map/ProjectMap.tsx` between the welcome and the task-window dialog
+(`NewProject.tsx`). Its draft
+(`lib/new-project.ts`) holds inputs independently of the nodes; there are no wizard steps or separate first-start
+validation rules. Nothing is created until Create project.
 
-1. **Code**: New folder, Folders on disk or Clone from URL. New folders default to `~/KulisaProjects/<name>`;
-   existing folders are preserved. Disk/URL names derive from the first folder/repository unless edited.
-   Validate on Next as on Create; include pending typed entries. Welcome takes one folder/URL, the dialog several.
-   Multiple clones use `<location>/<name>/<repo>`, first default; reject nonempty targets and remove partial clones
-   on failure. Show the resulting path/status while typing. Do not initialize git automatically.
-2. **Agents**: select accounts, first selected default unless another is starred. Add account installs a missing CLI
-   then signs in, with installer Details. With no agents, tasks start a shell; no-default projects show launchers.
-3. **Profiles**: create with name/description or select existing; none is allowed. Sign-in happens later.
+- The project name is the center node. It follows the first folder/repository until the human edits it.
+- Repositories/folders sit on the left: New folder, On disk or Clone. Disk folders or clone URLs can be multiple;
+  first is default. Include pending typed entries at Create. Existing folders stay intact; new folders default to
+  `~/KulisaProjects/<name>` and do not initialize git. Multiple clones use `<location>/<name>/<repo>`; reject
+  nonempty targets and remove partial clones on failure. Show resulting path/status while typing.
+- Agents sit under the project: select accounts, first selected default unless another is starred. Add account
+  installs a missing CLI then signs in, with installer Details. Accounts made during setup live independently.
+  With no selected agents, tasks start a shell.
+- Run & check sits on the right. It explains browser profiles and interactive Stage terminals; neither must be
+  configured before creating a project. Profile creation/selection is collapsed and optional; sign-in happens
+  later. Stage terminals belong to tasks and are not created by this map.
 
-Create calls `createProject` once, then opens its first task. Accounts created during the wizard live independently;
-failed optional agent/profile additions are logged without discarding the project. Back preserves wizard input.
+The map has a fixed layout and decorative SVG connectors; at narrow widths it becomes a column with the project
+name first. No graph engine or running preview environments. Settings retains its own project editor.
+Create calls `createProject` once, then opens its first task. Failed optional agent/profile additions are logged
+without discarding the project.
 
 **Project identity** is automatic (`favicons.ts`, `lib/project-color.ts`):
 
@@ -56,9 +64,16 @@ failed optional agent/profile additions are logged without discarding the projec
 Open tasks precede closed tasks; closed tasks sort by closing time and show branch/time. Click/Enter/Space
 shows or reopens; trash/Delete asks before deleting. New Project is at the foot.
 
-**The empty window** docks the sidebar. With no projects, **the welcome** shows three skippable slides then wizard
-steps. Back returns to slides; fit 640 × 400 without scrolling, omit small-screen illustrations as needed. Mount
-wizard content only while shown; first-start focus goes to Next. Links/version remain in ☰.
+**The empty window** docks the sidebar. With no projects, **the welcome** shows one introduction with switchable
+web/CLI examples, then the shared project map. The web example animates one red character working first in Customer, then Admin,
+linked by the same order, with a continuously typing transcript; its desktop pages scale with CSS. Pause stops the shared cycle; reduced motion shows
+its final result. The CLI example animates a coding agent under development in a Stage terminal, with the
+chosen development CLI below: it launches the app, submits a coding task, watches file edits and checks the output.
+Neither starts an environment.
+Small/short windows omit the illustration and supporting feature row; windows up to 600 CSS px high keep a single
+introduction column at every width. The introduction fits 640 × 400. The map's
+body scrolls independently of its Create footer. Mount its content only while shown; first-start focus goes to
+Create a project, then the map's name field. Back returns to the introduction. Links/version remain in ☰.
 
 **Windows/startup**:
 
@@ -469,7 +484,9 @@ rm -rf ~/.config/Kulisa/projects/<project id>   # all its tasks with their profi
 - `src/main/accounts.ts`, `recognizer.ts`: account ownership and recognizer selection. CLI behavior belongs in
   [Kulisa plugin](../src/kulisa-plugin/README.md); terminal runtime in [terminal](../src/terminal/README.md).
 - `src/main/ipc/`: thin window handles. Resources/File Explorer/Diff use task-scoped actions and resource roots.
-- Renderer task navigation, welcome and wizards live in `components/`; project/account configuration in
+- Renderer task navigation lives in `components/`. `components/welcome/Welcome.tsx` owns the first-start screen,
+  examples and assets; `components/project-map/ProjectMap.tsx` owns the shared creation form, used by welcome and
+  the `NewProject.tsx` dialog wrapper. Project/account configuration lives in
   `components/settings/`; non-UI coordination in `lib/`. `favicons.ts`/`lib/project-color.ts` derive project identity.
 - `src/shared/names.ts`: labels, names and branch slugs. Renderer `task-view/` owns retained screens, grids and activation.
 - Coverage: task/project/account/repository/window e2e files; store/task-document/accounts/worktrees unit tests.
