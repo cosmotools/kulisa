@@ -8,7 +8,7 @@ import { SignIn } from '../SignIn';
 import { InstallProgress } from '../AgentPicker';
 import { useAgentList } from '../../lib/agents';
 import { useExistingSetups } from '../../lib/agent-setup';
-import { useProjectDraft, type ProjectDraft } from '../../lib/new-project';
+import { useProjectDraft, type ProjectDraft } from './draft';
 import { refused } from '../../../shared/result';
 import type { Account, AgentInfo } from '../../../shared/types';
 

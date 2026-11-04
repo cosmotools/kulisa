@@ -1,9 +1,9 @@
 // New Project's dialog (docs/tasks.md, Projects). The shared flow owns the form; this wrapper owns opening and closing.
 import { useEffect, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@ui';
-import { ProjectFlow } from './new-project/ProjectFlow';
-import { projectDraft, type ProjectDraft } from '../lib/new-project';
-import { registerDialog } from '../lib/dialogs';
+import { ProjectFlow } from './ProjectFlow';
+import { projectDraft, type ProjectDraft } from './draft';
+import { registerDialog } from '../../lib/dialogs';
 
 export function NewProject() {
   const [open, setOpen] = useState(false), [draft, setDraft] = useState<ProjectDraft | null>(null);

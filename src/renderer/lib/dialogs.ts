@@ -8,7 +8,7 @@ import type { DevelopmentTerminalInfo } from '../../shared/types';
 interface Dialogs {
   stageTerminalSettings: { open(app: StageTerminal): void };
   taskrename: { rename(key: string, name: string): void };
-  // New Project (components/NewProject.tsx).
+  // New Project (components/new-project/).
   newproject: { open(): Promise<void> };
   shortcuts: { showShortcuts(): void };
   // Change Agent (components/HandOver.tsx): an agent's tab handed over.

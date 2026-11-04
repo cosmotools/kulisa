@@ -9,7 +9,7 @@ import { Empty } from './Empty';
 import { Sidebar } from './Sidebar';
 import { TaskBar } from './TaskBar';
 import { Ask } from './Ask';
-import { NewProject } from './NewProject';
+import { NewProject } from './new-project';
 import { AgentPicker } from './AgentPicker';
 import { StageTerminalSettings } from './StageTerminalSettings';
 import { TaskRename } from './TaskRename';

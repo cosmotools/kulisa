@@ -2,7 +2,7 @@
 import { useId } from 'react';
 import { FolderGit2Icon, FolderOpenIcon, FolderPlusIcon } from 'lucide-react';
 import { Button, Card, CardHeader, CardContent, Field, FieldContent, FieldDescription, FieldLabel, FieldTitle, Input, Label, RadioGroup, RadioGroupItem } from '@ui';
-import { destination, useProjectDraft, type From, type ProjectDraft } from '../../lib/new-project';
+import { destination, useProjectDraft, type From, type ProjectDraft } from './draft';
 import { MAX } from '../../../shared/names';
 
 const sources = [

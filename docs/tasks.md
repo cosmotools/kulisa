@@ -19,9 +19,10 @@ A project configures repositories/folders, agents and profiles, with ordered def
   including page/window exit. Sections add items in place, Esc cancels input; rows share menu/right-click actions.
   Global profile identity belongs to Settings → Profiles, not project membership controls.
 
-**New Project** shares `components/new-project/ProjectFlow.tsx` between the welcome and the task-window dialog
-(`NewProject.tsx`). Its draft (`lib/new-project.ts`) keeps inputs across Back/Continue; the bounded body scrolls
-independently of the footer. The steps are:
+**New Project** owns its dialog, shared sequence, steps and draft in `components/new-project/`. Its only external
+entry is `index.tsx`: `NewProject` registers the dialog and `ProjectSetup` embeds creation in the welcome.
+Both own their draft; callers never inspect its state or import step components. `draft.ts` keeps inputs across
+Back/Continue; the bounded body scrolls independently of the footer. The steps are:
 
 1. **Agents**: choose one starting account from a table. Ready external configurations appear directly as rows;
    Use registers/selects that account and proceeds to Code. Each ready account shows its configuration directory.
@@ -523,9 +524,9 @@ rm -rf ~/.config/Kulisa/projects/<project id>   # all its tasks with their profi
   [Kulisa plugin](../src/kulisa-plugin/README.md); terminal runtime in [terminal](../src/terminal/README.md).
 - `src/main/ipc/`: thin window handles. Resources/File Explorer/Diff use task-scoped actions and resource roots.
 - Renderer task navigation lives in `components/`. `components/welcome/Welcome.tsx` owns the first-start screen,
-  examples and assets; `components/new-project/ProjectFlow.tsx` owns the shared creation form, used by welcome and
-  the `NewProject.tsx` dialog wrapper. Project/account configuration lives in
-  `components/settings/`; non-UI coordination in `lib/`. `favicons.ts`/`lib/project-color.ts` derive project identity.
+  examples and assets; `components/new-project/` owns the whole creation UI and its draft behind `index.tsx`.
+  Project/account configuration lives in `components/settings/`; shared non-UI coordination in `lib/`.
+  `favicons.ts`/`lib/project-color.ts` derive project identity.
 - `src/shared/names.ts`: labels, names and branch slugs. Renderer `task-view/` owns retained screens, grids and activation.
 - Coverage: task/project/account/repository/window e2e files; store/task-document/accounts/worktrees unit tests.
 

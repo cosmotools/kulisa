@@ -1,4 +1,4 @@
-// Shared New Project sequence (docs/tasks.md, Projects). This entry owns step navigation and focus; the draft owns
+// Shared New Project sequence (docs/tasks.md, Projects). Owns step navigation and focus; the draft owns
 // validation/submission. The bounded body scrolls independently so actions remain reachable in short windows.
 import { useEffect, useRef } from 'react';
 import { ArrowLeftIcon, ArrowRightIcon, CheckIcon, CircleAlertIcon } from 'lucide-react';
@@ -7,7 +7,7 @@ import { AgentsStep } from './AgentsStep';
 import { CodeStep } from './CodeStep';
 import { FinishStep } from './FinishStep';
 import { useAgentList } from '../../lib/agents';
-import { refusalOf, useProjectDraft, type ProjectDraft } from '../../lib/new-project';
+import { refusalOf, useProjectDraft, type ProjectDraft } from './draft';
 
 const steps = [
   { id: 'agents', label: 'Agents', title: 'Choose your agent', detail: 'Start with one agent. Use an existing setup or connect a new account.' },

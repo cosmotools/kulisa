@@ -1,10 +1,10 @@
 // Shared staged project draft (docs/tasks.md, Projects). Connections are saved globally; this draft only selects
 // their project membership. Display names and destination folder names have separate validation and lifecycles.
 import { createStore, useStore } from 'zustand';
-import { agentList } from './agents';
-import { labelError, folderNameError, repoName, slugOf, MAX } from '../../shared/names';
-import { refused } from '../../shared/result';
-import type { Account, AccountsInfo, SignedIn } from '../../shared/types';
+import { agentList } from '../../lib/agents';
+import { labelError, folderNameError, repoName, slugOf, MAX } from '../../../shared/names';
+import { refused } from '../../../shared/result';
+import type { Account, AccountsInfo, SignedIn } from '../../../shared/types';
 
 export type From = 'new' | 'folder' | 'clone';
 type Step = 'agents' | 'code' | 'finish';

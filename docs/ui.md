@@ -19,11 +19,11 @@ menus stay above them.
 | `src/renderer/window.css` | Global theme, selection, cursor and scroll rules |
 | `components/App.tsx`, title/task bars, sidebar, empty/welcome | Window frame and task navigation |
 | `components/welcome/Welcome.tsx` | Welcome entry; its examples, SVG characters, animation CSS and assets stay in `welcome/` |
-| `components/new-project/ProjectFlow.tsx`, `components/NewProject.tsx` | Shared project form and its dialog wrapper; the draft stays in `lib/new-project.ts` |
+| `components/new-project/index.tsx` | Public entry for the project dialog and embedded setup; sequence, steps and draft stay inside `new-project/` |
 | `task-view/` | Retained task screens, both Dockviews and their outer split, pane controls, Resources, native-view bounds |
 | `components/settings/` | Lazy Settings chunk through its `index.ts`; shared page controls in `kit.tsx` |
 | `components/Menus.tsx`, dialogs, `lib/menu.ts`, `dialogs.ts`, `ask.ts` | Shared menus/questions/dialog opening |
-| `lib/` | Non-component state, actions, lifecycle and coordination; no UI library/icon imports |
+| `lib/` | Shared non-component state, actions, lifecycle and coordination; no UI library/icon imports |
 | `src/shared/`, `env.d.ts` | Main/renderer contracts and typed bridge |
 | `src/*/renderer/` | Kulisa package UI, documented by its README |
 | `public/avatars/` | Bundled Noto Emoji profile pictures |
@@ -120,16 +120,18 @@ is Radix's own. A Radix menu of a part's own only for a row's own menu inside on
   anything opens one by name: `(await dialog('newproject')).open()` (`lib/dialogs.ts`). Settings is not a
   dialog: `openSettings(section, id)` (`lib/settings.ts`), through the main process, which logs it.
 - Its content is mounted only while it is open, so what must outlive it lives outside it: an agents' list and its
-  install (`lib/agents.ts`), New Project's draft (`lib/new-project.ts`), Change Agent's (a store in `HandOver.tsx`).
+  install (`lib/agents.ts`), New Project's draft (`new-project/draft.ts`), Change Agent's (a store in `HandOver.tsx`).
 - One that waits for an answer takes no click outside or × (`onInteractOutside`; `AgentPicker.tsx`); Esc cancels it.
 - **Questions** before something that cannot be undone, before closing, or between two ways to go are not new dialogs:
   `ask(q)` (`lib/ask.ts`) or the main process's `shell.ask` → `Ask.tsx`, an `AlertDialog`, queued: Cancel has the
   keyboard, Esc is Cancel, a click outside does nothing.
 - **A page's alert or confirm** (`ProfilePane.tsx`) is drawn in its pane, not modal, over a dimmed picture of the page,
   as Chrome shows it; the other panes go on.
-- **New Project** uses `new-project/ProjectFlow.tsx`, shared by the dialog (`NewProject.tsx`) and the welcome
-  (`welcome/Welcome.tsx`). Its
-  draft owns validation/creation; Agents, Code and Start edit it in order. Its scrollable body keeps Create reachable. A Create
+- **New Project** owns its dialog, embedded setup, sequence, steps and draft in `components/new-project/`.
+  Its public `index.tsx` exposes `NewProject` to App and `ProjectSetup` to the welcome; both keep draft ownership
+  inside the module. Dependency-cruiser forbids outside imports of its internals and keeps `draft.ts` independent
+  of UI components/libraries. The draft owns validation/creation; Agents, Code and Start edit it in order.
+  Its scrollable body keeps Create reachable. A Create
   under way keeps the dialog open however it would close. The agent table uses one row per ready configuration and
   one separate creation row per provider, with identical Use controls for registered and discovered accounts. Its
   loading state stays until all native configuration checks finish, then the table takes its rows' natural height.
@@ -210,5 +212,6 @@ What is drawn or moved here rather than by shadcn, each for a reason at it:
   the legs stay supported by an ottoman. The back, arm and head follow the same clock and
   pause state; narrow or very short windows omit the vignette. No JavaScript animation timer or running browser is retained. Photo sources and license
   live beside the photographs in `welcome/assets/CREDITS.txt`; the build emits them as `welcome-photography-CREDITS.txt`.
-  Vite imports the photographs from this folder. Outside callers use only `Welcome.tsx` and `ProjectFlow.tsx`,
-  enforced by dependency-cruiser; the shared project draft and app branding stay outside these views.
+  Vite imports the photographs from this folder. Outside callers use only `Welcome.tsx`; the welcome embeds
+  creation through the new-project module's public entry. Dependency-cruiser enforces both boundaries.
+  App branding and shared agent-connection controls remain outside these modules.

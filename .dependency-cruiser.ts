@@ -72,8 +72,8 @@ const config: IConfiguration = {
       from: { path: '^src/ui/' }, to: { path: '^src/', pathNot: '^src/ui/' } },
     // The window's logic apart from its look (docs/ui.md, The code): rewriting the components touches no logic, and the
     // logic never comes to depend on a look.
-    { name: 'logic-not-look', severity: 'error', comment: 'src/renderer/lib/ imports no component, no UI library, no icons.',
-      from: { path: '^src/renderer/lib/' },
+    { name: 'logic-not-look', severity: 'error', comment: 'Shared renderer logic and the project draft import no component, UI library or icons.',
+      from: { path: '^src/renderer/(lib/|components/new-project/draft\\.ts$)' },
       to: { path: ['^src/renderer/components/', '^src/renderer/task-view/.*\\.tsx$', '^src/ui/', 'node_modules/(lucide-react|radix-ui|@radix-ui)/'] } },
     { name: 'task-view-entry', severity: 'error', comment: 'TaskView keeps its state, grids and panels behind its command and UI entries.',
       from: { pathNot: '^src/renderer/task-view/' },
@@ -81,9 +81,9 @@ const config: IConfiguration = {
     { name: 'welcome-entry', severity: 'error', comment: 'The welcome owns its examples, animations and assets; outside callers use Welcome.tsx.',
       from: { pathNot: '^src/renderer/components/welcome/' },
       to: { path: '^src/renderer/components/welcome/', pathNot: '^src/renderer/components/welcome/Welcome\\.tsx$' } },
-    { name: 'new-project-entry', severity: 'error', comment: 'Welcome and New Project share the sequence through ProjectFlow.tsx.',
+    { name: 'new-project-entry', severity: 'error', comment: 'Project creation owns its draft, dialog and sequence behind one public UI entry.',
       from: { pathNot: '^src/renderer/components/new-project/' },
-      to: { path: '^src/renderer/components/new-project/', pathNot: '^src/renderer/components/new-project/ProjectFlow\\.tsx$' } },
+      to: { path: '^src/renderer/components/new-project/', pathNot: '^src/renderer/components/new-project/index\\.tsx$' } },
     // Settings is the window's chunk of its own, read as it is first shown (App.tsx): a static import pulls it into the
     // window's bundle.
     { name: 'settings-entry', severity: 'error', comment: 'components/settings/ is reached from outside only by import() of its index.ts.',

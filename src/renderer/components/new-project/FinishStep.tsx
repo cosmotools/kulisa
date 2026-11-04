@@ -2,7 +2,7 @@
 import { useId, useState } from 'react';
 import { GlobeIcon, PencilIcon, SparklesIcon, SquareTerminalIcon } from 'lucide-react';
 import { Button, Field, FieldContent, FieldDescription, FieldLabel, FieldTitle, Input, RadioGroup, RadioGroupItem } from '@ui';
-import { useProjectDraft, type ProjectDraft, type ProjectDraftState } from '../../lib/new-project';
+import { useProjectDraft, type ProjectDraft, type ProjectDraftState } from './draft';
 
 const guidance = {
   web: { title: 'Try a first request', text: '“Build a small online store. Help me set up browser profiles to try it as a customer and an admin.”', detail: 'Browser profiles let you and your agent check the app as different users.' },
