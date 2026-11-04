@@ -35,7 +35,6 @@ region wrappers.
 
 ## shadcn in Kulisa
 
-Use the upstream `shadcn` skill for component patterns; Kulisa's generation and native-page rules here take precedence.
 Run read-only CLI commands with the pinned `node node_modules/shadcn/dist/index.js <command>`.
 Imports outside `src/ui` go through `@ui`; Kulisa's theme variables live in `src/renderer/window.css`.
 

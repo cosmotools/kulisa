@@ -106,9 +106,9 @@ The human watches, signs in and points to page elements with Pick. Tasks let sev
   Read `node_modules/playwright-core/types/types.d.ts`; use existing picking, snapshots, highlights and action APIs.
 - Before touching Electron, read the installed version's docs at
   `https://raw.githubusercontent.com/electron/electron/v<version>/docs/` and `node_modules/electron/electron.d.ts`.
-- Before using shadcn/ui, use the installed `shadcn` skill and read
-  `https://ui.shadcn.com/docs/components/radix/<name>` and its file in `src/ui/`.
-  Follow the examples; [docs/ui.md](docs/ui.md#shadcn-in-kulisa) takes precedence over the skill's generic workflow.
+- Before using shadcn/ui, use the installed `shadcn` skill. Apply
+  [Kulisa's UI integration rules](docs/ui.md#shadcn-in-kulisa), which take precedence over its generic workflow,
+  and read the component's generated source in `src/ui/`.
 - Hand-written protocol code is limited to `cdp-proxy.ts`, which exposes `webContents.debugger` over CDP.
 - Prefer lower RAM use; measure rather than guess (`ps -eo pid,rss,args`). Discuss noticeable increases with the
   author before building, including extra processes, retained hidden views and large buffers.
