@@ -207,9 +207,6 @@ answers (10 s).
   encrypts nothing). Test folders are under home: paths show as `~`.
 - Linux's checks install `rpm` for the RPM maker's fixture build (`forge.test.ts`); locally it skips without `rpmbuild`.
 - macOS and Windows runners are 1024×768; the CI sets 1920×1080.
-- The macOS test slot uses `macos-26-intel` while hosted arm64 capacity is unavailable. Required check names retain
-  `macos-latest`; checks and all E2e shards still run on macOS, but Apple Silicon is not tested natively.
-  Restore native arm64 coverage in [#355](https://github.com/cosmotools/kulisa/issues/355).
 - LF everywhere (`.gitattributes`), else file comparisons fail on Windows.
 
 **The runner's conditions locally** (4 cores, no agents, no desktop; a short home for the keyring's socket):
