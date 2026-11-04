@@ -55,7 +55,8 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
     name: checks (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
+    # Preserve required check names while macOS arm64 hosted runners cannot acquire capacity.
+    runs-on: ${{ matrix.os == 'macos-latest' && 'macos-26-intel' || matrix.os }}
     timeout-minutes: 20
     defaults:
       run:
@@ -106,7 +107,7 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
         shard: [1, 2, 3]
     name: e2e (${{ matrix.os }}, ${{ matrix.shard }}/3)
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.os == 'macos-latest' && 'macos-26-intel' || matrix.os }}
     timeout-minutes: 20
     defaults:
       run:
