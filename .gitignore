@@ -30,5 +30,3 @@ playwright-report/
 .claude/skills/find-skills
 .agents/skills/tdd/
 .claude/skills/tdd
-.agents/skills/playwright-core/
-.claude/skills/playwright-core
