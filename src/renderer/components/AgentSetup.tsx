@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { CircleAlertIcon, RefreshCwIcon } from 'lucide-react';
 import { Alert, AlertDescription, Button, Spinner } from '@ui';
-import { useExistingSetup } from '../../agent-management/renderer';
+import { useExistingSetup } from '../lib/agent-setup';
 import { SignIn } from './SignIn';
 import { refused } from '../../shared/result';
 import type { AgentInfo, AccountsInfo, SignedIn } from '../../shared/types';

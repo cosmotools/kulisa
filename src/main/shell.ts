@@ -6,7 +6,7 @@ import type { ProfileStore } from './profile-store.ts';
 import type { CookieSync } from '../browser/main/index.ts';
 import type { SessionCookies } from '../browser/main/index.ts';
 import type { CdpProxy } from './cdp-proxy.ts';
-import type { Accounts, Account } from '../agent-management/main/index.ts';
+import type { Accounts, Account } from './accounts.ts';
 import type { Agent, Found } from '../kulisa-plugin/main/index.ts';
 import type { Profile, Tab } from '../browser/main/index.ts';
 import type { Project } from './projects.ts';

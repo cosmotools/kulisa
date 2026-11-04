@@ -7,7 +7,7 @@ import path from 'path';
 import fs from 'fs';
 import { CdpProxy } from './cdp-proxy.ts';
 import { Store, branchOf } from './store.ts';
-import { Accounts } from '../agent-management/main/index.ts';
+import { Accounts } from './accounts.ts';
 import { ProfileStore } from './profile-store.ts';
 import { CookieSync } from '../browser/main/index.ts';
 import { signinPages } from './signin-pages.ts';
@@ -409,7 +409,7 @@ function start(options: Options = {}) {
     resume: own.resume && (({ sessionId, transcript }) => sessionId && transcript && fs.existsSync(transcript) && own.resume!(sessionId)) };
   const known = [...(custom ? [custom] : []), ...(options.agents || AGENTS)];
   shell.agentFiles = [...new Set(known.flatMap((a) => a.localFiles || []))];
-  // The agents with their accounts (src/agent-management); an account is its agent with its config folder in its environment.
+  // The agents with their accounts (accounts.ts); an account is its agent with its config folder in its environment.
   shell.accounts = new Accounts(userData, known, (dir) => store.markDeleted(dir), { home: app.getPath('home') });
   speech.clean();
   shell.accounts.clean();

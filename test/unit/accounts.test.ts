@@ -1,13 +1,13 @@
-// Agent configuration ownership and cleanup (README.md).
+// Accounts owned by Kulisa's core (docs/tasks.md, Accounts).
 import { test, after } from 'node:test';
 import assert from 'assert/strict';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { Accounts } from './main/index.ts';
-import { shortEmail } from '../main/log.ts';
-import { drawing } from '../../test/unit/drawing.ts';
-import type { Agent } from '../kulisa-plugin/main/index.ts';
+import { Accounts } from '../../src/main/accounts.ts';
+import { shortEmail } from '../../src/main/log.ts';
+import { drawing } from './drawing.ts';
+import type { Agent } from '../../src/kulisa-plugin/main/index.ts';
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'kulisa-unit-'));
 after(() => fs.rmSync(root, { recursive: true, force: true }));
 
@@ -22,10 +22,10 @@ test("accounts: one store, kept until deleted; its folder a fixed id, random, th
   assert.match(r.id, /^[a-z0-9]{6}$/);
   assert.equal(r.dir, path.join(data, 'agents', `claude-${r.id}`), 'its folder its agent and its id');
   assert.ok(fs.existsSync(r.dir), 'its folder made before the sign-in');
-  assert.match(accounts.prepare('shell').error!, /has no accounts/);
+  assert.match(accounts.prepare('shell').error, /has no accounts/);
   const ann = accounts.create(r.id, 'claude', 'ann@shop.com');
   assert.deepEqual([ann.id, ann.name, ann.dir, ann.own, ann.choosable], [r.id, 'Claude Code · ann@shop.com', r.dir, false, true]);
-  assert.equal(accounts.byEmail('claude', 'ann@shop.com')!.id, r.id, 'an email it has already: that account');
+  assert.equal(accounts.byEmail('claude', 'ann@shop.com').id, r.id, 'an email it has already: that account');
   assert.equal(accounts.byEmail('claude', null), null);
   assert.deepEqual(new Accounts(data, defs).all().map((a) => a.id), ['claude', r.id, 'shell'], 'kept');
   const cy = accounts.create((accounts.prepare('claude') as { id: string }).id, 'claude', 'cy@shop.com');

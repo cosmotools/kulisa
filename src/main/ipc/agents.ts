@@ -1,30 +1,49 @@
-// Window handles for project membership and task agent choices (docs/tasks.md). Agent management owns discovery,
-// installation and sign-in lifecycle; core supplies project context and its account-removal rules.
-import { app } from 'electron';
+// Window handles for agents (docs/tasks.md). Accounts owns discovery, installation and sign-in lifecycle;
+// these handles supply window/project context and apply membership and account-removal rules.
+import { app, shell as electronShell } from 'electron';
 import { addAgent, deleteAccount } from '../projects.ts';
-import { installAgentManagement } from '../../agent-management/main/index.ts';
 import { refused } from '../../shared/result.ts';
 import { handle, on } from '../ipc.ts';
 import type { Ipc } from '../ipc.ts';
 import type { Shell, AgentChoice } from '../shell.ts';
 import type { Task } from '../tasks.ts';
+import type { AccountsInfo } from '../../shared/types.ts';
 
 export function registerAgents(ipc: Ipc) {
   const { shell, at, serial } = ipc, manager = shell.accounts;
   const store = shell.store;
-  const usedBy = (id: string) => store.projectsWith('agents', id).map((p) => p.name);
-  const info = () => manager.info(usedBy);
-  installAgentManagement(manager, {
-    usedBy, serial, changed: () => shell.sendProjects(),
-    choices: (e, details) => {
-      const w = at(e), mine = w?.task?.project.agents() || [];
-      const rank = (id: string) => mine.includes(id) ? mine.indexOf(id) : mine.length;
-      // Task choices are restricted to its project's accounts. Settings/onboarding list CLI providers only.
-      const accounts = shell.accounts.all().filter((a) => details ? a.own && a.agent.command : a.choosable && (a.own || mine.includes(a.id)))
-        .sort((x, y) => rank(x.id) - rank(y.id));
-      return { accounts, cwd: w?.task?.folder || app.getPath('home') };
-    },
+  const info = (): AccountsInfo => {
+    const all = manager.all();
+    return { accounts: all.filter((a) => !a.own).map(({ id, agent, name, email, origin, dir }) => ({ id, agent: agent.id,
+      name, email: email ?? null, origin: origin!, directory: dir!, projects: store.projectsWith('agents', id).map((p) => p.name) })),
+    clis: all.filter((a) => a.own && a.agent.config?.login).map((a) => a.id) };
+  };
+  handle('account:existing', (_e, { agent }) => manager.existing(agent));
+  handle('account:show-folder', async (_e, { id }) => {
+    const account = manager.find(id);
+    if (!account?.dir) return { error: 'No configuration directory for this account' };
+    const error = await electronShell.openPath(account.dir);
+    return error ? { error } : {};
   });
+  handle('account:signin:cancel', (_e, { key }) => manager.cancel(key));
+  handle('account:list', info);
+  handle('account:connect-existing', (_e, { agent }) => serial(async () => {
+    const result = await manager.connectExisting(agent);
+    if (refused(result)) return result;
+    shell.sendProjects();
+    return { ...info(), ...result };
+  }));
+  handle('agent:list', (e, options = {}) => {
+    const w = at(e), mine = w?.task?.project.agents() || [];
+    const rank = (id: string) => mine.includes(id) ? mine.indexOf(id) : mine.length;
+    // Task choices are restricted to its project's accounts. Settings/onboarding list CLI providers only.
+    const accounts = manager.all().filter((a) => options.details ? a.own && a.agent.command : a.choosable && (a.own || mine.includes(a.id)))
+      .sort((x, y) => rank(x.id) - rank(y.id));
+    return manager.list(accounts, w?.task?.folder || app.getPath('home'), options);
+  });
+  handle('agent:install:start', (e, { id }) => manager.install(id, at(e)?.task?.folder || app.getPath('home'), (data) => {
+    if (!e.sender.isDestroyed()) e.sender.send('agent:install:output', data);
+  }));
   handle('account:delete', (e, { id }) => serial(async () => {
     const r = await deleteAccount(shell, id, at(e));
     if (refused(r)) return r;

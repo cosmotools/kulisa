@@ -1,12 +1,12 @@
-// Sign-in lifecycle across asynchronous discovery and terminal startup (README.md). No real CLI credentials or pty.
+// Sign-in lifecycle across asynchronous discovery and terminal startup (docs/tasks.md, Choosing the agent). No real CLI credentials or pty.
 import { test } from 'node:test';
 import assert from 'assert/strict';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import { Accounts } from './main/index.ts';
-import type { Agent } from '../kulisa-plugin/main/index.ts';
-import type { Pty } from '../terminal/main/index.ts';
+import { Accounts } from '../../src/main/accounts.ts';
+import type { Agent } from '../../src/kulisa-plugin/main/index.ts';
+import type { Pty } from '../../src/terminal/main/index.ts';
 
 function setup(t: { after(fn: () => void): void }) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'kulisa-agent-management-'));

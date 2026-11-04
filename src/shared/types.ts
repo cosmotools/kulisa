@@ -1,10 +1,8 @@
-import type { AccountsInfo } from '../agent-management/ipc.ts';
 import type { GitHubKind, RepoGitHub } from '../github/ipc.ts';
 
 // What the main process sends the window (window.ts, profiles.ts, tasks.ts), as the window uses it: the one
 // definition, which the main process's answers are typed with too; the channels it comes by: ipc.ts.
 
-export type { Account, AccountsInfo, AgentInfo } from '../agent-management/ipc.ts';
 export type { Profile } from '../browser/ipc.ts';
 // A closed one (window.ts, pushState): tabs is how many it had.
 export interface ClosedProfile { id: string; name: string; avatar: string; description: string | null; tabs: number }
@@ -61,8 +59,14 @@ export interface ProjectsInfo {
   // Anything for Settings to show: a project, an account or a profile. None at the first start: no gear (components/TopBar.tsx).
   settings: boolean;
 }
-// A profile in Settings → Profiles: its test login (never its password) and projects.
+// A project's page in Settings (main/ipc/projects.ts): what a project may be, its folders, its profiles, its configuration.
+// agents: every account (main/accounts.ts); clis: the agents a new account can be made of.
+// An agent's account (Settings → Agents: main/app.ts, account:list), with the names of the projects it is in.
+// A profile in Settings → Profiles (main/ipc/profiles.ts): who it is, its test login (never its password), its projects.
 export interface SettingsProfile { id: string; name: string; avatar: string; description: string; login: string; hasPassword: boolean; projects: string[] }
+export interface Account { id: string; agent: string; name: string; email: string | null; projects: string[]; origin: 'kulisa' | 'external'; directory: string }
+export interface AccountsInfo { accounts: Account[]; clis: string[] }
+export interface ExistingAgentSetup { directory: string; email: string | null; account: string | null }
 // What a new account's sign-in answers (components/SignIn.tsx): the project's agents, made in one; else every account.
 // One of a project's agents (Settings, a project's page): an account (its agent, its email) or the terminal only.
 export interface ProjectAgent { id: string; name: string; agent: string; cli: string; email: string | null; default?: boolean }
@@ -88,6 +92,12 @@ export interface Shortcut { id: string; group: string; label: string; keys: stri
 // A question from the main process (shell.ask) or the window.
 // link: a page the answer may need, under the detail (opened in the user's browser).
 export interface Question { message: string; detail?: string; ok?: string; other?: string; cancel?: string; danger?: boolean; link?: { url: string; label: string } }
+// An agent or account in a list to choose from or install (main/ipc/agents.ts; renderer's lib/agents.ts).
+export interface AgentInfo {
+  id: string; name: string; maker?: string; needs?: string; site?: string; install?: string | null; installed?: boolean;
+  account?: string | null; agent?: string; path?: string | null; onPath?: boolean | null; version?: string | null;
+}
+export interface ListOptions { check?: boolean; details?: boolean; cached?: boolean }
 // About Kulisa (components/settings/AboutPage.tsx): the versions and the folders Kulisa writes in, each with whether it is there yet.
 export type AboutFolder = 'data' | 'projects' | 'program';
 export interface AboutInfo { version: string; electron: string; chrome: string; folders: { id: AboutFolder; path: string; exists: boolean }[] }

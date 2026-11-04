@@ -18,7 +18,6 @@ const only = (name: string, from: string, allowed: string[], comment: string) =>
 // through its entries (other packages' too); its main process half uses of src/main only what its line names, its window
 // half nothing of the window. A new Kulisa package is a line here.
 const packages: Record<string, { main: string[] }> = {
-  'agent-management': { main: ['ipc', 'log', 'store', 'files', 'remove'] },
   'kulisa-plugin': { main: ['log', 'store', 'files', 'remove'] },
   browser: { main: ['log', 'files', 'local'] },
   terminal: { main: ['ipc', 'log'] }, // a terminal: its pty, its buffers and the xterm shown

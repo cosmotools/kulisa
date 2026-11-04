@@ -77,7 +77,6 @@ entries by directory.
 
 | Folder | What | Its main half uses |
 |---|---|---|
-| `src/agent-management/` | installed CLIs, connected configurations, discovery/install/sign-in lifecycle and shared renderer state ([README](../src/agent-management/README.md)) | `ipc.ts`, `log.ts`, `store.ts` (IDs), `files.ts`, `remove.ts` |
 | `src/kulisa-plugin/` | agent integration: tools, hooks, shared skills, CLI adapters and transcript readers ([README](../src/kulisa-plugin/README.md)) | `log.ts`, `store.ts`, `files.ts` (atomic writes), `remove.ts` |
 | `src/browser/` | browser sessions, tabs, navigation, cookies, storage and native views ([README](../src/browser/README.md)) | `log.ts`, `files.ts`, `local.ts` |
 | `src/terminal/` | a terminal: its pty in the user's shell, its buffers and the xterm a place shows ([README](../src/terminal/README.md)) | `ipc.ts`, `log.ts` |

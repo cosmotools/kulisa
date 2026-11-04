@@ -1,18 +1,18 @@
-// Agent connections and configuration ownership (../README.md). Old records without an origin are
+// Agent connections and configuration ownership (docs/tasks.md, Choosing the agent). Old records without an origin are
 // Kulisa-owned. External records reference the original directory; forgetting one never owns its files or login.
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import { removeTree } from '../../main/remove.ts';
-import { newId } from '../../main/store.ts';
-import { writeFileAtomic } from '../../main/files.ts';
-import { log, shortEmail } from '../../main/log.ts';
-import { findAgent, agentVersion, installAgent, installLine, accountEmail, signOut } from '../../kulisa-plugin/main/index.ts';
-import type { Agent, Found } from '../../kulisa-plugin/main/index.ts';
-import type { Pty, TerminalOutput } from '../../terminal/main/index.ts';
-import { refused } from '../../shared/result.ts';
-import type { Result } from '../../shared/result.ts';
-import type { AccountsInfo, AgentInfo, ListOptions, ExistingAgentSetup } from '../ipc.ts';
+import { removeTree } from './remove.ts';
+import { newId } from './store.ts';
+import { writeFileAtomic } from './files.ts';
+import { log, shortEmail } from './log.ts';
+import { findAgent, agentVersion, installAgent, installLine, accountEmail, signOut } from '../kulisa-plugin/main/index.ts';
+import type { Agent, Found } from '../kulisa-plugin/main/index.ts';
+import type { Pty, TerminalOutput } from '../terminal/main/index.ts';
+import { refused } from '../shared/result.ts';
+import type { Result } from '../shared/result.ts';
+import type { AgentInfo, ListOptions, ExistingAgentSetup } from '../shared/types.ts';
 
 const canonical = (dir: string) => { try { return fs.realpathSync(dir); } catch { return path.resolve(dir); } };
 
@@ -23,7 +23,7 @@ interface Account {
 }
 
 interface Terminals {
-  startTerminal: typeof import('../../terminal/main/index.ts').startTerminal;
+  startTerminal: typeof import('../terminal/main/index.ts').startTerminal;
   stopTerminal(pty: Pty): void;
   forgetTerminal(key: string): void;
 }
@@ -36,7 +36,7 @@ class Accounts {
   private seen = new Map<string, Seen>();
   private terminals: () => Promise<Terminals>;
   constructor(dir: string, agents: Agent[], markDeleted: (dir: string) => void = () => {},
-    { home = os.homedir(), terminals = () => import('../../terminal/main/index.ts') }: { home?: string; terminals?: () => Promise<Terminals> } = {}) {
+    { home = os.homedir(), terminals = () => import('../terminal/main/index.ts') }: { home?: string; terminals?: () => Promise<Terminals> } = {}) {
     this.dir = dir; this.agents = agents; this.markDeleted = markDeleted;
     this.file = path.join(dir, 'agents.json'); this.home = home; this.terminals = terminals;
   }
@@ -134,12 +134,6 @@ class Accounts {
     if (!setup) return { error: 'No signed-in setup found. Sign in to a new configuration, or sign in with your CLI and check again.' };
     const a = this.connect(agentId, setup.directory, setup.email, setup.defaultConfig);
     return { connected: a.id };
-  }
-  info(usedBy: (id: string) => string[]): AccountsInfo {
-    const all = this.all();
-    return { accounts: all.filter((a) => !a.own).map(({ id, agent, name, email, origin, dir }) => ({ id, agent: agent.id,
-      name, email: email ?? null, origin: origin!, directory: dir!, projects: usedBy(id) })),
-    clis: all.filter((a) => a.own && a.agent.config?.login).map((a) => a.id) };
   }
   private async look(agent: Agent, cwd: string, details?: boolean) {
     const key = `${agent.id}\n${cwd}`, found = await findAgent(agent, cwd), old = this.seen.get(key);

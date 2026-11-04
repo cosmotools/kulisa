@@ -1,7 +1,7 @@
 // Settings' agents and their accounts (docs/tasks.md, Choosing the agent, Accounts), kept here rather than in a page,
 // so an install goes on (and its output is kept) while another page is shown.
 import { createStore, useStore } from 'zustand';
-import { agentList } from '../../../agent-management/renderer';
+import { agentList } from '../../lib/agents';
 import type { Account, AccountsInfo } from '../../../shared/types';
 
 export const agents = agentList({ details: true, installed: (a) => `${a.name} is installed. Connect a setup below under Accounts.` });
