@@ -163,6 +163,7 @@ test("projects: Delete Project… (in Settings alone) asks, closes the project w
   expect(await core((k, i) => k.shell.store.projects().find((x) => x.id === i).name, files.pid('cloned'))).toBe('My Cloned App');
   expect(git(into, 'log', '--format=%s')).toBe('mine');
   await removeRow('cloned');
+  await closeSettings(core, ui, sui);
   const stack = path.join(home, 'fullstack');
   const full = await invoke(ui, 'project:new', { from: 'clone', name: 'Full Stack', directoryName: 'fullstack', location: home, urls: [bare, backBare] });
   expect(full.error).toBeUndefined();

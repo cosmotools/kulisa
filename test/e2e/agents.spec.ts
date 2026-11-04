@@ -198,7 +198,7 @@ test("a new account is made in the project's settings: the agent's own sign-in a
   // Its agent, its email under it.
   await expect(s.locator(`[data-agent="${work}"]`)).toHaveAttribute('aria-label', 'Fake agent');
   await expect(s.locator(`[data-agent="${work}"]`)).toContainText('work@shop.com');
-  expect(files.json('agents.json')).toEqual({ list: [{ id: work, agent: 'fake', email: 'work@shop.com' }] });
+  expect(files.json('agents.json')).toEqual({ list: [{ id: work, agent: 'fake', email: 'work@shop.com', origin: 'kulisa' }] });
   expect(await core((k, a) => k.shell.store.projects().find((x) => x.id === a.pid).agents.includes(a.work), { pid: files.pid('project'), work }), 'the project lists it').toBe(true);
   // Signed in to an email it has already: that account, the new folder signed out and gone.
   await newAccount(core, s, files);
@@ -408,9 +408,10 @@ test('external setup: native status, direct use, configuration path and disconne
     await showAgent(s, 'fake');
     const page = agentPage(s, 'fake');
     await page.getByRole('button', { name: 'Use existing setup', exact: true }).click();
+    const configuration = page.getByRole('group', { name: 'Configuration for external@shop.com' });
+    await expect(configuration).toBeVisible();
     connected = (await invoke(s, 'account:list')).accounts.find((a: { email: string }) => a.email === 'external@shop.com').id;
     expect((await invoke(s, 'account:existing', { agent: 'fake' })).setup.account).toBe(connected);
-    const configuration = page.getByRole('group', { name: 'Configuration for external@shop.com' });
     await expect(configuration).toContainText('External configuration');
     await expect(configuration).toContainText(external);
     expect(await core((k, id) => k.shell.agentFor(id).configDir, connected)).toBe(external);
