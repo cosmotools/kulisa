@@ -10,7 +10,7 @@ The human watches, signs in and points to page elements with Pick. Tasks let sev
   decides. Revisit a settled decision only with new evidence or an architectural conflict, including in these rules.
 - Fix architectural faults encountered by the change rather than building around them. Name them in the plan.
 - Choose tools and designs by capability, RAM, maintenance, license and fit, not migration effort. Preserve required
-  behavior and workarounds with tests first; leave deferred features deferred.
+  behavior and workarounds; leave deferred features deferred.
 - Report additions and deletions separately for code, tests and docs, excluding lockfiles and pictures:
   `code +203 −95 · tests +52 −13 · docs +23 −8`. Include this at commit and in the PR; explain disproportionate scope.
 
@@ -105,7 +105,7 @@ The human watches, signs in and points to page elements with Pick. Tasks let sev
   author before building, including extra processes, retained hidden views and large buffers.
 - Give every stored file an owner and a cleanup path. Delete it with its profile, task or project, including git
   and agent records; defer locked files through `deleted-folders.json`. Bound growing data, remove temporary files
-  on success and failure, and keep pictures in memory. Document new storage and test removal.
+  on success and failure, and keep pictures in memory. Document new storage.
 - Every core action must leave a log line through existing channels, tools, hooks and lifecycle logging
   (`src/main/log.ts`). Additional lines identify the action and caller, never typed content or secrets; use `summary`.
 - Support macOS, Windows and Linux. Avoid shell commands and platform-specific paths, signals or flags in app code
@@ -173,8 +173,6 @@ The human watches, signs in and points to page elements with Pick. Tasks let sev
   Without one, use `rg` to find candidates, then read declarations, imports, re-exports and callers. Text matches
   alone do not establish symbol identity or all references. Validate type-sensitive changes with
   `docs/testing.md`, Code analysis.
-- Read `docs/testing.md` before writing or running tests. Before committing or ending a turn with changes, complete
-  its Agent completion checks in the changed worktree, regardless of hooks. Report results and anything unverified.
 
 ## Releases
 

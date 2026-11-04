@@ -50,8 +50,7 @@ export const invoke = (page: Page, channel: string, arg?: unknown) => page.evalu
 export const act = (page: Page, channel: string, arg: unknown) => page.evaluate(([c, a]) => (window as any).act(c, a), [channel, arg] as const);
 // The window done building what it shows (a project, a task: the grid's region busy; none before the window is up).
 export const notLoading = (page: Page) => expect(page.locator('#dock:not([aria-busy])')).toHaveCount(1);
-// That nothing happened is checked once what would have made it is done (docs/testing.md, Writing an e2e test): each
-// of these waits for a proof of that, never for a time.
+// These helpers expose completion boundaries for rendering, IPC and input dispatch.
 // The page drew what its last changes made: React's updates, a ResizeObserver's, what waits for a frame.
 export const frames = (page: Page) => page.evaluate(() => new Promise<void>((r) => { requestAnimationFrame(() => requestAnimationFrame(() => r())); }));
 // Every message the page sent the main process before now is handled there, and every one the main process sent the

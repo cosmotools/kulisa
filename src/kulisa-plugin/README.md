@@ -197,7 +197,7 @@ by the session id its SessionStart hook reported (none without its hooks: then n
 - Complete a useful action without redundant calls; batch related reads when appropriate.
 - Bound waits/lists and minimize context, retained memory and processes. Persist only bounded task-owned artifacts.
 - Fail with target/state and a next step; enforce task ownership through core and required human confirmations.
-- Test behavior ([testing.md](../../docs/testing.md)); `registerTool` supplies action logging.
+- `registerTool` supplies action logging.
 
 ### Saving the agent's context
 

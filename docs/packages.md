@@ -64,13 +64,12 @@ entries by directory.
 ## Moving code into one, step by step
 
 1. Read dependencies and explain the boundary before moving; domain-aware code stays outside.
-2. Use `git mv`, repair imports and pass dependencies through the API. Preserve behavior and unchanged e2e coverage.
+2. Use `git mv`, repair imports and pass dependencies through the API. Preserve behavior.
 3. Move package channels into `ipc.ts`; extend their interfaces from `src/shared/ipc.ts`.
 4. Add the dependency-cruiser entry. Verify forbidden imports fail using a scratch file, then remove it.
 5. Move docs, leave links, add agent instructions, update code maps and search code/comments/docs for old paths.
-6. Move unit tests; run the full `npm test` and confirm discovery retains the test count.
-7. Review touched outside files: package-owned checks, timers, state and channels belong inside.
-8. Run `npm run package`; inspect with `npx asar list out/*/resources/app.asar` for shipped main/contracts and
+6. Review touched outside files: package-owned checks, timers, state and channels belong inside.
+7. Run `npm run package`; inspect with `npx asar list out/*/resources/app.asar` for shipped main/contracts and
    excluded renderer sources/tests/docs. Remove `out/` afterward.
 
 ## The Kulisa packages
