@@ -382,20 +382,23 @@ test('the window menu: its rows and icons, links in the browser and Exit asking 
   // Exit quits as the last window's × does: asked only when an agent works. On macOS the app menu's Quit (⌘Q) does
   // (no Exit there: above), its hidden window shown for the question.
   await core((k) => { k.shell.task.promptTarget().state = 'working'; });
-  if (MAC) {
-    await core((k) => {
-      k.shell.win.hide();
-      k.electron.Menu.getApplicationMenu().items[0].submenu.items.find((i) => i.accelerator === 'Command+Q').click();
-    });
-    await expect.poll(() => core((k) => k.shell.win.isVisible())).toBe(true);
-  } else {
-    await ui.locator('#windowMenu').click();
-    await expect(menu(ui)).toBeVisible();
-    await choose(ui, 'Exit');
+  try {
+    if (MAC) {
+      await core((k) => {
+        k.shell.win.hide();
+        k.electron.Menu.getApplicationMenu().items[0].submenu.items.find((i) => i.accelerator === 'Command+Q').click();
+      });
+      await expect.poll(() => core((k) => k.shell.win.isVisible())).toBe(true);
+    } else {
+      await ui.locator('#windowMenu').click();
+      await expect(menu(ui)).toBeVisible();
+      await choose(ui, 'Exit');
+    }
+    expect((await answer(ui, false)).message).toBe('Quit Kulisa?');
+    expect(await core((k) => !k.shell.win.isDestroyed() && k.shell.open.size > 0), 'Kulisa goes on when the human says no').toBe(true);
+  } finally {
+    await core((k) => { k.shell.task.promptTarget().state = null; if (process.platform === 'darwin' && !k.shell.win.isVisible()) k.electron.app.emit('activate'); });
   }
-  expect((await answer(ui, false)).message).toBe('Quit Kulisa?');
-  expect(await core((k) => !k.shell.win.isDestroyed() && k.shell.open.size > 0), 'Kulisa goes on when the human says no').toBe(true);
-  await core((k) => { k.shell.task.promptTarget().state = null; });
 });
 
 test('a reopened menu keeps the keyboard when its previous close finishes late', async ({ core, ui, files }) => {
