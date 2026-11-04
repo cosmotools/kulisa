@@ -24,3 +24,5 @@ playwright-report/
 .claude/skills/diffs
 .agents/skills/trees/
 .claude/skills/trees
+.agents/skills/shadcn/
+.claude/skills/shadcn
