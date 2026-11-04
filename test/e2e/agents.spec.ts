@@ -425,7 +425,7 @@ test('external setup: native status, direct use, configuration path and disconne
       } finally { accounts.all = all; }
     }, connected);
     expect(recognition).toContain('has not trusted');
-    await onRow(s, connected, 'Disconnect…');
+    await onRow(s, thingRow(s, connected), 'Disconnect…');
     const question = await answer(s);
     expect(question.detail).toMatch(/configuration, sign-in and conversations stay/);
     await expect(thingRow(s, connected)).toHaveCount(0);
