@@ -133,7 +133,7 @@ export function LogPage() {
     </div>
     <div ref={box} role="log" aria-label="Log" data-selectable
       onWheel={() => virtualizer.cancelScroll()} onPointerDown={() => virtualizer.cancelScroll()} onKeyDown={() => virtualizer.cancelScroll()}
-      className="min-h-56 flex-1 cursor-text overflow-auto rounded-xl border bg-card px-2 font-mono text-xs leading-5 text-card-foreground [overflow-anchor:none]">
+      className="min-h-56 flex-1 cursor-text overflow-auto rounded-md border px-2 font-mono text-xs leading-5 [overflow-anchor:none]">
       <div ref={virtualizer.containerRef} className="relative w-full">
         {virtualizer.getVirtualItems().map((v) => <div key={v.key} data-index={v.index} ref={virtualizer.measureElement}
           className="absolute left-0 top-0 w-full">

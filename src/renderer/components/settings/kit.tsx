@@ -29,7 +29,7 @@ export function SettingsGroup({ title, label = title, count, description, action
       </ItemContent>
       {action && <ItemActions>{action}</ItemActions>}
     </Item>}
-    <div className="min-w-0 overflow-hidden rounded-xl border bg-card">{children}</div>
+    <div className="min-w-0 overflow-hidden rounded-md border">{children}</div>
   </section>;
 }
 

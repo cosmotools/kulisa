@@ -37,16 +37,16 @@ filters/actions wrap and the page scrolls when space is limited. Navigation coll
 small breakpoint. Field controls move below their labels in narrow groups.
 
 `kit.tsx` owns the shared heading, `SettingsGroup` boundary, `SettingsFields` and `Things`. Group headers sit above
-the surface. A wrapper owns the rounded border and clipping because `ItemGroup` has no surface variant. Lists use
+the surface. A transparent wrapper owns the `md` rounded border and clipping because `ItemGroup` has no surface
+variant. The log viewer uses the same border and radius. Lists use
 `Item`/`ItemGroup` with `ItemSeparator`s inset 16 px on each side and no inter-row gaps. Field rows use the same
 inset with `Separator`, keeping validation beside its field. Grouped rows paint hover/focus on a square wrapper;
 the outer group clips the first and last rows to its rounded corners. Preserve row actions and keyboard navigation.
 Account configuration details belong to the account's row, with connection controls below the list.
 
-The Settings cover scopes its neutral palette through `#settings` in `window.css`: navigation and canvas share
-one background, with a lighter surface for groups in dark mode. Hover/selection use a brighter tone;
-navigation shares the content's foreground and state tokens. Body and secondary text target WCAG AA contrast
-(at least 4.5:1) on surfaces and hover states. Light mode follows the same roles. Generated controls keep semantic tokens.
+Settings uses the window's global theme tokens for its canvas, navigation, text and interaction states.
+Groups have transparent backgrounds and smaller corners (the author's choice). Keep colors inherited rather
+than introducing a Settings-specific palette; generated controls retain their semantic tokens.
 
 ## The code
 

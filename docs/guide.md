@@ -78,10 +78,10 @@ arrow or the gear. Your task keeps running underneath.
 Settings pages share a narrow, centered column; Log fills the available area beside the menu.
 The path stays in a compact, full-width bar at the top, with a dividing line underneath. Page actions sit beside
 the page heading below it.
-Lists and fields sit in rounded, bordered groups with separators
+Lists and fields sit in bordered groups with small rounded corners and no background fill. Separators are
 inset from both edges. Highlighted rows have straight inner edges and follow the group's outer corners.
-In dark mode, the left menu and page share one gray background, with lighter groups. In a small window or at a
-large zoom, the menu shows icons and fields stack vertically.
+Settings follows the same light or dark theme as the rest of Kulisa. In a small window or at a large zoom,
+the menu shows icons and fields stack vertically.
 
 On macOS, ⌘, opens Settings and ⌘Q quits. Closing the last window hides Kulisa while agents continue; the Dock icon
 brings it back.
