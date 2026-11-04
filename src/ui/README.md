@@ -1,7 +1,7 @@
 # shadcn/ui
 
-CLI-generated window components: `radix-nova`, Radix, Lucide, Geist, neutral base color. The Kulisa package exports
-through `index.ts` and imports no Kulisa code. Usage: [ui.md](../../docs/ui.md); boundaries:
+CLI-generated Radix window controls. `components.json` owns registry/preset configuration. The Kulisa package exports
+through `index.ts` and imports no Kulisa code. Caller/theme rules: [ui.md](../../docs/ui.md#shadcn-in-kulisa); boundaries:
 [packages.md](../../docs/packages.md).
 
 Generated-source ownership and generation commands: [AGENTS.md](AGENTS.md#generation).

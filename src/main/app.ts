@@ -287,7 +287,7 @@ function start(options: Options = {}) {
     shell.language = code;
     store.saveSettings({ ...store.settings(), language: code });
     for (const a of shell.accounts.all()) {
-      const r = !a.own && a.dir ? a.agent.language?.set(a.dir, code) : null;
+      const r = a.origin === 'kulisa' && a.dir ? a.agent.language?.set(a.dir, code) : null;
       if (r?.error) console.warn('[agents] language:', r.error);
     }
     for (const w of shell.windows) w.send('language:state', shell.languageInfo());
@@ -415,10 +415,12 @@ function start(options: Options = {}) {
   speech.clean();
   shell.accounts.clean();
   // An account the human deleted (projects.ts, deleteAccount): signed out with its agent's own command (what it keeps outside
-  // its folder goes too: Claude Code's Keychain entry on macOS), then its folder.
+  // its folder goes too: Claude Code's Keychain entry on macOS), then its folder. External entries disconnect only.
   shell.dropAccount = async (a) => {
-    await signOut(a.agent, await findAgent(a.agent, app.getPath('home')), a.dir!);
-    shell.accounts.remove(a.dir!);
+    if (a.origin === 'kulisa') {
+      await signOut(a.agent, await findAgent(a.agent, app.getPath('home')), a.dir!);
+      shell.accounts.remove(a.dir!);
+    }
     shell.sendProjects(); // the last of all: nothing left for Settings
   };
   // An agent or account a task may run (any: also an agent itself that has accounts, as for installing it, or a task
@@ -426,8 +428,8 @@ function start(options: Options = {}) {
   shell.agentFor = (id, { any = false } = {}) => {
     const a = shell.accounts.find(id ?? custom?.id);
     if (!a || (!a.choosable && !any)) return null;
-    return { ...a.agent, id: a.id, agentId: a.agent.id, cli: a.agent.name, name: a.name, configDir: a.own ? a.agent.config?.home() ?? null : a.dir,
-      env: a.own ? {} : { [a.agent.config!.env]: a.dir! } };
+    return { ...a.agent, id: a.id, agentId: a.agent.id, cli: a.agent.name, name: a.name, configOrigin: a.origin, configDir: a.own ? a.agent.config?.home() ?? null : a.dir,
+      env: a.own ? {} : { [a.agent.config!.env]: a.defaultConfig ? undefined : a.dir! } };
   };
   shell.findAgent = findAgent;
   installShortcuts(shell, { appDevTools });

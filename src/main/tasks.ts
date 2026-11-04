@@ -453,12 +453,12 @@ class Task {
     // Each copy trusted as the human trusted the project's code, in its folder or another task's copy (extendTrust).
     const where = { configDir: a.configDir, transcript: (this.project.agentData() as { transcript?: string }).transcript };
     const copies = this.shell.store.tasksOf(this.project.entry).list.flatMap(worktreesOf);
-    for (const c of worktreesOf(this.entry)) {
+    for (const c of a.configOrigin === 'external' ? [] : worktreesOf(this.entry)) {
       extendTrust(a, where, c.folder, [c.repo, ...copies.filter((o) => o.repo === c.repo && o.folder !== c.folder).map((o) => o.folder)]);
     }
     // Kulisa's shared skill where the agent reads it, and Kulisa's language (☰ → Language: app.ts, setLanguage) in its
     // own setting, in its account's folder only (never the human's own).
-    if (a.configDir && Object.keys(a.env).length) {
+    if (a.configDir && a.configOrigin === 'kulisa') {
       try { if (a.skills) installSkill(shell.packages, path.join(a.configDir, a.skills)); } catch (e) { console.warn('[agents] skill:', (e as Error).message); }
       const r = a.language?.set(a.configDir, shell.language);
       if (r?.error) console.warn('[agents] language:', r.error);
@@ -469,7 +469,7 @@ class Task {
     const command = found.onPath ? a.command : found.path;
     t.pty = await startTerminal((channel, data) => this.window?.send(channel, data), { command, shell: a.shell, cwd: this.folder,
       env: { ...env, ...more.env, ...a.env }, pinned: a.env, sizeOf: this.key,
-      args: [...(resume || []), ...(a.args?.({ env, packages: shell.packages, account: Object.keys(a.env).length ? a.configDir : null, artifacts: shell.store.artifactsGlob() }) || []), ...(more.args || []), ...((!resume && first && a.prompt?.(first)) || [])] }, t.key);
+      args: [...(resume || []), ...(a.args?.({ env, packages: shell.packages, data: this.store.dir, artifacts: shell.store.artifactsGlob() }) || []), ...(more.args || []), ...((!resume && first && a.prompt?.(first)) || [])] }, t.key);
     if (this.developmentTerminals.get(t.id) !== t) { stopTerminal(t.pty); return { error: 'the terminal was closed' }; }
     // Its shell exited by itself (exit), not stopped by Kulisa (closing, quitting: the terminal is kept then).
     t.pty.onExit(() => { if (!t.pty!.stopped) this.dropTerminal(t); });

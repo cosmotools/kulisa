@@ -1,10 +1,10 @@
 // First-start welcome (docs/tasks.md, The welcome): one introduction with web/CLI examples, then the shared project
-// map. The examples are drawings, not running environments; no hidden browser or terminal processes are started.
+// flow. The examples are drawings, not running environments; no hidden browser or terminal processes are started.
 import { useEffect, useRef, useState } from 'react';
 import { ArrowRightIcon, GitBranchIcon, GlobeIcon, KeyboardIcon, MousePointer2Icon,
   PanelTopIcon, PauseIcon, PlayIcon, SquareTerminalIcon } from 'lucide-react';
 import { Button, Tabs, TabsContent, TabsList, TabsTrigger } from '@ui';
-import { ProjectMap } from '../project-map/ProjectMap';
+import { ProjectSetup } from '../new-project';
 import { WebExample } from './WebExample';
 import { CliExample } from './CliExample';
 import { AgentTerminal } from './AgentTerminal';
@@ -12,7 +12,6 @@ import { CoffeeBreak } from './CoffeeBreak';
 import './animations.css';
 import { AppLogo } from '../ProjectIcon';
 import { agentMark } from '../AgentMark';
-import { projectDraft, type ProjectDraft } from '../../lib/new-project';
 
 let focusNow: (() => void) | null = null, asked = false;
 kulisa.on('project:new', () => { if (focusNow) focusNow(); else asked = true; });
@@ -67,16 +66,16 @@ function Introduction({ start, button }: { start: () => void; button: React.RefO
 }
 
 export function Welcome() {
-  const [draft, setDraft] = useState<ProjectDraft | null>(null), button = useRef<HTMLButtonElement>(null);
+  const [creating, setCreating] = useState(false), button = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     focusNow = () => button.current?.focus();
     if (asked) { asked = false; focusNow(); }
     return () => { focusNow = null; };
   }, []);
   return <div id="welcome" className="flex min-h-0 flex-1 flex-col overflow-auto p-6 lg:p-10 [@media(max-height:850px)]:p-6">
-    {draft ? <div className="mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col gap-6">
-      <div><h1 className="text-2xl font-semibold tracking-tight">Make room for your next project</h1><p className="mt-2 text-sm text-muted-foreground">Bring your code, choose an agent. Set up the rest as you work.</p></div>
-      <ProjectMap draft={draft} back={() => setDraft(null)} />
-    </div> : <div className="grid min-h-0 flex-1 [place-items:safe_center]"><Introduction start={() => setDraft(projectDraft())} button={button} /></div>}
+    {creating ? <div className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col gap-6">
+      <div><h1 className="text-2xl font-semibold tracking-tight">Make room for your next project</h1><p className="mt-2 text-sm text-muted-foreground">Choose an agent, bring your code and start building.</p></div>
+      <ProjectSetup onBack={() => setCreating(false)} />
+    </div> : <div className="grid min-h-0 flex-1 [place-items:safe_center]"><Introduction start={() => setCreating(true)} button={button} /></div>}
   </div>;
 }

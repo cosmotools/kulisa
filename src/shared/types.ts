@@ -64,13 +64,14 @@ export interface ProjectsInfo {
 // An agent's account (Settings → Agents: main/app.ts, account:list), with the names of the projects it is in.
 // A profile in Settings → Profiles (main/ipc/profiles.ts): who it is, its test login (never its password), its projects.
 export interface SettingsProfile { id: string; name: string; avatar: string; description: string; login: string; hasPassword: boolean; projects: string[] }
-export interface Account { id: string; agent: string; name: string; email: string | null; projects: string[] }
+export interface Account { id: string; agent: string; name: string; email: string | null; projects: string[]; origin: 'kulisa' | 'external'; directory: string }
 export interface AccountsInfo { accounts: Account[]; clis: string[] }
+export interface ExistingAgentSetup { directory: string; email: string | null; account: string | null }
 // What a new account's sign-in answers (components/SignIn.tsx): the project's agents, made in one; else every account.
 // One of a project's agents (Settings, a project's page): an account (its agent, its email) or the terminal only.
 export interface ProjectAgent { id: string; name: string; agent: string; cli: string; email: string | null; default?: boolean }
 export interface SignedIn extends Partial<AccountsInfo> { agents?: ProjectAgent[] }
-// The project map's agents (accounts, the default first) and profiles (made in it, or taken from the others).
+// A new project's agents (accounts, the default first) and profiles (made in it, or taken from the others).
 export interface NewProjectSetup { agents?: string[]; profiles?: ({ id: string } | { name: string; description?: string })[] }
 export interface ProjectChoices { agents: { id: string; name: string }[]; clis: { id: string; name: string }[] }
 // remote: its origin's key (remotes.ts), known before GitHub is asked (ProjectGitHub).

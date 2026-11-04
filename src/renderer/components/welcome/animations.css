@@ -1,4 +1,4 @@
-/* The welcome's shared demonstration clock (docs/ui.md, Own drawing). The one character visits each profile in
+/* The welcome's shared demonstration clock (README.md, Demonstrations). The one character visits each profile in
    turn; each page holds its result while the other is used. Static defaults show a completed check. */
 .welcome-demo { --demo-duration: 20s; }
 .welcome-demo [data-demo-motion] {

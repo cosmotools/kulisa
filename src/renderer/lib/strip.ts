@@ -1,4 +1,4 @@
-// A strip of tabs that scrolls sideways when they do not fit (docs/ui.md, Controls): the tasks' bar, a pane's tabs, the
+// A strip of tabs that scrolls sideways when they do not fit (docs/ui.md, Tabs): the tasks' bar, a pane's tabs, the
 // closed profiles over the terminal.
 // useStrip scrolls it by the wheel, says which edges have tabs past them, keeps its chosen tab (aria-selected) in sight;
 // STRIP draws it. A panel's tab with grow as its ref grows in as it opens.

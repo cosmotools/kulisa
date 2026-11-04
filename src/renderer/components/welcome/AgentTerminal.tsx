@@ -1,4 +1,4 @@
-// The welcome's generic coding CLI drawing (docs/ui.md, Own drawing). Familiar prompt, tool output and input
+// The welcome's generic coding CLI drawing (README.md, Demonstrations). Familiar prompt, tool output and input
 // conventions explain the user's own CLI; each transcript shares its active demonstration's CSS clock.
 import type { CSSProperties, ReactNode } from 'react';
 import { SquareTerminalIcon } from 'lucide-react';
