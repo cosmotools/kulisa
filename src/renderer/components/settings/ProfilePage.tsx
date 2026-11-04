@@ -1,5 +1,5 @@
 // A profile's page in Settings (docs/profiles.md): each field saved on Enter or leaving it.
-import { useState, type KeyboardEvent } from 'react';
+import { useState, type KeyboardEvent, type ReactNode } from 'react';
 import { CircleAlertIcon } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback, Button, Field, FieldContent, FieldDescription, FieldLabel, Input, Popover, PopoverContent, PopoverTrigger, Textarea,
   ToggleGroup, ToggleGroupItem, Alert, AlertDescription, FieldTitle, FieldError } from '@ui';
@@ -13,7 +13,7 @@ type Part = 'picture' | 'name' | 'about' | 'login' | 'password' | 'signins';
 type Text = 'name' | 'about' | 'login';
 type Answer = Promise<Result<{ profiles: SettingsProfile[]; id: string }>>;
 
-export function ProfilePage({ profile: p, onChanged }: { profile: SettingsProfile; onChanged: (r: { profiles: SettingsProfile[]; id?: string }) => void }) {
+export function ProfilePage({ profile: p, onChanged, action }: { profile: SettingsProfile; onChanged: (r: { profiles: SettingsProfile[]; id?: string }) => void; action?: ReactNode }) {
   // What is typed in a field until it is saved; else the field shows the profile as it is now (saved here, or changed
   // elsewhere).
   const [typed, setTyped] = useState<Partial<Record<Text, string>>>({});
@@ -49,7 +49,7 @@ export function ProfilePage({ profile: p, onChanged }: { profile: SettingsProfil
   const refusal = (field: Part) => at(field) && <Alert variant="destructive"><CircleAlertIcon /><AlertDescription><span data-selectable>{at(field)}</span></AlertDescription></Alert>;
 
   return <>
-    <SettingsHeading title={p.name} description="Changes save automatically."
+    <SettingsHeading title={p.name} description="Changes save automatically." action={action}
       media={<Avatar><AvatarImage src={avatarSrc(p.avatar)} alt="" /><AvatarFallback>{p.name.slice(0, 1).toUpperCase()}</AvatarFallback></Avatar>} />
     <SettingsGroup><SettingsFields>
       <Field orientation="horizontal">

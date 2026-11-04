@@ -30,9 +30,11 @@ The window-wide restriction on toast placement is in [ui.md](../../../../docs/ui
 monospace `role="log"` surfaces; shadcn has no log-view component. Keep their rendering/retention bounded by the
 log and installer owners instead of creating a component per line.
 
-Settings pages center a column capped at 680 px, except the log, which fills the available width and height
-(the author's choice). Its filters/actions wrap and the page scrolls when space is limited. Navigation
-collapses to named icons below the small breakpoint. Field controls move below their labels in narrow groups.
+The breadcrumb bar spans the content area's width at its top, with a bottom border, outside the page's
+scrolling content. Page actions belong to `SettingsHeading` below the bar. Settings pages center a column
+capped at 680 px, except the log, which fills the available width and height (the author's choice). Its
+filters/actions wrap and the page scrolls when space is limited. Navigation collapses to named icons below the
+small breakpoint. Field controls move below their labels in narrow groups.
 
 `kit.tsx` owns the shared heading, `SettingsGroup` boundary, `SettingsFields` and `Things`. Group headers sit above
 the surface. A wrapper owns the rounded border and clipping because `ItemGroup` has no surface variant. Lists use

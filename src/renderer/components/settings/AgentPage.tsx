@@ -1,5 +1,5 @@
 // An agent's page in Settings (docs/tasks.md, "Choosing the agent", Accounts).
-import { createElement, useEffect, useState } from 'react';
+import { createElement, useEffect, useState, type ReactNode } from 'react';
 import { CopyIcon, FolderOpenIcon, CircleAlertIcon } from 'lucide-react';
 import { Avatar, AvatarFallback, Badge, Button, Alert, AlertDescription, Field,
   FieldTitle, FieldDescription } from '@ui';
@@ -13,7 +13,7 @@ import { shortPath, useAgentList } from '../../lib/agents';
 import { refused } from '../../../shared/result';
 import type { AgentInfo } from '../../../shared/types';
 
-export function AgentPage({ agent: a, signing, onSigning }: { agent: AgentInfo; signing: boolean; onSigning: (on: boolean) => void }) {
+export function AgentPage({ agent: a, signing, onSigning, action }: { agent: AgentInfo; signing: boolean; onSigning: (on: boolean) => void; action?: ReactNode }) {
   const { accounts, clis } = useAccounts();
   const home = useAgentList(agents, (s) => s.home), installing = useAgentList(agents, (s) => s.installing);
   // The install's output on the page of the agent it is of.
@@ -32,7 +32,7 @@ export function AgentPage({ agent: a, signing, onSigning }: { agent: AgentInfo; 
 
   // section, data-agent: the tests' handle on the page shown (docs/testing.md).
   return <section aria-label={a.name} data-agent={a.id} className="flex flex-col gap-4">
-    <SettingsHeading title={a.name} media={createElement(agentMark(a.id), { className: 'size-10' })}
+    <SettingsHeading title={a.name} media={createElement(agentMark(a.id), { className: 'size-10' })} action={action}
       badge={<Badge role="status" variant={a.installed ? 'default' : 'secondary'}>{a.installed ? 'Installed' : 'Not installed'}</Badge>}
       description={<>{a.maker || '—'}{a.site && <> · <a className="underline underline-offset-4" href={a.site} target="_blank" rel="noreferrer">Website</a></>}</>} />
     {!a.installed && a.install && <div className="px-3"><Button disabled={installing} onClick={() => void agents.install(a.id)}>Install</Button></div>}

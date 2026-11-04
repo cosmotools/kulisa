@@ -1,6 +1,6 @@
 // A project's page in Settings (docs/tasks.md, Projects): its name, its local addresses, its Folders, Agents and Profiles;
 // saved as they change. Add Agent → New Account signs in to one there (SignIn.tsx), added to the project.
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { avatarSrc } from '../../lib/common';
 import { BotIcon, FolderIcon, PlusIcon, UsersIcon, XIcon, CircleAlertIcon } from 'lucide-react';
 import { Alert, AlertAction, AlertDescription, Badge, Button, Input, Select, SelectContent, SelectItem, SelectTrigger,
@@ -19,7 +19,7 @@ import type { ProjectAgent, ProjectEntry, ProjectFolder, ProjectGitHub, ProjectP
 const base = (f: string) => f.split(/[\\/]/).pop()!;
 
 // first: what Settings fetched just before it showed (Settings.tsx), its page filled from the start.
-export function ProjectPage({ project, first, onSaved, saveRef }: { project: ProjectEntry; first?: ProjectSettings; onSaved: () => void; saveRef: { current: () => Promise<void> } }) {
+export function ProjectPage({ project, first, onSaved, saveRef, action }: { project: ProjectEntry; first?: ProjectSettings; onSaved: () => void; saveRef: { current: () => Promise<void> }; action?: ReactNode }) {
   const { id } = project;
   // The project as the main process has it; its name and local addresses as typed (saved), never replaced by a read.
   const [s, setS] = useState<ProjectSettings | null>(first ?? null);
@@ -135,7 +135,7 @@ export function ProjectPage({ project, first, onSaved, saveRef }: { project: Pro
     </Select>; };
 
   return <div className="flex flex-col gap-5">
-    <SettingsHeading title={project.name} description="Changes save automatically." media={<ProjectIcon p={project} size={32} />} />
+    <SettingsHeading title={project.name} description="Changes save automatically." media={<ProjectIcon p={project} size={32} />} action={action} />
 
     <SettingsGroup><SettingsFields>
       <Field orientation="responsive" data-invalid={error ? true : undefined}>

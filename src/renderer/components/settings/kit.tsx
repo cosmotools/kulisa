@@ -6,13 +6,14 @@ import { Button, Field, FieldDescription, FieldError, FieldLabel, Input, Item, I
 import { ButtonMenu, RightClickMenu } from '../Menus';
 import type { MenuItem } from '../../lib/menu';
 
-export function SettingsHeading({ title, description, media, badge }: { title: string; description?: ReactNode; media?: ReactNode; badge?: ReactNode }) {
-  return <header className="flex items-center gap-3 px-3">
+export function SettingsHeading({ title, description, media, badge, action }: { title: string; description?: ReactNode; media?: ReactNode; badge?: ReactNode; action?: ReactNode }) {
+  return <header className="flex flex-wrap items-center gap-3 px-3">
     {media}
-    <div className="min-w-0">
+    <div className="min-w-0 flex-1">
       <div className="flex flex-wrap items-center gap-2"><h1 className="min-w-0 break-words text-xl font-semibold tracking-tight">{title}</h1>{badge}</div>
       {description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}
     </div>
+    {action && <div className="ml-auto max-w-full shrink-0">{action}</div>}
   </header>;
 }
 

@@ -76,6 +76,8 @@ language, task-bar position, shortcuts, help and About. Settings saves as you ed
 arrow or the gear. Your task keeps running underneath.
 
 Settings pages share a narrow, centered column; Log fills the available area beside the menu.
+The path stays in a compact, full-width bar at the top, with a dividing line underneath. Page actions sit beside
+the page heading below it.
 Lists and fields sit in rounded, bordered groups with separators
 inset from both edges. Highlighted rows have straight inner edges and follow the group's outer corners.
 In dark mode, the left menu and page share one gray background, with lighter groups. In a small window or at a

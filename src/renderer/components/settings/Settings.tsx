@@ -151,7 +151,7 @@ export function Settings({ at, className }: { at: SettingsAt; className?: string
   const one = shownProject ? { id: shownProject.id, name: shownProject.name, menu: projectMenu } : shownAgent ? { id: shownAgent.id, name: shownAgent.name, menu: agentMenu }
     : shownProfile ? { id: shownProfile.id, name: shownProfile.name, menu: profileMenu } : undefined;
 
-  // At its path: one thing's ⋯; a category's button making one of its things (no New Project: docs/window.md).
+  // Beside its heading: one thing's ⋯; a category's button making one of its things (no New Project: docs/window.md).
   const make: ReactNode = one ? <ButtonMenu end items={() => one.menu(one.id)}><Button variant="ghost" size="icon-sm" aria-label="More"><EllipsisIcon /></Button></ButtonMenu>
     : section === 'agents' ? <ButtonMenu end items={newAccount}><Button variant="outline" disabled={!clis.length}><PlusIcon data-icon="inline-start" />New Account</Button></ButtonMenu>
     : section === 'profiles' ? <Button variant="outline" onClick={() => setNewProfile('')}><PlusIcon data-icon="inline-start" />New Profile</Button> : null;
@@ -162,7 +162,7 @@ export function Settings({ at, className }: { at: SettingsAt; className?: string
   </SettingsGroup>;
 
   const page = (): ReactNode => {
-    if (section === 'projects') return shownProject ? <ProjectPage key={`${shownProject.id}:${shown}`} project={shownProject} first={first?.id === shownProject.id ? first.page : undefined} saveRef={save} onSaved={() => void lists()} />
+    if (section === 'projects') return shownProject ? <ProjectPage key={`${shownProject.id}:${shown}`} project={shownProject} first={first?.id === shownProject.id ? first.page : undefined} saveRef={save} onSaved={() => void lists()} action={make} />
       : <div className="flex flex-col gap-6">
         <SettingsHeading title="Projects" description="Manage the folders, agents and browser profiles your tasks use." />
         <SettingsGroup>
@@ -173,18 +173,18 @@ export function Settings({ at, className }: { at: SettingsAt; className?: string
               <EmptyDescription>Create a project from the project sidebar to get started.</EmptyDescription></EmptyHeader></Empty>} />
         </SettingsGroup>
       </div>;
-    if (section === 'agents') return shownAgent ? <AgentPage key={shownAgent.id} agent={shownAgent} signing={signing === shownAgent.id} onSigning={(on) => setSigning(on ? shownAgent.id : null)} />
+    if (section === 'agents') return shownAgent ? <AgentPage key={shownAgent.id} agent={shownAgent} signing={signing === shownAgent.id} onSigning={(on) => setSigning(on ? shownAgent.id : null)} action={make} />
       : <>
-        <SettingsHeading title="Agents" description="Coding assistants installed on this computer and their connected accounts." />
+        <SettingsHeading title="Agents" description="Coding assistants installed on this computer and their connected accounts." action={make} />
         {list('Agents', agents.map((a) => { const Mark = agentMark(a.id); return { key: a.id, name: a.name, media: <Mark className="size-6" />,
         badges: !a.installed && <Badge variant="secondary">Not installed</Badge>,
         description: a.installed ? [a.version, a.path].filter(Boolean).join(' · ') || undefined : a.maker }; }),
       agentMenu, looking ? <div role="status" className="flex items-center gap-2 p-4 text-sm text-muted-foreground"><Spinner role={undefined} aria-hidden />Looking for agents on this computer…</div> : 'No agents.')}
       </>;
     // Keyed by its id alone: a field being typed in stays as the profile changes (saved, or elsewhere).
-    if (section === 'profiles') return shownProfile ? <ProfilePage key={shownProfile.id} profile={shownProfile} onChanged={(r) => { setProfiles(r.profiles); if (r.id) setPlace({ section: 'profiles', id: r.id }); }} />
+    if (section === 'profiles') return shownProfile ? <ProfilePage key={shownProfile.id} profile={shownProfile} onChanged={(r) => { setProfiles(r.profiles); if (r.id) setPlace({ section: 'profiles', id: r.id }); }} action={make} />
       : <>
-        <SettingsHeading title="Profiles" description="Browser identities for testing. Sign in once for every task." />
+        <SettingsHeading title="Profiles" description="Browser identities for testing. Sign in once for every task." action={make} />
         {newProfile !== null && <SettingsGroup><div className="p-4">
           <AddInPlace label="New profile" placeholder="Its name, e.g. ann@shop.com" value={newProfile} name ok="Create" error={profilesError || undefined}
             onChange={(v) => { setNewProfile(v); setProfilesError(''); }} go={() => void createProfile()} stop={() => { setNewProfile(null); setProfilesError(''); }} />
@@ -230,7 +230,7 @@ export function Settings({ at, className }: { at: SettingsAt; className?: string
     </div>
 
     <main className="flex min-w-0 flex-1 flex-col">
-      <div className={cn('flex min-h-12 w-full flex-wrap items-center justify-between gap-3 pt-6 pb-4', log ? 'px-6' : 'mx-auto max-w-180 px-5')}>
+      <header className="flex min-h-11 w-full shrink-0 items-center border-b px-6 py-1">
         <Breadcrumb aria-label="Path" className="min-w-0 flex-1">
           <BreadcrumbList>
             {log ? <BreadcrumbItem><h1 className="text-xl tracking-tight"><BreadcrumbPage><span className="font-semibold">Log</span></BreadcrumbPage></h1></BreadcrumbItem> : one ? <>
@@ -240,10 +240,9 @@ export function Settings({ at, className }: { at: SettingsAt; className?: string
             </> : <BreadcrumbItem><BreadcrumbPage>{names[section]}</BreadcrumbPage></BreadcrumbItem>}
           </BreadcrumbList>
         </Breadcrumb>
-        {make}
-      </div>
+      </header>
       {/* padding, not a box's width: the page's scrollbar stays at the window's edge */}
-      <div className={cn('flex min-h-0 flex-1 flex-col overflow-auto pb-6', log ? 'px-6' : 'px-5')}>
+      <div className={cn('flex min-h-0 flex-1 flex-col overflow-auto py-6', log ? 'px-6' : 'px-5')}>
         <div className={cn('@container/settings flex w-full flex-col gap-5', log ? 'min-h-0 flex-1' : 'mx-auto max-w-170')}>{page()}</div>
       </div>
     </main>
