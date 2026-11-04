@@ -326,9 +326,10 @@ test('Continuous review defers large diffs and keeps file navigation in one docu
   await showTask(core, ui, original);
 });
 
-test('Leaving Diff and restarting reset the review; switching tasks preserves its settings and position', async ({ core, ui, files, restart }) => {
+for (const section of ['Project', 'Artifacts', 'Agents', null, 'restart'] as const)
+test(section === 'restart' ? 'Diff preserves review state across task switches and resets it after restart' : `Diff review resets after ${section ?? 'closing Diff'}`, async ({ core, ui, files, restart }) => {
   const original = await core((k) => k.shell.task.key);
-  const repo = committed(path.join(files.root, 'review-restore'), 'file.ts', 'export const value = "before";\n');
+  const repo = committed(path.join(files.root, section ?? 'close-diff', 'review-restore'), 'file.ts', 'export const value = "before";\n');
   git(repo, 'branch', '-M', 'main');
   await openFolder(core, ui, repo);
   const copy = await core(async (k) => {
@@ -350,13 +351,14 @@ test('Leaving Diff and restarting reset the review; switching tasks preserves it
     await expect.poll(() => ui.getByRole('region', { name: 'Changed file diffs', exact: true }).evaluate((e) => e.scrollTop)).toBeGreaterThan(0);
   };
   const fresh = async (page = ui) => {
-    await expect(page.getByLabel('Code comparison: file.ts', { exact: true })).toContainText('restored-review-marker');
-    await expect(page.getByRole('textbox', { name: 'Filter changed files' })).toHaveValue('');
-    await expect(page.getByRole('combobox', { name: 'To for review-restore' })).toContainText('main');
-    await expect(page.getByRole('radio', { name: 'Unified diff', exact: true })).toHaveAttribute('aria-checked', 'true');
-    await expect(page.getByRole('region', { name: 'Changed file diffs', exact: true })).toHaveJSProperty('scrollTop', 0);
+    const active = page.locator('[data-task-view][data-active]');
+    await expect(active.getByLabel('Code comparison: file.ts', { exact: true })).toContainText('restored-review-marker');
+    await expect(active.getByRole('textbox', { name: 'Filter changed files' })).toHaveValue('');
+    await expect(active.getByRole('combobox', { name: 'To for review-restore' })).toContainText('main');
+    await expect(active.getByRole('radio', { name: 'Unified diff', exact: true })).toHaveAttribute('aria-checked', 'true');
+    await expect(active.getByRole('region', { name: 'Changed file diffs', exact: true })).toHaveJSProperty('scrollTop', 0);
   };
-  for (const section of ['Project', 'Artifacts', 'Agents', null] as const) {
+  if (section !== 'restart') {
     await customize();
     if (section) await showResources(ui, section);
     else await ui.getByRole('tab', { name: 'Diff', exact: true }).click();
@@ -364,6 +366,7 @@ test('Leaving Diff and restarting reset the review; switching tasks preserves it
     await expect(termKeys(ui)).toBeVisible();
     await showResources(ui, 'Diff');
     await fresh();
+    return;
   }
   await customize();
   const document = await ui.getByRole('region', { name: 'Changed file diffs', exact: true }).elementHandle();

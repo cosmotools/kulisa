@@ -182,13 +182,13 @@ test('tabs on sign-in pages are saved as where the sign-in started', async ({ co
   await core((k, ids) => { for (const id of ids) k.profile('Elon.buyer').closeTab(id); }, opened);
 });
 
-test('close a profile (its × or the agent) and open it again (👥 or the agent): signed in, same tabs; the agent removes it from the project only when the human confirms', async ({ core, ui, call, files }) => {
+test('close a profile (its × or the agent) and open it again (👥 or the agent): signed in, same tabs', async ({ core, ui, call, files }) => {
   await deleteProfile(core, ui, 'Cleo');
   const saved = (): { id: string; closed?: boolean }[] => files.json(files.pfile('task.json')).stage.items.filter((i: { type: string }) => i.type === 'profile');
   await call('profile_create', { name: 'Cleo' });
   const cleo = await profileId(core, 'Cleo');
   const header = ui.locator(`[data-task-view][data-active] [data-panel="profile:${cleo}"]`);
-  const { dir: cleoDir, cookies: cookiesFile, avatar } = await core((k) => { const p = k.profile('Cleo'); return { dir: p.dir, cookies: k.shell.sessionCookies.file(p), avatar: p.avatar }; });
+  const { dir: cleoDir, avatar } = await core((k) => { const p = k.profile('Cleo'); return { dir: p.dir, avatar: p.avatar }; });
   await call('browser_navigate', { profile: 'Cleo', url: `${SITE}/app/login?name=cleo` }); // a session cookie
   await call('browser_tab_new', { profile: 'Cleo', url: `${SITE}/app?second` });
   // Its tabs' pages kept to look at once they are gone.
@@ -239,6 +239,15 @@ test('close a profile (its × or the agent) and open it again (👥 or the agent
   await expect(cleoRow()).toContainText('closed · click to open');
   await choose(ui, 'Cleo');
   await expect.poll(() => core((k, id) => k.shell.profiles.has(id), cleo)).toBe(true);
+});
+
+test('a profile keeps its tabs and sign-in through concurrent opening and closing and an unreadable cookie file', async ({ core, ui, call, files }) => {
+  await deleteProfile(core, ui, 'Cleo');
+  await call('profile_create', { name: 'Cleo' });
+  const cleo = await profileId(core, 'Cleo');
+  const cookiesFile = await core((k) => k.shell.sessionCookies.file(k.profile('Cleo')));
+  await call('browser_navigate', { profile: 'Cleo', url: `${SITE}/app/login?name=cleo` });
+  await call('browser_tab_new', { profile: 'Cleo', url: `${SITE}/app?second` });
   // Closed right as it opens: it opens, then closes; nothing breaks.
   await call('profile_close', { profile: 'Cleo' });
   expect(await core((k, id) => Promise.all([k.shell.task.openProfile(id), k.shell.task.closeProfile(id)]), cleo)).toEqual([{ id: cleo }, { id: cleo }]);
@@ -256,9 +265,14 @@ test('close a profile (its × or the agent) and open it again (👥 or the agent
   await call('profile_open', { profile: 'Cleo' });
   expect(await who(call, 'Cleo')).toBe('Signed in as cleo');
   expect(files.log()).toMatch(/\[session-cookies\] .*: the saved session cookies cannot be read \(saved with another keyring key\?\): not put back/);
+});
 
-  // The agent removes it from the project: the human is asked; no keeps it, yes removes it (closed ones too); the
-  // profile stays in Settings → Profiles.
+test('the agent removes a profile from the project only when the human confirms, keeping it in Settings', async ({ core, ui, call, files }) => {
+  await deleteProfile(core, ui, 'Cleo');
+  await call('profile_create', { name: 'Cleo' });
+  const cleo = await profileId(core, 'Cleo');
+  const cleoDir = await core((k) => k.profile('Cleo').dir);
+  const saved = (): { id: string }[] => files.json(files.pfile('task.json')).stage.items.filter((i: { type: string }) => i.type === 'profile');
   const refused = expect(call('profile_delete', { profile: 'Cleo' })).rejects.toThrow(/said no/);
   const asked = await answer(ui, false);
   await refused;
