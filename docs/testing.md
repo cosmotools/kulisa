@@ -1,35 +1,7 @@
 # Testing
 
-Kulisa-specific checks and test conventions. Read before writing or running tests; use
-[Playwright Test](https://playwright.dev/docs/test-intro) and `node:test` for their APIs.
-
-## What gets a test, and when to run what
-
-- What can break gets a test: a behavior, its logic, a fixed bug. Not a removal or a cosmetic change.
-- Test Kulisa's decisions and library integration; upstream defaults, algorithms and association tables belong to
-  the libraries' own tests.
-- A bug is first reproduced by a failing test, then fixed.
-- **While building, only what the change touches**: `npm run test:unit`; the changed part's e2e files (`npm test --
-  e2e <file>…`, or `npx playwright test <file> -g "…"` after `npm run build`); `npx playwright test
-  --only-changed=develop` (follows the tests' imports, not Kulisa's code: a change to a shared part, a menu, the grid,
-  the focus, takes its features' files too); `KULISA_SHOT` or the author's Kulisa (`run-kulisa`). `npm run knip` once a
-  step, not after every change.
-- **The full `npm test` (~3 min) once, before the push**, when the author says the work is done; fix and rerun. A
-  failure found on the CI costs a push and a run. Not for docs alone.
-
-## Agent completion checks
-
-Before committing or ending a turn with code, test, dependency or related configuration changes, run in that worktree:
-
-```sh
-npm run lint
-npm run test:unit
-```
-
-- Also run relevant type/e2e checks below. Hooks do not replace these obligations.
-- Repeat checks after relevant changes, failures or invalidating evidence; committing checked files needs no rerun.
-- Fix caused failures. Report blocked/unrelated failures with command, cause and remaining uncertainty.
-- Report passed and omitted checks. Documentation alone requires `git diff --check`, not application checks.
+Test harness, platform constraints and CI implementation. API references:
+[Playwright Test](https://playwright.dev/docs/test-intro) and [node:test](https://nodejs.org/api/test.html).
 
 ## Two layers
 
@@ -38,29 +10,27 @@ npm run test:unit
 | Unit | `test/unit/*.test.ts`, `src/<package>/*.test.ts`; plain Node | logic without a window |
 | End to end | `test/e2e/*.spec.ts`; the real app against `test/fixtures/site.ts` | what the human or the agent does |
 
-The cheapest layer that shows the behavior. A unit-tested module loads in plain Node (no `node-pty`, no Electron
-objects at load); there `'electron'` is only a path, so take objects from the default import (`import electron from
-'electron'; const { session } = electron;`), never by name.
+Unit modules load in plain Node, where `electron` is the executable path and has no named Electron-object exports.
+Main modules use the default import (`import electron from 'electron'; const { session } = electron;`); native
+`node-pty` and Electron objects need the app runtime.
 
 ## End to end
 
-Setup and what a test gets: `test/e2e/fixtures.ts`. What must not be undone:
+Fixtures and app lifecycle live in `test/e2e/fixtures.ts`:
 
-- **A file is one Kulisa, its tests independent**: each makes its own state, passes alone and in any order, cleans up
-  what would disturb the others (an extra window or project). The test site is the run's own: `SITE`, `PORT`, never a
-  literal port. Two runs in one checkout: an `--output` each.
-- Builds and app restarts run outside that checkout's e2e run: Vite clears the renderer output before writing it.
-- **Not Playwright's `_electron`**: it forces focus emulation (a minimized window's page never hides) and a light
-  scheme. Kulisa is started as the human starts it, with a debugging port on 127.0.0.1 (the one place it has one),
-  connected over CDP with `noDefaults`. `test.use({ automation: false })` for what an open port changes
-  (`navigator.webdriver`).
+- **A file is one Kulisa** with its own data folder. The run's test site address and port are `SITE` and `PORT`.
+  Playwright's `--output` selects the result directory for a run.
+- Vite clears the renderer output before writing it, so a concurrent build removes files used by an active e2e run.
+- **The fixture starts Electron directly** and connects over CDP with `noDefaults` on 127.0.0.1. Playwright's
+  `_electron` forces focus emulation (a minimized window's page never hides) and a light scheme.
+  `test.use({ automation: false })` disables the debugging port for checks affected by `navigator.webdriver`.
 - **`core(fn, arg)`** runs in the main process; only JSON crosses (`arg`, never a closure). Over a local socket: not
   stdin (Electron's main process does not read it on Windows), not Node's IPC (`NODE_CHANNEL_FD` crashes DevTools).
-- **Profiles' pages through the core, the proxy and MCP**, never Playwright attached (the sign-in pause; it keeps them
-  visible). Keys as input events (`k.press`). The keyboard to a page by `profile.focusTab(tab)`, never
-  `webContents.focus()` (the focus guard gives it back: [window.md](window.md), Keys).
-- **Linux**: a Kulisa per Xvfb with openbox (without a window manager no window list, other focus); never the human's
-  focus or clipboard. `npm run test:visible`: on the human's screen. By hand (Wayland, packaged): issue #205.
+- **Profiles' pages use the core, proxy and MCP** to retain the sign-in pause and visible automation. `k.press` sends
+  key input; `profile.focusTab(tab)` gives a page the keyboard. Direct `webContents.focus()` is reversed by the
+  focus guard ([window.md](window.md), Keys).
+- **Linux**: a Kulisa per Xvfb with openbox (without a window manager no window list, other focus), separate from the
+  human's display. `npm run test:visible`: on the human's screen. By hand (Wayland, packaged): issue #205.
 - **A failure leaves** the window's picture (pages included), the trace, Kulisa's log and Electron's output; a Kulisa
   that never got ready says why.
 
@@ -68,7 +38,7 @@ Setup and what a test gets: `test/e2e/fixtures.ts`. What must not be undone:
 
 - The keyboard is the front app's: a click elsewhere during the run fails the focus tests.
 - `CMD` (`helpers.ts`, `k.CMD`) is ⌘ there, Ctrl elsewhere; Ctrl+`, Ctrl+Tab and the agent's keys stay Ctrl. ⌘C/⌘V
-  in the terminal are the Edit menu's, unreachable by a sent key or `MenuItem.click`: check the row, call
+  in the terminal are the Edit menu's, unreachable by a sent key or `MenuItem.click`; terminal paste uses
   `webContents.paste()`. Ctrl+T in a terminal is SIGINFO first.
 - Screenshots need the screen recording permission of the terminal that started the run; without it the screenshot
   tests skip.
@@ -80,9 +50,9 @@ By hand: issue #193.
 Needs Git for Windows' `bash` in `PATH` and the VC++ Redistributable (README, Run).
 
 - The shell is PowerShell (`WIN` in `helpers.ts`).
-- ConPTY repaints lines: read what the terminal shows (`termText`), not its output.
+- ConPTY repaints lines; `termText` reads the rendered terminal screen.
 - A right-click's menu opens on release; the terminal copies and pastes with Ctrl+C / Ctrl+V.
-- A folder or file a process holds is not removed: retry until it can; always `removeTree` (`src/main/remove.ts`).
+- A folder or file held by a process remains locked. `removeTree` (`src/main/remove.ts`) supports deferred cleanup.
 - A refused connection takes Chromium ~2 s.
 - node-pty's `AttachConsole failed` on close is harmless.
 
@@ -90,52 +60,13 @@ By hand: issue #194.
 
 ### Flaky tests
 
-The CI retries a failure once; passing then, it is reported flaky. On a pull request the run stays green (one test's
-flakiness does not hold up unrelated work); on develop it is red, so that it is seen, and gets a `bug` issue. A flaky
-test is a bug (the test's or Kulisa's), fixed, never left to the retry. Fixed = reproduced (on the runner's conditions, CI below), then `--repeat-each=20`
-passes, alone and with its file.
+The CI retries a failure once; a subsequent pass is reported as flaky. A pull-request run stays green after that
+retry, while a develop run reports flakiness as a failure.
 
-## Writing an e2e test
+## Window captures
 
-- **Playwright's API, not our own**: an action is a locator's (`click`, `dblclick`, `click({ button: 'middle' })`,
-  `press`, `fill`, `selectText`, `focus`, `dragTo`), a check a web-first assertion (`toHaveAttribute`, `toHaveCSS`,
-  `toHaveText`, `toMatchAriaSnapshot`), never an event dispatched or the DOM read in `evaluate` where one of those does
-  it. Own code only where Playwright has none (the main process, a native view, xterm's canvas, "nothing happened"),
-  its reason in a comment.
-- **Act as the human or the agent**: the window's controls, the MCP tools (`call`). The core only to set up what
-  another test covers.
-- **Find elements as the human does**: role and name, label, text, an existing id or `data-*` (`data-profile`,
-  `data-task`, `data-state`); `data-testid` only when nothing else names it; never a Kulisa class (ESLint
-  `kulisa/no-kulisa-classes`; dockview's `dv-…`, xterm's `xterm…` allowed). A state is an attribute the CSS and the
-  test both read: ARIA where it means something (`aria-selected`, `aria-current`, `aria-busy`, `aria-disabled`),
-  `data-*` otherwise. A row is named by `aria-label`.
-- **Wait for a state, never time**: web-first assertions, `expect.poll(() => core(…))`, `toPass()`. ESLint refuses a
-  fixed pause; a bounded wait is `upTo(promise, ms)`. A failing assertion says what was there instead (`termShows`,
-  `termDump`).
-- **"Nothing happened"** is checked after a proof the trigger was handled (`helpers.ts`, `driver.ts`): the `core()`
-  call that sent the event; `ipcSettled`; `frames`; `seen`; `echoed`; a log line not written (`k.logged`);
-  `k.focusDecided`; a later event of the same kind that shows.
-- **Kulisa's waits are moved, not waited**: `k.clock.hold(ms)`, `advance(ms)`, `release()`; a time Kulisa reads is
-  dated back; a slow mock waits for the test.
-- **Before a click** wait for the window: `k.settled()`, `notLoading`.
-- **Menus and dialogs are shadcn's (Radix)**: a menu's rows by `toMatchAriaSnapshot` (whole: `children: 'equal'` in the
-  config; a row's name is its label alone, without its keys; a divider is a `separator`),
-  `choose`, `closeMenu`, `rightClick`, `windowSubmenu` (☰'s rows that open a menu beside them); a menu is shown once
-  `[data-ready]`. The sidebar: `openSidebar`, `closeSidebar`, `sidebar`, `projectRow`, `taskRow`, `sidebarTasks`,
-  `rowButton` (a row's buttons, shown under the pointer), `fromSidebar`. `focusWindow(core, ui)` first, or no focus
-  events. Kulisa's question is answered in the window that asks it, `answer(page, …)`; a call that
-  waits for it is started first and awaited after.
-- **Settings** (`helpers.ts`): `sui()` the page of the window showing it, `closeSettings`, `settingsClosed`; its menu
-  `settingsMenu` (there only while open), its nav's categories `navRow` (the shown one `aria-current`), a thing's row
-  on its category's page `thingRow` and its page `openThing`, a page's path `pathOf`, sections `group`, their rows
-  `listRows`/`listRow` (`data-row`) and a row's ⋯ action `onRow`.
-- **Never await a script in a window that it closes** (the reply is dropped): `closeSettings`.
-- Names say what the human sees, as a sentence; comments say why.
-- Writes stay in the test's folder (`files.userData`, `files.project`); a unit test removes its temporary folder.
-- Over 2 s says why in a comment; each agent action is shown 0.5 s.
-
-**Looking at the window**: `KULISA_SHOT=/tmp/kulisa.png npm start` (whole window, pages included, ~4 s after start;
-`KULISA_SHOT_DELAY`); in a test `core((k, f) => k.shot(f), file)`. Read the PNG to check a UI change.
+`KULISA_SHOT=/tmp/kulisa.png npm start` saves the whole window, including embedded pages, after about four seconds.
+`KULISA_SHOT_DELAY` changes the delay; `core((k, f) => k.shot(f), file)` captures during an e2e run.
 
 ## Dead code
 
@@ -154,15 +85,15 @@ its list. Kulisa package boundaries include type imports; cycle checks concern r
 
 ## Upgrading Electron
 
-Two Electron bugs are worked around; at each upgrade check whether each is still needed, and remove it if not.
+Two Electron workarounds have platform-specific reproductions:
 
 - A view page's drag regions outlive the page in a frameless window and take clicks over the panes
   ([electron#54743](https://github.com/electron/electron/issues/54743); [window.md](window.md), The title bar).
-  Workaround: `app-region: no-drag` in every profile page (`profiles.ts`, `_add`). Check: remove it, open Teams (or a
-  page with `app-region: drag`, then another) in a pane, click with a real mouse (`debug-kulisa`). Linux only so far.
+  Workaround: `app-region: no-drag` in every profile page (`profiles.ts`, `_add`). The Linux reproduction involves
+  navigating from a page with `app-region: drag` (such as Teams) to another page, then clicking with a real mouse.
 - A page's alert/confirm in its pane ([profiles.md](profiles.md), Dialogs): Kulisa replaces the listener of Electron's
-  internal `-run-dialog` (and `-cancel-dialogs`; `lib/browser/api/web-contents.ts`). Check: that file at the new tag;
-  the dialogs test in `agent-tools.spec.ts` fails when it is gone. Ask Electron for a public event.
+  internal `-run-dialog` (and `-cancel-dialogs`; `lib/browser/api/web-contents.ts`). The pane-dialog scenario in
+  `agent-tools.spec.ts` covers the integration with these internal events.
 
 ## Workflows
 
@@ -181,7 +112,7 @@ with shellcheck it checks `run:` scripts too.
   ```
 
   These are the type checks in `npm run build`, without Vite's build. A passing type check does not prove that a
-  text search found every caller; behavior changes still need the tests described above.
+  text search found every caller.
 - **Codex and other sessions without a language-server tool**: follow `AGENTS.md`, Code intelligence. The
   repository's `kulisa-dev` plugin configures Claude Code; installing it does not provide a tool in another agent.
 
@@ -193,7 +124,7 @@ with shellcheck it checks `run:` scripts too.
   TypeScript only (`.ts`, `.mts`, `.tsx`). Not the official `typescript-lsp`: its references come from the
   syntax-only `tsserver` (`useSyntaxServer: "never"` here). The project's own server, nothing global. ~700 MB;
   references from `src/` miss the tests.
-- **Stop hook** (`.claude/hooks/stop.ts`): `npm run lint` and `npm run test:unit` before a turn ends, when `.ts`,
+- **Stop hook** (`.claude/hooks/stop.ts`): `npm run lint` before a turn ends, when `.ts`,
   `.mts` or `.tsx` files have uncommitted changes.
 
 ## CI
@@ -236,7 +167,5 @@ env -i PATH=$(dirname $(which node)):/usr/bin:/bin HOME=$H TMPDIR=$H XDG_CURRENT
   macOS's `displayplacer` comes from brew each time.
 - **Not used**: an own runner image (paid larger runners; Docker is Linux only); a self-hosted runner (public repo: a
   fork's PR would run code on it); several workers on one macOS/Windows screen.
-- **Tuning**: refresh `timings.json` from a CI `junit.xml` (each file's slowest OS) when shards drift apart; add a
-  shard while a shard's tests take much longer than its setup; workers from a test Kulisa's RSS (`ps -eo
-  pid,rss,comm`, its `electron` processes summed). A flake only with workers is fixed at its cause, never by fewer
-  workers.
+- **Measurements**: `timings.json` records each file's slowest OS from CI's `junit.xml`; process RSS comes from
+  `ps -eo pid,rss,comm`, summed across a test Kulisa's Electron processes.
