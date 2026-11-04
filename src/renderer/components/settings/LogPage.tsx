@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { Button, Input, Label, Switch, ToggleGroup, ToggleGroupItem, Alert, AlertDescription } from '@ui';
 import { ButtonMenu } from '../Menus';
 import { Tip } from '../Tip';
+import { SettingsHeading } from './kit';
 import { refused } from '../../../shared/result';
 
 // A line as the file has it: [date T time offset] [level] [tag …] the rest (log.ts, stamp; electron-log's local time with
@@ -118,7 +119,9 @@ export function LogPage() {
     if (file) toast.success(`Saved as ${file}`, { action: { label: 'Show in Folder', onClick: () => void kulisa.invoke('file:show', file) } });
   };
 
-  return <div className="flex min-h-0 flex-1 flex-col gap-2">
+  return <div className="flex min-h-0 flex-1 flex-col gap-5">
+    <SettingsHeading title="Log" />
+    <div className="flex min-h-0 flex-1 flex-col gap-2">
     <div className="flex flex-wrap items-center gap-2">
       <Input type="search" className="w-64 min-w-0 max-w-full" value={filter} placeholder="Filter: a task, wc=1, [mcp]…" aria-label="Filter" spellCheck={false}
         onChange={(e) => setFilter(e.target.value)} />
@@ -154,6 +157,7 @@ export function LogPage() {
       <ButtonMenu end items={() => [{ label: 'On GitHub…', sub: 'a public issue, the environment filled in; attach the saved log', run: () => kulisa.invoke('log:report') }]}>
         <Button>Report…<ChevronDownIcon data-icon="inline-end" /></Button>
       </ButtonMenu>
+    </div>
     </div>
   </div>;
 }

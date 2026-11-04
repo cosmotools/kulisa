@@ -76,8 +76,8 @@ language, task-bar position, shortcuts, help and About. Settings saves as you ed
 arrow or the gear. Your task keeps running underneath.
 
 Settings pages share a narrow, centered column; Log fills the available area beside the menu.
-The path stays in a compact, full-width bar at the top, with a dividing line underneath. Page actions sit beside
-the page heading below it.
+The path stays in a compact, full-width bar at the top, with a dividing line underneath. Each page's heading sits
+below it, with page actions beside the heading.
 Lists and fields sit in bordered groups with small rounded corners and no background fill. Separators are
 inset from both edges. Highlighted rows have straight inner edges and follow the group's outer corners.
 Settings follows the same light or dark theme as the rest of Kulisa. In a small window or at a large zoom,

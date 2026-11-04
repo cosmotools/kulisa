@@ -233,7 +233,7 @@ export function Settings({ at, className }: { at: SettingsAt; className?: string
       <header className="flex min-h-11 w-full shrink-0 items-center border-b px-6 py-1">
         <Breadcrumb aria-label="Path" className="min-w-0 flex-1">
           <BreadcrumbList>
-            {log ? <BreadcrumbItem><h1 className="text-xl tracking-tight"><BreadcrumbPage><span className="font-semibold">Log</span></BreadcrumbPage></h1></BreadcrumbItem> : one ? <>
+            {one ? <>
               <BreadcrumbItem><BreadcrumbLink href="#" onClick={(e) => { e.preventDefault(); void show(section); }}>{names[section]}</BreadcrumbLink></BreadcrumbItem>
               <BreadcrumbSeparator />
               <BreadcrumbItem className="min-w-0"><BreadcrumbPage className="min-w-0"><span className="block truncate">{one.name}</span></BreadcrumbPage></BreadcrumbItem>
