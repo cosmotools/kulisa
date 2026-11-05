@@ -1,10 +1,18 @@
 // What Settings' pages are built of (docs/window.md, Settings): a list of things, what is added under it.
 import { Children, useId, type KeyboardEvent, type ReactNode } from 'react';
-import { ChevronRightIcon, EllipsisIcon } from 'lucide-react';
+import { ChevronRightIcon, CircleAlertIcon, EllipsisIcon } from 'lucide-react';
 import { Button, Field, FieldDescription, FieldError, FieldLabel, Input, Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemMedia, ItemSeparator, ItemTitle,
-  FieldGroup, Separator, Spinner } from '@ui';
+  Alert, AlertDescription, FieldGroup, Separator, Spinner } from '@ui';
 import { ButtonMenu, RightClickMenu } from '../Menus';
 import type { MenuItem } from '../../lib/menu';
+
+export function SettingsLoading({ children }: { children: ReactNode }) {
+  return <div role="status" className="flex items-center gap-2 p-4 text-sm text-muted-foreground"><Spinner role={undefined} aria-hidden />{children}</div>;
+}
+
+export function SettingsError({ error }: { error: string }) {
+  return error && <Alert variant="destructive"><CircleAlertIcon /><AlertDescription><span data-selectable>{error}</span></AlertDescription></Alert>;
+}
 
 export function SettingsHeading({ title, description, media, badge, action }: { title: string; description?: ReactNode; media?: ReactNode; badge?: ReactNode; action?: ReactNode }) {
   return <header className="flex flex-wrap items-center gap-3 px-3">
@@ -56,9 +64,9 @@ export interface Thing {
 // Things as rows, each one's actions behind its ⋯ and on its right-click. data-row, data-key, aria-label: the tests'
 // handles (docs/testing.md).
 // empty: said instead of the rows (a line, or work under way).
-export function Things({ label, things, menu, empty }: { label: string; things: Thing[]; menu: (key: string) => MenuItem[]; empty?: ReactNode }) {
+export function Things({ label, things, menu, empty, menuDisabled }: { label: string; things: Thing[]; menu: (key: string) => MenuItem[]; empty?: ReactNode; menuDisabled?: boolean }) {
   if (!things.length) return typeof empty === 'string' ? <p className="p-4 text-sm text-muted-foreground">{empty}</p> : empty ?? null;
-  return <RightClickMenu items={(e) => { const k = (e.target as Element).closest<HTMLElement>('[data-row]')?.dataset.key; return k ? menu(k) : null; }}>
+  return <RightClickMenu items={(e) => { const k = (e.target as Element).closest<HTMLElement>('[data-row]')?.dataset.key; return k && !menuDisabled ? menu(k) : null; }}>
     <ItemGroup aria-label={label} className="has-data-[slot=item-separator]:gap-0">
       {things.map((t, i) => {
         const keys = t.open && ((e: KeyboardEvent) => { if (e.key === 'Enter' && e.target === e.currentTarget) t.open!(); });
@@ -75,7 +83,7 @@ export function Things({ label, things, menu, empty }: { label: string; things: 
             <ItemActions className="max-w-full" onClick={(e) => e.stopPropagation()}>
               {t.control}
               <ButtonMenu end items={() => menu(t.key)}>
-                <Button variant="ghost" size="icon-sm" aria-label={`More for ${t.name}`}><EllipsisIcon /></Button>
+                <Button variant="ghost" size="icon-sm" disabled={menuDisabled} aria-label={`More for ${t.name}`}><EllipsisIcon /></Button>
               </ButtonMenu>
             </ItemActions>
             {t.open && <ChevronRightIcon className="size-4 text-muted-foreground" />}

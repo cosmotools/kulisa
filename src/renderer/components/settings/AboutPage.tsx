@@ -1,8 +1,8 @@
 // The About page of Settings (docs/window.md, Menus, About Kulisa). Asked again each time it is shown.
 import { useEffect, useState } from 'react';
 import { FolderOpenIcon } from 'lucide-react';
-import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput, Field, FieldDescription, FieldLabel } from '@ui';
-import { SettingsHeading, SettingsGroup, SettingsFields } from './kit';
+import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput, Field, FieldDescription, FieldLabel, Spinner } from '@ui';
+import { SettingsHeading, SettingsGroup, SettingsFields, SettingsLoading, SettingsError } from './kit';
 import { Logo } from '../ProjectIcon';
 import { Tip } from '../Tip';
 import type { AboutFolder, AboutInfo } from '../../../shared/types';
@@ -17,12 +17,22 @@ const FOLDERS: Record<AboutFolder, { label: string; hint: string }> = {
 const CURTAIN = 'var(--destructive)';
 
 export function AboutPage() {
-  const [info, setInfo] = useState<AboutInfo | null>(null);
-  useEffect(() => { void kulisa.invoke('about:get').then(setInfo); }, []);
-  if (!info) return null;
+  const [info, setInfo] = useState<AboutInfo | null>(null), [error, setError] = useState('');
+  useEffect(() => {
+    let live = true;
+    void kulisa.invoke('about:get').then((r) => { if (live) setInfo(r); }).catch((e: unknown) => { if (live) setError(String(e)); });
+    return () => { live = false; };
+  }, []);
   return <>
-    <SettingsHeading title={`Kulisa ${info.version}`} media={<Logo color={CURTAIN} size={40} />}
-      description={<>Electron {info.electron} · Chromium {info.chrome} · <a className="underline underline-offset-4" href="https://kulisa.app" target="_blank" rel="noreferrer">kulisa.app</a> · GPL-3.0-or-later</>} />
+    <SettingsHeading title={info ? `Kulisa ${info.version}` : 'Kulisa'} media={<Logo color={CURTAIN} size={40} />}
+      description={<>{info ? <>Electron {info.electron} · Chromium {info.chrome} · </> : !error && <span role="status" className="inline-flex items-center gap-2"><Spinner role={undefined} aria-hidden />Loading versions… </span>}
+        <a className="underline underline-offset-4" href="https://kulisa.app" target="_blank" rel="noreferrer">kulisa.app</a> · GPL-3.0-or-later</>} />
+    <SettingsError error={error} />
+    {!info && <SettingsGroup title="Where Kulisa keeps things">
+      {!error && <SettingsLoading>Loading folders…</SettingsLoading>}
+      <SettingsFields>{Object.entries(FOLDERS).map(([id, f]) => <Field key={id}><FieldLabel>{f.label}</FieldLabel><FieldDescription>{f.hint}</FieldDescription></Field>)}</SettingsFields>
+    </SettingsGroup>}
+    {info &&
     <SettingsGroup title="Where Kulisa keeps things"><SettingsFields>
       {/* data-folder: the tests' handle on a folder. One not made yet is disabled, its button too: a disabled button
           gets no tooltip, so its description says it. */}
@@ -36,6 +46,6 @@ export function AboutPage() {
           </InputGroup>
           <FieldDescription>{f.exists ? FOLDERS[f.id].hint : `${FOLDERS[f.id].hint}. Not made yet.`}</FieldDescription>
         </Field>; })}
-    </SettingsFields></SettingsGroup>
+    </SettingsFields></SettingsGroup>}
   </>;
 }

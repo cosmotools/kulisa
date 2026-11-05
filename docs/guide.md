@@ -82,6 +82,8 @@ Lists and fields sit in bordered groups with small rounded corners and no backgr
 inset from both edges. Highlighted rows have straight inner edges and follow the group's outer corners.
 Settings follows the same light or dark theme as the rest of Kulisa. In a small window or at a large zoom,
 the menu shows icons and fields stack vertically.
+Headings, explanations and known data appear immediately. A spinner marks information still loading; that block
+then shows its data or an error. A refresh keeps the data already shown on screen.
 
 On macOS, ⌘, opens Settings and ⌘Q quits. Closing the last window hides Kulisa while agents continue; the Dock icon
 brings it back.

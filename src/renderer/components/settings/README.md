@@ -10,8 +10,12 @@ Outside callers dynamically import `index.ts`; dependency-cruiser protects both 
 `Settings.tsx` owns the frame, categories, breadcrumbs and navigation to entity pages. There is no extra renderer
 process; once loaded, the module stays in the window's memory.
 
-Load the requested page before revealing it; agent discovery can refresh independently. Save pending fields before
-navigation or closing. Changes from another window refresh lists without overwriting edits in progress.
+Reveal the frame and requested page immediately, using the window's known projects and any agent/account data
+already in memory. Load independent lists and page details independently; each pending block has a named spinner
+and replaces it with its data or an error. Unknown counts and empty states wait for a successful read. Refreshes
+keep known data visible, and navigation ignores obsolete replies. Save pending fields before navigation or
+closing; project fields stay disabled until their initial settings arrive to prevent saving incomplete values.
+Changes from another window refresh lists without overwriting edits in progress.
 The cover's back arrow closes Settings; entity navigation stays within categories. Navigation search is omitted
 (the author's choice).
 

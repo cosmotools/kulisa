@@ -3,7 +3,7 @@ import { useState, type KeyboardEvent, type ReactNode } from 'react';
 import { CircleAlertIcon } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback, Button, Field, FieldContent, FieldDescription, FieldLabel, Input, Popover, PopoverContent, PopoverTrigger, Textarea,
   ToggleGroup, ToggleGroupItem, Alert, AlertDescription, FieldTitle, FieldError } from '@ui';
-import { SettingsHeading, SettingsGroup, SettingsFields } from './kit';
+import { SettingsHeading, SettingsGroup, SettingsFields, SettingsLoading } from './kit';
 import { avatarSrc } from '../../lib/common';
 import { AVATARS } from '../../../shared/avatars';
 import { refused, type Result } from '../../../shared/result';
@@ -13,7 +13,7 @@ type Part = 'picture' | 'name' | 'about' | 'login' | 'password' | 'signins';
 type Text = 'name' | 'about' | 'login';
 type Answer = Promise<Result<{ profiles: SettingsProfile[]; id: string }>>;
 
-export function ProfilePage({ profile: p, onChanged, action }: { profile: SettingsProfile; onChanged: (r: { profiles: SettingsProfile[]; id?: string }) => void; action?: ReactNode }) {
+export function ProfilePage({ profile: p, refreshing, onChanged, action }: { profile: SettingsProfile; refreshing: boolean; onChanged: (r: { profiles: SettingsProfile[]; id?: string }) => void; action?: ReactNode }) {
   // What is typed in a field until it is saved; else the field shows the profile as it is now (saved here, or changed
   // elsewhere).
   const [typed, setTyped] = useState<Partial<Record<Text, string>>>({});
@@ -51,6 +51,7 @@ export function ProfilePage({ profile: p, onChanged, action }: { profile: Settin
   return <>
     <SettingsHeading title={p.name} description="Changes save automatically." action={action}
       media={<Avatar><AvatarImage src={avatarSrc(p.avatar)} alt="" /><AvatarFallback>{p.name.slice(0, 1).toUpperCase()}</AvatarFallback></Avatar>} />
+    {refreshing && <SettingsLoading>Updating profile…</SettingsLoading>}
     <SettingsGroup><SettingsFields>
       <Field orientation="horizontal">
         <FieldContent><FieldLabel>Picture</FieldLabel><FieldDescription>Recognize this profile in tasks and browser panes.</FieldDescription>{refusal('picture')}</FieldContent>

@@ -4,7 +4,7 @@ import { CopyIcon, FolderOpenIcon, CircleAlertIcon } from 'lucide-react';
 import { Avatar, AvatarFallback, Badge, Button, Alert, AlertDescription, Field,
   FieldTitle, FieldDescription } from '@ui';
 import { agents, loadAccounts, showAccounts, useAccounts } from './agents';
-import { Things, SettingsHeading, SettingsGroup, SettingsFields, SettingsDivider } from './kit';
+import { Things, SettingsHeading, SettingsGroup, SettingsFields, SettingsDivider, SettingsLoading, SettingsError } from './kit';
 import { agentMark } from '../AgentMark';
 import { AgentSetup } from '../AgentSetup';
 import { toast } from 'sonner';
@@ -13,8 +13,8 @@ import { shortPath, useAgentList } from '../../lib/agents';
 import { refused } from '../../../shared/result';
 import type { AgentInfo } from '../../../shared/types';
 
-export function AgentPage({ agent: a, signing, onSigning, action }: { agent: AgentInfo; signing: boolean; onSigning: (on: boolean) => void; action?: ReactNode }) {
-  const { accounts, clis } = useAccounts();
+export function AgentPage({ agent: a, checking, signing, onSigning, action }: { agent: AgentInfo; checking: boolean; signing: boolean; onSigning: (on: boolean) => void; action?: ReactNode }) {
+  const { accounts, clis, loaded, loading, error: accountsError } = useAccounts();
   const home = useAgentList(agents, (s) => s.home), installing = useAgentList(agents, (s) => s.installing);
   // The install's output on the page of the agent it is of.
   const shown = useAgentList(agents, (s) => s.showDetails && s.selected === a.id);
@@ -37,16 +37,20 @@ export function AgentPage({ agent: a, signing, onSigning, action }: { agent: Age
       description={<>{a.maker || '—'}{a.site && <> · <a className="underline underline-offset-4" href={a.site} target="_blank" rel="noreferrer">Website</a></>}</>} />
     {!a.installed && a.install && <div className="px-3"><Button disabled={installing} onClick={() => void agents.install(a.id)}>Install</Button></div>}
 
-    <SettingsGroup title="About"><SettingsFields>
+    <SettingsGroup title="About">
+      {checking && <SettingsLoading>Checking installation…</SettingsLoading>}
+      <SettingsFields>
       {a.needs && <Field><FieldTitle>Needs</FieldTitle><FieldDescription data-selectable>{a.needs}</FieldDescription></Field>}
       {where ? <Field><FieldTitle>Installed at</FieldTitle><FieldDescription data-selectable data-testid="agent-where">{where}</FieldDescription></Field>
         : a.install && <Field><FieldTitle>Install</FieldTitle><FieldDescription data-selectable>{`Runs ${a.maker || 'its maker'}'s installer: ${a.install}`}</FieldDescription></Field>}
       {shown && <InstallProgress list={agents} />}
     </SettingsFields></SettingsGroup>
 
-    {clis.includes(a.id) && <SettingsGroup title="Accounts" count={mine.length}>
+    {(!loaded || clis.includes(a.id)) && <SettingsGroup title="Accounts" count={loaded ? mine.length : undefined}>
+      {(loading || !loaded && !accountsError) && <SettingsLoading>Loading accounts…</SettingsLoading>}
+      <SettingsError error={accountsError} />
       <Things label="Accounts" menu={(id) => [{ label: mine.find((x) => x.id === id)?.origin === 'external' ? 'Disconnect…' : 'Delete…', run: () => remove(id) }]}
-        empty={!signing && 'No accounts yet. Connect a setup to use it in projects.'}
+        empty={loaded && !signing && 'No accounts yet. Connect a setup to use it in projects.'}
         things={mine.map((x) => ({ key: x.id, name: x.email || x.id, data: { 'data-account': x.id },
           media: <Avatar size="sm"><AvatarFallback>{(x.email || x.id).slice(0, 1).toUpperCase()}</AvatarFallback></Avatar>,
           description: x.projects.length ? `in ${x.projects.join(', ')}` : 'in no project',
@@ -60,10 +64,10 @@ export function AgentPage({ agent: a, signing, onSigning, action }: { agent: Age
             {x.origin === 'external' && <p className="text-xs text-muted-foreground">Shared with your other CLI sessions. Disconnecting keeps your files and sign-in.</p>}
           </div> }))} />
       {mine.length > 0 && <SettingsDivider />}
-      <div className="flex flex-col gap-3 p-4">
+      {loaded && <div className="flex flex-col gap-3 p-4">
         <AgentSetup agent={a} signing={signing} onSigning={onSigning} onDone={showAccounts} />
         {error && <Alert variant="destructive"><CircleAlertIcon /><AlertDescription><span data-selectable>{error}</span></AlertDescription></Alert>}
-      </div>
+      </div>}
     </SettingsGroup>}
   </section>;
 }

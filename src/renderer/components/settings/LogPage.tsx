@@ -7,8 +7,9 @@ import { toast } from 'sonner';
 import { Button, Input, Label, Switch, ToggleGroup, ToggleGroupItem, Alert, AlertDescription } from '@ui';
 import { ButtonMenu } from '../Menus';
 import { Tip } from '../Tip';
-import { SettingsHeading } from './kit';
+import { SettingsHeading, SettingsLoading } from './kit';
 import { refused } from '../../../shared/result';
+import type { LogInfo } from '../../../shared/types';
 
 // A line as the file has it: [date T time offset] [level] [tag …] the rest (log.ts, stamp; electron-log's local time with
 // a space and no offset read too); a line not of that shape (an object's lines under an [electron] event) belongs to the
@@ -60,7 +61,8 @@ const Row = memo(function Row({ l }: { l: Line }) {
 });
 
 export function LogPage() {
-  const [lines, setLines] = useState<Line[] | null>(null), [info, setInfo] = useState({ size: 0, max: 0, old: null as string | null });
+  const [lines, setLines] = useState<Line[] | null>(null), [info, setInfo] = useState<Omit<LogInfo, 'text'> | null>(null);
+  const [loading, setLoading] = useState(true);
   const [show, setShow] = useState<Show>('all'), [filter, setFilter] = useState(''), [follow, setFollow] = useState(true);
   const [error, setError] = useState('');
   const box = useRef<HTMLDivElement>(null), followId = useId();
@@ -71,17 +73,21 @@ export function LogPage() {
     const rest = { text: '' };
     const load = async () => {
       loaded = false;
-      const r = await kulisa.invoke('log:get');
-      if (!live) return;
-      const all: Line[] = [];
-      rest.text = ''; parse(r.text, all, rest);
-      setLines(all); setInfo({ size: r.size, max: r.max, old: r.old }); loaded = true;
+      setLoading(true); setError('');
+      try {
+        const r = await kulisa.invoke('log:get');
+        if (!live) return;
+        const all: Line[] = [];
+        rest.text = ''; parse(r.text, all, rest);
+        setLines(all); setInfo({ size: r.size, max: r.max, old: r.old }); loaded = true;
+      } catch (e) { if (live) setError(String(e)); }
+      finally { if (live) setLoading(false); }
     };
     onLines = (m) => {
       if (!loaded) return;
       if ('reset' in m) { void load(); return; }
       setLines((now) => { const next = [...(now ?? [])]; parse(m.text, next, rest); return next; });
-      setInfo((i) => ({ ...i, size: i.size + new TextEncoder().encode(m.text).length }));
+      setInfo((i) => i && ({ ...i, size: i.size + new TextEncoder().encode(m.text).length }));
     };
     void load();
     return () => { live = false; onLines = null; };
@@ -137,6 +143,7 @@ export function LogPage() {
     <div ref={box} role="log" aria-label="Log" data-selectable
       onWheel={() => virtualizer.cancelScroll()} onPointerDown={() => virtualizer.cancelScroll()} onKeyDown={() => virtualizer.cancelScroll()}
       className="min-h-56 flex-1 cursor-text overflow-auto rounded-md border px-2 font-mono text-xs leading-5 [overflow-anchor:none]">
+      {loading && <SettingsLoading>Loading log…</SettingsLoading>}
       <div ref={virtualizer.containerRef} className="relative w-full">
         {virtualizer.getVirtualItems().map((v) => <div key={v.key} data-index={v.index} ref={virtualizer.measureElement}
           className="absolute left-0 top-0 w-full">
@@ -145,13 +152,13 @@ export function LogPage() {
       </div>
       {lines && !shown.length && <p className="py-1.5 text-muted-foreground">Nothing matches.</p>}
     </div>
-    <p className="text-xs text-muted-foreground">
+    {info && <p className="text-xs text-muted-foreground">
       kulisa.log, {kb(info.size)} of {Math.round(info.max / 1024 / 1024)} MB{info.old ? `; kulisa.old.log from ${info.old.slice(0, 10)}` : ''}. Never here: what you typed,
       passwords, tokens, cookies, the pages' queries.
-    </p>
+    </p>}
     {error && <Alert variant="destructive"><CircleAlertIcon /><AlertDescription><span data-selectable>{error}</span></AlertDescription></Alert>}
     <div className="flex flex-wrap items-center justify-end gap-2">
-      <Tip text="The whole log, to paste anywhere"><Button variant="outline" onClick={() => void copy()}>Copy All</Button></Tip>
+      <Tip text="The whole log, to paste anywhere"><Button variant="outline" disabled={lines === null} onClick={() => void copy()}>Copy All</Button></Tip>
       <Tip text="The log as a file, to attach to a message or an issue"><Button variant="outline" onClick={() => void save()}>Save As…</Button></Tip>
       <Tip text="Its folder in your file manager"><Button variant="outline" onClick={() => void kulisa.invoke('log:show-folder')}>Open Folder</Button></Tip>
       <ButtonMenu end items={() => [{ label: 'On GitHub…', sub: 'a public issue, the environment filled in; attach the saved log', run: () => kulisa.invoke('log:report') }]}>
