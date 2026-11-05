@@ -93,12 +93,13 @@ async function ghProject(core: Core, files: Files) {
   const id = await core((k, f) => {
     const p = k.shell.store.projectFor(f.shop, 'ghproject');
     k.shell.store.updateProject(p.id, { folders: [f.shop, f.site, f.lab, f.beta] });
+    k.shell.sendProjects();
     return p.id;
   }, folders);
   return { id, folders };
 }
 const github = (core: Core, id: string) => core((k, p) => k.shell.store.projects().find((x) => x.id === p).github, id);
-const removeProject = (core: Core, id: string) => core((k, p) => { const x = k.shell.store.projects().find((y) => y.id === p); if (x) k.shell.store.removeProject(x); }, id);
+const removeProject = (core: Core, id: string) => core((k, p) => { const x = k.shell.store.projects().find((y) => y.id === p); if (x) { k.shell.store.removeProject(x); k.shell.sendProjects(); } }, id);
 const bind = (s: Page, a: { id: string; remote: string; account: string }) => invoke(s, 'project:github:set', a);
 
 test('GitHub: signing in with Kulisa App, Kulisa shows the code itself and opens GitHub\'s page; the account comes once it is entered there, no token on disk or in the log', async ({ core, ui, sui, files }) => {
@@ -178,7 +179,7 @@ test("GitHub: a repository's row: the account that reaches its remote suggested 
     await expect(s.getByText(/^shop: /)).toContainText(/^shop: Kulisa App is not installed on acme\./);
     expect((await github(core, id))['github.com/acme/shop']).toBe(ann);
     // A repository leaving the project takes its binding along, but not while another of its repositories has its remote.
-    await core((k, a) => k.shell.store.updateProject(a.id, { folders: [a.f.shop, a.f.site, a.f.lab, a.f.beta, a.f.again] }), { id, f: folders });
+    await core((k, a) => { k.shell.store.updateProject(a.id, { folders: [a.f.shop, a.f.site, a.f.lab, a.f.beta, a.f.again] }); k.shell.sendProjects(); }, { id, f: folders });
     const removeFolder = (folder: string) => invoke(s, 'project:folder:remove', { id, folder });
     expect((await removeFolder(folders.site)).error).toBeUndefined();
     expect((await removeFolder(folders.shop)).error).toBeUndefined();
@@ -200,7 +201,7 @@ test("GitHub: a repository's row keeps its account's room while GitHub is asked:
   try {
     const s = await settings(core, sui, { section: 'projects', id });
     const shop = listRow(s, 'Folders', 'shop');
-    await expect(shop.getByRole('combobox', { name: 'GitHub account' })).toBeDisabled();
+    await expect(shop.getByRole('status')).toHaveText('Loading GitHub account…');
     const before = await shop.boundingBox();
     await core((k) => { k.stash.answerNow(); });
     await expect(shop.getByRole('combobox', { name: 'GitHub account of acme/shop' })).toHaveText('bob (token)');
