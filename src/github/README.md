@@ -57,20 +57,17 @@ non-GitHub remote/unresolved alias, App not installed, inaccessible PAT, signed 
 
 ## The window
 
-Settings → GitHub lists known logins, projects and authentication expiry immediately after a local read, then
-loads installations (`/user/installations`) with a spinner beside each pending account's details.
-Add offers App or token sign-in, replacing an active flow; delete asks first; context menu offers reauthentication
-and deletion. Leaving a displayed device code cancels its flow.
+Settings → GitHub shows local logins, projects and expiry before loading installations (`/user/installations`)
+with spinners. App/token sign-ins replace active flows; delete asks first; context menus offer reauthentication
+and deletion. Leaving a device code cancels its flow.
 
-Project repository rows show a named spinner during account lookup, then an account Select, and shared failure
-messages below the list. Settings owns these pages, menus and questions.
+Repository rows show a spinner, then an account Select, with failures below the list. Settings owns the UI.
 
 ## Its channels (`ipc.ts`)
 
-`github:account:list` accepts `local: true` to skip installation requests; its default includes them.
-`github:signin:start/wait/cancel/token`, `github:account:delete`; shared page constants:
-`INSTALL`, `REVOKE`, `NEW_TOKEN`. Core owns project bindings through `project:github:get/set`
-(`src/shared/ipc.ts`, `ipc/projects.ts`).
+`github:account:list` (`local: true` skips installation checks), `github:signin:start/wait/cancel/token`,
+`github:account:delete`; constants: `INSTALL`, `REVOKE`, `NEW_TOKEN`. Core owns project bindings through
+`project:github:get/set` (`src/shared/ipc.ts`, `ipc/projects.ts`).
 
 ## The code
 
