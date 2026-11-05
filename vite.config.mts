@@ -7,17 +7,70 @@
 //   npm run watch   builds again on every change (then reload the window: Ctrl+R in its DevTools, or restart)
 // Not Electron Forge's Vite plugin: it packages only what Vite built (.vite/), the main process included, and
 // Kulisa's main process is not bundled (node-pty is native; playwright-core and the MCP SDK read their own files).
-import { defineConfig } from 'vite';
+import { defineConfig, normalizePath, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
-import { resolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
+import { readFileSync } from 'node:fs';
+import { findPackageJSON } from 'node:module';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import { generateManifest, type Manifest } from 'material-icon-theme';
+
+// Only associations and asset URLs reach the window; SVG contents and the generator stay out of its JavaScript.
+function fileIcons(): Plugin {
+  const module = 'virtual:project-file-icons';
+  const root = dirname(fileURLToPath(import.meta.resolve('material-icon-theme/package.json')));
+  return {
+    name: 'project-file-icons',
+    resolveId(id) { if (id === module) return `\0${module}`; },
+    load(id) {
+      if (id !== `\0${module}`) return;
+      const source = generateManifest({ activeIconPack: '' });
+      const lower = (map?: Record<string, string>) => Object.fromEntries(Object.entries(map ?? {}).map(([key, value]) => [key.toLowerCase(), value]));
+      const associations = ({ file, fileNames, fileExtensions }: Manifest) =>
+        ({ file, fileNames: lower(fileNames), fileExtensions: lower(fileExtensions) });
+      const base = associations(source), light = associations(source.light ?? {});
+      const manifest = { ...base, light };
+      const referenced = new Set([base, light].flatMap((theme) => Object.values(theme)
+        .flatMap((value) => typeof value === 'string' ? [value] : Object.values(value ?? {}))));
+      const imports: string[] = [], urls: string[] = [];
+      for (const [index, icon] of [...referenced].entries()) {
+        const path = normalizePath(resolve(root, 'dist', source.iconDefinitions![icon]!.iconPath));
+        imports.push(`import icon${index} from ${JSON.stringify(`${path}?no-inline`)};`);
+        urls.push(`${JSON.stringify(icon)}: icon${index}`);
+      }
+      this.emitFile({ type: 'asset', fileName: 'material-icon-theme-LICENSE.txt', source: readFileSync(resolve(root, 'LICENSE'), 'utf8') });
+      return `${imports.join('\n')}\nexport const icons = {${urls.join(',')}};\nexport const manifest = ${JSON.stringify(manifest)};`;
+    },
+  };
+}
 
 const renderer = resolve(import.meta.dirname, 'src/renderer');
+const diffsRoot = resolve(dirname(fileURLToPath(import.meta.resolve('@pierre/diffs'))), '..');
 export default defineConfig({
   root: renderer,
   base: './', // loaded from file://
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss(), fileIcons(), {
+    name: 'review-licenses',
+    generateBundle() {
+      this.emitFile({ type: 'asset', fileName: 'welcome-photography-CREDITS.txt', source: readFileSync(resolve(renderer, 'components/welcome/assets/CREDITS.txt'), 'utf8') });
+      this.emitFile({ type: 'asset', fileName: 'pierre-diffs-LICENSE.txt', source: readFileSync(resolve(diffsRoot, 'LICENSE.md'), 'utf8') });
+      for (const name of ['react-query', 'query-core']) {
+        const root = dirname(fileURLToPath(import.meta.resolve(`@tanstack/${name}/package.json`)));
+        this.emitFile({ type: 'asset', fileName: `tanstack-${name}-LICENSE.txt`, source: readFileSync(resolve(root, 'LICENSE'), 'utf8') });
+      }
+      const trees = findPackageJSON('@pierre/trees', import.meta.url)!;
+      for (const [name, files] of [
+        ['@pierre/trees', ['LICENSE.md', 'NOTICE.md']], ['@pierre/theming', ['LICENSE.md']],
+        ['preact', ['LICENSE']], ['preact-render-to-string', ['LICENSE']], ['lucide', ['LICENSE']],
+      ] as const) {
+        const root = dirname(findPackageJSON(name, pathToFileURL(trees))!);
+        for (const file of files) this.emitFile({ type: 'asset', fileName: `${name.replace('@', '').replace('/', '-')}-${file.replace(/\.md$/, '.txt')}`, source: readFileSync(resolve(root, file), 'utf8') });
+      }
+    },
+  }],
   resolve: { alias: { '@ui': resolve(import.meta.dirname, 'src/ui') } }, // src/ui's own imports (components.json, aliases)
+  worker: { format: 'es' },
   build: {
     outDir: resolve(import.meta.dirname, 'dist/renderer'),
     emptyOutDir: true,

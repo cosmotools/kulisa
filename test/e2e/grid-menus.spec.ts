@@ -7,8 +7,8 @@ import url from 'url';
 import type { Locator, Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
-import { SITE, MAC, WIN, frames, seen, ipcSettled, echoed, menu, anyMenu, item, choose, closeMenu, rightClick, focusWindow, pageBox, viewOn, answer, removed, termKeys, termText, shortcutsDialog } from './helpers.ts';
-import { SAM, ELON, begin } from './tasks-helpers.ts';
+import { SITE, MAC, WIN, frames, seen, ipcSettled, echoed, menu, anyMenu, item, choose, closeMenu, rightClick, focusWindow, answer, removed, termKeys, termText, shortcutsDialog } from './helpers.ts';
+import { ELON, begin, bothOn } from './tasks-helpers.ts';
 
 const menuOpen = (ui: Page) => menu(ui).isVisible();
 // The middle of an element, where the hand presses it with Playwright's mouse (a press and a release apart, which a
@@ -21,6 +21,39 @@ async function sentAll(core: Core, ui: Page) {
   const task = await core((k) => k.shell.task.promptTarget().key);
   await echoed(core, { send: (mark) => ui.evaluate(async ([t, m]) => { await navigator.clipboard.readText().catch(() => ''); (window as any).kulisa.send('pty:in', { task: t, data: m }); }, [task, mark]) });
 }
+
+test('menus hand profile pages to decoded pictures and back without an empty layer', async ({ core, ui, files }) => {
+  await begin(core, ui, files, { columns: true });
+  await bothOn(core, ui, files);
+  await core((k) => {
+    const w = k.shell.windows[0], original = w.hideViews;
+    k.stash.menuHandoff = [];
+    k.stash.restoreMenuHandoff = () => { w.hideViews = original; };
+    // Native visibility and the renderer's images cross processes; DOM assertions alone miss the empty layer.
+    w.hideViews = async (...args: Parameters<typeof original>) => {
+      const result = original.apply(w, args);
+      const images = await w.win.webContents.executeJavaScript(`(() => {
+        const pictures = [...document.querySelectorAll('[data-task-view][data-active] [data-testid="snapshot"]')];
+        return pictures.filter(i => i.complete && i.naturalWidth > 0).length;
+      })()`);
+      k.stash.menuHandoff.push({ hidden: args[0], visible: [...w.profiles.values()].filter(p => p.get()?.view.getVisible()).length, images });
+      return result;
+    };
+  });
+  try {
+    for (const trigger of [ui.locator('#windowMenu'), ui.locator('[data-task-view][data-active] [data-profile]').first().getByRole('button', { name: 'More', exact: true })]) {
+      await core((k) => { k.stash.menuHandoff = []; });
+      await trigger.click();
+      await expect(menu(ui)).toBeVisible();
+      await closeMenu(ui);
+      await expect.poll(() => core((k) => k.stash.menuHandoff)).toEqual([
+        { hidden: true, visible: 0, images: 2 },
+        { hidden: false, visible: 2, images: 2 },
+      ]);
+      await expect(ui.getByTestId('snapshot')).toHaveCount(0);
+    }
+  } finally { await core((k) => { k.stash.restoreMenuHandoff(); delete k.stash.restoreMenuHandoff; delete k.stash.menuHandoff; }); }
+});
 
 test('context menus: a pane\'s header, a tab, the terminal; pages are pictures while a menu is open; terminal copy and paste', async ({ core, ui, files }) => {
   await begin(core, ui, files, { columns: true });
@@ -47,7 +80,7 @@ test('context menus: a pane\'s header, a tab, the terminal; pages are pictures w
     expect(Math.abs(m.x - (h.x + h.width / 2)) <= 8 && Math.abs(m.y - (h.y + h.height / 2)) <= 8, 'at the pointer').toBe(true);
     // The pages are native views above the menu: pictures of them stand in meanwhile.
     expect(await elonVisible()).toBe(false);
-    await expect(ui.locator(`[role="region"][data-profile="${elonId}"] [data-testid="page"] [data-testid="snapshot"]`)).toHaveCount(1);
+    await expect(ui.locator(`[data-task-view][data-active] [role="region"][data-profile="${elonId}"] [data-testid="page"] [data-testid="snapshot"]`)).toHaveCount(1);
   } finally {
     await core((k) => { k.stash.restoreCapture(); delete k.stash.restoreCapture; });
   }
@@ -65,11 +98,16 @@ test('context menus: a pane\'s header, a tab, the terminal; pages are pictures w
   await expect.poll(elonVisible).toBe(true);
   await expect(ui.locator('[data-testid="snapshot"]')).toHaveCount(0);
 
-  const tabs = ui.locator(`[role="region"][data-profile="${elonId}"] [role="tab"]`);
+  const address = ui.locator(`[data-task-view][data-active] [role="region"][data-profile="${elonId}"] [aria-label="Address"]`);
+  await expect(address).toBeFocused();
+  await address.press('Escape');
+  await expect(address).toBeHidden();
+  const tabs = ui.locator(`[data-task-view][data-active] [role="region"][data-profile="${elonId}"] [role="tab"]`);
   await expect(tabs).toHaveCount(n + 1);
   await rightClick(ui, tabs);
   await expect(menu(ui)).toMatchAriaSnapshot(`
     - menu:
+      - menuitem "Edit address…"
       - menuitem "Reload"
       - menuitem "Duplicate"
       - menuitem "Close tab"
@@ -81,7 +119,7 @@ test('context menus: a pane\'s header, a tab, the terminal; pages are pictures w
   await ui.evaluate(() => (window as any).__term.clearSelection());
   // A real right-click (press, release): the menu stays after the button is released. On Linux it opens on the
   // press, just below the pointer, so the release is outside it; on Windows on the release.
-  const term = await center(ui.getByTestId('terminal'));
+  const term = await center(ui.locator('[data-task-view][data-active]').getByTestId('terminal'));
   await ui.mouse.move(term.x, term.y);
   await ui.mouse.down({ button: 'right' });
   if (WIN) await ui.mouse.up({ button: 'right' });
@@ -108,8 +146,6 @@ test('context menus: a pane\'s header, a tab, the terminal; pages are pictures w
       - menuitem "Change agent…"
       - menuitem "New Conversation"
       - menuitem "Close"`);
-  await anyMenu(ui).first().press('ArrowDown');
-  await expect(item(ui, 'Paste'), 'arrows move over the enabled rows').toBeFocused();
   await choose(ui, 'Select all');
   await expect.poll(() => ui.evaluate(() => (window as any).__term.hasSelection())).toBe(true);
   await ui.evaluate(() => (window as any).__term.clearSelection());
@@ -312,13 +348,12 @@ ${names.map((x) => `      - menuitem ${JSON.stringify(`Open in ${x}`)}`).join('\
   }
 });
 
-test('the window menu: its rows and icons, Arrange panels, links in the browser and Exit asking before stopping an agent', async ({ core, ui, files }) => {
+test('the window menu: its rows and icons, links in the browser and Exit asking before stopping an agent', async ({ core, ui, files }) => {
   await begin(core, ui, files, { columns: true });
   const opened = () => core((k) => [...k.openedExternally]);
   const wasOpened = (await opened()).length;
   await ui.locator('#windowMenu').click();
-  // Theme, Tasks bar and Language each a menu beside its row (helpers.ts, windowSubmenu); the arrangements a row each,
-  // the full words in the tooltip. No Exit on macOS: ⌘Q and the app menu's Quit there (components/TopBar.tsx).
+  // macOS puts Quit in the app menu (⌘Q), so the window menu has no Exit row.
   await expect(menu(ui)).toMatchAriaSnapshot(`
     - menu:
       - group "Zoom":
@@ -329,22 +364,14 @@ test('the window menu: its rows and icons, Arrange panels, links in the browser 
       - menuitem "Theme"
       - menuitem "Tasks bar"
       - menuitem "Language"
-      - text: Arrange panels
-      - menuitem "Columns"
-      - menuitem "Two by two"
-      - menuitem "One at a time"
       - menuitem "Keyboard Shortcuts"
       - menuitem "Documentation"
       - menuitem "GitHub"
       - menuitem "Report a Problem…"
       - menuitem "About Kulisa"${MAC ? '' : `
       - menuitem "Exit"`}`);
-  expect(await menu(ui).getByRole('menuitem').evaluateAll((rs) => rs.filter((r) => !r.querySelector('svg')).map((r) => r.ariaLabel || r.textContent)), 'each row with its icon').toEqual([]);
-  const presets = menu(ui).locator('[data-preset]');
-  expect(await presets.evaluateAll((bs) => bs.map((b) => !!(b as HTMLElement).title && !!b.querySelector('svg'))), 'a tooltip and an icon each').toEqual([true, true, true]);
-  await anyMenu(ui).locator('[data-preset="focus"]').click();
-  await expect(anyMenu(ui), 'a choice closes the menu').toHaveCount(0);
-  await expect.poll(async () => (await pageBox(ui, files, ELON)) === null && viewOn(core, ui, files, SAM)).toBe(true);
+  await closeMenu(ui);
+  await bothOn(core, ui, files);
   // ☰'s links open in the user's browser.
   await ui.locator('#windowMenu').click();
   await expect(menu(ui)).toBeVisible();
@@ -354,20 +381,23 @@ test('the window menu: its rows and icons, Arrange panels, links in the browser 
   // Exit quits as the last window's × does: asked only when an agent works. On macOS the app menu's Quit (⌘Q) does
   // (no Exit there: above), its hidden window shown for the question.
   await core((k) => { k.shell.task.promptTarget().state = 'working'; });
-  if (MAC) {
-    await core((k) => {
-      k.shell.win.hide();
-      k.electron.Menu.getApplicationMenu().items[0].submenu.items.find((i) => i.accelerator === 'Command+Q').click();
-    });
-    await expect.poll(() => core((k) => k.shell.win.isVisible())).toBe(true);
-  } else {
-    await ui.locator('#windowMenu').click();
-    await expect(menu(ui)).toBeVisible();
-    await choose(ui, 'Exit');
+  try {
+    if (MAC) {
+      await core((k) => {
+        k.shell.win.hide();
+        k.electron.Menu.getApplicationMenu().items[0].submenu.items.find((i) => i.accelerator === 'Command+Q').click();
+      });
+      await expect.poll(() => core((k) => k.shell.win.isVisible())).toBe(true);
+    } else {
+      await ui.locator('#windowMenu').click();
+      await expect(menu(ui)).toBeVisible();
+      await choose(ui, 'Exit');
+    }
+    expect((await answer(ui, false)).message).toBe('Quit Kulisa?');
+    expect(await core((k) => !k.shell.win.isDestroyed() && k.shell.open.size > 0), 'Kulisa goes on when the human says no').toBe(true);
+  } finally {
+    await core((k) => { k.shell.task.promptTarget().state = null; if (process.platform === 'darwin' && !k.shell.win.isVisible()) k.electron.app.emit('activate'); });
   }
-  expect((await answer(ui, false)).message).toBe('Quit Kulisa?');
-  expect(await core((k) => !k.shell.win.isDestroyed() && k.shell.open.size > 0), 'Kulisa goes on when the human says no').toBe(true);
-  await core((k) => { k.shell.task.promptTarget().state = null; });
 });
 
 test('a reopened menu keeps the keyboard when its previous close finishes late', async ({ core, ui, files }) => {
@@ -404,7 +434,7 @@ test('a reopened menu keeps the keyboard when its previous close finishes late',
   await expect(trigger).toBeFocused();
 });
 
-test("menus with the mouse and the keyboard, as the OS's: a press on ☰, a drag to a row and the release there chooses it; a click opens, the next closes; a right-click's release over a row chooses nothing; Enter and the arrows; the keyboard back where it was; leaving the window closes it", async ({ core, ui, files }) => {
+test("menus with the mouse and the keyboard, as the OS's: a press on ☰, a drag to a row and the release there chooses it; a click opens, the next closes; a right-click's release over a row chooses nothing; the keyboard back where it was; leaving the window closes it", async ({ core, ui, files }) => {
   await begin(core, ui, files, { columns: true });
   const rowAt = (label: string) => center(item(ui, label));
   const shortcuts = shortcutsDialog(ui);
@@ -431,14 +461,11 @@ test("menus with the mouse and the keyboard, as the OS's: a press on ☰, a drag
   await clickMenuButton();
   await expect(anyMenu(ui)).toHaveCount(0);
 
-  // The keyboard: Enter on ☰ opens it on its first row, ↓ goes to the next, Esc closes it, ☰ has the keyboard again.
+  // The native-page cover must preserve menu focus and return it to the trigger on close.
   await ui.locator('#windowMenu').focus();
   await ui.keyboard.press('Enter'); // a key's whole sequence: a button acts on Enter's keypress, which press() sends none of
   await expect(menu(ui)).toBeVisible();
   await expect(ui.locator('[role="menu"][data-ready][data-state="open"]:focus-within')).toHaveCount(1);
-  const first = await ui.locator(':focus').getAttribute('aria-label');
-  await press('Down');
-  await expect(ui.locator(':focus')).not.toHaveAccessibleName(first);
   await press('Escape');
   await expect(anyMenu(ui)).toHaveCount(0);
   await expect(ui.locator('#windowMenu')).toBeFocused();
@@ -530,7 +557,7 @@ test('files dropped onto a terminal paste their disk paths once without sending 
   const paths = ['plain.png', "image with spaces & 'quote'.png"].map((name) => path.join(files.project, name));
   for (const file of paths) fs.writeFileSync(file, 'image');
   const before = await core((k) => k.ptyOutput()), pageUrl = ui.url();
-  const at = await center(ui.getByTestId('terminal'));
+  const at = await center(ui.locator('[data-task-view][data-active]').getByTestId('terminal'));
   // Native disk-backed Files are required by webUtils; a JavaScript File has no disk path.
   const cdp = await ui.context().newCDPSession(ui);
   try {

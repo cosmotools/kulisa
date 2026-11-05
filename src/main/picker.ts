@@ -5,7 +5,7 @@
 import { handle } from './ipc.ts';
 import { refused } from '../shared/result.ts';
 import type { Locator } from 'playwright-core';
-import type { Profile, Tab } from './profiles.ts';
+import type { Profile, Tab } from '../browser/main/index.ts';
 import type { Shell } from './shell.ts';
 import type { AppWindow } from './window.ts';
 

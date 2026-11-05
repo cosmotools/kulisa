@@ -1,26 +1,22 @@
 # Kulisa plugin
 
-A Kulisa package ([packages.md](../../docs/packages.md)) connecting agent CLIs to Kulisa: MCP tools, hooks, shared
-instructions, CLI adapters and transcript readers. It receives facts and actions through interfaces declared in
-`main/core.ts`; the caller implements them. It owns no tasks, profiles, accounts or terminals and imports none of
-their implementations or types.
+Agent CLI integration: MCP tools, hooks, shared instructions, adapters and transcripts, a
+[Kulisa package](../../docs/packages.md). Callers implement `main/core.ts` contracts; the package imports no core
+domain implementations/types and owns no tasks, profiles, accounts or terminals.
 
 ## Boundary
 
-`main/index.ts` is its entry. The main half uses `log.ts` for action logs, `store.ts`'s atomic writer for agent files,
-and `remove.ts` for removal with Windows retries. Other Kulisa packages are reached through their entries:
-screenshots supplies capture options and identifies the human's captures. `PluginHost` supplies request admission,
-context and lifecycle events, captions and task lookup. `TaskAccess`, `ProfileAccess`, `TabAccess` and `TerminalAccess`
-expose the operations and live state the tools and hooks need; git results and conversation metadata arrive as facts.
+Entry: `main/index.ts`. Allowed infrastructure supplies logging, atomic writes and Windows-safe removal; other
+Kulisa packages are reached through entries. `PluginHost` supplies admission, context, lifecycle, captions and task
+lookup; `TaskAccess`/`ProfileAccess`/`TabAccess`/`TerminalAccess` expose live facts/actions.
 
-The caller keeps core checks, questions, ownership and platform objects. The Kulisa package handles tool descriptions,
-agent instructions, sign-in waiting, highlights, action annotations and transcript formatting. Browser actions use
-Playwright through the caller's CDP connection, preserving the sign-in pause.
+Core owns checks, questions, ownership and platform objects. The plugin owns tool behavior/instructions, sign-in
+waiting, highlights/annotations and transcript formatting. Playwright reaches pages through the supplied CDP proxy.
+`environmentUsed` reports browser/named terminal activity; the window owns Follow agent.
 
-`resources/` holds the shared profiles skill and Claude Code's plugin format (`claude-plugin/.claude-plugin/`),
-whose manifest names `kulisa`. Codex receives the same MCP server through its launch configuration. Forge copies the
-resources beside the app archive for CLIs to read; the resources are excluded from the archive. The app version is
-passed to the Claude manifest by `scripts/version.ts` at `npm version`.
+`resources/` holds the shared skill and Claude plugin (`claude-plugin/.claude-plugin/`, manifest `kulisa`). Forge
+copies resources beside, not inside, the archive. `scripts/version.ts` synchronizes manifest version at `npm version`.
+Codex receives the same MCP service through launch configuration.
 
 ## MCP transport
 
@@ -31,168 +27,85 @@ caller so history parts share one identity across requests and disappear with th
 
 ## Browser tools
 
-Through Kulisa's MCP server. A tool takes a profile by its name, which the handle turns into its id
-(`Task.named`), and one acting in a page an optional `tab`. What each tool does is its description in the server's
-listing, the one source; how a tool is designed: [Tool design](#tool-design).
+Tool descriptions in `registerTool` define inputs/behavior. Handles resolve profile names with `Task.named` and
+optional tabs. Kulisa sessions approve all tools, including command/terminal/file-upload actions, through scoped
+Claude `--settings` server permissions or Codex `default_tools_approval_mode="approve"`. Core actions still ask
+where required; tools do not ask at each click.
 
-**The agent does not ask the human before Kulisa's tools**: it works in the profiles while the
-human watches or is away, and a question at every click undoes that; what acts on real accounts asks in Kulisa itself
-(`profile_delete`, the sign-in pause). But two keep the agent's own approval (`KULISA_ASKS`, `agents/`):
-`terminal_run`, any command in the human's shell, which would get around the agent's approval of commands (and
-Codex's sandbox: the command runs in Kulisa's terminal); `browser_file_upload`, a file of the disk sent to a site, what
-a prompt injection would use. A new tool runs without a question unless it is added there. Through the start's
-arguments, as the MCP server and the hooks are, not the agents' own config files: Claude Code's `permissions` in
-`--settings` (allow the plugin's server, `mcp__plugin_kulisa_kulisa`; ask the two: an ask rule wins), Codex's
-`mcp_servers.kulisa.default_tools_approval_mode="approve"` and `prompt` for the two.
+- Choose profiles by human descriptions, not inferred names. Ask once when ambiguous and save with
+  `profile_describe`; MCP instructions include the same rule for agents without the skill.
+- `browser_wait_for` supports cross-profile effects, bounded to 45 s; snapshot `also` compares active tabs.
+- Action dialogs accept `dialog: accept`; otherwise dismiss/report. Existing human dialogs fail promptly.
+- `profile_ask_signin` optionally navigates through core, shows the request and waits up to 45 s. Keep request
+  location for 10 minutes across calls; completion is sign-in-mode exit or origin/path change. Same-URL in-page
+  login needs human confirmation. Real-account credentials remain human-owned.
+- `browser_evaluate` creates/calls source in the page, optionally with an element, never main-process eval.
+  Page access is not sandboxed; local-process CDP authentication is #90.
+- Snapshots support subtree refs/locators, depth and find-with-ancestors. Large results (~10k tokens) spill to
+  bounded task artifacts with path/top outline; screenshots also persist. Claude settings allow artifact reads.
+- Playwright supplies recent console/errors/requests (200/200/100). Filter level/address/static files; stable request
+  numbers address detail reads. Hide credential/cookie headers; spill large bodies. Action results count new errors
+  and failed requests; `since: action` narrows detail. Pending requests never block a result.
+- `browser_highlight` follows elements via `locator.highlight()`, including Trusted Types; header labels remain until
+  human input. `browser_type` uses `pressSequentially` at 40 ms/key, faster for long text (about 1.5 s cap), and fill
+  beyond `TYPED_MAX` 300 characters. Non-US characters use Playwright's text input.
 
-What the tools are for, beyond acting as one user:
+Install one generated shared skill per Kulisa-owned account. External connections leave personal skills/settings untouched;
+the MCP instructions and launch-scoped plugin/hooks provide Kulisa integration. It teaches profiles/tasks/Stage and leaving the final app ready;
+Claude also loads `--plugin-dir`, Codex uses config overrides. `SessionStart` supplies open profiles/session IDs.
+Keep the user's other MCP servers enabled; `ONLY_BROWSER` instructions identify Kulisa profiles as the browser the
+human sees without blocking explicitly requested alternatives.
 
-- **Choosing the profile** by who it is, as cast did: `profile_list` and the session's start give each profile's
-  description, or say it is not said. The agent chooses by it, never guessing a role from a name; when none or several
-  fit, it asks the human once and saves their answer (`profile_describe`), so no one asks again. The rule is in the
-  MCP server's `instructions` too, so agents without the profiles skill (one run by hand in the terminal) get it.
-- **Several users at once.** `browser_wait_for` waits in any profile, so the agent acts as one user and waits for
-  the effect as another (a message, an invite), up to 45 s a call (Codex gives an MCP tool 60 s).
-  `browser_snapshot` with `also` reads several profiles' active tabs in one call, to compare what each user sees.
-- **Dialogs** opened by an agent action accept `dialog: accept`; otherwise they are dismissed and the answer
-  includes the message. A dialog awaiting the human makes tools fail promptly: the page cannot act while it waits.
-- **Signing in stays the human's** (Rules): `profile_ask_signin` shows the request over the pane ("sign in,
-  please: …"), optionally opens the app's sign-in page first (the window's way, `Profile.navigate`: a sign-in page
-  puts the profile in sign-in mode, which cuts Playwright off), and waits until the human is through: the profile
-  went through sign-in mode and left it, or its page is no longer the one it was asked on (origin and path). The
-  agent's turn goes on instead of ending at "please sign in". Up to 45 s a call; where it was asked is kept across
-  calls (10 minutes). A sign-in on the same address (a dialog in the page) is not seen: the human then tells the
-  agent.
-- **`browser_evaluate`** runs a function the agent writes in the page: made there from its source (no eval in the
-  main process; CDP's evaluation is not held to the page's CSP) and called with the element, if one is given. It may
-  read anything the page holds, as any script of it: Kulisa does not restrict the agent, and the profile's CDP proxy
-  is open to local processes anyway (issue #90). `@playwright/mcp` works too, through the profile's CDP proxy (below).
-- **Reading a page without filling the agent's context** ([Tool design](#tool-design),
-  "Saving the agent's context"). `browser_snapshot` takes a part: an element (ref or locator, its subtree:
-  `locator.ariaSnapshot()`), a depth, or `find`, the lines that match under their ancestors. One larger than about
-  10k tokens (Claude Code warns of a tool's answer from there) goes to a file in the task's `artifacts/` (tasks.md, What
-  is on the computer), each its own, never replaced, so two can be compared (`artifacts.ts`); the answer
-  gives its path and its top levels. A screenshot is kept there too, its path beside the picture. Claude Code is let
-  read there in its settings (`agents/claude.ts`), or it would ask each time; Codex reads the whole disk. What a
-  page reported is Playwright's (`page.consoleMessages()`, `pageErrors()`, `requests()`: the last 200, 200 and 100):
-  the console by level, the requests without the static files that loaded, by address, numbered (a request keeps its
-  number), one whole by its number (`browser_network_request`: headers and bodies, a large body to a file as a
-  snapshot; cookie and credential headers hidden, as Rules says). An action of the agent marks its page: its answer
-  counts the console errors and failed requests since, and `since: action` reads only those; a request still waiting
-  for its answer is pending, never waited for.
-
-**The agent points back**: `browser_highlight` outlines elements on a profile's page (Playwright's
-`locator.highlight()`, following the element; it works on Trusted Types pages too) and shows its labels in the pane
-header, until the human clicks or types in that tab.
-
-**The agent types as a person does**: `browser_type` clears the field and types its text key by key (Playwright's
-`pressSequentially`), 40 ms a key, faster for a longer text (about 1.5 s at most), so the human sees it typed and the
-page gets the keys typing sends (suggestions, checks as one types). A text over 300 characters (a pasted paragraph)
-is filled at once (`TYPED_MAX`, `main/tools/browser.ts`). Letters not on a US keyboard come as typed text, without key codes
-(Playwright's way).
-
-The agent learns how to work with profiles from the Kulisa plugin: the profiles skill (`resources/skills/profiles/SKILL.md`; keep it in step with the tools), one text for every agent,
-written into each account's folder where its agent reads its skills (`kulisa-profiles`), and for Claude Code a plugin
-with the MCP config (`resources/claude-plugin/`, `claude --plugin-dir`). Every agent gets Kulisa's hooks at its start (a table in
-its file, `agents/`), among them `SessionStart`, which tells the agent which profiles are open and tells Kulisa its
-session (to resume it). The user's own MCP servers stay available
-(no `--strict-mcp-config`). Some of them may drive another browser with tools of the same names (cast's,
-Playwright MCP's `browser_click` …), and an agent has no priority among MCP servers: it chooses by names and
-descriptions. So every agent is told, in the MCP server's `instructions` and again at the session's start next to the
-profiles (`ONLY_BROWSER`, `agent-hooks.ts`), that the profiles are the only browser here, and why: another browser is
-not the one the human sees, and not signed in. Not blocked (`--disallowedTools` would need every such server's name,
-and would refuse it also when the human asks for it). Codex gets the MCP server and the hooks as config overrides (its `SessionStart` brings the open profiles).
-
-The human sees what the agent does (`ghost.ts`): Playwright's action annotations in the page, each shown 500 ms,
-which every action waits for (so it is kept short: a longer one adds up over an agent's clicks): a mark at the action
-point, the element outlined, and the agent's own pointer, moving from one action to the next and staying at the last
-(Playwright's `cursor: 'pointer'`; not the OS's: the human's mouse stays theirs; no test of its pixels, Playwright
-draws it); and a caption over the pane for every command through the proxy. The marks and
-`browser_highlight`'s outlines are in Kulisa's accent in every profile (`MARK`): the pane says whose page it is.
+`ghost.ts` draws accent action outlines/pointer for 500 ms, awaited per action, plus proxy captions. The human's OS
+pointer remains independent; pane identity distinguishes profiles. Keep skill and MCP instructions aligned.
 
 ## Agent adapters
 
-- **Install** (Settings → Agents) runs the maker's own native installer (no Node, no sudo, they update themselves),
-  the command shown before, its output streamed while it runs, so people who are not programmers type nothing; once
-  over, the answer brings the whole output (Electron keeps no order between the stream's channel and the answer's: the
-  last line may come after "Installed"). Claude Code `curl -fsSL https://claude.ai/install.sh | bash`, Codex `curl
-  -fsSL https://chatgpt.com/codex/install.sh | sh` (`install.ps1` on Windows). On Windows the installer gets the
-  system's own programs first in its `PATH`: they call `tar` by name, and Kulisa started from Git Bash has Git's GNU
-  tar first, which reads `C:\…` as a remote host. Kulisa does not remove or update agents: they are the user's
-  programs.
-- Each agent is one entry in `agents/`: how to find, install, start (Claude Code with the Kulisa plugin; Codex with
-  the MCP server and its hooks as config overrides, `-c mcp_servers.kulisa.url=…`, `-c hooks=…`), resume (`claude
-  --resume` and `codex resume` with the session the `SessionStart` hook reported; else `codex resume --last`) and
-  forget a deleted task's folder.
-- **Dictation** ([dictation](../dictation/README.md)): where the agent has its own (its entry's `voice`: its
-  key and how often it is typed; Claude Code's voice mode, which needs a Claude.ai account), Kulisa holds its key; for
-  one without (Codex has only a realtime voice conversation), another agent's dictation recognizes in a session no one
-  sees (its entry's `recognizer`: Claude Code's, in hold mode with `autoSubmit`, its text posted by its
-  `UserPromptSubmit` hook and blocked there). Kulisa turns it on for its own sessions (Claude Code: `--settings` with
-  `voice: { enabled, mode: "hold", autoSubmit: false }`, not the user's settings). Not `tap` mode: it records only with
-  the input empty, so no second sentence can be added.
-- **Language**, where the agent has a setting (its entry's `language`: the codes it takes, and how one is written into
-  an account's folder): Kulisa's one language (☰ → Language, [window.md](../../docs/window.md), Language) goes into every
-  account. Claude Code's is its `language` setting, which it dictates and answers in, written where its `/config`
-  puts it (`<config dir>/settings.json`, the language's English name), the rest of the file kept, not written when it
-  says so already, never into a file that is not JSON. Claude Code reads that file again when it changes, so it holds
-  at once in every session; a `--settings` file would not (read once).
+Each `agents/<cli>.ts` owns discovery, installation, launch, resume, hooks, capabilities and folder cleanup.
+
+- Settings Install shows/runs the maker's native installer and streams output; include full output in the result
+  because IPC stream/result ordering is not guaranteed. Claude/Codex use official install scripts, PowerShell on
+  Windows. Prioritize system PATH over Git Bash's tar on Windows. Installed CLIs remain user-owned and self-update.
+- Claude launches with plugin/settings, Codex MCP/hooks as config overrides. Resume with reported session ID;
+  Codex can fall back to `resume --last`. Core supplies the task's Kulisa-owned data directory for generated launch
+  files, independently of account ownership; Claude passes a settings file there instead of inline JSON. The file is
+  refreshed at launch and core removes it with the task/project data (see [storage](../../docs/tasks.md#what-is-on-the-computer)).
+- `voice` config describes native hold/repeat behavior; `recognizer` describes hidden dictation/hook blocking
+  ([dictation](../dictation/README.md)). Claude Kulisa sessions enable hold mode with `autoSubmit: false`; hidden
+  recognizers enable it. Tap mode prevents appending a second sentence to existing input.
+- `language` maps Kulisa's language to account configuration. Claude writes English language names into
+  `settings.json`, preserves other JSON fields, skips unchanged values and refuses non-JSON. The CLI rereads it live;
+  launch `--settings` alone would not update running sessions.
+
 ## Hooks
 
-- **An agent's state on the tabs** comes from its hooks, each agent's at its own terminal's URL ("Several agents in a
-  task"). Kulisa's events (`agent-hooks.ts`): `prompt` working, `waiting` for the human, `tool-done` working again
-  after waiting, `stop` done, `interrupt` and `session-end` unknown (a session ending after a done turn keeps done).
-  No agent tells when the human answered a permission, so the first tool to finish after it (`PostToolUse`) is the
-  sign it works again. Which hook sends which is a table in the agent's file (`agents/claude.ts`, `codex.ts`:
-  `hooks`), each running one command (`hookCommand`, `agents/agent.ts`):
-  - Claude Code, in `--settings` with its plugin: `UserPromptSubmit`, `Stop`, waiting when it asks for a permission
-    or a question (`Notification` matched to `permission_prompt`, `elicitation_*`) or a turn ends with an API error
-    (`StopFailure`: a limit, a sign-in); `PostToolUse`; `SessionEnd` (`/exit`, `/clear`). Not `idle_prompt`, sent a
-    minute after an answer. The core reports an Esc typed into an agent's terminal as an interrupt (`Task.interrupted`).
-  - Codex, as a config override (`-c hooks=…`): `UserPromptSubmit`, `PermissionRequest` waiting (its MCP tools'
-    questions too), `PostToolUse`, `Stop`, `Interrupt` (Esc), `SessionEnd` (also after 30 minutes idle), and
-    `SessionStart`, which gives it the open profiles as Claude Code gets them and the session to resume. Codex runs a
-    hook only once the human has trusted it (`/hooks`), kept per event under one key for every task
-    (`/<session-flags>/config.toml:<event>`), so once is enough, and again only when Kulisa changes a hook. Kulisa
-    never bypasses that, which would run any project's hooks unreviewed too. Interrupt's and SessionEnd's timeouts
-    are at most 3 s (Codex cuts a longer one and warns at every start).
+Each terminal's hooks report state through its own URL. `prompt` → working, `waiting` → human input,
+`tool-done` → working after waiting, `stop` → done, interrupt/session-end → unknown unless already done. A completed
+tool is the available signal that a permission was answered. Adapter tables map CLI events through `hookCommand`:
+
+- Claude: UserPromptSubmit, Stop, PostToolUse, SessionEnd, permission/elicitation Notifications and StopFailure
+  (limits/auth/errors). Ignore delayed idle_prompt; core terminal Esc reports interrupt.
+- Codex: UserPromptSubmit, PermissionRequest, PostToolUse, Stop, Interrupt, SessionEnd and SessionStart. Trust is
+  human-approved once per event/config key, repeated only when hooks change; never bypass it. Interrupt/SessionEnd
+  timeout is at most 3 s. SessionEnd can also mean idle expiry.
 
 ## Task history
 
-**`task_history(conversation, part)`**, a tool of Kulisa's MCP server (`tools/task.ts`, `history.ts`), gives a text
-in parts of about 40,000 characters (10,000 tokens: under what agents take from one tool's result). Part 1 says how
-many there are. The whole text is made at part 1 and kept in memory with the task, so the next parts stay the same
-while the agent's own transcript grows.
+`stage_arrange` calls the same task action as the human Stage menu.
 
-- **Without a conversation**: **where the task stands** (Kulisa's part, what no transcript says): the task, its
-  folder and branch; for each copy of the code, its commits since the task started, the files not committed and
-  `diff --stat` against its start (`progress` in `worktrees.ts`); the profiles open and closed; the shells and what
-  runs there. Then **its conversations**, oldest first, numbered from 1 (each an agent's, `agent.json`: tasks.md,
-  "Several agents in a task"): its tab's name (the one its agent gave it), its agent and account, open in its tab or
-  closed, from when to when, the human's first and last request in it (200 characters at most), and how its last turn
-  ended (a tool call with no result: cut off, by a limit or the human; or the human's last message with no answer).
-- **With a conversation's number**: that conversation whole, the latest chapter first. It is cut into **chapters**
-  at its agent's compaction summaries: a chapter is a summary and what follows it up to the next, given from the
-  latest back. At the end of its last chapter: how its last turn ended, the agent's last plan (`TodoWrite`) and what
-  it remembered in the task's folder (Claude Code's memory).
+`task_history(conversation, part)` returns ~40,000-character parts. Part 1 materializes a task-owned in-memory
+snapshot and reports part count so later parts stay stable as native transcripts grow.
 
-Why so:
+- No conversation number: folder/branch, resource progress since task start (commits, dirty files, diff stat),
+  profiles and shells, then conversations oldest first. List names, account/agent, open/closed state, times, first/
+  last human request (200 characters) and how the last turn ended.
+- Conversation number: complete lightly cut transcript, newest chapter first. Compaction summaries start chapters;
+  final metadata includes turn status, last plan and readable memory.
 
-- **Nothing kept by Kulisa.** The history is read from the agent's own transcript at the call. A copy kept after
-  each turn adds code and no record; notes the agent writes through a tool cost tokens and depend on the model
-  remembering them.
-- **A tool, not a file.** The task's data folder holds its profiles' cookies, so no agent gets it; a file in the
-  worktree is in the human's code; and every CLI reads a tool's result, Codex in its sandbox too.
-- **The whole conversation, lightly cut**, not a summary: a summary loses the details spread through it, and the
-  next agent, a model of the same class, finds what matters better than rules do. The rules only take away what is
-  of no use to anyone.
-- **The latest chapter first.** A compaction summary is the agent's own handoff to itself, and after it the agent
-  works from that summary and what follows alone: the latest chapter is the state it was in when it stopped. The
-  earlier ones are where a summary's omission is found; the agent is told to read every part.
-- **A list first, then one conversation**: with several agents in a task, only the one asked for is read.
-- **Useful beyond a handoff**: an agent whose context was compacted reads the details again.
-
-The agent learns of it from the MCP server's instructions (every agent) and the Kulisa plugin's skill (Claude Code).
+Read native transcripts on demand rather than duplicating history or adding agent-written notes. Tools work across
+CLIs/sandboxes without exposing profile data directories or writing into project code. Whole conversations preserve
+handoff details; latest-first chapters provide current state, earlier chapters recover omissions. Teach agents to
+read all parts through MCP instructions and the shared skill.
 
 ## Claude Code's transcript
 
@@ -272,61 +185,27 @@ by the session id its SessionStart hook reported (none without its hooks: then n
 
 ### Principles
 
-1. **The reader is the agent.** A tool's `registerTool` description is its documentation and the one source: what it
-   does, when to use it, what it costs. The skill says how the tools fit together (the order, the rules, when to use
-   which) and never lists them.
-2. **As the root `AGENTS.md` holds for all of Kulisa**: the same tools for every agent (what only one has is an extra
-   in its file in `agents/`); one core, a thin handle (the action, its checks and rules are `Task`'s or `Profile`'s;
-   the human gets it in the window too); tools, not the work's logic (a tool that cannot act says what is missing).
-3. **An action with a meaning, not an API's wrapper.** A tool is named and shaped by what the agent wants ("the
-   failed requests to /api"), not by the library call under it. Its parameters let the agent narrow what it gets (a
-   filter, a part, a period); the defaults are what most calls need.
-4. **The human sees, and stays in charge.** What the agent does shows in the page; the human's tabs stay as they
-   were; the sign-in pause holds (automation reaches pages only through the CDP proxy); Kulisa never hands the agent a
-   password (`browser_type_login` types it) or a cookie or token (`browser_network_request` hides them). What a script
-   of the agent reads in a page is the agent's: Kulisa does not restrict it ([profiles.md](../../docs/profiles.md)).
-5. **A missing tool shows itself.** The agent going around the tools (a Playwright script of its own, `curl`, asking
-   the human to click) names a tool to build; so do the users' Ideas for Kulisa (issue #84).
+- Tool descriptions are the API documentation; skills explain workflow without duplicating the catalog.
+- Follow root architecture: same tools across agents, core actions/checks, thin handles, no agent workflow in core.
+- Name/shape tools by the agent's goal, not a library call. Offer useful filters/defaults.
+- Preserve human tabs and visible actions through the proxy/sign-in pause. Never return saved passwords,
+  credential headers or tokens; arbitrary agent page scripts remain outside that guarantee.
+- Treat workarounds using scripts/manual clicks as evidence of missing capabilities; issue #84 covers user reports.
 
 ### What a tool must be
 
-A new tool, or a change to one, meets all of these:
-
-- **Useful.** It does what the agent needs and cannot do as well with the tools there, and does it whole: no half
-  result the agent must patch up with more calls.
-- **Economical with the agent's context**: how, below.
-- **Bounded.** Every wait has a timeout, every list a limit: a tool never holds the agent's turn.
-- **Fast.** One call where the agent would need several (`browser_snapshot`'s `also`: several profiles at once); no
-  work the answer does not need.
-- **Light on the computer.** No process or buffer kept for it beyond its call. The only files it may keep are those
-  "Large goes to disk" describes, and they go with their task (the root `AGENTS.md`: "RAM matters", "Nothing piles
-  up").
-- **Clear when it fails.** The error says what is wrong and what to do: which profiles there are, that the human is
-  signing in.
-- **Safe.** It acts within its task only. Where it reaches the disk or a shell, the agent's own approval applies
-  (`KULISA_ASKS`, [profiles.md](../../docs/profiles.md)); where it changes real accounts, Kulisa asks the human.
-- **Tested.** Its behavior has a test ([testing.md](../../docs/testing.md)). Its log line needs no code: `registerTool` writes it.
+- Complete a useful action without redundant calls; batch related reads when appropriate.
+- Bound waits/lists and minimize context, retained memory and processes. Persist only bounded task-owned artifacts.
+- Fail with target/state and a next step; enforce task ownership through core and required human confirmations.
+- `registerTool` supplies action logging.
 
 ### Saving the agent's context
 
-The agent's context holds the code and its reasoning too: every token a tool puts there is one less for thinking.
-
-1. **Narrow, don't dump.** Where playwright-core gives a lot (a page's requests, its console, its snapshot), the tool
-   wraps it with filters, so the agent takes only what it needs: requests by address and without static files, the
-   console by level, a snapshot of one element or to a depth. Playwright MCP's and Chrome DevTools MCP's ways
-   are worth a look, taken on their merits.
-2. **A part, not the whole.** A screenshot of an element or a region, not of the page; a snapshot of a subtree, not
-   of the document.
-3. **Large goes to disk.** A snapshot or a response's body over a limit is written to a file in the task's artifacts
-   (`artifacts.ts`; never the project's folder: nothing of Kulisa's in the agent's `git status`), each its own, never
-   replaced (two to compare), the oldest gone past a limit; a screenshot is kept there too. The answer gives its path
-   and a short outline, and the agent reads the part it needs.
-4. **A signal before the content.** An action's answer carries counts (2 console errors, 1 failed request), so the
-   agent reads the details only when there are some.
-5. **An action answers in a line**: what was done and where the page is now. A snapshot only when asked for.
-6. **Text before pictures.** A picture costs the most: a screenshot only when the look matters, scaled down, as JPEG.
-7. **Saving never takes a capability away.** The defaults give little; a parameter always gives all, so the agent
-   never meets a wall where what it needs cannot be had.
+- Filter console/requests/snapshots; prefer subtree or element reads over whole pages.
+- Spill oversized snapshots/bodies to unique bounded task artifacts, never project files; return path/outline.
+- Action replies give a short result and error counts; fetch details/snapshots only when requested.
+- Use JPEG screenshots when appearance matters; text is cheaper for structure/state.
+- Small defaults must retain parameters for complete access.
 
 ## The code
 
@@ -351,8 +230,8 @@ End-to-end coverage: `test/e2e/agent-*.spec.ts`, `agents-in-a-task.spec.ts`, `ta
 | `src/main/plugin.ts` | implements the contracts from core objects, native browser events, git and task records |
 | `src/main/app.ts` | starts the MCP server and annotations, locates packaged resources, supplies the available agents |
 | `src/main/tasks.ts` | owns terminal sessions, profiles, conversations and the task's files; invokes adapter operations |
-| `src/main/accounts.ts`, `shell.ts` | own account records and the application's agent choices |
-| `src/main/ipc/agents.ts` | supplies the window's agent/account actions and discovery cache |
+| `src/main/accounts.ts` | owns account records, discovery cache, installation and sign-in lifecycle ([tasks](../../docs/tasks.md#choosing-the-agent)) |
+| `src/main/ipc/agents.ts`, `shell.ts` | supply window/project context and the application's agent choices |
 | `src/main/recognizer.ts` | chooses an account for the dictation Kulisa package |
 | `forge.config.ts`, `scripts/version.ts` | build resources and synchronize the app's version |
 | `.dependency-cruiser.ts` | enforces entries, core independence and runtime cycles |

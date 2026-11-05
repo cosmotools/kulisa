@@ -14,4 +14,4 @@ export function ask(q: Question): Promise<string> {
   return answer;
 }
 // A question from the main process (shell.ask in app.ts): the window asks it and sends back the answer.
-kulisa.on('ask', async ({ id, ...q }) => kulisa.send('ask:answer', { id, answer: await ask(q) }));
+kulisa.on('ask:show', async ({ id, ...q }) => kulisa.send('ask:answer', { id, answer: await ask(q) }));

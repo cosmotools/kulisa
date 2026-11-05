@@ -1,0 +1,179 @@
+/* The welcome's shared demonstration clock (README.md, Demonstrations). The one character visits each profile in
+   turn; each page holds its result while the other is used. Static defaults show a completed check. */
+.welcome-demo { --demo-duration: 20s; }
+.welcome-demo [data-demo-motion] {
+  animation-duration: var(--demo-duration);
+  animation-iteration-count: infinite;
+  animation-timing-function: linear;
+  animation-fill-mode: both;
+}
+.welcome-demo[data-paused="true"] [data-demo-motion] { animation-play-state: paused; }
+
+.welcome-agent { opacity: 0; animation-name: welcome-agent; }
+.welcome-demo .welcome-agent { animation-timing-function: ease-in-out; }
+.welcome-agent-click { opacity: 0; animation-name: welcome-click; }
+.welcome-agent-eyes { transform-origin: 24px 23px; animation-name: welcome-blink; }
+.welcome-web-profile-activity { opacity: 0; }
+.welcome-web-customer .welcome-web-profile-activity { animation-name: welcome-customer-active; }
+.welcome-web-admin .welcome-web-profile-activity { animation-name: welcome-admin-active; }
+.welcome-web-customer-before { opacity: 0; animation-name: welcome-customer-before; }
+.welcome-web-customer-after { opacity: 1; animation-name: welcome-customer-after; }
+.welcome-web-admin-before { opacity: 0; animation-name: welcome-admin-before; }
+.welcome-web-admin-after { opacity: 1; animation-name: welcome-admin-after; }
+.welcome-web-metric-before { opacity: 0; animation-name: welcome-metric-before; }
+.welcome-web-metric-after { opacity: 1; animation-name: welcome-metric-after; }
+.welcome-web-cart-empty { opacity: 1; animation-name: welcome-cart-empty; }
+.welcome-web-cart-full { opacity: 0; animation-name: welcome-cart-full; }
+.welcome-web-cart { opacity: 0; animation-name: welcome-cart; }
+.welcome-web-confirmation { opacity: 1; animation-name: welcome-confirmation; }
+.welcome-web-new-order { max-height: 100px; opacity: 1; overflow: hidden; animation-name: welcome-new-order; }
+.welcome-web-shop-scroll { transform: translateY(-90px); animation-name: welcome-shop-scroll; }
+.welcome-web-option { outline: 2px solid var(--destructive); animation-name: welcome-option; }
+.welcome-web-add { animation-name: welcome-add; }
+.welcome-web-checkout { animation-name: welcome-checkout; }
+.welcome-web-order-detail { opacity: 1; animation-name: welcome-order-detail; }
+.welcome-web-verified { opacity: 1; animation-name: welcome-verified; }
+.welcome-terminal-phase { opacity: 0; animation-name: welcome-terminal-phase; }
+.welcome-demo .welcome-terminal-phase,
+.welcome-demo .welcome-terminal-line { animation-delay: calc((var(--log-phase) - 5) * 4s); }
+.welcome-terminal-phase:last-child { opacity: 1; }
+.welcome-terminal-line-0 { animation-name: welcome-type-0; }
+.welcome-terminal-line-1 { animation-name: welcome-type-1; }
+.welcome-terminal-line-2 { animation-name: welcome-type-2; }
+.welcome-demo .welcome-terminal-line { animation-timing-function: steps(40, end); }
+.welcome-terminal-spinner { animation-name: welcome-terminal-spinner; }
+.welcome-demo .welcome-terminal-caret { animation: welcome-terminal-caret 1s steps(2, end) infinite; }
+
+/* Coordinates use the measured width of one desktop page; the 12 px gap and frame borders are added after crossing to Admin. */
+@keyframes welcome-agent {
+  0% { opacity: 0; transform: translate(calc(var(--page-width) * .48), calc(var(--page-width) * .62)); }
+  4% { opacity: 1; transform: translate(calc(var(--page-width) * .48), calc(var(--page-width) * .35)); }
+  8%, 11% { transform: translate(calc(var(--page-width) * .28), calc(var(--page-width) * .39)); }
+  17%, 19% { transform: translate(calc(var(--page-width) * .065), calc(var(--page-width) * .423)); }
+  23%, 25% { transform: translate(calc(var(--page-width) * .18), calc(var(--page-width) * .479)); }
+  29%, 31% { transform: translate(calc(var(--page-width) * .94), calc(var(--page-width) * .06)); }
+  35%, 37% { transform: translate(calc(var(--page-width) * .8), calc(var(--page-width) * .3)); }
+  41%, 44% { transform: translate(calc(var(--page-width) * .73), calc(var(--page-width) * .165)); }
+  51%, 54% { transform: translate(calc(var(--page-width) * 1.09 + 14px), calc(var(--page-width) * .17)); }
+  59%, 61% { transform: translate(calc(var(--page-width) * 1.42 + 14px), calc(var(--page-width) * .51)); }
+  67%, 69% { transform: translate(calc(var(--page-width) * 1.47 + 14px), calc(var(--page-width) * .397)); }
+  75%, 78% { transform: translate(calc(var(--page-width) * 1.82 + 14px), calc(var(--page-width) * .29)); }
+  84%, 88% { opacity: 1; transform: translate(calc(var(--page-width) * 1.8 + 14px), calc(var(--page-width) * .39)); }
+  93% { opacity: 1; transform: translate(calc(var(--page-width) * 1.5 + 14px), calc(var(--page-width) * .64)); }
+  96% { opacity: 0; transform: translate(calc(var(--page-width) * 1.5 + 14px), calc(var(--page-width) * .64)); }
+  100% { opacity: 0; transform: translate(calc(var(--page-width) * .48), calc(var(--page-width) * .62)); }
+}
+@keyframes welcome-click {
+  0%, 16%, 21%, 22%, 27%, 28%, 33%, 34%, 39%, 52%, 57%, 59%, 64%, 66%, 71%, 100% { opacity: 0; transform: scale(.3); }
+  18%, 24%, 30%, 36%, 54%, 61%, 68% { opacity: .85; transform: scale(1); }
+  20%, 26%, 32%, 38%, 56%, 63%, 70% { opacity: 0; transform: scale(1.8); }
+}
+@keyframes welcome-blink { 0%, 14%, 15%, 46%, 47%, 82%, 83%, 100% { transform: scaleY(1); } 14.5%, 46.5%, 82.5% { transform: scaleY(.1); } }
+@keyframes welcome-customer-active { 0%, 3%, 48%, 100% { opacity: 0; } 6%, 44% { opacity: .7; border-color: var(--destructive); } }
+@keyframes welcome-admin-active { 0%, 48%, 95%, 100% { opacity: 0; } 52%, 90% { opacity: .7; border-color: var(--destructive); } }
+@keyframes welcome-customer-before { 0%, 38% { opacity: 1; } 40%, 99.9% { opacity: 0; } 100% { opacity: 1; } }
+@keyframes welcome-customer-after { 0%, 38% { opacity: 0; } 40%, 99.9% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes welcome-admin-before { 0%, 79% { opacity: 1; } 81%, 99.9% { opacity: 0; } 100% { opacity: 1; } }
+@keyframes welcome-admin-after { 0%, 79% { opacity: 0; } 81%, 99.9% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes welcome-metric-before { 0%, 60% { opacity: 1; } 63%, 99.9% { opacity: 0; } 100% { opacity: 1; } }
+@keyframes welcome-metric-after { 0%, 60% { opacity: 0; } 63%, 99.9% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes welcome-shop-scroll { 0%, 10% { transform: translateY(0); } 15%, 99.9% { transform: translateY(-90px); } 100% { transform: translateY(0); } }
+@keyframes welcome-option { 0%, 17% { outline-color: transparent; } 18%, 99.9% { outline-color: var(--destructive); } 100% { outline-color: transparent; } }
+@keyframes welcome-cart-empty { 0%, 23%, 39%, 100% { opacity: 1; } 24%, 38% { opacity: 0; } }
+@keyframes welcome-cart-full { 0%, 23%, 39%, 100% { opacity: 0; } 24%, 38% { opacity: 1; } }
+@keyframes welcome-cart { 0%, 30% { opacity: 0; transform: translateX(20px); } 31%, 37% { opacity: 1; transform: translateX(0); } 39%, 100% { opacity: 0; transform: translateX(20px); } }
+@keyframes welcome-confirmation { 0%, 38% { opacity: 0; transform: translateY(8px); } 40%, 99.9% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(8px); } }
+@keyframes welcome-new-order { 0%, 60% { max-height: 0; opacity: 0; } 63%, 99.9% { max-height: 100px; opacity: 1; } 100% { max-height: 0; opacity: 0; } }
+@keyframes welcome-add { 0%, 23%, 27%, 100% { outline: 0 solid transparent; } 24%, 26% { outline: 4px solid var(--destructive); } }
+@keyframes welcome-checkout { 0%, 35%, 39%, 100% { outline: 0 solid transparent; } 36%, 38% { outline: 4px solid var(--destructive); } }
+@keyframes welcome-order-detail { 0%, 69% { opacity: 0; transform: translateX(35px); } 72%, 99.9% { opacity: 1; transform: translateX(0); } 100% { opacity: 0; transform: translateX(35px); } }
+@keyframes welcome-verified { 0%, 80% { opacity: 0; } 82%, 99.9% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes welcome-terminal-phase { 0%, 19.99% { opacity: 1; } 20%, 100% { opacity: 0; } }
+@keyframes welcome-type-0 { 0% { clip-path: inset(0 100% 0 0); } 6%, 100% { clip-path: inset(0); } }
+@keyframes welcome-type-1 { 0%, 6% { clip-path: inset(0 100% 0 0); } 12%, 100% { clip-path: inset(0); } }
+@keyframes welcome-type-2 { 0%, 12% { clip-path: inset(0 100% 0 0); } 19.99%, 100% { clip-path: inset(0); } }
+
+@keyframes welcome-terminal-spinner { to { transform: rotate(3600deg); } }
+@keyframes welcome-terminal-caret { 50% { opacity: 0; } }
+
+/* The CLI cycle uses the same clock, including the lower development transcript. The page stays in native
+   terminal coordinates; only the character stays unscaled, with its positions derived from --cli-scale. */
+.welcome-cli-launch { opacity: 0; animation-name: welcome-cli-launch; }
+.welcome-cli-command { animation-name: welcome-cli-command; }
+.welcome-cli-session { opacity: 1; animation-name: welcome-cli-session; }
+.welcome-cli-request { opacity: 1; animation-name: welcome-cli-request; }
+.welcome-cli-thinking { opacity: 1; animation-name: welcome-cli-thinking; }
+.welcome-cli-read { opacity: 1; animation-name: welcome-cli-read; }
+.welcome-cli-edit { opacity: 1; animation-name: welcome-cli-edit; }
+.welcome-cli-run { opacity: 1; animation-name: welcome-cli-run; }
+.welcome-cli-done { opacity: 1; animation-name: welcome-cli-done; }
+.welcome-cli-input { opacity: 0; animation-name: welcome-cli-input; }
+.welcome-demo .welcome-cli-input { animation-timing-function: steps(23, end); }
+.welcome-cli-placeholder { opacity: 1; animation-name: welcome-cli-placeholder; }
+.welcome-cli-agent { opacity: 0; animation-name: welcome-cli-agent; }
+.welcome-demo .welcome-cli-agent { animation-timing-function: ease-in-out; }
+.welcome-cli-enter { opacity: 0; animation-name: welcome-cli-enter; }
+.welcome-cli-status-working { opacity: 0; animation-name: welcome-cli-status-working; }
+.welcome-cli-status-done { opacity: 1; animation-name: welcome-cli-status-done; }
+
+@keyframes welcome-cli-launch { 0%, 17% { opacity: 1; } 19%, 99.9% { opacity: 0; } 100% { opacity: 1; } }
+@keyframes welcome-cli-command { 0%, 5% { clip-path: inset(0 100% 0 0); } 13%, 100% { clip-path: inset(0); } }
+@keyframes welcome-cli-session { 0%, 18% { opacity: 0; } 20%, 99.9% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes welcome-cli-request { 0%, 35% { opacity: 0; } 36%, 99.9% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes welcome-cli-thinking { 0%, 38% { opacity: 0; } 40%, 99.9% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes welcome-cli-read { 0%, 45% { opacity: 0; } 47%, 99.9% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes welcome-cli-edit { 0%, 57% { opacity: 0; } 59%, 99.9% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes welcome-cli-run { 0%, 70% { opacity: 0; } 72%, 99.9% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes welcome-cli-done { 0%, 80% { opacity: 0; } 82%, 99.9% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes welcome-cli-input { 0%, 21% { opacity: 0; clip-path: inset(0 100% 0 0); } 22% { opacity: 1; } 33%, 34% { opacity: 1; clip-path: inset(0); } 35%, 100% { opacity: 0; clip-path: inset(0); } }
+@keyframes welcome-cli-placeholder { 0%, 21%, 35%, 100% { opacity: 1; } 22%, 34% { opacity: 0; } }
+@keyframes welcome-cli-status-working { 0%, 81% { opacity: 1; } 83%, 99.9% { opacity: 0; } 100% { opacity: 1; } }
+@keyframes welcome-cli-status-done { 0%, 81% { opacity: 0; } 83%, 99.9% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes welcome-cli-enter { 0%, 14%, 19%, 32%, 37%, 100% { opacity: 0; transform: translateY(3px); } 16%, 17%, 34%, 35% { opacity: 1; transform: translateY(0); } }
+@keyframes welcome-cli-agent {
+  0% { opacity: 0; transform: translate(calc(300px * var(--cli-scale)), calc(380px * var(--cli-scale))); }
+  5%, 16% { opacity: 1; transform: translate(calc(255px * var(--cli-scale)), calc(45px * var(--cli-scale))); }
+  22%, 35% { transform: translate(calc(400px * var(--cli-scale)), calc(308px * var(--cli-scale))); }
+  42% { transform: translate(calc(620px * var(--cli-scale)), calc(145px * var(--cli-scale))); }
+  49% { transform: translate(calc(610px * var(--cli-scale)), calc(168px * var(--cli-scale))); }
+  61%, 65% { transform: translate(calc(700px * var(--cli-scale)), calc(210px * var(--cli-scale))); }
+  75% { transform: translate(calc(820px * var(--cli-scale)), calc(240px * var(--cli-scale))); }
+  84%, 89% { opacity: 1; transform: translate(calc(730px * var(--cli-scale)), calc(265px * var(--cli-scale))); }
+  95%, 100% { opacity: 0; transform: translate(calc(730px * var(--cli-scale)), calc(380px * var(--cli-scale))); }
+}
+
+/* SVG joints stay attached while the person reclines and lifts the cup; all use the active demo's clock. */
+.welcome-human-recline { transform-origin: 82px 134px; transform: rotate(-4deg); animation-name: welcome-human-recline; }
+.welcome-human-coffee { transform-origin: 95px 117px; animation-name: welcome-human-coffee; }
+.welcome-human-head { transform-origin: 64px 78px; animation-name: welcome-human-head; }
+.welcome-human-steam { animation-name: welcome-human-steam; }
+.welcome-human-send { opacity: 0; animation-name: welcome-human-send; }
+.welcome-human-task { opacity: 0; animation-name: welcome-human-task; }
+.welcome-demo .welcome-human-recline,
+.welcome-demo .welcome-human-coffee,
+.welcome-demo .welcome-human-head { animation-timing-function: ease-in-out; }
+@keyframes welcome-human-recline {
+  0%, 5%, 100% { transform: rotate(6deg); }
+  13%, 23%, 50%, 76% { transform: rotate(-4deg); }
+  37%, 63% { transform: rotate(-5deg); }
+  86%, 91% { transform: rotate(-1deg); }
+}
+@keyframes welcome-human-coffee {
+  0%, 22%, 43%, 57%, 77%, 100% { transform: rotate(0); }
+  29%, 37%, 64%, 71% { transform: rotate(-78deg); }
+}
+@keyframes welcome-human-head {
+  0%, 78%, 86%, 94%, 100% { transform: rotate(0); }
+  82%, 90% { transform: rotate(7deg); }
+}
+@keyframes welcome-human-steam {
+  0%, 20%, 40%, 60%, 80%, 100% { opacity: 0; transform: translateY(0); }
+  8%, 28%, 48%, 68%, 88% { opacity: .8; }
+  19%, 39%, 59%, 79%, 99% { opacity: 0; transform: translateY(-5px); }
+}
+@keyframes welcome-human-send { 0%, 5%, 100% { opacity: 1; } 8%, 97% { opacity: 0; } }
+@keyframes welcome-human-task { 0%, 3%, 16%, 100% { opacity: 0; transform: translateX(0); } 6% { opacity: 1; } 14% { opacity: 0; transform: translateX(35px); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .welcome-demo [data-demo-motion] { animation: none; }
+}

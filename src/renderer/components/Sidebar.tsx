@@ -41,7 +41,7 @@ function taskItems(p: ProjectEntry, t: ProjectTask, done: () => void): MenuItem[
     '-', { label: 'Delete Task…', run: () => deleteTask(p, t) }];
 }
 
-// A task's row: its agent's state, its name, its line (its branch, when it closed); open in another window, merged. A
+// A task's row: its agent's state, its name, its line (its branch, when it closed); open in another window. A
 // closed task's muted. Delete: Delete Task….
 function TaskRow({ p, t, done }: { p: ProjectEntry; t: ProjectTask; done: () => void }) {
   const key = `${p.id}/${t.id}`;
@@ -56,7 +56,6 @@ function TaskRow({ p, t, done }: { p: ProjectEntry; t: ProjectTask; done: () => 
         {line && <span className="truncate text-xs text-muted-foreground">{line}</span>}
       </span>
       {!t.closed && !tab && <Badge variant="outline">open</Badge>}
-      {t.closed && t.merged && <Badge variant="secondary">merged</Badge>}
     </SidebarMenuButton>
     <SidebarMenuAction showOnHover aria-label="Delete Task…" title="Delete Task…" onClick={() => void deleteTask(p, t)}><Trash2Icon /></SidebarMenuAction>
   </SidebarMenuItem>;

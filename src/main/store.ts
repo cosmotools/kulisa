@@ -11,13 +11,12 @@
 //                            "github.com/acme/shop" -> an account's id, src/github). What a project is made of is said
 //                            here alone
 //   projects/<id>/
-//     tasks.json             the project's tasks: { list: [{ id, name, named, resources, closed, closedAt,
-//                            merged }] }; name "New Task" and named unset until the agent or the human names it;
+//     tasks.json             the project's tasks: { list: [{ id, name, named, resources, closedAt }] };
+//                            name "New Task" and named unset until the agent or the human names it;
 //                            resources what it has (TaskEntry), the first where it works
-//     <task id>/             a task (TaskStore): profiles.json (what it has of its project's profiles: id, sites'
-//                            zoom, closed), layout.json (the window's grid), agent.json (its agents' conversations,
-//                            to resume and read them), terminals.json (its terminals' tabs), and a copy of a profile's
-//                            master per profile opened here, named by the profile's id:
+//     <task id>/             a task (TaskStore): task.json owns conversation metadata, development tabs,
+//                            Stage environments and both layouts; a copy of each opened profile's master
+//                            is named by the profile's id:
 //       <id>/                a Chromium profile (session.fromPath) with Kulisa's own files in it: Kulisa Tabs.json
 //                            (its tabs' URLs), Kulisa Session Cookies.bin (session-cookies.ts)
 //   profiles.json, profiles/ the profiles and their masters (profile-store.ts)
@@ -25,10 +24,19 @@
 //                            its files open while Kulisa runs)
 // Nothing goes into the project's own folder: sign-ins must not end up in its git.
 import fs from 'fs';
+import { writeFileAtomic } from './files.ts';
+import { readTabs, writeTabs } from '../browser/main/index.ts';
+import type { SavedTabs } from '../browser/main/index.ts';
+import { validTerminalSize } from '../shared/stage-terminal.ts';
+import { labelError } from '../shared/names.ts';
+import type { StageTerminalConfig } from '../shared/stage-terminal.ts';
 import path from 'path';
 import { removeTree } from './remove.ts';
-import { randomInt } from 'crypto';
+import { randomInt, randomUUID } from 'crypto';
 import { log } from './log.ts';
+import { splitLayout } from '../shared/stage-layout.ts';
+import type { TaskLayout } from '../shared/stage-layout.ts';
+import { z } from 'zod';
 
 // Muted, to sit on the dark window; a new project takes the first one no project has (its favicon's own hue, in their
 // lightness and chroma, replaces it in the window: renderer/lib/project-color.ts).
@@ -41,18 +49,10 @@ function newId(taken: (id: string) => boolean) {
   do id = Array.from({ length: 6 }, () => ID_CHARS[randomInt(ID_CHARS.length)]).join(''); while (taken(id));
   return id;
 }
-const TABS_FILE = 'Kulisa Tabs.json';
 const ARTIFACTS = 'artifacts';
 // A task among all of every project ("<project id>/<task id>"): the windows, the terminals, the CDP proxy and the MCP
 // server's URLs know it by that.
 const taskKey = (p: { id: string }, id: string) => `${p.id}/${id}`;
-const SESSION_COOKIES_FILE = 'Kulisa Session Cookies.bin';
-// Chromium's caches inside a profile: rebuilt by themselves, so a copy of a profile goes without them.
-const CACHES = ['Cache', 'Code Cache', 'GPUCache', 'DawnGraphiteCache', 'DawnWebGPUCache', 'GrShaderCache', 'ShaderCache'];
-const NOT_COPIED = new Set([...CACHES, 'Network/Cookies', 'Network/Cookies-journal']);
-
-// A profile's tabs as saved: their URLs, in the strip's order, and the place of the one in front.
-interface SavedTabs { urls: string[]; active: number }
 // A project in projects.json. folders: its folders (Project Settings' Folders), repositories or not, the default first: new
 // tasks start in it.
 interface ProjectEntry {
@@ -68,7 +68,7 @@ type Resource = { kind: 'maintree'; folder: string } | ({ kind: 'worktree' } & C
 // A task in its project's tasks.json. Where it works, its branch and its folder of copies are its resources'.
 interface TaskEntry {
   id: string; name: string; named?: boolean; resources?: Resource[];
-  closed?: boolean; closedAt?: number; merged?: boolean;
+  closedAt?: number;
 }
 type Worktree = Extract<Resource, { kind: 'worktree' }>;
 const worktreesOf = (e: TaskEntry) => (e.resources || []).filter((r): r is Worktree => r.kind === 'worktree');
@@ -87,21 +87,26 @@ interface TasksFile { list: TaskEntry[] }
 // A window as settings.json keeps it: its tasks by key ("<project id>/<task id>", tasks.ts) in the bar's order, the shown
 // one.
 interface SavedWindow { tabs: string[]; shown: string | null; bounds?: Electron.Rectangle; maximized?: boolean }
-interface Settings { uiZoom?: number; theme?: 'dark' | 'light' | 'system'; bar?: 'top' | 'bottom'; language?: string; keys?: Record<string, string>; windows?: SavedWindow[] }
-// A profile as a task keeps it in profiles.json (project-profiles.ts).
-interface TaskProfile { id: string; zoom?: Record<string, number>; closed?: boolean }
+interface Settings { stageFollow?: boolean; uiZoom?: number; theme?: 'dark' | 'light' | 'system'; bar?: 'top' | 'bottom'; language?: string; keys?: Record<string, string>; windows?: SavedWindow[] }
+// A profile as a task keeps it in task.json (project-profiles.ts).
+const taskProfileSchema = z.object({ id: z.string(), zoom: z.record(z.string(), z.number()).optional(), closed: z.boolean().optional() });
+type TaskProfile = z.infer<typeof taskProfileSchema>;
 // A task's agents (tasks.ts): the one it was made with (opened when it has never had a terminal), and every
 // conversation an agent had in it, oldest first, numbered from 1 in task_history: its account, its session as its
 // hooks reported it (agent-hooks.ts), when, the name the agent gave it (title) or its own auto-title read from its
-// transcript (autoTitle, shown until title is given), and the terminal it is open in (none: closed).
-interface Conversation {
-  agent: string; sessionId?: string; transcript?: string; started?: boolean; from: number; to?: number; title?: string; autoTitle?: string; terminal?: number;
-}
-interface AgentFile { agent?: string | null; conversations?: Conversation[] }
+// transcript (autoTitle, shown until title is given); terminal is derived from development tabs.
+const conversationSchema = z.object({
+  id: z.string().optional(), agent: z.string(), sessionId: z.string().optional(), transcript: z.string().optional(), started: z.boolean().optional(),
+  from: z.number(), to: z.number().optional(), title: z.string().optional(), autoTitle: z.string().optional(), terminal: z.number().optional(),
+});
+type Conversation = z.infer<typeof conversationSchema>;
+const agentFileSchema = z.object({ agent: z.string().nullable().optional(), conversations: z.array(conversationSchema).optional() });
+type AgentFile = z.infer<typeof agentFileSchema>;
 // Its terminals, in their tabs' order, and the one in front (tasks.ts): a shell has its name; an agent's, its
-// conversation's index in agent.json.
-interface SavedTerminal { id: number; name?: string; by?: 'human' | 'agent'; conversation?: number }
-interface TerminalsFile { front?: number | null; list: SavedTerminal[] }
+// conversation's history number in memory; task.json stores its stable ID.
+const savedTerminalSchema = z.object({ id: z.int().positive(), name: z.string().optional(), by: z.enum(['human', 'agent']).optional(), conversation: z.number().optional() });
+const terminalsFileSchema = z.object({ front: z.number().nullable().optional(), list: z.array(savedTerminalSchema) });
+type TerminalsFile = z.infer<typeof terminalsFileSchema>;
 
 class Store {
   dir: string; projectsFile: string; deletedFile: string; settingsFile: string;
@@ -151,7 +156,14 @@ class Store {
 
   // A project's tasks (tasks.json) and each one's data.
   tasksOf(p: { id: string }): TasksFile {
-    return readJSON(path.join(this.dir, 'projects', p.id, 'tasks.json')) || { list: [] };
+    const file = path.join(this.dir, 'projects', p.id, 'tasks.json');
+    const tasks = (readJSON(file) || { list: [] }) as { list: (TaskEntry & { closed?: boolean; merged?: boolean })[] };
+    if (tasks.list.some((e) => 'closed' in e || 'merged' in e)) {
+      tasks.list = tasks.list.map(({ closed, closedAt, merged: _, ...entry }) => ({ ...entry,
+        ...((closed === true || closed === undefined && closedAt !== undefined) && { closedAt: closedAt ?? 0 }) }));
+      writeFileAtomic(file, JSON.stringify(tasks, null, 2));
+    }
+    return tasks;
   }
   saveTasksOf(p: { id: string }, w: TasksFile) { writeJSON(path.join(this.dirOf(p), 'tasks.json'), w); }
   // A task's data folder; taskOf makes it, taskDir only names it (an id still to be found free: Project.createTask).
@@ -184,12 +196,53 @@ class Store {
     }
     fs.rmSync(this.deletedFile, { force: true });
   }
-  // Kulisa's own settings: { uiZoom, theme, bar, windows }.
+  // Kulisa's own settings: { uiZoom, theme, bar, stageFollow, windows }.
   settings(): Settings { return readJSON(this.settingsFile) || {}; }
   saveSettings(s: Settings) { writeJSON(this.settingsFile, s); }
 }
 
 // One task's data: its profiles (each a folder, named by its id), grid and agent session.
+const stageTerminalSchema = z.object({ id: z.int(), name: z.string(), command: z.string(), size: z.custom<StageTerminalConfig['size']>() });
+const taskDocumentSchema = z.object({
+  version: z.literal(2),
+  agents: agentFileSchema.extend({ conversations: z.array(conversationSchema.omit({ terminal: true }).extend({ id: z.string().min(1) })) }),
+  development: terminalsFileSchema.extend({ list: z.array(savedTerminalSchema.extend({ conversation: z.string().optional() })) }).nullable(),
+  stage: z.object({
+    profilesInitialized: z.boolean(), nextTerminalId: z.int().positive(),
+    items: z.array(z.discriminatedUnion('type', [taskProfileSchema.extend({ type: z.literal('profile') }),
+      stageTerminalSchema.extend({ type: z.literal('terminal') })])),
+    view: z.enum(['vertical', 'tabs', 'horizontal']).nullish(), overflow: z.boolean(),
+    // Dockview owns layout serialization; terminal sizes use the shared bounds in validateTask.
+    layout: z.custom<TaskLayout['stage']>(),
+  }),
+  workspace: z.object({ stagePosition: z.enum(['left', 'right', 'above']).optional(), splitLayout: z.custom<TaskLayout['split']>().optional(),
+    developmentLayout: z.custom<TaskLayout['workspace'] | null>() }),
+});
+type TaskDocument = z.infer<typeof taskDocumentSchema>;
+const taskFiles = ['agent.json', 'terminals.json', 'profiles.json', 'applications.json', 'layout.json'];
+const legacyTaskSchema = z.tuple([agentFileSchema.optional(), terminalsFileSchema.optional(), z.array(taskProfileSchema).optional(),
+  z.object({ next: z.int().positive().nullish(), list: z.array(stageTerminalSchema) }).optional(), z.unknown()]);
+function strictJSON(file: string): unknown {
+  try { return JSON.parse(fs.readFileSync(file, 'utf8')); }
+  catch (e) { if ((e as NodeJS.ErrnoException).code === 'ENOENT') return undefined; throw new Error(`Cannot read task data ${file}: ${(e as Error).message}`); }
+}
+function validateTask(value: unknown): asserts value is TaskDocument {
+  // Validate without parsing: preserve the original document and unknown metadata on section updates.
+  if (!taskDocumentSchema.validate(value)) throw new Error('Invalid task.json format');
+  const d = value, ids = new Set(d.agents.conversations.map((c) => c.id));
+  if (ids.size !== d.agents.conversations.length) throw new Error('Invalid task conversation');
+  for (const t of d.development?.list ?? []) if (t.conversation !== undefined && !ids.has(t.conversation)) throw new Error('Invalid terminal conversation reference');
+  if (new Set(d.development?.list.map((t) => t.id)).size !== (d.development?.list.length ?? 0)) throw new Error('Duplicate development terminal');
+  const environments = new Set<string>();
+  for (const item of d.stage.items) {
+    const key = `${item.type}:${item.id}`;
+    if (environments.has(key)) throw new Error('Invalid Stage environment');
+    if (item.type === 'terminal' && (item.id < 1 || labelError(item.name) || item.command.length > 8192 || item.size && !validTerminalSize(item.size))) throw new Error('Invalid Stage terminal setup');
+    if (item.type === 'profile' && !item.id) throw new Error('Invalid Stage profile');
+    environments.add(key);
+  }
+}
+
 class TaskStore {
   dir: string; store: Store; saved?: Map<string, string>;
   constructor(dir: string, store: Store) { this.dir = dir; this.store = store; fs.mkdirSync(dir, { recursive: true }); }
@@ -199,9 +252,9 @@ class TaskStore {
   get artifacts() { return path.join(this.dir, ARTIFACTS); }
   // What the task has of its project's profiles (project-profiles.ts): [{ id, zoom, closed }] (who a profile is:
   // profile-store.ts); null before the task first loads.
-  profiles(): TaskProfile[] | null { return readJSON(this.file('profiles.json')); }
+  profiles(): TaskProfile[] | null { const s = this.document().stage; return s.profilesInitialized ? s.items.filter((i) => i.type === 'profile').map(({ type: _type, ...config }) => config) : null; }
   saveProfiles(list: TaskProfile[]) {
-    writeJSON(this.file('profiles.json'), list.map(({ id, zoom, closed }) => ({ id, zoom, ...(closed && { closed }) })));
+    this.update((d) => { d.stage.profilesInitialized = true; d.stage.items = [...d.stage.items.filter((i) => i.type !== 'profile'), ...list.map((config) => ({ ...config, type: 'profile' as const }))]; });
   }
   // A profile's tabs, in its own folder.
   tabs(id: string): SavedTabs { return readTabs(this.profileDir(id)); }
@@ -221,57 +274,89 @@ class TaskStore {
     this.markDeleted(id);
     removeTree(this.profileDir(id));
   }
-  // The window's grid as dockview serializes it (the renderer's lib/grid.ts).
-  layout(): unknown { return readJSON(this.file('layout.json')); }
-  saveLayout(layout: unknown) { writeJSON(this.file('layout.json'), layout); }
-  agent(): AgentFile { return readJSON(this.file('agent.json')) || {}; }
-  saveAgent(a: AgentFile) { writeJSON(this.file('agent.json'), a); }
-  // null: the task never had a terminal (a new task: its agent opens).
-  terminals(): TerminalsFile | null { const t = readJSON(this.file('terminals.json')); return Array.isArray(t?.list) ? t : null; }
-  saveTerminals(t: TerminalsFile) { writeJSON(this.file('terminals.json'), t); }
-}
-
-// Copy a profile's folder without its caches and its cookies: those come through its session (cookie-sync.ts, copy),
-// as Windows keeps an open session's cookie database locked. An open profile can be copied once its data is flushed
-// (tasks.ts); a file that cannot be read (locked on Windows) is left out and logged.
-async function copyProfile(from: string, to: string) {
-  const walk = async (src: string, dst: string, rel: string) => {
-    await fs.promises.mkdir(dst, { recursive: true });
-    for (const e of await fs.promises.readdir(src, { withFileTypes: true })) {
-      if (NOT_COPIED.has(rel + e.name)) continue;
-      const s = path.join(src, e.name), d = path.join(dst, e.name);
-      try {
-        if (e.isDirectory()) await walk(s, d, `${rel}${e.name}/`);
-        else if (e.isFile()) await fs.promises.copyFile(s, d);
-      } catch (err) { console.error('[store] not copied:', s, (err as NodeJS.ErrnoException).code || (err as Error).message); }
+  private document(): TaskDocument {
+    let current = strictJSON(this.file('task.json'));
+    if ((current as { version?: number } | null)?.version === 1) {
+      const old = current as { stage: { initialized: boolean; items: { type: 'profile' | 'terminal'; config: TaskProfile | StageTerminalConfig }[] } };
+      const { initialized, items, ...stage } = old.stage;
+      current = { ...old, version: 2, stage: { ...stage, profilesInitialized: initialized,
+        items: items.map(({ type, config }) => ({ ...config, type })) } };
+      this.writeDocument(current);
     }
-  };
-  await walk(from, to, '');
+    if (current !== undefined) { validateTask(current); this.cleanLegacy(); return current; }
+    const legacy = taskFiles.map((f) => strictJSON(this.file(f)));
+    if (!legacyTaskSchema.validate(legacy)) throw new Error('Invalid legacy task data');
+    const [agent, t, p, savedStageTerminals, layout] = legacy;
+    const a: AgentFile = agent ?? {};
+    const conversations = (a.conversations ?? []).map(({ terminal: _terminal, ...c }) => ({ ...c, id: c.id ?? randomUUID() }));
+    const split = splitLayout(layout);
+    const d: TaskDocument = {
+      version: 2, agents: { ...(a.agent !== undefined && { agent: a.agent }), conversations },
+      development: t ? { front: t.front, list: t.list.map(({ conversation, ...rest }) => ({ ...rest,
+        ...(conversation !== undefined && { conversation: conversations[conversation]?.id ?? 'invalid-reference' }) })) } : null,
+      stage: { profilesInitialized: p !== undefined, nextTerminalId: savedStageTerminals?.next ?? 1,
+        items: [...(p ?? []).map((config) => ({ ...config, type: 'profile' as const })), ...(savedStageTerminals?.list ?? []).map((config) => ({ ...config, type: 'terminal' as const }))],
+        view: split?.stageLayout ?? null, overflow: split?.stageOverflow ?? false, layout: split?.stage ?? null },
+      workspace: { stagePosition: split?.stagePosition ?? 'above', splitLayout: split?.split ?? null, developmentLayout: split?.workspace ?? null },
+    };
+    this.writeDocument(d);
+    this.cleanLegacy();
+    log.info('[store] task data initialized');
+    return d;
+  }
+  private legacyCleaned = false;
+  private cleanLegacy() {
+    if (this.legacyCleaned) return;
+    for (const f of taskFiles) fs.rmSync(this.file(f), { force: true });
+    this.legacyCleaned = true;
+  }
+  private writeDocument(d: unknown) {
+    validateTask(d);
+    writeFileAtomic(this.file('task.json'), JSON.stringify(d, null, 2));
+    validateTask(strictJSON(this.file('task.json')));
+  }
+  private update(change: (d: TaskDocument) => void) { const d = this.document(); change(d); this.writeDocument(d); }
+  stageTerminals(): { next: number; list: StageTerminalConfig[] } {
+    const s = this.document().stage;
+    return { next: s.nextTerminalId, list: s.items.filter((i) => i.type === 'terminal').map(({ type: _type, ...config }) => config) };
+  }
+  saveStageTerminals(a: { next: number; list: StageTerminalConfig[] }) {
+    this.update((d) => { d.stage.nextTerminalId = a.next; d.stage.items = [...d.stage.items.filter((i) => i.type !== 'terminal'), ...a.list.map((config) => ({ ...config, type: 'terminal' as const }))]; });
+  }
+  layout(): unknown {
+    const d = this.document();
+    return d.workspace.developmentLayout ? splitLayout({ version: 3, workspace: d.workspace.developmentLayout, stage: d.stage.layout,
+      split: d.workspace.splitLayout, stageLayout: d.stage.view, stageOverflow: d.stage.overflow, stagePosition: d.workspace.stagePosition,
+      stageShare: (d.workspace as { stageShare?: number }).stageShare }) : null;
+  }
+  saveLayout(layout: unknown) {
+    const l = splitLayout(layout);
+    this.update((d) => { d.workspace = { developmentLayout: l?.workspace ?? null, stagePosition: l?.stagePosition ?? 'above', splitLayout: l?.split ?? null };
+      d.stage.layout = l?.stage ?? null; d.stage.view = l?.stageLayout ?? null; d.stage.overflow = l?.stageOverflow ?? false; });
+  }
+  agent(): AgentFile {
+    const d = this.document();
+    return { ...d.agents, conversations: d.agents.conversations.map((c) => ({ ...c, terminal: d.development?.list.find((t) => t.conversation === c.id)?.id })) };
+  }
+  saveAgent(a: AgentFile) {
+    this.update((d) => { d.agents = { ...(a.agent !== undefined && { agent: a.agent }),
+      conversations: (a.conversations ?? []).map(({ terminal: _terminal, ...c }) => ({ ...c, id: c.id ?? randomUUID() })) }; });
+  }
+  developmentTerminals(): TerminalsFile | null {
+    const d = this.document(), t = d.development;
+    return t ? { front: t.front, list: t.list.map(({ conversation, ...rest }) => ({ ...rest,
+      ...(conversation !== undefined && { conversation: d.agents.conversations.findIndex((c) => c.id === conversation) }) })) } : null;
+  }
+  saveDevelopmentTerminals(t: TerminalsFile) {
+    this.update((d) => { d.development = { front: t.front, list: t.list.map(({ conversation, ...rest }) => ({ ...rest,
+      ...(conversation !== undefined && { conversation: d.agents.conversations[conversation]?.id ?? 'invalid-reference' }) })) }; });
+  }
 }
 
 const nextColor = (list: ProjectEntry[]) => PROJECT_COLORS.find((c) => !list.some((p) => p.color === c)) || PROJECT_COLORS[list.length % PROJECT_COLORS.length]!;
 const samePath = (a: string, b: string) => (process.platform === 'linux' ? path.resolve(a) === path.resolve(b) : path.resolve(a).toLowerCase() === path.resolve(b).toLowerCase());
-// A profile's tabs (Kulisa Tabs.json, in its folder: a master's and a task's copy alike), to open them again.
-function readTabs(dir: string): SavedTabs {
-  const v = readJSON(path.join(dir, TABS_FILE));
-  return Array.isArray(v?.urls) ? { urls: v.urls, active: Number.isInteger(v.active) ? v.active : 0 } : { urls: [], active: 0 };
-}
-function writeTabs(dir: string, tabs: SavedTabs) { fs.mkdirSync(dir, { recursive: true }); writeJSON(path.join(dir, TABS_FILE), tabs); }
 function readJSON(f: string) { try { return JSON.parse(fs.readFileSync(f, 'utf8')); } catch { return null; } }
 function writeJSON(f: string, v: unknown) { try { writeFileAtomic(f, JSON.stringify(v, null, 2)); } catch (e) { console.error('[store]', (e as Error).message); } }
-// Written whole or not at all: to a file next to it, then renamed over it. Kulisa may be killed or the computer lose
-// power while it writes (the tabs and session cookies are saved every few seconds); a half-written profiles.json
-// would lose the list of the profiles, a half-written session cookies file the sign-ins. The data reaches the disk
-// (fsync) before the rename: otherwise after a power loss the rename may be there and the data not (an empty file).
-// Not the write-file-atomic package: it brings signal-exit, which hooks SIGINT and SIGTERM, and the app handles them.
-function writeFileAtomic(file: string, data: string | Uint8Array, options?: { mode?: number }) {
-  const tmp = `${file}.${process.pid}.tmp`;
-  try {
-    const fd = fs.openSync(tmp, 'w', options?.mode);
-    try { fs.writeFileSync(fd, data); fs.fsyncSync(fd); } finally { fs.closeSync(fd); }
-    fs.renameSync(tmp, file);
-  } catch (e) { fs.rmSync(tmp, { force: true }); throw e; }
-}
 
-export { Store, newId, copyProfile, writeFileAtomic, readTabs, writeTabs, SESSION_COOKIES_FILE, PROJECT_COLORS, worktreesOf, ownWorktree, folderOf, branchOf, homeOf, taskKey };
-export type { SavedTabs, TaskStore, ProjectEntry, TaskEntry, Copy, Worktree, TaskProfile, Conversation };
+export { Store, newId, PROJECT_COLORS, worktreesOf, ownWorktree, folderOf, branchOf, homeOf, taskKey };
+export type { TaskStore, ProjectEntry, TaskEntry, Copy, Worktree, TaskProfile, Conversation };

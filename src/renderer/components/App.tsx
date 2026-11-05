@@ -4,13 +4,14 @@ import { useEffect, useState } from 'react';
 import { TooltipProvider } from '@ui';
 import { useWindow } from '../lib/store';
 import { TopBar } from './TopBar';
-import { Grid } from './Grid';
+import { TaskViews } from '../task-view/TaskView';
 import { Empty } from './Empty';
 import { Sidebar } from './Sidebar';
 import { TaskBar } from './TaskBar';
 import { Ask } from './Ask';
-import { NewProject } from './NewProject';
+import { NewProject } from './new-project';
 import { AgentPicker } from './AgentPicker';
+import { StageTerminalSettings } from './StageTerminalSettings';
 import { TaskRename } from './TaskRename';
 import { Shortcuts } from './Shortcuts';
 import { PointMenu } from './Menus';
@@ -39,12 +40,13 @@ export function App() {
       [&:has(>#settings)>:is(#dock,#empty,#taskbar)]:invisible [&:has(>#settings)>:is(#dock,#empty,#taskbar)_*]:invisible! [&:has(>#settings)>:is(#dock,#empty,#taskbar)_*]:transition-none! [&>:is(#dock,#empty)]:[grid-area:2/1] [&>#taskbar]:[grid-area:3/1]">
       {/* The tasks' bar in the title bar, as a browser's tabs, or under the grid (☰ → Tasks bar); none with no task open */}
       <TopBar>{bar === 'top' && open && <TaskBar />}</TopBar>
-      {open ? <Grid /> : <Empty />}
+      {open ? <TaskViews /> : <Empty />}
       {open && <Sidebar />}
       {bar !== 'top' && open && <TaskBar />}
       {settings && Settings && <Settings at={settings} className="[grid-area:2/1/-1]" />}
       <NewProject />
       <TaskRename />
+      <StageTerminalSettings />
       <AgentPicker />
       <HandOver />
       <Shortcuts />

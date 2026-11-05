@@ -1,13 +1,13 @@
 // Supplies core actions and current facts to the Kulisa plugin (src/kulisa-plugin/README.md).
 import type { Shell } from './shell.ts';
-import type { Task, TaskTerminal } from './tasks.ts';
-import { toUrl } from './profiles.ts';
-import type { Profile, Tab } from './profiles.ts';
+import type { Task, DevelopmentTerminal } from './tasks.ts';
+import { toUrl } from '../browser/main/index.ts';
+import type { Profile, Tab } from '../browser/main/index.ts';
 import { progress } from './worktrees.ts';
 import { ARTIFACTS_LIMIT, listArtifacts } from './artifacts.ts';
 import { fromLocalTool } from './local-only.ts';
 import { refused } from '../shared/result.ts';
-import type { PluginHost, TaskAccess, ProfileAccess, TabAccess, TerminalAccess } from '../kulisa-plugin/main/index.ts';
+import type { PluginHost, TaskAccess, ProfileAccess, TabAccess, DevelopmentTerminalAccess } from '../kulisa-plugin/main/index.ts';
 
 const tabs = new WeakMap<Tab, TabAccess>();
 function tabAccess(t: Tab): TabAccess {
@@ -59,6 +59,12 @@ function taskAccess(task: Task): TaskAccess {
   let access = tasks.get(task);
   if (access) return access;
   access = {
+    stageTerminals: {
+      info: () => task.stageTerminals.info(), run: (name, command, size) => task.stageTerminals.run(name, command, size),
+      resize: (which, size) => task.stageTerminals.configure(which, { size }),
+      stop: (which) => task.stageTerminals.stop(which), close: (which) => task.stageTerminals.close(which),
+      read: (which, lines, screenOnly) => task.stageTerminals.read(which, lines, screenOnly), input: (which, input) => task.stageTerminals.input(which, input),
+    },
     get key() { return task.key; }, get name() { return task.name; }, get folder() { return task.folder; },
     get branch() { return task.branch; }, get worktrees() { return task.worktrees.map(({ folder, repo, branch }) => ({ folder, repo, branch })); },
     get profiles() { return new Map([...task.profiles].map(([id, p]) => [id, profileAccess(p)])); },
@@ -66,6 +72,7 @@ function taskAccess(task: Task): TaskAccess {
       cfg: { id, name: cfg.name, avatar: cfg.avatar, description: cfg.description, login: cfg.login, hasPassword: cfg.hasPassword },
       tabs: { urls: tabs.urls },
     }])); }, artifactLimit: ARTIFACTS_LIMIT,
+    arrangeStage: (layout, overflow, position) => task.arrangeStage(layout, overflow, position),
     dirs: () => task.dirs(), addable: () => task.addable(), inGit: () => task.inGit(),
     named: (name) => task.named(name),
     find: (id) => { const r = task.find(id); return refused(r) ? r : { profile: profileAccess(r.profile) }; },
@@ -81,20 +88,21 @@ function taskAccess(task: Task): TaskAccess {
       task.shell.typingSecret.add(key);
       try { return { name: r.profile.name, result: await fill(r.value) }; } finally { task.shell.typingSecret.delete(key); }
     },
+    environmentUsed: (environment) => task.environmentUsed(environment),
     caption: (profile, caption, sticky) => task.caption(profile, caption, sticky), toUrl,
     screenshot: (profile, tab, shot) => task.screenshot(profile, tab, shot),
-    saveArtifact: (profile, tab, kind, content) => task.saveArtifact(profile, tab, kind, content),
+    saveArtifact: (source, kind, content) => task.saveArtifact(source, kind, content),
     artifacts: () => listArtifacts(task.store.artifacts), artifactsUsage: (scope) => task.artifactsUsage(scope),
     deleteArtifacts: (files) => task.deleteArtifacts(files), rename: (name) => task.rename(name),
     makeWorktree: (name) => task.makeWorktree(name), addRepository: (repo) => task.addRepository(repo), removeRepository: (repo) => task.removeRepository(repo),
     codeProgress: () => Promise.all(task.worktrees.map(async (c) => ({ folder: c.folder, repo: c.repo, ...await progress(c) }))),
     conversations: () => task.conversations().map((c) => {
-      const agent = task.shell.agentFor(c.agent, { any: true }), t = c.terminal === undefined ? undefined : task.terminals.get(c.terminal);
+      const agent = task.shell.agentFor(c.agent, { any: true }), t = c.terminal === undefined ? undefined : task.developmentTerminals.get(c.terminal);
       const name = agent?.name || c.agent || 'an agent';
       return { from: c.from, to: c.to, transcript: c.transcript, name, tab: t ? task.label(t) : c.title || agent?.cli || name,
         open: !!t, read: agent?.conversation };
     }),
-    terminalsInfo: () => ({ list: task.terminalsInfo().list.map(({ name, agent, by, command }) => ({ name, agent: !!agent, by, command })) }),
+    developmentTerminalsInfo: () => ({ list: task.developmentTerminalsInfo().list.map(({ name, agent, by, command }) => ({ name, agent: !!agent, by, command })) }),
     runInTerminal: (name, command) => task.runInTerminal(name, command),
     readTerminal: (name, lines) => task.readTerminal(name, lines), closeTerminal: (name) => task.closeTerminal(name),
     interruptTerminal: (name) => task.interruptTerminal(name),
@@ -102,7 +110,7 @@ function taskAccess(task: Task): TaskAccess {
   tasks.set(task, access);
   return access;
 }
-function terminalAccess(task: Task, t: TaskTerminal): TerminalAccess {
+function terminalAccess(task: Task, t: DevelopmentTerminal): DevelopmentTerminalAccess {
   return {
     id: t.id, agent: !!t.agent, get state() { return t.state; },
     saveSession: (session) => task.saveSession(t, session), noteAutoTitle: () => task.noteAutoTitle(t),
@@ -116,7 +124,7 @@ function pluginHost(shell: Shell): PluginHost {
     resolve: (project, id, terminal) => {
       const task = shell.taskOf(project, id);
       if (!task?.loaded) return null;
-      const t = terminal === undefined ? undefined : task.terminals.get(terminal);
+      const t = terminal === undefined ? undefined : task.developmentTerminals.get(terminal);
       return { task: taskAccess(task), terminal: t ? terminalAccess(task, t) : null };
     },
     allowRequest: fromLocalTool, dictated: (text) => shell.dictation.dictated(text),
@@ -125,7 +133,7 @@ function pluginHost(shell: Shell): PluginHost {
     onContext: (listener) => { shell.bus.on('profile-added', (p: Profile) => listener(p.context)); },
     onCommand: (listener) => { shell.bus.on('agent-command', listener); },
     typingSecret: (key) => shell.typingSecret.has(key),
-    showAction: (action) => { shell.taskByKey(action.task)?.window?.send('agent', action); },
+    showAction: (action) => { shell.taskByKey(action.task)?.window?.send('agent:caption', action); },
     noteAction: (action) => { shell.bus.emit('agent-action', action); },
   };
 }

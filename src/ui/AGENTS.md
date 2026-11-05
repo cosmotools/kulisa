@@ -1,10 +1,14 @@
-# shadcn/ui: working in this folder
+# shadcn/ui
 
-The window's components as shadcn's CLI writes them: a Kulisa package (`docs/packages.md`); how and why: `README.md`;
-how the window uses them: `docs/ui.md`.
+Read [README.md](README.md), [UI integration](../../docs/ui.md#shadcn-in-kulisa) and
+[package boundaries](../../docs/packages.md).
 
-- **Nothing here is edited by hand** but `index.ts`, `tsconfig.json`, `README.md`, `CLAUDE.md` and this file: `npm run ui` makes it again, the CI
-  refuses a difference. A new component: `npm run ui -- <name>`, then its export in `index.ts`.
-- From outside only through `index.ts` (`@ui`); it imports nothing of `src/`. `npm run deps` refuses any other import.
-- A look of Kulisa's is the theme's variables, outside (`src/renderer/window.css`); on a component in the window only
-  layout and size classes (`npm run lint`, `kulisa/ui-as-shipped`).
+- Entry: `index.ts` (`@ui`); no imports from other `src/` parts.
+
+## Generation
+
+- Hand-edit only `index.ts`, `tsconfig.json`, README and agent instructions. Components, hooks, helpers and
+  `theme.css` are generated; CI checks regeneration against the committed output.
+- Add a registry component with `npm run ui -- <name>`, then export it by name from `index.ts`.
+- Regenerate all components with `npm run ui` after a pinned `shadcn` or registry update. `scripts/ui.ts` adds them
+  in deterministic order and installs their dependencies as devDependencies. Configuration lives in root `components.json`.

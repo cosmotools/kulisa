@@ -7,8 +7,8 @@ import type { Locator, Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
 import type { Files } from './data.ts';
-import { SITE, menu, choose, openSidebar, closeSidebar, fromSidebar, sidebar, taskRow, rowButton, sidebarTasks, focusWindow, viewOn, who, invoke, notLoading, answer, removed, arrange } from './helpers.ts';
-import { git, rand, hasDirenv, keyAt, isNth, taskTab, taskTabs, hook, reportSession, newTask, projectShown, begin, bothOn, deleteProfile } from './tasks-helpers.ts';
+import { showResources, resourcesGroup, SITE, choose, openSidebar, closeSidebar, fromSidebar, sidebar, taskRow, rowButton, sidebarTasks, focusWindow, viewOn, who, invoke, notLoading, answer, removed, arrange } from './helpers.ts';
+import { git, rand, hasDirenv, keyAt, isNth, taskTab, taskTabs, hook, reportSession, newTask, projectShown, begin, bothOn } from './tasks-helpers.ts';
 
 // No question of Kulisa's asked in the window.
 const noQuestion = (ui: Page, message?: string) => expect(ui.getByRole('alertdialog'), message).toHaveCount(0);
@@ -148,18 +148,18 @@ test('tasks: + opens a task in the project\'s main working tree ("New Task", no 
   }, { first, SAM })).toEqual([true, false, `${SITE}/app?task`]);
   expect((await call('browser_snapshot', { profile: 'Sam.admin' }, { task: first })).text).toMatch(/URL: .*\/app\?task/);
   expect(await core((k, key) => { const f = k.shell.taskByKey(key); return !!f.pty && f.pty !== k.shell.pty; }, first)).toBe(true);
-  expect(files.json(files.pfile('agent.json', 2)).conversations[0].agent, "no agent in the project: the one there is (the tests' own)").toBe('custom');
+  expect(files.json(files.pfile('task.json', 2)).agents.conversations[0].agent, "no agent in the project: the one there is (the tests' own)").toBe('custom');
 
   // The window: the task's grid with its panes; the bar shows it, "New Task" until it is named.
   await expect(taskTab(ui, task)).toHaveText('New Task');
   await expect(taskTab(ui, task)).toHaveAttribute('aria-selected', 'true');
   await expect.poll(() => viewOn(core, ui, files, 'Sam.admin')).toBe(true);
-  await expect(ui.locator('[role="region"][data-profile]')).toHaveCount(2);
+  await expect(ui.locator('[data-task-view][data-active] [role="region"][data-profile]')).toHaveCount(2);
 
   // It makes its own worktree, naming the task in the same call (task_worktree's name, since it is still "New Task"):
   // the tab and the branch take the name, the folder becomes the worktree; the project's folder stays the human's.
   // The Resources panel: the main working tree until it has its own worktree, then the worktree on its branch.
-  const resources = ui.locator('#resources').getByRole('list', { name: 'Folders' }).getByRole('listitem');
+  const resources = ui.locator('[data-task-view][data-active] [data-resources]').getByRole('list', { name: 'Folders' }).locator(':scope > li').getByRole('button', { name: path.basename(project), exact: true });
   await expect(resources).toHaveText([`${path.basename(project)}main working tree`]);
   // Two of its agents at once (each a call) get the one worktree, not one each.
   const wt = `${project}@feature-x`, trees = () => git(project, 'worktree', 'list').split('\n').length, before = trees();
@@ -226,14 +226,14 @@ test("tasks: × closes a task: its agent stops and its tabs close, all else stay
   expect(fs.readdirSync(artifacts)).toHaveLength(1);
   await taskTab(ui, task).getByRole('button', { name: 'Close' }).click();
   // Its agent and tabs gone.
-  await expect.poll(async () => (await core((k, key) => { const t = k.shell.taskByKey(key); return !!t.entry.closed && !t.pty && k.stash.sam.tabs.every((x: { wc: { isDestroyed(): boolean } }) => x.wc.isDestroyed()); }, task)) && isNth(core, 2)).toBe(true);
+  await expect.poll(async () => (await core((k, key) => { const t = k.shell.taskByKey(key); return t.entry.closedAt !== undefined && !t.pty && k.stash.sam.tabs.every((x: { wc: { isDestroyed(): boolean } }) => x.wc.isDestroyed()); }, task)) && isNth(core, 2)).toBe(true);
   // Its profiles' caches cleared, as a profile closed alone (zoom-and-closing): kept, they stayed until it was deleted.
   await expect.poll(() => core((k) => k.stash.sam.session.getCacheSize())).toBe(0);
   expect(fs.readdirSync(artifacts), "the agent's screenshot kept").toHaveLength(1);
   await noQuestion(ui, 'not asked: nothing is lost');
   const { folder, id } = await core((k, key) => { const t = k.shell.taskByKey(key); return { folder: t.folder, id: t.id }; }, task);
   expect(fs.existsSync(folder) && !!git(files.project, 'branch', '--list', 'task-3') && fs.existsSync(path.join(files.userData, 'projects', files.pid('project'), id)), 'its code and data stay').toBe(true);
-  expect(files.tasksOf(files.pid('project')).find((e) => e.id === id).closed).toBe(true);
+  expect(files.tasksOf(files.pid('project')).find((e) => e.id === id).closedAt !== undefined).toBe(true);
   await expect.poll(() => taskTabs(ui)).toEqual(['task-1', 'Feature-X *']);
   // The sidebar lists it under its project, after the open ones; opening it shows it again, its agent resuming the
   // conversation.
@@ -252,7 +252,7 @@ test("tasks: × closes a task: its agent stops and its tabs close, all else stay
     await fromSidebar(ui, 'project', 'task-3');
     await expect.poll(() => core((k, key) => k.shell.task?.key === key && k.settled(), task)).toBe(true); // its state sent to the window
     expect(await core((k) => k.stash.started), 'the grid before its profiles started').toBe(false);
-    await expect(ui.locator(`[role="region"][data-profile="${SAM}"]`)).toHaveCount(1);
+    await expect(ui.locator(`[data-task-view][data-active] [role="region"][data-profile="${SAM}"]`)).toHaveCount(1);
     await notLoading(ui);
     await core((k) => k.stash.answer());
     await expect.poll(() => core((k, key) => k.shell.taskByKey(key).loaded && !!k.shell.pty, task), { timeout: 10000 }).toBe(true);
@@ -261,38 +261,42 @@ test("tasks: × closes a task: its agent stops and its tabs close, all else stay
   await core((k) => k.watchPty(k.shell.pty));
   expect(await core((k) => k.shell.resumedSession)).toBe('s-3');
   await expect.poll(() => taskTabs(ui)).toEqual(['task-1', 'Feature-X', 'task-3 *']);
-  expect(files.tasksOf(files.pid('project')).find((e) => e.id === id).closed).toBe(undefined);
+  expect(files.tasksOf(files.pid('project')).find((e) => e.id === id).closedAt).toBe(undefined);
 });
 
-test("tasks: an agent's tab closes after a question, always (Cancel keeps it); the last terminal closed folds the terminals' panel to its +, which opens one again; Ctrl+` there opens the task's agent, a new conversation", async ({ core, ui, files, call }) => {
+test("tasks: an agent's tab closes after a question, always (Cancel keeps it); the last terminal closed shows a centered + without shrinking its panel; Ctrl+` there opens the task's agent, a new conversation", async ({ core, ui, files, call }) => {
+  const bounds = await core((k) => {
+    const bounds = k.shell.win.getBounds();
+    k.shell.win.setBounds({ height: 960 });
+    return bounds;
+  });
   await begin(core, ui, files, { only: true, columns: true, featureX: call });
   const SAM = files.idOf('Sam.admin');
   const task = await newTask(core, ui), agent = await core((k, key) => k.shell.taskByKey(key).promptTarget().id, task);
-  const terminals = () => core((k, key) => k.shell.taskByKey(key).terminals.size, task);
-  const panel = ui.getByTestId('terminals'), strip = ui.getByTestId('terminal-tabs');
-  const folded = async (yes: boolean) => {
-    await (yes ? expect(panel).toHaveAttribute('data-folded') : expect(panel).not.toHaveAttribute('data-folded'));
-    await (yes ? expect(strip).toBeHidden() : expect(strip).toBeVisible());
+  const developmentTerminals = () => core((k, key) => k.shell.taskByKey(key).developmentTerminals.size, task);
+  const panel = ui.locator('[data-task-view][data-active]').getByTestId('development-terminals');
+  const expectEmpty = async (yes: boolean) => {
+    await (yes ? expect(panel).toHaveAttribute('data-empty') : expect(panel).not.toHaveAttribute('data-empty'));
   };
   // The terminals' panel's group (its content is laid over it: dockview's renderer 'always').
-  const group = ui.locator('.dv-groupview', { has: strip });
+  const group = ui.getByRole('region', { name: 'Terminal', exact: true });
   const size = async (l: Locator) => { const b = await l.boundingBox(); return { width: Math.round(b.width), height: Math.round(b.height) }; };
-  const saved = () => files.json(files.pfile('terminals.json', task.split('/')[1]));
-  const conversations = () => files.json(files.pfile('agent.json', task.split('/')[1])).conversations;
-  const closeTab = () => ui.locator('nav[aria-label="Terminals"] [role="tab"]').first().getByTitle(/^Close/).click();
-  await expect(ui.locator('nav[aria-label="Terminals"] [role="tab"]')).not.toHaveCount(0);
-  const before = await size(group);
+  const saved = () => files.json(files.pfile('task.json', task.split('/')[1])).development;
+  const conversations = () => files.json(files.pfile('task.json', task.split('/')[1])).agents.conversations;
+  await showResources(ui, 'Agents');
+  const closeTab = () => ui.locator('[data-task-view][data-active] [data-resources] [data-terminal]').first().getByTitle(/^Close/).click();
+  await expect(ui.locator('[data-task-view][data-active] [data-resources] [data-terminal]')).not.toHaveCount(0);
   // × on an agent's tab asks, whatever it is doing; Cancel keeps it.
   await closeTab();
   const q = await answer(ui, false);
   expect(q.message).toBe('Close bash?');
   expect(q.detail).toMatch(/^bash stops\. Its conversation stays in the task's history, where any agent of the task can read it\.$/);
-  expect(await core((k, a) => k.shell.taskByKey(a.task).terminals.has(a.agent), { task, agent }), 'kept when the human says no').toBe(true);
+  expect(await core((k, a) => k.shell.taskByKey(a.task).developmentTerminals.has(a.agent), { task, agent }), 'kept when the human says no').toBe(true);
   await closeTab();
   await answer(ui);
-  await expect.poll(terminals).toBe(0);
+  await expect.poll(developmentTerminals).toBe(0);
   // No profile open: the +'s rows as big buttons in its middle, whatever the arrangement.
-  await folded(true);
+  await expectEmpty(true);
   expect(saved()).toEqual({ front: null, list: [] });
   expect(conversations()[0].terminal).toBe(undefined);
   expect(conversations()[0].to, 'its conversation closed, kept for the history').toBeTruthy();
@@ -302,139 +306,123 @@ test("tasks: an agent's tab closes after a question, always (Cancel keeps it); t
     return Math.abs(Math.round(b.x + b.width / 2 - (r.x + r.width / 2))) <= 1 && Math.abs(Math.round(b.y + b.height / 2 - (r.y + r.height / 2))) <= 1;
   };
   // Its + from the middle of the terminals' panel (x), and from where a strip's middle would be.
-  const unfold = panel.getByRole('button', { name: 'New terminal' }), middle = () => centred(unfold, panel);
+  const createTerminal = panel.getByRole('button', { name: 'New terminal' }), middle = () => centred(createTerminal, panel);
   // The project's profiles, all closed: Sam.admin, Elon.buyer, Dora.
   // The terminals' panel and the Resources panel beside or under it fill the grid: dockview's room, the closed profiles' tiles no
   // longer over it.
-  const resources = ui.locator('.dv-groupview', { has: ui.locator('#resources') });
+  const resources = resourcesGroup(ui);
   const fills = async () => {
-    const g = await ui.locator('#grid').boundingBox(), t = await group.boundingBox(), r = await resources.boundingBox(), near = (x: number, y: number) => Math.abs(x - y) <= 1;
+    const g = await ui.locator('[data-task-view][data-active] [data-development-grid]').boundingBox(), t = await group.boundingBox(), r = await resources.boundingBox(), near = (x: number, y: number) => Math.abs(x - y) <= 1;
     return near(Math.min(t.x, r.x), g.x) && near(Math.max(t.x + t.width, r.x + r.width), g.x + g.width) && near(Math.min(t.y, r.y), g.y)
-      && near(Math.max(t.y + t.height, r.y + r.height), g.y + g.height) && (r.x >= t.x + t.width || r.y >= t.y + t.height);
+      && near(Math.max(t.y + t.height, r.y + r.height), g.y + g.height) && (r.x >= t.x + t.width || r.x + r.width <= t.x || r.y >= t.y + t.height);
   };
-  const launchers = ui.getByTestId('launchers'), newTerminal = launchers.getByRole('navigation', { name: 'New terminal' }).getByRole('button');
-  for (const preset of ['grid', 'focus', 'columns'] as const) {
+  const launchers = ui.locator('[data-task-view][data-active]').getByTestId('launchers'), newTerminal = launchers.getByRole('navigation', { name: 'New terminal' }).getByRole('button');
+  for (const preset of ['left', 'above'] as const) {
     await arrange(ui, preset);
     await expect.poll(async () => (await launchers.count()) > 0 && (await fills()) && centred(launchers, panel), { timeout: 3000 }).toBe(true);
     await expect(launchers).toMatchAriaSnapshot(`
       - navigation "New terminal":
         - button "Terminal"
-      - navigation "Open a profile":
+      - navigation "Open an environment":
+        - button "Stage Terminal"
         - button "Sam.admin"
         - button "Elon.buyer"
         - button "Dora"
     `);
     const ys = new Set(await Promise.all((await newTerminal.all()).map(async (x) => Math.round((await x.boundingBox()).y))));
     expect(ys.size, 'in one line').toBe(1);
-    await expect(unfold).toHaveCount(0);
+    await expect(createTerminal).toHaveCount(0);
   }
   // One opens what its row in + does: a terminal; closed, the buttons are back.
   await newTerminal.first().click();
-  await expect.poll(terminals).toBe(1);
-  await folded(false);
+  await expect.poll(developmentTerminals).toBe(1);
+  await expectEmpty(false);
   // A terminal and no profile: the profiles' room a row of buttons over it, one for each; one opens its profile, and
   // the row goes.
   const tiles = ui.getByTestId('closed-profiles');
   await expect(tiles).toMatchAriaSnapshot(`
+    - button "Stage Terminal"
     - button "Sam.admin"
     - button "Elon.buyer"
     - button "Dora"
   `);
   expect((await tiles.boundingBox()).y + (await tiles.boundingBox()).height, 'above the terminals').toBeLessThanOrEqual((await panel.boundingBox()).y);
-  // A button: the profile's picture, its name and the +; a long name cut with … in one row, the + still inside it; who
-  // it is only in the tooltip. A profile of such a name, closed.
-  const LONG = 'orudzhali.very.long.name@insvgna.org';
-  const long = await core(async (k, n) => { const t = k.shell.task, p = await t.createProfile(n) as { id: string }; await t.closeProfile(p.id); return p.id; }, LONG);
-  try {
-    const tile = tiles.locator(`[data-profile="${long}"]`), name = tile.getByText(LONG, { exact: true });
-    await expect(tile.locator('img')).toHaveCount(1);
-    await expect(name).toHaveCSS('white-space', 'nowrap');
-    await expect(name).toHaveCSS('text-overflow', 'ellipsis');
-    // Cut: Playwright reads no overflow.
-    expect(await name.evaluate((n) => n.scrollWidth > n.clientWidth), 'cut').toBe(true);
-    const r = await tile.boundingBox(), plus = await tile.locator('svg').last().boundingBox();
-    expect(r.width, 'wider than a short name').toBeGreaterThan((await tiles.locator(`[data-profile="${SAM}"]`).boundingBox()).width);
-    expect(plus.x + plus.width, 'the + inside it').toBeLessThanOrEqual(r.x + r.width);
-    await expect(tiles.locator(`[data-profile="${SAM}"]`)).toHaveAttribute('title', /^Open Sam\.admin: ./);
-    // More than fit (19 profiles): the row scrolls, its end faded, the window as wide as before, not its column, the
-    // terminal and the tasks' bar stretched past its edge, the last profiles out of reach. Its tiles copied: sixteen
-    // profiles more would take seconds to make and delete, and the row's scroll is its CSS's whatever the tiles are (the
-    // narrowest window is no way: the grid's own minimum is wider, and the row with it).
-    await tiles.evaluate((s) => { for (let i = 0; i < 20; i++) s.append(s.querySelector('button').cloneNode(true)); });
-    await expect(tiles).toHaveAttribute('data-past-end');
-    // Scrolled, the page not wider than the window: Playwright reads no scroll.
-    expect(await tiles.evaluate((t) => t.scrollWidth > t.clientWidth), 'the row scrolls').toBe(true);
-    expect(await ui.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'the window not wider').toBe(true);
-    const width = await ui.evaluate(() => innerWidth), t = await tiles.boundingBox(), i = await panel.boundingBox();
-    expect([t.x + t.width <= width, i.x + i.width <= width]).toEqual([true, true]);
-    await tiles.evaluate((s, n) => s.querySelectorAll('button').forEach((b, j) => { if (j >= n) b.remove(); }), 4);
-  } finally { await deleteProfile(core, ui, LONG); }
   await tiles.locator(`[data-profile="${SAM}"]`).click();
   await expect.poll(() => core((k, a) => k.shell.taskByKey(a.task).profiles.has(a.SAM), { task, SAM })).toBe(true);
   await expect(tiles).toHaveCount(0);
   await call('profile_close', { profile: 'Sam.admin' }, { task });
   await expect(tiles).toHaveCount(1);
   await closeTab();
-  await expect.poll(terminals).toBe(0);
+  await expect.poll(developmentTerminals).toBe(0);
   await expect(launchers).toHaveCount(1);
   await expect(tiles).toHaveCount(0);
-  // With a profile open (its tile among the big buttons): folded to a strip of its +, along the grid's height (the
-  // terminals are under the grid); kept so.
   await launchers.locator(`[data-profile="${SAM}"]`).click();
-  await expect.poll(async () => (await size(group)).height <= 40 && (await middle())).toBe(true);
-  expect(Math.abs((await size(group)).width - before.width), 'as wide as before (Resources beside it takes its share as the grid changes)').toBeLessThanOrEqual(5);
-  // Its + opens a terminal: the terminals' panel unfolds.
-  await unfold.click();
-  await expect(menu(ui)).toMatchAriaSnapshot(`
-    - menu:
-      - menuitem "Terminal"
-  `);
+  await expect.poll(async () => (await middle()) && (await size(group)).width > 100 && (await size(group)).height > 100).toBe(true);
+  const emptySize = await size(group);
+  await createTerminal.click();
   await choose(ui, 'Terminal');
-  await expect.poll(terminals).toBe(1);
-  await folded(false);
-  await expect.poll(async () => (await size(group)).height).toBeGreaterThanOrEqual(150);
-  // A shell closes without a question; folded again.
+  await expect.poll(developmentTerminals).toBe(1);
+  await expectEmpty(false);
+  await expect(panel.locator('.xterm-screen')).toBeVisible();
   await closeTab();
-  await expect.poll(terminals).toBe(0);
-  await folded(true);
-  await expect.poll(async () => (await size(group)).height).toBeLessThanOrEqual(40);
+  await expect.poll(developmentTerminals).toBe(0);
+  await expectEmpty(true);
+  await expect.poll(async () => size(group)).toEqual(emptySize);
   await noQuestion(ui);
-  // The preset "grid": right of the profiles, Resources under it in its column: folded along its height, a strip of its
-  // + over Resources.
-  await arrange(ui, 'grid');
-  await expect.poll(async () => (await size(group)).height <= 40 && (await middle()) && (await size(resources)).height > 300).toBe(true);
-  await unfold.click();
-  await choose(ui, 'Terminal');
-  await expect.poll(terminals).toBe(1);
-  await folded(false);
-  await expect.poll(async () => (await size(group)).height).toBeGreaterThanOrEqual(150);
-  // As tall as the grid (Resources moved under the pages): folded along the grid's width instead, a strip of its + as
-  // tall as the grid; its + unfolds it to a width of its own, and the last terminal closed folds it again. Moved by
-  // dockview's API: a drag of a panel between groups is the OS's drag and drop.
-  await ui.evaluate((id) => { const d = (window as any).__dock; d.getPanel('resources').api.moveTo({ group: d.getPanel(`profile:${id}`).group, position: 'bottom' }); }, SAM);
-  await closeTab();
-  await expect.poll(async () => { const r = await size(group); return (await terminals()) === 0 && r.width <= 40 && r.height > 100 && (await middle()); }).toBe(true);
-  await unfold.click();
-  await choose(ui, 'Terminal');
-  await expect.poll(terminals).toBe(1);
-  await folded(false);
-  await expect.poll(async () => (await size(group)).width).toBeGreaterThanOrEqual(200);
-  await closeTab();
-  await expect.poll(terminals).toBe(0);
-  await folded(true);
-  await expect.poll(async () => (await size(group)).width).toBeLessThanOrEqual(40);
-  await arrange(ui, 'columns');
-  await expect.poll(async () => (await size(group)).height <= 40 && (await middle())).toBe(true);
+  await arrange(ui, 'left');
+  await expect.poll(async () => (await middle()) && (await size(group)).width > 100 && (await size(group)).height > 100).toBe(true);
+  await arrange(ui, 'above');
   // Ctrl+` there: the task's agent, a new conversation.
   await focusWindow(core, ui);
   await core((k) => k.press(k.shell.win.webContents, '`', 'control'));
   await expect.poll(() => core((k, key) => !!k.shell.taskByKey(key).promptTarget()?.pty, task), { timeout: 20000 }).toBe(true);
   expect(conversations()).toHaveLength(2);
-  expect([conversations()[1].agent, conversations()[1].terminal]).toEqual(['custom', await core((k, key) => k.shell.taskByKey(key).promptTarget().id, task)]);
+  expect(conversations()[1].agent).toBe('custom');
+  expect(saved().list.find((t: { id: number; conversation: string }) => t.conversation === conversations()[1].id).id).toBe(await core((k, key) => k.shell.taskByKey(key).promptTarget().id, task));
   // Its × closes it without a question: nothing works in it.
   await taskTab(ui, task).getByRole('button', { name: 'Close' }).click();
-  await expect.poll(async () => (await core((k, key) => { const t = k.shell.taskByKey(key); return !!t.entry.closed && !t.loaded; }, task)) && isNth(core, 2)).toBe(true);
+  await expect.poll(async () => (await core((k, key) => { const t = k.shell.taskByKey(key); return t.entry.closedAt !== undefined && !t.loaded; }, task)) && isNth(core, 2)).toBe(true);
   await noQuestion(ui);
+  await core((k, bounds) => k.shell.win.setBounds(bounds), bounds);
+});
+
+test('closed profiles scroll within the window and the last button opens its own profile', async ({ core, ui, files }) => {
+  await begin(core, ui, files, { only: true });
+  // Closed profiles need store entries, not Chromium pages or hand-made copies of their buttons.
+  const ids = await core(async (k) => {
+    const task = k.shell.task;
+    for (const id of [...task.profiles.keys()]) await task.closeProfile(id);
+    const ids: string[] = [];
+    for (let i = 0; i < 20; i++) {
+      const p = k.shell.profileStore.create(task.project.id, { name: `overflow-${i}-profile` });
+      if ('error' in p) throw new Error(p.error);
+      ids.push(p.id);
+    }
+    k.shell.profilesChanged();
+    return ids;
+  });
+  try {
+    const tiles = ui.getByRole('navigation', { name: 'Open an environment', exact: true });
+    const last = tiles.getByRole('button', { name: 'overflow-19-profile', exact: true });
+    await expect(tiles).toHaveAttribute('data-past-end');
+    // Playwright has no assertion for document overflow.
+    expect(await ui.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'only the profile row scrolls').toBe(true);
+    await tiles.hover();
+    await ui.mouse.wheel(0, 10000);
+    await expect(last).toBeInViewport({ ratio: 1 });
+    await expect(tiles).not.toHaveAttribute('data-past-end');
+    await last.click();
+    await expect(ui.getByRole('region', { name: 'overflow-19-profile', exact: true }).and(ui.locator('[data-profile]'))).toBeVisible();
+    await expect(tiles).toHaveCount(0);
+  } finally {
+    await core(async (k, ids) => {
+      for (const id of ids) {
+        if (k.shell.task.profiles.has(id)) await k.shell.task.closeProfile(id);
+        k.shell.profileStore.delete(id);
+      }
+      k.shell.profilesChanged();
+    }, ids);
+  }
 });
 
 test('tasks: × on the last open task of a project lets the project go, nothing asked: the empty window; a task of it opens it again', async ({ core, ui, files, call }) => {
@@ -442,11 +430,11 @@ test('tasks: × on the last open task of a project lets the project go, nothing 
   // A third task, closed (the sidebar lists it with the others).
   const third = await newTask(core, ui);
   await invoke(ui, 'task:close', third);
-  await expect.poll(() => core((k, key) => !!k.shell.taskByKey(key).entry.closed, third)).toBe(true);
+  await expect.poll(() => core((k, key) => k.shell.taskByKey(key).entry.closedAt !== undefined, third)).toBe(true);
   const pid = files.pid('project'), first = await keyAt(core, 1), second = await keyAt(core, 2);
   await expect.poll(() => taskTabs(ui)).toEqual(['task-1', 'Feature-X *']);
   await taskTab(ui, first).getByRole('button', { name: 'Close' }).click();
-  await expect.poll(() => core((k, a) => { const f = k.shell.taskByKey(a.first); return !!f.entry.closed && !f.loaded && k.shell.task?.key === a.second; }, { first, second })).toBe(true);
+  await expect.poll(() => core((k, a) => { const f = k.shell.taskByKey(a.first); return f.entry.closedAt !== undefined && !f.loaded && k.shell.task?.key === a.second; }, { first, second })).toBe(true);
   await expect.poll(() => taskTabs(ui)).toEqual(['Feature-X *']);
   await noQuestion(ui);
   await core((k, key) => { k.stash.second = k.shell.taskByKey(key); }, second);
@@ -456,7 +444,7 @@ test('tasks: × on the last open task of a project lets the project go, nothing 
   await expect.poll(() => core((k, p) => k.shell.task === null && !k.shell.current && !k.shell.open.has(p), pid), { timeout: 15000 }).toBe(true);
   await noQuestion(ui, 'no agent works: nothing asked');
   expect(await core((k) => { const s = k.stash.second; return s.profiles.size === 0 && !s.pty; }), 'every task of the project stopped').toBe(true);
-  expect(files.tasksOf(files.pid('project')).map((e) => [e.name, !!e.closed])).toEqual([['task-1', true], ['Feature-X', true], ['task-3', true]]);
+  expect(files.tasksOf(files.pid('project')).map((e) => [e.name, e.closedAt !== undefined])).toEqual([['task-1', true], ['Feature-X', true], ['task-3', true]]);
   await expect(ui.locator('html')).toHaveAttribute('data-page', /^(sidebar|welcome)$/);
   // The empty window, projects there: the sidebar docked, every project with its tasks; no tasks' bar.
   await expect(ui.locator('html')).toHaveAttribute('data-page', 'sidebar');
@@ -467,7 +455,7 @@ test('tasks: × on the last open task of a project lets the project go, nothing 
   expect(files.savedWindows(), 'the window opens so next time').toEqual([{ tabs: [], shown: null }]);
   // Each project: its icon, its name, + (a new task of it) under the pointer; its tasks, the one closed last first (all
   // are closed here), each when it was closed. The project worked in last first.
-  const byClosing = files.tasksOf(files.pid('project')).filter((e) => e.closed).sort((a, b) => (b.closedAt ?? 0) - (a.closedAt ?? 0)).map((e) => e.name);
+  const byClosing = files.tasksOf(files.pid('project')).filter((e) => e.closedAt !== undefined).sort((a, b) => (b.closedAt ?? 0) - (a.closedAt ?? 0)).map((e) => e.name);
   await expect(sidebar(ui).locator('[data-project]').first(), 'worked in last').toHaveAccessibleName('project');
   expect(await sidebarTasks(ui, 'project')).toEqual(byClosing);
   expect(byClosing[0]).toBe('Feature-X');
@@ -516,21 +504,16 @@ test('the CDP proxy takes ids in any letters (percent-encoded in its URLs); the 
   // must not drop it: a pane of a profile deleted just before would stay there, and a saved grid naming a profile no
   // longer there is not restored at all). The grid's shape, its sizes aside.
   const task = await core((k) => k.shell.task.key), other = await keyAt(core, 2);
-  const shape = (root: unknown) => JSON.stringify(root, (key, v) => (key === 'size' ? undefined : v));
-  const saved = async () => shape(await core((k, key) => (k.shell.taskByKey(key).store.layout() as { grid: { root: unknown } }).grid.root, task));
-  // Left two frames after the change (dockview tells of it on a frame), well within the 300 ms.
-  // Applied and left by a script: from the test, the two frames would be over before the task is left. dockview's API
-  // gives the grid's shape.
-  const columns = await ui.evaluate((o) => { (window as any).__layoutPreset('columns'); return new Promise<string>((r) => requestAnimationFrame(() => requestAnimationFrame(() => {
-    r(JSON.stringify((window as any).__dock.toJSON().grid.root)); void (window as any).kulisa.invoke('task:show', o);
+  const saved = () => core((k, key) => (k.shell.taskByKey(key).store.layout() as { stagePosition: string }).stagePosition, task);
+  // Core requests the same event as the menu; leaving within two frames precedes the debounced save.
+  await ui.evaluate((o) => { void (window as any).act('stage:arrange', { position: 'right' }).then(() => requestAnimationFrame(() => requestAnimationFrame(() => {
+    void (window as any).kulisa.invoke('task:show', o);
   }))); }, other);
   await expect.poll(() => core((k, key) => k.shell.task?.key === key && k.shell.task.loaded, other)).toBe(true);
-  await expect.poll(saved).toBe(shape(JSON.parse(columns))); // saved as it was left: it comes as the grid is taken down
-  // Back: built again as it was left.
+  await expect.poll(saved).toBe('right');
   await invoke(ui, 'task:show', task);
   await expect.poll(() => core((k, key) => k.shell.task?.key === key, task)).toBe(true);
   await notLoading(ui);
-  await expect.poll(async () => shape(JSON.parse(await ui.evaluate(() => JSON.stringify((window as any).__dock.toJSON().grid.root))))).toBe(shape(JSON.parse(columns)));
-  await arrange(ui, 'grid');
-  await expect.poll(saved).not.toBe(shape(JSON.parse(columns)));
+  await arrange(ui, 'left');
+  await expect.poll(saved).toBe('left');
 });

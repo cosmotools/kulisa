@@ -18,18 +18,19 @@ interface Under { hide(hidden: boolean): Promise<unknown>; freeze(): Promise<voi
 let under: Under | null = null;
 export const coverUnder = (u: Under) => { under = u; };
 
-// The dialogs open now (Settings counted): the keys are theirs then (keys.ts).
-const dialogs = createStore(() => 0);
+// Closing dialogs keep their content mounted through the exit animation.
+const dialogs = createStore(() => ({ shown: 0, present: false }));
 let pages = 0;
-export const dialogsShown = () => dialogs.getState();
+export const dialogsShown = () => dialogs.getState().shown;
 export const onDialogs = (l: () => void) => dialogs.subscribe(() => l());
 
 let menus = false, pictures = false; // a menu is open; the pages under it are pictures
 function seen() {
   const d = document.querySelectorAll(HIDE).length + pages, was = dialogs.getState();
-  if (d !== was) {
-    dialogs.setState(d, true);
-    if (!was !== !d) void under?.hide(d > 0);
+  const present = !!document.querySelector('[role="dialog"], [role="alertdialog"]');
+  if (d !== was.shown || present !== was.present) {
+    dialogs.setState({ shown: d, present });
+    if (!was.shown !== !d) void under?.hide(d > 0);
   }
   const open = document.querySelectorAll<HTMLElement>(PICTURES);
   if (open.length && !menus) {

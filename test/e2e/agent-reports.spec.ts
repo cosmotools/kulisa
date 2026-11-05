@@ -2,9 +2,10 @@
 // an answer, and the artifacts this leaves, in Resources and for the agent (docs/profiles.md, The agent's tools).
 import fs from 'fs';
 import path from 'path';
+import { sizeText } from '../../src/shared/bytes.ts';
 import { test, expect } from './fixtures.ts';
 import type { Call } from './fixtures.ts';
-import { SITE, PORT, upTo, attr, menu, choose, rightClick, invoke, termText, termKeys, WIN } from './helpers.ts';
+import { showResources, SITE, PORT, upTo, attr, menu, choose, rightClick, invoke, termText, termKeys, WIN } from './helpers.ts';
 import { profiles, opened } from './agent-helpers.ts';
 
 // A snapshot and a response body too large for an answer, each a file of the task's, as an agent leaves them; the tab
@@ -108,7 +109,11 @@ test('agent: a part of a snapshot: an element, a depth, what matches under its a
   await call('browser_select_option', { profile: 'Elon.buyer', tab, ref, values: ['L'] });
   await call('browser_navigate', { profile: 'Elon.buyer', url: `${SITE}/app` });
   // Its ancestors: where on the page it is.
-  expect(await snap({ find: 'checkout' })).toMatch(/- Title: .*\n\n- generic .*\n {2}- paragraph \[ref=\w+\]:\n {4}- button "Checkout" \[ref=\w+\]$/);
+  const checkout = (await snap({ find: 'checkout' })).split('\n\n')[1];
+  expect(checkout, 'the matching button keeps its ancestors').toMatch(/^- (?!button "Checkout")/);
+  const checkoutRef = checkout.match(/ +- button "Checkout" \[ref=(\w+)\]/)[1];
+  await call('browser_click', { profile: 'Elon.buyer', tab, ref: checkoutRef });
+  expect(await snap()).toContain('Checked out ✓');
   await call('browser_tab_close', { profile: 'Elon.buyer', tab });
   await expect.poll(active).toBe(before);
 });
@@ -145,7 +150,8 @@ test("Resources: the agent's artifacts listed as it makes them, the newest first
   await profiles(core);
   await largeFiles(call);
   const dir = await core((k) => k.shell.task.store.artifacts), number = (f: string) => Number(path.basename(f).split('-')[0]);
-  const list = ui.locator('#resources [data-file]'), row = (file: string) => ui.locator(`#resources ${attr('data-file', file)}`);
+  await showResources(ui, 'Artifacts');
+  const list = ui.locator('[data-task-view][data-active] [data-resources] [data-file]'), row = (file: string) => ui.locator(`[data-task-view][data-active] [data-resources] ${attr('data-file', file)}`);
   const listed = async () => Promise.all((await list.all()).map((r) => r.getAttribute('data-file')));
   const saved = () => fs.readdirSync(dir).map((f) => path.join(dir, f)).sort((a, b) => number(b) - number(a));
   const shot = (await call('browser_screenshot', { profile: 'Elon.buyer' })).text.match(/^Saved as (.+\.jpg)$/)[1];
@@ -156,11 +162,14 @@ test("Resources: the agent's artifacts listed as it makes them, the newest first
   await expect(list.first()).toHaveAttribute('aria-label', 'Screenshot');
   await expect(list.first().locator('img')).toHaveCount(1);
   for (const [end, label] of [['-snapshot.yml', 'Snapshot'], ['-response.txt', 'Response body']]) {
-    const r = ui.locator(`#resources [data-file$="${end}"]`).first(); // the newest of its kind
+    const r = ui.locator(`[data-task-view][data-active] [data-resources] [data-file$="${end}"]`).first(); // the newest of its kind
     await expect(r).toHaveAttribute('aria-label', label);
     await expect(r.locator('img')).toHaveCount(0);
   }
   await expect(list.first(), 'whose, and when').toHaveText(/^ScreenshotElon\.buyer · /);
+  for (const file of await listed()) {
+    await expect(row(file)).toContainText(sizeText(fs.statSync(file).size));
+  }
   // What the OS would open it with: noted, not opened.
   await core((k) => {
     const { shell } = k.electron;
@@ -169,7 +178,7 @@ test("Resources: the agent's artifacts listed as it makes them, the newest first
     shell.openPath = async (file: string) => { g.opened.push(file); return ''; };
   });
   try {
-    await ui.locator('#resources [data-file]').first().click();
+    await ui.locator('[data-task-view][data-active] [data-resources] [data-file]').first().click();
     await expect.poll(() => core((k) => k.stash.opened)).toEqual([shot]);
   } finally {
     await core((k) => {
@@ -177,7 +186,7 @@ test("Resources: the agent's artifacts listed as it makes them, the newest first
       shell.openPath = k.stash.openPath;
     });
   }
-  await rightClick(ui, '#resources [data-file]'); // the screenshot, first
+  await rightClick(ui, '[data-task-view][data-active] [data-resources] [data-file]'); // the screenshot, first
   await expect(menu(ui)).toMatchAriaSnapshot(`
     - menu:
       - menuitem "Open"
@@ -189,11 +198,17 @@ test("Resources: the agent's artifacts listed as it makes them, the newest first
   await expect.poll(() => termText(ui)).toContain(shot);
   await expect(termKeys(ui)).toBeFocused();
   await core((k) => k.shell.pty.write('\x15'));
-  await rightClick(ui, '#resources [data-file]');
+  await rightClick(ui, '[data-task-view][data-active] [data-resources] [data-file]');
   await choose(ui, 'Delete');
   await expect(row(shot)).toHaveCount(0);
   await expect.poll(() => fs.existsSync(shot)).toBe(false);
-  expect((await invoke(ui, 'task:artifacts-delete', { key: await core((k) => k.shell.task.key), files: [path.join(files.root, 'package.json')] })).error,
+  const next = (await listed())[0];
+  const nextRow = row(next).locator('..'), deleteButton = nextRow.getByRole('button', { name: /^Delete / });
+  await nextRow.hover();
+  await deleteButton.click();
+  await expect(row(next)).toHaveCount(0);
+  await expect.poll(() => fs.existsSync(next)).toBe(false);
+  expect((await invoke(ui, 'task:artifact:delete', { key: await core((k) => k.shell.task.key), files: [path.join(files.root, 'package.json')] })).error,
     'only a file of the task\'s own folder').toMatch(/not an artifact/);
 });
 
@@ -210,7 +225,8 @@ test('screenshots from the agent show the same thumbnail, copy JPEG as PNG, and 
   });
   expect(image.width).toBeGreaterThan(0);
   expect(image.height).toBeGreaterThan(0);
-  await rightClick(ui, '#resources [data-file]');
+  await showResources(ui, 'Artifacts');
+  await rightClick(ui, '[data-task-view][data-active] [data-resources] [data-file]');
   await choose(ui, 'Delete');
   await expect.poll(() => core((k) => k.shell.windows[0].thumbnails.file)).toBeNull();
   await expect(ui.locator('#shotthumb')).toHaveCount(0);
@@ -221,7 +237,8 @@ test('Resources artifacts drag as disk files into the terminal without sending t
   await profiles(core);
   await largeFiles(call);
   const screenshot = (await call('browser_screenshot', { profile: 'Elon.buyer' })).text.match(/^Saved as (.+\.jpg)$/)[1];
-  const snapshot = await ui.locator('#resources [data-file$="-snapshot.yml"]').first().getAttribute('data-file');
+  await showResources(ui, 'Artifacts');
+  const snapshot = await ui.locator('[data-task-view][data-active] [data-resources] [data-file$="-snapshot.yml"]').first().getAttribute('data-file');
   await core((k) => {
     const wc = k.shell.windows[0].win.webContents;
     k.stash.startDrag = wc.startDrag;
@@ -229,12 +246,12 @@ test('Resources artifacts drag as disk files into the terminal without sending t
     // Native OS dragging is outside CDP: record its disk file, then deliver a disk-backed drop through CDP below.
     wc.startDrag = (item) => { k.stash.dragged.push({ file: item.file, icon: typeof item.icon === 'string' ? !item.icon : item.icon.isEmpty() }); };
   });
-  const terminal = ui.getByTestId('terminal');
+  const terminal = ui.locator('[data-task-view][data-active]').getByTestId('terminal');
   const cdp = await ui.context().newCDPSession(ui);
   try {
     for (const file of [screenshot, snapshot]) {
       const before = await core((k) => k.ptyOutput());
-      await ui.locator(`#resources ${attr('data-file', file)}`).dragTo(terminal);
+      await ui.locator(`[data-task-view][data-active] [data-resources] ${attr('data-file', file)}`).dragTo(terminal);
       await expect.poll(() => core((k) => k.stash.dragged.at(-1))).toEqual({ file, icon: false });
       const box = await terminal.boundingBox();
       for (const type of ['dragEnter', 'dragOver', 'drop'] as const) {
@@ -247,7 +264,7 @@ test('Resources artifacts drag as disk files into the terminal without sending t
       await core((k) => k.shell.pty.write('\x15'));
     }
     const key = await core((k) => k.shell.task.key);
-    for (const channel of ['task:artifact-drag', 'task:artifact-send'] as const) {
+    for (const channel of ['task:artifact:drag', 'task:artifact:send'] as const) {
       expect((await invoke(ui, channel, { key, file: path.join(files.project, 'package.json') })).error).toMatch(/not an artifact/);
     }
   } finally {
@@ -269,6 +286,7 @@ test("artifacts: what they take, in Resources' heading and for the agent, which 
   const shot = listed.match(/^- (.+\.jpg): screenshot, Elon\.buyer, \d{4}-\d\d-\d\d \d\d:\d\d, \S+ [KMG]B$/m)?.[1];
   expect(shot && fs.existsSync(shot), `each file with its path, kind, profile, time and size: ${listed}`).toBe(true);
   expect(total()).toBeGreaterThan(0);
+  await showResources(ui, 'Artifacts');
   await expect(heading).toHaveText(size);
   expect((await call('task_artifacts', { scope: 'all' })).text, "every task's total").toMatch(new RegExp(`^- .+ / .+ \\(this task\\): ${size}$`, 'm'));
   expect((await call('task_artifacts', { limit: 1 })).text).toMatch(/older not listed \(limit\)\.$/);
@@ -276,7 +294,8 @@ test("artifacts: what they take, in Resources' heading and for the agent, which 
   expect((await call('task_artifacts_delete', { files: [shot] })).text).toMatch(/^Deleted 1 file\(s\), \S+ [KMG]B; \S+ [KMG]B left\.$/);
   expect(fs.existsSync(shot)).toBe(false);
   await expect(call('task_artifacts_delete', { files: [path.join(files.root, 'package.json')] })).rejects.toThrow(/not an artifact of this task/);
-  await ui.locator('#resources').getByRole('button', { name: 'Delete All Artifacts' }).click();
+  await showResources(ui, 'Artifacts');
+  await ui.locator('[data-task-view][data-active] [data-resources]').getByRole('button', { name: 'Delete All Artifacts' }).click();
   await expect(heading).toHaveCount(0);
   await expect.poll(() => fs.readdirSync(dir).length).toBe(0);
   expect((await call('task_artifacts', {})).text).toMatch(/^This task's artifacts: 0 KB in 0 file\(s\)\.$/);

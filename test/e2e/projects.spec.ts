@@ -202,16 +202,16 @@ test("projects: the projects' manager (Project Settings…) changes its name and
   await closeSettings(core, ui, sui);
   // + makes a task with the default one (the first kept the one it started with). No git: a second task in the folder,
   // after the question.
-  const agentOf = (key: string) => files.json('projects', key.replace('/', path.sep), 'agent.json').agent;
+  const agentOf = (key: string) => files.json('projects', key.replace('/', path.sep), 'task.json').agents.agent;
   const before = await newTask(core, ui, id);
   expect(agentOf(before)).toBe('shell');
   // Another agent: made the default on the project's page (Make Default), + runs it.
-  await invoke(ui, 'project:agent-default', { id, agent: ann });
+  await invoke(ui, 'project:agent:set-default', { id, agent: ann });
   const annTask = await newTask(core, ui, id);
   await expect.poll(() => core((k) => k.shell.task.promptTarget()?.agent.id)).toBe(ann);
   expect(await core((k) => k.shell.task.profiles.size), 'no profile opens by itself').toBe(0);
   // None the default: a new task starts nothing, the terminals' buttons instead; Ctrl+` there gives them the keyboard.
-  await invoke(ui, 'project:agent-default', { id, agent: null });
+  await invoke(ui, 'project:agent:set-default', { id, agent: null });
   const made = invoke(ui, 'task:new', { project: id });
   await answer(ui, 'Create Anyway');
   await made;
@@ -226,25 +226,25 @@ test("projects: the projects' manager (Project Settings…) changes its name and
       - button "Terminal"
   `);
   // A project with no profiles: one tile, Add Profile…, its page in Settings.
-  const launchProfiles = ui.locator('#dock').getByRole('navigation', { name: 'Open a profile' });
-  await expect(launchProfiles.getByRole('button')).toHaveText(['Add Profile…']);
-  await launchProfiles.getByRole('button').click();
+  const launchProfiles = ui.locator('#dock').getByRole('navigation', { name: 'Open an environment' });
+  await expect(launchProfiles.getByRole('button')).toHaveText(['Stage Terminal', 'Add Profile…']);
+  await launchProfiles.getByRole('button', { name: 'Add Profile…', exact: true }).click();
   s = await sui();
   await expect(pathOf(s)).toHaveText(/^Projects\s*/);
   await expect(field(s, 'Name')).toHaveValue((await entryOf()).name);
   await closeSettings(core, ui, sui);
-  const terminals = () => core((k, key) => k.shell.taskByKey(key).terminals.size, bare);
-  expect(await terminals()).toBe(0);
+  const developmentTerminals = () => core((k, key) => k.shell.taskByKey(key).developmentTerminals.size, bare);
+  expect(await developmentTerminals()).toBe(0);
   expect(agentOf(bare)).toBe(null);
   if (await ui.locator(':focus').count()) await ui.locator(':focus').blur();
   await focusWindow(core, ui);
   // Ctrl+` gives the launcher the keyboard. Opens nothing: no agent.
   await core((k) => k.press(k.shell.win.webContents, '`', 'control'));
   await expect(ui.getByRole('navigation', { name: 'New terminal' }).getByRole('button').first()).toBeFocused();
-  expect(await terminals(), 'nothing opened').toBe(0);
+  expect(await developmentTerminals(), 'nothing opened').toBe(0);
   // With a profile open, the terminals' panel is a strip: Ctrl+` opens its +.
   await call('profile_create', { name: 'Bo.bare' }, { task: bare });
-  await expect(ui.getByTestId('terminals').locator('[data-unfold]')).toHaveCount(1);
+  await expect(ui.locator('[data-task-view][data-active]').getByTestId('development-terminals').getByRole('button', { name: 'New terminal', exact: true })).toHaveCount(1);
   await expect(ui.getByRole('navigation', { name: 'New terminal' })).toHaveCount(0);
   await focusWindow(core, ui);
   await core((k) => k.press(k.shell.win.webContents, '`', 'control'));
@@ -254,7 +254,7 @@ test("projects: the projects' manager (Project Settings…) changes its name and
     - menuitem "Terminal"
   `);
   await closeMenu(ui);
-  expect(await terminals(), 'nothing opened').toBe(0);
+  expect(await developmentTerminals(), 'nothing opened').toBe(0);
   const bo = files.idOf('Bo.bare');
   const droppedBo = act(ui, 'profile:delete', { profile: bo });
   await answer(ui);
@@ -262,13 +262,13 @@ test("projects: the projects' manager (Project Settings…) changes its name and
   await expect.poll(() => core((k, a) => !k.shell.taskByKey(a.key).profiles.has(a.bo), { key: bare, bo })).toBe(true);
   await core((k, b) => { k.shell.profileStore.delete(b); }, bo);
   // Let go of at once, an account as an agent without accounts: its tasks keep it, and the account stays in the store.
-  await invoke(ui, 'project:agent-remove', { id, agent: ann });
-  await invoke(ui, 'project:agent-remove', { id, agent: 'shell' });
+  await invoke(ui, 'project:agent:remove', { id, agent: ann });
+  await invoke(ui, 'project:agent:remove', { id, agent: 'shell' });
   expect((await entryOf()).agents, 'none left').toBeUndefined();
   expect(await core((k, a) => k.shell.store.projectsWith('agents', a).map((p) => p.id), ann)).toEqual([]);
   expect(await core((k, key) => k.shell.taskByKey(key).promptTarget().agent.id, annTask)).toBe(ann);
-  expect(await core((k, key) => [...k.shell.taskByKey(key).terminals.values()].map((t) => [t.name, !!t.agent]), before), 'the terminal only: a shell').toEqual([['Terminal', false]]);
-  await invoke(ui, 'project:close-tasks', { id });
+  expect(await core((k, key) => [...k.shell.taskByKey(key).developmentTerminals.values()].map((t) => [t.name, !!t.agent]), before), 'the terminal only: a shell').toEqual([['Terminal', false]]);
+  await invoke(ui, 'project:task:close-all', { id });
   await expect.poll(() => core((k, i) => !k.shell.open.has(i), id)).toBe(true);
   // What it made gone, for a test after it.
   await forget(core, ui, files, 'site');
@@ -327,7 +327,7 @@ test("projects: Settings is its window's, at that window's project, its question
   const fourth = path.join(files.root, 'fourth');
   await openFolder(core, ui, fourth);
   const key = files.tkey('fourth', 1);
-  await invoke(ui, 'task:move', { key, terminals: {} });
+  await invoke(ui, 'task:move', { key, terminalContents: {} });
   await expect.poll(() => core((k, t) => k.shell.windows[1]?.current?.key === t && k.settled(false, k.shell.windows[1]), key)).toBe(true);
   await backTo(core, ui, files, 'project');
   const there = await otherPage(ui);
@@ -355,7 +355,7 @@ test("projects: Settings is its window's, at that window's project, its question
   await pageOf(await sui(), 'project');
   await closeSettings(core, ui, sui);
   // The second window and its project gone, for a test after it.
-  await invoke(ui, 'project:close-tasks', { id: files.pid('fourth') });
+  await invoke(ui, 'project:task:close-all', { id: files.pid('fourth') });
   await expect.poll(() => core((k) => k.shell.windows.length)).toBe(1);
   await forget(core, ui, files, 'fourth');
 });

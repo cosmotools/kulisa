@@ -20,14 +20,14 @@ export function SignIn({ agent, project, onDone, onClose }: { agent: { id: strin
   // A sign-in, its terminal shown; cancelled when it goes (Cancel, its page left) while it runs, its terminal forgotten.
   useEffect(() => {
     let on = true;
-    void kulisa.invoke('account:signin', { id: project ?? null, agent: agent.id, key }).then((r) => {
+    void kulisa.invoke('account:signin:start', { id: project ?? null, agent: agent.id, key }).then((r) => {
       if (!on) return;
       on = false;
       setRunning(false);
       if (r.error) { setError(r.error); setDetails(true); } else if (r.error === undefined) done(r);
     });
     return () => {
-      if (on) { on = false; void kulisa.invoke('account:signin-cancel', { key }); }
+      if (on) { on = false; void kulisa.invoke('account:signin:cancel', { key }); }
       forgetTerminals([key]);
     };
   }, [key, agent.id, project]);

@@ -4,17 +4,18 @@
 // other tabs keep running. What a window shows and asks is here. What the app has once (the store, the CDP proxy, the MCP server, the
 // agents, the windows) is app.ts's, the open tasks with their one change after another (serial) open-tasks.ts's; what happens to projects and tasks,
 // whichever window shows them, is the core's (projects.ts, tasks.ts).
+import type { PageLayout } from '../shared/ipc.ts';
 import { BrowserWindow, desktopCapturer, screen, shell as electronShell } from 'electron';
 import path from 'path';
 import fs from 'fs';
 import { page } from './pages.ts';
 import { log } from './log.ts';
-import { focusWindow } from './page-focus.ts';
+import { focusWindow } from '../browser/main/index.ts';
 import { Thumbnails } from '../screenshots/main/index.ts';
 import type { Rectangle, Point } from 'electron';
 import type { Shell } from './shell.ts';
 import type { Task } from './tasks.ts';
-import type { Profile, Bounds } from './profiles.ts';
+import type { Profile, Bounds } from '../browser/main/index.ts';
 import type * as Sent from '../shared/types.ts'; // what the window gets: its one definition
 import type { Arg, Events } from '../shared/ipc.ts';
 type Question = Sent.Question;
@@ -43,7 +44,9 @@ let windows = 0;
 const PRELOAD = path.join(import.meta.dirname, '..', 'preload', 'index.cjs');
 
 class AppWindow {
-  shell: Shell; id: number; tabs: Task[]; current: Task | null; viewsHidden: boolean; switching: boolean; leaving: Profile[];
+  shell: Shell; id: number; tabs: Task[]; current: Task | null; switching: boolean;
+  private readonly laidOut = new Set<Task>();
+  private covered = false;
   stateTimer: NodeJS.Timeout | undefined; picking: Map<string, { profile: Profile; page: import('playwright-core').Page; cancel: () => unknown }>;
   questions: Questions; loaded: boolean; pending: [string, unknown[]][]; keyZone: string;
   thumbnails: Thumbnails; // a screenshot's, in its pane's corner (src/screenshots)
@@ -56,16 +59,12 @@ class AppWindow {
     this.id = ++windows; // for a page to name another window (task:move)
     this.tabs = []; // the tasks open in it (tasks.ts: Task), its tabs in order
     this.current = null; // the one shown
-    // True until the page has laid out the shown task's grid (the renderer then shows the views).
-    this.viewsHidden = true;
-    // The pages of the task left for another, on screen until the page has the next grid laid out (hideViews).
-    this.leaving = [];
     // From leaving a task until the next one's profiles are all loaded: nothing is saved, and the page gets no
     // state (a partial one would build a grid other than the saved one).
     this.switching = true;
     this.stateTimer = undefined;
     this.picking = new Map(); // profiles in pick mode (picker.ts), of the task on screen, by id
-    this.questions = new Questions((q) => this.send('ask', q));
+    this.questions = new Questions((q) => this.send('ask:show', q));
     this.loaded = false; this.pending = []; // what is sent before its page has loaded goes once it has
     // Where the keyboard is in its page, for the keys (shortcuts.ts, keys.ts): 'window', 'terminal', 'dialog', or
     // 'pane:<profile id>' (an address bar, a pane's toolbar), as the page tells.
@@ -113,6 +112,7 @@ class AppWindow {
     win.on('blur', () => { if (this.task) this.shell.dictation.letGo(this.task.key); this.send('window:blur'); });
   }
   get task() { return this.current; }
+  get viewsHidden() { return this.covered || this.switching || !this.task || !this.laidOut.has(this.task); }
   get profiles(): Map<string, Profile> { return this.task?.profiles || NONE; }
   get closed(): Task['closed'] { return this.task?.closed || NONE; }
   where() { return { bounds: this.win.getNormalBounds(), maximized: this.win.isMaximized() }; }
@@ -138,7 +138,7 @@ class AppWindow {
   // the keyboard shortcuts (keys.ts: for menus and tooltips) come along in the URL, so the window is drawn right at once. The profiles' views stay hidden until the renderer has the grid laid out (views:hidden).
   async load(shown: Task | null) {
     await this.win.loadFile(page('index.html'), { query: {
-      theme: this.shell.theme, bar: this.shell.bar, keys: JSON.stringify(this.shell.keys()),
+      theme: this.shell.theme, bar: this.shell.bar, stageFollow: String(this.shell.stageFollow), keys: JSON.stringify(this.shell.keys()),
       projects: JSON.stringify(this.info(shown)) } });
     this.loaded = true;
     for (const [channel, data] of this.pending.splice(0)) this.win.webContents.send(channel, ...data);
@@ -161,31 +161,33 @@ class AppWindow {
       windows: others.map((w) => ({ id: w.id, name: w.label() })),
       settings: shell.projects().length > 0 || shell.accounts.all().some((a) => !a.own) || shell.profileStore.all().length > 0 };
   }
-  sendProjects() { this.send('projects', this.info()); }
+  sendProjects() { this.send('project:state', this.info()); }
   // The shown task's profiles, open and closed, and its terminals, for the page to build its grid from; their tabs
   // saved.
   pushState() {
+    clearTimeout(this.stateTimer); this.stateTimer = undefined;
     const task = this.task;
     if (!task || this.switching) return;
-    this.sendTerminals();
-    this.send('state', [...task.profiles.values()].map((p) => p.info()));
-    this.send('closed-profiles', [...task.closed.values()].map(({ cfg, tabs }): Sent.ClosedProfile =>
-      ({ id: cfg.id, name: cfg.name, avatar: cfg.avatar, description: cfg.description ?? '', tabs: tabs.urls.length })));
+    this.sendDevelopmentTerminals();
+    this.send('stage-terminal:state', { task: task.key, list: task.stageTerminals.info() });
+    this.send('profile:state', { task: task.key, list: [...task.profiles.values()].map((p) => p.info()) });
+    this.send('profile:closed', { task: task.key, list: [...task.closed.values()].map(({ cfg, tabs }): Sent.ClosedProfile =>
+      ({ id: cfg.id, name: cfg.name, avatar: cfg.avatar, description: cfg.description ?? '', tabs: tabs.urls.length })) });
     task.list.saveTabs();
   }
   // The shown task's artifacts (Resources.tsx): when it is shown, and when either the human or agent makes one.
   async sendArtifacts(task = this.task) {
     if (!task || task !== this.task) return;
     const [list, { bytes }] = await Promise.all([task.artifacts(), task.artifactsUsage()]);
-    if (task === this.task) this.send('artifacts', { task: task.key, list, bytes });
+    if (task === this.task) this.send('task:artifact:state', { task: task.key, list, bytes });
   }
-  sendTerminals() { if (this.task && !this.switching) this.send('terminals', { task: this.task.key, ...this.task.terminalsInfo() }); }
+  sendDevelopmentTerminals() { if (this.task && !this.switching) this.send('development-terminal:state', { task: this.task.key, ...this.task.developmentTerminalsInfo() }); }
   scheduleState() { clearTimeout(this.stateTimer); this.stateTimer = setTimeout(() => this.pushState(), 30); }
   // A task of its tabs changed: its profiles (now: right away), or its agent's state (shown on its tab).
   changed(task: Task, now?: boolean, agentState?: boolean) {
     if (agentState) {
       if (task === this.task && this.win.isFocused()) task.see(); // done before the human's eyes: nothing to come and see
-      if (task === this.task) this.sendTerminals();
+      if (task === this.task) this.sendDevelopmentTerminals();
       return this.sendProjects();
     }
     if (task !== this.task) return task.loaded && task.list.saveTabs(); // not one being unloaded
@@ -203,56 +205,48 @@ class AppWindow {
     this.shell.saveWindows();
     this.sendProjects();
   }
-  // Another task on screen: the grid on screen goes at once, as a browser's tab (none: the window showed no task), then
-  // its profiles and terminals come.
   async show(task: Task) {
     log.info(`[window] wc=${this.win.webContents.id} shows ${task.key}`);
     if (task === this.current) return;
-    if (this.current) this.leaveGrid(true);
+    if (this.current) this.leaveGrid();
     this.current = task;
     this.shell.saveWindows();
     this.win.setTitle(`${task.displayName} · ${task.project.name} — Kulisa`);
     this.sendProjects();
-    task.project.checkMerged().then((found) => found && this.shell.sendProjects()).catch(() => {}); // its closed tasks whose PR is merged
     await this.showLoaded();
   }
-  // The shown task: its profiles loaded (the first time it is shown), the page's grid built from its state
-  // (the terminals' panel included, even with no profiles; its tabs too, each starting), then its terminals started at
-  // the terminals' size.
+  // Publish task state before its programs start so terminals receive their laid-out size.
   async showLoaded() {
     const task = this.task!;
     if (!task.loaded) task.loadProfiles();
     this.switching = false;
     // Not waited for: the human may first have to choose the agent (or switch away meanwhile). Its tabs come at once,
     // each starting, so the grid comes with them, not with the terminals' buttons.
-    const terminals = task.loadTerminals();
+    const developmentTerminals = task.loadDevelopmentTerminals();
     this.pushState();
     this.seen();
-    terminals.catch((e) => console.error('[agent]', e));
+    this.updateViews();
+    developmentTerminals.catch((e) => console.error('[agent]', e));
   }
-  // The page takes the grid down; it gets the next task's state once its profiles are loaded. Left for another task
-  // (next), the grid and its pages stay on screen until the next one is laid out, as a browser keeps a tab's page until
-  // the next one's is drawn: nothing empty between them.
-  leaveGrid(next = false) {
-    this.pushState(); // saves the tabs
+  private leaveGrid() {
+    if (!this.current) return;
+    if (this.stateTimer) this.pushState();
+    else if (!this.switching) this.current.list.saveTabs();
     this.switching = true;
-    clearTimeout(this.stateTimer);
     for (const { cancel } of this.picking.values()) cancel();
     this.thumbnails.close(); // its pane goes
-    this.viewsHidden = true;
-    if (next) this.leaving.push(...this.profiles.values());
-    else for (const p of this.profiles.values()) p.setHidden(true);
-    this.send('grid:closing', next);
   }
   // Before a task's tab goes (the task closes, or moves to another window): the tab next to it is shown, or the
   // window is left with none (the empty window).
   async leave(task: Task) {
     if (task !== this.current) return;
     const i = this.tabs.indexOf(task), next = this.tabs[i + 1] || this.tabs[i - 1];
-    if (next) await this.show(next); else this.leaveGrid();
+    if (next) await this.show(next);
+    else { this.leaveGrid(); this.updateViews(); }
   }
   // Then the tab goes, and the page forgets the task (terminals, pictures).
   drop(task: Task) {
+    this.laidOut.delete(task);
     this.tabs.splice(this.tabs.indexOf(task), 1);
     if (task.window === this) task.window = null;
     if (this.current === task) {
@@ -260,10 +254,10 @@ class AppWindow {
       this.win.setTitle('Kulisa');
     }
     this.sendProjects();
-    this.send('tasks:closed', [task.key]);
+    this.send('task:closed', [task.key]);
   }
   // The human sees the shown task: an agent done there has nothing more to show (its ✓ says "come and see").
-  seen() { if (this.task?.see()) { this.sendTerminals(); this.sendProjects(); } }
+  seen() { if (this.task?.see()) { this.sendDevelopmentTerminals(); this.sendProjects(); } }
   // Whether a point on the screen is on it (a tab let go there: app.ts, dragOut).
   contains({ x, y }: Point) {
     if (this.win.isDestroyed() || this.win.isMinimized()) return false;
@@ -272,23 +266,22 @@ class AppWindow {
   }
 
   // ---------- the profiles' views ----------
-  // Settings and the grid's drop targets are HTML; the profiles' views are native and draw above it, so
-  // they are hidden meanwhile. With snapshots: first a picture of each page on screen, for the page to show in its
-  // place ({ profile id: data URL }).
-  async hideViews(hidden: boolean, { snapshots = false } = {}) {
-    const pics = hidden && snapshots ? await this.pictures() : {};
-    for (const p of this.leaving.splice(0)) p.setHidden(true);
-    // While a task is being switched they stay hidden, whatever comes (a closing menu shows them
-    // again); the page shows them once it has the next grid laid out.
-    this.viewsHidden = !!hidden || this.switching;
+  private updateViews() {
+    // One main-process turn avoids an empty native layer between prepared tasks.
+    for (const p of this.profiles.values()) p.setHidden(this.viewsHidden);
+    for (const task of this.tabs) if (task !== this.task) for (const p of task.profiles.values()) p.setHidden(true);
+    this.thumbnails.setHidden(this.viewsHidden);
+  }
+  // Capturing and covering are separate so the renderer can paint the replacement before hiding native pages.
+  hideViews(hidden: boolean, { focus = true, task }: { focus?: boolean; task?: string } = {}) {
+    if (task !== undefined && task !== this.task?.key || !hidden && !this.covered) return;
+    this.covered = hidden;
     // A dialog over the pages (hidden, no pictures): a page that had the keyboard keeps it unseen, and the dialog's focus
     // trap (Radix's) works in a page that has the keyboard, its keys going nowhere else: the window's page takes it. Menus
     // (pictures) put the keyboard back themselves as they close.
-    const from = hidden && !snapshots && [...this.profiles.values()].some((p) => { const wc = p.get()?.wc; return wc && !wc.isDestroyed() && wc.isFocused(); });
-    for (const p of this.profiles.values()) p.setHidden(this.viewsHidden);
-    this.thumbnails.setHidden(this.viewsHidden);
+    const from = hidden && focus && [...this.profiles.values()].some((p) => { const wc = p.get()?.wc; return wc && !wc.isDestroyed() && wc.isFocused(); });
+    this.updateViews();
     if (from) focusWindow(this.win.webContents);
-    return pics;
   }
   // JPEG: a picture shown for a moment, encoded three times faster than PNG. A page that draws no frame (covered, the
   // monitor off, busy) gives none: its pane is empty meanwhile. Waiting for it would hold every menu after it closed.
@@ -316,14 +309,20 @@ class AppWindow {
   }
   // Where the grid puts each pane's page (key: the task the page laid out), in CSS pixels; the views are placed
   // in window pixels.
-  layout(key: string | null, rects: Record<string, Partial<Bounds> & { shown?: boolean }>) {
-    if (key !== this.task?.key) return; // a task no longer on screen
+  layout(key: string | null, rects: Record<string, PageLayout>) {
+    const task = this.tabs.find((t) => t.key === key);
+    if (!task?.loaded) return;
     const z = this.win.webContents.getZoomFactor();
-    for (const [id, r] of Object.entries(rects)) this.profiles.get(id)?.layout(r.shown === false ? r : Object.fromEntries(Object.entries(r).map(([k, v]) => [k, Math.round((v as number) * z)])));
-    this.thumbnails.place(this.paneBox);
+    const scale = (r: Partial<Bounds>): Bounds => ({ x: Math.round((r.x ?? 0) * z), y: Math.round((r.y ?? 0) * z), width: Math.round((r.width ?? 0) * z), height: Math.round((r.height ?? 0) * z) });
+    for (const [id, { clip, ...r }] of Object.entries(rects)) task.profiles.get(id)?.layout(r.shown === false ? r : { ...scale(r), ...(clip && { clip: scale(clip) }) });
+    if (!this.laidOut.has(task)) {
+      this.laidOut.add(task);
+      log.info(`[window] wc=${this.win.webContents.id} grid ready task=${task.key}`);
+    }
+    if (task === this.task) { this.updateViews(); this.thumbnails.place(this.paneBox); }
   }
   // Where a profile's pane shows its page in the window; null: not on screen.
-  paneBox = (id: string) => { const p = this.profiles.get(id); return p?.shown ? p.bounds : null; };
+  paneBox = (id: string) => { const p = this.profiles.get(id); return p?.shown ? p.clip ?? p.bounds : null; };
   // Any loaded task of this window: the grid's last change comes as it is taken down, and reaches here once the window
   // shows the next task.
   saveLayout(key: string | null, layout: unknown) {
@@ -343,7 +342,7 @@ class AppWindow {
     // macOS has no setTitleBarOverlay: the buttons' strip keeps the height the window was made with, and the buttons
     // stayed at its top as the bar grew. Moved to the bar's middle, but not below that strip: there they took no click.
     else this.win.setWindowButtonPosition({ x: MAC_BUTTONS.x, y: Math.max(0, Math.min(Math.round((bar - MAC_BUTTONS.height) / 2), this.barHeight - MAC_BUTTONS.height)) });
-    this.send('zoom', z);
+    this.send('zoom:state', z);
   }
   // The theme (app.ts): the page's colors (its theme, as chosen), the window's background and the OS buttons'
   // symbols in the colors shown (shade: dark or light); their strip is see-through (CLEAR).
@@ -351,7 +350,7 @@ class AppWindow {
     if (this.win.isDestroyed()) return;
     this.win.setBackgroundColor(COLORS[shade].window);
     if (process.platform !== 'darwin') this.win.setTitleBarOverlay({ symbolColor: COLORS[shade].text });
-    this.send('theme', theme);
+    this.send('theme:state', theme);
   }
 
   // Brought to the front with it while another of Kulisa's windows has the focus (Settings, another tasks' window): left

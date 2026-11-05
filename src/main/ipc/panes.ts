@@ -2,13 +2,13 @@
 // the grid's layout. Each only translates to the task's own (tasks.ts), as the agent's tools do (kulisa-plugin/main/tools/).
 import { refused } from '../../shared/result.ts';
 import { handle, on } from '../ipc.ts';
-import { focusWindow } from '../page-focus.ts';
+import { focusWindow } from '../../browser/main/index.ts';
 import { chooseElement } from '../picker.ts';
 import { copy } from '../../screenshots/main/index.ts';
 import { filesIn, openFile, showFile } from '../file-links.ts';
 import type { Ipc, IpcEvent } from '../ipc.ts';
 import type { IpcMainInvokeEvent } from 'electron';
-import type { Profile, Tab } from '../profiles.ts';
+import type { Profile, Tab } from '../../browser/main/index.ts';
 import type { OnProfile, OnTab } from '../../shared/ipc.ts';
 
 export function registerPanes(ipc: Ipc) {
@@ -26,29 +26,36 @@ export function registerPanes(ipc: Ipc) {
   handle('profile:open', (e, { task, profile }) => onScreen(e, task)?.openProfile(profile) || noTask);
   // Let go by the task's project (projects.ts, askDropProfile): Remove from Project… in its pane's menu.
   handle('profile:delete', (e, { task, profile }) => onScreen(e, task)?.deleteProfile(profile, 'human') || noTask);
-  handle('layout:load', (e, { task }) => onScreen(e, task)?.store.layout());
+  handle('stage:arrange', (e, { task, layout, overflow, position }) => onScreen(e, task)?.arrangeStage(layout, overflow, position) || noTask);
+  handle('layout:load', (e, { task }) => at(e)?.tabs.find((t) => t.key === task)?.store.layout());
   // A profile's master, to sign in to (master.ts), and its cookies brought to this task's copy (tasks.ts).
   handle('profile:master', (e, { task, profile }) => onScreen(e, task)?.openMaster(profile) || noTask);
-  // The terminals' tabs (Terminals.tsx): + (an agent of the project, a new conversation; or a shell; own: the task's own
+  // The terminals' tabs (DevelopmentTerminals.tsx): + (an agent of the project, a new conversation; or a shell; own: the task's own
   // agent, Ctrl+` on the folded terminals), the one in front,
   // ×, an agent's tab handed over to another agent (Task.handOver).
-  handle('terminal:open', (e, { task, agent, own }) => {
+  handle('development-terminal:open', (e, { task, agent, own }) => {
     const w = onScreen(e, task);
     return !w ? noTask : own ? w.openOwn() : agent ? w.openAgent(agent) : w.openTerminal();
   });
-  handle('terminal:show', (e, { task, id }) => onScreen(e, task)?.show(id) || noTask);
-  handle('terminal:close', (e, { task, id }) => onScreen(e, task)?.closeTab(id) || noTask);
-  handle('terminal:paste-image', (e, { task, id }) => onScreen(e, task)?.pasteImage(id));
+  handle('selection:send', (e, { task, source, text }) => onScreen(e, task)?.sendSelection(source, text) || noTask);
+  handle('stage-terminal:open', (e, { task, name }) => onScreen(e, task)?.stageTerminals.open(name) || noTask);
+  handle('stage-terminal:configure', (e, { task, id, ...change }) => onScreen(e, task)?.stageTerminals.configure(id, change) || noTask);
+  handle('stage-terminal:run', (e, { task, id, command }) => onScreen(e, task)?.stageTerminals.run(id, command) || noTask);
+  handle('stage-terminal:stop', (e, { task, id }) => onScreen(e, task)?.stageTerminals.stop(id) || noTask);
+  handle('stage-terminal:close', (e, { task, id }) => onScreen(e, task)?.stageTerminals.close(id) || noTask);
+  handle('development-terminal:show', (e, { task, id }) => onScreen(e, task)?.show(id) || noTask);
+  handle('development-terminal:close', (e, { task, id }) => onScreen(e, task)?.closeTab(id) || noTask);
+  handle('development-terminal:paste-image', (e, { task, id }) => onScreen(e, task)?.pasteImage(id));
   // The paths a terminal names, relative to the task's folder; one Ctrl+clicked, opened or shown (file-links.ts).
   handle('terminal:files', (e, { task, paths }) => { const w = onScreen(e, task); return w ? filesIn(w.folder, paths) : noTask; });
   handle('file:open', (_e, file) => openFile(file));
   handle('file:show', (_e, file) => showFile(file));
   handle('agent:new-conversation', (e, { task, id }) => onScreen(e, task)?.newConversation(id) || noTask);
-  handle('agent:hand-over', (e, { task, id, agent }) => onScreen(e, task)?.handOver(id, agent) || noTask);
+  handle('agent:handover:start', (e, { task, id, agent }) => onScreen(e, task)?.handOver(id, agent) || noTask);
   on('layout:save', (e, { task, layout }) => at(e)?.saveLayout(task, layout));
-  on('layout', (e, { task, rects }) => at(e)?.layout(task, rects));
+  on('layout:apply', (e, { task, rects }) => at(e)?.layout(task, rects));
 
-  // A tab the human opens (+): the window keeps the keys for its address (components/grid/ProfilePane.tsx); its page taking
+  // A tab the human opens (+): the window keeps the keys for its address (task-view/ProfilePane.tsx); its page taking
   // them as it loads gives them back (page-focus.ts).
   handle('tab:new', onProfile((p, { url }) => { focusWindow(p.win.webContents); return p.newTab(url || 'about:blank').id; }));
   // focus: the keyboard was in the tab's page (a key closed or switched it): it goes to the page shown next, as in Chrome.

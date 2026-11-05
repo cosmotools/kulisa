@@ -1,6 +1,6 @@
 // Runs JavaScript in a running Kulisa's main process, through Node's inspector, and prints the result as JSON.
 //   node inspect.mjs <port> '<body of an async function>'
-// The body may use `require` (paths from the repository root, e.g. require('./src/main/profiles.ts'), and
+// The body may use `require` (paths from the repository root, e.g. require('./src/browser/main/index.ts'), and
 // require('electron')) and `return` a JSON-able value. Values kept on globalThis stay for the next call.
 const [port, body] = process.argv.slice(2);
 const [target] = await (await fetch(`http://127.0.0.1:${port}/json/list`)).json();

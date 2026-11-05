@@ -34,7 +34,7 @@ async function standing(task: Task) {
   const open = [...task.profiles.values()].map((p) => p.name);
   const closed = [...task.closed.values()].map(({ cfg }) => cfg.name);
   lines.push('', '## Profiles', `Open: ${open.join(', ') || 'none'}. Closed: ${closed.join(', ') || 'none'}.`);
-  const shells = task.terminalsInfo().list.filter((t) => !t.agent);
+  const shells = task.developmentTerminalsInfo().list.filter((t) => !t.agent);
   if (shells.length) lines.push('', '## Terminals', ...shells.map((t) => `- ${t.name}: ${t.command || 'a shell'}`));
   return lines.join('\n');
 }

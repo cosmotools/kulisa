@@ -1,5 +1,6 @@
 // Projects (docs/tasks.md, Projects): Delete Project…, and New Project's ways to take the code.
 import fs from 'fs';
+import { fakeAgent } from './agent-helpers.ts';
 import path from 'path';
 import { test, expect } from './fixtures.ts';
 import { choose, tabProjects, projectTabSel, fromSidebar, openSidebar, taskRow, closeSettings, invoke, typeIn, answer, notLoading, projectMenu, pageOf, removed, openThing, thingRow, settingsMenu } from './helpers.ts';
@@ -65,57 +66,46 @@ test("projects: Delete Project… (in Settings alone) asks, closes the project w
   await expect(thingRow(await sui(), made.id)).toHaveCount(0);
   await closeSettings(core, ui, sui);
 
-  // New Project… asks for its code first (the code is often on the disk already). Folder on disk, a repository: taken
-  // as it is, its files and its history kept, no git init, nothing made; named after its folder; Create opens its
-  // first task, as for any new project.
+  // Existing code keeps its location, files and git history. New Project starts with one source.
+  await fakeAgent(ui, files);
   const goneDir = path.join(root, 'gone');
   committed(goneDir, 'a.txt', 'a', 'mine');
-  // In a tasks' window (New Project… at the sidebar's foot, a dialog), Settings closed first.
   const np = ui.getByRole('dialog', { name: 'New Project' });
   const field = (name: string) => np.getByRole('textbox', { name, exact: true });
-  const where = np.getByRole('status', { name: 'What will happen' });
+  const next = () => np.getByRole('button', { name: 'Continue', exact: true }).click();
   const newProject = async (from: string) => {
     if (await ui.locator('#settings').count()) await closeSettings(core, ui, sui);
     await openSidebar(ui);
     await ui.getByRole('button', { name: 'New Project…' }).click();
-    await np.getByRole('tab', { name: from }).click();
-    await expect(np.getByRole('tab', { name: from })).toHaveAttribute('aria-selected', 'true');
+    await np.getByRole('button', { name: /Use Fake agent · spare@shop.com/ }).click();
+    await np.getByRole('radio', { name: from === 'On disk' ? /Open a folder/ : /Clone a repository/ }).check();
   };
-  const submit = () => np.getByRole('button', { name: /^(Next|Create)$/ }).click();
-  // Its steps gone through (no agent, no profile chosen), then Create: made, its first task opened in this window.
+  const submit = () => np.getByRole('button', { name: 'Create project', exact: true }).click();
   const create = async (folder: string) => {
-    for (const step of ['Agents', 'Profiles']) {
-      await submit();
-      await expect(np.getByRole('list', { name: 'Steps' }).locator('[aria-current="step"]')).toHaveText(new RegExp(`^.${step}$`));
-    }
     await submit();
     await expect.poll(async () => {
       const c = await core((k) => k.shell.current && k.settled(true) && k.shell.current.id);
       return !!c && files.named(c) === folder;
-    }, { timeout: 10000 }).toBe(true); // a clone takes a while
+    }, { timeout: 10000 }).toBe(true); // git cloning can take seconds
     await notLoading(ui);
   };
-  await newProject('Folders on Disk');
-  await expect(field('Location'), 'no location: nothing is made').toHaveCount(0);
-  const source = np.getByRole('textbox', { name: /^A (folder|repository URL)$/ });
-  const add = async (v: string) => { await typeIn(ui, source, v); await np.getByRole('button', { name: 'Add', exact: true }).click(); };
-  await add(path.join(root, 'nowhere'));
-  await expect(np.getByRole('alert')).toHaveText(`${path.join(root, 'nowhere')} is not there`);
-  const sources = np.locator('[data-source]');
-  await expect(sources, 'not in the list').toHaveCount(0);
-  expect(fs.existsSync(path.join(root, 'nowhere')), 'not made').toBe(false);
+  await newProject('On disk');
+  const source = np.getByRole('textbox', { name: /^(Folder on disk|Repository URL)$/ });
+  await typeIn(ui, source, path.join(root, 'nowhere'));
+  await next();
+  await expect(np.getByRole('alert')).toContainText('This folder is not there.');
+  expect(fs.existsSync(path.join(root, 'nowhere'))).toBe(false);
   await core((k, f) => {
-    const d = k.electron.dialog;
-    k.stash.open = d.showOpenDialog;
-    d.showOpenDialog = (async () => ({ canceled: false, filePaths: [f] }));
+    k.stash.open = k.electron.dialog.showOpenDialog;
+    k.electron.dialog.showOpenDialog = (async () => ({ canceled: false, filePaths: [f] }));
   }, goneDir);
   try {
-    await typeIn(ui, source, '');
-    await typeIn(ui, field('Name'), ''); // typed by the human: kept; emptied, it follows the first folder again
-    await np.getByRole('button', { name: 'Add Folder…' }).click();
-    await expect(field('Name')).toHaveValue('gone');
+    await np.getByRole('button', { name: 'Browse folder' }).click();
+    await expect(source).toHaveValue(goneDir);
   } finally { await core((k) => { k.electron.dialog.showOpenDialog = k.stash.open; }); }
-  await expect(sources).toHaveText(new RegExp(`^${RegExp.escape(goneDir)}git$`));
+  await next();
+  await expect(np.getByRole('heading', { name: 'Gone', exact: true })).toBeVisible();
+  await expect(field('Project name')).toHaveCount(0);
   await create('gone');
   expect(await core((k) => k.shell.current.folder)).toBe(goneDir);
   expect(git(goneDir, 'log', '--format=%s'), 'its history as it was').toBe('mine');
@@ -133,58 +123,52 @@ test("projects: Delete Project… (in Settings alone) asks, closes the project w
   expect(fs.existsSync(goneDir) && !fs.existsSync(goneData)).toBe(true);
   await expect.poll(() => files.savedWindows()).toEqual([{ tabs: ['project/1', 'project/2'], shown: 'project/2' }]);
 
-  // Folder on disk, several (a frontend and a backend): taken as they are, the first the default and the project's
-  // folder; the one without git left so.
+  // Additional folders are managed after creation; the multi-folder project model stays intact.
   const back = path.join(root, 'back');
   fs.mkdirSync(back); fs.writeFileSync(path.join(back, 'b.txt'), 'b');
-  await newProject('Folders on Disk');
-  await add(goneDir);
-  await add(back);
-  await expect(sources).toHaveCount(2);
-  await expect(sources.nth(0)).toHaveAttribute('data-source', goneDir);
-  await expect(sources.nth(0)).toHaveText(new RegExp(`^${RegExp.escape(goneDir)}gitdefault$`));
-  await expect(sources.nth(1)).toHaveAttribute('data-source', back);
-  await expect(sources.nth(1)).toHaveText(new RegExp(`^${RegExp.escape(back)}no git$`));
-  await create('gone');
+  await newProject('On disk');
+  await typeIn(ui, source, goneDir); await next(); await create('gone');
+  expect((await invoke(ui, 'project:folder:add', { id: files.pid('gone'), folder: back })).error).toBeUndefined();
   expect(await core((k, i) => k.shell.store.projects().find((x) => x.id === i).folders, files.pid('gone'))).toEqual([goneDir, back]);
-  expect(fs.existsSync(path.join(back, '.git')), 'the one without git left so').toBe(false);
-  expect(git(goneDir, 'log', '--format=%s'), 'the repository as it was').toBe('mine');
   await removeRow('gone');
-  await expect.poll(async () => (await projects()).includes('gone')).toBe(false);
-
-  // Clone from URL (a local one here): cloned into <location>/<name>, named after the repository, and that clone is
-  // the project's folder: no empty one beside it, no git init. A folder with files there is refused.
   const bare = path.join(root, 'cloned.git'), backBare = path.join(root, 'back.git');
   git(back, 'init', '-q'); git(back, 'add', '-A'); git(back, 'commit', '-qm', 'back');
   git(root, 'clone', '-q', '--bare', goneDir, bare);
   git(root, 'clone', '-q', '--bare', back, backBare);
-  await newProject('Clone from URL');
-  await add(bare);
-  await expect(field('Name')).toHaveValue('cloned');
+  await newProject('Clone');
+  await typeIn(ui, source, bare);
   const into = path.join(home, 'cloned');
-  await expect(where).toHaveText(`The repository will be cloned into ${into}`);
-  await typeIn(ui, field('Location'), root);
-  await typeIn(ui, field('Name'), 'gone');
-  await expect(field('Location'), 'refused at its field').toHaveAccessibleDescription(`${goneDir} is there already: choose another name or location`);
-  await typeIn(ui, field('Location'), home);
-  await typeIn(ui, field('Name'), 'cloned');
+  await expect(np.getByRole('status', { name: 'Project folder path' })).toHaveText(into);
+  await expect(field('Folder name')).toHaveValue('cloned');
+  await typeIn(ui, field('Create in'), root); await typeIn(ui, field('Folder name'), 'gone');
+  await next();
+  await expect(np.getByRole('alert')).toContainText('This folder already exists.');
+  await expect(source).toBeVisible();
+  const empty = path.join(root, 'empty');
+  fs.mkdirSync(empty);
+  await typeIn(ui, field('Folder name'), 'empty');
+  await next();
+  await expect(np.getByRole('alert')).toContainText('This folder already exists.');
+  expect(fs.readdirSync(empty)).toEqual([]);
+  await typeIn(ui, field('Create in'), home); await typeIn(ui, field('Folder name'), 'cloned');
+  await next();
+  await expect(np.getByRole('heading', { name: 'Cloned', exact: true })).toBeVisible();
+  await np.getByRole('button', { name: 'Edit name' }).click();
+  await typeIn(ui, field('Project name'), 'My Cloned App');
+  await np.getByRole('button', { name: 'Back', exact: true }).click();
+  await expect(np.getByRole('status', { name: 'Project folder path' })).toHaveText(into);
+  await next();
+  await expect(np.getByRole('heading', { name: 'My Cloned App', exact: true })).toBeVisible();
   await create('cloned');
-  expect(await core((k, i) => k.shell.store.projects().find((x) => x.id === i).folders, files.pid('cloned'))).toEqual([into]);
-  expect(git(into, 'log', '--format=%s'), 'its history').toBe('mine');
+  expect(await core((k, i) => k.shell.store.projects().find((x) => x.id === i).name, files.pid('cloned'))).toBe('My Cloned App');
+  expect(git(into, 'log', '--format=%s')).toBe('mine');
   await removeRow('cloned');
-  await expect.poll(async () => (await projects()).includes('cloned')).toBe(false);
-  // Several: each repository cloned into a folder named after the project, the first the default; that folder is
-  // none of the project's. A URL typed and not yet added counts.
-  await newProject('Clone from URL');
-  await add(bare);
-  await typeIn(ui, field('Name'), 'fullstack');
-  await typeIn(ui, source, backBare);
+  await closeSettings(core, ui, sui);
   const stack = path.join(home, 'fullstack');
-  await create('cloned'); // named by its first folder (data.ts, pid)
-  const full = await core((k, i) => k.shell.store.projects().find((x) => x.id === i), files.pid('cloned'));
-  expect([full.name, full.folders]).toEqual(['fullstack', [path.join(stack, 'cloned'), path.join(stack, 'back')]]);
+  const full = await invoke(ui, 'project:new', { from: 'clone', name: 'Full Stack', directoryName: 'fullstack', location: home, urls: [bare, backBare] });
+  expect(full.error).toBeUndefined();
+  expect(await core((k, id) => k.shell.store.projects().find((x) => x.id === id).folders, full.id)).toEqual([path.join(stack, 'cloned'), path.join(stack, 'back')]);
   await removeRow('cloned');
-  await expect.poll(async () => (await projects()).includes('cloned')).toBe(false);
   if (await ui.locator('#settings').count()) await closeSettings(core, ui, sui);
   // A URL git cannot clone: git's own words, nothing left behind, the clones before it neither.
   expect((await invoke(ui, 'project:new', { from: 'clone', name: 'bad', location: root, urls: [bare, path.join(root, 'none.git')] })).error).toBeTruthy();
@@ -195,13 +179,13 @@ test("projects: Delete Project… (in Settings alone) asks, closes the project w
   await choose(ui, 'Close All Tasks', await projectMenu(ui, projectTabSel(files, 'project')));
   await expect.poll(() => core((k) => k.shell.task === null && k.shell.open.size === 0)).toBe(true);
   await expect(ui.locator('html')).toHaveAttribute('data-page', /^(sidebar|welcome)$/);
-  expect(await core((k, i) => k.shell.store.tasksOf({ id: i }).list.every((e) => e.closed), files.pid('project')), 'its tasks closed').toBe(true);
+  expect(await core((k, i) => k.shell.store.tasksOf({ id: i }).list.every((e) => e.closedAt !== undefined), files.pid('project')), 'its tasks closed').toBe(true);
 
   // A closed task opened again from the sidebar (the empty window's), a tab at the end; another from it over the grid after.
   const first = files.tkey('project', 1);
   await taskRow(ui, 'project', 'task-1').click();
   await taskShown(core, first);
-  expect(await core((k) => !k.shell.task.entry.closed), 'open again').toBe(true);
+  expect(await core((k) => k.shell.task.entry.closedAt), 'open again').toBeUndefined();
   await notLoading(ui);
   await fromSidebar(ui, 'project', 'Feature-X');
   await expect.poll(() => core((k) => k.shell.task?.name === 'Feature-X' && k.settled(true))).toBe(true);

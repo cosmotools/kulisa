@@ -9,7 +9,7 @@ import { expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import type { Core, Call } from './fixtures.ts';
 import type { Files } from './data.ts';
-import { SITE, answer, invoke, notLoading, viewOn, arrange } from './helpers.ts';
+import { SITE, answer, invoke, notLoading, viewOn, arrange, stageDock } from './helpers.ts';
 
 export const SAM = 'Sam.admin', ELON = 'Elon.buyer';
 export const rand = () => crypto.randomBytes(3).toString('hex');
@@ -68,7 +68,7 @@ export const reportSession = (core: Core, task: string, id: string, transcript: 
 export async function showTask(core: Core, ui: Page, key: string) {
   const [id, task] = key.split('/');
   if (await core((k, t) => k.shell.task?.key !== t, key)) {
-    if (await core((k, t) => { const x = k.shell.taskByKey(t); return !!x?.loaded && !x.entry.closed; }, key)) await invoke(ui, 'task:show', key);
+    if (await core((k, t) => { const x = k.shell.taskByKey(t); return !!x?.loaded && x.entry.closedAt === undefined; }, key)) await invoke(ui, 'task:show', key);
     else await invoke(ui, 'project:open', { id, task });
   }
   await taskShown(core, key);
@@ -85,7 +85,7 @@ export async function newTask(core: Core, ui: Page, name?: string | null, projec
   const made = invoke(ui, 'task:new', { project: id });
   if (shares) await answer(ui, 'Create Anyway');
   await made;
-  await expect.poll(() => core((k, b) => { const t = k.shell.task; return !!t && t.key !== b && [...t.terminals.values()].some((x) => !!x.pty) && k.settled(); }, before), { timeout: 20000 }).toBe(true);
+  await expect.poll(() => core((k, b) => { const t = k.shell.task; return !!t && t.key !== b && [...t.developmentTerminals.values()].some((x) => !!x.pty) && k.settled(); }, before), { timeout: 20000 }).toBe(true);
   return core(async (k, n) => {
     const t = k.shell.task;
     if (n !== null) await t.rename(n ?? `task-${[...t.project.tasks.values()].indexOf(t) + 1}`);
@@ -109,7 +109,7 @@ export const projectShown = (core: Core, id: string) => expect.poll(() => core((
 export const bothOn = (core: Core, ui: Page, files: Files) => expect.poll(async () => (await viewOn(core, ui, files, SAM)) && viewOn(core, ui, files, ELON)).toBe(true);
 
 type Begin = {
-  // Sam and Elon side by side (the Columns preset), each page on its pane.
+  // Sam and Elon side by side, each page on its pane.
   columns?: boolean;
   // Feature-X, the project's second task, open beside task-1: in the project's folder (true), or, given the agent's
   // tools, in a worktree of its own as its agent makes one (task_worktree), with Sam and Elon open there too.
@@ -126,7 +126,7 @@ type Begin = {
 export async function begin(core: Core, ui: Page, files: Files, { columns = false, featureX = false, only = false, shown = 1 }: Begin = {}) {
   const pid = files.pid('project'), call = typeof featureX === 'function' ? featureX : null;
   if ((only || call) && !fs.existsSync(path.join(files.project, '.git'))) gitProject(files.project);
-  if (only) for (const id of await core((k, p) => [...k.shell.open.keys()].filter((x) => x !== p), pid)) await invoke(ui, 'project:close-tasks', { id });
+  if (only) for (const id of await core((k, p) => [...k.shell.open.keys()].filter((x) => x !== p), pid)) await invoke(ui, 'project:task:close-all', { id });
   const first = files.tkey('project', 1);
   await showTask(core, ui, first);
   if (only) {
@@ -149,10 +149,16 @@ export async function begin(core: Core, ui: Page, files: Files, { columns = fals
     }
     k.watchPty(k.shell.pty);
   }, only);
-  if (columns) await expect(ui.locator('[data-panel^="profile:"]')).toHaveCount(2); // a pane stacked behind another has no .pane drawn
+  if (columns) await expect(ui.locator('[data-task-view][data-active] [data-panel^="profile:"]')).toHaveCount(2); // a pane stacked behind another has no .pane drawn
   await notLoading(ui);
-  // Columns first: a page stacked behind another's tab is never laid out, and ensureProfile waits for that.
-  if (columns) await arrange(ui, 'columns');
+  // Unstack first: a page stacked behind another's tab is never laid out, and ensureProfile waits for that.
+  const arrangeProfiles = async () => {
+    await arrange(ui, 'above');
+    await invoke(ui, 'stage:arrange', { task: await core((k) => k.shell.task.key), layout: 'vertical' });
+    // The fixture's two panes side by side: Dockview's move is also covered by the grid drag tests.
+    await stageDock(ui, (api, ids) => api.getPanel(ids[1]).api.moveTo({ group: api.getPanel(ids[0]).group, position: 'right' }), [files.panel(SAM), files.panel(ELON)]);
+  };
+  if (columns) await arrangeProfiles();
   const ids = await core(async (k, site) => ({
     sam: (await k.ensureProfile('Sam.admin', `${site}/app/login?name=sam`)).id,
     elon: (await k.ensureProfile('Elon.buyer', `${site}/app`)).id,
@@ -167,6 +173,7 @@ export async function begin(core: Core, ui: Page, files: Files, { columns = fals
     for (const profile of call ? [SAM, ELON] : []) {
       if (await core((k, a) => [...k.shell.taskByKey(a.fx).closed.values()].some((c) => c.cfg.name === a.profile), { fx, profile })) await call('profile_open', { profile }, { task: fx });
     }
+    if (columns && call) await arrangeProfiles();
     await showTask(core, ui, shown === 1 ? first : fx);
   }
   await notLoading(ui);

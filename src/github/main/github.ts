@@ -24,11 +24,12 @@ class GitHub {
   kept() { return this.accounts.secrets.kept(); }
 
   // The accounts as Settings → GitHub shows them; where Kulisa App is installed asked of GitHub for each signed in.
-  // usedBy: the projects that use one (their names: the caller's).
-  async list(usedBy: (id: string) => string[]): Promise<GitHubAccount[]> {
+  // usedBy: the projects that use one (their names: the caller's). local skips network checks so the window can
+  // show known identities and sign-in state before installations arrive.
+  async list(usedBy: (id: string) => string[], local = false): Promise<GitHubAccount[]> {
     return Promise.all(this.accounts.list().map(async ({ id, login, kind }) => {
       const signedIn = this.accounts.signedIn(id);
-      const installed = kind === 'app' && signedIn ? await this.accounts.token(id).then((t) => installations(this.fetch, t), (): null => null) : null;
+      const installed = !local && kind === 'app' && signedIn ? await this.accounts.token(id).then((t) => installations(this.fetch, t), (): null => null) : null;
       return { id, login, kind, installed, projects: usedBy(id), ends: this.accounts.ends(id), signedIn };
     }));
   }

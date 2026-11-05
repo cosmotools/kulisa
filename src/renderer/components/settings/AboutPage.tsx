@@ -1,9 +1,10 @@
 // The About page of Settings (docs/window.md, Menus, About Kulisa). Asked again each time it is shown.
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { FolderOpenIcon } from 'lucide-react';
-import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput, Item, ItemContent, ItemDescription, ItemMedia, ItemTitle, Card, CardHeader,
-  CardTitle, CardContent, Field, FieldDescription, FieldLabel } from '@ui';
+import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput, Field, FieldDescription, FieldLabel, Spinner } from '@ui';
+import { SettingsHeading, SettingsGroup, SettingsFields, SettingsLoading, SettingsError } from './kit';
 import { Logo } from '../ProjectIcon';
+import { useRead } from './read';
 import { Tip } from '../Tip';
 import type { AboutFolder, AboutInfo } from '../../../shared/types';
 
@@ -17,30 +18,29 @@ const FOLDERS: Record<AboutFolder, { label: string; hint: string }> = {
 const CURTAIN = 'var(--destructive)';
 
 export function AboutPage() {
-  const [info, setInfo] = useState<AboutInfo | null>(null);
-  useEffect(() => { void kulisa.invoke('about:get').then(setInfo); }, []);
-  if (!info) return null;
+  const [{ data: info, loading, error }, read] = useRead<AboutInfo>();
+  useEffect(() => { void read(() => kulisa.invoke('about:get')); }, [read]);
   return <>
-    <Item variant="outline">
-      <ItemMedia><Logo color={CURTAIN} size={48} /></ItemMedia>
-      <ItemContent>
-        <ItemTitle role="heading" aria-level={1}>Kulisa {info.version}</ItemTitle>
-        <ItemDescription>Electron {info.electron} · Chromium {info.chrome} · <a href="https://kulisa.app" target="_blank" rel="noreferrer">kulisa.app</a> · GPL-3.0-or-later</ItemDescription>
-      </ItemContent>
-    </Item>
-    <Card role="group" aria-label="Where Kulisa keeps things"><CardHeader><CardTitle>Where Kulisa keeps things</CardTitle></CardHeader><CardContent><div className="flex flex-col gap-3">
+    <SettingsHeading title={info ? `Kulisa ${info.version}` : 'Kulisa'} media={<Logo color={CURTAIN} size={40} />}
+      description={<>{info ? <>Electron {info.electron} · Chromium {info.chrome} · </> : !error && <span role="status" className="inline-flex items-center gap-2"><Spinner role={undefined} aria-hidden />Loading versions… </span>}
+        <a className="underline underline-offset-4" href="https://kulisa.app" target="_blank" rel="noreferrer">kulisa.app</a> · GPL-3.0-or-later</>} />
+    <SettingsError error={error} />
+    <SettingsGroup title="Where Kulisa keeps things">
+      {loading && <SettingsLoading>Loading folders…</SettingsLoading>}
+      <SettingsFields>
       {/* data-folder: the tests' handle on a folder. One not made yet is disabled, its button too: a disabled button
           gets no tooltip, so its description says it. */}
-      {info.folders.map((f) => { const show = f.exists ? 'Show in your file manager' : 'Not made yet';
-        const button = <InputGroupButton size="icon-xs" aria-label={show} disabled={!f.exists} onClick={() => void kulisa.invoke('about:show-folder', f.id)}><FolderOpenIcon /></InputGroupButton>;
-        return <Field key={f.id} data-folder={f.id}>
-          <FieldLabel htmlFor={`folder-${f.id}`}>{FOLDERS[f.id].label}</FieldLabel>
+      {(Object.keys(FOLDERS) as AboutFolder[]).map((id) => { const f = info?.folders.find((f) => f.id === id), exists = !!f?.exists;
+        const show = exists ? 'Show in your file manager' : info ? 'Not made yet' : 'Loading…';
+        const button = <InputGroupButton size="icon-xs" aria-label={show} disabled={!exists} onClick={() => void kulisa.invoke('about:show-folder', id)}><FolderOpenIcon /></InputGroupButton>;
+        return <Field key={id} data-folder={id}>
+          <FieldLabel htmlFor={`folder-${id}`}>{FOLDERS[id].label}</FieldLabel>
           <InputGroup>
-            <InputGroupInput id={`folder-${f.id}`} readOnly disabled={!f.exists} value={f.path} title={f.path} />
-            <InputGroupAddon align="inline-end">{f.exists ? <Tip text={show}>{button}</Tip> : button}</InputGroupAddon>
+            <InputGroupInput id={`folder-${id}`} readOnly disabled={!exists} value={f?.path ?? ''} placeholder="Loading…" title={f?.path} />
+            <InputGroupAddon align="inline-end">{exists ? <Tip text={show}>{button}</Tip> : button}</InputGroupAddon>
           </InputGroup>
-          <FieldDescription>{f.exists ? FOLDERS[f.id].hint : `${FOLDERS[f.id].hint}. Not made yet.`}</FieldDescription>
+          <FieldDescription>{!info || exists ? FOLDERS[id].hint : `${FOLDERS[id].hint}. Not made yet.`}</FieldDescription>
         </Field>; })}
-    </div></CardContent></Card>
+    </SettingsFields></SettingsGroup>
   </>;
 }

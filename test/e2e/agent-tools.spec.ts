@@ -198,7 +198,7 @@ test('agent: keys, hover, select, files, waiting, evaluate, back and forward; di
   const del = { ...p, locator: "getByRole('button', { name: 'Delete' })" };
   // The agent's action answers its own dialog: none is shown.
   const view = () => core((k) => k.profile('Sam.seller').get().view.getVisible());
-  const pane = ui.locator(`[role="region"][data-profile="${sam}"]`), paneDialog = pane.getByRole('alertdialog');
+  const pane = ui.locator(`[data-task-view][data-active] [role="region"][data-profile="${sam}"]`), paneDialog = pane.getByRole('alertdialog');
   const openDialog = paneDialog;
   expect((await call('browser_click', del)).text).toMatch(/asked: confirm "Delete the draft\?"; dismissed/);
   expect(await out()).toBe('kept');
@@ -309,16 +309,16 @@ test('target=_blank and window.open open tabs of the same profile', async ({ cor
   await expect.poll(tabs).toBe(1);
 });
 
-test('a tool on a tab right after another one closed finds its page (a page still closing has no target to ask)', async ({ core }) => {
+test('a tool on a tab right after another one closed finds its page (a page still closing has no target to ask)', async ({ core, call }) => {
   await profiles(core);
-  const url = await core(async (k, site) => {
+  const { gone, kept } = await core(async (k, site) => {
     const sam = k.profile('Sam.seller'), gone = sam.newTab(`${site}/form`), kept = sam.newTab(`${site}/board`);
     await Promise.all([gone.ready, kept.ready]);
     await sam.page(sam.tabs[0].id); // Playwright connected; the tab closing never asked for by the agent
-    sam.closeTab(gone.id);
-    const url = (await sam.page(kept.id)).url();
-    sam.closeTab(kept.id);
-    return url;
+    return { gone: gone.id, kept: kept.id };
   }, SITE);
-  expect(url).toBe(`${SITE}/board`);
+  try {
+    await call('browser_tab_close', { profile: 'Sam.seller', tab: gone });
+    expect((await call('browser_snapshot', { profile: 'Sam.seller', tab: kept })).text).toContain(`- URL: ${SITE}/board`);
+  } finally { await call('browser_tab_close', { profile: 'Sam.seller', tab: kept }); }
 });

@@ -10,6 +10,14 @@ import type { Core, Call, Where } from './fixtures.ts';
 import { removeTree } from '../../src/main/remove.ts';
 import type { Files } from './data.ts';
 
+export const resourcesGroup = (ui: Page) => ui.locator('[data-task-view][data-active]').getByTestId('dv-edge-group-resources');
+export async function showResources(ui: Page, section: 'Project' | 'Artifacts' | 'Agents' | 'Diff') {
+  const group = resourcesGroup(ui), icon = group.getByRole('tab', { name: section, exact: true });
+  if (await icon.getAttribute('aria-selected') !== 'true' || await group.locator(':scope.dv-edge-collapsed').count()) await icon.click();
+  await expect(group).toHaveAccessibleName(section);
+  await expect(group.locator('[data-resources]')).toBeVisible();
+}
+
 // The run's test site (global-setup.ts), on a free port: never a literal port (CLAUDE.md, Hard-won facts).
 export const SITE = process.env.KULISA_TEST_SITE;
 export const PORT = SITE && new URL(SITE).port; // none while Playwright only lists the tests (no global setup)
@@ -42,8 +50,7 @@ export const invoke = (page: Page, channel: string, arg?: unknown) => page.evalu
 export const act = (page: Page, channel: string, arg: unknown) => page.evaluate(([c, a]) => (window as any).act(c, a), [channel, arg] as const);
 // The window done building what it shows (a project, a task: the grid's region busy; none before the window is up).
 export const notLoading = (page: Page) => expect(page.locator('#dock:not([aria-busy])')).toHaveCount(1);
-// That nothing happened is checked once what would have made it is done (docs/testing.md, Writing an e2e test): each
-// of these waits for a proof of that, never for a time.
+// These helpers expose completion boundaries for rendering, IPC and input dispatch.
 // The page drew what its last changes made: React's updates, a ResizeObserver's, what waits for a frame.
 export const frames = (page: Page) => page.evaluate(() => new Promise<void>((r) => { requestAnimationFrame(() => requestAnimationFrame(() => r())); }));
 // Every message the page sent the main process before now is handled there, and every one the main process sent the
@@ -146,8 +153,8 @@ export async function focusWindow(core: Core, ui: Page) {
 
 // The tasks' bar's tabs (one per open task): each its project, by its folder's name, the shown one with ' *'.
 export const tabProjects = async (ui: Page, files: Files) => (await ui.locator('#taskTabs [role="tab"]').evaluateAll((ts) => ts.map((t) => (t as HTMLElement).dataset.project + (t.ariaSelected === 'true' ? ' *' : '')))).map(files.named);
-// The terminals' tabs: each its name, the one in front with ' *'.
-export const termTabs = (ui: Page) => ui.locator('nav[aria-label="Terminals"] [role="tab"]').evaluateAll((ts) => ts.map((t) => t.textContent.trim() + (t.ariaSelected === 'true' ? ' *' : '')));
+// Resources’ terminal rows: each its name, the one in front with ' *'.
+export const terminalRows = (ui: Page) => ui.locator('[data-task-view][data-active] [data-resources] [data-terminal] [data-sidebar="menu-button"]').evaluateAll((ts) => ts.map((t) => t.getAttribute('aria-label') + (t.getAttribute('aria-current') === 'true' ? ' *' : '')));
 // A project's first tab in the bar; the project shown again as the human does it, a click on it; its open tasks
 // closed with the middle button on each tab.
 // As a selector, for a script in the page.
@@ -207,10 +214,10 @@ export async function taskMenu(ui: Page) {
   return menu(ui);
 }
 
-// The panels arranged as the human does it: ☰ → Arrange panels.
-export async function arrange(ui: Page, preset: 'columns' | 'grid' | 'focus') {
-  await ui.locator('#windowMenu').click();
-  await menu(ui).locator(`[data-preset="${preset}"]`).click();
+// Stage placed relative to development panels through the title-bar menu.
+export async function arrange(ui: Page, position: 'above' | 'left' | 'right') {
+  await ui.getByRole('button', { name: 'Stage', exact: true }).click();
+  await ui.getByRole('menuitemradio', { name: position[0].toUpperCase() + position.slice(1), exact: true }).click();
 }
 // The window resized as the human drags its edge (by its page's size), its size before given back.
 export const resize = (core: Core, size: { width?: number; height?: number }) => core((k, s) => {
@@ -281,7 +288,8 @@ export async function settingsClosed(core: Core, ui: Page) {
 // laid over its pane's .content box, so after any change in the grid it must follow the box (driver.ts, viewOn).
 // None while it is not there: a wait that polls it ends.
 export const box = async (ui: Page, sel: string) => {
-  const r = await ui.locator(sel).count() === 1 ? await ui.locator(sel).boundingBox() : null;
+  const visible = ui.locator(sel).filter({ visible: true });
+  const r = await visible.count() === 1 ? await visible.boundingBox() : null;
   return r && { x: Math.round(r.x), y: Math.round(r.y), width: Math.round(r.width), height: Math.round(r.height) };
 };
 export const pageBox = (ui: Page, files: Files, name: string) => box(ui, `[role="region"][data-profile="${files.idOf(name)}"] [data-testid="page"]`);
@@ -292,8 +300,15 @@ export async function dock<A, R>(ui: Page, fn: (api: any, arg: A) => R, arg?: A)
   const api = await ui.evaluateHandle(() => (window as any).__dock);
   try { return await api.evaluate(fn as (api: any, arg: unknown) => R, arg); } finally { await api.dispose(); }
 }
-// The Resources panel's height on screen (its group in the grid: lib/grid.ts).
-export const resourcesHeight = (ui: Page) => ui.evaluate(() => Math.round(document.getElementById('resources').closest('.dv-groupview').getBoundingClientRect().height));
+// Retained terminal content sits outside Dockview’s group DOM; the API owns its group’s box.
+export const developmentBox = (ui: Page) => dock(ui, (api) => api.getPanel('terminal').group.element.getBoundingClientRect().toJSON());
+// The independent testing grid; development panels stay in dock().
+export async function stageDock<A, R>(ui: Page, fn: (api: any, arg: A) => R, arg?: A) {
+  const api = await ui.evaluateHandle(() => (window as any).__stage);
+  try { return await api.evaluate(fn as (api: any, arg: unknown) => R, arg); } finally { await api.dispose(); }
+}
+// The Resources edge group's height on screen.
+export const resourcesHeight = async (ui: Page) => Math.round((await resourcesGroup(ui).boundingBox()).height);
 
 // Who the test site says is signed in, in a profile's page, as the agent (of the window's task, or of where) reads it.
 export const who = async (call: Call, profile: string, where?: Where) => (await call('browser_snapshot', { profile }, where)).text.match(/Signed (in as \w+|out)/)?.[0];

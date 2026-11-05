@@ -3,7 +3,7 @@
 import fs from 'fs';
 import path from 'path';
 import { test, expect } from './fixtures.ts';
-import { SITE, who, box, resourcesHeight, invoke, notLoading, arrange } from './helpers.ts';
+import { SITE, who, box, resourcesHeight, invoke, notLoading } from './helpers.ts';
 import { SAM, ELON, committed, begin, bothOn, newTask, showTask } from './tasks-helpers.ts';
 
 test('after a restart: the other task waits in the bar with its tabs, loads when shown, still signed in; a closed one stays closed', async ({ core, ui, call, files, restart }) => {
@@ -26,13 +26,13 @@ test('after a restart: the other task waits in the bar with its tabs, loads when
   // A third task, closed.
   const third = await newTask(core, ui, undefined, pid);
   await invoke(ui, 'task:close', third);
-  await expect.poll(() => core((k, key) => !!k.shell.store.tasksOf({ id: key.split('/')[0] }).list.find((e) => key.endsWith(`/${e.id}`))?.closed, third)).toBe(true);
+  await expect.poll(() => core((k, key) => k.shell.store.tasksOf({ id: key.split('/')[0] }).list.find((e) => key.endsWith(`/${e.id}`))?.closedAt !== undefined, third)).toBe(true);
   await showTask(core, ui, first);
   await notLoading(ui);
 
   const ui2 = await restart();
   await expect(ui2.locator(`#taskTabs [data-project="${pid}"]`)).toHaveText(['task-1', 'Feature-X']);
-  expect(await core((k, id) => [...k.shell.taskByKey(id).project.tasks.values()][2].entry.closed, first)).toBe(true);
+  expect(await core((k, id) => [...k.shell.taskByKey(id).project.tasks.values()][2].entry.closedAt !== undefined, first)).toBe(true);
   expect(await core((k, key) => k.shell.taskByKey(key).loaded, second)).toBe(false);
   // Left loaded in the background: its tabs saved as Kulisa quit, not again as they closed (none left at last).
   const secondDir = path.join(files.userData, 'projects', pid, files.tid('project', 2));
@@ -53,18 +53,38 @@ test('after a restart: the other task waits in the bar with its tabs, loads when
   await bothOn(core, ui2, files);
 });
 
-test('after a restart: the grid is as it was left (preset "grid")', async ({ core, ui, files, restart }) => {
+test('after a restart: Stage stays left and both grids keep their saved sizes', async ({ core, ui, files, restart }) => {
   await begin(core, ui, files, { featureX: true });
-  await arrange(ui, 'grid');
-  // Saved as laid out (the task's layout.json, 300 ms after the grid's last change: lib/grid.ts), before the restart;
+  // Delay animation frames past the save debounce: Dockview delivers nested resizes on a frame.
+  const held = await ui.evaluateHandle(() => {
+    const request = window.requestAnimationFrame, cancel = window.cancelAnimationFrame;
+    const frames = new Map<number, FrameRequestCallback>();
+    let next = -1;
+    window.requestAnimationFrame = (fn) => { const id = next--; frames.set(id, fn); return id; };
+    window.cancelAnimationFrame = (id) => { if (id < 0) frames.delete(id); else cancel(id); };
+    return { release() {
+      window.requestAnimationFrame = request; window.cancelAnimationFrame = cancel;
+      for (const fn of frames.values()) request(fn);
+      frames.clear();
+    } };
+  });
+  try {
+    await invoke(ui, 'stage:arrange', { task: await core((k) => k.shell.task.key), position: 'left' });
+    await expect.poll(() => files.json(files.pfile('task.json')).workspace.stagePosition).toBe('left');
+  } finally {
+    await held.evaluate((h) => h.release()); await held.dispose();
+  }
+  // Saved as laid out (the task's task.json, 300 ms after the grid's last change: lib/grid.ts), before the restart;
   // the grid's shape from dockview's API.
-  await expect.poll(async () => {
-    const now = JSON.stringify(await ui.evaluate(() => (window as any).__dock.toJSON().grid));
-    try { return JSON.stringify(files.json(files.pfile('layout.json')).grid) === now; } catch { return false; }
-  }).toBe(true);
+  await expect(async () => {
+    const now = await ui.evaluate(() => (window as any).__dock.toJSON().grid);
+    const saved = files.json(files.pfile('task.json')).workspace;
+    expect(saved.stagePosition).toBe('left');
+    expect(saved.developmentLayout.grid).toEqual(now);
+  }).toPass({ timeout: 5000 });
 
+  const saved = await resourcesHeight(ui);
   const ui2 = await restart();
-  const saved = files.savedResourcesHeight(); // before anything here changes the grid
   const at = async (sel: string) => (await box(ui2, sel)) ?? { x: -1, width: 0 };
   const sam = `[role="region"][data-profile="${files.idOf(SAM)}"]`, elon = `[role="region"][data-profile="${files.idOf(ELON)}"]`;
   // Once the grid is laid out: Sam's column, Elon's, the terminal right of them.

@@ -3,6 +3,7 @@
 // in its folder.
 // Runs the user's git (a program on every OS), never a shell.
 import { execFile } from 'child_process';
+import { simpleGit } from 'simple-git';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
@@ -17,12 +18,49 @@ const COPIED = ['/.env*'];
 // A failed git command: its error with what git said.
 type GitError = Error & { stderr?: string };
 
-function git(cwd: string, args: string[], { timeout = 30000, input }: { timeout?: number; input?: string } = {}) {
-  return new Promise<string>((resolve, reject) => {
-    const c = execFile('git', args, { cwd, timeout, maxBuffer: 64 << 20, windowsHide: true, env: { ...process.env, GIT_TERMINAL_PROMPT: '0' } },
-      (e, out, err) => (e ? reject(Object.assign(e, { stderr: String(err).trim() })) : resolve(String(out).trim())));
-    if (input !== undefined) c.stdin!.end(input);
+type GitOptions = { timeout?: number; input?: string; maxBuffer?: number };
+async function runGit(cwd: string, args: string[], { timeout = 30000, input, maxBuffer = 64 << 20 }: GitOptions, binary: boolean) {
+  const abort = new AbortController(), output: Buffer[] = [], errors: Buffer[] = [];
+  let failure: Error | undefined;
+  // Git runs without an interactive pager or editor; terminal agents keep their own shell environment.
+  const env: NodeJS.ProcessEnv = { ...process.env, GIT_TERMINAL_PROMPT: '0' };
+  for (const key of ['GIT_PAGER', 'PAGER', 'GIT_EDITOR', 'GIT_SEQUENCE_EDITOR', 'EDITOR', 'VISUAL']) delete env[key];
+  const client = simpleGit({ baseDir: cwd, trimmed: false, abort: abort.signal,
+    allowEnvironment: [...Object.keys(process.env), 'GIT_TERMINAL_PROMPT'],
+    // Quiet Git checks signal a missing ref through the exit code alone.
+    errors: (error, { exitCode }) => error ?? (exitCode ? new Error(`Git exited with code ${exitCode}.`) : undefined),
+    // The input plugin skips an empty string; a zero-byte buffer still closes stdin.
+    input: () => input === '' ? Buffer.alloc(0) : input,
+    timeout: { block: timeout, stdOut: false, stdErr: false },
+  }).env(env);
+  client.outputHandler((_command, stdout, stderr) => {
+    const collect = (stream: NodeJS.ReadableStream, chunks: Buffer[] | null) => {
+      let size = 0;
+      stream.on('data', (chunk: Buffer) => {
+        size += chunk.length;
+        if (size > maxBuffer) {
+          failure ??= new Error('Git output exceeds the configured limit.');
+          abort.abort();
+        } else chunks?.push(chunk);
+      });
+    };
+    // Byte buffers preserve Git's NUL records and blob encodings; text commands use the library's result.
+    collect(stdout, binary ? output : null); collect(stderr, errors);
   });
+  try {
+    const text = await (args[0] === 'diff' ? client.diff(args.slice(1)) : client.raw(args));
+    if (failure) throw failure;
+    return binary ? Buffer.concat(output) : text;
+  } catch (e) {
+    throw Object.assign(failure ?? (e as Error), { stderr: Buffer.concat(errors).toString('utf8').trim() });
+  }
+}
+async function gitBuffer(cwd: string, args: string[], options: GitOptions = {}) {
+  return await runGit(cwd, args, options, true) as Buffer;
+}
+async function git(cwd: string, args: string[], { trim = true, ...options }: GitOptions & { trim?: boolean } = {}) {
+  const out = await runGit(cwd, args, options, false) as string;
+  return trim ? out.trim() : out;
 }
 const ok = (p: Promise<unknown>) => p.then(() => true, () => false);
 // A folder's real path as the OS gives it, as git's is: Node's own keeps a Windows short name (C:\Users\COSMOT~1),
@@ -135,36 +173,6 @@ async function progress({ worktree, branch, base }: Copy) {
   return { log, status, stat };
 }
 
-// A task's copy merged on its remote (its PR merged): it has commits of its own, all of them in the remote's default
-// branch (origin/HEAD, fetched first), and no uncommitted files; deleting it then loses nothing. A squash or a rebase
-// merge makes new commits: they are told by their changes (git's patch ids), each commit's or the whole branch's in one.
-async function merged({ repo, worktree, branch, base }: Copy) {
-  const remote = await git(repo, ['rev-parse', '--abbrev-ref', 'origin/HEAD']).catch((): null => null); // origin/main
-  if (!remote) return false;
-  await git(repo, ['fetch', '--quiet', 'origin', remote.replace(/^origin\//, '')], { timeout: 20000 }).catch(() => {});
-  const count = async (...a: string[]) => Number(await git(repo, ['rev-list', '--count', ...a]).catch(() => -1));
-  if ((await count(branch, `^${base}`)) < 1) return false;
-  if (fs.existsSync(worktree) && await git(worktree, ['status', '--porcelain']).catch(() => 'x')) return false;
-  return (await count(branch, `^${remote}`)) === 0 || await rebased(repo, branch, base, remote) || await squashed(repo, branch, remote);
-}
-// Each of the branch's commits has one of the same change in the remote's branch ('-' in git cherry).
-async function rebased(repo: string, branch: string, base: string | null, remote: string) {
-  const out = await git(repo, ['cherry', remote, branch, ...(base ? [base] : [])]).catch(() => '+');
-  return !!out && !/^\+/m.test(out);
-}
-// The branch's whole change since it parted from the remote's branch is one commit there. The user's diff settings
-// (color, an external diff) are kept out: both patch ids come from the same plain diff.
-async function squashed(repo: string, branch: string, remote: string) {
-  const plain = ['--no-color', '--no-ext-diff'];
-  const ids = async (patch: string) => new Set((await git(repo, ['patch-id', '--stable'], { input: patch }).catch(() => ''))
-    .split('\n').filter(Boolean).map((l) => l.split(' ')[0]));
-  const from = await git(repo, ['merge-base', branch, remote]).catch((): null => null);
-  if (!from) return false;
-  const [own] = await ids(await git(repo, ['diff', ...plain, from, branch]).catch(() => ''));
-  if (!own) return false;
-  return (await ids(await git(repo, ['log', '-p', ...plain, '--no-merges', `${from}..${remote}`]).catch(() => ''))).has(own);
-}
-
 // direnv's records allowing the task's .envrc (allowEnvrc), removed: one file per content it was allowed with, in
 // <XDG data>/direnv/allow/, holding the .envrc's path. Not `direnv deny`: newer direnv keeps a record of that too.
 function forgetEnvrc(worktree: string) {
@@ -206,4 +214,4 @@ async function renameBranch(copies: Copy[], name: string) {
 const clone = (url: string, into: string) => git(path.dirname(into), ['clone', '--quiet', '--', url, into], { timeout: 10 * 60_000 });
 
 export type { GitError };
-export { git, repoOf, freeBranch, createWorktree, changes, progress, merged, renameBranch, removeWorktree, clone };
+export { git, gitBuffer, repoOf, freeBranch, createWorktree, changes, progress, renameBranch, removeWorktree, clone };

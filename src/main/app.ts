@@ -9,9 +9,9 @@ import { CdpProxy } from './cdp-proxy.ts';
 import { Store, branchOf } from './store.ts';
 import { Accounts } from './accounts.ts';
 import { ProfileStore } from './profile-store.ts';
-import { CookieSync } from './cookie-sync.ts';
+import { CookieSync } from '../browser/main/index.ts';
 import { signinPages } from './signin-pages.ts';
-import { SessionCookies } from './session-cookies.ts';
+import { SessionCookies } from '../browser/main/index.ts';
 import { pictureOf, githubUsers, deleteGitHub } from './projects.ts';
 import { GitHub, installGitHub } from '../github/main/index.ts';
 import { ActivityMonitor } from '../activity-monitor/main/index.ts';
@@ -20,7 +20,7 @@ import { recognizer } from './recognizer.ts';
 import { COLORS } from './window.ts';
 import type { AppWindow } from './window.ts';
 import { findFavicon } from './favicons.ts';
-import { AGENTS, findAgent, signOut, startMcpServer, installGhost } from '../kulisa-plugin/main/index.ts';
+import { AGENTS, findAgent, startMcpServer, installGhost } from '../kulisa-plugin/main/index.ts';
 import { onEscape, stopAllTerminals } from '../terminal/main/index.ts';
 import { pluginHost } from './plugin.ts';
 import { installPicker } from './picker.ts';
@@ -136,7 +136,7 @@ function start(options: Options = {}) {
   // Speaking to the agent (src/dictation); for an agent without dictation of its own, another agent's account
   // recognizes (recognizer.ts).
   const speech = recognizer(shell, userData);
-  shell.dictation = new Dictation((task, voice) => shell.taskByKey(task)?.window?.send('voice', { task, voice }), { recognizer: speech });
+  shell.dictation = new Dictation((task, voice) => shell.taskByKey(task)?.window?.send('voice:state', { task, voice }), { recognizer: speech });
   shell.github = new GitHub({ dir: userData, fetch: (url, init) => net.fetch(url, init), secrets: shell.secrets });
   shell.github.accounts.logAll();
   // What Kulisa takes on the computer (src/activity-monitor), told where every task's data is.
@@ -229,7 +229,7 @@ function start(options: Options = {}) {
   };
   // And its tasks (the sidebar lists them: components/Sidebar.tsx): those open, as made, then the closed ones, the one closed last first.
   const tasksOf = (p: ProjectEntry) => {
-    const list = store.tasksOf(p).list.map((e) => ({ id: e.id, name: e.name, branch: branchOf(e), closed: !!e.closed, closedAt: e.closedAt, merged: !!e.merged }));
+    const list = store.tasksOf(p).list.map((e) => ({ id: e.id, name: e.name, branch: branchOf(e), closed: e.closedAt !== undefined, closedAt: e.closedAt }));
     return [...list.filter((t) => !t.closed), ...list.filter((t) => t.closed).sort((a, b) => (b.closedAt || 0) - (a.closedAt || 0))];
   };
   shell.projects = () => store.projects().map((p) => {
@@ -287,10 +287,10 @@ function start(options: Options = {}) {
     shell.language = code;
     store.saveSettings({ ...store.settings(), language: code });
     for (const a of shell.accounts.all()) {
-      const r = !a.own && a.dir ? a.agent.language?.set(a.dir, code) : null;
+      const r = a.origin === 'kulisa' && a.dir ? a.agent.language?.set(a.dir, code) : null;
       if (r?.error) console.warn('[agents] language:', r.error);
     }
-    for (const w of shell.windows) w.send('language', shell.languageInfo());
+    for (const w of shell.windows) w.send('language:state', shell.languageInfo());
     return { language: code };
   };
   // Where the bar of the open projects and their tasks is: 'bottom' (the default: by the terminal, where the hand
@@ -298,7 +298,13 @@ function start(options: Options = {}) {
   shell.bar = store.settings().bar || 'bottom';
   shell.setBar = (bar) => {
     shell.bar = bar; store.saveSettings({ ...store.settings(), bar });
-    for (const w of shell.windows) w.send('bar', bar);
+    for (const w of shell.windows) w.send('bar:state', bar);
+  };
+  shell.stageFollow = store.settings().stageFollow ?? false;
+  shell.setStageFollow = (follow) => {
+    if (shell.stageFollow === follow) return;
+    shell.stageFollow = follow; store.saveSettings({ ...store.settings(), stageFollow: follow });
+    for (const w of shell.windows) w.send('stage:follow:state', follow);
   };
   const allTasks = () => [...shell.open.values()].flatMap((p) => [...p.tasks.values()]);
   // Every open profile: the tasks' copies, and the masters open to sign in to (master.ts).
@@ -315,7 +321,6 @@ function start(options: Options = {}) {
   onEscape((key) => shell.taskByKey(key.split('#')[0]!)?.interrupted(key));
   registerProjects(ipc, { lookForFavicon });
   registerProfiles(ipc);
-  registerAgents(ipc);
   registerPanes(ipc);
   registerWindow(ipc);
   installGitHub(shell.github, { usedBy: (id) => githubUsers(shell, id), remove: (e, id) => deleteGitHub(shell, id, at(e)),
@@ -352,12 +357,12 @@ function start(options: Options = {}) {
     const projectOf = (key: string) => { const p = store.projects().find((x) => key.startsWith(`${x.id}/`)); return p && loadProject(p); };
     const windows = saved.map((s) => {
       const w = newWindow(s);
-      for (const key of s.tabs) { const task = projectOf(key)?.taskByKey(key); if (task && !task.entry.closed && !task.window) w.add(task); }
+      for (const key of s.tabs) { const task = projectOf(key)?.taskByKey(key); if (task && task.entry.closedAt === undefined && !task.window) w.add(task); }
       return { w, shown: (s.shown && w.tabs.find((t) => t.key === s.shown)) || w.tabs[0] || null };
     });
     if (!windows.length) windows.push({ w: newWindow({}), shown: null });
     for (const p of store.projects()) {
-      const open = store.tasksOf(p).list.filter((t) => !t.closed);
+      const open = store.tasksOf(p).list.filter((t) => t.closedAt === undefined);
       if (open.length) for (const task of loadProject(p).open()) if (!task.window) windows[0]!.w.add(task);
     }
     unloadIdle();
@@ -405,14 +410,13 @@ function start(options: Options = {}) {
   const known = [...(custom ? [custom] : []), ...(options.agents || AGENTS)];
   shell.agentFiles = [...new Set(known.flatMap((a) => a.localFiles || []))];
   // The agents with their accounts (accounts.ts); an account is its agent with its config folder in its environment.
-  shell.accounts = new Accounts(userData, known, (dir) => store.markDeleted(dir));
+  shell.accounts = new Accounts(userData, known, (dir) => store.markDeleted(dir), { home: app.getPath('home') });
   speech.clean();
   shell.accounts.clean();
   // An account the human deleted (projects.ts, deleteAccount): signed out with its agent's own command (what it keeps outside
-  // its folder goes too: Claude Code's Keychain entry on macOS), then its folder.
+  // its folder goes too: Claude Code's Keychain entry on macOS), then its folder. External entries disconnect only.
   shell.dropAccount = async (a) => {
-    await signOut(a.agent, await findAgent(a.agent, app.getPath('home')), a.dir!);
-    shell.accounts.remove(a.dir!);
+    await shell.accounts.disposeAccount(a);
     shell.sendProjects(); // the last of all: nothing left for Settings
   };
   // An agent or account a task may run (any: also an agent itself that has accounts, as for installing it, or a task
@@ -420,10 +424,11 @@ function start(options: Options = {}) {
   shell.agentFor = (id, { any = false } = {}) => {
     const a = shell.accounts.find(id ?? custom?.id);
     if (!a || (!a.choosable && !any)) return null;
-    return { ...a.agent, id: a.id, agentId: a.agent.id, cli: a.agent.name, name: a.name, configDir: a.own ? a.agent.config?.home() ?? null : a.dir,
-      env: a.own ? {} : { [a.agent.config!.env]: a.dir! } };
+    return { ...a.agent, id: a.id, agentId: a.agent.id, cli: a.agent.name, name: a.name, configOrigin: a.origin, configDir: a.own ? a.agent.config?.home() ?? null : a.dir,
+      env: a.own ? {} : { [a.agent.config!.env]: a.defaultConfig ? undefined : a.dir! } };
   };
   shell.findAgent = findAgent;
+  registerAgents(ipc);
   installShortcuts(shell, { appDevTools });
 
   // Save session cookies and flush persistent ones before quitting, so sign-ins survive a restart; the windows and

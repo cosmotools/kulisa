@@ -2,10 +2,10 @@
 // The core layers check runtime imports; Kulisa packages check type dependencies too (docs/packages.md).
 import type { IConfiguration } from 'dependency-cruiser';
 
-// Layers 1 and 2 are lists of src/main's files; the Kulisa plugin is a Kulisa package. A file in none of them is the window's (layer 4).
+// The core profile integration and automation access are lists of src/main's files; the Kulisa plugin is a Kulisa package. A file in none of them is the window's (layer 4).
 // Base: git and what is local, used by every layer; nothing of src/main above them.
-const base = '^src/main/(worktrees|remotes|local|log|remove|artifacts)\\.ts$';
-const layer1 = '^src/main/(profiles|page-focus|project-profiles|profile-store|store|session-cookies|cookie-sync|signin-[a-z]+)\\.ts$';
+const base = '^src/main/(worktrees|remotes|local|log|files|remove|artifacts)\\.ts$';
+const layer1 = '^src/main/(project-profiles|profile-store|store|signin-[a-z]+)\\.ts$';
 const layer2 = '^src/main/(cdp-proxy|local-only)\\.ts$';
 const main = '^src/main/';
 const settings = '^src/renderer/components/settings/';
@@ -18,11 +18,14 @@ const only = (name: string, from: string, allowed: string[], comment: string) =>
 // through its entries (other packages' too); its main process half uses of src/main only what its line names, its window
 // half nothing of the window. A new Kulisa package is a line here.
 const packages: Record<string, { main: string[] }> = {
-  'kulisa-plugin': { main: ['log', 'store', 'remove'] },
+  'kulisa-plugin': { main: ['log', 'store', 'files', 'remove'] },
+  browser: { main: ['log', 'files', 'local'] },
   terminal: { main: ['ipc', 'log'] }, // a terminal: its pty, its buffers and the xterm shown
+  diff: { main: ['worktrees'] }, // local Git review; task ownership and window state are supplied by callers
+  'project-explorer': { main: [] }, // a folder browser; roots and desktop actions come from the caller
   screenshots: { main: ['ipc', 'log'] }, // a picture of a page: an element, the visible part, the whole page
-  // GitHub accounts and their sign-ins; store for its file's id and its atomic write, the data folder's own.
-  github: { main: ['ipc', 'log', 'store'] },
+  // GitHub accounts and their sign-ins; store supplies ids, files supplies atomic writes.
+  github: { main: ['ipc', 'log', 'store', 'files'] },
   'activity-monitor': { main: [] }, // what Kulisa takes on the computer; told of the tasks by the caller
   dictation: { main: ['ipc', 'log'] }, // dictation: what each task's microphone shows, and recording
 };
@@ -32,7 +35,9 @@ const packageRules = (name: string, { main: uses }: { main: string[] }) => {
     { name: `${name}-entries`, severity: 'error' as const, comment: `${name}/ is reached through main/index.ts, renderer/index.ts and ipc.ts only.`,
       from: { pathNot: dir }, to: { path: dir, pathNot: `${dir}(main/index|renderer/index|ipc)\\.ts$` } },
     { name: `${name}-main`, severity: 'error' as const, comment: `${name}/main uses nothing of src/main but ${uses.join(', ')}.`,
-      from: { path: `${dir}main/` }, to: { path: main, pathNot: `^src/main/(${uses.join('|')})\\.ts$` } },
+      from: { path: `${dir}main/` }, to: { path: '^src/(main|renderer|preload)/', pathNot: `^src/main/(${uses.join('|')})\\.ts$` } },
+    { name: `${name}-contracts`, severity: 'error' as const, comment: `${name}/ipc.ts declares contracts without core domain dependencies.`,
+      from: { path: `${dir}ipc\\.ts$` }, to: { path: '^src/(main|renderer|preload)/' } },
     { name: `${name}-renderer`, severity: 'error' as const, comment: `${name}/renderer uses nothing of the window, nor of the main process.`,
       from: { path: `${dir}renderer/` }, to: { path: '^src/(renderer|main|preload)/' } },
     { name: `${name}-sides`, severity: 'error' as const, comment: `${name}'s two halves run in two processes: only types between them.`,
@@ -56,6 +61,9 @@ const config: IConfiguration = {
       from: { path: '^src/renderer/' }, to: { preCompilationOnly: false, path: '^src/(main|preload)/' } },
     { name: 'main-not-page', severity: 'error', comment: 'The main process takes only types of the window\'s page.',
       from: { path: '^src/main/' }, to: { preCompilationOnly: false, path: '^src/renderer/' } },
+    { name: 'stage-terminal-host', severity: 'error', comment: 'Stage terminal lifecycle uses an explicit host contract; it imports no task, window or store, including their types.',
+      from: { path: '^src/main/stage-terminals\\.ts$' },
+      to: { path: '^src/main/', pathNot: '^src/main/log\\.ts$' } },
     ...Object.entries(packages).flatMap(([name, p]) => packageRules(name, p)),
     // src/ui, shadcn's components as its CLI makes them (src/ui/README.md): reached through its entry, using nothing of Kulisa.
     { name: 'ui-entry', severity: 'error', comment: 'src/ui is reached from outside through its index.ts only.',
@@ -64,9 +72,18 @@ const config: IConfiguration = {
       from: { path: '^src/ui/' }, to: { path: '^src/', pathNot: '^src/ui/' } },
     // The window's logic apart from its look (docs/ui.md, The code): rewriting the components touches no logic, and the
     // logic never comes to depend on a look.
-    { name: 'logic-not-look', severity: 'error', comment: 'src/renderer/lib/ imports no component, no UI library, no icons.',
-      from: { path: '^src/renderer/lib/' },
-      to: { path: ['^src/renderer/components/', '^src/ui/', 'node_modules/(lucide-react|radix-ui|@radix-ui)/'] } },
+    { name: 'logic-not-look', severity: 'error', comment: 'Shared renderer logic and the project draft import no component, UI library or icons.',
+      from: { path: '^src/renderer/(lib/|components/new-project/draft\\.ts$)' },
+      to: { path: ['^src/renderer/components/', '^src/renderer/task-view/.*\\.tsx$', '^src/ui/', 'node_modules/(lucide-react|radix-ui|@radix-ui)/'] } },
+    { name: 'task-view-entry', severity: 'error', comment: 'TaskView keeps its state, grids and panels behind its command and UI entries.',
+      from: { pathNot: '^src/renderer/task-view/' },
+      to: { path: '^src/renderer/task-view/', pathNot: '^src/renderer/task-view/(index\\.ts|TaskView\\.tsx)$' } },
+    { name: 'welcome-entry', severity: 'error', comment: 'The welcome owns its examples, animations and assets; outside callers use Welcome.tsx.',
+      from: { pathNot: '^src/renderer/components/welcome/' },
+      to: { path: '^src/renderer/components/welcome/', pathNot: '^src/renderer/components/welcome/Welcome\\.tsx$' } },
+    { name: 'new-project-entry', severity: 'error', comment: 'Project creation owns its draft, dialog and sequence behind one public UI entry.',
+      from: { pathNot: '^src/renderer/components/new-project/' },
+      to: { path: '^src/renderer/components/new-project/', pathNot: '^src/renderer/components/new-project/index\\.tsx$' } },
     // Settings is the window's chunk of its own, read as it is first shown (App.tsx): a static import pulls it into the
     // window's bundle.
     { name: 'settings-entry', severity: 'error', comment: 'components/settings/ is reached from outside only by import() of its index.ts.',
@@ -74,9 +91,7 @@ const config: IConfiguration = {
     { name: 'settings-lazy', severity: 'error', comment: 'components/settings/ is imported from outside only by import() (App.tsx, lazy).',
       from: { pathNot: settings }, to: { preCompilationOnly: false, path: settings, dynamic: false } },
     { name: 'no-circular', severity: 'error', comment: 'A cycle at run time: one of its modules is loaded half done.',
-      // grid.ts and views.ts call each other's functions only after both have loaded (the pages live again, then
-      // the grid's boxes sent): a cycle without that danger, and passing one of them in would be code for the tool.
-      from: { pathNot: '^src/renderer/lib/(grid|views)\\.ts$' }, to: { preCompilationOnly: false, circular: true, viaOnly: { dependencyTypesNot: ['type-only'] } } },
+      from: {}, to: { preCompilationOnly: false, circular: true, viaOnly: { dependencyTypesNot: ['type-only'] } } },
   ],
   options: {
     tsPreCompilationDeps: 'specify',

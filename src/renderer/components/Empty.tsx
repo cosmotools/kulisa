@@ -1,8 +1,8 @@
-// The empty window (docs/tasks.md, The empty window): no task open. With no project at all, the welcome (Welcome.tsx);
+// The empty window (docs/tasks.md, The empty window): no task open. With no project at all, the welcome (welcome/Welcome.tsx);
 // else the sidebar docked, every project with its tasks, and in the grid's place what to do.
 import { Empty as Nothing, EmptyDescription, EmptyHeader, EmptyTitle } from '@ui';
 import { DockedSidebar } from './Sidebar';
-import { Welcome } from './Welcome';
+import { Welcome } from './welcome/Welcome';
 import { useWindow, pageOf } from '../lib/store';
 
 export function Empty() {

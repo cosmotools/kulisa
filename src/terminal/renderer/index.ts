@@ -8,11 +8,12 @@
 import '@xterm/xterm/css/xterm.css';
 import '@fontsource/jetbrains-mono/400.css';
 import '@fontsource/jetbrains-mono/700.css';
-import { Terminal, type ILink } from '@xterm/xterm';
+import { Terminal, type IDisposable, type ILink } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { Unicode11Addon } from '@xterm/addon-unicode11';
 import { WebglAddon } from '@xterm/addon-webgl';
 import { SerializeAddon } from '@xterm/addon-serialize';
+import { SearchAddon } from '@xterm/addon-search';
 import { WebLinksAddon } from '@xterm/addon-web-links';
 import { fileOf, pathsAt } from './paths';
 import type { FileLink } from '../ipc';
@@ -47,6 +48,7 @@ export const termHooks: {
   files?: (key: string, paths: string[]) => Promise<(FileLink | null)[]>;
   openFile?: (e: MouseEvent, path: string) => void;
   pasteImage?: (key: string) => void;
+  colors?: () => TermColors;
 } = {
   open: (_e, uri) => { window.open(uri); },
 };
@@ -95,9 +97,28 @@ function bufferOf(key: string, size?: { cols: number; rows: number }): Buffer {
       return false;
     });
   }
+  // The unopened buffer answers even for hidden tasks; visible Views consume queries without a second reply.
+  term.onData((data) => kulisa.send('pty:in', { task: key, data }));
+  for (const ident of [4, 10, 11, 12]) term.parser.registerOscHandler(ident, (data) => data.includes('?') ? answerColor(key, ident, data) : false);
   buffers.set(key, b = { term, serialize, modes });
   return b;
 }
+// xterm initializes its palette only on open. One tiny detached renderer supplies color-query replies for all
+// buffers, through xterm's parser rather than a second implementation of its color protocol.
+let palette: Terminal | null = null;
+let paletteReady = Promise.resolve();
+function answerColor(key: string, ident: number, data: string) {
+  const answered = paletteReady.then(() => new Promise<void>((resolve) => {
+    if (!palette) { palette = new Terminal({ cols: 2, rows: 1, scrollback: 0 }); palette.open(document.createElement('div')); }
+    const colors = termHooks.colors?.();
+    if (colors) palette.options.theme = xtermTheme(colors);
+    const sub = palette.onData((reply) => kulisa.send('pty:in', { task: key, data: reply }));
+    palette.write(`\x1b]${ident};${data}\x07`, () => { sub.dispose(); resolve(); });
+  }));
+  paletteReady = answered.catch(() => {});
+  return answered.then(() => true);
+}
+
 // What another xterm is given to show the same: the serialized buffer and the modes it leaves out.
 export function serialized(key: string) {
   const b = buffers.get(key);
@@ -116,15 +137,43 @@ export class View {
   el = Object.assign(document.createElement('div'), { className: 'term', style: 'height: 100%' });
   key: string | null = null;
   renderer?: 'dom' | 'webgl';
-  isLaidOut?: () => boolean;
   // The rows that fit, in the middle: what is left under a whole row (the place's height is any) shared above and below,
   // so no edge gets a row's height of it and a pixel more or less never costs a row.
   private host = Object.assign(document.createElement('div'), { className: 'xterm-host',
-    style: 'height: 100%; display: flex; flex-direction: column; justify-content: center' });
+    style: 'height: 100%; display: flex; flex-direction: column; justify-content: center; opacity: 0' });
   private fit = new FitAddon();
+  private search?: SearchAddon;
+  private searchText = '';
+  private searchRefreshQueued = false;
+  onSearchResult?: (found: boolean) => void;
+  find(text: string, previous = false, incremental = false) {
+    if (!text) { this.clearSearch(); return false; }
+    this.searchText = text;
+    if (!this.search) {
+      this.search = new SearchAddon(); this.term.loadAddon(this.search);
+      // xterm's selection service clears after public resize listeners; refresh after all resize handlers finish.
+      const refresh = () => {
+        if (this.searchRefreshQueued) return;
+        this.searchRefreshQueued = true;
+        queueMicrotask(() => {
+          this.searchRefreshQueued = false;
+          if (views.has(this) && this.searchText) this.find(this.searchText, false, true);
+        });
+      };
+      this.term.onResize(refresh);
+      this.term.onWriteParsed(refresh);
+    }
+    const found = previous ? this.search.findPrevious(text) : this.search.findNext(text, { incremental });
+    this.onSearchResult?.(found);
+    return found;
+  }
+  clearSearch() { this.searchText = ''; this.search?.clearDecorations(); this.term.clearSelection(); this.onSearchResult?.(false); }
+  private fixed: { cols: number; rows: number } | null = null;
+  setSize(size: { cols: number; rows: number } | null) { this.fixed = size; this.host.style.justifyContent = size ? 'flex-start' : 'center'; this.fitSoon(); }
   private opened = false;
   private seen = new ResizeObserver(() => this.fitSoon());
   private pending: string[] | null = null; // output that came while the buffer was being put in
+  private paint?: IDisposable;
   constructor({ colors, fontSize }: TermStyle) {
     this.el.append(this.host);
     const t = this.term = new Terminal({ fontSize, fontFamily: '"JetBrains Mono", monospace', cursorBlink: true,
@@ -132,6 +181,12 @@ export class View {
     t.loadAddon(new Unicode11Addon());
     t.unicode.activeVersion = '11';
     t.loadAddon(this.fit);
+    // xterm's buffer owns protocol replies; the View owns keyboard, paste and mouse input.
+    for (const id of [{ final: 'c' }, { prefix: '>', final: 'c' }, { final: 'n' }, { prefix: '?', final: 'n' },
+      { intermediates: '$', final: 'p' }, { prefix: '?', intermediates: '$', final: 'p' }]) t.parser.registerCsiHandler(id, () => true);
+    t.parser.registerCsiHandler({ final: 't' }, (p) => [14, 16, 18].includes(Number(p[0])));
+    t.parser.registerDcsHandler({ intermediates: '$', final: 'q' }, () => true);
+    for (const ident of [4, 10, 11, 12]) t.parser.registerOscHandler(ident, (data) => data.includes('?'));
     t.loadAddon(new WebLinksAddon(termLinks.activate, termLinks));
     t.registerLinkProvider({ provideLinks: (y, done) => fileLinks(t, this.key, y, done) });
     views.add(this);
@@ -141,9 +196,9 @@ export class View {
       t.open(this.host);
       this.renderer = 'dom';
       try {
-        const webgl = new WebglAddon();
-        webgl.onContextLoss(() => { webgl.dispose(); this.renderer = 'dom'; }); // back to the DOM renderer
-        t.loadAddon(webgl);
+        const addon = new WebglAddon();
+        addon.onContextLoss(() => { addon.dispose(); this.renderer = 'dom'; }); // back to the DOM renderer
+        t.loadAddon(addon);
         this.renderer = 'webgl';
       } catch (e) { console.warn('[terminal] WebGL renderer unavailable:', (e as Error).message); }
       this.opened = true;
@@ -182,10 +237,16 @@ export class View {
   show(key: string | null) {
     if (key === this.key) return;
     const was = this.key && buffers.get(this.key), at = this.term.buffer.active;
-    if (was) was.scroll = at.viewportY === at.baseY ? undefined : at.viewportY; // at the end: kept at the end
+    if (was && !this.pending) was.scroll = at.viewportY === at.baseY ? undefined : at.viewportY; // at the end: kept at the end
+    this.paint?.dispose();
+    this.paint = undefined;
+    // Keep geometry and keyboard focus while asynchronous writes and resize can draw the preceding buffer.
+    this.host.style.opacity = '0';
+    this.pending = null;
     this.key = key;
     if (!key) return this.term.reset();
-    const b = bufferOf(key, this.size() ?? undefined);
+    // An existing buffer owns its size; measuring after a DOM move forces synchronous layout.
+    const b = buffers.get(key) ?? bufferOf(key, this.size() ?? undefined);
     // The buffer's own writes are queued: what is queued is parsed first, so the buffer is all its output so far.
     // Output coming meanwhile goes to the buffer after that mark, and here after it (pending).
     const pending: string[] = this.pending = [];
@@ -194,13 +255,14 @@ export class View {
       // At the buffer's own size: the fit (below) gives both the room laid out, as for any change of size. Fitted to
       // the room here, a window just opened, its grid not laid out, would wrap the buffer at 9 columns.
       this.term.resize(b.term.cols, b.term.rows);
-      // The reset (RIS) in the same write as the contents: one write is parsed at once, so no frame is drawn between
-      // them, and the terminal shown before stays on screen until then (one reset before it would be drawn empty).
-      this.term.write(`\x1bc${serialized(key)!.data}${pending.join('')}`, () => {
+      this.term.write(`\x1bc${serialized(key)!.data}${pending.splice(0).join('')}`, () => {
+        if (this.key !== key || this.pending !== pending) return;
         if (b.scroll !== undefined) this.term.scrollToLine(b.scroll);
+        this.pending = null;
+        if (pending.length) this.term.write(pending.join(''));
+        this.reveal();
+        this.fitSoon();
       });
-      this.pending = null;
-      this.fitSoon();
     });
   }
   // Its terminal's buffer given another size (restoreTerminal): at it too, then fitted to its room as after show.
@@ -219,41 +281,63 @@ export class View {
     if (colors) this.term.options.theme = xtermTheme(colors);
     if (fontSize !== undefined && fontSize !== this.term.options.fontSize) { this.term.options.fontSize = fontSize; this.fitSoon(); }
   }
-  dispose() { views.delete(this); this.seen.disconnect(); this.term.dispose(); this.el.remove(); }
+  dispose() {
+    cancelAnimationFrame(this.fitFrame); clearTimeout(this.fitTimer); this.paint?.dispose();
+    this.pending = null;
+    views.delete(this); this.seen.disconnect(); this.term.dispose(); this.el.remove();
+  }
   // The size it has room for, once it is on screen and xterm has measured its characters.
   private size() {
     if (!this.opened || !this.el.offsetWidth) return null;
+    if (this.fixed) return this.fixed;
     const d = this.fit.proposeDimensions();
     return d?.cols ? { cols: d.cols, rows: d.rows } : null;
+  }
+  private reveal() {
+    const ready = () => {
+      if (this.pending) return false;
+      const size = this.size();
+      return size && this.term.cols === size.cols && this.term.rows === size.rows;
+    };
+    if (!this.host.style.opacity || this.paint || !ready()) return;
+    this.paint = this.term.onRender(() => {
+      if (!ready()) return;
+      this.paint?.dispose();
+      this.paint = undefined;
+      this.host.style.opacity = '';
+    });
+    this.term.refresh(0, this.term.rows - 1);
   }
   // Its size sent once it is on screen, laid out: an agent starts at the first size sent for its terminal
   // (main/index.ts) and draws its prompt for it. Not yet measured (xterm has not measured its characters, or the
   // panel is not laid out): again a moment later, so the agent gets its real size, never xterm's default.
   // Measured in a frame about to be drawn (README.md, Fitted in a frame about to be drawn); in a hidden page, which draws
   // no frames, at once.
+  private fitFrame = 0;
   private fitTimer = 0;
   private fitSoon(tries = 50) {
+    cancelAnimationFrame(this.fitFrame);
     clearTimeout(this.fitTimer);
-    const inFrame = (f: () => void) => (document.hidden ? f() : requestAnimationFrame(f));
-    this.fitTimer = window.setTimeout(() => inFrame(() => {
+    const measure = () => {
       const key = this.key;
-      if (!key || this.pending || !this.opened || !this.el.offsetWidth) return; // not on screen: fitted when it comes
-      if (this.isLaidOut && !this.isLaidOut()) return tries && this.fitSoon(tries - 1);
+      if (!views.has(this) || !key || this.pending || !this.opened || !this.el.offsetWidth) return;
       const size = this.size();
       if (!size) return tries && this.fitSoon(tries - 1);
       const fit = () => {
         if (this.key !== key || this.pending || !views.has(this)) return; // another shown meanwhile (its own fit follows), or disposed
-        if (this.isLaidOut && !this.isLaidOut()) return this.fitSoon(tries);
         if (this.term.cols !== size.cols || this.term.rows !== size.rows) this.term.resize(size.cols, size.rows);
         const b = bufferOf(key, size);
         if (b.term.cols !== size.cols || b.term.rows !== size.rows) b.term.resize(size.cols, size.rows);
         kulisa.send('pty:resize', { task: key, ...size });
+        this.reveal();
       };
       // Resized after this frame: a resize clears WebGL's canvas and xterm draws it again in the next frame, so one
       // resized in a frame is drawn empty (README.md, Fitted in a frame about to be drawn).
       if (document.hidden) fit();
       else this.fitTimer = window.setTimeout(fit);
-    }), 100);
+    };
+    if (document.hidden) this.fitTimer = window.setTimeout(measure);
+    else this.fitFrame = requestAnimationFrame(measure);
   }
 }
 
@@ -266,8 +350,13 @@ export function restoreTerminal(key: string, { data, cols, rows }: { data: strin
   for (const v of views) v.sized(key, cols, rows);
   output(key, data);
 }
-function output(key: string, data: string) {
-  bufferOf(key).term.write(data);
+function output(key: string, data: string, size?: { cols: number; rows: number }) {
+  const b = bufferOf(key, size);
+  if (size && (b.term.cols !== size.cols || b.term.rows !== size.rows)) {
+    b.term.resize(size.cols, size.rows);
+    for (const v of views) v.sized(key, size.cols, size.rows);
+  }
+  b.term.write(data);
   for (const v of views) v.write(key, data);
 }
 // Terminals gone: of tasks gone (their project closed or moved, a task deleted: their keys), or closed (a terminal's
@@ -279,9 +368,11 @@ export function forgetTerminals(keys: string[]) {
     buffers.delete(key);
   }
 }
-kulisa.on('pty:out', ({ task, data }) => output(task, data));
+kulisa.on('pty:out', ({ task, data, cols, rows }) => output(task, data, { cols, rows }));
 // The keyboard to a terminal shown somewhere, once its xterm is open (a new one opens when its font is there).
-export const termFocus = (key: string) => termFont.then(() => { for (const v of views) if (v.key === key) v.term.focus(); });
+export const termFocus = (key: string, wanted: () => boolean = () => true) => termFont.then(() => {
+  if (wanted()) for (const v of views) if (v.key === key) v.term.focus();
+});
 
 // Copy and paste as the OS's own terminal does, so hands need nothing new (xterm leaves the keys to the app, as VS Code
 // sets its own): Ctrl+Shift+C / V everywhere (GNOME Terminal, Konsole); on Windows also Ctrl+V, and Ctrl+C copies a

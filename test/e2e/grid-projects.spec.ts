@@ -16,7 +16,7 @@ async function makeOther(core: Core, ui: Page, files: Files) {
   if (hasOther(files)) return;
   await openFolder(core, ui, otherFolder(files));
   await core((k) => k.shell.task.createProfile('Sam.seller'));
-  await expect(ui.locator('[role="region"][data-profile]')).toHaveCount(1);
+  await expect(ui.locator('[data-task-view][data-active] [role="region"][data-profile]')).toHaveCount(1);
   await closeProject(ui, files, 'other');
   await expect.poll(() => core((k, a) => !k.shell.open.has(a.other) && k.shell.current?.id === a.project && k.settled(),
     { other: files.pid('other'), project: files.pid('project') })).toBe(true);
@@ -37,11 +37,11 @@ test('projects: another folder opens in a tab of its own, with its own profiles 
   await forgetOther(core, ui, files);
   // The agent reported its session (its SessionStart hook, as Claude Code sends it): Kulisa resumes it when the project
   // opens again.
-  if (files.json(files.pfile('agent.json')).conversations?.[0]?.sessionId !== 'session-1') {
+  if (files.json(files.pfile('task.json')).agents.conversations?.[0]?.sessionId !== 'session-1') {
     const transcript = path.join(files.project, 'transcript.jsonl');
     fs.writeFileSync(transcript, '');
     await reportSession(core, await core((k) => k.shell.task.key), 'session-1', transcript);
-    await expect.poll(() => files.json(files.pfile('agent.json')).conversations[0].sessionId).toBe('session-1');
+    await expect.poll(() => files.json(files.pfile('task.json')).agents.conversations[0].sessionId).toBe('session-1');
   }
   const other = otherFolder(files), project = files.project;
   fs.mkdirSync(other, { recursive: true });
@@ -58,8 +58,8 @@ test('projects: another folder opens in a tab of its own, with its own profiles 
       agent: [...k.shell.open.get(project).tasks.values()][0].pty === g.firstPty, title: k.shell.win.getTitle(), resumed: k.shell.resumedSession };
   }, ids.project)).toEqual({ profiles: 0, kept: true, agent: true, title: 'New Task · other — Kulisa', resumed: null }); // the first project's pages keep running, hidden, and its agent; a new project has no conversation to resume
   await expect.poll(() => tabProjects(ui, files)).toEqual(['project', 'other *']);
-  await expect(ui.getByTestId('terminal')).toHaveCount(1);
-  await expect(ui.locator('[role="region"][data-profile]')).toHaveCount(0);
+  await expect(ui.locator('[data-task-view][data-active]').getByTestId('terminal')).toHaveCount(1);
+  await expect(ui.locator('[data-task-view][data-active] [role="region"][data-profile]')).toHaveCount(0);
   // A tab per task, its project's icon on it, its name in its tooltip.
   const tabs = ui.locator('#taskTabs [role="tab"]');
   await expect(tabs).toHaveText(['task-1', 'New Task']);
@@ -183,7 +183,7 @@ test('projects: another folder opens in a tab of its own, with its own profiles 
   await closeProject(ui, files, 'project');
   await expect.poll(() => core((k, a) => k.shell.current?.folder === a.other && !k.shell.open.has(a.id), { other, id: ids.project })).toBe(true);
   await expect(ui.getByRole('alertdialog'), 'nothing asked').toHaveCount(0);
-  expect(await core((k, id) => ({ closed: k.shell.store.tasksOf({ id } as any).list.every((e) => e.closed),
+  expect(await core((k, id) => ({ closed: k.shell.store.tasksOf({ id } as any).list.every((e) => e.closedAt !== undefined),
     tabs: k.stash.grid.sam.tabs.every((t: any) => t.wc.isDestroyed()) }), ids.project)).toEqual({ closed: true, tabs: true }); // its tasks closed; the closed project's tabs are closed
   expect(await tabProjects(ui, files)).toEqual(['other *']);
   // Opened again from the sidebar, on its task: the conversation goes on, the profiles signed in.
@@ -239,9 +239,9 @@ test('tasks: Move to New Window puts a task in a window of its own, still runnin
   expect(await tabProjects(ui, files)).toEqual(['project *']);
   await expect.poll(() => tabProjects(ui2, files)).toEqual(['other *']);
   expect(await core((k, id) => {
-    const g = k.stash.grid, view = g.seller.get().view;
+    const g = k.stash.grid;
     return { window: g.moved.window === g.second, title: g.second.win.getTitle(), agent: g.moved.pty === g.pty, profile: g.moved.profiles.get(id) === g.seller,
-      page: g.second.win.contentView.children.includes(view) && !g.first.win.contentView.children.includes(view) };
+      page: k.viewIn(g.seller.get().view, g.second.win) && !k.viewIn(g.seller.get().view, g.first.win) };
   }, ids.seller)).toEqual({ window: true, title: 'New Task · other — Kulisa', agent: true, profile: true, page: true }); // the same agent, the same profile, its page moved
   await expect.poll(async () => {
     const b = await box(ui2, `[role="region"][data-profile="${ids.seller}"] [data-testid="page"]`);
@@ -309,7 +309,7 @@ test('tasks: Move to New Window puts a task in a window of its own, still runnin
   await expect.poll(() => core((k) => { const g = k.stash.grid; return k.shell.windows.length === 1 && k.shell.task === g.moved && !g.first.switching; })).toBe(true);
   expect(await core((k) => {
     const g = k.stash.grid;
-    return { gone: g.second.win.isDestroyed(), agent: g.moved.pty === g.pty, page: g.first.win.contentView.children.includes(g.seller.get().view) };
+    return { gone: g.second.win.isDestroyed(), agent: g.moved.pty === g.pty, page: k.viewIn(g.seller.get().view, g.first.win) };
   })).toEqual({ gone: true, agent: true, page: true }); // the same agent, its page back
   await expect.poll(async () => (await viewOn(core, ui, files, 'Sam.seller')) && (await termText(ui)).includes('moved along')).toBe(true);
   expect(await tabProjects(ui, files)).toEqual(['project', 'other *']);
@@ -352,14 +352,17 @@ test('tasks: Move to New Window puts a task in a window of its own, still runnin
   // macOS: the last window's × hides it, as Mac apps' windows: Kulisa stays in the Dock, its
   // agents go on; a click on the Dock (activate) shows it again as it was. ⌘Q quits (the context menus' test).
   if (MAC) {
-    await core((k) => { k.shell.task.promptTarget().state = 'working'; k.stash.grid.pty = k.shell.task.pty; k.shell.win.close(); });
-    await expect.poll(() => core((k) => !k.shell.win.isVisible())).toBe(true);
-    expect(await core((k, id) => !k.shell.win.isDestroyed() && k.shell.open.has(id) && k.shell.task.pty === k.stash.grid.pty, ids.project),
-      'hidden, its agent goes on').toBe(true);
-    await expect(ui.getByRole('alertdialog'), 'nothing asked').toHaveCount(0);
-    await core((k) => { k.electron.app.emit('activate'); });
-    await expect.poll(() => core((k) => k.shell.win.isVisible())).toBe(true);
-    await core((k) => { k.shell.task.promptTarget().state = null; });
+    try {
+      await core((k) => { k.shell.task.promptTarget().state = 'working'; k.stash.grid.pty = k.shell.task.pty; k.shell.win.close(); });
+      await expect.poll(() => core((k) => !k.shell.win.isVisible())).toBe(true);
+      expect(await core((k, id) => !k.shell.win.isDestroyed() && k.shell.open.has(id) && k.shell.task.pty === k.stash.grid.pty, ids.project),
+        'hidden, its agent goes on').toBe(true);
+      await expect(ui.getByRole('alertdialog'), 'nothing asked').toHaveCount(0);
+      await core((k) => { k.electron.app.emit('activate'); });
+      await expect.poll(() => core((k) => k.shell.win.isVisible())).toBe(true);
+    } finally {
+      await core((k) => { k.shell.task.promptTarget().state = null; if (!k.shell.win.isVisible()) k.electron.app.emit('activate'); });
+    }
     return;
   }
   // The last window's × quits Kulisa (its projects come back at the next start): asked only when an agent works.

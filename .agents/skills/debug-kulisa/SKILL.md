@@ -5,90 +5,65 @@ description: How to find the cause of a Kulisa bug that tests and screenshots do
 
 # Debugging Kulisa
 
-Look inside the running app instead of guessing, make the bug happen on demand, then take away one difference at a
-time until it goes.
+Inspect the live failure, reproduce it in isolation, then remove differences to identify its cause.
 
-## 1. Look inside the author's running Kulisa, without restarting it
+## 1. Inspect without restarting
 
-The bug is there now, maybe not after a restart. Node's inspector can be turned on in a running main process:
+Restarting may erase the failure. On Linux/macOS enable the running main process's inspector:
 
 ```sh
-kill -USR1 <pid>   # the main Electron process: ps -eo pid,comm,args, comm == "electron", no --type=
+kill -USR1 <pid>   # ps -eo pid,comm,args: electron without --type=
 node .agents/skills/debug-kulisa/inspect.mjs 9229 'return require("electron").webContents.getAllWebContents().map((c) => c.getURL())'
 ```
 
-- It listens on 127.0.0.1:9229 until the app quits; restarting the app (run-kulisa) turns it off.
-- Read only, unless the author agrees: their profiles are signed in to real accounts. Never read cookies, tokens or
-  page contents that are not needed (AGENTS.md, Rules).
-- Useful to read: the window's views (`BaseWindow.getAllWindows()[0].contentView.children`: bounds, visible, URL),
-  every web contents, a page's state (`wc.executeJavaScript`, with a timeout: a hung page never answers), the
-  window's HTML (the window's `webContents.executeJavaScript`: `document.elementsFromPoint`, open dialogs).
-- Counters, left on `globalThis` and read later: `wc.on('input-event', …)` per web contents tells where the
-  author's clicks and keys go (nowhere, the window, the page); listeners inside a page (`addEventListener(…, true)`)
-  tell whether they reach it. Ask the author to click, scroll and type, then read them.
-- A synthetic event (`wc.sendInputEvent`) reaching the page while real ones do not: the page is fine, something
-  between the OS and the page takes them.
+It listens on `127.0.0.1:9229` until restart. Keep the author's app read-only unless they authorize changes; avoid
+cookies, tokens and unnecessary page contents.
 
-## 2. Make it happen on demand: a scratch Kulisa
+Inspect native views/bounds/visibility, web contents, open dialogs and `document.elementsFromPoint`. Bound
+`executeJavaScript` calls: hung pages never answer. With authorization, input counters on `globalThis`,
+`wc.on('input-event', …)` and capture listeners show whether real input reaches a view/page. Ask the author to
+reproduce, then read counters. If synthetic `sendInputEvent` works but real input fails, inspect the OS-to-page path.
+
+## 2. Reproduce in scratch Kulisa
 
 ```sh
-.agents/skills/debug-kulisa/scratch.sh start <session scratch folder>   # its own data and ports; stop: scratch.sh stop
+.agents/skills/debug-kulisa/scratch.sh start <session scratch folder>
+# stop with: .agents/skills/debug-kulisa/scratch.sh stop
 ```
 
-- Profiles and pages: the MCP tools on port 4499 (`profile_create`, `browser_navigate`), or `wc.loadURL` from
-  inspect.mjs on 9230. The window's page is on CDP 9333.
-- Change one thing in the running code from inspect.mjs, no edit in the repository, e.g.
-  `Profile.prototype.setSigninMode = async function () {}` (no sign-in mode) or `Profile.prototype.connect` (no
-  Playwright), before making the profile. Restart the scratch app between experiments: a broken state may stay.
-- Third-party sites without signing in are fine to load (the author's rule is about signing in); never type
-  credentials.
+Use MCP 4499 (`profile_create`, `browser_navigate`), inspector 9230, window CDP 9333. Patch one runtime difference
+through `inspect.mjs`, e.g. disable sign-in mode or Playwright before profile creation; restart scratch between trials.
+Third-party pages may be loaded without signing in; never enter credentials.
 
-## 3. Real input (X11): click.sh
-
-Some bugs need the OS's own mouse; `sendInputEvent` goes around the OS.
+## 3. Real input (X11)
 
 ```sh
-.agents/skills/debug-kulisa/click.sh "myshop — Kulisa" 400 320      # left click, relative to the window
-.agents/skills/debug-kulisa/click.sh "myshop — Kulisa" 400 320 5    # wheel down
+.agents/skills/debug-kulisa/click.sh "myshop — Kulisa" 400 320
+.agents/skills/debug-kulisa/click.sh "myshop — Kulisa" 400 320 5  # wheel down
 ```
 
-- It clicks only if exactly one visible window has that title and it is the active one after raising it. The mouse
-  is the author's: a click elsewhere lands in their windows. A search by process id can find the author's window
-  instead: never click by a window found another way.
-- The scratch window is "myshop — Kulisa"; the author's is "<project> — Kulisa": do not click theirs unless they
-  ask. Tell the author before a series of clicks: their windows lose the focus for a few seconds.
-- A point in the window: the view's bounds (`view.getBounds()`, content coordinates) plus the frame's offset (the
-  window's `getContentBounds()` against `xdotool getwindowgeometry`).
+Use only the script's exact-title/unique-visible-window/focus checks. PID searches can find the author's window;
+never substitute a different search. Do not click their window unless asked. Warn before a click series because it
+takes OS focus. Convert view content coordinates using `getContentBounds()` and `xdotool getwindowgeometry`.
 
-### Installing xdotool
-
-Linux with X11 only (not Wayland, macOS or Windows). `sudo apt install xdotool` is the author's to run (it asks for
-their password). Without root, into the session's scratch folder:
+Linux X11 only. The author can install xdotool with `sudo apt install xdotool`. Without root, use the session scratch
+folder:
 
 ```sh
 apt-get download xdotool libxdo3 && for f in *.deb; do dpkg -x "$f" root; done
 LD_LIBRARY_PATH=$PWD/root/usr/lib/x86_64-linux-gnu $PWD/root/usr/bin/xdotool version
 ```
 
-## 4. Take away differences: bare Electron
+## 4. Reduce to bare Electron
 
-When Kulisa has the bug and the cause is not in sight, write a minimal Electron script (a window, two
-`WebContentsView`s, `input-event` counters written to a file) in the scratch folder, run it with
-`npx electron --no-sandbox <script>`, and add Kulisa's differences one at a time: `BrowserWindow` vs `BaseWindow`,
-`titleBarStyle: 'hidden'`, the session, the Playwright connection. The one that brings the bug is
-the cause; that script is also the reproduction for an Electron issue.
+Create a scratch script with one window, two `WebContentsView`s and input counters. Add relevant differences one at
+a time: BrowserWindow/BaseWindow, hidden title bar, session, Playwright. Run Linux with
+`npx electron --no-sandbox <script>`; keep the minimal reproduction for upstream reporting.
 
-## What does not work here
+## Constraints and cleanup
 
-- A screenshot of the whole screen: it shows the author's other windows (private). For Kulisa's window use
-  `KULISA_SHOT` or `shell.screenshot` (AGENTS.md).
-- The accessibility tree (AT-SPI) of Electron windows is empty without `--force-renderer-accessibility`; Wnck lists
-  only OS windows (an Electron message box shows there as a "dialog").
-- `pkill -f`: matches the shell running it (AGENTS.md, Rules).
-
-## After
-
-- The fix with a test that fails without it (AGENTS.md); when real input is the only way to see the bug, test the
-  mechanism instead and say so.
-- A workaround of an Electron or Chromium bug: in docs/testing.md, "Upgrading Electron", with how to check it.
-- Stop the scratch app, the inspector goes with a restart; delete the scratch folder's files.
+- Capture Kulisa only (`KULISA_SHOT` or `shell.screenshot`); whole-screen images expose private windows.
+- AT-SPI needs `--force-renderer-accessibility`; Wnck lists OS windows, including native dialogs.
+- Never use `pkill -f`. Restart the author's app only with `run-kulisa`.
+- Document Electron/Chromium workarounds in `docs/testing.md`, Upgrading Electron.
+- Stop scratch, remove its files; a normal app restart removes the inspector.

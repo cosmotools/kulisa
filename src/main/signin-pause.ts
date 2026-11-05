@@ -3,7 +3,7 @@
 // The agent is paused while any tab of a profile is on a sign-in page (signin-pages.ts) or navigating to one, and
 // resumes when none is. Only hosts are recognized: a sign-in form on another host is not.
 
-import type { Profile, Tab } from './profiles.ts';
+import type { Profile, Tab } from '../browser/main/index.ts';
 
 // isSigninUrl: from signinPages() in signin-pages.ts.
 function installSigninPause(profile: Profile, isSigninUrl: (url: string) => boolean) {

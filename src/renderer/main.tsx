@@ -8,4 +8,4 @@ import './lib/keys';
 import './lib/test-hooks';
 
 createRoot(document.getElementById('app')!).render(<App />);
-void kulisa.invoke('tasks:get'); // the bar's tabs and the shown task (window.ts, sendProjects)
+void kulisa.invoke('project:refresh'); // the bar's tabs and the shown task (window.ts, sendProjects)

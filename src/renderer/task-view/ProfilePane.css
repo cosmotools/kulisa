@@ -1,0 +1,11 @@
+/* The notch’s concave shoulders join the pane’s top edge; masks keep its surrounding header transparent. */
+[data-profile-notch]::before, [data-profile-notch]::after {
+  content: ''; position: absolute; top: 0; width: calc(var(--spacing) * 3); height: calc(var(--spacing) * 3);
+  background: var(--notch); pointer-events: none;
+}
+[data-profile-notch]::before {
+  right: 100%; mask-image: radial-gradient(circle at bottom left, transparent 70%, black 72%);
+}
+[data-profile-notch]::after {
+  left: 100%; mask-image: radial-gradient(circle at bottom right, transparent 70%, black 72%);
+}

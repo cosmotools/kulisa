@@ -28,16 +28,24 @@ test("agents: each can do every capability Kulisa has, or says why not", () => {
   assert.equal(AGENTS.find((a) => a.id === 'claude')!.lacks, undefined);
 });
 
-// Every agent gets Kulisa's profiles skill in its account's folder, where it reads its own skills: one text, written
+// Every agent gets Kulisa's shared skill in its account's folder, where it reads its own skills: one text, written
 // again only when it changed.
-test("agents: Claude Code's and Codex's accounts get the profiles skill, one text", () => {
+test("agents: Claude Code's and Codex's accounts get the Kulisa skill, one text", () => {
   const packages = path.join(import.meta.dirname, 'resources');
-  const source = fs.readFileSync(path.join(packages, 'skills', 'profiles', 'SKILL.md'), 'utf8');
-  assert.match(source, /^---\nname: kulisa-profiles\n/, "a name of Kulisa's, apart from the human's own skills");
+  const source = fs.readFileSync(path.join(packages, 'skills', 'kulisa', 'SKILL.md'), 'utf8');
+  assert.match(source, /^---\nname: kulisa\n/, "a name of Kulisa's, apart from the human's own skills");
   for (const id of ['claude', 'codex']) {
     const skills = path.join(root, `${id}-skill`, AGENTS.find((a) => a.id === id)!.skills!);
+    const previous = path.join(skills, 'kulisa-profiles');
+    fs.mkdirSync(previous, { recursive: true });
+    fs.writeFileSync(path.join(previous, 'SKILL.md'), 'name: kulisa-profiles');
+    const personal = path.join(skills, 'personal', 'SKILL.md');
+    fs.mkdirSync(path.dirname(personal), { recursive: true });
+    fs.writeFileSync(personal, 'Personal instructions');
     installSkill(packages, skills);
-    const file = path.join(skills, 'kulisa-profiles', 'SKILL.md');
+    assert.equal(fs.existsSync(previous), false, 'one generated skill is discoverable');
+    assert.equal(fs.readFileSync(personal, 'utf8'), 'Personal instructions');
+    const file = path.join(skills, 'kulisa', 'SKILL.md');
     assert.equal(fs.readFileSync(file, 'utf8'), source, id);
     const at = fs.statSync(file).mtimeMs;
     installSkill(packages, skills);
@@ -80,18 +88,18 @@ test("tasks: a task's copy is trusted as the human trusted the project's code, i
   assert.equal(extendTrust(codex, at, '/q@task-1', ['/q']), false, 'trusted nowhere: nothing');
   assert.equal(extendTrust(codex, { configDir: path.join(root, 'codex-none') }, '/p@task-2', ['/p']), false, 'no config yet: nothing');
 });
-test("agents: Claude Code's dictation is on in its sessions only, Kulisa's tools allowed there but two, and reading what Kulisa keeps of its pages; its language read and set in its settings, the rest kept", async () => {
+test("agents: Claude Code's dictation is on in its sessions only, all Kulisa tools allowed, and reading what Kulisa keeps of its pages; its language read and set in its settings, the rest kept", async () => {
   const claude = AGENTS.find((a) => a.id === 'claude')!;
-  const args = claude.args!({ packages: '/k', env: {}, artifacts: '/data/projects/*/*/artifacts' });
+  const data = path.join(root, 'task data'), args = claude.args!({ packages: '/k', env: {}, data, artifacts: '/data/projects/*/*/artifacts' });
   assert.deepEqual(args.slice(0, 3), ['--plugin-dir', path.join('/k', 'claude-plugin'), '--settings']);
-  const { hooks, ...given } = JSON.parse(args[3]!); // its hooks: below
-  // With an account, the same settings as a file in its folder: the command typed into the terminal stays short.
-  const account = path.join(root, 'claude-account'), withAccount = claude.args!({ packages: '/k', env: {}, account, artifacts: '/data/projects/*/*/artifacts' });
-  assert.equal(withAccount[3], path.join(account, 'kulisa-settings.json'));
-  assert.deepEqual(JSON.parse(fs.readFileSync(withAccount[3], 'utf8')), JSON.parse(args[3]!));
+  assert.equal(args[3], path.join(data, 'claude-settings.json'), 'only a task-owned path is typed, including for external configurations');
+  const { hooks, ...given } = JSON.parse(fs.readFileSync(args[3], 'utf8')); // its hooks: below
+  fs.writeFileSync(args[3], '{}');
+  assert.deepEqual(claude.args!({ packages: '/k', env: {}, data, artifacts: '/data/projects/*/*/artifacts' }), args);
+  assert.deepEqual(JSON.parse(fs.readFileSync(args[3], 'utf8')), { hooks, ...given }, 'settings are refreshed at launch without accumulating files');
   assert.ok(hooks);
   assert.deepEqual(given, { voiceEnabled: true, voice: { enabled: true, mode: 'hold', autoSubmit: false }, permissions: {
-    allow: ['mcp__plugin_kulisa_kulisa', 'Read(//data/projects/*/*/artifacts/**)'], ask: ['mcp__plugin_kulisa_kulisa__terminal_run', 'mcp__plugin_kulisa_kulisa__browser_file_upload'] } });
+    allow: ['mcp__plugin_kulisa_kulisa', 'Read(//data/projects/*/*/artifacts/**)'] } });
   // Its language setting in an account's folder, as its /config writes it; the rest of the file kept.
   const dir = path.join(root, 'claude-language'), settings = path.join(dir, 'settings.json');
   assert.deepEqual(claude.language!.set(dir, 'de'), {});
@@ -140,12 +148,12 @@ test("tasks: a deleted task leaves nothing in Claude Code's and Codex's data; th
   assert.equal(config.userID, 'u');
 
   // Which of each agent's hooks tells Kulisa which of its events (agent-hooks.ts), given at its start: for Claude Code
-  // in --settings with the plugin, for Codex as a config override; the same command line for every task (Codex asks to
+  // in --settings with the plugin, for Codex as a config override; the same hooks for every task (Codex asks to
   // trust its hooks once). Claude Code: waiting only for what needs the human, not idle_prompt (a minute after an
   // answer); a turn ended by an API error waits for them too.
   const sends = (h: { hooks: { command: string }[] }[]) => h[0]!.hooks[0]!.command.match(/hooks\/([\w-]+)/)![1];
-  const claudeArgs = (url: string) => agent('claude').args!({ env: { KULISA_MCP_URL: url }, packages: '/k', artifacts: '/p' });
-  const claudeHooks = JSON.parse(claudeArgs('http://x')[3]!).hooks;
+  const claudeArgs = (url: string) => agent('claude').args!({ env: { KULISA_MCP_URL: url }, packages: '/k', data: path.join(root, 'hooks-task'), artifacts: '/p' });
+  const claudeHooks = JSON.parse(fs.readFileSync(claudeArgs('http://x')[3]!, 'utf8')).hooks;
   assert.deepEqual(claudeArgs('http://x').slice(0, 2), ['--plugin-dir', path.join('/k', 'claude-plugin')]);
   assert.deepEqual(Object.fromEntries(Object.entries(claudeHooks as Record<string, Parameters<typeof sends>[0]>).map(([e, h]) => [e, sends(h)])), { SessionStart: 'session-start',
     UserPromptSubmit: 'prompt', Notification: 'waiting', PostToolUse: 'tool-done', Stop: 'stop', StopFailure: 'waiting', SessionEnd: 'session-end' });
@@ -153,11 +161,9 @@ test("tasks: a deleted task leaves nothing in Claude Code's and Codex's data; th
   assert.deepEqual(['permission_prompt', 'elicitation_dialog', 'idle_prompt', 'auth_success'].map((t) => needsYou.test(t)), [true, true, false, false]);
   assert.equal(claudeHooks.Stop[0].hooks[0].command, 'curl -sf --max-time 3 --data-binary @- "$KULISA_URL/hooks/stop" || true');
   // Codex: its hooks as a config override; resuming the session its SessionStart reported.
-  const codexArgs = (url: string) => agent('codex').args!({ env: { KULISA_MCP_URL: url }, packages: '/k', artifacts: '/p' });
+  const codexArgs = (url: string) => agent('codex').args!({ env: { KULISA_MCP_URL: url }, packages: '/k', data: path.join(root, 'codex-task'), artifacts: '/p' });
   const hooks = codexArgs('http://127.0.0.1:1/task/a/1/mcp')[3];
-  // Kulisa's tools approved, but the two that keep its own approval.
-  assert.deepEqual(codexArgs('http://x').slice(4), ['-c', 'mcp_servers.kulisa.default_tools_approval_mode="approve"',
-    '-c', 'mcp_servers.kulisa.tools.terminal_run.approval_mode="prompt"', '-c', 'mcp_servers.kulisa.tools.browser_file_upload.approval_mode="prompt"']);
+  assert.deepEqual(codexArgs('http://x').slice(4), ['-c', 'mcp_servers.kulisa.default_tools_approval_mode="approve"']);
   assert.equal(hooks, codexArgs('http://127.0.0.1:2/task/b/2/mcp')[3]);
   assert.deepEqual([...hooks!.matchAll(/(\w+)=\[\{hooks=\[\{[^}]*hooks\/([\w-]+)/g)].map((m) => `${m[1]} ${m[2]}`),
     ['SessionStart session-start', 'UserPromptSubmit prompt', 'PermissionRequest waiting', 'PostToolUse tool-done', 'Stop stop', 'Interrupt interrupt', 'SessionEnd session-end']);
@@ -236,7 +242,7 @@ test("Codex: the email is its auth.json id token's; none without one", () => {
   assert.equal(email('Logged in using an API key', dir), null, 'an API key: no email');
 });
 
-test("agents: Claude Code's dictation recognizes for an agent without one only with a Claude.ai sign-in, in hold mode with autoSubmit, its text posted by its hook, no plugins' servers, none of a parent session's variables; what it keeps of its folder goes by its account's folder", () => {
+test("agents: Claude Code's dictation recognizes for an agent without one only with a Claude.ai sign-in, in hold mode with autoSubmit, its text posted by its hook, no plugins' servers, none of a parent session's variables; what it keeps of its folder goes by its account's folder", (t) => {
   const claude = AGENTS.find((a) => a.id === 'claude')!, r = claude.recognizer!;
   const dir = path.join(root, 'claude-recognizer'), folder = path.join(root, 'kulisa-data', 'dictation');
   fs.mkdirSync(dir, { recursive: true });
@@ -259,4 +265,13 @@ test("agents: Claude Code's dictation recognizes for an agent without one only w
   assert.equal(claude.forget!({ folder, configDir: dir }), true);
   assert.ok(!fs.existsSync(conv), 'its conversation, holding what was said');
   assert.deepEqual(JSON.parse(fs.readFileSync(path.join(dir, '.claude.json'), 'utf8')).projects, {}, 'its trust');
+  const home = path.join(root, 'recognizer-home'), global = path.join(home, '.claude');
+  fs.mkdirSync(global, { recursive: true });
+  t.mock.method(os, 'homedir', () => home);
+  fs.writeFileSync(path.join(home, '.claude.json'), JSON.stringify({ oauthAccount: {}, projects: { [folder]: { hasTrustDialogAccepted: true } } }));
+  fs.writeFileSync(path.join(global, '.claude.json'), '{}');
+  assert.equal(r.available(global, true), true);
+  assert.equal(r.available(global, false), false, 'an explicit default-folder override reads its own metadata');
+  assert.equal(claude.trust!.has({ configDir: global, defaultConfig: true }, folder), true);
+  assert.equal(claude.trust!.has({ configDir: global, defaultConfig: false }, folder), false);
 });

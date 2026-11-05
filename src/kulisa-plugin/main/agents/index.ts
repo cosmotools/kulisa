@@ -92,10 +92,11 @@ function installAgent(agent: Agent, onData: (data: string) => void): Promise<{ c
 
 // An account's sign-in, as its agent's own status says it, its config folder dir: { email } (null: signed in, the email
 // not known), or null when not signed in. found: where the agent is (findAgent).
-function accountEmail(agent: Agent, found: Found | null, dir: string): Promise<{ email: string | null } | null> {
+function accountEmail(agent: Agent, found: Found | null, dir: string, defaultConfig = false): Promise<{ email: string | null } | null> {
   const config = agent.config;
   if (!found?.path || !config?.status) return Promise.resolve(null);
-  return new Promise((resolve) => runAgent(found.path!, config.status, { timeout: 20000, windowsHide: true, env: { ...process.env, [config.env]: dir } },
+  const env = { ...process.env, [config.env]: defaultConfig ? undefined : dir };
+  return new Promise((resolve) => runAgent(found.path!, config.status, { timeout: 20000, windowsHide: true, env },
     (e, out) => resolve(e ? null : { email: config.email(out, dir)?.toLowerCase() ?? null })));
 }
 // Signed out of an account before its folder goes, with the agent's own command: what it keeps outside the folder

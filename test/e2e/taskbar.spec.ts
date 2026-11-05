@@ -2,7 +2,7 @@
 import path from 'path';
 import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
-import { MAC, frames, ipcSettled, menu, item, choose, closeMenu, rightClick, fromSidebar, openSidebar, closeSidebar, sidebar, taskRow, rowButton, focusWindow, viewOn, termShows, invoke, notLoading, answer, removed, termKeys, resize } from './helpers.ts';
+import { MAC, frames, ipcSettled, menu, item, choose, closeMenu, rightClick, fromSidebar, openSidebar, closeSidebar, sidebar, taskRow, rowButton, focusWindow, viewOn, termShows, invoke, notLoading, answer, removed, termKeys, resize, windowSubmenu } from './helpers.ts';
 import { committed, rand, keyAt, isNth, nthShown, taskTab, hook, begin, bothOn, newTask } from './tasks-helpers.ts';
 
 // The tab chosen (lit) in the bar.
@@ -118,7 +118,7 @@ test("tasks: switching shows the other grid and terminal; the one left keeps run
   await state('done', 'the session ending after a done turn: it stays');
   await core((k, a) => k.shell.taskByKey(a.second).caption(a.SAM, 'from the second task'), { second, SAM });
   await ipcSettled(ui);
-  await expect(ui.locator(`[data-panel="profile:${SAM}"] [role="status"]`), 'not on the first task\'s pane').toHaveText('');
+  await expect(ui.locator(`[data-task-view][data-active] [data-panel="profile:${SAM}"] [role="status"]`), 'not on the first task\'s pane').toHaveText('Idle');
   // Done says "come and see" until the human sees that task.
   await post('stop');
   await state('done');
@@ -149,34 +149,67 @@ test('tasks: switching shows the other grid at once, its pages live once it is l
   await invoke(ui, 'task:show', second);
   await expect.poll(live).toBe(true);
   expect(await ui.evaluate(() => { const w = window as any; w.__watching = false; return w.__empty; }), 'frames with no grid').toBe(0);
-  // A page that draws no frame (busy, covered) holds a menu's pictures no longer than three times what the others
-  // take (a tenth of a second at least), its pane then empty: half a second is felt after each click.
-  // Their pace, not a fixed time: a loaded machine takes over a tenth of a second for a picture.
+  await bothOn(core, ui, files);
+  // Chromium may deliver even a live page's frame after the fallback deadline. Use a real image, but move the
+  // capture completions and deadline clock ourselves so rendering speed cannot decide which branch is covered.
   const pics = await core(async (k, ids) => {
-    const tab = k.shell.profiles.get(ids.SAM).get() as any, elon = k.shell.profiles.get(ids.ELON).get().wc as any, its = elon.capturePage;
-    let took = 0;
-    tab.wc.capturePage = () => new Promise(() => {});
-    elon.capturePage = (...a: unknown[]) => its.apply(elon, a).then((img: unknown) => { took = Date.now() - t0; return img; });
-    const t0 = Date.now(), got = await k.shell.windows[0].pictures(), all = Date.now() - t0;
-    delete tab.wc.capturePage; delete elon.capturePage; // their prototypes' again
-    return { took, all, sam: !!got[ids.SAM], elon: !!got[ids.ELON] };
+    const sam = k.shell.profiles.get(ids.SAM).get().wc, elon = k.shell.profiles.get(ids.ELON).get().wc;
+    const image = await elon.capturePage(), realNow = Date.now, results = [];
+    const captures = [sam, elon].map((wc) => Object.getOwnPropertyDescriptor(wc, 'capturePage'));
+    try {
+      for (const [firstAt, deadline] of [[20, 100], [200, 600], [null, 500]] as const) {
+        k.clock.hold(1);
+        let now = 0, done = false, complete = (_: typeof image) => {};
+        Date.now = () => now;
+        sam.capturePage = () => new Promise(() => {});
+        elon.capturePage = () => new Promise((ok) => { complete = ok; });
+        const pending = k.shell.windows[0].pictures().then((got) => { done = true; return got; });
+        // A turn flushes capture and Promise.all continuations before inspecting their effects.
+        const advance = async (ms: number) => { now += ms; k.clock.advance(ms); await new Promise(setImmediate); };
+        if (firstAt !== null) {
+          await advance(firstAt);
+          complete(image);
+          await advance(0);
+        }
+        await advance(deadline - now - 1);
+        const before = done;
+        await advance(1);
+        const after = done;
+        // Do not await pending: a broken deadline must fail an assertion rather than hang the test.
+        const got = done ? await pending : {};
+        complete(image);
+        await advance(1000);
+        results.push({ firstAt, before, after, sam: !!got[ids.SAM], elon: got[ids.ELON] === `data:image/jpeg;base64,${image.toJPEG(90).toString('base64')}`, keys: Object.keys(got) });
+      }
+    } finally {
+      Date.now = realNow;
+      k.clock.release();
+      for (const [i, wc] of [sam, elon].entries()) {
+        if (captures[i]) Object.defineProperty(wc, 'capturePage', captures[i]); else Reflect.deleteProperty(wc, 'capturePage');
+      }
+    }
+    return results;
   }, { SAM, ELON });
-  expect(pics.took && pics.all < Math.max(100, 3 * pics.took) + 150, `pictures in ${pics.all} ms, the other's in ${pics.took} ms`).toBeTruthy();
-  expect(!pics.sam && pics.elon, 'the others taken').toBe(true);
+  expect(pics).toEqual([
+    { firstAt: 20, before: false, after: true, sam: false, elon: true, keys: [ELON] },
+    { firstAt: 200, before: false, after: true, sam: false, elon: true, keys: [ELON] },
+    { firstAt: null, before: false, after: true, sam: false, elon: false, keys: [] },
+  ]);
   // A menu opened as the grid left is taken down, before the next one is laid out, keeps the pages under it pictures,
   // not shown over it once the grid is. Pressed (a menu opens on the press) as the window hears of it: a click from the
   // test would come once the grid is laid out.
-  await ui.evaluate(() => {
+  await ui.evaluate((target) => {
     let once = true;
-    (window as any).kulisa.on('grid:closing', () => {
+    (window as any).kulisa.on('project:state', ({ current }: { current: string | null }) => {
+      if (current !== target) return;
       if (once) document.getElementById('windowMenu').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, pointerType: 'mouse' }));
       once = false;
     });
-  });
+  }, first);
   await invoke(ui, 'task:show', first);
   await expect(menu(ui)).toBeVisible();
   await notLoading(ui);
-  // What the grid laid out does (lib/grid.ts, reveal: the pages shown, unless a menu holds them) asks the main process:
+  // The laid-out task grid asks the main process to show its pages unless a menu covers them:
   // done once the window has drawn its frames and its channel gone there and back.
   await frames(ui);
   await ipcSettled(ui);
@@ -312,16 +345,35 @@ test("tasks: a double click on a task's tab is its Rename…, the shown one's an
   }
 });
 
+test('the title bar keeps a full task tab beside Stage in a narrow window', async ({ core, ui, files }) => {
+  await begin(core, ui, files, { columns: true, featureX: true });
+  const before = await resize(core, { width: 640 });
+  try {
+    await invoke(ui, 'bar:set', 'top');
+    await expect(chosen(ui)).toBeInViewport({ ratio: 1 });
+    await expect(ui.getByRole('button', { name: 'Stage', exact: true })).toBeInViewport({ ratio: 1 });
+  } finally {
+    await invoke(ui, 'bar:set', 'bottom');
+    await resize(core, before);
+  }
+});
+
 test('menus: one longer than the window has stays in it and scrolls', async ({ core, ui }) => {
-  // A menu longer than the window (thirty closed tasks) must not run past its edge, its first rows out of reach
-  // above. Any menu: ☰'s here, in the lowest window.
+  // Language has enough choices to overflow the minimum-height window independently of the window menu's rows.
   const before = await resize(core, { height: 400 });
   try {
     await expect.poll(() => ui.evaluate(() => innerHeight)).toBeLessThanOrEqual(400); // Playwright knows no viewport here (noDefaults)
-    await ui.locator('#windowMenu').click();
-    await expect(menu(ui)).toBeInViewport({ ratio: 1 });
-    // Its rows scroll, in the menu itself (Playwright reads no scroll).
-    expect(await menu(ui).evaluate((m) => m.scrollHeight > m.clientHeight)).toBe(true);
+    const languages = await windowSubmenu(ui, 'Language');
+    await expect(languages).toBeInViewport({ ratio: 1 });
+    await ui.keyboard.press('Home');
+    const choices = languages.getByRole('menuitemradio');
+    await expect(choices.first()).toBeInViewport({ ratio: 1 });
+    await expect(choices.last()).not.toBeInViewport();
+    await ui.keyboard.press('End');
+    await expect(choices.last()).toBeInViewport({ ratio: 1 });
+    await ui.keyboard.press('Home');
+    await expect(choices.first()).toBeInViewport({ ratio: 1 });
+    await ui.keyboard.press('Escape');
     await closeMenu(ui);
   } finally { await resize(core, before); }
 });

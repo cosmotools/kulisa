@@ -5,7 +5,7 @@ import assert from 'assert/strict';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { createPackage } from '@electron/asar';
+import { createPackage, extractFile } from '@electron/asar';
 import { installedVersion, watchInstalled } from '../../src/main/installed.ts';
 
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'kulisa-unit-'));
@@ -14,16 +14,13 @@ const asar = path.join(root, 'resources', 'app.asar');
 
 // An archive of version, with a file before package.json in it (the offset read is not the first file's), written
 // beside and renamed over, as dpkg does.
-async function pack(version: string) {
+async function pack(version: string, indexSize = 32) {
   const src = path.join(root, 'src');
   fs.mkdirSync(src, { recursive: true });
-  fs.writeFileSync(path.join(src, 'index.js'), 'console.log("Kulisa")\n');
+  fs.writeFileSync(path.join(src, 'index.js'), ' '.repeat(indexSize));
   fs.writeFileSync(path.join(src, 'package.json'), JSON.stringify({ name: 'kulisa', version, main: 'index.js' }));
   fs.mkdirSync(path.dirname(asar), { recursive: true });
   await createPackage(src, `${asar}.dpkg-new`);
-  // createPackage resolves before its file is all written (@electron/asar ends its stream without waiting for
-  // it): read back half written on a busy disk, it has no version, now and then.
-  for (const end = Date.now() + 5000; installedVersion(`${asar}.dpkg-new`) !== version && Date.now() < end;) await new Promise((r) => setTimeout(r, 20));
   fs.renameSync(`${asar}.dpkg-new`, asar);
 }
 
@@ -42,7 +39,9 @@ test('a new version installed is found once, as the archive changes; the running
   await pack('0.1.4');
   check();
   assert.deepEqual(found, [], 'the version running');
-  await pack('0.1.5');
+  // Prime the library cache before replacing the archive with a different package.json offset.
+  extractFile(asar, 'package.json');
+  await pack('0.1.5', 4096);
   check();
   check();
   assert.deepEqual(found, ['0.1.5'], 'once');

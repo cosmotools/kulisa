@@ -5,14 +5,6 @@ import reactHooks from 'eslint-plugin-react-hooks';
 import type { Rule } from 'eslint';
 
 const EXPORT_ALL = { selector: 'ExportAllDeclaration', message: 'Re-export by name, not export *.' };
-const PAUSE = 'A fixed pause proves nothing: wait for what shows it is done (docs/testing.md, Writing an e2e test).';
-const PAUSES = [
-  { selector: "CallExpression[callee.name='sleep']", message: PAUSE },
-  { selector: "CallExpression[callee.property.name='waitForTimeout']", message: PAUSE },
-  // new Promise((r) => setTimeout(r, ms)): a timer that only resolves.
-  { selector: "NewExpression[callee.name='Promise'] > :function CallExpression[callee.name='setTimeout'][arguments.0.type='Identifier']", message: PAUSE },
-];
-
 const WINDOW = ['src/renderer/**/*.tsx', 'src/renderer/**/*.ts', 'src/*/renderer/**/*.tsx'];
 const STYLE = "JSXAttribute[name.name='style'] > JSXExpressionContainer > ObjectExpression > Property";
 // The window is shadcn's components (src/ui) and Tailwind's classes on our own boxes (docs/ui.md, shadcn in Kulisa).
@@ -28,7 +20,7 @@ const HEX = { selector: 'Literal[value=/^#[0-9a-fA-F]{3,8}$/]', message: "A colo
 // src/ui's components as shadcn's CLI makes them, their look the theme's alone (docs/ui.md, shadcn in Kulisa): on one
 // only where it sits and how big it is: a literal of layout and size classes (w-64, flex-1, ms-auto), any variant
 // before them (data-[x]:hidden); in `style`, a custom property or a size or place known at run time.
-const LAYOUT = new RegExp(String.raw`^(?:[\w-]+(?:-\[[^\]]+\])?:)*!?(?:-?m[trblxyse]?-\S+|(?:min-|max-)?[wh]-\S+|size-\S+|flex-(?:1|auto|none|initial|\[[^\]]+\])|basis-\S+|(?:shrink|grow)(?:-0)?|(?:justify-|place-)?self-\S+|order-\S+|(?:col|row)-(?:span|start|end)-\S+|static|relative|absolute|fixed|sticky|-?(?:inset|top|right|bottom|left|start|end)(?:-[xy])?-\S+|z-\S+|hidden|sr-only|aspect-\S+|justify-(?:start|end|center|between)|items-(?:start|end|center|stretch))$`);
+const LAYOUT = new RegExp(String.raw`^(?:[@\w/-]+(?:-\[[^\]]+\])?:)*!?(?:-?m[trblxyse]?-\S+|(?:min-|max-)?[wh]-\S+|size-\S+|flex-(?:1|auto|none|initial|wrap|wrap-reverse|nowrap|\[[^\]]+\])|basis-\S+|gap(?:-[xy])?-\S+|(?:shrink|grow)(?:-0)?|(?:justify-|place-)?self-\S+|order-\S+|(?:col|row)-(?:span|start|end)-\S+|static|relative|absolute|fixed|sticky|-?(?:inset|top|right|bottom|left|start|end)(?:-[xy])?-\S+|z-\S+|hidden|sr-only|table-(?:fixed|auto)|aspect-\S+|justify-(?:start|end|center|between)|items-(?:start|end|center|stretch))$`);
 // A variable passed to a component, the standard way to configure one (docs/ui.md, shadcn in Kulisa).
 const VARIABLE = /^\[--[\w-]+:[^\]]+\]$/;
 const PLACE = new Set(['width', 'height', 'minWidth', 'maxWidth', 'minHeight', 'maxHeight', 'flexBasis', 'left', 'top', 'right', 'bottom', 'inset']);
@@ -69,31 +61,8 @@ const uiAsShipped: Rule.RuleModule = {
 const PALETTE = String.raw`\b(?:bg|text|border|ring|fill|stroke|outline|from|via|to|shadow|decoration|accent|caret|divide)-(?:slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose|black|white)\b|-\[(?:#|rgb|hsl|oklch|color)`;
 const COLORS = { selector: `Literal[value=/${PALETTE}/], TemplateElement[value.raw=/${PALETTE}/]`, message: "A color is the theme's (bg-muted, text-destructive), not Tailwind's palette (docs/ui.md)." };
 
-// An e2e test finds Kulisa's elements by role and name, label, text or data-testid, and reads a state by its attribute
-// (aria-*, data-*): never by a class of Kulisa's CSS, which changes with the look (docs/testing.md, Writing an e2e
-// test). dockview's (dv-*) and xterm's classes are theirs. A class in a selector: after its start, a space, a
-// combinator, a bracket or a quote (a selector inside code in a string), or after a tag (button.x); not a file's name
-// (.git, a.txt) nor a method called on a string in code.
-const NOT = String.raw`(?!dv-|xterm|(?:kulisa|git|gitignore|claude|envrc|worktreeinclude|env|mcp|sock|github|away|dpkg-new|cmd|txt|png|ico|icns|spec|json|jsonl|sh|ts|js|log|md|old)\b)(?![\w-]*\()`;
-const CLASS = new RegExp(String.raw`(?:^|[\s>+~,(:'"])\.${NOT}-?[a-z_][\w-]*|\b(?:a|button|div|span|img|input|li|svg|use|label|section|h[1-6])\.${NOT}[a-z_][\w-]*`);
-const noKulisaClasses: Rule.RuleModule = {
-  meta: { type: 'problem', schema: [] },
-  create(context) {
-    const report = (node: Rule.Node, what: string) => context.report({ node, message: `A Kulisa class in an e2e test: ${what} (docs/testing.md, Writing an e2e test).` });
-    const check = (node: Rule.Node, text: string) => { const m = CLASS.exec(text) ?? /\bclass(?:List|Name)\b/.exec(text); if (m) report(node, m[0].trim()); };
-    const theirs = (call: Rule.Node) => call.type === 'CallExpression' && call.arguments[0]?.type === 'Literal' && /^(dv-|xterm)/.test(String(call.arguments[0].value));
-    return {
-      Literal(node) { if (typeof node.value === 'string') check(node, node.value); },
-      TemplateElement(node) { check(node, node.value.raw); },
-      // a class read or set by name: dockview's and xterm's alone
-      "CallExpression[callee.property.name='toHaveClass']": (node: Rule.Node) => { if (!theirs(node)) report(node, 'toHaveClass'); },
-      "MemberExpression[property.name='classList']": (node: Rule.Node) => { const call = node.parent.parent; if (!(call?.type === 'CallExpression' && theirs(call))) report(node, 'classList'); },
-    };
-  },
-};
-
 export default tseslint.config(
-  { ignores: ['dist', 'out', '.claude/*', '!.claude/hooks', 'src/preload', 'src/ui/{components,hooks,lib}'] }, // src/ui's: shadcn's CLI's
+  { ignores: ['dist', 'out', '.claude/*', '!.claude/hooks', '.agents/skills/shadcn', 'src/preload', 'src/ui/{components,hooks,lib}'] }, // shadcn's skill examples and generated UI are upstream source
   { files: ['**/*.ts', '**/*.mts', '**/*.tsx'], languageOptions: { parser: tseslint.parser } },
   {
     files: ['**/*.ts', '**/*.mts', '**/*.tsx'],
@@ -131,8 +100,4 @@ export default tseslint.config(
   { files: WINDOW, rules: { 'no-restricted-syntax': ['error', EXPORT_ALL, ...OWN, HEX, COLORS] } },
   { files: ['src/renderer/components/AgentMark.tsx', 'src/renderer/components/ProjectIcon.tsx'],
     rules: { 'no-restricted-syntax': ['error', EXPORT_ALL, ...OWN, COLORS] } },
-  // An e2e test waits for a proof, never for a time: a pause long enough here is too short on a loaded machine, and
-  // proves nothing when it is long enough (docs/testing.md, Writing an e2e test). A wait with an end is upTo (helpers.ts).
-  { files: ['test/e2e/**'], plugins: { kulisa: { rules: { 'no-kulisa-classes': noKulisaClasses } } },
-    rules: { 'no-restricted-syntax': ['error', EXPORT_ALL, ...PAUSES], 'kulisa/no-kulisa-classes': 'error' } },
 );

@@ -8,6 +8,13 @@ import { closePointMenu, menuAt, usePointMenu, type MenuItem, type MenuRow } fro
 import { ProjectIcon } from './ProjectIcon';
 import { agentMark } from './AgentMark';
 
+export function SubmenuContent({ children, ...props }: ComponentProps<typeof DropdownMenuSubContent>) {
+  return <DropdownMenuSubContent {...props}>
+    {/* SubContent's p-1 belongs inside Radix's available-height budget. */}
+    <div className="max-h-[calc(var(--radix-dropdown-menu-content-available-height)-var(--spacing)*2)] overflow-y-auto">{children}</div>
+  </DropdownMenuSubContent>;
+}
+
 // A row's mark at its start: its icon, a profile's picture, an agent's mark, a project's icon.
 function mark(it: MenuRow) {
   if (it.project) return <ProjectIcon p={it.project} size={16} />;
@@ -39,7 +46,7 @@ function Rows({ items, close }: { items: MenuItem[]; close: () => void }) {
         <DropdownMenuSubTrigger aria-label={it.submenu} onPointerUp={leftOnly}>
           {it.project && <ProjectIcon p={it.project} size={16} />}{it.submenu}
         </DropdownMenuSubTrigger>
-        <DropdownMenuSubContent><Rows items={it.items} close={close} /></DropdownMenuSubContent>
+        <SubmenuContent><Rows items={it.items} close={close} /></SubmenuContent>
       </DropdownMenuSub>;
     }
     return <Row key={i} it={it} />;

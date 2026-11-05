@@ -119,7 +119,7 @@ function browserTools(server: McpServer, h: Handles) {
   // status. Named by the profile and tab it came from.
   const toFile = async (profile: string, tabId: string | undefined, kind: string, content: string | Buffer) => {
     const { profile: p, tab: t } = tabOf(profile, tabId);
-    return task.saveArtifact(p.id, t.id, kind, content);
+    return task.saveArtifact({ kind: 'profile', id: p.id, tab: t.id }, kind, content);
   };
 
   server.registerTool('browser_tab_new', {

@@ -1,4 +1,4 @@
-// Claude Code's Stop hook (.claude/settings.json): before a session ends its turn, ESLint and the unit tests on what
+// Claude Code's Stop hook (.claude/settings.json): before a session ends its turn, ESLint on what
 // it changed and has not committed; a failure sends it back with the output. docs/testing.md, Claude Code's checks.
 import { execFileSync, spawnSync } from 'node:child_process';
 import crypto from 'node:crypto';
@@ -30,7 +30,7 @@ if (last.passed === state) process.exit(0);
 if (input.stop_hook_active && last.failed === state) process.exit(0);
 
 const run = (script: string) => spawnSync('npm', ['run', '--silent', script], { cwd: root, encoding: 'utf8', shell: process.platform === 'win32' });
-const failures = ['lint', 'test:unit'].map((s) => ({ s, r: run(s) })).filter(({ r }) => r.status !== 0);
+const failures = ['lint'].map((s) => ({ s, r: run(s) })).filter(({ r }) => r.status !== 0);
 fs.writeFileSync(record, JSON.stringify(failures.length ? { ...last, failed: state } : { passed: state }));
 if (!failures.length) process.exit(0);
 

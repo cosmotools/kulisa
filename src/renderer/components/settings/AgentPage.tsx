@@ -1,19 +1,20 @@
 // An agent's page in Settings (docs/tasks.md, "Choosing the agent", Accounts).
-import { createElement, useEffect, useState } from 'react';
-import { PlusIcon, CircleAlertIcon } from 'lucide-react';
-import { Avatar, AvatarFallback, Badge, Button, Item, ItemActions, ItemContent, ItemDescription, ItemMedia, ItemTitle, Alert, AlertDescription, Field,
-  FieldTitle, FieldDescription, Card, CardHeader, CardTitle, CardContent, CardAction } from '@ui';
+import { createElement, useEffect, useState, type ReactNode } from 'react';
+import { CopyIcon, FolderOpenIcon, CircleAlertIcon } from 'lucide-react';
+import { Avatar, AvatarFallback, Badge, Button, Alert, AlertDescription, Field,
+  FieldTitle, FieldDescription } from '@ui';
 import { agents, loadAccounts, showAccounts, useAccounts } from './agents';
-import { Things } from './kit';
+import { Things, SettingsHeading, SettingsGroup, SettingsFields, SettingsDivider, SettingsLoading, SettingsError } from './kit';
 import { agentMark } from '../AgentMark';
-import { SignIn } from '../SignIn';
+import { AgentSetup } from '../AgentSetup';
+import { toast } from 'sonner';
 import { InstallProgress } from '../AgentPicker';
 import { shortPath, useAgentList } from '../../lib/agents';
 import { refused } from '../../../shared/result';
 import type { AgentInfo } from '../../../shared/types';
 
-export function AgentPage({ agent: a, signing, onSigning }: { agent: AgentInfo; signing: boolean; onSigning: (on: boolean) => void }) {
-  const { accounts, clis } = useAccounts();
+export function AgentPage({ agent: a, checking, signing, onSigning, action }: { agent: AgentInfo; checking: boolean; signing: boolean; onSigning: (on: boolean) => void; action?: ReactNode }) {
+  const { accounts, clis, loaded, loading, error: accountsError } = useAccounts();
   const home = useAgentList(agents, (s) => s.home), installing = useAgentList(agents, (s) => s.installing);
   // The install's output on the page of the agent it is of.
   const shown = useAgentList(agents, (s) => s.showDetails && s.selected === a.id);
@@ -31,32 +32,42 @@ export function AgentPage({ agent: a, signing, onSigning }: { agent: AgentInfo; 
 
   // section, data-agent: the tests' handle on the page shown (docs/testing.md).
   return <section aria-label={a.name} data-agent={a.id} className="flex flex-col gap-4">
-    <Item variant="outline">
-      <ItemMedia>{createElement(agentMark(a.id), { className: 'size-10' })}</ItemMedia>
-      <ItemContent>
-        <ItemTitle role="heading" aria-level={2}>{a.name}
-          <Badge role="status" variant={a.installed ? 'default' : 'secondary'}>{a.installed ? 'Installed' : 'Not installed'}</Badge></ItemTitle>
-        <ItemDescription>{a.maker || '—'}{a.site && <> · <a href={a.site} target="_blank" rel="noreferrer">Website</a></>}</ItemDescription>
-      </ItemContent>
-      {!a.installed && a.install && <ItemActions><Button disabled={installing} onClick={() => void agents.install(a.id)}>Install</Button></ItemActions>}
-    </Item>
+    <SettingsHeading title={a.name} media={createElement(agentMark(a.id), { className: 'size-10' })} action={action}
+      badge={<Badge role="status" variant={a.installed ? 'default' : 'secondary'}>{a.installed ? 'Installed' : 'Not installed'}</Badge>}
+      description={<>{a.maker || '—'}{a.site && <> · <a className="underline underline-offset-4" href={a.site} target="_blank" rel="noreferrer">Website</a></>}</>} />
+    {!a.installed && a.install && <div className="px-3"><Button disabled={installing} onClick={() => void agents.install(a.id)}>Install</Button></div>}
 
-    <Card role="group" aria-label="About"><CardHeader><CardTitle>About</CardTitle></CardHeader><CardContent><div className="flex flex-col gap-3">
+    <SettingsGroup title="About">
+      {checking && <SettingsLoading>Checking installation…</SettingsLoading>}
+      <SettingsFields>
       {a.needs && <Field><FieldTitle>Needs</FieldTitle><FieldDescription data-selectable>{a.needs}</FieldDescription></Field>}
       {where ? <Field><FieldTitle>Installed at</FieldTitle><FieldDescription data-selectable data-testid="agent-where">{where}</FieldDescription></Field>
         : a.install && <Field><FieldTitle>Install</FieldTitle><FieldDescription data-selectable>{`Runs ${a.maker || 'its maker'}'s installer: ${a.install}`}</FieldDescription></Field>}
       {shown && <InstallProgress list={agents} />}
-    </div></CardContent></Card>
+    </SettingsFields></SettingsGroup>
 
-    {clis.includes(a.id) && <Card role="group" aria-label="Accounts"><CardHeader><CardTitle>Accounts</CardTitle><CardAction><Button variant="outline" size="sm" disabled={!a.installed || signing}
-      onClick={() => { setError(''); onSigning(true); }}><PlusIcon data-icon="inline-start" />Add Account</Button></CardAction></CardHeader><CardContent><div className="flex flex-col gap-3">
-      <Things label="Accounts" menu={(id) => [{ label: 'Delete…', run: () => remove(id) }]}
-        empty={signing ? undefined : 'No accounts yet: each its own sign-in, added to a project on its page.'}
-        things={mine.map((x) => { const name = x.email || x.id; return { key: x.id, name, data: { 'data-account': x.id },
-          media: <Avatar size="sm"><AvatarFallback>{name.slice(0, 1).toUpperCase()}</AvatarFallback></Avatar>,
-          description: x.projects.length ? `in ${x.projects.join(', ')}` : 'in no project' }; })} />
-      {signing && <SignIn agent={a} onDone={(r) => { onSigning(false); showAccounts(r); }} onClose={() => onSigning(false)} />}
-      {error && <Alert variant="destructive"><CircleAlertIcon /><AlertDescription><span data-selectable>{error}</span></AlertDescription></Alert>}
-    </div></CardContent></Card>}
+    {(!loaded || clis.includes(a.id)) && <SettingsGroup title="Accounts" count={loaded ? mine.length : undefined}>
+      {(loading || !loaded && !accountsError) && <SettingsLoading>Loading accounts…</SettingsLoading>}
+      <SettingsError error={accountsError} />
+      <Things label="Accounts" menu={(id) => [{ label: mine.find((x) => x.id === id)?.origin === 'external' ? 'Disconnect…' : 'Delete…', run: () => remove(id) }]}
+        empty={loaded && !signing && 'No accounts yet. Connect a setup to use it in projects.'}
+        things={mine.map((x) => ({ key: x.id, name: x.email || x.id, data: { 'data-account': x.id },
+          media: <Avatar size="sm"><AvatarFallback>{(x.email || x.id).slice(0, 1).toUpperCase()}</AvatarFallback></Avatar>,
+          description: x.projects.length ? `in ${x.projects.join(', ')}` : 'in no project',
+          details: <div role="group" aria-label={`Configuration for ${x.email || x.id}`} className="flex flex-col gap-2">
+            <Badge variant="outline">{x.origin === 'external' ? 'External configuration' : 'Created in Kulisa'}</Badge>
+            <p data-selectable className="font-mono text-xs break-all text-muted-foreground">{x.directory}</p>
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" variant="outline" size="sm" onClick={() => void kulisa.invoke('account:show-folder', { id: x.id }).then((r) => { if (refused(r)) setError(r.error); })}><FolderOpenIcon data-icon="inline-start" />Open Folder</Button>
+              <Button type="button" variant="ghost" size="sm" onClick={() => void navigator.clipboard.writeText(x.directory).then(() => toast.success('Path copied')).catch((e: unknown) => setError(String(e)))}><CopyIcon data-icon="inline-start" />Copy Path</Button>
+            </div>
+            {x.origin === 'external' && <p className="text-xs text-muted-foreground">Shared with your other CLI sessions. Disconnecting keeps your files and sign-in.</p>}
+          </div> }))} />
+      {mine.length > 0 && <SettingsDivider />}
+      {loaded && <div className="flex flex-col gap-3 p-4">
+        <AgentSetup agent={a} signing={signing} onSigning={onSigning} onDone={showAccounts} />
+        {error && <Alert variant="destructive"><CircleAlertIcon /><AlertDescription><span data-selectable>{error}</span></AlertDescription></Alert>}
+      </div>}
+    </SettingsGroup>}
   </section>;
 }

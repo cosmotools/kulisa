@@ -2,7 +2,8 @@
 // cannot be read is left as it is.
 import fs from 'fs';
 import path from 'path';
-import { writeFileAtomic } from '../../../main/store.ts';
+import { writeFileAtomic } from '../../../main/files.ts';
+import { removeTree } from '../../../main/remove.ts';
 
 const readJSON = (file: string) => { try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return null; } };
 
@@ -26,14 +27,16 @@ function rewriteLines(file: string, keep: (line: string) => boolean) {
   if (kept.length !== lines.length) writeFileAtomic(file, kept.join('\n'), { mode: fs.statSync(file).mode });
 }
 
-// Kulisa's profiles skill (resources/skills/profiles/, one text for every agent) written into an agent's config folder,
+// Kulisa's shared skill (resources/skills/kulisa/, one text for every agent) written into an agent's config folder,
 // where it reads its own skills (an entry's skills): at each start, so it follows Kulisa's version, and only when it
-// changed; it goes with the account. Under a name of Kulisa's (kulisa-profiles), apart from the human's own skills.
+// changed; it goes with the account. Under a name of Kulisa's (kulisa), apart from the human's own skills.
 function installSkill(packages: string, folder: string) {
-  const text = fs.readFileSync(path.join(packages, 'skills', 'profiles', 'SKILL.md'), 'utf8');
-  writeChanged(path.join(folder, 'kulisa-profiles', 'SKILL.md'), text);
+  const text = fs.readFileSync(path.join(packages, 'skills', 'kulisa', 'SKILL.md'), 'utf8');
+  writeChanged(path.join(folder, 'kulisa', 'SKILL.md'), text);
+  // Keep one instruction source in Kulisa-owned agent accounts.
+  removeTree(path.join(folder, 'kulisa-profiles'));
 }
-// A file of Kulisa's in an agent's folder, written whole only when its text changed (an agent may be reading it).
+// A Kulisa-owned file, written whole only when its text changed (an agent may be reading it).
 function writeChanged(file: string, text: string) {
   let now: string | null = null;
   try { now = fs.readFileSync(file, 'utf8'); } catch {}

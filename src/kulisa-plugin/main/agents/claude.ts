@@ -4,11 +4,11 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { removeTree } from '../../../main/remove.ts';
-import { writeFileAtomic } from '../../../main/store.ts';
+import { writeFileAtomic } from '../../../main/files.ts';
 import { cut, ownTool, lines, tailLines } from '../transcripts.ts';
 import type { Conversation, Entry } from '../transcripts.ts';
 import { readJSON, headLines, rewriteLines, writeChanged } from './files.ts';
-import { KULISA_ASKS, hookCommand, hookSeconds } from './agent.ts';
+import { hookCommand, hookSeconds } from './agent.ts';
 import type { Agent, Hook, Where, ForgetContext } from './agent.ts';
 
 const CLAUDE_KULISA = 'mcp__plugin_kulisa_kulisa'; // the plugin's server, as Claude Code names its tools
@@ -49,21 +49,21 @@ const claude: Agent = {
   // A project's own settings of it, not in git (.claude/settings.local.json): a task's copy gets them too.
   localFiles: ['/.claude/settings.local.json'],
   // The Kulisa plugin (claude-plugin/ among Kulisa's packages): its MCP config (KULISA_MCP_URL). Settings for Kulisa's sessions only, in one
-  // --settings (two are not documented to merge): its tools allowed but KULISA_ASKS (an ask rule wins over an allow
-  // rule), reading the files of its pages Kulisa keeps outside its folders (else it asks each time), its hooks,
+  // --settings (two are not documented to merge): its tools allowed, reading the files of its pages Kulisa keeps
+  // outside its folders (else it asks each time), its hooks,
   // and the dictation (voice, below).
-  // The settings go as a file in its account's folder (kulisa-settings.json, rewritten at each start): the command
-  // typed into the terminal stays short. Without an account, the same JSON on the command line.
-  args: ({ packages, account, artifacts }) => {
+  // Launch files belong to the task, independently of config ownership, so external configurations stay untouched
+  // and only a path is typed into the terminal. One file per task, refreshed at launch and removed with its data.
+  args: ({ packages, data, artifacts }) => {
     const settings = JSON.stringify({
-      permissions: { allow: [CLAUDE_KULISA, `Read(${claudePath(artifacts)}/**)`], ask: KULISA_ASKS.map((t) => `${CLAUDE_KULISA}__${t}`) },
+      permissions: { allow: [CLAUDE_KULISA, `Read(${claudePath(artifacts)}/**)`] },
       hooks: claudeHooks(),
       // voiceEnabled too: without it dictation is taken for off (its /voice writes both; the object alone leaves the
       // space typing spaces).
       voiceEnabled: true, voice: { enabled: true, mode: 'hold', autoSubmit: false } }, null, 2);
-    const file = account && path.join(account, 'kulisa-settings.json');
-    if (file) writeChanged(file, `${settings}\n`);
-    return ['--plugin-dir', path.join(packages, 'claude-plugin'), '--settings', file || settings];
+    const file = path.join(data, 'claude-settings.json');
+    writeChanged(file, `${settings}\n`);
+    return ['--plugin-dir', path.join(packages, 'claude-plugin'), '--settings', file];
   },
   hooks: CLAUDE_HOOKS,
   // Its personal skills: <CLAUDE_CONFIG_DIR>/skills/<name>/SKILL.md.
@@ -104,7 +104,7 @@ const claude: Agent = {
   // No plugins' MCP servers (--strict-mcp-config): a session that only listens needs none of their memory. Its
   // variables of a Claude Code session Kulisa may run in are left out: the session would take itself for a child.
   recognizer: {
-    available: (dir) => !!readJSON(claudeConfigFile(dir))?.oauthAccount,
+    available: (dir, defaultConfig) => !!readJSON(claudeConfigFile(dir, defaultConfig))?.oauthAccount,
     args: () => ['--settings', JSON.stringify({ voiceEnabled: true, voice: { enabled: true, mode: 'hold', autoSubmit: true },
       hooks: { UserPromptSubmit: [{ hooks: [{ type: 'command', command: hookCommand('prompt'), timeout: hookSeconds('prompt') + 1 }] }] } }),
     '--strict-mcp-config'],
@@ -145,11 +145,11 @@ function setClaudeLanguage(file: string, code: string) {
 // config dir being CLAUDE_CONFIG_DIR or ~/.claude), so it is the one the project's environment chose (direnv …).
 function claudeConfigOf(transcript: string) { return claudeConfigFile(path.dirname(path.dirname(path.dirname(transcript)))); }
 // The config file of a config dir: ~/.claude keeps it next to it (~/.claude.json), CLAUDE_CONFIG_DIR inside.
-function claudeConfigFile(dir: string) {
-  return path.basename(dir) === '.claude' && path.dirname(dir) === os.homedir() ? path.join(os.homedir(), '.claude.json') : path.join(dir, '.claude.json');
+function claudeConfigFile(dir: string, defaultConfig?: boolean) {
+  return defaultConfig !== false && path.basename(dir) === '.claude' && path.dirname(dir) === os.homedir() ? path.join(os.homedir(), '.claude.json') : path.join(dir, '.claude.json');
 }
 
-const claudeConfigWhere = ({ configDir, transcript }: Where) => (configDir ? claudeConfigFile(configDir) : transcript ? claudeConfigOf(transcript) : null);
+const claudeConfigWhere = ({ configDir, transcript, defaultConfig }: Where) => (configDir ? claudeConfigFile(configDir, defaultConfig) : transcript ? claudeConfigOf(transcript) : null);
 // Claude Code keeps its answer in its config file (projects[<folder>].hasTrustDialogAccepted). Not documented: when
 // the file is not as expected, nothing is changed (Claude asks, as without Kulisa). Written whole at once, so Claude
 // never reads it half-written.

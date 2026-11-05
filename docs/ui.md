@@ -1,208 +1,148 @@
 # The window's UI
 
-**The window is shadcn/ui as it ships** (`src/ui`, a Kulisa package its CLI writes: [its README](../src/ui/README.md)),
-built as shadcn's examples build it. **A component of `src/ui` takes only where it sits and its size** (layout and size
-classes: `w-64`, `flex-1`, `ms-auto`; its variants and sizes for the rest); **its look is the theme's alone**
-(`src/ui/theme.css`; Kulisa's own variables in `src/renderer/window.css`); a part with a role of its own may look a
-little different. Variables passed to a component configure it (`[--muted:transparent]`, or in `style`); `src/ui` itself is never edited. What shadcn
-has no component for (a layout, a frame, the log) is a div or span with Tailwind's classes around shadcn's components,
-not on them (Own drawing). How a component is used: shadcn's documentation
-(`https://ui.shadcn.com/docs/components/radix/<name>`) and its generated file, read rather than remembered; here only
-what shadcn cannot know (the native pages, the desktop) and the choices it leaves. Nothing of ours where shadcn or
-Radix has a component, a prop or a pattern: their keyboard, focus and accessibility are maintained upstream. A
-deviation gets a comment at it saying why. Tests find a part as the human does (role and name, label,
-`data-*`; never a class: [testing.md](testing.md)).
-
-The grid is dockview's (`dockview-react`): its API before layout code of our own. State is zustand's; the terminal is
-xterm's (`src/terminal/`). The Log page uses TanStack Virtual for its scrollable rows ([window.md](window.md), The log).
-
-**The profiles' pages are native views, drawn above the window's HTML**, so whatever HTML covers the panes hides the
-pages or puts pictures of them in their place (Layers, below; a tasks' window's pages under it: `lib/views.ts`); while
-a panel is dragged, pictures stand in too. The renderer sends each pane's content box (or that it is off screen) to
-the main process after every grid change ([window.md](window.md), The grid).
-
-## The code
-
-| Where | What |
-|---|---|
-| `src/renderer/index.html`, `main.tsx`; `master.html`, `master.tsx`; `public/theme.js` | a tasks' window's page and a master's window's: the theme from the URL before the first paint (`theme.js`), then the app |
-| `src/renderer/window.css` | Tailwind and shadcn's theme for the window, Kulisa's own variables (`--warning`, `--success`), the few global rules (text selection, the cursor, no scrolling) |
-| `src/renderer/components/` | the parts. `App.tsx` a tasks' window; `Menus.tsx` the menus; `Tip.tsx` a tooltip; `BrowserTabs.tsx` the browser tabs; `Ask.tsx` the questions; `TopBar.tsx`, `TaskBar.tsx`, `Sidebar.tsx`, `Empty.tsx`, `Welcome.tsx`; `Grid.tsx` (`Grid.css`) and `grid/` (`ProfilePane.tsx`, `Terminals.tsx`, `Resources.tsx`: a panel and its header each); the dialogs `NewProject.tsx` (also `Wizard`, the welcome's), `TaskRename.tsx`, `AgentPicker.tsx`, `HandOver.tsx`, `Shortcuts.tsx`; `settings/` Settings, its own chunk (`index.ts` its one entry, loaded by `import()`: `npm run deps`): `Settings.tsx`, `kit.tsx` (what its pages are built of) and its pages (`ProjectPage.tsx`, `AgentPage.tsx`, `ProfilePage.tsx`, `GitHubPage.tsx`, `LogPage.tsx`, `AboutPage.tsx`; `agents.ts`, `changed.ts` theirs); `SignIn.tsx` a new account's sign-in (Settings', New Project's); `AgentMark.tsx`, `ProjectIcon.tsx` the marks; `Terminal.tsx` a terminal in a page; `Master.tsx` a master's bar |
-| `src/renderer/lib/` | what parts share or what outlives a component, no component, UI library or icon (`npm run deps`): `store.ts` (the window's state as the main process sends it: `useWindow(selector)` in a component, `store.getState()` elsewhere; `act`), `theme.ts`, `cover.ts` (and `cover.css`), `views.ts`, `menu.ts` (what a menu holds, the menu at a point), `project-menu.ts` (a project's, the sidebar's and a tab's), `dialogs.ts`, `settings.ts` (Settings shown, at what), `ask.ts`, `strip.ts`, `keys.ts`, `sidebar.ts`, `grid.ts`, `terminals.ts`, `agents.ts`, `new-project.ts`, `profiles.ts`, `project-color.ts`, `common.ts`, `names.ts` (name fields: `data-name`), `test-hooks.ts` |
-| `src/shared/types.ts`, `ipc.ts`; `src/renderer/env.d.ts` | the shapes the main process sends and the channels they come by ([window.md](window.md), IPC); the bridge (`kulisa`) typed by them |
-| `src/renderer/public/avatars/` | the profiles' pictures (Noto Emoji), copied as they are |
-| `src/*/renderer/` | a Kulisa package's part of the window (the terminal, dictation, screenshots): its own `README.md` |
+Kulisa-specific UI rules and integration constraints. Component APIs and composition patterns come from the
+development skill required by [AGENTS.md](../AGENTS.md#implementation). Window lifecycle and native-page geometry:
+[window.md](window.md); generated components: [src/ui](../src/ui/README.md).
 
 ## shadcn in Kulisa
 
-- **The theme** is shadcn's `neutral` (`src/ui/theme.css`), Geist and the terminal's JetBrains Mono bundled, so the
-  window looks the same on every OS. Kulisa's own colors where shadcn has none are variables beside it (`window.css`:
-  `--warning`, `--success`, used as `text-warning`). Dark, Light or System ([window.md](window.md), Theme) is `.dark`
-  on the root: `public/theme.js` puts it before the first paint, `lib/theme.ts` changes it; what draws outside CSS (a
-  terminal) reads the theme's colors by `termStyle()`.
-- **A color is the theme's** (`bg-muted`, `text-destructive`, `var(--card)`), never Tailwind's palette nor written
-  out: one palette, dark and light. A literal color only where none can be: the marks.
-- **Not Lucide's icons**: the agents' marks (`AgentMark.tsx`: the makers' own, in their colors, 1em), the logo
-  (`Logo`, `ProjectIcon.tsx`: its curtain in the color given) and the profiles' pictures (`avatarSrc` in an `Avatar`).
-- **No CSS Modules, no second UI library.** A plain `.css` only for what classes cannot say, with its reason: what is
-  dockview's own elements (`Grid.css`), Radix's layers (`lib/cover.css`).
-- **A component missing**: `npm run ui -- <name>` adds it, without asking whether to; nothing in shadcn fits: say so
-  before building one of our own.
-- **`npm run lint` refuses** in the window a raw `button`, `input`, `select` or `textarea`, a `className` on a
-  component of `src/ui` that is not a literal of layout and size classes and variables, a `style` on one that is not a size, a place
-  or a custom property (`kulisa/ui-as-shipped`), Tailwind's palette or a hex color (but the marks), a constant in
-  `style` but a variable (a class), `@fluentui` and a `*.module.css`; and React's hook rules (`eslint.config.ts`), not its memoization
-  ones: the window is not compiled by the React Compiler.
+These integration rules take precedence over generic skill instructions:
+
+- Run read-only CLI commands from the checkout root with the pinned
+  `node node_modules/shadcn/dist/index.js <command>`, including `info --json` and `docs <name>`.
+  Do not substitute a freshly downloaded CLI. Generate or update components through the
+  [repository generation workflow](../src/ui/AGENTS.md#generation).
+- Outside `src/ui`, import only through `@ui`. Registry aliases reported by `info` describe generated internals;
+  they do not replace this public entry.
+- Put Kulisa's theme variables in `src/renderer/window.css`. The CLI reports `src/ui/theme.css`, which is generated
+  base styling; do not put application overrides there. Callers use layout/size classes, variants and custom
+  properties; custom drawings/layout use wrappers, with their reasons documented by the owner.
+- Use neutral shadcn styling, bundled Geist and JetBrains Mono. Native drawings use `termStyle()`;
+  theme propagation/first paint belongs to [window.md](window.md#theme).
+- Kulisa's warning/success colors are theme variables. Brand marks are the color exception: the original red
+  `assets/icon.svg` goes through `AppLogo`; projects keep their own identity color.
+- Lucide is the icon library; maker marks (`AgentMark`), logo/project icons, avatars and file-type icons are
+  exceptions. Resources uses `text-sm` for filenames/messages/controls and `text-xs` for captions/status metadata.
+- Keep CSS Modules and additional UI libraries out. Standalone CSS needs an owning explanation; see
+  [custom drawing](#own-drawing). ESLint checks shipped-control styling, theme colors, raw form controls,
+  hook rules and the Fluent UI exclusion; React Compiler memoization rules are not enabled.
+
+## Clusters
+
+A window UI cluster owns one screen or closely related set of views: its state, private components and assets
+stay together behind an explicit entry. Shared non-UI coordination stays in `lib/`; application/core actions
+remain in their owning layer. A cluster is part of the window, distinct from a [Kulisa package](packages.md).
+
+Document lifecycle, boundaries and exceptions in the cluster's README. Keep detailed screen behavior there and
+leave links here. Dependency-cruiser protects public entries and keeps non-UI logic independent of components.
+
+| Owner | Responsibility |
+|---|---|
+| `components/App.tsx`, title/tasks' bars, sidebar | Window frame and navigation; [window.md](window.md) |
+| [welcome](../src/renderer/components/welcome/README.md) | First-start introduction, example drawings and their shared animation |
+| [Settings](../src/renderer/components/settings/README.md) | Lazy settings UI and shared page controls |
+| [task-view](../src/renderer/task-view/README.md) | Retained task screens, grids, Resources and pane drawings |
+| [Projects](tasks.md#projects) | Project creation, membership and setup behavior |
+| `components/Menus.tsx`, `lib/menu.ts`, `lib/dialogs.ts`, `lib/ask.ts` | Shared menus, dialog registration and questions |
+| `lib/store.ts` | Window state; components use `useWindow(selector)`, other code uses `store.getState()` |
+| `src/renderer/window.css`, `public/theme.js`, `lib/theme.ts` | Theme and first-paint application |
+| `src/shared/`, `env.d.ts` | Main/renderer contracts and bridge |
+| `src/*/renderer/` | Kulisa package UI, documented by each package |
+
+Window/master HTML and scripts live under `src/renderer/`; profile pictures come from bundled Noto Emoji avatars
+in `public/avatars/`. The window has no second router or UI framework.
 
 ## Layers over the pages
 
-`lib/cover.ts` sees Radix's layers in the document as Radix draws them, so **no component knows of the pages**: a
-dialog's open state is a plain `useState`.
+`lib/cover.ts` observes Radix layers; individual dialogs/popovers do not manage native browser views themselves.
 
-- **A layer with an overlay** (a `Dialog`, an `AlertDialog`, a `Sheet`: `[data-slot$="-overlay"]` open) hides the
-  pages while it is open, and the keys are its (`lib/keys.ts`, zone `dialog`).
-- **A popper** (a menu, a `Popover`, a `Select`'s list) opens over pictures of the pages: it is drawn once they are
-  pictures (`lib/cover.css` keeps it clipped until then), then marked `data-ready` (the tests' handle). A tooltip is
-  no layer: it opens over no page (Tooltips).
-- **Settings**, no Radix layer, says so itself (`coverPage(true)`, awaited before it is drawn; `coverPage(false)`).
-- **Closing**: the grid taken down closes every layer, the window left closes its menus (`closeLayers`), both by the
-  Esc Radix closes them on.
+- Dialog, AlertDialog and Sheet overlays hide native pages and take window-page keyboard focus. A popper/menu
+  opens over pictures of the pages only after they are ready (`lib/cover.css`, `[data-ready]`). A tooltip is not
+  a covering layer.
+- Settings covers without a Radix overlay: its owner calls `coverPage(true)` after drawing the cover and releases
+  it with `coverPage(false)` on cleanup, avoiding an empty frame between native pages and Settings.
+- Task changes close all layers; leaving the native window closes menus. Use `closeLayers` and Radix's Escape
+  handling. Dialog content remains mounted through exit animations; focus handoffs wait for removal.
 
-## Desktop, not a web page
+## Desktop behavior
 
-Kulisa is a desktop app, an IDE: its window looks like one, JetBrains its model (not big titles, framed cards in
-frames, pills, rows that show their buttons only under the pointer: those read as a web page's).
-
-- **Flat panes split by a gap** (dockview's `gap`: at 0 the native pages draw over a hairline).
-- **The project's color only on its icon** and the title bar's logo (`--project` on the root, `lib/store.ts`; the
-  author's choice). `projectColor` (`lib/project-color.ts`): a favicon's hue in Kulisa's lightness and chroma.
-- **The sidebar** is shadcn's `Sidebar`, docked in the empty window and in a `Sheet` over the grid (covering as a
-  dialog does), so the grid keeps its room.
-- **Every object has a right-click menu with all its actions**, so the window shows one or two buttons. No swipes (a
-  sideways swipe is the OS's and the pages' back and forward), nor a double-click as the only way to anything.
-- **Labels and buttons are not text to select, fields and errors are** (`data-selectable` on a span of the error's
-  words); **the arrow over buttons, tabs and menus' rows**, as in Chrome (`window.css`). The window never scrolls
-  (`overflow: clip`); a part scrolls inside.
-- **An agent's state is an icon each**, not a color alone (some people do not tell yellow from green): one component
-  (`AgentState.tsx`) on a task's tab, its row in the sidebar, a terminal's tab.
-- **Explanations are a card's line, an empty list's line, a field's `FieldDescription` and tooltips**, not a paragraph
-  per section: that reads as documentation.
-- **A dialog asks one thing**; what is browsed (Settings) is a nav of categories (shadcn's `Sidebar`) and a page under
-  its `Breadcrumb`, saved as it changes, no OK, as Windows' Settings: a project or a profile is a category's page, not
-  in the nav (it would grow with each). No search field over the nav (the author's choice). Back to the tasks is the
-  nav header's ←: a × at the nav's edge reads as closing the nav.
-- **It fits the smallest window** (640 × 400, or any at 200%): a dialog that keeps a height of its own (New Project)
-  gives it as `max-h-[70vh]` on our box inside it, so its buttons stay in the window.
+- Use flat Dockview panes and compact rows. Keep project color on its icon/title logo (`--project`, the author's choice).
+  The sidebar docks in the empty window and uses a Sheet over tasks without resizing the grid.
+- Objects have complete right-click menus and one or two visible actions. Avoid swipe or double-click-only actions.
+- Labels/buttons remain unselectable; fields, errors (`data-selectable`) and review code allow selection. Controls
+  use arrow cursors. The window itself never scrolls; its parts own scrolling.
+- Agent state has distinct `AgentState` icons as well as color. Explain controls with field descriptions,
+  tooltips and concise empty/status messages.
+- Success toasts belong only in Settings, where native pages cannot cover them; placement belongs to the
+  [Settings UI](../src/renderer/components/settings/README.md#page-controls).
+- Fit 640 × 400 and 200% zoom. Bound dialog bodies and preserve reachable actions when the body scrolls.
 
 ## Tooltips
 
-`Tip` (`Tip.tsx`, shadcn's `Tooltip`) on a control where it opens over no page: the title bar, the sidebar, dialogs,
-Settings, the tasks' bar's buttons (`side`: over or under them are the pages). The native `title` elsewhere:
-- in the grid, over and next to the pages (a pane's tabs, toolbar and header; the terminals' header; the microphone),
-  and on a master's bar: the OS draws it above the native views, which would cover the window's;
-- on a row (of a list, a nav) and on a text that cuts: a tooltip of the window's over a row covers the row above;
-- on a line of the log (Settings → Log, its date): a tooltip per line would be thousands of components.
+Use `Tip` only where it cannot overlap a native page: title/sidebar/dialogs/Settings and suitable tasks' bar
+buttons. Pane controls, Resources, master bars, list rows, clipped text and log lines use native `title`:
+native views cover HTML tooltips, and per-log-line components cost memory.
 
-A tooltip's text is not hoverable: the pointer leaving onto a page moves on no more in the window, and Radix's grace
-area would keep it open. A dialog whose first control has one gives the keyboard to itself (`Shortcuts.tsx`): the tooltip opened by
-that focus would take the dialog's Esc.
-
-A command with a key says it at the end of its tooltip, as Chrome's toolbar: `withKeys('Reload', 'tab.reload')` →
-"Reload (Ctrl+R)" (`lib/common.ts`). A disabled button has no tooltip: it gets no pointer events.
+Disable tooltip hoverability. Crossing into a native page stops window pointer events and can leave Radix's
+grace area open. Give a dialog initial focus on itself if its first control has a tooltip, so Escape reaches
+the dialog. `withKeys` appends the shortcut; disabled controls receive no pointer events or tooltips.
 
 ## Menus
 
-`Menus.tsx`, on shadcn's `DropdownMenu`: a button's (`ButtonMenu`: `items` built as it opens; `end`: its end edge at
-the button's), an area's right-click menu at the pointer (`RightClickMenu`: `items(e)` the rows for what was
-right-clicked, or `null`), one at a point (`menuAt(e, items)`, `lib/menu.ts`: a link in the terminal, a screenshot's
-thumbnail). A right-click's and a point's are the window's one menu at a point (`PointMenu`, in `App.tsx`): an
-element fixed inside dockview's panels is placed in their box, not the window's; not `ContextMenu`, whose open state
-is Radix's own. A Radix menu of a part's own only for a row's own menu inside one
-(`ChoiceRow`, `TopBar.tsx`).
+`components/Menus.tsx` owns the window's shared DropdownMenu wrappers: `ButtonMenu` for buttons, `RightClickMenu`
+for areas, and `menuAt`/`PointMenu` for positions. Use this single point menu; a fixed menu inside Dockview can be
+clipped by panels. ContextMenu is not the window's menu implementation. An isolated part may own its Radix menu
+(`ChoiceRow`, `TopBar.tsx`). Native profile-page menus are separate: [window.md](window.md#menus).
 
-- A button's menu opens on the press, and a press, a drag to a row and the release there chooses it, as the OS's
-  (Radix's). Rows are chosen with the left button only (on Linux a right-click menu opens on the press, and the
-  release must not choose a row).
-- One menu at a time, not modal: a press outside closes it and acts there, so another menu opens right from this one,
-  as a menu bar's. Leaving the window closes it: the window's blur from the main process (`window:blur`), not its
-  page's, which Radix would close it on (a profile's page taking the keyboard as it loads, on macOS, would close a
-  menu under the hand). Closed, it gives the keyboard back where it was before it opened (the terminal, a field), not
-  to its button. A delayed close leaves the keyboard with any menu opened meanwhile.
-  A blur checks the native window's current focus (`window:focused`): the page's focus can lag the OS's, and a stale
-  notification must leave a window that has focus again alone.
-- Gone at once as it closes, not faded: a fading menu keeps the keyboard, taking it back from a dialog its row opened
-  under the pointer, and takes the next Esc.
-- It shows once the pages under it are pictures (Layers); then its list is `[role="menu"][data-ready]` (the tests'
-  handle).
-- Rows are `MenuItem`s (`lib/menu.ts`).
-- **A row's accessible name is its label alone** (`aria-label`), so it is found by what it says.
+- Press/release behavior matches the OS: a press followed by dragging and release selects a row. Rows accept the
+  left button only; Linux right-click opens on press and its later release must not choose a row.
+- Only one menu is open, nonmodal: a press outside closes it and acts there, including opening the next menu.
+  Native-window blur closes it. Check current `window:focused` state because renderer focus/blur can lag the OS;
+  a stale notification must not close a window that has focus again.
+- Closing restores the opener's focus, except when another menu now owns it. Remove menus immediately rather
+  than fading them: a fading layer can steal focus and the next Escape from a dialog opened by its row.
+- Draw only after native-page pictures are ready; `[role="menu"][data-ready]` is the tests' handle.
+  Submenu padding participates in Radix's available-height limit so long lists stay scrollable inside the window.
+- Build rows as `MenuItem`s from `lib/menu.ts`. A row's accessible name is its label alone, including when a
+  shortcut/icon is also shown.
 
 ## Dialogs
 
-- shadcn's `Dialog` (a question: `AlertDialog`), its open state a `useState`; the pages hidden under it (Layers).
-- Every dialog of a tasks' window is in `App.tsx` from the start and registers what it does (`registerDialog`);
-  anything opens one by name: `(await dialog('newproject')).open()` (`lib/dialogs.ts`). Settings is not a
-  dialog: `openSettings(section, id)` (`lib/settings.ts`), through the main process, which logs it.
-- Its content is mounted only while it is open, so what must outlive it lives outside it: an agents' list and its
-  install (`lib/agents.ts`), New Project's steps (`lib/new-project.ts`), Change Agent's (a store in `HandOver.tsx`).
-- One that waits for an answer takes no click outside or × (`onInteractOutside`; `AgentPicker.tsx`); Esc cancels it.
-- **Questions** before something that cannot be undone, before closing, or between two ways to go are not new dialogs:
-  `ask(q)` (`lib/ask.ts`) or the main process's `shell.ask` → `Ask.tsx`, an `AlertDialog`, queued: Cancel has the
-  keyboard, Esc is Cancel, a click outside does nothing.
-- **A page's alert or confirm** (`ProfilePane.tsx`) is drawn in its pane, not modal, over a dimmed picture of the page,
-  as Chrome shows it; the other panes go on.
-- **New Project** is `Wizard` (`NewProject.tsx`), shown by the dialog and by the welcome (`Welcome.tsx`, in a `Card`),
-  never a copy of the steps: it gives its parts (steps, error, Back, Next) to what shows it. A Create under way keeps
-  the dialog open however it would close.
+Task-window dialogs are mounted by App and register commands through `registerDialog` in `lib/dialogs.ts`;
+callers open them by name. Content mounts only while open. State that must outlive content belongs to the
+dialog's owning module or shared store; installation continues after its controls unmount.
 
-## Controls
+A dialog awaiting an answer rejects outside clicks and ×; Escape cancels it. Queue questions through `ask`
+or core `shell.ask` in the action's window, using AlertDialog. Settings is a separate view opened through
+`openSettings`; see its [owner](../src/renderer/components/settings/README.md).
 
-- **A page of Settings** is a column of sections (`kit.tsx`). A section is a `Card` (`role="group"`, named by its
-  title): its `CardTitle`, its **Add …** as the `CardAction`, its settings (each a `Field`), its things
-  (`Things`: `Item`s). A thing's row: its picture, its name, one line under it (default and state `Badge`s by the
-  name), its actions its ⋯ and its right-click (the same rows); a row that opens a page ends in a chevron instead.
-  What is added in place goes under the rows (`AddInPlace`: Enter takes it, Esc puts it away). A list of words
-  (hosts) is a field and its words as `Badge`s with their ×.
-- **A section of a dialog** is a `FieldSet` under its `FieldLegend`; a choice of one agent a `RadioGroup` of shadcn's
-  choice cards (a `FieldLabel` around a horizontal `Field`: `AgentPicker.tsx`, `HandOver.tsx`); a checkbox's row a
-  horizontal `Field`.
-- **Notices**: work under way (an install, a sign-in, a search) is a `Spinner` with its label, the line the `status`; a
-  `Progress` once how far it is is known (Change Agent's reading). An
-  error of a field is that `Field`'s `FieldError` (`data-invalid` on the field, `aria-invalid` on its control); any
-  other error, a warning, a step to take or what is done is an `Alert` (`variant="destructive"` an error's, its text
-  selectable). A confirmation that passes (Copied, Saved as) is a `toast` (sonner's `Toaster`), in Settings only
-  (elsewhere in a tasks' window the pages would cover it), at the bottom left, over the nav's empty foot: at the right
-  are a page's buttons (the log's).
-- **Tabs** are shadcn's `Tabs` as browser tabs, which shadcn does not have (`BrowserTabs.tsx`: `TabStrip`,
-  `BrowserTab`): the tasks' bar, a pane's tabs, the terminals'. A tab is chosen on the press, as a browser's (not on its ×). Its × is on every tab, always, as Chrome's: inside the tab, so not a button (a button holds none) but a
-  `role="button"` span that takes its own click and never the tab's press; a terminal's agent mark (Change Agent)
-  likewise. A task's tab keeps its width whichever is shown, so none moves under the mouse ([window.md](window.md),
-  The tasks' bar). A pane's tabs shrink to their icon and ×; a terminal's never shrinks (the agents' marks look alike).
-- **A strip of tabs that do not all fit** (those three, the closed profiles' buttons) shrinks, then scrolls: `useStrip`
-  (`lib/strip.ts`), not tabs moved past the end into a menu, which pushes others under the mouse (Office's model, not
-  Chrome's): no scrollbar; a mouse's wheel scrolls it sideways; an edge with tabs past it fades (`data-past-start`,
-  `data-past-end`); the chosen tab is brought into sight only when another is chosen, a tab grows in (`grow`) or the
-  strip is resized, so an update (a title, a page loading) leaves it where the human scrolled it.
-- **A narrow pane gives up its buttons in order** (Back and Forward, then Reload, into ⋮; never Pick or ⋮): container
-  queries on the pane (`@container`, `ProfilePane.tsx`); the address is no button, it shrinks.
+Profile-page alert/confirm is positioned in that pane under its controls rather than over the whole window,
+so other panes remain usable and the pane keeps the keyboard. See [page dialogs](profiles.md#page-dialogs).
+
+## Tabs
+
+`BrowserTabs.tsx` adapts shadcn Tabs for browser-like task/profile navigation. Choose on press, keep × on every
+tab, and let it handle its own click without selecting the tab. The nested close target is a `role="button"`
+span because TabsTrigger is already a button.
+
+Task tabs keep their width across selection so neighbors do not move under the pointer. Profile tabs shrink to
+icon and ×, sharing a 32 px row with navigation controls. Editing the address occupies the tabs/+ area while the
+strip stays mounted. Development terminals switch through Resources rows instead.
+
+`lib/strip.ts` shrinks overflowing strips, then scrolls them sideways without a scrollbar. The mouse wheel scrolls;
+`data-past-start`/`data-past-end` fade hidden edges. Reveal the selected tab only after selection, growth or resizing:
+title/loading/state updates must preserve the human's scroll. The Web Animations opening effect grows tabs;
+reduced motion disables it. This behavior also serves closed-profile strips above terminals.
 
 ## Own drawing
 
-What is drawn or moved here rather than by shadcn, each for a reason at it:
+Prefer upstream components for their normal jobs. The remaining custom surfaces have specific owners and reasons:
 
-- dockview's look, its variables set from the theme's (`Grid.css`);
-- the dictation's pill with its wave bars, read from the microphone (`src/dictation/`, its `README.md`); its motions and
-  the microphone's ring are Tailwind's and tw-animate-css';
-- the strips (`lib/strip.ts`, its classes on the element `useStrip` is given): the fades tied to the scroll; a tab
-  growing in (`grow`, the Web Animations API); the marks and the logo;
-- the browser tabs' ×, drag and drop marks (`BrowserTabs.tsx`);
-- a page's alert or confirm placed in its pane under the address bar (`ProfilePane.tsx`): a dialog is placed over the
-  window;
-- Settings' frame (`Settings.tsx`): the nav beside the page, the path over it, the page scrolling with its scrollbar
-  at the window's edge;
-- the log's box of lines (`LogPage.tsx`): shadcn has no log view; its tags in the theme's colors; the installer's
-  output (`AgentPage.tsx`, `AgentPicker.tsx`) a `role="log"` of monospace lines, as tall as what it says;
-- the steps' names of New Project (`StepNames`, `NewProject.tsx`) and the welcome's dots (`Dots`, `Welcome.tsx`):
-  shadcn has no stepper, and its `carousel` brings no dots;
-- the welcome's pictures (`Welcome.tsx`): a task's window drawn small in boxes of our own, its terminal's lines in a
-  terminal's colors.
+| Surface | Reason and owner |
+|---|---|
+| Dockview grids, profile notch, narrow-pane controls | Native-page geometry and profile identity; [task-view](../src/renderer/task-view/README.md) |
+| Browser tabs and scrolling strips | Close targets, width stability and reveal policy; [Tabs](#tabs) |
+| Diff loading indicator | Transform-only motion without layout work; [Diff](../src/diff/README.md) |
+| Dictation pill/wave | Live microphone data and recording lifecycle; [dictation](../src/dictation/README.md) |
+| Settings frame and log output | Window-wide navigation and plain-text logs; [Settings](../src/renderer/components/settings/README.md) |
+| Welcome examples and characters | Coordinated demonstration without live environments; [welcome](../src/renderer/components/welcome/README.md) |

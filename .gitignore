@@ -18,3 +18,15 @@ playwright-report/
 # development plugins (.claude/dev-plugins) are shared
 .claude/settings.local.json
 .claude/worktrees/
+
+# Third-party agent instructions installed by Skills CLI
+.agents/skills/diffs/
+.claude/skills/diffs
+.agents/skills/trees/
+.claude/skills/trees
+.agents/skills/shadcn/
+.claude/skills/shadcn
+.agents/skills/find-skills/
+.claude/skills/find-skills
+.agents/skills/tdd/
+.claude/skills/tdd

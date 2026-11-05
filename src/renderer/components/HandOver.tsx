@@ -1,5 +1,5 @@
 // Change Agent: the task handed to another agent (docs/tasks.md, Several agents in a task). What goes along is shown
-// between the two, and how far the new one has read the conversation (task_history: handover:read, its real progress);
+// between the two, and how far the new one has read the conversation (task_history: agent:handover:progress, its real progress);
 // its tab, in front under the dialog, is shown once it has read it all, or at once when it needs the human or stops
 // reading: a dialog that never waits for an agent waiting for the human. Show now any time.
 import { createElement, useEffect, useState } from 'react';
@@ -9,16 +9,17 @@ import { BookOpenIcon, GitBranchIcon, GlobeIcon, SquareTerminalIcon, CircleAlert
 import { Avatar, AvatarGroup, AvatarImage, Badge, Button, Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, Field, FieldContent,
   FieldDescription, FieldLabel, FieldTitle, Progress, RadioGroup, RadioGroupItem, Spinner, Alert, AlertDescription } from '@ui';
 import { agentMark } from './AgentMark';
-import { act, shownTask, store, useWindow } from '../lib/store';
+import { shownTask, store, useWindow } from '../lib/store';
+import { act, useTask } from '../task-view';
 import { registerDialog } from '../lib/dialogs';
 import { avatarSrc, plural } from '../lib/common';
 import { refused } from '../../shared/result';
-import type { Terminal } from '../../shared/types';
+import type { DevelopmentTerminalInfo } from '../../shared/types';
 
 // No part read for this long: an agent that thinks before it reads, or never does.
 const IDLE = 30_000;
 interface HandOverState {
-  from: Terminal | null; chosen: string | undefined; going: boolean; error: string;
+  from: DevelopmentTerminalInfo | null; chosen: string | undefined; going: boolean; error: string;
   handed: number | null; // the new agent's tab once open
   read: { part: number; parts: number } | null; // what it has read
 }
@@ -35,7 +36,7 @@ async function hand() {
   if (!from || !chosen || going) return;
   state.setState({ going: true });
   inTask = store.getState().current;
-  const r = await act('agent:hand-over', { id: from.id, agent: chosen });
+  const r = await act('agent:handover:start', { id: from.id, agent: chosen });
   if (!state.getState().going) return; // closed meanwhile: the tab is there, behind
   if (refused(r)) { state.setState({ going: false, error: r.error || 'The agent did not start.' }); return; }
   seen = false;
@@ -48,31 +49,32 @@ const waitIdle = () => { clearTimeout(idle); idle = window.setTimeout(show, IDLE
 function show() {
   clearTimeout(idle);
   const { handed } = state.getState();
-  if (handed !== null && store.getState().current === inTask) void act('terminal:show', { id: handed });
+  if (handed !== null && store.getState().current === inTask) void act('development-terminal:show', { id: handed });
   state.setState({ handed: null, going: false });
   close();
 }
-kulisa.on('handover:read', ({ task, id, part, parts: all }) => {
+kulisa.on('agent:handover:progress', ({ task, id, part, parts: all }) => {
   if (task !== inTask || id !== state.getState().handed) return;
   state.setState({ read: { part, parts: all } });
   if (part >= all) show(); else waitIdle();
 });
 // It needs the human (a permission, a sign-in, a limit: its hooks say it waits), or its tab is gone (once it was there:
 // the window may hear of it after the answer).
-store.subscribe((s) => {
+kulisa.on('development-terminal:state', (terminals) => {
   const { handed } = state.getState();
   if (handed === null) return;
-  const t = s.terminals.list.find((x) => x.id === handed);
+  if (terminals.task !== inTask) return;
+  const t = terminals.list.find((x) => x.id === handed);
   if (t) seen = true;
-  if (t?.state === 'waiting' || (!t && seen && s.current === inTask)) show();
+  if (t?.state === 'waiting' || (!t && seen && store.getState().current === inTask)) show();
 });
 
 
 export function HandOver() {
   const [open, setOpen] = useState(false);
   const { from, chosen, going, error, read } = useStore(state);
-  const agents = useWindow(useShallow((s) => agentsOf(s))), profiles = useWindow((s) => s.profiles);
-  const branch = useWindow((s) => shownTask(s)?.branch), shells = useWindow((s) => s.terminals.list).filter((t) => !t.agent);
+  const agents = useWindow(useShallow((s) => agentsOf(s))), profiles = useTask((s) => s.profiles);
+  const branch = useWindow((s) => shownTask(s)?.branch), shells = useTask((s) => s.developmentTerminals.list).filter((t) => !t.agent);
   useEffect(() => {
     close = () => setOpen(false);
     registerDialog('handover', {

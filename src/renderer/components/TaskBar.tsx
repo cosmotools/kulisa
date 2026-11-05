@@ -17,8 +17,7 @@ import { useProjectColor } from '../lib/project-color';
 import { keyText } from '../lib/common';
 import { dialog } from '../lib/dialogs';
 import { lastWorked, projectMenu } from '../lib/project-menu';
-import { profilesMenu } from '../lib/profiles';
-import { terminalsOf } from '../lib/terminals';
+import { profilesMenu, terminalsOf } from '../task-view';
 import { useStrip } from '../lib/strip';
 import { toggleSidebar } from '../lib/sidebar';
 import type { MenuItem } from '../lib/menu';
@@ -39,22 +38,22 @@ const taskMenu = ({ key, name, repos, resources }: TaskInfo): MenuItem[] => [
   ...(key === store.getState().current ? [{ heading: 'Profiles' }, ...profilesMenu(), '-' as const] : []),
   // The project's repositories it has no copy of, one added when its work needs it (tasks.md, Tasks).
   ...(repos.length ? [{ heading: 'Add Repository' }, ...repos.map((r) => ({ label: r.split(/[\\/]/).pop()!, title: r,
-    run: () => kulisa.invoke('task:add-repo', { key, repo: r }) })), '-' as const] : []),
+    run: () => kulisa.invoke('task:repo:add', { key, repo: r }) })), '-' as const] : []),
   // Those added (removable resources), not the task's own worktree or the main tree: those are not removed here.
   ...(resources.some((r) => r.removable) ? [{ heading: 'Remove Repository' }, ...resources.filter((r) => r.removable)
-    .map((r) => ({ label: r.label, title: r.folder, run: () => kulisa.invoke('task:remove-repo', { key, repo: r.folder }) })), '-' as const] : []),
+    .map((r) => ({ label: r.label, title: r.folder, run: () => kulisa.invoke('task:repo:remove', { key, repo: r.folder }) })), '-' as const] : []),
   { label: 'Rename…', run: () => rename(key, name) },
   { label: 'Show Folder', run: () => kulisa.invoke('task:show-folder', key) },
-  '-', ...moveRows((to) => kulisa.invoke('task:move', { key, to, terminals: terminalsOf(key) })),
+  '-', ...moveRows((to) => kulisa.invoke('task:move', { key, to, terminalContents: terminalsOf(key) })),
   '-', { label: 'Close', run: () => kulisa.invoke('task:close', key) },
   { label: 'Delete Task…', run: () => kulisa.invoke('task:delete', key) },
 ];
 // A project's rows (its submenu). Move All Tasks: its open tasks of this window, together.
 function projectItems(p: ProjectEntry): MenuItem[] {
   const { projects } = store.getState(), id = p.id, mine = projects.tabs.filter((t) => t.project === id);
-  const terminals = () => Object.assign({}, ...mine.map((t) => terminalsOf(t.key)));
+  const terminalContents = () => Object.assign({}, ...mine.map((t) => terminalsOf(t.key)));
   return projectMenu(p, { newTask: () => kulisa.invoke('task:new', { project: id }), keys: id === projects.project ? keyText('task.new') : undefined,
-    move: moveRows((to) => kulisa.invoke('project:move-all', { id, to, terminals: terminals() }), { enabled: mine.length < projects.tabs.length, label: 'Move All Tasks to' }) });
+    move: moveRows((to) => kulisa.invoke('project:task:move-all', { id, to, terminalContents: terminalContents() }), { enabled: mine.length < projects.tabs.length, label: 'Move All Tasks to' }) });
 }
 
 // HTML drag and drop, which also crosses windows. The tab carries its task and what its terminals show (the window it
@@ -75,8 +74,7 @@ export function TaskBar() {
   // More tabs than fit: the wheel scrolls them, the edges with tabs past them fade, the shown one stays in sight.
   useStrip(strip, current);
 
-  // The last choice's switch: done once the window has the task shown, its grid's grid:closing heard (the projects naming
-  // it come after it, in order; the invoke's answer may come before either).
+  // Task state follows deactivation in IPC order; the invoke's answer can arrive before that state.
   const showing = useRef<Promise<unknown>>(Promise.resolve());
   const tabAt = (e: { target: EventTarget | null }) => {
     const el = (e.target as Element).closest<HTMLElement>('[data-task]');
@@ -132,7 +130,7 @@ export function TaskBar() {
       if (!at) return;
       setDragged(at.t.key);
       e.dataTransfer.effectAllowed = 'move';
-      e.dataTransfer.setData(DRAG, JSON.stringify({ key: at.t.key, terminals: terminalsOf(at.t.key) }));
+      e.dataTransfer.setData(DRAG, JSON.stringify({ key: at.t.key, terminalContents: terminalsOf(at.t.key) }));
     },
     // Over a tab (entered, and as the pointer moves on it): where it would go, marked.
     onDragOver: (e: DragEvent) => over(e),
@@ -143,14 +141,14 @@ export function TaskBar() {
       setMark(null);
       if (!at || !data) return;
       e.preventDefault();
-      const { key, terminals } = JSON.parse(data);
-      void kulisa.invoke('task:drop', { key, index: at.index, terminals });
+      const { key, terminalContents } = JSON.parse(data);
+      void kulisa.invoke('task:drop', { key, index: at.index, terminalContents });
     },
     // Let go where no Kulisa window took it: outside them all, it goes to a new window there (the main process checks).
     onDragEnd: (e: DragEvent) => {
       const key = dragged;
       setDragged(null);
-      if (key && e.dataTransfer.dropEffect === 'none') void kulisa.invoke('task:drag-out', { key, terminals: terminalsOf(key) });
+      if (key && e.dataTransfer.dropEffect === 'none') void kulisa.invoke('task:drag-out', { key, terminalContents: terminalsOf(key) });
     },
   };
 

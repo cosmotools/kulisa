@@ -3,7 +3,7 @@
 // to every loaded task; the mechanics are the tab's (Profile.discard, load).
 import type { Shell } from './shell.ts';
 import type { Task } from './tasks.ts';
-import type { Profile, Tab } from './profiles.ts';
+import type { Profile, Tab } from '../browser/main/index.ts';
 
 // Off screen, and no automation on the profile, for this long: 5 minutes (the author's choice). Switching tasks
 // back and forth within it reloads nothing.

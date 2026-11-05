@@ -146,6 +146,10 @@ export function driver(shell: Shell, openedExternally: string[]) {
     noNode: async (wc: WebContents) => await wc.executeJavaScriptInIsolatedWorld(999, [{ code: 'typeof process' }]) === 'undefined',
     // Where an agent's hooks report (tasks.ts, env): the agent's terminal of the task, the one picks go to.
     hooksOf: (task = shell.task) => `${task.env(task.promptTarget()).KULISA_URL}/hooks`,
+    viewIn(view: electron.View, win: electron.BrowserWindow) {
+      const contains = (parent: electron.View): boolean => parent.children.some((child) => child === view || contains(child));
+      return contains(win.contentView);
+    },
     // Whether a profile's page lies on its pane's box (CSS pixels of the window's page, from helpers.ts' pageBox):
     // the view is placed in window pixels, times the Kulisa zoom.
     viewOn(name: string, box: { x: number; y: number; width: number; height: number } | null) {

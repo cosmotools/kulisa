@@ -7,7 +7,10 @@ import { toast } from 'sonner';
 import { Button, Input, Label, Switch, ToggleGroup, ToggleGroupItem, Alert, AlertDescription } from '@ui';
 import { ButtonMenu } from '../Menus';
 import { Tip } from '../Tip';
+import { SettingsHeading, SettingsLoading } from './kit';
+import { useRead } from './read';
 import { refused } from '../../../shared/result';
+import type { LogInfo } from '../../../shared/types';
 
 // A line as the file has it: [date T time offset] [level] [tag …] the rest (log.ts, stamp; electron-log's local time with
 // a space and no offset read too); a line not of that shape (an object's lines under an [electron] event) belongs to the
@@ -59,7 +62,8 @@ const Row = memo(function Row({ l }: { l: Line }) {
 });
 
 export function LogPage() {
-  const [lines, setLines] = useState<Line[] | null>(null), [info, setInfo] = useState({ size: 0, max: 0, old: null as string | null });
+  const [{ data, loading, error: loadError }, readLog, setLog] = useRead<{ lines: Line[]; info: Omit<LogInfo, 'text'> }>();
+  const lines = data?.lines ?? null, info = data?.info;
   const [show, setShow] = useState<Show>('all'), [filter, setFilter] = useState(''), [follow, setFollow] = useState(true);
   const [error, setError] = useState('');
   const box = useRef<HTMLDivElement>(null), followId = useId();
@@ -68,23 +72,26 @@ export function LogPage() {
   useEffect(() => {
     let loaded = false, live = true;
     const rest = { text: '' };
-    const load = async () => {
-      loaded = false;
-      const r = await kulisa.invoke('log:get');
-      if (!live) return;
-      const all: Line[] = [];
-      rest.text = ''; parse(r.text, all, rest);
-      setLines(all); setInfo({ size: r.size, max: r.max, old: r.old }); loaded = true;
+    const load = () => {
+      loaded = false; setError('');
+      return readLog(async () => {
+        const r = await kulisa.invoke('log:get'), lines: Line[] = [];
+        if (live) { rest.text = ''; parse(r.text, lines, rest); }
+        return { lines, info: { size: r.size, max: r.max, old: r.old } };
+      }, () => { loaded = true; });
     };
     onLines = (m) => {
       if (!loaded) return;
       if ('reset' in m) { void load(); return; }
-      setLines((now) => { const next = [...(now ?? [])]; parse(m.text, next, rest); return next; });
-      setInfo((i) => ({ ...i, size: i.size + new TextEncoder().encode(m.text).length }));
+      setLog((now) => {
+        if (!now) return now;
+        const lines = [...now.lines]; parse(m.text, lines, rest);
+        return { lines, info: { ...now.info, size: now.info.size + new TextEncoder().encode(m.text).length } };
+      });
     };
     void load();
     return () => { live = false; onLines = null; };
-  }, []);
+  }, [readLog, setLog]);
 
   const shown = useMemo(() => {
     const q = filter.trim().toLowerCase();
@@ -118,11 +125,13 @@ export function LogPage() {
     if (file) toast.success(`Saved as ${file}`, { action: { label: 'Show in Folder', onClick: () => void kulisa.invoke('file:show', file) } });
   };
 
-  return <div className="flex min-h-0 flex-1 flex-col gap-2">
+  return <div className="flex min-h-0 flex-1 flex-col gap-5">
+    <SettingsHeading title="Log" />
+    <div className="flex min-h-0 flex-1 flex-col gap-2">
     <div className="flex flex-wrap items-center gap-2">
-      <Input type="search" className="w-64" value={filter} placeholder="Filter: a task, wc=1, [mcp]…" aria-label="Filter" spellCheck={false}
+      <Input type="search" className="w-64 min-w-0 max-w-full" value={filter} placeholder="Filter: a task, wc=1, [mcp]…" aria-label="Filter" spellCheck={false}
         onChange={(e) => setFilter(e.target.value)} />
-      <ToggleGroup type="single" size="sm" aria-label="Show" value={show} onValueChange={(v) => { if (v) setShow(v as Show); }}>
+      <ToggleGroup type="single" size="sm" className="max-w-full flex-wrap" aria-label="Show" value={show} onValueChange={(v) => { if (v) setShow(v as Show); }}>
         {/* the tip on a box around the item: as its trigger, the tooltip's data-state would take the place of the item's */}
         {SHOW.map((s) => <Tip key={s.id} text={s.hint}><span><ToggleGroupItem value={s.id}>{s.label}</ToggleGroupItem></span></Tip>)}
       </ToggleGroup>
@@ -133,7 +142,8 @@ export function LogPage() {
     </div>
     <div ref={box} role="log" aria-label="Log" data-selectable
       onWheel={() => virtualizer.cancelScroll()} onPointerDown={() => virtualizer.cancelScroll()} onKeyDown={() => virtualizer.cancelScroll()}
-      className="min-h-0 flex-1 cursor-text overflow-auto rounded-lg border bg-card px-2 font-mono text-xs leading-5 text-card-foreground [overflow-anchor:none]">
+      className="min-h-56 flex-1 cursor-text overflow-auto rounded-md border px-2 font-mono text-xs leading-5 [overflow-anchor:none]">
+      {loading && <SettingsLoading>Loading log…</SettingsLoading>}
       <div ref={virtualizer.containerRef} className="relative w-full">
         {virtualizer.getVirtualItems().map((v) => <div key={v.key} data-index={v.index} ref={virtualizer.measureElement}
           className="absolute left-0 top-0 w-full">
@@ -142,18 +152,19 @@ export function LogPage() {
       </div>
       {lines && !shown.length && <p className="py-1.5 text-muted-foreground">Nothing matches.</p>}
     </div>
-    <p className="text-xs text-muted-foreground">
+    {info && <p className="text-xs text-muted-foreground">
       kulisa.log, {kb(info.size)} of {Math.round(info.max / 1024 / 1024)} MB{info.old ? `; kulisa.old.log from ${info.old.slice(0, 10)}` : ''}. Never here: what you typed,
       passwords, tokens, cookies, the pages' queries.
-    </p>
-    {error && <Alert variant="destructive"><CircleAlertIcon /><AlertDescription><span data-selectable>{error}</span></AlertDescription></Alert>}
-    <div className="flex items-center justify-end gap-2">
-      <Tip text="The whole log, to paste anywhere"><Button variant="outline" onClick={() => void copy()}>Copy All</Button></Tip>
+    </p>}
+    {(error || loadError) && <Alert variant="destructive"><CircleAlertIcon /><AlertDescription><span data-selectable>{error || loadError}</span></AlertDescription></Alert>}
+    <div className="flex flex-wrap items-center justify-end gap-2">
+      <Tip text="The whole log, to paste anywhere"><Button variant="outline" disabled={lines === null} onClick={() => void copy()}>Copy All</Button></Tip>
       <Tip text="The log as a file, to attach to a message or an issue"><Button variant="outline" onClick={() => void save()}>Save As…</Button></Tip>
       <Tip text="Its folder in your file manager"><Button variant="outline" onClick={() => void kulisa.invoke('log:show-folder')}>Open Folder</Button></Tip>
       <ButtonMenu end items={() => [{ label: 'On GitHub…', sub: 'a public issue, the environment filled in; attach the saved log', run: () => kulisa.invoke('log:report') }]}>
         <Button>Report…<ChevronDownIcon data-icon="inline-end" /></Button>
       </ButtonMenu>
+    </div>
     </div>
   </div>;
 }

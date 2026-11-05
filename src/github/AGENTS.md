@@ -1,15 +1,10 @@
-# GitHub: working in this folder
+# GitHub
 
-The GitHub accounts and their sign-ins: a Kulisa package (`docs/packages.md`: what one is, its rules). How it works and
-why: `README.md`. The spec and what is decided: issue #48.
+Read `README.md` and `docs/packages.md`. Design: #48.
 
-- From outside only through `main/index.ts` (the main process) and `ipc.ts` (its channels, its types, GitHub's pages);
-  it has no window half. `main/` uses nothing of `src/main` but `ipc.ts`, `log.ts` and `store.ts` (`newId`,
-  `writeFileAtomic`); `npm run deps` refuses any other import.
-- It knows nothing of projects, tasks or the window: which projects use an account, deleting one (`deleteGitHub` in
-  `projects.ts`: its question, its projects) and opening a page come from the caller (`installGitHub`, `app.ts`). The
-  bindings of repositories to accounts are `projects.ts`'s; a remote's key is the base's (`src/main/remotes.ts`); the
-  pages are Settings' (`components/settings/GitHubPage.tsx`, a repository's row in `ProjectPage.tsx`).
-- Never a token, a code or an address with a token in the log, an error or the window.
-- Its unit tests are here (`*.test.ts`, `npm run test:unit`, a fake fetch); its e2e tests in
-  `test/e2e/github.spec.ts`, against the test site's fake GitHub (`KULISA_GITHUB`), never the real one.
+- Entries: `main/index.ts`, `ipc.ts`; no renderer. Allowed core imports: `ipc.ts`, `log.ts`, `store.ts`, `files.ts`.
+- Projects, repository/account bindings, deletion questions and opening pages belong to callers (`projects.ts`,
+  `app.ts`). Remote keys belong to `src/main/remotes.ts`; account UI to Settings.
+- Never expose tokens, device codes or token-bearing URLs in logs or errors. The device-flow UI displays its code
+  only as required for the human's sign-in.
+- Unit tests use fake fetch; `test/e2e/github.spec.ts` uses `KULISA_GITHUB`, never real GitHub.

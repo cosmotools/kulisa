@@ -3,12 +3,12 @@ import type { EventEmitter } from 'events';
 import type { BrowserWindow, Point, WebContents } from 'electron';
 import type { Store } from './store.ts';
 import type { ProfileStore } from './profile-store.ts';
-import type { CookieSync } from './cookie-sync.ts';
-import type { SessionCookies } from './session-cookies.ts';
+import type { CookieSync } from '../browser/main/index.ts';
+import type { SessionCookies } from '../browser/main/index.ts';
 import type { CdpProxy } from './cdp-proxy.ts';
 import type { Accounts, Account } from './accounts.ts';
 import type { Agent, Found } from '../kulisa-plugin/main/index.ts';
-import type { Profile, Tab } from './profiles.ts';
+import type { Profile, Tab } from '../browser/main/index.ts';
 import type { Project } from './projects.ts';
 import type { Task } from './tasks.ts';
 import type { AppWindow } from './window.ts';
@@ -26,7 +26,7 @@ import type { Dictation } from '../dictation/main/index.ts';
 
 // An agent or account a task runs (shell.agentFor): its agent's entry, with the account's id, name and folder; cli:
 // its agent's own name.
-type AgentChoice = Agent & { agentId: string; cli: string; configDir: string | null; env: Record<string, string> };
+type AgentChoice = Agent & { agentId: string; cli: string; configOrigin?: 'kulisa' | 'external' | null; configDir: string | null; env: Record<string, string | undefined> };
 
 // The app: what app.ts makes and every module is given. win, current, task, profiles, closed, pty, resumedSession are the
 // first window's (the tests').
@@ -60,13 +60,13 @@ interface Shell {
   sendProjects(): void;
   uiZoom: number; setUiZoom(z: number): void;
   theme: 'dark' | 'light' | 'system'; shade(): 'dark' | 'light'; blankColor(): string; setTheme(theme?: 'dark' | 'light' | 'system'): void;
+  stageFollow: boolean; setStageFollow(follow: boolean): void;
   bar: 'top' | 'bottom'; setBar(bar: 'top' | 'bottom'): void;
   language: string; languageInfo(): LanguageInfo; setLanguage(code: string): Result<{ language: string }>;
   keys(): Shortcut[]; // the keyboard shortcuts as shown, the human's hold keys in (keys.ts)
   firstStart(w: AppWindow): void;
   pointer(): Point;
   windowClosing(w: AppWindow, e: Electron.Event): void;
-  signins: Map<string, Pty>;
   stopAutosave?: () => void;
   discard: Discarder; // tabs no one looks at losing their process (discard.ts)
   screenshot(file: string): Promise<void>;

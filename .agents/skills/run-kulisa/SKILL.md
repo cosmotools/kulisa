@@ -5,47 +5,34 @@ description: Restart the author's running Kulisa after a change, or give them a 
 
 # Running the author's Kulisa
 
-The author's Kulisa runs from one checkout of this repository at a time (`npm start`): the one whose `kulisa.sh` started
-it. Its data is in `~/.config/Kulisa` (macOS: `~/Library/Application Support/Kulisa`): profiles with real sign-ins (AGENTS.md, Rules). `kulisa.sh` next to this file
-does the steps the same way each time.
+Run commands from the checkout root. Use that worktree's `kulisa.sh` while reviewing its change, and the root
+`develop` checkout after merge. State the running checkout; if replacing another session's app, tell the author
+whose change they stop seeing.
 
-Work is done in a worktree of its own (AGENTS.md, Conventions), so run that worktree's `kulisa.sh`
-(`.worktrees/<name>/.agents/skills/run-kulisa/kulisa.sh`): the author then sees its code. Say from which
-worktree it runs now. Once the work is merged, run the repository's own `kulisa.sh` (its folder holds `develop`). Another session's Kulisa, started from its worktree, is stopped by this: tell the author whose
-change they no longer see.
+Data contains real sign-ins: `~/.config/Kulisa` on Linux, `~/Library/Application Support/Kulisa` on macOS.
 
 ## Restart after a change
 
-After each change, restart it without asking, so the author sees it (the author wants the change live; the full
-`npm test` runs only when they say the work is done, AGENTS.md):
+Restart after application changes without asking, so the author sees them.
 
-1. `.agents/skills/run-kulisa/kulisa.sh stop`: SIGINT to the main Electron process, so session cookies and tabs are
-   saved; on Windows, which has no signal for it, a second start asking it to quit (`KULISA_QUIT`, README). Never
-   `kill -9`, `taskkill /F` or `Stop-Process`, never `pkill -f` (it matches the shell running it).
-2. `.agents/skills/run-kulisa/kulisa.sh start`. It runs without the parent Claude session's `CLAUDE_*` variables
-   (except `CLAUDE_CONFIG_DIR`), or the `claude` inside would take itself for a child session.
-   Color overrides (`NO_COLOR`, `FORCE_COLOR`, `CLICOLOR`, `CLICOLOR_FORCE`) are cleared before launch so the app's
-   terminals use their own shell preferences. In the foreground, on every OS. The app is its own, not the terminal's: an agent session's terminal closed takes no
-   Kulisa with it (its SIGHUP would end it unsaved). Linux: in a session of its own (`setsid`). macOS: through
-   LaunchServices (`open`), so the screen recording permission, `KULISA_SHOT`, is its own too (`docs/testing.md`, "On
-   macOS"), and without the terminal's variables either (`TERM_PROGRAM` makes zsh in its terminals load Terminal.app's
-   own startup). Windows (in Git for Windows' bash): by `Start-Process`, in a hidden console of its own, with the PATH the Start menu gives, not Git Bash's (its GNU `tar` first breaks the agents' installers). It returns once `[kulisa] MCP server: …` is in the app's output, `dist/kulisa.log` of the checkout.
+1. `.agents/skills/run-kulisa/kulisa.sh stop` saves cookies/tabs through SIGINT, or `KULISA_QUIT` on Windows.
+   Never force-kill (`kill -9`, `taskkill /F`, `Stop-Process`) or use `pkill -f`.
+2. `.agents/skills/run-kulisa/kulisa.sh start`; wait for `[kulisa] MCP server: …` in the checkout's `dist/kulisa.log`.
 
-Do not start a second one while one runs: stop first. `kulisa.sh start` refuses then and names the checkout it runs
-from (Kulisa itself lets one run per data folder: a second one shows the first one's window and quits); another
-session's: tell the author whose change they stop seeing.
+Stop before starting; never run two apps against the same data folder. The script checks the running checkout.
+It clears parent `CLAUDE_*` except `CLAUDE_CONFIG_DIR`, and color override variables, preserving terminal behavior.
+Launch is independent of the agent terminal: Linux `setsid`, macOS LaunchServices, Windows a separate hidden console.
+macOS clears terminal identity variables for correct shell startup/screen-recording permissions; Windows uses the
+Start menu PATH so Git Bash's GNU tar cannot break CLI installers. Keep these script guarantees.
 
 ## A fresh start, as if just installed
 
-Only when the author asks for it in their message: it deletes their profiles and sign-ins for good.
+Only when explicitly requested: this permanently deletes profiles and sign-ins.
 
 1. `kulisa.sh stop`.
-2. `kulisa.sh check`, and tell the author what is there besides the data: tasks' copies (`<repo>@task-<n>`, or
-   `~/Kulisa/<project>@task-<n>/`), worktrees, branches. Remove a task's copy (`git worktree remove --force <folder>`,
-   `git branch -D <branch>`) only if they say so; a task may hold their work. Deleting the data does not remove them.
-3. `rm -rf` the data folder (`~/.config/Kulisa`; macOS: `~/Library/Application Support/Kulisa`; what they asked for), then `kulisa.sh check` again: no data, ports free.
-4. `kulisa.sh start`, as above. At first start it opens no task: the empty window, the welcome
-   (three slides, then New Project's steps), the keyboard on Next.
+2. `kulisa.sh check`. Report task copies, worktrees and branches outside app data. Remove them only if separately
+   authorized; they may contain work.
+3. Remove the requested data folder, then `kulisa.sh check`: data absent, ports free.
+4. `kulisa.sh start`: empty window, welcome, New Project; keyboard on Next.
 
-Leave alone what is not Kulisa's: installed agents (`~/.local/bin/claude`, `codex`), their own data (`~/.codex`,
-Claude's config), unless the author asks.
+Leave installed CLIs and their own data (`~/.codex`, Claude config) alone unless explicitly requested.

@@ -1,126 +1,137 @@
 # The window
 
-How a Kulisa window works for the human: the title bar, the grid of panels, the tasks' bar, the zoom, the menus
-and dialogs, the terminal, the keys, and why they are built so. Projects and their tasks, several windows:
-[tasks.md](tasks.md); profiles' panes and tabs: [profiles.md](profiles.md); the components: [ui.md](ui.md).
+Window layout, focus, controls, logging and IPC. Project/task lifecycle: [tasks.md](tasks.md); profiles:
+[profiles.md](profiles.md); component conventions: [ui.md](ui.md).
 
 ## The title bar
 
-One row, 44 px (`TopBar.tsx`; `TITLE_BAR_HEIGHT` in `window.ts`, the OS buttons' strip, kept in step): the app's logo
-(the shown task's project's color on its curtain), the tasks' bar when it is here, Settings (checked while shown:
-below), ☰, and the OS's window buttons over its right end (`titleBarStyle: 'hidden'` with `titleBarOverlay`); no menu
-bar. Their strip is see-through (`CLEAR` in `window.ts`), as macOS's traffic lights: a dialog's backdrop dims it with
-the rest of the window (a strip in the theme's color would stay bright); their symbols are the theme's and stay as they are under a dialog. On macOS the buttons are at the left
-end and there is no logo (Mac apps show their icon in the Dock). macOS centers them in the bar the window is made
-with, and Electron there cannot change that strip's height (`setTitleBarOverlay` is Windows' and Linux's): on a zoom
-change `setZoom` moves them to the new bar's middle (`setWindowButtonPosition`), never below the strip they were made
-in, where they take no click (Electron's `window_buttons_proxy.mm`). Zoomed past about 175%, they sit a little above
-the middle until the next start. Dragging the empty part moves the window. A Kulisa zoom other than 100% shows in the
-bar (a click resets it).
+One 44 px row (`TITLE_BAR_HEIGHT`, `TopBar.tsx`): colored project logo, optional tasks' bar, Stage, Settings, ☰ and
+OS buttons. `titleBarStyle: hidden`/`titleBarOverlay` keeps native controls with a transparent strip so dialog backdrops
+dim it; symbols retain theme colors. Empty space drags; non-100% zoom shows a reset button.
 
-A right-click on the title bar does nothing on Linux: there Chromium asks the window manager for its window menu, and
-GNOME on X11 places it at a NaN position, invisible, keeping the pointer and keyboard grab, so the whole desktop takes
-no clicks until the Win key opens the overview (gnome-shell logs an `StDrawingArea` allocated -2147483648 ×
--2147483648). The window cancels it (`system-context-menu`). Windows keeps its system menu.
+macOS has left traffic lights and no logo. Zoom repositions buttons with `setWindowButtonPosition`, bounded by the
+original native strip's height because buttons below it receive no clicks; high zoom can leave them above center.
+Linux cancels `system-context-menu`: GNOME X11 can position it invisibly and retain the desktop input grab.
+Windows retains its system menu.
 
-Pages never drag the window, as in Chrome. Without a system title bar Electron takes `app-region: drag` from every
-view in the window, the profiles' pages too, and keeps a region after its page has gone: one Teams declares
-(`teams.cloud.microsoft`) sends every later click and wheel over the panes and the grid's sashes to dragging the
-window, mouse moves still passing, so the pages look frozen (in an unmaximized window; bare Electron with
-`titleBarStyle: 'hidden'` does it too). Every document of a profile gets `app-region: no-drag` on all elements
-(`insertCSS`, user origin, `!important` beats the page's), which also replaces a region left behind; a page reads
-`no-drag` there (`getComputedStyle`), where Chrome says `none`, which would not replace one.
+Profile documents receive user-origin `app-region: no-drag !important` on every element. Electron otherwise accepts
+page drag regions in frameless windows and retains them across navigation, stealing pane input; `none` does not
+clear them. Recheck this workaround on Electron upgrades.
 
 ## The tasks' bar
 
-Under the grid: the sidebar's button ([tasks.md](tasks.md), The sidebar), a tab per open task ([tasks.md](tasks.md),
-Projects), +; in the title bar the room after them is the window's handle. +, a new task: with one project made in one click, with several a menu of the projects asks which (each with
-its icon, as the sidebar orders them; one not loaded is loaded), since the bar holds tasks of several and the shown
-task's project is no guess to make. A task closed is
-opened from the sidebar. ☰ → **Tasks bar: Top, Bottom** puts it in the title bar
-after the logo instead, as a browser's tabs (`settings.json`: `bar`; in the page's URL, so it is drawn in place at
-once; `App.tsx` puts `TaskBar.tsx` in `TopBar.tsx`'s children or under the grid). Bottom is the default, on macOS too:
-the hand is at the terminal under the grid all the time, and a bar on top sits right over the grid's panels' tabs. The
-tabs are shadcn's, the shown one raised (the author's choice). A tab is a target for a
-quick throw of the mouse: at least 160 px wide (about ten letters of its name), × on every tab as Chrome's. The window
-is three rows (`App.tsx`: the title bar, the grid, the bar when below), the grid from edge to edge. In the title bar
-the tabs are no drag handle (`app-region: no-drag`). Nothing in the bar moves when another task is shown.
+Default Bottom; ☰ → Tasks bar switches Top/Bottom, saved in `settings.json.bar` and the page URL for first paint.
+The bar contains sidebar toggle, open-task tabs and +. Multiple projects make + ask which one. Closed tasks reopen
+from the sidebar. Tabs are at least 160 px, keep ×/width when selected and activate on press.
 
-More tabs than the bar holds scroll (`useStrip`, `lib/strip.ts`). In the title bar the tabs give way before at least
-40 px after + (`drag-area` in `TopBar.tsx`), where the window is dragged however many tabs there are, as Chrome's
-space after its +; by the logo too. Chromium takes the tabs scrolled past the bar's edges as no-drag over both (it
-does not clip them to the bar: `overflow`, `contain` or `clip-path` alike) and the page's regions in order, the last
-one winning: so the logo and that space come after the bar in the page (`TopBar.tsx`), the logo put back first by
-`order`.
-
-A press on a tab not shown shows its task at once, as Chrome's; the tab is lit once the window is told so.
+`App.tsx` has title/grid/optional bottom bar. Top tabs are no-drag and scroll with `useStrip`; preserve at least 40 px
+of draggable space after +. Chromium does not clip offscreen no-drag regions, so logo/drag-area DOM nodes follow tabs
+and use CSS `order` for their visual placement. Raised active tabs and bottom default are the author's choices.
 
 ## The grid
 
-A task's profiles' panes and its terminals' panel are peer panels in a grid (dockview), flat, split by a gap
-(`Grid.tsx`): dragged by the header to another place or onto another panel (stacked as tabs), resized by the line
-between them. A profile's page is square, as its pane is. A panel stacked behind another hides its page until chosen
-(and later unloads it: [profiles.md](profiles.md), "Tabs unloaded"). **☰ → Arrange panels** offers ready-made
-arrangements, a row each with its icon (the whole in its tooltip): profiles in columns with the terminal below, two by
-two with the terminal on the right, one profile at a time; the Resources panel beside the terminal, or under it when
-the terminal is on the right. Each fits the window with nothing cut off, the terminal a third of it (`TERMINAL_SHARE`,
-`lib/grid.ts`): the pages are what is looked at. The first profile opened over the terminal alone keeps that share too
-(dockview's own would halve the room). The grid is saved per task (`layout.json`) 300 ms after its last change, and at
-once when the task is left; a saved grid naming a profile deleted since is not restored, the default arrangement takes
-its place. The terminals are one panel however many there are (The terminal).
+Each visited task retains a TaskView, store and controller until its tab closes. Two Dockviews hold development
+terminals/review with Resources and **Stage** browser/terminal environments; a headerless Gridview splits them.
+Stage headers move environments within Stage; development drag/drop is disabled. Resources uses a fixed left edge
+with native tabs and collapse; behavior and constraints: [tasks.md](tasks.md#the-resources-panel).
+The outer development minimum includes Resources because Dockview's central minimum excludes edges.
 
-**The Resources panel** (`grid/Resources.tsx`, its header `ResourcesHeader` there; what it lists:
-[tasks.md](tasks.md), The Resources panel) is a panel next to the terminal (`addResources`, `lib/grid.ts`; the
-author's choice): right of it, a quarter of the grid's width, when the terminal is under the pages; under it, a third
-of the grid's height, when the terminal is on the right. It resizes, is saved and follows the window's size as any
-panel. It is as low as its header (`minimumHeight`), so the terminal's row folds with the terminal to its +, Resources
-with it; under the terminal, it takes the room the terminal folding leaves.
+Hidden TaskViews use `content-visibility: hidden`, `inert` and `aria-hidden` to retain UI state without rendering or
+accepting input. Window controls address the selected task; pane actions stay bound to their owning TaskView.
+Task switching cancels pending focus/drag requests; closing releases subscriptions and Stage terminal Views.
+Project Explorer and Diff receive the task's active state to pause background polling.
 
-A window made narrower or wider changes every panel in its share, as VS Code's and JetBrains' do (dockview's
-`proportionalLayout`; it needs dockview 8.6.0 or later:
-[1691](https://github.com/dockview/dockview/issues/1691), [1692](https://github.com/dockview/dockview/issues/1692)).
+The outer host stays observable outside skipped contents, keeping hidden grids sized with the window. Nested grids
+receive parent dimensions through `api.layout()` with autoresizing disabled to avoid waiting for hidden observers.
+Native-page geometry reports are task-scoped and coalesced per frame, independent of saving and menu coverage.
+The first report permits native pages to show; prepared tasks use stored bounds, swapping native visibility in one
+main-process turn to avoid an empty frame.
 
-A pane's header (`ProfileHeader`, `components/grid/ProfilePane.tsx`): its profile's picture and name, a caption of what
-the agent does in it (or that it is paused on a sign-in page), ⋯ (its menu, as a right-click on the header: Menus) and
-×. It shrinks with the pane: the caption first, then the name, cut with … (the whole and the profile's description in
-its tooltip); ⋯ and × stay. Under it the pane's tabs and its toolbar, ⋮ at its end ([profiles.md](profiles.md), Tabs).
+One development xterm belongs to the window and moves into the selected TaskView; buffer rendering and sizing:
+[terminal](../src/terminal/README.md#the-window-renderer). Stage terminal Views stay with their panes. Inline renderers
+retain React state when Stage tabs detach inactive DOM; task switching retains each selected tab's DOM.
 
-**No profile open, a terminal open**: the profiles' room folds to a row of buttons over the grid (`ClosedProfiles` in `Grid.tsx`,
-`#closedprofiles`): a button per closed profile, its picture and name (who it is in its tooltip); a click
-opens it over the terminal, and the row goes. A project with no profiles has one, Add Profile… (its page in Settings).
-The row is outside dockview: the grid's room is what is left under it (`room()`, `lib/grid.ts`). More than fit scroll
-(`useStrip`, `lib/strip.ts`; `#dock` keeps `min-width: 0`, or many profiles stretch the window's column, the terminal
-and the tasks' bar past its edge). With no terminal either, they are the second row of the big buttons (The terminal).
-Nothing opens by itself: the agent opens a profile when it needs it (`profile_open`). Not on the task's tab (no place
-for profiles), nor in the terminals' row (it folds with the terminals).
+- Stage menu: Left/Right/Above, Horizontal/Vertical stack or Tabs, Allow overflow, Follow agent, Open an environment.
+  `stage:arrange` and MCP `stage_arrange` share `Task.arrangeStage`, requiring the shown task; settings apply even
+  while empty. Omitted settings remain; overflow-only changes preserve pane selection.
+- Maximize/Restore uses Dockview's group state inside Stage, retaining tabs/splits and keeping development visible.
+  Suspend overflow while maximized, restore its setting afterward.
+- Follow agent is opt-in/global (`settings.json.stageFollow`). Plugin/browser CDP/named terminal actions report
+  `stage:activity`; the window selects hidden tabs, scrolls groups into view and highlights headers for 2 s.
+  Human Stage input pauses following until resumed. Preserve maximization, ignore background activity, keep
+  pause/activity transient per window and reset pause on task change.
+- Overflow defaults off. On, set group minimum width 600 CSS px for horizontal stacks or height 300 px for vertical
+  stacks. Dockview aggregates group minimums; CSS applies them to the scroll canvas so nested groups and shared tabs
+  determine its size. Apply constraints before layout. Tabs ignores/hides the toggle but retains it.
+- Stage scroll/layout reports native-page boxes and visible intersections. Clip partial pages in parent `View`s
+  while retaining full child viewport; hide offscreen pages. Remove clipping on full visibility, close or move.
+- Load saved settings before creating grids; early Stage commands await restoration and retain their order.
+  Reveal after both nested grids mount at their final dimensions, keeping content loading from shifting the layout.
+  Persist all three grids through `toJSON`/`fromJSON`, plus Stage view/overflow/position; debounce 300 ms and flush on
+  hide/close. Observe completed layouts/maximization and Resources edge dimensions, which central layout events omit.
+  Empty Stage stays mounted, hidden through Gridview's API to preserve its size. Position/view changes move native
+  panels/groups, retaining their contents. `shared/stage-layout.ts` imports flat layouts and legacy fractions;
+  `task-view/layout.ts` prunes closed panes while preserving active groups. Invalid layouts use defaults.
+- No environment: show Stage Terminal and closed-profile choices above development, or below empty-agent launchers.
+  `useStrip` scrolls overflow; `#dock` keeps `min-width: 0`. Stage menu offers the same choices.
 
-The window itself never scrolls, also not from a script (`overflow` on `html` and `body`, `App.tsx`): a panel stacked
-behind another is laid out below the grid (dockview), making the page taller than the window, and the tasks' bar
-bringing its tab into view (`scrollIntoView`) would move the whole grid up by a window's height.
+Dockview proportional layout requires >= 8.6.0 (issues 1691/1692). Always restore Stage headers as visible. Profile
+headers center identity/status in a notch; below 480 px status becomes an icon. Keep menu left, maximize/close right,
+stacked tab intrinsic width 20rem. Profile controls: [profiles.md](profiles.md).
 
-The profiles' pages are native views above the window's HTML ([ui.md](ui.md)) and belong to their project's window
-(`Profile.moveTo`). While a panel is dragged, a menu is open or a dialog is shown, the pages are pictures of
-themselves (or hidden), so the HTML can be on top; live again once nothing covers them (`livePages`). A page that
-gives no picture (covered, the monitor off, busy) leaves its pane empty meanwhile: waiting would hold the menu and
-every one after it. How long is the pages' own pace: once the first has answered, the rest get three times as long, a
-tenth of a second at least (a live page answers in a few milliseconds on a fast machine, over a hundred on a slow
-one); none answering, half a second (`AppWindow.pictures`).
+Preserve address drafts through unsolicited native-page focus; cancel for another field or human press in a focused
+page (`page:press`), not unfocused automation. Keep window `overflow: clip` so stacked offscreen panels cannot make
+`scrollIntoView` shift the whole grid.
 
-A pane's tab strip and toolbar move as Chrome's, the terminals' tabs too: a tab opened grows in from the left
-(`data-opening`, `useStrip` in `lib/strip.ts`; the strip keeps its tabs' elements by id, so only a new one animates),
-the address's hover fades in. Not with reduced motion.
+Native pages cover HTML: dragging/menus use snapshots, dialogs hide them (`task-view/views.ts`). Capture without
+hiding; paint decoded snapshots before hiding native pages, and restore native pages before removing snapshots.
+This ordering prevents an empty frame during handoff. Captures and delayed visibility commands belong to their task;
+successive menus retain prepared images. An adaptive deadline bounds capture waits so unresponsive pages cannot block
+menus; missing frames leave empty panes. New tabs grow without remounting the strip; address focus fades; suppress
+animations for reduced motion.
+
+### Stage terminals
+
+A CLI/TUI pane uses the shared terminal runtime, with task-saved name, optional command and dimensions.
+On task load, start fresh shells; saved commands wait for Run app. Runtime shell/app kind is independent of edited
+configuration. Header: state, launch/restart/run-again, maximize, menu, close. Settings edits setup; blank size fits.
+
+`StageTerminals` (`main/stage-terminals.ts`) serves window and MCP through a host contract for keys, configuration,
+launch context, persistence and notifications. It imports no task/window/store types; `Task` owns wiring and agent
+state, the window owns layout/menu/focus.
+
+- `terminal_run` creates/reruns a named command after validation, clearing the old screen. Shell startup applies
+  project settings; final output/exit code survive exit. Stop cancels pending restart and retains output;
+  Close removes setup/buffers. Task close stops processes but preserves setup.
+- Keep launch failures selectable in transient `launchError`; clear on retry, never persist them.
+- Human Open/launch requests focus after success, View and font readiness. New input, blur or task switch cancels
+  `task-view/environments.ts`'s pending request; delayed selection also rechecks intent, window focus and dialogs.
+  Agent launch/Follow never steals focus.
+- `terminal_read` flushes parsing and reads normal/alternate screen, with scrollback limited to 500 lines. Over
+  40,000 characters goes to bounded artifacts with preview. Fixed sizes: 2–500 columns, 2–200 rows, independent
+  of development sizes. Visible Views use WebGL/DOM fallback; hidden sessions retain bounded buffers/processes.
+- Shared home, credentials and settings are not identity isolation; real sign-ins remain human.
+- Find or Ctrl+Shift+F (⌘ on macOS) opens retained-output search; Enter/Shift+Enter navigate, Esc restores focus.
+- Send selection captures xterm text at menu opening; browser selection uses native `selectionText`, excluding
+  passwords. `Task.sendSelection` verifies shown-task ownership, strips terminal control codes, labels environment/tab
+  and appends through `typeForAgent` without Enter. Require an open agent; never log or save selected text.
+
+| Action | The human | The agent | The core |
+|---|---|---|---|
+| Open a shell | Stage Terminal; Stage → Open an environment | type a shell command through `terminal_input` in an open terminal; `terminal_run` requires a command | `StageTerminals.open` |
+| Save name and command | ⋯ → Settings… | command supplied with each `terminal_run`; the pane name selects the session | `configure` |
+| Run or rerun | header launch button; pane menu | `terminal_run` | `run` |
+| Resize or fit to pane | ⋯ → Settings…; Fit to pane | `terminal_resize`; optional size on `terminal_run` | `configure` |
+| Stop process, keep final screen | ⋯ → Stop | `terminal_stop` | `stop` |
+| Inspect screen and status | visible terminal and status | `terminal_read` | `read`, `info` |
+| Type, paste, keys | terminal input; right-click Paste | `terminal_input` | terminal Kulisa package's input; `input` |
+| Close | ×; pane's menu | `terminal_close` | `close` |
 
 ## The window's size
 
-The window has a minimum, as VS Code's: 640×400 (DIP) times the Kulisa zoom (`MIN_SIZE` in `window.ts`), the smallest
-at which the top bar (the OS buttons, ☰, a task's tab) and something under it fit; half of a 1366 px laptop screen holds
-it. Fixed, not the sum of the panels' minimums (dockview's `minimumWidth`), which would keep a window with five profiles
-in a row from half a screen next to the human's IDE. What the grid does when its panes do not fit: #202.
-
-The OS keeps the minimum only while the human drags the window's edge (`minWidth`/`minHeight`, `setMinimumSize`; on
-Linux a hint to the window manager). The constructor's bounds and `setSize` pass below it, so Kulisa raises a window to
-it itself: bounds restored from `settings.json`, and a window now smaller when the zoom grows (`setZoom`; not made
-smaller again when it goes down).
+Minimum 640 × 400 DIP times UI zoom (`MIN_SIZE`), independent of pane minimums; narrow-grid adaptation: #202.
+OS minimums constrain manual resize only. Clamp restored bounds and growing zoom in `setZoom`; lowering zoom does
+not shrink the window automatically.
 
 ## Zoom
 
@@ -129,40 +140,25 @@ smaller again when it goes down).
   200%: the window's minimum grows with it, and at 300% it is past a laptop's screen; the OS's own magnification is
   there for more.
 - **A site's zoom**: the same keys in a page zoom that site in that profile on top of the Kulisa zoom, as in Chrome, to
-  300%; shown in the address bar (a click resets it).
+  300%; shown beside the tabs (a click resets it).
 
 Both are saved (`settings.json`; the profile's `profiles.json`).
 
 ## Theme
 
-**☰ → Theme**, a row opening a menu beside it: Dark (the default, as in JetBrains), Light or System (as the OS,
-following it when it changes). Saved (`settings.json`), the same in every window.
-
-- Only Kulisa's own UI changes: the profiles' pages keep the OS's light or dark (`prefers-color-scheme`), so a site
-  under test looks as its users see it. So Kulisa does not set `nativeTheme.themeSource` (it would change every page's
-  scheme); System reads `nativeTheme.shouldUseDarkColors` and its `updated` event.
-- shadcn's theme does it ([ui.md](ui.md), shadcn in Kulisa): the root's `.dark` class and its `color-scheme`
-  (`public/theme.js`), so the browser's own controls (scrollbars) follow; the grid takes dockview's colors from the same
-  variables (`Grid.css`), a terminal its colors (`termStyle`). The choice comes in the page's URL, set before the first paint, so a
-  light window never flashes dark.
-- What CSS does not paint follows from the main process: the window's background and the OS buttons' strip
-  (`window.ts`).
+☰ → Theme: Dark (default), Light, System; shared/saved across windows. Only UI changes: preserve profile pages'
+OS `prefers-color-scheme` by leaving `nativeTheme.themeSource` untouched. System follows `shouldUseDarkColors` and
+`updated`. URL/`public/theme.js` apply `.dark` and color-scheme before paint; theme variables supply Dockview and
+terminal colors. Main updates native background/button colors.
 
 ## Language
 
-**☰ → Language**: the language the human speaks with the agents, one for all of them (one setting, so what the agents
-do because of it is plain). A row with the language chosen at its end, opening a menu beside it (`ChoiceRow`): the
-languages the agents' own settings take, the system's first, then by name in each language itself (`TopBar.tsx`, `LanguageRow`).
-English by default, as the agents are without it. Saved (`settings.json`), the same in every window.
+☰ → Language selects one saved language for agent speech/answers, English default. Show supported settings in their
+native names, system language first. Sync accounts created in Kulisa on change and launch; external connections retain their own language settings.
+Adapters own the setting; unsupported agents such as Codex stay unchanged and are named in the tooltip.
 
-- Kulisa keeps the agents' own language settings in step and tells the agents nothing itself. An agent with one (its
-  entry's `language`: Claude Code's `language`, which it dictates and answers in) gets it in every account's folder:
-  when it is chosen, and at an agent's start (an account made since, or the setting changed in the agent's own
-  `/config`), never in the human's own folder. Claude Code reads it again at once, in every running session. An agent
-  without one (Codex) is not told otherwise: the row's tooltip names it ("has no language setting yet").
-- One setting for dictation and answers: Claude Code's setting wins over an instruction to answer in another language
-  (the SessionStart hook, `--append-system-prompt`). Which language code and comments are in is the project's to say,
-  in its CLAUDE.md or AGENTS.md (with the setting alone, Claude Code writes comments in it too); the tooltip says so.
+Claude reads `settings.json.language` live; it governs speech/answers and can affect comments. Project instructions
+must specify code/comment language separately; injected answer instructions cannot override its setting.
 
 ## Menus
 
@@ -171,15 +167,15 @@ built: [ui.md](ui.md), Menus):
 
 - a task tab's right-click menu ([tasks.md](tasks.md), Projects, "A tab's right-click menu"), a project's and a task's
   row's in the sidebar ([tasks.md](tasks.md), The sidebar), ☰ (as Chrome's ⋮, each row with its icon: the zoom row;
-  Theme, Tasks bar and Language, rows each opening a menu beside it, the choice at the row's end; Arrange panels,
+  Theme, Tasks bar and Language, rows each opening a menu beside it, the choice at the row's end;
   Keyboard Shortcuts, the links (Documentation, the user guide on kulisa.app; GitHub; one list in `TopBar.tsx`),
   Report a Problem… (Settings at its Log page: not everyone has a GitHub account, and an issue without the log says
   little), About Kulisa (below), and Exit, which quits as the last window's × does; not on macOS, where Cmd+Q and the
   app's menu quit);
 - right-click on a pane's header or its ⋯ (New tab, About this profile… (Settings at it), Sign In to Master…, Close
   profile, Remove from Project…), a pane's ⋮ ([profiles.md](profiles.md), Tabs), a tab (Reload, Duplicate, Close tab,
-  Close other tabs), a terminal (Copy, Paste, Select all, Clear; then its tab's) and a terminal's tab (Change agent…,
-  the dialog its icon opens, and New Conversation in an agent's; Close).
+  Close other tabs), a terminal (Copy, Paste, Select all, Clear; then its Resources row's) and a terminal's Resources row (Change agent…,
+  New Conversation in an agent's; Close).
 
 A row whose command has a key shows it at its end (Keys). The window's menus are not native: a native menu has rows of
 text only, no buttons in a row.
@@ -198,7 +194,7 @@ lists the usual places for whoever reads it after uninstalling.
 `tutorial/context-menu.md`): drawn above the pages by the OS, it needs no pictures of them, as a page's menu in Chrome.
 Its rows are Chrome's for what is under the pointer (the `context-menu` event's `params`): a link (Open Link in New
 Tab, behind, in the same profile; Copy Link Address), an image (Open Image in New Tab, Copy Image), a field (Undo, Redo,
-Cut, Copy, Paste, Select All: Electron's roles), a selection (Copy; macOS selects the word under a right-click, so a
+Cut, Copy, Paste, Select All: Electron's roles), a selection (Copy and Send selection to agent; macOS selects the word under a right-click, so a
 link's menu has it there, as Chrome's), else the page's (Back, Forward, Reload); then Pick an Element for the Agent and
 Screenshot of an Element (they start choosing an element, as their keys do), and Inspect (the element in the tab's
 DevTools, `Profile.inspect`). Back, Forward, Reload, Pick and the screenshot are sent to the window as their keys'
@@ -209,149 +205,53 @@ its right press is told by the CDP proxy it passes.
 
 ## Dialogs and questions
 
-Every dialog has one look, as in JetBrains ([ui.md](ui.md), Dialogs). Questions before something that cannot be undone
-(deleting a profile, a task, a project), before closing (a task while an agent works, a window, quitting while an agent
-works: [tasks.md](tasks.md)) or between two ways to go (a second button, `other`) are asked in that dialog too
-(`shell.ask` → `lib/ask.ts`, `Ask.tsx`, queued; its keys: [ui.md](ui.md), Dialogs), in the window the action is in
-(Settings' too), the agent's in its task's window (`Asker` in `window.ts`). A tasks' window asked in comes to the front
-with its question, restored when minimized, while another of Kulisa's windows has the focus (another tasks' window, a
-master's): left behind, it would look as if nothing happened; never from another app. While a dialog
-is open the profiles' pages are hidden (native views above the HTML), and the keys are the dialog's (Keys): a page that
-had the keyboard would keep it unseen, the dialog's keys going nowhere, so the window's page takes the keyboard (`hideViews` in `window.ts`); a menu, over pictures of the
-pages, puts the keyboard back itself as it closes. Not the
-OS's own question (`dialog.showMessageBox`): it looks different on each OS and plain on Linux, and cannot mark the
-deleting button or lay out what goes. The OS's own dialogs stay for choosing a folder.
+Use shared window dialogs ([ui.md](ui.md#dialogs)). `shell.ask`/`lib/ask.ts` queues questions in the action's window,
+including agent requests, with explicit destructive effects. Raise/restore that window only when another Kulisa
+window is focused, never over another app.
+
+Dialogs hide native pages and take window-page focus so keys reach them. Menus snapshot pages and restore focus on
+close. OS dialogs are reserved for choosing folders; they cannot express Kulisa's deletion details consistently.
 
 ## Settings
 
-Settings (a nav of its categories: Projects, Agents and Profiles, [tasks.md](tasks.md), Projects; GitHub,
-[src/github](../src/github/README.md), The window; Log, The log below; About, Menus above; a category's page lists its
-things, each with its own page, as Windows' Settings) is shown
-in a tasks' window, over all of it under the title bar (the sidebar, the grid, the tasks' bar), as Chrome's and VS
-Code's settings are a page of their window: the window it is opened in is the one it acts for, with nothing to keep in front or in step.
+Settings covers the task area below the title bar, preserving the laid-out grid and running work beneath it.
+Each window owns its instance; categories/pages: [tasks.md](tasks.md#projects), [GitHub](../src/github/README.md),
+Log and About below. UI ownership, page composition, loading/saving and cross-window updates:
+[Settings UI](../src/renderer/components/settings/README.md).
 
-- **Opened** by the gear (on macOS also Kulisa → Settings…, ⌘,, under About Kulisa: in the window last in front), a
-  task tab's Manage Profiles… and Project Settings…, a pane's About this profile… and a project's Add Profile… tile, at
-  that page (a project's: none named, the window's shown task's); shown already, it goes to that page. Each window has
-  its own. No gear while Settings would be empty (no project, no account, no profile, as at the first start, where the
-  welcome makes them); it comes with the first account signed in to. An account or a profile left after the last
-  project is deleted keeps it: Settings is where they are removed (`settings` in the projects' news).
-- **Shown in one go**, once its page is filled (not the agents: looked for again once it is drawn, the Agents page
-  saying so while it has none); until then the window stays as it was. The profiles' pages are hidden once it is drawn
-  under them (`coverPage`, `lib/cover.ts`): hidden before, the panes show empty until it comes.
-- **The grid stays under it**, laid out and hidden (dockview's sizes, the terminals), its agents working on; the
-  profiles' pages are hidden as under a dialog (`coverPage`, `lib/cover.ts`), and the keys are its own. A
-  grid changed underneath (a task shown by the agent, the shown project deleted) leaves it open. The agent's questions
-  show over it.
-- **Closed** by Esc (unless a menu, a question or a popover is open: Esc closes that first; or a field takes it), its
-  ←, or the gear; what is typed is saved first (a project's name); while an agent installs, it stays. The keyboard goes
-  back where it was.
-- **Its lists follow** what changes elsewhere while it is shown: the profiles made and let go in another window or by
-  the agent (`settings:changed` to every window, on `profilesChanged`), its nav's and the shown project's; nothing
-  typed on its page is touched.
-- **Settings only**: a project is made in a tasks' window (New Project: the empty window with no project, New Project…
-  at the sidebar's foot), which opens its first task: one way to open each.
-- **Its code is a chunk of its own** (`components/settings/`, reached only by `import()` of its `index.ts`: `npm run
-  deps`), read as Settings is first asked for: a window never showing it never parses it. A module is never unloaded, so
-  once shown it stays in that window's memory: about 7 MB of its renderer (PSS), against some 80 MB for a window of its
-  own.
+- Open with gear, contextual settings actions or macOS ⌘,; choose the requested entity or current project. Hide gear
+  only when there are no projects/accounts/profiles to edit.
+- Task changes do not dismiss Settings; questions appear above it. Native-page covering follows
+  [the shared layer contract](ui.md#layers-over-the-pages).
+- Close with Esc, back arrow or gear; layers/fields consume Esc first. Installation prevents
+  closing. Restore prior keyboard focus.
 
 ## The terminal
 
-A terminal sends its first size once dockview's grid matches its current room and the retained panel's DOM matches
-its layout, so the program starts at the room it will keep when the panel is drawn.
+Development terminals share one headerless Dockview panel, selected through Resources → Agents. Send task and
+active-terminal identity together (`terminals`) to avoid combining asynchronous states.
 
-A task's terminals are one **panel** of the grid: the terminal in front, a **row of tabs** over it, the panel's header
-(`TerminalsHeader` and `Terminals` in `grid/Terminals.tsx`). One terminal is shown at a time, none
-split off into a panel of its own. Each is the user's shell in the task's folder (`src/terminal/`), an agent the human
-chose started in it ([tasks.md](tasks.md), "Several agents in a task") or not. Each tab: the agent's icon (a shell's,
-for a shell), its name whole, its state (an agent's: working, waiting for you, done), ×; more than fit scroll
-(`useStrip`, `lib/strip.ts`; dockview's tab keeps `min-width: 0`, or it grows to its content and the tabs run past the
-panel, + and the microphone with them). After the tabs, the panel's own **+** (a menu of the project's accounts, the
-default first, each a new conversation; then Terminal, a shell); last, the dictation's microphone (Dictation, below).
-The task's repositories are in the Resources panel, not in this row. The agent's icon opens **Change Agent**, a dialog
-(the project's accounts: the one chosen opens in a new tab, told to go on with this conversation, a progress bar of
-the parts of it read; [tasks.md](tasks.md), "Several agents in a task"). An agent's × asks first; a shell's closes it.
-The terminal in front is named by the task and the tab from one message (`terminals`), not the task from the window's
-shown task: that comes in another message, and between the two a terminal that does not exist would be shown.
-
-**The last terminal closed folds the panel** to a strip of one button, + in its middle, as JetBrains' tool windows go
-but with their button kept in place (the author's choice): by its height under or over the grid, by its width at a side
-(dockview's constraints hold it there; the row goes). Alone in the grid (no profile open), the +'s rows are big buttons
-in a line in the grid's middle, whatever the arrangement (its group fills the grid there, its header hidden): a
-`data-launcher` button each, the agent's icon beside its name, an account's email under it, no keys (Ctrl+` opens the task's agent,
-which the window does not show: a key on one of them would read as a mistake). Each is a Tab stop, Enter opens it; the
-first, the project's default agent, gets the keyboard when they come, unless the keyboard is in something else (a
-field, a dialog). Under them, a second row: the task's closed profiles, a `data-launcher` each, its picture beside its name
-(The grid: No profile open). A terminal opened unfolds it to the size it had. Ctrl+` there opens a new conversation of
-the task's agent; a task with none (its project had no default agent: [tasks.md](tasks.md), "Choosing the agent")
-gives the keyboard to the buttons, or opens the +. A task that never had a terminal opens its agent, or nothing (the
-buttons).
-
-**A tab comes before its program.** An agent's tab is there at once, before its program is looked for (the user's
-login shell, its `--version`: a second or so): until it starts, a status over its terminal, a spinner and "Starting
-Claude Code…" (`starting` in `Sent.Terminals`, the tab without its `pty`). Its terminal stays
-laid out under it, so the program starts at its size. Not found and none chosen in its place (Choose the Agent,
-Cancel), the tab goes. A task opening sends its tabs with its first state, each starting (`Window.showLoaded`, then
-`Task.loadTerminals`), so the folded panel's buttons do not show while the agents are looked for. A pick or a
-dictation meanwhile goes nowhere: the human gives it again.
-
-Files dropped onto a terminal insert their paths, quoted for its shell and separated by spaces, without Enter
-([src/terminal](../src/terminal/README.md)).
-
-A clipboard image pasted through the OS's Paste action or the terminal's menu sends the agent's `imagePaste`
-shortcut (`Task.pasteImage`); the agent reads the clipboard itself. Shells and agents without that shortcut receive
-no image input. The terminal's image hook knows only its key; the agent's definition owns the shortcut.
-
-The terminal itself (a pty in the user's shell, its output in a buffer, one xterm a place that shows it, the keys of the
-OS's own terminal, its size) is a Kulisa package, `src/terminal/` ([packages.md](packages.md); its
-[README](../src/terminal/README.md)). The panel is the task's: its tabs, its agents, its shells.
-
-**Shells**: the human's (+ → Terminal, `Terminal`, `Terminal 2` …) and what an agent keeps running for the human to see
-(`terminal_run`: the app's dev server, `docker compose up`), behind the tab in front so the human goes on watching the
-agent. Each is the user's shell in the task's folder with the agent's environment (`KULISA_MCP_URL`, `KULISA_URL`,
-`KULISA_TASK`), the command typed in, so the human can stop it, type into it and read it; an agent reads its last lines
-as the screen shows them (`terminal_read`, colors left out) and presses Ctrl+C (`terminal_stop`), in shells only, never
-another agent's tab. Not the agent's own background shell: some agents cannot keep a process running (Codex waits on
-it), and the human does not see what runs there. The task closing ends what runs in it. As in an IDE, the terminals are
-kept (`terminals.json`): when the task loads again (a restart, the task opened again) each comes back in its tab, the
-one in front too, an agent's conversation resumed, a shell with nothing running; the agent runs its command again. ×,
-the menu's Close, `terminal_stop` with close, or the shell's `exit` ends one for good (`Task.openTerminal`,
-`openAgent`, `runInTerminal`, `interruptTerminal`, `readTerminal`, `closeTab`).
-
-**Dictation**, where the agent in front has its own ([tasks.md](tasks.md), "Choosing the agent"), is a key held: the
-**right Ctrl** (the right ⌘ on macOS: Apple keyboards have no right Ctrl), anywhere in the window (a profile's page, its
-address bar, the terminal, the bar): held, it records until let go; pressed once, until the next press (how it records,
-and the microphone: [src/dictation](../src/dictation/README.md)). A key, not a button: speaking to the agent happens
-hundreds of times a day. One key held alone, no chord: users are not pianists. That one: a modifier alone types nothing
-and does nothing in any page or terminal, so it is taken from no one (the page keeps its chords), and it sits at the
-right hand's edge, where push-to-talk keys go; the space bar, Claude Code's own key, is the page's in a page. The human
-may hold another key instead: Keyboard Shortcuts, Change on its row, then the key pressed (a modifier by its side, an F
-key not Kulisa's, Insert, Pause or Scroll Lock; a key that types is refused, saying so); kept in `settings.json`
-(`keys`), every window told (`keys:set`, `shell.keys()`; `Shortcuts.tsx`). With a shell in front, the key brings the
-agent the prompt goes to in front first (`Task.holdKey`, `promptTarget`): it always means "speak to the agent".
-
-The key's indicator, and the way by the mouse, is the round microphone at the end of the terminals' row of tabs
-([src/dictation](../src/dictation/README.md), The microphone); what the dictation does meanwhile is the pill at the
-terminal's top, a badge (the same, The pill). The agent hears through its own program (Claude Code: its audio
-module, or `arecord`/SoX on Linux); on macOS the system asks for the microphone on Kulisa's behalf
-(`NSMicrophoneUsageDescription`, `forge.config.ts`); the pill's wave is the window's own reading of it, the level
-only.
-
-Links in the terminal open with Ctrl+click (⌘ on macOS; which links: [src/terminal](../src/terminal/README.md)) and
-always ask where, in a menu at the pointer (the panel's `termHooks.open`): a new tab in one of the shown task's open
-profiles, or the user's browser. Every time, so a link never lands where the human did not expect: which profile a link
-belongs to cannot be told, and a rule such as "where that site is open" is not obvious.
-
-A path that exists is a link the same way, and so is a file an agent marks as one (the terminal finds the candidates;
-the main process says which exist, relative to the task's folder, `~/` from the home folder: `file-links.ts`, its
-channel `terminal:files` not logged, as it comes on every hover). Ctrl+click asks in the same menu: Open (the OS's app
-for it, `shell.openPath`) or Show in Folder (`shell.showItemInFolder`). What would run when opened (a file with `+x` on
-Linux and macOS; by its extension a Windows program or script, a `.desktop`, a macOS `.app`) is only shown in its
-folder, checked again in the main process when opened, as the window's answer may be stale. A `file://` address opens
-only when its host is this computer (none, `localhost`, or its name): one of another host, as `ls --hyperlink` gives in
-an ssh session, never opens the same path here (the OSC 8 spec,
-gist.github.com/egmontkob/eb114294efbcd5adb1944c9f3cb5feda).
+- Start/rescale only after Dockview and retained DOM dimensions agree, rounding fractional layout sizes.
+- Closing the last terminal keeps its panel's size, showing +. With no environments/terminals, show agent/shell
+  launchers and closed-profile buttons.
+  Launchers are Tab/Enter targets; focus default only if no field/dialog already has it. Ctrl+` opens the task's
+  agent or focuses no-default launchers.
+- **A terminal row precedes its program.** Send rows before discovery/launch, with Starting overlay at real size;
+  cancelling selection removes it. Pick/dictation require a running agent.
+- Development shells (`shell_run`) use task folder/environment and start behind the agent. `shell_read` reads
+  rendered screen; `shell_stop` interrupts only shells. Task close stops them; reopening resumes agents and fresh
+  shells, preserving row order/selection. Close/exit removes a terminal permanently.
+- Drops paste shell-quoted paths without Enter. Image paste uses adapter `imagePaste` through `Task.pasteImage`;
+  shells/unsupported agents get no image input. Runtime, buffers and keys: [terminal](../src/terminal/README.md).
+- Dictation defaults to right Ctrl (right ⌘ on macOS), hold or tap-toggle from anywhere. With a shell active, bring
+  `promptTarget` forward first. Keyboard Shortcuts may rebind to a side-specific modifier, unclaimed F key, Insert,
+  Pause or Scroll Lock; reject typing keys. Persist/broadcast `settings.json.keys`. Microphone and pill:
+  [dictation](../src/dictation/README.md). macOS permission uses `NSMicrophoneUsageDescription`; renderer meter
+  reads levels only.
+- Ctrl+click/⌘click URLs always asks which open profile/new tab or system browser, avoiding inferred identity.
+- File links resolve relative to task/home through `file-links.ts`; batch hover existence checks use quiet
+  `terminal:files`. Offer Open/Show in Folder, but executables/scripts/desktop launchers/apps only reveal. Recheck in
+  main at opening. Accept `file://` only for local hosts, never remote-machine paths.
 
 ## Keys
 
@@ -363,10 +263,7 @@ Who gets a key depends on where the keyboard is, and **the keyboard stays where 
 takes it only from the human (a click or a key in it), or from Kulisa for them (a tab chosen by a key, Ctrl+`, their
 dialog answered, Pick, an address from its pane's bar). A page taking it by itself, as one loading does (a tab the agent
 opened, a redirect: on macOS every one does, and the next keys typed to the agent would go to the site), gives it back
-to where it was in its window (`page-focus.ts`). On macOS a real click is the page's focus, then the click 2 ms later: a
-page's focus is the human's when their input in it comes within 150 ms of it, before or after. A focus given back
-150 ms later is not given back over Kulisa's gift of it since (Ctrl+` at once after a page loaded). Each decision is a
-line in the log (`[focus]`): given back, or left and why.
+through the [Browser Kulisa package](../src/browser/README.md#focus).
 
 - **In a profile's page, or its pane** (its address bar, its toolbar): Chrome's keys, for that pane: Ctrl+T a new tab
   with the address to type in, Ctrl+W, Ctrl+Shift+T (the tab closed last: its address, kept in memory, ten at most),
@@ -374,8 +271,8 @@ line in the log (`[focus]`): given back, or left and why.
   Ctrl+1…8, Ctrl+9; Ctrl+Shift+C for Pick (Chrome's Inspect), Ctrl+Shift+S for a screenshot of an element
   ([src/screenshots](../src/screenshots/README.md)). The site does not get them, as in Chrome. Closing or switching a
   tab from the page leaves the keyboard in the page shown next.
-- **Everywhere, the terminal too**: Ctrl+` to the terminal in front and back to the page used last (on the folded
-  terminals, a new conversation of the task's agent), Ctrl+Shift+` a new terminal, Ctrl+Shift+1…9 the bar's first to
+- **Everywhere, the terminal too**: Ctrl+` to the terminal in front and back to the page used last (with no development
+  terminal, a new conversation of the task's agent), Ctrl+Shift+` a new terminal, Ctrl+Shift+1…9 the bar's first to
   ninth tab, Ctrl+Shift+PgDn / PgUp the next or previous one (in the bar's order), Ctrl+Shift+N a new task of the shown
   task's project, Ctrl+Shift+A the sidebar (over the grid, again to close it; docked in the empty window, the keyboard
   to it), Ctrl+Shift+/ the list; the right Ctrl
@@ -393,7 +290,7 @@ Ctrl stays the terminal's; tasks are ⌘⌥1…9 (⌘⇧3, 4, 5 are macOS's scre
 How: the main process sees every key of the window and of every tab before the page does (`before-input-event`, on
 every webContents as it is made: `shortcuts.ts`), and takes one of Kulisa's (`preventDefault`: the page never gets it)
 or leaves it untouched. Where the keyboard is in the window's own page, the page tells it (`keys:zone`: the terminal, a
-dialog, a pane; `src/renderer/lib/keys.ts`), which also runs the commands the main process sends back (`command`, with
+dialog, a pane; `src/renderer/lib/keys.ts`), which also runs the commands the main process sends back (`command:run`, with
 the profile and tab). Letters are matched by what they type on a Latin layout (Ctrl+W on an AZERTY keyboard is its W)
 and by their place on others (Ctrl+Е on a Russian one is Ctrl+T); digits and keys typed with Shift by their place. Keys
 are written as Electron's accelerators (`CommandOrControl+T`); a key held alone by its code (`ControlRight`, `F9`: `hold`
@@ -414,16 +311,9 @@ Kulisa's own DevTools (F12 outside the pages) exist only when running from sourc
 
 ## The log
 
-What happened and who asked, for a bug the author cannot watch (a user's, another OS's): `logs/kulisa.log` in the data
-folder ([tasks.md](tasks.md), "What is on the computer"), written by electron-log (MIT, the most used: the file and its
-turnover, Electron's own events) with lines of Kulisa's own (`log.ts`). At 1 MB it becomes `kulisa.old.log` and a new
-one starts: 2 MB at most. The same place on every OS (electron-log would put macOS's in `~/Library/Logs`): one path to
-name in the guide, and the tests' log in their own folder. The lines go to the console too (`npm start`'s terminal,
-the tests' output) until it has no reader (the terminal closed, `npm start | head`): then the console transport goes
-off at its first failed write, and the file goes on. Left to Node, that write is an uncaught exception, which `app.ts`
-logs to the console again, and so on, in nextTicks that let nothing else run: Kulisa would stop answering the OS. Each
-line has the time (ISO 8601 with the computer's offset, `stamp`: a user's log is read next to times from another zone;
-electron-log's own has no offset), the level and a tag:
+`src/main/log.ts` uses electron-log for `logs/kulisa.log`, rotating at 1 MB to `kulisa.old.log` (2 MB total) on every OS.
+Console output mirrors it until the first failed write, then disables that transport to avoid recursive exception
+logging. Lines carry ISO time with local offset, level and tag:
 
 - `[kulisa]`: the start (the version, Electron's, the OS and its session, X11 or Wayland, packaged or from source, the
   data folder), whether the OS keeps Kulisa's key (`encryption available`, on Linux which keyring; `basic_text` is
@@ -446,7 +336,7 @@ electron-log's own has no offset), the level and a tag:
   save writes every field): `[project] k3f9a2 renamed: Shop-2`. Its id is random (tasks.md, What is on the computer):
   it comes with the name where it first appears in a run, alone after, the key a line is found by.
 - `[task]`, `[window]`, `[settings]`, `[terminal]`: a project's task opened, created (its project's name, where:
-  `[task] created k3f9a2/1 (shop) in ~/IdeaProjects/shop@task-1`), closed, deleted; a window made, showing a task,
+  `[task] created k3f9a2/k3x9q2 (shop) in ~/IdeaProjects/shop`), closed, deleted; a window made, showing a task,
   dropped; Settings shown (at what) and closed; a terminal started (the agent and whether its session is resumed, or a
   shell), gone, its exit code.
 - `[github]`: a GitHub account, its id with its login beside it (`, token` for a fine-grained token's), at every start
@@ -515,13 +405,18 @@ issue #73) is where the human reads it and passes it on, by any means: not every
 ## IPC
 
 A window's page and the main process talk by named channels: `invoke` (an answer comes back), `send` (none), and the
-main process's messages to a page. Each channel is declared once, in `src/shared/ipc.ts`: what it takes and what it
-answers (`Invoke`, `Send`, `Events`); `npm run build` checks both ends against it. The main process's end goes through
+main process's messages to a page. Each channel is declared once: core channels in `src/shared/ipc.ts`, Kulisa
+packages' in their own `ipc.ts`, joined into `Invoke`, `Send` and `Events`. `npm run build` checks both ends against
+their arguments and answers. The main process's end goes through
 `handle` and `on` (`src/main/ipc.ts`), in a file a domain (`src/main/ipc/`), and `AppWindow.send`; the page's through
 the bridge's types (`env.d.ts`) and `act`, which adds the task shown (a message about the shown task's profiles and
 tabs is refused once another is shown). A new channel is declared there first, then its two ends. A message acts in the
 window it comes from (`event.sender`); one change to the open tasks after another (`serial`).
 
+- Name channels `<domain>[:<subdomain>]:<action-or-event>`: a subgroup for related operations (`task:diff:review`,
+  `project:profile:add`, `account:signin:cancel`), simple families shallow (`tab:navigate`), compound actions
+  hyphenated (`project:folder:set-default`). Keep requests and notifications under the same domain and subgroup,
+  with consistent singular/plural choices; name what they do (`task:artifact:refresh` → `task:artifact:state`).
 - An answer the page does not read is `void`: the main process may answer anything there (the tests read some).
 - An answer that may be a refusal is a `Result` (`src/shared/result.ts`), read with `refused()`, so the types keep a
   page from reading `r.accounts` after a no (`{ error: null }`).
@@ -532,27 +427,16 @@ window it comes from (`event.sender`); one change to the open tasks after anothe
 
 ## The code
 
-| File | What |
-|---|---|
-| `src/main/index.ts` | the entry: the environment's variables (README, Run) into `start`; Squirrel's events first (`updates.ts`) |
-| `src/main/app.ts` | the app put together: the shell, the Kulisa zoom, the theme, the language, the agents; start and quit |
-| `src/main/shell.ts` | `Shell`, the app every module of the main process is given: types only |
-| `src/main/open-tasks.ts` | the windows' open tasks: open, show, create, move, close, delete (one change after another, `serial`) |
-| `src/main/ipc/*.ts` | the windows' handles, a file a domain: `tasks`, `projects`, `profiles` (Settings → Profiles), `agents`, `panes` (the shown task's profiles, tabs, terminals), `window` (its zoom, theme, bar, language) |
-| `src/main/shortcuts.ts` | the keys as they are typed (Keys), the hold keys changed |
-| `src/main/page-menu.ts` | the right-click menu in a profile's page (Menus) |
-| `src/shared/ipc.ts`, `src/main/ipc.ts` | the channels between a page and the main process; `handle` and `on`, checked against them (IPC) |
-| `src/main/window.ts` | a window: its BrowserWindow, the native views' places, its questions, screenshot |
-| `src/renderer/components/settings/`, `lib/settings.ts` | Settings: its nav and its pages, a chunk of its own; shown and closed (Settings) |
-| `src/preload/index.cjs` | the window's bridge to the main process: the windows' pages are sandboxed (no Node: about 15 MB less a window, PSS), so it is a few lines of plain JavaScript; the window imports what it shares with the main process from `src/shared/` (`names.ts`, `avatars.ts`, `result.ts`) |
-| `src/main/log.ts` | the log: the file (electron-log), `summary` of an action's arguments, the Log page's reading and following of it, the issue's address (The log) |
-| `components/settings/LogPage.tsx`, `AboutPage.tsx` | the Log and About pages of Settings (The log; Menus, About Kulisa) |
-| `src/main/keys.ts` | the keyboard shortcuts: the table, which key an input event is; `shortcuts.ts` takes them (Keys) |
-| `src/terminal/` | the terminal, a Kulisa package: its pty, its buffers, the xterm shown ([README](../src/terminal/README.md)) |
-| `src/main/file-links.ts` | the paths a terminal names: which exist, opening one or showing it in its folder (The terminal) |
-| `src/renderer/components/Grid.tsx`, `components/grid/`, `lib/grid.ts` | the grid (dockview), the panes and their headers, the terminals (`grid/Terminals.tsx`: `Terminals`, its row of tabs `TerminalsHeader`), the closed profiles' buttons over it (`ClosedProfiles`, `Grid.tsx`), Arrange panels |
-| `src/renderer/components/grid/Resources.tsx` | Resources next to the terminal: the shown task's resources (its worktree(s) or the main working tree) and its artifacts, each with its actions (tasks.md) |
-| `src/renderer/components/TopBar.tsx`, `ProjectIcon.tsx` | the title bar, ☰ and its own rows; the logo, a project's icon |
-| `src/renderer/components/Menus.tsx`, `Ask.tsx`, `lib/menu.ts`, `project-menu.ts`, `cover.ts`, `views.ts`, `ask.ts`, `terminals.ts` | the menus (`project-menu.ts`: a project's, the sidebar's and a tab's), the dialogs and questions (shadcn's: `cover.ts`), the pages under them in a tasks' window (`views.ts`), a tasks' window's terminals (`terminals.ts`) |
-| `src/renderer/lib/keys.ts`, `components/Shortcuts.tsx` | where the keyboard is, the commands the keys run; Keyboard Shortcuts |
-| `test/e2e/window.spec.ts`, `grid*.spec.ts`, `keys.spec.ts`, `log.spec.ts`, `zoom-and-closing.spec.ts`, `test/unit/keys.test.ts` | the tests |
+- `src/main/index.ts`, `app.ts`: environment, Squirrel handling, startup and app services; `shell.ts` defines the
+  shared main-process interface. `open-tasks.ts` serializes task/window changes.
+- `src/main/window.ts`: native window/views, bounds, questions and screenshots. `shortcuts.ts`/`keys.ts` own keyboard
+  routing/table; `page-menu.ts` owns native page menus; `file-links.ts` protects desktop file opening.
+- `src/main/ipc/`, `ipc.ts`, `src/shared/ipc.ts`: handles and shared contracts. `src/preload/index.cjs` exposes the
+  sandboxed window bridge without Node; shared helpers/types are imported from `src/shared/`.
+- Renderer `task-view/` owns retained task screens, Dockview, bounds, Resources and environments.
+  `components/settings/` is lazy-loaded through `index.ts`; UI structure: [ui.md](ui.md).
+- Renderer menus/dialogs, `lib/cover.ts` and `task-view/views.ts` coordinate native-page coverage. `lib/keys.ts` owns window
+  keyboard zones; `src/terminal/` owns PTY/buffers/rendering.
+- `src/main/log.ts` owns logging, redaction, live reads and issue links; Settings' Log/About pages expose them.
+  `files.ts` supplies shared atomic writes.
+- Coverage: window/grid/keys/log/zoom-and-closing e2e files; keys/log unit tests.

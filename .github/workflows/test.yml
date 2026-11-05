@@ -229,8 +229,17 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           OS: ${{ matrix.os }}
         run: |
-          jobs=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/attempts/$GITHUB_RUN_ATTEMPT/jobs?per_page=100" \
-            --jq ".jobs[] | select(.name | startswith(\"checks ($OS)\") or startswith(\"e2e ($OS,\")) | \"\(.conclusion) \(.name)\"")
+          # Partial reruns retain successful jobs from earlier attempts. Read every attempt and take each
+          # job's newest result; an older success must never conceal a failed rerun. Retry API transport
+          # failures only: the result check below still refuses failed, cancelled, missing or pending jobs.
+          for attempt in 1 2 3; do
+            if pages=$(gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/jobs?filter=all&per_page=100"); then break; fi
+            if [ "$attempt" = 3 ]; then exit 1; fi
+            sleep "$((attempt * 2))"
+          done
+          jobs=$(echo "$pages" | jq -r --arg os "$OS" '[.[].jobs[]] | group_by(.name) | map(max_by(.run_attempt)) | .[] |
+            select(.name == "checks (\($os))" or .name == "e2e (\($os), 1/3)" or .name == "e2e (\($os), 2/3)" or .name == "e2e (\($os), 3/3)") |
+            "\(.conclusion) \(.name)"')
           echo "$jobs"
           if [ "$(echo "$jobs" | grep -c .)" != 4 ] || echo "$jobs" | grep -qv '^success '; then
             echo "::error::$OS: not every check and shard passed"; exit 1

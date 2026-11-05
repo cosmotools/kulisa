@@ -31,14 +31,18 @@ function psArgument(a: string) {
 // PowerShell: the variables set first ($env:), the command run by &, its passing of arguments Legacy in 7 (5.1's), in a
 // script block of its own, so the setting stays there. The command is PowerShell's to find, not on a command line: in
 // its '…' alone (a folder with a space, C:\Program Files\…).
-function shellLine(shell: string, command: string, args: string[], pinned: Record<string, string> = {}) {
+function shellLine(shell: string, command: string, args: string[], pinned: Record<string, string | undefined> = {}) {
   const quote = (a: string) => shellQuote(shell, a), name = shellName(shell);
   if (name === 'pwsh' || name === 'powershell') {
     const ps = (v: string) => `'${v.replace(/'/g, "''")}'`;
-    const vars = Object.entries(pinned).map(([k, v]) => `$env:${k}=${ps(v)}; `).join('');
+    const vars = Object.entries(pinned).map(([k, v]) => `$env:${k}=${v === undefined ? '$null' : ps(v)}; `).join('');
     return `& { $PSNativeCommandArgumentPassing='Legacy'; ${vars}& ${[ps(command), ...args.map(quote)].join(' ')} }`;
   }
-  return [...Object.entries(pinned).map(([k, v]) => `${k}=${quote(v)}`), ...[command, ...args].map(quote)].join(' ');
+  // env -u is shared by macOS/Linux and works with sh and fish. Absence matters: some CLIs move their login
+  // metadata even when the override points at their default folder. Startup hooks must not reintroduce it.
+  const unset = Object.entries(pinned).filter(([, v]) => v === undefined).flatMap(([k]) => ['-u', k]);
+  const values = Object.entries(pinned).filter((entry): entry is [string, string] => entry[1] !== undefined).map(([k, v]) => `${k}=${quote(v)}`);
+  return [...(unset.length ? ['env', ...unset.map(quote)] : []), ...values, ...[command, ...args].map(quote)].join(' ');
 }
 
 // Paths pasted into a prompt need shell literals; PowerShell's native-program argument conversion belongs to shellLine.
@@ -47,4 +51,15 @@ function quotePaths(shell: string, paths: string[]) {
   return paths.map((p) => ps ? `'${p.replace(/'/g, "''")}'` : shellQuote(shell, p)).join(' ');
 }
 
-export { shellQuote, shellLine, quotePaths };
+// Run after the shell's first prompt hooks (direnv, mise), then leave with the application's status.
+function executionLine(shell: string, line: string) {
+  const name = shellName(shell);
+  if (name === 'pwsh' || name === 'powershell') {
+    const command = `'${line.replace(/'/g, "''")}'`;
+    // -Command normalizes native failures to 1; an explicit exit preserves the application's code.
+    return `$global:LASTEXITCODE=$null; Invoke-Expression ${command}; $kulisaSucceeded=$?; if ($null -ne $LASTEXITCODE) { exit $LASTEXITCODE }; if ($kulisaSucceeded) { exit 0 } else { exit 1 }`;
+  }
+  return `eval ${shellQuote(shell, line)}; exit ${name === 'fish' ? '$status' : '$?'}`;
+}
+
+export { shellQuote, shellLine, quotePaths, executionLine };

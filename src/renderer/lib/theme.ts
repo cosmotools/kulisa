@@ -27,7 +27,8 @@ function color(variable: string) {
 }
 // A terminal's colors and font in the theme shown: the card's background, its text, the window's text size
 // (Tailwind's text-sm, what shadcn's components write in).
+export const uiTextSize = () => parseFloat(getComputedStyle(root).getPropertyValue('--text-sm')) * parseFloat(getComputedStyle(root).fontSize) || 14;
 export const termStyle = (): TermStyle => ({
   colors: { background: color('--card'), foreground: color('--foreground'), selection: color('--ring') },
-  fontSize: parseFloat(getComputedStyle(root).getPropertyValue('--text-sm')) * parseFloat(getComputedStyle(root).fontSize) || 14,
+  fontSize: uiTextSize(),
 });

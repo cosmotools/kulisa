@@ -8,17 +8,17 @@ import fs from 'fs';
 import path from 'path';
 import { removeTree } from './remove.ts';
 import { Task } from './tasks.ts';
-import { freeBranch, createWorktree, removeWorktree, merged, repoOf, changes, clone } from './worktrees.ts';
+import { freeBranch, createWorktree, removeWorktree, repoOf, changes, clone } from './worktrees.ts';
 import { originKey } from './remotes.ts';
 import { REVOKE } from '../github/ipc.ts';
-import { nameError, repoName, slugOf } from '../shared/names.ts';
+import { labelError, folderNameError, repoName, slugOf } from '../shared/names.ts';
 import { refused } from '../shared/result.ts';
 import type { Result } from '../shared/result.ts';
 import type { Shell } from './shell.ts';
 import { newId, worktreesOf, ownWorktree, folderOf, branchOf, homeOf } from './store.ts';
 import type { ProjectEntry, TaskEntry, Copy, Worktree, Store } from './store.ts';
 import type { StoredProfile } from './profile-store.ts';
-import type { ProfileConfig } from './profiles.ts';
+import type { ProfileConfig } from '../browser/main/index.ts';
 import type { AppWindow } from './window.ts';
 import type { Question, ProjectAgent, ProjectGitHub, ProjectFolder, NewProjectSetup } from '../shared/types.ts';
 import type { GitError } from './worktrees.ts';
@@ -51,8 +51,8 @@ class Project {
   // The one a new task starts; none: its tasks start with nothing open (the terminals' buttons, Terminals.tsx).
   defaultAgent() { return defaultOf(this.shell, this.entry); }
   // Its open tasks, in the order they were made (the bar's); the closed ones, the one closed last first.
-  open() { return [...this.tasks.values()].filter((t) => !t.entry.closed); }
-  closedTasks() { return [...this.tasks.values()].filter((t) => t.entry.closed).sort((a, b) => (b.entry.closedAt ?? 0) - (a.entry.closedAt ?? 0)); }
+  open() { return [...this.tasks.values()].filter((t) => t.entry.closedAt === undefined); }
+  closedTasks() { return [...this.tasks.values()].filter((t) => t.entry.closedAt !== undefined).sort((a, b) => (b.entry.closedAt ?? 0) - (a.entry.closedAt ?? 0)); }
   // Its task with this key ("<project id>/<task id>", tasks.ts), or null.
   taskByKey(key: string) { return [...this.tasks.values()].find((t) => t.key === key) || null; }
   // A conversation of one of its tasks with a transcript: where its agents keep their data (agents/: Claude's config).
@@ -156,26 +156,13 @@ class Project {
   // × on its tab: its agent stops and its tabs close; everything else stays, and it is listed as closed. Once it is
   // not shown.
   async closeTask(task: Task) {
-    task.entry.closed = true; task.entry.closedAt = Date.now();
+    task.entry.closedAt = Date.now();
     this.save();
     await task.unload();
   }
-  // Its closed tasks whose PR is merged (worktrees.ts, merged: each copy's commits all in its remote's default branch,
-  // nothing uncommitted): marked, for its menu to offer deleting them (nothing is lost). Checked as a task of it is
-  // shown and as one is closed, in the background (a fetch takes a moment). True when one was found.
-  async checkMerged() {
-    let found = false;
-    for (const t of this.closedTasks()) {
-      const copies = worktreesOf(t.entry);
-      if (t.entry.merged || !copies.length) continue;
-      if ((await Promise.all(copies.map((c) => merged(c)))).every(Boolean)) { t.entry.merged = true; found = true; }
-    }
-    if (found) this.save();
-    return found;
-  }
   // A closed task opened again (the sidebar), to be shown: it loads then, its agent resumed.
   reopen(task: Task) {
-    delete task.entry.closed; delete task.entry.closedAt; delete task.entry.merged;
+    delete task.entry.closedAt;
     this.save();
   }
   askDeleteTask(task: Task) { return askDeleteTask(this.shell, task.entry, task.folder, task.window || this.window); }
@@ -220,7 +207,7 @@ async function askDeleteTask(shell: Shell, entry: TaskEntry, folder: string, w: 
 }
 // A closed task of a project not loaded (the sidebar lists them): nothing of it is loaded, its entry is all there is.
 async function deleteClosedTask(shell: Shell, p: ProjectEntry, id: string, w: AppWindow): Promise<Result<{ id: string }>> {
-  const entry = shell.store.tasksOf(p).list.find((e) => e.id === id && e.closed);
+  const entry = shell.store.tasksOf(p).list.find((e) => e.id === id && e.closedAt !== undefined);
   if (!entry) return { error: `no closed task ${id}` };
   if (!await askDeleteTask(shell, entry, folderOf(entry, p.folders[0]!), w)) return { error: 'the human said no' };
   await deleteTask(shell, p, entry);
@@ -240,7 +227,7 @@ function forgetFolder(shell: Shell, p: ProjectEntry, entry: TaskEntry, folder: s
   for (const saved of conversations(entry)) {
     try {
       const a = shell.agentFor(saved.agent, { any: true });
-      a?.forget?.({ folder, saved: folder === folderOf(entry, '') ? saved : { transcript: saved.transcript }, project, configDir: a.configDir });
+      (a?.configOrigin === 'kulisa' || !a?.configOrigin) && a?.forget?.({ folder, saved: folder === folderOf(entry, '') ? saved : { transcript: saved.transcript }, project, configDir: a.configDir });
     } catch (e) { console.warn('[agents] forget:', (e as Error).message); }
   }
 }
@@ -383,58 +370,59 @@ function defaultAgent(shell: Shell, id: string, agent: string | null): Result<{ 
   if (!p.agents?.includes(agent)) return { error: `${agent} is not in the project` };
   return changeAgents(shell, id, [agent, ...p.agents.filter((a) => a !== agent)], false);
 }
-// New Project (docs/tasks.md, Projects), as JetBrains': its code first (the code is often on the
-// disk or at a URL already), one repository or several (a frontend and a backend): from
-// 'new', <location>/<name>, the location the projects' home (shell.projectsHome) unless the human picks another, so they know where the agent's files
+// Project creation core (docs/tasks.md, Projects): onboarding supplies one source; other callers may supply several
+// repositories or folders (a frontend and a backend). From
+// 'new', <location>/<directoryName>, the location the projects' home (shell.projectsHome) unless the human picks another, so they know where the agent's files
 // are; 'folder', the folders given, nothing made, the first the project's; 'clone', one repository cloned into
-// <location>/<name>, several into <location>/<name>/<repo> each. git init when asked, with an empty first commit:
-// tasks get copies of their own (worktrees) from it. Then its agents (accounts, the first the default) and profiles
-// (made in it, or taken from the others), as New Project's steps chose them: what could not be done of those is logged
+// <location>/<directoryName>, several into <location>/<directoryName>/<repo> each. New folders stay without git. Then its agents
+// (accounts, the first the default) and profiles (made in it, or taken from the others), as the project setup chose
+// them: what could not be done of those is logged
 // and said (problems), the rest done, the project being there already.
-type NewProject = { from?: string; name?: string; location?: string; folders?: string[]; urls?: string[] } & NewProjectSetup;
-async function createProject(shell: Shell, { from = 'new', name, location, folders = [], urls = [], agents = [], profiles = [] }: NewProject): Promise<Result<{ id: string; problems?: string[] }>> {
+type NewProject = { from?: string; name?: string; directoryName?: string; location?: string; folders?: string[]; urls?: string[] } & NewProjectSetup;
+async function createProject(shell: Shell, { from = 'new', name, directoryName, location, folders = [], urls = [], agents = [], profiles = [] }: NewProject): Promise<Result<{ id: string; problems?: string[] }>> {
   name = name?.trim();
-  const bad = nameError(name);
+  const bad = labelError(name);
   if (bad) return { error: bad };
   let folder: string, several: string[] | null = null;
   if (from === 'folder') {
     const given = [...new Set(folders.map((f) => full(f)))];
     if (!given.length || given.includes(null)) return { error: given.length ? 'each folder must be a full path' : 'no folder' };
     const states = await Promise.all(given.map((f) => folderState(shell, f!)));
-    for (const [i, f] of given.entries()) {
-      const s = states[i]!;
-      if (s.state === 'new') return { error: `${f} is not there` };
-      const no = refusal(f!, s);
+    for (const state of states) {
+      const no = folderProblem('folder', state);
       if (no) return { error: no };
     }
     folder = given[0]!;
     if (given.length > 1) several = given as string[];
   } else {
-    const made = newFolder({ location, name });
+    const folderName = directoryName ?? name;
+    const badFolder = folderNameError(folderName);
+    if (badFolder) return { error: `Folder name: ${badFolder}` };
+    const made = newFolder({ location, name: folderName });
     if (!made) return { error: 'the location must be the full path of a folder' };
     folder = made;
     const there = await folderState(shell, folder);
-    const no = refusal(folder, there);
+    const no = folderProblem(from, there);
     if (no) return { error: no };
     if (from === 'clone') {
       urls = [...new Set(urls.map((u) => u?.trim()).filter((u) => !!u))];
       if (!urls.length) return { error: 'no repository URL' };
-      if (!['new', 'empty'].includes(there.state)) return { error: `${folder} is there already: choose another name or location` };
       const intos = urls.length === 1 ? [folder] : urls.map((u) => path.join(folder, repoName(u)));
       if (intos.includes(folder) && urls.length > 1 || new Set(intos).size < intos.length) return { error: 'two repositories of the same name' };
-      fs.mkdirSync(urls.length === 1 ? path.dirname(folder) : folder, { recursive: true }); // git runs there
+      const problem = makeProjectFolder(folder);
+      if (problem) return { error: problem };
       for (const [i, u] of urls.entries()) {
         try { await clone(u, intos[i]!); } catch (e) {
           const err = e as GitError;
           // None of it kept: a project with half its code would look made.
-          for (const f of intos.slice(0, i + 1)) if (f !== folder || there.state === 'new') removeTree(f);
-          if (there.state === 'new') removeTree(folder);
+          removeTree(folder);
           return { error: `${u}: ${err.stderr || err.message}` };
         }
       }
       if (urls.length > 1) several = intos;
     } else {
-      fs.mkdirSync(folder, { recursive: true });
+      const problem = makeProjectFolder(folder);
+      if (problem) return { error: problem };
     }
   }
   let entry = shell.store.projectFor(folder, name);
@@ -449,8 +437,21 @@ async function createProject(shell: Shell, { from = 'new', name, location, folde
   if (problems.length) console.error(`[project] ${entry.id} made, but: ${problems.join('; ')}`);
   return { id: entry.id, ...(problems.length && { problems }) };
 }
-// What a new project's folder is now (New Project says it as it is typed): not there, there (taken as it is, its
-// files kept), a repository (git init skipped), or a project's already (refused).
+// The draft and creation share this policy: only Open a folder may use an existing directory.
+const FOLDER_EXISTS = 'This folder already exists. Choose another folder name or location.';
+function folderProblem(from: string, there: { state: string; project?: string }): string | null {
+  if (there.state === 'file') return 'This path is a file. Choose a folder.';
+  if (there.state === 'project') return `This folder already belongs to ${there.project}.`;
+  if (from === 'folder') return there.state === 'new' ? 'This folder is not there. Choose an existing folder.' : null;
+  return there.state === 'new' ? null : FOLDER_EXISTS;
+}
+function makeProjectFolder(folder: string): string | null {
+  fs.mkdirSync(path.dirname(folder), { recursive: true });
+  // Reserve the target exclusively: another process may have created it since folderState was read.
+  try { fs.mkdirSync(folder); return null; }
+  catch (e) { if ((e as NodeJS.ErrnoException).code === 'EEXIST') return FOLDER_EXISTS; throw e; }
+}
+// Report the path's current state without creating it; Open a folder also needs to detect repositories.
 async function folderState(shell: Shell, folder: string): Promise<{ state: string; project?: string }> {
   if (!fs.existsSync(folder)) return { state: 'new' };
   if (!fs.statSync(folder).isDirectory()) return { state: 'file' };
@@ -464,11 +465,12 @@ const full = (f: string | undefined): string | null => {
 };
 const newFolder = ({ from, location, name, folder }: { from?: string; location?: string; name?: string; folder?: string }) => (from === 'folder' ? full(folder)
   : full(location) && name?.trim() ? path.join(full(location)!, name.trim()) : null);
-const refusal = (folder: string, there: { state: string; project?: string }) => ({ file: `${folder} is a file, not a folder`, project: `${folder} is the project ${there.project}'s already` } as Record<string, string>)[there.state];
 // The folder a new project's form names (folders on disk: the one typed; else <location>/<name>), and what it is.
 async function folderStateOf(shell: Shell, args: { from?: string; location?: string; name?: string; folder?: string }) {
   const folder = newFolder(args);
-  return folder ? { folder, ...await folderState(shell, folder) } : null;
+  if (!folder) return null;
+  const there = await folderState(shell, folder);
+  return { folder, ...there, error: folderProblem(args.from ?? 'new', there) };
 }
 // Let go by the project, at once, nothing asked: an account stays in the store (accounts.ts), and a task of the project
 // running it keeps it, as one running an agent without accounts does.
@@ -487,8 +489,9 @@ async function deleteAccount(shell: Shell, agent: string, w: AppWindow | null): 
     .filter((e) => shell.store.taskOf(p, e.id).agent().conversations?.some((c) => c.agent === agent && c.terminal !== undefined)).map((e) => `${e.name} (${p.name})`));
   if (using.length) return { error: `Tasks run it: ${using.join(', ')}. Close its tabs there first, or delete the tasks (Delete Task… in a task's menu).` };
   const projects = shell.store.projects().filter((p) => p.agents?.includes(agent));
-  if (!await shell.ask({ message: `Delete the account ${a.name}?`, ok: 'Delete', danger: true,
-    detail: [`Its folder ${a.dir} goes, with its sign-in, settings and conversations.`,
+  const external = a.origin === 'external';
+  if (!await shell.ask({ message: `${external ? 'Disconnect' : 'Delete'} the account ${a.name}?`, ok: external ? 'Disconnect' : 'Delete', danger: !external,
+    detail: [external ? 'Your external configuration, sign-in and conversations stay on disk. Other CLI sessions keep using them.' : `Its folder ${a.dir} goes, with its sign-in, settings and conversations.`,
       projects.length && `The projects ${projects.map((p) => p.name).join(', ')} let go of it.`].filter(Boolean).join(' ') }, w)) return { error: null };
   for (const p of projects) changeAgents(shell, p.id, p.agents!.filter((x) => x !== agent));
   shell.accounts.drop(agent);

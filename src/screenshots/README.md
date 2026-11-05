@@ -1,118 +1,66 @@
 # Screenshots
 
-A Kulisa package ([packages.md](../../docs/packages.md)): a picture of a page, one element, its visible part, or the
-whole page down to its end (the OS's tools take pixels of the screen only). The human takes one to send it to someone
-or to show the agent; the agent to check its work. Decided in issues #102 and #264; what is left: masking (issue #106), a native
-thumbnail (issue #107).
+Page, viewport and element capture, a [Kulisa package](../../docs/packages.md). Callers supply a Playwright page;
+profiles/tasks/agents stay outside. Masking: #106; native thumbnails: #107.
 
-It knows nothing of profiles, tasks or agents: it is given a Playwright page. Both the agent's `browser_screenshot`
-and the human's ⋮ → Screenshot call `Task.screenshot`: capture, save the artifact and show its thumbnail.
-`Profile.screenshot` checks the tab, passes its page here and logs the capture; `Task.saveArtifact` keeps the file
-under the task's limit and updates Resources. The handles adapt their inputs and outputs (AGENTS.md, "One core").
+Human and agent handles call `Task.screenshot`: `Profile.screenshot` checks the tab and captures;
+`Task.saveArtifact` saves under the task limit, updates Resources and shows the thumbnail.
 
 ## What is taken
 
-| Kind | How |
+| Kind | API |
 |---|---|
-| An element | `locator.screenshot()`, scrolled into view |
-| The visible part | `page.screenshot()` |
-| The whole page | `page.screenshot({ fullPage: true })` |
+| Element | `locator.screenshot()`, scrolling into view |
+| Visible part | `page.screenshot()` |
+| Whole page | `page.screenshot({ fullPage: true })` |
 
-The whole page has the limits Chrome's own has: a page that scrolls inside a container of its own (Gmail, many admin
-panels and single-page apps) gives its visible part only, and the container is taken as an element instead; lazy
-images below the fold may stay empty; an endless feed only as far as it is loaded.
+Full-page capture cannot expand inner scrolling containers; capture those as elements. Lazy images and endless
+feeds include only loaded content. Screenshot `style` hides Playwright's `x-pw-glass` action/highlight overlay.
 
-**Not the agent's marks.** Playwright draws the agent's pointer, its actions' outlines and `browser_highlight`'s in
-its glass (`x-pw-glass`, a popover in the page's top layer); a stylesheet given to the screenshot (`style`) hides it
-while the picture is taken. They are Kulisa's, not the site's.
-
-**Not** (`Profile.screenshot`) while the human signs in (the sign-in pause: Playwright is detached), of a tab
-showing a dialog (its page does nothing until it is answered), or of an empty tab. A page's size is its pane's, and
-Chromium gives no picture of a page with none: a pane just opened is waited for while the window lays it out (a few
-seconds at most), then the page's next frame; a pane never on screen yet, or a tab never in front (a hidden view
-passes no size to its page), is refused saying so.
+Core refuses sign-in mode, open dialogs and blank tabs. Capture needs pane dimensions: wait briefly for a new pane's
+layout and next frame, but refuse never-shown panes/tabs that have no size.
 
 ## The human
 
-The pane's ⋮ → **Screenshot**: Element, Visible Part, Full Page, off on an empty tab (as Pick); Ctrl+Shift+S in a page
-for Element (`keys.ts`). An element is chosen as Pick chooses (`chooseElement`, `picker.ts`: Playwright's
-`page.pickLocator()`; Esc, Pick or the key again cancels; one choosing at a time in a profile). The picture is PNG at
-the screen's density (`scale: 'device'`), sharp on a Retina screen. The window's handle is `tab:screenshot`
-(`ipc/panes.ts`); a caption over the pane says it was copied and saved, or why not, and its thumbnail shows (below).
+Pane ⋮ → Screenshot offers Element, Visible Part, Full Page; blank tabs disable it. Ctrl+Shift+S selects an element
+through Pick's `chooseElement`; Esc, Pick or the shortcut cancels. Only one selection per profile.
+`tab:screenshot` returns a PNG at device density, with a pane caption and thumbnail.
 
 ### Where it goes
 
-**Both to the clipboard and to the task's artifacts.** `Task.saveArtifact` keeps the PNG in the same numbered,
-size-limited folder as the agent's screenshots; Resources lists it with a small picture. Both belong to the task:
-Delete in Resources or the thumbnail removes the file, as does deleting the task. The clipboard is for a message or
-an agent's prompt (Ctrl+V); dragging the thumbnail into a folder keeps a copy outside the task.
-
-Electron's clipboard is the W3C Clipboard API's (`clipboard.write([new ClipboardItem({ 'image/png': blob })])`;
-`breaking-changes.md`): it has no `writeImage`.
+Copy to clipboard and save in the task's numbered, size-limited artifacts folder. Deletion from Resources or the
+thumbnail, and task deletion, remove the artifact; dragging out creates an independently owned copy.
+Use Electron's W3C Clipboard API (`ClipboardItem` with `image/png`), not `writeImage`.
 
 ## The thumbnail
 
-For screenshots taken by the human or agent, as macOS shows one in the screen's corner: the picture just taken, in the bottom right corner of its pane, 20 CSS
-pixels from its edges, at most 240 × 180 (a taller picture, as a whole page, its top only), framed by a thin ring and a
-shadow so that it stands out of the page under it, for about 5 s; the pointer over it, or its menu open, holds it. One a window (`Thumbnails`, `main/thumbnail.ts`): the next takes its
-place. The window makes it and tells it three things: where its panes are after every change of the grid (`place`,
-with `AppWindow.paneBox`), that its pages are covered (`setHidden`), and that a task goes (`close`); it goes when its
-pane is off screen.
+One `Thumbnails` instance per window; a new capture replaces the previous one. Place the preview at its pane's
+bottom-right, 20 CSS px inset, at most 240 × 180; tall images show their top. Auto-close after about 5 s, paused by
+hover or menu. The caller supplies placement (`place`), covered-page state (`setHidden`), task close and file actions.
 
-- It fades in, and out when it goes by itself, by its × (in its top left corner, while the pointer is over it) or by
-  its menu's Close (`fade`: its page's `thumbnail:fade`, then its view goes after `FADE`); taken away by
-  Kulisa (the next picture, its artifact deleted, its pane off screen, its task going) it goes at once.
-- A click opens the file in the OS's app for it (`shell.openPath`).
-- Dragged, it carries the file itself (`webContents.startDrag`, as Electron's `tutorial/native-file-drag-drop.md`):
-  into a messenger, a mail, the file manager.
-- Its right-click menu: Show in Folder (`shell.showItemInFolder`), Copy (as PNG, including a JPEG screenshot),
-  Send to Agent (the caller's `Task.sendArtifact`, as Resources: a shell-quoted path typed without Enter),
-  Delete (the caller's `Task.deleteArtifacts`, as in Resources), Close.
-
-**How it is drawn.** The pages are native views above the window's HTML (docs/ui.md), so the thumbnail is a
-`WebContentsView` of its own page (`renderer/thumbnail.ts`; its `src/renderer/thumbnail.html` only loads it: Vite
-builds no page outside its root), made when it shows and destroyed when it goes: one more process for those seconds,
-about 21 MB (PSS; 10 MB of it its own; 94 MB RSS, Chromium's shared libraries mostly), next
-to a window's 116 MB and a page's 57 MB. Weighed and not chosen: a window of its own over Kulisa's (Wayland does not let
-a window be placed); the pages turned into pictures for its seconds (the human could not use the page meanwhile);
-Electron's `ImageView` (a `View` drawing a `NativeImage`, no process: experimental in 44, and it gets no mouse, so no
-click, menu or drag; issue #107). Its page gets a small picture (`preview`: twice the thumbnail's size), not the
-whole page's megabytes. A view draws nothing outside its bounds, so its view is 12 px larger on every side than the
-picture, transparent there, for the shadow (`PAD`): that band takes the page's clicks while it shows.
-
-While a menu or a dialog covers the pages, they are pictures and the native views hidden, the thumbnail's too; the
-window draws it in HTML over the pictures meanwhile (`renderer/ThumbnailPicture.tsx`, `#shotthumb`, from `thumbnail:place`),
-so it does not vanish under its own menu. Its menu's rows are the package's (`thumbnailMenu`, `renderer/index.ts`), the
-menu itself the window's (`menuAtPoint`, `lib/menu.ts`: the window's menus are its own components, and a menu would
-not fit in the small view); its rows come back as `thumbnail:act`. All its channels are in `ipc.ts`, handled here.
+- Fade on timeout, × or Close; remove immediately on replacement, artifact deletion, hidden pane or task close.
+- Click opens with `shell.openPath`; drag uses `webContents.startDrag`.
+- Menu: Show in Folder, Copy as PNG (including JPEG sources), Send to Agent, Delete, Close. Sending uses the caller's
+  `Task.sendArtifact`; deletion uses `Task.deleteArtifacts`.
+- Native profile views cover window HTML, so use a temporary `WebContentsView`. Destroy it when dismissed.
+  Pass a preview twice the display size, not the full image. Its transparent 12 px shadow padding intercepts clicks.
+- The extra renderer costs memory; #107 tracks `ImageView`, whose lack of mouse input prevents current click/menu/drag
+  behavior. Wayland also prevents positioning a separate overlay window.
+- While pages are covered by snapshots, hide its native view and draw `ThumbnailPicture` in window HTML. Package
+  `thumbnailMenu` supplies rows to the window's `menuAtPoint`; `thumbnail:act` returns actions. All channels live here.
 
 ## The agent
 
-`browser_screenshot` (`kulisa-plugin/main/tools/browser.ts`): the visible part; `ref` or `locator` for one element;
-`fullPage`; `also`, more profiles' active tabs in one call, each picture after its profile's name (with a `locator`,
-the same element in each; a `ref` is one page's, refused with `also`). JPEG at CSS pixels (`scale: 'css'`): at a
-screen's density the picture is several times larger and costs the agent's context for nothing. The pane's caption
-shows "screenshot" for it, as for every command of the agent (`ghost.ts`); the human's pictures, taken through the
-same connection, are not captioned: `ghost.ts` asks `takenByHuman`.
+`browser_screenshot` supports viewport, `ref`/`locator`, `fullPage`, and `also` for active tabs in several profiles.
+A locator can apply to all; a page-owned ref cannot combine with `also`. Return labelled JPEGs at CSS density to
+limit context size. `ghost.ts` captions agent captures; `takenByHuman` suppresses captions for human captures.
 
 ## The code
 
-| File | What |
-|---|---|
-| `main/index.ts` | the main process half's entry |
-| `main/capture.ts` | a picture of a page, the agent's marks hidden; who took it |
-| `main/clipboard.ts` | a screenshot copied to the clipboard, from its bytes or its file |
-| `main/thumbnail.ts` | a window's thumbnail: its view, place, time, channels, what is done with its file |
-| `renderer/index.ts` | the window half's entry: the thumbnail as the window draws it, its menu's rows |
-| `renderer/ThumbnailPicture.tsx` | the thumbnail drawn in the window while the pages are pictures |
-| `renderer/thumbnail.ts` | the thumbnail's own page: the picture, a click, a drag, a right-click, the pointer |
-| `ipc.ts` | its channels |
-
-Outside, using it: `Profile.screenshot` (`src/main/profiles.ts`), `browser_screenshot`
-(`src/kulisa-plugin/main/tools/browser.ts`), `takenByHuman` in `ghost.ts`; the human's `tab:screenshot`
-(`src/main/ipc/panes.ts`), `chooseElement` (`picker.ts`), the key (`keys.ts`), ⋮ → Screenshot (`src/renderer/components/grid/ProfilePane.tsx`) and
-`screenshot` (`src/renderer/lib/store.ts`); the window's `thumbnails` (`window.ts`: made, placed, hidden, closed),
-`<Thumbnail />` and `thumbnailMenu(menuAtPoint)` (`components/App.tsx`), `Task.sendArtifact` (Send to Agent, as Resources), the page's
-shell `src/renderer/thumbnail.html` (`vite.config.mts`). Its e2e tests, on the test site's `/tall`:
-`test/e2e/agent-tools.spec.ts` ("agent: screenshots of an element, …"), `profiles.spec.ts` ("a pane's ⋮ → Screenshot …", "a screenshot shows its
-thumbnail …").
+- `main/index.ts`, `renderer/index.ts`, `ipc.ts`: public entries and channels.
+- `main/`: capture/clipboard and thumbnail lifecycle; `renderer/`: native preview page, snapshot substitute and menu rows.
+- Core owns tab eligibility (`Profile.screenshot`), artifacts (`Task`), Pick and keyboard/menu triggers. The plugin
+  owns `browser_screenshot` and human-capture annotation suppression.
+- `window.ts` supplies placement/coverage/task lifecycle; `App.tsx` supplies shared menus/prompt actions.
+  `src/renderer/thumbnail.html` is Vite's loader shell.
+- E2e: `test/e2e/agent-tools.spec.ts`, `profiles.spec.ts`, using `/tall` for full-page/element coverage.

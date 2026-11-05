@@ -10,6 +10,13 @@ import type { ResolvedForgeConfig } from '@electron-forge/shared-types';
 import electronPackage from 'electron/package.json' with { type: 'json' };
 import forge, { prunePrebuilds } from '../../forge.config.ts';
 
+test('the window and installers reference nonempty icon files', () => {
+  const icons = [forge.packagerConfig.icon + '.png', forge.packagerConfig.icon + '.ico', forge.packagerConfig.icon + '.icns',
+    ...(forge.makers as { config?: { setupIcon?: string; icon?: string; options?: { icon?: string } } }[])
+      .flatMap((m) => [m.config?.setupIcon, m.config?.icon, m.config?.options?.icon]).filter(Boolean)];
+  for (const file of new Set(icons)) assert.ok(fs.statSync(path.join(import.meta.dirname, '../..', file)).size > 0, file);
+});
+
 test('the RPM maker packages its staged files and keeps the sandbox helper setuid', async (t) => {
   if (process.platform !== 'linux') return t.skip('RPM builds on Linux');
   const definition = forge.makers.find((m) => 'name' in m && m.name === '@electron-forge/maker-rpm');
@@ -35,12 +42,14 @@ test('the RPM maker packages its staged files and keeps the sandbox helper setui
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
 
-// node-pty starts a shell through its spawn-helper, run from app.asar.unpacked: inside the archive, a packaged
-// Kulisa's terminal fails on macOS (posix_spawnp failed).
-test("node-pty's spawn-helper is kept outside the archive, on both of macOS's architectures", () => {
+// Native loaders and child processes cannot read Electron's archive: helpers must stay beside the .node module.
+test("node-pty's shell helpers and ConPTY binaries are kept outside the archive", () => {
   const { unpack } = forge.packagerConfig.asar as { unpack: string };
   for (const arch of ['darwin-arm64', 'darwin-x64']) assert.ok(path.matchesGlob(`node_modules/node-pty/prebuilds/${arch}/spawn-helper`, unpack), arch);
-  assert.ok(!path.matchesGlob('node_modules/node-pty/lib/index.js', unpack), 'nothing else');
+  for (const arch of ['win32-arm64', 'win32-x64']) for (const file of ['conpty.dll', 'OpenConsole.exe']) {
+    assert.ok(path.matchesGlob(`node_modules/node-pty/prebuilds/${arch}/conpty/${file}`, unpack), `${arch}/${file}`);
+  }
+  assert.ok(!path.matchesGlob('node_modules/node-pty/lib/index.js', unpack), 'JavaScript stays archived');
 });
 
 // The manifest of Claude Code's plugin names a version of its own (its format's): package.json's, written by npm version

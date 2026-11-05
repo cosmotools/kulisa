@@ -25,30 +25,18 @@ at once, and good for any work in web apps: several clients' accounts, admin and
 
 ## Why
 
-A web developer builds an app where several people interact: a shop (buyer, seller, admin), a chat (Sam sends, Elon
-receives), any SaaS with roles. A coding agent writes the code and checks it in browsers. Without Kulisa that is a
-terminal, several Chrome windows (one per person, each signed in, often through corporate SSO: Microsoft Entra, Okta,
-GoDaddy), a mailbox for invitation emails and DevTools; the developer keeps switching windows and holds the
-connections in their head.
+Kulisa brings coding and testing as several signed-in users into one window: buyer, seller and admin, or client
+accounts for support work. The human watches the agent's actions and can intervene.
 
-Kulisa grew out of [cast](https://github.com/cosmotools/claude-cast), the author's Claude Code plugin with a persistent
-Chrome profile per person, driven through Playwright MCP: it solved the sign-ins and the control, but every person was
-still a window of its own. Kulisa puts them side by side in one window, the agent under them. It is not a bot and not a
-tool for many accounts: the human's own accounts, signed in by hand, with no getting past bot detection.
-
-The name is the Russian *кулиса*, the wings of a theatre stage: the agent directs from the wings, the profiles are the
-actors, the panes the stage, and the developer watches from the audience and stops the scene when something is wrong.
+The name comes from Russian *кулиса*, the wings of a theatre stage: the agent directs, profiles act, and the human
+watches from the audience.
 
 ## Documentation
 
-- **Using Kulisa:** the [user guide](https://kulisa.app/docs) on the website, also here as
-  [docs/guide.md](docs/guide.md): the systems it runs on, projects, tasks, agents, profiles, signing in, the window, keys.
-- **For developers:**
-  - [docs/profiles.md](docs/profiles.md), [docs/tasks.md](docs/tasks.md), [docs/window.md](docs/window.md),
-    [docs/transcripts.md](docs/transcripts.md), [docs/ui.md](docs/ui.md): how it works and why it is built so;
-  - [docs/packages.md](docs/packages.md): Kulisa packages, parts of Kulisa in folders of their own (the terminal);
-  - what is planned and the open bugs: [GitHub issues](https://github.com/cosmotools/kulisa/issues);
-  - [docs/testing.md](docs/testing.md) and [CONTRIBUTING.md](CONTRIBUTING.md): the tests, contributing.
+- [User guide](https://kulisa.app/docs), also [docs/guide.md](docs/guide.md).
+- [AGENTS.md](AGENTS.md): development rules and links to architecture docs.
+- [Testing](docs/testing.md), [contributing](CONTRIBUTING.md), [licensing](docs/LICENSING.md).
+- [GitHub issues](https://github.com/cosmotools/kulisa/issues): plans and bugs.
 
 ## Run
 
@@ -101,38 +89,28 @@ computer).
 
 ### Developing with an agent
 
-Start with [AGENTS.md](AGENTS.md): the shared rules for Codex and Claude Code, including worktrees and pull requests.
+Start with [AGENTS.md](AGENTS.md): the shared rules for Codex and Claude Code, including worktrees, pull requests and
+[development skills](AGENTS.md#development-skills).
 Each directory's `AGENTS.md` holds its local rules; `CLAUDE.md` imports the adjacent file for Claude Code.
-Development skills live in `.agents/skills/`, with Claude Code entrypoints in `.claude/skills/`.
-[Testing](docs/testing.md) covers completion checks, code analysis and Claude Code's optional LSP setup and Stop hook.
+[Testing](docs/testing.md) covers E2E writing rules, the test harness, code analysis and Claude Code's optional LSP setup
+and lint hook.
 
 ## Code
 
-| Folder | What |
+| Folder | Responsibility |
 |---|---|
-| `src/main/` | the Electron main process: profiles, tasks, agents, the MCP server, the windows; `index.ts` starts it |
-| `src/renderer/` | the window's UI: React and shadcn/ui (Radix, Tailwind) in TypeScript, built by Vite (`vite.config.mts`) into `dist/renderer` (not in git) |
-| `src/preload/` | the window's bridge to the main process |
-| `src/shared/` | what the main process and the window both import: the shapes and channels they send, names, `Result` |
-| `src/kulisa-plugin/` | agent integration: MCP tools, shared skills, CLI adapters and transcript readers ([README](src/kulisa-plugin/README.md)) |
-| `src/terminal/` | the terminal, a Kulisa package: both its halves, its channels, its doc (docs/packages.md) |
-| `src/github/` | the GitHub accounts, a Kulisa package (docs/packages.md) |
-| `src/activity-monitor/` | what Kulisa takes on the computer, a Kulisa package (docs/packages.md) |
-| `src/dictation/` | speaking to the agent instead of typing, a Kulisa package (docs/packages.md) |
-| `src/screenshots/` | a picture of a profile's page, a Kulisa package (docs/packages.md) |
-| `test/` | unit tests, the e2e tests (`test/e2e/`), the test site (docs/testing.md) |
-| `scripts/` | `electron.ts` (npm start: Electron, `--no-sandbox` on Linux only), `postinstall.ts` (node-pty for Electron), `icons.ts` (npm run icons), `version.ts` (Claude Code's plugin manifest's version from package.json's, at npm version) |
-| `assets/` | the app icon: `icon.svg` and what each OS needs, rendered from it |
-| `docs/` | how it works and why (Documentation, above) |
-| `.agents/` | shared development skills for running and debugging Kulisa |
-| `.claude/` | Claude Code entrypoints to the shared skills, the Stop hook and the `kulisa-dev` plugin |
-| `.github/workflows/` | the CI: the tests at every pull request, the release on a merge into main |
+| `src/main/`, `src/preload/` | Electron core and window bridge |
+| `src/renderer/` | React window, built by Vite into `dist/renderer` |
+| `src/shared/` | Shared types, channel contracts and helpers |
+| `src/<package>/` | Self-contained capabilities; [catalog](docs/packages.md#the-kulisa-packages) |
+| `test/` | Unit/e2e tests and local test site |
+| `scripts/` | Development launch, native dependency rebuilds, icons and version synchronization |
+| `assets/` | App icon and installer assets |
+| `docs/` | Architecture and user documentation |
+| `.agents/`, `.claude/` | Shared development skills and Claude entrypoints/hooks/plugin |
+| `.github/workflows/` | Checks and releases |
 
-At the root, the tools' configs: `forge.config.ts` (packaging), `vite.config.mts`, `tsconfig.json`,
-`eslint.config.ts`, `knip.jsonc`, `.dependency-cruiser.ts` (the layers). Each part's files are in its doc: "The code",
-its last section, of docs/profiles.md, docs/tasks.md, docs/window.md and docs/transcripts.md; the UI's at the top of
-docs/ui.md, the tests' in docs/testing.md, a Kulisa package's in its `README.md`. The experiments behind the design
-(E1–E8): git, commit `9fe8661`.
+Build/tool configuration lives at the root. Each part's documentation maps code by responsibility.
 
 ## License
 
