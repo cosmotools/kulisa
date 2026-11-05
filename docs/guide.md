@@ -75,16 +75,6 @@ red logo. The menu includes zoom, theme,
 language, task-bar position, shortcuts, help and About. Settings saves as you edit; close it with Esc, its back
 arrow or the gear. Your task keeps running underneath.
 
-Settings pages share a narrow, centered column; Log fills the available area beside the menu.
-The path stays in a compact, full-width bar at the top, with a dividing line underneath. Each page's heading sits
-below it, with page actions beside the heading.
-Lists and fields sit in bordered groups with small rounded corners and no background fill. Separators are
-inset from both edges. Highlighted rows have straight inner edges and follow the group's outer corners.
-Settings follows the same light or dark theme as the rest of Kulisa. In a small window or at a large zoom,
-the menu shows icons and fields stack vertically.
-Headings, explanations and known data appear immediately. A spinner marks information still loading; that block
-then shows its data or an error. A refresh keeps the data already shown on screen.
-
 On macOS, ⌘, opens Settings and ⌘Q quits. Closing the last window hides Kulisa while agents continue; the Dock icon
 brings it back.
 
@@ -193,8 +183,6 @@ and other folders when you need them. Project setup can be changed later in Sett
 **Settings** (the gear) → **Projects** → the project, or **Project Settings…** in a project's right-click menu in the
 sidebar, or in a task tab's right-click menu, under the project's name.
 Everything is saved as you change it; there is no Save button.
-The Projects list shows each project's folders and task count. Folders, agents and profiles have their own groups;
-local addresses are below them.
 
 - **Name**.
 - **Local addresses**: addresses of your app besides `localhost` (a tunnel, a dev domain), where the agent may type a
