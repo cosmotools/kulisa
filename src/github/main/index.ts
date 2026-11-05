@@ -15,9 +15,9 @@ interface Caller {
 }
 
 function installGitHub(gh: GitHub, { usedBy, remove, open }: Caller) {
-  const info = async (): Promise<GitHubInfo> => ({ accounts: await gh.list(usedBy), kept: gh.kept() });
+  const info = async (local = false): Promise<GitHubInfo> => ({ accounts: await gh.list(usedBy, local), kept: gh.kept() });
   const signedIn = async <E extends string | null>(r: Result<{ id: string }, E>) => (refused(r) ? r : { ...(await info()), id: r.id });
-  handle('github:account:list', info);
+  handle('github:account:list', (_e, { local = false } = {}) => info(local));
   handle('github:signin:start', async (_e, { again = null } = {}) => {
     try { return await gh.startFlow(again); } catch { return { error: 'GitHub could not be reached' }; }
   });

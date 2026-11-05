@@ -32,7 +32,7 @@ export interface RepoGitHub { account: string | null; suggested: boolean; state:
 
 type I<A extends unknown[], R = void> = { args: A; result: R };
 export interface GitHubInvoke {
-  'github:account:list': I<[], GitHubInfo>;
+  'github:account:list': I<[options?: { local?: boolean }], GitHubInfo>;
   // The device flow, in three: a code asked of GitHub and shown; then waited for (GitHub's page opened), until the human
   // has entered it (the account, new or signed in again: id), denied it or it expired, or it was cancelled (null).
   // again: the account to sign in again.

@@ -215,7 +215,7 @@ const taskDocumentSchema = z.object({
     // Dockview owns layout serialization; terminal sizes use the shared bounds in validateTask.
     layout: z.custom<TaskLayout['stage']>(),
   }),
-  workspace: z.object({ stagePosition: z.enum(['left', 'right', 'above']).optional(), splitLayout: z.custom<TaskLayout['split']>(),
+  workspace: z.object({ stagePosition: z.enum(['left', 'right', 'above']).optional(), splitLayout: z.custom<TaskLayout['split']>().optional(),
     developmentLayout: z.custom<TaskLayout['workspace'] | null>() }),
 });
 type TaskDocument = z.infer<typeof taskDocumentSchema>;

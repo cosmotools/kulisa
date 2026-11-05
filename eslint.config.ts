@@ -20,7 +20,7 @@ const HEX = { selector: 'Literal[value=/^#[0-9a-fA-F]{3,8}$/]', message: "A colo
 // src/ui's components as shadcn's CLI makes them, their look the theme's alone (docs/ui.md, shadcn in Kulisa): on one
 // only where it sits and how big it is: a literal of layout and size classes (w-64, flex-1, ms-auto), any variant
 // before them (data-[x]:hidden); in `style`, a custom property or a size or place known at run time.
-const LAYOUT = new RegExp(String.raw`^(?:[\w-]+(?:-\[[^\]]+\])?:)*!?(?:-?m[trblxyse]?-\S+|(?:min-|max-)?[wh]-\S+|size-\S+|flex-(?:1|auto|none|initial|\[[^\]]+\])|basis-\S+|(?:shrink|grow)(?:-0)?|(?:justify-|place-)?self-\S+|order-\S+|(?:col|row)-(?:span|start|end)-\S+|static|relative|absolute|fixed|sticky|-?(?:inset|top|right|bottom|left|start|end)(?:-[xy])?-\S+|z-\S+|hidden|sr-only|table-(?:fixed|auto)|aspect-\S+|justify-(?:start|end|center|between)|items-(?:start|end|center|stretch))$`);
+const LAYOUT = new RegExp(String.raw`^(?:[@\w/-]+(?:-\[[^\]]+\])?:)*!?(?:-?m[trblxyse]?-\S+|(?:min-|max-)?[wh]-\S+|size-\S+|flex-(?:1|auto|none|initial|wrap|wrap-reverse|nowrap|\[[^\]]+\])|basis-\S+|gap(?:-[xy])?-\S+|(?:shrink|grow)(?:-0)?|(?:justify-|place-)?self-\S+|order-\S+|(?:col|row)-(?:span|start|end)-\S+|static|relative|absolute|fixed|sticky|-?(?:inset|top|right|bottom|left|start|end)(?:-[xy])?-\S+|z-\S+|hidden|sr-only|table-(?:fixed|auto)|aspect-\S+|justify-(?:start|end|center|between)|items-(?:start|end|center|stretch))$`);
 // A variable passed to a component, the standard way to configure one (docs/ui.md, shadcn in Kulisa).
 const VARIABLE = /^\[--[\w-]+:[^\]]+\]$/;
 const PLACE = new Set(['width', 'height', 'minWidth', 'maxWidth', 'minHeight', 'maxHeight', 'flexBasis', 'left', 'top', 'right', 'bottom', 'inset']);

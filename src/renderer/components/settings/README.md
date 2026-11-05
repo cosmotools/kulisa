@@ -6,35 +6,44 @@ General UI/native-layer constraints: [ui.md](../../../../docs/ui.md).
 
 ## Boundary and lifecycle
 
-Outside callers dynamically import `index.ts`; dependency-cruiser protects both the entry and lazy loading.
-`Settings.tsx` owns the frame, categories, breadcrumbs and navigation to entity pages. There is no extra renderer
-process; once loaded, the module stays in the window's memory.
+Callers dynamically import `index.ts`; dependency-cruiser protects the entry and lazy loading. `Settings.tsx`
+owns the frame, categories and navigation. The module stays in the window's renderer; no extra process.
 
-Load the requested page before revealing it; agent discovery can refresh independently. Save pending fields before
-navigation or closing. Changes from another window refresh lists without overwriting edits in progress.
-Project lists use the window's pushed state; profiles and project details are read when opened or changed.
-The cover's back arrow closes Settings; entity navigation stays within categories. Navigation search is omitted
-(the author's choice).
+Reveal known content immediately; independent reads show named spinners, then data/errors. Unknown counts and
+empty states wait for data. `read.ts` keeps known values during refresh and ignores replies after a newer read,
+edit or unmount. Save before navigation/closing; disable project fields until their initial settings arrive.
+Cross-window refreshes preserve edits. Back closes Settings; entity navigation stays within categories.
+Projects use the window's pushed state; profiles and project details are read when opened or changed.
+Navigation search is omitted (the author's choice).
 
 ## Page controls
 
-`kit.tsx` owns reusable entity rows and in-place addition. `Things` gives rows one identity and the same actions
-through ⋯ and right-click; preserve `data-row`, `data-key` and the accessible name used by tests. Rows that open a
-page also accept Enter; their own action controls must not activate row navigation.
+`kit.tsx` owns rows and in-place addition. `Things` shares actions between ⋯ and right-click; preserve `data-row`,
+`data-key` and accessible names. Enter opens rows; their own controls must not trigger navigation.
 
-Add items under their section rather than opening another settings window. Enter submits; Escape cancels the
-addition before it can close Settings. Keep validation next to its field, with selectable error text. Entity
-fields save immediately through their owner rather than a page-wide Save button.
+Add under the owning section: Enter submits, Escape cancels before closing Settings. Keep selectable validation
+beside its field. Entity fields save immediately through their owner; there is no page-wide Save button.
 
-Sonner's Toaster is at bottom left over the navigation's empty foot; the right side belongs to page actions.
-The window-wide restriction on toast placement is in [ui.md](../../../../docs/ui.md#desktop-behavior). Log and installer output are
-monospace `role="log"` surfaces; shadcn has no log-view component. Keep their rendering/retention bounded by the
-log and installer owners instead of creating a component per line.
+Sonner's Toaster sits over navigation's bottom-left foot; page actions occupy the right. See
+[toast constraints](../../../../docs/ui.md#desktop-behavior). Log/installer output uses monospace `role="log"`
+surfaces: shadcn has no log viewer. Their owners bound rendering/retention; avoid per-line components.
+
+The full-width breadcrumb bar has a bottom border outside scrolling content; headings/actions sit below it.
+Center pages at 680 px, except Log, which fills the available area (the author's choice). Wrap filters/actions
+and scroll when space is limited. Below the small breakpoint navigation shows named icons; narrow fields stack.
+
+`SettingsGroup` owns a transparent border with `md` corners and clipping: `ItemGroup` has no surface variant.
+Headers sit above it; Log uses the same border/radius. `Things` composes `Item`/`ItemGroup` with no gaps and 16 px
+inset `ItemSeparator`s; `SettingsFields` uses the same inset with `Separator`. Square hover/focus wrappers follow
+the outer group's corners. Keep account configuration within its row and connection controls below the list.
+
+Use global theme tokens, including generated controls; avoid a Settings palette. Transparent groups and smaller
+corners are the author's choice.
 
 ## The code
 
 - `index.ts` is the lazy entry; `Settings.tsx` owns the frame and page lifecycle.
-- Entity pages own editing state and translate results from core actions. `kit.tsx` owns shared row/addition UI.
+- Entity pages own editing state and core calls; `kit.tsx` owns shared fields, rows and addition UI.
 - `changed.ts` and account/discovery stores coordinate saving and updates across page lifetimes.
 - Coverage: settings scenarios in `test/e2e/projects.spec.ts`, `profiles.spec.ts`, `agents.spec.ts`, `github.spec.ts`
   and `window.spec.ts`.

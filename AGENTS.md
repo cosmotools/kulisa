@@ -73,8 +73,10 @@ The human watches, signs in and points to page elements with Pick. Tasks let sev
 - Keep each fact in its owning doc; elsewhere use a short pointer and link. The user guide stays self-contained.
 - Shorten without losing conditions, exceptions or necessary reasons; keep rules unambiguous. Remove repetition
   when editing a section; keep whole-doc rewrites in separate commits.
-- Read the relevant docs below and keep them current. Update `docs/guide.md` in the same commit as visible behavior;
-  use the user's words, no implementation names, only relative images from `docs/images/`, and no links to other docs.
+- Read the relevant docs below and keep them current. Update `docs/guide.md` in the same commit only when a change
+  affects how users complete a task (actions, capabilities, requirements, restrictions or results), or makes existing
+  guidance incorrect. Omit visual-only changes and routine loading/refresh details that do not affect those tasks.
+  Use the user's words, no implementation names, only relative images from `docs/images/`, and no links to other docs.
 - Code maps identify where to look, responsibilities and invariants to preserve, rather than listing every file.
   `README.md` covers running, environment variables and top-level folders; it and `CONTRIBUTING.md` also serve people.
 
@@ -212,6 +214,6 @@ The human watches, signs in and points to page elements with Pick. Tasks let sev
 | Packaging, installers, updates | `docs/releases.md` |
 | Agent CLI versions or transcript readers | `docs/transcripts.md` (formats are undocumented) |
 | Kulisa package creation or extraction | `docs/packages.md` and the part's README/AGENTS.md |
-| Visible behavior | `docs/guide.md` |
+| User workflows and capabilities | `docs/guide.md` |
 | Tests, checks, code analysis | `docs/testing.md` |
 | Dependencies and licensing | `docs/LICENSING.md` (GPL-3.0-or-later) |
