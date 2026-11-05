@@ -31,8 +31,9 @@ Fixtures and app lifecycle live in `test/e2e/fixtures.ts`:
   focus guard ([window.md](window.md), Keys).
 - **Linux**: a Kulisa per Xvfb with openbox (without a window manager no window list, other focus), separate from the
   human's display. `npm run test:visible`: on the human's screen. By hand (Wayland, packaged): issue #205.
-- **A failure leaves** the window's picture (pages included), the trace, Kulisa's log and Electron's output; a Kulisa
-  that never got ready says why.
+- **A failure leaves** the window's picture (pages included), the trace, Kulisa's log and Electron's output. Readiness
+  failures retain the original assertion and named readiness step, attach both rotating logs and bounded Electron
+  output; they have no test trace because tracing begins once the app is ready.
 
 ### Writing an e2e test
 
