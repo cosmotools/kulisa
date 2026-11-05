@@ -40,6 +40,7 @@ BSD, Apache-2.0; shadcn/ui's components, Radix and Lucide's icons, MIT and ISC),
 License) and Chromium's licenses (in Electron; packaged builds carry `LICENSE` and `LICENSES.chromium.html`).
 Project Explorer's Material Icon Theme SVGs carry their MIT license in `dist/renderer/material-icon-theme-LICENSE.txt`.
 The shared Git client uses simple-git under MIT.
+The installed-version check uses @electron/asar under MIT.
 The @pierre/diffs review renderer carries its Apache-2.0 license in `dist/renderer/pierre-diffs-LICENSE.txt`.
 The @pierre/trees navigation and @pierre/theming carry Apache-2.0 licenses in `dist/renderer/pierre-*-LICENSE.txt`,
 with Trees' attribution in `pierre-trees-NOTICE.txt`. Preact and its string renderer carry MIT licenses in

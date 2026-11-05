@@ -658,6 +658,13 @@ test('a new version installed while Kulisa runs is offered once, in its own dial
     expect(q.message).toBe('Kulisa 9.9.9 is ready');
     expect(q.detail).toMatch(/Restart to use it: the windows, their tasks and conversations come back\. Later: the next start is 9\.9\.9\.$/);
     expect(await restarted(), 'Later: nothing').toBeNull();
+    // Prime the cache for Linux's in-place updates; Windows locks an archive cached by Electron.
+    if (process.platform === 'linux') {
+      expect(await core(async (_k, archive) => {
+        const fs = await import('node:fs');
+        return JSON.parse(fs.readFileSync(`${archive}/package.json`, 'utf8')).version;
+      }, asar)).toBe('9.9.9');
+    }
     // Restart: the way to quit that keeps everything, then the new version.
     await install('9.9.10');
     await expect(asked).toBeVisible({ timeout: 10000 });

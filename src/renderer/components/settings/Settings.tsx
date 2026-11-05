@@ -17,6 +17,7 @@ import { AddInPlace, Things, type Thing } from './kit';
 import { useChanged } from './changed';
 import { agents as agentList, loadAccounts, useAccounts } from './agents';
 import { useAgentList } from '../../lib/agents';
+import { store as windowStore, useWindow } from '../../lib/store';
 import type { MenuItem } from '../../lib/menu';
 import { coverPage } from '../../lib/cover';
 import { useShade } from '../../lib/theme';
@@ -24,7 +25,7 @@ import { closeSettings, onLeaveSettings } from '../../lib/settings';
 import { agentMark } from '../AgentMark';
 import { ProjectIcon } from '../ProjectIcon';
 import { refused } from '../../../shared/result';
-import type { ProjectEntry, ProjectSettings, SettingsProfile } from '../../../shared/types';
+import type { ProjectSettings, SettingsProfile } from '../../../shared/types';
 import type { SettingsAt } from '../../../shared/ipc';
 
 const icons = { projects: LayoutGridIcon, agents: BotIcon, profiles: UsersIcon, github: GitBranchIcon, log: ScrollTextIcon, about: InfoIcon };
@@ -37,7 +38,7 @@ export function Settings({ at, className }: { at: SettingsAt; className?: string
   const [loaded, setLoaded] = useState(false);
   const [first, setFirst] = useState<{ id: string; page: ProjectSettings } | null>(null); // the project's page it opens at, filled
   const [place, setPlace] = useState<Place>({ section: 'projects' }), { section } = place;
-  const [projects, setProjects] = useState<ProjectEntry[]>([]);
+  const projects = useWindow((s) => s.projects.projects);
   const agents = useAgentList(agentList, (s) => s.agents), looking = useAgentList(agentList, (s) => s.looking);
   const installing = useAgentList(agentList, (s) => s.installing), { clis } = useAccounts();
   const [signing, setSigning] = useState<string | null>(null); // the agent a new account is signed in to on its page
@@ -66,9 +67,7 @@ export function Settings({ at, className }: { at: SettingsAt; className?: string
   }, [loaded]);
 
   const lists = useCallback(async () => {
-    const [list, p] = await Promise.all([kulisa.invoke('project:list'), kulisa.invoke('profiles:list')]);
-    setProjects(list!.projects); setProfiles(p.profiles);
-    return { list: list!, profiles: p.profiles };
+    setProfiles((await kulisa.invoke('profiles:list')).profiles);
   }, []);
   // Each page asked for, here or by the main process: one fetched after another was asked for shows nothing.
   const asked = useRef(0);
@@ -85,19 +84,19 @@ export function Settings({ at, className }: { at: SettingsAt; className?: string
   useEffect(() => { void (async () => {
     const n = ++asked.current;
     await save.current();
-    const { list, profiles: all } = await lists();
+    await lists();
     // As last found (looked for again once it is drawn): only the Agents page lists them, saying so while there is no
     // list yet.
     const cached = agentList.look(true);
     void loadAccounts();
     // the gear: the window's project; Profiles from a task: their list
-    const project = at.section === 'projects' ? (at.id ?? list.project ?? null) : null;
+    const project = at.section === 'projects' ? (at.id ?? windowStore.getState().projects.project ?? null) : null;
     // Its page waited for: shown as it comes, it jumps.
     const filled = project && await kulisa.invoke('project:settings:get', { id: project });
     await cached;
     if (n !== asked.current) return;
     setFirst(project && filled && !refused(filled) ? { id: project, page: filled } : null);
-    setPlace({ section: at.section, id: at.section === 'projects' ? project : at.section === 'profiles' && all.some((p) => p.id === at.id) ? at.id : undefined });
+    setPlace({ section: at.section, id: at.section === 'projects' ? project : at.section === 'profiles' ? at.id : undefined });
     setShown((n) => n + 1);
     setLoaded(true);
   })(); }, [at, lists]);

@@ -13,7 +13,7 @@ Data contains real sign-ins: `~/.config/Kulisa` on Linux, `~/Library/Application
 
 ## Restart after a change
 
-Restart after application changes without asking, so the author sees them. Test timing: `docs/testing.md`.
+Restart after application changes without asking, so the author sees them.
 
 1. `.agents/skills/run-kulisa/kulisa.sh stop` saves cookies/tabs through SIGINT, or `KULISA_QUIT` on Windows.
    Never force-kill (`kill -9`, `taskkill /F`, `Stop-Process`) or use `pkill -f`.

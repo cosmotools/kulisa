@@ -65,6 +65,5 @@ a time: BrowserWindow/BaseWindow, hidden title bar, session, Playwright. Run Lin
 - Capture Kulisa only (`KULISA_SHOT` or `shell.screenshot`); whole-screen images expose private windows.
 - AT-SPI needs `--force-renderer-accessibility`; Wnck lists OS windows, including native dialogs.
 - Never use `pkill -f`. Restart the author's app only with `run-kulisa`.
-- Add a failing regression, or test the mechanism and explain why real input is required.
-- Document Electron/Chromium workarounds and recheck steps in `docs/testing.md`, Upgrading Electron.
+- Document Electron/Chromium workarounds in `docs/testing.md`, Upgrading Electron.
 - Stop scratch, remove its files; a normal app restart removes the inspector.

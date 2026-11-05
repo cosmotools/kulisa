@@ -12,6 +12,7 @@ process; once loaded, the module stays in the window's memory.
 
 Load the requested page before revealing it; agent discovery can refresh independently. Save pending fields before
 navigation or closing. Changes from another window refresh lists without overwriting edits in progress.
+Project lists use the window's pushed state; profiles and project details are read when opened or changed.
 The cover's back arrow closes Settings; entity navigation stays within categories. Navigation search is omitted
 (the author's choice).
 
