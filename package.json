@@ -88,7 +88,8 @@
   },
   "overrides": {
     "@electron/asar@4.3.1": {
-      "glob": "14.0.3"
+      "glob": "14.0.3",
+      "minimatch": "11.0.4"
     }
   },
   "scripts": {
