@@ -17,7 +17,7 @@ function fixture() {
 test('task migration preserves history, setup and stable links, removes legacy files, and preserves unrelated updates', () => {
   const f = fixture();
   try {
-    f.write('agent.json', { agent: 'custom', conversations: [{ agent: 'custom', from: 123, sessionId: 'resume', terminal: 7 }] });
+    f.write('agent.json', { agent: 'custom', conversations: [{ agent: 'custom', from: 123, sessionId: 'resume', terminal: 7, future: 'adapter metadata' }] });
     f.write('terminals.json', { front: 7, list: [{ id: 7, conversation: 0 }] });
     f.write('profiles.json', [{ id: 'browser', closed: true, zoom: { localhost: 1.5 } }]);
     const split = { grid: { width: 1000, height: 1000, orientation: 'HORIZONTAL', root: { type: 'branch', size: 1000, data: [
@@ -29,6 +29,7 @@ test('task migration preserves history, setup and stable links, removes legacy f
     assert.equal(f.task.agent().conversations[0].terminal, 7);
     const d = f.read(), id = d.agents.conversations[0].id;
     assert.equal(typeof id, 'string');
+    f.write('task.json', { ...d, future: { enabled: true } });
     const layout = f.task.layout() as { stagePosition: string; split: unknown; stageLayout: string };
     assert.equal(layout.stagePosition, 'left');
     assert.deepEqual(layout.split, split);
@@ -45,6 +46,8 @@ test('task migration preserves history, setup and stable links, removes legacy f
     f.task.saveDevelopmentTerminals({ front: null, list: [] });
     assert.equal(f.task.agent().conversations[0].terminal, undefined);
     assert.equal(f.task.agent().conversations[0].sessionId, 'resume');
+    assert.equal(f.read().agents.conversations[0].future, 'adapter metadata');
+    assert.deepEqual(f.read().future, { enabled: true });
     f.write('agent.json', { agent: 'stale' });
     assert.equal(f.store.taskOf({ id: 'project' }, 'task').agent().agent, 'custom');
     assert.equal(fs.existsSync(f.task.file('agent.json')), false);

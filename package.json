@@ -20,7 +20,6 @@
     "@electron-forge/plugin-auto-unpack-natives": "8.0.1",
     "@electron-forge/publisher-github": "8.0.1",
     "@electron-forge/shared-types": "^8.0.1",
-    "@electron/asar": "3.4.1",
     "@electron/rebuild": "^4.2.0",
     "@fontsource-variable/geist": "^5.3.0",
     "@fontsource/jetbrains-mono": "^5.3.0",
@@ -72,6 +71,7 @@
     "zustand": "^5.0.16"
   },
   "dependencies": {
+    "@electron/asar": "4.3.1",
     "@modelcontextprotocol/sdk": "^1.32.0",
     "@octokit/request": "^10.0.16",
     "@xterm/addon-unicode11": "^0.9.0",
@@ -85,6 +85,12 @@
     "update-electron-app": "^3.3.0",
     "ws": "^8.22.0",
     "zod": "^4.6.5"
+  },
+  "overrides": {
+    "@electron/asar@4.3.1": {
+      "glob": "14.0.3",
+      "minimatch": "11.0.4"
+    }
   },
   "scripts": {
     "start": "vite build --logLevel warn && node scripts/electron.ts .",

@@ -23,11 +23,11 @@ import type { MenuItem } from '../../lib/menu';
 import { coverPage } from '../../lib/cover';
 import { useShade } from '../../lib/theme';
 import { closeSettings, onLeaveSettings } from '../../lib/settings';
-import { store } from '../../lib/store';
+import { store as windowStore, useWindow } from '../../lib/store';
 import { agentMark } from '../AgentMark';
 import { ProjectIcon } from '../ProjectIcon';
 import { refused } from '../../../shared/result';
-import type { AgentInfo, ProjectEntry, SettingsProfile } from '../../../shared/types';
+import type { AgentInfo, SettingsProfile } from '../../../shared/types';
 import type { SettingsAt } from '../../../shared/ipc';
 
 const icons = { projects: LayoutGridIcon, agents: BotIcon, profiles: UsersIcon, github: GitBranchIcon, log: ScrollTextIcon, about: InfoIcon };
@@ -38,14 +38,14 @@ interface Place { section: Section; id?: string | null }
 
 export function Settings({ at, className }: { at: SettingsAt; className?: string }) {
   const [place, setPlace] = useState<Place>(() => ({ section: at.section,
-    id: at.section === 'projects' ? at.id ?? store.getState().projects.project : at.id })), { section } = place;
-  const [projectData, readProjects] = useRead<ProjectEntry[]>(store.getState().projects.projects);
+    id: at.section === 'projects' ? at.id ?? windowStore.getState().projects.project : at.id })), { section } = place;
+  const projects = useWindow((s) => s.projects.projects);
   const agents = useAgentList(agentList, (s) => s.agents), looking = useAgentList(agentList, (s) => s.looking);
   const installing = useAgentList(agentList, (s) => s.installing), { clis } = useAccounts();
   const [signing, setSigning] = useState<string | null>(null); // the agent a new account is signed in to on its page
   const [profileData, readProfiles, setProfiles] = useRead<SettingsProfile[]>();
   const [discovery, discover] = useRead<AgentInfo[]>(agentList.store.getState().agents);
-  const projects = projectData.data ?? [], profilesData = profileData.data, profiles = profilesData ?? [], checkingAgents = discovery.loading;
+  const profilesData = profileData.data, profiles = profilesData ?? [], checkingAgents = discovery.loading;
   const [newProfile, setNewProfile] = useState<string | null>(null), [profilesError, setProfilesError] = useState('');
   const save = useRef(async () => {});
   // The page read again each time Settings is asked for one, or one is chosen in its nav (the same one too).
@@ -73,10 +73,7 @@ export function Settings({ at, className }: { at: SettingsAt; className?: string
     return () => { live = false; cancelAnimationFrame(frame); clearTimeout(timer); };
   }, [at, discover]);
 
-  const lists = useCallback(() => Promise.all([
-    readProjects(async () => (await kulisa.invoke('project:list'))?.projects ?? store.getState().projects.projects),
-    readProfiles(async () => (await kulisa.invoke('profiles:list')).profiles),
-  ]), [readProjects, readProfiles]);
+  const lists = useCallback(() => readProfiles(async () => (await kulisa.invoke('profiles:list')).profiles), [readProfiles]);
   // Each page asked for, here or by the main process: one fetched after another was asked for shows nothing.
   const asked = useRef(0);
   const show = async (on: Section, id?: string) => {
@@ -95,7 +92,7 @@ export function Settings({ at, className }: { at: SettingsAt; className?: string
       await save.current();
       if (n !== asked.current) return;
       requested.current = at;
-      setPlace({ section: at.section, id: at.section === 'projects' ? at.id ?? store.getState().projects.project : at.id });
+      setPlace({ section: at.section, id: at.section === 'projects' ? at.id ?? windowStore.getState().projects.project : at.id });
       setShown((n) => n + 1);
     }
     void lists(); void loadAccounts();
@@ -162,8 +159,6 @@ export function Settings({ at, className }: { at: SettingsAt; className?: string
     if (section === 'projects') return shownProject ? <ProjectPage key={`${shownProject.id}:${shown}`} project={shownProject} saveRef={save} onSaved={() => void lists()} action={make} />
       : <div className="flex flex-col gap-6">
         <SettingsHeading title="Projects" description="Manage the folders, agents and browser profiles your tasks use." />
-        <SettingsError error={projectData.error} />
-        {projectData.loading && <SettingsLoading>Updating projects…</SettingsLoading>}
         <SettingsGroup>
           <Things label="Projects" menu={projectMenu} things={projects.map((p) => ({ key: p.id, name: p.name,
             media: <ProjectIcon p={p} size={32} />, description: p.folders.join(' · ') || 'No folders added', open: () => void show('projects', p.id),

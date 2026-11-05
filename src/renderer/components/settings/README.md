@@ -13,6 +13,7 @@ Reveal known content immediately; independent reads show named spinners, then da
 empty states wait for data. `read.ts` keeps known values during refresh and ignores replies after a newer read,
 edit or unmount. Save before navigation/closing; disable project fields until their initial settings arrive.
 Cross-window refreshes preserve edits. Back closes Settings; entity navigation stays within categories.
+Projects use the window's pushed state; profiles and project details are read when opened or changed.
 Navigation search is omitted (the author's choice).
 
 ## Page controls
