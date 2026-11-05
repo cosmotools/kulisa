@@ -2,8 +2,8 @@
 import { useState, type KeyboardEvent, type ReactNode } from 'react';
 import { CircleAlertIcon } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback, Button, Field, FieldContent, FieldDescription, FieldLabel, Input, Popover, PopoverContent, PopoverTrigger, Textarea,
-  ToggleGroup, ToggleGroupItem, Alert, AlertDescription, FieldTitle, FieldError } from '@ui';
-import { SettingsHeading, SettingsGroup, SettingsFields, SettingsLoading } from './kit';
+  ToggleGroup, ToggleGroupItem, Alert, AlertDescription, FieldTitle } from '@ui';
+import { SettingsHeading, SettingsGroup, SettingsFields, SettingsField, SettingsLoading } from './kit';
 import { avatarSrc } from '../../lib/common';
 import { AVATARS } from '../../../shared/avatars';
 import { refused, type Result } from '../../../shared/result';
@@ -71,40 +71,28 @@ export function ProfilePage({ profile: p, refreshing, onChanged, action }: { pro
           </PopoverContent>
         </Popover>
       </Field>
-      <Field orientation="responsive" data-invalid={at('name') ? true : undefined}>
-        <FieldContent><FieldLabel htmlFor="profile-name">Name</FieldLabel>
-          {at('name') && <FieldError><span data-selectable>{at('name')}</span></FieldError>}
-        </FieldContent>
-        <Input id="profile-name" className="min-w-0 @md/field-group:w-64 @md/field-group:min-w-64 @md/field-group:max-w-64" aria-invalid={at('name') ? true : undefined} value={value('name')} data-name maxLength={64} spellCheck={false} onChange={type('name')} onBlur={rename} onKeyDown={enter(rename)} />
-      </Field>
-      <Field orientation="responsive" data-invalid={at('about') ? true : undefined}>
-        <FieldContent><FieldLabel htmlFor="profile-about">About</FieldLabel>
-          <FieldDescription>The agent reads it to choose the profile for a task, and asks you when it is empty</FieldDescription>
-          {at('about') && <FieldError><span data-selectable>{at('about')}</span></FieldError>}
-        </FieldContent>
-        <Textarea id="profile-about" className="min-w-0 @md/field-group:w-64 @md/field-group:min-w-64 @md/field-group:max-w-64" aria-invalid={at('about') ? true : undefined} value={value('about')} rows={2} maxLength={500} placeholder="e.g. seller in the Acme shop; can approve refunds"
+      <SettingsField id="profile-name" label="Name" error={at('name')}>
+        <Input id="profile-name" aria-invalid={at('name') ? true : undefined} value={value('name')} data-name maxLength={64} spellCheck={false} onChange={type('name')} onBlur={rename} onKeyDown={enter(rename)} />
+      </SettingsField>
+      <SettingsField id="profile-about" label="About" error={at('about')}
+        description="The agent reads it to choose the profile for a task, and asks you when it is empty">
+        <Textarea id="profile-about" aria-invalid={at('about') ? true : undefined} value={value('about')} rows={2} maxLength={500} placeholder="e.g. seller in the Acme shop; can approve refunds"
           onChange={type('about')} onBlur={describe} />
-      </Field>
+      </SettingsField>
     </SettingsFields></SettingsGroup>
 
     <SettingsGroup title="Test user"><SettingsFields>
-      <Field orientation="responsive" data-invalid={at('login') ? true : undefined}>
-        <FieldContent><FieldLabel htmlFor="profile-test-login">Test login</FieldLabel>
-          <FieldDescription>A test user of your local app (optional)</FieldDescription>
-          {at('login') && <FieldError><span data-selectable>{at('login')}</span></FieldError>}
-        </FieldContent>
-        <Input id="profile-test-login" className="min-w-0 @md/field-group:w-64 @md/field-group:min-w-64 @md/field-group:max-w-64" aria-invalid={at('login') ? true : undefined} value={value('login')} maxLength={200} spellCheck={false} autoComplete="off" placeholder="e.g. seller@shop.test"
+      <SettingsField id="profile-test-login" label="Test login" error={at('login')}
+        description="A test user of your local app (optional)">
+        <Input id="profile-test-login" aria-invalid={at('login') ? true : undefined} value={value('login')} maxLength={200} spellCheck={false} autoComplete="off" placeholder="e.g. seller@shop.test"
           onChange={type('login')} onBlur={saveLogin} onKeyDown={enter(saveLogin)} />
-      </Field>
-      <Field orientation="responsive" data-invalid={at('password') ? true : undefined}>
-        <FieldContent><FieldLabel htmlFor="profile-test-password">Test password</FieldLabel>
-          <FieldDescription>Kulisa types it itself, on local addresses only; the agent never sees it</FieldDescription>
-          {at('password') && <FieldError><span data-selectable>{at('password')}</span></FieldError>}
-        </FieldContent>
-        <Input id="profile-test-password" className="min-w-0 @md/field-group:w-64 @md/field-group:min-w-64 @md/field-group:max-w-64" aria-invalid={at('password') ? true : undefined} type="password" value={password} maxLength={500} autoComplete="new-password" disabled={!p.login}
+      </SettingsField>
+      <SettingsField id="profile-test-password" label="Test password" error={at('password')}
+        description="Kulisa types it itself, on local addresses only; the agent never sees it">
+        <Input id="profile-test-password" aria-invalid={at('password') ? true : undefined} type="password" value={password} maxLength={500} autoComplete="new-password" disabled={!p.login}
           placeholder={p.hasPassword ? 'Kept (type to change it)' : 'Test password'} onChange={(e) => setPassword(e.target.value)} onBlur={savePassword}
           onKeyDown={enter(() => void savePassword())} />
-      </Field>
+      </SettingsField>
     </SettingsFields></SettingsGroup>
 
     <SettingsGroup title="Sign-ins"><SettingsFields>

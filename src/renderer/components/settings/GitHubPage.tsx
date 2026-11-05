@@ -6,6 +6,7 @@ import { PlusIcon, CircleAlertIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { Alert, AlertDescription, AlertTitle, Avatar, AvatarFallback, Badge, Button, Spinner } from '@ui';
 import { ButtonMenu } from '../Menus';
+import { useRead } from './read';
 import { AddInPlace, Things, SettingsHeading, SettingsGroup, SettingsDivider, SettingsLoading } from './kit';
 import type { MenuItem } from '../../lib/menu';
 import { refused } from '../../../shared/result';
@@ -15,35 +16,21 @@ const day = (ms: number) => new Date(ms).toLocaleDateString(undefined, { day: 'n
 const installed = (a: GitHubAccount) => (a.kind === 'pat' ? 'a token' : a.installed === null ? '—' : a.installed.join(', ') || 'nowhere yet');
 
 export function GitHubPage() {
-  const [info, setInfo] = useState<GitHubInfo | null>(null), [error, setError] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [{ data: info, loading, error: loadError }, read, show] = useRead<GitHubInfo>();
+  const [error, setError] = useState('');
   const [tokenError, setTokenError] = useState(''); // GitHub's refusal of the token pasted, at its field
   // Signing in with Kulisa App: the code GitHub gave, until it is entered (again: the account signed in again).
   const [signing, setSigning] = useState<{ again: string | null; code: string; url: string } | null>(null);
   // A token being pasted (again: the account it is a new token for).
   const [pasting, setPasting] = useState<{ again: string | null } | null>(null), [token, setToken] = useState('');
   const code = useRef<string | null>(null);
-  const revision = useRef(0);
-  const show = (r: GitHubInfo) => { revision.current++; setInfo({ accounts: r.accounts, kept: r.kept }); setLoading(false); };
-
-  // Shown: read again (an account's projects and sign-in change elsewhere). Left: a code no longer on screen is not to
-  // be entered, so its sign-in ends.
   useEffect(() => {
-    let live = true;
-    const read = revision.current;
-    void (async () => {
-      try {
-        const local = await kulisa.invoke('github:account:list', { local: true });
-        if (!live || read !== revision.current) return;
-        setInfo(local);
-        if (!local.accounts.some((a) => a.kind === 'app' && a.signedIn)) return;
-        const full = await kulisa.invoke('github:account:list');
-        if (live && read === revision.current) setInfo(full);
-      } catch (e) { if (live && read === revision.current) setError(String(e)); }
-      finally { if (live) setLoading(false); }
-    })();
-    return () => { live = false; if (code.current) { code.current = null; void kulisa.invoke('github:signin:cancel'); } };
-  }, []);
+    void read(async (publish) => {
+      const local = await kulisa.invoke('github:account:list', { local: true });
+      return publish(local) && local.accounts.some((a) => a.kind === 'app' && a.signedIn) ? kulisa.invoke('github:account:list') : local;
+    });
+    return () => { if (code.current) { code.current = null; void kulisa.invoke('github:signin:cancel'); } };
+  }, [read]);
 
   async function cancelSignin() { code.current = null; setSigning(null); await kulisa.invoke('github:signin:cancel'); }
   async function withGitHub(again: string | null = null) {
@@ -97,7 +84,7 @@ export function GitHubPage() {
             a.signedIn && (a.ends === null ? 'signed in, no end' : `signed in until ${day(a.ends)}`)].filter(Boolean).join(' · '),
           details: loading && a.kind === 'app' && a.signedIn && <span role="status" className="inline-flex items-center gap-2 text-sm text-muted-foreground"><Spinner role={undefined} aria-hidden />Loading installations…</span> }))} />
 
-      {(signing || pasting || error) && <>
+      {(signing || pasting || error || loadError) && <>
         {accounts.length > 0 && <SettingsDivider />}
         <div className="flex flex-col gap-3 p-4">
           {signing && <div role="group" aria-label="Sign in with GitHub">
@@ -121,7 +108,7 @@ export function GitHubPage() {
               organization or user of your repositories (an organization may have to approve it), then paste it here.</>}
             onChange={(v) => { setToken(v); setTokenError(''); }} go={() => void addToken()} stop={() => setPasting(null)} />}
           {/* a refusal not at the token's field */}
-          {error && <Alert variant="destructive"><CircleAlertIcon /><AlertDescription><span data-selectable>{error}</span></AlertDescription></Alert>}
+          {(error || loadError) && <Alert variant="destructive"><CircleAlertIcon /><AlertDescription><span data-selectable>{error || loadError}</span></AlertDescription></Alert>}
         </div></>}
     </SettingsGroup>
   </>;

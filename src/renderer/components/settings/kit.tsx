@@ -2,7 +2,7 @@
 import { Children, useId, type KeyboardEvent, type ReactNode } from 'react';
 import { ChevronRightIcon, CircleAlertIcon, EllipsisIcon } from 'lucide-react';
 import { Button, Field, FieldDescription, FieldError, FieldLabel, Input, Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemMedia, ItemSeparator, ItemTitle,
-  Alert, AlertDescription, FieldGroup, Separator, Spinner } from '@ui';
+  Alert, AlertDescription, FieldContent, FieldGroup, Separator, Spinner } from '@ui';
 import { ButtonMenu, RightClickMenu } from '../Menus';
 import type { MenuItem } from '../../lib/menu';
 
@@ -52,6 +52,18 @@ export function SettingsFields({ children }: { children: ReactNode }) {
     {i > 0 && <SettingsDivider />}
     <div className="p-4">{row}</div>
   </div>)}</FieldGroup>;
+}
+
+export function SettingsField({ id, label, description, error, children }: {
+  id: string; label: string; description?: ReactNode; error?: string; children: ReactNode;
+}) {
+  return <Field orientation="responsive" data-invalid={error ? true : undefined}>
+    <FieldContent><FieldLabel htmlFor={id}>{label}</FieldLabel>
+      {description && <FieldDescription>{description}</FieldDescription>}
+      {error && <FieldError><span data-selectable>{error}</span></FieldError>}
+    </FieldContent>
+    <div className="min-w-0 @md/field-group:w-64 @md/field-group:min-w-64 @md/field-group:max-w-64">{children}</div>
+  </Field>;
 }
 
 // A thing in a list: its picture, name, badges, a line under it; a control of its own (a repository's account); open:

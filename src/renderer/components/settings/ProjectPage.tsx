@@ -4,14 +4,15 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { avatarSrc } from '../../lib/common';
 import { BotIcon, FolderIcon, PlusIcon, UsersIcon, XIcon, CircleAlertIcon } from 'lucide-react';
 import { Alert, AlertAction, AlertDescription, Badge, Button, Input, Select, SelectContent, SelectItem, SelectTrigger,
-  SelectValue, SelectGroup, Avatar, AvatarImage, AvatarFallback, Field, FieldContent, FieldDescription, FieldError, FieldLabel,
+  SelectValue, SelectGroup, Avatar, AvatarImage, AvatarFallback,
   Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription, Spinner } from '@ui';
 import { ButtonMenu } from '../Menus';
 import { agentMark } from '../AgentMark';
 import { SignIn } from '../SignIn';
 import { ProjectIcon } from '../ProjectIcon';
-import { AddInPlace, Things, SettingsHeading, SettingsGroup, SettingsFields, SettingsLoading, SettingsError } from './kit';
+import { AddInPlace, Things, SettingsHeading, SettingsGroup, SettingsFields, SettingsField, SettingsLoading, SettingsError } from './kit';
 import { useChanged } from './changed';
+import { useRead } from './read';
 import type { MenuItem } from '../../lib/menu';
 import { refused, type Result } from '../../../shared/result';
 import type { ProjectAgent, ProjectEntry, ProjectFolder, ProjectGitHub, ProjectProfile, ProjectSettings } from '../../../shared/types';
@@ -21,45 +22,23 @@ const base = (f: string) => f.split(/[\\/]/).pop()!;
 export function ProjectPage({ project, onSaved, saveRef, action }: { project: ProjectEntry; onSaved: () => void; saveRef: { current: () => Promise<void> }; action?: ReactNode }) {
   const { id } = project;
   // The project as the main process has it; its name and local addresses as typed (saved), never replaced by a read.
-  const [s, setS] = useState<ProjectSettings | null>(null), [loadError, setLoadError] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [{ data: s, loading, error: loadError }, readSettings, setS] = useRead<ProjectSettings>();
   const patch = (p: Partial<ProjectSettings>) => setS((x) => x && { ...x, ...p });
   const folders = s?.folders ?? [], mine = s?.projectAgents ?? [], profiles = s?.profiles ?? [], others = s?.others ?? [];
   const [name, setName] = useState(project.name), [local, setLocal] = useState<string[]>([]), [host, setHost] = useState(''), [error, setError] = useState('');
-  const [github, setGithub] = useState<ProjectGitHub | null>(null);
-  const [githubLoading, setGithubLoading] = useState(true);
+  const [{ data: github, loading: githubLoading, error: githubError }, readGitHub] = useRead<ProjectGitHub>();
   const [adding, setAdding] = useState<'' | 'clone' | 'profile'>(''), [text, setText] = useState(''), [cloning, setCloning] = useState(false);
   const [errors, setErrors] = useState({ folders: '', agents: '', profiles: '' });
   const [signing, setSigning] = useState<{ id: string; name: string } | null>(null); // New Account…: the agent it is of, while signing in
   const saved = useRef(''), filled = useRef(false);
-  const reads = useRef({ settings: 0, github: 0 });
-
-  const githubNow = useCallback(async (answer?: Promise<Result<ProjectGitHub>>) => {
-    const n = ++reads.current.github;
-    setGithubLoading(true);
-    try {
-      const r = await (answer ?? kulisa.invoke('project:github:get', { id }));
-      if (n !== reads.current.github) return;
-      if (refused(r)) setErrors((e) => ({ ...e, folders: r.error })); else setGithub(r);
-    } catch (e) { if (n === reads.current.github) setErrors((errors) => ({ ...errors, folders: String(e) })); }
-    finally { if (n === reads.current.github) setGithubLoading(false); }
-  }, [id]);
+  const githubNow = useCallback((answer?: Promise<Result<ProjectGitHub>>) => readGitHub(() => answer ?? kulisa.invoke('project:github:get', { id })), [id, readGitHub]);
   // Refresh memberships without overwriting fields being edited. Only the first read fills editable values.
-  const reload = useCallback(async () => {
-    const n = ++reads.current.settings;
-    setLoading(true);
-    try {
-      const c = await kulisa.invoke('project:settings:get', { id });
-      if (n !== reads.current.settings) return;
-      if (refused(c)) { setLoadError(c.error); return; }
-      setLoadError(''); setS(c);
-      if (filled.current) return;
-      filled.current = true;
-      setName(c.name); setLocal(c.local || []);
-      saved.current = JSON.stringify({ name: c.name.trim(), local: c.local || [] });
-    } catch (e) { if (n === reads.current.settings) setLoadError(String(e)); }
-    finally { if (n === reads.current.settings) setLoading(false); }
-  }, [id]);
+  const reload = useCallback(() => readSettings(() => kulisa.invoke('project:settings:get', { id }), (c) => {
+    if (filled.current) return;
+    filled.current = true;
+    setName(c.name); setLocal(c.local || []);
+    saved.current = JSON.stringify({ name: c.name.trim(), local: c.local || [] });
+  }), [id, readSettings]);
   useEffect(() => { void reload(); void githubNow(); }, [reload, githubNow]);
   useChanged(reload);
 
@@ -151,14 +130,10 @@ export function ProjectPage({ project, onSaved, saveRef, action }: { project: Pr
     {s && loading && <SettingsLoading>Updating project settings…</SettingsLoading>}
 
     <SettingsGroup><SettingsFields>
-      <Field orientation="responsive" data-invalid={error ? true : undefined}>
-        <FieldContent><FieldLabel htmlFor="project-name">Name</FieldLabel>
-          <FieldDescription>Shown in the project sidebar and task menus.</FieldDescription>
-          {error && <FieldError><span data-selectable>{error}</span></FieldError>}
-        </FieldContent>
-        <Input id="project-name" className="min-w-0 @md/field-group:w-64 @md/field-group:min-w-64 @md/field-group:max-w-64" disabled={!s} aria-invalid={error ? true : undefined} value={name} maxLength={64} spellCheck={false} onChange={(e) => { setName(e.target.value); setError(''); }} onBlur={() => void save()}
+      <SettingsField id="project-name" label="Name" description="Shown in the project sidebar and task menus." error={error}>
+        <Input id="project-name" disabled={!s} aria-invalid={error ? true : undefined} value={name} maxLength={64} spellCheck={false} onChange={(e) => { setName(e.target.value); setError(''); }} onBlur={() => void save()}
           onKeyDown={(e) => { if (e.key === 'Enter') void save(); }} />
-      </Field>
+      </SettingsField>
     </SettingsFields></SettingsGroup>
 
     <SettingsGroup title="Folders" count={s ? folders.length : project.folders.length} description="New tasks start in the default folder."
@@ -177,6 +152,7 @@ export function ProjectPage({ project, onSaved, saveRef, action }: { project: Pr
         <AlertDescription><span data-selectable>{base(g.folder)}: {g.why}{g.install && ' Install it, or ask its owner to.'}</span></AlertDescription>
         {g.install && <AlertAction><Button variant="outline" size="sm" asChild><a href={g.install} target="_blank" rel="noreferrer">Install it on {g.owner}</a></Button></AlertAction>}
       </Alert>)}
+      <SettingsError error={githubError} />
       {adding !== 'clone' && err(errors.folders)}
     </SettingsGroup>
 
@@ -204,12 +180,9 @@ export function ProjectPage({ project, onSaved, saveRef, action }: { project: Pr
     </SettingsGroup>
 
     <SettingsGroup label="Local addresses">{!s && !loadError && <SettingsLoading>Loading local addresses…</SettingsLoading>}{s && <SettingsFields>
-      <Field orientation="responsive">
-        <FieldContent>
-          <FieldLabel htmlFor="project-local-addresses">Local addresses</FieldLabel>
-          <FieldDescription>Additional addresses where agents may type saved test users' passwords, besides localhost and your network.</FieldDescription>
-        </FieldContent>
-        <div className="flex min-w-0 flex-col gap-2 @md/field-group:w-64 @md/field-group:min-w-64 @md/field-group:max-w-64">
+      <SettingsField id="project-local-addresses" label="Local addresses"
+        description="Additional addresses where agents may type saved test users' passwords, besides localhost and your network.">
+        <div className="flex min-w-0 flex-col gap-2">
           {local.length > 0 && <div role="list" aria-label="Local addresses kept" className="flex flex-wrap gap-1.5">
             {local.map((h) => <Badge key={h} role="listitem" variant="secondary">{h}
               <Button variant="ghost" size="icon-xs" className="-me-1 size-4" data-icon="inline-end" aria-label={`Remove ${h}`}
@@ -220,7 +193,7 @@ export function ProjectPage({ project, onSaved, saveRef, action }: { project: Pr
             onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ' || e.key === ',') { e.preventDefault(); addHost(); } }} />
           <p className="text-xs text-muted-foreground">Press Enter to add an address.</p>
         </div>
-      </Field>
+      </SettingsField>
     </SettingsFields>}</SettingsGroup>
   </div>;
 }

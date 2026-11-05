@@ -8,6 +8,7 @@ import { Button, Input, Label, Switch, ToggleGroup, ToggleGroupItem, Alert, Aler
 import { ButtonMenu } from '../Menus';
 import { Tip } from '../Tip';
 import { SettingsHeading, SettingsLoading } from './kit';
+import { useRead } from './read';
 import { refused } from '../../../shared/result';
 import type { LogInfo } from '../../../shared/types';
 
@@ -61,8 +62,8 @@ const Row = memo(function Row({ l }: { l: Line }) {
 });
 
 export function LogPage() {
-  const [lines, setLines] = useState<Line[] | null>(null), [info, setInfo] = useState<Omit<LogInfo, 'text'> | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [{ data, loading, error: loadError }, readLog, setLog] = useRead<{ lines: Line[]; info: Omit<LogInfo, 'text'> }>();
+  const lines = data?.lines ?? null, info = data?.info;
   const [show, setShow] = useState<Show>('all'), [filter, setFilter] = useState(''), [follow, setFollow] = useState(true);
   const [error, setError] = useState('');
   const box = useRef<HTMLDivElement>(null), followId = useId();
@@ -71,27 +72,26 @@ export function LogPage() {
   useEffect(() => {
     let loaded = false, live = true;
     const rest = { text: '' };
-    const load = async () => {
-      loaded = false;
-      setLoading(true); setError('');
-      try {
-        const r = await kulisa.invoke('log:get');
-        if (!live) return;
-        const all: Line[] = [];
-        rest.text = ''; parse(r.text, all, rest);
-        setLines(all); setInfo({ size: r.size, max: r.max, old: r.old }); loaded = true;
-      } catch (e) { if (live) setError(String(e)); }
-      finally { if (live) setLoading(false); }
+    const load = () => {
+      loaded = false; setError('');
+      return readLog(async () => {
+        const r = await kulisa.invoke('log:get'), lines: Line[] = [];
+        if (live) { rest.text = ''; parse(r.text, lines, rest); }
+        return { lines, info: { size: r.size, max: r.max, old: r.old } };
+      }, () => { loaded = true; });
     };
     onLines = (m) => {
       if (!loaded) return;
       if ('reset' in m) { void load(); return; }
-      setLines((now) => { const next = [...(now ?? [])]; parse(m.text, next, rest); return next; });
-      setInfo((i) => i && ({ ...i, size: i.size + new TextEncoder().encode(m.text).length }));
+      setLog((now) => {
+        if (!now) return now;
+        const lines = [...now.lines]; parse(m.text, lines, rest);
+        return { lines, info: { ...now.info, size: now.info.size + new TextEncoder().encode(m.text).length } };
+      });
     };
     void load();
     return () => { live = false; onLines = null; };
-  }, []);
+  }, [readLog, setLog]);
 
   const shown = useMemo(() => {
     const q = filter.trim().toLowerCase();
@@ -156,7 +156,7 @@ export function LogPage() {
       kulisa.log, {kb(info.size)} of {Math.round(info.max / 1024 / 1024)} MB{info.old ? `; kulisa.old.log from ${info.old.slice(0, 10)}` : ''}. Never here: what you typed,
       passwords, tokens, cookies, the pages' queries.
     </p>}
-    {error && <Alert variant="destructive"><CircleAlertIcon /><AlertDescription><span data-selectable>{error}</span></AlertDescription></Alert>}
+    {(error || loadError) && <Alert variant="destructive"><CircleAlertIcon /><AlertDescription><span data-selectable>{error || loadError}</span></AlertDescription></Alert>}
     <div className="flex flex-wrap items-center justify-end gap-2">
       <Tip text="The whole log, to paste anywhere"><Button variant="outline" disabled={lines === null} onClick={() => void copy()}>Copy All</Button></Tip>
       <Tip text="The log as a file, to attach to a message or an issue"><Button variant="outline" onClick={() => void save()}>Save As…</Button></Tip>

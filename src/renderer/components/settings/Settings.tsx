@@ -16,6 +16,7 @@ import { LogPage } from './LogPage';
 import { AgentPage } from './AgentPage';
 import { AddInPlace, Things, SettingsHeading, SettingsGroup, SettingsLoading, SettingsError, type Thing } from './kit';
 import { useChanged } from './changed';
+import { useRead } from './read';
 import { agents as agentList, loadAccounts, useAccounts } from './agents';
 import { useAgentList } from '../../lib/agents';
 import type { MenuItem } from '../../lib/menu';
@@ -26,7 +27,7 @@ import { store } from '../../lib/store';
 import { agentMark } from '../AgentMark';
 import { ProjectIcon } from '../ProjectIcon';
 import { refused } from '../../../shared/result';
-import type { ProjectEntry, SettingsProfile } from '../../../shared/types';
+import type { AgentInfo, ProjectEntry, SettingsProfile } from '../../../shared/types';
 import type { SettingsAt } from '../../../shared/ipc';
 
 const icons = { projects: LayoutGridIcon, agents: BotIcon, profiles: UsersIcon, github: GitBranchIcon, log: ScrollTextIcon, about: InfoIcon };
@@ -38,14 +39,13 @@ interface Place { section: Section; id?: string | null }
 export function Settings({ at, className }: { at: SettingsAt; className?: string }) {
   const [place, setPlace] = useState<Place>(() => ({ section: at.section,
     id: at.section === 'projects' ? at.id ?? store.getState().projects.project : at.id })), { section } = place;
-  const [projects, setProjects] = useState<ProjectEntry[]>(() => store.getState().projects.projects);
+  const [projectData, readProjects] = useRead<ProjectEntry[]>(store.getState().projects.projects);
   const agents = useAgentList(agentList, (s) => s.agents), looking = useAgentList(agentList, (s) => s.looking);
   const installing = useAgentList(agentList, (s) => s.installing), { clis } = useAccounts();
   const [signing, setSigning] = useState<string | null>(null); // the agent a new account is signed in to on its page
-  const [profilesData, setProfiles] = useState<SettingsProfile[] | null>(null), profiles = profilesData ?? [];
-  const [checkingAgents, setCheckingAgents] = useState(true);
-  const [pendingLists, setPendingLists] = useState({ projects: true, profiles: true });
-  const [loadErrors, setLoadErrors] = useState({ projects: '', profiles: '', agents: '' });
+  const [profileData, readProfiles, setProfiles] = useRead<SettingsProfile[]>();
+  const [discovery, discover] = useRead<AgentInfo[]>(agentList.store.getState().agents);
+  const projects = projectData.data ?? [], profilesData = profileData.data, profiles = profilesData ?? [], checkingAgents = discovery.loading;
   const [newProfile, setNewProfile] = useState<string | null>(null), [profilesError, setProfilesError] = useState('');
   const save = useRef(async () => {});
   // The page read again each time Settings is asked for one, or one is chosen in its nav (the same one too).
@@ -64,28 +64,19 @@ export function Settings({ at, className }: { at: SettingsAt; className?: string
     let timer = 0, live = true;
     const frame = requestAnimationFrame(() => { timer = window.setTimeout(() => {
       if (!covered.current) { covered.current = true; coverPage(true); }
-      setCheckingAgents(true);
-      void agentList.look(true).then(() => live ? agentList.look(false) : false)
-        .then(() => { if (live) setLoadErrors((errors) => ({ ...errors, agents: '' })); })
-        .catch((e: unknown) => { if (live) setLoadErrors((errors) => ({ ...errors, agents: String(e) })); })
-        .finally(() => { if (live) setCheckingAgents(false); });
+      void discover(async () => {
+        await agentList.look(true);
+        if (live) await agentList.look(false);
+        return agentList.store.getState().agents;
+      });
     }); });
     return () => { live = false; cancelAnimationFrame(frame); clearTimeout(timer); };
-  }, [at]);
+  }, [at, discover]);
 
-  const reading = useRef(0);
-  const lists = useCallback(async () => {
-    const n = ++reading.current;
-    setPendingLists({ projects: true, profiles: true });
-    await Promise.all([
-      kulisa.invoke('project:list').then((list) => { if (n === reading.current && list) { setProjects(list.projects); setLoadErrors((e) => ({ ...e, projects: '' })); } })
-        .catch((e: unknown) => { if (n === reading.current) setLoadErrors((errors) => ({ ...errors, projects: String(e) })); })
-        .finally(() => { if (n === reading.current) setPendingLists((p) => ({ ...p, projects: false })); }),
-      kulisa.invoke('profiles:list').then((p) => { if (n === reading.current) { setProfiles(p.profiles); setLoadErrors((e) => ({ ...e, profiles: '' })); } })
-        .catch((e: unknown) => { if (n === reading.current) setLoadErrors((errors) => ({ ...errors, profiles: String(e) })); })
-        .finally(() => { if (n === reading.current) setPendingLists((p) => ({ ...p, profiles: false })); }),
-    ]);
-  }, []);
+  const lists = useCallback(() => Promise.all([
+    readProjects(async () => (await kulisa.invoke('project:list'))?.projects ?? store.getState().projects.projects),
+    readProfiles(async () => (await kulisa.invoke('profiles:list')).profiles),
+  ]), [readProjects, readProfiles]);
   // Each page asked for, here or by the main process: one fetched after another was asked for shows nothing.
   const asked = useRef(0);
   const show = async (on: Section, id?: string) => {
@@ -171,8 +162,8 @@ export function Settings({ at, className }: { at: SettingsAt; className?: string
     if (section === 'projects') return shownProject ? <ProjectPage key={`${shownProject.id}:${shown}`} project={shownProject} saveRef={save} onSaved={() => void lists()} action={make} />
       : <div className="flex flex-col gap-6">
         <SettingsHeading title="Projects" description="Manage the folders, agents and browser profiles your tasks use." />
-        <SettingsError error={loadErrors.projects} />
-        {pendingLists.projects && <SettingsLoading>Updating projects…</SettingsLoading>}
+        <SettingsError error={projectData.error} />
+        {projectData.loading && <SettingsLoading>Updating projects…</SettingsLoading>}
         <SettingsGroup>
           <Things label="Projects" menu={projectMenu} things={projects.map((p) => ({ key: p.id, name: p.name,
             media: <ProjectIcon p={p} size={32} />, description: p.folders.join(' · ') || 'No folders added', open: () => void show('projects', p.id),
@@ -184,20 +175,20 @@ export function Settings({ at, className }: { at: SettingsAt; className?: string
     if (section === 'agents') return shownAgent ? <AgentPage key={shownAgent.id} agent={shownAgent} checking={checkingAgents || looking} signing={signing === shownAgent.id} onSigning={(on) => setSigning(on ? shownAgent.id : null)} action={make} />
       : <>
         <SettingsHeading title="Agents" description="Coding assistants installed on this computer and their connected accounts." action={make} />
-        <SettingsError error={loadErrors.agents} />
+        <SettingsError error={discovery.error} />
         {(checkingAgents || looking) && <SettingsLoading>{agents.length ? 'Checking installed agents…' : 'Loading agents…'}</SettingsLoading>}
         {list('Agents', agents.map((a) => { const Mark = agentMark(a.id); return { key: a.id, name: a.name, media: <Mark className="size-6" />,
         badges: !a.installed && <Badge variant="secondary">Not installed</Badge>,
         description: a.installed ? [a.version, a.path].filter(Boolean).join(' · ') || undefined : a.maker }; }),
-      agentMenu, !checkingAgents && !looking && !loadErrors.agents && 'No agents.')}
+      agentMenu, !checkingAgents && !looking && !discovery.error && 'No agents.')}
       </>;
     // Keyed by its id alone: a field being typed in stays as the profile changes (saved, or elsewhere).
-    if (section === 'profiles') return shownProfile ? <ProfilePage key={shownProfile.id} profile={shownProfile} refreshing={pendingLists.profiles} onChanged={(r) => { setProfiles(r.profiles); if (r.id) setPlace({ section: 'profiles', id: r.id }); }} action={make} />
+    if (section === 'profiles') return shownProfile ? <ProfilePage key={shownProfile.id} profile={shownProfile} refreshing={profileData.loading} onChanged={(r) => { setProfiles(r.profiles); if (r.id) setPlace({ section: 'profiles', id: r.id }); }} action={make} />
       : <>
         <SettingsHeading title="Profiles" description="Browser identities for testing. Sign in once for every task." action={make} />
-        <SettingsError error={loadErrors.profiles} />
-        {profilesData === null && !loadErrors.profiles && <SettingsGroup><SettingsLoading>Loading profiles…</SettingsLoading></SettingsGroup>}
-        {profilesData !== null && pendingLists.profiles && <SettingsLoading>Updating profiles…</SettingsLoading>}
+        <SettingsError error={profileData.error} />
+        {profilesData === null && !profileData.error && <SettingsGroup><SettingsLoading>Loading profiles…</SettingsLoading></SettingsGroup>}
+        {profilesData !== null && profileData.loading && <SettingsLoading>Updating profiles…</SettingsLoading>}
         {newProfile !== null && <SettingsGroup><div className="p-4">
           <AddInPlace label="New profile" placeholder="Its name, e.g. ann@shop.com" value={newProfile} name ok="Create" error={profilesError || undefined}
             onChange={(v) => { setNewProfile(v); setProfilesError(''); }} go={() => void createProfile()} stop={() => { setNewProfile(null); setProfilesError(''); }} />
