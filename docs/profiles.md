@@ -88,7 +88,7 @@ Settings or through `ProjectProfiles`. Missing handles require a reason in the t
 | Point at an element | Pick, Ctrl+Shift+C (into the agent's prompt) | `browser_highlight` (outlined for the human) | `picker.ts`; the MCP server |
 | Read a page | looks at it | `browser_snapshot`, `browser_screenshot`, console, network | Playwright |
 | Send selected page text | right-click → Send selection to agent | none: the human’s selection; agents read pages through browser tools | `Task.sendSelection`, `Task.typeForAgent` |
-| Take a screenshot (an element, the visible part, the whole page) | ⋮ → Screenshot, Ctrl+Shift+S (an element); to the clipboard and the task's artifacts in Resources | `browser_screenshot` (`ref`/`locator`, `fullPage`, `also`) | `Task.screenshot`, `Profile.screenshot`, the screenshots' Kulisa package ([README](../src/screenshots/README.md)) |
+| Take a screenshot (an element, the visible part, the whole page) | ⋮ → Screenshot, Ctrl+Shift+S (an element); to the clipboard and the task's Artifacts [Side bar](ui.md#workbench-terminology) | `browser_screenshot` (`ref`/`locator`, `fullPage`, `also`) | `Task.screenshot`, `Profile.screenshot`, the screenshots' Kulisa package ([README](../src/screenshots/README.md)) |
 | Act in a page | mouse, keyboard | `browser_click`, `browser_type`, `browser_press_key`, `browser_hover`, `browser_select_option`, `browser_file_upload`, `browser_evaluate` | the page itself; Playwright over the proxy |
 | Answer a dialog | the dialog in the pane | `dialog` on the action that opened it | `Profile._dialog`, `answerDialog` |
 | Sign in | by hand, in its master (Sign In to Master…) or a task's pane | never (Rules); asks with `profile_ask_signin` | `master.ts`; the sign-in pause |

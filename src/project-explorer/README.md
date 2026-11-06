@@ -12,6 +12,8 @@ entries; directory links are not expanded. Opening files is the caller's desktop
 
 ## Tree
 
+Project occupies the Workbench [Side bar](../../docs/ui.md#workbench-terminology).
+
 `ProjectDirectory` takes `ExplorerActions` for reads, open/reveal and shared menu opening. It supplies Open/Show in
 Folder rows; double-click/Enter opens files.
 
@@ -39,4 +41,4 @@ The renderer receives those actions as callbacks, with no channels or task keys 
 - `ipc.ts`: directory-entry contract. Core task handles supply roots (`tasks.ts`, `ipc/tasks.ts`, `shared/ipc.ts`).
 - `task-view/Resources.tsx`: repository grouping/ownership, panel controls and action bindings.
 - `files.test.ts`, `icons.test.ts`: reads/containment and icon resolution from supplied manifests, including path/theme fallbacks. E2e:
-  `test/e2e/resources.spec.ts`, `project-repositories.spec.ts`; containing layouts/artifacts use Resources tests.
+  `test/e2e/resources.spec.ts`, `project-repositories.spec.ts`; containing layouts/artifacts use Workbench tests.

@@ -4,6 +4,32 @@ Kulisa-specific UI rules and integration constraints. Component APIs and composi
 development skill required by [AGENTS.md](../AGENTS.md#implementation). Window lifecycle and native-page geometry:
 [window.md](window.md); generated components: [src/ui](../src/ui/README.md).
 
+## Workbench terminology
+
+Use these names for the task's development UI (the author's choice). Workbench and Stage are sibling areas;
+Workbench contains three adjacent parts, not three nested containers:
+
+| Name | Meaning |
+|---|---|
+| Workbench | The whole development area: Activity bar, Side bar and Main pane. |
+| Activity bar | The vertical strip for choosing Agents, Project, Diff or Artifacts; dictation sits below these choices. |
+| Activity bar item | One of those navigation buttons, such as Project. |
+| Side bar | The collapsible pane showing the selected Activity bar item's agents, project tree, changed-file tree or artifacts. |
+| Side bar item | An entry inside that pane: an agent, folder, file or artifact. |
+| Main pane | The central content pane, currently showing the selected development terminal or Diff review. |
+
+Append **item** to the containing bar's name when referring to a particular button or entry. Use its visible
+name when useful: “Project Activity bar item” or “the agent's Side bar item”.
+Name Main pane content directly: terminal or Diff review.
+
+The navigation relationship is Activity bar item → Side bar items → selected content. This describes navigation,
+not a requirement that every item opens in Main pane: Project files and Artifacts currently open in the system app.
+Keep Workbench's Side bar distinct from the window's **project sidebar**, which lists projects and tasks.
+
+Layout and lifecycle: [window.md](window.md#the-grid); item actions and saved state: [tasks.md](tasks.md#the-workbench).
+`Resources` in existing component names and `resources` layout identifiers refer to the Activity bar and Side bar;
+task resource folders are a separate domain concept.
+
 ## shadcn in Kulisa
 
 These integration rules take precedence over generic skill instructions:
@@ -22,7 +48,7 @@ These integration rules take precedence over generic skill instructions:
 - Kulisa's warning/success colors are theme variables. Brand marks are the color exception: the original red
   `assets/icon.svg` goes through `AppLogo`; projects keep their own identity color.
 - Lucide is the icon library; maker marks (`AgentMark`), logo/project icons, avatars and file-type icons are
-  exceptions. Resources uses `text-sm` for filenames/messages/controls and `text-xs` for captions/status metadata.
+  exceptions. The Side bar uses `text-sm` for filenames/messages/controls and `text-xs` for captions/status metadata.
 - Keep CSS Modules and additional UI libraries out. Standalone CSS needs an owning explanation; see
   [custom drawing](#own-drawing). ESLint checks shipped-control styling, theme colors, raw form controls,
   hook rules and the Fluent UI exclusion; React Compiler memoization rules are not enabled.
@@ -41,7 +67,7 @@ leave links here. Dependency-cruiser protects public entries and keeps non-UI lo
 | `components/App.tsx`, title/tasks' bars, sidebar | Window frame and navigation; [window.md](window.md) |
 | [welcome](../src/renderer/components/welcome/README.md) | First-start introduction, example drawings and their shared animation |
 | [Settings](../src/renderer/components/settings/README.md) | Lazy settings UI and shared page controls |
-| [task-view](../src/renderer/task-view/README.md) | Retained task screens, grids, Resources and pane drawings |
+| [task-view](../src/renderer/task-view/README.md) | Retained task screens, grids, Workbench and pane drawings |
 | [Projects](tasks.md#projects) | Project creation, membership and setup behavior |
 | `components/Menus.tsx`, `lib/menu.ts`, `lib/dialogs.ts`, `lib/ask.ts` | Shared menus, dialog registration and questions |
 | `lib/store.ts` | Window state; components use `useWindow(selector)`, other code uses `store.getState()` |
@@ -80,7 +106,7 @@ in `public/avatars/`. The window has no second router or UI framework.
 ## Tooltips
 
 Use `Tip` only where it cannot overlap a native page: title/sidebar/dialogs/Settings and suitable tasks' bar
-buttons. Pane controls, Resources, master bars, list rows, clipped text and log lines use native `title`:
+buttons. Pane controls, Activity bar, Side bar, master bars, list rows, clipped text and log lines use native `title`:
 native views cover HTML tooltips, and per-log-line components cost memory.
 
 Disable tooltip hoverability. Crossing into a native page stops window pointer events and can leave Radix's
@@ -127,7 +153,7 @@ span because TabsTrigger is already a button.
 
 Task tabs keep their width across selection so neighbors do not move under the pointer. Profile tabs shrink to
 icon and ×, sharing a 32 px row with navigation controls. Editing the address occupies the tabs/+ area while the
-strip stays mounted. Development terminals switch through Resources rows instead.
+strip stays mounted. Development terminals switch through Agents Side bar items instead.
 
 `lib/strip.ts` shrinks overflowing strips, then scrolls them sideways without a scrollbar. The mouse wheel scrolls;
 `data-past-start`/`data-past-end` fade hidden edges. Reveal the selected tab only after selection, growth or resizing:
