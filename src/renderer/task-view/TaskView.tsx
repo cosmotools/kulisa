@@ -4,7 +4,8 @@ import { useStore } from 'zustand';
 import { DockviewReact, GridviewReact, Orientation, type IDockviewPanelProps, type IGridviewPanelProps } from 'dockview-react';
 import 'dockview-react/dist/styles/dockview.css';
 import { TerminalSquareIcon, PlusIcon } from 'lucide-react';
-import { Avatar, AvatarImage, Button } from '@ui';
+import { Avatar, AvatarImage, Button, Empty, EmptyHeader, EmptyTitle } from '@ui';
+import { activityItems } from './development';
 import { DevelopmentTerminals } from './DevelopmentTerminals';
 import { TaskDiff } from './Diff';
 import { StageTerminalPane, StageTerminalHeader } from './StageTerminalPane';
@@ -27,13 +28,16 @@ export { StageMenu } from './StageMenu';
 const components = { terminal: DevelopmentContent, resources: Resources };
 const tabComponents = { resources: ResourceIcon };
 function DevelopmentContent(props: IDockviewPanelProps) {
-  const diff = useTask((s) => s.developmentDiff);
-  const reviewing = !!diff;
-  useEffect(() => { props.api.setTitle(reviewing ? 'Diff' : 'Terminal'); }, [props.api, reviewing]);
-  return <>
-    <DevelopmentTerminals reviewing={reviewing} />
-    {reviewing && <TaskDiff selection={diff} />}
-  </>;
+  const item = useTask((s) => s.workbenchItem), diff = useTask((s) => s.developmentDiff);
+  useEffect(() => { props.api.setTitle(`Main pane: ${activityItems[item]}`); }, [props.api, item]);
+  return <section aria-label="Main pane" data-workbench-item={item} className="relative h-full min-w-0">
+    <DevelopmentTerminals visible={item === 'terminals'} />
+    {item === 'diff' && diff && <TaskDiff selection={diff} />}
+    {(item === 'project' || item === 'artifacts' || item === 'diff' && !diff) &&
+      <Empty className="h-full"><EmptyHeader><EmptyTitle>
+        {item === 'artifacts' ? 'choose artifact' : 'choose file'}
+      </EmptyTitle></EmptyHeader></Empty>}
+  </section>;
 }
 function Development({ api }: IGridviewPanelProps) {
   const grid = useTaskGrid();

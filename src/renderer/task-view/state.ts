@@ -9,12 +9,14 @@ import type { Invoke, OnTask, StageLayout, StagePosition } from '../../shared/ip
 import { refused } from '../../shared/result';
 import { store, useWindow } from '../lib/store';
 import type { TaskGrid } from './grid';
+import type { ActivityItem } from './development';
 
 export interface TaskState {
   key: string;
   profiles: Profile[];
   closedProfiles: ClosedProfile[];
   developmentTerminals: DevelopmentTerminalsState;
+  workbenchItem: ActivityItem;
   developmentDiff: DiffSelection | null;
   developmentTerminalFocus: object | null;
   stageTerminals: StageTerminal[];
@@ -33,7 +35,7 @@ export interface TaskState {
 export type TaskStore = StoreApi<TaskState>;
 const makeTask = (key: string) => createStore<TaskState>()(() => ({
   key, profiles: [], closedProfiles: [], developmentTerminals: { task: key, front: null, list: [] },
-  developmentDiff: null, developmentTerminalFocus: null, stageTerminals: [], stageTerminalFocus: null, stageLayout: null, stageOverflow: false,
+  workbenchItem: 'project', developmentDiff: null, developmentTerminalFocus: null, stageTerminals: [], stageTerminalFocus: null, stageLayout: null, stageOverflow: false,
   stageFollowPaused: false, stageActivity: null, stagePosition: 'above', artifacts: { task: key, list: [], bytes: 0 },
   loading: true, captions: {}, picking: {}, pictures: {},
 }));

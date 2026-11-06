@@ -2,7 +2,7 @@
 // terminal keeps the agent's keys, Kulisa's own work everywhere, Keyboard Shortcuts lists them. Keys are sent as input
 // events into the page or the window, where the human's keyboard would put them.
 import { test, expect } from './fixtures.ts';
-import { SITE, MAC, WIN, termText, ipcSettled, item, termKeys, shortcutsDialog, shortcutKeys, focusWindow } from './helpers.ts';
+import { SITE, MAC, WIN, showResources, termText, ipcSettled, item, termKeys, shortcutsDialog, shortcutKeys, focusWindow } from './helpers.ts';
 
 test("keys in a profile's page are Chrome's, for its pane: Ctrl+T a tab with the address to type in, Ctrl+W, Ctrl+Shift+T, Ctrl+1 and Ctrl+Tab; the site never gets them", async ({ core, ui }) => {
   // What the site sees: keys with Ctrl (⌘ on macOS).
@@ -45,6 +45,7 @@ test("keys in a profile's page are Chrome's, for its pane: Ctrl+T a tab with the
 });
 
 test("keys in the terminal are the agent's, but Kulisa's own: Ctrl+T reaches the agent; Ctrl+` goes to the page used last and back; Ctrl+Shift+/ lists the keys", async ({ core, ui }) => {
+  await showResources(ui, 'Agents');
   // Sam's pane used last (its address bar: the window knows only its own focus): Ctrl+` goes back to its page.
   const id = await core(async (k, url) => (await k.ensureProfile('Sam', url)).id, `${SITE}/app`);
   await focusWindow(core, ui);

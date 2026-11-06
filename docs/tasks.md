@@ -106,7 +106,9 @@ Example: `~/IdeaProjects/myshop@task-k3x9q2/` can remain on disk while its branc
 Names for Workbench, Activity bar, Side bar, Main pane and their items: [UI terminology](ui.md#workbench-terminology).
 The Activity bar and Side bar share a Dockview edge group fixed left of Main pane. Clicking the selected Activity
 bar item collapses the Side bar; another reopens it at saved width. Task layout saves the selected item, collapse
-state and shared expanded width.
+state and shared expanded width. The active item selects Main pane independently of the Side bar's collapse state.
+Agents restores the selected terminal; Diff restores its comparison, filter and review view. Project and Artifacts
+have separate placeholders; their existing desktop opening actions remain available.
 
 - Expanded minimum width is 300 CSS px; collapsed width is 40 px. Development minimum height is 204 px to keep
   controls reachable. Empty development terminals: [window.md](window.md#the-terminal).
@@ -131,9 +133,12 @@ these fields. `maintree` is human-owned and never deleted; task-created `worktre
 
 [Diff](../src/diff/README.md) reviews task resources through `Task.diff`, `diffTargets`, `review`, `diffContents`,
 with starting commits and ownership checks. Its TaskView owns the selection/session: task switching preserves the
-comparison, filter, document and scroll position; leaving Diff, collapsing the Side bar or closing the task releases
-the session and navigation. Reopening or restarting starts at the first repository/default comparison with an empty
-filter and document start. Returning to a terminal preserves Stage. Loading and polling: [Diff](../src/diff/README.md).
+comparison, filter, document and scroll position. Switching Activity bar items releases Diff's document and query
+data, keeping only the selection and lightweight review view state in the task's controller. Returning reads current
+Git data and restores the comparison, filter, review layout, collapsed diffs and scroll position. Collapsing the
+Side bar leaves Main pane and its review intact. Closing the task releases the session and navigation; restarting
+starts at the first repository/default comparison with an empty filter and document start. Returning to a terminal
+preserves Stage. Loading and polling: [Diff](../src/diff/README.md).
 
 ## What the human does
 

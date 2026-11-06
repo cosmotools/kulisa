@@ -67,7 +67,7 @@ brings it back.
 ### Stage and Workbench
 
 Your coding terminals, **Activity bar** and **Side bar** occupy **Workbench**, the development area.
-Its **Main pane** shows a terminal or Diff review. Browser profiles and interactive terminals occupy **Stage**.
+Its **Main pane** shows the selected Activity bar item's content. Browser profiles and interactive terminals occupy **Stage**.
 Drag Stage headers to arrange/stack environments and thin dividers to resize panes.
 
 **Stage** in the title bar offers:
@@ -87,12 +87,16 @@ returns its arrangement/overflow. The agent can arrange Stage too; each task rem
 
 The **Activity bar** selects **Agents**, **Project**, **Diff** or **Artifacts**. Each button is an **Activity bar item**;
 an entry in the adjacent **Side bar** is a **Side bar item**. Click the selected Activity bar item to collapse the
-Side bar; select another to restore its width. Terminals keep running when the Side bar is collapsed.
+Side bar; select another to restore its width. Each Activity bar item opens its own Main pane, returning to its
+previous view while the task stays open. Collapsing the Side bar keeps Main pane visible. Terminals keep running
+while another Activity bar item is selected or the Side bar is collapsed.
 
 - **Agents** lists coding agents/development shells. Select a row to use its terminal.
 - **Project** starts selected in new tasks. Expand folders, double-click files or press Enter to open them in the
-  system app; right-click for Open/Show in Folder. It follows the current task's code folders.
-- **Artifacts** lists screenshots, page snapshots, request bodies and terminal screens, newest first with source,
+  system app; right-click for Open/Show in Folder. Its Main pane currently shows **choose file**.
+  It follows the current task's code folders.
+- **Artifacts** has its own Main pane showing **choose artifact**. Its Side bar lists screenshots, page snapshots,
+  request bodies and terminal screens, newest first with source,
   time and size. Click to open; right-click to reveal, send to agent or delete. Hover/focus trash deletes one;
   heading trash deletes all. Dragging/sending inserts a path without sending the message. Ask the agent to explain
   or clean up files. Above 100 MB, oldest task artifacts are removed automatically.
@@ -103,10 +107,9 @@ collapsed state.
 ### Reviewing changes
 
 **Diff** opens local, read-only Git review in place of the terminal, which keeps running. **Agents** or the terminal
-focus shortcut returns to it. Every opening reads current files and resets comparison, filter and position.
-Open reviews refresh as the agent edits.
-Switching tasks preserves the review's comparison, filter and position. Restarting restores the selected Activity
-bar item with a fresh review.
+focus shortcut returns to it. Switching Activity bar items preserves the comparison, filter, review layout,
+collapsed diffs and position; returning to Diff reads current files. Open reviews refresh as the agent edits.
+Switching tasks also preserves the review. Restarting restores the selected Activity bar item with a fresh review.
 
 **From** is the task branch/worktree including local edits. **To** defaults to the repository's default branch;
 choose the current branch to see uncommitted changes only. Selecting a target does not change checked-out code.

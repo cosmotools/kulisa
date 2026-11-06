@@ -20,6 +20,10 @@ overlays stay below Dockview separators while menus stay above them.
 `TaskView` keeps an observable outer host while inactive content uses `content-visibility`, `inert` and `aria-hidden`.
 Preserve the retained grid and measurements when changing pane markup; disposal follows task closure, not selection.
 Side bar content uses `SidebarContent` scrolling inside Dockview's named region without duplicate region wrappers.
+`development.ts` owns Activity bar selection; `TaskState.workbenchItem` selects Main pane for every item, including
+while the Side bar is collapsed. Dockview's existing IDs remain the layout persistence boundary. The terminal host
+stays measurable for pending launches; other Main pane content mounts only while selected. Diff keeps lightweight
+view state in its task-owned session across unmounts, releasing query data and the CodeView document.
 
 Profile identity uses a custom notch: masked concave shoulders in `ProfilePane.css` attach it to the pane's top edge.
 This geometry is outside shadcn's component shapes. A narrow pane gives up Back, Forward and Reload into ⋮ in that

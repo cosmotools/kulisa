@@ -1,6 +1,7 @@
 // The task’s development terminal panel (docs/window.md, The terminal); its shared View outlives the panel.
 import { createElement, useEffect, useLayoutEffect, useRef, type Ref } from 'react';
 import { CheckIcon, PlusIcon } from 'lucide-react';
+import { cn } from 'cn';
 import { Avatar, AvatarImage, Button, Item, ItemContent, ItemDescription, ItemMedia, ItemTitle, Spinner } from '@ui';
 import { ButtonMenu, RightClickMenu } from '../components/Menus';
 import { agentMark } from '../components/AgentMark';
@@ -15,7 +16,7 @@ import { termFocus } from '../../terminal/renderer';
 import { Pill } from '../../dictation/renderer';
 
 const NEW_TITLE = 'New conversation of an agent, or a terminal';
-export function DevelopmentTerminals({ reviewing }: { reviewing: boolean }) {
+export function DevelopmentTerminals({ visible }: { visible: boolean }) {
   const host = useRef<HTMLDivElement>(null), launch = useRef<HTMLDivElement>(null);
   const owner = useTaskStore();
   const active = useTaskActive();
@@ -27,7 +28,8 @@ export function DevelopmentTerminals({ reviewing }: { reviewing: boolean }) {
   // The tab in front before its program has started (an agent's is looked for first): a loader over its terminal, which
   // stays laid out meanwhile (the program starts at its size).
   const starting = useTask((s) => s.developmentTerminals.list.find((t) => t.id === s.developmentTerminals.front && t.starting)?.name);
-  const shown = !reviewing && front !== null ? `${task}#${front}` : null;
+  // A new background agent still needs its first measured size before the main process starts it.
+  const shown = (visible || starting) && front !== null ? `${task}#${front}` : null;
 
   useLayoutEffect(() => {
     if (!active) return;
@@ -42,23 +44,23 @@ export function DevelopmentTerminals({ reviewing }: { reviewing: boolean }) {
   useEffect(() => {
     const before = was.current;
     was.current = front;
-    if (!active || reviewing || front === null || !focus && front === before) return;
+    if (!active || !visible || front === null || !focus && front === before) return;
     let cancelled = false;
     const key = `${task}#${front}`;
     void termFocus(key, () => {
       const state = owner.getState();
-      return !cancelled && store.getState().current === task && state.developmentTerminals.front === front && !state.developmentDiff
+      return !cancelled && store.getState().current === task && state.developmentTerminals.front === front && state.workbenchItem === 'terminals'
         && state.developmentTerminalFocus === focus && !dialogsShown() && !panelView.el.contains(document.activeElement);
     }).then(() => {
       if (!cancelled && focus && owner.getState().developmentTerminalFocus === focus) owner.setState({ developmentTerminalFocus: null });
     });
     return () => { cancelled = true; };
-  }, [task, owner, focus, front, reviewing, active]);
+  }, [task, owner, focus, front, visible, active]);
 
   // The big buttons, each a Tab stop (Tab to the next, Enter opens it): the first, the project's default agent, gets the
   // keyboard when the keyboard was in the terminal just closed or nowhere (not taken from a field or a dialog). No keys
   // on them: Ctrl+` opens the task's agent, which the window does not show.
-  const big = empty && alone && !loading && !reviewing;
+  const big = empty && alone && !loading && visible;
   useEffect(() => {
     if (!active || !big) return;
     const take = () => {
@@ -78,7 +80,8 @@ export function DevelopmentTerminals({ reviewing }: { reviewing: boolean }) {
     return t && (e.target as Element).closest('[data-testid="terminal"]') ? terminalMenu(`${task}#${t.id}`, terminalItems(task, t)) : null;
   };
 
-  return <div data-testid='development-terminals' data-empty={empty || undefined} hidden={reviewing} className="relative grid h-full grid-cols-[minmax(0,1fr)] grid-rows-[minmax(0,1fr)] bg-card">
+  return <div data-testid='development-terminals' data-empty={empty || undefined} aria-hidden={!visible || undefined} inert={!visible || undefined}
+    className={cn('absolute inset-0 grid grid-cols-[minmax(0,1fr)] grid-rows-[minmax(0,1fr)] bg-card', !visible && 'invisible')}>
     {big ? <Launchers ref={launch} />
       : empty ? <ButtonMenu items={() => newTerminalItems(task)}><Button data-unfold variant="ghost" size="icon-sm" className="self-center justify-self-center" aria-label="New terminal"
           title={withKeys(NEW_TITLE, 'terminal.new')}><PlusIcon /></Button></ButtonMenu>

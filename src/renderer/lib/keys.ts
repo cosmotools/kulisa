@@ -30,8 +30,10 @@ onDialogs(report); // a dialog opened or closed
 // The folded terminals' panel: the task's agent; a task with none (its project had no default) leaves the choice to the
 // human, the keyboard on the panel's big buttons (task-view/DevelopmentTerminals.tsx), or its + opened.
 const openOwn = async () => {
+  const task = store.getState().current;
+  focusDevelopmentTerminal(task);
   const r = await act('development-terminal:open', { own: true });
-  if (refused(r) || !('none' in r)) return;
+  if (store.getState().current !== task || refused(r) || !('none' in r)) return;
   const first = document.querySelector<HTMLElement>('[data-task-view][data-active] [data-launcher]');
   if (first) { first.focus(); return; }
   // Its menu opens on a press or a key (Radix's), not on a click
@@ -46,7 +48,11 @@ interface Command { n?: number; page?: boolean; p?: Profile; tab?: string }
 // What each command does. page: the key was typed in the profile's page, so the keyboard stays in its pages.
 const run: Record<string, (c: Command) => unknown> = {
   'terminal.focus': () => (!taskStore().getState().developmentTerminals.list.length ? openOwn() : zone === 'terminal' && lastPane ? focusPage(lastPane) : focusDevelopmentTerminal()),
-  'terminal.new': () => act('development-terminal:open'),
+  'terminal.new': async () => {
+    const task = store.getState().current;
+    const result = await act('development-terminal:open');
+    if (!refused(result)) focusDevelopmentTerminal(task);
+  },
   'task.n': ({ n }) => showTask(taskTabs()[n! - 1]),
   'task.next': () => stepTask(1),
   'task.previous': () => stepTask(-1),

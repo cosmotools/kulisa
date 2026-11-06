@@ -327,7 +327,7 @@ test('Continuous review defers large diffs and keeps file navigation in one docu
 });
 
 for (const section of ['Project', 'Artifacts', 'Agents', null, 'restart'] as const)
-test(section === 'restart' ? 'Diff preserves review state across task switches and resets it after restart' : `Diff review resets after ${section ?? 'closing Diff'}`, async ({ core, ui, files, restart }) => {
+test(section === 'restart' ? 'Diff preserves review state across task switches and resets it after restart' : `Diff review survives ${section ?? 'collapsing the Side bar'}`, async ({ core, ui, files, restart }) => {
   const original = await core((k) => k.shell.task.key);
   const repo = committed(path.join(files.root, section ?? 'close-diff', 'review-restore'), 'file.ts', 'export const value = "before";\n');
   git(repo, 'branch', '-M', 'main');
@@ -345,6 +345,7 @@ test(section === 'restart' ? 'Diff preserves review state across task switches a
     await tree.getByRole('combobox', { name: 'To for review-restore' }).click();
     await ui.getByRole('option', { name: 'HEAD', exact: true }).click();
     await tree.getByRole('textbox', { name: 'Filter changed files' }).fill('file.ts');
+    await ui.getByRole('button', { name: 'Collapse diff for file.ts', exact: true }).click();
     await tree.locator('[role="treeitem"][data-item-path="z-file.ts"]').click();
     await expect(ui.locator('[data-task-view][data-active]').getByLabel('Code comparison: z-file.ts', { exact: true })).toContainText('value0');
     await ui.getByRole('radio', { name: 'Split diff', exact: true }).click();
@@ -362,10 +363,22 @@ test(section === 'restart' ? 'Diff preserves review state across task switches a
     await customize();
     if (section) await showResources(ui, section);
     else await ui.getByRole('tab', { name: 'Diff', exact: true }).click();
-    await expect(ui.getByRole('region', { name: 'Diff review', exact: true })).toHaveCount(0);
-    await expect(termKeys(ui)).toBeVisible();
+    if (section) {
+      await expect(ui.getByRole('region', { name: 'Diff review', exact: true })).toHaveCount(0);
+      if (section === 'Agents') await expect(termKeys(ui)).toBeVisible();
+      else await expect(ui.getByRole('region', { name: 'Main pane', exact: true })).toHaveText(section === 'Project' ? 'choose file' : 'choose artifact');
+    } else {
+      await expect(ui.getByRole('region', { name: 'Diff review', exact: true })).toBeVisible();
+      await expect(resourcesGroup(ui).locator('[data-resources]')).toHaveCount(0);
+    }
     await showResources(ui, 'Diff');
-    await fresh();
+    await expect(tree.getByRole('textbox', { name: 'Filter changed files' })).toHaveValue('file.ts');
+    await expect(tree.getByRole('combobox', { name: 'To for review-restore' })).toContainText('HEAD');
+    await expect(tree.locator('[role="treeitem"][data-item-path="z-file.ts"]')).toHaveAttribute('aria-selected', 'true');
+    await expect(ui.getByRole('radio', { name: 'Split diff', exact: true })).toHaveAttribute('aria-checked', 'true');
+    await expect.poll(() => ui.getByRole('region', { name: 'Changed file diffs', exact: true }).evaluate((e) => e.scrollTop)).toBeGreaterThan(0);
+    await expect(ui.getByRole('button', { name: 'Expand diff for file.ts', exact: true })).toHaveAttribute('aria-expanded', 'false');
+    await expect(termKeys(ui)).toHaveCount(0);
     return;
   }
   await customize();

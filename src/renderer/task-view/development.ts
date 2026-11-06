@@ -1,4 +1,4 @@
-// Development content and the Resources edge group (docs/window.md, The grid).
+// Workbench navigation and its Dockview edge group (docs/tasks.md, The Workbench).
 import { DockviewCompositeDisposable } from 'dockview-react';
 import type { DockviewApi, GridviewPanelApi, SerializedDockview } from 'dockview-react';
 import { store as windowStore, shownTask } from '../lib/store';
@@ -7,8 +7,8 @@ import type { DiffSelection } from '../../diff/ipc';
 import { createDiff } from '../../diff/renderer';
 import { menuAt } from '../lib/menu';
 
-export const resourceSections = { terminals: 'Agents', project: 'Project', diff: 'Diff', artifacts: 'Artifacts' } as const;
-export type ResourceSection = keyof typeof resourceSections;
+export const activityItems = { terminals: 'Agents', project: 'Project', diff: 'Diff', artifacts: 'Artifacts' } as const;
+export type ActivityItem = keyof typeof activityItems;
 export const resourcesMinimumHeight = 204;
 const resourcesEdge = { id: 'resources', minimumSize: 300, collapsedSize: 40 } as const;
 
@@ -31,11 +31,7 @@ export class DevelopmentGrid {
       showMenu: menuAt,
     });
   }
-  screen = (): 'agents' | 'diff' => this.store.getState().developmentDiff ? 'diff' : 'agents';
-  get resourceSection(): ResourceSection | null {
-    const group = this.api?.getGroup('resources');
-    return group && !group.api.isCollapsed() ? group.activePanel?.params?.section ?? null : null;
-  }
+  screen = (): ActivityItem => this.store.getState().workbenchItem;
   attach(api: DockviewApi, parent: GridviewPanelApi) { this.api = api; this.parent = parent; }
   dispose() { this.subscriptions.dispose(); this.reviewSession?.client.clear(); this.reviewSession = null; this.api = null; this.parent = null; }
   build(saved: SerializedDockview | null) {
@@ -51,9 +47,9 @@ export class DevelopmentGrid {
       // Import the choices from a saved movable Resources panel.
       const previous = saved?.panels.resources?.params;
       const resources = api.addEdgeGroup('left', { ...resourcesEdge, initialSize: previous?.expandedWidth });
-      for (const [section, title] of Object.entries(resourceSections)) api.addPanel({ id: `resources:${section}`, component: 'resources',
+      for (const [section, title] of Object.entries(activityItems)) api.addPanel({ id: `resources:${section}`, component: 'resources',
         tabComponent: 'resources', title, params: { section }, position: { referenceGroup: 'resources' }, inactive: true });
-      const section = previous?.section && Object.hasOwn(resourceSections, previous.section) ? previous.section : 'project';
+      const section = previous?.section && Object.hasOwn(activityItems, previous.section) ? previous.section : 'project';
       api.getPanel(`resources:${section}`)!.api.setActive();
       if (previous?.section === null) resources.collapse();
     }
@@ -71,31 +67,31 @@ export class DevelopmentGrid {
       resources.onDidCollapsedChange(this.resourceChanged));
     this.resourceChanged();
   }
-  showResource(section: ResourceSection) {
-    this.api?.getPanel(`resources:${section}`)?.api.setActive();
-    this.api?.getEdgeGroup('left')?.expand();
+  showItem(item: ActivityItem) {
+    if (this.api?.getGroup('resources')?.activePanel?.params?.section !== item) {
+      this.api?.getPanel(`resources:${item}`)?.api.setActive();
+    }
+    this.selectItem(item);
+    this.api?.getPanel('terminal')?.api.setActive();
+  }
+  private selectItem(item: ActivityItem) {
+    this.store.setState({ workbenchItem: item });
+    if (item === 'diff' && !this.store.getState().developmentDiff) this.openDiff();
   }
   private resourceChanged = () => {
-    if (this.resourceSection === 'diff') this.openDiff(false);
-    else if (this.store.getState().developmentDiff) this.showAgents();
+    const item = this.api?.getGroup('resources')?.activePanel?.params?.section as ActivityItem | undefined;
+    if (item && Object.hasOwn(activityItems, item)) this.selectItem(item);
     this.changed();
   };
 
-  openDiff = (activate = true) => {
+  private openDiff() {
     const task = shownTask(windowStore.getState(), this.store.getState().key), root = task?.resources[0];
-    if (root) this.showDiff({ folder: root.folder, path: '', options: {} }, activate);
-    else this.showAgents();
-  };
+    if (root) this.showDiff({ folder: root.folder, path: '', options: {} });
+  }
 
-  showAgents = () => {
-    this.reviewSession?.client.clear(); this.reviewSession = null;
-    this.store.setState({ developmentDiff: null });
-    this.changed();
-  };
-
-  private showDiff = (selection: DiffSelection, activate = true) => {
+  private showDiff = (selection: DiffSelection) => {
     this.store.setState({ developmentDiff: { ...selection, navigation: ++this.reviewNavigation } });
-    if (activate) this.api?.getPanel('terminal')?.api.setActive();
+    this.api?.getPanel('terminal')?.api.setActive();
     this.changed();
   };
 
