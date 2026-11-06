@@ -12,7 +12,6 @@ test('Resources starts with Project, expands folders, opens files and follows pr
   const file = path.join(directory, 'readme.txt');
   fs.writeFileSync(file, 'project file');
   await expect(ui.getByRole('tab', { name: 'Project', exact: true })).toHaveAttribute('aria-selected', 'true');
-  await expect(ui.getByRole('region', { name: 'Main pane', exact: true })).toHaveText('choose file');
   await ui.locator('[data-task-view][data-active] [data-resources]').getByRole('button', { name: 'tree-example', exact: true }).click();
   const row = ui.locator('[data-task-view][data-active] [data-resources]').getByRole('button', { name: 'readme.txt', exact: true });
   await expect(row).toBeVisible();
@@ -27,8 +26,6 @@ test('Resources starts with Project, expands folders, opens files and follows pr
     await expect.poll(() => core((k) => k.stash.opened)).toEqual([file, file]);
   } finally { await core((k) => { k.electron.shell.openPath = k.stash.openPath; }); }
   await showResources(ui, 'Artifacts');
-  await expect(ui.getByRole('region', { name: 'Main pane', exact: true })).toHaveText('choose artifact');
-  await expect(termKeys(ui)).toHaveCount(0);
   await expect(row).toHaveCount(0);
   const other = path.join(files.root, 'tree-other-project');
   fs.mkdirSync(other, { recursive: true });
@@ -194,30 +191,4 @@ test('a long terminal list scrolls within Resources and selection focuses its te
     await expect.poll(() => section.locator('[data-sidebar="content"]').evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
     for (const id of await core((k) => [...k.shell.task.developmentTerminals.values()].filter((t) => !t.agent).map((t) => t.id))) await act(ui, 'development-terminal:close', { id });
   } finally { await call('profile_close', { profile: 'Resources.scroll' }); await core((k, bounds) => k.shell.win.setBounds(bounds), bounds); }
-});
-
-
-test('Activity bar items select their own Main pane, including with a collapsed Side bar', async ({ ui, core }) => {
-  const main = ui.locator('[data-task-view][data-active]').getByRole('region', { name: 'Main pane', exact: true });
-  for (const item of ['Project', 'Artifacts', 'Agents'] as const) {
-    await showResources(ui, item);
-    if (item === 'Agents') await expect(termKeys(ui)).toBeVisible();
-    else {
-      await expect(main).toHaveText(item === 'Project' ? 'choose file' : 'choose artifact');
-      await expect(termKeys(ui)).toHaveCount(0);
-    }
-    await resourcesGroup(ui).getByRole('tab', { name: item, exact: true }).click();
-    await expect(resourcesGroup(ui).locator(':scope.dv-edge-collapsed')).toBeVisible();
-    await expect(main).toHaveAttribute('data-workbench-item', item === 'Agents' ? 'terminals' : item.toLowerCase());
-  }
-  await showResources(ui, 'Project');
-  await resourcesGroup(ui).getByRole('tab', { name: 'Project', exact: true }).click();
-  await core((k) => k.press(k.shell.win.webContents, '`', 'control'));
-  await expect(main).toHaveAttribute('data-workbench-item', 'terminals');
-  await expect(resourcesGroup(ui).getByRole('tab', { name: 'Agents', exact: true })).toHaveAttribute('aria-selected', 'true');
-  await expect(termKeys(ui)).toBeFocused();
-  await showResources(ui, 'Artifacts');
-  await core((k) => k.press(k.shell.win.webContents, '`', 'control', 'shift'));
-  await expect(main).toHaveAttribute('data-workbench-item', 'terminals');
-  await expect(termKeys(ui)).toBeFocused();
 });

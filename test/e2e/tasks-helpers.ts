@@ -179,7 +179,6 @@ export async function begin(core: Core, ui: Page, files: Files, { columns = fals
     await showTask(core, ui, shown === 1 ? first : fx);
   }
   await notLoading(ui);
-  await showResources(ui, 'Agents');
   return ids;
 }
 

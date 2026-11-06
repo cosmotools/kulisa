@@ -38,8 +38,6 @@ const start = async (core: Core, data: string, env: Record<string, string> = {})
 };
 
 test("the agent starts at the terminal's real size, not a default one", async ({ core, ui }) => {
-  // The default Project pane must not delay the agent's initial measured size.
-  await expect(ui.getByRole('region', { name: 'Main pane', exact: true })).toHaveText('choose file');
   await showResources(ui, 'Agents');
   // Claude Code draws its prompt for the size it starts with and does not fully redraw on the first resize.
   const shown = await ui.evaluate(() => { const t = (window as any).__term; return { cols: t.cols, rows: t.rows }; });

@@ -16,16 +16,14 @@ Workbench contains three adjacent parts, not three nested containers:
 | Activity bar item | One of those navigation buttons, such as Project. |
 | Side bar | The collapsible pane showing the selected Activity bar item's agents, project tree, changed-file tree or artifacts. |
 | Side bar item | An entry inside that pane: an agent, folder, file or artifact. |
-| Main pane | The selected Activity bar item's content: a development terminal, Diff review, or Project/Artifacts placeholder. |
+| Main pane | The selected Activity bar item's content. |
 
 Append **item** to the containing bar's name when referring to a particular button or entry. Use its visible
 name when useful: “Project Activity bar item” or “the agent's Side bar item”.
-Name Main pane content directly: terminal, Diff review, Project placeholder or Artifacts placeholder.
+Name Main pane content directly: terminal or Diff review.
 
-The navigation relationship is Activity bar item → Side bar items → selected content. Each Activity bar item
-always selects its own Main pane, restoring its previous view within the open task or showing its default.
-Collapsing the Side bar leaves that Main pane selected. Project and Artifacts currently show “choose file” and
-“choose artifact”; their items still open files in the system app.
+The navigation relationship is Activity bar item → Side bar items → selected content. Selecting an Activity bar
+item restores its Main pane; collapsing the Side bar leaves it selected. Project files and artifacts open in the system app.
 Keep Workbench's Side bar distinct from the window's **project sidebar**, which lists projects and tasks.
 
 Layout and lifecycle: [window.md](window.md#the-grid); item actions and saved state: [tasks.md](tasks.md#the-workbench).
@@ -54,12 +52,6 @@ These integration rules take precedence over generic skill instructions:
 - Keep CSS Modules and additional UI libraries out. Standalone CSS needs an owning explanation; see
   [custom drawing](#own-drawing). ESLint checks shipped-control styling, theme colors, raw form controls,
   hook rules and the Fluent UI exclusion; React Compiler memoization rules are not enabled.
-
-## Workbench Side bar headings
-
-Use `SidebarGroup`, `SidebarGroupLabel` and optional `SidebarGroupAction` for Agents, Diff and Artifacts headings.
-Keep the heading present for empty lists. Let the generated components own its height, inset, typography
-and action placement instead of styling a separate text header.
 
 ## Clusters
 

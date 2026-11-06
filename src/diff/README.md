@@ -31,8 +31,6 @@ UI names: [Workbench terminology](../../docs/ui.md#workbench-terminology).
 - First-file navigation targets the document start to preserve its top padding; other files target their headings.
 - TanStack Query shares each visible comparison between the tree and document; zero inactive retention makes
   reopening read Git again. Patches are parsed only for files whose version changes.
-- The session holds one lightweight review view state: comparison identity, Unified/Split mode, collapsed-file
-  versions, scroll position and navigation token. It restores that view after unmounting without retaining the
-  CodeView document or query data. The caller owns session lifetime and clears it when the task closes.
+- The session preserves review view state across unmounts; the caller owns its lifetime and cleanup.
 - Callers set the session's `active` to false while a retained review is hidden, pausing polling without losing queries
   or document state.

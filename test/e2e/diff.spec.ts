@@ -326,7 +326,7 @@ test('Continuous review defers large diffs and keeps file navigation in one docu
   await showTask(core, ui, original);
 });
 
-for (const section of ['Project', 'Artifacts', 'Agents', null, 'restart'] as const)
+for (const section of ['Project', 'Agents', null, 'restart'] as const)
 test(section === 'restart' ? 'Diff preserves review state across task switches and resets it after restart' : `Diff review survives ${section ?? 'collapsing the Side bar'}`, async ({ core, ui, files, restart }) => {
   const original = await core((k) => k.shell.task.key);
   const repo = committed(path.join(files.root, section ?? 'close-diff', 'review-restore'), 'file.ts', 'export const value = "before";\n');
@@ -366,7 +366,6 @@ test(section === 'restart' ? 'Diff preserves review state across task switches a
     if (section) {
       await expect(ui.getByRole('region', { name: 'Diff review', exact: true })).toHaveCount(0);
       if (section === 'Agents') await expect(termKeys(ui)).toBeVisible();
-      else await expect(ui.getByRole('region', { name: 'Main pane', exact: true })).toHaveText(section === 'Project' ? 'choose file' : 'choose artifact');
     } else {
       await expect(ui.getByRole('region', { name: 'Diff review', exact: true })).toBeVisible();
       await expect(resourcesGroup(ui).locator('[data-resources]')).toHaveCount(0);
@@ -378,7 +377,6 @@ test(section === 'restart' ? 'Diff preserves review state across task switches a
     await expect(ui.getByRole('radio', { name: 'Split diff', exact: true })).toHaveAttribute('aria-checked', 'true');
     await expect.poll(() => ui.getByRole('region', { name: 'Changed file diffs', exact: true }).evaluate((e) => e.scrollTop)).toBeGreaterThan(0);
     await expect(ui.getByRole('button', { name: 'Expand diff for file.ts', exact: true })).toHaveAttribute('aria-expanded', 'false');
-    await expect(termKeys(ui)).toHaveCount(0);
     return;
   }
   await customize();

@@ -46,10 +46,8 @@ Native-page geometry reports are task-scoped and coalesced per frame, independen
 The first report permits native pages to show; prepared tasks use stored bounds, swapping native visibility in one
 main-process turn to avoid an empty frame.
 
-One development xterm belongs to the window and moves into the selected TaskView. A terminal waiting to start
-receives its first measured size even when a different Activity bar item is selected; its invisible host retains
-Main pane geometry without taking keyboard focus. After startup, only Agents displays a terminal.
-Buffer rendering and sizing: [terminal](../src/terminal/README.md#the-window-renderer). Stage terminal Views stay with their panes. Inline renderers
+One development xterm belongs to the window and moves into the selected TaskView. Its host stays measurable
+until a pending terminal starts, even while Agents is hidden. Buffer rendering and sizing: [terminal](../src/terminal/README.md#the-window-renderer). Stage terminal Views stay with their panes. Inline renderers
 retain React state when Stage tabs detach inactive DOM; task switching retains each selected tab's DOM.
 
 - Stage menu: Left/Right/Above, Horizontal/Vertical stack or Tabs, Allow overflow, Follow agent, Open an environment.

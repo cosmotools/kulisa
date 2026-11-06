@@ -87,16 +87,13 @@ returns its arrangement/overflow. The agent can arrange Stage too; each task rem
 
 The **Activity bar** selects **Agents**, **Project**, **Diff** or **Artifacts**. Each button is an **Activity bar item**;
 an entry in the adjacent **Side bar** is a **Side bar item**. Click the selected Activity bar item to collapse the
-Side bar; select another to restore its width. Each Activity bar item opens its own Main pane, returning to its
-previous view while the task stays open. Collapsing the Side bar keeps Main pane visible. Terminals keep running
-while another Activity bar item is selected or the Side bar is collapsed.
+Side bar; select another to restore its width. Each Activity bar item restores its Main pane while the task stays
+open. Collapsing the Side bar leaves Main pane visible; terminals keep running while other items are selected.
 
 - **Agents** lists coding agents/development shells. Select a row to use its terminal.
 - **Project** starts selected in new tasks. Expand folders, double-click files or press Enter to open them in the
-  system app; right-click for Open/Show in Folder. Its Main pane currently shows **choose file**.
-  It follows the current task's code folders.
-- **Artifacts** has its own Main pane showing **choose artifact**. Its Side bar lists screenshots, page snapshots,
-  request bodies and terminal screens, newest first with source,
+  system app; right-click for Open/Show in Folder. It follows the current task's code folders.
+- **Artifacts** lists screenshots, page snapshots, request bodies and terminal screens, newest first with source,
   time and size. Click to open; right-click to reveal, send to agent or delete. Hover/focus trash deletes one;
   heading trash deletes all. Drag an artifact to another app or folder; Send to Agent selects Agents and inserts
   its path without sending the message. Ask the agent to explain or clean up files. Above 100 MB, oldest task
