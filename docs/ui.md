@@ -20,10 +20,13 @@ Workbench contains three adjacent parts, not three nested containers:
 
 Append **item** to the containing bar's name when referring to a particular button or entry. Use its visible
 name when useful: “Project Activity bar item” or “the agent's Side bar item”.
-Name Main pane content directly: terminal or Diff review.
+Name Main pane content directly: terminal, code editor or Diff review.
 
 The navigation relationship is Activity bar item → Side bar items → selected content. Selecting an Activity bar
-item restores its Main pane; collapsing the Side bar leaves it selected. Project files and artifacts open in the system app.
+item restores its Main pane; collapsing the Side bar leaves it selected. Project text files open in its code editor;
+other files and artifacts open in the system app. Editor ownership: [Editor](../src/editor/README.md).
+The code surface uses JetBrains-style syntax palettes (the author's choice); its controls retain the neutral
+window theme. Palette variables belong to `src/renderer/window.css`, their mapping and keyboard behavior to Editor.
 Keep Workbench's Side bar distinct from the window's **project sidebar**, which lists projects and tasks.
 
 Layout and lifecycle: [window.md](window.md#the-grid); item actions and saved state: [tasks.md](tasks.md#the-workbench).

@@ -3,6 +3,7 @@
 // act). docs/window.md, IPC. An answer the window does not read is `void`: the main process may answer anything there
 // (the tests read some).
 import type { ProjectFile } from '../project-explorer/ipc.ts';
+import type { EditorAction, EditorSnapshot } from '../editor/ipc.ts';
 import type { Result } from './result.ts';
 import type { DiffOptions, Diff, FileDiff, Review } from '../diff/ipc.ts';
 import type { StageTerminal, StageTerminalsState, TerminalSize } from './stage-terminal.ts';
@@ -98,6 +99,7 @@ export interface Invoke extends TerminalInvoke, ThumbnailInvoke, GitHubInvoke, D
   'task:diff:review': I<[{ key: string; folder: string; options: DiffOptions; load?: string[] }], Result<Review>>;
   'task:diff:contents': I<[{ key: string; folder: string; path: string; options: DiffOptions }], Result<FileDiff>>;
   'task:file:open': I<[{ key: string; file: string }], Result>;
+  'task:editor': I<[{ key: string; action: EditorAction }], Result<EditorSnapshot>>;
   'task:artifact:refresh': I<[string]>; // the task's artifacts sent again (Resources.tsx: the task shown)
   'task:artifact:send': I<[{ key: string; file: string }], Result>;
   'task:artifact:drag': I<[{ key: string; file: string }], Result>;
@@ -182,6 +184,7 @@ export interface Send extends TerminalSend, ThumbnailSend {
 
 // webContents.send (AppWindow.send) / the window's kulisa.on: what the main process tells a window.
 export interface Events extends TerminalEvents, ThumbnailEvents, DictationEvents {
+  'task:editor:state': { task: string; state: EditorSnapshot };
   'project:state': ProjectsInfo;
   'profile:state': { task: string; list: Profile[] };
   'profile:closed': { task: string; list: ClosedProfile[] };
@@ -209,7 +212,7 @@ export interface Events extends TerminalEvents, ThumbnailEvents, DictationEvents
   'master:url': string;
   'settings:show': SettingsAt;
   'settings:changed': void; // the profiles changed elsewhere (another window, the agent): Settings' lists read again
-  'log:lines': { text: string } | { reset: true }; // what the log got since it was read; turned over: read it again
+  'log:lines': ({ text: string } | { reset: true }) & { stream: number }; // updates belong to one snapshot; turned over: read again
   'window:blur': void; // a tasks' window left (another window, another app): its menus close (lib/cover.ts)
 }
 

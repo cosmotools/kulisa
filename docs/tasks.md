@@ -114,8 +114,9 @@ state and shared expanded width.
   row selection shows/focuses it. + uses the shared launch menu; × asks for agents, closes shells
   immediately. Agent menu: Change agent, New Conversation, Close.
 - **Project**: initially selected Activity bar item; [Project Explorer](../src/project-explorer/README.md) browses task resource roots.
-  Core supplies roots, protected desktop opening and repository actions. Root click expands, double-click opens in
-  the OS; added copies have remove actions, main/default task folder does not.
+  Core supplies roots, the [Editor](../src/editor/README.md), protected desktop opening and repository actions.
+  A single file click selects its row; double-click/Enter opens text in Project's Main pane; other files use
+  the system app. Root click expands, double-click opens in the OS; added copies have remove actions, main/default task folder does not.
 - **Artifacts**: newest-first screenshots/snapshots/request-response bodies/terminal text, with source, time and
   size derived from files/metadata (`artifacts.ts`). Create thumbnails serially in main, cache while task loaded,
   and send list updates asynchronously so large images do not delay agent launch.
@@ -164,7 +165,7 @@ to the human; the window's IPC (`ipc/`) and the MCP tools are handles on it:
 | Read what was said and done in the task before | its terminal, scrolled back | `task_history` ([transcripts.md](transcripts.md)) | `historyPart` (`history.ts`) |
 | Delete a task | Delete Task… in its tab's menu; its 🗑 in the sidebar | none: it deletes work and sign-ins, the human's to decide | `askDeleteTask`, `deleteTask`, `deleteClosedTask` (`projects.ts`) |
 | Show a task | a click on its tab, of any project | none: what the human looks at is theirs | `AppWindow.show` (`window.ts`) |
-| Browse a task’s folders, open a file | Project in the Side bar; double-click or Enter on a file, its Open menu | the agent reads and opens files through its own tools | `task:file:list`, `task:file:open` (`Task.files`, `Task.openProjectFile`; Project Explorer confines reads to its roots) |
+| Browse a task’s folders, open/edit a file | Project in the Side bar; double-click/Enter, Open or Open in System Application | the agent reads/writes files through its own filesystem tools; human drafts and conflict choices stay human-owned | `task:file:list`, `task:editor`, `task:file:open` (`Task.files`, `Task.editor`, `Task.openProjectFile`; reads/writes confined to current roots) |
 | Review local code changes | Diff Activity bar item, continuous file diffs; Unified or Split | the agent reads its Git repository through its own tools | `task:diff:list`, `task:diff:targets`, `task:diff:review`, `task:diff:contents` (`Task.diff`, `Task.diffTargets`, `Task.review`, `Task.diffContents`) |
 | Open a resource's folder | double-click its root in the Side bar, or Open Folder in its menu | none: the agent opens folders through its own tools | `task:open-folder` (`ipc/tasks.ts`) |
 | Open an artifact, show it in its folder | a click on its Side bar item, its menu | none: the tools' answers give the agent its path | `file:open`, `file:show` (`file-links.ts`) |
@@ -374,6 +375,8 @@ projects/<project id>/            a project's data, by its id (projects.json), g
                                   or a body too large for an answer, a screenshot; <n>-<profile id>-<tab id>-<kind>, n in
                                   the order made; Stage terminal text: <n>-terminal-<id>-terminal.txt; never replaced,
                                   past 100 MB the oldest go; kept with the task
+    editor/                       open text files and recoverable drafts, owned/limited/cleaned by the Editor
+                                  Kulisa package (src/editor/README.md); removed with the task
     <id>/                         its copy of a master, named by the profile's id, made at its first open here: a Chromium profile
                                   (session.fromPath), with Kulisa's own files in it:
       Kulisa Tabs.json              the URLs of its tabs and which is in front

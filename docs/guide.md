@@ -91,8 +91,12 @@ Side bar; select another to restore its width. Each Activity bar item restores i
 open. Collapsing the Side bar leaves Main pane visible; terminals keep running while other items are selected.
 
 - **Agents** lists coding agents/development shells. Select a row to use its terminal.
-- **Project** starts selected in new tasks. Expand folders, double-click files or press Enter to open them in the
-  system app; right-click for Open/Show in Folder. It follows the current task's code folders.
+- **Project** starts selected in new tasks. Expand folders; click a file to select it, double-click or press Enter
+  to open text in the code editor. Changes save automatically after a short pause. Open files appear as tabs;
+  × closes one. Their right-click menu opens the system app, reveals the file or closes it; **Close All** closes
+  all open files. If changes cannot be saved, closing asks before discarding them; Cancel stops closing the
+  remaining files. Right-click a file for Open, Open in System Application or Show in Folder. It follows the
+  current task's code folders.
 - **Artifacts** lists screenshots, page snapshots, request bodies and terminal screens, newest first with source,
   time and size. Click to open; right-click to reveal, send to agent or delete. Hover/focus trash deletes one;
   heading trash deletes all. Drag an artifact to another app or folder; Send to Agent selects Agents and inserts
@@ -101,6 +105,21 @@ open. Collapsing the Side bar leaves Main pane visible; terminals keep running w
 
 Drag the Side bar's divider to change its width. Each task keeps its selected Activity bar item, width and
 collapsed state.
+
+The code editor supports UTF-8 files up to 1 MB, including files without an extension, and up to twelve open files.
+Other files open in the system app; executable files are not launched. Undo/redo and search/replace are available in
+the editor. Switching files, tasks or Activity bar items keeps your editing state. Restart restores open files and
+received unsaved drafts; undo history and cursor position start fresh.
+Use Ctrl/Cmd+F to find, Ctrl/Cmd+R to replace, Shift+Enter to insert a line below and Alt+Shift+Up/Down to move lines.
+Ctrl/Cmd+/ toggles a line comment; Ctrl+Shift+/ toggles a block comment on Windows/Linux, Cmd+Alt+/ on macOS.
+Other shortcuts follow the editor's defaults; this is not the complete JetBrains keymap.
+
+When an agent changes an open file, a saved document updates automatically. If you also have unsaved changes,
+autosave pauses and keeps your text. **Compare versions** shows the disk version and your changes; choose **Use disk
+version** or **Keep my changes**. If the file changes again before your choice, compare the latest version first.
+An unavailable/deleted file keeps your text: **Retry** checks again and **Copy text** lets you recover it elsewhere.
+Closing a file whose changes cannot be saved asks before discarding them.
+Unsaved drafts belong to their task and are removed when you delete that task.
 
 ### Reviewing changes
 

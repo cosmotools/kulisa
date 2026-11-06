@@ -38,7 +38,8 @@ The outer Workbench minimum includes this edge group because Dockview's central 
 Hidden TaskViews use `content-visibility: hidden`, `inert` and `aria-hidden` to retain UI state without rendering or
 accepting input. Window controls address the selected task; pane actions stay bound to their owning TaskView.
 Task switching cancels pending focus/drag requests; closing releases subscriptions and Stage terminal Views.
-Project Explorer and Diff receive the task's active state to pause background polling.
+Project Explorer and Diff receive the task's active state to pause background polling. The [Editor](../src/editor/README.md)
+also pauses disk polling while hidden; its core-owned autosave continues independently of the rendered view.
 
 The outer host stays observable outside skipped contents, keeping hidden grids sized with the window. Nested grids
 receive parent dimensions through `api.layout()` with autoresizing disabled to avoid waiting for hidden observers.
@@ -328,6 +329,7 @@ logging. Lines carry ISO time with local offset, level and tag:
 - `[mcp]`: every tool the agent calls (`mcp-server.ts`), its task and terminal, its arguments; one that failed, with
   its error.
 - `[key]`: a key of Kulisa's taken (`shortcuts.ts`), where the keyboard was.
+- `[editor]`: a project file opened, reloaded, autosaved or closed, a conflict choice or refused save; never its text.
 - `[page-menu]`: a row of a page's right-click menu chosen (`page-menu.ts`), its profile and tab.
 - `[hook]`: an agent's hook event (`agent-hooks.ts`), its task and terminal.
 - `[project]`: a project loaded, its id named by the project's name and folder (the home folder as `~`):
@@ -381,6 +383,9 @@ issue #73) is where the human reads it and passes it on, by any means: not every
   once, so what came since is read from the file at the end of the same tick and sent, a burst of lines as one
   (`readLog` in `log.ts`; the last page that read is the one followed). The file turned over under it (shorter than
   what was read): the page reads it again. Nothing of this is logged: a line of its own would send it again.
+  Each snapshot and its updates share a stream identity. The page buffers updates during a read and replays only
+  the matching stream, so messages queued by a previous opening cannot duplicate the new snapshot. Rotation bounds
+  pending stream data; leaving the page drops it.
 - TanStack Virtual draws the visible entries with a buffer; wrapped entries are measured, and the whole log scrolls
   continuously. Filters search the whole log before virtualization. Stable entry ids keep measurements across filters.
 - A line each with its time (the date in its tooltip) and its tag, the tag in the color of who acted (the theme's: success the agent, warning the human,
@@ -389,7 +394,7 @@ issue #73) is where the human reads it and passes it on, by any means: not every
   goes back to the end when checked again.
 - What to show (a toolbar's radio buttons, one always chosen) and a text filter on top of it (a task's key, `wc=1`, a
   tag): **All**; **Errors** (warn and error lines, `[page]`, `[electron]`, an action refused or failed); **Agent**
-  (`[mcp]`, `[hook]`, `[terminal]`); **Human** (`[ipc]`, `[key]`, `[settings]`); **Tasks** (`[task]`, `[window]`,
+  (`[mcp]`, `[hook]`, `[terminal]`); **Human** (`[ipc]`, `[key]`, `[settings]`, `[editor]`); **Tasks** (`[task]`, `[window]`,
   `[kulisa]`). Nothing left says so.
 - Under it: the file's size of its 1 MB, when `kulisa.old.log` is from, and what is never in the log.
 - **Copy All** (the whole log to the clipboard), **Save As…** (a copy of the file where the human says, their Downloads

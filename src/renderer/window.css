@@ -11,6 +11,38 @@
 .dark { --warning: oklch(0.8 0.15 80); --success: oklch(0.72 0.17 150); }
 @theme inline { --color-warning: var(--warning); --color-success: var(--success); }
 
+/* The code surface follows IntelliJ's Light/JetBrains Dark palettes (the author's choice). Its controls keep
+   the window's neutral theme; src/editor/README.md owns the palette sources and the supported keymap. */
+:root {
+  --code-light-foreground: #080808;
+  --code-light-background: #ffffff;
+  --code-light-comment: #8c8c8c;
+  --code-light-keyword: #0033b3;
+  --code-light-string: #067d17;
+  --code-light-constant: #1750eb;
+  --code-light-function: #00627a;
+  --code-light-property: #871094;
+  --code-light-active-line: #f5f8fe;
+  --code-light-selection: #a6d2ff;
+  --code-light-line-number: #aeb3c2;
+  --code-light-bracket-match: #93d9d9;
+  --code-dark-foreground: #bcbec4;
+  --code-dark-background: #1e1f22;
+  --code-dark-comment: #7a7e85;
+  --code-dark-keyword: #cf8e6d;
+  --code-dark-string: #6aab73;
+  --code-dark-constant: #2aacb8;
+  --code-dark-function: #56a8f5;
+  --code-dark-property: #c77dbb;
+  --code-dark-active-line: #26282e;
+  --code-dark-selection: #214283;
+  --code-dark-line-number: #4b5059;
+  --code-dark-bracket-match: #43454a;
+  --code-background: var(--code-light-background);
+  --code-line-number: var(--code-light-line-number);
+}
+.dark { --code-background: var(--code-dark-background); --code-line-number: var(--code-dark-line-number); }
+
 @layer base {
   /* A desktop app, not a web page: the window never scrolls, also not from a script (scrollIntoView); a part scrolls
      inside. Labels and buttons are no text to select, fields are. */

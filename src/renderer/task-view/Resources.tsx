@@ -9,7 +9,7 @@ import { ProjectDirectory, type ExplorerActions } from '../../project-explorer/r
 import { menuAt } from '../lib/menu';
 import { RightClickMenu } from '../components/Menus';
 import { shownTask, useWindow } from '../lib/store';
-import { useTask, useTaskActive } from './state';
+import { useTask, useTaskActive, useTaskGrid } from './state';
 import type { MenuItem } from '../lib/menu';
 import { activityItems, type ActivityItem } from './development';
 import { sizeText } from '../../shared/bytes';
@@ -65,15 +65,18 @@ function TaskDictation() {
 }
 
 function TaskResources({ section }: { section: ActivityItem }) {
+  const [selectedPath, selectPath] = useState<string | null>(null);
+  const grid = useTaskGrid();
   const key = useTask((s) => s.key);
   const task = useWindow((s) => shownTask(s, key));
   const active = useTaskActive();
   const explorer = useMemo<ExplorerActions>(() => ({
     readFolder: (folder) => kulisa.invoke('task:file:list', { key, folder }),
-    openFile: (file) => kulisa.invoke('task:file:open', { key, file }),
+    openFile: (file) => grid.development.editor.open(file),
+    openExternal: (file) => kulisa.invoke('task:file:open', { key, file }),
     showFile: (file) => kulisa.invoke('file:show', file),
     showMenu: menuAt,
-  }), [key]);
+  }), [key, grid]);
   const artifacts = useTask((s) => s.artifacts.list);
   const bytes = useTask((s) => s.artifacts.bytes);
   const names = useTask(useShallow((s) => Object.fromEntries([...s.profiles, ...s.closedProfiles].map((p) => [p.id, p.name]))));
@@ -100,14 +103,14 @@ function TaskResources({ section }: { section: ActivityItem }) {
           <SidebarGroup><SidebarGroupContent>
             <SidebarMenu aria-label="Folders">
               {task.resources.map((r) => <SidebarMenuItem key={r.folder}><RightClickMenu items={() => [{ label: 'Open Folder', run: () => open(r.folder) }, ...(r.removable ? [{ label: 'Remove Repository', run: () => remove(r.folder) }] : [])]}><Collapsible defaultOpen>
-                <div className="not-hover:[--muted:transparent]"><CollapsibleTrigger asChild><Button variant="ghost" aria-label={r.label} title={r.folder} className="h-auto w-full justify-start" onDoubleClick={() => void open(r.folder)}>
+                <div className="not-hover:[--muted:transparent]"><CollapsibleTrigger asChild><Button variant={selectedPath === r.folder ? 'secondary' : 'ghost'} data-selected={selectedPath === r.folder} aria-label={r.label} title={r.folder} className="h-auto w-full justify-start" onClick={() => selectPath(r.folder)} onDoubleClick={() => void open(r.folder)}>
                   <ChevronRightIcon className="group-aria-expanded/button:rotate-90" />
                   {r.kind === 'maintree' ? <FolderIcon /> : <GitBranchIcon />}
                   {lines(r.label, r.branch ? `branch ${r.branch}` : 'main working tree')}
                 </Button></CollapsibleTrigger></div>
                 {r.removable && <SidebarMenuAction showOnHover aria-label="Remove Repository" title="Remove Repository" onClick={() => void remove(r.folder)}>
                   <Trash2Icon /></SidebarMenuAction>}
-                <CollapsibleContent><div className="ms-4"><ProjectDirectory actions={explorer} folder={r.folder} active={active} /></div></CollapsibleContent>
+                <CollapsibleContent><div className="ms-4"><ProjectDirectory actions={explorer} folder={r.folder} selection={{ path: selectedPath, select: selectPath }} active={active} /></div></CollapsibleContent>
               </Collapsible></RightClickMenu></SidebarMenuItem>)}
             </SidebarMenu>
           </SidebarGroupContent></SidebarGroup>
