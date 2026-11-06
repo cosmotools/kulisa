@@ -5,7 +5,7 @@ import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
 import type { Files } from './data.ts';
-import { menu, choose, closeMenu, rightClick, tabProjects, projectTab, projectTabSel, showProject, focusWindow, closeSettings, settingsClosed, invoke, act, typeIn, answer, notLoading, projectMenu, otherPage, pageOf, onRow, removed,
+import { menu, choose, showResources, closeMenu, rightClick, tabProjects, projectTab, projectTabSel, showProject, focusWindow, closeSettings, settingsClosed, invoke, act, typeIn, answer, notLoading, projectMenu, otherPage, pageOf, onRow, removed,
   navRow, thingRow, openThing, pathOf, group, settingsMenu, listRows, listRow } from './helpers.ts';
 import { SAM, begin, newTask, openFolder, projectShown } from './tasks-helpers.ts';
 import { fakeAgent } from './agent-helpers.ts';
@@ -220,6 +220,7 @@ test("projects: the projects' manager (Project Settings…) changes its name and
   await expect.poll(() => core((k, a) => k.shell.task.key !== a && k.settled(), annTask)).toBe(true);
   await notLoading(ui);
   const bare = await core((k) => k.shell.task.key);
+  await showResources(ui, 'Agents');
   await expect(ui.getByRole('navigation', { name: 'New terminal' })).toMatchAriaSnapshot(`
     - navigation "New terminal":
       - button "Fake agent"

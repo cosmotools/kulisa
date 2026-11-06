@@ -9,7 +9,7 @@ import { expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import type { Core, Call } from './fixtures.ts';
 import type { Files } from './data.ts';
-import { SITE, answer, invoke, notLoading, viewOn, arrange, stageDock } from './helpers.ts';
+import { SITE, showResources, answer, invoke, notLoading, viewOn, arrange, stageDock } from './helpers.ts';
 
 export const SAM = 'Sam.admin', ELON = 'Elon.buyer';
 export const rand = () => crypto.randomBytes(3).toString('hex');
@@ -122,7 +122,7 @@ type Begin = {
 };
 // The test project's task-1 shown, named so, with Sam.admin (the fox, "seller in the test shop") signed in to the test
 // site and Elon.buyer (the owl) signed out open in it (a closed one opened again, a missing one made), laid out, the
-// agent's output watched. Sam's and Elon's ids.
+// agent's output watched and Agents selected in Workbench. Sam's and Elon's ids.
 export async function begin(core: Core, ui: Page, files: Files, { columns = false, featureX = false, only = false, shown = 1 }: Begin = {}) {
   const pid = files.pid('project'), call = typeof featureX === 'function' ? featureX : null;
   if ((only || call) && !fs.existsSync(path.join(files.project, '.git'))) gitProject(files.project);
@@ -151,6 +151,7 @@ export async function begin(core: Core, ui: Page, files: Files, { columns = fals
   }, only);
   if (columns) await expect(ui.locator('[data-task-view][data-active] [data-panel^="profile:"]')).toHaveCount(2); // a pane stacked behind another has no .pane drawn
   await notLoading(ui);
+  await showResources(ui, 'Agents');
   // Unstack first: a page stacked behind another's tab is never laid out, and ensureProfile waits for that.
   const arrangeProfiles = async () => {
     await arrange(ui, 'above');
@@ -174,6 +175,7 @@ export async function begin(core: Core, ui: Page, files: Files, { columns = fals
       if (await core((k, a) => [...k.shell.taskByKey(a.fx).closed.values()].some((c) => c.cfg.name === a.profile), { fx, profile })) await call('profile_open', { profile }, { task: fx });
     }
     if (columns && call) await arrangeProfiles();
+    await showResources(ui, 'Agents');
     await showTask(core, ui, shown === 1 ? first : fx);
   }
   await notLoading(ui);

@@ -5,7 +5,7 @@ import path from 'path';
 import { sizeText } from '../../src/shared/bytes.ts';
 import { test, expect } from './fixtures.ts';
 import type { Call } from './fixtures.ts';
-import { showResources, SITE, PORT, upTo, attr, menu, choose, rightClick, invoke, termText, termKeys, WIN } from './helpers.ts';
+import { resourcesGroup, showResources, SITE, PORT, upTo, attr, menu, choose, rightClick, invoke, termText, termKeys, WIN } from './helpers.ts';
 import { profiles, opened } from './agent-helpers.ts';
 
 // A snapshot and a response body too large for an answer, each a file of the task's, as an agent leaves them; the tab
@@ -198,6 +198,7 @@ test("Resources: the agent's artifacts listed as it makes them, the newest first
   await expect.poll(() => termText(ui)).toContain(shot);
   await expect(termKeys(ui)).toBeFocused();
   await core((k) => k.shell.pty.write('\x15'));
+  await showResources(ui, 'Artifacts');
   await rightClick(ui, '[data-task-view][data-active] [data-resources] [data-file]');
   await choose(ui, 'Delete');
   await expect(row(shot)).toHaveCount(0);
@@ -233,7 +234,7 @@ test('screenshots from the agent show the same thumbnail, copy JPEG as PNG, and 
   expect(fs.existsSync(file)).toBe(false);
 });
 
-test('Resources artifacts drag as disk files into the terminal without sending the prompt', async ({ core, ui, call, files }) => {
+test('Artifacts drag as disk files and Send to Agent inserts their paths without submitting the prompt', async ({ core, ui, call, files }) => {
   await profiles(core);
   await largeFiles(call);
   const screenshot = (await call('browser_screenshot', { profile: 'Elon.buyer' })).text.match(/^Saved as (.+\.jpg)$/)[1];
@@ -243,21 +244,18 @@ test('Resources artifacts drag as disk files into the terminal without sending t
     const wc = k.shell.windows[0].win.webContents;
     k.stash.startDrag = wc.startDrag;
     k.stash.dragged = [];
-    // Native OS dragging is outside CDP: record its disk file, then deliver a disk-backed drop through CDP below.
+    // Native OS dragging is outside CDP; observe the file handed to the desktop without moving a real file.
     wc.startDrag = (item) => { k.stash.dragged.push({ file: item.file, icon: typeof item.icon === 'string' ? !item.icon : item.icon.isEmpty() }); };
   });
-  const terminal = ui.locator('[data-task-view][data-active]').getByTestId('terminal');
-  const cdp = await ui.context().newCDPSession(ui);
   try {
     for (const file of [screenshot, snapshot]) {
       const before = await core((k) => k.ptyOutput());
-      await ui.locator(`[data-task-view][data-active] [data-resources] ${attr('data-file', file)}`).dragTo(terminal);
+      await showResources(ui, 'Artifacts');
+      const row = ui.locator(`[data-task-view][data-active] [data-resources] ${attr('data-file', file)}`);
+      await row.dragTo(resourcesGroup(ui).getByRole('tab', { name: 'Artifacts', exact: true }));
       await expect.poll(() => core((k) => k.stash.dragged.at(-1))).toEqual({ file, icon: false });
-      const box = await terminal.boundingBox();
-      for (const type of ['dragEnter', 'dragOver', 'drop'] as const) {
-        await cdp.send('Input.dispatchDragEvent', { type, x: box.x + box.width / 2, y: box.y + box.height / 2,
-          data: { items: [], files: [file], dragOperationsMask: 1 } });
-      }
+      await rightClick(ui, row);
+      await choose(ui, 'Send to Agent');
       await expect.poll(() => termText(ui)).toContain(file);
       await expect(termKeys(ui)).toBeFocused();
       if (!WIN) expect((await core((k) => k.ptyOutput())).slice(before.length), 'the prompt is not submitted').not.toMatch(/[\r\n]/);
@@ -268,7 +266,6 @@ test('Resources artifacts drag as disk files into the terminal without sending t
       expect((await invoke(ui, channel, { key, file: path.join(files.project, 'package.json') })).error).toMatch(/not an artifact/);
     }
   } finally {
-    await cdp.detach();
     await core((k) => { k.shell.windows[0].win.webContents.startDrag = k.stash.startDrag; });
   }
 });
@@ -296,7 +293,7 @@ test("artifacts: what they take, in Resources' heading and for the agent, which 
   await expect(call('task_artifacts_delete', { files: [path.join(files.root, 'package.json')] })).rejects.toThrow(/not an artifact of this task/);
   await showResources(ui, 'Artifacts');
   await ui.locator('[data-task-view][data-active] [data-resources]').getByRole('button', { name: 'Delete All Artifacts' }).click();
-  await expect(heading).toHaveCount(0);
+  await expect(heading).toHaveText('0 KB');
   await expect.poll(() => fs.readdirSync(dir).length).toBe(0);
   expect((await call('task_artifacts', {})).text).toMatch(/^This task's artifacts: 0 KB in 0 file\(s\)\.$/);
 });

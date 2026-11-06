@@ -17,14 +17,12 @@ const frontKey = () => { const { task, front } = taskStore().getState().developm
 // The terminals' panel's xterm, one for the window: task-view/DevelopmentTerminals.tsx puts it in whichever grid is shown and
 // gives it the theme's colors.
 export const panelView = new View(termStyle());
-export const shownTerm = () => (taskGrid(store.getState().current)?.development.screen() === 'agents' && panelView.key && panelView.key === frontKey() ? panelView.term : null);
+export const shownTerm = () => (taskGrid(store.getState().current)?.development.screen() === 'terminals' && panelView.key && panelView.key === frontKey() ? panelView.term : null);
 
 export function focusDevelopmentTerminal(task = store.getState().current) {
   const development = taskGrid(task)?.development;
   if (!development || store.getState().current !== task) return;
-  development.showAgents();
-  if (development.resourceSection === 'diff') development.showResource('terminals');
-  development.api?.getPanel('terminal')?.api.setActive();
+  development.showItem('terminals');
   taskStore(task).setState({ developmentTerminalFocus: {} });
 }
 
@@ -72,7 +70,7 @@ kulisa.on('terminal:restore', (list) => { for (const [key, t] of Object.entries(
 
 kulisa.on('development-terminal:focus', () => focusDevelopmentTerminal());
 
-// The right-click menu of a terminal (its key): an agent's ends with what its Resources row's menu has, a
+// The right-click menu of a terminal (its key): an agent's ends with what its Side bar item's menu has, a
 // shell's with Close.
 export function terminalMenu(key: string, more: MenuItem[]): MenuItem[] | null {
   const t = panelView.key === key ? panelView.term : null;
@@ -108,7 +106,7 @@ export const newTerminalItems = (task: string): MenuItem[] => [
   ...(projectAgents(task).length ? ['-' as const] : []),
   { label: 'Terminal', agent: 'shell', keys: keyText('terminal.new'), run: () => actionsFor(task)('development-terminal:open') },
 ];
-// Shared actions in a terminal’s Resources row and screen menu.
+// Shared actions in a terminal’s Side bar item and screen menu.
 export const terminalItems = (task: string, t: DevelopmentTerminalInfo): MenuItem[] => [
   ...(t.agent ? [
     { label: 'Change agent…', run: async () => { const d = await dialog('handover'); if (store.getState().current === task) await d.open(t); } },

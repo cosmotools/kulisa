@@ -1,4 +1,4 @@
-// The Resources panel of the grid (docs/tasks.md, The Resources panel).
+// Workbench Activity bar and Side bar (docs/tasks.md, The Workbench).
 import { useEffect, useMemo, useState } from 'react';
 import { ChevronRightIcon, FileIcon, FilesIcon, FolderIcon, FolderTreeIcon, GitBranchIcon, GitCompareArrowsIcon, TerminalSquareIcon, Trash2Icon } from 'lucide-react';
 import type { IDockviewPanelProps, IDockviewPanelHeaderProps, IDockviewHeaderActionsProps } from 'dockview-react';
@@ -11,7 +11,7 @@ import { RightClickMenu } from '../components/Menus';
 import { shownTask, useWindow } from '../lib/store';
 import { useTask, useTaskActive } from './state';
 import type { MenuItem } from '../lib/menu';
-import { resourceSections, type ResourceSection } from './development';
+import { activityItems, type ActivityItem } from './development';
 import { sizeText } from '../../shared/bytes';
 import { Dictation } from '../../dictation/renderer';
 import { useShortcuts } from '../lib/common';
@@ -27,9 +27,9 @@ const when = (t: number) => (day(t) === day(Date.now()) ? new Date(t).toLocaleTi
   : new Date(t).toLocaleDateString([], { day: 'numeric', month: 'short' }));
 const openFile = (file: string) => kulisa.invoke('file:open', file);
 
-export function ResourceIcon({ params }: IDockviewPanelHeaderProps<{ section: ResourceSection }>) {
+export function ResourceIcon({ params }: IDockviewPanelHeaderProps<{ section: ActivityItem }>) {
   const Icon = { terminals: TerminalSquareIcon, project: FolderTreeIcon, diff: GitCompareArrowsIcon, artifacts: FilesIcon }[params.section];
-  return <span title={resourceSections[params.section]} className="grid h-10 w-full place-items-center"><Icon className="size-4" /></span>;
+  return <span title={activityItems[params.section]} className="grid h-10 w-full place-items-center"><Icon className="size-4" /></span>;
 }
 export function ResourceActions({ api, group, location }: IDockviewHeaderActionsProps) {
   const key = useTask((s) => s.key);
@@ -45,7 +45,7 @@ export function ResourceActions({ api, group, location }: IDockviewHeaderActions
   }, [api, group, location?.type, key]);
   return location?.type === 'edge' ? <div className="grid place-items-center py-1"><TaskDictation /></div> : null;
 }
-export function Resources({ api, params }: IDockviewPanelProps<{ section: ResourceSection }>) {
+export function Resources({ api, params }: IDockviewPanelProps<{ section: ActivityItem }>) {
   const [visible, setVisible] = useState(api.isVisible && !api.group.api.isCollapsed());
   useEffect(() => {
     const update = () => setVisible(api.isVisible && !api.group.api.isCollapsed());
@@ -64,7 +64,7 @@ function TaskDictation() {
     onDone={() => { if (front !== null) void showDevelopmentTerminal(key, front); }} />;
 }
 
-function TaskResources({ section }: { section: ResourceSection }) {
+function TaskResources({ section }: { section: ActivityItem }) {
   const key = useTask((s) => s.key);
   const task = useWindow((s) => shownTask(s, key));
   const active = useTaskActive();
@@ -113,11 +113,11 @@ function TaskResources({ section }: { section: ResourceSection }) {
           </SidebarGroupContent></SidebarGroup>
           </SidebarContent>}
           {section === 'artifacts' && <SidebarContent>
-          {artifacts.length === 0 && <p className="p-3 text-sm text-muted-foreground">No artifacts yet</p>}
-          {artifacts.length > 0 && <SidebarGroup>
+          <SidebarGroup>
             <SidebarGroupLabel>Artifacts ·&nbsp;<span data-testid="artifacts-size">{sizeText(bytes)}</span></SidebarGroupLabel>
-            <SidebarGroupAction aria-label="Delete All Artifacts" title="Delete All Artifacts" onClick={() => void deleteArtifacts(null)}><Trash2Icon /></SidebarGroupAction>
+            {artifacts.length > 0 && <SidebarGroupAction aria-label="Delete All Artifacts" title="Delete All Artifacts" onClick={() => void deleteArtifacts(null)}><Trash2Icon /></SidebarGroupAction>}
             <SidebarGroupContent>
+              {!artifacts.length && <p className="p-2 text-sm text-muted-foreground">No artifacts yet</p>}
               <RightClickMenu items={menu}>
                 <SidebarMenu aria-label="Artifacts">
                   {artifacts.map((a) => <SidebarMenuItem key={a.file}>
@@ -136,7 +136,7 @@ function TaskResources({ section }: { section: ResourceSection }) {
                 </SidebarMenu>
               </RightClickMenu>
             </SidebarGroupContent>
-          </SidebarGroup>}
+          </SidebarGroup>
         </SidebarContent>}
       </Sidebar>
     </SidebarProvider>;

@@ -1,4 +1,4 @@
-// The shown task's files and their desktop opening action (docs/tasks.md, The Resources panel).
+// Workbench navigation, Side bar items and desktop opening (docs/tasks.md, The Workbench).
 import fs from 'node:fs';
 import path from 'node:path';
 import { test, expect } from './fixtures.ts';

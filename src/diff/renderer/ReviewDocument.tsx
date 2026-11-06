@@ -11,7 +11,7 @@ import type { DiffPanelProps } from './DiffPanel';
 import { DiffCounts } from './DiffCounts';
 import { diffLabel, DiffStatus } from './DiffStatus';
 import { highlighterOptions, poolOptions } from './review-theme';
-import { useDiff } from './session';
+import { comparisonKey, useDiff } from './session';
 import type { Notice } from './review';
 import { Loading } from './Loading';
 import './ReviewDocument.css';
@@ -31,8 +31,10 @@ function ReviewContent({ session, selection, shade, fontSize }: DiffPanelProps) 
   const [rendered, setRendered] = useState(false);
   const firstRender = useRef(false);
   const data = snapshot?.data;
-  const [mode, setMode] = useState<'unified' | 'split'>('unified');
-  const [collapseVersions, setCollapseVersions] = useState<Map<string, number>>(() => new Map());
+  const [savedView] = useState(() => session.view.review?.comparison === comparisonKey(selection) ? session.view.review : null);
+  const restored = useRef(savedView), scrollTop = useRef(savedView?.scrollTop ?? 0);
+  const [mode, setMode] = useState<'unified' | 'split'>(() => savedView?.mode ?? 'unified');
+  const [collapseVersions, setCollapseVersions] = useState<Map<string, number>>(() => savedView?.collapseVersions ?? new Map());
   const viewer = useRef<CodeViewHandle<Notice, undefined>>(null), viewport = useRef<HTMLDivElement>(null);
   const navigation = useRef<number | null>(null), userScroll = useRef(false);
   const files = useMemo(() => {
@@ -60,8 +62,20 @@ function ReviewContent({ session, selection, shade, fontSize }: DiffPanelProps) 
     return () => clearTimeout(timer);
   }, [snapshot?.ready, snapshot?.presented, snapshot?.openedAt, error, fetching, files.length, rendered, present]);
 
+  useLayoutEffect(() => () => {
+    session.view.review = { comparison: comparisonKey({ folder, options: { to: target } }), mode, collapseVersions,
+      scrollTop: scrollTop.current, navigation: selection.navigation ?? 0 };
+  }, [session.view, folder, target, mode, collapseVersions, selection.navigation]);
+
   useLayoutEffect(() => {
     const token = selection.navigation ?? 0;
+    if (restored.current?.navigation === token) {
+      if (!snapshot?.ready || !rendered) return;
+      navigation.current = token;
+      viewer.current?.scrollTo({ type: 'position', position: restored.current.scrollTop, behavior: 'instant' });
+      restored.current = null;
+      return;
+    }
     if (!snapshot?.ready || !files.length || (navigation.current === token && byPath.has(selection.path))) return;
     navigation.current = token; userScroll.current = false;
     const path = byPath.has(selection.path) ? selection.path : files[0]!.path;
@@ -70,8 +84,9 @@ function ReviewContent({ session, selection, shade, fontSize }: DiffPanelProps) 
     viewer.current?.scrollTo(path === files[0]!.path
       ? { type: 'position', position: 0, behavior: 'instant' }
       : { type: 'item', id: path, align: 'start', behavior: 'instant' });
-  }, [session, selection.navigation, selection.path, files, byPath, snapshot?.ready]);
-  const onScroll: NonNullable<CodeViewProps<Notice, undefined>['onScroll']> = useCallback((_top, instance) => {
+  }, [session, selection.navigation, selection.path, files, byPath, snapshot?.ready, rendered]);
+  const onScroll: NonNullable<CodeViewProps<Notice, undefined>['onScroll']> = useCallback((position, instance) => {
+    scrollTop.current = position;
     if (!userScroll.current) return;
     const top = instance.getContainerElement()?.getBoundingClientRect().top ?? 0;
     const path = instance.getRenderedItems().find((item) => item.element.getBoundingClientRect().bottom > top + 36)?.id;

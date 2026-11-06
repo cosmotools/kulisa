@@ -1,4 +1,4 @@
-// Development terminal switching in Resources (docs/tasks.md, The Resources panel).
+// Development terminal selection in the Agents Side bar (docs/tasks.md, The Workbench).
 import { PlusIcon, XIcon } from 'lucide-react';
 import { SidebarContent, SidebarGroup, SidebarGroupAction, SidebarGroupContent, SidebarGroupLabel, SidebarMenu,
   SidebarMenuAction, SidebarMenuButton, SidebarMenuItem } from '@ui';

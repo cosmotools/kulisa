@@ -130,10 +130,11 @@ these fields. `maintree` is human-owned and never deleted; task-created `worktre
 #### Diff
 
 [Diff](../src/diff/README.md) reviews task resources through `Task.diff`, `diffTargets`, `review`, `diffContents`,
-with starting commits and ownership checks. Its TaskView owns the selection/session: task switching preserves the
-comparison, filter, document and scroll position; leaving Diff, collapsing the Side bar or closing the task releases
-the session and navigation. Reopening or restarting starts at the first repository/default comparison with an empty
-filter and document start. Returning to a terminal preserves Stage. Loading and polling: [Diff](../src/diff/README.md).
+with starting commits and ownership checks. Its TaskView owns the session: task switches retain the document;
+changing Activity bar items unmounts it and releases query data, keeping selection and review view state.
+Returning reads Git again; collapsing the Side bar keeps the review. Task closure releases the session;
+restart starts at the default comparison with an empty filter and document start. Stage is independent.
+View state, loading and polling: [Diff](../src/diff/README.md).
 
 ## What the human does
 
@@ -168,7 +169,7 @@ to the human; the window's IPC (`ipc/`) and the MCP tools are handles on it:
 | Open a resource's folder | double-click its root in the Side bar, or Open Folder in its menu | none: the agent opens folders through its own tools | `task:open-folder` (`ipc/tasks.ts`) |
 | Open an artifact, show it in its folder | a click on its Side bar item, its menu | none: the tools' answers give the agent its path | `file:open`, `file:show` (`file-links.ts`) |
 | See what the artifacts take | the Artifacts heading in the Side bar (the shown task's) | `task_artifacts`: its task's files, or each task's total | `Task.artifactsUsage` (src/activity-monitor) |
-| Send an artifact to the agent | Send to Agent in its row’s or screenshot thumbnail’s menu; drag onto a terminal | none: preparing the human’s next message | `Task.sendArtifact`; terminal file drop |
+| Send an artifact to the agent | Send to Agent in its row’s or screenshot thumbnail’s menu; drag a screenshot thumbnail onto a terminal | none: preparing the human’s next message | `Task.sendArtifact`; terminal file drop |
 | Delete artifacts | a row's 🗑 or Delete in its menu; the heading's 🗑, all | `task_artifacts_delete`: some or all of its task's | `Task.deleteArtifacts` |
 | Make the task's worktree | none: its agent makes it before writing code | `task_worktree` | `Task.makeWorktree`, `Project.ensureWorktree` |
 | Add, clone, make the default, remove a project's folder | the project's page | none: what the project is made of is the human's | `addFolder`, `cloneRepo`, `defaultFolder`, `removeFolder` (`projects.ts`) |

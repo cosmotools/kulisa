@@ -45,6 +45,7 @@ test("keys in a profile's page are Chrome's, for its pane: Ctrl+T a tab with the
 });
 
 test("keys in the terminal are the agent's, but Kulisa's own: Ctrl+T reaches the agent; Ctrl+` goes to the page used last and back; Ctrl+Shift+/ lists the keys", async ({ core, ui }) => {
+  await core((k) => k.press(k.shell.win.webContents, '`', 'control'));
   // Sam's pane used last (its address bar: the window knows only its own focus): Ctrl+` goes back to its page.
   const id = await core(async (k, url) => (await k.ensureProfile('Sam', url)).id, `${SITE}/app`);
   await focusWindow(core, ui);

@@ -6,11 +6,18 @@ import { refused } from '../../shared/result';
 import type { DiffActions } from './actions';
 import type { Snapshot } from './review';
 
+type ReviewViewState = {
+  comparison: string;
+  mode: 'unified' | 'split';
+  collapseVersions: Map<string, number>;
+  scrollTop: number;
+  navigation: number;
+};
 type Comparison = Pick<DiffSelection, 'folder' | 'options'>;
 export const comparisonKey = ({ folder, options }: Comparison) => JSON.stringify({ folder, to: options.to });
 
 export function createDiff(actions: DiffActions) {
-  return { actions, client: new QueryClient({ defaultOptions: { queries: {
+  return { actions, view: { review: null as ReviewViewState | null }, client: new QueryClient({ defaultOptions: { queries: {
     gcTime: 0, retry: false, networkMode: 'always', structuralSharing: false,
     refetchOnMount: false, refetchOnWindowFocus: false, refetchOnReconnect: false,
   } } }) };

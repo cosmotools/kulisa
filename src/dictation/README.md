@@ -50,7 +50,7 @@ render as recording.
 
 ## The pill
 
-`Pill.tsx` overlays the terminal without resizing it or taking pointer input:
+`Pill.tsx` overlays Main pane without resizing it or taking pointer input, regardless of the selected Activity bar item:
 
 | State | Display |
 |---|---|
