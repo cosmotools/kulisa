@@ -55,6 +55,12 @@ These integration rules take precedence over generic skill instructions:
   [custom drawing](#own-drawing). ESLint checks shipped-control styling, theme colors, raw form controls,
   hook rules and the Fluent UI exclusion; React Compiler memoization rules are not enabled.
 
+## Workbench Side bar headings
+
+Use `SidebarGroup`, `SidebarGroupLabel` and optional `SidebarGroupAction` for Agents, Diff and Artifacts headings.
+Keep the heading present for empty lists. Let the generated components own its height, inset, typography
+and action placement instead of styling a separate text header.
+
 ## Clusters
 
 A window UI cluster owns one screen or closely related set of views: its state, private components and assets

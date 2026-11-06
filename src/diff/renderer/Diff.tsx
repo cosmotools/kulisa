@@ -3,7 +3,7 @@ import { useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowRightIcon, ChevronRightIcon, GitBranchIcon, XIcon } from 'lucide-react';
 import { Alert, AlertDescription, Button, Collapsible, CollapsibleContent, CollapsibleTrigger, InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput,
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@ui';
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SidebarGroup, SidebarGroupContent, SidebarGroupLabel } from '@ui';
 import type { DiffFile, DiffOptions, DiffSelection } from '../ipc';
 import { refused } from '../../shared/result';
 import { DiffTree } from './DiffTree';
@@ -20,15 +20,17 @@ export function Diff({ session, roots, selection, reviewing }: DiffProps) {
     if (selection) session.actions.select({ ...selection, filter: value });
   };
   return <section aria-label="Changed files" className="flex h-full min-h-0 flex-col">
-    <header className="px-3 py-2 text-sm font-medium">Diff</header>
-    <div className="flex flex-col gap-2 px-3 pb-3">
-      <InputGroup>
-        <InputGroupInput ref={filterInput} aria-label="Filter changed files" placeholder="Filter files…" value={filter} onChange={(e) => changeFilter(e.target.value)} />
-        {filter && <InputGroupAddon align="inline-end"><InputGroupButton size="icon-xs" aria-label="Clear file filter" title="Clear filter" onClick={() => {
-          changeFilter(''); filterInput.current?.focus();
-        }}><XIcon /></InputGroupButton></InputGroupAddon>}
-      </InputGroup>
-    </div>
+    <SidebarGroup>
+      <SidebarGroupLabel>Diff</SidebarGroupLabel>
+      <SidebarGroupContent>
+        <InputGroup>
+          <InputGroupInput ref={filterInput} aria-label="Filter changed files" placeholder="Filter files…" value={filter} onChange={(e) => changeFilter(e.target.value)} />
+          {filter && <InputGroupAddon align="inline-end"><InputGroupButton size="icon-xs" aria-label="Clear file filter" title="Clear filter" onClick={() => {
+            changeFilter(''); filterInput.current?.focus();
+          }}><XIcon /></InputGroupButton></InputGroupAddon>}
+        </InputGroup>
+      </SidebarGroupContent>
+    </SidebarGroup>
     <div className="flex min-h-0 flex-1 flex-col overflow-auto px-1 pb-2" aria-busy={loading}>
       {roots.map((root) => <RepositoryDiff key={root.folder} session={session} selected={selection} reviewing={reviewing} loading={loading} root={root} grouped={roots.length > 1} filter={filter} />)}
     </div>

@@ -113,11 +113,11 @@ function TaskResources({ section }: { section: ActivityItem }) {
           </SidebarGroupContent></SidebarGroup>
           </SidebarContent>}
           {section === 'artifacts' && <SidebarContent>
-          {artifacts.length === 0 && <p className="p-3 text-sm text-muted-foreground">No artifacts yet</p>}
-          {artifacts.length > 0 && <SidebarGroup>
+          <SidebarGroup>
             <SidebarGroupLabel>Artifacts ·&nbsp;<span data-testid="artifacts-size">{sizeText(bytes)}</span></SidebarGroupLabel>
-            <SidebarGroupAction aria-label="Delete All Artifacts" title="Delete All Artifacts" onClick={() => void deleteArtifacts(null)}><Trash2Icon /></SidebarGroupAction>
+            {artifacts.length > 0 && <SidebarGroupAction aria-label="Delete All Artifacts" title="Delete All Artifacts" onClick={() => void deleteArtifacts(null)}><Trash2Icon /></SidebarGroupAction>}
             <SidebarGroupContent>
+              {!artifacts.length && <p className="p-2 text-sm text-muted-foreground">No artifacts yet</p>}
               <RightClickMenu items={menu}>
                 <SidebarMenu aria-label="Artifacts">
                   {artifacts.map((a) => <SidebarMenuItem key={a.file}>
@@ -136,7 +136,7 @@ function TaskResources({ section }: { section: ActivityItem }) {
                 </SidebarMenu>
               </RightClickMenu>
             </SidebarGroupContent>
-          </SidebarGroup>}
+          </SidebarGroup>
         </SidebarContent>}
       </Sidebar>
     </SidebarProvider>;
