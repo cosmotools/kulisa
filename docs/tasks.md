@@ -173,7 +173,7 @@ to the human; the window's IPC (`ipc/`) and the MCP tools are handles on it:
 | Open a resource's folder | double-click its root in the Side bar, or Open Folder in its menu | none: the agent opens folders through its own tools | `task:open-folder` (`ipc/tasks.ts`) |
 | Open an artifact, show it in its folder | a click on its Side bar item, its menu | none: the tools' answers give the agent its path | `file:open`, `file:show` (`file-links.ts`) |
 | See what the artifacts take | the Artifacts heading in the Side bar (the shown task's) | `task_artifacts`: its task's files, or each task's total | `Task.artifactsUsage` (src/activity-monitor) |
-| Send an artifact to the agent | Send to Agent in its row’s or screenshot thumbnail’s menu; drag onto a terminal | none: preparing the human’s next message | `Task.sendArtifact`; terminal file drop |
+| Send an artifact to the agent | Send to Agent in its row’s or screenshot thumbnail’s menu; drag a screenshot thumbnail onto a terminal | none: preparing the human’s next message | `Task.sendArtifact`; terminal file drop |
 | Delete artifacts | a row's 🗑 or Delete in its menu; the heading's 🗑, all | `task_artifacts_delete`: some or all of its task's | `Task.deleteArtifacts` |
 | Make the task's worktree | none: its agent makes it before writing code | `task_worktree` | `Task.makeWorktree`, `Project.ensureWorktree` |
 | Add, clone, make the default, remove a project's folder | the project's page | none: what the project is made of is the human's | `addFolder`, `cloneRepo`, `defaultFolder`, `removeFolder` (`projects.ts`) |

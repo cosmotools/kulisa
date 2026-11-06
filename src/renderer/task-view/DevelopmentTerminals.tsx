@@ -1,6 +1,6 @@
 // The task’s development terminal panel (docs/window.md, The terminal); its shared View outlives the panel.
 import { createElement, useEffect, useLayoutEffect, useRef, type Ref } from 'react';
-import { CheckIcon, PlusIcon } from 'lucide-react';
+import { PlusIcon } from 'lucide-react';
 import { cn } from 'cn';
 import { Avatar, AvatarImage, Button, Item, ItemContent, ItemDescription, ItemMedia, ItemTitle, Spinner } from '@ui';
 import { ButtonMenu, RightClickMenu } from '../components/Menus';
@@ -13,7 +13,6 @@ import { avatarSrc, withKeys } from '../lib/common';
 import { dialogsShown, onDialogs } from '../lib/cover';
 import { newStageTerminal } from './environments';
 import { termFocus } from '../../terminal/renderer';
-import { Pill } from '../../dictation/renderer';
 
 const NEW_TITLE = 'New conversation of an agent, or a terminal';
 export function DevelopmentTerminals({ visible }: { visible: boolean }) {
@@ -89,7 +88,6 @@ export function DevelopmentTerminals({ visible }: { visible: boolean }) {
     <RightClickMenu items={menu}>
       <div ref={host} data-testid="terminal" data-zone="terminal" hidden={empty} className="h-full py-0.5 ps-2 pe-1" />
     </RightClickMenu>
-    {!empty && <Pill task={task}><CheckIcon className="size-3.5 text-success" /></Pill>}
     {starting && <div role="status" className="absolute inset-0 flex items-center justify-center gap-2 bg-card text-sm text-muted-foreground"><Spinner role={undefined} aria-hidden />Starting {starting}…</div>}
   </div>;
 }

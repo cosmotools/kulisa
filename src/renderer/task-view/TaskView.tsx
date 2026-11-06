@@ -3,8 +3,9 @@ import { memo, useEffect, useLayoutEffect, useState, useRef } from 'react';
 import { useStore } from 'zustand';
 import { DockviewReact, GridviewReact, Orientation, type IDockviewPanelProps, type IGridviewPanelProps } from 'dockview-react';
 import 'dockview-react/dist/styles/dockview.css';
-import { TerminalSquareIcon, PlusIcon } from 'lucide-react';
+import { TerminalSquareIcon, PlusIcon, CheckIcon } from 'lucide-react';
 import { Avatar, AvatarImage, Button, Empty, EmptyHeader, EmptyTitle } from '@ui';
+import { Pill } from '../../dictation/renderer';
 import { activityItems } from './development';
 import { DevelopmentTerminals } from './DevelopmentTerminals';
 import { TaskDiff } from './Diff';
@@ -29,6 +30,7 @@ const components = { terminal: DevelopmentContent, resources: Resources };
 const tabComponents = { resources: ResourceIcon };
 function DevelopmentContent(props: IDockviewPanelProps) {
   const item = useTask((s) => s.workbenchItem), diff = useTask((s) => s.developmentDiff);
+  const task = useTask((s) => s.key), hasTerminals = useTask((s) => s.developmentTerminals.list.length > 0);
   useEffect(() => { props.api.setTitle(`Main pane: ${activityItems[item]}`); }, [props.api, item]);
   return <section aria-label="Main pane" data-workbench-item={item} className="relative h-full min-w-0">
     <DevelopmentTerminals visible={item === 'terminals'} />
@@ -37,6 +39,7 @@ function DevelopmentContent(props: IDockviewPanelProps) {
       <Empty className="h-full"><EmptyHeader><EmptyTitle>
         {item === 'artifacts' ? 'choose artifact' : 'choose file'}
       </EmptyTitle></EmptyHeader></Empty>}
+    {hasTerminals && <Pill task={task}><CheckIcon className="size-3.5 text-success" /></Pill>}
   </section>;
 }
 function Development({ api }: IGridviewPanelProps) {

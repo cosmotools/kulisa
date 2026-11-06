@@ -98,8 +98,9 @@ while another Activity bar item is selected or the Side bar is collapsed.
 - **Artifacts** has its own Main pane showing **choose artifact**. Its Side bar lists screenshots, page snapshots,
   request bodies and terminal screens, newest first with source,
   time and size. Click to open; right-click to reveal, send to agent or delete. Hover/focus trash deletes one;
-  heading trash deletes all. Dragging/sending inserts a path without sending the message. Ask the agent to explain
-  or clean up files. Above 100 MB, oldest task artifacts are removed automatically.
+  heading trash deletes all. Drag an artifact to another app or folder; Send to Agent selects Agents and inserts
+  its path without sending the message. Ask the agent to explain or clean up files. Above 100 MB, oldest task
+  artifacts are removed automatically.
 
 Drag the Side bar's divider to change its width. Each task keeps its selected Activity bar item, width and
 collapsed state.

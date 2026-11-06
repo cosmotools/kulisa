@@ -2,11 +2,12 @@
 import { test, expect } from './fixtures.ts';
 import fs from 'node:fs';
 import path from 'node:path';
-import { invoke, notLoading, ipcSettled, frames } from './helpers.ts';
+import { invoke, showResources, notLoading, ipcSettled, frames } from './helpers.ts';
 import { begin, keyAt, newTask } from './tasks-helpers.ts';
 
 test('returning to a task keeps its grid instance and expanded Project folders', async ({ core, ui, files, call }) => {
   await begin(core, ui, files, { only: true, columns: true, featureX: call });
+  await showResources(ui, 'Project');
   const first = await keyAt(core, 1), second = await keyAt(core, 2);
   fs.mkdirSync(path.join(files.project, 'retained-folder'));
   fs.writeFileSync(path.join(files.project, 'retained-folder', 'kept.txt'), 'retained');
@@ -148,7 +149,12 @@ test('a Stage terminal keeps its renderer, output and search state across task s
 test('hidden task screens keep their own Resources section and release terminal renderers on close', async ({ core, ui, files, call }) => {
   await begin(core, ui, files, { only: true, columns: true, featureX: call });
   const first = await keyAt(core, 1), second = await keyAt(core, 2);
-  await ui.getByRole('tab', { name: 'Agents', exact: true }).click();
+  await invoke(ui, 'task:show', second);
+  await notLoading(ui);
+  await showResources(ui, 'Project');
+  await invoke(ui, 'task:show', first);
+  await notLoading(ui);
+  await showResources(ui, 'Agents');
   const original = await ui.getByRole('region', { name: 'Agents', exact: true }).elementHandle();
   await invoke(ui, 'task:show', second);
   await notLoading(ui);

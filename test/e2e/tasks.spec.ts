@@ -88,6 +88,7 @@ test('tasks: + opens a task in the project\'s main working tree ("New Task", no 
   await core((k) => k.clock.hold(1000));
   const late = (async () => {
     await expect.poll(() => ui.evaluate(() => (window as any).__starting)).toBeTruthy();
+    await showResources(ui, 'Agents');
     await core((k) => k.stash.look());
     await expect.poll(() => core((k) => k.stash.found), { timeout: 10000 }).toBe(true);
     await core((k) => k.clock.advance(6000));
@@ -158,7 +159,8 @@ test('tasks: + opens a task in the project\'s main working tree ("New Task", no 
 
   // It makes its own worktree, naming the task in the same call (task_worktree's name, since it is still "New Task"):
   // the tab and the branch take the name, the folder becomes the worktree; the project's folder stays the human's.
-  // The Resources panel: the main working tree until it has its own worktree, then the worktree on its branch.
+  // Project lists the main working tree until the task makes its own worktree.
+  await showResources(ui, 'Project');
   const resources = ui.locator('[data-task-view][data-active] [data-resources]').getByRole('list', { name: 'Folders' }).locator(':scope > li').getByRole('button', { name: path.basename(project), exact: true });
   await expect(resources).toHaveText([`${path.basename(project)}main working tree`]);
   // Two of its agents at once (each a call) get the one worktree, not one each.
@@ -279,7 +281,7 @@ test("tasks: an agent's tab closes after a question, always (Cancel keeps it); t
     await (yes ? expect(panel).toHaveAttribute('data-empty') : expect(panel).not.toHaveAttribute('data-empty'));
   };
   // The terminals' panel's group (its content is laid over it: dockview's renderer 'always').
-  const group = ui.getByRole('region', { name: 'Terminal', exact: true });
+  const group = ui.getByRole('region', { name: 'Main pane: Agents', exact: true });
   const size = async (l: Locator) => { const b = await l.boundingBox(); return { width: Math.round(b.width), height: Math.round(b.height) }; };
   const saved = () => files.json(files.pfile('task.json', task.split('/')[1])).development;
   const conversations = () => files.json(files.pfile('task.json', task.split('/')[1])).agents.conversations;

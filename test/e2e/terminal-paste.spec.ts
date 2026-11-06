@@ -1,9 +1,10 @@
 // Image paste through the OS's Paste action and the terminal's menu (docs/window.md, The terminal).
 import { test, expect } from './fixtures.ts';
-import { choose, focusWindow, rightClick, termKeys } from './helpers.ts';
+import { choose, showResources, focusWindow, rightClick, termKeys } from './helpers.ts';
 
 for (const menu of [false, true]) {
   test(`clipboard image: ${menu ? 'the terminal menu' : "the OS's Paste action"} sends the agent's image shortcut once`, async ({ core, ui }) => {
+    await showResources(ui, 'Agents');
     // ConPTY requests focus reporting; exercise it on every platform.
     await ui.evaluate(() => new Promise<void>((done) => (window as any).__term.write('\x1b[?1004h', done)));
     await ui.locator('#windowMenu').focus();

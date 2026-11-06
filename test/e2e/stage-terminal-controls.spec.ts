@@ -1,6 +1,6 @@
 // Stage terminal controls operate the visible terminal without sending search keys to its app.
 import { test, expect } from './fixtures.ts';
-import { focusWindow, notLoading } from './helpers.ts';
+import { focusWindow, showResources, notLoading } from './helpers.ts';
 
 test('terminal search selects output, navigates matches, and returns keyboard focus without typing into the app', async ({ core, ui, call }) => {
   await notLoading(ui);
@@ -40,6 +40,7 @@ test('terminal search selects output, navigates matches, and returns keyboard fo
 
 test('Stage maximizes a terminal and follows agent activity without taking the agent keyboard focus', async ({ core, ui, call }) => {
   await notLoading(ui);
+  await showResources(ui, 'Agents');
   const first = JSON.parse((await call('terminal_run', { name: 'First', command: 'node -e "setInterval(()=>{},1000)"' })).text);
   const second = JSON.parse((await call('terminal_run', { name: 'Second', command: 'node -e "setInterval(()=>{},1000)"' })).text);
   await call('stage_arrange', { layout: 'horizontal', overflow: true });

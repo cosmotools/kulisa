@@ -1,7 +1,5 @@
-// The dictation's pill (../README.md, The pill): over the top of the terminal while the task dictates, what the
-// dictation does now, the voice heard as a live wave. task: the task shown; children: the done mark. Over the terminal,
-// not above it (the terminal keeps its size: Claude Code redraws badly after a resize), and not in the way of the
-// pointer.
+// Dictation status (../README.md, The pill). Overlay Main pane without resizing its content: terminal CLIs can
+// redraw badly after a resize. Workbench keeps the status outside individual panes so navigation cannot hide it.
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Badge, Spinner } from '@ui';
 import { useVoices } from './voice';

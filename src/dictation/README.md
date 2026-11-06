@@ -50,7 +50,8 @@ render as recording.
 
 ## The pill
 
-`Pill.tsx` overlays the terminal without resizing it or taking pointer input:
+`Pill.tsx` overlays Main pane without resizing it or taking pointer input. Workbench owns its placement outside
+the individual panes, so recording status stays visible while Project, Diff or Artifacts is selected:
 
 | State | Display |
 |---|---|

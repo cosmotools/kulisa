@@ -5,7 +5,7 @@ import path from 'path';
 import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
 import type { Locator } from '@playwright/test';
-import { SITE, upTo, frames, echoed, focusWindow, pageBox, rightClick, choose, termText, termShows, act, invoke, termKeys } from './helpers.ts';
+import { SITE, showResources, upTo, frames, echoed, focusWindow, pageBox, rightClick, choose, termText, termShows, act, invoke, termKeys } from './helpers.ts';
 import { profiles, opened } from './agent-helpers.ts';
 
 // The shown terminal's keyboard (xterm's own field).
@@ -15,6 +15,7 @@ test('the keyboard stays where the human put it: a tab the agent opens, its page
   // The human typing to the agent in the terminal: on macOS a tab the agent opens takes the keyboard as its page
   // loads, and the next keys go to the site, unless kept (page-focus.ts).
   await focusWindow(core, ui);
+  await showResources(ui, 'Agents');
   await termKeys(ui).focus();
   await expect.poll(() => core((k) => k.shell.windows[0].keyZone)).toBe('terminal');
   const id = opened(await call('browser_tab_new', { profile: 'Elon.buyer', url: 'data:text/html,<input autofocus>' }));

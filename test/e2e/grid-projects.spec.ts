@@ -6,7 +6,7 @@ import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
 import type { Files } from './data.ts';
-import { SITE, MAC, projectTabSel, ipcSettled, menu, submenu, choose, rightClick, tabProjects, showProject, closeProject, anyMenu, openSidebar, closeSidebar, fromSidebar, sidebar, sidebarTasks, viewOn, who, termText, invoke, act, box, notLoading, otherPage, answer } from './helpers.ts';
+import { SITE, MAC, showResources, projectTabSel, ipcSettled, menu, submenu, choose, rightClick, tabProjects, showProject, closeProject, anyMenu, openSidebar, closeSidebar, fromSidebar, sidebar, sidebarTasks, viewOn, who, termText, invoke, act, box, notLoading, otherPage, answer } from './helpers.ts';
 import { SAM, ELON, begin, bothOn, openFolder, reportSession, deleteProfile } from './tasks-helpers.ts';
 
 // The second project, a folder 'other' with a task 1 that has Sam.seller: made if there is none, closed.
@@ -50,6 +50,7 @@ test('projects: another folder opens in a tab of its own, with its own profiles 
   await invoke(ui, 'project:open', { folder: other });
   await expect.poll(() => core((k, f) => { const g = k.stash.grid; return k.shell.current?.folder === f && !!k.shell.pty && k.shell.pty !== g.firstPty; }, other)).toBe(true);
   await core((k) => k.watchPty(k.shell.pty));
+  await showResources(ui, 'Agents');
   await expect.poll(() => termText(ui)).toContain(`agent: rc of ${other}`); // started by the shell, in the project
   expect((await termText(ui)).split('exec cat -v').length - 1, 'the command that starts the agent shows once').toBe(1);
   expect(await core((k, project) => {
@@ -215,6 +216,7 @@ test('tasks: Move to New Window puts a task in a window of its own, still runnin
   await expect.poll(() => core((k, id) => k.shell.current?.id === id && !!k.shell.task.loaded && !!k.shell.pty, ids.other)).toBe(true);
   await notLoading(ui);
   await core((k, id) => { const t = k.shell.task; k.stash.grid = { moved: t, pty: t.pty, seller: t.profiles.get(id), first: k.shell.windows[0] }; }, ids.seller);
+  await showResources(ui, 'Agents');
   await expect.poll(() => termText(ui)).toContain(`agent: rc of ${other}`);
   // A line as wide as an agent's prompt box (Claude Code's), and the size the agent has.
   const LINE = '='.repeat(150);
