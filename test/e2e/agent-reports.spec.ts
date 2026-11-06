@@ -293,7 +293,7 @@ test("artifacts: what they take, in Resources' heading and for the agent, which 
   await expect(call('task_artifacts_delete', { files: [path.join(files.root, 'package.json')] })).rejects.toThrow(/not an artifact of this task/);
   await showResources(ui, 'Artifacts');
   await ui.locator('[data-task-view][data-active] [data-resources]').getByRole('button', { name: 'Delete All Artifacts' }).click();
-  await expect(heading).toHaveCount(0);
+  await expect(heading).toHaveText('0 KB');
   await expect.poll(() => fs.readdirSync(dir).length).toBe(0);
   expect((await call('task_artifacts', {})).text).toMatch(/^This task's artifacts: 0 KB in 0 file\(s\)\.$/);
 });
