@@ -1,6 +1,7 @@
 # Diff
 
-Read-only local Git comparisons for the Resources tree and development review.
+Read-only local Git comparisons for the Diff Side bar tree and Main pane review.
+UI names: [Workbench terminology](../../docs/ui.md#workbench-terminology).
 
 - Comparisons use the merge base to match pull-request semantics while including the worktree's uncommitted changes.
 - NUL-delimited listings preserve tabs, newlines and rename pairs; simple-git's `diffSummary` cannot read that format.

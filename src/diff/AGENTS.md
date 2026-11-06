@@ -9,4 +9,4 @@ Read `README.md` and `docs/packages.md`.
   theme shade and text size. It imports no window state, Dockview or task IPC.
 - Keep one bounded review snapshot and one CodeView scroll document. Read the installed official `diffs` or `trees`
   skill before changing its Pierre renderer; installed dependency types decide the available API.
-- Unit tests live in `diff.test.ts`; end-to-end tests stay in `test/e2e/diff.spec.ts` and Resources' files.
+- Unit tests live in `diff.test.ts`; end-to-end tests stay in `test/e2e/diff.spec.ts` and Workbench layout files.

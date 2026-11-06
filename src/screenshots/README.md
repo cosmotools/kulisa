@@ -4,7 +4,8 @@ Page, viewport and element capture, a [Kulisa package](../../docs/packages.md). 
 profiles/tasks/agents stay outside. Masking: #106; native thumbnails: #107.
 
 Human and agent handles call `Task.screenshot`: `Profile.screenshot` checks the tab and captures;
-`Task.saveArtifact` saves under the task limit, updates Resources and shows the thumbnail.
+`Task.saveArtifact` saves under the task limit, updates the Artifacts [Side bar](../../docs/ui.md#workbench-terminology)
+and shows the thumbnail.
 
 ## What is taken
 
@@ -28,8 +29,8 @@ through Pick's `chooseElement`; Esc, Pick or the shortcut cancels. Only one sele
 
 ### Where it goes
 
-Copy to clipboard and save in the task's numbered, size-limited artifacts folder. Deletion from Resources or the
-thumbnail, and task deletion, remove the artifact; dragging out creates an independently owned copy.
+Copy to clipboard and save in the task's numbered, size-limited artifacts folder. Deletion from the Artifacts
+Side bar or the thumbnail, and task deletion, remove the artifact; dragging out creates an independently owned copy.
 Use Electron's W3C Clipboard API (`ClipboardItem` with `image/png`), not `writeImage`.
 
 ## The thumbnail

@@ -3,7 +3,8 @@
 Measures disk usage from caller-supplied task keys, projects and folders, including unloaded tasks. Presentation
 and deletion belong to callers; the Kulisa package imports no core code ([packages.md](../../docs/packages.md)).
 
-Callers: Resources (`Task.artifactsUsage`), `task_artifacts`, and artifact listing/limits (`artifacts.ts`).
+Callers: the Artifacts [Side bar](../../docs/ui.md#workbench-terminology) (`Task.artifactsUsage`), `task_artifacts`,
+and artifact listing/limits (`artifacts.ts`).
 
 ## Disk (`main/disk.ts`)
 

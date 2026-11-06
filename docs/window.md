@@ -1,7 +1,7 @@
 # The window
 
 Window layout, focus, controls, logging and IPC. Project/task lifecycle: [tasks.md](tasks.md); profiles:
-[profiles.md](profiles.md); component conventions: [ui.md](ui.md).
+[profiles.md](profiles.md); component conventions: [ui.md](ui.md), including [Workbench terminology](ui.md#workbench-terminology).
 
 ## The title bar
 
@@ -30,11 +30,10 @@ and use CSS `order` for their visual placement. Raised active tabs and bottom de
 
 ## The grid
 
-Each visited task retains a TaskView, store and controller until its tab closes. Two Dockviews hold development
-terminals/review with Resources and **Stage** browser/terminal environments; a headerless Gridview splits them.
-Stage headers move environments within Stage; development drag/drop is disabled. Resources uses a fixed left edge
-with native tabs and collapse; behavior and constraints: [tasks.md](tasks.md#the-resources-panel).
-The outer development minimum includes Resources because Dockview's central minimum excludes edges.
+Each visited task retains a TaskView, store and controller until its tab closes. Two Dockviews hold **Workbench** and **Stage** browser/terminal environments; a headerless Gridview splits them.
+Stage headers move environments within Stage; Workbench drag/drop is disabled. Workbench's Activity bar and Side bar
+use a fixed left edge with native tabs and collapse; behavior and constraints: [tasks.md](tasks.md#the-workbench).
+The outer Workbench minimum includes this edge group because Dockview's central minimum excludes edges.
 
 Hidden TaskViews use `content-visibility: hidden`, `inert` and `aria-hidden` to retain UI state without rendering or
 accepting input. Window controls address the selected task; pane actions stay bound to their owning TaskView.
@@ -68,7 +67,7 @@ retain React state when Stage tabs detach inactive DOM; task switching retains e
 - Load saved settings before creating grids; early Stage commands await restoration and retain their order.
   Reveal after both nested grids mount at their final dimensions, keeping content loading from shifting the layout.
   Persist all three grids through `toJSON`/`fromJSON`, plus Stage view/overflow/position; debounce 300 ms and flush on
-  hide/close. Observe completed layouts/maximization and Resources edge dimensions, which central layout events omit.
+  hide/close. Observe completed layouts/maximization and Workbench edge dimensions, which central layout events omit.
   Empty Stage stays mounted, hidden through Gridview's API to preserve its size. Position/view changes move native
   panels/groups, retaining their contents. `shared/stage-layout.ts` imports flat layouts and legacy fractions;
   `task-view/layout.ts` prunes closed panes while preserving active groups. Invalid layouts use defaults.
@@ -174,7 +173,7 @@ built: [ui.md](ui.md), Menus):
   app's menu quit);
 - right-click on a pane's header or its ⋯ (New tab, About this profile… (Settings at it), Sign In to Master…, Close
   profile, Remove from Project…), a pane's ⋮ ([profiles.md](profiles.md), Tabs), a tab (Reload, Duplicate, Close tab,
-  Close other tabs), a terminal (Copy, Paste, Select all, Clear; then its Resources row's) and a terminal's Resources row (Change agent…,
+  Close other tabs), a terminal (Copy, Paste, Select all, Clear; then its Side bar item's) and a terminal's Side bar item (Change agent…,
   New Conversation in an agent's; Close).
 
 A row whose command has a key shows it at its end (Keys). The window's menus are not native: a native menu has rows of
@@ -228,7 +227,7 @@ Log and About below. UI ownership, page composition, loading/saving and cross-wi
 
 ## The terminal
 
-Development terminals share one headerless Dockview panel, selected through Resources → Agents. Send task and
+Development terminals share one headerless Dockview panel, selected through Agents in the Side bar. Send task and
 active-terminal identity together (`terminals`) to avoid combining asynchronous states.
 
 - Start/rescale only after Dockview and retained DOM dimensions agree, rounding fractional layout sizes.
@@ -433,7 +432,7 @@ window it comes from (`event.sender`); one change to the open tasks after anothe
   routing/table; `page-menu.ts` owns native page menus; `file-links.ts` protects desktop file opening.
 - `src/main/ipc/`, `ipc.ts`, `src/shared/ipc.ts`: handles and shared contracts. `src/preload/index.cjs` exposes the
   sandboxed window bridge without Node; shared helpers/types are imported from `src/shared/`.
-- Renderer `task-view/` owns retained task screens, Dockview, bounds, Resources and environments.
+- Renderer `task-view/` owns retained task screens, Dockview, bounds, Workbench and environments.
   `components/settings/` is lazy-loaded through `index.ts`; UI structure: [ui.md](ui.md).
 - Renderer menus/dialogs, `lib/cover.ts` and `task-view/views.ts` coordinate native-page coverage. `lib/keys.ts` owns window
   keyboard zones; `src/terminal/` owns PTY/buffers/rendering.

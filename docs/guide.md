@@ -64,14 +64,15 @@ Your task keeps running underneath. **☰** includes zoom, theme, language, task
 On macOS, ⌘, opens Settings and ⌘Q quits. Closing the last window hides Kulisa while agents continue; the Dock icon
 brings it back.
 
-### Stage and development
+### Stage and Workbench
 
-Your coding terminals and **Resources** occupy the development area; browser profiles and interactive terminals
-occupy **Stage**. Drag Stage headers to arrange/stack environments and thin dividers to resize panes.
+Your coding terminals, **Activity bar** and **Side bar** occupy **Workbench**, the development area.
+Its **Main pane** shows a terminal or Diff review. Browser profiles and interactive terminals occupy **Stage**.
+Drag Stage headers to arrange/stack environments and thin dividers to resize panes.
 
 **Stage** in the title bar offers:
 
-- **Left**, **Right** or **Above** the development area.
+- **Left**, **Right** or **Above** Workbench.
 - **Horizontal stack**, **Vertical stack** or **Tabs**; changing the view preserves pane contents and terminal search.
 - **Allow overflow** for scrolling stacks at usable pane sizes, or fit all panes. Stacked tabs share an area;
   Tabs keeps this setting hidden.
@@ -79,13 +80,14 @@ occupy **Stage**. Drag Stage headers to arrange/stack environments and thin divi
 - **Follow agent** to reveal its active environment and highlight activity. Your Stage input pauses following;
   choose **Follow agent (paused)** to resume. The preference survives restart; pauses are temporary.
 
-**Maximize environment** fills Stage with that group while development remains visible. **Restore environment**
+**Maximize environment** fills Stage with that group while Workbench remains visible. **Restore environment**
 returns its arrangement/overflow. The agent can arrange Stage too; each task remembers its layout and size.
 
-### Resources
+### Activity bar and Side bar
 
-The **Resources bar** selects **Agents**, **Project**, **Diff** or **Artifacts**. Click the selected icon to collapse
-**Resources content**; select a section to restore its width. Terminals keep running when Resources is collapsed.
+The **Activity bar** selects **Agents**, **Project**, **Diff** or **Artifacts**. Each button is an **Activity bar item**;
+an entry in the adjacent **Side bar** is a **Side bar item**. Click the selected Activity bar item to collapse the
+Side bar; select another to restore its width. Terminals keep running when the Side bar is collapsed.
 
 - **Agents** lists coding agents/development shells. Select a row to use its terminal.
 - **Project** starts selected in new tasks. Expand folders, double-click files or press Enter to open them in the
@@ -95,15 +97,16 @@ The **Resources bar** selects **Agents**, **Project**, **Diff** or **Artifacts**
   heading trash deletes all. Dragging/sending inserts a path without sending the message. Ask the agent to explain
   or clean up files. Above 100 MB, oldest task artifacts are removed automatically.
 
-Drag Resources' divider to change its width. Each task keeps its section, width and collapsed state.
+Drag the Side bar's divider to change its width. Each task keeps its selected Activity bar item, width and
+collapsed state.
 
 ### Reviewing changes
 
 **Diff** opens local, read-only Git review in place of the terminal, which keeps running. **Agents** or the terminal
 focus shortcut returns to it. Every opening reads current files and resets comparison, filter and position.
 Open reviews refresh as the agent edits.
-Switching tasks preserves the review's comparison, filter and position. Restarting restores its Resources section
-with a fresh review.
+Switching tasks preserves the review's comparison, filter and position. Restarting restores the selected Activity
+bar item with a fresh review.
 
 **From** is the task branch/worktree including local edits. **To** defaults to the repository's default branch;
 choose the current branch to see uncommitted changes only. Selecting a target does not change checked-out code.
@@ -198,7 +201,7 @@ stay available. Permissions/hidden reasoning and account settings do not transfe
 requests for your input reveal it immediately. The old conversation stays until you close it. You can also ask an
 agent to continue another's work directly.
 
-**Dictation**: hold right Ctrl (right ⌘ on macOS), or tap to start/stop. The Resources microphone works the same way.
+**Dictation**: hold right Ctrl (right ⌘ on macOS), or tap to start/stop. The Activity bar microphone works the same way.
 Speak after the wave appears; text stays in the agent's input for review before sending. Change the key in Keyboard
 Shortcuts; language comes from **☰ → Language** for setups created in Kulisa; external setups keep their own language setting.
 With a shell active, dictation brings the agent forward.
@@ -324,7 +327,7 @@ to read the agent's activity when its text does not fit.
     the page loads them only when you scroll there.
 
   The picture goes to the clipboard (paste it into a message, or into the agent's input with Paste) and to the task's
-  **Artifacts** in **Resources**, as screenshots the agent takes do. The agent's marks are not in it. Delete it there
+  **Artifacts** in the **Side bar**, as screenshots the agent takes do. The agent's marks are not in it. Delete it there
   or from its thumbnail; deleting the task removes it too.
   To keep a picture outside the task, drag its thumbnail into a folder.
 
@@ -358,7 +361,7 @@ to read the agent's activity when its text does not fit.
 
 ## Terminals
 
-- **Resources → Agents** lists the task's agents and development terminals, with their names, status, and account
+- **Agents** in the **Side bar** lists the task's agents and development terminals, with their names, status, and account
   or command details when available. Click a row to show that terminal and type into it. One terminal is shown at a
   time in the development terminal pane. Each is your own shell in the task's folder, with your project's environment.
 - **+** in the Agents list opens one of the project's
@@ -368,7 +371,7 @@ to read the agent's activity when its text does not fit.
 - With no development terminal, use **+** to choose one or Ctrl+` to open the task's agent. With no testing
   environment open either, launch buttons offer the project's agents, **Terminal** and profiles. Tab selects a launcher;
   Enter opens it.
-- Terminals come back after a restart in the Resources list: an agent continues its conversation, a shell starts fresh.
+- Terminals come back after a restart in the Agents list: an agent continues its conversation, a shell starts fresh.
 - Copy and paste as in your OS's terminal: Ctrl+Shift+C / Ctrl+Shift+V on Linux, Ctrl+C / Ctrl+V on Windows, ⌘C / ⌘V
   on macOS. Paste also attaches clipboard images in Claude Code and Codex, including from the right-click menu.
 - Drop files onto a terminal to put their paths into your message, quoted where needed and separated by spaces.
@@ -387,7 +390,7 @@ bar. It opens your usual shell in the task’s working folder, ready for you to 
 return to the shell prompt. In **⋯ → Settings…**, you can change the name and optionally save a launch command for
 the run button; leave it empty to start your shell. Your coding agent can inspect the same screen, operate the app,
 change its code and run it again. You can also ask your agent to run a command directly in a Stage terminal;
-it opens the pane for you. Large terminal reads appear as Terminal screen artifacts in Resources.
+it opens the pane for you. Large terminal reads appear as Terminal screen artifacts in the Artifacts list.
 Browser profiles are optional for a CLI task. After testing, your agent leaves the final app open for you to try;
 interactive apps wait for input, while commands that finish keep their output and exit code. Temporary testing
 environments are closed.
@@ -452,7 +455,7 @@ its settings. Usually:
   **Show Data Folder** in a project's right-click menu in the sidebar, or in a task tab's under the project's name, opens that
   project's.
 - Deleting a task, a profile or a project removes what Kulisa made for it.
-- Screenshots you or the agent take belong to the task: its artifacts in Resources. Deleting the task removes them.
+- Screenshots you or the agent take belong to the task: its artifacts in the Artifacts list. Deleting the task removes them.
 - Kulisa keeps a log of actions, tasks and errors in the data folder's `logs` folder, two files of 1 MB at most.
   Read it in **Settings → Log** (below, Reporting a problem).
 

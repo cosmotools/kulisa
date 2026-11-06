@@ -101,18 +101,19 @@ project folder and ask before opening a second competing task.
 
 Example: `~/IdeaProjects/myshop@task-k3x9q2/` can remain on disk while its branch becomes `checkout-redesign`.
 
-### The Resources panel
+### The Workbench
 
-Resources is a Dockview edge group fixed left of the development terminal. Vertical icon tabs select Agents,
-Project, Diff or Artifacts; clicking the selected tab collapses content, another reopens at saved width. Dictation
-sits below the tabs. Task layout saves selected tab, collapse state and shared expanded width.
+Names for Workbench, Activity bar, Side bar, Main pane and their items: [UI terminology](ui.md#workbench-terminology).
+The Activity bar and Side bar share a Dockview edge group fixed left of Main pane. Clicking the selected Activity
+bar item collapses the Side bar; another reopens it at saved width. Task layout saves the selected item, collapse
+state and shared expanded width.
 
 - Expanded minimum width is 300 CSS px; collapsed width is 40 px. Development minimum height is 204 px to keep
   controls reachable. Empty development terminals: [window.md](window.md#the-terminal).
 - **Agents**: named agent/shell rows with state/account/command. Icon returns to the last development terminal;
   row selection shows/focuses it. + uses the shared launch menu; × asks for agents, closes shells
   immediately. Agent menu: Change agent, New Conversation, Close.
-- **Project**: initial section; [Project Explorer](../src/project-explorer/README.md) browses task resource roots.
+- **Project**: initially selected Activity bar item; [Project Explorer](../src/project-explorer/README.md) browses task resource roots.
   Core supplies roots, protected desktop opening and repository actions. Root click expands, double-click opens in
   the OS; added copies have remove actions, main/default task folder does not.
 - **Artifacts**: newest-first screenshots/snapshots/request-response bodies/terminal text, with source, time and
@@ -130,7 +131,7 @@ these fields. `maintree` is human-owned and never deleted; task-created `worktre
 
 [Diff](../src/diff/README.md) reviews task resources through `Task.diff`, `diffTargets`, `review`, `diffContents`,
 with starting commits and ownership checks. Its TaskView owns the selection/session: task switching preserves the
-comparison, filter, document and scroll position; leaving Diff, collapsing Resources or closing the task releases
+comparison, filter, document and scroll position; leaving Diff, collapsing the Side bar or closing the task releases
 the session and navigation. Reopening or restarting starts at the first repository/default comparison with an empty
 filter and document start. Returning to a terminal preserves Stage. Loading and polling: [Diff](../src/diff/README.md).
 
@@ -162,11 +163,11 @@ to the human; the window's IPC (`ipc/`) and the MCP tools are handles on it:
 | Read what was said and done in the task before | its terminal, scrolled back | `task_history` ([transcripts.md](transcripts.md)) | `historyPart` (`history.ts`) |
 | Delete a task | Delete Task… in its tab's menu; its 🗑 in the sidebar | none: it deletes work and sign-ins, the human's to decide | `askDeleteTask`, `deleteTask`, `deleteClosedTask` (`projects.ts`) |
 | Show a task | a click on its tab, of any project | none: what the human looks at is theirs | `AppWindow.show` (`window.ts`) |
-| Browse a task’s folders, open a file | Project section in Resources content; double-click or Enter on a file, its Open menu | the agent reads and opens files through its own tools | `task:file:list`, `task:file:open` (`Task.files`, `Task.openProjectFile`; Project Explorer confines reads to its roots) |
-| Review local code changes | Diff section, continuous file diffs; Unified or Split | the agent reads its Git repository through its own tools | `task:diff:list`, `task:diff:targets`, `task:diff:review`, `task:diff:contents` (`Task.diff`, `Task.diffTargets`, `Task.review`, `Task.diffContents`) |
-| Open a resource's folder | double-click its root in Resources, or Open Folder in its menu | none: the agent opens folders through its own tools | `task:open-folder` (`ipc/tasks.ts`) |
-| Open an artifact, show it in its folder | a click on its row in the Resources panel, its menu | none: the tools' answers give the agent its path | `file:open`, `file:show` (`file-links.ts`) |
-| See what the artifacts take | the Artifacts heading in the Resources panel (the shown task's) | `task_artifacts`: its task's files, or each task's total | `Task.artifactsUsage` (src/activity-monitor) |
+| Browse a task’s folders, open a file | Project in the Side bar; double-click or Enter on a file, its Open menu | the agent reads and opens files through its own tools | `task:file:list`, `task:file:open` (`Task.files`, `Task.openProjectFile`; Project Explorer confines reads to its roots) |
+| Review local code changes | Diff Activity bar item, continuous file diffs; Unified or Split | the agent reads its Git repository through its own tools | `task:diff:list`, `task:diff:targets`, `task:diff:review`, `task:diff:contents` (`Task.diff`, `Task.diffTargets`, `Task.review`, `Task.diffContents`) |
+| Open a resource's folder | double-click its root in the Side bar, or Open Folder in its menu | none: the agent opens folders through its own tools | `task:open-folder` (`ipc/tasks.ts`) |
+| Open an artifact, show it in its folder | a click on its Side bar item, its menu | none: the tools' answers give the agent its path | `file:open`, `file:show` (`file-links.ts`) |
+| See what the artifacts take | the Artifacts heading in the Side bar (the shown task's) | `task_artifacts`: its task's files, or each task's total | `Task.artifactsUsage` (src/activity-monitor) |
 | Send an artifact to the agent | Send to Agent in its row’s or screenshot thumbnail’s menu; drag onto a terminal | none: preparing the human’s next message | `Task.sendArtifact`; terminal file drop |
 | Delete artifacts | a row's 🗑 or Delete in its menu; the heading's 🗑, all | `task_artifacts_delete`: some or all of its task's | `Task.deleteArtifacts` |
 | Make the task's worktree | none: its agent makes it before writing code | `task_worktree` | `Task.makeWorktree`, `Project.ensureWorktree` |
@@ -179,10 +180,10 @@ to the human; the window's IPC (`ipc/`) and the MCP tools are handles on it:
 | Connect an external agent configuration | Use existing setup in New Project or Settings → Agents | none: account configuration and sign-in are the human's | `Accounts.connectExisting` (`accounts.ts`) |
 | Add a GitHub account, sign it in again, delete it | Settings → GitHub | none: signing in is the human's (Rules) | `GitHub.startFlow`, `addToken`, `deleteGitHub` (`projects.ts`; [src/github](../src/github/README.md)) |
 | Choose a repository's GitHub account | its row on the project's page | none: what the project is made of is the human's | `setGitHub` (`projects.ts`) |
-| Open an agent in the task, a new conversation | the terminals' +, New Conversation (a terminal's Resources row menu), Ctrl+` on the folded terminals | none: which agents work is the human's | `Task.openAgent`, `newConversation` |
-| Hand the task to an agent, the work kept | Change agent… in the agent's Resources row menu | none: the human's choice | `Task.handOver` |
-| Close an agent's terminal | × on its Resources row, Close in its menu (asked first) | none: it would stop another agent | `Task.closeTab` |
-| Name an agent's conversation (its Resources row) | none: the agent knows what it is about | `conversation_rename` | `Task.nameConversation` |
+| Open an agent in the task, a new conversation | the terminals' +, New Conversation (a terminal's Side bar item menu), Ctrl+` on the folded terminals | none: which agents work is the human's | `Task.openAgent`, `newConversation` |
+| Hand the task to an agent, the work kept | Change agent… in the agent's Side bar item menu | none: the human's choice | `Task.handOver` |
+| Close an agent's terminal | × on its Side bar item, Close in its menu (asked first) | none: it would stop another agent | `Task.closeTab` |
+| Name an agent's conversation (its Side bar item) | none: the agent knows what it is about | `conversation_rename` | `Task.nameConversation` |
 
 ## Choosing the agent
 
@@ -498,7 +499,7 @@ rm -rf ~/.config/Kulisa/projects/<project id>   # all its tasks with their profi
 - `src/main/accounts.ts`: account ownership, discovery/cache, installation and sign-in cleanup; `recognizer.ts`
   selects an account for dictation. CLI-specific behavior belongs in
   [Kulisa plugin](../src/kulisa-plugin/README.md); terminal runtime in [terminal](../src/terminal/README.md).
-- `src/main/ipc/`: thin window handles. Resources/File Explorer/Diff use task-scoped actions and resource roots.
+- `src/main/ipc/`: thin window handles. Workbench item actions use task-scoped actions and resource roots.
 - Renderer task navigation lives in `components/`. `components/welcome/Welcome.tsx` owns the first-start screen,
   examples and assets; the [new-project UI module](../src/renderer/components/new-project/README.md) owns creation
   and its draft behind `index.tsx`.
