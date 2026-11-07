@@ -93,7 +93,7 @@ test('a crash draft is recovered without overwriting subsequent agent work; choo
 
 test('unsupported files use the external fallback and roots constrain reads, writes and restored drafts', async (t) => {
   const { editor, file, root, folder } = setup(t, Buffer.from([0, 1, 2]));
-  const binary = await editor.execute({ type: 'open', path: file }); assert.ok(!refused(binary)); assert.equal(binary.external, file);
+  const binary = await editor.execute({ type: 'open', path: file }); assert.ok(!refused(binary)); assert.equal(binary.external, fs.realpathSync.native(file));
   fs.writeFileSync(file, Buffer.from([0xff]));
   const encoding = await editor.execute({ type: 'open', path: file }); assert.ok(!refused(encoding)); assert.match(encoding.notice!, /encoding/);
   fs.writeFileSync(file, Buffer.alloc(MAX_FILE_BYTES + 1, 65));
