@@ -16,6 +16,7 @@ Dockview owns the Workbench and Stage grids; a headerless outer Gridview divides
 through Dockview variables in `Grid.css`. Stage has a 6 px gap for native pages; Workbench has no gap. The Activity bar
 vertical tab header owns its border even when content is collapsed. Pane children may shrink; isolate stacking so
 overlays stay below Dockview separators while menus stay above them.
+Activity bar selection stays highlighted independently of Dockview group focus.
 
 `TaskView` keeps an observable outer host while inactive content uses `content-visibility`, `inert` and `aria-hidden`.
 Preserve the retained grid and measurements when changing pane markup; disposal follows task closure, not selection.
