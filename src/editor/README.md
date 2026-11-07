@@ -50,9 +50,10 @@ selection, syntax, undo/redo and search/replace. Shadcn supplies controls withou
 uses JetBrains-style colors (the author's choice): JetBrains Dark and IntelliJ Light. Their small
 palette is adapted from IntelliJ Platform's [Dark scheme](https://github.com/JetBrains/intellij-community/blob/master/platform/platform-resources/src/themes/expUI/expUI_darkScheme.xml)
 and [Light scheme](https://github.com/JetBrains/intellij-community/blob/master/platform/platform-resources/src/themes/expUI/expUI_lightScheme.xml).
-`src/renderer/window.css` owns both palettes; `renderer/appearance.ts` resolves their actual colors into two TextMate
-themes for the Shiki JavaScript backend. Pierre's live tokenizer requires RGBA colors: its CSS-variable palette produces
-nearly transparent tokens while editing. Select a single theme by the caller's shade: a dual-theme render cache
+`renderer/appearance.ts` owns both palettes and registers their literal colors as two TextMate themes for the
+Shiki JavaScript backend. Background and gutter variables are scoped to the editor container from the supplied
+shade; the package does not read the window stylesheet or document root. Pierre's live tokenizer requires RGBA
+colors: its CSS-variable palette produces nearly transparent tokens while editing. Select a single theme by the caller's shade: a dual-theme render cache
 can keep the old surface colors while the live tokenizer switches. Merely changing inherited CSS variables cannot
 update that tokenizer. `unsafeCSS` styles the gutter inside its
 shadow root. Shiki's JavaScript engine also works within the window's CSP, which blocks WebAssembly compilation.

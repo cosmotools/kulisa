@@ -26,7 +26,7 @@ The navigation relationship is Activity bar item → Side bar items → selected
 item restores its Main pane; collapsing the Side bar leaves it selected. Project text files open in its code editor;
 other files and artifacts open in the system app. Editor ownership: [Editor](../src/editor/README.md).
 The code surface uses JetBrains-style syntax palettes (the author's choice); its controls retain the neutral
-window theme. Palette variables belong to `src/renderer/window.css`, their mapping and keyboard behavior to Editor.
+window theme. Its palettes and keyboard behavior belong to Editor.
 Keep Workbench's Side bar distinct from the window's **project sidebar**, which lists projects and tasks.
 
 Layout and lifecycle: [window.md](window.md#the-grid); item actions and saved state: [tasks.md](tasks.md#the-workbench).
@@ -43,7 +43,8 @@ These integration rules take precedence over generic skill instructions:
   [repository generation workflow](../src/ui/AGENTS.md#generation).
 - Outside `src/ui`, import only through `@ui`. Registry aliases reported by `info` describe generated internals;
   they do not replace this public entry.
-- Put Kulisa's theme variables in `src/renderer/window.css`. The CLI reports `src/ui/theme.css`, which is generated
+- Put shared window theme variables in `src/renderer/window.css`. Package-owned drawing palettes stay in their
+  package and are scoped to its drawing. The CLI reports `src/ui/theme.css`, which is generated
   base styling; do not put application overrides there. Callers use layout/size classes, variants and custom
   properties; custom drawings/layout use wrappers, with their reasons documented by the owner.
 - Use neutral shadcn styling, bundled Geist and JetBrains Mono. Native drawings use `termStyle()`;

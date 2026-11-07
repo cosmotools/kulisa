@@ -7,7 +7,7 @@ import { XIcon } from 'lucide-react';
 import { Alert, AlertDescription, Button, Empty, EmptyHeader, EmptyTitle, Tabs, TabsList, TabsTrigger, Spinner } from '@ui';
 import type { EditorDocument } from '../ipc';
 import type { EditorSession } from './session';
-import { editorCSS, editorTheme, keymap } from './appearance';
+import { editorCSS, editorTheme, editorStyle, keymap } from './appearance';
 
 const createEditor: EditorFactory<undefined, undefined> = (type, options) => new Editor(type, {
   historyMaxEntries: 100, ownsVerticalViewport: true, roundedSelection: false, matchBrackets: true, autoSurround: 'default', keymap, ...options,
@@ -27,7 +27,7 @@ export function CodeEditor({ session, active, shade, fontSize }: { session: Edit
   }, [session, active]);
   const strip = useRef<HTMLDivElement>(null);
   useEffect(() => { strip.current?.querySelector('[aria-selected="true"]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }, [state.selected]);
-  return <section aria-label="Code editor" data-zone="editor" className="flex h-full min-h-0 min-w-0 flex-col bg-(--code-background)">
+  return <section aria-label="Code editor" data-zone="editor" style={editorStyle(shade)} className="flex h-full min-h-0 min-w-0 flex-col bg-(--code-background)">
     {!!state.tabs.length && <div className="min-w-0 shrink-0 border-b"><Tabs value={state.selected ?? ''} onValueChange={(path) => void session.select(path)} activationMode="manual" className="min-w-0">
       <div ref={strip} className="min-w-0 overflow-x-auto"><TabsList aria-label="Open files" className="justify-start">
         {state.tabs.map((tab) => <TabsTrigger key={tab.path} value={tab.path} title={tab.path} aria-label={basename(tab.path)} className="max-w-56 flex-none"
