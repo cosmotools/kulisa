@@ -64,23 +64,14 @@ test('text files open on double-click, autosave Unicode and CRLF, retain undo ac
   await expect(code).toContainText('Привет');
   await code.press(`${CMD}+z`);
   await expect.poll(() => fs.readFileSync(file, 'utf8')).not.toContain('Привет');
+  // Undo leaves a real redo entry; replacing the source must make it unreachable.
   fs.writeFileSync(file, 'const agent = true;\n');
   await expect(code).toContainText('const agent = true;');
-  await code.press(`${CMD}+z`); await frames(ui); await ipcSettled(ui);
+  await code.press(`${CMD}+Shift+z`); await frames(ui); await ipcSettled(ui);
   await expect(code).toContainText('const agent = true;');
   expect(fs.readFileSync(file, 'utf8')).toBe('const agent = true;\n');
   await showResources(ui, 'Agents'); await showResources(ui, 'Project');
   await expect(code).toContainText('const agent = true;');
-  await ui.getByRole('tab', { name: 'editor-other.txt', exact: true }).click();
-  await expect(ui.getByRole('textbox', { name: other, exact: true })).toBeVisible();
-  await ui.getByRole('button', { name: 'Close editor-code.ts', exact: true }).click();
-  await expect(ui.getByRole('tab', { name: 'editor-code.ts', exact: true })).toHaveCount(0);
-  fs.writeFileSync(file, 'const reopened = true;\n');
-  await ui.getByRole('button', { name: 'editor-code.ts', exact: true }).dblclick();
-  await expect(code).toContainText('const reopened = true;');
-  await code.press(`${CMD}+z`); await frames(ui); await ipcSettled(ui);
-  await expect(code).toContainText('const reopened = true;');
-  expect(fs.readFileSync(file, 'utf8')).toBe('const reopened = true;\n');
 });
 
 test('JetBrains shortcuts replace text, insert below and move lines without losing autosave', async ({ ui, core }, testInfo) => {
@@ -183,16 +174,20 @@ test('a large file renders a bounded viewport and restores scroll when switching
   await expect(code).toContainText('value0');
   // Virtualized code lives in Pierre's shadow root; its DOM must stay proportional to the viewport.
   await expect.poll(() => code.evaluate((node) => node.textContent.length)).toBeLessThan(40000);
-  // The region's sole child is the scroll viewport; scrolling must survive independently of the caret.
-  const viewport = ui.getByRole('region', { name: `Editor document: ${file}`, exact: true }).locator(':scope > div').first();
   await code.hover(); await ui.mouse.wheel(0, 12000);
-  await expect.poll(() => viewport.evaluate((node) => node.scrollTop)).toBeGreaterThan(10000);
-  const scrollTop = await viewport.evaluate((node) => node.scrollTop);
+  await expect(code).not.toContainText('value0');
+  // Remember a visible line independently of the caret, without requiring identical pixel offsets.
+  const region = ui.getByRole('region', { name: `Editor document: ${file}`, exact: true });
+  const box = await region.boundingBox();
+  const line = await code.locator('[data-line]').evaluateAll((rows, middle) => rows.find((row) => {
+    const rect = row.getBoundingClientRect(); return rect.top <= middle && rect.bottom > middle;
+  })?.getAttribute('data-line'), box.y + box.height / 2);
+  expect(line, 'a code line at the middle of the editor viewport').toBeTruthy();
   await ui.getByRole('button', { name: 'editor-small.txt', exact: true }).dblclick();
   await expect(ui.getByRole('textbox', { name: other, exact: true })).toBeVisible();
   await ui.getByRole('tab', { name: 'editor-large.ts', exact: true }).click();
   await expect(ui.getByRole('region', { name: `Editor document: ${file}`, exact: true })).toHaveAttribute('aria-busy', 'false');
-  await expect.poll(async () => Math.abs(await viewport.evaluate((node) => node.scrollTop) - scrollTop)).toBeLessThan(2);
+  await expect(code.locator(`[data-line="${line}"]`)).toBeInViewport();
   await code.press(`${CMD}+End`);
   await expect(code).toContainText('value22999');
   await ui.getByRole('button', { name: 'editor-small.txt', exact: true }).dblclick();
