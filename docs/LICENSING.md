@@ -41,7 +41,7 @@ License) and Chromium's licenses (in Electron; packaged builds carry `LICENSE` a
 Project Explorer's Material Icon Theme SVGs carry their MIT license in `dist/renderer/material-icon-theme-LICENSE.txt`.
 The shared Git client uses simple-git under MIT.
 The installed-version check uses @electron/asar under MIT.
-The @pierre/diffs review renderer carries its Apache-2.0 license in `dist/renderer/pierre-diffs-LICENSE.txt`.
+The @pierre/diffs review renderer and editor carry their Apache-2.0 license in `dist/renderer/pierre-diffs-LICENSE.txt`.
 The @pierre/trees navigation and @pierre/theming carry Apache-2.0 licenses in `dist/renderer/pierre-*-LICENSE.txt`,
 with Trees' attribution in `pierre-trees-NOTICE.txt`. Preact and its string renderer carry MIT licenses in
 `dist/renderer/preact*-LICENSE`; the Lucide sprite carries ISC in `dist/renderer/lucide-LICENSE`.

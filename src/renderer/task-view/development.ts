@@ -6,6 +6,8 @@ import type { TaskStore } from './state';
 import type { DiffSelection } from '../../diff/ipc';
 import { createDiff } from '../../diff/renderer';
 import { menuAt } from '../lib/menu';
+import { ask } from '../lib/ask';
+import { createEditorSession } from '../../editor/renderer';
 
 export const activityItems = { terminals: 'Agents', project: 'Project', diff: 'Diff', artifacts: 'Artifacts' } as const;
 export type ActivityItem = keyof typeof activityItems;
@@ -18,6 +20,17 @@ export class DevelopmentGrid {
   private subscriptions = new DockviewCompositeDisposable();
   private reviewNavigation = 0;
   private reviewSession: ReturnType<typeof createDiff> | null = null;
+  private editorSession: ReturnType<typeof createEditorSession> | null = null;
+  get editor() {
+    const key = this.store.getState().key;
+    return this.editorSession ??= createEditorSession({
+      execute: (action) => kulisa.invoke('task:editor', { key, action }),
+      external: (path) => kulisa.invoke('task:file:open', { key, file: path }),
+      showFile: (path) => kulisa.invoke('file:show', path), showMenu: menuAt,
+      confirmDiscard: async (path) => await ask({ message: 'Discard unsaved changes?', detail: `${path}\nThe changes cannot be saved automatically.`, ok: 'Discard changes', danger: true }) === 'ok',
+    });
+  }
+  receiveEditor(state: Parameters<ReturnType<typeof createEditorSession>['receive']>[0]) { this.editorSession?.receive(state); }
   constructor(private readonly store: TaskStore, private readonly changed: () => void) {}
   get review() {
     const task = this.store.getState().key;
@@ -33,7 +46,7 @@ export class DevelopmentGrid {
   }
   screen = (): ActivityItem => this.store.getState().workbenchItem;
   attach(api: DockviewApi, parent: GridviewPanelApi) { this.api = api; this.parent = parent; }
-  dispose() { this.subscriptions.dispose(); this.reviewSession?.client.clear(); this.reviewSession = null; this.api = null; this.parent = null; }
+  dispose() { this.subscriptions.dispose(); this.reviewSession?.client.clear(); this.reviewSession = null; this.editorSession?.dispose(); this.editorSession = null; this.api = null; this.parent = null; }
   build(saved: SerializedDockview | null) {
     const api = this.api!;
     if (saved?.edgeGroups?.left) {

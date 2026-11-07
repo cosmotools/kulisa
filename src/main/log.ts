@@ -107,11 +107,11 @@ export function electronEvent({ eventName, event, args }: { eventName: string; e
 // lines as one. One page follows: the last that read. The file shorter than what was read (turned over at 1 MB): the
 // page is told to read it again. Nothing of this is logged: no line of the page's own to send it again.
 type Reader = Pick<Electron.WebContents, 'isDestroyed' | 'send'>;
-let reader: { wc: Reader; offset: number } | null = null, flushing = false;
+let reader: { wc: Reader; offset: number; stream: number } | null = null, flushing = false, nextStream = 0;
 export function readLog(wc: Reader) {
   const buf = fs.existsSync(file) ? fs.readFileSync(file) : Buffer.alloc(0);
-  reader = { wc, offset: buf.length };
-  return { text: buf.toString(), size: buf.length };
+  reader = { wc, offset: buf.length, stream: ++nextStream };
+  return { text: buf.toString(), size: buf.length, stream: reader.stream };
 }
 function pending() { if (reader && !flushing) { flushing = true; setImmediate(flush); } }
 function flush() {
@@ -121,10 +121,10 @@ function flush() {
   if (r.wc.isDestroyed()) { reader = null; return; }
   let size: number;
   try { size = fs.statSync(file).size; } catch { return; }
-  if (size < r.offset) { reader = null; r.wc.send('log:lines', { reset: true }); return; }
+  if (size < r.offset) { reader = null; r.wc.send('log:lines', { reset: true, stream: r.stream }); return; }
   if (size === r.offset) return;
   const buf = Buffer.alloc(size - r.offset), fd = fs.openSync(file, 'r');
   try { fs.readSync(fd, buf, 0, buf.length, r.offset); } finally { fs.closeSync(fd); }
   r.offset = size;
-  r.wc.send('log:lines', { text: buf.toString() });
+  r.wc.send('log:lines', { text: buf.toString(), stream: r.stream });
 }

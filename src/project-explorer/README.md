@@ -8,17 +8,19 @@ projects, roots and desktop actions; it writes no files or processes.
 `main/index.ts` exports `listResourceFiles(roots, folder)` and `resourcePath(roots, file)`. Paths are resolved through
 symbolic links and confined to a supplied root; errors are returned as `Result`. Directory reads are shallow,
 include hidden entries, and sort folders before files, then names with numeric ordering. Symbolic links are leaf
-entries; directory links are not expanded. Opening files is the caller's desktop action.
+entries; directory links are not expanded. Opening files is the caller's action, which may select an editor.
 
 ## Tree
 
 Project occupies the Workbench [Side bar](../../docs/ui.md#workbench-terminology).
 
-`ProjectDirectory` takes `ExplorerActions` for reads, open/reveal and shared menu opening. It supplies Open/Show in
-Folder rows; double-click/Enter opens files.
+`ProjectDirectory` takes `ExplorerActions` for reads, open/reveal, optional external opening and shared menu opening.
+It supplies Open/Show in Folder and, when supplied, Open in System Application rows. A single click selects a row;
+double-click/Enter opens files. The caller supplies one selection shared across roots and nested directories.
+Selection lasts while the Side bar content is mounted, independently of the open editor document.
 
-Use shadcn File Tree: Collapsible folders, Button triggers and ghost Button files. Expanded folders set `--muted`
-transparent while unhovered. Refresh mounted expanded directories every 3 s while `active`; callers set it false
+Use shadcn File Tree: Collapsible folders and Button rows, with the secondary variant for the selected row and
+ghost otherwise. Expanded folders set `--muted` transparent while unhovered so disclosure alone has no background. Refresh mounted expanded directories every 3 s while `active`; callers set it false
 for hidden trees to pause polling and ignore late replies while retaining entries/expansion. Unmounting clears timers;
 collapsed/background folders keep no watchers.
 

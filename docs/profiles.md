@@ -66,6 +66,8 @@ and focus its terminal. Nothing is saved; the human supplies the request, the ag
 Window and MCP handles resolve targets through `Task.find`/`findTab`; MCP first maps name to ID with `Task.named`.
 Both call the same core actions and receive the same refusals. Identity changes use `ProfileStore` directly from
 Settings or through `ProjectProfiles`. Missing handles require a reason in the table.
+Task file editing uses the human's recoverable editor drafts; agents keep their own filesystem tools and do not
+replace or resolve human drafts through MCP. Its core/handle ownership is listed in [tasks.md](tasks.md#actions-the-humans-and-the-agents).
 
 | Action | The human | The agent | The core |
 |---|---|---|---|

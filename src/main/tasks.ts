@@ -23,8 +23,9 @@ import { installSkill } from '../kulisa-plugin/main/index.ts';
 import { labelError } from '../shared/names.ts';
 import { loginAllowed } from './local.ts';
 import { resourcePath, listResourceFiles } from '../project-explorer/main/index.ts';
+import { EditorWorkspace } from '../editor/main/index.ts';
 import { openFile } from './file-links.ts';
-import { log } from './log.ts';
+import { log, summary } from './log.ts';
 import type { Tab } from '../browser/main/index.ts';
 import type { Entry, Hooks } from './project-profiles.ts';
 import type { Project } from './projects.ts';
@@ -61,6 +62,14 @@ const HANDOVER = (n: number, name: string) => `Go on with the work of conversati
 const THUMB_WIDTH = 128;
 
 class Task {
+  private editorWorkspace?: EditorWorkspace;
+  get editor() {
+    return this.editorWorkspace ??= new EditorWorkspace({
+      directory: this.store.file('editor'), roots: () => this.resources().map((r) => r.folder),
+      changed: (state) => this.window?.send('task:editor:state', { task: this.key, state }),
+      activity: (action, file) => log.info(`[editor] ${action} ${summary({ task: this.key, file })}`),
+    });
+  }
   stageTerminals: StageTerminals;
   shell: Shell; project: Project; entry: TaskEntry; id: string; key: string; store: TaskStore;
   window: AppWindow | null; // the one whose tab it is (window.ts)
@@ -685,6 +694,7 @@ class Task {
   // is deleted). Its tabs are saved first, as they are: closing them one by one changes the profiles, and nothing is
   // saved then.
   async unload() {
+    await this.editorWorkspace?.dispose(); this.editorWorkspace = undefined;
     this.stageTerminals.unload();
     this.shell.chooseAgent.cancel?.(this);
     this.shell.dictation.gone(this.key);

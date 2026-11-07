@@ -39,6 +39,7 @@ kulisa.on('stage:follow:state', (stageFollow) => {
   if (stageFollow) current()?.stage.follow();
 });
 kulisa.on('task:closed', forgetTerminals);
+kulisa.on('task:editor:state', ({ task, state }) => grids.get(task)?.development.receiveEditor(state));
 kulisa.on('terminal:gone', forgetTerminals);
 document.addEventListener('dragend', () => current()?.finishDrag(), true);
 document.addEventListener('drop', () => setTimeout(() => current()?.finishDrag()), true);

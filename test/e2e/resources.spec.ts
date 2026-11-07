@@ -2,7 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { test, expect } from './fixtures.ts';
-import { showResources, resourcesGroup, developmentBox, terminalRows, termKeys, act, dock, invoke, windowSubmenu, choose, closeMenu, frames, rightClick, menu } from './helpers.ts';
+import { showResources, resourcesGroup, developmentBox, terminalRows, termKeys, act, dock, invoke, windowSubmenu, choose, closeMenu, frames, ipcSettled, rightClick, menu } from './helpers.ts';
 import { openFolder, showTask } from './tasks-helpers.ts';
 
 test('Resources starts with Project, expands folders, opens files and follows projects', async ({ core, ui, files }) => {
@@ -11,20 +11,30 @@ test('Resources starts with Project, expands folders, opens files and follows pr
   fs.mkdirSync(directory, { recursive: true });
   const file = path.join(directory, 'readme.txt');
   fs.writeFileSync(file, 'project file');
+  fs.writeFileSync(path.join(first.folder, 'tree-selection.txt'), 'another file');
   await expect(ui.getByRole('tab', { name: 'Project', exact: true })).toHaveAttribute('aria-selected', 'true');
   await ui.locator('[data-task-view][data-active] [data-resources]').getByRole('button', { name: 'tree-example', exact: true }).click();
   const row = ui.locator('[data-task-view][data-active] [data-resources]').getByRole('button', { name: 'readme.txt', exact: true });
   await expect(row).toBeVisible();
-  await core((k) => {
-    k.stash.openPath = k.electron.shell.openPath; k.stash.opened = [];
-    k.electron.shell.openPath = async (file: string) => { k.stash.opened.push(file); return ''; };
-  });
-  try {
-    await row.dblclick();
-    await expect.poll(() => core((k) => k.stash.opened)).toEqual([file]);
-    await row.press('Enter');
-    await expect.poll(() => core((k) => k.stash.opened)).toEqual([file, file]);
-  } finally { await core((k) => { k.electron.shell.openPath = k.stash.openPath; }); }
+  await row.click();
+  await expect(row).toHaveAttribute('data-selected', 'true');
+  await frames(ui);
+  await ipcSettled(ui);
+  expect(await core(async (k) => { const state = await k.shell.task.editor.execute({ type: 'list' }); return 'tabs' in state ? state.tabs : state; })).toEqual([]);
+  await expect(ui.getByRole('textbox', { name: file, exact: true })).toHaveCount(0);
+  const otherRow = ui.locator('[data-task-view][data-active] [data-resources]').getByRole('button', { name: 'tree-selection.txt', exact: true });
+  await otherRow.click();
+  await expect(otherRow).toHaveAttribute('data-selected', 'true');
+  await expect(row).toHaveAttribute('data-selected', 'false');
+  await row.dblclick();
+  await expect(row).toHaveAttribute('data-selected', 'true');
+  await expect(otherRow).toHaveAttribute('data-selected', 'false');
+  await expect(ui.getByRole('textbox', { name: file, exact: true })).toContainText('project file');
+  await otherRow.press('Enter');
+  await expect(ui.getByRole('textbox', { name: path.join(first.folder, 'tree-selection.txt'), exact: true })).toContainText('another file');
+  await row.press('Enter');
+  await expect(ui.getByRole('textbox', { name: file, exact: true })).toContainText('project file');
+  await expect(ui.getByRole('tablist', { name: 'Open files' }).getByRole('tab')).toHaveCount(2);
   await showResources(ui, 'Artifacts');
   await expect(row).toHaveCount(0);
   const other = path.join(files.root, 'tree-other-project');

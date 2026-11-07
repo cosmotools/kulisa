@@ -11,6 +11,7 @@ import { SettingsHeading, SettingsLoading } from './kit';
 import { useRead } from './read';
 import { refused } from '../../../shared/result';
 import type { LogInfo } from '../../../shared/types';
+import type { Events } from '../../../shared/ipc';
 
 // A line as the file has it: [date T time offset] [level] [tag …] the rest (log.ts, stamp; electron-log's local time with
 // a space and no offset read too); a line not of that shape (an object's lines under an [electron] event) belongs to the
@@ -19,7 +20,7 @@ type Group = 'agent' | 'human' | 'tasks';
 type Show = 'all' | 'errors' | Group;
 interface Line { id: number; date: string; time: string; offset: string; level: string; tag: string; text: string; raw: string; group: Group | null; bad: boolean }
 let nextLineId = 0;
-const GROUPS: Record<string, Group> = { mcp: 'agent', hook: 'agent', terminal: 'agent', ipc: 'human', key: 'human', settings: 'human', task: 'tasks', window: 'tasks', kulisa: 'tasks' };
+const GROUPS: Record<string, Group> = { mcp: 'agent', hook: 'agent', terminal: 'agent', ipc: 'human', key: 'human', settings: 'human', editor: 'human', task: 'tasks', window: 'tasks', kulisa: 'tasks' };
 const SHOW: { id: Show; label: string; hint: string }[] = [
   { id: 'all', label: 'All', hint: 'Every line' },
   { id: 'errors', label: 'Errors', hint: 'Warnings and errors: a page\'s, Electron\'s, an action refused or failed' },
@@ -48,7 +49,8 @@ function parse(text: string, into: Line[], rest: { text: string }) {
 }
 
 // What the main process sends as the log grows comes to the page shown, if any (kulisa.on has no way to stop listening).
-let onLines: ((m: { text: string } | { reset: true }) => void) | null = null;
+type LogUpdate = Events['log:lines'];
+let onLines: ((m: LogUpdate) => void) | null = null;
 kulisa.on('log:lines', (m) => onLines?.(m));
 
 // data-tag, data-group, data-bad: the tests' handles on a line's kind.
@@ -68,20 +70,27 @@ export function LogPage() {
   const [error, setError] = useState('');
   const box = useRef<HTMLDivElement>(null), followId = useId();
 
-  // Read whole, then followed: what comes before the answer is what this read has already (log.ts, readLog).
+  // A queued update from a previous opening can arrive after the new snapshot. Match stream identities, and keep
+  // current-stream updates received during loading: they were written after this snapshot, not already included.
   useEffect(() => {
-    let loaded = false, live = true;
+    let loaded = false, live = true, stream: number | undefined;
+    let pending: LogUpdate[] = [];
     const rest = { text: '' };
     const load = () => {
       loaded = false; setError('');
       return readLog(async () => {
         const r = await kulisa.invoke('log:get'), lines: Line[] = [];
-        if (live) { rest.text = ''; parse(r.text, lines, rest); }
-        return { lines, info: { size: r.size, max: r.max, old: r.old } };
-      }, () => { loaded = true; });
+        if (live) { stream = r.stream; rest.text = ''; parse(r.text, lines, rest); }
+        return { lines, info: { size: r.size, max: r.max, old: r.old, stream: r.stream } };
+      }, () => {
+        loaded = true;
+        const queued = pending; pending = [];
+        for (const message of queued) receive(message);
+      });
     };
-    onLines = (m) => {
-      if (!loaded) return;
+    const receive = (m: LogUpdate) => {
+      if (!loaded) { pending.push(m); return; }
+      if (m.stream !== stream) return;
       if ('reset' in m) { void load(); return; }
       setLog((now) => {
         if (!now) return now;
@@ -89,8 +98,9 @@ export function LogPage() {
         return { lines, info: { ...now.info, size: now.info.size + new TextEncoder().encode(m.text).length } };
       });
     };
+    onLines = receive;
     void load();
-    return () => { live = false; onLines = null; };
+    return () => { live = false; onLines = null; pending = []; };
   }, [readLog, setLog]);
 
   const shown = useMemo(() => {

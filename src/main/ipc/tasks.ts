@@ -90,6 +90,10 @@ export function registerTasks(ipc: Ipc) {
     const task = shell.taskByKey(key);
     return task ? task.openProjectFile(file) : { error: 'the task is closed' };
   });
+  handle('task:editor', (_e, { key, action }) => {
+    const task = shell.taskByKey(key);
+    return task ? task.editor.execute(action) : { error: 'The task is closed.' };
+  });
   handle('task:diff:list', (_e, { key, folder, options }) => {
     const task = shell.taskByKey(key);
     return task ? task.diff(folder, options) : { error: 'The task is closed.' };
