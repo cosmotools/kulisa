@@ -15,7 +15,7 @@ computer.
 - **Profile**: one browser identity, as in Chrome: its own cookies, sign-ins and tabs. One profile is one user of
   your app ("ann, the seller"). It is shown as a pane with its tabs.
 - **Project**: what you work on: its code (a folder, or one or more git repositories), the agents that work in it,
-  and any browser profiles it needs. A project is not opened or closed itself; its tasks are.
+  and any browser profiles it needs.
 - **Task**: one piece of work in a project: an agent in a terminal, a branch and copy of the code when needed,
   browser profiles and interactive terminals for checking the result. Several tasks of one project run at once, each building something else.
 - **Tab**: an open task in the tasks' bar (under the grid, or in the title bar), as a browser's tab; its project's icon is on it.
@@ -43,8 +43,7 @@ Download Kulisa from its [latest release](https://github.com/cosmotools/kulisa/r
   version the same way.
 - **macOS:** to come.
 
-Every installer is built by GitHub from Kulisa's published code, and GitHub keeps a signed record of it. To check a
-file you downloaded, with GitHub's command-line tool: `gh attestation verify <file> -R cosmotools/kulisa`.
+To verify a downloaded installer with GitHub CLI, run `gh attestation verify <file> -R cosmotools/kulisa`.
 
 1. **Make a project.** Choose **Create a project**, connect an agent such as Claude Code or Codex, choose where
    the code comes from and finish setup. **Create project** opens its first task.
@@ -73,72 +72,63 @@ Drag Stage headers to arrange/stack environments and thin dividers to resize pan
 **Stage** in the title bar offers:
 
 - **Left**, **Right** or **Above** Workbench.
-- **Horizontal stack**, **Vertical stack** or **Tabs**; changing the view preserves pane contents and terminal search.
-- **Allow overflow** for scrolling stacks at usable pane sizes, or fit all panes. Stacked tabs share an area;
-  Tabs keeps this setting hidden.
+- **Horizontal stack**, **Vertical stack** or **Tabs**.
+- **Allow overflow** to scroll a stack rather than shrink every pane to fit.
 - **Open an environment** to add a profile or Stage terminal. An empty Stage stays hidden.
 - **Follow agent** to reveal its active environment and highlight activity. Your Stage input pauses following;
-  choose **Follow agent (paused)** to resume. The preference survives restart; pauses are temporary.
+  choose **Follow agent (paused)** to resume.
 
 **Maximize environment** fills Stage with that group while Workbench remains visible. **Restore environment**
-returns its arrangement/overflow. The agent can arrange Stage too; each task remembers its layout and size.
+returns to the previous layout. The agent can arrange Stage too.
 
 ### Activity bar and Side bar
 
-The **Activity bar** selects **Agents**, **Project**, **Diff** or **Artifacts**. Each button is an **Activity bar item**;
-an entry in the adjacent **Side bar** is a **Side bar item**. Click the selected Activity bar item to collapse the
-Side bar; select another to restore its width. Each Activity bar item restores its Main pane while the task stays
-open. Collapsing the Side bar leaves Main pane visible; terminals keep running while other items are selected.
+Use the **Activity bar** to choose **Agents**, **Project**, **Diff** or **Artifacts**. The adjacent **Side bar** lists
+that view's items; select one to show it in the **Main pane**. Click the active Activity bar button to hide the
+Side bar, or drag its divider to resize it. Terminals keep running when you switch views.
 
-- **Agents** lists coding agents/development shells. Select a row to use its terminal.
-- **Project** starts selected in new tasks. Expand folders; click a file to select it, double-click or press Enter
-  to open text in the code editor. Changes save automatically after a short pause. Open files appear as tabs;
-  × closes one. Their right-click menu opens the system app, reveals the file or closes it; **Close All** closes
-  all open files. If changes cannot be saved, closing asks before discarding them; Cancel stops closing the
-  remaining files. Right-click a file for Open, Open in System Application or Show in Folder. It follows the
-  current task's code folders.
-- **Artifacts** lists screenshots, page snapshots, request bodies and terminal screens, newest first with source,
-  time and size. Click to open; right-click to reveal, send to agent or delete. Hover/focus trash deletes one;
-  heading trash deletes all. Drag an artifact to another app or folder; Send to Agent selects Agents and inserts
-  its path without sending the message. Ask the agent to explain or clean up files. Above 100 MB, oldest task
-  artifacts are removed automatically.
+- **Agents** lists coding agents and development shells. Select a row to use its terminal.
+- **Project** shows the current task's code folders. Expand folders; click a file to select it, double-click or
+  press Enter to open it. Right-click for **Open**, **Open in System Application** or **Show in Folder**.
+- **Artifacts** lists screenshots, page snapshots and other testing results, newest first. Click to open;
+  right-click to reveal, send to the agent or delete. Hover/focus trash deletes one; heading trash deletes all.
+  Drag an artifact to another app or folder. **Send to Agent** puts its path in the agent's input for you to review
+  and send. Above 100 MB, the oldest artifacts are removed automatically.
 
-Drag the Side bar's divider to change its width. Each task keeps its selected Activity bar item, width and
-collapsed state.
+### Editing files
 
-The code editor supports UTF-8 files up to 1 MB, including files without an extension, and up to twelve open files.
-Other files open in the system app; executable files are not launched. Undo/redo and search/replace are available in
-the editor. Switching files, tasks or Activity bar items keeps your editing state. Restart restores open files and
-received unsaved drafts; undo history and cursor position start fresh.
+Text files open in the code editor and save automatically after a short pause. It accepts UTF-8 files up to 1 MB
+and up to twelve open files. Other files open in the system app; executable files are not launched.
+
+Open files appear as tabs. **×** closes one; a tab's right-click menu includes **Close All**, system opening and
+**Show in Folder**. Closing saves pending changes; if they cannot be saved, it asks before discarding them.
+**Cancel** stops closing the remaining files.
+
+Switching files, tasks or Activity bar items keeps your editing state. Restart restores open files and recovery
+drafts, with fresh undo history and cursor position. Deleting a task removes its drafts.
+
+When an agent changes a file, the editor updates it unless you have unsaved changes. Then autosave pauses:
+**Compare versions** shows both versions; choose **Use disk version** or **Keep my changes**. If the file changes
+again, compare the latest version before choosing. For a deleted or inaccessible file, **Retry** checks again;
+**Copy text** lets you recover your changes elsewhere.
+
 Use Ctrl/Cmd+F to find, Ctrl/Cmd+R to replace, Shift+Enter to insert a line below and Alt+Shift+Up/Down to move lines.
 Ctrl/Cmd+/ toggles a line comment; Ctrl+Shift+/ toggles a block comment on Windows/Linux, Cmd+Alt+/ on macOS.
-Other shortcuts follow the editor's defaults; this is not the complete JetBrains keymap.
-
-When an agent changes an open file, a saved document updates automatically. If you also have unsaved changes,
-autosave pauses and keeps your text. **Compare versions** shows the disk version and your changes; choose **Use disk
-version** or **Keep my changes**. If the file changes again before your choice, compare the latest version first.
-An unavailable/deleted file keeps your text: **Retry** checks again and **Copy text** lets you recover it elsewhere.
-Closing a file whose changes cannot be saved asks before discarding them.
-Unsaved drafts belong to their task and are removed when you delete that task.
 
 ### Reviewing changes
 
-**Diff** opens local, read-only Git review in place of the terminal, which keeps running. **Agents** or the terminal
-focus shortcut returns to it. Switching Activity bar items preserves the comparison, filter, review layout,
-collapsed diffs and position; returning to Diff reads current files. Open reviews refresh as the agent edits.
-Switching tasks also preserves the review. Restarting restores the selected Activity bar item with a fresh review.
+**Diff** shows local Git changes without editing them. **Agents** or the terminal focus shortcut returns to the
+terminal, which keeps running. Switching views or tasks keeps your review position and settings; restart opens a
+fresh review.
 
-**From** is the task branch/worktree including local edits. **To** defaults to the repository's default branch;
-choose the current branch to see uncommitted changes only. Selecting a target does not change checked-out code.
-New files are included; ignored files are excluded.
+**From** is the task's branch and local edits. **To** defaults to the repository's default branch; choose the
+current branch to see uncommitted changes only. Selecting a target does not change your code. New files are
+included; ignored files are excluded.
 
-Filter current file paths to narrow tree and review; search ignores case and accepts either slash as a separator.
-The **×** at the field's end clears the filter and restores the tree's expanded folders. Arrow keys navigate;
-Enter selects. Select a file in the tree to jump to its changes.
-
-Choose **Unified** or **Split** to review changes. Use file-header arrows to collapse files; this choice survives
-refresh. The copy button copies the repository-relative path, even when collapsed. Select/copy code or drag line
-numbers for a range. Large reviews use **Load diff**; binary/unsupported content explains its limit.
+Filter file paths to narrow the tree and review; **×** clears the filter. Arrow keys navigate and Enter selects a
+file to jump to its changes. Choose **Unified** or **Split**; file-header arrows collapse files and the copy button
+copies a repository-relative path. Select/copy code or drag line numbers for a range. For a large review, use
+**Load diff**; files that cannot be displayed explain why.
 
 ### Task navigation
 
@@ -154,32 +144,28 @@ three steps. **Back** keeps your choices; on the first step of the welcome it re
 1. **Agents — Choose your agent**: choose one starting agent. Each ready account shows its configuration folder.
    **Use** selects it and takes you to the next step. An existing setup shares login, settings and skills with your
    other CLI sessions. Each provider has a separate **New configuration** row: **Connect** starts with an empty
-   configuration in Kulisa and opens your browser to sign in; **Install** installs a missing CLI first. Nothing is copied.
-   Without an existing configuration, only the new-configuration row appears. Add more accounts, from the same
-   provider or others, after creating the project. Connected accounts remain available if you cancel creation.
+   configuration in Kulisa and opens your browser to sign in; **Install** installs a missing CLI first.
+   Add more accounts after creating the project. Connected accounts remain available if you cancel creation.
 2. **Code**: start a new project folder, open a folder on disk or clone a repository using your git credentials.
    For a new project, enter **Folder name** and choose its parent folder in **Create in** with **Browse**.
-   For a clone, enter **Repository URL**; its name suggests the new folder
-   name, which you can change along with the parent folder. Check the full destination before continuing.
+   For a clone, enter **Repository URL**, then check the suggested folder name and destination.
    New folder names use 1–64 characters: A–Z, a–z, 0–9, `-`, `_` and `.`. Start with a letter or digit and do not end
    with a dot. Windows device names such as `CON` or `NUL.txt` cannot be used. Existing folders keep their names.
    Folders and clones are created only when you finish setup. Existing code is kept; new folders start without git.
-   New projects and clones require a folder that does not exist yet, even if an existing folder is empty. Choose
-   another folder name or location; use **Open a folder** to work in an existing folder.
-   Start with one folder; add others to the project later, such as a frontend and backend.
+   New projects and clones require a destination that does not exist yet, even if an existing folder is empty.
+   Use **Open a folder** for existing code. You can add other folders to the project later.
 3. **Start**: the chosen folder or repository supplies a readable project name automatically: `my-shop` becomes
    `My Shop`. Use **Edit name** to change it; the folder's name and location stay as they are.
    **Web app / CLI app / Not sure yet** offers starting ideas for your first request. Every choice keeps access to
    browser profiles and interactive terminals. No environment opens automatically and no request is sent for you.
 
-**Create project** creates the project and opens its first task with the agent you chose. Add browser profiles
-and other folders when you need them. Project setup can be changed later in Settings.
+**Create project** opens the first task with your chosen agent. Change the setup later in Settings.
 
 ### A project's page
 
 **Settings** (the gear) → **Projects** → the project, or **Project Settings…** in a project's right-click menu in the
 sidebar, or in a task tab's right-click menu, under the project's name.
-Everything is saved as you change it; there is no Save button.
+Changes save automatically.
 
 - **Name**.
 - **Local addresses**: addresses of your app besides `localhost` (a tunnel, a dev domain), where the agent may type a
@@ -189,7 +175,7 @@ Everything is saved as you change it; there is no Save button.
   the Project** (its folder stays), **Make Default**: a new task gets a copy of it, and the agent starts there; a task
   adds the others when it needs them (Tasks, below). Each repository on GitHub shows the GitHub account it goes as
   (GitHub, below): Kulisa picks the first of yours that can reach it, and you can choose another there. A line under
-  the list says when none can, and why.
+  the list explains when no account can reach a repository.
 - **Agents**: the accounts its tasks run. **Make Default** in one's **⋯** makes it the one a new task runs; **No
   Default** on the default one leaves the project with none: a new task then starts with nothing running, and big
   buttons in the middle let you open the agent you want, or a terminal. With no agents at all, a new task starts with a
@@ -206,31 +192,28 @@ it never removes or updates your CLIs itself.
 
 Each connection uses one configuration of an agent. On its page, **Use existing setup** connects your signed-in
 CLI configuration directly; settings and login are shared with other sessions using it. **Connect** or **Create
-separate setup** starts an empty configuration in Kulisa for an independent work or personal account. Nothing is
-copied. Accounts remain available until you remove them here.
+separate setup** starts an empty configuration in Kulisa for an independent work or personal account. Accounts
+remain available until you remove them here.
 
-Each account shows **External configuration** or **Created in Kulisa**, its configuration path, **Open Folder** and
-**Copy Path**. The agent's program path is shown separately above. **Disconnect…** leaves an external configuration
-and its sign-in on disk. **Delete…** signs out and removes a configuration created in Kulisa. First close any agent
-terminals using the account, including those in closed tasks. Kulisa keeps external settings and conversation files
-when tasks are deleted; the CLI itself can update them as you work.
+Use **Open Folder** or **Copy Path** on an account's page to find its settings. **Disconnect…** leaves an external
+configuration and its sign-in on disk; **Delete…** signs out and removes one created in Kulisa. First close any
+agent terminals using the account, including those in closed tasks. Deleting a task keeps external agent settings
+and conversation files.
 
 A task can have several agents/conversations. Use **Change agent…** to hand work over: choose an account, then
-**Hand over**. The next agent reads the conversation; branch, profiles and running shells
-stay available. Permissions/hidden reasoning and account settings do not transfer. **Show now** skips waiting;
-requests for your input reveal it immediately. The old conversation stays until you close it. You can also ask an
-agent to continue another's work directly.
+**Hand over**. The next agent reads the conversation; branch, profiles and running shells stay available.
+Permissions and account settings do not transfer. **Show now** reveals the next agent immediately; requests for
+your input also reveal it. The old conversation stays until you close it. You can also ask an agent to continue
+another's work directly.
 
 **Dictation**: hold right Ctrl (right ⌘ on macOS), or tap to start/stop. The Activity bar microphone works the same way.
 Speak after the wave appears; text stays in the agent's input for review before sending. Change the key in Keyboard
 Shortcuts; language comes from **☰ → Language** for setups created in Kulisa; external setups keep their own language setting.
 With a shell active, dictation brings the agent forward.
 
-For dictation in an agent without its own voice input, connect a separate Claude account in Kulisa if your external
-setup has not trusted Kulisa's dictation folder. Kulisa shows the reason instead of starting a hidden trust prompt.
-
-Dictation with Codex requires Claude Code to be installed and a Claude-subscription account connected in Settings → Agents.
-A disabled microphone explains why in its tooltip.
+Dictation with Codex requires Claude Code to be installed and a Claude-subscription account connected in
+Settings → Agents. For agents without their own voice input, an external Claude setup must also trust dictation;
+connect a separate Claude setup in Kulisa if needed. Point at a disabled microphone to see what is missing.
 
 ## GitHub
 
@@ -251,8 +234,8 @@ but does not revoke GitHub authorization; its confirmation links GitHub's revoca
 
 ## Tasks
 
-Switching tasks preserves each open task's arrangement, expanded Project folders and scroll positions.
-Restarting restores saved panel positions.
+Each open task keeps its layout, selected Activity bar item and scroll positions. Restart restores saved panel
+positions.
 
 - **Sidebar**: bar's first button or Ctrl+Shift+A; docked when no task is open. Projects sort by recent use, open
   tasks before closed ones. Click/Enter shows or reopens a task. Project + creates one; trash/Delete removes it
@@ -265,12 +248,11 @@ Restarting restores saved panel positions.
 - **Repositories**: tasks start with the default repository; **Add Repository** adds another task-owned copy when
   needed, or the agent asks first. Reading other project repositories needs no copy. **Remove Repository** deletes
   the added copy/branch, asking about unpushed work. Kulisa informs running agents when safe.
-- **Ports**: your agent chooses a free port for each running app and navigates profiles there. Kulisa assigns no
-  port offsets; cookies keep sign-ins across ports.
+- **Ports**: your agent chooses a free port for each running app. Sign-ins are shared across ports.
 - **Name**: starts as **New Task**; the agent names it once the work is clear, or use Rename/double-click. Until then
   an agent's conversation title may appear. Branch follows an explicit name; the worktree folder stays fixed.
-- **Tools**: Kulisa sessions approve browser/terminal/command/file-upload tools; domain actions can still require
-  confirmation, such as removing a profile.
+- **Tools**: Kulisa sessions approve browser, terminal, command and file-upload tools. Actions such as removing
+  a profile can still ask for confirmation.
 - **Status**: spinner working, exclamation waiting for you, check done until viewed. Other tasks keep running when
   you switch.
 - **Close** (×, middle-click, menu) stops agents/pages and preserves code, branch, profile copies and conversations.
@@ -288,8 +270,7 @@ Restarting restores saved panel positions.
 
 ## Profiles
 
-**Settings → Profiles** is the one place for who a profile is: the same person in every project and task. Click a
-profile there to see its page.
+Manage profiles in **Settings → Profiles**. A profile represents the same person across projects and tasks.
 
 - **New Profile** there makes one: type its name, Enter (or Add Profile → New Profile… on a project's page, to make it
   in that project).
@@ -302,10 +283,9 @@ profile there to see its page.
 
 ### Signing in
 
-- **You sign in once, for every task.** Each profile has a master copy: **Sign In…** in Settings → Profiles, or
-  **Sign In to Master…** in its pane's menu (**⋯** on its header, or a right-click there), opens it in a window of its own.
-  Sign in there; every task gets that sign-in. A sign-in, or a sign-out, of a real account in any task reaches the
-  others too.
+- **You sign in once, for every task.** Use **Sign In…** in Settings → Profiles or **Sign In to Master…** in the
+  pane's **⋯** menu. Sign in in the window that opens. Real-account sign-ins and sign-outs in a task also reach
+  other tasks using that profile.
 - Signing in to your app on `localhost` stays in that task: each task runs its own copy of your app.
 - **Test users of your app**: a profile's **Test login** and **Test password** (Settings → Profiles), or saved by the
   agent after it signs a user up. The agent then signs in as that user itself; Kulisa types the password, the agent
@@ -315,8 +295,7 @@ profile there to see its page.
 
 ### Open, close, remove
 
-- **×** on a pane closes the profile: its tabs go and free their memory; it stays signed in. Open it again from the
-  task tab's right-click menu, with the same tabs.
+- **×** closes a profile's pane while keeping its sign-in and tabs. Reopen it from the task tab's right-click menu.
 - **Remove from Project…** (the pane's menu) takes the profile out of this project; it stays in Settings →
   Profiles.
 
@@ -331,9 +310,7 @@ to read the agent's activity when its text does not fit.
 - In a new tab, type an address or words to search Google for.
 - Links that open a new window and pop-ups open as tabs of the same profile. Right-click a tab: Edit address…,
   Reload, Duplicate, Close tab, Close other tabs.
-- In a narrow pane, back, forward and then reload move into the pane's ⋮ menu, so Pick and ⋮ stay in reach; their
-  keys work as always (Alt+←, Alt+→, Ctrl+R).
-- Chrome's keys work in a page: Ctrl+T, Ctrl+W, Ctrl+Shift+T, Ctrl+L, Ctrl+Tab, Ctrl+1…9 (Keyboard shortcuts, below).
+- In a narrow pane, use navigation buttons from **⋮**.
 - **Zoom** a site with Ctrl + / − / 0 in its page; it is kept for that site in that profile and shown beside the tabs
   (a click resets it).
 - **Right-click in a page** for link, image and editing actions, Pick an element for the agent, a screenshot of an
@@ -346,19 +323,12 @@ to read the agent's activity when its text does not fit.
     apps) gives what is visible; take that box as an element instead. Pictures further down may still be empty if
     the page loads them only when you scroll there.
 
-  The picture goes to the clipboard (paste it into a message, or into the agent's input with Paste) and to the task's
-  **Artifacts** in the **Side bar**, as screenshots the agent takes do. The agent's marks are not in it. Delete it there
-  or from its thumbnail; deleting the task removes it too.
-  To keep a picture outside the task, drag its thumbnail into a folder.
-
-  A screenshot taken by you or the agent shows a **thumbnail** in the pane's corner for a few seconds;
-  it stays while the pointer is over it. Click it to open the picture; drag it into a message, a mail or a folder; right-click it for **Show in
-  Folder**, **Copy**, **Send to Agent** (the picture into the agent's input), **Delete** and **Close**. The × in its
-  corner, shown while the pointer is over it, closes it at once.
-- **Pages no one looks at are unloaded** after five minutes, as Chrome's Memory Saver does, to give the memory back:
-  a tab behind the active one, a pane behind another, the tabs of a task you are not looking at, once its agent has
-  stopped working in them. The tab stays in its strip as it was and loads again when you click it or come back to
-  the task; the agent gets it back the same way. A page with unsaved changes stays, as in Chrome.
+  Screenshots go to the clipboard and the task's **Artifacts**, without the agent's marks. A **thumbnail** appears
+  in the pane's corner: click to open, drag to keep a copy elsewhere, or right-click for **Show in Folder**, **Copy**,
+  **Send to Agent**, **Delete** and **Close**. It stays while the pointer is over it; **×** hides the thumbnail.
+  Delete the picture from Artifacts or the thumbnail menu; deleting the task removes it too.
+- Inactive pages may unload to save memory and reload when you return. Their tabs stay visible, and pages with
+  unsaved changes are kept.
 
 ## Working with the agent
 
@@ -381,11 +351,9 @@ to read the agent's activity when its text does not fit.
 
 ## Terminals
 
-- **Agents** in the **Side bar** lists the task's agents and development terminals, with their names, status, and account
-  or command details when available. Click a row to show that terminal and type into it. One terminal is shown at a
-  time in the development terminal pane. Each is your own shell in the task's folder, with your project's environment.
-- **+** in the Agents list opens one of the project's
-  agents, a new conversation, or **Terminal**, a shell. Each list row has **×**: closing an agent asks first and keeps
+- **Agents** in the Side bar lists the task's agents and development shells. Select a row to use its terminal,
+  running in the task's folder with your project's environment.
+- **+** opens an agent, a new conversation or **Terminal**, a shell. **×** closes one: closing an agent asks first and keeps
   its conversation in the task's history; a shell closes at once, or with `exit`. Right-click an agent's row for
   **Change agent…**, **New Conversation**, and **Close**.
 - With no development terminal, use **+** to choose one or Ctrl+` to open the task's agent. With no testing
@@ -394,40 +362,32 @@ to read the agent's activity when its text does not fit.
 - Terminals come back after a restart in the Agents list: an agent continues its conversation, a shell starts fresh.
 - Copy and paste as in your OS's terminal: Ctrl+Shift+C / Ctrl+Shift+V on Linux, Ctrl+C / Ctrl+V on Windows, ⌘C / ⌘V
   on macOS. Paste also attaches clipboard images in Claude Code and Codex, including from the right-click menu.
-- Drop files onto a terminal to put their paths into your message, quoted where needed and separated by spaces.
-  This also works for an image saved on your computer. Press Enter when your message is ready.
+- Drop files onto a terminal to put their paths into your message. Press Enter when your message is ready.
 - Ctrl+click a link to open it: Kulisa asks where, in one of the task's profiles or in your own browser.
 - A file or folder named in the terminal (a screenshot the agent saved, a file it changed) is a link too: Ctrl+click it
   to open it in its app or show it in its folder. A program or script is only shown in its folder, never run.
-- Right-click: Copy, Paste, Select all, Clear; in an agent's, Change agent… and New
-  Conversation (the same agent, from nothing); Close.
+- Right-click for **Copy**, **Paste**, **Select all** and **Clear**.
 
 ## Testing a command-line application
 
-Open **Stage Terminal** above the development terminal, or from **Stage → Open an environment** in the title
-bar. It opens your usual shell in the task’s working folder, ready for you to type a command such as
-`python3 calculator.py`. You can type, paste and use keyboard shortcuts. When a command you typed finishes, you
-return to the shell prompt. In **⋯ → Settings…**, you can change the name and optionally save a launch command for
-the run button; leave it empty to start your shell. Your coding agent can inspect the same screen, operate the app,
-change its code and run it again. You can also ask your agent to run a command directly in a Stage terminal;
-it opens the pane for you. Large terminal reads appear as Terminal screen artifacts in the Artifacts list.
-Browser profiles are optional for a CLI task. After testing, your agent leaves the final app open for you to try;
-interactive apps wait for input, while commands that finish keep their output and exit code. Temporary testing
-environments are closed.
+Choose **Stage → Open an environment → Stage Terminal**. It opens your shell in the task's working folder.
+Run a command such as `python3 calculator.py`, or ask your coding agent to run it. You and the agent can both
+operate the app; browser profiles are optional.
 
-The terminal header offers **Run app** when a shell is open and a launch command is saved,
-**Restart app** while the app runs, and **Run again** after it exits. Each starts with a fresh screen.
-A terminal without a launch command offers **Restart shell**. The **⋯** menu offers these actions and **Stop** to end the process. Its header shows whether the terminal session is running or has exited, including its exit code. In **Settings…**, set columns
-and rows to test a fixed terminal size, or leave both empty to follow the pane. **Fit to pane** in the menu also
-restores automatic sizing. Right-click for the same actions, copy, paste and select all. If the shell cannot
-start, its error appears in the pane; the next launch attempt clears it.
+In the terminal's **⋯ → Settings…**, change its name and save a launch command for the run button. Leave the command
+empty to use your shell. The header offers **Run app**, **Restart app** or **Run again**; without a saved command,
+use **Restart shell**. Each starts with a fresh screen. **⋯ → Stop** ends the process; the header shows the exit
+code when it finishes.
 
-To search a Stage terminal's retained output, press **Ctrl+Shift+F** (**⌘+Shift+F** on macOS),
-or right-click and choose **Find…**. Enter moves to the next match; Shift+Enter moves to the previous one.
-Escape closes search and returns the keyboard to the terminal.
+In **Settings…**, set columns and rows to test a fixed terminal size, or leave both empty to follow the pane.
+**Fit to pane** restores automatic sizing. Right-click also offers run/stop actions, copy, paste and select all.
 
-Closing a task keeps the Stage terminal's name, command and size. Reopening starts a fresh shell in every terminal. Saved app commands wait for you to press Run app. The pane's **×** stops it and removes its saved setup. Stage
-terminals share your home folder and credentials; sign in to real accounts yourself when needed.
+To search retained output, press **Ctrl+Shift+F** (**⌘+Shift+F** on macOS), or right-click **Find…**. Enter moves to
+the next match; Shift+Enter to the previous one. Esc closes search and returns the keyboard to the terminal.
+
+Closing a task keeps terminal names, commands and sizes. Reopening starts fresh shells; saved app commands wait
+for **Run app**. A pane's **×** stops it and removes its saved setup. Stage terminals share your home folder and
+credentials; sign in to real accounts yourself.
 
 ## Look and zoom
 
@@ -440,7 +400,8 @@ terminals share your home folder and credentials; sign in to real accounts yours
 
 ## Keyboard shortcuts
 
-**☰ → Keyboard Shortcuts** (Ctrl+Shift+/) lists them all. On macOS they are ⌘'s. The main ones:
+**☰ → Keyboard Shortcuts** (Ctrl+Shift+/) lists Kulisa's shortcuts. On macOS, most use ⌘ in place of Ctrl;
+terminal shortcuts keep Ctrl. The main ones:
 
 | Keys | What |
 |---|---|
@@ -448,7 +409,7 @@ terminals share your home folder and credentials; sign in to real accounts yours
 | Ctrl+Shift+` | A new terminal |
 | Ctrl+Shift+A | The sidebar: every project with its tasks |
 | Ctrl+Shift+N | New task of the same project |
-| Ctrl+Shift+1…9 | The first to ninth tab |
+| Ctrl+Shift+1…9 (⌘+Alt+1…9 on macOS) | The first to ninth task |
 | Ctrl+Shift+PgDn / PgUp | The next or previous task |
 | Ctrl+Shift+C (in a page) | Pick an element for the agent |
 | Ctrl+Shift+S (in a page) | Screenshot of an element |
@@ -459,35 +420,28 @@ In the terminal every other key is the agent's.
 
 ## Where Kulisa keeps things
 
-**☰ → About Kulisa** (on a Mac also Kulisa → About Kulisa in the menu bar) opens Settings at its **About** page: Kulisa's version and the exact
-folders on your computer: the data folder, the projects' folder and the program's, each with a button that opens it in
-your file manager, its path there to copy. Look there rather than guess: where the folders are depends on your OS and
-its settings. Usually:
+**☰ → About Kulisa** shows the version and the data, projects and program folders, with **Open Folder** and paths
+to copy. On macOS, **Kulisa → About Kulisa** opens the same page. Use it to find the actual locations on your computer.
 
-- Your projects' folders hold only your code: Kulisa writes nothing there.
-- Tasks' copies of the code are next to the project's folder (`myshop@fix-header`, after the task's branch), or in the KulisaProjects folder in your
-  home folder (`C:\Users\<you>\KulisaProjects` on Windows, `/Users/<you>/KulisaProjects` on macOS, `/home/<you>/KulisaProjects` on Linux) for a
-  project of several repositories, as `<project>@<branch>`. They go when the task is deleted. New projects' folders
-  are made there too.
-- Profiles, sign-ins, accounts and settings are in Kulisa's data folder: `~/.config/Kulisa` on Linux (or under
-  `$XDG_CONFIG_HOME` when that is set), `~/Library/Application Support/Kulisa` on macOS, `%APPDATA%\Kulisa` on
-  Windows. Session cookies, test passwords and GitHub sign-ins are encrypted with your OS's keyring.
-  **Show Data Folder** in a project's right-click menu in the sidebar, or in a task tab's under the project's name, opens that
-  project's.
-- Deleting a task, a profile or a project removes what Kulisa made for it.
-- Screenshots you or the agent take belong to the task: its artifacts in the Artifacts list. Deleting the task removes them.
-- Kulisa keeps a log of actions, tasks and errors in the data folder's `logs` folder, two files of 1 MB at most.
-  Read it in **Settings → Log** (below, Reporting a problem).
+- Your project folders contain the code you and the agent edit. Deleting a project from Kulisa leaves them intact.
+- Task copies are usually beside the project (`myshop@fix-header`), or in **KulisaProjects** under your home folder
+  for a project with several repositories. New project folders are created there by default too. Task copies are
+  removed when the task is deleted.
+- Profiles, sign-ins, accounts and settings live in Kulisa's data folder: usually `~/.config/Kulisa` on Linux,
+  `~/Library/Application Support/Kulisa` on macOS or `%APPDATA%\Kulisa` on Windows. Linux uses `$XDG_CONFIG_HOME`
+  when set. Session cookies, test passwords and GitHub sign-ins are encrypted with your OS's keyring.
+- **Show Data Folder** in a project's right-click menu or a task tab's project submenu opens that project's data.
+- Screenshots and other artifacts belong to their task and are removed with it.
+- Read the action/error log in **Settings → Log**, or use its **Open Folder** button to find the log file.
 
 ### Reporting a problem
 
 When something goes wrong, **☰ → Report a Problem…** opens Settings at its **Log** page: what Kulisa did, line by
-line, as it happens (**Follow** keeps the end in view). Scroll up to read older entries; turn **Follow** on to return
-to the latest. Searching covers the whole log. **Errors** shows the warnings and errors alone; **Agent**,
-**Human** and **Tasks** what the agent did, what you did, and tasks and windows opened and closed; the field beside
-them narrows it further (a task's name, a word). The log holds your project and task folders, profile names and the
-pages' addresses without their queries; never what you typed, passwords, tokens or cookies. Then pass it on any way
-you like:
+line. **Follow** keeps the latest entries in view; scroll up to read older ones. Search covers the whole log;
+**Errors**, **Agent**, **Human** and **Tasks** filter it by kind.
+
+The log includes folder paths, profile names and page addresses without their queries, but not typed text,
+passwords, tokens or cookies. To share it:
 
 - **Report… → On GitHub…** opens a new issue in your browser with your Kulisa's version and OS filled in; attach the
   log to it (**Save As…** first). The issue is public: look through the log before attaching it.
