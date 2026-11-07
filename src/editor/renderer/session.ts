@@ -1,9 +1,13 @@
 // One document session per caller; filesystem access and questions are injected (../README.md).
 import { createStore } from 'zustand';
-import type { EditState, EditorViewState } from '@pierre/diffs/edit';
+import { EditStateManager } from '@pierre/diffs/edit';
 import type { Result } from '../../shared/result';
 import { refused } from '../../shared/result';
-import type { EditorAction, EditorDocument, EditorSnapshot } from '../ipc';
+import { MAX_DOCUMENTS, type EditorAction, type EditorDocument, type EditorSnapshot } from '../ipc';
+
+let sessions = 0;
+// Preserve every open file's history across callers rather than evicting it at the library's global default.
+const capacity = (change: number) => EditStateManager.setCapacity(Math.max(1, (sessions += change) * MAX_DOCUMENTS));
 
 export interface EditorActions {
   execute(action: EditorAction): Promise<Result<EditorSnapshot>>;
@@ -13,10 +17,12 @@ export interface EditorActions {
   confirmDiscard(path: string): Promise<boolean>;
 }
 export function createEditorSession(actions: EditorActions) {
+  capacity(1);
   const store = createStore<EditorSnapshot & { error?: string; loading: boolean }>()(() => ({ tabs: [], selected: null, loading: true }));
-  const views = new Map<string, EditorViewState>(), scroll = new Map<string, number>();
-  const histories = new Map<string, { version: number; state: EditState<'file', undefined> }>();
-  const forget = (path: string) => { histories.delete(path); scroll.delete(path); views.delete(path); requests.delete(path); edits.delete(path); };
+  const states = new Map<string, { version: number; key: string }>();
+  let disposed = false;
+  const clearState = (path: string) => { const state = states.get(path); if (state) EditStateManager.clear('file', state.key); states.delete(path); };
+  const forget = (path: string) => { clearState(path); requests.delete(path); edits.delete(path); };
   let queue: Promise<unknown> = Promise.resolve(), edits = new Map<string, string>();
   const requests = new Map<string, number>();
   const receive = (state: EditorSnapshot) => store.setState((previous) => {
@@ -49,7 +55,18 @@ export function createEditorSession(actions: EditorActions) {
     return next;
   };
   const session = {
-    store, receive, views, scroll, histories,
+    store, receive,
+    stateKey(doc: EditorDocument) {
+      if (states.get(doc.path)?.version !== doc.version) {
+        clearState(doc.path); states.set(doc.path, { version: doc.version, key: crypto.randomUUID() });
+      }
+      return states.get(doc.path)!.key;
+    },
+    complete(key: string) {
+      // clear() refuses active entries. Completion runs after Pierre releases the old editor.
+      if (disposed || ![...states.values()].some((state) => state.key === key)) EditStateManager.clear('file', key);
+      return 'accept' as const;
+    },
     load: () => run({ type: 'list' }),
     open(path: string) { return run({ type: 'open', path }); },
     select(path: string) { return run({ type: 'select', path }); },
@@ -75,19 +92,11 @@ export function createEditorSession(actions: EditorActions) {
     },
     async close(path: string) {
       await queue;
-      if (edits.has(path)) {
-        if (await actions.confirmDiscard(path)) {
-          const result = await run({ type: 'close', path, discard: true });
-          if (!refused(result)) forget(path);
-        }
-        return;
-      }
-      const result = await run({ type: 'close', path });
-      if (refused(result)) {
+      if (edits.has(path) || refused(await run({ type: 'close', path }))) {
         if (!await actions.confirmDiscard(path)) return;
-        const discarded = await run({ type: 'close', path, discard: true });
-        if (!refused(discarded)) forget(path);
-      } else forget(path);
+        if (refused(await run({ type: 'close', path, discard: true }))) return;
+      }
+      forget(path);
     },
     async closeAll() {
       await queue;
@@ -96,7 +105,14 @@ export function createEditorSession(actions: EditorActions) {
         if (store.getState().tabs.some((tab) => tab.path === path)) break;
       }
     },
-    dispose() { histories.clear(); scroll.clear(); views.clear(); edits.clear(); requests.clear(); },
+    dispose() {
+      if (disposed) return;
+      disposed = true;
+      for (const path of states.keys()) clearState(path);
+      edits.clear(); requests.clear();
+      // Finish the unmount's active-editor releases before shrinking the shared inactive-state cache.
+      queueMicrotask(() => capacity(-1));
+    },
   };
   return session;
 }

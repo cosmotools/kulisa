@@ -39,10 +39,13 @@ the task/project removes the entire directory through the core's existing deferr
 
 The twelve-document and 1 MiB limits bound stored drafts and live documents. JSON escaping and base text can make
 recovery files larger than source bytes. Undo history has 100 entries per file in the current runtime and is not
-durable. The session transfers Pierre's complete editing state between mounts, keyed by path and source generation;
-reload drops stale history, while file closure and session disposal release it. Selection and scroll survive
-file/Activity bar/task changes in the same window. Scroll is checkpointed while the viewport is alive because
-the parent virtualizer can detach before the editor's completion callback.
+durable. Pierre's `editStateKey` and `EditStateManager` retain documents, undo/redo, selections and scroll between
+mounts. The session owns only keys: each file/caller/source generation gets a unique identity, including when the
+same source is open in two tasks. Reload, file closure and session disposal clear their entries; active entries
+are cleared after Pierre releases them at completion. The shared cache capacity follows the callers' twelve-file
+limits so another task cannot evict an open file's history. Selection and scroll survive file/Activity bar/task
+changes in the same window. Keep the virtualizer mounted across file and comparison switches: detaching it before
+the editor's completion checkpoint loses its viewport. No separate application copy of editing/view state is kept.
 Restart restores files and drafts, with fresh undo history and cursor state.
 
 The editable surface is a lazy renderer chunk; it adds no process or highlighting worker. Pierre owns input,
@@ -68,8 +71,8 @@ Find, undo/redo and line comments already share their usual shortcuts. This is n
 Pierre does not expose duplicate-selection or delete-line commands with the same semantics, so Ctrl/Cmd+D and
 Ctrl+Y retain Pierre's defaults. The keymap uses only its public commands and adds no keyboard interception.
 Each file/comparison's virtualizer owns its bounded scroll root. Wrapping it in an unconstrained scrolling parent
-would make the entire document visible to virtualization. Restore scroll after editor attachment and take native
-focus before it replaces the virtualized rows, so the editor can retain focus for offscreen carets and a blank final line.
+would make the entire document visible to virtualization. Pierre restores scroll on attachment. Take native focus
+before it replaces the virtualized rows, so the editor can retain focus for offscreen carets and a blank final line.
 
 ## The code
 

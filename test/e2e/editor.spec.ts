@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { test, expect } from './fixtures.ts';
 import { showResources, rightClick, menu, closeMenu, focusWindow, invoke, answer, frames, ipcSettled } from './helpers.ts';
+import { newTask, showTask, taskTab } from './tasks-helpers.ts';
 const CMD = process.platform === 'darwin' ? 'Meta' : 'Control';
 
 test('Close All saves pending edits and stops when discarding a conflicting draft is cancelled', async ({ ui, core }) => {
@@ -65,8 +66,21 @@ test('text files open on double-click, autosave Unicode and CRLF, retain undo ac
   await expect.poll(() => fs.readFileSync(file, 'utf8')).not.toContain('Привет');
   fs.writeFileSync(file, 'const agent = true;\n');
   await expect(code).toContainText('const agent = true;');
+  await code.press(`${CMD}+z`); await frames(ui); await ipcSettled(ui);
+  await expect(code).toContainText('const agent = true;');
+  expect(fs.readFileSync(file, 'utf8')).toBe('const agent = true;\n');
   await showResources(ui, 'Agents'); await showResources(ui, 'Project');
   await expect(code).toContainText('const agent = true;');
+  await ui.getByRole('tab', { name: 'editor-other.txt', exact: true }).click();
+  await expect(ui.getByRole('textbox', { name: other, exact: true })).toBeVisible();
+  await ui.getByRole('button', { name: 'Close editor-code.ts', exact: true }).click();
+  await expect(ui.getByRole('tab', { name: 'editor-code.ts', exact: true })).toHaveCount(0);
+  fs.writeFileSync(file, 'const reopened = true;\n');
+  await ui.getByRole('button', { name: 'editor-code.ts', exact: true }).dblclick();
+  await expect(code).toContainText('const reopened = true;');
+  await code.press(`${CMD}+z`); await frames(ui); await ipcSettled(ui);
+  await expect(code).toContainText('const reopened = true;');
+  expect(fs.readFileSync(file, 'utf8')).toBe('const reopened = true;\n');
 });
 
 test('JetBrains shortcuts replace text, insert below and move lines without losing autosave', async ({ ui, core }, testInfo) => {
@@ -169,6 +183,16 @@ test('a large file renders a bounded viewport and restores scroll when switching
   await expect(code).toContainText('value0');
   // Virtualized code lives in Pierre's shadow root; its DOM must stay proportional to the viewport.
   await expect.poll(() => code.evaluate((node) => node.textContent.length)).toBeLessThan(40000);
+  // The region's sole child is the scroll viewport; scrolling must survive independently of the caret.
+  const viewport = ui.getByRole('region', { name: `Editor document: ${file}`, exact: true }).locator(':scope > div').first();
+  await code.hover(); await ui.mouse.wheel(0, 12000);
+  await expect.poll(() => viewport.evaluate((node) => node.scrollTop)).toBeGreaterThan(10000);
+  const scrollTop = await viewport.evaluate((node) => node.scrollTop);
+  await ui.getByRole('button', { name: 'editor-small.txt', exact: true }).dblclick();
+  await expect(ui.getByRole('textbox', { name: other, exact: true })).toBeVisible();
+  await ui.getByRole('tab', { name: 'editor-large.ts', exact: true }).click();
+  await expect(ui.getByRole('region', { name: `Editor document: ${file}`, exact: true })).toHaveAttribute('aria-busy', 'false');
+  await expect.poll(async () => Math.abs(await viewport.evaluate((node) => node.scrollTop) - scrollTop)).toBeLessThan(2);
   await code.press(`${CMD}+End`);
   await expect(code).toContainText('value22999');
   await ui.getByRole('button', { name: 'editor-small.txt', exact: true }).dblclick();
@@ -179,6 +203,37 @@ test('a large file renders a bounded viewport and restores scroll when switching
   await ui.keyboard.insertText('// edited');
   await expect.poll(() => fs.readFileSync(file, 'utf8').includes('// edited')).toBe(true);
   await expect.poll(() => code.evaluate((node) => node.textContent.length)).toBeLessThan(40000);
+});
+
+test('the same file in two tasks has independent drafts and closing one task preserves the other undo history', async ({ ui, core }) => {
+  const first = await core((k) => k.shell.task.key), folder = await core((k) => k.shell.task.folder), file = path.join(folder, 'editor-shared.txt');
+  fs.writeFileSync(file, 'base');
+  await showResources(ui, 'Project'); await focusWindow(core, ui);
+  await ui.getByRole('button', { name: 'editor-shared.txt', exact: true }).dblclick();
+  const code = ui.getByRole('textbox', { name: file, exact: true });
+  await expect(code).toBeFocused();
+  await core((k) => k.clock.hold(600));
+  let second: string | undefined;
+  try {
+    await code.press('End'); await ui.keyboard.insertText(' first draft');
+    await expect.poll(() => core(async (k) => { const state = await k.shell.task.editor.execute({ type: 'list' }); return 'document' in state && state.document?.text; })).toBe('base first draft');
+    second = await newTask(core, ui);
+    await showResources(ui, 'Project'); await focusWindow(core, ui);
+    await ui.getByRole('button', { name: 'editor-shared.txt', exact: true }).dblclick();
+    await expect(code).toHaveText('base');
+    await taskTab(ui, second).getByRole('button', { name: 'Close', exact: true }).click();
+    await expect(taskTab(ui, second)).toHaveCount(0);
+    await showTask(core, ui, first);
+    await showResources(ui, 'Project'); await focusWindow(core, ui);
+    await expect(code).toContainText('base first draft');
+    await code.press(`${CMD}+z`);
+    await expect.poll(() => core(async (k) => { const state = await k.shell.task.editor.execute({ type: 'list' }); return 'document' in state && state.document?.text; })).toBe('base');
+    expect(fs.readFileSync(file, 'utf8')).toBe('base');
+  } finally {
+    await core((k) => k.clock.release());
+    if (second) await invoke(ui, 'task:close', second);
+    await showTask(core, ui, first);
+  }
 });
 
 test('a delayed edit reply cannot strand newer input when the task closes', async ({ ui, core }) => {
