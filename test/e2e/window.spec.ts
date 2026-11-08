@@ -397,12 +397,13 @@ test("a right-click on the title bar opens no window menu on Linux: GNOME's froz
 test('screenshot of the whole window, profile views included', async ({ core, files }) => {
   test.skip(!await core((k) => k.canShoot()), NO_SHOT);
   await core(async (k, url) => { await k.ensureProfile('Sam', url); }, `${SITE}/tall`);
-  await expect.poll(() => core((k) => k.profile('Sam').get().view.getVisible())).toBe(true);
+  await expect.poll(() => core((k) => k.profile('Sam').view.getVisible())).toBe(true);
   const file = path.join(files.root, 'window.png');
   // capturePage can return a valid PNG while omitting native profile views. Sample the red fixture inside one;
   // the desktop capture may arrive before the page paints, and its pixels can be scaled relative to the window.
   await expect.poll(() => core(async (k, f) => {
-    const profile = k.profile('Sam'), tab = profile.get(), bounds = tab.view.getBounds();
+    const profile = k.profile('Sam'), tab = profile.get(), parent = profile.view.getBounds(), child = tab.view.getBounds();
+    const bounds = { x: parent.x + child.x, y: parent.y + child.y };
     const box = await tab.wc.executeJavaScript('(() => { const b = document.getElementById("box").getBoundingClientRect(); return { x: b.x + b.width / 2, y: b.y + b.height / 2 }; })()') as { x: number; y: number };
     await k.shell.screenshot(f);
     const image = k.electron.nativeImage.createFromPath(f), size = image.getSize();
@@ -536,7 +537,7 @@ test("the tasks' bar: under the grid by default; in the title bar, after the log
 test("dialogs: shadcn's, in the page only while open, the pages hidden under them; a question is asked in one", async ({ core, ui }) => {
   await sam(core);
   // Each opened as the human opens it, looked at, closed: a closed one leaves nothing in the page (no memory kept).
-  const view = () => core((k) => k.profile('Sam').get().view.getVisible());
+  const view = () => core((k) => k.profile('Sam').view.getVisible());
   const fromMenu = async (row: string, at?: string) => {
     if (at) await rightClick(ui, at); else await ui.locator('#windowMenu').click();
     await expect(menu(ui)).toBeVisible();
@@ -691,7 +692,7 @@ test("tooltips of the title bar and the tasks' bar open beside their buttons, ne
     await expect(t).toHaveCount(0);
     // The page's bounds are the window's (DIP); the tooltip's, the Kulisa-zoomed page's.
     await expect.poll(() => viewOn(core, ui, files, 'Sam'), { timeout: 3000 }).toBe(true);
-    const page = await core((k) => k.profile('Sam').get().view.getBounds()), z = await invoke(ui, 'zoom:get') as number;
+    const page = await core((k) => k.profile('Sam').view.getBounds()), z = await invoke(ui, 'zoom:get') as number;
     return b.x * z < page.x + page.width && (b.x + b.width) * z > page.x && b.y * z < page.y + page.height && (b.y + b.height) * z > page.y;
   };
   for (const bar of ['bottom', 'top']) {

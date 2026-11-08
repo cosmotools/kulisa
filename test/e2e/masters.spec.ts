@@ -48,7 +48,7 @@ test("About this profile… shows Settings at it, over the task's window (its pa
   await expect(pathOf(s)).toHaveText(/^Profiles\s*Sam\.admin$/);
   await expect(name).toHaveValue('Sam.admin');
   // The pages draw above the window's HTML: hidden while it is shown.
-  await expect.poll(() => core((k, id) => k.shell.task.profiles.get(id).get().view.getVisible(), sam), 'pages hidden').toBe(false);
+  await expect.poll(() => core((k, id) => k.shell.task.profiles.get(id).view.getVisible(), sam), 'pages hidden').toBe(false);
   // Asked again (the main process, as macOS's menu): the same Settings, at that page.
   await core((k, id) => k.shell.openSettings({ section: 'profiles', id }), elon);
   await expect(name).toHaveValue('Elon.buyer');
@@ -67,7 +67,7 @@ test("About this profile… shows Settings at it, over the task's window (its pa
   await closeMaster(core);
   await focusWindow(core, ui);
   await closeSettings(core, ui, sui);
-  await expect.poll(() => core((k, id) => k.shell.task.profiles.get(id).get().view.getVisible(), sam), 'pages back').toBe(true);
+  await expect.poll(() => core((k, id) => k.shell.task.profiles.get(id).view.getVisible(), sam), 'pages back').toBe(true);
 });
 
 // About 5 s: its tab waits for a site that never answers, by design (profiles.ts).

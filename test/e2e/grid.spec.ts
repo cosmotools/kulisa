@@ -112,10 +112,10 @@ test('grid: a pane stacked behind another as a tab hides its page until chosen',
   await begin(core, ui, files, { columns: true });
   await drag(ui, files.panel(SAM), `[role="region"][data-profile="${files.idOf(ELON)}"]`, 'center');
   await expect.poll(() => viewOn(core, ui, files, SAM)).toBe(true);
-  await expect.poll(() => core((k) => k.profile('Elon.buyer').get().view.getVisible())).toBe(false);
+  await expect.poll(() => core((k) => k.profile('Elon.buyer').view.getVisible())).toBe(false);
   await ui.locator(`[data-task-view][data-active] [data-panel="${files.panel(ELON)}"]`).click();
   await expect.poll(() => viewOn(core, ui, files, ELON)).toBe(true);
-  await expect.poll(() => core((k) => k.profile('Sam.admin').get().view.getVisible())).toBe(false);
+  await expect.poll(() => core((k) => k.profile('Sam.admin').view.getVisible())).toBe(false);
 });
 
 for (const count of [2, 1, 0]) test(`grid: while a pane is dragged, ${count} page pictures cover hidden views; both pages live again after the drop`, async ({ core, ui, files }) => {
@@ -137,7 +137,7 @@ for (const count of [2, 1, 0]) test(`grid: while a pane is dragged, ${count} pag
     await ui.mouse.move(at.x, at.y);
     await ui.mouse.down();
     await ui.mouse.move(at.x + 40, at.y + 40, { steps: 4 });
-    await expect.poll(() => core((k) => [...k.shell.profiles.values()].every((p) => !p.get().view.getVisible()))).toBe(true);
+    await expect.poll(() => core((k) => [...k.shell.profiles.values()].every((p) => !p.view.getVisible()))).toBe(true);
     for (const [i, name] of [SAM, ELON].entries()) {
       const picture = ui.locator(`[data-task-view][data-active] [role="region"][data-profile="${files.idOf(name)}"]`).getByTestId('snapshot');
       await expect(picture).toHaveCount(i < count ? 1 : 0);
