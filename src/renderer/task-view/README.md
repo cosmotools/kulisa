@@ -19,9 +19,8 @@ overlays stay below Dockview separators while menus stay above them.
 Activity bar selection stays highlighted independently of Dockview group focus.
 
 `TaskView` keeps an observable outer host while inactive content uses `content-visibility`, `inert` and `aria-hidden`.
-Preserve the retained grid and measurements when changing pane markup; disposal follows task closure or a caught
-React failure, not selection. Failure containment belongs to
-[TaskBoundary](../../../docs/window.md#task-rendering-failures); keep construction inside it and subscriptions out of render.
+Preserve retained grids and measurements when changing pane markup. Disposal follows closure or a
+[caught render failure](../../../docs/window.md#task-rendering-failures), not selection.
 Side bar lists use `SidebarContent` scrolling; Project and Diff own virtualized scrolling inside Dockview's named
 region without duplicate region wrappers.
 `development.ts` owns Activity bar selection; Dockview IDs remain stable for saved layouts.

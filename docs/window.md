@@ -92,25 +92,10 @@ animations for reduced motion.
 
 ### Task rendering failures
 
-Each retained task has a React Error Boundary outside TaskView construction and rendering. A caught error replaces
-only that task's screen with a message; task navigation, Settings and healthy tasks' controllers/local state remain.
-React unmount releases the failed screen's grids, subscriptions, timers, editor/review clients and Stage terminal
-Views. TaskGrid construction has no subscriptions: registration connects them only after React commits. The shared
-development View detaches and deselects its session; unopened terminal buffers retain output and protocol replies.
-Agents, PTYs, browser profiles and core-owned editor autosave continue until explicit task closure under normal rules.
-
-`task:view-failed` records a runtime-only flag on the Task and reports bounded error kind/React frames through the
-existing log. Thrown values are classified by JavaScript type without reading their properties, which can throw or
-contain private content; the React root suppresses its default caught-error dump. Main rejects subsequent geometry
-and task-scoped visibility messages from failed
-screens, and includes the flag in every native visibility decision, independently of menu/dialog coverage. A failure
-invalidates pending renderer captures only for the selected task and cancels its Pick/thumbnail surfaces.
-
-The flag follows a task between windows, showing the fallback without reconstructing its controller; closure clears
-it. There is no retry/remount control or promise to recover renderer-local Editor/Diff/grid state. Closing and reopening
-stops its programs and then uses normal task startup. Boundaries cover React render/lifecycle errors, not hangs,
-renderer crashes, event handlers or arbitrary asynchronous failures. Layout restoration rejection is explicitly
-forwarded into React so initialization can use the same fallback. Independent renderer isolation remains issue #392.
+Each retained TaskView has a React Error Boundary; construction stays inside it, subscriptions begin after commit.
+A failed screen releases UI resources while agents, PTYs and browser profiles continue. Main keeps its native pages
+hidden until task closure, including after delayed layout/visibility messages or moving windows. Preserve healthy
+tasks' controllers and stores. There is no automatic remount; React boundaries do not contain hangs or renderer crashes.
 
 ### Stage terminals
 
