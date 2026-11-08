@@ -29,18 +29,7 @@ export interface TaskResource {
 }
 // An environment in the task’s Stage, naming a browser tab when relevant.
 export type EnvironmentSource = { kind: 'profile'; id: string; tab: string } | { kind: 'stage-terminal'; id: number };
-// A task result, including directories and ordinary files without environment provenance.
-export interface Artifact {
-  file: string;
-  path: string; // relative, forward slashes; directories end in /
-  directory: boolean;
-  revision: string;
-  source?: EnvironmentSource;
-  kind: string; // screenshot, snapshot, request or response (a body)
-  time: number;
-  bytes: number;
-  thumb: string | null; // a screenshot's small picture, a data: URL
-}
+export type { Artifact } from '../task-files/ipc.ts';
 export interface TaskInfo {
   id: string; key: string; project: string; name: string; state: AgentState; folder: string; branch: string | null;
   closed: boolean;

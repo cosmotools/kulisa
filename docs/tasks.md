@@ -503,13 +503,9 @@ project or all projects, including unloaded tasks. `task_artifacts_delete` clean
 own temporary files. Broader agent cleanup uses normal filesystem tools after the human specifies the intended scope.
 The heading's figure measures only results. Activity monitor ownership: [README](../src/activity-monitor/README.md).
 
-Tree virtualization limits rendered rows. Only rendered raster rows request thumbnails. The bounded preview cache
-invalidates changed files; compressed size and dimensions are checked before decoding to limit memory use.
-Unsupported rasters keep generic icons.
-Trees' basename icon API cannot distinguish identical names in different folders: show generic icons for those
-collisions until a supported per-path API is released (#400, upstream pierrecomputer/pierre#1279).
-Native recursive watching is disposed with the task; if unavailable, refresh by polling while loaded.
-File viewers remain separate (#393).
+The [Task Files package](../src/task-files/README.md) owns filesystem operations, live listing and bounded previews,
+including the Trees thumbnail limitation (#400). Core supplies ownership, paths and lifecycle; file viewers remain
+separate (#393).
 
 ## Removing everything by hand
 

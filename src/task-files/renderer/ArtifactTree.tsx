@@ -1,8 +1,8 @@
-// Trees presentation for Artifacts (docs/tasks.md, The Workbench).
+// Trees presentation for task results (../README.md).
 import { useLayoutEffect, useRef } from 'react';
 import { FileTree, useFileTree } from '@pierre/trees/react';
 import type { FileTreeIconConfig } from '@pierre/trees';
-import { treeFocusCSS, treeStyle } from '../../../shared/tree-style';
+import { treeFocusCSS, treeStyle } from '../../shared/tree-style';
 import rowCSS from './rows.css?raw';
 
 export interface ArtifactTreeEntry {

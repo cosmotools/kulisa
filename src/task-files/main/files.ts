@@ -1,8 +1,8 @@
-// Task-owned files and directories. The filesystem is authoritative (docs/tasks.md, Artifacts and temporary files).
+// Task-owned files and directories. The filesystem is authoritative (../README.md).
 import fs from 'node:fs';
 import path from 'node:path';
-import { removeTree } from './remove.ts';
-import type { Artifact } from '../shared/types.ts';
+import { removeTree } from '../../main/remove.ts';
+import type { Artifact } from '../ipc.ts';
 
 type FileEntry = Omit<Artifact, 'thumb'>;
 const numberOf = (file: string) => Number(/^(\d+)-/.exec(file)?.[1] ?? 0);

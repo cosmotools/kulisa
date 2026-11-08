@@ -4,7 +4,7 @@ import type { IConfiguration } from 'dependency-cruiser';
 
 // The core profile integration and automation access are lists of src/main's files; the Kulisa plugin is a Kulisa package. A file in none of them is the window's (layer 4).
 // Base: git and what is local, used by every layer; nothing of src/main above them.
-const base = '^src/main/(worktrees|remotes|local|log|files|remove|artifacts)\\.ts$';
+const base = '^src/main/(worktrees|remotes|local|log|files|remove)\\.ts$';
 const layer1 = '^src/main/(project-profiles|profile-store|store|signin-[a-z]+)\\.ts$';
 const layer2 = '^src/main/(cdp-proxy|local-only)\\.ts$';
 const main = '^src/main/';
@@ -23,6 +23,7 @@ const packages: Record<string, { main: string[] }> = {
   terminal: { main: ['ipc', 'log'] }, // a terminal: its pty, its buffers and the xterm shown
   diff: { main: ['worktrees'] }, // local Git review; task ownership and window state are supplied by callers
   editor: { main: ['files'] }, // documents and autosave; task roots, storage and logging are supplied by callers
+  'task-files': { main: ['remove'] }, // files, watchers and previews; callers own tasks, conversations and desktop actions
   'project-explorer': { main: [] }, // a folder browser; roots and desktop actions come from the caller
   screenshots: { main: ['ipc', 'log'] }, // a picture of a page: an element, the visible part, the whole page
   // GitHub accounts and their sign-ins; store supplies ids, files supplies atomic writes.

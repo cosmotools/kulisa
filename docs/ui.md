@@ -179,7 +179,5 @@ Prefer upstream components for their normal jobs. The remaining custom surfaces 
 
 ## Artifact tree
 
-`renderer/components/artifact-tree` adapts Trees with 32 px thumbnails and a second metadata line within its
-virtualized rows. Shadow layout requires scoped `unsafeCSS`. Use public path identities and preserve expansion
-when filesystem paths change. File/folder menus use the window’s shared `menuAt`; native file actions stay in core.
-Storage and the per-path thumbnail limitation: [tasks](tasks.md#artifacts-and-temporary-files).
+The [Task Files package](../src/task-files/README.md#tree) owns the Trees view, row layout and previews.
+Workbench supplies controls, captions and shared menu/action callbacks. Storage: [tasks](tasks.md#artifacts-and-temporary-files).

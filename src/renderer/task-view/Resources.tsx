@@ -6,7 +6,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupAction, SidebarGroupLabel, SidebarProvider } from '@ui';
 import { ProjectTree, type ExplorerActions } from '../../project-explorer/renderer';
 import { menuAt } from '../lib/menu';
-import { ArtifactTree } from '../components/artifact-tree';
+import { ArtifactTree } from '../../task-files/renderer';
 import { shownTask, useWindow } from '../lib/store';
 import { useTask, useTaskActive, useTaskGrid } from './state';
 import { activityItems, type ActivityItem } from './development';

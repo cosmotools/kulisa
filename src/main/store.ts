@@ -169,7 +169,7 @@ class Store {
   // A task's data folder; taskOf makes it, taskDir only names it (an id still to be found free: Project.createTask).
   taskDir(p: { id: string }, id: string) { return path.join(this.dir, 'projects', p.id, id); }
   taskOf(p: { id: string }, id: string) { return new TaskStore(this.taskDir(p, id), this); }
-  // A task's folder of what the human or agent keep of its pages (artifacts.ts).
+  // Results owned by this task (docs/tasks.md, Artifacts and temporary files).
   artifactsOf(p: { id: string }, id: string) { return path.join(this.taskDir(p, id), ARTIFACTS); }
   // Include unconverted working folders when measuring closed tasks; migration runs when a task prepares its files.
   temporaryFoldersOf(p: { id: string }, id: string) {
@@ -253,7 +253,7 @@ class TaskStore {
   constructor(dir: string, store: Store) { this.dir = dir; this.store = store; fs.mkdirSync(dir, { recursive: true }); }
   file(name: string) { return path.join(this.dir, name); }
   profileDir(id: string) { return path.join(this.dir, id); }
-  // What the human or agent keep of its pages: large snapshots and bodies, screenshots (artifacts.ts).
+  // Final results owned by the task; working material has separate conversation folders.
   get artifacts() { return path.join(this.dir, ARTIFACTS); }
   get temporary() { return path.join(this.dir, 'tmp'); }
   temporaryDir(session: string) { return path.join(this.temporary, `agent-${session}`); }

@@ -3,7 +3,7 @@
 // grid and its terminals, its agents in some of them. Its project's window shows one task at a time; the others keep
 // running, those of the other open projects too. A task loads (profiles, terminals) the first time it is shown, so a
 // restart does not start every one at once.
-import { nativeImage, session } from 'electron';
+import { session } from 'electron';
 import fs from 'fs';
 import path from 'path';
 import { randomUUID } from 'node:crypto';
@@ -13,8 +13,7 @@ import { ProjectProfiles } from './project-profiles.ts';
 import { installSigninPause } from './signin-pause.ts';
 import { startTerminal, stopTerminal, forgetTerminal, terminalTail, sendToPrompt, typeIntoPrompt, eraseInPrompt, typeLine, interrupt, quotePaths } from '../terminal/main/index.ts';
 import { TERMINAL_LINES } from '../terminal/ipc.ts';
-import { listArtifacts, saveArtifact, deleteFiles, ownedPath } from './artifacts.ts';
-import { readPreview } from './artifact-thumbnails.ts';
+import { TaskFiles, listArtifacts, saveArtifact, deleteFiles, ownedPath } from '../task-files/main/index.ts';
 import { worktreesOf, ownWorktree, folderOf, branchOf, taskKey } from './store.ts';
 import { copyProfile } from '../browser/main/index.ts';
 import { git, renameBranch } from './worktrees.ts';
@@ -60,10 +59,16 @@ const HANDOVER = (n: number, name: string) => `Go on with the work of conversati
   `whole with the kulisa task_history tool (conversation ${n}) before anything else. Then tell me in a few lines what ` +
   'is done and what is next, and go on with it.';
 
-// A screenshot's picture in its Resources row: twice the row's (Resources.tsx), sharp on a Retina screen.
-const THUMB_WIDTH = 128;
-
 class Task {
+  private resultFiles?: TaskFiles;
+  private get fileStorage() {
+    return this.resultFiles ??= new TaskFiles({
+      directory: this.store.dir, artifacts: this.store.artifacts,
+      prepare: () => !refused(this.fileContext()), isOpen: () => this.loaded,
+      changed: () => this.window?.sendArtifacts(this),
+      activity: (message) => log.info(`[task-files] ${this.key} ${summary({ message })}`),
+    });
+  }
   private editorWorkspace?: EditorWorkspace;
   get editor() {
     return this.editorWorkspace ??= new EditorWorkspace({
@@ -701,7 +706,7 @@ class Task {
   // is deleted). Its tabs are saved first, as they are: closing them one by one changes the profiles, and nothing is
   // saved then.
   async unload() {
-    this.stopArtifactWatch(); this.thumbs.clear(); this.thumbnailQueue.clear();
+    this.resultFiles?.dispose(); this.resultFiles = undefined;
     await this.editorWorkspace?.dispose(); this.editorWorkspace = undefined;
     this.stageTerminals.unload();
     this.shell.chooseAgent.cancel?.(this);
@@ -955,111 +960,9 @@ class Task {
     log.info(`[task-files] ${this.key} opened artifact ${summary({ file })}`);
     await openFile(found.artifact.file); return {};
   }
-  private artifactWatch?: fs.FSWatcher;
-  private artifactRootWatch?: fs.FSWatcher;
-  private artifactPoll?: NodeJS.Timeout;
-  private artifactTimer?: NodeJS.Timeout;
-  private stopArtifactWatch() {
-    this.artifactWatch?.close(); this.artifactWatch = undefined;
-    this.artifactRootWatch?.close(); this.artifactRootWatch = undefined;
-    clearInterval(this.artifactPoll); this.artifactPoll = undefined;
-    clearTimeout(this.artifactTimer); this.artifactTimer = undefined;
-  }
-  private watchArtifacts() {
-    if (this.artifactRootWatch || this.artifactPoll) return;
-    const context = this.fileContext();
-    if (refused(context)) return;
-    const changed = () => {
-      if (!this.artifactTimer) this.artifactTimer = setTimeout(() => {
-        this.artifactTimer = undefined; this.artifactsChanged();
-      }, 200).unref();
-    };
-    const attach = () => {
-      this.artifactWatch?.close();
-      if (fs.existsSync(this.store.artifacts) && !fs.lstatSync(this.store.artifacts).isSymbolicLink()) {
-        this.artifactWatch = fs.watch(this.store.artifacts, { recursive: true, persistent: false }, (_event, name) => {
-          if (name) this.thumbs.delete(path.join(this.store.artifacts, name.toString())); else this.thumbs.clear();
-          changed();
-        });
-        this.artifactWatch.on('error', fallback);
-      }
-    };
-    const fallback = () => {
-      this.stopArtifactWatch();
-      log.info(`[task-files] ${this.key} filesystem watch unavailable; polling results`);
-      this.artifactPoll = setInterval(changed, 2000).unref();
-    };
-    try {
-      attach();
-      this.artifactRootWatch = fs.watch(this.store.dir, { persistent: false }, (_event, name) => {
-        if (!name || name.toString() === 'artifacts') { try { attach(); } catch { fallback(); } changed(); }
-      });
-      this.artifactRootWatch.on('error', fallback);
-    } catch { fallback(); }
-  }
-  // Only rendered rows request thumbnails. Bound retained previews independently of the human's disk storage.
-  private thumbs = new Map<string, { revision: string; thumb: string | null }>();
-  private thumbnailQueue = new Set<string>();
-  private makingThumbs = false;
-  private artifactVersion = 0;
-  private artifactScan?: { version: number; promise: Promise<Sent.Artifact[]> };
-  artifacts(): Promise<Sent.Artifact[]> {
-    if (this.artifactScan) return this.artifactScan.version === this.artifactVersion ? this.artifactScan.promise
-      : this.artifactScan.promise.then(() => this.artifacts());
-    const promise = this.readArtifacts().finally(() => { this.artifactScan = undefined; });
-    this.artifactScan = { version: this.artifactVersion, promise };
-    return promise;
-  }
-  private async readArtifacts(): Promise<Sent.Artifact[]> {
-    if (this.loaded) this.watchArtifacts();
-    const list = await listArtifacts(this.store.artifacts), revisions = new Map(list.map((a) => [a.file, a.revision]));
-    for (const [file, cached] of this.thumbs) if (revisions.get(file) !== cached.revision) this.thumbs.delete(file);
-    return list.map((a) => ({ ...a, thumb: this.thumbs.get(a.file)?.thumb ?? null }));
-  }
-  async artifactThumbnails(files: string[]) {
-    const list = await listArtifacts(this.store.artifacts), wanted = new Set(files);
-    for (const a of list) if (wanted.has(a.file) && !a.directory && /\.(png|jpe?g|webp)$/i.test(a.file)
-      && this.thumbs.get(a.file)?.revision !== a.revision) {
-      this.thumbnailQueue.add(a.file);
-      while (this.thumbnailQueue.size > 128) this.thumbnailQueue.delete(this.thumbnailQueue.values().next().value!);
-    }
-    if (this.makingThumbs || !this.thumbnailQueue.size) return;
-    this.makingThumbs = true;
-    try {
-      while (this.thumbnailQueue.size && this.loaded) {
-        const file = this.thumbnailQueue.values().next().value!; this.thumbnailQueue.delete(file);
-        await new Promise((r) => setImmediate(r));
-        const a = list.find((a) => a.file === file);
-        if (!a || !await ownedPath(this.store.artifacts, file)) continue;
-        const now = await fs.promises.lstat(file).catch((): null => null);
-        if (!now || now.size !== a.bytes || now.mtimeMs !== a.time) continue;
-        let thumb: string | null = null;
-        if (a.bytes <= 16 * 1024 * 1024) {
-          const data = await readPreview(file);
-          const image = data ? nativeImage.createFromBuffer(data) : null;
-          if (image && !image.isEmpty()) thumb = `data:image/jpeg;base64,${image.crop({ x: 0, y: 0, width: image.getSize().width, height: Math.min(image.getSize().height, image.getSize().width) }).resize({ width: THUMB_WIDTH }).toJPEG(80).toString('base64')}`;
-        }
-        this.thumbs.delete(file); this.thumbs.set(file, { revision: a.revision, thumb });
-        while (this.thumbs.size > 128) this.thumbs.delete(this.thumbs.keys().next().value!);
-      }
-    } finally { this.makingThumbs = false; this.artifactsChanged(); }
-  }
-  private sendingArtifacts = false;
-  private artifactsAgain = false;
-  artifactsChanged() {
-    this.artifactVersion++;
-    this.artifactsAgain = true;
-    if (!this.sendingArtifacts) void this.sendArtifactChanges();
-  }
-  private async sendArtifactChanges() {
-    this.sendingArtifacts = true;
-    try {
-      while (this.artifactsAgain && this.loaded) {
-        this.artifactsAgain = false; await this.window?.sendArtifacts(this);
-      }
-    } catch (error) { log.info(`[task-files] ${this.key} refresh failed ${summary({ error: (error as Error).message })}`); }
-    finally { this.sendingArtifacts = false; }
-  }
+  artifacts() { return this.fileStorage.list(); }
+  artifactThumbnails(files: string[]) { return this.fileStorage.thumbnails(files); }
+  artifactsChanged() { this.fileStorage.changed(); }
   async artifactsUsage(scope: 'task' | 'project' | 'all' = 'task', area: 'artifacts' | 'temporary' | 'all' = 'artifacts') {
     const metrics: ('artifacts' | 'temporary')[] = area === 'all' ? ['artifacts', 'temporary'] : [area];
     const r = await this.shell.activity.query({ metrics, ...(scope === 'task' ? { tasks: [this.key] } : scope === 'project' ? { projects: [this.project.id] } : {}) });

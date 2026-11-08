@@ -4,8 +4,8 @@ import assert from 'assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
-import { listArtifacts, saveArtifact, deleteFiles, ownedPath } from '../../src/main/artifacts.ts';
-import { previewable } from '../../src/main/artifact-thumbnails.ts';
+import { TaskFiles, listArtifacts, saveArtifact, deleteFiles, ownedPath } from './main/index.ts';
+import { previewable } from './main/preview.ts';
 
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'kulisa-artifacts-'));
 after(() => fs.rmSync(root, { recursive: true, force: true }));
@@ -36,11 +36,11 @@ test('ordinary filenames, nested files and empty folders appear without registra
   fs.writeFileSync(path.join(dir, 'Отчёт.txt'), 'one');
   const before = await listArtifacts(dir);
   assert.deepEqual(before.map((a) => a.path).sort(), ['empty/', 'html/', 'html/assets/', 'html/index.html', 'Отчёт.txt'].sort());
-  assert.equal(before.find((a) => a.path === 'html/index.html').source, undefined);
-  assert.equal(before.find((a) => a.path === 'empty/').directory, true);
+  assert.equal(before.find((a) => a.path === 'html/index.html')!.source, undefined);
+  assert.equal(before.find((a) => a.path === 'empty/')!.directory, true);
   fs.writeFileSync(path.join(dir, 'Отчёт.txt'), 'a different result');
   const after = await listArtifacts(dir);
-  assert.notEqual(before.find((a) => a.path === 'Отчёт.txt').revision, after.find((a) => a.path === 'Отчёт.txt').revision);
+  assert.notEqual(before.find((a) => a.path === 'Отчёт.txt')!.revision, after.find((a) => a.path === 'Отчёт.txt')!.revision);
   assert.deepEqual(await listArtifacts(path.join(root, 'absent')), []);
 });
 
@@ -86,4 +86,16 @@ test('thumbnail headers reject huge dimensions, unknown images and truncated JPE
   png.writeUInt32BE(100000, 16); assert.equal(previewable(png), false);
   for (const bytes of [[0xff, 0xd8, 0xff, 0xff], [0xff, 0xd8, 0xff, 0xc0]]) assert.equal(previewable(Buffer.from(bytes)), false);
   assert.equal(previewable(Buffer.from('<svg/>')), false);
+});
+
+test('disposing while previews are being requested cannot notify or retain work after unload', async () => {
+  const artifacts = path.join(root, 'disposed'); fs.mkdirSync(artifacts);
+  const file = path.join(artifacts, 'invalid.png'); fs.writeFileSync(file, 'unknown image');
+  let changes = 0;
+  const results = new TaskFiles({ directory: root, artifacts, prepare: () => true, isOpen: () => true,
+    changed: async () => { changes++; }, activity: () => {} });
+  const pending = results.thumbnails([file]);
+  results.dispose(); await pending;
+  results.changed();
+  assert.equal(changes, 0);
 });

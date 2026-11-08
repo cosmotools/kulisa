@@ -190,7 +190,8 @@ Browser memory and cache ownership: [Browser Kulisa package](../src/browser/READ
 - `src/main/profile-store.ts`, `project-profiles.ts`, `master.ts`: global identity, task copies and master sign-in.
   Task persistence is owned by `store.ts`; test-login locality by `local.ts`.
 - `src/main/cdp-proxy.ts`, `local-only.ts`, `signin-pages.ts`, `signin-pause.ts`: automation access and sign-in policy.
-- `src/main/discard.ts`, `artifacts.ts`, `picker.ts`: activity-based unloading, task file storage and human selections.
+- `src/main/discard.ts`, `picker.ts`: activity-based unloading and human selections.
+- [Task Files](../src/task-files/README.md): task file storage and previews.
 - `src/kulisa-plugin/`: agent handles/instructions ([README](../src/kulisa-plugin/README.md)).
 - Renderer profile panes/controls live in `task-view/`; identity editing in `components/settings/ProfilePage.tsx`.
   Shared avatar definitions/assets provide consistent profile pictures.

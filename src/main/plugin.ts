@@ -4,7 +4,7 @@ import type { Task, DevelopmentTerminal } from './tasks.ts';
 import { toUrl } from '../browser/main/index.ts';
 import type { Profile, Tab } from '../browser/main/index.ts';
 import { progress } from './worktrees.ts';
-import { listArtifacts } from './artifacts.ts';
+import { listArtifacts } from '../task-files/main/index.ts';
 import { fromLocalTool } from './local-only.ts';
 import { refused } from '../shared/result.ts';
 import type { PluginHost, TaskAccess, ProfileAccess, TabAccess, DevelopmentTerminalAccess } from '../kulisa-plugin/main/index.ts';

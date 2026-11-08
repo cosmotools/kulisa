@@ -1,4 +1,4 @@
-// Reject oversized raster dimensions before Electron decodes a preview (docs/tasks.md, Artifacts and temporary files).
+// Reject oversized raster dimensions before Electron decodes a preview (../README.md).
 // Unknown formats keep their file icon.
 import fs from 'node:fs/promises';
 
