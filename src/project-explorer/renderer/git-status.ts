@@ -8,7 +8,6 @@ export class GitStatuses {
   private roots = new Map<string, Repository>();
   private active = false;
   private disposed = false;
-  private errors = '[]';
   private read: ExplorerActions['readGitStatus'];
   private changed: (entries: ProjectGitStatus[], errorsChanged: boolean) => void;
 
@@ -29,16 +28,14 @@ export class GitStatuses {
   }
   refresh() { for (const [path, value] of this.roots) if (!value.error) void this.load(path); }
   error(path: string) { return this.roots.get(path)?.error ?? ''; }
-  retry(path: string) {
-    const value = this.roots.get(path);
-    if (value) { value.error = ''; void this.load(path); }
-  }
+  retry(path: string) { void this.load(path); }
   dispose() { this.disposed = true; this.roots.clear(); }
 
   private async load(path: string) {
     const value = this.roots.get(path);
     if (!this.active || this.disposed || !value || value.pending) return;
     const attempt = ++value.attempt;
+    const previousError = value.error;
     value.pending = true;
     try {
       const result = await this.read(value.folder);
@@ -52,15 +49,12 @@ export class GitStatuses {
     } finally {
       value.pending = false;
       if (!this.disposed && this.roots.get(path) === value) {
-        this.publish();
+        this.publish(previousError !== value.error);
         if (this.active && attempt !== value.attempt) void this.load(path);
       }
     }
   }
-  private publish() {
-    const errors = JSON.stringify([...this.roots].filter(([, value]) => value.error).map(([root, value]) => [root, value.error]));
-    const errorsChanged = errors !== this.errors;
-    this.errors = errors;
+  private publish(errorsChanged = false) {
     this.changed([...this.roots].flatMap(([root, value]) => value.entries.map((entry) => ({ ...entry, path: root + entry.path }))), errorsChanged);
   }
 }

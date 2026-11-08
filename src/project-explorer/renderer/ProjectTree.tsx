@@ -48,6 +48,7 @@ export function ProjectTree({ actions, roots, header, active = true }: {
   });
 
   function select(path: string) {
+    // Avoid intermediate multi-selection and its reentrant model notifications.
     for (const previous of model.getSelectedPaths()) if (previous !== path) model.getItem(previous)?.deselect();
     model.getItem(path)?.select();
   }
@@ -75,8 +76,7 @@ export function ProjectTree({ actions, roots, header, active = true }: {
     const current = latest.current;
     const data = new Directories(model, actions, updateNotice);
     Object.assign(current, { data, actions });
-    const unsubscribe = model.subscribe(updateNotice);
-    return () => { current.data = null; current.opening++; unsubscribe(); data.dispose(); };
+    return () => { current.data = null; current.opening++; data.dispose(); };
   }, [model, actions]);
   useLayoutEffect(() => { latest.current.data?.setRoots(roots); }, [model, actions, roots]);
   useLayoutEffect(() => { latest.current.data?.setActive(active); }, [model, actions, active]);

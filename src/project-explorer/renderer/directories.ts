@@ -8,7 +8,6 @@ export interface ExplorerRoot { folder: string; label: string; caption: string }
 interface Directory {
   file: string;
   children: string[];
-  state: 'idle' | 'loading' | 'ready' | 'error';
   error?: string;
   visible: boolean;
   loaded: boolean;
@@ -38,16 +37,16 @@ export class Directories {
   constructor(model: FileTree, actions: ExplorerActions, changed: () => void) {
     this.model = model; this.actions = actions; this.changed = changed;
     this.git = new GitStatuses(actions.readGitStatus, (entries, errorsChanged) => {
-      this.updating = true;
-      try { model.setGitStatus(entries); }
-      finally { this.updating = false; }
+      model.setGitStatus(entries);
       if (errorsChanged) this.notify();
     });
     this.unsubscribe = model.subscribe(() => {
+      if (this.disposed) return;
+      this.changed();
       const next = { count: model.getVisibleCount(), focus: model.getFocusedPath(), selection: JSON.stringify(model.getSelectedPaths()) };
       const previous = this.observed;
       this.observed = next;
-      if (this.updating || this.disposed) return;
+      if (this.updating) return;
       // Focus/selection notifications carry no expansion change. Empty-folder expansion still needs observation.
       if (next.count === previous.count && (next.focus !== previous.focus || next.selection !== previous.selection)) return;
       this.reconcile();
@@ -88,11 +87,11 @@ export class Directories {
     if (gitError) return gitError;
     const value = this.records.get(path);
     if (!value?.visible) return '';
-    if (value.state === 'loading' && !value.loaded) return 'Loading…';
-    if (value.state === 'error') return value.error || 'Could not read folder';
+    if (value.pending && !value.loaded) return 'Loading…';
+    if (value.error !== undefined) return value.error || 'Could not read folder';
     return value.loaded && !value.children.length ? 'Empty folder' : '';
   }
-  failed(path: string) { return this.records.get(path)?.state === 'error' || !!this.git.error(path); }
+  failed(path: string) { return this.records.get(path)?.error !== undefined || !!this.git.error(path); }
   retry(path: string) { this.git.retry(path); void this.load(path); }
 
   setActive(active: boolean) {
@@ -102,7 +101,7 @@ export class Directories {
     clearInterval(this.timer);
     this.timer = active ? setInterval(() => {
       this.git.refresh();
-      for (const [path, value] of this.records) if (value.visible && value.state !== 'error') void this.load(path);
+      for (const [path, value] of this.records) if (value.visible && value.error === undefined) void this.load(path);
     }, 3000) : undefined;
     this.reconcile();
   }
@@ -118,7 +117,7 @@ export class Directories {
   private directory(path: string, file: string) {
     let value = this.records.get(path);
     if (!value || value.file !== file) {
-      value = { file, children: [], state: 'idle', visible: false, loaded: false, attempt: 0, pending: false };
+      value = { file, children: [], visible: false, loaded: false, attempt: 0, pending: false };
       this.records.set(path, value);
     }
     return value;
@@ -140,10 +139,7 @@ export class Directories {
       changed = true;
       value.visible = next;
       if (next) queueMicrotask(() => { if (!this.disposed) void this.load(path); });
-      else {
-        value.attempt++;
-        if (value.state === 'loading') value.state = value.loaded ? 'ready' : 'idle';
-      }
+      else value.attempt++;
     }
     if (changed) this.notify();
   }
@@ -151,16 +147,15 @@ export class Directories {
   private async load(path: string) {
     const value = this.records.get(path);
     if (!value || value.pending || !value.visible || this.disposed) return;
-    const attempt = ++value.attempt;
-    value.pending = true;
     const previousStatus = this.status(path), previouslyFailed = this.failed(path);
-    value.state = 'loading'; value.error = undefined;
+    const attempt = ++value.attempt;
+    value.pending = true; value.error = undefined;
     const loadingStatus = this.status(path);
     if (loadingStatus !== previousStatus || previouslyFailed) this.notify();
     try {
       const result = await this.actions.readFolder(value.file);
       if (this.disposed || this.records.get(path) !== value || attempt !== value.attempt || !value.visible) return;
-      if (result.error !== undefined) { value.state = 'error'; value.error = result.error; }
+      if (result.error !== undefined) value.error = result.error;
       else {
         const children = result.entries.map((entry: ProjectFile) => {
           const child = path + entry.name + (entry.directory ? '/' : '');
@@ -170,12 +165,12 @@ export class Directories {
         });
         const changed = children.length !== value.children.length || children.some((child, i) => child !== value.children[i]);
         value.children = children;
-        value.loaded = true; value.state = 'ready';
+        value.loaded = true;
         if (changed) this.scheduleUpdate();
       }
     } catch (error) {
       if (!this.disposed && this.records.get(path) === value && attempt === value.attempt && value.visible) {
-        value.state = 'error'; value.error = error instanceof Error ? error.message : String(error);
+        value.error = error instanceof Error ? error.message : String(error);
       }
     } finally {
       value.pending = false;
@@ -219,9 +214,7 @@ export class Directories {
 
   private notify() {
     if (this.disposed) return;
-    this.updating = true;
-    try { this.model.setComposition(this.model.getComposition()); }
-    finally { this.updating = false; }
+    this.model.setComposition(this.model.getComposition());
     this.changed();
   }
 }

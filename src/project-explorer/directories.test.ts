@@ -41,6 +41,7 @@ test('only expanded visible folders read; stale collapse, background and removal
   toggle('project/src/', true); await settled();
   toggle('project/src/', false); toggle('project/src/', true);
   await settled(); assert.equal(requests.length, 2, 'reopening does not overlap an outstanding read');
+  assert.equal(data.status('project/src/'), 'Loading…');
   requests[1]!.finish(entries(['obsolete.txt'], '/project/src')); await settled();
   assert.equal(model.getItem('project/src/obsolete.txt'), null);
   assert.equal(requests.length, 3);
@@ -58,7 +59,8 @@ test('only expanded visible folders read; stale collapse, background and removal
 test('Git snapshots do not overlap or cross root lifetimes; errors retry explicitly', async (t) => {
   const pending: ((result: Result<{ entries: ProjectGitStatus[] }>) => void)[] = [];
   let published: ProjectGitStatus[] = [];
-  const git = new GitStatuses(() => new Promise((resolve) => pending.push(resolve)), (entries) => { published = entries; });
+  let errorsChanged = false;
+  const git = new GitStatuses(() => new Promise((resolve) => pending.push(resolve)), (entries, changed) => { published = entries; errorsChanged = changed; });
   t.after(() => git.dispose());
   git.setRoots(new Map([['repo/', { folder: '/repo' }]]));
   git.setActive(true); git.refresh();
@@ -74,9 +76,13 @@ test('Git snapshots do not overlap or cross root lifetimes; errors retry explici
   assert.deepEqual(published, []);
   pending[3]!({ error: 'Git failed' }); await settled();
   assert.match(git.error('repo/'), /Git failed/);
+  assert.equal(errorsChanged, true);
   git.refresh(); assert.equal(pending.length, 4);
   git.retry('repo/'); assert.equal(pending.length, 5);
-  git.dispose(); pending[4]!({ entries: [{ path: 'late.txt', status: 'added' }] }); await settled();
+  pending[4]!({ entries: [] }); await settled();
+  assert.equal(git.error('repo/'), ''); assert.equal(errorsChanged, true);
+  git.refresh();
+  git.dispose(); pending[5]!({ entries: [{ path: 'late.txt', status: 'added' }] }); await settled();
   assert.deepEqual(published, []);
 });
 
