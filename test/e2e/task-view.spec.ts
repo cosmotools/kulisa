@@ -23,6 +23,17 @@ test('returning to a task keeps its grid instance and expanded Project folders',
   await invoke(ui, 'task:show', second);
   await notLoading(ui);
   expect(await ui.evaluate(() => (window as any).__dock !== (window as any).__firstGrid), 'tasks own independent live grids').toBe(true);
+  const size = await core((k) => k.shell.win.getSize());
+  const width = await ui.evaluate(() => (window as any).__firstGrid.width as number);
+  try {
+    await core((k, size) => k.shell.win.setSize(size[0] - 100, size[1]), size);
+    await expect.poll(() => ui.evaluate(() => (window as any).__firstGrid.width), {
+      message: 'the outer task host observes resizing even while its contents are skipped',
+    }).toBe(width - 100);
+  } finally {
+    await core((k, size) => k.shell.win.setSize(size[0], size[1]), size);
+    await expect.poll(() => ui.evaluate(() => (window as any).__firstGrid.width)).toBe(width);
+  }
   await invoke(ui, 'task:show', first);
   await notLoading(ui);
   expect(await ui.evaluate(() => {

@@ -28,11 +28,14 @@ export class TaskGrid {
   private dragging = false;
   private restoration: Promise<boolean> | null = null;
   private savedDevelopment: SerializedDockview | null = null;
-  private stop: () => void;
+  private stop = () => {};
   constructor(readonly state: TaskStore) {
     this.development = new DevelopmentGrid(state, this.scheduleSave);
     this.stage = new StageGrid(state, this.reportPages);
-    this.stop = state.subscribe((next, previous) => {
+  }
+  // Construction happens in render, which React can abandon without an unmount cleanup.
+  connect() {
+    this.stop = this.state.subscribe((next, previous) => {
       if (!this.workspace || this.disposed) return;
       if (!samePanels(next.profiles, previous.profiles) || !samePanels(next.stageTerminals, previous.stageTerminals)) {
         this.sync(); this.scheduleSave();
@@ -118,8 +121,12 @@ export class TaskGrid {
     this.state.setState({ developmentTerminalFocus: null, stageTerminalFocus: null, pictures: {}, picking: {}, captions: {} });
   }
   dispose() {
-    this.deactivate(); this.disposed = true;
+    if (this.disposed) return;
+    this.disposed = true;
+    // A partially mounted or already torn-down Dockview may not serialize. Cleanup must still finish.
+    try { this.deactivate(); } catch { console.warn('[task-view] layout unavailable during disposal'); }
     this.stop();
+    this.stage.reset();
     cancelAnimationFrame(this.frame);
     for (const subscriptions of this.subscriptions.values()) subscriptions.dispose();
     this.subscriptions.clear(); this.stage.detach(); this.development.dispose();

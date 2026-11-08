@@ -8,8 +8,9 @@ import { forgetTerminals } from '../../terminal/renderer';
 import { panelId } from './layout';
 const grids = new Map<string, TaskGrid>();
 export function registerTaskGrid(grid: TaskGrid) {
+  grid.connect();
   grids.set(grid.key, grid);
-  return () => { grids.delete(grid.key); grid.dispose(); };
+  return () => { if (grids.get(grid.key) === grid) grids.delete(grid.key); grid.dispose(); };
 }
 export const taskGrid = (task: string | null) => grids.get(task ?? '');
 const current = () => taskGrid(store.getState().current);

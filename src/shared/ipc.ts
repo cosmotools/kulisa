@@ -86,6 +86,7 @@ export interface Invoke extends TerminalInvoke, ThumbnailInvoke, GitHubInvoke, D
   'task:show': I<[key: string], { error: string } | void>; // { error }: no such task (ipc/tasks.ts, taskAt)
   'task:new': I<[{ project?: string }?]>;
   'task:close': I<[key: string]>;
+  'task:view-failed': I<[{ task: string; kind: string; frames: string[] }]>;
   'task:delete': I<[key: string]>;
   'task:delete-closed': I<[{ project: string; id: string }]>;
   'task:rename': I<[{ key: string; name: string }], Result<{ name: string; branch: string | null }>>;

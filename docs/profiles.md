@@ -68,6 +68,9 @@ Both call the same core actions and receive the same refusals. Identity changes 
 Settings or through `ProjectProfiles`. Missing handles require a reason in the table.
 Task file editing uses the human's recoverable editor drafts; agents keep their own filesystem tools and do not
 replace or resolve human drafts through MCP. Its core/handle ownership is listed in [tasks.md](tasks.md#actions-the-humans-and-the-agents).
+Task render failure is a window lifecycle notification, not an agent action: `AppWindow.failTaskView` hides that
+task's native surfaces until closure. It has no MCP handle; running browser automation continues. See
+[task rendering failures](window.md#task-rendering-failures).
 
 | Action | The human | The agent | The core |
 |---|---|---|---|

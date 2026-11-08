@@ -261,6 +261,11 @@ positions.
   Human project folders remain.
 - A tab's project submenu includes New Task, Move All Tasks, Project Settings, Show Data Folder and Close All Tasks.
 
+If a task reports that its screen could not be displayed, running work continues. You can use Settings, switch to
+other tasks or close the affected task from its tab. Its pages stay hidden, including after moving it to another
+window. There is no screen retry button. Closing stops its programs; reopening follows normal task startup.
+Use **☰ → Report a Problem…** to save the log.
+
 ### Several windows
 
 - **Move to New Window** in a tab's right-click menu, or drag the tab out of the window, e.g. to a second monitor.

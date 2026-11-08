@@ -41,6 +41,7 @@ export interface Artifact {
 export interface TaskInfo {
   id: string; key: string; project: string; name: string; state: AgentState; folder: string; branch: string | null;
   closed: boolean;
+  viewFailed?: boolean;
   repos: string[]; // the project's repositories it may add (Add Repository)
   resources: TaskResource[]; // what the task has/created (Resources.tsx)
 }
