@@ -38,7 +38,6 @@ Its dependencies keep their own licenses, all of which allow being part of a GPL
 BSD, Apache-2.0; shadcn/ui's components, Radix and Lucide's icons, MIT and ISC), the profiles' pictures from Google's Noto Emoji in
 `src/renderer/public/avatars/` with their license (Apache-2.0), the fonts Geist and JetBrains Mono (SIL Open Font
 License) and Chromium's licenses (in Electron; packaged builds carry `LICENSE` and `LICENSES.chromium.html`).
-Project Explorer's Material Icon Theme SVGs carry their MIT license in `dist/renderer/material-icon-theme-LICENSE.txt`.
 The shared Git client uses simple-git under MIT.
 The installed-version check uses @electron/asar under MIT.
 The @pierre/diffs review renderer and editor carry their Apache-2.0 license in `dist/renderer/pierre-diffs-LICENSE.txt`.

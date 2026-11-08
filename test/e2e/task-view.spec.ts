@@ -11,8 +11,8 @@ test('returning to a task keeps its grid instance and expanded Project folders',
   const first = await keyAt(core, 1), second = await keyAt(core, 2);
   fs.mkdirSync(path.join(files.project, 'retained-folder'));
   fs.writeFileSync(path.join(files.project, 'retained-folder', 'kept.txt'), 'retained');
-  await ui.getByRole('button', { name: 'retained-folder', exact: true }).click();
-  await expect(ui.getByRole('button', { name: 'kept.txt', exact: true })).toBeVisible();
+  await ui.getByRole('treeitem', { name: 'retained-folder', exact: true }).click();
+  await expect(ui.getByRole('treeitem', { name: 'kept.txt', exact: true })).toBeVisible();
   const original = await ui.evaluate(() => {
     const w = window as any;
     w.__firstGrid = w.__dock;
@@ -29,7 +29,7 @@ test('returning to a task keeps its grid instance and expanded Project folders',
     const w = window as any;
     return w.__dock === w.__firstGrid && w.__stage === w.__firstStage;
   }), 'returning reveals the retained development and Stage grids').toBe(true);
-  await expect(ui.getByRole('button', { name: 'kept.txt', exact: true }), 'expanded Project folders survive switching').toBeVisible();
+  await expect(ui.getByRole('treeitem', { name: 'kept.txt', exact: true }), 'expanded Project folders survive switching').toBeVisible();
 });
 
 for (const boundary of ['switch', 'close', 'arrange'] as const) test(`a first layout delayed across ${boundary} belongs to its own task`, async ({ core, ui, call }) => {

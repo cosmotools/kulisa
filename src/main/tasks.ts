@@ -15,14 +15,14 @@ import { TERMINAL_LINES } from '../terminal/ipc.ts';
 import { listArtifacts, saveArtifact } from './artifacts.ts';
 import { worktreesOf, ownWorktree, folderOf, branchOf, taskKey } from './store.ts';
 import { copyProfile } from '../browser/main/index.ts';
-import { renameBranch } from './worktrees.ts';
+import { git, renameBranch } from './worktrees.ts';
 import { listDiff, listDiffTargets, readDiff, loadReview } from '../diff/main/index.ts';
 import type { DiffOptions } from '../diff/ipc.ts';
 import { extendTrust } from '../kulisa-plugin/main/index.ts';
 import { installSkill } from '../kulisa-plugin/main/index.ts';
 import { labelError } from '../shared/names.ts';
 import { loginAllowed } from './local.ts';
-import { resourcePath, listResourceFiles } from '../project-explorer/main/index.ts';
+import { resourcePath, listResourceFiles, listResourceGitStatus } from '../project-explorer/main/index.ts';
 import { EditorWorkspace } from '../editor/main/index.ts';
 import { openFile } from './file-links.ts';
 import { log, summary } from './log.ts';
@@ -823,6 +823,10 @@ class Task {
 
   async files(folder: string) {
     return listResourceFiles(this.resources().map((r) => r.folder), folder);
+  }
+  async fileStatus(folder: string) {
+    if (!this.resources().some((r) => r.folder === folder)) return { error: 'This folder is not a resource of this task.' };
+    return listResourceGitStatus(folder, git);
   }
   async diff(folder: string, options: DiffOptions) {
     if (!this.resources().some((r) => r.folder === folder)) return { error: 'This folder is not a resource of this task.' };

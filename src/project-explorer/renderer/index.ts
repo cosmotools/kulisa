@@ -1,3 +1,3 @@
 // Project Explorer's window entry (../README.md).
-export { ProjectDirectory } from './ProjectDirectory';
+export { ProjectTree } from './ProjectTree';
 export type { ExplorerActions } from './actions';
