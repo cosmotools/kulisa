@@ -18,9 +18,9 @@ export function ProjectTree({ actions, roots, header, active = true }: {
   const { model } = useFileTree({
     paths: [], flattenEmptyDirectories: false, icons: 'complete', unsafeCSS: treeFocusCSS + treeCSS,
     onSelectionChange: (paths) => {
-      if (latest.current.selecting) return;
+      if (latest.current.selecting || paths.length < 2) return;
       latest.current.selecting = true;
-      try { for (const path of paths.slice(0, -1)) model.getItem(path)?.deselect(); }
+      try { select(paths.at(-1)!); }
       finally { latest.current.selecting = false; }
     },
     renderRowDecoration: ({ item }) => {

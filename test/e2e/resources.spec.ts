@@ -26,6 +26,9 @@ test('Resources starts with Project, expands folders, opens files and follows pr
   await otherRow.click();
   await expect(otherRow).toHaveAttribute('aria-selected', 'true');
   await expect(row).toHaveAttribute('aria-selected', 'false');
+  await otherRow.press('ControlOrMeta+a');
+  await expect(resourcesGroup(ui).getByRole('treeitem', { selected: true })).toHaveCount(1);
+  await otherRow.click();
   await otherRow.press('ArrowUp');
   await expect(row).toBeFocused();
   await expect(row).toHaveCSS('background-color', await otherRow.evaluate((element) => getComputedStyle(element).backgroundColor));
