@@ -20,7 +20,8 @@ Activity bar selection stays highlighted independently of Dockview group focus.
 
 `TaskView` keeps an observable outer host while inactive content uses `content-visibility`, `inert` and `aria-hidden`.
 Preserve the retained grid and measurements when changing pane markup; disposal follows task closure, not selection.
-Side bar content uses `SidebarContent` scrolling inside Dockview's named region without duplicate region wrappers.
+Side bar lists use `SidebarContent` scrolling; Project and Diff own virtualized scrolling inside Dockview's named
+region without duplicate region wrappers.
 `development.ts` owns Activity bar selection; Dockview IDs remain stable for saved layouts.
 It also owns the caller's Editor session. Project's Main pane retains the lazy editor while other Activity bar items
 are selected; task disposal releases retained histories. Filesystem/draft/autosave ownership: [Editor](../../editor/README.md).

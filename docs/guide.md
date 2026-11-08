@@ -90,6 +90,7 @@ Side bar, or drag its divider to resize it. Terminals keep running when you swit
 - **Agents** lists coding agents and development shells. Select a row to use its terminal.
 - **Project** shows the current task's code folders. Expand folders; click a file to select it, double-click or
   press Enter to open it. Right-click for **Open**, **Open in System Application** or **Show in Folder**.
+  A repository's **⋯** or right-click menu offers **Open Folder** and, for an added copy, **Remove Repository**.
 - **Artifacts** lists screenshots, page snapshots and other testing results, newest first. Click to open;
   right-click to reveal, send to the agent or delete. Hover/focus trash deletes one; heading trash deletes all.
   Drag an artifact to another app or folder. **Send to Agent** puts its path in the agent's input for you to review

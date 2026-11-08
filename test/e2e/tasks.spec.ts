@@ -161,8 +161,9 @@ test('tasks: + opens a task in the project\'s main working tree ("New Task", no 
   // the tab and the branch take the name, the folder becomes the worktree; the project's folder stays the human's.
   // Project lists the main working tree until the task makes its own worktree.
   await showResources(ui, 'Project');
-  const resources = ui.locator('[data-task-view][data-active] [data-resources]').getByRole('list', { name: 'Folders' }).locator(':scope > li').getByRole('button', { name: path.basename(project), exact: true });
-  await expect(resources).toHaveText([`${path.basename(project)}main working tree`]);
+  const resources = ui.locator('[data-task-view][data-active] [data-resources]');
+  await expect(resources.getByRole('treeitem', { name: path.basename(project), exact: true })).toBeVisible();
+  await expect(resources.getByText('main working tree', { exact: true })).toBeVisible();
   // Two of its agents at once (each a call) get the one worktree, not one each.
   const wt = `${project}@feature-x`, trees = () => git(project, 'worktree', 'list').split('\n').length, before = trees();
   // The second sent once the first is at work (named: making the worktree): the first to arrive makes the folder, named
@@ -172,7 +173,8 @@ test('tasks: + opens a task in the project\'s main working tree ("New Task", no 
   const both = await Promise.all([naming, call('task_worktree', {}, { task })]);
   for (const r of both) expect(r.text).toMatch(new RegExp(`works in its own worktree .*${RegExp.escape(path.basename(project))}@feature-x, on branch feature-x`));
   expect(trees(), 'one worktree').toBe(before + 1);
-  await expect(resources).toHaveText([`${path.basename(project)}branch feature-x`]);
+  await expect(resources.getByRole('treeitem', { name: path.basename(project), exact: true })).toBeVisible();
+  await expect(resources.getByText('branch feature-x', { exact: true })).toBeVisible();
   expect(await invoke(ui, 'task:open-folder', { key: task, folder: '/' }), 'only a folder of the task').toBe(undefined);
   await expect(taskTab(ui, task)).toHaveText('Feature-X');
   expect(await core((k, key) => { const t = k.shell.taskByKey(key); return [t.name, t.entry.named, t.folder]; }, task)).toEqual(['Feature-X', true, wt]);

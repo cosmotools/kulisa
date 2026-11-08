@@ -11,7 +11,6 @@ UI names: [Workbench terminology](../../docs/ui.md#workbench-terminology).
 - Patch batches and Load diff bound memory; full file contents load only for explicit context expansion.
 - Pierre Trees virtualizes changed-file navigation; presorted paths keep the tree in the review document's order.
 - The tree uses Pierre's complete built-in file-type icons and Git-status badges alongside added/deleted counts.
-  Folder status dots are hidden because every listed folder contains changed files.
 - One filter controls Trees' built-in search and the review's current-path matches, ignoring case, trimming outer
   whitespace and accepting backslashes as separators. Previous rename paths remain display metadata, not search aliases.
   Filtering keeps the complete tree model; clearing search restores its expansion state. No matches hides Trees'

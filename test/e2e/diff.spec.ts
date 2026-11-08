@@ -2,7 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { test, expect } from './fixtures.ts';
-import { act, arrange, box, invoke, resourcesGroup, showResources, termKeys, termText } from './helpers.ts';
+import { act, arrange, box, choose, closeMenu, invoke, resourcesGroup, showResources, termKeys, termText, windowSubmenu } from './helpers.ts';
 import { committed, git, openFolder, showTask } from './tasks-helpers.ts';
 
 test('Diff copies code and renamed file paths in Unified and Split layouts while controls stay unselectable', async ({ core, ui, files }) => {
@@ -68,6 +68,7 @@ test('Diff groups files into folders and switches the development area without m
   fs.mkdirSync(path.join(copy.folder, 'src', 'orders'), { recursive: true });
   fs.mkdirSync(path.join(copy.folder, 'docs'), { recursive: true });
   fs.writeFileSync(path.join(copy.folder, 'src', 'orders', 'stock.ts'), 'export const inStock = true;\n');
+  for (const name of ['file10.ts', 'file2.ts']) fs.writeFileSync(path.join(copy.folder, 'src', 'orders', name), 'export const value = 1;\n');
   fs.writeFileSync(path.join(copy.folder, 'docs', 'guide.md'), '# Guide\n');
   fs.writeFileSync(path.join(copy.folder, 'checkout.ts'), 'export const label = "after-marker";\n');
   await act(ui, 'stage-terminal:open', { name: 'Review environment' });
@@ -85,9 +86,28 @@ test('Diff groups files into folders and switches the development area without m
   const tree = resourcesGroup(ui).locator('[data-resources]');
   const stock = tree.locator('[role="treeitem"][data-item-path="src/orders/stock.ts"]');
   await expect(stock).toBeVisible();
+  const numbered = tree.getByRole('treeitem', { name: /^file(?:10|2)\.ts$/ });
+  await expect(numbered.nth(0)).toHaveAccessibleName('file10.ts');
+  await expect(numbered.nth(1)).toHaveAccessibleName('file2.ts');
   await expect(tree.getByRole('group', { name: 'From for review-tree' })).toContainText(copy.branch + ' (worktree)');
   await expect(tree.getByRole('combobox', { name: 'To for review-tree' })).toContainText('main');
   await expect(stock).toContainText('+1');
+  const checkout = tree.locator('[role="treeitem"][data-item-path="checkout.ts"]');
+  for (const section of ['decoration', 'git']) {
+    const selector = `[data-item-section="${section}"]${section === 'decoration' ? ' > span' : ''}`;
+    const nested = await stock.locator(selector).boundingBox(), root = await checkout.locator(selector).boundingBox();
+    expect(nested.x + nested.width).toBeCloseTo(root.x + root.width, 0);
+  }
+  const host = tree.getByLabel('Changed file tree', { exact: true }), status = stock.locator('[data-item-section="git"]');
+  const darkStatus = await status.evaluate((element) => getComputedStyle(element).color);
+  await choose(ui, 'Light', await windowSubmenu(ui, 'Theme'));
+  await expect(host).toHaveCSS('color-scheme', 'light');
+  await expect(status).not.toHaveCSS('color', darkStatus);
+  await ui.keyboard.press('Escape'); await closeMenu(ui);
+  await choose(ui, 'Dark', await windowSubmenu(ui, 'Theme'));
+  await expect(host).toHaveCSS('color-scheme', 'dark');
+  await expect(status).toHaveCSS('color', darkStatus);
+  await ui.keyboard.press('Escape'); await closeMenu(ui);
   await tree.locator('[role="treeitem"][data-item-path="src/"]').click();
   await expect(stock).toBeHidden();
   await tree.locator('[role="treeitem"][data-item-path="src/"]').click();
@@ -158,6 +178,7 @@ test('Diff groups files into folders and switches the development area without m
 });
 
 test('Review refreshes file contents and preserves its split view when switching tasks', async ({ core, ui, files }) => {
+  await showResources(ui, 'Agents');
   const original = await core((k) => k.shell.task.key);
   const repo = committed(path.join(files.root, 'review-live'), 'file.ts', 'export const value = "old-marker";\n');
   git(repo, 'branch', '-M', 'main');

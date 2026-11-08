@@ -11,7 +11,7 @@ test('Close All saves pending edits and stops when discarding a conflicting draf
   fs.writeFileSync(first, 'first'); fs.writeFileSync(second, 'second');
   await showResources(ui, 'Project'); await focusWindow(core, ui);
   const open = async (name: string, file: string) => {
-    await ui.getByRole('button', { name, exact: true }).dblclick();
+    await ui.getByRole('treeitem', { name, exact: true }).dblclick();
     await expect(ui.getByRole('textbox', { name: file, exact: true })).toBeVisible();
   };
   const closeAll = async () => {
@@ -50,7 +50,7 @@ test('text files open on double-click, autosave Unicode and CRLF, retain undo ac
   const folder = await core((k) => k.shell.task.folder), file = path.join(folder, 'editor-code.ts'), other = path.join(folder, 'editor-other.txt');
   fs.writeFileSync(file, '\uFEFFconst value = 1;\r\n'); fs.writeFileSync(other, 'other file');
   await showResources(ui, 'Project'); await focusWindow(core, ui);
-  await ui.getByRole('button', { name: 'editor-code.ts', exact: true }).dblclick();
+  await ui.getByRole('treeitem', { name: 'editor-code.ts', exact: true }).dblclick();
   const code = ui.getByRole('textbox', { name: file, exact: true });
   await expect(code).toContainText('const value = 1;');
   await code.press(`${CMD}+End`); await code.press('ArrowUp'); await code.press('End');
@@ -58,7 +58,7 @@ test('text files open on double-click, autosave Unicode and CRLF, retain undo ac
   await expect.poll(() => fs.readFileSync(file, 'utf8')).toContain('Привет');
   expect(fs.readFileSync(file, 'utf8')).toContain('\uFEFF');
   expect(fs.readFileSync(file, 'utf8')).toContain('\r\n');
-  await ui.getByRole('button', { name: 'editor-other.txt', exact: true }).dblclick();
+  await ui.getByRole('treeitem', { name: 'editor-other.txt', exact: true }).dblclick();
   await expect(ui.getByRole('textbox', { name: other, exact: true })).toContainText('other file');
   await ui.getByRole('tab', { name: 'editor-code.ts', exact: true }).click();
   await expect(code).toContainText('Привет');
@@ -78,7 +78,7 @@ test('JetBrains shortcuts replace text, insert below and move lines without losi
   const folder = await core((k) => k.shell.task.folder), file = path.join(folder, 'editor-keys.ts');
   fs.writeFileSync(file, 'const first = 1;\nconst second = 2;\n');
   await showResources(ui, 'Project'); await focusWindow(core, ui);
-  await ui.getByRole('button', { name: 'editor-keys.ts', exact: true }).dblclick();
+  await ui.getByRole('treeitem', { name: 'editor-keys.ts', exact: true }).dblclick();
   const code = ui.getByRole('textbox', { name: file, exact: true });
   await expect(code).toContainText('const first = 1;');
   await code.press(`${CMD}+Home`); await code.press('Shift+Alt+ArrowDown');
@@ -116,7 +116,7 @@ test('conflicting writes pause autosave, compare both versions and recover the d
   const folder = await core((k) => k.shell.task.folder), file = path.join(folder, 'editor-conflict.txt');
   fs.writeFileSync(file, 'original');
   await showResources(ui, 'Project'); await focusWindow(core, ui);
-  await ui.getByRole('button', { name: 'editor-conflict.txt', exact: true }).dblclick();
+  await ui.getByRole('treeitem', { name: 'editor-conflict.txt', exact: true }).dblclick();
   await core((k) => k.clock.hold(600));
   try {
     const code = ui.getByRole('textbox', { name: file, exact: true });
@@ -150,12 +150,12 @@ test('binary fallback and explicit system opening preserve desktop actions', asy
     k.electron.shell.openPath = async (file: string) => { k.stash.editorOpened.push(file); return ''; };
   });
   try {
-    await ui.getByRole('button', { name: 'editor-binary.bin', exact: true }).dblclick();
+    await ui.getByRole('treeitem', { name: 'editor-binary.bin', exact: true }).dblclick();
     await expect.poll(() => core((k) => k.stash.editorOpened)).toEqual([binary]);
-    await rightClick(ui, ui.getByRole('button', { name: 'editor-system.txt', exact: true }));
+    await rightClick(ui, ui.getByRole('treeitem', { name: 'editor-system.txt', exact: true }));
     await menu(ui).getByRole('menuitem', { name: 'Open in System Application', exact: true }).click();
     await expect.poll(() => core((k) => k.stash.editorOpened)).toEqual([binary, text]);
-    await ui.getByRole('button', { name: 'editor-system.txt', exact: true }).dblclick();
+    await ui.getByRole('treeitem', { name: 'editor-system.txt', exact: true }).dblclick();
     await rightClick(ui, ui.getByRole('tab', { name: 'editor-system.txt', exact: true }));
     await menu(ui).getByRole('menuitem', { name: 'Open in System Application', exact: true }).click();
     await expect.poll(() => core((k) => k.stash.editorOpened)).toEqual([binary, text, text]);
@@ -167,7 +167,7 @@ test('a large file renders a bounded viewport and restores scroll when switching
   fs.writeFileSync(file, Array.from({ length: 23000 }, (_, i) => `export const value${i} = ${i};\n`).join(''));
   fs.writeFileSync(other, 'small document');
   await showResources(ui, 'Project'); await focusWindow(core, ui);
-  await ui.getByRole('button', { name: 'editor-large.ts', exact: true }).dblclick();
+  await ui.getByRole('treeitem', { name: 'editor-large.ts', exact: true }).dblclick();
   // First TypeScript grammar/editor setup for 23,000 lines exceeded five seconds with four concurrent Kulisas.
   await expect(ui.getByRole('region', { name: `Editor document: ${file}`, exact: true })).toHaveAttribute('aria-busy', 'false', { timeout: 15000 });
   const code = ui.getByRole('textbox', { name: file, exact: true });
@@ -183,14 +183,14 @@ test('a large file renders a bounded viewport and restores scroll when switching
     const rect = row.getBoundingClientRect(); return rect.top <= middle && rect.bottom > middle;
   })?.getAttribute('data-line'), box.y + box.height / 2);
   expect(line, 'a code line at the middle of the editor viewport').toBeTruthy();
-  await ui.getByRole('button', { name: 'editor-small.txt', exact: true }).dblclick();
+  await ui.getByRole('treeitem', { name: 'editor-small.txt', exact: true }).dblclick();
   await expect(ui.getByRole('textbox', { name: other, exact: true })).toBeVisible();
   await ui.getByRole('tab', { name: 'editor-large.ts', exact: true }).click();
   await expect(ui.getByRole('region', { name: `Editor document: ${file}`, exact: true })).toHaveAttribute('aria-busy', 'false');
   await expect(code.locator(`[data-line="${line}"]`)).toBeInViewport();
   await code.press(`${CMD}+End`);
   await expect(code).toContainText('value22999');
-  await ui.getByRole('button', { name: 'editor-small.txt', exact: true }).dblclick();
+  await ui.getByRole('treeitem', { name: 'editor-small.txt', exact: true }).dblclick();
   await expect(ui.getByRole('textbox', { name: other, exact: true })).toBeVisible();
   await ui.getByRole('tab', { name: 'editor-large.ts', exact: true }).click();
   await expect(code).toContainText('value22999');
@@ -204,7 +204,7 @@ test('the same file in two tasks has independent drafts and closing one task pre
   const first = await core((k) => k.shell.task.key), folder = await core((k) => k.shell.task.folder), file = path.join(folder, 'editor-shared.txt');
   fs.writeFileSync(file, 'base');
   await showResources(ui, 'Project'); await focusWindow(core, ui);
-  await ui.getByRole('button', { name: 'editor-shared.txt', exact: true }).dblclick();
+  await ui.getByRole('treeitem', { name: 'editor-shared.txt', exact: true }).dblclick();
   const code = ui.getByRole('textbox', { name: file, exact: true });
   await expect(code).toBeFocused();
   await core((k) => k.clock.hold(600));
@@ -214,7 +214,7 @@ test('the same file in two tasks has independent drafts and closing one task pre
     await expect.poll(() => core(async (k) => { const state = await k.shell.task.editor.execute({ type: 'list' }); return 'document' in state && state.document?.text; })).toBe('base first draft');
     second = await newTask(core, ui);
     await showResources(ui, 'Project'); await focusWindow(core, ui);
-    await ui.getByRole('button', { name: 'editor-shared.txt', exact: true }).dblclick();
+    await ui.getByRole('treeitem', { name: 'editor-shared.txt', exact: true }).dblclick();
     await expect(code).toHaveText('base');
     await taskTab(ui, second).getByRole('button', { name: 'Close', exact: true }).click();
     await expect(taskTab(ui, second)).toHaveCount(0);
@@ -235,7 +235,7 @@ test('a delayed edit reply cannot strand newer input when the task closes', asyn
   const folder = await core((k) => k.shell.task.folder), file = path.join(folder, 'editor-closing.txt');
   fs.writeFileSync(file, '');
   await showResources(ui, 'Project'); await focusWindow(core, ui);
-  await ui.getByRole('button', { name: 'editor-closing.txt', exact: true }).dblclick();
+  await ui.getByRole('treeitem', { name: 'editor-closing.txt', exact: true }).dblclick();
   const code = ui.getByRole('textbox', { name: file, exact: true });
   await expect(code).toBeFocused();
   await core((k) => {

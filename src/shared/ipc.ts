@@ -2,7 +2,7 @@
 // Both ends are checked against it (main/ipc.ts: handle, on, AppWindow.send; the window's bridge: renderer/env.d.ts,
 // act). docs/window.md, IPC. An answer the window does not read is `void`: the main process may answer anything there
 // (the tests read some).
-import type { ProjectFile } from '../project-explorer/ipc.ts';
+import type { ProjectFile, ProjectGitStatus } from '../project-explorer/ipc.ts';
 import type { EditorAction, EditorSnapshot } from '../editor/ipc.ts';
 import type { Result } from './result.ts';
 import type { DiffOptions, Diff, FileDiff, Review } from '../diff/ipc.ts';
@@ -94,6 +94,7 @@ export interface Invoke extends TerminalInvoke, ThumbnailInvoke, GitHubInvoke, D
   'task:show-folder': I<[key: string]>;
   'task:open-folder': I<[{ key: string; folder: string }]>; // a resource's folder (Resources.tsx), checked to be the task's
   'task:file:list': I<[{ key: string; folder: string }], Result<{ entries: ProjectFile[] }>>;
+  'task:file:status': I<[{ key: string; folder: string }], Result<{ entries: ProjectGitStatus[] }>>;
   'task:diff:list': I<[{ key: string; folder: string; options: DiffOptions }], Result<Diff>>;
   'task:diff:targets': I<[{ key: string; folder: string }], Result<{ branches: string[] }>>;
   'task:diff:review': I<[{ key: string; folder: string; options: DiffOptions; load?: string[] }], Result<Review>>;

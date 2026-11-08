@@ -1,0 +1,2 @@
+/* Metadata uses Kulisa's caption size; other styling uses public host properties. */
+[data-item-section="decoration"] { font-size: var(--text-xs); }

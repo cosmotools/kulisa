@@ -1,11 +1,11 @@
 // Workbench Activity bar and Side bar (docs/tasks.md, The Workbench).
 import { useEffect, useMemo, useState } from 'react';
-import { ChevronRightIcon, FileIcon, FilesIcon, FolderIcon, FolderTreeIcon, GitBranchIcon, GitCompareArrowsIcon, TerminalSquareIcon, Trash2Icon } from 'lucide-react';
+import { FileIcon, FilesIcon, FolderTreeIcon, GitBranchIcon, GitCompareArrowsIcon, TerminalSquareIcon, Trash2Icon } from 'lucide-react';
 import type { IDockviewPanelProps, IDockviewPanelHeaderProps, IDockviewHeaderActionsProps } from 'dockview-react';
 import { useShallow } from 'zustand/react/shallow';
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupAction, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuAction,
-  Button, Collapsible, CollapsibleTrigger, CollapsibleContent, SidebarMenuButton, SidebarMenuItem, SidebarProvider } from '@ui';
-import { ProjectDirectory, type ExplorerActions } from '../../project-explorer/renderer';
+  SidebarMenuButton, SidebarMenuItem, SidebarProvider } from '@ui';
+import { ProjectTree, type ExplorerActions } from '../../project-explorer/renderer';
 import { menuAt } from '../lib/menu';
 import { RightClickMenu } from '../components/Menus';
 import { shownTask, useWindow } from '../lib/store';
@@ -65,13 +65,17 @@ function TaskDictation() {
 }
 
 function TaskResources({ section }: { section: ActivityItem }) {
-  const [selectedPath, selectPath] = useState<string | null>(null);
   const grid = useTaskGrid();
   const key = useTask((s) => s.key);
   const task = useWindow((s) => shownTask(s, key));
   const active = useTaskActive();
   const explorer = useMemo<ExplorerActions>(() => ({
+    openFolder: (folder) => kulisa.invoke('task:open-folder', { key, folder }),
+    folderMenu: (folder) => [{ label: 'Open Folder', run: () => kulisa.invoke('task:open-folder', { key, folder }) },
+      ...(shownTask(undefined, key)?.resources.find((r) => r.folder === folder)?.removable
+        ? [{ label: 'Remove Repository', run: () => kulisa.invoke('task:repo:remove', { key, repo: folder }) }] : [])],
     readFolder: (folder) => kulisa.invoke('task:file:list', { key, folder }),
+    readGitStatus: (folder) => kulisa.invoke('task:file:status', { key, folder }),
     openFile: (file) => grid.development.editor.open(file),
     openExternal: (file) => kulisa.invoke('task:file:open', { key, file }),
     showFile: (file) => kulisa.invoke('file:show', file),
@@ -81,9 +85,10 @@ function TaskResources({ section }: { section: ActivityItem }) {
   const bytes = useTask((s) => s.artifacts.bytes);
   const names = useTask(useShallow((s) => Object.fromEntries([...s.profiles, ...s.closedProfiles].map((p) => [p.id, p.name]))));
   const stageTerminals = useTask(useShallow((s) => Object.fromEntries(s.stageTerminals.map((a) => [a.id, a.name]))));
+  const branch = task?.resources.find((r) => r.branch)?.branch ?? null;
+  const roots = useMemo(() => (task?.resources ?? []).map((r) => ({ folder: r.folder, label: r.label,
+    caption: r.branch === branch ? '' : r.branch ? `branch ${r.branch}` : 'main working tree' })), [task?.resources, branch]);
   if (!task) return null;
-  const open = (folder: string) => kulisa.invoke('task:open-folder', { key: task.key, folder });
-  const remove = (folder: string) => kulisa.invoke('task:repo:remove', { key: task.key, repo: folder });
   const deleteArtifacts = (files: string[] | null) => kulisa.invoke('task:artifact:delete', { key: task.key, files });
   const menu = (e: MouseEvent): MenuItem[] | null => {
     const file = (e.target as Element).closest<HTMLElement>('[data-file]')?.dataset.file;
@@ -99,22 +104,11 @@ function TaskResources({ section }: { section: ActivityItem }) {
       <Sidebar collapsible="none" className="w-full">
         {section === 'terminals' && <DevelopmentTerminalList />}
         {section === 'diff' && <TaskDiffTree roots={task.resources} />}
-        {section === 'project' && <SidebarContent>
-          <SidebarGroup><SidebarGroupContent>
-            <SidebarMenu aria-label="Folders">
-              {task.resources.map((r) => <SidebarMenuItem key={r.folder}><RightClickMenu items={() => [{ label: 'Open Folder', run: () => open(r.folder) }, ...(r.removable ? [{ label: 'Remove Repository', run: () => remove(r.folder) }] : [])]}><Collapsible defaultOpen>
-                <div className="not-hover:[--muted:transparent]"><CollapsibleTrigger asChild><Button variant={selectedPath === r.folder ? 'secondary' : 'ghost'} data-selected={selectedPath === r.folder} aria-label={r.label} title={r.folder} className="h-auto w-full justify-start" onClick={() => selectPath(r.folder)} onDoubleClick={() => void open(r.folder)}>
-                  <ChevronRightIcon className="group-aria-expanded/button:rotate-90" />
-                  {r.kind === 'maintree' ? <FolderIcon /> : <GitBranchIcon />}
-                  {lines(r.label, r.branch ? `branch ${r.branch}` : 'main working tree')}
-                </Button></CollapsibleTrigger></div>
-                {r.removable && <SidebarMenuAction showOnHover aria-label="Remove Repository" title="Remove Repository" onClick={() => void remove(r.folder)}>
-                  <Trash2Icon /></SidebarMenuAction>}
-                <CollapsibleContent><div className="ms-4"><ProjectDirectory actions={explorer} folder={r.folder} selection={{ path: selectedPath, select: selectPath }} active={active} /></div></CollapsibleContent>
-              </Collapsible></RightClickMenu></SidebarMenuItem>)}
-            </SidebarMenu>
-          </SidebarGroupContent></SidebarGroup>
-          </SidebarContent>}
+        {section === 'project' && <ProjectTree actions={explorer} roots={roots} active={active}
+          header={<div className="flex min-w-0 items-center gap-2 px-4 py-2 text-sm text-muted-foreground">
+            <GitBranchIcon className="size-4 shrink-0" /><span className="truncate" title={branch ? `branch ${branch}` : 'main working tree'}>
+              {branch ? `branch ${branch}` : 'main working tree'}</span>
+          </div>} />}
           {section === 'artifacts' && <SidebarContent>
           <SidebarGroup>
             <SidebarGroupLabel>Artifacts ·&nbsp;<span data-testid="artifacts-size">{sizeText(bytes)}</span></SidebarGroupLabel>

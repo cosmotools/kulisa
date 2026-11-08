@@ -31,7 +31,7 @@ export function Diff({ session, roots, selection, reviewing }: DiffProps) {
         </InputGroup>
       </SidebarGroupContent>
     </SidebarGroup>
-    <div className="flex min-h-0 flex-1 flex-col overflow-auto px-1 pb-2" aria-busy={loading}>
+    <div className="flex min-h-0 flex-1 flex-col overflow-auto pb-2" aria-busy={loading}>
       {roots.map((root) => <RepositoryDiff key={root.folder} session={session} selected={selection} reviewing={reviewing} loading={loading} root={root} grouped={roots.length > 1} filter={filter} />)}
     </div>
   </section>;
@@ -63,9 +63,9 @@ function RepositoryDiff({ session, selected, reviewing: activeReview, loading, r
   const content = <div className="flex min-h-40 flex-1 flex-col">
       {targets.error && <Alert variant="destructive"><AlertDescription>{targets.error.message}</AlertDescription></Alert>}
       {error && <Alert variant="destructive"><AlertDescription>{error.message}</AlertDescription></Alert>}
-      {data && !data.git && <p className="p-2 text-sm text-muted-foreground">This folder is not a Git repository.</p>}
+      {data && !data.git && <p className="px-4 py-2 text-sm text-muted-foreground">This folder is not a Git repository.</p>}
       {(!data || data.git) && <>
-        <div className="flex shrink-0 flex-col gap-2 px-2 py-2">
+        <div className="flex shrink-0 flex-col gap-2 px-4 py-2">
           <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-end gap-1">
             <div className="flex min-w-0 flex-col gap-1">
             <span className="text-xs text-muted-foreground">From</span>
@@ -85,7 +85,7 @@ function RepositoryDiff({ session, selected, reviewing: activeReview, loading, r
           </div>
         </div>
         <div inert={loading} className={`flex min-h-0 flex-1 flex-col ${loading ? 'invisible' : ''}`}>
-          {data && !data.files.length && <p className="p-2 text-sm text-muted-foreground">No changes</p>}
+          {data && !data.files.length && <p className="px-4 py-2 text-sm text-muted-foreground">No changes</p>}
           {!!data?.files.length && <DiffTree session={session} files={data.files} filter={filter}
             selected={selected?.folder === root.folder ? selected.path : null} choose={choose} />}
         </div>
@@ -93,7 +93,7 @@ function RepositoryDiff({ session, selected, reviewing: activeReview, loading, r
   </div>;
   if (!grouped) return content;
   return <Collapsible defaultOpen asChild><div className="flex min-h-48 flex-1 flex-col data-[state=closed]:min-h-0 data-[state=closed]:flex-none">
-    <div className="not-hover:[--muted:transparent]"><CollapsibleTrigger asChild><Button variant="ghost" className="h-8 w-full justify-start" aria-label={`Repository ${root.label}`} title={root.folder}>
+    <div className="mx-2 not-hover:[--muted:transparent]"><CollapsibleTrigger asChild><Button variant="ghost" className="h-8 w-full justify-start" aria-label={`Repository ${root.label}`} title={root.folder}>
       <ChevronRightIcon className="group-aria-expanded/button:rotate-90" /><GitBranchIcon /><span className="min-w-0 flex-1 truncate text-start">{root.label}</span>
       {!loading && data && <span className="text-xs text-muted-foreground">{data.files.length}</span>}
     </Button></CollapsibleTrigger></div>

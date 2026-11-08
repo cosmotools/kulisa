@@ -116,7 +116,8 @@ state and shared expanded width.
 - **Project**: initially selected Activity bar item; [Project Explorer](../src/project-explorer/README.md) browses task resource roots.
   Core supplies roots, the [Editor](../src/editor/README.md), protected desktop opening and repository actions.
   A single file click selects its row; double-click/Enter opens text in Project's Main pane; other files use
-  the system app. Root click expands, double-click opens in the OS; added copies have remove actions, main/default task folder does not.
+  the system app. The shared header shows the branch; exceptions stay beside their repository. Root click expands, double-click
+  opens in the OS; root menus remove added copies, never the main/default task folder.
 - **Artifacts**: newest-first screenshots/snapshots/request-response bodies/terminal text, with source, time and
   size derived from files/metadata (`artifacts.ts`). Create thumbnails serially in main, cache while task loaded,
   and send list updates asynchronously so large images do not delay agent launch.
@@ -165,7 +166,7 @@ to the human; the window's IPC (`ipc/`) and the MCP tools are handles on it:
 | Read what was said and done in the task before | its terminal, scrolled back | `task_history` ([transcripts.md](transcripts.md)) | `historyPart` (`history.ts`) |
 | Delete a task | Delete Task… in its tab's menu; its 🗑 in the sidebar | none: it deletes work and sign-ins, the human's to decide | `askDeleteTask`, `deleteTask`, `deleteClosedTask` (`projects.ts`) |
 | Show a task | a click on its tab, of any project | none: what the human looks at is theirs | `AppWindow.show` (`window.ts`) |
-| Browse a task’s folders, open/edit a file | Project in the Side bar; double-click/Enter, Open or Open in System Application | the agent reads/writes files through its own filesystem tools; human drafts and conflict choices stay human-owned | `task:file:list`, `task:editor`, `task:file:open` (`Task.files`, `Task.editor`, `Task.openProjectFile`; reads/writes confined to current roots) |
+| Browse a task’s folders and Git status, open/edit a file | Project in the Side bar; double-click/Enter, Open or Open in System Application | the agent uses its own filesystem/Git tools; human drafts and conflict choices stay human-owned | `task:file:list`, `task:file:status`, `task:editor`, `task:file:open` (`Task.files`, `Task.fileStatus`, `Task.editor`, `Task.openProjectFile`; reads/writes confined to current roots) |
 | Review local code changes | Diff Activity bar item, continuous file diffs; Unified or Split | the agent reads its Git repository through its own tools | `task:diff:list`, `task:diff:targets`, `task:diff:review`, `task:diff:contents` (`Task.diff`, `Task.diffTargets`, `Task.review`, `Task.diffContents`) |
 | Open a resource's folder | double-click its root in the Side bar, or Open Folder in its menu | none: the agent opens folders through its own tools | `task:open-folder` (`ipc/tasks.ts`) |
 | Open an artifact, show it in its folder | a click on its Side bar item, its menu | none: the tools' answers give the agent its path | `file:open`, `file:show` (`file-links.ts`) |
@@ -175,7 +176,7 @@ to the human; the window's IPC (`ipc/`) and the MCP tools are handles on it:
 | Make the task's worktree | none: its agent makes it before writing code | `task_worktree` | `Task.makeWorktree`, `Project.ensureWorktree` |
 | Add, clone, make the default, remove a project's folder | the project's page | none: what the project is made of is the human's | `addFolder`, `cloneRepo`, `defaultFolder`, `removeFolder` (`projects.ts`) |
 | Add a project's repository to a task | Add Repository in its tab's menu | `task_add_repository`, once the human agreed in the conversation | `Task.addRepository`, `Project.addCopy` |
-| Remove one added | Remove Repository in its tab's menu, or on its chip | `task_remove_repository`, once the human agreed | `Task.removeRepository`, `Project.askRemoveCopy`, `removeCopy` |
+| Remove one added | Remove Repository in its tab's menu, or its Project row's menu | `task_remove_repository`, once the human agreed | `Task.removeRepository`, `Project.askRemoveCopy`, `removeCopy` |
 | Add, make the default (or none the default), remove an agent of the project | the project's page | none: what the project is made of is the human's | `addAgent`, `defaultAgent`, `removeAgent` (`projects.ts`) |
 | Make an account of an agent | Connect in New Project or Settings → Agents; New Account… on a project's page | none: signing in is the human's (Rules) | `Accounts.signIn` (`accounts.ts`) |
 | Delete or disconnect an account | its menu in Settings → Agents | none: it deletes a sign-in and conversations, the human's to decide | `deleteAccount` (`projects.ts`), `shell.dropAccount` |

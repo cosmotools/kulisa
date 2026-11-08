@@ -1,7 +1,8 @@
 // Virtualized review navigation; Pierre owns tree interaction and row rendering.
 import { useLayoutEffect, useMemo, useRef } from 'react';
 import { FileTree, useFileTree, useFileTreeSelector } from '@pierre/trees/react';
-import type { GitStatus } from '@pierre/trees';
+import { preparePresortedFileTreeInput, type GitStatus } from '@pierre/trees';
+import { treeFocusCSS, treeStyle } from '../../shared/tree-style';
 import type { DiffFile } from '../ipc';
 import type { DiffSession } from './session';
 import { diffLabel } from './DiffStatus';
@@ -19,8 +20,8 @@ export function DiffTree({ session, files, filter, selected, choose }: {
   }), [files]);
   const latest = useRef({ input, choose, session, syncing: false, selected: undefined as string | null | undefined });
   const { model } = useFileTree({
-    paths: input.paths, gitStatus: input.gitStatus, presorted: true, flattenEmptyDirectories: false, initialExpansion: 'open', itemHeight: 28, stickyFolders: true,
-    icons: 'complete', unsafeCSS: treeCSS, initialSearchQuery: filter.trim() ? filter : null, fileTreeSearchMode: 'hide-non-matches',
+    paths: [], gitStatus: input.gitStatus, flattenEmptyDirectories: false, initialExpansion: 'open',
+    icons: 'complete', unsafeCSS: treeFocusCSS + treeCSS, initialSearchQuery: filter.trim() ? filter : null, fileTreeSearchMode: 'hide-non-matches',
     onSelectionChange: (selectedPaths) => {
       const file = latest.current.input.files.get(selectedPaths.at(-1) ?? '');
       if (!latest.current.syncing && file) latest.current.choose(file);
@@ -30,8 +31,8 @@ export function DiffTree({ session, files, filter, selected, choose }: {
       if (!file) return null;
       return { text: '', title: `${file.previousPath ? `${file.previousPath} → ` : ''}${file.path}\n${diffLabel(file.status)}`,
         parts: [
-          { text: file.additions === null ? '— ' : `+${file.additions} `, color: file.additions === null ? 'var(--muted-foreground)' : 'var(--success)' },
-          { text: file.deletions === null ? '—' : `−${file.deletions}`, color: file.deletions === null ? 'var(--muted-foreground)' : 'var(--destructive)' },
+          { text: file.additions === null ? '— ' : `+${file.additions} `, color: file.additions === null ? 'var(--trees-fg-muted)' : 'var(--trees-status-added)' },
+          { text: file.deletions === null ? '—' : `−${file.deletions}`, color: file.deletions === null ? 'var(--trees-fg-muted)' : 'var(--trees-status-deleted)' },
         ] };
     },
     composition: { contextMenu: { enabled: true, triggerMode: 'right-click', onOpen: (item, context) => {
@@ -45,7 +46,7 @@ export function DiffTree({ session, files, filter, selected, choose }: {
   const noMatches = useMemo(() => !!query && !files.some((file) => file.path.toLowerCase().includes(query)), [files, query]);
   useLayoutEffect(() => {
     const current = latest.current, previous = current.input;
-    const pathsChanged = input !== previous && (input.paths.length !== previous.paths.length || input.paths.some((path, i) => path !== previous.paths[i]));
+    const pathsChanged = current.selected === undefined || input !== previous && (input.paths.length !== previous.paths.length || input.paths.some((path, i) => path !== previous.paths[i]));
     const selectionChanged = selected !== current.selected;
     Object.assign(current, { input, choose, session, selected, syncing: true });
     try {
@@ -57,7 +58,7 @@ export function DiffTree({ session, files, filter, selected, choose }: {
           return parts.slice(0, -1).map((_, i) => parts.slice(0, i + 1).join('/') + '/');
         }));
         const expanded = [...directories].filter((path) => { const item = model.getItem(path); return !item || 'isExpanded' in item && item.isExpanded(); });
-        model.resetPaths(input.paths, { initialExpandedPaths: expanded });
+        model.resetPaths({ preparedInput: preparePresortedFileTreeInput(input.paths), initialExpandedPaths: expanded });
       }
       if (input !== previous) {
         model.setGitStatus(input.gitStatus);
@@ -78,13 +79,13 @@ export function DiffTree({ session, files, filter, selected, choose }: {
     } finally { current.syncing = false; }
   }, [model, input, filter, selected, choose, session]);
   return <div className="relative min-h-0 flex-1">
-    <FileTree model={model} aria-label="Changed file tree" inert={noMatches} className={`absolute inset-0 ${noMatches ? 'invisible' : ''}`} onClickCapture={(event) => {
+    <FileTree model={model} aria-label="Changed file tree" style={treeStyle} inert={noMatches} className={`absolute inset-0 ${noMatches ? 'invisible' : ''}`} onClickCapture={(event) => {
       // Selecting the current file again jumps back to its header too.
       const row = event.nativeEvent.composedPath().find((node) => node instanceof HTMLElement && node.getAttribute('role') === 'treeitem');
       if (row instanceof HTMLElement && row.getAttribute('aria-selected') === 'true' && !row.hasAttribute('aria-expanded')) {
         const file = latest.current.input.files.get(model.getSelectedPaths()[0] ?? ''); if (file) choose(file);
       }
     }} />
-    {noMatches && <p className="p-2 text-sm text-muted-foreground">No files match</p>}
+    {noMatches && <p className="px-4 py-2 text-sm text-muted-foreground">No files match</p>}
   </div>;
 }
