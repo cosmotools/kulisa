@@ -6,13 +6,15 @@
 import { nativeImage, session } from 'electron';
 import fs from 'fs';
 import path from 'path';
+import { randomUUID } from 'node:crypto';
 import { StageTerminals } from './stage-terminals.ts';
 import { Profile, wipeSession } from '../browser/main/index.ts';
 import { ProjectProfiles } from './project-profiles.ts';
 import { installSigninPause } from './signin-pause.ts';
 import { startTerminal, stopTerminal, forgetTerminal, terminalTail, sendToPrompt, typeIntoPrompt, eraseInPrompt, typeLine, interrupt, quotePaths } from '../terminal/main/index.ts';
 import { TERMINAL_LINES } from '../terminal/ipc.ts';
-import { listArtifacts, saveArtifact } from './artifacts.ts';
+import { listArtifacts, saveArtifact, deleteFiles, ownedPath } from './artifacts.ts';
+import { readPreview } from './artifact-thumbnails.ts';
 import { worktreesOf, ownWorktree, folderOf, branchOf, taskKey } from './store.ts';
 import { copyProfile } from '../browser/main/index.ts';
 import { git, renameBranch } from './worktrees.ts';
@@ -459,7 +461,9 @@ class Task {
     const saved = this.conversations()[conversation]!;
     const resume = (a.resume && a.resume(saved)) || null;
     this.resumedSession = resume ? saved.sessionId ?? null : null;
-    const env = this.env(t), dirs = this.dirs(), more: { args?: string[]; env?: Record<string, string> } = (dirs.length && a.dirs?.(dirs)) || {};
+    const files = this.fileContext(this.conversations()[conversation]!.id);
+    if (refused(files)) return files;
+    const env = this.env(t), dirs = [...this.dirs(), files.artifacts, files.tmp!], more: { args?: string[]; env?: Record<string, string> } = (dirs.length && a.dirs?.(dirs)) || {};
     // Each copy trusted as the human trusted the project's code, in its folder or another task's copy (extendTrust).
     const where = { configDir: a.configDir, transcript: (this.project.agentData() as { transcript?: string }).transcript };
     const copies = this.shell.store.tasksOf(this.project.entry).list.flatMap(worktreesOf);
@@ -479,7 +483,7 @@ class Task {
     const command = found.onPath ? a.command : found.path;
     t.pty = await startTerminal((channel, data) => this.window?.send(channel, data), { command, shell: a.shell, cwd: this.folder,
       env: { ...env, ...more.env, ...a.env }, pinned: a.env, sizeOf: this.key,
-      args: [...(resume || []), ...(a.args?.({ env, packages: shell.packages, data: this.store.dir, artifacts: shell.store.artifactsGlob() }) || []), ...(more.args || []), ...((!resume && first && a.prompt?.(first)) || [])] }, t.key);
+      args: [...(resume || []), ...(a.args?.({ env, packages: shell.packages, data: files.tmp!, artifacts: files.artifacts }) || []), ...(more.args || []), ...((!resume && first && a.prompt?.(first)) || [])] }, t.key);
     if (this.developmentTerminals.get(t.id) !== t) { stopTerminal(t.pty); return { error: 'the terminal was closed' }; }
     // Its shell exited by itself (exit), not stopped by Kulisa (closing, quitting: the terminal is kept then).
     t.pty.onExit(() => { if (!t.pty!.stopped) this.dropTerminal(t); });
@@ -689,12 +693,15 @@ class Task {
   // hooks report its own state and it names its own tab.
   env(t?: DevelopmentTerminal) {
     const base = `${this.shell.mcp.base}/task/${encodeURIComponent(this.project.id)}/${this.id}${t ? `/t/${t.id}` : ''}`;
-    return { KULISA_MCP_URL: `${base}/mcp`, KULISA_URL: base, KULISA_TASK: this.name };
+    const id = t?.conversation === undefined ? undefined : this.conversations()[t.conversation]?.id;
+    return { KULISA_MCP_URL: `${base}/mcp`, KULISA_URL: base, KULISA_TASK: this.name,
+      KULISA_ARTIFACTS_DIR: this.store.artifacts, ...(id && { KULISA_TMP_DIR: this.store.temporaryDir(id) }) };
   }
   // Its terminals stopped (kept for when it loads again), its profiles saved and closed (its project closes, or the task
   // is deleted). Its tabs are saved first, as they are: closing them one by one changes the profiles, and nothing is
   // saved then.
   async unload() {
+    this.stopArtifactWatch(); this.thumbs.clear(); this.thumbnailQueue.clear();
     await this.editorWorkspace?.dispose(); this.editorWorkspace = undefined;
     this.stageTerminals.unload();
     this.shell.chooseAgent.cancel?.(this);
@@ -852,25 +859,28 @@ class Task {
     return {};
   }
 
-  async screenshot(profile: string, tab: string | undefined, shot: Parameters<Profile['screenshot']>[1]) {
+  async screenshot(profile: string, tab: string | undefined, shot: Parameters<Profile['screenshot']>[1], temporary?: string) {
     const r = this.findTab(profile, tab);
     if (refused(r)) throw new Error(r.error);
     const buf = await r.profile.screenshot(r.tab, shot);
-    const file = await this.saveArtifact({ kind: 'profile', id: r.profile.id, tab: r.tab.id }, `screenshot.${shot.type === 'jpeg' ? 'jpg' : 'png'}`, buf);
+    const file = await this.saveArtifact({ kind: 'profile', id: r.profile.id, tab: r.tab.id }, `screenshot.${shot.type === 'jpeg' ? 'jpg' : 'png'}`, buf, temporary);
     const w = this.window;
-    if (w && this.shown()) w.thumbnails.show(r.profile.id, file, buf, w.paneBox(r.profile.id));
+    if (!temporary && w && this.shown()) w.thumbnails.show(r.profile.id, file, buf, w.paneBox(r.profile.id));
     return { buf, file };
   }
-  // Both handles keep environment files here so their numbering, limit and Resources updates agree.
-  async saveArtifact(source: Sent.EnvironmentSource, kind: string, content: string | Buffer) {
+  // Human and agent handles share storage rules; technical tool output belongs to the caller's temporary folder.
+  async saveArtifact(source: Sent.EnvironmentSource, kind: string, content: string | Buffer, temporary?: string) {
+    const context = this.fileContext(temporary);
+    if (refused(context)) throw new Error(context.error);
     const from = source.kind === 'profile' ? `${source.id}-${source.tab}` : `terminal-${source.id}`;
-    const file = await saveArtifact(this.store.artifacts, `${from}-${kind}`, content);
-    this.artifactsChanged();
+    const file = await saveArtifact(temporary ? context.tmp! : context.artifacts, `${from}-${kind}`, content);
+    if (!temporary) this.artifactsChanged();
+    log.info(`[task-files] ${this.key} ${temporary ? 'temporary' : 'artifact'} saved ${summary({ file })}`);
     return file;
   }
   async findArtifact(file: string) {
     const artifact = (await listArtifacts(this.store.artifacts)).find((a) => a.file === path.resolve(file));
-    return artifact ? { artifact } : { error: `not an artifact of this task: ${file}` };
+    return artifact && await ownedPath(this.store.artifacts, artifact.file) ? { artifact } : { error: `not an artifact of this task: ${file}` };
   }
   sendSelection(source: Sent.EnvironmentSource, text: string): Result {
     if (!this.shown()) return { error: 'that task is not on screen' };
@@ -901,51 +911,181 @@ class Task {
     this.typeForAgent(`${quotePaths(to.pty.shell, [r.artifact.file])} `);
     return {};
   }
-  // The files kept of its pages (artifacts.ts), as the Resources panel lists them. A
-  // screenshot's small picture is made here once and kept while the task is loaded: the window never decodes the
-  // files themselves (a page's picture is megabytes once decoded, a hundred of them a lot of a window's memory).
-  private thumbs = new Map<string, string>(); // '' where none could be made
+  // Stable Kulisa conversation IDs own temporary folders. External clients explicitly create a context.
+  fileContext(session?: string, createExternal = false): Result<{ artifacts: string; tmp: string | null; session: string | null; mcp: string | null }> {
+    if (createExternal) session = `external-${randomUUID()}`;
+    if (session && !/^[a-zA-Z0-9-]+$/.test(session)) return { error: 'Invalid task file context.' };
+    const tmp = session ? this.store.temporaryDir(session) : null;
+    try {
+      this.store.prepareTemporary();
+      if (session && !this.conversations().some((c) => c.id === session)
+        && !(session.startsWith('external-') && (createExternal || fs.existsSync(tmp!)))) {
+        return { error: 'Unknown task file context. Call task_files with newContext: true for an external agent.' };
+      }
+      for (const dir of [this.store.artifacts, ...(tmp ? [tmp] : [])]) {
+        fs.mkdirSync(dir, { recursive: true });
+        if (fs.lstatSync(dir).isSymbolicLink()) return { error: 'Task file folders must not be symbolic links.' };
+      }
+    } catch (error) { return { error: `Cannot prepare task file folders: ${(error as Error).message}` }; }
+    if (createExternal) log.info(`[task-files] ${this.key} external context created ${session}`);
+    const base = `${this.shell.mcp.base}/task/${encodeURIComponent(this.project.id)}/${this.id}`;
+    return { artifacts: this.store.artifacts, tmp, session: session ?? null, mcp: session?.startsWith('external-') ? `${base}/c/${session}/mcp` : null };
+  }
+  fileFolders() {
+    const context = this.fileContext();
+    if (refused(context)) return [];
+    const names = fs.readdirSync(this.store.temporary, { withFileTypes: true })
+      .filter((e) => e.isDirectory() && e.name.startsWith('agent-')).map((e) => e.name);
+    const conversations = this.conversations();
+    return [{ folder: this.store.artifacts, name: 'Artifacts' }, { folder: this.store.temporary, name: 'All Temporary Files' }, ...names.map((name) => ({
+      folder: path.join(this.store.temporary, name), name: (() => {
+        const index = conversations.findIndex((c) => `agent-${c.id}` === name), c = conversations[index];
+        return c ? c.title || c.autoTitle || `Conversation ${index + 1}` : `External agent · ${name.slice(-8)}`;
+      })(),
+    }))];
+  }
+  async openFileFolder(folder: string): Promise<Result> {
+    if (!this.fileFolders().some((a) => a.folder === folder) || !await ownedPath(this.store.dir, folder)) return { error: 'Unknown task file folder.' };
+    log.info(`[task-files] ${this.key} human opened folder ${summary({ folder })}`);
+    await openFile(folder); return {};
+  }
+  async openArtifact(file: string): Promise<Result> {
+    const found = await this.findArtifact(file);
+    if (refused(found)) return found;
+    log.info(`[task-files] ${this.key} opened artifact ${summary({ file })}`);
+    await openFile(found.artifact.file); return {};
+  }
+  private artifactWatch?: fs.FSWatcher;
+  private artifactRootWatch?: fs.FSWatcher;
+  private artifactPoll?: NodeJS.Timeout;
+  private artifactTimer?: NodeJS.Timeout;
+  private stopArtifactWatch() {
+    this.artifactWatch?.close(); this.artifactWatch = undefined;
+    this.artifactRootWatch?.close(); this.artifactRootWatch = undefined;
+    clearInterval(this.artifactPoll); this.artifactPoll = undefined;
+    clearTimeout(this.artifactTimer); this.artifactTimer = undefined;
+  }
+  private watchArtifacts() {
+    if (this.artifactRootWatch || this.artifactPoll) return;
+    const context = this.fileContext();
+    if (refused(context)) return;
+    const changed = () => {
+      if (!this.artifactTimer) this.artifactTimer = setTimeout(() => {
+        this.artifactTimer = undefined; this.artifactsChanged();
+      }, 200).unref();
+    };
+    const attach = () => {
+      this.artifactWatch?.close();
+      if (fs.existsSync(this.store.artifacts) && !fs.lstatSync(this.store.artifacts).isSymbolicLink()) {
+        this.artifactWatch = fs.watch(this.store.artifacts, { recursive: true, persistent: false }, (_event, name) => {
+          if (name) this.thumbs.delete(path.join(this.store.artifacts, name.toString())); else this.thumbs.clear();
+          changed();
+        });
+        this.artifactWatch.on('error', fallback);
+      }
+    };
+    const fallback = () => {
+      this.stopArtifactWatch();
+      log.info(`[task-files] ${this.key} filesystem watch unavailable; polling results`);
+      this.artifactPoll = setInterval(changed, 2000).unref();
+    };
+    try {
+      attach();
+      this.artifactRootWatch = fs.watch(this.store.dir, { persistent: false }, (_event, name) => {
+        if (!name || name.toString() === 'artifacts') { try { attach(); } catch { fallback(); } changed(); }
+      });
+      this.artifactRootWatch.on('error', fallback);
+    } catch { fallback(); }
+  }
+  // Only rendered rows request thumbnails. Bound retained previews independently of the human's disk storage.
+  private thumbs = new Map<string, { revision: string; thumb: string | null }>();
+  private thumbnailQueue = new Set<string>();
   private makingThumbs = false;
-  async artifacts(): Promise<Sent.Artifact[]> {
-    const list = await listArtifacts(this.store.artifacts);
-    for (const file of this.thumbs.keys()) if (!list.some((a) => a.file === file)) this.thumbs.delete(file);
-    const missing = list.filter((a) => a.kind === 'screenshot' && !this.thumbs.has(a.file)).map((a) => a.file);
-    if (missing.length) void this.makeThumbs(missing);
-    return list.map((a) => ({ ...a, thumb: this.thumbs.get(a.file) || null }));
+  private artifactVersion = 0;
+  private artifactScan?: { version: number; promise: Promise<Sent.Artifact[]> };
+  artifacts(): Promise<Sent.Artifact[]> {
+    if (this.artifactScan) return this.artifactScan.version === this.artifactVersion ? this.artifactScan.promise
+      : this.artifactScan.promise.then(() => this.artifacts());
+    const promise = this.readArtifacts().finally(() => { this.artifactScan = undefined; });
+    this.artifactScan = { version: this.artifactVersion, promise };
+    return promise;
   }
-  // One at a time, the main process free between them: a whole page's picture takes tens of milliseconds to decode,
-  // and a task shown with many would hold up everything else (its terminals starting). The list goes again with them.
-  private async makeThumbs(files: string[]) {
-    if (this.makingThumbs) return; // the list sent when those are done makes the rest
-    this.makingThumbs = true;
-    for (const file of files) {
-      await new Promise((r) => setImmediate(r));
-      const image = nativeImage.createFromPath(file);
-      this.thumbs.set(file, image.isEmpty() ? '' : `data:image/jpeg;base64,${image.resize({ width: THUMB_WIDTH }).toJPEG(80).toString('base64')}`);
+  private async readArtifacts(): Promise<Sent.Artifact[]> {
+    if (this.loaded) this.watchArtifacts();
+    const list = await listArtifacts(this.store.artifacts), revisions = new Map(list.map((a) => [a.file, a.revision]));
+    for (const [file, cached] of this.thumbs) if (revisions.get(file) !== cached.revision) this.thumbs.delete(file);
+    return list.map((a) => ({ ...a, thumb: this.thumbs.get(a.file)?.thumb ?? null }));
+  }
+  async artifactThumbnails(files: string[]) {
+    const list = await listArtifacts(this.store.artifacts), wanted = new Set(files);
+    for (const a of list) if (wanted.has(a.file) && !a.directory && /\.(png|jpe?g|webp)$/i.test(a.file)
+      && this.thumbs.get(a.file)?.revision !== a.revision) {
+      this.thumbnailQueue.add(a.file);
+      while (this.thumbnailQueue.size > 128) this.thumbnailQueue.delete(this.thumbnailQueue.values().next().value!);
     }
-    this.makingThumbs = false;
-    this.artifactsChanged();
+    if (this.makingThumbs || !this.thumbnailQueue.size) return;
+    this.makingThumbs = true;
+    try {
+      while (this.thumbnailQueue.size && this.loaded) {
+        const file = this.thumbnailQueue.values().next().value!; this.thumbnailQueue.delete(file);
+        await new Promise((r) => setImmediate(r));
+        const a = list.find((a) => a.file === file);
+        if (!a || !await ownedPath(this.store.artifacts, file)) continue;
+        const now = await fs.promises.lstat(file).catch((): null => null);
+        if (!now || now.size !== a.bytes || now.mtimeMs !== a.time) continue;
+        let thumb: string | null = null;
+        if (a.bytes <= 16 * 1024 * 1024) {
+          const data = await readPreview(file);
+          const image = data ? nativeImage.createFromBuffer(data) : null;
+          if (image && !image.isEmpty()) thumb = `data:image/jpeg;base64,${image.crop({ x: 0, y: 0, width: image.getSize().width, height: Math.min(image.getSize().height, image.getSize().width) }).resize({ width: THUMB_WIDTH }).toJPEG(80).toString('base64')}`;
+        }
+        this.thumbs.delete(file); this.thumbs.set(file, { revision: a.revision, thumb });
+        while (this.thumbs.size > 128) this.thumbs.delete(this.thumbs.keys().next().value!);
+      }
+    } finally { this.makingThumbs = false; this.artifactsChanged(); }
   }
-  // One made (or more gone past the limit, or deleted): the window showing the task lists them again.
-  artifactsChanged() { void this.window?.sendArtifacts(this); }
-  // What its artifacts take, or those of its project's tasks or of every task, loaded or not (the activity monitor,
-  // src/activity-monitor): the Resources panel's figure, task_artifacts. Each task with its name and its project's.
-  async artifactsUsage(scope: 'task' | 'project' | 'all' = 'task') {
-    const r = await this.shell.activity.query({ metrics: ['artifacts'], ...(scope === 'task' ? { tasks: [this.key] } : scope === 'project' ? { projects: [this.project.id] } : {}) });
+  private sendingArtifacts = false;
+  private artifactsAgain = false;
+  artifactsChanged() {
+    this.artifactVersion++;
+    this.artifactsAgain = true;
+    if (!this.sendingArtifacts) void this.sendArtifactChanges();
+  }
+  private async sendArtifactChanges() {
+    this.sendingArtifacts = true;
+    try {
+      while (this.artifactsAgain && this.loaded) {
+        this.artifactsAgain = false; await this.window?.sendArtifacts(this);
+      }
+    } catch (error) { log.info(`[task-files] ${this.key} refresh failed ${summary({ error: (error as Error).message })}`); }
+    finally { this.sendingArtifacts = false; }
+  }
+  async artifactsUsage(scope: 'task' | 'project' | 'all' = 'task', area: 'artifacts' | 'temporary' | 'all' = 'artifacts') {
+    const metrics: ('artifacts' | 'temporary')[] = area === 'all' ? ['artifacts', 'temporary'] : [area];
+    const r = await this.shell.activity.query({ metrics, ...(scope === 'task' ? { tasks: [this.key] } : scope === 'project' ? { projects: [this.project.id] } : {}) });
     const named = new Map(this.shell.store.allTasks().map((t) => [t.key, { name: this.shell.taskByKey(t.key)?.displayName ?? t.entry.name, project: t.project.name }]));
-    return { bytes: r.total.artifacts ?? 0, tasks: r.tasks.map((t) => ({ key: t.key, ...named.get(t.key)!, bytes: t.metrics.artifacts?.bytes ?? 0 })) };
+    return { bytes: Object.values(r.total).reduce((sum, bytes) => sum + bytes, 0), tasks: r.tasks.map((t) => ({ key: t.key, ...named.get(t.key)!,
+      bytes: Object.values(t.metrics).reduce((sum, m) => sum + m.bytes, 0) })) };
   }
-  // Delete in a row's menu, Delete All, task_artifacts_delete (files null: all): only files of the task's own folder,
-  // not any path the window or the agent names.
+  async temporaryFiles() {
+    const context = this.fileContext();
+    if (refused(context)) throw new Error(context.error);
+    return listArtifacts(this.store.temporary);
+  }
+  async deleteTemporary(files: string[] | null, session?: string) {
+    const context = this.fileContext(session);
+    if (refused(context)) return context;
+    if (!context.tmp) return { error: 'Connect with your task file context before cleaning temporary files.' };
+    const result = await deleteFiles(context.tmp, files);
+    log.info(`[task-files] ${this.key} temporary cleanup ${summary(result)}`);
+    return result;
+  }
   async deleteArtifacts(files: string[] | null): Promise<Result<{ deleted: number; bytes: number }>> {
-    const list = await listArtifacts(this.store.artifacts);
-    const chosen = files ? files.map((f) => list.find((a) => a.file === path.resolve(f))) : list;
-    const stranger = files?.find((_f, i) => !chosen[i]);
-    if (stranger !== undefined) return { error: `not an artifact of this task: ${stranger}` };
-    for (const a of chosen) await fs.promises.rm(a!.file, { force: true });
-    if (chosen.some((a) => a!.file === this.window?.thumbnails.file)) this.window?.thumbnails.close();
+    const result = await deleteFiles(this.store.artifacts, files);
+    if (this.window?.thumbnails.file && !fs.existsSync(this.window.thumbnails.file)) this.window.thumbnails.close();
     this.artifactsChanged();
-    return { deleted: chosen.length, bytes: chosen.reduce((sum, a) => sum + a!.bytes, 0) };
+    log.info(`[task-files] ${this.key} artifact cleanup ${summary(result)}`);
+    return result;
   }
 }
 

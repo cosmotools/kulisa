@@ -123,3 +123,47 @@ test('task index migrates closure into one timestamp, preserving open tasks and 
     assert.deepEqual(f.store.tasksOf({ id: 'project' }), expected);
   } finally { f.close(); }
 });
+
+test('temporary folders move under tmp with their contents and ownership intact; closed-task usage includes old paths', () => {
+  const f = fixture();
+  try {
+    for (const session of ['conversation-one', 'external-context']) {
+      const previous = f.task.file(`tmp-agent-${session}`);
+      fs.mkdirSync(path.join(previous, 'browser-check'), { recursive: true });
+      fs.writeFileSync(path.join(previous, 'browser-check', 'notes.txt'), session);
+    }
+    const before = f.store.temporaryFoldersOf({ id: 'project' }, 'task');
+    assert.equal(before.length, 3);
+    f.task.prepareTemporary();
+    for (const session of ['conversation-one', 'external-context']) {
+      const folder = f.task.temporaryDir(session);
+      assert.equal(fs.readFileSync(path.join(folder, 'browser-check', 'notes.txt'), 'utf8'), session);
+      assert.equal(fs.existsSync(f.task.file(`tmp-agent-${session}`)), false);
+    }
+    f.task.prepareTemporary();
+    assert.deepEqual(f.store.temporaryFoldersOf({ id: 'project' }, 'task'), [f.task.temporary]);
+  } finally { f.close(); }
+});
+
+test('temporary conversion preserves both folders when their destinations conflict', () => {
+  const f = fixture();
+  try {
+    const previous = f.task.file('tmp-agent-one'), current = f.task.temporaryDir('one');
+    fs.mkdirSync(previous); fs.mkdirSync(current, { recursive: true });
+    fs.writeFileSync(path.join(previous, 'notes.txt'), 'previous'); fs.writeFileSync(path.join(current, 'notes.txt'), 'current');
+    assert.throws(() => f.task.prepareTemporary(), /Both temporary folders exist/);
+    assert.equal(fs.readFileSync(path.join(previous, 'notes.txt'), 'utf8'), 'previous');
+    assert.equal(fs.readFileSync(path.join(current, 'notes.txt'), 'utf8'), 'current');
+  } finally { f.close(); }
+});
+
+test('the shared tmp parent cannot redirect conversation files through a symbolic link', (t) => {
+  const f = fixture(), outside = path.join(f.store.dir, 'external');
+  try {
+    fs.mkdirSync(outside); fs.writeFileSync(path.join(outside, 'notes.txt'), 'keep');
+    try { fs.symlinkSync(outside, f.task.temporary, process.platform === 'win32' ? 'junction' : 'dir'); }
+    catch (error) { if ((error as NodeJS.ErrnoException).code === 'EPERM') return t.skip('Creating links requires OS privileges.'); throw error; }
+    assert.throws(() => f.task.prepareTemporary(), /symbolic link/);
+    assert.deepEqual(fs.readdirSync(outside), ['notes.txt']);
+  } finally { f.close(); }
+});

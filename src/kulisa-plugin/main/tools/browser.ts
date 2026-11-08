@@ -115,11 +115,10 @@ const bodyOf = (b: Buffer, type = '') => ` (${b.length} bytes${type ? `, ${type}
 
 function browserTools(server: McpServer, h: Handles) {
   const { task, profileArg, text, done, idOf, profileOf, tabOf, pageOf, locate, target, element, dialogArg, answering, tabArg, onTab } = h;
-  // Into the task's artifacts (Task.saveArtifact), never the project's folder: nothing of Kulisa's in the agent's git
-  // status. Named by the profile and tab it came from.
+  // Technical spills belong to the caller's temporary folder, preserving their profile/tab provenance.
   const toFile = async (profile: string, tabId: string | undefined, kind: string, content: string | Buffer) => {
     const { profile: p, tab: t } = tabOf(profile, tabId);
-    return task.saveArtifact({ kind: 'profile', id: p.id, tab: t.id }, kind, content);
+    return task.saveArtifact({ kind: 'profile', id: p.id, tab: t.id }, kind, content, h.temporary());
   };
 
   server.registerTool('browser_tab_new', {
@@ -362,16 +361,17 @@ function browserTools(server: McpServer, h: Handles) {
   });
 
   server.registerTool('browser_screenshot', {
-    description: "Screenshot of a profile's tab (default: the active one): its visible part, one element (ref or locator), or the whole page (fullPage). Also saved as a file, its path in the answer.",
+    description: "Screenshot of a profile's tab (default: the active one): its visible part, one element (ref or locator), or the whole page (fullPage). Saved in your temporary folder by default; purpose: artifact keeps a human-requested deliverable in Artifacts. The answer gives its actual path.",
     inputSchema: { profile: profileArg, tab: onTab, ...element,
+      purpose: z.enum(['temporary', 'artifact']).optional().describe('temporary (default): autonomous inspection; artifact: a screenshot requested as a deliverable by the human'),
       fullPage: z.boolean().optional().describe('The whole page, scrolled to its end; a page scrolling inside a container of its own gives its visible part: take the container by locator'),
       also: z.array(z.string()).optional().describe('More profiles, by name: their active tabs too, in one call (with locator: the same element in each), e.g. to compare what each user sees') },
-  }, async ({ profile, tab, ref, locator, fullPage, also = [] }) => {
+  }, async ({ profile, tab, ref, locator, fullPage, purpose = 'temporary', also = [] }) => {
     if (ref && also.length) throw new Error('A ref is one page\'s: with also, pass a locator');
     // At CSS pixels: at a screen's density the picture is several times larger and costs the agent's context for nothing.
     const shoot = async (id: string, tabId?: string) => {
       const el = ref || locator ? { element: (page: Page) => target(page, { ref, locator }) } : {};
-      return task.screenshot(profileOf(id).id, tabId, { ...el, fullPage, scale: 'css', type: 'jpeg', by: 'agent' });
+      return task.screenshot(profileOf(id).id, tabId, { ...el, fullPage, scale: 'css', type: 'jpeg', by: 'agent' }, purpose === 'temporary' ? h.temporary() : undefined);
     };
     const image = (buf: Buffer) => ({ type: 'image' as const, data: buf.toString('base64'), mimeType: 'image/jpeg' });
     if (!also.length) {

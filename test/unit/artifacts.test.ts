@@ -1,53 +1,89 @@
-// What the human and agent keep of the pages (artifacts.ts): numbered files, the oldest gone past a limit.
-// Plain Node (npm run test:unit), in a temporary folder of its own.
+// Task results are ordinary filesystem entries; no quota, implicit registration or automatic expiry (docs/tasks.md).
 import { test, after } from 'node:test';
 import assert from 'assert/strict';
-import fs from 'fs';
-import path from 'path';
-import os from 'os';
-import { listArtifacts, saveArtifact } from '../../src/main/artifacts.ts';
+import fs from 'node:fs';
+import path from 'node:path';
+import os from 'node:os';
+import { listArtifacts, saveArtifact, deleteFiles, ownedPath } from '../../src/main/artifacts.ts';
+import { previewable } from '../../src/main/artifact-thumbnails.ts';
 
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'kulisa-artifacts-'));
 after(() => fs.rmSync(root, { recursive: true, force: true }));
 
-test('artifacts: each its own file, numbered in the order made, also when written at once; never one replacing another', async () => {
-  const dir = path.join(root, 'task');
-  const a = await saveArtifact(dir, 'p-t1-snapshot.yml', 'before');
-  const [b, c] = await Promise.all([saveArtifact(dir, 'p-t1-snapshot.yml', 'after'), saveArtifact(dir, 'q-t2-screenshot.jpg', 'x')]);
-  assert.deepEqual([a, b, c].map((f) => path.basename(f)), ['1-p-t1-snapshot.yml', '2-p-t1-snapshot.yml', '3-q-t2-screenshot.jpg']);
-  assert.equal(fs.readFileSync(a, 'utf8'), 'before', 'two snapshots of one tab, both kept to compare');
+test('generated results use exclusive creation across concurrent writers and existing files', async () => {
+  const dir = path.join(root, 'concurrent');
+  const first = await saveArtifact(dir, 'p-t1-snapshot.yml', 'before');
+  const files = await Promise.all(Array.from({ length: 12 }, (_, i) => saveArtifact(dir, 'p-t1-snapshot.yml', `after ${i}`)));
+  assert.equal(new Set(files).size, 12);
+  assert.equal(fs.readFileSync(first, 'utf8'), 'before');
+  for (const [i, file] of files.entries()) assert.equal(fs.readFileSync(file, 'utf8'), `after ${i}`);
+  fs.writeFileSync(path.join(dir, '50-p-t1-snapshot.yml'), 'existing');
+  assert.equal(path.basename(await saveArtifact(dir, 'p-t1-snapshot.yml', '')), '51-p-t1-snapshot.yml');
 });
 
-test('artifacts: numbers go on from what the folder holds (Kulisa started again)', async () => {
-  const dir = path.join(root, 'again');
-  fs.mkdirSync(dir);
-  fs.writeFileSync(path.join(dir, '7-p-t1-snapshot.yml'), '');
-  assert.equal(path.basename(await saveArtifact(dir, 'p-t1-snapshot.yml', '')), '8-p-t1-snapshot.yml');
+test('results beyond the previous 100 MiB quota stay, including after another result is saved', async () => {
+  const dir = path.join(root, 'large'); fs.mkdirSync(dir);
+  const large = path.join(dir, 'report.bin');
+  const fd = fs.openSync(large, 'w'); fs.ftruncateSync(fd, 110 * 1024 * 1024); fs.closeSync(fd);
+  await saveArtifact(dir, 'notes.txt', 'keep both');
+  assert.equal(fs.statSync(large).size, 110 * 1024 * 1024);
+  assert.equal((await listArtifacts(dir)).length, 2);
 });
 
-test('artifacts: past the limit the oldest go, the one just written stays', async () => {
-  const dir = path.join(root, 'full');
-  for (let i = 0; i < 3; i++) await saveArtifact(dir, 'a.txt', 'x'.repeat(40), 100);
-  assert.deepEqual(fs.readdirSync(dir).sort(), ['2-a.txt', '3-a.txt']);
-  await saveArtifact(dir, 'big.txt', 'x'.repeat(500), 100);
-  assert.deepEqual(fs.readdirSync(dir), ['4-big.txt'], 'one larger than the limit is kept alone');
+test('ordinary filenames, nested files and empty folders appear without registration; changes update revisions', async () => {
+  const dir = path.join(root, 'ordinary'); fs.mkdirSync(path.join(dir, 'html', 'assets'), { recursive: true });
+  fs.mkdirSync(path.join(dir, 'empty')); fs.writeFileSync(path.join(dir, 'html', 'index.html'), 'hello');
+  fs.writeFileSync(path.join(dir, 'Отчёт.txt'), 'one');
+  const before = await listArtifacts(dir);
+  assert.deepEqual(before.map((a) => a.path).sort(), ['empty/', 'html/', 'html/assets/', 'html/index.html', 'Отчёт.txt'].sort());
+  assert.equal(before.find((a) => a.path === 'html/index.html').source, undefined);
+  assert.equal(before.find((a) => a.path === 'empty/').directory, true);
+  fs.writeFileSync(path.join(dir, 'Отчёт.txt'), 'a different result');
+  const after = await listArtifacts(dir);
+  assert.notEqual(before.find((a) => a.path === 'Отчёт.txt').revision, after.find((a) => a.path === 'Отчёт.txt').revision);
+  assert.deepEqual(await listArtifacts(path.join(root, 'absent')), []);
 });
 
-test('artifacts: listed the newest first, whose and what each is from its name, its size; a file of another name left out', async () => {
-  const dir = path.join(root, 'list');
-  await saveArtifact(dir, 'p1-k1-screenshot.jpg', 'x');
-  await saveArtifact(dir, 'p2-k3-snapshot.yml', 'y');
-  fs.writeFileSync(path.join(dir, 'notes.txt'), '');
-  assert.deepEqual((await listArtifacts(dir)).map(({ file, source, kind, bytes }) => [path.basename(file), source.id, kind, bytes]),
-    [['2-p2-k3-snapshot.yml', 'p2', 'snapshot', 1], ['1-p1-k1-screenshot.jpg', 'p1', 'screenshot', 1]]);
-  assert.deepEqual(await listArtifacts(path.join(root, 'none')), [], 'no folder yet: none');
+test('legacy screenshots and terminal files retain their optional source metadata', async () => {
+  const dir = path.join(root, 'legacy');
+  await saveArtifact(dir, 'application-3-terminal.txt', 'terminal');
+  await saveArtifact(dir, 'terminal-4-terminal.txt', 'terminal');
+  await saveArtifact(dir, 'application-t1-screenshot.jpg', 'image');
+  assert.deepEqual((await listArtifacts(dir)).map((a) => a.source), [
+    { kind: 'stage-terminal', id: 3 }, { kind: 'stage-terminal', id: 4 }, { kind: 'profile', id: 'application', tab: 't1' },
+  ]);
 });
 
-test('artifacts identify Stage terminal screens separately from browser profiles', async () => {
-  const dir = path.join(root, 'sources');
-  await saveArtifact(dir, 'application-3-terminal.txt', 'terminal screen');
-  await saveArtifact(dir, 'terminal-4-terminal.txt', 'new terminal screen');
-  await saveArtifact(dir, 'application-t1-screenshot.jpg', 'browser picture');
-  const list = await listArtifacts(dir);
-  assert.deepEqual(list.map((a) => a.source), [{ kind: 'profile', id: 'application', tab: 't1' }, { kind: 'stage-terminal', id: 4 }, { kind: 'stage-terminal', id: 3 }]);
+test('folder deletion counts descendants once; Delete All results leaves the adjacent temporary folder', async () => {
+  const task = path.join(root, 'delete'), dir = path.join(task, 'artifacts');
+  fs.mkdirSync(path.join(dir, 'report'), { recursive: true }); fs.writeFileSync(path.join(dir, 'report', 'a.txt'), 'abc');
+  fs.mkdirSync(path.join(task, 'tmp', 'agent-one'), { recursive: true }); fs.writeFileSync(path.join(task, 'tmp', 'agent-one', 'working.txt'), 'keep');
+  assert.deepEqual(await deleteFiles(dir, [path.join(dir, 'report'), path.join(dir, 'report', 'a.txt')]), { deleted: 2, bytes: 3 });
+  await saveArtifact(dir, 'result.txt', 'result'); await deleteFiles(dir, null);
+  assert.deepEqual(fs.readdirSync(dir), []);
+  assert.equal(fs.readFileSync(path.join(task, 'tmp', 'agent-one', 'working.txt'), 'utf8'), 'keep');
+  assert.ok('error' in await deleteFiles(dir, [path.join(task, 'tmp', 'agent-one', 'working.txt')]));
+});
+
+test('symbolic links and traversal cannot include, open or delete files outside results', async (t) => {
+  const dir = path.join(root, 'links'), outside = path.join(root, 'outside');
+  fs.mkdirSync(dir); fs.mkdirSync(outside); fs.writeFileSync(path.join(outside, 'important.txt'), 'keep');
+  try { fs.symlinkSync(outside, path.join(dir, 'linked'), process.platform === 'win32' ? 'junction' : 'dir'); }
+  catch (error) { if ((error as NodeJS.ErrnoException).code === 'EPERM') return t.skip('Creating links requires OS privileges.'); throw error; }
+  assert.deepEqual(await listArtifacts(dir), []);
+  assert.equal(await ownedPath(dir, path.join(dir, 'linked', 'important.txt')), false);
+  assert.equal(await ownedPath(dir, path.join(dir, '..', 'outside', 'important.txt')), false);
+  assert.ok('error' in await deleteFiles(dir, [path.join(dir, 'linked')]));
+  await deleteFiles(dir, null);
+  assert.equal(fs.readFileSync(path.join(outside, 'important.txt'), 'utf8'), 'keep');
+  assert.deepEqual(await listArtifacts(path.join(dir, 'linked')), []);
+  await assert.rejects(saveArtifact(path.join(dir, 'linked'), 'a.txt', 'bad'), /symbolic link/);
+});
+
+test('thumbnail headers reject huge dimensions, unknown images and truncated JPEGs before decoding', () => {
+  const png = Buffer.alloc(24); Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]).copy(png);
+  png.writeUInt32BE(1200, 16); png.writeUInt32BE(900, 20); assert.equal(previewable(png), true);
+  png.writeUInt32BE(100000, 16); assert.equal(previewable(png), false);
+  for (const bytes of [[0xff, 0xd8, 0xff, 0xff], [0xff, 0xd8, 0xff, 0xc0]]) assert.equal(previewable(Buffer.from(bytes)), false);
+  assert.equal(previewable(Buffer.from('<svg/>')), false);
 });

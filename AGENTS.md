@@ -115,8 +115,9 @@ Workbench UI names and the bar + item convention: [UI terminology](docs/ui.md#wo
 - Prefer lower RAM use; measure rather than guess (`ps -eo pid,rss,args`). Discuss noticeable increases with the
   author before building, including extra processes, retained hidden views and large buffers.
 - Give every stored file an owner and a cleanup path. Delete it with its profile, task or project, including git
-  and agent records; defer locked files through `deleted-folders.json`. Bound growing data, remove temporary files
-  on success and failure, and keep pictures in memory. Document new storage.
+  and agent records; defer locked files through `deleted-folders.json`. Bound growing data except task results and
+  agent working folders: these have no disk quota or automatic expiry (the author’s choice; `docs/tasks.md`, Artifacts
+  and temporary files). Agents clean their own unneeded working files. Bound previews in memory. Document new storage.
 - Every core action must leave a log line through existing channels, tools, hooks and lifecycle logging
   (`src/main/log.ts`). Additional lines identify the action and caller, never typed content or secrets; use `summary`.
 - Support macOS, Windows and Linux. Avoid shell commands and platform-specific paths, signals or flags in app code

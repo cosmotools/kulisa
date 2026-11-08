@@ -23,7 +23,8 @@ Codex receives the same MCP service through launch configuration.
 Streamable HTTP on `127.0.0.1` only, admitted by the caller's local-only request check. Each task has
 `/task/<project>/<task>/mcp`, each terminal `/task/<project>/<task>/t/<id>/mcp`; project and task identifiers are
 percent-encoded. A server and transport per request close with the response. Task access is cached weakly by the
-caller so history parts share one identity across requests and disappear with their task.
+caller so history parts share one identity across requests and disappear with their task. External file contexts
+use a persistent `/c/external-<uuid>/mcp` URL obtained explicitly through `task_files`; HTTP transports carry no owner.
 
 ## Browser tools
 
@@ -42,7 +43,8 @@ where required; tools do not ask at each click.
 - `browser_evaluate` creates/calls source in the page, optionally with an element, never main-process eval.
   Page access is not sandboxed; local-process CDP authentication is #90.
 - Snapshots support subtree refs/locators, depth and find-with-ancestors. Large results (~10k tokens) spill to
-  bounded task artifacts with path/top outline; screenshots also persist. Claude settings allow artifact reads.
+  the caller’s temporary folder with path/top outline. Screenshot purpose distinguishes autonomous inspection from
+  human-requested results. File storage and retention: [tasks](../../docs/tasks.md#artifacts-and-temporary-files).
 - Playwright supplies recent console/errors/requests (200/200/100). Filter level/address/static files; stable request
   numbers address detail reads. Hide credential/cookie headers; spill large bodies. Action results count new errors
   and failed requests; `since: action` narrows detail. Pending requests never block a result.
@@ -67,8 +69,8 @@ Each `agents/<cli>.ts` owns discovery, installation, launch, resume, hooks, capa
   because IPC stream/result ordering is not guaranteed. Claude/Codex use official install scripts, PowerShell on
   Windows. Prioritize system PATH over Git Bash's tar on Windows. Installed CLIs remain user-owned and self-update.
 - Claude launches with plugin/settings, Codex MCP/hooks as config overrides. Resume with reported session ID;
-  Codex can fall back to `resume --last`. Core supplies the task's Kulisa-owned data directory for generated launch
-  files, independently of account ownership; Claude passes a settings file there instead of inline JSON. The file is
+  Codex can fall back to `resume --last`. Core supplies the conversation's temporary directory for generated launch
+  files, independently of account ownership; Claude passes a settings file there instead of inline JSON. Each conversation’s file is
   refreshed at launch and core removes it with the task/project data (see [storage](../../docs/tasks.md#what-is-on-the-computer)).
 - `voice` config describes native hold/repeat behavior; `recognizer` describes hidden dictation/hook blocking
   ([dictation](../dictation/README.md)). Claude Kulisa sessions enable hold mode with `autoSubmit: false`; hidden
@@ -195,14 +197,14 @@ by the session id its SessionStart hook reported (none without its hooks: then n
 ### What a tool must be
 
 - Complete a useful action without redundant calls; batch related reads when appropriate.
-- Bound waits/lists and minimize context, retained memory and processes. Persist only bounded task-owned artifacts.
+- Bound waits/lists and minimize context, retained memory and processes. Persist tool output only in task-owned storage; disk retention belongs to the human.
 - Fail with target/state and a next step; enforce task ownership through core and required human confirmations.
 - `registerTool` supplies action logging.
 
 ### Saving the agent's context
 
 - Filter console/requests/snapshots; prefer subtree or element reads over whole pages.
-- Spill oversized snapshots/bodies to unique bounded task artifacts, never project files; return path/outline.
+- Spill oversized snapshots/bodies to unique files in the caller’s temporary folder; return path/outline.
 - Action replies give a short result and error counts; fetch details/snapshots only when requested.
 - Use JPEG screenshots when appearance matters; text is cheaper for structure/state.
 - Small defaults must retain parameters for complete access.

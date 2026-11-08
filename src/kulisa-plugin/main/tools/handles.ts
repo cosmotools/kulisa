@@ -10,7 +10,7 @@ import type { TabAccess as Tab } from '../core.ts';
 type Element = { ref?: string; locator?: string };
 
 // task: the task (tasks.ts) whose profiles the tools act on; t: the agent's terminal, when it came by its own URL.
-function handles(task: Task, t: DevelopmentTerminal | null) {
+function handles(task: Task, t: DevelopmentTerminal | null, context?: string) {
   // Profiles can be created while the agent runs, so this is a string checked at call time, not an enum.
   const closed = [...task.closed.values()].map(({ cfg }) => `${cfg.name} (closed)`);
   const profileArg = z.string().describe(`The profile's name. Current: ${[...[...task.profiles.values()].map((p) => p.name), ...closed].join(', ') || 'none yet'}; call profile_list for the live list`);
@@ -61,7 +61,13 @@ function handles(task: Task, t: DevelopmentTerminal | null) {
   // Other tools act on the profile's active tab, or on the tab they are given.
   const tabArg = z.string().describe('Tab id from profile_list');
   const onTab = z.string().optional().describe('Tab id (from profile_list or a [kulisa pick: …] reference); default: the active tab');
-  return { task, t, profileArg, text, done, idOf, profileOf, tabOf, pageOf, locate, target, element, dialogArg, answering, tabArg, onTab };
+  const session = t?.session ?? context;
+  const temporary = () => {
+    const files = done(task.fileContext(session));
+    if (!files.session) throw new Error('Call task_files with newContext: true and reconnect using its MCP URL before saving temporary files.');
+    return files.session;
+  };
+  return { task, t, session, temporary, profileArg, text, done, idOf, profileOf, tabOf, pageOf, locate, target, element, dialogArg, answering, tabArg, onTab };
 }
 
 type Handles = ReturnType<typeof handles>;

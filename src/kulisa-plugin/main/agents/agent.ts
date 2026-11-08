@@ -68,7 +68,7 @@ interface Saved { sessionId?: string; transcript?: string; started?: boolean; co
 // Where an agent's program is (findAgent).
 interface Found { path: string | null; onPath: boolean }
 // What a task tells its agent (tasks.ts): its environment, where Kulisa's packages for agents are.
-// artifacts: every task's folder of what the human or agent keep of its pages (a glob: TaskStore.artifacts).
+// data: this conversation's temporary folder for launch files; artifacts: this task's shared result folder.
 interface ArgsContext { env: Record<string, string | undefined>; packages: string; data: string; artifacts: string }
 // Where an agent's config is: its account's folder, else found from a conversation's transcript (Claude's).
 interface Where { configDir?: string | null; transcript?: string; defaultConfig?: boolean }

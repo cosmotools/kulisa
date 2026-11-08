@@ -115,7 +115,7 @@ state, the window owns layout/menu/focus.
   `task-view/environments.ts`'s pending request; delayed selection also rechecks intent, window focus and dialogs.
   Agent launch/Follow never steals focus.
 - `terminal_read` flushes parsing and reads normal/alternate screen, with scrollback limited to 500 lines. Over
-  40,000 characters goes to bounded artifacts with preview. Fixed sizes: 2–500 columns, 2–200 rows, independent
+  40,000 characters spills to the caller’s temporary folder with a bounded preview. Fixed sizes: 2–500 columns, 2–200 rows, independent
   of development sizes. Visible Views use WebGL/DOM fallback; hidden sessions retain bounded buffers/processes.
 - Shared home, credentials and settings are not identity isolation; real sign-ins remain human.
 - Find or Ctrl+Shift+F (⌘ on macOS) opens retained-output search; Enter/Shift+Enter navigate, Esc restores focus.

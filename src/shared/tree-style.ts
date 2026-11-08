@@ -18,4 +18,4 @@ export const treeStyle = {
 } as CSSProperties;
 
 // Keep keyboard focus visible without the row border (the author's choice).
-export const treeFocusCSS = '[data-item-focused="true"]:not([data-item-selected="true"]) { background-color: var(--trees-bg-muted); }';
+export const treeFocusCSS = '[data-item-focused="true"]:not([data-item-selected="true"]) { background-color: var(--trees-bg-muted); --truncate-marker-background-overlay-color: var(--trees-bg-muted); }';

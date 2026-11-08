@@ -4,7 +4,7 @@ import type { Task, DevelopmentTerminal } from './tasks.ts';
 import { toUrl } from '../browser/main/index.ts';
 import type { Profile, Tab } from '../browser/main/index.ts';
 import { progress } from './worktrees.ts';
-import { ARTIFACTS_LIMIT, listArtifacts } from './artifacts.ts';
+import { listArtifacts } from './artifacts.ts';
 import { fromLocalTool } from './local-only.ts';
 import { refused } from '../shared/result.ts';
 import type { PluginHost, TaskAccess, ProfileAccess, TabAccess, DevelopmentTerminalAccess } from '../kulisa-plugin/main/index.ts';
@@ -71,7 +71,9 @@ function taskAccess(task: Task): TaskAccess {
     get closed() { return new Map([...task.closed].map(([id, { cfg, tabs }]) => [id, {
       cfg: { id, name: cfg.name, avatar: cfg.avatar, description: cfg.description, login: cfg.login, hasPassword: cfg.hasPassword },
       tabs: { urls: tabs.urls },
-    }])); }, artifactLimit: ARTIFACTS_LIMIT,
+    }])); },
+    fileContext: (session, create) => task.fileContext(session, create),
+    temporaryFiles: () => task.temporaryFiles(), deleteTemporary: (files, session) => task.deleteTemporary(files, session),
     arrangeStage: (layout, overflow, position) => task.arrangeStage(layout, overflow, position),
     dirs: () => task.dirs(), addable: () => task.addable(), inGit: () => task.inGit(),
     named: (name) => task.named(name),
@@ -90,9 +92,9 @@ function taskAccess(task: Task): TaskAccess {
     },
     environmentUsed: (environment) => task.environmentUsed(environment),
     caption: (profile, caption, sticky) => task.caption(profile, caption, sticky), toUrl,
-    screenshot: (profile, tab, shot) => task.screenshot(profile, tab, shot),
-    saveArtifact: (source, kind, content) => task.saveArtifact(source, kind, content),
-    artifacts: () => listArtifacts(task.store.artifacts), artifactsUsage: (scope) => task.artifactsUsage(scope),
+    screenshot: (profile, tab, shot, temporary) => task.screenshot(profile, tab, shot, temporary),
+    saveArtifact: (source, kind, content, temporary) => task.saveArtifact(source, kind, content, temporary),
+    artifacts: () => listArtifacts(task.store.artifacts), artifactsUsage: (scope, area) => task.artifactsUsage(scope, area),
     deleteArtifacts: (files) => task.deleteArtifacts(files), rename: (name) => task.rename(name),
     makeWorktree: (name) => task.makeWorktree(name), addRepository: (repo) => task.addRepository(repo), removeRepository: (repo) => task.removeRepository(repo),
     codeProgress: () => Promise.all(task.worktrees.map(async (c) => ({ folder: c.folder, repo: c.repo, ...await progress(c) }))),
@@ -112,7 +114,7 @@ function taskAccess(task: Task): TaskAccess {
 }
 function terminalAccess(task: Task, t: DevelopmentTerminal): DevelopmentTerminalAccess {
   return {
-    id: t.id, agent: !!t.agent, get state() { return t.state; },
+    id: t.id, get session() { return t.conversation === undefined ? undefined : task.conversations()[t.conversation]?.id; }, agent: !!t.agent, get state() { return t.state; },
     saveSession: (session) => task.saveSession(t, session), noteAutoTitle: () => task.noteAutoTitle(t),
     setState: (state) => task.setState(t, state), followAutoTitle: () => task.followAutoTitle(t),
     historyRead: (conversation, part, parts) => task.historyRead(t, conversation, part, parts),

@@ -29,10 +29,13 @@ export interface TaskResource {
 }
 // An environment in the task’s Stage, naming a browser tab when relevant.
 export type EnvironmentSource = { kind: 'profile'; id: string; tab: string } | { kind: 'stage-terminal'; id: number };
-// A file the human or agent kept of an environment, as Resources lists it.
+// A task result, including directories and ordinary files without environment provenance.
 export interface Artifact {
   file: string;
-  source: EnvironmentSource;
+  path: string; // relative, forward slashes; directories end in /
+  directory: boolean;
+  revision: string;
+  source?: EnvironmentSource;
   kind: string; // screenshot, snapshot, request or response (a body)
   time: number;
   bytes: number;

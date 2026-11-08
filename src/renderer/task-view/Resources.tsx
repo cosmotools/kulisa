@@ -1,16 +1,14 @@
 // Workbench Activity bar and Side bar (docs/tasks.md, The Workbench).
 import { useEffect, useMemo, useState } from 'react';
-import { FileIcon, FilesIcon, FolderTreeIcon, GitBranchIcon, GitCompareArrowsIcon, TerminalSquareIcon, Trash2Icon } from 'lucide-react';
+import { FilesIcon, FolderOpenIcon, FolderTreeIcon, GitBranchIcon, GitCompareArrowsIcon, TerminalSquareIcon, Trash2Icon } from 'lucide-react';
 import type { IDockviewPanelProps, IDockviewPanelHeaderProps, IDockviewHeaderActionsProps } from 'dockview-react';
 import { useShallow } from 'zustand/react/shallow';
-import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupAction, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuAction,
-  SidebarMenuButton, SidebarMenuItem, SidebarProvider } from '@ui';
+import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupAction, SidebarGroupLabel, SidebarProvider } from '@ui';
 import { ProjectTree, type ExplorerActions } from '../../project-explorer/renderer';
 import { menuAt } from '../lib/menu';
-import { RightClickMenu } from '../components/Menus';
+import { ArtifactTree } from '../components/artifact-tree';
 import { shownTask, useWindow } from '../lib/store';
 import { useTask, useTaskActive, useTaskGrid } from './state';
-import type { MenuItem } from '../lib/menu';
 import { activityItems, type ActivityItem } from './development';
 import { sizeText } from '../../shared/bytes';
 import { Dictation } from '../../dictation/renderer';
@@ -25,7 +23,6 @@ const kindOf = (kind: string) => KINDS[kind] ?? kind;
 const day = (t: number) => new Date(t).toDateString();
 const when = (t: number) => (day(t) === day(Date.now()) ? new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   : new Date(t).toLocaleDateString([], { day: 'numeric', month: 'short' }));
-const openFile = (file: string) => kulisa.invoke('file:open', file);
 
 export function ResourceIcon({ params }: IDockviewPanelHeaderProps<{ section: ActivityItem }>) {
   const Icon = { terminals: TerminalSquareIcon, project: FolderTreeIcon, diff: GitCompareArrowsIcon, artifacts: FilesIcon }[params.section];
@@ -88,18 +85,34 @@ function TaskResources({ section }: { section: ActivityItem }) {
   const branch = task?.resources.find((r) => r.branch)?.branch ?? null;
   const roots = useMemo(() => (task?.resources ?? []).map((r) => ({ folder: r.folder, label: r.label,
     caption: r.branch === branch ? '' : r.branch ? `branch ${r.branch}` : 'main working tree' })), [task?.resources, branch]);
+  const entries = useMemo(() => artifacts.map((a) => ({ path: a.path, thumb: a.thumb,
+    caption: a.directory ? '' : [a.kind === 'file' ? null : kindOf(a.kind), a.source?.kind === 'profile' ? names[a.source.id] : a.source?.kind === 'stage-terminal' ? stageTerminals[a.source.id] : null, when(a.time), sizeText(a.bytes)].filter(Boolean).join(' · '),
+  })), [artifacts, names, stageTerminals]);
+  const artifactActions = useMemo(() => {
+    const fileAt = (path: string) => artifacts.find((a) => a.path === path)?.file;
+    return {
+      thumbnails: (paths: string[]) => {
+        const files = paths.map(fileAt).filter((file): file is string => !!file);
+        if (files.length) void kulisa.invoke('task:artifact:thumbnails', { key, files });
+      },
+      open: (path: string) => { const file = fileAt(path); if (file) void kulisa.invoke('task:artifact:open', { key, file }); },
+      drag: (path: string) => { const file = fileAt(path); if (file) void kulisa.invoke('task:artifact:drag', { key, file }); },
+      menu: (path: string, at: { clientX: number; clientY: number }) => {
+        const file = fileAt(path); if (!file) return;
+        menuAt(at, [{ label: 'Open', run: () => kulisa.invoke('task:artifact:open', { key, file }) }, { label: 'Show in Folder', run: () => kulisa.invoke('file:show', file) },
+          { label: 'Send to Agent', run: () => kulisa.invoke('task:artifact:send', { key, file }) }, '-',
+          { label: 'Delete', run: () => kulisa.invoke('task:artifact:delete', { key, files: [file] }) }]);
+      },
+    };
+  }, [artifacts, key]);
   if (!task) return null;
-  const deleteArtifacts = (files: string[] | null) => kulisa.invoke('task:artifact:delete', { key: task.key, files });
-  const menu = (e: MouseEvent): MenuItem[] | null => {
-    const file = (e.target as Element).closest<HTMLElement>('[data-file]')?.dataset.file;
-    return file ? [{ label: 'Open', run: () => openFile(file) }, { label: 'Show in Folder', run: () => kulisa.invoke('file:show', file) },
-      { label: 'Send to Agent', run: () => kulisa.invoke('task:artifact:send', { key: task.key, file }) }, '-',
-      { label: 'Delete', run: () => deleteArtifacts([file]) }] : null;
+  const folders = async (at: { clientX: number; clientY: number }) => {
+    const list = await kulisa.invoke('task:files:folders', key);
+    if (!list.length) return;
+    menuAt(at, [{ label: 'Open Artifacts Folder', run: () => kulisa.invoke('task:files:open', { key, folder: list[0]!.folder }) },
+      { submenu: 'Temporary Files', items: list.slice(1).map((a) => ({ label: a.name, run: () => kulisa.invoke('task:files:open', { key, folder: a.folder }) })) }]);
   };
-  // A row: its icon, its name and a muted line under it, as a task's in the sidebar.
-  const lines = (name: string, line: string) => <span className="flex min-w-0 flex-1 flex-col text-start">
-    <span className="truncate">{name}</span><span className="truncate text-xs text-muted-foreground">{line}</span>
-  </span>;
+  const deleteArtifacts = (files: string[] | null) => kulisa.invoke('task:artifact:delete', { key: task.key, files });
   return <SidebarProvider data-resources className="h-full min-h-0">
       <Sidebar collapsible="none" className="w-full">
         {section === 'terminals' && <DevelopmentTerminalList />}
@@ -112,28 +125,11 @@ function TaskResources({ section }: { section: ActivityItem }) {
           {section === 'artifacts' && <SidebarContent>
           <SidebarGroup>
             <SidebarGroupLabel>Artifacts ·&nbsp;<span data-testid="artifacts-size">{sizeText(bytes)}</span></SidebarGroupLabel>
+            <SidebarGroupAction className="right-9" aria-label="File Folders" title="File Folders" onClick={(e) => { void folders({ clientX: e.clientX, clientY: e.clientY }); }}><FolderOpenIcon /></SidebarGroupAction>
             {artifacts.length > 0 && <SidebarGroupAction aria-label="Delete All Artifacts" title="Delete All Artifacts" onClick={() => void deleteArtifacts(null)}><Trash2Icon /></SidebarGroupAction>}
-            <SidebarGroupContent>
-              {!artifacts.length && <p className="p-2 text-sm text-muted-foreground">No artifacts yet</p>}
-              <RightClickMenu items={menu}>
-                <SidebarMenu aria-label="Artifacts">
-                  {artifacts.map((a) => <SidebarMenuItem key={a.file}>
-                    <div className="rounded-md hover:bg-sidebar-accent">
-                      <SidebarMenuButton data-file={a.file} aria-label={kindOf(a.kind)} title={`Open: ${a.file} (${sizeText(a.bytes)})`} className="h-auto"
-                        draggable onDragStart={(e) => { e.preventDefault(); void kulisa.invoke('task:artifact:drag', { key: task.key, file: a.file }); }}
-                        onClick={() => void openFile(a.file)}>
-                        {/* a page's head: where its picture is cut */}
-                        {a.thumb ? <img src={a.thumb} draggable={false} alt="" className="size-8 rounded-sm border object-cover object-top" /> : <FileIcon />}
-                        {lines(kindOf(a.kind), [a.source.kind === 'profile' ? names[a.source.id] : stageTerminals[a.source.id], when(a.time), sizeText(a.bytes)].filter(Boolean).join(' · '))}
-                      </SidebarMenuButton>
-                      <SidebarMenuAction showOnHover className="!top-0 bottom-0 my-auto size-5" aria-label={`Delete ${kindOf(a.kind)}`} title={`Delete ${kindOf(a.kind)}`}
-                        onClick={() => void deleteArtifacts([a.file])}><Trash2Icon /></SidebarMenuAction>
-                    </div>
-                  </SidebarMenuItem>)}
-                </SidebarMenu>
-              </RightClickMenu>
-            </SidebarGroupContent>
           </SidebarGroup>
+          {!artifacts.length && <p className="p-2 text-sm text-muted-foreground">No artifacts yet</p>}
+          <div className="min-h-0 flex-1"><ArtifactTree entries={entries} actions={artifactActions} /></div>
         </SidebarContent>}
       </Sidebar>
     </SidebarProvider>;

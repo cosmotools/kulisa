@@ -91,10 +91,20 @@ Side bar, or drag its divider to resize it. Terminals keep running when you swit
 - **Project** shows the current task's code folders. Expand folders; click a file to select it, double-click or
   press Enter to open it. Right-click for **Open**, **Open in System Application** or **Show in Folder**.
   A repository's **⋯** or right-click menu offers **Open Folder** and, for an added copy, **Remove Repository**.
-- **Artifacts** lists screenshots, page snapshots and other testing results, newest first. Click to open;
-  right-click to reveal, send to the agent or delete. Hover/focus trash deletes one; heading trash deletes all.
-  Drag an artifact to another app or folder. **Send to Agent** puts its path in the agent's input for you to review
-  and send. Above 100 MB, the oldest artifacts are removed automatically.
+- **Artifacts** shows the task's completed files and folders as a tree, folders first and alphabetically. Expand a
+  folder; click a file or press Enter to open it. Right-click a file or folder to open, reveal, send to the agent or
+  delete it. The heading's trash deletes all results. Drag a file to another app or folder. **Send to Agent** puts
+  its path in the agent's input for you to review and send. **File Folders** opens results, all temporary material or
+  one conversation's temporary folder in your file manager.
+
+Ask the agent to create a file and it saves the finished result in **Artifacts**, unless you specify another
+location. Related files can stay together in a folder. Work in progress, automatic testing screenshots and large
+tool replies stay in each conversation's own folder inside `tmp/`, beside the results folder, hidden from Artifacts.
+Delete files yourself or ask the agent to clean the ones you specify.
+A screenshot requested as a result belongs in Artifacts; screenshots you take yourself also appear there.
+
+Files have no size quota or automatic expiry. Closing a conversation or task keeps them; deleting the task removes
+both results and temporary work. Agents can remove their own unneeded temporary files as they work.
 
 ### Editing files
 

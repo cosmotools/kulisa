@@ -25,7 +25,7 @@ import { BASE } from './helpers.ts';
 // both ways), so it names what it needs by the argument, never by a closure.
 type Core = <A, R>(fn: (k: Kulisa, arg: A) => R | Promise<R>, arg?: A) => Promise<R>;
 // The agent's tools, as the agent of a task (its key; the window's task by default) in one of its terminals calls them.
-type Where = { task?: string; terminal?: number };
+type Where = { task?: string; terminal?: number; unbound?: boolean };
 type CallResult = { content: { type: string; text?: string; data?: string; mimeType?: string }[]; text: string; isError?: boolean; structuredContent?: unknown };
 type Call = (name: string, args?: Record<string, unknown>, where?: Where) => Promise<CallResult>;
 type Running = { file: string; automation: boolean; restarted?: boolean; child: ChildProcess; exited: Promise<void>; output: () => string; browser: Browser; context: BrowserContext; root: string; core: Core; ui: Page; errors: string[]; clients: Map<string, Client> };
@@ -231,17 +231,27 @@ export const test = base.extend<Fixtures, { display: string | null; running: { c
   ui: async ({ kulisa }, use) => { await use(kulisa.ui); },
   mcp: async ({ kulisa, running }, use) => {
     void kulisa;
-    await use(async ({ task, terminal } = {}) => {
+    await use(async ({ task, terminal, unbound } = {}) => {
       const k = running.current;
       const url = await k.core((d, a) => {
         const t = a.task ? d.shell.taskByKey(a.task) : d.shell.task;
         return t.env(a.terminal === undefined ? undefined : t.developmentTerminals.get(a.terminal)).KULISA_MCP_URL;
       }, { task, terminal });
-      let c = k.clients.get(url);
+      const cacheKey = `${url}${unbound ? '#unbound' : ''}`;
+      let c = k.clients.get(cacheKey);
       if (!c) {
         c = new Client({ name: 'kulisa-test', version: '0' });
         await c.connect(new StreamableHTTPClientTransport(new URL(url)));
-        k.clients.set(url, c);
+        if (terminal === undefined && !unbound) {
+          // Model an external agent: explicitly create and reuse its persistent file context.
+          const created = await c.callTool({ name: 'task_files', arguments: { newContext: true } });
+          if (created.isError) throw new Error(JSON.stringify(created));
+          const context = JSON.parse((created.content as { text: string }[])[0].text);
+          await c.close();
+          c = new Client({ name: 'kulisa-test', version: '0' });
+          await c.connect(new StreamableHTTPClientTransport(new URL(context.mcp)));
+        }
+        k.clients.set(cacheKey, c);
       }
       return c;
     });

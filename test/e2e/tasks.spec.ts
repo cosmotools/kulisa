@@ -115,7 +115,7 @@ test('tasks: + opens a task in the project\'s main working tree ("New Task", no 
   expect(made.folder, 'the main working tree until it makes its own').toBe(project);
   expect(made.branch).toBe(null);
   expect(made.resources, 'the main tree, no worktree yet').toEqual([{ kind: 'maintree', folder: project }]);
-  expect(made.env).toEqual({ KULISA_MCP_URL: `${made.base}/task/${task}/mcp`, KULISA_URL: `${made.base}/task/${task}`, KULISA_TASK: 'New Task' });
+  expect(made.env).toEqual({ KULISA_MCP_URL: `${made.base}/task/${task}/mcp`, KULISA_URL: `${made.base}/task/${task}`, KULISA_TASK: 'New Task', KULISA_ARTIFACTS_DIR: path.join(files.userData, 'projects', ...task.split('/'), 'artifacts') });
   expect(made.resumed, 'a new conversation').toBe(null);
   const told = (await mcp({ task })).getInstructions();
   expect(told, 'where it works, told to any agent').toMatch(new RegExp(`This is the Kulisa task "New Task"\\. Your terminal is in the project's folder .*${RegExp.escape(path.basename(project))}, which is the human's: do not change it on your own\\.`));
@@ -225,7 +225,7 @@ test("tasks: × closes a task: its agent stops and its tabs close, all else stay
   expect(await core((k) => k.stash.sam.session.getCacheSize()), 'pages were cached').toBeGreaterThan(0);
   // What the agent's tools keep of its pages (a screenshot), in the task's data: kept while the task is closed, gone
   // when it is deleted.
-  await call('browser_screenshot', { profile: 'Sam.admin' }, { task });
+  await call('browser_screenshot', { profile: 'Sam.admin', purpose: 'artifact' }, { task });
   const artifacts = await core((k, key) => k.shell.taskByKey(key).store.artifacts, task);
   expect(fs.readdirSync(artifacts)).toHaveLength(1);
   await taskTab(ui, task).getByRole('button', { name: 'Close' }).click();

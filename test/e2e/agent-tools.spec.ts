@@ -122,7 +122,7 @@ test('agent: screenshots of an element, the visible part and the whole page, at 
   const box = { profile: 'Sam.seller', locator: "locator('#box')" };
   const first = await call('browser_screenshot', box);
   const file = first.text.match(/^Saved as (.+\.jpg)$/)[1];
-  expect(path.dirname(file), "the task's, never the project's").toBe(await core((k) => k.shell.task.store.artifacts));
+  expect(path.dirname(file), "the task's, never the project's").toBe(JSON.parse((await call('task_files')).text).tmp);
   expect(fs.readFileSync(file).toString('base64'), 'the picture the agent got').toBe(first.content[1].data);
   const el = await image(core, first.content[1].data, { x: 100, y: 60 });
   expect(el.size, 'the element alone, at its CSS size').toEqual({ width: 200, height: 120 });

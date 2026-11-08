@@ -7,7 +7,7 @@ import { sizeText } from '../../../shared/bytes.ts';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { Handles } from './handles.ts';
 
-function taskTools(server: McpServer, { task, t, text, done }: Handles) {
+function taskTools(server: McpServer, { task, t, text, done, session }: Handles) {
   server.registerTool('stage_arrange', {
     description: 'Arrange this task’s open testing environments: horizontal puts them side by side, vertical puts them one above another, tabs shows one at a time. Independently set overflow: false fits all panes into the stage; true keeps usable pane sizes and scrolls in the stack direction. Overflow is ignored in tabs but remembered. Omitted settings stay unchanged. Preserves development terminals and Resources. Position places Stage left, right, or above the development terminal and Resources together. The task must be on screen. Settings also apply before an environment opens. Requests the same action as the human’s title-bar Stage menu.',
     inputSchema: {
@@ -64,36 +64,41 @@ function taskTools(server: McpServer, { task, t, text, done }: Handles) {
     return text(r.text);
   });
 
-  const KINDS: Record<string, string> = { screenshot: 'screenshot', snapshot: 'snapshot', request: 'request body', response: 'response body' };
-  const profileName = (id: string) => task.profiles.get(id)?.name ?? task.closed.get(id)?.cfg.name ?? `profile ${id} (deleted)`;
-  server.registerTool('task_artifacts', {
-    description: `What the task's artifacts take and what they are: the files Kulisa's tools kept of its pages (screenshots, snapshots and bodies too large for an answer), in a folder of Kulisa's (never the project's). Past ${sizeText(task.artifactLimit)} a task's oldest go by themselves. Use it when the human asks what they are, how much room they take, or to clean them up (task_artifacts_delete). Each file with its path (read it to say what it shows), its kind, its profile, when and its size, the newest first. scope "project" or "all" gives each task's total instead.`,
-    inputSchema: {
-      scope: z.enum(['task', 'project', 'all']).optional().describe("Whose: this task's files (the default), or the totals of each task of the project or of every project"),
-      limit: z.number().int().min(1).optional().describe('How many files at most, the newest first (default 50)'),
-    },
-  }, async ({ scope = 'task', limit = 50 }) => {
-    const usage = await task.artifactsUsage(scope);
-    if (scope !== 'task') {
-      return text(`Artifacts: ${sizeText(usage.bytes)} in ${usage.tasks.length} task(s)${scope === 'project' ? ' of this project' : ''}.\n${usage.tasks.sort((a, b) => b.bytes - a.bytes)
-        .map((u) => `- ${u.project} / ${u.name}${u.key === task.key ? ' (this task)' : ''}: ${sizeText(u.bytes)}`).join('\n')}`);
-    }
-    const list = await task.artifacts();
-    const when = (ms: number) => new Date(ms).toLocaleString('sv').slice(0, 16);
-    return text(`This task's artifacts: ${sizeText(usage.bytes)} in ${list.length} file(s).${list.slice(0, limit)
-      .map((a) => `\n- ${a.file}: ${KINDS[a.kind] ?? a.kind}, ${a.source.kind === 'profile' ? profileName(a.source.id) : task.stageTerminals.info().find((t) => t.id === a.source.id)?.name ?? `terminal ${a.source.id} (closed)`}, ${when(a.time)}, ${sizeText(a.bytes)}`).join('')}${list.length > limit ? `\n${list.length - limit} older not listed (limit).` : ''}`);
+  server.registerTool('task_files', {
+    description: 'Get the absolute results and temporary folders for this conversation. Files in artifacts appear automatically in the UI. An external client without a terminal must explicitly create a context with newContext: true and reconnect to the returned persistent MCP URL; reuse that URL when resuming. No quota or automatic expiry.',
+    inputSchema: { newContext: z.boolean().optional().describe('Only for an external client: create a distinct persistent working context') },
+  }, async ({ newContext }) => {
+    if (newContext && session) throw new Error('This connection already has a file context. Reuse it.');
+    return text(JSON.stringify(done(task.fileContext(session, newContext))));
   });
-
-  server.registerTool('task_artifacts_delete', {
-    description: "Delete this task's artifacts (task_artifacts): the files named, or all of them. Only this task's; another task's agent may still be reading its own. Delete what the human asked for.",
+  server.registerTool('task_artifacts', {
+    description: 'List ordinary results, folders and their sizes, or temporary working files. Artifacts contains finished human-facing results; temporary folders are not shown in Artifacts. No quota or automatic expiry. scope project/all returns per-task totals; area all combines results and temporary material. Lists are paged; read files to explain their contents.',
     inputSchema: {
-      files: z.array(z.string()).optional().describe('Their paths, as task_artifacts gives them'),
-      all: z.boolean().optional().describe('true: every artifact of this task'),
+      scope: z.enum(['task', 'project', 'all']).optional(),
+      area: z.enum(['artifacts', 'temporary', 'all']).optional(),
+      offset: z.number().int().min(0).optional(),
+      limit: z.number().int().min(1).max(200).optional(),
     },
-  }, async ({ files, all }) => {
+  }, async ({ scope = 'task', area = 'artifacts', offset = 0, limit = 50 }) => {
+    const usage = await task.artifactsUsage(scope, area);
+    if (scope !== 'task') {
+      const tasks = usage.tasks.sort((a, b) => b.bytes - a.bytes);
+      return text(JSON.stringify({ area, bytes: usage.bytes, total: tasks.length, tasks: tasks.slice(offset, offset + limit) }));
+    }
+    const list = [...(area !== 'temporary' ? await task.artifacts() : []), ...(area !== 'artifacts' ? await task.temporaryFiles() : [])];
+    return text(JSON.stringify({ area, bytes: usage.bytes, total: list.length, offset, entries: list.slice(offset, offset + limit) }));
+  });
+  server.registerTool('task_artifacts_delete', {
+    description: "Delete requested results from this task, including folders recursively. By default only artifacts; area temporary cleans only this connection's own working folder. all: true means all entries in the chosen area. Never deletes another task's files. Do not remove another conversation's work without the human asking.",
+    inputSchema: {
+      area: z.enum(['artifacts', 'temporary']).optional(),
+      files: z.array(z.string()).min(1).max(200).optional(),
+      all: z.boolean().optional(),
+    },
+  }, async ({ files, all, area = 'artifacts' }) => {
     if (!!files === !!all) throw new Error('pass files, or all: true');
-    const r = done(await task.deleteArtifacts(all ? null : files!));
-    return text(`Deleted ${r.deleted} file(s), ${sizeText(r.bytes)}; ${sizeText((await task.artifactsUsage()).bytes)} left.`);
+    const r = done(await (area === 'temporary' ? task.deleteTemporary(all ? null : files!, session) : task.deleteArtifacts(all ? null : files!)));
+    return text(`Deleted ${r.deleted} entries, ${sizeText(r.bytes)}; ${sizeText((await task.artifactsUsage('task', area)).bytes)} left.`);
   });
 
   if (t?.agent) {
