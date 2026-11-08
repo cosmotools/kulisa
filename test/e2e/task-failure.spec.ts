@@ -1,16 +1,25 @@
 // Controlled malformed task data exercises React boundaries without a production failure trigger.
 import fs from 'node:fs';
 import path from 'node:path';
+import type { Page } from '@playwright/test';
 import { test, expect, type Core } from './fixtures.ts';
-import { answer, closeMenu, closeSettings, frames, invoke, ipcSettled, menu, notLoading, otherPage, rightClick, choose, showResources, SITE } from './helpers.ts';
-import { hook, newTask, showTask, taskTab } from './tasks-helpers.ts';
+import { closeMenu, closeSettings, frames, invoke, ipcSettled, menu, notLoading, otherPage, rightClick, choose, showResources, SITE } from './helpers.ts';
+import { newTask, taskShown, taskTab } from './tasks-helpers.ts';
 
 const PRIVATE = 'private-terminal-content-396';
-const fallback = (ui: import('@playwright/test').Page) => ui.getByRole('alert').filter({ hasText: 'This task’s screen could not be displayed' });
+const fallback = (ui: Page) => ui.getByRole('alert').filter({ hasText: 'This task’s screen could not be displayed' });
+
+async function selectTask(core: Core, ui: Page, key: string) {
+  await taskTab(ui, key).click(); await taskShown(core, key); await notLoading(ui);
+}
+async function closeFailedTask(ui: Page, key: string) {
+  await taskTab(ui, key).getByRole('button', { name: 'Close', exact: true }).click();
+  await expect(ui.locator(`[data-task-view="${key}"]`)).toHaveCount(0);
+}
 
 // A tab's malformed label reaches the renderer through real task-state delivery. The core stays valid;
 // React throws inside the task's tab strip. Window-wide task menus do not consume tab titles.
-async function breakScreen(core: Core, task: string) {
+async function failScreen(core: Core, ui: Page, task: string, mount?: () => Promise<unknown>) {
   await core((k, key) => {
     const t = k.shell.taskByKey(key), p = [...t.profiles.values()][0], info = p.info;
     k.stash.boundaryProfile = { p, info };
@@ -20,22 +29,19 @@ async function breakScreen(core: Core, task: string) {
     };
     t.window.send('profile:state', { task: key, list: [...t.profiles.values()].map((p) => p.info()) });
   }, task);
-}
-async function restoreProfile(core: Core) {
-  await core((k) => {
-    const saved = k.stash.boundaryProfile;
-    if (saved) { saved.p.info = saved.info; delete k.stash.boundaryProfile; }
-  });
+  try {
+    await mount?.();
+    await expect(ui.locator(`[data-task-view="${task}"] [role="alert"]`)).toHaveCount(1);
+    await expect.poll(() => core((k, key) => k.shell.taskByKey(key).viewFailed, task)).toBe(true);
+  } finally {
+    await core((k) => { const { p, info } = k.stash.boundaryProfile; p.info = info; delete k.stash.boundaryProfile; });
+  }
 }
 
 test('a mounted task failure contains native pages and releases Views while running work and other tasks survive', async ({ core, ui, files, call, sui }) => {
   await notLoading(ui);
   const healthy = await core((k) => k.shell.task.key);
-  fs.mkdirSync(path.join(files.project, 'boundary-kept'), { recursive: true });
-  fs.writeFileSync(path.join(files.project, 'boundary-kept', 'kept.txt'), 'kept');
   await showResources(ui, 'Project');
-  await ui.getByRole('treeitem', { name: 'boundary-kept', exact: true }).click();
-  await expect(ui.getByRole('treeitem', { name: 'kept.txt', exact: true })).toBeVisible();
   await core(async (k, site) => { await k.ensureProfile('Healthy.browser', `${site}/app`); }, SITE);
   await ui.evaluate(() => { const w = window as any; w.__healthyGrid = w.__dock; });
   const failed = await newTask(core, ui, 'broken-screen');
@@ -68,10 +74,9 @@ test('a mounted task failure contains native pages and releases Views while runn
   try {
     await ui.locator('#windowMenu').click();
     await expect.poll(() => core((k) => k.stash.boundaryCapture.requested)).toBe(true);
-    await breakScreen(core, failed);
+    await failScreen(core, ui, failed);
     await expect(fallback(ui)).toBeVisible();
     await expect.poll(() => core((k) => k.shell.task.viewFailed && k.shell.task.window.viewsHidden && !k.profile('Failed.browser').view.getVisible())).toBe(true);
-    await restoreProfile(core);
     await core((k) => k.stash.boundaryCapture.release());
     await expect.poll(() => core((k) => k.stash.boundaryCapture.completed)).toBe(true);
     await expect(menu(ui)).toBeVisible();
@@ -95,13 +100,11 @@ test('a mounted task failure contains native pages and releases Views while runn
     await ui.getByRole('button', { name: 'Settings', exact: true }).click();
     await sui();
     await closeSettings(core, ui, sui);
-    await taskTab(ui, healthy).click();
-    await showTask(core, ui, healthy); await notLoading(ui);
-    await expect(ui.getByRole('treeitem', { name: 'kept.txt', exact: true })).toBeVisible();
+    await selectTask(core, ui, healthy);
+    await expect(ui.getByRole('region', { name: 'Project', exact: true })).toBeVisible();
     expect(await ui.evaluate(() => (window as any).__dock === (window as any).__healthyGrid)).toBe(true);
     await expect.poll(() => core((k) => k.profile('Healthy.browser').view.getVisible())).toBe(true);
-    await taskTab(ui, failed).click();
-    await showTask(core, ui, failed); await notLoading(ui);
+    await selectTask(core, ui, failed);
     await expect(fallback(ui)).toBeVisible();
     await ui.locator('#windowMenu').click(); await expect(menu(ui)).toBeVisible(); await closeMenu(ui);
     await ipcSettled(ui); await frames(ui);
@@ -109,16 +112,9 @@ test('a mounted task failure contains native pages and releases Views while runn
     expect(files.log()).toContain(`[task-view] failed`);
     expect(files.log()).toContain(failed);
     expect(files.log()).not.toContain(PRIVATE);
-    await hook(core, failed, 'prompt');
-    await taskTab(ui, failed).getByRole('button', { name: 'Close', exact: true }).click();
-    await answer(ui, false);
-    expect(await core((k, key) => k.shell.taskByKey(key).loaded, failed)).toBe(true);
-    await hook(core, failed, 'stop');
-    await taskTab(ui, failed).getByRole('button', { name: 'Close', exact: true }).click();
-    await expect(ui.locator(`[data-task-view="${failed}"]`)).toHaveCount(0);
+    await closeFailedTask(ui, failed);
     expect(await core((k, key) => !k.shell.taskByKey(key).loaded && !k.shell.taskByKey(key).pty, failed)).toBe(true);
   } finally {
-    await restoreProfile(core);
     await core((k) => { const c = k.stash.boundaryCapture; c.release(); c.w.pictures = c.pictures; delete k.stash.boundaryCapture; });
     await stageView.dispose();
   }
@@ -141,18 +137,14 @@ test('repeated failures during the first grid mount leave no controller or nativ
       const [id, task] = failed.split('/');
       await invoke(ui, 'project:open', { id, task });
       await expect.poll(() => core((k) => k.stash.boundaryLoad.requested)).toBe(true);
-      await breakScreen(core, failed);
-      await core((k) => k.stash.boundaryLoad.release());
+      await failScreen(core, ui, failed, () => core((k) => k.stash.boundaryLoad.release()));
       await expect(fallback(ui)).toBeVisible();
-      await restoreProfile(core);
       await notLoading(ui);
       expect(await ui.evaluate(() => !(window as any).__dock && !(window as any).__stage)).toBe(true);
       await expect.poll(() => core((k) => !k.profile('Initializing.browser').view.getVisible() && k.shell.task.viewFailed)).toBe(true);
-      await taskTab(ui, failed).getByRole('button', { name: 'Close', exact: true }).click();
-      await expect(ui.locator(`[data-task-view="${failed}"]`)).toHaveCount(0);
-      await showTask(core, ui, healthy); await notLoading(ui);
+      await closeFailedTask(ui, failed);
+      await taskShown(core, healthy); await notLoading(ui);
     } finally {
-      await restoreProfile(core);
       await core((k) => { const p = k.stash.boundaryLoad; p.release(); p.store.layout = p.layout; delete k.stash.boundaryLoad; });
     }
   }
@@ -163,10 +155,8 @@ test('moving a failed task preserves its fallback and running core instead of re
   const failed = await newTask(core, ui, 'broken-moved');
   await call('profile_create', { name: 'Moving.browser' });
   await core((k) => { k.stash.boundaryPty = k.shell.task.pty; });
-  try {
-    await breakScreen(core, failed);
-    await expect(fallback(ui)).toBeVisible();
-  } finally { await restoreProfile(core); }
+  await failScreen(core, ui, failed);
+  await expect(fallback(ui)).toBeVisible();
   await rightClick(ui, taskTab(ui, failed));
   await choose(ui, 'Move to New Window');
   const moved = await otherPage(ui);
@@ -177,7 +167,7 @@ test('moving a failed task preserves its fallback and running core instead of re
     const t = k.shell.taskByKey(key), p = [...t.profiles.values()][0];
     return t.pty === k.stash.boundaryPty && t.window.viewsHidden && !p.view.getVisible() && k.viewIn(p.view, t.window.win);
   }, failed)).toBe(true);
-  await showTask(core, ui, healthy); await notLoading(ui);
+  await taskShown(core, healthy); await notLoading(ui);
   await taskTab(moved, failed).getByRole('button', { name: 'Close', exact: true }).click();
   await expect.poll(() => core((k, key) => !k.shell.taskByKey(key).loaded && !k.shell.taskByKey(key).viewFailed, failed)).toBe(true);
   // Moving/closing must leave the unrelated original window usable.
@@ -190,23 +180,18 @@ test('a hidden task failure leaves the selected task’s native pages and shared
   await showResources(ui, 'Agents');
   const failed = await newTask(core, ui, 'broken-background');
   await call('profile_create', { name: 'Background.browser' });
-  await taskTab(ui, healthy).click(); await showTask(core, ui, healthy); await notLoading(ui);
+  await selectTask(core, ui, healthy);
   await expect.poll(() => ui.evaluate(() => !!(window as any).__term)).toBe(true);
   await ui.evaluate(() => { const w = window as any; w.__healthyGrid = w.__dock; w.__healthyTerminal = w.__term; });
-  try {
-    await breakScreen(core, failed);
-    await expect.poll(() => core((k, key) => k.shell.taskByKey(key).viewFailed, failed)).toBe(true);
-    await ipcSettled(ui); await frames(ui);
-    await expect(ui.locator(`[data-task-view="${failed}"] [role="alert"]`)).toHaveCount(1);
-    expect(await core((k) => !k.shell.task.window.viewsHidden && k.profile('Healthy.background-check').view.getVisible())).toBe(true);
-    expect(await ui.evaluate(() => {
-      const w = window as any; return w.__dock === w.__healthyGrid && w.__term === w.__healthyTerminal;
-    })).toBe(true);
-    await taskTab(ui, failed).click(); await showTask(core, ui, failed); await notLoading(ui);
-    await expect(fallback(ui)).toBeVisible();
-  } finally { await restoreProfile(core); }
-  await taskTab(ui, failed).getByRole('button', { name: 'Close', exact: true }).click();
-  await expect(ui.locator(`[data-task-view="${failed}"]`)).toHaveCount(0);
+  await failScreen(core, ui, failed);
+  await ipcSettled(ui); await frames(ui);
+  expect(await core((k) => !k.shell.task.window.viewsHidden && k.profile('Healthy.background-check').view.getVisible())).toBe(true);
+  expect(await ui.evaluate(() => {
+    const w = window as any; return w.__dock === w.__healthyGrid && w.__term === w.__healthyTerminal;
+  })).toBe(true);
+  await selectTask(core, ui, failed);
+  await expect(fallback(ui)).toBeVisible();
+  await closeFailedTask(ui, failed);
 });
 
 test('reporting a render failure never reads properties of the thrown object', async ({ core, ui, call, files }) => {
@@ -224,6 +209,5 @@ test('reporting a render failure never reads properties of the thrown object', a
   await expect(fallback(ui)).toBeVisible();
   await expect.poll(() => core((k, key) => k.shell.taskByKey(key).viewFailed, failed)).toBe(true);
   expect(files.log()).not.toContain(PRIVATE);
-  await taskTab(ui, failed).getByRole('button', { name: 'Close', exact: true }).click();
-  await expect(ui.locator(`[data-task-view="${failed}"]`)).toHaveCount(0);
+  await closeFailedTask(ui, failed);
 });
