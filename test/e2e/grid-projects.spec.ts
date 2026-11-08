@@ -55,7 +55,7 @@ test('projects: another folder opens in a tab of its own, with its own profiles 
   expect((await termText(ui)).split('exec cat -v').length - 1, 'the command that starts the agent shows once').toBe(1);
   expect(await core((k, project) => {
     const g = k.stash.grid;
-    return { profiles: k.shell.profiles.size, kept: g.sam.tabs.every((t: any) => !t.wc.isDestroyed()) && !g.sam.get().view.getVisible(),
+    return { profiles: k.shell.profiles.size, kept: g.sam.tabs.every((t: any) => !t.wc.isDestroyed()) && !g.sam.view.getVisible(),
       agent: [...k.shell.open.get(project).tasks.values()][0].pty === g.firstPty, title: k.shell.win.getTitle(), resumed: k.shell.resumedSession };
   }, ids.project)).toEqual({ profiles: 0, kept: true, agent: true, title: 'New Task · other — Kulisa', resumed: null }); // the first project's pages keep running, hidden, and its agent; a new project has no conversation to resume
   await expect.poll(() => tabProjects(ui, files)).toEqual(['project', 'other *']);
@@ -167,7 +167,7 @@ test('projects: another folder opens in a tab of its own, with its own profiles 
   expect(await core((k) => {
     const g = k.stash.grid;
     clearInterval(g.watch);
-    return { jumps: g.jumps, agent: k.shell.pty === g.firstPty, seller: g.seller.get().view.getVisible() };
+    return { jumps: g.jumps, agent: k.shell.pty === g.firstPty, seller: g.seller.view.getVisible() };
   })).toEqual({ jumps: [], agent: true, seller: false }); // pages shown before the grid placed them; the same agent; the other project's pages hidden
   expect(await tabProjects(ui, files)).toEqual(['project *', 'other']);
   const seen = await ui.evaluate(() => { const w = window as any, s = [...w.__tabPlaces]; w.__tabPlaces = null; return s; });
@@ -215,7 +215,11 @@ test('tasks: Move to New Window puts a task in a window of its own, still runnin
   await invoke(ui, 'project:open', { folder: other, task: files.tid('other', 1) });
   await expect.poll(() => core((k, id) => k.shell.current?.id === id && !!k.shell.task.loaded && !!k.shell.pty, ids.other)).toBe(true);
   await notLoading(ui);
-  await core((k, id) => { const t = k.shell.task; k.stash.grid = { moved: t, pty: t.pty, seller: t.profiles.get(id), first: k.shell.windows[0] }; }, ids.seller);
+  await core(async (k, a) => {
+    const t = k.shell.task, seller = t.profiles.get(a.id);
+    await seller.newTab(a.url, { activate: false }).ready;
+    k.stash.grid = { moved: t, pty: t.pty, seller, first: k.shell.windows[0], views: [...seller.view.children] };
+  }, { id: ids.seller, url: `${SITE}/app?background` });
   await showResources(ui, 'Agents');
   await expect.poll(() => termText(ui)).toContain(`agent: rc of ${other}`);
   // A line as wide as an agent's prompt box (Claude Code's), and the size the agent has.
@@ -243,11 +247,11 @@ test('tasks: Move to New Window puts a task in a window of its own, still runnin
   expect(await core((k, id) => {
     const g = k.stash.grid;
     return { window: g.moved.window === g.second, title: g.second.win.getTitle(), agent: g.moved.pty === g.pty, profile: g.moved.profiles.get(id) === g.seller,
-      page: k.viewIn(g.seller.get().view, g.second.win) && !k.viewIn(g.seller.get().view, g.first.win) };
+      page: g.views.length === 2 && g.views.every((v: Electron.View) => g.seller.view.children.includes(v) && k.viewIn(v, g.second.win) && !k.viewIn(v, g.first.win)) };
   }, ids.seller)).toEqual({ window: true, title: 'New Task · other — Kulisa', agent: true, profile: true, page: true }); // the same agent, the same profile, its page moved
   await expect.poll(async () => {
     const b = await box(ui2, `[role="region"][data-profile="${ids.seller}"] [data-testid="page"]`);
-    return !!b && core((k, w) => { const g = k.stash.grid, view = g.seller.get().view; return view.getVisible() && Math.abs(view.getBounds().width - Math.round(w * g.second.win.webContents.getZoomFactor())) <= 1; }, b.width);
+    return !!b && core((k, w) => { const g = k.stash.grid, view = g.seller.view; return view.getVisible() && Math.abs(view.getBounds().width - Math.round(w * g.second.win.webContents.getZoomFactor())) <= 1; }, b.width);
   }).toBe(true);
   await expect.poll(() => termText(ui2)).toContain(`agent: rc of ${other}`);
   // What it showed comes as it was, not cut at a default width; the agent never gets another width meanwhile (it
@@ -311,7 +315,7 @@ test('tasks: Move to New Window puts a task in a window of its own, still runnin
   await expect.poll(() => core((k) => { const g = k.stash.grid; return k.shell.windows.length === 1 && k.shell.task === g.moved && !g.first.switching; })).toBe(true);
   expect(await core((k) => {
     const g = k.stash.grid;
-    return { gone: g.second.win.isDestroyed(), agent: g.moved.pty === g.pty, page: k.viewIn(g.seller.get().view, g.first.win) };
+    return { gone: g.second.win.isDestroyed(), agent: g.moved.pty === g.pty, page: g.views.every((v: Electron.View) => g.seller.view.children.includes(v) && k.viewIn(v, g.first.win)) };
   })).toEqual({ gone: true, agent: true, page: true }); // the same agent, its page back
   await expect.poll(async () => (await viewOn(core, ui, files, 'Sam.seller')) && (await termText(ui)).includes('moved along')).toBe(true);
   expect(await tabProjects(ui, files)).toEqual(['project', 'other *']);

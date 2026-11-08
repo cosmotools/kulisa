@@ -339,7 +339,7 @@ test('closing the last tab of a profile leaves an empty tab, not a pane without 
     if (by === 'window') await tabs.getByTitle('Close tab').click();
     else await call('browser_tab_close', { profile: 'Solo', tab: await core((k) => k.profile('Solo').active) });
     await expect.poll(() => core((k, was) => { const p = k.profile('Solo'); return p.tabs.length === 1 && p.tabs[0].id !== was && p.active === p.tabs[0].id; }, only)).toBe(true);
-    expect(await core((k) => k.profile('Solo').get().view.getVisible()), 'its page is shown').toBe(true);
+    expect(await core((k) => k.profile('Solo').view.getVisible()), 'its page is shown').toBe(true);
     await expect(tabs).toHaveCount(1);
   }
   const removed = ui.evaluate((id) => (window as any).act('profile:delete', { profile: id }), solo);

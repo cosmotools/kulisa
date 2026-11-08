@@ -145,7 +145,7 @@ test('tasks: + opens a task in the project\'s main working tree ("New Task", no 
   // The first task's profiles keep running, hidden; its agent sees its own.
   expect(await core((k, a) => {
     const s = k.shell.taskByKey(a.first).profiles.get(a.SAM);
-    return [s.tabs.every((t) => !t.wc.isDestroyed()), s.get().view.getVisible(), s.get().wc.getURL()];
+    return [s.tabs.every((t) => !t.wc.isDestroyed()), s.view.getVisible(), s.get().wc.getURL()];
   }, { first, SAM })).toEqual([true, false, `${SITE}/app?task`]);
   expect((await call('browser_snapshot', { profile: 'Sam.admin' }, { task: first })).text).toMatch(/URL: .*\/app\?task/);
   expect(await core((k, key) => { const f = k.shell.taskByKey(key); return !!f.pty && f.pty !== k.shell.pty; }, first)).toBe(true);

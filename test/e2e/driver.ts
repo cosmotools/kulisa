@@ -153,9 +153,11 @@ export function driver(shell: Shell, openedExternally: string[]) {
     // Whether a profile's page lies on its pane's box (CSS pixels of the window's page, from helpers.ts' pageBox):
     // the view is placed in window pixels, times the Kulisa zoom.
     viewOn(name: string, box: { x: number; y: number; width: number; height: number } | null) {
-      const t = profile(name).get(), z = shell.win.webContents.getZoomFactor();
+      const p = profile(name), t = p.get(), z = shell.win.webContents.getZoomFactor();
+      const parent = p.view.getBounds(), child = t.view.getBounds();
+      const bounds = { ...child, x: parent.x + child.x, y: parent.y + child.y };
       const scaled = box && Object.fromEntries(Object.entries(box).map(([key, v]) => [key, Math.round(v * z)]));
-      return !!box && t.view.getVisible() && JSON.stringify(t.view.getBounds()) === JSON.stringify(scaled);
+      return !!box && p.view.getVisible() && t.view.getVisible() && JSON.stringify(bounds) === JSON.stringify(scaled);
     },
     // The whole window as the screen shows it, its profiles' views included (window.ts, screenshot): on macOS only with
     // the screen recording permission (docs/testing.md, On macOS), else its page alone.

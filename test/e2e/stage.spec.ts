@@ -20,7 +20,7 @@ test('Stage has fixed positions, keeps development panels together and stays hid
       return position === 'left' ? s.x + s.width <= d.x + 1 : position === 'right' ? d.x + d.width <= s.x + 1 : s.y + s.height <= d.y + 1;
     }).toBe(true);
     expect(await ui.evaluate((panel) => panel === (window as any).__dock.getPanel('terminal'), identity), 'moving Stage retains the development terminal panel').toBe(true);
-    await expect.poll(() => core((k) => k.profile('Stage.browser').get().view.getVisible())).toBe(true);
+    await expect.poll(() => core((k) => k.profile('Stage.browser').view.getVisible())).toBe(true);
   }
   await arrange(ui, 'right');
   const before = await stage.boundingBox();
@@ -56,7 +56,7 @@ test('flat saved layouts restore browser panes inside the stage and development 
   await expect(next.locator('[data-task-view][data-active]').getByTestId('stage').locator('[data-panel^="profile:"]')).toHaveCount(1);
   expect(await next.evaluate(() => (window as any).__dock.panels.map((p: any) => p.id).sort())).toEqual(['resources:artifacts', 'resources:diff', 'resources:project', 'resources:terminals', 'terminal']);
   expect(await next.evaluate(() => (window as any).__stage.panels.every((p: any) => p.id.startsWith('profile:')))).toBe(true);
-  await expect.poll(() => core((k) => k.profile('Layout.browser').get().view.getVisible())).toBe(true);
+  await expect.poll(() => core((k) => k.profile('Layout.browser').view.getVisible())).toBe(true);
   await call('profile_close', { profile: 'Layout.browser' });
 });
 
@@ -163,19 +163,19 @@ test('a horizontal stack scrolls, clips native pages, and preserves their viewpo
   const firstWidth = await core((k) => k.profile('Row.first').bounds.width);
   // DOM scrolling has no Playwright action; native page bounds must follow the scroll event.
   await viewport.evaluate((el) => { el.scrollLeft = 350; });
-  await expect.poll(() => core((k) => !!k.profile('Row.first').clipView)).toBe(true);
+  await expect.poll(() => core((k) => !!k.profile('Row.first').clip)).toBe(true);
   const frame = await viewport.boundingBox();
-  const clipped = await core((k) => { const p = k.profile('Row.first'); return { clip: p.clipView.getBounds(), page: p.get().view.getBounds() }; });
+  const clipped = await core((k) => { const p = k.profile('Row.first'); return { clip: p.view.getBounds(), page: p.get().view.getBounds() }; });
   expect(clipped.clip.x).toBeGreaterThanOrEqual(Math.round(frame.x));
   expect(clipped.page.x).toBeLessThan(0);
   expect(clipped.page.width).toBe(firstWidth);
   await viewport.evaluate((el) => { el.scrollLeft = el.scrollWidth; });
-  await expect.poll(() => core((k) => !k.profile('Row.first').get().view.getVisible() && k.profile('Row.third').get().view.getVisible())).toBe(true);
+  await expect.poll(() => core((k) => !k.profile('Row.first').view.getVisible() && k.profile('Row.third').view.getVisible())).toBe(true);
   expect(await core((k) => k.profile('Row.first').bounds.width)).toBe(firstWidth);
   expect(await core((k) => { const p = k.profile('Row.third'); return (p.clip?.width ?? p.bounds.width) === p.bounds.width; }), 'the last pane is fully reachable horizontally').toBe(true);
   await core((k, file) => k.shot(file), info.outputPath('stage-row.png'));
   await call('stage_arrange', { layout: 'tabs' });
-  await expect.poll(() => core((k) => !k.profile('Row.first').clipView && k.profile('Row.first').get().view.getVisible())).toBe(true);
+  await expect.poll(() => core((k) => !k.profile('Row.first').clip && k.profile('Row.first').view.getVisible())).toBe(true);
   for (const name of ['Row.first', 'Row.second', 'Row.third']) await call('profile_close', { profile: name });
 });
 
@@ -192,7 +192,7 @@ test('a vertical stack scrolls without rebuilding panes and clips native pages',
   expect(await ui.evaluate(() => (window as any).__stage.groups.map((g: any) => g.id))).toEqual(groups);
   // Scroll position has no Playwright action; the native view must follow the DOM scroll.
   await viewport.evaluate((el) => { el.scrollTop = 200; });
-  await expect.poll(() => core((k) => !!k.profile('Column.first').clipView && k.profile('Column.first').get().view.getBounds().y < 0)).toBe(true);
+  await expect.poll(() => core((k) => !!k.profile('Column.first').clip && k.profile('Column.first').get().view.getBounds().y < 0)).toBe(true);
   await call('stage_arrange', { overflow: false });
   await expect.poll(() => viewport.evaluate((el) => el.scrollHeight <= el.clientHeight && el.scrollTop === 0)).toBe(true);
   // Fitting the container must resize every pane, not collapse one against its peers' old minimums.
@@ -200,6 +200,6 @@ test('a vertical stack scrolls without rebuilding panes and clips native pages',
     const grid = (window as any).__stage;
     return grid.groups.every((g: any) => g.api.height > grid.height / 4);
   })).toBe(true);
-  await expect.poll(() => core((k) => !k.profile('Column.first').clipView && k.profile('Column.first').get().view.getVisible())).toBe(true);
+  await expect.poll(() => core((k) => !k.profile('Column.first').clip && k.profile('Column.first').view.getVisible())).toBe(true);
   for (const name of ['Column.first', 'Column.second', 'Column.third']) await call('profile_close', { profile: name });
 });

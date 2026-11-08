@@ -66,7 +66,7 @@ test("tasks: switching shows the other grid and terminal; the one left keeps run
   await bothOn(core, ui, files);
   expect(await core((k, a) => {
     const t = k.shell.taskByKey(a.second), sam = t.profiles.get(a.SAM);
-    return [sam.get().view.getVisible(), sam.tabs.every((x) => !x.wc.isDestroyed()) && !!t.pty];
+    return [sam.view.getVisible(), sam.tabs.every((x) => !x.wc.isDestroyed()) && !!t.pty];
   }, { second, SAM }), "the second task's pages are hidden, and alive, its agent too").toEqual([false, true]);
   await termShows(ui, `agent: rc of ${files.project}\n`);
   await expect.poll(() => files.savedWindows()[0].shown, 'the shown task kept for the next start').toBe('project/1');
@@ -213,7 +213,7 @@ test('tasks: switching shows the other grid at once, its pages live once it is l
   // done once the window has drawn its frames and its channel gone there and back.
   await frames(ui);
   await ipcSettled(ui);
-  expect(await core((k) => [...k.shell.profiles.values()].every((p) => !p.get().view.getVisible())), 'the pages stay under the menu').toBe(true);
+  expect(await core((k) => [...k.shell.profiles.values()].every((p) => !p.view.getVisible())), 'the pages stay under the menu').toBe(true);
   await closeMenu(ui);
   await expect.poll(live).toBe(true);
 });

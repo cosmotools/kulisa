@@ -36,7 +36,7 @@ test('menus hand profile pages to decoded pictures and back without an empty lay
         const pictures = [...document.querySelectorAll('[data-task-view][data-active] [data-testid="snapshot"]')];
         return pictures.filter(i => i.complete && i.naturalWidth > 0).length;
       })()`);
-      k.stash.menuHandoff.push({ hidden: args[0], visible: [...w.profiles.values()].filter(p => p.get()?.view.getVisible()).length, images });
+      k.stash.menuHandoff.push({ hidden: args[0], visible: [...w.profiles.values()].filter(p => p.view.getVisible()).length, images });
       return result;
     };
   });
@@ -58,7 +58,7 @@ test('menus hand profile pages to decoded pictures and back without an empty lay
 test('context menus: a pane\'s header, a tab, the terminal; pages are pictures while a menu is open; terminal copy and paste', async ({ core, ui, files }) => {
   await begin(core, ui, files, { columns: true });
   const elonId = files.idOf(ELON), header = `[data-panel="${files.panel(ELON)}"]`;
-  const elonVisible = () => core((k) => k.profile('Elon.buyer').get().view.getVisible());
+  const elonVisible = () => core((k) => k.profile('Elon.buyer').view.getVisible());
   const headerMenu = `
     - menu:
       - menuitem "New tab"

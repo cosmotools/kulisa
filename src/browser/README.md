@@ -8,12 +8,14 @@ This [Kulisa package](../../docs/packages.md) imports no task, project, profile 
 `main/index.ts` exports `Profile`, configuration/tab types, navigation helpers, cookie synchronization, focus and
 storage operations. `ipc.ts` defines host-visible state; there is no renderer half.
 
-- Hosts supply the window, profile configuration, absolute data folder/session, site zoom and opaque ownership key
-  (`task`, for automation and screenshot namespacing). They coordinate tab restoration, proxy attachment,
-  persistence, sign-in/discard policy, membership and folder removal.
-- `Profile` owns views/listeners, clipping parent, active tab, ten closed addresses, Playwright connection and
-  discard/load lifecycle. Close disconnects and closes tabs; destroy also wipes the session. Moving windows detaches
-  views and clears clipping. Each live tab owns its process; the package adds no process or retained buffer.
+- Hosts supply the window, optional native parent (default: the window's content view), profile configuration,
+  absolute data folder/session, site zoom and opaque ownership key (`task`, for automation and screenshot namespacing).
+  They coordinate tab restoration, proxy attachment, persistence, sign-in/discard policy, membership and folder removal.
+- `Profile` owns one persistent native `View` containing all live tabs, their listeners, active-tab selection, ten
+  closed addresses, Playwright connection and discard/load lifecycle. Its `View` provides group visibility and clips
+  pages; child bounds preserve the full viewport with an offset inside it. Layout coordinates are relative to the
+  supplied host. Moving windows reparents the group, hidden until layout. Close disconnects, detaches the container and
+  closes tabs; destroy also wipes the session. The container adds no renderer process or retained buffer.
 - `readTabs`/`writeTabs`: `Kulisa Tabs.json`. `SessionCookies`: encrypted `Kulisa Session Cookies.bin`.
   `copyProfile` copies a flushed master excluding caches and the open cookie database; masters/copies share formats.
   Atomic writes use `src/main/files.ts`.

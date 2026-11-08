@@ -82,8 +82,8 @@ test("delete a profile in Settings (its page's ⋯, its row's right-click): sign
   expect(await core((k) => [...k.shell.profiles.keys()])).toEqual(others);
   expect(await core(async (k) => {
     const temp = k.stash.temp;
-    return { tabs: temp.tabs.length, cookies: await temp.session.cookies.get({}) };
-  })).toEqual({ tabs: 0, cookies: [] });
+    return { tabs: temp.tabs.length, cookies: await temp.session.cookies.get({}), children: temp.view.children.length, attached: k.viewIn(temp.view, temp.win) };
+  })).toEqual({ tabs: 0, cookies: [], children: 0, attached: false });
   expect(fs.existsSync(cookiesFile)).toBe(false);
   const savedIds = () => files.json(files.pfile('task.json')).stage.items.filter((i: { type: string }) => i.type === 'profile').map((p: { id: string }) => p.id);
   await expect.poll(savedIds).toEqual(others);

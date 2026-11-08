@@ -107,7 +107,7 @@ test('an outgoing menu capture cannot hide a task after switching away and back'
     await notLoading(ui);
     await invoke(ui, 'task:show', first);
     await notLoading(ui);
-    await expect.poll(() => core((k, id) => k.shell.task.profiles.get(id).get().view.getVisible(), profile)).toBe(true);
+    await expect.poll(() => core((k, id) => k.shell.task.profiles.get(id).view.getVisible(), profile)).toBe(true);
     await core((k) => k.stash.taskViewCapture.release());
     await expect.poll(() => core((k) => k.stash.taskViewCapture.completed)).toBe(true);
     await ipcSettled(ui);

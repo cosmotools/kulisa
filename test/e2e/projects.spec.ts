@@ -297,7 +297,7 @@ test("projects: the title bar's gear shows Settings over the window at the shown
   expect(await s.locator('#settings main [data-row]').count() > 0).toBe(true);
   await pageOf(s, 'project');
   // The pages hidden under it, as under a dialog (they draw above the window's HTML).
-  await expect.poll(() => core((k) => k.profile('Sam.admin').get().view.getVisible())).toBe(false);
+  await expect.poll(() => core((k) => k.profile('Sam.admin').view.getVisible())).toBe(false);
   expect(await core((k) => { delete k.shell.windows[0].hideViews; return k.stash.drawn; }), 'once, Settings drawn').toEqual([true]);
   // The other project is closed: its configuration all the same; a profile made and let go there (asked first).
   await openThing(s, 'projects', closedId);
@@ -318,7 +318,7 @@ test("projects: the title bar's gear shows Settings over the window at the shown
   await core((k, f) => k.shot(f), png);
   await test.info().attach('projects', { path: png, contentType: 'image/png' });
   await closeSettings(core, ui, sui);
-  await expect.poll(() => core((k) => k.profile('Sam.admin').get().view.getVisible()), 'the pages back').toBe(true);
+  await expect.poll(() => core((k) => k.profile('Sam.admin').view.getVisible()), 'the pages back').toBe(true);
   await forget(core, ui, files, 'closed');
 });
 
