@@ -9,7 +9,7 @@ import { BrowserWindow, desktopCapturer, screen, shell as electronShell } from '
 import path from 'path';
 import fs from 'fs';
 import { page } from './pages.ts';
-import { log } from './log.ts';
+import { log, summary } from './log.ts';
 import { focusWindow } from '../browser/main/index.ts';
 import { Thumbnails } from '../screenshots/main/index.ts';
 import type { Rectangle, Point } from 'electron';
@@ -112,7 +112,7 @@ class AppWindow {
     win.on('blur', () => { if (this.task) this.shell.dictation.letGo(this.task.key); this.send('window:blur'); });
   }
   get task() { return this.current; }
-  get viewsHidden() { return this.covered || this.switching || !this.task || !this.laidOut.has(this.task); }
+  get viewsHidden() { return this.covered || this.switching || !this.task || this.task.viewFailed || !this.laidOut.has(this.task); }
   get profiles(): Map<string, Profile> { return this.task?.profiles || NONE; }
   get closed(): Task['closed'] { return this.task?.closed || NONE; }
   where() { return { bounds: this.win.getNormalBounds(), maximized: this.win.isMaximized() }; }
@@ -266,6 +266,19 @@ class AppWindow {
   }
 
   // ---------- the profiles' views ----------
+  failTaskView({ task: key, kind, frames }: { task: string; kind: string; frames: string[] }) {
+    const task = this.tabs.find((t) => t.key === key);
+    if (!task || task.viewFailed) return;
+    task.viewFailed = true;
+    this.laidOut.delete(task);
+    log.error(`[task-view] failed wc=${this.win.webContents.id} ${summary({ task: key, kind, frames }, 1200)}`);
+    for (const p of task.profiles.values()) p.setHidden(true);
+    if (task === this.task) {
+      for (const { cancel } of this.picking.values()) cancel();
+      this.thumbnails.close(); this.updateViews(); focusWindow(this.win.webContents);
+    }
+    this.sendProjects();
+  }
   private updateViews() {
     // One main-process turn avoids an empty native layer between prepared tasks.
     for (const p of this.profiles.values()) p.setHidden(this.viewsHidden);
@@ -274,7 +287,7 @@ class AppWindow {
   }
   // Capturing and covering are separate so the renderer can paint the replacement before hiding native pages.
   hideViews(hidden: boolean, { focus = true, task }: { focus?: boolean; task?: string } = {}) {
-    if (task !== undefined && task !== this.task?.key || !hidden && !this.covered) return;
+    if (task !== undefined && (task !== this.task?.key || this.task.viewFailed) || !hidden && !this.covered) return;
     this.covered = hidden;
     // A dialog over the pages (hidden, no pictures): a page that had the keyboard keeps it unseen, and the dialog's focus
     // trap (Radix's) works in a page that has the keyboard, its keys going nowhere else: the window's page takes it. Menus
@@ -311,7 +324,7 @@ class AppWindow {
   // in window pixels.
   layout(key: string | null, rects: Record<string, PageLayout>) {
     const task = this.tabs.find((t) => t.key === key);
-    if (!task?.loaded) return;
+    if (!task?.loaded || task.viewFailed) return;
     const z = this.win.webContents.getZoomFactor();
     const scale = (r: Partial<Bounds>): Bounds => ({ x: Math.round((r.x ?? 0) * z), y: Math.round((r.y ?? 0) * z), width: Math.round((r.width ?? 0) * z), height: Math.round((r.height ?? 0) * z) });
     for (const [id, { clip, ...r }] of Object.entries(rects)) task.profiles.get(id)?.layout(r.shown === false ? r : { ...scale(r), ...(clip && { clip: scale(clip) }) });

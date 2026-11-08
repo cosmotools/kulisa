@@ -34,7 +34,7 @@ export function DevelopmentTerminals({ visible }: { visible: boolean }) {
     if (!active) return;
     const el = host.current!;
     el.append(panelView.el);
-    return () => { if (panelView.el.parentElement === el) panelView.el.remove(); };
+    return () => { if (panelView.el.parentElement === el) { panelView.show(null); panelView.el.remove(); } };
   }, [active]);
   useLayoutEffect(() => { if (active) panelView.show(shown); }, [active, shown]);
   // Another tab in front of the same task (chosen, or opened by the human): the keyboard goes to it. Not from a dialog

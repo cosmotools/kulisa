@@ -74,6 +74,7 @@ class Task {
   shell: Shell; project: Project; entry: TaskEntry; id: string; key: string; store: TaskStore;
   window: AppWindow | null; // the one whose tab it is (window.ts)
   loaded: boolean; terminalsLoaded: boolean;
+  viewFailed = false; // Runtime only; moving windows must not silently retry a failed React screen.
   gitChecked: Promise<void>; // its project's repositories looked at as it loads (Project.checkGit), awaited by its agents
   _copying: Promise<unknown>; // its copies made one at a time (copying)
   developmentTerminals: Map<number, DevelopmentTerminal>; developmentTerminalSeq: number; list: ProjectProfiles;
@@ -703,7 +704,7 @@ class Task {
     forgetTerminal(this.key);
     this.terminalsLoaded = false; this.front = null; this.lastAgent = null;
     if (this.loaded) this.list.saveTabs();
-    this.loaded = false;
+    this.loaded = false; this.viewFailed = false;
     await this.list.unloadAll();
   }
   // An agent's session, as its hooks report it (agent-hooks.ts).
@@ -810,7 +811,7 @@ class Task {
   info(): Sent.TaskInfo {
     const { id, key, displayName: name, tabState: state, folder } = this;
     return { id, key, project: this.project.id, name, state, folder, branch: this.branch, closed: this.entry.closedAt !== undefined,
-      repos: this.addable(), resources: this.resources() };
+      repos: this.addable(), resources: this.resources(), viewFailed: this.viewFailed };
   }
   // Its resources as the Resources panel (Resources.tsx) shows them: the first, where it works, is not removed there
   // (the main tree is the human's, its own worktree goes with the task); an added repository's worktree is

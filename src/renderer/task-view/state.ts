@@ -45,6 +45,7 @@ function syncTasks() {
   const open = new Set(projects.tabs.map((t) => t.key)), previous = tasks.getState();
   const next = Object.fromEntries(Object.entries(previous).filter(([key]) => open.has(key)));
   if (current && !next[current]) next[current] = makeTask(current);
+  for (const tab of projects.tabs) if (tab.viewFailed && next[tab.key]?.getState().loading) next[tab.key]!.setState({ loading: false });
   tasks.setState(replaceEqualDeep(previous, next), true);
 }
 syncTasks();

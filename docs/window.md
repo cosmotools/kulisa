@@ -90,6 +90,13 @@ successive menus retain prepared images. An adaptive deadline bounds capture wai
 menus; missing frames leave empty panes. New tabs grow without remounting the strip; address focus fades; suppress
 animations for reduced motion.
 
+### Task rendering failures
+
+Each retained TaskView has a React Error Boundary; construction stays inside it, subscriptions begin after commit.
+A failed screen releases UI resources while agents, PTYs and browser profiles continue. Main keeps its native pages
+hidden until task closure, including after delayed layout/visibility messages or moving windows. Preserve healthy
+tasks' controllers and stores. There is no automatic remount; React boundaries do not contain hangs or renderer crashes.
+
 ### Stage terminals
 
 A CLI/TUI pane uses the shared terminal runtime, with task-saved name, optional command and dimensions.

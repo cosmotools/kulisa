@@ -16,6 +16,7 @@ import { Resources, ResourceIcon, ResourceActions } from './Resources';
 import { developmentTheme, dockTheme } from './dock-theme';
 import { registerTaskGrid } from './controller';
 import { TaskGrid } from './grid';
+import { TaskBoundary } from './TaskBoundary';
 import { useWindow } from '../lib/store';
 import { TaskContext, tasks, useTask, useTaskActive, useTaskGrid, type TaskStore } from './state';
 import { profileLaunchers } from './profiles';
@@ -98,26 +99,37 @@ const Screen = memo(function Screen() {
 const TaskView = memo(function TaskView({ state, active }: { state: TaskStore; active: boolean }) {
   const [grid] = useState(() => new TaskGrid(state));
   const [loaded, setLoaded] = useState(false);
-  const host = useRef<HTMLElement>(null);
-  useEffect(() => { void grid.load().then((ready) => { if (ready) setLoaded(true); }); }, [grid]);
+  const [failure, setFailure] = useState<{ error: unknown } | null>(null);
+  const host = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    let mounted = true;
+    void grid.load().then((ready) => { if (mounted && ready) setLoaded(true); }, (error: unknown) => { if (mounted) setFailure({ error }); });
+    return () => { mounted = false; };
+  }, [grid]);
   useLayoutEffect(() => {
     const unregister = registerTaskGrid(grid);
     // The host remains observable while content-visibility skips the grids inside it.
     const resized = new ResizeObserver(grid.resize);
-    resized.observe(host.current!);
+    resized.observe(host.current!.closest('[data-task-view]')!);
     return () => { resized.disconnect(); unregister(); };
   }, [grid]);
   useLayoutEffect(() => { if (active) grid.activate(); }, [grid, active]);
-  return <section ref={host} data-task-view={grid.key} data-active={active || undefined} aria-hidden={!active || undefined}
-    className="absolute inset-0" inert={!active || undefined}>
+  if (failure) throw failure.error;
+  return <div ref={host} className="absolute inset-0">
     <TaskContext value={grid}>{loaded && <Screen />}</TaskContext>
-  </section>;
+  </div>;
 });
 export function TaskViews() {
   const retained = useStore(tasks), current = useWindow((s) => s.current), loading = useTask((s) => s.loading);
+  const tabs = useWindow((s) => s.projects.tabs);
   const shade = useShade();
   useEffect(() => panelView.restyle(termStyle()), [shade]);
   return <main id="dock" className="relative isolate min-h-0 min-w-0" aria-busy={loading || undefined}>
-    {Object.entries(retained).map(([key, state]) => <TaskView key={key} state={state} active={key === current} />)}
+    {Object.entries(retained).map(([key, state]) => <section key={key} data-task-view={key} data-active={key === current || undefined}
+      aria-hidden={key !== current || undefined} inert={key !== current || undefined} className="absolute inset-0">
+      <TaskBoundary task={state} failed={!!tabs.find((t) => t.key === key)?.viewFailed}>
+        <TaskView state={state} active={key === current} />
+      </TaskBoundary>
+    </section>)}
   </main>;
 }

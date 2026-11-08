@@ -7,5 +7,6 @@ import './lib/names';
 import './lib/keys';
 import './lib/test-hooks';
 
-createRoot(document.getElementById('app')!).render(<App />);
+// TaskBoundary reports caught errors without React's default dump of the thrown object to the window log.
+createRoot(document.getElementById('app')!, { onCaughtError: () => {} }).render(<App />);
 void kulisa.invoke('project:refresh'); // the bar's tabs and the shown task (window.ts, sendProjects)
