@@ -51,6 +51,7 @@
     "electron": "^44.8.0",
     "eslint": "^10.12.0",
     "eslint-plugin-react-hooks": "^7.1.1",
+    "image-size": "2.1.0",
     "knip": "^6.41.0",
     "lucide": "^1.63.0",
     "lucide-react": "^1.62.0",
@@ -93,7 +94,8 @@
   },
   "scripts": {
     "start": "vite build --logLevel warn && node scripts/electron.ts .",
-    "build": "tsc -p . && tsc -p test && tsc --noEmit -p src/renderer && vite build --logLevel warn",
+    "build": "tsc -p . && tsc -p test && tsc --noEmit -p src/renderer && vite build --logLevel warn && npm run example:file-viewer",
+    "example:file-viewer": "tsc -p examples/file-viewer && node scripts/file-viewer-example.ts",
     "watch": "vite build --watch",
     "test": "node test/start.ts",
     "test:visible": "node test/start.ts --visible",

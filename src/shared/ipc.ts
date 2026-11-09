@@ -4,6 +4,7 @@
 // (the tests read some).
 import type { ProjectFile, ProjectGitStatus } from '../project-explorer/ipc.ts';
 import type { EditorAction, EditorSnapshot } from '../editor/ipc.ts';
+import type { ViewerBox, ViewerSearchResult } from '../file-viewer/ipc.ts';
 import type { Result } from './result.ts';
 import type { DiffOptions, Diff, FileDiff, Review } from '../diff/ipc.ts';
 import type { StageTerminal, StageTerminalsState, TerminalSize } from './stage-terminal.ts';
@@ -105,8 +106,14 @@ export interface Invoke extends TerminalInvoke, ThumbnailInvoke, GitHubInvoke, D
   'task:files:folders': I<[string], { folder: string; name: string }[]>;
   'task:files:open': I<[{ key: string; folder: string }], Result>;
   'task:artifact:open': I<[{ key: string; file: string }], Result>;
+  'task:artifact:view': I<[{ key: string; file: string }], Result>;
   'task:artifact:thumbnails': I<[{ key: string; files: string[] }]>;
   'task:artifact:refresh': I<[string]>; // the task's artifacts sent again (Resources.tsx: the task shown)
+  'task:artifact:read': I<[{ key: string; file: string; offset: number; length: number }], Result<{ bytes: Uint8Array; size: number; revision: string }>>;
+  'task:artifact:pdf:open': I<[{ key: string; file: string; request: string; box: ViewerBox }], Result>;
+  'task:artifact:pdf:place': I<[{ request: string; box: ViewerBox }]>;
+  'task:artifact:pdf:close': I<[{ request: string }]>;
+  'task:artifact:pdf:find': I<[{ request: string; query: string; forward: boolean }], ViewerSearchResult>;
   'task:artifact:send': I<[{ key: string; file: string }], Result>;
   'task:artifact:drag': I<[{ key: string; file: string }], Result>;
   'task:artifact:delete': I<[{ key: string; files: string[] | null }], Result>; // null: all
@@ -197,6 +204,8 @@ export interface Events extends TerminalEvents, ThumbnailEvents, DictationEvents
   'development-terminal:state': DevelopmentTerminalsState;
   'stage-terminal:state': StageTerminalsState;
   'task:artifact:state': { task: string; list: Artifact[]; bytes: number }; // bytes: all of them (Task.artifactsUsage)
+  'artifact:pdf:find': void;
+  'task:artifact:selected': { task: string; file: string };
   'development-terminal:focus': void;
   'stage:arrange': { task: string; layout?: StageLayout; overflow?: boolean; position?: StagePosition };
   'task:closed': string[];

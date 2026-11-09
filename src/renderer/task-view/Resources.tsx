@@ -95,11 +95,13 @@ function TaskResources({ section }: { section: ActivityItem }) {
         const files = paths.map(fileAt).filter((file): file is string => !!file);
         if (files.length) void kulisa.invoke('task:artifact:thumbnails', { key, files });
       },
-      open: (path: string) => { const file = fileAt(path); if (file) void kulisa.invoke('task:artifact:open', { key, file }); },
+      open: (path: string) => { const file = fileAt(path); if (file) void kulisa.invoke('task:artifact:view', { key, file }); },
       drag: (path: string) => { const file = fileAt(path); if (file) void kulisa.invoke('task:artifact:drag', { key, file }); },
       menu: (path: string, at: { clientX: number; clientY: number }) => {
         const file = fileAt(path); if (!file) return;
-        menuAt(at, [{ label: 'Open', run: () => kulisa.invoke('task:artifact:open', { key, file }) }, { label: 'Show in Folder', run: () => kulisa.invoke('file:show', file) },
+        const directory = artifacts.find((a) => a.file === file)?.directory;
+        menuAt(at, [{ label: 'Open', run: () => kulisa.invoke(directory ? 'task:artifact:open' : 'task:artifact:view', { key, file }) },
+          ...(!directory ? [{ label: 'Open in System Application', run: () => kulisa.invoke('task:artifact:open', { key, file }) }] : []), { label: 'Show in Folder', run: () => kulisa.invoke('file:show', file) },
           { label: 'Send to Agent', run: () => kulisa.invoke('task:artifact:send', { key, file }) }, '-',
           { label: 'Delete', run: () => kulisa.invoke('task:artifact:delete', { key, files: [file] }) }]);
       },

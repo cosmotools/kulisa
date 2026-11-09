@@ -1,0 +1,17 @@
+/* Portable controls: scoped CSS and host variables, independent of Tailwind and Kulisa (../README.md). */
+.file-viewer { display: flex; flex-direction: column; height: 100%; min-height: 0; min-width: 0; color: var(--file-viewer-foreground, CanvasText); background: var(--file-viewer-background, Canvas); font: inherit; }
+.file-viewer-message { padding: 16px; overflow: auto; }
+.file-viewer-text { display: flex; flex-direction: column; flex: 1; min-height: 0; min-width: 0; }
+.file-viewer-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 4px 8px; border-bottom: 1px solid var(--file-viewer-border, ButtonBorder); font-size: 12px; }
+.file-viewer-tools input { min-width: 60px; flex: 1; max-width: 240px; }
+.file-viewer-tools input, .file-viewer-tools button { font: inherit; color: inherit; background: transparent; border: 1px solid var(--file-viewer-border, ButtonBorder); border-radius: 6px; padding: 4px 8px; }
+.file-viewer-tools button { cursor: default; }
+.file-viewer-tools button[aria-pressed=true] { background: var(--file-viewer-selected, Highlight); color: var(--file-viewer-selected-text, HighlightText); }
+.file-viewer-tools button:disabled { opacity: .4; }
+.file-viewer-code { flex: 1; min-height: 0; overflow: auto; user-select: text; }
+.file-viewer-pdf { flex: 1; min-height: 0; }
+.file-viewer-image { display: flex; flex-direction: column; flex: 1; min-height: 0; min-width: 0; }
+.file-viewer-image-scroll { flex: 1; min-height: 0; min-width: 0; overflow: auto; }
+.file-viewer-image-canvas { display: grid; place-items: center; min-width: 100%; min-height: 100%; box-sizing: border-box; padding: 16px;
+  background-image: conic-gradient(var(--file-viewer-border, ButtonBorder) 25%, transparent 0 50%, var(--file-viewer-border, ButtonBorder) 0 75%, transparent 0); background-size: 16px 16px; }
+.file-viewer-image-canvas img { display: block; max-width: none; max-height: none; }

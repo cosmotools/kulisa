@@ -6,7 +6,7 @@ export type ThumbnailAction = 'show' | 'copy' | 'send' | 'delete' | 'close' | 'r
 
 // ipcRenderer.send / ipcMain.on: what the thumbnail's page says, no answer.
 export interface ThumbnailSend {
-  'thumbnail:open': void; // a click: the file in the OS's app for it
+  'thumbnail:open': void; // a click: the caller opens the artifact
   'thumbnail:drag': void; // a drag started: the file dragged out
   'thumbnail:menu': { x: number; y: number }; // a right-click, where in its page
   'thumbnail:hover': boolean; // the pointer over it, or gone

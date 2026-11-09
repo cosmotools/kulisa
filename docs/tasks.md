@@ -119,7 +119,11 @@ state and shared expanded width.
   the system app. The shared header shows the branch; exceptions stay beside their repository. Root click expands, double-click
   opens in the OS; root menus remove added copies, never the main/default task folder.
 - **Artifacts**: a Trees view of the task's result folders and files, including empty folders. Rows show optional
-  provenance, modification time, size and raster previews. Click/Enter opens a file; menus open/reveal/send/delete.
+  provenance, modification time, size and raster previews. Click/Enter selects the Main pane’s
+  [File Viewer](../src/file-viewer/README.md) for bounded read-only UTF-8 text, native PDF or Chromium images; other formats offer system
+  opening. Live revisions update changed content; selection stays with the task, while leaving Artifacts/task releases
+  content and native views. Task Files owns confined ranged reads; files never enter the saving editor’s roots.
+  Menus open/reveal/send/delete; system opening preserves executable refusal.
   Send inserts a shell-quoted path without Enter. Native drag validates task ownership. Heading trash deletes only
   results; File Folders opens results or temporary work in the OS. [Storage rules](#artifacts-and-temporary-files).
 
@@ -166,7 +170,7 @@ to the human; the window's IPC (`ipc/`) and the MCP tools are handles on it:
 | Browse a task’s folders and Git status, open/edit a file | Project in the Side bar; double-click/Enter, Open or Open in System Application | the agent uses its own filesystem/Git tools; human drafts and conflict choices stay human-owned | `task:file:list`, `task:file:status`, `task:editor`, `task:file:open` (`Task.files`, `Task.fileStatus`, `Task.editor`, `Task.openProjectFile`; reads/writes confined to current roots) |
 | Review local code changes | Diff Activity bar item, continuous file diffs; Unified or Split | the agent reads its Git repository through its own tools | `task:diff:list`, `task:diff:targets`, `task:diff:review`, `task:diff:contents` (`Task.diff`, `Task.diffTargets`, `Task.review`, `Task.diffContents`) |
 | Open a resource's folder | double-click its root in the Side bar, or Open Folder in its menu | none: the agent opens folders through its own tools | `task:open-folder` (`ipc/tasks.ts`) |
-| Open an artifact, show it in its folder | a click on its Side bar item, its menu | none: the tools' answers give the agent its path | `Task.openArtifact`, `file:show` (`file-links.ts`) |
+| View an artifact, open it externally, show it in its folder | click/row menu selects preview; preview/row actions open externally or reveal | none: agents read paths through their own tools; preview is the human’s surface | `Task.viewArtifact`, `Task.readArtifact`, `Task.openArtifact`, `artifact-viewer.ts`, `file:show` |
 | See what the artifacts take | the Artifacts heading in the Side bar (the shown task's) | `task_artifacts`: its task's files, or each task's total | `Task.artifactsUsage` (src/activity-monitor) |
 | Send an artifact to the agent | Send to Agent in its row’s or screenshot thumbnail’s menu; drag a screenshot thumbnail onto a terminal | none: preparing the human’s next message | `Task.sendArtifact`; terminal file drop |
 | Delete artifacts | Delete in a file/folder menu; the heading's 🗑, all results | `task_artifacts_delete`: some or all of its task's | `Task.deleteArtifacts` |

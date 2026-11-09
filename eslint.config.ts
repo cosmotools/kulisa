@@ -100,4 +100,7 @@ export default tseslint.config(
   { files: WINDOW, rules: { 'no-restricted-syntax': ['error', EXPORT_ALL, ...OWN, HEX, COLORS] } },
   { files: ['src/renderer/components/AgentMark.tsx', 'src/renderer/components/ProjectIcon.tsx'],
     rules: { 'no-restricted-syntax': ['error', EXPORT_ALL, ...OWN, COLORS] } },
+  // The author requires an extractable viewer without @ui or application styling. Its standard HTML controls
+  // have scoped package CSS and explicit theme variables; the host's surrounding controls still use shadcn.
+  { files: ['src/file-viewer/renderer/**'], rules: { 'no-restricted-syntax': ['error', EXPORT_ALL] } },
 );

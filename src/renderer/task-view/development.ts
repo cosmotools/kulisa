@@ -91,6 +91,10 @@ export class DevelopmentGrid {
     this.store.setState({ workbenchItem: item });
     if (item === 'diff' && !this.store.getState().developmentDiff) this.openDiff();
   }
+  showArtifact(file: string) {
+    this.store.setState((state) => ({ selectedArtifact: file, artifactNavigation: state.artifactNavigation + 1 }));
+    this.showItem('artifacts');
+  }
   private resourceChanged = () => {
     const item = this.api?.getGroup('resources')?.activePanel?.params?.section as ActivityItem | undefined;
     if (item && Object.hasOwn(activityItems, item)) this.selectItem(item);

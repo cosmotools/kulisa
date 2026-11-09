@@ -272,8 +272,7 @@ test("a pane's ⋮ → Screenshot takes an element, the visible part or the whol
   await expect.poll(shots).toEqual([]);
 });
 
-// The thumbnail (src/screenshots, The thumbnail): what the OS would do with the file is stubbed (a file manager, an
-// app: outside the tests' folder).
+// The thumbnail (src/screenshots, The thumbnail): desktop reveal remains outside CDP and is observed at the OS call.
 test('a screenshot shows its thumbnail in its pane\'s corner: a click opens it, it drags out, its menu shows, copies, sends it to the agent, deletes; its × closes it; it fades in and out; it goes by itself unless the pointer is over it', async ({ core, ui }) => {
   const id = await core(async (k, url) => (await k.ensureProfile('Sam.admin', url)).id, `${SITE}/app`);
   const was = await core(async (k, url) => { const page = await k.profile('Sam.admin').page(), w = page.url(); await page.goto(url); return w; }, `${SITE}/tall`);
@@ -306,7 +305,10 @@ test('a screenshot shows its thumbnail in its pane\'s corner: a click opens it, 
     await state('in');
     await expect(shown).toHaveCount(1);
     await tp.locator('img').click();
-    await expect.poll(did).toContain(`open ${file}`);
+    const preview = ui.getByRole('region', { name: 'Artifact preview', exact: true });
+    await expect(preview.getByRole('img', { name: path.basename(file), exact: true })).toBeVisible();
+    await expect(preview.getByRole('button', { name: '100%', exact: true })).toBeEnabled();
+    expect(await did()).not.toContain(`open ${file}`);
     await core((k) => { const wc = k.stash.thumbWc; wc.startDrag = (item: { file: string }) => { k.stash.dragged = item.file; }; });
     // Dragged out as the hand drags it: pressed, then moved.
     const img = await tp.locator('img').boundingBox();

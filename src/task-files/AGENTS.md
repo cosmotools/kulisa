@@ -11,4 +11,4 @@ Read `README.md` and `docs/packages.md`.
   release watchers, timers and previews; no disk quota or automatic expiry.
 - Use public Trees APIs and caller-provided menu/action callbacks. Keep basename thumbnail collisions generic
   until #400; never patch upstream internals or generated `src/ui` components.
-- Unit coverage: `files.test.ts`; E2e: `task-files.spec.ts`, `agent-reports.spec.ts`, `profiles.spec.ts`.
+- Unit coverage: `files.test.ts`, `read.test.ts`; E2e: `task-files.spec.ts`, `agent-reports.spec.ts`, `profiles.spec.ts`.

@@ -9,6 +9,7 @@ import { Pill } from '../../dictation/renderer';
 import { activityItems } from './development';
 import { DevelopmentTerminals } from './DevelopmentTerminals';
 import { TaskDiff } from './Diff';
+import { Artifacts } from './Artifacts';
 import { CodeEditor } from '../../editor/renderer';
 import { StageTerminalPane, StageTerminalHeader } from './StageTerminalPane';
 import { ProfilePane, ProfileHeader } from './ProfilePane';
@@ -43,9 +44,10 @@ function DevelopmentContent(props: IDockviewPanelProps) {
     {editorShown && <div hidden={item !== 'project'} className="h-full min-h-0"><Suspense fallback={<p role="status">Loading editor…</p>}>
       <CodeEditor session={grid.development.editor} active={active && item === 'project'} shade={shade} fontSize={fontSize} />
     </Suspense></div>}
-    {(item === 'artifacts' || item === 'diff' && !diff) &&
+    {active && item === 'artifacts' && <Artifacts />}
+    {item === 'diff' && !diff &&
       <Empty className="h-full"><EmptyHeader><EmptyTitle>
-        {item === 'artifacts' ? 'choose artifact' : 'choose file'}
+        choose file
       </EmptyTitle></EmptyHeader></Empty>}
     {hasTerminals && <Pill task={task}><CheckIcon className="size-3.5 text-success" /></Pill>}
   </section>;

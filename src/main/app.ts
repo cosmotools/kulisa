@@ -15,6 +15,7 @@ import { SessionCookies } from '../browser/main/index.ts';
 import { pictureOf, githubUsers, deleteGitHub } from './projects.ts';
 import { GitHub, installGitHub } from '../github/main/index.ts';
 import { ActivityMonitor } from '../activity-monitor/main/index.ts';
+import { registerPdfScheme } from '../file-viewer/main/index.ts';
 import { Dictation, installDictation } from '../dictation/main/index.ts';
 import { recognizer } from './recognizer.ts';
 import { COLORS } from './window.ts';
@@ -85,6 +86,7 @@ function start(options: Options = {}) {
   const userData = options.userData || path.join(app.getPath('appData'), 'Kulisa');
   app.setPath('userData', userData);
   if (options.quit) return askToQuit(userData);
+  registerPdfScheme();
   const { previousRunQuit } = startLog(userData, app.isPackaged);
   log.info(`[kulisa] start ${environment()}, data ${userData}`);
   // A crash of the main process writes no line: Crashpad keeps its minidump in crashDumps (Crashpad prunes them itself:

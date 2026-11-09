@@ -26,6 +26,8 @@ region without duplicate region wrappers.
 `development.ts` owns Activity bar selection; Dockview IDs remain stable for saved layouts.
 It also owns the caller's Editor session. Project's Main pane retains the lazy editor while other Activity bar items
 are selected; task disposal releases retained histories. Filesystem/draft/autosave ownership: [Editor](../../editor/README.md).
+`Artifacts.tsx` adapts task-authorized reads, native PDF access and host actions to [File Viewer](../../file-viewer/README.md).
+Selection survives Activity bar/task changes, while the viewer unmounts to release content and native processes.
 
 Profile identity uses a custom notch: masked concave shoulders in `ProfilePane.css` attach it to the pane's top edge.
 This geometry is outside shadcn's component shapes. A narrow pane gives up Back, Forward and Reload into ⋮ in that
