@@ -41,6 +41,9 @@ kulisa.on('stage:follow:state', (stageFollow) => {
 });
 kulisa.on('task:closed', forgetTerminals);
 kulisa.on('task:editor:state', ({ task, state }) => grids.get(task)?.development.receiveEditor(state));
+kulisa.on('task:artifact:selected', ({ task, file }) => {
+  if (task === store.getState().current) grids.get(task)?.development.showArtifact(file);
+});
 kulisa.on('terminal:gone', forgetTerminals);
 document.addEventListener('dragend', () => current()?.finishDrag(), true);
 document.addEventListener('drop', () => setTimeout(() => current()?.finishDrag()), true);

@@ -92,10 +92,17 @@ Side bar, or drag its divider to resize it. Terminals keep running when you swit
   press Enter to open it. Right-click for **Open**, **Open in System Application** or **Show in Folder**.
   A repository's **⋯** or right-click menu offers **Open Folder** and, for an added copy, **Remove Repository**.
 - **Artifacts** shows the task's completed files and folders as a tree, folders first and alphabetically. Expand a
-  folder; click a file or press Enter to open it. Right-click a file or folder to open, reveal, send to the agent or
-  delete it. The heading's trash deletes all results. Drag a file to another app or folder. **Send to Agent** puts
+  folder; click a file or press Enter to preview it in the Main pane. Right-click a file or folder to open, reveal,
+  send to the agent or delete it. The heading's trash deletes all results. Drag a file to another app or folder. **Send to Agent** puts
   its path in the agent's input for you to review and send. **File Folders** opens results, all temporary material or
   one conversation's temporary folder in your file manager.
+
+Text preview accepts UTF-8 files up to 4 MiB and 100,000 lines; **Find in file** searches the whole file and **Wrap**
+wraps long lines. PDF preview accepts files up to 32 MiB, with page/zoom controls and search when the document contains
+text. Image preview accepts supported images up to 16 MiB and 16 million pixels, with at most 32,768 pixels per side.
+Use **Fit**, **Fit width**, **100%** and the zoom buttons; scroll to inspect a tall or enlarged image. Transparent
+areas show a checker background. Markdown and HTML show source; SVG displays as an image. Previews do not save
+changes; file changes update the preview. Click the row again to reload it. For other formats or larger files, use **Open in System Application**; executable files are not launched.
 
 Ask the agent to create a file and it saves the finished result in **Artifacts**, unless you specify another
 location. Related files can stay together in a folder. Work in progress, automatic testing screenshots and large
@@ -335,8 +342,8 @@ to read the agent's activity when its text does not fit.
     the page loads them only when you scroll there.
 
   Screenshots go to the clipboard and the task's **Artifacts**, without the agent's marks. A **thumbnail** appears
-  in the pane's corner: click to open, drag to keep a copy elsewhere, or right-click for **Show in Folder**, **Copy**,
-  **Send to Agent**, **Delete** and **Close**. It stays while the pointer is over it; **×** hides the thumbnail.
+  in the pane's corner: click to view it in **Artifacts**, drag to keep a copy elsewhere, or right-click for
+  **Show in Folder**, **Copy**, **Send to Agent**, **Delete** and **Close**. It stays while the pointer is over it; **×** hides the thumbnail.
   Delete the picture from Artifacts or the thumbnail menu; deleting the task removes it too.
 - Inactive pages may unload to save memory and reload when you return. Their tabs stay visible, and pages with
   unsaved changes are kept.

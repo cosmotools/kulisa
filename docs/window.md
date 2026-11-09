@@ -51,6 +51,9 @@ One development xterm belongs to the window and moves into the selected TaskView
 until a pending terminal starts, even while Agents is hidden. Buffer rendering and sizing: [terminal](../src/terminal/README.md#the-window-renderer). Stage terminal Views stay with their panes. Inline renderers
 retain React state when Stage tabs detach inactive DOM; task switching retains each selected tab's DOM.
 
+Artifacts' optional native PDF view joins window overlay hiding, menu pictures and global key routing; leaving its
+file/view/task closes it. Its independent adapter and resource bounds belong to [File Viewer](../src/file-viewer/README.md).
+
 - Stage menu: Left/Right/Above, Horizontal/Vertical stack or Tabs, Allow overflow, Follow agent, Open an environment.
   `stage:arrange` and MCP `stage_arrange` share `Task.arrangeStage`, requiring the shown task; settings apply even
   while empty. Omitted settings remain; overflow-only changes preserve pane selection.

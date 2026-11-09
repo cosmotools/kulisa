@@ -40,7 +40,8 @@ bottom-right, 20 CSS px inset, at most 240 × 180; tall images show their top. A
 hover or menu. The caller supplies placement (`place`), covered-page state (`setHidden`), task close and file actions.
 
 - Fade on timeout, × or Close; remove immediately on replacement, artifact deletion, hidden pane or task close.
-- Click opens with `shell.openPath`; drag uses `webContents.startDrag`.
+- Click invokes the caller’s artifact-opening callback, selecting the same Artifacts viewer as a tree row;
+  drag uses `webContents.startDrag`. The caller supplies task authorization; the package owns no task lookup.
 - Menu: Show in Folder, Copy as PNG (including JPEG sources), Send to Agent, Delete, Close. Sending uses the caller's
   `Task.sendArtifact`; deletion uses `Task.deleteArtifacts`.
 - Native profile views cover window HTML, so use a temporary `WebContentsView`. Destroy it when dismissed.

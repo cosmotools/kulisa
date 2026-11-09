@@ -149,6 +149,8 @@ test('Artifacts tree shows ordinary results with metadata and screenshot preview
   });
   try {
     await row(note).click();
+    await expect(ui.getByRole('region', { name: 'Artifact preview', exact: true })).toBeVisible();
+    await ui.getByRole('region', { name: 'Artifact preview', exact: true }).getByRole('button', { name: 'Open in System Application' }).click();
     await expect.poll(() => core((k) => k.stash.opened)).toEqual([note]);
   } finally { await core((k) => { k.electron.shell.openPath = k.stash.openPath; }); }
   await rightClick(ui, row(shot)); await choose(ui, 'Send to Agent');

@@ -24,7 +24,8 @@ Name Main pane content directly: terminal, code editor or Diff review.
 
 The navigation relationship is Activity bar item → Side bar items → selected content. Selecting an Activity bar
 item restores its Main pane; collapsing the Side bar leaves it selected. Project text files open in its code editor;
-other files and artifacts open in the system app. Editor ownership: [Editor](../src/editor/README.md).
+other project files open in the system app. Artifacts select a read-only text/PDF/image preview with system opening available;
+unsupported formats show a fallback. Owners: [Editor](../src/editor/README.md), [File Viewer](../src/file-viewer/README.md).
 The code surface uses JetBrains-style syntax palettes (the author's choice); its controls retain the neutral
 window theme. Its palettes and keyboard behavior belong to Editor.
 Keep Workbench's Side bar distinct from the window's **project sidebar**, which lists projects and tasks.

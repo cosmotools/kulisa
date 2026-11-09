@@ -13,7 +13,7 @@ import { ProjectProfiles } from './project-profiles.ts';
 import { installSigninPause } from './signin-pause.ts';
 import { startTerminal, stopTerminal, forgetTerminal, terminalTail, sendToPrompt, typeIntoPrompt, eraseInPrompt, typeLine, interrupt, quotePaths } from '../terminal/main/index.ts';
 import { TERMINAL_LINES } from '../terminal/ipc.ts';
-import { TaskFiles, listArtifacts, saveArtifact, deleteFiles, ownedPath } from '../task-files/main/index.ts';
+import { TaskFiles, listArtifacts, saveArtifact, deleteFiles, ownedPath, readFileRange } from '../task-files/main/index.ts';
 import { worktreesOf, ownWorktree, folderOf, branchOf, taskKey } from './store.ts';
 import { copyProfile } from '../browser/main/index.ts';
 import { git, renameBranch } from './worktrees.ts';
@@ -887,6 +887,46 @@ class Task {
     const artifact = (await listArtifacts(this.store.artifacts)).find((a) => a.file === path.resolve(file));
     return artifact && await ownedPath(this.store.artifacts, artifact.file) ? { artifact } : { error: `not an artifact of this task: ${file}` };
   }
+  async readArtifact(file: string, offset: number, length: number) {
+    return readFileRange(this.store.artifacts, file, offset, length);
+  }
+  private artifactViewGeneration = 0;
+  cancelArtifactView() { this.artifactViewGeneration++; }
+  async viewArtifact(file: string): Promise<Result> {
+    const generation = ++this.artifactViewGeneration;
+    const window = this.window;
+    if (!window || !this.shown() || this.viewFailed) return { error: 'That task is not on screen.' };
+    const found = await this.findArtifact(file);
+    if (refused(found)) return found;
+    if (found.artifact.directory) return { error: 'Choose a file to preview.' };
+    await window.sendArtifacts(this);
+    if (generation !== this.artifactViewGeneration || this.window !== window || !this.shown() || this.viewFailed)
+      return { error: 'Artifact opening was cancelled.' };
+    window.send('task:artifact:selected', { task: this.key, file: found.artifact.file });
+    log.info(`[artifact-viewer] selected task=${this.key} ${summary({ file: found.artifact.file })}`);
+    return {};
+  }
+  async readArtifactPdf(file: string, signal: AbortSignal): Promise<Result<{ bytes: Uint8Array; name: string }>> {
+    const found = await this.findArtifact(file);
+    signal.throwIfAborted();
+    if (refused(found)) return found;
+    const artifact = found.artifact;
+    if (artifact.bytes > 32 * 1024 * 1024) return { error: 'PDF preview is limited to 32 MiB.' };
+    const bytes = new Uint8Array(artifact.bytes);
+    for (let offset = 0; offset < bytes.length;) {
+      signal.throwIfAborted();
+      const result = await this.readArtifact(file, offset, Math.min(bytes.length - offset, 4 * 1024 * 1024));
+      if (refused(result)) return result;
+      if (result.revision !== artifact.revision) return { error: 'The artifact changed while reading.' };
+      if (!result.bytes.length) return { error: 'The artifact changed while reading.' };
+      bytes.set(result.bytes, offset); offset += result.bytes.length;
+    }
+    signal.throwIfAborted();
+    const after = await this.findArtifact(file);
+    if (refused(after)) return after;
+    if (after.artifact.revision !== artifact.revision) return { error: 'The artifact changed while reading.' };
+    return { bytes, name: path.basename(artifact.file) };
+  }
   sendSelection(source: Sent.EnvironmentSource, text: string): Result {
     if (!this.shown()) return { error: 'that task is not on screen' };
     let label: string;
@@ -985,6 +1025,7 @@ class Task {
   }
   async deleteArtifacts(files: string[] | null): Promise<Result<{ deleted: number; bytes: number }>> {
     const result = await deleteFiles(this.store.artifacts, files);
+    if (!result.error) this.window?.artifactPdf.closeFiles(this.key, files);
     if (this.window?.thumbnails.file && !fs.existsSync(this.window.thumbnails.file)) this.window.thumbnails.close();
     this.artifactsChanged();
     log.info(`[task-files] ${this.key} artifact cleanup ${summary(result)}`);

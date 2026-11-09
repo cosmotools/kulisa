@@ -24,6 +24,7 @@ const packages: Record<string, { main: string[] }> = {
   diff: { main: ['worktrees'] }, // local Git review; task ownership and window state are supplied by callers
   editor: { main: ['files'] }, // documents and autosave; task roots, storage and logging are supplied by callers
   'task-files': { main: ['remove'] }, // files, watchers and previews; callers own tasks, conversations and desktop actions
+  'file-viewer': { main: [] }, // read-only viewers; native PDF access is supplied by the host
   'project-explorer': { main: [] }, // a folder browser; roots and desktop actions come from the caller
   screenshots: { main: ['ipc', 'log'] }, // a picture of a page: an element, the visible part, the whole page
   // GitHub accounts and their sign-ins; store supplies ids, files supplies atomic writes.

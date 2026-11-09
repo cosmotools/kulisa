@@ -3,6 +3,8 @@
 Editable UTF-8 project files, recoverable drafts and autosave. A [Kulisa package](../../docs/packages.md); the caller
 supplies current allowed roots, a task-owned storage directory, action logging, notifications and desktop opening.
 The editor knows no task, project, window or agent. Project Explorer remains independent of document lifetimes.
+The public renderer entry also lazily supplies its code theme to host-owned read-only surfaces; no editor/saving
+lifecycle is required to share the palette.
 
 ## Documents and saving
 
