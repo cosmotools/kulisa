@@ -116,42 +116,6 @@ test('oversized, malformed, unsupported and huge-dimension images have a system-
   expect(await invoke(ui, 'task:artifact:view', { key, file: path.join(files.root, 'package.json') })).toHaveProperty('error');
 });
 
-test('standalone image replacement ignores a late read and revokes its URL on closure', async ({ core, kulisa }) => {
-  const built = path.resolve('dist/file-viewer-example/index.html');
-  const opened = kulisa.context.waitForEvent('page');
-  const id = await core(async (k, file) => {
-    const window = new k.electron.BrowserWindow({ width: 800, height: 600, webPreferences: { sandbox: true } });
-    await window.loadFile(file); return window.id;
-  }, built);
-  const page = await opened;
-  try {
-    await page.evaluate(() => {
-      const original = Blob.prototype.arrayBuffer;
-      let release: () => void;
-      const gate = new Promise<void>((resolve) => { release = resolve; });
-      (window as any).releaseImageRead = () => { Blob.prototype.arrayBuffer = original; release(); };
-      let reads = 0;
-      // The first read recognizes the format; hold the image engine's complete read.
-      Blob.prototype.arrayBuffer = async function() { if (++reads === 2) await gate; return original.call(this); };
-    });
-    await page.getByLabel('Choose a file').setInputFiles({ name: 'old.png', mimeType: 'image/png', buffer: Buffer.from(viewerImages.png.data, 'base64') });
-    await expect(page.getByText('Opening image…', { exact: true })).toBeVisible();
-    await page.getByLabel('Choose a file').setInputFiles({ name: 'current.svg', mimeType: 'image/svg+xml', buffer: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="40" height="20"/>') });
-    await expect(page.getByRole('button', { name: '100%', exact: true })).toBeEnabled();
-    const image = page.getByRole('img', { name: 'current.svg', exact: true }), url = await image.getAttribute('src');
-    await page.evaluate(() => (window as any).releaseImageRead());
-    await expect(image).toHaveAttribute('src', url);
-    await page.evaluate(() => {
-      const revoke = URL.revokeObjectURL;
-      (window as any).revokedImageUrls = [];
-      URL.revokeObjectURL = (url) => { (window as any).revokedImageUrls.push(url); revoke.call(URL, url); };
-    });
-    await page.getByRole('button', { name: 'Close file' }).click();
-    await expect(page.getByRole('img')).toHaveCount(0);
-    expect(await page.evaluate((url) => (window as any).revokedImageUrls.includes(url), url)).toBe(true);
-  } finally { await core((k, id) => k.electron.BrowserWindow.fromId(id)?.destroy(), id); }
-});
-
 test('the latest artifact selection wins when an earlier ownership check finishes late', async ({ core, call, ui }) => {
   const { artifacts } = JSON.parse((await call('task_files')).text);
   const old = path.join(artifacts, 'slow.png'), current = path.join(artifacts, 'latest.png');

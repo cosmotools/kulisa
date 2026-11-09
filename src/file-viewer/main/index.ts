@@ -1,2 +1,2 @@
-// Optional Electron adapter; the renderer entry remains browser-portable (../README.md).
+// Isolated native PDF adapter for Artifacts (../README.md).
 export { NativePdf, registerPdfScheme } from './pdf.ts';

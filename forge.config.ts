@@ -49,7 +49,7 @@ const config: ForgeConfig = {
     // bundles them into dist/renderer; the main process imports none of them, @xterm/headless apart). The window is its
     // build (dist/renderer), not its sources (src/renderer, a Kulisa package's renderer/), without source maps; a Kulisa
     // package without its tests and docs (docs/packages.md).
-    ignore: [/^\/(test|docs|out|scripts|examples)(\/|$)/, /^\/dist\/file-viewer-example(\/|$)/, /^\/\.kulisa(\/|$)/, /^\/src\/([^/]+\/)?renderer(\/|$)/, /\.test\.ts$/, /^\/src\/[^/]+\/resources(\/|$)/, /^\/src\/[^/]+\/(README|AGENTS|CLAUDE)\.md$/, /^\/(forge\.config\.ts|vite\.config\.mts|tsconfig\.json|knip\.jsonc|\.dependency-cruiser\.ts)$/, /\.map$/],
+    ignore: [/^\/(test|docs|out|scripts)(\/|$)/, /^\/\.kulisa(\/|$)/, /^\/src\/([^/]+\/)?renderer(\/|$)/, /\.test\.ts$/, /^\/src\/[^/]+\/resources(\/|$)/, /^\/src\/[^/]+\/(README|AGENTS|CLAUDE)\.md$/, /^\/(forge\.config\.ts|vite\.config\.mts|tsconfig\.json|knip\.jsonc|\.dependency-cruiser\.ts)$/, /\.map$/],
   },
   makers: [
     { name: '@electron-forge/maker-squirrel', platforms: ['win32'], config: { setupIcon: 'assets/icon.ico' } },

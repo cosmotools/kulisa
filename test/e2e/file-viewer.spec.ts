@@ -1,4 +1,4 @@
-// Artifact previews and the independent example's public extension/lifecycle contract (src/file-viewer/README.md).
+// Artifact previews, resource limits and native PDF lifecycle (src/file-viewer/README.md).
 import fs from 'node:fs';
 import path from 'node:path';
 import { test, expect } from './fixtures.ts';
@@ -147,38 +147,4 @@ test('a caught task rendering failure releases its native PDF and refuses a stal
     await showTask(core, ui, original);
     await invoke(ui, 'task:close', key);
   }
-});
-
-test('standalone public API accepts a custom viewer, ignores a stale read and disposes on closure', async ({ core, kulisa }) => {
-  const built = path.resolve('dist/file-viewer-example/index.html');
-  const opened = kulisa.context.waitForEvent('page');
-  const id = await core(async (k, file) => {
-    const window = new k.electron.BrowserWindow({ width: 800, height: 600, webPreferences: { sandbox: true } });
-    await window.loadFile(file); return window.id;
-  }, built);
-  const page = await opened;
-  try {
-    await page.getByLabel('Choose a file').setInputFiles({ name: 'test.example', mimeType: 'application/x-viewer-example', buffer: Buffer.from('Independent custom viewer') });
-    await expect(page.getByLabel('Custom preview')).toHaveText('Independent custom viewer');
-    expect(await page.evaluate(() => typeof (window as unknown as { kulisa?: unknown }).kulisa)).toBe('undefined');
-    // Gate the first browser-file read to prove switching sources cancels stale work, rather than relying on a delay.
-    await page.evaluate(() => {
-      const original = Blob.prototype.arrayBuffer;
-      let release: () => void;
-      const gate = new Promise<void>((resolve) => { release = resolve; });
-      (window as unknown as { releaseRead(): void }).releaseRead = () => { Blob.prototype.arrayBuffer = original; release(); };
-      let first = true;
-      Blob.prototype.arrayBuffer = async function() { if (first) { first = false; await gate; } return original.call(this); };
-    });
-    await page.getByLabel('Choose a file').setInputFiles({ name: 'old.txt', mimeType: 'text/plain', buffer: Buffer.from('STALE source') });
-    await expect(page.getByRole('status')).toHaveText('Loading file…');
-    await page.getByLabel('Choose a file').setInputFiles({ name: 'new.example', mimeType: 'application/x-viewer-example', buffer: Buffer.from('Current source') });
-    await expect(page.getByLabel('Custom preview')).toHaveText('Current source');
-    await page.evaluate(() => (window as unknown as { releaseRead(): void }).releaseRead());
-    await expect(page.getByLabel('Custom preview')).toHaveText('Current source');
-    await page.getByRole('button', { name: 'Close file' }).click();
-    await expect(page.getByRole('region', { name: /^File viewer:/ })).toHaveCount(0);
-    await page.getByLabel('Choose a file').setInputFiles({ name: 'unknown.bin', mimeType: 'application/octet-stream', buffer: Buffer.from([0, 1, 2]) });
-    await expect(page.getByRole('status')).toHaveText('No viewer is available for this file.');
-  } finally { await core((k, id) => k.electron.BrowserWindow.fromId(id)?.destroy(), id); }
 });

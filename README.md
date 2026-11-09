@@ -51,7 +51,6 @@ approving `node-pty` builds it for Node: `npm run postinstall` after that builds
 npm install           # the dependencies; node-pty built for Electron on Linux (scripts/postinstall.ts)
 npm start             # builds the window, then opens the windows and tasks open last; at first start the welcome, then New Project
 npm run build         # type checks (tsc), then the window built by Vite into dist/renderer
-npm run example:file-viewer # standalone viewer build in dist/file-viewer-example (also checked by build)
 npm run watch         # the window built again on every change; reload it (Ctrl+R in its DevTools) or restart
 npm test              # unit tests, knip, ESLint, actionlint (when installed), then the e2e tests on Playwright Test,
                       # the real app against a local test site (docs/testing.md)
@@ -104,7 +103,6 @@ and lint hook.
 | `src/renderer/` | React window, built by Vite into `dist/renderer` |
 | `src/shared/` | Shared types, channel contracts and helpers |
 | `src/<package>/` | Self-contained capabilities; [catalog](docs/packages.md#the-kulisa-packages) |
-| `examples/` | Standalone package consumers, built and tested without the application bridge |
 | `test/` | Unit/e2e tests and local test site |
 | `scripts/` | Development launch, native dependency rebuilds, icons and version synchronization |
 | `assets/` | App icon and installer assets |

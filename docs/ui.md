@@ -174,7 +174,7 @@ Prefer upstream components for their normal jobs. The remaining custom surfaces 
 | Dockview grids, profile notch, narrow-pane controls | Native-page geometry and profile identity; [task-view](../src/renderer/task-view/README.md) |
 | Browser tabs and scrolling strips | Close targets, width stability and reveal policy; [Tabs](#tabs) |
 | Diff loading indicator | Transform-only motion without layout work; [Diff](../src/diff/README.md) |
-| Portable file-viewer controls | Scoped standard HTML controls and explicit theme variables preserve the author's extraction requirement; [File Viewer](../src/file-viewer/README.md) |
+| File viewer toolbars | Scoped controls for search and image viewing, with colors supplied by the host theme; [File Viewer](../src/file-viewer/README.md) |
 | Dictation pill/wave | Live microphone data and recording lifecycle; [dictation](../src/dictation/README.md) |
 | Settings frame and log output | Window-wide navigation and plain-text logs; [Settings](../src/renderer/components/settings/README.md) |
 | Welcome examples and characters | Coordinated demonstration without live environments; [welcome](../src/renderer/components/welcome/README.md) |

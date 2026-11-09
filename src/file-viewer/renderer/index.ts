@@ -2,4 +2,4 @@
 export { FileViewer } from './FileViewer';
 export { createViewerRegistry } from './registry';
 export { textViewer, pdfViewer, imageViewer } from './viewers';
-export type { FileSource, ViewerAppearance, ViewerCapabilities, ViewerDescriptor, ViewerRegistry, ViewerProps } from './registry';
+export type { FileSource, ViewerCapabilities, ViewerProps } from './registry';

@@ -1,6 +1,0 @@
-/* Example host layout; the viewer supplies its own scoped styles. */
-html, body, #app { height: 100%; margin: 0; font: 14px system-ui; }
-main { height: 100%; display: flex; flex-direction: column; }
-header { padding: 8px; display: flex; flex-wrap: wrap; gap: 8px; }
-.preview { flex: 1; min-height: 0; }
-main[data-dark=true] { color-scheme: dark; }

@@ -24,7 +24,7 @@ const packages: Record<string, { main: string[] }> = {
   diff: { main: ['worktrees'] }, // local Git review; task ownership and window state are supplied by callers
   editor: { main: ['files'] }, // documents and autosave; task roots, storage and logging are supplied by callers
   'task-files': { main: ['remove'] }, // files, watchers and previews; callers own tasks, conversations and desktop actions
-  'file-viewer': { main: [] }, // portable viewers; native PDF access is supplied by the host
+  'file-viewer': { main: [] }, // read-only viewers; native PDF access is supplied by the host
   'project-explorer': { main: [] }, // a folder browser; roots and desktop actions come from the caller
   screenshots: { main: ['ipc', 'log'] }, // a picture of a page: an element, the visible part, the whole page
   // GitHub accounts and their sign-ins; store supplies ids, files supplies atomic writes.
@@ -68,8 +68,6 @@ const config: IConfiguration = {
       from: { path: '^src/main/stage-terminals\\.ts$' },
       to: { path: '^src/main/', pathNot: '^src/main/log\\.ts$' } },
     ...Object.entries(packages).flatMap(([name, p]) => packageRules(name, p)),
-    { name: 'file-viewer-portable', severity: 'error', comment: 'File Viewer remains extractable: no application packages, domain types or global styles.',
-      from: { path: '^src/file-viewer/' }, to: { path: '^src/', pathNot: '^src/file-viewer/' } },
     // src/ui, shadcn's components as its CLI makes them (src/ui/README.md): reached through its entry, using nothing of Kulisa.
     { name: 'ui-entry', severity: 'error', comment: 'src/ui is reached from outside through its index.ts only.',
       from: { pathNot: '^src/ui/' }, to: { path: '^src/ui/', pathNot: '^src/ui/index\\.ts$' } },

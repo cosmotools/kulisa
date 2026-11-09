@@ -1,16 +1,16 @@
 # File Viewer
 
-Read-only file display with extensible, lazy viewer registration. A [Kulisa package](../../docs/packages.md),
-extractable as a React library with a separate optional Electron adapter. It uses the repository's build and
-existing dependencies; it is not independently published. GPL-3.0-or-later applies; extraction does not select another
-license. Pierre carries Apache-2.0; Electron/Chromium retain their bundled notices.
+Read-only text, PDF and image display with extensible, lazy viewer registration. A
+[Kulisa package](../../docs/packages.md) built with the application. Rendering and resource disposal belong here;
+task authorization, selection and window state belong to the host. Dependency notices are covered by
+[licensing](../../docs/LICENSING.md).
 
 ## Public boundary
 
 `renderer/index.ts` exports `FileViewer`, `createViewerRegistry`, built-in descriptors and their public types.
-It imports no application state, domain types, IPC bridge, UI components or global stylesheet. A `FileSource`
-provides identity, name, byte size, optional MIME and cancellable ranged reads. Change identity when content changes
-or a reload is requested. The host authorizes every read and supplies metadata; the package never opens a path.
+It receives application facts through its inputs. A `FileSource` provides identity, name, byte size, optional MIME
+and cancellable ranged reads. Change identity when content changes or a reload is requested. The host authorizes
+every read and supplies metadata; the package never opens a path.
 Abort signals invalidate asynchronous work even when a host cannot cancel an already dispatched read.
 Unmount/source replacement disposes the engine and native lease.
 
@@ -26,9 +26,8 @@ Add/register a descriptor to support another format or replace an engine. There 
 closed all-formats enum. Controls belong to their engine; PDF search is an optional lease capability. Future
 page/sheet/media capabilities should remain optional rather than requiring a universal page model.
 
-`appearance` supplies shade, code font/size and optional registered Pierre theme names. Scoped CSS owns portable
-standard HTML controls: the author's extraction requirement excludes `@ui` and Tailwind dependencies. The host can
-set `--file-viewer-background`, `--file-viewer-foreground`, `--file-viewer-border`, `--file-viewer-selected` and
+`appearance` supplies shade, code font/size and optional registered Pierre theme names. Scoped CSS styles the
+viewer toolbars. The host can set `--file-viewer-background`, `--file-viewer-foreground`, `--file-viewer-border`, `--file-viewer-selected` and
 `--file-viewer-selected-text` through `style`. Surrounding application actions remain the host's.
 `fallback` supplies optional content alongside unsupported/read/engine errors.
 
@@ -70,7 +69,7 @@ Task authorization belongs to `Task.readArtifact`; bounded regular-file/containm
 belong to [Task Files](../task-files/README.md). Retention, sending, deletion and safe system opening stay in the core.
 `main/artifact-viewer.ts` binds one native adapter to a window and rejects stale requests after task changes.
 `Task.viewArtifact` owns the shared tree/thumbnail selection action; `task-view/Artifacts.tsx` supplies source/capability callbacks, appearance and host controls. The host lazily supplies
-Editor's code palette for text; the portable package depends on neither Editor nor its styles. Domain IPC stays in
+Editor's code palette for text. Domain IPC stays in
 `shared/ipc.ts`; `file-viewer/ipc.ts` contains only generic geometry/search data. The package imports no application
 IPC helpers. Search logging omits the query.
 
@@ -86,19 +85,13 @@ stays outside Artifacts under the core storage policy. Text, PDF and images comp
 [issue #393](https://github.com/cosmotools/kulisa/issues/393). Formatted reports, spreadsheets, audio/video, Office and
 specialized viewers remain deferred in [issue #403](https://github.com/cosmotools/kulisa/issues/403), with engine references.
 
-## Standalone example and checks
-
-`examples/file-viewer` imports only the public renderer entry. Run `npm run example:file-viewer`, then serve
-`dist/file-viewer-example` with an external static server, for example
-`python3 -m http.server 4175 --bind 127.0.0.1 --directory dist/file-viewer-example` and open `http://127.0.0.1:4175`.
-`npm run build` also builds it. It uses browser File reads, includes a custom `.example` viewer and intentionally has
-no native PDF capability. It has no task/store/preload. Sources and built example are excluded from installers.
+## Checks
 
 `registry.test.ts` covers selection/recognition and whole-document search; `image.test.ts` covers image bounds,
 format selection and read cancellation; `src/task-files/read.test.ts` covers
 reads/containment. `test/e2e/file-viewer.spec.ts` covers Artifacts, virtualized search, native PDF search, isolation,
-menu/view/task/deletion lifetimes and standalone registration/cancellation/closure. `image-viewer.spec.ts` covers
-real image formats, tall-image controls, inert SVG, resource cleanup and the independent image consumer. Existing drag/send/system-opening
+menu/view/task/deletion lifetimes. `image-viewer.spec.ts` covers
+real image formats, tall-image controls, inert SVG, resource cleanup and selection races. Existing drag/send/system-opening
 coverage remains in `agent-reports.spec.ts`. Follow [testing](../../docs/testing.md).
 
 ## The code
@@ -106,4 +99,4 @@ coverage remains in `agent-reports.spec.ts`. Follow [testing](../../docs/testing
 - `renderer/registry.ts`, `viewers.ts`: contracts, recognition, registration and lazy engines.
 - `renderer/FileViewer.tsx`, `FindBar.tsx`, `viewer.css`: loading/error lifecycle and independently themed controls.
 - `renderer/viewers/`: validation, bounded text search, drawing and native capability lifecycle.
-- `main/pdf.ts`, `ipc.ts`: optional isolated Electron adapter and portable data shared between its halves.
+- `main/pdf.ts`, `ipc.ts`: isolated Electron adapter and geometry/search data shared between its halves.

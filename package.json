@@ -94,8 +94,7 @@
   },
   "scripts": {
     "start": "vite build --logLevel warn && node scripts/electron.ts .",
-    "build": "tsc -p . && tsc -p test && tsc --noEmit -p src/renderer && vite build --logLevel warn && npm run example:file-viewer",
-    "example:file-viewer": "tsc -p examples/file-viewer && node scripts/file-viewer-example.ts",
+    "build": "tsc -p . && tsc -p test && tsc --noEmit -p src/renderer && vite build --logLevel warn",
     "watch": "vite build --watch",
     "test": "node test/start.ts",
     "test:visible": "node test/start.ts --visible",
