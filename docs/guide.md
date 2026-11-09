@@ -101,8 +101,20 @@ Text preview accepts UTF-8 files up to 4 MiB and 100,000 lines; **Find in file**
 wraps long lines. PDF preview accepts files up to 32 MiB, with page/zoom controls and search when the document contains
 text. Image preview accepts supported images up to 16 MiB and 16 million pixels, with at most 32,768 pixels per side.
 Use **Fit**, **Fit width**, **100%** and the zoom buttons; scroll to inspect a tall or enlarged image. Transparent
-areas show a checker background. Markdown and HTML show source; SVG displays as an image. Previews do not save
-changes; file changes update the preview. Click the row again to reload it. For other formats or larger files, use **Open in System Application**; executable files are not launched.
+areas show a checker background. SVG displays as an image; HTML shows source.
+
+Markdown opens with formatted text, tables and task lists. Use **Preview** / **Source** to switch; Source provides
+text search and wrapping. Formatting accepts up to 256 KiB; larger files can use Source within the text limits.
+Relative links open other files in the task's results; web links open in your browser. Images alongside the report
+can display within the image limits, with at most 32 images, 16 MiB and 16 million pixels in total. External images
+and embedded HTML are not loaded.
+
+Supported audio and video files play with the player's controls for playback, seeking and volume; **Playback speed**
+changes their speed. Playback starts when you press play and stops when you leave the file, Artifacts or the task, or open Settings.
+Large media files stream without loading the whole file first. Available codecs depend on the bundled player;
+files it cannot play still offer **Open in System Application**.
+
+Previews do not save changes; file changes update the preview. Click the row again to reload it. For other formats or larger files, use **Open in System Application**; executable files are not launched.
 
 Ask the agent to create a file and it saves the finished result in **Artifacts**, unless you specify another
 location. Related files can stay together in a folder. Work in progress, automatic testing screenshots and large

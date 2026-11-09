@@ -26,11 +26,21 @@ export interface PdfHost {
   open(box: ViewerBox, signal: AbortSignal): Promise<NativePdfLease>;
   onFindRequested(listener: () => void): () => void;
 }
+export interface DocumentHost {
+  resolve(href: string, signal: AbortSignal): Promise<FileSource>;
+  open(href: string): Promise<void>;
+}
+export interface MediaHost {
+  visible: boolean;
+  open(signal: AbortSignal): Promise<{ url: string; dispose(): void }>;
+}
 export interface ViewerProps {
   source: FileSource;
   signal: AbortSignal;
   appearance: ViewerAppearance;
   pdf: PdfHost;
+  document: DocumentHost;
+  media: MediaHost;
 }
 export interface ViewerDescriptor {
   id: string;

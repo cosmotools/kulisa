@@ -890,6 +890,20 @@ class Task {
   async readArtifact(file: string, offset: number, length: number) {
     return readFileRange(this.store.artifacts, file, offset, length);
   }
+  async resolveArtifact(file: string, href: string) {
+    const origin = await this.findArtifact(file);
+    if (refused(origin)) return origin;
+    try {
+      // Markdown addresses are URL paths, never OS paths, schemes or network shares.
+      if (!href || /[\\\u0000-\u001f]/.test(href) || /^(?:[a-z][\w+.-]*:|\/)/i.test(href)) throw new Error('Only relative artifact links are supported.');
+      const pathname = decodeURIComponent(href.split(/[?#]/)[0]!);
+      if (!pathname || /[\\\u0000-\u001f]/.test(pathname) || /^(?:[a-z][\w+.-]*:|\/)/i.test(pathname)) throw new Error('Only relative artifact links are supported.');
+      const found = await this.findArtifact(path.resolve(path.dirname(origin.artifact.file), pathname));
+      if (refused(found)) return found;
+      if (found.artifact.directory) throw new Error('Choose a file to preview.');
+      return { file: found.artifact.file, name: path.basename(found.artifact.file), size: found.artifact.bytes, revision: found.artifact.revision };
+    } catch (error) { return { error: (error as Error).message }; }
+  }
   private artifactViewGeneration = 0;
   cancelArtifactView() { this.artifactViewGeneration++; }
   async viewArtifact(file: string): Promise<Result> {
@@ -1025,7 +1039,7 @@ class Task {
   }
   async deleteArtifacts(files: string[] | null): Promise<Result<{ deleted: number; bytes: number }>> {
     const result = await deleteFiles(this.store.artifacts, files);
-    if (!result.error) this.window?.artifactPdf.closeFiles(this.key, files);
+    if (!result.error) this.window?.artifactViewer.closeFiles(this.key, files);
     if (this.window?.thumbnails.file && !fs.existsSync(this.window.thumbnails.file)) this.window.thumbnails.close();
     this.artifactsChanged();
     log.info(`[task-files] ${this.key} artifact cleanup ${summary(result)}`);

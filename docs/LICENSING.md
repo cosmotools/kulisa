@@ -40,6 +40,8 @@ BSD, Apache-2.0; shadcn/ui's components, Radix and Lucide's icons, MIT and ISC),
 License) and Chromium's licenses (in Electron; packaged builds carry `LICENSE` and `LICENSES.chromium.html`).
 The shared Git client uses simple-git under MIT.
 Image preview reads dimensions with image-size under MIT; its notice ships as `dist/renderer/image-size-LICENSE.txt`.
+Markdown rendering uses react-markdown and remark-gfm under MIT; their dependency notices ship together in
+`dist/renderer/markdown-LICENSES.txt`.
 The installed-version check uses @electron/asar under MIT.
 The @pierre/diffs review renderer, editor and read-only file viewer carry their Apache-2.0 license in `dist/renderer/pierre-diffs-LICENSE.txt`.
 The @pierre/trees navigation and @pierre/theming carry Apache-2.0 licenses in `dist/renderer/pierre-*-LICENSE.txt`,

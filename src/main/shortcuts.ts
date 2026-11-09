@@ -22,7 +22,7 @@ export function installShortcuts(shell: Shell, { appDevTools }: { appDevTools: b
   shell.keys = () => keyList(undefined, store.settings().keys);
   const ZOOM: Record<string, number> = { 'zoom.in': 1, 'zoom.out': -1, 'zoom.reset': 0, 'site.zoomIn': 1, 'site.zoomOut': -1, 'site.zoomReset': 0 };
   function onKey(wc: WebContents, e: Electron.Event, input: Electron.Input) {
-    const preview = shell.windows.find((w) => w.artifactPdf.native.contents === wc);
+    const preview = shell.windows.find((w) => w.artifactViewer.native.contents === wc);
     const w = preview ?? shell.windowOf(wc), t = !w && shell.tabOf(wc);
     if (!w && !t) return; // DevTools, a tab of a task not on screen
     const zone = preview ? 'window' : w ? w.keyZone : 'page';

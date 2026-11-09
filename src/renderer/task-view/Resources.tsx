@@ -79,6 +79,9 @@ function TaskResources({ section }: { section: ActivityItem }) {
     showMenu: menuAt,
   }), [key, grid]);
   const artifacts = useTask((s) => s.artifacts.list);
+  const selectedArtifact = useTask((s) => s.selectedArtifact);
+  const artifactNavigation = useTask((s) => s.artifactNavigation);
+  const selectedPath = artifacts.find((a) => a.file === selectedArtifact)?.path ?? null;
   const bytes = useTask((s) => s.artifacts.bytes);
   const names = useTask(useShallow((s) => Object.fromEntries([...s.profiles, ...s.closedProfiles].map((p) => [p.id, p.name]))));
   const stageTerminals = useTask(useShallow((s) => Object.fromEntries(s.stageTerminals.map((a) => [a.id, a.name]))));
@@ -131,7 +134,7 @@ function TaskResources({ section }: { section: ActivityItem }) {
             {artifacts.length > 0 && <SidebarGroupAction aria-label="Delete All Artifacts" title="Delete All Artifacts" onClick={() => void deleteArtifacts(null)}><Trash2Icon /></SidebarGroupAction>}
           </SidebarGroup>
           {!artifacts.length && <p className="p-2 text-sm text-muted-foreground">No artifacts yet</p>}
-          <div className="min-h-0 flex-1"><ArtifactTree entries={entries} actions={artifactActions} /></div>
+          <div className="min-h-0 flex-1"><ArtifactTree entries={entries} actions={artifactActions} selectedPath={selectedPath} selectionVersion={artifactNavigation} /></div>
         </SidebarContent>}
       </Sidebar>
     </SidebarProvider>;

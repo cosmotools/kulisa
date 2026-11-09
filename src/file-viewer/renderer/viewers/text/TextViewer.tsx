@@ -6,6 +6,7 @@ import { loadCodeTheme } from '../../../../editor/renderer';
 import type { ViewerProps } from '../../registry';
 import { findText } from './search';
 import { FindBar } from '../../FindBar';
+import { readText } from './read';
 
 const MAX_BYTES = 4 * 1024 * 1024;
 const theme = await loadCodeTheme();
@@ -14,13 +15,7 @@ export default function TextViewer({ source, signal, appearance }: ViewerProps) 
   useEffect(() => {
     void (async () => {
       try {
-        if (source.size > MAX_BYTES) throw new Error('Text preview is limited to 4 MiB.');
-        const bytes = await source.read(0, source.size, signal);
-        signal.throwIfAborted();
-        if (bytes.length !== source.size) throw new Error('The file changed while opening. Select it again to reload.');
-        const value = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
-        if (/[\u0000-\u0008\u000b\u000e-\u001f\u007f]/.test(value)) throw new Error('This file contains binary data.');
-        if (value.split(/\r\n|\r|\n/).length > 100_000) throw new Error('Text preview is limited to 100,000 lines.');
+        const value = await readText(source, signal);
         if (!signal.aborted) setText(value);
       } catch (reason) { if (!signal.aborted) setError((reason as Error).message); }
     })();

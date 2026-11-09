@@ -40,8 +40,8 @@ function thumbnailIcons(entries: readonly ArtifactTreeEntry[]): FileTreeIconConf
   return { set: 'complete', byFileName, spriteSheet: `<svg data-icon-sprite aria-hidden="true" width="0" height="0">${symbols.join('')}</svg>` };
 }
 
-export function ArtifactTree({ entries, actions }: {
-  entries: readonly ArtifactTreeEntry[]; actions: Actions;
+export function ArtifactTree({ entries, actions, selectedPath, selectionVersion }: {
+  entries: readonly ArtifactTreeEntry[]; actions: Actions; selectedPath: string | null; selectionVersion: number;
 }) {
   const current = useRef({ actions, byPath: new Map(entries.map((e) => [e.path, e])) });
   const pendingThumbnails = useRef(new Set<string>());
@@ -90,6 +90,16 @@ export function ArtifactTree({ entries, actions }: {
     }
     model.setIcons(thumbnailIcons(entries));
   }, [model, entries, actions]);
+  useLayoutEffect(() => {
+    if (!selectedPath || !model.getItem(selectedPath)) return;
+    for (let at = selectedPath.indexOf('/'); at !== -1; at = selectedPath.indexOf('/', at + 1)) {
+      const parent = model.getItem(selectedPath.slice(0, at + 1));
+      if (parent && 'expand' in parent) parent.expand();
+    }
+    for (const path of model.getSelectedPaths()) if (path !== selectedPath) model.getItem(path)?.deselect();
+    model.getItem(selectedPath)?.select();
+    model.scrollToPath(selectedPath, { focus: false });
+  }, [model, selectedPath, selectionVersion]);
 
   return <FileTree model={model} aria-label="Artifacts" style={treeStyle} className="h-full min-h-0 w-full"
     onClickCapture={(event) => {

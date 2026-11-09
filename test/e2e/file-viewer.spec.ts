@@ -37,7 +37,7 @@ test('ordinary nested text results are read-only, searchable and follow live cha
   await expect(search).toHaveValue('');
   await search.fill('unique-last-line: other');
   await expect(preview.getByRole('status', { name: 'Search results' })).toHaveText('1 / 1');
-  await ui.getByRole('treeitem', { name: 'text-report', exact: true }).click();
+  await expect(row).toBeVisible();
   await row.click();
   await expect(search).toHaveValue('');
 });
@@ -84,17 +84,17 @@ test('built-in PDF uses an isolated native viewer, survives menus, and releases 
   await ui.getByRole('treeitem', { name: 'pdf-report', exact: true }).click();
   const row = ui.getByRole('treeitem', { name: path.basename(file), exact: true });
   await row.click();
-  const current = () => core((k) => k.shell.windows[0].artifactPdf.native.contents?.id ?? null);
+  const current = () => core((k) => k.shell.windows[0].artifactViewer.native.contents?.id ?? null);
   await expect.poll(current).not.toBeNull();
   const first = await current();
   // Chromium's PDF UI lives in an internal extension frame, outside the Workbench DOM/CDP locators.
   await expect.poll(() => core(async (k) => {
-    const wc = k.shell.windows[0].artifactPdf.native.contents;
+    const wc = k.shell.windows[0].artifactViewer.native.contents;
     const frame = wc?.mainFrame.framesInSubtree.find((f) => f.url.startsWith('chrome-extension:'));
     return frame ? frame.executeJavaScript("document.querySelector('pdf-viewer')?.documentDimensions?.pageDimensions?.length ?? 0") : 0;
   })).toBe(1);
   expect(await core((k) => {
-    const wc = k.shell.windows[0].artifactPdf.native.contents, preferences = (wc as typeof wc & { getLastWebPreferences(): Electron.WebPreferences }).getLastWebPreferences();
+    const wc = k.shell.windows[0].artifactViewer.native.contents, preferences = (wc as typeof wc & { getLastWebPreferences(): Electron.WebPreferences }).getLastWebPreferences();
     return { session: wc.session === k.shell.win.webContents.session, preload: preferences.preload ?? null, node: preferences.nodeIntegration, sandbox: preferences.sandbox };
   })).toEqual({ session: false, preload: null, node: false, sandbox: true });
   const preview = ui.getByRole('region', { name: 'Artifact preview', exact: true });
@@ -107,7 +107,7 @@ test('built-in PDF uses an isolated native viewer, survives menus, and releases 
   await preview.getByRole('button', { name: 'Previous match', exact: true }).click();
   await expect(preview.getByRole('status', { name: 'Search results' })).toHaveText('1 / 3');
   // Input in the native view cannot be sent through Workbench's DOM.
-  await core((k) => k.press(k.shell.windows[0].artifactPdf.native.contents, 'f', k.CMD));
+  await core((k) => k.press(k.shell.windows[0].artifactViewer.native.contents, 'f', k.CMD));
   await expect(preview.getByRole('searchbox', { name: 'Find in file' })).toBeFocused();
   await rightClick(ui, row);
   await expect(menu(ui).getByRole('menuitem', { name: 'Open in System Application' })).toBeVisible();
@@ -137,7 +137,7 @@ test('a caught task rendering failure releases its native PDF and refuses a stal
   const file = await core((k, content) => k.shell.task.saveArtifact({ kind: 'profile', id: 'viewer', tab: 't1' }, 'failure.pdf', content), pdf());
   await showResources(ui, 'Artifacts');
   await ui.getByRole('treeitem', { name: path.basename(file), exact: true }).click();
-  await expect.poll(() => core((k) => k.shell.task.window.artifactPdf.native.contents?.id ?? null)).not.toBeNull();
+  await expect.poll(() => core((k) => k.shell.task.window.artifactViewer.native.contents?.id ?? null)).not.toBeNull();
   // Malformed tab data exercises the real React boundary while the core profile remains valid.
   await core((k) => {
     const t = k.shell.task, p = [...t.profiles.values()][0], data = p.info();
@@ -146,9 +146,9 @@ test('a caught task rendering failure releases its native PDF and refuses a stal
   });
   try {
     await expect(ui.locator(`[data-task-view="${key}"] [role="alert"]`)).toContainText('This task’s screen could not be displayed');
-    await expect.poll(() => core((k) => ({ failed: k.shell.task.viewFailed, pdf: k.shell.task.window.artifactPdf.native.contents?.id ?? null }))).toEqual({ failed: true, pdf: null });
+    await expect.poll(() => core((k) => ({ failed: k.shell.task.viewFailed, pdf: k.shell.task.window.artifactViewer.native.contents?.id ?? null }))).toEqual({ failed: true, pdf: null });
     expect(await invoke(ui, 'task:artifact:pdf:open', { key, file, request: 'stale-after-failure', box: { x: 0, y: 0, width: 100, height: 100 } })).toHaveProperty('error');
-    expect(await core((k) => k.shell.task.window.artifactPdf.native.contents?.id ?? null)).toBeNull();
+    expect(await core((k) => k.shell.task.window.artifactViewer.native.contents?.id ?? null)).toBeNull();
   } finally {
     await showTask(core, ui, original);
     await invoke(ui, 'task:close', key);
@@ -181,7 +181,7 @@ test('leaving a PDF during loading stops subsequent file reads', async ({ core, 
     await core((k) => k.stash.pdfRead.release());
     await expect.poll(() => core((k) => k.stash.pdfRead.finished)).toBe(true);
     expect(await core((k) => k.stash.pdfRead.offsets)).toEqual([0]);
-    expect(await core((k) => k.shell.windows[0].artifactPdf.native.contents)).toBeNull();
+    expect(await core((k) => k.shell.windows[0].artifactViewer.native.contents)).toBeNull();
   } finally {
     await core((k) => { const s = k.stash.pdfRead; s.release(); s.task.readArtifact = s.read; s.task.readArtifactPdf = s.load; delete k.stash.pdfRead; });
   }

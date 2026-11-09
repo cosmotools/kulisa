@@ -1,11 +1,12 @@
 // Task authorization/actions connect the file viewer to Artifacts (docs/tasks.md, The Workbench).
 import { useMemo, useState } from 'react';
 import { Button, Empty, EmptyHeader, EmptyTitle } from '@ui';
-import { FileViewer, createViewerRegistry, textViewer, pdfViewer, imageViewer, type FileSource, type PdfHost } from '../../file-viewer/renderer';
+import { FileViewer, createViewerRegistry, textViewer, pdfViewer, imageViewer, markdownViewer, audioViewer, videoViewer, type FileSource, type PdfHost, type DocumentHost, type MediaHost } from '../../file-viewer/renderer';
 import { useTask } from './state';
 import { uiTextSize, useShade } from '../lib/theme';
+import { useSettings } from '../lib/settings';
 
-const registry = createViewerRegistry([pdfViewer, imageViewer, textViewer]);
+const registry = createViewerRegistry([pdfViewer, imageViewer, markdownViewer, audioViewer, videoViewer, textViewer]);
 let focusPdfSearch: (() => void) | null = null;
 kulisa.on('artifact:pdf:find', () => focusPdfSearch?.());
 export function Artifacts() {
@@ -15,6 +16,7 @@ export function Artifacts() {
   const file = artifact?.directory ? undefined : artifact?.file, revision = artifact?.revision, size = artifact?.bytes ?? 0;
   const picture = useTask((s) => s.pictures['artifact-pdf']);
   const shade = useShade(), [fontSize] = useState(uiTextSize);
+  const mediaVisible = !useSettings();
   const source = useMemo<FileSource | null>(() => file ? {
     id: `${file}:${revision}:${navigation}`, name: file.split(/[\\/]/).at(-1)!, size,
     read: async (offset, length, signal) => {
@@ -43,6 +45,46 @@ export function Artifacts() {
         dispose: () => { signal.removeEventListener('abort', close); close(); } };
     } catch (error) { signal.removeEventListener('abort', close); close(); throw error; }
   } }), [key, file]);
+  const media = useMemo<MediaHost>(() => ({ visible: mediaVisible, open: async (signal) => {
+    signal.throwIfAborted();
+    const request = crypto.randomUUID();
+    const close = () => { void kulisa.invoke('task:artifact:media:close', { request }); };
+    signal.addEventListener('abort', close, { once: true });
+    try {
+      const result = await kulisa.invoke('task:artifact:media:open', { key, file: file!, revision: revision!, request });
+      signal.throwIfAborted();
+      if ('error' in result) throw new Error(result.error);
+      return { url: result.url, dispose: () => { signal.removeEventListener('abort', close); close(); } };
+    } catch (error) { signal.removeEventListener('abort', close); close(); throw error; }
+  } }), [key, file, revision, mediaVisible]);
+  const document = useMemo<DocumentHost>(() => {
+    const resolve = async (href: string) => {
+      const result = await kulisa.invoke('task:artifact:resolve', { key, file: file!, href });
+      if ('error' in result) throw new Error(result.error);
+      return result;
+    };
+    return {
+      resolve: async (href, signal) => {
+        signal.throwIfAborted();
+        const result = await resolve(href);
+        signal.throwIfAborted();
+        return { id: `${result.file}:${result.revision}`, name: result.name, size: result.size,
+          read: async (offset, length, signal) => {
+            signal.throwIfAborted();
+            const read = await kulisa.invoke('task:artifact:read', { key, file: result.file, offset, length });
+            signal.throwIfAborted();
+            if ('error' in read) throw new Error(read.error);
+            if (read.revision !== result.revision) throw new Error('The linked image changed. Reopen the report to reload.');
+            return new Uint8Array(read.bytes);
+          } };
+      },
+      open: async (href) => {
+        const target = await resolve(href);
+        const result = await kulisa.invoke('task:artifact:view', { key, file: target.file });
+        if ('error' in result) throw new Error(result.error);
+      },
+    };
+  }, [key, file]);
   if (!source || !artifact) return <Empty className="h-full"><EmptyHeader><EmptyTitle>{selected ? 'Artifact is no longer available' : 'Choose an artifact'}</EmptyTitle></EmptyHeader></Empty>;
   return <section aria-label="Artifact preview" className="flex h-full min-h-0 flex-col">
     <header className="flex shrink-0 flex-wrap items-center gap-1 border-b p-1">
@@ -53,7 +95,7 @@ export function Artifacts() {
       <Button variant="ghost" size="sm" onClick={() => void kulisa.invoke('task:artifact:delete', { key, files: [artifact.file] })}>Delete</Button>
     </header>
     <div className="relative min-h-0 flex-1">
-      <FileViewer source={source} registry={registry} appearance={appearance} pdf={pdf} />
+      <FileViewer source={source} registry={registry} appearance={appearance} pdf={pdf} media={media} document={document} />
       {picture && <img src={picture} alt="" draggable={false} className="absolute inset-0 size-full" />}
     </div>
   </section>;

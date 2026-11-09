@@ -1,2 +1,3 @@
-// Isolated native PDF adapter for Artifacts (../README.md).
-export { NativePdf, registerPdfScheme } from './pdf.ts';
+// Native adapters and resource leases for file viewing (../README.md).
+export { NativePdf } from './pdf.ts';
+export { openMedia, registerViewerSchemes, installMediaProtocol } from './media.ts';

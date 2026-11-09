@@ -110,6 +110,9 @@ export interface Invoke extends TerminalInvoke, ThumbnailInvoke, GitHubInvoke, D
   'task:artifact:thumbnails': I<[{ key: string; files: string[] }]>;
   'task:artifact:refresh': I<[string]>; // the task's artifacts sent again (Resources.tsx: the task shown)
   'task:artifact:read': I<[{ key: string; file: string; offset: number; length: number }], Result<{ bytes: Uint8Array; size: number; revision: string }>>;
+  'task:artifact:resolve': I<[{ key: string; file: string; href: string }], Result<{ file: string; name: string; size: number; revision: string }>>;
+  'task:artifact:media:open': I<[{ key: string; file: string; revision: string; request: string }], Result<{ url: string }>>;
+  'task:artifact:media:close': I<[{ request: string }]>;
   'task:artifact:pdf:open': I<[{ key: string; file: string; request: string; box: ViewerBox }], Result>;
   'task:artifact:pdf:place': I<[{ request: string; box: ViewerBox }]>;
   'task:artifact:pdf:close': I<[{ request: string }]>;

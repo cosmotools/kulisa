@@ -12,7 +12,7 @@ import { page } from './pages.ts';
 import { log, summary } from './log.ts';
 import { focusWindow } from '../browser/main/index.ts';
 import { Thumbnails } from '../screenshots/main/index.ts';
-import { ArtifactPdf } from './artifact-viewer.ts';
+import { ArtifactViewer } from './artifact-viewer.ts';
 import type { Rectangle, Point } from 'electron';
 import type { Shell } from './shell.ts';
 import type { Task } from './tasks.ts';
@@ -51,7 +51,7 @@ class AppWindow {
   stateTimer: NodeJS.Timeout | undefined; picking: Map<string, { profile: Profile; page: import('playwright-core').Page; cancel: () => unknown }>;
   questions: Questions; loaded: boolean; pending: [string, unknown[]][]; keyZone: string;
   thumbnails: Thumbnails; // a screenshot's, in its pane's corner (src/screenshots)
-  artifactPdf: ArtifactPdf;
+  artifactViewer: ArtifactViewer;
   win: Electron.BrowserWindow; place: { bounds: Rectangle; maximized: boolean }; barHeight: number; // the title bar's, as the window was made
   // shell: the app (app.ts). place: where it was ({ bounds, maximized }, settings.json), or { near: a window } for a
   // new one of its size next to it, or under the pointer (at: a point on the screen, where a tab was let go).
@@ -92,7 +92,7 @@ class AppWindow {
     }));
     if (maximized) win.maximize();
     this.place = this.where();
-    this.artifactPdf = new ArtifactPdf(this);
+    this.artifactViewer = new ArtifactViewer(this);
     // Send to Agent: its file's path into the prompt of the shown task's agent.
     this.thumbnails = new Thumbnails(win, { page: page('thumbnail.html'), preload: PRELOAD,
       open: async (file) => { const r = await this.task?.viewArtifact(file); if (r?.error) throw new Error(r.error); },
@@ -108,11 +108,11 @@ class AppWindow {
     // Its title names the shown task (show), not the page's <title>, which may load after.
     win.on('page-title-updated', (e) => e.preventDefault());
     // Questions the page was asking go unanswered once it is gone or loaded again (ask).
-    win.webContents.on('render-process-gone', () => { this.unanswered(); this.artifactPdf.close(); });
-    win.webContents.on('did-start-navigation', (d) => { if (d.isMainFrame && !d.isSameDocument) { this.unanswered(); this.artifactPdf.close(); } });
+    win.webContents.on('render-process-gone', () => { this.unanswered(); this.artifactViewer.close(); });
+    win.webContents.on('did-start-navigation', (d) => { if (d.isMainFrame && !d.isSameDocument) { this.unanswered(); this.artifactViewer.close(); } });
     // Where it was is kept for the next start; the app decides whether it closes now (app.ts, closeWindow).
     win.on('close', (e) => { this.place = this.where(); shell.windowClosing(this, e); });
-    win.on('closed', () => { this.unanswered(); this.artifactPdf.close(); });
+    win.on('closed', () => { this.unanswered(); this.artifactViewer.close(); });
     win.on('focus', () => this.seen());
     win.on('blur', () => { if (this.task) this.shell.dictation.letGo(this.task.key); this.send('window:blur'); });
   }
@@ -137,7 +137,7 @@ class AppWindow {
     const wc = this.win.webContents;
     if (wc.isDevToolsOpened()) wc.closeDevTools(); else wc.openDevTools({ mode: 'detach', title: 'Kulisa · DevTools' });
   }
-  destroy() { this.unanswered(); this.thumbnails.destroy(); this.artifactPdf.close(); if (!this.win.isDestroyed()) this.win.destroy(); }
+  destroy() { this.unanswered(); this.thumbnails.destroy(); this.artifactViewer.close(); if (!this.win.isDestroyed()) this.win.destroy(); }
 
   // Its page, loaded once; its tabs, the one to be shown (shown), the theme, where the tasks' bar is and
   // the keyboard shortcuts (keys.ts: for menus and tooltips) come along in the URL, so the window is drawn right at once. The profiles' views stay hidden until the renderer has the grid laid out (views:hidden).
@@ -187,7 +187,7 @@ class AppWindow {
     const sequence = ++this.artifactsSequence;
     const [list, { bytes }] = await Promise.all([task.artifacts(), task.artifactsUsage()]);
     if (task === this.task && sequence === this.artifactsSequence) {
-      this.artifactPdf.reconcile(task.key, list.map((a) => a.file));
+      this.artifactViewer.reconcile(task.key, list.map((a) => a.file));
       this.send('task:artifact:state', { task: task.key, list, bytes });
     }
   }
@@ -246,7 +246,7 @@ class AppWindow {
     this.switching = true;
     for (const { cancel } of this.picking.values()) cancel();
     this.thumbnails.close(); // its pane goes
-    this.artifactPdf.close();
+    this.artifactViewer.close();
   }
   // Before a task's tab goes (the task closes, or moves to another window): the tab next to it is shown, or the
   // window is left with none (the empty window).
@@ -288,7 +288,7 @@ class AppWindow {
     for (const p of task.profiles.values()) p.setHidden(true);
     if (task === this.task) {
       for (const { cancel } of this.picking.values()) cancel();
-      this.thumbnails.close(); this.artifactPdf.close(); this.updateViews(); focusWindow(this.win.webContents);
+      this.thumbnails.close(); this.artifactViewer.close(); this.updateViews(); focusWindow(this.win.webContents);
     }
     this.sendProjects();
   }
@@ -297,7 +297,7 @@ class AppWindow {
     for (const p of this.profiles.values()) p.setHidden(this.viewsHidden);
     for (const task of this.tabs) if (task !== this.task) for (const p of task.profiles.values()) p.setHidden(true);
     this.thumbnails.setHidden(this.viewsHidden);
-    this.artifactPdf.native.setHidden(this.viewsHidden);
+    this.artifactViewer.native.setHidden(this.viewsHidden);
   }
   // Capturing and covering are separate so the renderer can paint the replacement before hiding native pages.
   hideViews(hidden: boolean, { focus = true, task }: { focus?: boolean; task?: string } = {}) {
@@ -306,7 +306,7 @@ class AppWindow {
     // A dialog over the pages (hidden, no pictures): a page that had the keyboard keeps it unseen, and the dialog's focus
     // trap (Radix's) works in a page that has the keyboard, its keys going nowhere else: the window's page takes it. Menus
     // (pictures) put the keyboard back themselves as they close.
-    const pdf = this.artifactPdf.native.contents;
+    const pdf = this.artifactViewer.native.contents;
     const from = hidden && focus && (pdf && !pdf.isDestroyed() && pdf.isFocused() || [...this.profiles.values()].some((p) => { const wc = p.get()?.wc; return wc && !wc.isDestroyed() && wc.isFocused(); }));
     this.updateViews();
     if (from) focusWindow(this.win.webContents);
@@ -328,7 +328,7 @@ class AppWindow {
       timer = setTimeout(() => giveUp(), Math.max(100, 3 * took) - took);
     };
     const sources = [...this.profiles.values()].filter((p) => p.visible() && p.get() && !p.get()!.discarded && !p.get()!.wc.isDestroyed()).map((p) => ({ id: p.id, wc: p.get()!.wc }));
-    const pdf = this.artifactPdf.native.contents;
+    const pdf = this.artifactViewer.native.contents;
     if (pdf && !pdf.isDestroyed()) sources.push({ id: 'artifact-pdf', wc: pdf });
     await Promise.all(sources.map(async (p) => {
       const img = await Promise.race([p.wc.capturePage().then((i) => { pace(); return i; }), gaveUp]).catch((): null => null);
