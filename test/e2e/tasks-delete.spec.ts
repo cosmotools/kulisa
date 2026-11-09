@@ -48,7 +48,8 @@ test('tasks: Delete Task… asks first, saying what goes and any work not in mai
   fs.writeFileSync(transcript, '');
   await reportSession(core, empty, 's-3', transcript);
   const dir = path.join(files.userData, 'projects', files.pid('project'), empty.split('/')[1]);
-  const launchSettings = path.join(dir, 'claude-settings.json');
+  const temp = path.join(dir, 'tmp', 'agent-test'); fs.mkdirSync(temp, { recursive: true });
+  const launchSettings = path.join(temp, 'claude-settings.json');
   fs.writeFileSync(launchSettings, '{"hooks":{}}');
   await rightClick(ui, taskTab(ui, empty));
   await choose(ui, 'Delete Task…');

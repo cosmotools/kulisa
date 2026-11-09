@@ -176,10 +176,12 @@ class AppWindow {
     task.list.saveTabs();
   }
   // The shown task's artifacts (Resources.tsx): when it is shown, and when either the human or agent makes one.
+  private artifactsSequence = 0;
   async sendArtifacts(task = this.task) {
     if (!task || task !== this.task) return;
+    const sequence = ++this.artifactsSequence;
     const [list, { bytes }] = await Promise.all([task.artifacts(), task.artifactsUsage()]);
-    if (task === this.task) this.send('task:artifact:state', { task: task.key, list, bytes });
+    if (task === this.task && sequence === this.artifactsSequence) this.send('task:artifact:state', { task: task.key, list, bytes });
   }
   sendDevelopmentTerminals() { if (this.task && !this.switching) this.send('development-terminal:state', { task: this.task.key, ...this.task.developmentTerminalsInfo() }); }
   scheduleState() { clearTimeout(this.stateTimer); this.stateTimer = setTimeout(() => this.pushState(), 30); }

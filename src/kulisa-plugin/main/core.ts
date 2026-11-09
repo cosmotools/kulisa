@@ -31,6 +31,7 @@ interface ProfileAccess extends ProfileInfo {
   page(id: string): Promise<Page>;
 }
 interface DevelopmentTerminalAccess {
+  readonly session: string | undefined;
   readonly id: number; readonly agent: boolean; readonly state: 'working' | 'waiting' | 'done' | null;
   saveSession(session: { sessionId: string; transcript?: string }): void;
   noteAutoTitle(): Promise<unknown>;
@@ -44,7 +45,7 @@ interface SavedConversation {
   name: string; tab: string; open: boolean;
   read?: (file: string) => Conversation;
 }
-interface Artifact { file: string; source: EnvironmentSource; kind: string; time: number; bytes: number }
+interface Artifact { file: string; path: string; directory: boolean; source?: EnvironmentSource; kind: string; time: number; bytes: number }
 interface StageTerminalAccess {
   info(): StageTerminal[];
   run(name: string, command: string, size?: TerminalSize | null): Promise<Result<StageTerminal>>;
@@ -60,7 +61,9 @@ interface TaskAccess {
   readonly worktrees: { folder: string; repo: string; branch: string }[];
   readonly profiles: ReadonlyMap<string, ProfileAccess>;
   readonly closed: ReadonlyMap<string, { cfg: ProfileInfo; tabs: { urls: string[] } }>;
-  readonly artifactLimit: number;
+  fileContext(session?: string, createExternal?: boolean): Result<{ artifacts: string; tmp: string | null; session: string | null; mcp: string | null }>;
+  temporaryFiles(): Promise<Artifact[]>;
+  deleteTemporary(files: string[] | null, session?: string): Promise<Result<{ deleted: number; bytes: number }>>;
   arrangeStage(layout?: StageLayout, overflow?: boolean, position?: StagePosition): Result;
   dirs(): string[];
   addable(): string[];
@@ -79,10 +82,10 @@ interface TaskAccess {
   environmentUsed(environment: string): void;
   caption(profile: string, caption: string, sticky?: boolean): void;
   toUrl(address: string): string;
-  screenshot(profile: string, tab: string | undefined, shot: Omit<Shot, 'human'> & { by: 'agent' }): Promise<{ buf: Buffer; file: string }>;
-  saveArtifact(source: EnvironmentSource, kind: string, content: string | Buffer): Promise<string>;
+  screenshot(profile: string, tab: string | undefined, shot: Omit<Shot, 'human'> & { by: 'agent' }, temporary?: string): Promise<{ buf: Buffer; file: string }>;
+  saveArtifact(source: EnvironmentSource, kind: string, content: string | Buffer, temporary?: string): Promise<string>;
   artifacts(): Promise<Artifact[]>;
-  artifactsUsage(scope?: 'task' | 'project' | 'all'): Promise<{ bytes: number; tasks: { key: string; name: string; project: string; bytes: number }[] }>;
+  artifactsUsage(scope?: 'task' | 'project' | 'all', area?: 'artifacts' | 'temporary' | 'all'): Promise<{ bytes: number; tasks: { key: string; name: string; project: string; bytes: number }[] }>;
   deleteArtifacts(files: string[] | null): Promise<Result<{ deleted: number; bytes: number }>>;
   rename(name: string): Promise<Result<{ name: string; branch?: string | null }>>;
   makeWorktree(name?: string): Promise<Result<{ folder: string; branch: string }>>;

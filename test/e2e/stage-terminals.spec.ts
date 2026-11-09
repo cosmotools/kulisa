@@ -1,7 +1,6 @@
 // Human and agent operate the same interactive CLI in Stage.
 import fs from 'fs';
 import path from 'path';
-import { sizeText } from '../../src/shared/bytes.ts';
 import { test, expect } from './fixtures.ts';
 import { newTask } from './tasks-helpers.ts';
 import { showResources, invoke, answer, choose, frames, notLoading, focusWindow } from './helpers.ts';
@@ -221,7 +220,7 @@ test('browser and terminal environments share Stage positions and tabs without r
   await expect(ui.locator('[data-task-view][data-active]').getByTestId('stage')).toBeHidden();
 });
 
-test('input follows terminal modes and large reads become bounded task artifacts', async ({ core, ui, files, call }) => {
+test('input follows terminal modes and large reads spill into temporary storage', async ({ ui, files, call }) => {
   fs.writeFileSync(path.join(files.project, 'terminal-keys.cjs'), `
     process.stdin.setRawMode(true); process.stdin.resume();
     process.stdout.write('\\x1b[?1hREADY');
@@ -245,16 +244,12 @@ test('input follows terminal modes and large reads become bounded task artifacts
   expect(result.file).toBeTruthy();
   expect(result.text.length).toBeLessThanOrEqual(2000);
   expect(fs.readFileSync(result.file, 'utf8')).toContain('row 499:');
-  const source = await core(async (k, file) => (await k.shell.task.findArtifact(file) as { artifact: { source: unknown } }).artifact.source, result.file);
-  expect(source).toMatchObject({ kind: 'stage-terminal' });
+  const { tmp } = JSON.parse((await call('task_files')).text);
+  expect(path.dirname(result.file)).toBe(tmp);
   await showResources(ui, 'Artifacts');
-  const artifact = ui.locator('[data-task-view][data-active] [data-resources]').getByRole('button', { name: 'Terminal screen', exact: true });
-  await expect(artifact).toBeVisible();
-  await expect(artifact).toContainText('Large');
-  await expect(artifact).toContainText(sizeText(fs.statSync(result.file).size));
-  await artifact.hover();
-  await ui.locator('[data-task-view][data-active] [data-resources]').getByRole('button', { name: 'Delete Terminal screen', exact: true }).click();
-  await expect.poll(() => fs.existsSync(result.file)).toBe(false);
+  await expect(ui.getByRole('treeitem', { name: path.basename(result.file), exact: true })).toHaveCount(0);
+  await call('task_artifacts_delete', { area: 'temporary', files: [result.file] });
+  expect(fs.existsSync(result.file)).toBe(false);
   await call('terminal_close', { name: 'Large' });
 });
 

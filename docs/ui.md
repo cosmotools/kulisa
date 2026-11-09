@@ -14,7 +14,7 @@ Workbench contains three adjacent parts, not three nested containers:
 | Workbench | The whole development area: Activity bar, Side bar and Main pane. |
 | Activity bar | The vertical strip for choosing Agents, Project, Diff or Artifacts; dictation sits below these choices. |
 | Activity bar item | One of those navigation buttons, such as Project. |
-| Side bar | The collapsible pane showing the selected Activity bar item's agents, project tree, changed-file tree or artifacts. |
+| Side bar | The collapsible pane showing the selected Activity bar item's agents, project tree, changed-file tree or artifact tree. |
 | Side bar item | An entry inside that pane: an agent, folder, file or artifact. |
 | Main pane | The selected Activity bar item's content. |
 
@@ -176,3 +176,8 @@ Prefer upstream components for their normal jobs. The remaining custom surfaces 
 | Dictation pill/wave | Live microphone data and recording lifecycle; [dictation](../src/dictation/README.md) |
 | Settings frame and log output | Window-wide navigation and plain-text logs; [Settings](../src/renderer/components/settings/README.md) |
 | Welcome examples and characters | Coordinated demonstration without live environments; [welcome](../src/renderer/components/welcome/README.md) |
+
+## Artifact tree
+
+The [Task Files package](../src/task-files/README.md#tree) owns the Trees view, row layout and previews.
+Workbench supplies controls, captions and shared menu/action callbacks. Storage: [tasks](tasks.md#artifacts-and-temporary-files).

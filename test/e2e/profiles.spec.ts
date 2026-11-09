@@ -176,7 +176,7 @@ test("DevTools in a pane's ⋮ menu opens and closes the DevTools of its active 
   await expect.poll(opened).toBe(false);
 });
 
-// Human and agent screenshots share the task's artifacts; the human also gets the clipboard and thumbnail.
+// Human screenshots are results, with the clipboard and thumbnail as well as the Artifacts row.
 test("a pane's ⋮ → Screenshot takes an element, the visible part or the whole page, to the clipboard and Resources as task artifacts", async ({ core, ui, call }) => {
   const id = await core(async (k, url) => (await k.ensureProfile('Sam.admin', url)).id, `${SITE}/app`);
   const dir = await core((k) => k.shell.task.store.artifacts);
@@ -210,11 +210,10 @@ test("a pane's ⋮ → Screenshot takes an element, the visible part or the whol
   const [full] = shots();
   expect(full).toMatch(new RegExp(`^\\d+-${id}-.+-screenshot\\.png$`));
   await showResources(ui, 'Artifacts');
-  const resource = ui.locator('[data-task-view][data-active] [data-resources] [data-file]').first();
-  await expect(resource).toHaveAttribute('data-file', path.join(dir, full));
-  await expect(resource).toHaveAttribute('aria-label', 'Screenshot');
-  await expect(resource.locator('img')).toHaveCount(1);
-  expect((await call('task_artifacts', {})).text).toContain(path.join(dir, full));
+  const resource = ui.getByRole('treeitem', { name: full, exact: true });
+  await expect(resource).toContainText('Screenshot');
+  await expect(resource.locator('[data-item-section=icon] use')).toHaveAttribute('href', /^#artifact-thumbnail-/);
+  expect(JSON.parse((await call('task_artifacts')).text).entries.some((a: { file: string }) => a.file === path.join(dir, full))).toBe(true);
   const fullSize = pngSize(path.join(dir, full));
   expect(fullSize.height > 3000 * dpr - 1, `the whole page (${fullSize.height})`).toBe(true);
   const types = await core(async (k) => (await k.electron.clipboard.read())[0]?.types ?? []);
@@ -240,7 +239,7 @@ test("a pane's ⋮ → Screenshot takes an element, the visible part or the whol
     await expect.poll(() => shots().length, { timeout: 500 }).toBe(2);
   }).toPass({ timeout: 10000 });
   // The file can appear before writeFile finishes; Resources is notified after the save completes.
-  await expect(ui.locator('[data-task-view][data-active] [data-resources] [data-file]')).toHaveCount(2);
+  await expect(ui.locator('[data-task-view][data-active] [data-resources] [role=treeitem][data-item-type=file]')).toHaveCount(2);
   expect(pngSize(path.join(dir, shots().find((f) => f !== full))), 'the element alone, at the screen\'s density').toEqual({ width: Math.round(200 * dpr), height: Math.round(120 * dpr) });
   // Esc while choosing: nothing taken.
   await core((k) => k.press(k.profile('Sam.admin').get().wc, 'S', k.CMD, 'shift'));
@@ -269,7 +268,7 @@ test("a pane's ⋮ → Screenshot takes an element, the visible part or the whol
   await core(async (k, a) => { const p = k.profile('Sam.admin'); p.closeTab(a.blank); await p.get(a.tall).wc.loadURL(a.was); }, { blank, was, tall });
   await expect(ui.locator(`[data-task-view][data-active] [role="region"][data-profile="${id}"] [aria-label="Pick an element"]`), 'a page again: Pick on').toBeEnabled();
   await ui.getByRole('button', { name: 'Delete All Artifacts', exact: true }).click();
-  await expect(ui.locator('[data-task-view][data-active] [data-resources] [data-file]')).toHaveCount(0);
+  await expect(ui.locator('[data-task-view][data-active] [data-resources] [role=treeitem][data-item-type=file]')).toHaveCount(0);
   await expect.poll(shots).toEqual([]);
 });
 
@@ -342,7 +341,7 @@ test('a screenshot shows its thumbnail in its pane\'s corner: a click opens it, 
     await thumbMenu('Delete');
     await expect.poll(async () => !fs.existsSync(file) && await core((k) => !k.shell.windows[0].thumbnails.file) && await thumbGone()).toBe(true);
   await showResources(ui, 'Artifacts');
-    await expect(ui.locator('[data-task-view][data-active] [data-resources] [data-file]').filter({ hasText: 'Screenshot' })).toHaveCount(0);
+    await expect(ui.locator('[data-task-view][data-active] [data-resources] [role=treeitem][data-item-type=file]').filter({ hasText: 'Screenshot' })).toHaveCount(0);
     await expect(shown).toHaveCount(0);
     // Its ×: it fades out first, then goes.
     await take();
@@ -417,7 +416,7 @@ test('after a restart: profiles, sign-ins and tabs are back, the one in front in
   // The deleted ones' copies and masters removed; the live ones keep their folders (beside the task's artifacts).
   const live = [...await core((k) => k.shell.profileStore.all().map((p) => p.id)), 'artifacts'];
   const dirs = (d: string) => fs.readdirSync(d, { withFileTypes: true }).filter((e) => e.isDirectory()).map((e) => e.name);
-  expect([dirs(files.pfile('')).filter((f) => !live.includes(f)), dirs(path.join(files.userData, 'profiles')).filter((f) => !live.includes(f))]).toEqual([[], []]);
+  expect([dirs(files.pfile('')).filter((f) => !live.includes(f) && f !== 'tmp'), dirs(path.join(files.userData, 'profiles')).filter((f) => !live.includes(f))]).toEqual([[], []]);
   expect(fs.existsSync(files.pfile(files.idOf('Rhea.admin')))).toBe(true);
   expect(fs.existsSync(path.join(files.userData, 'deleted-folders.json'))).toBe(false);
   expect(await who(call, 'Rhea.admin')).toBe('Signed in as sam');

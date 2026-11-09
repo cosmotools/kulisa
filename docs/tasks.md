@@ -118,13 +118,10 @@ state and shared expanded width.
   A single file click selects its row; double-click/Enter opens text in Project's Main pane; other files use
   the system app. The shared header shows the branch; exceptions stay beside their repository. Root click expands, double-click
   opens in the OS; root menus remove added copies, never the main/default task folder.
-- **Artifacts**: newest-first screenshots/snapshots/request-response bodies/terminal text, with source, time and
-  size derived from files/metadata (`artifacts.ts`). Create thumbnails serially in main, cache while task loaded,
-  and send list updates asynchronously so large images do not delay agent launch.
-- Artifact click opens; menu opens/reveals/sends/deletes. Send uses `Task.sendArtifact` with shell-quoted path,
-  no Enter. Hover/focus trash deletes one; heading trash deletes all. Drag uses native file drag after
-  `Task.findArtifact` validation. Figures come from `Task.artifactsUsage` ([activity monitor](../src/activity-monitor/README.md)).
-  `task_artifacts` lists files/totals; `task_artifacts_delete` deletes only its own task's files, without confirmation.
+- **Artifacts**: a Trees view of the task's result folders and files, including empty folders. Rows show optional
+  provenance, modification time, size and raster previews. Click/Enter opens a file; menus open/reveal/send/delete.
+  Send inserts a shell-quoted path without Enter. Native drag validates task ownership. Heading trash deletes only
+  results; File Folders opens results or temporary work in the OS. [Storage rules](#artifacts-and-temporary-files).
 
 `tasks.json.resources` is authoritative: first resource determines working folder/branch/copy-root; never duplicate
 these fields. `maintree` is human-owned and never deleted; task-created `worktree` resources follow task cleanup.
@@ -169,10 +166,10 @@ to the human; the window's IPC (`ipc/`) and the MCP tools are handles on it:
 | Browse a task’s folders and Git status, open/edit a file | Project in the Side bar; double-click/Enter, Open or Open in System Application | the agent uses its own filesystem/Git tools; human drafts and conflict choices stay human-owned | `task:file:list`, `task:file:status`, `task:editor`, `task:file:open` (`Task.files`, `Task.fileStatus`, `Task.editor`, `Task.openProjectFile`; reads/writes confined to current roots) |
 | Review local code changes | Diff Activity bar item, continuous file diffs; Unified or Split | the agent reads its Git repository through its own tools | `task:diff:list`, `task:diff:targets`, `task:diff:review`, `task:diff:contents` (`Task.diff`, `Task.diffTargets`, `Task.review`, `Task.diffContents`) |
 | Open a resource's folder | double-click its root in the Side bar, or Open Folder in its menu | none: the agent opens folders through its own tools | `task:open-folder` (`ipc/tasks.ts`) |
-| Open an artifact, show it in its folder | a click on its Side bar item, its menu | none: the tools' answers give the agent its path | `file:open`, `file:show` (`file-links.ts`) |
+| Open an artifact, show it in its folder | a click on its Side bar item, its menu | none: the tools' answers give the agent its path | `Task.openArtifact`, `file:show` (`file-links.ts`) |
 | See what the artifacts take | the Artifacts heading in the Side bar (the shown task's) | `task_artifacts`: its task's files, or each task's total | `Task.artifactsUsage` (src/activity-monitor) |
 | Send an artifact to the agent | Send to Agent in its row’s or screenshot thumbnail’s menu; drag a screenshot thumbnail onto a terminal | none: preparing the human’s next message | `Task.sendArtifact`; terminal file drop |
-| Delete artifacts | a row's 🗑 or Delete in its menu; the heading's 🗑, all | `task_artifacts_delete`: some or all of its task's | `Task.deleteArtifacts` |
+| Delete artifacts | Delete in a file/folder menu; the heading's 🗑, all results | `task_artifacts_delete`: some or all of its task's | `Task.deleteArtifacts` |
 | Make the task's worktree | none: its agent makes it before writing code | `task_worktree` | `Task.makeWorktree`, `Project.ensureWorktree` |
 | Add, clone, make the default, remove a project's folder | the project's page | none: what the project is made of is the human's | `addFolder`, `cloneRepo`, `defaultFolder`, `removeFolder` (`projects.ts`) |
 | Add a project's repository to a task | Add Repository in its tab's menu | `task_add_repository`, once the human agreed in the conversation | `Task.addRepository`, `Project.addCopy` |
@@ -364,18 +361,17 @@ projects/<project id>/            a project's data, by its id (projects.json), g
                                   worktrees of repositories it added; base: the commit a worktree started from. Its
                                   folder, branch and folder of copies are its resources' (store.ts)
   <task id>/                      a task
-    claude-settings.json          Claude's launch settings for Kulisa (plugin permissions, hooks, voice), refreshed
-                                  at launch; shared by its Claude terminals, gone with the task
     task.json                     versioned task state, owned by TaskStore: agents (initial choice and conversation
                                   metadata with stable IDs), development (open tabs and active tab), stage (profile
                                   settings, CLI launch setup, next terminal ID, view and Dockview layout), workspace
                                   (development layout, Stage position and native outer split). Terminal conversation references
                                   use stable IDs; history numbers follow conversation order. Live processes and screen
                                   buffers stay in memory. File and owned environment data go with the task/project.
-    artifacts/                    what the human or agent keep of its environments: a snapshot
-                                  or a body too large for an answer, a screenshot; <n>-<profile id>-<tab id>-<kind>, n in
-                                  the order made; Stage terminal text: <n>-terminal-<id>-terminal.txt; never replaced,
-                                  past 100 MB the oldest go; kept with the task
+    artifacts/                    ordinary final files/folders, including legacy numbered tool results
+    tmp/                          temporary working material, outside artifacts
+      agent-<conversation id>/    one working directory per stable Kulisa conversation
+        claude-settings.json      Claude's per-conversation launch settings, refreshed at launch
+      agent-external-<uuid>/      a persistent working context explicitly created by an external client
     editor/                       open text files and recoverable drafts, owned/limited/cleaned by the Editor
                                   Kulisa package (src/editor/README.md); removed with the task
     <id>/                         its copy of a master, named by the profile's id, made at its first open here: a Chromium profile
@@ -467,6 +463,49 @@ accounts, let go of (Settings → Agents deletes one: "Choosing the agent", Acco
   part percent-encoded: ids have letters of any language); its agent gets them in its environment (`KULISA_MCP_URL`,
   `KULISA_URL`) and sees only its task's profiles. Profile ids repeat across tasks; inside Kulisa a profile is
   `<project id>/<task id>/<id>` (CDP proxy, highlights).
+
+## Artifacts and temporary files
+
+The task owns adjacent `artifacts/` and `tmp/` folders. Results for the human go in `artifacts/`;
+working material goes in `tmp/agent-<conversation id>/`, determined by the stable conversation ID in `task.json`.
+Resume reuses it; a new conversation gets another. These folders survive closing terminals,
+conversations and tasks, and app restarts. Task/project deletion removes them with other task data, deferring locked
+files through `deleted-folders.json`. There is no disk quota, age limit or automatic eviction (the author's choice).
+When task files are prepared, previous top-level `tmp-agent-<id>/` folders move intact into `tmp/agent-<id>/`.
+Existing destinations stop conversion with an explicit error; neither folder is overwritten or merged. Closed tasks count previous folders until conversion.
+The human deletes results manually or requests agent cleanup; agents remove their own unneeded temporary work,
+retaining useful diagnostics and continuation material. They must not clean another conversation's work unasked.
+
+The filesystem is authoritative, with no registration or metadata file required. Legacy tool filenames retain optional provenance. Links are excluded rather than followed into other folders.
+Prepare a file or directory in temporary storage, then move the finished result into artifacts. Direct writes there
+become visible immediately; Kulisa does not infer completeness. Keep code, dependencies and build output in the
+project, respect an explicit human destination, copy human-owned originals, and avoid unintended overwrites.
+Generated tool files use exclusive creation even across concurrent writers.
+
+`KULISA_ARTIFACTS_DIR` and `KULISA_TMP_DIR`, the session-start hook, MCP instructions and `task_files` supply paths.
+Claude/Codex launch adapters add this task's artifacts and their own conversation's temporary folder as writable
+roots; other CLIs may require their own permission flow. Claude launch settings live in its conversation's temporary
+folder to avoid concurrent launch races. These are workflow conventions, not machine isolation: arbitrary programs
+can still write elsewhere.
+
+An external MCP client without a terminal explicitly calls `task_files(newContext: true)` and reconnects to the
+returned `/task/<project>/<task>/c/external-<uuid>/mcp` URL. Retain it to resume the same working folder; do not infer
+ownership from the last active terminal or the stateless HTTP transport. Removing that context's whole folder ends
+its external identity; cleaning its contents preserves it. Local-process authentication remains #90.
+
+Human screenshots and agent screenshots requested as deliverables go to artifacts. Autonomous agent captures
+(default `browser_screenshot` purpose `temporary`) and oversized snapshot/body/terminal replies go to the caller's
+temporary folder; `purpose: artifact` explicitly publishes a screenshot. Tool answers return actual paths. Agents
+can copy useful diagnostic material into results when asked. Delete All Artifacts never touches temporary work.
+
+`task_artifacts` pages result/temporary entries and measures either area or their combined size for a task,
+project or all projects, including unloaded tasks. `task_artifacts_delete` cleans selected results or this connection's
+own temporary files. Broader agent cleanup uses normal filesystem tools after the human specifies the intended scope.
+The heading's figure measures only results. Activity monitor ownership: [README](../src/activity-monitor/README.md).
+
+The [Task Files package](../src/task-files/README.md) owns filesystem operations, live listing and bounded previews,
+including the Trees thumbnail limitation (#400). Core supplies ownership, paths and lifecycle; file viewers remain
+separate (#393).
 
 ## Removing everything by hand
 

@@ -102,6 +102,10 @@ export interface Invoke extends TerminalInvoke, ThumbnailInvoke, GitHubInvoke, D
   'task:diff:contents': I<[{ key: string; folder: string; path: string; options: DiffOptions }], Result<FileDiff>>;
   'task:file:open': I<[{ key: string; file: string }], Result>;
   'task:editor': I<[{ key: string; action: EditorAction }], Result<EditorSnapshot>>;
+  'task:files:folders': I<[string], { folder: string; name: string }[]>;
+  'task:files:open': I<[{ key: string; folder: string }], Result>;
+  'task:artifact:open': I<[{ key: string; file: string }], Result>;
+  'task:artifact:thumbnails': I<[{ key: string; files: string[] }]>;
   'task:artifact:refresh': I<[string]>; // the task's artifacts sent again (Resources.tsx: the task shown)
   'task:artifact:send': I<[{ key: string; file: string }], Result>;
   'task:artifact:drag': I<[{ key: string; file: string }], Result>;

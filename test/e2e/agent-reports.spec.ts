@@ -4,21 +4,8 @@ import fs from 'fs';
 import path from 'path';
 import { sizeText } from '../../src/shared/bytes.ts';
 import { test, expect } from './fixtures.ts';
-import type { Call } from './fixtures.ts';
-import { resourcesGroup, showResources, SITE, PORT, upTo, attr, menu, choose, rightClick, invoke, termText, termKeys, WIN } from './helpers.ts';
+import { resourcesGroup, showResources, SITE, PORT, upTo, choose, rightClick, invoke, termText, termKeys, WIN } from './helpers.ts';
 import { profiles, opened } from './agent-helpers.ts';
-
-// A snapshot and a response body too large for an answer, each a file of the task's, as an agent leaves them; the tab
-// they came from closed.
-async function largeFiles(call: Call) {
-  const tab = opened(await call('browser_tab_new', { profile: 'Elon.buyer', url: `${SITE}/large` }));
-  expect((await call('browser_snapshot', { profile: 'Elon.buyer', tab })).text).toMatch(/-snapshot\.yml\. Read/);
-  // Loaded again: the body of what a new tab loaded before Playwright came to it is not kept.
-  await call('browser_navigate', { profile: 'Elon.buyer', go: 'reload' });
-  const n = [...(await call('browser_network_requests', { profile: 'Elon.buyer', tab, filter: '/large$' })).text.matchAll(/#(\d+) GET/g)].at(-1)[1];
-  expect((await call('browser_network_request', { profile: 'Elon.buyer', tab, number: Number(n) })).text).toMatch(/-response\.txt$/m);
-  await call('browser_tab_close', { profile: 'Elon.buyer', tab });
-}
 
 test("agent: the picked tab's console and requests, and tools on a tab other than the active one", async ({ core, call }) => {
   await profiles(core);
@@ -120,7 +107,7 @@ test('agent: a part of a snapshot: an element, a depth, what matches under its a
 
 test("agent: a snapshot or a body too large for an answer goes to a file of the task's, each its own, the answer its path and outline", async ({ core, call }) => {
   await profiles(core);
-  const artifacts = await core((k) => k.shell.task.store.artifacts);
+  const artifacts = JSON.parse((await call('task_files')).text).tmp;
   const active = () => core((k) => k.profile('Elon.buyer').active), before = await active();
   const tab = opened(await call('browser_tab_new', { profile: 'Elon.buyer', url: `${SITE}/large` }));
   const answer = (await call('browser_snapshot', { profile: 'Elon.buyer', tab })).text;
@@ -146,76 +133,37 @@ test("agent: a snapshot or a body too large for an answer goes to a file of the 
   await expect.poll(active).toBe(before);
 });
 
-test("Resources: the agent's artifacts listed as it makes them, the newest first, a screenshot with its picture; a click opens one, Delete removes it and its row", async ({ core, ui, call, files }) => {
+test('Artifacts tree shows ordinary results with metadata and screenshot previews; opens, sends and deletes files', async ({ core, ui, call, files }) => {
   await profiles(core);
-  await largeFiles(call);
-  const dir = await core((k) => k.shell.task.store.artifacts), number = (f: string) => Number(path.basename(f).split('-')[0]);
+  const { artifacts } = JSON.parse((await call('task_files')).text);
+  const note = path.join(artifacts, 'notes.txt'); fs.writeFileSync(note, 'A completed result');
+  const shot = (await call('browser_screenshot', { profile: 'Elon.buyer', purpose: 'artifact' })).text.match(/^Saved as (.+\.jpg)$/)[1];
   await showResources(ui, 'Artifacts');
-  const list = ui.locator('[data-task-view][data-active] [data-resources] [data-file]'), row = (file: string) => ui.locator(`[data-task-view][data-active] [data-resources] ${attr('data-file', file)}`);
-  const listed = async () => Promise.all((await list.all()).map((r) => r.getAttribute('data-file')));
-  const saved = () => fs.readdirSync(dir).map((f) => path.join(dir, f)).sort((a, b) => number(b) - number(a));
-  const shot = (await call('browser_screenshot', { profile: 'Elon.buyer' })).text.match(/^Saved as (.+\.jpg)$/)[1];
-  // Its picture comes a moment later (made in the background: Task.makeThumbs).
-  await expect.poll(async () => JSON.stringify(await listed()) === JSON.stringify(saved())).toBe(true);
-  // The one just made first, with its picture; the others without one.
-  await expect(list.first()).toHaveAttribute('data-file', shot);
-  await expect(list.first()).toHaveAttribute('aria-label', 'Screenshot');
-  await expect(list.first().locator('img')).toHaveCount(1);
-  for (const [end, label] of [['-snapshot.yml', 'Snapshot'], ['-response.txt', 'Response body']]) {
-    const r = ui.locator(`[data-task-view][data-active] [data-resources] [data-file$="${end}"]`).first(); // the newest of its kind
-    await expect(r).toHaveAttribute('aria-label', label);
-    await expect(r.locator('img')).toHaveCount(0);
-  }
-  await expect(list.first(), 'whose, and when').toHaveText(/^ScreenshotElon\.buyer · /);
-  for (const file of await listed()) {
-    await expect(row(file)).toContainText(sizeText(fs.statSync(file).size));
-  }
-  // What the OS would open it with: noted, not opened.
+  const row = (file: string) => ui.getByRole('treeitem', { name: path.basename(file), exact: true });
+  await expect(row(note)).toContainText(sizeText(fs.statSync(note).size));
+  await expect(row(shot)).toContainText('Screenshot · Elon.buyer');
+  await expect(row(shot).locator('[data-item-section="icon"] use')).toHaveAttribute('href', /^#artifact-thumbnail-/);
   await core((k) => {
-    const { shell } = k.electron;
-    const g = k.stash;
-    g.openPath = shell.openPath; g.opened = [];
-    shell.openPath = async (file: string) => { g.opened.push(file); return ''; };
+    k.stash.openPath = k.electron.shell.openPath; k.stash.opened = [];
+    k.electron.shell.openPath = async (file: string) => { k.stash.opened.push(file); return ''; };
   });
   try {
-    await ui.locator('[data-task-view][data-active] [data-resources] [data-file]').first().click();
-    await expect.poll(() => core((k) => k.stash.opened)).toEqual([shot]);
-  } finally {
-    await core((k) => {
-      const { shell } = k.electron;
-      shell.openPath = k.stash.openPath;
-    });
-  }
-  await rightClick(ui, '[data-task-view][data-active] [data-resources] [data-file]'); // the screenshot, first
-  await expect(menu(ui)).toMatchAriaSnapshot(`
-    - menu:
-      - menuitem "Open"
-      - menuitem "Show in Folder"
-      - menuitem "Send to Agent"
-      - menuitem "Delete"
-  `);
-  await choose(ui, 'Send to Agent');
+    await row(note).click();
+    await expect.poll(() => core((k) => k.stash.opened)).toEqual([note]);
+  } finally { await core((k) => { k.electron.shell.openPath = k.stash.openPath; }); }
+  await rightClick(ui, row(shot)); await choose(ui, 'Send to Agent');
   await expect.poll(() => termText(ui)).toContain(shot);
   await expect(termKeys(ui)).toBeFocused();
   await core((k) => k.shell.pty.write('\x15'));
-  await showResources(ui, 'Artifacts');
-  await rightClick(ui, '[data-task-view][data-active] [data-resources] [data-file]');
-  await choose(ui, 'Delete');
-  await expect(row(shot)).toHaveCount(0);
-  await expect.poll(() => fs.existsSync(shot)).toBe(false);
-  const next = (await listed())[0];
-  const nextRow = row(next).locator('..'), deleteButton = nextRow.getByRole('button', { name: /^Delete / });
-  await nextRow.hover();
-  await deleteButton.click();
-  await expect(row(next)).toHaveCount(0);
-  await expect.poll(() => fs.existsSync(next)).toBe(false);
-  expect((await invoke(ui, 'task:artifact:delete', { key: await core((k) => k.shell.task.key), files: [path.join(files.root, 'package.json')] })).error,
-    'only a file of the task\'s own folder').toMatch(/not an artifact/);
+  await showResources(ui, 'Artifacts'); await rightClick(ui, row(shot)); await choose(ui, 'Delete');
+  await expect(row(shot)).toHaveCount(0); expect(fs.existsSync(shot)).toBe(false);
+  await rightClick(ui, row(note)); await choose(ui, 'Delete'); await expect(row(note)).toHaveCount(0);
+  expect((await invoke(ui, 'task:artifact:delete', { key: await core((k) => k.shell.task.key), files: [path.join(files.root, 'package.json')] })).error).toMatch(/not an artifact/);
 });
 
 test('screenshots from the agent show the same thumbnail, copy JPEG as PNG, and close when deleted from Resources', async ({ core, ui, call }) => {
   await profiles(core);
-  const file = (await call('browser_screenshot', { profile: 'Elon.buyer' })).text.match(/^Saved as (.+\.jpg)$/)[1];
+  const file = (await call('browser_screenshot', { profile: 'Elon.buyer', purpose: 'artifact' })).text.match(/^Saved as (.+\.jpg)$/)[1];
   await expect.poll(() => core((k) => k.shell.windows[0].thumbnails.file)).toBe(file);
   await expect(ui.locator('#shotthumb')).toHaveCount(1);
   await invoke(ui, 'thumbnail:act', { action: 'copy' });
@@ -227,7 +175,7 @@ test('screenshots from the agent show the same thumbnail, copy JPEG as PNG, and 
   expect(image.width).toBeGreaterThan(0);
   expect(image.height).toBeGreaterThan(0);
   await showResources(ui, 'Artifacts');
-  await rightClick(ui, '[data-task-view][data-active] [data-resources] [data-file]');
+  await rightClick(ui, ui.getByRole('treeitem', { name: path.basename(file), exact: true }));
   await choose(ui, 'Delete');
   await expect.poll(() => core((k) => k.shell.windows[0].thumbnails.file)).toBeNull();
   await expect(ui.locator('#shotthumb')).toHaveCount(0);
@@ -236,10 +184,10 @@ test('screenshots from the agent show the same thumbnail, copy JPEG as PNG, and 
 
 test('Artifacts drag as disk files and Send to Agent inserts their paths without submitting the prompt', async ({ core, ui, call, files }) => {
   await profiles(core);
-  await largeFiles(call);
-  const screenshot = (await call('browser_screenshot', { profile: 'Elon.buyer' })).text.match(/^Saved as (.+\.jpg)$/)[1];
+  const screenshot = (await call('browser_screenshot', { profile: 'Elon.buyer', purpose: 'artifact' })).text.match(/^Saved as (.+\.jpg)$/)[1];
   await showResources(ui, 'Artifacts');
-  const snapshot = await ui.locator('[data-task-view][data-active] [data-resources] [data-file$="-snapshot.yml"]').first().getAttribute('data-file');
+  const snapshot = path.join(JSON.parse((await call('task_files')).text).artifacts, 'snapshot.yml');
+  fs.writeFileSync(snapshot, 'A completed snapshot');
   await core((k) => {
     const wc = k.shell.windows[0].win.webContents;
     k.stash.startDrag = wc.startDrag;
@@ -251,7 +199,7 @@ test('Artifacts drag as disk files and Send to Agent inserts their paths without
     for (const file of [screenshot, snapshot]) {
       const before = await core((k) => k.ptyOutput());
       await showResources(ui, 'Artifacts');
-      const row = ui.locator(`[data-task-view][data-active] [data-resources] ${attr('data-file', file)}`);
+      const row = ui.getByRole('treeitem', { name: path.basename(file), exact: true });
       await row.dragTo(resourcesGroup(ui).getByRole('tab', { name: 'Artifacts', exact: true }));
       await expect.poll(() => core((k) => k.stash.dragged.at(-1))).toEqual({ file, icon: false });
       await rightClick(ui, row);
@@ -270,32 +218,22 @@ test('Artifacts drag as disk files and Send to Agent inserts their paths without
   }
 });
 
-test("artifacts: what they take, in Resources' heading and for the agent, which explains and deletes them as the human does with Delete All", async ({ core, ui, call, files }) => {
-  await profiles(core);
-  const dir = await core((k) => k.shell.task.store.artifacts);
-  const total = () => fs.readdirSync(dir).reduce((sum, f) => sum + fs.statSync(path.join(dir, f)).size, 0);
-  const heading = ui.getByTestId('artifacts-size');
-  await largeFiles(call); // older ones, to list past a limit and to leave after one is deleted
-  await call('browser_screenshot', { profile: 'Elon.buyer' });
-  const listed = (await call('task_artifacts', {})).text;
-  const size = listed.match(/^This task's artifacts: (\S+ [KMG]B) in (\d+) file\(s\)\./)[1];
-  expect(Number(listed.match(/in (\d+) file/)[1]), listed).toBe(fs.readdirSync(dir).length);
-  const shot = listed.match(/^- (.+\.jpg): screenshot, Elon\.buyer, \d{4}-\d\d-\d\d \d\d:\d\d, \S+ [KMG]B$/m)?.[1];
-  expect(shot && fs.existsSync(shot), `each file with its path, kind, profile, time and size: ${listed}`).toBe(true);
-  expect(total()).toBeGreaterThan(0);
+test('Artifacts sizes separate results and temporary files; Delete All preserves temporary work', async ({ ui, call }) => {
+  const { artifacts, tmp } = JSON.parse((await call('task_files')).text);
+  await call('task_artifacts_delete', { all: true });
+  const result = path.join(artifacts, 'summary.txt'); fs.writeFileSync(result, 'A finished result');
+  fs.writeFileSync(path.join(tmp, 'working.txt'), 'Keep working');
+  const listed = JSON.parse((await call('task_artifacts')).text);
   await showResources(ui, 'Artifacts');
-  await expect(heading).toHaveText(size);
-  expect((await call('task_artifacts', { scope: 'all' })).text, "every task's total").toMatch(new RegExp(`^- .+ / .+ \\(this task\\): ${size}$`, 'm'));
-  expect((await call('task_artifacts', { limit: 1 })).text).toMatch(/older not listed \(limit\)\.$/);
-  // The agent deletes one, then the human all.
-  expect((await call('task_artifacts_delete', { files: [shot] })).text).toMatch(/^Deleted 1 file\(s\), \S+ [KMG]B; \S+ [KMG]B left\.$/);
-  expect(fs.existsSync(shot)).toBe(false);
-  await expect(call('task_artifacts_delete', { files: [path.join(files.root, 'package.json')] })).rejects.toThrow(/not an artifact of this task/);
-  await showResources(ui, 'Artifacts');
-  await ui.locator('[data-task-view][data-active] [data-resources]').getByRole('button', { name: 'Delete All Artifacts' }).click();
-  await expect(heading).toHaveText('0 KB');
-  await expect.poll(() => fs.readdirSync(dir).length).toBe(0);
-  expect((await call('task_artifacts', {})).text).toMatch(/^This task's artifacts: 0 KB in 0 file\(s\)\.$/);
+  await expect(ui.getByTestId('artifacts-size')).toHaveText(sizeText(listed.bytes));
+  expect(JSON.parse((await call('task_artifacts', { area: 'all' })).text).bytes).toBeGreaterThan(listed.bytes);
+  expect((await call('task_artifacts_delete', { files: [result] })).text).toMatch(/^Deleted 1 entries/);
+  fs.writeFileSync(result, 'Another result');
+  await expect(ui.getByTestId('artifacts-size')).not.toHaveText('0 KB');
+  await ui.getByRole('button', { name: 'Delete All Artifacts' }).click();
+  await expect(ui.getByTestId('artifacts-size')).toHaveText('0 KB');
+  expect(fs.readdirSync(artifacts)).toEqual([]);
+  expect(fs.readFileSync(path.join(tmp, 'working.txt'), 'utf8')).toBe('Keep working');
 });
 
 test('agent: a request with no answer yet is listed as pending at once', async ({ core, call }) => {

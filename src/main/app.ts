@@ -140,7 +140,7 @@ function start(options: Options = {}) {
   shell.github = new GitHub({ dir: userData, fetch: (url, init) => net.fetch(url, init), secrets: shell.secrets });
   shell.github.accounts.logAll();
   // What Kulisa takes on the computer (src/activity-monitor), told where every task's data is.
-  shell.activity = new ActivityMonitor({ list: () => store.allTasks().map(({ project, entry, key }) => ({ key, project: project.id, artifacts: store.artifactsOf(project, entry.id) })) });
+  shell.activity = new ActivityMonitor({ list: () => store.allTasks().map(({ project, entry, key }) => ({ key, project: project.id, artifacts: store.artifactsOf(project, entry.id), temporary: store.temporaryFoldersOf(project, entry.id) })) });
   // A test user's password as it is kept: encrypted, or why not; none given: the one kept stays (profile-store.ts).
   shell.loginSecret = (password) => {
     if (!password) return {};

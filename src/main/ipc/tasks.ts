@@ -114,6 +114,10 @@ export function registerTasks(ipc: Ipc) {
     const task = shell.taskByKey(key);
     return task ? task.diffContents(folder, path, options) : { error: 'The task is closed.' };
   });
+  handle('task:files:folders', (_e, key) => shell.taskByKey(key)?.fileFolders() ?? []);
+  handle('task:files:open', (_e, { key, folder }) => taskAt(key, (task) => task.openFileFolder(folder)));
+  handle('task:artifact:open', (_e, { key, file }) => taskAt(key, (task) => task.openArtifact(file)));
+  handle('task:artifact:thumbnails', (_e, { key, files }) => taskAt(key, (task) => task.artifactThumbnails(files.slice(0, 100))));
   handle('task:artifact:refresh', (e, key) => { const w = at(e); return w?.task?.key === key ? w.sendArtifacts() : undefined; });
   handle('task:artifact:send', (_e, { key, file }) => taskAt(key, (task) => task.sendArtifact(file)));
   handle('task:artifact:drag', async (e, { key, file }) => {

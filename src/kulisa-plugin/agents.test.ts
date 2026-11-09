@@ -90,16 +90,20 @@ test("tasks: a task's copy is trusted as the human trusted the project's code, i
 });
 test("agents: Claude Code's dictation is on in its sessions only, all Kulisa tools allowed, and reading what Kulisa keeps of its pages; its language read and set in its settings, the rest kept", async () => {
   const claude = AGENTS.find((a) => a.id === 'claude')!;
-  const data = path.join(root, 'task data'), args = claude.args!({ packages: '/k', env: {}, data, artifacts: '/data/projects/*/*/artifacts' });
+  const data = path.join(root, 'task data'), args = claude.args!({ packages: '/k', env: {}, data, artifacts: '/data/projects/p/t/artifacts' });
   assert.deepEqual(args.slice(0, 3), ['--plugin-dir', path.join('/k', 'claude-plugin'), '--settings']);
   assert.equal(args[3], path.join(data, 'claude-settings.json'), 'only a task-owned path is typed, including for external configurations');
   const { hooks, ...given } = JSON.parse(fs.readFileSync(args[3], 'utf8')); // its hooks: below
   fs.writeFileSync(args[3], '{}');
-  assert.deepEqual(claude.args!({ packages: '/k', env: {}, data, artifacts: '/data/projects/*/*/artifacts' }), args);
+  assert.deepEqual(claude.args!({ packages: '/k', env: {}, data, artifacts: '/data/projects/p/t/artifacts' }), args);
   assert.deepEqual(JSON.parse(fs.readFileSync(args[3], 'utf8')), { hooks, ...given }, 'settings are refreshed at launch without accumulating files');
   assert.ok(hooks);
   assert.deepEqual(given, { voiceEnabled: true, voice: { enabled: true, mode: 'hold', autoSubmit: false }, permissions: {
-    allow: ['mcp__plugin_kulisa_kulisa', 'Read(//data/projects/*/*/artifacts/**)'] } });
+    allow: ['mcp__plugin_kulisa_kulisa', 'Read(//data/projects/p/t/artifacts/**)', `Read(${process.platform === 'win32' ? `//${data[0]!.toLowerCase()}${data.slice(2).replace(/\\/g, '/')}` : `/${data}`}/**)`] } });
+  const otherData = path.join(root, 'another conversation');
+  const other = claude.args!({ packages: '/k', env: {}, data: otherData, artifacts: '/data/projects/p/t/artifacts' });
+  assert.notEqual(other[3], args[3]);
+  assert.deepEqual(JSON.parse(fs.readFileSync(args[3], 'utf8')), { hooks, ...given }, 'a second launch cannot replace the first conversation settings');
   // Its language setting in an account's folder, as its /config writes it; the rest of the file kept.
   const dir = path.join(root, 'claude-language'), settings = path.join(dir, 'settings.json');
   assert.deepEqual(claude.language!.set(dir, 'de'), {});
