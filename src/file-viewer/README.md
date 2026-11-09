@@ -26,9 +26,9 @@ Add/register a descriptor to support another format or replace an engine. There 
 closed all-formats enum. Controls belong to their engine; PDF search is an optional lease capability. Future
 page/sheet/media capabilities should remain optional rather than requiring a universal page model.
 
-`appearance` supplies shade, code font/size and optional registered Pierre theme names. Scoped CSS styles the
-viewer toolbars. The host can set `--file-viewer-background`, `--file-viewer-foreground`, `--file-viewer-border`, `--file-viewer-selected` and
-`--file-viewer-selected-text` through `style`. Surrounding application actions remain the host's.
+`appearance` supplies shade, code font/size and optional registered Pierre theme names. Layout and theme colors use
+Tailwind; toolbars use the existing `@ui` controls. Image-sizing presets form a single-selection ToggleGroup;
+custom zoom leaves the presets unselected. Surrounding application actions remain the host's.
 `fallback` supplies optional content alongside unsupported/read/engine errors.
 
 ## Implemented engines
@@ -97,6 +97,6 @@ coverage remains in `agent-reports.spec.ts`. Follow [testing](../../docs/testing
 ## The code
 
 - `renderer/registry.ts`, `viewers.ts`: contracts, recognition, registration and lazy engines.
-- `renderer/FileViewer.tsx`, `FindBar.tsx`, `viewer.css`: loading/error lifecycle and independently themed controls.
+- `renderer/FileViewer.tsx`, `FindBar.tsx`: loading/error lifecycle and shared search controls.
 - `renderer/viewers/`: validation, bounded text search, drawing and native capability lifecycle.
 - `main/pdf.ts`, `ipc.ts`: isolated Electron adapter and geometry/search data shared between its halves.

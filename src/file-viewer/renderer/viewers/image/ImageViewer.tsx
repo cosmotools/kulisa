@@ -1,5 +1,7 @@
 // Browser image display; object URLs and animation live only with this source (../../../README.md).
 import { useEffect, useRef, useState } from 'react';
+import { Minus, Plus } from 'lucide-react';
+import { Button, ToggleGroup, ToggleGroupItem } from '@ui';
 import type { ViewerProps } from '../../registry';
 import { checkImageDimensions, readImage } from './metadata';
 
@@ -39,20 +41,23 @@ export default function ImageViewer({ source, signal }: ViewerProps) {
     : mode === 'width' ? Math.min(1, area.width / opened.width) : mode === 'actual' ? 1 : zoom;
   const magnify = (factor: number) => { setZoom(Math.min(8, Math.max(.01, scale * factor))); setMode('zoom'); };
   if (error) throw new Error(error);
-  return <div className="file-viewer-image">
-    <div className="file-viewer-tools" role="toolbar" aria-label="Image controls">
-      <button type="button" disabled={!ready} aria-pressed={mode === 'fit'} onClick={() => setMode('fit')}>Fit</button>
-      <button type="button" disabled={!ready} aria-pressed={mode === 'width'} onClick={() => setMode('width')}>Fit width</button>
-      <button type="button" disabled={!ready} aria-pressed={mode === 'actual'} onClick={() => setMode('actual')}>100%</button>
-      <button type="button" disabled={!ready || scale <= .01} aria-label="Zoom out" onClick={() => magnify(1 / 1.25)}>−</button>
-      <button type="button" disabled={!ready || scale >= 8} aria-label="Zoom in" onClick={() => magnify(1.25)}>+</button>
+  return <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+    <div className="flex shrink-0 flex-wrap items-center gap-1 border-b px-2 py-1 text-xs" role="toolbar" aria-label="Image controls">
+      <ToggleGroup type="single" size="sm" aria-label="Image sizing" value={mode === 'zoom' ? '' : mode} disabled={!ready}
+        onValueChange={(value) => { if (value === 'fit' || value === 'width' || value === 'actual') setMode(value); }}>
+        <ToggleGroupItem value="fit">Fit</ToggleGroupItem>
+        <ToggleGroupItem value="width">Fit width</ToggleGroupItem>
+        <ToggleGroupItem value="actual">100%</ToggleGroupItem>
+      </ToggleGroup>
+      <Button type="button" variant="ghost" size="icon-sm" disabled={!ready || scale <= .01} title="Zoom out" aria-label="Zoom out" onClick={() => magnify(1 / 1.25)}><Minus /></Button>
+      <Button type="button" variant="ghost" size="icon-sm" disabled={!ready || scale >= 8} title="Zoom in" aria-label="Zoom in" onClick={() => magnify(1.25)}><Plus /></Button>
       <output aria-label="Image zoom">{Math.round(scale * 100)}%</output>
       {opened && <output aria-label="Image dimensions">{opened.width} × {opened.height}</output>}
     </div>
-    <div ref={viewport} className="file-viewer-image-scroll" tabIndex={0} aria-label="Image viewport">
+    <div ref={viewport} className="min-h-0 flex-1 overflow-auto" tabIndex={0} aria-label="Image viewport">
       {!ready && <p role="status">Opening image…</p>}
-      {opened && <div className="file-viewer-image-canvas" style={{ width: opened.width * scale + 32, height: opened.height * scale + 32 }}>
-        <img ref={image} src={opened.url} alt={source.name} draggable={false} style={{ width: opened.width * scale, height: opened.height * scale }}
+      {opened && <div className="grid min-h-full min-w-full box-border place-items-center bg-[conic-gradient(var(--border)_25%,transparent_0_50%,var(--border)_0_75%,transparent_0)] p-4 [background-size:16px_16px]" style={{ width: opened.width * scale + 32, height: opened.height * scale + 32 }}>
+        <img ref={image} src={opened.url} alt={source.name} draggable={false} className="block max-h-none max-w-none" style={{ width: opened.width * scale, height: opened.height * scale }}
           onError={() => { if (!signal.aborted) setError('Chromium could not decode this image. Open it in a system application.'); }}
           onLoad={(event) => {
             try {

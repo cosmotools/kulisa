@@ -307,7 +307,7 @@ test('a screenshot shows its thumbnail in its pane\'s corner: a click opens it, 
     await tp.locator('img').click();
     const preview = ui.getByRole('region', { name: 'Artifact preview', exact: true });
     await expect(preview.getByRole('img', { name: path.basename(file), exact: true })).toBeVisible();
-    await expect(preview.getByRole('button', { name: '100%', exact: true })).toBeEnabled();
+    await expect(preview.getByRole('radio', { name: '100%', exact: true })).toBeEnabled();
     expect(await did()).not.toContain(`open ${file}`);
     await core((k) => { const wc = k.stash.thumbWc; wc.startDrag = (item: { file: string }) => { k.stash.dragged = item.file; }; });
     // Dragged out as the hand drags it: pressed, then moved.

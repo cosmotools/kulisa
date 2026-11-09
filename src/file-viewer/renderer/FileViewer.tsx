@@ -1,7 +1,6 @@
 // Common asynchronous viewing surface; engines own their resources (../README.md).
-import { Component, useEffect, useState, type ComponentType, type ReactNode, type CSSProperties } from 'react';
+import { Component, useEffect, useState, type ComponentType, type ReactNode } from 'react';
 import type { FileSource, ViewerAppearance, ViewerCapabilities, ViewerProps, ViewerRegistry } from './registry';
-import './viewer.css';
 
 const appearanceDefault: ViewerAppearance = {}, capabilitiesDefault: ViewerCapabilities = {};
 interface Props {
@@ -11,10 +10,9 @@ interface Props {
   capabilities?: ViewerCapabilities;
   viewer?: string;
   fallback?: ReactNode;
-  style?: CSSProperties;
 }
-export function FileViewer({ source, registry, appearance = appearanceDefault, capabilities = capabilitiesDefault, viewer, fallback, style }: Props) {
-  return <section className="file-viewer" style={style} aria-label={`File viewer: ${source.name}`}>
+export function FileViewer({ source, registry, appearance = appearanceDefault, capabilities = capabilitiesDefault, viewer, fallback }: Props) {
+  return <section className="flex h-full min-h-0 min-w-0 flex-col bg-card text-foreground" aria-label={`File viewer: ${source.name}`}>
     <Viewing key={source.id} source={source} registry={registry} appearance={appearance} capabilities={capabilities} viewer={viewer} fallback={fallback} />
   </section>;
 }
@@ -37,13 +35,13 @@ function Viewing({ source, registry, appearance, capabilities, viewer, fallback 
     return () => controller.abort();
   }, [source, registry, capabilities, viewer]);
   if (!loaded || loaded.source !== source || loaded.controller.signal.aborted) return <p role="status">Loading file…</p>;
-  if (loaded.error || !loaded.Content) return <div className="file-viewer-message"><p role="status">{loaded.error}</p>{fallback}</div>;
+  if (loaded.error || !loaded.Content) return <div className="overflow-auto p-4"><p role="status" data-selectable>{loaded.error}</p>{fallback}</div>;
   return <ViewerError key={source.id} fallback={fallback}><loaded.Content source={source} signal={loaded.controller.signal} appearance={appearance} capabilities={capabilities} /></ViewerError>;
 }
 class ViewerError extends Component<{ children: ReactNode; fallback: ReactNode }, { error: string | null }> {
   override state: { error: string | null } = { error: null };
   static getDerivedStateFromError(error: Error) { return { error: error.message }; }
   override render() {
-    return this.state.error ? <div className="file-viewer-message"><p role="alert">{this.state.error}</p>{this.props.fallback}</div> : this.props.children;
+    return this.state.error ? <div className="overflow-auto p-4"><p role="alert" data-selectable>{this.state.error}</p>{this.props.fallback}</div> : this.props.children;
   }
 }

@@ -100,7 +100,4 @@ export default tseslint.config(
   { files: WINDOW, rules: { 'no-restricted-syntax': ['error', EXPORT_ALL, ...OWN, HEX, COLORS] } },
   { files: ['src/renderer/components/AgentMark.tsx', 'src/renderer/components/ProjectIcon.tsx'],
     rules: { 'no-restricted-syntax': ['error', EXPORT_ALL, ...OWN, COLORS] } },
-  // File viewer's existing toolbars use scoped package CSS and host theme variables (docs/ui.md, Own drawing).
-  // The surrounding Artifacts controls use shadcn.
-  { files: ['src/file-viewer/renderer/**'], rules: { 'no-restricted-syntax': ['error', EXPORT_ALL] } },
 );

@@ -21,7 +21,7 @@ test('Chromium displays PNG, JPEG, WebP, AVIF, BMP, ICO, animated GIF and inert 
     for (const [extension, fixture] of [...Object.entries(viewerImages), ['svg', { width: 120, height: 80 }] as const]) {
       await ui.getByRole('treeitem', { name: `sample.${extension}`, exact: true }).click();
       await expect(preview.getByRole('img', { name: `sample.${extension}`, exact: true })).toBeVisible();
-      await expect(preview.getByRole('button', { name: '100%', exact: true })).toBeEnabled();
+      await expect(preview.getByRole('radio', { name: '100%', exact: true })).toBeEnabled();
       await expect(preview.getByLabel('Image dimensions')).toHaveText(`${fixture.width} × ${fixture.height}`);
       if (extension === 'gif') {
         // Canvas drawImage intentionally uses an animated image's first frame; capture the painted image instead.
@@ -56,13 +56,13 @@ test('a tall screenshot supports fit, width, actual size, zoom and scrolling; sw
     await ui.getByRole('treeitem', { name: 'tall.png', exact: true }).click();
     const preview = ui.getByRole('region', { name: 'Artifact preview', exact: true });
     const image = preview.getByRole('img', { name: 'tall.png', exact: true });
-    await expect(preview.getByRole('button', { name: '100%', exact: true })).toBeEnabled();
+    await expect(preview.getByRole('radio', { name: '100%', exact: true })).toBeEnabled();
     const url = await image.getAttribute('src'); expect(url).toMatch(/^blob:/);
     const viewport = preview.getByLabel('Image viewport');
     // DOM geometry is the observable scroll/scale result; no semantic locator API exposes it.
     const metrics = () => viewport.evaluate((el) => ({ width: el.clientWidth, height: el.clientHeight, scrollWidth: el.scrollWidth, scrollHeight: el.scrollHeight }));
     const fit = await metrics(); expect(fit.scrollHeight).toBeLessThanOrEqual(fit.height + 1);
-    await preview.getByRole('button', { name: '100%', exact: true }).click();
+    await preview.getByRole('radio', { name: '100%', exact: true }).click();
     await expect(preview.getByLabel('Image zoom')).toHaveText('100%');
     expect((await metrics()).scrollHeight).toBeGreaterThan(6000);
     await viewport.focus(); await viewport.press('End');
@@ -71,10 +71,10 @@ test('a tall screenshot supports fit, width, actual size, zoom and scrolling; sw
     await expect(preview.getByLabel('Image zoom')).toHaveText('125%');
     await preview.getByRole('button', { name: 'Zoom out', exact: true }).click();
     await expect(preview.getByLabel('Image zoom')).toHaveText('100%');
-    await preview.getByRole('button', { name: 'Fit width', exact: true }).click();
+    await preview.getByRole('radio', { name: 'Fit width', exact: true }).click();
     const width = await metrics(); expect(width.scrollWidth).toBeLessThanOrEqual(width.width + 1);
     memory.push({ state: 'open', rssKiB: await rendererRss() });
-    await preview.getByRole('button', { name: 'Fit', exact: true }).click();
+    await preview.getByRole('radio', { name: 'Fit', exact: true }).click();
     await ui.screenshot({ path: '/tmp/fv393-image-preview.png' });
     const retainedImage = await image.elementHandle();
     await showResources(ui, 'Project');
@@ -83,11 +83,11 @@ test('a tall screenshot supports fit, width, actual size, zoom and scrolling; sw
     expect(await core((k) => k.webContents())).toBe(before);
     memory.push({ state: 'closed', rssKiB: await rendererRss() });
     await showResources(ui, 'Artifacts');
-    await expect(preview.getByRole('button', { name: '100%', exact: true })).toBeEnabled();
+    await expect(preview.getByRole('radio', { name: '100%', exact: true })).toBeEnabled();
     expect(await image.getAttribute('src')).not.toBe(url);
     for (let iteration = 0; iteration < 4; iteration++) {
       await showResources(ui, 'Project'); await showResources(ui, 'Artifacts');
-      await expect(preview.getByRole('button', { name: '100%', exact: true })).toBeEnabled();
+      await expect(preview.getByRole('radio', { name: '100%', exact: true })).toBeEnabled();
       memory.push({ state: `reopen-${iteration + 1}`, rssKiB: await rendererRss() });
     }
     await preview.getByRole('button', { name: 'Delete', exact: true }).click();

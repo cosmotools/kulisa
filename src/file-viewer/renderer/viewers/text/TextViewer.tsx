@@ -1,6 +1,7 @@
 // Read-only Pierre code surface; no editor provider or saving lifecycle (../../../README.md).
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { CodeView, type CodeViewHandle, type CodeViewProps } from '@pierre/diffs/react';
+import { Toggle } from '@ui';
 import type { ViewerProps } from '../../registry';
 import { findText } from './search';
 import { FindBar } from '../../FindBar';
@@ -46,14 +47,14 @@ function TextContent({ text, name, appearance }: { text: string; name: string; a
   }, [matches, current]);
   const move = (step: number) => setIndex((current + step + matches.lines.length) % (matches.lines.length || 1));
   const fontSize = appearance.fontSize ?? 13;
-  return <div className="file-viewer-text" onKeyDown={(event) => {
+  return <div className="flex min-h-0 min-w-0 flex-1 flex-col" onKeyDown={(event) => {
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'f') { event.preventDefault(); event.stopPropagation(); input.current?.focus(); input.current?.select(); }
   }}>
     <FindBar inputRef={input} query={query} onQuery={(query) => { setQuery(query); setIndex(0); }} matches={matches.lines.length}
       active={matches.lines.length ? current + 1 : 0} truncated={matches.truncated} onMove={move}>
-      <button type="button" aria-pressed={wrap} onClick={() => setWrap(!wrap)}>Wrap</button>
+      <Toggle size="sm" pressed={wrap} onPressedChange={setWrap}>Wrap</Toggle>
     </FindBar>
-    <CodeView ref={view} items={items} options={options} className="file-viewer-code" style={{
+    <CodeView ref={view} items={items} options={options} className="min-h-0 flex-1 overflow-auto select-text" style={{
       '--diffs-font-family': appearance.fontFamily ?? 'monospace', '--diffs-font-size': `${fontSize}px`, '--diffs-line-height': `${Math.ceil(fontSize * 1.4)}px`,
     } as CSSProperties} />
   </div>;

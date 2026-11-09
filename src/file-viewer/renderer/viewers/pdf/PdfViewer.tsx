@@ -1,4 +1,4 @@
-// Portable placement/lifecycle adapter; the host implements native PDF access (../../../README.md).
+// Placement/lifecycle adapter; the host implements native PDF access (../../../README.md).
 import { useEffect, useRef, useState } from 'react';
 import type { NativePdfLease, ViewerBox, ViewerProps } from '../../registry';
 import { FindBar } from '../../FindBar';
@@ -50,11 +50,11 @@ export default function PdfViewer({ source, signal, capabilities }: ViewerProps)
     }).catch((reason: Error) => { if (!signal.aborted) setError(reason.message); });
   };
   if (error) throw new Error(error);
-  return <div className="file-viewer-text" onKeyDown={(event) => {
+  return <div className="flex min-h-0 min-w-0 flex-1 flex-col" onKeyDown={(event) => {
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'f') { event.preventDefault(); input.current?.focus(); input.current?.select(); }
   }}>
     {opened?.find && <FindBar inputRef={input} query={query} onQuery={(query) => { setQuery(query); find(query, true); }}
       matches={result.matches} active={result.active} onMove={(step) => find(query, step > 0)} />}
-    <div ref={host} className="file-viewer-pdf" aria-label="PDF document">{!opened && <p role="status">Opening PDF…</p>}</div>
+    <div ref={host} className="min-h-0 flex-1" aria-label="PDF document">{!opened && <p role="status">Opening PDF…</p>}</div>
   </div>;
 }

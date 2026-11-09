@@ -1,5 +1,5 @@
-// Task authorization/actions adapt the portable file viewer to Artifacts (docs/tasks.md, The Workbench).
-import { useMemo, useState, type CSSProperties } from 'react';
+// Task authorization/actions connect the file viewer to Artifacts (docs/tasks.md, The Workbench).
+import { useMemo, useState } from 'react';
 import { Button, Empty, EmptyHeader, EmptyTitle } from '@ui';
 import { FileViewer, createViewerRegistry, textViewer, pdfViewer, imageViewer, type FileSource, type ViewerCapabilities, type ViewerProps } from '../../file-viewer/renderer';
 import { loadCodeTheme } from '../../editor/renderer';
@@ -57,10 +57,7 @@ export function Artifacts() {
       <Button variant="ghost" size="sm" onClick={() => void kulisa.invoke('task:artifact:delete', { key, files: [artifact.file] })}>Delete</Button>
     </header>
     <div className="relative min-h-0 flex-1">
-      <FileViewer source={source} registry={registry} appearance={appearance} capabilities={capabilities} style={{
-        '--file-viewer-background': 'var(--card)', '--file-viewer-foreground': 'var(--foreground)', '--file-viewer-border': 'var(--border)',
-        '--file-viewer-selected': 'var(--accent)', '--file-viewer-selected-text': 'var(--accent-foreground)',
-      } as CSSProperties} />
+      <FileViewer source={source} registry={registry} appearance={appearance} capabilities={capabilities} />
       {picture && <img src={picture} alt="" draggable={false} className="absolute inset-0 size-full" />}
     </div>
   </section>;
