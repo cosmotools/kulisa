@@ -1,15 +1,11 @@
 // Task authorization/actions connect the file viewer to Artifacts (docs/tasks.md, The Workbench).
 import { useMemo, useState } from 'react';
 import { Button, Empty, EmptyHeader, EmptyTitle } from '@ui';
-import { FileViewer, createViewerRegistry, textViewer, pdfViewer, imageViewer, type FileSource, type ViewerCapabilities, type ViewerProps } from '../../file-viewer/renderer';
-import { loadCodeTheme } from '../../editor/renderer';
+import { FileViewer, createViewerRegistry, textViewer, pdfViewer, imageViewer, type FileSource, type PdfHost } from '../../file-viewer/renderer';
 import { useTask } from './state';
 import { uiTextSize, useShade } from '../lib/theme';
 
-const registry = createViewerRegistry([pdfViewer, imageViewer, { ...textViewer, load: async () => {
-  const [theme, { default: Text }] = await Promise.all([loadCodeTheme(), textViewer.load()]);
-  return { default: (props: ViewerProps) => <Text {...props} appearance={{ ...props.appearance, theme }} /> };
-} }]);
+const registry = createViewerRegistry([pdfViewer, imageViewer, textViewer]);
 let focusPdfSearch: (() => void) | null = null;
 kulisa.on('artifact:pdf:find', () => focusPdfSearch?.());
 export function Artifacts() {
@@ -31,9 +27,9 @@ export function Artifacts() {
     },
   } : null, [file, revision, size, key, navigation]);
   const appearance = useMemo(() => ({ shade: shade === 'dark' ? 'dark' as const : 'light' as const, fontSize, fontFamily: '"JetBrains Mono", monospace' }), [shade, fontSize]);
-  const capabilities = useMemo<ViewerCapabilities>(() => ({ pdf: {
+  const pdf = useMemo<PdfHost>(() => ({
     onFindRequested: (listener) => { focusPdfSearch = listener; return () => { if (focusPdfSearch === listener) focusPdfSearch = null; }; },
-    open: async (_source, box, signal) => {
+    open: async (box, signal) => {
     signal.throwIfAborted();
     const request = crypto.randomUUID();
     const close = () => { void kulisa.invoke('task:artifact:pdf:close', { request }); };
@@ -46,7 +42,7 @@ export function Artifacts() {
         find: (query, forward) => kulisa.invoke('task:artifact:pdf:find', { request, query, forward }),
         dispose: () => { signal.removeEventListener('abort', close); close(); } };
     } catch (error) { signal.removeEventListener('abort', close); close(); throw error; }
-  } } }), [key, file]);
+  } }), [key, file]);
   if (!source || !artifact) return <Empty className="h-full"><EmptyHeader><EmptyTitle>{selected ? 'Artifact is no longer available' : 'Choose an artifact'}</EmptyTitle></EmptyHeader></Empty>;
   return <section aria-label="Artifact preview" className="flex h-full min-h-0 flex-col">
     <header className="flex shrink-0 flex-wrap items-center gap-1 border-b p-1">
@@ -57,7 +53,7 @@ export function Artifacts() {
       <Button variant="ghost" size="sm" onClick={() => void kulisa.invoke('task:artifact:delete', { key, files: [artifact.file] })}>Delete</Button>
     </header>
     <div className="relative min-h-0 flex-1">
-      <FileViewer source={source} registry={registry} appearance={appearance} capabilities={capabilities} />
+      <FileViewer source={source} registry={registry} appearance={appearance} pdf={pdf} />
       {picture && <img src={picture} alt="" draggable={false} className="absolute inset-0 size-full" />}
     </div>
   </section>;

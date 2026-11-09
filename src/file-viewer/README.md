@@ -12,24 +12,23 @@ It receives application facts through its inputs. A `FileSource` provides identi
 and cancellable ranged reads. Change identity when content changes or a reload is requested. The host authorizes
 every read and supplies metadata; the package never opens a path.
 Abort signals invalidate asynchronous work even when a host cannot cancel an already dispatched read.
-Unmount/source replacement disposes the engine and native lease.
+Unmount/source replacement disposes the engine and native lease. Appearance and the PDF host adapter are required.
 
 `createViewerRegistry([...descriptors])` is the MIME-to-viewer configuration. A descriptor has an ID, MIME patterns,
-optional fallback extensions/header probe, priority, capability availability and lazy `load()`. Duplicate IDs replace
+optional fallback extensions/header probe, priority and lazy `load()`. Duplicate IDs replace
 earlier registrations. Selection ranks specific exact MIME, specific wildcard MIME, a successful header probe,
 then an extension for generic/unknown input, then inferred generic text. Priority breaks ties, then registration order.
-Generic `text/plain` must not swallow future CSV/Markdown engines registered by extension. An explicit viewer ID selects only an eligible
-match. Selection never loads engines. A bounded 1 KiB header recognizes PDF/image signatures and otherwise UTF-8 text when MIME is
+Generic `text/plain` must not swallow future CSV/Markdown engines registered by extension.
+Selection never loads engines. A bounded 1 KiB header recognizes PDF/image signatures and otherwise UTF-8 text when MIME is
 absent/generic; individual engines still validate their full input. A suffix never proves valid contents.
 
 Add/register a descriptor to support another format or replace an engine. There is no central format switch or
-closed all-formats enum. Controls belong to their engine; PDF search is an optional lease capability. Future
-page/sheet/media capabilities should remain optional rather than requiring a universal page model.
+closed all-formats enum. Controls belong to their engine.
 
-`appearance` supplies shade, code font/size and optional registered Pierre theme names. Layout and theme colors use
-Tailwind; toolbars use the existing `@ui` controls. Image-sizing presets form a single-selection ToggleGroup;
+`appearance` supplies shade and code font/size. The lazy text engine loads Editor's code palette through its public
+entry. Layout and theme colors use Tailwind; toolbars use the existing `@ui` controls.
+Image-sizing presets form a single-selection ToggleGroup;
 custom zoom leaves the presets unselected. Surrounding application actions remain the host's.
-`fallback` supplies optional content alongside unsupported/read/engine errors.
 
 ## Implemented engines
 
@@ -38,11 +37,11 @@ custom zoom leaves the presets unselected. Surrounding application actions remai
   search are supported. Search highlights/navigates matching lines and retains at most 10,000 occurrences, indicated
   by `+`; it does not depend on rendered DOM lines. Long lines have bounded syntax tokenization. Markdown, HTML and
   other textual formats are source text; nothing executes them. No editor provider, drafts or writes.
-- **PDF:** the renderer accepts an explicit `capabilities.pdf` host adapter. `main/index.ts` supplies `NativePdf` for
+- **PDF:** the renderer receives a `pdf` host adapter for opening, placement, disposal and search. `main/index.ts` supplies `NativePdf` for
   Electron. Call `registerPdfScheme()` before app readiness, incorporating other schemes into that registration if
   needed: Electron permits only one registration call. A standard origin is required by Chromium's PDF toolbar;
   a nonstandard origin can display pages while leaving controls incomplete. Bytes must begin with `%PDF-` and fit
-  32 MiB. Chromium handles pages, zoom and selection. Optional `find` uses Electron's public `findInPage` API;
+  32 MiB. Chromium handles pages, zoom and selection. Search uses Electron's public `findInPage` API;
   scanned pages without a text layer are not promised searchable.
 
 - **Images:** Chromium `<img>` with a revocable in-memory Blob URL. PNG, JPEG, WebP, GIF (including animation),
@@ -68,8 +67,8 @@ view per window and close it when leaving its file/view/task instead of caching 
 Task authorization belongs to `Task.readArtifact`; bounded regular-file/containment checks and revision metadata
 belong to [Task Files](../task-files/README.md). Retention, sending, deletion and safe system opening stay in the core.
 `main/artifact-viewer.ts` binds one native adapter to a window and rejects stale requests after task changes.
-`Task.viewArtifact` owns the shared tree/thumbnail selection action; `task-view/Artifacts.tsx` supplies source/capability callbacks, appearance and host controls. The host lazily supplies
-Editor's code palette for text. Domain IPC stays in
+`Task.viewArtifact` owns the shared tree/thumbnail selection action; `task-view/Artifacts.tsx` supplies file/PDF
+callbacks, appearance and host controls. Domain IPC stays in
 `shared/ipc.ts`; `file-viewer/ipc.ts` contains only generic geometry/search data. The package imports no application
 IPC helpers. Search logging omits the query.
 
@@ -98,5 +97,5 @@ coverage remains in `agent-reports.spec.ts`. Follow [testing](../../docs/testing
 
 - `renderer/registry.ts`, `viewers.ts`: contracts, recognition, registration and lazy engines.
 - `renderer/FileViewer.tsx`, `FindBar.tsx`: loading/error lifecycle and shared search controls.
-- `renderer/viewers/`: validation, bounded text search, drawing and native capability lifecycle.
+- `renderer/viewers/`: validation, bounded text search, drawing and native PDF lifecycle.
 - `main/pdf.ts`, `ipc.ts`: isolated Electron adapter and geometry/search data shared between its halves.

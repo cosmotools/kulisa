@@ -6,7 +6,7 @@ export const textViewer: ViewerDescriptor = {
   load: () => import('./viewers/text/TextViewer'),
 };
 export const pdfViewer: ViewerDescriptor = {
-  id: 'pdf', mime: ['application/pdf'], extensions: ['pdf'], available: (host) => !!host.pdf,
+  id: 'pdf', mime: ['application/pdf'], extensions: ['pdf'],
   load: () => import('./viewers/pdf/PdfViewer'),
 };
 export const imageViewer: ViewerDescriptor = {

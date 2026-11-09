@@ -8,32 +8,29 @@ import { findText } from './renderer/viewers/text/search.ts';
 const bytes = new TextEncoder().encode('example');
 const source: FileSource = { id: 'sample', name: 'file.dat', size: bytes.length, mime: 'application/example', read: async () => bytes };
 const viewer = (id: string, mime: string[], priority = 0): ViewerDescriptor => ({ id, mime, priority, load: async () => { throw new Error('selection must not load engines'); } });
-test('registry ranks exact MIME above wildcards, then priority; hosts can replace and override engines', () => {
+test('registry ranks exact MIME above wildcards, then priority; registrations can replace engines', () => {
   const original = viewer('exact', ['application/example']);
   const replacement = viewer('exact', ['application/example'], 1);
   const alternate = viewer('alternate', ['application/example'], 0);
   const registry = createViewerRegistry([viewer('wildcard', ['application/*'], 100), original, alternate, replacement]);
-  assert.equal(registry.select(source, bytes, {})?.id, 'exact');
-  assert.equal(registry.select(source, bytes, {}), replacement);
-  assert.equal(registry.select(source, bytes, {}, 'alternate'), alternate);
-  assert.equal(registry.select(source, bytes, {}, 'missing'), undefined);
+  assert.equal(registry.select(source, bytes)?.id, 'exact');
+  assert.equal(registry.select(source, bytes), replacement);
 });
-test('registry supports a new probed MIME without a central dispatch change, and gates native capabilities', () => {
+test('registry supports a new probed MIME without a central dispatch change and rejects unknown input', () => {
   const synthetic = { ...viewer('synthetic', []), probe: (header: Uint8Array) => header[0] === 0 };
-  const native = { ...viewer('pdf', ['application/pdf']), available: () => false };
-  const registry = createViewerRegistry([synthetic, native]);
-  assert.equal(registry.select({ ...source, mime: undefined }, new Uint8Array([0, 1]), {})?.id, 'synthetic');
-  assert.equal(registry.select({ ...source, mime: 'application/pdf' }, bytes, {}), undefined);
+  const registry = createViewerRegistry([synthetic]);
+  assert.equal(registry.select({ ...source, mime: undefined }, new Uint8Array([0, 1]))?.id, 'synthetic');
+  assert.equal(registry.select(source, bytes), undefined);
 });
 test('generic text detection leaves extension-based formats extensible, while specific MIME still wins', () => {
   const csv = { ...viewer('table', ['text/csv']), extensions: ['csv'] };
   const text = viewer('text', ['text/*']);
   const pdf = viewer('pdf', ['application/pdf']);
   const registry = createViewerRegistry([text, csv, pdf]);
-  assert.equal(registry.select({ ...source, name: 'data.csv', mime: undefined }, bytes, {})?.id, 'table');
-  assert.equal(registry.select({ ...source, name: 'data.csv', mime: 'text/plain' }, bytes, {})?.id, 'table');
-  assert.equal(registry.select({ ...source, name: 'data.txt', mime: undefined }, bytes, {})?.id, 'text');
-  assert.equal(registry.select({ ...source, name: 'data.csv', mime: undefined }, new TextEncoder().encode('%PDF-1.7'), {})?.id, 'pdf');
+  assert.equal(registry.select({ ...source, name: 'data.csv', mime: undefined }, bytes)?.id, 'table');
+  assert.equal(registry.select({ ...source, name: 'data.csv', mime: 'text/plain' }, bytes)?.id, 'table');
+  assert.equal(registry.select({ ...source, name: 'data.txt', mime: undefined }, bytes)?.id, 'text');
+  assert.equal(registry.select({ ...source, name: 'data.csv', mime: undefined }, new TextEncoder().encode('%PDF-1.7'))?.id, 'pdf');
 });
 test('recognition validates text/PDF headers and does not treat invalid UTF-8 or binary controls as text', () => {
   assert.equal(identifyMime(new TextEncoder().encode('%PDF-1.7')), 'application/pdf');

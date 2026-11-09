@@ -4,9 +4,9 @@ Read README.md before changing selection, resource limits or native lifecycle.
 
 - Entries: `renderer/index.ts`, `main/index.ts`, `ipc.ts`. Halves share types only. Follow the standard Kulisa
   package boundaries in docs/packages.md; task authorization and window state belong to the host.
-- The host supplies authorized ranged reads, metadata, appearance, surrounding actions and optional native
-  capabilities. Use Tailwind for layout and theme colors, and existing controls through `@ui`, following docs/ui.md.
-- New engines are lazy descriptors registered through the public API. Keep validation, limits, optional controls,
+- The host supplies authorized ranged reads, metadata, appearance, surrounding actions and the PDF adapter.
+  Use Tailwind for layout and theme colors, and existing controls through `@ui`, following docs/ui.md.
+- New engines are lazy descriptors registered through the public API. Keep validation, limits, controls,
   cancellation and disposal with the engine. No central format switch or closed all-formats union.
 - Native PDF receives authorized bytes, never a path. Preserve its isolated in-memory session, request/permission/
   navigation restrictions and one active view per host. Dispose URLs, buffers, find listeners, animation frames and

@@ -1,5 +1,5 @@
-// Public browser/React entry; native implementations are supplied as capabilities (../README.md).
+// Renderer entry; the host supplies authorized file reads and native PDF access (../README.md).
 export { FileViewer } from './FileViewer';
 export { createViewerRegistry } from './registry';
 export { textViewer, pdfViewer, imageViewer } from './viewers';
-export type { FileSource, ViewerCapabilities, ViewerProps } from './registry';
+export type { FileSource, PdfHost } from './registry';

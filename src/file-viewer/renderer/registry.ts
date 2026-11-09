@@ -12,28 +12,25 @@ export interface FileSource {
   /** Return at most length bytes; the host authorizes each read. */
   read(offset: number, length: number, signal: AbortSignal): Promise<Uint8Array>;
 }
-export interface ViewerAppearance {
-  shade?: 'light' | 'dark';
-  fontFamily?: string;
-  fontSize?: number;
-  theme?: { light: string; dark: string };
+interface ViewerAppearance {
+  shade: 'light' | 'dark';
+  fontFamily: string;
+  fontSize: number;
 }
 export interface NativePdfLease {
   place(box: ViewerBox): Promise<void>;
   dispose(): void;
-  find?(query: string, forward: boolean): Promise<ViewerSearchResult>;
+  find(query: string, forward: boolean): Promise<ViewerSearchResult>;
 }
-export interface ViewerCapabilities {
-  pdf?: {
-    open(source: FileSource, box: ViewerBox, signal: AbortSignal): Promise<NativePdfLease>;
-    onFindRequested?(listener: () => void): () => void;
-  };
+export interface PdfHost {
+  open(box: ViewerBox, signal: AbortSignal): Promise<NativePdfLease>;
+  onFindRequested(listener: () => void): () => void;
 }
 export interface ViewerProps {
   source: FileSource;
   signal: AbortSignal;
   appearance: ViewerAppearance;
-  capabilities: ViewerCapabilities;
+  pdf: PdfHost;
 }
 export interface ViewerDescriptor {
   id: string;
@@ -41,12 +38,11 @@ export interface ViewerDescriptor {
   extensions?: readonly string[];
   priority?: number;
   /** A bounded header probe can recognize formats lacking useful metadata. */
-  probe?(header: Uint8Array, source: FileSource): boolean;
-  available?(capabilities: ViewerCapabilities): boolean;
+  probe?(header: Uint8Array): boolean;
   load(): Promise<{ default: ComponentType<ViewerProps> }>;
 }
 export interface ViewerRegistry {
-  select(source: FileSource, header: Uint8Array, capabilities: ViewerCapabilities, override?: string): ViewerDescriptor | undefined;
+  select(source: FileSource, header: Uint8Array): ViewerDescriptor | undefined;
 }
 
 export function identifyMime(header: Uint8Array, supplied?: string): string {
@@ -65,22 +61,20 @@ export function createViewerRegistry(descriptors: readonly ViewerDescriptor[]): 
   const viewers = new Map<string, ViewerDescriptor>();
   for (const descriptor of descriptors) viewers.set(descriptor.id, descriptor);
   return {
-    select(source, header, capabilities, override) {
+    select(source, header) {
       const mime = identifyMime(header, source.mime);
       const supplied = source.mime?.split(';')[0]?.trim().toLowerCase();
       const specific = mime === 'application/pdf' || !!supplied && supplied !== 'application/octet-stream' && supplied !== 'text/plain';
       const extension = source.name.toLowerCase().split('.').at(-1);
       const matches = [...viewers.values()].flatMap((viewer, order) => {
-        if (viewer.available && !viewer.available(capabilities)) return [];
         const exact = viewer.mime.some((pattern) => pattern.toLowerCase() === mime);
         const wildcard = viewer.mime.some((pattern) => pattern.endsWith('/*') && mime.startsWith(pattern.slice(0, -1).toLowerCase()));
-        const probe = viewer.probe?.(header, source) ?? false;
+        const probe = viewer.probe?.(header) ?? false;
         const fallback = !specific && viewer.extensions?.some((ext) => ext.toLowerCase().replace(/^\./, '') === extension);
         // Generic text recognition must not swallow future CSV/Markdown viewers registered by extension/probe.
         const score = Math.max(exact ? specific ? 6 : 2 : 0, wildcard ? specific ? 5 : 1 : 0, probe ? 4 : 0, fallback ? 3 : 0);
         return score ? [{ viewer, score, order }] : [];
       });
-      if (override) return matches.find(({ viewer }) => viewer.id === override)?.viewer;
       matches.sort((a, b) => b.score - a.score || (b.viewer.priority ?? 0) - (a.viewer.priority ?? 0) || a.order - b.order);
       return matches[0]?.viewer;
     },
