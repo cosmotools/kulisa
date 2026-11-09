@@ -78,7 +78,7 @@ test('a tall screenshot supports fit, width, actual size, zoom and scrolling; sw
     await ui.screenshot({ path: '/tmp/fv393-image-preview.png' });
     const retainedImage = await image.elementHandle();
     await showResources(ui, 'Project');
-    expect(await retainedImage.getAttribute('src')).toBeNull(); await retainedImage.dispose();
+    await expect.poll(() => retainedImage.getAttribute('src')).toBeNull(); await retainedImage.dispose();
     await expect.poll(() => ui.evaluate((url) => (window as any).__imageUrls.revoked.includes(url), url)).toBe(true);
     expect(await core((k) => k.webContents())).toBe(before);
     memory.push({ state: 'closed', rssKiB: await rendererRss() });
