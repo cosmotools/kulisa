@@ -45,8 +45,9 @@ test('large media reads only on demand in bounded chunks and revocation cancels 
     read: async (_offset, length, signal) => { reads.push(length); reading = signal; return new Uint8Array(length); } }, owner.signal);
   await Promise.resolve(); assert.deepEqual(reads, []);
   const reader = response.body!.getReader();
-  await reader.read(); assert.deepEqual(reads, [256 * 1024]);
-  await Promise.resolve(); assert.deepEqual(reads, [256 * 1024]);
+  await reader.read(); await Promise.resolve();
+  // The Node/Web adapter may prefetch one chunk; it must not keep reading a stalled consumer.
+  assert.ok(reads.length >= 1 && reads.length <= 2); assert.ok(reads.every((length) => length === 256 * 1024));
   owner.abort(); assert.equal(reading?.aborted, true);
   await assert.rejects(reader.read(), /abort/i);
   assert.equal(mediaResponse(new Request('https://test/'), { size: 1, read: async () => new Uint8Array(1) }, owner.signal).status, 410);

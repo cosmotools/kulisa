@@ -131,10 +131,6 @@ export function registerTasks(ipc: Ipc) {
     const window = at(e), task = window?.task;
     return window && task?.key === key ? window.artifactViewer.open(task, file, request, box) : { error: 'That task is not on screen.' };
   });
-  handle('task:artifact:resolve', (e, { key, file, href }) => {
-    const task = at(e)?.task;
-    return task?.key === key ? task.resolveArtifact(file, href) : { error: 'That task is not on screen.' };
-  });
   handle('task:artifact:media:open', (e, { key, file, revision, request }) => {
     const window = at(e), task = window?.task;
     return window && task?.key === key ? window.artifactViewer.openMedia(task, file, revision, request) : { error: 'That task is not on screen.' };

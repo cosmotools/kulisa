@@ -32,7 +32,7 @@ export interface DocumentHost {
 }
 export interface MediaHost {
   visible: boolean;
-  open(signal: AbortSignal): Promise<{ url: string; dispose(): void }>;
+  open(signal: AbortSignal): Promise<string>;
 }
 export interface ViewerProps {
   source: FileSource;

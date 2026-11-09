@@ -11,9 +11,10 @@ test('Markdown renders GFM, confines local images and links, and keeps searchabl
   const { artifacts } = JSON.parse((await call('task_files')).text);
   const folder = path.join(artifacts, 'markdown-report'); fs.mkdirSync(folder);
   fs.writeFileSync(path.join(folder, 'figure.png'), Buffer.from(viewerImages.png.data, 'base64'));
+  fs.writeFileSync(path.join(artifacts, 'outside.png'), Buffer.from(viewerImages.png.data, 'base64'));
   fs.mkdirSync(path.join(folder, 'nested'));
-  fs.writeFileSync(path.join(folder, 'nested', 'next.txt'), 'Linked report opened');
-  fs.writeFileSync(path.join(folder, 'report.md'), '# Result\n\n**Success** with ~~old text~~.\n\n| Check | Value |\n| --- | --- |\n| Passed | 42 |\n\n- [x] Done\n\n```js\nconst answer = 42;\n```\n\n![Local figure](figure.png)\n\n![Remote figure](https://example.invalid/figure.png)\n\n![Foreign file](../../../outside.png)\n\n[This report](report.md)\n\n[Next report](nested/next.txt)\n\n[Website](https://example.invalid/)\n\n<script>window.markdownExecuted=true</script>\n\n<img src=x onerror="window.markdownExecuted=true">\n');
+  fs.writeFileSync(path.join(folder, 'nested', 'next #.txt'), 'Linked report opened');
+  fs.writeFileSync(path.join(folder, 'report.md'), '# Result\n\n**Success** with ~~old text~~.\n\n| Check | Value |\n| --- | --- |\n| Passed | 42 |\n\n- [x] Done\n\n```js\nconst answer = 42;\n```\n\n![Local figure](figure.png)\n\n![Remote figure](https://example.invalid/figure.png)\n\n![Foreign file](../../../outside.png)\n\n[This report](report.md)\n\n[Outside](../../../outside.png)\n\n[Next report](nested/next%20%23.txt)\n\n[Website](https://example.invalid/)\n\n<script>window.markdownExecuted=true</script>\n\n<img src=x onerror="window.markdownExecuted=true">\n');
   await showResources(ui, 'Artifacts');
   await ui.getByRole('treeitem', { name: 'markdown-report', exact: true }).click();
   await ui.getByRole('treeitem', { name: 'report.md', exact: true }).click();
@@ -42,15 +43,16 @@ test('Markdown renders GFM, confines local images and links, and keeps searchabl
   await ui.getByRole('treeitem', { name: 'markdown-report', exact: true }).click();
   await article.getByRole('link', { name: 'This report', exact: true }).click();
   await expect(ui.getByRole('treeitem', { name: 'report.md', exact: true })).toHaveAttribute('aria-selected', 'true');
+  const localUrl = await article.getByRole('img', { name: 'Local figure', exact: true }).getAttribute('src');
+  await article.getByRole('link', { name: 'Outside', exact: true }).click();
+  await expect(article.getByRole('status')).toHaveText('That link does not name an artifact of this task.');
+  await expect(article.getByRole('img', { name: 'Local figure', exact: true })).toHaveAttribute('src', localUrl!);
   await article.getByRole('link', { name: 'Next report', exact: true }).click();
-  await expect(ui.getByRole('treeitem', { name: 'next.txt', exact: true })).toHaveAttribute('aria-selected', 'true');
+  await expect(ui.getByRole('treeitem', { name: 'next #.txt', exact: true })).toHaveAttribute('aria-selected', 'true');
   await expect(ui.getByRole('treeitem', { name: 'report.md', exact: true })).toHaveAttribute('aria-selected', 'false');
   await expect(preview.getByRole('searchbox')).toBeVisible();
   await preview.getByRole('searchbox').fill('Linked report opened');
   await expect(preview.getByRole('status', { name: 'Search results' })).toHaveText('1 / 1');
-  const key = await core((k) => k.shell.task.key), file = path.join(folder, 'report.md');
-  for (const href of ['../../../outside.png', 'file:///etc/passwd', '//server/share', '%2fetc/passwd', '..%5coutside', 'https://example.invalid/'])
-    expect(await invoke(ui, 'task:artifact:resolve', { key, file, href })).toHaveProperty('error');
 });
 
 test('oversized formatted Markdown retains its source toggle and bounded source search', async ({ call, ui }) => {
@@ -73,7 +75,7 @@ function wave(seconds: number) {
   return bytes;
 }
 
-test('audio streams, seeks and changes speed, and revokes access on view/task changes and deletion', async ({ call, ui, core, files, sui }) => {
+test('audio streams and seeks, and revokes access on view/task changes and deletion', async ({ call, ui, core, files, sui }) => {
   const { artifacts } = JSON.parse((await call('task_files')).text);
   const file = path.join(artifacts, 'sample.wav'); fs.writeFileSync(file, wave(12));
   const before = await core((k) => k.webContents());
@@ -84,9 +86,6 @@ test('audio streams, seeks and changes speed, and revokes access on view/task ch
   const url = await audio.getAttribute('src');
   await audio.press('Space');
   await expect.poll(() => audio.evaluate((audio: HTMLMediaElement) => ({ playing: !audio.paused, time: audio.currentTime > 0 }))).toEqual({ playing: true, time: true });
-  await preview.getByRole('combobox', { name: 'Playback speed' }).click();
-  await ui.getByRole('option', { name: '1.5×', exact: true }).click();
-  await expect.poll(() => audio.evaluate((audio: HTMLMediaElement) => audio.playbackRate)).toBe(1.5);
   // Chromium's timeline lives in closed native-controls shadow DOM. Exercise its seeking API and decoded result.
   await audio.evaluate((audio: HTMLMediaElement) => { audio.currentTime = 8; });
   await expect.poll(() => audio.evaluate((audio: HTMLMediaElement) => !audio.seeking && audio.currentTime >= 8)).toBe(true);

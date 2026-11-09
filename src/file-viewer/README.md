@@ -13,7 +13,8 @@ and cancellable ranged reads. Change identity when content changes or a reload i
 every read and supplies metadata; the package never opens a path.
 Abort signals invalidate asynchronous work even when a host cannot cancel an already dispatched read.
 Unmount/source replacement disposes the engine and native/resource leases. Required host inputs are appearance,
-`pdf` for native PDF, `media` for visibility and a revocable streaming URL, and `document` for resolving/opening relative links.
+`pdf` for native PDF, `media` for visibility and a streaming URL valid until its opening signal aborts, and
+`document` for resolving/opening relative links.
 `document.resolve` supplies another authorized `FileSource`; it does not grant directory access to the package.
 
 `createViewerRegistry([...descriptors])` is the MIME-to-viewer configuration. A descriptor has an ID, MIME patterns,
@@ -66,14 +67,15 @@ custom zoom leaves the presets unselected. Surrounding application actions remai
   into the Workbench document; scripts and external image resources cannot run/load in that mode.
   Switching/closure aborts reads, removes the image source and revokes its Blob URL; no disk copy or native view.
 
-- **Audio/video:** lazy Chromium `<audio controls>` / `<video controls>`, with seeking, volume, playback speed and
-  the browser's video fullscreen control. No autoplay, picture-in-picture, converter or background playback.
+- **Audio/video:** lazy Chromium `<audio controls>` / `<video controls>` with the browser's player controls.
+  No autoplay, picture-in-picture, converter or background playback.
   Extensions select a candidate; Chromium decides whether the container and codecs are supported. Decoder errors
   retain system opening. The host leases one unguessable `artifact-media:` URL per window in the Workbench session,
   never a profile session. `installMediaProtocol(session)` must run before that session's first window/network
   factory, after readiness; late installation produces `ERR_UNKNOWN_URL_SCHEME` in existing windows. The protocol
   serves GET/HEAD, single explicit/open/suffix byte ranges and 416 for invalid ranges. Each stream pulls at most
-  256 KiB per read under backpressure; every read checks confinement and the original revision. There is no full-file
+  256 KiB per read; Node's `Readable.from` / `toWeb` own backpressure and stream cancellation. Every read checks
+  confinement and the original revision. There is no full-file
   buffer, file-size cap, HTTP server or disk preview copy. Chromium owns demuxing/decoder buffers and media caches;
   bounded reads are not a fixed total-RAM guarantee. Leaving, replacement, renderer failure/reload, deletion or window
   closure revokes the URL and aborts streams. Settings coverage also disposes playback; returning never autoplays. Renderer disposal pauses playback, removes src and unloads the decoder.
@@ -93,8 +95,8 @@ Task authorization belongs to `Task.readArtifact`; bounded regular-file/containm
 belong to [Task Files](../task-files/README.md). Retention, sending, deletion and safe system opening stay in the core.
 `main/artifact-viewer.ts` owns one PDF/media session per window and rejects stale requests after task changes.
 Closing or replacing a PDF/media preview also cancels pending main-process reads before another chunk/allocation.
-`Task.resolveArtifact` authorizes relative document links using the same results ownership checks; no arbitrary
-file/network URL or link traversal is exposed.
+The renderer resolves document-relative names only against the task's existing artifact list; the common core
+read/view actions enforce ownership, confinement and revisions. No separate path-resolution IPC is needed.
 `Task.viewArtifact` owns the shared tree/thumbnail selection action; `task-view/Artifacts.tsx` supplies file/PDF/media/document
 callbacks, appearance and host controls. Domain IPC stays in
 `shared/ipc.ts`; `file-viewer/ipc.ts` contains only generic geometry/search data. The package imports no application
@@ -121,7 +123,7 @@ reads/containment. `test/e2e/file-viewer.spec.ts` covers Artifacts, virtualized 
 menu/view/task/deletion lifetimes. `image-viewer.spec.ts` covers
 real image formats, tall-image controls, inert SVG, resource cleanup and selection races. Existing drag/send/system-opening
 coverage remains in `agent-reports.spec.ts`. `markdown-media-viewer.spec.ts` covers GFM/source, linked-file
-confinement, decoder playback, seeking, speed, large-file ranges, stale revisions and disposal. Follow [testing](../../docs/testing.md).
+confinement, decoder playback, seeking, large-file ranges, stale revisions and disposal. Follow [testing](../../docs/testing.md).
 
 ## The code
 

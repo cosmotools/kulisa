@@ -109,8 +109,8 @@ Relative links open other files in the task's results; web links open in your br
 can display within the image limits, with at most 32 images, 16 MiB and 16 million pixels in total. External images
 and embedded HTML are not loaded.
 
-Supported audio and video files play with the player's controls for playback, seeking and volume; **Playback speed**
-changes their speed. Playback starts when you press play and stops when you leave the file, Artifacts or the task, or open Settings.
+Supported audio and video files use the browser's player controls. Playback starts when you press play and stops
+when you leave the file, Artifacts or the task, or open Settings.
 Large media files stream without loading the whole file first. Available codecs depend on the bundled player;
 files it cannot play still offer **Open in System Application**.
 

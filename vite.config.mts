@@ -11,27 +11,12 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { dirname, resolve } from 'node:path';
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { findPackageJSON } from 'node:module';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const renderer = resolve(import.meta.dirname, 'src/renderer');
 const diffsRoot = resolve(dirname(fileURLToPath(import.meta.resolve('@pierre/diffs'))), '..');
-function markdownNotices() {
-  const seen = new Set<string>(), notices: string[] = [];
-  const visit = (name: string, base: string | URL) => {
-    const file = findPackageJSON(name, base)!;
-    if (seen.has(file)) return;
-    seen.add(file);
-    const root = dirname(file), pkg = JSON.parse(readFileSync(file, 'utf8'));
-    const license = readdirSync(root).find((name) => /^licen[sc]e(?:\.(?:md|txt))?$/i.test(name));
-    if (!license) throw new Error(`Missing Markdown dependency notice: ${pkg.name}`);
-    notices.push(`${pkg.name}\n\n${readFileSync(resolve(root, license), 'utf8')}`);
-    for (const dependency of Object.keys(pkg.dependencies ?? {})) visit(dependency, pathToFileURL(file));
-  };
-  visit('react-markdown', import.meta.url); visit('remark-gfm', import.meta.url);
-  return notices.join('\n\n---\n\n');
-}
 export default defineConfig({
   root: renderer,
   base: './', // loaded from file://
@@ -42,7 +27,6 @@ export default defineConfig({
       this.emitFile({ type: 'asset', fileName: 'pierre-diffs-LICENSE.txt', source: readFileSync(resolve(diffsRoot, 'LICENSE.md'), 'utf8') });
       const imageSizeRoot = dirname(findPackageJSON('image-size', import.meta.url)!);
       this.emitFile({ type: 'asset', fileName: 'image-size-LICENSE.txt', source: readFileSync(resolve(imageSizeRoot, 'LICENSE'), 'utf8') });
-      this.emitFile({ type: 'asset', fileName: 'markdown-LICENSES.txt', source: markdownNotices() });
       for (const name of ['react-query', 'query-core']) {
         const root = dirname(fileURLToPath(import.meta.resolve(`@tanstack/${name}/package.json`)));
         this.emitFile({ type: 'asset', fileName: `tanstack-${name}-LICENSE.txt`, source: readFileSync(resolve(root, 'LICENSE'), 'utf8') });
@@ -60,6 +44,7 @@ export default defineConfig({
   resolve: { alias: { '@ui': resolve(import.meta.dirname, 'src/ui') } }, // src/ui's own imports (components.json, aliases)
   worker: { format: 'es' },
   build: {
+    license: { fileName: 'third-party-licenses.md' },
     outDir: resolve(import.meta.dirname, 'dist/renderer'),
     emptyOutDir: true,
     // Electron's Chromium: the code and the CSS as written (nesting, light-dark(), anchor positioning), not lowered.

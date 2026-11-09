@@ -10,7 +10,6 @@ import type { Task } from './tasks.ts';
 
 export class ArtifactViewer {
   readonly native: NativePdf;
-  private media: ReturnType<typeof openMedia> | null = null;
   private owner: { kind: 'PDF' | 'media'; key: string; file: string; request: string; controller: AbortController } | null = null;
   private window: AppWindow;
   constructor(window: AppWindow) {
@@ -40,22 +39,22 @@ export class ArtifactViewer {
     const owner = { kind: 'media' as const, key: task.key, file, request, controller: new AbortController() };
     this.owner = owner;
     try {
-      const found = await task.findArtifact(file);
+      const found = await task.readArtifact(file, 0, 0);
       owner.controller.signal.throwIfAborted();
       if (this.window.task !== task || this.window.switching || task.viewFailed) throw new Error('Media opening was cancelled.');
       if (refused(found)) { this.close(request); return found; }
-      if (found.artifact.directory || found.artifact.revision !== revision) throw new Error('The artifact changed. Select it again to reload.');
-      this.media = openMedia(this.window.win.webContents.session, { size: found.artifact.bytes,
+      if (found.revision !== revision) throw new Error('The artifact changed. Select it again to reload.');
+      const url = openMedia(this.window.win.webContents.session, { size: found.size,
         read: async (offset, length, signal) => {
-          signal.throwIfAborted(); owner.controller.signal.throwIfAborted();
+          signal.throwIfAborted();
           const result = await task.readArtifact(file, offset, length);
-          signal.throwIfAborted(); owner.controller.signal.throwIfAborted();
+          signal.throwIfAborted();
           if (refused(result)) throw new Error(result.error ?? 'The artifact is unavailable.');
           if (result.revision !== revision) throw new Error('The artifact changed while reading.');
           return result.bytes;
-        } });
+        } }, owner.controller.signal);
       log.info(`[artifact-viewer] media opened task=${task.key}`);
-      return { url: this.media.url };
+      return { url };
     } catch (error) { this.close(request); return { error: (error as Error).message }; }
   }
   place(request: string, box: ViewerBox) { if (this.owner?.request === request) this.native.place(box); }
@@ -66,7 +65,7 @@ export class ArtifactViewer {
     if (request !== undefined && this.owner?.request !== request) return;
     if (this.owner) log.info(`[artifact-viewer] ${this.owner.kind} closed task=${this.owner.key}`);
     this.owner?.controller.abort();
-    this.owner = null; this.native.close(); this.media?.dispose(); this.media = null;
+    this.owner = null; this.native.close();
   }
   closeFiles(key: string, files: string[] | null) {
     if (this.owner?.key === key && (!files || files.some((file) => this.owner!.file === path.resolve(file) || this.owner!.file.startsWith(path.resolve(file) + path.sep)))) this.close();
