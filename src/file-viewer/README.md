@@ -67,6 +67,7 @@ view per window and close it when leaving its file/view/task instead of caching 
 Task authorization belongs to `Task.readArtifact`; bounded regular-file/containment checks and revision metadata
 belong to [Task Files](../task-files/README.md). Retention, sending, deletion and safe system opening stay in the core.
 `main/artifact-viewer.ts` binds one native adapter to a window and rejects stale requests after task changes.
+Closing or replacing a PDF also cancels pending main-process reads before another chunk or buffer allocation.
 `Task.viewArtifact` owns the shared tree/thumbnail selection action; `task-view/Artifacts.tsx` supplies file/PDF
 callbacks, appearance and host controls. Domain IPC stays in
 `shared/ipc.ts`; `file-viewer/ipc.ts` contains only generic geometry/search data. The package imports no application

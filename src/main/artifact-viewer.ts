@@ -1,4 +1,4 @@
-// Window/task authorization around the independent native PDF adapter (docs/tasks.md).
+// Window/task authorization around the isolated native PDF adapter (docs/tasks.md).
 import path from 'node:path';
 import { NativePdf } from '../file-viewer/main/index.ts';
 import { guardFocus } from '../browser/main/index.ts';
@@ -10,7 +10,7 @@ import type { Task } from './tasks.ts';
 
 export class ArtifactPdf {
   readonly native: NativePdf;
-  private owner: { key: string; file: string; request: string } | null = null;
+  private owner: { key: string; file: string; request: string; controller: AbortController } | null = null;
   private window: AppWindow;
   constructor(window: AppWindow) {
     this.window = window;
@@ -20,12 +20,12 @@ export class ArtifactPdf {
   async open(task: Task, file: string, request: string, box: ViewerBox) {
     if (task.viewFailed) return { error: 'That task’s screen could not be displayed.' };
     this.close();
-    const owner = { key: task.key, file, request };
+    const owner = { key: task.key, file, request, controller: new AbortController() };
     this.owner = owner;
-    const result = await task.readArtifactPdf(file);
-    if (this.owner !== owner || this.window.task !== task || this.window.switching || task.viewFailed) return { error: 'PDF opening was cancelled.' };
-    if (refused(result)) { this.close(request); return result; }
     try {
+      const result = await task.readArtifactPdf(file, owner.controller.signal);
+      if (this.owner !== owner || this.window.task !== task || this.window.switching || task.viewFailed) return { error: 'PDF opening was cancelled.' };
+      if (refused(result)) { this.close(request); return result; }
       this.native.setHidden(this.window.viewsHidden);
       await this.native.open(result.bytes, result.name, box);
       if (this.owner !== owner) return { error: 'PDF opening was cancelled.' };
@@ -40,6 +40,7 @@ export class ArtifactPdf {
   close(request?: string) {
     if (request !== undefined && this.owner?.request !== request) return;
     if (this.owner) log.info(`[artifact-viewer] PDF closed task=${this.owner.key}`);
+    this.owner?.controller.abort();
     this.owner = null; this.native.close();
   }
   closeFiles(key: string, files: string[] | null) {

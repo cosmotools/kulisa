@@ -906,19 +906,22 @@ class Task {
     log.info(`[artifact-viewer] selected task=${this.key} ${summary({ file: found.artifact.file })}`);
     return {};
   }
-  async readArtifactPdf(file: string): Promise<Result<{ bytes: Uint8Array; name: string }>> {
+  async readArtifactPdf(file: string, signal: AbortSignal): Promise<Result<{ bytes: Uint8Array; name: string }>> {
     const found = await this.findArtifact(file);
+    signal.throwIfAborted();
     if (refused(found)) return found;
     const artifact = found.artifact;
     if (artifact.bytes > 32 * 1024 * 1024) return { error: 'PDF preview is limited to 32 MiB.' };
     const bytes = new Uint8Array(artifact.bytes);
     for (let offset = 0; offset < bytes.length;) {
+      signal.throwIfAborted();
       const result = await this.readArtifact(file, offset, Math.min(bytes.length - offset, 4 * 1024 * 1024));
       if (refused(result)) return result;
       if (result.revision !== artifact.revision) return { error: 'The artifact changed while reading.' };
       if (!result.bytes.length) return { error: 'The artifact changed while reading.' };
       bytes.set(result.bytes, offset); offset += result.bytes.length;
     }
+    signal.throwIfAborted();
     const after = await this.findArtifact(file);
     if (refused(after)) return after;
     if (after.artifact.revision !== artifact.revision) return { error: 'The artifact changed while reading.' };

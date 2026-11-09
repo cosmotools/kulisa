@@ -24,10 +24,14 @@ test('Chromium displays PNG, JPEG, WebP, AVIF, BMP, ICO, animated GIF and inert 
       await expect(preview.getByRole('radio', { name: '100%', exact: true })).toBeEnabled();
       await expect(preview.getByLabel('Image dimensions')).toHaveText(`${fixture.width} × ${fixture.height}`);
       if (extension === 'gif') {
-        // Canvas drawImage intentionally uses an animated image's first frame; capture the painted image instead.
+        // Canvas uses the first animation frame. Sample the painted center: fractional placement can put background at screenshot edges.
         const pixel = async () => {
           const png = await preview.getByRole('img', { name: 'sample.gif', exact: true }).screenshot({ animations: 'allow' });
-          return core((k, data) => [...k.electron.nativeImage.createFromBuffer(Buffer.from(data, 'base64')).toBitmap().subarray(0, 4)], png.toString('base64'));
+          return core((k, data) => {
+            const image = k.electron.nativeImage.createFromBuffer(Buffer.from(data, 'base64')), { width, height } = image.getSize();
+            const offset = (Math.floor(height / 2) * width + Math.floor(width / 2)) * 4;
+            return [...image.toBitmap().subarray(offset, offset + 4)];
+          }, png.toString('base64'));
         };
         const first = await pixel(); await expect.poll(pixel).not.toEqual(first);
       }
