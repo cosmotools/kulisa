@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { NativePdfLease, ViewerBox, ViewerProps } from '../../registry';
 import { FindBar } from '../../FindBar';
+import { Loading } from '../../Loading';
 
 export default function PdfViewer({ signal, pdf }: ViewerProps) {
   const host = useRef<HTMLDivElement>(null), input = useRef<HTMLInputElement>(null);
@@ -52,8 +53,8 @@ export default function PdfViewer({ signal, pdf }: ViewerProps) {
   return <div className="flex min-h-0 min-w-0 flex-1 flex-col" onKeyDown={(event) => {
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'f') { event.preventDefault(); input.current?.focus(); input.current?.select(); }
   }}>
-    {opened && <FindBar inputRef={input} query={query} onQuery={(query) => { setQuery(query); find(query, true); }}
-      matches={result.matches} active={result.active} onMove={(step) => find(query, step > 0)} />}
-    <div ref={host} className="min-h-0 flex-1" aria-label="PDF document">{!opened && <p role="status">Opening PDF…</p>}</div>
+    <FindBar inputRef={input} query={query} onQuery={(query) => { setQuery(query); find(query, true); }}
+      disabled={!opened} matches={result.matches} active={result.active} onMove={(step) => find(query, step > 0)} />
+    <div ref={host} className="min-h-0 flex-1" aria-label="PDF document">{!opened && <Loading />}</div>
   </div>;
 }

@@ -10,7 +10,7 @@ task authorization, selection and window state belong to the host. Dependency no
 `renderer/index.ts` exports `FileViewer`, `createViewerRegistry`, built-in descriptors and their public types.
 It receives application facts through its inputs. A `FileSource` provides identity, name, byte size, optional MIME
 and cancellable ranged reads. Change identity when content changes or a reload is requested. The host authorizes
-every read and supplies metadata; the package never opens a path.
+filesystem reads and supplies metadata; the package never opens a path.
 Abort signals invalidate asynchronous work even when a host cannot cancel an already dispatched read.
 Unmount/source replacement disposes the engine and native/resource leases. Required host inputs are appearance,
 `pdf` for native PDF, `media` for visibility and a streaming URL valid until its opening signal aborts, and
@@ -24,6 +24,12 @@ then an extension for generic/unknown input, then inferred generic text. Priorit
 Generic `text/plain` must not swallow CSV or replacement Markdown engines registered by extension.
 Selection never loads engines. A bounded 1 KiB header recognizes PDF/image signatures and otherwise UTF-8 text when MIME is
 absent/generic; individual engines still validate their full input. A suffix never proves valid contents.
+
+Recognition reads files up to 64 KiB once and shares those bytes with the active engine; larger files use a 1 KiB
+probe followed by the engine's bounded reads. The small snapshot follows the selected source's revision and is
+released with it; there is no cache of previously opened files. A shared 200 ms deadline suppresses progress text
+during quick recognition/read/decode stages. Available controls render while content is still opening, with PDF
+search disabled until its native lease is ready. Progress replaces only the unfinished content area.
 
 Add/register a descriptor to support another format or replace an engine. There is no central format switch or
 closed all-formats enum. Controls belong to their engine.
@@ -124,6 +130,7 @@ menu/view/task/deletion lifetimes. `image-viewer.spec.ts` covers
 real image formats, tall-image controls, inert SVG, resource cleanup and selection races. Existing drag/send/system-opening
 coverage remains in `agent-reports.spec.ts`. `markdown-media-viewer.spec.ts` covers GFM/source, linked-file
 confinement, decoder playback, seeking, large-file ranges, stale revisions and disposal. Follow [testing](../../docs/testing.md).
+`preview-loading.spec.ts` checks single reads of small files, delayed progress and usable controls during held reads.
 
 ## The code
 
