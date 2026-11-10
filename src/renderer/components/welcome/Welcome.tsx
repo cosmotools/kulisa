@@ -47,8 +47,8 @@ function Introduction({ start, button }: { start: () => void; button: React.RefO
     <div className="flex items-center gap-3 [@media(max-height:850px)]:hidden"><AppLogo size={32} /><span className="text-xl font-semibold tracking-tight">Kulisa</span></div>
     <div className="grid items-center gap-12 lg:[@media(min-height:601px)]:grid-cols-[.8fr_1.4fr] [@media(max-height:1000px)]:gap-6">
       <div className="flex flex-col items-start gap-6 [@media(max-height:850px)]:gap-4">
-        <h1 className="text-4xl leading-[1.12] font-semibold tracking-tight xl:text-5xl [@media(max-height:600px)]:text-3xl">Your agent builds.<br /><span className="text-muted-foreground">You see it work.</span></h1>
-        <p className="max-w-[40ch] text-base leading-relaxed text-muted-foreground [@media(max-height:600px)]:text-sm">Develop web and command-line apps with the coding agent you choose. Run, test and refine them together in one window.</p>
+        <h1 className="text-4xl leading-[1.12] font-semibold tracking-tight xl:text-5xl [@media(max-height:600px)]:text-3xl">Your agentic IDE.<br /><span className="text-muted-foreground">Build together.</span></h1>
+        <p className="max-w-[40ch] text-base leading-relaxed text-muted-foreground [@media(max-height:600px)]:text-sm">Develop, run and test software together with the coding agent you choose. Try web and command-line apps in shared browsers and interactive terminals.</p>
         <div className="flex items-center gap-2 text-sm"><Claude className="size-5" /><Codex className="size-5" /><span className="ms-1 text-muted-foreground">Your agent. Your code. Your computer.</span></div>
         <div className="mt-2 flex flex-col items-start gap-3">
           <Button ref={button} size="lg" onClick={start}>Create a project<ArrowRightIcon /></Button>

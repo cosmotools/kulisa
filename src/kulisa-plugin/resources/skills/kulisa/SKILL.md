@@ -5,6 +5,8 @@ description: "Develop and test web, CLI and TUI apps in Kulisa. Use for tasks, S
 
 # Working with Kulisa
 
+Kulisa is an agentic IDE where the human and their chosen coding agent develop, run, and test software together.
+
 Development terminals are for coding/building; **Stage** holds the browser profiles and interactive terminals
 where you test. Open only needed environments; CLI tasks need no browser. A profile has its own browser identity,
 cookies, storage and tabs, with actions visible to the human.

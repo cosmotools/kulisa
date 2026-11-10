@@ -1,7 +1,7 @@
 # The welcome
 
-First-start introduction with web and CLI examples, followed by the shared project creation UI. It starts no
-browser or terminal processes. Empty-window/project behavior belongs to [tasks](../../../../docs/tasks.md#projects);
+First-start introduction to Kulisa as an agentic IDE, with web and CLI examples, followed by the shared project
+creation UI. It starts no browser or terminal processes. Empty-window/project behavior belongs to [tasks](../../../../docs/tasks.md#projects);
 shared UI constraints belong to [ui.md](../../../../docs/ui.md).
 
 ## Boundary and lifecycle

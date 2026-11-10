@@ -1,8 +1,9 @@
 # Kulisa
 
-Electron app where the human's chosen coding agent develops and tests web and command-line apps. Unchanged agent
-CLIs run in development terminals; Kulisa's MCP server gives them browser profiles and Stage terminals to test in.
-The human watches, signs in and points to page elements with Pick. Tasks let several agents work on one project.
+Kulisa is an agentic IDE where you and your chosen coding agent develop, run, and test software together.
+The Electron app runs unchanged agent CLIs in development terminals; Kulisa's MCP server gives them browser
+profiles and Stage terminals to test web and command-line apps. The human can operate the same environments,
+signs in to real accounts and points to page elements with Pick. Tasks let several agents work on one project.
 
 ## Working with the author
 
