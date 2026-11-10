@@ -139,6 +139,10 @@ state, the window owns layout/menu/focus.
 
 ## The window's size
 
+Without a saved position, start at 1280 × 960 DIP, centered in the primary display's work area and reduced to leave
+16 DIP on each edge, subject to the zoomed minimum. This fits the full welcome on a large enough display;
+smaller windows use its compact introduction. Restore saved sizes/maximization and copy a nearby window's size.
+
 Minimum 640 × 400 DIP times UI zoom (`MIN_SIZE`), independent of pane minimums; narrow-grid adaptation: #202.
 OS minimums constrain manual resize only. Clamp restored bounds and growing zoom in `setZoom`; lowering zoom does
 not shrink the window automatically.

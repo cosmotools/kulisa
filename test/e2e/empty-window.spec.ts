@@ -73,10 +73,21 @@ test('the first-start welcome introduces web and CLI work and opens the shared p
     await expect(gear).toBeHidden();
     await expect(tour.getByRole('heading', { level: 1 })).toHaveText(/Your agent builds.*You see it work/);
     await expect(tour.getByRole('tab', { name: 'Web app', exact: true })).toHaveAttribute('aria-selected', 'true');
-    await tour.getByRole('tab', { name: 'CLI app', exact: true }).click();
-    await expect(tour.getByRole('img', { name: /^A coding agent you are building/ })).toBeVisible();
-    await tour.getByRole('tab', { name: 'Web app', exact: true }).click();
-    await expect(tour.getByRole('img', { name: /^Customer browser profile/ })).toBeVisible();
+    // Include reduced content height when desktop panels and the native frame take some screen space.
+    for (const height of [960, 944]) {
+      await core((k, h) => k.shell.win.setContentSize(1280, h), height);
+      await expect.poll(() => ui.evaluate(() => [innerWidth, innerHeight])).toEqual([1280, height]);
+      for (const name of ['CLI app', 'Web app']) {
+        await tour.getByRole('tab', { name, exact: true }).click();
+        await expect(tour.getByRole('img', { name: name === 'CLI app' ? /^A coding agent you are building/ : /^Customer browser profile/ })).toBeVisible();
+        for (const text of ['Try the real app', 'Work together', 'Keep work moving']) await expect(tour.getByText(text, { exact: true })).toBeVisible();
+        // Native window sizing is outside Playwright's viewport emulation. Check the page's actual scroll and edges.
+        await expect.poll(() => ui.evaluate(() => {
+          const e = document.getElementById('welcome'), r = document.querySelector('[aria-label="What Kulisa does"]').getBoundingClientRect();
+          return e.scrollHeight <= e.clientHeight && e.scrollWidth <= e.clientWidth && r.top >= e.getBoundingClientRect().top && r.bottom <= innerHeight;
+        }), `${name}: the full welcome fits at 1280×${height}`).toBe(true);
+      }
+    }
     // A low window, wide or at the least size: the introduction fits, nothing to scroll to (its top not cut off above the
     // window's edge, out of scrolling's reach).
     for (const [w, h] of [[1100, 400], [1600, 400], [640, 400]]) {

@@ -78,8 +78,15 @@ class AppWindow {
     const min = minSize(shell.uiZoom);
     this.barHeight = Math.round(TITLE_BAR_HEIGHT * shell.uiZoom);
     if (bounds) bounds = { ...bounds, width: Math.max(bounds.width, min.width), height: Math.max(bounds.height, min.height) };
+    else {
+      const area = screen.getPrimaryDisplay().workArea;
+      // Fit the full welcome where possible, leaving desktop space around a new window.
+      const width = Math.max(min.width, Math.min(1280, area.width - 32));
+      const height = Math.max(min.height, Math.min(960, area.height - 32));
+      bounds = { x: area.x + Math.round((area.width - width) / 2), y: area.y + Math.round((area.height - height) / 2), width, height };
+    }
     const win = (this.win = new BrowserWindow({
-      width: 1700, height: 1050, ...(bounds || {}), minWidth: min.width, minHeight: min.height, title: 'Kulisa', backgroundColor: COLORS[shell.shade()].window,
+      ...bounds, minWidth: min.width, minHeight: min.height, title: 'Kulisa', backgroundColor: COLORS[shell.shade()].window,
       icon: path.join(import.meta.dirname, '..', '..', 'assets', 'icon.png'), // taskbar and window switcher on Linux and Windows
       // One row on top, as in VS Code: no system title bar; the OS window buttons are drawn over the right end of
       // the window's own top bar (left on macOS). The page lays out around them (Window Controls Overlay).
@@ -441,7 +448,7 @@ function keepPage(win: Electron.BrowserWindow) {
   });
 }
 
-// A place saved on a monitor that is gone (unplugged since): the window opens where the OS puts it instead.
+// A saved window on a monitor that is gone starts at the default size and position.
 function onScreen(b: Rectangle) {
   return screen.getAllDisplays().some(({ workArea: a }) => b.x < a.x + a.width && b.x + b.width > a.x && b.y < a.y + a.height && b.y + b.height > a.y);
 }

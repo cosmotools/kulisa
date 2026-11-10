@@ -11,6 +11,8 @@ and animation CSS stay here. App branding and the project creation UI belong to 
 
 Mount only while the welcome is shown. Short/narrow windows omit illustrations and the supporting feature row;
 at up to 600 CSS px high the introduction is one column at every width. Keep the introduction usable at 640 × 400.
+At up to 1000 CSS px high, reduce outer padding and section gaps so both full examples fit the initial window
+([window size](../../../../docs/window.md#the-windows-size)).
 Project creation owns its inputs and scrolling; first-start focus moves from Create a project to its form.
 
 ## Demonstrations
