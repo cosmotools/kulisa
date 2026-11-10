@@ -7,6 +7,7 @@ import type { DocumentHost, ViewerProps } from '../../registry';
 import { readText } from '../text/read';
 import { checkImageDimensions, readImage } from '../image/metadata';
 import { ImageBudget } from './image-budget';
+import { Loading } from '../../Loading';
 
 const Source = lazy(() => import('../text/TextViewer'));
 const MAX_BYTES = 256 * 1024;
@@ -19,7 +20,7 @@ export default function MarkdownViewer(props: ViewerProps) {
         <ToggleGroupItem value="preview">Preview</ToggleGroupItem><ToggleGroupItem value="source">Source</ToggleGroupItem>
       </ToggleGroup>
     </div>
-    {mode === 'source' ? <Suspense fallback={<p role="status">Loading source…</p>}><Source {...props} /></Suspense> : <FormatError><Formatted {...props} /></FormatError>}
+    {mode === 'source' ? <Suspense fallback={<Loading />}><Source {...props} /></Suspense> : <FormatError><Formatted {...props} /></FormatError>}
   </div>;
 }
 class FormatError extends Component<{ children: ReactNode }, { error: string }> {
@@ -61,7 +62,7 @@ function Formatted({ source, signal, document }: ViewerProps) {
       img: ({ src, alt }) => <LocalImage href={typeof src === 'string' ? src : ''} alt={alt ?? ''} document={document} signal={signal} budget={budget} />,
   }), [document, signal, budget]);
   if (error) return <p role="status" className="p-4" data-selectable>{error}</p>;
-  if (text === null) return <p role="status">Reading Markdown…</p>;
+  if (text === null) return <Loading />;
   return <article aria-label="Formatted Markdown" data-selectable className="min-h-0 flex-1 overflow-auto p-4 text-sm leading-relaxed select-text [&_h1]:my-4 [&_h1]:text-2xl [&_h1]:font-semibold [&_h2]:my-3 [&_h2]:text-xl [&_h2]:font-semibold [&_h3]:my-3 [&_h3]:text-lg [&_h3]:font-semibold [&_p]:my-3 [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:list-decimal [&_ol]:pl-6 [&_li]:my-1 [&_blockquote]:border-l-2 [&_blockquote]:pl-4 [&_blockquote]:text-muted-foreground [&_pre]:overflow-auto [&_pre]:rounded-md [&_pre]:bg-muted [&_pre]:p-3 [&_code]:font-mono [&_code]:text-xs [&_a]:text-primary [&_a]:underline [&_table]:my-3 [&_table]:border-collapse [&_th]:border [&_th]:p-2 [&_td]:border [&_td]:p-2 [&_hr]:my-4 [&_img]:max-w-full">
     {linkError && <p role="status">{linkError}</p>}
     <Markdown remarkPlugins={[remarkGfm, boundTree]} skipHtml components={components}>{text}</Markdown>
@@ -99,5 +100,5 @@ function LocalImage({ href, alt, document, signal, budget }: { href: string; alt
       const { naturalWidth: width, naturalHeight: height } = event.currentTarget;
       checkImageDimensions(width, height); allocation.current?.dimensions(width, height);
     } catch (reason) { event.currentTarget.removeAttribute('src'); URL.revokeObjectURL(url); setError((reason as Error).message); }
-  }} /> : <span>[Loading image: {alt}]</span>;
+  }} /> : <Loading />;
 }

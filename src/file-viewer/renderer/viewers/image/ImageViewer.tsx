@@ -4,6 +4,7 @@ import { Minus, Plus } from 'lucide-react';
 import { Button, ToggleGroup, ToggleGroupItem } from '@ui';
 import type { ViewerProps } from '../../registry';
 import { checkImageDimensions, readImage } from './metadata';
+import { Loading } from '../../Loading';
 
 type Mode = 'fit' | 'width' | 'actual' | 'zoom';
 export default function ImageViewer({ source, signal }: ViewerProps) {
@@ -55,7 +56,7 @@ export default function ImageViewer({ source, signal }: ViewerProps) {
       {opened && <output aria-label="Image dimensions">{opened.width} × {opened.height}</output>}
     </div>
     <div ref={viewport} className="min-h-0 flex-1 overflow-auto" tabIndex={0} aria-label="Image viewport">
-      {!ready && <p role="status">Opening image…</p>}
+      {!ready && <Loading />}
       {opened && <div className="grid min-h-full min-w-full box-border place-items-center bg-[conic-gradient(var(--border)_25%,transparent_0_50%,var(--border)_0_75%,transparent_0)] p-4 [background-size:16px_16px]" style={{ width: opened.width * scale + 32, height: opened.height * scale + 32 }}>
         <img ref={image} src={opened.url} alt={source.name} draggable={false} className="block max-h-none max-w-none" style={{ width: opened.width * scale, height: opened.height * scale }}
           onError={() => { if (!signal.aborted) setError('Chromium could not decode this image. Open it in a system application.'); }}

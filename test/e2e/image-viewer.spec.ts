@@ -13,7 +13,7 @@ test('Chromium displays PNG, JPEG, WebP, AVIF, BMP, ICO, animated GIF and inert 
     <script>fetch('${SITE}/artifact-script-must-not-run')</script><image href="${SITE}/artifact-resource-must-not-load" width="20" height="20"/></svg>`;
   fs.writeFileSync(path.join(artifacts, 'sample.svg'), svg);
   const requests: string[] = [];
-  const observed = (request: { url(): string }) => { if (request.url().includes('artifact-')) requests.push(request.url()); };
+  const observed = (request: { url(): string }) => { if (request.url().startsWith(`${SITE}/artifact-`)) requests.push(request.url()); };
   ui.on('request', observed);
   try {
     await showResources(ui, 'Artifacts');

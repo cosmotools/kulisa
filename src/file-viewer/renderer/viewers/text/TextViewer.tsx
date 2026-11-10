@@ -7,6 +7,7 @@ import type { ViewerProps } from '../../registry';
 import { findText } from './search';
 import { FindBar } from '../../FindBar';
 import { readText } from './read';
+import { Loading } from '../../Loading';
 
 const MAX_BYTES = 4 * 1024 * 1024;
 const theme = await loadCodeTheme();
@@ -21,9 +22,9 @@ export default function TextViewer({ source, signal, appearance }: ViewerProps) 
     })();
   }, [source, signal]);
   if (error) throw new Error(error);
-  return text === null ? <p role="status">Reading text…</p> : <TextContent text={text} name={source.name} appearance={appearance} />;
+  return <TextContent text={text ?? ''} pending={text === null} name={source.name} appearance={appearance} />;
 }
-function TextContent({ text, name, appearance }: { text: string; name: string; appearance: ViewerProps['appearance'] }) {
+function TextContent({ text, pending, name, appearance }: { text: string; pending: boolean; name: string; appearance: ViewerProps['appearance'] }) {
   const view = useRef<CodeViewHandle<undefined, undefined>>(null), input = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState(''), [index, setIndex] = useState(0), [wrap, setWrap] = useState(false);
   const matches = useMemo(() => findText(text, query), [text, query]);
@@ -51,8 +52,8 @@ function TextContent({ text, name, appearance }: { text: string; name: string; a
       active={matches.lines.length ? current + 1 : 0} truncated={matches.truncated} onMove={move}>
       <Toggle size="sm" pressed={wrap} onPressedChange={setWrap}>Wrap</Toggle>
     </FindBar>
-    <CodeView ref={view} items={items} options={options} className="min-h-0 flex-1 overflow-auto select-text" style={{
+    {pending ? <Loading /> : <CodeView ref={view} items={items} options={options} className="min-h-0 flex-1 overflow-auto select-text" style={{
       '--diffs-font-family': appearance.fontFamily, '--diffs-font-size': `${fontSize}px`, '--diffs-line-height': `${Math.ceil(fontSize * 1.4)}px`,
-    } as CSSProperties} />
+    } as CSSProperties} />}
   </div>;
 }

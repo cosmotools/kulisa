@@ -1,6 +1,7 @@
 // Chromium playback; streams and decoders live only with the selected artifact (../../../README.md).
 import { useEffect, useRef, useState, type SyntheticEvent } from 'react';
 import type { ViewerProps } from '../../registry';
+import { Loading } from '../../Loading';
 
 export function AudioViewer(props: ViewerProps) { return <MediaViewer {...props} video={false} />; }
 export function VideoViewer(props: ViewerProps) { return <MediaViewer {...props} video />; }
@@ -20,7 +21,7 @@ function Playback({ source, signal, media, video }: ViewerProps & { video: boole
     // Retain the element before React clears its ref; pause, detach and unload the decoder on disposal.
     const current = element.current;
     return () => { if (current) { current.pause(); current.removeAttribute('src'); current.load(); } };
-  }, [url]);
+  }, []);
   if (error) throw new Error(error);
   const props = { src: url || undefined, controls: true, preload: 'metadata' as const, 'aria-label': source.name,
     controlsList: 'nodownload noremoteplayback', onError: (event: SyntheticEvent<HTMLMediaElement>) => {
@@ -28,8 +29,8 @@ function Playback({ source, signal, media, video }: ViewerProps & { video: boole
       if (!signal.aborted) setError('Chromium could not play this file or codec. Open it in a system application.');
     } };
   return <div className="grid min-h-0 min-w-0 flex-1 place-items-center overflow-auto p-4">
-    {!url && <p role="status">Opening media…</p>}
-    {url && (video ? <video {...props} ref={(node) => { element.current = node; }} playsInline disablePictureInPicture className="max-h-full w-full" />
-      : <audio {...props} ref={(node) => { element.current = node; }} className="w-full" />)}
+    {!url && <Loading />}
+    {video ? <video {...props} ref={(node) => { element.current = node; }} playsInline disablePictureInPicture className="max-h-full w-full" />
+      : <audio {...props} ref={(node) => { element.current = node; }} className="w-full" />}
   </div>;
 }
