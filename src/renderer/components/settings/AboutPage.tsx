@@ -22,7 +22,7 @@ export function AboutPage() {
   useEffect(() => { void read(() => kulisa.invoke('about:get')); }, [read]);
   return <>
     <SettingsHeading title={info ? `Kulisa ${info.version}` : 'Kulisa'} media={<Logo color={CURTAIN} size={40} />}
-      description={<>{info ? <>Electron {info.electron} · Chromium {info.chrome} · </> : !error && <span role="status" className="inline-flex items-center gap-2"><Spinner role={undefined} aria-hidden />Loading versions… </span>}
+      description={<>Agentic IDE · {info ? <>Electron {info.electron} · Chromium {info.chrome} · </> : !error && <span role="status" className="inline-flex items-center gap-2"><Spinner role={undefined} aria-hidden />Loading versions… </span>}
         <a className="underline underline-offset-4" href="https://kulisa.app" target="_blank" rel="noreferrer">kulisa.app</a> · GPL-3.0-or-later</>} />
     <SettingsError error={error} />
     <SettingsGroup title="Where Kulisa keeps things">

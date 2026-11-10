@@ -71,7 +71,7 @@ test('the first-start welcome introduces web and CLI work and opens the shared p
       s.sendProjects();
     });
     await expect(gear).toBeHidden();
-    await expect(tour.getByRole('heading', { level: 1 })).toHaveText(/Your agent builds.*You see it work/);
+    await expect(tour.getByRole('heading', { level: 1 })).toHaveText(/Your agentic IDE.*Build together/);
     await expect(tour.getByRole('tab', { name: 'Web app', exact: true })).toHaveAttribute('aria-selected', 'true');
     // Include reduced content height when desktop panels and the native frame take some screen space.
     for (const height of [960, 944]) {

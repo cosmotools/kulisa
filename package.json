@@ -2,7 +2,7 @@
   "name": "kulisa",
   "private": true,
   "version": "0.4.1",
-  "description": "Your AI agent builds, checks the result as every user in your signed-in browser profiles, and fixes until it works",
+  "description": "Kulisa is an agentic IDE where you and your chosen coding agent develop, run, and test software together.",
   "license": "GPL-3.0-or-later",
   "homepage": "https://kulisa.app",
   "repository": {
