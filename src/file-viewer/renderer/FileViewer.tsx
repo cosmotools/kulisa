@@ -9,7 +9,7 @@ export function FileViewer(props: Props) {
     <Viewing key={source.id} {...props} />
   </section>;
 }
-function Viewing({ source, registry, appearance, pdf }: Props) {
+function Viewing({ source, registry, ...host }: Props) {
   const [loaded, setLoaded] = useState<{ source: FileSource; controller: AbortController; Content?: ComponentType<ViewerProps>; error?: string } | null>(null);
   useEffect(() => {
     const controller = new AbortController(), { signal } = controller;
@@ -29,7 +29,7 @@ function Viewing({ source, registry, appearance, pdf }: Props) {
   }, [source, registry]);
   if (!loaded || loaded.source !== source || loaded.controller.signal.aborted) return <p role="status">Loading file…</p>;
   if (loaded.error || !loaded.Content) return <div className="overflow-auto p-4"><p role="status" data-selectable>{loaded.error}</p></div>;
-  return <ViewerError><loaded.Content source={source} signal={loaded.controller.signal} appearance={appearance} pdf={pdf} /></ViewerError>;
+  return <ViewerError><loaded.Content source={source} signal={loaded.controller.signal} {...host} /></ViewerError>;
 }
 class ViewerError extends Component<{ children: ReactNode }, { error: string | null }> {
   override state: { error: string | null } = { error: null };

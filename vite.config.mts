@@ -44,6 +44,7 @@ export default defineConfig({
   resolve: { alias: { '@ui': resolve(import.meta.dirname, 'src/ui') } }, // src/ui's own imports (components.json, aliases)
   worker: { format: 'es' },
   build: {
+    license: { fileName: 'third-party-licenses.md' },
     outDir: resolve(import.meta.dirname, 'dist/renderer'),
     emptyOutDir: true,
     // Electron's Chromium: the code and the CSS as written (nesting, light-dark(), anchor positioning), not lowered.

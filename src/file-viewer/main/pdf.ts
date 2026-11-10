@@ -8,10 +8,6 @@ const LIMIT = 32 * 1024 * 1024;
 const PDF_EXTENSION = 'chrome-extension://mhjfbmdgcfjbbpaeojofohoefgiehjai/';
 const documents = new Map<string, Uint8Array<ArrayBuffer>>();
 let isolated: Electron.Session | undefined;
-export function registerPdfScheme(additionalSchemes: Electron.CustomScheme[] = []) {
-  // A standard origin is required for Chromium's PDF metadata/toolbar messages to reach their embedder.
-  electron.protocol.registerSchemesAsPrivileged([{ scheme: 'file-viewer', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } }, ...additionalSchemes]);
-}
 function pdfSession() {
   if (isolated) return isolated;
   isolated = electron.session.fromPartition('file-viewer-pdf');

@@ -1025,7 +1025,7 @@ class Task {
   }
   async deleteArtifacts(files: string[] | null): Promise<Result<{ deleted: number; bytes: number }>> {
     const result = await deleteFiles(this.store.artifacts, files);
-    if (!result.error) this.window?.artifactPdf.closeFiles(this.key, files);
+    if (!result.error) this.window?.artifactViewer.closeFiles(this.key, files);
     if (this.window?.thumbnails.file && !fs.existsSync(this.window.thumbnails.file)) this.window.thumbnails.close();
     this.artifactsChanged();
     log.info(`[task-files] ${this.key} artifact cleanup ${summary(result)}`);

@@ -14,3 +14,15 @@ export const imageViewer: ViewerDescriptor = {
   extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif', 'avif', 'bmp', 'ico', 'svg', 'tif', 'tiff', 'heic', 'heif', 'psd'],
   probe: hasImageHeader, load: () => import('./viewers/image/ImageViewer'),
 };
+export const markdownViewer: ViewerDescriptor = {
+  id: 'markdown', mime: ['text/markdown', 'text/x-markdown'], extensions: ['md', 'markdown'],
+  load: () => import('./viewers/markdown/MarkdownViewer'),
+};
+export const audioViewer: ViewerDescriptor = {
+  id: 'audio', mime: ['audio/*', 'application/ogg'], extensions: ['wav', 'mp3', 'ogg', 'oga', 'm4a', 'aac', 'flac', 'opus'],
+  load: async () => ({ default: (await import('./viewers/media/MediaViewer')).AudioViewer }),
+};
+export const videoViewer: ViewerDescriptor = {
+  id: 'video', mime: ['video/*'], extensions: ['mp4', 'webm', 'mov', 'ogv', 'm4v'],
+  load: async () => ({ default: (await import('./viewers/media/MediaViewer')).VideoViewer }),
+};

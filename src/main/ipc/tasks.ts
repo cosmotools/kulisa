@@ -129,11 +129,16 @@ export function registerTasks(ipc: Ipc) {
   });
   handle('task:artifact:pdf:open', (e, { key, file, request, box }) => {
     const window = at(e), task = window?.task;
-    return window && task?.key === key ? window.artifactPdf.open(task, file, request, box) : { error: 'That task is not on screen.' };
+    return window && task?.key === key ? window.artifactViewer.open(task, file, request, box) : { error: 'That task is not on screen.' };
   });
-  handle('task:artifact:pdf:place', (e, { request, box }) => at(e)?.artifactPdf.place(request, box));
-  handle('task:artifact:pdf:close', (e, { request }) => at(e)?.artifactPdf.close(request));
-  handle('task:artifact:pdf:find', (e, { request, query, forward }) => at(e)?.artifactPdf.find(request, query, forward) ?? { matches: 0, active: 0 });
+  handle('task:artifact:media:open', (e, { key, file, revision, request }) => {
+    const window = at(e), task = window?.task;
+    return window && task?.key === key ? window.artifactViewer.openMedia(task, file, revision, request) : { error: 'That task is not on screen.' };
+  });
+  handle('task:artifact:media:close', (e, { request }) => at(e)?.artifactViewer.close(request));
+  handle('task:artifact:pdf:place', (e, { request, box }) => at(e)?.artifactViewer.place(request, box));
+  handle('task:artifact:pdf:close', (e, { request }) => at(e)?.artifactViewer.close(request));
+  handle('task:artifact:pdf:find', (e, { request, query, forward }) => at(e)?.artifactViewer.find(request, query, forward) ?? { matches: 0, active: 0 });
   handle('task:artifact:send', (_e, { key, file }) => taskAt(key, (task) => task.sendArtifact(file)));
   handle('task:artifact:drag', async (e, { key, file }) => {
     const w = at(e), task = w?.task;

@@ -120,8 +120,8 @@ state and shared expanded width.
   opens in the OS; root menus remove added copies, never the main/default task folder.
 - **Artifacts**: a Trees view of the task's result folders and files, including empty folders. Rows show optional
   provenance, modification time, size and raster previews. Click/Enter selects the Main pane’s
-  [File Viewer](../src/file-viewer/README.md) for bounded read-only UTF-8 text, native PDF or Chromium images; other formats offer system
-  opening. Live revisions update changed content; selection stays with the task, while leaving Artifacts/task releases
+  [File Viewer](../src/file-viewer/README.md) for bounded read-only text/Markdown, native PDF, images and streamed audio/video;
+  other formats offer system opening. Live revisions update changed content; selection stays with the task, while leaving Artifacts/task releases
   content and native views. Task Files owns confined ranged reads; files never enter the saving editor’s roots.
   Menus open/reveal/send/delete; system opening preserves executable refusal.
   Send inserts a shell-quoted path without Enter. Native drag validates task ownership. Heading trash deletes only
