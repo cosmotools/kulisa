@@ -46,7 +46,7 @@ test('Markdown renders GFM, confines local images and links, and keeps searchabl
   const localUrl = await article.getByRole('img', { name: 'Local figure', exact: true }).getAttribute('src');
   await article.getByRole('link', { name: 'Outside', exact: true }).click();
   await expect(article.getByRole('status')).toHaveText('That link does not name an artifact of this task.');
-  await expect(article.getByRole('img', { name: 'Local figure', exact: true })).toHaveAttribute('src', localUrl!);
+  await expect(article.getByRole('img', { name: 'Local figure', exact: true })).toHaveAttribute('src', localUrl);
   await article.getByRole('link', { name: 'Next report', exact: true }).click();
   await expect(ui.getByRole('treeitem', { name: 'next #.txt', exact: true })).toHaveAttribute('aria-selected', 'true');
   await expect(ui.getByRole('treeitem', { name: 'report.md', exact: true })).toHaveAttribute('aria-selected', 'false');
