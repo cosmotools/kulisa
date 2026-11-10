@@ -179,7 +179,7 @@ export class TaskGrid {
     this.dirty = true; clearTimeout(this.saveTimer);
     this.saveTimer = window.setTimeout(() => this.flush(), 300);
   };
-  private flush() {
+  flush() {
     clearTimeout(this.saveTimer);
     if (!this.dirty || !this.development.api) return;
     this.dirty = false;

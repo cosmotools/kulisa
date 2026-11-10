@@ -71,7 +71,8 @@ file/view/task closes it. Its independent adapter and resource bounds belong to 
 - Load saved settings before creating grids; early Stage commands await restoration and retain their order.
   Reveal after both nested grids mount at their final dimensions, keeping content loading from shifting the layout.
   Persist all three grids through `toJSON`/`fromJSON`, plus Stage view/overflow/position; debounce 300 ms and flush on
-  hide/close. Observe completed layouts/maximization and Workbench edge dimensions, which central layout events omit.
+  hide/close and before moving a task to another window, while the source still owns it. Observe completed
+  layouts/maximization and Workbench edge dimensions, which central layout events omit.
   Empty Stage stays mounted, hidden through Gridview's API to preserve its size. Position/view changes move native
   panels/groups, retaining their contents. `shared/stage-layout.ts` imports flat layouts and legacy fractions;
   `task-view/layout.ts` prunes closed panes while preserving active groups. Invalid layouts use defaults.
