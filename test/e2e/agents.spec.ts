@@ -8,7 +8,7 @@ import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
 import type { Files } from './data.ts';
-import { SITE, WIN, holdPointer, focusWindow, choose, closeMenu, rightClick, closeSettings, item, renamed, termText, termShows, invoke, ipcSettled, answer, projectMenu, onRow, navRow, thingRow, openThing } from './helpers.ts';
+import { SITE, WIN, showResources, holdPointer, focusWindow, choose, closeMenu, rightClick, closeSettings, item, renamed, termText, termShows, invoke, ipcSettled, answer, projectMenu, onRow, navRow, thingRow, openThing } from './helpers.ts';
 import { newTask } from './tasks-helpers.ts';
 import { fakeAgent, fakeBin } from './agent-helpers.ts';
 
@@ -231,6 +231,7 @@ test("a new account is made in the project's settings: the agent's own sign-in a
   await newTask(core, ui, null, files.pid('project'));
   await expect.poll(() => core((k) => k.shell.task.promptTarget()?.agent.id), { timeout: 20000 }).toBe(work); // the project's default: its one account
   await core((k) => k.watchPty(k.shell.task.pty));
+  await showResources(ui, 'Agents');
   await termShows(ui, `config [${dir}]`);
   // Its shell gets none of direnv's state from where Kulisa was started: else the user's direnv hook takes the task's
   // folder for a folder left, undoes that .envrc's changes and with them the account's variable, and the agent runs
@@ -298,9 +299,9 @@ test("dictation: an agent without its own is recognized for by another agent's d
   // Drawn as recording while it gets ready, unless that lasts (src/dictation/renderer/voice.ts): it listens first.
   await expect.poll(() => core((k, key) => k.shell.dictation.state(key).state, task), { timeout: 15000 }).toBe('recording');
   expect(`${await mic.getAttribute('data-state')} ${await pill.getAttribute('data-state')}`).toBe('recording listening');
-  // Drawn as the package's classes say (Tailwind's @source, window.css): over the terminal's middle, its wave's bars seen.
-  const [p, t] = await Promise.all([pill.boundingBox(), ui.locator('[data-task-view][data-active]').getByTestId('development-terminals').boundingBox()]);
-  expect(Math.abs(p.x + p.width / 2 - (t.x + t.width / 2)), 'the pill in the middle').toBeLessThan(2);
+  // Dictation stays visible over Main pane, including Project's placeholder.
+  const [p, t] = await Promise.all([pill.boundingBox(), ui.locator('[data-task-view][data-active]').getByRole('region', { name: 'Main pane', exact: true }).boundingBox()]);
+  expect(Math.abs(p.x + p.width / 2 - (t.x + t.width / 2)), 'the pill in the Main pane middle').toBeLessThan(2);
   expect((await pill.locator('i').first().boundingBox()).width, "a bar's width").toBeGreaterThan(0);
   await letGo();
   await expect.poll(() => termText(ui)).toContain('Heard by the fake recognizer.');

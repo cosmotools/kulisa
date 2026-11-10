@@ -53,10 +53,10 @@ const claude: Agent = {
   // outside its folders (else it asks each time), its hooks,
   // and the dictation (voice, below).
   // Launch files belong to the task, independently of config ownership, so external configurations stay untouched
-  // and only a path is typed into the terminal. One file per task, refreshed at launch and removed with its data.
+  // and only a path is typed into the terminal. One file per conversation, refreshed at launch and removed with its task.
   args: ({ packages, data, artifacts }) => {
     const settings = JSON.stringify({
-      permissions: { allow: [CLAUDE_KULISA, `Read(${claudePath(artifacts)}/**)`] },
+      permissions: { allow: [CLAUDE_KULISA, `Read(${claudePath(artifacts)}/**)`, `Read(${claudePath(data)}/**)`] },
       hooks: claudeHooks(),
       // voiceEnabled too: without it dictation is taken for off (its /voice writes both; the object alone leaves the
       // space typing spaces).

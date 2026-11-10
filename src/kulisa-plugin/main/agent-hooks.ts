@@ -37,7 +37,7 @@ function sessionStart(task: Task, t: DevelopmentTerminal | null, input: Input) {
     lines.length ? `Kulisa profiles open now (the panes above your terminal; call profile_list for the live state):\n${lines.join('\n')}`
       : closed.length ? 'No Kulisa profile is open.' : "Kulisa has no profiles in this project yet. The human makes them in Settings (the gear at the top right) → Profiles and adds them on the project's page, or use profile_create when a task needs one.",
     closed.length && `Closed profiles (signed in, no pane; profile_open opens one when the task needs it):\n${closed.join('\n')}`,
-    taskContext(task),
+    taskContext(task, t?.session),
   ].filter(Boolean).join('\n\n');
   return { hookSpecificOutput: { hookEventName: 'SessionStart', additionalContext: context } };
 }
@@ -98,7 +98,22 @@ function handleDictationHook(dictated: (text: string) => void, url: string, req:
 
 // Where the agent works, for every agent (the MCP server's instructions, and at the session's start): its task, its
 // folder and branch, the project's folder that is the human's, its ports, naming the task (tasks.md).
-function taskContext(task: Task) {
+function taskContext(task: Task, session?: string) {
+  return `${fileContext(task, session)}\n\n${workContext(task)}`;
+}
+function fileContext(task: Task, session?: string) {
+  const files = task.fileContext(session);
+  if ('error' in files) return files.error;
+  return `Save finished files and folders for the human in ${files.artifacts}. These appear automatically in Artifacts. ` +
+    (files.tmp ? `Your temporary working folder is ${files.tmp}. Choose its internal filenames and subfolders yourself. `
+      : 'Before saving temporary files, call task_files with newContext: true and reconnect to its returned MCP URL. ') +
+    'Prepare results in your temporary folder and move complete files/folders into artifacts. Keep source code, dependencies and build outputs in the project. ' +
+    'Copy human-owned originals rather than moving them. An explicit destination from the human takes precedence. Avoid overwriting existing results; update them only intentionally. ' +
+    'Use temporary storage for autonomous testing screenshots and large tool replies; use artifacts for requested deliverables. ' +
+    'Remove your own unneeded temporary files during work; retain useful diagnostic and continuation material. Do not clean another conversation without the human asking. ' +
+    'Kulisa applies no disk quota or automatic expiry. Closing a conversation or task keeps these files; deleting the task deletes them.';
+}
+function workContext(task: Task) {
   const copies = task.worktrees;
   const name = `Name the task with task_rename once you know what it is about${copies.length ? ' (its branches take the name)' : ''}, ` +
     'silently: never ask the human for a name or mention it. These notes are for you: act on them without recounting them to the human.';

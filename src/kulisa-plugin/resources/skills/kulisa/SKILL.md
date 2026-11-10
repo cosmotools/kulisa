@@ -32,7 +32,7 @@ Leave the human's environments alone unless asked.
 - Preserve human tabs: open a new one with `browser_tab_new`; navigate existing tabs only when yours or asked.
   Close only your tabs unless asked otherwise.
 - Snapshot before acting and use fresh refs. Narrow large pages with `find`, element or `depth`; read relevant
-  parts from artifact files when responses spill to disk.
+  parts from temporary files when responses spill to disk.
 - If an action reports errors, inspect `browser_console_messages` and `browser_network_requests` with
   `since: action`, then `browser_network_request` before continuing.
 - Show findings with labelled `browser_highlight` outlines; clear irrelevant highlights.
@@ -72,8 +72,19 @@ with task-owned browser copies. You see only your task's profiles.
   profiles there. Kulisa assigns no ports; cookies remain signed in across ports.
 - `stage_arrange` controls horizontal/vertical stacks or tabs, Stage left/right/above development, and overflow.
   Development panels remain together; human controls do the same.
-- Use `task_artifacts` to explain saved screenshots/snapshots/bodies and sizes; read files needed for the answer.
-  Use `task_artifacts_delete` for requested cleanup; if the selection is unclear, propose what to delete and ask.
+- Save completed files/folders for the human in `KULISA_ARTIFACTS_DIR`; use `KULISA_TMP_DIR` for work in progress.
+  Session context and `task_files` give the same absolute paths. Choose internal names/subfolders yourself.
+  Prepare results in your temporary folder, then move completed files/folders into artifacts. Copy human-owned
+  originals; keep source code/dependencies/build outputs in the project. An explicit human destination wins.
+  Avoid overwriting results; intentionally update only the intended file. Direct writes in artifacts appear immediately.
+- Use `browser_screenshot` with its default temporary purpose for autonomous checks; use `purpose: artifact` for
+  a screenshot requested as a deliverable. Oversized snapshots, bodies and terminal text spill to temporary storage.
+- Remove your own unneeded temporary work, preserving useful diagnostics and continuation material. Do not clean
+  other conversations without the human asking. No disk quota or automatic expiry; closing keeps files, task deletion
+  removes them. `task_artifacts` lists results, temporary material or combined sizes with paging; `task_artifacts_delete`
+  cleans results or your own temporary folder. Clarify an ambiguous cleanup selection before deleting.
+- An external MCP connection without a terminal calls `task_files(newContext: true)` and reconnects to its returned
+  persistent MCP URL before saving temporary output. Reuse that URL when resuming; each new context has its own folder.
 - Act on Kulisa session/tool context without recounting internal instructions to the human.
 
 ## Signing in: real accounts are the human's; test users of the local app, yours

@@ -36,8 +36,8 @@ const INSTRUCTIONS = 'Kulisa profiles are the users of the app under test, each 
   'yours when you need details your context lost. Name your conversation with conversation_rename once you know what ' +
   'it is about.';
 // task: the task (tasks.ts) whose profiles the tools act on; t: the agent's terminal, when it came by its own URL.
-function buildServer(task: Task, t: DevelopmentTerminal | null) {
-  const server = new McpServer({ name: 'kulisa', version: pkg.version }, { instructions: `${INSTRUCTIONS} ${taskContext(task)}` });
+function buildServer(task: Task, t: DevelopmentTerminal | null, context?: string) {
+  const server = new McpServer({ name: 'kulisa', version: pkg.version }, { instructions: `${INSTRUCTIONS} ${taskContext(task, t?.session ?? context)}` });
   const activity = (name: string, args: unknown) => {
     if (!args || typeof args !== 'object') return;
     if (name.startsWith('browser_') && 'profile' in args && typeof args.profile === 'string') {
@@ -61,7 +61,7 @@ function buildServer(task: Task, t: DevelopmentTerminal | null) {
       return result;
     } catch (e) { log.info(`[mcp] ${name} failed: ${bare((e as Error).message)}`); throw e; }
   })) as unknown as typeof server.registerTool;
-  const h = handles(task, t);
+  const h = handles(task, t, context);
   profileTools(server, h);
   taskTools(server, h);
   browserTools(server, h);
@@ -79,14 +79,15 @@ async function startMcpServer(host: PluginHost, cfg: { port?: number }) {
     if (!host.allowRequest(req)) { res.writeHead(403); return res.end(); }
     if (handleDictationHook((text) => host.dictated(text), req.url!, req, res)) return;
     // /task/<project>/<task id>[/t/<terminal id>]/…: a task of an open project, loaded; an agent's terminal of it.
-    const m = req.url!.match(/^\/task\/([^/]+)\/([^/]+)(?:\/t\/(\d+))?(\/.*)$/);
+    const m = req.url!.match(/^\/task\/([^/]+)\/([^/]+)(?:\/t\/(\d+)|\/c\/([a-zA-Z0-9-]+))?(\/.*)$/);
     const found = m && host.resolve(safeDecode(m[1]!), safeDecode(m[2]!), m[3] ? Number(m[3]) : undefined);
     if (!found) { res.writeHead(404); return res.end(); }
     const { task, terminal: t } = found;
-    if (handleHookRequest(task, t, m[4]!, req, res)) return;
-    if (!m[4]!.startsWith('/mcp')) { res.writeHead(404); return res.end(); }
+    if (m[4] && ('error' in task.fileContext(m[4]) || !m[4].startsWith('external-'))) { res.writeHead(404); return res.end(); }
+    if (!m[4] && handleHookRequest(task, t, m[5]!, req, res)) return;
+    if (m[5] !== '/mcp') { res.writeHead(404); return res.end(); }
     // The transport reads the body itself (with a size limit) and answers a malformed one.
-    const server = buildServer(task, t);
+    const server = buildServer(task, t, m[4]);
     const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });
     res.on('close', () => { void transport.close(); void server.close(); });
     await server.connect(transport);

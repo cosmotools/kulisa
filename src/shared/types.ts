@@ -29,18 +29,11 @@ export interface TaskResource {
 }
 // An environment in the task’s Stage, naming a browser tab when relevant.
 export type EnvironmentSource = { kind: 'profile'; id: string; tab: string } | { kind: 'stage-terminal'; id: number };
-// A file the human or agent kept of an environment, as Resources lists it.
-export interface Artifact {
-  file: string;
-  source: EnvironmentSource;
-  kind: string; // screenshot, snapshot, request or response (a body)
-  time: number;
-  bytes: number;
-  thumb: string | null; // a screenshot's small picture, a data: URL
-}
+export type { Artifact } from '../task-files/ipc.ts';
 export interface TaskInfo {
   id: string; key: string; project: string; name: string; state: AgentState; folder: string; branch: string | null;
   closed: boolean;
+  viewFailed?: boolean;
   repos: string[]; // the project's repositories it may add (Add Repository)
   resources: TaskResource[]; // what the task has/created (Resources.tsx)
 }
@@ -102,4 +95,4 @@ export interface ListOptions { check?: boolean; details?: boolean; cached?: bool
 export type AboutFolder = 'data' | 'projects' | 'program';
 export interface AboutInfo { version: string; electron: string; chrome: string; folders: { id: AboutFolder; path: string; exists: boolean }[] }
 // The log as the Log page reads it (main/log.ts, readLog): the file's text and size, its limit, when the old one is from.
-export interface LogInfo { text: string; size: number; max: number; old: string | null }
+export interface LogInfo { text: string; size: number; max: number; old: string | null; stream: number }

@@ -33,7 +33,7 @@ import type { StageTerminalConfig } from '../shared/stage-terminal.ts';
 import path from 'path';
 import { removeTree } from './remove.ts';
 import { randomInt, randomUUID } from 'crypto';
-import { log } from './log.ts';
+import { log, summary } from './log.ts';
 import { splitLayout } from '../shared/stage-layout.ts';
 import type { TaskLayout } from '../shared/stage-layout.ts';
 import { z } from 'zod';
@@ -169,10 +169,15 @@ class Store {
   // A task's data folder; taskOf makes it, taskDir only names it (an id still to be found free: Project.createTask).
   taskDir(p: { id: string }, id: string) { return path.join(this.dir, 'projects', p.id, id); }
   taskOf(p: { id: string }, id: string) { return new TaskStore(this.taskDir(p, id), this); }
-  // A task's folder of what the human or agent keep of its pages (artifacts.ts).
+  // Results owned by this task (docs/tasks.md, Artifacts and temporary files).
   artifactsOf(p: { id: string }, id: string) { return path.join(this.taskDir(p, id), ARTIFACTS); }
-  // Every task's, as a glob: what an agent is let read there (agents/claude.ts).
-  artifactsGlob() { return this.artifactsOf({ id: '*' }, '*'); }
+  // Include unconverted working folders when measuring closed tasks; migration runs when a task prepares its files.
+  temporaryFoldersOf(p: { id: string }, id: string) {
+    const dir = this.taskDir(p, id);
+    const previous = fs.existsSync(dir) ? fs.readdirSync(dir, { withFileTypes: true })
+      .filter((e) => e.isDirectory() && e.name.startsWith('tmp-agent-')).map((e) => path.join(dir, e.name)) : [];
+    return [path.join(dir, 'tmp'), ...previous];
+  }
   // Every task of every project, loaded or not (the activity monitor's: app.ts).
   allTasks() { return this.projects().flatMap((p) => this.tasksOf(p).list.map((entry) => ({ project: p, entry, key: taskKey(p, entry.id) }))); }
   // A project gone from Kulisa: from the list, and its data (profiles with their sign-ins, tasks); never its
@@ -248,8 +253,22 @@ class TaskStore {
   constructor(dir: string, store: Store) { this.dir = dir; this.store = store; fs.mkdirSync(dir, { recursive: true }); }
   file(name: string) { return path.join(this.dir, name); }
   profileDir(id: string) { return path.join(this.dir, id); }
-  // What the human or agent keep of its pages: large snapshots and bodies, screenshots (artifacts.ts).
+  // Final results owned by the task; working material has separate conversation folders.
   get artifacts() { return path.join(this.dir, ARTIFACTS); }
+  get temporary() { return path.join(this.dir, 'tmp'); }
+  temporaryDir(session: string) { return path.join(this.temporary, `agent-${session}`); }
+  prepareTemporary() {
+    fs.mkdirSync(this.temporary, { recursive: true });
+    if (fs.lstatSync(this.temporary).isSymbolicLink()) throw new Error('The task temporary folder must not be a symbolic link.');
+    for (const entry of fs.readdirSync(this.dir, { withFileTypes: true })) {
+      if (!entry.isDirectory() || !entry.name.startsWith('tmp-agent-')) continue;
+      const from = path.join(this.dir, entry.name), to = this.temporaryDir(entry.name.slice('tmp-agent-'.length));
+      // Never merge potentially different working material or overwrite either conversation folder.
+      if (fs.existsSync(to)) throw new Error(`Both temporary folders exist: ${from} and ${to}. Preserve their files and resolve the conflict before resuming.`);
+      fs.renameSync(from, to);
+      log.info(`[task-files] relocated temporary folder ${summary({ from, to })}`);
+    }
+  }
   // What the task has of its project's profiles (project-profiles.ts): [{ id, zoom, closed }] (who a profile is:
   // profile-store.ts); null before the task first loads.
   profiles(): TaskProfile[] | null { const s = this.document().stage; return s.profilesInitialized ? s.items.filter((i) => i.type === 'profile').map(({ type: _type, ...config }) => config) : null; }

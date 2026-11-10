@@ -25,7 +25,7 @@ import { BASE } from './helpers.ts';
 // both ways), so it names what it needs by the argument, never by a closure.
 type Core = <A, R>(fn: (k: Kulisa, arg: A) => R | Promise<R>, arg?: A) => Promise<R>;
 // The agent's tools, as the agent of a task (its key; the window's task by default) in one of its terminals calls them.
-type Where = { task?: string; terminal?: number };
+type Where = { task?: string; terminal?: number; unbound?: boolean };
 type CallResult = { content: { type: string; text?: string; data?: string; mimeType?: string }[]; text: string; isError?: boolean; structuredContent?: unknown };
 type Call = (name: string, args?: Record<string, unknown>, where?: Where) => Promise<CallResult>;
 type Running = { file: string; automation: boolean; restarted?: boolean; child: ChildProcess; exited: Promise<void>; output: () => string; browser: Browser; context: BrowserContext; root: string; core: Core; ui: Page; errors: string[]; clients: Map<string, Client> };
@@ -50,7 +50,7 @@ async function screen(): Promise<{ display: string; stop: () => void }> {
 // restart: the folder of the Kulisa quit, started again in it (KULISA_RESTART, app.ts).
 // automation false: no debugging port and no Playwright in the pages (only core() and the agent's tools), for what an open
 // port changes in them (navigator.webdriver: docs/profiles.md, What sites see).
-async function launch(file: string, display: string | null, automation: boolean, restart?: string): Promise<Running> {
+async function launch(file: string, display: string | null, automation: boolean, info: TestInfo, restart?: string): Promise<Running> {
   const root = restart ?? path.join(BASE, `${path.basename(file, '.spec.ts')}-${process.pid}-${crypto.randomBytes(3).toString('hex')}`);
   fs.mkdirSync(root, { recursive: true });
   const env: Record<string, string> = { ...process.env as Record<string, string>, KULISA_TEST_ROOT: root };
@@ -99,22 +99,25 @@ async function launch(file: string, display: string | null, automation: boolean,
     pending.set(id, { resolve: resolve as (v: unknown) => void, reject });
     void socket.then((s) => s.write(`${JSON.stringify({ id, src: fn.toString(), arg })}\n`));
   });
-  // A Kulisa that never gets ready is stopped, not left running, and says why: its log and what Electron printed (a
-  // fixture's failure leaves no attachments).
+  // A failed launch never reaches leave(): retain its bounded logs here and preserve the failing readiness assertion.
   try {
     return await ready({ file, automation, child, exited, output: () => output, root, core }, endpoint);
   } catch (e) {
     child.kill();
-    const log = path.join(root, 'data', 'logs', 'kulisa.log');
-    throw new Error(`${(e as Error).message}\nKulisa's log:\n${fs.existsSync(log) ? fs.readFileSync(log, 'utf8').slice(-8000) : '(none)'}\nElectron's output:\n${output.slice(-8000)}`);
+    for (const name of ['kulisa.old.log', 'kulisa.log']) {
+      const log = path.join(root, 'data', 'logs', name);
+      if (fs.existsSync(log)) await info.attach(name, { path: log, contentType: 'text/plain' });
+    }
+    await info.attach('electron output', { body: output, contentType: 'text/plain' });
+    throw e;
   }
 }
 async function ready(k: Pick<Running, 'file' | 'automation' | 'child' | 'exited' | 'output' | 'root' | 'core'>, endpoint: string | null): Promise<Running> {
   const { core } = k;
-  await expect.poll(() => core((d) => !!d?.shell.task?.loaded), { timeout: 30000 }).toBe(true);
+  await expect.poll(() => core((d) => !!d?.shell.task?.loaded), { timeout: 30000, message: 'initial task loaded' }).toBe(true);
   const errors: string[] = [];
   if (!endpoint) {
-    await expect.poll(() => core((d) => !!d.shell.pty), { timeout: 30000 }).toBe(true);
+    await expect.poll(() => core((d) => !!d.shell.pty), { timeout: 30000, message: 'initial terminal started' }).toBe(true);
     await core((d) => d.watchPty(d.shell.pty));
     return { ...k, browser: null, context: null, ui: null, errors, clients: new Map() };
   }
@@ -138,9 +141,9 @@ async function ready(k: Pick<Running, 'file' | 'automation' | 'child' | 'exited'
     return core((k, id) => k.electron.webContents.fromDevToolsTargetId(id) === k.shell.windows[0].win.webContents, targetInfo.targetId);
   };
   let ui: Page | undefined;
-  await expect.poll(async () => { for (const p of context.pages()) if (await first(p).catch(() => false)) ui = p; return !!ui; }, { timeout: 30000 }).toBe(true);
+  await expect.poll(async () => { for (const p of context.pages()) if (await first(p).catch(() => false)) ui = p; return !!ui; }, { timeout: 30000, message: 'first window attached' }).toBe(true);
   // Restoring Diff can leave an agent waiting for its terminal's first visible size.
-  await expect.poll(async () => await core((d) => !!d.shell.pty) || await ui.getByRole('region', { name: 'Diff review', exact: true }).isVisible(), { timeout: 30000 }).toBe(true);
+  await expect.poll(async () => await core((d) => !!d.shell.pty) || await ui.getByRole('region', { name: 'Diff review', exact: true }).isVisible(), { timeout: 30000, message: 'initial terminal or Diff ready' }).toBe(true);
   await core((d) => { if (d.shell.pty) d.watchPty(d.shell.pty); });
   await context.tracing.start({ screenshots: true, snapshots: true });
   return { ...k, browser, context, ui, errors, clients: new Map() };
@@ -209,7 +212,7 @@ export const test = base.extend<Fixtures, { display: string | null; running: { c
   kulisa: [async ({ display, running, automation }, use, info) => {
     if (running.current?.file !== info.file || running.current.automation !== automation) {
       if (running.current) await close(running.current);
-      running.current = await launch(info.file, display, automation);
+      running.current = await launch(info.file, display, automation, info);
     }
     const k = running.current;
     await k.context?.tracing.startChunk({ title: info.title });
@@ -228,17 +231,27 @@ export const test = base.extend<Fixtures, { display: string | null; running: { c
   ui: async ({ kulisa }, use) => { await use(kulisa.ui); },
   mcp: async ({ kulisa, running }, use) => {
     void kulisa;
-    await use(async ({ task, terminal } = {}) => {
+    await use(async ({ task, terminal, unbound } = {}) => {
       const k = running.current;
       const url = await k.core((d, a) => {
         const t = a.task ? d.shell.taskByKey(a.task) : d.shell.task;
         return t.env(a.terminal === undefined ? undefined : t.developmentTerminals.get(a.terminal)).KULISA_MCP_URL;
       }, { task, terminal });
-      let c = k.clients.get(url);
+      const cacheKey = `${url}${unbound ? '#unbound' : ''}`;
+      let c = k.clients.get(cacheKey);
       if (!c) {
         c = new Client({ name: 'kulisa-test', version: '0' });
         await c.connect(new StreamableHTTPClientTransport(new URL(url)));
-        k.clients.set(url, c);
+        if (terminal === undefined && !unbound) {
+          // Model an external agent: explicitly create and reuse its persistent file context.
+          const created = await c.callTool({ name: 'task_files', arguments: { newContext: true } });
+          if (created.isError) throw new Error(JSON.stringify(created));
+          const context = JSON.parse((created.content as { text: string }[])[0].text);
+          await c.close();
+          c = new Client({ name: 'kulisa-test', version: '0' });
+          await c.connect(new StreamableHTTPClientTransport(new URL(context.mcp)));
+        }
+        k.clients.set(cacheKey, c);
       }
       return c;
     });
@@ -268,7 +281,7 @@ export const test = base.extend<Fixtures, { display: string | null; running: { c
       await old.context?.tracing.stopChunk().catch(() => {});
       await quit(old);
       // The same object, so that the test's kulisa reaches the new one.
-      Object.assign(old, await launch(old.file, display, old.automation, old.root), { restarted: true });
+      Object.assign(old, await launch(old.file, display, old.automation, info, old.root), { restarted: true });
       await running.current.context?.tracing.startChunk({ title: `${info.title} (after the restart)` });
       await running.current.core((d) => d.reset());
       return running.current.ui;

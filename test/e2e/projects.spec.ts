@@ -5,7 +5,7 @@ import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
 import type { Files } from './data.ts';
-import { menu, choose, closeMenu, rightClick, tabProjects, projectTab, projectTabSel, showProject, focusWindow, closeSettings, settingsClosed, invoke, act, typeIn, answer, notLoading, projectMenu, otherPage, pageOf, onRow, removed,
+import { menu, choose, showResources, closeMenu, rightClick, tabProjects, projectTab, projectTabSel, showProject, focusWindow, closeSettings, settingsClosed, invoke, act, typeIn, answer, notLoading, projectMenu, otherPage, pageOf, onRow, removed,
   navRow, thingRow, openThing, pathOf, group, settingsMenu, listRows, listRow } from './helpers.ts';
 import { SAM, begin, newTask, openFolder, projectShown } from './tasks-helpers.ts';
 import { fakeAgent } from './agent-helpers.ts';
@@ -220,6 +220,7 @@ test("projects: the projects' manager (Project Settings…) changes its name and
   await expect.poll(() => core((k, a) => k.shell.task.key !== a && k.settled(), annTask)).toBe(true);
   await notLoading(ui);
   const bare = await core((k) => k.shell.task.key);
+  await showResources(ui, 'Agents');
   await expect(ui.getByRole('navigation', { name: 'New terminal' })).toMatchAriaSnapshot(`
     - navigation "New terminal":
       - button "Fake agent"
@@ -296,7 +297,7 @@ test("projects: the title bar's gear shows Settings over the window at the shown
   expect(await s.locator('#settings main [data-row]').count() > 0).toBe(true);
   await pageOf(s, 'project');
   // The pages hidden under it, as under a dialog (they draw above the window's HTML).
-  await expect.poll(() => core((k) => k.profile('Sam.admin').get().view.getVisible())).toBe(false);
+  await expect.poll(() => core((k) => k.profile('Sam.admin').view.getVisible())).toBe(false);
   expect(await core((k) => { delete k.shell.windows[0].hideViews; return k.stash.drawn; }), 'once, Settings drawn').toEqual([true]);
   // The other project is closed: its configuration all the same; a profile made and let go there (asked first).
   await openThing(s, 'projects', closedId);
@@ -317,7 +318,7 @@ test("projects: the title bar's gear shows Settings over the window at the shown
   await core((k, f) => k.shot(f), png);
   await test.info().attach('projects', { path: png, contentType: 'image/png' });
   await closeSettings(core, ui, sui);
-  await expect.poll(() => core((k) => k.profile('Sam.admin').get().view.getVisible()), 'the pages back').toBe(true);
+  await expect.poll(() => core((k) => k.profile('Sam.admin').view.getVisible()), 'the pages back').toBe(true);
   await forget(core, ui, files, 'closed');
 });
 

@@ -75,7 +75,7 @@ test('profiles are made in Settings (Profiles\' + in its nav), each with its own
   await closeSettings(core, ui, sui);
   // Hidden under Settings (the pages draw above the window's HTML), on screen once it is closed. Elon's first tab comes
   // after it is opened.
-  await expect.poll(() => core((k, id) => !!k.shell.profiles.get(id).get()?.view.getVisible(), elon)).toBe(true);
+  await expect.poll(() => core((k, id) => !!k.shell.profiles.get(id).view.getVisible(), elon)).toBe(true);
   await expect(ui.locator('[data-task-view][data-active] [role="region"][data-profile]')).toHaveCount(2);
 });
 

@@ -73,14 +73,17 @@ class Profile extends EventEmitter {
   win: BrowserWindow; id: string; name: string; avatar: string; description: string; login: string; hasPassword: boolean;
   dir: string; task: string; baseZoom: number; blank: string; siteZoom: Record<string, number>; session: Session;
   tabs: Tab[]; active: string | null; closedUrls: string[]; bounds: Bounds;
-  clip?: Bounds; clipView?: Electron.View;
+  clip?: Bounds;
+  readonly view: Electron.View;
+  private parent: Electron.View;
   browser: Browser | null; context: BrowserContext | null; endpoint: string | null; signinMode: boolean; resuming?: boolean;
   hidden: boolean; shown: boolean; deleted: boolean;
   busyAt: number; // when automation last sent this profile a command (cdp-proxy.ts): its tabs are in use (discard.ts)
   // cfg: { id, name, avatar, description, dir, session }. The id and the folder (cookies, storage; dir is its absolute
   // path) are fixed at creation; a rename changes the name only.
-  // win: the window it shows in (moveTo). task: its task's key (profiles of different tasks share ids).
-  constructor(win: BrowserWindow, cfg: ProfileConfig, { task }: { task: string }) {
+  // win: focus and window actions. parent: the native host, with layout coordinates relative to it (moveTo).
+  // task: its task's key (profiles of different tasks share ids).
+  constructor(win: BrowserWindow, cfg: ProfileConfig, { task, parent = win.contentView }: { task: string; parent?: Electron.View }) {
     super();
     this.win = win;
     this.id = cfg.id; this.name = cfg.name; this.avatar = cfg.avatar; this.description = cfg.description || '';
@@ -98,6 +101,10 @@ class Profile extends EventEmitter {
     this.shown = true; // false while the pane is not on screen in the grid (stacked behind another pane)
     this.deleted = false;
     this.busyAt = 0;
+    this.parent = parent;
+    this.view = new electron.View();
+    this.view.setVisible(false);
+    this.parent.addChildView(this.view);
   }
 
   // The shell's Playwright connection through the proxy (picker, MCP tools).
@@ -227,6 +234,7 @@ class Profile extends EventEmitter {
   // The tab's webContents as Kulisa watches it: a new tab's, or the new one of a discarded tab (load).
   _bind(tab: Tab) {
     const { wc } = tab;
+    tab.view.setVisible(false);
     // The keyboard stays where the human put it in the window: the page takes it only from them (page-focus.ts).
     guardFocus(wc, () => this.win);
     const update = () => {
@@ -275,12 +283,13 @@ class Profile extends EventEmitter {
       },
     }));
     wc.on('destroyed', () => this._removed(tab));
+    this.view.addChildView(tab.view);
   }
 
   _removed(tab: Tab) {
     if (tab.discarding !== undefined) return this._discarded(tab);
     const i = this.tabs.indexOf(tab); if (i < 0) return;
-    try { this.win.contentView.removeChildView(tab.view); this.clipView?.removeChildView(tab.view); } catch {}
+    this.view.removeChildView(tab.view);
     this._dropped(tab, i);
     this.emit('tab-closed', tab); this.emit('changed');
     // Its last tab closed (closeTab: the human's ×, the agent's browser_tab_close), the profile still open: an empty
@@ -311,7 +320,7 @@ class Profile extends EventEmitter {
     tab.discarding = undefined;
     this.emit('tab-closed', tab); // the proxy: its target is gone
     Object.assign(tab, { discarded: true, url, targetId: null, pendingUrl: null, dialog: null, loading: false, canBack: false, canFwd: false });
-    try { this.win.contentView.removeChildView(tab.view); this.clipView?.removeChildView(tab.view); } catch {}
+    this.view.removeChildView(tab.view);
     this.emit('changed');
   }
   // Its page back, its process with it: a new view bound as a new tab's, opened at the address kept, the proxy told
@@ -379,9 +388,8 @@ class Profile extends EventEmitter {
     if (this.win.isDestroyed()) return;
     for (const t of this.tabs) {
       if (t.wc.isDestroyed()) continue;
-      if (t.id === id) {
-        this._place(t); t.view.setVisible(this.visible(t));
-      } else t.view.setVisible(false);
+      if (t.id === id) this._place(t);
+      t.view.setVisible(t.id === id);
     }
     this.active = id; this._show(); this.emit('changed');
   }
@@ -392,20 +400,19 @@ class Profile extends EventEmitter {
   // A discarded active tab to be drawn is loaded again, on the next turn: never from inside a webContents' 'destroyed'
   // event, where the tab before it may have gone (Hard-won facts).
   _show() {
-    const t = this.get(); if (!t) return;
-    if (t.discarded) { if (this.visible(t)) setImmediate(() => { if (t.discarded && this.get() === t && this.visible(t)) void this.load(t); }); return; }
-    if (!t.wc.isDestroyed()) t.view.setVisible(this.visible(t));
-    this.clipView?.setVisible(this.visible(t));
+    const t = this.get();
+    this.view.setVisible(!this.deleted && !!t && !t.discarded && !t.wc.isDestroyed() && this.visible(t));
+    if (t?.discarded && this.visible(t)) setImmediate(() => { if (t.discarded && this.get() === t && this.visible(t)) void this.load(t); });
   }
 
   // Close (the human closed the profile, or another project is opened): stop automation and close the tabs; the
   // profile's data stays.
   async close() {
     this.deleted = true; // nothing more happens to it
+    this.view.setVisible(false);
     await this.disconnect();
-    this._clearClip();
+    this.parent.removeChildView(this.view);
     await Promise.all([...this.tabs].map((t) => new Promise<void>((resolve) => {
-      try { this.win.contentView.removeChildView(t.view); } catch {}
       if (t.wc.isDestroyed()) return resolve();
       t.wc.once('destroyed', () => resolve());
       t.wc.close();
@@ -424,11 +431,14 @@ class Profile extends EventEmitter {
   focusTab(tab: Tab) { if (tab.wc.isDestroyed()) return; allowFocus(tab.wc); tab.wc.focus(); }
 
   // Its pages into another window (its project moved there), hidden until that window lays them out.
-  moveTo(win: BrowserWindow) {
-    this._clearClip();
-    for (const t of this.tabs) try { this.win.contentView.removeChildView(t.view); } catch {}
+  moveTo(win: BrowserWindow, parent = win.contentView) {
+    this.view.setVisible(false);
+    this.parent.removeChildView(this.view);
     this.win = win; this.hidden = true; this.clip = undefined;
-    if (this.active) this.activate(this.active);
+    this.parent = parent;
+    this.parent.addChildView(this.view);
+    const t = this.get(); if (t && !t.discarded) this._place(t);
+    this.emit('changed');
   }
 
   // The tab's DevTools, in their own window (a WebContentsView cannot dock them); none for a discarded tab.
@@ -447,27 +457,13 @@ class Profile extends EventEmitter {
     t.wc.inspectElement(x, y);
   }
 
-  // Where the window's grid puts the pane's page; { shown: false } when the pane is not on screen.
-  _clearClip() {
-    if (!this.clipView) return;
-    if (this.win.isDestroyed()) { this.clipView = undefined; return; }
-    for (const child of this.clipView.children) this.win.contentView.addChildView(child);
-    this.win.contentView.removeChildView(this.clipView); this.clipView = undefined;
-  }
   _place(tab: Tab) {
-    if (this.clip) {
-      // A native parent clips the page without changing its viewport as the stage scrolls.
-      this.clipView ??= new electron.View();
-      if (!this.win.contentView.children.includes(this.clipView)) this.win.contentView.addChildView(this.clipView);
-      this.clipView.setBounds(this.clip);
-      if (!this.clipView.children.includes(tab.view)) this.clipView.addChildView(tab.view);
-      tab.view.setBounds({ ...this.bounds, x: this.bounds.x - this.clip.x, y: this.bounds.y - this.clip.y });
-    } else {
-      this._clearClip();
-      if (!this.win.contentView.children.includes(tab.view)) this.win.contentView.addChildView(tab.view);
-      tab.view.setBounds(this.bounds);
-    }
+    // The parent clips the page without changing its viewport as Stage scrolls.
+    const box = this.clip ?? this.bounds;
+    this.view.setBounds(box);
+    tab.view.setBounds({ ...this.bounds, x: this.bounds.x - box.x, y: this.bounds.y - box.y });
   }
+  // Where the host's grid puts the pane's page; { shown: false } when the pane is not on screen.
   layout({ shown = true, clip, ...bounds }: Partial<Bounds> & { shown?: boolean; clip?: Bounds }) {
     this.shown = shown;
     if (shown) { this.bounds = bounds as Bounds; this.clip = clip; const t = this.get(); if (t && !t.discarded) this._place(t); }

@@ -82,16 +82,16 @@ The human watches, signs in and points to page elements with Pick. Tasks let sev
 
 ## Terminology
 
+Workbench UI names and the bar + item convention: [UI terminology](docs/ui.md#workbench-terminology).
+
 | Term | Meaning |
 |---|---|
 | environment | Where the app under development runs: a browser profile or Stage terminal; no promise of machine or credential isolation. |
-| Stage | The nested testing grid; development terminals and Resources have a separate grid. |
+| Stage | The nested testing grid; Workbench has a separate grid. |
 | profile | An embedded browser identity with its own cookies, storage, tabs and pane; an account is what it signs in to. |
 | task | One line of work: agents, branch, profiles and grid, with its own git worktree beside the project. |
 | tab | An open task in a window; projects are loaded while their tasks are open, not opened or closed themselves. |
 | the tasks' bar | The bar of task tabs; "taskbar" means the OS's. |
-| Resources panel | The panel beside the development terminal: Resources bar (vertical icons) and Resources content (can close independently). |
-| Resources sections | Agents, Project, Diff, Artifacts; Project Explorer is the tree inside Project. |
 | Settings | The title bar gear's view over the whole window; New Project is a separate sequence of steps. |
 | the empty window | A window with no open task: title bar and project sidebar, or the welcome if there are no projects. |
 | the welcome | The first-start introduction. |
@@ -115,8 +115,9 @@ The human watches, signs in and points to page elements with Pick. Tasks let sev
 - Prefer lower RAM use; measure rather than guess (`ps -eo pid,rss,args`). Discuss noticeable increases with the
   author before building, including extra processes, retained hidden views and large buffers.
 - Give every stored file an owner and a cleanup path. Delete it with its profile, task or project, including git
-  and agent records; defer locked files through `deleted-folders.json`. Bound growing data, remove temporary files
-  on success and failure, and keep pictures in memory. Document new storage.
+  and agent records; defer locked files through `deleted-folders.json`. Bound growing data except task results and
+  agent working folders: these have no disk quota or automatic expiry (the author’s choice; `docs/tasks.md`, Artifacts
+  and temporary files). Agents clean their own unneeded working files. Bound previews in memory. Document new storage.
 - Every core action must leave a log line through existing channels, tools, hooks and lifecycle logging
   (`src/main/log.ts`). Additional lines identify the action and caller, never typed content or secrets; use `summary`.
 - Support macOS, Windows and Linux. Avoid shell commands and platform-specific paths, signals or flags in app code
@@ -208,9 +209,9 @@ The human watches, signs in and points to page elements with Pick. Tasks let sev
 | Read when changing | Document |
 |---|---|
 | Profiles, sign-ins, tabs, storage | `docs/profiles.md` |
-| Projects, tasks, agents, Resources, task storage | `docs/tasks.md` |
+| Projects, tasks, agents, Workbench items, task storage | `docs/tasks.md` |
 | Window, grids, terminals, settings, keys, logging | `docs/window.md` |
-| UI controls, icons, tokens, components, clusters | `docs/ui.md` |
+| UI terminology, controls, icons, tokens, components, clusters | `docs/ui.md` |
 | Packaging, installers, updates | `docs/releases.md` |
 | Agent CLI versions or transcript readers | `docs/transcripts.md` (formats are undocumented) |
 | Kulisa package creation or extraction | `docs/packages.md` and the part's README/AGENTS.md |

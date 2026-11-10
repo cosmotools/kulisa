@@ -1,9 +1,9 @@
-// The shown task's files and their desktop opening action (docs/tasks.md, The Resources panel).
+// Workbench navigation, Side bar items and desktop opening (docs/tasks.md, The Workbench).
 import fs from 'node:fs';
 import path from 'node:path';
 import { test, expect } from './fixtures.ts';
-import { showResources, resourcesGroup, developmentBox, terminalRows, termKeys, act, dock, invoke, windowSubmenu, choose, closeMenu, frames, rightClick, menu } from './helpers.ts';
-import { openFolder, showTask } from './tasks-helpers.ts';
+import { showResources, resourcesGroup, developmentBox, terminalRows, termKeys, act, dock, invoke, windowSubmenu, choose, closeMenu, frames, ipcSettled, rightClick, menu } from './helpers.ts';
+import { committed, git, openFolder, showTask } from './tasks-helpers.ts';
 
 test('Resources starts with Project, expands folders, opens files and follows projects', async ({ core, ui, files }) => {
   const first = await core((k) => ({ key: k.shell.task.key, folder: k.shell.task.folder }));
@@ -11,20 +11,41 @@ test('Resources starts with Project, expands folders, opens files and follows pr
   fs.mkdirSync(directory, { recursive: true });
   const file = path.join(directory, 'readme.txt');
   fs.writeFileSync(file, 'project file');
+  fs.writeFileSync(path.join(first.folder, 'tree-selection.txt'), 'another file');
   await expect(ui.getByRole('tab', { name: 'Project', exact: true })).toHaveAttribute('aria-selected', 'true');
-  await ui.locator('[data-task-view][data-active] [data-resources]').getByRole('button', { name: 'tree-example', exact: true }).click();
-  const row = ui.locator('[data-task-view][data-active] [data-resources]').getByRole('button', { name: 'readme.txt', exact: true });
+  await ui.locator('[data-task-view][data-active] [data-resources]').getByRole('treeitem', { name: 'tree-example', exact: true }).click();
+  const row = ui.locator('[data-task-view][data-active] [data-resources]').getByRole('treeitem', { name: 'readme.txt', exact: true });
   await expect(row).toBeVisible();
-  await core((k) => {
-    k.stash.openPath = k.electron.shell.openPath; k.stash.opened = [];
-    k.electron.shell.openPath = async (file: string) => { k.stash.opened.push(file); return ''; };
-  });
-  try {
-    await row.dblclick();
-    await expect.poll(() => core((k) => k.stash.opened)).toEqual([file]);
-    await row.press('Enter');
-    await expect.poll(() => core((k) => k.stash.opened)).toEqual([file, file]);
-  } finally { await core((k) => { k.electron.shell.openPath = k.stash.openPath; }); }
+  await row.click();
+  await expect(row).toHaveAttribute('aria-selected', 'true');
+  await frames(ui);
+  await ipcSettled(ui);
+  expect(await core(async (k) => { const state = await k.shell.task.editor.execute({ type: 'list' }); return 'tabs' in state ? state.tabs : state; })).toEqual([]);
+  await expect(ui.getByRole('textbox', { name: file, exact: true })).toHaveCount(0);
+  const otherRow = ui.locator('[data-task-view][data-active] [data-resources]').getByRole('treeitem', { name: 'tree-selection.txt', exact: true });
+  await otherRow.click();
+  await expect(otherRow).toHaveAttribute('aria-selected', 'true');
+  await expect(row).toHaveAttribute('aria-selected', 'false');
+  await otherRow.press('ControlOrMeta+a');
+  await expect(resourcesGroup(ui).getByRole('treeitem', { selected: true })).toHaveCount(1);
+  await otherRow.click();
+  await otherRow.press('ArrowUp');
+  await expect(row).toBeFocused();
+  await expect(row).toHaveCSS('background-color', await otherRow.evaluate((element) => getComputedStyle(element).backgroundColor));
+  await ui.getByRole('button', { name: 'Options', exact: true }).press('Enter');
+  await expect(menu(ui).getByRole('menuitem', { name: 'Open', exact: true })).toBeVisible();
+  await ipcSettled(ui);
+  expect(await core(async (k) => { const state = await k.shell.task.editor.execute({ type: 'list' }); return 'tabs' in state ? state.tabs : state; })).toEqual([]);
+  await closeMenu(ui);
+  await row.dblclick();
+  await expect(row).toHaveAttribute('aria-selected', 'true');
+  await expect(otherRow).toHaveAttribute('aria-selected', 'false');
+  await expect(ui.getByRole('textbox', { name: file, exact: true })).toContainText('project file');
+  await otherRow.press('Enter');
+  await expect(ui.getByRole('textbox', { name: path.join(first.folder, 'tree-selection.txt'), exact: true })).toContainText('another file');
+  await row.press('Enter');
+  await expect(ui.getByRole('textbox', { name: file, exact: true })).toContainText('project file');
+  await expect(ui.getByRole('tablist', { name: 'Open files' }).getByRole('tab')).toHaveCount(2);
   await showResources(ui, 'Artifacts');
   await expect(row).toHaveCount(0);
   const other = path.join(files.root, 'tree-other-project');
@@ -32,36 +53,41 @@ test('Resources starts with Project, expands folders, opens files and follows pr
   fs.writeFileSync(path.join(other, 'other.txt'), 'other project');
   await openFolder(core, ui, other);
   await expect(ui.getByRole('tab', { name: 'Project', exact: true })).toHaveAttribute('aria-selected', 'true');
-  await expect(ui.locator('[data-task-view][data-active] [data-resources]').getByRole('button', { name: 'other.txt', exact: true })).toBeVisible();
-  await expect(ui.locator('[data-task-view][data-active] [data-resources]').getByRole('button', { name: 'tree-example', exact: true })).toHaveCount(0);
+  await expect(ui.locator('[data-task-view][data-active] [data-resources]').getByRole('treeitem', { name: 'other.txt', exact: true })).toBeVisible();
+  await expect(ui.locator('[data-task-view][data-active] [data-resources]').getByRole('treeitem', { name: 'tree-example', exact: true })).toHaveCount(0);
   expect((await invoke(ui, 'task:file:list', { key: await core((k) => k.shell.task.key), folder: first.folder })).error).toBeTruthy();
   await showTask(core, ui, first.key);
   await expect(ui.getByRole('tab', { name: 'Artifacts', exact: true })).toHaveAttribute('aria-selected', 'true');
   await showResources(ui, 'Project');
-  await expect(ui.locator('[data-task-view][data-active] [data-resources]').getByRole('button', { name: 'tree-example', exact: true })).toBeVisible();
+  await expect(ui.locator('[data-task-view][data-active] [data-resources]').getByRole('treeitem', { name: 'tree-example', exact: true })).toBeVisible();
 });
 
 test('Project icons identify files and folders and follow the window theme', async ({ core, ui, files }) => {
   const folder = await core((k) => k.shell.task.folder);
   const directory = path.join(folder, 'icon-example');
   fs.mkdirSync(path.join(directory, 'src'), { recursive: true });
-  const examples = ['index.ts', 'deno.json'];
+  const examples = ['index.ts', 'data.json', 'unknown.extension'];
   for (const name of examples) fs.writeFileSync(path.join(directory, name), '');
-  await ui.locator('[data-task-view][data-active] [data-resources]').getByRole('button', { name: 'icon-example', exact: true }).click();
-  const row = (name: string) => ui.locator('[data-task-view][data-active] [data-resources]').getByRole('button', { name, exact: true });
-  const icon = (name: string) => row(name).locator('span[aria-hidden="true"]');
+  await ui.locator('[data-task-view][data-active] [data-resources]').getByRole('treeitem', { name: 'icon-example', exact: true }).click();
+  const row = (name: string) => ui.locator('[data-task-view][data-active] [data-resources]').getByRole('treeitem', { name, exact: true });
+  const icon = (name: string) => row(name).locator('[data-item-section="icon"] svg');
   for (const name of examples) {
-    // A CSS URL alone does not prove the packaged local asset can be decoded by Chromium.
-    expect(await icon(name).evaluate((element) => new Promise<boolean>((resolve) => {
-      const image = new Image();
-      image.onload = () => resolve(image.naturalWidth > 0);
-      image.onerror = () => resolve(false);
-      image.src = getComputedStyle(element).backgroundImage.slice(5, -2);
-    }))).toBe(true);
+    // Resolve the SVG reference too: a <use> alone does not prove its packaged symbol exists.
+    await expect(icon(name)).toBeVisible();
+    expect(await icon(name).evaluate((svg) => {
+      const href = svg.querySelector('use').getAttribute('href');
+      const root = svg.getRootNode();
+      return root instanceof ShadowRoot && !!root.querySelector(href)?.querySelector('path');
+    })).toBe(true);
   }
-  const darkIcon = await icon('deno.json').evaluate((e) => getComputedStyle(e).backgroundImage);
+  const color = (name: string) => icon(name).evaluate((e) => getComputedStyle(e).color);
+  const fallbackColor = await color('unknown.extension');
+  expect(await color('index.ts')).not.toBe(fallbackColor);
+  expect(await color('data.json')).not.toBe(fallbackColor);
+  expect(await color('index.ts')).not.toBe(await color('data.json'));
+  const darkIcon = await color('data.json');
   await choose(ui, 'Light', await windowSubmenu(ui, 'Theme'));
-  await expect(icon('deno.json')).not.toHaveCSS('background-image', darkIcon);
+  await expect(icon('data.json')).not.toHaveCSS('color', darkIcon);
   await ui.keyboard.press('Escape');
   await closeMenu(ui);
   await frames(ui);
@@ -69,9 +95,38 @@ test('Project icons identify files and folders and follow the window theme', asy
   await core((k, file) => k.shot(file), screenshot);
   await test.info().attach('Project icons', { path: screenshot, contentType: 'image/png' });
   await choose(ui, 'Dark', await windowSubmenu(ui, 'Theme'));
-  await expect(icon('deno.json')).toHaveCSS('background-image', darkIcon);
+  await expect(icon('data.json')).toHaveCSS('color', darkIcon);
   await ui.keyboard.press('Escape');
   await closeMenu(ui);
+});
+
+test('Project shows native working-tree Git statuses and refreshes after staging and restoring', async ({ core, ui, files }) => {
+  fs.mkdirSync(path.join(files.root, 'project-git', 'src'), { recursive: true });
+  const repo = committed(path.join(files.root, 'project-git'), 'src/file.ts', 'export const value = 1;\n');
+  fs.writeFileSync(path.join(repo, '.gitignore'), 'ignored/\n');
+  git(repo, 'add', '.'); git(repo, 'commit', '-m', 'Ignore build output');
+  await openFolder(core, ui, repo);
+  const folder = await core(async (k) => { const result = await k.shell.task.makeWorktree(); if (!('folder' in result)) throw new Error(result.error); return result.folder; });
+  fs.writeFileSync(path.join(folder, 'src', 'file.ts'), 'export const value = 2;\n');
+  fs.writeFileSync(path.join(folder, 'src', 'new.ts'), 'export const added = true;\n');
+  fs.mkdirSync(path.join(folder, 'ignored')); fs.writeFileSync(path.join(folder, 'ignored', 'build.js'), 'output');
+  await showResources(ui, 'Project');
+  const tree = resourcesGroup(ui).getByLabel('Project file tree', { exact: true });
+  await tree.getByRole('treeitem', { name: 'src', exact: true }).click();
+  const file = tree.getByRole('treeitem', { name: 'file.ts', exact: true }), added = tree.getByRole('treeitem', { name: 'new.ts', exact: true });
+  await expect(file).toHaveAttribute('data-item-git-status', 'modified');
+  await expect(added).toHaveAttribute('data-item-git-status', 'untracked');
+  await expect(tree.getByRole('treeitem', { name: 'src', exact: true })).toHaveAttribute('data-item-contains-git-change', 'true');
+  const ignored = tree.getByRole('treeitem', { name: 'ignored', exact: true });
+  await expect(ignored).toHaveAttribute('data-item-git-status', 'ignored');
+  await ignored.click();
+  await expect(tree.getByRole('treeitem', { name: 'build.js', exact: true })).toHaveAttribute('data-item-git-status', 'ignored');
+  await file.click();
+  git(folder, 'add', 'src/new.ts'); git(folder, 'restore', 'src/file.ts');
+  await expect(added).toHaveAttribute('data-item-git-status', 'added');
+  await expect(file).not.toHaveAttribute('data-item-git-status');
+  await expect(file).toHaveAttribute('aria-selected', 'true');
+  expect((await invoke(ui, 'task:file:status', { key: await core((k) => k.shell.task.key), folder: repo })).error).toBeTruthy();
 });
 
 test('Resources places its icon tabs, enforces its configured minimum and keeps collapse across task switches', async ({ ui, core, files }) => {

@@ -22,9 +22,10 @@ export function installShortcuts(shell: Shell, { appDevTools }: { appDevTools: b
   shell.keys = () => keyList(undefined, store.settings().keys);
   const ZOOM: Record<string, number> = { 'zoom.in': 1, 'zoom.out': -1, 'zoom.reset': 0, 'site.zoomIn': 1, 'site.zoomOut': -1, 'site.zoomReset': 0 };
   function onKey(wc: WebContents, e: Electron.Event, input: Electron.Input) {
-    const w = shell.windowOf(wc), t = !w && shell.tabOf(wc);
+    const preview = shell.windows.find((w) => w.artifactViewer.native.contents === wc);
+    const w = preview ?? shell.windowOf(wc), t = !w && shell.tabOf(wc);
     if (!w && !t) return; // DevTools, a tab of a task not on screen
-    const zone = w ? w.keyZone : 'page';
+    const zone = preview ? 'window' : w ? w.keyZone : 'page';
     // A key held alone (the dictation's): its press and its release, wherever the keyboard is but a dialog (the
     // shortcuts' dialog takes a key there to make it the one). Left to the page too (no preventDefault: a press
     // taken had its release withheld by Chromium, and the key types nothing).

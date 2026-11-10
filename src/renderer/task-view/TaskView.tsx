@@ -1,39 +1,56 @@
 // A live screen per visited task, retained until its tab closes (docs/window.md, The grid).
-import { memo, useEffect, useLayoutEffect, useState, useRef } from 'react';
+import { memo, Suspense, useEffect, useLayoutEffect, useState, useRef } from 'react';
 import { useStore } from 'zustand';
 import { DockviewReact, GridviewReact, Orientation, type IDockviewPanelProps, type IGridviewPanelProps } from 'dockview-react';
 import 'dockview-react/dist/styles/dockview.css';
-import { TerminalSquareIcon, PlusIcon } from 'lucide-react';
-import { Avatar, AvatarImage, Button } from '@ui';
+import { TerminalSquareIcon, PlusIcon, CheckIcon } from 'lucide-react';
+import { Avatar, AvatarImage, Button, Empty, EmptyHeader, EmptyTitle } from '@ui';
+import { Pill } from '../../dictation/renderer';
+import { activityItems } from './development';
 import { DevelopmentTerminals } from './DevelopmentTerminals';
 import { TaskDiff } from './Diff';
+import { Artifacts } from './Artifacts';
+import { CodeEditor } from '../../editor/renderer';
 import { StageTerminalPane, StageTerminalHeader } from './StageTerminalPane';
 import { ProfilePane, ProfileHeader } from './ProfilePane';
 import { Resources, ResourceIcon, ResourceActions } from './Resources';
 import { developmentTheme, dockTheme } from './dock-theme';
 import { registerTaskGrid } from './controller';
 import { TaskGrid } from './grid';
+import { TaskBoundary } from './TaskBoundary';
 import { useWindow } from '../lib/store';
-import { TaskContext, tasks, useTask, useTaskGrid, type TaskStore } from './state';
+import { TaskContext, tasks, useTask, useTaskActive, useTaskGrid, type TaskStore } from './state';
 import { profileLaunchers } from './profiles';
 import { useStrip } from '../lib/strip';
 import { avatarSrc } from '../lib/common';
 import { newStageTerminal } from './environments';
 import { panelView } from './terminals';
-import { termStyle, useShade } from '../lib/theme';
+import { termStyle, uiTextSize, useShade } from '../lib/theme';
 import './Grid.css';
 export { StageMenu } from './StageMenu';
 
 const components = { terminal: DevelopmentContent, resources: Resources };
 const tabComponents = { resources: ResourceIcon };
 function DevelopmentContent(props: IDockviewPanelProps) {
-  const diff = useTask((s) => s.developmentDiff);
-  const reviewing = !!diff;
-  useEffect(() => { props.api.setTitle(reviewing ? 'Diff' : 'Terminal'); }, [props.api, reviewing]);
-  return <>
-    <DevelopmentTerminals reviewing={reviewing} />
-    {reviewing && <TaskDiff selection={diff} />}
-  </>;
+  const grid = useTaskGrid(), active = useTaskActive(), shade = useShade();
+  const [editorShown, setEditorShown] = useState(false), [fontSize] = useState(uiTextSize);
+  const item = useTask((s) => s.workbenchItem), diff = useTask((s) => s.developmentDiff);
+  const task = useTask((s) => s.key), hasTerminals = useTask((s) => s.developmentTerminals.list.length > 0);
+  useEffect(() => { props.api.setTitle(`Main pane: ${activityItems[item]}`); }, [props.api, item]);
+  if (item === 'project' && !editorShown) setEditorShown(true);
+  return <section aria-label="Main pane" data-workbench-item={item} className="relative h-full min-w-0">
+    <DevelopmentTerminals visible={item === 'terminals'} />
+    {item === 'diff' && diff && <TaskDiff selection={diff} />}
+    {editorShown && <div hidden={item !== 'project'} className="h-full min-h-0"><Suspense fallback={<p role="status">Loading editor…</p>}>
+      <CodeEditor session={grid.development.editor} active={active && item === 'project'} shade={shade} fontSize={fontSize} />
+    </Suspense></div>}
+    {active && item === 'artifacts' && <Artifacts />}
+    {item === 'diff' && !diff &&
+      <Empty className="h-full"><EmptyHeader><EmptyTitle>
+        choose file
+      </EmptyTitle></EmptyHeader></Empty>}
+    {hasTerminals && <Pill task={task}><CheckIcon className="size-3.5 text-success" /></Pill>}
+  </section>;
 }
 function Development({ api }: IGridviewPanelProps) {
   const grid = useTaskGrid();
@@ -84,26 +101,37 @@ const Screen = memo(function Screen() {
 const TaskView = memo(function TaskView({ state, active }: { state: TaskStore; active: boolean }) {
   const [grid] = useState(() => new TaskGrid(state));
   const [loaded, setLoaded] = useState(false);
-  const host = useRef<HTMLElement>(null);
-  useEffect(() => { void grid.load().then((ready) => { if (ready) setLoaded(true); }); }, [grid]);
+  const [failure, setFailure] = useState<{ error: unknown } | null>(null);
+  const host = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    let mounted = true;
+    void grid.load().then((ready) => { if (mounted && ready) setLoaded(true); }, (error: unknown) => { if (mounted) setFailure({ error }); });
+    return () => { mounted = false; };
+  }, [grid]);
   useLayoutEffect(() => {
     const unregister = registerTaskGrid(grid);
     // The host remains observable while content-visibility skips the grids inside it.
     const resized = new ResizeObserver(grid.resize);
-    resized.observe(host.current!);
+    resized.observe(host.current!.closest('[data-task-view]')!);
     return () => { resized.disconnect(); unregister(); };
   }, [grid]);
   useLayoutEffect(() => { if (active) grid.activate(); }, [grid, active]);
-  return <section ref={host} data-task-view={grid.key} data-active={active || undefined} aria-hidden={!active || undefined}
-    className="absolute inset-0" inert={!active || undefined}>
+  if (failure) throw failure.error;
+  return <div ref={host} className="absolute inset-0">
     <TaskContext value={grid}>{loaded && <Screen />}</TaskContext>
-  </section>;
+  </div>;
 });
 export function TaskViews() {
   const retained = useStore(tasks), current = useWindow((s) => s.current), loading = useTask((s) => s.loading);
+  const tabs = useWindow((s) => s.projects.tabs);
   const shade = useShade();
   useEffect(() => panelView.restyle(termStyle()), [shade]);
   return <main id="dock" className="relative isolate min-h-0 min-w-0" aria-busy={loading || undefined}>
-    {Object.entries(retained).map(([key, state]) => <TaskView key={key} state={state} active={key === current} />)}
+    {Object.entries(retained).map(([key, state]) => <section key={key} data-task-view={key} data-active={key === current || undefined}
+      aria-hidden={key !== current || undefined} inert={key !== current || undefined} className="absolute inset-0">
+      <TaskBoundary task={state} failed={!!tabs.find((t) => t.key === key)?.viewFailed}>
+        <TaskView state={state} active={key === current} />
+      </TaskBoundary>
+    </section>)}
   </main>;
 }

@@ -6,7 +6,7 @@ import { fakeAgent } from './agent-helpers.ts';
 import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
 import type { Locator } from '@playwright/test';
-import { SITE, PORT, MAC, WIN, near, uiZoom, who, menu, item, choose, closeMenu, taskMenu, answer, manageProfiles, chooseProfile, closeSettings, openSidebar, closeSidebar, viewOn, invoke , typeIn } from './helpers.ts';
+import { SITE, PORT, MAC, WIN, showResources, near, uiZoom, who, menu, item, choose, closeMenu, taskMenu, answer, manageProfiles, chooseProfile, closeSettings, openSidebar, closeSidebar, viewOn, invoke , typeIn } from './helpers.ts';
 import { profileId, deleteProfile } from './tasks-helpers.ts';
 
 // Files of the sites' Cache API in a profile's folder, wherever Chromium's layout puts them (`WebStorage/<bucket>/CacheStorage/`).
@@ -29,6 +29,7 @@ async function zoomAt(core: Core, z: number) {
 
 test('Kulisa zoom: Ctrl+= outside the pages scales the whole UI, pages follow, panes still fit; saved', async ({ core, ui, files }) => {
   await core(async (k, url) => { await k.ensureProfile('Sam.admin', url); }, `${SITE}/app`);
+  await showResources(ui, 'Agents');
   await zoomAt(core, 1);
   const samZoom = () => core((k) => k.profile('Sam.admin').get().wc.getZoomFactor());
   await expect(ui.locator('#zoomReset'), 'at 100% the top bar shows no zoom').toBeHidden();
@@ -338,7 +339,7 @@ test('closing the last tab of a profile leaves an empty tab, not a pane without 
     if (by === 'window') await tabs.getByTitle('Close tab').click();
     else await call('browser_tab_close', { profile: 'Solo', tab: await core((k) => k.profile('Solo').active) });
     await expect.poll(() => core((k, was) => { const p = k.profile('Solo'); return p.tabs.length === 1 && p.tabs[0].id !== was && p.active === p.tabs[0].id; }, only)).toBe(true);
-    expect(await core((k) => k.profile('Solo').get().view.getVisible()), 'its page is shown').toBe(true);
+    expect(await core((k) => k.profile('Solo').view.getVisible()), 'its page is shown').toBe(true);
     await expect(tabs).toHaveCount(1);
   }
   const removed = ui.evaluate((id) => (window as any).act('profile:delete', { profile: id }), solo);

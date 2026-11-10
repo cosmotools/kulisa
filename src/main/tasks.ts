@@ -3,28 +3,30 @@
 // grid and its terminals, its agents in some of them. Its project's window shows one task at a time; the others keep
 // running, those of the other open projects too. A task loads (profiles, terminals) the first time it is shown, so a
 // restart does not start every one at once.
-import { nativeImage, session } from 'electron';
+import { session } from 'electron';
 import fs from 'fs';
 import path from 'path';
+import { randomUUID } from 'node:crypto';
 import { StageTerminals } from './stage-terminals.ts';
 import { Profile, wipeSession } from '../browser/main/index.ts';
 import { ProjectProfiles } from './project-profiles.ts';
 import { installSigninPause } from './signin-pause.ts';
 import { startTerminal, stopTerminal, forgetTerminal, terminalTail, sendToPrompt, typeIntoPrompt, eraseInPrompt, typeLine, interrupt, quotePaths } from '../terminal/main/index.ts';
 import { TERMINAL_LINES } from '../terminal/ipc.ts';
-import { listArtifacts, saveArtifact } from './artifacts.ts';
+import { TaskFiles, listArtifacts, saveArtifact, deleteFiles, ownedPath, readFileRange } from '../task-files/main/index.ts';
 import { worktreesOf, ownWorktree, folderOf, branchOf, taskKey } from './store.ts';
 import { copyProfile } from '../browser/main/index.ts';
-import { renameBranch } from './worktrees.ts';
+import { git, renameBranch } from './worktrees.ts';
 import { listDiff, listDiffTargets, readDiff, loadReview } from '../diff/main/index.ts';
 import type { DiffOptions } from '../diff/ipc.ts';
 import { extendTrust } from '../kulisa-plugin/main/index.ts';
 import { installSkill } from '../kulisa-plugin/main/index.ts';
 import { labelError } from '../shared/names.ts';
 import { loginAllowed } from './local.ts';
-import { resourcePath, listResourceFiles } from '../project-explorer/main/index.ts';
+import { resourcePath, listResourceFiles, listResourceGitStatus } from '../project-explorer/main/index.ts';
+import { EditorWorkspace } from '../editor/main/index.ts';
 import { openFile } from './file-links.ts';
-import { log } from './log.ts';
+import { log, summary } from './log.ts';
 import type { Tab } from '../browser/main/index.ts';
 import type { Entry, Hooks } from './project-profiles.ts';
 import type { Project } from './projects.ts';
@@ -57,14 +59,29 @@ const HANDOVER = (n: number, name: string) => `Go on with the work of conversati
   `whole with the kulisa task_history tool (conversation ${n}) before anything else. Then tell me in a few lines what ` +
   'is done and what is next, and go on with it.';
 
-// A screenshot's picture in its Resources row: twice the row's (Resources.tsx), sharp on a Retina screen.
-const THUMB_WIDTH = 128;
-
 class Task {
+  private resultFiles?: TaskFiles;
+  private get fileStorage() {
+    return this.resultFiles ??= new TaskFiles({
+      directory: this.store.dir, artifacts: this.store.artifacts,
+      prepare: () => !refused(this.fileContext()), isOpen: () => this.loaded,
+      changed: () => this.window?.sendArtifacts(this),
+      activity: (message) => log.info(`[task-files] ${this.key} ${summary({ message })}`),
+    });
+  }
+  private editorWorkspace?: EditorWorkspace;
+  get editor() {
+    return this.editorWorkspace ??= new EditorWorkspace({
+      directory: this.store.file('editor'), roots: () => this.resources().map((r) => r.folder),
+      changed: (state) => this.window?.send('task:editor:state', { task: this.key, state }),
+      activity: (action, file) => log.info(`[editor] ${action} ${summary({ task: this.key, file })}`),
+    });
+  }
   stageTerminals: StageTerminals;
   shell: Shell; project: Project; entry: TaskEntry; id: string; key: string; store: TaskStore;
   window: AppWindow | null; // the one whose tab it is (window.ts)
   loaded: boolean; terminalsLoaded: boolean;
+  viewFailed = false; // Runtime only; moving windows must not silently retry a failed React screen.
   gitChecked: Promise<void>; // its project's repositories looked at as it loads (Project.checkGit), awaited by its agents
   _copying: Promise<unknown>; // its copies made one at a time (copying)
   developmentTerminals: Map<number, DevelopmentTerminal>; developmentTerminalSeq: number; list: ProjectProfiles;
@@ -449,7 +466,9 @@ class Task {
     const saved = this.conversations()[conversation]!;
     const resume = (a.resume && a.resume(saved)) || null;
     this.resumedSession = resume ? saved.sessionId ?? null : null;
-    const env = this.env(t), dirs = this.dirs(), more: { args?: string[]; env?: Record<string, string> } = (dirs.length && a.dirs?.(dirs)) || {};
+    const files = this.fileContext(this.conversations()[conversation]!.id);
+    if (refused(files)) return files;
+    const env = this.env(t), dirs = [...this.dirs(), files.artifacts, files.tmp!], more: { args?: string[]; env?: Record<string, string> } = (dirs.length && a.dirs?.(dirs)) || {};
     // Each copy trusted as the human trusted the project's code, in its folder or another task's copy (extendTrust).
     const where = { configDir: a.configDir, transcript: (this.project.agentData() as { transcript?: string }).transcript };
     const copies = this.shell.store.tasksOf(this.project.entry).list.flatMap(worktreesOf);
@@ -469,7 +488,7 @@ class Task {
     const command = found.onPath ? a.command : found.path;
     t.pty = await startTerminal((channel, data) => this.window?.send(channel, data), { command, shell: a.shell, cwd: this.folder,
       env: { ...env, ...more.env, ...a.env }, pinned: a.env, sizeOf: this.key,
-      args: [...(resume || []), ...(a.args?.({ env, packages: shell.packages, data: this.store.dir, artifacts: shell.store.artifactsGlob() }) || []), ...(more.args || []), ...((!resume && first && a.prompt?.(first)) || [])] }, t.key);
+      args: [...(resume || []), ...(a.args?.({ env, packages: shell.packages, data: files.tmp!, artifacts: files.artifacts }) || []), ...(more.args || []), ...((!resume && first && a.prompt?.(first)) || [])] }, t.key);
     if (this.developmentTerminals.get(t.id) !== t) { stopTerminal(t.pty); return { error: 'the terminal was closed' }; }
     // Its shell exited by itself (exit), not stopped by Kulisa (closing, quitting: the terminal is kept then).
     t.pty.onExit(() => { if (!t.pty!.stopped) this.dropTerminal(t); });
@@ -679,12 +698,16 @@ class Task {
   // hooks report its own state and it names its own tab.
   env(t?: DevelopmentTerminal) {
     const base = `${this.shell.mcp.base}/task/${encodeURIComponent(this.project.id)}/${this.id}${t ? `/t/${t.id}` : ''}`;
-    return { KULISA_MCP_URL: `${base}/mcp`, KULISA_URL: base, KULISA_TASK: this.name };
+    const id = t?.conversation === undefined ? undefined : this.conversations()[t.conversation]?.id;
+    return { KULISA_MCP_URL: `${base}/mcp`, KULISA_URL: base, KULISA_TASK: this.name,
+      KULISA_ARTIFACTS_DIR: this.store.artifacts, ...(id && { KULISA_TMP_DIR: this.store.temporaryDir(id) }) };
   }
   // Its terminals stopped (kept for when it loads again), its profiles saved and closed (its project closes, or the task
   // is deleted). Its tabs are saved first, as they are: closing them one by one changes the profiles, and nothing is
   // saved then.
   async unload() {
+    this.resultFiles?.dispose(); this.resultFiles = undefined;
+    await this.editorWorkspace?.dispose(); this.editorWorkspace = undefined;
     this.stageTerminals.unload();
     this.shell.chooseAgent.cancel?.(this);
     this.shell.dictation.gone(this.key);
@@ -693,7 +716,7 @@ class Task {
     forgetTerminal(this.key);
     this.terminalsLoaded = false; this.front = null; this.lastAgent = null;
     if (this.loaded) this.list.saveTabs();
-    this.loaded = false;
+    this.loaded = false; this.viewFailed = false;
     await this.list.unloadAll();
   }
   // An agent's session, as its hooks report it (agent-hooks.ts).
@@ -800,7 +823,7 @@ class Task {
   info(): Sent.TaskInfo {
     const { id, key, displayName: name, tabState: state, folder } = this;
     return { id, key, project: this.project.id, name, state, folder, branch: this.branch, closed: this.entry.closedAt !== undefined,
-      repos: this.addable(), resources: this.resources() };
+      repos: this.addable(), resources: this.resources(), viewFailed: this.viewFailed };
   }
   // Its resources as the Resources panel (Resources.tsx) shows them: the first, where it works, is not removed there
   // (the main tree is the human's, its own worktree goes with the task); an added repository's worktree is
@@ -813,6 +836,10 @@ class Task {
 
   async files(folder: string) {
     return listResourceFiles(this.resources().map((r) => r.folder), folder);
+  }
+  async fileStatus(folder: string) {
+    if (!this.resources().some((r) => r.folder === folder)) return { error: 'This folder is not a resource of this task.' };
+    return listResourceGitStatus(folder, git);
   }
   async diff(folder: string, options: DiffOptions) {
     if (!this.resources().some((r) => r.folder === folder)) return { error: 'This folder is not a resource of this task.' };
@@ -837,25 +864,68 @@ class Task {
     return {};
   }
 
-  async screenshot(profile: string, tab: string | undefined, shot: Parameters<Profile['screenshot']>[1]) {
+  async screenshot(profile: string, tab: string | undefined, shot: Parameters<Profile['screenshot']>[1], temporary?: string) {
     const r = this.findTab(profile, tab);
     if (refused(r)) throw new Error(r.error);
     const buf = await r.profile.screenshot(r.tab, shot);
-    const file = await this.saveArtifact({ kind: 'profile', id: r.profile.id, tab: r.tab.id }, `screenshot.${shot.type === 'jpeg' ? 'jpg' : 'png'}`, buf);
+    const file = await this.saveArtifact({ kind: 'profile', id: r.profile.id, tab: r.tab.id }, `screenshot.${shot.type === 'jpeg' ? 'jpg' : 'png'}`, buf, temporary);
     const w = this.window;
-    if (w && this.shown()) w.thumbnails.show(r.profile.id, file, buf, w.paneBox(r.profile.id));
+    if (!temporary && w && this.shown()) w.thumbnails.show(r.profile.id, file, buf, w.paneBox(r.profile.id));
     return { buf, file };
   }
-  // Both handles keep environment files here so their numbering, limit and Resources updates agree.
-  async saveArtifact(source: Sent.EnvironmentSource, kind: string, content: string | Buffer) {
+  // Human and agent handles share storage rules; technical tool output belongs to the caller's temporary folder.
+  async saveArtifact(source: Sent.EnvironmentSource, kind: string, content: string | Buffer, temporary?: string) {
+    const context = this.fileContext(temporary);
+    if (refused(context)) throw new Error(context.error);
     const from = source.kind === 'profile' ? `${source.id}-${source.tab}` : `terminal-${source.id}`;
-    const file = await saveArtifact(this.store.artifacts, `${from}-${kind}`, content);
-    this.artifactsChanged();
+    const file = await saveArtifact(temporary ? context.tmp! : context.artifacts, `${from}-${kind}`, content);
+    if (!temporary) this.artifactsChanged();
+    log.info(`[task-files] ${this.key} ${temporary ? 'temporary' : 'artifact'} saved ${summary({ file })}`);
     return file;
   }
   async findArtifact(file: string) {
     const artifact = (await listArtifacts(this.store.artifacts)).find((a) => a.file === path.resolve(file));
-    return artifact ? { artifact } : { error: `not an artifact of this task: ${file}` };
+    return artifact && await ownedPath(this.store.artifacts, artifact.file) ? { artifact } : { error: `not an artifact of this task: ${file}` };
+  }
+  async readArtifact(file: string, offset: number, length: number) {
+    return readFileRange(this.store.artifacts, file, offset, length);
+  }
+  private artifactViewGeneration = 0;
+  cancelArtifactView() { this.artifactViewGeneration++; }
+  async viewArtifact(file: string): Promise<Result> {
+    const generation = ++this.artifactViewGeneration;
+    const window = this.window;
+    if (!window || !this.shown() || this.viewFailed) return { error: 'That task is not on screen.' };
+    const found = await this.findArtifact(file);
+    if (refused(found)) return found;
+    if (found.artifact.directory) return { error: 'Choose a file to preview.' };
+    await window.sendArtifacts(this);
+    if (generation !== this.artifactViewGeneration || this.window !== window || !this.shown() || this.viewFailed)
+      return { error: 'Artifact opening was cancelled.' };
+    window.send('task:artifact:selected', { task: this.key, file: found.artifact.file });
+    log.info(`[artifact-viewer] selected task=${this.key} ${summary({ file: found.artifact.file })}`);
+    return {};
+  }
+  async readArtifactPdf(file: string, signal: AbortSignal): Promise<Result<{ bytes: Uint8Array; name: string }>> {
+    const found = await this.findArtifact(file);
+    signal.throwIfAborted();
+    if (refused(found)) return found;
+    const artifact = found.artifact;
+    if (artifact.bytes > 32 * 1024 * 1024) return { error: 'PDF preview is limited to 32 MiB.' };
+    const bytes = new Uint8Array(artifact.bytes);
+    for (let offset = 0; offset < bytes.length;) {
+      signal.throwIfAborted();
+      const result = await this.readArtifact(file, offset, Math.min(bytes.length - offset, 4 * 1024 * 1024));
+      if (refused(result)) return result;
+      if (result.revision !== artifact.revision) return { error: 'The artifact changed while reading.' };
+      if (!result.bytes.length) return { error: 'The artifact changed while reading.' };
+      bytes.set(result.bytes, offset); offset += result.bytes.length;
+    }
+    signal.throwIfAborted();
+    const after = await this.findArtifact(file);
+    if (refused(after)) return after;
+    if (after.artifact.revision !== artifact.revision) return { error: 'The artifact changed while reading.' };
+    return { bytes, name: path.basename(artifact.file) };
   }
   sendSelection(source: Sent.EnvironmentSource, text: string): Result {
     if (!this.shown()) return { error: 'that task is not on screen' };
@@ -886,51 +956,80 @@ class Task {
     this.typeForAgent(`${quotePaths(to.pty.shell, [r.artifact.file])} `);
     return {};
   }
-  // The files kept of its pages (artifacts.ts), as the Resources panel lists them. A
-  // screenshot's small picture is made here once and kept while the task is loaded: the window never decodes the
-  // files themselves (a page's picture is megabytes once decoded, a hundred of them a lot of a window's memory).
-  private thumbs = new Map<string, string>(); // '' where none could be made
-  private makingThumbs = false;
-  async artifacts(): Promise<Sent.Artifact[]> {
-    const list = await listArtifacts(this.store.artifacts);
-    for (const file of this.thumbs.keys()) if (!list.some((a) => a.file === file)) this.thumbs.delete(file);
-    const missing = list.filter((a) => a.kind === 'screenshot' && !this.thumbs.has(a.file)).map((a) => a.file);
-    if (missing.length) void this.makeThumbs(missing);
-    return list.map((a) => ({ ...a, thumb: this.thumbs.get(a.file) || null }));
+  // Stable Kulisa conversation IDs own temporary folders. External clients explicitly create a context.
+  fileContext(session?: string, createExternal = false): Result<{ artifacts: string; tmp: string | null; session: string | null; mcp: string | null }> {
+    if (createExternal) session = `external-${randomUUID()}`;
+    if (session && !/^[a-zA-Z0-9-]+$/.test(session)) return { error: 'Invalid task file context.' };
+    const tmp = session ? this.store.temporaryDir(session) : null;
+    try {
+      this.store.prepareTemporary();
+      if (session && !this.conversations().some((c) => c.id === session)
+        && !(session.startsWith('external-') && (createExternal || fs.existsSync(tmp!)))) {
+        return { error: 'Unknown task file context. Call task_files with newContext: true for an external agent.' };
+      }
+      for (const dir of [this.store.artifacts, ...(tmp ? [tmp] : [])]) {
+        fs.mkdirSync(dir, { recursive: true });
+        if (fs.lstatSync(dir).isSymbolicLink()) return { error: 'Task file folders must not be symbolic links.' };
+      }
+    } catch (error) { return { error: `Cannot prepare task file folders: ${(error as Error).message}` }; }
+    if (createExternal) log.info(`[task-files] ${this.key} external context created ${session}`);
+    const base = `${this.shell.mcp.base}/task/${encodeURIComponent(this.project.id)}/${this.id}`;
+    return { artifacts: this.store.artifacts, tmp, session: session ?? null, mcp: session?.startsWith('external-') ? `${base}/c/${session}/mcp` : null };
   }
-  // One at a time, the main process free between them: a whole page's picture takes tens of milliseconds to decode,
-  // and a task shown with many would hold up everything else (its terminals starting). The list goes again with them.
-  private async makeThumbs(files: string[]) {
-    if (this.makingThumbs) return; // the list sent when those are done makes the rest
-    this.makingThumbs = true;
-    for (const file of files) {
-      await new Promise((r) => setImmediate(r));
-      const image = nativeImage.createFromPath(file);
-      this.thumbs.set(file, image.isEmpty() ? '' : `data:image/jpeg;base64,${image.resize({ width: THUMB_WIDTH }).toJPEG(80).toString('base64')}`);
-    }
-    this.makingThumbs = false;
-    this.artifactsChanged();
+  fileFolders() {
+    const context = this.fileContext();
+    if (refused(context)) return [];
+    const names = fs.readdirSync(this.store.temporary, { withFileTypes: true })
+      .filter((e) => e.isDirectory() && e.name.startsWith('agent-')).map((e) => e.name);
+    const conversations = this.conversations();
+    return [{ folder: this.store.artifacts, name: 'Artifacts' }, { folder: this.store.temporary, name: 'All Temporary Files' }, ...names.map((name) => ({
+      folder: path.join(this.store.temporary, name), name: (() => {
+        const index = conversations.findIndex((c) => `agent-${c.id}` === name), c = conversations[index];
+        return c ? c.title || c.autoTitle || `Conversation ${index + 1}` : `External agent · ${name.slice(-8)}`;
+      })(),
+    }))];
   }
-  // One made (or more gone past the limit, or deleted): the window showing the task lists them again.
-  artifactsChanged() { void this.window?.sendArtifacts(this); }
-  // What its artifacts take, or those of its project's tasks or of every task, loaded or not (the activity monitor,
-  // src/activity-monitor): the Resources panel's figure, task_artifacts. Each task with its name and its project's.
-  async artifactsUsage(scope: 'task' | 'project' | 'all' = 'task') {
-    const r = await this.shell.activity.query({ metrics: ['artifacts'], ...(scope === 'task' ? { tasks: [this.key] } : scope === 'project' ? { projects: [this.project.id] } : {}) });
+  async openFileFolder(folder: string): Promise<Result> {
+    if (!this.fileFolders().some((a) => a.folder === folder) || !await ownedPath(this.store.dir, folder)) return { error: 'Unknown task file folder.' };
+    log.info(`[task-files] ${this.key} human opened folder ${summary({ folder })}`);
+    await openFile(folder); return {};
+  }
+  async openArtifact(file: string): Promise<Result> {
+    const found = await this.findArtifact(file);
+    if (refused(found)) return found;
+    log.info(`[task-files] ${this.key} opened artifact ${summary({ file })}`);
+    await openFile(found.artifact.file); return {};
+  }
+  artifacts() { return this.fileStorage.list(); }
+  artifactThumbnails(files: string[]) { return this.fileStorage.thumbnails(files); }
+  artifactsChanged() { this.fileStorage.changed(); }
+  async artifactsUsage(scope: 'task' | 'project' | 'all' = 'task', area: 'artifacts' | 'temporary' | 'all' = 'artifacts') {
+    const metrics: ('artifacts' | 'temporary')[] = area === 'all' ? ['artifacts', 'temporary'] : [area];
+    const r = await this.shell.activity.query({ metrics, ...(scope === 'task' ? { tasks: [this.key] } : scope === 'project' ? { projects: [this.project.id] } : {}) });
     const named = new Map(this.shell.store.allTasks().map((t) => [t.key, { name: this.shell.taskByKey(t.key)?.displayName ?? t.entry.name, project: t.project.name }]));
-    return { bytes: r.total.artifacts ?? 0, tasks: r.tasks.map((t) => ({ key: t.key, ...named.get(t.key)!, bytes: t.metrics.artifacts?.bytes ?? 0 })) };
+    return { bytes: Object.values(r.total).reduce((sum, bytes) => sum + bytes, 0), tasks: r.tasks.map((t) => ({ key: t.key, ...named.get(t.key)!,
+      bytes: Object.values(t.metrics).reduce((sum, m) => sum + m.bytes, 0) })) };
   }
-  // Delete in a row's menu, Delete All, task_artifacts_delete (files null: all): only files of the task's own folder,
-  // not any path the window or the agent names.
+  async temporaryFiles() {
+    const context = this.fileContext();
+    if (refused(context)) throw new Error(context.error);
+    return listArtifacts(this.store.temporary);
+  }
+  async deleteTemporary(files: string[] | null, session?: string) {
+    const context = this.fileContext(session);
+    if (refused(context)) return context;
+    if (!context.tmp) return { error: 'Connect with your task file context before cleaning temporary files.' };
+    const result = await deleteFiles(context.tmp, files);
+    log.info(`[task-files] ${this.key} temporary cleanup ${summary(result)}`);
+    return result;
+  }
   async deleteArtifacts(files: string[] | null): Promise<Result<{ deleted: number; bytes: number }>> {
-    const list = await listArtifacts(this.store.artifacts);
-    const chosen = files ? files.map((f) => list.find((a) => a.file === path.resolve(f))) : list;
-    const stranger = files?.find((_f, i) => !chosen[i]);
-    if (stranger !== undefined) return { error: `not an artifact of this task: ${stranger}` };
-    for (const a of chosen) await fs.promises.rm(a!.file, { force: true });
-    if (chosen.some((a) => a!.file === this.window?.thumbnails.file)) this.window?.thumbnails.close();
+    const result = await deleteFiles(this.store.artifacts, files);
+    if (!result.error) this.window?.artifactViewer.closeFiles(this.key, files);
+    if (this.window?.thumbnails.file && !fs.existsSync(this.window.thumbnails.file)) this.window.thumbnails.close();
     this.artifactsChanged();
-    return { deleted: chosen.length, bytes: chosen.reduce((sum, a) => sum + a!.bytes, 0) };
+    log.info(`[task-files] ${this.key} artifact cleanup ${summary(result)}`);
+    return result;
   }
 }
 

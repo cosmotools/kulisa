@@ -54,6 +54,7 @@ export function registerWindow(ipc: Ipc) {
   handle('zoom:ui', (_e, dir) => shell.setUiZoom(stepZoom(shell.uiZoom, dir)));
   handle('views:pictures', (e) => at(e)?.pictures());
   handle('views:hidden', (e, hidden, opts?) => at(e)?.hideViews(hidden, opts));
+  handle('task:view-failed', (e, failure) => at(e)?.failTaskView(failure));
   on('ask:answer', (e, { id, answer }) => at(e)?.answer(id, answer)); // where it was asked
   on('settings:open', (e, a) => { const w = at(e); if (w) shell.openSettings(a, w); });
   on('settings:close', () => log.info('[settings] closed'));

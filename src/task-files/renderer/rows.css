@@ -1,0 +1,27 @@
+/* Artifacts needs a 32px preview and a caption beneath the filename. Trees' shadow layout requires unsafeCSS. */
+[data-type="item"] {
+  display: grid;
+  grid-template-columns: max-content 32px minmax(0, 1fr) 20px;
+  grid-template-rows: 20px 16px;
+  column-gap: 8px;
+  align-content: center;
+}
+[data-item-section="spacing"] { grid-column: 1; grid-row: 1 / 3; }
+[data-item-section="icon"] { grid-column: 2; grid-row: 1 / 3; width: 32px; height: 32px; justify-self: center; }
+/* Truncation markers inherit line-height; the 52px row height would paint over the caption. */
+[data-item-section="content"] { grid-column: 3; grid-row: 1; min-width: 0; line-height: 20px; }
+[data-item-section="decoration"] {
+  grid-column: 3;
+  grid-row: 2;
+  min-width: 0;
+  font-size: var(--text-xs);
+  line-height: 16px;
+  color: var(--trees-fg-muted);
+  justify-content: flex-start;
+  text-align: start;
+}
+[data-item-section="decoration"] > span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+[data-item-section="action"] { grid-column: 4; grid-row: 1 / 3; }
+[data-item-type="folder"] [data-item-section="content"] { grid-row: 1 / 3; align-self: center; }
+[data-item-section="icon"] svg { max-width: 32px; max-height: 32px; border-radius: 3px; }
+[data-item-type="file"] [data-item-section="icon"] svg { width: 32px; height: 32px; }

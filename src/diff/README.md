@@ -1,6 +1,7 @@
 # Diff
 
-Read-only local Git comparisons for the Resources tree and development review.
+Read-only local Git comparisons for the Diff Side bar tree and Main pane review.
+UI names: [Workbench terminology](../../docs/ui.md#workbench-terminology).
 
 - Comparisons use the merge base to match pull-request semantics while including the worktree's uncommitted changes.
 - NUL-delimited listings preserve tabs, newlines and rename pairs; simple-git's `diffSummary` cannot read that format.
@@ -10,7 +11,6 @@ Read-only local Git comparisons for the Resources tree and development review.
 - Patch batches and Load diff bound memory; full file contents load only for explicit context expansion.
 - Pierre Trees virtualizes changed-file navigation; presorted paths keep the tree in the review document's order.
 - The tree uses Pierre's complete built-in file-type icons and Git-status badges alongside added/deleted counts.
-  Folder status dots are hidden because every listed folder contains changed files.
 - One filter controls Trees' built-in search and the review's current-path matches, ignoring case, trimming outer
   whitespace and accepting backslashes as separators. Previous rename paths remain display metadata, not search aliases.
   Filtering keeps the complete tree model; clearing search restores its expansion state. No matches hides Trees'
@@ -30,6 +30,6 @@ Read-only local Git comparisons for the Resources tree and development review.
 - First-file navigation targets the document start to preserve its top padding; other files target their headings.
 - TanStack Query shares each visible comparison between the tree and document; zero inactive retention makes
   reopening read Git again. Patches are parsed only for files whose version changes.
-- The caller clears its QueryClient and releases the session when the review closes; selection is scoped to that opening.
+- The session preserves review view state across unmounts; the caller owns its lifetime and cleanup.
 - Callers set the session's `active` to false while a retained review is hidden, pausing polling without losing queries
   or document state.

@@ -40,7 +40,8 @@ trust without starting an invisible prompt; it never grants trust or cleans exte
 
 ## The microphone
 
-`Dictation.tsx` sits at a fixed position in the Resources bar. Tooltip names the key/language or disabled reason.
+`Dictation.tsx` sits at a fixed position in the [Activity bar](../../docs/ui.md#workbench-terminology).
+Tooltip names the key/language or disabled reason.
 Hold or click to start/stop; return focus to the terminal via `onDone`. Use primary color for slow starting and red
 with a ping while recording; reduced motion suppresses the ping.
 
@@ -49,7 +50,7 @@ render as recording.
 
 ## The pill
 
-`Pill.tsx` overlays the terminal without resizing it or taking pointer input:
+`Pill.tsx` overlays Main pane without resizing it or taking pointer input, regardless of the selected Activity bar item:
 
 | State | Display |
 |---|---|

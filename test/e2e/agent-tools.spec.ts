@@ -19,13 +19,16 @@ const image = (core: Core, data: string, at?: { x: number; y: number }) => core(
 
 test('agent: open, switch and close tabs', async ({ core, call }) => {
   await profiles(core);
-  const elon = () => core((k) => { const e = k.profile('Elon.buyer'); return { active: e.active, tabs: e.tabs.length }; });
+  const elon = () => core((k) => {
+    const e = k.profile('Elon.buyer');
+    return { active: e.active, tabs: e.tabs.length, shown: e.tabs.filter((t) => t.view.getVisible()).map((t) => t.id) };
+  });
   const first = (await elon()).active;
   const id = opened(await call('browser_tab_new', { profile: 'Elon.buyer', url: `${SITE}/app` }));
-  expect(await elon()).toEqual({ active: id, tabs: 2 });
+  expect(await elon()).toEqual({ active: id, tabs: 2, shown: [id] });
   expect((await call('browser_snapshot', { profile: 'Elon.buyer' })).text).toMatch(/Signed/);
   await call('browser_tab_select', { profile: 'Elon.buyer', tab: first });
-  expect((await elon()).active).toBe(first);
+  expect(await elon()).toEqual({ active: first, tabs: 2, shown: [first] });
   await call('browser_tab_close', { profile: 'Elon.buyer', tab: id });
   await expect.poll(async () => (await elon()).tabs).toBe(1);
 });
@@ -119,7 +122,7 @@ test('agent: screenshots of an element, the visible part and the whole page, at 
   const box = { profile: 'Sam.seller', locator: "locator('#box')" };
   const first = await call('browser_screenshot', box);
   const file = first.text.match(/^Saved as (.+\.jpg)$/)[1];
-  expect(path.dirname(file), "the task's, never the project's").toBe(await core((k) => k.shell.task.store.artifacts));
+  expect(path.dirname(file), "the task's, never the project's").toBe(JSON.parse((await call('task_files')).text).tmp);
   expect(fs.readFileSync(file).toString('base64'), 'the picture the agent got').toBe(first.content[1].data);
   const el = await image(core, first.content[1].data, { x: 100, y: 60 });
   expect(el.size, 'the element alone, at its CSS size').toEqual({ width: 200, height: 120 });
@@ -197,7 +200,7 @@ test('agent: keys, hover, select, files, waiting, evaluate, back and forward; di
   await call('browser_navigate', { ...p, url: `${SITE}/form` });
   const del = { ...p, locator: "getByRole('button', { name: 'Delete' })" };
   // The agent's action answers its own dialog: none is shown.
-  const view = () => core((k) => k.profile('Sam.seller').get().view.getVisible());
+  const view = () => core((k) => k.profile('Sam.seller').view.getVisible());
   const pane = ui.locator(`[data-task-view][data-active] [role="region"][data-profile="${sam}"]`), paneDialog = pane.getByRole('alertdialog');
   const openDialog = paneDialog;
   expect((await call('browser_click', del)).text).toMatch(/asked: confirm "Delete the draft\?"; dismissed/);

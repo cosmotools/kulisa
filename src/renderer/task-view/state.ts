@@ -9,13 +9,17 @@ import type { Invoke, OnTask, StageLayout, StagePosition } from '../../shared/ip
 import { refused } from '../../shared/result';
 import { store, useWindow } from '../lib/store';
 import type { TaskGrid } from './grid';
+import type { ActivityItem } from './development';
 
 export interface TaskState {
   key: string;
   profiles: Profile[];
   closedProfiles: ClosedProfile[];
   developmentTerminals: DevelopmentTerminalsState;
+  workbenchItem: ActivityItem;
   developmentDiff: DiffSelection | null;
+  selectedArtifact: string | null;
+  artifactNavigation: number;
   developmentTerminalFocus: object | null;
   stageTerminals: StageTerminal[];
   stageTerminalFocus: { key: string | null } | null;
@@ -33,7 +37,7 @@ export interface TaskState {
 export type TaskStore = StoreApi<TaskState>;
 const makeTask = (key: string) => createStore<TaskState>()(() => ({
   key, profiles: [], closedProfiles: [], developmentTerminals: { task: key, front: null, list: [] },
-  developmentDiff: null, developmentTerminalFocus: null, stageTerminals: [], stageTerminalFocus: null, stageLayout: null, stageOverflow: false,
+  workbenchItem: 'project', developmentDiff: null, selectedArtifact: null, artifactNavigation: 0, developmentTerminalFocus: null, stageTerminals: [], stageTerminalFocus: null, stageLayout: null, stageOverflow: false,
   stageFollowPaused: false, stageActivity: null, stagePosition: 'above', artifacts: { task: key, list: [], bytes: 0 },
   loading: true, captions: {}, picking: {}, pictures: {},
 }));
@@ -43,6 +47,7 @@ function syncTasks() {
   const open = new Set(projects.tabs.map((t) => t.key)), previous = tasks.getState();
   const next = Object.fromEntries(Object.entries(previous).filter(([key]) => open.has(key)));
   if (current && !next[current]) next[current] = makeTask(current);
+  for (const tab of projects.tabs) if (tab.viewFailed && next[tab.key]?.getState().loading) next[tab.key]!.setState({ loading: false });
   tasks.setState(replaceEqualDeep(previous, next), true);
 }
 syncTasks();

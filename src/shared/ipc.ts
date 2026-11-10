@@ -2,7 +2,9 @@
 // Both ends are checked against it (main/ipc.ts: handle, on, AppWindow.send; the window's bridge: renderer/env.d.ts,
 // act). docs/window.md, IPC. An answer the window does not read is `void`: the main process may answer anything there
 // (the tests read some).
-import type { ProjectFile } from '../project-explorer/ipc.ts';
+import type { ProjectFile, ProjectGitStatus } from '../project-explorer/ipc.ts';
+import type { EditorAction, EditorSnapshot } from '../editor/ipc.ts';
+import type { ViewerBox, ViewerSearchResult } from '../file-viewer/ipc.ts';
 import type { Result } from './result.ts';
 import type { DiffOptions, Diff, FileDiff, Review } from '../diff/ipc.ts';
 import type { StageTerminal, StageTerminalsState, TerminalSize } from './stage-terminal.ts';
@@ -85,6 +87,7 @@ export interface Invoke extends TerminalInvoke, ThumbnailInvoke, GitHubInvoke, D
   'task:show': I<[key: string], { error: string } | void>; // { error }: no such task (ipc/tasks.ts, taskAt)
   'task:new': I<[{ project?: string }?]>;
   'task:close': I<[key: string]>;
+  'task:view-failed': I<[{ task: string; kind: string; frames: string[] }]>;
   'task:delete': I<[key: string]>;
   'task:delete-closed': I<[{ project: string; id: string }]>;
   'task:rename': I<[{ key: string; name: string }], Result<{ name: string; branch: string | null }>>;
@@ -93,12 +96,26 @@ export interface Invoke extends TerminalInvoke, ThumbnailInvoke, GitHubInvoke, D
   'task:show-folder': I<[key: string]>;
   'task:open-folder': I<[{ key: string; folder: string }]>; // a resource's folder (Resources.tsx), checked to be the task's
   'task:file:list': I<[{ key: string; folder: string }], Result<{ entries: ProjectFile[] }>>;
+  'task:file:status': I<[{ key: string; folder: string }], Result<{ entries: ProjectGitStatus[] }>>;
   'task:diff:list': I<[{ key: string; folder: string; options: DiffOptions }], Result<Diff>>;
   'task:diff:targets': I<[{ key: string; folder: string }], Result<{ branches: string[] }>>;
   'task:diff:review': I<[{ key: string; folder: string; options: DiffOptions; load?: string[] }], Result<Review>>;
   'task:diff:contents': I<[{ key: string; folder: string; path: string; options: DiffOptions }], Result<FileDiff>>;
   'task:file:open': I<[{ key: string; file: string }], Result>;
+  'task:editor': I<[{ key: string; action: EditorAction }], Result<EditorSnapshot>>;
+  'task:files:folders': I<[string], { folder: string; name: string }[]>;
+  'task:files:open': I<[{ key: string; folder: string }], Result>;
+  'task:artifact:open': I<[{ key: string; file: string }], Result>;
+  'task:artifact:view': I<[{ key: string; file: string }], Result>;
+  'task:artifact:thumbnails': I<[{ key: string; files: string[] }]>;
   'task:artifact:refresh': I<[string]>; // the task's artifacts sent again (Resources.tsx: the task shown)
+  'task:artifact:read': I<[{ key: string; file: string; offset: number; length: number }], Result<{ bytes: Uint8Array; size: number; revision: string }>>;
+  'task:artifact:media:open': I<[{ key: string; file: string; revision: string; request: string }], Result<{ url: string }>>;
+  'task:artifact:media:close': I<[{ request: string }]>;
+  'task:artifact:pdf:open': I<[{ key: string; file: string; request: string; box: ViewerBox }], Result>;
+  'task:artifact:pdf:place': I<[{ request: string; box: ViewerBox }]>;
+  'task:artifact:pdf:close': I<[{ request: string }]>;
+  'task:artifact:pdf:find': I<[{ request: string; query: string; forward: boolean }], ViewerSearchResult>;
   'task:artifact:send': I<[{ key: string; file: string }], Result>;
   'task:artifact:drag': I<[{ key: string; file: string }], Result>;
   'task:artifact:delete': I<[{ key: string; files: string[] | null }], Result>; // null: all
@@ -182,12 +199,15 @@ export interface Send extends TerminalSend, ThumbnailSend {
 
 // webContents.send (AppWindow.send) / the window's kulisa.on: what the main process tells a window.
 export interface Events extends TerminalEvents, ThumbnailEvents, DictationEvents {
+  'task:editor:state': { task: string; state: EditorSnapshot };
   'project:state': ProjectsInfo;
   'profile:state': { task: string; list: Profile[] };
   'profile:closed': { task: string; list: ClosedProfile[] };
   'development-terminal:state': DevelopmentTerminalsState;
   'stage-terminal:state': StageTerminalsState;
   'task:artifact:state': { task: string; list: Artifact[]; bytes: number }; // bytes: all of them (Task.artifactsUsage)
+  'artifact:pdf:find': void;
+  'task:artifact:selected': { task: string; file: string };
   'development-terminal:focus': void;
   'stage:arrange': { task: string; layout?: StageLayout; overflow?: boolean; position?: StagePosition };
   'task:closed': string[];
@@ -209,7 +229,7 @@ export interface Events extends TerminalEvents, ThumbnailEvents, DictationEvents
   'master:url': string;
   'settings:show': SettingsAt;
   'settings:changed': void; // the profiles changed elsewhere (another window, the agent): Settings' lists read again
-  'log:lines': { text: string } | { reset: true }; // what the log got since it was read; turned over: read it again
+  'log:lines': ({ text: string } | { reset: true }) & { stream: number }; // updates belong to one snapshot; turned over: read again
   'window:blur': void; // a tasks' window left (another window, another app): its menus close (lib/cover.ts)
 }
 

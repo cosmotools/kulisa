@@ -83,6 +83,9 @@ entries by directory.
 | `src/dictation/` | speaking to the agent: what each task's microphone shows, and recording ([README](../src/dictation/README.md)) | `ipc.ts`, `log.ts` |
 | `src/github/` | the GitHub accounts: Kulisa App's device flow or a fine-grained token, their tokens kept with the keyring, a repository's account ([README](../src/github/README.md)) | `ipc.ts`, `log.ts`, `store.ts` (`newId`), `files.ts` (atomic writes) |
 | `src/diff/` | local Git comparison and virtualized file review ([README](../src/diff/README.md)) | `worktrees.ts` (shared Git client) |
+| `src/editor/` | editable text files, recovery drafts and version-checked autosave ([README](../src/editor/README.md)) | `files.ts` (atomic writes) |
+| `src/file-viewer/` | extensible read-only document/image/media display for Artifacts ([README](../src/file-viewer/README.md)) | nothing |
 | `src/project-explorer/` | directory reads and a folder tree; roots, file actions and menus supplied by the caller ([README](../src/project-explorer/README.md)) | nothing |
+| `src/task-files/` | ordinary files, confined actions, live results and a tree with bounded previews ([README](../src/task-files/README.md)) | `remove.ts` |
 | `src/activity-monitor/` | what Kulisa takes on the computer: the tasks' artifacts on the disk, every task's or some ([README](../src/activity-monitor/README.md)) | nothing |
 | `src/ui/` | shadcn/ui's components as its CLI writes them, and their theme: the window's alone, through `index.ts` ([README](../src/ui/README.md)) | (no main half) |

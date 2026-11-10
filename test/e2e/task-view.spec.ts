@@ -2,16 +2,17 @@
 import { test, expect } from './fixtures.ts';
 import fs from 'node:fs';
 import path from 'node:path';
-import { invoke, notLoading, ipcSettled, frames } from './helpers.ts';
+import { invoke, showResources, notLoading, ipcSettled, frames } from './helpers.ts';
 import { begin, keyAt, newTask } from './tasks-helpers.ts';
 
 test('returning to a task keeps its grid instance and expanded Project folders', async ({ core, ui, files, call }) => {
   await begin(core, ui, files, { only: true, columns: true, featureX: call });
+  await showResources(ui, 'Project');
   const first = await keyAt(core, 1), second = await keyAt(core, 2);
   fs.mkdirSync(path.join(files.project, 'retained-folder'));
   fs.writeFileSync(path.join(files.project, 'retained-folder', 'kept.txt'), 'retained');
-  await ui.getByRole('button', { name: 'retained-folder', exact: true }).click();
-  await expect(ui.getByRole('button', { name: 'kept.txt', exact: true })).toBeVisible();
+  await ui.getByRole('treeitem', { name: 'retained-folder', exact: true }).click();
+  await expect(ui.getByRole('treeitem', { name: 'kept.txt', exact: true })).toBeVisible();
   const original = await ui.evaluate(() => {
     const w = window as any;
     w.__firstGrid = w.__dock;
@@ -22,13 +23,24 @@ test('returning to a task keeps its grid instance and expanded Project folders',
   await invoke(ui, 'task:show', second);
   await notLoading(ui);
   expect(await ui.evaluate(() => (window as any).__dock !== (window as any).__firstGrid), 'tasks own independent live grids').toBe(true);
+  const size = await core((k) => k.shell.win.getSize());
+  const width = await ui.evaluate(() => (window as any).__firstGrid.width as number);
+  try {
+    await core((k, size) => k.shell.win.setSize(size[0] - 100, size[1]), size);
+    await expect.poll(() => ui.evaluate(() => (window as any).__firstGrid.width), {
+      message: 'the outer task host observes resizing even while its contents are skipped',
+    }).toBe(width - 100);
+  } finally {
+    await core((k, size) => k.shell.win.setSize(size[0], size[1]), size);
+    await expect.poll(() => ui.evaluate(() => (window as any).__firstGrid.width)).toBe(width);
+  }
   await invoke(ui, 'task:show', first);
   await notLoading(ui);
   expect(await ui.evaluate(() => {
     const w = window as any;
     return w.__dock === w.__firstGrid && w.__stage === w.__firstStage;
   }), 'returning reveals the retained development and Stage grids').toBe(true);
-  await expect(ui.getByRole('button', { name: 'kept.txt', exact: true }), 'expanded Project folders survive switching').toBeVisible();
+  await expect(ui.getByRole('treeitem', { name: 'kept.txt', exact: true }), 'expanded Project folders survive switching').toBeVisible();
 });
 
 for (const boundary of ['switch', 'close', 'arrange'] as const) test(`a first layout delayed across ${boundary} belongs to its own task`, async ({ core, ui, call }) => {
@@ -106,7 +118,7 @@ test('an outgoing menu capture cannot hide a task after switching away and back'
     await notLoading(ui);
     await invoke(ui, 'task:show', first);
     await notLoading(ui);
-    await expect.poll(() => core((k, id) => k.shell.task.profiles.get(id).get().view.getVisible(), profile)).toBe(true);
+    await expect.poll(() => core((k, id) => k.shell.task.profiles.get(id).view.getVisible(), profile)).toBe(true);
     await core((k) => k.stash.taskViewCapture.release());
     await expect.poll(() => core((k) => k.stash.taskViewCapture.completed)).toBe(true);
     await ipcSettled(ui);
@@ -148,7 +160,12 @@ test('a Stage terminal keeps its renderer, output and search state across task s
 test('hidden task screens keep their own Resources section and release terminal renderers on close', async ({ core, ui, files, call }) => {
   await begin(core, ui, files, { only: true, columns: true, featureX: call });
   const first = await keyAt(core, 1), second = await keyAt(core, 2);
-  await ui.getByRole('tab', { name: 'Agents', exact: true }).click();
+  await invoke(ui, 'task:show', second);
+  await notLoading(ui);
+  await showResources(ui, 'Project');
+  await invoke(ui, 'task:show', first);
+  await notLoading(ui);
+  await showResources(ui, 'Agents');
   const original = await ui.getByRole('region', { name: 'Agents', exact: true }).elementHandle();
   await invoke(ui, 'task:show', second);
   await notLoading(ui);

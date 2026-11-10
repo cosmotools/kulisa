@@ -4,7 +4,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { terminalKeys, TERMINAL_LINES } from '../../../terminal/ipc.ts';
 import type { Handles } from './handles.ts';
 
-export function terminalTools(server: McpServer, { task, text, done }: Handles) {
+export function terminalTools(server: McpServer, { task, text, done, temporary }: Handles) {
   const nameArg = z.string().trim().min(1).describe('Name of the terminal in Stage, separate from development shells');
   const size = z.object({ cols: z.number().int(), rows: z.number().int() }).nullable().describe('Fixed columns/rows, or null to fit the pane');
   server.registerTool('terminal_run', {
@@ -24,14 +24,14 @@ export function terminalTools(server: McpServer, { task, text, done }: Handles) 
     inputSchema: { name: nameArg },
   }, async ({ name }) => text(JSON.stringify(done(task.stageTerminals.close(name)))));
   server.registerTool('terminal_read', {
-    description: 'Inspect a Stage terminal: current rendered screen by default, including alternate-screen TUIs and cursor position; scrollback: true reads its last lines (default 50, max 500). Without name lists environments and process/exit status. Large output goes to a task artifact; the answer gives its path and a preview. Output is bounded and reflects cursor redraws rather than raw stdout.',
+    description: 'Inspect a Stage terminal: current rendered screen by default, including alternate-screen TUIs and cursor position; scrollback: true reads its last lines (default 50, max 500). Without name lists environments and process/exit status. Large output goes to your temporary folder; the answer gives its path and a preview. Output is bounded and reflects cursor redraws rather than raw stdout.',
     inputSchema: { name: nameArg.optional(), scrollback: z.boolean().optional(), lines: z.number().int().min(1).max(TERMINAL_LINES).optional() },
   }, async ({ name, scrollback, lines }) => {
     if (!name) return text(JSON.stringify(task.stageTerminals.info()));
     const r = done(await task.stageTerminals.read(name, lines, !scrollback));
     if (r.text.length <= 40000) return text(JSON.stringify(r));
-    const file = await task.saveArtifact({ kind: 'stage-terminal', id: r.terminal.id }, 'terminal.txt', r.text);
-    return text(JSON.stringify({ terminal: r.terminal, size: r.size, cursor: r.cursor, file, characters: r.text.length, text: r.text.slice(0, 2000), note: 'Full terminal text is in the task artifact. Read the part needed from that file.' }));
+    const file = await task.saveArtifact({ kind: 'stage-terminal', id: r.terminal.id }, 'terminal.txt', r.text, temporary());
+    return text(JSON.stringify({ terminal: r.terminal, size: r.size, cursor: r.cursor, file, characters: r.text.length, text: r.text.slice(0, 2000), note: 'Full terminal text is in your temporary folder. Read the part needed from that file.' }));
   });
   server.registerTool('terminal_input', {
     description: 'Operate a running Stage terminal. Send text (max 16384 characters), paste: true for a paste respecting bracketed-paste mode, or one named key. Enter submits separately. Never automate real-account sign-in: ask the human to take over the visible terminal.',

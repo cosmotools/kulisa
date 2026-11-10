@@ -1,7 +1,6 @@
 // Human and agent operate the same interactive CLI in Stage.
 import fs from 'fs';
 import path from 'path';
-import { sizeText } from '../../src/shared/bytes.ts';
 import { test, expect } from './fixtures.ts';
 import { newTask } from './tasks-helpers.ts';
 import { showResources, invoke, answer, choose, frames, notLoading, focusWindow } from './helpers.ts';
@@ -196,13 +195,13 @@ test('browser and terminal environments share Stage positions and tabs without r
   await call('terminal_run', { name: 'Alongside browser', command: 'node terminal-stage.cjs' });
   await call('profile_create', { name: 'Stage.browser' });
   await expect(ui.locator('[data-task-view][data-active] [data-panel^="profile:"]')).toHaveCount(1);
-  await expect.poll(() => core((k) => k.profile('Stage.browser').get().view.getVisible())).toBe(true);
+  await expect.poll(() => core((k) => k.profile('Stage.browser').view.getVisible())).toBe(true);
   const read = async () => JSON.parse((await call('terminal_read', { name: 'Alongside browser' })).text);
   await expect.poll(async () => (await read()).text).toMatch(/PID \d+/);
   const pid = (await read()).text.match(/PID \d+/)![0];
   for (const position of ['left', 'right', 'above']) {
     await call('stage_arrange', { position });
-    await expect.poll(() => core((k) => k.profile('Stage.browser').get().view.getVisible())).toBe(true);
+    await expect.poll(() => core((k) => k.profile('Stage.browser').view.getVisible())).toBe(true);
     const stage = await ui.locator('[data-task-view][data-active]').getByTestId('stage').boundingBox(), terminal = await ui.locator('[data-task-view][data-active]').getByTestId('terminal').boundingBox();
     expect(stage).toBeTruthy(); expect(terminal).toBeTruthy();
     expect(position === 'above' ? stage.y < terminal.y : position === 'left' ? stage.x < terminal.x : stage.x > terminal.x).toBe(true);
@@ -210,18 +209,18 @@ test('browser and terminal environments share Stage positions and tabs without r
   await call('stage_arrange', { layout: 'tabs' });
   await expect.poll(() => ui.evaluate(() => (window as any).__stage.groups.length)).toBe(1);
   await ui.locator('[data-panel^="stage-terminal:"]').getByText('Alongside browser', { exact: true }).click();
-  await expect.poll(() => core((k) => k.profile('Stage.browser').get().view.getVisible())).toBe(false);
+  await expect.poll(() => core((k) => k.profile('Stage.browser').view.getVisible())).toBe(false);
   expect((await read()).terminal.status).toBe('running');
   expect((await read()).text).toContain(pid);
   await ui.locator('[data-task-view][data-active] [data-panel^="profile:"]').getByText('Stage.browser', { exact: true }).click();
-  await expect.poll(() => core((k) => k.profile('Stage.browser').get().view.getVisible())).toBe(true);
+  await expect.poll(() => core((k) => k.profile('Stage.browser').view.getVisible())).toBe(true);
   await call('terminal_close', { name: 'Alongside browser' });
   await expect(ui.locator('[data-task-view][data-active]').getByTestId('stage')).toBeVisible();
   await call('profile_close', { profile: 'Stage.browser' });
   await expect(ui.locator('[data-task-view][data-active]').getByTestId('stage')).toBeHidden();
 });
 
-test('input follows terminal modes and large reads become bounded task artifacts', async ({ core, ui, files, call }) => {
+test('input follows terminal modes and large reads spill into temporary storage', async ({ ui, files, call }) => {
   fs.writeFileSync(path.join(files.project, 'terminal-keys.cjs'), `
     process.stdin.setRawMode(true); process.stdin.resume();
     process.stdout.write('\\x1b[?1hREADY');
@@ -245,16 +244,12 @@ test('input follows terminal modes and large reads become bounded task artifacts
   expect(result.file).toBeTruthy();
   expect(result.text.length).toBeLessThanOrEqual(2000);
   expect(fs.readFileSync(result.file, 'utf8')).toContain('row 499:');
-  const source = await core(async (k, file) => (await k.shell.task.findArtifact(file) as { artifact: { source: unknown } }).artifact.source, result.file);
-  expect(source).toMatchObject({ kind: 'stage-terminal' });
+  const { tmp } = JSON.parse((await call('task_files')).text);
+  expect(path.dirname(result.file)).toBe(tmp);
   await showResources(ui, 'Artifacts');
-  const artifact = ui.locator('[data-task-view][data-active] [data-resources]').getByRole('button', { name: 'Terminal screen', exact: true });
-  await expect(artifact).toBeVisible();
-  await expect(artifact).toContainText('Large');
-  await expect(artifact).toContainText(sizeText(fs.statSync(result.file).size));
-  await artifact.hover();
-  await ui.locator('[data-task-view][data-active] [data-resources]').getByRole('button', { name: 'Delete Terminal screen', exact: true }).click();
-  await expect.poll(() => fs.existsSync(result.file)).toBe(false);
+  await expect(ui.getByRole('treeitem', { name: path.basename(result.file), exact: true })).toHaveCount(0);
+  await call('task_artifacts_delete', { area: 'temporary', files: [result.file] });
+  expect(fs.existsSync(result.file)).toBe(false);
   await call('terminal_close', { name: 'Large' });
 });
 

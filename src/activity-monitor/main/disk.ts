@@ -8,10 +8,12 @@ interface FolderUsage { bytes: number; entries: Entry[] }
 
 // Missing, or an entry gone while it is read (a file deleted meanwhile): nothing, not an error.
 async function folderUsage(dir: string): Promise<FolderUsage> {
+  const root = await fs.promises.lstat(dir).catch((): null => null);
+  if (!root?.isDirectory() || root.isSymbolicLink()) return { bytes: 0, entries: [] };
   const names = await fs.promises.readdir(dir).catch((): string[] => []);
   const entries = (await Promise.all(names.map(async (name): Promise<Entry | null> => {
-    const s = await fs.promises.stat(path.join(dir, name)).catch((): null => null);
-    if (!s) return null;
+    const s = await fs.promises.lstat(path.join(dir, name)).catch((): null => null);
+    if (!s || s.isSymbolicLink() || (!s.isDirectory() && !s.isFile())) return null;
     return { name, bytes: s.isDirectory() ? (await folderUsage(path.join(dir, name))).bytes : s.size, time: s.mtimeMs };
   }))).filter((e) => e !== null);
   return { bytes: entries.reduce((sum, e) => sum + e.bytes, 0), entries };

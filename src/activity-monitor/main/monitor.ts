@@ -1,10 +1,10 @@
 // The activity monitor's query: what Kulisa's tasks take, all of them or some, a metric or all (README, The query).
 import { folderUsage, type Entry } from './disk.ts';
 
-const METRICS = ['artifacts'] as const;
+const METRICS = ['artifacts', 'temporary'] as const;
 type Metric = typeof METRICS[number];
 // A task as the caller knows it: its key, its project, the folder of each metric.
-interface MonitoredTask { key: string; project: string; artifacts: string }
+interface MonitoredTask { key: string; project: string; artifacts: string; temporary?: string[] }
 // What the monitor needs of Kulisa's tasks, implemented by the caller: every task, loaded or not.
 interface Tasks { list(): MonitoredTask[] }
 // No field: everything. tasks and projects narrow by key (a task in either is taken); entries: each metric's files too.
@@ -23,7 +23,9 @@ class ActivityMonitor {
     const measured = await Promise.all(chosen.map(async (t): Promise<TaskUsage> => ({
       key: t.key, project: t.project,
       metrics: Object.fromEntries(await Promise.all(metrics.map(async (m) => {
-        const u = await folderUsage(t[m]);
+        const folders = m === 'temporary' ? t.temporary ?? [] : [t.artifacts];
+        const usage = await Promise.all(folders.map(folderUsage));
+        const u = { bytes: usage.reduce((sum, a) => sum + a.bytes, 0), entries: usage.flatMap((a) => a.entries) };
         return [m, entries ? { bytes: u.bytes, entries: u.entries } : { bytes: u.bytes }];
       }))),
     })));

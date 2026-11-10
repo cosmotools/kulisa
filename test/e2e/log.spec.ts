@@ -2,7 +2,7 @@
 import fs from 'fs';
 import path from 'path';
 import { test, expect } from './fixtures.ts';
-import { CHECKOUT, menu, choose, closeSettings, invoke } from './helpers.ts';
+import { CHECKOUT, menu, choose, closeSettings, invoke, seen } from './helpers.ts';
 
 test("☰ → Report a Problem… opens Settings at the Log page: the log so far and live, each line with its time and tag, Follow; what to show and a text filter; Copy All, Save As… (a file), Open Folder; Report… → On GitHub… opens a new issue with the environment filled in", async ({ core, ui, sui, files }) => {
   await ui.locator('#windowMenu').click();
@@ -12,13 +12,17 @@ test("☰ → Report a Problem… opens Settings at the Log page: the log so far
   const log = s.getByRole('log', { name: 'Log' }), line = log.locator('[data-tag]'), lines = () => line.allTextContents();
   await expect(s.locator('[data-key="log"]'), 'the Log page chosen in the nav').toHaveAttribute('aria-current', 'page');
   await expect(line.first()).toBeVisible();
-  expect(await line.first().textContent(), 'the time and the tag').toMatch(/^\d\d:\d\d:\d\d\.\d{3}\[kulisa\]start \d+\.\d+\.\d+, electron /);
+  // Follow opens at the end; the first virtualized row need not be the beginning of a longer startup log.
+  await log.hover();
+  await s.mouse.wheel(0, -100000);
+  await expect(line.first(), 'the time and the tag').toHaveText(/^\d\d:\d\d:\d\d\.\d{3}\[kulisa\]start \d+\.\d+\.\d+, electron /);
   await expect(line.first(), 'the date and the time zone in its tooltip').toHaveAttribute('title', /^\d{4}-\d\d-\d\d [+-]\d\d:\d\d$/);
   await expect(log.locator('[data-tag="kulisa"]').first(), "the tag in its group's color").toHaveAttribute('data-group', 'tasks');
+  await s.getByRole('switch', { name: 'Follow' }).check();
   // Live: what is logged now comes at the end, Follow keeping it in view.
   const theme = await core((k) => k.electron.nativeTheme.themeSource);
   await invoke(ui, 'theme:set', 'dark');
-  await expect.poll(async () => (await lines()).at(-1)).toContain('[ipc]theme:set wc=');
+  await expect(line.filter({ hasText: '[ipc]theme:set wc=' }).last()).toBeVisible();
   await expect(line.last(), 'the end in view').toBeInViewport();
   // Scrolled up, Follow lets go; checked again, back to the end. Lines logged until there is somewhere to scroll: Settings
   // takes the whole window; more than the 4 px threshold for following the end.
@@ -144,5 +148,27 @@ test('a large log scrolls through every entry with few rendered rows; filtering 
   await expect(rows.filter({ hasText: 'virtual-live-after-pause' })).toBeInViewport();
   await expect.poll(() => rows.count()).toBeLessThan(100);
   await core((k, f) => k.shot(f), testInfo.outputPath('log-virtual.png'));
+  await closeSettings(core, ui, sui);
+});
+
+test('a delayed update from an older log snapshot is ignored while the current stream stays live', async ({ core, ui, sui }) => {
+  const { stream } = await invoke(ui, 'log:get');
+  await ui.locator('#windowMenu').click(); await choose(ui, 'Report a Problem…');
+  const s = await sui(), log = s.getByRole('log', { name: 'Log' }), filter = s.getByRole('searchbox', { name: 'Filter' });
+  await expect(log.locator('[data-tag]').first()).toBeVisible();
+  // The bridge has no unsubscribe; this test-only observer proves the stale IPC arrived before the negative check.
+  await s.evaluate((old) => {
+    (window as any).kulisa.on('log:lines', (message: { stream: number }) => {
+      if (message.stream === old) dispatchEvent(new Event('stale-log-update'));
+    });
+  }, stream);
+  await filter.fill('stale-before-snapshot');
+  await seen(s, 'stale-log-update', () => core((k, old) => k.shell.win.webContents.send('log:lines', {
+    stream: old, text: '[2026-01-01T12:00:00.000+00:00] [info] [task] stale-before-snapshot\n',
+  }), stream));
+  await expect(log.getByText('Nothing matches.', { exact: true })).toBeVisible();
+  await filter.fill('current-after-snapshot');
+  await ui.evaluate(() => console.error('current-after-snapshot'));
+  await expect(log).toContainText('current-after-snapshot');
   await closeSettings(core, ui, sui);
 });

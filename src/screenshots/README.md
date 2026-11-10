@@ -4,7 +4,8 @@ Page, viewport and element capture, a [Kulisa package](../../docs/packages.md). 
 profiles/tasks/agents stay outside. Masking: #106; native thumbnails: #107.
 
 Human and agent handles call `Task.screenshot`: `Profile.screenshot` checks the tab and captures;
-`Task.saveArtifact` saves under the task limit, updates Resources and shows the thumbnail.
+`Task.saveArtifact` routes results and temporary captures according to [task storage](../../docs/tasks.md#artifacts-and-temporary-files), updating the Artifacts [Side bar](../../docs/ui.md#workbench-terminology)
+and showing the thumbnail for results.
 
 ## What is taken
 
@@ -28,8 +29,8 @@ through Pick's `chooseElement`; Esc, Pick or the shortcut cancels. Only one sele
 
 ### Where it goes
 
-Copy to clipboard and save in the task's numbered, size-limited artifacts folder. Deletion from Resources or the
-thumbnail, and task deletion, remove the artifact; dragging out creates an independently owned copy.
+Copy to clipboard and save in the task's artifacts folder. Deletion from the Artifacts
+Side bar or the thumbnail, and task deletion, remove the artifact; dragging out creates an independently owned copy.
 Use Electron's W3C Clipboard API (`ClipboardItem` with `image/png`), not `writeImage`.
 
 ## The thumbnail
@@ -39,7 +40,8 @@ bottom-right, 20 CSS px inset, at most 240 × 180; tall images show their top. A
 hover or menu. The caller supplies placement (`place`), covered-page state (`setHidden`), task close and file actions.
 
 - Fade on timeout, × or Close; remove immediately on replacement, artifact deletion, hidden pane or task close.
-- Click opens with `shell.openPath`; drag uses `webContents.startDrag`.
+- Click invokes the caller’s artifact-opening callback, selecting the same Artifacts viewer as a tree row;
+  drag uses `webContents.startDrag`. The caller supplies task authorization; the package owns no task lookup.
 - Menu: Show in Folder, Copy as PNG (including JPEG sources), Send to Agent, Delete, Close. Sending uses the caller's
   `Task.sendArtifact`; deletion uses `Task.deleteArtifacts`.
 - Native profile views cover window HTML, so use a temporary `WebContentsView`. Destroy it when dismissed.
@@ -53,7 +55,8 @@ hover or menu. The caller supplies placement (`place`), covered-page state (`set
 
 `browser_screenshot` supports viewport, `ref`/`locator`, `fullPage`, and `also` for active tabs in several profiles.
 A locator can apply to all; a page-owned ref cannot combine with `also`. Return labelled JPEGs at CSS density to
-limit context size. `ghost.ts` captions agent captures; `takenByHuman` suppresses captions for human captures.
+limit context size. The default purpose saves in the caller’s temporary folder; `purpose: artifact` saves a requested
+result in Artifacts and shows the thumbnail. `ghost.ts` captions agent captures; `takenByHuman` suppresses captions for human captures.
 
 ## The code
 

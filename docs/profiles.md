@@ -66,6 +66,8 @@ and focus its terminal. Nothing is saved; the human supplies the request, the ag
 Window and MCP handles resolve targets through `Task.find`/`findTab`; MCP first maps name to ID with `Task.named`.
 Both call the same core actions and receive the same refusals. Identity changes use `ProfileStore` directly from
 Settings or through `ProjectProfiles`. Missing handles require a reason in the table.
+Task file editing uses the human's recoverable editor drafts; agents keep their own filesystem tools and do not
+replace or resolve human drafts through MCP. Its core/handle ownership is listed in [tasks.md](tasks.md#actions-the-humans-and-the-agents).
 
 | Action | The human | The agent | The core |
 |---|---|---|---|
@@ -88,7 +90,7 @@ Settings or through `ProjectProfiles`. Missing handles require a reason in the t
 | Point at an element | Pick, Ctrl+Shift+C (into the agent's prompt) | `browser_highlight` (outlined for the human) | `picker.ts`; the MCP server |
 | Read a page | looks at it | `browser_snapshot`, `browser_screenshot`, console, network | Playwright |
 | Send selected page text | right-click → Send selection to agent | none: the human’s selection; agents read pages through browser tools | `Task.sendSelection`, `Task.typeForAgent` |
-| Take a screenshot (an element, the visible part, the whole page) | ⋮ → Screenshot, Ctrl+Shift+S (an element); to the clipboard and the task's artifacts in Resources | `browser_screenshot` (`ref`/`locator`, `fullPage`, `also`) | `Task.screenshot`, `Profile.screenshot`, the screenshots' Kulisa package ([README](../src/screenshots/README.md)) |
+| Take a screenshot (an element, the visible part, the whole page) | ⋮ → Screenshot, Ctrl+Shift+S (an element); to the clipboard and the task's Artifacts [Side bar](ui.md#workbench-terminology) | `browser_screenshot` (`ref`/`locator`, `fullPage`, `also`, `purpose`) | `Task.screenshot`, `Profile.screenshot`, the screenshots' Kulisa package ([README](../src/screenshots/README.md)) |
 | Act in a page | mouse, keyboard | `browser_click`, `browser_type`, `browser_press_key`, `browser_hover`, `browser_select_option`, `browser_file_upload`, `browser_evaluate` | the page itself; Playwright over the proxy |
 | Answer a dialog | the dialog in the pane | `dialog` on the action that opened it | `Profile._dialog`, `answerDialog` |
 | Sign in | by hand, in its master (Sign In to Master…) or a task's pane | never (Rules); asks with `profile_ask_signin` | `master.ts`; the sign-in pause |
@@ -188,7 +190,8 @@ Browser memory and cache ownership: [Browser Kulisa package](../src/browser/READ
 - `src/main/profile-store.ts`, `project-profiles.ts`, `master.ts`: global identity, task copies and master sign-in.
   Task persistence is owned by `store.ts`; test-login locality by `local.ts`.
 - `src/main/cdp-proxy.ts`, `local-only.ts`, `signin-pages.ts`, `signin-pause.ts`: automation access and sign-in policy.
-- `src/main/discard.ts`, `artifacts.ts`, `picker.ts`: activity-based unloading, bounded artifacts and human selections.
+- `src/main/discard.ts`, `picker.ts`: activity-based unloading and human selections.
+- [Task Files](../src/task-files/README.md): task file storage and previews.
 - `src/kulisa-plugin/`: agent handles/instructions ([README](../src/kulisa-plugin/README.md)).
 - Renderer profile panes/controls live in `task-view/`; identity editing in `components/settings/ProfilePage.tsx`.
   Shared avatar definitions/assets provide consistent profile pictures.

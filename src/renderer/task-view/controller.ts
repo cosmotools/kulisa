@@ -8,8 +8,9 @@ import { forgetTerminals } from '../../terminal/renderer';
 import { panelId } from './layout';
 const grids = new Map<string, TaskGrid>();
 export function registerTaskGrid(grid: TaskGrid) {
+  grid.connect();
   grids.set(grid.key, grid);
-  return () => { grids.delete(grid.key); grid.dispose(); };
+  return () => { if (grids.get(grid.key) === grid) grids.delete(grid.key); grid.dispose(); };
 }
 export const taskGrid = (task: string | null) => grids.get(task ?? '');
 const current = () => taskGrid(store.getState().current);
@@ -39,6 +40,10 @@ kulisa.on('stage:follow:state', (stageFollow) => {
   if (stageFollow) current()?.stage.follow();
 });
 kulisa.on('task:closed', forgetTerminals);
+kulisa.on('task:editor:state', ({ task, state }) => grids.get(task)?.development.receiveEditor(state));
+kulisa.on('task:artifact:selected', ({ task, file }) => {
+  if (task === store.getState().current) grids.get(task)?.development.showArtifact(file);
+});
 kulisa.on('terminal:gone', forgetTerminals);
 document.addEventListener('dragend', () => current()?.finishDrag(), true);
 document.addEventListener('drop', () => setTimeout(() => current()?.finishDrag()), true);

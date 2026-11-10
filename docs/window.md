@@ -1,7 +1,7 @@
 # The window
 
 Window layout, focus, controls, logging and IPC. Project/task lifecycle: [tasks.md](tasks.md); profiles:
-[profiles.md](profiles.md); component conventions: [ui.md](ui.md).
+[profiles.md](profiles.md); component conventions: [ui.md](ui.md), including [Workbench terminology](ui.md#workbench-terminology).
 
 ## The title bar
 
@@ -30,16 +30,16 @@ and use CSS `order` for their visual placement. Raised active tabs and bottom de
 
 ## The grid
 
-Each visited task retains a TaskView, store and controller until its tab closes. Two Dockviews hold development
-terminals/review with Resources and **Stage** browser/terminal environments; a headerless Gridview splits them.
-Stage headers move environments within Stage; development drag/drop is disabled. Resources uses a fixed left edge
-with native tabs and collapse; behavior and constraints: [tasks.md](tasks.md#the-resources-panel).
-The outer development minimum includes Resources because Dockview's central minimum excludes edges.
+Each visited task retains a TaskView, store and controller until its tab closes. Two Dockviews hold **Workbench** and **Stage** browser/terminal environments; a headerless Gridview splits them.
+Stage headers move environments within Stage; Workbench drag/drop is disabled. Workbench's Activity bar and Side bar
+use a fixed left edge with native tabs and collapse; behavior and constraints: [tasks.md](tasks.md#the-workbench).
+The outer Workbench minimum includes this edge group because Dockview's central minimum excludes edges.
 
 Hidden TaskViews use `content-visibility: hidden`, `inert` and `aria-hidden` to retain UI state without rendering or
 accepting input. Window controls address the selected task; pane actions stay bound to their owning TaskView.
 Task switching cancels pending focus/drag requests; closing releases subscriptions and Stage terminal Views.
-Project Explorer and Diff receive the task's active state to pause background polling.
+Project Explorer and Diff receive the task's active state to pause background polling. The [Editor](../src/editor/README.md)
+also pauses disk polling while hidden; its core-owned autosave continues independently of the rendered view.
 
 The outer host stays observable outside skipped contents, keeping hidden grids sized with the window. Nested grids
 receive parent dimensions through `api.layout()` with autoresizing disabled to avoid waiting for hidden observers.
@@ -47,9 +47,12 @@ Native-page geometry reports are task-scoped and coalesced per frame, independen
 The first report permits native pages to show; prepared tasks use stored bounds, swapping native visibility in one
 main-process turn to avoid an empty frame.
 
-One development xterm belongs to the window and moves into the selected TaskView; buffer rendering and sizing:
-[terminal](../src/terminal/README.md#the-window-renderer). Stage terminal Views stay with their panes. Inline renderers
+One development xterm belongs to the window and moves into the selected TaskView. Its host stays measurable
+until a pending terminal starts, even while Agents is hidden. Buffer rendering and sizing: [terminal](../src/terminal/README.md#the-window-renderer). Stage terminal Views stay with their panes. Inline renderers
 retain React state when Stage tabs detach inactive DOM; task switching retains each selected tab's DOM.
+
+Artifacts' optional native PDF view joins window overlay hiding, menu pictures and global key routing; leaving its
+file/view/task closes it. Its independent adapter and resource bounds belong to [File Viewer](../src/file-viewer/README.md).
 
 - Stage menu: Left/Right/Above, Horizontal/Vertical stack or Tabs, Allow overflow, Follow agent, Open an environment.
   `stage:arrange` and MCP `stage_arrange` share `Task.arrangeStage`, requiring the shown task; settings apply even
@@ -68,7 +71,7 @@ retain React state when Stage tabs detach inactive DOM; task switching retains e
 - Load saved settings before creating grids; early Stage commands await restoration and retain their order.
   Reveal after both nested grids mount at their final dimensions, keeping content loading from shifting the layout.
   Persist all three grids through `toJSON`/`fromJSON`, plus Stage view/overflow/position; debounce 300 ms and flush on
-  hide/close. Observe completed layouts/maximization and Resources edge dimensions, which central layout events omit.
+  hide/close. Observe completed layouts/maximization and Workbench edge dimensions, which central layout events omit.
   Empty Stage stays mounted, hidden through Gridview's API to preserve its size. Position/view changes move native
   panels/groups, retaining their contents. `shared/stage-layout.ts` imports flat layouts and legacy fractions;
   `task-view/layout.ts` prunes closed panes while preserving active groups. Invalid layouts use defaults.
@@ -90,6 +93,13 @@ successive menus retain prepared images. An adaptive deadline bounds capture wai
 menus; missing frames leave empty panes. New tabs grow without remounting the strip; address focus fades; suppress
 animations for reduced motion.
 
+### Task rendering failures
+
+Each retained TaskView has a React Error Boundary; construction stays inside it, subscriptions begin after commit.
+A failed screen releases UI resources while agents, PTYs and browser profiles continue. Main keeps its native pages
+hidden until task closure, including after delayed layout/visibility messages or moving windows. Preserve healthy
+tasks' controllers and stores. There is no automatic remount; React boundaries do not contain hangs or renderer crashes.
+
 ### Stage terminals
 
 A CLI/TUI pane uses the shared terminal runtime, with task-saved name, optional command and dimensions.
@@ -108,7 +118,7 @@ state, the window owns layout/menu/focus.
   `task-view/environments.ts`'s pending request; delayed selection also rechecks intent, window focus and dialogs.
   Agent launch/Follow never steals focus.
 - `terminal_read` flushes parsing and reads normal/alternate screen, with scrollback limited to 500 lines. Over
-  40,000 characters goes to bounded artifacts with preview. Fixed sizes: 2–500 columns, 2–200 rows, independent
+  40,000 characters spills to the caller’s temporary folder with a bounded preview. Fixed sizes: 2–500 columns, 2–200 rows, independent
   of development sizes. Visible Views use WebGL/DOM fallback; hidden sessions retain bounded buffers/processes.
 - Shared home, credentials and settings are not identity isolation; real sign-ins remain human.
 - Find or Ctrl+Shift+F (⌘ on macOS) opens retained-output search; Enter/Shift+Enter navigate, Esc restores focus.
@@ -174,7 +184,7 @@ built: [ui.md](ui.md), Menus):
   app's menu quit);
 - right-click on a pane's header or its ⋯ (New tab, About this profile… (Settings at it), Sign In to Master…, Close
   profile, Remove from Project…), a pane's ⋮ ([profiles.md](profiles.md), Tabs), a tab (Reload, Duplicate, Close tab,
-  Close other tabs), a terminal (Copy, Paste, Select all, Clear; then its Resources row's) and a terminal's Resources row (Change agent…,
+  Close other tabs), a terminal (Copy, Paste, Select all, Clear; then its Side bar item's) and a terminal's Side bar item (Change agent…,
   New Conversation in an agent's; Close).
 
 A row whose command has a key shows it at its end (Keys). The window's menus are not native: a native menu has rows of
@@ -228,7 +238,7 @@ Log and About below. UI ownership, page composition, loading/saving and cross-wi
 
 ## The terminal
 
-Development terminals share one headerless Dockview panel, selected through Resources → Agents. Send task and
+Development terminals share one headerless Dockview panel, selected through Agents in the Side bar. Send task and
 active-terminal identity together (`terminals`) to avoid combining asynchronous states.
 
 - Start/rescale only after Dockview and retained DOM dimensions agree, rounding fractional layout sizes.
@@ -329,6 +339,7 @@ logging. Lines carry ISO time with local offset, level and tag:
 - `[mcp]`: every tool the agent calls (`mcp-server.ts`), its task and terminal, its arguments; one that failed, with
   its error.
 - `[key]`: a key of Kulisa's taken (`shortcuts.ts`), where the keyboard was.
+- `[editor]`: a project file opened, reloaded, autosaved or closed, a conflict choice or refused save; never its text.
 - `[page-menu]`: a row of a page's right-click menu chosen (`page-menu.ts`), its profile and tab.
 - `[hook]`: an agent's hook event (`agent-hooks.ts`), its task and terminal.
 - `[project]`: a project loaded, its id named by the project's name and folder (the home folder as `~`):
@@ -382,6 +393,9 @@ issue #73) is where the human reads it and passes it on, by any means: not every
   once, so what came since is read from the file at the end of the same tick and sent, a burst of lines as one
   (`readLog` in `log.ts`; the last page that read is the one followed). The file turned over under it (shorter than
   what was read): the page reads it again. Nothing of this is logged: a line of its own would send it again.
+  Each snapshot and its updates share a stream identity. The page buffers updates during a read and replays only
+  the matching stream, so messages queued by a previous opening cannot duplicate the new snapshot. Rotation bounds
+  pending stream data; leaving the page drops it.
 - TanStack Virtual draws the visible entries with a buffer; wrapped entries are measured, and the whole log scrolls
   continuously. Filters search the whole log before virtualization. Stable entry ids keep measurements across filters.
 - A line each with its time (the date in its tooltip) and its tag, the tag in the color of who acted (the theme's: success the agent, warning the human,
@@ -390,7 +404,7 @@ issue #73) is where the human reads it and passes it on, by any means: not every
   goes back to the end when checked again.
 - What to show (a toolbar's radio buttons, one always chosen) and a text filter on top of it (a task's key, `wc=1`, a
   tag): **All**; **Errors** (warn and error lines, `[page]`, `[electron]`, an action refused or failed); **Agent**
-  (`[mcp]`, `[hook]`, `[terminal]`); **Human** (`[ipc]`, `[key]`, `[settings]`); **Tasks** (`[task]`, `[window]`,
+  (`[mcp]`, `[hook]`, `[terminal]`); **Human** (`[ipc]`, `[key]`, `[settings]`, `[editor]`); **Tasks** (`[task]`, `[window]`,
   `[kulisa]`). Nothing left says so.
 - Under it: the file's size of its 1 MB, when `kulisa.old.log` is from, and what is never in the log.
 - **Copy All** (the whole log to the clipboard), **Save As…** (a copy of the file where the human says, their Downloads
@@ -433,7 +447,7 @@ window it comes from (`event.sender`); one change to the open tasks after anothe
   routing/table; `page-menu.ts` owns native page menus; `file-links.ts` protects desktop file opening.
 - `src/main/ipc/`, `ipc.ts`, `src/shared/ipc.ts`: handles and shared contracts. `src/preload/index.cjs` exposes the
   sandboxed window bridge without Node; shared helpers/types are imported from `src/shared/`.
-- Renderer `task-view/` owns retained task screens, Dockview, bounds, Resources and environments.
+- Renderer `task-view/` owns retained task screens, Dockview, bounds, Workbench and environments.
   `components/settings/` is lazy-loaded through `index.ts`; UI structure: [ui.md](ui.md).
 - Renderer menus/dialogs, `lib/cover.ts` and `task-view/views.ts` coordinate native-page coverage. `lib/keys.ts` owns window
   keyboard zones; `src/terminal/` owns PTY/buffers/rendering.

@@ -22,6 +22,8 @@
 #dock .dv-tab { min-width: 0; flex-shrink: 1; }
 /* Icon tabs fit the collapsed Resources strip. */
 [data-development-grid] { --dv-tabs-and-actions-container-height: calc(var(--spacing) * 10); }
+/* The selected Activity bar item stays highlighted when its Main pane takes group focus. */
+[data-development-grid] .dv-edge-group { --dv-inactivegroup-visiblepanel-tab-color: var(--foreground); }
 /* The collapsed strip supplies the border; the adjacent pane must not add another. */
 [data-development-grid]:has(.dv-edge-collapsed) { --dv-separator-border: transparent; }
 [data-development-grid] .dv-groupview-header-left > .dv-tabs-and-actions-container { border-right: 1px solid var(--border); }

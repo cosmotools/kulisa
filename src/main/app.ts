@@ -1,7 +1,7 @@
 // Kulisa, the app: the shell every module gets (shell.ts) put together, its windows with their open tasks
 // (open-tasks.ts), the agents, the CDP proxy and the MCP server, the windows' handles (ipc/), quitting. start(options)
 // is used by the entry point (index.ts) and by the tests.
-import { app, crashReporter, nativeTheme, Menu, net, safeStorage, shell as electronShell } from 'electron';
+import { app, crashReporter, nativeTheme, Menu, net, safeStorage, session, shell as electronShell } from 'electron';
 import { EventEmitter } from 'events';
 import path from 'path';
 import fs from 'fs';
@@ -15,6 +15,7 @@ import { SessionCookies } from '../browser/main/index.ts';
 import { pictureOf, githubUsers, deleteGitHub } from './projects.ts';
 import { GitHub, installGitHub } from '../github/main/index.ts';
 import { ActivityMonitor } from '../activity-monitor/main/index.ts';
+import { registerViewerSchemes, installMediaProtocol } from '../file-viewer/main/index.ts';
 import { Dictation, installDictation } from '../dictation/main/index.ts';
 import { recognizer } from './recognizer.ts';
 import { COLORS } from './window.ts';
@@ -85,6 +86,7 @@ function start(options: Options = {}) {
   const userData = options.userData || path.join(app.getPath('appData'), 'Kulisa');
   app.setPath('userData', userData);
   if (options.quit) return askToQuit(userData);
+  registerViewerSchemes();
   const { previousRunQuit } = startLog(userData, app.isPackaged);
   log.info(`[kulisa] start ${environment()}, data ${userData}`);
   // A crash of the main process writes no line: Crashpad keeps its minidump in crashDumps (Crashpad prunes them itself:
@@ -140,7 +142,7 @@ function start(options: Options = {}) {
   shell.github = new GitHub({ dir: userData, fetch: (url, init) => net.fetch(url, init), secrets: shell.secrets });
   shell.github.accounts.logAll();
   // What Kulisa takes on the computer (src/activity-monitor), told where every task's data is.
-  shell.activity = new ActivityMonitor({ list: () => store.allTasks().map(({ project, entry, key }) => ({ key, project: project.id, artifacts: store.artifactsOf(project, entry.id) })) });
+  shell.activity = new ActivityMonitor({ list: () => store.allTasks().map(({ project, entry, key }) => ({ key, project: project.id, artifacts: store.artifactsOf(project, entry.id), temporary: store.temporaryFoldersOf(project, entry.id) })) });
   // A test user's password as it is kept: encrypted, or why not; none given: the one kept stays (profile-store.ts).
   shell.loginSecret = (password) => {
     if (!password) return {};
@@ -327,6 +329,8 @@ function start(options: Options = {}) {
     open: (url) => { void electronShell.openExternal(url); } });
   installDictation(shell.dictation);
   const ready = app.whenReady().then(async () => {
+    // A session's protocol handler must precede its first Workbench webContents/network factory.
+    installMediaProtocol(session.defaultSession);
     // Whether the OS keeps Kulisa's key (session cookies, test passwords: profiles.md); on Linux which keyring, basic_text
     // being none (a fixed key: Electron's safe-storage.md). The classic Linux bug report, with nothing to read until now.
     const backend = process.platform === 'linux' ? safeStorage.getSelectedStorageBackend() : null;

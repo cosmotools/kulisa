@@ -25,13 +25,14 @@ interface Shown { owner: string; file: string; view: WebContentsView; src: strin
 // when its pages are covered (setHidden); the rest is here.
 class Thumbnails {
   private win: BrowserWindow; private page: string; private preload: string; private send: (file: string) => Promise<unknown>; private remove: (file: string) => Promise<unknown>;
+  private openFile: (file: string) => Promise<unknown>;
   private shown: Shown | null = null; private hidden = false; private timer?: NodeJS.Timeout; private over = false; private held = false;
 
   // page: its page's file; preload: the windows'; send: its file for the agent's prompt (Send to Agent: the agents are
   // the window's tasks', not the package's); remove: the task's artifact deletion, as in Resources.
-  constructor(win: BrowserWindow, { page, preload, send, remove }: { page: string; preload: string; send: (file: string) => Promise<unknown>; remove: (file: string) => Promise<unknown> }) {
+  constructor(win: BrowserWindow, { page, preload, open, send, remove }: { page: string; preload: string; open: (file: string) => Promise<unknown>; send: (file: string) => Promise<unknown>; remove: (file: string) => Promise<unknown> }) {
     install();
-    this.win = win; this.page = page; this.preload = preload; this.send = send; this.remove = remove;
+    this.win = win; this.page = page; this.preload = preload; this.openFile = open; this.send = send; this.remove = remove;
     byWindow.set(win.webContents, this);
   }
   get file() { return this.shown?.file ?? null; }
@@ -120,7 +121,10 @@ class Thumbnails {
   }
 
   // Its page's messages.
-  open() { const f = this.file; if (f) void electron.shell.openPath(f).then((error) => { if (error) log.info(`[screenshot] not opened: ${error}`); }); }
+  open() {
+    const f = this.file;
+    if (f) void this.openFile(f).catch((error: Error) => log.info(`[screenshot] not opened: ${error.message}`));
+  }
   // A drag carries the file itself, as the OS's file manager's (tutorial/native-file-drag-drop.md).
   drag() { const s = this.shown; if (s) s.view.webContents.startDrag({ file: s.file, icon: electron.nativeImage.createFromPath(s.file).resize({ width: 64 }) }); }
   hover(over: boolean) { if (this.shown?.fading) return; this.over = over; this.wait(); }

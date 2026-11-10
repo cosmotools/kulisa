@@ -5,7 +5,7 @@ import path from 'path';
 import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
 import type { Core } from './fixtures.ts';
-import { menu, choose, rightClick, closeSettings, termText, termDump, invoke, answer, projectMenu, pageOf, onRow, removed, group, listRows, listRow } from './helpers.ts';
+import { menu, choose, showResources, rightClick, closeSettings, termText, termDump, invoke, answer, projectMenu, pageOf, onRow, removed, group, listRows, listRow } from './helpers.ts';
 import { git, committed, hook, newTask, showTask, openFolder, projectShown } from './tasks-helpers.ts';
 
 // What the agent is told at a session's start (its SessionStart hook, as its plugin sends it: agent-hooks.ts).
@@ -14,9 +14,10 @@ const sessionContext = async (core: Core, task: string) => (await hook(core, tas
 const setState = (core: Core, task: string, state: string) => core((k, a) => { const t = k.shell.taskByKey(a.task); t.setState(t.agentTerminals()[0], a.state as never); }, { task, state });
 // The terminal shows text n times (typed, then echoed by the agent: cat).
 const shownTimes = async (ui: Page, text: string, n: number) => {
+  await showResources(ui, 'Agents');
   try { await expect.poll(async () => (await termText(ui)).split(text).length - 1).toBe(n); } catch (e) {
     throw new Error(`the terminal does not show ${JSON.stringify(text)} ${n} times: ${JSON.stringify(await termDump(ui))}`, { cause: e });
-  }
+  } finally { await showResources(ui, 'Project'); }
 };
 
 test('projects: several repositories: a task works in the main tree until it makes its worktree (task_worktree); another repository is added when it needs it (the human on its tab, the agent with task_add_repository), on its branch, its agent told; a repository tasks have a worktree of is not removed', async ({ core, ui, sui, call, files }) => {
@@ -28,14 +29,18 @@ test('projects: several repositories: a task works in the main tree until it mak
   await openFolder(core, ui, api);
   const pid = files.pid('api'), first = await core((k) => k.shell.task.key), firstId = first.split('/')[1];
   const of = (key: string) => core((k, t) => { const x = k.shell.taskByKey(t); return { folder: x.folder, worktrees: x.worktrees.map((c) => ({ repo: c.repo, folder: c.folder, branch: c.branch })), addable: x.addable(), dirs: x.dirs() }; }, key);
-  // The Resources panel (Resources.tsx): each row its label, its branch line (or 'main working tree'), and whether it
-  // can be removed (an added repository's worktree can; the main tree and the task's own worktree cannot).
-  const resources = ui.locator('[data-task-view][data-active] [data-resources]').getByRole('list', { name: 'Folders' }).locator(':scope > li');
+  const tree = ui.locator('[data-task-view][data-active] [data-resources]');
+  const resources = tree.locator('[role="treeitem"][aria-level="1"]');
   const rows = async (want: [string, string, boolean][]) => {
     await expect(resources).toHaveCount(want.length);
-    for (const [i, [label, line, removable]] of want.entries()) {
-      await expect(resources.nth(i).getByRole('button', { name: label, exact: true })).toHaveText(label + line);
-      await expect(resources.nth(i).getByRole('button', { name: 'Remove Repository' })).toHaveCount(removable ? 1 : 0);
+    await expect(tree.getByText(want[0][1], { exact: true })).toBeVisible();
+    for (const [label, , removable] of want) {
+      const row = tree.getByRole('treeitem', { name: label, exact: true });
+      await expect(row).toBeVisible();
+      await rightClick(ui, row);
+      await expect(ui.getByRole('menuitem', { name: 'Open Folder', exact: true })).toBeVisible();
+      await expect(ui.getByRole('menuitem', { name: 'Remove Repository', exact: true })).toHaveCount(removable ? 1 : 0);
+      await ui.keyboard.press('Escape');
     }
   };
   const copyOf = async (name: string) => (await of(first)).worktrees.find((c) => path.basename(c.repo) === name).folder;
@@ -83,7 +88,9 @@ test('projects: several repositories: a task works in the main tree until it mak
   await rows([['api', `branch ${b1}`, false], ['web', `branch ${b1}`, true]]);
   f = await of(first);
   expect([f.dirs, f.addable]).toEqual([[webCopy], []]);
+  await showResources(ui, 'Agents');
   expect(await termText(ui), 'not while it waits for the human').not.toContain(`Kulisa added ${webCopy}`);
+  await showResources(ui, 'Project');
   await setState(core, first, 'done');
   // Sent, not left in its prompt: shown as typed, then again as the agent (cat) read the line on Enter.
   await shownTimes(ui, `Kulisa added ${webCopy} to this task`, 2);
@@ -133,7 +140,9 @@ test('projects: several repositories: a task works in the main tree until it mak
   expect((await call('task_remove_repository', { repository: 'web' })).text).toMatch(new RegExp(`Removed: ${RegExp.escape(path.join(home, 'web'))}`));
   t = await of(second);
   expect([fs.existsSync(path.join(home, 'web')), git(web, 'branch', '--list', 'checkout'), t.dirs, t.addable]).toEqual([false, '', [], [web]]);
+  await showResources(ui, 'Agents');
   expect(await termText(ui), 'not while it works').not.toContain('Kulisa removed');
+  await showResources(ui, 'Project');
   await setState(core, second, 'done');
   await shownTimes(ui, `Kulisa removed ${path.join(home, 'web')}`, 2);
   // Deleting the task: both copies, both branches and its folder go.
@@ -142,11 +151,11 @@ test('projects: several repositories: a task works in the main tree until it mak
   await deleted;
   await expect.poll(() => fs.existsSync(home)).toBe(false);
   expect(git(web, 'branch', '--list', 'checkout') + git(api, 'branch', '--list', 'checkout')).toBe('');
-  // Back on the first, shown again: the human removes its web by the Resources panel's 🗑 (nothing uncommitted in
-  // it: not asked); its own worktree's row has no Remove.
+  // The repository menu removes an added copy; the task's own copy has no Remove action.
   await showTask(core, ui, first);
   await expect(resources).toHaveCount(2);
-  await resources.filter({ has: ui.getByRole('button', { name: 'web', exact: true }) }).getByRole('button', { name: 'Remove Repository' }).click();
+  await rightClick(ui, tree.getByRole('treeitem', { name: 'web', exact: true }));
+  await choose(ui, 'Remove Repository');
   await expect.poll(() => fs.existsSync(webCopy)).toBe(false);
   await rows([['api', `branch ${b1}`, false]]);
   await expect(ui.getByRole('alertdialog'), 'nothing of its own: not asked').toHaveCount(0);

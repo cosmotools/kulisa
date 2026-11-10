@@ -15,7 +15,7 @@ import { bare, log, summary } from './log.ts';
 // answer to a question is logged without the answer: it may be anything the human typed.
 const QUIET = new Set<string>(['pty:in', 'pty:resize', 'pty:quote-paths', 'terminal:files', 'layout:apply', 'layout:save', 'layout:load', 'views:hidden', 'views:pictures', 'keys:zone', 'zoom:get', 'voice:get', 'voice:record',
   'language:get', 'project:refresh', 'project:list', 'account:list', 'profiles:list', 'agent:list', 'settings:open', 'settings:close', 'github:account:list', 'project:github:get']);
-const BARE = new Set<string>(['ask:answer']);
+const BARE = new Set<string>(['ask:answer', 'task:artifact:pdf:find']);
 function line(channel: string, e: IpcEvent, args: unknown[]) {
   if (QUIET.has(channel)) return;
   const what = BARE.has(channel) || !args.length ? '' : ` ${summary(args.length === 1 ? args[0] : args)}`;
