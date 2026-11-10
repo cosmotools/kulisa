@@ -71,7 +71,8 @@ file/view/task closes it. Its independent adapter and resource bounds belong to 
 - Load saved settings before creating grids; early Stage commands await restoration and retain their order.
   Reveal after both nested grids mount at their final dimensions, keeping content loading from shifting the layout.
   Persist all three grids through `toJSON`/`fromJSON`, plus Stage view/overflow/position; debounce 300 ms and flush on
-  hide/close. Observe completed layouts/maximization and Workbench edge dimensions, which central layout events omit.
+  hide/close and before moving a task to another window, while the source still owns it. Observe completed
+  layouts/maximization and Workbench edge dimensions, which central layout events omit.
   Empty Stage stays mounted, hidden through Gridview's API to preserve its size. Position/view changes move native
   panels/groups, retaining their contents. `shared/stage-layout.ts` imports flat layouts and legacy fractions;
   `task-view/layout.ts` prunes closed panes while preserving active groups. Invalid layouts use defaults.
@@ -138,6 +139,10 @@ state, the window owns layout/menu/focus.
 | Close | ×; pane's menu | `terminal_close` | `close` |
 
 ## The window's size
+
+Without a saved position, start at 1280 × 960 DIP, centered in the primary display's work area and reduced to leave
+16 DIP on each edge, subject to the zoomed minimum. This fits the full welcome on a large enough display;
+smaller windows use its compact introduction. Restore saved sizes/maximization and copy a nearby window's size.
 
 Minimum 640 × 400 DIP times UI zoom (`MIN_SIZE`), independent of pane minimums; narrow-grid adaptation: #202.
 OS minimums constrain manual resize only. Clamp restored bounds and growing zoom in `setZoom`; lowering zoom does

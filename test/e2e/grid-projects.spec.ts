@@ -222,12 +222,11 @@ test('tasks: Move to New Window puts a task in a window of its own, still runnin
   }, { id: ids.seller, url: `${SITE}/app?background` });
   await showResources(ui, 'Agents');
   await expect.poll(() => termText(ui)).toContain(`agent: rc of ${other}`);
-  // A line as wide as an agent's prompt box (Claude Code's), and the size the agent has.
-  const LINE = '='.repeat(150);
+  // A prompt line nearly fills the actual terminal, so a smaller width during the move would wrap it.
+  const size = await core((k) => { const p = k.stash.grid.pty; return { cols: p.cols, rows: p.rows }; });
+  const LINE = '='.repeat(size.cols - 1);
   await core((k, line) => k.stash.grid.pty.write(`${line}\r`), LINE);
   await expect.poll(() => termText(ui)).toContain(LINE);
-  const size = await core((k) => { const p = k.stash.grid.pty; return { cols: p.cols, rows: p.rows }; });
-  expect(size.cols, 'the terminal is wide enough for it').toBeGreaterThan(150);
   await core((k) => { // every size the agent gets from here on
     const g = k.stash.grid, pty = g.pty;
     g.sizes = []; g.resize = pty.resize;
@@ -262,7 +261,7 @@ test('tasks: Move to New Window puts a task in a window of its own, still runnin
     const b = (window as any).__term.buffer.active;
     return Array.from({ length: b.length }, (_, i) => b.getLine(i)).filter((l: any) => l.translateToString(true).includes('===')).map((l: any) => [/=+/.exec(l.translateToString(true))[0].length, l.isWrapped]);
   });
-  expect(lines.filter(([n, wrapped]) => n !== 150 || wrapped), `whole lines: ${JSON.stringify(lines)}`).toEqual([]);
+  expect(lines.filter(([n, wrapped]) => n !== LINE.length || wrapped), `whole lines: ${JSON.stringify(lines)}`).toEqual([]);
   // The window is the same size, so the agent keeps its size, and gets no other on the way: each one makes it draw
   // its prompt again. The new window's page must not fit the terminal before its grid is laid out, at the window's
   // whole height (46 rows for 17).
