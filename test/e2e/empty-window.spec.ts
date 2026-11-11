@@ -77,6 +77,9 @@ test('the first-start welcome introduces web and CLI work and opens the shared p
     for (const height of [960, 944]) {
       await core((k, h) => k.shell.win.setContentSize(1280, h), height);
       await expect.poll(() => ui.evaluate(() => [innerWidth, innerHeight])).toEqual([1280, height]);
+      const before = await tour.boundingBox();
+      const tabsBefore = await tour.getByRole('tablist').boundingBox();
+      const pauseBefore = await button('Pause demonstration', tour).boundingBox();
       for (const name of ['CLI app', 'Web app']) {
         await tour.getByRole('tab', { name, exact: true }).click();
         await expect(tour.getByRole('img', { name: name === 'CLI app' ? /^A coding agent you are building/ : /^Customer browser profile/ })).toBeVisible();
@@ -86,6 +89,9 @@ test('the first-start welcome introduces web and CLI work and opens the shared p
           const e = document.getElementById('welcome'), r = document.querySelector('[aria-label="What Kulisa does"]').getBoundingClientRect();
           return e.scrollHeight <= e.clientHeight && e.scrollWidth <= e.clientWidth && r.top >= e.getBoundingClientRect().top && r.bottom <= innerHeight;
         }), `${name}: the full welcome fits at 1280×${height}`).toBe(true);
+        await expect.poll(() => tour.boundingBox(), `${name}: the introduction stays in place`).toEqual(before);
+        await expect.poll(() => tour.getByRole('tablist').boundingBox(), `${name}: the tabs stay in place`).toEqual(tabsBefore);
+        await expect.poll(() => button('Pause demonstration', tour).boundingBox(), `${name}: the frame keeps its size`).toEqual(pauseBefore);
       }
     }
     // A low window, wide or at the least size: the introduction fits, nothing to scroll to (its top not cut off above the

@@ -28,7 +28,9 @@ CLI; it must not suggest that Kulisa supplies a replacement coding agent.
 
 The CLI example shows a coding agent under development in a Stage terminal: launch, a coding request, file access,
 a diff and a checked response. Its 960 × 360 layout scales through one ResizeObserver. `DemoAgent` is shared by
-both examples. Remount the lower transcript when switching examples so both clocks restart together.
+both examples. Both tab panels share one grid cell and remain in layout, with the inactive drawing invisible and
+inert; reserve the CLI caption's space too so switching never moves the frame or introduction. Pause inactive
+drawings and remount the examples and lower transcript when switching so their clocks restart together.
 
 Pause freezes the whole active cycle; reduced motion shows its final result. `CoffeeBreak` shares that clock:
 the person reclines and drinks coffee, with upper body/chair rotation at the hips and feet supported by the
