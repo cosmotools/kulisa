@@ -211,6 +211,8 @@ env -i PATH=$(dirname $(which node)):/usr/bin:/bin HOME=$H TMPDIR=$H XDG_CURRENT
 - **Caches** (a shard's setup under a minute): npm, Electron's download (by its version in `package-lock.json`), the
   apt .deb files (the Ubuntu mirror is at times slow; a cache of installed packages loses `gnome-keyring-daemon`).
   macOS's `displayplacer` comes from brew each time.
+- **Ubuntu package access**: checks and shards use the same `ubuntu-apt` mirror fallback and failure handling as
+  releases ([releases.md](releases.md), Publishing a release); the apt cache still avoids downloads when warm.
 - **Not used**: an own runner image (paid larger runners; Docker is Linux only); a self-hosted runner (public repo: a
   fork's PR would run code on it); several workers on one macOS/Windows screen.
 - **Measurements**: `timings.json` records each file's slowest OS from CI's `junit.xml`; process RSS comes from

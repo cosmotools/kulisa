@@ -62,6 +62,8 @@ jobs:
         shell: bash
     steps:
       - uses: actions/checkout@v7
+      - if: runner.os == 'Linux'
+        uses: ./.github/actions/ubuntu-apt
       - uses: actions/setup-node@v7
         with:
           node-version: 24
@@ -113,6 +115,8 @@ jobs:
         shell: bash
     steps:
       - uses: actions/checkout@v7
+      - if: runner.os == 'Linux'
+        uses: ./.github/actions/ubuntu-apt
       # The test folders in one known place on every OS (os.tmpdir() reads these), and Electron's download kept there
       # by the cache below. Through GITHUB_ENV: the job's env cannot read the runner context (GitHub refuses the whole
       # file).
