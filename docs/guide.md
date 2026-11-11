@@ -2,10 +2,10 @@
 
 ![Kulisa: three profiles of a shop (buyer, seller, admin) side by side, the agent outlining the buyer's new order in the seller's and the admin's, and Claude Code in the terminal below](images/kulisa.png)
 
-Kulisa is a desktop app where the coding agent you choose develops and checks web and command-line apps while
-you watch and try the result together. The agent works in a terminal, opens browser profiles to test a web app as
-its different users, and runs CLI apps in interactive terminals you can both operate. Several tasks let you work
-on different parts of a project at once.
+Kulisa is an agentic IDE where you and your chosen coding agent develop, run, and test software together.
+The agent works in a terminal, opens browser profiles to test web apps as different users, and runs CLI apps in
+interactive terminals you can both operate. You can watch its work and try the result yourself. Several tasks let
+you work on different parts of a project at once.
 
 You sign in to your accounts yourself, by hand; the agent never does, except as test users of your own app on this
 computer.

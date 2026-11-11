@@ -17,7 +17,7 @@ import { useProjectColor } from '../lib/project-color';
 import { keyText } from '../lib/common';
 import { dialog } from '../lib/dialogs';
 import { lastWorked, projectMenu } from '../lib/project-menu';
-import { profilesMenu, terminalsOf } from '../task-view';
+import { profilesMenu, prepareTaskMove } from '../task-view';
 import { useStrip } from '../lib/strip';
 import { toggleSidebar } from '../lib/sidebar';
 import type { MenuItem } from '../lib/menu';
@@ -44,14 +44,14 @@ const taskMenu = ({ key, name, repos, resources }: TaskInfo): MenuItem[] => [
     .map((r) => ({ label: r.label, title: r.folder, run: () => kulisa.invoke('task:repo:remove', { key, repo: r.folder }) })), '-' as const] : []),
   { label: 'Rename…', run: () => rename(key, name) },
   { label: 'Show Folder', run: () => kulisa.invoke('task:show-folder', key) },
-  '-', ...moveRows((to) => kulisa.invoke('task:move', { key, to, terminalContents: terminalsOf(key) })),
+  '-', ...moveRows((to) => kulisa.invoke('task:move', { key, to, ...prepareTaskMove(key) })),
   '-', { label: 'Close', run: () => kulisa.invoke('task:close', key) },
   { label: 'Delete Task…', run: () => kulisa.invoke('task:delete', key) },
 ];
 // A project's rows (its submenu). Move All Tasks: its open tasks of this window, together.
 function projectItems(p: ProjectEntry): MenuItem[] {
   const { projects } = store.getState(), id = p.id, mine = projects.tabs.filter((t) => t.project === id);
-  const terminalContents = () => Object.assign({}, ...mine.map((t) => terminalsOf(t.key)));
+  const terminalContents = () => Object.assign({}, ...mine.map((t) => prepareTaskMove(t.key).terminalContents));
   return projectMenu(p, { newTask: () => kulisa.invoke('task:new', { project: id }), keys: id === projects.project ? keyText('task.new') : undefined,
     move: moveRows((to) => kulisa.invoke('project:task:move-all', { id, to, terminalContents: terminalContents() }), { enabled: mine.length < projects.tabs.length, label: 'Move All Tasks to' }) });
 }
@@ -130,7 +130,7 @@ export function TaskBar() {
       if (!at) return;
       setDragged(at.t.key);
       e.dataTransfer.effectAllowed = 'move';
-      e.dataTransfer.setData(DRAG, JSON.stringify({ key: at.t.key, terminalContents: terminalsOf(at.t.key) }));
+      e.dataTransfer.setData(DRAG, JSON.stringify({ key: at.t.key, ...prepareTaskMove(at.t.key) }));
     },
     // Over a tab (entered, and as the pointer moves on it): where it would go, marked.
     onDragOver: (e: DragEvent) => over(e),
@@ -148,7 +148,7 @@ export function TaskBar() {
     onDragEnd: (e: DragEvent) => {
       const key = dragged;
       setDragged(null);
-      if (key && e.dataTransfer.dropEffect === 'none') void kulisa.invoke('task:drag-out', { key, terminalContents: terminalsOf(key) });
+      if (key && e.dataTransfer.dropEffect === 'none') void kulisa.invoke('task:drag-out', { key, ...prepareTaskMove(key) });
     },
   };
 

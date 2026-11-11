@@ -43,12 +43,12 @@ function Example() {
 }
 
 function Introduction({ start, button }: { start: () => void; button: React.RefObject<HTMLButtonElement | null> }) {
-  return <section aria-label="What Kulisa does" className="grid w-full max-w-7xl gap-12 [@media(max-height:850px)]:gap-6">
+  return <section aria-label="What Kulisa does" className="grid w-full max-w-7xl gap-12 [@media(max-height:1000px)]:gap-5">
     <div className="flex items-center gap-3 [@media(max-height:850px)]:hidden"><AppLogo size={32} /><span className="text-xl font-semibold tracking-tight">Kulisa</span></div>
-    <div className="grid items-center gap-12 lg:[@media(min-height:601px)]:grid-cols-[.8fr_1.4fr] [@media(max-height:850px)]:gap-6">
+    <div className="grid items-center gap-12 lg:[@media(min-height:601px)]:grid-cols-[.8fr_1.4fr] [@media(max-height:1000px)]:gap-6">
       <div className="flex flex-col items-start gap-6 [@media(max-height:850px)]:gap-4">
-        <h1 className="text-4xl leading-[1.12] font-semibold tracking-tight xl:text-5xl [@media(max-height:600px)]:text-3xl">Your agent builds.<br /><span className="text-muted-foreground">You see it work.</span></h1>
-        <p className="max-w-[40ch] text-base leading-relaxed text-muted-foreground [@media(max-height:600px)]:text-sm">Develop web and command-line apps with the coding agent you choose. Run, test and refine them together in one window.</p>
+        <h1 className="text-4xl leading-[1.12] font-semibold tracking-tight xl:text-5xl [@media(max-height:600px)]:text-3xl">Your agentic IDE.<br /><span className="text-muted-foreground">Build together.</span></h1>
+        <p className="max-w-[40ch] text-base leading-relaxed text-muted-foreground [@media(max-height:600px)]:text-sm">Develop, run and test software together with the coding agent you choose. Try web and command-line apps in shared browsers and interactive terminals.</p>
         <div className="flex items-center gap-2 text-sm"><Claude className="size-5" /><Codex className="size-5" /><span className="ms-1 text-muted-foreground">Your agent. Your code. Your computer.</span></div>
         <div className="mt-2 flex flex-col items-start gap-3">
           <Button ref={button} size="lg" onClick={start}>Create a project<ArrowRightIcon /></Button>
@@ -72,7 +72,7 @@ export function Welcome() {
     if (asked) { asked = false; focusNow(); }
     return () => { focusNow = null; };
   }, []);
-  return <div id="welcome" className="flex min-h-0 flex-1 flex-col overflow-auto p-6 lg:p-10 [@media(max-height:850px)]:p-6">
+  return <div id="welcome" className="flex min-h-0 flex-1 flex-col overflow-auto p-6 lg:p-10 [@media(max-height:1000px)]:p-6">
     {creating ? <div className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col gap-6">
       <div><h1 className="text-2xl font-semibold tracking-tight">Make room for your next project</h1><p className="mt-2 text-sm text-muted-foreground">Choose an agent, bring your code and start building.</p></div>
       <ProjectSetup onBack={() => setCreating(false)} />

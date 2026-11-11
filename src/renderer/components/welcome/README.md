@@ -1,7 +1,7 @@
 # The welcome
 
-First-start introduction with web and CLI examples, followed by the shared project creation UI. It starts no
-browser or terminal processes. Empty-window/project behavior belongs to [tasks](../../../../docs/tasks.md#projects);
+First-start introduction to Kulisa as an agentic IDE, with web and CLI examples, followed by the shared project
+creation UI. It starts no browser or terminal processes. Empty-window/project behavior belongs to [tasks](../../../../docs/tasks.md#projects);
 shared UI constraints belong to [ui.md](../../../../docs/ui.md).
 
 ## Boundary and lifecycle
@@ -11,6 +11,8 @@ and animation CSS stay here. App branding and the project creation UI belong to 
 
 Mount only while the welcome is shown. Short/narrow windows omit illustrations and the supporting feature row;
 at up to 600 CSS px high the introduction is one column at every width. Keep the introduction usable at 640 × 400.
+At up to 1000 CSS px high, reduce outer padding and section gaps so both full examples fit the initial window
+([window size](../../../../docs/window.md#the-windows-size)).
 Project creation owns its inputs and scrolling; first-start focus moves from Create a project to its form.
 
 ## Demonstrations

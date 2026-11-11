@@ -2,18 +2,20 @@
 
 ![Kulisa: three profiles of a shop (buyer, seller, admin) side by side, the agent outlining the buyer's new order in the seller's and the admin's, and Claude Code in the terminal below](docs/images/kulisa.png)
 
-**Kulisa is the home where your AI agent works on the web. In every role and account it needs, until everything
-works. Watch every step, or take a break.**
+**Kulisa is an agentic IDE where you and your chosen coding agent develop, run, and test software together.**
 
-A free desktop app for Windows and Linux (macOS is coming). The AI agent you choose (Claude Code or Codex) works in
-your signed-in browser profiles side by side, as every user of your app: it builds, checks the result as the buyer,
-the seller and the admin, fixes, and goes again until it works. Made first for developing web apps with several users
-at once, and good for any work in web apps: several clients' accounts, admin and support work.
+A free desktop app for Windows and Linux (macOS is coming). Bring your coding agent, such as Claude Code or Codex,
+and work with code, terminals and running apps in one window. Test web apps in browser profiles as different users,
+or try CLI and TUI apps in interactive terminals you can both operate. Watch the agent, try the result yourself,
+and show what needs to change.
 
-- **A profile for each person.** Each profile is a browser of its own, as in Chrome: its sign-ins, cookies and tabs.
-  You sign in once, by hand, never the agent; every task has that sign-in, and it lasts across restarts.
-- **An agent you can watch.** It runs in a terminal inside the window and drives the profiles through Kulisa's MCP
-  server. Every click and keystroke it makes is marked on the page.
+- **Your coding agent.** It runs in a real terminal with your project's environment. Kulisa gives it tools to use
+  the browser profiles and interactive terminals you see.
+- **Shared testing environments.** Operate the same CLI or TUI app together, or check a web app as buyer, seller
+  and admin side by side. The agent's browser actions are marked on the page.
+- **Code and review.** Browse and edit project files, review changes, and open the task's reports and screenshots.
+- **Sign in once.** Each browser profile keeps its own sign-ins, cookies and tabs. You sign in to real accounts
+  by hand; every task has that sign-in, and it lasts across restarts.
 - **Point and tell.** Click Pick, then the thing on the page: an exact reference to it lands in the agent's prompt,
   and you write the rest.
 - **Several tasks at once.** Each task is one piece of work: its own agent, its own branch of the code, and the
@@ -25,11 +27,12 @@ at once, and good for any work in web apps: several clients' accounts, admin and
 
 ## Why
 
-Kulisa brings coding and testing as several signed-in users into one window: buyer, seller and admin, or client
-accounts for support work. The human watches the agent's actions and can intervene.
+Kulisa brings development and hands-on verification into one workspace. You and your agent can use the running
+software together: follow a web workflow across users, exercise an interactive command-line app, and inspect the
+result before continuing.
 
-The name comes from Russian *кулиса*, the wings of a theatre stage: the agent directs, profiles act, and the human
-watches from the audience.
+The name comes from Russian *кулиса*, the wings of a theatre stage: programs run on Stage, and the human can watch
+or step in.
 
 ## Documentation
 

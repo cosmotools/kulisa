@@ -1,7 +1,7 @@
 {
   "name": "kulisa",
-  "version": "0.4.1",
-  "description": "Integrate the agent with Kulisa: drive its signed-in browser profiles (the panes above the terminal), set up and run the task (its worktree, repositories and dev server), and read its history.",
+  "version": "0.4.2",
+  "description": "Integrate your coding agent with the Kulisa agentic IDE: use shared browser profiles and interactive Stage terminals, manage task worktrees and repositories, run dev servers, and read task history.",
   "author": {
     "name": "Kulisa contributors"
   }
