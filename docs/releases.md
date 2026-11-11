@@ -41,6 +41,11 @@ Alternative updater frameworks do not fit the Forge installers.
 4. Publish only after checks pass, with the tag at that commit. Failures leave the draft unpublished.
 5. Redeploy `kulisa-site` with `SITE_DEPLOY_TOKEN`, then update/check the apt repository.
 
+Ubuntu jobs use the shared `ubuntu-apt` action: independent kernel.org and MIT mirrors extend the runner's apt
+failover list when Ubuntu's default hosts share a DNS outage. Ubuntu archive signatures remain required; network
+attempts are bounded and metadata download failures fail the job. Install Linux build and startup prerequisites
+before packaging so unavailable dependencies stop the job before installers are uploaded.
+
 Verify provenance with `gh attestation verify <file> -R cosmotools/kulisa`. macOS release work: #206; update work: #207.
 
 ## Updates

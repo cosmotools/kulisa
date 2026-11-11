@@ -1,0 +1,17 @@
+# Ubuntu package access for CI; docs/testing.md, CI and Speed; docs/releases.md, Publishing a release.
+name: Ubuntu apt fallback
+description: Keep Ubuntu package downloads available when the default mirrors share a DNS outage.
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        # GitHub's three default mirrors all depend on ubuntu.com DNS. Extend its mirror transport's failover
+        # list with independent hosts; the runner's Ubuntu archive keys still authenticate every package.
+        test -f /etc/apt/apt-mirrors.txt
+        printf 'https://mirrors.edge.kernel.org/ubuntu/\tpriority:4\nhttps://mirrors.mit.edu/ubuntu/\tpriority:5\n' \
+          | sudo tee -a /etc/apt/apt-mirrors.txt >/dev/null
+        # A failed update normally succeeds with stale lists. Stop instead, and bound network retries in every
+        # apt step, including installation of the built .deb and the published repository's verification.
+        printf '%s\n' 'Acquire::Retries "1";' 'Acquire::http::Timeout "15";' 'Acquire::https::Timeout "15";' \
+          'APT::Update::Error-Mode "any";' | sudo tee /etc/apt/apt.conf.d/80-kulisa-ci >/dev/null
