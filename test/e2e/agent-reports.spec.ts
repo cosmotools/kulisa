@@ -190,6 +190,8 @@ test('Artifacts drag as disk files and Send to Agent inserts their paths without
   await showResources(ui, 'Artifacts');
   const snapshot = path.join(JSON.parse((await call('task_files')).text).artifacts, 'snapshot.yml');
   fs.writeFileSync(snapshot, 'A completed snapshot');
+  // Newest-first insertion moves existing rows; publish both prepared files before pointer actions.
+  await expect(ui.getByRole('treeitem', { name: path.basename(snapshot), exact: true })).toBeVisible();
   await core((k) => {
     const wc = k.shell.windows[0].win.webContents;
     k.stash.startDrag = wc.startDrag;
