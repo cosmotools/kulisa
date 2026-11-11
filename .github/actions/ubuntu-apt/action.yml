@@ -6,10 +6,10 @@ runs:
   steps:
     - shell: bash
       run: |
-        # GitHub's three default mirrors all depend on ubuntu.com DNS. Extend its mirror transport's failover
-        # list with independent hosts; the runner's Ubuntu archive keys still authenticate every package.
+        # GitHub's three defaults share ubuntu.com DNS. Prefer independent hosts to avoid waiting for that DNS
+        # on every file; the defaults remain fallbacks and Ubuntu archive keys still authenticate every package.
         test -f /etc/apt/apt-mirrors.txt
-        printf 'https://mirrors.edge.kernel.org/ubuntu/\tpriority:4\nhttps://mirrors.mit.edu/ubuntu/\tpriority:5\n' \
+        printf 'https://mirrors.edge.kernel.org/ubuntu/\tpriority:0\nhttps://mirrors.mit.edu/ubuntu/\tpriority:0\n' \
           | sudo tee -a /etc/apt/apt-mirrors.txt >/dev/null
         # A failed update normally succeeds with stale lists. Stop instead, and bound network retries in every
         # apt step, including installation of the built .deb and the published repository's verification.
