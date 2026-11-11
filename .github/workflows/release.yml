@@ -49,12 +49,14 @@ jobs:
       attestations: write
     steps:
       - uses: actions/checkout@v7
+      - if: runner.os == 'Linux'
+        uses: ./.github/actions/ubuntu-apt
       - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm
       - if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y rpm
+        run: sudo apt-get update && sudo apt-get install -y rpm xvfb libnotify4 libsecret-1-0
       - run: npm ci
       - run: npm run publish
         env:
@@ -106,6 +108,8 @@ jobs:
       GH_REPO: ${{ github.repository }}
       TAG: ${{ needs.draft.outputs.tag }}
     steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/ubuntu-apt
       - env:
           KEY: ${{ secrets.APT_SIGNING_KEY }}
         run: |
