@@ -1,7 +1,7 @@
 {
   "name": "kulisa",
   "private": true,
-  "version": "0.4.2",
+  "version": "0.4.3",
   "description": "Kulisa is an agentic IDE where you and your chosen coding agent develop, run, and test software together.",
   "license": "GPL-3.0-or-later",
   "homepage": "https://kulisa.app",
