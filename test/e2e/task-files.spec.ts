@@ -60,6 +60,31 @@ test('external clients explicitly create stable contexts; screenshots and cleanu
   finally { await resumed.close(); }
 });
 
+test('artifacts sort folders first and newest modified first, updating live without losing selection or expansion', async ({ call, ui }) => {
+  const { artifacts } = JSON.parse((await call('task_files')).text);
+  await call('task_artifacts_delete', { all: true });
+  const stamp = (name: string, seconds: number) => fs.utimesSync(path.join(artifacts, name), seconds, seconds);
+  for (const folder of ['a-folder', 'z-folder']) fs.mkdirSync(path.join(artifacts, folder));
+  fs.mkdirSync(path.join(artifacts, 'a-folder', 'nested'));
+  for (const name of ['a-old.txt', 'z-new.txt', 'a-folder/2.txt', 'a-folder/10.txt', 'a-folder/nested/deep.txt']) {
+    fs.writeFileSync(path.join(artifacts, name), name);
+    stamp(name, 1000);
+  }
+  stamp('z-new.txt', 2000); stamp('a-folder', 1000); stamp('z-folder', 2000); stamp('a-folder/nested', 5000);
+  await showResources(ui, 'Artifacts');
+  const rows = ui.locator('[data-task-view][data-active] [data-resources]').getByRole('treeitem');
+  const order = async () => Promise.all((await rows.all()).map((row) => row.getAttribute('data-item-path')));
+  await expect.poll(order).toEqual(['z-folder/', 'a-folder/', 'z-new.txt', 'a-old.txt']);
+  await ui.getByRole('treeitem', { name: 'a-folder', exact: true }).click();
+  await ui.getByRole('treeitem', { name: '10.txt', exact: true }).click();
+  await expect.poll(order).toEqual(['z-folder/', 'a-folder/', 'a-folder/nested/', 'a-folder/2.txt', 'a-folder/10.txt', 'z-new.txt', 'a-old.txt']);
+  fs.writeFileSync(path.join(artifacts, 'a-folder/10.txt'), 'updated nested result');
+  stamp('a-folder/10.txt', 3000);
+  fs.writeFileSync(path.join(artifacts, 'a-old.txt'), 'updated result'); stamp('a-old.txt', 3000);
+  await expect.poll(order).toEqual(['z-folder/', 'a-folder/', 'a-folder/nested/', 'a-folder/10.txt', 'a-folder/2.txt', 'a-old.txt', 'z-new.txt']);
+  await expect(ui.getByRole('treeitem', { name: '10.txt', exact: true })).toHaveAttribute('aria-selected', 'true');
+});
+
 test('conversation IDs determine temporary paths across task closure and app restart; a new conversation gets a new folder', async ({ core, ui, call, restart }) => {
   const terminal = await core((k) => k.shell.task.promptTarget().id);
   const first = JSON.parse((await call('task_files', {}, { terminal })).text);
@@ -124,7 +149,10 @@ test('a large results folder keeps DOM rows and MCP response pages bounded', asy
   await call('task_artifacts_delete', { all: true });
   await showResources(ui, 'Artifacts');
   const folder = path.join(artifacts, 'many'); fs.mkdirSync(folder);
-  for (let i = 0; i < 5000; i++) fs.writeFileSync(path.join(folder, `file-${String(i).padStart(4, '0')}.txt`), 'result');
+  for (let i = 0; i < 5000; i++) {
+    const file = path.join(folder, `file-${String(i).padStart(4, '0')}.txt`);
+    fs.writeFileSync(file, 'result'); fs.utimesSync(file, 1000, 1000);
+  }
   await ui.getByRole('treeitem', { name: 'many', exact: true }).click();
   await expect(ui.getByRole('treeitem', { name: 'file-0000.txt', exact: true })).toBeVisible();
   expect(await ui.getByRole('treeitem').count()).toBeLessThan(80);

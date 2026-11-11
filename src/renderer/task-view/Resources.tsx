@@ -88,7 +88,7 @@ function TaskResources({ section }: { section: ActivityItem }) {
   const branch = task?.resources.find((r) => r.branch)?.branch ?? null;
   const roots = useMemo(() => (task?.resources ?? []).map((r) => ({ folder: r.folder, label: r.label,
     caption: r.branch === branch ? '' : r.branch ? `branch ${r.branch}` : 'main working tree' })), [task?.resources, branch]);
-  const entries = useMemo(() => artifacts.map((a) => ({ path: a.path, thumb: a.thumb,
+  const entries = useMemo(() => artifacts.map((a) => ({ path: a.path, time: a.time, thumb: a.thumb,
     caption: a.directory ? '' : [a.kind === 'file' ? null : kindOf(a.kind), a.source?.kind === 'profile' ? names[a.source.id] : a.source?.kind === 'stage-terminal' ? stageTerminals[a.source.id] : null, when(a.time), sizeText(a.bytes)].filter(Boolean).join(' · '),
   })), [artifacts, names, stageTerminals]);
   const artifactActions = useMemo(() => {

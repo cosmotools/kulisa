@@ -28,7 +28,9 @@ rejected before decoding. Unsupported images keep generic icons. These memory bo
 ## Tree
 
 `ArtifactTree` receives entries, the caller’s preview path/navigation version and callbacks for opening, menus, native dragging and thumbnail requests. It imports
-no window state or IPC handles. The core supplies captions, source names and shared menus. Trees owns virtualization,
+no window state or IPC handles. Entries include modification times; siblings sort folders first, then newest modified
+first, with natural filename order for ties. Timestamp changes reorder rows while preserving selection and expansion.
+The core supplies captions, source names and shared menus. Trees owns virtualization,
 selection, focus and expansion; path changes preserve expanded directories. A preview navigation selects/reveals its
 row and expands ancestors without moving keyboard focus; unrelated list updates preserve the human’s expansion. Scoped shadow CSS gives each row a
 32 px icon/preview and separate filename/caption lines, including bounded truncation backgrounds.

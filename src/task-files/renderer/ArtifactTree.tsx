@@ -7,6 +7,7 @@ import rowCSS from './rows.css?raw';
 
 export interface ArtifactTreeEntry {
   path: string;
+  time: number;
   caption: string;
   thumb?: string | null;
 }
@@ -47,9 +48,13 @@ export function ArtifactTree({ entries, actions, selectedPath, selectionVersion 
   const pendingThumbnails = useRef(new Set<string>());
   const scheduledThumbnails = useRef(false);
   const requestedThumbnails = useRef(new Set<string>());
-  const previousPaths = useRef(entries.map((e) => e.path));
+  const previousEntries = useRef(entries.map(({ path, time }) => ({ path, time })));
   const { model } = useFileTree({
     paths: entries.map((e) => e.path), flattenEmptyDirectories: false, initialExpansion: 'closed',
+    // Trees builds parents before their children; sibling directories still compare by modification time.
+    sort: (a, b) => Number(b.isDirectory) - Number(a.isDirectory) || (a.isDirectory ? a.depth - b.depth : 0)
+      || (current.current.byPath.get(b.path)?.time ?? 0) - (current.current.byPath.get(a.path)?.time ?? 0)
+      || a.basename.localeCompare(b.basename, 'en', { numeric: true, sensitivity: 'base' }) || a.path.localeCompare(b.path, 'en'),
     itemHeight: 52, icons: thumbnailIcons(entries), unsafeCSS: treeFocusCSS + rowCSS,
     dragAndDrop: { canDrop: () => false },
     renderRowDecoration: ({ item }) => {
@@ -75,8 +80,8 @@ export function ArtifactTree({ entries, actions, selectedPath, selectionVersion 
   useLayoutEffect(() => {
     current.current = { actions, byPath: new Map(entries.map((e) => [e.path, e])) };
     requestedThumbnails.current.clear();
-    const paths = entries.map((e) => e.path);
-    if (paths.length !== previousPaths.current.length || paths.some((path, i) => path !== previousPaths.current[i])) {
+    if (entries.length !== previousEntries.current.length || entries.some((e, i) => e.path !== previousEntries.current[i]?.path || e.time !== previousEntries.current[i]?.time)) {
+      const paths = entries.map((e) => e.path);
       const directories = new Set<string>();
       for (const path of paths) {
         for (let at = path.indexOf('/'); at !== -1; at = path.indexOf('/', at + 1)) directories.add(path.slice(0, at + 1));
@@ -85,8 +90,13 @@ export function ArtifactTree({ entries, actions, selectedPath, selectionVersion 
         const item = model.getItem(path);
         return item && 'isExpanded' in item && item.isExpanded();
       });
-      model.resetPaths(paths, { initialExpandedPaths: expanded });
-      previousPaths.current = paths;
+      model.resetPaths(paths);
+      // Trees' initialExpandedPaths lookup assumes alphabetical siblings; date order needs path handles (#424).
+      for (const path of expanded) {
+        const item = model.getItem(path);
+        if (item && 'expand' in item) item.expand();
+      }
+      previousEntries.current = entries.map(({ path, time }) => ({ path, time }));
     }
     model.setIcons(thumbnailIcons(entries));
   }, [model, entries, actions]);

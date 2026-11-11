@@ -91,8 +91,8 @@ Side bar, or drag its divider to resize it. Terminals keep running when you swit
 - **Project** shows the current task's code folders. Expand folders; click a file to select it, double-click or
   press Enter to open it. Right-click for **Open**, **Open in System Application** or **Show in Folder**.
   A repository's **⋯** or right-click menu offers **Open Folder** and, for an added copy, **Remove Repository**.
-- **Artifacts** shows the task's completed files and folders as a tree, folders first and alphabetically. Expand a
-  folder; click a file or press Enter to preview it in the Main pane. Right-click a file or folder to open, reveal,
+- **Artifacts** shows the task's completed files and folders as a tree, folders first, then newest modified first
+  within each group. Expand a folder; click a file or press Enter to preview it in the Main pane. Right-click a file or folder to open, reveal,
   send to the agent or delete it. The heading's trash deletes all results. Drag a file to another app or folder. **Send to Agent** puts
   its path in the agent's input for you to review and send. **File Folders** opens results, all temporary material or
   one conversation's temporary folder in your file manager.
@@ -189,7 +189,8 @@ three steps. **Back** keeps your choices; on the first step of the welcome it re
    **Web app / CLI app / Not sure yet** offers starting ideas for your first request. Every choice keeps access to
    browser profiles and interactive terminals. No environment opens automatically and no request is sent for you.
 
-**Create project** opens the first task with your chosen agent. Change the setup later in Settings.
+**Create project** opens the first task with **Agents** selected in Workbench and your chosen agent's terminal
+ready for your request. Change the setup later in Settings.
 
 ### A project's page
 

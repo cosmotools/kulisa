@@ -30,15 +30,17 @@ function Example() {
     {/* Draw the shared work area with theme tokens. Real environments here would start processes before setup. */}
     <div className="relative"><div className="overflow-hidden rounded-xl border bg-muted/40 shadow-sm">
       <div className="flex h-9 items-center gap-2 border-b bg-card px-4 text-xs"><PanelTopIcon className="size-3.5 text-muted-foreground" />{web ? 'Build an online store' : 'Build your own coding agent'}<span className="ms-auto flex items-center gap-1 text-muted-foreground"><GitBranchIcon className="size-3" />{web ? 'checkout' : 'agent-tools'}</span></div>
-      <TabsContent value="web"><WebExample /></TabsContent>
-      <TabsContent value="cli"><CliExample /></TabsContent>
+      <div className="grid">
+        <div inert={!web} className={`col-start-1 row-start-1 ${web ? '' : 'invisible'}`}><TabsContent forceMount value="web"><WebExample key={example} /></TabsContent></div>
+        <div inert={web} className={`col-start-1 row-start-1 ${web ? 'invisible' : ''}`}><TabsContent forceMount value="cli"><CliExample key={example} /></TabsContent></div>
+      </div>
       <AgentTerminal key={example} web={web} controls={<Button type="button" variant="ghost" size="icon-xs" className="motion-reduce:hidden" aria-label={paused ? 'Play demonstration' : 'Pause demonstration'} title={paused ? 'Play demonstration' : 'Pause demonstration'} onClick={() => setPaused((x) => !x)}>{paused ? <PlayIcon /> : <PauseIcon />}</Button>} />
     </div>
     <CoffeeBreak key={example} />
     </div>
-    {!web && <p className="mt-2 flex items-center justify-center gap-2 text-xs text-muted-foreground">
+    <p className={`mt-2 flex items-center justify-center gap-2 text-xs text-muted-foreground ${web ? 'invisible' : ''}`}>
       <KeyboardIcon className="size-3.5 shrink-0" />You and your agent can use the same terminal.
-    </p>}
+    </p>
   </Tabs></div>;
 }
 
