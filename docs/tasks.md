@@ -110,10 +110,11 @@ state and shared expanded width.
 
 - Expanded minimum width is 300 CSS px; collapsed width is 40 px. Development minimum height is 204 px to keep
   controls reachable. Empty development terminals: [window.md](window.md#the-terminal).
-- **Agents**: named agent/shell rows with state/account/command. Icon returns to the last development terminal;
-  row selection shows/focuses it. + uses the shared launch menu; × asks for agents, closes shells
+- **Agents**: initially selected Activity bar item; named agent/shell rows with state/account/command.
+  Icon returns to the last development terminal; row selection shows/focuses it. + uses the shared launch menu;
+  × asks for agents, closes shells
   immediately. Agent menu: Change agent, New Conversation, Close.
-- **Project**: initially selected Activity bar item; [Project Explorer](../src/project-explorer/README.md) browses task resource roots.
+- **Project**: [Project Explorer](../src/project-explorer/README.md) browses task resource roots.
   Core supplies roots, the [Editor](../src/editor/README.md), protected desktop opening and repository actions.
   A single file click selects its row; double-click/Enter opens text in Project's Main pane; other files use
   the system app. The shared header shows the branch; exceptions stay beside their repository. Root click expands, double-click

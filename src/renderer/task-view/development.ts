@@ -62,7 +62,7 @@ export class DevelopmentGrid {
       const resources = api.addEdgeGroup('left', { ...resourcesEdge, initialSize: previous?.expandedWidth });
       for (const [section, title] of Object.entries(activityItems)) api.addPanel({ id: `resources:${section}`, component: 'resources',
         tabComponent: 'resources', title, params: { section }, position: { referenceGroup: 'resources' }, inactive: true });
-      const section = previous?.section && Object.hasOwn(activityItems, previous.section) ? previous.section : 'project';
+      const section = previous?.section && Object.hasOwn(activityItems, previous.section) ? previous.section : this.screen();
       api.getPanel(`resources:${section}`)!.api.setActive();
       if (previous?.section === null) resources.collapse();
     }

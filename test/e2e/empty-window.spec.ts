@@ -6,7 +6,7 @@ import type { Core } from './fixtures.ts';
 import type { Files } from './data.ts';
 import { fakeAgent } from './agent-helpers.ts';
 import type { Locator, Page } from '@playwright/test';
-import { ipcSettled, choose, showResources, invoke, typeIn, notLoading, projectMenu, fromSidebar, sidebar, removed, answer, termKeys, termShows } from './helpers.ts';
+import { ipcSettled, choose, invoke, typeIn, notLoading, projectMenu, fromSidebar, sidebar, removed, answer, termKeys, termShows } from './helpers.ts';
 import { begin, taskShown } from './tasks-helpers.ts';
 
 // Closing through the menu is tested below; other scenarios need only the resulting empty window.
@@ -247,7 +247,7 @@ test('creating a project keeps the chosen account and folder and logs the action
     expect(await core((k, id) => k.shell.store.projects().find((p) => p.id === id).agents, shopId)).toEqual([account]);
     await notLoading(ui);
     const typed = 'private-terminal-input';
-    await showResources(ui, 'Agents');
+    await expect(ui.getByRole('tab', { name: 'Agents', exact: true })).toHaveAttribute('aria-selected', 'true');
     await termKeys(ui).pressSequentially(typed);
     await termShows(ui, typed);
     const logged = files.log();

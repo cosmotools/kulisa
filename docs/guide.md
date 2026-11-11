@@ -189,7 +189,8 @@ three steps. **Back** keeps your choices; on the first step of the welcome it re
    **Web app / CLI app / Not sure yet** offers starting ideas for your first request. Every choice keeps access to
    browser profiles and interactive terminals. No environment opens automatically and no request is sent for you.
 
-**Create project** opens the first task with your chosen agent. Change the setup later in Settings.
+**Create project** opens the first task with **Agents** selected in Workbench and your chosen agent's terminal
+ready for your request. Change the setup later in Settings.
 
 ### A project's page
 
