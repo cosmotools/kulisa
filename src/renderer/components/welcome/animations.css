@@ -7,7 +7,8 @@
   animation-timing-function: linear;
   animation-fill-mode: both;
 }
-.welcome-demo[data-paused="true"] [data-demo-motion] { animation-play-state: paused; }
+.welcome-demo[data-paused="true"] [data-demo-motion],
+.welcome-demo [data-state="inactive"] [data-demo-motion] { animation-play-state: paused; }
 
 .welcome-agent { opacity: 0; animation-name: welcome-agent; }
 .welcome-demo .welcome-agent { animation-timing-function: ease-in-out; }
