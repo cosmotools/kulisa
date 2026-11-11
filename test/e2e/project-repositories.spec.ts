@@ -27,6 +27,7 @@ test('projects: several repositories: a task works in the main tree until it mak
   const repo = (name: string) => committed(path.join(root, name), 'a.txt', name, name);
   const api = repo('api'), web = repo('web');
   await openFolder(core, ui, api);
+  await showResources(ui, 'Project');
   const pid = files.pid('api'), first = await core((k) => k.shell.task.key), firstId = first.split('/')[1];
   const of = (key: string) => core((k, t) => { const x = k.shell.taskByKey(t); return { folder: x.folder, worktrees: x.worktrees.map((c) => ({ repo: c.repo, folder: c.folder, branch: c.branch })), addable: x.addable(), dirs: x.dirs() }; }, key);
   const tree = ui.locator('[data-task-view][data-active] [data-resources]');

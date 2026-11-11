@@ -37,7 +37,7 @@ export interface TaskState {
 export type TaskStore = StoreApi<TaskState>;
 const makeTask = (key: string) => createStore<TaskState>()(() => ({
   key, profiles: [], closedProfiles: [], developmentTerminals: { task: key, front: null, list: [] },
-  workbenchItem: 'project', developmentDiff: null, selectedArtifact: null, artifactNavigation: 0, developmentTerminalFocus: null, stageTerminals: [], stageTerminalFocus: null, stageLayout: null, stageOverflow: false,
+  workbenchItem: 'terminals', developmentDiff: null, selectedArtifact: null, artifactNavigation: 0, developmentTerminalFocus: null, stageTerminals: [], stageTerminalFocus: null, stageLayout: null, stageOverflow: false,
   stageFollowPaused: false, stageActivity: null, stagePosition: 'above', artifacts: { task: key, list: [], bytes: 0 },
   loading: true, captions: {}, picking: {}, pictures: {},
 }));

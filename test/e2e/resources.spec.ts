@@ -5,14 +5,16 @@ import { test, expect } from './fixtures.ts';
 import { showResources, resourcesGroup, developmentBox, terminalRows, termKeys, act, dock, invoke, windowSubmenu, choose, closeMenu, frames, ipcSettled, rightClick, menu } from './helpers.ts';
 import { committed, git, openFolder, showTask } from './tasks-helpers.ts';
 
-test('Resources starts with Project, expands folders, opens files and follows projects', async ({ core, ui, files }) => {
+test('Workbench starts with Agents, Project expands folders and opens files, and selections follow tasks', async ({ core, ui, files }) => {
   const first = await core((k) => ({ key: k.shell.task.key, folder: k.shell.task.folder }));
   const directory = path.join(first.folder, 'tree-example');
   fs.mkdirSync(directory, { recursive: true });
   const file = path.join(directory, 'readme.txt');
   fs.writeFileSync(file, 'project file');
   fs.writeFileSync(path.join(first.folder, 'tree-selection.txt'), 'another file');
-  await expect(ui.getByRole('tab', { name: 'Project', exact: true })).toHaveAttribute('aria-selected', 'true');
+  await expect(ui.getByRole('tab', { name: 'Agents', exact: true })).toHaveAttribute('aria-selected', 'true');
+  await expect(ui.getByTestId('development-terminals')).toBeVisible();
+  await showResources(ui, 'Project');
   await ui.locator('[data-task-view][data-active] [data-resources]').getByRole('treeitem', { name: 'tree-example', exact: true }).click();
   const row = ui.locator('[data-task-view][data-active] [data-resources]').getByRole('treeitem', { name: 'readme.txt', exact: true });
   await expect(row).toBeVisible();
@@ -52,7 +54,8 @@ test('Resources starts with Project, expands folders, opens files and follows pr
   fs.mkdirSync(other, { recursive: true });
   fs.writeFileSync(path.join(other, 'other.txt'), 'other project');
   await openFolder(core, ui, other);
-  await expect(ui.getByRole('tab', { name: 'Project', exact: true })).toHaveAttribute('aria-selected', 'true');
+  await expect(ui.getByRole('tab', { name: 'Agents', exact: true })).toHaveAttribute('aria-selected', 'true');
+  await showResources(ui, 'Project');
   await expect(ui.locator('[data-task-view][data-active] [data-resources]').getByRole('treeitem', { name: 'other.txt', exact: true })).toBeVisible();
   await expect(ui.locator('[data-task-view][data-active] [data-resources]').getByRole('treeitem', { name: 'tree-example', exact: true })).toHaveCount(0);
   expect((await invoke(ui, 'task:file:list', { key: await core((k) => k.shell.task.key), folder: first.folder })).error).toBeTruthy();
